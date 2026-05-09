@@ -1,0 +1,14 @@
+[versions]
+libbulletjme = "23.0.0"
+snaploader = "1.1.1-stable"
+hytale-gradle = "1.0.22"
+
+[libraries]
+libbulletjme = { module = "com.github.stephengold:Libbulletjme-Linux64", version.ref = "libbulletjme" }
+# TODO: Linux and others...
+libbulletjme-native = { module = "com.github.stephengold:Libbulletjme-Linux64", version.ref = "libbulletjme" }
+snaploader = { module = "io.github.electrostat-lab:snaploader", version.ref = "snaploader" }
+
+[plugins]
+hytale-workspace = { id = "com.azuredoom.hytale-workspace", version.ref = "hytale-gradle" }
+hytale-tools = { id = "com.azuredoom.hytale-tools", version.ref = "hytale-gradle" }
