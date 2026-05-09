@@ -11,6 +11,9 @@ pluginManagement {
 dependencyResolutionManagement {
     repositories {
         mavenCentral()
+        maven {
+            url = uri("https://maven.azuredoom.com/mods")
+        }
     }
 }
 

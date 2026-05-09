@@ -6,8 +6,8 @@ group = property("group") as String
 version = property("version") as String
 
 hytaleWorkspace {
-    modProjects = listOf(":impulse-core", ":impulse-examples")
-    hostProject = ":impulse-core"
+    modProjects = listOf(":impulse-examples", ":impulse-core")
+    hostProject = ":impulse-examples"
 
     manifestGroup = property("manifest_group") as String
     hytaleVersion = property("hytale_version") as String
@@ -19,5 +19,12 @@ subprojects {
         the<JavaPluginExtension>().toolchain {
             languageVersion.set(JavaLanguageVersion.of((property("java_version") as String).toInt()))
         }
+    }
+}
+
+// fix to make runAllMods accept input
+gradle.projectsEvaluated {
+    tasks.named("runAllMods").configure {
+        (this as JavaExec).standardInput = System.`in`
     }
 }

@@ -2,12 +2,18 @@
 libbulletjme = "23.0.0"
 snaploader = "1.1.1-stable"
 hytale-gradle = "1.0.22"
+lombok = "1.18.38"
+joml = "1.10.5"
+jsr305 = "3.0.2"
 
 [libraries]
 libbulletjme = { module = "com.github.stephengold:Libbulletjme-Linux64", version.ref = "libbulletjme" }
 # TODO: Linux and others...
 libbulletjme-native = { module = "com.github.stephengold:Libbulletjme-Linux64", version.ref = "libbulletjme" }
 snaploader = { module = "io.github.electrostat-lab:snaploader", version.ref = "snaploader" }
+lombok = { module = "org.projectlombok:lombok", version.ref = "lombok" }
+joml = { module = "org.joml:joml", version.ref = "joml" }
+jsr305 = { module = "com.google.code.findbugs:jsr305", version.ref = "jsr305" }
 
 [plugins]
 hytale-workspace = { id = "com.azuredoom.hytale-workspace", version.ref = "hytale-gradle" }
