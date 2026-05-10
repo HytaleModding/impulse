@@ -2,8 +2,8 @@ package dev.hytalemodding.impulse.examples.commands;
 
 import com.hypixel.hytale.component.AddReason;
 import com.hypixel.hytale.component.Holder;
-import com.hypixel.hytale.component.Store;
 import com.hypixel.hytale.component.Ref;
+import com.hypixel.hytale.component.Store;
 import com.hypixel.hytale.server.core.Message;
 import com.hypixel.hytale.server.core.command.system.CommandContext;
 import com.hypixel.hytale.server.core.command.system.basecommands.AbstractAsyncPlayerCommand;
@@ -13,8 +13,8 @@ import com.hypixel.hytale.server.core.modules.time.TimeResource;
 import com.hypixel.hytale.server.core.universe.PlayerRef;
 import com.hypixel.hytale.server.core.universe.world.World;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
-import dev.hytalemodding.impulse.api.ImpulseBody;
 import dev.hytalemodding.impulse.api.Impulse;
+import dev.hytalemodding.impulse.api.ImpulseBody;
 import dev.hytalemodding.impulse.core.components.PhysicsBodyComponent;
 import dev.hytalemodding.impulse.core.resources.PhysicsWorldResource;
 import java.util.concurrent.CompletableFuture;
@@ -24,24 +24,23 @@ import org.joml.Vector3d;
 /**
  * Spawn a visible block entity that falls under Bullet physics.
  */
-public class DropCommand extends AbstractAsyncPlayerCommand
-{
-    public DropCommand()
-    {
+public class DropCommand extends AbstractAsyncPlayerCommand {
+
+    public DropCommand() {
         super("drop", "Spawn a physics box that falls under gravity");
     }
 
     @Nonnull
     @Override
     protected CompletableFuture<Void> executeAsync(@Nonnull CommandContext ctx,
-                                                   @Nonnull Store<EntityStore> store,
-                                                   @Nonnull Ref<EntityStore> ref,
-                                                   @Nonnull PlayerRef playerRef,
-                                                   @Nonnull World world)
-    {
-        TransformComponent playerTransform = store.getComponent(ref, TransformComponent.getComponentType());
-        if (playerTransform == null)
-        {
+        @Nonnull Store<EntityStore> store,
+        @Nonnull Ref<EntityStore> ref,
+        @Nonnull PlayerRef playerRef,
+        @Nonnull World world) {
+        TransformComponent playerTransform = store.getComponent(ref,
+            TransformComponent.getComponentType());
+
+        if (playerTransform == null) {
             ctx.sender().sendMessage(Message.raw("Cannot determine player position."));
             return CompletableFuture.completedFuture(null);
         }
@@ -54,14 +53,14 @@ public class DropCommand extends AbstractAsyncPlayerCommand
         TimeResource time = store.getResource(TimeResource.getResourceType());
 
         Holder<EntityStore> holder = BlockEntity.assembleDefaultBlockEntity(
-                time,
-                // FIXME: hardcoded value
-                "Rock_Stone",
-                new Vector3d(spawnX, spawnY, spawnZ)
+            time,
+            // FIXME: hardcoded value
+            "Rock_Stone",
+            new Vector3d(spawnX, spawnY, spawnZ)
         );
 
         ImpulseBody box = Impulse.createBox(0.5f, 0.5f, 0.5f, 1.0f);
-        box.setPosition(spawnX, spawnY, spawnZ);
+        box.setPosition(spawnX, spawnY + box.getCenterOfMassOffsetY(), spawnZ);
         box.setRestitution(0.5f);
         box.setFriction(0.5f);
 
@@ -72,7 +71,8 @@ public class DropCommand extends AbstractAsyncPlayerCommand
 
         store.addEntity(holder, AddReason.SPAWN);
 
-        ctx.sender().sendMessage(Message.raw("Dropped box at " + spawnX + ", " + spawnY + ", " + spawnZ));
+        ctx.sender()
+            .sendMessage(Message.raw("Dropped box at " + spawnX + ", " + spawnY + ", " + spawnZ));
 
         return CompletableFuture.completedFuture(null);
     }

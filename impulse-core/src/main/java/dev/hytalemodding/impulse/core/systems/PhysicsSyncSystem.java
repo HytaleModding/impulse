@@ -17,11 +17,10 @@ import org.joml.Vector3d;
 import org.joml.Vector3f;
 
 /**
- * Reads position/rotation from Bullet bodies and writes them into
- * the Hytale {@link TransformComponent} each tick.
+ * Synchronizes physics bodies with Hytale transforms each tick.
  */
-public class PhysicsSyncSystem extends EntityTickingSystem<EntityStore>
-{
+public class PhysicsSyncSystem extends EntityTickingSystem<EntityStore> {
+
     private static final ComponentType<EntityStore, PhysicsBodyComponent> PHYSICS_BODY_TYPE = PhysicsBodyComponent.getComponentType();
     private static final ComponentType<EntityStore, TransformComponent> TRANSFORM_TYPE = TransformComponent.getComponentType();
 
@@ -29,42 +28,38 @@ public class PhysicsSyncSystem extends EntityTickingSystem<EntityStore>
 
     @Nonnull
     @Override
-    public Query<EntityStore> getQuery()
-    {
+    public Query<EntityStore> getQuery() {
         return QUERY;
     }
 
     @Override
     public void tick(float dt,
-                     int index,
-                     @Nonnull ArchetypeChunk<EntityStore> chunk,
-                     @Nonnull Store<EntityStore> store,
-                     @Nonnull CommandBuffer<EntityStore> commandBuffer)
-    {
+        int index,
+        @Nonnull ArchetypeChunk<EntityStore> chunk,
+        @Nonnull Store<EntityStore> store,
+        @Nonnull CommandBuffer<EntityStore> commandBuffer) {
         PhysicsBodyComponent physicsBody = chunk.getComponent(index, PHYSICS_BODY_TYPE);
         TransformComponent transform = chunk.getComponent(index, TRANSFORM_TYPE);
 
-        if (physicsBody == null || transform == null)
-        {
+        if (physicsBody == null || transform == null) {
             return;
         }
 
         ImpulseBody body = physicsBody.getBody();
-        if (body.isStatic())
-        {
+        if (body.isStatic()) {
             return;
         }
 
         Vector3f pos = body.getPosition();
         // NOTE: use quaternions for future manipulations
         Quaternionf rot = body.getRotation();
+        float offsetY = body.getCenterOfMassOffsetY();
 
-        transform.setPosition(new Vector3d(pos.x, pos.y, pos.z));
+        transform.setPosition(new Vector3d(pos.x, pos.y - offsetY, pos.z));
         transform.setRotation(toRotation3f(rot));
     }
 
-    private static Rotation3f toRotation3f(Quaternionf q)
-    {
+    private static Rotation3f toRotation3f(Quaternionf q) {
         Vector3f euler = q.getEulerAnglesYXZ(new Vector3f());
         return new Rotation3f(euler.x(), euler.y(), euler.z());
     }

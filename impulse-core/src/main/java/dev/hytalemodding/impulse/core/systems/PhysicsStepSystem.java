@@ -10,14 +10,14 @@ import javax.annotation.Nonnull;
 /**
  * Steps the physics world each tick.
  */
-public class PhysicsStepSystem extends TickingSystem<ChunkStore>
-{
+public class PhysicsStepSystem extends TickingSystem<ChunkStore> {
+
     @Override
-    public void tick(float dt, int index, @Nonnull Store<ChunkStore> store)
-    {
+    public void tick(float dt, int index, @Nonnull Store<ChunkStore> store) {
         var world = store.getExternalData().getWorld();
         var entityStore = world.getEntityStore().getStore();
-        PhysicsWorldResource resource = entityStore.getResource(PhysicsWorldResource.getResourceType());
+        PhysicsWorldResource resource = entityStore.getResource(
+            PhysicsWorldResource.getResourceType());
 
         resource.getSpace().step(dt);
     }

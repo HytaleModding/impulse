@@ -6,23 +6,26 @@ import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import dev.hytalemodding.impulse.api.ImpulseSpace;
 import dev.hytalemodding.impulse.core.ImpulsePlugin;
 import javax.annotation.Nonnull;
+import lombok.Getter;
+import lombok.Setter;
 
 /**
  * ECS resource that holds the physics space for a world.
  */
-public class PhysicsWorldResource implements Resource<EntityStore>
-{
+public class PhysicsWorldResource implements Resource<EntityStore> {
+
     private ImpulseSpace space;
 
-    public PhysicsWorldResource()
-    {
+    @Setter
+    @Getter
+    private boolean debugEnabled;
+
+    public PhysicsWorldResource() {
     }
 
     @Nonnull
-    public ImpulseSpace getSpace()
-    {
-        if (space == null)
-        {
+    public ImpulseSpace getSpace() {
+        if (space == null) {
             space = ImpulsePlugin.createDefaultSpace();
         }
         return space;
@@ -35,8 +38,7 @@ public class PhysicsWorldResource implements Resource<EntityStore>
 
     @Nonnull
     @Override
-    public PhysicsWorldResource clone()
-    {
+    public PhysicsWorldResource clone() {
         PhysicsWorldResource copy = new PhysicsWorldResource();
         // FIXME: deepcopy?
         copy.space = space;

@@ -21,18 +21,15 @@ import org.joml.Vector3f;
  * <p>
  * Call {@link #init()} once before using any other API.
  */
-public final class Impulse
-{
+public final class Impulse {
+
     private static boolean initialized;
 
-    private Impulse()
-    {
+    private Impulse() {
     }
 
-    public static void init()
-    {
-        if (initialized)
-        {
+    public static void init() {
+        if (initialized) {
             return;
         }
 
@@ -49,16 +46,13 @@ public final class Impulse
         };
 
         loader.registerNativeLibraries(libraries)
-              .initPlatformLibrary()
-              .setLoggingEnabled(true);
+            .initPlatformLibrary()
+            .setLoggingEnabled(true);
         loader.setRetryWithCleanExtraction(true);
 
-        try
-        {
+        try {
             loader.loadLibrary(LoadingCriterion.CLEAN_EXTRACTION);
-        }
-        catch (Exception e)
-        {
+        } catch (Exception e) {
             throw new IllegalStateException("Failed to load the Libbulletjme native library", e);
         }
 
@@ -68,8 +62,7 @@ public final class Impulse
     /**
      * Create a new physics space with {@link com.jme3.bullet.PhysicsSpace.BroadphaseType} DBVT.
      */
-    public static ImpulseSpace createSpace()
-    {
+    public static ImpulseSpace createSpace() {
         ensureInitialized();
         return new ImpulseSpace(new PhysicsSpace(PhysicsSpace.BroadphaseType.DBVT));
     }
@@ -77,8 +70,7 @@ public final class Impulse
     /**
      * Create a static ground plane at the given Y level.
      */
-    public static ImpulseBody createStaticPlane(float groundY)
-    {
+    public static ImpulseBody createStaticPlane(float groundY) {
         ensureInitialized();
         Plane plane = new Plane(com.jme3.math.Vector3f.UNIT_Y, groundY);
         CollisionShape shape = new PlaneCollisionShape(plane);
@@ -89,10 +81,10 @@ public final class Impulse
     /**
      * Create a dynamic box body with the given half-extents and mass.
      */
-    public static ImpulseBody createBox(float halfX, float halfY, float halfZ, float mass)
-    {
+    public static ImpulseBody createBox(float halfX, float halfY, float halfZ, float mass) {
         ensureInitialized();
-        CollisionShape shape = new BoxCollisionShape(new com.jme3.math.Vector3f(halfX, halfY, halfZ));
+        CollisionShape shape = new BoxCollisionShape(
+            new com.jme3.math.Vector3f(halfX, halfY, halfZ));
         PhysicsRigidBody body = new PhysicsRigidBody(shape, mass);
         return new ImpulseBody(body);
     }
@@ -100,19 +92,18 @@ public final class Impulse
     /**
      * Create a dynamic box body with the given half-extents and mass.
      */
-    public static ImpulseBody createBox(@Nonnull Vector3f halfExtents, float mass)
-    {
+    public static ImpulseBody createBox(@Nonnull Vector3f halfExtents, float mass) {
         ensureInitialized();
-        CollisionShape shape = new BoxCollisionShape(new com.jme3.math.Vector3f(halfExtents.x, halfExtents.y, halfExtents.z));
+        CollisionShape shape = new BoxCollisionShape(
+            new com.jme3.math.Vector3f(halfExtents.x, halfExtents.y, halfExtents.z));
         PhysicsRigidBody body = new PhysicsRigidBody(shape, mass);
         return new ImpulseBody(body);
     }
 
-    private static void ensureInitialized()
-    {
-        if (!initialized)
-        {
-            throw new IllegalStateException("ImpulseLib not initialized — call ImpulseLib.init() first");
+    private static void ensureInitialized() {
+        if (!initialized) {
+            throw new IllegalStateException(
+                "ImpulseLib not initialized — call ImpulseLib.init() first");
         }
     }
 }

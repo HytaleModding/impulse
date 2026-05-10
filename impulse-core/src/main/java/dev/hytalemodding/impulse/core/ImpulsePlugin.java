@@ -8,60 +8,35 @@ import com.hypixel.hytale.server.core.plugin.JavaPlugin;
 import com.hypixel.hytale.server.core.plugin.JavaPluginInit;
 import com.hypixel.hytale.server.core.universe.world.storage.ChunkStore;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
-import dev.hytalemodding.impulse.api.ImpulseBody;
 import dev.hytalemodding.impulse.api.Impulse;
+import dev.hytalemodding.impulse.api.ImpulseBody;
 import dev.hytalemodding.impulse.api.ImpulseSpace;
 import dev.hytalemodding.impulse.core.components.PhysicsBodyComponent;
 import dev.hytalemodding.impulse.core.resources.PhysicsWorldResource;
+import dev.hytalemodding.impulse.core.systems.PhysicsCleanupSystem;
+import dev.hytalemodding.impulse.core.systems.PhysicsDebugSystem;
 import dev.hytalemodding.impulse.core.systems.PhysicsStepSystem;
 import dev.hytalemodding.impulse.core.systems.PhysicsSyncSystem;
 import javax.annotation.Nonnull;
-
 import lombok.Getter;
 
-public final class ImpulsePlugin extends JavaPlugin
-{
-    private static ImpulsePlugin INSTANCE;
+public final class ImpulsePlugin extends JavaPlugin {
+
+    private static ImpulsePlugin instance;
     private static final HytaleLogger LOGGER = HytaleLogger.forEnclosingClass();
 
-    @Getter private ComponentType<EntityStore, PhysicsBodyComponent> physicsBodyComponentType;
+    @Getter
+    private ComponentType<EntityStore, PhysicsBodyComponent> physicsBodyComponentType;
 
-    @Getter private ResourceType<EntityStore, PhysicsWorldResource> physicsWorldResourceType;
+    @Getter
+    private ResourceType<EntityStore, PhysicsWorldResource> physicsWorldResourceType;
 
-    public ImpulsePlugin(@Nonnull JavaPluginInit init)
-    {
+    public ImpulsePlugin(@Nonnull JavaPluginInit init) {
         super(init);
-        INSTANCE = this;
+        instance = this;
     }
 
-
-    @Override
-    protected void setup()
-    {
-        Impulse.init();
-
-        registerComponents();
-        registerSystems();
-    }
-
-    private void registerComponents()
-    {
-        ComponentRegistryProxy<EntityStore> entityRegistry = getEntityStoreRegistry();
-        physicsBodyComponentType = entityRegistry.registerComponent(PhysicsBodyComponent.class, PhysicsBodyComponent::new);
-        physicsWorldResourceType = entityRegistry.registerResource(PhysicsWorldResource.class, PhysicsWorldResource::new);
-    }
-
-    private void registerSystems()
-    {
-        ComponentRegistryProxy<ChunkStore> chunkRegistry = getChunkStoreRegistry();
-        chunkRegistry.registerSystem(new PhysicsStepSystem());
-
-        ComponentRegistryProxy<EntityStore> entityRegistry = getEntityStoreRegistry();
-        entityRegistry.registerSystem(new PhysicsSyncSystem());
-    }
-
-    public static ImpulseSpace createDefaultSpace()
-    {
+    public static ImpulseSpace createDefaultSpace() {
         ImpulseSpace space = Impulse.createSpace();
         // FIXME: ad hoc Y value for testing
         ImpulseBody ground = Impulse.createStaticPlane(122f);
@@ -70,6 +45,32 @@ public final class ImpulsePlugin extends JavaPlugin
     }
 
     public static ImpulsePlugin get() {
-        return INSTANCE;
+        return instance;
+    }
+
+    @Override
+    protected void setup() {
+        Impulse.init();
+
+        registerComponents();
+        registerSystems();
+    }
+
+    private void registerComponents() {
+        ComponentRegistryProxy<EntityStore> entityRegistry = getEntityStoreRegistry();
+        physicsBodyComponentType = entityRegistry.registerComponent(PhysicsBodyComponent.class,
+            PhysicsBodyComponent::new);
+        physicsWorldResourceType = entityRegistry.registerResource(PhysicsWorldResource.class,
+            PhysicsWorldResource::new);
+    }
+
+    private void registerSystems() {
+        ComponentRegistryProxy<ChunkStore> chunkRegistry = getChunkStoreRegistry();
+        chunkRegistry.registerSystem(new PhysicsStepSystem());
+        chunkRegistry.registerSystem(new PhysicsDebugSystem());
+
+        ComponentRegistryProxy<EntityStore> entityRegistry = getEntityStoreRegistry();
+        entityRegistry.registerSystem(new PhysicsSyncSystem());
+        entityRegistry.registerSystem(new PhysicsCleanupSystem());
     }
 }

@@ -6,43 +6,32 @@ import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import dev.hytalemodding.impulse.api.ImpulseBody;
 import dev.hytalemodding.impulse.core.ImpulsePlugin;
 import javax.annotation.Nonnull;
+import lombok.Getter;
+import lombok.Setter;
 
 /**
  * ECS component that links a Hytale entity to a Impulse Rigid body.
  */
-public class PhysicsBodyComponent implements Component<EntityStore>
-{
+public class PhysicsBodyComponent implements Component<EntityStore> {
+
+    @Setter
+    @Getter(onMethod_ = @__(@Nonnull))
     private ImpulseBody body;
 
-    public PhysicsBodyComponent()
-    {
+    public PhysicsBodyComponent() {
     }
 
-    public PhysicsBodyComponent(@Nonnull ImpulseBody body)
-    {
+    public PhysicsBodyComponent(@Nonnull ImpulseBody body) {
         this.body = body;
     }
 
-    @Nonnull
-    public ImpulseBody getBody()
-    {
-        return body;
-    }
-
-    public void setBody(@Nonnull ImpulseBody body)
-    {
-        this.body = body;
-    }
-
-    public static ComponentType<EntityStore, PhysicsBodyComponent> getComponentType()
-    {
+    public static ComponentType<EntityStore, PhysicsBodyComponent> getComponentType() {
         return ImpulsePlugin.get().getPhysicsBodyComponentType();
     }
 
     @Nonnull
     @Override
-    public PhysicsBodyComponent clone()
-    {
+    public PhysicsBodyComponent clone() {
         return new PhysicsBodyComponent(body);
     }
 }
