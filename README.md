@@ -2,12 +2,10 @@
 
 Physics library for Hytale. 
 
-Currently wrapping [Libbulletjme](https://github.com/stephengold/Libbulletjme) as physics backend.
-
 ## Modules
 
 - **impulse-api** - backend-agnostic API layer and contracts.
-- **impulse-bullet** - Libbulletjme backend implementation.
+- **impulse-bullet** - [Libbulletjme](https://github.com/stephengold/Libbulletjme) backend implementation.
 - **impulse-core** - Hytale ECS integration.
 - **impulse-examples** - example plugins to understand library usage.
 
