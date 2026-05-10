@@ -3,8 +3,8 @@ package dev.hytalemodding.impulse.core.systems;
 import com.hypixel.hytale.component.Store;
 import com.hypixel.hytale.component.system.tick.TickingSystem;
 import com.hypixel.hytale.server.core.universe.world.storage.ChunkStore;
+import dev.hytalemodding.impulse.api.PhysicsSpace;
 import dev.hytalemodding.impulse.core.resources.PhysicsWorldResource;
-
 import javax.annotation.Nonnull;
 
 /**
@@ -19,6 +19,8 @@ public class PhysicsStepSystem extends TickingSystem<ChunkStore> {
         PhysicsWorldResource resource = entityStore.getResource(
             PhysicsWorldResource.getResourceType());
 
-        resource.getSpace().step(dt);
+        for (PhysicsSpace space : resource.getSpaces(world.getName())) {
+            space.step(dt);
+        }
     }
 }

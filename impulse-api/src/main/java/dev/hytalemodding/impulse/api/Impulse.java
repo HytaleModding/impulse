@@ -1,109 +1,105 @@
 package dev.hytalemodding.impulse.api;
 
-import com.jme3.bullet.PhysicsSpace;
-import com.jme3.bullet.collision.shapes.BoxCollisionShape;
-import com.jme3.bullet.collision.shapes.CollisionShape;
-import com.jme3.bullet.collision.shapes.PlaneCollisionShape;
-import com.jme3.bullet.objects.PhysicsBody;
-import com.jme3.bullet.objects.PhysicsRigidBody;
-import com.jme3.math.Plane;
-import electrostatic4j.snaploader.LibraryInfo;
-import electrostatic4j.snaploader.LoadingCriterion;
-import electrostatic4j.snaploader.NativeBinaryLoader;
-import electrostatic4j.snaploader.filesystem.DirectoryPath;
-import electrostatic4j.snaploader.platform.NativeDynamicLibrary;
-import electrostatic4j.snaploader.platform.util.PlatformPredicate;
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.Map;
+import java.util.Set;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 import javax.annotation.Nonnull;
-import org.joml.Vector3f;
 
 /**
- * Entry point for the Impulse physics library.
- * <p>
- * Call {@link #init()} once before using any other API.
+ * Entry point and backend registry for Impulse.
  */
 public final class Impulse {
 
-    private static boolean initialized;
+    private static final Logger LOGGER = Logger.getLogger("Impulse");
+
+    private static final Object REGISTRY_LOCK = new Object();
+
+    private static final Map<BackendId, PhysicsBackend> BACKENDS = new HashMap<>();
+
+    private static final Map<BackendId, Object> BACKEND_INIT_LOCKS = new HashMap<>();
+
+    private static final Set<BackendId> INITIALIZED_BACKENDS = new HashSet<>();
 
     private Impulse() {
     }
 
-    public static void init() {
-        if (initialized) {
-            return;
+    /**
+     * Register or replace a backend implementation.
+     * <p>
+     * This method is thread-safe.
+     */
+    public static void registerBackend(@Nonnull PhysicsBackend backend) {
+        synchronized (REGISTRY_LOCK) {
+            BACKENDS.put(backend.getId(), backend);
+            BACKEND_INIT_LOCKS.computeIfAbsent(backend.getId(), ignored -> new Object());
+            INITIALIZED_BACKENDS.remove(backend.getId());
+        }
+    }
+
+    @Nonnull
+    public static Collection<PhysicsBackend> getBackends() {
+        synchronized (REGISTRY_LOCK) {
+            return Collections.unmodifiableCollection(new ArrayList<>(BACKENDS.values()));
+        }
+    }
+
+    @Nonnull
+    public static PhysicsBackend getBackend(@Nonnull BackendId backendId) {
+        synchronized (REGISTRY_LOCK) {
+            PhysicsBackend backend = BACKENDS.get(backendId);
+            if (backend == null) {
+                throw new IllegalStateException("No backend registered with id: " + backendId);
+            }
+            return backend;
+        }
+    }
+
+    /**
+     * Create a space for the given backend id.
+     */
+    @Nonnull
+    public static PhysicsSpace createSpace(@Nonnull BackendId backendId) {
+        PhysicsBackend backend = getBackend(backendId);
+        ensureBackendInitialized(backendId, backend);
+        return backend.createSpace();
+    }
+
+    private static void ensureBackendInitialized(@Nonnull BackendId backendId,
+        @Nonnull PhysicsBackend backend) {
+        Object initLock;
+        synchronized (REGISTRY_LOCK) {
+            if (INITIALIZED_BACKENDS.contains(backendId)) {
+                LOGGER.log(Level.FINEST,
+                    "Physics backend " + backendId + " already initialized");
+                return;
+            }
+            initLock = BACKEND_INIT_LOCKS.computeIfAbsent(backendId, ignored -> new Object());
         }
 
-        LibraryInfo info = new LibraryInfo(null, "bulletjme", DirectoryPath.USER_DIR);
-        NativeBinaryLoader loader = new NativeBinaryLoader(info);
+        synchronized (initLock) {
+            synchronized (REGISTRY_LOCK) {
+                if (INITIALIZED_BACKENDS.contains(backendId)) {
+                    LOGGER.log(Level.FINEST,
+                        "Physics backend " + backendId + " already initialized");
+                    return;
+                }
+            }
 
-        NativeDynamicLibrary[] libraries = {
-            new NativeDynamicLibrary("native/linux/arm64", PlatformPredicate.LINUX_ARM_64),
-            new NativeDynamicLibrary("native/linux/arm32", PlatformPredicate.LINUX_ARM_32),
-            new NativeDynamicLibrary("native/linux/x86_64", PlatformPredicate.LINUX_X86_64),
-            new NativeDynamicLibrary("native/osx/arm64", PlatformPredicate.MACOS_ARM_64),
-            new NativeDynamicLibrary("native/osx/x86_64", PlatformPredicate.MACOS_X86_64),
-            new NativeDynamicLibrary("native/windows/x86_64", PlatformPredicate.WIN_X86_64)
-        };
+            LOGGER.log(Level.FINE,
+                "Initializing physics backend " + backendId + " on thread "
+                    + Thread.currentThread().getName());
+            backend.init();
 
-        loader.registerNativeLibraries(libraries)
-            .initPlatformLibrary()
-            .setLoggingEnabled(true);
-        loader.setRetryWithCleanExtraction(true);
-
-        try {
-            loader.loadLibrary(LoadingCriterion.CLEAN_EXTRACTION);
-        } catch (Exception e) {
-            throw new IllegalStateException("Failed to load the Libbulletjme native library", e);
-        }
-
-        initialized = true;
-    }
-
-    /**
-     * Create a new physics space with {@link com.jme3.bullet.PhysicsSpace.BroadphaseType} DBVT.
-     */
-    public static ImpulseSpace createSpace() {
-        ensureInitialized();
-        return new ImpulseSpace(new PhysicsSpace(PhysicsSpace.BroadphaseType.DBVT));
-    }
-
-    /**
-     * Create a static ground plane at the given Y level.
-     */
-    public static ImpulseBody createStaticPlane(float groundY) {
-        ensureInitialized();
-        Plane plane = new Plane(com.jme3.math.Vector3f.UNIT_Y, groundY);
-        CollisionShape shape = new PlaneCollisionShape(plane);
-        PhysicsRigidBody body = new PhysicsRigidBody(shape, PhysicsBody.massForStatic);
-        return new ImpulseBody(body);
-    }
-
-    /**
-     * Create a dynamic box body with the given half-extents and mass.
-     */
-    public static ImpulseBody createBox(float halfX, float halfY, float halfZ, float mass) {
-        ensureInitialized();
-        CollisionShape shape = new BoxCollisionShape(
-            new com.jme3.math.Vector3f(halfX, halfY, halfZ));
-        PhysicsRigidBody body = new PhysicsRigidBody(shape, mass);
-        return new ImpulseBody(body);
-    }
-
-    /**
-     * Create a dynamic box body with the given half-extents and mass.
-     */
-    public static ImpulseBody createBox(@Nonnull Vector3f halfExtents, float mass) {
-        ensureInitialized();
-        CollisionShape shape = new BoxCollisionShape(
-            new com.jme3.math.Vector3f(halfExtents.x, halfExtents.y, halfExtents.z));
-        PhysicsRigidBody body = new PhysicsRigidBody(shape, mass);
-        return new ImpulseBody(body);
-    }
-
-    private static void ensureInitialized() {
-        if (!initialized) {
-            throw new IllegalStateException(
-                "ImpulseLib not initialized — call ImpulseLib.init() first");
+            synchronized (REGISTRY_LOCK) {
+                INITIALIZED_BACKENDS.add(backendId);
+            }
+            LOGGER.log(Level.INFO, "Initialized physics backend " + backendId);
         }
     }
 }

@@ -7,6 +7,7 @@ version = rootProject.version
 dependencies {
     implementation(project(":impulse-api"))
     compileOnly(project(":impulse-core"))
+    runtimeOnly(project(":impulse-bullet"))
     compileOnly(libs.lombok)
     annotationProcessor(libs.lombok)
 }

@@ -1,0 +1,53 @@
+package dev.hytalemodding.impulse.api;
+
+import java.nio.file.Path;
+import java.util.logging.Level;
+import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
+
+/**
+ * Backend factory and lifecycle hooks.
+ * <ul>
+ *     <li>{@link #init()} must be idempotent and safe when called multiple times.</li>
+ *     <li>Backends are expected to be used through {@link Impulse}, which provides
+ *     thread-safe one-time initialization.</li>
+ *     <li>{@link #createSpace()} may be called from multiple world threads after initialization.
+ *     Implementations with mutable factory state must synchronize internally.</li>
+ * </ul>
+ */
+public interface PhysicsBackend {
+
+    @Nonnull
+    BackendId getId();
+
+    /**
+     * Set the plugin data directory where backend-specific files (e.g. native libraries)
+     * can be extracted. Called by the plugin before {@link #init()}.
+     * Backends that do not need a data directory can implement this as a no-op.
+     */
+    default void setDataDirectory(@Nullable Path dataDirectory) {
+    }
+
+    /**
+     * Set the verbosity of the backend's internal library logging.
+     * Backends should map this level to their own logging system.
+     * The default implementation is a no-op.
+     *
+     * @param level the desired logging level; Level.OFF suppresses all internal logging,
+     *              Level.INFO allows standard output, Level.FINEST enables verbose diagnostics
+     */
+    default void setInternalLoggingLevel(@Nonnull Level level) {
+    }
+
+    /**
+     * Initialize backend-global state such as native libraries.
+     */
+    void init();
+
+    /**
+     * Create a new independent simulation space. This method may be called concurrently after
+     * {@link #init()} has completed.
+     */
+    @Nonnull
+    PhysicsSpace createSpace();
+}

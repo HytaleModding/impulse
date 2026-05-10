@@ -11,7 +11,7 @@ public final class ImpulseExamplesPlugin extends JavaPlugin {
 
     private static ImpulseExamplesPlugin instance;
 
-    private static final HytaleLogger LOGGER = HytaleLogger.forEnclosingClass();
+    private static final HytaleLogger LOGGER = HytaleLogger.get("Impulse");
 
     public ImpulseExamplesPlugin(@Nonnull JavaPluginInit init) {
         super(init);

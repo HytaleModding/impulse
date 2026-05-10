@@ -8,22 +8,25 @@ import com.hypixel.hytale.server.core.plugin.JavaPlugin;
 import com.hypixel.hytale.server.core.plugin.JavaPluginInit;
 import com.hypixel.hytale.server.core.universe.world.storage.ChunkStore;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
+import dev.hytalemodding.impulse.api.BackendId;
 import dev.hytalemodding.impulse.api.Impulse;
-import dev.hytalemodding.impulse.api.ImpulseBody;
-import dev.hytalemodding.impulse.api.ImpulseSpace;
+import dev.hytalemodding.impulse.api.PhysicsBackend;
 import dev.hytalemodding.impulse.core.components.PhysicsBodyComponent;
 import dev.hytalemodding.impulse.core.resources.PhysicsWorldResource;
 import dev.hytalemodding.impulse.core.systems.PhysicsCleanupSystem;
 import dev.hytalemodding.impulse.core.systems.PhysicsDebugSystem;
 import dev.hytalemodding.impulse.core.systems.PhysicsStepSystem;
 import dev.hytalemodding.impulse.core.systems.PhysicsSyncSystem;
+import java.util.Optional;
+import java.util.ServiceLoader;
+import java.util.logging.Level;
 import javax.annotation.Nonnull;
 import lombok.Getter;
 
 public final class ImpulsePlugin extends JavaPlugin {
 
     private static ImpulsePlugin instance;
-    private static final HytaleLogger LOGGER = HytaleLogger.forEnclosingClass();
+    private static final HytaleLogger LOGGER = HytaleLogger.get("Impulse");
 
     @Getter
     private ComponentType<EntityStore, PhysicsBodyComponent> physicsBodyComponentType;
@@ -31,17 +34,12 @@ public final class ImpulsePlugin extends JavaPlugin {
     @Getter
     private ResourceType<EntityStore, PhysicsWorldResource> physicsWorldResourceType;
 
+    @Getter
+    private BackendId defaultBackendId;
+
     public ImpulsePlugin(@Nonnull JavaPluginInit init) {
         super(init);
         instance = this;
-    }
-
-    public static ImpulseSpace createDefaultSpace() {
-        ImpulseSpace space = Impulse.createSpace();
-        // FIXME: ad hoc Y value for testing
-        ImpulseBody ground = Impulse.createStaticPlane(122f);
-        space.addBody(ground);
-        return space;
     }
 
     public static ImpulsePlugin get() {
@@ -50,10 +48,32 @@ public final class ImpulsePlugin extends JavaPlugin {
 
     @Override
     protected void setup() {
-        Impulse.init();
+        discoverBackends();
 
         registerComponents();
         registerSystems();
+    }
+
+    private void discoverBackends() {
+        ServiceLoader<PhysicsBackend> loader = ServiceLoader.load(PhysicsBackend.class);
+        for (PhysicsBackend backend : loader) {
+            Impulse.registerBackend(backend);
+            backend.setDataDirectory(getDataDirectory());
+            LOGGER.at(Level.INFO).log("Registered physics backend %s", backend.getId());
+        }
+
+        if (Impulse.getBackends().isEmpty()) {
+            throw new IllegalStateException("No physics backends discovered");
+        }
+
+        // fallback default backend
+        Optional<PhysicsBackend> bullet = Impulse.getBackends().stream()
+            .filter(backend -> "impulse:bullet".equals(backend.getId().value()))
+            .findFirst();
+
+        defaultBackendId = bullet
+            .map(PhysicsBackend::getId)
+            .orElseGet(() -> Impulse.getBackends().iterator().next().getId());
     }
 
     private void registerComponents() {

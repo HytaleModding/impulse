@@ -6,9 +6,10 @@ Currently wrapping [Libbulletjme](https://github.com/stephengold/Libbulletjme) a
 
 ## Modules
 
-- **impulse-api** - API layer and translation layer.
+- **impulse-api** - backend-agnostic API layer and contracts.
+- **impulse-bullet** - Libbulletjme backend implementation.
 - **impulse-core** - Hytale ECS integration.
-- **impulse-examples** - Example plugins to understand library usage
+- **impulse-examples** - example plugins to understand library usage.
 
 ## Getting started
 
