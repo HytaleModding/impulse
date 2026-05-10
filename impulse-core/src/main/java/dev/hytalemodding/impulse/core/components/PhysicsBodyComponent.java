@@ -3,9 +3,11 @@ package dev.hytalemodding.impulse.core.components;
 import com.hypixel.hytale.component.Component;
 import com.hypixel.hytale.component.ComponentType;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
-import dev.hytalemodding.impulse.api.ImpulseBody;
+import dev.hytalemodding.impulse.api.PhysicsBody;
+import dev.hytalemodding.impulse.api.SpaceId;
 import dev.hytalemodding.impulse.core.ImpulsePlugin;
 import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
 import lombok.Getter;
 import lombok.Setter;
 
@@ -16,13 +18,19 @@ public class PhysicsBodyComponent implements Component<EntityStore> {
 
     @Setter
     @Getter(onMethod_ = @__(@Nonnull))
-    private ImpulseBody body;
+    private PhysicsBody body;
+
+    @Setter
+    @Getter
+    @Nullable
+    private SpaceId spaceId;
 
     public PhysicsBodyComponent() {
     }
 
-    public PhysicsBodyComponent(@Nonnull ImpulseBody body) {
+    public PhysicsBodyComponent(@Nonnull PhysicsBody body, @Nullable SpaceId spaceId) {
         this.body = body;
+        this.spaceId = spaceId;
     }
 
     public static ComponentType<EntityStore, PhysicsBodyComponent> getComponentType() {
@@ -32,6 +40,6 @@ public class PhysicsBodyComponent implements Component<EntityStore> {
     @Nonnull
     @Override
     public PhysicsBodyComponent clone() {
-        return new PhysicsBodyComponent(body);
+        return new PhysicsBodyComponent(body, spaceId);
     }
 }

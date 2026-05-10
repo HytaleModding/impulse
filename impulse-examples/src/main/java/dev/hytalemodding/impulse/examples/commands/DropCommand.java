@@ -13,8 +13,8 @@ import com.hypixel.hytale.server.core.modules.time.TimeResource;
 import com.hypixel.hytale.server.core.universe.PlayerRef;
 import com.hypixel.hytale.server.core.universe.world.World;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
-import dev.hytalemodding.impulse.api.Impulse;
-import dev.hytalemodding.impulse.api.ImpulseBody;
+import dev.hytalemodding.impulse.api.PhysicsBody;
+import dev.hytalemodding.impulse.api.PhysicsSpace;
 import dev.hytalemodding.impulse.core.components.PhysicsBodyComponent;
 import dev.hytalemodding.impulse.core.resources.PhysicsWorldResource;
 import java.util.concurrent.CompletableFuture;
@@ -59,15 +59,18 @@ public class DropCommand extends AbstractAsyncPlayerCommand {
             new Vector3d(spawnX, spawnY, spawnZ)
         );
 
-        ImpulseBody box = Impulse.createBox(0.5f, 0.5f, 0.5f, 1.0f);
+        PhysicsWorldResource resource = store.getResource(PhysicsWorldResource.getResourceType());
+        PhysicsSpace mainSpace = resource.getMainSpace(world.getName());
+
+        PhysicsBody box = mainSpace.createBox(0.5f, 0.5f, 0.5f, 1.0f);
         box.setPosition(spawnX, spawnY + box.getCenterOfMassOffsetY(), spawnZ);
         box.setRestitution(0.5f);
         box.setFriction(0.5f);
 
-        PhysicsWorldResource resource = store.getResource(PhysicsWorldResource.getResourceType());
-        resource.getSpace().addBody(box);
+        mainSpace.addBody(box);
 
-        holder.addComponent(PhysicsBodyComponent.getComponentType(), new PhysicsBodyComponent(box));
+        holder.addComponent(PhysicsBodyComponent.getComponentType(),
+            new PhysicsBodyComponent(box, resource.getMainSpaceId()));
 
         store.addEntity(holder, AddReason.SPAWN);
 

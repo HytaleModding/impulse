@@ -8,7 +8,9 @@ import com.hypixel.hytale.component.Store;
 import com.hypixel.hytale.component.query.Query;
 import com.hypixel.hytale.component.system.RefSystem;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
-import dev.hytalemodding.impulse.api.ImpulseBody;
+import dev.hytalemodding.impulse.api.PhysicsBody;
+import dev.hytalemodding.impulse.api.PhysicsSpace;
+import dev.hytalemodding.impulse.api.SpaceId;
 import dev.hytalemodding.impulse.core.components.PhysicsBodyComponent;
 import dev.hytalemodding.impulse.core.resources.PhysicsWorldResource;
 import javax.annotation.Nonnull;
@@ -39,10 +41,16 @@ public class PhysicsCleanupSystem extends RefSystem<EntityStore> {
             return;
         }
 
-        ImpulseBody body = component.getBody();
+        PhysicsBody body = component.getBody();
 
         PhysicsWorldResource resource = store.getResource(PhysicsWorldResource.getResourceType());
-        resource.getSpace().removeBody(body);
+        String worldName = store.getExternalData().getWorld().getName();
+        SpaceId spaceId = component.getSpaceId();
+        PhysicsSpace space = spaceId != null ? resource.getSpace(spaceId)
+            : resource.getMainSpace(worldName);
+        if (space != null) {
+            space.removeBody(body);
+        }
     }
 
     @Nonnull

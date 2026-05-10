@@ -9,8 +9,10 @@ import com.hypixel.hytale.component.system.tick.EntityTickingSystem;
 import com.hypixel.hytale.math.vector.Rotation3f;
 import com.hypixel.hytale.server.core.modules.entity.component.TransformComponent;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
-import dev.hytalemodding.impulse.api.ImpulseBody;
+import dev.hytalemodding.impulse.api.PhysicsBody;
+import dev.hytalemodding.impulse.api.SpaceId;
 import dev.hytalemodding.impulse.core.components.PhysicsBodyComponent;
+import dev.hytalemodding.impulse.core.resources.PhysicsWorldResource;
 import javax.annotation.Nonnull;
 import org.joml.Quaternionf;
 import org.joml.Vector3d;
@@ -45,7 +47,13 @@ public class PhysicsSyncSystem extends EntityTickingSystem<EntityStore> {
             return;
         }
 
-        ImpulseBody body = physicsBody.getBody();
+        PhysicsWorldResource resource = store.getResource(PhysicsWorldResource.getResourceType());
+        SpaceId spaceId = physicsBody.getSpaceId();
+        if (spaceId != null && resource.getSpace(spaceId) == null) {
+            return;
+        }
+
+        PhysicsBody body = physicsBody.getBody();
         if (body.isStatic()) {
             return;
         }
