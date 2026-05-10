@@ -31,4 +31,4 @@ See [.editorconfig](.editorconfig) for the full formatting configuration.
 
 ## License
 
-See [LICENSE](LICENSE)
+The Impulse project follows the [MIT](LICENSE). Third-party licenses are under [licenses/](licenses/).
