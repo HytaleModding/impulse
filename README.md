@@ -1,0 +1,34 @@
+# Impulse
+
+Physics library for Hytale. 
+
+Currently wrapping [Libbulletjme](https://github.com/stephengold/Libbulletjme) as physics backend.
+
+## Modules
+
+- **impulse-api** - API layer and 
+- **impulse-core** - Hytale ECS integration.
+- **impulse-examples** - Example plugins to understand library usage
+
+## Getting started
+
+You can start a debug server with all the example mods by running:
+
+```bash
+./gradlew runAllMods
+```
+
+## Code of Conduct
+This project and everyone participating in it is governed by HytaleModding's 
+[Code of Conduct](https://github.com/HytaleModding/site/blob/main/CODE_OF_CONDUCT.md). 
+By participating, you are expected to uphold this code. 
+Please report unacceptable behavior to the project maintainers.
+
+## Code style
+
+The project uses Google Java Style with K&R braces and 4 spaces indentation. 
+See [.editorconfig](.editorconfig) for the full formatting configuration.
+
+## License
+
+See [LICENSE](LICENSE)
