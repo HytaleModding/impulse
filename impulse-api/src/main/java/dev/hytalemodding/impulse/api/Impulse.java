@@ -65,9 +65,23 @@ public final class Impulse {
      */
     @Nonnull
     public static PhysicsSpace createSpace(@Nonnull BackendId backendId) {
+        return createSpace(backendId, SpaceId.next());
+    }
+
+    /**
+     * Create a space for the given backend id and logical space id.
+     */
+    @Nonnull
+    public static PhysicsSpace createSpace(@Nonnull BackendId backendId,
+        @Nonnull SpaceId spaceId) {
         PhysicsBackend backend = getBackend(backendId);
         ensureBackendInitialized(backendId, backend);
-        return backend.createSpace();
+        PhysicsSpace space = backend.createSpace(spaceId);
+        if (!spaceId.equals(space.getId())) {
+            throw new IllegalStateException("Backend " + backendId
+                + " created space id " + space.getId() + " but expected " + spaceId);
+        }
+        return space;
     }
 
     private static void ensureBackendInitialized(@Nonnull BackendId backendId,

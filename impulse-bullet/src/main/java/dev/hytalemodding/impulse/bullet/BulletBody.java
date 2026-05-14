@@ -20,14 +20,25 @@ import org.joml.Vector3f;
 public final class BulletBody implements PhysicsBody {
 
     private final PhysicsRigidBody body;
+    private final com.jme3.math.Vector3f jmeVectorScratch = new com.jme3.math.Vector3f();
+    private final com.jme3.math.Quaternion jmeQuaternionScratch = new com.jme3.math.Quaternion();
+    private float planeGroundY = Float.NaN;
 
     BulletBody(@Nonnull PhysicsRigidBody body) {
         this.body = body;
     }
 
+    BulletBody(@Nonnull PhysicsRigidBody body, float planeGroundY) {
+        this.body = body;
+        this.planeGroundY = planeGroundY;
+    }
+
     @Override
     public void setPosition(float x, float y, float z) {
         body.setPhysicsLocation(toJme(x, y, z));
+        if (getShapeType() == ShapeType.PLANE) {
+            planeGroundY = y;
+        }
     }
 
     @Override
@@ -38,7 +49,15 @@ public final class BulletBody implements PhysicsBody {
     @Nonnull
     @Override
     public Vector3f getPosition() {
-        return fromJme(body.getPhysicsLocation(new com.jme3.math.Vector3f()));
+        Vector3f out = new Vector3f();
+        getPosition(out);
+        return out;
+    }
+
+    @Override
+    public void getPosition(@Nonnull Vector3f out) {
+        com.jme3.math.Vector3f position = body.getPhysicsLocation(jmeVectorScratch);
+        out.set(position.x, position.y, position.z);
     }
 
     @Override
@@ -54,8 +73,15 @@ public final class BulletBody implements PhysicsBody {
     @Nonnull
     @Override
     public Quaternionf getRotation() {
-        com.jme3.math.Quaternion rot = body.getPhysicsRotation(new com.jme3.math.Quaternion());
-        return new Quaternionf(rot.getX(), rot.getY(), rot.getZ(), rot.getW());
+        Quaternionf out = new Quaternionf();
+        getRotation(out);
+        return out;
+    }
+
+    @Override
+    public void getRotation(@Nonnull Quaternionf out) {
+        com.jme3.math.Quaternion rotation = body.getPhysicsRotation(jmeQuaternionScratch);
+        out.set(rotation.getX(), rotation.getY(), rotation.getZ(), rotation.getW());
     }
 
     @Override
@@ -166,7 +192,15 @@ public final class BulletBody implements PhysicsBody {
     @Nonnull
     @Override
     public Vector3f getLinearVelocity() {
-        return fromJme(body.getLinearVelocity(new com.jme3.math.Vector3f()));
+        Vector3f out = new Vector3f();
+        getLinearVelocity(out);
+        return out;
+    }
+
+    @Override
+    public void getLinearVelocity(@Nonnull Vector3f out) {
+        com.jme3.math.Vector3f velocity = body.getLinearVelocity(jmeVectorScratch);
+        out.set(velocity.x, velocity.y, velocity.z);
     }
 
     @Override
@@ -182,7 +216,15 @@ public final class BulletBody implements PhysicsBody {
     @Nonnull
     @Override
     public Vector3f getAngularVelocity() {
-        return fromJme(body.getAngularVelocity(new com.jme3.math.Vector3f()));
+        Vector3f out = new Vector3f();
+        getAngularVelocity(out);
+        return out;
+    }
+
+    @Override
+    public void getAngularVelocity(@Nonnull Vector3f out) {
+        com.jme3.math.Vector3f velocity = body.getAngularVelocity(jmeVectorScratch);
+        out.set(velocity.x, velocity.y, velocity.z);
     }
 
     @Override
@@ -349,6 +391,16 @@ public final class BulletBody implements PhysicsBody {
         if (shape instanceof CapsuleCollisionShape capsule) {
             return capsule.getRadius();
         }
+        if (shape instanceof CylinderCollisionShape cylinder) {
+            com.jme3.math.Vector3f halfExtents = cylinder.getHalfExtents(
+                new com.jme3.math.Vector3f());
+            return switch (cylinder.getAxis()) {
+                case 0 -> Math.max(halfExtents.y, halfExtents.z);
+                case 1 -> Math.max(halfExtents.x, halfExtents.z);
+                case 2 -> Math.max(halfExtents.x, halfExtents.y);
+                default -> Math.max(halfExtents.x, Math.max(halfExtents.y, halfExtents.z));
+            };
+        }
         if (shape instanceof ConeCollisionShape cone) {
             return cone.getRadius();
         }
@@ -411,6 +463,17 @@ public final class BulletBody implements PhysicsBody {
                 : cone.maxRadius();
         }
         return 0f;
+    }
+
+    @Override
+    public float getPlaneGroundY() {
+        if (getShapeType() != ShapeType.PLANE) {
+            return Float.NaN;
+        }
+        if (Float.isNaN(planeGroundY)) {
+            planeGroundY = getPosition().y;
+        }
+        return planeGroundY;
     }
 
     @Nonnull

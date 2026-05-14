@@ -45,9 +45,12 @@ public final class BulletSpace implements PhysicsSpace {
     private final Map<Long, BulletBody> bodiesByNativeId = new HashMap<>();
     private final List<BulletBody> bodies = new ArrayList<>();
     private final List<BulletJoint> joints = new ArrayList<>();
+    private boolean closed;
 
-    BulletSpace(@Nonnull BulletBackend backend, @Nonnull com.jme3.bullet.PhysicsSpace space) {
-        this.id = SpaceId.next();
+    BulletSpace(@Nonnull SpaceId id,
+        @Nonnull BulletBackend backend,
+        @Nonnull com.jme3.bullet.PhysicsSpace space) {
+        this.id = id;
         this.backend = backend;
         this.space = space;
     }
@@ -114,7 +117,7 @@ public final class BulletSpace implements PhysicsSpace {
         CollisionShape shape = new PlaneCollisionShape(plane);
         PhysicsRigidBody body = new PhysicsRigidBody(shape,
             com.jme3.bullet.objects.PhysicsBody.massForStatic);
-        return trackBody(new BulletBody(body));
+        return trackBody(new BulletBody(body, groundY));
     }
 
     @Nonnull
@@ -306,7 +309,7 @@ public final class BulletSpace implements PhysicsSpace {
         joint.setDamping(0, damping);
         joint.setEquilibriumPoint(0);
         BulletJoint wrapped = new BulletJoint(PhysicsJointType.SPRING, bulletA, bulletB, joint,
-            anchorA, anchorB, new Vector3f(1f, 0f, 0f));
+            anchorA, anchorB, new Vector3f(1f, 0f, 0f), restLength, stiffness, damping);
         wrapped.setLimits(-restLength, restLength);
         return addJoint(wrapped);
     }
@@ -324,6 +327,30 @@ public final class BulletSpace implements PhysicsSpace {
     @Override
     public List<PhysicsJoint> getJoints() {
         return new ArrayList<>(joints);
+    }
+
+    @Override
+    public void close() {
+        if (closed) {
+            return;
+        }
+
+        closed = true;
+        try {
+            for (BulletJoint joint : new ArrayList<>(joints)) {
+                space.removeJoint(joint.getNativeJoint());
+            }
+            joints.clear();
+
+            for (BulletBody body : new ArrayList<>(bodies)) {
+                space.removeCollisionObject(body.getRigidBody());
+            }
+            bodies.clear();
+            bodiesByRigidBody.clear();
+            bodiesByNativeId.clear();
+        } finally {
+            space.destroy();
+        }
     }
 
     private BulletJoint addJoint(@Nonnull BulletJoint joint) {

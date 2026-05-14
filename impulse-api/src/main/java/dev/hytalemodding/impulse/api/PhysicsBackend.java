@@ -53,4 +53,14 @@ public interface PhysicsBackend {
      */
     @Nonnull
     PhysicsSpace createSpace();
+
+    /**
+     * Create a new independent simulation space with a specific logical id.
+     * <p>
+     * Implementations should preserve this id on the returned space object.
+     */
+    @Nonnull
+    default PhysicsSpace createSpace(@Nonnull SpaceId spaceId) {
+        return createSpace();
+    }
 }

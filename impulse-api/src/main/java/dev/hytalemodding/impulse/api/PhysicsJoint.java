@@ -80,4 +80,28 @@ public interface PhysicsJoint {
      * Configure the joint motor when the joint supports motors.
      */
     void setMotor(float targetVelocity, float maxForce);
+
+    /**
+     * Return configured spring rest length for spring joints.
+     * Returns {@link Float#NaN} for non-spring joints.
+     */
+    default float getSpringRestLength() {
+        return Float.NaN;
+    }
+
+    /**
+     * Return configured spring stiffness for spring joints.
+     * Returns {@link Float#NaN} for non-spring joints.
+     */
+    default float getSpringStiffness() {
+        return Float.NaN;
+    }
+
+    /**
+     * Return configured spring damping for spring joints.
+     * Returns {@link Float#NaN} for non-spring joints.
+     */
+    default float getSpringDamping() {
+        return Float.NaN;
+    }
 }

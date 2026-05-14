@@ -4,6 +4,7 @@ import com.jme3.bullet.util.NativeLibrary;
 import dev.hytalemodding.impulse.api.BackendId;
 import dev.hytalemodding.impulse.api.PhysicsBackend;
 import dev.hytalemodding.impulse.api.PhysicsSpace;
+import dev.hytalemodding.impulse.api.SpaceId;
 import electrostatic4j.snaploader.LibraryInfo;
 import electrostatic4j.snaploader.LoadingCriterion;
 import electrostatic4j.snaploader.NativeBinaryLoader;
@@ -107,12 +108,18 @@ public final class BulletBackend implements PhysicsBackend {
     @Nonnull
     @Override
     public PhysicsSpace createSpace() {
+        return createSpace(SpaceId.next());
+    }
+
+    @Nonnull
+    @Override
+    public PhysicsSpace createSpace(@Nonnull SpaceId spaceId) {
         int count = SPACES_CREATED.incrementAndGet();
         LOGGER.log(Level.FINE,
             "Creating Bullet physics space #" + count + " on thread "
                 + Thread.currentThread().getName());
 
-        return new BulletSpace(this,
+        return new BulletSpace(spaceId, this,
             new com.jme3.bullet.PhysicsSpace(com.jme3.bullet.PhysicsSpace.BroadphaseType.DBVT));
     }
 }

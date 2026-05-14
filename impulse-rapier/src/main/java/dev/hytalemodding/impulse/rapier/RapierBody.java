@@ -17,11 +17,14 @@ public final class RapierBody implements PhysicsBody {
     private final float halfHeight;
     private final PhysicsAxis axis;
     private final float centerOfMassOffsetY;
+    private float planeGroundY = Float.NaN;
 
     private final Vector3f position = new Vector3f();
     private final Quaternionf rotation = new Quaternionf();
     private final Vector3f linearVelocity = new Vector3f();
     private final Vector3f angularVelocity = new Vector3f();
+    private final float[] vec3Scratch = new float[3];
+    private final float[] quatScratch = new float[4];
 
     private float mass;
     private float friction = 0.5f;
@@ -43,6 +46,7 @@ public final class RapierBody implements PhysicsBody {
         float halfHeight,
         @Nonnull PhysicsAxis axis,
         float centerOfMassOffsetY,
+        float planeGroundY,
         float mass) {
         this.shapeType = shapeType;
         this.boxHalfExtents = boxHalfExtents != null ? new Vector3f(boxHalfExtents) : null;
@@ -50,6 +54,7 @@ public final class RapierBody implements PhysicsBody {
         this.halfHeight = halfHeight;
         this.axis = axis;
         this.centerOfMassOffsetY = centerOfMassOffsetY;
+        this.planeGroundY = planeGroundY;
         this.mass = mass;
         this.bodyType = mass <= 0f ? PhysicsBodyType.STATIC : PhysicsBodyType.DYNAMIC;
     }
@@ -57,37 +62,40 @@ public final class RapierBody implements PhysicsBody {
     @Nonnull
     static RapierBody box(float halfX, float halfY, float halfZ, float mass) {
         return new RapierBody(ShapeType.BOX, new Vector3f(halfX, halfY, halfZ), -1f,
-            -1f, PhysicsAxis.Y, halfY, mass);
+            -1f, PhysicsAxis.Y, halfY, Float.NaN, mass);
     }
 
     @Nonnull
     static RapierBody sphere(float radius, float mass) {
         return new RapierBody(ShapeType.SPHERE, null, radius, -1f, PhysicsAxis.Y,
-            radius, mass);
+            radius, Float.NaN, mass);
     }
 
     @Nonnull
     static RapierBody capsule(float radius, float halfHeight, @Nonnull PhysicsAxis axis, float mass) {
         float offsetY = axis == PhysicsAxis.Y ? halfHeight + radius : radius;
-        return new RapierBody(ShapeType.CAPSULE, null, radius, halfHeight, axis, offsetY, mass);
+        return new RapierBody(ShapeType.CAPSULE, null, radius, halfHeight, axis, offsetY,
+            Float.NaN, mass);
     }
 
     @Nonnull
     static RapierBody cylinder(float radius, float halfHeight, @Nonnull PhysicsAxis axis, float mass) {
         float offsetY = axis == PhysicsAxis.Y ? halfHeight : radius;
-        return new RapierBody(ShapeType.CYLINDER, null, radius, halfHeight, axis, offsetY, mass);
+        return new RapierBody(ShapeType.CYLINDER, null, radius, halfHeight, axis, offsetY,
+            Float.NaN, mass);
     }
 
     @Nonnull
     static RapierBody cone(float radius, float halfHeight, @Nonnull PhysicsAxis axis, float mass) {
         float offsetY = axis == PhysicsAxis.Y ? halfHeight : radius;
-        return new RapierBody(ShapeType.CONE, null, radius, halfHeight, axis, offsetY, mass);
+        return new RapierBody(ShapeType.CONE, null, radius, halfHeight, axis, offsetY,
+            Float.NaN, mass);
     }
 
     @Nonnull
     static RapierBody staticPlane(float groundY) {
         RapierBody body = new RapierBody(ShapeType.PLANE, null, -1f, -1f, PhysicsAxis.Y,
-            0f, 0f);
+            0f, groundY, 0f);
         body.position.set(0f, groundY, 0f);
         return body;
     }
@@ -95,6 +103,9 @@ public final class RapierBody implements PhysicsBody {
     @Override
     public void setPosition(float x, float y, float z) {
         position.set(x, y, z);
+        if (shapeType == ShapeType.PLANE) {
+            planeGroundY = y;
+        }
         if (isAttached()) {
             RapierNative.setBodyPositionNative(getSpaceHandle(), bodyHandle, x, y, z);
         }
@@ -108,12 +119,18 @@ public final class RapierBody implements PhysicsBody {
     @Nonnull
     @Override
     public Vector3f getPosition() {
+        Vector3f out = new Vector3f();
+        getPosition(out);
+        return out;
+    }
+
+    @Override
+    public void getPosition(@Nonnull Vector3f out) {
         if (isAttached()) {
-            float[] out = new float[3];
-            RapierNative.getBodyPositionNative(getSpaceHandle(), bodyHandle, out);
-            position.set(out[0], out[1], out[2]);
+            RapierNative.getBodyPositionNative(getSpaceHandle(), bodyHandle, vec3Scratch);
+            position.set(vec3Scratch[0], vec3Scratch[1], vec3Scratch[2]);
         }
-        return new Vector3f(position);
+        out.set(position);
     }
 
     @Override
@@ -133,12 +150,18 @@ public final class RapierBody implements PhysicsBody {
     @Nonnull
     @Override
     public Quaternionf getRotation() {
+        Quaternionf out = new Quaternionf();
+        getRotation(out);
+        return out;
+    }
+
+    @Override
+    public void getRotation(@Nonnull Quaternionf out) {
         if (isAttached()) {
-            float[] out = new float[4];
-            RapierNative.getBodyRotationNative(getSpaceHandle(), bodyHandle, out);
-            setStoredRotation(out[0], out[1], out[2], out[3]);
+            RapierNative.getBodyRotationNative(getSpaceHandle(), bodyHandle, quatScratch);
+            setStoredRotation(quatScratch[0], quatScratch[1], quatScratch[2], quatScratch[3]);
         }
-        return new Quaternionf(rotation);
+        out.set(rotation);
     }
 
     @Override
@@ -249,12 +272,18 @@ public final class RapierBody implements PhysicsBody {
     @Nonnull
     @Override
     public Vector3f getLinearVelocity() {
+        Vector3f out = new Vector3f();
+        getLinearVelocity(out);
+        return out;
+    }
+
+    @Override
+    public void getLinearVelocity(@Nonnull Vector3f out) {
         if (isAttached()) {
-            float[] out = new float[3];
-            RapierNative.getBodyLinearVelocityNative(getSpaceHandle(), bodyHandle, out);
-            linearVelocity.set(out[0], out[1], out[2]);
+            RapierNative.getBodyLinearVelocityNative(getSpaceHandle(), bodyHandle, vec3Scratch);
+            linearVelocity.set(vec3Scratch[0], vec3Scratch[1], vec3Scratch[2]);
         }
-        return new Vector3f(linearVelocity);
+        out.set(linearVelocity);
     }
 
     @Override
@@ -273,12 +302,18 @@ public final class RapierBody implements PhysicsBody {
     @Nonnull
     @Override
     public Vector3f getAngularVelocity() {
+        Vector3f out = new Vector3f();
+        getAngularVelocity(out);
+        return out;
+    }
+
+    @Override
+    public void getAngularVelocity(@Nonnull Vector3f out) {
         if (isAttached()) {
-            float[] out = new float[3];
-            RapierNative.getBodyAngularVelocityNative(getSpaceHandle(), bodyHandle, out);
-            angularVelocity.set(out[0], out[1], out[2]);
+            RapierNative.getBodyAngularVelocityNative(getSpaceHandle(), bodyHandle, vec3Scratch);
+            angularVelocity.set(vec3Scratch[0], vec3Scratch[1], vec3Scratch[2]);
         }
-        return new Vector3f(angularVelocity);
+        out.set(angularVelocity);
     }
 
     @Override
@@ -465,6 +500,14 @@ public final class RapierBody implements PhysicsBody {
     @Override
     public float getCenterOfMassOffsetY() {
         return centerOfMassOffsetY;
+    }
+
+    @Override
+    public float getPlaneGroundY() {
+        if (shapeType != ShapeType.PLANE) {
+            return Float.NaN;
+        }
+        return planeGroundY;
     }
 
     boolean isAttached() {

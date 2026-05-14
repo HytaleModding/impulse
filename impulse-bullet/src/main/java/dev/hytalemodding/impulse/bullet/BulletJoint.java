@@ -24,6 +24,9 @@ final class BulletJoint implements PhysicsJoint {
     private boolean motorEnabled;
     private float motorTargetVelocity;
     private float motorMaxForce;
+    private float springRestLength = Float.NaN;
+    private float springStiffness = Float.NaN;
+    private float springDamping = Float.NaN;
 
     BulletJoint(@Nonnull PhysicsJointType type,
         @Nonnull BulletBody bodyA,
@@ -32,6 +35,20 @@ final class BulletJoint implements PhysicsJoint {
         @Nonnull Vector3f anchorA,
         @Nonnull Vector3f anchorB,
         @Nullable Vector3f axis) {
+        this(type, bodyA, bodyB, joint, anchorA, anchorB, axis,
+            Float.NaN, Float.NaN, Float.NaN);
+    }
+
+    BulletJoint(@Nonnull PhysicsJointType type,
+        @Nonnull BulletBody bodyA,
+        @Nonnull BulletBody bodyB,
+        @Nonnull com.jme3.bullet.joints.PhysicsJoint joint,
+        @Nonnull Vector3f anchorA,
+        @Nonnull Vector3f anchorB,
+        @Nullable Vector3f axis,
+        float springRestLength,
+        float springStiffness,
+        float springDamping) {
         this.type = type;
         this.bodyA = bodyA;
         this.bodyB = bodyB;
@@ -39,6 +56,9 @@ final class BulletJoint implements PhysicsJoint {
         this.anchorA = new Vector3f(anchorA);
         this.anchorB = new Vector3f(anchorB);
         this.axis = axis != null ? new Vector3f(axis) : null;
+        this.springRestLength = springRestLength;
+        this.springStiffness = springStiffness;
+        this.springDamping = springDamping;
     }
 
     @Nonnull
@@ -146,6 +166,21 @@ final class BulletJoint implements PhysicsJoint {
             slider.setTargetLinMotorVelocity(targetVelocity);
             slider.setMaxLinMotorForce(maxForce);
         }
+    }
+
+    @Override
+    public float getSpringRestLength() {
+        return springRestLength;
+    }
+
+    @Override
+    public float getSpringStiffness() {
+        return springStiffness;
+    }
+
+    @Override
+    public float getSpringDamping() {
+        return springDamping;
     }
 
     @Nonnull

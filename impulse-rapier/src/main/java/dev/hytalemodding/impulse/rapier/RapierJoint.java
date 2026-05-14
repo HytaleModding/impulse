@@ -22,6 +22,9 @@ final class RapierJoint implements PhysicsJoint {
     private boolean motorEnabled;
     private float motorTargetVelocity;
     private float motorMaxForce;
+    private final float springRestLength;
+    private final float springStiffness;
+    private final float springDamping;
 
     RapierJoint(@Nonnull RapierSpace space,
         @Nonnull PhysicsJointType type,
@@ -30,7 +33,10 @@ final class RapierJoint implements PhysicsJoint {
         long jointHandle,
         @Nonnull Vector3f anchorA,
         @Nonnull Vector3f anchorB,
-        @Nullable Vector3f axis) {
+        @Nullable Vector3f axis,
+        float springRestLength,
+        float springStiffness,
+        float springDamping) {
         this.space = space;
         this.type = type;
         this.bodyA = bodyA;
@@ -39,6 +45,9 @@ final class RapierJoint implements PhysicsJoint {
         this.anchorA = new Vector3f(anchorA);
         this.anchorB = new Vector3f(anchorB);
         this.axis = axis != null ? new Vector3f(axis) : null;
+        this.springRestLength = springRestLength;
+        this.springStiffness = springStiffness;
+        this.springDamping = springDamping;
     }
 
     @Nonnull
@@ -131,6 +140,21 @@ final class RapierJoint implements PhysicsJoint {
         motorTargetVelocity = targetVelocity;
         motorMaxForce = maxForce;
         pushMotor();
+    }
+
+    @Override
+    public float getSpringRestLength() {
+        return springRestLength;
+    }
+
+    @Override
+    public float getSpringStiffness() {
+        return springStiffness;
+    }
+
+    @Override
+    public float getSpringDamping() {
+        return springDamping;
     }
 
     long getJointHandle() {

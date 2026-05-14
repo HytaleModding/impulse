@@ -137,4 +137,12 @@ public interface PhysicsSpace {
 
     @Nonnull
     List<PhysicsJoint> getJoints();
+
+    /**
+     * Release backend resources for this space.
+     * <p>
+     * Default implementation is a no-op.
+     */
+    default void close() {
+    }
 }

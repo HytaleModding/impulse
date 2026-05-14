@@ -6,7 +6,6 @@ import com.hypixel.hytale.component.ComponentType;
 import com.hypixel.hytale.component.Store;
 import com.hypixel.hytale.component.query.Query;
 import com.hypixel.hytale.component.system.tick.EntityTickingSystem;
-import com.hypixel.hytale.math.vector.Rotation3f;
 import com.hypixel.hytale.server.core.modules.entity.component.TransformComponent;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import dev.hytalemodding.impulse.api.PhysicsBody;
@@ -14,8 +13,8 @@ import dev.hytalemodding.impulse.api.SpaceId;
 import dev.hytalemodding.impulse.core.components.PhysicsBodyComponent;
 import dev.hytalemodding.impulse.core.resources.PhysicsWorldResource;
 import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
 import org.joml.Quaternionf;
-import org.joml.Vector3d;
 import org.joml.Vector3f;
 
 /**
@@ -28,10 +27,21 @@ public class PhysicsSyncSystem extends EntityTickingSystem<EntityStore> {
 
     private static final Query<EntityStore> QUERY = Query.and(PHYSICS_BODY_TYPE, TRANSFORM_TYPE);
 
+    /**
+     * Hytale may run entity ticks in parallel. Each worker needs independent temporary objects
+     * because the backend out-parameter getters write into caller-owned vectors.
+     */
+    private final ThreadLocal<Scratch> scratch = ThreadLocal.withInitial(Scratch::new);
+
     @Nonnull
     @Override
     public Query<EntityStore> getQuery() {
         return QUERY;
+    }
+
+    @Override
+    public boolean isParallel(int archetypeChunkSize, int taskCount) {
+        return useParallel(archetypeChunkSize, taskCount);
     }
 
     @Override
@@ -47,7 +57,8 @@ public class PhysicsSyncSystem extends EntityTickingSystem<EntityStore> {
             return;
         }
 
-        PhysicsWorldResource resource = store.getResource(PhysicsWorldResource.getResourceType());
+        Scratch local = scratch.get();
+        PhysicsWorldResource resource = local.getResource(store);
         SpaceId spaceId = physicsBody.getSpaceId();
         if (spaceId != null && resource.getSpace(spaceId) == null) {
             return;
@@ -58,17 +69,33 @@ public class PhysicsSyncSystem extends EntityTickingSystem<EntityStore> {
             return;
         }
 
-        Vector3f pos = body.getPosition();
-        // NOTE: use quaternions for future manipulations
-        Quaternionf rot = body.getRotation();
+        body.getPosition(local.position);
+        body.getRotation(local.rotation);
         float offsetY = body.getCenterOfMassOffsetY();
 
-        transform.setPosition(new Vector3d(pos.x, pos.y - offsetY, pos.z));
-        transform.setRotation(toRotation3f(rot));
+        transform.getPosition().set(local.position.x, local.position.y - offsetY, local.position.z);
+        local.rotation.getEulerAnglesYXZ(local.euler);
+        transform.getRotation().set(local.euler.x, local.euler.y, local.euler.z);
     }
 
-    private static Rotation3f toRotation3f(Quaternionf q) {
-        Vector3f euler = q.getEulerAnglesYXZ(new Vector3f());
-        return new Rotation3f(euler.x(), euler.y(), euler.z());
+    private static final class Scratch {
+
+        private final Vector3f position = new Vector3f();
+        private final Quaternionf rotation = new Quaternionf();
+        private final Vector3f euler = new Vector3f();
+
+        @Nullable
+        private Store<EntityStore> cachedStore;
+        @Nullable
+        private PhysicsWorldResource cachedResource;
+
+        @Nonnull
+        private PhysicsWorldResource getResource(@Nonnull Store<EntityStore> store) {
+            if (cachedStore != store || cachedResource == null) {
+                cachedStore = store;
+                cachedResource = store.getResource(PhysicsWorldResource.getResourceType());
+            }
+            return cachedResource;
+        }
     }
 }

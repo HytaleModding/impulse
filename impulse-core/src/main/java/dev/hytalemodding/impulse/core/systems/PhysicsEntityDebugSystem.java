@@ -18,8 +18,10 @@ import org.joml.Vector3d;
 
 public class PhysicsEntityDebugSystem extends EntityTickingSystem<EntityStore> {
 
-    private static final ComponentType<EntityStore, PhysicsBodyComponent> PHYSICS_BODY_TYPE = PhysicsBodyComponent.getComponentType();
-    private static final ComponentType<EntityStore, TransformComponent> TRANSFORM_TYPE = TransformComponent.getComponentType();
+    private static final ComponentType<EntityStore, PhysicsBodyComponent> PHYSICS_BODY_TYPE =
+        PhysicsBodyComponent.getComponentType();
+    private static final ComponentType<EntityStore, TransformComponent> TRANSFORM_TYPE =
+        TransformComponent.getComponentType();
 
     private static final Query<EntityStore> QUERY = Query.and(PHYSICS_BODY_TYPE, TRANSFORM_TYPE);
 
