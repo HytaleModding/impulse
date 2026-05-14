@@ -4,6 +4,7 @@ import com.hypixel.hytale.component.ComponentRegistryProxy;
 import com.hypixel.hytale.component.ComponentType;
 import com.hypixel.hytale.component.ResourceType;
 import com.hypixel.hytale.logger.HytaleLogger;
+import com.hypixel.hytale.server.core.command.system.CommandRegistry;
 import com.hypixel.hytale.server.core.plugin.JavaPlugin;
 import com.hypixel.hytale.server.core.plugin.JavaPluginInit;
 import com.hypixel.hytale.server.core.universe.world.storage.ChunkStore;
@@ -11,6 +12,7 @@ import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import dev.hytalemodding.impulse.api.BackendId;
 import dev.hytalemodding.impulse.api.Impulse;
 import dev.hytalemodding.impulse.api.PhysicsBackend;
+import dev.hytalemodding.impulse.core.commands.ImpulseCommand;
 import dev.hytalemodding.impulse.core.components.PhysicsBodyComponent;
 import dev.hytalemodding.impulse.core.resources.PhysicsWorldResource;
 import dev.hytalemodding.impulse.core.systems.PhysicsCleanupSystem;
@@ -53,6 +55,7 @@ public final class ImpulsePlugin extends JavaPlugin {
 
         registerComponents();
         registerSystems();
+        registerCommands();
     }
 
     private void discoverBackends() {
@@ -134,5 +137,10 @@ public final class ImpulsePlugin extends JavaPlugin {
         entityRegistry.registerSystem(new PhysicsSyncSystem());
         entityRegistry.registerSystem(new PhysicsEntityDebugSystem());
         entityRegistry.registerSystem(new PhysicsCleanupSystem());
+    }
+
+    private void registerCommands() {
+        CommandRegistry commandRegistry = getCommandRegistry();
+        commandRegistry.registerCommand(new ImpulseCommand());
     }
 }

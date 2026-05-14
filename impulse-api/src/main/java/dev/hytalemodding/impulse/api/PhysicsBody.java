@@ -21,12 +21,28 @@ public interface PhysicsBody {
     @Nonnull
     Vector3f getPosition();
 
+    /**
+     * Copy the current world-space center of mass into the provided vector.
+     * Backends should override this to avoid allocating on hot sync paths.
+     */
+    default void getPosition(@Nonnull Vector3f out) {
+        out.set(getPosition());
+    }
+
     void setRotation(float x, float y, float z, float w);
 
     void setRotation(@Nonnull Quaternionf rot);
 
     @Nonnull
     Quaternionf getRotation();
+
+    /**
+     * Copy the current world-space rotation into the provided quaternion.
+     * Backends should override this to avoid allocating on hot sync paths.
+     */
+    default void getRotation(@Nonnull Quaternionf out) {
+        out.set(getRotation());
+    }
 
     void setRestitution(float restitution);
 
@@ -66,12 +82,26 @@ public interface PhysicsBody {
     @Nonnull
     Vector3f getLinearVelocity();
 
+    /**
+     * Copy the current linear velocity into the provided vector.
+     */
+    default void getLinearVelocity(@Nonnull Vector3f out) {
+        out.set(getLinearVelocity());
+    }
+
     void setLinearVelocity(@Nonnull Vector3f vel);
 
     void setLinearVelocity(float x, float y, float z);
 
     @Nonnull
     Vector3f getAngularVelocity();
+
+    /**
+     * Copy the current angular velocity into the provided vector.
+     */
+    default void getAngularVelocity(@Nonnull Vector3f out) {
+        out.set(getAngularVelocity());
+    }
 
     void setAngularVelocity(@Nonnull Vector3f vel);
 
@@ -136,4 +166,13 @@ public interface PhysicsBody {
     PhysicsAxis getShapeAxis();
 
     float getCenterOfMassOffsetY();
+
+    /**
+     * Returns the configured ground Y for plane shapes.
+     * <p>
+     * Returns {@link Float#NaN} for non-plane shapes.
+     */
+    default float getPlaneGroundY() {
+        return Float.NaN;
+    }
 }

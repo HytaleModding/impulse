@@ -29,14 +29,21 @@ public class PhysicsDebugSystem extends TickingSystem<ChunkStore> {
         }
 
         float time = PhysicsDebugRenderer.lifetime(dt);
-        for (PhysicsSpace space : resource.getSpaces(world.getName())) {
-            if (resource.isDebugShapesEnabled()) {
+        boolean debugShapes = resource.isDebugShapesEnabled();
+        boolean debugContacts = resource.isDebugContactsEnabled();
+        boolean debugJoints = resource.isDebugJointsEnabled();
+        if (!debugShapes && !debugContacts && !debugJoints) {
+            return;
+        }
+
+        for (PhysicsSpace space : resource.iterateSpaces(world.getName())) {
+            if (debugShapes) {
                 renderSpaceOnlyShapes(world, space, time);
             }
-            if (resource.isDebugContactsEnabled()) {
+            if (debugContacts) {
                 renderContacts(world, space, time);
             }
-            if (resource.isDebugJointsEnabled()) {
+            if (debugJoints) {
                 renderJoints(world, space, time);
             }
         }

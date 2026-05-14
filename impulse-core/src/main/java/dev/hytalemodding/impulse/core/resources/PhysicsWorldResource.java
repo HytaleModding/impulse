@@ -13,11 +13,11 @@ import it.unimi.dsi.fastutil.ints.Int2ObjectMap;
 import it.unimi.dsi.fastutil.ints.Int2ObjectOpenHashMap;
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.logging.Level;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 import lombok.Getter;
 import lombok.Setter;
-import java.util.logging.Level;
 
 /**
  * ECS resource that holds the physics spaces for a world.
@@ -25,9 +25,13 @@ import java.util.logging.Level;
 public class PhysicsWorldResource implements Resource<EntityStore> {
 
     private static final HytaleLogger LOGGER = HytaleLogger.get("Impulse");
+    public static final int MIN_SIMULATION_STEPS = 1;
+    public static final int MAX_SIMULATION_STEPS = 16;
 
     private final Int2ObjectMap<PhysicsSpace> spaces = new Int2ObjectOpenHashMap<>();
     private SpaceId mainSpaceId;
+    @Getter
+    private int simulationSteps = MIN_SIMULATION_STEPS;
 
     // TODO: there's probably a better place than debug flags here
     // TODO: switch to bitflags
@@ -97,7 +101,6 @@ public class PhysicsWorldResource implements Resource<EntityStore> {
 
     @Nonnull
     public PhysicsSpace createSpace(@Nonnull BackendId backendId) {
-        // TODO: add a command path that migrates an existing physics space to another backend.
         return createSpace(backendId, "<unknown>");
     }
 
@@ -138,6 +141,25 @@ public class PhysicsWorldResource implements Resource<EntityStore> {
         return new ArrayList<>(spaces.values());
     }
 
+    /**
+     * Iterate spaces without allocating a snapshot collection.
+     * Use this from tick systems that do not mutate the space map while iterating.
+     */
+    @Nonnull
+    public Iterable<PhysicsSpace> iterateSpaces() {
+        return iterateSpaces("<unknown>");
+    }
+
+    /**
+     * Iterate spaces without allocating a snapshot collection.
+     * Use this from tick systems that do not mutate the space map while iterating.
+     */
+    @Nonnull
+    public Iterable<PhysicsSpace> iterateSpaces(@Nonnull String worldName) {
+        getMainSpace(worldName);
+        return spaces.values();
+    }
+
     public void removeSpace(@Nonnull SpaceId spaceId) {
         removeSpace(spaceId, "<unknown>");
     }
@@ -156,6 +178,42 @@ public class PhysicsWorldResource implements Resource<EntityStore> {
         }
     }
 
+    /**
+     * Set how many fixed substeps are run for each server tick.
+     * Higher values can improve stability at the cost of backend step time.
+     */
+    public void setSimulationSteps(int simulationSteps) {
+        if (simulationSteps < MIN_SIMULATION_STEPS || simulationSteps > MAX_SIMULATION_STEPS) {
+            throw new IllegalArgumentException("Simulation steps must be between "
+                + MIN_SIMULATION_STEPS + " and " + MAX_SIMULATION_STEPS);
+        }
+        this.simulationSteps = simulationSteps;
+    }
+
+    @Nonnull
+    public PhysicsSpace replaceSpace(@Nonnull SpaceId spaceId,
+        @Nonnull PhysicsSpace replacement,
+        @Nonnull String worldName) {
+        if (!spaceId.equals(replacement.getId())) {
+            throw new IllegalArgumentException("Replacement space id " + replacement.getId()
+                + " does not match target id " + spaceId);
+        }
+
+        PhysicsSpace previous = spaces.get(spaceId.value());
+        if (previous == null) {
+            throw new IllegalStateException("Cannot replace missing physics space id=" + spaceId);
+        }
+
+        spaces.put(spaceId.value(), replacement);
+        LOGGER.at(Level.INFO).log(
+            "World %s replaced physics space id=%s backend=%s -> backend=%s",
+            worldName,
+            spaceId,
+            previous.getBackendId(),
+            replacement.getBackendId());
+        return previous;
+    }
+
     public static ResourceType<EntityStore, PhysicsWorldResource> getResourceType()
     {
         return ImpulsePlugin.get().getPhysicsWorldResourceType();
@@ -168,6 +226,7 @@ public class PhysicsWorldResource implements Resource<EntityStore> {
         // FIXME: deepcopy?
         copy.spaces.putAll(spaces);
         copy.mainSpaceId = mainSpaceId;
+        copy.simulationSteps = simulationSteps;
         copy.debugEnabled = debugEnabled;
         copy.debugShapesEnabled = debugShapesEnabled;
         copy.debugMotionEnabled = debugMotionEnabled;

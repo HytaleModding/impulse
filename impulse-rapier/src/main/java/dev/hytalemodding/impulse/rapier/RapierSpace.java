@@ -34,11 +34,11 @@ public final class RapierSpace implements PhysicsSpace {
     private final Map<Long, RapierBody> bodiesByHandle = new HashMap<>();
     private final List<RapierJoint> joints = new ArrayList<>();
 
-    RapierSpace(@Nonnull RapierBackend backend, long nativeSpaceHandle) {
+    RapierSpace(@Nonnull SpaceId id, @Nonnull RapierBackend backend, long nativeSpaceHandle) {
         if (nativeSpaceHandle == 0L) {
             throw new IllegalStateException("Rapier returned a null native space handle");
         }
-        this.id = SpaceId.next();
+        this.id = id;
         this.backend = backend;
         this.nativeSpaceHandle = nativeSpaceHandle;
         this.cleanable = CLEANER.register(this, new NativeSpaceCleanup(nativeSpaceHandle));
@@ -291,7 +291,8 @@ public final class RapierSpace implements PhysicsSpace {
         return nativeSpaceHandle;
     }
 
-    void dispose() {
+    @Override
+    public void close() {
         cleanable.clean();
     }
 
@@ -370,7 +371,7 @@ public final class RapierSpace implements PhysicsSpace {
             throw new IllegalStateException("Rapier returned a null native joint handle");
         }
         RapierJoint joint = new RapierJoint(this, type, rapierA, rapierB, handle,
-            anchorA, anchorB, normalizedAxis);
+            anchorA, anchorB, normalizedAxis, restLength, stiffness, damping);
         joints.add(joint);
         return joint;
     }
