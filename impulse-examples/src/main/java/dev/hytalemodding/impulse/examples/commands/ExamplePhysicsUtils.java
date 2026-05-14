@@ -6,6 +6,7 @@ import com.hypixel.hytale.component.Ref;
 import com.hypixel.hytale.component.Store;
 import com.hypixel.hytale.server.core.Message;
 import com.hypixel.hytale.server.core.command.system.CommandContext;
+import com.hypixel.hytale.server.core.command.system.arguments.system.OptionalArg;
 import com.hypixel.hytale.server.core.entity.entities.BlockEntity;
 import com.hypixel.hytale.server.core.modules.entity.component.TransformComponent;
 import com.hypixel.hytale.server.core.modules.time.TimeResource;
@@ -13,6 +14,7 @@ import com.hypixel.hytale.server.core.universe.world.World;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import dev.hytalemodding.impulse.api.PhysicsBody;
 import dev.hytalemodding.impulse.api.PhysicsSpace;
+import dev.hytalemodding.impulse.api.SpaceId;
 import dev.hytalemodding.impulse.core.components.PhysicsBodyComponent;
 import dev.hytalemodding.impulse.core.resources.PhysicsWorldResource;
 import javax.annotation.Nonnull;
@@ -62,6 +64,15 @@ final class ExamplePhysicsUtils {
         @Nonnull PhysicsBody body,
         @Nonnull Vector3d visualPosition) {
         TimeResource time = store.getResource(TimeResource.getResourceType());
+        spawnBlockBody(store, time, resource.getMainSpaceId(), space, body, visualPosition);
+    }
+
+    static void spawnBlockBody(@Nonnull Store<EntityStore> store,
+        @Nonnull TimeResource time,
+        @Nonnull SpaceId spaceId,
+        @Nonnull PhysicsSpace space,
+        @Nonnull PhysicsBody body,
+        @Nonnull Vector3d visualPosition) {
         Holder<EntityStore> holder = BlockEntity.assembleDefaultBlockEntity(
             time,
             DEFAULT_BLOCK_TYPE,
@@ -74,8 +85,20 @@ final class ExamplePhysicsUtils {
         space.addBody(body);
 
         holder.addComponent(PhysicsBodyComponent.getComponentType(),
-            new PhysicsBodyComponent(body, resource.getMainSpaceId()));
+            new PhysicsBodyComponent(body, spaceId));
         store.addEntity(holder, AddReason.SPAWN);
+    }
+
+    static int optionalInt(@Nonnull CommandContext ctx,
+        @Nonnull OptionalArg<Integer> arg,
+        int defaultValue,
+        int min,
+        int max) {
+        int value = arg.provided(ctx) ? arg.get(ctx) : defaultValue;
+        if (value < min) {
+            return min;
+        }
+        return Math.min(value, max);
     }
 
     static Vector3d bodyCenter(@Nonnull PhysicsBody body) {
