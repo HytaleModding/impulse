@@ -8,6 +8,11 @@ public class ImpulseCommand extends AbstractCommandCollection {
     public ImpulseCommand() {
         super("impulse", "Impulse physics commands");
         addSubCommand(new DropCommand());
+        addSubCommand(new ShapesCommand());
+        addSubCommand(new MaterialsCommand());
+        addSubCommand(new ForcesCommand());
+        addSubCommand(new JointsCommand());
+        addSubCommand(new RaycastCommand());
         addSubCommand(new DebugCommand());
         addSubCommand(new DebugFlagCommand("debug-shapes", "shape",
             PhysicsWorldResource::isDebugShapesEnabled,

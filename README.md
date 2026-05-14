@@ -46,6 +46,17 @@ The Rapier backend needs a Rust toolchain to build its native library. If `cargo
 ./gradlew :impulse-rapier:build -PbuildRapierNative=true
 ```
 
+## Example commands
+
+Run the example mod with `./gradlew runAllMods`, then use:
+
+- `/impulse drop` - spawn a falling box.
+- `/impulse shapes` - spawn box, sphere, capsule, cylinder, and cone bodies.
+- `/impulse materials` - compare restitution and friction settings.
+- `/impulse forces` - apply central impulse, off-center impulse, torque impulse, and force.
+- `/impulse joints` - spawn fixed, point, hinge, slider, and spring joint examples.
+- `/impulse raycast` - cast a physics ray from the player view and mark the closest hit.
+
 ## Debug commands
 
 - `/impulse debug` - toggle Impulse debug rendering globally.
@@ -53,11 +64,6 @@ The Rapier backend needs a Rust toolchain to build its native library. If `cargo
 - `/impulse debug-motion` - toggle linear and angular velocity arrows.
 - `/impulse debug-contacts` - toggle contact point and normal overlays.
 - `/impulse debug-joints` - toggle joint anchor, axis, and link overlays.
-
-## Documentation
-
-- [API contract and backend expectations](docs/api-contract.md)
-- [Rapier native bridge notes](docs/rapier-native.md)
 
 ## Code of Conduct
 This project and everyone participating in it is governed by HytaleModding's 
