@@ -29,9 +29,28 @@ public class PhysicsWorldResource implements Resource<EntityStore> {
     private final Int2ObjectMap<PhysicsSpace> spaces = new Int2ObjectOpenHashMap<>();
     private SpaceId mainSpaceId;
 
+    // TODO: there's probably a better place than debug flags here
+    // TODO: switch to bitflags
+
     @Setter
     @Getter
     private boolean debugEnabled;
+
+    @Setter
+    @Getter
+    private boolean debugShapesEnabled = true;
+
+    @Setter
+    @Getter
+    private boolean debugMotionEnabled = true;
+
+    @Setter
+    @Getter
+    private boolean debugContactsEnabled = true;
+
+    @Setter
+    @Getter
+    private boolean debugJointsEnabled = true;
 
     public PhysicsWorldResource() {
     }
@@ -150,6 +169,10 @@ public class PhysicsWorldResource implements Resource<EntityStore> {
         copy.spaces.putAll(spaces);
         copy.mainSpaceId = mainSpaceId;
         copy.debugEnabled = debugEnabled;
+        copy.debugShapesEnabled = debugShapesEnabled;
+        copy.debugMotionEnabled = debugMotionEnabled;
+        copy.debugContactsEnabled = debugContactsEnabled;
+        copy.debugJointsEnabled = debugJointsEnabled;
         return copy;
     }
 }

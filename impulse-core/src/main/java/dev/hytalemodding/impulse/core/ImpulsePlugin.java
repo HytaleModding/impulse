@@ -14,6 +14,8 @@ import dev.hytalemodding.impulse.api.PhysicsBackend;
 import dev.hytalemodding.impulse.core.components.PhysicsBodyComponent;
 import dev.hytalemodding.impulse.core.resources.PhysicsWorldResource;
 import dev.hytalemodding.impulse.core.systems.PhysicsCleanupSystem;
+import dev.hytalemodding.impulse.core.systems.PhysicsDebugSystem;
+import dev.hytalemodding.impulse.core.systems.PhysicsEntityDebugSystem;
 import dev.hytalemodding.impulse.core.systems.PhysicsStepSystem;
 import dev.hytalemodding.impulse.core.systems.PhysicsSyncSystem;
 import java.util.Optional;
@@ -130,6 +132,7 @@ public final class ImpulsePlugin extends JavaPlugin {
 
         ComponentRegistryProxy<EntityStore> entityRegistry = getEntityStoreRegistry();
         entityRegistry.registerSystem(new PhysicsSyncSystem());
+        entityRegistry.registerSystem(new PhysicsEntityDebugSystem());
         entityRegistry.registerSystem(new PhysicsCleanupSystem());
     }
 }
