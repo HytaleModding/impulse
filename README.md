@@ -46,24 +46,59 @@ The Rapier backend needs a Rust toolchain to build its native library. If `cargo
 ./gradlew :impulse-rapier:build -PbuildRapierNative=true
 ```
 
-## Example commands
+## Runtime commands
 
-Run the example mod with `./gradlew runAllMods`, then use:
+The core plugin registers `/impulse` commands for runtime physics controls:
 
-- `/impulse drop` - spawn a falling box.
-- `/impulse shapes` - spawn box, sphere, capsule, cylinder, and cone bodies.
-- `/impulse materials` - compare restitution and friction settings.
-- `/impulse forces` - apply central impulse, off-center impulse, torque impulse, and force.
-- `/impulse joints` - spawn fixed, point, hinge, slider, and spring joint examples.
-- `/impulse raycast` - cast a physics ray from the player view and mark the closest hit.
+- `/impulse backend list` - list discovered backends and active physics spaces.
+- `/impulse backend swap --backend impulse:rapier` - migrate the main physics space to Rapier.
+- `/impulse backend swap --backend impulse:bullet` - migrate the main physics space back to Bullet.
+- `/impulse backend swap --backend <backend-id> --space <space-id>` - migrate a specific space.
+- `/impulse settings simulation-steps` - show physics substeps per server tick.
+- `/impulse settings simulation-steps --steps <count>` - set physics substeps per server tick, from 1 to 16.
+
+Bullet is the default backend when it is available. Rapier is experimental. Runtime backend
+swapping migrates supported bodies and joints, but exact solver behavior can differ between
+backends.
 
 ## Debug commands
 
-- `/impulse debug` - toggle Impulse debug rendering globally.
-- `/impulse debug-shapes` - toggle collider shape overlays.
-- `/impulse debug-motion` - toggle linear and angular velocity arrows.
-- `/impulse debug-contacts` - toggle contact point and normal overlays.
-- `/impulse debug-joints` - toggle joint anchor, axis, and link overlays.
+Debug controls live under `/impulse debug`:
+
+- `/impulse debug` - show debug command usage.
+- `/impulse debug toggle` - toggle Impulse debug rendering globally.
+- `/impulse debug shapes` - toggle collider shape overlays.
+- `/impulse debug motion` - toggle linear and angular velocity arrows.
+- `/impulse debug contacts` - toggle contact point and normal overlays.
+- `/impulse debug joints` - toggle joint anchor, axis, and link overlays.
+
+Debug overlays are intentionally separate from stress commands because rendering overlays can
+dominate performance measurements.
+
+## Example commands
+
+Run the example mod with `./gradlew runAllMods`, then use `/impulse-examples`:
+
+- `/impulse-examples drop` - spawn a falling box.
+- `/impulse-examples shapes` - spawn box, sphere, capsule, cylinder, and cone bodies.
+- `/impulse-examples materials` - compare restitution and friction settings.
+- `/impulse-examples forces` - apply central impulse, off-center impulse, torque impulse, and force.
+- `/impulse-examples joints` - spawn fixed, point, hinge, slider, and spring joint examples.
+- `/impulse-examples raycast` - cast a physics ray from the player view and mark the closest hit.
+
+### Stress commands
+
+Stress commands are also part of the examples plugin:
+
+- `/impulse-examples stress bodies [count]` - spawn visible physics block entities.
+- `/impulse-examples stress raw-bodies [count]` - spawn physics bodies without Hytale entities.
+- `/impulse-examples stress shapes [sets]` - spawn mixed box, sphere, capsule, cylinder, and cone bodies.
+- `/impulse-examples stress joints [count]` - spawn separate fixed, point, hinge, slider, and spring rows.
+- `/impulse-examples stress raycast [rays]` - run many raycasts and report timing.
+- `/impulse-examples stress swap [cycles]` - repeatedly migrate the main space between Bullet and Rapier.
+
+Use `raw-bodies` to isolate backend physics cost. Use `bodies` when you want the full gameplay
+path, including Hytale entity storage, transform sync, networking, and rendering.
 
 ## Code of Conduct
 This project and everyone participating in it is governed by HytaleModding's 
