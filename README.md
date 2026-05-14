@@ -46,6 +46,14 @@ The Rapier backend needs a Rust toolchain to build its native library. If `cargo
 ./gradlew :impulse-rapier:build -PbuildRapierNative=true
 ```
 
+## Debug commands
+
+- `/impulse debug` - toggle Impulse debug rendering globally.
+- `/impulse debug-shapes` - toggle collider shape overlays.
+- `/impulse debug-motion` - toggle linear and angular velocity arrows.
+- `/impulse debug-contacts` - toggle contact point and normal overlays.
+- `/impulse debug-joints` - toggle joint anchor, axis, and link overlays.
+
 ## Documentation
 
 - [API contract and backend expectations](docs/api-contract.md)
