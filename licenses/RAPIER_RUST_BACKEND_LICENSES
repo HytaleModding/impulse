@@ -1,0 +1,13 @@
+The experimental impulse-rapier backend links a first-party native shim against Rust crates.
+
+Direct Rust dependencies:
+
+- rapier3d: Apache-2.0
+  Repository: https://github.com/dimforge/rapier
+  License: https://github.com/dimforge/rapier/blob/master/LICENSE
+
+- jni: MIT OR Apache-2.0
+  Repository: https://github.com/jni-rs/jni-rs
+  License files: https://github.com/jni-rs/jni-rs/tree/master/licenses
+
+Run `cargo metadata` in `impulse-rapier/src/main/rust` when producing a release artifact to audit transitive crate licenses.

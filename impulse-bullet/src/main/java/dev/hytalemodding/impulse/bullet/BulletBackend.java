@@ -17,6 +17,9 @@ import java.util.logging.Logger;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
+/**
+ * TODO: right now the BulletBackend has an additional bulletjme layer on top of Bullet natives
+ */
 public final class BulletBackend implements PhysicsBackend {
 
     public static final BackendId ID = new BackendId("impulse:bullet");

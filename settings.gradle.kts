@@ -21,5 +21,6 @@ rootProject.name = "impulse"
 
 include("impulse-api")
 include("impulse-bullet")
+include("impulse-rapier")
 include("impulse-core")
 include("impulse-examples")

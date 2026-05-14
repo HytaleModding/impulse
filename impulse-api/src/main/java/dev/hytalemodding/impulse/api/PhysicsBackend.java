@@ -7,6 +7,9 @@ import javax.annotation.Nullable;
 
 /**
  * Backend factory and lifecycle hooks.
+ * <p>
+ * This is a semantic contract, not a promise of identical simulation results. Backends may
+ * differ in solver details, contact ordering, and numerical edge cases.
  * <ul>
  *     <li>{@link #init()} must be idempotent and safe when called multiple times.</li>
  *     <li>Backends are expected to be used through {@link Impulse}, which provides
