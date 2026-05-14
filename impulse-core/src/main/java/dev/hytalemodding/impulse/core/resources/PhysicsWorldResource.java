@@ -78,6 +78,7 @@ public class PhysicsWorldResource implements Resource<EntityStore> {
 
     @Nonnull
     public PhysicsSpace createSpace(@Nonnull BackendId backendId) {
+        // TODO: add a command path that migrates an existing physics space to another backend.
         return createSpace(backendId, "<unknown>");
     }
 

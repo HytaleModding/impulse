@@ -6,6 +6,9 @@ package dev.hytalemodding.impulse.api;
 public enum ShapeType {
     BOX,
     SPHERE,
+    CAPSULE,
+    CYLINDER,
+    CONE,
     PLANE,
     UNKNOWN
 }

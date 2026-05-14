@@ -5,6 +5,13 @@ import javax.annotation.Nullable;
 import org.joml.Quaternionf;
 import org.joml.Vector3f;
 
+/**
+ * Backend-agnostic rigid body facade.
+ * TODO: rigid body for now, soft body and particles need to be addressed
+ * <p>
+ * The API defines shared behavior across Bullet and Rapier, but backends may still differ in
+ * solver details, contact reporting, and exact motion response.
+ */
 public interface PhysicsBody {
 
     void setPosition(float x, float y, float z);
@@ -23,15 +30,38 @@ public interface PhysicsBody {
 
     void setRestitution(float restitution);
 
+    float getRestitution();
+
     void setFriction(float friction);
 
+    float getFriction();
+
+    @Nonnull
+    PhysicsBodyType getBodyType();
+
+    void setBodyType(@Nonnull PhysicsBodyType bodyType);
+
     boolean isStatic();
+
+    default boolean isDynamic() {
+        return getBodyType() == PhysicsBodyType.DYNAMIC;
+    }
 
     boolean isKinematic();
 
     void setKinematic(boolean kinematic);
 
     void activate();
+
+    boolean isActive();
+
+    boolean isSleeping();
+
+    void sleep();
+
+    float getMass();
+
+    void setMass(float mass);
 
     @Nonnull
     Vector3f getLinearVelocity();
@@ -41,12 +71,69 @@ public interface PhysicsBody {
     void setLinearVelocity(float x, float y, float z);
 
     @Nonnull
+    Vector3f getAngularVelocity();
+
+    void setAngularVelocity(@Nonnull Vector3f vel);
+
+    void setAngularVelocity(float x, float y, float z);
+
+    float getLinearDamping();
+
+    void setLinearDamping(float damping);
+
+    float getAngularDamping();
+
+    void setAngularDamping(float damping);
+
+    default void setDamping(float linearDamping, float angularDamping) {
+        setLinearDamping(linearDamping);
+        setAngularDamping(angularDamping);
+    }
+
+    void applyCentralForce(@Nonnull Vector3f force);
+
+    void applyCentralForce(float x, float y, float z);
+
+    void applyForce(@Nonnull Vector3f force, @Nonnull Vector3f offset);
+
+    void applyCentralImpulse(@Nonnull Vector3f impulse);
+
+    void applyCentralImpulse(float x, float y, float z);
+
+    void applyImpulse(@Nonnull Vector3f impulse, @Nonnull Vector3f offset);
+
+    void applyTorque(@Nonnull Vector3f torque);
+
+    void applyTorqueImpulse(@Nonnull Vector3f torqueImpulse);
+
+    void clearForces();
+
+    boolean isSensor();
+
+    void setSensor(boolean sensor);
+
+    int getCollisionGroup();
+
+    int getCollisionMask();
+
+    void setCollisionFilter(int group, int mask);
+
+    boolean isContinuousCollisionEnabled();
+
+    void setContinuousCollisionEnabled(boolean enabled);
+
+    @Nonnull
     ShapeType getShapeType();
 
     @Nullable
     Vector3f getBoxHalfExtents();
 
     float getSphereRadius();
+
+    float getHalfHeight();
+
+    @Nonnull
+    PhysicsAxis getShapeAxis();
 
     float getCenterOfMassOffsetY();
 }

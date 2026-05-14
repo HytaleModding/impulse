@@ -25,6 +25,13 @@ subprojects {
 // fix to make runAllMods accept input
 gradle.projectsEvaluated {
     tasks.named("runAllMods").configure {
-        (this as JavaExec).standardInput = System.`in`
+        val runTask = this as JavaExec
+        runTask.standardInput = System.`in`
+
+        // FIXME: workaround until we have runtime based, backend swap
+        providers.gradleProperty("impulse.backend")
+            .orElse(providers.systemProperty("impulse.backend"))
+            .orNull
+            ?.let { runTask.systemProperty("impulse.backend", it) }
     }
 }

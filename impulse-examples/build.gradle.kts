@@ -8,6 +8,7 @@ dependencies {
     implementation(project(":impulse-api"))
     compileOnly(project(":impulse-core"))
     runtimeOnly(project(":impulse-bullet"))
+    runtimeOnly(project(":impulse-rapier"))
     compileOnly(libs.lombok)
     annotationProcessor(libs.lombok)
 }
