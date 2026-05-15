@@ -17,6 +17,8 @@ public final class RapierBody implements PhysicsBody {
     private final float halfHeight;
     private final PhysicsAxis axis;
     private final float centerOfMassOffsetY;
+    private final Vector3f voxelSize;
+    private final int[] voxelCoordinates;
     private float planeGroundY = Float.NaN;
 
     private final Vector3f position = new Vector3f();
@@ -47,6 +49,8 @@ public final class RapierBody implements PhysicsBody {
         @Nonnull PhysicsAxis axis,
         float centerOfMassOffsetY,
         float planeGroundY,
+        @Nullable Vector3f voxelSize,
+        @Nullable int[] voxelCoordinates,
         float mass) {
         this.shapeType = shapeType;
         this.boxHalfExtents = boxHalfExtents != null ? new Vector3f(boxHalfExtents) : null;
@@ -55,6 +59,8 @@ public final class RapierBody implements PhysicsBody {
         this.axis = axis;
         this.centerOfMassOffsetY = centerOfMassOffsetY;
         this.planeGroundY = planeGroundY;
+        this.voxelSize = voxelSize != null ? new Vector3f(voxelSize) : null;
+        this.voxelCoordinates = voxelCoordinates != null ? voxelCoordinates.clone() : null;
         this.mass = mass;
         this.bodyType = mass <= 0f ? PhysicsBodyType.STATIC : PhysicsBodyType.DYNAMIC;
     }
@@ -62,42 +68,51 @@ public final class RapierBody implements PhysicsBody {
     @Nonnull
     static RapierBody box(float halfX, float halfY, float halfZ, float mass) {
         return new RapierBody(ShapeType.BOX, new Vector3f(halfX, halfY, halfZ), -1f,
-            -1f, PhysicsAxis.Y, halfY, Float.NaN, mass);
+            -1f, PhysicsAxis.Y, halfY, Float.NaN, null, null, mass);
     }
 
     @Nonnull
     static RapierBody sphere(float radius, float mass) {
         return new RapierBody(ShapeType.SPHERE, null, radius, -1f, PhysicsAxis.Y,
-            radius, Float.NaN, mass);
+            radius, Float.NaN, null, null, mass);
     }
 
     @Nonnull
     static RapierBody capsule(float radius, float halfHeight, @Nonnull PhysicsAxis axis, float mass) {
         float offsetY = axis == PhysicsAxis.Y ? halfHeight + radius : radius;
         return new RapierBody(ShapeType.CAPSULE, null, radius, halfHeight, axis, offsetY,
-            Float.NaN, mass);
+            Float.NaN, null, null, mass);
     }
 
     @Nonnull
     static RapierBody cylinder(float radius, float halfHeight, @Nonnull PhysicsAxis axis, float mass) {
         float offsetY = axis == PhysicsAxis.Y ? halfHeight : radius;
         return new RapierBody(ShapeType.CYLINDER, null, radius, halfHeight, axis, offsetY,
-            Float.NaN, mass);
+            Float.NaN, null, null, mass);
     }
 
     @Nonnull
     static RapierBody cone(float radius, float halfHeight, @Nonnull PhysicsAxis axis, float mass) {
         float offsetY = axis == PhysicsAxis.Y ? halfHeight : radius;
         return new RapierBody(ShapeType.CONE, null, radius, halfHeight, axis, offsetY,
-            Float.NaN, mass);
+            Float.NaN, null, null, mass);
     }
 
     @Nonnull
     static RapierBody staticPlane(float groundY) {
         RapierBody body = new RapierBody(ShapeType.PLANE, null, -1f, -1f, PhysicsAxis.Y,
-            0f, groundY, 0f);
+            0f, groundY, null, null, 0f);
         body.position.set(0f, groundY, 0f);
         return body;
+    }
+
+    @Nonnull
+    static RapierBody voxelTerrain(float voxelSizeX,
+        float voxelSizeY,
+        float voxelSizeZ,
+        @Nonnull int[] voxelCoordinates) {
+        return new RapierBody(ShapeType.VOXELS, null, -1f, -1f, PhysicsAxis.Y,
+            0f, Float.NaN, new Vector3f(voxelSizeX, voxelSizeY, voxelSizeZ), voxelCoordinates, 0f);
     }
 
     @Override
@@ -593,6 +608,22 @@ public final class RapierBody implements PhysicsBody {
     @Nonnull
     Vector3f getStoredAngularVelocity() {
         return new Vector3f(angularVelocity);
+    }
+
+    @Nonnull
+    Vector3f getVoxelSize() {
+        if (voxelSize == null) {
+            throw new IllegalStateException("Body is not a voxel terrain body");
+        }
+        return new Vector3f(voxelSize);
+    }
+
+    @Nonnull
+    int[] getVoxelCoordinates() {
+        if (voxelCoordinates == null) {
+            throw new IllegalStateException("Body is not a voxel terrain body");
+        }
+        return voxelCoordinates.clone();
     }
 
     private long getSpaceHandle() {
