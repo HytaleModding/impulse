@@ -25,10 +25,12 @@ public class PersistentPhysicsSnapshotFile {
             PersistentPhysicsSnapshotFile::new)
         .append(new KeyedCodec<>("World", PersistentPhysicsWorldResource.CODEC),
             (file, value) -> file.world = value.clone(),
-            file -> file.world)
+            PersistentPhysicsSnapshotFile::getWorld)
         .add()
         .append(new KeyedCodec<>("Bodies",
-                new ArrayCodec<>(PersistentPhysicsSnapshotBody.CODEC, PersistentPhysicsSnapshotBody[]::new)),
+                new ArrayCodec<>(
+                    PersistentPhysicsSnapshotBody.CODEC,
+                    PersistentPhysicsSnapshotBody[]::new)),
             (file, value) -> file.bodies = copyBodies(value),
             PersistentPhysicsSnapshotFile::getBodies)
         .add()

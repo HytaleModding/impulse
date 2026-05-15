@@ -51,9 +51,14 @@ import org.bson.BsonDocument;
  *
  * <p>{@code save} captures the current persisted world resource and all entity-backed
  * body components into a BSON/JSON file. {@code load} reads a snapshot, matches
- * bodies to existing entities by UUID, updates their persisted state, clears the
- * runtime physics, and lets the hydration systems rebuild onto those same entities
- * without respawning duplicates.</p>
+ * bodies to the existing persisted-physics entity set by UUID, updates their
+ * persisted state, clears the runtime physics, and lets the hydration systems
+ * rebuild onto those same entities without respawning duplicates.</p>
+ *
+ * <p>The snapshot format is narrower than a generic UUID remapping tool. It covers
+ * entity-backed bodies and joints between entity-backed bodies. Generated world
+ * collision, runtime helper bodies, and debug/runtime-only state remain outside
+ * the snapshot contract.</p>
  */
 public class PersistenceCommand extends AbstractCommandCollection {
 

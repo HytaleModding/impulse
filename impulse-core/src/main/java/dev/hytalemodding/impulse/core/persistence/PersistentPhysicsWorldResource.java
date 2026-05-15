@@ -9,10 +9,17 @@ import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import com.hypixel.hytale.codec.codecs.array.ArrayCodec;
 import dev.hytalemodding.impulse.api.SpaceId;
 import dev.hytalemodding.impulse.core.ImpulsePlugin;
+import dev.hytalemodding.impulse.core.components.PersistentPhysicsBodyComponent;
 import dev.hytalemodding.impulse.core.resources.PhysicsWorldResource;
 import java.util.Arrays;
+import java.util.HashSet;
+import java.util.LinkedHashMap;
+import java.util.Map;
+import java.util.Set;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
+import lombok.Getter;
+import lombok.Setter;
 
 /**
  * Codec-backed world-level physics resource for the persistence layer.
@@ -31,7 +38,13 @@ import javax.annotation.Nullable;
  * <p>The {@code runtimeRestorePending} flag is set by {@code afterDecode} whenever
  * Hytale deserializes this resource. It signals the hydration systems that they
  * need to recreate live spaces, bodies, and joints from the persisted data. The
- * flag is cleared once joint hydration completes successfully.</p>
+ * flag is cleared once restore finishes.</p>
+ *
+ * <p>Restore semantics are intentionally asymmetric. Missing saved backends are a
+ * hard failure because the world-level space definitions cannot be recreated at
+ * all. Missing entities, missing runtime bodies, and unresolved joints are softer
+ * failures: those entries are skipped, counted, and reported so restore can finish
+ * instead of hanging forever.</p>
  */
 public class PersistentPhysicsWorldResource implements Resource<EntityStore> {
 
@@ -42,55 +55,57 @@ public class PersistentPhysicsWorldResource implements Resource<EntityStore> {
     public static final BuilderCodec<PersistentPhysicsWorldResource> CODEC = BuilderCodec.builder(
             PersistentPhysicsWorldResource.class,
             PersistentPhysicsWorldResource::new)
-        .append(new KeyedCodec<>("DefaultSpaceId", Codec.INTEGER), (resource, value) -> resource.defaultSpaceId = value,
-            resource -> resource.defaultSpaceId)
+        .append(new KeyedCodec<>("DefaultSpaceId", Codec.INTEGER),
+            (resource, value) -> resource.defaultSpaceId = value,
+            PersistentPhysicsWorldResource::getDefaultSpaceId)
         .add()
         .append(new KeyedCodec<>("SimulationSteps", Codec.INTEGER),
             (resource, value) -> resource.simulationSteps = value,
-            resource -> resource.simulationSteps)
+            PersistentPhysicsWorldResource::getSimulationSteps)
         .add()
         .append(new KeyedCodec<>("Spaces",
                 new ArrayCodec<>(PersistentPhysicsSpaceState.CODEC, PersistentPhysicsSpaceState[]::new)),
             (resource, value) -> resource.spaces = copySpaces(value),
-            resource -> resource.getSpaces())
+            PersistentPhysicsWorldResource::getSpaces)
         .add()
         .append(new KeyedCodec<>("Joints",
                 new ArrayCodec<>(PersistentPhysicsJointState.CODEC, PersistentPhysicsJointState[]::new)),
             (resource, value) -> resource.joints = copyJoints(value),
-            resource -> resource.getJoints())
+            PersistentPhysicsWorldResource::getJoints)
         .add()
-        .afterDecode(resource -> resource.runtimeRestorePending = true)
+        .afterDecode(PersistentPhysicsWorldResource::markRuntimeRestorePending)
         .build();
 
+    @Getter
+    @Setter
     private int defaultSpaceId;
+    @Getter
+    @Setter
     private int simulationSteps = PhysicsWorldResource.MIN_SIMULATION_STEPS;
     @Nonnull
     private PersistentPhysicsSpaceState[] spaces = EMPTY_SPACES;
     @Nonnull
     private PersistentPhysicsJointState[] joints = EMPTY_JOINTS;
     private transient boolean runtimeRestorePending;
+    private transient boolean runtimeSpaceBootstrapComplete;
+    private transient boolean runtimeRestoreFailed;
+    @Nonnull
+    private transient String runtimeRestoreFailureMessage = "";
+    private transient int runtimeRestoredSpaceCount;
+    private transient int runtimeRestoredBodyCount;
+    private transient int runtimeRestoredJointCount;
+    @Nonnull
+    private transient Map<String, Integer> runtimeSkippedBodiesByReason = new LinkedHashMap<>();
+    @Nonnull
+    private transient Map<String, Integer> runtimeSkippedJointsByReason = new LinkedHashMap<>();
+    @Nonnull
+    private transient Set<String> runtimeSkippedJointKeys = new HashSet<>();
 
     public PersistentPhysicsWorldResource() {
     }
 
     public static ResourceType<EntityStore, PersistentPhysicsWorldResource> getResourceType() {
         return ImpulsePlugin.get().getPersistentPhysicsWorldResourceType();
-    }
-
-    public int getDefaultSpaceId() {
-        return defaultSpaceId;
-    }
-
-    public void setDefaultSpaceId(int defaultSpaceId) {
-        this.defaultSpaceId = defaultSpaceId;
-    }
-
-    public int getSimulationSteps() {
-        return simulationSteps;
-    }
-
-    public void setSimulationSteps(int simulationSteps) {
-        this.simulationSteps = simulationSteps;
     }
 
     @Nonnull
@@ -121,11 +136,92 @@ public class PersistentPhysicsWorldResource implements Resource<EntityStore> {
     }
 
     public void markRuntimeRestorePending() {
+        ensureRuntimeTracking();
         runtimeRestorePending = true;
+        runtimeSpaceBootstrapComplete = false;
+        runtimeRestoreFailed = false;
+        runtimeRestoreFailureMessage = "";
+        runtimeRestoredSpaceCount = 0;
+        runtimeRestoredBodyCount = 0;
+        runtimeRestoredJointCount = 0;
+        runtimeSkippedBodiesByReason.clear();
+        runtimeSkippedJointsByReason.clear();
+        runtimeSkippedJointKeys.clear();
     }
 
     public void clearRuntimeRestorePending() {
         runtimeRestorePending = false;
+    }
+
+    public boolean isRuntimeSpaceBootstrapComplete() {
+        return runtimeSpaceBootstrapComplete;
+    }
+
+    public void markRuntimeSpaceBootstrapComplete(int restoredSpaceCount) {
+        runtimeSpaceBootstrapComplete = true;
+        runtimeRestoredSpaceCount = restoredSpaceCount;
+    }
+
+    public boolean hasRuntimeRestoreFailed() {
+        return runtimeRestoreFailed;
+    }
+
+    public void failRuntimeRestore(@Nonnull String message) {
+        ensureRuntimeTracking();
+        runtimeRestorePending = false;
+        runtimeRestoreFailed = true;
+        runtimeRestoreFailureMessage = message;
+    }
+
+    public void recordRuntimeBodyRestored() {
+        runtimeRestoredBodyCount++;
+    }
+
+    public void recordRuntimeBodySkipped(@Nonnull String reason) {
+        ensureRuntimeTracking();
+        runtimeSkippedBodiesByReason.merge(reason, 1, Integer::sum);
+    }
+
+    public void recordRuntimeJointRestored() {
+        runtimeRestoredJointCount++;
+    }
+
+    public void recordRuntimeJointSkipped(@Nonnull String key, @Nonnull String reason) {
+        ensureRuntimeTracking();
+        if (!runtimeSkippedJointKeys.add(key)) {
+            return;
+        }
+        runtimeSkippedJointsByReason.merge(reason, 1, Integer::sum);
+    }
+
+    public boolean hasRuntimeRestoreSkips() {
+        ensureRuntimeTracking();
+        return !runtimeSkippedBodiesByReason.isEmpty() || !runtimeSkippedJointsByReason.isEmpty();
+    }
+
+    @Nonnull
+    public String runtimeRestoreSummary() {
+        ensureRuntimeTracking();
+        return "Impulse persistence restore completed: "
+            + runtimeRestoredSpaceCount + " spaces, "
+            + runtimeRestoredBodyCount + " bodies restored, "
+            + countReasons(runtimeSkippedBodiesByReason) + " bodies skipped ("
+            + formatReasons(runtimeSkippedBodiesByReason) + "), "
+            + runtimeRestoredJointCount + " joints restored, "
+            + countReasons(runtimeSkippedJointsByReason) + " joints skipped ("
+            + formatReasons(runtimeSkippedJointsByReason) + ").";
+    }
+
+    @Nonnull
+    public String runtimeRestoreFailureSummary() {
+        ensureRuntimeTracking();
+        return "Impulse persistence restore failed: " + runtimeRestoreFailureMessage + " "
+            + "Partial progress before failure: "
+            + runtimeRestoredSpaceCount + " spaces, "
+            + runtimeRestoredBodyCount + " bodies restored, "
+            + countReasons(runtimeSkippedBodiesByReason) + " bodies skipped, "
+            + runtimeRestoredJointCount + " joints restored, "
+            + countReasons(runtimeSkippedJointsByReason) + " joints skipped.";
     }
 
     public void copyFrom(@Nonnull PersistentPhysicsWorldResource other) {
@@ -133,7 +229,17 @@ public class PersistentPhysicsWorldResource implements Resource<EntityStore> {
         simulationSteps = other.simulationSteps;
         spaces = copySpaces(other.spaces);
         joints = copyJoints(other.joints);
-        runtimeRestorePending = other.runtimeRestorePending;
+        runtimeRestorePending = false;
+        runtimeSpaceBootstrapComplete = false;
+        runtimeRestoreFailed = false;
+        runtimeRestoreFailureMessage = "";
+        runtimeRestoredSpaceCount = 0;
+        runtimeRestoredBodyCount = 0;
+        runtimeRestoredJointCount = 0;
+        ensureRuntimeTracking();
+        runtimeSkippedBodiesByReason.clear();
+        runtimeSkippedJointsByReason.clear();
+        runtimeSkippedJointKeys.clear();
     }
 
     @Nonnull
@@ -160,5 +266,46 @@ public class PersistentPhysicsWorldResource implements Resource<EntityStore> {
             copy[i] = copy[i].copy();
         }
         return copy;
+    }
+
+    private void ensureRuntimeTracking() {
+        if (runtimeSkippedBodiesByReason == null) {
+            runtimeSkippedBodiesByReason = new LinkedHashMap<>();
+        }
+        if (runtimeSkippedJointsByReason == null) {
+            runtimeSkippedJointsByReason = new LinkedHashMap<>();
+        }
+        if (runtimeSkippedJointKeys == null) {
+            runtimeSkippedJointKeys = new HashSet<>();
+        }
+        if (runtimeRestoreFailureMessage == null) {
+            runtimeRestoreFailureMessage = "";
+        }
+    }
+
+    private static int countReasons(@Nonnull Map<String, Integer> reasons) {
+        int total = 0;
+        for (int count : reasons.values()) {
+            total += count;
+        }
+        return total;
+    }
+
+    @Nonnull
+    private static String formatReasons(@Nonnull Map<String, Integer> reasons) {
+        if (reasons.isEmpty()) {
+            return "none";
+        }
+
+        StringBuilder builder = new StringBuilder();
+        boolean first = true;
+        for (Map.Entry<String, Integer> entry : reasons.entrySet()) {
+            if (!first) {
+                builder.append(", ");
+            }
+            builder.append(entry.getKey()).append('=').append(entry.getValue());
+            first = false;
+        }
+        return builder.toString();
     }
 }

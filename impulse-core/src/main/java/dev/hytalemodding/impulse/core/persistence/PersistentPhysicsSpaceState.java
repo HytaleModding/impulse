@@ -11,6 +11,8 @@ import dev.hytalemodding.impulse.api.SpaceId;
 import dev.hytalemodding.impulse.core.resources.PhysicsSpaceSettings;
 import dev.hytalemodding.impulse.core.voxel.WorldCollisionMode;
 import javax.annotation.Nonnull;
+import lombok.Getter;
+import lombok.Setter;
 import org.joml.Vector3f;
 
 /**
@@ -21,48 +23,58 @@ import org.joml.Vector3f;
  * the runtime {@link dev.hytalemodding.impulse.api.PhysicsSpace} after a
  * world load or manual snapshot restore.</p>
  */
+@Getter
 public class PersistentPhysicsSpaceState {
 
     @Nonnull
     public static final BuilderCodec<PersistentPhysicsSpaceState> CODEC = BuilderCodec.builder(
             PersistentPhysicsSpaceState.class,
             PersistentPhysicsSpaceState::new)
-        .append(new KeyedCodec<>("SpaceId", Codec.INTEGER), (state, value) -> state.spaceId = value,
-            state -> state.spaceId)
+        .append(new KeyedCodec<>("SpaceId", Codec.INTEGER),
+            (state, value) -> state.spaceId = value,
+            PersistentPhysicsSpaceState::getSpaceId)
         .add()
-        .append(new KeyedCodec<>("BackendId", Codec.STRING), (state, value) -> state.backendId = value,
-            state -> state.backendId)
+        .append(new KeyedCodec<>("BackendId", Codec.STRING),
+            (state, value) -> state.backendId = value,
+            PersistentPhysicsSpaceState::getBackendId)
         .add()
-        .append(new KeyedCodec<>("Gravity", Vector3fUtil.CODEC), (state, value) -> state.gravity.set(value),
-            state -> state.gravity)
+        .append(new KeyedCodec<>("Gravity", Vector3fUtil.CODEC),
+            (state, value) -> state.gravity.set(value),
+            PersistentPhysicsSpaceState::getGravity)
         .add()
         .append(new KeyedCodec<>("WorldCollisionMode", new EnumCodec<>(WorldCollisionMode.class)),
             (state, value) -> state.worldCollisionMode = value,
-            state -> state.worldCollisionMode)
+            PersistentPhysicsSpaceState::getWorldCollisionMode)
         .add()
         .append(new KeyedCodec<>("WorldCollisionRadius", Codec.INTEGER),
             (state, value) -> state.worldCollisionRadius = value,
-            state -> state.worldCollisionRadius)
+            PersistentPhysicsSpaceState::getWorldCollisionRadius)
         .add()
         .append(new KeyedCodec<>("WorldCollisionBodyRadius", Codec.INTEGER),
             (state, value) -> state.worldCollisionBodyRadius = value,
-            state -> state.worldCollisionBodyRadius)
+            PersistentPhysicsSpaceState::getWorldCollisionBodyRadius)
         .add()
         .append(new KeyedCodec<>("WorldCollisionTtlTicks", Codec.INTEGER),
             (state, value) -> state.worldCollisionTtlTicks = value,
-            state -> state.worldCollisionTtlTicks)
+            PersistentPhysicsSpaceState::getWorldCollisionTtlTicks)
         .add()
         .build();
 
+    @Setter
     private int spaceId;
     @Nonnull
+    @Setter
     private String backendId = "";
     @Nonnull
     private final Vector3f gravity = new Vector3f(0.0f, -9.81f, 0.0f);
     @Nonnull
+    @Setter
     private WorldCollisionMode worldCollisionMode = WorldCollisionMode.NONE;
+    @Setter
     private int worldCollisionRadius = PhysicsSpaceSettings.DEFAULT_WORLD_COLLISION_RADIUS;
+    @Setter
     private int worldCollisionBodyRadius = PhysicsSpaceSettings.DEFAULT_WORLD_COLLISION_BODY_RADIUS;
+    @Setter
     private int worldCollisionTtlTicks = PhysicsSpaceSettings.DEFAULT_WORLD_COLLISION_TTL_TICKS;
 
     public PersistentPhysicsSpaceState() {
@@ -80,61 +92,6 @@ public class PersistentPhysicsSpaceState {
         state.worldCollisionBodyRadius = settings.getWorldCollisionBodyRadius();
         state.worldCollisionTtlTicks = settings.getWorldCollisionTtlTicks();
         return state;
-    }
-
-    public int getSpaceId() {
-        return spaceId;
-    }
-
-    public void setSpaceId(int spaceId) {
-        this.spaceId = spaceId;
-    }
-
-    @Nonnull
-    public String getBackendId() {
-        return backendId;
-    }
-
-    public void setBackendId(@Nonnull String backendId) {
-        this.backendId = backendId;
-    }
-
-    @Nonnull
-    public Vector3f getGravity() {
-        return gravity;
-    }
-
-    @Nonnull
-    public WorldCollisionMode getWorldCollisionMode() {
-        return worldCollisionMode;
-    }
-
-    public void setWorldCollisionMode(@Nonnull WorldCollisionMode worldCollisionMode) {
-        this.worldCollisionMode = worldCollisionMode;
-    }
-
-    public int getWorldCollisionRadius() {
-        return worldCollisionRadius;
-    }
-
-    public void setWorldCollisionRadius(int worldCollisionRadius) {
-        this.worldCollisionRadius = worldCollisionRadius;
-    }
-
-    public int getWorldCollisionBodyRadius() {
-        return worldCollisionBodyRadius;
-    }
-
-    public void setWorldCollisionBodyRadius(int worldCollisionBodyRadius) {
-        this.worldCollisionBodyRadius = worldCollisionBodyRadius;
-    }
-
-    public int getWorldCollisionTtlTicks() {
-        return worldCollisionTtlTicks;
-    }
-
-    public void setWorldCollisionTtlTicks(int worldCollisionTtlTicks) {
-        this.worldCollisionTtlTicks = worldCollisionTtlTicks;
     }
 
     @Nonnull

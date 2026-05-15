@@ -27,119 +27,112 @@ import org.joml.Vector3f;
  * The joint hydration system uses this to detect whether a given joint already
  * exists in the runtime space and avoid duplicating it on repeated ticks.</p>
  */
+@Getter
 public class PersistentPhysicsJointState {
 
     @Nonnull
     public static final BuilderCodec<PersistentPhysicsJointState> CODEC = BuilderCodec.builder(
             PersistentPhysicsJointState.class,
             PersistentPhysicsJointState::new)
-        .append(new KeyedCodec<>("SpaceId", Codec.INTEGER), (state, value) -> state.spaceId = value,
-            state -> state.spaceId)
+        .append(new KeyedCodec<>("SpaceId", Codec.INTEGER),
+            (state, value) -> state.spaceId = value,
+            PersistentPhysicsJointState::getSpaceId)
         .add()
-        .append(new KeyedCodec<>("BodyAUuid", Codec.UUID_BINARY), (state, value) -> state.bodyAUuid = value,
-            state -> state.bodyAUuid)
+        .append(new KeyedCodec<>("BodyAUuid", Codec.UUID_BINARY),
+            (state, value) -> state.bodyAUuid = value,
+            PersistentPhysicsJointState::getBodyAUuid)
         .add()
-        .append(new KeyedCodec<>("BodyBUuid", Codec.UUID_BINARY), (state, value) -> state.bodyBUuid = value,
-            state -> state.bodyBUuid)
+        .append(new KeyedCodec<>("BodyBUuid", Codec.UUID_BINARY),
+            (state, value) -> state.bodyBUuid = value,
+            PersistentPhysicsJointState::getBodyBUuid)
         .add()
         .append(new KeyedCodec<>("Type", new EnumCodec<>(PhysicsJointType.class)),
             (state, value) -> state.type = value,
-            state -> state.type)
+            PersistentPhysicsJointState::getType)
         .add()
-        .append(new KeyedCodec<>("AnchorA", Vector3fUtil.CODEC), (state, value) -> state.anchorA.set(value),
-            state -> state.anchorA)
+        .append(new KeyedCodec<>("AnchorA", Vector3fUtil.CODEC),
+            (state, value) -> state.anchorA.set(value),
+            PersistentPhysicsJointState::getAnchorA)
         .add()
-        .append(new KeyedCodec<>("AnchorB", Vector3fUtil.CODEC), (state, value) -> state.anchorB.set(value),
-            state -> state.anchorB)
+        .append(new KeyedCodec<>("AnchorB", Vector3fUtil.CODEC),
+            (state, value) -> state.anchorB.set(value),
+            PersistentPhysicsJointState::getAnchorB)
         .add()
         .append(new KeyedCodec<>("Axis", Vector3fUtil.CODEC, true),
             (state, value) -> state.axis = value != null ? new Vector3f(value) : null,
-            state -> state.axis)
+            PersistentPhysicsJointState::getAxis)
         .add()
-        .append(new KeyedCodec<>("LowerLimit", Codec.FLOAT), (state, value) -> state.lowerLimit = value,
-            state -> state.lowerLimit)
+        .append(new KeyedCodec<>("LowerLimit", Codec.FLOAT),
+            (state, value) -> state.lowerLimit = value,
+            PersistentPhysicsJointState::getLowerLimit)
         .add()
-        .append(new KeyedCodec<>("UpperLimit", Codec.FLOAT), (state, value) -> state.upperLimit = value,
-            state -> state.upperLimit)
+        .append(new KeyedCodec<>("UpperLimit", Codec.FLOAT),
+            (state, value) -> state.upperLimit = value,
+            PersistentPhysicsJointState::getUpperLimit)
         .add()
-        .append(new KeyedCodec<>("Enabled", Codec.BOOLEAN), (state, value) -> state.enabled = value,
-            state -> state.enabled)
+        .append(new KeyedCodec<>("Enabled", Codec.BOOLEAN),
+            (state, value) -> state.enabled = value,
+            PersistentPhysicsJointState::isEnabled)
         .add()
         .append(new KeyedCodec<>("MotorEnabled", Codec.BOOLEAN),
             (state, value) -> state.motorEnabled = value,
-            state -> state.motorEnabled)
+            PersistentPhysicsJointState::isMotorEnabled)
         .add()
         .append(new KeyedCodec<>("MotorTargetVelocity", Codec.FLOAT),
             (state, value) -> state.motorTargetVelocity = value,
-            state -> state.motorTargetVelocity)
+            PersistentPhysicsJointState::getMotorTargetVelocity)
         .add()
         .append(new KeyedCodec<>("MotorMaxForce", Codec.FLOAT),
             (state, value) -> state.motorMaxForce = value,
-            state -> state.motorMaxForce)
+            PersistentPhysicsJointState::getMotorMaxForce)
         .add()
         .append(new KeyedCodec<>("SpringRestLength", Codec.FLOAT),
             (state, value) -> state.springRestLength = value,
-            state -> state.springRestLength)
+            PersistentPhysicsJointState::getSpringRestLength)
         .add()
         .append(new KeyedCodec<>("SpringStiffness", Codec.FLOAT),
             (state, value) -> state.springStiffness = value,
-            state -> state.springStiffness)
+            PersistentPhysicsJointState::getSpringStiffness)
         .add()
         .append(new KeyedCodec<>("SpringDamping", Codec.FLOAT),
             (state, value) -> state.springDamping = value,
-            state -> state.springDamping)
+            PersistentPhysicsJointState::getSpringDamping)
         .add()
         .build();
 
     @Setter
-    @Getter
     private int spaceId;
     @Nullable
-    @Getter
     @Setter
     private UUID bodyAUuid;
     @Nullable
-    @Getter
     @Setter
     private UUID bodyBUuid;
     @Nonnull
-    @Getter
     @Setter
     private PhysicsJointType type = PhysicsJointType.FIXED;
     @Nonnull
-    @Getter
     private final Vector3f anchorA = new Vector3f();
     @Nonnull
-    @Getter
     private final Vector3f anchorB = new Vector3f();
     @Nullable
-    @Getter
     private Vector3f axis;
     @Setter
-    @Getter
     private float lowerLimit;
     @Setter
-    @Getter
     private float upperLimit;
     @Setter
-    @Getter
     private boolean enabled = true;
     @Setter
-    @Getter
     private boolean motorEnabled;
-    @Getter
     @Setter
     private float motorTargetVelocity;
-    @Getter
     @Setter
     private float motorMaxForce;
-    @Getter
     @Setter
     private float springRestLength = Float.NaN;
-    @Getter
     @Setter
     private float springStiffness = Float.NaN;
-    @Getter
     @Setter
     private float springDamping = Float.NaN;
 

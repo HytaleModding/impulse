@@ -6,7 +6,7 @@ import com.hypixel.hytale.component.ComponentType;
 import com.hypixel.hytale.component.Store;
 import com.hypixel.hytale.component.dependency.Dependency;
 import com.hypixel.hytale.component.dependency.Order;
-import com.hypixel.hytale.component.dependency.SystemDependency;
+import com.hypixel.hytale.component.dependency.SystemGroupDependency;
 import com.hypixel.hytale.component.query.Query;
 import com.hypixel.hytale.component.system.tick.EntityTickingSystem;
 import com.hypixel.hytale.server.core.modules.entity.component.TransformComponent;
@@ -24,8 +24,9 @@ import org.joml.Vector3f;
 /**
  * Synchronizes physics bodies with Hytale transforms each tick.
  *
- * <p>Runs after body hydration so that newly hydrated bodies are available
- * before this system reads their transforms.</p>
+ * <p>Runs after the persistence restore group so that newly bootstrapped spaces,
+ * hydrated bodies, and hydrated joints are all settled before this system reads
+ * body transforms.</p>
  */
 public class PhysicsSyncSystem extends EntityTickingSystem<EntityStore> {
 
@@ -35,7 +36,7 @@ public class PhysicsSyncSystem extends EntityTickingSystem<EntityStore> {
     private static final Query<EntityStore> QUERY = Query.and(PHYSICS_BODY_TYPE, TRANSFORM_TYPE);
 
     private static final Set<Dependency<EntityStore>> DEPENDENCIES = Set.of(
-        new SystemDependency<>(Order.AFTER, PersistentPhysicsBodyHydrationSystem.class)
+        new SystemGroupDependency<>(Order.AFTER, PhysicsSystemGroups.PERSISTENCE_RESTORE_GROUP)
     );
 
     @Nonnull
