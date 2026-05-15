@@ -12,6 +12,7 @@ import dev.hytalemodding.impulse.api.PhysicsBody;
 import dev.hytalemodding.impulse.api.PhysicsJoint;
 import dev.hytalemodding.impulse.api.PhysicsSpace;
 import dev.hytalemodding.impulse.api.SpaceId;
+import dev.hytalemodding.impulse.core.ImpulsePlugin;
 import dev.hytalemodding.impulse.core.components.PersistentPhysicsBodyComponent;
 import dev.hytalemodding.impulse.core.persistence.PersistentPhysicsJointState;
 import dev.hytalemodding.impulse.core.persistence.PersistentPhysicsRuntimeSupport;
@@ -48,6 +49,8 @@ public class PersistentPhysicsJointHydrationSystem extends TickingSystem<EntityS
         new SystemDependency<>(Order.AFTER, PersistentPhysicsSpaceBootstrapSystem.class),
         new SystemDependency<>(Order.AFTER, PersistentPhysicsBodyHydrationSystem.class)
     );
+    @Nonnull
+    private final SystemGroup<EntityStore> group = ImpulsePlugin.get().getPersistenceRestoreGroup();
 
     @Nonnull
     @Override
@@ -57,7 +60,7 @@ public class PersistentPhysicsJointHydrationSystem extends TickingSystem<EntityS
 
     @Override
     public SystemGroup<EntityStore> getGroup() {
-        return PhysicsSystemGroups.PERSISTENCE_RESTORE_GROUP;
+        return group;
     }
 
     @Override

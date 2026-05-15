@@ -13,6 +13,7 @@ import com.hypixel.hytale.server.core.modules.entity.component.TransformComponen
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import dev.hytalemodding.impulse.api.PhysicsBody;
 import dev.hytalemodding.impulse.api.SpaceId;
+import dev.hytalemodding.impulse.core.ImpulsePlugin;
 import dev.hytalemodding.impulse.core.components.PhysicsBodyComponent;
 import dev.hytalemodding.impulse.core.resources.PhysicsWorldResource;
 import java.util.Set;
@@ -34,15 +35,14 @@ public class PhysicsSyncSystem extends EntityTickingSystem<EntityStore> {
     private static final ComponentType<EntityStore, TransformComponent> TRANSFORM_TYPE = TransformComponent.getComponentType();
 
     private static final Query<EntityStore> QUERY = Query.and(PHYSICS_BODY_TYPE, TRANSFORM_TYPE);
-
-    private static final Set<Dependency<EntityStore>> DEPENDENCIES = Set.of(
-        new SystemGroupDependency<>(Order.AFTER, PhysicsSystemGroups.PERSISTENCE_RESTORE_GROUP)
+    private final Set<Dependency<EntityStore>> dependencies = Set.of(
+        new SystemGroupDependency<>(Order.AFTER, ImpulsePlugin.get().getPersistenceRestoreGroup())
     );
 
     @Nonnull
     @Override
     public Set<Dependency<EntityStore>> getDependencies() {
-        return DEPENDENCIES;
+        return dependencies;
     }
 
     /**

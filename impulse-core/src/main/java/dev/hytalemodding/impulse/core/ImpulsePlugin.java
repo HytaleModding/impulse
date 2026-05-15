@@ -3,6 +3,7 @@ package dev.hytalemodding.impulse.core;
 import com.hypixel.hytale.component.ComponentRegistryProxy;
 import com.hypixel.hytale.component.ComponentType;
 import com.hypixel.hytale.component.ResourceType;
+import com.hypixel.hytale.component.SystemGroup;
 import com.hypixel.hytale.logger.HytaleLogger;
 import com.hypixel.hytale.server.core.command.system.CommandRegistry;
 import com.hypixel.hytale.server.core.plugin.JavaPlugin;
@@ -63,6 +64,9 @@ public final class ImpulsePlugin extends JavaPlugin {
 
     @Getter
     private ResourceType<EntityStore, PersistentPhysicsWorldResource> persistentPhysicsWorldResourceType;
+
+    @Getter
+    private SystemGroup<EntityStore> persistenceRestoreGroup;
 
     @Getter
     private BackendId defaultBackendId;
@@ -175,6 +179,7 @@ public final class ImpulsePlugin extends JavaPlugin {
         chunkRegistry.registerSystem(new PhysicsDebugSystem());
 
         ComponentRegistryProxy<EntityStore> entityRegistry = getEntityStoreRegistry();
+        persistenceRestoreGroup = entityRegistry.registerSystemGroup();
         entityRegistry.registerSystem(new PersistentPhysicsSpaceBootstrapSystem());
         entityRegistry.registerSystem(new PersistentPhysicsBodyHydrationSystem());
         entityRegistry.registerSystem(new PersistentPhysicsJointHydrationSystem());
