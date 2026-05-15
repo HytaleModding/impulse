@@ -42,7 +42,7 @@ public class BackendListCommand extends AbstractAsyncPlayerCommand {
             + (backendIds.isEmpty() ? "<none>" : String.join(", ", backendIds))));
 
         PhysicsWorldResource resource = store.getResource(PhysicsWorldResource.getResourceType());
-        List<PhysicsSpace> spaces = new ArrayList<>(resource.getSpaces(world.getName()));
+        List<PhysicsSpace> spaces = new ArrayList<>(resource.getSpaces());
         spaces.sort(Comparator.comparingInt(space -> space.getId().value()));
         SpaceId defaultSpaceId = resource.getDefaultSpaceId();
 

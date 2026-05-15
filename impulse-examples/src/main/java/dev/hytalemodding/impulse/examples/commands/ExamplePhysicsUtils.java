@@ -16,6 +16,7 @@ import com.hypixel.hytale.server.core.modules.entity.component.HeadRotation;
 import com.hypixel.hytale.server.core.modules.entity.component.ModelComponent;
 import com.hypixel.hytale.server.core.modules.entity.component.TransformComponent;
 import com.hypixel.hytale.server.core.modules.time.TimeResource;
+import com.hypixel.hytale.server.core.universe.PlayerRef;
 import com.hypixel.hytale.server.core.universe.world.World;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import dev.hytalemodding.impulse.api.PhysicsBody;
@@ -25,6 +26,7 @@ import dev.hytalemodding.impulse.core.ImpulsePlugin;
 import dev.hytalemodding.impulse.core.components.ImpulseControllableComponent;
 import dev.hytalemodding.impulse.core.components.PersistentPhysicsBodyComponent;
 import dev.hytalemodding.impulse.core.components.PhysicsBodyComponent;
+import dev.hytalemodding.impulse.core.resources.PhysicsDebugResource;
 import dev.hytalemodding.impulse.core.resources.PhysicsSpaceSettings;
 import dev.hytalemodding.impulse.core.resources.PhysicsWorldResource;
 import javax.annotation.Nonnull;
@@ -76,9 +78,10 @@ final class ExamplePhysicsUtils {
             true);
     }
 
-    static void enableDebug(@Nonnull PhysicsWorldResource resource) {
-        resource.setDebugEnabled(true);
-        resource.setDebugShapesEnabled(true);
+    static void enableDebug(@Nonnull Store<EntityStore> store, @Nonnull PlayerRef playerRef) {
+        PhysicsDebugResource debug = store.getResource(PhysicsDebugResource.getResourceType());
+        debug.addSubscriber(playerRef.getUuid());
+        debug.setDebugShapesEnabled(true);
     }
 
     @Nonnull

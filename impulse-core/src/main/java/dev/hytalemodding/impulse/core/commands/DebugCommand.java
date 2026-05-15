@@ -1,7 +1,7 @@
 package dev.hytalemodding.impulse.core.commands;
 
 import com.hypixel.hytale.server.core.command.system.basecommands.AbstractCommandCollection;
-import dev.hytalemodding.impulse.core.resources.PhysicsWorldResource;
+import dev.hytalemodding.impulse.core.resources.PhysicsDebugResource;
 
 public class DebugCommand extends AbstractCommandCollection {
 
@@ -9,19 +9,19 @@ public class DebugCommand extends AbstractCommandCollection {
         super("debug", "Impulse debug rendering commands");
         addSubCommand(new DebugToggleCommand());
         addSubCommand(new DebugFlagCommand("shapes", "shape",
-            PhysicsWorldResource::isDebugShapesEnabled,
-            PhysicsWorldResource::setDebugShapesEnabled));
+            PhysicsDebugResource::isDebugShapesEnabled,
+            PhysicsDebugResource::setDebugShapesEnabled));
         addSubCommand(new DebugFlagCommand("motion", "motion",
-            PhysicsWorldResource::isDebugMotionEnabled,
-            PhysicsWorldResource::setDebugMotionEnabled));
+            PhysicsDebugResource::isDebugMotionEnabled,
+            PhysicsDebugResource::setDebugMotionEnabled));
         addSubCommand(new DebugFlagCommand("contacts", "contact",
-            PhysicsWorldResource::isDebugContactsEnabled,
-            PhysicsWorldResource::setDebugContactsEnabled));
+            PhysicsDebugResource::isDebugContactsEnabled,
+            PhysicsDebugResource::setDebugContactsEnabled));
         addSubCommand(new DebugFlagCommand("joints", "joint",
-            PhysicsWorldResource::isDebugJointsEnabled,
-            PhysicsWorldResource::setDebugJointsEnabled));
+            PhysicsDebugResource::isDebugJointsEnabled,
+            PhysicsDebugResource::setDebugJointsEnabled));
         addSubCommand(new DebugFlagCommand("world-collision", "world collision",
-            PhysicsWorldResource::isDebugWorldCollisionEnabled,
-            PhysicsWorldResource::setDebugWorldCollisionEnabled));
+            PhysicsDebugResource::isDebugWorldCollisionEnabled,
+            PhysicsDebugResource::setDebugWorldCollisionEnabled));
     }
 }

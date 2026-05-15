@@ -18,6 +18,7 @@ import dev.hytalemodding.impulse.core.components.PersistentPhysicsBodyComponent;
 import dev.hytalemodding.impulse.core.components.PhysicsControlSessionComponent;
 import dev.hytalemodding.impulse.core.components.PhysicsBodyComponent;
 import dev.hytalemodding.impulse.core.persistence.PersistentPhysicsWorldResource;
+import dev.hytalemodding.impulse.core.resources.PhysicsDebugResource;
 import dev.hytalemodding.impulse.core.resources.PhysicsWorldResource;
 import dev.hytalemodding.impulse.core.systems.PersistentPhysicsBodyHydrationSystem;
 import dev.hytalemodding.impulse.core.systems.PersistentPhysicsBodySyncSystem;
@@ -27,7 +28,6 @@ import dev.hytalemodding.impulse.core.systems.PersistentPhysicsWorldSyncSystem;
 import dev.hytalemodding.impulse.core.systems.PhysicsBodyOwnerSystem;
 import dev.hytalemodding.impulse.core.systems.PhysicsCleanupSystem;
 import dev.hytalemodding.impulse.core.systems.PhysicsDebugSystem;
-import dev.hytalemodding.impulse.core.systems.PhysicsEntityDebugSystem;
 import dev.hytalemodding.impulse.core.systems.PhysicsKinematicControlSystem;
 import dev.hytalemodding.impulse.core.systems.PhysicsStepSystem;
 import dev.hytalemodding.impulse.core.systems.PhysicsSyncSystem;
@@ -57,6 +57,9 @@ public final class ImpulsePlugin extends JavaPlugin {
 
     @Getter
     private ResourceType<EntityStore, PhysicsWorldResource> physicsWorldResourceType;
+
+    @Getter
+    private ResourceType<EntityStore, PhysicsDebugResource> physicsDebugResourceType;
 
     @Getter
     private ResourceType<EntityStore, PersistentPhysicsWorldResource> persistentPhysicsWorldResourceType;
@@ -158,6 +161,8 @@ public final class ImpulsePlugin extends JavaPlugin {
             PhysicsControlSessionComponent.class, PhysicsControlSessionComponent::new);
         physicsWorldResourceType = entityRegistry.registerResource(PhysicsWorldResource.class,
             PhysicsWorldResource::new);
+        physicsDebugResourceType = entityRegistry.registerResource(PhysicsDebugResource.class,
+            PhysicsDebugResource::new);
         persistentPhysicsWorldResourceType = entityRegistry.registerResource(
             PersistentPhysicsWorldResource.class,
             "PersistentPhysicsWorld",
@@ -179,7 +184,6 @@ public final class ImpulsePlugin extends JavaPlugin {
         entityRegistry.registerSystem(new PersistentPhysicsBodySyncSystem());
         entityRegistry.registerSystem(new PersistentPhysicsWorldSyncSystem());
         entityRegistry.registerSystem(new PhysicsKinematicControlSystem());
-        entityRegistry.registerSystem(new PhysicsEntityDebugSystem());
         entityRegistry.registerSystem(new PhysicsCleanupSystem());
     }
 

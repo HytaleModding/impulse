@@ -23,7 +23,6 @@ import java.util.logging.Level;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 import lombok.Getter;
-import lombok.Setter;
 
 /**
  * ECS resource that holds the physics spaces for a world.
@@ -59,35 +58,6 @@ public class PhysicsWorldResource implements Resource<EntityStore> {
     private SpaceId defaultSpaceId;
     @Getter
     private int simulationSteps = MIN_SIMULATION_STEPS;
-
-    /*
-     * TODO: Move debug flags into a dedicated debug configuration object.
-     * TODO: Switch the individual booleans to bitflags.
-     */
-
-    @Setter
-    @Getter
-    private boolean debugEnabled;
-
-    @Setter
-    @Getter
-    private boolean debugShapesEnabled = true;
-
-    @Setter
-    @Getter
-    private boolean debugMotionEnabled = true;
-
-    @Setter
-    @Getter
-    private boolean debugContactsEnabled = true;
-
-    @Setter
-    @Getter
-    private boolean debugJointsEnabled = true;
-
-    @Setter
-    @Getter
-    private boolean debugWorldCollisionEnabled;
 
     public PhysicsWorldResource() {
     }
@@ -200,11 +170,6 @@ public class PhysicsWorldResource implements Resource<EntityStore> {
 
     @Nonnull
     public Collection<PhysicsSpace> getSpaces() {
-        return getSpaces("<unknown>");
-    }
-
-    @Nonnull
-    public Collection<PhysicsSpace> getSpaces(@Nonnull String worldName) {
         return new ArrayList<>(spaces.values());
     }
 
@@ -214,15 +179,6 @@ public class PhysicsWorldResource implements Resource<EntityStore> {
      */
     @Nonnull
     public Iterable<PhysicsSpace> iterateSpaces() {
-        return iterateSpaces("<unknown>");
-    }
-
-    /**
-     * Iterate spaces without allocating a snapshot collection.
-     * Use this from tick systems that do not mutate the space map while iterating.
-     */
-    @Nonnull
-    public Iterable<PhysicsSpace> iterateSpaces(@Nonnull String worldName) {
         return spaces.values();
     }
 
@@ -373,12 +329,6 @@ public class PhysicsWorldResource implements Resource<EntityStore> {
         copy.worldVoxelCollisionCache.copyFrom(worldVoxelCollisionCache);
         copy.defaultSpaceId = defaultSpaceId;
         copy.simulationSteps = simulationSteps;
-        copy.debugEnabled = debugEnabled;
-        copy.debugShapesEnabled = debugShapesEnabled;
-        copy.debugMotionEnabled = debugMotionEnabled;
-        copy.debugContactsEnabled = debugContactsEnabled;
-        copy.debugJointsEnabled = debugJointsEnabled;
-        copy.debugWorldCollisionEnabled = debugWorldCollisionEnabled;
         return copy;
     }
 }

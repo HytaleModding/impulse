@@ -8,7 +8,7 @@ import com.hypixel.hytale.server.core.command.system.basecommands.AbstractAsyncP
 import com.hypixel.hytale.server.core.universe.PlayerRef;
 import com.hypixel.hytale.server.core.universe.world.World;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
-import dev.hytalemodding.impulse.core.resources.PhysicsWorldResource;
+import dev.hytalemodding.impulse.core.resources.PhysicsDebugResource;
 import java.util.concurrent.CompletableFuture;
 import java.util.function.BiConsumer;
 import java.util.function.Function;
@@ -17,13 +17,13 @@ import javax.annotation.Nonnull;
 final class DebugFlagCommand extends AbstractAsyncPlayerCommand {
 
     private final String label;
-    private final Function<PhysicsWorldResource, Boolean> getter;
-    private final BiConsumer<PhysicsWorldResource, Boolean> setter;
+    private final Function<PhysicsDebugResource, Boolean> getter;
+    private final BiConsumer<PhysicsDebugResource, Boolean> setter;
 
     DebugFlagCommand(@Nonnull String name,
         @Nonnull String label,
-        @Nonnull Function<PhysicsWorldResource, Boolean> getter,
-        @Nonnull BiConsumer<PhysicsWorldResource, Boolean> setter) {
+        @Nonnull Function<PhysicsDebugResource, Boolean> getter,
+        @Nonnull BiConsumer<PhysicsDebugResource, Boolean> setter) {
         super(name, "Toggle Impulse " + label + " debug rendering");
         this.label = label;
         this.getter = getter;
@@ -37,7 +37,7 @@ final class DebugFlagCommand extends AbstractAsyncPlayerCommand {
         @Nonnull Ref<EntityStore> ref,
         @Nonnull PlayerRef playerRef,
         @Nonnull World world) {
-        PhysicsWorldResource resource = store.getResource(PhysicsWorldResource.getResourceType());
+        PhysicsDebugResource resource = store.getResource(PhysicsDebugResource.getResourceType());
         boolean enabled = !getter.apply(resource);
         setter.accept(resource, enabled);
         ctx.sender().sendMessage(Message.raw("Impulse " + label + " debug "
@@ -45,4 +45,3 @@ final class DebugFlagCommand extends AbstractAsyncPlayerCommand {
         return CompletableFuture.completedFuture(null);
     }
 }
-

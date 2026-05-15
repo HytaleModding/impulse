@@ -74,7 +74,7 @@ public class PhysicsWorldCollisionStreamingSystem extends TickingSystem<EntitySt
 
         long currentTick = ++tick;
         WorldVoxelCollisionCache cache = resource.getWorldVoxelCollisionCache();
-        for (PhysicsSpace space : resource.iterateSpaces(world.getName())) {
+        for (PhysicsSpace space : resource.iterateSpaces()) {
             PhysicsSpaceSettings settings = resource.getSpaceSettings(space.getId());
             if (settings.getWorldCollisionMode() != WorldCollisionMode.STREAMING) {
                 continue;
