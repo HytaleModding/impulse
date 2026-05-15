@@ -4,6 +4,9 @@ import com.hypixel.hytale.component.ArchetypeChunk;
 import com.hypixel.hytale.component.CommandBuffer;
 import com.hypixel.hytale.component.ComponentType;
 import com.hypixel.hytale.component.Store;
+import com.hypixel.hytale.component.dependency.Dependency;
+import com.hypixel.hytale.component.dependency.Order;
+import com.hypixel.hytale.component.dependency.SystemDependency;
 import com.hypixel.hytale.component.query.Query;
 import com.hypixel.hytale.component.system.tick.EntityTickingSystem;
 import com.hypixel.hytale.server.core.modules.entity.component.TransformComponent;
@@ -12,6 +15,7 @@ import dev.hytalemodding.impulse.api.PhysicsBody;
 import dev.hytalemodding.impulse.api.SpaceId;
 import dev.hytalemodding.impulse.core.components.PhysicsBodyComponent;
 import dev.hytalemodding.impulse.core.resources.PhysicsWorldResource;
+import java.util.Set;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 import org.joml.Quaternionf;
@@ -19,6 +23,9 @@ import org.joml.Vector3f;
 
 /**
  * Synchronizes physics bodies with Hytale transforms each tick.
+ *
+ * <p>Runs after body hydration so that newly hydrated bodies are available
+ * before this system reads their transforms.</p>
  */
 public class PhysicsSyncSystem extends EntityTickingSystem<EntityStore> {
 
@@ -26,6 +33,16 @@ public class PhysicsSyncSystem extends EntityTickingSystem<EntityStore> {
     private static final ComponentType<EntityStore, TransformComponent> TRANSFORM_TYPE = TransformComponent.getComponentType();
 
     private static final Query<EntityStore> QUERY = Query.and(PHYSICS_BODY_TYPE, TRANSFORM_TYPE);
+
+    private static final Set<Dependency<EntityStore>> DEPENDENCIES = Set.of(
+        new SystemDependency<>(Order.AFTER, PersistentPhysicsBodyHydrationSystem.class)
+    );
+
+    @Nonnull
+    @Override
+    public Set<Dependency<EntityStore>> getDependencies() {
+        return DEPENDENCIES;
+    }
 
     /**
      * Hytale may run entity ticks in parallel. Each worker needs independent temporary objects

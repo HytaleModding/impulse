@@ -52,7 +52,7 @@ public class StressRawBodiesCommand extends AbstractAsyncPlayerCommand {
 
         int count = ExamplePhysicsUtils.optionalInt(ctx, countArg, DEFAULT_COUNT, 1, MAX_COUNT);
         PhysicsWorldResource resource = ExamplePhysicsUtils.resource(store);
-        PhysicsSpace space = ExamplePhysicsUtils.mainSpace(resource, world);
+        PhysicsSpace space = ExamplePhysicsUtils.defaultSpace(resource, world);
 
         int side = (int) Math.ceil(Math.cbrt(count));
         double half = side * SPACING * 0.5;

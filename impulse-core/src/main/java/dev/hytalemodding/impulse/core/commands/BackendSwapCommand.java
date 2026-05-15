@@ -65,7 +65,12 @@ public class BackendSwapCommand extends AbstractAsyncPlayerCommand {
             }
             sourceSpaceId = new SpaceId(rawSpaceId);
         } else {
-            sourceSpaceId = resource.getMainSpaceId();
+            sourceSpaceId = resource.getDefaultSpaceId();
+            if (sourceSpaceId == null) {
+                ctx.sender().sendMessage(Message.raw("No default physics space is configured."
+                    + " Provide --space explicitly."));
+                return CompletableFuture.completedFuture(null);
+            }
         }
 
         try {
@@ -96,4 +101,3 @@ public class BackendSwapCommand extends AbstractAsyncPlayerCommand {
         return CompletableFuture.completedFuture(null);
     }
 }
-

@@ -11,6 +11,7 @@ import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import dev.hytalemodding.impulse.api.Impulse;
 import dev.hytalemodding.impulse.api.PhysicsBackend;
 import dev.hytalemodding.impulse.api.PhysicsSpace;
+import dev.hytalemodding.impulse.api.SpaceId;
 import dev.hytalemodding.impulse.core.resources.PhysicsWorldResource;
 import java.util.ArrayList;
 import java.util.Comparator;
@@ -43,11 +44,15 @@ public class BackendListCommand extends AbstractAsyncPlayerCommand {
         PhysicsWorldResource resource = store.getResource(PhysicsWorldResource.getResourceType());
         List<PhysicsSpace> spaces = new ArrayList<>(resource.getSpaces(world.getName()));
         spaces.sort(Comparator.comparingInt(space -> space.getId().value()));
-        var mainSpaceId = resource.getMainSpaceId();
+        SpaceId defaultSpaceId = resource.getDefaultSpaceId();
 
         ctx.sender().sendMessage(Message.raw("Physics spaces in world " + world.getName() + ":"));
+        if (spaces.isEmpty()) {
+            ctx.sender().sendMessage(Message.raw("- <none>"));
+            return CompletableFuture.completedFuture(null);
+        }
         for (PhysicsSpace space : spaces) {
-            String marker = space.getId().equals(mainSpaceId) ? " (main)" : "";
+            String marker = space.getId().equals(defaultSpaceId) ? " (default)" : "";
             ctx.sender().sendMessage(Message.raw("- id=" + space.getId().value()
                 + " backend=" + space.getBackendId().value() + marker));
         }
@@ -55,4 +60,3 @@ public class BackendListCommand extends AbstractAsyncPlayerCommand {
         return CompletableFuture.completedFuture(null);
     }
 }
-

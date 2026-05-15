@@ -13,13 +13,25 @@ import dev.hytalemodding.impulse.api.BackendId;
 import dev.hytalemodding.impulse.api.Impulse;
 import dev.hytalemodding.impulse.api.PhysicsBackend;
 import dev.hytalemodding.impulse.core.commands.ImpulseCommand;
+import dev.hytalemodding.impulse.core.components.ImpulseControllableComponent;
+import dev.hytalemodding.impulse.core.components.PersistentPhysicsBodyComponent;
+import dev.hytalemodding.impulse.core.components.PhysicsControlSessionComponent;
 import dev.hytalemodding.impulse.core.components.PhysicsBodyComponent;
+import dev.hytalemodding.impulse.core.persistence.PersistentPhysicsWorldResource;
 import dev.hytalemodding.impulse.core.resources.PhysicsWorldResource;
+import dev.hytalemodding.impulse.core.systems.PersistentPhysicsBodyHydrationSystem;
+import dev.hytalemodding.impulse.core.systems.PersistentPhysicsBodySyncSystem;
+import dev.hytalemodding.impulse.core.systems.PersistentPhysicsJointHydrationSystem;
+import dev.hytalemodding.impulse.core.systems.PersistentPhysicsSpaceBootstrapSystem;
+import dev.hytalemodding.impulse.core.systems.PersistentPhysicsWorldSyncSystem;
+import dev.hytalemodding.impulse.core.systems.PhysicsBodyOwnerSystem;
 import dev.hytalemodding.impulse.core.systems.PhysicsCleanupSystem;
 import dev.hytalemodding.impulse.core.systems.PhysicsDebugSystem;
 import dev.hytalemodding.impulse.core.systems.PhysicsEntityDebugSystem;
+import dev.hytalemodding.impulse.core.systems.PhysicsKinematicControlSystem;
 import dev.hytalemodding.impulse.core.systems.PhysicsStepSystem;
 import dev.hytalemodding.impulse.core.systems.PhysicsSyncSystem;
+import dev.hytalemodding.impulse.core.systems.PhysicsWorldCollisionStreamingSystem;
 import java.util.Optional;
 import java.util.ServiceLoader;
 import java.util.logging.Level;
@@ -35,7 +47,19 @@ public final class ImpulsePlugin extends JavaPlugin {
     private ComponentType<EntityStore, PhysicsBodyComponent> physicsBodyComponentType;
 
     @Getter
+    private ComponentType<EntityStore, PersistentPhysicsBodyComponent> persistentPhysicsBodyComponentType;
+
+    @Getter
+    private ComponentType<EntityStore, ImpulseControllableComponent> impulseControllableComponentType;
+
+    @Getter
+    private ComponentType<EntityStore, PhysicsControlSessionComponent> physicsControlSessionComponentType;
+
+    @Getter
     private ResourceType<EntityStore, PhysicsWorldResource> physicsWorldResourceType;
+
+    @Getter
+    private ResourceType<EntityStore, PersistentPhysicsWorldResource> persistentPhysicsWorldResourceType;
 
     @Getter
     private BackendId defaultBackendId;
@@ -124,8 +148,20 @@ public final class ImpulsePlugin extends JavaPlugin {
         ComponentRegistryProxy<EntityStore> entityRegistry = getEntityStoreRegistry();
         physicsBodyComponentType = entityRegistry.registerComponent(PhysicsBodyComponent.class,
             PhysicsBodyComponent::new);
+        persistentPhysicsBodyComponentType = entityRegistry.registerComponent(
+            PersistentPhysicsBodyComponent.class,
+            "PersistentPhysicsBody",
+            PersistentPhysicsBodyComponent.CODEC);
+        impulseControllableComponentType = entityRegistry.registerComponent(
+            ImpulseControllableComponent.class, ImpulseControllableComponent::new);
+        physicsControlSessionComponentType = entityRegistry.registerComponent(
+            PhysicsControlSessionComponent.class, PhysicsControlSessionComponent::new);
         physicsWorldResourceType = entityRegistry.registerResource(PhysicsWorldResource.class,
             PhysicsWorldResource::new);
+        persistentPhysicsWorldResourceType = entityRegistry.registerResource(
+            PersistentPhysicsWorldResource.class,
+            "PersistentPhysicsWorld",
+            PersistentPhysicsWorldResource.CODEC);
     }
 
     private void registerSystems() {
@@ -134,7 +170,15 @@ public final class ImpulsePlugin extends JavaPlugin {
         chunkRegistry.registerSystem(new PhysicsDebugSystem());
 
         ComponentRegistryProxy<EntityStore> entityRegistry = getEntityStoreRegistry();
+        entityRegistry.registerSystem(new PersistentPhysicsSpaceBootstrapSystem());
+        entityRegistry.registerSystem(new PersistentPhysicsBodyHydrationSystem());
+        entityRegistry.registerSystem(new PersistentPhysicsJointHydrationSystem());
+        entityRegistry.registerSystem(new PhysicsBodyOwnerSystem());
+        entityRegistry.registerSystem(new PhysicsWorldCollisionStreamingSystem());
         entityRegistry.registerSystem(new PhysicsSyncSystem());
+        entityRegistry.registerSystem(new PersistentPhysicsBodySyncSystem());
+        entityRegistry.registerSystem(new PersistentPhysicsWorldSyncSystem());
+        entityRegistry.registerSystem(new PhysicsKinematicControlSystem());
         entityRegistry.registerSystem(new PhysicsEntityDebugSystem());
         entityRegistry.registerSystem(new PhysicsCleanupSystem());
     }

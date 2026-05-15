@@ -1,6 +1,7 @@
 package dev.hytalemodding.impulse.core.systems;
 
 import com.hypixel.hytale.protocol.DebugShape;
+import com.hypixel.hytale.math.util.ChunkUtil;
 import com.hypixel.hytale.server.core.modules.debug.DebugUtils;
 import com.hypixel.hytale.server.core.universe.world.World;
 import dev.hytalemodding.impulse.api.PhysicsAxis;
@@ -8,6 +9,7 @@ import dev.hytalemodding.impulse.api.PhysicsBody;
 import dev.hytalemodding.impulse.api.PhysicsBodyType;
 import dev.hytalemodding.impulse.api.PhysicsContact;
 import dev.hytalemodding.impulse.api.PhysicsJoint;
+import dev.hytalemodding.impulse.core.voxel.SectionCollisionGeometry.BoxCollider;
 import javax.annotation.Nonnull;
 import org.joml.Matrix4d;
 import org.joml.Quaterniond;
@@ -104,6 +106,36 @@ final class PhysicsDebugRenderer {
         renderArrow(world, start, direction, color, time);
     }
 
+    static void renderWorldCollisionSection(@Nonnull World world,
+        int chunkX,
+        int sectionY,
+        int chunkZ,
+        boolean voxelTerrain,
+        float time) {
+        Vector3f color = voxelTerrain ? DebugUtils.COLOR_TEAL : DebugUtils.COLOR_NAVY;
+        double halfSection = ChunkUtil.SIZE * 0.5;
+        renderDebugCube(world,
+            new Vector3d((chunkX << ChunkUtil.BITS) + halfSection,
+                (sectionY << ChunkUtil.BITS) + halfSection,
+                (chunkZ << ChunkUtil.BITS) + halfSection),
+            new Vector3d(halfSection, halfSection, halfSection),
+            color,
+            time,
+            1.0);
+    }
+
+    static void renderWorldCollisionBox(@Nonnull World world,
+        @Nonnull BoxCollider box,
+        @Nonnull Vector3f color,
+        float time) {
+        renderDebugCube(world,
+            new Vector3d(box.centerX(), box.centerY(), box.centerZ()),
+            new Vector3d(box.halfX(), box.halfY(), box.halfZ()),
+            color,
+            time,
+            1.0);
+    }
+
     static Vector3d centerFromSyncedTransform(@Nonnull PhysicsBody body,
         @Nonnull Vector3d transformPosition) {
         return new Vector3d(transformPosition).add(0.0, body.getCenterOfMassOffsetY(), 0.0);
@@ -126,6 +158,32 @@ final class PhysicsDebugRenderer {
             .scale(half.x * 2 * SHAPE_INFLATION,
                 half.y * 2 * SHAPE_INFLATION,
                 half.z * 2 * SHAPE_INFLATION);
+        DebugUtils.add(world, DebugShape.Cube, transform, color, time, SHAPE_FLAGS);
+    }
+
+    private static void renderDebugCube(@Nonnull World world,
+        @Nonnull Vector3d center,
+        @Nonnull Vector3d halfExtents,
+        @Nonnull Vector3f color,
+        float time) {
+        renderDebugCube(world, center, halfExtents, color, time, SHAPE_INFLATION);
+    }
+
+    private static void renderDebugCube(@Nonnull World world,
+        @Nonnull Vector3d center,
+        @Nonnull Vector3d halfExtents,
+        @Nonnull Vector3f color,
+        float time,
+        double inflation) {
+        if (halfExtents.x <= 0.0 || halfExtents.y <= 0.0 || halfExtents.z <= 0.0) {
+            return;
+        }
+
+        Matrix4d transform = new Matrix4d()
+            .translate(center)
+            .scale(halfExtents.x * 2.0 * inflation,
+                halfExtents.y * 2.0 * inflation,
+                halfExtents.z * 2.0 * inflation);
         DebugUtils.add(world, DebugShape.Cube, transform, color, time, SHAPE_FLAGS);
     }
 

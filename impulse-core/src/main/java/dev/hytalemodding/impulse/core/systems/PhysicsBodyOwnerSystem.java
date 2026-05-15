@@ -8,48 +8,40 @@ import com.hypixel.hytale.component.Store;
 import com.hypixel.hytale.component.query.Query;
 import com.hypixel.hytale.component.system.RefSystem;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
-import dev.hytalemodding.impulse.api.PhysicsBody;
-import dev.hytalemodding.impulse.api.PhysicsSpace;
-import dev.hytalemodding.impulse.api.SpaceId;
 import dev.hytalemodding.impulse.core.components.PhysicsBodyComponent;
 import dev.hytalemodding.impulse.core.resources.PhysicsWorldResource;
 import javax.annotation.Nonnull;
 
-/**
- * Removes physics bodies from the space when entities are despawned.
- */
-public class PhysicsCleanupSystem extends RefSystem<EntityStore> {
+public class PhysicsBodyOwnerSystem extends RefSystem<EntityStore> {
 
     @Override
-    public void onEntityAdded(
-        @Nonnull Ref<EntityStore> ref,
+    public void onEntityAdded(@Nonnull Ref<EntityStore> ref,
         @Nonnull AddReason reason,
         @Nonnull Store<EntityStore> store,
-        @Nonnull CommandBuffer<EntityStore> commandBuffer
-    ) {}
+        @Nonnull CommandBuffer<EntityStore> commandBuffer) {
+        PhysicsBodyComponent component = commandBuffer.getComponent(ref,
+            PhysicsBodyComponent.getComponentType());
+        if (component == null) {
+            return;
+        }
+
+        commandBuffer.getResource(PhysicsWorldResource.getResourceType())
+            .registerBodyOwner(component.getBody(), ref);
+    }
 
     @Override
-    public void onEntityRemove(
-        @Nonnull Ref<EntityStore> ref,
+    public void onEntityRemove(@Nonnull Ref<EntityStore> ref,
         @Nonnull RemoveReason reason,
         @Nonnull Store<EntityStore> store,
-        @Nonnull CommandBuffer<EntityStore> commandBuffer
-    ) {
+        @Nonnull CommandBuffer<EntityStore> commandBuffer) {
         PhysicsBodyComponent component = store.getComponent(ref,
             PhysicsBodyComponent.getComponentType());
         if (component == null) {
             return;
         }
 
-        PhysicsBody body = component.getBody();
-
-        PhysicsWorldResource resource = store.getResource(PhysicsWorldResource.getResourceType());
-        SpaceId spaceId = component.getSpaceId();
-        PhysicsSpace space = spaceId != null ? resource.getSpace(spaceId)
-            : resource.getDefaultSpace();
-        if (space != null) {
-            space.removeBody(body);
-        }
+        store.getResource(PhysicsWorldResource.getResourceType())
+            .unregisterBodyOwner(component.getBody(), ref);
     }
 
     @Nonnull

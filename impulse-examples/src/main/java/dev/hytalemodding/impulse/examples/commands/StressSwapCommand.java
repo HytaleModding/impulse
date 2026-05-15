@@ -44,10 +44,14 @@ public class StressSwapCommand extends AbstractAsyncPlayerCommand {
         @Nonnull World world) {
         int cycles = ExamplePhysicsUtils.optionalInt(ctx, cyclesArg, DEFAULT_CYCLES, 1, MAX_CYCLES);
         PhysicsWorldResource resource = ExamplePhysicsUtils.resource(store);
-        SpaceId spaceId = resource.getMainSpaceId();
+        SpaceId spaceId = resource.getDefaultSpaceId();
+        if (spaceId == null) {
+            ctx.sender().sendMessage(Message.raw("No default example physics space exists yet."));
+            return CompletableFuture.completedFuture(null);
+        }
         PhysicsSpace space = resource.getSpace(spaceId);
         if (space == null) {
-            ctx.sender().sendMessage(Message.raw("Main physics space is missing."));
+            ctx.sender().sendMessage(Message.raw("Default physics space is missing."));
             return CompletableFuture.completedFuture(null);
         }
 
@@ -89,4 +93,3 @@ public class StressSwapCommand extends AbstractAsyncPlayerCommand {
         return String.format(Locale.ROOT, "%.3f", nanos / 1_000_000.0);
     }
 }
-
