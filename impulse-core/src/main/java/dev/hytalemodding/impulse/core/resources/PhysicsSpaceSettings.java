@@ -2,6 +2,7 @@ package dev.hytalemodding.impulse.core.resources;
 
 import dev.hytalemodding.impulse.core.voxel.WorldCollisionMode;
 import lombok.Getter;
+import lombok.Setter;
 import javax.annotation.Nonnull;
 
 /**
@@ -34,6 +35,12 @@ public class PhysicsSpaceSettings {
      */
     public static final int DEFAULT_WORLD_COLLISION_TTL_TICKS = 100;
 
+    /**
+     * World collision mode for this space. Defaults to NONE so Impulse
+     * is fully opt-in: no terrain collision is created unless explicitly requested.
+     */
+    @Getter
+    @Setter
     @Nonnull
     private WorldCollisionMode worldCollisionMode = WorldCollisionMode.NONE;
 
@@ -78,15 +85,6 @@ public class PhysicsSpaceSettings {
         PhysicsSpaceSettings settings = new PhysicsSpaceSettings();
         settings.setWorldCollisionMode(WorldCollisionMode.STREAMING);
         return settings;
-    }
-
-    @Nonnull
-    public WorldCollisionMode getWorldCollisionMode() {
-        return worldCollisionMode;
-    }
-
-    public void setWorldCollisionMode(@Nonnull WorldCollisionMode worldCollisionMode) {
-        this.worldCollisionMode = worldCollisionMode;
     }
 
     public void setWorldCollisionRadius(int worldCollisionRadius) {

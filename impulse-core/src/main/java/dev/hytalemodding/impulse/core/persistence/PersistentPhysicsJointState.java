@@ -95,16 +95,25 @@ public class PersistentPhysicsJointState {
     @Getter
     private int spaceId;
     @Nullable
+    @Getter
+    @Setter
     private UUID bodyAUuid;
     @Nullable
+    @Getter
+    @Setter
     private UUID bodyBUuid;
     @Nonnull
+    @Getter
+    @Setter
     private PhysicsJointType type = PhysicsJointType.FIXED;
     @Nonnull
+    @Getter
     private final Vector3f anchorA = new Vector3f();
     @Nonnull
+    @Getter
     private final Vector3f anchorB = new Vector3f();
     @Nullable
+    @Getter
     private Vector3f axis;
     @Setter
     @Getter
@@ -161,48 +170,6 @@ public class PersistentPhysicsJointState {
         state.springStiffness = joint.getSpringStiffness();
         state.springDamping = joint.getSpringDamping();
         return state;
-    }
-
-    @Nullable
-    public UUID getBodyAUuid() {
-        return bodyAUuid;
-    }
-
-    public void setBodyAUuid(@Nullable UUID bodyAUuid) {
-        this.bodyAUuid = bodyAUuid;
-    }
-
-    @Nullable
-    public UUID getBodyBUuid() {
-        return bodyBUuid;
-    }
-
-    public void setBodyBUuid(@Nullable UUID bodyBUuid) {
-        this.bodyBUuid = bodyBUuid;
-    }
-
-    @Nonnull
-    public PhysicsJointType getType() {
-        return type;
-    }
-
-    public void setType(@Nonnull PhysicsJointType type) {
-        this.type = type;
-    }
-
-    @Nonnull
-    public Vector3f getAnchorA() {
-        return anchorA;
-    }
-
-    @Nonnull
-    public Vector3f getAnchorB() {
-        return anchorB;
-    }
-
-    @Nullable
-    public Vector3f getAxis() {
-        return axis;
     }
 
     public void setAxis(@Nullable Vector3f axis) {

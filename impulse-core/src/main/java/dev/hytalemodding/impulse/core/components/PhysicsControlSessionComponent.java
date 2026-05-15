@@ -11,9 +11,10 @@ import dev.hytalemodding.impulse.api.SpaceId;
 import dev.hytalemodding.impulse.core.ImpulsePlugin;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
-import lombok.Getter;
 import org.joml.Vector3f;
+import lombok.Getter;
 
+@Getter
 public class PhysicsControlSessionComponent implements Component<EntityStore> {
 
     @Nullable
@@ -65,51 +66,6 @@ public class PhysicsControlSessionComponent implements Component<EntityStore> {
 
     public static ComponentType<EntityStore, PhysicsControlSessionComponent> getComponentType() {
         return ImpulsePlugin.get().getPhysicsControlSessionComponentType();
-    }
-
-    @Nullable
-    public PhysicsBody getBody() {
-        return body;
-    }
-
-    @Nullable
-    public PhysicsBody getAnchorBody() {
-        return anchorBody;
-    }
-
-    @Nullable
-    public PhysicsJoint getJoint() {
-        return joint;
-    }
-
-    @Nullable
-    public Ref<EntityStore> getTargetRef() {
-        return targetRef;
-    }
-
-    @Nullable
-    public SpaceId getSpaceId() {
-        return spaceId;
-    }
-
-    @Nonnull
-    public PhysicsBodyType getOriginalBodyType() {
-        return originalBodyType;
-    }
-
-    @Nonnull
-    public Vector3f getViewOffset() {
-        return viewOffset;
-    }
-
-    @Nonnull
-    public Vector3f getPreviousTarget() {
-        return previousTarget;
-    }
-
-    @Nonnull
-    public Vector3f getReleaseVelocity() {
-        return releaseVelocity;
     }
 
     public void deactivate() {

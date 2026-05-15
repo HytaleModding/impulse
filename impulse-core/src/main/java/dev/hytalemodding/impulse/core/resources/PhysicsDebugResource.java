@@ -8,6 +8,8 @@ import java.util.HashSet;
 import java.util.Set;
 import java.util.UUID;
 import javax.annotation.Nonnull;
+import lombok.Getter;
+import lombok.Setter;
 
 /**
  * Runtime-only debug overlay state for one world EntityStore.
@@ -17,6 +19,7 @@ import javax.annotation.Nonnull;
  * by gameplay systems, while debug subscriptions, cadence, and packet budgets
  * are temporary operational concerns.</p>
  */
+@Getter
 public class PhysicsDebugResource implements Resource<EntityStore> {
 
     public static final float MIN_REFRESH_SECONDS = 0.05f;
@@ -33,10 +36,15 @@ public class PhysicsDebugResource implements Resource<EntityStore> {
 
     private final Set<UUID> subscriberUuids = new HashSet<>();
 
+    @Setter
     private boolean debugShapesEnabled = true;
+    @Setter
     private boolean debugMotionEnabled = true;
+    @Setter
     private boolean debugContactsEnabled = true;
+    @Setter
     private boolean debugJointsEnabled = true;
+    @Setter
     private boolean debugWorldCollisionEnabled;
 
     private float overlayRefreshSeconds = DEFAULT_OVERLAY_REFRESH_SECONDS;
@@ -75,104 +83,32 @@ public class PhysicsDebugResource implements Resource<EntityStore> {
         return !subscriberUuids.isEmpty();
     }
 
-    public boolean isDebugShapesEnabled() {
-        return debugShapesEnabled;
-    }
-
-    public void setDebugShapesEnabled(boolean debugShapesEnabled) {
-        this.debugShapesEnabled = debugShapesEnabled;
-    }
-
-    public boolean isDebugMotionEnabled() {
-        return debugMotionEnabled;
-    }
-
-    public void setDebugMotionEnabled(boolean debugMotionEnabled) {
-        this.debugMotionEnabled = debugMotionEnabled;
-    }
-
-    public boolean isDebugContactsEnabled() {
-        return debugContactsEnabled;
-    }
-
-    public void setDebugContactsEnabled(boolean debugContactsEnabled) {
-        this.debugContactsEnabled = debugContactsEnabled;
-    }
-
-    public boolean isDebugJointsEnabled() {
-        return debugJointsEnabled;
-    }
-
-    public void setDebugJointsEnabled(boolean debugJointsEnabled) {
-        this.debugJointsEnabled = debugJointsEnabled;
-    }
-
-    public boolean isDebugWorldCollisionEnabled() {
-        return debugWorldCollisionEnabled;
-    }
-
-    public void setDebugWorldCollisionEnabled(boolean debugWorldCollisionEnabled) {
-        this.debugWorldCollisionEnabled = debugWorldCollisionEnabled;
-    }
-
-    public float getOverlayRefreshSeconds() {
-        return overlayRefreshSeconds;
-    }
-
     public void setOverlayRefreshSeconds(float overlayRefreshSeconds) {
         this.overlayRefreshSeconds = clampRefresh(overlayRefreshSeconds);
-    }
-
-    public float getWorldCollisionRefreshSeconds() {
-        return worldCollisionRefreshSeconds;
     }
 
     public void setWorldCollisionRefreshSeconds(float worldCollisionRefreshSeconds) {
         this.worldCollisionRefreshSeconds = clampRefresh(worldCollisionRefreshSeconds);
     }
 
-    public double getViewRadius() {
-        return viewRadius;
-    }
-
     public void setViewRadius(double viewRadius) {
         this.viewRadius = Math.max(1.0, viewRadius);
-    }
-
-    public int getMaxBodies() {
-        return maxBodies;
     }
 
     public void setMaxBodies(int maxBodies) {
         this.maxBodies = Math.max(1, maxBodies);
     }
 
-    public int getMaxContacts() {
-        return maxContacts;
-    }
-
     public void setMaxContacts(int maxContacts) {
         this.maxContacts = Math.max(1, maxContacts);
-    }
-
-    public int getMaxJoints() {
-        return maxJoints;
     }
 
     public void setMaxJoints(int maxJoints) {
         this.maxJoints = Math.max(1, maxJoints);
     }
 
-    public int getMaxWorldCollisionSections() {
-        return maxWorldCollisionSections;
-    }
-
     public void setMaxWorldCollisionSections(int maxWorldCollisionSections) {
         this.maxWorldCollisionSections = Math.max(1, maxWorldCollisionSections);
-    }
-
-    public int getMaxWorldCollisionBoxes() {
-        return maxWorldCollisionBoxes;
     }
 
     public void setMaxWorldCollisionBoxes(int maxWorldCollisionBoxes) {
