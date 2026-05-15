@@ -48,6 +48,46 @@ public interface PhysicsSpace {
     @Nonnull
     PhysicsBody createBox(@Nonnull Vector3f halfExtents, float mass);
 
+    /**
+     * Returns true when the backend can create one static voxel collider from local voxel cells.
+     *
+     * <p>This is intended for section-sized terrain batches. Backends that do not support a
+     * native voxel shape can return false and let higher-level code fall back to merged boxes.</p>
+     */
+    default boolean supportsVoxelTerrain() {
+        return false;
+    }
+
+    /**
+     * Creates a static terrain body made from occupied voxel cells.
+     *
+     * <p>The {@code voxelCoordinates} array stores triples of local integer grid coordinates:
+     * {@code x0, y0, z0, x1, y1, z1, ...}. The returned body can then be positioned at the
+     * section/world origin like any other static body.</p>
+     */
+    @Nonnull
+    default PhysicsBody createVoxelTerrain(float voxelSizeX,
+        float voxelSizeY,
+        float voxelSizeZ,
+        @Nonnull int[] voxelCoordinates) {
+        throw new UnsupportedOperationException("This physics backend does not support voxel terrain");
+    }
+
+    /**
+     * Couples two adjacent voxel terrain bodies so the backend can treat their shared boundary
+     * as continuous terrain instead of two unrelated voxel sets.
+     *
+     * <p>The shift is expressed in voxel units from {@code bodyA}'s local voxel origin to
+     * {@code bodyB}'s local voxel origin. Backends that do not use native voxel terrain can keep
+     * the default no-op behavior.</p>
+     */
+    default void combineVoxelTerrains(@Nonnull PhysicsBody bodyA,
+        @Nonnull PhysicsBody bodyB,
+        int shiftX,
+        int shiftY,
+        int shiftZ) {
+    }
+
     @Nonnull
     PhysicsBody createSphere(float radius, float mass);
 

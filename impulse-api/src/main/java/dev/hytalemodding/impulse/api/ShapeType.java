@@ -10,5 +10,6 @@ public enum ShapeType {
     CYLINDER,
     CONE,
     PLANE,
+    VOXELS,
     UNKNOWN
 }
