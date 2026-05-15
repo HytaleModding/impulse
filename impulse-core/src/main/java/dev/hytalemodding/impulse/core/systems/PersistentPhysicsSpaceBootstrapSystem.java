@@ -10,6 +10,7 @@ import dev.hytalemodding.impulse.api.BackendId;
 import dev.hytalemodding.impulse.api.Impulse;
 import dev.hytalemodding.impulse.api.PhysicsSpace;
 import dev.hytalemodding.impulse.api.SpaceId;
+import dev.hytalemodding.impulse.core.ImpulsePlugin;
 import dev.hytalemodding.impulse.core.persistence.PersistentPhysicsSpaceState;
 import dev.hytalemodding.impulse.core.persistence.PersistentPhysicsWorldResource;
 import dev.hytalemodding.impulse.core.resources.PhysicsWorldResource;
@@ -38,10 +39,12 @@ import javax.annotation.Nullable;
 public class PersistentPhysicsSpaceBootstrapSystem extends TickingSystem<EntityStore> {
 
     private static final HytaleLogger LOGGER = HytaleLogger.get("Impulse");
+    @Nonnull
+    private final SystemGroup<EntityStore> group = ImpulsePlugin.get().getPersistenceRestoreGroup();
 
     @Override
     public SystemGroup<EntityStore> getGroup() {
-        return PhysicsSystemGroups.PERSISTENCE_RESTORE_GROUP;
+        return group;
     }
 
     @Override

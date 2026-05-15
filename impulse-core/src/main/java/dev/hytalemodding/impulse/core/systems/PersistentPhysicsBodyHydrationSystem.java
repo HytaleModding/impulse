@@ -13,6 +13,7 @@ import com.hypixel.hytale.component.system.tick.EntityTickingSystem;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import dev.hytalemodding.impulse.api.PhysicsBody;
 import dev.hytalemodding.impulse.api.PhysicsBodyType;
+import dev.hytalemodding.impulse.core.ImpulsePlugin;
 import dev.hytalemodding.impulse.core.components.ImpulseControllableComponent;
 import dev.hytalemodding.impulse.core.components.PersistentPhysicsBodyComponent;
 import dev.hytalemodding.impulse.core.components.PhysicsBodyComponent;
@@ -49,6 +50,8 @@ public class PersistentPhysicsBodyHydrationSystem extends EntityTickingSystem<En
     private static final Set<Dependency<EntityStore>> DEPENDENCIES = Set.of(
         new SystemDependency<>(Order.AFTER, PersistentPhysicsSpaceBootstrapSystem.class)
     );
+    @Nonnull
+    private final SystemGroup<EntityStore> group = ImpulsePlugin.get().getPersistenceRestoreGroup();
 
     @Nonnull
     @Override
@@ -64,7 +67,7 @@ public class PersistentPhysicsBodyHydrationSystem extends EntityTickingSystem<En
 
     @Override
     public SystemGroup<EntityStore> getGroup() {
-        return PhysicsSystemGroups.PERSISTENCE_RESTORE_GROUP;
+        return group;
     }
 
     @Override
