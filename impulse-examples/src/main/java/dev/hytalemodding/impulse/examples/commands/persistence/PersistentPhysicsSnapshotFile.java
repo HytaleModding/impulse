@@ -1,8 +1,9 @@
-package dev.hytalemodding.impulse.core.persistence;
+package dev.hytalemodding.impulse.examples.commands.persistence;
 
 import com.hypixel.hytale.codec.KeyedCodec;
 import com.hypixel.hytale.codec.builder.BuilderCodec;
 import com.hypixel.hytale.codec.codecs.array.ArrayCodec;
+import dev.hytalemodding.impulse.core.persistence.PersistentPhysicsWorldResource;
 import javax.annotation.Nonnull;
 
 /**
