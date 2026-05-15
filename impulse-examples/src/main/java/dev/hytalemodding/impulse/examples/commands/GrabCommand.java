@@ -51,7 +51,7 @@ public class GrabCommand extends AbstractAsyncPlayerCommand {
 
         PhysicsWorldResource resource = ExamplePhysicsUtils.resource(store);
         PhysicsSpace space = ExamplePhysicsUtils.defaultSpace(resource, world);
-        ExamplePhysicsUtils.enableDebug(resource);
+        ExamplePhysicsUtils.enableDebug(store, playerRef);
 
         Vector3d start = ExamplePhysicsUtils.eyePosition(store, ref, transform);
         Vector3d direction = ExamplePhysicsUtils.lookDirection(store, ref, transform).mul(RAY_LENGTH);

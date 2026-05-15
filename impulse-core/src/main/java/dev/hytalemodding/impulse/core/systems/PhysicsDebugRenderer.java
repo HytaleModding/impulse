@@ -3,13 +3,14 @@ package dev.hytalemodding.impulse.core.systems;
 import com.hypixel.hytale.protocol.DebugShape;
 import com.hypixel.hytale.math.util.ChunkUtil;
 import com.hypixel.hytale.server.core.modules.debug.DebugUtils;
-import com.hypixel.hytale.server.core.universe.world.World;
+import com.hypixel.hytale.server.core.universe.PlayerRef;
 import dev.hytalemodding.impulse.api.PhysicsAxis;
 import dev.hytalemodding.impulse.api.PhysicsBody;
 import dev.hytalemodding.impulse.api.PhysicsBodyType;
 import dev.hytalemodding.impulse.api.PhysicsContact;
 import dev.hytalemodding.impulse.api.PhysicsJoint;
 import dev.hytalemodding.impulse.core.voxel.SectionCollisionGeometry.BoxCollider;
+import java.util.Collection;
 import javax.annotation.Nonnull;
 import org.joml.Matrix4d;
 import org.joml.Quaterniond;
@@ -30,83 +31,118 @@ final class PhysicsDebugRenderer {
     private PhysicsDebugRenderer() {
     }
 
-    static float lifetime(float dt) {
-        if (dt <= 0f) {
-            return 0.03f;
-        }
-        return Math.clamp(dt * 0.9f, 0.02f, 0.05f);
+    static float lifetimeForRefresh(float refreshSeconds) {
+        return Math.clamp(refreshSeconds * 1.25f, 0.08f, 0.75f);
     }
 
-    static void renderBodyShape(@Nonnull World world,
+    static void renderBodyShape(@Nonnull Collection<PlayerRef> viewers,
         @Nonnull PhysicsBody body,
         @Nonnull Vector3d center,
         @Nonnull Quaterniond rotation,
         float time) {
         Vector3f color = colorForBody(body);
         switch (body.getShapeType()) {
-            case BOX -> renderBox(world, body, center, rotation, color, time);
-            case SPHERE -> renderSphere(world, body, center, color, time);
-            case CAPSULE -> renderCapsule(world, body, center, rotation, color, time);
-            case CYLINDER -> renderCylinder(world, body, center, rotation, color, time);
-            case CONE -> renderCone(world, body, center, rotation, color, time);
-            case PLANE -> renderPlane(world, center, time);
-            default -> renderUnknown(world, center, rotation, time);
+            case BOX -> renderBox(viewers, body, center, rotation, color, time);
+            case SPHERE -> renderSphere(viewers, body, center, color, time);
+            case CAPSULE -> renderCapsule(viewers, body, center, rotation, color, time);
+            case CYLINDER -> renderCylinder(viewers, body, center, rotation, color, time);
+            case CONE -> renderCone(viewers, body, center, rotation, color, time);
+            case PLANE -> renderPlane(viewers, center, time);
+            default -> renderUnknown(viewers, center, rotation, time);
         }
     }
 
-    static void renderBodyMotion(@Nonnull World world,
+    static void renderBodyMotion(@Nonnull Collection<PlayerRef> viewers,
         @Nonnull PhysicsBody body,
         @Nonnull Vector3d center,
         float time) {
         Vector3f linearVelocity = body.getLinearVelocity();
-        renderArrow(world, center, toDebugDirection(linearVelocity, VELOCITY_SCALE),
+        renderArrow(viewers, center, toDebugDirection(linearVelocity, VELOCITY_SCALE),
             DebugUtils.COLOR_GREEN, time);
 
         Vector3f angularVelocity = body.getAngularVelocity();
-        renderArrow(world, center, toDebugDirection(angularVelocity, ANGULAR_VELOCITY_SCALE),
+        renderArrow(viewers, center, toDebugDirection(angularVelocity, ANGULAR_VELOCITY_SCALE),
             DebugUtils.COLOR_MAGENTA, time);
     }
 
-    static void renderContact(@Nonnull World world, @Nonnull PhysicsContact contact, float time) {
+    static void renderContact(@Nonnull Collection<PlayerRef> viewers,
+        @Nonnull PhysicsContact contact,
+        float time) {
         Vector3d point = toVector3d(contact.pointOnB());
-        DebugUtils.addSphere(world, point, DebugUtils.COLOR_RED, 0.12, time);
+        PhysicsDebugPackets.addSphere(viewers,
+            point,
+            DebugUtils.COLOR_RED,
+            0.8f,
+            0.12,
+            time,
+            VECTOR_FLAGS);
 
         Vector3d normal = toVector3d(contact.normalOnB());
         double magnitude = Math.max(CONTACT_NORMAL_SCALE, Math.abs(contact.impulse()) * 0.05);
         if (normal.lengthSquared() > 0.0) {
             normal.normalize().mul(magnitude);
-            DebugUtils.addArrow(world, point, normal, DebugUtils.COLOR_YELLOW, 0.8f, time,
+            PhysicsDebugPackets.addArrow(viewers,
+                point,
+                normal,
+                DebugUtils.COLOR_YELLOW,
+                0.8f,
+                time,
                 VECTOR_FLAGS);
         }
     }
 
-    static void renderJoint(@Nonnull World world, @Nonnull PhysicsJoint joint, float time) {
+    static void renderJoint(@Nonnull Collection<PlayerRef> viewers,
+        @Nonnull PhysicsJoint joint,
+        float time) {
         Vector3d anchorA = worldAnchor(joint.getBodyA(), joint.getAnchorA());
         Vector3d anchorB = worldAnchor(joint.getBodyB(), joint.getAnchorB());
-        DebugUtils.addLine(world, anchorA, anchorB, DebugUtils.COLOR_PURPLE, 0.035, time,
+        PhysicsDebugPackets.addLine(viewers,
+            anchorA,
+            anchorB,
+            DebugUtils.COLOR_PURPLE,
+            0.035,
+            0.8f,
+            time,
             VECTOR_FLAGS);
-        DebugUtils.addSphere(world, anchorA, DebugUtils.COLOR_PURPLE, 0.12, time);
-        DebugUtils.addSphere(world, anchorB, DebugUtils.COLOR_PURPLE, 0.12, time);
+        PhysicsDebugPackets.addSphere(viewers,
+            anchorA,
+            DebugUtils.COLOR_PURPLE,
+            0.8f,
+            0.12,
+            time,
+            VECTOR_FLAGS);
+        PhysicsDebugPackets.addSphere(viewers,
+            anchorB,
+            DebugUtils.COLOR_PURPLE,
+            0.8f,
+            0.12,
+            time,
+            VECTOR_FLAGS);
 
         Vector3f axis = joint.getAxis();
         if (axis != null && axis.lengthSquared() > 0f) {
             Vector3d worldAxis = toVector3d(axis).normalize().mul(0.9);
             Quaterniond bodyRotation = toQuaterniond(joint.getBodyA().getRotation());
             bodyRotation.transform(worldAxis);
-            DebugUtils.addArrow(world, anchorA, worldAxis, DebugUtils.COLOR_CYAN, 0.8f, time,
+            PhysicsDebugPackets.addArrow(viewers,
+                anchorA,
+                worldAxis,
+                DebugUtils.COLOR_CYAN,
+                0.8f,
+                time,
                 VECTOR_FLAGS);
         }
     }
 
-    static void renderRay(@Nonnull World world,
+    static void renderRay(@Nonnull Collection<PlayerRef> viewers,
         @Nonnull Vector3d start,
         @Nonnull Vector3d direction,
         @Nonnull Vector3f color,
         float time) {
-        renderArrow(world, start, direction, color, time);
+        renderArrow(viewers, start, direction, color, time);
     }
 
-    static void renderWorldCollisionSection(@Nonnull World world,
+    static void renderWorldCollisionSection(@Nonnull Collection<PlayerRef> viewers,
         int chunkX,
         int sectionY,
         int chunkZ,
@@ -114,7 +150,7 @@ final class PhysicsDebugRenderer {
         float time) {
         Vector3f color = voxelTerrain ? DebugUtils.COLOR_TEAL : DebugUtils.COLOR_NAVY;
         double halfSection = ChunkUtil.SIZE * 0.5;
-        renderDebugCube(world,
+        renderDebugCube(viewers,
             new Vector3d((chunkX << ChunkUtil.BITS) + halfSection,
                 (sectionY << ChunkUtil.BITS) + halfSection,
                 (chunkZ << ChunkUtil.BITS) + halfSection),
@@ -124,11 +160,11 @@ final class PhysicsDebugRenderer {
             1.0);
     }
 
-    static void renderWorldCollisionBox(@Nonnull World world,
+    static void renderWorldCollisionBox(@Nonnull Collection<PlayerRef> viewers,
         @Nonnull BoxCollider box,
         @Nonnull Vector3f color,
         float time) {
-        renderDebugCube(world,
+        renderDebugCube(viewers,
             new Vector3d(box.centerX(), box.centerY(), box.centerZ()),
             new Vector3d(box.halfX(), box.halfY(), box.halfZ()),
             color,
@@ -141,7 +177,7 @@ final class PhysicsDebugRenderer {
         return new Vector3d(transformPosition).add(0.0, body.getCenterOfMassOffsetY(), 0.0);
     }
 
-    private static void renderBox(@Nonnull World world,
+    private static void renderBox(@Nonnull Collection<PlayerRef> viewers,
         @Nonnull PhysicsBody body,
         @Nonnull Vector3d center,
         @Nonnull Quaterniond rotation,
@@ -158,18 +194,18 @@ final class PhysicsDebugRenderer {
             .scale(half.x * 2 * SHAPE_INFLATION,
                 half.y * 2 * SHAPE_INFLATION,
                 half.z * 2 * SHAPE_INFLATION);
-        DebugUtils.add(world, DebugShape.Cube, transform, color, time, SHAPE_FLAGS);
+        PhysicsDebugPackets.add(viewers, DebugShape.Cube, transform, color, 0.8f, time, SHAPE_FLAGS);
     }
 
-    private static void renderDebugCube(@Nonnull World world,
+    private static void renderDebugCube(@Nonnull Collection<PlayerRef> viewers,
         @Nonnull Vector3d center,
         @Nonnull Vector3d halfExtents,
         @Nonnull Vector3f color,
         float time) {
-        renderDebugCube(world, center, halfExtents, color, time, SHAPE_INFLATION);
+        renderDebugCube(viewers, center, halfExtents, color, time, SHAPE_INFLATION);
     }
 
-    private static void renderDebugCube(@Nonnull World world,
+    private static void renderDebugCube(@Nonnull Collection<PlayerRef> viewers,
         @Nonnull Vector3d center,
         @Nonnull Vector3d halfExtents,
         @Nonnull Vector3f color,
@@ -184,10 +220,10 @@ final class PhysicsDebugRenderer {
             .scale(halfExtents.x * 2.0 * inflation,
                 halfExtents.y * 2.0 * inflation,
                 halfExtents.z * 2.0 * inflation);
-        DebugUtils.add(world, DebugShape.Cube, transform, color, time, SHAPE_FLAGS);
+        PhysicsDebugPackets.add(viewers, DebugShape.Cube, transform, color, 0.8f, time, SHAPE_FLAGS);
     }
 
-    private static void renderSphere(@Nonnull World world,
+    private static void renderSphere(@Nonnull Collection<PlayerRef> viewers,
         @Nonnull PhysicsBody body,
         @Nonnull Vector3d center,
         @Nonnull Vector3f color,
@@ -200,10 +236,10 @@ final class PhysicsDebugRenderer {
         Matrix4d transform = new Matrix4d()
             .translate(center)
             .scale(radius * 2 * SHAPE_INFLATION);
-        DebugUtils.add(world, DebugShape.Sphere, transform, color, time, SHAPE_FLAGS);
+        PhysicsDebugPackets.add(viewers, DebugShape.Sphere, transform, color, 0.8f, time, SHAPE_FLAGS);
     }
 
-    private static void renderCapsule(@Nonnull World world,
+    private static void renderCapsule(@Nonnull Collection<PlayerRef> viewers,
         @Nonnull PhysicsBody body,
         @Nonnull Vector3d center,
         @Nonnull Quaterniond rotation,
@@ -222,7 +258,13 @@ final class PhysicsDebugRenderer {
             .scale(radius * 2 * SHAPE_INFLATION,
                 halfHeight * 2 * SHAPE_INFLATION,
                 radius * 2 * SHAPE_INFLATION);
-        DebugUtils.add(world, DebugShape.Cylinder, cylinder, color, time, SHAPE_FLAGS);
+        PhysicsDebugPackets.add(viewers,
+            DebugShape.Cylinder,
+            cylinder,
+            color,
+            0.8f,
+            time,
+            SHAPE_FLAGS);
 
         Vector3d axis = axisVector(body.getShapeAxis());
         rotation.transform(axis);
@@ -233,11 +275,11 @@ final class PhysicsDebugRenderer {
         Matrix4d sphereB = new Matrix4d()
             .translate(new Vector3d(center).sub(axis))
             .scale(radius * 2 * SHAPE_INFLATION);
-        DebugUtils.add(world, DebugShape.Sphere, sphereA, color, time, SHAPE_FLAGS);
-        DebugUtils.add(world, DebugShape.Sphere, sphereB, color, time, SHAPE_FLAGS);
+        PhysicsDebugPackets.add(viewers, DebugShape.Sphere, sphereA, color, 0.8f, time, SHAPE_FLAGS);
+        PhysicsDebugPackets.add(viewers, DebugShape.Sphere, sphereB, color, 0.8f, time, SHAPE_FLAGS);
     }
 
-    private static void renderCylinder(@Nonnull World world,
+    private static void renderCylinder(@Nonnull Collection<PlayerRef> viewers,
         @Nonnull PhysicsBody body,
         @Nonnull Vector3d center,
         @Nonnull Quaterniond rotation,
@@ -255,39 +297,52 @@ final class PhysicsDebugRenderer {
             .scale(radius * 2 * SHAPE_INFLATION,
                 halfHeight * 2 * SHAPE_INFLATION,
                 radius * 2 * SHAPE_INFLATION);
-        DebugUtils.add(world, DebugShape.Cylinder, transform, color, time, SHAPE_FLAGS);
-    }
-
-    private static void renderCone(@Nonnull World world,
-        @Nonnull PhysicsBody body,
-        @Nonnull Vector3d center,
-        @Nonnull Quaterniond rotation,
-        @Nonnull Vector3f color,
-        float time) {
-        float radius = body.getSphereRadius();
-        float halfHeight = body.getHalfHeight();
-        if (radius <= 0f || halfHeight <= 0f) {
-            return;
-        }
-
-        Matrix4d transform = new Matrix4d()
-            .translate(center)
-            .rotate(new Quaterniond(rotation).mul(axisRotation(body.getShapeAxis())))
-            .scale(radius * 2 * SHAPE_INFLATION,
-                halfHeight * 2 * SHAPE_INFLATION,
-                radius * 2 * SHAPE_INFLATION);
-        DebugUtils.add(world, DebugShape.Cone, transform, color, time, SHAPE_FLAGS);
-    }
-
-    private static void renderPlane(@Nonnull World world, @Nonnull Vector3d center, float time) {
-        Matrix4d transform = new Matrix4d()
-            .translate(0.0, center.y, 0.0)
-            .scale(20.0, 0.05, 20.0);
-        DebugUtils.add(world, DebugShape.Cube, transform, DebugUtils.COLOR_YELLOW, time,
+        PhysicsDebugPackets.add(viewers,
+            DebugShape.Cylinder,
+            transform,
+            color,
+            0.8f,
+            time,
             SHAPE_FLAGS);
     }
 
-    private static void renderUnknown(@Nonnull World world,
+    private static void renderCone(@Nonnull Collection<PlayerRef> viewers,
+        @Nonnull PhysicsBody body,
+        @Nonnull Vector3d center,
+        @Nonnull Quaterniond rotation,
+        @Nonnull Vector3f color,
+        float time) {
+        float radius = body.getSphereRadius();
+        float halfHeight = body.getHalfHeight();
+        if (radius <= 0f || halfHeight <= 0f) {
+            return;
+        }
+
+        Matrix4d transform = new Matrix4d()
+            .translate(center)
+            .rotate(new Quaterniond(rotation).mul(axisRotation(body.getShapeAxis())))
+            .scale(radius * 2 * SHAPE_INFLATION,
+                halfHeight * 2 * SHAPE_INFLATION,
+                radius * 2 * SHAPE_INFLATION);
+        PhysicsDebugPackets.add(viewers, DebugShape.Cone, transform, color, 0.8f, time, SHAPE_FLAGS);
+    }
+
+    private static void renderPlane(@Nonnull Collection<PlayerRef> viewers,
+        @Nonnull Vector3d center,
+        float time) {
+        Matrix4d transform = new Matrix4d()
+            .translate(0.0, center.y, 0.0)
+            .scale(20.0, 0.05, 20.0);
+        PhysicsDebugPackets.add(viewers,
+            DebugShape.Cube,
+            transform,
+            DebugUtils.COLOR_YELLOW,
+            0.8f,
+            time,
+            SHAPE_FLAGS);
+    }
+
+    private static void renderUnknown(@Nonnull Collection<PlayerRef> viewers,
         @Nonnull Vector3d center,
         @Nonnull Quaterniond rotation,
         float time) {
@@ -295,11 +350,16 @@ final class PhysicsDebugRenderer {
             .translate(center)
             .rotate(rotation)
             .scale(SHAPE_INFLATION);
-        DebugUtils.add(world, DebugShape.Cube, transform, DebugUtils.COLOR_RED, time,
+        PhysicsDebugPackets.add(viewers,
+            DebugShape.Cube,
+            transform,
+            DebugUtils.COLOR_RED,
+            0.8f,
+            time,
             SHAPE_FLAGS);
     }
 
-    private static void renderArrow(@Nonnull World world,
+    private static void renderArrow(@Nonnull Collection<PlayerRef> viewers,
         @Nonnull Vector3d start,
         @Nonnull Vector3d direction,
         @Nonnull Vector3f color,
@@ -307,7 +367,7 @@ final class PhysicsDebugRenderer {
         if (direction.lengthSquared() < MIN_ARROW_LENGTH * MIN_ARROW_LENGTH) {
             return;
         }
-        DebugUtils.addArrow(world, start, direction, color, 0.8f, time, VECTOR_FLAGS);
+        PhysicsDebugPackets.addArrow(viewers, start, direction, color, 0.8f, time, VECTOR_FLAGS);
     }
 
     @Nonnull

@@ -21,7 +21,7 @@ public class PhysicsStepSystem extends TickingSystem<ChunkStore> {
 
         int simulationSteps = resource.getSimulationSteps();
         float stepDt = dt / simulationSteps;
-        for (PhysicsSpace space : resource.iterateSpaces(world.getName())) {
+        for (PhysicsSpace space : resource.iterateSpaces()) {
             for (int step = 0; step < simulationSteps; step++) {
                 space.step(stepDt);
             }
