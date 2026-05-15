@@ -20,6 +20,8 @@ public class DebugCommand extends AbstractCommandCollection {
         addSubCommand(new DebugFlagCommand("joints", "joint",
             PhysicsWorldResource::isDebugJointsEnabled,
             PhysicsWorldResource::setDebugJointsEnabled));
+        addSubCommand(new DebugFlagCommand("world-collision", "world collision",
+            PhysicsWorldResource::isDebugWorldCollisionEnabled,
+            PhysicsWorldResource::setDebugWorldCollisionEnabled));
     }
 }
-

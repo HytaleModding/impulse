@@ -48,7 +48,7 @@ public class StressBodiesCommand extends AbstractAsyncPlayerCommand {
 
         int count = ExamplePhysicsUtils.optionalInt(ctx, countArg, DEFAULT_COUNT, 1, MAX_COUNT);
         PhysicsWorldResource resource = ExamplePhysicsUtils.resource(store);
-        PhysicsSpace space = ExamplePhysicsUtils.mainSpace(resource, world);
+        PhysicsSpace space = ExamplePhysicsUtils.defaultSpace(resource, world);
         TimeResource time = store.getResource(TimeResource.getResourceType());
 
         int side = (int) Math.ceil(Math.cbrt(count));

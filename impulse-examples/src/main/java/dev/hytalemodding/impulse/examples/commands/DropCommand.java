@@ -8,6 +8,7 @@ import com.hypixel.hytale.server.core.Message;
 import com.hypixel.hytale.server.core.command.system.CommandContext;
 import com.hypixel.hytale.server.core.command.system.basecommands.AbstractAsyncPlayerCommand;
 import com.hypixel.hytale.server.core.entity.entities.BlockEntity;
+import com.hypixel.hytale.server.core.modules.entity.DespawnComponent;
 import com.hypixel.hytale.server.core.modules.entity.component.TransformComponent;
 import com.hypixel.hytale.server.core.modules.time.TimeResource;
 import com.hypixel.hytale.server.core.universe.PlayerRef;
@@ -15,6 +16,8 @@ import com.hypixel.hytale.server.core.universe.world.World;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import dev.hytalemodding.impulse.api.PhysicsBody;
 import dev.hytalemodding.impulse.api.PhysicsSpace;
+import dev.hytalemodding.impulse.core.components.ImpulseControllableComponent;
+import dev.hytalemodding.impulse.core.components.PersistentPhysicsBodyComponent;
 import dev.hytalemodding.impulse.core.components.PhysicsBodyComponent;
 import dev.hytalemodding.impulse.core.resources.PhysicsWorldResource;
 import java.util.concurrent.CompletableFuture;
@@ -54,25 +57,33 @@ public class DropCommand extends AbstractAsyncPlayerCommand {
 
         Holder<EntityStore> holder = BlockEntity.assembleDefaultBlockEntity(
             time,
-            // FIXME: hardcoded value
+            /*
+             * FIXME: Replace this hardcoded block type with a command argument or config value.
+             */
             "Rock_Stone",
             new Vector3d(spawnX, spawnY, spawnZ)
         );
+        holder.removeComponent(DespawnComponent.getComponentType());
 
         PhysicsWorldResource resource = store.getResource(PhysicsWorldResource.getResourceType());
-        PhysicsSpace mainSpace = resource.getMainSpace(world.getName());
+        PhysicsSpace space = ExamplePhysicsUtils.defaultSpace(resource, world);
 
-        PhysicsBody box = mainSpace.createBox(0.5f, 0.5f, 0.5f, 1.0f);
+        PhysicsBody box = space.createBox(0.5f, 0.5f, 0.5f, 1.0f);
         box.setPosition(spawnX, spawnY + box.getCenterOfMassOffsetY(), spawnZ);
         box.setRestitution(0.5f);
         box.setFriction(0.5f);
 
-        mainSpace.addBody(box);
+        space.addBody(box);
 
         holder.addComponent(PhysicsBodyComponent.getComponentType(),
-            new PhysicsBodyComponent(box, resource.getMainSpaceId()));
+            new PhysicsBodyComponent(box, space.getId()));
+        holder.addComponent(PersistentPhysicsBodyComponent.getComponentType(),
+            PersistentPhysicsBodyComponent.fromBody(box, space.getId()));
+        holder.addComponent(ImpulseControllableComponent.getComponentType(),
+            new ImpulseControllableComponent());
 
-        store.addEntity(holder, AddReason.SPAWN);
+        Ref<EntityStore> bodyRef = store.addEntity(holder, AddReason.SPAWN);
+        resource.registerBodyOwner(box, bodyRef);
 
         ctx.sender()
             .sendMessage(Message.raw("Dropped box at " + spawnX + ", " + spawnY + ", " + spawnZ));

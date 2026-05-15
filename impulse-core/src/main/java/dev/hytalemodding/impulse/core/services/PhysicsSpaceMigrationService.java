@@ -21,6 +21,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.logging.Level;
 import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
 import org.joml.Quaternionf;
 import org.joml.Vector3f;
 
@@ -55,9 +56,15 @@ public final class PhysicsSpaceMigrationService {
                 sourceSpace.getBodies().size(), sourceSpace.getJoints().size(), false);
         }
 
+        /*
+         * Generated terrain collision belongs to the world-collision cache, not to ECS bodies.
+         * Drop it before migration so the target backend can rebuild it with its own best shape.
+         */
+        resource.getWorldVoxelCollisionCache().clear(sourceSpaceId, sourceSpace);
+
         List<PhysicsBody> sourceBodies = sourceSpace.getBodies();
         List<PhysicsJoint> sourceJoints = sourceSpace.getJoints();
-        SpaceId mainSpaceAtStart = resource.getMainSpaceId();
+        SpaceId defaultSpaceAtStart = resource.getDefaultSpaceId();
 
         PhysicsSpace targetSpace = Impulse.createSpace(targetBackendId, sourceSpaceId);
         boolean migrated = false;
@@ -89,7 +96,7 @@ public final class PhysicsSpaceMigrationService {
 
             List<BodyRebind> rebinds = collectBodyRebinds(store,
                 sourceSpaceId,
-                mainSpaceAtStart,
+                defaultSpaceAtStart,
                 bodyMap);
             try {
                 applyBodyRebinds(rebinds);
@@ -106,8 +113,10 @@ public final class PhysicsSpaceMigrationService {
                 throw exception;
             }
 
-            // The migration is considered complete once the new space is active and components are
-            // rebound. Cleanup failures on the old space should not invalidate the migrated state.
+            /*
+             * The migration is complete once the new space is active and components are rebound.
+             * Cleanup failures on the old space should not invalidate the migrated state.
+             */
             migrated = true;
 
             try {
@@ -175,8 +184,10 @@ public final class PhysicsSpaceMigrationService {
                 + " contains unsupported shape type " + shapeType);
         }
 
-        // Plane height is stored in the plane shape, not in the body transform for every backend.
-        // Copying transform state can move the migrated plane away from its recovered ground Y.
+        /*
+         * Plane height is stored in the plane shape, not in every backend body transform.
+         * Copying transform state can move the migrated plane away from its recovered ground Y.
+         */
         boolean copyTransformState = shapeType != ShapeType.PLANE;
         copyBodyState(sourceBody, targetBody, copyTransformState);
         return targetBody;
@@ -272,7 +283,7 @@ public final class PhysicsSpaceMigrationService {
     @Nonnull
     private static List<BodyRebind> collectBodyRebinds(@Nonnull Store<EntityStore> store,
         @Nonnull SpaceId sourceSpaceId,
-        @Nonnull SpaceId mainSpaceIdAtStart,
+        @Nullable SpaceId defaultSpaceIdAtStart,
         @Nonnull Map<PhysicsBody, PhysicsBody> bodyMap) {
         List<BodyRebind> toRebind = new ArrayList<>();
         store.forEachChunk(PhysicsBodyComponent.getComponentType(),
@@ -286,7 +297,7 @@ public final class PhysicsSpaceMigrationService {
 
                     SpaceId componentSpaceId = component.getSpaceId();
                     boolean referencesSource = sourceSpaceId.equals(componentSpaceId)
-                        || (componentSpaceId == null && sourceSpaceId.equals(mainSpaceIdAtStart));
+                        || (componentSpaceId == null && sourceSpaceId.equals(defaultSpaceIdAtStart));
                     if (!referencesSource) {
                         continue;
                     }

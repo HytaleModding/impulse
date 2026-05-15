@@ -34,7 +34,7 @@ public class MaterialsCommand extends AbstractAsyncPlayerCommand {
         }
 
         PhysicsWorldResource resource = ExamplePhysicsUtils.resource(store);
-        PhysicsSpace space = ExamplePhysicsUtils.mainSpace(resource, world);
+        PhysicsSpace space = ExamplePhysicsUtils.defaultSpace(resource, world);
         ExamplePhysicsUtils.enableDebug(resource);
         resource.setDebugMotionEnabled(true);
 

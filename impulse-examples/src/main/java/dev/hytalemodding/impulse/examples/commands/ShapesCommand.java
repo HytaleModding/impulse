@@ -35,7 +35,7 @@ public class ShapesCommand extends AbstractAsyncPlayerCommand {
         }
 
         PhysicsWorldResource resource = ExamplePhysicsUtils.resource(store);
-        PhysicsSpace space = ExamplePhysicsUtils.mainSpace(resource, world);
+        PhysicsSpace space = ExamplePhysicsUtils.defaultSpace(resource, world);
         ExamplePhysicsUtils.enableDebug(resource);
 
         Vector3d origin = new Vector3d(playerPos).add(-4.0, 3.0, 3.0);

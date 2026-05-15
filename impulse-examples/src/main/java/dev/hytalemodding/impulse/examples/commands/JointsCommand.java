@@ -40,7 +40,7 @@ public class JointsCommand extends AbstractAsyncPlayerCommand {
         }
 
         PhysicsWorldResource resource = ExamplePhysicsUtils.resource(store);
-        PhysicsSpace space = ExamplePhysicsUtils.mainSpace(resource, world);
+        PhysicsSpace space = ExamplePhysicsUtils.defaultSpace(resource, world);
         ExamplePhysicsUtils.enableDebug(resource);
         resource.setDebugJointsEnabled(true);
         resource.setDebugMotionEnabled(true);
