@@ -30,7 +30,7 @@ public class PersistentPhysicsSnapshotFile {
         .append(new KeyedCodec<>("Bodies",
                 new ArrayCodec<>(PersistentPhysicsSnapshotBody.CODEC, PersistentPhysicsSnapshotBody[]::new)),
             (file, value) -> file.bodies = copyBodies(value),
-            file -> file.getBodies())
+            PersistentPhysicsSnapshotFile::getBodies)
         .add()
         .build();
 
