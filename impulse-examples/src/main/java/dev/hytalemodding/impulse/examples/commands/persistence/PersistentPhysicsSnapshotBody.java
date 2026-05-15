@@ -7,6 +7,7 @@ import dev.hytalemodding.impulse.core.components.PersistentPhysicsBodyComponent;
 import java.util.UUID;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
+import lombok.Getter;
 
 /**
  * One body entry inside a manual Impulse snapshot file.
@@ -31,8 +32,10 @@ public class PersistentPhysicsSnapshotBody {
         .build();
 
     @Nullable
+    @Getter
     private UUID entityUuid;
     @Nullable
+    @Getter
     private PersistentPhysicsBodyComponent body;
 
     public PersistentPhysicsSnapshotBody() {
@@ -42,16 +45,6 @@ public class PersistentPhysicsSnapshotBody {
         @Nonnull PersistentPhysicsBodyComponent body) {
         this.entityUuid = entityUuid;
         this.body = body;
-    }
-
-    @Nullable
-    public UUID getEntityUuid() {
-        return entityUuid;
-    }
-
-    @Nullable
-    public PersistentPhysicsBodyComponent getBody() {
-        return body;
     }
 
     @Nonnull
