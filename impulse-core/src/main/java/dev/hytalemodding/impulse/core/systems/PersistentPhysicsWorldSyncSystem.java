@@ -28,10 +28,12 @@ import javax.annotation.Nonnull;
  * <p>Mirrors the live spaces, their settings, and all entity-backed joints back
  * into {@link PersistentPhysicsWorldResource} so that Hytale's serialization
  * captures the latest state on the next world save. Skipped while a restore
- * is in progress to avoid overwriting deserialized data before hydration finishes.</p>
+ * is in progress, or after a hard restore failure, to avoid overwriting
+ * deserialized data before hydration finishes or before the failure is resolved.</p>
  *
  * <p>Runs after joint hydration and body sync to ensure both sides are settled
- * before copying.</p>
+ * before copying. Only joints whose endpoints resolve to entity UUIDs are part
+ * of the persisted contract; runtime helper-body joints are intentionally ignored.</p>
  */
 public class PersistentPhysicsWorldSyncSystem extends TickingSystem<EntityStore> {
 
@@ -50,7 +52,7 @@ public class PersistentPhysicsWorldSyncSystem extends TickingSystem<EntityStore>
     public void tick(float dt, int systemIndex, @Nonnull Store<EntityStore> store) {
         PersistentPhysicsWorldResource persistent = store.getResource(
             PersistentPhysicsWorldResource.getResourceType());
-        if (persistent.isRuntimeRestorePending()) {
+        if (persistent.isRuntimeRestorePending() || persistent.hasRuntimeRestoreFailed()) {
             return;
         }
 

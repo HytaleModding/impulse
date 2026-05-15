@@ -4,6 +4,7 @@ import com.hypixel.hytale.component.ArchetypeChunk;
 import com.hypixel.hytale.component.CommandBuffer;
 import com.hypixel.hytale.component.ComponentType;
 import com.hypixel.hytale.component.Store;
+import com.hypixel.hytale.component.SystemGroup;
 import com.hypixel.hytale.component.dependency.Dependency;
 import com.hypixel.hytale.component.dependency.Order;
 import com.hypixel.hytale.component.dependency.SystemDependency;
@@ -33,6 +34,10 @@ import javax.annotation.Nonnull;
  * <p>Runs after {@link PersistentPhysicsSpaceBootstrapSystem} so that target spaces
  * already exist, and before {@link PhysicsSyncSystem} so that hydrated bodies are
  * available for transform sync.</p>
+ *
+ * <p>Bodies whose target space never becomes valid are terminally unresolved.
+ * Those cases are recorded as skipped restore entries so the overall restore can
+ * finish instead of leaving body rebuild pending forever.</p>
  */
 public class PersistentPhysicsBodyHydrationSystem extends EntityTickingSystem<EntityStore> {
 
@@ -58,6 +63,11 @@ public class PersistentPhysicsBodyHydrationSystem extends EntityTickingSystem<En
     }
 
     @Override
+    public SystemGroup<EntityStore> getGroup() {
+        return PhysicsSystemGroups.PERSISTENCE_RESTORE_GROUP;
+    }
+
+    @Override
     public void tick(float dt,
         int index,
         @Nonnull ArchetypeChunk<EntityStore> chunk,
@@ -71,8 +81,25 @@ public class PersistentPhysicsBodyHydrationSystem extends EntityTickingSystem<En
         PhysicsWorldResource runtime = store.getResource(PhysicsWorldResource.getResourceType());
         PersistentPhysicsWorldResource persistentWorld = store.getResource(
             PersistentPhysicsWorldResource.getResourceType());
+        if (persistentWorld.hasRuntimeRestoreFailed()) {
+            return;
+        }
+
+        int resolvedSpaceId = persistent.resolveSpaceId(persistentWorld.getDefaultSpaceIdValue());
+        if (resolvedSpaceId <= 0) {
+            if (persistentWorld.isRuntimeRestorePending()) {
+                persistentWorld.recordRuntimeBodySkipped("no resolved space id");
+            }
+            persistent.clearBodyRebuildFlag();
+            return;
+        }
+
         var space = PersistentPhysicsRuntimeSupport.resolveSpace(runtime, persistentWorld, persistent);
         if (space == null) {
+            if (persistentWorld.isRuntimeRestorePending()) {
+                persistentWorld.recordRuntimeBodySkipped("missing target space");
+            }
+            persistent.clearBodyRebuildFlag();
             return;
         }
 
@@ -89,6 +116,8 @@ public class PersistentPhysicsBodyHydrationSystem extends EntityTickingSystem<En
                 new ImpulseControllableComponent());
         }
         runtime.registerBodyOwner(body, chunk.getReferenceTo(index));
-        persistent.clearBodyRebuildFlag();
+        if (persistentWorld.isRuntimeRestorePending()) {
+            persistentWorld.recordRuntimeBodyRestored();
+        }
     }
 }

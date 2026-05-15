@@ -319,14 +319,14 @@ public class PhysicsWorldResource implements Resource<EntityStore> {
     public PhysicsWorldResource clone() {
         PhysicsWorldResource copy = new PhysicsWorldResource();
         /*
-         * FIXME: This still shallow-copies live physics spaces and body ownership maps.
+         * This resource owns live backend-native runtime state. Spaces, body-owner
+         * maps, and generated terrain cache entries are excluded here because
+         * aliasing them would couple two logically separate resources to the same
+         * physics objects. The clone only preserves structural configuration.
          */
-        copy.spaces.putAll(spaces);
         for (var entry : spaceSettings.int2ObjectEntrySet()) {
             copy.spaceSettings.put(entry.getIntKey(), new PhysicsSpaceSettings(entry.getValue()));
         }
-        copy.bodyOwners.putAll(bodyOwners);
-        copy.worldVoxelCollisionCache.copyFrom(worldVoxelCollisionCache);
         copy.defaultSpaceId = defaultSpaceId;
         copy.simulationSteps = simulationSteps;
         return copy;

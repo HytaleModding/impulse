@@ -4,6 +4,8 @@ import com.hypixel.hytale.codec.Codec;
 import com.hypixel.hytale.codec.KeyedCodec;
 import com.hypixel.hytale.codec.builder.BuilderCodec;
 import javax.annotation.Nonnull;
+import lombok.Getter;
+import lombok.Setter;
 import org.joml.Quaternionf;
 
 /**
@@ -15,19 +17,21 @@ import org.joml.Quaternionf;
  * serialization and deserialization; the {@code of} and {@code toQuaternionf}
  * bridge methods convert between this and the live JOML type.</p>
  */
+@Getter
+@Setter
 public final class PersistentQuaternion {
 
     @Nonnull
     public static final BuilderCodec<PersistentQuaternion> CODEC = BuilderCodec.builder(
             PersistentQuaternion.class,
             PersistentQuaternion::new)
-        .append(new KeyedCodec<>("X", Codec.FLOAT), (value, x) -> value.x = x, value -> value.x)
+        .append(new KeyedCodec<>("X", Codec.FLOAT), (value, x) -> value.x = x, PersistentQuaternion::getX)
         .add()
-        .append(new KeyedCodec<>("Y", Codec.FLOAT), (value, y) -> value.y = y, value -> value.y)
+        .append(new KeyedCodec<>("Y", Codec.FLOAT), (value, y) -> value.y = y, PersistentQuaternion::getY)
         .add()
-        .append(new KeyedCodec<>("Z", Codec.FLOAT), (value, z) -> value.z = z, value -> value.z)
+        .append(new KeyedCodec<>("Z", Codec.FLOAT), (value, z) -> value.z = z, PersistentQuaternion::getZ)
         .add()
-        .append(new KeyedCodec<>("W", Codec.FLOAT), (value, w) -> value.w = w, value -> value.w)
+        .append(new KeyedCodec<>("W", Codec.FLOAT), (value, w) -> value.w = w, PersistentQuaternion::getW)
         .add()
         .build();
 
@@ -49,38 +53,6 @@ public final class PersistentQuaternion {
     @Nonnull
     public static PersistentQuaternion of(@Nonnull Quaternionf quaternion) {
         return new PersistentQuaternion(quaternion.x, quaternion.y, quaternion.z, quaternion.w);
-    }
-
-    public float getX() {
-        return x;
-    }
-
-    public void setX(float x) {
-        this.x = x;
-    }
-
-    public float getY() {
-        return y;
-    }
-
-    public void setY(float y) {
-        this.y = y;
-    }
-
-    public float getZ() {
-        return z;
-    }
-
-    public void setZ(float z) {
-        this.z = z;
-    }
-
-    public float getW() {
-        return w;
-    }
-
-    public void setW(float w) {
-        this.w = w;
     }
 
     public void set(@Nonnull Quaternionf quaternion) {
