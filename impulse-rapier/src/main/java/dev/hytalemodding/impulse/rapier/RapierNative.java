@@ -38,7 +38,9 @@ final class RapierNative {
         NativeBinaryLoader loader = new NativeBinaryLoader(info);
         NativeDynamicLibrary[] libraries = {
             new NativeDynamicLibrary("native/linux/x86_64", PlatformPredicate.LINUX_X86_64)
-            // TODO: other platforms
+            /*
+             * TODO: Add native binaries for the other supported platforms.
+             */
         };
 
         loader.registerNativeLibraries(libraries)
@@ -96,6 +98,26 @@ final class RapierNative {
         int collisionGroup,
         int collisionMask,
         boolean ccdEnabled);
+
+    static native long addVoxelTerrainNative(long spaceHandle,
+        float voxelSizeX,
+        float voxelSizeY,
+        float voxelSizeZ,
+        int[] voxelCoordinates,
+        float posX,
+        float posY,
+        float posZ,
+        float friction,
+        float restitution,
+        int collisionGroup,
+        int collisionMask);
+
+    static native void combineVoxelTerrainNative(long spaceHandle,
+        long bodyHandleA,
+        long bodyHandleB,
+        int shiftX,
+        int shiftY,
+        int shiftZ);
 
     static native void removeBodyNative(long spaceHandle, long bodyHandle);
 

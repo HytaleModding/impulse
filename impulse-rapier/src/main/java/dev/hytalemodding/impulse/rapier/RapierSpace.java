@@ -136,6 +136,36 @@ public final class RapierSpace implements PhysicsSpace {
         return createBox(halfExtents.x, halfExtents.y, halfExtents.z, mass);
     }
 
+    @Override
+    public boolean supportsVoxelTerrain() {
+        return true;
+    }
+
+    @Nonnull
+    @Override
+    public PhysicsBody createVoxelTerrain(float voxelSizeX,
+        float voxelSizeY,
+        float voxelSizeZ,
+        @Nonnull int[] voxelCoordinates) {
+        return RapierBody.voxelTerrain(voxelSizeX, voxelSizeY, voxelSizeZ, voxelCoordinates);
+    }
+
+    @Override
+    public void combineVoxelTerrains(@Nonnull PhysicsBody bodyA,
+        @Nonnull PhysicsBody bodyB,
+        int shiftX,
+        int shiftY,
+        int shiftZ) {
+        RapierBody rapierBodyA = requireAttachedBody(bodyA);
+        RapierBody rapierBodyB = requireAttachedBody(bodyB);
+        RapierNative.combineVoxelTerrainNative(nativeSpaceHandle,
+            rapierBodyA.getBodyHandle(),
+            rapierBodyB.getBodyHandle(),
+            shiftX,
+            shiftY,
+            shiftZ);
+    }
+
     @Nonnull
     @Override
     public PhysicsBody createSphere(float radius, float mass) {
@@ -297,6 +327,23 @@ public final class RapierSpace implements PhysicsSpace {
     }
 
     private long addNativeBody(@Nonnull RapierBody body) {
+        if (body.getShapeType() == ShapeType.VOXELS) {
+            Vector3f position = body.getStoredPosition();
+            Vector3f voxelSize = body.getVoxelSize();
+            return RapierNative.addVoxelTerrainNative(nativeSpaceHandle,
+                voxelSize.x,
+                voxelSize.y,
+                voxelSize.z,
+                body.getVoxelCoordinates(),
+                position.x,
+                position.y,
+                position.z,
+                body.getStoredFriction(),
+                body.getStoredRestitution(),
+                body.getStoredCollisionGroup(),
+                body.getStoredCollisionMask());
+        }
+
         Vector3f halfExtents = body.getBoxHalfExtents();
         if (halfExtents == null) {
             halfExtents = new Vector3f();
