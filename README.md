@@ -60,68 +60,10 @@ This lane covers:
 - Bullet adapter smoke tests for the Impulse-side integration layer,
 - pure runtime-policy tests in `impulse-core`.
 
-## Runtime commands
+## Commands
 
-The core plugin registers `/impulse` commands for runtime physics controls:
-
-- `/impulse backend list` - list discovered backends and active physics spaces.
-- `/impulse backend swap --backend impulse:rapier` - migrate the main physics space to Rapier.
-- `/impulse backend swap --backend impulse:bullet` - migrate the main physics space back to Bullet.
-- `/impulse backend swap --backend <backend-id> --space <space-id>` - migrate a specific space.
-- `/impulse clean --confirm` - remove all Impulse physics entities from the current world without touching unrelated world entities.
-- `/impulse perf toggle` - toggle Impulse runtime and world-collision profiling.
-- `/impulse perf report` - print physics-step, sync, and world-collision profiling metrics.
-- `/impulse perf stats` - show per-space body, awake, sleeping, joint, and contact counts.
-- `/impulse perf reset` - reset profiling counters.
-- `/impulse settings step-mode` - show the world physics step mode.
-- `/impulse settings step-mode --mode progressive_refinement|fixed|ccd` - choose adaptive refinement, fixed substeps, or world-level CCD mode.
-- `/impulse settings simulation-steps` - show the configured substep count.
-- `/impulse settings simulation-steps --steps <count>` - set the minimum or fixed substep count, from 1 to 16.
-- `/impulse settings max-step-dt` - show the adaptive substep dt threshold.
-- `/impulse settings max-step-dt --dt <seconds>` - set the adaptive substep dt threshold used by `progressive_refinement`.
-
-Bullet is the default backend when it is available. Rapier is experimental. Runtime backend
-swapping migrates supported bodies and joints, but exact solver behavior can differ between
-backends.
-
-## Debug commands
-
-Debug controls live under `/impulse debug`:
-
-- `/impulse debug` - show debug command usage.
-- `/impulse debug toggle` - toggle Impulse debug rendering globally.
-- `/impulse debug shapes` - toggle collider shape overlays.
-- `/impulse debug motion` - toggle linear and angular velocity arrows.
-- `/impulse debug contacts` - toggle contact point and normal overlays.
-- `/impulse debug joints` - toggle joint anchor, axis, and link overlays.
-
-Debug overlays are intentionally separate from stress commands because rendering overlays can
-dominate performance measurements.
-
-## Example commands
-
-Run the example mod with `./gradlew runAllMods`, then use `/impulse-examples`:
-
-- `/impulse-examples drop` - spawn a falling box.
-- `/impulse-examples shapes` - spawn box, sphere, capsule, cylinder, and cone bodies.
-- `/impulse-examples materials` - compare restitution and friction settings.
-- `/impulse-examples forces` - apply central impulse, off-center impulse, torque impulse, and force.
-- `/impulse-examples joints` - spawn fixed, point, hinge, slider, and spring joint examples.
-- `/impulse-examples raycast` - cast a physics ray from the player view and mark the closest hit.
-
-### Stress commands
-
-Stress commands are also part of the examples plugin:
-
-- `/impulse-examples stress bodies [count]` - spawn visible physics block entities.
-- `/impulse-examples stress raw-bodies [count]` - spawn physics bodies without Hytale entities.
-- `/impulse-examples stress shapes [sets]` - spawn mixed box, sphere, capsule, cylinder, and cone bodies.
-- `/impulse-examples stress joints [count]` - spawn separate fixed, point, hinge, slider, and spring rows.
-- `/impulse-examples stress raycast [rays]` - run many raycasts and report timing.
-- `/impulse-examples stress swap [cycles]` - repeatedly migrate the main space between Bullet and Rapier.
-
-Use `raw-bodies` to isolate backend physics cost. Use `bodies` when you want the full gameplay
-path, including Hytale entity storage, transform sync, networking, and rendering.
+- [`impulse-core`](impulse-core/README.md) documents `/impulse` runtime commands and local Crucible smoke.
+- [`impulse-examples`](impulse-examples/README.md) documents example and stress commands.
 
 ## Code of Conduct
 This project and everyone participating in it is governed by HytaleModding's 
