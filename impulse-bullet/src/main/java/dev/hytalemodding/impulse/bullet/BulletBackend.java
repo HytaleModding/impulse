@@ -26,6 +26,8 @@ public final class BulletBackend implements PhysicsBackend {
     public static final BackendId ID = new BackendId("impulse:bullet");
     private static final Logger LOGGER = Logger.getLogger("Impulse");
     private static final AtomicInteger SPACES_CREATED = new AtomicInteger(0);
+    private static final Object NATIVE_LOAD_LOCK = new Object();
+    private static volatile boolean nativeLibraryLoaded;
 
     private volatile String extractionDirectory;
     private volatile Level internalLoggingLevel = Level.WARNING;
@@ -72,37 +74,50 @@ public final class BulletBackend implements PhysicsBackend {
 
         String dir = extractionDirectory != null ? extractionDirectory
             : System.getProperty("user.dir");
-        LibraryInfo info = new LibraryInfo(null, "bulletjme",
-            new DirectoryPath(dir));
-        NativeBinaryLoader loader = new NativeBinaryLoader(info);
-
-        NativeDynamicLibrary[] libraries = {
-            new NativeDynamicLibrary("native/linux/arm64", PlatformPredicate.LINUX_ARM_64),
-            new NativeDynamicLibrary("native/linux/arm32", PlatformPredicate.LINUX_ARM_32),
-            new NativeDynamicLibrary("native/linux/x86_64", PlatformPredicate.LINUX_X86_64),
-            new NativeDynamicLibrary("native/osx/arm64", PlatformPredicate.MACOS_ARM_64),
-            new NativeDynamicLibrary("native/osx/x86_64", PlatformPredicate.MACOS_X86_64),
-            new NativeDynamicLibrary("native/windows/x86_64", PlatformPredicate.WIN_X86_64)
-        };
-
-        loader.registerNativeLibraries(libraries)
-            .initPlatformLibrary()
-            .setLoggingEnabled(true);
-        loader.setRetryWithCleanExtraction(true);
-
-        try {
-            loader.loadLibrary(LoadingCriterion.CLEAN_EXTRACTION);
-        } catch (Exception e) {
-            throw new IllegalStateException("Failed to load the Libbulletjme native library", e);
-        }
-
-        // Disable Libbulletjme's native startup message, which may appear
-        // multiple times if the library re-enters initialization paths.
+        loadNativeLibrary(dir);
         NativeLibrary.setStartupMessageEnabled(false);
 
         initialized = true;
         applyInternalLoggingLevel(internalLoggingLevel);
         LOGGER.log(Level.INFO, "Bullet backend initialized");
+    }
+
+    private static void loadNativeLibrary(@Nonnull String dir) {
+        if (nativeLibraryLoaded) {
+            return;
+        }
+
+        synchronized (NATIVE_LOAD_LOCK) {
+            if (nativeLibraryLoaded) {
+                return;
+            }
+
+            LibraryInfo info = new LibraryInfo(null, "bulletjme",
+                new DirectoryPath(dir));
+            NativeBinaryLoader loader = new NativeBinaryLoader(info);
+
+            NativeDynamicLibrary[] libraries = {
+                new NativeDynamicLibrary("native/linux/arm64", PlatformPredicate.LINUX_ARM_64),
+                new NativeDynamicLibrary("native/linux/arm32", PlatformPredicate.LINUX_ARM_32),
+                new NativeDynamicLibrary("native/linux/x86_64", PlatformPredicate.LINUX_X86_64),
+                new NativeDynamicLibrary("native/osx/arm64", PlatformPredicate.MACOS_ARM_64),
+                new NativeDynamicLibrary("native/osx/x86_64", PlatformPredicate.MACOS_X86_64),
+                new NativeDynamicLibrary("native/windows/x86_64", PlatformPredicate.WIN_X86_64)
+            };
+
+            loader.registerNativeLibraries(libraries)
+                .initPlatformLibrary()
+                .setLoggingEnabled(true);
+            loader.setRetryWithCleanExtraction(true);
+
+            try {
+                loader.loadLibrary(LoadingCriterion.CLEAN_EXTRACTION);
+            } catch (Exception e) {
+                throw new IllegalStateException("Failed to load the Libbulletjme native library", e);
+            }
+
+            nativeLibraryLoaded = true;
+        }
     }
 
     @Nonnull
