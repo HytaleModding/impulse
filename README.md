@@ -48,7 +48,7 @@ The Rapier backend needs a Rust toolchain to build its native library. If `cargo
 
 ## Testing
 
-Impulse now has a dedicated headless/serverless test lane that does not boot the Hytale server or example runtime:
+Impulse has a dedicated headless/serverless test lane that does not boot the Hytale server or example runtime:
 
 ```bash
 ./gradlew headlessTest
