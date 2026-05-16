@@ -4,10 +4,14 @@ import com.hypixel.hytale.component.ComponentRegistryProxy;
 import com.hypixel.hytale.component.ComponentType;
 import com.hypixel.hytale.component.ResourceType;
 import com.hypixel.hytale.component.SystemGroup;
+import com.hypixel.hytale.common.plugin.PluginIdentifier;
 import com.hypixel.hytale.logger.HytaleLogger;
+import com.hypixel.hytale.server.core.HytaleServer;
 import com.hypixel.hytale.server.core.command.system.CommandRegistry;
 import com.hypixel.hytale.server.core.plugin.JavaPlugin;
 import com.hypixel.hytale.server.core.plugin.JavaPluginInit;
+import com.hypixel.hytale.server.core.plugin.PluginBase;
+import com.hypixel.hytale.server.core.plugin.PluginManager;
 import com.hypixel.hytale.server.core.universe.world.storage.ChunkStore;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import dev.hytalemodding.impulse.api.BackendId;
@@ -102,6 +106,38 @@ public final class ImpulsePlugin extends JavaPlugin {
         registerComponents();
         registerSystems();
         registerCommands();
+    }
+
+    @Override
+    protected void start() {
+        registerCrucibleSuites();
+    }
+
+    /**
+     * Registers optional Crucible suites after Crucible has loaded.
+     * Core owns these suites because they validate Impulse API and ECS behavior,
+     * not example command behavior.
+     */
+    private void registerCrucibleSuites() {
+        try {
+            PluginManager pluginManager = HytaleServer.get().getPluginManager();
+            PluginBase cruciblePlugin = pluginManager.getPlugin(
+                new PluginIdentifier("com.ionforgelabs", "crucible"));
+            if (cruciblePlugin == null) {
+                return;
+            }
+            ClassLoader crucibleLoader = ((JavaPlugin) cruciblePlugin).getClassLoader();
+            Class<?> suitesClass = Class.forName(
+                "dev.hytalemodding.impulse.core.crucible.ImpulseCrucibleSuites",
+                true,
+                crucibleLoader);
+            suitesClass.getMethod("register", ClassLoader.class).invoke(null, crucibleLoader);
+        } catch (ClassNotFoundException e) {
+            // Crucible is not installed.
+        } catch (ReflectiveOperationException e) {
+            LOGGER.at(Level.WARNING)
+                .log("Failed to register Impulse Crucible suites: %s", e.getMessage());
+        }
     }
 
     private void discoverBackends() {
