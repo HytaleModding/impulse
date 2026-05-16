@@ -33,6 +33,7 @@ import java.util.IdentityHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.function.Consumer;
 import javax.annotation.Nonnull;
 import org.joml.Vector3f;
 
@@ -108,6 +109,18 @@ public final class BulletSpace implements PhysicsSpace {
             wrapBody(rigidBody);
         }
         return new ArrayList<>(bodies);
+    }
+
+    @Override
+    public int bodyCount() {
+        return space.getRigidBodyList().size();
+    }
+
+    @Override
+    public void forEachBody(@Nonnull Consumer<PhysicsBody> consumer) {
+        for (PhysicsRigidBody rigidBody : space.getRigidBodyList()) {
+            consumer.accept(wrapBody(rigidBody));
+        }
     }
 
     @Nonnull
@@ -327,6 +340,18 @@ public final class BulletSpace implements PhysicsSpace {
     @Override
     public List<PhysicsJoint> getJoints() {
         return new ArrayList<>(joints);
+    }
+
+    @Override
+    public int jointCount() {
+        return joints.size();
+    }
+
+    @Override
+    public void forEachJoint(@Nonnull Consumer<PhysicsJoint> consumer) {
+        for (BulletJoint joint : joints) {
+            consumer.accept(joint);
+        }
     }
 
     @Override

@@ -27,6 +27,8 @@ public final class RapierBody implements PhysicsBody {
     private final Vector3f angularVelocity = new Vector3f();
     private final float[] vec3Scratch = new float[3];
     private final float[] quatScratch = new float[4];
+    private final float[] dampingScratch = new float[2];
+    private final int[] collisionFilterScratch = new int[2];
 
     private float mass;
     private float friction = 0.5f;
@@ -632,10 +634,9 @@ public final class RapierBody implements PhysicsBody {
 
     private void refreshDamping() {
         if (isAttached()) {
-            float[] out = new float[2];
-            RapierNative.getBodyDampingNative(getSpaceHandle(), bodyHandle, out);
-            linearDamping = out[0];
-            angularDamping = out[1];
+            RapierNative.getBodyDampingNative(getSpaceHandle(), bodyHandle, dampingScratch);
+            linearDamping = dampingScratch[0];
+            angularDamping = dampingScratch[1];
         }
     }
 
@@ -648,10 +649,9 @@ public final class RapierBody implements PhysicsBody {
 
     private void refreshCollisionFilter() {
         if (isAttached()) {
-            int[] out = new int[2];
-            RapierNative.getBodyCollisionFilterNative(getSpaceHandle(), bodyHandle, out);
-            collisionGroup = out[0];
-            collisionMask = out[1];
+            RapierNative.getBodyCollisionFilterNative(getSpaceHandle(), bodyHandle, collisionFilterScratch);
+            collisionGroup = collisionFilterScratch[0];
+            collisionMask = collisionFilterScratch[1];
         }
     }
 

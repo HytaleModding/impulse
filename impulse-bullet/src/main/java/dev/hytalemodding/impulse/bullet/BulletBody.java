@@ -22,6 +22,7 @@ public final class BulletBody implements PhysicsBody {
     private final PhysicsRigidBody body;
     private final com.jme3.math.Vector3f jmeVectorScratch = new com.jme3.math.Vector3f();
     private final com.jme3.math.Quaternion jmeQuaternionScratch = new com.jme3.math.Quaternion();
+    private final Vector3f jomlVectorScratch = new Vector3f();
     private float planeGroundY = Float.NaN;
 
     BulletBody(@Nonnull PhysicsRigidBody body) {
@@ -471,7 +472,8 @@ public final class BulletBody implements PhysicsBody {
             return Float.NaN;
         }
         if (Float.isNaN(planeGroundY)) {
-            planeGroundY = getPosition().y;
+            getPosition(jomlVectorScratch);
+            planeGroundY = jomlVectorScratch.y;
         }
         return planeGroundY;
     }

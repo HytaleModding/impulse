@@ -74,17 +74,17 @@ public class PersistentPhysicsJointHydrationSystem extends TickingSystem<EntityS
         PhysicsWorldResource runtime = store.getResource(PhysicsWorldResource.getResourceType());
         Set<String> existing = new HashSet<>();
         for (PhysicsSpace space : runtime.getSpaces()) {
-            for (PhysicsJoint joint : space.getJoints()) {
+            space.forEachJoint(joint -> {
                 UUID bodyAUuid = PersistentPhysicsRuntimeSupport.ownerUuid(store, joint.getBodyA(), runtime);
                 UUID bodyBUuid = PersistentPhysicsRuntimeSupport.ownerUuid(store, joint.getBodyB(), runtime);
                 if (bodyAUuid == null || bodyBUuid == null) {
-                    continue;
+                    return;
                 }
                 existing.add(PersistentPhysicsRuntimeSupport.jointKey(space.getId().value(),
                     bodyAUuid,
                     bodyBUuid,
                     joint));
-            }
+            });
         }
 
         boolean complete = true;

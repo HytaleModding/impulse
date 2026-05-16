@@ -2,6 +2,7 @@ package dev.hytalemodding.impulse.api;
 
 import java.util.List;
 import java.util.Optional;
+import java.util.function.Consumer;
 import javax.annotation.Nonnull;
 import org.joml.Vector3f;
 
@@ -38,6 +39,28 @@ public interface PhysicsSpace {
 
     @Nonnull
     List<PhysicsBody> getBodies();
+
+    /**
+     * Returns the number of bodies in this space.
+     *
+     * <p>Default implementation delegates to {@link #getBodies()}.
+     * Backends should override to avoid list allocation.</p>
+     */
+    default int bodyCount() {
+        return getBodies().size();
+    }
+
+    /**
+     * Iterates all bodies without allocating a copied list.
+     *
+     * <p>Default implementation delegates to {@link #getBodies()}.
+     * Backends should override to iterate internal lists directly.</p>
+     */
+    default void forEachBody(@Nonnull Consumer<PhysicsBody> consumer) {
+        for (PhysicsBody body : getBodies()) {
+            consumer.accept(body);
+        }
+    }
 
     @Nonnull
     PhysicsBody createStaticPlane(float groundY);
@@ -177,6 +200,28 @@ public interface PhysicsSpace {
 
     @Nonnull
     List<PhysicsJoint> getJoints();
+
+    /**
+     * Returns the number of joints in this space.
+     *
+     * <p>Default implementation delegates to {@link #getJoints()}.
+     * Backends should override to avoid list allocation.</p>
+     */
+    default int jointCount() {
+        return getJoints().size();
+    }
+
+    /**
+     * Iterates all joints without allocating a copied list.
+     *
+     * <p>Default implementation delegates to {@link #getJoints()}.
+     * Backends should override to iterate internal lists directly.</p>
+     */
+    default void forEachJoint(@Nonnull Consumer<PhysicsJoint> consumer) {
+        for (PhysicsJoint joint : getJoints()) {
+            consumer.accept(joint);
+        }
+    }
 
     /**
      * Release backend resources for this space.
