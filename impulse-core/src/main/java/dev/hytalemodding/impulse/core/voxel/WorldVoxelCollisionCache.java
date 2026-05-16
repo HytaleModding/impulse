@@ -10,11 +10,14 @@ import com.hypixel.hytale.server.core.universe.world.storage.ChunkStore;
 import dev.hytalemodding.impulse.api.PhysicsBody;
 import dev.hytalemodding.impulse.api.PhysicsSpace;
 import dev.hytalemodding.impulse.api.SpaceId;
+import dev.hytalemodding.impulse.core.resources.WorldCollisionProfilingResource.Snapshot;
 import dev.hytalemodding.impulse.core.voxel.SectionCollisionGeometry.BoxCollider;
 import it.unimi.dsi.fastutil.ints.Int2ObjectMap;
 import it.unimi.dsi.fastutil.ints.Int2ObjectOpenHashMap;
 import it.unimi.dsi.fastutil.longs.Long2ObjectMap;
 import it.unimi.dsi.fastutil.longs.Long2ObjectOpenHashMap;
+import it.unimi.dsi.fastutil.longs.LongOpenHashSet;
+import it.unimi.dsi.fastutil.longs.LongSet;
 import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
@@ -22,6 +25,7 @@ import java.util.function.Consumer;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 import org.joml.Vector3d;
+import org.joml.Vector3f;
 
 /**
  * Section-keyed cache that generates static physics collision from Hytale world blocks.
@@ -33,6 +37,7 @@ import org.joml.Vector3d;
 public final class WorldVoxelCollisionCache {
 
     private static final double SECTION_WAKE_MARGIN = 2.0;
+    private static final Vector3f WAKE_POSITION_SCRATCH = new Vector3f();
 
     private final Int2ObjectMap<SpaceCollisionCache> spaces = new Int2ObjectOpenHashMap<>();
     private final ShapeTemplateCache shapeTemplates = new ShapeTemplateCache();
@@ -67,6 +72,38 @@ public final class WorldVoxelCollisionCache {
         @Nonnull Vector3d center,
         int radius,
         long tick) {
+        return ensureAround(world, space, center, radius, tick, null, null);
+    }
+
+    /**
+     * Ensures all chunk sections within the block radius around {@code center} are cached.
+     */
+    @Nonnull
+    public BuildStats ensureAround(@Nonnull World world,
+        @Nonnull PhysicsSpace space,
+        @Nonnull Vector3d center,
+        int radius,
+        long tick,
+        @Nullable Snapshot profiling) {
+        return ensureAround(world, space, center, radius, tick, profiling, null);
+    }
+
+    /**
+     * Ensures all chunk sections within the block radius around {@code center} are cached.
+     */
+    @Nonnull
+    public BuildStats ensureAround(@Nonnull World world,
+        @Nonnull PhysicsSpace space,
+        @Nonnull Vector3d center,
+        int radius,
+        long tick,
+        @Nullable Snapshot profiling,
+        @Nullable LongSet visitedSections) {
+        long start = profiling != null ? System.nanoTime() : 0L;
+        if (profiling != null) {
+            profiling.incrementEnsureCalls();
+        }
+
         int minX = (int) Math.floor(center.x) - radius;
         int maxX = (int) Math.floor(center.x) + radius;
         int minY = Math.max(0, (int) Math.floor(center.y) - radius);
@@ -85,9 +122,28 @@ public final class WorldVoxelCollisionCache {
         for (int chunkX = minChunkX; chunkX <= maxChunkX; chunkX++) {
             for (int sectionY = minSectionY; sectionY <= maxSectionY; sectionY++) {
                 for (int chunkZ = minChunkZ; chunkZ <= maxChunkZ; chunkZ++) {
-                    total = total.plus(ensureSection(world, space, chunkX, sectionY, chunkZ, tick));
+                    long key = packSectionKey(chunkX, sectionY, chunkZ);
+                    if (visitedSections != null) {
+                        if (!visitedSections.add(key)) {
+                            if (profiling != null) {
+                                profiling.incrementDuplicateSkips();
+                            }
+                            continue;
+                        }
+                    }
+                    total = total.plus(ensureSection(
+                        world,
+                        space,
+                        chunkX,
+                        sectionY,
+                        chunkZ,
+                        tick,
+                        profiling));
                 }
             }
+        }
+        if (profiling != null) {
+            profiling.addEnsureAroundNanos(System.nanoTime() - start);
         }
         return total;
     }
@@ -99,12 +155,25 @@ public final class WorldVoxelCollisionCache {
         @Nonnull PhysicsSpace space,
         long currentTick,
         int ttlTicks) {
+        return pruneUnused(spaceId, space, currentTick, ttlTicks, null);
+    }
+
+    /**
+     * Removes sections whose last use is older than the configured TTL.
+     */
+    public int pruneUnused(@Nonnull SpaceId spaceId,
+        @Nonnull PhysicsSpace space,
+        long currentTick,
+        int ttlTicks,
+        @Nullable Snapshot profiling) {
+        long start = profiling != null ? System.nanoTime() : 0L;
         SpaceCollisionCache cache = spaces.get(spaceId.value());
         if (cache == null) {
             return 0;
         }
 
         int removed = 0;
+        int removedSections = 0;
         Iterator<Long2ObjectMap.Entry<CachedSection>> iterator = cache.sections.long2ObjectEntrySet().iterator();
         while (iterator.hasNext()) {
             Long2ObjectMap.Entry<CachedSection> entry = iterator.next();
@@ -114,10 +183,15 @@ public final class WorldVoxelCollisionCache {
             }
 
             removed += section.removeFrom(space);
+            removedSections++;
             iterator.remove();
         }
         if (cache.sections.isEmpty()) {
             spaces.remove(spaceId.value());
+        }
+        if (profiling != null) {
+            profiling.addTtlPrune(removedSections, removed);
+            profiling.addPruneUnusedNanos(System.nanoTime() - start);
         }
         return removed;
     }
@@ -128,12 +202,24 @@ public final class WorldVoxelCollisionCache {
     public int pruneUnloaded(@Nonnull World world,
         @Nonnull SpaceId spaceId,
         @Nonnull PhysicsSpace space) {
+        return pruneUnloaded(world, spaceId, space, null);
+    }
+
+    /**
+     * Removes cached sections whose source chunk is no longer loaded.
+     */
+    public int pruneUnloaded(@Nonnull World world,
+        @Nonnull SpaceId spaceId,
+        @Nonnull PhysicsSpace space,
+        @Nullable Snapshot profiling) {
+        long start = profiling != null ? System.nanoTime() : 0L;
         SpaceCollisionCache cache = spaces.get(spaceId.value());
         if (cache == null) {
             return 0;
         }
 
         int removed = 0;
+        int removedSections = 0;
         Iterator<Long2ObjectMap.Entry<CachedSection>> iterator = cache.sections.long2ObjectEntrySet().iterator();
         while (iterator.hasNext()) {
             CachedSection section = iterator.next().getValue();
@@ -142,10 +228,15 @@ public final class WorldVoxelCollisionCache {
             }
 
             removed += section.removeFrom(space);
+            removedSections++;
             iterator.remove();
         }
         if (cache.sections.isEmpty()) {
             spaces.remove(spaceId.value());
+        }
+        if (profiling != null) {
+            profiling.addUnloadedPrune(removedSections, removed);
+            profiling.addPruneUnloadedNanos(System.nanoTime() - start);
         }
         return removed;
     }
@@ -261,9 +352,19 @@ public final class WorldVoxelCollisionCache {
         int chunkX,
         int sectionY,
         int chunkZ,
-        long tick) {
+        long tick,
+        @Nullable Snapshot profiling) {
+        long start = profiling != null ? System.nanoTime() : 0L;
+        if (profiling != null) {
+            profiling.incrementSectionRequests();
+        }
+
         BlockChunk blockChunk = blockChunk(world, chunkX, chunkZ);
         if (blockChunk == null) {
+            if (profiling != null) {
+                profiling.incrementMissingChunks();
+                profiling.addEnsureSectionNanos(System.nanoTime() - start);
+            }
             return BuildStats.empty();
         }
 
@@ -278,6 +379,10 @@ public final class WorldVoxelCollisionCache {
             chunkZ);
         if (cached != null && cached.neighborhoodSignature == neighborhoodSignature) {
             cached.lastUsedTick = tick;
+            if (profiling != null) {
+                profiling.incrementSectionCacheHits();
+                profiling.addEnsureSectionNanos(System.nanoTime() - start);
+            }
             return BuildStats.empty();
         }
 
@@ -298,12 +403,17 @@ public final class WorldVoxelCollisionCache {
             wakeDynamicBodiesNearSection(space, chunkX, sectionY, chunkZ);
         }
 
-        return BuildStats.from(geometry,
+        BuildStats stats = BuildStats.from(geometry,
             built.bodies.size(),
             removed,
             rebuilt ? 0 : 1,
             rebuilt ? 1 : 0,
             space.supportsVoxelTerrain() && geometry.hasFullCubeVoxels() ? 1 : 0);
+        if (profiling != null) {
+            profiling.addBuildStats(stats);
+            profiling.addEnsureSectionNanos(System.nanoTime() - start);
+        }
+        return stats;
     }
 
     private static void addGeometryBodies(@Nonnull PhysicsSpace space,
@@ -403,22 +513,21 @@ public final class WorldVoxelCollisionCache {
         double maxY = (sectionY << ChunkUtil.BITS) + ChunkUtil.SIZE + SECTION_WAKE_MARGIN;
         double maxZ = (chunkZ << ChunkUtil.BITS) + ChunkUtil.SIZE + SECTION_WAKE_MARGIN;
 
-        for (PhysicsBody body : space.getBodies()) {
+        space.forEachBody(body -> {
             if (!body.isDynamic()) {
-                continue;
+                return;
             }
-
-            Vector3d position = new Vector3d(body.getPosition().x,
-                body.getPosition().y,
-                body.getPosition().z);
-            if (position.x < minX || position.x > maxX
-                || position.y < minY || position.y > maxY
-                || position.z < minZ || position.z > maxZ) {
-                continue;
+            body.getPosition(WAKE_POSITION_SCRATCH);
+            double posX = WAKE_POSITION_SCRATCH.x;
+            double posY = WAKE_POSITION_SCRATCH.y;
+            double posZ = WAKE_POSITION_SCRATCH.z;
+            if (posX < minX || posX > maxX
+                || posY < minY || posY > maxY
+                || posZ < minZ || posZ > maxZ) {
+                return;
             }
-
             body.activate();
-        }
+        });
     }
 
     @Nullable

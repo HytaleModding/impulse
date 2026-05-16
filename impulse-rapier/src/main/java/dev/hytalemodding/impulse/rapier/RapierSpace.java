@@ -16,6 +16,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.function.Consumer;
 import javax.annotation.Nonnull;
 import org.joml.Quaternionf;
 import org.joml.Vector3f;
@@ -116,6 +117,18 @@ public final class RapierSpace implements PhysicsSpace {
     @Override
     public List<PhysicsBody> getBodies() {
         return new ArrayList<>(bodies);
+    }
+
+    @Override
+    public int bodyCount() {
+        return bodies.size();
+    }
+
+    @Override
+    public void forEachBody(@Nonnull Consumer<PhysicsBody> consumer) {
+        for (RapierBody body : bodies) {
+            consumer.accept(body);
+        }
     }
 
     @Nonnull
@@ -315,6 +328,18 @@ public final class RapierSpace implements PhysicsSpace {
     @Override
     public List<PhysicsJoint> getJoints() {
         return new ArrayList<>(joints);
+    }
+
+    @Override
+    public int jointCount() {
+        return joints.size();
+    }
+
+    @Override
+    public void forEachJoint(@Nonnull Consumer<PhysicsJoint> consumer) {
+        for (RapierJoint joint : joints) {
+            consumer.accept(joint);
+        }
     }
 
     long getNativeSpaceHandle() {

@@ -8,7 +8,7 @@ public class ImpulseCommand extends AbstractCommandCollection {
         super("impulse", "Impulse runtime commands");
         addSubCommand(new BackendCommand());
         addSubCommand(new DebugCommand());
+        addSubCommand(new PerfCommand());
         addSubCommand(new SettingsCommand());
     }
 }
-

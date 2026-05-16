@@ -11,14 +11,15 @@ import com.hypixel.hytale.server.core.entity.entities.Player;
 import com.hypixel.hytale.server.core.modules.entity.component.TransformComponent;
 import com.hypixel.hytale.server.core.universe.world.World;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
-import dev.hytalemodding.impulse.api.PhysicsBody;
 import dev.hytalemodding.impulse.api.PhysicsSpace;
-import dev.hytalemodding.impulse.api.ShapeType;
-import dev.hytalemodding.impulse.core.components.PhysicsBodyComponent;
 import dev.hytalemodding.impulse.core.resources.PhysicsSpaceSettings;
 import dev.hytalemodding.impulse.core.resources.PhysicsWorldResource;
+import dev.hytalemodding.impulse.core.resources.WorldCollisionProfilingResource;
+import dev.hytalemodding.impulse.core.resources.WorldCollisionProfilingResource.Snapshot;
 import dev.hytalemodding.impulse.core.voxel.WorldCollisionMode;
 import dev.hytalemodding.impulse.core.voxel.WorldVoxelCollisionCache;
+import it.unimi.dsi.fastutil.longs.LongOpenHashSet;
+import it.unimi.dsi.fastutil.longs.LongSet;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.function.BiConsumer;
@@ -48,11 +49,11 @@ public class PhysicsWorldCollisionStreamingSystem extends TickingSystem<EntitySt
     private static final ComponentType<EntityStore, Player> PLAYER_TYPE = Player.getComponentType();
     private static final ComponentType<EntityStore, TransformComponent> TRANSFORM_TYPE =
         TransformComponent.getComponentType();
-    private static final ComponentType<EntityStore, PhysicsBodyComponent> PHYSICS_BODY_TYPE =
-        PhysicsBodyComponent.getComponentType();
+
     private static final Query<EntityStore> QUERY = Query.and(PLAYER_TYPE, TRANSFORM_TYPE);
 
     private long tick;
+    private final Vector3f bodyPositionScratch = new Vector3f();
 
     @Nonnull
     @Override
@@ -62,38 +63,64 @@ public class PhysicsWorldCollisionStreamingSystem extends TickingSystem<EntitySt
 
     @Override
     public void tick(float dt, int systemIndex, @Nonnull Store<EntityStore> store) {
-        playerPositionCount = 0;
-        List<Vector3d> streamingPositions = new ArrayList<>();
-        BiConsumer<ArchetypeChunk<EntityStore>, CommandBuffer<EntityStore>> collector =
-            (chunk, commandBuffer) -> collectPlayerPositions(chunk, streamingPositions);
-        store.forEachChunk(systemIndex, collector);
+        WorldCollisionProfilingResource profiling = store.getResource(
+            WorldCollisionProfilingResource.getResourceType());
+        Snapshot snapshot = profiling.isEnabled() ? profiling.beginTick() : null;
+        long tickStart = snapshot != null ? System.nanoTime() : 0L;
+        try {
+            playerPositionCount = 0;
+            List<Vector3d> streamingPositions = new ArrayList<>();
+            BiConsumer<ArchetypeChunk<EntityStore>, CommandBuffer<EntityStore>> collector =
+                (chunk, commandBuffer) -> collectPlayerPositions(chunk, streamingPositions);
+            store.forEachChunk(systemIndex, collector);
 
-        World world = store.getExternalData().getWorld();
-        PhysicsWorldResource resource = store.getResource(PhysicsWorldResource.getResourceType());
-        collectDynamicBodyPositions(resource, streamingPositions);
+            World world = store.getExternalData().getWorld();
+            PhysicsWorldResource resource = store.getResource(PhysicsWorldResource.getResourceType());
+            collectDynamicBodyPositions(resource, streamingPositions);
 
-        long currentTick = ++tick;
-        WorldVoxelCollisionCache cache = resource.getWorldVoxelCollisionCache();
-        for (PhysicsSpace space : resource.iterateSpaces()) {
-            PhysicsSpaceSettings settings = resource.getSpaceSettings(space.getId());
-            if (settings.getWorldCollisionMode() != WorldCollisionMode.STREAMING) {
-                continue;
+            if (snapshot != null) {
+                snapshot.setPlayerStreamingTargets(playerPositionCount);
+                snapshot.setBodyStreamingTargets(Math.max(0,
+                    streamingPositions.size() - playerPositionCount));
             }
 
-            int playerRadius = settings.getWorldCollisionRadius();
-            int bodyRadius = settings.getWorldCollisionBodyRadius();
-            int index = 0;
-            for (Vector3d position : streamingPositions) {
-                /*
-                 * Player positions come first, then body positions.
-                 * Use the smaller body radius for body positions.
-                 */
-                int radius = index < playerPositionCount ? playerRadius : bodyRadius;
-                cache.ensureAround(world, space, position, radius, currentTick);
-                index++;
+            long currentTick = ++tick;
+            WorldVoxelCollisionCache cache = resource.getWorldVoxelCollisionCache();
+            for (PhysicsSpace space : resource.iterateSpaces()) {
+                PhysicsSpaceSettings settings = resource.getSpaceSettings(space.getId());
+                if (settings.getWorldCollisionMode() != WorldCollisionMode.STREAMING) {
+                    continue;
+                }
+
+                if (snapshot != null) {
+                    snapshot.incrementStreamingSpaces();
+                }
+
+                int playerRadius = settings.getWorldCollisionRadius();
+                int bodyRadius = settings.getWorldCollisionBodyRadius();
+                LongSet visitedSections = new LongOpenHashSet();
+                int index = 0;
+                for (Vector3d position : streamingPositions) {
+                    /*
+                     * Player positions come first, then body positions.
+                     * Use the smaller body radius for body positions.
+                     */
+                    int radius = index < playerPositionCount ? playerRadius : bodyRadius;
+                    cache.ensureAround(world, space, position, radius, currentTick, snapshot, visitedSections);
+                    index++;
+                }
+                cache.pruneUnloaded(world, space.getId(), space, snapshot);
+                cache.pruneUnused(space.getId(),
+                    space,
+                    currentTick,
+                    settings.getWorldCollisionTtlTicks(),
+                    snapshot);
             }
-            cache.pruneUnloaded(world, space.getId(), space);
-            cache.pruneUnused(space.getId(), space, currentTick, settings.getWorldCollisionTtlTicks());
+        } finally {
+            if (snapshot != null) {
+                snapshot.setTickNanos(System.nanoTime() - tickStart);
+                profiling.finishTick(snapshot);
+            }
         }
     }
 
@@ -127,16 +154,18 @@ public class PhysicsWorldCollisionStreamingSystem extends TickingSystem<EntitySt
             if (settings.getWorldCollisionMode() != WorldCollisionMode.STREAMING) {
                 continue;
             }
-            for (PhysicsBody body : space.getBodies()) {
+            space.forEachBody(body -> {
                 if (!body.isDynamic()) {
-                    continue;
+                    return;
                 }
                 if (body.isSleeping()) {
-                    continue;
+                    return;
                 }
-                Vector3f pos = body.getPosition();
-                positions.add(new Vector3d(pos.x, pos.y, pos.z));
-            }
+                body.getPosition(bodyPositionScratch);
+                positions.add(new Vector3d(bodyPositionScratch.x,
+                    bodyPositionScratch.y,
+                    bodyPositionScratch.z));
+            });
         }
     }
 }

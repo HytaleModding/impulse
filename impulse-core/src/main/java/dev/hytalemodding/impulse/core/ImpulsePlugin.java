@@ -21,6 +21,7 @@ import dev.hytalemodding.impulse.core.components.PhysicsBodyComponent;
 import dev.hytalemodding.impulse.core.persistence.PersistentPhysicsWorldResource;
 import dev.hytalemodding.impulse.core.resources.PhysicsDebugResource;
 import dev.hytalemodding.impulse.core.resources.PhysicsWorldResource;
+import dev.hytalemodding.impulse.core.resources.WorldCollisionProfilingResource;
 import dev.hytalemodding.impulse.core.systems.PersistentPhysicsBodyHydrationSystem;
 import dev.hytalemodding.impulse.core.systems.PersistentPhysicsBodySyncSystem;
 import dev.hytalemodding.impulse.core.systems.PersistentPhysicsJointHydrationSystem;
@@ -61,6 +62,9 @@ public final class ImpulsePlugin extends JavaPlugin {
 
     @Getter
     private ResourceType<EntityStore, PhysicsDebugResource> physicsDebugResourceType;
+
+    @Getter
+    private ResourceType<EntityStore, WorldCollisionProfilingResource> worldCollisionProfilingResourceType;
 
     @Getter
     private ResourceType<EntityStore, PersistentPhysicsWorldResource> persistentPhysicsWorldResourceType;
@@ -167,6 +171,9 @@ public final class ImpulsePlugin extends JavaPlugin {
             PhysicsWorldResource::new);
         physicsDebugResourceType = entityRegistry.registerResource(PhysicsDebugResource.class,
             PhysicsDebugResource::new);
+        worldCollisionProfilingResourceType = entityRegistry.registerResource(
+            WorldCollisionProfilingResource.class,
+            WorldCollisionProfilingResource::new);
         persistentPhysicsWorldResourceType = entityRegistry.registerResource(
             PersistentPhysicsWorldResource.class,
             "PersistentPhysicsWorld",
