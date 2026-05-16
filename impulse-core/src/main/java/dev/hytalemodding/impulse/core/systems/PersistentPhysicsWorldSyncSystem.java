@@ -58,6 +58,7 @@ public class PersistentPhysicsWorldSyncSystem extends TickingSystem<EntityStore>
 
         PhysicsWorldResource runtime = store.getResource(PhysicsWorldResource.getResourceType());
         persistent.setSimulationSteps(runtime.getSimulationSteps());
+        persistent.setStepMode(runtime.getStepMode());
         persistent.setMaxStepDt(runtime.getMaxStepDt());
         SpaceId defaultSpaceId = runtime.getDefaultSpaceId();
         persistent.setDefaultSpaceId(defaultSpaceId != null

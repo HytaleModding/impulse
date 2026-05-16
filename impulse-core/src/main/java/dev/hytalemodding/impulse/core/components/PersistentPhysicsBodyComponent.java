@@ -18,6 +18,8 @@ import dev.hytalemodding.impulse.core.ImpulsePlugin;
 import dev.hytalemodding.impulse.core.persistence.PersistentQuaternion;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
+import lombok.Getter;
+import lombok.Setter;
 import org.joml.Vector3f;
 
 /**
@@ -137,6 +139,8 @@ public class PersistentPhysicsBodyComponent implements Component<EntityStore> {
         .afterDecode(component -> component.needsBodyRebuild = true)
         .build();
 
+    @Setter
+    @Getter
     private int spaceId = DEFAULT_SPACE_ID;
     @Nonnull
     private ShapeType shapeType = ShapeType.UNKNOWN;
@@ -144,11 +148,19 @@ public class PersistentPhysicsBodyComponent implements Component<EntityStore> {
     private PhysicsAxis shapeAxis = PhysicsAxis.Y;
     @Nonnull
     private final Vector3f boxHalfExtents = new Vector3f();
+    @Setter
+    @Getter
     private float sphereRadius;
+    @Setter
+    @Getter
     private float halfHeight;
+    @Setter
+    @Getter
     private float planeGroundY = Float.NaN;
     @Nonnull
     private PhysicsBodyType bodyType = PhysicsBodyType.DYNAMIC;
+    @Setter
+    @Getter
     private float mass = 1.0f;
     @Nonnull
     private final Vector3f position = new Vector3f();
@@ -158,14 +170,32 @@ public class PersistentPhysicsBodyComponent implements Component<EntityStore> {
     private final Vector3f linearVelocity = new Vector3f();
     @Nonnull
     private final Vector3f angularVelocity = new Vector3f();
+    @Setter
+    @Getter
     private float friction;
+    @Setter
+    @Getter
     private float restitution;
+    @Setter
+    @Getter
     private float linearDamping;
+    @Setter
+    @Getter
     private float angularDamping;
+    @Setter
+    @Getter
     private boolean sensor;
+    @Setter
+    @Getter
     private int collisionGroup;
+    @Setter
+    @Getter
     private int collisionMask;
+    @Setter
+    @Getter
     private boolean continuousCollisionEnabled;
+    @Setter
+    @Getter
     private boolean sleeping;
     private transient boolean needsBodyRebuild;
 
@@ -215,14 +245,6 @@ public class PersistentPhysicsBodyComponent implements Component<EntityStore> {
         sleeping = body.isSleeping();
     }
 
-    public int getSpaceId() {
-        return spaceId;
-    }
-
-    public void setSpaceId(int spaceId) {
-        this.spaceId = spaceId;
-    }
-
     @Nonnull
     public ShapeType getShapeType() {
         return shapeType;
@@ -246,30 +268,6 @@ public class PersistentPhysicsBodyComponent implements Component<EntityStore> {
         return boxHalfExtents;
     }
 
-    public float getSphereRadius() {
-        return sphereRadius;
-    }
-
-    public void setSphereRadius(float sphereRadius) {
-        this.sphereRadius = sphereRadius;
-    }
-
-    public float getHalfHeight() {
-        return halfHeight;
-    }
-
-    public void setHalfHeight(float halfHeight) {
-        this.halfHeight = halfHeight;
-    }
-
-    public float getPlaneGroundY() {
-        return planeGroundY;
-    }
-
-    public void setPlaneGroundY(float planeGroundY) {
-        this.planeGroundY = planeGroundY;
-    }
-
     @Nonnull
     public PhysicsBodyType getBodyType() {
         return bodyType;
@@ -277,14 +275,6 @@ public class PersistentPhysicsBodyComponent implements Component<EntityStore> {
 
     public void setBodyType(@Nonnull PhysicsBodyType bodyType) {
         this.bodyType = bodyType;
-    }
-
-    public float getMass() {
-        return mass;
-    }
-
-    public void setMass(float mass) {
-        this.mass = mass;
     }
 
     @Nonnull
@@ -309,78 +299,6 @@ public class PersistentPhysicsBodyComponent implements Component<EntityStore> {
     @Nonnull
     public Vector3f getAngularVelocity() {
         return angularVelocity;
-    }
-
-    public float getFriction() {
-        return friction;
-    }
-
-    public void setFriction(float friction) {
-        this.friction = friction;
-    }
-
-    public float getRestitution() {
-        return restitution;
-    }
-
-    public void setRestitution(float restitution) {
-        this.restitution = restitution;
-    }
-
-    public float getLinearDamping() {
-        return linearDamping;
-    }
-
-    public void setLinearDamping(float linearDamping) {
-        this.linearDamping = linearDamping;
-    }
-
-    public float getAngularDamping() {
-        return angularDamping;
-    }
-
-    public void setAngularDamping(float angularDamping) {
-        this.angularDamping = angularDamping;
-    }
-
-    public boolean isSensor() {
-        return sensor;
-    }
-
-    public void setSensor(boolean sensor) {
-        this.sensor = sensor;
-    }
-
-    public int getCollisionGroup() {
-        return collisionGroup;
-    }
-
-    public void setCollisionGroup(int collisionGroup) {
-        this.collisionGroup = collisionGroup;
-    }
-
-    public int getCollisionMask() {
-        return collisionMask;
-    }
-
-    public void setCollisionMask(int collisionMask) {
-        this.collisionMask = collisionMask;
-    }
-
-    public boolean isContinuousCollisionEnabled() {
-        return continuousCollisionEnabled;
-    }
-
-    public void setContinuousCollisionEnabled(boolean continuousCollisionEnabled) {
-        this.continuousCollisionEnabled = continuousCollisionEnabled;
-    }
-
-    public boolean isSleeping() {
-        return sleeping;
-    }
-
-    public void setSleeping(boolean sleeping) {
-        this.sleeping = sleeping;
     }
 
     public boolean needsBodyRebuild() {

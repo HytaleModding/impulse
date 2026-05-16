@@ -8,7 +8,9 @@ import com.hypixel.hytale.math.vector.Vector3fUtil;
 import dev.hytalemodding.impulse.api.BackendId;
 import dev.hytalemodding.impulse.api.PhysicsSpace;
 import dev.hytalemodding.impulse.api.SpaceId;
+import dev.hytalemodding.impulse.core.resources.EntityChunkBoundaryMode;
 import dev.hytalemodding.impulse.core.resources.PhysicsSpaceSettings;
+import dev.hytalemodding.impulse.core.systems.PersistentPhysicsSpaceBootstrapSystem;
 import dev.hytalemodding.impulse.core.voxel.WorldCollisionMode;
 import javax.annotation.Nonnull;
 import lombok.Getter;
@@ -46,6 +48,11 @@ public class PersistentPhysicsSpaceState {
             (state, value) -> state.worldCollisionMode = value,
             PersistentPhysicsSpaceState::getWorldCollisionMode)
         .add()
+        .append(new KeyedCodec<>("EntityChunkBoundaryMode",
+                new EnumCodec<>(EntityChunkBoundaryMode.class)),
+            (state, value) -> state.entityChunkBoundaryMode = value,
+            PersistentPhysicsSpaceState::getEntityChunkBoundaryMode)
+        .add()
         .append(new KeyedCodec<>("WorldCollisionRadius", Codec.INTEGER),
             (state, value) -> state.worldCollisionRadius = value,
             PersistentPhysicsSpaceState::getWorldCollisionRadius)
@@ -70,6 +77,10 @@ public class PersistentPhysicsSpaceState {
     @Nonnull
     @Setter
     private WorldCollisionMode worldCollisionMode = WorldCollisionMode.NONE;
+    @Nonnull
+    @Setter
+    private EntityChunkBoundaryMode entityChunkBoundaryMode =
+        PhysicsSpaceSettings.DEFAULT_ENTITY_CHUNK_BOUNDARY_MODE;
     @Setter
     private int worldCollisionRadius = PhysicsSpaceSettings.DEFAULT_WORLD_COLLISION_RADIUS;
     @Setter
@@ -88,6 +99,7 @@ public class PersistentPhysicsSpaceState {
         state.backendId = space.getBackendId().value();
         state.gravity.set(space.getGravity());
         state.worldCollisionMode = settings.getWorldCollisionMode();
+        state.entityChunkBoundaryMode = settings.getEntityChunkBoundaryMode();
         state.worldCollisionRadius = settings.getWorldCollisionRadius();
         state.worldCollisionBodyRadius = settings.getWorldCollisionBodyRadius();
         state.worldCollisionTtlTicks = settings.getWorldCollisionTtlTicks();
@@ -108,6 +120,7 @@ public class PersistentPhysicsSpaceState {
     public PhysicsSpaceSettings toSettings() {
         PhysicsSpaceSettings settings = PhysicsSpaceSettings.defaults();
         settings.setWorldCollisionMode(worldCollisionMode);
+        settings.setEntityChunkBoundaryMode(entityChunkBoundaryMode);
         settings.setWorldCollisionRadius(worldCollisionRadius);
         settings.setWorldCollisionBodyRadius(worldCollisionBodyRadius);
         settings.setWorldCollisionTtlTicks(worldCollisionTtlTicks);
@@ -121,6 +134,7 @@ public class PersistentPhysicsSpaceState {
         copy.backendId = backendId;
         copy.gravity.set(gravity);
         copy.worldCollisionMode = worldCollisionMode;
+        copy.entityChunkBoundaryMode = entityChunkBoundaryMode;
         copy.worldCollisionRadius = worldCollisionRadius;
         copy.worldCollisionBodyRadius = worldCollisionBodyRadius;
         copy.worldCollisionTtlTicks = worldCollisionTtlTicks;

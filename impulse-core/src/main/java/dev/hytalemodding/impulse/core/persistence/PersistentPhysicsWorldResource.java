@@ -10,6 +10,7 @@ import com.hypixel.hytale.codec.codecs.array.ArrayCodec;
 import dev.hytalemodding.impulse.api.SpaceId;
 import dev.hytalemodding.impulse.core.ImpulsePlugin;
 import dev.hytalemodding.impulse.core.components.PersistentPhysicsBodyComponent;
+import dev.hytalemodding.impulse.core.resources.PhysicsStepMode;
 import dev.hytalemodding.impulse.core.resources.PhysicsWorldResource;
 import java.util.Arrays;
 import java.util.HashSet;
@@ -63,6 +64,10 @@ public class PersistentPhysicsWorldResource implements Resource<EntityStore> {
             (resource, value) -> resource.simulationSteps = value,
             PersistentPhysicsWorldResource::getSimulationSteps)
         .add()
+        .append(new KeyedCodec<>("StepMode", Codec.STRING, false),
+            (resource, value) -> resource.setStepMode(PhysicsStepMode.parse(value)),
+            resource -> resource.getStepMode().getSerializedName())
+        .add()
         .append(new KeyedCodec<>("MaxStepDt", Codec.FLOAT, false),
             PersistentPhysicsWorldResource::setMaxStepDt,
             PersistentPhysicsWorldResource::getMaxStepDt)
@@ -88,12 +93,18 @@ public class PersistentPhysicsWorldResource implements Resource<EntityStore> {
     private int simulationSteps = PhysicsWorldResource.MIN_SIMULATION_STEPS;
     @Getter
     @Setter
+    @Nonnull
+    private PhysicsStepMode stepMode = PhysicsStepMode.PROGRESSIVE_REFINEMENT;
+    @Getter
+    @Setter
     private float maxStepDt = PhysicsWorldResource.DEFAULT_MAX_STEP_DT;
     @Nonnull
     private PersistentPhysicsSpaceState[] spaces = EMPTY_SPACES;
     @Nonnull
     private PersistentPhysicsJointState[] joints = EMPTY_JOINTS;
+    @Getter
     private transient boolean runtimeRestorePending;
+    @Getter
     private transient boolean runtimeSpaceBootstrapComplete;
     private transient boolean runtimeRestoreFailed;
     @Nonnull
@@ -138,10 +149,6 @@ public class PersistentPhysicsWorldResource implements Resource<EntityStore> {
         return defaultSpaceId > 0 ? new SpaceId(defaultSpaceId) : null;
     }
 
-    public boolean isRuntimeRestorePending() {
-        return runtimeRestorePending;
-    }
-
     public void markRuntimeRestorePending() {
         ensureRuntimeTracking();
         runtimeRestorePending = true;
@@ -158,10 +165,6 @@ public class PersistentPhysicsWorldResource implements Resource<EntityStore> {
 
     public void clearRuntimeRestorePending() {
         runtimeRestorePending = false;
-    }
-
-    public boolean isRuntimeSpaceBootstrapComplete() {
-        return runtimeSpaceBootstrapComplete;
     }
 
     public void markRuntimeSpaceBootstrapComplete(int restoredSpaceCount) {
@@ -237,6 +240,7 @@ public class PersistentPhysicsWorldResource implements Resource<EntityStore> {
         }
         defaultSpaceId = other.defaultSpaceId;
         simulationSteps = other.simulationSteps;
+        stepMode = other.stepMode;
         maxStepDt = other.maxStepDt;
         spaces = copySpaces(other.spaces);
         joints = copyJoints(other.joints);
