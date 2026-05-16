@@ -63,6 +63,10 @@ public class PersistentPhysicsWorldResource implements Resource<EntityStore> {
             (resource, value) -> resource.simulationSteps = value,
             PersistentPhysicsWorldResource::getSimulationSteps)
         .add()
+        .append(new KeyedCodec<>("MaxStepDt", Codec.FLOAT, false),
+            PersistentPhysicsWorldResource::setMaxStepDt,
+            PersistentPhysicsWorldResource::getMaxStepDt)
+        .add()
         .append(new KeyedCodec<>("Spaces",
                 new ArrayCodec<>(PersistentPhysicsSpaceState.CODEC, PersistentPhysicsSpaceState[]::new)),
             (resource, value) -> resource.spaces = copySpaces(value),
@@ -82,6 +86,9 @@ public class PersistentPhysicsWorldResource implements Resource<EntityStore> {
     @Getter
     @Setter
     private int simulationSteps = PhysicsWorldResource.MIN_SIMULATION_STEPS;
+    @Getter
+    @Setter
+    private float maxStepDt = PhysicsWorldResource.DEFAULT_MAX_STEP_DT;
     @Nonnull
     private PersistentPhysicsSpaceState[] spaces = EMPTY_SPACES;
     @Nonnull
@@ -225,8 +232,12 @@ public class PersistentPhysicsWorldResource implements Resource<EntityStore> {
     }
 
     public void copyFrom(@Nonnull PersistentPhysicsWorldResource other) {
+        if (this == other) {
+            return;
+        }
         defaultSpaceId = other.defaultSpaceId;
         simulationSteps = other.simulationSteps;
+        maxStepDt = other.maxStepDt;
         spaces = copySpaces(other.spaces);
         joints = copyJoints(other.joints);
         runtimeRestorePending = false;

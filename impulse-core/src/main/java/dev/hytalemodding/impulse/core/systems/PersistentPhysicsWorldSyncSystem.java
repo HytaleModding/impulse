@@ -58,6 +58,7 @@ public class PersistentPhysicsWorldSyncSystem extends TickingSystem<EntityStore>
 
         PhysicsWorldResource runtime = store.getResource(PhysicsWorldResource.getResourceType());
         persistent.setSimulationSteps(runtime.getSimulationSteps());
+        persistent.setMaxStepDt(runtime.getMaxStepDt());
         SpaceId defaultSpaceId = runtime.getDefaultSpaceId();
         persistent.setDefaultSpaceId(defaultSpaceId != null
             ? defaultSpaceId.value()
@@ -68,17 +69,17 @@ public class PersistentPhysicsWorldSyncSystem extends TickingSystem<EntityStore>
         for (PhysicsSpace space : runtime.getSpaces()) {
             PhysicsSpaceSettings settings = runtime.getSpaceSettings(space.getId());
             spaces.add(PersistentPhysicsSpaceState.from(space, settings));
-            for (PhysicsJoint joint : space.getJoints()) {
+            space.forEachJoint(joint -> {
                 UUID bodyAUuid = PersistentPhysicsRuntimeSupport.ownerUuid(store, joint.getBodyA(), runtime);
                 UUID bodyBUuid = PersistentPhysicsRuntimeSupport.ownerUuid(store, joint.getBodyB(), runtime);
                 if (bodyAUuid == null || bodyBUuid == null) {
-                    continue;
+                    return;
                 }
                 joints.add(PersistentPhysicsJointState.from(space.getId().value(),
                     bodyAUuid,
                     bodyBUuid,
                     joint));
-            }
+            });
         }
 
         persistent.setSpaces(spaces.toArray(PersistentPhysicsSpaceState[]::new));

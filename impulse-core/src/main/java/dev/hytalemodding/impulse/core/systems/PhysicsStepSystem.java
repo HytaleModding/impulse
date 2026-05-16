@@ -20,9 +20,15 @@ public class PhysicsStepSystem extends TickingSystem<ChunkStore> {
             PhysicsWorldResource.getResourceType());
 
         int simulationSteps = resource.getSimulationSteps();
-        float stepDt = dt / simulationSteps;
+        float maxStepDt = resource.getMaxStepDt();
+        if (maxStepDt <= 0f) {
+            maxStepDt = PhysicsWorldResource.DEFAULT_MAX_STEP_DT;
+        }
+        int steps = Math.max(simulationSteps, (int) Math.ceil(dt / maxStepDt));
+        steps = Math.min(steps, PhysicsWorldResource.MAX_SIMULATION_STEPS);
+        float stepDt = dt / steps;
         for (PhysicsSpace space : resource.iterateSpaces()) {
-            for (int step = 0; step < simulationSteps; step++) {
+            for (int step = 0; step < steps; step++) {
                 space.step(stepDt);
             }
         }
