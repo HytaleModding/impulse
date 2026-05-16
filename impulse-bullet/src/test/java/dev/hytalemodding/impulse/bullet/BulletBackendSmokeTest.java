@@ -17,6 +17,9 @@ import org.junit.jupiter.api.io.TempDir;
 
 class BulletBackendSmokeTest {
 
+    private static final float LOW_TPS_FRAME_DT = 0.5f;
+    private static final int LOW_TPS_SUBSTEPS = 16;
+
     @TempDir
     Path tempDir;
 
@@ -81,11 +84,38 @@ class BulletBackendSmokeTest {
         assertEquals(BulletBackend.ID, space.getBackendId());
     }
 
+    @Test
+    void splitLowTpsFramePreventsFastBodyFromTunnelingThroughPlane() {
+        space = createSpace();
+        space.setGravity(0.0f, 0.0f, 0.0f);
+
+        PhysicsBody plane = space.createStaticPlane(0.0f);
+        PhysicsBody body = space.createBox(0.5f, 0.5f, 0.5f, 1.0f);
+        body.setPosition(0.0f, 6.0f, 0.0f);
+        body.setLinearVelocity(0.0f, -25.0f, 0.0f);
+        body.setContinuousCollisionEnabled(true);
+
+        space.addBody(plane);
+        space.addBody(body);
+
+        stepFrameWithSubsteps(space, LOW_TPS_FRAME_DT, LOW_TPS_SUBSTEPS);
+
+        assertTrue(body.getPosition().y > 0.2f,
+            "Substepped low-TPS frame should keep the fast body above the plane");
+    }
+
     private PhysicsSpace createSpace() {
         BulletBackend backend = new BulletBackend();
         backend.setDataDirectory(tempDir);
         backend.setInternalLoggingLevel(Level.OFF);
         Impulse.registerBackend(backend);
         return Impulse.createSpace(backend.getId());
+    }
+
+    private static void stepFrameWithSubsteps(PhysicsSpace space, float frameDt, int substeps) {
+        float stepDt = frameDt / substeps;
+        for (int i = 0; i < substeps; i++) {
+            space.step(stepDt);
+        }
     }
 }

@@ -32,6 +32,8 @@ import org.junit.jupiter.api.io.TempDir;
 public abstract class PhysicsBackendContractTest {
 
     protected static final float STEP_DT = 1.0f / 60.0f;
+    protected static final float LOW_TPS_FRAME_DT = 0.5f;
+    protected static final int LOW_TPS_SUBSTEPS = 16;
     protected static final int MAX_SETTLE_STEPS = 900;
     protected static final float POSITION_EPSILON = 0.05f;
 
@@ -112,6 +114,28 @@ public abstract class PhysicsBackendContractTest {
     }
 
     @Test
+    void splitLowTpsFramePreventsFastBodyFromTunnelingThroughPlane() {
+        PhysicsSpace space = createHeadlessSpace();
+        space.setGravity(0.0f, 0.0f, 0.0f);
+
+        PhysicsBody plane = space.createStaticPlane(0.0f);
+        PhysicsBody body = space.createBox(0.5f, 0.5f, 0.5f, 1.0f);
+        body.setPosition(0.0f, 6.0f, 0.0f);
+        body.setLinearVelocity(0.0f, -25.0f, 0.0f);
+        if (space.supportsContinuousCollision()) {
+            body.setContinuousCollisionEnabled(true);
+        }
+
+        space.addBody(plane);
+        space.addBody(body);
+
+        stepFrameWithSubsteps(space, LOW_TPS_FRAME_DT, LOW_TPS_SUBSTEPS);
+
+        assertTrue(body.getPosition().y > 0.2f,
+            "Substepped low-TPS frame should keep the fast body above the plane");
+    }
+
+    @Test
     void createsAndRemovesPointJoints() {
         PhysicsSpace space = createHeadlessSpace();
         PhysicsBody bodyA = space.createSphere(0.5f, 1.0f);
@@ -165,6 +189,13 @@ public abstract class PhysicsBackendContractTest {
     protected void stepSpace(@Nonnull PhysicsSpace space, int steps) {
         for (int i = 0; i < steps; i++) {
             space.step(STEP_DT);
+        }
+    }
+
+    protected void stepFrameWithSubsteps(@Nonnull PhysicsSpace space, float frameDt, int substeps) {
+        float stepDt = frameDt / substeps;
+        for (int i = 0; i < substeps; i++) {
+            space.step(stepDt);
         }
     }
 
