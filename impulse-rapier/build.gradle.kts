@@ -65,4 +65,6 @@ dependencies {
     api(project(":impulse-api"))
 
     implementation(libs.snaploader)
+
+    testImplementation(testFixtures(project(":impulse-api")))
 }

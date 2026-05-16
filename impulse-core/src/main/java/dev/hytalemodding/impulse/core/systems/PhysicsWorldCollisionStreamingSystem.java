@@ -7,7 +7,6 @@ import com.hypixel.hytale.component.Store;
 import com.hypixel.hytale.component.query.Query;
 import com.hypixel.hytale.component.system.QuerySystem;
 import com.hypixel.hytale.component.system.tick.TickingSystem;
-import com.hypixel.hytale.math.util.ChunkUtil;
 import com.hypixel.hytale.server.core.entity.entities.Player;
 import com.hypixel.hytale.server.core.modules.entity.component.TransformComponent;
 import com.hypixel.hytale.server.core.universe.world.World;
@@ -154,7 +153,7 @@ public class PhysicsWorldCollisionStreamingSystem extends TickingSystem<EntitySt
     private List<Vector3d> collectDynamicBodyTargets(@Nonnull PhysicsSpace space,
         int radius,
         @Nullable Snapshot snapshot) {
-        Map<StreamingBounds, Vector3d> uniqueTargets = new LinkedHashMap<>();
+        Map<WorldCollisionStreamingBounds, Vector3d> uniqueTargets = new LinkedHashMap<>();
         int[] candidateCount = {0};
         space.forEachBody(body -> {
             if (!body.isDynamic() || body.isSleeping()) {
@@ -163,7 +162,8 @@ public class PhysicsWorldCollisionStreamingSystem extends TickingSystem<EntitySt
 
             candidateCount[0]++;
             body.getPosition(bodyPositionScratch);
-            StreamingBounds bounds = StreamingBounds.from(bodyPositionScratch, radius);
+            WorldCollisionStreamingBounds bounds = WorldCollisionStreamingBounds.from(bodyPositionScratch,
+                radius);
             Vector3d previous = uniqueTargets.putIfAbsent(bounds,
                 new Vector3d(bodyPositionScratch.x, bodyPositionScratch.y, bodyPositionScratch.z));
             if (previous != null && snapshot != null) {
@@ -177,28 +177,4 @@ public class PhysicsWorldCollisionStreamingSystem extends TickingSystem<EntitySt
         return new ArrayList<>(uniqueTargets.values());
     }
 
-    private record StreamingBounds(int minChunkX,
-                                   int maxChunkX,
-                                   int minSectionY,
-                                   int maxSectionY,
-                                   int minChunkZ,
-                                   int maxChunkZ) {
-
-        @Nonnull
-        private static StreamingBounds from(@Nonnull Vector3f center, int radius) {
-            int minX = (int) Math.floor(center.x) - radius;
-            int maxX = (int) Math.floor(center.x) + radius;
-            int minY = Math.max(0, (int) Math.floor(center.y) - radius);
-            int maxY = Math.min(ChunkUtil.HEIGHT_MINUS_1, (int) Math.floor(center.y) + radius);
-            int minZ = (int) Math.floor(center.z) - radius;
-            int maxZ = (int) Math.floor(center.z) + radius;
-            return new StreamingBounds(
-                ChunkUtil.chunkCoordinate(minX),
-                ChunkUtil.chunkCoordinate(maxX),
-                ChunkUtil.indexSection(minY),
-                ChunkUtil.indexSection(maxY),
-                ChunkUtil.chunkCoordinate(minZ),
-                ChunkUtil.chunkCoordinate(maxZ));
-        }
-    }
 }

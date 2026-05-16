@@ -1,3 +1,5 @@
+import org.gradle.api.tasks.testing.Test
+
 plugins {
     alias(libs.plugins.hytale.workspace)
 }
@@ -19,7 +21,29 @@ subprojects {
         the<JavaPluginExtension>().toolchain {
             languageVersion.set(JavaLanguageVersion.of((property("java_version") as String).toInt()))
         }
+
+        dependencies {
+            add("testImplementation", platform(libs.junit.bom))
+            add("testImplementation", libs.junit.jupiter)
+            add("testRuntimeOnly", libs.junit.platform.launcher)
+        }
+
+        tasks.withType<Test>().configureEach {
+            useJUnitPlatform()
+            jvmArgs("--enable-native-access=ALL-UNNAMED")
+        }
     }
+}
+
+tasks.register("headlessTest") {
+    group = "verification"
+    description = "Runs automated headless/serverless tests without booting the Hytale server"
+    dependsOn(
+        ":impulse-api:test",
+        ":impulse-bullet:test",
+        ":impulse-rapier:test",
+        ":impulse-core:test"
+    )
 }
 
 // fix to make runAllMods accept input

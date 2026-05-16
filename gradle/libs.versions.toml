@@ -1,19 +1,26 @@
 [versions]
 libbulletjme = "23.0.0"
 snaploader = "1.1.1-stable"
+crucible = "1.0.0"
 hytale-gradle = "1.0.22"
 lombok = "1.18.38"
 joml = "1.10.5"
 jsr305 = "3.0.2"
+junit = "5.12.2"
 
 [libraries]
 libbulletjme = { module = "com.github.stephengold:Libbulletjme-Linux64", version.ref = "libbulletjme" }
 # TODO: Linux and others...
 libbulletjme-native = { module = "com.github.stephengold:Libbulletjme-Linux64", version.ref = "libbulletjme" }
 snaploader = { module = "io.github.electrostat-lab:snaploader", version.ref = "snaploader" }
+crucible = { module = "com.ionforgelabs:crucible", version.ref = "crucible" }
 lombok = { module = "org.projectlombok:lombok", version.ref = "lombok" }
 joml = { module = "org.joml:joml", version.ref = "joml" }
 jsr305 = { module = "com.google.code.findbugs:jsr305", version.ref = "jsr305" }
+junit-bom = { module = "org.junit:junit-bom", version.ref = "junit" }
+junit-jupiter = { module = "org.junit.jupiter:junit-jupiter" }
+junit-jupiter-api = { module = "org.junit.jupiter:junit-jupiter-api" }
+junit-platform-launcher = { module = "org.junit.platform:junit-platform-launcher" }
 
 [plugins]
 hytale-workspace = { id = "com.azuredoom.hytale-workspace", version.ref = "hytale-gradle" }
