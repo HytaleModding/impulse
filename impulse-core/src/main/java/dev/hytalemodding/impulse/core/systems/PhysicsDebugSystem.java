@@ -3,6 +3,7 @@ package dev.hytalemodding.impulse.core.systems;
 import com.hypixel.hytale.component.Ref;
 import com.hypixel.hytale.component.Store;
 import com.hypixel.hytale.component.system.tick.TickingSystem;
+import com.hypixel.hytale.math.util.ChunkUtil;
 import com.hypixel.hytale.server.core.modules.debug.DebugUtils;
 import com.hypixel.hytale.server.core.modules.entity.component.TransformComponent;
 import com.hypixel.hytale.server.core.universe.PlayerRef;
@@ -20,6 +21,7 @@ import dev.hytalemodding.impulse.core.voxel.SectionCollisionGeometry.BoxCollider
 import dev.hytalemodding.impulse.core.voxel.WorldVoxelCollisionCache.DebugSection;
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Comparator;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
@@ -37,6 +39,10 @@ import org.joml.Vector3f;
  * visible flicker when overlays are redrawn every tick.</p>
  */
 public class PhysicsDebugSystem extends TickingSystem<ChunkStore> {
+
+    private static final Vector3f SPACE_ONLY_POSITION_SCRATCH = new Vector3f();
+    private static final Vector3f JOINT_BODY_A_POSITION_SCRATCH = new Vector3f();
+    private static final Vector3f JOINT_BODY_B_POSITION_SCRATCH = new Vector3f();
 
     @Override
     public void tick(float dt, int index, @Nonnull Store<ChunkStore> store) {
@@ -67,13 +73,15 @@ public class PhysicsDebugSystem extends TickingSystem<ChunkStore> {
         boolean debugContacts = debug.isDebugContactsEnabled();
         boolean debugJoints = debug.isDebugJointsEnabled();
         boolean debugWorldCollision = debug.isDebugWorldCollisionEnabled();
-        if (!debugShapes && !debugContacts && !debugJoints && !debugWorldCollision) {
+        if (!debugShapes && !debugMotion && !debugContacts && !debugJoints
+            && !debugWorldCollision) {
             return;
         }
 
-        float overlayLifetime = PhysicsDebugRenderer.lifetimeForRefresh(debug.getOverlayRefreshSeconds());
+        float overlayLifetime = PhysicsDebugRenderer.lifetimeForRefresh(
+            debug.getOverlayRefreshSeconds(), dt);
         float worldCollisionLifetime = PhysicsDebugRenderer.lifetimeForRefresh(
-            debug.getWorldCollisionRefreshSeconds());
+            debug.getWorldCollisionRefreshSeconds(), dt);
 
         for (PlayerRef viewer : viewers) {
             Vector3d viewerPosition = new Vector3d(viewer.getTransform().getPosition());
@@ -190,17 +198,19 @@ public class PhysicsDebugSystem extends TickingSystem<ChunkStore> {
     private static void renderSpaceOnlyShapes(@Nonnull Collection<PlayerRef> viewers,
         @Nonnull PhysicsSpace space,
         float time) {
-        for (PhysicsBody body : space.getBodies()) {
+        space.forEachBody(body -> {
             if (body.getShapeType() != ShapeType.PLANE) {
-                continue;
+                return;
             }
 
-            Vector3f pos = body.getPosition();
+            body.getPosition(SPACE_ONLY_POSITION_SCRATCH);
             PhysicsDebugRenderer.renderBodyShape(viewers,
                 body,
-                new Vector3d(pos.x, pos.y, pos.z),
+                new Vector3d(SPACE_ONLY_POSITION_SCRATCH.x,
+                    SPACE_ONLY_POSITION_SCRATCH.y,
+                    SPACE_ONLY_POSITION_SCRATCH.z),
                 new Quaterniond(), time);
-        }
+        });
     }
 
     private static void renderContacts(@Nonnull Collection<PlayerRef> viewers,
@@ -231,24 +241,25 @@ public class PhysicsDebugSystem extends TickingSystem<ChunkStore> {
         double viewRadius,
         int maxJoints,
         float time) {
-        int rendered = 0;
+        int[] rendered = {0};
         double maxDistanceSquared = viewRadius * viewRadius;
-        for (PhysicsJoint joint : space.getJoints()) {
-            Vector3f a = joint.getBodyA().getPosition();
-            Vector3f b = joint.getBodyB().getPosition();
-            Vector3d midpoint = new Vector3d((a.x + b.x) * 0.5,
-                (a.y + b.y) * 0.5,
-                (a.z + b.z) * 0.5);
+        space.forEachJoint(joint -> {
+            if (rendered[0] >= maxJoints) {
+                return;
+            }
+            joint.getBodyA().getPosition(JOINT_BODY_A_POSITION_SCRATCH);
+            joint.getBodyB().getPosition(JOINT_BODY_B_POSITION_SCRATCH);
+            Vector3d midpoint = new Vector3d((JOINT_BODY_A_POSITION_SCRATCH.x
+                + JOINT_BODY_B_POSITION_SCRATCH.x) * 0.5,
+                (JOINT_BODY_A_POSITION_SCRATCH.y + JOINT_BODY_B_POSITION_SCRATCH.y) * 0.5,
+                (JOINT_BODY_A_POSITION_SCRATCH.z + JOINT_BODY_B_POSITION_SCRATCH.z) * 0.5);
             if (viewerPosition.distanceSquared(midpoint) > maxDistanceSquared) {
-                continue;
+                return;
             }
 
             PhysicsDebugRenderer.renderJoint(viewers, joint, time);
-            rendered++;
-            if (rendered >= maxJoints) {
-                return;
-            }
-        }
+            rendered[0]++;
+        });
     }
 
     private static void renderWorldCollision(@Nonnull Collection<PlayerRef> viewers,
@@ -259,80 +270,89 @@ public class PhysicsDebugSystem extends TickingSystem<ChunkStore> {
         int maxSections,
         int maxBoxes,
         float time) {
-        int[] sectionCount = {0};
-        int[] boxCount = {0};
         double maxDistanceSquared = viewRadius * viewRadius;
+        List<VisibleDebugSection> visibleSections = collectVisibleWorldCollisionSections(
+            resource, space, viewerPosition, maxDistanceSquared);
+        visibleSections.sort(Comparator.comparingDouble(VisibleDebugSection::distanceSquared));
+
+        int sectionLimit = Math.min(maxSections, visibleSections.size());
+        for (int i = 0; i < sectionLimit; i++) {
+            DebugSection section = visibleSections.get(i).section();
+            PhysicsDebugRenderer.renderWorldCollisionSection(viewers,
+                section.chunkX(),
+                section.sectionY(),
+                section.chunkZ(),
+                section.voxelTerrain(),
+                time);
+        }
+
+        List<VisibleDebugBox> visibleBoxes = collectVisibleWorldCollisionBoxes(
+            visibleSections, viewerPosition, maxDistanceSquared);
+        visibleBoxes.sort(Comparator.comparingDouble(VisibleDebugBox::distanceSquared));
+
+        int boxLimit = Math.min(maxBoxes, visibleBoxes.size());
+        for (int i = 0; i < boxLimit; i++) {
+            VisibleDebugBox visibleBox = visibleBoxes.get(i);
+            PhysicsDebugRenderer.renderWorldCollisionBox(viewers,
+                visibleBox.box(),
+                visibleBox.color(),
+                time);
+        }
+    }
+
+    @Nonnull
+    private static List<VisibleDebugSection> collectVisibleWorldCollisionSections(
+        @Nonnull PhysicsWorldResource resource,
+        @Nonnull PhysicsSpace space,
+        @Nonnull Vector3d viewerPosition,
+        double maxDistanceSquared) {
+        List<VisibleDebugSection> visibleSections = new ArrayList<>();
         resource.getWorldVoxelCollisionCache().forEachDebugSection(space.getId(), section -> {
-            Vector3d center = sectionCenter(section);
-            if (viewerPosition.distanceSquared(center) > maxDistanceSquared) {
+            double distanceSquared = distanceSquaredToSection(viewerPosition, section);
+            if (distanceSquared > maxDistanceSquared) {
                 return;
             }
 
-            if (sectionCount[0] < maxSections) {
-                PhysicsDebugRenderer.renderWorldCollisionSection(viewers,
-                    section.chunkX(),
-                    section.sectionY(),
-                    section.chunkZ(),
-                    section.voxelTerrain(),
-                    time);
-            }
-            sectionCount[0]++;
-            boxCount[0] = renderWorldCollisionBoxes(viewers,
-                viewerPosition,
-                maxDistanceSquared,
-                maxBoxes,
-                section,
-                boxCount[0],
-                time);
+            visibleSections.add(new VisibleDebugSection(section, distanceSquared));
         });
+        return visibleSections;
     }
 
-    private static int renderWorldCollisionBoxes(@Nonnull Collection<PlayerRef> viewers,
+    @Nonnull
+    private static List<VisibleDebugBox> collectVisibleWorldCollisionBoxes(
+        @Nonnull List<VisibleDebugSection> visibleSections,
         @Nonnull Vector3d viewerPosition,
-        double maxDistanceSquared,
-        int maxBoxes,
-        @Nonnull DebugSection section,
-        int boxCount,
-        float time) {
-        boxCount = renderWorldCollisionBoxes(viewers,
-            viewerPosition,
-            maxDistanceSquared,
-            maxBoxes,
-            section.fullCubeBoxes(),
-            DebugUtils.COLOR_CYAN,
-            boxCount,
-            time);
-        return renderWorldCollisionBoxes(viewers,
-            viewerPosition,
-            maxDistanceSquared,
-            maxBoxes,
-            section.detailBoxes(),
-            DebugUtils.COLOR_MAGENTA,
-            boxCount,
-            time);
+        double maxDistanceSquared) {
+        List<VisibleDebugBox> visibleBoxes = new ArrayList<>();
+        for (VisibleDebugSection visibleSection : visibleSections) {
+            DebugSection section = visibleSection.section();
+            collectVisibleWorldCollisionBoxes(viewerPosition,
+                maxDistanceSquared,
+                section.fullCubeBoxes(),
+                DebugUtils.COLOR_CYAN,
+                visibleBoxes);
+            collectVisibleWorldCollisionBoxes(viewerPosition,
+                maxDistanceSquared,
+                section.detailBoxes(),
+                DebugUtils.COLOR_MAGENTA,
+                visibleBoxes);
+        }
+        return visibleBoxes;
     }
 
-    private static int renderWorldCollisionBoxes(@Nonnull Collection<PlayerRef> viewers,
-        @Nonnull Vector3d viewerPosition,
+    private static void collectVisibleWorldCollisionBoxes(@Nonnull Vector3d viewerPosition,
         double maxDistanceSquared,
-        int maxBoxes,
         @Nonnull Iterable<BoxCollider> boxes,
         @Nonnull Vector3f color,
-        int boxCount,
-        float time) {
+        @Nonnull List<VisibleDebugBox> visibleBoxes) {
         for (BoxCollider box : boxes) {
-            if (boxCount >= maxBoxes) {
-                return boxCount;
-            }
-            Vector3d boxCenter = new Vector3d(box.centerX(), box.centerY(), box.centerZ());
-            if (viewerPosition.distanceSquared(boxCenter) > maxDistanceSquared) {
+            double distanceSquared = distanceSquaredToBox(viewerPosition, box);
+            if (distanceSquared > maxDistanceSquared) {
                 continue;
             }
 
-            PhysicsDebugRenderer.renderWorldCollisionBox(viewers, box, color, time);
-            boxCount++;
+            visibleBoxes.add(new VisibleDebugBox(box, color, distanceSquared));
         }
-        return boxCount;
     }
 
     private static double distanceSquared(@Nonnull Vector3d point,
@@ -343,11 +363,59 @@ public class PhysicsDebugSystem extends TickingSystem<ChunkStore> {
         return dx * dx + dy * dy + dz * dz;
     }
 
-    @Nonnull
-    private static Vector3d sectionCenter(@Nonnull DebugSection section) {
-        double half = 8.0;
-        return new Vector3d((section.chunkX() << 4) + half,
-            (section.sectionY() << 4) + half,
-            (section.chunkZ() << 4) + half);
+    private static double distanceSquaredToSection(@Nonnull Vector3d viewerPosition,
+        @Nonnull DebugSection section) {
+        double minX = section.chunkX() << ChunkUtil.BITS;
+        double minY = section.sectionY() << ChunkUtil.BITS;
+        double minZ = section.chunkZ() << ChunkUtil.BITS;
+        return distanceSquaredToBounds(viewerPosition,
+            minX,
+            minY,
+            minZ,
+            minX + ChunkUtil.SIZE,
+            minY + ChunkUtil.SIZE,
+            minZ + ChunkUtil.SIZE);
+    }
+
+    private static double distanceSquaredToBox(@Nonnull Vector3d viewerPosition,
+        @Nonnull BoxCollider box) {
+        return distanceSquaredToBounds(viewerPosition,
+            box.centerX() - box.halfX(),
+            box.centerY() - box.halfY(),
+            box.centerZ() - box.halfZ(),
+            box.centerX() + box.halfX(),
+            box.centerY() + box.halfY(),
+            box.centerZ() + box.halfZ());
+    }
+
+    private static double distanceSquaredToBounds(@Nonnull Vector3d viewerPosition,
+        double minX,
+        double minY,
+        double minZ,
+        double maxX,
+        double maxY,
+        double maxZ) {
+        double dx = axisDistance(viewerPosition.x, minX, maxX);
+        double dy = axisDistance(viewerPosition.y, minY, maxY);
+        double dz = axisDistance(viewerPosition.z, minZ, maxZ);
+        return dx * dx + dy * dy + dz * dz;
+    }
+
+    private static double axisDistance(double value, double min, double max) {
+        if (value < min) {
+            return min - value;
+        }
+        if (value > max) {
+            return value - max;
+        }
+        return 0.0;
+    }
+
+    private record VisibleDebugSection(@Nonnull DebugSection section, double distanceSquared) {
+    }
+
+    private record VisibleDebugBox(@Nonnull BoxCollider box,
+                                   @Nonnull Vector3f color,
+                                   double distanceSquared) {
     }
 }
