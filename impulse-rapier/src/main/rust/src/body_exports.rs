@@ -1,3 +1,14 @@
+const IMPULSE_DYNAMIC_SLEEP_LINEAR_THRESHOLD: f32 = 0.85;
+const IMPULSE_DYNAMIC_SLEEP_ANGULAR_THRESHOLD: f32 = 0.9;
+const IMPULSE_DYNAMIC_TIME_UNTIL_SLEEP: f32 = 0.75;
+
+fn apply_impulse_dynamic_sleep_tuning(body: &mut RigidBody) {
+    let activation = body.activation_mut();
+    activation.normalized_linear_threshold = IMPULSE_DYNAMIC_SLEEP_LINEAR_THRESHOLD;
+    activation.angular_threshold = IMPULSE_DYNAMIC_SLEEP_ANGULAR_THRESHOLD;
+    activation.time_until_sleep = IMPULSE_DYNAMIC_TIME_UNTIL_SLEEP;
+}
+
 #[no_mangle]
 pub extern "system" fn Java_dev_hytalemodding_impulse_rapier_RapierNative_addBodyNative(
     _env: JNIEnv,
@@ -49,7 +60,11 @@ pub extern "system" fn Java_dev_hytalemodding_impulse_rapier_RapierNative_addBod
             .linear_damping(linear_damping)
             .angular_damping(angular_damping)
             .ccd_enabled(bool_from_jboolean(ccd_enabled));
-        let body_handle = space.bodies.insert(body_builder.build());
+        let mut rigid_body = body_builder.build();
+        if body_type == BODY_TYPE_DYNAMIC {
+            apply_impulse_dynamic_sleep_tuning(&mut rigid_body);
+        }
+        let body_handle = space.bodies.insert(rigid_body);
 
         let mut collider = build_collider(
             shape_type,
@@ -296,6 +311,9 @@ pub extern "system" fn Java_dev_hytalemodding_impulse_rapier_RapierNative_setBod
             if let Some(entry) = space.entry(body_id) {
                 if let Some(body) = space.bodies.get_mut(entry.body) {
                     body.set_body_type(body_type_from_int(body_type), true);
+                    if body_type == BODY_TYPE_DYNAMIC {
+                        apply_impulse_dynamic_sleep_tuning(body);
+                    }
                 }
             }
         }
