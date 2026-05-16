@@ -42,7 +42,8 @@ jobs:
         run: |
           set -o pipefail
           JAVA_TOOL_OPTIONS="-Dcrucible.autorun=true -Dcrucible.tags=${{ inputs.tags }}" \
-            timeout 240s ./gradlew runAllMods 2>&1 | tee run/crucible-smoke.log
+            timeout 240s ./gradlew -Pimpulse.coreOnlyWorkspace=true runAllMods \
+              -x :impulse-core:downloadAssetsZip 2>&1 | tee run/crucible-smoke.log
 
       - name: Upload Crucible reports and logs
         if: always()
