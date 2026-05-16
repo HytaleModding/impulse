@@ -17,6 +17,7 @@ import dev.hytalemodding.impulse.core.resources.PhysicsWorldResource;
 import java.util.Locale;
 import java.util.concurrent.CompletableFuture;
 import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
 import org.joml.Vector3d;
 
 /**
@@ -49,35 +50,61 @@ public class StressBenchmarkCommand extends AbstractAsyncPlayerCommand {
         @Nonnull Ref<EntityStore> ref,
         @Nonnull PlayerRef playerRef,
         @Nonnull World world) {
+        BenchmarkRequest request = parseRequest(ctx);
+        if (request == null) {
+            return CompletableFuture.completedFuture(null);
+        }
+
         Vector3d playerPos = ExamplePhysicsUtils.playerPosition(ctx, store, ref);
         if (playerPos == null) {
             return CompletableFuture.completedFuture(null);
         }
 
-        String mode = modeArg.provided(ctx) ? modeArg.get(ctx).toLowerCase(Locale.ROOT) : "raw";
-        int count = ExamplePhysicsUtils.optionalInt(ctx, countArg, DEFAULT_COUNT, 1, MAX_COUNT);
         PhysicsWorldResource resource = ExamplePhysicsUtils.resource(store);
         PhysicsSpace space = ExamplePhysicsUtils.defaultSpace(resource, world);
-        BenchmarkLayout layout = BenchmarkLayout.around(playerPos, count);
+        BenchmarkLayout layout = BenchmarkLayout.around(playerPos, request.count());
+        int beforeBodies = space.bodyCount();
 
         long startNanos = System.nanoTime();
-        int spawned = switch (mode) {
-            case "raw" -> spawnRaw(space, layout, count);
-            case "entity", "entities" -> spawnEntities(store, space, layout, count);
-            default -> {
-                ctx.sender().sendMessage(Message.raw("Unknown benchmark mode '" + mode
-                    + "'. Expected raw or entity."));
-                yield 0;
-            }
+        int spawned = switch (request.mode()) {
+            case RAW -> spawnRaw(space, layout, request.count());
+            case ENTITY -> spawnEntities(store, space, layout, request.count());
         };
         long elapsedNanos = System.nanoTime() - startNanos;
+        int afterBodies = space.bodyCount();
 
         if (spawned > 0) {
-            ctx.sender().sendMessage(Message.raw("Spawned " + spawned + " " + mode
-                + " benchmark bodies in " + millis(elapsedNanos)
-                + " ms. Run /impulse perf toggle before spawning, then /impulse perf report."));
+            ctx.sender().sendMessage(Message.raw("Spawned " + spawned + " "
+                + request.mode().label() + " benchmark bodies in " + millis(elapsedNanos)
+                + " ms (" + microsPerBody(elapsedNanos, spawned)
+                + " us/body). Space bodies: " + beforeBodies + " -> " + afterBodies
+                + ". For clean comparisons run /impulse clean, /impulse perf reset,"
+                + " /impulse perf toggle before spawning, then /impulse perf report."));
         }
         return CompletableFuture.completedFuture(null);
+    }
+
+    @Nullable
+    private BenchmarkRequest parseRequest(@Nonnull CommandContext ctx) {
+        if (!modeArg.provided(ctx)) {
+            return new BenchmarkRequest(BenchmarkMode.RAW, DEFAULT_COUNT);
+        }
+
+        String rawMode = modeArg.get(ctx).toLowerCase(Locale.ROOT);
+        Integer countOnly = tryParseCount(rawMode);
+        if (countOnly != null) {
+            return new BenchmarkRequest(BenchmarkMode.RAW, clampCount(countOnly));
+        }
+
+        BenchmarkMode mode = BenchmarkMode.from(rawMode);
+        if (mode == null) {
+            ctx.sender().sendMessage(Message.raw("Unknown benchmark mode '" + rawMode
+                + "'. Expected raw, entity, entities, hytale, or a count."));
+            return null;
+        }
+
+        int count = ExamplePhysicsUtils.optionalInt(ctx, countArg, DEFAULT_COUNT, 1, MAX_COUNT);
+        return new BenchmarkRequest(mode, count);
     }
 
     private static int spawnRaw(@Nonnull PhysicsSpace space,
@@ -122,12 +149,61 @@ public class StressBenchmarkCommand extends AbstractAsyncPlayerCommand {
         return String.format(Locale.ROOT, "%.3f", nanos / 1_000_000.0);
     }
 
+    @Nonnull
+    private static String microsPerBody(long nanos, int bodies) {
+        return String.format(Locale.ROOT, "%.3f", nanos / 1_000.0 / bodies);
+    }
+
+    private static int clampCount(int count) {
+        if (count < 1) {
+            return 1;
+        }
+        return Math.min(count, MAX_COUNT);
+    }
+
+    @Nullable
+    private static Integer tryParseCount(@Nonnull String value) {
+        try {
+            return Integer.parseInt(value);
+        } catch (NumberFormatException ignored) {
+            return null;
+        }
+    }
+
+    private enum BenchmarkMode {
+        RAW("backend-only raw"),
+        ENTITY("entity-backed Hytale");
+
+        private final String label;
+
+        BenchmarkMode(@Nonnull String label) {
+            this.label = label;
+        }
+
+        @Nonnull
+        private String label() {
+            return label;
+        }
+
+        @Nullable
+        private static BenchmarkMode from(@Nonnull String value) {
+            return switch (value) {
+                case "raw" -> RAW;
+                case "entity", "entities", "hytale", "hytale-entities", "entity-backed" -> ENTITY;
+                default -> null;
+            };
+        }
+    }
+
+    private record BenchmarkRequest(BenchmarkMode mode, int count) {
+    }
+
     private record BenchmarkLayout(Vector3d origin, int side) {
 
         @Nonnull
         private static BenchmarkLayout around(@Nonnull Vector3d playerPos, int count) {
             int side = (int) Math.ceil(Math.cbrt(count));
-            double half = side * SPACING * 0.5;
+            double half = (side - 1) * SPACING * 0.5;
             return new BenchmarkLayout(new Vector3d(
                 playerPos.x - half,
                 playerPos.y + 5.0,
