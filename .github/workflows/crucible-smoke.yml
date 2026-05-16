@@ -15,7 +15,7 @@ jobs:
   crucible-smoke:
     name: Hytale server Crucible smoke
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 35
 
     steps:
       - name: Check out repository
@@ -30,6 +30,25 @@ jobs:
       - name: Set up Gradle cache
         uses: gradle/actions/setup-gradle@v4
 
+      - name: Restore Hytale OAuth refresh token
+        env:
+          HYTALE_REFRESH_TOKEN: ${{ secrets.HYTALE_REFRESH_TOKEN }}
+        run: |
+          if [ -z "${HYTALE_REFRESH_TOKEN}" ]; then
+            echo "::error::Set the HYTALE_REFRESH_TOKEN repository secret before running Crucible smoke."
+            exit 1
+          fi
+
+          python - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+
+          token_file = Path.home() / ".gradle" / "caches" / "hytale-auth" / "tokens.json"
+          token_file.parent.mkdir(parents=True, exist_ok=True)
+          token_file.write_text(json.dumps({"refreshToken": os.environ["HYTALE_REFRESH_TOKEN"]}))
+          PY
+
       - name: Resolve Crucible dependency
         run: ./gradlew :impulse-core:dependencies --configuration compileClasspath
 
@@ -42,8 +61,8 @@ jobs:
         run: |
           set -o pipefail
           JAVA_TOOL_OPTIONS="-Dcrucible.autorun=true -Dcrucible.tags=${{ inputs.tags }}" \
-            timeout 240s ./gradlew -Pimpulse.coreOnlyWorkspace=true runAllMods \
-              -x :impulse-core:downloadAssetsZip 2>&1 | tee run/crucible-smoke.log
+            timeout 1500s ./gradlew -Pimpulse.coreOnlyWorkspace=true runAllMods 2>&1 \
+              | tee run/crucible-smoke.log
 
       - name: Upload Crucible reports and logs
         if: always()
