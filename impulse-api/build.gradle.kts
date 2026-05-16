@@ -1,5 +1,6 @@
 plugins {
     id("java-library")
+    id("java-test-fixtures")
 }
 
 dependencies {
@@ -7,4 +8,7 @@ dependencies {
     api(libs.joml)
     compileOnly(libs.lombok)
     annotationProcessor(libs.lombok)
+
+    testFixturesImplementation(platform(libs.junit.bom))
+    testFixturesApi(libs.junit.jupiter.api)
 }

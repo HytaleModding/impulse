@@ -45,24 +45,6 @@ import org.joml.Vector3f;
  */
 public class PhysicsSyncSystem extends EntityTickingSystem<EntityStore> {
 
-    private static final float POSITION_SYNC_THRESHOLD = 1.0f / 32.0f;
-    private static final float POSITION_SYNC_THRESHOLD_SQUARED =
-        POSITION_SYNC_THRESHOLD * POSITION_SYNC_THRESHOLD;
-    private static final float LOW_SPEED_POSITION_SYNC_THRESHOLD = 1.0f / 8.0f;
-    private static final float LOW_SPEED_POSITION_SYNC_THRESHOLD_SQUARED =
-        LOW_SPEED_POSITION_SYNC_THRESHOLD * LOW_SPEED_POSITION_SYNC_THRESHOLD;
-    private static final float MID_RANGE_POSITION_SYNC_THRESHOLD = 0.5f;
-    private static final float MID_RANGE_POSITION_SYNC_THRESHOLD_SQUARED =
-        MID_RANGE_POSITION_SYNC_THRESHOLD * MID_RANGE_POSITION_SYNC_THRESHOLD;
-    private static final float ROTATION_SYNC_DOT_THRESHOLD =
-        (float) Math.cos(Math.toRadians(1.0));
-    private static final float LOW_SPEED_ROTATION_SYNC_DOT_THRESHOLD =
-        (float) Math.cos(Math.toRadians(3.0));
-    private static final float MID_RANGE_ROTATION_SYNC_DOT_THRESHOLD =
-        (float) Math.cos(Math.toRadians(8.0));
-    private static final float ACTIVE_KEEPALIVE_SECONDS = 0.25f;
-    private static final float LOW_SPEED_KEEPALIVE_SECONDS = 1.25f;
-    private static final float MID_RANGE_KEEPALIVE_SECONDS = 2.5f;
     private static final float LOW_SPEED_LINEAR_THRESHOLD_SQUARED = 0.2f * 0.2f;
     private static final float LOW_SPEED_ANGULAR_THRESHOLD_SQUARED = 0.5f * 0.5f;
 
@@ -181,31 +163,32 @@ public class PhysicsSyncSystem extends EntityTickingSystem<EntityStore> {
         }
 
         boolean rangeLimitedVisual = visual != null && physicsBody == null;
-        SyncRangeTier rangeTier = resolveSyncRangeTier(resource,
-            spaceId,
+        PhysicsSyncPolicy.SyncRangeTier rangeTier = PhysicsSyncPolicy.resolveRangeTier(
+            resolveSpaceSettings(resource, spaceId),
             rangeLimitedVisual,
             controlled,
+            playerInterestPositions,
             local.visualPosition);
 
         PhysicsWorldResource.BodySyncState syncState = resource.getOrCreateBodySyncState(entityRef);
-        SyncDecision decision = resolveSyncDecision(syncState,
+        PhysicsSyncPolicy.SyncDecision decision = PhysicsSyncPolicy.resolveSyncDecision(syncState,
             local.visualPosition,
             local.visualRotation,
             sleeping,
             lowSpeed,
             controlled,
             rangeTier);
-        if (decision == SyncDecision.SKIP_SLEEPING
-            || decision == SyncDecision.SKIP_THRESHOLD
-            || decision == SyncDecision.SKIP_VISUAL_DEADZONE
-            || decision == SyncDecision.SKIP_VISUAL_RANGE) {
+        if (decision == PhysicsSyncPolicy.SyncDecision.SKIP_SLEEPING
+            || decision == PhysicsSyncPolicy.SyncDecision.SKIP_THRESHOLD
+            || decision == PhysicsSyncPolicy.SyncDecision.SKIP_VISUAL_DEADZONE
+            || decision == PhysicsSyncPolicy.SyncDecision.SKIP_VISUAL_RANGE) {
             syncState.recordSkip(dt);
             if (collector != null) {
-                if (decision == SyncDecision.SKIP_SLEEPING) {
+                if (decision == PhysicsSyncPolicy.SyncDecision.SKIP_SLEEPING) {
                     collector.incrementSkippedSleeping();
-                } else if (decision == SyncDecision.SKIP_VISUAL_DEADZONE) {
+                } else if (decision == PhysicsSyncPolicy.SyncDecision.SKIP_VISUAL_DEADZONE) {
                     collector.incrementSkippedVisualDeadzone();
-                } else if (decision == SyncDecision.SKIP_VISUAL_RANGE) {
+                } else if (decision == PhysicsSyncPolicy.SyncDecision.SKIP_VISUAL_RANGE) {
                     collector.incrementSkippedVisualRange();
                 } else {
                     collector.incrementSkippedThreshold();
@@ -222,9 +205,9 @@ public class PhysicsSyncSystem extends EntityTickingSystem<EntityStore> {
         syncState.recordSync(local.visualPosition, local.visualRotation, sleeping);
         if (collector != null) {
             collector.incrementBodiesSynced();
-            if (decision == SyncDecision.TRANSITION) {
+            if (decision == PhysicsSyncPolicy.SyncDecision.TRANSITION) {
                 collector.incrementTransitionSyncs();
-            } else if (decision == SyncDecision.KEEPALIVE) {
+            } else if (decision == PhysicsSyncPolicy.SyncDecision.KEEPALIVE) {
                 collector.incrementKeepaliveSyncs();
             }
         }
@@ -268,39 +251,6 @@ public class PhysicsSyncSystem extends EntityTickingSystem<EntityStore> {
         scratch.visualRotation.mul(visual.getLocalRotationOffset());
     }
 
-    @Nonnull
-    private SyncRangeTier resolveSyncRangeTier(@Nonnull PhysicsWorldResource resource,
-        @Nullable SpaceId spaceId,
-        boolean rangeLimitedVisual,
-        boolean controlled,
-        @Nonnull Vector3f visualPosition) {
-        if (!rangeLimitedVisual || controlled) {
-            return SyncRangeTier.NEAR;
-        }
-        if (playerInterestPositions.isEmpty()) {
-            return SyncRangeTier.FAR;
-        }
-
-        PhysicsSpaceSettings settings = resolveSpaceSettings(resource, spaceId);
-        if (settings == null) {
-            return SyncRangeTier.NEAR;
-        }
-
-        float fullRadiusSquared = square(settings.getVisualFullSyncRadius());
-        float maxRadiusSquared = square(settings.getVisualMaxSyncRadius());
-        float nearestDistanceSquared = Float.MAX_VALUE;
-        for (Vector3f playerPosition : playerInterestPositions) {
-            float distanceSquared = playerPosition.distanceSquared(visualPosition);
-            if (distanceSquared <= fullRadiusSquared) {
-                return SyncRangeTier.NEAR;
-            }
-            if (distanceSquared < nearestDistanceSquared) {
-                nearestDistanceSquared = distanceSquared;
-            }
-        }
-        return nearestDistanceSquared <= maxRadiusSquared ? SyncRangeTier.MID : SyncRangeTier.FAR;
-    }
-
     @Nullable
     private static PhysicsSpaceSettings resolveSpaceSettings(@Nonnull PhysicsWorldResource resource,
         @Nullable SpaceId spaceId) {
@@ -309,71 +259,6 @@ public class PhysicsSyncSystem extends EntityTickingSystem<EntityStore> {
         }
         SpaceId defaultSpaceId = resource.getDefaultSpaceId();
         return defaultSpaceId != null ? resource.getSpaceSettings(defaultSpaceId) : null;
-    }
-
-    @Nonnull
-    private static SyncDecision resolveSyncDecision(@Nonnull PhysicsWorldResource.BodySyncState syncState,
-        @Nonnull Vector3f position,
-        @Nonnull Quaternionf rotation,
-        boolean sleeping,
-        boolean lowSpeed,
-        boolean controlled,
-        @Nonnull SyncRangeTier rangeTier) {
-        if (!syncState.isInitialized()) {
-            return SyncDecision.INITIAL;
-        }
-        if (sleeping != syncState.isSleeping()) {
-            return SyncDecision.TRANSITION;
-        }
-        if (rangeTier == SyncRangeTier.FAR) {
-            return SyncDecision.SKIP_VISUAL_RANGE;
-        }
-
-        float positionThresholdSquared;
-        float rotationDotThreshold;
-        float keepaliveSeconds;
-        if (rangeTier == SyncRangeTier.MID && !controlled) {
-            positionThresholdSquared = MID_RANGE_POSITION_SYNC_THRESHOLD_SQUARED;
-            rotationDotThreshold = MID_RANGE_ROTATION_SYNC_DOT_THRESHOLD;
-            keepaliveSeconds = MID_RANGE_KEEPALIVE_SECONDS;
-        } else {
-            positionThresholdSquared = lowSpeed && !controlled
-                ? LOW_SPEED_POSITION_SYNC_THRESHOLD_SQUARED : POSITION_SYNC_THRESHOLD_SQUARED;
-            rotationDotThreshold = lowSpeed && !controlled
-                ? LOW_SPEED_ROTATION_SYNC_DOT_THRESHOLD : ROTATION_SYNC_DOT_THRESHOLD;
-            keepaliveSeconds = lowSpeed && !controlled
-                ? LOW_SPEED_KEEPALIVE_SECONDS : ACTIVE_KEEPALIVE_SECONDS;
-        }
-
-        if (position.distanceSquared(syncState.getLastSyncedPosition()) >= positionThresholdSquared
-            || rotationChangedEnough(rotation, syncState.getLastSyncedRotation(), rotationDotThreshold)) {
-            return SyncDecision.THRESHOLD;
-        }
-        if (!sleeping && syncState.getSecondsSinceSync() >= keepaliveSeconds) {
-            return SyncDecision.KEEPALIVE;
-        }
-        if (sleeping) {
-            return SyncDecision.SKIP_SLEEPING;
-        }
-        if (rangeTier == SyncRangeTier.MID) {
-            return SyncDecision.SKIP_VISUAL_RANGE;
-        }
-        return lowSpeed && !controlled ? SyncDecision.SKIP_VISUAL_DEADZONE
-            : SyncDecision.SKIP_THRESHOLD;
-    }
-
-    private static boolean rotationChangedEnough(@Nonnull Quaternionf current,
-        @Nonnull Quaternionf lastSynced,
-        float dotThreshold) {
-        float dot = Math.abs(current.x * lastSynced.x
-            + current.y * lastSynced.y
-            + current.z * lastSynced.z
-            + current.w * lastSynced.w);
-        return Math.min(dot, 1.0f) < dotThreshold;
-    }
-
-    private static float square(float value) {
-        return value * value;
     }
 
     private static final class Scratch {
@@ -414,20 +299,4 @@ public class PhysicsSyncSystem extends EntityTickingSystem<EntityStore> {
         }
     }
 
-    private enum SyncDecision {
-        INITIAL,
-        THRESHOLD,
-        TRANSITION,
-        KEEPALIVE,
-        SKIP_SLEEPING,
-        SKIP_THRESHOLD,
-        SKIP_VISUAL_DEADZONE,
-        SKIP_VISUAL_RANGE
-    }
-
-    private enum SyncRangeTier {
-        NEAR,
-        MID,
-        FAR
-    }
 }

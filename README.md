@@ -46,6 +46,20 @@ The Rapier backend needs a Rust toolchain to build its native library. If `cargo
 ./gradlew :impulse-rapier:build -PbuildRapierNative=true
 ```
 
+## Testing
+
+Impulse now has a dedicated headless/serverless test lane that does not boot the Hytale server or example runtime:
+
+```bash
+./gradlew headlessTest
+```
+
+This lane covers:
+
+- shared backend/API contract checks for Rapier,
+- Bullet adapter smoke tests for the Impulse-side integration layer,
+- pure runtime-policy tests in `impulse-core`.
+
 ## Runtime commands
 
 The core plugin registers `/impulse` commands for runtime physics controls:
