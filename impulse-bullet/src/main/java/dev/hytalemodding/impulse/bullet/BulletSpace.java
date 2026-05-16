@@ -98,6 +98,8 @@ public final class BulletSpace implements PhysicsSpace {
         if (!(body instanceof BulletBody bulletBody)) {
             return;
         }
+
+        removeAttachedJoints(bulletBody);
         space.removeCollisionObject(bulletBody.getRigidBody());
         untrackBody(bulletBody);
     }
@@ -121,6 +123,11 @@ public final class BulletSpace implements PhysicsSpace {
         for (PhysicsRigidBody rigidBody : space.getRigidBodyList()) {
             consumer.accept(wrapBody(rigidBody));
         }
+    }
+
+    @Override
+    public boolean supportsContinuousCollision() {
+        return true;
     }
 
     @Nonnull
@@ -404,6 +411,17 @@ public final class BulletSpace implements PhysicsSpace {
         bodiesByRigidBody.remove(body.getRigidBody());
         bodiesByNativeId.remove(body.getNativeId());
         bodies.remove(body);
+    }
+
+    private void removeAttachedJoints(@Nonnull BulletBody body) {
+        for (BulletJoint joint : new ArrayList<>(joints)) {
+            if (joint.getBodyA() != body && joint.getBodyB() != body) {
+                continue;
+            }
+
+            space.removeJoint(joint.getNativeJoint());
+            joints.remove(joint);
+        }
     }
 
     private BulletBody wrapBody(@Nonnull PhysicsRigidBody rigidBody) {

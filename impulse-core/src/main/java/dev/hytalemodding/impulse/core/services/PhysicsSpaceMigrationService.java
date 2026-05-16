@@ -27,7 +27,10 @@ import org.joml.Vector3f;
 
 /**
  * Rebuilds a physics space with another backend while preserving its logical id.
- *
+ * <p>
+ *     This method shouldn't be overused. It is by nature unstable.
+ * </p>
+ * <p>
  * The migration clones bodies and joints into a fresh target space, validates every entity
  * component rebind, then swaps the resource entry. If a failure happens before the swap,
  * newly created target resources are closed and component body references are restored.

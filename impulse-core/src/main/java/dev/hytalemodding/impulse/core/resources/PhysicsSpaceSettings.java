@@ -36,6 +36,13 @@ public class PhysicsSpaceSettings {
     public static final int DEFAULT_WORLD_COLLISION_TTL_TICKS = 100;
 
     /**
+     * Default behavior when an entity-backed body reaches an unloaded chunk border.
+     */
+    @Nonnull
+    public static final EntityChunkBoundaryMode DEFAULT_ENTITY_CHUNK_BOUNDARY_MODE =
+        EntityChunkBoundaryMode.PAUSE_UNTIL_LOADED;
+
+    /**
      * World collision mode for this space. Defaults to NONE so Impulse
      * is fully opt-in: no terrain collision is created unless explicitly requested.
      */
@@ -43,6 +50,14 @@ public class PhysicsSpaceSettings {
     @Setter
     @Nonnull
     private WorldCollisionMode worldCollisionMode = WorldCollisionMode.NONE;
+
+    /**
+     * How entity-backed bodies behave when they reach an unloaded chunk border.
+     */
+    @Getter
+    @Setter
+    @Nonnull
+    private EntityChunkBoundaryMode entityChunkBoundaryMode = DEFAULT_ENTITY_CHUNK_BOUNDARY_MODE;
 
     /**
      * Block radius around tracked player positions for streaming or manual build.
@@ -67,6 +82,7 @@ public class PhysicsSpaceSettings {
 
     public PhysicsSpaceSettings(@Nonnull PhysicsSpaceSettings settings) {
         worldCollisionMode = settings.worldCollisionMode;
+        entityChunkBoundaryMode = settings.entityChunkBoundaryMode;
         worldCollisionRadius = settings.worldCollisionRadius;
         worldCollisionBodyRadius = settings.worldCollisionBodyRadius;
         worldCollisionTtlTicks = settings.worldCollisionTtlTicks;

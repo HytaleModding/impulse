@@ -12,7 +12,7 @@ import lombok.Getter;
 import lombok.Setter;
 
 /**
- * ECS component that links a Hytale entity to a Impulse Rigid body.
+ * ECS component that links a Hytale entity to an Impulse PhysicsBody.
  */
 public class PhysicsBodyComponent implements Component<EntityStore> {
 

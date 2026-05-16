@@ -8,6 +8,7 @@ import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import dev.hytalemodding.impulse.api.BackendId;
 import dev.hytalemodding.impulse.api.Impulse;
 import dev.hytalemodding.impulse.api.PhysicsBody;
+import dev.hytalemodding.impulse.api.PhysicsBodyType;
 import dev.hytalemodding.impulse.api.PhysicsSpace;
 import dev.hytalemodding.impulse.api.SpaceId;
 import dev.hytalemodding.impulse.core.ImpulsePlugin;
@@ -16,14 +17,18 @@ import it.unimi.dsi.fastutil.ints.Int2ObjectMap;
 import it.unimi.dsi.fastutil.ints.Int2ObjectOpenHashMap;
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.IdentityHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.logging.Level;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 import lombok.Getter;
 import lombok.Setter;
+import org.joml.Quaternionf;
+import org.joml.Vector3f;
 
 /**
  * ECS resource that holds the physics spaces for a world.
@@ -61,9 +66,20 @@ public class PhysicsWorldResource implements Resource<EntityStore> {
     @Getter
     private int simulationSteps = MIN_SIMULATION_STEPS;
 
+    @Nonnull
+    private PhysicsStepMode stepMode = PhysicsStepMode.PROGRESSIVE_REFINEMENT;
+
     @Getter
     @Setter
     private float maxStepDt = DEFAULT_MAX_STEP_DT;
+
+    private final Set<PhysicsBody> forcedContinuousCollisionBodies =
+        Collections.newSetFromMap(new IdentityHashMap<>());
+
+    private final Map<PhysicsBody, ChunkBoundarySafeState> chunkBoundarySafeStates =
+        new IdentityHashMap<>();
+    private final Map<PhysicsBody, ChunkBoundaryPauseState> chunkBoundaryPauseStates =
+        new IdentityHashMap<>();
 
     public PhysicsWorldResource() {
     }
@@ -106,6 +122,15 @@ public class PhysicsWorldResource implements Resource<EntityStore> {
                 + " is not registered");
         }
         this.defaultSpaceId = defaultSpaceId;
+    }
+
+    @Nonnull
+    public PhysicsStepMode getStepMode() {
+        return stepMode;
+    }
+
+    public void setStepMode(@Nonnull PhysicsStepMode stepMode) {
+        this.stepMode = stepMode;
     }
 
     @Nonnull
@@ -249,6 +274,7 @@ public class PhysicsWorldResource implements Resource<EntityStore> {
         }
         for (PhysicsBody body : staleBodies) {
             bodyOwners.remove(body);
+            clearBodyRuntimeState(body);
         }
         return owners;
     }
@@ -261,11 +287,66 @@ public class PhysicsWorldResource implements Resource<EntityStore> {
         Ref<EntityStore> current = bodyOwners.get(body);
         if (current == owner || owner.equals(current)) {
             bodyOwners.remove(body);
+            clearBodyRuntimeState(body);
         }
     }
 
     public void clearBodyOwners() {
         bodyOwners.clear();
+        forcedContinuousCollisionBodies.clear();
+        chunkBoundarySafeStates.clear();
+        chunkBoundaryPauseStates.clear();
+    }
+
+    public void updateChunkBoundarySafeState(@Nonnull PhysicsBody body,
+        @Nonnull Vector3f position,
+        @Nonnull Quaternionf rotation) {
+        ChunkBoundarySafeState state = chunkBoundarySafeStates.computeIfAbsent(body,
+            ignored -> new ChunkBoundarySafeState());
+        state.set(position, rotation);
+    }
+
+    @Nullable
+    public ChunkBoundarySafeState getChunkBoundarySafeState(@Nonnull PhysicsBody body) {
+        return chunkBoundarySafeStates.get(body);
+    }
+
+    public void pauseChunkBoundaryBody(@Nonnull PhysicsBody body,
+        long targetChunkIndex,
+        @Nonnull PhysicsBodyType originalBodyType,
+        @Nonnull Vector3f linearVelocity,
+        @Nonnull Vector3f angularVelocity) {
+        ChunkBoundaryPauseState state = chunkBoundaryPauseStates.computeIfAbsent(body,
+            ignored -> new ChunkBoundaryPauseState());
+        state.set(targetChunkIndex, originalBodyType, linearVelocity, angularVelocity);
+    }
+
+    @Nullable
+    public ChunkBoundaryPauseState getChunkBoundaryPauseState(@Nonnull PhysicsBody body) {
+        return chunkBoundaryPauseStates.get(body);
+    }
+
+    public void clearChunkBoundaryPauseState(@Nonnull PhysicsBody body) {
+        chunkBoundaryPauseStates.remove(body);
+    }
+
+    public void clearBodyRuntimeState(@Nonnull PhysicsBody body) {
+        forcedContinuousCollisionBodies.remove(body);
+        chunkBoundarySafeStates.remove(body);
+        chunkBoundaryPauseStates.remove(body);
+    }
+
+    public void markContinuousCollisionForced(@Nonnull PhysicsBody body) {
+        forcedContinuousCollisionBodies.add(body);
+    }
+
+    @Nonnull
+    public Collection<PhysicsBody> getForcedContinuousCollisionBodies() {
+        return new ArrayList<>(forcedContinuousCollisionBodies);
+    }
+
+    public void clearForcedContinuousCollisionBodies() {
+        forcedContinuousCollisionBodies.clear();
     }
 
     @Nullable
@@ -273,6 +354,7 @@ public class PhysicsWorldResource implements Resource<EntityStore> {
         Ref<EntityStore> owner = bodyOwners.get(body);
         if (owner != null && !owner.isValid()) {
             bodyOwners.remove(body);
+            clearBodyRuntimeState(body);
             return null;
         }
         return owner;
@@ -285,9 +367,13 @@ public class PhysicsWorldResource implements Resource<EntityStore> {
         spaces.clear();
         spaceSettings.clear();
         bodyOwners.clear();
+        forcedContinuousCollisionBodies.clear();
+        chunkBoundarySafeStates.clear();
+        chunkBoundaryPauseStates.clear();
         worldVoxelCollisionCache.copyFrom(new WorldVoxelCollisionCache());
         defaultSpaceId = other.defaultSpaceId;
         simulationSteps = other.simulationSteps;
+        stepMode = other.stepMode;
         maxStepDt = other.maxStepDt;
         for (var entry : other.spaceSettings.int2ObjectEntrySet()) {
             spaceSettings.put(entry.getIntKey(), new PhysicsSpaceSettings(entry.getValue()));
@@ -329,6 +415,69 @@ public class PhysicsWorldResource implements Resource<EntityStore> {
             previous.getBackendId(),
             replacement.getBackendId());
         return previous;
+    }
+
+    public static final class ChunkBoundarySafeState {
+
+        @Nonnull
+        private final Vector3f position = new Vector3f();
+        @Nonnull
+        private final Quaternionf rotation = new Quaternionf();
+
+        public void set(@Nonnull Vector3f position, @Nonnull Quaternionf rotation) {
+            this.position.set(position);
+            this.rotation.set(rotation);
+        }
+
+        @Nonnull
+        public Vector3f getPosition() {
+            return position;
+        }
+
+        @Nonnull
+        public Quaternionf getRotation() {
+            return rotation;
+        }
+    }
+
+    public static final class ChunkBoundaryPauseState {
+
+        private long targetChunkIndex;
+        @Nonnull
+        private PhysicsBodyType originalBodyType = PhysicsBodyType.DYNAMIC;
+        @Nonnull
+        private final Vector3f linearVelocity = new Vector3f();
+        @Nonnull
+        private final Vector3f angularVelocity = new Vector3f();
+
+        public void set(long targetChunkIndex,
+            @Nonnull PhysicsBodyType originalBodyType,
+            @Nonnull Vector3f linearVelocity,
+            @Nonnull Vector3f angularVelocity) {
+            this.targetChunkIndex = targetChunkIndex;
+            this.originalBodyType = originalBodyType;
+            this.linearVelocity.set(linearVelocity);
+            this.angularVelocity.set(angularVelocity);
+        }
+
+        public long getTargetChunkIndex() {
+            return targetChunkIndex;
+        }
+
+        @Nonnull
+        public PhysicsBodyType getOriginalBodyType() {
+            return originalBodyType;
+        }
+
+        @Nonnull
+        public Vector3f getLinearVelocity() {
+            return linearVelocity;
+        }
+
+        @Nonnull
+        public Vector3f getAngularVelocity() {
+            return angularVelocity;
+        }
     }
 
     public static ResourceType<EntityStore, PhysicsWorldResource> getResourceType()

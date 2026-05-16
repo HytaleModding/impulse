@@ -106,6 +106,7 @@ public final class RapierSpace implements PhysicsSpace {
             return;
         }
 
+        removeAttachedJoints(rapierBody);
         long handle = rapierBody.getBodyHandle();
         RapierNative.removeBodyNative(nativeSpaceHandle, handle);
         rapierBody.detach(this);
@@ -129,6 +130,11 @@ public final class RapierSpace implements PhysicsSpace {
         for (RapierBody body : bodies) {
             consumer.accept(body);
         }
+    }
+
+    @Override
+    public boolean supportsContinuousCollision() {
+        return true;
     }
 
     @Nonnull
@@ -349,6 +355,17 @@ public final class RapierSpace implements PhysicsSpace {
     @Override
     public void close() {
         cleanable.clean();
+    }
+
+    private void removeAttachedJoints(@Nonnull RapierBody body) {
+        for (RapierJoint joint : new ArrayList<>(joints)) {
+            if (joint.getBodyA() != body && joint.getBodyB() != body) {
+                continue;
+            }
+
+            RapierNative.removeJointNative(nativeSpaceHandle, joint.getJointHandle());
+            joints.remove(joint);
+        }
     }
 
     private long addNativeBody(@Nonnull RapierBody body) {

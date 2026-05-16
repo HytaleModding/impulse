@@ -9,6 +9,9 @@ import org.joml.Vector3f;
 /**
  * Live simulation container for a physics backend.
  * <p>
+ * One world can have different physics spaces of different space size.
+ * </p>
+ * <p>
  * Backends are expected to agree on the meaning of these operations, but not on identical
  * numerical output. Contact ordering, solver settling, and ray hit details can differ slightly
  * between implementations.
@@ -78,6 +81,16 @@ public interface PhysicsSpace {
      * native voxel shape can return false and let higher-level code fall back to merged boxes.</p>
      */
     default boolean supportsVoxelTerrain() {
+        return false;
+    }
+
+    /**
+     * Returns true when the backend supports continuous collision detection on bodies.
+     *
+     * <p>World-level CCD stepping modes should check this before force-enabling CCD
+     * across a space.</p>
+     */
+    default boolean supportsContinuousCollision() {
         return false;
     }
 

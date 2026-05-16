@@ -73,8 +73,6 @@ public class DropCommand extends AbstractAsyncPlayerCommand {
         box.setRestitution(0.5f);
         box.setFriction(0.5f);
 
-        space.addBody(box);
-
         holder.addComponent(PhysicsBodyComponent.getComponentType(),
             new PhysicsBodyComponent(box, space.getId()));
         holder.addComponent(PersistentPhysicsBodyComponent.getComponentType(),
@@ -82,8 +80,8 @@ public class DropCommand extends AbstractAsyncPlayerCommand {
         holder.addComponent(ImpulseControllableComponent.getComponentType(),
             new ImpulseControllableComponent());
 
-        Ref<EntityStore> bodyRef = store.addEntity(holder, AddReason.SPAWN);
-        resource.registerBodyOwner(box, bodyRef);
+        store.addEntity(holder, AddReason.SPAWN);
+        space.addBody(box);
 
         ctx.sender()
             .sendMessage(Message.raw("Dropped box at " + spawnX + ", " + spawnY + ", " + spawnZ));

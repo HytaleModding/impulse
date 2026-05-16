@@ -59,6 +59,7 @@ public class PersistentPhysicsSpaceBootstrapSystem extends TickingSystem<EntityS
 
         PhysicsWorldResource runtime = store.getResource(PhysicsWorldResource.getResourceType());
         runtime.setSimulationSteps(persistent.getSimulationSteps());
+        runtime.setStepMode(persistent.getStepMode());
         runtime.setMaxStepDt(persistent.getMaxStepDt());
         World world = store.getExternalData().getWorld();
         PersistentPhysicsSpaceState[] spaces = persistent.getSpaces();

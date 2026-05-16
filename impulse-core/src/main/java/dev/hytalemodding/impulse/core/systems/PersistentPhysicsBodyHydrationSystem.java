@@ -10,6 +10,10 @@ import com.hypixel.hytale.component.dependency.Order;
 import com.hypixel.hytale.component.dependency.SystemDependency;
 import com.hypixel.hytale.component.query.Query;
 import com.hypixel.hytale.component.system.tick.EntityTickingSystem;
+import com.hypixel.hytale.server.core.modules.entity.component.TransformComponent;
+import com.hypixel.hytale.server.core.universe.world.chunk.ChunkFlag;
+import com.hypixel.hytale.server.core.universe.world.chunk.WorldChunk;
+import com.hypixel.hytale.server.core.universe.world.storage.ChunkStore;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import dev.hytalemodding.impulse.api.PhysicsBody;
 import dev.hytalemodding.impulse.api.PhysicsBodyType;
@@ -44,8 +48,11 @@ public class PersistentPhysicsBodyHydrationSystem extends EntityTickingSystem<En
 
     private static final ComponentType<EntityStore, PersistentPhysicsBodyComponent>
         PERSISTENT_BODY_TYPE = PersistentPhysicsBodyComponent.getComponentType();
+    private static final ComponentType<EntityStore, TransformComponent> TRANSFORM_TYPE =
+        TransformComponent.getComponentType();
     private static final Query<EntityStore> QUERY = Query.and(
         PERSISTENT_BODY_TYPE,
+        TRANSFORM_TYPE,
         Query.not(PhysicsBodyComponent.getComponentType()));
     private static final Set<Dependency<EntityStore>> DEPENDENCIES = Set.of(
         new SystemDependency<>(Order.AFTER, PersistentPhysicsSpaceBootstrapSystem.class)
@@ -77,7 +84,11 @@ public class PersistentPhysicsBodyHydrationSystem extends EntityTickingSystem<En
         @Nonnull Store<EntityStore> store,
         @Nonnull CommandBuffer<EntityStore> commandBuffer) {
         PersistentPhysicsBodyComponent persistent = chunk.getComponent(index, PERSISTENT_BODY_TYPE);
+        TransformComponent transform = chunk.getComponent(index, TRANSFORM_TYPE);
         if (persistent == null || !persistent.needsBodyRebuild()) {
+            return;
+        }
+        if (transform == null || !isChunkTicking(transform, store)) {
             return;
         }
 
@@ -122,5 +133,17 @@ public class PersistentPhysicsBodyHydrationSystem extends EntityTickingSystem<En
         if (persistentWorld.isRuntimeRestorePending()) {
             persistentWorld.recordRuntimeBodyRestored();
         }
+    }
+
+    private static boolean isChunkTicking(@Nonnull TransformComponent transform,
+        @Nonnull Store<EntityStore> store) {
+        var chunkRef = transform.getChunkRef();
+        if (chunkRef == null || !chunkRef.isValid()) {
+            return false;
+        }
+
+        Store<ChunkStore> chunkStore = store.getExternalData().getWorld().getChunkStore().getStore();
+        WorldChunk worldChunk = chunkStore.getComponent(chunkRef, WorldChunk.getComponentType());
+        return worldChunk != null && worldChunk.is(ChunkFlag.TICKING);
     }
 }

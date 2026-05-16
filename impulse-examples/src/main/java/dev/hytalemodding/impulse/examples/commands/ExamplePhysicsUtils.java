@@ -104,9 +104,8 @@ final class ExamplePhysicsUtils {
         body.setPosition((float) visualPosition.x,
             (float) (visualPosition.y + body.getCenterOfMassOffsetY()),
             (float) visualPosition.z);
-        space.addBody(body);
 
-        return attachBlockBodyEntity(store, holder, spaceId, body);
+        return attachBlockBodyEntity(store, holder, spaceId, space, body, true);
     }
 
     @Nonnull
@@ -121,14 +120,16 @@ final class ExamplePhysicsUtils {
         );
         holder.removeComponent(DespawnComponent.getComponentType());
 
-        return attachBlockBodyEntity(store, holder, spaceId, body);
+        return attachBlockBodyEntity(store, holder, spaceId, null, body, false);
     }
 
     @Nonnull
     private static Ref<EntityStore> attachBlockBodyEntity(@Nonnull Store<EntityStore> store,
         @Nonnull Holder<EntityStore> holder,
         @Nonnull SpaceId spaceId,
-        @Nonnull PhysicsBody body) {
+        @Nullable PhysicsSpace space,
+        @Nonnull PhysicsBody body,
+        boolean addBodyToSpace) {
 
         holder.addComponent(PhysicsBodyComponent.getComponentType(),
             new PhysicsBodyComponent(body, spaceId));
@@ -139,7 +140,12 @@ final class ExamplePhysicsUtils {
                 new ImpulseControllableComponent());
         }
         Ref<EntityStore> entityRef = store.addEntity(holder, AddReason.SPAWN);
-        store.getResource(PhysicsWorldResource.getResourceType()).registerBodyOwner(body, entityRef);
+        if (addBodyToSpace) {
+            if (space == null) {
+                throw new IllegalArgumentException("Space is required when adding a body to the backend");
+            }
+            space.addBody(body);
+        }
         return entityRef;
     }
 

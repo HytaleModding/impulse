@@ -54,8 +54,13 @@ The core plugin registers `/impulse` commands for runtime physics controls:
 - `/impulse backend swap --backend impulse:rapier` - migrate the main physics space to Rapier.
 - `/impulse backend swap --backend impulse:bullet` - migrate the main physics space back to Bullet.
 - `/impulse backend swap --backend <backend-id> --space <space-id>` - migrate a specific space.
-- `/impulse settings simulation-steps` - show physics substeps per server tick.
-- `/impulse settings simulation-steps --steps <count>` - set physics substeps per server tick, from 1 to 16.
+- `/impulse clean --confirm` - remove all Impulse physics entities from the current world without touching unrelated world entities.
+- `/impulse settings step-mode` - show the world physics step mode.
+- `/impulse settings step-mode --mode progressive_refinement|fixed|ccd` - choose adaptive refinement, fixed substeps, or world-level CCD mode.
+- `/impulse settings simulation-steps` - show the configured substep count.
+- `/impulse settings simulation-steps --steps <count>` - set the minimum or fixed substep count, from 1 to 16.
+- `/impulse settings max-step-dt` - show the adaptive substep dt threshold.
+- `/impulse settings max-step-dt --dt <seconds>` - set the adaptive substep dt threshold used by `progressive_refinement`.
 
 Bullet is the default backend when it is available. Rapier is experimental. Runtime backend
 swapping migrates supported bodies and joints, but exact solver behavior can differ between

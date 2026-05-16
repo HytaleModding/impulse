@@ -17,8 +17,7 @@ import org.joml.Vector3f;
 /**
  * Codec-backed definition of one physics joint for the persistence layer.
  *
- * <p>Unlike the old snapshot-based joint format (which used integer body IDs
- * assigned during export), this class uses entity UUIDs to identify the two
+ * This class uses entity UUIDs to identify the two
  * endpoint bodies. When the hydration systems rebuild a joint, they look up
  * the live bodies by UUID through the entity store.</p>
  *
