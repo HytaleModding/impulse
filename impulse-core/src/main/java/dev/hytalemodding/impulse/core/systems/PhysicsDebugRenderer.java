@@ -20,6 +20,8 @@ import org.joml.Vector3f;
 final class PhysicsDebugRenderer {
 
     private static final double SHAPE_INFLATION = 1.025;
+    private static final double WORLD_COLLISION_EDGE_PADDING = 0.0125;
+    private static final float MIN_DEBUG_LIFETIME = 0.08f;
     private static final double MIN_ARROW_LENGTH = 0.05;
     private static final double MAX_ARROW_LENGTH = 4.0;
     private static final double VELOCITY_SCALE = 0.15;
@@ -27,12 +29,12 @@ final class PhysicsDebugRenderer {
     private static final double CONTACT_NORMAL_SCALE = 0.75;
     private static final int SHAPE_FLAGS = DebugUtils.FLAG_NO_SOLID;
     private static final int VECTOR_FLAGS = DebugUtils.FLAG_FADE;
-
     private PhysicsDebugRenderer() {
     }
 
-    static float lifetimeForRefresh(float refreshSeconds) {
-        return Math.clamp(refreshSeconds * 1.25f, 0.08f, 0.75f);
+    static float lifetimeForRefresh(float refreshSeconds, float dt) {
+        float redrawSeconds = Math.max(refreshSeconds, dt);
+        return Math.max(MIN_DEBUG_LIFETIME, redrawSeconds * 1.25f);
     }
 
     static void renderBodyShape(@Nonnull Collection<PlayerRef> viewers,
@@ -150,26 +152,26 @@ final class PhysicsDebugRenderer {
         float time) {
         Vector3f color = voxelTerrain ? DebugUtils.COLOR_TEAL : DebugUtils.COLOR_NAVY;
         double halfSection = ChunkUtil.SIZE * 0.5;
-        renderDebugCube(viewers,
+        renderDebugCubeWithPadding(viewers,
             new Vector3d((chunkX << ChunkUtil.BITS) + halfSection,
                 (sectionY << ChunkUtil.BITS) + halfSection,
                 (chunkZ << ChunkUtil.BITS) + halfSection),
             new Vector3d(halfSection, halfSection, halfSection),
             color,
             time,
-            1.0);
+            WORLD_COLLISION_EDGE_PADDING);
     }
 
     static void renderWorldCollisionBox(@Nonnull Collection<PlayerRef> viewers,
         @Nonnull BoxCollider box,
         @Nonnull Vector3f color,
         float time) {
-        renderDebugCube(viewers,
+        renderDebugCubeWithPadding(viewers,
             new Vector3d(box.centerX(), box.centerY(), box.centerZ()),
             new Vector3d(box.halfX(), box.halfY(), box.halfZ()),
             color,
             time,
-            1.0);
+            WORLD_COLLISION_EDGE_PADDING);
     }
 
     static Vector3d centerFromSyncedTransform(@Nonnull PhysicsBody body,
@@ -220,6 +222,24 @@ final class PhysicsDebugRenderer {
             .scale(halfExtents.x * 2.0 * inflation,
                 halfExtents.y * 2.0 * inflation,
                 halfExtents.z * 2.0 * inflation);
+        PhysicsDebugPackets.add(viewers, DebugShape.Cube, transform, color, 0.8f, time, SHAPE_FLAGS);
+    }
+
+    private static void renderDebugCubeWithPadding(@Nonnull Collection<PlayerRef> viewers,
+        @Nonnull Vector3d center,
+        @Nonnull Vector3d halfExtents,
+        @Nonnull Vector3f color,
+        float time,
+        double edgePadding) {
+        if (halfExtents.x <= 0.0 || halfExtents.y <= 0.0 || halfExtents.z <= 0.0) {
+            return;
+        }
+
+        Matrix4d transform = new Matrix4d()
+            .translate(center)
+            .scale((halfExtents.x + edgePadding) * 2.0,
+                (halfExtents.y + edgePadding) * 2.0,
+                (halfExtents.z + edgePadding) * 2.0);
         PhysicsDebugPackets.add(viewers, DebugShape.Cube, transform, color, 0.8f, time, SHAPE_FLAGS);
     }
 

@@ -36,7 +36,6 @@ public class ShapesCommand extends AbstractAsyncPlayerCommand {
 
         PhysicsWorldResource resource = ExamplePhysicsUtils.resource(store);
         PhysicsSpace space = ExamplePhysicsUtils.defaultSpace(resource, world);
-        ExamplePhysicsUtils.enableDebug(store, playerRef);
 
         Vector3d origin = new Vector3d(playerPos).add(-4.0, 3.0, 3.0);
         spawn(store, world, resource, space, space.createBox(0.5f, 0.5f, 0.5f, 1.0f),
@@ -49,7 +48,7 @@ public class ShapesCommand extends AbstractAsyncPlayerCommand {
         spawn(store, world, resource, space,
             space.createCone(0.5f, 0.7f, PhysicsAxis.Y, 1.0f), origin, 8);
 
-        ctx.sender().sendMessage(Message.raw("Spawned shape demo. Debug overlays are enabled."));
+        ctx.sender().sendMessage(Message.raw("Spawned shape demo."));
         return CompletableFuture.completedFuture(null);
     }
 

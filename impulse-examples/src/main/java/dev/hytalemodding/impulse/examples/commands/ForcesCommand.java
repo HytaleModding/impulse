@@ -11,7 +11,6 @@ import com.hypixel.hytale.server.core.universe.world.World;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import dev.hytalemodding.impulse.api.PhysicsBody;
 import dev.hytalemodding.impulse.api.PhysicsSpace;
-import dev.hytalemodding.impulse.core.resources.PhysicsDebugResource;
 import dev.hytalemodding.impulse.core.resources.PhysicsWorldResource;
 import java.util.concurrent.CompletableFuture;
 import javax.annotation.Nonnull;
@@ -38,8 +37,6 @@ public class ForcesCommand extends AbstractAsyncPlayerCommand {
 
         PhysicsWorldResource resource = ExamplePhysicsUtils.resource(store);
         PhysicsSpace space = ExamplePhysicsUtils.defaultSpace(resource, world);
-        ExamplePhysicsUtils.enableDebug(store, playerRef);
-        store.getResource(PhysicsDebugResource.getResourceType()).setDebugMotionEnabled(true);
 
         Vector3d origin = new Vector3d(playerPos).add(-2.0, 4.0, 4.0);
         PhysicsBody central = spawnBox(store, world, resource, space, new Vector3d(origin));

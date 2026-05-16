@@ -11,7 +11,6 @@ import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import dev.hytalemodding.impulse.api.PhysicsBody;
 import dev.hytalemodding.impulse.api.PhysicsJoint;
 import dev.hytalemodding.impulse.api.PhysicsSpace;
-import dev.hytalemodding.impulse.core.resources.PhysicsDebugResource;
 import dev.hytalemodding.impulse.core.resources.PhysicsWorldResource;
 import java.util.concurrent.CompletableFuture;
 import javax.annotation.Nonnull;
@@ -42,10 +41,6 @@ public class JointsCommand extends AbstractAsyncPlayerCommand {
 
         PhysicsWorldResource resource = ExamplePhysicsUtils.resource(store);
         PhysicsSpace space = ExamplePhysicsUtils.defaultSpace(resource, world);
-        ExamplePhysicsUtils.enableDebug(store, playerRef);
-        PhysicsDebugResource debug = store.getResource(PhysicsDebugResource.getResourceType());
-        debug.setDebugJointsEnabled(true);
-        debug.setDebugMotionEnabled(true);
 
         Vector3d origin = new Vector3d(playerPos).add(-5.0, 5.0, 5.0);
         createFixed(store, world, resource, space, new Vector3d(origin));
