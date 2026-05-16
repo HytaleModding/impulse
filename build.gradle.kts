@@ -9,9 +9,21 @@ plugins {
 group = property("group") as String
 version = property("version") as String
 
+val coreOnlyWorkspace = providers.gradleProperty("impulse.coreOnlyWorkspace")
+    .map(String::toBoolean)
+    .orElse(false)
+
 hytaleWorkspace {
-    modProjects = listOf(":impulse-examples", ":impulse-core")
-    hostProject = ":impulse-examples"
+    modProjects = if (coreOnlyWorkspace.get()) {
+        listOf(":impulse-core")
+    } else {
+        listOf(":impulse-examples", ":impulse-core")
+    }
+    hostProject = if (coreOnlyWorkspace.get()) {
+        ":impulse-core"
+    } else {
+        ":impulse-examples"
+    }
 
     manifestGroup = property("manifest_group") as String
     hytaleVersion = property("hytale_version") as String
