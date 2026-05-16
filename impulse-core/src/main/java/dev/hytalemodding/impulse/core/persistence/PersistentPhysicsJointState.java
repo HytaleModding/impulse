@@ -130,11 +130,11 @@ public class PersistentPhysicsJointState {
     @Setter
     private float motorMaxForce;
     @Setter
-    private float springRestLength = Float.NaN;
+    private float springRestLength = 0f;
     @Setter
-    private float springStiffness = Float.NaN;
+    private float springStiffness = 0f;
     @Setter
-    private float springDamping = Float.NaN;
+    private float springDamping = 0f;
 
     public PersistentPhysicsJointState() {
     }
@@ -159,9 +159,9 @@ public class PersistentPhysicsJointState {
         state.motorEnabled = joint.isMotorEnabled();
         state.motorTargetVelocity = joint.getMotorTargetVelocity();
         state.motorMaxForce = joint.getMotorMaxForce();
-        state.springRestLength = joint.getSpringRestLength();
-        state.springStiffness = joint.getSpringStiffness();
-        state.springDamping = joint.getSpringDamping();
+        state.springRestLength = nanToZero(joint.getSpringRestLength());
+        state.springStiffness = nanToZero(joint.getSpringStiffness());
+        state.springDamping = nanToZero(joint.getSpringDamping());
         return state;
     }
 
@@ -222,7 +222,11 @@ public class PersistentPhysicsJointState {
         return Float.floatToIntBits(value);
     }
 
-    @Nonnull
+    private static float nanToZero(float value) {
+        return Float.isNaN(value) ? 0f : value;
+    }
+
+        @Nonnull
     public PersistentPhysicsJointState copy() {
         PersistentPhysicsJointState copy = new PersistentPhysicsJointState();
         copy.spaceId = spaceId;
