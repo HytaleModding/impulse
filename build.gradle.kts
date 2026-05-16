@@ -1,4 +1,6 @@
 import org.gradle.api.tasks.testing.Test
+import org.gradle.api.tasks.testing.logging.TestExceptionFormat
+import org.gradle.api.tasks.testing.logging.TestLogEvent
 
 plugins {
     alias(libs.plugins.hytale.workspace)
@@ -31,6 +33,17 @@ subprojects {
         tasks.withType<Test>().configureEach {
             useJUnitPlatform()
             jvmArgs("--enable-native-access=ALL-UNNAMED")
+            testLogging {
+                events = setOf(
+                    TestLogEvent.PASSED,
+                    TestLogEvent.SKIPPED,
+                    TestLogEvent.FAILED
+                )
+                exceptionFormat = TestExceptionFormat.FULL
+                showCauses = true
+                showExceptions = true
+                showStackTraces = true
+            }
         }
     }
 }
