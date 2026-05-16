@@ -90,8 +90,9 @@ public class WorldCollisionProfilingResource implements Resource<EntityStore> {
         private int tickSamples;
         @Setter
         private int playerStreamingTargets;
-        @Setter
+        private int bodyStreamingCandidates;
         private int bodyStreamingTargets;
+        private int bodyTargetDedupeSkips;
         private int streamingSpaces;
         private int ensureCalls;
         private int sectionRequests;
@@ -125,6 +126,18 @@ public class WorldCollisionProfilingResource implements Resource<EntityStore> {
 
         public void incrementStreamingSpaces() {
             streamingSpaces++;
+        }
+
+        public void addBodyStreamingCandidates(int count) {
+            bodyStreamingCandidates += count;
+        }
+
+        public void addBodyStreamingTargets(int count) {
+            bodyStreamingTargets += count;
+        }
+
+        public void incrementBodyTargetDedupeSkips() {
+            bodyTargetDedupeSkips++;
         }
 
         public void incrementEnsureCalls() {
@@ -196,7 +209,9 @@ public class WorldCollisionProfilingResource implements Resource<EntityStore> {
         public void copyFrom(@Nonnull Snapshot other) {
             tickSamples = other.tickSamples;
             playerStreamingTargets = other.playerStreamingTargets;
+            bodyStreamingCandidates = other.bodyStreamingCandidates;
             bodyStreamingTargets = other.bodyStreamingTargets;
+            bodyTargetDedupeSkips = other.bodyTargetDedupeSkips;
             streamingSpaces = other.streamingSpaces;
             ensureCalls = other.ensureCalls;
             sectionRequests = other.sectionRequests;
@@ -227,7 +242,9 @@ public class WorldCollisionProfilingResource implements Resource<EntityStore> {
         public void add(@Nonnull Snapshot other) {
             tickSamples += other.tickSamples;
             playerStreamingTargets += other.playerStreamingTargets;
+            bodyStreamingCandidates += other.bodyStreamingCandidates;
             bodyStreamingTargets += other.bodyStreamingTargets;
+            bodyTargetDedupeSkips += other.bodyTargetDedupeSkips;
             streamingSpaces += other.streamingSpaces;
             ensureCalls += other.ensureCalls;
             sectionRequests += other.sectionRequests;
@@ -258,7 +275,9 @@ public class WorldCollisionProfilingResource implements Resource<EntityStore> {
         public void reset() {
             tickSamples = 0;
             playerStreamingTargets = 0;
+            bodyStreamingCandidates = 0;
             bodyStreamingTargets = 0;
+            bodyTargetDedupeSkips = 0;
             streamingSpaces = 0;
             ensureCalls = 0;
             sectionRequests = 0;

@@ -36,6 +36,18 @@ public class PhysicsSpaceSettings {
     public static final int DEFAULT_WORLD_COLLISION_TTL_TICKS = 100;
 
     /**
+     * Block radius around players where visual followers receive the full sync policy.
+     */
+    public static final int DEFAULT_VISUAL_FULL_SYNC_RADIUS = 64;
+
+    /**
+     * Maximum block radius around players where visual followers receive any sync at all.
+     * Followers beyond this range stop writing Hytale transforms until they come back into
+     * interest.
+     */
+    public static final int DEFAULT_VISUAL_MAX_SYNC_RADIUS = 128;
+
+    /**
      * Default behavior when an entity-backed body reaches an unloaded chunk border.
      */
     @Nonnull
@@ -77,6 +89,18 @@ public class PhysicsSpaceSettings {
     @Getter
     private int worldCollisionTtlTicks = DEFAULT_WORLD_COLLISION_TTL_TICKS;
 
+    /**
+     * Full-rate visual sync radius for follower entities.
+     */
+    @Getter
+    private int visualFullSyncRadius = DEFAULT_VISUAL_FULL_SYNC_RADIUS;
+
+    /**
+     * Maximum visual sync radius for follower entities.
+     */
+    @Getter
+    private int visualMaxSyncRadius = DEFAULT_VISUAL_MAX_SYNC_RADIUS;
+
     public PhysicsSpaceSettings() {
     }
 
@@ -86,6 +110,8 @@ public class PhysicsSpaceSettings {
         worldCollisionRadius = settings.worldCollisionRadius;
         worldCollisionBodyRadius = settings.worldCollisionBodyRadius;
         worldCollisionTtlTicks = settings.worldCollisionTtlTicks;
+        visualFullSyncRadius = settings.visualFullSyncRadius;
+        visualMaxSyncRadius = settings.visualMaxSyncRadius;
     }
 
     @Nonnull
@@ -122,5 +148,27 @@ public class PhysicsSpaceSettings {
             throw new IllegalArgumentException("World collision TTL must be positive");
         }
         this.worldCollisionTtlTicks = worldCollisionTtlTicks;
+    }
+
+    public void setVisualFullSyncRadius(int visualFullSyncRadius) {
+        if (visualFullSyncRadius < 1) {
+            throw new IllegalArgumentException("Visual full sync radius must be positive");
+        }
+        if (visualFullSyncRadius > visualMaxSyncRadius) {
+            throw new IllegalArgumentException(
+                "Visual full sync radius cannot exceed visual max sync radius");
+        }
+        this.visualFullSyncRadius = visualFullSyncRadius;
+    }
+
+    public void setVisualMaxSyncRadius(int visualMaxSyncRadius) {
+        if (visualMaxSyncRadius < 1) {
+            throw new IllegalArgumentException("Visual max sync radius must be positive");
+        }
+        if (visualMaxSyncRadius < visualFullSyncRadius) {
+            throw new IllegalArgumentException(
+                "Visual max sync radius cannot be lower than visual full sync radius");
+        }
+        this.visualMaxSyncRadius = visualMaxSyncRadius;
     }
 }

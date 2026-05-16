@@ -5,6 +5,7 @@ import com.hypixel.hytale.component.system.tick.TickingSystem;
 import com.hypixel.hytale.server.core.universe.world.storage.ChunkStore;
 import dev.hytalemodding.impulse.api.PhysicsBody;
 import dev.hytalemodding.impulse.api.PhysicsSpace;
+import dev.hytalemodding.impulse.core.resources.PhysicsRuntimeProfilingResource;
 import dev.hytalemodding.impulse.core.resources.PhysicsStepMode;
 import dev.hytalemodding.impulse.core.resources.PhysicsWorldResource;
 import java.util.Collection;
@@ -21,6 +22,8 @@ public class PhysicsStepSystem extends TickingSystem<ChunkStore> {
         var entityStore = world.getEntityStore().getStore();
         PhysicsWorldResource resource = entityStore.getResource(
             PhysicsWorldResource.getResourceType());
+        PhysicsRuntimeProfilingResource profiling = entityStore.getResource(
+            PhysicsRuntimeProfilingResource.getResourceType());
 
         PhysicsStepMode stepMode = resource.getStepMode();
         int steps = resolveStepCount(dt, resource, stepMode);
@@ -28,14 +31,22 @@ public class PhysicsStepSystem extends TickingSystem<ChunkStore> {
             restoreForcedContinuousCollision(resource);
         }
 
+        long startNanos = profiling.isEnabled() ? System.nanoTime() : 0L;
         float stepDt = dt / steps;
+        int spaceCount = 0;
+        int substeps = 0;
         for (PhysicsSpace space : resource.iterateSpaces()) {
+            spaceCount++;
             if (stepMode == PhysicsStepMode.CCD && space.supportsContinuousCollision()) {
                 forceContinuousCollision(resource, space);
             }
             for (int step = 0; step < steps; step++) {
                 space.step(stepDt);
+                substeps++;
             }
+        }
+        if (profiling.isEnabled()) {
+            profiling.recordStep(spaceCount, substeps, System.nanoTime() - startNanos);
         }
     }
 

@@ -55,6 +55,10 @@ The core plugin registers `/impulse` commands for runtime physics controls:
 - `/impulse backend swap --backend impulse:bullet` - migrate the main physics space back to Bullet.
 - `/impulse backend swap --backend <backend-id> --space <space-id>` - migrate a specific space.
 - `/impulse clean --confirm` - remove all Impulse physics entities from the current world without touching unrelated world entities.
+- `/impulse perf toggle` - toggle Impulse runtime and world-collision profiling.
+- `/impulse perf report` - print physics-step, sync, and world-collision profiling metrics.
+- `/impulse perf stats` - show per-space body, awake, sleeping, joint, and contact counts.
+- `/impulse perf reset` - reset profiling counters.
 - `/impulse settings step-mode` - show the world physics step mode.
 - `/impulse settings step-mode --mode progressive_refinement|fixed|ccd` - choose adaptive refinement, fixed substeps, or world-level CCD mode.
 - `/impulse settings simulation-steps` - show the configured substep count.

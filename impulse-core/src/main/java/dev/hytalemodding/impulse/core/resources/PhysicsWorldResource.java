@@ -52,6 +52,7 @@ public class PhysicsWorldResource implements Resource<EntityStore> {
     private final Int2ObjectMap<PhysicsSpaceSettings> spaceSettings = new Int2ObjectOpenHashMap<>();
 
     private final Map<PhysicsBody, Ref<EntityStore>> bodyOwners = new IdentityHashMap<>();
+    private final Map<PhysicsBody, Set<Ref<EntityStore>>> bodyVisualFollowers = new IdentityHashMap<>();
 
     @Getter
     private final WorldVoxelCollisionCache worldVoxelCollisionCache = new WorldVoxelCollisionCache();
@@ -76,6 +77,9 @@ public class PhysicsWorldResource implements Resource<EntityStore> {
     private final Set<PhysicsBody> forcedContinuousCollisionBodies =
         Collections.newSetFromMap(new IdentityHashMap<>());
 
+    private final Map<Ref<EntityStore>, BodySyncState> bodySyncStates = new IdentityHashMap<>();
+    private final Set<PhysicsBody> controlledBodies =
+        Collections.newSetFromMap(new IdentityHashMap<>());
     private final Map<PhysicsBody, ChunkBoundarySafeState> chunkBoundarySafeStates =
         new IdentityHashMap<>();
     private final Map<PhysicsBody, ChunkBoundaryPauseState> chunkBoundaryPauseStates =
@@ -273,10 +277,58 @@ public class PhysicsWorldResource implements Resource<EntityStore> {
             }
         }
         for (PhysicsBody body : staleBodies) {
-            bodyOwners.remove(body);
+            Ref<EntityStore> staleOwner = bodyOwners.remove(body);
+            if (staleOwner != null) {
+                clearBodySyncState(staleOwner);
+            }
             clearBodyRuntimeState(body);
         }
         return owners;
+    }
+
+    @Nonnull
+    public Collection<Ref<EntityStore>> getBodyVisualFollowers(@Nonnull PhysicsBody body) {
+        Set<Ref<EntityStore>> followers = bodyVisualFollowers.get(body);
+        if (followers == null || followers.isEmpty()) {
+            return List.of();
+        }
+
+        List<Ref<EntityStore>> liveFollowers = new ArrayList<>();
+        List<Ref<EntityStore>> staleFollowers = new ArrayList<>();
+        for (Ref<EntityStore> follower : followers) {
+            if (follower != null && follower.isValid()) {
+                liveFollowers.add(follower);
+            } else {
+                staleFollowers.add(follower);
+            }
+        }
+        followers.removeAll(staleFollowers);
+        for (Ref<EntityStore> staleFollower : staleFollowers) {
+            if (staleFollower != null) {
+                clearBodySyncState(staleFollower);
+            }
+        }
+        if (followers.isEmpty()) {
+            bodyVisualFollowers.remove(body);
+        }
+        return liveFollowers;
+    }
+
+    public void registerBodyVisualFollower(@Nonnull PhysicsBody body, @Nonnull Ref<EntityStore> follower) {
+        bodyVisualFollowers.computeIfAbsent(body, ignored -> Collections.newSetFromMap(new IdentityHashMap<>()))
+            .add(follower);
+    }
+
+    public void unregisterBodyVisualFollower(@Nonnull PhysicsBody body, @Nonnull Ref<EntityStore> follower) {
+        Set<Ref<EntityStore>> followers = bodyVisualFollowers.get(body);
+        if (followers == null) {
+            return;
+        }
+
+        followers.remove(follower);
+        if (followers.isEmpty()) {
+            bodyVisualFollowers.remove(body);
+        }
     }
 
     public void registerBodyOwner(@Nonnull PhysicsBody body, @Nonnull Ref<EntityStore> owner) {
@@ -293,9 +345,38 @@ public class PhysicsWorldResource implements Resource<EntityStore> {
 
     public void clearBodyOwners() {
         bodyOwners.clear();
+        bodyVisualFollowers.clear();
         forcedContinuousCollisionBodies.clear();
+        bodySyncStates.clear();
+        controlledBodies.clear();
         chunkBoundarySafeStates.clear();
         chunkBoundaryPauseStates.clear();
+    }
+
+    @Nonnull
+    public BodySyncState getOrCreateBodySyncState(@Nonnull Ref<EntityStore> entityRef) {
+        return bodySyncStates.computeIfAbsent(entityRef, ignored -> new BodySyncState());
+    }
+
+    @Nullable
+    public BodySyncState getBodySyncState(@Nonnull Ref<EntityStore> entityRef) {
+        return bodySyncStates.get(entityRef);
+    }
+
+    public void clearBodySyncState(@Nonnull Ref<EntityStore> entityRef) {
+        bodySyncStates.remove(entityRef);
+    }
+
+    public void markBodyControlled(@Nonnull PhysicsBody body) {
+        controlledBodies.add(body);
+    }
+
+    public void clearControlledBody(@Nonnull PhysicsBody body) {
+        controlledBodies.remove(body);
+    }
+
+    public boolean isBodyControlled(@Nonnull PhysicsBody body) {
+        return controlledBodies.contains(body);
     }
 
     public void updateChunkBoundarySafeState(@Nonnull PhysicsBody body,
@@ -331,7 +412,9 @@ public class PhysicsWorldResource implements Resource<EntityStore> {
     }
 
     public void clearBodyRuntimeState(@Nonnull PhysicsBody body) {
+        bodyVisualFollowers.remove(body);
         forcedContinuousCollisionBodies.remove(body);
+        controlledBodies.remove(body);
         chunkBoundarySafeStates.remove(body);
         chunkBoundaryPauseStates.remove(body);
     }
@@ -354,6 +437,7 @@ public class PhysicsWorldResource implements Resource<EntityStore> {
         Ref<EntityStore> owner = bodyOwners.get(body);
         if (owner != null && !owner.isValid()) {
             bodyOwners.remove(body);
+            clearBodySyncState(owner);
             clearBodyRuntimeState(body);
             return null;
         }
@@ -367,7 +451,10 @@ public class PhysicsWorldResource implements Resource<EntityStore> {
         spaces.clear();
         spaceSettings.clear();
         bodyOwners.clear();
+        bodyVisualFollowers.clear();
         forcedContinuousCollisionBodies.clear();
+        bodySyncStates.clear();
+        controlledBodies.clear();
         chunkBoundarySafeStates.clear();
         chunkBoundaryPauseStates.clear();
         worldVoxelCollisionCache.copyFrom(new WorldVoxelCollisionCache());
@@ -438,6 +525,54 @@ public class PhysicsWorldResource implements Resource<EntityStore> {
         public Quaternionf getRotation() {
             return rotation;
         }
+    }
+
+    public static final class BodySyncState {
+
+        @Nonnull
+        private final Vector3f lastSyncedPosition = new Vector3f();
+        @Nonnull
+        private final Quaternionf lastSyncedRotation = new Quaternionf();
+        private boolean initialized;
+        private boolean sleeping;
+        private float secondsSinceSync;
+
+        public void recordSync(@Nonnull Vector3f position,
+            @Nonnull Quaternionf rotation,
+            boolean sleeping) {
+            lastSyncedPosition.set(position);
+            lastSyncedRotation.set(rotation);
+            initialized = true;
+            this.sleeping = sleeping;
+            secondsSinceSync = 0.0f;
+        }
+
+        public void recordSkip(float dt) {
+            secondsSinceSync += Math.max(dt, 0.0f);
+        }
+
+        @Nonnull
+        public Vector3f getLastSyncedPosition() {
+            return lastSyncedPosition;
+        }
+
+        @Nonnull
+        public Quaternionf getLastSyncedRotation() {
+            return lastSyncedRotation;
+        }
+
+        public boolean isInitialized() {
+            return initialized;
+        }
+
+        public boolean isSleeping() {
+            return sleeping;
+        }
+
+        public float getSecondsSinceSync() {
+            return secondsSinceSync;
+        }
+
     }
 
     public static final class ChunkBoundaryPauseState {

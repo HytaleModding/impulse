@@ -8,6 +8,7 @@ public class PerfCommand extends AbstractCommandCollection {
         super("perf", "Impulse runtime profiling commands");
         addSubCommand(new PerfToggleCommand());
         addSubCommand(new PerfReportCommand());
+        addSubCommand(new PerfStatsCommand());
         addSubCommand(new PerfResetCommand());
     }
 }
