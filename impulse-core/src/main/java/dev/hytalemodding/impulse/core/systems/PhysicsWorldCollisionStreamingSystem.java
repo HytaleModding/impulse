@@ -7,6 +7,7 @@ import com.hypixel.hytale.component.Store;
 import com.hypixel.hytale.component.query.Query;
 import com.hypixel.hytale.component.system.QuerySystem;
 import com.hypixel.hytale.component.system.tick.TickingSystem;
+import com.hypixel.hytale.math.util.ChunkUtil;
 import com.hypixel.hytale.server.core.entity.entities.Player;
 import com.hypixel.hytale.server.core.modules.entity.component.TransformComponent;
 import com.hypixel.hytale.server.core.universe.world.World;
@@ -21,9 +22,12 @@ import dev.hytalemodding.impulse.core.voxel.WorldVoxelCollisionCache;
 import it.unimi.dsi.fastutil.longs.LongOpenHashSet;
 import it.unimi.dsi.fastutil.longs.LongSet;
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.function.BiConsumer;
 import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
 import org.joml.Vector3d;
 import org.joml.Vector3f;
 
@@ -68,20 +72,16 @@ public class PhysicsWorldCollisionStreamingSystem extends TickingSystem<EntitySt
         Snapshot snapshot = profiling.isEnabled() ? profiling.beginTick() : null;
         long tickStart = snapshot != null ? System.nanoTime() : 0L;
         try {
-            playerPositionCount = 0;
-            List<Vector3d> streamingPositions = new ArrayList<>();
+            List<Vector3d> playerPositions = new ArrayList<>();
             BiConsumer<ArchetypeChunk<EntityStore>, CommandBuffer<EntityStore>> collector =
-                (chunk, commandBuffer) -> collectPlayerPositions(chunk, streamingPositions);
+                (chunk, commandBuffer) -> collectPlayerPositions(chunk, playerPositions);
             store.forEachChunk(systemIndex, collector);
 
             World world = store.getExternalData().getWorld();
             PhysicsWorldResource resource = store.getResource(PhysicsWorldResource.getResourceType());
-            collectDynamicBodyPositions(resource, streamingPositions);
 
             if (snapshot != null) {
-                snapshot.setPlayerStreamingTargets(playerPositionCount);
-                snapshot.setBodyStreamingTargets(Math.max(0,
-                    streamingPositions.size() - playerPositionCount));
+                snapshot.setPlayerStreamingTargets(playerPositions.size());
             }
 
             long currentTick = ++tick;
@@ -98,16 +98,25 @@ public class PhysicsWorldCollisionStreamingSystem extends TickingSystem<EntitySt
 
                 int playerRadius = settings.getWorldCollisionRadius();
                 int bodyRadius = settings.getWorldCollisionBodyRadius();
+                List<Vector3d> bodyTargets = collectDynamicBodyTargets(space, bodyRadius, snapshot);
                 LongSet visitedSections = new LongOpenHashSet();
-                int index = 0;
-                for (Vector3d position : streamingPositions) {
-                    /*
-                     * Player positions come first, then body positions.
-                     * Use the smaller body radius for body positions.
-                     */
-                    int radius = index < playerPositionCount ? playerRadius : bodyRadius;
-                    cache.ensureAround(world, space, position, radius, currentTick, snapshot, visitedSections);
-                    index++;
+                for (Vector3d position : playerPositions) {
+                    cache.ensureAround(world,
+                        space,
+                        position,
+                        playerRadius,
+                        currentTick,
+                        snapshot,
+                        visitedSections);
+                }
+                for (Vector3d position : bodyTargets) {
+                    cache.ensureAround(world,
+                        space,
+                        position,
+                        bodyRadius,
+                        currentTick,
+                        snapshot,
+                        visitedSections);
                 }
                 cache.pruneUnloaded(world, space.getId(), space, snapshot);
                 cache.pruneUnused(space.getId(),
@@ -124,12 +133,6 @@ public class PhysicsWorldCollisionStreamingSystem extends TickingSystem<EntitySt
         }
     }
 
-    /**
-     * Number of player positions collected in the current tick.
-     * Positions at indices >= this count are dynamic body positions.
-     */
-    private int playerPositionCount;
-
     private void collectPlayerPositions(@Nonnull ArchetypeChunk<EntityStore> chunk,
         @Nonnull List<Vector3d> positions) {
         for (int index = 0; index < chunk.size(); index++) {
@@ -138,34 +141,64 @@ public class PhysicsWorldCollisionStreamingSystem extends TickingSystem<EntitySt
                 positions.add(new Vector3d(transform.getPosition()));
             }
         }
-        playerPositionCount = positions.size();
     }
 
     /**
-     * Collects positions of dynamic physics bodies that belong to streaming spaces.
-     * Uses the body's physics-space position (not the ECS transform) because the
-     * physics position is more up-to-date for bodies that have moved since the
-     * last sync.
+     * Collects unique dynamic-body streaming targets for one physics space.
+     *
+     * <p>Bodies are deduplicated by the exact section bounds that the configured
+     * radius would touch. This removes a large amount of repeated `ensureAround`
+     * work for big piles where many bodies share the same neighborhood.</p>
      */
-    private void collectDynamicBodyPositions(@Nonnull PhysicsWorldResource resource,
-        @Nonnull List<Vector3d> positions) {
-        for (PhysicsSpace space : resource.iterateSpaces()) {
-            PhysicsSpaceSettings settings = resource.getSpaceSettings(space.getId());
-            if (settings.getWorldCollisionMode() != WorldCollisionMode.STREAMING) {
-                continue;
+    @Nonnull
+    private List<Vector3d> collectDynamicBodyTargets(@Nonnull PhysicsSpace space,
+        int radius,
+        @Nullable Snapshot snapshot) {
+        Map<StreamingBounds, Vector3d> uniqueTargets = new LinkedHashMap<>();
+        int[] candidateCount = {0};
+        space.forEachBody(body -> {
+            if (!body.isDynamic() || body.isSleeping()) {
+                return;
             }
-            space.forEachBody(body -> {
-                if (!body.isDynamic()) {
-                    return;
-                }
-                if (body.isSleeping()) {
-                    return;
-                }
-                body.getPosition(bodyPositionScratch);
-                positions.add(new Vector3d(bodyPositionScratch.x,
-                    bodyPositionScratch.y,
-                    bodyPositionScratch.z));
-            });
+
+            candidateCount[0]++;
+            body.getPosition(bodyPositionScratch);
+            StreamingBounds bounds = StreamingBounds.from(bodyPositionScratch, radius);
+            Vector3d previous = uniqueTargets.putIfAbsent(bounds,
+                new Vector3d(bodyPositionScratch.x, bodyPositionScratch.y, bodyPositionScratch.z));
+            if (previous != null && snapshot != null) {
+                snapshot.incrementBodyTargetDedupeSkips();
+            }
+        });
+        if (snapshot != null) {
+            snapshot.addBodyStreamingCandidates(candidateCount[0]);
+            snapshot.addBodyStreamingTargets(uniqueTargets.size());
+        }
+        return new ArrayList<>(uniqueTargets.values());
+    }
+
+    private record StreamingBounds(int minChunkX,
+                                   int maxChunkX,
+                                   int minSectionY,
+                                   int maxSectionY,
+                                   int minChunkZ,
+                                   int maxChunkZ) {
+
+        @Nonnull
+        private static StreamingBounds from(@Nonnull Vector3f center, int radius) {
+            int minX = (int) Math.floor(center.x) - radius;
+            int maxX = (int) Math.floor(center.x) + radius;
+            int minY = Math.max(0, (int) Math.floor(center.y) - radius);
+            int maxY = Math.min(ChunkUtil.HEIGHT_MINUS_1, (int) Math.floor(center.y) + radius);
+            int minZ = (int) Math.floor(center.z) - radius;
+            int maxZ = (int) Math.floor(center.z) + radius;
+            return new StreamingBounds(
+                ChunkUtil.chunkCoordinate(minX),
+                ChunkUtil.chunkCoordinate(maxX),
+                ChunkUtil.indexSection(minY),
+                ChunkUtil.indexSection(maxY),
+                ChunkUtil.chunkCoordinate(minZ),
+                ChunkUtil.chunkCoordinate(maxZ));
         }
     }
 }

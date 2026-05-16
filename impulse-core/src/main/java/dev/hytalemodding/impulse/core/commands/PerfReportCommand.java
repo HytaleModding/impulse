@@ -6,6 +6,9 @@ import com.hypixel.hytale.server.core.command.system.CommandContext;
 import com.hypixel.hytale.server.core.command.system.basecommands.AbstractWorldCommand;
 import com.hypixel.hytale.server.core.universe.world.World;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
+import dev.hytalemodding.impulse.core.resources.PhysicsRuntimeProfilingResource;
+import dev.hytalemodding.impulse.core.resources.PhysicsRuntimeProfilingResource.StepSnapshot;
+import dev.hytalemodding.impulse.core.resources.PhysicsRuntimeProfilingResource.SyncSnapshot;
 import dev.hytalemodding.impulse.core.resources.WorldCollisionProfilingResource;
 import dev.hytalemodding.impulse.core.resources.WorldCollisionProfilingResource.Snapshot;
 import java.util.Locale;
@@ -21,22 +24,71 @@ public class PerfReportCommand extends AbstractWorldCommand {
     protected void execute(@Nonnull CommandContext ctx,
         @Nonnull World world,
         @Nonnull Store<EntityStore> store) {
+        PhysicsRuntimeProfilingResource runtimeProfiling = store.getResource(
+            PhysicsRuntimeProfilingResource.getResourceType());
+        StepSnapshot cumulativeStep = runtimeProfiling.getCumulativeStep();
+        StepSnapshot latestStep = runtimeProfiling.getLatestStep();
+        StepSnapshot worstStep = runtimeProfiling.getWorstStep();
+        SyncSnapshot cumulativeSync = runtimeProfiling.getCumulativeSync();
+        SyncSnapshot latestSync = runtimeProfiling.getLatestSync();
+        SyncSnapshot worstSync = runtimeProfiling.getWorstSync();
         WorldCollisionProfilingResource profiling = store.getResource(
             WorldCollisionProfilingResource.getResourceType());
         Snapshot cumulative = profiling.getCumulativeSnapshot();
         Snapshot latest = profiling.getLatestTickSnapshot();
         Snapshot worst = profiling.getWorstTickSnapshot();
 
-        ctx.sender().sendMessage(Message.raw("Impulse world collision profiling: "
-            + (profiling.isEnabled() ? "enabled" : "disabled")));
+        ctx.sender().sendMessage(Message.raw("Impulse runtime profiling: "
+            + ((runtimeProfiling.isEnabled() || profiling.isEnabled()) ? "enabled" : "disabled")));
+
+        if (cumulativeStep.getTickSamples() > 0 || cumulativeSync.getTickSamples() > 0) {
+            ctx.sender().sendMessage(Message.raw("Physics step avg ms/tick="
+                + formatAverageMillis(cumulativeStep.getTickNanos(), cumulativeStep.getTickSamples())
+                + " spaces=" + formatAverage(cumulativeStep.getSpaces(), cumulativeStep.getTickSamples())
+                + " substeps=" + formatAverage(cumulativeStep.getSubsteps(), cumulativeStep.getTickSamples())));
+            ctx.sender().sendMessage(Message.raw("Physics step latest/worst ms="
+                + formatMillis(latestStep.getTickNanos())
+                + "/" + formatMillis(worstStep.getTickNanos())
+                + " latest spaces/substeps=" + latestStep.getSpaces()
+                + "/" + latestStep.getSubsteps()));
+            ctx.sender().sendMessage(Message.raw("Physics sync avg ms/tick="
+                + formatAverageMillis(cumulativeSync.getTickNanos(), cumulativeSync.getTickSamples())
+                + " inspected=" + formatAverage(cumulativeSync.getBodiesInspected(), cumulativeSync.getTickSamples())
+                + " synced=" + formatAverage(cumulativeSync.getBodiesSynced(), cumulativeSync.getTickSamples())
+                + " skipSleeping=" + formatAverage(cumulativeSync.getSkippedSleeping(), cumulativeSync.getTickSamples())
+                + " skipThreshold=" + formatAverage(cumulativeSync.getSkippedThreshold(), cumulativeSync.getTickSamples())
+                + " skipVisualDeadzone=" + formatAverage(cumulativeSync.getSkippedVisualDeadzone(), cumulativeSync.getTickSamples())
+                + " skipVisualRange=" + formatAverage(cumulativeSync.getSkippedVisualRange(), cumulativeSync.getTickSamples())));
+            ctx.sender().sendMessage(Message.raw("Physics sync latest ms=" + formatMillis(latestSync.getTickNanos())
+                + " inspected/synced=" + latestSync.getBodiesInspected()
+                + "/" + latestSync.getBodiesSynced()
+                + " transition/keepalive=" + latestSync.getTransitionSyncs()
+                + "/" + latestSync.getKeepaliveSyncs()
+                + " skipSleeping/threshold/visualDeadzone/visualRange/static/missing=" + latestSync.getSkippedSleeping()
+                + "/" + latestSync.getSkippedThreshold()
+                + "/" + latestSync.getSkippedVisualDeadzone()
+                + "/" + latestSync.getSkippedVisualRange()
+                + "/" + latestSync.getSkippedStatic()
+                + "/" + latestSync.getSkippedMissingSpace()));
+            ctx.sender().sendMessage(Message.raw("Physics sync worst ms=" + formatMillis(worstSync.getTickNanos())
+                + " inspected/synced=" + worstSync.getBodiesInspected()
+                + "/" + worstSync.getBodiesSynced()));
+        } else {
+            ctx.sender().sendMessage(Message.raw("No profiled physics step/sync ticks recorded yet."));
+        }
+
         if (cumulative.getTickSamples() <= 0) {
             ctx.sender().sendMessage(Message.raw("No profiled world collision ticks recorded yet."));
             return;
         }
 
+        ctx.sender().sendMessage(Message.raw("World collision profiling: "
+            + (profiling.isEnabled() ? "enabled" : "disabled")));
+
         ctx.sender().sendMessage(Message.raw("Since reset: ticks=" + cumulative.getTickSamples()
             + " playerTargets=" + cumulative.getPlayerStreamingTargets()
-            + " bodyTargets=" + cumulative.getBodyStreamingTargets()
+            + " bodyCandidates/targets=" + cumulative.getBodyStreamingCandidates()
+            + "/" + cumulative.getBodyStreamingTargets()
             + " spaces=" + cumulative.getStreamingSpaces()
             + " ensureCalls=" + cumulative.getEnsureCalls()
             + " sections req/hit/build/rebuild/miss=" + cumulative.getSectionRequests()
@@ -44,7 +96,8 @@ public class PerfReportCommand extends AbstractWorldCommand {
             + "/" + cumulative.getSectionsBuilt()
             + "/" + cumulative.getSectionsRebuilt()
             + "/" + cumulative.getMissingChunks()
-            + " dupSkips=" + cumulative.getDuplicateSkips()));
+            + " targetDedupes=" + cumulative.getBodyTargetDedupeSkips()
+            + " sectionDupSkips=" + cumulative.getDuplicateSkips()));
         ctx.sender().sendMessage(Message.raw("Since reset bodies+blocks: added="
             + cumulative.getColliderBodiesAdded()
             + " voxel=" + cumulative.getVoxelBodies()
@@ -66,7 +119,8 @@ public class PerfReportCommand extends AbstractWorldCommand {
             + " pruneUnused=" + formatAverageMillis(cumulative.getPruneUnusedNanos(), cumulative.getTickSamples())));
         ctx.sender().sendMessage(Message.raw("Latest tick: ms=" + formatMillis(latest.getTickNanos())
             + " playerTargets=" + latest.getPlayerStreamingTargets()
-            + " bodyTargets=" + latest.getBodyStreamingTargets()
+            + " bodyCandidates/targets=" + latest.getBodyStreamingCandidates()
+            + "/" + latest.getBodyStreamingTargets()
             + " spaces=" + latest.getStreamingSpaces()
             + " ensure=" + latest.getEnsureCalls()
             + " req/hit/build/rebuild/miss=" + latest.getSectionRequests()
@@ -74,10 +128,12 @@ public class PerfReportCommand extends AbstractWorldCommand {
             + "/" + latest.getSectionsBuilt()
             + "/" + latest.getSectionsRebuilt()
             + "/" + latest.getMissingChunks()
-            + " dupSkips=" + latest.getDuplicateSkips()));
+            + " targetDedupes=" + latest.getBodyTargetDedupeSkips()
+            + " sectionDupSkips=" + latest.getDuplicateSkips()));
         ctx.sender().sendMessage(Message.raw("Worst tick: ms=" + formatMillis(worst.getTickNanos())
             + " playerTargets=" + worst.getPlayerStreamingTargets()
-            + " bodyTargets=" + worst.getBodyStreamingTargets()
+            + " bodyCandidates/targets=" + worst.getBodyStreamingCandidates()
+            + "/" + worst.getBodyStreamingTargets()
             + " spaces=" + worst.getStreamingSpaces()
             + " ensure=" + worst.getEnsureCalls()
             + " req/hit/build/rebuild/miss=" + worst.getSectionRequests()
@@ -85,7 +141,8 @@ public class PerfReportCommand extends AbstractWorldCommand {
             + "/" + worst.getSectionsBuilt()
             + "/" + worst.getSectionsRebuilt()
             + "/" + worst.getMissingChunks()
-            + " dupSkips=" + worst.getDuplicateSkips()));
+            + " targetDedupes=" + worst.getBodyTargetDedupeSkips()
+            + " sectionDupSkips=" + worst.getDuplicateSkips()));
     }
 
     @Nonnull
@@ -99,5 +156,13 @@ public class PerfReportCommand extends AbstractWorldCommand {
             return "0.000";
         }
         return formatMillis(totalNanos / samples);
+    }
+
+    @Nonnull
+    private static String formatAverage(int total, int samples) {
+        if (samples <= 0) {
+            return "0.0";
+        }
+        return String.format(Locale.ROOT, "%.1f", (double) total / samples);
     }
 }

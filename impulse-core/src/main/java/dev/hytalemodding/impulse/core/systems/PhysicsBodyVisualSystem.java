@@ -8,25 +8,28 @@ import com.hypixel.hytale.component.Store;
 import com.hypixel.hytale.component.query.Query;
 import com.hypixel.hytale.component.system.RefSystem;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
-import dev.hytalemodding.impulse.core.components.PhysicsBodyComponent;
+import dev.hytalemodding.impulse.core.components.PhysicsBodyVisualComponent;
 import dev.hytalemodding.impulse.core.resources.PhysicsWorldResource;
 import javax.annotation.Nonnull;
 
-public class PhysicsBodyOwnerSystem extends RefSystem<EntityStore> {
+/**
+ * Tracks runtime visual followers for physics bodies.
+ */
+public class PhysicsBodyVisualSystem extends RefSystem<EntityStore> {
 
     @Override
     public void onEntityAdded(@Nonnull Ref<EntityStore> ref,
         @Nonnull AddReason reason,
         @Nonnull Store<EntityStore> store,
         @Nonnull CommandBuffer<EntityStore> commandBuffer) {
-        PhysicsBodyComponent component = commandBuffer.getComponent(ref,
-            PhysicsBodyComponent.getComponentType());
+        PhysicsBodyVisualComponent component = commandBuffer.getComponent(ref,
+            PhysicsBodyVisualComponent.getComponentType());
         if (component == null) {
             return;
         }
 
         commandBuffer.getResource(PhysicsWorldResource.getResourceType())
-            .registerBodyOwner(component.getBody(), ref);
+            .registerBodyVisualFollower(component.getBody(), ref);
     }
 
     @Override
@@ -34,14 +37,14 @@ public class PhysicsBodyOwnerSystem extends RefSystem<EntityStore> {
         @Nonnull RemoveReason reason,
         @Nonnull Store<EntityStore> store,
         @Nonnull CommandBuffer<EntityStore> commandBuffer) {
-        PhysicsBodyComponent component = store.getComponent(ref,
-            PhysicsBodyComponent.getComponentType());
+        PhysicsBodyVisualComponent component = store.getComponent(ref,
+            PhysicsBodyVisualComponent.getComponentType());
         if (component == null) {
             return;
         }
 
         store.getResource(PhysicsWorldResource.getResourceType())
-            .unregisterBodyOwner(component.getBody(), ref);
+            .unregisterBodyVisualFollower(component.getBody(), ref);
         store.getResource(PhysicsWorldResource.getResourceType())
             .clearBodySyncState(ref);
     }
@@ -49,6 +52,6 @@ public class PhysicsBodyOwnerSystem extends RefSystem<EntityStore> {
     @Nonnull
     @Override
     public Query<EntityStore> getQuery() {
-        return PhysicsBodyComponent.getComponentType();
+        return PhysicsBodyVisualComponent.getComponentType();
     }
 }

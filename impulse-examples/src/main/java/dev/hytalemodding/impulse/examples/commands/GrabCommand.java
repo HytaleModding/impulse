@@ -97,6 +97,7 @@ public class GrabCommand extends AbstractAsyncPlayerCommand {
                 VIEW_OFFSET,
                 hitPoint
             ));
+        resource.markBodyControlled(body);
 
         ctx.sender().sendMessage(Message.raw("Grabbed physics body at distance "
             + selection.hit.distance()));

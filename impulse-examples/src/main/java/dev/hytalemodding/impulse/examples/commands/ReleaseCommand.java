@@ -62,6 +62,7 @@ public class ReleaseCommand extends AbstractAsyncPlayerCommand {
 
         PhysicsBody body = session.getBody();
         if (body != null) {
+            resource.clearControlledBody(body);
             PhysicsBodyType originalBodyType = session.getOriginalBodyType();
             body.setBodyType(originalBodyType);
             if (originalBodyType == PhysicsBodyType.DYNAMIC) {

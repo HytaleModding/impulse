@@ -140,6 +140,9 @@ public class PhysicsKinematicControlSystem extends EntityTickingSystem<EntitySto
     private static void cleanupSession(@Nonnull Store<EntityStore> store,
         @Nonnull PhysicsControlSessionComponent session) {
         PhysicsWorldResource resource = store.getResource(PhysicsWorldResource.getResourceType());
+        if (session.getBody() != null) {
+            resource.clearControlledBody(session.getBody());
+        }
         PhysicsSpace space = session.getSpaceId() != null ? resource.getSpace(session.getSpaceId()) : null;
         if (space == null) {
             return;
