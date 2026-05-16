@@ -23,6 +23,7 @@ import java.util.logging.Level;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 import lombok.Getter;
+import lombok.Setter;
 
 /**
  * ECS resource that holds the physics spaces for a world.
@@ -36,6 +37,7 @@ public class PhysicsWorldResource implements Resource<EntityStore> {
     private static final HytaleLogger LOGGER = HytaleLogger.get("Impulse");
     public static final int MIN_SIMULATION_STEPS = 1;
     public static final int MAX_SIMULATION_STEPS = 16;
+    public static final float DEFAULT_MAX_STEP_DT = 1f / 20f;
 
     private final Int2ObjectMap<PhysicsSpace> spaces = new Int2ObjectOpenHashMap<>();
 
@@ -58,6 +60,10 @@ public class PhysicsWorldResource implements Resource<EntityStore> {
     private SpaceId defaultSpaceId;
     @Getter
     private int simulationSteps = MIN_SIMULATION_STEPS;
+
+    @Getter
+    @Setter
+    private float maxStepDt = DEFAULT_MAX_STEP_DT;
 
     public PhysicsWorldResource() {
     }
@@ -272,6 +278,22 @@ public class PhysicsWorldResource implements Resource<EntityStore> {
         return owner;
     }
 
+    public void copyFrom(@Nonnull PhysicsWorldResource other) {
+        if (this == other) {
+            return;
+        }
+        spaces.clear();
+        spaceSettings.clear();
+        bodyOwners.clear();
+        worldVoxelCollisionCache.copyFrom(new WorldVoxelCollisionCache());
+        defaultSpaceId = other.defaultSpaceId;
+        simulationSteps = other.simulationSteps;
+        maxStepDt = other.maxStepDt;
+        for (var entry : other.spaceSettings.int2ObjectEntrySet()) {
+            spaceSettings.put(entry.getIntKey(), new PhysicsSpaceSettings(entry.getValue()));
+        }
+    }
+
     /**
      * Set how many fixed substeps are run for each server tick.
      * Higher values can improve stability at the cost of backend step time.
@@ -324,11 +346,7 @@ public class PhysicsWorldResource implements Resource<EntityStore> {
          * aliasing them would couple two logically separate resources to the same
          * physics objects. The clone only preserves structural configuration.
          */
-        for (var entry : spaceSettings.int2ObjectEntrySet()) {
-            copy.spaceSettings.put(entry.getIntKey(), new PhysicsSpaceSettings(entry.getValue()));
-        }
-        copy.defaultSpaceId = defaultSpaceId;
-        copy.simulationSteps = simulationSteps;
+        copy.copyFrom(this);
         return copy;
     }
 }
