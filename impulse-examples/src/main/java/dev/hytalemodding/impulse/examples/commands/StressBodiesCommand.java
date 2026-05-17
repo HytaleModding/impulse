@@ -44,7 +44,7 @@ public class StressBodiesCommand extends AbstractAsyncPlayerCommand {
         ArgTypes.INTEGER);
     private final OptionalArg<String> modeArg = this.withOptionalArg(
         "mode",
-        "Stress mode: entity, detached, or detached-view",
+        "Stress mode: detached-view (default), detached, or entity",
         ArgTypes.STRING);
     private final OptionalArg<String> visibilityArg = this.withOptionalArg(
         "visibility",
@@ -194,7 +194,7 @@ public class StressBodiesCommand extends AbstractAsyncPlayerCommand {
     @Nullable
     private StressMode parseMode(@Nonnull CommandContext ctx) {
         if (!modeArg.provided(ctx)) {
-            return StressMode.ENTITY;
+            return StressMode.DETACHED_VIEW;
         }
 
         String rawMode = modeArg.get(ctx).toLowerCase(Locale.ROOT);
