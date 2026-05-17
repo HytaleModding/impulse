@@ -6,17 +6,12 @@ import javax.annotation.Nonnull;
 /**
  * Backend-neutral collision geometry generated for one Hytale chunk section.
  */
-public final class SectionCollisionGeometry {
+public record SectionCollisionGeometry(int[] fullCubeVoxels, List<BoxCollider> mergedFullCubeBoxes,
+                                       List<BoxCollider> detailBoxes, int scannedBlocks,
+                                       int solidBlocks, int culledInteriorBlocks,
+                                       int detailBoxCount) {
 
     private static final int[] EMPTY_VOXELS = new int[0];
-
-    private final int[] fullCubeVoxels;
-    private final List<BoxCollider> mergedFullCubeBoxes;
-    private final List<BoxCollider> detailBoxes;
-    private final int scannedBlocks;
-    private final int solidBlocks;
-    private final int culledInteriorBlocks;
-    private final int detailBoxCount;
 
     public SectionCollisionGeometry(@Nonnull int[] fullCubeVoxels,
         @Nonnull List<BoxCollider> mergedFullCubeBoxes,
@@ -34,6 +29,7 @@ public final class SectionCollisionGeometry {
         this.detailBoxCount = detailBoxCount;
     }
 
+    @Override
     @Nonnull
     public int[] fullCubeVoxels() {
         return fullCubeVoxels.clone();
@@ -43,30 +39,16 @@ public final class SectionCollisionGeometry {
         return fullCubeVoxels.length > 0;
     }
 
+    @Override
     @Nonnull
     public List<BoxCollider> mergedFullCubeBoxes() {
         return mergedFullCubeBoxes;
     }
 
+    @Override
     @Nonnull
     public List<BoxCollider> detailBoxes() {
         return detailBoxes;
-    }
-
-    public int scannedBlocks() {
-        return scannedBlocks;
-    }
-
-    public int solidBlocks() {
-        return solidBlocks;
-    }
-
-    public int culledInteriorBlocks() {
-        return culledInteriorBlocks;
-    }
-
-    public int detailBoxCount() {
-        return detailBoxCount;
     }
 
     /**
@@ -78,5 +60,6 @@ public final class SectionCollisionGeometry {
                               double halfX,
                               double halfY,
                               double halfZ) {
+
     }
 }
