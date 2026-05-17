@@ -8,6 +8,7 @@ import dev.hytalemodding.impulse.api.PhysicsJoint;
 import dev.hytalemodding.impulse.api.PhysicsJointType;
 import dev.hytalemodding.impulse.api.PhysicsRayHit;
 import dev.hytalemodding.impulse.api.PhysicsSpace;
+import dev.hytalemodding.impulse.api.PhysicsSolverTuning;
 import dev.hytalemodding.impulse.api.ShapeType;
 import dev.hytalemodding.impulse.api.SpaceId;
 import java.lang.ref.Cleaner;
@@ -21,7 +22,7 @@ import javax.annotation.Nonnull;
 import org.joml.Quaternionf;
 import org.joml.Vector3f;
 
-public final class RapierSpace implements PhysicsSpace {
+public final class RapierSpace implements PhysicsSpace, PhysicsSolverTuning {
 
     private static final Cleaner CLEANER = Cleaner.create();
     private static final int RAY_HIT_FLOATS = 9;
@@ -29,11 +30,12 @@ public final class RapierSpace implements PhysicsSpace {
 
     private final SpaceId id;
     private final RapierBackend backend;
-    private final long nativeSpaceHandle;
+    private long nativeSpaceHandle;
     private final Cleaner.Cleanable cleanable;
     private final List<RapierBody> bodies = new ArrayList<>();
     private final Map<Long, RapierBody> bodiesByHandle = new HashMap<>();
     private final List<RapierJoint> joints = new ArrayList<>();
+    private boolean closed;
 
     RapierSpace(@Nonnull SpaceId id, @Nonnull RapierBackend backend, long nativeSpaceHandle) {
         if (nativeSpaceHandle == 0L) {
@@ -62,17 +64,33 @@ public final class RapierSpace implements PhysicsSpace {
         if (dt <= 0f) {
             return;
         }
+        ensureOpen();
         RapierNative.stepNative(nativeSpaceHandle, dt);
     }
 
     @Override
+    public void setSolverTuning(int solverIterations,
+        int internalPgsIterations,
+        int stabilizationIterations,
+        int minIslandSize) {
+        ensureOpen();
+        RapierNative.setSolverTuningNative(nativeSpaceHandle,
+            solverIterations,
+            internalPgsIterations,
+            stabilizationIterations,
+            minIslandSize);
+    }
+
+    @Override
     public void setGravity(float x, float y, float z) {
+        ensureOpen();
         RapierNative.setGravityNative(nativeSpaceHandle, x, y, z);
     }
 
     @Nonnull
     @Override
     public Vector3f getGravity() {
+        ensureOpen();
         float[] out = new float[3];
         RapierNative.getGravityNative(nativeSpaceHandle, out);
         return new Vector3f(out[0], out[1], out[2]);
@@ -80,6 +98,7 @@ public final class RapierSpace implements PhysicsSpace {
 
     @Override
     public void addBody(@Nonnull PhysicsBody body) {
+        ensureOpen();
         if (!(body instanceof RapierBody rapierBody)) {
             throw new IllegalArgumentException("Body does not belong to rapier backend");
         }
@@ -99,10 +118,16 @@ public final class RapierSpace implements PhysicsSpace {
 
     @Override
     public void removeBody(@Nonnull PhysicsBody body) {
+        if (closed) {
+            return;
+        }
         if (!(body instanceof RapierBody rapierBody)) {
             return;
         }
-        if (!rapierBody.isAttached()) {
+        if (!rapierBody.isAttachedTo(this)) {
+            if (rapierBody.isAttached()) {
+                throw new IllegalArgumentException("Rapier body belongs to another space");
+            }
             return;
         }
 
@@ -175,6 +200,7 @@ public final class RapierSpace implements PhysicsSpace {
         int shiftX,
         int shiftY,
         int shiftZ) {
+        ensureOpen();
         RapierBody rapierBodyA = requireAttachedBody(bodyA);
         RapierBody rapierBodyB = requireAttachedBody(bodyB);
         RapierNative.combineVoxelTerrainNative(nativeSpaceHandle,
@@ -218,6 +244,7 @@ public final class RapierSpace implements PhysicsSpace {
     @Nonnull
     @Override
     public Optional<PhysicsRayHit> raycastClosest(@Nonnull Vector3f from, @Nonnull Vector3f to) {
+        ensureOpen();
         List<PhysicsRayHit> hits = raycastAll(from, to);
         PhysicsRayHit closest = null;
         for (PhysicsRayHit hit : hits) {
@@ -231,6 +258,7 @@ public final class RapierSpace implements PhysicsSpace {
     @Nonnull
     @Override
     public List<PhysicsRayHit> raycastAll(@Nonnull Vector3f from, @Nonnull Vector3f to) {
+        ensureOpen();
         float[] raw = RapierNative.raycastAllNative(nativeSpaceHandle,
             from.x, from.y, from.z, to.x, to.y, to.z);
         List<PhysicsRayHit> hits = new ArrayList<>(raw.length / RAY_HIT_FLOATS);
@@ -249,6 +277,7 @@ public final class RapierSpace implements PhysicsSpace {
     @Nonnull
     @Override
     public List<PhysicsContact> getContacts() {
+        ensureOpen();
         float[] raw = RapierNative.getContactsNative(nativeSpaceHandle);
         List<PhysicsContact> contacts = new ArrayList<>(raw.length / CONTACT_FLOATS);
         for (int i = 0; i + CONTACT_FLOATS <= raw.length; i += CONTACT_FLOATS) {
@@ -323,11 +352,22 @@ public final class RapierSpace implements PhysicsSpace {
 
     @Override
     public void removeJoint(@Nonnull PhysicsJoint joint) {
+        if (closed) {
+            return;
+        }
         if (!(joint instanceof RapierJoint rapierJoint)) {
+            return;
+        }
+        if (!rapierJoint.belongsTo(this)) {
+            throw new IllegalArgumentException("Rapier joint belongs to another space");
+        }
+        if (!rapierJoint.isValidIn(this)) {
+            joints.remove(rapierJoint);
             return;
         }
         RapierNative.removeJointNative(nativeSpaceHandle, rapierJoint.getJointHandle());
         joints.remove(rapierJoint);
+        rapierJoint.invalidate(this);
     }
 
     @Nonnull
@@ -349,12 +389,31 @@ public final class RapierSpace implements PhysicsSpace {
     }
 
     long getNativeSpaceHandle() {
+        ensureOpen();
         return nativeSpaceHandle;
+    }
+
+    boolean isClosed() {
+        return closed;
     }
 
     @Override
     public void close() {
+        if (closed) {
+            return;
+        }
+        closed = true;
+        for (RapierJoint joint : new ArrayList<>(joints)) {
+            joint.invalidate(this);
+        }
+        joints.clear();
+        for (RapierBody body : new ArrayList<>(bodies)) {
+            body.detach(this);
+        }
+        bodies.clear();
+        bodiesByHandle.clear();
         cleanable.clean();
+        nativeSpaceHandle = 0L;
     }
 
     private void removeAttachedJoints(@Nonnull RapierBody body) {
@@ -365,6 +424,7 @@ public final class RapierSpace implements PhysicsSpace {
 
             RapierNative.removeJointNative(nativeSpaceHandle, joint.getJointHandle());
             joints.remove(joint);
+            joint.invalidate(this);
         }
     }
 
@@ -437,6 +497,7 @@ public final class RapierSpace implements PhysicsSpace {
         float restLength,
         float stiffness,
         float damping) {
+        ensureOpen();
         RapierBody rapierA = requireAttachedBody(bodyA);
         RapierBody rapierB = requireAttachedBody(bodyB);
         Vector3f normalizedAxis = normalizedOrDefault(axis);
@@ -469,10 +530,19 @@ public final class RapierSpace implements PhysicsSpace {
         if (!(body instanceof RapierBody rapierBody)) {
             throw new IllegalArgumentException("Body does not belong to rapier backend");
         }
-        if (!rapierBody.isAttached()) {
+        if (!rapierBody.isAttachedTo(this)) {
+            if (rapierBody.isAttached()) {
+                throw new IllegalArgumentException("Rapier body belongs to another space");
+            }
             throw new IllegalStateException("Rapier joint bodies must be added to a space first");
         }
         return rapierBody;
+    }
+
+    private void ensureOpen() {
+        if (closed || nativeSpaceHandle == 0L) {
+            throw new IllegalStateException("Rapier space is closed");
+        }
     }
 
     private static Vector3f normalizedOrDefault(@Nonnull Vector3f axis) {

@@ -11,6 +11,8 @@ import org.joml.Vector3f;
 
 public final class RapierBody implements PhysicsBody {
 
+    private static final float DEFAULT_DYNAMIC_MASS = 1.0f;
+
     private final ShapeType shapeType;
     private final Vector3f boxHalfExtents;
     private final float sphereRadius;
@@ -218,6 +220,13 @@ public final class RapierBody implements PhysicsBody {
 
     @Override
     public void setBodyType(@Nonnull PhysicsBodyType bodyType) {
+        if (bodyType == PhysicsBodyType.STATIC) {
+            if (mass != 0f) {
+                setMass(0f);
+            }
+        } else if (mass <= 0f) {
+            setMass(DEFAULT_DYNAMIC_MASS);
+        }
         this.bodyType = bodyType;
         if (isAttached()) {
             RapierNative.setBodyTypeNative(getSpaceHandle(), bodyHandle, bodyType.ordinal());
@@ -529,6 +538,10 @@ public final class RapierBody implements PhysicsBody {
 
     boolean isAttached() {
         return space != null && bodyHandle != 0L;
+    }
+
+    boolean isAttachedTo(@Nonnull RapierSpace owner) {
+        return space == owner && bodyHandle != 0L;
     }
 
     void attach(@Nonnull RapierSpace space, long bodyHandle) {

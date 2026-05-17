@@ -67,6 +67,12 @@ final class RapierNative {
 
     static native void stepNative(long spaceHandle, float dt);
 
+    static native void setSolverTuningNative(long spaceHandle,
+        int solverIterations,
+        int internalPgsIterations,
+        int stabilizationIterations,
+        int minIslandSize);
+
     static native long addBodyNative(long spaceHandle,
         int shapeType,
         float halfX,

@@ -25,6 +25,7 @@ final class RapierJoint implements PhysicsJoint {
     private final float springRestLength;
     private final float springStiffness;
     private final float springDamping;
+    private boolean valid = true;
 
     RapierJoint(@Nonnull RapierSpace space,
         @Nonnull PhysicsJointType type,
@@ -70,11 +71,17 @@ final class RapierJoint implements PhysicsJoint {
 
     @Override
     public boolean isEnabled() {
+        if (!canUseNative()) {
+            return false;
+        }
         return RapierNative.isJointEnabledNative(space.getNativeSpaceHandle(), jointHandle);
     }
 
     @Override
     public void setEnabled(boolean enabled) {
+        if (!canUseNative()) {
+            return;
+        }
         RapierNative.setJointEnabledNative(space.getNativeSpaceHandle(), jointHandle, enabled);
     }
 
@@ -110,6 +117,9 @@ final class RapierJoint implements PhysicsJoint {
     public void setLimits(float lowerLimit, float upperLimit) {
         this.lowerLimit = lowerLimit;
         this.upperLimit = upperLimit;
+        if (!canUseNative()) {
+            return;
+        }
         RapierNative.setJointLimitsNative(space.getNativeSpaceHandle(), jointHandle,
             lowerLimit, upperLimit);
     }
@@ -161,8 +171,29 @@ final class RapierJoint implements PhysicsJoint {
         return jointHandle;
     }
 
+    boolean belongsTo(@Nonnull RapierSpace owner) {
+        return space == owner;
+    }
+
+    boolean isValidIn(@Nonnull RapierSpace owner) {
+        return belongsTo(owner) && valid && !space.isClosed();
+    }
+
+    void invalidate(@Nonnull RapierSpace owner) {
+        if (space == owner) {
+            valid = false;
+        }
+    }
+
     private void pushMotor() {
+        if (!canUseNative()) {
+            return;
+        }
         RapierNative.setJointMotorNative(space.getNativeSpaceHandle(), jointHandle,
             motorEnabled, motorTargetVelocity, motorMaxForce);
+    }
+
+    private boolean canUseNative() {
+        return valid && !space.isClosed();
     }
 }
