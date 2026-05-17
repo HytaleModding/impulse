@@ -18,9 +18,8 @@ import javax.annotation.Nullable;
 /**
  * Runtime ownership index for backend physics bodies.
  *
- * <p>{@link PhysicsWorldResource} remains the public world resource API. This
- * helper keeps body ownership, detached visual proxy, and visual interest
- * bookkeeping separate from space/settings lifecycle code.</p>
+ * <p>Centralizes body ownership, detached visual proxy, and visual interest
+ * bookkeeping for the world physics resource.</p>
  */
 final class PhysicsBodyRegistry {
 
