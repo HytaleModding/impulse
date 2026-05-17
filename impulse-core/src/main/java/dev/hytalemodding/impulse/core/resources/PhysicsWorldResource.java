@@ -21,7 +21,6 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.IdentityHashMap;
 import java.util.List;
-import java.util.Map;
 import java.util.Set;
 import java.util.logging.Level;
 import javax.annotation.Nonnull;
@@ -52,15 +51,7 @@ public class PhysicsWorldResource implements Resource<EntityStore> {
      */
     private final Int2ObjectMap<PhysicsSpaceSettings> spaceSettings = new Int2ObjectOpenHashMap<>();
 
-    private final Map<PhysicsBody, Ref<EntityStore>> bodyOwners = new IdentityHashMap<>();
-    private final Map<PhysicsBody, BodyRegistration> bodyRegistrations = new IdentityHashMap<>();
-    private final Set<PhysicsBody> detachedBodies =
-        Collections.newSetFromMap(new IdentityHashMap<>());
-    private final Map<PhysicsBody, Ref<EntityStore>> detachedVisualProxies = new IdentityHashMap<>();
-    private final List<VisualInterest> syntheticVisualInterests = new ArrayList<>();
-    private final Map<PhysicsBody, Set<Ref<EntityStore>>> bodyVisualFollowers = new IdentityHashMap<>();
-    private final Map<PhysicsBody, BodyVisualInterestState> bodyVisualInterestStates =
-        new IdentityHashMap<>();
+    private final PhysicsBodyRegistry bodyRegistry = new PhysicsBodyRegistry(this::clearBodySyncState);
 
     @Getter
     private final WorldVoxelCollisionCache worldVoxelCollisionCache = new WorldVoxelCollisionCache();
@@ -329,25 +320,9 @@ public class PhysicsWorldResource implements Resource<EntityStore> {
 
     @Nonnull
     public Collection<Ref<EntityStore>> getBodyOwners() {
-        List<Ref<EntityStore>> owners = new ArrayList<>();
         List<PhysicsBody> staleBodies = new ArrayList<>();
-        for (Map.Entry<PhysicsBody, Ref<EntityStore>> entry : bodyOwners.entrySet()) {
-            Ref<EntityStore> owner = entry.getValue();
-            if (owner != null && owner.isValid()) {
-                owners.add(owner);
-            } else {
-                staleBodies.add(entry.getKey());
-            }
-        }
+        Collection<Ref<EntityStore>> owners = bodyRegistry.getBodyOwners(staleBodies);
         for (PhysicsBody body : staleBodies) {
-            Ref<EntityStore> staleOwner = bodyOwners.remove(body);
-            if (staleOwner != null) {
-                clearBodySyncState(staleOwner);
-            }
-            BodyRegistration registration = bodyRegistrations.get(body);
-            if (registration != null && registration.ownerKind() == BodyOwnerKind.ENTITY) {
-                bodyRegistrations.remove(body);
-            }
             clearBodyRuntimeState(body);
         }
         return owners;
@@ -355,47 +330,15 @@ public class PhysicsWorldResource implements Resource<EntityStore> {
 
     @Nonnull
     public Collection<Ref<EntityStore>> getBodyVisualFollowers(@Nonnull PhysicsBody body) {
-        Set<Ref<EntityStore>> followers = bodyVisualFollowers.get(body);
-        if (followers == null || followers.isEmpty()) {
-            return List.of();
-        }
-
-        List<Ref<EntityStore>> liveFollowers = new ArrayList<>();
-        List<Ref<EntityStore>> staleFollowers = new ArrayList<>();
-        for (Ref<EntityStore> follower : followers) {
-            if (follower != null && follower.isValid()) {
-                liveFollowers.add(follower);
-            } else {
-                staleFollowers.add(follower);
-            }
-        }
-        followers.removeAll(staleFollowers);
-        for (Ref<EntityStore> staleFollower : staleFollowers) {
-            if (staleFollower != null) {
-                clearBodySyncState(staleFollower);
-            }
-        }
-        if (followers.isEmpty()) {
-            bodyVisualFollowers.remove(body);
-        }
-        return liveFollowers;
+        return bodyRegistry.getBodyVisualFollowers(body);
     }
 
     public void registerBodyVisualFollower(@Nonnull PhysicsBody body, @Nonnull Ref<EntityStore> follower) {
-        bodyVisualFollowers.computeIfAbsent(body, ignored -> Collections.newSetFromMap(new IdentityHashMap<>()))
-            .add(follower);
+        bodyRegistry.registerBodyVisualFollower(body, follower);
     }
 
     public void unregisterBodyVisualFollower(@Nonnull PhysicsBody body, @Nonnull Ref<EntityStore> follower) {
-        Set<Ref<EntityStore>> followers = bodyVisualFollowers.get(body);
-        if (followers == null) {
-            return;
-        }
-
-        followers.remove(follower);
-        if (followers.isEmpty()) {
-            bodyVisualFollowers.remove(body);
-        }
+        bodyRegistry.unregisterBodyVisualFollower(body, follower);
     }
 
     public void registerBodyOwner(@Nonnull PhysicsBody body, @Nonnull Ref<EntityStore> owner) {
@@ -405,50 +348,21 @@ public class PhysicsWorldResource implements Resource<EntityStore> {
     public void registerEntityBody(@Nonnull PhysicsBody body,
         @Nullable SpaceId spaceId,
         @Nonnull Ref<EntityStore> owner) {
-        bodyOwners.put(body, owner);
-        detachedBodies.remove(body);
-        bodyRegistrations.put(body, new BodyRegistration(body,
-            spaceId,
-            BodyOwnerKind.ENTITY,
-            owner,
-            true));
+        bodyRegistry.registerEntityBody(body, spaceId, owner);
     }
 
     public void registerDetachedBody(@Nonnull PhysicsBody body, @Nullable SpaceId spaceId) {
-        Ref<EntityStore> previousOwner = bodyOwners.remove(body);
-        if (previousOwner != null) {
-            clearBodySyncState(previousOwner);
-        }
-        detachedBodies.add(body);
-        detachedVisualProxies.remove(body);
-        bodyRegistrations.put(body, new BodyRegistration(body,
-            spaceId,
-            BodyOwnerKind.DETACHED,
-            null,
-            false));
+        bodyRegistry.registerDetachedBody(body, spaceId);
     }
 
     public void unregisterBodyOwner(@Nonnull PhysicsBody body, @Nonnull Ref<EntityStore> owner) {
-        Ref<EntityStore> current = bodyOwners.get(body);
-        if (current == owner || owner.equals(current)) {
-            bodyOwners.remove(body);
-            BodyRegistration registration = bodyRegistrations.get(body);
-            if (registration != null
-                && registration.ownerKind() == BodyOwnerKind.ENTITY
-                && sameRef(registration.ownerRef(), owner)) {
-                bodyRegistrations.remove(body);
-            }
+        if (bodyRegistry.unregisterBodyOwner(body, owner)) {
             clearBodyRuntimeState(body);
         }
     }
 
     public void unregisterBody(@Nonnull PhysicsBody body, boolean removeFromSpace) {
-        BodyRegistration registration = bodyRegistrations.remove(body);
-        detachedBodies.remove(body);
-        Ref<EntityStore> owner = bodyOwners.remove(body);
-        if (owner != null) {
-            clearBodySyncState(owner);
-        }
+        BodyRegistration registration = bodyRegistry.unregisterBody(body);
         clearBodyRuntimeState(body);
         if (removeFromSpace) {
             removeBodyFromSpace(body, registration);
@@ -457,15 +371,13 @@ public class PhysicsWorldResource implements Resource<EntityStore> {
 
     @Nullable
     public BodyRegistration getBodyRegistration(@Nonnull PhysicsBody body) {
-        BodyRegistration registration = bodyRegistrations.get(body);
+        BodyRegistration registration = bodyRegistry.getBodyRegistration(body);
         if (registration == null) {
             return null;
         }
         Ref<EntityStore> owner = registration.ownerRef();
         if (registration.ownerKind() == BodyOwnerKind.ENTITY && owner != null && !owner.isValid()) {
-            bodyRegistrations.remove(body);
-            bodyOwners.remove(body);
-            clearBodySyncState(owner);
+            bodyRegistry.removeInvalidEntityOwner(body);
             clearBodyRuntimeState(body);
             return null;
         }
@@ -474,53 +386,37 @@ public class PhysicsWorldResource implements Resource<EntityStore> {
 
     @Nonnull
     public Collection<PhysicsBody> getDetachedBodies() {
-        return new ArrayList<>(detachedBodies);
+        return bodyRegistry.getDetachedBodies();
     }
 
     @Nullable
     public Ref<EntityStore> getDetachedVisualProxy(@Nonnull PhysicsBody body) {
-        Ref<EntityStore> proxy = detachedVisualProxies.get(body);
-        if (proxy != null && !proxy.isValid()) {
-            detachedVisualProxies.remove(body);
-            clearBodySyncState(proxy);
-            return null;
-        }
-        return proxy;
+        return bodyRegistry.getDetachedVisualProxy(body);
     }
 
     public void setDetachedVisualProxy(@Nonnull PhysicsBody body, @Nonnull Ref<EntityStore> proxy) {
-        detachedVisualProxies.put(body, proxy);
+        bodyRegistry.setDetachedVisualProxy(body, proxy);
     }
 
     public void clearDetachedVisualProxy(@Nonnull PhysicsBody body) {
-        Ref<EntityStore> proxy = detachedVisualProxies.remove(body);
-        if (proxy != null) {
-            clearBodySyncState(proxy);
-        }
+        bodyRegistry.clearDetachedVisualProxy(body);
     }
 
     public void setSyntheticVisualInterests(@Nonnull Collection<VisualInterest> interests) {
-        syntheticVisualInterests.clear();
-        syntheticVisualInterests.addAll(interests);
+        bodyRegistry.setSyntheticVisualInterests(interests);
     }
 
     @Nonnull
     public List<VisualInterest> getSyntheticVisualInterests() {
-        return new ArrayList<>(syntheticVisualInterests);
+        return bodyRegistry.getSyntheticVisualInterests();
     }
 
     public void clearSyntheticVisualInterests() {
-        syntheticVisualInterests.clear();
+        bodyRegistry.clearSyntheticVisualInterests();
     }
 
     public void clearBodyOwners() {
-        bodyOwners.clear();
-        bodyRegistrations.clear();
-        detachedBodies.clear();
-        detachedVisualProxies.clear();
-        syntheticVisualInterests.clear();
-        bodyVisualFollowers.clear();
-        bodyVisualInterestStates.clear();
+        bodyRegistry.clear();
         forcedContinuousCollisionBodies.clear();
         bodySyncStates.clear();
         controlledBodies.clear();
@@ -544,12 +440,12 @@ public class PhysicsWorldResource implements Resource<EntityStore> {
 
     @Nonnull
     public BodyVisualInterestState getOrCreateBodyVisualInterestState(@Nonnull PhysicsBody body) {
-        return bodyVisualInterestStates.computeIfAbsent(body, ignored -> new BodyVisualInterestState());
+        return bodyRegistry.getOrCreateBodyVisualInterestState(body);
     }
 
     @Nullable
     public BodyVisualInterestState getBodyVisualInterestState(@Nonnull PhysicsBody body) {
-        return bodyVisualInterestStates.get(body);
+        return bodyRegistry.getBodyVisualInterestState(body);
     }
 
     public void markBodyControlled(@Nonnull PhysicsBody body) {
@@ -597,9 +493,7 @@ public class PhysicsWorldResource implements Resource<EntityStore> {
     }
 
     public void clearBodyRuntimeState(@Nonnull PhysicsBody body) {
-        bodyVisualFollowers.remove(body);
-        bodyVisualInterestStates.remove(body);
-        detachedVisualProxies.remove(body);
+        bodyRegistry.clearBodyRuntimeState(body);
         forcedContinuousCollisionBodies.remove(body);
         controlledBodies.remove(body);
         chunkBoundarySafeStates.remove(body);
@@ -621,14 +515,9 @@ public class PhysicsWorldResource implements Resource<EntityStore> {
 
     @Nullable
     public Ref<EntityStore> getBodyOwner(@Nonnull PhysicsBody body) {
-        Ref<EntityStore> owner = bodyOwners.get(body);
+        Ref<EntityStore> owner = bodyRegistry.getBodyOwner(body);
         if (owner != null && !owner.isValid()) {
-            bodyOwners.remove(body);
-            BodyRegistration registration = bodyRegistrations.get(body);
-            if (registration != null && registration.ownerKind() == BodyOwnerKind.ENTITY) {
-                bodyRegistrations.remove(body);
-            }
-            clearBodySyncState(owner);
+            bodyRegistry.removeInvalidEntityOwner(body);
             clearBodyRuntimeState(body);
             return null;
         }
@@ -641,13 +530,7 @@ public class PhysicsWorldResource implements Resource<EntityStore> {
         }
         spaces.clear();
         spaceSettings.clear();
-        bodyOwners.clear();
-        bodyRegistrations.clear();
-        detachedBodies.clear();
-        detachedVisualProxies.clear();
-        syntheticVisualInterests.clear();
-        bodyVisualFollowers.clear();
-        bodyVisualInterestStates.clear();
+        bodyRegistry.clear();
         forcedContinuousCollisionBodies.clear();
         bodySyncStates.clear();
         controlledBodies.clear();
@@ -729,10 +612,6 @@ public class PhysicsWorldResource implements Resource<EntityStore> {
         for (PhysicsSpace space : spaces.values()) {
             space.removeBody(body);
         }
-    }
-
-    private static boolean sameRef(@Nullable Ref<EntityStore> left, @Nonnull Ref<EntityStore> right) {
-        return left == right || right.equals(left);
     }
 
     public enum BodyOwnerKind {
