@@ -10,6 +10,7 @@ import dev.hytalemodding.impulse.api.Impulse;
 import dev.hytalemodding.impulse.api.PhysicsBody;
 import dev.hytalemodding.impulse.api.PhysicsBodyType;
 import dev.hytalemodding.impulse.api.PhysicsSpace;
+import dev.hytalemodding.impulse.api.PhysicsSolverTuning;
 import dev.hytalemodding.impulse.api.SpaceId;
 import dev.hytalemodding.impulse.core.ImpulsePlugin;
 import dev.hytalemodding.impulse.core.voxel.WorldVoxelCollisionCache;
@@ -42,7 +43,7 @@ public class PhysicsWorldResource implements Resource<EntityStore> {
     private static final HytaleLogger LOGGER = HytaleLogger.get("Impulse");
     public static final int MIN_SIMULATION_STEPS = 1;
     public static final int MAX_SIMULATION_STEPS = 16;
-    public static final float DEFAULT_MAX_STEP_DT = 1f / 20f;
+    public static final float DEFAULT_MAX_STEP_DT = 1f / 30f;
 
     private final Int2ObjectMap<PhysicsSpace> spaces = new Int2ObjectOpenHashMap<>();
 
@@ -52,7 +53,14 @@ public class PhysicsWorldResource implements Resource<EntityStore> {
     private final Int2ObjectMap<PhysicsSpaceSettings> spaceSettings = new Int2ObjectOpenHashMap<>();
 
     private final Map<PhysicsBody, Ref<EntityStore>> bodyOwners = new IdentityHashMap<>();
+    private final Map<PhysicsBody, BodyRegistration> bodyRegistrations = new IdentityHashMap<>();
+    private final Set<PhysicsBody> detachedBodies =
+        Collections.newSetFromMap(new IdentityHashMap<>());
+    private final Map<PhysicsBody, Ref<EntityStore>> detachedVisualProxies = new IdentityHashMap<>();
+    private final List<VisualInterest> syntheticVisualInterests = new ArrayList<>();
     private final Map<PhysicsBody, Set<Ref<EntityStore>>> bodyVisualFollowers = new IdentityHashMap<>();
+    private final Map<PhysicsBody, BodyVisualInterestState> bodyVisualInterestStates =
+        new IdentityHashMap<>();
 
     @Getter
     private final WorldVoxelCollisionCache worldVoxelCollisionCache = new WorldVoxelCollisionCache();
@@ -134,6 +142,7 @@ public class PhysicsWorldResource implements Resource<EntityStore> {
     }
 
     public void setStepMode(@Nonnull PhysicsStepMode stepMode) {
+        validateStepModeSupported(stepMode);
         this.stepMode = stepMode;
     }
 
@@ -183,6 +192,13 @@ public class PhysicsWorldResource implements Resource<EntityStore> {
             settings.getWorldCollisionMode());
 
         PhysicsSpace space = Impulse.createSpace(backendId, spaceId);
+        try {
+            validateSpaceCompatibleWithStepMode(space, stepMode);
+            applySolverTuning(space, settings);
+        } catch (RuntimeException exception) {
+            closeSpaceQuietly(space, worldName, "discarding failed physics space");
+            throw exception;
+        }
         spaces.put(space.getId().value(), space);
         spaceSettings.put(space.getId().value(), new PhysicsSpaceSettings(settings));
         if (makeDefault) {
@@ -234,6 +250,7 @@ public class PhysicsWorldResource implements Resource<EntityStore> {
                 worldName,
                 removed.getId(),
                 removed.getBackendId());
+            closeSpaceQuietly(removed, worldName, "removed physics space");
         }
     }
 
@@ -257,11 +274,54 @@ public class PhysicsWorldResource implements Resource<EntityStore> {
     }
 
     public void setSpaceSettings(@Nonnull SpaceId spaceId, @Nonnull PhysicsSpaceSettings settings) {
-        if (!spaces.containsKey(spaceId.value())) {
+        PhysicsSpace space = spaces.get(spaceId.value());
+        if (space == null) {
             throw new IllegalArgumentException("Physics space id=" + spaceId
                 + " is not registered");
         }
+        applySolverTuning(space, settings);
         spaceSettings.put(spaceId.value(), new PhysicsSpaceSettings(settings));
+    }
+
+    private void validateStepModeSupported(@Nonnull PhysicsStepMode stepMode) {
+        if (stepMode != PhysicsStepMode.CCD) {
+            return;
+        }
+
+        List<String> unsupportedSpaces = new ArrayList<>();
+        for (PhysicsSpace space : spaces.values()) {
+            if (!space.supportsContinuousCollision()) {
+                unsupportedSpaces.add(formatSpace(space));
+            }
+        }
+        if (!unsupportedSpaces.isEmpty()) {
+            throw new IllegalArgumentException("CCD mode is not available for: "
+                + String.join(", ", unsupportedSpaces));
+        }
+    }
+
+    private static void validateSpaceCompatibleWithStepMode(@Nonnull PhysicsSpace space,
+        @Nonnull PhysicsStepMode stepMode) {
+        if (stepMode == PhysicsStepMode.CCD && !space.supportsContinuousCollision()) {
+            throw new IllegalArgumentException("CCD mode is not available for "
+                + formatSpace(space));
+        }
+    }
+
+    @Nonnull
+    private static String formatSpace(@Nonnull PhysicsSpace space) {
+        return "space " + space.getId().value() + " (" + space.getBackendId().value() + ")";
+    }
+
+    private static void applySolverTuning(@Nonnull PhysicsSpace space,
+        @Nonnull PhysicsSpaceSettings settings) {
+        if (!(space instanceof PhysicsSolverTuning tuning)) {
+            return;
+        }
+        tuning.setSolverTuning(settings.getSolverIterations(),
+            settings.getInternalPgsIterations(),
+            settings.getStabilizationIterations(),
+            settings.getMinIslandSize());
     }
 
     @Nonnull
@@ -280,6 +340,10 @@ public class PhysicsWorldResource implements Resource<EntityStore> {
             Ref<EntityStore> staleOwner = bodyOwners.remove(body);
             if (staleOwner != null) {
                 clearBodySyncState(staleOwner);
+            }
+            BodyRegistration registration = bodyRegistrations.get(body);
+            if (registration != null && registration.ownerKind() == BodyOwnerKind.ENTITY) {
+                bodyRegistrations.remove(body);
             }
             clearBodyRuntimeState(body);
         }
@@ -332,20 +396,128 @@ public class PhysicsWorldResource implements Resource<EntityStore> {
     }
 
     public void registerBodyOwner(@Nonnull PhysicsBody body, @Nonnull Ref<EntityStore> owner) {
+        registerEntityBody(body, null, owner);
+    }
+
+    public void registerEntityBody(@Nonnull PhysicsBody body,
+        @Nullable SpaceId spaceId,
+        @Nonnull Ref<EntityStore> owner) {
         bodyOwners.put(body, owner);
+        detachedBodies.remove(body);
+        bodyRegistrations.put(body, new BodyRegistration(body,
+            spaceId,
+            BodyOwnerKind.ENTITY,
+            owner,
+            true));
+    }
+
+    public void registerDetachedBody(@Nonnull PhysicsBody body, @Nullable SpaceId spaceId) {
+        Ref<EntityStore> previousOwner = bodyOwners.remove(body);
+        if (previousOwner != null) {
+            clearBodySyncState(previousOwner);
+        }
+        detachedBodies.add(body);
+        detachedVisualProxies.remove(body);
+        bodyRegistrations.put(body, new BodyRegistration(body,
+            spaceId,
+            BodyOwnerKind.DETACHED,
+            null,
+            false));
     }
 
     public void unregisterBodyOwner(@Nonnull PhysicsBody body, @Nonnull Ref<EntityStore> owner) {
         Ref<EntityStore> current = bodyOwners.get(body);
         if (current == owner || owner.equals(current)) {
             bodyOwners.remove(body);
+            BodyRegistration registration = bodyRegistrations.get(body);
+            if (registration != null
+                && registration.ownerKind() == BodyOwnerKind.ENTITY
+                && sameRef(registration.ownerRef(), owner)) {
+                bodyRegistrations.remove(body);
+            }
             clearBodyRuntimeState(body);
         }
     }
 
+    public void unregisterBody(@Nonnull PhysicsBody body, boolean removeFromSpace) {
+        BodyRegistration registration = bodyRegistrations.remove(body);
+        detachedBodies.remove(body);
+        Ref<EntityStore> owner = bodyOwners.remove(body);
+        if (owner != null) {
+            clearBodySyncState(owner);
+        }
+        clearBodyRuntimeState(body);
+        if (removeFromSpace) {
+            removeBodyFromSpace(body, registration);
+        }
+    }
+
+    @Nullable
+    public BodyRegistration getBodyRegistration(@Nonnull PhysicsBody body) {
+        BodyRegistration registration = bodyRegistrations.get(body);
+        if (registration == null) {
+            return null;
+        }
+        Ref<EntityStore> owner = registration.ownerRef();
+        if (registration.ownerKind() == BodyOwnerKind.ENTITY && owner != null && !owner.isValid()) {
+            bodyRegistrations.remove(body);
+            bodyOwners.remove(body);
+            clearBodySyncState(owner);
+            clearBodyRuntimeState(body);
+            return null;
+        }
+        return registration;
+    }
+
+    @Nonnull
+    public Collection<PhysicsBody> getDetachedBodies() {
+        return new ArrayList<>(detachedBodies);
+    }
+
+    @Nullable
+    public Ref<EntityStore> getDetachedVisualProxy(@Nonnull PhysicsBody body) {
+        Ref<EntityStore> proxy = detachedVisualProxies.get(body);
+        if (proxy != null && !proxy.isValid()) {
+            detachedVisualProxies.remove(body);
+            clearBodySyncState(proxy);
+            return null;
+        }
+        return proxy;
+    }
+
+    public void setDetachedVisualProxy(@Nonnull PhysicsBody body, @Nonnull Ref<EntityStore> proxy) {
+        detachedVisualProxies.put(body, proxy);
+    }
+
+    public void clearDetachedVisualProxy(@Nonnull PhysicsBody body) {
+        Ref<EntityStore> proxy = detachedVisualProxies.remove(body);
+        if (proxy != null) {
+            clearBodySyncState(proxy);
+        }
+    }
+
+    public void setSyntheticVisualInterests(@Nonnull Collection<VisualInterest> interests) {
+        syntheticVisualInterests.clear();
+        syntheticVisualInterests.addAll(interests);
+    }
+
+    @Nonnull
+    public List<VisualInterest> getSyntheticVisualInterests() {
+        return new ArrayList<>(syntheticVisualInterests);
+    }
+
+    public void clearSyntheticVisualInterests() {
+        syntheticVisualInterests.clear();
+    }
+
     public void clearBodyOwners() {
         bodyOwners.clear();
+        bodyRegistrations.clear();
+        detachedBodies.clear();
+        detachedVisualProxies.clear();
+        syntheticVisualInterests.clear();
         bodyVisualFollowers.clear();
+        bodyVisualInterestStates.clear();
         forcedContinuousCollisionBodies.clear();
         bodySyncStates.clear();
         controlledBodies.clear();
@@ -365,6 +537,16 @@ public class PhysicsWorldResource implements Resource<EntityStore> {
 
     public void clearBodySyncState(@Nonnull Ref<EntityStore> entityRef) {
         bodySyncStates.remove(entityRef);
+    }
+
+    @Nonnull
+    public BodyVisualInterestState getOrCreateBodyVisualInterestState(@Nonnull PhysicsBody body) {
+        return bodyVisualInterestStates.computeIfAbsent(body, ignored -> new BodyVisualInterestState());
+    }
+
+    @Nullable
+    public BodyVisualInterestState getBodyVisualInterestState(@Nonnull PhysicsBody body) {
+        return bodyVisualInterestStates.get(body);
     }
 
     public void markBodyControlled(@Nonnull PhysicsBody body) {
@@ -413,6 +595,8 @@ public class PhysicsWorldResource implements Resource<EntityStore> {
 
     public void clearBodyRuntimeState(@Nonnull PhysicsBody body) {
         bodyVisualFollowers.remove(body);
+        bodyVisualInterestStates.remove(body);
+        detachedVisualProxies.remove(body);
         forcedContinuousCollisionBodies.remove(body);
         controlledBodies.remove(body);
         chunkBoundarySafeStates.remove(body);
@@ -437,6 +621,10 @@ public class PhysicsWorldResource implements Resource<EntityStore> {
         Ref<EntityStore> owner = bodyOwners.get(body);
         if (owner != null && !owner.isValid()) {
             bodyOwners.remove(body);
+            BodyRegistration registration = bodyRegistrations.get(body);
+            if (registration != null && registration.ownerKind() == BodyOwnerKind.ENTITY) {
+                bodyRegistrations.remove(body);
+            }
             clearBodySyncState(owner);
             clearBodyRuntimeState(body);
             return null;
@@ -451,7 +639,12 @@ public class PhysicsWorldResource implements Resource<EntityStore> {
         spaces.clear();
         spaceSettings.clear();
         bodyOwners.clear();
+        bodyRegistrations.clear();
+        detachedBodies.clear();
+        detachedVisualProxies.clear();
+        syntheticVisualInterests.clear();
         bodyVisualFollowers.clear();
+        bodyVisualInterestStates.clear();
         forcedContinuousCollisionBodies.clear();
         bodySyncStates.clear();
         controlledBodies.clear();
@@ -492,6 +685,7 @@ public class PhysicsWorldResource implements Resource<EntityStore> {
         if (previous == null) {
             throw new IllegalStateException("Cannot replace missing physics space id=" + spaceId);
         }
+        validateSpaceCompatibleWithStepMode(replacement, stepMode);
 
         spaces.put(spaceId.value(), replacement);
         spaceSettings.putIfAbsent(spaceId.value(), PhysicsSpaceSettings.defaults());
@@ -502,6 +696,100 @@ public class PhysicsWorldResource implements Resource<EntityStore> {
             previous.getBackendId(),
             replacement.getBackendId());
         return previous;
+    }
+
+    private static void closeSpaceQuietly(@Nonnull PhysicsSpace space,
+        @Nonnull String worldName,
+        @Nonnull String action) {
+        try {
+            space.close();
+        } catch (RuntimeException exception) {
+            LOGGER.at(Level.WARNING).log(
+                "World %s failed to close %s id=%s backend=%s: %s",
+                worldName,
+                action,
+                space.getId(),
+                space.getBackendId(),
+                exception.getMessage());
+        }
+    }
+
+    private void removeBodyFromSpace(@Nonnull PhysicsBody body, @Nullable BodyRegistration registration) {
+        if (registration != null && registration.spaceId() != null) {
+            PhysicsSpace space = getSpace(registration.spaceId());
+            if (space != null) {
+                space.removeBody(body);
+                return;
+            }
+        }
+
+        for (PhysicsSpace space : spaces.values()) {
+            space.removeBody(body);
+        }
+    }
+
+    private static boolean sameRef(@Nullable Ref<EntityStore> left, @Nonnull Ref<EntityStore> right) {
+        return left == right || right.equals(left);
+    }
+
+    public enum BodyOwnerKind {
+        ENTITY,
+        DETACHED,
+        WORLD_COLLISION
+    }
+
+    public record BodyRegistration(@Nonnull PhysicsBody body,
+        @Nullable SpaceId spaceId,
+        @Nonnull BodyOwnerKind ownerKind,
+        @Nullable Ref<EntityStore> ownerRef,
+        boolean removeWithOwner) {
+    }
+
+    public record VisualInterest(@Nonnull Vector3f position, @Nullable Vector3f direction) {
+    }
+
+    public static final class BodyVisualInterestState {
+
+        private float nearestDistanceSquared = Float.POSITIVE_INFINITY;
+        private boolean inRange;
+        private boolean likelyVisible;
+        private boolean raycastVisible;
+        private int ticksSinceRaycast = Integer.MAX_VALUE;
+
+        public void recordInterest(float nearestDistanceSquared,
+            boolean likelyVisible,
+            boolean raycastVisible,
+            boolean raycastEvaluated) {
+            this.nearestDistanceSquared = nearestDistanceSquared;
+            inRange = nearestDistanceSquared != Float.POSITIVE_INFINITY;
+            this.likelyVisible = likelyVisible;
+            if (raycastEvaluated) {
+                this.raycastVisible = raycastVisible;
+                ticksSinceRaycast = 0;
+            } else if (ticksSinceRaycast < Integer.MAX_VALUE) {
+                ticksSinceRaycast++;
+            }
+        }
+
+        public boolean hasFreshRaycast(int cacheTicks) {
+            return ticksSinceRaycast <= cacheTicks;
+        }
+
+        public float getNearestDistanceSquared() {
+            return nearestDistanceSquared;
+        }
+
+        public boolean isInRange() {
+            return inRange;
+        }
+
+        public boolean isLikelyVisible() {
+            return likelyVisible;
+        }
+
+        public boolean isRaycastVisible() {
+            return raycastVisible;
+        }
     }
 
     public static final class ChunkBoundarySafeState {

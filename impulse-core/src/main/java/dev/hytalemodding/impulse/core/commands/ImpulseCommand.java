@@ -11,5 +11,6 @@ public class ImpulseCommand extends AbstractCommandCollection {
         addSubCommand(new DebugCommand());
         addSubCommand(new PerfCommand());
         addSubCommand(new SettingsCommand());
+        addSubCommand(new SpaceCommand());
     }
 }

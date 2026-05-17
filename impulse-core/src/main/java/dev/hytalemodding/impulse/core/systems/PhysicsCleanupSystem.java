@@ -44,6 +44,13 @@ public class PhysicsCleanupSystem extends RefSystem<EntityStore> {
         PhysicsBody body = component.getBody();
 
         PhysicsWorldResource resource = store.getResource(PhysicsWorldResource.getResourceType());
+        PhysicsWorldResource.BodyRegistration registration = resource.getBodyRegistration(body);
+        if (registration != null
+            && (registration.ownerKind() != PhysicsWorldResource.BodyOwnerKind.ENTITY
+            || !registration.removeWithOwner())) {
+            return;
+        }
+
         SpaceId spaceId = component.getSpaceId();
         PhysicsSpace space = spaceId != null ? resource.getSpace(spaceId)
             : resource.getDefaultSpace();

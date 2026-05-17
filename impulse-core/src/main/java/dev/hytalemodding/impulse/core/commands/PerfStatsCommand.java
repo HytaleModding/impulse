@@ -48,6 +48,7 @@ public class PerfStatsCommand extends AbstractWorldCommand {
                 + " static=" + stats.staticBodies
                 + " kinematic=" + stats.kinematicBodies
                 + " owned=" + stats.entityOwnedBodies
+                + " detached=" + stats.detachedBodies
                 + " worldCollision=" + stats.worldCollisionBodies
                 + " planes=" + stats.planeBodies
                 + " raw=" + stats.rawBodies
@@ -61,6 +62,7 @@ public class PerfStatsCommand extends AbstractWorldCommand {
             + " static=" + totals.staticBodies
             + " kinematic=" + totals.kinematicBodies
             + " owned=" + totals.entityOwnedBodies
+            + " detached=" + totals.detachedBodies
             + " worldCollision=" + totals.worldCollisionBodies
             + " planes=" + totals.planeBodies
             + " raw=" + totals.rawBodies
@@ -98,8 +100,13 @@ public class PerfStatsCommand extends AbstractWorldCommand {
             stats.staticBodies++;
         }
 
-        if (resource.getBodyOwner(body) != null) {
+        PhysicsWorldResource.BodyRegistration registration = resource.getBodyRegistration(body);
+        if (registration != null && registration.ownerKind() == PhysicsWorldResource.BodyOwnerKind.ENTITY) {
             stats.entityOwnedBodies++;
+            return;
+        }
+        if (registration != null && registration.ownerKind() == PhysicsWorldResource.BodyOwnerKind.DETACHED) {
+            stats.detachedBodies++;
             return;
         }
         if (body.getShapeType() == ShapeType.PLANE) {
@@ -122,6 +129,7 @@ public class PerfStatsCommand extends AbstractWorldCommand {
         private int staticBodies;
         private int kinematicBodies;
         private int entityOwnedBodies;
+        private int detachedBodies;
         private int worldCollisionBodies;
         private int planeBodies;
         private int rawBodies;
@@ -136,6 +144,7 @@ public class PerfStatsCommand extends AbstractWorldCommand {
             staticBodies += stats.staticBodies;
             kinematicBodies += stats.kinematicBodies;
             entityOwnedBodies += stats.entityOwnedBodies;
+            detachedBodies += stats.detachedBodies;
             worldCollisionBodies += stats.worldCollisionBodies;
             planeBodies += stats.planeBodies;
             rawBodies += stats.rawBodies;

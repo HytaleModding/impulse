@@ -50,6 +50,7 @@ public class PhysicsChunkBoundarySystem extends TickingSystem<EntityStore>
     implements QuerySystem<EntityStore> {
 
     private static final int TICKING_CHUNK_REQUEST_FLAGS = 4;
+    private static final int SLEEPING_BODY_CHECK_INTERVAL_TICKS = 30;
     private static final ComponentType<EntityStore, PhysicsBodyComponent> PHYSICS_BODY_TYPE =
         PhysicsBodyComponent.getComponentType();
     private static final ComponentType<EntityStore, TransformComponent> TRANSFORM_TYPE =
@@ -125,6 +126,21 @@ public class PhysicsChunkBoundarySystem extends TickingSystem<EntityStore>
         }
 
         long currentChunkIndex = currentChunkIndex(transform, chunkComponentStore);
+        if (body.isSleeping()) {
+            boolean canDeferSleepingCheck = resource.getChunkBoundarySafeState(body) != null
+                && !resource.isBodyControlled(body)
+                && isChunkTicking(currentChunkIndex, chunkStore, chunkComponentStore);
+            if (canDeferSleepingCheck) {
+                if (physicsBody.shouldDeferSleepingChunkBoundaryCheck(currentChunkIndex,
+                    SLEEPING_BODY_CHECK_INTERVAL_TICKS)) {
+                    return;
+                }
+            } else {
+                physicsBody.resetSleepingChunkBoundaryCheck();
+            }
+        } else {
+            physicsBody.resetSleepingChunkBoundaryCheck();
+        }
         body.getPosition(bodyPositionScratch);
         long targetChunkIndex = chunkIndex(bodyPositionScratch.x, bodyPositionScratch.z);
         if (currentChunkIndex == targetChunkIndex) {

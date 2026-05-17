@@ -22,7 +22,7 @@ public class StepModeCommand extends AbstractAsyncPlayerCommand {
 
     private final OptionalArg<String> modeArg = this.withOptionalArg(
         "mode",
-        "Physics step mode: progressive_refinement, fixed, or ccd",
+        "Physics step mode: progressive_refinement, adaptive, fixed, or ccd",
         ArgTypes.STRING);
 
     public StepModeCommand() {
@@ -48,7 +48,7 @@ public class StepModeCommand extends AbstractAsyncPlayerCommand {
             stepMode = PhysicsStepMode.parse(modeArg.get(ctx));
         } catch (IllegalArgumentException exception) {
             ctx.sender().sendMessage(Message.raw("Unknown step mode. Use one of: "
-                + "progressive_refinement, fixed, ccd."));
+                + "progressive_refinement, adaptive, fixed, ccd."));
             return CompletableFuture.completedFuture(null);
         }
 

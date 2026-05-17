@@ -7,24 +7,16 @@ import com.hypixel.hytale.server.core.command.system.CommandContext;
 import com.hypixel.hytale.server.core.command.system.basecommands.AbstractWorldCommand;
 import com.hypixel.hytale.server.core.universe.world.World;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
-import dev.hytalemodding.impulse.api.PhysicsBody;
-import dev.hytalemodding.impulse.api.PhysicsJoint;
 import dev.hytalemodding.impulse.api.PhysicsSpace;
-import dev.hytalemodding.impulse.api.ShapeType;
-import dev.hytalemodding.impulse.api.SpaceId;
 import dev.hytalemodding.impulse.core.components.PhysicsControlSessionComponent;
 import dev.hytalemodding.impulse.core.components.PhysicsBodyComponent;
+import dev.hytalemodding.impulse.core.components.PhysicsBodyVisualComponent;
 import dev.hytalemodding.impulse.core.resources.PhysicsWorldResource;
-import java.util.ArrayList;
-import java.util.List;
 import java.util.concurrent.atomic.AtomicInteger;
 import javax.annotation.Nonnull;
 
 /**
- * Removes entity-backed bodies, raw/orphan runtime bodies, and joints from the target world.
- *
- * <p>Static world scaffolding is preserved: default plane bodies and streamed world-collision
- * bodies stay registered so the space remains usable after cleanup.</p>
+ * Removes entity-backed bodies, detached visual bodies, runtime spaces, and joints from the target world.
  */
 public class CleanCommand extends AbstractWorldCommand {
 
@@ -43,6 +35,16 @@ public class CleanCommand extends AbstractWorldCommand {
                 commandBuffer.removeEntity(archetypeChunk.getReferenceTo(index), RemoveReason.REMOVE);
             });
 
+        AtomicInteger removedVisualEntities = new AtomicInteger();
+        store.forEachEntityParallel(PhysicsBodyVisualComponent.getComponentType(),
+            (index, archetypeChunk, commandBuffer) -> {
+                if (archetypeChunk.getComponent(index, PhysicsBodyComponent.getComponentType()) != null) {
+                    return;
+                }
+                removedVisualEntities.incrementAndGet();
+                commandBuffer.removeEntity(archetypeChunk.getReferenceTo(index), RemoveReason.REMOVE);
+            });
+
         AtomicInteger removedSessions = new AtomicInteger();
         store.forEachEntityParallel(PhysicsControlSessionComponent.getComponentType(),
             (index, archetypeChunk, commandBuffer) -> {
@@ -54,33 +56,20 @@ public class CleanCommand extends AbstractWorldCommand {
         PhysicsWorldResource resource = store.getResource(PhysicsWorldResource.getResourceType());
         int removedBodies = 0;
         int removedJoints = 0;
+        int removedSpaces = 0;
         for (PhysicsSpace space : resource.getSpaces()) {
-            List<PhysicsJoint> joints = new ArrayList<>(space.getJoints());
-            for (PhysicsJoint joint : joints) {
-                space.removeJoint(joint);
-                removedJoints++;
-            }
-
-            SpaceId spaceId = space.getId();
-            List<PhysicsBody> bodies = new ArrayList<>(space.getBodies());
-            for (PhysicsBody body : bodies) {
-                if (body.getShapeType() == ShapeType.PLANE) {
-                    continue;
-                }
-                if (resource.getWorldVoxelCollisionCache().containsBody(spaceId, body)) {
-                    continue;
-                }
-
-                resource.clearBodyRuntimeState(body);
-                space.removeBody(body);
-                removedBodies++;
-            }
+            removedSpaces++;
+            removedBodies += space.getBodies().size();
+            removedJoints += space.getJoints().size();
         }
+        resource.clearBodyOwners();
+        resource.clearAllSpaces(world.getName());
 
         context.sendMessage(Message.raw("Removed " + removedEntities.get()
-            + " Impulse physics entities, " + removedBodies + " non-entity runtime bodies, "
-            + removedJoints + " joints, and " + removedSessions.get()
+            + " Impulse physics entities, " + removedVisualEntities.get()
+            + " visual entities, " + removedBodies + " runtime bodies, "
+            + removedJoints + " joints, " + removedSpaces + " spaces, and " + removedSessions.get()
             + " control sessions in world " + world.getName()
-            + ". Preserved static plane and streamed world collision bodies."));
+            + ". No default physics space is recreated implicitly."));
     }
 }

@@ -2,6 +2,7 @@ package dev.hytalemodding.impulse.core.systems;
 
 import dev.hytalemodding.impulse.core.resources.PhysicsSpaceSettings;
 import dev.hytalemodding.impulse.core.resources.PhysicsWorldResource;
+import dev.hytalemodding.impulse.core.resources.VisualOcclusionMode;
 import java.util.List;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
@@ -29,36 +30,51 @@ final class PhysicsSyncPolicy {
         (float) Math.cos(Math.toRadians(3.0));
     private static final float MID_RANGE_ROTATION_SYNC_DOT_THRESHOLD =
         (float) Math.cos(Math.toRadians(8.0));
+    private static final float VISUAL_CONE_DOT_THRESHOLD =
+        (float) Math.cos(Math.toRadians(70.0));
+    private static final float CLOSE_VISUAL_RADIUS = 8.0f;
+    private static final float CLOSE_VISUAL_RADIUS_SQUARED =
+        CLOSE_VISUAL_RADIUS * CLOSE_VISUAL_RADIUS;
     // Keepalive updates bound how long an awake visual can stay below sync thresholds.
     private static final float ACTIVE_KEEPALIVE_SECONDS = 0.25f;
     private static final float LOW_SPEED_KEEPALIVE_SECONDS = 1.25f;
     private static final float MID_RANGE_KEEPALIVE_SECONDS = 2.5f;
+    private static final float SECONDS_PER_TICK = 0.05f;
 
     private PhysicsSyncPolicy() {
     }
 
     @Nonnull
     static SyncRangeTier resolveRangeTier(@Nullable PhysicsSpaceSettings settings,
+        @Nullable PhysicsWorldResource.BodyVisualInterestState visualInterestState,
         boolean rangeLimitedVisual,
         boolean controlled,
-        @Nonnull List<Vector3f> playerInterestPositions,
+        @Nonnull List<PlayerInterest> playerInterests,
         @Nonnull Vector3f visualPosition) {
         if (!rangeLimitedVisual || controlled) {
             return SyncRangeTier.NEAR;
         }
-        if (playerInterestPositions.isEmpty()) {
+        if (playerInterests.isEmpty()) {
             return SyncRangeTier.FAR;
         }
         if (settings == null) {
             return SyncRangeTier.NEAR;
         }
+        if (settings.getVisualOcclusionMode() == VisualOcclusionMode.CULL
+            && visualInterestState != null
+            && visualInterestState.hasFreshRaycast(settings.getVisualOcclusionCacheTicks())
+            && !visualInterestState.isRaycastVisible()) {
+            return SyncRangeTier.FAR;
+        }
 
         float fullRadiusSquared = square(settings.getVisualFullSyncRadius());
         float maxRadiusSquared = square(settings.getVisualMaxSyncRadius());
         float nearestDistanceSquared = Float.MAX_VALUE;
-        for (Vector3f playerPosition : playerInterestPositions) {
-            float distanceSquared = playerPosition.distanceSquared(visualPosition);
-            if (distanceSquared <= fullRadiusSquared) {
+        boolean visibilityCulling = settings.isVisualVisibilityCullingEnabled();
+        for (PlayerInterest playerInterest : playerInterests) {
+            float distanceSquared = playerInterest.position().distanceSquared(visualPosition);
+            if (distanceSquared <= fullRadiusSquared
+                && (!visibilityCulling || isLikelyVisible(playerInterest, visualPosition))) {
                 return SyncRangeTier.NEAR;
             }
             if (distanceSquared < nearestDistanceSquared) {
@@ -70,6 +86,7 @@ final class PhysicsSyncPolicy {
 
     @Nonnull
     static SyncDecision resolveSyncDecision(@Nonnull PhysicsWorldResource.BodySyncState syncState,
+        @Nullable PhysicsSpaceSettings settings,
         @Nonnull Vector3f position,
         @Nonnull Quaternionf rotation,
         boolean sleeping,
@@ -82,17 +99,34 @@ final class PhysicsSyncPolicy {
         if (sleeping != syncState.isSleeping()) {
             return SyncDecision.TRANSITION;
         }
-        if (rangeTier == SyncRangeTier.FAR) {
+        if (rangeTier == SyncRangeTier.FAR
+            && (settings == null || settings.isVisualFarSyncCutoffEnabled())) {
+            return SyncDecision.SKIP_VISUAL_RANGE;
+        }
+        if (sleeping && rangeTier != SyncRangeTier.NEAR) {
             return SyncDecision.SKIP_VISUAL_RANGE;
         }
 
         float positionThresholdSquared;
         float rotationDotThreshold;
         float keepaliveSeconds;
-        if (rangeTier == SyncRangeTier.MID && !controlled) {
+        int minimumIntervalTicks = 1;
+        if (rangeTier == SyncRangeTier.FAR && !controlled) {
+            positionThresholdSquared = MID_RANGE_POSITION_SYNC_THRESHOLD_SQUARED;
+            rotationDotThreshold = MID_RANGE_ROTATION_SYNC_DOT_THRESHOLD;
+            keepaliveSeconds = intervalSeconds(settings != null
+                ? settings.getVisualFarSyncIntervalTicks()
+                : PhysicsSpaceSettings.DEFAULT_VISUAL_FAR_SYNC_INTERVAL_TICKS);
+            minimumIntervalTicks = settings != null
+                ? settings.getVisualFarSyncIntervalTicks()
+                : PhysicsSpaceSettings.DEFAULT_VISUAL_FAR_SYNC_INTERVAL_TICKS;
+        } else if (rangeTier == SyncRangeTier.MID && !controlled) {
             positionThresholdSquared = MID_RANGE_POSITION_SYNC_THRESHOLD_SQUARED;
             rotationDotThreshold = MID_RANGE_ROTATION_SYNC_DOT_THRESHOLD;
             keepaliveSeconds = MID_RANGE_KEEPALIVE_SECONDS;
+            minimumIntervalTicks = settings != null
+                ? settings.getVisualMidSyncIntervalTicks()
+                : PhysicsSpaceSettings.DEFAULT_VISUAL_MID_SYNC_INTERVAL_TICKS;
         } else {
             positionThresholdSquared = lowSpeed && !controlled
                 ? LOW_SPEED_POSITION_SYNC_THRESHOLD_SQUARED : POSITION_SYNC_THRESHOLD_SQUARED;
@@ -100,6 +134,11 @@ final class PhysicsSyncPolicy {
                 ? LOW_SPEED_ROTATION_SYNC_DOT_THRESHOLD : ROTATION_SYNC_DOT_THRESHOLD;
             keepaliveSeconds = lowSpeed && !controlled
                 ? LOW_SPEED_KEEPALIVE_SECONDS : ACTIVE_KEEPALIVE_SECONDS;
+        }
+
+        if (minimumIntervalTicks > 1
+            && syncState.getSecondsSinceSync() < intervalSeconds(minimumIntervalTicks)) {
+            return SyncDecision.SKIP_VISUAL_RANGE;
         }
 
         if (position.distanceSquared(syncState.getLastSyncedPosition()) >= positionThresholdSquared
@@ -129,8 +168,31 @@ final class PhysicsSyncPolicy {
         return Math.min(dot, 1.0f) < dotThreshold;
     }
 
+    private static boolean isLikelyVisible(@Nonnull PlayerInterest playerInterest,
+        @Nonnull Vector3f visualPosition) {
+        float dx = visualPosition.x - playerInterest.position().x;
+        float dy = visualPosition.y - playerInterest.position().y;
+        float dz = visualPosition.z - playerInterest.position().z;
+        float distanceSquared = dx * dx + dy * dy + dz * dz;
+        if (distanceSquared <= CLOSE_VISUAL_RADIUS_SQUARED) {
+            return true;
+        }
+
+        Vector3f direction = playerInterest.direction();
+        float dot = (dx * direction.x + dy * direction.y + dz * direction.z)
+            / (float) Math.sqrt(distanceSquared);
+        return dot >= VISUAL_CONE_DOT_THRESHOLD;
+    }
+
     private static float square(float value) {
         return value * value;
+    }
+
+    private static float intervalSeconds(int ticks) {
+        return ticks * SECONDS_PER_TICK;
+    }
+
+    record PlayerInterest(@Nonnull Vector3f position, @Nonnull Vector3f direction) {
     }
 
     enum SyncDecision {

@@ -11,6 +11,9 @@ import com.hypixel.hytale.component.dependency.SystemDependency;
 import com.hypixel.hytale.component.dependency.SystemGroupDependency;
 import com.hypixel.hytale.component.query.Query;
 import com.hypixel.hytale.component.system.tick.EntityTickingSystem;
+import com.hypixel.hytale.math.vector.Rotation3f;
+import com.hypixel.hytale.math.vector.Vector3dUtil;
+import com.hypixel.hytale.server.core.modules.entity.component.HeadRotation;
 import com.hypixel.hytale.server.core.modules.entity.component.TransformComponent;
 import com.hypixel.hytale.server.core.modules.entity.system.UpdateLocationSystems;
 import com.hypixel.hytale.server.core.universe.PlayerRef;
@@ -28,6 +31,7 @@ import java.util.List;
 import java.util.Set;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
+import org.joml.Quaterniond;
 import org.joml.Quaternionf;
 import org.joml.Vector3d;
 import org.joml.Vector3f;
@@ -54,6 +58,8 @@ public class PhysicsSyncSystem extends EntityTickingSystem<EntityStore> {
         PHYSICS_BODY_VISUAL_TYPE = PhysicsBodyVisualComponent.getComponentType();
     private static final ComponentType<EntityStore, TransformComponent> TRANSFORM_TYPE =
         TransformComponent.getComponentType();
+    private static final ComponentType<EntityStore, HeadRotation> HEAD_ROTATION_TYPE =
+        HeadRotation.getComponentType();
 
     private static final Query<EntityStore> QUERY = Query.and(
         Query.or(PHYSICS_BODY_TYPE, PHYSICS_BODY_VISUAL_TYPE),
@@ -64,11 +70,11 @@ public class PhysicsSyncSystem extends EntityTickingSystem<EntityStore> {
     );
 
     /**
-     * Snapshot of player interest positions for the current world tick. The list is built on the
+     * Snapshot of player interest positions/directions for the current world tick. The list is built on the
      * world thread before any parallel entity iteration and then treated as immutable.
      */
     @Nonnull
-    private List<Vector3f> playerInterestPositions = List.of();
+    private List<PhysicsSyncPolicy.PlayerInterest> playerInterests = List.of();
 
     /**
      * Hytale may run entity ticks in parallel. Each worker needs independent temporary objects
@@ -95,7 +101,7 @@ public class PhysicsSyncSystem extends EntityTickingSystem<EntityStore> {
 
     @Override
     public void tick(float dt, int systemIndex, @Nonnull Store<EntityStore> store) {
-        playerInterestPositions = collectPlayerInterestPositions(store);
+        playerInterests = collectPlayerInterests(store);
         PhysicsRuntimeProfilingResource profiling = store.getResource(
             PhysicsRuntimeProfilingResource.getResourceType());
         PhysicsRuntimeProfilingResource.SyncCollector collector = profiling.isEnabled()
@@ -107,7 +113,7 @@ public class PhysicsSyncSystem extends EntityTickingSystem<EntityStore> {
             if (collector != null) {
                 profiling.finishSyncSample(collector, System.nanoTime() - startNanos);
             }
-            playerInterestPositions = List.of();
+            playerInterests = List.of();
         }
     }
 
@@ -122,6 +128,11 @@ public class PhysicsSyncSystem extends EntityTickingSystem<EntityStore> {
         PhysicsBodyVisualComponent visual = chunk.getComponent(index, PHYSICS_BODY_VISUAL_TYPE);
         TransformComponent transform = chunk.getComponent(index, TRANSFORM_TYPE);
         if ((physicsBody == null && visual == null) || transform == null) {
+            return;
+        }
+        if (visual == null
+            && physicsBody != null
+            && physicsBody.getOwnerVisualMode() == PhysicsBodyComponent.OwnerVisualMode.NONE) {
             return;
         }
 
@@ -162,16 +173,19 @@ public class PhysicsSyncSystem extends EntityTickingSystem<EntityStore> {
                 && local.angularVelocity.lengthSquared() <= LOW_SPEED_ANGULAR_THRESHOLD_SQUARED;
         }
 
-        boolean rangeLimitedVisual = visual != null && physicsBody == null;
+        PhysicsSpaceSettings settings = resolveSpaceSettings(resource, spaceId);
+        boolean rangeLimitedVisual = shouldCullVisualSync(settings, visual, physicsBody, controlled);
         PhysicsSyncPolicy.SyncRangeTier rangeTier = PhysicsSyncPolicy.resolveRangeTier(
-            resolveSpaceSettings(resource, spaceId),
+            settings,
+            resource.getBodyVisualInterestState(body),
             rangeLimitedVisual,
             controlled,
-            playerInterestPositions,
+            playerInterests,
             local.visualPosition);
 
         PhysicsWorldResource.BodySyncState syncState = resource.getOrCreateBodySyncState(entityRef);
         PhysicsSyncPolicy.SyncDecision decision = PhysicsSyncPolicy.resolveSyncDecision(syncState,
+            settings,
             local.visualPosition,
             local.visualRotation,
             sleeping,
@@ -214,8 +228,8 @@ public class PhysicsSyncSystem extends EntityTickingSystem<EntityStore> {
     }
 
     @Nonnull
-    private List<Vector3f> collectPlayerInterestPositions(@Nonnull Store<EntityStore> store) {
-        List<Vector3f> positions = new ArrayList<>();
+    private List<PhysicsSyncPolicy.PlayerInterest> collectPlayerInterests(@Nonnull Store<EntityStore> store) {
+        List<PhysicsSyncPolicy.PlayerInterest> interests = new ArrayList<>();
         for (PlayerRef playerRef : store.getExternalData().getWorld().getPlayerRefs()) {
             Ref<EntityStore> playerEntity = playerRef.getReference();
             if (playerEntity == null || !playerEntity.isValid()) {
@@ -228,9 +242,27 @@ public class PhysicsSyncSystem extends EntityTickingSystem<EntityStore> {
             }
 
             Vector3d position = transform.getPosition();
-            positions.add(new Vector3f((float) position.x, (float) position.y, (float) position.z));
+            interests.add(new PhysicsSyncPolicy.PlayerInterest(
+                new Vector3f((float) position.x, (float) position.y, (float) position.z),
+                playerLookDirection(store, playerEntity, transform)));
         }
-        return positions.isEmpty() ? List.of() : positions;
+        return interests.isEmpty() ? List.of() : interests;
+    }
+
+    @Nonnull
+    private Vector3f playerLookDirection(@Nonnull Store<EntityStore> store,
+        @Nonnull Ref<EntityStore> playerEntity,
+        @Nonnull TransformComponent transform) {
+        HeadRotation headRotation = store.getComponent(playerEntity, HEAD_ROTATION_TYPE);
+        Rotation3f rotation = headRotation != null ? headRotation.getRotation() : transform.getRotation();
+        Vector3d direction = new Vector3d(Vector3dUtil.FORWARD);
+        rotation.getQuaternion(new Quaterniond()).transform(direction);
+        if (direction.lengthSquared() == 0.0) {
+            direction.set(Vector3dUtil.FORWARD);
+        } else {
+            direction.normalize();
+        }
+        return new Vector3f((float) direction.x, (float) direction.y, (float) direction.z);
     }
 
     private void applyVisualPose(@Nonnull PhysicsBody body,
@@ -259,6 +291,19 @@ public class PhysicsSyncSystem extends EntityTickingSystem<EntityStore> {
         }
         SpaceId defaultSpaceId = resource.getDefaultSpaceId();
         return defaultSpaceId != null ? resource.getSpaceSettings(defaultSpaceId) : null;
+    }
+
+    private static boolean shouldCullVisualSync(@Nullable PhysicsSpaceSettings settings,
+        @Nullable PhysicsBodyVisualComponent visual,
+        @Nullable PhysicsBodyComponent physicsBody,
+        boolean controlled) {
+        if (controlled) {
+            return false;
+        }
+        if (visual != null && physicsBody == null) {
+            return true;
+        }
+        return settings != null && settings.isEntityVisualSyncCullingEnabled();
     }
 
     private static final class Scratch {

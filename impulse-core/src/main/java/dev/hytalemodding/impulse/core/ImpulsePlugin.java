@@ -38,6 +38,7 @@ import dev.hytalemodding.impulse.core.systems.PhysicsBodyVisualSystem;
 import dev.hytalemodding.impulse.core.systems.PhysicsChunkBoundarySystem;
 import dev.hytalemodding.impulse.core.systems.PhysicsCleanupSystem;
 import dev.hytalemodding.impulse.core.systems.PhysicsDebugSystem;
+import dev.hytalemodding.impulse.core.systems.PhysicsDetachedVisualMaterializationSystem;
 import dev.hytalemodding.impulse.core.systems.PhysicsKinematicControlSystem;
 import dev.hytalemodding.impulse.core.systems.PhysicsRuntimeHolderSystem;
 import dev.hytalemodding.impulse.core.systems.PhysicsStepSystem;
@@ -248,6 +249,7 @@ public final class ImpulsePlugin extends JavaPlugin {
         entityRegistry.registerSystem(new PhysicsBodyVisualSystem());
         entityRegistry.registerSystem(new PhysicsWorldCollisionStreamingSystem());
         entityRegistry.registerSystem(new PhysicsSyncSystem());
+        entityRegistry.registerSystem(new PhysicsDetachedVisualMaterializationSystem());
         entityRegistry.registerSystem(new PhysicsChunkBoundarySystem());
         entityRegistry.registerSystem(new PersistentPhysicsBodySyncSystem());
         entityRegistry.registerSystem(new PersistentPhysicsWorldSyncSystem());

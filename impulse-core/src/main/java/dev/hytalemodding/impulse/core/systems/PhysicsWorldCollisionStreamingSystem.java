@@ -48,6 +48,7 @@ public class PhysicsWorldCollisionStreamingSystem extends TickingSystem<EntitySt
      * as far as players do, but they still need terrain to land on.
      */
     public static final int DEFAULT_BODY_STREAMING_RADIUS = 4;
+    private static final int SLEEPING_BODY_STREAMING_INTERVAL_TICKS = 20;
 
     private static final ComponentType<EntityStore, Player> PLAYER_TYPE = Player.getComponentType();
     private static final ComponentType<EntityStore, TransformComponent> TRANSFORM_TYPE =
@@ -97,7 +98,11 @@ public class PhysicsWorldCollisionStreamingSystem extends TickingSystem<EntitySt
 
                 int playerRadius = settings.getWorldCollisionRadius();
                 int bodyRadius = settings.getWorldCollisionBodyRadius();
-                List<Vector3d> bodyTargets = collectDynamicBodyTargets(space, bodyRadius, snapshot);
+                List<Vector3d> bodyTargets = collectDynamicBodyTargets(space,
+                    bodyRadius,
+                    currentTick,
+                    settings.getWorldCollisionTtlTicks(),
+                    snapshot);
                 LongSet visitedSections = new LongOpenHashSet();
                 for (Vector3d position : playerPositions) {
                     cache.ensureAround(world,
@@ -152,11 +157,16 @@ public class PhysicsWorldCollisionStreamingSystem extends TickingSystem<EntitySt
     @Nonnull
     private List<Vector3d> collectDynamicBodyTargets(@Nonnull PhysicsSpace space,
         int radius,
+        long currentTick,
+        int ttlTicks,
         @Nullable Snapshot snapshot) {
         Map<WorldCollisionStreamingBounds, Vector3d> uniqueTargets = new LinkedHashMap<>();
         int[] candidateCount = {0};
         space.forEachBody(body -> {
-            if (!body.isDynamic() || body.isSleeping()) {
+            if (!body.isDynamic()) {
+                return;
+            }
+            if (body.isSleeping() && !shouldRefreshSleepingBodyTarget(currentTick, ttlTicks)) {
                 return;
             }
 
@@ -175,6 +185,12 @@ public class PhysicsWorldCollisionStreamingSystem extends TickingSystem<EntitySt
             snapshot.addBodyStreamingTargets(uniqueTargets.size());
         }
         return new ArrayList<>(uniqueTargets.values());
+    }
+
+    private static boolean shouldRefreshSleepingBodyTarget(long currentTick, int ttlTicks) {
+        int interval = Math.max(1, Math.min(SLEEPING_BODY_STREAMING_INTERVAL_TICKS,
+            Math.max(1, ttlTicks / 2)));
+        return currentTick == 1L || currentTick % interval == 0L;
     }
 
 }
