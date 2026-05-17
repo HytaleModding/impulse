@@ -18,10 +18,13 @@ import com.hypixel.hytale.server.core.universe.PlayerRef;
 import com.hypixel.hytale.server.core.universe.world.World;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import com.hypixel.hytale.server.core.util.BsonUtil;
+import dev.hytalemodding.impulse.api.Impulse;
+import dev.hytalemodding.impulse.api.ShapeType;
 import dev.hytalemodding.impulse.core.components.ImpulseControllableComponent;
 import dev.hytalemodding.impulse.core.components.PersistentPhysicsBodyComponent;
 import dev.hytalemodding.impulse.core.components.PhysicsBodyComponent;
 import dev.hytalemodding.impulse.core.persistence.PersistentPhysicsJointState;
+import dev.hytalemodding.impulse.core.persistence.PersistentPhysicsSpaceState;
 import dev.hytalemodding.impulse.core.persistence.PersistentPhysicsWorldResource;
 import dev.hytalemodding.impulse.core.resources.PhysicsWorldResource;
 import dev.hytalemodding.impulse.examples.ImpulseExamplesPlugin;
@@ -40,6 +43,7 @@ import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.function.BiConsumer;
 import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
 import org.bson.BsonDocument;
 
 /**
@@ -202,8 +206,13 @@ public class PersistenceCommand extends AbstractCommandCollection {
             }
 
             Set<UUID> keptEntities = snapshotBodies.keySet();
-            PersistentPhysicsWorldResource targetWorld = filteredWorld(snapshot.getWorld(), keptEntities);
-            targetWorld.markRuntimeRestorePending();
+            PersistentPhysicsWorldResource targetWorld = filteredWorld(snapshot.getWorld(), snapshotBodies);
+            String validationFailure = validateSnapshotTarget(targetWorld, snapshotBodies);
+            if (validationFailure != null) {
+                ctx.sender().sendMessage(Message.raw("Snapshot '" + name + "' cannot be loaded: "
+                    + validationFailure));
+                return CompletableFuture.completedFuture(null);
+            }
 
             PhysicsWorldResource runtime = store.getResource(PhysicsWorldResource.getResourceType());
             resetRuntimePhysics(store, world, runtime);
@@ -300,8 +309,17 @@ public class PersistenceCommand extends AbstractCommandCollection {
     @Nonnull
     private static PersistentPhysicsWorldResource filteredWorld(
         @Nonnull PersistentPhysicsWorldResource source,
-        @Nonnull Set<UUID> availableEntityUuids) {
+        @Nonnull Map<UUID, PersistentPhysicsBodyComponent> availableBodies) {
         PersistentPhysicsWorldResource filtered = source.clone();
+        Set<UUID> availableEntityUuids = availableBodies.keySet();
+        Set<Integer> retainedSpaceIds = new HashSet<>();
+        for (PersistentPhysicsBodyComponent body : availableBodies.values()) {
+            int resolvedSpaceId = body.resolveSpaceId(source.getDefaultSpaceIdValue());
+            if (resolvedSpaceId > 0) {
+                retainedSpaceIds.add(resolvedSpaceId);
+            }
+        }
+
         List<PersistentPhysicsJointState> joints = new ArrayList<>();
         for (PersistentPhysicsJointState joint : source.getJoints()) {
             if (joint.getBodyAUuid() == null || joint.getBodyBUuid() == null) {
@@ -311,10 +329,96 @@ public class PersistenceCommand extends AbstractCommandCollection {
                 || !availableEntityUuids.contains(joint.getBodyBUuid())) {
                 continue;
             }
+            PersistentPhysicsBodyComponent bodyA = availableBodies.get(joint.getBodyAUuid());
+            PersistentPhysicsBodyComponent bodyB = availableBodies.get(joint.getBodyBUuid());
+            int bodyASpaceId = bodyA.resolveSpaceId(source.getDefaultSpaceIdValue());
+            int bodyBSpaceId = bodyB.resolveSpaceId(source.getDefaultSpaceIdValue());
+            if (joint.getSpaceId() <= 0
+                || bodyASpaceId != joint.getSpaceId()
+                || bodyBSpaceId != joint.getSpaceId()) {
+                continue;
+            }
             joints.add(joint.copy());
+            retainedSpaceIds.add(joint.getSpaceId());
         }
+
+        List<PersistentPhysicsSpaceState> spaces = new ArrayList<>();
+        for (PersistentPhysicsSpaceState space : source.getSpaces()) {
+            if (retainedSpaceIds.contains(space.getSpaceId())) {
+                spaces.add(space.copy());
+            }
+        }
+        if (!retainedSpaceIds.contains(filtered.getDefaultSpaceId())) {
+            filtered.setDefaultSpaceId(PersistentPhysicsBodyComponent.DEFAULT_SPACE_ID);
+        }
+        filtered.setSpaces(spaces.toArray(PersistentPhysicsSpaceState[]::new));
         filtered.setJoints(joints.toArray(PersistentPhysicsJointState[]::new));
         return filtered;
+    }
+
+    @Nullable
+    private static String validateSnapshotTarget(@Nonnull PersistentPhysicsWorldResource targetWorld,
+        @Nonnull Map<UUID, PersistentPhysicsBodyComponent> availableBodies) {
+        int steps = targetWorld.getSimulationSteps();
+        if (steps < PhysicsWorldResource.MIN_SIMULATION_STEPS
+            || steps > PhysicsWorldResource.MAX_SIMULATION_STEPS) {
+            return "simulation steps must be between " + PhysicsWorldResource.MIN_SIMULATION_STEPS
+                + " and " + PhysicsWorldResource.MAX_SIMULATION_STEPS;
+        }
+        if (targetWorld.getStepMode() == null) {
+            return "step mode is missing";
+        }
+        if (!Float.isFinite(targetWorld.getMaxStepDt()) || targetWorld.getMaxStepDt() <= 0.0f) {
+            return "max step dt must be finite and positive";
+        }
+
+        Set<Integer> spaceIds = new HashSet<>();
+        for (PersistentPhysicsSpaceState space : targetWorld.getSpaces()) {
+            if (space.getSpaceId() <= 0) {
+                return "space id must be positive, found " + space.getSpaceId();
+            }
+            if (!spaceIds.add(space.getSpaceId())) {
+                return "duplicate space id " + space.getSpaceId();
+            }
+            try {
+                Impulse.getBackend(space.toBackendId());
+            } catch (RuntimeException exception) {
+                return "saved backend " + space.getBackendId() + " is not available";
+            }
+            try {
+                space.toSettings();
+            } catch (RuntimeException exception) {
+                return "space " + space.getSpaceId() + " settings are invalid: "
+                    + exception.getMessage();
+            }
+        }
+
+        int defaultSpaceId = targetWorld.getDefaultSpaceId();
+        if (defaultSpaceId > 0 && !spaceIds.contains(defaultSpaceId)) {
+            return "default space id " + defaultSpaceId + " is not present in the filtered snapshot";
+        }
+        for (Map.Entry<UUID, PersistentPhysicsBodyComponent> entry : availableBodies.entrySet()) {
+            PersistentPhysicsBodyComponent body = entry.getValue();
+            int spaceId = body.resolveSpaceId(targetWorld.getDefaultSpaceIdValue());
+            if (spaceId <= 0 || !spaceIds.contains(spaceId)) {
+                return "body " + entry.getKey() + " references missing space id " + spaceId;
+            }
+            if (body.getShapeType() == null
+                || body.getShapeType() == ShapeType.UNKNOWN
+                || body.getShapeType() == ShapeType.VOXELS) {
+                return "body " + entry.getKey() + " has unsupported persistent shape "
+                    + body.getShapeType();
+            }
+        }
+        for (PersistentPhysicsJointState joint : targetWorld.getJoints()) {
+            if (joint.getSpaceId() <= 0 || !spaceIds.contains(joint.getSpaceId())) {
+                return "joint references missing space id " + joint.getSpaceId();
+            }
+            if (joint.getBodyAUuid() == null || joint.getBodyBUuid() == null) {
+                return "joint endpoint UUID is missing";
+            }
+        }
+        return null;
     }
 
     private static void resetRuntimePhysics(@Nonnull Store<EntityStore> store,

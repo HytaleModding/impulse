@@ -6,6 +6,7 @@ public class StressCommand extends AbstractCommandCollection {
 
     public StressCommand() {
         super("stress", "Impulse stress test commands");
+        addSubCommand(new StressAutoBenchmarkCommand());
         addSubCommand(new StressBenchmarkCommand());
         addSubCommand(new StressBodiesCommand());
         addSubCommand(new StressRawBodiesCommand());

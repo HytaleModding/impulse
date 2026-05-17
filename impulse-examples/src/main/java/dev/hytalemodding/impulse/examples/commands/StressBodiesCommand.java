@@ -1,6 +1,7 @@
 package dev.hytalemodding.impulse.examples.commands;
 
 import com.hypixel.hytale.component.Ref;
+import com.hypixel.hytale.component.RemoveReason;
 import com.hypixel.hytale.component.Store;
 import com.hypixel.hytale.server.core.Message;
 import com.hypixel.hytale.server.core.command.system.CommandContext;
@@ -13,22 +14,42 @@ import com.hypixel.hytale.server.core.universe.world.World;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import dev.hytalemodding.impulse.api.PhysicsBody;
 import dev.hytalemodding.impulse.api.PhysicsSpace;
+import dev.hytalemodding.impulse.core.resources.PhysicsSpaceSettings;
+import dev.hytalemodding.impulse.core.resources.PhysicsStepMode;
 import dev.hytalemodding.impulse.core.resources.PhysicsWorldResource;
+import dev.hytalemodding.impulse.core.voxel.WorldCollisionMode;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Locale;
 import java.util.concurrent.CompletableFuture;
 import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
 import org.joml.Vector3d;
 
 public class StressBodiesCommand extends AbstractAsyncPlayerCommand {
 
     private static final int DEFAULT_COUNT = 100;
-    private static final int MAX_COUNT = 5000;
+    private static final int MAX_ENTITY_COUNT = 5000;
+    private static final int MAX_DETACHED_COUNT = 10000;
     private static final double SPACING = 1.05;
+    private static final int DETACHED_VISUAL_MATERIALIZATION_RADIUS = 64;
+    private static final int DETACHED_VISUAL_DEMATERIALIZATION_RADIUS = 80;
+    private static final int DETACHED_VISUAL_MAX_SPAWNS_PER_TICK = 512;
+    private static final float TARGET_MAX_STEP_DT = 1.0f / 30.0f;
+    private static final List<PhysicsBody> STRESS_DETACHED_BODIES = new ArrayList<>();
 
     private final OptionalArg<Integer> countArg = this.withOptionalArg(
         "count",
         "Number of dynamic boxes to spawn",
         ArgTypes.INTEGER);
+    private final OptionalArg<String> modeArg = this.withOptionalArg(
+        "mode",
+        "Stress mode: entity, detached, or detached-view",
+        ArgTypes.STRING);
+    private final OptionalArg<String> visibilityArg = this.withOptionalArg(
+        "visibility",
+        "Detached-view visibility: cone or range",
+        ArgTypes.STRING);
 
     public StressBodiesCommand() {
         super("bodies", "Spawn many dynamic box bodies");
@@ -46,37 +67,273 @@ public class StressBodiesCommand extends AbstractAsyncPlayerCommand {
             return CompletableFuture.completedFuture(null);
         }
 
-        int count = ExamplePhysicsUtils.optionalInt(ctx, countArg, DEFAULT_COUNT, 1, MAX_COUNT);
+        StressMode mode = parseMode(ctx);
+        if (mode == null) {
+            return CompletableFuture.completedFuture(null);
+        }
+        StressVisibility visibility = parseVisibility(ctx);
+        if (visibility == null) {
+            return CompletableFuture.completedFuture(null);
+        }
+
+        int count = ExamplePhysicsUtils.optionalInt(ctx, countArg, DEFAULT_COUNT, 1, mode.maxCount());
         PhysicsWorldResource resource = ExamplePhysicsUtils.resource(store);
-        PhysicsSpace space = ExamplePhysicsUtils.defaultSpace(resource, world);
+        if (mode.usesDetachedBodies()) {
+            clearPreviousStressDetachedBodies(store, resource);
+        }
+        PhysicsSpace space = ExamplePhysicsUtils.defaultSpace(ctx, resource);
+        if (space == null) {
+            return CompletableFuture.completedFuture(null);
+        }
+        configureStressRuntime(resource, space, mode, visibility, count);
         TimeResource time = store.getResource(TimeResource.getResourceType());
 
-        int side = (int) Math.ceil(Math.cbrt(count));
-        Vector3d origin = new Vector3d(playerPos).add(
-            -side * SPACING * 0.5,
-            5.0,
-            4.0 - side * SPACING * 0.5);
+        StressLayout layout = StressLayout.forMode(mode, count, playerPos);
 
         long startNanos = System.nanoTime();
         for (int i = 0; i < count; i++) {
-            int x = i % side;
-            int z = (i / side) % side;
-            int y = i / (side * side);
-            Vector3d position = new Vector3d(origin).add(x * SPACING, y * SPACING, z * SPACING);
+            Vector3d position = layout.position(i);
+            if (mode == StressMode.ENTITY) {
+                PhysicsBody body = createEntityBody(space);
+                ExamplePhysicsUtils.spawnBlockBody(store, time, space.getId(), space, body, position);
+                continue;
+            }
 
-            PhysicsBody body = space.createBox(0.48f, 0.48f, 0.48f, 1.0f);
-            body.setFriction(0.65f);
-            body.setRestitution(0.15f);
-            ExamplePhysicsUtils.spawnBlockBody(store, time, space.getId(), space, body, position);
+            PhysicsBody body = createDetachedBody(space);
+            body.setPosition((float) position.x, (float) position.y, (float) position.z);
+            space.addBody(body);
+            resource.registerDetachedBody(body, space.getId());
+            rememberStressDetachedBody(body);
         }
         long elapsedNanos = System.nanoTime() - startNanos;
 
-        ctx.sender().sendMessage(Message.raw("Spawned " + count + " stress bodies in "
-            + millis(elapsedNanos) + " ms."));
+        ctx.sender().sendMessage(Message.raw("Spawned " + count
+            + " stress bodies in "
+            + millis(elapsedNanos)
+            + " ms: mode=" + mode.serialized()
+            + " space=" + space.getId().value()
+            + " worldCollision=streaming"
+            + " step=fixed/1"
+            + " maxStepDt=" + String.format(Locale.ROOT, "%.3f", TARGET_MAX_STEP_DT)
+            + " visuals=" + mode.visualDescription()
+            + (mode == StressMode.DETACHED_VIEW
+                ? " visualProxyCap=" + count
+                + " visualSpawnRate=" + DETACHED_VISUAL_MAX_SPAWNS_PER_TICK + "/tick"
+                + " visibility=" + visibility.serialized()
+                : "")
+            + "."));
         return CompletableFuture.completedFuture(null);
+    }
+
+    private static void configureStressRuntime(@Nonnull PhysicsWorldResource resource,
+        @Nonnull PhysicsSpace space,
+        @Nonnull StressMode mode,
+        @Nonnull StressVisibility visibility,
+        int count) {
+        resource.setStepMode(PhysicsStepMode.FIXED);
+        resource.setSimulationSteps(1);
+        resource.setMaxStepDt(TARGET_MAX_STEP_DT);
+
+        PhysicsSpaceSettings settings = new PhysicsSpaceSettings(resource.getSpaceSettings(space.getId()));
+        settings.setWorldCollisionMode(WorldCollisionMode.STREAMING);
+        if (mode.usesDetachedBodies()) {
+            settings.setDetachedVisualMaterializationEnabled(mode == StressMode.DETACHED_VIEW);
+            settings.setVisualVisibilityCullingEnabled(mode == StressMode.DETACHED_VIEW
+                && visibility == StressVisibility.CONE);
+            settings.setDetachedVisualMaterializationRadius(DETACHED_VISUAL_MATERIALIZATION_RADIUS);
+            settings.setDetachedVisualDematerializationRadius(DETACHED_VISUAL_DEMATERIALIZATION_RADIUS);
+            settings.setDetachedVisualMaxMaterialized(Math.max(1, count));
+            settings.setDetachedVisualMaxSpawnsPerTick(DETACHED_VISUAL_MAX_SPAWNS_PER_TICK);
+        }
+        resource.setSpaceSettings(space.getId(), settings);
+    }
+
+    private static void rememberStressDetachedBody(@Nonnull PhysicsBody body) {
+        synchronized (STRESS_DETACHED_BODIES) {
+            STRESS_DETACHED_BODIES.add(body);
+        }
+    }
+
+    private static void clearPreviousStressDetachedBodies(@Nonnull Store<EntityStore> store,
+        @Nonnull PhysicsWorldResource resource) {
+        List<PhysicsBody> bodies;
+        synchronized (STRESS_DETACHED_BODIES) {
+            if (STRESS_DETACHED_BODIES.isEmpty()) {
+                return;
+            }
+            bodies = new ArrayList<>(STRESS_DETACHED_BODIES);
+            STRESS_DETACHED_BODIES.clear();
+        }
+
+        for (PhysicsBody body : bodies) {
+            Ref<EntityStore> proxy = resource.getDetachedVisualProxy(body);
+            if (proxy != null && proxy.isValid()) {
+                store.removeEntity(proxy, RemoveReason.REMOVE);
+            }
+            resource.unregisterBody(body, true);
+        }
+    }
+
+    @Nonnull
+    private static PhysicsBody createEntityBody(@Nonnull PhysicsSpace space) {
+        PhysicsBody body = space.createBox(0.48f, 0.48f, 0.48f, 1.0f);
+        body.setFriction(0.65f);
+        body.setRestitution(0.15f);
+        return body;
+    }
+
+    @Nonnull
+    private static PhysicsBody createDetachedBody(@Nonnull PhysicsSpace space) {
+        PhysicsBody body = space.createBox(0.48f, 0.48f, 0.48f, 1.0f);
+        body.setFriction(0.45f);
+        body.setRestitution(0.0f);
+        body.setDamping(0.02f, 0.25f);
+        return body;
+    }
+
+    @Nullable
+    private StressMode parseMode(@Nonnull CommandContext ctx) {
+        if (!modeArg.provided(ctx)) {
+            return StressMode.ENTITY;
+        }
+
+        String rawMode = modeArg.get(ctx).toLowerCase(Locale.ROOT);
+        StressMode mode = StressMode.from(rawMode);
+        if (mode == null) {
+            ctx.sender().sendMessage(Message.raw("Unknown stress bodies mode '" + rawMode
+                + "'. Expected entity, detached, or detached-view."));
+        }
+        return mode;
+    }
+
+    @Nullable
+    private StressVisibility parseVisibility(@Nonnull CommandContext ctx) {
+        if (!visibilityArg.provided(ctx)) {
+            return StressVisibility.CONE;
+        }
+
+        String rawVisibility = visibilityArg.get(ctx).toLowerCase(Locale.ROOT);
+        StressVisibility visibility = StressVisibility.from(rawVisibility);
+        if (visibility == null) {
+            ctx.sender().sendMessage(Message.raw("Unknown stress bodies visibility '"
+                + rawVisibility
+                + "'. Expected cone or range."));
+        }
+        return visibility;
     }
 
     private static String millis(long nanos) {
         return String.format(Locale.ROOT, "%.3f", nanos / 1_000_000.0);
+    }
+
+    private enum StressMode {
+        ENTITY("entity"),
+        DETACHED("detached"),
+        DETACHED_VIEW("detached-view");
+
+        private final String serialized;
+
+        StressMode(@Nonnull String serialized) {
+            this.serialized = serialized;
+        }
+
+        @Nonnull
+        private String serialized() {
+            return serialized;
+        }
+
+        private int maxCount() {
+            return this == ENTITY ? MAX_ENTITY_COUNT : MAX_DETACHED_COUNT;
+        }
+
+        private boolean usesDetachedBodies() {
+            return this == DETACHED || this == DETACHED_VIEW;
+        }
+
+        @Nonnull
+        private String visualDescription() {
+            return switch (this) {
+                case ENTITY -> "entity-backed";
+                case DETACHED -> "none";
+                case DETACHED_VIEW -> "detached-proxies near real players";
+            };
+        }
+
+        @Nullable
+        private static StressMode from(@Nonnull String value) {
+            return switch (value) {
+                case "entity", "entities", "hytale", "hytale-entities", "entity-backed" -> ENTITY;
+                case "detached", "managed", "physics-only", "physics_only" -> DETACHED;
+                case "detached-view", "detached-viewer", "view", "viewed" -> DETACHED_VIEW;
+                default -> null;
+            };
+        }
+    }
+
+    private enum StressVisibility {
+        CONE("cone"),
+        RANGE("range");
+
+        private final String serialized;
+
+        StressVisibility(@Nonnull String serialized) {
+            this.serialized = serialized;
+        }
+
+        @Nonnull
+        private String serialized() {
+            return serialized;
+        }
+
+        @Nullable
+        private static StressVisibility from(@Nonnull String value) {
+            return switch (value) {
+                case "cone", "view", "camera" -> CONE;
+                case "range", "radius", "distance" -> RANGE;
+                default -> null;
+            };
+        }
+    }
+
+    private record StressLayout(@Nonnull StressMode mode,
+        @Nonnull Vector3d origin,
+        int side,
+        double spacing,
+        boolean flat) {
+
+        @Nonnull
+        private static StressLayout forMode(@Nonnull StressMode mode,
+            int count,
+            @Nonnull Vector3d playerPos) {
+            if (mode.usesDetachedBodies()) {
+                int side = (int) Math.ceil(Math.cbrt(count));
+                return new StressLayout(mode,
+                    new Vector3d(playerPos).add(
+                        -side * SPACING * 0.5,
+                        5.0,
+                        4.0 - side * SPACING * 0.5),
+                    side,
+                    SPACING,
+                    false);
+            }
+
+            int side = (int) Math.ceil(Math.cbrt(count));
+            return new StressLayout(mode,
+                new Vector3d(playerPos).add(
+                    -side * SPACING * 0.5,
+                    5.0,
+                    4.0 - side * SPACING * 0.5),
+                side,
+                SPACING,
+                false);
+        }
+
+        @Nonnull
+        private Vector3d position(int index) {
+            int x = index % side;
+            int z = flat ? index / side : (index / side) % side;
+            int y = flat ? 0 : index / (side * side);
+            return new Vector3d(origin).add(x * spacing, y * spacing, z * spacing);
+        }
     }
 }

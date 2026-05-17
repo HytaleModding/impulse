@@ -52,7 +52,10 @@ public class StressShapesCommand extends AbstractAsyncPlayerCommand {
 
         int sets = ExamplePhysicsUtils.optionalInt(ctx, setsArg, DEFAULT_SETS, 1, MAX_SETS);
         PhysicsWorldResource resource = ExamplePhysicsUtils.resource(store);
-        PhysicsSpace space = ExamplePhysicsUtils.defaultSpace(resource, world);
+        PhysicsSpace space = ExamplePhysicsUtils.defaultSpace(ctx, resource);
+        if (space == null) {
+            return CompletableFuture.completedFuture(null);
+        }
         TimeResource time = store.getResource(TimeResource.getResourceType());
 
         Vector3d origin = new Vector3d(playerPos).add(-12.0, 5.0, 5.0);

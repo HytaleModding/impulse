@@ -48,7 +48,10 @@ public class StressRaycastCommand extends AbstractAsyncPlayerCommand {
 
         int rays = ExamplePhysicsUtils.optionalInt(ctx, raysArg, DEFAULT_RAYS, 1, MAX_RAYS);
         PhysicsWorldResource resource = ExamplePhysicsUtils.resource(store);
-        PhysicsSpace space = ExamplePhysicsUtils.defaultSpace(resource, world);
+        PhysicsSpace space = ExamplePhysicsUtils.defaultSpace(ctx, resource);
+        if (space == null) {
+            return CompletableFuture.completedFuture(null);
+        }
 
         int side = (int) Math.ceil(Math.sqrt(rays));
         double half = side * SPACING * 0.5;

@@ -5,6 +5,7 @@ import com.hypixel.hytale.server.core.command.system.CommandRegistry;
 import com.hypixel.hytale.server.core.plugin.JavaPlugin;
 import com.hypixel.hytale.server.core.plugin.JavaPluginInit;
 import dev.hytalemodding.impulse.examples.commands.ImpulseCommand;
+import dev.hytalemodding.impulse.examples.systems.BenchmarkEntityRemovalDiagnosticsSystem;
 import javax.annotation.Nonnull;
 
 public final class ImpulseExamplesPlugin extends JavaPlugin {
@@ -20,7 +21,13 @@ public final class ImpulseExamplesPlugin extends JavaPlugin {
 
     @Override
     protected void setup() {
+        registerSystems();
         registerCommands();
+    }
+
+    private void registerSystems() {
+        this.getEntityStoreRegistry()
+            .registerSystem(new BenchmarkEntityRemovalDiagnosticsSystem());
     }
 
     private void registerCommands() {
