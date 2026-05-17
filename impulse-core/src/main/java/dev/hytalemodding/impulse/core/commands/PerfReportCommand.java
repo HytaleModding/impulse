@@ -91,14 +91,14 @@ public class PerfReportCommand extends AbstractWorldCommand {
             ctx.sender().sendMessage(Message.raw("No profiled physics step/sync ticks recorded yet."
                 + (runtimeProfiling.isEnabled()
                 ? ""
-                : " Run /impulse perf toggle, wait a few seconds, then run /impulse perf report.")));
+                : " Run /impulse perf enable, wait a few seconds, then run /impulse perf report.")));
         }
 
         if (cumulative.getTickSamples() <= 0) {
             ctx.sender().sendMessage(Message.raw("No profiled world collision ticks recorded yet."
                 + (profiling.isEnabled()
                 ? ""
-                : " Run /impulse perf toggle, wait a few seconds, then run /impulse perf report.")));
+                : " Run /impulse perf enable, wait a few seconds, then run /impulse perf report.")));
             return;
         }
 
