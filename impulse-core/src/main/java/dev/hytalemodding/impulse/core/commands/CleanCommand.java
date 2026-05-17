@@ -8,30 +8,33 @@ import com.hypixel.hytale.server.core.command.system.basecommands.AbstractWorldC
 import com.hypixel.hytale.server.core.universe.world.World;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import dev.hytalemodding.impulse.api.PhysicsSpace;
-import dev.hytalemodding.impulse.core.components.PhysicsControlSessionComponent;
 import dev.hytalemodding.impulse.core.components.PhysicsBodyComponent;
 import dev.hytalemodding.impulse.core.components.PhysicsBodyVisualComponent;
+import dev.hytalemodding.impulse.core.components.PhysicsControlSessionComponent;
 import dev.hytalemodding.impulse.core.resources.PhysicsWorldResource;
 import java.util.concurrent.atomic.AtomicInteger;
 import javax.annotation.Nonnull;
 
 /**
- * Removes entity-backed bodies, detached visual bodies, runtime spaces, and joints from the target world.
+ * Clears Impulse-owned runtime state from the target world.
+ *
+ * <p>This removes Hytale adapter entities and visual proxies, closes physics spaces,
+ * and clears registry state. No replacement/default space is created implicitly.</p>
  */
 public class CleanCommand extends AbstractWorldCommand {
 
     public CleanCommand() {
-        super("clean", "Remove all Impulse physics entities from the world", true);
+        super("clean", "Remove all Impulse physics runtime state from the world", true);
     }
 
     @Override
     protected void execute(@Nonnull CommandContext context,
         @Nonnull World world,
         @Nonnull Store<EntityStore> store) {
-        AtomicInteger removedEntities = new AtomicInteger();
+        AtomicInteger removedBodyEntities = new AtomicInteger();
         store.forEachEntityParallel(PhysicsBodyComponent.getComponentType(),
             (index, archetypeChunk, commandBuffer) -> {
-                removedEntities.incrementAndGet();
+                removedBodyEntities.incrementAndGet();
                 commandBuffer.removeEntity(archetypeChunk.getReferenceTo(index), RemoveReason.REMOVE);
             });
 
@@ -59,17 +62,17 @@ public class CleanCommand extends AbstractWorldCommand {
         int removedSpaces = 0;
         for (PhysicsSpace space : resource.getSpaces()) {
             removedSpaces++;
-            removedBodies += space.getBodies().size();
+            removedBodies += space.bodyCount();
             removedJoints += space.getJoints().size();
         }
-        resource.clearBodyOwners();
         resource.clearAllSpaces(world.getName());
+        resource.clearBodyOwners();
 
-        context.sendMessage(Message.raw("Removed " + removedEntities.get()
-            + " Impulse physics entities, " + removedVisualEntities.get()
-            + " visual entities, " + removedBodies + " runtime bodies, "
-            + removedJoints + " joints, " + removedSpaces + " spaces, and " + removedSessions.get()
-            + " control sessions in world " + world.getName()
+        context.sendMessage(Message.raw("Removed " + removedBodyEntities.get()
+            + " Impulse body entities, " + removedVisualEntities.get()
+            + " visual proxy entities, " + removedBodies + " runtime bodies, "
+            + removedJoints + " joints, " + removedSpaces + " spaces, and "
+            + removedSessions.get() + " control sessions in world " + world.getName()
             + ". No default physics space is recreated implicitly."));
     }
 }

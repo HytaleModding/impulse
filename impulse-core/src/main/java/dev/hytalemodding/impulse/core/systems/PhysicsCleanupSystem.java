@@ -9,14 +9,12 @@ import com.hypixel.hytale.component.query.Query;
 import com.hypixel.hytale.component.system.RefSystem;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import dev.hytalemodding.impulse.api.PhysicsBody;
-import dev.hytalemodding.impulse.api.PhysicsSpace;
-import dev.hytalemodding.impulse.api.SpaceId;
 import dev.hytalemodding.impulse.core.components.PhysicsBodyComponent;
 import dev.hytalemodding.impulse.core.resources.PhysicsWorldResource;
 import javax.annotation.Nonnull;
 
 /**
- * Removes physics bodies from the space when entities are despawned.
+ * Removes entity-owned physics bodies from the registry and backend space when entities despawn.
  */
 public class PhysicsCleanupSystem extends RefSystem<EntityStore> {
 
@@ -42,7 +40,6 @@ public class PhysicsCleanupSystem extends RefSystem<EntityStore> {
         }
 
         PhysicsBody body = component.getBody();
-
         PhysicsWorldResource resource = store.getResource(PhysicsWorldResource.getResourceType());
         PhysicsWorldResource.BodyRegistration registration = resource.getBodyRegistration(body);
         if (registration != null
@@ -51,12 +48,7 @@ public class PhysicsCleanupSystem extends RefSystem<EntityStore> {
             return;
         }
 
-        SpaceId spaceId = component.getSpaceId();
-        PhysicsSpace space = spaceId != null ? resource.getSpace(spaceId)
-            : resource.getDefaultSpace();
-        if (space != null) {
-            space.removeBody(body);
-        }
+        resource.unregisterBody(body, true);
     }
 
     @Nonnull

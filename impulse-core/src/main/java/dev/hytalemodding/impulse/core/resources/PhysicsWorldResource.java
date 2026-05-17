@@ -245,6 +245,9 @@ public class PhysicsWorldResource implements Resource<EntityStore> {
             defaultSpaceId = null;
         }
         if (removed != null) {
+            for (PhysicsBody body : new ArrayList<>(removed.getBodies())) {
+                unregisterBody(body, false);
+            }
             LOGGER.at(Level.FINE).log(
                 "World %s removed physics space id=%s backend=%s",
                 worldName,
