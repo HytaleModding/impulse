@@ -49,7 +49,7 @@ public class SpaceCommand extends AbstractCommandCollection {
             ArgTypes.STRING);
 
         private CreateCommand() {
-            super("create", "Create an explicit physics space", true);
+            super("create", "Create an explicit physics space", false);
         }
 
         @Override
@@ -103,7 +103,7 @@ public class SpaceCommand extends AbstractCommandCollection {
     private static final class ListCommand extends AbstractWorldCommand {
 
         private ListCommand() {
-            super("list", "List physics spaces in the target world", true);
+            super("list", "List physics spaces in the target world", false);
         }
 
         @Override
@@ -143,7 +143,7 @@ public class SpaceCommand extends AbstractCommandCollection {
             ArgTypes.INTEGER);
 
         private DefaultCommand() {
-            super("default", "Show or set the default physics space", true);
+            super("default", "Show or set the default physics space", false);
         }
 
         @Override
