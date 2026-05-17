@@ -35,6 +35,7 @@ public class PersistentPhysicsBodySyncSystem extends EntityTickingSystem<EntityS
     private static final ComponentType<EntityStore, PhysicsBodyComponent> PHYSICS_BODY_TYPE =
         PhysicsBodyComponent.getComponentType();
     private static final Query<EntityStore> QUERY = Query.and(PERSISTENT_BODY_TYPE, PHYSICS_BODY_TYPE);
+    private static final int SLEEPING_BODY_SYNC_INTERVAL_TICKS = 30;
     private static final Set<Dependency<EntityStore>> DEPENDENCIES = Set.of(
         new SystemDependency<>(Order.AFTER, PhysicsSyncSystem.class),
         new SystemDependency<>(Order.AFTER, PersistentPhysicsBodyHydrationSystem.class)
@@ -66,6 +67,13 @@ public class PersistentPhysicsBodySyncSystem extends EntityTickingSystem<EntityS
         PersistentPhysicsBodyComponent persistent = chunk.getComponent(index, PERSISTENT_BODY_TYPE);
         PhysicsBodyComponent runtime = chunk.getComponent(index, PHYSICS_BODY_TYPE);
         if (persistent == null || runtime == null) {
+            return;
+        }
+
+        if (persistent.shouldDeferSleepingUpdate(runtime.getBody(),
+            runtime.getSpaceId(),
+            SLEEPING_BODY_SYNC_INTERVAL_TICKS)) {
+            persistent.clearBodyRebuildFlag();
             return;
         }
 

@@ -26,7 +26,7 @@ public class PhysicsBodyOwnerSystem extends RefSystem<EntityStore> {
         }
 
         commandBuffer.getResource(PhysicsWorldResource.getResourceType())
-            .registerBodyOwner(component.getBody(), ref);
+            .registerEntityBody(component.getBody(), component.getSpaceId(), ref);
     }
 
     @Override

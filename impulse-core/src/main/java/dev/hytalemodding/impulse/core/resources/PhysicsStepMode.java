@@ -8,6 +8,7 @@ import javax.annotation.Nonnull;
  */
 public enum PhysicsStepMode {
     PROGRESSIVE_REFINEMENT("progressive_refinement"),
+    ADAPTIVE("adaptive"),
     FIXED("fixed"),
     CCD("ccd");
 
@@ -26,7 +27,7 @@ public enum PhysicsStepMode {
     @Nonnull
     public String describeSimulationSteps() {
         return switch (this) {
-            case PROGRESSIVE_REFINEMENT -> "minimum substeps";
+            case PROGRESSIVE_REFINEMENT, ADAPTIVE -> "minimum substeps";
             case FIXED, CCD -> "fixed substeps";
         };
     }

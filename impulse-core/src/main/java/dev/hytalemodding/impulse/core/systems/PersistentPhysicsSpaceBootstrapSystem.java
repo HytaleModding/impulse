@@ -57,11 +57,19 @@ public class PersistentPhysicsSpaceBootstrapSystem extends TickingSystem<EntityS
             return;
         }
 
-        PhysicsWorldResource runtime = store.getResource(PhysicsWorldResource.getResourceType());
-        runtime.setSimulationSteps(persistent.getSimulationSteps());
-        runtime.setStepMode(persistent.getStepMode());
-        runtime.setMaxStepDt(persistent.getMaxStepDt());
         World world = store.getExternalData().getWorld();
+        PhysicsWorldResource runtime = store.getResource(PhysicsWorldResource.getResourceType());
+        try {
+            runtime.setSimulationSteps(persistent.getSimulationSteps());
+            runtime.setStepMode(persistent.getStepMode());
+            runtime.setMaxStepDt(persistent.getMaxStepDt());
+        } catch (RuntimeException exception) {
+            runtime.clearAllSpaces(world.getName());
+            persistent.failRuntimeRestore("Invalid persisted physics runtime settings: "
+                + exception.getMessage());
+            LOGGER.at(Level.SEVERE).log(persistent.runtimeRestoreFailureSummary());
+            return;
+        }
         PersistentPhysicsSpaceState[] spaces = persistent.getSpaces();
         String validationFailure = validateSpaces(spaces);
         if (validationFailure != null) {
@@ -99,7 +107,15 @@ public class PersistentPhysicsSpaceBootstrapSystem extends TickingSystem<EntityS
             restoredSpaceCount++;
         }
 
-        runtime.setDefaultSpaceId(persistent.getDefaultSpaceIdValue());
+        try {
+            runtime.setDefaultSpaceId(persistent.getDefaultSpaceIdValue());
+        } catch (RuntimeException exception) {
+            runtime.clearAllSpaces(world.getName());
+            persistent.failRuntimeRestore("Invalid persisted default physics space: "
+                + exception.getMessage());
+            LOGGER.at(Level.SEVERE).log(persistent.runtimeRestoreFailureSummary());
+            return;
+        }
         persistent.markRuntimeSpaceBootstrapComplete(restoredSpaceCount);
     }
 

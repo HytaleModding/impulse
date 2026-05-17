@@ -85,16 +85,16 @@ public class PersistentPhysicsJointState {
             (state, value) -> state.motorMaxForce = value,
             PersistentPhysicsJointState::getMotorMaxForce)
         .add()
-        .append(new KeyedCodec<>("SpringRestLength", Codec.FLOAT),
-            (state, value) -> state.springRestLength = value,
+        .append(new KeyedCodec<>("SpringRestLength", Codec.FLOAT, false),
+            (state, value) -> state.springRestLength = nanToZero(value),
             PersistentPhysicsJointState::getSpringRestLength)
         .add()
-        .append(new KeyedCodec<>("SpringStiffness", Codec.FLOAT),
-            (state, value) -> state.springStiffness = value,
+        .append(new KeyedCodec<>("SpringStiffness", Codec.FLOAT, false),
+            (state, value) -> state.springStiffness = nanToZero(value),
             PersistentPhysicsJointState::getSpringStiffness)
         .add()
-        .append(new KeyedCodec<>("SpringDamping", Codec.FLOAT),
-            (state, value) -> state.springDamping = value,
+        .append(new KeyedCodec<>("SpringDamping", Codec.FLOAT, false),
+            (state, value) -> state.springDamping = nanToZero(value),
             PersistentPhysicsJointState::getSpringDamping)
         .add()
         .build();

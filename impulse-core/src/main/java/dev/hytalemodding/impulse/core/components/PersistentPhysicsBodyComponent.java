@@ -72,8 +72,8 @@ public class PersistentPhysicsBodyComponent implements Component<EntityStore> {
             (component, value) -> component.halfHeight = value,
             component -> component.halfHeight)
         .add()
-        .append(new KeyedCodec<>("PlaneGroundY", Codec.FLOAT),
-            (component, value) -> component.planeGroundY = value,
+        .append(new KeyedCodec<>("PlaneGroundY", Codec.FLOAT, false),
+            (component, value) -> component.planeGroundY = finiteOrZero(value),
             component -> component.planeGroundY)
         .add()
         .append(new KeyedCodec<>("BodyType", new EnumCodec<>(PhysicsBodyType.class)),
@@ -154,9 +154,8 @@ public class PersistentPhysicsBodyComponent implements Component<EntityStore> {
     @Setter
     @Getter
     private float halfHeight;
-    @Setter
     @Getter
-    private float planeGroundY = Float.NaN;
+    private float planeGroundY;
     @Nonnull
     private PhysicsBodyType bodyType = PhysicsBodyType.DYNAMIC;
     @Setter
@@ -198,6 +197,7 @@ public class PersistentPhysicsBodyComponent implements Component<EntityStore> {
     @Getter
     private boolean sleeping;
     private transient boolean needsBodyRebuild;
+    private transient int sleepingSyncSkipTicks;
 
     public PersistentPhysicsBodyComponent() {
     }
@@ -227,7 +227,7 @@ public class PersistentPhysicsBodyComponent implements Component<EntityStore> {
         }
         sphereRadius = body.getSphereRadius();
         halfHeight = body.getHalfHeight();
-        planeGroundY = body.getPlaneGroundY();
+        planeGroundY = shapeType == ShapeType.PLANE ? finiteOrZero(body.getPlaneGroundY()) : 0.0f;
         bodyType = body.getBodyType();
         mass = body.getMass();
         position.set(body.getPosition());
@@ -243,6 +243,26 @@ public class PersistentPhysicsBodyComponent implements Component<EntityStore> {
         collisionMask = body.getCollisionMask();
         continuousCollisionEnabled = body.isContinuousCollisionEnabled();
         sleeping = body.isSleeping();
+        sleepingSyncSkipTicks = 0;
+    }
+
+    public boolean shouldDeferSleepingUpdate(@Nonnull PhysicsBody body,
+        @Nullable SpaceId bodySpaceId,
+        int intervalTicks) {
+        if (intervalTicks <= 0 || needsBodyRebuild) {
+            return false;
+        }
+        int resolvedSpaceId = bodySpaceId != null ? bodySpaceId.value() : DEFAULT_SPACE_ID;
+        if (!sleeping || spaceId != resolvedSpaceId || !body.isSleeping()) {
+            sleepingSyncSkipTicks = 0;
+            return false;
+        }
+        if (sleepingSyncSkipTicks < intervalTicks) {
+            sleepingSyncSkipTicks++;
+            return true;
+        }
+        sleepingSyncSkipTicks = 0;
+        return false;
     }
 
     @Nonnull
@@ -261,6 +281,10 @@ public class PersistentPhysicsBodyComponent implements Component<EntityStore> {
 
     public void setShapeAxis(@Nonnull PhysicsAxis shapeAxis) {
         this.shapeAxis = shapeAxis;
+    }
+
+    public void setPlaneGroundY(float planeGroundY) {
+        this.planeGroundY = finiteOrZero(planeGroundY);
     }
 
     @Nonnull
@@ -329,11 +353,15 @@ public class PersistentPhysicsBodyComponent implements Component<EntityStore> {
             case CAPSULE -> space.createCapsule(sphereRadius, halfHeight, shapeAxis, dynamicMass);
             case CYLINDER -> space.createCylinder(sphereRadius, halfHeight, shapeAxis, dynamicMass);
             case CONE -> space.createCone(sphereRadius, halfHeight, shapeAxis, dynamicMass);
-            case PLANE -> space.createStaticPlane(planeGroundY);
+            case PLANE -> space.createStaticPlane(finiteOrZero(planeGroundY));
             case VOXELS -> throw new IllegalStateException(
                 "PersistentPhysicsBodyComponent cannot rebuild streamed voxel terrain bodies");
             case UNKNOWN -> throw new IllegalStateException("Persistent body shape is unknown");
         };
+    }
+
+    private static float finiteOrZero(float value) {
+        return Float.isFinite(value) ? value : 0.0f;
     }
 
     public void applyToBody(@Nonnull PhysicsBody body) {

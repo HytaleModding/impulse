@@ -25,6 +25,14 @@ public class PhysicsBodyComponent implements Component<EntityStore> {
     @Nullable
     private SpaceId spaceId;
 
+    @Setter
+    @Getter(onMethod_ = @__(@Nonnull))
+    private OwnerVisualMode ownerVisualMode = OwnerVisualMode.OWNER_ENTITY;
+
+    private transient boolean chunkBoundarySleeping;
+    private transient long chunkBoundarySleepingChunkIndex = Long.MIN_VALUE;
+    private transient int chunkBoundarySleepingSkipTicks;
+
     public PhysicsBodyComponent() {
     }
 
@@ -33,13 +41,50 @@ public class PhysicsBodyComponent implements Component<EntityStore> {
         this.spaceId = spaceId;
     }
 
+    public PhysicsBodyComponent(@Nonnull PhysicsBody body,
+        @Nullable SpaceId spaceId,
+        @Nonnull OwnerVisualMode ownerVisualMode) {
+        this.body = body;
+        this.spaceId = spaceId;
+        this.ownerVisualMode = ownerVisualMode;
+    }
+
     public static ComponentType<EntityStore, PhysicsBodyComponent> getComponentType() {
         return ImpulsePlugin.get().getPhysicsBodyComponentType();
+    }
+
+    public boolean shouldDeferSleepingChunkBoundaryCheck(long currentChunkIndex, int intervalTicks) {
+        if (intervalTicks <= 0) {
+            return false;
+        }
+        if (!chunkBoundarySleeping || chunkBoundarySleepingChunkIndex != currentChunkIndex) {
+            chunkBoundarySleeping = true;
+            chunkBoundarySleepingChunkIndex = currentChunkIndex;
+            chunkBoundarySleepingSkipTicks = 0;
+            return false;
+        }
+        if (chunkBoundarySleepingSkipTicks < intervalTicks) {
+            chunkBoundarySleepingSkipTicks++;
+            return true;
+        }
+        chunkBoundarySleepingSkipTicks = 0;
+        return false;
+    }
+
+    public void resetSleepingChunkBoundaryCheck() {
+        chunkBoundarySleeping = false;
+        chunkBoundarySleepingChunkIndex = Long.MIN_VALUE;
+        chunkBoundarySleepingSkipTicks = 0;
     }
 
     @Nonnull
     @Override
     public PhysicsBodyComponent clone() {
-        return new PhysicsBodyComponent(body, spaceId);
+        return new PhysicsBodyComponent(body, spaceId, ownerVisualMode);
+    }
+
+    public enum OwnerVisualMode {
+        OWNER_ENTITY,
+        NONE
     }
 }

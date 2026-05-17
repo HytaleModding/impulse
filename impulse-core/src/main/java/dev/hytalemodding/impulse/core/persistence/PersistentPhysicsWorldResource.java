@@ -49,6 +49,7 @@ import lombok.Setter;
  */
 public class PersistentPhysicsWorldResource implements Resource<EntityStore> {
 
+    public static final int CURRENT_SCHEMA_VERSION = 2;
     private static final PersistentPhysicsSpaceState[] EMPTY_SPACES = new PersistentPhysicsSpaceState[0];
     private static final PersistentPhysicsJointState[] EMPTY_JOINTS = new PersistentPhysicsJointState[0];
 
@@ -56,16 +57,20 @@ public class PersistentPhysicsWorldResource implements Resource<EntityStore> {
     public static final BuilderCodec<PersistentPhysicsWorldResource> CODEC = BuilderCodec.builder(
             PersistentPhysicsWorldResource.class,
             PersistentPhysicsWorldResource::new)
+        .append(new KeyedCodec<>("SchemaVersion", Codec.INTEGER, false),
+            PersistentPhysicsWorldResource::setSchemaVersion,
+            PersistentPhysicsWorldResource::getSchemaVersion)
+        .add()
         .append(new KeyedCodec<>("DefaultSpaceId", Codec.INTEGER),
             (resource, value) -> resource.defaultSpaceId = value,
             PersistentPhysicsWorldResource::getDefaultSpaceId)
         .add()
         .append(new KeyedCodec<>("SimulationSteps", Codec.INTEGER),
-            (resource, value) -> resource.simulationSteps = value,
+            PersistentPhysicsWorldResource::setSimulationSteps,
             PersistentPhysicsWorldResource::getSimulationSteps)
         .add()
         .append(new KeyedCodec<>("StepMode", Codec.STRING, false),
-            (resource, value) -> resource.setStepMode(PhysicsStepMode.parse(value)),
+            (resource, value) -> resource.setStepMode(parseStepModeOrDefault(value)),
             resource -> resource.getStepMode().getSerializedName())
         .add()
         .append(new KeyedCodec<>("MaxStepDt", Codec.FLOAT, false),
@@ -86,17 +91,16 @@ public class PersistentPhysicsWorldResource implements Resource<EntityStore> {
         .build();
 
     @Getter
+    private int schemaVersion = CURRENT_SCHEMA_VERSION;
+    @Getter
     @Setter
     private int defaultSpaceId;
     @Getter
-    @Setter
     private int simulationSteps = PhysicsWorldResource.MIN_SIMULATION_STEPS;
     @Getter
-    @Setter
     @Nonnull
     private PhysicsStepMode stepMode = PhysicsStepMode.PROGRESSIVE_REFINEMENT;
     @Getter
-    @Setter
     private float maxStepDt = PhysicsWorldResource.DEFAULT_MAX_STEP_DT;
     @Nonnull
     private PersistentPhysicsSpaceState[] spaces = EMPTY_SPACES;
@@ -124,6 +128,29 @@ public class PersistentPhysicsWorldResource implements Resource<EntityStore> {
 
     public static ResourceType<EntityStore, PersistentPhysicsWorldResource> getResourceType() {
         return ImpulsePlugin.get().getPersistentPhysicsWorldResourceType();
+    }
+
+    public void setSchemaVersion(int schemaVersion) {
+        this.schemaVersion = schemaVersion > 0 ? schemaVersion : CURRENT_SCHEMA_VERSION;
+    }
+
+    public void setSimulationSteps(int simulationSteps) {
+        if (simulationSteps < PhysicsWorldResource.MIN_SIMULATION_STEPS
+            || simulationSteps > PhysicsWorldResource.MAX_SIMULATION_STEPS) {
+            this.simulationSteps = PhysicsWorldResource.MIN_SIMULATION_STEPS;
+            return;
+        }
+        this.simulationSteps = simulationSteps;
+    }
+
+    public void setStepMode(@Nonnull PhysicsStepMode stepMode) {
+        this.stepMode = stepMode != null ? stepMode : PhysicsStepMode.PROGRESSIVE_REFINEMENT;
+    }
+
+    public void setMaxStepDt(float maxStepDt) {
+        this.maxStepDt = Float.isFinite(maxStepDt) && maxStepDt > 0.0f
+            ? maxStepDt
+            : PhysicsWorldResource.DEFAULT_MAX_STEP_DT;
     }
 
     @Nonnull
@@ -238,10 +265,13 @@ public class PersistentPhysicsWorldResource implements Resource<EntityStore> {
         if (this == other) {
             return;
         }
+        schemaVersion = other.schemaVersion > 0 ? other.schemaVersion : CURRENT_SCHEMA_VERSION;
         defaultSpaceId = other.defaultSpaceId;
-        simulationSteps = other.simulationSteps;
-        stepMode = other.stepMode;
-        maxStepDt = other.maxStepDt;
+        setSimulationSteps(other.simulationSteps);
+        setStepMode(other.stepMode != null
+            ? other.stepMode
+            : PhysicsStepMode.PROGRESSIVE_REFINEMENT);
+        setMaxStepDt(other.maxStepDt);
         spaces = copySpaces(other.spaces);
         joints = copyJoints(other.joints);
         runtimeRestorePending = false;
@@ -295,6 +325,18 @@ public class PersistentPhysicsWorldResource implements Resource<EntityStore> {
         }
         if (runtimeRestoreFailureMessage == null) {
             runtimeRestoreFailureMessage = "";
+        }
+    }
+
+    @Nonnull
+    private static PhysicsStepMode parseStepModeOrDefault(@Nonnull String value) {
+        if (value == null) {
+            return PhysicsStepMode.PROGRESSIVE_REFINEMENT;
+        }
+        try {
+            return PhysicsStepMode.parse(value);
+        } catch (IllegalArgumentException exception) {
+            return PhysicsStepMode.PROGRESSIVE_REFINEMENT;
         }
     }
 

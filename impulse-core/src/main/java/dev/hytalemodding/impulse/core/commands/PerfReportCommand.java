@@ -6,6 +6,7 @@ import com.hypixel.hytale.server.core.command.system.CommandContext;
 import com.hypixel.hytale.server.core.command.system.basecommands.AbstractWorldCommand;
 import com.hypixel.hytale.server.core.universe.world.World;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
+import dev.hytalemodding.impulse.core.diagnostics.PhysicsEntityDiagnostics;
 import dev.hytalemodding.impulse.core.resources.PhysicsRuntimeProfilingResource;
 import dev.hytalemodding.impulse.core.resources.PhysicsRuntimeProfilingResource.StepSnapshot;
 import dev.hytalemodding.impulse.core.resources.PhysicsRuntimeProfilingResource.SyncSnapshot;
@@ -37,9 +38,14 @@ public class PerfReportCommand extends AbstractWorldCommand {
         Snapshot cumulative = profiling.getCumulativeSnapshot();
         Snapshot latest = profiling.getLatestTickSnapshot();
         Snapshot worst = profiling.getWorstTickSnapshot();
+        PhysicsEntityDiagnostics.Snapshot entityDiagnostics = PhysicsEntityDiagnostics.collect(store);
 
         ctx.sender().sendMessage(Message.raw("Impulse runtime profiling: "
             + ((runtimeProfiling.isEnabled() || profiling.isEnabled()) ? "enabled" : "disabled")));
+        ctx.sender().sendMessage(Message.raw("Hytale entity diagnostics: "
+            + entityDiagnostics.hytaleSummary()));
+        ctx.sender().sendMessage(Message.raw("Impulse entity diagnostics: "
+            + entityDiagnostics.impulseSummary()));
 
         if (cumulativeStep.getTickSamples() > 0 || cumulativeSync.getTickSamples() > 0) {
             ctx.sender().sendMessage(Message.raw("Physics step avg ms/tick="
