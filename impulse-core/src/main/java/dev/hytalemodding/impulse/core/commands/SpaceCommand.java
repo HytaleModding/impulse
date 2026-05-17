@@ -215,6 +215,13 @@ public class SpaceCommand extends AbstractCommandCollection {
 
             int bodies = space.bodyCount();
             int joints = space.getJoints().size();
+            if (bodies > 0 || joints > 0) {
+                context.sendMessage(Message.raw("Physics space id=" + rawSpaceId
+                    + " is not empty (" + bodies + " bodies, " + joints + " joints)."
+                    + " Use /impulse clean for populated worlds, then delete empty spaces."));
+                return;
+            }
+
             resource.removeSpace(spaceId, world.getName());
             context.sendMessage(Message.raw("Deleted physics space id=" + rawSpaceId
                 + " with " + bodies + " bodies and " + joints + " joints."));
