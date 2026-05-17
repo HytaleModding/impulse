@@ -6,10 +6,14 @@ import com.hypixel.hytale.server.core.command.system.CommandContext;
 import com.hypixel.hytale.server.core.command.system.basecommands.AbstractWorldCommand;
 import com.hypixel.hytale.server.core.universe.world.World;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
+import dev.hytalemodding.impulse.api.PhysicsBody;
+import dev.hytalemodding.impulse.api.PhysicsSpace;
+import dev.hytalemodding.impulse.api.SpaceId;
 import dev.hytalemodding.impulse.core.diagnostics.PhysicsEntityDiagnostics;
 import dev.hytalemodding.impulse.core.resources.PhysicsRuntimeProfilingResource;
 import dev.hytalemodding.impulse.core.resources.PhysicsRuntimeProfilingResource.StepSnapshot;
 import dev.hytalemodding.impulse.core.resources.PhysicsRuntimeProfilingResource.SyncSnapshot;
+import dev.hytalemodding.impulse.core.resources.PhysicsWorldResource;
 import dev.hytalemodding.impulse.core.resources.WorldCollisionProfilingResource;
 import dev.hytalemodding.impulse.core.resources.WorldCollisionProfilingResource.Snapshot;
 import java.util.Locale;
@@ -39,9 +43,13 @@ public class PerfReportCommand extends AbstractWorldCommand {
         Snapshot latest = profiling.getLatestTickSnapshot();
         Snapshot worst = profiling.getWorstTickSnapshot();
         PhysicsEntityDiagnostics.Snapshot entityDiagnostics = PhysicsEntityDiagnostics.collect(store);
+        PhysicsWorldResource physicsWorld = store.getResource(PhysicsWorldResource.getResourceType());
+        RuntimeFootprint runtimeFootprint = RuntimeFootprint.collect(physicsWorld);
 
         ctx.sender().sendMessage(Message.raw("Impulse runtime profiling: "
             + ((runtimeProfiling.isEnabled() || profiling.isEnabled()) ? "enabled" : "disabled")));
+        ctx.sender().sendMessage(Message.raw("Impulse runtime physics: "
+            + runtimeFootprint.summary()));
         ctx.sender().sendMessage(Message.raw("Hytale entity diagnostics: "
             + entityDiagnostics.hytaleSummary()));
         ctx.sender().sendMessage(Message.raw("Impulse entity diagnostics: "
@@ -80,11 +88,17 @@ public class PerfReportCommand extends AbstractWorldCommand {
                 + " inspected/synced=" + worstSync.getBodiesInspected()
                 + "/" + worstSync.getBodiesSynced()));
         } else {
-            ctx.sender().sendMessage(Message.raw("No profiled physics step/sync ticks recorded yet."));
+            ctx.sender().sendMessage(Message.raw("No profiled physics step/sync ticks recorded yet."
+                + (runtimeProfiling.isEnabled()
+                ? ""
+                : " Run /impulse perf toggle, wait a few seconds, then run /impulse perf report.")));
         }
 
         if (cumulative.getTickSamples() <= 0) {
-            ctx.sender().sendMessage(Message.raw("No profiled world collision ticks recorded yet."));
+            ctx.sender().sendMessage(Message.raw("No profiled world collision ticks recorded yet."
+                + (profiling.isEnabled()
+                ? ""
+                : " Run /impulse perf toggle, wait a few seconds, then run /impulse perf report.")));
             return;
         }
 
@@ -170,5 +184,53 @@ public class PerfReportCommand extends AbstractWorldCommand {
             return "0.0";
         }
         return String.format(Locale.ROOT, "%.1f", (double) total / samples);
+    }
+
+    private record RuntimeFootprint(int spaces,
+        int backendBodies,
+        int backendJoints,
+        int detachedBodies,
+        int detachedVisualProxies,
+        String defaultSpace) {
+
+        @Nonnull
+        private static RuntimeFootprint collect(@Nonnull PhysicsWorldResource resource) {
+            int spaces = 0;
+            int backendBodies = 0;
+            int backendJoints = 0;
+            for (PhysicsSpace space : resource.getSpaces()) {
+                spaces++;
+                backendBodies += space.bodyCount();
+                backendJoints += space.getJoints().size();
+            }
+
+            int detachedBodies = 0;
+            int detachedVisualProxies = 0;
+            for (PhysicsBody body : resource.getDetachedBodies()) {
+                detachedBodies++;
+                if (resource.getDetachedVisualProxy(body) != null) {
+                    detachedVisualProxies++;
+                }
+            }
+
+            SpaceId defaultSpaceId = resource.getDefaultSpaceId();
+            String defaultSpace = defaultSpaceId == null ? "none" : String.valueOf(defaultSpaceId.value());
+            return new RuntimeFootprint(spaces,
+                backendBodies,
+                backendJoints,
+                detachedBodies,
+                detachedVisualProxies,
+                defaultSpace);
+        }
+
+        @Nonnull
+        private String summary() {
+            return "spaces=" + spaces
+                + " defaultSpace=" + defaultSpace
+                + " backendBodies=" + backendBodies
+                + " backendJoints=" + backendJoints
+                + " detachedBodies=" + detachedBodies
+                + " detachedVisualProxies=" + detachedVisualProxies;
+        }
     }
 }
