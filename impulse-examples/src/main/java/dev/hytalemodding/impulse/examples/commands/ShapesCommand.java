@@ -35,7 +35,10 @@ public class ShapesCommand extends AbstractAsyncPlayerCommand {
         }
 
         PhysicsWorldResource resource = ExamplePhysicsUtils.resource(store);
-        PhysicsSpace space = ExamplePhysicsUtils.defaultSpace(resource, world);
+        PhysicsSpace space = ExamplePhysicsUtils.defaultSpace(ctx, resource);
+        if (space == null) {
+            return CompletableFuture.completedFuture(null);
+        }
 
         Vector3d origin = new Vector3d(playerPos).add(-4.0, 3.0, 3.0);
         spawn(store, world, resource, space, space.createBox(0.5f, 0.5f, 0.5f, 1.0f),

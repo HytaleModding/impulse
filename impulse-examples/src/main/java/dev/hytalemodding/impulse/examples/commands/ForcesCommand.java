@@ -36,7 +36,10 @@ public class ForcesCommand extends AbstractAsyncPlayerCommand {
         }
 
         PhysicsWorldResource resource = ExamplePhysicsUtils.resource(store);
-        PhysicsSpace space = ExamplePhysicsUtils.defaultSpace(resource, world);
+        PhysicsSpace space = ExamplePhysicsUtils.defaultSpace(ctx, resource);
+        if (space == null) {
+            return CompletableFuture.completedFuture(null);
+        }
 
         Vector3d origin = new Vector3d(playerPos).add(-2.0, 4.0, 4.0);
         PhysicsBody central = spawnBox(store, world, resource, space, new Vector3d(origin));

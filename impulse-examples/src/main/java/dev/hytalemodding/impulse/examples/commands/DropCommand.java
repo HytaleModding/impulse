@@ -66,7 +66,10 @@ public class DropCommand extends AbstractAsyncPlayerCommand {
         holder.removeComponent(DespawnComponent.getComponentType());
 
         PhysicsWorldResource resource = store.getResource(PhysicsWorldResource.getResourceType());
-        PhysicsSpace space = ExamplePhysicsUtils.defaultSpace(resource, world);
+        PhysicsSpace space = ExamplePhysicsUtils.defaultSpace(ctx, resource);
+        if (space == null) {
+            return CompletableFuture.completedFuture(null);
+        }
 
         PhysicsBody box = space.createBox(0.5f, 0.5f, 0.5f, 1.0f);
         box.setPosition(spawnX, spawnY + box.getCenterOfMassOffsetY(), spawnZ);

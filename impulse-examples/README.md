@@ -21,6 +21,8 @@ Run the example mod with:
 
 - `/impulse-examples stress bodies [count]` - spawn visible physics block entities.
 - `/impulse-examples stress raw-bodies [count]` - spawn physics bodies without Hytale entities.
+- `/impulse-examples stress benchmark [raw|entity] [count]` - spawn a repeatable benchmark grid near the player.
+- `/impulse-examples stress auto-benchmark [raw|entity] [count] [sampleTicks]` - run a fixed-origin console-safe benchmark and report profiling after the sample window.
 - `/impulse-examples stress shapes [sets]` - spawn mixed box, sphere, capsule, cylinder, and cone bodies.
 - `/impulse-examples stress joints [count]` - spawn separate fixed, point, hinge, slider, and spring rows.
 - `/impulse-examples stress raycast [rays]` - run many raycasts and report timing.

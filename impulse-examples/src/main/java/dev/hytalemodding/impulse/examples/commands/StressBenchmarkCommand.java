@@ -61,7 +61,10 @@ public class StressBenchmarkCommand extends AbstractAsyncPlayerCommand {
         }
 
         PhysicsWorldResource resource = ExamplePhysicsUtils.resource(store);
-        PhysicsSpace space = ExamplePhysicsUtils.defaultSpace(resource, world);
+        PhysicsSpace space = ExamplePhysicsUtils.defaultSpace(ctx, resource);
+        if (space == null) {
+            return CompletableFuture.completedFuture(null);
+        }
         BenchmarkLayout layout = BenchmarkLayout.around(playerPos, request.count());
         int beforeBodies = space.bodyCount();
 

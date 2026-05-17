@@ -58,7 +58,10 @@ public class WorldCollisionCommand extends AbstractCommandCollection {
 
             int radius = ExamplePhysicsUtils.optionalInt(ctx, radiusArg, DEFAULT_RADIUS, 1, MAX_RADIUS);
             PhysicsWorldResource resource = ExamplePhysicsUtils.resource(store);
-            PhysicsSpace space = ExamplePhysicsUtils.defaultSpace(resource, world);
+            PhysicsSpace space = ExamplePhysicsUtils.defaultSpace(ctx, resource);
+        if (space == null) {
+            return CompletableFuture.completedFuture(null);
+        }
             WorldVoxelCollisionCache.BuildStats stats = resource.getWorldVoxelCollisionCache()
                 .rebuildAround(world, space, playerPos, radius);
 
@@ -92,7 +95,10 @@ public class WorldCollisionCommand extends AbstractCommandCollection {
             @Nonnull PlayerRef playerRef,
             @Nonnull World world) {
             PhysicsWorldResource resource = ExamplePhysicsUtils.resource(store);
-            PhysicsSpace space = ExamplePhysicsUtils.defaultSpace(resource, world);
+            PhysicsSpace space = ExamplePhysicsUtils.defaultSpace(ctx, resource);
+        if (space == null) {
+            return CompletableFuture.completedFuture(null);
+        }
             int removed = resource.getWorldVoxelCollisionCache().clear(space);
             ctx.sender().sendMessage(Message.raw("Removed " + removed
                 + " world voxel collision bodies."));

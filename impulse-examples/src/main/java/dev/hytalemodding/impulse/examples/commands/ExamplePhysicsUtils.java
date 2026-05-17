@@ -21,11 +21,9 @@ import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import dev.hytalemodding.impulse.api.PhysicsBody;
 import dev.hytalemodding.impulse.api.PhysicsSpace;
 import dev.hytalemodding.impulse.api.SpaceId;
-import dev.hytalemodding.impulse.core.ImpulsePlugin;
 import dev.hytalemodding.impulse.core.components.ImpulseControllableComponent;
 import dev.hytalemodding.impulse.core.components.PersistentPhysicsBodyComponent;
 import dev.hytalemodding.impulse.core.components.PhysicsBodyComponent;
-import dev.hytalemodding.impulse.core.resources.PhysicsSpaceSettings;
 import dev.hytalemodding.impulse.core.resources.PhysicsWorldResource;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
@@ -58,22 +56,17 @@ final class ExamplePhysicsUtils {
         return store.getResource(PhysicsWorldResource.getResourceType());
     }
 
-    /**
-     * Returns the default physics space for this world, creating one with streaming
-     * world collision if none exists yet. This is the example-module convenience:
-     * real integrators would create their own spaces with chosen settings.
-     */
-    @Nonnull
-    static PhysicsSpace defaultSpace(@Nonnull PhysicsWorldResource resource, @Nonnull World world) {
+    @Nullable
+    static PhysicsSpace defaultSpace(@Nonnull CommandContext ctx,
+        @Nonnull PhysicsWorldResource resource) {
         PhysicsSpace existing = resource.getDefaultSpace();
         if (existing != null) {
             return existing;
         }
 
-        return resource.createSpace(ImpulsePlugin.get().getDefaultBackendId(),
-            world.getName(),
-            PhysicsSpaceSettings.streamingWorldCollision(),
-            true);
+        ctx.sender().sendMessage(Message.raw("No default physics space exists. Create or select "
+            + "one explicitly before running Impulse example commands."));
+        return null;
     }
 
     @Nonnull
