@@ -54,12 +54,12 @@ Run the smoke-tagged runtime suite:
 
 ```bash
 JAVA_TOOL_OPTIONS="-Dcrucible.autorun=true -Dcrucible.tags=smoke" \
-  ./gradlew -Pimpulse.coreOnlyWorkspace=true runAllMods
+  ./gradlew -Dimpulse.backend=impulse:rapier runAllMods
 ```
 
 Run the live-tagged runtime suite:
 
 ```bash
 JAVA_TOOL_OPTIONS="-Dcrucible.autorun=true -Dcrucible.tags=live" \
-  ./gradlew -Pimpulse.coreOnlyWorkspace=true runAllMods
+  ./gradlew -Dimpulse.backend=impulse:rapier runAllMods
 ```
