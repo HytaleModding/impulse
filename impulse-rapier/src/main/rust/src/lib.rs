@@ -100,6 +100,19 @@ impl NativeSpace {
         );
     }
 
+    fn set_solver_tuning(
+        &mut self,
+        solver_iterations: usize,
+        internal_pgs_iterations: usize,
+        stabilization_iterations: usize,
+        min_island_size: usize,
+    ) {
+        self.integration_parameters.num_solver_iterations = solver_iterations.max(1);
+        self.integration_parameters.num_internal_pgs_iterations = internal_pgs_iterations.max(1);
+        self.integration_parameters.num_internal_stabilization_iterations = stabilization_iterations;
+        self.integration_parameters.min_island_size = min_island_size.max(1);
+    }
+
     fn insert_entry(&mut self, body: RigidBodyHandle, collider: ColliderHandle) -> i64 {
         let id = self.next_body_id;
         self.next_body_id += 1;

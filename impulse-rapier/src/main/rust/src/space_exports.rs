@@ -65,3 +65,41 @@ pub extern "system" fn Java_dev_hytalemodding_impulse_rapier_RapierNative_stepNa
         }
     }
 }
+
+#[no_mangle]
+pub extern "system" fn Java_dev_hytalemodding_impulse_rapier_RapierNative_setSolverTuningNative(
+    _env: JNIEnv,
+    _class: JClass,
+    space_handle: jlong,
+    solver_iterations: jint,
+    internal_pgs_iterations: jint,
+    stabilization_iterations: jint,
+    min_island_size: jint,
+) {
+    unsafe {
+        if let Some(space) = space_mut(space_handle) {
+            space.set_solver_tuning(
+                positive_usize(solver_iterations),
+                positive_usize(internal_pgs_iterations),
+                non_negative_usize(stabilization_iterations),
+                positive_usize(min_island_size),
+            );
+        }
+    }
+}
+
+fn positive_usize(value: jint) -> usize {
+    if value < 1 {
+        1
+    } else {
+        value as usize
+    }
+}
+
+fn non_negative_usize(value: jint) -> usize {
+    if value < 0 {
+        0
+    } else {
+        value as usize
+    }
+}
