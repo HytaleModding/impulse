@@ -108,10 +108,16 @@ public final class PhysicsSpaceMigrationService {
                 throw exception;
             }
 
+            boolean registryRemapped = false;
             PhysicsSpace replaced;
             try {
+                resource.remapMigratedBodies(bodyMap);
+                registryRemapped = true;
                 replaced = resource.replaceSpace(sourceSpaceId, targetSpace, worldName);
             } catch (Exception exception) {
+                if (registryRemapped) {
+                    resource.remapMigratedBodies(reverseBodyMap(bodyMap));
+                }
                 rollbackBodyRebinds(rebinds);
                 throw exception;
             }
@@ -329,6 +335,15 @@ public final class PhysicsSpaceMigrationService {
         for (BodyRebind rebind : rebinds) {
             rebind.component().setBody(rebind.sourceBody());
         }
+    }
+
+    @Nonnull
+    private static Map<PhysicsBody, PhysicsBody> reverseBodyMap(@Nonnull Map<PhysicsBody, PhysicsBody> bodyMap) {
+        Map<PhysicsBody, PhysicsBody> reverseMap = new IdentityHashMap<>();
+        for (Map.Entry<PhysicsBody, PhysicsBody> entry : bodyMap.entrySet()) {
+            reverseMap.put(entry.getValue(), entry.getKey());
+        }
+        return reverseMap;
     }
 
     private record BodyRebind(@Nonnull PhysicsBodyComponent component,
