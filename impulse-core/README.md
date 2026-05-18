@@ -8,7 +8,14 @@ Impulse is currently unreleased. The primary runtime model is backend-owned phys
 
 Spaces are explicit. Commands should not create hidden default spaces.
 
-- `/impulse space create` - create a default physics space using the configured backend and streaming world collision.
+First run in a fresh world should create the default space explicitly before commands that target the default space:
+
+```bash
+/impulse space create --default true
+```
+
+- `/impulse space create --default true` - create a physics space using the configured backend and streaming world collision, then make it default.
+- `/impulse space create` - create a physics space without relying on hidden default-space creation.
 - `/impulse space create --backend impulse:rapier --worldCollision streaming --default true` - create a Rapier space and make it default.
 - `/impulse space list` - list spaces, body counts, joint counts, backend ids, and world-collision mode.
 - `/impulse space default` - show the default physics space.
@@ -28,7 +35,7 @@ Bullet is the default backend when it is available. Rapier currently has the str
 
 - `/impulse clean --confirm` - remove Impulse body entities, visual proxies, runtime bodies, joints, spaces, and control sessions from the current world.
 
-Cleanup does not create a replacement/default space implicitly. Create a new space explicitly after cleaning.
+Cleanup does not create a replacement/default space implicitly. Run `/impulse space create --default true` after cleaning when the next workflow needs a default space.
 
 ## Settings commands
 

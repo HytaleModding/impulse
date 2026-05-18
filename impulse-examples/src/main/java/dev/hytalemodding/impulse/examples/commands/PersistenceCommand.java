@@ -157,6 +157,11 @@ public class PersistenceCommand extends AbstractCommandCollection {
 
     private static final class LoadCommand extends SnapshotCommand {
 
+        private final OptionalArg<String> confirmArg = withOptionalArg(
+            "confirm",
+            "Required: true, because load resets runtime physics and removes unmatched persisted bodies",
+            ArgTypes.STRING);
+
         private LoadCommand() {
             super("load", "Load Impulse persistence state onto existing Hytale entities");
         }
@@ -214,6 +219,11 @@ public class PersistenceCommand extends AbstractCommandCollection {
                 return CompletableFuture.completedFuture(null);
             }
 
+            if (!confirmDestructiveLoad(ctx, name, targetWorld, keptEntities.size(),
+                missingEntities, existingEntities.size() - keptEntities.size())) {
+                return CompletableFuture.completedFuture(null);
+            }
+
             PhysicsWorldResource runtime = store.getResource(PhysicsWorldResource.getResourceType());
             resetRuntimePhysics(store, world, runtime);
 
@@ -246,6 +256,27 @@ public class PersistenceCommand extends AbstractCommandCollection {
                 + missingEntities + " missing entities skipped, "
                 + removedBodies + " bodies removed)."));
             return CompletableFuture.completedFuture(null);
+        }
+
+        private boolean confirmDestructiveLoad(@Nonnull CommandContext ctx,
+            @Nonnull String name,
+            @Nonnull PersistentPhysicsWorldResource targetWorld,
+            int matchedBodies,
+            int missingBodies,
+            int removedBodies) {
+            if (confirmArg.provided(ctx) && "true".equalsIgnoreCase(confirmArg.get(ctx).trim())) {
+                return true;
+            }
+
+            ctx.sender().sendMessage(Message.raw("Loading snapshot '" + name + "' resets runtime "
+                + "physics, replaces persisted spaces and joints, rebuilds matched bodies, and "
+                + "removes persistence from current entity-backed bodies not present in the snapshot "
+                + "(" + targetWorld.getSpaces().length + " spaces, "
+                + matchedBodies + " matched bodies, "
+                + targetWorld.getJoints().length + " joints, "
+                + missingBodies + " missing entities skipped, "
+                + removedBodies + " bodies removed). Re-run with --confirm true to continue."));
+            return false;
         }
     }
 
