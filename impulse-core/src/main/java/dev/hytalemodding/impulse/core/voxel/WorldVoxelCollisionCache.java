@@ -368,7 +368,14 @@ public final class WorldVoxelCollisionCache {
             return BuildStats.empty();
         }
 
-        BlockSection section = blockChunk.getSectionAtIndex(sectionY);
+        BlockSection section = ChunkSectionAccess.blockSection(world, chunkX, sectionY, chunkZ);
+        if (section == null) {
+            if (profiling != null) {
+                profiling.incrementMissingChunks();
+                profiling.addEnsureSectionNanos(System.nanoTime() - start);
+            }
+            return BuildStats.empty();
+        }
         SpaceCollisionCache cache = spaces.computeIfAbsent(space.getId().value(), ignored -> new SpaceCollisionCache());
         long key = packSectionKey(chunkX, sectionY, chunkZ);
         CachedSection cached = cache.sections.get(key);

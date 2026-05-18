@@ -1,12 +1,8 @@
 package dev.hytalemodding.impulse.core.voxel;
 
-import com.hypixel.hytale.component.Ref;
-import com.hypixel.hytale.component.Store;
 import com.hypixel.hytale.math.util.ChunkUtil;
 import com.hypixel.hytale.server.core.universe.world.World;
-import com.hypixel.hytale.server.core.universe.world.chunk.BlockChunk;
 import com.hypixel.hytale.server.core.universe.world.chunk.section.BlockSection;
-import com.hypixel.hytale.server.core.universe.world.storage.ChunkStore;
 import dev.hytalemodding.impulse.core.voxel.ShapeTemplateCache.ShapeTemplate;
 import it.unimi.dsi.fastutil.longs.Long2ObjectMap;
 import it.unimi.dsi.fastutil.longs.Long2ObjectOpenHashMap;
@@ -112,8 +108,7 @@ final class SectionBlockReader {
             return sectionCache.get(key);
         }
 
-        BlockChunk chunk = blockChunk(world, chunkX, chunkZ);
-        BlockSection section = chunk != null ? chunk.getSectionAtIndex(sectionY) : null;
+        BlockSection section = ChunkSectionAccess.blockSection(world, chunkX, sectionY, chunkZ);
         sectionCache.put(key, section);
         return section;
     }
@@ -124,15 +119,4 @@ final class SectionBlockReader {
             | (sectionY & 0xFFFL);
     }
 
-    @Nullable
-    private static BlockChunk blockChunk(@Nonnull World world, int chunkX, int chunkZ) {
-        Ref<ChunkStore> chunkRef = world.getChunkStore()
-            .getChunkReference(ChunkUtil.indexChunk(chunkX, chunkZ));
-        if (chunkRef == null || !chunkRef.isValid()) {
-            return null;
-        }
-
-        Store<ChunkStore> store = world.getChunkStore().getStore();
-        return store.getComponent(chunkRef, BlockChunk.getComponentType());
-    }
 }
