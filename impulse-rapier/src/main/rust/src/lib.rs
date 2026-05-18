@@ -5,7 +5,9 @@ use jni::objects::{JClass, JFloatArray, JIntArray};
 use jni::sys::{jboolean, jfloat, jfloatArray, jint, jlong};
 use jni::JNIEnv;
 use rapier3d::prelude::*;
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
+use std::panic::{catch_unwind, AssertUnwindSafe};
+use std::sync::{Mutex, OnceLock};
 
 // Integer ids shared with the Java side enums.
 const BODY_TYPE_STATIC: i32 = 0;
@@ -144,6 +146,42 @@ impl NativeSpace {
     }
 }
 
+static ACTIVE_SPACES: OnceLock<Mutex<HashSet<usize>>> = OnceLock::new();
+
+fn active_spaces() -> &'static Mutex<HashSet<usize>> {
+    ACTIVE_SPACES.get_or_init(|| Mutex::new(HashSet::new()))
+}
+
+fn register_space(space: *mut NativeSpace) -> bool {
+    active_spaces()
+        .lock()
+        .map(|mut spaces| spaces.insert(space as usize))
+        .unwrap_or(false)
+}
+
+fn unregister_space(handle: jlong) -> bool {
+    if handle == 0 || !is_aligned_space_handle(handle) {
+        return false;
+    }
+    active_spaces()
+        .lock()
+        .map(|mut spaces| spaces.remove(&(handle as usize)))
+        .unwrap_or(false)
+}
+
+fn is_active_space_handle(handle: jlong) -> bool {
+    handle != 0
+        && is_aligned_space_handle(handle)
+        && active_spaces()
+            .lock()
+            .map(|spaces| spaces.contains(&(handle as usize)))
+            .unwrap_or(false)
+}
+
+fn is_aligned_space_handle(handle: jlong) -> bool {
+    (handle as usize) % std::mem::align_of::<NativeSpace>() == 0
+}
+
 fn bool_from_jboolean(value: jboolean) -> bool {
     value != 0
 }
@@ -154,6 +192,32 @@ fn jboolean_from_bool(value: bool) -> jboolean {
     } else {
         0
     }
+}
+
+fn catch_jni_default<T, F>(default: T, f: F) -> T
+where
+    F: FnOnce() -> T,
+{
+    match catch_unwind(AssertUnwindSafe(f)) {
+        Ok(value) => value,
+        Err(_) => default,
+    }
+}
+
+fn float_array_or_null(env: &JNIEnv<'_>, values: &[jfloat]) -> jfloatArray {
+    if values.len() > i32::MAX as usize {
+        return std::ptr::null_mut();
+    }
+
+    let Ok(out) = env.new_float_array(values.len() as i32) else {
+        return std::ptr::null_mut();
+    };
+
+    if env.set_float_array_region(&out, 0, values).is_err() {
+        return std::ptr::null_mut();
+    }
+
+    out.into_raw()
 }
 
 fn rotation_from_xyzw(x: f32, y: f32, z: f32, w: f32) -> Rotation {
@@ -249,7 +313,7 @@ fn normalized_or_y(x: f32, y: f32, z: f32) -> Vector {
 
 // Look up a native space from the opaque handle passed through JNI.
 unsafe fn space_mut(handle: jlong) -> Option<&'static mut NativeSpace> {
-    if handle == 0 {
+    if !is_active_space_handle(handle) {
         None
     } else {
         (handle as *mut NativeSpace).as_mut()

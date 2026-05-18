@@ -1,3 +1,22 @@
+const RAYCAST_HIT_FLOATS: usize = 9;
+const MAX_RAYCAST_HITS: usize = 4_096;
+const MAX_RAYCAST_FLOATS: usize = RAYCAST_HIT_FLOATS * MAX_RAYCAST_HITS;
+
+const CONTACT_FLOATS: usize = 13;
+const MAX_CONTACT_POINTS: usize = 16_384;
+const MAX_CONTACT_FLOATS: usize = CONTACT_FLOATS * MAX_CONTACT_POINTS;
+
+fn append_bounded(values: &mut Vec<jfloat>, record: &[jfloat], max_floats: usize) -> bool {
+    if record.len() > max_floats.saturating_sub(values.len()) {
+        return false;
+    }
+    if values.try_reserve(record.len()).is_err() {
+        return false;
+    }
+    values.extend_from_slice(record);
+    true
+}
+
 #[no_mangle]
 pub extern "system" fn Java_dev_hytalemodding_impulse_rapier_RapierNative_raycastAllNative(
     env: JNIEnv,
@@ -10,6 +29,21 @@ pub extern "system" fn Java_dev_hytalemodding_impulse_rapier_RapierNative_raycas
     to_y: jfloat,
     to_z: jfloat,
 ) -> jfloatArray {
+    let values = catch_jni_default(Vec::new(), || {
+        raycast_all_values(space_handle, from_x, from_y, from_z, to_x, to_y, to_z)
+    });
+    float_array_or_null(&env, &values)
+}
+
+fn raycast_all_values(
+    space_handle: jlong,
+    from_x: jfloat,
+    from_y: jfloat,
+    from_z: jfloat,
+    to_x: jfloat,
+    to_y: jfloat,
+    to_z: jfloat,
+) -> Vec<jfloat> {
     let mut values: Vec<jfloat> = Vec::new();
     unsafe {
         if let Some(space) = space_mut(space_handle) {
@@ -28,7 +62,7 @@ pub extern "system" fn Java_dev_hytalemodding_impulse_rapier_RapierNative_raycas
                 for (collider_handle, _collider, hit) in query.intersect_ray(ray, distance, true) {
                     if let Some(body_id) = space.collider_to_body_id.get(&collider_handle) {
                         let point = from + ray.dir * hit.time_of_impact;
-                        values.extend_from_slice(&[
+                        if !append_bounded(&mut values, &[
                             *body_id as jfloat,
                             point.x,
                             point.y,
@@ -38,15 +72,15 @@ pub extern "system" fn Java_dev_hytalemodding_impulse_rapier_RapierNative_raycas
                             hit.normal.z,
                             hit.time_of_impact / distance,
                             hit.time_of_impact,
-                        ]);
+                        ], MAX_RAYCAST_FLOATS) {
+                            break;
+                        }
                     }
                 }
             }
         }
     }
-    let out = env.new_float_array(values.len() as i32).unwrap();
-    let _ = env.set_float_array_region(&out, 0, &values);
-    out.into_raw()
+    values
 }
 
 #[no_mangle]
@@ -55,10 +89,15 @@ pub extern "system" fn Java_dev_hytalemodding_impulse_rapier_RapierNative_getCon
     _class: JClass,
     space_handle: jlong,
 ) -> jfloatArray {
+    let values = catch_jni_default(Vec::new(), || contact_values(space_handle));
+    float_array_or_null(&env, &values)
+}
+
+fn contact_values(space_handle: jlong) -> Vec<jfloat> {
     let mut values: Vec<jfloat> = Vec::new();
     unsafe {
         if let Some(space) = space_mut(space_handle) {
-            for pair in space.narrow_phase.contact_pairs() {
+            'contacts: for pair in space.narrow_phase.contact_pairs() {
                 let Some(body_a_id) = space.collider_to_body_id.get(&pair.collider1) else {
                     continue;
                 };
@@ -69,7 +108,7 @@ pub extern "system" fn Java_dev_hytalemodding_impulse_rapier_RapierNative_getCon
                     let normal = manifold.data.normal;
                     for contact in &manifold.data.solver_contacts {
                         let point = contact.point;
-                        values.extend_from_slice(&[
+                        if !append_bounded(&mut values, &[
                             *body_a_id as jfloat,
                             *body_b_id as jfloat,
                             point.x,
@@ -83,13 +122,13 @@ pub extern "system" fn Java_dev_hytalemodding_impulse_rapier_RapierNative_getCon
                             normal.z,
                             contact.dist,
                             contact.warmstart_impulse,
-                        ]);
+                        ], MAX_CONTACT_FLOATS) {
+                            break 'contacts;
+                        }
                     }
                 }
             }
         }
     }
-    let out = env.new_float_array(values.len() as i32).unwrap();
-    let _ = env.set_float_array_region(&out, 0, &values);
-    out.into_raw()
+    values
 }
