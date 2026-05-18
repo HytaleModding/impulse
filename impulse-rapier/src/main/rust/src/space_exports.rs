@@ -3,7 +3,16 @@ pub extern "system" fn Java_dev_hytalemodding_impulse_rapier_RapierNative_create
     _env: JNIEnv,
     _class: JClass,
 ) -> jlong {
-    Box::into_raw(Box::new(NativeSpace::new())) as jlong
+    let space = Box::new(NativeSpace::new());
+    let handle = Box::into_raw(space);
+    if register_space(handle) {
+        handle as jlong
+    } else {
+        unsafe {
+            drop(Box::from_raw(handle));
+        }
+        0
+    }
 }
 
 #[no_mangle]
@@ -12,7 +21,7 @@ pub extern "system" fn Java_dev_hytalemodding_impulse_rapier_RapierNative_destro
     _class: JClass,
     space_handle: jlong,
 ) {
-    if space_handle == 0 {
+    if !unregister_space(space_handle) {
         return;
     }
     unsafe {
@@ -59,11 +68,13 @@ pub extern "system" fn Java_dev_hytalemodding_impulse_rapier_RapierNative_stepNa
     space_handle: jlong,
     dt: jfloat,
 ) {
-    unsafe {
-        if let Some(space) = space_mut(space_handle) {
-            space.step(dt);
+    catch_jni_default((), || {
+        unsafe {
+            if let Some(space) = space_mut(space_handle) {
+                space.step(dt);
+            }
         }
-    }
+    });
 }
 
 #[no_mangle]
