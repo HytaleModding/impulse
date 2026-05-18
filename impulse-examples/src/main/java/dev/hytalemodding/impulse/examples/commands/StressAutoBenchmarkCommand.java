@@ -94,7 +94,12 @@ public class StressAutoBenchmarkCommand extends AbstractWorldCommand {
 
     private final OptionalArg<String> modeArg = this.withOptionalArg(
         "mode",
-        "Benchmark mode: raw, detached, detached-view, detached-view-chunks, or entity",
+        "Benchmark mode, default detached-view: raw, detached, detached-view, "
+            + "detached-view-chunks, or entity",
+        ArgTypes.STRING);
+    private final OptionalArg<String> confirmArg = this.withOptionalArg(
+        "confirm",
+        "Required: true, because this clears existing Impulse example physics state",
         ArgTypes.STRING);
     private final OptionalArg<Integer> countArg = this.withOptionalArg(
         "count",
@@ -131,6 +136,9 @@ public class StressAutoBenchmarkCommand extends AbstractWorldCommand {
         @Nonnull Store<EntityStore> store) {
         BenchmarkRequest request = parseRequest(ctx);
         if (request == null) {
+            return;
+        }
+        if (!confirmDestructiveRun(ctx)) {
             return;
         }
 
@@ -248,6 +256,18 @@ public class StressAutoBenchmarkCommand extends AbstractWorldCommand {
         }
 
         scheduleReport(ctx, world, store, space.getId(), request, startedNanos);
+    }
+
+    private boolean confirmDestructiveRun(@Nonnull CommandContext ctx) {
+        if (confirmArg.provided(ctx) && "true".equalsIgnoreCase(confirmArg.get(ctx).trim())) {
+            return true;
+        }
+
+        ctx.sender().sendMessage(Message.raw("Impulse auto benchmark clears existing Impulse "
+            + "body entities, visual proxies, runtime spaces, body ownership, and control sessions, "
+            + "then creates a fresh benchmark space and enables profiling. Re-run with "
+            + "--confirm true to continue."));
+        return false;
     }
 
     private static void scheduleEntityLifecycleProbe(@Nonnull CommandContext ctx,
@@ -694,7 +714,7 @@ public class StressAutoBenchmarkCommand extends AbstractWorldCommand {
 
     @Nullable
     private BenchmarkRequest parseRequest(@Nonnull CommandContext ctx) {
-        BenchmarkMode mode = BenchmarkMode.RAW;
+        BenchmarkMode mode = BenchmarkMode.DETACHED_VIEW;
         if (modeArg.provided(ctx)) {
             String rawMode = modeArg.get(ctx).toLowerCase(Locale.ROOT);
             BenchmarkMode parsed = BenchmarkMode.from(rawMode);
