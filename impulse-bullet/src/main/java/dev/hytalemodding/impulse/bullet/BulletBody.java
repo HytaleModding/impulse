@@ -23,6 +23,9 @@ public final class BulletBody implements PhysicsBody {
     private final com.jme3.math.Vector3f jmeVectorScratch = new com.jme3.math.Vector3f();
     private final com.jme3.math.Quaternion jmeQuaternionScratch = new com.jme3.math.Quaternion();
     private final Vector3f jomlVectorScratch = new Vector3f();
+    private BulletSpace owner;
+    private boolean attachedToSpace;
+    private boolean invalidated;
     private float planeGroundY = Float.NaN;
 
     BulletBody(@Nonnull PhysicsRigidBody body) {
@@ -485,6 +488,60 @@ public final class BulletBody implements PhysicsBody {
 
     long getNativeId() {
         return body.nativeId();
+    }
+
+    @Nullable
+    BulletSpace getOwner() {
+        return owner;
+    }
+
+    boolean isOwnedBy(@Nonnull BulletSpace space) {
+        return owner == space;
+    }
+
+    boolean isAttachedToSpace() {
+        return attachedToSpace;
+    }
+
+    boolean isInvalidated() {
+        return invalidated;
+    }
+
+    void bindTo(@Nonnull BulletSpace space) {
+        requireNotInvalidated();
+        if (owner != null && owner != space) {
+            throw new IllegalStateException("Body belongs to another bullet space");
+        }
+        owner = space;
+    }
+
+    void markAttachedTo(@Nonnull BulletSpace space) {
+        bindTo(space);
+        if (attachedToSpace) {
+            throw new IllegalStateException("Body is already attached to a bullet space");
+        }
+        attachedToSpace = true;
+    }
+
+    void detachFrom(@Nonnull BulletSpace space) {
+        if (owner == space) {
+            attachedToSpace = false;
+            owner = null;
+        }
+    }
+
+    void invalidateFrom(@Nonnull BulletSpace space) {
+        if (owner == space) {
+            attachedToSpace = false;
+            owner = null;
+            invalidated = true;
+        }
+    }
+
+    void requireNotInvalidated() {
+        if (invalidated) {
+            throw new IllegalStateException("Body has been invalidated");
+        }
     }
 
     private float estimateCcdRadius() {

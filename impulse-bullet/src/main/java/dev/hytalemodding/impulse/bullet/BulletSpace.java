@@ -70,43 +70,56 @@ public final class BulletSpace implements PhysicsSpace {
 
     @Override
     public void step(float dt) {
+        requireOpen();
         space.update(dt, 0);
     }
 
     @Override
     public void setGravity(float x, float y, float z) {
+        requireOpen();
         space.setGravity(toJme(x, y, z));
     }
 
     @Nonnull
     @Override
     public Vector3f getGravity() {
+        requireOpen();
         return fromJme(space.getGravity(new com.jme3.math.Vector3f()));
     }
 
     @Override
     public void addBody(@Nonnull PhysicsBody body) {
+        requireOpen();
         if (!(body instanceof BulletBody bulletBody)) {
             throw new IllegalArgumentException("Body does not belong to bullet backend");
         }
+        requireBodyAddable(bulletBody);
         space.addCollisionObject(bulletBody.getRigidBody());
         trackBody(bulletBody);
+        bulletBody.markAttachedTo(this);
     }
 
     @Override
     public void removeBody(@Nonnull PhysicsBody body) {
+        requireOpen();
         if (!(body instanceof BulletBody bulletBody)) {
+            return;
+        }
+        if (!ownsBody(bulletBody)) {
             return;
         }
 
         removeAttachedJoints(bulletBody);
-        space.removeCollisionObject(bulletBody.getRigidBody());
+        if (bulletBody.isAttachedToSpace()) {
+            space.removeCollisionObject(bulletBody.getRigidBody());
+        }
         untrackBody(bulletBody);
     }
 
     @Nonnull
     @Override
     public List<PhysicsBody> getBodies() {
+        requireOpen();
         for (PhysicsRigidBody rigidBody : space.getRigidBodyList()) {
             wrapBody(rigidBody);
         }
@@ -115,11 +128,13 @@ public final class BulletSpace implements PhysicsSpace {
 
     @Override
     public int bodyCount() {
+        requireOpen();
         return space.getRigidBodyList().size();
     }
 
     @Override
     public void forEachBody(@Nonnull Consumer<PhysicsBody> consumer) {
+        requireOpen();
         for (PhysicsRigidBody rigidBody : space.getRigidBodyList()) {
             consumer.accept(wrapBody(rigidBody));
         }
@@ -127,12 +142,14 @@ public final class BulletSpace implements PhysicsSpace {
 
     @Override
     public boolean supportsContinuousCollision() {
+        requireOpen();
         return true;
     }
 
     @Nonnull
     @Override
     public PhysicsBody createStaticPlane(float groundY) {
+        requireOpen();
         Plane plane = new Plane(com.jme3.math.Vector3f.UNIT_Y, groundY);
         CollisionShape shape = new PlaneCollisionShape(plane);
         PhysicsRigidBody body = new PhysicsRigidBody(shape,
@@ -143,6 +160,7 @@ public final class BulletSpace implements PhysicsSpace {
     @Nonnull
     @Override
     public PhysicsBody createBox(float halfX, float halfY, float halfZ, float mass) {
+        requireOpen();
         CollisionShape shape = new BoxCollisionShape(toJme(halfX, halfY, halfZ));
         return trackBody(new BulletBody(new PhysicsRigidBody(shape, mass)));
     }
@@ -156,6 +174,7 @@ public final class BulletSpace implements PhysicsSpace {
     @Nonnull
     @Override
     public PhysicsBody createSphere(float radius, float mass) {
+        requireOpen();
         return trackBody(new BulletBody(new PhysicsRigidBody(new SphereCollisionShape(radius), mass)));
     }
 
@@ -165,6 +184,7 @@ public final class BulletSpace implements PhysicsSpace {
         float halfHeight,
         @Nonnull PhysicsAxis axis,
         float mass) {
+        requireOpen();
         CollisionShape shape = new CapsuleCollisionShape(radius, halfHeight * 2f, axis.index());
         return trackBody(new BulletBody(new PhysicsRigidBody(shape, mass)));
     }
@@ -175,6 +195,7 @@ public final class BulletSpace implements PhysicsSpace {
         float halfHeight,
         @Nonnull PhysicsAxis axis,
         float mass) {
+        requireOpen();
         CollisionShape shape = new CylinderCollisionShape(radius, halfHeight * 2f, axis.index());
         return trackBody(new BulletBody(new PhysicsRigidBody(shape, mass)));
     }
@@ -182,6 +203,7 @@ public final class BulletSpace implements PhysicsSpace {
     @Nonnull
     @Override
     public PhysicsBody createCone(float radius, float halfHeight, @Nonnull PhysicsAxis axis, float mass) {
+        requireOpen();
         CollisionShape shape = new ConeCollisionShape(radius, halfHeight * 2f, axis.index());
         return trackBody(new BulletBody(new PhysicsRigidBody(shape, mass)));
     }
@@ -189,6 +211,7 @@ public final class BulletSpace implements PhysicsSpace {
     @Nonnull
     @Override
     public Optional<PhysicsRayHit> raycastClosest(@Nonnull Vector3f from, @Nonnull Vector3f to) {
+        requireOpen();
         List<PhysicsRayHit> hits = raycastAll(from, to);
         PhysicsRayHit closest = null;
         for (PhysicsRayHit hit : hits) {
@@ -202,6 +225,7 @@ public final class BulletSpace implements PhysicsSpace {
     @Nonnull
     @Override
     public List<PhysicsRayHit> raycastAll(@Nonnull Vector3f from, @Nonnull Vector3f to) {
+        requireOpen();
         List<PhysicsRayTestResult> results = space.rayTest(toJme(from), toJme(to));
         List<PhysicsRayHit> hits = new ArrayList<>(results.size());
         Vector3f delta = new Vector3f(to).sub(from);
@@ -223,6 +247,7 @@ public final class BulletSpace implements PhysicsSpace {
     @Nonnull
     @Override
     public List<PhysicsContact> getContacts() {
+        requireOpen();
         long[] manifolds = space.listManifoldIds();
         List<PhysicsContact> contacts = new ArrayList<>();
         for (long manifold : manifolds) {
@@ -251,6 +276,7 @@ public final class BulletSpace implements PhysicsSpace {
         @Nonnull PhysicsBody bodyB,
         @Nonnull Vector3f anchorA,
         @Nonnull Vector3f anchorB) {
+        requireOpen();
         BulletBody bulletA = requireBody(bodyA);
         BulletBody bulletB = requireBody(bodyB);
         SixDofJoint joint = new SixDofJoint(bulletA.getRigidBody(), bulletB.getRigidBody(),
@@ -269,6 +295,7 @@ public final class BulletSpace implements PhysicsSpace {
         @Nonnull PhysicsBody bodyB,
         @Nonnull Vector3f anchorA,
         @Nonnull Vector3f anchorB) {
+        requireOpen();
         BulletBody bulletA = requireBody(bodyA);
         BulletBody bulletB = requireBody(bodyB);
         Point2PointJoint joint = new Point2PointJoint(bulletA.getRigidBody(), bulletB.getRigidBody(),
@@ -284,6 +311,7 @@ public final class BulletSpace implements PhysicsSpace {
         @Nonnull Vector3f anchorA,
         @Nonnull Vector3f anchorB,
         @Nonnull Vector3f axis) {
+        requireOpen();
         BulletBody bulletA = requireBody(bodyA);
         BulletBody bulletB = requireBody(bodyB);
         Vector3f normalizedAxis = normalizedOrDefault(axis);
@@ -300,6 +328,7 @@ public final class BulletSpace implements PhysicsSpace {
         @Nonnull Vector3f anchorA,
         @Nonnull Vector3f anchorB,
         @Nonnull Vector3f axis) {
+        requireOpen();
         BulletBody bulletA = requireBody(bodyA);
         BulletBody bulletB = requireBody(bodyB);
         Vector3f normalizedAxis = normalizedOrDefault(axis);
@@ -319,6 +348,7 @@ public final class BulletSpace implements PhysicsSpace {
         float restLength,
         float stiffness,
         float damping) {
+        requireOpen();
         BulletBody bulletA = requireBody(bodyA);
         BulletBody bulletB = requireBody(bodyB);
         SixDofSpringJoint joint = new SixDofSpringJoint(bulletA.getRigidBody(), bulletB.getRigidBody(),
@@ -336,26 +366,29 @@ public final class BulletSpace implements PhysicsSpace {
 
     @Override
     public void removeJoint(@Nonnull PhysicsJoint joint) {
+        requireOpen();
         if (!(joint instanceof BulletJoint bulletJoint)) {
             return;
         }
-        space.removeJoint(bulletJoint.getNativeJoint());
-        joints.remove(bulletJoint);
+        removeJointInternal(bulletJoint);
     }
 
     @Nonnull
     @Override
     public List<PhysicsJoint> getJoints() {
+        requireOpen();
         return new ArrayList<>(joints);
     }
 
     @Override
     public int jointCount() {
+        requireOpen();
         return joints.size();
     }
 
     @Override
     public void forEachJoint(@Nonnull Consumer<PhysicsJoint> consumer) {
+        requireOpen();
         for (BulletJoint joint : joints) {
             consumer.accept(joint);
         }
@@ -370,12 +403,14 @@ public final class BulletSpace implements PhysicsSpace {
         closed = true;
         try {
             for (BulletJoint joint : new ArrayList<>(joints)) {
-                space.removeJoint(joint.getNativeJoint());
+                removeJointInternal(joint);
             }
-            joints.clear();
 
             for (BulletBody body : new ArrayList<>(bodies)) {
-                space.removeCollisionObject(body.getRigidBody());
+                if (body.isAttachedToSpace()) {
+                    space.removeCollisionObject(body.getRigidBody());
+                }
+                body.invalidateFrom(this);
             }
             bodies.clear();
             bodiesByRigidBody.clear();
@@ -395,10 +430,15 @@ public final class BulletSpace implements PhysicsSpace {
         if (!(body instanceof BulletBody bulletBody)) {
             throw new IllegalArgumentException("Body does not belong to bullet backend");
         }
+        if (!ownsBody(bulletBody)) {
+            throw new IllegalArgumentException("Body does not belong to this bullet space");
+        }
+        bulletBody.requireNotInvalidated();
         return bulletBody;
     }
 
     private BulletBody trackBody(@Nonnull BulletBody body) {
+        body.bindTo(this);
         if (!bodiesByRigidBody.containsKey(body.getRigidBody())) {
             bodiesByRigidBody.put(body.getRigidBody(), body);
             bodiesByNativeId.put(body.getNativeId(), body);
@@ -411,6 +451,7 @@ public final class BulletSpace implements PhysicsSpace {
         bodiesByRigidBody.remove(body.getRigidBody());
         bodiesByNativeId.remove(body.getNativeId());
         bodies.remove(body);
+        body.detachFrom(this);
     }
 
     private void removeAttachedJoints(@Nonnull BulletBody body) {
@@ -419,8 +460,7 @@ public final class BulletSpace implements PhysicsSpace {
                 continue;
             }
 
-            space.removeJoint(joint.getNativeJoint());
-            joints.remove(joint);
+            removeJointInternal(joint);
         }
     }
 
@@ -429,7 +469,37 @@ public final class BulletSpace implements PhysicsSpace {
         if (existing != null) {
             return existing;
         }
-        return trackBody(new BulletBody(rigidBody));
+        BulletBody body = trackBody(new BulletBody(rigidBody));
+        body.markAttachedTo(this);
+        return body;
+    }
+
+    private void removeJointInternal(@Nonnull BulletJoint joint) {
+        if (!joints.remove(joint)) {
+            return;
+        }
+        space.removeJoint(joint.getNativeJoint());
+    }
+
+    private void requireBodyAddable(@Nonnull BulletBody body) {
+        body.requireNotInvalidated();
+        BulletSpace owner = body.getOwner();
+        if (owner != null && owner != this) {
+            throw new IllegalArgumentException("Body belongs to another bullet space");
+        }
+        if (body.isAttachedToSpace()) {
+            throw new IllegalStateException("Body is already attached to a bullet space");
+        }
+    }
+
+    private boolean ownsBody(@Nonnull BulletBody body) {
+        return body.isOwnedBy(this) && bodiesByRigidBody.get(body.getRigidBody()) == body;
+    }
+
+    private void requireOpen() {
+        if (closed) {
+            throw new IllegalStateException("Bullet space is closed: " + id);
+        }
     }
 
     private static Vector3f normalizedOrDefault(@Nonnull Vector3f axis) {
