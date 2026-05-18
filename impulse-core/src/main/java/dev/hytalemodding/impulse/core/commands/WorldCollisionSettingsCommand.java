@@ -28,15 +28,21 @@ public class WorldCollisionSettingsCommand extends AbstractAsyncPlayerCommand {
         ArgTypes.STRING);
     private final OptionalArg<Integer> playerRadiusArg = this.withOptionalArg(
         "playerRadius",
-        "Block radius streamed around players",
+        "Block radius streamed around players (1-"
+            + PhysicsSpaceSettings.MAX_WORLD_COLLISION_RADIUS
+            + ")",
         ArgTypes.INTEGER);
     private final OptionalArg<Integer> bodyRadiusArg = this.withOptionalArg(
         "bodyRadius",
-        "Block radius streamed around awake dynamic bodies",
+        "Block radius streamed around awake dynamic bodies (1-"
+            + PhysicsSpaceSettings.MAX_WORLD_COLLISION_BODY_RADIUS
+            + ")",
         ArgTypes.INTEGER);
     private final OptionalArg<Integer> ttlArg = this.withOptionalArg(
         "ttl",
-        "Ticks before unused streamed sections are pruned",
+        "Ticks before unused streamed sections are pruned (1-"
+            + PhysicsSpaceSettings.MAX_WORLD_COLLISION_TTL_TICKS
+            + ")",
         ArgTypes.INTEGER);
     private final OptionalArg<String> chunkBoundaryArg = this.withOptionalArg(
         "chunkBoundary",
@@ -92,9 +98,16 @@ public class WorldCollisionSettingsCommand extends AbstractAsyncPlayerCommand {
             ? bodyRadiusArg.get(ctx)
             : settings.getWorldCollisionBodyRadius();
         int ttl = ttlArg.provided(ctx) ? ttlArg.get(ctx) : settings.getWorldCollisionTtlTicks();
-        if (playerRadius < 1 || bodyRadius < 1 || ttl < 1) {
+        if (outOfRange(playerRadius, PhysicsSpaceSettings.MAX_WORLD_COLLISION_RADIUS)
+            || outOfRange(bodyRadius, PhysicsSpaceSettings.MAX_WORLD_COLLISION_BODY_RADIUS)
+            || outOfRange(ttl, PhysicsSpaceSettings.MAX_WORLD_COLLISION_TTL_TICKS)) {
             ctx.sender().sendMessage(Message.raw(
-                "playerRadius, bodyRadius, and ttl must all be >= 1."));
+                "playerRadius must be 1-" + PhysicsSpaceSettings.MAX_WORLD_COLLISION_RADIUS
+                    + ", bodyRadius must be 1-"
+                    + PhysicsSpaceSettings.MAX_WORLD_COLLISION_BODY_RADIUS
+                    + ", and ttl must be 1-"
+                    + PhysicsSpaceSettings.MAX_WORLD_COLLISION_TTL_TICKS
+                    + "."));
             return CompletableFuture.completedFuture(null);
         }
 
@@ -114,6 +127,10 @@ public class WorldCollisionSettingsCommand extends AbstractAsyncPlayerCommand {
             || bodyRadiusArg.provided(ctx)
             || ttlArg.provided(ctx)
             || chunkBoundaryArg.provided(ctx);
+    }
+
+    private static boolean outOfRange(int value, int maxValue) {
+        return value < 1 || value > maxValue;
     }
 
     private static void sendSummary(@Nonnull CommandContext ctx,

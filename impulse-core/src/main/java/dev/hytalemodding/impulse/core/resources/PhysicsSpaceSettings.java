@@ -24,6 +24,11 @@ public class PhysicsSpaceSettings {
     public static final int DEFAULT_WORLD_COLLISION_RADIUS = 8;
 
     /**
+     * Hard block-radius cap for player-centered world collision streaming.
+     */
+    public static final int MAX_WORLD_COLLISION_RADIUS = 128;
+
+    /**
      * Block radius around each active dynamic physics body for streaming collision.
      * Smaller than the player radius because bodies should not pull collision
      * as far as players, but still need terrain to land on.
@@ -31,9 +36,19 @@ public class PhysicsSpaceSettings {
     public static final int DEFAULT_WORLD_COLLISION_BODY_RADIUS = 4;
 
     /**
+     * Hard block-radius cap for dynamic-body world collision streaming.
+     */
+    public static final int MAX_WORLD_COLLISION_BODY_RADIUS = 64;
+
+    /**
      * Ticks before an unused section's collision bodies are pruned.
      */
     public static final int DEFAULT_WORLD_COLLISION_TTL_TICKS = 100;
+
+    /**
+     * Hard tick cap for retaining unused streamed collision sections.
+     */
+    public static final int MAX_WORLD_COLLISION_TTL_TICKS = 12_000;
 
     /**
      * Block radius around players where visual followers receive the full sync policy.
@@ -41,11 +56,21 @@ public class PhysicsSpaceSettings {
     public static final int DEFAULT_VISUAL_FULL_SYNC_RADIUS = 64;
 
     /**
+     * Hard block-radius cap for full-rate visual sync.
+     */
+    public static final int MAX_VISUAL_FULL_SYNC_RADIUS = 512;
+
+    /**
      * Maximum block radius around players where visual followers receive any sync at all.
      * Followers beyond this range stop writing Hytale transforms until they come back into
      * interest.
      */
     public static final int DEFAULT_VISUAL_MAX_SYNC_RADIUS = 128;
+
+    /**
+     * Hard block-radius cap for any visual sync.
+     */
+    public static final int MAX_VISUAL_MAX_SYNC_RADIUS = 1_024;
 
     /**
      * Whether visuals beyond {@link #DEFAULT_VISUAL_MAX_SYNC_RADIUS} stop receiving transform sync.
@@ -58,9 +83,19 @@ public class PhysicsSpaceSettings {
     public static final int DEFAULT_VISUAL_MID_SYNC_INTERVAL_TICKS = 1;
 
     /**
+     * Hard tick cap for mid-range visual sync intervals.
+     */
+    public static final int MAX_VISUAL_MID_SYNC_INTERVAL_TICKS = 1_200;
+
+    /**
      * Minimum ticks between far-range visual sync writes when far cutoff is disabled.
      */
     public static final int DEFAULT_VISUAL_FAR_SYNC_INTERVAL_TICKS = 40;
+
+    /**
+     * Hard tick cap for far-range visual sync intervals.
+     */
+    public static final int MAX_VISUAL_FAR_SYNC_INTERVAL_TICKS = 1_200;
 
     /**
      * Whether visual prioritization should use backend raycasts for occlusion.
@@ -75,9 +110,19 @@ public class PhysicsSpaceSettings {
     public static final int DEFAULT_VISUAL_OCCLUSION_RAYCASTS_PER_TICK = 256;
 
     /**
+     * Hard cap on visual occlusion backend raycasts spent per tick.
+     */
+    public static final int MAX_VISUAL_OCCLUSION_RAYCASTS_PER_TICK = 4_096;
+
+    /**
      * Ticks a visual occlusion raycast result can be reused.
      */
     public static final int DEFAULT_VISUAL_OCCLUSION_CACHE_TICKS = 10;
+
+    /**
+     * Hard tick cap for reusing visual occlusion raycast results.
+     */
+    public static final int MAX_VISUAL_OCCLUSION_CACHE_TICKS = 1_200;
 
     /**
      * Rapier default solver iterations. Lower values are faster but less stable.
@@ -124,9 +169,19 @@ public class PhysicsSpaceSettings {
     public static final int DEFAULT_DETACHED_VISUAL_MATERIALIZATION_RADIUS = 64;
 
     /**
+     * Hard block-radius cap for detached visual proxy materialization.
+     */
+    public static final int MAX_DETACHED_VISUAL_MATERIALIZATION_RADIUS = 512;
+
+    /**
      * Larger radius used to avoid rapid visual proxy despawn/respawn at the edge.
      */
     public static final int DEFAULT_DETACHED_VISUAL_DEMATERIALIZATION_RADIUS = 80;
+
+    /**
+     * Hard block-radius cap for detached visual proxy dematerialization.
+     */
+    public static final int MAX_DETACHED_VISUAL_DEMATERIALIZATION_RADIUS = 1_024;
 
     /**
      * Maximum detached visual proxies spawned per world tick.
@@ -134,9 +189,19 @@ public class PhysicsSpaceSettings {
     public static final int DEFAULT_DETACHED_VISUAL_MAX_SPAWNS_PER_TICK = 128;
 
     /**
+     * Hard cap on detached visual proxy spawns per tick.
+     */
+    public static final int MAX_DETACHED_VISUAL_MAX_SPAWNS_PER_TICK = 512;
+
+    /**
      * Maximum detached visual proxies allowed in one physics space at once.
      */
     public static final int DEFAULT_DETACHED_VISUAL_MAX_MATERIALIZED = 1024;
+
+    /**
+     * Hard cap on detached visual proxies materialized in one physics space.
+     */
+    public static final int MAX_DETACHED_VISUAL_MAX_MATERIALIZED = 16_384;
 
     /**
      * Default visual proxy block type. Integrators should override this for their own content.
@@ -368,74 +433,93 @@ public class PhysicsSpaceSettings {
     }
 
     public void setWorldCollisionRadius(int worldCollisionRadius) {
-        if (worldCollisionRadius < 1) {
-            throw new IllegalArgumentException("World collision radius must be positive");
-        }
-        this.worldCollisionRadius = worldCollisionRadius;
+        this.worldCollisionRadius = requirePositiveAtMost(
+            "World collision radius",
+            worldCollisionRadius,
+            MAX_WORLD_COLLISION_RADIUS);
     }
 
     public void setWorldCollisionBodyRadius(int worldCollisionBodyRadius) {
-        if (worldCollisionBodyRadius < 1) {
-            throw new IllegalArgumentException("World collision body radius must be positive");
-        }
-        this.worldCollisionBodyRadius = worldCollisionBodyRadius;
+        this.worldCollisionBodyRadius = requirePositiveAtMost(
+            "World collision body radius",
+            worldCollisionBodyRadius,
+            MAX_WORLD_COLLISION_BODY_RADIUS);
     }
 
     public void setWorldCollisionTtlTicks(int worldCollisionTtlTicks) {
-        if (worldCollisionTtlTicks < 1) {
-            throw new IllegalArgumentException("World collision TTL must be positive");
-        }
-        this.worldCollisionTtlTicks = worldCollisionTtlTicks;
+        this.worldCollisionTtlTicks = requirePositiveAtMost(
+            "World collision TTL",
+            worldCollisionTtlTicks,
+            MAX_WORLD_COLLISION_TTL_TICKS);
     }
 
     public void setVisualFullSyncRadius(int visualFullSyncRadius) {
-        if (visualFullSyncRadius < 1) {
-            throw new IllegalArgumentException("Visual full sync radius must be positive");
-        }
-        if (visualFullSyncRadius > visualMaxSyncRadius) {
+        int boundedVisualFullSyncRadius = requirePositiveAtMost(
+            "Visual full sync radius",
+            visualFullSyncRadius,
+            MAX_VISUAL_FULL_SYNC_RADIUS);
+        if (boundedVisualFullSyncRadius > visualMaxSyncRadius) {
             throw new IllegalArgumentException(
                 "Visual full sync radius cannot exceed visual max sync radius");
         }
-        this.visualFullSyncRadius = visualFullSyncRadius;
+        this.visualFullSyncRadius = boundedVisualFullSyncRadius;
     }
 
     public void setVisualMaxSyncRadius(int visualMaxSyncRadius) {
-        if (visualMaxSyncRadius < 1) {
-            throw new IllegalArgumentException("Visual max sync radius must be positive");
-        }
-        if (visualMaxSyncRadius < visualFullSyncRadius) {
+        int boundedVisualMaxSyncRadius = requirePositiveAtMost(
+            "Visual max sync radius",
+            visualMaxSyncRadius,
+            MAX_VISUAL_MAX_SYNC_RADIUS);
+        if (boundedVisualMaxSyncRadius < visualFullSyncRadius) {
             throw new IllegalArgumentException(
                 "Visual max sync radius cannot be lower than visual full sync radius");
         }
-        this.visualMaxSyncRadius = visualMaxSyncRadius;
+        this.visualMaxSyncRadius = boundedVisualMaxSyncRadius;
+    }
+
+    public void setVisualSyncRadii(int visualFullSyncRadius, int visualMaxSyncRadius) {
+        int boundedVisualFullSyncRadius = requirePositiveAtMost(
+            "Visual full sync radius",
+            visualFullSyncRadius,
+            MAX_VISUAL_FULL_SYNC_RADIUS);
+        int boundedVisualMaxSyncRadius = requirePositiveAtMost(
+            "Visual max sync radius",
+            visualMaxSyncRadius,
+            MAX_VISUAL_MAX_SYNC_RADIUS);
+        if (boundedVisualFullSyncRadius > boundedVisualMaxSyncRadius) {
+            throw new IllegalArgumentException(
+                "Visual full sync radius cannot exceed visual max sync radius");
+        }
+        this.visualFullSyncRadius = boundedVisualFullSyncRadius;
+        this.visualMaxSyncRadius = boundedVisualMaxSyncRadius;
     }
 
     public void setVisualMidSyncIntervalTicks(int visualMidSyncIntervalTicks) {
-        if (visualMidSyncIntervalTicks < 1) {
-            throw new IllegalArgumentException("Visual mid sync interval must be positive");
-        }
-        this.visualMidSyncIntervalTicks = visualMidSyncIntervalTicks;
+        this.visualMidSyncIntervalTicks = requirePositiveAtMost(
+            "Visual mid sync interval",
+            visualMidSyncIntervalTicks,
+            MAX_VISUAL_MID_SYNC_INTERVAL_TICKS);
     }
 
     public void setVisualFarSyncIntervalTicks(int visualFarSyncIntervalTicks) {
-        if (visualFarSyncIntervalTicks < 1) {
-            throw new IllegalArgumentException("Visual far sync interval must be positive");
-        }
-        this.visualFarSyncIntervalTicks = visualFarSyncIntervalTicks;
+        this.visualFarSyncIntervalTicks = requirePositiveAtMost(
+            "Visual far sync interval",
+            visualFarSyncIntervalTicks,
+            MAX_VISUAL_FAR_SYNC_INTERVAL_TICKS);
     }
 
     public void setVisualOcclusionRaycastsPerTick(int visualOcclusionRaycastsPerTick) {
-        if (visualOcclusionRaycastsPerTick < 1) {
-            throw new IllegalArgumentException("Visual occlusion raycasts per tick must be positive");
-        }
-        this.visualOcclusionRaycastsPerTick = visualOcclusionRaycastsPerTick;
+        this.visualOcclusionRaycastsPerTick = requirePositiveAtMost(
+            "Visual occlusion raycasts per tick",
+            visualOcclusionRaycastsPerTick,
+            MAX_VISUAL_OCCLUSION_RAYCASTS_PER_TICK);
     }
 
     public void setVisualOcclusionCacheTicks(int visualOcclusionCacheTicks) {
-        if (visualOcclusionCacheTicks < 1) {
-            throw new IllegalArgumentException("Visual occlusion cache ticks must be positive");
-        }
-        this.visualOcclusionCacheTicks = visualOcclusionCacheTicks;
+        this.visualOcclusionCacheTicks = requirePositiveAtMost(
+            "Visual occlusion cache ticks",
+            visualOcclusionCacheTicks,
+            MAX_VISUAL_OCCLUSION_CACHE_TICKS);
     }
 
     public void setSolverIterations(int solverIterations) {
@@ -467,39 +551,60 @@ public class PhysicsSpaceSettings {
     }
 
     public void setDetachedVisualMaterializationRadius(int detachedVisualMaterializationRadius) {
-        if (detachedVisualMaterializationRadius < 1) {
-            throw new IllegalArgumentException("Detached visual materialization radius must be positive");
-        }
-        if (detachedVisualMaterializationRadius > detachedVisualDematerializationRadius) {
+        int boundedDetachedVisualMaterializationRadius = requirePositiveAtMost(
+            "Detached visual materialization radius",
+            detachedVisualMaterializationRadius,
+            MAX_DETACHED_VISUAL_MATERIALIZATION_RADIUS);
+        if (boundedDetachedVisualMaterializationRadius > detachedVisualDematerializationRadius) {
             throw new IllegalArgumentException(
                 "Detached visual materialization radius cannot exceed dematerialization radius");
         }
-        this.detachedVisualMaterializationRadius = detachedVisualMaterializationRadius;
+        this.detachedVisualMaterializationRadius = boundedDetachedVisualMaterializationRadius;
     }
 
     public void setDetachedVisualDematerializationRadius(int detachedVisualDematerializationRadius) {
-        if (detachedVisualDematerializationRadius < 1) {
-            throw new IllegalArgumentException("Detached visual dematerialization radius must be positive");
-        }
-        if (detachedVisualDematerializationRadius < detachedVisualMaterializationRadius) {
+        int boundedDetachedVisualDematerializationRadius = requirePositiveAtMost(
+            "Detached visual dematerialization radius",
+            detachedVisualDematerializationRadius,
+            MAX_DETACHED_VISUAL_DEMATERIALIZATION_RADIUS);
+        if (boundedDetachedVisualDematerializationRadius < detachedVisualMaterializationRadius) {
             throw new IllegalArgumentException(
                 "Detached visual dematerialization radius cannot be lower than materialization radius");
         }
-        this.detachedVisualDematerializationRadius = detachedVisualDematerializationRadius;
+        this.detachedVisualDematerializationRadius = boundedDetachedVisualDematerializationRadius;
+    }
+
+    public void setDetachedVisualRadii(int detachedVisualMaterializationRadius,
+        int detachedVisualDematerializationRadius) {
+        int boundedDetachedVisualMaterializationRadius = requirePositiveAtMost(
+            "Detached visual materialization radius",
+            detachedVisualMaterializationRadius,
+            MAX_DETACHED_VISUAL_MATERIALIZATION_RADIUS);
+        int boundedDetachedVisualDematerializationRadius = requirePositiveAtMost(
+            "Detached visual dematerialization radius",
+            detachedVisualDematerializationRadius,
+            MAX_DETACHED_VISUAL_DEMATERIALIZATION_RADIUS);
+        if (boundedDetachedVisualMaterializationRadius
+            > boundedDetachedVisualDematerializationRadius) {
+            throw new IllegalArgumentException(
+                "Detached visual materialization radius cannot exceed dematerialization radius");
+        }
+        this.detachedVisualMaterializationRadius = boundedDetachedVisualMaterializationRadius;
+        this.detachedVisualDematerializationRadius = boundedDetachedVisualDematerializationRadius;
     }
 
     public void setDetachedVisualMaxSpawnsPerTick(int detachedVisualMaxSpawnsPerTick) {
-        if (detachedVisualMaxSpawnsPerTick < 1) {
-            throw new IllegalArgumentException("Detached visual max spawns per tick must be positive");
-        }
-        this.detachedVisualMaxSpawnsPerTick = detachedVisualMaxSpawnsPerTick;
+        this.detachedVisualMaxSpawnsPerTick = requirePositiveAtMost(
+            "Detached visual max spawns per tick",
+            detachedVisualMaxSpawnsPerTick,
+            MAX_DETACHED_VISUAL_MAX_SPAWNS_PER_TICK);
     }
 
     public void setDetachedVisualMaxMaterialized(int detachedVisualMaxMaterialized) {
-        if (detachedVisualMaxMaterialized < 1) {
-            throw new IllegalArgumentException("Detached visual max materialized must be positive");
-        }
-        this.detachedVisualMaxMaterialized = detachedVisualMaxMaterialized;
+        this.detachedVisualMaxMaterialized = requirePositiveAtMost(
+            "Detached visual max materialized",
+            detachedVisualMaxMaterialized,
+            MAX_DETACHED_VISUAL_MAX_MATERIALIZED);
     }
 
     public void setDetachedVisualBlockType(@Nonnull String detachedVisualBlockType) {
@@ -507,5 +612,12 @@ public class PhysicsSpaceSettings {
             throw new IllegalArgumentException("Detached visual block type cannot be blank");
         }
         this.detachedVisualBlockType = detachedVisualBlockType;
+    }
+
+    private static int requirePositiveAtMost(@Nonnull String label, int value, int maxValue) {
+        if (value < 1 || value > maxValue) {
+            throw new IllegalArgumentException(label + " must be between 1 and " + maxValue);
+        }
+        return value;
     }
 }
