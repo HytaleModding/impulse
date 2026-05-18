@@ -60,7 +60,7 @@ public class PhysicsKinematicControlSystem extends EntityTickingSystem<EntitySto
 
     @Override
     public boolean isParallel(int archetypeChunkSize, int taskCount) {
-        return useParallel(archetypeChunkSize, taskCount);
+        return false;
     }
 
     @Override
