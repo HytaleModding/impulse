@@ -122,6 +122,8 @@ public class PersistentPhysicsWorldResource implements Resource<EntityStore> {
     private transient Map<String, Integer> runtimeSkippedJointsByReason = new LinkedHashMap<>();
     @Nonnull
     private transient Set<String> runtimeSkippedJointKeys = new HashSet<>();
+    private transient boolean runtimeSnapshotSynced;
+    private transient int runtimeSnapshotSyncSkipTicks;
 
     public PersistentPhysicsWorldResource() {
     }
@@ -185,6 +187,8 @@ public class PersistentPhysicsWorldResource implements Resource<EntityStore> {
         runtimeRestoredSpaceCount = 0;
         runtimeRestoredBodyCount = 0;
         runtimeRestoredJointCount = 0;
+        runtimeSnapshotSynced = false;
+        runtimeSnapshotSyncSkipTicks = 0;
         runtimeSkippedBodiesByReason.clear();
         runtimeSkippedJointsByReason.clear();
         runtimeSkippedJointKeys.clear();
@@ -192,6 +196,24 @@ public class PersistentPhysicsWorldResource implements Resource<EntityStore> {
 
     public void clearRuntimeRestorePending() {
         runtimeRestorePending = false;
+        runtimeSnapshotSynced = false;
+        runtimeSnapshotSyncSkipTicks = 0;
+    }
+
+    public boolean shouldSyncRuntimeSnapshot(int intervalTicks) {
+        if (!runtimeSnapshotSynced || intervalTicks <= 0) {
+            return true;
+        }
+        if (runtimeSnapshotSyncSkipTicks < intervalTicks) {
+            runtimeSnapshotSyncSkipTicks++;
+            return false;
+        }
+        return true;
+    }
+
+    public void markRuntimeSnapshotSynced() {
+        runtimeSnapshotSynced = true;
+        runtimeSnapshotSyncSkipTicks = 0;
     }
 
     public void markRuntimeSpaceBootstrapComplete(int restoredSpaceCount) {
@@ -281,6 +303,8 @@ public class PersistentPhysicsWorldResource implements Resource<EntityStore> {
         runtimeRestoredSpaceCount = 0;
         runtimeRestoredBodyCount = 0;
         runtimeRestoredJointCount = 0;
+        runtimeSnapshotSynced = false;
+        runtimeSnapshotSyncSkipTicks = 0;
         ensureRuntimeTracking();
         runtimeSkippedBodiesByReason.clear();
         runtimeSkippedJointsByReason.clear();

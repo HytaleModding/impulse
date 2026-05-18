@@ -49,27 +49,28 @@ public class PersistentPhysicsBodyComponent implements Component<EntityStore> {
     public static final BuilderCodec<PersistentPhysicsBodyComponent> CODEC = BuilderCodec.builder(
             PersistentPhysicsBodyComponent.class,
             PersistentPhysicsBodyComponent::new)
-        .append(new KeyedCodec<>("SpaceId", Codec.INTEGER), (component, value) -> component.spaceId = value,
+        .append(new KeyedCodec<>("SpaceId", Codec.INTEGER),
+            (component, value) -> component.spaceId = sanitizeSpaceId(value),
             component -> component.spaceId)
         .add()
         .append(new KeyedCodec<>("ShapeType", new EnumCodec<>(ShapeType.class)),
-            (component, value) -> component.shapeType = value,
+            (component, value) -> component.shapeType = value != null ? value : ShapeType.UNKNOWN,
             component -> component.shapeType)
         .add()
         .append(new KeyedCodec<>("ShapeAxis", new EnumCodec<>(PhysicsAxis.class)),
-            (component, value) -> component.shapeAxis = value,
+            (component, value) -> component.shapeAxis = value != null ? value : PhysicsAxis.Y,
             component -> component.shapeAxis)
         .add()
         .append(new KeyedCodec<>("BoxHalfExtents", Vector3fUtil.CODEC),
-            (component, value) -> component.boxHalfExtents.set(value),
+            (component, value) -> copyFiniteVectorOrZero(component.boxHalfExtents, value),
             component -> component.boxHalfExtents)
         .add()
         .append(new KeyedCodec<>("SphereRadius", Codec.FLOAT),
-            (component, value) -> component.sphereRadius = value,
+            (component, value) -> component.sphereRadius = positiveFiniteOrZeroForRestore(value),
             component -> component.sphereRadius)
         .add()
         .append(new KeyedCodec<>("HalfHeight", Codec.FLOAT),
-            (component, value) -> component.halfHeight = value,
+            (component, value) -> component.halfHeight = positiveFiniteOrZeroForRestore(value),
             component -> component.halfHeight)
         .add()
         .append(new KeyedCodec<>("PlaneGroundY", Codec.FLOAT, false),
@@ -77,43 +78,43 @@ public class PersistentPhysicsBodyComponent implements Component<EntityStore> {
             component -> component.planeGroundY)
         .add()
         .append(new KeyedCodec<>("BodyType", new EnumCodec<>(PhysicsBodyType.class)),
-            (component, value) -> component.bodyType = value,
+            (component, value) -> component.bodyType = value != null ? value : PhysicsBodyType.DYNAMIC,
             component -> component.bodyType)
         .add()
         .append(new KeyedCodec<>("Mass", Codec.FLOAT),
-            (component, value) -> component.mass = value,
+            (component, value) -> component.mass = nonNegativeFiniteOrDefaultForRestore(value, 1.0f),
             component -> component.mass)
         .add()
         .append(new KeyedCodec<>("Position", Vector3fUtil.CODEC),
-            (component, value) -> component.position.set(value),
+            (component, value) -> copyVectorOrZeroIfNull(component.position, value),
             component -> component.position)
         .add()
         .append(new KeyedCodec<>("Rotation", PersistentQuaternion.CODEC),
-            (component, value) -> component.rotation = value.copy(),
+            (component, value) -> component.rotation = value != null ? value.copy() : new PersistentQuaternion(),
             component -> component.rotation)
         .add()
         .append(new KeyedCodec<>("LinearVelocity", Vector3fUtil.CODEC),
-            (component, value) -> component.linearVelocity.set(value),
+            (component, value) -> copyVectorOrZeroIfNull(component.linearVelocity, value),
             component -> component.linearVelocity)
         .add()
         .append(new KeyedCodec<>("AngularVelocity", Vector3fUtil.CODEC),
-            (component, value) -> component.angularVelocity.set(value),
+            (component, value) -> copyVectorOrZeroIfNull(component.angularVelocity, value),
             component -> component.angularVelocity)
         .add()
         .append(new KeyedCodec<>("Friction", Codec.FLOAT),
-            (component, value) -> component.friction = value,
+            (component, value) -> component.friction = nonNegativeFiniteOrZeroForRestore(value),
             component -> component.friction)
         .add()
         .append(new KeyedCodec<>("Restitution", Codec.FLOAT),
-            (component, value) -> component.restitution = value,
+            (component, value) -> component.restitution = nonNegativeFiniteOrZeroForRestore(value),
             component -> component.restitution)
         .add()
         .append(new KeyedCodec<>("LinearDamping", Codec.FLOAT),
-            (component, value) -> component.linearDamping = value,
+            (component, value) -> component.linearDamping = nonNegativeFiniteOrZeroForRestore(value),
             component -> component.linearDamping)
         .add()
         .append(new KeyedCodec<>("AngularDamping", Codec.FLOAT),
-            (component, value) -> component.angularDamping = value,
+            (component, value) -> component.angularDamping = nonNegativeFiniteOrZeroForRestore(value),
             component -> component.angularDamping)
         .add()
         .append(new KeyedCodec<>("Sensor", Codec.BOOLEAN),
@@ -198,6 +199,7 @@ public class PersistentPhysicsBodyComponent implements Component<EntityStore> {
     private boolean sleeping;
     private transient boolean needsBodyRebuild;
     private transient int sleepingSyncSkipTicks;
+    private transient int staticSyncSkipTicks;
 
     public PersistentPhysicsBodyComponent() {
     }
@@ -216,34 +218,172 @@ public class PersistentPhysicsBodyComponent implements Component<EntityStore> {
     }
 
     public void updateFromBody(@Nonnull PhysicsBody body, @Nullable SpaceId spaceId) {
-        this.spaceId = spaceId != null ? spaceId.value() : DEFAULT_SPACE_ID;
-        shapeType = body.getShapeType();
-        shapeAxis = body.getShapeAxis();
+        this.spaceId = spaceId != null ? sanitizeSpaceId(spaceId.value()) : DEFAULT_SPACE_ID;
+        shapeType = body.getShapeType() != null ? body.getShapeType() : ShapeType.UNKNOWN;
+        shapeAxis = body.getShapeAxis() != null ? body.getShapeAxis() : PhysicsAxis.Y;
         Vector3f halfExtents = body.getBoxHalfExtents();
-        if (halfExtents != null) {
+        if (isFiniteVector(halfExtents)) {
             boxHalfExtents.set(halfExtents);
         } else {
             boxHalfExtents.zero();
         }
-        sphereRadius = body.getSphereRadius();
-        halfHeight = body.getHalfHeight();
+        sphereRadius = positiveFiniteOrZeroForRestore(body.getSphereRadius());
+        halfHeight = positiveFiniteOrZeroForRestore(body.getHalfHeight());
         planeGroundY = shapeType == ShapeType.PLANE ? finiteOrZero(body.getPlaneGroundY()) : 0.0f;
-        bodyType = body.getBodyType();
-        mass = body.getMass();
-        position.set(body.getPosition());
-        rotation.set(body.getRotation());
-        linearVelocity.set(body.getLinearVelocity());
-        angularVelocity.set(body.getAngularVelocity());
-        friction = body.getFriction();
-        restitution = body.getRestitution();
-        linearDamping = body.getLinearDamping();
-        angularDamping = body.getAngularDamping();
+        bodyType = body.getBodyType() != null ? body.getBodyType() : PhysicsBodyType.DYNAMIC;
+        mass = nonNegativeFiniteOrDefaultForRestore(body.getMass(), 1.0f);
+        copyFiniteVectorOrZero(position, body.getPosition());
+        var bodyRotation = body.getRotation();
+        if (bodyRotation != null) {
+            rotation.set(bodyRotation);
+        } else {
+            rotation = new PersistentQuaternion();
+        }
+        copyFiniteVectorOrZero(linearVelocity, body.getLinearVelocity());
+        copyFiniteVectorOrZero(angularVelocity, body.getAngularVelocity());
+        friction = nonNegativeFiniteOrZeroForRestore(body.getFriction());
+        restitution = nonNegativeFiniteOrZeroForRestore(body.getRestitution());
+        linearDamping = nonNegativeFiniteOrZeroForRestore(body.getLinearDamping());
+        angularDamping = nonNegativeFiniteOrZeroForRestore(body.getAngularDamping());
         sensor = body.isSensor();
         collisionGroup = body.getCollisionGroup();
         collisionMask = body.getCollisionMask();
         continuousCollisionEnabled = body.isContinuousCollisionEnabled();
         sleeping = body.isSleeping();
         sleepingSyncSkipTicks = 0;
+        staticSyncSkipTicks = 0;
+    }
+
+    private static int sanitizeSpaceId(@Nullable Integer value) {
+        return value != null && value > 0 ? value : DEFAULT_SPACE_ID;
+    }
+
+    private static void copyFiniteVectorOrZero(@Nonnull Vector3f target, @Nullable Vector3f value) {
+        if (isFiniteVector(value)) {
+            target.set(value);
+        } else {
+            target.zero();
+        }
+    }
+
+    private static void copyVectorOrZeroIfNull(@Nonnull Vector3f target, @Nullable Vector3f value) {
+        if (value != null) {
+            target.set(value);
+        } else {
+            target.zero();
+        }
+    }
+
+    private static boolean isFiniteVector(@Nullable Vector3f value) {
+        return value != null
+            && Float.isFinite(value.x)
+            && Float.isFinite(value.y)
+            && Float.isFinite(value.z);
+    }
+
+    private static boolean isPositiveFiniteVector(@Nonnull Vector3f value) {
+        return isPositiveFiniteForRestore(value.x)
+            && isPositiveFiniteForRestore(value.y)
+            && isPositiveFiniteForRestore(value.z);
+    }
+
+    private static float positiveFiniteOrZeroForRestore(float value) {
+        return isPositiveFiniteForRestore(value) ? value : 0.0f;
+    }
+
+    private static boolean isPositiveFiniteForRestore(float value) {
+        return Float.isFinite(value) && value > 0.0f;
+    }
+
+    private static float nonNegativeFiniteOrZeroForRestore(float value) {
+        return isNonNegativeFiniteForRestore(value) ? value : 0.0f;
+    }
+
+    private static float nonNegativeFiniteOrDefaultForRestore(float value, float defaultValue) {
+        return isNonNegativeFiniteForRestore(value) ? value : defaultValue;
+    }
+
+    private static boolean isNonNegativeFiniteForRestore(float value) {
+        return Float.isFinite(value) && value >= 0.0f;
+    }
+
+    private static boolean isStaticBodyType(@Nullable PhysicsBodyType type) {
+        return type == PhysicsBodyType.STATIC;
+    }
+
+    private static boolean usesRadiusAndHalfHeight(@Nullable ShapeType type) {
+        return type == ShapeType.CAPSULE || type == ShapeType.CYLINDER || type == ShapeType.CONE;
+    }
+
+    @Nullable
+    public String restoreValidationFailureReason() {
+        if (shapeType == null || shapeType == ShapeType.UNKNOWN || shapeType == ShapeType.VOXELS) {
+            return "unsupported body shape";
+        }
+        if (bodyType == null) {
+            return "missing body type";
+        }
+        if (!isFiniteVector(position)) {
+            return "invalid position";
+        }
+        if (!isFiniteVector(linearVelocity)) {
+            return "invalid linear velocity";
+        }
+        if (!isFiniteVector(angularVelocity)) {
+            return "invalid angular velocity";
+        }
+        if (!isNonNegativeFiniteForRestore(mass)) {
+            return "invalid mass";
+        }
+        if (bodyType == PhysicsBodyType.DYNAMIC && mass <= 0.0f) {
+            return "invalid dynamic mass";
+        }
+        if (!isNonNegativeFiniteForRestore(friction)) {
+            return "invalid friction";
+        }
+        if (!isNonNegativeFiniteForRestore(restitution)) {
+            return "invalid restitution";
+        }
+        if (!isNonNegativeFiniteForRestore(linearDamping)) {
+            return "invalid linear damping";
+        }
+        if (!isNonNegativeFiniteForRestore(angularDamping)) {
+            return "invalid angular damping";
+        }
+        if (shapeType == ShapeType.BOX && !isPositiveFiniteVector(boxHalfExtents)) {
+            return "invalid box half extents";
+        }
+        if (shapeType == ShapeType.SPHERE && !isPositiveFiniteForRestore(sphereRadius)) {
+            return "invalid sphere radius";
+        }
+        if (shapeType == ShapeType.PLANE && !Float.isFinite(planeGroundY)) {
+            return "invalid plane height";
+        }
+        if (usesRadiusAndHalfHeight(shapeType)
+            && (!isPositiveFiniteForRestore(sphereRadius) || !isPositiveFiniteForRestore(halfHeight))) {
+            return "invalid swept shape dimensions";
+        }
+        return null;
+    }
+
+    public boolean shouldDeferStaticUpdate(@Nonnull PhysicsBody body,
+        @Nullable SpaceId bodySpaceId,
+        int intervalTicks) {
+        if (intervalTicks <= 0 || needsBodyRebuild || !isStaticBodyType(body.getBodyType())) {
+            staticSyncSkipTicks = 0;
+            return false;
+        }
+        int resolvedSpaceId = bodySpaceId != null ? bodySpaceId.value() : DEFAULT_SPACE_ID;
+        if (spaceId != resolvedSpaceId || !isStaticBodyType(bodyType)) {
+            staticSyncSkipTicks = 0;
+            return false;
+        }
+        if (staticSyncSkipTicks < intervalTicks) {
+            staticSyncSkipTicks++;
+            return true;
+        }
+        staticSyncSkipTicks = 0;
+        return false;
     }
 
     public boolean shouldDeferSleepingUpdate(@Nonnull PhysicsBody body,

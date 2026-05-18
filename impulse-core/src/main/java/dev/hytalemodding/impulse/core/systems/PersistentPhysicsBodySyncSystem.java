@@ -16,13 +16,13 @@ import java.util.Set;
 import javax.annotation.Nonnull;
 
 /**
- * Syncs persisted body components from the live runtime body state each tick.
+ * Syncs persisted body components from the live runtime body state.
  *
  * <p>For every entity that has both a {@link PersistentPhysicsBodyComponent} and a
  * {@link PhysicsBodyComponent}, this system copies the current position, rotation,
  * velocities, and other dynamic state from the live body back into the persisted
- * component. This ensures that the serialized state is always up to date when
- * Hytale next saves the world.</p>
+ * component. Dynamic bodies are updated every tick; sleeping and static bodies
+ * use a bounded cadence because their runtime state is stable in steady state.</p>
  *
  * <p>Runs after {@link PhysicsSyncSystem} (which writes live body transforms into
  * Hytale's {@code TransformComponent}) and after hydration (so newly hydrated
@@ -36,6 +36,7 @@ public class PersistentPhysicsBodySyncSystem extends EntityTickingSystem<EntityS
         PhysicsBodyComponent.getComponentType();
     private static final Query<EntityStore> QUERY = Query.and(PERSISTENT_BODY_TYPE, PHYSICS_BODY_TYPE);
     private static final int SLEEPING_BODY_SYNC_INTERVAL_TICKS = 30;
+    private static final int STATIC_BODY_SYNC_INTERVAL_TICKS = 120;
     private static final Set<Dependency<EntityStore>> DEPENDENCIES = Set.of(
         new SystemDependency<>(Order.AFTER, PhysicsSyncSystem.class),
         new SystemDependency<>(Order.AFTER, PersistentPhysicsBodyHydrationSystem.class)
@@ -72,7 +73,10 @@ public class PersistentPhysicsBodySyncSystem extends EntityTickingSystem<EntityS
 
         if (persistent.shouldDeferSleepingUpdate(runtime.getBody(),
             runtime.getSpaceId(),
-            SLEEPING_BODY_SYNC_INTERVAL_TICKS)) {
+            SLEEPING_BODY_SYNC_INTERVAL_TICKS)
+            || persistent.shouldDeferStaticUpdate(runtime.getBody(),
+                runtime.getSpaceId(),
+                STATIC_BODY_SYNC_INTERVAL_TICKS)) {
             persistent.clearBodyRebuildFlag();
             return;
         }
