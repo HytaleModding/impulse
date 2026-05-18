@@ -416,6 +416,14 @@ public class PhysicsWorldResource implements Resource<EntityStore> {
         bodyRegistry.clearSyntheticVisualInterests();
     }
 
+    public void remapMigratedBodies(@Nonnull Map<PhysicsBody, PhysicsBody> bodyRemaps) {
+        bodyRegistry.remapBodies(bodyRemaps);
+        remapBodySet(forcedContinuousCollisionBodies, bodyRemaps);
+        remapBodySet(controlledBodies, bodyRemaps);
+        remapBodyKeyedMap(chunkBoundarySafeStates, bodyRemaps);
+        remapBodyKeyedMap(chunkBoundaryPauseStates, bodyRemaps);
+    }
+
     public void clearBodyOwners() {
         bodyRegistry.clear();
         forcedContinuousCollisionBodies.clear();
@@ -612,6 +620,31 @@ public class PhysicsWorldResource implements Resource<EntityStore> {
 
         for (PhysicsSpace space : spaces.values()) {
             space.removeBody(body);
+        }
+    }
+
+    private static void remapBodySet(@Nonnull Set<PhysicsBody> bodies,
+        @Nonnull Map<PhysicsBody, PhysicsBody> bodyRemaps) {
+        for (Map.Entry<PhysicsBody, PhysicsBody> entry : bodyRemaps.entrySet()) {
+            PhysicsBody sourceBody = entry.getKey();
+            PhysicsBody targetBody = entry.getValue();
+            if (sourceBody != targetBody && bodies.remove(sourceBody)) {
+                bodies.add(targetBody);
+            }
+        }
+    }
+
+    private static <T> void remapBodyKeyedMap(@Nonnull Map<PhysicsBody, T> states,
+        @Nonnull Map<PhysicsBody, PhysicsBody> bodyRemaps) {
+        for (Map.Entry<PhysicsBody, PhysicsBody> entry : bodyRemaps.entrySet()) {
+            PhysicsBody sourceBody = entry.getKey();
+            PhysicsBody targetBody = entry.getValue();
+            if (sourceBody == targetBody || !states.containsKey(sourceBody)) {
+                continue;
+            }
+
+            T state = states.remove(sourceBody);
+            states.put(targetBody, state);
         }
     }
 

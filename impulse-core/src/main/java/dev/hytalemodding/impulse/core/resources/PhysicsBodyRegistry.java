@@ -164,6 +164,18 @@ final class PhysicsBodyRegistry {
         return bodyRegistrations.get(body);
     }
 
+    void remapBodies(@Nonnull Map<PhysicsBody, PhysicsBody> bodyRemaps) {
+        for (Map.Entry<PhysicsBody, PhysicsBody> entry : bodyRemaps.entrySet()) {
+            PhysicsBody sourceBody = entry.getKey();
+            PhysicsBody targetBody = entry.getValue();
+            if (sourceBody == targetBody) {
+                continue;
+            }
+
+            remapBody(sourceBody, targetBody);
+        }
+    }
+
     void removeInvalidEntityOwner(@Nonnull PhysicsBody body) {
         Ref<EntityStore> owner = bodyOwners.remove(body);
         if (owner != null) {
@@ -237,6 +249,44 @@ final class PhysicsBodyRegistry {
         bodyVisualFollowers.remove(body);
         bodyVisualInterestStates.remove(body);
         detachedVisualProxies.remove(body);
+    }
+
+    private void remapBody(@Nonnull PhysicsBody sourceBody, @Nonnull PhysicsBody targetBody) {
+        Ref<EntityStore> owner = bodyOwners.remove(sourceBody);
+        if (owner != null) {
+            bodyOwners.put(targetBody, owner);
+        }
+
+        PhysicsWorldResource.BodyRegistration registration = bodyRegistrations.remove(sourceBody);
+        if (registration != null) {
+            bodyRegistrations.put(targetBody, new PhysicsWorldResource.BodyRegistration(targetBody,
+                registration.spaceId(),
+                registration.ownerKind(),
+                registration.ownerRef(),
+                registration.removeWithOwner()));
+        }
+
+        if (detachedBodies.remove(sourceBody)) {
+            detachedBodies.add(targetBody);
+        }
+
+        Ref<EntityStore> detachedVisualProxy = detachedVisualProxies.remove(sourceBody);
+        if (detachedVisualProxy != null) {
+            detachedVisualProxies.put(targetBody, detachedVisualProxy);
+        }
+
+        Set<Ref<EntityStore>> followers = bodyVisualFollowers.remove(sourceBody);
+        if (followers != null && !followers.isEmpty()) {
+            bodyVisualFollowers.computeIfAbsent(targetBody,
+                ignored -> Collections.newSetFromMap(new IdentityHashMap<>()))
+                .addAll(followers);
+        }
+
+        PhysicsWorldResource.BodyVisualInterestState visualInterestState =
+            bodyVisualInterestStates.remove(sourceBody);
+        if (visualInterestState != null) {
+            bodyVisualInterestStates.put(targetBody, visualInterestState);
+        }
     }
 
     void clear() {
