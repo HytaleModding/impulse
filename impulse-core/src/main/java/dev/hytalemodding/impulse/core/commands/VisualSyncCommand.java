@@ -22,11 +22,15 @@ public class VisualSyncCommand extends AbstractAsyncPlayerCommand {
 
     private final OptionalArg<Integer> fullRadiusArg = this.withOptionalArg(
         "fullRadius",
-        "Radius for full-rate visual sync",
+        "Radius for full-rate visual sync (1-"
+            + PhysicsSpaceSettings.MAX_VISUAL_FULL_SYNC_RADIUS
+            + ")",
         ArgTypes.INTEGER);
     private final OptionalArg<Integer> maxRadiusArg = this.withOptionalArg(
         "maxRadius",
-        "Radius where mid-rate sync becomes far-rate or cutoff",
+        "Radius where mid-rate sync becomes far-rate or cutoff (1-"
+            + PhysicsSpaceSettings.MAX_VISUAL_MAX_SYNC_RADIUS
+            + ")",
         ArgTypes.INTEGER);
     private final OptionalArg<String> farModeArg = this.withOptionalArg(
         "farMode",
@@ -34,11 +38,15 @@ public class VisualSyncCommand extends AbstractAsyncPlayerCommand {
         ArgTypes.STRING);
     private final OptionalArg<Integer> midIntervalArg = this.withOptionalArg(
         "midInterval",
-        "Minimum ticks between mid-range visual syncs",
+        "Minimum ticks between mid-range visual syncs (1-"
+            + PhysicsSpaceSettings.MAX_VISUAL_MID_SYNC_INTERVAL_TICKS
+            + ")",
         ArgTypes.INTEGER);
     private final OptionalArg<Integer> farIntervalArg = this.withOptionalArg(
         "farInterval",
-        "Minimum ticks between far-range visual syncs when farMode=lod",
+        "Minimum ticks between far-range visual syncs when farMode=lod (1-"
+            + PhysicsSpaceSettings.MAX_VISUAL_FAR_SYNC_INTERVAL_TICKS
+            + ")",
         ArgTypes.INTEGER);
     private final OptionalArg<String> occlusionArg = this.withOptionalArg(
         "occlusion",
@@ -46,11 +54,15 @@ public class VisualSyncCommand extends AbstractAsyncPlayerCommand {
         ArgTypes.STRING);
     private final OptionalArg<Integer> occlusionRaycastsArg = this.withOptionalArg(
         "occlusionRaycasts",
-        "Maximum visual occlusion raycasts per tick",
+        "Maximum visual occlusion raycasts per tick (1-"
+            + PhysicsSpaceSettings.MAX_VISUAL_OCCLUSION_RAYCASTS_PER_TICK
+            + ")",
         ArgTypes.INTEGER);
     private final OptionalArg<Integer> occlusionCacheArg = this.withOptionalArg(
         "occlusionCache",
-        "Ticks to reuse visual occlusion raycast results",
+        "Ticks to reuse visual occlusion raycast results (1-"
+            + PhysicsSpaceSettings.MAX_VISUAL_OCCLUSION_CACHE_TICKS
+            + ")",
         ArgTypes.INTEGER);
 
     public VisualSyncCommand() {
@@ -83,26 +95,47 @@ public class VisualSyncCommand extends AbstractAsyncPlayerCommand {
         int maxRadius = maxRadiusArg.provided(ctx)
             ? maxRadiusArg.get(ctx)
             : settings.getVisualMaxSyncRadius();
-        if (fullRadius < 1 || maxRadius < 1 || fullRadius > maxRadius) {
+        if (outOfRange(fullRadius, PhysicsSpaceSettings.MAX_VISUAL_FULL_SYNC_RADIUS)
+            || outOfRange(maxRadius, PhysicsSpaceSettings.MAX_VISUAL_MAX_SYNC_RADIUS)
+            || fullRadius > maxRadius) {
             ctx.sender().sendMessage(Message.raw(
-                "Visual sync radii must be positive and fullRadius must be <= maxRadius."));
+                "fullRadius must be 1-" + PhysicsSpaceSettings.MAX_VISUAL_FULL_SYNC_RADIUS
+                    + ", maxRadius must be 1-"
+                    + PhysicsSpaceSettings.MAX_VISUAL_MAX_SYNC_RADIUS
+                    + ", and fullRadius must be <= maxRadius."));
             return CompletableFuture.completedFuture(null);
         }
 
-        if (midIntervalArg.provided(ctx) && midIntervalArg.get(ctx) < 1) {
-            ctx.sender().sendMessage(Message.raw("midInterval must be >= 1 tick."));
+        if (midIntervalArg.provided(ctx)
+            && outOfRange(midIntervalArg.get(ctx),
+                PhysicsSpaceSettings.MAX_VISUAL_MID_SYNC_INTERVAL_TICKS)) {
+            ctx.sender().sendMessage(Message.raw("midInterval must be 1-"
+                + PhysicsSpaceSettings.MAX_VISUAL_MID_SYNC_INTERVAL_TICKS
+                + " ticks."));
             return CompletableFuture.completedFuture(null);
         }
-        if (farIntervalArg.provided(ctx) && farIntervalArg.get(ctx) < 1) {
-            ctx.sender().sendMessage(Message.raw("farInterval must be >= 1 tick."));
+        if (farIntervalArg.provided(ctx)
+            && outOfRange(farIntervalArg.get(ctx),
+                PhysicsSpaceSettings.MAX_VISUAL_FAR_SYNC_INTERVAL_TICKS)) {
+            ctx.sender().sendMessage(Message.raw("farInterval must be 1-"
+                + PhysicsSpaceSettings.MAX_VISUAL_FAR_SYNC_INTERVAL_TICKS
+                + " ticks."));
             return CompletableFuture.completedFuture(null);
         }
-        if (occlusionRaycastsArg.provided(ctx) && occlusionRaycastsArg.get(ctx) < 1) {
-            ctx.sender().sendMessage(Message.raw("occlusionRaycasts must be >= 1."));
+        if (occlusionRaycastsArg.provided(ctx)
+            && outOfRange(occlusionRaycastsArg.get(ctx),
+                PhysicsSpaceSettings.MAX_VISUAL_OCCLUSION_RAYCASTS_PER_TICK)) {
+            ctx.sender().sendMessage(Message.raw("occlusionRaycasts must be 1-"
+                + PhysicsSpaceSettings.MAX_VISUAL_OCCLUSION_RAYCASTS_PER_TICK
+                + "."));
             return CompletableFuture.completedFuture(null);
         }
-        if (occlusionCacheArg.provided(ctx) && occlusionCacheArg.get(ctx) < 1) {
-            ctx.sender().sendMessage(Message.raw("occlusionCache must be >= 1 tick."));
+        if (occlusionCacheArg.provided(ctx)
+            && outOfRange(occlusionCacheArg.get(ctx),
+                PhysicsSpaceSettings.MAX_VISUAL_OCCLUSION_CACHE_TICKS)) {
+            ctx.sender().sendMessage(Message.raw("occlusionCache must be 1-"
+                + PhysicsSpaceSettings.MAX_VISUAL_OCCLUSION_CACHE_TICKS
+                + " ticks."));
             return CompletableFuture.completedFuture(null);
         }
 
@@ -123,8 +156,7 @@ public class VisualSyncCommand extends AbstractAsyncPlayerCommand {
             settings.setVisualOcclusionMode(occlusionMode);
         }
 
-        settings.setVisualMaxSyncRadius(maxRadius);
-        settings.setVisualFullSyncRadius(fullRadius);
+        settings.setVisualSyncRadii(fullRadius, maxRadius);
         if (midIntervalArg.provided(ctx)) {
             settings.setVisualMidSyncIntervalTicks(midIntervalArg.get(ctx));
         }
@@ -151,6 +183,10 @@ public class VisualSyncCommand extends AbstractAsyncPlayerCommand {
             || occlusionArg.provided(ctx)
             || occlusionRaycastsArg.provided(ctx)
             || occlusionCacheArg.provided(ctx);
+    }
+
+    private static boolean outOfRange(int value, int maxValue) {
+        return value < 1 || value > maxValue;
     }
 
     private static void sendSummary(@Nonnull CommandContext ctx,

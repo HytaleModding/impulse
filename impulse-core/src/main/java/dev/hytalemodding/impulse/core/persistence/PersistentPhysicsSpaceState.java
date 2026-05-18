@@ -55,23 +55,23 @@ public class PersistentPhysicsSpaceState {
             PersistentPhysicsSpaceState::getEntityChunkBoundaryMode)
         .add()
         .append(new KeyedCodec<>("WorldCollisionRadius", Codec.INTEGER, false),
-            (state, value) -> state.worldCollisionRadius = value,
+            (state, value) -> state.setWorldCollisionRadius(value),
             PersistentPhysicsSpaceState::getWorldCollisionRadius)
         .add()
         .append(new KeyedCodec<>("WorldCollisionBodyRadius", Codec.INTEGER, false),
-            (state, value) -> state.worldCollisionBodyRadius = value,
+            (state, value) -> state.setWorldCollisionBodyRadius(value),
             PersistentPhysicsSpaceState::getWorldCollisionBodyRadius)
         .add()
         .append(new KeyedCodec<>("WorldCollisionTtlTicks", Codec.INTEGER, false),
-            (state, value) -> state.worldCollisionTtlTicks = value,
+            (state, value) -> state.setWorldCollisionTtlTicks(value),
             PersistentPhysicsSpaceState::getWorldCollisionTtlTicks)
         .add()
         .append(new KeyedCodec<>("VisualFullSyncRadius", Codec.INTEGER, false),
-            (state, value) -> state.visualFullSyncRadius = value,
+            (state, value) -> state.setVisualFullSyncRadius(value),
             PersistentPhysicsSpaceState::getVisualFullSyncRadius)
         .add()
         .append(new KeyedCodec<>("VisualMaxSyncRadius", Codec.INTEGER, false),
-            (state, value) -> state.visualMaxSyncRadius = value,
+            (state, value) -> state.setVisualMaxSyncRadius(value),
             PersistentPhysicsSpaceState::getVisualMaxSyncRadius)
         .add()
         .append(new KeyedCodec<>("VisualFarSyncCutoffEnabled", Codec.BOOLEAN, false),
@@ -79,11 +79,11 @@ public class PersistentPhysicsSpaceState {
             PersistentPhysicsSpaceState::isVisualFarSyncCutoffEnabled)
         .add()
         .append(new KeyedCodec<>("VisualMidSyncIntervalTicks", Codec.INTEGER, false),
-            (state, value) -> state.visualMidSyncIntervalTicks = value,
+            (state, value) -> state.setVisualMidSyncIntervalTicks(value),
             PersistentPhysicsSpaceState::getVisualMidSyncIntervalTicks)
         .add()
         .append(new KeyedCodec<>("VisualFarSyncIntervalTicks", Codec.INTEGER, false),
-            (state, value) -> state.visualFarSyncIntervalTicks = value,
+            (state, value) -> state.setVisualFarSyncIntervalTicks(value),
             PersistentPhysicsSpaceState::getVisualFarSyncIntervalTicks)
         .add()
         .append(new KeyedCodec<>("VisualOcclusionMode", new EnumCodec<>(VisualOcclusionMode.class), false),
@@ -91,11 +91,11 @@ public class PersistentPhysicsSpaceState {
             PersistentPhysicsSpaceState::getVisualOcclusionMode)
         .add()
         .append(new KeyedCodec<>("VisualOcclusionRaycastsPerTick", Codec.INTEGER, false),
-            (state, value) -> state.visualOcclusionRaycastsPerTick = value,
+            (state, value) -> state.setVisualOcclusionRaycastsPerTick(value),
             PersistentPhysicsSpaceState::getVisualOcclusionRaycastsPerTick)
         .add()
         .append(new KeyedCodec<>("VisualOcclusionCacheTicks", Codec.INTEGER, false),
-            (state, value) -> state.visualOcclusionCacheTicks = value,
+            (state, value) -> state.setVisualOcclusionCacheTicks(value),
             PersistentPhysicsSpaceState::getVisualOcclusionCacheTicks)
         .add()
         .append(new KeyedCodec<>("SolverIterations", Codec.INTEGER, false),
@@ -127,19 +127,19 @@ public class PersistentPhysicsSpaceState {
             PersistentPhysicsSpaceState::isDetachedVisualMaterializationEnabled)
         .add()
         .append(new KeyedCodec<>("DetachedVisualMaterializationRadius", Codec.INTEGER, false),
-            (state, value) -> state.detachedVisualMaterializationRadius = value,
+            (state, value) -> state.setDetachedVisualMaterializationRadius(value),
             PersistentPhysicsSpaceState::getDetachedVisualMaterializationRadius)
         .add()
         .append(new KeyedCodec<>("DetachedVisualDematerializationRadius", Codec.INTEGER, false),
-            (state, value) -> state.detachedVisualDematerializationRadius = value,
+            (state, value) -> state.setDetachedVisualDematerializationRadius(value),
             PersistentPhysicsSpaceState::getDetachedVisualDematerializationRadius)
         .add()
         .append(new KeyedCodec<>("DetachedVisualMaxSpawnsPerTick", Codec.INTEGER, false),
-            (state, value) -> state.detachedVisualMaxSpawnsPerTick = value,
+            (state, value) -> state.setDetachedVisualMaxSpawnsPerTick(value),
             PersistentPhysicsSpaceState::getDetachedVisualMaxSpawnsPerTick)
         .add()
         .append(new KeyedCodec<>("DetachedVisualMaxMaterialized", Codec.INTEGER, false),
-            (state, value) -> state.detachedVisualMaxMaterialized = value,
+            (state, value) -> state.setDetachedVisualMaxMaterialized(value),
             PersistentPhysicsSpaceState::getDetachedVisualMaxMaterialized)
         .add()
         .append(new KeyedCodec<>("DetachedVisualBlockType", Codec.STRING, false),
@@ -162,33 +162,24 @@ public class PersistentPhysicsSpaceState {
     @Setter
     private EntityChunkBoundaryMode entityChunkBoundaryMode =
         PhysicsSpaceSettings.DEFAULT_ENTITY_CHUNK_BOUNDARY_MODE;
-    @Setter
     private int worldCollisionRadius = PhysicsSpaceSettings.DEFAULT_WORLD_COLLISION_RADIUS;
-    @Setter
     private int worldCollisionBodyRadius = PhysicsSpaceSettings.DEFAULT_WORLD_COLLISION_BODY_RADIUS;
-    @Setter
     private int worldCollisionTtlTicks = PhysicsSpaceSettings.DEFAULT_WORLD_COLLISION_TTL_TICKS;
-    @Setter
     private int visualFullSyncRadius = PhysicsSpaceSettings.DEFAULT_VISUAL_FULL_SYNC_RADIUS;
-    @Setter
     private int visualMaxSyncRadius = PhysicsSpaceSettings.DEFAULT_VISUAL_MAX_SYNC_RADIUS;
     @Setter
     private boolean visualFarSyncCutoffEnabled =
         PhysicsSpaceSettings.DEFAULT_VISUAL_FAR_SYNC_CUTOFF_ENABLED;
-    @Setter
     private int visualMidSyncIntervalTicks =
         PhysicsSpaceSettings.DEFAULT_VISUAL_MID_SYNC_INTERVAL_TICKS;
-    @Setter
     private int visualFarSyncIntervalTicks =
         PhysicsSpaceSettings.DEFAULT_VISUAL_FAR_SYNC_INTERVAL_TICKS;
     @Nonnull
     @Setter
     private VisualOcclusionMode visualOcclusionMode =
         PhysicsSpaceSettings.DEFAULT_VISUAL_OCCLUSION_MODE;
-    @Setter
     private int visualOcclusionRaycastsPerTick =
         PhysicsSpaceSettings.DEFAULT_VISUAL_OCCLUSION_RAYCASTS_PER_TICK;
-    @Setter
     private int visualOcclusionCacheTicks =
         PhysicsSpaceSettings.DEFAULT_VISUAL_OCCLUSION_CACHE_TICKS;
     @Setter
@@ -208,16 +199,12 @@ public class PersistentPhysicsSpaceState {
     @Setter
     private boolean detachedVisualMaterializationEnabled =
         PhysicsSpaceSettings.DEFAULT_DETACHED_VISUAL_MATERIALIZATION_ENABLED;
-    @Setter
     private int detachedVisualMaterializationRadius =
         PhysicsSpaceSettings.DEFAULT_DETACHED_VISUAL_MATERIALIZATION_RADIUS;
-    @Setter
     private int detachedVisualDematerializationRadius =
         PhysicsSpaceSettings.DEFAULT_DETACHED_VISUAL_DEMATERIALIZATION_RADIUS;
-    @Setter
     private int detachedVisualMaxSpawnsPerTick =
         PhysicsSpaceSettings.DEFAULT_DETACHED_VISUAL_MAX_SPAWNS_PER_TICK;
-    @Setter
     private int detachedVisualMaxMaterialized =
         PhysicsSpaceSettings.DEFAULT_DETACHED_VISUAL_MAX_MATERIALIZED;
     @Nonnull
@@ -281,7 +268,7 @@ public class PersistentPhysicsSpaceState {
         settings.setWorldCollisionRadius(worldCollisionRadius);
         settings.setWorldCollisionBodyRadius(worldCollisionBodyRadius);
         settings.setWorldCollisionTtlTicks(worldCollisionTtlTicks);
-        applyVisualSyncRadii(settings, visualFullSyncRadius, visualMaxSyncRadius);
+        settings.setVisualSyncRadii(visualFullSyncRadius, visualMaxSyncRadius);
         settings.setVisualFarSyncCutoffEnabled(visualFarSyncCutoffEnabled);
         settings.setVisualMidSyncIntervalTicks(visualMidSyncIntervalTicks);
         settings.setVisualFarSyncIntervalTicks(visualFarSyncIntervalTicks);
@@ -295,7 +282,7 @@ public class PersistentPhysicsSpaceState {
         settings.setEntityVisualSyncCullingEnabled(entityVisualSyncCullingEnabled);
         settings.setVisualVisibilityCullingEnabled(visualVisibilityCullingEnabled);
         settings.setDetachedVisualMaterializationEnabled(detachedVisualMaterializationEnabled);
-        applyDetachedVisualRadii(settings,
+        settings.setDetachedVisualRadii(
             detachedVisualMaterializationRadius,
             detachedVisualDematerializationRadius);
         settings.setDetachedVisualMaxSpawnsPerTick(detachedVisualMaxSpawnsPerTick);
@@ -304,36 +291,102 @@ public class PersistentPhysicsSpaceState {
         return settings;
     }
 
-    private static void applyVisualSyncRadii(@Nonnull PhysicsSpaceSettings settings,
-        int fullRadius,
-        int maxRadius) {
-        if (maxRadius < fullRadius) {
-            throw new IllegalArgumentException(
-                "Visual max sync radius cannot be lower than visual full sync radius");
-        }
-        if (maxRadius < settings.getVisualFullSyncRadius()) {
-            settings.setVisualFullSyncRadius(fullRadius);
-            settings.setVisualMaxSyncRadius(maxRadius);
-            return;
-        }
-        settings.setVisualMaxSyncRadius(maxRadius);
-        settings.setVisualFullSyncRadius(fullRadius);
+    public void setWorldCollisionRadius(int worldCollisionRadius) {
+        this.worldCollisionRadius = requirePositiveAtMost(
+            "World collision radius",
+            worldCollisionRadius,
+            PhysicsSpaceSettings.MAX_WORLD_COLLISION_RADIUS);
     }
 
-    private static void applyDetachedVisualRadii(@Nonnull PhysicsSpaceSettings settings,
-        int materializationRadius,
-        int dematerializationRadius) {
-        if (dematerializationRadius < materializationRadius) {
-            throw new IllegalArgumentException(
-                "Detached visual dematerialization radius cannot be lower than materialization radius");
+    public void setWorldCollisionBodyRadius(int worldCollisionBodyRadius) {
+        this.worldCollisionBodyRadius = requirePositiveAtMost(
+            "World collision body radius",
+            worldCollisionBodyRadius,
+            PhysicsSpaceSettings.MAX_WORLD_COLLISION_BODY_RADIUS);
+    }
+
+    public void setWorldCollisionTtlTicks(int worldCollisionTtlTicks) {
+        this.worldCollisionTtlTicks = requirePositiveAtMost(
+            "World collision TTL",
+            worldCollisionTtlTicks,
+            PhysicsSpaceSettings.MAX_WORLD_COLLISION_TTL_TICKS);
+    }
+
+    public void setVisualFullSyncRadius(int visualFullSyncRadius) {
+        this.visualFullSyncRadius = requirePositiveAtMost(
+            "Visual full sync radius",
+            visualFullSyncRadius,
+            PhysicsSpaceSettings.MAX_VISUAL_FULL_SYNC_RADIUS);
+    }
+
+    public void setVisualMaxSyncRadius(int visualMaxSyncRadius) {
+        this.visualMaxSyncRadius = requirePositiveAtMost(
+            "Visual max sync radius",
+            visualMaxSyncRadius,
+            PhysicsSpaceSettings.MAX_VISUAL_MAX_SYNC_RADIUS);
+    }
+
+    public void setVisualMidSyncIntervalTicks(int visualMidSyncIntervalTicks) {
+        this.visualMidSyncIntervalTicks = requirePositiveAtMost(
+            "Visual mid sync interval",
+            visualMidSyncIntervalTicks,
+            PhysicsSpaceSettings.MAX_VISUAL_MID_SYNC_INTERVAL_TICKS);
+    }
+
+    public void setVisualFarSyncIntervalTicks(int visualFarSyncIntervalTicks) {
+        this.visualFarSyncIntervalTicks = requirePositiveAtMost(
+            "Visual far sync interval",
+            visualFarSyncIntervalTicks,
+            PhysicsSpaceSettings.MAX_VISUAL_FAR_SYNC_INTERVAL_TICKS);
+    }
+
+    public void setVisualOcclusionRaycastsPerTick(int visualOcclusionRaycastsPerTick) {
+        this.visualOcclusionRaycastsPerTick = requirePositiveAtMost(
+            "Visual occlusion raycasts per tick",
+            visualOcclusionRaycastsPerTick,
+            PhysicsSpaceSettings.MAX_VISUAL_OCCLUSION_RAYCASTS_PER_TICK);
+    }
+
+    public void setVisualOcclusionCacheTicks(int visualOcclusionCacheTicks) {
+        this.visualOcclusionCacheTicks = requirePositiveAtMost(
+            "Visual occlusion cache ticks",
+            visualOcclusionCacheTicks,
+            PhysicsSpaceSettings.MAX_VISUAL_OCCLUSION_CACHE_TICKS);
+    }
+
+    public void setDetachedVisualMaterializationRadius(int detachedVisualMaterializationRadius) {
+        this.detachedVisualMaterializationRadius = requirePositiveAtMost(
+            "Detached visual materialization radius",
+            detachedVisualMaterializationRadius,
+            PhysicsSpaceSettings.MAX_DETACHED_VISUAL_MATERIALIZATION_RADIUS);
+    }
+
+    public void setDetachedVisualDematerializationRadius(int detachedVisualDematerializationRadius) {
+        this.detachedVisualDematerializationRadius = requirePositiveAtMost(
+            "Detached visual dematerialization radius",
+            detachedVisualDematerializationRadius,
+            PhysicsSpaceSettings.MAX_DETACHED_VISUAL_DEMATERIALIZATION_RADIUS);
+    }
+
+    public void setDetachedVisualMaxSpawnsPerTick(int detachedVisualMaxSpawnsPerTick) {
+        this.detachedVisualMaxSpawnsPerTick = requirePositiveAtMost(
+            "Detached visual max spawns per tick",
+            detachedVisualMaxSpawnsPerTick,
+            PhysicsSpaceSettings.MAX_DETACHED_VISUAL_MAX_SPAWNS_PER_TICK);
+    }
+
+    public void setDetachedVisualMaxMaterialized(int detachedVisualMaxMaterialized) {
+        this.detachedVisualMaxMaterialized = requirePositiveAtMost(
+            "Detached visual max materialized",
+            detachedVisualMaxMaterialized,
+            PhysicsSpaceSettings.MAX_DETACHED_VISUAL_MAX_MATERIALIZED);
+    }
+
+    private static int requirePositiveAtMost(@Nonnull String label, int value, int maxValue) {
+        if (value < 1 || value > maxValue) {
+            throw new IllegalArgumentException(label + " must be between 1 and " + maxValue);
         }
-        if (materializationRadius > settings.getDetachedVisualDematerializationRadius()) {
-            settings.setDetachedVisualDematerializationRadius(dematerializationRadius);
-            settings.setDetachedVisualMaterializationRadius(materializationRadius);
-            return;
-        }
-        settings.setDetachedVisualMaterializationRadius(materializationRadius);
-        settings.setDetachedVisualDematerializationRadius(dematerializationRadius);
+        return value;
     }
 
     @Nonnull
