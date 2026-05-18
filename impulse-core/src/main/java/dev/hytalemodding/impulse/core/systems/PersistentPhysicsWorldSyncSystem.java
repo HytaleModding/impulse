@@ -23,11 +23,11 @@ import java.util.UUID;
 import javax.annotation.Nonnull;
 
 /**
- * Syncs the persisted world resource from the current runtime state each tick.
+ * Syncs the persisted world resource from the current runtime state.
  *
  * <p>Mirrors the live spaces, their settings, and all entity-backed joints back
- * into {@link PersistentPhysicsWorldResource} so that Hytale's serialization
- * captures the latest state on the next world save. Skipped while a restore
+ * into {@link PersistentPhysicsWorldResource} on a bounded cadence. Scalar
+ * world settings are synchronized immediately when they diverge. Skipped while a restore
  * is in progress, or after a hard restore failure, to avoid overwriting
  * deserialized data before hydration finishes or before the failure is resolved.</p>
  *
@@ -37,6 +37,7 @@ import javax.annotation.Nonnull;
  */
 public class PersistentPhysicsWorldSyncSystem extends TickingSystem<EntityStore> {
 
+    private static final int WORLD_SYNC_INTERVAL_TICKS = 20;
     private static final Set<Dependency<EntityStore>> DEPENDENCIES = Set.of(
         new SystemDependency<>(Order.AFTER, PersistentPhysicsJointHydrationSystem.class),
         new SystemDependency<>(Order.AFTER, PersistentPhysicsBodySyncSystem.class)
@@ -57,6 +58,11 @@ public class PersistentPhysicsWorldSyncSystem extends TickingSystem<EntityStore>
         }
 
         PhysicsWorldResource runtime = store.getResource(PhysicsWorldResource.getResourceType());
+        if (!hasScalarWorldStateChanged(persistent, runtime)
+            && !persistent.shouldSyncRuntimeSnapshot(WORLD_SYNC_INTERVAL_TICKS)) {
+            return;
+        }
+
         persistent.setSimulationSteps(runtime.getSimulationSteps());
         persistent.setStepMode(runtime.getStepMode());
         persistent.setMaxStepDt(runtime.getMaxStepDt());
@@ -85,5 +91,18 @@ public class PersistentPhysicsWorldSyncSystem extends TickingSystem<EntityStore>
 
         persistent.setSpaces(spaces.toArray(PersistentPhysicsSpaceState[]::new));
         persistent.setJoints(joints.toArray(PersistentPhysicsJointState[]::new));
+        persistent.markRuntimeSnapshotSynced();
+    }
+
+    private static boolean hasScalarWorldStateChanged(@Nonnull PersistentPhysicsWorldResource persistent,
+        @Nonnull PhysicsWorldResource runtime) {
+        SpaceId defaultSpaceId = runtime.getDefaultSpaceId();
+        int resolvedDefaultSpaceId = defaultSpaceId != null
+            ? defaultSpaceId.value()
+            : PersistentPhysicsBodyComponent.DEFAULT_SPACE_ID;
+        return persistent.getSimulationSteps() != runtime.getSimulationSteps()
+            || persistent.getStepMode() != runtime.getStepMode()
+            || Float.compare(persistent.getMaxStepDt(), runtime.getMaxStepDt()) != 0
+            || persistent.getDefaultSpaceId() != resolvedDefaultSpaceId;
     }
 }

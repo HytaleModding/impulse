@@ -101,37 +101,46 @@ public class PersistentPhysicsBodyHydrationSystem extends EntityTickingSystem<En
 
         int resolvedSpaceId = persistent.resolveSpaceId(persistentWorld.getDefaultSpaceIdValue());
         if (resolvedSpaceId <= 0) {
-            if (persistentWorld.isRuntimeRestorePending()) {
-                persistentWorld.recordRuntimeBodySkipped("no resolved space id");
-            }
+            persistentWorld.recordRuntimeBodySkipped("no resolved space id");
             persistent.clearBodyRebuildFlag();
             return;
         }
 
         var space = PersistentPhysicsRuntimeSupport.resolveSpace(runtime, persistentWorld, persistent);
         if (space == null) {
-            if (persistentWorld.isRuntimeRestorePending()) {
-                persistentWorld.recordRuntimeBodySkipped("missing target space");
-            }
+            persistentWorld.recordRuntimeBodySkipped("missing target space");
             persistent.clearBodyRebuildFlag();
             return;
         }
 
-        PhysicsBody body = persistent.createBody(space);
-        persistent.applyToBody(body);
-        space.addBody(body);
-
-        commandBuffer.putComponent(chunk.getReferenceTo(index),
-            PhysicsBodyComponent.getComponentType(),
-            new PhysicsBodyComponent(body, space.getId()));
-        if (body.getBodyType() == PhysicsBodyType.DYNAMIC) {
-            commandBuffer.putComponent(chunk.getReferenceTo(index),
-                ImpulseControllableComponent.getComponentType(),
-                new ImpulseControllableComponent());
+        String validationFailure = persistent.restoreValidationFailureReason();
+        if (validationFailure != null) {
+            persistentWorld.recordRuntimeBodySkipped(validationFailure);
+            persistent.clearBodyRebuildFlag();
+            return;
         }
-        runtime.registerBodyOwner(body, chunk.getReferenceTo(index));
-        if (persistentWorld.isRuntimeRestorePending()) {
-            persistentWorld.recordRuntimeBodyRestored();
+
+        try {
+            PhysicsBody body = persistent.createBody(space);
+            persistent.applyToBody(body);
+            space.addBody(body);
+
+            commandBuffer.putComponent(chunk.getReferenceTo(index),
+                PhysicsBodyComponent.getComponentType(),
+                new PhysicsBodyComponent(body, space.getId()));
+            if (body.getBodyType() == PhysicsBodyType.DYNAMIC) {
+                commandBuffer.putComponent(chunk.getReferenceTo(index),
+                    ImpulseControllableComponent.getComponentType(),
+                    new ImpulseControllableComponent());
+            }
+            runtime.registerBodyOwner(body, chunk.getReferenceTo(index));
+            if (persistentWorld.isRuntimeRestorePending()) {
+                persistentWorld.recordRuntimeBodyRestored();
+            }
+        } catch (RuntimeException exception) {
+            persistentWorld.recordRuntimeBodySkipped("body restore failed: "
+                + exception.getClass().getSimpleName());
+            persistent.clearBodyRebuildFlag();
         }
     }
 
