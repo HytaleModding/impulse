@@ -96,7 +96,9 @@ public class PhysicsSyncSystem extends EntityTickingSystem<EntityStore> {
 
     @Override
     public boolean isParallel(int archetypeChunkSize, int taskCount) {
-        return useParallel(archetypeChunkSize, taskCount);
+        // Backend bodies and per-body sync state are owned by the world tick thread.
+        // Pose snapshots can be introduced later to parallelize the ECS write side.
+        return false;
     }
 
     @Override
