@@ -12,6 +12,7 @@ import com.hypixel.hytale.server.core.modules.entity.component.TransformComponen
 import com.hypixel.hytale.server.core.universe.world.World;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import dev.hytalemodding.impulse.api.PhysicsSpace;
+import dev.hytalemodding.impulse.api.SpaceId;
 import dev.hytalemodding.impulse.core.resources.PhysicsSpaceSettings;
 import dev.hytalemodding.impulse.core.resources.PhysicsWorldResource;
 import dev.hytalemodding.impulse.core.resources.WorldCollisionProfilingResource;
@@ -57,8 +58,6 @@ public class PhysicsWorldCollisionStreamingSystem extends TickingSystem<EntitySt
     private static final Query<EntityStore> QUERY = Query.and(PLAYER_TYPE, TRANSFORM_TYPE);
 
     private long tick;
-    private final Vector3f bodyPositionScratch = new Vector3f();
-
     @Nonnull
     @Override
     public Query<EntityStore> getQuery() {
@@ -98,13 +97,15 @@ public class PhysicsWorldCollisionStreamingSystem extends TickingSystem<EntitySt
 
                 int playerRadius = settings.getWorldCollisionRadius();
                 int bodyRadius = settings.getWorldCollisionBodyRadius();
-                List<Vector3d> bodyTargets = collectDynamicBodyTargets(space,
+                List<BodyStreamingTarget> bodyTargets = collectDynamicBodyTargets(resource,
+                    space.getId(),
                     bodyRadius,
                     currentTick,
                     settings.getWorldCollisionTtlTicks(),
                     snapshot);
                 LongSet visitedSections = new LongOpenHashSet();
                 for (Vector3d position : playerPositions) {
+                    int sectionsBefore = visitedSections.size();
                     cache.ensureAround(world,
                         space,
                         position,
@@ -112,15 +113,26 @@ public class PhysicsWorldCollisionStreamingSystem extends TickingSystem<EntitySt
                         currentTick,
                         snapshot,
                         visitedSections);
+                    if (snapshot != null) {
+                        snapshot.addPlayerSectionTargets(visitedSections.size() - sectionsBefore);
+                    }
                 }
-                for (Vector3d position : bodyTargets) {
-                    cache.ensureAround(world,
-                        space,
-                        position,
-                        bodyRadius,
-                        currentTick,
-                        snapshot,
-                        visitedSections);
+                for (BodyStreamingTarget target : bodyTargets) {
+                    int sectionsBefore = visitedSections.size();
+                    if (target.buildSections()) {
+                        cache.ensureAround(world,
+                            space,
+                            target.position(),
+                            bodyRadius,
+                            currentTick,
+                            snapshot,
+                            visitedSections);
+                    } else {
+                        cache.touchAround(space.getId(), target.position(), bodyRadius, currentTick);
+                    }
+                    if (snapshot != null) {
+                        snapshot.addBodySectionTargets(visitedSections.size() - sectionsBefore);
+                    }
                 }
                 cache.pruneUnloaded(world, space.getId(), space, snapshot);
                 cache.pruneUnused(space.getId(),
@@ -155,33 +167,40 @@ public class PhysicsWorldCollisionStreamingSystem extends TickingSystem<EntitySt
      * work for big piles where many bodies share the same neighborhood.</p>
      */
     @Nonnull
-    private List<Vector3d> collectDynamicBodyTargets(@Nonnull PhysicsSpace space,
+    private List<BodyStreamingTarget> collectDynamicBodyTargets(@Nonnull PhysicsWorldResource resource,
+        @Nonnull SpaceId spaceId,
         int radius,
         long currentTick,
         int ttlTicks,
         @Nullable Snapshot snapshot) {
-        Map<WorldCollisionStreamingBounds, Vector3d> uniqueTargets = new LinkedHashMap<>();
+        Map<WorldCollisionStreamingBounds, BodyStreamingTarget> uniqueTargets = new LinkedHashMap<>();
+        int[] spatialIndexCandidateCount = {0};
         int[] candidateCount = {0};
-        space.forEachBody(body -> {
-            if (!body.isDynamic()) {
-                return;
-            }
-            if (body.isSleeping() && !shouldRefreshSleepingBodyTarget(currentTick, ttlTicks)) {
+        resource.forEachBodySnapshot(spaceId, entry -> {
+            spatialIndexCandidateCount[0]++;
+            var bodySnapshot = entry.snapshot();
+            if (!bodySnapshot.isDynamic()) {
                 return;
             }
 
             candidateCount[0]++;
-            body.getPosition(bodyPositionScratch);
-            WorldCollisionStreamingBounds bounds = WorldCollisionStreamingBounds.from(bodyPositionScratch,
+            Vector3f position = bodySnapshot.position();
+            WorldCollisionStreamingBounds bounds = WorldCollisionStreamingBounds.from(position,
                 radius);
-            Vector3d previous = uniqueTargets.putIfAbsent(bounds,
-                new Vector3d(bodyPositionScratch.x, bodyPositionScratch.y, bodyPositionScratch.z));
+            BodyStreamingTarget target = new BodyStreamingTarget(
+                new Vector3d(position.x, position.y, position.z),
+                !bodySnapshot.sleeping() || shouldRefreshSleepingBodyTarget(currentTick, ttlTicks));
+            BodyStreamingTarget previous = uniqueTargets.putIfAbsent(bounds, target);
+            if (previous != null && !previous.buildSections() && target.buildSections()) {
+                uniqueTargets.put(bounds, target);
+            }
             if (previous != null && snapshot != null) {
                 snapshot.incrementBodyTargetDedupeSkips();
             }
         });
         if (snapshot != null) {
             snapshot.addBodyStreamingCandidates(candidateCount[0]);
+            snapshot.addBodySpatialIndexCandidates(spatialIndexCandidateCount[0]);
             snapshot.addBodyStreamingTargets(uniqueTargets.size());
         }
         return new ArrayList<>(uniqueTargets.values());
@@ -191,6 +210,9 @@ public class PhysicsWorldCollisionStreamingSystem extends TickingSystem<EntitySt
         int interval = Math.max(1, Math.min(SLEEPING_BODY_STREAMING_INTERVAL_TICKS,
             Math.max(1, ttlTicks / 2)));
         return currentTick == 1L || currentTick % interval == 0L;
+    }
+
+    private record BodyStreamingTarget(@Nonnull Vector3d position, boolean buildSections) {
     }
 
 }

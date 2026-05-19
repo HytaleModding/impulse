@@ -10,6 +10,7 @@ import com.hypixel.hytale.server.core.universe.PlayerRef;
 import com.hypixel.hytale.server.core.universe.world.World;
 import com.hypixel.hytale.server.core.universe.world.storage.ChunkStore;
 import dev.hytalemodding.impulse.api.PhysicsBody;
+import dev.hytalemodding.impulse.api.PhysicsBodySnapshot;
 import dev.hytalemodding.impulse.api.PhysicsContact;
 import dev.hytalemodding.impulse.api.PhysicsJoint;
 import dev.hytalemodding.impulse.api.PhysicsSpace;
@@ -17,6 +18,8 @@ import dev.hytalemodding.impulse.api.ShapeType;
 import dev.hytalemodding.impulse.core.components.PhysicsBodyComponent;
 import dev.hytalemodding.impulse.core.resources.PhysicsDebugResource;
 import dev.hytalemodding.impulse.core.resources.PhysicsWorldResource;
+import dev.hytalemodding.impulse.core.resources.PhysicsWorldResource.BodyOwnerKind;
+import dev.hytalemodding.impulse.core.resources.PhysicsWorldResource.BodyRegistration;
 import dev.hytalemodding.impulse.core.voxel.SectionCollisionGeometry.BoxCollider;
 import dev.hytalemodding.impulse.core.voxel.WorldVoxelCollisionCache.DebugSection;
 import java.util.ArrayList;
@@ -88,7 +91,7 @@ public class PhysicsDebugSystem extends TickingSystem<ChunkStore> {
             List<PlayerRef> target = List.of(viewer);
 
             if (overlayDue && (debugShapes || debugMotion)) {
-                renderEntityBodies(target,
+                int renderedBodies = renderEntityBodies(target,
                     entityStore,
                     resource,
                     viewerPosition,
@@ -96,6 +99,14 @@ public class PhysicsDebugSystem extends TickingSystem<ChunkStore> {
                     debugShapes,
                     debugMotion,
                     debug.getMaxBodies(),
+                    overlayLifetime);
+                renderDetachedBodies(target,
+                    resource,
+                    viewerPosition,
+                    debug.getViewRadius(),
+                    debugShapes,
+                    debugMotion,
+                    Math.max(0, debug.getMaxBodies() - renderedBodies),
                     overlayLifetime);
             }
 
@@ -150,7 +161,7 @@ public class PhysicsDebugSystem extends TickingSystem<ChunkStore> {
         return viewers;
     }
 
-    private static void renderEntityBodies(@Nonnull Collection<PlayerRef> viewers,
+    private static int renderEntityBodies(@Nonnull Collection<PlayerRef> viewers,
         @Nonnull Store<com.hypixel.hytale.server.core.universe.world.storage.EntityStore> store,
         @Nonnull PhysicsWorldResource resource,
         @Nonnull Vector3d viewerPosition,
@@ -160,6 +171,9 @@ public class PhysicsDebugSystem extends TickingSystem<ChunkStore> {
         int maxBodies,
         float time) {
         int rendered = 0;
+        if (maxBodies <= 0) {
+            return 0;
+        }
         double maxDistanceSquared = viewRadius * viewRadius;
         for (Ref<com.hypixel.hytale.server.core.universe.world.storage.EntityStore> owner
             : resource.getBodyOwners()) {
@@ -190,9 +204,62 @@ public class PhysicsDebugSystem extends TickingSystem<ChunkStore> {
 
             rendered++;
             if (rendered >= maxBodies) {
-                return;
+                return rendered;
             }
         }
+        return rendered;
+    }
+
+    private static int renderDetachedBodies(@Nonnull Collection<PlayerRef> viewers,
+        @Nonnull PhysicsWorldResource resource,
+        @Nonnull Vector3d viewerPosition,
+        double viewRadius,
+        boolean debugShapes,
+        boolean debugMotion,
+        int maxBodies,
+        float time) {
+        if (maxBodies <= 0) {
+            return 0;
+        }
+
+        int[] rendered = {0};
+        double maxDistanceSquared = viewRadius * viewRadius;
+        for (PhysicsSpace space : resource.iterateSpaces()) {
+            resource.forEachBodySnapshot(space.getId(), entry -> {
+                if (rendered[0] >= maxBodies) {
+                    return;
+                }
+
+                BodyRegistration registration = entry.registration();
+                if (registration == null || registration.ownerKind() != BodyOwnerKind.DETACHED) {
+                    return;
+                }
+
+                PhysicsBodySnapshot snapshot = entry.snapshot();
+                Vector3f position = snapshot.position();
+                Vector3d center = new Vector3d(position.x, position.y, position.z);
+                if (viewerPosition.distanceSquared(center) > maxDistanceSquared) {
+                    return;
+                }
+
+                PhysicsBody body = snapshot.body();
+                Quaterniond rotation = new Quaterniond(snapshot.rotation().x,
+                    snapshot.rotation().y,
+                    snapshot.rotation().z,
+                    snapshot.rotation().w);
+                if (debugShapes) {
+                    PhysicsDebugRenderer.renderBodyShape(viewers, body, center, rotation, time);
+                }
+                if (debugMotion) {
+                    PhysicsDebugRenderer.renderBodyMotion(viewers, body, center, time);
+                }
+                rendered[0]++;
+            });
+            if (rendered[0] >= maxBodies) {
+                break;
+            }
+        }
+        return rendered[0];
     }
 
     private static void renderSpaceOnlyShapes(@Nonnull Collection<PlayerRef> viewers,
