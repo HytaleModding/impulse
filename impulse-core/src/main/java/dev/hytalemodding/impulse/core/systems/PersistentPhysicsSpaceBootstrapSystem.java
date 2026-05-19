@@ -1,9 +1,11 @@
 package dev.hytalemodding.impulse.core.systems;
 
+import com.hypixel.hytale.component.RemoveReason;
 import com.hypixel.hytale.component.Store;
 import com.hypixel.hytale.component.SystemGroup;
 import com.hypixel.hytale.component.system.tick.TickingSystem;
 import com.hypixel.hytale.logger.HytaleLogger;
+import com.hypixel.hytale.server.core.entity.entities.BlockEntity;
 import com.hypixel.hytale.server.core.universe.world.World;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import dev.hytalemodding.impulse.api.BackendId;
@@ -11,8 +13,13 @@ import dev.hytalemodding.impulse.api.Impulse;
 import dev.hytalemodding.impulse.api.PhysicsSpace;
 import dev.hytalemodding.impulse.api.SpaceId;
 import dev.hytalemodding.impulse.core.ImpulsePlugin;
+import dev.hytalemodding.impulse.core.components.ImpulseControllableComponent;
+import dev.hytalemodding.impulse.core.components.PersistentPhysicsBodyComponent;
+import dev.hytalemodding.impulse.core.components.PhysicsBodyComponent;
+import dev.hytalemodding.impulse.core.components.PhysicsBodyVisualComponent;
 import dev.hytalemodding.impulse.core.persistence.PersistentPhysicsSpaceState;
 import dev.hytalemodding.impulse.core.persistence.PersistentPhysicsWorldResource;
+import dev.hytalemodding.impulse.core.resources.PhysicsSpaceSettings;
 import dev.hytalemodding.impulse.core.resources.PhysicsWorldResource;
 import java.util.logging.Level;
 import javax.annotation.Nonnull;
@@ -59,6 +66,7 @@ public class PersistentPhysicsSpaceBootstrapSystem extends TickingSystem<EntityS
 
         World world = store.getExternalData().getWorld();
         PhysicsWorldResource runtime = store.getResource(PhysicsWorldResource.getResourceType());
+        stripRuntimePhysicsStateForRestore(store, runtime, world);
         try {
             runtime.setSimulationSteps(persistent.getSimulationSteps());
             runtime.setStepMode(persistent.getStepMode());
@@ -117,6 +125,66 @@ public class PersistentPhysicsSpaceBootstrapSystem extends TickingSystem<EntityS
             return;
         }
         persistent.markRuntimeSpaceBootstrapComplete(restoredSpaceCount);
+    }
+
+    private static void stripRuntimePhysicsStateForRestore(@Nonnull Store<EntityStore> store,
+        @Nonnull PhysicsWorldResource runtime,
+        @Nonnull World world) {
+        runtime.clearAllSpaces(world.getName());
+        runtime.clearBodyOwners();
+
+        store.forEachEntityParallel(PersistentPhysicsBodyComponent.getComponentType(),
+            (index, archetypeChunk, commandBuffer) -> {
+                PersistentPhysicsBodyComponent persistentBody = archetypeChunk.getComponent(index,
+                    PersistentPhysicsBodyComponent.getComponentType());
+                if (persistentBody != null) {
+                    persistentBody.markForBodyRebuild();
+                }
+
+                var ref = archetypeChunk.getReferenceTo(index);
+                if (archetypeChunk.getComponent(index, PhysicsBodyComponent.getComponentType()) != null) {
+                    commandBuffer.removeComponent(ref, PhysicsBodyComponent.getComponentType());
+                }
+                if (archetypeChunk.getComponent(index, ImpulseControllableComponent.getComponentType()) != null) {
+                    commandBuffer.removeComponent(ref, ImpulseControllableComponent.getComponentType());
+                }
+                if (archetypeChunk.getComponent(index, PhysicsBodyVisualComponent.getComponentType()) != null) {
+                    commandBuffer.removeComponent(ref, PhysicsBodyVisualComponent.getComponentType());
+                }
+            });
+
+        store.forEachEntityParallel(PhysicsBodyVisualComponent.getComponentType(),
+            (index, archetypeChunk, commandBuffer) -> {
+                var ref = archetypeChunk.getReferenceTo(index);
+                if (archetypeChunk.getComponent(index, PersistentPhysicsBodyComponent.getComponentType()) != null) {
+                    commandBuffer.removeComponent(ref, PhysicsBodyVisualComponent.getComponentType());
+                    return;
+                }
+                commandBuffer.removeEntity(ref, RemoveReason.REMOVE);
+            });
+
+        /*
+         * Older runtime visual proxies may already exist in saved worlds as plain
+         * block entities after their transient visual component is stripped during
+         * unload/load. Remove those visual-only leftovers during restore so detached
+         * views can be rebuilt from the live physics registry.
+         */
+        store.forEachEntityParallel(BlockEntity.getComponentType(),
+            (index, archetypeChunk, commandBuffer) -> {
+                if (archetypeChunk.getComponent(index, PhysicsBodyComponent.getComponentType()) != null
+                    || archetypeChunk.getComponent(index, PhysicsBodyVisualComponent.getComponentType()) != null
+                    || archetypeChunk.getComponent(index, PersistentPhysicsBodyComponent.getComponentType()) != null) {
+                    return;
+                }
+
+                BlockEntity blockEntity = archetypeChunk.getComponent(index, BlockEntity.getComponentType());
+                if (blockEntity == null
+                    || !PhysicsSpaceSettings.DEFAULT_DETACHED_VISUAL_BLOCK_TYPE.equals(blockEntity.getBlockTypeKey())) {
+                    return;
+                }
+
+                commandBuffer.removeEntity(archetypeChunk.getReferenceTo(index), RemoveReason.REMOVE);
+            });
     }
 
     @Nullable
