@@ -8,6 +8,7 @@ import com.hypixel.hytale.server.core.universe.world.chunk.BlockChunk;
 import com.hypixel.hytale.server.core.universe.world.chunk.section.BlockSection;
 import com.hypixel.hytale.server.core.universe.world.storage.ChunkStore;
 import dev.hytalemodding.impulse.api.PhysicsBody;
+import dev.hytalemodding.impulse.api.PhysicsCollisionFilters;
 import dev.hytalemodding.impulse.api.PhysicsSpace;
 import dev.hytalemodding.impulse.api.SpaceId;
 import dev.hytalemodding.impulse.core.resources.WorldCollisionProfilingResource.Snapshot;
@@ -25,7 +26,6 @@ import java.util.function.Consumer;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 import org.joml.Vector3d;
-import org.joml.Vector3f;
 
 /**
  * Section-keyed cache that generates static physics collision from Hytale world blocks.
@@ -35,9 +35,6 @@ import org.joml.Vector3f;
  * and removed when it falls out of the streaming radius or when its chunk unloads.</p>
  */
 public final class WorldVoxelCollisionCache {
-
-    private static final double SECTION_WAKE_MARGIN = 2.0;
-    private static final Vector3f WAKE_POSITION_SCRATCH = new Vector3f();
 
     private final Int2ObjectMap<SpaceCollisionCache> spaces = new Int2ObjectOpenHashMap<>();
     private final ShapeTemplateCache shapeTemplates = new ShapeTemplateCache();
@@ -146,6 +143,49 @@ public final class WorldVoxelCollisionCache {
             profiling.addEnsureAroundNanos(System.nanoTime() - start);
         }
         return total;
+    }
+
+    /**
+     * Refreshes the TTL of already-cached sections around a sleeping body without building
+     * missing collision or touching chunk storage.
+     */
+    public int touchAround(@Nonnull SpaceId spaceId,
+        @Nonnull Vector3d center,
+        int radius,
+        long tick) {
+        SpaceCollisionCache cache = spaces.get(spaceId.value());
+        if (cache == null) {
+            return 0;
+        }
+
+        int minX = (int) Math.floor(center.x) - radius;
+        int maxX = (int) Math.floor(center.x) + radius;
+        int minY = Math.max(0, (int) Math.floor(center.y) - radius);
+        int maxY = Math.min(ChunkUtil.HEIGHT_MINUS_1, (int) Math.floor(center.y) + radius);
+        int minZ = (int) Math.floor(center.z) - radius;
+        int maxZ = (int) Math.floor(center.z) + radius;
+
+        int minChunkX = ChunkUtil.chunkCoordinate(minX);
+        int maxChunkX = ChunkUtil.chunkCoordinate(maxX);
+        int minSectionY = ChunkUtil.indexSection(minY);
+        int maxSectionY = ChunkUtil.indexSection(maxY);
+        int minChunkZ = ChunkUtil.chunkCoordinate(minZ);
+        int maxChunkZ = ChunkUtil.chunkCoordinate(maxZ);
+
+        int touched = 0;
+        for (int chunkX = minChunkX; chunkX <= maxChunkX; chunkX++) {
+            for (int sectionY = minSectionY; sectionY <= maxSectionY; sectionY++) {
+                for (int chunkZ = minChunkZ; chunkZ <= maxChunkZ; chunkZ++) {
+                    CachedSection section = cache.section(chunkX, sectionY, chunkZ);
+                    if (section == null || section.lastUsedTick >= tick) {
+                        continue;
+                    }
+                    section.lastUsedTick = tick;
+                    touched++;
+                }
+            }
+        }
+        return touched;
     }
 
     /**
@@ -406,9 +446,6 @@ public final class WorldVoxelCollisionCache {
         addGeometryBodies(space, built, geometry, chunkX, sectionY, chunkZ);
         cache.sections.put(key, built);
         combineWithNeighbors(space, cache, built);
-        if (rebuilt) {
-            wakeDynamicBodiesNearSection(space, chunkX, sectionY, chunkZ);
-        }
 
         BuildStats stats = BuildStats.from(geometry,
             built.bodies.size(),
@@ -438,6 +475,7 @@ public final class WorldVoxelCollisionCache {
                 sectionY << ChunkUtil.BITS,
                 chunkZ << ChunkUtil.BITS);
             voxelBody.setFriction(0.75f);
+            voxelBody.setCollisionFilter(PhysicsCollisionFilters.TERRAIN, PhysicsCollisionFilters.ALL);
             space.addBody(voxelBody);
             target.voxelBody = voxelBody;
             target.bodies.add(voxelBody);
@@ -465,6 +503,7 @@ public final class WorldVoxelCollisionCache {
             0.0f);
         body.setPosition((float) box.centerX(), (float) box.centerY(), (float) box.centerZ());
         body.setFriction(0.75f);
+        body.setCollisionFilter(PhysicsCollisionFilters.TERRAIN, PhysicsCollisionFilters.ALL);
         space.addBody(body);
         section.bodies.add(body);
     }
@@ -507,34 +546,6 @@ public final class WorldVoxelCollisionCache {
         }
 
         space.combineVoxelTerrains(section.voxelBody, neighbor.voxelBody, shiftX, shiftY, shiftZ);
-    }
-
-    private static void wakeDynamicBodiesNearSection(@Nonnull PhysicsSpace space,
-        int chunkX,
-        int sectionY,
-        int chunkZ) {
-        double minX = (chunkX << ChunkUtil.BITS) - SECTION_WAKE_MARGIN;
-        double minY = (sectionY << ChunkUtil.BITS) - SECTION_WAKE_MARGIN;
-        double minZ = (chunkZ << ChunkUtil.BITS) - SECTION_WAKE_MARGIN;
-        double maxX = (chunkX << ChunkUtil.BITS) + ChunkUtil.SIZE + SECTION_WAKE_MARGIN;
-        double maxY = (sectionY << ChunkUtil.BITS) + ChunkUtil.SIZE + SECTION_WAKE_MARGIN;
-        double maxZ = (chunkZ << ChunkUtil.BITS) + ChunkUtil.SIZE + SECTION_WAKE_MARGIN;
-
-        space.forEachBody(body -> {
-            if (!body.isDynamic()) {
-                return;
-            }
-            body.getPosition(WAKE_POSITION_SCRATCH);
-            double posX = WAKE_POSITION_SCRATCH.x;
-            double posY = WAKE_POSITION_SCRATCH.y;
-            double posZ = WAKE_POSITION_SCRATCH.z;
-            if (posX < minX || posX > maxX
-                || posY < minY || posY > maxY
-                || posZ < minZ || posZ > maxZ) {
-                return;
-            }
-            body.activate();
-        });
     }
 
     @Nullable

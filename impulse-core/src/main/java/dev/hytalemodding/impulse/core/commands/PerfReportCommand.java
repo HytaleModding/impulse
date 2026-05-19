@@ -59,12 +59,18 @@ public class PerfReportCommand extends AbstractWorldCommand {
             ctx.sender().sendMessage(Message.raw("Physics step avg ms/tick="
                 + formatAverageMillis(cumulativeStep.getTickNanos(), cumulativeStep.getTickSamples())
                 + " spaces=" + formatAverage(cumulativeStep.getSpaces(), cumulativeStep.getTickSamples())
-                + " substeps=" + formatAverage(cumulativeStep.getSubsteps(), cumulativeStep.getTickSamples())));
+                + " substeps=" + formatAverage(cumulativeStep.getSubsteps(), cumulativeStep.getTickSamples())
+                + " snapshots=" + formatAverage(cumulativeStep.getBodySnapshots(), cumulativeStep.getTickSamples())
+                + " indexCells=" + formatAverage(cumulativeStep.getSpatialIndexCells(), cumulativeStep.getTickSamples())));
+            ctx.sender().sendMessage(Message.raw("Physics snapshot avg ms/tick="
+                + formatAverageMillis(cumulativeStep.getSnapshotNanos(), cumulativeStep.getTickSamples())));
             ctx.sender().sendMessage(Message.raw("Physics step latest/worst ms="
                 + formatMillis(latestStep.getTickNanos())
                 + "/" + formatMillis(worstStep.getTickNanos())
                 + " latest spaces/substeps=" + latestStep.getSpaces()
-                + "/" + latestStep.getSubsteps()));
+                + "/" + latestStep.getSubsteps()
+                + " snapshots/cells=" + latestStep.getBodySnapshots()
+                + "/" + latestStep.getSpatialIndexCells()));
             ctx.sender().sendMessage(Message.raw("Physics sync avg ms/tick="
                 + formatAverageMillis(cumulativeSync.getTickNanos(), cumulativeSync.getTickSamples())
                 + " inspected=" + formatAverage(cumulativeSync.getBodiesInspected(), cumulativeSync.getTickSamples())
@@ -107,9 +113,12 @@ public class PerfReportCommand extends AbstractWorldCommand {
 
         ctx.sender().sendMessage(Message.raw("Since reset: ticks=" + cumulative.getTickSamples()
             + " playerTargets=" + cumulative.getPlayerStreamingTargets()
-            + " bodyCandidates/targets=" + cumulative.getBodyStreamingCandidates()
+            + " bodyCandidates/index/targets=" + cumulative.getBodyStreamingCandidates()
+            + "/" + cumulative.getBodySpatialIndexCandidates()
             + "/" + cumulative.getBodyStreamingTargets()
             + " spaces=" + cumulative.getStreamingSpaces()
+            + " sectionTargets player/body=" + cumulative.getPlayerSectionTargets()
+            + "/" + cumulative.getBodySectionTargets()
             + " ensureCalls=" + cumulative.getEnsureCalls()
             + " sections req/hit/build/rebuild/miss=" + cumulative.getSectionRequests()
             + "/" + cumulative.getSectionCacheHits()
@@ -139,9 +148,12 @@ public class PerfReportCommand extends AbstractWorldCommand {
             + " pruneUnused=" + formatAverageMillis(cumulative.getPruneUnusedNanos(), cumulative.getTickSamples())));
         ctx.sender().sendMessage(Message.raw("Latest tick: ms=" + formatMillis(latest.getTickNanos())
             + " playerTargets=" + latest.getPlayerStreamingTargets()
-            + " bodyCandidates/targets=" + latest.getBodyStreamingCandidates()
+            + " bodyCandidates/index/targets=" + latest.getBodyStreamingCandidates()
+            + "/" + latest.getBodySpatialIndexCandidates()
             + "/" + latest.getBodyStreamingTargets()
             + " spaces=" + latest.getStreamingSpaces()
+            + " sectionTargets player/body=" + latest.getPlayerSectionTargets()
+            + "/" + latest.getBodySectionTargets()
             + " ensure=" + latest.getEnsureCalls()
             + " req/hit/build/rebuild/miss=" + latest.getSectionRequests()
             + "/" + latest.getSectionCacheHits()
@@ -152,9 +164,12 @@ public class PerfReportCommand extends AbstractWorldCommand {
             + " sectionDupSkips=" + latest.getDuplicateSkips()));
         ctx.sender().sendMessage(Message.raw("Worst tick: ms=" + formatMillis(worst.getTickNanos())
             + " playerTargets=" + worst.getPlayerStreamingTargets()
-            + " bodyCandidates/targets=" + worst.getBodyStreamingCandidates()
+            + " bodyCandidates/index/targets=" + worst.getBodyStreamingCandidates()
+            + "/" + worst.getBodySpatialIndexCandidates()
             + "/" + worst.getBodyStreamingTargets()
             + " spaces=" + worst.getStreamingSpaces()
+            + " sectionTargets player/body=" + worst.getPlayerSectionTargets()
+            + "/" + worst.getBodySectionTargets()
             + " ensure=" + worst.getEnsureCalls()
             + " req/hit/build/rebuild/miss=" + worst.getSectionRequests()
             + "/" + worst.getSectionCacheHits()
