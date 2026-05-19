@@ -11,6 +11,7 @@ public class PerfCommand extends AbstractCommandCollection {
         addSubCommand(new PerfToggleCommand());
         addSubCommand(new PerfReportCommand());
         addSubCommand(new PerfStatsCommand());
+        addSubCommand(new PerfDashboardCommand());
         addSubCommand(new PerfResetCommand());
     }
 }
