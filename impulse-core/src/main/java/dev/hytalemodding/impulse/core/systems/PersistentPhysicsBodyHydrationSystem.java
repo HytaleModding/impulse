@@ -134,6 +134,7 @@ public class PersistentPhysicsBodyHydrationSystem extends EntityTickingSystem<En
                     new ImpulseControllableComponent());
             }
             runtime.registerBodyOwner(body, chunk.getReferenceTo(index));
+            persistent.clearBodyRebuildFlag();
             if (persistentWorld.isRuntimeRestorePending()) {
                 persistentWorld.recordRuntimeBodyRestored();
             }
