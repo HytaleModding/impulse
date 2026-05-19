@@ -1,13 +1,4 @@
-const IMPULSE_DYNAMIC_SLEEP_LINEAR_THRESHOLD: f32 = 0.85;
-const IMPULSE_DYNAMIC_SLEEP_ANGULAR_THRESHOLD: f32 = 0.9;
-const IMPULSE_DYNAMIC_TIME_UNTIL_SLEEP: f32 = 0.75;
-
-fn apply_impulse_dynamic_sleep_tuning(body: &mut RigidBody) {
-    let activation = body.activation_mut();
-    activation.normalized_linear_threshold = IMPULSE_DYNAMIC_SLEEP_LINEAR_THRESHOLD;
-    activation.angular_threshold = IMPULSE_DYNAMIC_SLEEP_ANGULAR_THRESHOLD;
-    activation.time_until_sleep = IMPULSE_DYNAMIC_TIME_UNTIL_SLEEP;
-}
+const BODY_SNAPSHOT_FLOATS: usize = 16;
 
 #[no_mangle]
 pub extern "system" fn Java_dev_hytalemodding_impulse_rapier_RapierNative_addBodyNative(
@@ -62,7 +53,12 @@ pub extern "system" fn Java_dev_hytalemodding_impulse_rapier_RapierNative_addBod
             .ccd_enabled(bool_from_jboolean(ccd_enabled));
         let mut rigid_body = body_builder.build();
         if body_type == BODY_TYPE_DYNAMIC {
-            apply_impulse_dynamic_sleep_tuning(&mut rigid_body);
+            apply_dynamic_sleep_tuning(
+                &mut rigid_body,
+                space.dynamic_sleep_linear_threshold,
+                space.dynamic_sleep_angular_threshold,
+                space.dynamic_sleep_time_until_sleep,
+            );
         }
         let body_handle = space.bodies.insert(rigid_body);
 
@@ -123,6 +119,82 @@ pub extern "system" fn Java_dev_hytalemodding_impulse_rapier_RapierNative_remove
             true,
         );
     }
+}
+
+#[no_mangle]
+pub extern "system" fn Java_dev_hytalemodding_impulse_rapier_RapierNative_snapshotBodiesNative(
+    env: JNIEnv,
+    _class: JClass,
+    space_handle: jlong,
+    body_ids: JLongArray,
+    body_count: jint,
+    out: JFloatArray,
+) -> jint {
+    let Ok(handle_capacity) = env.get_array_length(&body_ids) else {
+        return 0;
+    };
+    let Ok(out_capacity) = env.get_array_length(&out) else {
+        return 0;
+    };
+
+    let requested = body_count.max(0) as usize;
+    let count = requested
+        .min(handle_capacity as usize)
+        .min(out_capacity as usize / BODY_SNAPSHOT_FLOATS);
+    if count == 0 {
+        return 0;
+    }
+
+    let mut ids = vec![0_i64; count];
+    if env.get_long_array_region(&body_ids, 0, &mut ids).is_err() {
+        return 0;
+    }
+
+    let mut values = vec![0.0_f32; count * BODY_SNAPSHOT_FLOATS];
+    unsafe {
+        if let Some(space) = space_mut(space_handle) {
+            for (index, body_id) in ids.iter().enumerate() {
+                let Some(entry) = space.entry(*body_id) else {
+                    continue;
+                };
+                let Some(body) = space.bodies.get(entry.body) else {
+                    continue;
+                };
+
+                let offset = index * BODY_SNAPSHOT_FLOATS;
+                let translation = body.translation();
+                let rotation = body.rotation().to_array();
+                let linear_velocity = body.linvel();
+                let angular_velocity = body.angvel();
+
+                values[offset] = translation.x;
+                values[offset + 1] = translation.y;
+                values[offset + 2] = translation.z;
+                values[offset + 3] = rotation[0];
+                values[offset + 4] = rotation[1];
+                values[offset + 5] = rotation[2];
+                values[offset + 6] = rotation[3];
+                values[offset + 7] = linear_velocity.x;
+                values[offset + 8] = linear_velocity.y;
+                values[offset + 9] = linear_velocity.z;
+                values[offset + 10] = angular_velocity.x;
+                values[offset + 11] = angular_velocity.y;
+                values[offset + 12] = angular_velocity.z;
+                values[offset + 13] = body_type_to_int(body) as f32;
+                values[offset + 14] = if body.is_sleeping() { 1.0 } else { 0.0 };
+                values[offset + 15] = space
+                    .colliders
+                    .get(entry.collider)
+                    .map(|collider| if collider.is_sensor() { 1.0 } else { 0.0 })
+                    .unwrap_or(0.0);
+            }
+        }
+    }
+
+    if env.set_float_array_region(&out, 0, &values).is_err() {
+        return 0;
+    }
+    count as jint
 }
 
 #[no_mangle]
@@ -312,7 +384,12 @@ pub extern "system" fn Java_dev_hytalemodding_impulse_rapier_RapierNative_setBod
                 if let Some(body) = space.bodies.get_mut(entry.body) {
                     body.set_body_type(body_type_from_int(body_type), true);
                     if body_type == BODY_TYPE_DYNAMIC {
-                        apply_impulse_dynamic_sleep_tuning(body);
+                        apply_dynamic_sleep_tuning(
+                            body,
+                            space.dynamic_sleep_linear_threshold,
+                            space.dynamic_sleep_angular_threshold,
+                            space.dynamic_sleep_time_until_sleep,
+                        );
                     }
                 }
             }

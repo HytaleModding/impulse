@@ -122,7 +122,7 @@ final class PhysicsBodyRegistry {
             syncStateCleaner.accept(previousOwner);
         }
         detachedBodies.add(body);
-        detachedVisualProxies.remove(body);
+        pruneInvalidDetachedVisualProxy(body);
         bodyRegistrations.put(body, new PhysicsWorldResource.BodyRegistration(body,
             spaceId,
             PhysicsWorldResource.BodyOwnerKind.DETACHED,
@@ -204,8 +204,32 @@ final class PhysicsBodyRegistry {
         return proxy;
     }
 
+    @Nonnull
+    Collection<PhysicsBody> getDetachedVisualProxyBodies() {
+        List<PhysicsBody> bodies = new ArrayList<>();
+        List<PhysicsBody> staleBodies = new ArrayList<>();
+        for (Map.Entry<PhysicsBody, Ref<EntityStore>> entry : detachedVisualProxies.entrySet()) {
+            Ref<EntityStore> proxy = entry.getValue();
+            if (proxy != null && proxy.isValid()) {
+                bodies.add(entry.getKey());
+            } else {
+                staleBodies.add(entry.getKey());
+                if (proxy != null) {
+                    syncStateCleaner.accept(proxy);
+                }
+            }
+        }
+        for (PhysicsBody body : staleBodies) {
+            detachedVisualProxies.remove(body);
+        }
+        return bodies;
+    }
+
     void setDetachedVisualProxy(@Nonnull PhysicsBody body, @Nonnull Ref<EntityStore> proxy) {
-        detachedVisualProxies.put(body, proxy);
+        Ref<EntityStore> previousProxy = detachedVisualProxies.put(body, proxy);
+        if (previousProxy != null && previousProxy != proxy) {
+            syncStateCleaner.accept(previousProxy);
+        }
     }
 
     void clearDetachedVisualProxy(@Nonnull PhysicsBody body) {
@@ -248,7 +272,7 @@ final class PhysicsBodyRegistry {
     void clearBodyRuntimeState(@Nonnull PhysicsBody body) {
         bodyVisualFollowers.remove(body);
         bodyVisualInterestStates.remove(body);
-        detachedVisualProxies.remove(body);
+        clearDetachedVisualProxy(body);
     }
 
     private void remapBody(@Nonnull PhysicsBody sourceBody, @Nonnull PhysicsBody targetBody) {
@@ -272,7 +296,10 @@ final class PhysicsBodyRegistry {
 
         Ref<EntityStore> detachedVisualProxy = detachedVisualProxies.remove(sourceBody);
         if (detachedVisualProxy != null) {
-            detachedVisualProxies.put(targetBody, detachedVisualProxy);
+            Ref<EntityStore> previousProxy = detachedVisualProxies.put(targetBody, detachedVisualProxy);
+            if (previousProxy != null && previousProxy != detachedVisualProxy) {
+                syncStateCleaner.accept(previousProxy);
+            }
         }
 
         Set<Ref<EntityStore>> followers = bodyVisualFollowers.remove(sourceBody);
@@ -290,6 +317,11 @@ final class PhysicsBodyRegistry {
     }
 
     void clear() {
+        for (Ref<EntityStore> proxy : detachedVisualProxies.values()) {
+            if (proxy != null) {
+                syncStateCleaner.accept(proxy);
+            }
+        }
         bodyOwners.clear();
         bodyRegistrations.clear();
         detachedBodies.clear();
@@ -301,5 +333,13 @@ final class PhysicsBodyRegistry {
 
     private static boolean sameRef(@Nullable Ref<EntityStore> left, @Nonnull Ref<EntityStore> right) {
         return left == right || right.equals(left);
+    }
+
+    private void pruneInvalidDetachedVisualProxy(@Nonnull PhysicsBody body) {
+        Ref<EntityStore> proxy = detachedVisualProxies.get(body);
+        if (proxy != null && !proxy.isValid()) {
+            detachedVisualProxies.remove(body);
+            syncStateCleaner.accept(proxy);
+        }
     }
 }

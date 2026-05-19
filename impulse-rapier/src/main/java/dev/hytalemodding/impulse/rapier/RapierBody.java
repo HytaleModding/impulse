@@ -2,6 +2,7 @@ package dev.hytalemodding.impulse.rapier;
 
 import dev.hytalemodding.impulse.api.PhysicsAxis;
 import dev.hytalemodding.impulse.api.PhysicsBody;
+import dev.hytalemodding.impulse.api.PhysicsBodySnapshot;
 import dev.hytalemodding.impulse.api.PhysicsBodyType;
 import dev.hytalemodding.impulse.api.ShapeType;
 import javax.annotation.Nonnull;
@@ -603,6 +604,39 @@ public final class RapierBody implements PhysicsBody {
     @Nonnull
     PhysicsBodyType getStoredBodyType() {
         return bodyType;
+    }
+
+    @Nonnull
+    PhysicsBodySnapshot snapshotFromNative(@Nonnull float[] values,
+        int offset,
+        @Nullable PhysicsBodySnapshot previous) {
+        boolean nativeSleeping = values[offset + 14] != 0.0f;
+        if (nativeSleeping && previous != null && previous.body() == this && previous.sleeping()) {
+            return previous;
+        }
+
+        position.set(values[offset], values[offset + 1], values[offset + 2]);
+        setStoredRotation(values[offset + 3], values[offset + 4], values[offset + 5],
+            values[offset + 6]);
+        linearVelocity.set(values[offset + 7], values[offset + 8], values[offset + 9]);
+        angularVelocity.set(values[offset + 10], values[offset + 11], values[offset + 12]);
+
+        int bodyTypeOrdinal = Math.round(values[offset + 13]);
+        PhysicsBodyType[] bodyTypes = PhysicsBodyType.values();
+        if (bodyTypeOrdinal >= 0 && bodyTypeOrdinal < bodyTypes.length) {
+            bodyType = bodyTypes[bodyTypeOrdinal];
+        }
+        sensor = values[offset + 15] != 0.0f;
+
+        return new PhysicsBodySnapshot(this,
+            position,
+            rotation,
+            linearVelocity,
+            angularVelocity,
+            bodyType,
+            nativeSleeping,
+            sensor,
+            centerOfMassOffsetY);
     }
 
     @Nonnull

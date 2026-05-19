@@ -7,7 +7,9 @@ import com.hypixel.hytale.logger.HytaleLogger;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import dev.hytalemodding.impulse.api.BackendId;
 import dev.hytalemodding.impulse.api.Impulse;
+import dev.hytalemodding.impulse.api.PhysicsActivationTuning;
 import dev.hytalemodding.impulse.api.PhysicsBody;
+import dev.hytalemodding.impulse.api.PhysicsBodySnapshot;
 import dev.hytalemodding.impulse.api.PhysicsBodyType;
 import dev.hytalemodding.impulse.api.PhysicsSpace;
 import dev.hytalemodding.impulse.api.PhysicsSolverTuning;
@@ -20,9 +22,11 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.IdentityHashMap;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.function.Consumer;
 import java.util.logging.Level;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
@@ -84,6 +88,8 @@ public class PhysicsWorldResource implements Resource<EntityStore> {
         new IdentityHashMap<>();
     private final Map<PhysicsBody, ChunkBoundaryPauseState> chunkBoundaryPauseStates =
         new IdentityHashMap<>();
+    private final Map<PhysicsBody, PhysicsBodySnapshot> bodySnapshots = new IdentityHashMap<>();
+    private final PhysicsBodySpatialIndex bodySpatialIndex = new PhysicsBodySpatialIndex();
 
     public PhysicsWorldResource() {
     }
@@ -225,6 +231,71 @@ public class PhysicsWorldResource implements Resource<EntityStore> {
         return spaces.values();
     }
 
+    public int refreshBodySnapshots() {
+        Set<PhysicsBody> liveBodies = Collections.newSetFromMap(new IdentityHashMap<>());
+        for (PhysicsSpace space : spaces.values()) {
+            SpaceId spaceId = space.getId();
+            space.snapshotBodies(bodySnapshots::get, snapshot -> {
+                PhysicsBody body = snapshot.body();
+                liveBodies.add(body);
+                PhysicsBodySnapshot previous = bodySnapshots.get(body);
+                if (snapshot != previous) {
+                    bodySnapshots.put(body, snapshot);
+                }
+                bodySpatialIndex.update(snapshot, spaceId, bodyRegistry.getBodyRegistration(body));
+            });
+        }
+
+        Iterator<PhysicsBody> iterator = bodySnapshots.keySet().iterator();
+        while (iterator.hasNext()) {
+            PhysicsBody body = iterator.next();
+            if (!liveBodies.contains(body)) {
+                iterator.remove();
+                bodySpatialIndex.remove(body);
+            }
+        }
+        return liveBodies.size();
+    }
+
+    @Nonnull
+    public PhysicsBodySnapshot getBodySnapshot(@Nonnull PhysicsBody body) {
+        PhysicsBodySnapshot snapshot = bodySnapshots.get(body);
+        if (snapshot != null) {
+            return snapshot;
+        }
+        snapshot = PhysicsBodySnapshot.from(body);
+        bodySnapshots.put(body, snapshot);
+        BodyRegistration registration = bodyRegistry.getBodyRegistration(body);
+        if (registration != null && registration.spaceId() != null) {
+            bodySpatialIndex.update(snapshot, registration.spaceId(), registration);
+        }
+        return snapshot;
+    }
+
+    public int getBodySnapshotCount() {
+        return bodySpatialIndex.bodyCount();
+    }
+
+    public int getBodySnapshotCount(@Nonnull SpaceId spaceId) {
+        return bodySpatialIndex.bodyCount(spaceId);
+    }
+
+    public int getBodySnapshotCellCount() {
+        return bodySpatialIndex.cellCount();
+    }
+
+    public void forEachBodySnapshot(@Nonnull SpaceId spaceId,
+        @Nonnull Consumer<BodySnapshotEntry> consumer) {
+        bodySpatialIndex.forEach(spaceId, consumer);
+    }
+
+    public int forEachBodySnapshotNear(@Nonnull SpaceId spaceId,
+        @Nonnull Vector3f center,
+        float radius,
+        @Nonnull Consumer<BodySnapshotEntry> consumer) {
+        return bodySpatialIndex.forEachNear(spaceId, center, radius, consumer);
+    }
+
     public void removeSpace(@Nonnull SpaceId spaceId) {
         removeSpace(spaceId, "<unknown>");
     }
@@ -311,12 +382,24 @@ public class PhysicsWorldResource implements Resource<EntityStore> {
     private static void applySolverTuning(@Nonnull PhysicsSpace space,
         @Nonnull PhysicsSpaceSettings settings) {
         if (!(space instanceof PhysicsSolverTuning tuning)) {
+            applyActivationTuning(space, settings);
             return;
         }
         tuning.setSolverTuning(settings.getSolverIterations(),
             settings.getInternalPgsIterations(),
             settings.getStabilizationIterations(),
             settings.getMinIslandSize());
+        applyActivationTuning(space, settings);
+    }
+
+    private static void applyActivationTuning(@Nonnull PhysicsSpace space,
+        @Nonnull PhysicsSpaceSettings settings) {
+        if (!(space instanceof PhysicsActivationTuning tuning)) {
+            return;
+        }
+        tuning.setDynamicSleepTuning(settings.getDynamicSleepLinearThreshold(),
+            settings.getDynamicSleepAngularThreshold(),
+            settings.getDynamicSleepTimeUntilSleep());
     }
 
     @Nonnull
@@ -395,6 +478,11 @@ public class PhysicsWorldResource implements Resource<EntityStore> {
         return bodyRegistry.getDetachedVisualProxy(body);
     }
 
+    @Nonnull
+    public Collection<PhysicsBody> getDetachedVisualProxyBodies() {
+        return bodyRegistry.getDetachedVisualProxyBodies();
+    }
+
     public void setDetachedVisualProxy(@Nonnull PhysicsBody body, @Nonnull Ref<EntityStore> proxy) {
         bodyRegistry.setDetachedVisualProxy(body, proxy);
     }
@@ -422,6 +510,10 @@ public class PhysicsWorldResource implements Resource<EntityStore> {
         remapBodySet(controlledBodies, bodyRemaps);
         remapBodyKeyedMap(chunkBoundarySafeStates, bodyRemaps);
         remapBodyKeyedMap(chunkBoundaryPauseStates, bodyRemaps);
+        for (PhysicsBody sourceBody : bodyRemaps.keySet()) {
+            bodySnapshots.remove(sourceBody);
+            bodySpatialIndex.remove(sourceBody);
+        }
     }
 
     public void clearBodyOwners() {
@@ -431,6 +523,8 @@ public class PhysicsWorldResource implements Resource<EntityStore> {
         controlledBodies.clear();
         chunkBoundarySafeStates.clear();
         chunkBoundaryPauseStates.clear();
+        bodySnapshots.clear();
+        bodySpatialIndex.clear();
     }
 
     @Nonnull
@@ -507,6 +601,8 @@ public class PhysicsWorldResource implements Resource<EntityStore> {
         controlledBodies.remove(body);
         chunkBoundarySafeStates.remove(body);
         chunkBoundaryPauseStates.remove(body);
+        bodySnapshots.remove(body);
+        bodySpatialIndex.remove(body);
     }
 
     public void markContinuousCollisionForced(@Nonnull PhysicsBody body) {
@@ -545,6 +641,8 @@ public class PhysicsWorldResource implements Resource<EntityStore> {
         controlledBodies.clear();
         chunkBoundarySafeStates.clear();
         chunkBoundaryPauseStates.clear();
+        bodySnapshots.clear();
+        bodySpatialIndex.clear();
         worldVoxelCollisionCache.copyFrom(new WorldVoxelCollisionCache());
         defaultSpaceId = other.defaultSpaceId;
         simulationSteps = other.simulationSteps;
@@ -582,8 +680,13 @@ public class PhysicsWorldResource implements Resource<EntityStore> {
         }
         validateSpaceCompatibleWithStepMode(replacement, stepMode);
 
+        PhysicsSpaceSettings settings = spaceSettings.get(spaceId.value());
+        if (settings == null) {
+            settings = PhysicsSpaceSettings.defaults();
+        }
+        applySolverTuning(replacement, settings);
         spaces.put(spaceId.value(), replacement);
-        spaceSettings.putIfAbsent(spaceId.value(), PhysicsSpaceSettings.defaults());
+        spaceSettings.put(spaceId.value(), new PhysicsSpaceSettings(settings));
         LOGGER.at(Level.INFO).log(
             "World %s replaced physics space id=%s backend=%s -> backend=%s",
             worldName,
@@ -659,6 +762,11 @@ public class PhysicsWorldResource implements Resource<EntityStore> {
         @Nonnull BodyOwnerKind ownerKind,
         @Nullable Ref<EntityStore> ownerRef,
         boolean removeWithOwner) {
+    }
+
+    public record BodySnapshotEntry(@Nonnull PhysicsBodySnapshot snapshot,
+        @Nonnull SpaceId spaceId,
+        @Nullable BodyRegistration registration) {
     }
 
     public record VisualInterest(@Nonnull Vector3f position, @Nullable Vector3f direction) {

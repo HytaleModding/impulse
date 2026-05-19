@@ -9,6 +9,7 @@ import dev.hytalemodding.impulse.api.BackendId;
 import dev.hytalemodding.impulse.api.PhysicsSpace;
 import dev.hytalemodding.impulse.api.SpaceId;
 import dev.hytalemodding.impulse.core.resources.EntityChunkBoundaryMode;
+import dev.hytalemodding.impulse.core.resources.PhysicsSpaceSettings.ExecutionMode;
 import dev.hytalemodding.impulse.core.resources.PhysicsSpaceSettings;
 import dev.hytalemodding.impulse.core.resources.VisualOcclusionMode;
 import dev.hytalemodding.impulse.core.systems.PersistentPhysicsSpaceBootstrapSystem;
@@ -114,6 +115,22 @@ public class PersistentPhysicsSpaceState {
             (state, value) -> state.minIslandSize = value,
             PersistentPhysicsSpaceState::getMinIslandSize)
         .add()
+        .append(new KeyedCodec<>("DynamicSleepLinearThreshold", Codec.FLOAT, false),
+            (state, value) -> state.dynamicSleepLinearThreshold = value,
+            PersistentPhysicsSpaceState::getDynamicSleepLinearThreshold)
+        .add()
+        .append(new KeyedCodec<>("DynamicSleepAngularThreshold", Codec.FLOAT, false),
+            (state, value) -> state.dynamicSleepAngularThreshold = value,
+            PersistentPhysicsSpaceState::getDynamicSleepAngularThreshold)
+        .add()
+        .append(new KeyedCodec<>("DynamicSleepTimeUntilSleep", Codec.FLOAT, false),
+            (state, value) -> state.dynamicSleepTimeUntilSleep = value,
+            PersistentPhysicsSpaceState::getDynamicSleepTimeUntilSleep)
+        .add()
+        .append(new KeyedCodec<>("ExecutionMode", new EnumCodec<>(ExecutionMode.class), false),
+            (state, value) -> state.setExecutionMode(value),
+            PersistentPhysicsSpaceState::getExecutionMode)
+        .add()
         .append(new KeyedCodec<>("EntityVisualSyncCullingEnabled", Codec.BOOLEAN, false),
             (state, value) -> state.entityVisualSyncCullingEnabled = value,
             PersistentPhysicsSpaceState::isEntityVisualSyncCullingEnabled)
@@ -191,6 +208,17 @@ public class PersistentPhysicsSpaceState {
     @Setter
     private int minIslandSize = PhysicsSpaceSettings.DEFAULT_MIN_ISLAND_SIZE;
     @Setter
+    private float dynamicSleepLinearThreshold =
+        PhysicsSpaceSettings.DEFAULT_DYNAMIC_SLEEP_LINEAR_THRESHOLD;
+    @Setter
+    private float dynamicSleepAngularThreshold =
+        PhysicsSpaceSettings.DEFAULT_DYNAMIC_SLEEP_ANGULAR_THRESHOLD;
+    @Setter
+    private float dynamicSleepTimeUntilSleep =
+        PhysicsSpaceSettings.DEFAULT_DYNAMIC_SLEEP_TIME_UNTIL_SLEEP;
+    @Nonnull
+    private ExecutionMode executionMode = PhysicsSpaceSettings.DEFAULT_EXECUTION_MODE;
+    @Setter
     private boolean entityVisualSyncCullingEnabled =
         PhysicsSpaceSettings.DEFAULT_ENTITY_VISUAL_SYNC_CULLING_ENABLED;
     @Setter
@@ -239,6 +267,10 @@ public class PersistentPhysicsSpaceState {
         state.internalPgsIterations = settings.getInternalPgsIterations();
         state.stabilizationIterations = settings.getStabilizationIterations();
         state.minIslandSize = settings.getMinIslandSize();
+        state.dynamicSleepLinearThreshold = settings.getDynamicSleepLinearThreshold();
+        state.dynamicSleepAngularThreshold = settings.getDynamicSleepAngularThreshold();
+        state.dynamicSleepTimeUntilSleep = settings.getDynamicSleepTimeUntilSleep();
+        state.executionMode = settings.getExecutionMode();
         state.entityVisualSyncCullingEnabled = settings.isEntityVisualSyncCullingEnabled();
         state.visualVisibilityCullingEnabled = settings.isVisualVisibilityCullingEnabled();
         state.detachedVisualMaterializationEnabled = settings.isDetachedVisualMaterializationEnabled();
@@ -279,6 +311,10 @@ public class PersistentPhysicsSpaceState {
         settings.setInternalPgsIterations(internalPgsIterations);
         settings.setStabilizationIterations(stabilizationIterations);
         settings.setMinIslandSize(minIslandSize);
+        settings.setDynamicSleepTuning(dynamicSleepLinearThreshold,
+            dynamicSleepAngularThreshold,
+            dynamicSleepTimeUntilSleep);
+        settings.setExecutionMode(executionMode);
         settings.setEntityVisualSyncCullingEnabled(entityVisualSyncCullingEnabled);
         settings.setVisualVisibilityCullingEnabled(visualVisibilityCullingEnabled);
         settings.setDetachedVisualMaterializationEnabled(detachedVisualMaterializationEnabled);
@@ -382,6 +418,14 @@ public class PersistentPhysicsSpaceState {
             PhysicsSpaceSettings.MAX_DETACHED_VISUAL_MAX_MATERIALIZED);
     }
 
+    public void setExecutionMode(@Nonnull ExecutionMode executionMode) {
+        if (executionMode != ExecutionMode.INLINE) {
+            throw new IllegalArgumentException(
+                "Worker physics execution is not available yet; use inline execution");
+        }
+        this.executionMode = executionMode;
+    }
+
     private static int requirePositiveAtMost(@Nonnull String label, int value, int maxValue) {
         if (value < 1 || value > maxValue) {
             throw new IllegalArgumentException(label + " must be between 1 and " + maxValue);
@@ -412,6 +456,10 @@ public class PersistentPhysicsSpaceState {
         copy.internalPgsIterations = internalPgsIterations;
         copy.stabilizationIterations = stabilizationIterations;
         copy.minIslandSize = minIslandSize;
+        copy.dynamicSleepLinearThreshold = dynamicSleepLinearThreshold;
+        copy.dynamicSleepAngularThreshold = dynamicSleepAngularThreshold;
+        copy.dynamicSleepTimeUntilSleep = dynamicSleepTimeUntilSleep;
+        copy.executionMode = executionMode;
         copy.entityVisualSyncCullingEnabled = entityVisualSyncCullingEnabled;
         copy.visualVisibilityCullingEnabled = visualVisibilityCullingEnabled;
         copy.detachedVisualMaterializationEnabled = detachedVisualMaterializationEnabled;

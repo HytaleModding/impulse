@@ -10,6 +10,7 @@ public class SettingsCommand extends AbstractCommandCollection {
         addSubCommand(new SimulationStepsCommand());
         addSubCommand(new MaxStepDtCommand());
         addSubCommand(new SolverSettingsCommand());
+        addSubCommand(new ExecutionSettingsCommand());
         addSubCommand(new VisualSyncCommand());
         addSubCommand(new WorldCollisionSettingsCommand());
     }

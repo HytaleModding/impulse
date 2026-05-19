@@ -61,8 +61,17 @@ public class PhysicsStepSystem extends TickingSystem<ChunkStore> {
                 substeps++;
             }
         }
+        long stepNanos = profiling.isEnabled() ? System.nanoTime() - startNanos : 0L;
+        long snapshotStartNanos = profiling.isEnabled() ? System.nanoTime() : 0L;
+        int bodySnapshots = resource.refreshBodySnapshots();
+        long snapshotNanos = profiling.isEnabled() ? System.nanoTime() - snapshotStartNanos : 0L;
         if (profiling.isEnabled()) {
-            profiling.recordStep(spaceCount, substeps, System.nanoTime() - startNanos);
+            profiling.recordStep(spaceCount,
+                substeps,
+                stepNanos,
+                bodySnapshots,
+                resource.getBodySnapshotCellCount(),
+                snapshotNanos);
         }
     }
 
