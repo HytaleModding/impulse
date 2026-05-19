@@ -60,7 +60,7 @@ public class PhysicsKinematicControlSystem extends EntityTickingSystem<EntitySto
 
     @Override
     public boolean isParallel(int archetypeChunkSize, int taskCount) {
-        return useParallel(archetypeChunkSize, taskCount);
+        return false;
     }
 
     @Override
@@ -78,7 +78,7 @@ public class PhysicsKinematicControlSystem extends EntityTickingSystem<EntitySto
         PhysicsBody body = session.getBody();
         PhysicsBody anchorBody = session.getAnchorBody();
         Ref<EntityStore> targetRef = session.getTargetRef();
-        if (body == null || anchorBody == null || targetRef == null || !targetRef.isValid()) {
+        if (body == null || anchorBody == null || (targetRef != null && !targetRef.isValid())) {
             cleanupSession(store, session);
             commandBuffer.removeComponent(chunk.getReferenceTo(index), SESSION_TYPE);
             return;

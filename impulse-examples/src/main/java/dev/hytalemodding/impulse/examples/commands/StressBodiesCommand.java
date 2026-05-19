@@ -13,6 +13,7 @@ import com.hypixel.hytale.server.core.universe.PlayerRef;
 import com.hypixel.hytale.server.core.universe.world.World;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import dev.hytalemodding.impulse.api.PhysicsBody;
+import dev.hytalemodding.impulse.api.PhysicsCollisionFilters;
 import dev.hytalemodding.impulse.api.PhysicsSpace;
 import dev.hytalemodding.impulse.core.resources.PhysicsSpaceSettings;
 import dev.hytalemodding.impulse.core.resources.PhysicsStepMode;
@@ -34,7 +35,7 @@ public class StressBodiesCommand extends AbstractAsyncPlayerCommand {
     private static final double SPACING = 1.05;
     private static final int DETACHED_VISUAL_MATERIALIZATION_RADIUS = 64;
     private static final int DETACHED_VISUAL_DEMATERIALIZATION_RADIUS = 80;
-    private static final int DETACHED_VISUAL_MAX_SPAWNS_PER_TICK = 512;
+    private static final int DETACHED_VISUAL_MAX_SPAWNS_PER_TICK = 128;
     private static final float TARGET_MAX_STEP_DT = 1.0f / 30.0f;
     private static final List<PhysicsBody> STRESS_DETACHED_BODIES = new ArrayList<>();
 
@@ -48,7 +49,11 @@ public class StressBodiesCommand extends AbstractAsyncPlayerCommand {
         ArgTypes.STRING);
     private final OptionalArg<String> visibilityArg = this.withOptionalArg(
         "visibility",
-        "Detached-view visibility: cone or range",
+        "Detached-view visibility: range (default) or cone",
+        ArgTypes.STRING);
+    private final OptionalArg<String> collisionsArg = this.withOptionalArg(
+        "collisions",
+        "Detached collision policy: world (default) or full",
         ArgTypes.STRING);
 
     public StressBodiesCommand() {
@@ -75,6 +80,10 @@ public class StressBodiesCommand extends AbstractAsyncPlayerCommand {
         if (visibility == null) {
             return CompletableFuture.completedFuture(null);
         }
+        StressCollisionPolicy collisionPolicy = parseCollisionPolicy(ctx, mode);
+        if (collisionPolicy == null) {
+            return CompletableFuture.completedFuture(null);
+        }
 
         int count = ExamplePhysicsUtils.optionalInt(ctx, countArg, DEFAULT_COUNT, 1, mode.maxCount());
         PhysicsWorldResource resource = ExamplePhysicsUtils.resource(store);
@@ -99,7 +108,7 @@ public class StressBodiesCommand extends AbstractAsyncPlayerCommand {
                 continue;
             }
 
-            PhysicsBody body = createDetachedBody(space);
+            PhysicsBody body = createDetachedBody(space, collisionPolicy);
             body.setPosition((float) position.x, (float) position.y, (float) position.z);
             space.addBody(body);
             resource.registerDetachedBody(body, space.getId());
@@ -120,6 +129,7 @@ public class StressBodiesCommand extends AbstractAsyncPlayerCommand {
                 ? " visualProxyCap=" + count
                 + " visualSpawnRate=" + DETACHED_VISUAL_MAX_SPAWNS_PER_TICK + "/tick"
                 + " visibility=" + visibility.serialized()
+                + " collisions=" + collisionPolicy.serialized()
                 : "")
             + "."));
         return CompletableFuture.completedFuture(null);
@@ -135,6 +145,13 @@ public class StressBodiesCommand extends AbstractAsyncPlayerCommand {
         resource.setMaxStepDt(TARGET_MAX_STEP_DT);
 
         PhysicsSpaceSettings settings = new PhysicsSpaceSettings(resource.getSpaceSettings(space.getId()));
+        settings.setSolverIterations(1);
+        settings.setInternalPgsIterations(1);
+        settings.setStabilizationIterations(0);
+        settings.setDynamicSleepTuning(
+            PhysicsSpaceSettings.DEFAULT_DYNAMIC_SLEEP_LINEAR_THRESHOLD,
+            PhysicsSpaceSettings.DEFAULT_DYNAMIC_SLEEP_ANGULAR_THRESHOLD,
+            PhysicsSpaceSettings.DEFAULT_DYNAMIC_SLEEP_TIME_UNTIL_SLEEP);
         settings.setWorldCollisionMode(WorldCollisionMode.STREAMING);
         if (mode.usesDetachedBodies()) {
             settings.setDetachedVisualMaterializationEnabled(mode == StressMode.DETACHED_VIEW);
@@ -183,11 +200,15 @@ public class StressBodiesCommand extends AbstractAsyncPlayerCommand {
     }
 
     @Nonnull
-    private static PhysicsBody createDetachedBody(@Nonnull PhysicsSpace space) {
+    private static PhysicsBody createDetachedBody(@Nonnull PhysicsSpace space,
+        @Nonnull StressCollisionPolicy collisionPolicy) {
         PhysicsBody body = space.createBox(0.48f, 0.48f, 0.48f, 1.0f);
         body.setFriction(0.45f);
         body.setRestitution(0.0f);
         body.setDamping(0.02f, 0.25f);
+        if (collisionPolicy == StressCollisionPolicy.WORLD) {
+            body.setCollisionFilter(PhysicsCollisionFilters.DYNAMIC_BODY, PhysicsCollisionFilters.TERRAIN);
+        }
         return body;
     }
 
@@ -209,7 +230,7 @@ public class StressBodiesCommand extends AbstractAsyncPlayerCommand {
     @Nullable
     private StressVisibility parseVisibility(@Nonnull CommandContext ctx) {
         if (!visibilityArg.provided(ctx)) {
-            return StressVisibility.CONE;
+            return StressVisibility.RANGE;
         }
 
         String rawVisibility = visibilityArg.get(ctx).toLowerCase(Locale.ROOT);
@@ -220,6 +241,26 @@ public class StressBodiesCommand extends AbstractAsyncPlayerCommand {
                 + "'. Expected cone or range."));
         }
         return visibility;
+    }
+
+    @Nullable
+    private StressCollisionPolicy parseCollisionPolicy(@Nonnull CommandContext ctx,
+        @Nonnull StressMode mode) {
+        if (!mode.usesDetachedBodies()) {
+            return StressCollisionPolicy.FULL;
+        }
+        if (!collisionsArg.provided(ctx)) {
+            return StressCollisionPolicy.WORLD;
+        }
+
+        String rawPolicy = collisionsArg.get(ctx).toLowerCase(Locale.ROOT);
+        StressCollisionPolicy policy = StressCollisionPolicy.from(rawPolicy);
+        if (policy == null) {
+            ctx.sender().sendMessage(Message.raw("Unknown stress bodies collisions '"
+                + rawPolicy
+                + "'. Expected world or full."));
+        }
+        return policy;
     }
 
     private static String millis(long nanos) {
@@ -290,6 +331,31 @@ public class StressBodiesCommand extends AbstractAsyncPlayerCommand {
             return switch (value) {
                 case "cone", "view", "camera" -> CONE;
                 case "range", "radius", "distance" -> RANGE;
+                default -> null;
+            };
+        }
+    }
+
+    private enum StressCollisionPolicy {
+        WORLD("world"),
+        FULL("full");
+
+        private final String serialized;
+
+        StressCollisionPolicy(@Nonnull String serialized) {
+            this.serialized = serialized;
+        }
+
+        @Nonnull
+        private String serialized() {
+            return serialized;
+        }
+
+        @Nullable
+        private static StressCollisionPolicy from(@Nonnull String value) {
+            return switch (value) {
+                case "world", "terrain", "terrain-only", "world-only" -> WORLD;
+                case "full", "body", "bodies", "body-body", "dynamic" -> FULL;
                 default -> null;
             };
         }

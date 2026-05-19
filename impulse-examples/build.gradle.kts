@@ -17,6 +17,12 @@ tasks.compileJava {
     dependsOn(tasks.named("downloadAssetsZip"))
 }
 
+val downloadAssetsZip = tasks.named("downloadAssetsZip")
+
+project(":impulse-core").tasks.named("compileJava") {
+    mustRunAfter(downloadAssetsZip)
+}
+
 hytaleTools {
     modId = property("mod_name") as String + "Examples"
     mainClass = "dev.hytalemodding.impulse.examples.ImpulseExamplesPlugin"
