@@ -14,10 +14,12 @@ import dev.hytalemodding.impulse.api.PhysicsBodyType;
 import dev.hytalemodding.impulse.api.PhysicsJoint;
 import dev.hytalemodding.impulse.api.PhysicsRayHit;
 import dev.hytalemodding.impulse.api.PhysicsSpace;
+import dev.hytalemodding.impulse.api.SpaceId;
 import dev.hytalemodding.impulse.core.components.ImpulseControllableComponent;
-import dev.hytalemodding.impulse.core.components.PhysicsBodyComponent;
 import dev.hytalemodding.impulse.core.components.PhysicsControlSessionComponent;
 import dev.hytalemodding.impulse.core.resources.PhysicsWorldResource;
+import dev.hytalemodding.impulse.core.resources.PhysicsWorldResource.BodyOwnerKind;
+import dev.hytalemodding.impulse.core.resources.PhysicsWorldResource.BodyRegistration;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import javax.annotation.Nonnull;
@@ -73,8 +75,7 @@ public class GrabCommand extends AbstractAsyncPlayerCommand {
         Vector3f hitPoint = selection.hit.point();
         Vector3f bodyLocalHit = new Vector3f(hitPoint).sub(bodyPosition);
         new Quaternionf(body.getRotation()).invert().transform(bodyLocalHit);
-        PhysicsBodyComponent bodyComponent = store.getComponent(selection.owner,
-            PhysicsBodyComponent.getComponentType());
+        SpaceId selectedSpaceId = selection.spaceId() != null ? selection.spaceId() : space.getId();
 
         PhysicsBody anchorBody = space.createSphere(0.08f, 1.0f);
         anchorBody.setBodyType(PhysicsBodyType.KINEMATIC);
@@ -93,8 +94,8 @@ public class GrabCommand extends AbstractAsyncPlayerCommand {
                 body,
                 anchorBody,
                 joint,
-                selection.owner,
-                bodyComponent != null ? bodyComponent.getSpaceId() : null,
+                selection.owner(),
+                selectedSpaceId,
                 originalBodyType,
                 Math.max((float) selection.hit.distance(), MIN_HOLD_DISTANCE),
                 VIEW_OFFSET,
@@ -117,20 +118,30 @@ public class GrabCommand extends AbstractAsyncPlayerCommand {
             ExamplePhysicsUtils.toVector3f(end));
         HitSelection best = null;
         for (PhysicsRayHit hit : hits) {
-            Ref<EntityStore> owner = resource.getBodyOwner(hit.body());
-            if (owner == null || !owner.isValid()) {
-                continue;
-            }
             if (hit.body().getBodyType() != PhysicsBodyType.DYNAMIC) {
                 continue;
             }
-            ImpulseControllableComponent controllable = store.getComponent(owner,
-                ImpulseControllableComponent.getComponentType());
-            if (controllable == null) {
+
+            BodyRegistration registration = resource.getBodyRegistration(hit.body());
+            if (registration == null) {
                 continue;
             }
+            Ref<EntityStore> owner = registration.ownerRef();
+            if (registration.ownerKind() == BodyOwnerKind.ENTITY) {
+                if (owner == null || !owner.isValid()) {
+                    continue;
+                }
+                ImpulseControllableComponent controllable = store.getComponent(owner,
+                    ImpulseControllableComponent.getComponentType());
+                if (controllable == null) {
+                    continue;
+                }
+            } else if (registration.ownerKind() != BodyOwnerKind.DETACHED) {
+                continue;
+            }
+
             if (best == null || hit.fraction() < best.hit.fraction()) {
-                best = new HitSelection(hit, owner);
+                best = new HitSelection(hit, owner, registration.spaceId());
             }
         }
         return best;
@@ -146,6 +157,8 @@ public class GrabCommand extends AbstractAsyncPlayerCommand {
         ReleaseCommand.release(store, playerRef, existing);
     }
 
-    private record HitSelection(@Nonnull PhysicsRayHit hit, @Nonnull Ref<EntityStore> owner) {
+    private record HitSelection(@Nonnull PhysicsRayHit hit,
+                                @Nullable Ref<EntityStore> owner,
+                                @Nullable SpaceId spaceId) {
     }
 }

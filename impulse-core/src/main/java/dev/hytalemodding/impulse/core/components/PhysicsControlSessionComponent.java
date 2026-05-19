@@ -46,7 +46,7 @@ public class PhysicsControlSessionComponent implements Component<EntityStore> {
     public PhysicsControlSessionComponent(@Nonnull PhysicsBody body,
         @Nonnull PhysicsBody anchorBody,
         @Nonnull PhysicsJoint joint,
-        @Nonnull Ref<EntityStore> targetRef,
+        @Nullable Ref<EntityStore> targetRef,
         @Nullable SpaceId spaceId,
         @Nonnull PhysicsBodyType originalBodyType,
         float grabDistance,

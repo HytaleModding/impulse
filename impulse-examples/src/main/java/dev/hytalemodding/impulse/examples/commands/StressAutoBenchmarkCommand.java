@@ -127,7 +127,7 @@ public class StressAutoBenchmarkCommand extends AbstractWorldCommand {
         ArgTypes.INTEGER);
 
     public StressAutoBenchmarkCommand() {
-        super("auto-benchmark", "Run a console-safe benchmark and report after a sample window", true);
+        super("auto-benchmark", "Run a console-safe benchmark and report after a sample window", false);
     }
 
     @Override
