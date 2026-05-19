@@ -19,6 +19,7 @@ import com.hypixel.hytale.server.core.modules.entity.system.UpdateLocationSystem
 import com.hypixel.hytale.server.core.universe.PlayerRef;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import dev.hytalemodding.impulse.api.PhysicsBody;
+import dev.hytalemodding.impulse.api.PhysicsBodySnapshot;
 import dev.hytalemodding.impulse.api.SpaceId;
 import dev.hytalemodding.impulse.core.ImpulsePlugin;
 import dev.hytalemodding.impulse.core.components.PhysicsBodyComponent;
@@ -97,7 +98,7 @@ public class PhysicsSyncSystem extends EntityTickingSystem<EntityStore> {
     @Override
     public boolean isParallel(int archetypeChunkSize, int taskCount) {
         // Backend bodies and per-body sync state are owned by the world tick thread.
-        // Pose snapshots can be introduced later to parallelize the ECS write side.
+        // Body poses are read from the world-level snapshot cache before parallel ECS writes.
         return false;
     }
 
@@ -154,23 +155,24 @@ public class PhysicsSyncSystem extends EntityTickingSystem<EntityStore> {
             return;
         }
 
-        if (body.isStatic()) {
+        PhysicsBodySnapshot snapshot = resource.getBodySnapshot(body);
+        if (snapshot.isStatic()) {
             if (collector != null) {
                 collector.incrementSkippedStatic();
             }
             return;
         }
 
-        body.getPosition(local.position);
-        body.getRotation(local.rotation);
-        applyVisualPose(body, visual, local);
+        local.position.set(snapshot.position());
+        local.rotation.set(snapshot.rotation());
+        applyVisualPose(snapshot, visual, local);
 
-        boolean sleeping = body.isSleeping();
+        boolean sleeping = snapshot.sleeping();
         boolean controlled = resource.isBodyControlled(body);
         boolean lowSpeed = false;
-        if (!sleeping && body.isDynamic() && !controlled) {
-            body.getLinearVelocity(local.linearVelocity);
-            body.getAngularVelocity(local.angularVelocity);
+        if (!sleeping && snapshot.isDynamic() && !controlled) {
+            local.linearVelocity.set(snapshot.linearVelocity());
+            local.angularVelocity.set(snapshot.angularVelocity());
             lowSpeed = local.linearVelocity.lengthSquared() <= LOW_SPEED_LINEAR_THRESHOLD_SQUARED
                 && local.angularVelocity.lengthSquared() <= LOW_SPEED_ANGULAR_THRESHOLD_SQUARED;
         }
@@ -267,10 +269,10 @@ public class PhysicsSyncSystem extends EntityTickingSystem<EntityStore> {
         return new Vector3f((float) direction.x, (float) direction.y, (float) direction.z);
     }
 
-    private void applyVisualPose(@Nonnull PhysicsBody body,
+    private void applyVisualPose(@Nonnull PhysicsBodySnapshot snapshot,
         @Nullable PhysicsBodyVisualComponent visual,
         @Nonnull Scratch scratch) {
-        float offsetY = body.getCenterOfMassOffsetY();
+        float offsetY = snapshot.centerOfMassOffsetY();
         scratch.visualPosition.set(scratch.position.x,
             scratch.position.y - offsetY,
             scratch.position.z);

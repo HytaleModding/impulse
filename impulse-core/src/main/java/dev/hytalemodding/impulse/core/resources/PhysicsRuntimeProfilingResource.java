@@ -37,11 +37,23 @@ public class PhysicsRuntimeProfilingResource implements Resource<EntityStore> {
     }
 
     public void recordStep(int spaces, int substeps, long nanos) {
+        recordStep(spaces, substeps, nanos, 0, 0, 0);
+    }
+
+    public void recordStep(int spaces,
+        int substeps,
+        long nanos,
+        int bodySnapshots,
+        int spatialIndexCells,
+        long snapshotNanos) {
         StepSnapshot snapshot = new StepSnapshot();
         snapshot.recordTickSample();
         snapshot.setSpaces(spaces);
         snapshot.setSubsteps(substeps);
         snapshot.setTickNanos(nanos);
+        snapshot.setBodySnapshots(bodySnapshots);
+        snapshot.setSpatialIndexCells(spatialIndexCells);
+        snapshot.setSnapshotNanos(snapshotNanos);
 
         latestStep.copyFrom(snapshot);
         cumulativeStep.add(snapshot);
@@ -109,7 +121,13 @@ public class PhysicsRuntimeProfilingResource implements Resource<EntityStore> {
         @Setter
         private int substeps;
         @Setter
+        private int bodySnapshots;
+        @Setter
+        private int spatialIndexCells;
+        @Setter
         private long tickNanos;
+        @Setter
+        private long snapshotNanos;
 
         public void recordTickSample() {
             tickSamples++;
@@ -119,21 +137,30 @@ public class PhysicsRuntimeProfilingResource implements Resource<EntityStore> {
             tickSamples = other.tickSamples;
             spaces = other.spaces;
             substeps = other.substeps;
+            bodySnapshots = other.bodySnapshots;
+            spatialIndexCells = other.spatialIndexCells;
             tickNanos = other.tickNanos;
+            snapshotNanos = other.snapshotNanos;
         }
 
         public void add(@Nonnull StepSnapshot other) {
             tickSamples += other.tickSamples;
             spaces += other.spaces;
             substeps += other.substeps;
+            bodySnapshots += other.bodySnapshots;
+            spatialIndexCells += other.spatialIndexCells;
             tickNanos += other.tickNanos;
+            snapshotNanos += other.snapshotNanos;
         }
 
         public void reset() {
             tickSamples = 0;
             spaces = 0;
             substeps = 0;
+            bodySnapshots = 0;
+            spatialIndexCells = 0;
             tickNanos = 0L;
+            snapshotNanos = 0L;
         }
     }
 

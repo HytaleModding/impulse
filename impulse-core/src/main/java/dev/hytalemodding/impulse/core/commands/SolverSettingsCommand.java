@@ -33,6 +33,18 @@ public class SolverSettingsCommand extends AbstractWorldCommand {
         "minIslandSize",
         "Minimum island size used by compatible parallel solvers",
         ArgTypes.INTEGER);
+    private final OptionalArg<Float> sleepLinearThresholdArg = this.withOptionalArg(
+        "sleepLinearThreshold",
+        "Dynamic sleep linear velocity threshold",
+        ArgTypes.FLOAT);
+    private final OptionalArg<Float> sleepAngularThresholdArg = this.withOptionalArg(
+        "sleepAngularThreshold",
+        "Dynamic sleep angular velocity threshold",
+        ArgTypes.FLOAT);
+    private final OptionalArg<Float> sleepTimeArg = this.withOptionalArg(
+        "sleepTime",
+        "Seconds before eligible dynamic bodies sleep",
+        ArgTypes.FLOAT);
 
     public SolverSettingsCommand() {
         super("solver", "Get or set solver tuning for the default physics space", true);
@@ -68,11 +80,29 @@ public class SolverSettingsCommand extends AbstractWorldCommand {
         int minIslandSize = minIslandSizeArg.provided(ctx)
             ? minIslandSizeArg.get(ctx)
             : settings.getMinIslandSize();
+        float sleepLinearThreshold = sleepLinearThresholdArg.provided(ctx)
+            ? sleepLinearThresholdArg.get(ctx)
+            : settings.getDynamicSleepLinearThreshold();
+        float sleepAngularThreshold = sleepAngularThresholdArg.provided(ctx)
+            ? sleepAngularThresholdArg.get(ctx)
+            : settings.getDynamicSleepAngularThreshold();
+        float sleepTime = sleepTimeArg.provided(ctx)
+            ? sleepTimeArg.get(ctx)
+            : settings.getDynamicSleepTimeUntilSleep();
 
-        if (solverIterations < 1 || pgsIterations < 1 || stabilizationIterations < 0 || minIslandSize < 1) {
+        if (solverIterations < 1
+            || pgsIterations < 1
+            || stabilizationIterations < 0
+            || minIslandSize < 1
+            || !Float.isFinite(sleepLinearThreshold)
+            || !Float.isFinite(sleepAngularThreshold)
+            || !Float.isFinite(sleepTime)
+            || sleepLinearThreshold < 0.0f
+            || sleepAngularThreshold < 0.0f
+            || sleepTime < 0.0f) {
             ctx.sender().sendMessage(Message.raw(
                 "solverIterations, pgsIterations, and minIslandSize must be >= 1; "
-                    + "stabilizationIterations must be >= 0."));
+                    + "stabilizationIterations and sleep tuning values must be >= 0."));
             return;
         }
 
@@ -80,6 +110,7 @@ public class SolverSettingsCommand extends AbstractWorldCommand {
         settings.setInternalPgsIterations(pgsIterations);
         settings.setStabilizationIterations(stabilizationIterations);
         settings.setMinIslandSize(minIslandSize);
+        settings.setDynamicSleepTuning(sleepLinearThreshold, sleepAngularThreshold, sleepTime);
         resource.setSpaceSettings(defaultSpaceId, settings);
         sendSummary(ctx, defaultSpaceId, space, settings);
     }
@@ -88,7 +119,10 @@ public class SolverSettingsCommand extends AbstractWorldCommand {
         return solverIterationsArg.provided(ctx)
             || pgsIterationsArg.provided(ctx)
             || stabilizationIterationsArg.provided(ctx)
-            || minIslandSizeArg.provided(ctx);
+            || minIslandSizeArg.provided(ctx)
+            || sleepLinearThresholdArg.provided(ctx)
+            || sleepAngularThresholdArg.provided(ctx)
+            || sleepTimeArg.provided(ctx);
     }
 
     private static void sendSummary(@Nonnull CommandContext ctx,
@@ -102,6 +136,9 @@ public class SolverSettingsCommand extends AbstractWorldCommand {
             + ": solverIterations=" + settings.getSolverIterations()
             + " pgsIterations=" + settings.getInternalPgsIterations()
             + " stabilizationIterations=" + settings.getStabilizationIterations()
-            + " minIslandSize=" + settings.getMinIslandSize()));
+            + " minIslandSize=" + settings.getMinIslandSize()
+            + " sleepLinearThreshold=" + settings.getDynamicSleepLinearThreshold()
+            + " sleepAngularThreshold=" + settings.getDynamicSleepAngularThreshold()
+            + " sleepTime=" + settings.getDynamicSleepTimeUntilSleep()));
     }
 }

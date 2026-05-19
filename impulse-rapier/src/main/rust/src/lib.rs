@@ -1,7 +1,7 @@
 // Rapier JNI bridge for Impulse.
 // This file keeps the native exports together so the Java to Rust mapping stays easy to follow.
 
-use jni::objects::{JClass, JFloatArray, JIntArray};
+use jni::objects::{JClass, JFloatArray, JIntArray, JLongArray};
 use jni::sys::{jboolean, jfloat, jfloatArray, jint, jlong};
 use jni::JNIEnv;
 use rapier3d::prelude::*;
@@ -25,6 +25,10 @@ const JOINT_POINT: i32 = 1;
 const JOINT_HINGE: i32 = 2;
 const JOINT_SLIDER: i32 = 3;
 const JOINT_SPRING: i32 = 4;
+
+const IMPULSE_DYNAMIC_SLEEP_LINEAR_THRESHOLD: f32 = 0.85;
+const IMPULSE_DYNAMIC_SLEEP_ANGULAR_THRESHOLD: f32 = 0.9;
+const IMPULSE_DYNAMIC_TIME_UNTIL_SLEEP: f32 = 0.75;
 
 // One native simulation space plus the opaque ids used by JNI.
 #[derive(Clone, Copy)]
@@ -57,6 +61,9 @@ struct NativeSpace {
     joints: HashMap<i64, JointEntry>,
     next_body_id: i64,
     next_joint_id: i64,
+    dynamic_sleep_linear_threshold: f32,
+    dynamic_sleep_angular_threshold: f32,
+    dynamic_sleep_time_until_sleep: f32,
 }
 
 impl NativeSpace {
@@ -78,6 +85,9 @@ impl NativeSpace {
             joints: HashMap::new(),
             next_body_id: 1,
             next_joint_id: 1,
+            dynamic_sleep_linear_threshold: IMPULSE_DYNAMIC_SLEEP_LINEAR_THRESHOLD,
+            dynamic_sleep_angular_threshold: IMPULSE_DYNAMIC_SLEEP_ANGULAR_THRESHOLD,
+            dynamic_sleep_time_until_sleep: IMPULSE_DYNAMIC_TIME_UNTIL_SLEEP,
         }
     }
 
@@ -113,6 +123,30 @@ impl NativeSpace {
         self.integration_parameters.num_internal_pgs_iterations = internal_pgs_iterations.max(1);
         self.integration_parameters.num_internal_stabilization_iterations = stabilization_iterations;
         self.integration_parameters.min_island_size = min_island_size.max(1);
+    }
+
+    fn set_dynamic_sleep_tuning(
+        &mut self,
+        linear_threshold: f32,
+        angular_threshold: f32,
+        time_until_sleep: f32,
+    ) {
+        self.dynamic_sleep_linear_threshold = finite_at_least(linear_threshold, 0.0);
+        self.dynamic_sleep_angular_threshold = finite_at_least(angular_threshold, 0.0);
+        self.dynamic_sleep_time_until_sleep = finite_at_least(time_until_sleep, 0.0);
+
+        for (_, entry) in self.handles.iter() {
+            if let Some(body) = self.bodies.get_mut(entry.body) {
+                if body.is_dynamic() {
+                    apply_dynamic_sleep_tuning(
+                        body,
+                        self.dynamic_sleep_linear_threshold,
+                        self.dynamic_sleep_angular_threshold,
+                        self.dynamic_sleep_time_until_sleep,
+                    );
+                }
+            }
+        }
     }
 
     fn insert_entry(&mut self, body: RigidBodyHandle, collider: ColliderHandle) -> i64 {
@@ -261,6 +295,26 @@ fn interaction_groups(group: i32, mask: i32) -> InteractionGroups {
         Group::from_bits_truncate(mask as u32),
         InteractionTestMode::And,
     )
+}
+
+fn finite_at_least(value: f32, min: f32) -> f32 {
+    if !value.is_finite() || value < min {
+        min
+    } else {
+        value
+    }
+}
+
+fn apply_dynamic_sleep_tuning(
+    body: &mut RigidBody,
+    linear_threshold: f32,
+    angular_threshold: f32,
+    time_until_sleep: f32,
+) {
+    let activation = body.activation_mut();
+    activation.normalized_linear_threshold = linear_threshold;
+    activation.angular_threshold = angular_threshold;
+    activation.time_until_sleep = time_until_sleep;
 }
 
 fn build_collider(

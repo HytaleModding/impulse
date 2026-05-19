@@ -145,6 +145,27 @@ public class PhysicsSpaceSettings {
     public static final int DEFAULT_MIN_ISLAND_SIZE = 128;
 
     /**
+     * Default normalized linear velocity threshold for dynamic-body sleep.
+     */
+    public static final float DEFAULT_DYNAMIC_SLEEP_LINEAR_THRESHOLD = 0.85f;
+
+    /**
+     * Default angular velocity threshold for dynamic-body sleep.
+     */
+    public static final float DEFAULT_DYNAMIC_SLEEP_ANGULAR_THRESHOLD = 0.9f;
+
+    /**
+     * Default time a low-energy dynamic body must remain eligible before sleeping.
+     */
+    public static final float DEFAULT_DYNAMIC_SLEEP_TIME_UNTIL_SLEEP = 0.75f;
+
+    /**
+     * Default physics execution mode. Worker execution is scaffolded but not active yet.
+     */
+    @Nonnull
+    public static final ExecutionMode DEFAULT_EXECUTION_MODE = ExecutionMode.INLINE;
+
+    /**
      * Whether owner entity transforms should use player-interest culling.
      * Disabled by default because gameplay code may rely on server-side transforms even
      * when no player is currently near the body.
@@ -329,6 +350,31 @@ public class PhysicsSpaceSettings {
     private int minIslandSize = DEFAULT_MIN_ISLAND_SIZE;
 
     /**
+     * Dynamic-body sleep tuning for compatible backends.
+     */
+    @Getter
+    private float dynamicSleepLinearThreshold = DEFAULT_DYNAMIC_SLEEP_LINEAR_THRESHOLD;
+
+    /**
+     * Dynamic-body angular sleep tuning for compatible backends.
+     */
+    @Getter
+    private float dynamicSleepAngularThreshold = DEFAULT_DYNAMIC_SLEEP_ANGULAR_THRESHOLD;
+
+    /**
+     * Seconds a low-energy dynamic body must remain eligible before sleeping.
+     */
+    @Getter
+    private float dynamicSleepTimeUntilSleep = DEFAULT_DYNAMIC_SLEEP_TIME_UNTIL_SLEEP;
+
+    /**
+     * Where physics steps execute. Worker mode is reserved for a future threaded runtime.
+     */
+    @Getter
+    @Nonnull
+    private ExecutionMode executionMode = DEFAULT_EXECUTION_MODE;
+
+    /**
      * If enabled, entity-backed physics body transforms use the same player-interest culling
      * as follower visuals. Controlled bodies are always synced.
      */
@@ -407,6 +453,10 @@ public class PhysicsSpaceSettings {
         internalPgsIterations = settings.internalPgsIterations;
         stabilizationIterations = settings.stabilizationIterations;
         minIslandSize = settings.minIslandSize;
+        dynamicSleepLinearThreshold = settings.dynamicSleepLinearThreshold;
+        dynamicSleepAngularThreshold = settings.dynamicSleepAngularThreshold;
+        dynamicSleepTimeUntilSleep = settings.dynamicSleepTimeUntilSleep;
+        executionMode = settings.executionMode;
         entityVisualSyncCullingEnabled = settings.entityVisualSyncCullingEnabled;
         visualVisibilityCullingEnabled = settings.visualVisibilityCullingEnabled;
         detachedVisualMaterializationEnabled = settings.detachedVisualMaterializationEnabled;
@@ -550,6 +600,43 @@ public class PhysicsSpaceSettings {
         this.minIslandSize = minIslandSize;
     }
 
+    public void setDynamicSleepTuning(float linearThreshold,
+        float angularThreshold,
+        float timeUntilSleep) {
+        setDynamicSleepLinearThreshold(linearThreshold);
+        setDynamicSleepAngularThreshold(angularThreshold);
+        setDynamicSleepTimeUntilSleep(timeUntilSleep);
+    }
+
+    public void setDynamicSleepLinearThreshold(float dynamicSleepLinearThreshold) {
+        this.dynamicSleepLinearThreshold = requireFiniteAtLeast(
+            "Dynamic sleep linear threshold",
+            dynamicSleepLinearThreshold,
+            0.0f);
+    }
+
+    public void setDynamicSleepAngularThreshold(float dynamicSleepAngularThreshold) {
+        this.dynamicSleepAngularThreshold = requireFiniteAtLeast(
+            "Dynamic sleep angular threshold",
+            dynamicSleepAngularThreshold,
+            0.0f);
+    }
+
+    public void setDynamicSleepTimeUntilSleep(float dynamicSleepTimeUntilSleep) {
+        this.dynamicSleepTimeUntilSleep = requireFiniteAtLeast(
+            "Dynamic sleep time",
+            dynamicSleepTimeUntilSleep,
+            0.0f);
+    }
+
+    public void setExecutionMode(@Nonnull ExecutionMode executionMode) {
+        if (executionMode != ExecutionMode.INLINE) {
+            throw new IllegalArgumentException(
+                "Worker physics execution is not available yet; use inline execution");
+        }
+        this.executionMode = executionMode;
+    }
+
     public void setDetachedVisualMaterializationRadius(int detachedVisualMaterializationRadius) {
         int boundedDetachedVisualMaterializationRadius = requirePositiveAtMost(
             "Detached visual materialization radius",
@@ -619,5 +706,17 @@ public class PhysicsSpaceSettings {
             throw new IllegalArgumentException(label + " must be between 1 and " + maxValue);
         }
         return value;
+    }
+
+    private static float requireFiniteAtLeast(@Nonnull String label, float value, float minValue) {
+        if (!Float.isFinite(value) || value < minValue) {
+            throw new IllegalArgumentException(label + " must be finite and >= " + minValue);
+        }
+        return value;
+    }
+
+    public enum ExecutionMode {
+        INLINE,
+        WORKER
     }
 }

@@ -1,8 +1,10 @@
 package dev.hytalemodding.impulse.rapier;
 
 import dev.hytalemodding.impulse.api.BackendId;
+import dev.hytalemodding.impulse.api.PhysicsActivationTuning;
 import dev.hytalemodding.impulse.api.PhysicsAxis;
 import dev.hytalemodding.impulse.api.PhysicsBody;
+import dev.hytalemodding.impulse.api.PhysicsBodySnapshot;
 import dev.hytalemodding.impulse.api.PhysicsContact;
 import dev.hytalemodding.impulse.api.PhysicsJoint;
 import dev.hytalemodding.impulse.api.PhysicsJointType;
@@ -18,15 +20,17 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.function.Consumer;
+import java.util.function.Function;
 import javax.annotation.Nonnull;
 import org.joml.Quaternionf;
 import org.joml.Vector3f;
 
-public final class RapierSpace implements PhysicsSpace, PhysicsSolverTuning {
+public final class RapierSpace implements PhysicsSpace, PhysicsSolverTuning, PhysicsActivationTuning {
 
     private static final Cleaner CLEANER = Cleaner.create();
     private static final int RAY_HIT_FLOATS = 9;
     private static final int CONTACT_FLOATS = 13;
+    private static final int BODY_SNAPSHOT_FLOATS = 16;
 
     private final SpaceId id;
     private final RapierBackend backend;
@@ -35,6 +39,8 @@ public final class RapierSpace implements PhysicsSpace, PhysicsSolverTuning {
     private final List<RapierBody> bodies = new ArrayList<>();
     private final Map<Long, RapierBody> bodiesByHandle = new HashMap<>();
     private final List<RapierJoint> joints = new ArrayList<>();
+    private long[] snapshotBodyHandles = new long[0];
+    private float[] snapshotBodyData = new float[0];
     private boolean closed;
 
     RapierSpace(@Nonnull SpaceId id, @Nonnull RapierBackend backend, long nativeSpaceHandle) {
@@ -79,6 +85,17 @@ public final class RapierSpace implements PhysicsSpace, PhysicsSolverTuning {
             internalPgsIterations,
             stabilizationIterations,
             minIslandSize);
+    }
+
+    @Override
+    public void setDynamicSleepTuning(float linearThreshold,
+        float angularThreshold,
+        float timeUntilSleep) {
+        ensureOpen();
+        RapierNative.setDynamicSleepTuningNative(nativeSpaceHandle,
+            linearThreshold,
+            angularThreshold,
+            timeUntilSleep);
     }
 
     @Override
@@ -154,6 +171,54 @@ public final class RapierSpace implements PhysicsSpace, PhysicsSolverTuning {
     public void forEachBody(@Nonnull Consumer<PhysicsBody> consumer) {
         for (RapierBody body : bodies) {
             consumer.accept(body);
+        }
+    }
+
+    @Override
+    public void snapshotBodies(@Nonnull Consumer<PhysicsBodySnapshot> consumer) {
+        snapshotBodies(body -> null, consumer);
+    }
+
+    @Override
+    public void snapshotBodies(@Nonnull Function<PhysicsBody, PhysicsBodySnapshot> previousSnapshots,
+        @Nonnull Consumer<PhysicsBodySnapshot> consumer) {
+        ensureOpen();
+        int count = bodies.size();
+        if (count == 0) {
+            return;
+        }
+
+        ensureSnapshotCapacity(count);
+        for (int i = 0; i < count; i++) {
+            snapshotBodyHandles[i] = bodies.get(i).getBodyHandle();
+        }
+
+        int written = RapierNative.snapshotBodiesNative(nativeSpaceHandle,
+            snapshotBodyHandles,
+            count,
+            snapshotBodyData);
+        int limit = Math.min(count, Math.max(0, written));
+        for (int i = 0; i < limit; i++) {
+            RapierBody body = bodies.get(i);
+            consumer.accept(body.snapshotFromNative(snapshotBodyData,
+                i * BODY_SNAPSHOT_FLOATS,
+                previousSnapshots.apply(body)));
+        }
+        for (int i = limit; i < count; i++) {
+            RapierBody body = bodies.get(i);
+            consumer.accept(PhysicsBodySnapshot.from(body, previousSnapshots.apply(body)));
+        }
+    }
+
+    private void ensureSnapshotCapacity(int count) {
+        if (snapshotBodyHandles.length < count) {
+            int capacity = Math.max(count, snapshotBodyHandles.length * 2);
+            snapshotBodyHandles = new long[capacity];
+        }
+        int floats = count * BODY_SNAPSHOT_FLOATS;
+        if (snapshotBodyData.length < floats) {
+            int capacity = Math.max(floats, snapshotBodyData.length * 2);
+            snapshotBodyData = new float[capacity];
         }
     }
 

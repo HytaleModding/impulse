@@ -33,11 +33,12 @@ val cargoBuildRapierNative by tasks.registering(Exec::class) {
     outputs.file(nativeBuildDirectory.map { layout.projectDirectory.file("src/main/rust/target/$it/$nativeLibraryName") })
 
     doFirst {
-        val args = mutableListOf("cargo", "build")
-        if (nativeProfile.get() == "release") {
-            args.add("--release")
+        val command = if (nativeProfile.get() == "release") {
+            "cargo build --release"
+        } else {
+            "cargo build"
         }
-        commandLine(args)
+        commandLine("bash", "-lc", command)
     }
 }
 

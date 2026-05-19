@@ -99,6 +99,26 @@ pub extern "system" fn Java_dev_hytalemodding_impulse_rapier_RapierNative_setSol
     }
 }
 
+#[no_mangle]
+pub extern "system" fn Java_dev_hytalemodding_impulse_rapier_RapierNative_setDynamicSleepTuningNative(
+    _env: JNIEnv,
+    _class: JClass,
+    space_handle: jlong,
+    linear_threshold: jfloat,
+    angular_threshold: jfloat,
+    time_until_sleep: jfloat,
+) {
+    unsafe {
+        if let Some(space) = space_mut(space_handle) {
+            space.set_dynamic_sleep_tuning(
+                linear_threshold,
+                angular_threshold,
+                time_until_sleep,
+            );
+        }
+    }
+}
+
 fn positive_usize(value: jint) -> usize {
     if value < 1 {
         1

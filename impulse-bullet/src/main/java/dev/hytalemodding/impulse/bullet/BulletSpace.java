@@ -21,6 +21,7 @@ import com.jme3.math.Plane;
 import dev.hytalemodding.impulse.api.BackendId;
 import dev.hytalemodding.impulse.api.PhysicsAxis;
 import dev.hytalemodding.impulse.api.PhysicsBody;
+import dev.hytalemodding.impulse.api.PhysicsBodySnapshot;
 import dev.hytalemodding.impulse.api.PhysicsContact;
 import dev.hytalemodding.impulse.api.PhysicsJoint;
 import dev.hytalemodding.impulse.api.PhysicsJointType;
@@ -34,6 +35,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.function.Consumer;
+import java.util.function.Function;
 import javax.annotation.Nonnull;
 import org.joml.Vector3f;
 
@@ -137,6 +139,22 @@ public final class BulletSpace implements PhysicsSpace {
         requireOpen();
         for (PhysicsRigidBody rigidBody : space.getRigidBodyList()) {
             consumer.accept(wrapBody(rigidBody));
+        }
+    }
+
+    @Override
+    public void snapshotBodies(@Nonnull Consumer<PhysicsBodySnapshot> consumer) {
+        snapshotBodies(body -> null, consumer);
+    }
+
+    @Override
+    public void snapshotBodies(@Nonnull Function<PhysicsBody, PhysicsBodySnapshot> previousSnapshots,
+        @Nonnull Consumer<PhysicsBodySnapshot> consumer) {
+        requireOpen();
+        for (BulletBody body : bodies) {
+            if (body.isAttachedToSpace()) {
+                consumer.accept(PhysicsBodySnapshot.from(body, previousSnapshots.apply(body)));
+            }
         }
     }
 

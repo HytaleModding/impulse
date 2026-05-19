@@ -3,6 +3,7 @@ package dev.hytalemodding.impulse.api;
 import java.util.List;
 import java.util.Optional;
 import java.util.function.Consumer;
+import java.util.function.Function;
 import javax.annotation.Nonnull;
 import org.joml.Vector3f;
 
@@ -63,6 +64,23 @@ public interface PhysicsSpace {
         for (PhysicsBody body : getBodies()) {
             consumer.accept(body);
         }
+    }
+
+    /**
+     * Publishes owner-thread body snapshots for systems that must not repeatedly
+     * read mutable backend bodies.
+     */
+    default void snapshotBodies(@Nonnull Consumer<PhysicsBodySnapshot> consumer) {
+        snapshotBodies(body -> null, consumer);
+    }
+
+    /**
+     * Publishes owner-thread body snapshots, allowing callers to provide the last
+     * published snapshot so backends can avoid stable sleeping-body refreshes.
+     */
+    default void snapshotBodies(@Nonnull Function<PhysicsBody, PhysicsBodySnapshot> previousSnapshots,
+        @Nonnull Consumer<PhysicsBodySnapshot> consumer) {
+        forEachBody(body -> consumer.accept(PhysicsBodySnapshot.from(body, previousSnapshots.apply(body))));
     }
 
     @Nonnull
