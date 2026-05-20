@@ -440,7 +440,10 @@ public class PhysicsWorldResource implements Resource<EntityStore> {
         if (!containsBody(space, body)) {
             space.addBody(body);
         }
-        bodyRegistry.registerBody(bodyId, body, spaceId, kind, persistenceMode);
+        BodyRegistration registration = bodyRegistry.registerBody(bodyId, body, spaceId, kind, persistenceMode);
+        PhysicsBodySnapshot snapshot = PhysicsBodySnapshot.from(body);
+        bodySnapshots.put(bodyId, snapshot);
+        bodySpatialIndex.update(bodyId, snapshot, spaceId, registration);
         return bodyId;
     }
 
