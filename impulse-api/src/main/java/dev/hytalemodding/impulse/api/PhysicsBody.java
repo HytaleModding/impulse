@@ -9,7 +9,7 @@ import org.joml.Vector3f;
  * Backend-agnostic rigid body facade.
  * TODO: rigid body for now, soft body and particles need to be addressed
  * <p>
- * The API defines shared behavior across Bullet and Rapier, but backends may still differ in
+ * The API defines shared behavior for different backends, but backends may still differ in
  * solver details, contact reporting, and exact motion response.
  */
 public interface PhysicsBody {
@@ -138,8 +138,20 @@ public interface PhysicsBody {
 
     void clearForces();
 
+    /**
+     * Returns whether this body is configured as a sensor/trigger.
+     * <p>
+     * Sensor bodies participate in overlap/contact callbacks but do not produce
+     * normal physical contact response or collision resolution.
+     */
     boolean isSensor();
 
+    /**
+     * Sets whether this body should behave as a sensor/trigger.
+     * <p>
+     * When enabled, the body can overlap other bodies without acting as a solid
+     * collider.
+     */
     void setSensor(boolean sensor);
 
     int getCollisionGroup();
