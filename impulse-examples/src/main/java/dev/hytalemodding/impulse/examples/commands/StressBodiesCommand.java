@@ -19,7 +19,6 @@ import dev.hytalemodding.impulse.core.resources.PhysicsBodyId;
 import dev.hytalemodding.impulse.core.resources.PhysicsBodyKind;
 import dev.hytalemodding.impulse.core.resources.PhysicsBodyPersistenceMode;
 import dev.hytalemodding.impulse.core.resources.PhysicsSpaceSettings;
-import dev.hytalemodding.impulse.core.resources.PhysicsStepMode;
 import dev.hytalemodding.impulse.core.resources.PhysicsWorldResource;
 import dev.hytalemodding.impulse.core.voxel.WorldCollisionMode;
 import it.unimi.dsi.fastutil.longs.LongOpenHashSet;
@@ -161,10 +160,6 @@ public class StressBodiesCommand extends AbstractAsyncPlayerCommand {
         @Nonnull StressMode mode,
         @Nonnull StressVisibility visibility,
         int count) {
-        if (resource.getStepMode() == PhysicsStepMode.FIXED) {
-            resource.setStepMode(PhysicsStepMode.PROGRESSIVE_REFINEMENT);
-        }
-
         PhysicsSpaceSettings settings = new PhysicsSpaceSettings(resource.getSpaceSettings(space.getId()));
         settings.setSolverIterations(1);
         settings.setInternalPgsIterations(1);
