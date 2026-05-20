@@ -11,6 +11,7 @@ import dev.hytalemodding.impulse.api.PhysicsBody;
 import dev.hytalemodding.impulse.api.PhysicsBodySnapshot;
 import dev.hytalemodding.impulse.api.PhysicsBodyType;
 import dev.hytalemodding.impulse.api.PhysicsCollisionFilters;
+import dev.hytalemodding.impulse.api.PhysicsSolverTuning;
 import dev.hytalemodding.impulse.api.PhysicsSpace;
 import dev.hytalemodding.impulse.api.ShapeType;
 import dev.hytalemodding.impulse.api.testsupport.PhysicsBackendContractTest;
@@ -120,5 +121,147 @@ class RapierBackendContractTest extends PhysicsBackendContractTest {
         List<PhysicsBodySnapshot> snapshots = new ArrayList<>();
         space.snapshotBodies(snapshots::add);
         assertEquals(count, snapshots.size());
+    }
+
+    @Test
+    void tenThousandDynamicBodyPileWithBodyContactsStepsAndSnapshots() {
+        PhysicsSpace space = createHeadlessSpace();
+        if (space instanceof PhysicsSolverTuning tuning) {
+            tuning.setSolverTuning(1, 1, 1, 1);
+        }
+
+        PhysicsBody plane = space.createStaticPlane(0.0f);
+        plane.setCollisionFilter(PhysicsCollisionFilters.TERRAIN, PhysicsCollisionFilters.ALL);
+        space.addBody(plane);
+
+        int count = 10_000;
+        int side = (int) Math.ceil(Math.cbrt(count));
+        for (int i = 0; i < count; i++) {
+            PhysicsBody body = space.createBox(0.48f, 0.48f, 0.48f, 1.0f);
+            int x = i % side;
+            int z = (i / side) % side;
+            int y = i / (side * side);
+            body.setPosition(x * 1.05f, 5.0f + y * 1.05f, z * 1.05f);
+            body.setFriction(0.45f);
+            body.setRestitution(0.0f);
+            body.setDamping(0.02f, 0.25f);
+            body.setCollisionFilter(PhysicsCollisionFilters.DYNAMIC_BODY,
+                PhysicsCollisionFilters.TERRAIN | PhysicsCollisionFilters.DYNAMIC_BODY);
+            space.addBody(body);
+        }
+
+        stepSpace(space, 10);
+
+        List<PhysicsBodySnapshot> snapshots = new ArrayList<>();
+        space.snapshotBodies(snapshots::add);
+        assertEquals(count + 1, snapshots.size());
+    }
+
+    @Test
+    void tenThousandDynamicBodyPileOverVoxelTerrainStepsAndSnapshots() {
+        PhysicsSpace space = createHeadlessSpace();
+        if (space instanceof PhysicsSolverTuning tuning) {
+            tuning.setSolverTuning(1, 1, 1, 1);
+        }
+
+        int[] floorVoxels = floorSectionVoxels();
+        for (int x = -1; x <= 2; x++) {
+            for (int z = -1; z <= 2; z++) {
+                PhysicsBody terrain = space.createVoxelTerrain(1.0f, 1.0f, 1.0f, floorVoxels);
+                terrain.setPosition(x * 16.0f, 0.0f, z * 16.0f);
+                terrain.setCollisionFilter(PhysicsCollisionFilters.TERRAIN, PhysicsCollisionFilters.ALL);
+                space.addBody(terrain);
+            }
+        }
+
+        int count = 10_000;
+        int side = (int) Math.ceil(Math.cbrt(count));
+        for (int i = 0; i < count; i++) {
+            PhysicsBody body = space.createBox(0.48f, 0.48f, 0.48f, 1.0f);
+            int x = i % side;
+            int z = (i / side) % side;
+            int y = i / (side * side);
+            body.setPosition(-side * 1.05f * 0.5f + x * 1.05f,
+                5.0f + y * 1.05f,
+                -side * 1.05f * 0.5f + z * 1.05f);
+            body.setFriction(0.45f);
+            body.setRestitution(0.0f);
+            body.setDamping(0.02f, 0.25f);
+            body.setCollisionFilter(PhysicsCollisionFilters.DYNAMIC_BODY,
+                PhysicsCollisionFilters.TERRAIN | PhysicsCollisionFilters.DYNAMIC_BODY);
+            space.addBody(body);
+        }
+
+        stepSpace(space, 10);
+
+        List<PhysicsBodySnapshot> snapshots = new ArrayList<>();
+        space.snapshotBodies(snapshots::add);
+        assertEquals(count + 16, snapshots.size());
+    }
+
+    @Test
+    void adjacentDenseVoxelTerrainSectionsCanCombineAndStep() {
+        PhysicsSpace space = createHeadlessSpace();
+        PhysicsBody first = space.createVoxelTerrain(1.0f, 1.0f, 1.0f, fullSectionVoxels());
+        PhysicsBody second = space.createVoxelTerrain(1.0f, 1.0f, 1.0f, fullSectionVoxels());
+        first.setPosition(0.0f, 0.0f, 0.0f);
+        second.setPosition(16.0f, 0.0f, 0.0f);
+        space.addBody(first);
+        space.addBody(second);
+
+        space.combineVoxelTerrains(first, second, 16, 0, 0);
+        space.step(1.0f / 60.0f);
+
+        assertEquals(2, space.bodyCount());
+    }
+
+    @Test
+    void denseVoxelTerrainGridCanStepWithoutCombiningSections() {
+        PhysicsSpace space = createHeadlessSpace();
+        int[] voxels = fullSectionVoxels();
+        int sectionsPerAxis = 3;
+        for (int x = 0; x < sectionsPerAxis; x++) {
+            for (int y = 0; y < sectionsPerAxis; y++) {
+                for (int z = 0; z < sectionsPerAxis; z++) {
+                    PhysicsBody body = space.createVoxelTerrain(1.0f, 1.0f, 1.0f, voxels);
+                    body.setPosition(x * 16.0f, y * 16.0f, z * 16.0f);
+                    space.addBody(body);
+                }
+            }
+        }
+
+        space.step(1.0f / 60.0f);
+
+        assertEquals(sectionsPerAxis * sectionsPerAxis * sectionsPerAxis, space.bodyCount());
+    }
+
+    @Nonnull
+    private static int[] fullSectionVoxels() {
+        int[] voxels = new int[16 * 16 * 16 * 3];
+        int index = 0;
+        for (int x = 0; x < 16; x++) {
+            for (int y = 0; y < 16; y++) {
+                for (int z = 0; z < 16; z++) {
+                    voxels[index++] = x;
+                    voxels[index++] = y;
+                    voxels[index++] = z;
+                }
+            }
+        }
+        return voxels;
+    }
+
+    @Nonnull
+    private static int[] floorSectionVoxels() {
+        int[] voxels = new int[16 * 16 * 3];
+        int index = 0;
+        for (int x = 0; x < 16; x++) {
+            for (int z = 0; z < 16; z++) {
+                voxels[index++] = x;
+                voxels[index++] = 0;
+                voxels[index++] = z;
+            }
+        }
+        return voxels;
     }
 }

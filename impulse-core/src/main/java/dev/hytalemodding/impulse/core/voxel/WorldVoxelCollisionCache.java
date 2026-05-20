@@ -445,7 +445,6 @@ public final class WorldVoxelCollisionCache {
             neighborhoodSignature);
         addGeometryBodies(space, built, geometry, chunkX, sectionY, chunkZ);
         cache.sections.put(key, built);
-        combineWithNeighbors(space, cache, built);
 
         BuildStats stats = BuildStats.from(geometry,
             built.bodies.size(),
@@ -506,46 +505,6 @@ public final class WorldVoxelCollisionCache {
         body.setCollisionFilter(PhysicsCollisionFilters.TERRAIN, PhysicsCollisionFilters.ALL);
         space.addBody(body);
         section.bodies.add(body);
-    }
-
-    private static void combineWithNeighbors(@Nonnull PhysicsSpace space,
-        @Nonnull SpaceCollisionCache cache,
-        @Nonnull CachedSection section) {
-        if (section.voxelBody == null) {
-            return;
-        }
-
-        combineWithNeighbor(space, section,
-            cache.section(section.chunkX + 1, section.sectionY, section.chunkZ),
-            ChunkUtil.SIZE, 0, 0);
-        combineWithNeighbor(space, section,
-            cache.section(section.chunkX - 1, section.sectionY, section.chunkZ),
-            -ChunkUtil.SIZE, 0, 0);
-        combineWithNeighbor(space, section,
-            cache.section(section.chunkX, section.sectionY + 1, section.chunkZ),
-            0, ChunkUtil.SIZE, 0);
-        combineWithNeighbor(space, section,
-            cache.section(section.chunkX, section.sectionY - 1, section.chunkZ),
-            0, -ChunkUtil.SIZE, 0);
-        combineWithNeighbor(space, section,
-            cache.section(section.chunkX, section.sectionY, section.chunkZ + 1),
-            0, 0, ChunkUtil.SIZE);
-        combineWithNeighbor(space, section,
-            cache.section(section.chunkX, section.sectionY, section.chunkZ - 1),
-            0, 0, -ChunkUtil.SIZE);
-    }
-
-    private static void combineWithNeighbor(@Nonnull PhysicsSpace space,
-        @Nonnull CachedSection section,
-        @Nullable CachedSection neighbor,
-        int shiftX,
-        int shiftY,
-        int shiftZ) {
-        if (neighbor == null || neighbor.voxelBody == null) {
-            return;
-        }
-
-        space.combineVoxelTerrains(section.voxelBody, neighbor.voxelBody, shiftX, shiftY, shiftZ);
     }
 
     @Nullable
