@@ -69,8 +69,8 @@ final class ExamplePhysicsUtils {
         }
 
         ctx.sender().sendMessage(Message.raw("No default physics space exists. Run "
-            + "`/impulse space create --default true` or select one with "
-            + "`/impulse space default --space <space-id>` before running Impulse example commands."));
+            + "`/impulse space create --default=true` or select one with "
+            + "`/impulse space default --space=<space-id>` before running Impulse example commands."));
         return null;
     }
 

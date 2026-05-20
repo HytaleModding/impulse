@@ -124,8 +124,9 @@ public class PhysicsStepSystem extends TickingSystem<ChunkStore> {
             int requiredSteps = Math.max(
                 requiredSteps(linearTravel, safeLinearTravel),
                 requiredSteps(angularSurfaceTravel, safeAngularTravel(body)));
-            steps = Math.min(PhysicsWorldResource.MAX_SIMULATION_STEPS,
-                Math.max(steps, requiredSteps));
+            steps = Math.clamp(steps,
+                Math.min(requiredSteps, PhysicsWorldResource.MAX_SIMULATION_STEPS),
+                PhysicsWorldResource.MAX_SIMULATION_STEPS);
         }
 
         private int steps() {
@@ -141,15 +142,15 @@ public class PhysicsStepSystem extends TickingSystem<ChunkStore> {
     }
 
     private static float safeLinearTravel(@Nonnull PhysicsBody body) {
-        return Math.max(MIN_LINEAR_TRAVEL_PER_SUBSTEP,
-            Math.min(DEFAULT_LINEAR_TRAVEL_PER_SUBSTEP,
-                approximateMinimumExtent(body) * SHAPE_TRAVEL_FRACTION));
+        return Math.clamp(
+            approximateMinimumExtent(body) * SHAPE_TRAVEL_FRACTION, MIN_LINEAR_TRAVEL_PER_SUBSTEP,
+            DEFAULT_LINEAR_TRAVEL_PER_SUBSTEP);
     }
 
     private static float safeAngularTravel(@Nonnull PhysicsBody body) {
-        return Math.max(MIN_LINEAR_TRAVEL_PER_SUBSTEP,
-            Math.min(DEFAULT_LINEAR_TRAVEL_PER_SUBSTEP,
-                approximateShapeRadius(body) * MAX_ANGULAR_RADIANS_PER_SUBSTEP));
+        return Math.clamp(
+            approximateShapeRadius(body) * MAX_ANGULAR_RADIANS_PER_SUBSTEP,
+            MIN_LINEAR_TRAVEL_PER_SUBSTEP, DEFAULT_LINEAR_TRAVEL_PER_SUBSTEP);
     }
 
     private static float approximateMinimumExtent(@Nonnull PhysicsBody body) {

@@ -194,7 +194,7 @@ public class SpaceCommand extends AbstractCommandCollection {
             @Nonnull Store<EntityStore> store) {
             if (!spaceArg.provided(context)) {
                 context.sendMessage(Message.raw("Missing space id. Example:"
-                    + " /impulse space delete --space 1 --confirm"));
+                    + " /impulse space delete --space=1 --confirm"));
                 return;
             }
 

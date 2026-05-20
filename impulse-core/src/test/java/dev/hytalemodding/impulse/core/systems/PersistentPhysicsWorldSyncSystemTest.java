@@ -1,5 +1,6 @@
 package dev.hytalemodding.impulse.core.systems;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -92,6 +93,39 @@ class PersistentPhysicsWorldSyncSystemTest {
         assertTrue(PersistentPhysicsWorldSyncSystem.hasRuntimePersistenceFootprintChanged(
             fixture.persistent,
             fixture.runtime));
+    }
+
+    @Test
+    void explicitRuntimeSnapshotSyncCopiesPersistentState() {
+        RuntimeFixture fixture = createRuntimeFixture();
+        PhysicsBody body = fixture.space.createBox(0.5f, 0.5f, 0.5f, 1.0f);
+        fixture.runtime.addBody(fixture.space.getId(),
+            body,
+            PhysicsBodyKind.BODY,
+            PhysicsBodyPersistenceMode.PERSISTENT);
+
+        PersistentPhysicsWorldSyncSystem.SyncResult result =
+            PersistentPhysicsWorldSyncSystem.syncRuntimeSnapshot(fixture.persistent, fixture.runtime);
+
+        assertTrue(result.synced());
+        assertEquals(1, result.spaces());
+        assertEquals(1, result.bodies());
+        assertEquals(0, result.joints());
+        assertEquals(1, fixture.persistent.getSpaceCount());
+        assertEquals(1, fixture.persistent.getBodyCount());
+        assertEquals(0, fixture.persistent.getJointCount());
+    }
+
+    @Test
+    void explicitRuntimeSnapshotSyncSkipsPendingRestore() {
+        RuntimeFixture fixture = createRuntimeFixture();
+        fixture.persistent.markRuntimeRestorePending();
+
+        PersistentPhysicsWorldSyncSystem.SyncResult result =
+            PersistentPhysicsWorldSyncSystem.syncRuntimeSnapshot(fixture.persistent, fixture.runtime);
+
+        assertFalse(result.synced());
+        assertEquals("restore pending", result.skippedReason());
     }
 
     private static RuntimeFixture createRuntimeFixture() {

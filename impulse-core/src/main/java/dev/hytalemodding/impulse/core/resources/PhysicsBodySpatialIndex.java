@@ -5,8 +5,8 @@ import dev.hytalemodding.impulse.api.SpaceId;
 import it.unimi.dsi.fastutil.ints.Int2IntOpenHashMap;
 import it.unimi.dsi.fastutil.longs.Long2ObjectMap;
 import it.unimi.dsi.fastutil.longs.Long2ObjectOpenHashMap;
+import it.unimi.dsi.fastutil.objects.Object2ObjectLinkedOpenHashMap;
 import java.util.ArrayList;
-import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -32,7 +32,7 @@ final class PhysicsBodySpatialIndex {
     private static final float CELL_SIZE = 16.0f;
     private static final int AXIS_MASK = 0x1F_FFFF;
 
-    private final Map<PhysicsBodyId, IndexedBody> entries = new LinkedHashMap<>();
+    private final Map<PhysicsBodyId, IndexedBody> entries = new Object2ObjectLinkedOpenHashMap<>();
     private final Long2ObjectMap<List<IndexedBody>> cells = new Long2ObjectOpenHashMap<>();
     private final Int2IntOpenHashMap spaceBodyCounts = new Int2IntOpenHashMap();
 

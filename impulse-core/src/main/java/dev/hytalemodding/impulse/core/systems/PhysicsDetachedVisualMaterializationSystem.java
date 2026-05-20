@@ -36,9 +36,9 @@ import dev.hytalemodding.impulse.core.resources.PhysicsBodyKind;
 import dev.hytalemodding.impulse.core.resources.PhysicsSpaceSettings;
 import dev.hytalemodding.impulse.core.resources.PhysicsWorldResource;
 import dev.hytalemodding.impulse.core.resources.VisualOcclusionMode;
+import it.unimi.dsi.fastutil.objects.ObjectOpenHashSet;
 import java.util.ArrayList;
 import java.util.Comparator;
-import java.util.HashSet;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
@@ -200,7 +200,7 @@ public class PhysicsDetachedVisualMaterializationSystem extends TickingSystem<En
             return;
         }
 
-        Set<PhysicsBodyId> seenBodies = new HashSet<>();
+        Set<PhysicsBodyId> seenBodies = new ObjectOpenHashSet<>();
         for (PhysicsSpace space : resource.iterateSpaces()) {
             PhysicsSpaceSettings settings = resource.getSpaceSettings(space.getId());
             if (!settings.isDetachedVisualMaterializationEnabled()) {

@@ -25,10 +25,10 @@ import dev.hytalemodding.impulse.core.resources.PhysicsWorldResource;
 import dev.hytalemodding.impulse.core.resources.PhysicsWorldResource.BodyRegistration;
 import dev.hytalemodding.impulse.core.voxel.SectionCollisionGeometry.BoxCollider;
 import dev.hytalemodding.impulse.core.voxel.WorldVoxelCollisionCache.DebugSection;
+import it.unimi.dsi.fastutil.objects.ObjectOpenHashSet;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Comparator;
-import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 import java.util.UUID;
@@ -154,7 +154,7 @@ public class PhysicsDebugSystem extends TickingSystem<ChunkStore> {
     @Nonnull
     private static List<PlayerRef> resolveSubscribers(@Nonnull World world,
         @Nonnull PhysicsDebugResource debug) {
-        Set<UUID> active = new HashSet<>(debug.getSubscriberUuids());
+        Set<UUID> active = new ObjectOpenHashSet<>(debug.getSubscriberUuids());
         List<PlayerRef> viewers = new ArrayList<>();
         for (PlayerRef player : world.getPlayerRefs()) {
             if (active.remove(player.getUuid())) {

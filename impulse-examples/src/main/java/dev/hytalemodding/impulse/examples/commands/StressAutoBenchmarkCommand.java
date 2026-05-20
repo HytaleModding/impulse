@@ -39,8 +39,8 @@ import dev.hytalemodding.impulse.core.voxel.WorldVoxelCollisionCache;
 import dev.hytalemodding.impulse.examples.systems.BenchmarkEntityRemovalDiagnosticsSystem;
 import it.unimi.dsi.fastutil.longs.LongOpenHashSet;
 import it.unimi.dsi.fastutil.longs.LongSet;
+import it.unimi.dsi.fastutil.objects.ObjectOpenHashSet;
 import java.util.ArrayList;
-import java.util.HashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Set;
@@ -267,7 +267,7 @@ public class StressAutoBenchmarkCommand extends AbstractWorldCommand {
         ctx.sender().sendMessage(Message.raw("Impulse auto benchmark clears existing Impulse "
             + "body entities, visual proxies, runtime spaces, body ownership, and control sessions, "
             + "then creates a fresh benchmark space and enables profiling. Re-run with "
-            + "--confirm true to continue."));
+            + "--confirm=true to continue."));
         return false;
     }
 
@@ -397,7 +397,7 @@ public class StressAutoBenchmarkCommand extends AbstractWorldCommand {
     @Nonnull
     private static BenchmarkChunks benchmarkChunks(@Nonnull BenchmarkRequest request) {
         LongSet columns = new LongOpenHashSet();
-        Set<ChunkSection> sections = new HashSet<>();
+        Set<ChunkSection> sections = new ObjectOpenHashSet<>();
         BenchmarkLayout layout = layoutFor(request);
         for (int i = 0; i < request.count(); i++) {
             Vector3d position = layout.position(i);

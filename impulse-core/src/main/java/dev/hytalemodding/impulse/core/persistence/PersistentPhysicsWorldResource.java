@@ -11,10 +11,10 @@ import dev.hytalemodding.impulse.api.SpaceId;
 import dev.hytalemodding.impulse.core.ImpulsePlugin;
 import dev.hytalemodding.impulse.core.resources.PhysicsStepMode;
 import dev.hytalemodding.impulse.core.resources.PhysicsWorldResource;
+import it.unimi.dsi.fastutil.objects.Object2IntLinkedOpenHashMap;
+import it.unimi.dsi.fastutil.objects.Object2IntMap;
+import it.unimi.dsi.fastutil.objects.ObjectOpenHashSet;
 import java.util.Arrays;
-import java.util.HashSet;
-import java.util.LinkedHashMap;
-import java.util.Map;
 import java.util.Set;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
@@ -120,11 +120,11 @@ public class PersistentPhysicsWorldResource implements Resource<EntityStore> {
     private transient int runtimeRestoredBodyCount;
     private transient int runtimeRestoredJointCount;
     @Nonnull
-    private transient Map<String, Integer> runtimeSkippedBodiesByReason = new LinkedHashMap<>();
+    private transient Object2IntMap<String> runtimeSkippedBodiesByReason = new Object2IntLinkedOpenHashMap<>();
     @Nonnull
-    private transient Map<String, Integer> runtimeSkippedJointsByReason = new LinkedHashMap<>();
+    private transient Object2IntMap<String> runtimeSkippedJointsByReason = new Object2IntLinkedOpenHashMap<>();
     @Nonnull
-    private transient Set<String> runtimeSkippedJointKeys = new HashSet<>();
+    private transient Set<String> runtimeSkippedJointKeys = new ObjectOpenHashSet<>();
     private transient boolean runtimeSnapshotSynced;
     private transient int runtimeSnapshotSyncSkipTicks;
 
@@ -262,7 +262,7 @@ public class PersistentPhysicsWorldResource implements Resource<EntityStore> {
 
     public void recordRuntimeBodySkipped(@Nonnull String reason) {
         ensureRuntimeTracking();
-        runtimeSkippedBodiesByReason.merge(reason, 1, Integer::sum);
+        runtimeSkippedBodiesByReason.put(reason, runtimeSkippedBodiesByReason.getInt(reason) + 1);
     }
 
     public void recordRuntimeJointRestored() {
@@ -274,7 +274,7 @@ public class PersistentPhysicsWorldResource implements Resource<EntityStore> {
         if (!runtimeSkippedJointKeys.add(key)) {
             return;
         }
-        runtimeSkippedJointsByReason.merge(reason, 1, Integer::sum);
+        runtimeSkippedJointsByReason.put(reason, runtimeSkippedJointsByReason.getInt(reason) + 1);
     }
 
     public boolean hasRuntimeRestoreSkips() {
@@ -373,13 +373,13 @@ public class PersistentPhysicsWorldResource implements Resource<EntityStore> {
 
     private void ensureRuntimeTracking() {
         if (runtimeSkippedBodiesByReason == null) {
-            runtimeSkippedBodiesByReason = new LinkedHashMap<>();
+            runtimeSkippedBodiesByReason = new Object2IntLinkedOpenHashMap<>();
         }
         if (runtimeSkippedJointsByReason == null) {
-            runtimeSkippedJointsByReason = new LinkedHashMap<>();
+            runtimeSkippedJointsByReason = new Object2IntLinkedOpenHashMap<>();
         }
         if (runtimeSkippedJointKeys == null) {
-            runtimeSkippedJointKeys = new HashSet<>();
+            runtimeSkippedJointKeys = new ObjectOpenHashSet<>();
         }
         if (runtimeRestoreFailureMessage == null) {
             runtimeRestoreFailureMessage = "";
@@ -398,7 +398,7 @@ public class PersistentPhysicsWorldResource implements Resource<EntityStore> {
         }
     }
 
-    private static int countReasons(@Nonnull Map<String, Integer> reasons) {
+    private static int countReasons(@Nonnull Object2IntMap<String> reasons) {
         int total = 0;
         for (int count : reasons.values()) {
             total += count;
@@ -407,18 +407,18 @@ public class PersistentPhysicsWorldResource implements Resource<EntityStore> {
     }
 
     @Nonnull
-    private static String formatReasons(@Nonnull Map<String, Integer> reasons) {
+    private static String formatReasons(@Nonnull Object2IntMap<String> reasons) {
         if (reasons.isEmpty()) {
             return "none";
         }
 
         StringBuilder builder = new StringBuilder();
         boolean first = true;
-        for (Map.Entry<String, Integer> entry : reasons.entrySet()) {
+        for (Object2IntMap.Entry<String> entry : reasons.object2IntEntrySet()) {
             if (!first) {
                 builder.append(", ");
             }
-            builder.append(entry.getKey()).append('=').append(entry.getValue());
+            builder.append(entry.getKey()).append('=').append(entry.getIntValue());
             first = false;
         }
         return builder.toString();

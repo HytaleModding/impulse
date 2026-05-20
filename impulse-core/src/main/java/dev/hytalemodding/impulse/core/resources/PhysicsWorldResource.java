@@ -18,13 +18,13 @@ import dev.hytalemodding.impulse.core.ImpulsePlugin;
 import dev.hytalemodding.impulse.core.voxel.WorldVoxelCollisionCache;
 import it.unimi.dsi.fastutil.ints.Int2ObjectMap;
 import it.unimi.dsi.fastutil.ints.Int2ObjectOpenHashMap;
+import it.unimi.dsi.fastutil.objects.Object2ObjectLinkedOpenHashMap;
+import it.unimi.dsi.fastutil.objects.ObjectOpenHashSet;
+import it.unimi.dsi.fastutil.objects.Reference2ObjectOpenHashMap;
+import it.unimi.dsi.fastutil.objects.ReferenceOpenHashSet;
 import java.util.ArrayList;
 import java.util.Collection;
-import java.util.Collections;
-import java.util.HashSet;
-import java.util.IdentityHashMap;
 import java.util.Iterator;
-import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -80,14 +80,16 @@ public class PhysicsWorldResource implements Resource<EntityStore> {
     @Setter
     private float maxStepDt = DEFAULT_MAX_STEP_DT;
 
-    private final Set<PhysicsBody> forcedContinuousCollisionBodies =
-        Collections.newSetFromMap(new IdentityHashMap<>());
+    private final Set<PhysicsBody> forcedContinuousCollisionBodies = new ReferenceOpenHashSet<>();
 
-    private final Map<Ref<EntityStore>, BodySyncState> bodySyncStates = new IdentityHashMap<>();
-    private final Set<PhysicsBodyId> controlledBodies = new HashSet<>();
-    private final Map<PhysicsBodyId, ChunkBoundarySafeState> chunkBoundarySafeStates = new LinkedHashMap<>();
-    private final Map<PhysicsBodyId, ChunkBoundaryPauseState> chunkBoundaryPauseStates = new LinkedHashMap<>();
-    private final Map<PhysicsBodyId, PhysicsBodySnapshot> bodySnapshots = new LinkedHashMap<>();
+    private final Map<Ref<EntityStore>, BodySyncState> bodySyncStates = new Reference2ObjectOpenHashMap<>();
+    private final Set<PhysicsBodyId> controlledBodies = new ObjectOpenHashSet<>();
+    private final Map<PhysicsBodyId, ChunkBoundarySafeState> chunkBoundarySafeStates =
+        new Object2ObjectLinkedOpenHashMap<>();
+    private final Map<PhysicsBodyId, ChunkBoundaryPauseState> chunkBoundaryPauseStates =
+        new Object2ObjectLinkedOpenHashMap<>();
+    private final Map<PhysicsBodyId, PhysicsBodySnapshot> bodySnapshots =
+        new Object2ObjectLinkedOpenHashMap<>();
     private final PhysicsBodySpatialIndex bodySpatialIndex = new PhysicsBodySpatialIndex();
 
     public PhysicsWorldResource() {
@@ -235,7 +237,7 @@ public class PhysicsWorldResource implements Resource<EntityStore> {
     }
 
     public int refreshBodySnapshots() {
-        Set<PhysicsBodyId> liveBodies = new HashSet<>();
+        Set<PhysicsBodyId> liveBodies = new ObjectOpenHashSet<>();
         for (PhysicsSpace space : spaces.values()) {
             SpaceId spaceId = space.getId();
             space.snapshotBodies(body -> {

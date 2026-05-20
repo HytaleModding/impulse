@@ -18,10 +18,10 @@ import dev.hytalemodding.impulse.core.persistence.PersistentPhysicsRuntimeSuppor
 import dev.hytalemodding.impulse.core.persistence.PersistentPhysicsWorldResource;
 import dev.hytalemodding.impulse.core.resources.PhysicsBodyId;
 import dev.hytalemodding.impulse.core.resources.PhysicsWorldResource;
-import java.util.HashSet;
+import it.unimi.dsi.fastutil.objects.ObjectOpenHashSet;
 import java.util.Set;
-import javax.annotation.Nonnull;
 import java.util.logging.Level;
+import javax.annotation.Nonnull;
 
 /**
  * Third stage of persistence restore: reconnects joints between hydrated bodies.
@@ -58,7 +58,7 @@ public class PersistentPhysicsJointHydrationSystem extends TickingSystem<EntityS
         }
 
         PhysicsWorldResource runtime = store.getResource(PhysicsWorldResource.getResourceType());
-        Set<String> existing = new HashSet<>();
+        Set<String> existing = new ObjectOpenHashSet<>();
         for (PhysicsSpace space : runtime.getSpaces()) {
             space.forEachJoint(joint -> {
                 PhysicsBodyId bodyAId = runtime.getBodyId(joint.getBodyA());

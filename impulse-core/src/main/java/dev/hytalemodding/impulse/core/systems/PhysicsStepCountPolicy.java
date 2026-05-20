@@ -35,7 +35,7 @@ final class PhysicsStepCountPolicy {
     }
 
     private static int clampStepCount(int steps) {
-        return Math.max(PhysicsWorldResource.MIN_SIMULATION_STEPS,
-            Math.min(steps, PhysicsWorldResource.MAX_SIMULATION_STEPS));
+        return Math.clamp(steps, PhysicsWorldResource.MIN_SIMULATION_STEPS,
+            PhysicsWorldResource.MAX_SIMULATION_STEPS);
     }
 }
