@@ -1,4 +1,4 @@
-package dev.hytalemodding.impulse.core.commands;
+package dev.hytalemodding.impulse.core.commands.backend;
 
 import com.hypixel.hytale.component.Ref;
 import com.hypixel.hytale.component.Store;

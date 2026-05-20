@@ -1,4 +1,4 @@
-package dev.hytalemodding.impulse.core.commands;
+package dev.hytalemodding.impulse.core.commands.settings;
 
 import com.hypixel.hytale.component.Ref;
 import com.hypixel.hytale.component.Store;
@@ -18,14 +18,14 @@ import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import javax.annotation.Nonnull;
 
-public class StepModeCommand extends AbstractAsyncPlayerCommand {
+public class StepModeSettingCommand extends AbstractAsyncPlayerCommand {
 
     private final OptionalArg<String> modeArg = this.withOptionalArg(
         "mode",
         "Physics step mode: progressive_refinement, adaptive, fixed, or ccd",
         ArgTypes.STRING);
 
-    public StepModeCommand() {
+    public StepModeSettingCommand() {
         super("step-mode", "Get or set the world physics step mode");
     }
 

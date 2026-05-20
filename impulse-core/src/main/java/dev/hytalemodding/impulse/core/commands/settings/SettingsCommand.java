@@ -1,4 +1,4 @@
-package dev.hytalemodding.impulse.core.commands;
+package dev.hytalemodding.impulse.core.commands.settings;
 
 import com.hypixel.hytale.server.core.command.system.basecommands.AbstractCommandCollection;
 
@@ -6,12 +6,12 @@ public class SettingsCommand extends AbstractCommandCollection {
 
     public SettingsCommand() {
         super("settings", "Impulse runtime settings commands");
-        addSubCommand(new StepModeCommand());
-        addSubCommand(new SimulationStepsCommand());
-        addSubCommand(new MaxStepDtCommand());
+        addSubCommand(new StepModeSettingCommand());
+        addSubCommand(new SimulationStepsSettingCommand());
+        addSubCommand(new MaxStepDtSettingCommand());
         addSubCommand(new SolverSettingsCommand());
-        addSubCommand(new ExecutionSettingsCommand());
-        addSubCommand(new VisualSyncCommand());
+        addSubCommand(new ExecutionSettingCommand());
+        addSubCommand(new VisualSyncSettingsCommand());
         addSubCommand(new WorldCollisionSettingsCommand());
     }
 }

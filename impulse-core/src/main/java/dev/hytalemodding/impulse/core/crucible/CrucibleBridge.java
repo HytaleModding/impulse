@@ -84,111 +84,104 @@ final class CrucibleBridge {
         return error.invoke(null, suite, test, exception);
     }
 
-    private static final class SuiteInvocationHandler implements InvocationHandler {
-
-        private final CrucibleBridge bridge;
-        private final CrucibleSuite suite;
-
-        private SuiteInvocationHandler(CrucibleBridge bridge, CrucibleSuite suite) {
-            this.bridge = bridge;
-            this.suite = suite;
-        }
+    private record SuiteInvocationHandler(CrucibleBridge bridge, CrucibleSuite suite) implements
+        InvocationHandler {
 
         @Override
-        public Object invoke(Object proxy, Method method, Object[] args) throws Throwable {
-            return switch (method.getName()) {
-                case "id" -> suite.id();
-                case "name" -> suite.name();
-                case "description" -> suite.description();
-                case "tags" -> suite.tags();
-                case "run" -> runTests(context(args));
-                case "runAsync" -> runTestsAsync(context(args));
-                case "toString" -> suite.id();
-                case "hashCode" -> suite.id().hashCode();
-                case "equals" -> args != null && args.length > 0 && proxy == args[0];
-                default -> throw new UnsupportedOperationException(
-                    "Unsupported Crucible TestSuite method: " + method.getName());
-            };
-        }
-
-        private CrucibleContext context(Object[] args) {
-            Object rawContext = args != null && args.length > 0 ? args[0] : null;
-            return new CrucibleContext(rawContext);
-        }
-
-        private List<Object> runTests(CrucibleContext context)
-            throws ReflectiveOperationException {
-
-            List<Object> results = new ArrayList<>();
-            for (CrucibleTestCase test : suite.tests()) {
-                results.add(runTestSync(context, test));
+            public Object invoke(Object proxy, Method method, Object[] args) throws Throwable {
+                return switch (method.getName()) {
+                    case "id" -> suite.id();
+                    case "name" -> suite.name();
+                    case "description" -> suite.description();
+                    case "tags" -> suite.tags();
+                    case "run" -> runTests(context(args));
+                    case "runAsync" -> runTestsAsync(context(args));
+                    case "toString" -> suite.id();
+                    case "hashCode" -> suite.id().hashCode();
+                    case "equals" -> args != null && args.length > 0 && proxy == args[0];
+                    default -> throw new UnsupportedOperationException(
+                        "Unsupported Crucible TestSuite method: " + method.getName());
+                };
             }
-            return results;
-        }
 
-        private CompletableFuture<List<Object>> runTestsAsync(CrucibleContext context) {
-            CompletableFuture<List<Object>> results = CompletableFuture.completedFuture(
-                new ArrayList<>());
-            for (CrucibleTestCase test : suite.tests()) {
-                results = results.thenCompose(current -> runTestAsync(context, test)
-                    .thenApply(result -> {
-                        current.add(result);
-                        return current;
-                    }));
+            private CrucibleContext context(Object[] args) {
+                Object rawContext = args != null && args.length > 0 ? args[0] : null;
+                return new CrucibleContext(rawContext);
             }
-            return results;
-        }
 
-        private Object runTestSync(CrucibleContext context, CrucibleTestCase test)
-            throws ReflectiveOperationException {
+            private List<Object> runTests(CrucibleContext context)
+                throws ReflectiveOperationException {
 
-            try {
-                if (test.body().run(context).toCompletableFuture().join()) {
-                    return bridge.pass(suite.id(), test.name());
+                List<Object> results = new ArrayList<>();
+                for (CrucibleTestCase test : suite.tests()) {
+                    results.add(runTestSync(context, test));
                 }
-                return bridge.fail(suite.id(), test.name(), test.failureMessage());
-            } catch (CompletionException e) {
-                return bridge.error(suite.id(), test.name(), asException(e));
-            } catch (Exception e) {
-                return bridge.error(suite.id(), test.name(), e);
+                return results;
             }
-        }
 
-        private CompletableFuture<Object> runTestAsync(CrucibleContext context,
-            CrucibleTestCase test) {
-            try {
-                return test.body().run(context).handle((passed, failure) -> {
-                    try {
-                        if (failure != null) {
-                            return bridge.error(suite.id(), test.name(), asException(failure));
-                        }
-                        if (Boolean.TRUE.equals(passed)) {
-                            return bridge.pass(suite.id(), test.name());
-                        }
-                        return bridge.fail(suite.id(), test.name(), test.failureMessage());
-                    } catch (ReflectiveOperationException e) {
-                        throw new CompletionException(e);
-                    }
-                }).toCompletableFuture();
-            } catch (Exception e) {
+            private CompletableFuture<List<Object>> runTestsAsync(CrucibleContext context) {
+                CompletableFuture<List<Object>> results = CompletableFuture.completedFuture(
+                    new ArrayList<>());
+                for (CrucibleTestCase test : suite.tests()) {
+                    results = results.thenCompose(current -> runTestAsync(context, test)
+                        .thenApply(result -> {
+                            current.add(result);
+                            return current;
+                        }));
+                }
+                return results;
+            }
+
+            private Object runTestSync(CrucibleContext context, CrucibleTestCase test)
+                throws ReflectiveOperationException {
+
                 try {
-                    return CompletableFuture.completedFuture(
-                        bridge.error(suite.id(), test.name(), e));
-                } catch (ReflectiveOperationException reflective) {
-                    return CompletableFuture.failedFuture(reflective);
+                    if (test.body().run(context).toCompletableFuture().join()) {
+                        return bridge.pass(suite.id(), test.name());
+                    }
+                    return bridge.fail(suite.id(), test.name(), test.failureMessage());
+                } catch (CompletionException e) {
+                    return bridge.error(suite.id(), test.name(), asException(e));
+                } catch (Exception e) {
+                    return bridge.error(suite.id(), test.name(), e);
                 }
             }
-        }
 
-        private static Exception asException(Throwable failure) {
-            Throwable current = failure;
-            if (current instanceof CompletionException && current.getCause() != null) {
-                current = current.getCause();
+            private CompletableFuture<Object> runTestAsync(CrucibleContext context,
+                CrucibleTestCase test) {
+                try {
+                    return test.body().run(context).handle((passed, failure) -> {
+                        try {
+                            if (failure != null) {
+                                return bridge.error(suite.id(), test.name(), asException(failure));
+                            }
+                            if (Boolean.TRUE.equals(passed)) {
+                                return bridge.pass(suite.id(), test.name());
+                            }
+                            return bridge.fail(suite.id(), test.name(), test.failureMessage());
+                        } catch (ReflectiveOperationException e) {
+                            throw new CompletionException(e);
+                        }
+                    }).toCompletableFuture();
+                } catch (Exception e) {
+                    try {
+                        return CompletableFuture.completedFuture(
+                            bridge.error(suite.id(), test.name(), e));
+                    } catch (ReflectiveOperationException reflective) {
+                        return CompletableFuture.failedFuture(reflective);
+                    }
+                }
             }
-            if (current instanceof Exception exception) {
-                return exception;
+
+            private static Exception asException(Throwable failure) {
+                Throwable current = failure;
+                if (current instanceof CompletionException && current.getCause() != null) {
+                    current = current.getCause();
+                }
+                if (current instanceof Exception exception) {
+                    return exception;
+                }
+                return new RuntimeException(current);
             }
-            return new RuntimeException(current);
         }
-    }
 }

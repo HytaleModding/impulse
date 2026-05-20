@@ -1,4 +1,4 @@
-package dev.hytalemodding.impulse.core.commands;
+package dev.hytalemodding.impulse.core.commands.settings;
 
 import com.hypixel.hytale.component.Store;
 import com.hypixel.hytale.server.core.Message;

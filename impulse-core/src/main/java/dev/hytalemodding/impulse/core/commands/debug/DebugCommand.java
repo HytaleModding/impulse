@@ -1,4 +1,4 @@
-package dev.hytalemodding.impulse.core.commands;
+package dev.hytalemodding.impulse.core.commands.debug;
 
 import com.hypixel.hytale.server.core.command.system.basecommands.AbstractCommandCollection;
 import dev.hytalemodding.impulse.core.resources.PhysicsDebugResource;

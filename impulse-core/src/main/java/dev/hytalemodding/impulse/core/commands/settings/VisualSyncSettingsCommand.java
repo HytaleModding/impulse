@@ -1,4 +1,4 @@
-package dev.hytalemodding.impulse.core.commands;
+package dev.hytalemodding.impulse.core.commands.settings;
 
 import com.hypixel.hytale.component.Ref;
 import com.hypixel.hytale.component.Store;
@@ -18,7 +18,7 @@ import java.util.Locale;
 import java.util.concurrent.CompletableFuture;
 import javax.annotation.Nonnull;
 
-public class VisualSyncCommand extends AbstractAsyncPlayerCommand {
+public class VisualSyncSettingsCommand extends AbstractAsyncPlayerCommand {
 
     private final OptionalArg<Integer> fullRadiusArg = this.withOptionalArg(
         "fullRadius",
@@ -65,7 +65,7 @@ public class VisualSyncCommand extends AbstractAsyncPlayerCommand {
             + ")",
         ArgTypes.INTEGER);
 
-    public VisualSyncCommand() {
+    public VisualSyncSettingsCommand() {
         super("visual-sync", "Get or set visual sync LOD settings for the default physics space");
     }
 
