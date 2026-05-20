@@ -31,17 +31,6 @@ public class PersistentPhysicsBodyHydrationSystem extends TickingSystem<EntitySt
     @Nonnull
     private final SystemGroup<EntityStore> group = ImpulsePlugin.get().getPersistenceRestoreGroup();
 
-    @Nonnull
-    @Override
-    public Set<Dependency<EntityStore>> getDependencies() {
-        return DEPENDENCIES;
-    }
-
-    @Override
-    public SystemGroup<EntityStore> getGroup() {
-        return group;
-    }
-
     @Override
     public void tick(float dt, int systemIndex, @Nonnull Store<EntityStore> store) {
         PersistentPhysicsWorldResource persistent = store.getResource(
@@ -94,5 +83,16 @@ public class PersistentPhysicsBodyHydrationSystem extends TickingSystem<EntitySt
                     + exception.getClass().getSimpleName());
             }
         }
+    }
+
+    @Nonnull
+    @Override
+    public Set<Dependency<EntityStore>> getDependencies() {
+        return DEPENDENCIES;
+    }
+
+    @Override
+    public SystemGroup<EntityStore> getGroup() {
+        return group;
     }
 }

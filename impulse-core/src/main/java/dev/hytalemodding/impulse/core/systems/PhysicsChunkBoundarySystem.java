@@ -1,5 +1,6 @@
 package dev.hytalemodding.impulse.core.systems;
 
+import com.hypixel.hytale.component.ComponentType;
 import com.hypixel.hytale.component.Store;
 import com.hypixel.hytale.component.dependency.Dependency;
 import com.hypixel.hytale.component.dependency.Order;
@@ -38,7 +39,8 @@ import org.joml.Vector3f;
  */
 public class PhysicsChunkBoundarySystem extends TickingSystem<EntityStore> {
 
-    private static final int TICKING_CHUNK_REQUEST_FLAGS = 4;
+    private static final ComponentType<ChunkStore, WorldChunk> WORLD_CHUNK_TYPE =
+        WorldChunk.getComponentType();
 
     private final Set<Dependency<EntityStore>> dependencies = Set.of(
         new SystemGroupDependency<>(Order.AFTER, ImpulsePlugin.get().getPersistenceRestoreGroup()),
@@ -46,6 +48,8 @@ public class PhysicsChunkBoundarySystem extends TickingSystem<EntityStore> {
         new SystemDependency<>(Order.BEFORE, PhysicsSyncSystem.class),
         new SystemDependency<>(Order.BEFORE, UpdateLocationSystems.TickingSystem.class)
     );
+
+    private static final int TICKING_CHUNK_REQUEST_FLAGS = 4;
 
     private final LongSet requestedChunkIndices = new LongOpenHashSet();
     private final Vector3f bodyPositionScratch = new Vector3f();
@@ -179,7 +183,7 @@ public class PhysicsChunkBoundarySystem extends TickingSystem<EntityStore> {
             return false;
         }
 
-        WorldChunk worldChunk = chunkComponentStore.getComponent(chunkRef, WorldChunk.getComponentType());
+        WorldChunk worldChunk = chunkComponentStore.getComponent(chunkRef, WORLD_CHUNK_TYPE);
         return worldChunk != null && worldChunk.is(ChunkFlag.TICKING);
     }
 
