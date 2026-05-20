@@ -5,15 +5,11 @@ import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-import java.nio.file.Path;
-import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Consumer;
-import java.util.logging.Level;
 import javax.annotation.Nonnull;
-import javax.annotation.Nullable;
 import org.joml.Vector3f;
 import org.junit.jupiter.api.Test;
 
@@ -94,14 +90,6 @@ class ImpulseRegistryTest {
         @Override
         public BackendId getId() {
             return id;
-        }
-
-        @Override
-        public void setDataDirectory(@Nullable Path dataDirectory) {
-        }
-
-        @Override
-        public void setInternalLoggingLevel(@Nonnull Level level) {
         }
 
         @Override
@@ -314,8 +302,5 @@ class ImpulseRegistryTest {
         public void forEachJoint(@Nonnull Consumer<PhysicsJoint> consumer) {
         }
 
-        @Override
-        public void close() {
-        }
     }
 }
