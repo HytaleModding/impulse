@@ -8,13 +8,10 @@ import com.hypixel.hytale.server.core.command.system.basecommands.AbstractWorldC
 import com.hypixel.hytale.server.core.entity.entities.BlockEntity;
 import com.hypixel.hytale.server.core.universe.world.World;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
-import dev.hytalemodding.impulse.api.PhysicsBody;
-import dev.hytalemodding.impulse.api.PhysicsSpace;
 import dev.hytalemodding.impulse.core.components.PhysicsBodyAttachmentComponent;
 import dev.hytalemodding.impulse.core.components.PhysicsControlSessionComponent;
 import dev.hytalemodding.impulse.core.resources.PhysicsSpaceSettings;
 import dev.hytalemodding.impulse.core.resources.PhysicsWorldResource;
-import java.util.ArrayList;
 import java.util.concurrent.atomic.AtomicInteger;
 import javax.annotation.Nonnull;
 
@@ -22,7 +19,9 @@ import javax.annotation.Nonnull;
  * Clears Impulse-owned runtime state from the target world.
  *
  * <p>This removes Hytale adapter entities, visual proxies, runtime bodies, joints,
- * and world-collision cache bodies. Explicit physics spaces are kept.</p>
+ * and current world-collision cache bodies. Explicit physics spaces are kept, including
+ * their world-collision settings. Spaces with streaming world collision enabled may
+ * build fresh backend terrain bodies again on the next streaming tick.</p>
  */
 public class CleanCommand extends AbstractWorldCommand {
 
@@ -67,30 +66,14 @@ public class CleanCommand extends AbstractWorldCommand {
             });
 
         PhysicsWorldResource resource = store.getResource(PhysicsWorldResource.getResourceType());
-        int removedBodies = 0;
-        int removedJoints = 0;
-        int keptSpaces = 0;
-        for (PhysicsWorldResource.BodyRegistration registration
-            : new ArrayList<>(resource.getBodyRegistrations())) {
-            resource.destroyBody(registration.id());
-            removedBodies++;
-        }
-        for (PhysicsSpace space : resource.getSpaces()) {
-            keptSpaces++;
-            removedJoints += space.getJoints().size();
-            resource.getWorldVoxelCollisionCache().clear(space);
-            for (PhysicsBody body : new ArrayList<>(space.getBodies())) {
-                space.removeBody(body);
-                removedBodies++;
-            }
-        }
-        resource.clearBodies();
+        PhysicsWorldResource.RuntimeResetResult reset =
+            resource.resetRuntimeStateKeepingSpaces(world.getName());
 
         context.sendMessage(Message.raw("Removed " + removedBodyEntities.get()
             + " Impulse attachment entities, " + removedOrphanVisualEntities.get()
-            + " orphan visual proxy entities, " + removedBodies + " runtime bodies, "
-            + removedJoints + " joints, and "
+            + " orphan visual proxy entities, " + reset.removedBodies() + " runtime bodies, "
+            + reset.removedJoints() + " joints, and "
             + removedSessions.get() + " control sessions in world " + world.getName()
-            + ". Kept " + keptSpaces + " explicit physics spaces."));
+            + ". Kept " + reset.keptSpaces() + " explicit physics spaces."));
     }
 }

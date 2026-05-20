@@ -221,6 +221,10 @@ public class PhysicsWorldResource implements Resource<EntityStore> {
         return new ArrayList<>(spaces.values());
     }
 
+    public int getSpaceCount() {
+        return spaces.size();
+    }
+
     /**
      * Iterate spaces without allocating a snapshot collection.
      * Use this from tick systems that do not mutate the space map while iterating.
@@ -345,6 +349,41 @@ public class PhysicsWorldResource implements Resource<EntityStore> {
         for (SpaceId spaceId : ids) {
             removeSpace(spaceId, worldName);
         }
+    }
+
+    /**
+     * Clears runtime physics state by replacing each native backend space with an empty
+     * space that keeps the same logical id, backend, settings, gravity, and default-space mapping.
+     */
+    @Nonnull
+    public RuntimeResetResult resetRuntimeStateKeepingSpaces(@Nonnull String worldName) {
+        List<SpaceReset> replacements = new ArrayList<>();
+        for (PhysicsSpace previous : spaces.values()) {
+            Vector3f gravity = previous.getGravity();
+            PhysicsSpace replacement = Impulse.createSpace(previous.getBackendId(), previous.getId());
+            try {
+                validateSpaceCompatibleWithStepMode(replacement, stepMode);
+                replacement.setGravity(gravity.x, gravity.y, gravity.z);
+                replacements.add(new SpaceReset(previous.getId(), previous, replacement));
+            } catch (RuntimeException exception) {
+                closeSpaceQuietly(replacement, worldName, "discarding failed clean replacement");
+                throw exception;
+            }
+        }
+
+        int removedBodies = 0;
+        int removedJoints = 0;
+        int keptSpaces = 0;
+        for (SpaceReset reset : replacements) {
+            removedBodies += reset.previous().bodyCount();
+            removedJoints += reset.previous().jointCount();
+            worldVoxelCollisionCache.clear(reset.spaceId(), null);
+            PhysicsSpace previous = replaceSpace(reset.spaceId(), reset.replacement(), worldName);
+            closeSpaceQuietly(previous, worldName, "cleaned physics space");
+            keptSpaces++;
+        }
+        clearBodies();
+        return new RuntimeResetResult(removedBodies, removedJoints, keptSpaces);
     }
 
     @Nonnull
@@ -501,6 +540,14 @@ public class PhysicsWorldResource implements Resource<EntityStore> {
     @Nonnull
     public Collection<BodyRegistration> getBodyRegistrations() {
         return bodyRegistry.getRegistrations();
+    }
+
+    public int getBodyRegistrationCount() {
+        return bodyRegistry.getRegistrationCount();
+    }
+
+    public int getBodyRegistrationCount(@Nonnull PhysicsBodyPersistenceMode persistenceMode) {
+        return bodyRegistry.getRegistrationCount(persistenceMode);
     }
 
     @Nonnull
@@ -753,7 +800,7 @@ public class PhysicsWorldResource implements Resource<EntityStore> {
     }
 
     private void removeBodyFromSpace(@Nonnull PhysicsBody body, @Nullable BodyRegistration registration) {
-        if (registration != null && registration.spaceId() != null) {
+        if (registration != null) {
             PhysicsSpace space = getSpace(registration.spaceId());
             if (space != null) {
                 space.removeBody(body);
@@ -793,6 +840,14 @@ public class PhysicsWorldResource implements Resource<EntityStore> {
         @Nonnull PhysicsBodyPersistenceMode persistenceMode) {
     }
 
+    public record RuntimeResetResult(int removedBodies, int removedJoints, int keptSpaces) {
+    }
+
+    private record SpaceReset(@Nonnull SpaceId spaceId,
+        @Nonnull PhysicsSpace previous,
+        @Nonnull PhysicsSpace replacement) {
+    }
+
     public record BodySnapshotEntry(@Nonnull PhysicsBodyId bodyId,
         @Nonnull PhysicsBodySnapshot snapshot,
         @Nonnull SpaceId spaceId,
@@ -804,9 +859,13 @@ public class PhysicsWorldResource implements Resource<EntityStore> {
 
     public static final class BodyVisualInterestState {
 
+        @Getter
         private float nearestDistanceSquared = Float.POSITIVE_INFINITY;
+        @Getter
         private boolean inRange;
+        @Getter
         private boolean likelyVisible;
+        @Getter
         private boolean raycastVisible;
         private int ticksSinceRaycast = Integer.MAX_VALUE;
 
@@ -829,21 +888,6 @@ public class PhysicsWorldResource implements Resource<EntityStore> {
             return ticksSinceRaycast <= cacheTicks;
         }
 
-        public float getNearestDistanceSquared() {
-            return nearestDistanceSquared;
-        }
-
-        public boolean isInRange() {
-            return inRange;
-        }
-
-        public boolean isLikelyVisible() {
-            return likelyVisible;
-        }
-
-        public boolean isRaycastVisible() {
-            return raycastVisible;
-        }
     }
 
     public static final class ChunkBoundarySafeState {
@@ -875,8 +919,11 @@ public class PhysicsWorldResource implements Resource<EntityStore> {
         private final Vector3f lastSyncedPosition = new Vector3f();
         @Nonnull
         private final Quaternionf lastSyncedRotation = new Quaternionf();
+        @Getter
         private boolean initialized;
+        @Getter
         private boolean sleeping;
+        @Getter
         private float secondsSinceSync;
 
         public void recordSync(@Nonnull Vector3f position,
@@ -903,22 +950,11 @@ public class PhysicsWorldResource implements Resource<EntityStore> {
             return lastSyncedRotation;
         }
 
-        public boolean isInitialized() {
-            return initialized;
-        }
-
-        public boolean isSleeping() {
-            return sleeping;
-        }
-
-        public float getSecondsSinceSync() {
-            return secondsSinceSync;
-        }
-
     }
 
     public static final class ChunkBoundaryPauseState {
 
+        @Getter
         private long targetChunkIndex;
         @Nonnull
         private PhysicsBodyType originalBodyType = PhysicsBodyType.DYNAMIC;
@@ -935,10 +971,6 @@ public class PhysicsWorldResource implements Resource<EntityStore> {
             this.originalBodyType = originalBodyType;
             this.linearVelocity.set(linearVelocity);
             this.angularVelocity.set(angularVelocity);
-        }
-
-        public long getTargetChunkIndex() {
-            return targetChunkIndex;
         }
 
         @Nonnull
@@ -966,12 +998,6 @@ public class PhysicsWorldResource implements Resource<EntityStore> {
     @Override
     public PhysicsWorldResource clone() {
         PhysicsWorldResource copy = new PhysicsWorldResource();
-        /*
-         * This resource owns live backend-native runtime state. Spaces, body-owner
-         * maps, and generated terrain cache entries are excluded here because
-         * aliasing them would couple two logically separate resources to the same
-         * physics objects. The clone only preserves structural configuration.
-         */
         copy.copyFrom(this);
         return copy;
     }

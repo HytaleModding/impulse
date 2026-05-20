@@ -163,6 +163,10 @@ public class PersistentPhysicsWorldResource implements Resource<EntityStore> {
         return copySpaces(spaces);
     }
 
+    public int getSpaceCount() {
+        return spaces.length;
+    }
+
     public void setSpaces(@Nonnull PersistentPhysicsSpaceState[] spaces) {
         this.spaces = copySpaces(spaces);
     }
@@ -172,6 +176,10 @@ public class PersistentPhysicsWorldResource implements Resource<EntityStore> {
         return copyBodies(bodies);
     }
 
+    public int getBodyCount() {
+        return bodies.length;
+    }
+
     public void setBodies(@Nonnull PersistentPhysicsBodyState[] bodies) {
         this.bodies = copyBodies(bodies);
     }
@@ -179,6 +187,10 @@ public class PersistentPhysicsWorldResource implements Resource<EntityStore> {
     @Nonnull
     public PersistentPhysicsJointState[] getJoints() {
         return copyJoints(joints);
+    }
+
+    public int getJointCount() {
+        return joints.length;
     }
 
     public void setJoints(@Nonnull PersistentPhysicsJointState[] joints) {

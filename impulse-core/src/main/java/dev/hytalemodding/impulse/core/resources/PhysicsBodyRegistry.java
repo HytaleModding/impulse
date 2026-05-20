@@ -102,6 +102,20 @@ final class PhysicsBodyRegistry {
         return new ArrayList<>(registrationsById.values());
     }
 
+    int getRegistrationCount() {
+        return registrationsById.size();
+    }
+
+    int getRegistrationCount(@Nonnull PhysicsBodyPersistenceMode persistenceMode) {
+        int count = 0;
+        for (PhysicsWorldResource.BodyRegistration registration : registrationsById.values()) {
+            if (registration.persistenceMode() == persistenceMode) {
+                count++;
+            }
+        }
+        return count;
+    }
+
     @Nonnull
     Collection<PhysicsWorldResource.BodyRegistration> getRegistrations(@Nonnull PhysicsBodyKind kind) {
         List<PhysicsWorldResource.BodyRegistration> registrations = new ArrayList<>();

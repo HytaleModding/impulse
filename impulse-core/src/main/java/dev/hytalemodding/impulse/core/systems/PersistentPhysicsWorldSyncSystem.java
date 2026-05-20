@@ -59,6 +59,7 @@ public class PersistentPhysicsWorldSyncSystem extends TickingSystem<EntityStore>
 
         PhysicsWorldResource runtime = store.getResource(PhysicsWorldResource.getResourceType());
         if (!hasScalarWorldStateChanged(persistent, runtime)
+            && !hasRuntimePersistenceFootprintChanged(persistent, runtime)
             && !persistent.shouldSyncRuntimeSnapshot(WORLD_SYNC_INTERVAL_TICKS)) {
             return;
         }
@@ -119,5 +120,35 @@ public class PersistentPhysicsWorldSyncSystem extends TickingSystem<EntityStore>
             || persistent.getStepMode() != runtime.getStepMode()
             || Float.compare(persistent.getMaxStepDt(), runtime.getMaxStepDt()) != 0
             || persistent.getDefaultSpaceId() != resolvedDefaultSpaceId;
+    }
+
+    static boolean hasRuntimePersistenceFootprintChanged(@Nonnull PersistentPhysicsWorldResource persistent,
+        @Nonnull PhysicsWorldResource runtime) {
+        return persistent.getSpaceCount() != runtime.getSpaceCount()
+            || persistent.getBodyCount() != runtime.getBodyRegistrationCount(PhysicsBodyPersistenceMode.PERSISTENT)
+            || persistent.getJointCount() != countPersistentJoints(runtime);
+    }
+
+    private static int countPersistentJoints(@Nonnull PhysicsWorldResource runtime) {
+        int[] count = new int[1];
+        for (PhysicsSpace space : runtime.iterateSpaces()) {
+            space.forEachJoint(joint -> {
+                PhysicsBodyId bodyAId = runtime.getBodyId(joint.getBodyA());
+                PhysicsBodyId bodyBId = runtime.getBodyId(joint.getBodyB());
+                if (bodyAId == null || bodyBId == null) {
+                    return;
+                }
+                PhysicsWorldResource.BodyRegistration bodyA = runtime.getRegistration(bodyAId);
+                PhysicsWorldResource.BodyRegistration bodyB = runtime.getRegistration(bodyBId);
+                if (bodyA == null
+                    || bodyB == null
+                    || bodyA.persistenceMode() != PhysicsBodyPersistenceMode.PERSISTENT
+                    || bodyB.persistenceMode() != PhysicsBodyPersistenceMode.PERSISTENT) {
+                    return;
+                }
+                count[0]++;
+            });
+        }
+        return count[0];
     }
 }
