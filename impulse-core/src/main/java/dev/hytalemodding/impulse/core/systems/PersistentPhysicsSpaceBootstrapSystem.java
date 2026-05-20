@@ -1,5 +1,6 @@
 package dev.hytalemodding.impulse.core.systems;
 
+import com.hypixel.hytale.component.ComponentType;
 import com.hypixel.hytale.component.RemoveReason;
 import com.hypixel.hytale.component.Store;
 import com.hypixel.hytale.component.SystemGroup;
@@ -44,14 +45,17 @@ import javax.annotation.Nullable;
  */
 public class PersistentPhysicsSpaceBootstrapSystem extends TickingSystem<EntityStore> {
 
+    private static final ComponentType<EntityStore, BlockEntity> BLOCK_ENTITY_TYPE =
+        BlockEntity.getComponentType();
+    private static final ComponentType<EntityStore, PhysicsBodyAttachmentComponent> ATTACHMENT_TYPE =
+        PhysicsBodyAttachmentComponent.getComponentType();
+    private static final ComponentType<EntityStore, PhysicsControlSessionComponent> CONTROL_SESSION_TYPE =
+        PhysicsControlSessionComponent.getComponentType();
+
     private static final HytaleLogger LOGGER = HytaleLogger.get("Impulse");
+
     @Nonnull
     private final SystemGroup<EntityStore> group = ImpulsePlugin.get().getPersistenceRestoreGroup();
-
-    @Override
-    public SystemGroup<EntityStore> getGroup() {
-        return group;
-    }
 
     @Override
     public void tick(float dt, int systemIndex, @Nonnull Store<EntityStore> store) {
@@ -132,10 +136,10 @@ public class PersistentPhysicsSpaceBootstrapSystem extends TickingSystem<EntityS
         runtime.clearAllSpaces(world.getName());
         runtime.clearBodies();
 
-        store.forEachEntityParallel(PhysicsBodyAttachmentComponent.getComponentType(),
+        store.forEachEntityParallel(ATTACHMENT_TYPE,
             (index, archetypeChunk, commandBuffer) -> {
                 PhysicsBodyAttachmentComponent attachment = archetypeChunk.getComponent(index,
-                    PhysicsBodyAttachmentComponent.getComponentType());
+                    ATTACHMENT_TYPE);
                 if (attachment == null
                     || attachment.getLifecycle() != AttachmentLifecycle.GENERATED_PROXY) {
                     return;
@@ -151,13 +155,13 @@ public class PersistentPhysicsSpaceBootstrapSystem extends TickingSystem<EntityS
          * unload/load. Remove those visual-only leftovers during restore so detached
          * views can be rebuilt from the live physics registry.
          */
-        store.forEachEntityParallel(BlockEntity.getComponentType(),
+        store.forEachEntityParallel(BLOCK_ENTITY_TYPE,
             (index, archetypeChunk, commandBuffer) -> {
-                if (archetypeChunk.getComponent(index, PhysicsBodyAttachmentComponent.getComponentType()) != null) {
+                if (archetypeChunk.getComponent(index, ATTACHMENT_TYPE) != null) {
                     return;
                 }
 
-                BlockEntity blockEntity = archetypeChunk.getComponent(index, BlockEntity.getComponentType());
+                BlockEntity blockEntity = archetypeChunk.getComponent(index, BLOCK_ENTITY_TYPE);
                 if (blockEntity == null
                     || !PhysicsSpaceSettings.DEFAULT_DETACHED_VISUAL_BLOCK_TYPE.equals(blockEntity.getBlockTypeKey())) {
                     return;
@@ -166,10 +170,10 @@ public class PersistentPhysicsSpaceBootstrapSystem extends TickingSystem<EntityS
                 commandBuffer.removeEntity(archetypeChunk.getReferenceTo(index), RemoveReason.REMOVE);
             });
 
-        store.forEachEntityParallel(PhysicsControlSessionComponent.getComponentType(),
+        store.forEachEntityParallel(CONTROL_SESSION_TYPE,
             (index, archetypeChunk, commandBuffer) -> commandBuffer.removeComponent(
                 archetypeChunk.getReferenceTo(index),
-                PhysicsControlSessionComponent.getComponentType()));
+                CONTROL_SESSION_TYPE));
     }
 
     @Nullable
@@ -187,5 +191,10 @@ public class PersistentPhysicsSpaceBootstrapSystem extends TickingSystem<EntityS
             }
         }
         return null;
+    }
+
+    @Override
+    public SystemGroup<EntityStore> getGroup() {
+        return group;
     }
 }

@@ -2,6 +2,7 @@ package dev.hytalemodding.impulse.examples.systems;
 
 import com.hypixel.hytale.component.AddReason;
 import com.hypixel.hytale.component.CommandBuffer;
+import com.hypixel.hytale.component.ComponentType;
 import com.hypixel.hytale.component.Ref;
 import com.hypixel.hytale.component.RemoveReason;
 import com.hypixel.hytale.component.Store;
@@ -18,6 +19,10 @@ import java.util.concurrent.atomic.AtomicInteger;
 import javax.annotation.Nonnull;
 
 public final class BenchmarkEntityRemovalDiagnosticsSystem extends RefSystem<EntityStore> {
+
+    private static final ComponentType<EntityStore, PhysicsBodyAttachmentComponent> ATTACHMENT_TYPE =
+        PhysicsBodyAttachmentComponent.getComponentType();
+    private static final Query<EntityStore> QUERY = ATTACHMENT_TYPE;
 
     private static final AtomicInteger PHYSICS_ENTITY_REMOVALS = new AtomicInteger();
     private static final ConcurrentMap<String, AtomicInteger> REMOVALS_BY_REASON = new ConcurrentHashMap<>();
@@ -50,8 +55,7 @@ public final class BenchmarkEntityRemovalDiagnosticsSystem extends RefSystem<Ent
         @Nonnull RemoveReason reason,
         @Nonnull Store<EntityStore> store,
         @Nonnull CommandBuffer<EntityStore> commandBuffer) {
-        PhysicsBodyAttachmentComponent component = store.getComponent(ref,
-            PhysicsBodyAttachmentComponent.getComponentType());
+        PhysicsBodyAttachmentComponent component = store.getComponent(ref, ATTACHMENT_TYPE);
         if (component == null) {
             return;
         }
@@ -64,6 +68,6 @@ public final class BenchmarkEntityRemovalDiagnosticsSystem extends RefSystem<Ent
     @Nonnull
     @Override
     public Query<EntityStore> getQuery() {
-        return PhysicsBodyAttachmentComponent.getComponentType();
+        return QUERY;
     }
 }
