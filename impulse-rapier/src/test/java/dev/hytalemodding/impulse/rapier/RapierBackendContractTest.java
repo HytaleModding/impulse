@@ -8,10 +8,14 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import dev.hytalemodding.impulse.api.PhysicsBackend;
 import dev.hytalemodding.impulse.api.PhysicsAxis;
 import dev.hytalemodding.impulse.api.PhysicsBody;
+import dev.hytalemodding.impulse.api.PhysicsBodySnapshot;
 import dev.hytalemodding.impulse.api.PhysicsBodyType;
+import dev.hytalemodding.impulse.api.PhysicsCollisionFilters;
 import dev.hytalemodding.impulse.api.PhysicsSpace;
 import dev.hytalemodding.impulse.api.ShapeType;
 import dev.hytalemodding.impulse.api.testsupport.PhysicsBackendContractTest;
+import java.util.ArrayList;
+import java.util.List;
 import javax.annotation.Nonnull;
 import org.joml.Vector3f;
 import org.junit.jupiter.api.Test;
@@ -88,5 +92,33 @@ class RapierBackendContractTest extends PhysicsBackendContractTest {
         assertEquals(PhysicsBodyType.KINEMATIC, body.getBodyType());
         body.setKinematic(false);
         assertEquals(PhysicsBodyType.DYNAMIC, body.getBodyType());
+    }
+
+    @Test
+    void denseDynamicBodyPileStepsAndSnapshots() {
+        PhysicsSpace space = createHeadlessSpace();
+        int count = 1_000;
+        int side = (int) Math.ceil(Math.cbrt(count));
+        for (int i = 0; i < count; i++) {
+            PhysicsBody body = space.createBox(0.48f, 0.48f, 0.48f, 1.0f);
+            int x = i % side;
+            int z = (i / side) % side;
+            int y = i / (side * side);
+            body.setPosition(x * 1.05f, 5.0f + y * 1.05f, z * 1.05f);
+            body.setFriction(0.45f);
+            body.setRestitution(0.0f);
+            body.setDamping(0.02f, 0.25f);
+            body.setCollisionFilter(PhysicsCollisionFilters.DYNAMIC_BODY,
+                PhysicsCollisionFilters.TERRAIN | PhysicsCollisionFilters.DYNAMIC_BODY);
+            space.addBody(body);
+        }
+
+        assertEquals(count, space.bodyCount());
+
+        stepSpace(space, 30);
+
+        List<PhysicsBodySnapshot> snapshots = new ArrayList<>();
+        space.snapshotBodies(snapshots::add);
+        assertEquals(count, snapshots.size());
     }
 }

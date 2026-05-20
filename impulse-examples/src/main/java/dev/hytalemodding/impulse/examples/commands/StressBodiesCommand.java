@@ -56,7 +56,7 @@ public class StressBodiesCommand extends AbstractAsyncPlayerCommand {
         ArgTypes.STRING);
     private final OptionalArg<String> collisionsArg = this.withOptionalArg(
         "collisions",
-        "Detached collision policy: world (default) or full",
+        "Detached collision policy: world (default) or body/full",
         ArgTypes.STRING);
 
     public StressBodiesCommand() {
@@ -213,6 +213,9 @@ public class StressBodiesCommand extends AbstractAsyncPlayerCommand {
         body.setDamping(0.02f, 0.25f);
         if (collisionPolicy == StressCollisionPolicy.WORLD) {
             body.setCollisionFilter(PhysicsCollisionFilters.DYNAMIC_BODY, PhysicsCollisionFilters.TERRAIN);
+        } else {
+            body.setCollisionFilter(PhysicsCollisionFilters.DYNAMIC_BODY,
+                PhysicsCollisionFilters.TERRAIN | PhysicsCollisionFilters.DYNAMIC_BODY);
         }
         return body;
     }
@@ -343,7 +346,7 @@ public class StressBodiesCommand extends AbstractAsyncPlayerCommand {
 
     private enum StressCollisionPolicy {
         WORLD("world"),
-        FULL("full");
+        FULL("body");
 
         private final String serialized;
 
