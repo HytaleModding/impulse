@@ -6,6 +6,9 @@ package dev.hytalemodding.impulse.api;
  * <p>Backends that do not implement this interface keep their native/default
  * solver behavior. Higher-level Impulse settings can still persist the desired
  * values and will apply them when a compatible backend is used.</p>
+ *
+ * TODO: move this to a more appropriate "Extension"/"Capability" parent class if this pattern becomes
+ * the norm
  */
 public interface PhysicsSolverTuning {
 
