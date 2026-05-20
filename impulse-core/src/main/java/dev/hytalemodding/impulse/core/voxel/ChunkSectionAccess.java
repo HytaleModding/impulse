@@ -29,6 +29,7 @@ final class ChunkSectionAccess {
         }
 
         Store<ChunkStore> store = world.getChunkStore().getStore();
+        // FIXME: ChunkColumn is deprecated! removal in the future 3d chunks update!
         ChunkColumn column = store.getComponent(chunkRef, ChunkColumn.getComponentType());
         if (column == null) {
             return null;

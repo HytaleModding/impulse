@@ -1,4 +1,4 @@
-package dev.hytalemodding.impulse.core.commands;
+package dev.hytalemodding.impulse.core.commands.settings;
 
 import com.hypixel.hytale.component.Store;
 import com.hypixel.hytale.server.core.Message;
@@ -16,14 +16,14 @@ import java.util.Locale;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
-public class ExecutionSettingsCommand extends AbstractWorldCommand {
+public class ExecutionSettingCommand extends AbstractWorldCommand {
 
     private final OptionalArg<String> modeArg = this.withOptionalArg(
         "mode",
         "Physics execution mode: inline or worker",
         ArgTypes.STRING);
 
-    public ExecutionSettingsCommand() {
+    public ExecutionSettingCommand() {
         super("execution", "Get or set physics execution mode for the default physics space", true);
     }
 
