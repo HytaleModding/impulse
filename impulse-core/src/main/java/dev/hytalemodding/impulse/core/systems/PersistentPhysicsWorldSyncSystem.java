@@ -43,12 +43,6 @@ public class PersistentPhysicsWorldSyncSystem extends TickingSystem<EntityStore>
         new SystemDependency<>(Order.AFTER, PersistentPhysicsJointHydrationSystem.class)
     );
 
-    @Nonnull
-    @Override
-    public Set<Dependency<EntityStore>> getDependencies() {
-        return DEPENDENCIES;
-    }
-
     @Override
     public void tick(float dt, int systemIndex, @Nonnull Store<EntityStore> store) {
         PersistentPhysicsWorldResource persistent = store.getResource(
@@ -150,5 +144,11 @@ public class PersistentPhysicsWorldSyncSystem extends TickingSystem<EntityStore>
             });
         }
         return count[0];
+    }
+
+    @Nonnull
+    @Override
+    public Set<Dependency<EntityStore>> getDependencies() {
+        return DEPENDENCIES;
     }
 }

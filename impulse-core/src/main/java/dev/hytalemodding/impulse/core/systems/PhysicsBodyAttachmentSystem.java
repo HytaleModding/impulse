@@ -17,16 +17,9 @@ import javax.annotation.Nonnull;
 public class PhysicsBodyAttachmentSystem
     extends RefChangeSystem<EntityStore, PhysicsBodyAttachmentComponent> {
 
-    @Override
-    public ComponentType<EntityStore, PhysicsBodyAttachmentComponent> componentType() {
-        return PhysicsBodyAttachmentComponent.getComponentType();
-    }
-
-    @Nonnull
-    @Override
-    public Query<EntityStore> getQuery() {
-        return componentType();
-    }
+    private static final ComponentType<EntityStore, PhysicsBodyAttachmentComponent> ATTACHMENT_TYPE =
+        PhysicsBodyAttachmentComponent.getComponentType();
+    private static final Query<EntityStore> QUERY = ATTACHMENT_TYPE;
 
     @Override
     public void onComponentAdded(@Nonnull Ref<EntityStore> ref,
@@ -59,5 +52,16 @@ public class PhysicsBodyAttachmentSystem
         PhysicsWorldResource resource = commandBuffer.getResource(PhysicsWorldResource.getResourceType());
         resource.unregisterBodyAttachment(component.getBodyId(), ref);
         resource.clearBodySyncState(ref);
+    }
+
+    @Override
+    public ComponentType<EntityStore, PhysicsBodyAttachmentComponent> componentType() {
+        return ATTACHMENT_TYPE;
+    }
+
+    @Nonnull
+    @Override
+    public Query<EntityStore> getQuery() {
+        return QUERY;
     }
 }

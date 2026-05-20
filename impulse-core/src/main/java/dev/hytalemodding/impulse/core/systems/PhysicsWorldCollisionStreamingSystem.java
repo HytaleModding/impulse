@@ -43,6 +43,12 @@ import org.joml.Vector3f;
 public class PhysicsWorldCollisionStreamingSystem extends TickingSystem<EntityStore>
     implements QuerySystem<EntityStore> {
 
+    private static final ComponentType<EntityStore, Player> PLAYER_TYPE = Player.getComponentType();
+    private static final ComponentType<EntityStore, TransformComponent> TRANSFORM_TYPE =
+        TransformComponent.getComponentType();
+
+    private static final Query<EntityStore> QUERY = Query.and(PLAYER_TYPE, TRANSFORM_TYPE);
+
     /**
      * Radius (in blocks) used for streaming around dynamic physics bodies.
      * Smaller than the player radius because bodies should not pull collision
@@ -51,18 +57,7 @@ public class PhysicsWorldCollisionStreamingSystem extends TickingSystem<EntitySt
     public static final int DEFAULT_BODY_STREAMING_RADIUS = 4;
     private static final int SLEEPING_BODY_STREAMING_INTERVAL_TICKS = 20;
 
-    private static final ComponentType<EntityStore, Player> PLAYER_TYPE = Player.getComponentType();
-    private static final ComponentType<EntityStore, TransformComponent> TRANSFORM_TYPE =
-        TransformComponent.getComponentType();
-
-    private static final Query<EntityStore> QUERY = Query.and(PLAYER_TYPE, TRANSFORM_TYPE);
-
     private long tick;
-    @Nonnull
-    @Override
-    public Query<EntityStore> getQuery() {
-        return QUERY;
-    }
 
     @Override
     public void tick(float dt, int systemIndex, @Nonnull Store<EntityStore> store) {
@@ -213,6 +208,12 @@ public class PhysicsWorldCollisionStreamingSystem extends TickingSystem<EntitySt
     }
 
     private record BodyStreamingTarget(@Nonnull Vector3d position, boolean buildSections) {
+    }
+
+    @Nonnull
+    @Override
+    public Query<EntityStore> getQuery() {
+        return QUERY;
     }
 
 }
