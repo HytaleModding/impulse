@@ -14,6 +14,19 @@ import java.util.function.Consumer;
 import javax.annotation.Nonnull;
 import org.joml.Vector3f;
 
+/**
+ * Snapshot-side spatial hash for detached physics bodies.
+ *
+ * <p>Stores the latest published {@link PhysicsBodySnapshot} for each
+ * {@link PhysicsBodyId} and groups those snapshots into fixed-size world cells.
+ * Cell membership is updated whenever a body publishes a snapshot in a new
+ * position.</p>
+ *
+ * <p>Callers use it for area queries that need body identity and pose data, such
+ * as visual materialization, world-collision streaming hints, diagnostics, and
+ * other nearby-body discovery. Query freshness follows the snapshot publishing
+ * policy for each body.</p>
+ */
 final class PhysicsBodySpatialIndex {
 
     private static final float CELL_SIZE = 16.0f;
