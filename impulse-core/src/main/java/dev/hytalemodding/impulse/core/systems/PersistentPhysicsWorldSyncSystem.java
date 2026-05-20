@@ -9,17 +9,18 @@ import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import dev.hytalemodding.impulse.api.PhysicsJoint;
 import dev.hytalemodding.impulse.api.PhysicsSpace;
 import dev.hytalemodding.impulse.api.SpaceId;
-import dev.hytalemodding.impulse.core.components.PersistentPhysicsBodyComponent;
+import dev.hytalemodding.impulse.core.persistence.PersistentPhysicsBodyState;
 import dev.hytalemodding.impulse.core.persistence.PersistentPhysicsJointState;
 import dev.hytalemodding.impulse.core.persistence.PersistentPhysicsRuntimeSupport;
 import dev.hytalemodding.impulse.core.persistence.PersistentPhysicsSpaceState;
 import dev.hytalemodding.impulse.core.persistence.PersistentPhysicsWorldResource;
 import dev.hytalemodding.impulse.core.resources.PhysicsSpaceSettings;
+import dev.hytalemodding.impulse.core.resources.PhysicsBodyId;
+import dev.hytalemodding.impulse.core.resources.PhysicsBodyPersistenceMode;
 import dev.hytalemodding.impulse.core.resources.PhysicsWorldResource;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
-import java.util.UUID;
 import javax.annotation.Nonnull;
 
 /**
@@ -31,16 +32,15 @@ import javax.annotation.Nonnull;
  * is in progress, or after a hard restore failure, to avoid overwriting
  * deserialized data before hydration finishes or before the failure is resolved.</p>
  *
- * <p>Runs after joint hydration and body sync to ensure both sides are settled
- * before copying. Only joints whose endpoints resolve to entity UUIDs are part
- * of the persisted contract; runtime helper-body joints are intentionally ignored.</p>
+ * <p>Runs after restore hydration to ensure both sides are settled before copying.
+ * Only persistent bodies and joints whose endpoints are persistent body ids are
+ * part of the persisted contract; runtime helper-body joints are ignored.</p>
  */
 public class PersistentPhysicsWorldSyncSystem extends TickingSystem<EntityStore> {
 
     private static final int WORLD_SYNC_INTERVAL_TICKS = 20;
     private static final Set<Dependency<EntityStore>> DEPENDENCIES = Set.of(
-        new SystemDependency<>(Order.AFTER, PersistentPhysicsJointHydrationSystem.class),
-        new SystemDependency<>(Order.AFTER, PersistentPhysicsBodySyncSystem.class)
+        new SystemDependency<>(Order.AFTER, PersistentPhysicsJointHydrationSystem.class)
     );
 
     @Nonnull
@@ -69,27 +69,42 @@ public class PersistentPhysicsWorldSyncSystem extends TickingSystem<EntityStore>
         SpaceId defaultSpaceId = runtime.getDefaultSpaceId();
         persistent.setDefaultSpaceId(defaultSpaceId != null
             ? defaultSpaceId.value()
-            : PersistentPhysicsBodyComponent.DEFAULT_SPACE_ID);
+            : PersistentPhysicsBodyState.DEFAULT_SPACE_ID);
 
         List<PersistentPhysicsSpaceState> spaces = new ArrayList<>();
+        List<PersistentPhysicsBodyState> bodies = new ArrayList<>();
         List<PersistentPhysicsJointState> joints = new ArrayList<>();
+        for (PhysicsWorldResource.BodyRegistration registration : runtime.getBodyRegistrations()) {
+            if (registration.persistenceMode() == PhysicsBodyPersistenceMode.PERSISTENT) {
+                bodies.add(PersistentPhysicsBodyState.from(registration));
+            }
+        }
         for (PhysicsSpace space : runtime.getSpaces()) {
             PhysicsSpaceSettings settings = runtime.getSpaceSettings(space.getId());
             spaces.add(PersistentPhysicsSpaceState.from(space, settings));
             space.forEachJoint(joint -> {
-                UUID bodyAUuid = PersistentPhysicsRuntimeSupport.ownerUuid(store, joint.getBodyA(), runtime);
-                UUID bodyBUuid = PersistentPhysicsRuntimeSupport.ownerUuid(store, joint.getBodyB(), runtime);
-                if (bodyAUuid == null || bodyBUuid == null) {
+                PhysicsBodyId bodyAId = runtime.getBodyId(joint.getBodyA());
+                PhysicsBodyId bodyBId = runtime.getBodyId(joint.getBodyB());
+                if (bodyAId == null || bodyBId == null) {
+                    return;
+                }
+                PhysicsWorldResource.BodyRegistration bodyA = runtime.getRegistration(bodyAId);
+                PhysicsWorldResource.BodyRegistration bodyB = runtime.getRegistration(bodyBId);
+                if (bodyA == null
+                    || bodyB == null
+                    || bodyA.persistenceMode() != PhysicsBodyPersistenceMode.PERSISTENT
+                    || bodyB.persistenceMode() != PhysicsBodyPersistenceMode.PERSISTENT) {
                     return;
                 }
                 joints.add(PersistentPhysicsJointState.from(space.getId().value(),
-                    bodyAUuid,
-                    bodyBUuid,
+                    bodyAId,
+                    bodyBId,
                     joint));
             });
         }
 
         persistent.setSpaces(spaces.toArray(PersistentPhysicsSpaceState[]::new));
+        persistent.setBodies(bodies.toArray(PersistentPhysicsBodyState[]::new));
         persistent.setJoints(joints.toArray(PersistentPhysicsJointState[]::new));
         persistent.markRuntimeSnapshotSynced();
     }
@@ -99,7 +114,7 @@ public class PersistentPhysicsWorldSyncSystem extends TickingSystem<EntityStore>
         SpaceId defaultSpaceId = runtime.getDefaultSpaceId();
         int resolvedDefaultSpaceId = defaultSpaceId != null
             ? defaultSpaceId.value()
-            : PersistentPhysicsBodyComponent.DEFAULT_SPACE_ID;
+            : PersistentPhysicsBodyState.DEFAULT_SPACE_ID;
         return persistent.getSimulationSteps() != runtime.getSimulationSteps()
             || persistent.getStepMode() != runtime.getStepMode()
             || Float.compare(persistent.getMaxStepDt(), runtime.getMaxStepDt()) != 0

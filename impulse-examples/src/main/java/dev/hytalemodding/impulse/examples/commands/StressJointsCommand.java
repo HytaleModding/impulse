@@ -77,7 +77,7 @@ public class StressJointsCommand extends AbstractAsyncPlayerCommand {
             }
 
             Vector3d rowOrigin = new Vector3d(origin).add(0.0, 0.0, row * ROW_SPACING);
-            createdBodies += createRow(store, time, space, rowOrigin, rowJoints, row);
+            createdBodies += createRow(store, time, resource, space, rowOrigin, rowJoints, row);
             createdJoints += rowJoints;
         }
 
@@ -89,17 +89,18 @@ public class StressJointsCommand extends AbstractAsyncPlayerCommand {
 
     private static int createRow(@Nonnull Store<EntityStore> store,
         @Nonnull TimeResource time,
+        @Nonnull PhysicsWorldResource resource,
         @Nonnull PhysicsSpace space,
         @Nonnull Vector3d origin,
         int jointCount,
         int jointType) {
         double spacing = jointType == 4 ? TOUCHING_SPACING + SPRING_REST_LENGTH
             : TOUCHING_SPACING;
-        PhysicsBody previous = spawnBox(store, time, space, origin, 0.0f);
+        PhysicsBody previous = spawnBox(store, time, resource, space, origin, 0.0f);
         int bodies = 1;
 
         for (int i = 0; i < jointCount; i++) {
-            PhysicsBody current = spawnBox(store, time, space,
+            PhysicsBody current = spawnBox(store, time, resource, space,
                 new Vector3d(origin).add((i + 1) * spacing, 0.0, 0.0), 1.0f);
             createJoint(space, previous, current, jointType);
             if (jointType == 1 && i % 5 == 0) {
@@ -115,13 +116,14 @@ public class StressJointsCommand extends AbstractAsyncPlayerCommand {
 
     private static PhysicsBody spawnBox(@Nonnull Store<EntityStore> store,
         @Nonnull TimeResource time,
+        @Nonnull PhysicsWorldResource resource,
         @Nonnull PhysicsSpace space,
         @Nonnull Vector3d position,
         float mass) {
         PhysicsBody body = space.createBox(HALF_SIZE, HALF_SIZE, HALF_SIZE, mass);
         body.setFriction(0.65f);
         body.setRestitution(0.1f);
-        ExamplePhysicsUtils.spawnBlockBody(store, time, space.getId(), space, body, position);
+        ExamplePhysicsUtils.spawnBlockBody(store, time, resource, space.getId(), space, body, position);
         return body;
     }
 

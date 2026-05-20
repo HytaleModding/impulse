@@ -15,10 +15,11 @@ import dev.hytalemodding.impulse.api.PhysicsContact;
 import dev.hytalemodding.impulse.api.PhysicsJoint;
 import dev.hytalemodding.impulse.api.PhysicsSpace;
 import dev.hytalemodding.impulse.api.ShapeType;
-import dev.hytalemodding.impulse.core.components.PhysicsBodyComponent;
+import dev.hytalemodding.impulse.core.components.PhysicsBodyAttachmentComponent;
+import dev.hytalemodding.impulse.core.components.PhysicsBodyAttachmentComponent.AttachmentLifecycle;
 import dev.hytalemodding.impulse.core.resources.PhysicsDebugResource;
+import dev.hytalemodding.impulse.core.resources.PhysicsBodyKind;
 import dev.hytalemodding.impulse.core.resources.PhysicsWorldResource;
-import dev.hytalemodding.impulse.core.resources.PhysicsWorldResource.BodyOwnerKind;
 import dev.hytalemodding.impulse.core.resources.PhysicsWorldResource.BodyRegistration;
 import dev.hytalemodding.impulse.core.voxel.SectionCollisionGeometry.BoxCollider;
 import dev.hytalemodding.impulse.core.voxel.WorldVoxelCollisionCache.DebugSection;
@@ -175,36 +176,46 @@ public class PhysicsDebugSystem extends TickingSystem<ChunkStore> {
             return 0;
         }
         double maxDistanceSquared = viewRadius * viewRadius;
-        for (Ref<com.hypixel.hytale.server.core.universe.world.storage.EntityStore> owner
-            : resource.getBodyOwners()) {
-            if (!owner.isValid()) {
+        for (BodyRegistration registration : resource.getBodyRegistrations(PhysicsBodyKind.BODY)) {
+            if (resource.getBodyAttachments(registration.id()).isEmpty()) {
                 continue;
             }
 
-            TransformComponent transform = store.getComponent(owner, TransformComponent.getComponentType());
-            PhysicsBodyComponent component = store.getComponent(owner, PhysicsBodyComponent.getComponentType());
-            if (transform == null || component == null) {
-                continue;
-            }
+            for (Ref<com.hypixel.hytale.server.core.universe.world.storage.EntityStore> attachmentRef
+                : resource.getBodyAttachments(registration.id())) {
+                if (!attachmentRef.isValid()) {
+                    continue;
+                }
+                PhysicsBodyAttachmentComponent attachment = store.getComponent(attachmentRef,
+                    PhysicsBodyAttachmentComponent.getComponentType());
+                TransformComponent transform = store.getComponent(attachmentRef,
+                    TransformComponent.getComponentType());
+                if (attachment == null
+                    || attachment.getLifecycle() == AttachmentLifecycle.GENERATED_PROXY
+                    || transform == null) {
+                    continue;
+                }
 
-            PhysicsBody body = component.getBody();
-            Vector3d center = PhysicsDebugRenderer.centerFromSyncedTransform(body,
-                transform.getPosition());
-            if (viewerPosition.distanceSquared(center) > maxDistanceSquared) {
-                continue;
-            }
+                PhysicsBody body = registration.body();
+                Vector3d center = PhysicsDebugRenderer.centerFromSyncedTransform(body,
+                    transform.getPosition());
+                if (viewerPosition.distanceSquared(center) > maxDistanceSquared) {
+                    continue;
+                }
 
-            Quaterniond rotation = transform.getRotation().getQuaternion(new Quaterniond());
-            if (debugShapes) {
-                PhysicsDebugRenderer.renderBodyShape(viewers, body, center, rotation, time);
-            }
-            if (debugMotion) {
-                PhysicsDebugRenderer.renderBodyMotion(viewers, body, center, time);
-            }
+                Quaterniond rotation = transform.getRotation().getQuaternion(new Quaterniond());
+                if (debugShapes) {
+                    PhysicsDebugRenderer.renderBodyShape(viewers, body, center, rotation, time);
+                }
+                if (debugMotion) {
+                    PhysicsDebugRenderer.renderBodyMotion(viewers, body, center, time);
+                }
 
-            rendered++;
-            if (rendered >= maxBodies) {
-                return rendered;
+                rendered++;
+                if (rendered >= maxBodies) {
+                    return rendered;
+                }
+                break;
             }
         }
         return rendered;
@@ -231,7 +242,8 @@ public class PhysicsDebugSystem extends TickingSystem<ChunkStore> {
                 }
 
                 BodyRegistration registration = entry.registration();
-                if (registration == null || registration.ownerKind() != BodyOwnerKind.DETACHED) {
+                if (registration.kind() != PhysicsBodyKind.BODY
+                    || !resource.getBodyAttachments(registration.id()).isEmpty()) {
                     return;
                 }
 

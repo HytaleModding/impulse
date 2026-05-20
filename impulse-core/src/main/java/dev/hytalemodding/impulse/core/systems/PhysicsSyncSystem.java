@@ -3,6 +3,7 @@ package dev.hytalemodding.impulse.core.systems;
 import com.hypixel.hytale.component.ArchetypeChunk;
 import com.hypixel.hytale.component.CommandBuffer;
 import com.hypixel.hytale.component.ComponentType;
+import com.hypixel.hytale.component.RemoveReason;
 import com.hypixel.hytale.component.Ref;
 import com.hypixel.hytale.component.Store;
 import com.hypixel.hytale.component.dependency.Dependency;
@@ -18,12 +19,11 @@ import com.hypixel.hytale.server.core.modules.entity.component.TransformComponen
 import com.hypixel.hytale.server.core.modules.entity.system.UpdateLocationSystems;
 import com.hypixel.hytale.server.core.universe.PlayerRef;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
-import dev.hytalemodding.impulse.api.PhysicsBody;
 import dev.hytalemodding.impulse.api.PhysicsBodySnapshot;
 import dev.hytalemodding.impulse.api.SpaceId;
 import dev.hytalemodding.impulse.core.ImpulsePlugin;
-import dev.hytalemodding.impulse.core.components.PhysicsBodyComponent;
-import dev.hytalemodding.impulse.core.components.PhysicsBodyVisualComponent;
+import dev.hytalemodding.impulse.core.components.PhysicsBodyAttachmentComponent;
+import dev.hytalemodding.impulse.core.components.PhysicsBodyAttachmentComponent.AttachmentLifecycle;
 import dev.hytalemodding.impulse.core.resources.PhysicsRuntimeProfilingResource;
 import dev.hytalemodding.impulse.core.resources.PhysicsSpaceSettings;
 import dev.hytalemodding.impulse.core.resources.PhysicsWorldResource;
@@ -44,27 +44,23 @@ import org.joml.Vector3f;
  * hydrated bodies, and hydrated joints are all settled before this system reads
  * body transforms.</p>
  *
- * <p>The authoritative body relationship still lives on {@link PhysicsBodyComponent}.
- * {@link PhysicsBodyVisualComponent} adds follower entities that can share the same
- * body and apply player-neighborhood visual sync policies.</p>
+ * <p>Entities attach to body ids. Backend body destruction is explicit at the
+ * world resource boundary; missing generated visual proxies are removed, while
+ * gameplay entities merely lose the attachment.</p>
  */
 public class PhysicsSyncSystem extends EntityTickingSystem<EntityStore> {
 
     private static final float LOW_SPEED_LINEAR_THRESHOLD_SQUARED = 0.2f * 0.2f;
     private static final float LOW_SPEED_ANGULAR_THRESHOLD_SQUARED = 0.5f * 0.5f;
 
-    private static final ComponentType<EntityStore, PhysicsBodyComponent> PHYSICS_BODY_TYPE =
-        PhysicsBodyComponent.getComponentType();
-    private static final ComponentType<EntityStore, PhysicsBodyVisualComponent>
-        PHYSICS_BODY_VISUAL_TYPE = PhysicsBodyVisualComponent.getComponentType();
+    private static final ComponentType<EntityStore, PhysicsBodyAttachmentComponent> ATTACHMENT_TYPE =
+        PhysicsBodyAttachmentComponent.getComponentType();
     private static final ComponentType<EntityStore, TransformComponent> TRANSFORM_TYPE =
         TransformComponent.getComponentType();
     private static final ComponentType<EntityStore, HeadRotation> HEAD_ROTATION_TYPE =
         HeadRotation.getComponentType();
 
-    private static final Query<EntityStore> QUERY = Query.and(
-        Query.or(PHYSICS_BODY_TYPE, PHYSICS_BODY_VISUAL_TYPE),
-        TRANSFORM_TYPE);
+    private static final Query<EntityStore> QUERY = Query.and(ATTACHMENT_TYPE, TRANSFORM_TYPE);
     private final Set<Dependency<EntityStore>> dependencies = Set.of(
         new SystemGroupDependency<>(Order.AFTER, ImpulsePlugin.get().getPersistenceRestoreGroup()),
         new SystemDependency<>(Order.BEFORE, UpdateLocationSystems.TickingSystem.class)
@@ -127,20 +123,11 @@ public class PhysicsSyncSystem extends EntityTickingSystem<EntityStore> {
         @Nonnull Store<EntityStore> store,
         @Nonnull CommandBuffer<EntityStore> commandBuffer) {
         Ref<EntityStore> entityRef = chunk.getReferenceTo(index);
-        PhysicsBodyComponent physicsBody = chunk.getComponent(index, PHYSICS_BODY_TYPE);
-        PhysicsBodyVisualComponent visual = chunk.getComponent(index, PHYSICS_BODY_VISUAL_TYPE);
+        PhysicsBodyAttachmentComponent attachment = chunk.getComponent(index, ATTACHMENT_TYPE);
         TransformComponent transform = chunk.getComponent(index, TRANSFORM_TYPE);
-        if ((physicsBody == null && visual == null) || transform == null) {
+        if (attachment == null || transform == null) {
             return;
         }
-        if (visual == null
-            && physicsBody != null
-            && physicsBody.getOwnerVisualMode() == PhysicsBodyComponent.OwnerVisualMode.NONE) {
-            return;
-        }
-
-        PhysicsBody body = visual != null ? visual.getBody() : physicsBody.getBody();
-        SpaceId spaceId = visual != null ? visual.getSpaceId() : physicsBody.getSpaceId();
 
         Scratch local = scratch.get();
         PhysicsWorldResource resource = local.getResource(store);
@@ -148,14 +135,23 @@ public class PhysicsSyncSystem extends EntityTickingSystem<EntityStore> {
         if (collector != null) {
             collector.incrementBodiesInspected();
         }
+        PhysicsWorldResource.BodyRegistration registration =
+            resource.getRegistration(attachment.getBodyId());
+        if (registration == null) {
+            clearMissingAttachment(entityRef, attachment, resource, commandBuffer);
+            return;
+        }
+
+        SpaceId spaceId = registration.spaceId();
         if (spaceId != null && resource.getSpace(spaceId) == null) {
             if (collector != null) {
                 collector.incrementSkippedMissingSpace();
             }
+            clearMissingAttachment(entityRef, attachment, resource, commandBuffer);
             return;
         }
 
-        PhysicsBodySnapshot snapshot = resource.getBodySnapshot(body);
+        PhysicsBodySnapshot snapshot = resource.getBodySnapshot(registration.id());
         if (snapshot.isStatic()) {
             if (collector != null) {
                 collector.incrementSkippedStatic();
@@ -165,10 +161,10 @@ public class PhysicsSyncSystem extends EntityTickingSystem<EntityStore> {
 
         local.position.set(snapshot.position());
         local.rotation.set(snapshot.rotation());
-        applyVisualPose(snapshot, visual, local);
+        applyVisualPose(snapshot, attachment, local);
 
         boolean sleeping = snapshot.sleeping();
-        boolean controlled = resource.isBodyControlled(body);
+        boolean controlled = resource.isBodyControlled(registration.id());
         boolean lowSpeed = false;
         if (!sleeping && snapshot.isDynamic() && !controlled) {
             local.linearVelocity.set(snapshot.linearVelocity());
@@ -178,10 +174,10 @@ public class PhysicsSyncSystem extends EntityTickingSystem<EntityStore> {
         }
 
         PhysicsSpaceSettings settings = resolveSpaceSettings(resource, spaceId);
-        boolean rangeLimitedVisual = shouldCullVisualSync(settings, visual, physicsBody, controlled);
+        boolean rangeLimitedVisual = shouldCullVisualSync(settings, attachment, controlled);
         PhysicsSyncPolicy.SyncRangeTier rangeTier = PhysicsSyncPolicy.resolveRangeTier(
             settings,
-            resource.getBodyVisualInterestState(body),
+            resource.getBodyVisualInterestState(registration.id()),
             rangeLimitedVisual,
             controlled,
             playerInterests,
@@ -231,6 +227,20 @@ public class PhysicsSyncSystem extends EntityTickingSystem<EntityStore> {
         }
     }
 
+    private static void clearMissingAttachment(@Nonnull Ref<EntityStore> entityRef,
+        @Nonnull PhysicsBodyAttachmentComponent attachment,
+        @Nonnull PhysicsWorldResource resource,
+        @Nonnull CommandBuffer<EntityStore> commandBuffer) {
+        resource.unregisterBodyAttachment(attachment.getBodyId(), entityRef);
+        resource.clearBodySyncState(entityRef);
+        if (attachment.getLifecycle() == AttachmentLifecycle.GENERATED_PROXY) {
+            resource.clearGeneratedVisualProxy(attachment.getBodyId());
+            commandBuffer.removeEntity(entityRef, RemoveReason.REMOVE);
+        } else {
+            commandBuffer.removeComponent(entityRef, ATTACHMENT_TYPE);
+        }
+    }
+
     @Nonnull
     private List<PhysicsSyncPolicy.PlayerInterest> collectPlayerInterests(@Nonnull Store<EntityStore> store) {
         List<PhysicsSyncPolicy.PlayerInterest> interests = new ArrayList<>();
@@ -270,7 +280,7 @@ public class PhysicsSyncSystem extends EntityTickingSystem<EntityStore> {
     }
 
     private void applyVisualPose(@Nonnull PhysicsBodySnapshot snapshot,
-        @Nullable PhysicsBodyVisualComponent visual,
+        @Nonnull PhysicsBodyAttachmentComponent attachment,
         @Nonnull Scratch scratch) {
         float offsetY = snapshot.centerOfMassOffsetY();
         scratch.visualPosition.set(scratch.position.x,
@@ -278,13 +288,9 @@ public class PhysicsSyncSystem extends EntityTickingSystem<EntityStore> {
             scratch.position.z);
         scratch.visualRotation.set(scratch.rotation);
 
-        if (visual == null) {
-            return;
-        }
-
-        scratch.rotation.transform(visual.getLocalPositionOffset(), scratch.worldOffset);
+        scratch.rotation.transform(attachment.getLocalPositionOffset(), scratch.worldOffset);
         scratch.visualPosition.add(scratch.worldOffset);
-        scratch.visualRotation.mul(visual.getLocalRotationOffset());
+        scratch.visualRotation.mul(attachment.getLocalRotationOffset());
     }
 
     @Nullable
@@ -298,13 +304,12 @@ public class PhysicsSyncSystem extends EntityTickingSystem<EntityStore> {
     }
 
     private static boolean shouldCullVisualSync(@Nullable PhysicsSpaceSettings settings,
-        @Nullable PhysicsBodyVisualComponent visual,
-        @Nullable PhysicsBodyComponent physicsBody,
+        @Nonnull PhysicsBodyAttachmentComponent attachment,
         boolean controlled) {
         if (controlled) {
             return false;
         }
-        if (visual != null && physicsBody == null) {
+        if (attachment.getLifecycle() == AttachmentLifecycle.GENERATED_PROXY) {
             return true;
         }
         return settings != null && settings.isEntityVisualSyncCullingEnabled();

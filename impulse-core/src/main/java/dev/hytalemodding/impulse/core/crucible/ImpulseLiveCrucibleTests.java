@@ -14,8 +14,12 @@ import dev.hytalemodding.impulse.api.PhysicsBody;
 import dev.hytalemodding.impulse.api.PhysicsSpace;
 import dev.hytalemodding.impulse.core.ImpulsePlugin;
 import dev.hytalemodding.impulse.core.components.ImpulseControllableComponent;
-import dev.hytalemodding.impulse.core.components.PersistentPhysicsBodyComponent;
-import dev.hytalemodding.impulse.core.components.PhysicsBodyComponent;
+import dev.hytalemodding.impulse.core.components.PhysicsBodyAttachmentComponent;
+import dev.hytalemodding.impulse.core.components.PhysicsBodyAttachmentComponent.AttachmentLifecycle;
+import dev.hytalemodding.impulse.core.components.PhysicsBodyAttachmentComponent.TransformAuthority;
+import dev.hytalemodding.impulse.core.resources.PhysicsBodyId;
+import dev.hytalemodding.impulse.core.resources.PhysicsBodyKind;
+import dev.hytalemodding.impulse.core.resources.PhysicsBodyPersistenceMode;
 import dev.hytalemodding.impulse.core.resources.PhysicsSpaceSettings;
 import dev.hytalemodding.impulse.core.resources.PhysicsWorldResource;
 import java.util.List;
@@ -68,7 +72,7 @@ final class ImpulseLiveCrucibleTests {
                 (float) (visualPosition.y + body.getCenterOfMassOffsetY()),
                 (float) visualPosition.z);
 
-            Ref<EntityStore> ref = spawnLiveBlockBody(store, space, body, visualPosition);
+            Ref<EntityStore> ref = spawnLiveBlockBody(store, resource, space, body, visualPosition);
             double startY = visualPosition.y;
 
             return context.waitApproxTicksOnWorld(40).thenApply(ignored -> bodyAndEntityMovedDown(
@@ -110,6 +114,7 @@ final class ImpulseLiveCrucibleTests {
     }
 
     private static Ref<EntityStore> spawnLiveBlockBody(Store<EntityStore> store,
+        PhysicsWorldResource resource,
         PhysicsSpace space,
         PhysicsBody body,
         Vector3d visualPosition) {
@@ -120,15 +125,18 @@ final class ImpulseLiveCrucibleTests {
             DEFAULT_BLOCK_TYPE,
             new Vector3d(visualPosition));
         holder.removeComponent(DespawnComponent.getComponentType());
-        holder.addComponent(PhysicsBodyComponent.getComponentType(),
-            new PhysicsBodyComponent(body, space.getId()));
-        holder.addComponent(PersistentPhysicsBodyComponent.getComponentType(),
-            PersistentPhysicsBodyComponent.fromBody(body, space.getId()));
+        PhysicsBodyId bodyId = resource.addBody(space.getId(),
+            body,
+            PhysicsBodyKind.BODY,
+            PhysicsBodyPersistenceMode.PERSISTENT);
+        holder.addComponent(PhysicsBodyAttachmentComponent.getComponentType(),
+            new PhysicsBodyAttachmentComponent(bodyId,
+                space.getId(),
+                TransformAuthority.BODY,
+                AttachmentLifecycle.EXTERNAL_ENTITY));
         holder.addComponent(ImpulseControllableComponent.getComponentType(),
             new ImpulseControllableComponent());
 
-        Ref<EntityStore> ref = store.addEntity(holder, AddReason.SPAWN);
-        space.addBody(body);
-        return ref;
+        return store.addEntity(holder, AddReason.SPAWN);
     }
 }

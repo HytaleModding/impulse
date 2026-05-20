@@ -9,32 +9,24 @@ import com.hypixel.hytale.component.query.Query;
 import com.hypixel.hytale.component.system.HolderSystem;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import dev.hytalemodding.impulse.core.components.ImpulseControllableComponent;
-import dev.hytalemodding.impulse.core.components.PersistentPhysicsBodyComponent;
-import dev.hytalemodding.impulse.core.components.PhysicsBodyComponent;
+import dev.hytalemodding.impulse.core.components.PhysicsBodyAttachmentComponent;
 import dev.hytalemodding.impulse.core.components.PhysicsControlSessionComponent;
-import dev.hytalemodding.impulse.core.components.PhysicsBodyVisualComponent;
 import javax.annotation.Nonnull;
 
 /**
- * Strips runtime-only physics components from holders when entities cross
- * unload/load boundaries, and marks persisted bodies for later rehydration.
+ * Strips runtime-only physics attachment/control components from holders when
+ * entities cross unload/load boundaries.
  */
 public class PhysicsRuntimeHolderSystem extends HolderSystem<EntityStore> {
 
-    private static final ComponentType<EntityStore, PersistentPhysicsBodyComponent>
-        PERSISTENT_BODY_TYPE = PersistentPhysicsBodyComponent.getComponentType();
-    private static final ComponentType<EntityStore, PhysicsBodyComponent> PHYSICS_BODY_TYPE =
-        PhysicsBodyComponent.getComponentType();
-    private static final ComponentType<EntityStore, PhysicsBodyVisualComponent>
-        PHYSICS_BODY_VISUAL_TYPE = PhysicsBodyVisualComponent.getComponentType();
+    private static final ComponentType<EntityStore, PhysicsBodyAttachmentComponent> ATTACHMENT_TYPE =
+        PhysicsBodyAttachmentComponent.getComponentType();
     private static final ComponentType<EntityStore, ImpulseControllableComponent>
         IMPULSE_CONTROLLABLE_TYPE = ImpulseControllableComponent.getComponentType();
     private static final ComponentType<EntityStore, PhysicsControlSessionComponent>
         PHYSICS_CONTROL_SESSION_TYPE = PhysicsControlSessionComponent.getComponentType();
     private static final Query<EntityStore> QUERY = Query.or(
-        PERSISTENT_BODY_TYPE,
-        PHYSICS_BODY_TYPE,
-        PHYSICS_BODY_VISUAL_TYPE,
+        ATTACHMENT_TYPE,
         IMPULSE_CONTROLLABLE_TYPE,
         PHYSICS_CONTROL_SESSION_TYPE);
 
@@ -55,15 +47,9 @@ public class PhysicsRuntimeHolderSystem extends HolderSystem<EntityStore> {
     }
 
     private static void cleanupHolder(@Nonnull Holder<EntityStore> holder, boolean markForRebuild) {
-        boolean removedRuntimeBody = holder.tryRemoveComponent(PHYSICS_BODY_TYPE);
-        holder.tryRemoveComponent(PHYSICS_BODY_VISUAL_TYPE);
+        holder.tryRemoveComponent(ATTACHMENT_TYPE);
         holder.tryRemoveComponent(IMPULSE_CONTROLLABLE_TYPE);
         holder.tryRemoveComponent(PHYSICS_CONTROL_SESSION_TYPE);
-
-        PersistentPhysicsBodyComponent persistent = holder.getComponent(PERSISTENT_BODY_TYPE);
-        if (persistent != null && (markForRebuild || removedRuntimeBody)) {
-            persistent.markForBodyRebuild();
-        }
     }
 
     @Nonnull

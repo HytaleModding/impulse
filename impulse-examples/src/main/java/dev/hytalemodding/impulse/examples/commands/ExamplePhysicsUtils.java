@@ -22,8 +22,12 @@ import dev.hytalemodding.impulse.api.PhysicsBody;
 import dev.hytalemodding.impulse.api.PhysicsSpace;
 import dev.hytalemodding.impulse.api.SpaceId;
 import dev.hytalemodding.impulse.core.components.ImpulseControllableComponent;
-import dev.hytalemodding.impulse.core.components.PersistentPhysicsBodyComponent;
-import dev.hytalemodding.impulse.core.components.PhysicsBodyComponent;
+import dev.hytalemodding.impulse.core.components.PhysicsBodyAttachmentComponent;
+import dev.hytalemodding.impulse.core.components.PhysicsBodyAttachmentComponent.AttachmentLifecycle;
+import dev.hytalemodding.impulse.core.components.PhysicsBodyAttachmentComponent.TransformAuthority;
+import dev.hytalemodding.impulse.core.resources.PhysicsBodyId;
+import dev.hytalemodding.impulse.core.resources.PhysicsBodyKind;
+import dev.hytalemodding.impulse.core.resources.PhysicsBodyPersistenceMode;
 import dev.hytalemodding.impulse.core.resources.PhysicsWorldResource;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
@@ -78,12 +82,13 @@ final class ExamplePhysicsUtils {
         @Nonnull PhysicsBody body,
         @Nonnull Vector3d visualPosition) {
         TimeResource time = store.getResource(TimeResource.getResourceType());
-        return spawnBlockBody(store, time, space.getId(), space, body, visualPosition);
+        return spawnBlockBody(store, time, resource, space.getId(), space, body, visualPosition);
     }
 
     @Nonnull
     static Ref<EntityStore> spawnBlockBody(@Nonnull Store<EntityStore> store,
         @Nonnull TimeResource time,
+        @Nonnull PhysicsWorldResource resource,
         @Nonnull SpaceId spaceId,
         @Nonnull PhysicsSpace space,
         @Nonnull PhysicsBody body,
@@ -99,12 +104,13 @@ final class ExamplePhysicsUtils {
             (float) (visualPosition.y + body.getCenterOfMassOffsetY()),
             (float) visualPosition.z);
 
-        return attachBlockBodyEntity(store, holder, spaceId, space, body, true);
+        return attachBlockBodyEntity(store, holder, resource, spaceId, body, true);
     }
 
     @Nonnull
     static Ref<EntityStore> attachExistingBlockBody(@Nonnull Store<EntityStore> store,
         @Nonnull TimeResource time,
+        @Nonnull PhysicsWorldResource resource,
         @Nonnull SpaceId spaceId,
         @Nonnull PhysicsBody body) {
         Holder<EntityStore> holder = BlockEntity.assembleDefaultBlockEntity(
@@ -114,33 +120,40 @@ final class ExamplePhysicsUtils {
         );
         holder.removeComponent(DespawnComponent.getComponentType());
 
-        return attachBlockBodyEntity(store, holder, spaceId, null, body, false);
+        return attachBlockBodyEntity(store, holder, resource, spaceId, body, false);
     }
 
     @Nonnull
     private static Ref<EntityStore> attachBlockBodyEntity(@Nonnull Store<EntityStore> store,
         @Nonnull Holder<EntityStore> holder,
+        @Nonnull PhysicsWorldResource resource,
         @Nonnull SpaceId spaceId,
-        @Nullable PhysicsSpace space,
         @Nonnull PhysicsBody body,
         boolean addBodyToSpace) {
 
-        holder.addComponent(PhysicsBodyComponent.getComponentType(),
-            new PhysicsBodyComponent(body, spaceId));
-        holder.addComponent(PersistentPhysicsBodyComponent.getComponentType(),
-            PersistentPhysicsBodyComponent.fromBody(body, spaceId));
+        PhysicsBodyId bodyId = resource.getBodyId(body);
+        if (bodyId == null) {
+            bodyId = resource.addBody(spaceId,
+                body,
+                PhysicsBodyKind.BODY,
+                PhysicsBodyPersistenceMode.PERSISTENT);
+        } else if (addBodyToSpace) {
+            resource.addBody(bodyId,
+                spaceId,
+                body,
+                PhysicsBodyKind.BODY,
+                PhysicsBodyPersistenceMode.PERSISTENT);
+        }
+        holder.addComponent(PhysicsBodyAttachmentComponent.getComponentType(),
+            new PhysicsBodyAttachmentComponent(bodyId,
+                spaceId,
+                TransformAuthority.BODY,
+                AttachmentLifecycle.EXTERNAL_ENTITY));
         if (body.isDynamic()) {
             holder.addComponent(ImpulseControllableComponent.getComponentType(),
                 new ImpulseControllableComponent());
         }
-        Ref<EntityStore> entityRef = store.addEntity(holder, AddReason.SPAWN);
-        if (addBodyToSpace) {
-            if (space == null) {
-                throw new IllegalArgumentException("Space is required when adding a body to the backend");
-            }
-            space.addBody(body);
-        }
-        return entityRef;
+        return store.addEntity(holder, AddReason.SPAWN);
     }
 
     @Nonnull

@@ -13,6 +13,7 @@ import dev.hytalemodding.impulse.api.PhysicsBodyType;
 import dev.hytalemodding.impulse.api.PhysicsJoint;
 import dev.hytalemodding.impulse.api.PhysicsSpace;
 import dev.hytalemodding.impulse.core.components.PhysicsControlSessionComponent;
+import dev.hytalemodding.impulse.core.resources.PhysicsBodyId;
 import dev.hytalemodding.impulse.core.resources.PhysicsWorldResource;
 import java.util.concurrent.CompletableFuture;
 import javax.annotation.Nonnull;
@@ -54,15 +55,12 @@ public class ReleaseCommand extends AbstractAsyncPlayerCommand {
                 space.removeJoint(joint);
             }
 
-            PhysicsBody anchorBody = session.getAnchorBody();
-            if (anchorBody != null) {
-                space.removeBody(anchorBody);
-            }
         }
 
-        PhysicsBody body = session.getBody();
+        PhysicsBodyId bodyId = session.getBodyId();
+        PhysicsBody body = bodyId != null ? resource.getBody(bodyId) : null;
         if (body != null) {
-            resource.clearControlledBody(body);
+            resource.clearControlledBody(bodyId);
             PhysicsBodyType originalBodyType = session.getOriginalBodyType();
             body.setBodyType(originalBodyType);
             if (originalBodyType == PhysicsBodyType.DYNAMIC) {
@@ -72,6 +70,9 @@ public class ReleaseCommand extends AbstractAsyncPlayerCommand {
                 body.setLinearVelocity(0.0f, 0.0f, 0.0f);
             }
             body.activate();
+        }
+        if (session.getAnchorBodyId() != null) {
+            resource.destroyBody(session.getAnchorBodyId());
         }
 
         session.deactivate();

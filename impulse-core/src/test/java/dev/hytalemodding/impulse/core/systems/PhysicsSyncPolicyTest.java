@@ -17,6 +17,7 @@ class PhysicsSyncPolicyTest {
 
         assertEquals(PhysicsSyncPolicy.SyncDecision.INITIAL,
             PhysicsSyncPolicy.resolveSyncDecision(syncState,
+                PhysicsSpaceSettings.defaults(),
                 new Vector3f(),
                 new Quaternionf(),
                 false,
@@ -31,6 +32,7 @@ class PhysicsSyncPolicyTest {
 
         assertEquals(PhysicsSyncPolicy.SyncDecision.TRANSITION,
             PhysicsSyncPolicy.resolveSyncDecision(syncState,
+                PhysicsSpaceSettings.defaults(),
                 new Vector3f(),
                 new Quaternionf(),
                 true,
@@ -45,6 +47,7 @@ class PhysicsSyncPolicyTest {
 
         assertEquals(PhysicsSyncPolicy.SyncDecision.SKIP_VISUAL_RANGE,
             PhysicsSyncPolicy.resolveSyncDecision(syncState,
+                PhysicsSpaceSettings.defaults(),
                 new Vector3f(),
                 new Quaternionf(),
                 false,
@@ -60,6 +63,7 @@ class PhysicsSyncPolicyTest {
 
         assertEquals(PhysicsSyncPolicy.SyncDecision.SKIP_VISUAL_DEADZONE,
             PhysicsSyncPolicy.resolveSyncDecision(syncState,
+                PhysicsSpaceSettings.defaults(),
                 new Vector3f(0.05f, 0.0f, 0.0f),
                 new Quaternionf(),
                 false,
@@ -75,6 +79,7 @@ class PhysicsSyncPolicyTest {
 
         assertEquals(PhysicsSyncPolicy.SyncDecision.KEEPALIVE,
             PhysicsSyncPolicy.resolveSyncDecision(syncState,
+                PhysicsSpaceSettings.defaults(),
                 new Vector3f(0.05f, 0.0f, 0.0f),
                 new Quaternionf(),
                 false,
@@ -90,6 +95,7 @@ class PhysicsSyncPolicyTest {
 
         assertEquals(PhysicsSyncPolicy.SyncDecision.SKIP_VISUAL_RANGE,
             PhysicsSyncPolicy.resolveSyncDecision(syncState,
+                PhysicsSpaceSettings.defaults(),
                 new Vector3f(0.2f, 0.0f, 0.0f),
                 new Quaternionf(),
                 false,
@@ -100,6 +106,7 @@ class PhysicsSyncPolicyTest {
         syncState.recordSkip(0.1f);
         assertEquals(PhysicsSyncPolicy.SyncDecision.KEEPALIVE,
             PhysicsSyncPolicy.resolveSyncDecision(syncState,
+                PhysicsSpaceSettings.defaults(),
                 new Vector3f(0.2f, 0.0f, 0.0f),
                 new Quaternionf(),
                 false,
@@ -114,6 +121,7 @@ class PhysicsSyncPolicyTest {
 
         assertEquals(PhysicsSyncPolicy.SyncDecision.THRESHOLD,
             PhysicsSyncPolicy.resolveSyncDecision(syncState,
+                PhysicsSpaceSettings.defaults(),
                 new Vector3f(0.05f, 0.0f, 0.0f),
                 new Quaternionf(),
                 false,
@@ -129,6 +137,7 @@ class PhysicsSyncPolicyTest {
 
         assertEquals(PhysicsSyncPolicy.SyncDecision.THRESHOLD,
             PhysicsSyncPolicy.resolveSyncDecision(syncState,
+                PhysicsSpaceSettings.defaults(),
                 new Vector3f(),
                 rotated,
                 false,
@@ -144,6 +153,7 @@ class PhysicsSyncPolicyTest {
 
         assertEquals(PhysicsSyncPolicy.SyncDecision.SKIP_SLEEPING,
             PhysicsSyncPolicy.resolveSyncDecision(syncState,
+                PhysicsSpaceSettings.defaults(),
                 new Vector3f(),
                 new Quaternionf(),
                 true,
@@ -155,16 +165,19 @@ class PhysicsSyncPolicyTest {
     @Test
     void rangeTierReturnsNearForNonLimitedOrControlledVisuals() {
         PhysicsSpaceSettings settings = PhysicsSpaceSettings.defaults();
-        List<Vector3f> players = List.of(new Vector3f(100.0f, 0.0f, 0.0f));
+        List<PhysicsSyncPolicy.PlayerInterest> players =
+            interests(new Vector3f(100.0f, 0.0f, 0.0f));
 
         assertEquals(PhysicsSyncPolicy.SyncRangeTier.NEAR,
             PhysicsSyncPolicy.resolveRangeTier(settings,
+                null,
                 false,
                 false,
                 players,
                 new Vector3f()));
         assertEquals(PhysicsSyncPolicy.SyncRangeTier.NEAR,
             PhysicsSyncPolicy.resolveRangeTier(settings,
+                null,
                 true,
                 true,
                 players,
@@ -175,6 +188,7 @@ class PhysicsSyncPolicyTest {
     void rangeTierReturnsFarWhenNoPlayersAreInterested() {
         assertEquals(PhysicsSyncPolicy.SyncRangeTier.FAR,
             PhysicsSyncPolicy.resolveRangeTier(PhysicsSpaceSettings.defaults(),
+                null,
                 true,
                 false,
                 List.of(),
@@ -185,9 +199,10 @@ class PhysicsSyncPolicyTest {
     void rangeTierFallsBackToNearWhenSettingsAreMissing() {
         assertEquals(PhysicsSyncPolicy.SyncRangeTier.NEAR,
             PhysicsSyncPolicy.resolveRangeTier(null,
+                null,
                 true,
                 false,
-                List.of(new Vector3f(500.0f, 0.0f, 0.0f)),
+                interests(new Vector3f(500.0f, 0.0f, 0.0f)),
                 new Vector3f()));
     }
 
@@ -197,22 +212,25 @@ class PhysicsSyncPolicyTest {
         settings.setVisualFullSyncRadius(10);
         settings.setVisualMaxSyncRadius(20);
 
-        List<Vector3f> players = List.of(new Vector3f(0.0f, 0.0f, 0.0f));
+        List<PhysicsSyncPolicy.PlayerInterest> players = interests(new Vector3f(0.0f, 0.0f, 0.0f));
 
         assertEquals(PhysicsSyncPolicy.SyncRangeTier.NEAR,
             PhysicsSyncPolicy.resolveRangeTier(settings,
+                null,
                 true,
                 false,
                 players,
                 new Vector3f(6.0f, 0.0f, 0.0f)));
         assertEquals(PhysicsSyncPolicy.SyncRangeTier.MID,
             PhysicsSyncPolicy.resolveRangeTier(settings,
+                null,
                 true,
                 false,
                 players,
                 new Vector3f(15.0f, 0.0f, 0.0f)));
         assertEquals(PhysicsSyncPolicy.SyncRangeTier.FAR,
             PhysicsSyncPolicy.resolveRangeTier(settings,
+                null,
                 true,
                 false,
                 players,
@@ -223,5 +241,11 @@ class PhysicsSyncPolicyTest {
         PhysicsWorldResource.BodySyncState syncState = new PhysicsWorldResource.BodySyncState();
         syncState.recordSync(new Vector3f(), new Quaternionf(), sleeping);
         return syncState;
+    }
+
+    private static List<PhysicsSyncPolicy.PlayerInterest> interests(Vector3f... positions) {
+        return java.util.Arrays.stream(positions)
+            .map(position -> new PhysicsSyncPolicy.PlayerInterest(position, new Vector3f(1.0f, 0.0f, 0.0f)))
+            .toList();
     }
 }

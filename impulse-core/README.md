@@ -2,7 +2,17 @@
 
 Hytale ECS integration for Impulse.
 
-Impulse is currently unreleased. The primary runtime model is backend-owned physics bodies registered in `PhysicsWorldResource`; full Hytale entities are adapter objects for interaction, selection, examples, and visual proxies.
+Impulse is currently unreleased. The primary runtime model is backend bodies registered in `PhysicsWorldResource` by stable `PhysicsBodyId`. Full Hytale entities are gameplay adapters or generated visual views; they do not own backend body destruction.
+
+## Body lifecycle
+
+Impulse runtime bodies fall into three categories:
+
+- Entity-attached bodies: gameplay objects such as players, NPCs, mobs, vehicles, props, and examples keep Hytale entities for identity and interaction. Those entities hold a `PhysicsBodyAttachmentComponent` with a body id. Removing the entity clears the attachment only.
+- Detached bodies with optional views: backend bodies can exist without any Hytale entity. `PhysicsDetachedVisualMaterializationSystem` may create generated visual proxy entities near viewers; deleting a proxy does not delete the body.
+- Runtime-only helper bodies: temporary anchors, world-collision helpers, and stress/runtime support bodies are registered as runtime-only resources and are never persisted.
+
+Backend body deletion is explicit through `PhysicsWorldResource.destroyBody(bodyId)`. Entity removal, view dematerialization, chunk migration, and sync cleanup must not implicitly remove backend bodies.
 
 ## Space commands
 
@@ -33,7 +43,7 @@ Bullet is the default backend when it is available. Rapier currently has the str
 
 ## Cleanup commands
 
-- `/impulse clean --confirm` - remove Impulse body entities, visual proxies, runtime bodies, joints, spaces, and control sessions from the current world.
+- `/impulse clean --confirm` - remove Impulse attachment entities, visual proxies, runtime bodies, joints, and control sessions from the current world while keeping explicit spaces.
 
 Cleanup does not create a replacement/default space implicitly. Run `/impulse space create --default true` after cleaning when the next workflow needs a default space.
 
@@ -59,7 +69,7 @@ Cleanup does not create a replacement/default space implicitly. Run `/impulse sp
 - `/impulse perf disable` - disable profiling.
 - `/impulse perf toggle` - toggle profiling.
 - `/impulse perf report` - print physics-step, sync, entity, detached, and world-collision profiling metrics.
-- `/impulse perf stats` - show per-space body, awake, sleeping, joint, contact, and ownership counts.
+- `/impulse perf stats` - show per-space body, awake, sleeping, joint, contact, attachment, detached, and world-collision counts.
 - `/impulse perf reset` - reset profiling counters.
 
 ## Debug commands

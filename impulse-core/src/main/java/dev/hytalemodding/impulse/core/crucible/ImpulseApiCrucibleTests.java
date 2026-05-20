@@ -7,6 +7,9 @@ import dev.hytalemodding.impulse.api.PhysicsBody;
 import dev.hytalemodding.impulse.api.PhysicsSpace;
 import dev.hytalemodding.impulse.api.SpaceId;
 import dev.hytalemodding.impulse.core.ImpulsePlugin;
+import dev.hytalemodding.impulse.core.resources.PhysicsBodyId;
+import dev.hytalemodding.impulse.core.resources.PhysicsBodyKind;
+import dev.hytalemodding.impulse.core.resources.PhysicsBodyPersistenceMode;
 import dev.hytalemodding.impulse.core.resources.PhysicsSpaceSettings;
 import dev.hytalemodding.impulse.core.resources.PhysicsWorldResource;
 import dev.hytalemodding.impulse.core.resources.VisualOcclusionMode;
@@ -174,11 +177,13 @@ final class ImpulseApiCrucibleTests {
         try {
             PhysicsBody body = space.createBox(0.5f, 0.5f, 0.5f, 1.0f);
             body.setPosition(0f, 5f, 0f);
-            space.addBody(body);
-            resource.registerDetachedBody(body, space.getId());
+            PhysicsBodyId bodyId = resource.addBody(space.getId(),
+                body,
+                PhysicsBodyKind.BODY,
+                PhysicsBodyPersistenceMode.RUNTIME_ONLY);
 
-            resource.unregisterBody(body, true);
-            return space.bodyCount() == 0 && resource.getDetachedBodies().isEmpty();
+            resource.destroyBody(bodyId);
+            return space.bodyCount() == 0 && resource.getBodyRegistrations().isEmpty();
         } finally {
             resource.clearAllSpaces("crucible");
         }

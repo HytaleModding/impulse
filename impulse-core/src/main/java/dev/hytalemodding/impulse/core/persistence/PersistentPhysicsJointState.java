@@ -7,26 +7,23 @@ import com.hypixel.hytale.codec.codecs.EnumCodec;
 import com.hypixel.hytale.math.vector.Vector3fUtil;
 import dev.hytalemodding.impulse.api.PhysicsJoint;
 import dev.hytalemodding.impulse.api.PhysicsJointType;
+import dev.hytalemodding.impulse.core.resources.PhysicsBodyId;
 import java.util.UUID;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
-import lombok.Getter;
 import lombok.Setter;
 import org.joml.Vector3f;
 
 /**
  * Codec-backed definition of one physics joint for the persistence layer.
  *
- * This class uses entity UUIDs to identify the two
- * endpoint bodies. When the hydration systems rebuild a joint, they look up
- * the live bodies by UUID through the entity store.</p>
+ * This class uses stable physics body ids to identify the two endpoint bodies.
  *
  * <p>The {@link #key()} method produces a deterministic string from all fields
  * (using {@link Float#floatToIntBits(float)} to avoid floating-point drift).
  * The joint hydration system uses this to detect whether a given joint already
  * exists in the runtime space and avoid duplicating it on repeated ticks.</p>
  */
-@Getter
 public class PersistentPhysicsJointState {
 
     @Nonnull
@@ -37,13 +34,13 @@ public class PersistentPhysicsJointState {
             (state, value) -> state.spaceId = value,
             PersistentPhysicsJointState::getSpaceId)
         .add()
-        .append(new KeyedCodec<>("BodyAUuid", Codec.UUID_BINARY),
-            (state, value) -> state.bodyAUuid = value,
-            PersistentPhysicsJointState::getBodyAUuid)
+        .append(new KeyedCodec<>("BodyAId", Codec.UUID_BINARY),
+            (state, value) -> state.bodyAId = value,
+            PersistentPhysicsJointState::getBodyAIdValue)
         .add()
-        .append(new KeyedCodec<>("BodyBUuid", Codec.UUID_BINARY),
-            (state, value) -> state.bodyBUuid = value,
-            PersistentPhysicsJointState::getBodyBUuid)
+        .append(new KeyedCodec<>("BodyBId", Codec.UUID_BINARY),
+            (state, value) -> state.bodyBId = value,
+            PersistentPhysicsJointState::getBodyBIdValue)
         .add()
         .append(new KeyedCodec<>("Type", new EnumCodec<>(PhysicsJointType.class)),
             (state, value) -> state.type = value,
@@ -102,11 +99,9 @@ public class PersistentPhysicsJointState {
     @Setter
     private int spaceId;
     @Nullable
-    @Setter
-    private UUID bodyAUuid;
+    private UUID bodyAId;
     @Nullable
-    @Setter
-    private UUID bodyBUuid;
+    private UUID bodyBId;
     @Nonnull
     @Setter
     private PhysicsJointType type = PhysicsJointType.FIXED;
@@ -138,15 +133,75 @@ public class PersistentPhysicsJointState {
     public PersistentPhysicsJointState() {
     }
 
+    public int getSpaceId() {
+        return spaceId;
+    }
+
+    @Nonnull
+    public PhysicsJointType getType() {
+        return type;
+    }
+
+    @Nonnull
+    public Vector3f getAnchorA() {
+        return anchorA;
+    }
+
+    @Nonnull
+    public Vector3f getAnchorB() {
+        return anchorB;
+    }
+
+    @Nullable
+    public Vector3f getAxis() {
+        return axis;
+    }
+
+    public float getLowerLimit() {
+        return lowerLimit;
+    }
+
+    public float getUpperLimit() {
+        return upperLimit;
+    }
+
+    public boolean isEnabled() {
+        return enabled;
+    }
+
+    public boolean isMotorEnabled() {
+        return motorEnabled;
+    }
+
+    public float getMotorTargetVelocity() {
+        return motorTargetVelocity;
+    }
+
+    public float getMotorMaxForce() {
+        return motorMaxForce;
+    }
+
+    public float getSpringRestLength() {
+        return springRestLength;
+    }
+
+    public float getSpringStiffness() {
+        return springStiffness;
+    }
+
+    public float getSpringDamping() {
+        return springDamping;
+    }
+
     @Nonnull
     public static PersistentPhysicsJointState from(int spaceId,
-        @Nonnull UUID bodyAUuid,
-        @Nonnull UUID bodyBUuid,
+        @Nonnull PhysicsBodyId bodyAId,
+        @Nonnull PhysicsBodyId bodyBId,
         @Nonnull PhysicsJoint joint) {
         PersistentPhysicsJointState state = new PersistentPhysicsJointState();
         state.spaceId = spaceId;
-        state.bodyAUuid = bodyAUuid;
-        state.bodyBUuid = bodyBUuid;
+        state.bodyAId = bodyAId.value();
+        state.bodyBId = bodyBId.value();
         state.type = joint.getType();
         state.anchorA.set(joint.getAnchorA());
         state.anchorB.set(joint.getAnchorB());
@@ -164,6 +219,34 @@ public class PersistentPhysicsJointState {
         return state;
     }
 
+    @Nullable
+    public PhysicsBodyId getBodyAId() {
+        return bodyAId != null ? PhysicsBodyId.of(bodyAId) : null;
+    }
+
+    @Nullable
+    public UUID getBodyAIdValue() {
+        return bodyAId;
+    }
+
+    public void setBodyAId(@Nullable PhysicsBodyId bodyAId) {
+        this.bodyAId = bodyAId != null ? bodyAId.value() : null;
+    }
+
+    @Nullable
+    public PhysicsBodyId getBodyBId() {
+        return bodyBId != null ? PhysicsBodyId.of(bodyBId) : null;
+    }
+
+    @Nullable
+    public UUID getBodyBIdValue() {
+        return bodyBId;
+    }
+
+    public void setBodyBId(@Nullable PhysicsBodyId bodyBId) {
+        this.bodyBId = bodyBId != null ? bodyBId.value() : null;
+    }
+
     public void setAxis(@Nullable Vector3f axis) {
         this.axis = axis != null ? new Vector3f(axis) : null;
     }
@@ -175,9 +258,9 @@ public class PersistentPhysicsJointState {
             .append('|')
             .append(type.name())
             .append('|')
-            .append(bodyAUuid)
+            .append(bodyAId)
             .append('|')
-            .append(bodyBUuid)
+            .append(bodyBId)
             .append('|')
             .append(bits(anchorA.x))
             .append('|')
@@ -229,8 +312,8 @@ public class PersistentPhysicsJointState {
     public PersistentPhysicsJointState copy() {
         PersistentPhysicsJointState copy = new PersistentPhysicsJointState();
         copy.spaceId = spaceId;
-        copy.bodyAUuid = bodyAUuid;
-        copy.bodyBUuid = bodyBUuid;
+        copy.bodyAId = bodyAId;
+        copy.bodyBId = bodyBId;
         copy.type = type;
         copy.anchorA.set(anchorA);
         copy.anchorB.set(anchorB);

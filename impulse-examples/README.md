@@ -18,7 +18,7 @@ Use `/impulse space default --space <space-id>` instead when selecting an existi
 
 ## Example commands
 
-These commands are for gameplay/API demonstrations and may use full Hytale entities intentionally.
+These commands are for gameplay/API demonstrations and may use full Hytale entities intentionally. Example entities attach to registered `PhysicsBodyId`s; removing an entity no longer destroys the backend body unless a command explicitly destroys that body id.
 
 - `/impulse-examples drop` - spawn one falling entity-owned box.
 - `/impulse-examples shapes` - spawn box, sphere, capsule, cylinder, and cone examples.
@@ -29,12 +29,12 @@ These commands are for gameplay/API demonstrations and may use full Hytale entit
 
 ## Stress commands
 
-The scalable path is `detached-view`: detached registry bodies with on-demand visual proxies. Entity-backed stress is diagnostic only.
+The scalable path is `detached-view`: registered runtime-only bodies with on-demand generated attachment proxies. Entity-backed stress is diagnostic only.
 
 - `/impulse-examples stress bodies --count <n>` - spawn detached registry bodies with on-demand visual proxies. This defaults to `--mode=detached-view`.
 - `/impulse-examples stress bodies --count <n> --mode=detached` - spawn backend bodies with no Hytale visuals.
 - `/impulse-examples stress bodies --count <n> --mode=entity` - spawn full Hytale entity-backed bodies for adapter overhead diagnostics.
-- `/impulse-examples stress raw-bodies --count <n>` - spawn backend bodies without Hytale entities or registry ownership diagnostics.
+- `/impulse-examples stress raw-bodies --count <n>` - spawn backend bodies without Hytale entities or body-id registration diagnostics.
 - `/impulse-examples stress benchmark --mode raw|entity --count <n>` - spawn a repeatable benchmark grid near the player.
 - `/impulse-examples stress auto-benchmark --confirm true --mode raw|detached|detached-view|detached-view-chunks|entity --count <n> --sampleTicks <n>` - run a fixed-origin benchmark and report profiling after the sample window. This defaults to `--mode=detached-view`.
 - `/impulse-examples stress shapes --sets <n>` - spawn mixed box, sphere, capsule, cylinder, and cone bodies.
@@ -42,11 +42,11 @@ The scalable path is `detached-view`: detached registry bodies with on-demand vi
 - `/impulse-examples stress raycast --rays <n>` - run many raycasts and report timing.
 - `/impulse-examples stress swap --cycles <n>` - repeatedly migrate the default space between Bullet and Rapier.
 
-`auto-benchmark` is destructive: it clears existing Impulse body entities, visual proxies, runtime spaces, body ownership, and control sessions, then creates a fresh benchmark space and enables profiling. Use `detached-view` for the current 10k target path, `detached` or `raw-bodies` to isolate backend physics cost, `detached-view-chunks` to diagnose chunk-retained visual loading, and `entity` only when reviewing Hytale ECS, transform sync, networking, and rendering overhead.
+`auto-benchmark` is destructive: it clears existing Impulse attachment entities, visual proxies, runtime spaces, registered bodies, and control sessions, then creates a fresh benchmark space and enables profiling. Use `detached-view` for the current 10k target path, `detached` or `raw-bodies` to isolate backend physics cost, `detached-view-chunks` to diagnose chunk-retained visual loading, and `entity` only when reviewing Hytale ECS, transform sync, networking, and rendering overhead.
 
 ## Persistence commands
 
-- `/impulse-examples persistence save --name <name>` - save entity-backed Impulse persistence state to an explicit snapshot file.
-- `/impulse-examples persistence load --name <name> --confirm true` - load a snapshot onto existing Hytale entities without respawning them.
+- `/impulse-examples persistence save --name <name>` - reports that legacy entity-backed snapshot files are unsupported after schema v3.
+- `/impulse-examples persistence load --name <name> --confirm true` - reports that legacy entity-backed snapshot files are unsupported after schema v3.
 
-`persistence load` is destructive: it resets runtime physics, replaces persisted spaces and joints with the filtered snapshot, rebuilds matched bodies, and removes persistence from current entity-backed bodies that are not present in the snapshot.
+Hytale world persistence now stores persistent body state at world level by `PhysicsBodyId`. Old entity-backed example snapshot files are intentionally rejected rather than migrated implicitly.

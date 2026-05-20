@@ -4,11 +4,11 @@ import com.hypixel.hytale.component.Component;
 import com.hypixel.hytale.component.ComponentType;
 import com.hypixel.hytale.component.Ref;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
-import dev.hytalemodding.impulse.api.PhysicsBody;
 import dev.hytalemodding.impulse.api.PhysicsBodyType;
 import dev.hytalemodding.impulse.api.PhysicsJoint;
 import dev.hytalemodding.impulse.api.SpaceId;
 import dev.hytalemodding.impulse.core.ImpulsePlugin;
+import dev.hytalemodding.impulse.core.resources.PhysicsBodyId;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 import org.joml.Vector3f;
@@ -18,9 +18,9 @@ import lombok.Getter;
 public class PhysicsControlSessionComponent implements Component<EntityStore> {
 
     @Nullable
-    private PhysicsBody body;
+    private PhysicsBodyId bodyId;
     @Nullable
-    private PhysicsBody anchorBody;
+    private PhysicsBodyId anchorBodyId;
     @Nullable
     private PhysicsJoint joint;
     @Nullable
@@ -43,8 +43,8 @@ public class PhysicsControlSessionComponent implements Component<EntityStore> {
     public PhysicsControlSessionComponent() {
     }
 
-    public PhysicsControlSessionComponent(@Nonnull PhysicsBody body,
-        @Nonnull PhysicsBody anchorBody,
+    public PhysicsControlSessionComponent(@Nonnull PhysicsBodyId bodyId,
+        @Nonnull PhysicsBodyId anchorBodyId,
         @Nonnull PhysicsJoint joint,
         @Nullable Ref<EntityStore> targetRef,
         @Nullable SpaceId spaceId,
@@ -52,8 +52,8 @@ public class PhysicsControlSessionComponent implements Component<EntityStore> {
         float grabDistance,
         @Nonnull Vector3f viewOffset,
         @Nonnull Vector3f previousTarget) {
-        this.body = body;
-        this.anchorBody = anchorBody;
+        this.bodyId = bodyId;
+        this.anchorBodyId = anchorBodyId;
         this.joint = joint;
         this.targetRef = targetRef;
         this.spaceId = spaceId;
@@ -76,8 +76,8 @@ public class PhysicsControlSessionComponent implements Component<EntityStore> {
     @Override
     public PhysicsControlSessionComponent clone() {
         PhysicsControlSessionComponent copy = new PhysicsControlSessionComponent();
-        copy.body = body;
-        copy.anchorBody = anchorBody;
+        copy.bodyId = bodyId;
+        copy.anchorBodyId = anchorBodyId;
         copy.joint = joint;
         copy.targetRef = targetRef;
         copy.spaceId = spaceId;

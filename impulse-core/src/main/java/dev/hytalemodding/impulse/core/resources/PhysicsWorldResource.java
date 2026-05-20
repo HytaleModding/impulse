@@ -21,8 +21,10 @@ import it.unimi.dsi.fastutil.ints.Int2ObjectOpenHashMap;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.HashSet;
 import java.util.IdentityHashMap;
 import java.util.Iterator;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -82,13 +84,10 @@ public class PhysicsWorldResource implements Resource<EntityStore> {
         Collections.newSetFromMap(new IdentityHashMap<>());
 
     private final Map<Ref<EntityStore>, BodySyncState> bodySyncStates = new IdentityHashMap<>();
-    private final Set<PhysicsBody> controlledBodies =
-        Collections.newSetFromMap(new IdentityHashMap<>());
-    private final Map<PhysicsBody, ChunkBoundarySafeState> chunkBoundarySafeStates =
-        new IdentityHashMap<>();
-    private final Map<PhysicsBody, ChunkBoundaryPauseState> chunkBoundaryPauseStates =
-        new IdentityHashMap<>();
-    private final Map<PhysicsBody, PhysicsBodySnapshot> bodySnapshots = new IdentityHashMap<>();
+    private final Set<PhysicsBodyId> controlledBodies = new HashSet<>();
+    private final Map<PhysicsBodyId, ChunkBoundarySafeState> chunkBoundarySafeStates = new LinkedHashMap<>();
+    private final Map<PhysicsBodyId, ChunkBoundaryPauseState> chunkBoundaryPauseStates = new LinkedHashMap<>();
+    private final Map<PhysicsBodyId, PhysicsBodySnapshot> bodySnapshots = new LinkedHashMap<>();
     private final PhysicsBodySpatialIndex bodySpatialIndex = new PhysicsBodySpatialIndex();
 
     public PhysicsWorldResource() {
@@ -232,44 +231,59 @@ public class PhysicsWorldResource implements Resource<EntityStore> {
     }
 
     public int refreshBodySnapshots() {
-        Set<PhysicsBody> liveBodies = Collections.newSetFromMap(new IdentityHashMap<>());
+        Set<PhysicsBodyId> liveBodies = new HashSet<>();
         for (PhysicsSpace space : spaces.values()) {
             SpaceId spaceId = space.getId();
-            space.snapshotBodies(bodySnapshots::get, snapshot -> {
+            space.snapshotBodies(body -> {
+                PhysicsBodyId bodyId = bodyRegistry.getBodyId(body);
+                return bodyId != null ? bodySnapshots.get(bodyId) : null;
+            }, snapshot -> {
                 PhysicsBody body = snapshot.body();
-                liveBodies.add(body);
-                PhysicsBodySnapshot previous = bodySnapshots.get(body);
-                if (snapshot != previous) {
-                    bodySnapshots.put(body, snapshot);
+                PhysicsBodyId bodyId = bodyRegistry.getBodyId(body);
+                if (bodyId == null) {
+                    return;
                 }
-                bodySpatialIndex.update(snapshot, spaceId, bodyRegistry.getBodyRegistration(body));
+                liveBodies.add(bodyId);
+                PhysicsBodySnapshot previous = bodySnapshots.get(bodyId);
+                if (snapshot != previous) {
+                    bodySnapshots.put(bodyId, snapshot);
+                }
+                bodySpatialIndex.update(bodyId, snapshot, spaceId, bodyRegistry.getRegistration(body));
             });
         }
 
-        Iterator<PhysicsBody> iterator = bodySnapshots.keySet().iterator();
+        Iterator<PhysicsBodyId> iterator = bodySnapshots.keySet().iterator();
         while (iterator.hasNext()) {
-            PhysicsBody body = iterator.next();
-            if (!liveBodies.contains(body)) {
+            PhysicsBodyId bodyId = iterator.next();
+            if (!liveBodies.contains(bodyId)) {
                 iterator.remove();
-                bodySpatialIndex.remove(body);
+                bodySpatialIndex.remove(bodyId);
             }
         }
         return liveBodies.size();
     }
 
     @Nonnull
-    public PhysicsBodySnapshot getBodySnapshot(@Nonnull PhysicsBody body) {
-        PhysicsBodySnapshot snapshot = bodySnapshots.get(body);
+    public PhysicsBodySnapshot getBodySnapshot(@Nonnull PhysicsBodyId bodyId) {
+        PhysicsBodySnapshot snapshot = bodySnapshots.get(bodyId);
         if (snapshot != null) {
             return snapshot;
         }
+        BodyRegistration registration = requireBodyRegistration(bodyId);
+        PhysicsBody body = registration.body();
         snapshot = PhysicsBodySnapshot.from(body);
-        bodySnapshots.put(body, snapshot);
-        BodyRegistration registration = bodyRegistry.getBodyRegistration(body);
-        if (registration != null && registration.spaceId() != null) {
-            bodySpatialIndex.update(snapshot, registration.spaceId(), registration);
-        }
+        bodySnapshots.put(bodyId, snapshot);
+        bodySpatialIndex.update(bodyId, snapshot, registration.spaceId(), registration);
         return snapshot;
+    }
+
+    @Nonnull
+    public PhysicsBodySnapshot getBodySnapshot(@Nonnull PhysicsBody body) {
+        PhysicsBodyId bodyId = getBodyId(body);
+        if (bodyId == null) {
+            return PhysicsBodySnapshot.from(body);
+        }
+        return getBodySnapshot(bodyId);
     }
 
     public int getBodySnapshotCount() {
@@ -309,7 +323,10 @@ public class PhysicsWorldResource implements Resource<EntityStore> {
         }
         if (removed != null) {
             for (PhysicsBody body : new ArrayList<>(removed.getBodies())) {
-                unregisterBody(body, false);
+                PhysicsBodyId bodyId = getBodyId(body);
+                if (bodyId != null) {
+                    destroyBody(bodyId, false);
+                }
             }
             LOGGER.at(Level.FINE).log(
                 "World %s removed physics space id=%s backend=%s",
@@ -403,92 +420,120 @@ public class PhysicsWorldResource implements Resource<EntityStore> {
     }
 
     @Nonnull
-    public Collection<Ref<EntityStore>> getBodyOwners() {
-        List<PhysicsBody> staleBodies = new ArrayList<>();
-        Collection<Ref<EntityStore>> owners = bodyRegistry.getBodyOwners(staleBodies);
-        for (PhysicsBody body : staleBodies) {
-            clearBodyRuntimeState(body);
-        }
-        return owners;
+    public PhysicsBodyId addBody(@Nonnull SpaceId spaceId,
+        @Nonnull PhysicsBody body,
+        @Nonnull PhysicsBodyKind kind,
+        @Nonnull PhysicsBodyPersistenceMode persistenceMode) {
+        return addBody(PhysicsBodyId.random(), spaceId, body, kind, persistenceMode);
     }
 
     @Nonnull
-    public Collection<Ref<EntityStore>> getBodyVisualFollowers(@Nonnull PhysicsBody body) {
-        return bodyRegistry.getBodyVisualFollowers(body);
+    public PhysicsBodyId addBody(@Nonnull PhysicsBodyId bodyId,
+        @Nonnull SpaceId spaceId,
+        @Nonnull PhysicsBody body,
+        @Nonnull PhysicsBodyKind kind,
+        @Nonnull PhysicsBodyPersistenceMode persistenceMode) {
+        PhysicsSpace space = getSpace(spaceId);
+        if (space == null) {
+            throw new IllegalArgumentException("Physics space id=" + spaceId + " is not registered");
+        }
+        if (!containsBody(space, body)) {
+            space.addBody(body);
+        }
+        bodyRegistry.registerBody(bodyId, body, spaceId, kind, persistenceMode);
+        return bodyId;
     }
 
-    public void registerBodyVisualFollower(@Nonnull PhysicsBody body, @Nonnull Ref<EntityStore> follower) {
-        bodyRegistry.registerBodyVisualFollower(body, follower);
+    public void destroyBody(@Nonnull PhysicsBodyId bodyId) {
+        destroyBody(bodyId, true);
     }
 
-    public void unregisterBodyVisualFollower(@Nonnull PhysicsBody body, @Nonnull Ref<EntityStore> follower) {
-        bodyRegistry.unregisterBodyVisualFollower(body, follower);
-    }
-
-    public void registerBodyOwner(@Nonnull PhysicsBody body, @Nonnull Ref<EntityStore> owner) {
-        registerEntityBody(body, null, owner);
-    }
-
-    public void registerEntityBody(@Nonnull PhysicsBody body,
-        @Nullable SpaceId spaceId,
-        @Nonnull Ref<EntityStore> owner) {
-        bodyRegistry.registerEntityBody(body, spaceId, owner);
-    }
-
-    public void registerDetachedBody(@Nonnull PhysicsBody body, @Nullable SpaceId spaceId) {
-        bodyRegistry.registerDetachedBody(body, spaceId);
-    }
-
-    public void unregisterBodyOwner(@Nonnull PhysicsBody body, @Nonnull Ref<EntityStore> owner) {
-        if (bodyRegistry.unregisterBodyOwner(body, owner)) {
-            clearBodyRuntimeState(body);
+    public void destroyBody(@Nonnull PhysicsBodyId bodyId, boolean removeFromSpace) {
+        BodyRegistration registration = bodyRegistry.unregisterBody(bodyId);
+        clearBodyRuntimeState(bodyId);
+        if (removeFromSpace && registration != null) {
+            removeBodyFromSpace(registration.body(), registration);
         }
     }
 
-    public void unregisterBody(@Nonnull PhysicsBody body, boolean removeFromSpace) {
-        BodyRegistration registration = bodyRegistry.unregisterBody(body);
-        clearBodyRuntimeState(body);
-        if (removeFromSpace) {
-            removeBodyFromSpace(body, registration);
+    public void destroyBody(@Nonnull PhysicsBody body) {
+        PhysicsBodyId bodyId = getBodyId(body);
+        if (bodyId != null) {
+            destroyBody(bodyId);
+        } else {
+            removeBodyFromSpace(body, null);
         }
     }
 
     @Nullable
+    public PhysicsBody getBody(@Nonnull PhysicsBodyId bodyId) {
+        BodyRegistration registration = bodyRegistry.getRegistration(bodyId);
+        return registration != null ? registration.body() : null;
+    }
+
+    @Nullable
+    public PhysicsBodyId getBodyId(@Nonnull PhysicsBody body) {
+        return bodyRegistry.getBodyId(body);
+    }
+
+    @Nullable
     public BodyRegistration getBodyRegistration(@Nonnull PhysicsBody body) {
-        BodyRegistration registration = bodyRegistry.getBodyRegistration(body);
+        return bodyRegistry.getRegistration(body);
+    }
+
+    @Nullable
+    public BodyRegistration getRegistration(@Nonnull PhysicsBodyId bodyId) {
+        return bodyRegistry.getRegistration(bodyId);
+    }
+
+    @Nonnull
+    public BodyRegistration requireBodyRegistration(@Nonnull PhysicsBodyId bodyId) {
+        BodyRegistration registration = getRegistration(bodyId);
         if (registration == null) {
-            return null;
-        }
-        Ref<EntityStore> owner = registration.ownerRef();
-        if (registration.ownerKind() == BodyOwnerKind.ENTITY && owner != null && !owner.isValid()) {
-            bodyRegistry.removeInvalidEntityOwner(body);
-            clearBodyRuntimeState(body);
-            return null;
+            throw new IllegalArgumentException("Physics body id=" + bodyId + " is not registered");
         }
         return registration;
     }
 
     @Nonnull
-    public Collection<PhysicsBody> getDetachedBodies() {
-        return bodyRegistry.getDetachedBodies();
-    }
-
-    @Nullable
-    public Ref<EntityStore> getDetachedVisualProxy(@Nonnull PhysicsBody body) {
-        return bodyRegistry.getDetachedVisualProxy(body);
+    public Collection<BodyRegistration> getBodyRegistrations() {
+        return bodyRegistry.getRegistrations();
     }
 
     @Nonnull
-    public Collection<PhysicsBody> getDetachedVisualProxyBodies() {
-        return bodyRegistry.getDetachedVisualProxyBodies();
+    public Collection<BodyRegistration> getBodyRegistrations(@Nonnull PhysicsBodyKind kind) {
+        return bodyRegistry.getRegistrations(kind);
     }
 
-    public void setDetachedVisualProxy(@Nonnull PhysicsBody body, @Nonnull Ref<EntityStore> proxy) {
-        bodyRegistry.setDetachedVisualProxy(body, proxy);
+    @Nonnull
+    public Collection<Ref<EntityStore>> getBodyAttachments(@Nonnull PhysicsBodyId bodyId) {
+        return bodyRegistry.getAttachments(bodyId);
     }
 
-    public void clearDetachedVisualProxy(@Nonnull PhysicsBody body) {
-        bodyRegistry.clearDetachedVisualProxy(body);
+    public void registerBodyAttachment(@Nonnull PhysicsBodyId bodyId, @Nonnull Ref<EntityStore> attachment) {
+        bodyRegistry.registerAttachment(bodyId, attachment);
+    }
+
+    public void unregisterBodyAttachment(@Nonnull PhysicsBodyId bodyId, @Nonnull Ref<EntityStore> attachment) {
+        bodyRegistry.unregisterAttachment(bodyId, attachment);
+    }
+
+    @Nullable
+    public Ref<EntityStore> getGeneratedVisualProxy(@Nonnull PhysicsBodyId bodyId) {
+        return bodyRegistry.getGeneratedVisualProxy(bodyId);
+    }
+
+    @Nonnull
+    public Collection<PhysicsBodyId> getGeneratedVisualProxyBodyIds() {
+        return bodyRegistry.getGeneratedVisualProxyBodyIds();
+    }
+
+    public void setGeneratedVisualProxy(@Nonnull PhysicsBodyId bodyId, @Nonnull Ref<EntityStore> proxy) {
+        bodyRegistry.setGeneratedVisualProxy(bodyId, proxy);
+    }
+
+    public void clearGeneratedVisualProxy(@Nonnull PhysicsBodyId bodyId) {
+        bodyRegistry.clearGeneratedVisualProxy(bodyId);
     }
 
     public void setSyntheticVisualInterests(@Nonnull Collection<VisualInterest> interests) {
@@ -505,18 +550,22 @@ public class PhysicsWorldResource implements Resource<EntityStore> {
     }
 
     public void remapMigratedBodies(@Nonnull Map<PhysicsBody, PhysicsBody> bodyRemaps) {
+        List<PhysicsBodyId> remappedBodyIds = new ArrayList<>();
+        for (PhysicsBody sourceBody : bodyRemaps.keySet()) {
+            PhysicsBodyId bodyId = getBodyId(sourceBody);
+            if (bodyId != null) {
+                remappedBodyIds.add(bodyId);
+            }
+        }
         bodyRegistry.remapBodies(bodyRemaps);
         remapBodySet(forcedContinuousCollisionBodies, bodyRemaps);
-        remapBodySet(controlledBodies, bodyRemaps);
-        remapBodyKeyedMap(chunkBoundarySafeStates, bodyRemaps);
-        remapBodyKeyedMap(chunkBoundaryPauseStates, bodyRemaps);
-        for (PhysicsBody sourceBody : bodyRemaps.keySet()) {
-            bodySnapshots.remove(sourceBody);
-            bodySpatialIndex.remove(sourceBody);
+        for (PhysicsBodyId bodyId : remappedBodyIds) {
+            bodySnapshots.remove(bodyId);
+            bodySpatialIndex.remove(bodyId);
         }
     }
 
-    public void clearBodyOwners() {
+    public void clearBodies() {
         bodyRegistry.clear();
         forcedContinuousCollisionBodies.clear();
         bodySyncStates.clear();
@@ -542,67 +591,66 @@ public class PhysicsWorldResource implements Resource<EntityStore> {
     }
 
     @Nonnull
-    public BodyVisualInterestState getOrCreateBodyVisualInterestState(@Nonnull PhysicsBody body) {
-        return bodyRegistry.getOrCreateBodyVisualInterestState(body);
+    public BodyVisualInterestState getOrCreateBodyVisualInterestState(@Nonnull PhysicsBodyId bodyId) {
+        return bodyRegistry.getOrCreateBodyVisualInterestState(bodyId);
     }
 
     @Nullable
-    public BodyVisualInterestState getBodyVisualInterestState(@Nonnull PhysicsBody body) {
-        return bodyRegistry.getBodyVisualInterestState(body);
+    public BodyVisualInterestState getBodyVisualInterestState(@Nonnull PhysicsBodyId bodyId) {
+        return bodyRegistry.getBodyVisualInterestState(bodyId);
     }
 
-    public void markBodyControlled(@Nonnull PhysicsBody body) {
-        controlledBodies.add(body);
+    public void markBodyControlled(@Nonnull PhysicsBodyId bodyId) {
+        controlledBodies.add(bodyId);
     }
 
-    public void clearControlledBody(@Nonnull PhysicsBody body) {
-        controlledBodies.remove(body);
+    public void clearControlledBody(@Nonnull PhysicsBodyId bodyId) {
+        controlledBodies.remove(bodyId);
     }
 
-    public boolean isBodyControlled(@Nonnull PhysicsBody body) {
-        return controlledBodies.contains(body);
+    public boolean isBodyControlled(@Nonnull PhysicsBodyId bodyId) {
+        return controlledBodies.contains(bodyId);
     }
 
-    public void updateChunkBoundarySafeState(@Nonnull PhysicsBody body,
+    public void updateChunkBoundarySafeState(@Nonnull PhysicsBodyId bodyId,
         @Nonnull Vector3f position,
         @Nonnull Quaternionf rotation) {
-        ChunkBoundarySafeState state = chunkBoundarySafeStates.computeIfAbsent(body,
+        ChunkBoundarySafeState state = chunkBoundarySafeStates.computeIfAbsent(bodyId,
             ignored -> new ChunkBoundarySafeState());
         state.set(position, rotation);
     }
 
     @Nullable
-    public ChunkBoundarySafeState getChunkBoundarySafeState(@Nonnull PhysicsBody body) {
-        return chunkBoundarySafeStates.get(body);
+    public ChunkBoundarySafeState getChunkBoundarySafeState(@Nonnull PhysicsBodyId bodyId) {
+        return chunkBoundarySafeStates.get(bodyId);
     }
 
-    public void pauseChunkBoundaryBody(@Nonnull PhysicsBody body,
+    public void pauseChunkBoundaryBody(@Nonnull PhysicsBodyId bodyId,
         long targetChunkIndex,
         @Nonnull PhysicsBodyType originalBodyType,
         @Nonnull Vector3f linearVelocity,
         @Nonnull Vector3f angularVelocity) {
-        ChunkBoundaryPauseState state = chunkBoundaryPauseStates.computeIfAbsent(body,
+        ChunkBoundaryPauseState state = chunkBoundaryPauseStates.computeIfAbsent(bodyId,
             ignored -> new ChunkBoundaryPauseState());
         state.set(targetChunkIndex, originalBodyType, linearVelocity, angularVelocity);
     }
 
     @Nullable
-    public ChunkBoundaryPauseState getChunkBoundaryPauseState(@Nonnull PhysicsBody body) {
-        return chunkBoundaryPauseStates.get(body);
+    public ChunkBoundaryPauseState getChunkBoundaryPauseState(@Nonnull PhysicsBodyId bodyId) {
+        return chunkBoundaryPauseStates.get(bodyId);
     }
 
-    public void clearChunkBoundaryPauseState(@Nonnull PhysicsBody body) {
-        chunkBoundaryPauseStates.remove(body);
+    public void clearChunkBoundaryPauseState(@Nonnull PhysicsBodyId bodyId) {
+        chunkBoundaryPauseStates.remove(bodyId);
     }
 
-    public void clearBodyRuntimeState(@Nonnull PhysicsBody body) {
-        bodyRegistry.clearBodyRuntimeState(body);
-        forcedContinuousCollisionBodies.remove(body);
-        controlledBodies.remove(body);
-        chunkBoundarySafeStates.remove(body);
-        chunkBoundaryPauseStates.remove(body);
-        bodySnapshots.remove(body);
-        bodySpatialIndex.remove(body);
+    public void clearBodyRuntimeState(@Nonnull PhysicsBodyId bodyId) {
+        bodyRegistry.clearBodyRuntimeState(bodyId);
+        controlledBodies.remove(bodyId);
+        chunkBoundarySafeStates.remove(bodyId);
+        chunkBoundaryPauseStates.remove(bodyId);
+        bodySnapshots.remove(bodyId);
+        bodySpatialIndex.remove(bodyId);
     }
 
     public void markContinuousCollisionForced(@Nonnull PhysicsBody body) {
@@ -616,17 +664,6 @@ public class PhysicsWorldResource implements Resource<EntityStore> {
 
     public void clearForcedContinuousCollisionBodies() {
         forcedContinuousCollisionBodies.clear();
-    }
-
-    @Nullable
-    public Ref<EntityStore> getBodyOwner(@Nonnull PhysicsBody body) {
-        Ref<EntityStore> owner = bodyRegistry.getBodyOwner(body);
-        if (owner != null && !owner.isValid()) {
-            bodyRegistry.removeInvalidEntityOwner(body);
-            clearBodyRuntimeState(body);
-            return null;
-        }
-        return owner;
     }
 
     public void copyFrom(@Nonnull PhysicsWorldResource other) {
@@ -726,6 +763,15 @@ public class PhysicsWorldResource implements Resource<EntityStore> {
         }
     }
 
+    private static boolean containsBody(@Nonnull PhysicsSpace space, @Nonnull PhysicsBody body) {
+        for (PhysicsBody existing : space.getBodies()) {
+            if (existing == body) {
+                return true;
+            }
+        }
+        return false;
+    }
+
     private static void remapBodySet(@Nonnull Set<PhysicsBody> bodies,
         @Nonnull Map<PhysicsBody, PhysicsBody> bodyRemaps) {
         for (Map.Entry<PhysicsBody, PhysicsBody> entry : bodyRemaps.entrySet()) {
@@ -737,36 +783,17 @@ public class PhysicsWorldResource implements Resource<EntityStore> {
         }
     }
 
-    private static <T> void remapBodyKeyedMap(@Nonnull Map<PhysicsBody, T> states,
-        @Nonnull Map<PhysicsBody, PhysicsBody> bodyRemaps) {
-        for (Map.Entry<PhysicsBody, PhysicsBody> entry : bodyRemaps.entrySet()) {
-            PhysicsBody sourceBody = entry.getKey();
-            PhysicsBody targetBody = entry.getValue();
-            if (sourceBody == targetBody || !states.containsKey(sourceBody)) {
-                continue;
-            }
-
-            T state = states.remove(sourceBody);
-            states.put(targetBody, state);
-        }
-    }
-
-    public enum BodyOwnerKind {
-        ENTITY,
-        DETACHED,
-        WORLD_COLLISION
-    }
-
-    public record BodyRegistration(@Nonnull PhysicsBody body,
-        @Nullable SpaceId spaceId,
-        @Nonnull BodyOwnerKind ownerKind,
-        @Nullable Ref<EntityStore> ownerRef,
-        boolean removeWithOwner) {
-    }
-
-    public record BodySnapshotEntry(@Nonnull PhysicsBodySnapshot snapshot,
+    public record BodyRegistration(@Nonnull PhysicsBodyId id,
+        @Nonnull PhysicsBody body,
         @Nonnull SpaceId spaceId,
-        @Nullable BodyRegistration registration) {
+        @Nonnull PhysicsBodyKind kind,
+        @Nonnull PhysicsBodyPersistenceMode persistenceMode) {
+    }
+
+    public record BodySnapshotEntry(@Nonnull PhysicsBodyId bodyId,
+        @Nonnull PhysicsBodySnapshot snapshot,
+        @Nonnull SpaceId spaceId,
+        @Nonnull BodyRegistration registration) {
     }
 
     public record VisualInterest(@Nonnull Vector3f position, @Nullable Vector3f direction) {

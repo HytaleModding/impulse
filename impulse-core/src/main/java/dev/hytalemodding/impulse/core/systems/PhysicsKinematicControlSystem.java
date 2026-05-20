@@ -22,6 +22,7 @@ import dev.hytalemodding.impulse.api.PhysicsBodyType;
 import dev.hytalemodding.impulse.api.PhysicsJoint;
 import dev.hytalemodding.impulse.api.PhysicsSpace;
 import dev.hytalemodding.impulse.core.components.PhysicsControlSessionComponent;
+import dev.hytalemodding.impulse.core.resources.PhysicsBodyId;
 import dev.hytalemodding.impulse.core.resources.PhysicsWorldResource;
 import java.util.Set;
 import javax.annotation.Nonnull;
@@ -75,8 +76,11 @@ public class PhysicsKinematicControlSystem extends EntityTickingSystem<EntitySto
             return;
         }
 
-        PhysicsBody body = session.getBody();
-        PhysicsBody anchorBody = session.getAnchorBody();
+        PhysicsWorldResource resource = store.getResource(PhysicsWorldResource.getResourceType());
+        PhysicsBodyId bodyId = session.getBodyId();
+        PhysicsBodyId anchorBodyId = session.getAnchorBodyId();
+        PhysicsBody body = bodyId != null ? resource.getBody(bodyId) : null;
+        PhysicsBody anchorBody = anchorBodyId != null ? resource.getBody(anchorBodyId) : null;
         Ref<EntityStore> targetRef = session.getTargetRef();
         if (body == null || anchorBody == null || (targetRef != null && !targetRef.isValid())) {
             cleanupSession(store, session);
@@ -84,7 +88,6 @@ public class PhysicsKinematicControlSystem extends EntityTickingSystem<EntitySto
             return;
         }
 
-        PhysicsWorldResource resource = store.getResource(PhysicsWorldResource.getResourceType());
         if (session.getSpaceId() != null && resource.getSpace(session.getSpaceId()) == null) {
             cleanupSession(store, session);
             commandBuffer.removeComponent(chunk.getReferenceTo(index), SESSION_TYPE);
@@ -140,22 +143,17 @@ public class PhysicsKinematicControlSystem extends EntityTickingSystem<EntitySto
     private static void cleanupSession(@Nonnull Store<EntityStore> store,
         @Nonnull PhysicsControlSessionComponent session) {
         PhysicsWorldResource resource = store.getResource(PhysicsWorldResource.getResourceType());
-        if (session.getBody() != null) {
-            resource.clearControlledBody(session.getBody());
+        if (session.getBodyId() != null) {
+            resource.clearControlledBody(session.getBodyId());
         }
         PhysicsSpace space = session.getSpaceId() != null ? resource.getSpace(session.getSpaceId()) : null;
-        if (space == null) {
-            return;
-        }
-
-        PhysicsJoint joint = session.getJoint();
-        if (joint != null) {
+        if (space != null && session.getJoint() != null) {
+            PhysicsJoint joint = session.getJoint();
             space.removeJoint(joint);
         }
 
-        PhysicsBody anchorBody = session.getAnchorBody();
-        if (anchorBody != null) {
-            space.removeBody(anchorBody);
+        if (session.getAnchorBodyId() != null) {
+            resource.destroyBody(session.getAnchorBodyId());
         }
     }
 
