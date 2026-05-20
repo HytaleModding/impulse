@@ -22,6 +22,8 @@ import dev.hytalemodding.impulse.core.resources.PhysicsSpaceSettings;
 import dev.hytalemodding.impulse.core.resources.PhysicsStepMode;
 import dev.hytalemodding.impulse.core.resources.PhysicsWorldResource;
 import dev.hytalemodding.impulse.core.voxel.WorldCollisionMode;
+import it.unimi.dsi.fastutil.longs.LongOpenHashSet;
+import it.unimi.dsi.fastutil.longs.LongSet;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
@@ -39,7 +41,7 @@ public class StressBodiesCommand extends AbstractAsyncPlayerCommand {
     private static final int DETACHED_VISUAL_MATERIALIZATION_RADIUS = 64;
     private static final int DETACHED_VISUAL_DEMATERIALIZATION_RADIUS = 80;
     private static final int DETACHED_VISUAL_MAX_SPAWNS_PER_TICK = 128;
-    private static final float TARGET_MAX_STEP_DT = 1.0f / 30.0f;
+    private static final int STRESS_BODY_WORLD_COLLISION_RADIUS = 8;
     private static final List<PhysicsBodyId> STRESS_DETACHED_BODIES = new ArrayList<>();
 
     private final OptionalArg<Integer> countArg = this.withOptionalArg(
@@ -97,10 +99,17 @@ public class StressBodiesCommand extends AbstractAsyncPlayerCommand {
         if (space == null) {
             return CompletableFuture.completedFuture(null);
         }
-        configureStressRuntime(resource, space, mode, visibility, count);
+        PhysicsSpaceSettings settings = configureStressRuntime(resource, space, mode, visibility, count);
         TimeResource time = store.getResource(TimeResource.getResourceType());
 
         StressLayout layout = StressLayout.forMode(mode, count, playerPos);
+        int prewarmedSections = prewarmStressWorldCollision(world,
+            resource,
+            space,
+            settings,
+            mode,
+            layout,
+            count);
 
         long startNanos = System.nanoTime();
         for (int i = 0; i < count; i++) {
@@ -119,6 +128,9 @@ public class StressBodiesCommand extends AbstractAsyncPlayerCommand {
                 PhysicsBodyPersistenceMode.RUNTIME_ONLY);
             rememberStressDetachedBody(bodyId);
         }
+        if (mode.usesDetachedBodies()) {
+            resource.refreshBodySnapshots();
+        }
         long elapsedNanos = System.nanoTime() - startNanos;
 
         ctx.sender().sendMessage(Message.raw("Spawned " + count
@@ -127,8 +139,11 @@ public class StressBodiesCommand extends AbstractAsyncPlayerCommand {
             + " ms: mode=" + mode.serialized()
             + " space=" + space.getId().value()
             + " worldCollision=streaming"
-            + " step=fixed/1"
-            + " maxStepDt=" + String.format(Locale.ROOT, "%.3f", TARGET_MAX_STEP_DT)
+            + " bodyCollisionRadius=" + settings.getWorldCollisionBodyRadius()
+            + " prewarmedSections=" + prewarmedSections
+            + " step=" + resource.getStepMode().getSerializedName()
+            + "/" + resource.getSimulationSteps()
+            + " maxStepDt=" + String.format(Locale.ROOT, "%.3f", resource.getMaxStepDt())
             + " visuals=" + mode.visualDescription()
             + (mode == StressMode.DETACHED_VIEW
                 ? " visualProxyCap=" + count
@@ -140,24 +155,27 @@ public class StressBodiesCommand extends AbstractAsyncPlayerCommand {
         return CompletableFuture.completedFuture(null);
     }
 
-    private static void configureStressRuntime(@Nonnull PhysicsWorldResource resource,
+    @Nonnull
+    private static PhysicsSpaceSettings configureStressRuntime(@Nonnull PhysicsWorldResource resource,
         @Nonnull PhysicsSpace space,
         @Nonnull StressMode mode,
         @Nonnull StressVisibility visibility,
         int count) {
-        resource.setStepMode(PhysicsStepMode.FIXED);
-        resource.setSimulationSteps(1);
-        resource.setMaxStepDt(TARGET_MAX_STEP_DT);
+        if (resource.getStepMode() == PhysicsStepMode.FIXED) {
+            resource.setStepMode(PhysicsStepMode.PROGRESSIVE_REFINEMENT);
+        }
 
         PhysicsSpaceSettings settings = new PhysicsSpaceSettings(resource.getSpaceSettings(space.getId()));
         settings.setSolverIterations(1);
         settings.setInternalPgsIterations(1);
-        settings.setStabilizationIterations(0);
+        settings.setStabilizationIterations(1);
         settings.setDynamicSleepTuning(
             PhysicsSpaceSettings.DEFAULT_DYNAMIC_SLEEP_LINEAR_THRESHOLD,
             PhysicsSpaceSettings.DEFAULT_DYNAMIC_SLEEP_ANGULAR_THRESHOLD,
             PhysicsSpaceSettings.DEFAULT_DYNAMIC_SLEEP_TIME_UNTIL_SLEEP);
         settings.setWorldCollisionMode(WorldCollisionMode.STREAMING);
+        settings.setWorldCollisionBodyRadius(Math.max(settings.getWorldCollisionBodyRadius(),
+            STRESS_BODY_WORLD_COLLISION_RADIUS));
         if (mode.usesDetachedBodies()) {
             settings.setDetachedVisualMaterializationEnabled(mode == StressMode.DETACHED_VIEW);
             settings.setVisualVisibilityCullingEnabled(mode == StressMode.DETACHED_VIEW
@@ -168,6 +186,32 @@ public class StressBodiesCommand extends AbstractAsyncPlayerCommand {
             settings.setDetachedVisualMaxSpawnsPerTick(DETACHED_VISUAL_MAX_SPAWNS_PER_TICK);
         }
         resource.setSpaceSettings(space.getId(), settings);
+        return settings;
+    }
+
+    private static int prewarmStressWorldCollision(@Nonnull World world,
+        @Nonnull PhysicsWorldResource resource,
+        @Nonnull PhysicsSpace space,
+        @Nonnull PhysicsSpaceSettings settings,
+        @Nonnull StressMode mode,
+        @Nonnull StressLayout layout,
+        int count) {
+        if (!mode.usesDetachedBodies() || settings.getWorldCollisionMode() != WorldCollisionMode.STREAMING) {
+            return 0;
+        }
+
+        LongSet visitedSections = new LongOpenHashSet();
+        for (int i = 0; i < count; i++) {
+            Vector3d position = layout.position(i);
+            resource.getWorldVoxelCollisionCache().ensureAround(world,
+                space,
+                position,
+                settings.getWorldCollisionBodyRadius(),
+                0L,
+                null,
+                visitedSections);
+        }
+        return visitedSections.size();
     }
 
     private static void rememberStressDetachedBody(@Nonnull PhysicsBodyId bodyId) {
