@@ -39,6 +39,7 @@ public class StressBodiesCommand extends AbstractAsyncPlayerCommand {
     private static final double SPACING = 1.05;
     private static final int DETACHED_VISUAL_MATERIALIZATION_RADIUS = 64;
     private static final int DETACHED_VISUAL_DEMATERIALIZATION_RADIUS = 80;
+    private static final int DETACHED_VISUAL_MAX_MATERIALIZED = 10_000;
     private static final int DETACHED_VISUAL_MAX_SPAWNS_PER_TICK = 128;
     private static final int STRESS_BODY_WORLD_COLLISION_RADIUS = 8;
     private static final List<PhysicsBodyId> STRESS_DETACHED_BODIES = new ArrayList<>();
@@ -145,7 +146,7 @@ public class StressBodiesCommand extends AbstractAsyncPlayerCommand {
             + " maxStepDt=" + String.format(Locale.ROOT, "%.3f", resource.getMaxStepDt())
             + " visuals=" + mode.visualDescription()
             + (mode == StressMode.DETACHED_VIEW
-                ? " visualProxyCap=" + count
+                ? " visualProxyCap=" + settings.getDetachedVisualMaxMaterialized()
                 + " visualSpawnRate=" + DETACHED_VISUAL_MAX_SPAWNS_PER_TICK + "/tick"
                 + " visibility=" + visibility.serialized()
                 + " collisions=" + collisionPolicy.serialized()
@@ -177,7 +178,7 @@ public class StressBodiesCommand extends AbstractAsyncPlayerCommand {
                 && visibility == StressVisibility.CONE);
             settings.setDetachedVisualMaterializationRadius(DETACHED_VISUAL_MATERIALIZATION_RADIUS);
             settings.setDetachedVisualDematerializationRadius(DETACHED_VISUAL_DEMATERIALIZATION_RADIUS);
-            settings.setDetachedVisualMaxMaterialized(Math.max(1, count));
+            settings.setDetachedVisualMaxMaterialized(Math.min(count, DETACHED_VISUAL_MAX_MATERIALIZED));
             settings.setDetachedVisualMaxSpawnsPerTick(DETACHED_VISUAL_MAX_SPAWNS_PER_TICK);
         }
         resource.setSpaceSettings(space.getId(), settings);
