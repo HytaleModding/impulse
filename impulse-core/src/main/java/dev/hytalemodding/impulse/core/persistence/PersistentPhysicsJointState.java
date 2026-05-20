@@ -11,6 +11,7 @@ import dev.hytalemodding.impulse.core.resources.PhysicsBodyId;
 import java.util.UUID;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
+import lombok.Getter;
 import lombok.Setter;
 import org.joml.Vector3f;
 
@@ -96,6 +97,7 @@ public class PersistentPhysicsJointState {
         .add()
         .build();
 
+    @Getter
     @Setter
     private int spaceId;
     @Nullable
@@ -111,30 +113,35 @@ public class PersistentPhysicsJointState {
     private final Vector3f anchorB = new Vector3f();
     @Nullable
     private Vector3f axis;
+    @Getter
     @Setter
     private float lowerLimit;
+    @Getter
     @Setter
     private float upperLimit;
+    @Getter
     @Setter
     private boolean enabled = true;
+    @Getter
     @Setter
     private boolean motorEnabled;
+    @Getter
     @Setter
     private float motorTargetVelocity;
+    @Getter
     @Setter
     private float motorMaxForce;
+    @Getter
     @Setter
     private float springRestLength = 0f;
+    @Getter
     @Setter
     private float springStiffness = 0f;
+    @Getter
     @Setter
     private float springDamping = 0f;
 
     public PersistentPhysicsJointState() {
-    }
-
-    public int getSpaceId() {
-        return spaceId;
     }
 
     @Nonnull
@@ -155,42 +162,6 @@ public class PersistentPhysicsJointState {
     @Nullable
     public Vector3f getAxis() {
         return axis;
-    }
-
-    public float getLowerLimit() {
-        return lowerLimit;
-    }
-
-    public float getUpperLimit() {
-        return upperLimit;
-    }
-
-    public boolean isEnabled() {
-        return enabled;
-    }
-
-    public boolean isMotorEnabled() {
-        return motorEnabled;
-    }
-
-    public float getMotorTargetVelocity() {
-        return motorTargetVelocity;
-    }
-
-    public float getMotorMaxForce() {
-        return motorMaxForce;
-    }
-
-    public float getSpringRestLength() {
-        return springRestLength;
-    }
-
-    public float getSpringStiffness() {
-        return springStiffness;
-    }
-
-    public float getSpringDamping() {
-        return springDamping;
     }
 
     @Nonnull
@@ -253,51 +224,49 @@ public class PersistentPhysicsJointState {
 
     @Nonnull
     public String key() {
-        StringBuilder builder = new StringBuilder();
-        builder.append(spaceId)
-            .append('|')
-            .append(type.name())
-            .append('|')
-            .append(bodyAId)
-            .append('|')
-            .append(bodyBId)
-            .append('|')
-            .append(bits(anchorA.x))
-            .append('|')
-            .append(bits(anchorA.y))
-            .append('|')
-            .append(bits(anchorA.z))
-            .append('|')
-            .append(bits(anchorB.x))
-            .append('|')
-            .append(bits(anchorB.y))
-            .append('|')
-            .append(bits(anchorB.z))
-            .append('|')
-            .append(axis != null ? bits(axis.x) : "na")
-            .append('|')
-            .append(axis != null ? bits(axis.y) : "na")
-            .append('|')
-            .append(axis != null ? bits(axis.z) : "na")
-            .append('|')
-            .append(bits(lowerLimit))
-            .append('|')
-            .append(bits(upperLimit))
-            .append('|')
-            .append(enabled)
-            .append('|')
-            .append(motorEnabled)
-            .append('|')
-            .append(bits(motorTargetVelocity))
-            .append('|')
-            .append(bits(motorMaxForce))
-            .append('|')
-            .append(bits(springRestLength))
-            .append('|')
-            .append(bits(springStiffness))
-            .append('|')
-            .append(bits(springDamping));
-        return builder.toString();
+        return String.valueOf(spaceId)
+            + '|'
+            + type.name()
+            + '|'
+            + bodyAId
+            + '|'
+            + bodyBId
+            + '|'
+            + bits(anchorA.x)
+            + '|'
+            + bits(anchorA.y)
+            + '|'
+            + bits(anchorA.z)
+            + '|'
+            + bits(anchorB.x)
+            + '|'
+            + bits(anchorB.y)
+            + '|'
+            + bits(anchorB.z)
+            + '|'
+            + (axis != null ? bits(axis.x) : "na")
+            + '|'
+            + (axis != null ? bits(axis.y) : "na")
+            + '|'
+            + (axis != null ? bits(axis.z) : "na")
+            + '|'
+            + bits(lowerLimit)
+            + '|'
+            + bits(upperLimit)
+            + '|'
+            + enabled
+            + '|'
+            + motorEnabled
+            + '|'
+            + bits(motorTargetVelocity)
+            + '|'
+            + bits(motorMaxForce)
+            + '|'
+            + bits(springRestLength)
+            + '|'
+            + bits(springStiffness)
+            + '|'
+            + bits(springDamping);
     }
 
     private static int bits(float value) {

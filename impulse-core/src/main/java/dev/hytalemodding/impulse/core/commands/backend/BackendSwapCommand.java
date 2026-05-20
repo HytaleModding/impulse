@@ -68,7 +68,7 @@ public class BackendSwapCommand extends AbstractAsyncPlayerCommand {
             sourceSpaceId = resource.getDefaultSpaceId();
             if (sourceSpaceId == null) {
                 ctx.sender().sendMessage(Message.raw("No default physics space is configured."
-                    + " Provide --space explicitly."));
+                    + " Provide --space=<space-id> explicitly."));
                 return CompletableFuture.completedFuture(null);
             }
         }

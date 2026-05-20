@@ -13,8 +13,8 @@ import dev.hytalemodding.impulse.api.PhysicsSpace;
 import dev.hytalemodding.impulse.api.ShapeType;
 import dev.hytalemodding.impulse.api.SpaceId;
 import dev.hytalemodding.impulse.core.resources.PhysicsWorldResource;
+import it.unimi.dsi.fastutil.objects.Reference2ObjectOpenHashMap;
 import java.util.ArrayList;
-import java.util.IdentityHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.logging.Level;
@@ -70,7 +70,7 @@ public final class PhysicsSpaceMigrationService {
                 sourceSpace.getGravity().y,
                 sourceSpace.getGravity().z);
 
-            Map<PhysicsBody, PhysicsBody> bodyMap = new IdentityHashMap<>();
+            Map<PhysicsBody, PhysicsBody> bodyMap = new Reference2ObjectOpenHashMap<>();
             for (PhysicsBody sourceBody : sourceBodies) {
                 PhysicsBody targetBody = cloneBody(sourceSpaceId, sourceBody, targetSpace);
                 boolean sleeping = sourceBody.isSleeping();
@@ -274,7 +274,7 @@ public final class PhysicsSpaceMigrationService {
 
     @Nonnull
     private static Map<PhysicsBody, PhysicsBody> reverseBodyMap(@Nonnull Map<PhysicsBody, PhysicsBody> bodyMap) {
-        Map<PhysicsBody, PhysicsBody> reverseMap = new IdentityHashMap<>();
+        Map<PhysicsBody, PhysicsBody> reverseMap = new Reference2ObjectOpenHashMap<>();
         for (Map.Entry<PhysicsBody, PhysicsBody> entry : bodyMap.entrySet()) {
             reverseMap.put(entry.getValue(), entry.getKey());
         }

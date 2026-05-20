@@ -21,8 +21,8 @@ import dev.hytalemodding.impulse.core.voxel.WorldCollisionMode;
 import dev.hytalemodding.impulse.core.voxel.WorldVoxelCollisionCache;
 import it.unimi.dsi.fastutil.longs.LongOpenHashSet;
 import it.unimi.dsi.fastutil.longs.LongSet;
+import it.unimi.dsi.fastutil.objects.Object2ObjectLinkedOpenHashMap;
 import java.util.ArrayList;
-import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.function.BiConsumer;
@@ -168,7 +168,8 @@ public class PhysicsWorldCollisionStreamingSystem extends TickingSystem<EntitySt
         long currentTick,
         int ttlTicks,
         @Nullable Snapshot snapshot) {
-        Map<WorldCollisionStreamingBounds, BodyStreamingTarget> uniqueTargets = new LinkedHashMap<>();
+        Map<WorldCollisionStreamingBounds, BodyStreamingTarget> uniqueTargets =
+            new Object2ObjectLinkedOpenHashMap<>();
         int[] spatialIndexCandidateCount = {0};
         int[] candidateCount = {0};
         resource.forEachBodySnapshot(spaceId, entry -> {
@@ -202,8 +203,7 @@ public class PhysicsWorldCollisionStreamingSystem extends TickingSystem<EntitySt
     }
 
     private static boolean shouldRefreshSleepingBodyTarget(long currentTick, int ttlTicks) {
-        int interval = Math.max(1, Math.min(SLEEPING_BODY_STREAMING_INTERVAL_TICKS,
-            Math.max(1, ttlTicks / 2)));
+        int interval = Math.clamp(ttlTicks / 2, 1, SLEEPING_BODY_STREAMING_INTERVAL_TICKS);
         return currentTick == 1L || currentTick % interval == 0L;
     }
 

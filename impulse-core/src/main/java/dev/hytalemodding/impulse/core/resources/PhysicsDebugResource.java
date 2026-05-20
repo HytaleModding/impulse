@@ -4,7 +4,7 @@ import com.hypixel.hytale.component.Resource;
 import com.hypixel.hytale.component.ResourceType;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import dev.hytalemodding.impulse.core.ImpulsePlugin;
-import java.util.HashSet;
+import it.unimi.dsi.fastutil.objects.ObjectOpenHashSet;
 import java.util.Set;
 import java.util.UUID;
 import javax.annotation.Nonnull;
@@ -34,7 +34,7 @@ public class PhysicsDebugResource implements Resource<EntityStore> {
     public static final int DEFAULT_MAX_WORLD_COLLISION_SECTIONS = 192;
     public static final int DEFAULT_MAX_WORLD_COLLISION_BOXES = 768;
 
-    private final Set<UUID> subscriberUuids = new HashSet<>();
+    private final Set<UUID> subscriberUuids = new ObjectOpenHashSet<>();
 
     @Setter
     private boolean debugShapesEnabled = true;

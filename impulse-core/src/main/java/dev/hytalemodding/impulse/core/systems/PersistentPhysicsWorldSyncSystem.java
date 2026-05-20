@@ -58,6 +58,20 @@ public class PersistentPhysicsWorldSyncSystem extends TickingSystem<EntityStore>
             return;
         }
 
+        syncRuntimeSnapshot(persistent, runtime);
+    }
+
+    @Nonnull
+    public static SyncResult syncRuntimeSnapshot(@Nonnull PersistentPhysicsWorldResource persistent,
+        @Nonnull PhysicsWorldResource runtime) {
+        if (persistent.isRuntimeRestorePending()) {
+            return SyncResult.skipped("restore pending");
+        }
+        if (persistent.hasRuntimeRestoreFailed()) {
+            return SyncResult.skipped("restore failed");
+        }
+
+        persistent.setSchemaVersion(PersistentPhysicsWorldResource.CURRENT_SCHEMA_VERSION);
         persistent.setSimulationSteps(runtime.getSimulationSteps());
         persistent.setStepMode(runtime.getStepMode());
         persistent.setMaxStepDt(runtime.getMaxStepDt());
@@ -102,6 +116,7 @@ public class PersistentPhysicsWorldSyncSystem extends TickingSystem<EntityStore>
         persistent.setBodies(bodies.toArray(PersistentPhysicsBodyState[]::new));
         persistent.setJoints(joints.toArray(PersistentPhysicsJointState[]::new));
         persistent.markRuntimeSnapshotSynced();
+        return SyncResult.synced(spaces.size(), bodies.size(), joints.size());
     }
 
     private static boolean hasScalarWorldStateChanged(@Nonnull PersistentPhysicsWorldResource persistent,
@@ -146,9 +161,27 @@ public class PersistentPhysicsWorldSyncSystem extends TickingSystem<EntityStore>
         return count[0];
     }
 
+    public record SyncResult(boolean synced,
+        int spaces,
+        int bodies,
+        int joints,
+        @Nonnull String skippedReason) {
+
+        @Nonnull
+        private static SyncResult synced(int spaces, int bodies, int joints) {
+            return new SyncResult(true, spaces, bodies, joints, "");
+        }
+
+        @Nonnull
+        private static SyncResult skipped(@Nonnull String reason) {
+            return new SyncResult(false, 0, 0, 0, reason);
+        }
+    }
+
     @Nonnull
     @Override
     public Set<Dependency<EntityStore>> getDependencies() {
         return DEPENDENCIES;
     }
+
 }
