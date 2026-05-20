@@ -6,13 +6,13 @@ import com.hypixel.hytale.server.core.command.system.CommandContext;
 import com.hypixel.hytale.server.core.command.system.basecommands.AbstractWorldCommand;
 import com.hypixel.hytale.server.core.universe.world.World;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
-import dev.hytalemodding.impulse.api.PhysicsBody;
 import dev.hytalemodding.impulse.api.PhysicsSpace;
 import dev.hytalemodding.impulse.api.SpaceId;
 import dev.hytalemodding.impulse.core.diagnostics.PhysicsEntityDiagnostics;
 import dev.hytalemodding.impulse.core.resources.PhysicsRuntimeProfilingResource;
 import dev.hytalemodding.impulse.core.resources.PhysicsRuntimeProfilingResource.StepSnapshot;
 import dev.hytalemodding.impulse.core.resources.PhysicsRuntimeProfilingResource.SyncSnapshot;
+import dev.hytalemodding.impulse.core.resources.PhysicsBodyKind;
 import dev.hytalemodding.impulse.core.resources.PhysicsWorldResource;
 import dev.hytalemodding.impulse.core.resources.WorldCollisionProfilingResource;
 import dev.hytalemodding.impulse.core.resources.WorldCollisionProfilingResource.Snapshot;
@@ -221,9 +221,13 @@ public class PerfReportCommand extends AbstractWorldCommand {
 
             int detachedBodies = 0;
             int detachedVisualProxies = 0;
-            for (PhysicsBody body : resource.getDetachedBodies()) {
+            for (PhysicsWorldResource.BodyRegistration registration : resource.getBodyRegistrations()) {
+                if (registration.kind() != PhysicsBodyKind.BODY
+                    || !resource.getBodyAttachments(registration.id()).isEmpty()) {
+                    continue;
+                }
                 detachedBodies++;
-                if (resource.getDetachedVisualProxy(body) != null) {
+                if (resource.getGeneratedVisualProxy(registration.id()) != null) {
                     detachedVisualProxies++;
                 }
             }

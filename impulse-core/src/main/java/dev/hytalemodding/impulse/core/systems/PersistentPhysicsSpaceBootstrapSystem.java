@@ -14,9 +14,7 @@ import dev.hytalemodding.impulse.api.PhysicsSpace;
 import dev.hytalemodding.impulse.api.SpaceId;
 import dev.hytalemodding.impulse.core.ImpulsePlugin;
 import dev.hytalemodding.impulse.core.components.ImpulseControllableComponent;
-import dev.hytalemodding.impulse.core.components.PersistentPhysicsBodyComponent;
-import dev.hytalemodding.impulse.core.components.PhysicsBodyComponent;
-import dev.hytalemodding.impulse.core.components.PhysicsBodyVisualComponent;
+import dev.hytalemodding.impulse.core.components.PhysicsBodyAttachmentComponent;
 import dev.hytalemodding.impulse.core.persistence.PersistentPhysicsSpaceState;
 import dev.hytalemodding.impulse.core.persistence.PersistentPhysicsWorldResource;
 import dev.hytalemodding.impulse.core.resources.PhysicsSpaceSettings;
@@ -131,36 +129,15 @@ public class PersistentPhysicsSpaceBootstrapSystem extends TickingSystem<EntityS
         @Nonnull PhysicsWorldResource runtime,
         @Nonnull World world) {
         runtime.clearAllSpaces(world.getName());
-        runtime.clearBodyOwners();
+        runtime.clearBodies();
 
-        store.forEachEntityParallel(PersistentPhysicsBodyComponent.getComponentType(),
+        store.forEachEntityParallel(PhysicsBodyAttachmentComponent.getComponentType(),
             (index, archetypeChunk, commandBuffer) -> {
-                PersistentPhysicsBodyComponent persistentBody = archetypeChunk.getComponent(index,
-                    PersistentPhysicsBodyComponent.getComponentType());
-                if (persistentBody != null) {
-                    persistentBody.markForBodyRebuild();
-                }
-
                 var ref = archetypeChunk.getReferenceTo(index);
-                if (archetypeChunk.getComponent(index, PhysicsBodyComponent.getComponentType()) != null) {
-                    commandBuffer.removeComponent(ref, PhysicsBodyComponent.getComponentType());
-                }
+                commandBuffer.removeComponent(ref, PhysicsBodyAttachmentComponent.getComponentType());
                 if (archetypeChunk.getComponent(index, ImpulseControllableComponent.getComponentType()) != null) {
                     commandBuffer.removeComponent(ref, ImpulseControllableComponent.getComponentType());
                 }
-                if (archetypeChunk.getComponent(index, PhysicsBodyVisualComponent.getComponentType()) != null) {
-                    commandBuffer.removeComponent(ref, PhysicsBodyVisualComponent.getComponentType());
-                }
-            });
-
-        store.forEachEntityParallel(PhysicsBodyVisualComponent.getComponentType(),
-            (index, archetypeChunk, commandBuffer) -> {
-                var ref = archetypeChunk.getReferenceTo(index);
-                if (archetypeChunk.getComponent(index, PersistentPhysicsBodyComponent.getComponentType()) != null) {
-                    commandBuffer.removeComponent(ref, PhysicsBodyVisualComponent.getComponentType());
-                    return;
-                }
-                commandBuffer.removeEntity(ref, RemoveReason.REMOVE);
             });
 
         /*
@@ -171,9 +148,7 @@ public class PersistentPhysicsSpaceBootstrapSystem extends TickingSystem<EntityS
          */
         store.forEachEntityParallel(BlockEntity.getComponentType(),
             (index, archetypeChunk, commandBuffer) -> {
-                if (archetypeChunk.getComponent(index, PhysicsBodyComponent.getComponentType()) != null
-                    || archetypeChunk.getComponent(index, PhysicsBodyVisualComponent.getComponentType()) != null
-                    || archetypeChunk.getComponent(index, PersistentPhysicsBodyComponent.getComponentType()) != null) {
+                if (archetypeChunk.getComponent(index, PhysicsBodyAttachmentComponent.getComponentType()) != null) {
                     return;
                 }
 

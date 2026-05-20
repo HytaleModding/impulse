@@ -1,6 +1,5 @@
 package dev.hytalemodding.impulse.core.services;
 
-import com.hypixel.hytale.component.ArchetypeChunk;
 import com.hypixel.hytale.component.Store;
 import com.hypixel.hytale.logger.HytaleLogger;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
@@ -13,7 +12,6 @@ import dev.hytalemodding.impulse.api.PhysicsJointType;
 import dev.hytalemodding.impulse.api.PhysicsSpace;
 import dev.hytalemodding.impulse.api.ShapeType;
 import dev.hytalemodding.impulse.api.SpaceId;
-import dev.hytalemodding.impulse.core.components.PhysicsBodyComponent;
 import dev.hytalemodding.impulse.core.resources.PhysicsWorldResource;
 import java.util.ArrayList;
 import java.util.IdentityHashMap;
@@ -21,7 +19,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.logging.Level;
 import javax.annotation.Nonnull;
-import javax.annotation.Nullable;
 import org.joml.Quaternionf;
 import org.joml.Vector3f;
 
@@ -31,9 +28,8 @@ import org.joml.Vector3f;
  *     This method shouldn't be overused. It is by nature unstable.
  * </p>
  * <p>
- * The migration clones bodies and joints into a fresh target space, validates every entity
- * component rebind, then swaps the resource entry. If a failure happens before the swap,
- * newly created target resources are closed and component body references are restored.
+ * The migration clones bodies and joints into a fresh target space, remaps the body-id
+ * registry to the cloned backend handles, then swaps the resource entry.
  */
 public final class PhysicsSpaceMigrationService {
 
@@ -67,8 +63,6 @@ public final class PhysicsSpaceMigrationService {
 
         List<PhysicsBody> sourceBodies = sourceSpace.getBodies();
         List<PhysicsJoint> sourceJoints = sourceSpace.getJoints();
-        SpaceId defaultSpaceAtStart = resource.getDefaultSpaceId();
-
         PhysicsSpace targetSpace = Impulse.createSpace(targetBackendId, sourceSpaceId);
         boolean migrated = false;
         try {
@@ -97,17 +91,6 @@ public final class PhysicsSpaceMigrationService {
                 cloneJoint(sourceSpaceId, sourceJoint, targetSpace, bodyMap);
             }
 
-            List<BodyRebind> rebinds = collectBodyRebinds(store,
-                sourceSpaceId,
-                defaultSpaceAtStart,
-                bodyMap);
-            try {
-                applyBodyRebinds(rebinds);
-            } catch (Exception exception) {
-                rollbackBodyRebinds(rebinds);
-                throw exception;
-            }
-
             boolean registryRemapped = false;
             PhysicsSpace replaced;
             try {
@@ -118,12 +101,12 @@ public final class PhysicsSpaceMigrationService {
                 if (registryRemapped) {
                     resource.remapMigratedBodies(reverseBodyMap(bodyMap));
                 }
-                rollbackBodyRebinds(rebinds);
                 throw exception;
             }
 
             /*
-             * The migration is complete once the new space is active and components are rebound.
+             * The migration is complete once the new space is active and body ids point
+             * at the cloned backend handles.
              * Cleanup failures on the old space should not invalidate the migrated state.
              */
             migrated = true;
@@ -290,65 +273,12 @@ public final class PhysicsSpaceMigrationService {
     }
 
     @Nonnull
-    private static List<BodyRebind> collectBodyRebinds(@Nonnull Store<EntityStore> store,
-        @Nonnull SpaceId sourceSpaceId,
-        @Nullable SpaceId defaultSpaceIdAtStart,
-        @Nonnull Map<PhysicsBody, PhysicsBody> bodyMap) {
-        List<BodyRebind> toRebind = new ArrayList<>();
-        store.forEachChunk(PhysicsBodyComponent.getComponentType(),
-            (ArchetypeChunk<EntityStore> chunk, com.hypixel.hytale.component.CommandBuffer<EntityStore> commandBuffer) -> {
-                for (int i = 0; i < chunk.size(); i++) {
-                    PhysicsBodyComponent component = chunk.getComponent(i,
-                        PhysicsBodyComponent.getComponentType());
-                    if (component == null) {
-                        continue;
-                    }
-
-                    SpaceId componentSpaceId = component.getSpaceId();
-                    boolean referencesSource = sourceSpaceId.equals(componentSpaceId)
-                        || (componentSpaceId == null && sourceSpaceId.equals(defaultSpaceIdAtStart));
-                    if (!referencesSource) {
-                        continue;
-                    }
-
-                    PhysicsBody sourceBody = component.getBody();
-                    PhysicsBody replacementBody = bodyMap.get(sourceBody);
-                    if (replacementBody == null) {
-                        throw new IllegalStateException("Could not rebind migrated body component:"
-                            + " missing replacement for source body");
-                    }
-
-                    toRebind.add(new BodyRebind(component, sourceBody, replacementBody));
-                }
-            });
-
-        return toRebind;
-    }
-
-    private static void applyBodyRebinds(@Nonnull List<BodyRebind> rebinds) {
-        for (BodyRebind rebind : rebinds) {
-            rebind.component().setBody(rebind.targetBody());
-        }
-    }
-
-    private static void rollbackBodyRebinds(@Nonnull List<BodyRebind> rebinds) {
-        for (BodyRebind rebind : rebinds) {
-            rebind.component().setBody(rebind.sourceBody());
-        }
-    }
-
-    @Nonnull
     private static Map<PhysicsBody, PhysicsBody> reverseBodyMap(@Nonnull Map<PhysicsBody, PhysicsBody> bodyMap) {
         Map<PhysicsBody, PhysicsBody> reverseMap = new IdentityHashMap<>();
         for (Map.Entry<PhysicsBody, PhysicsBody> entry : bodyMap.entrySet()) {
             reverseMap.put(entry.getValue(), entry.getKey());
         }
         return reverseMap;
-    }
-
-    private record BodyRebind(@Nonnull PhysicsBodyComponent component,
-                              @Nonnull PhysicsBody sourceBody,
-                              @Nonnull PhysicsBody targetBody) {
     }
 
     public record MigrationResult(@Nonnull SpaceId spaceId,

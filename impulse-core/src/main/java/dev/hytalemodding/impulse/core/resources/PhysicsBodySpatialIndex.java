@@ -1,19 +1,17 @@
 package dev.hytalemodding.impulse.core.resources;
 
-import dev.hytalemodding.impulse.api.PhysicsBody;
 import dev.hytalemodding.impulse.api.PhysicsBodySnapshot;
 import dev.hytalemodding.impulse.api.SpaceId;
 import it.unimi.dsi.fastutil.ints.Int2IntOpenHashMap;
 import it.unimi.dsi.fastutil.longs.Long2ObjectMap;
 import it.unimi.dsi.fastutil.longs.Long2ObjectOpenHashMap;
 import java.util.ArrayList;
-import java.util.IdentityHashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.function.Consumer;
 import javax.annotation.Nonnull;
-import javax.annotation.Nullable;
 import org.joml.Vector3f;
 
 final class PhysicsBodySpatialIndex {
@@ -21,18 +19,19 @@ final class PhysicsBodySpatialIndex {
     private static final float CELL_SIZE = 16.0f;
     private static final int AXIS_MASK = 0x1F_FFFF;
 
-    private final Map<PhysicsBody, IndexedBody> entries = new IdentityHashMap<>();
+    private final Map<PhysicsBodyId, IndexedBody> entries = new LinkedHashMap<>();
     private final Long2ObjectMap<List<IndexedBody>> cells = new Long2ObjectOpenHashMap<>();
     private final Int2IntOpenHashMap spaceBodyCounts = new Int2IntOpenHashMap();
 
-    void update(@Nonnull PhysicsBodySnapshot snapshot,
+    void update(@Nonnull PhysicsBodyId bodyId,
+        @Nonnull PhysicsBodySnapshot snapshot,
         @Nonnull SpaceId spaceId,
-        @Nullable PhysicsWorldResource.BodyRegistration registration) {
+        @Nonnull PhysicsWorldResource.BodyRegistration registration) {
         long cellKey = cellKey(snapshot.position());
-        IndexedBody indexed = entries.get(snapshot.body());
+        IndexedBody indexed = entries.get(bodyId);
         if (indexed == null) {
-            indexed = new IndexedBody(snapshot, spaceId, registration, cellKey);
-            entries.put(snapshot.body(), indexed);
+            indexed = new IndexedBody(bodyId, snapshot, spaceId, registration, cellKey);
+            entries.put(bodyId, indexed);
             addToCell(indexed, cellKey);
             spaceBodyCounts.addTo(spaceId.value(), 1);
             return;
@@ -51,23 +50,23 @@ final class PhysicsBodySpatialIndex {
         indexed.registration = registration;
     }
 
-    void remove(@Nonnull PhysicsBody body) {
-        IndexedBody indexed = entries.remove(body);
+    void remove(@Nonnull PhysicsBodyId bodyId) {
+        IndexedBody indexed = entries.remove(bodyId);
         if (indexed != null) {
             removeFromCell(indexed);
             spaceBodyCounts.addTo(indexed.spaceId.value(), -1);
         }
     }
 
-    void retainOnly(@Nonnull Set<PhysicsBody> liveBodies) {
-        List<PhysicsBody> stale = new ArrayList<>();
-        for (PhysicsBody body : entries.keySet()) {
-            if (!liveBodies.contains(body)) {
-                stale.add(body);
+    void retainOnly(@Nonnull Set<PhysicsBodyId> liveBodies) {
+        List<PhysicsBodyId> stale = new ArrayList<>();
+        for (PhysicsBodyId bodyId : entries.keySet()) {
+            if (!liveBodies.contains(bodyId)) {
+                stale.add(bodyId);
             }
         }
-        for (PhysicsBody body : stale) {
-            remove(body);
+        for (PhysicsBodyId bodyId : stale) {
+            remove(bodyId);
         }
     }
 
@@ -183,18 +182,22 @@ final class PhysicsBodySpatialIndex {
     private static final class IndexedBody {
 
         @Nonnull
+        private final PhysicsBodyId bodyId;
+        @Nonnull
         private PhysicsBodySnapshot snapshot;
         @Nonnull
         private SpaceId spaceId;
-        @Nullable
+        @Nonnull
         private PhysicsWorldResource.BodyRegistration registration;
         private long cellKey;
         private int cellIndex = -1;
 
-        private IndexedBody(@Nonnull PhysicsBodySnapshot snapshot,
+        private IndexedBody(@Nonnull PhysicsBodyId bodyId,
+            @Nonnull PhysicsBodySnapshot snapshot,
             @Nonnull SpaceId spaceId,
-            @Nullable PhysicsWorldResource.BodyRegistration registration,
+            @Nonnull PhysicsWorldResource.BodyRegistration registration,
             long cellKey) {
+            this.bodyId = bodyId;
             this.snapshot = snapshot;
             this.spaceId = spaceId;
             this.registration = registration;
@@ -203,7 +206,7 @@ final class PhysicsBodySpatialIndex {
 
         @Nonnull
         private PhysicsWorldResource.BodySnapshotEntry entry() {
-            return new PhysicsWorldResource.BodySnapshotEntry(snapshot, spaceId, registration);
+            return new PhysicsWorldResource.BodySnapshotEntry(bodyId, snapshot, spaceId, registration);
         }
     }
 }

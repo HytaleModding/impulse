@@ -71,7 +71,7 @@ public class StressBenchmarkCommand extends AbstractAsyncPlayerCommand {
         long startNanos = System.nanoTime();
         int spawned = switch (request.mode()) {
             case RAW -> spawnRaw(space, layout, request.count());
-            case ENTITY -> spawnEntities(store, space, layout, request.count());
+            case ENTITY -> spawnEntities(store, resource, space, layout, request.count());
         };
         long elapsedNanos = System.nanoTime() - startNanos;
         int afterBodies = space.bodyCount();
@@ -123,6 +123,7 @@ public class StressBenchmarkCommand extends AbstractAsyncPlayerCommand {
     }
 
     private static int spawnEntities(@Nonnull Store<EntityStore> store,
+        @Nonnull PhysicsWorldResource resource,
         @Nonnull PhysicsSpace space,
         @Nonnull BenchmarkLayout layout,
         int count) {
@@ -131,6 +132,7 @@ public class StressBenchmarkCommand extends AbstractAsyncPlayerCommand {
             PhysicsBody body = createBenchmarkBody(space);
             ExamplePhysicsUtils.spawnBlockBody(store,
                 time,
+                resource,
                 space.getId(),
                 space,
                 body,

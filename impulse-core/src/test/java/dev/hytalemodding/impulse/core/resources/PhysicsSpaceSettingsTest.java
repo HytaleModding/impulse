@@ -57,19 +57,24 @@ class PhysicsSpaceSettingsTest {
     void rejectsNonPositiveWorldCollisionValues() {
         PhysicsSpaceSettings settings = new PhysicsSpaceSettings();
 
-        assertEquals("World collision radius must be positive",
+        assertEquals("World collision radius must be between 1 and "
+                + PhysicsSpaceSettings.MAX_WORLD_COLLISION_RADIUS,
             assertThrows(IllegalArgumentException.class,
                 () -> settings.setWorldCollisionRadius(0)).getMessage());
-        assertEquals("World collision body radius must be positive",
+        assertEquals("World collision body radius must be between 1 and "
+                + PhysicsSpaceSettings.MAX_WORLD_COLLISION_BODY_RADIUS,
             assertThrows(IllegalArgumentException.class,
                 () -> settings.setWorldCollisionBodyRadius(0)).getMessage());
-        assertEquals("World collision TTL must be positive",
+        assertEquals("World collision TTL must be between 1 and "
+                + PhysicsSpaceSettings.MAX_WORLD_COLLISION_TTL_TICKS,
             assertThrows(IllegalArgumentException.class,
                 () -> settings.setWorldCollisionTtlTicks(0)).getMessage());
-        assertEquals("Visual full sync radius must be positive",
+        assertEquals("Visual full sync radius must be between 1 and "
+                + PhysicsSpaceSettings.MAX_VISUAL_FULL_SYNC_RADIUS,
             assertThrows(IllegalArgumentException.class,
                 () -> settings.setVisualFullSyncRadius(0)).getMessage());
-        assertEquals("Visual max sync radius must be positive",
+        assertEquals("Visual max sync radius must be between 1 and "
+                + PhysicsSpaceSettings.MAX_VISUAL_MAX_SYNC_RADIUS,
             assertThrows(IllegalArgumentException.class,
                 () -> settings.setVisualMaxSyncRadius(0)).getMessage());
     }

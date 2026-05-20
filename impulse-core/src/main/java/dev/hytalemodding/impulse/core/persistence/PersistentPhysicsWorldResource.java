@@ -9,7 +9,6 @@ import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import com.hypixel.hytale.codec.codecs.array.ArrayCodec;
 import dev.hytalemodding.impulse.api.SpaceId;
 import dev.hytalemodding.impulse.core.ImpulsePlugin;
-import dev.hytalemodding.impulse.core.components.PersistentPhysicsBodyComponent;
 import dev.hytalemodding.impulse.core.resources.PhysicsStepMode;
 import dev.hytalemodding.impulse.core.resources.PhysicsWorldResource;
 import java.util.Arrays;
@@ -28,13 +27,9 @@ import lombok.Setter;
  * <p>This resource is registered on the {@code EntityStore} and persisted by
  * Hytale's serialization. It stores the world-level state that does not belong
  * on individual entities: the space definitions (id, backend, gravity, world-collision
- * settings), the joint definitions (keyed by endpoint entity UUIDs), the default
+ * settings), the body states (keyed by stable physics body ids), the joint
+ * definitions (keyed by endpoint body ids), the default
  * space id, and the simulation step count.</p>
- *
- * <p>Body state lives on each entity through {@link PersistentPhysicsBodyComponent}
- * instead. The split means Hytale can persist entities and the world resource
- * independently, and the hydration systems read both to rebuild the full runtime
- * state.</p>
  *
  * <p>The {@code runtimeRestorePending} flag is set by {@code afterDecode} whenever
  * Hytale deserializes this resource. It signals the hydration systems that they
@@ -49,8 +44,9 @@ import lombok.Setter;
  */
 public class PersistentPhysicsWorldResource implements Resource<EntityStore> {
 
-    public static final int CURRENT_SCHEMA_VERSION = 2;
+    public static final int CURRENT_SCHEMA_VERSION = 3;
     private static final PersistentPhysicsSpaceState[] EMPTY_SPACES = new PersistentPhysicsSpaceState[0];
+    private static final PersistentPhysicsBodyState[] EMPTY_BODIES = new PersistentPhysicsBodyState[0];
     private static final PersistentPhysicsJointState[] EMPTY_JOINTS = new PersistentPhysicsJointState[0];
 
     @Nonnull
@@ -82,6 +78,11 @@ public class PersistentPhysicsWorldResource implements Resource<EntityStore> {
             (resource, value) -> resource.spaces = copySpaces(value),
             PersistentPhysicsWorldResource::getSpaces)
         .add()
+        .append(new KeyedCodec<>("Bodies",
+                new ArrayCodec<>(PersistentPhysicsBodyState.CODEC, PersistentPhysicsBodyState[]::new)),
+            (resource, value) -> resource.bodies = copyBodies(value),
+            PersistentPhysicsWorldResource::getBodies)
+        .add()
         .append(new KeyedCodec<>("Joints",
                 new ArrayCodec<>(PersistentPhysicsJointState.CODEC, PersistentPhysicsJointState[]::new)),
             (resource, value) -> resource.joints = copyJoints(value),
@@ -104,6 +105,8 @@ public class PersistentPhysicsWorldResource implements Resource<EntityStore> {
     private float maxStepDt = PhysicsWorldResource.DEFAULT_MAX_STEP_DT;
     @Nonnull
     private PersistentPhysicsSpaceState[] spaces = EMPTY_SPACES;
+    @Nonnull
+    private PersistentPhysicsBodyState[] bodies = EMPTY_BODIES;
     @Nonnull
     private PersistentPhysicsJointState[] joints = EMPTY_JOINTS;
     @Getter
@@ -162,6 +165,15 @@ public class PersistentPhysicsWorldResource implements Resource<EntityStore> {
 
     public void setSpaces(@Nonnull PersistentPhysicsSpaceState[] spaces) {
         this.spaces = copySpaces(spaces);
+    }
+
+    @Nonnull
+    public PersistentPhysicsBodyState[] getBodies() {
+        return copyBodies(bodies);
+    }
+
+    public void setBodies(@Nonnull PersistentPhysicsBodyState[] bodies) {
+        this.bodies = copyBodies(bodies);
     }
 
     @Nonnull
@@ -295,6 +307,7 @@ public class PersistentPhysicsWorldResource implements Resource<EntityStore> {
             : PhysicsStepMode.PROGRESSIVE_REFINEMENT);
         setMaxStepDt(other.maxStepDt);
         spaces = copySpaces(other.spaces);
+        bodies = copyBodies(other.bodies);
         joints = copyJoints(other.joints);
         runtimeRestorePending = false;
         runtimeSpaceBootstrapComplete = false;
@@ -309,6 +322,15 @@ public class PersistentPhysicsWorldResource implements Resource<EntityStore> {
         runtimeSkippedBodiesByReason.clear();
         runtimeSkippedJointsByReason.clear();
         runtimeSkippedJointKeys.clear();
+    }
+
+    @Nonnull
+    private static PersistentPhysicsBodyState[] copyBodies(@Nonnull PersistentPhysicsBodyState[] source) {
+        PersistentPhysicsBodyState[] copy = Arrays.copyOf(source, source.length);
+        for (int i = 0; i < copy.length; i++) {
+            copy[i] = copy[i].copy();
+        }
+        return copy;
     }
 
     @Nonnull

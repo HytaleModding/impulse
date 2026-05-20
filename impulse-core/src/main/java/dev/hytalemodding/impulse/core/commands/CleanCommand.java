@@ -10,9 +10,7 @@ import com.hypixel.hytale.server.core.universe.world.World;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import dev.hytalemodding.impulse.api.PhysicsBody;
 import dev.hytalemodding.impulse.api.PhysicsSpace;
-import dev.hytalemodding.impulse.core.components.PersistentPhysicsBodyComponent;
-import dev.hytalemodding.impulse.core.components.PhysicsBodyComponent;
-import dev.hytalemodding.impulse.core.components.PhysicsBodyVisualComponent;
+import dev.hytalemodding.impulse.core.components.PhysicsBodyAttachmentComponent;
 import dev.hytalemodding.impulse.core.components.PhysicsControlSessionComponent;
 import dev.hytalemodding.impulse.core.resources.PhysicsSpaceSettings;
 import dev.hytalemodding.impulse.core.resources.PhysicsWorldResource;
@@ -37,28 +35,16 @@ public class CleanCommand extends AbstractWorldCommand {
         @Nonnull World world,
         @Nonnull Store<EntityStore> store) {
         AtomicInteger removedBodyEntities = new AtomicInteger();
-        store.forEachEntityParallel(PhysicsBodyComponent.getComponentType(),
+        store.forEachEntityParallel(PhysicsBodyAttachmentComponent.getComponentType(),
             (index, archetypeChunk, commandBuffer) -> {
                 removedBodyEntities.incrementAndGet();
-                commandBuffer.removeEntity(archetypeChunk.getReferenceTo(index), RemoveReason.REMOVE);
-            });
-
-        AtomicInteger removedVisualEntities = new AtomicInteger();
-        store.forEachEntityParallel(PhysicsBodyVisualComponent.getComponentType(),
-            (index, archetypeChunk, commandBuffer) -> {
-                if (archetypeChunk.getComponent(index, PhysicsBodyComponent.getComponentType()) != null) {
-                    return;
-                }
-                removedVisualEntities.incrementAndGet();
                 commandBuffer.removeEntity(archetypeChunk.getReferenceTo(index), RemoveReason.REMOVE);
             });
 
         AtomicInteger removedOrphanVisualEntities = new AtomicInteger();
         store.forEachEntityParallel(BlockEntity.getComponentType(),
             (index, archetypeChunk, commandBuffer) -> {
-                if (archetypeChunk.getComponent(index, PhysicsBodyComponent.getComponentType()) != null
-                    || archetypeChunk.getComponent(index, PhysicsBodyVisualComponent.getComponentType()) != null
-                    || archetypeChunk.getComponent(index, PersistentPhysicsBodyComponent.getComponentType()) != null) {
+                if (archetypeChunk.getComponent(index, PhysicsBodyAttachmentComponent.getComponentType()) != null) {
                     return;
                 }
 
@@ -84,20 +70,24 @@ public class CleanCommand extends AbstractWorldCommand {
         int removedBodies = 0;
         int removedJoints = 0;
         int keptSpaces = 0;
+        for (PhysicsWorldResource.BodyRegistration registration
+            : new ArrayList<>(resource.getBodyRegistrations())) {
+            resource.destroyBody(registration.id());
+            removedBodies++;
+        }
         for (PhysicsSpace space : resource.getSpaces()) {
             keptSpaces++;
-            removedBodies += space.bodyCount();
             removedJoints += space.getJoints().size();
             resource.getWorldVoxelCollisionCache().clear(space);
             for (PhysicsBody body : new ArrayList<>(space.getBodies())) {
-                resource.unregisterBody(body, true);
+                space.removeBody(body);
+                removedBodies++;
             }
         }
-        resource.clearBodyOwners();
+        resource.clearBodies();
 
         context.sendMessage(Message.raw("Removed " + removedBodyEntities.get()
-            + " Impulse body entities, " + removedVisualEntities.get()
-            + " visual proxy entities, " + removedOrphanVisualEntities.get()
+            + " Impulse attachment entities, " + removedOrphanVisualEntities.get()
             + " orphan visual proxy entities, " + removedBodies + " runtime bodies, "
             + removedJoints + " joints, and "
             + removedSessions.get() + " control sessions in world " + world.getName()

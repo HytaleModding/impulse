@@ -22,10 +22,11 @@ import dev.hytalemodding.impulse.api.PhysicsSpace;
 import dev.hytalemodding.impulse.api.ShapeType;
 import dev.hytalemodding.impulse.api.SpaceId;
 import dev.hytalemodding.impulse.core.ImpulsePlugin;
-import dev.hytalemodding.impulse.core.components.PhysicsBodyComponent;
+import dev.hytalemodding.impulse.core.components.PhysicsBodyAttachmentComponent;
 import dev.hytalemodding.impulse.core.components.PhysicsControlSessionComponent;
-import dev.hytalemodding.impulse.core.components.PhysicsBodyVisualComponent;
 import dev.hytalemodding.impulse.core.diagnostics.PhysicsEntityDiagnostics;
+import dev.hytalemodding.impulse.core.resources.PhysicsBodyKind;
+import dev.hytalemodding.impulse.core.resources.PhysicsBodyPersistenceMode;
 import dev.hytalemodding.impulse.core.resources.PhysicsRuntimeProfilingResource;
 import dev.hytalemodding.impulse.core.resources.PhysicsRuntimeProfilingResource.StepSnapshot;
 import dev.hytalemodding.impulse.core.resources.PhysicsRuntimeProfilingResource.SyncSnapshot;
@@ -505,12 +506,7 @@ public class StressAutoBenchmarkCommand extends AbstractWorldCommand {
         @Nonnull PhysicsWorldResource physics,
         @Nonnull World world) {
         AtomicInteger removedEntities = new AtomicInteger();
-        store.forEachEntityParallel(PhysicsBodyComponent.getComponentType(),
-            (index, archetypeChunk, commandBuffer) -> {
-                removedEntities.incrementAndGet();
-                commandBuffer.removeEntity(archetypeChunk.getReferenceTo(index), RemoveReason.REMOVE);
-            });
-        store.forEachEntityParallel(PhysicsBodyVisualComponent.getComponentType(),
+        store.forEachEntityParallel(PhysicsBodyAttachmentComponent.getComponentType(),
             (index, archetypeChunk, commandBuffer) -> {
                 removedEntities.incrementAndGet();
                 commandBuffer.removeEntity(archetypeChunk.getReferenceTo(index), RemoveReason.REMOVE);
@@ -521,14 +517,14 @@ public class StressAutoBenchmarkCommand extends AbstractWorldCommand {
                 archetypeChunk.getReferenceTo(index),
                 PhysicsControlSessionComponent.getComponentType()));
 
-        physics.clearBodyOwners();
+        physics.clearBodies();
         physics.clearAllSpaces(world.getName());
         return removedEntities.get();
     }
 
     private static int countPhysicsBodyEntities(@Nonnull Store<EntityStore> store) {
         AtomicInteger entities = new AtomicInteger();
-        store.forEachEntityParallel(PhysicsBodyComponent.getComponentType(),
+        store.forEachEntityParallel(PhysicsBodyAttachmentComponent.getComponentType(),
             (index, archetypeChunk, commandBuffer) -> entities.incrementAndGet());
         return entities.get();
     }
@@ -542,7 +538,7 @@ public class StressAutoBenchmarkCommand extends AbstractWorldCommand {
             case RAW -> spawnRaw(space, layout, request.count());
             case DETACHED, DETACHED_VIEW, DETACHED_VIEW_CHUNKS ->
                 spawnDetached(physics, space, layout, request.count());
-            case ENTITY -> spawnEntities(store, space, layout, request.count());
+            case ENTITY -> spawnEntities(store, physics, space, layout, request.count());
         };
     }
 
@@ -577,13 +573,16 @@ public class StressAutoBenchmarkCommand extends AbstractWorldCommand {
             PhysicsBody body = createBenchmarkBody(space);
             Vector3d position = layout.position(i);
             body.setPosition((float) position.x, (float) position.y, (float) position.z);
-            space.addBody(body);
-            physics.registerDetachedBody(body, space.getId());
+            physics.addBody(space.getId(),
+                body,
+                PhysicsBodyKind.BODY,
+                PhysicsBodyPersistenceMode.RUNTIME_ONLY);
         }
         return count;
     }
 
     private static int spawnEntities(@Nonnull Store<EntityStore> store,
+        @Nonnull PhysicsWorldResource physics,
         @Nonnull PhysicsSpace space,
         @Nonnull BenchmarkLayout layout,
         int count) {
@@ -593,6 +592,7 @@ public class StressAutoBenchmarkCommand extends AbstractWorldCommand {
             Vector3d position = layout.position(i);
             ExamplePhysicsUtils.spawnBlockBody(store,
                 time,
+                physics,
                 space.getId(),
                 space,
                 body,
@@ -963,12 +963,12 @@ public class StressAutoBenchmarkCommand extends AbstractWorldCommand {
             }
 
             PhysicsWorldResource.BodyRegistration registration = physics.getBodyRegistration(body);
-            if (registration != null && registration.ownerKind() == PhysicsWorldResource.BodyOwnerKind.ENTITY) {
-                entityOwnedBodies++;
-                return;
-            }
-            if (registration != null && registration.ownerKind() == PhysicsWorldResource.BodyOwnerKind.DETACHED) {
-                detachedBodies++;
+            if (registration != null && registration.kind() == PhysicsBodyKind.BODY) {
+                if (physics.getBodyAttachments(registration.id()).isEmpty()) {
+                    detachedBodies++;
+                } else {
+                    entityOwnedBodies++;
+                }
                 return;
             }
             if (body.getShapeType() == ShapeType.PLANE) {

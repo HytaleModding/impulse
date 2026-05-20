@@ -1,24 +1,16 @@
 package dev.hytalemodding.impulse.examples.commands;
 
-import com.hypixel.hytale.component.AddReason;
-import com.hypixel.hytale.component.Holder;
 import com.hypixel.hytale.component.Ref;
 import com.hypixel.hytale.component.Store;
 import com.hypixel.hytale.server.core.Message;
 import com.hypixel.hytale.server.core.command.system.CommandContext;
 import com.hypixel.hytale.server.core.command.system.basecommands.AbstractAsyncPlayerCommand;
-import com.hypixel.hytale.server.core.entity.entities.BlockEntity;
-import com.hypixel.hytale.server.core.modules.entity.DespawnComponent;
 import com.hypixel.hytale.server.core.modules.entity.component.TransformComponent;
-import com.hypixel.hytale.server.core.modules.time.TimeResource;
 import com.hypixel.hytale.server.core.universe.PlayerRef;
 import com.hypixel.hytale.server.core.universe.world.World;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import dev.hytalemodding.impulse.api.PhysicsBody;
 import dev.hytalemodding.impulse.api.PhysicsSpace;
-import dev.hytalemodding.impulse.core.components.ImpulseControllableComponent;
-import dev.hytalemodding.impulse.core.components.PersistentPhysicsBodyComponent;
-import dev.hytalemodding.impulse.core.components.PhysicsBodyComponent;
 import dev.hytalemodding.impulse.core.resources.PhysicsWorldResource;
 import java.util.concurrent.CompletableFuture;
 import javax.annotation.Nonnull;
@@ -53,18 +45,6 @@ public class DropCommand extends AbstractAsyncPlayerCommand {
         float spawnY = (float) playerPos.y() + 5f;
         float spawnZ = (float) playerPos.z();
 
-        TimeResource time = store.getResource(TimeResource.getResourceType());
-
-        Holder<EntityStore> holder = BlockEntity.assembleDefaultBlockEntity(
-            time,
-            /*
-             * FIXME: Replace this hardcoded block type with a command argument or config value.
-             */
-            "Rock_Stone",
-            new Vector3d(spawnX, spawnY, spawnZ)
-        );
-        holder.removeComponent(DespawnComponent.getComponentType());
-
         PhysicsWorldResource resource = store.getResource(PhysicsWorldResource.getResourceType());
         PhysicsSpace space = ExamplePhysicsUtils.defaultSpace(ctx, resource);
         if (space == null) {
@@ -76,15 +56,12 @@ public class DropCommand extends AbstractAsyncPlayerCommand {
         box.setRestitution(0.5f);
         box.setFriction(0.5f);
 
-        holder.addComponent(PhysicsBodyComponent.getComponentType(),
-            new PhysicsBodyComponent(box, space.getId()));
-        holder.addComponent(PersistentPhysicsBodyComponent.getComponentType(),
-            PersistentPhysicsBodyComponent.fromBody(box, space.getId()));
-        holder.addComponent(ImpulseControllableComponent.getComponentType(),
-            new ImpulseControllableComponent());
-
-        store.addEntity(holder, AddReason.SPAWN);
-        space.addBody(box);
+        ExamplePhysicsUtils.spawnBlockBody(store,
+            world,
+            resource,
+            space,
+            box,
+            new Vector3d(spawnX, spawnY, spawnZ));
 
         ctx.sender()
             .sendMessage(Message.raw("Dropped box at " + spawnX + ", " + spawnY + ", " + spawnZ));

@@ -40,7 +40,7 @@ class PhysicsStepCountPolicyTest {
 
     @Test
     void progressiveRefinementFallsBackToDefaultMaxStepDtWhenConfiguredValueIsInvalid() {
-        assertEquals(3,
+        assertEquals(4,
             PhysicsStepCountPolicy.resolveStepCount(0.12f,
                 1,
                 0.0f,

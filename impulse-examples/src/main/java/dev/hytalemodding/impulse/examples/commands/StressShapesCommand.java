@@ -65,11 +65,11 @@ public class StressShapesCommand extends AbstractAsyncPlayerCommand {
             int col = set % 4;
             Vector3d base = new Vector3d(origin).add(col * 7.0, row * 2.2, row * 1.5);
 
-            spawn(store, time, space, space.createBox(0.45f, 0.55f, 0.35f, 1.0f), base, 0.0);
-            spawn(store, time, space, space.createSphere(0.5f, 1.0f), base, 1.2);
-            spawn(store, time, space, space.createCapsule(0.3f, 0.7f, axis, 1.0f), base, 2.4);
-            spawn(store, time, space, space.createCylinder(0.4f, 0.65f, axis, 1.0f), base, 3.6);
-            spawn(store, time, space, space.createCone(0.45f, 0.7f, axis, 1.0f), base, 4.8);
+            spawn(store, time, resource, space, space.createBox(0.45f, 0.55f, 0.35f, 1.0f), base, 0.0);
+            spawn(store, time, resource, space, space.createSphere(0.5f, 1.0f), base, 1.2);
+            spawn(store, time, resource, space, space.createCapsule(0.3f, 0.7f, axis, 1.0f), base, 2.4);
+            spawn(store, time, resource, space, space.createCylinder(0.4f, 0.65f, axis, 1.0f), base, 3.6);
+            spawn(store, time, resource, space, space.createCone(0.45f, 0.7f, axis, 1.0f), base, 4.8);
         }
 
         ctx.sender().sendMessage(Message.raw("Spawned " + sets + " mixed shape sets ("
@@ -79,14 +79,14 @@ public class StressShapesCommand extends AbstractAsyncPlayerCommand {
 
     private static void spawn(@Nonnull Store<EntityStore> store,
         @Nonnull TimeResource time,
+        @Nonnull PhysicsWorldResource resource,
         @Nonnull PhysicsSpace space,
         @Nonnull PhysicsBody body,
         @Nonnull Vector3d base,
         double xOffset) {
         body.setFriction(0.6f);
         body.setRestitution(0.25f);
-        ExamplePhysicsUtils.spawnBlockBody(store, time, space.getId(), space, body,
+        ExamplePhysicsUtils.spawnBlockBody(store, time, resource, space.getId(), space, body,
             new Vector3d(base).add(xOffset, 0.0, 0.0));
     }
 }
-

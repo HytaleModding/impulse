@@ -9,6 +9,7 @@ import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import dev.hytalemodding.impulse.api.PhysicsBody;
 import dev.hytalemodding.impulse.api.PhysicsSpace;
 import dev.hytalemodding.impulse.api.ShapeType;
+import dev.hytalemodding.impulse.core.resources.PhysicsBodyKind;
 import dev.hytalemodding.impulse.core.resources.PhysicsWorldResource;
 import dev.hytalemodding.impulse.core.voxel.WorldVoxelCollisionCache;
 import java.util.Collection;
@@ -101,12 +102,16 @@ public class PerfStatsCommand extends AbstractWorldCommand {
         }
 
         PhysicsWorldResource.BodyRegistration registration = resource.getBodyRegistration(body);
-        if (registration != null && registration.ownerKind() == PhysicsWorldResource.BodyOwnerKind.ENTITY) {
-            stats.entityOwnedBodies++;
+        if (registration != null && registration.kind() == PhysicsBodyKind.BODY) {
+            if (resource.getBodyAttachments(registration.id()).isEmpty()) {
+                stats.detachedBodies++;
+            } else {
+                stats.entityOwnedBodies++;
+            }
             return;
         }
-        if (registration != null && registration.ownerKind() == PhysicsWorldResource.BodyOwnerKind.DETACHED) {
-            stats.detachedBodies++;
+        if (registration != null && registration.kind() == PhysicsBodyKind.WORLD_COLLISION) {
+            stats.worldCollisionBodies++;
             return;
         }
         if (body.getShapeType() == ShapeType.PLANE) {

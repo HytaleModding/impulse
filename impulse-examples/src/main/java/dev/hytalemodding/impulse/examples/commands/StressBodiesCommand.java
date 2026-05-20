@@ -15,6 +15,9 @@ import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import dev.hytalemodding.impulse.api.PhysicsBody;
 import dev.hytalemodding.impulse.api.PhysicsCollisionFilters;
 import dev.hytalemodding.impulse.api.PhysicsSpace;
+import dev.hytalemodding.impulse.core.resources.PhysicsBodyId;
+import dev.hytalemodding.impulse.core.resources.PhysicsBodyKind;
+import dev.hytalemodding.impulse.core.resources.PhysicsBodyPersistenceMode;
 import dev.hytalemodding.impulse.core.resources.PhysicsSpaceSettings;
 import dev.hytalemodding.impulse.core.resources.PhysicsStepMode;
 import dev.hytalemodding.impulse.core.resources.PhysicsWorldResource;
@@ -37,7 +40,7 @@ public class StressBodiesCommand extends AbstractAsyncPlayerCommand {
     private static final int DETACHED_VISUAL_DEMATERIALIZATION_RADIUS = 80;
     private static final int DETACHED_VISUAL_MAX_SPAWNS_PER_TICK = 128;
     private static final float TARGET_MAX_STEP_DT = 1.0f / 30.0f;
-    private static final List<PhysicsBody> STRESS_DETACHED_BODIES = new ArrayList<>();
+    private static final List<PhysicsBodyId> STRESS_DETACHED_BODIES = new ArrayList<>();
 
     private final OptionalArg<Integer> countArg = this.withOptionalArg(
         "count",
@@ -104,15 +107,17 @@ public class StressBodiesCommand extends AbstractAsyncPlayerCommand {
             Vector3d position = layout.position(i);
             if (mode == StressMode.ENTITY) {
                 PhysicsBody body = createEntityBody(space);
-                ExamplePhysicsUtils.spawnBlockBody(store, time, space.getId(), space, body, position);
+                ExamplePhysicsUtils.spawnBlockBody(store, time, resource, space.getId(), space, body, position);
                 continue;
             }
 
             PhysicsBody body = createDetachedBody(space, collisionPolicy);
             body.setPosition((float) position.x, (float) position.y, (float) position.z);
-            space.addBody(body);
-            resource.registerDetachedBody(body, space.getId());
-            rememberStressDetachedBody(body);
+            PhysicsBodyId bodyId = resource.addBody(space.getId(),
+                body,
+                PhysicsBodyKind.BODY,
+                PhysicsBodyPersistenceMode.RUNTIME_ONLY);
+            rememberStressDetachedBody(bodyId);
         }
         long elapsedNanos = System.nanoTime() - startNanos;
 
@@ -165,29 +170,29 @@ public class StressBodiesCommand extends AbstractAsyncPlayerCommand {
         resource.setSpaceSettings(space.getId(), settings);
     }
 
-    private static void rememberStressDetachedBody(@Nonnull PhysicsBody body) {
+    private static void rememberStressDetachedBody(@Nonnull PhysicsBodyId bodyId) {
         synchronized (STRESS_DETACHED_BODIES) {
-            STRESS_DETACHED_BODIES.add(body);
+            STRESS_DETACHED_BODIES.add(bodyId);
         }
     }
 
     private static void clearPreviousStressDetachedBodies(@Nonnull Store<EntityStore> store,
         @Nonnull PhysicsWorldResource resource) {
-        List<PhysicsBody> bodies;
+        List<PhysicsBodyId> bodyIds;
         synchronized (STRESS_DETACHED_BODIES) {
             if (STRESS_DETACHED_BODIES.isEmpty()) {
                 return;
             }
-            bodies = new ArrayList<>(STRESS_DETACHED_BODIES);
+            bodyIds = new ArrayList<>(STRESS_DETACHED_BODIES);
             STRESS_DETACHED_BODIES.clear();
         }
 
-        for (PhysicsBody body : bodies) {
-            Ref<EntityStore> proxy = resource.getDetachedVisualProxy(body);
+        for (PhysicsBodyId bodyId : bodyIds) {
+            Ref<EntityStore> proxy = resource.getGeneratedVisualProxy(bodyId);
             if (proxy != null && proxy.isValid()) {
                 store.removeEntity(proxy, RemoveReason.REMOVE);
             }
-            resource.unregisterBody(body, true);
+            resource.destroyBody(bodyId);
         }
     }
 

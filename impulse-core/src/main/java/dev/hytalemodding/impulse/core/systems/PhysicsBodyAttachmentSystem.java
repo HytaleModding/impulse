@@ -8,28 +8,28 @@ import com.hypixel.hytale.component.Store;
 import com.hypixel.hytale.component.query.Query;
 import com.hypixel.hytale.component.system.RefSystem;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
-import dev.hytalemodding.impulse.core.components.PhysicsBodyVisualComponent;
+import dev.hytalemodding.impulse.core.components.PhysicsBodyAttachmentComponent;
 import dev.hytalemodding.impulse.core.resources.PhysicsWorldResource;
 import javax.annotation.Nonnull;
 
 /**
- * Tracks runtime visual followers for physics bodies.
+ * Tracks entity attachments to body ids without making those entities body owners.
  */
-public class PhysicsBodyVisualSystem extends RefSystem<EntityStore> {
+public class PhysicsBodyAttachmentSystem extends RefSystem<EntityStore> {
 
     @Override
     public void onEntityAdded(@Nonnull Ref<EntityStore> ref,
         @Nonnull AddReason reason,
         @Nonnull Store<EntityStore> store,
         @Nonnull CommandBuffer<EntityStore> commandBuffer) {
-        PhysicsBodyVisualComponent component = commandBuffer.getComponent(ref,
-            PhysicsBodyVisualComponent.getComponentType());
+        PhysicsBodyAttachmentComponent component = commandBuffer.getComponent(ref,
+            PhysicsBodyAttachmentComponent.getComponentType());
         if (component == null) {
             return;
         }
 
         commandBuffer.getResource(PhysicsWorldResource.getResourceType())
-            .registerBodyVisualFollower(component.getBody(), ref);
+            .registerBodyAttachment(component.getBodyId(), ref);
     }
 
     @Override
@@ -37,21 +37,20 @@ public class PhysicsBodyVisualSystem extends RefSystem<EntityStore> {
         @Nonnull RemoveReason reason,
         @Nonnull Store<EntityStore> store,
         @Nonnull CommandBuffer<EntityStore> commandBuffer) {
-        PhysicsBodyVisualComponent component = store.getComponent(ref,
-            PhysicsBodyVisualComponent.getComponentType());
+        PhysicsBodyAttachmentComponent component = store.getComponent(ref,
+            PhysicsBodyAttachmentComponent.getComponentType());
         if (component == null) {
             return;
         }
 
-        store.getResource(PhysicsWorldResource.getResourceType())
-            .unregisterBodyVisualFollower(component.getBody(), ref);
-        store.getResource(PhysicsWorldResource.getResourceType())
-            .clearBodySyncState(ref);
+        PhysicsWorldResource resource = store.getResource(PhysicsWorldResource.getResourceType());
+        resource.unregisterBodyAttachment(component.getBodyId(), ref);
+        resource.clearBodySyncState(ref);
     }
 
     @Nonnull
     @Override
     public Query<EntityStore> getQuery() {
-        return PhysicsBodyVisualComponent.getComponentType();
+        return PhysicsBodyAttachmentComponent.getComponentType();
     }
 }

@@ -7,9 +7,8 @@ import com.hypixel.hytale.server.core.modules.entity.tracker.EntityTrackerSystem
 import com.hypixel.hytale.server.core.modules.entity.tracker.EntityTrackerSystems.Visible;
 import com.hypixel.hytale.server.core.modules.entity.tracker.NetworkId;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
-import dev.hytalemodding.impulse.core.components.PersistentPhysicsBodyComponent;
-import dev.hytalemodding.impulse.core.components.PhysicsBodyComponent;
-import dev.hytalemodding.impulse.core.components.PhysicsBodyVisualComponent;
+import dev.hytalemodding.impulse.core.components.PhysicsBodyAttachmentComponent;
+import dev.hytalemodding.impulse.core.components.PhysicsBodyAttachmentComponent.AttachmentLifecycle;
 import java.util.concurrent.atomic.AtomicInteger;
 import javax.annotation.Nonnull;
 
@@ -23,12 +22,8 @@ public final class PhysicsEntityDiagnostics {
 
     @Nonnull
     public static Snapshot collect(@Nonnull Store<EntityStore> store) {
-        ComponentType<EntityStore, PhysicsBodyComponent> physicsBodyType =
-            PhysicsBodyComponent.getComponentType();
-        ComponentType<EntityStore, PersistentPhysicsBodyComponent> persistentBodyType =
-            PersistentPhysicsBodyComponent.getComponentType();
-        ComponentType<EntityStore, PhysicsBodyVisualComponent> visualType =
-            PhysicsBodyVisualComponent.getComponentType();
+        ComponentType<EntityStore, PhysicsBodyAttachmentComponent> attachmentType =
+            PhysicsBodyAttachmentComponent.getComponentType();
         ComponentType<EntityStore, TransformComponent> transformType =
             TransformComponent.getComponentType();
         ComponentType<EntityStore, NetworkId> networkIdType = NetworkId.getComponentType();
@@ -36,17 +31,17 @@ public final class PhysicsEntityDiagnostics {
         ComponentType<EntityStore, EntityViewer> viewerType = EntityViewer.getComponentType();
 
         EntityFootprint bodyFootprint = collectBodyFootprint(store,
-            physicsBodyType,
+            attachmentType,
             transformType,
             networkIdType,
             visibleType);
         VisualFootprint visualFootprint = collectVisualFootprint(store,
-            visualType,
+            attachmentType,
             transformType,
             networkIdType);
 
         return new Snapshot(bodyFootprint.physicsBodies(),
-            count(store, persistentBodyType),
+            0,
             visualFootprint.visuals(),
             count(store, transformType),
             count(store, networkIdType),
@@ -60,7 +55,7 @@ public final class PhysicsEntityDiagnostics {
     }
 
     private static EntityFootprint collectBodyFootprint(@Nonnull Store<EntityStore> store,
-        @Nonnull ComponentType<EntityStore, PhysicsBodyComponent> physicsBodyType,
+        @Nonnull ComponentType<EntityStore, PhysicsBodyAttachmentComponent> attachmentType,
         @Nonnull ComponentType<EntityStore, TransformComponent> transformType,
         @Nonnull ComponentType<EntityStore, NetworkId> networkIdType,
         @Nonnull ComponentType<EntityStore, Visible> visibleType) {
@@ -69,7 +64,7 @@ public final class PhysicsEntityDiagnostics {
         AtomicInteger withNetworkId = new AtomicInteger();
         AtomicInteger withVisible = new AtomicInteger();
         AtomicInteger materialized = new AtomicInteger();
-        store.forEachEntityParallel(physicsBodyType, (index, chunk, commandBuffer) -> {
+        store.forEachEntityParallel(attachmentType, (index, chunk, commandBuffer) -> {
             physicsBodies.incrementAndGet();
             boolean transform = chunk.getComponent(index, transformType) != null;
             boolean networkId = chunk.getComponent(index, networkIdType) != null;
@@ -94,12 +89,16 @@ public final class PhysicsEntityDiagnostics {
     }
 
     private static VisualFootprint collectVisualFootprint(@Nonnull Store<EntityStore> store,
-        @Nonnull ComponentType<EntityStore, PhysicsBodyVisualComponent> visualType,
+        @Nonnull ComponentType<EntityStore, PhysicsBodyAttachmentComponent> attachmentType,
         @Nonnull ComponentType<EntityStore, TransformComponent> transformType,
         @Nonnull ComponentType<EntityStore, NetworkId> networkIdType) {
         AtomicInteger visuals = new AtomicInteger();
         AtomicInteger materialized = new AtomicInteger();
-        store.forEachEntityParallel(visualType, (index, chunk, commandBuffer) -> {
+        store.forEachEntityParallel(attachmentType, (index, chunk, commandBuffer) -> {
+            PhysicsBodyAttachmentComponent attachment = chunk.getComponent(index, attachmentType);
+            if (attachment == null || attachment.getLifecycle() != AttachmentLifecycle.GENERATED_PROXY) {
+                return;
+            }
             visuals.incrementAndGet();
             if (chunk.getComponent(index, transformType) != null
                 && chunk.getComponent(index, networkIdType) != null) {

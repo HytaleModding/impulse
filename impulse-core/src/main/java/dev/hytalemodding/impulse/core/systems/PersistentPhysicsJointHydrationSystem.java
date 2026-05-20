@@ -13,16 +13,14 @@ import dev.hytalemodding.impulse.api.PhysicsJoint;
 import dev.hytalemodding.impulse.api.PhysicsSpace;
 import dev.hytalemodding.impulse.api.SpaceId;
 import dev.hytalemodding.impulse.core.ImpulsePlugin;
-import dev.hytalemodding.impulse.core.components.PersistentPhysicsBodyComponent;
 import dev.hytalemodding.impulse.core.persistence.PersistentPhysicsJointState;
 import dev.hytalemodding.impulse.core.persistence.PersistentPhysicsRuntimeSupport;
 import dev.hytalemodding.impulse.core.persistence.PersistentPhysicsWorldResource;
+import dev.hytalemodding.impulse.core.resources.PhysicsBodyId;
 import dev.hytalemodding.impulse.core.resources.PhysicsWorldResource;
 import java.util.HashSet;
 import java.util.Set;
-import java.util.UUID;
 import javax.annotation.Nonnull;
-import javax.annotation.Nullable;
 import java.util.logging.Level;
 
 /**
@@ -30,8 +28,7 @@ import java.util.logging.Level;
  *
  * <p>Runs when {@link PersistentPhysicsWorldResource#isRuntimeRestorePending()} is true.
  * Scans the persisted joint definitions and creates each joint in the target space
- * if both endpoint bodies have already been hydrated (looked up by entity UUID).
- * If any endpoint body is still missing, hydration is deferred to the next tick.</p>
+ * if both endpoint bodies have already been hydrated by body id.</p>
  *
  * <p>Uses deterministic key strings (from {@link PersistentPhysicsJointState#key()})
  * to avoid duplicating joints that already exist in the runtime space. Clears
@@ -75,23 +72,24 @@ public class PersistentPhysicsJointHydrationSystem extends TickingSystem<EntityS
         Set<String> existing = new HashSet<>();
         for (PhysicsSpace space : runtime.getSpaces()) {
             space.forEachJoint(joint -> {
-                UUID bodyAUuid = PersistentPhysicsRuntimeSupport.ownerUuid(store, joint.getBodyA(), runtime);
-                UUID bodyBUuid = PersistentPhysicsRuntimeSupport.ownerUuid(store, joint.getBodyB(), runtime);
-                if (bodyAUuid == null || bodyBUuid == null) {
+                PhysicsBodyId bodyAId = runtime.getBodyId(joint.getBodyA());
+                PhysicsBodyId bodyBId = runtime.getBodyId(joint.getBodyB());
+                if (bodyAId == null || bodyBId == null) {
                     return;
                 }
                 existing.add(PersistentPhysicsRuntimeSupport.jointKey(space.getId().value(),
-                    bodyAUuid,
-                    bodyBUuid,
+                    bodyAId,
+                    bodyBId,
                     joint));
             });
         }
 
-        boolean complete = true;
         for (PersistentPhysicsJointState state : persistent.getJoints()) {
             String key = state.key();
-            if (state.getBodyAUuid() == null || state.getBodyBUuid() == null) {
-                persistent.recordRuntimeJointSkipped(key, "missing endpoint uuid");
+            PhysicsBodyId bodyAId = state.getBodyAId();
+            PhysicsBodyId bodyBId = state.getBodyBId();
+            if (bodyAId == null || bodyBId == null) {
+                persistent.recordRuntimeJointSkipped(key, "missing endpoint body id");
                 continue;
             }
 
@@ -100,19 +98,13 @@ public class PersistentPhysicsJointHydrationSystem extends TickingSystem<EntityS
             }
 
             PhysicsSpace space = runtime.getSpace(new SpaceId(state.getSpaceId()));
-            PhysicsBody bodyA = PersistentPhysicsRuntimeSupport.runtimeBody(store, state.getBodyAUuid());
-            PhysicsBody bodyB = PersistentPhysicsRuntimeSupport.runtimeBody(store, state.getBodyBUuid());
+            PhysicsBody bodyA = runtime.getBody(bodyAId);
+            PhysicsBody bodyB = runtime.getBody(bodyBId);
             if (space == null) {
                 persistent.recordRuntimeJointSkipped(key, "missing target space");
                 continue;
             }
             if (bodyA == null || bodyB == null) {
-                if (isBodyStillPending(store, state.getBodyAUuid(), bodyA)
-                    || isBodyStillPending(store, state.getBodyBUuid(), bodyB)) {
-                    complete = false;
-                    continue;
-                }
-
                 if (bodyA == null && bodyB == null) {
                     persistent.recordRuntimeJointSkipped(key, "missing both endpoint bodies");
                 } else if (bodyA == null) {
@@ -137,30 +129,11 @@ public class PersistentPhysicsJointHydrationSystem extends TickingSystem<EntityS
             existing.add(key);
         }
 
-        if (complete) {
-            persistent.clearRuntimeRestorePending();
-            if (persistent.hasRuntimeRestoreSkips()) {
-                LOGGER.at(Level.WARNING).log(persistent.runtimeRestoreSummary());
-            } else {
-                LOGGER.at(Level.INFO).log(persistent.runtimeRestoreSummary());
-            }
+        persistent.clearRuntimeRestorePending();
+        if (persistent.hasRuntimeRestoreSkips()) {
+            LOGGER.at(Level.WARNING).log(persistent.runtimeRestoreSummary());
+        } else {
+            LOGGER.at(Level.INFO).log(persistent.runtimeRestoreSummary());
         }
-    }
-
-    private static boolean isBodyStillPending(@Nonnull Store<EntityStore> store,
-        @Nonnull UUID bodyUuid,
-        @Nullable PhysicsBody body) {
-        if (body != null) {
-            return false;
-        }
-
-        var ref = store.getExternalData().getRefFromUUID(bodyUuid);
-        if (ref == null || !ref.isValid()) {
-            return false;
-        }
-
-        PersistentPhysicsBodyComponent persistentBody = store.getComponent(ref,
-            PersistentPhysicsBodyComponent.getComponentType());
-        return persistentBody != null && persistentBody.needsBodyRebuild();
     }
 }
