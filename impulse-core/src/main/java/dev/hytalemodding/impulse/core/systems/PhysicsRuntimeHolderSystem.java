@@ -10,11 +10,12 @@ import com.hypixel.hytale.component.system.HolderSystem;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import dev.hytalemodding.impulse.core.components.ImpulseControllableComponent;
 import dev.hytalemodding.impulse.core.components.PhysicsBodyAttachmentComponent;
+import dev.hytalemodding.impulse.core.components.PhysicsBodyAttachmentComponent.AttachmentLifecycle;
 import dev.hytalemodding.impulse.core.components.PhysicsControlSessionComponent;
 import javax.annotation.Nonnull;
 
 /**
- * Strips runtime-only physics attachment/control components from holders when
+ * Strips runtime-only physics control/proxy components from holders when
  * entities cross unload/load boundaries.
  */
 public class PhysicsRuntimeHolderSystem extends HolderSystem<EntityStore> {
@@ -47,8 +48,12 @@ public class PhysicsRuntimeHolderSystem extends HolderSystem<EntityStore> {
     }
 
     private static void cleanupHolder(@Nonnull Holder<EntityStore> holder, boolean markForRebuild) {
-        holder.tryRemoveComponent(ATTACHMENT_TYPE);
-        holder.tryRemoveComponent(IMPULSE_CONTROLLABLE_TYPE);
+        PhysicsBodyAttachmentComponent attachment = holder.getComponent(ATTACHMENT_TYPE);
+        if (attachment == null
+            || attachment.getLifecycle() == AttachmentLifecycle.GENERATED_PROXY) {
+            holder.tryRemoveComponent(ATTACHMENT_TYPE);
+            holder.tryRemoveComponent(IMPULSE_CONTROLLABLE_TYPE);
+        }
         holder.tryRemoveComponent(PHYSICS_CONTROL_SESSION_TYPE);
     }
 

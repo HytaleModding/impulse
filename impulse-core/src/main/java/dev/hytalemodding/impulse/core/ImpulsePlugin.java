@@ -196,9 +196,12 @@ public final class ImpulsePlugin extends JavaPlugin {
         ComponentRegistryProxy<EntityStore> entityRegistry = getEntityStoreRegistry();
         physicsBodyAttachmentComponentType = entityRegistry.registerComponent(
             PhysicsBodyAttachmentComponent.class,
-            PhysicsBodyAttachmentComponent::new);
+            "PhysicsBodyAttachment",
+            PhysicsBodyAttachmentComponent.CODEC);
         impulseControllableComponentType = entityRegistry.registerComponent(
-            ImpulseControllableComponent.class, ImpulseControllableComponent::new);
+            ImpulseControllableComponent.class,
+            "ImpulseControllable",
+            ImpulseControllableComponent.CODEC);
         physicsControlSessionComponentType = entityRegistry.registerComponent(
             PhysicsControlSessionComponent.class, PhysicsControlSessionComponent::new);
         physicsWorldResourceType = entityRegistry.registerResource(PhysicsWorldResource.class,

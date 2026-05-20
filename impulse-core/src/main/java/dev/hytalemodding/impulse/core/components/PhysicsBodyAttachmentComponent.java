@@ -1,11 +1,18 @@
 package dev.hytalemodding.impulse.core.components;
 
+import com.hypixel.hytale.codec.Codec;
+import com.hypixel.hytale.codec.KeyedCodec;
+import com.hypixel.hytale.codec.builder.BuilderCodec;
+import com.hypixel.hytale.codec.codecs.EnumCodec;
 import com.hypixel.hytale.component.Component;
 import com.hypixel.hytale.component.ComponentType;
+import com.hypixel.hytale.math.vector.Vector3fUtil;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import dev.hytalemodding.impulse.api.SpaceId;
 import dev.hytalemodding.impulse.core.ImpulsePlugin;
+import dev.hytalemodding.impulse.core.persistence.PersistentQuaternion;
 import dev.hytalemodding.impulse.core.resources.PhysicsBodyId;
+import java.util.UUID;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 import lombok.Getter;
@@ -22,9 +29,51 @@ import org.joml.Vector3f;
  */
 public class PhysicsBodyAttachmentComponent implements Component<EntityStore> {
 
+    @Nonnull
+    public static final BuilderCodec<PhysicsBodyAttachmentComponent> CODEC = BuilderCodec.builder(
+            PhysicsBodyAttachmentComponent.class,
+            PhysicsBodyAttachmentComponent::new)
+        .append(new KeyedCodec<>("BodyId", Codec.UUID_BINARY, false),
+            (component, value) -> component.bodyId = value != null
+                ? PhysicsBodyId.of(value)
+                : PhysicsBodyId.random(),
+            PhysicsBodyAttachmentComponent::getBodyIdValue)
+        .add()
+        .append(new KeyedCodec<>("SpaceId", Codec.INTEGER, false),
+            (component, value) -> component.spaceId = value != null && value > 0
+                ? new SpaceId(value)
+                : null,
+            PhysicsBodyAttachmentComponent::getSpaceIdValue)
+        .add()
+        .append(new KeyedCodec<>("TransformAuthority", new EnumCodec<>(TransformAuthority.class), false),
+            (component, value) -> component.transformAuthority = value != null
+                ? value
+                : TransformAuthority.BODY,
+            PhysicsBodyAttachmentComponent::getTransformAuthority)
+        .add()
+        .append(new KeyedCodec<>("Lifecycle", new EnumCodec<>(AttachmentLifecycle.class), false),
+            (component, value) -> component.lifecycle = value != null
+                ? value
+                : AttachmentLifecycle.EXTERNAL_ENTITY,
+            PhysicsBodyAttachmentComponent::getLifecycle)
+        .add()
+        .append(new KeyedCodec<>("LocalPositionOffset", Vector3fUtil.CODEC, false),
+            (component, value) -> component.localPositionOffset.set(value != null
+                ? value
+                : new Vector3f()),
+            PhysicsBodyAttachmentComponent::getLocalPositionOffset)
+        .add()
+        .append(new KeyedCodec<>("LocalRotationOffset", PersistentQuaternion.CODEC, false),
+            (component, value) -> component.localRotationOffset.set(value != null
+                ? value.toQuaternionf()
+                : new Quaternionf()),
+            component -> PersistentQuaternion.of(component.localRotationOffset))
+        .add()
+        .build();
+
     @Setter
     @Getter(onMethod_ = @__(@Nonnull))
-    private PhysicsBodyId bodyId;
+    private PhysicsBodyId bodyId = PhysicsBodyId.random();
 
     @Setter
     @Getter
@@ -83,6 +132,16 @@ public class PhysicsBodyAttachmentComponent implements Component<EntityStore> {
 
     public static ComponentType<EntityStore, PhysicsBodyAttachmentComponent> getComponentType() {
         return ImpulsePlugin.get().getPhysicsBodyAttachmentComponentType();
+    }
+
+    @Nonnull
+    private UUID getBodyIdValue() {
+        return bodyId.value();
+    }
+
+    @Nullable
+    private Integer getSpaceIdValue() {
+        return spaceId != null ? spaceId.value() : null;
     }
 
     @Nonnull

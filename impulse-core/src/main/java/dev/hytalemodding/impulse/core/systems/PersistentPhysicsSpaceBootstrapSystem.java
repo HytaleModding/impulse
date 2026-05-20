@@ -13,8 +13,9 @@ import dev.hytalemodding.impulse.api.Impulse;
 import dev.hytalemodding.impulse.api.PhysicsSpace;
 import dev.hytalemodding.impulse.api.SpaceId;
 import dev.hytalemodding.impulse.core.ImpulsePlugin;
-import dev.hytalemodding.impulse.core.components.ImpulseControllableComponent;
 import dev.hytalemodding.impulse.core.components.PhysicsBodyAttachmentComponent;
+import dev.hytalemodding.impulse.core.components.PhysicsBodyAttachmentComponent.AttachmentLifecycle;
+import dev.hytalemodding.impulse.core.components.PhysicsControlSessionComponent;
 import dev.hytalemodding.impulse.core.persistence.PersistentPhysicsSpaceState;
 import dev.hytalemodding.impulse.core.persistence.PersistentPhysicsWorldResource;
 import dev.hytalemodding.impulse.core.resources.PhysicsSpaceSettings;
@@ -133,11 +134,15 @@ public class PersistentPhysicsSpaceBootstrapSystem extends TickingSystem<EntityS
 
         store.forEachEntityParallel(PhysicsBodyAttachmentComponent.getComponentType(),
             (index, archetypeChunk, commandBuffer) -> {
-                var ref = archetypeChunk.getReferenceTo(index);
-                commandBuffer.removeComponent(ref, PhysicsBodyAttachmentComponent.getComponentType());
-                if (archetypeChunk.getComponent(index, ImpulseControllableComponent.getComponentType()) != null) {
-                    commandBuffer.removeComponent(ref, ImpulseControllableComponent.getComponentType());
+                PhysicsBodyAttachmentComponent attachment = archetypeChunk.getComponent(index,
+                    PhysicsBodyAttachmentComponent.getComponentType());
+                if (attachment == null
+                    || attachment.getLifecycle() != AttachmentLifecycle.GENERATED_PROXY) {
+                    return;
                 }
+
+                var ref = archetypeChunk.getReferenceTo(index);
+                commandBuffer.removeEntity(ref, RemoveReason.REMOVE);
             });
 
         /*
@@ -160,6 +165,11 @@ public class PersistentPhysicsSpaceBootstrapSystem extends TickingSystem<EntityS
 
                 commandBuffer.removeEntity(archetypeChunk.getReferenceTo(index), RemoveReason.REMOVE);
             });
+
+        store.forEachEntityParallel(PhysicsControlSessionComponent.getComponentType(),
+            (index, archetypeChunk, commandBuffer) -> commandBuffer.removeComponent(
+                archetypeChunk.getReferenceTo(index),
+                PhysicsControlSessionComponent.getComponentType()));
     }
 
     @Nullable
