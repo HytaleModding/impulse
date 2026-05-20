@@ -142,6 +142,7 @@ final class ImpulseApiCrucibleTests {
             true);
         try {
             SpaceId spaceId = space.getId();
+            assert resource.getDefaultSpaceId() != null;
             return resource.getDefaultSpaceId().equals(spaceId)
                 && resource.getDefaultSpace() == space
                 && resource.getSpace(spaceId) == space
