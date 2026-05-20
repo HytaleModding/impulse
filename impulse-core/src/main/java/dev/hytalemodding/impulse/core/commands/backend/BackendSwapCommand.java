@@ -42,7 +42,7 @@ public class BackendSwapCommand extends AbstractAsyncPlayerCommand {
         @Nonnull World world) {
         if (!backendArg.provided(ctx)) {
             ctx.sender().sendMessage(Message.raw("Missing backend id. Example:"
-                + " /impulse backend swap --backend impulse:rapier"));
+                + " /impulse backend swap --backend=impulse:rapier"));
             return CompletableFuture.completedFuture(null);
         }
 

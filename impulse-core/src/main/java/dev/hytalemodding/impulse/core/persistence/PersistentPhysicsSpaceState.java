@@ -56,23 +56,23 @@ public class PersistentPhysicsSpaceState {
             PersistentPhysicsSpaceState::getEntityChunkBoundaryMode)
         .add()
         .append(new KeyedCodec<>("WorldCollisionRadius", Codec.INTEGER, false),
-            (state, value) -> state.setWorldCollisionRadius(value),
+            PersistentPhysicsSpaceState::setWorldCollisionRadius,
             PersistentPhysicsSpaceState::getWorldCollisionRadius)
         .add()
         .append(new KeyedCodec<>("WorldCollisionBodyRadius", Codec.INTEGER, false),
-            (state, value) -> state.setWorldCollisionBodyRadius(value),
+            PersistentPhysicsSpaceState::setWorldCollisionBodyRadius,
             PersistentPhysicsSpaceState::getWorldCollisionBodyRadius)
         .add()
         .append(new KeyedCodec<>("WorldCollisionTtlTicks", Codec.INTEGER, false),
-            (state, value) -> state.setWorldCollisionTtlTicks(value),
+            PersistentPhysicsSpaceState::setWorldCollisionTtlTicks,
             PersistentPhysicsSpaceState::getWorldCollisionTtlTicks)
         .add()
         .append(new KeyedCodec<>("VisualFullSyncRadius", Codec.INTEGER, false),
-            (state, value) -> state.setVisualFullSyncRadius(value),
+            PersistentPhysicsSpaceState::setVisualFullSyncRadius,
             PersistentPhysicsSpaceState::getVisualFullSyncRadius)
         .add()
         .append(new KeyedCodec<>("VisualMaxSyncRadius", Codec.INTEGER, false),
-            (state, value) -> state.setVisualMaxSyncRadius(value),
+            PersistentPhysicsSpaceState::setVisualMaxSyncRadius,
             PersistentPhysicsSpaceState::getVisualMaxSyncRadius)
         .add()
         .append(new KeyedCodec<>("VisualFarSyncCutoffEnabled", Codec.BOOLEAN, false),
@@ -80,11 +80,11 @@ public class PersistentPhysicsSpaceState {
             PersistentPhysicsSpaceState::isVisualFarSyncCutoffEnabled)
         .add()
         .append(new KeyedCodec<>("VisualMidSyncIntervalTicks", Codec.INTEGER, false),
-            (state, value) -> state.setVisualMidSyncIntervalTicks(value),
+            PersistentPhysicsSpaceState::setVisualMidSyncIntervalTicks,
             PersistentPhysicsSpaceState::getVisualMidSyncIntervalTicks)
         .add()
         .append(new KeyedCodec<>("VisualFarSyncIntervalTicks", Codec.INTEGER, false),
-            (state, value) -> state.setVisualFarSyncIntervalTicks(value),
+            PersistentPhysicsSpaceState::setVisualFarSyncIntervalTicks,
             PersistentPhysicsSpaceState::getVisualFarSyncIntervalTicks)
         .add()
         .append(new KeyedCodec<>("VisualOcclusionMode", new EnumCodec<>(VisualOcclusionMode.class), false),
@@ -92,11 +92,11 @@ public class PersistentPhysicsSpaceState {
             PersistentPhysicsSpaceState::getVisualOcclusionMode)
         .add()
         .append(new KeyedCodec<>("VisualOcclusionRaycastsPerTick", Codec.INTEGER, false),
-            (state, value) -> state.setVisualOcclusionRaycastsPerTick(value),
+            PersistentPhysicsSpaceState::setVisualOcclusionRaycastsPerTick,
             PersistentPhysicsSpaceState::getVisualOcclusionRaycastsPerTick)
         .add()
         .append(new KeyedCodec<>("VisualOcclusionCacheTicks", Codec.INTEGER, false),
-            (state, value) -> state.setVisualOcclusionCacheTicks(value),
+            PersistentPhysicsSpaceState::setVisualOcclusionCacheTicks,
             PersistentPhysicsSpaceState::getVisualOcclusionCacheTicks)
         .add()
         .append(new KeyedCodec<>("SolverIterations", Codec.INTEGER, false),
@@ -128,7 +128,7 @@ public class PersistentPhysicsSpaceState {
             PersistentPhysicsSpaceState::getDynamicSleepTimeUntilSleep)
         .add()
         .append(new KeyedCodec<>("ExecutionMode", new EnumCodec<>(ExecutionMode.class), false),
-            (state, value) -> state.setExecutionMode(value),
+            PersistentPhysicsSpaceState::setExecutionMode,
             PersistentPhysicsSpaceState::getExecutionMode)
         .add()
         .append(new KeyedCodec<>("EntityVisualSyncCullingEnabled", Codec.BOOLEAN, false),
@@ -144,19 +144,19 @@ public class PersistentPhysicsSpaceState {
             PersistentPhysicsSpaceState::isDetachedVisualMaterializationEnabled)
         .add()
         .append(new KeyedCodec<>("DetachedVisualMaterializationRadius", Codec.INTEGER, false),
-            (state, value) -> state.setDetachedVisualMaterializationRadius(value),
+            PersistentPhysicsSpaceState::setDetachedVisualMaterializationRadius,
             PersistentPhysicsSpaceState::getDetachedVisualMaterializationRadius)
         .add()
         .append(new KeyedCodec<>("DetachedVisualDematerializationRadius", Codec.INTEGER, false),
-            (state, value) -> state.setDetachedVisualDematerializationRadius(value),
+            PersistentPhysicsSpaceState::setDetachedVisualDematerializationRadius,
             PersistentPhysicsSpaceState::getDetachedVisualDematerializationRadius)
         .add()
         .append(new KeyedCodec<>("DetachedVisualMaxSpawnsPerTick", Codec.INTEGER, false),
-            (state, value) -> state.setDetachedVisualMaxSpawnsPerTick(value),
+            PersistentPhysicsSpaceState::setDetachedVisualMaxSpawnsPerTick,
             PersistentPhysicsSpaceState::getDetachedVisualMaxSpawnsPerTick)
         .add()
         .append(new KeyedCodec<>("DetachedVisualMaxMaterialized", Codec.INTEGER, false),
-            (state, value) -> state.setDetachedVisualMaxMaterialized(value),
+            PersistentPhysicsSpaceState::setDetachedVisualMaxMaterialized,
             PersistentPhysicsSpaceState::getDetachedVisualMaxMaterialized)
         .add()
         .append(new KeyedCodec<>("DetachedVisualBlockType", Codec.STRING, false),
