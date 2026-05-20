@@ -47,18 +47,6 @@ public class PhysicsKinematicControlSystem extends EntityTickingSystem<EntitySto
 
     private final ThreadLocal<Scratch> scratch = ThreadLocal.withInitial(Scratch::new);
 
-    @Nonnull
-    @Override
-    public Query<EntityStore> getQuery() {
-        return QUERY;
-    }
-
-    @Nonnull
-    @Override
-    public Set<Dependency<EntityStore>> getDependencies() {
-        return DEPENDENCIES;
-    }
-
     @Override
     public boolean isParallel(int archetypeChunkSize, int taskCount) {
         return false;
@@ -206,5 +194,17 @@ public class PhysicsKinematicControlSystem extends EntityTickingSystem<EntitySto
         private final Vector3d up = new Vector3d();
         private final Quaterniond rotation = new Quaterniond();
         private final Vector3f target = new Vector3f();
+    }
+
+    @Nonnull
+    @Override
+    public Query<EntityStore> getQuery() {
+        return QUERY;
+    }
+
+    @Nonnull
+    @Override
+    public Set<Dependency<EntityStore>> getDependencies() {
+        return DEPENDENCIES;
     }
 }

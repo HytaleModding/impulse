@@ -50,9 +50,6 @@ import org.joml.Vector3f;
  */
 public class PhysicsSyncSystem extends EntityTickingSystem<EntityStore> {
 
-    private static final float LOW_SPEED_LINEAR_THRESHOLD_SQUARED = 0.2f * 0.2f;
-    private static final float LOW_SPEED_ANGULAR_THRESHOLD_SQUARED = 0.5f * 0.5f;
-
     private static final ComponentType<EntityStore, PhysicsBodyAttachmentComponent> ATTACHMENT_TYPE =
         PhysicsBodyAttachmentComponent.getComponentType();
     private static final ComponentType<EntityStore, TransformComponent> TRANSFORM_TYPE =
@@ -66,6 +63,9 @@ public class PhysicsSyncSystem extends EntityTickingSystem<EntityStore> {
         new SystemDependency<>(Order.BEFORE, UpdateLocationSystems.TickingSystem.class)
     );
 
+    private static final float LOW_SPEED_LINEAR_THRESHOLD_SQUARED = 0.2f * 0.2f;
+    private static final float LOW_SPEED_ANGULAR_THRESHOLD_SQUARED = 0.5f * 0.5f;
+
     /**
      * Snapshot of player interest positions/directions for the current world tick. The list is built on the
      * world thread before any parallel entity iteration and then treated as immutable.
@@ -78,18 +78,6 @@ public class PhysicsSyncSystem extends EntityTickingSystem<EntityStore> {
      * because the backend out-parameter getters write into caller-owned vectors.
      */
     private final ThreadLocal<Scratch> scratch = ThreadLocal.withInitial(Scratch::new);
-
-    @Nonnull
-    @Override
-    public Set<Dependency<EntityStore>> getDependencies() {
-        return dependencies;
-    }
-
-    @Nonnull
-    @Override
-    public Query<EntityStore> getQuery() {
-        return QUERY;
-    }
 
     @Override
     public boolean isParallel(int archetypeChunkSize, int taskCount) {
@@ -351,6 +339,18 @@ public class PhysicsSyncSystem extends EntityTickingSystem<EntityStore> {
             }
             return cachedProfiling.isEnabled() ? cachedProfiling.getActiveSyncCollector() : null;
         }
+    }
+
+    @Nonnull
+    @Override
+    public Query<EntityStore> getQuery() {
+        return QUERY;
+    }
+
+    @Nonnull
+    @Override
+    public Set<Dependency<EntityStore>> getDependencies() {
+        return dependencies;
     }
 
 }

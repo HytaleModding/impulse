@@ -1,5 +1,6 @@
 package dev.hytalemodding.impulse.core.systems;
 
+import com.hypixel.hytale.component.ComponentType;
 import com.hypixel.hytale.component.Ref;
 import com.hypixel.hytale.component.Store;
 import com.hypixel.hytale.component.system.tick.TickingSystem;
@@ -9,6 +10,7 @@ import com.hypixel.hytale.server.core.modules.entity.component.TransformComponen
 import com.hypixel.hytale.server.core.universe.PlayerRef;
 import com.hypixel.hytale.server.core.universe.world.World;
 import com.hypixel.hytale.server.core.universe.world.storage.ChunkStore;
+import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import dev.hytalemodding.impulse.api.PhysicsBody;
 import dev.hytalemodding.impulse.api.PhysicsBodySnapshot;
 import dev.hytalemodding.impulse.api.PhysicsContact;
@@ -44,6 +46,11 @@ import org.joml.Vector3f;
  */
 public class PhysicsDebugSystem extends TickingSystem<ChunkStore> {
 
+    private static final ComponentType<EntityStore, PhysicsBodyAttachmentComponent> ATTACHMENT_TYPE =
+        PhysicsBodyAttachmentComponent.getComponentType();
+    private static final ComponentType<EntityStore, TransformComponent> TRANSFORM_TYPE =
+        TransformComponent.getComponentType();
+
     private static final Vector3f SPACE_ONLY_POSITION_SCRATCH = new Vector3f();
     private static final Vector3f JOINT_BODY_A_POSITION_SCRATCH = new Vector3f();
     private static final Vector3f JOINT_BODY_B_POSITION_SCRATCH = new Vector3f();
@@ -51,8 +58,7 @@ public class PhysicsDebugSystem extends TickingSystem<ChunkStore> {
     @Override
     public void tick(float dt, int index, @Nonnull Store<ChunkStore> store) {
         World world = store.getExternalData().getWorld();
-        Store<com.hypixel.hytale.server.core.universe.world.storage.EntityStore> entityStore =
-            world.getEntityStore().getStore();
+        Store<EntityStore> entityStore = world.getEntityStore().getStore();
         PhysicsWorldResource resource = entityStore.getResource(
             PhysicsWorldResource.getResourceType());
         PhysicsDebugResource debug = entityStore.getResource(PhysicsDebugResource.getResourceType());
@@ -163,7 +169,7 @@ public class PhysicsDebugSystem extends TickingSystem<ChunkStore> {
     }
 
     private static int renderEntityBodies(@Nonnull Collection<PlayerRef> viewers,
-        @Nonnull Store<com.hypixel.hytale.server.core.universe.world.storage.EntityStore> store,
+        @Nonnull Store<EntityStore> store,
         @Nonnull PhysicsWorldResource resource,
         @Nonnull Vector3d viewerPosition,
         double viewRadius,
@@ -181,15 +187,13 @@ public class PhysicsDebugSystem extends TickingSystem<ChunkStore> {
                 continue;
             }
 
-            for (Ref<com.hypixel.hytale.server.core.universe.world.storage.EntityStore> attachmentRef
-                : resource.getBodyAttachments(registration.id())) {
+            for (Ref<EntityStore> attachmentRef : resource.getBodyAttachments(registration.id())) {
                 if (!attachmentRef.isValid()) {
                     continue;
                 }
                 PhysicsBodyAttachmentComponent attachment = store.getComponent(attachmentRef,
-                    PhysicsBodyAttachmentComponent.getComponentType());
-                TransformComponent transform = store.getComponent(attachmentRef,
-                    TransformComponent.getComponentType());
+                    ATTACHMENT_TYPE);
+                TransformComponent transform = store.getComponent(attachmentRef, TRANSFORM_TYPE);
                 if (attachment == null
                     || attachment.getLifecycle() == AttachmentLifecycle.GENERATED_PROXY
                     || transform == null) {

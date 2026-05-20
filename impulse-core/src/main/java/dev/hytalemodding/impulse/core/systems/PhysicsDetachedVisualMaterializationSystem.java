@@ -1,6 +1,7 @@
 package dev.hytalemodding.impulse.core.systems;
 
 import com.hypixel.hytale.component.AddReason;
+import com.hypixel.hytale.component.ComponentType;
 import com.hypixel.hytale.component.Holder;
 import com.hypixel.hytale.component.NonSerialized;
 import com.hypixel.hytale.component.Ref;
@@ -43,9 +44,9 @@ import java.util.Optional;
 import java.util.Set;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
+import org.joml.Quaterniond;
 import org.joml.Vector3d;
 import org.joml.Vector3f;
-import org.joml.Quaterniond;
 
 /**
  * Materializes disposable Hytale visual followers for detached physics bodies near players.
@@ -56,21 +57,28 @@ import org.joml.Quaterniond;
  */
 public class PhysicsDetachedVisualMaterializationSystem extends TickingSystem<EntityStore> {
 
-    private static final float VIEW_CONE_DOT = 0.35f;
-    private static final float VIEW_CONE_NEAR_RADIUS_SQUARED = 8.0f * 8.0f;
-    private static final int ORPHAN_VISUAL_CLEANUP_INTERVAL_TICKS = 40;
+    private static final ComponentType<EntityStore, PhysicsBodyAttachmentComponent> ATTACHMENT_TYPE =
+        PhysicsBodyAttachmentComponent.getComponentType();
+    private static final ComponentType<EntityStore, HeadRotation> HEAD_ROTATION_TYPE =
+        HeadRotation.getComponentType();
+    private static final ComponentType<EntityStore, TransformComponent> TRANSFORM_TYPE =
+        TransformComponent.getComponentType();
+    private static final ComponentType<EntityStore, DespawnComponent> DESPAWN_TYPE =
+        DespawnComponent.getComponentType();
+    private static final ComponentType<EntityStore, Velocity> VELOCITY_TYPE =
+        Velocity.getComponentType();
+    private static final ComponentType<ChunkStore, WorldChunk> WORLD_CHUNK_TYPE =
+        WorldChunk.getComponentType();
 
     private static final Set<Dependency<EntityStore>> DEPENDENCIES = Set.of(
         new SystemDependency<>(Order.BEFORE, PhysicsSyncSystem.class)
     );
 
-    private int orphanVisualCleanupCooldown;
+    private static final float VIEW_CONE_DOT = 0.35f;
+    private static final float VIEW_CONE_NEAR_RADIUS_SQUARED = 8.0f * 8.0f;
+    private static final int ORPHAN_VISUAL_CLEANUP_INTERVAL_TICKS = 40;
 
-    @Nonnull
-    @Override
-    public Set<Dependency<EntityStore>> getDependencies() {
-        return DEPENDENCIES;
-    }
+    private int orphanVisualCleanupCooldown;
 
     @Override
     public void tick(float dt, int systemIndex, @Nonnull Store<EntityStore> store) {
@@ -116,8 +124,7 @@ public class PhysicsDetachedVisualMaterializationSystem extends TickingSystem<En
                 continue;
             }
 
-            TransformComponent transform = store.getComponent(playerEntity,
-                TransformComponent.getComponentType());
+            TransformComponent transform = store.getComponent(playerEntity, TRANSFORM_TYPE);
             if (transform == null) {
                 continue;
             }
@@ -135,7 +142,7 @@ public class PhysicsDetachedVisualMaterializationSystem extends TickingSystem<En
     private static Vector3f playerLookDirection(@Nonnull Store<EntityStore> store,
         @Nonnull Ref<EntityStore> playerEntity,
         @Nonnull TransformComponent transform) {
-        HeadRotation headRotation = store.getComponent(playerEntity, HeadRotation.getComponentType());
+        HeadRotation headRotation = store.getComponent(playerEntity, HEAD_ROTATION_TYPE);
         Rotation3f rotation = headRotation != null ? headRotation.getRotation() : transform.getRotation();
         Vector3d direction = new Vector3d(Vector3dUtil.FORWARD);
         rotation.getQuaternion(new Quaterniond()).transform(direction);
@@ -247,10 +254,10 @@ public class PhysicsDetachedVisualMaterializationSystem extends TickingSystem<En
 
     private static void removeOrphanVisualFollowers(@Nonnull Store<EntityStore> store,
         @Nonnull PhysicsWorldResource resource) {
-        store.forEachEntityParallel(PhysicsBodyAttachmentComponent.getComponentType(),
+        store.forEachEntityParallel(ATTACHMENT_TYPE,
             (index, archetypeChunk, commandBuffer) -> {
                 PhysicsBodyAttachmentComponent attachment = archetypeChunk.getComponent(index,
-                    PhysicsBodyAttachmentComponent.getComponentType());
+                    ATTACHMENT_TYPE);
                 if (attachment == null
                     || attachment.getLifecycle() != AttachmentLifecycle.GENERATED_PROXY
                     || hasLiveVisualTarget(resource, attachment)) {
@@ -303,7 +310,7 @@ public class PhysicsDetachedVisualMaterializationSystem extends TickingSystem<En
                 continue;
             }
             PhysicsBodyAttachmentComponent attachment = store.getComponent(attachmentRef,
-                PhysicsBodyAttachmentComponent.getComponentType());
+                ATTACHMENT_TYPE);
             if (attachment != null && attachment.getLifecycle() != AttachmentLifecycle.GENERATED_PROXY) {
                 return true;
             }
@@ -491,8 +498,7 @@ public class PhysicsDetachedVisualMaterializationSystem extends TickingSystem<En
             return false;
         }
 
-        WorldChunk worldChunk = chunkComponentStore.getComponent(chunkRef,
-            WorldChunk.getComponentType());
+        WorldChunk worldChunk = chunkComponentStore.getComponent(chunkRef, WORLD_CHUNK_TYPE);
         return worldChunk != null;
     }
 
@@ -503,8 +509,7 @@ public class PhysicsDetachedVisualMaterializationSystem extends TickingSystem<En
         if (!proxy.isValid()) {
             return false;
         }
-        PhysicsBodyAttachmentComponent attachment = store.getComponent(proxy,
-            PhysicsBodyAttachmentComponent.getComponentType());
+        PhysicsBodyAttachmentComponent attachment = store.getComponent(proxy, ATTACHMENT_TYPE);
         return attachment != null
             && attachment.getLifecycle() == AttachmentLifecycle.GENERATED_PROXY
             && attachment.getBodyId().equals(bodyId)
@@ -529,10 +534,10 @@ public class PhysicsDetachedVisualMaterializationSystem extends TickingSystem<En
             new Vector3d(position.x,
                 position.y - snapshot.centerOfMassOffsetY(),
                 position.z));
-        holder.removeComponent(DespawnComponent.getComponentType());
-        holder.removeComponent(Velocity.getComponentType());
+        holder.removeComponent(DESPAWN_TYPE);
+        holder.removeComponent(VELOCITY_TYPE);
         holder.addComponent(store.getRegistry().getNonSerializedComponentType(), NonSerialized.get());
-        holder.addComponent(PhysicsBodyAttachmentComponent.getComponentType(),
+        holder.addComponent(ATTACHMENT_TYPE,
             new PhysicsBodyAttachmentComponent(bodyId,
                 registration.spaceId(),
                 TransformAuthority.BODY,
@@ -593,5 +598,11 @@ public class PhysicsDetachedVisualMaterializationSystem extends TickingSystem<En
             used++;
             return true;
         }
+    }
+
+    @Nonnull
+    @Override
+    public Set<Dependency<EntityStore>> getDependencies() {
+        return DEPENDENCIES;
     }
 }
