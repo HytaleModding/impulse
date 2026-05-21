@@ -26,16 +26,16 @@ import org.joml.Vector3f;
  * Small in-memory backend for resource lifecycle tests that need real API objects
  * without loading a native physics implementation.
  */
-public final class InMemoryPhysicsBackend implements PhysicsBackend {
+public final class FakePhysicsBackend implements PhysicsBackend {
 
     private final BackendId id;
     private final List<InMemoryPhysicsSpace> createdSpaces = new ArrayList<>();
 
-    public InMemoryPhysicsBackend(@Nonnull String id) {
+    public FakePhysicsBackend(@Nonnull String id) {
         this(new BackendId(id));
     }
 
-    public InMemoryPhysicsBackend(@Nonnull BackendId id) {
+    public FakePhysicsBackend(@Nonnull BackendId id) {
         this.id = id;
     }
 
@@ -629,7 +629,7 @@ public final class InMemoryPhysicsBackend implements PhysicsBackend {
             return shapeType;
         }
 
-        @Nullable
+        @Nonnull
         @Override
         public Vector3f getBoxHalfExtents() {
             return new Vector3f(halfExtents);
