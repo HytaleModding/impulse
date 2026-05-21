@@ -40,7 +40,9 @@ public class PhysicsKinematicControlSystem extends EntityTickingSystem<EntitySto
         HeadRotation.getComponentType();
     private static final ComponentType<EntityStore, ModelComponent> MODEL_TYPE =
         ModelComponent.getComponentType();
+
     private static final Query<EntityStore> QUERY = Query.and(SESSION_TYPE, TRANSFORM_TYPE);
+
     private static final Set<Dependency<EntityStore>> DEPENDENCIES = Set.of(
         new SystemDependency<>(Order.BEFORE, PhysicsSyncSystem.class)
     );

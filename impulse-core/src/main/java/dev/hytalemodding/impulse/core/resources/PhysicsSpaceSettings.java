@@ -428,6 +428,9 @@ public class PhysicsSpaceSettings {
 
     /**
      * Hytale block type used for default detached visual proxies.
+     *
+     * FIXME: this is temporary we cannot assume a specific blocktype since a physics body could be
+     * composed by any general mix of blocks and entities
      */
     @Getter(onMethod_ = @__(@Nonnull))
     private String detachedVisualBlockType = DEFAULT_DETACHED_VISUAL_BLOCK_TYPE;
