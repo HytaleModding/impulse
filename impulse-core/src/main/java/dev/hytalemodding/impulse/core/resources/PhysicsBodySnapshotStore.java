@@ -1,0 +1,103 @@
+package dev.hytalemodding.impulse.core.resources;
+
+import dev.hytalemodding.impulse.api.PhysicsBody;
+import dev.hytalemodding.impulse.api.PhysicsBodySnapshot;
+import dev.hytalemodding.impulse.api.PhysicsSpace;
+import dev.hytalemodding.impulse.api.SpaceId;
+import it.unimi.dsi.fastutil.objects.Object2ObjectLinkedOpenHashMap;
+import it.unimi.dsi.fastutil.objects.ObjectOpenHashSet;
+import java.util.Map;
+import java.util.Set;
+import java.util.function.Consumer;
+import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
+import org.joml.Vector3f;
+
+/**
+ * Cached body snapshots and spatial lookup state for world-level readers.
+ */
+final class PhysicsBodySnapshotStore {
+
+    private final Map<PhysicsBodyId, PhysicsBodySnapshot> snapshots =
+        new Object2ObjectLinkedOpenHashMap<>();
+    private final PhysicsBodySpatialIndex spatialIndex = new PhysicsBodySpatialIndex();
+
+    int refresh(@Nonnull Iterable<PhysicsSpace> spaces, @Nonnull PhysicsBodyRegistry bodyRegistry) {
+        Set<PhysicsBodyId> liveBodies = new ObjectOpenHashSet<>();
+        for (PhysicsSpace space : spaces) {
+            SpaceId spaceId = space.getId();
+            space.snapshotBodies(body -> {
+                PhysicsBodyId bodyId = bodyRegistry.getBodyId(body);
+                return bodyId != null ? snapshots.get(bodyId) : null;
+            }, snapshot -> {
+                PhysicsBody body = snapshot.body();
+                PhysicsBodyId bodyId = bodyRegistry.getBodyId(body);
+                if (bodyId == null) {
+                    return;
+                }
+                PhysicsWorldResource.BodyRegistration registration = bodyRegistry.getRegistration(body);
+                if (registration == null) {
+                    return;
+                }
+
+                liveBodies.add(bodyId);
+                PhysicsBodySnapshot previous = snapshots.get(bodyId);
+                if (snapshot != previous) {
+                    snapshots.put(bodyId, snapshot);
+                }
+                spatialIndex.update(bodyId, snapshot, spaceId, registration);
+            });
+        }
+
+        spatialIndex.retainOnly(liveBodies);
+        snapshots.keySet().removeIf(bodyId -> !liveBodies.contains(bodyId));
+        return liveBodies.size();
+    }
+
+    void put(@Nonnull PhysicsBodyId bodyId,
+        @Nonnull PhysicsBodySnapshot snapshot,
+        @Nonnull SpaceId spaceId,
+        @Nonnull PhysicsWorldResource.BodyRegistration registration) {
+        snapshots.put(bodyId, snapshot);
+        spatialIndex.update(bodyId, snapshot, spaceId, registration);
+    }
+
+    @Nullable
+    PhysicsBodySnapshot get(@Nonnull PhysicsBodyId bodyId) {
+        return snapshots.get(bodyId);
+    }
+
+    void remove(@Nonnull PhysicsBodyId bodyId) {
+        snapshots.remove(bodyId);
+        spatialIndex.remove(bodyId);
+    }
+
+    void clear() {
+        snapshots.clear();
+        spatialIndex.clear();
+    }
+
+    int bodyCount() {
+        return spatialIndex.bodyCount();
+    }
+
+    int bodyCount(@Nonnull SpaceId spaceId) {
+        return spatialIndex.bodyCount(spaceId);
+    }
+
+    int cellCount() {
+        return spatialIndex.cellCount();
+    }
+
+    void forEach(@Nonnull SpaceId spaceId,
+        @Nonnull Consumer<PhysicsWorldResource.BodySnapshotEntry> consumer) {
+        spatialIndex.forEach(spaceId, consumer);
+    }
+
+    int forEachNear(@Nonnull SpaceId spaceId,
+        @Nonnull Vector3f center,
+        float radius,
+        @Nonnull Consumer<PhysicsWorldResource.BodySnapshotEntry> consumer) {
+        return spatialIndex.forEachNear(spaceId, center, radius, consumer);
+    }
+}

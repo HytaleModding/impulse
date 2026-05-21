@@ -5,6 +5,7 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotSame;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertSame;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import dev.hytalemodding.impulse.api.Impulse;
@@ -113,5 +114,99 @@ class PhysicsWorldResourceStateTest {
         assertFalse(resource.isBodyControlled(firstId));
         assertNull(resource.getChunkBoundarySafeState(firstId));
         assertTrue(resource.getForcedContinuousCollisionBodies().isEmpty());
+    }
+
+    @Test
+    void destroyBodyClearsRuntimeStateAndSnapshotIndexes() {
+        FakePhysicsBackend backend =
+            new FakePhysicsBackend("test:destroy-cleanup-" + BACKEND_COUNTER.incrementAndGet());
+        Impulse.registerBackend(backend);
+
+        PhysicsWorldResource resource = new PhysicsWorldResource();
+        PhysicsSpace space = resource.createSpace(backend.getId(),
+            "test-world",
+            PhysicsSpaceSettings.defaults(),
+            true);
+        PhysicsBody body = space.createBox(0.5f, 0.5f, 0.5f, 1.0f);
+        body.setContinuousCollisionEnabled(true);
+        PhysicsBodyId bodyId = resource.addBody(space.getId(),
+            body,
+            PhysicsBodyKind.BODY,
+            PhysicsBodyPersistenceMode.PERSISTENT);
+        resource.markContinuousCollisionForced(body);
+        resource.markBodyControlled(bodyId);
+        resource.updateChunkBoundarySafeState(bodyId, new Vector3f(1.0f), new Quaternionf());
+        resource.pauseChunkBoundaryBody(bodyId,
+            42L,
+            PhysicsBodyType.DYNAMIC,
+            new Vector3f(2.0f, 0.0f, 0.0f),
+            new Vector3f(0.0f, 3.0f, 0.0f));
+        resource.getBodySnapshot(bodyId);
+
+        resource.destroyBody(bodyId);
+
+        assertEquals(0, space.bodyCount());
+        assertNull(resource.getBody(bodyId));
+        assertFalse(resource.isBodyControlled(bodyId));
+        assertNull(resource.getChunkBoundarySafeState(bodyId));
+        assertNull(resource.getChunkBoundaryPauseState(bodyId));
+        assertTrue(resource.getForcedContinuousCollisionBodies().isEmpty());
+        assertEquals(0, resource.getBodySnapshotCount());
+        assertEquals(0, resource.getBodySnapshotCount(space.getId()));
+        assertEquals(0, resource.getBodySnapshotCellCount());
+        assertThrows(IllegalArgumentException.class, () -> resource.getBodySnapshot(bodyId));
+    }
+
+    @Test
+    void bodySnapshotStoreRefreshesQueriesAndDropsStaleBodies() {
+        FakePhysicsBackend backend =
+            new FakePhysicsBackend("test:snapshot-store-" + BACKEND_COUNTER.incrementAndGet());
+        Impulse.registerBackend(backend);
+
+        PhysicsWorldResource resource = new PhysicsWorldResource();
+        PhysicsSpace space = resource.createSpace(backend.getId(),
+            "test-world",
+            PhysicsSpaceSettings.defaults(),
+            true);
+        PhysicsBody near = space.createBox(0.5f, 0.5f, 0.5f, 1.0f);
+        near.setPosition(0.0f, 0.0f, 0.0f);
+        PhysicsBody far = space.createBox(0.5f, 0.5f, 0.5f, 1.0f);
+        far.setPosition(40.0f, 0.0f, 0.0f);
+        PhysicsBodyId nearId = resource.addBody(space.getId(),
+            near,
+            PhysicsBodyKind.BODY,
+            PhysicsBodyPersistenceMode.PERSISTENT);
+        resource.addBody(space.getId(),
+            far,
+            PhysicsBodyKind.BODY,
+            PhysicsBodyPersistenceMode.PERSISTENT);
+
+        assertEquals(2, resource.refreshBodySnapshots());
+        assertEquals(2, resource.getBodySnapshotCount(space.getId()));
+        AtomicInteger nearMatches = new AtomicInteger();
+        int candidates = resource.forEachBodySnapshotNear(space.getId(),
+            new Vector3f(),
+            8.0f,
+            entry -> {
+                assertEquals(nearId, entry.bodyId());
+                nearMatches.incrementAndGet();
+            });
+        assertEquals(1, candidates);
+        assertEquals(1, nearMatches.get());
+
+        space.removeBody(far);
+        assertEquals(1, resource.refreshBodySnapshots());
+
+        assertEquals(1, resource.getBodySnapshotCount());
+        assertEquals(1, resource.getBodySnapshotCount(space.getId()));
+        AtomicInteger remainingSnapshots = new AtomicInteger();
+        resource.forEachBodySnapshot(space.getId(), entry -> {
+            assertEquals(nearId, entry.bodyId());
+            remainingSnapshots.incrementAndGet();
+        });
+        assertEquals(1, remainingSnapshots.get());
+        resource.clearBodies();
+        assertEquals(0, resource.getBodySnapshotCount());
+        assertEquals(0, resource.getBodySnapshotCellCount());
     }
 }
