@@ -4,11 +4,22 @@ import dev.hytalemodding.impulse.core.resources.PhysicsStepMode;
 import dev.hytalemodding.impulse.core.resources.PhysicsWorldResource;
 import javax.annotation.Nonnull;
 
+/**
+ * Resolves world-level substep counts from the configured step mode.
+ *
+ * <p>Fixed-style modes use the configured count directly. Adaptive-style modes
+ * treat it as a minimum and raise the count when the tick dt exceeds the
+ * configured max substep dt. {@link PhysicsStepSystem} layers body-risk
+ * refinement on top for {@link PhysicsStepMode#ADAPTIVE}.</p>
+ */
 final class PhysicsStepCountPolicy {
 
     private PhysicsStepCountPolicy() {
     }
 
+    /**
+     * Resolves the count used by modes that do not inspect individual bodies.
+     */
     static int resolveStepCount(float dt,
         int simulationSteps,
         float maxStepDt,
@@ -22,6 +33,11 @@ final class PhysicsStepCountPolicy {
         };
     }
 
+    /**
+     * Raises the minimum count enough to keep each adaptive substep at or below
+     * {@code maxStepDt}, falling back to the default threshold when configured
+     * with a non-positive value.
+     */
     static int resolveMaxStepCount(float dt, int minimumSteps, float maxStepDt) {
         int baseSteps = clampStepCount(minimumSteps);
         float safeDt = Math.max(dt, 0.0f);

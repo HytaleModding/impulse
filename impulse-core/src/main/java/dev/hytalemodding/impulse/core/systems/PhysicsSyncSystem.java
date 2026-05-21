@@ -53,6 +53,11 @@ public class PhysicsSyncSystem extends EntityTickingSystem<EntityStore> {
         new SystemDependency<>(Order.BEFORE, UpdateLocationSystems.TickingSystem.class)
     );
 
+    /*
+     * Low-speed uncontrolled dynamic bodies get a wider visual deadzone and a
+     * slower keepalive. Controlled bodies bypass this classification so player
+     * input stays responsive.
+     */
     private static final float LOW_SPEED_LINEAR_THRESHOLD_SQUARED = 0.2f * 0.2f;
     private static final float LOW_SPEED_ANGULAR_THRESHOLD_SQUARED = 0.5f * 0.5f;
 

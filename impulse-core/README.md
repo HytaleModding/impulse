@@ -50,11 +50,13 @@ Cleanup does not create a replacement/default space implicitly. Run `/impulse sp
 ## Settings commands
 
 - `/impulse settings step-mode` - show the world physics step mode.
-- `/impulse settings step-mode --mode=progressive_refinement|fixed|ccd` - choose adaptive refinement, fixed substeps, or world-level CCD mode.
+- `/impulse settings step-mode --mode=progressive_refinement|adaptive|fixed|ccd` - choose dt-limited adaptive substeps, body-aware adaptive refinement, fixed substeps, or world-level CCD mode.
 - `/impulse settings simulation-steps` - show the configured substep count.
 - `/impulse settings simulation-steps --steps=<count>` - set the minimum or fixed substep count, from 1 to 16.
 - `/impulse settings max-step-dt` - show the adaptive substep dt threshold.
-- `/impulse settings max-step-dt --dt=<seconds>` - set the adaptive substep dt threshold used by `progressive_refinement`.
+- `/impulse settings max-step-dt --dt=<seconds>` - set the adaptive substep dt threshold used by `progressive_refinement` and `adaptive`.
+- `/impulse settings execution` - show physics execution mode; currently inline on the world tick system.
+- `/impulse settings execution --mode=inline` - keep physics execution inline. Worker mode is reserved and rejected until the threaded runtime is available.
 - `/impulse settings solver` - show solver tuning for the default space.
 - `/impulse settings solver --solverIterations=<n> --pgsIterations=<n> --stabilizationIterations=<n> --minIslandSize=<n>` - tune compatible backends.
 - `/impulse settings visual-sync` - show visual LOD and occlusion settings.

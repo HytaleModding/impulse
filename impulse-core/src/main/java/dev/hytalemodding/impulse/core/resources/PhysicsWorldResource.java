@@ -799,6 +799,13 @@ public class PhysicsWorldResource implements Resource<EntityStore> {
     public record VisualInterest(@Nonnull Vector3f position, @Nullable Vector3f direction) {
     }
 
+    /**
+     * Per-body visual-interest cache produced by detached visual materialization.
+     *
+     * <p>Physics sync can reuse fresh raycast results from this state when
+     * {@code VisualOcclusionMode.CULL} is enabled, so materialization and sync
+     * share one occlusion decision window instead of spending duplicate raycasts.</p>
+     */
     public static final class BodyVisualInterestState {
 
         @Getter

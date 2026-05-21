@@ -18,6 +18,11 @@ import org.joml.Vector3f;
  */
 public class PhysicsStepSystem extends TickingSystem<ChunkStore> {
 
+    /*
+     * Adaptive travel heuristics are block-scale safety budgets, not backend
+     * precision guarantees. They ask for more substeps when body movement would
+     * cross too much of the approximate shape in one physics step.
+     */
     private static final float DEFAULT_LINEAR_TRAVEL_PER_SUBSTEP = 0.45f;
     private static final float MIN_LINEAR_TRAVEL_PER_SUBSTEP = 0.125f;
     private static final float SHAPE_TRAVEL_FRACTION = 0.75f;
@@ -32,6 +37,7 @@ public class PhysicsStepSystem extends TickingSystem<ChunkStore> {
         PhysicsRuntimeProfilingResource profiling = entityStore.getResource(
             PhysicsRuntimeProfilingResource.getResourceType());
 
+        // Step counts are always clamped to at least one, so stepDt cannot divide by zero.
         float safeDt = Math.max(dt, 0.0f);
         PhysicsStepMode stepMode = resource.getStepMode();
         float maxStepDt = resource.getMaxStepDt() > 0f
@@ -78,6 +84,10 @@ public class PhysicsStepSystem extends TickingSystem<ChunkStore> {
     private static int resolveAdaptiveStepCount(float dt,
         float maxStepDt,
         @Nonnull PhysicsWorldResource resource) {
+        /*
+         * Start with the max-step-dt budget, then refine for fast or small bodies
+         * whose linear or angular surface travel would exceed the shape budget.
+         */
         float sampledDt = Math.max(dt, 0.0f);
         if (sampledDt <= 0.0f) {
             return resource.getSimulationSteps();
@@ -198,6 +208,7 @@ public class PhysicsStepSystem extends TickingSystem<ChunkStore> {
 
     private static void forceContinuousCollision(@Nonnull PhysicsWorldResource resource,
         @Nonnull PhysicsSpace space) {
+        // Track only bodies changed by CCD mode so user-enabled CCD survives restore.
         space.forEachBody(body -> {
             if (!body.isDynamic() || body.isContinuousCollisionEnabled()) {
                 return;
@@ -209,6 +220,7 @@ public class PhysicsStepSystem extends TickingSystem<ChunkStore> {
     }
 
     private static void restoreForcedContinuousCollision(@Nonnull PhysicsWorldResource resource) {
+        // Leaving CCD mode restores the temporary overrides owned by this system.
         Collection<PhysicsBody> forcedBodies = resource.getForcedContinuousCollisionBodies();
         if (forcedBodies.isEmpty()) {
             return;

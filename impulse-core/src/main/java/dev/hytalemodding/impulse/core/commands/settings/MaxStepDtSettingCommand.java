@@ -10,7 +10,6 @@ import com.hypixel.hytale.server.core.command.system.basecommands.AbstractAsyncP
 import com.hypixel.hytale.server.core.universe.PlayerRef;
 import com.hypixel.hytale.server.core.universe.world.World;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
-import dev.hytalemodding.impulse.core.resources.PhysicsStepMode;
 import dev.hytalemodding.impulse.core.resources.PhysicsWorldResource;
 import java.util.concurrent.CompletableFuture;
 import javax.annotation.Nonnull;
@@ -19,7 +18,7 @@ public class MaxStepDtSettingCommand extends AbstractAsyncPlayerCommand {
 
     private final OptionalArg<Float> dtArg = this.withOptionalArg(
         "dt",
-        "Maximum substep dt used by progressive_refinement mode",
+        "Maximum substep dt used by adaptive step modes",
         ArgTypes.FLOAT);
 
     public MaxStepDtSettingCommand() {
@@ -36,8 +35,7 @@ public class MaxStepDtSettingCommand extends AbstractAsyncPlayerCommand {
         PhysicsWorldResource resource = store.getResource(PhysicsWorldResource.getResourceType());
         if (!dtArg.provided(ctx)) {
             ctx.sender().sendMessage(Message.raw("Impulse max step dt: "
-                + resource.getMaxStepDt() + " (used by "
-                + PhysicsStepMode.PROGRESSIVE_REFINEMENT.getSerializedName() + ")"));
+                + resource.getMaxStepDt() + " (used by adaptive step modes)"));
             return CompletableFuture.completedFuture(null);
         }
 

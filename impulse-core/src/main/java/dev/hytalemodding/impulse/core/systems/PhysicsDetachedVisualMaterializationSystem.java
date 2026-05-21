@@ -63,8 +63,17 @@ public class PhysicsDetachedVisualMaterializationSystem extends TickingSystem<En
         new SystemDependency<>(Order.BEFORE, PhysicsSyncSystem.class)
     );
 
+    /*
+     * Approximate visibility policy for optional visual culling. Close bodies
+     * bypass the cone so players do not lose nearby proxies while turning.
+     */
     private static final float VIEW_CONE_DOT = 0.35f;
     private static final float VIEW_CONE_NEAR_RADIUS_SQUARED = 8.0f * 8.0f;
+
+    /**
+     * Bounds generated-proxy orphan scans. Normal dematerialization still runs
+     * every tick through the materialized proxy pass.
+     */
     private static final int ORPHAN_VISUAL_CLEANUP_INTERVAL_TICKS = 40;
 
     private int orphanVisualCleanupCooldown;
@@ -372,6 +381,11 @@ public class PhysicsDetachedVisualMaterializationSystem extends TickingSystem<En
             return InterestResult.notVisible();
         }
 
+        /*
+         * PRIORITY only biases spawn order: visible bodies move forward in the
+         * queue and occluded bodies move back. CULL above is the mode that skips
+         * occluded candidates entirely.
+         */
         float priorityDistanceSquared = probe.distanceSquared();
         if (occlusionMode == VisualOcclusionMode.PRIORITY && raycastKnown) {
             priorityDistanceSquared = raycastVisible
