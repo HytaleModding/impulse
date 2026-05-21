@@ -125,7 +125,13 @@ public final class BulletSpace implements PhysicsSpace {
         for (PhysicsRigidBody rigidBody : space.getRigidBodyList()) {
             wrapBody(rigidBody);
         }
-        return new ArrayList<>(bodies);
+        List<PhysicsBody> attachedBodies = new ArrayList<>(space.getRigidBodyList().size());
+        for (BulletBody body : bodies) {
+            if (body.isAttachedToSpace()) {
+                attachedBodies.add(body);
+            }
+        }
+        return attachedBodies;
     }
 
     @Override
@@ -144,7 +150,7 @@ public final class BulletSpace implements PhysicsSpace {
 
     @Override
     public void snapshotBodies(@Nonnull Consumer<PhysicsBodySnapshot> consumer) {
-        snapshotBodies(body -> null, consumer);
+        snapshotBodies(_ -> null, consumer);
     }
 
     @Override
