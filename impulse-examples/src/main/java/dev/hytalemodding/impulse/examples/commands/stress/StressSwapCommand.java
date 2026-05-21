@@ -13,8 +13,8 @@ import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import dev.hytalemodding.impulse.api.BackendId;
 import dev.hytalemodding.impulse.api.PhysicsSpace;
 import dev.hytalemodding.impulse.api.SpaceId;
-import dev.hytalemodding.impulse.core.resources.PhysicsWorldResource;
-import dev.hytalemodding.impulse.core.services.PhysicsSpaceMigrationService;
+import dev.hytalemodding.impulse.core.plugin.resources.PhysicsWorldResource;
+import dev.hytalemodding.impulse.core.internal.services.PhysicsSpaceMigrationService;
 import dev.hytalemodding.impulse.examples.commands.ExamplePhysicsUtils;
 
 import java.util.Locale;

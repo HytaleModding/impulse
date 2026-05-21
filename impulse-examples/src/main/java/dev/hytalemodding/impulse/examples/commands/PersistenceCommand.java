@@ -11,10 +11,10 @@ import com.hypixel.hytale.server.core.universe.world.World;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import dev.hytalemodding.impulse.api.PhysicsSpace;
 import dev.hytalemodding.impulse.api.SpaceId;
-import dev.hytalemodding.impulse.core.persistence.PersistentPhysicsWorldResource;
-import dev.hytalemodding.impulse.core.resources.PhysicsBodyPersistenceMode;
-import dev.hytalemodding.impulse.core.resources.PhysicsWorldResource;
-import dev.hytalemodding.impulse.core.systems.PersistentPhysicsWorldSyncSystem;
+import dev.hytalemodding.impulse.core.internal.persistence.PersistentPhysicsWorldResource;
+import dev.hytalemodding.impulse.core.plugin.resources.PhysicsBodyPersistenceMode;
+import dev.hytalemodding.impulse.core.plugin.resources.PhysicsWorldResource;
+import dev.hytalemodding.impulse.core.internal.systems.PersistentPhysicsWorldSyncSystem;
 import javax.annotation.Nonnull;
 
 /**

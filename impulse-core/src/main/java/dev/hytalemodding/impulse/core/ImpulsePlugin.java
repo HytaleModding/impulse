@@ -17,28 +17,28 @@ import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import dev.hytalemodding.impulse.api.BackendId;
 import dev.hytalemodding.impulse.api.Impulse;
 import dev.hytalemodding.impulse.api.PhysicsBackend;
-import dev.hytalemodding.impulse.core.commands.ImpulseCommand;
-import dev.hytalemodding.impulse.core.components.ImpulseControllableComponent;
-import dev.hytalemodding.impulse.core.components.PhysicsBodyAttachmentComponent;
-import dev.hytalemodding.impulse.core.components.PhysicsControlSessionComponent;
-import dev.hytalemodding.impulse.core.persistence.PersistentPhysicsWorldResource;
-import dev.hytalemodding.impulse.core.resources.PhysicsDebugResource;
-import dev.hytalemodding.impulse.core.resources.PhysicsRuntimeProfilingResource;
-import dev.hytalemodding.impulse.core.resources.PhysicsWorldResource;
-import dev.hytalemodding.impulse.core.resources.WorldCollisionProfilingResource;
-import dev.hytalemodding.impulse.core.systems.PersistentPhysicsBodyHydrationSystem;
-import dev.hytalemodding.impulse.core.systems.PersistentPhysicsJointHydrationSystem;
-import dev.hytalemodding.impulse.core.systems.PersistentPhysicsSpaceBootstrapSystem;
-import dev.hytalemodding.impulse.core.systems.PersistentPhysicsWorldSyncSystem;
-import dev.hytalemodding.impulse.core.systems.PhysicsBodyAttachmentSystem;
-import dev.hytalemodding.impulse.core.systems.PhysicsChunkBoundarySystem;
-import dev.hytalemodding.impulse.core.systems.PhysicsDebugSystem;
-import dev.hytalemodding.impulse.core.systems.PhysicsDetachedVisualMaterializationSystem;
-import dev.hytalemodding.impulse.core.systems.PhysicsKinematicControlSystem;
-import dev.hytalemodding.impulse.core.systems.PhysicsRuntimeHolderSystem;
-import dev.hytalemodding.impulse.core.systems.PhysicsStepSystem;
-import dev.hytalemodding.impulse.core.systems.PhysicsSyncSystem;
-import dev.hytalemodding.impulse.core.systems.PhysicsWorldCollisionStreamingSystem;
+import dev.hytalemodding.impulse.core.internal.commands.ImpulseCommand;
+import dev.hytalemodding.impulse.core.plugin.components.ImpulseControllableComponent;
+import dev.hytalemodding.impulse.core.plugin.components.PhysicsBodyAttachmentComponent;
+import dev.hytalemodding.impulse.core.internal.components.PhysicsControlSessionComponent;
+import dev.hytalemodding.impulse.core.internal.persistence.PersistentPhysicsWorldResource;
+import dev.hytalemodding.impulse.core.internal.resources.PhysicsDebugResource;
+import dev.hytalemodding.impulse.core.internal.resources.PhysicsRuntimeProfilingResource;
+import dev.hytalemodding.impulse.core.plugin.resources.PhysicsWorldResource;
+import dev.hytalemodding.impulse.core.internal.resources.WorldCollisionProfilingResource;
+import dev.hytalemodding.impulse.core.internal.systems.PersistentPhysicsBodyHydrationSystem;
+import dev.hytalemodding.impulse.core.internal.systems.PersistentPhysicsJointHydrationSystem;
+import dev.hytalemodding.impulse.core.internal.systems.PersistentPhysicsSpaceBootstrapSystem;
+import dev.hytalemodding.impulse.core.internal.systems.PersistentPhysicsWorldSyncSystem;
+import dev.hytalemodding.impulse.core.internal.systems.PhysicsBodyAttachmentSystem;
+import dev.hytalemodding.impulse.core.internal.systems.PhysicsChunkBoundarySystem;
+import dev.hytalemodding.impulse.core.internal.systems.PhysicsDebugSystem;
+import dev.hytalemodding.impulse.core.internal.systems.PhysicsDetachedVisualMaterializationSystem;
+import dev.hytalemodding.impulse.core.internal.systems.PhysicsKinematicControlSystem;
+import dev.hytalemodding.impulse.core.internal.systems.PhysicsRuntimeHolderSystem;
+import dev.hytalemodding.impulse.core.internal.systems.PhysicsStepSystem;
+import dev.hytalemodding.impulse.core.internal.systems.PhysicsSyncSystem;
+import dev.hytalemodding.impulse.core.internal.systems.PhysicsWorldCollisionStreamingSystem;
 import java.util.Optional;
 import java.util.ServiceLoader;
 import java.util.logging.Level;
@@ -118,7 +118,7 @@ public final class ImpulsePlugin extends JavaPlugin {
             }
             ClassLoader crucibleLoader = ((JavaPlugin) cruciblePlugin).getClassLoader();
             Class<?> suitesClass = Class.forName(
-                "dev.hytalemodding.impulse.core.crucible.ImpulseCrucibleSuites",
+                "dev.hytalemodding.impulse.core.internal.crucible.ImpulseCrucibleSuites",
                 true,
                 crucibleLoader);
             suitesClass.getMethod("register", ClassLoader.class).invoke(null, crucibleLoader);
