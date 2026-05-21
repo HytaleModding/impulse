@@ -9,6 +9,9 @@ import javax.annotation.Nullable;
 import org.joml.Quaternionf;
 import org.joml.Vector3f;
 
+/**
+ * Decides when a body pose should be written back to Hytale visual transforms.
+ */
 final class PhysicsSyncPolicy {
 
     // Near visuals sync after roughly one thirty-second of a block of movement.
@@ -23,13 +26,18 @@ final class PhysicsSyncPolicy {
     private static final float MID_RANGE_POSITION_SYNC_THRESHOLD = 0.5f;
     private static final float MID_RANGE_POSITION_SYNC_THRESHOLD_SQUARED =
         MID_RANGE_POSITION_SYNC_THRESHOLD * MID_RANGE_POSITION_SYNC_THRESHOLD;
-    // Dot thresholds store angular tolerances without converting quaternions every tick.
+    /*
+     * Quaternion dot thresholds avoid per-tick angle conversion. Since unit
+     * quaternion dot is cos(delta / 2), these cos(1/3/8 degree) values trigger
+     * after roughly 2/6/16 degrees of pose delta.
+     */
     private static final float ROTATION_SYNC_DOT_THRESHOLD =
         (float) Math.cos(Math.toRadians(1.0));
     private static final float LOW_SPEED_ROTATION_SYNC_DOT_THRESHOLD =
         (float) Math.cos(Math.toRadians(3.0));
     private static final float MID_RANGE_ROTATION_SYNC_DOT_THRESHOLD =
         (float) Math.cos(Math.toRadians(8.0));
+    // Optional visibility culling uses a broad forward cone and always keeps close visuals.
     private static final float VISUAL_CONE_DOT_THRESHOLD =
         (float) Math.cos(Math.toRadians(70.0));
     private static final float CLOSE_VISUAL_RADIUS = 8.0f;
@@ -64,6 +72,7 @@ final class PhysicsSyncPolicy {
             && visualInterestState != null
             && visualInterestState.hasFreshRaycast(settings.getVisualOcclusionCacheTicks())
             && !visualInterestState.isRaycastVisible()) {
+            // Materialization owns the raycast budget; sync only consumes fresh CULL results.
             return SyncRangeTier.FAR;
         }
 
