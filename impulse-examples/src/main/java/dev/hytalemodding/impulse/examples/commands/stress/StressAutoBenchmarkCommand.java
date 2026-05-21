@@ -1,11 +1,10 @@
-package dev.hytalemodding.impulse.examples.commands;
+package dev.hytalemodding.impulse.examples.commands.stress;
 
 import com.hypixel.hytale.component.Archetype;
 import com.hypixel.hytale.component.Ref;
 import com.hypixel.hytale.component.RemoveReason;
 import com.hypixel.hytale.component.Store;
 import com.hypixel.hytale.math.util.ChunkUtil;
-import com.hypixel.hytale.math.util.MathUtil;
 import com.hypixel.hytale.server.core.Message;
 import com.hypixel.hytale.server.core.command.system.CommandContext;
 import com.hypixel.hytale.server.core.command.system.arguments.system.OptionalArg;
@@ -36,6 +35,7 @@ import dev.hytalemodding.impulse.core.resources.PhysicsWorldResource;
 import dev.hytalemodding.impulse.core.resources.WorldCollisionProfilingResource;
 import dev.hytalemodding.impulse.core.resources.WorldCollisionProfilingResource.Snapshot;
 import dev.hytalemodding.impulse.core.voxel.WorldVoxelCollisionCache;
+import dev.hytalemodding.impulse.examples.commands.ExamplePhysicsUtils;
 import dev.hytalemodding.impulse.examples.systems.BenchmarkEntityRemovalDiagnosticsSystem;
 import it.unimi.dsi.fastutil.longs.LongOpenHashSet;
 import it.unimi.dsi.fastutil.longs.LongSet;

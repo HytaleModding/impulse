@@ -1,4 +1,4 @@
-package dev.hytalemodding.impulse.examples.commands;
+package dev.hytalemodding.impulse.examples.commands.stress;
 
 import com.hypixel.hytale.server.core.command.system.basecommands.AbstractCommandCollection;
 

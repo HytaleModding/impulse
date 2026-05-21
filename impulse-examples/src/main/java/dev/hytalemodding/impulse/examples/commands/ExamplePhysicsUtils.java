@@ -35,7 +35,7 @@ import org.joml.Quaterniond;
 import org.joml.Vector3d;
 import org.joml.Vector3f;
 
-final class ExamplePhysicsUtils {
+public final class ExamplePhysicsUtils {
 
     private static final String DEFAULT_BLOCK_TYPE = "Rock_Stone";
 
@@ -43,7 +43,7 @@ final class ExamplePhysicsUtils {
     }
 
     @Nullable
-    static Vector3d playerPosition(@Nonnull CommandContext ctx,
+    public static Vector3d playerPosition(@Nonnull CommandContext ctx,
         @Nonnull Store<EntityStore> store,
         @Nonnull Ref<EntityStore> ref) {
         TransformComponent playerTransform = store.getComponent(ref,
@@ -56,12 +56,12 @@ final class ExamplePhysicsUtils {
     }
 
     @Nonnull
-    static PhysicsWorldResource resource(@Nonnull Store<EntityStore> store) {
+    public static PhysicsWorldResource resource(@Nonnull Store<EntityStore> store) {
         return store.getResource(PhysicsWorldResource.getResourceType());
     }
 
     @Nullable
-    static PhysicsSpace defaultSpace(@Nonnull CommandContext ctx,
+    public static PhysicsSpace defaultSpace(@Nonnull CommandContext ctx,
         @Nonnull PhysicsWorldResource resource) {
         PhysicsSpace existing = resource.getDefaultSpace();
         if (existing != null) {
@@ -86,7 +86,7 @@ final class ExamplePhysicsUtils {
     }
 
     @Nonnull
-    static Ref<EntityStore> spawnBlockBody(@Nonnull Store<EntityStore> store,
+    public static Ref<EntityStore> spawnBlockBody(@Nonnull Store<EntityStore> store,
         @Nonnull TimeResource time,
         @Nonnull PhysicsWorldResource resource,
         @Nonnull SpaceId spaceId,
@@ -108,7 +108,7 @@ final class ExamplePhysicsUtils {
     }
 
     @Nonnull
-    static Ref<EntityStore> attachExistingBlockBody(@Nonnull Store<EntityStore> store,
+    public static Ref<EntityStore> attachExistingBlockBody(@Nonnull Store<EntityStore> store,
         @Nonnull TimeResource time,
         @Nonnull PhysicsWorldResource resource,
         @Nonnull SpaceId spaceId,
@@ -177,7 +177,7 @@ final class ExamplePhysicsUtils {
     }
 
     @Nonnull
-    static Vector3d lookDirection(@Nonnull Store<EntityStore> store,
+    public static Vector3d lookDirection(@Nonnull Store<EntityStore> store,
         @Nonnull Ref<EntityStore> ref,
         @Nonnull TransformComponent transform) {
         HeadRotation headRotation = store.getComponent(ref, HeadRotation.getComponentType());
@@ -191,7 +191,7 @@ final class ExamplePhysicsUtils {
         return direction.normalize();
     }
 
-    static int optionalInt(@Nonnull CommandContext ctx,
+    public static int optionalInt(@Nonnull CommandContext ctx,
         @Nonnull OptionalArg<Integer> arg,
         int defaultValue,
         int min,

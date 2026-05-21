@@ -1,4 +1,4 @@
-package dev.hytalemodding.impulse.examples.commands;
+package dev.hytalemodding.impulse.examples.commands.stress;
 
 import com.hypixel.hytale.component.Ref;
 import com.hypixel.hytale.component.Store;
@@ -18,6 +18,8 @@ import java.util.Locale;
 import java.util.concurrent.CompletableFuture;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
+
+import dev.hytalemodding.impulse.examples.commands.ExamplePhysicsUtils;
 import org.joml.Vector3d;
 
 /**
