@@ -7,7 +7,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import dev.hytalemodding.impulse.api.Impulse;
 import dev.hytalemodding.impulse.api.PhysicsBody;
 import dev.hytalemodding.impulse.api.PhysicsSpace;
-import dev.hytalemodding.impulse.api.testsupport.InMemoryPhysicsBackend;
+import dev.hytalemodding.impulse.api.testsupport.FakePhysicsBackend;
 import dev.hytalemodding.impulse.core.persistence.PersistentPhysicsBodyState;
 import dev.hytalemodding.impulse.core.persistence.PersistentPhysicsSpaceState;
 import dev.hytalemodding.impulse.core.persistence.PersistentPhysicsWorldResource;
@@ -129,8 +129,8 @@ class PersistentPhysicsWorldSyncSystemTest {
     }
 
     private static RuntimeFixture createRuntimeFixture() {
-        InMemoryPhysicsBackend backend =
-            new InMemoryPhysicsBackend("test:persistence-sync-" + BACKEND_COUNTER.incrementAndGet());
+        FakePhysicsBackend backend =
+            new FakePhysicsBackend("test:persistence-sync-" + BACKEND_COUNTER.incrementAndGet());
         Impulse.registerBackend(backend);
 
         PhysicsWorldResource runtime = new PhysicsWorldResource();

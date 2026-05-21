@@ -11,8 +11,8 @@ import dev.hytalemodding.impulse.api.Impulse;
 import dev.hytalemodding.impulse.api.PhysicsBody;
 import dev.hytalemodding.impulse.api.PhysicsBodyType;
 import dev.hytalemodding.impulse.api.PhysicsSpace;
-import dev.hytalemodding.impulse.api.testsupport.InMemoryPhysicsBackend;
-import dev.hytalemodding.impulse.api.testsupport.InMemoryPhysicsBackend.InMemoryPhysicsSpace;
+import dev.hytalemodding.impulse.api.testsupport.FakePhysicsBackend;
+import dev.hytalemodding.impulse.api.testsupport.FakePhysicsBackend.InMemoryPhysicsSpace;
 import dev.hytalemodding.impulse.core.voxel.WorldCollisionMode;
 import java.util.concurrent.atomic.AtomicInteger;
 import org.joml.Quaternionf;
@@ -59,8 +59,8 @@ class PhysicsWorldResourceStateTest {
 
     @Test
     void resetRuntimeStateKeepingSpacesReplacesNativeSpacesAndClearsRuntimeState() {
-        InMemoryPhysicsBackend backend =
-            new InMemoryPhysicsBackend("test:reset-" + BACKEND_COUNTER.incrementAndGet());
+        FakePhysicsBackend backend =
+            new FakePhysicsBackend("test:reset-" + BACKEND_COUNTER.incrementAndGet());
         Impulse.registerBackend(backend);
 
         PhysicsWorldResource resource = new PhysicsWorldResource();
