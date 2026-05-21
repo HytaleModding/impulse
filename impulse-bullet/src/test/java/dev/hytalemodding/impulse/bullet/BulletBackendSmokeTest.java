@@ -1,6 +1,7 @@
 package dev.hytalemodding.impulse.bullet;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -82,6 +83,21 @@ class BulletBackendSmokeTest {
 
         assertTrue(space.supportsContinuousCollision());
         assertEquals(BulletBackend.ID, space.getBackendId());
+    }
+
+    @Test
+    void newBodiesAreNotReportedAsSpaceBodiesUntilAdded() {
+        space = createSpace();
+
+        PhysicsBody body = space.createBox(0.5f, 0.5f, 0.5f, 1.0f);
+
+        assertEquals(0, space.bodyCount());
+        assertFalse(space.getBodies().contains(body));
+
+        space.addBody(body);
+
+        assertEquals(1, space.bodyCount());
+        assertTrue(space.getBodies().contains(body));
     }
 
     @Test
