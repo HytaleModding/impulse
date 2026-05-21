@@ -145,8 +145,8 @@ public final class ImpulsePlugin extends JavaPlugin {
         Optional<String> configuredBackendId = getConfiguredBackendId();
         if (configuredBackendId.isPresent()) {
             defaultBackendId = Impulse.getBackends().stream()
-                .filter(backend -> configuredBackendId.get().equals(backend.getId().value()))
                 .map(PhysicsBackend::getId)
+                .filter(id -> configuredBackendId.get().equals(id.value()))
                 .findFirst()
                 .orElseThrow(() -> new IllegalStateException(
                     "Configured physics backend " + configuredBackendId.get()
