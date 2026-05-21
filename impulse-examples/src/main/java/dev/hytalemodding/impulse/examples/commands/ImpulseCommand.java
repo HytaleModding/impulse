@@ -1,6 +1,7 @@
 package dev.hytalemodding.impulse.examples.commands;
 
 import com.hypixel.hytale.server.core.command.system.basecommands.AbstractCommandCollection;
+import dev.hytalemodding.impulse.examples.commands.stress.StressCommand;
 
 public class ImpulseCommand extends AbstractCommandCollection {
 
