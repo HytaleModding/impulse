@@ -36,7 +36,7 @@ public class PhysicsRuntimeHolderSystem extends HolderSystem<EntityStore> {
         @Nonnull AddReason reason,
         @Nonnull Store<EntityStore> store) {
         if (reason == AddReason.LOAD) {
-            cleanupHolder(holder, false);
+            cleanupHolder(holder);
         }
     }
 
@@ -44,10 +44,10 @@ public class PhysicsRuntimeHolderSystem extends HolderSystem<EntityStore> {
     public void onEntityRemoved(@Nonnull Holder<EntityStore> holder,
         @Nonnull RemoveReason reason,
         @Nonnull Store<EntityStore> store) {
-        cleanupHolder(holder, reason == RemoveReason.UNLOAD);
+        cleanupHolder(holder);
     }
 
-    private static void cleanupHolder(@Nonnull Holder<EntityStore> holder, boolean markForRebuild) {
+    private static void cleanupHolder(@Nonnull Holder<EntityStore> holder) {
         PhysicsBodyAttachmentComponent attachment = holder.getComponent(ATTACHMENT_TYPE);
         if (attachment == null
             || attachment.getLifecycle() == AttachmentLifecycle.GENERATED_PROXY) {

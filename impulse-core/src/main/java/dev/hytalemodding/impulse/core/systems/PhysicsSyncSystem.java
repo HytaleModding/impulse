@@ -3,7 +3,6 @@ package dev.hytalemodding.impulse.core.systems;
 import com.hypixel.hytale.component.ArchetypeChunk;
 import com.hypixel.hytale.component.CommandBuffer;
 import com.hypixel.hytale.component.ComponentType;
-import com.hypixel.hytale.component.RemoveReason;
 import com.hypixel.hytale.component.Ref;
 import com.hypixel.hytale.component.Store;
 import com.hypixel.hytale.component.dependency.Dependency;
@@ -12,12 +11,8 @@ import com.hypixel.hytale.component.dependency.SystemDependency;
 import com.hypixel.hytale.component.dependency.SystemGroupDependency;
 import com.hypixel.hytale.component.query.Query;
 import com.hypixel.hytale.component.system.tick.EntityTickingSystem;
-import com.hypixel.hytale.math.vector.Rotation3f;
-import com.hypixel.hytale.math.vector.Vector3dUtil;
-import com.hypixel.hytale.server.core.modules.entity.component.HeadRotation;
 import com.hypixel.hytale.server.core.modules.entity.component.TransformComponent;
 import com.hypixel.hytale.server.core.modules.entity.system.UpdateLocationSystems;
-import com.hypixel.hytale.server.core.universe.PlayerRef;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import dev.hytalemodding.impulse.api.PhysicsBodySnapshot;
 import dev.hytalemodding.impulse.api.SpaceId;
@@ -27,14 +22,11 @@ import dev.hytalemodding.impulse.core.components.PhysicsBodyAttachmentComponent.
 import dev.hytalemodding.impulse.core.resources.PhysicsRuntimeProfilingResource;
 import dev.hytalemodding.impulse.core.resources.PhysicsSpaceSettings;
 import dev.hytalemodding.impulse.core.resources.PhysicsWorldResource;
-import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
-import org.joml.Quaterniond;
 import org.joml.Quaternionf;
-import org.joml.Vector3d;
 import org.joml.Vector3f;
 
 /**
@@ -54,8 +46,6 @@ public class PhysicsSyncSystem extends EntityTickingSystem<EntityStore> {
         PhysicsBodyAttachmentComponent.getComponentType();
     private static final ComponentType<EntityStore, TransformComponent> TRANSFORM_TYPE =
         TransformComponent.getComponentType();
-    private static final ComponentType<EntityStore, HeadRotation> HEAD_ROTATION_TYPE =
-        HeadRotation.getComponentType();
 
     private static final Query<EntityStore> QUERY = Query.and(ATTACHMENT_TYPE, TRANSFORM_TYPE);
     private final Set<Dependency<EntityStore>> dependencies = Set.of(
@@ -88,7 +78,7 @@ public class PhysicsSyncSystem extends EntityTickingSystem<EntityStore> {
 
     @Override
     public void tick(float dt, int systemIndex, @Nonnull Store<EntityStore> store) {
-        playerInterests = collectPlayerInterests(store);
+        playerInterests = VisualInterestCollector.collectSyncInterests(store);
         PhysicsRuntimeProfilingResource profiling = store.getResource(
             PhysicsRuntimeProfilingResource.getResourceType());
         PhysicsRuntimeProfilingResource.SyncCollector collector = profiling.isEnabled()
@@ -126,7 +116,7 @@ public class PhysicsSyncSystem extends EntityTickingSystem<EntityStore> {
         PhysicsWorldResource.BodyRegistration registration =
             resource.getRegistration(attachment.getBodyId());
         if (registration == null) {
-            clearMissingAttachment(entityRef, attachment, resource, commandBuffer);
+            GeneratedProxyLifecycle.clearMissingAttachment(entityRef, attachment, resource, commandBuffer);
             return;
         }
 
@@ -135,7 +125,7 @@ public class PhysicsSyncSystem extends EntityTickingSystem<EntityStore> {
             if (collector != null) {
                 collector.incrementSkippedMissingSpace();
             }
-            clearMissingAttachment(entityRef, attachment, resource, commandBuffer);
+            GeneratedProxyLifecycle.clearMissingAttachment(entityRef, attachment, resource, commandBuffer);
             return;
         }
 
@@ -213,58 +203,6 @@ public class PhysicsSyncSystem extends EntityTickingSystem<EntityStore> {
                 collector.incrementKeepaliveSyncs();
             }
         }
-    }
-
-    private static void clearMissingAttachment(@Nonnull Ref<EntityStore> entityRef,
-        @Nonnull PhysicsBodyAttachmentComponent attachment,
-        @Nonnull PhysicsWorldResource resource,
-        @Nonnull CommandBuffer<EntityStore> commandBuffer) {
-        resource.unregisterBodyAttachment(attachment.getBodyId(), entityRef);
-        resource.clearBodySyncState(entityRef);
-        if (attachment.getLifecycle() == AttachmentLifecycle.GENERATED_PROXY) {
-            resource.clearGeneratedVisualProxy(attachment.getBodyId());
-            commandBuffer.removeEntity(entityRef, RemoveReason.REMOVE);
-        } else {
-            commandBuffer.removeComponent(entityRef, ATTACHMENT_TYPE);
-        }
-    }
-
-    @Nonnull
-    private List<PhysicsSyncPolicy.PlayerInterest> collectPlayerInterests(@Nonnull Store<EntityStore> store) {
-        List<PhysicsSyncPolicy.PlayerInterest> interests = new ArrayList<>();
-        for (PlayerRef playerRef : store.getExternalData().getWorld().getPlayerRefs()) {
-            Ref<EntityStore> playerEntity = playerRef.getReference();
-            if (playerEntity == null || !playerEntity.isValid()) {
-                continue;
-            }
-
-            TransformComponent transform = store.getComponent(playerEntity, TRANSFORM_TYPE);
-            if (transform == null) {
-                continue;
-            }
-
-            Vector3d position = transform.getPosition();
-            interests.add(new PhysicsSyncPolicy.PlayerInterest(
-                new Vector3f((float) position.x, (float) position.y, (float) position.z),
-                playerLookDirection(store, playerEntity, transform)));
-        }
-        return interests.isEmpty() ? List.of() : interests;
-    }
-
-    @Nonnull
-    private Vector3f playerLookDirection(@Nonnull Store<EntityStore> store,
-        @Nonnull Ref<EntityStore> playerEntity,
-        @Nonnull TransformComponent transform) {
-        HeadRotation headRotation = store.getComponent(playerEntity, HEAD_ROTATION_TYPE);
-        Rotation3f rotation = headRotation != null ? headRotation.getRotation() : transform.getRotation();
-        Vector3d direction = new Vector3d(Vector3dUtil.FORWARD);
-        rotation.getQuaternion(new Quaterniond()).transform(direction);
-        if (direction.lengthSquared() == 0.0) {
-            direction.set(Vector3dUtil.FORWARD);
-        } else {
-            direction.normalize();
-        }
-        return new Vector3f((float) direction.x, (float) direction.y, (float) direction.z);
     }
 
     private void applyVisualPose(@Nonnull PhysicsBodySnapshot snapshot,

@@ -5,22 +5,16 @@ import com.hypixel.hytale.component.ComponentType;
 import com.hypixel.hytale.component.Holder;
 import com.hypixel.hytale.component.NonSerialized;
 import com.hypixel.hytale.component.Ref;
-import com.hypixel.hytale.component.RemoveReason;
 import com.hypixel.hytale.component.Store;
 import com.hypixel.hytale.component.dependency.Dependency;
 import com.hypixel.hytale.component.dependency.Order;
 import com.hypixel.hytale.component.dependency.SystemDependency;
 import com.hypixel.hytale.component.system.tick.TickingSystem;
 import com.hypixel.hytale.math.util.ChunkUtil;
-import com.hypixel.hytale.math.vector.Rotation3f;
-import com.hypixel.hytale.math.vector.Vector3dUtil;
 import com.hypixel.hytale.server.core.entity.entities.BlockEntity;
 import com.hypixel.hytale.server.core.modules.entity.DespawnComponent;
-import com.hypixel.hytale.server.core.modules.entity.component.HeadRotation;
-import com.hypixel.hytale.server.core.modules.entity.component.TransformComponent;
 import com.hypixel.hytale.server.core.modules.physics.component.Velocity;
 import com.hypixel.hytale.server.core.modules.time.TimeResource;
-import com.hypixel.hytale.server.core.universe.PlayerRef;
 import com.hypixel.hytale.server.core.universe.world.chunk.WorldChunk;
 import com.hypixel.hytale.server.core.universe.world.storage.ChunkStore;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
@@ -44,7 +38,6 @@ import java.util.Optional;
 import java.util.Set;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
-import org.joml.Quaterniond;
 import org.joml.Vector3d;
 import org.joml.Vector3f;
 
@@ -59,10 +52,6 @@ public class PhysicsDetachedVisualMaterializationSystem extends TickingSystem<En
 
     private static final ComponentType<EntityStore, PhysicsBodyAttachmentComponent> ATTACHMENT_TYPE =
         PhysicsBodyAttachmentComponent.getComponentType();
-    private static final ComponentType<EntityStore, HeadRotation> HEAD_ROTATION_TYPE =
-        HeadRotation.getComponentType();
-    private static final ComponentType<EntityStore, TransformComponent> TRANSFORM_TYPE =
-        TransformComponent.getComponentType();
     private static final ComponentType<EntityStore, DespawnComponent> DESPAWN_TYPE =
         DespawnComponent.getComponentType();
     private static final ComponentType<EntityStore, Velocity> VELOCITY_TYPE =
@@ -89,7 +78,8 @@ public class PhysicsDetachedVisualMaterializationSystem extends TickingSystem<En
         } else {
             orphanVisualCleanupCooldown--;
         }
-        List<PhysicsWorldResource.VisualInterest> interests = collectVisualInterests(store, resource);
+        List<PhysicsWorldResource.VisualInterest> interests =
+            VisualInterestCollector.collectMaterializationInterests(store, resource);
         int spawned = 0;
         int materialized = processMaterializedProxies(store, resource, interests);
         RaycastBudget raycastBudget = new RaycastBudget();
@@ -113,47 +103,6 @@ public class PhysicsDetachedVisualMaterializationSystem extends TickingSystem<En
         }
     }
 
-    @Nonnull
-    private static List<PhysicsWorldResource.VisualInterest> collectVisualInterests(
-        @Nonnull Store<EntityStore> store,
-        @Nonnull PhysicsWorldResource resource) {
-        List<PhysicsWorldResource.VisualInterest> interests = new ArrayList<>();
-        for (PlayerRef playerRef : store.getExternalData().getWorld().getPlayerRefs()) {
-            Ref<EntityStore> playerEntity = playerRef.getReference();
-            if (playerEntity == null || !playerEntity.isValid()) {
-                continue;
-            }
-
-            TransformComponent transform = store.getComponent(playerEntity, TRANSFORM_TYPE);
-            if (transform == null) {
-                continue;
-            }
-
-            Vector3d position = transform.getPosition();
-            interests.add(new PhysicsWorldResource.VisualInterest(
-                new Vector3f((float) position.x, (float) position.y, (float) position.z),
-                playerLookDirection(store, playerEntity, transform)));
-        }
-        interests.addAll(resource.getSyntheticVisualInterests());
-        return interests;
-    }
-
-    @Nonnull
-    private static Vector3f playerLookDirection(@Nonnull Store<EntityStore> store,
-        @Nonnull Ref<EntityStore> playerEntity,
-        @Nonnull TransformComponent transform) {
-        HeadRotation headRotation = store.getComponent(playerEntity, HEAD_ROTATION_TYPE);
-        Rotation3f rotation = headRotation != null ? headRotation.getRotation() : transform.getRotation();
-        Vector3d direction = new Vector3d(Vector3dUtil.FORWARD);
-        rotation.getQuaternion(new Quaterniond()).transform(direction);
-        if (direction.lengthSquared() == 0.0) {
-            direction.set(Vector3dUtil.FORWARD);
-        } else {
-            direction.normalize();
-        }
-        return new Vector3f((float) direction.x, (float) direction.y, (float) direction.z);
-    }
-
     private static int processMaterializedProxies(@Nonnull Store<EntityStore> store,
         @Nonnull PhysicsWorldResource resource,
         @Nonnull List<PhysicsWorldResource.VisualInterest> interests) {
@@ -161,29 +110,29 @@ public class PhysicsDetachedVisualMaterializationSystem extends TickingSystem<En
         for (PhysicsBodyId bodyId : resource.getGeneratedVisualProxyBodyIds()) {
             PhysicsWorldResource.BodyRegistration registration = resource.getRegistration(bodyId);
             if (registration == null || registration.kind() != PhysicsBodyKind.BODY) {
-                removeProxy(store, resource, bodyId);
+                GeneratedProxyLifecycle.removeProxy(store, resource, bodyId);
                 continue;
             }
             Ref<EntityStore> proxy = resource.getGeneratedVisualProxy(bodyId);
             if (proxy == null || !isExpectedProxy(store, proxy, bodyId, registration.spaceId())) {
-                removeProxy(store, resource, bodyId);
+                GeneratedProxyLifecycle.removeProxy(store, resource, bodyId);
                 continue;
             }
             if (hasGameplayAttachment(store, resource, bodyId, proxy)) {
-                removeProxy(store, resource, bodyId);
+                GeneratedProxyLifecycle.removeProxy(store, resource, bodyId);
                 continue;
             }
 
             PhysicsSpaceSettings settings = resolveSettings(resource, registration);
             if (settings == null || !settings.isDetachedVisualMaterializationEnabled()) {
-                removeProxy(store, resource, bodyId);
+                GeneratedProxyLifecycle.removeProxy(store, resource, bodyId);
                 continue;
             }
 
             PhysicsBodySnapshot snapshot = resource.getBodySnapshot(bodyId);
             if (!isBodyChunkLoaded(store, snapshot)
                 || shouldDematerialize(snapshot, settings, interests)) {
-                removeProxy(store, resource, bodyId);
+                GeneratedProxyLifecycle.removeProxy(store, resource, bodyId);
                 continue;
             }
             count++;
@@ -265,8 +214,10 @@ public class PhysicsDetachedVisualMaterializationSystem extends TickingSystem<En
                 }
 
                 var ref = archetypeChunk.getReferenceTo(index);
-                resource.clearGeneratedVisualProxy(attachment.getBodyId());
-                commandBuffer.removeEntity(ref, RemoveReason.REMOVE);
+                GeneratedProxyLifecycle.removeProxy(commandBuffer,
+                    resource,
+                    attachment.getBodyId(),
+                    ref);
             });
     }
 
@@ -276,7 +227,7 @@ public class PhysicsDetachedVisualMaterializationSystem extends TickingSystem<En
         if (registration == null || !sameSpaceId(registration.spaceId(), attachment.getSpaceId())) {
             return false;
         }
-        return registration.spaceId() == null || resource.getSpace(registration.spaceId()) != null;
+        return resource.getSpace(registration.spaceId()) != null;
     }
 
     @Nullable
@@ -284,9 +235,8 @@ public class PhysicsDetachedVisualMaterializationSystem extends TickingSystem<En
         @Nonnull PhysicsWorldResource resource,
         @Nonnull PhysicsWorldResource.BodySnapshotEntry entry) {
         PhysicsWorldResource.BodyRegistration registration = entry.registration();
-        if (registration == null
-            || registration.body() != entry.snapshot().body()
-            || !registration.id().equals(entry.bodyId())) {
+        if (registration.body() != entry.snapshot().body() || !registration.id()
+            .equals(entry.bodyId())) {
             registration = resource.getRegistration(entry.bodyId());
         }
         if (registration == null
@@ -295,7 +245,7 @@ public class PhysicsDetachedVisualMaterializationSystem extends TickingSystem<En
             return null;
         }
         SpaceId registrationSpaceId = registration.spaceId();
-        if (registrationSpaceId != null && !registrationSpaceId.equals(entry.spaceId())) {
+        if (!registrationSpaceId.equals(entry.spaceId())) {
             return null;
         }
         return registration;
@@ -321,7 +271,7 @@ public class PhysicsDetachedVisualMaterializationSystem extends TickingSystem<En
     @Nullable
     private static PhysicsSpaceSettings resolveSettings(@Nonnull PhysicsWorldResource resource,
         @Nonnull PhysicsWorldResource.BodyRegistration registration) {
-        if (registration.spaceId() != null && resource.getSpace(registration.spaceId()) != null) {
+        if (resource.getSpace(registration.spaceId()) != null) {
             return resource.getSpaceSettings(registration.spaceId());
         }
         if (resource.getDefaultSpaceId() != null) {
@@ -333,11 +283,9 @@ public class PhysicsDetachedVisualMaterializationSystem extends TickingSystem<En
     @Nullable
     private static PhysicsSpace resolveSpace(@Nonnull PhysicsWorldResource resource,
         @Nonnull PhysicsWorldResource.BodyRegistration registration) {
-        if (registration.spaceId() != null) {
-            PhysicsSpace space = resource.getSpace(registration.spaceId());
-            if (space != null) {
-                return space;
-            }
+        PhysicsSpace space = resource.getSpace(registration.spaceId());
+        if (space != null) {
+            return space;
         }
         return resource.getDefaultSpace();
     }
@@ -413,6 +361,7 @@ public class PhysicsDetachedVisualMaterializationSystem extends TickingSystem<En
         boolean raycastVisible = raycastKnown && state.isRaycastVisible();
         boolean raycastEvaluated = false;
         if (!raycastKnown && raycastBudget.tryUse(settings)) {
+            assert probe.interest() != null;
             raycastVisible = raycastVisible(space, probe.interest(), snapshot);
             raycastKnown = true;
             raycastEvaluated = true;
@@ -543,16 +492,6 @@ public class PhysicsDetachedVisualMaterializationSystem extends TickingSystem<En
                 TransformAuthority.BODY,
                 AttachmentLifecycle.GENERATED_PROXY));
         return store.addEntity(holder, AddReason.SPAWN);
-    }
-
-    private static void removeProxy(@Nonnull Store<EntityStore> store,
-        @Nonnull PhysicsWorldResource resource,
-        @Nonnull PhysicsBodyId bodyId) {
-        Ref<EntityStore> proxy = resource.getGeneratedVisualProxy(bodyId);
-        resource.clearGeneratedVisualProxy(bodyId);
-        if (proxy != null && proxy.isValid()) {
-            store.removeEntity(proxy, RemoveReason.REMOVE);
-        }
     }
 
     private record MaterializationCandidate(@Nonnull PhysicsBodyId bodyId,
