@@ -13,6 +13,7 @@ import dev.hytalemodding.impulse.api.SpaceId;
 import dev.hytalemodding.impulse.core.ImpulsePlugin;
 import dev.hytalemodding.impulse.core.internal.persistence.PersistentPhysicsBodyState;
 import dev.hytalemodding.impulse.core.internal.persistence.PersistentPhysicsWorldResource;
+import dev.hytalemodding.impulse.core.internal.worker.PhysicsWorkerAccess;
 import dev.hytalemodding.impulse.core.plugin.resources.PhysicsBodyId;
 import dev.hytalemodding.impulse.core.plugin.resources.PhysicsBodyKind;
 import dev.hytalemodding.impulse.core.plugin.resources.PhysicsBodyPersistenceMode;
@@ -70,13 +71,15 @@ public class PersistentPhysicsBodyHydrationSystem extends TickingSystem<EntitySt
             }
 
             try {
-                PhysicsBody body = state.createBody(space);
-                state.applyToBody(body);
-                runtime.addBody(bodyId,
-                    space.getId(),
-                    body,
-                    PhysicsBodyKind.BODY,
-                    PhysicsBodyPersistenceMode.PERSISTENT);
+                PhysicsWorkerAccess.run(store, "hydrate persisted physics body", () -> {
+                    PhysicsBody body = state.createBody(space);
+                    state.applyToBody(body);
+                    runtime.addBody(bodyId,
+                        space.getId(),
+                        body,
+                        PhysicsBodyKind.BODY,
+                        PhysicsBodyPersistenceMode.PERSISTENT);
+                });
                 persistent.recordRuntimeBodyRestored();
             } catch (RuntimeException exception) {
                 persistent.recordRuntimeBodySkipped("body restore failed: "

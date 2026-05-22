@@ -16,8 +16,10 @@ import com.hypixel.hytale.server.core.universe.world.chunk.WorldChunk;
 import com.hypixel.hytale.server.core.universe.world.storage.ChunkStore;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import dev.hytalemodding.impulse.api.PhysicsBody;
+import dev.hytalemodding.impulse.api.PhysicsBodySnapshot;
 import dev.hytalemodding.impulse.api.PhysicsBodyType;
 import dev.hytalemodding.impulse.core.ImpulsePlugin;
+import dev.hytalemodding.impulse.core.internal.worker.PhysicsWorkerAccess;
 import dev.hytalemodding.impulse.core.plugin.resources.EntityChunkBoundaryMode;
 import dev.hytalemodding.impulse.core.plugin.resources.PhysicsBodyId;
 import dev.hytalemodding.impulse.core.plugin.resources.PhysicsBodyKind;
@@ -27,8 +29,7 @@ import it.unimi.dsi.fastutil.longs.LongOpenHashSet;
 import it.unimi.dsi.fastutil.longs.LongSet;
 import java.util.Set;
 import javax.annotation.Nonnull;
-import org.joml.Quaternionf;
-import org.joml.Vector3f;
+import javax.annotation.Nullable;
 
 /**
  * Keeps registered dynamic physics bodies from drifting into unloaded chunks.
@@ -38,9 +39,6 @@ import org.joml.Vector3f;
  * of entity transforms.</p>
  */
 public class PhysicsChunkBoundarySystem extends TickingSystem<EntityStore> {
-
-    private static final ComponentType<ChunkStore, WorldChunk> WORLD_CHUNK_TYPE =
-        WorldChunk.getComponentType();
 
     private final Set<Dependency<EntityStore>> dependencies = Set.of(
         new SystemGroupDependency<>(Order.AFTER, ImpulsePlugin.get().getPersistenceRestoreGroup()),
@@ -52,10 +50,8 @@ public class PhysicsChunkBoundarySystem extends TickingSystem<EntityStore> {
     private static final int TICKING_CHUNK_REQUEST_FLAGS = 4;
 
     private final LongSet requestedChunkIndices = new LongOpenHashSet();
-    private final Vector3f bodyPositionScratch = new Vector3f();
-    private final Quaternionf bodyRotationScratch = new Quaternionf();
-    private final Vector3f linearVelocityScratch = new Vector3f();
-    private final Vector3f angularVelocityScratch = new Vector3f();
+    @Nullable
+    private ComponentType<ChunkStore, WorldChunk> worldChunkType;
 
     @Override
     public void tick(float dt, int systemIndex, @Nonnull Store<EntityStore> store) {
@@ -67,12 +63,13 @@ public class PhysicsChunkBoundarySystem extends TickingSystem<EntityStore> {
         PhysicsWorldResource resource = store.getResource(PhysicsWorldResource.getResourceType());
         for (PhysicsWorldResource.BodyRegistration registration
             : resource.getBodyRegistrations(PhysicsBodyKind.BODY)) {
-            processBody(registration, resource, chunkStore, chunkComponentStore);
+            processBody(registration, resource, store, chunkStore, chunkComponentStore);
         }
     }
 
     private void processBody(@Nonnull PhysicsWorldResource.BodyRegistration registration,
         @Nonnull PhysicsWorldResource resource,
+        @Nonnull Store<EntityStore> store,
         @Nonnull ChunkStore chunkStore,
         @Nonnull Store<ChunkStore> chunkComponentStore) {
         if (resource.getSpace(registration.spaceId()) == null) {
@@ -81,7 +78,8 @@ public class PhysicsChunkBoundarySystem extends TickingSystem<EntityStore> {
 
         PhysicsBodyId bodyId = registration.id();
         PhysicsBody body = registration.body();
-        if (body.isStatic()) {
+        PhysicsBodySnapshot snapshot = resource.getBodySnapshot(bodyId);
+        if (snapshot.isStatic()) {
             return;
         }
 
@@ -90,14 +88,21 @@ public class PhysicsChunkBoundarySystem extends TickingSystem<EntityStore> {
         PhysicsWorldResource.ChunkBoundaryPauseState pauseState =
             resource.getChunkBoundaryPauseState(bodyId);
         if (pauseState != null) {
-            handlePausedBody(bodyId, body, pauseState, mode, resource, chunkStore, chunkComponentStore);
+            handlePausedBody(bodyId,
+                body,
+                snapshot,
+                pauseState,
+                mode,
+                resource,
+                store,
+                chunkStore,
+                chunkComponentStore);
             return;
         }
 
-        body.getPosition(bodyPositionScratch);
-        long targetChunkIndex = chunkIndex(bodyPositionScratch.x, bodyPositionScratch.z);
+        long targetChunkIndex = chunkIndex(snapshot.position().x, snapshot.position().z);
         if (isChunkTicking(targetChunkIndex, chunkStore, chunkComponentStore)) {
-            recordSafePose(bodyId, body, resource);
+            recordSafePose(bodyId, snapshot, resource);
             return;
         }
 
@@ -106,14 +111,17 @@ public class PhysicsChunkBoundarySystem extends TickingSystem<EntityStore> {
             return;
         }
 
-        pauseBody(bodyId, body, targetChunkIndex, resource);
+        PhysicsWorkerAccess.run(store, "pause chunk-boundary physics body",
+            () -> pauseBody(bodyId, body, snapshot, targetChunkIndex, resource));
     }
 
     private void handlePausedBody(@Nonnull PhysicsBodyId bodyId,
         @Nonnull PhysicsBody body,
+        @Nonnull PhysicsBodySnapshot snapshot,
         @Nonnull PhysicsWorldResource.ChunkBoundaryPauseState pauseState,
         @Nonnull EntityChunkBoundaryMode mode,
         @Nonnull PhysicsWorldResource resource,
+        @Nonnull Store<EntityStore> entityStore,
         @Nonnull ChunkStore chunkStore,
         @Nonnull Store<ChunkStore> chunkComponentStore) {
         long targetChunkIndex = pauseState.getTargetChunkIndex();
@@ -125,34 +133,35 @@ public class PhysicsChunkBoundarySystem extends TickingSystem<EntityStore> {
             return;
         }
 
-        body.setBodyType(pauseState.getOriginalBodyType());
-        body.setLinearVelocity(pauseState.getLinearVelocity());
-        body.setAngularVelocity(pauseState.getAngularVelocity());
-        body.activate();
-        resource.clearChunkBoundaryPauseState(bodyId);
-        recordSafePose(bodyId, body, resource);
+        PhysicsWorkerAccess.run(entityStore, "resume chunk-boundary physics body", () -> {
+            body.setBodyType(pauseState.getOriginalBodyType());
+            body.setLinearVelocity(pauseState.getLinearVelocity());
+            body.setAngularVelocity(pauseState.getAngularVelocity());
+            body.activate();
+            resource.clearChunkBoundaryPauseState(bodyId);
+            recordSafePose(bodyId, snapshot, resource);
+        });
     }
 
-    private void pauseBody(@Nonnull PhysicsBodyId bodyId,
+    static void pauseBody(@Nonnull PhysicsBodyId bodyId,
         @Nonnull PhysicsBody body,
+        @Nonnull PhysicsBodySnapshot snapshot,
         long targetChunkIndex,
         @Nonnull PhysicsWorldResource resource) {
         PhysicsWorldResource.ChunkBoundarySafeState safeState =
             resource.getChunkBoundarySafeState(bodyId);
+        resource.pauseChunkBoundaryBody(bodyId,
+            targetChunkIndex,
+            snapshot.bodyType(),
+            snapshot.linearVelocity(),
+            snapshot.angularVelocity());
+
         if (safeState != null) {
             body.setPosition(safeState.getPosition());
             body.setRotation(safeState.getRotation());
         }
 
-        body.getLinearVelocity(linearVelocityScratch);
-        body.getAngularVelocity(angularVelocityScratch);
-        resource.pauseChunkBoundaryBody(bodyId,
-            targetChunkIndex,
-            body.getBodyType(),
-            linearVelocityScratch,
-            angularVelocityScratch);
-
-        if (body.getBodyType() != PhysicsBodyType.KINEMATIC) {
+        if (snapshot.bodyType() != PhysicsBodyType.KINEMATIC) {
             body.setBodyType(PhysicsBodyType.KINEMATIC);
         }
         body.setLinearVelocity(0.0f, 0.0f, 0.0f);
@@ -160,12 +169,10 @@ public class PhysicsChunkBoundarySystem extends TickingSystem<EntityStore> {
         body.clearForces();
     }
 
-    private void recordSafePose(@Nonnull PhysicsBodyId bodyId,
-        @Nonnull PhysicsBody body,
+    static void recordSafePose(@Nonnull PhysicsBodyId bodyId,
+        @Nonnull PhysicsBodySnapshot snapshot,
         @Nonnull PhysicsWorldResource resource) {
-        body.getPosition(bodyPositionScratch);
-        body.getRotation(bodyRotationScratch);
-        resource.updateChunkBoundarySafeState(bodyId, bodyPositionScratch, bodyRotationScratch);
+        resource.updateChunkBoundarySafeState(bodyId, snapshot.position(), snapshot.rotation());
     }
 
     private void requestTickingChunk(@Nonnull ChunkStore chunkStore, long chunkIndex) {
@@ -183,8 +190,19 @@ public class PhysicsChunkBoundarySystem extends TickingSystem<EntityStore> {
             return false;
         }
 
-        WorldChunk worldChunk = chunkComponentStore.getComponent(chunkRef, WORLD_CHUNK_TYPE);
+        WorldChunk worldChunk = chunkComponentStore.getComponentConcurrent(chunkRef,
+            worldChunkType());
         return worldChunk != null && worldChunk.is(ChunkFlag.TICKING);
+    }
+
+    @Nonnull
+    private ComponentType<ChunkStore, WorldChunk> worldChunkType() {
+        ComponentType<ChunkStore, WorldChunk> type = worldChunkType;
+        if (type == null) {
+            type = WorldChunk.getComponentType();
+            worldChunkType = type;
+        }
+        return type;
     }
 
     private long chunkIndex(double x, double z) {

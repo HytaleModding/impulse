@@ -1,0 +1,331 @@
+package dev.hytalemodding.impulse.core.internal.worker;
+
+import dev.hytalemodding.impulse.api.PhysicsBody;
+import dev.hytalemodding.impulse.api.PhysicsSpace;
+import dev.hytalemodding.impulse.api.ShapeType;
+import dev.hytalemodding.impulse.core.internal.resources.PublishedPhysicsSnapshotFrame;
+import dev.hytalemodding.impulse.core.internal.systems.PhysicsStepCountPolicy;
+import dev.hytalemodding.impulse.core.plugin.resources.PhysicsStepMode;
+import dev.hytalemodding.impulse.core.plugin.resources.PhysicsWorldResource;
+import java.util.Collection;
+import java.util.Objects;
+import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
+import org.joml.Vector3f;
+
+/**
+ * Worker-owned execution of the world physics step.
+ *
+ * <p>{@link PhysicsSpace} mutations are owner-thread operations. Callers must
+ * only submit this command when the worker is the exclusive owner of backend
+ * spaces and the resource until the result has been consumed.</p>
+ */
+public final class PhysicsWorkerStepCommand implements PhysicsWorkerCommand {
+
+    private static final float DEFAULT_LINEAR_TRAVEL_PER_SUBSTEP = 0.45f;
+    private static final float MIN_LINEAR_TRAVEL_PER_SUBSTEP = 0.125f;
+    private static final float SHAPE_TRAVEL_FRACTION = 0.75f;
+    private static final float MAX_ANGULAR_RADIANS_PER_SUBSTEP = (float) Math.toRadians(30.0);
+
+    @Nonnull
+    private final PhysicsWorldResource resource;
+    private final float dt;
+    private final boolean profilingEnabled;
+    private final long stepSequence;
+    private final long serverTick;
+    @Nullable
+    private RuntimeException failure;
+    @Nullable
+    private PublishedPhysicsSnapshotFrame publishedFrame;
+
+    public PhysicsWorkerStepCommand(@Nonnull PhysicsWorldResource resource,
+        float dt,
+        boolean profilingEnabled) {
+        this(resource, dt, profilingEnabled, 0L, 0L);
+    }
+
+    public PhysicsWorkerStepCommand(@Nonnull PhysicsWorldResource resource,
+        float dt,
+        boolean profilingEnabled,
+        long stepSequence,
+        long serverTick) {
+        this.resource = Objects.requireNonNull(resource, "resource");
+        this.dt = dt;
+        this.profilingEnabled = profilingEnabled;
+        this.stepSequence = Math.max(0L, stepSequence);
+        this.serverTick = Math.max(0L, serverTick);
+    }
+
+    @Nonnull
+    @Override
+    public PhysicsWorkerSnapshot run() {
+        StepExecution result = runStepCycle(resource,
+            dt,
+            profilingEnabled,
+            stepSequence,
+            serverTick);
+        failure = result.failure();
+        publishedFrame = result.frame();
+        return result.snapshot();
+    }
+
+    @Nullable
+    public RuntimeException failure() {
+        return failure;
+    }
+
+    @Nullable
+    public PublishedPhysicsSnapshotFrame publishedFrame() {
+        return publishedFrame;
+    }
+
+    @Nonnull
+    static PhysicsWorkerSnapshot runStep(@Nonnull PhysicsWorldResource resource,
+        float dt,
+        boolean profilingEnabled) {
+        return runStepCycle(resource, dt, profilingEnabled, 0L, 0L).snapshot();
+    }
+
+    @Nonnull
+    static StepExecution runStepCycle(@Nonnull PhysicsWorldResource resource,
+        float dt,
+        boolean profilingEnabled,
+        long stepSequence,
+        long serverTick) {
+        Objects.requireNonNull(resource, "resource");
+        float safeDt = Math.max(dt, 0.0f);
+        PhysicsStepMode stepMode = resource.getStepMode();
+        float maxStepDt = resource.getMaxStepDt() > 0f
+            ? resource.getMaxStepDt()
+            : PhysicsWorldResource.DEFAULT_MAX_STEP_DT;
+        int steps = stepMode == PhysicsStepMode.ADAPTIVE
+            ? resolveAdaptiveStepCount(safeDt, maxStepDt, resource)
+            : PhysicsStepCountPolicy.resolveStepCount(safeDt,
+                resource.getSimulationSteps(),
+                maxStepDt,
+                stepMode);
+
+        long startNanos = profilingEnabled ? System.nanoTime() : 0L;
+        StepCounters counters = new StepCounters();
+        RuntimeException stepFailure = null;
+        try {
+            if (stepMode != PhysicsStepMode.CCD) {
+                restoreForcedContinuousCollision(resource);
+            }
+            executeSteps(resource, safeDt, stepMode, steps, counters);
+        } catch (RuntimeException exception) {
+            stepFailure = exception;
+        }
+        long stepNanos = profilingEnabled ? System.nanoTime() - startNanos : 0L;
+
+        PublishedPhysicsSnapshotFrame frame;
+        try {
+            frame = resource.capturePublishedSnapshotFrame(stepSequence,
+                serverTick,
+                stepFailure == null
+                    ? PublishedPhysicsSnapshotFrame.Status.COMPLETE
+                    : PublishedPhysicsSnapshotFrame.Status.PARTIAL,
+                stepNanos,
+                profilingEnabled);
+        } catch (RuntimeException exception) {
+            if (stepFailure != null) {
+                stepFailure.addSuppressed(exception);
+                throw stepFailure;
+            }
+            throw exception;
+        }
+
+        return new StepExecution(new PhysicsWorkerSnapshot(counters.spaceCount(),
+            counters.substeps(),
+            frame.bodyCount(),
+            frame.spatialIndexCellCount(),
+            stepNanos,
+            frame.snapshotNanos()), stepFailure, frame);
+    }
+
+    private static int resolveAdaptiveStepCount(float dt,
+        float maxStepDt,
+        @Nonnull PhysicsWorldResource resource) {
+        float sampledDt = Math.max(dt, 0.0f);
+        if (sampledDt <= 0.0f) {
+            return resource.getSimulationSteps();
+        }
+
+        int minimumSteps = PhysicsStepCountPolicy.resolveMaxStepCount(sampledDt,
+            resource.getSimulationSteps(),
+            maxStepDt);
+        StepRisk risk = new StepRisk(sampledDt, minimumSteps);
+        for (PhysicsSpace space : resource.iterateSpaces()) {
+            space.forEachBody(risk::inspect);
+        }
+        return risk.steps();
+    }
+
+    private static void executeSteps(@Nonnull PhysicsWorldResource resource,
+        float safeDt,
+        @Nonnull PhysicsStepMode stepMode,
+        int steps,
+        @Nonnull StepCounters counters) {
+        float stepDt = safeDt / steps;
+        for (PhysicsSpace space : resource.iterateSpaces()) {
+            counters.spaceCount++;
+            if (stepMode == PhysicsStepMode.CCD && space.supportsContinuousCollision()) {
+                forceContinuousCollision(resource, space);
+            }
+            for (int step = 0; step < steps; step++) {
+                space.step(stepDt);
+                counters.substeps++;
+            }
+        }
+    }
+
+    private static int requiredSteps(float travel, float safeTravel) {
+        if (travel <= safeTravel) {
+            return 1;
+        }
+        return (int) Math.ceil(travel / safeTravel);
+    }
+
+    private static float safeLinearTravel(@Nonnull PhysicsBody body) {
+        return Math.clamp(
+            approximateMinimumExtent(body) * SHAPE_TRAVEL_FRACTION,
+            MIN_LINEAR_TRAVEL_PER_SUBSTEP,
+            DEFAULT_LINEAR_TRAVEL_PER_SUBSTEP);
+    }
+
+    private static float safeAngularTravel(@Nonnull PhysicsBody body) {
+        return Math.clamp(
+            approximateShapeRadius(body) * MAX_ANGULAR_RADIANS_PER_SUBSTEP,
+            MIN_LINEAR_TRAVEL_PER_SUBSTEP,
+            DEFAULT_LINEAR_TRAVEL_PER_SUBSTEP);
+    }
+
+    private static float approximateMinimumExtent(@Nonnull PhysicsBody body) {
+        ShapeType shapeType = body.getShapeType();
+        if (shapeType == ShapeType.BOX) {
+            Vector3f halfExtents = body.getBoxHalfExtents();
+            if (halfExtents != null) {
+                return Math.max(MIN_LINEAR_TRAVEL_PER_SUBSTEP,
+                    Math.min(halfExtents.x, Math.min(halfExtents.y, halfExtents.z)));
+            }
+        }
+        if (shapeType == ShapeType.SPHERE) {
+            return Math.max(MIN_LINEAR_TRAVEL_PER_SUBSTEP, body.getSphereRadius());
+        }
+        if (shapeType == ShapeType.CAPSULE
+            || shapeType == ShapeType.CYLINDER
+            || shapeType == ShapeType.CONE) {
+            return Math.max(MIN_LINEAR_TRAVEL_PER_SUBSTEP, body.getSphereRadius());
+        }
+        return DEFAULT_LINEAR_TRAVEL_PER_SUBSTEP;
+    }
+
+    private static float approximateShapeRadius(@Nonnull PhysicsBody body) {
+        ShapeType shapeType = body.getShapeType();
+        if (shapeType == ShapeType.BOX) {
+            Vector3f halfExtents = body.getBoxHalfExtents();
+            if (halfExtents != null) {
+                return Math.max(MIN_LINEAR_TRAVEL_PER_SUBSTEP,
+                    (float) Math.sqrt(halfExtents.x * halfExtents.x
+                        + halfExtents.y * halfExtents.y
+                        + halfExtents.z * halfExtents.z));
+            }
+        }
+        if (shapeType == ShapeType.SPHERE) {
+            return Math.max(MIN_LINEAR_TRAVEL_PER_SUBSTEP, body.getSphereRadius());
+        }
+        if (shapeType == ShapeType.CAPSULE
+            || shapeType == ShapeType.CYLINDER
+            || shapeType == ShapeType.CONE) {
+            return Math.max(MIN_LINEAR_TRAVEL_PER_SUBSTEP,
+                body.getSphereRadius() + body.getHalfHeight());
+        }
+        return DEFAULT_LINEAR_TRAVEL_PER_SUBSTEP;
+    }
+
+    private static void forceContinuousCollision(@Nonnull PhysicsWorldResource resource,
+        @Nonnull PhysicsSpace space) {
+        space.forEachBody(body -> {
+            if (!body.isDynamic() || body.isContinuousCollisionEnabled()) {
+                return;
+            }
+
+            body.setContinuousCollisionEnabled(true);
+            resource.markContinuousCollisionForced(body);
+        });
+    }
+
+    private static void restoreForcedContinuousCollision(@Nonnull PhysicsWorldResource resource) {
+        Collection<PhysicsBody> forcedBodies = resource.getForcedContinuousCollisionBodies();
+        if (forcedBodies.isEmpty()) {
+            return;
+        }
+
+        for (PhysicsBody body : forcedBodies) {
+            body.setContinuousCollisionEnabled(false);
+        }
+        resource.clearForcedContinuousCollisionBodies();
+    }
+
+    private static final class StepRisk {
+
+        private final float dt;
+        private int steps;
+        @Nonnull
+        private final Vector3f linearVelocity = new Vector3f();
+        @Nonnull
+        private final Vector3f angularVelocity = new Vector3f();
+
+        private StepRisk(float dt, int minimumSteps) {
+            this.dt = dt;
+            steps = minimumSteps;
+        }
+
+        private void inspect(@Nonnull PhysicsBody body) {
+            if (steps >= PhysicsWorldResource.MAX_SIMULATION_STEPS
+                || body.isStatic()
+                || body.isSleeping()
+                || body.isSensor()
+                || (!body.isDynamic() && !body.isKinematic())) {
+                return;
+            }
+
+            body.getLinearVelocity(linearVelocity);
+            body.getAngularVelocity(angularVelocity);
+            float linearTravel = linearVelocity.length() * dt;
+            float angularSurfaceTravel = angularVelocity.length()
+                * approximateShapeRadius(body)
+                * dt;
+            float safeLinearTravel = safeLinearTravel(body);
+            int requiredSteps = Math.max(
+                requiredSteps(linearTravel, safeLinearTravel),
+                requiredSteps(angularSurfaceTravel, safeAngularTravel(body)));
+            steps = Math.clamp(steps,
+                Math.min(requiredSteps, PhysicsWorldResource.MAX_SIMULATION_STEPS),
+                PhysicsWorldResource.MAX_SIMULATION_STEPS);
+        }
+
+        private int steps() {
+            return steps;
+        }
+    }
+
+    record StepExecution(@Nonnull PhysicsWorkerSnapshot snapshot,
+                         @Nullable RuntimeException failure,
+                         @Nonnull PublishedPhysicsSnapshotFrame frame) {
+    }
+
+    private static final class StepCounters {
+
+        private int spaceCount;
+        private int substeps;
+
+        private int spaceCount() {
+            return spaceCount;
+        }
+
+        private int substeps() {
+            return substeps;
+        }
+    }
+}

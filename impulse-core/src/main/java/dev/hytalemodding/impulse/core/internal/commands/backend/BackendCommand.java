@@ -7,7 +7,5 @@ public class BackendCommand extends AbstractCommandCollection {
     public BackendCommand() {
         super("backend", "Impulse backend commands");
         addSubCommand(new BackendListCommand());
-        addSubCommand(new BackendSwapCommand());
     }
 }
-

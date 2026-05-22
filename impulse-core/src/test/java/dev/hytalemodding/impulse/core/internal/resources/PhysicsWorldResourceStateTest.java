@@ -214,4 +214,37 @@ class PhysicsWorldResourceStateTest {
         assertEquals(0, resource.getBodySnapshotCount());
         assertEquals(0, resource.getBodySnapshotCellCount());
     }
+
+    @Test
+    void bodySnapshotStoreIgnoresUnregisteredSpaceBodies() {
+        FakePhysicsBackend backend =
+            new FakePhysicsBackend("test:snapshot-store-unregistered-" + BACKEND_COUNTER.incrementAndGet());
+        Impulse.registerBackend(backend);
+
+        PhysicsWorldResource resource = new PhysicsWorldResource();
+        PhysicsSpace space = resource.createSpace(backend.getId(),
+            "test-world",
+            PhysicsSpaceSettings.defaults(),
+            true);
+        PhysicsBody registered = space.createBox(0.5f, 0.5f, 0.5f, 1.0f);
+        registered.setPosition(0.0f, 0.0f, 0.0f);
+        PhysicsBody unregistered = space.createBox(0.5f, 0.5f, 0.5f, 1.0f);
+        unregistered.setPosition(2.0f, 0.0f, 0.0f);
+        PhysicsBodyId registeredId = resource.addBody(space.getId(),
+            registered,
+            PhysicsBodyKind.BODY,
+            PhysicsBodyPersistenceMode.PERSISTENT);
+        space.addBody(unregistered);
+
+        assertEquals(1, resource.refreshBodySnapshots());
+        assertEquals(1, resource.getBodySnapshotCount(space.getId()));
+
+        AtomicInteger snapshots = new AtomicInteger();
+        resource.forEachBodySnapshot(space.getId(), entry -> {
+            assertEquals(registeredId, entry.bodyId());
+            assertSame(registered, entry.snapshot().body());
+            snapshots.incrementAndGet();
+        });
+        assertEquals(1, snapshots.get());
+    }
 }

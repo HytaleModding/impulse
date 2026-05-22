@@ -18,19 +18,24 @@ import dev.hytalemodding.impulse.core.ImpulsePlugin;
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsBodyRegistry;
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsBodyRuntimeState;
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsBodySnapshotStore;
+import dev.hytalemodding.impulse.core.internal.resources.PhysicsWorldWorkerResource;
+import dev.hytalemodding.impulse.core.internal.resources.PublishedPhysicsBodySnapshot;
+import dev.hytalemodding.impulse.core.internal.resources.PublishedPhysicsSnapshotFrame;
+import dev.hytalemodding.impulse.core.internal.resources.PublishedPhysicsSpaceFrame;
 import dev.hytalemodding.impulse.core.internal.voxel.WorldVoxelCollisionCache;
+import dev.hytalemodding.impulse.core.internal.worker.PhysicsWorkerAccess;
 import it.unimi.dsi.fastutil.ints.Int2ObjectMap;
 import it.unimi.dsi.fastutil.ints.Int2ObjectOpenHashMap;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.function.Consumer;
 import java.util.logging.Level;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 import lombok.Getter;
-import lombok.Setter;
 import org.joml.Quaternionf;
 import org.joml.Vector3f;
 
@@ -73,13 +78,64 @@ public class PhysicsWorldResource implements Resource<EntityStore> {
     private PhysicsStepMode stepMode = PhysicsStepMode.PROGRESSIVE_REFINEMENT;
 
     @Getter
-    @Setter
     private float maxStepDt = DEFAULT_MAX_STEP_DT;
 
     private final PhysicsBodyRuntimeState runtimeState = new PhysicsBodyRuntimeState();
     private final PhysicsBodySnapshotStore bodySnapshots = new PhysicsBodySnapshotStore();
+    private final PhysicsBodySnapshotStore workerBodySnapshots = new PhysicsBodySnapshotStore();
+    private volatile long worldEpoch;
+    private long snapshotFrameEpoch;
+    @Nonnull
+    private volatile PublishedPhysicsSnapshotFrame latestPublishedFrame =
+        PublishedPhysicsSnapshotFrame.empty(0L, 0L);
+    @Nullable
+    private PhysicsWorldWorkerResource workerResource;
 
     public PhysicsWorldResource() {
+    }
+
+    public void attachWorkerResource(@Nonnull PhysicsWorldWorkerResource workerResource) {
+        this.workerResource = Objects.requireNonNull(workerResource, "workerResource");
+    }
+
+    public void detachWorkerResource(@Nonnull PhysicsWorldWorkerResource workerResource) {
+        if (this.workerResource == workerResource) {
+            this.workerResource = null;
+        }
+    }
+
+    private void runOnWorker(@Nonnull String operation,
+        @Nonnull PhysicsWorkerAccess.PhysicsWorkerMutation mutation) {
+        PhysicsWorldWorkerResource worker = workerResource;
+        if (worker == null || worker.isWorkerThread()) {
+            try {
+                mutation.run();
+            } catch (RuntimeException exception) {
+                throw exception;
+            } catch (Exception exception) {
+                throw new IllegalStateException("Physics operation " + operation + " failed",
+                    exception);
+            }
+            return;
+        }
+        PhysicsWorkerAccess.run(worker, operation, mutation);
+    }
+
+    @Nonnull
+    private <T> T callOnWorker(@Nonnull String operation,
+        @Nonnull PhysicsWorkerAccess.PhysicsWorkerCallable<T> callable) {
+        PhysicsWorldWorkerResource worker = workerResource;
+        if (worker == null || worker.isWorkerThread()) {
+            try {
+                return callable.call();
+            } catch (RuntimeException exception) {
+                throw exception;
+            } catch (Exception exception) {
+                throw new IllegalStateException("Physics operation " + operation + " failed",
+                    exception);
+            }
+        }
+        return PhysicsWorkerAccess.call(worker, operation, callable);
     }
 
     @Nullable
@@ -115,6 +171,10 @@ public class PhysicsWorldResource implements Resource<EntityStore> {
     }
 
     public void setDefaultSpaceId(@Nullable SpaceId defaultSpaceId) {
+        runOnWorker("set default physics space", () -> setDefaultSpaceIdDirect(defaultSpaceId));
+    }
+
+    private void setDefaultSpaceIdDirect(@Nullable SpaceId defaultSpaceId) {
         if (defaultSpaceId != null && !spaces.containsKey(defaultSpaceId.value())) {
             throw new IllegalArgumentException("Physics space id=" + defaultSpaceId
                 + " is not registered");
@@ -128,8 +188,16 @@ public class PhysicsWorldResource implements Resource<EntityStore> {
     }
 
     public void setStepMode(@Nonnull PhysicsStepMode stepMode) {
+        runOnWorker("set physics step mode", () -> setStepModeDirect(stepMode));
+    }
+
+    private void setStepModeDirect(@Nonnull PhysicsStepMode stepMode) {
         validateStepModeSupported(stepMode);
         this.stepMode = stepMode;
+    }
+
+    public void setMaxStepDt(float maxStepDt) {
+        runOnWorker("set max physics step dt", () -> this.maxStepDt = maxStepDt);
     }
 
     @Nonnull
@@ -166,6 +234,16 @@ public class PhysicsWorldResource implements Resource<EntityStore> {
         @Nonnull String worldName,
         @Nonnull PhysicsSpaceSettings settings,
         boolean makeDefault) {
+        return callOnWorker("create physics space",
+            () -> createSpaceDirect(backendId, spaceId, worldName, settings, makeDefault));
+    }
+
+    @Nonnull
+    private PhysicsSpace createSpaceDirect(@Nonnull BackendId backendId,
+        @Nonnull SpaceId spaceId,
+        @Nonnull String worldName,
+        @Nonnull PhysicsSpaceSettings settings,
+        boolean makeDefault) {
         if (spaces.containsKey(spaceId.value())) {
             throw new IllegalArgumentException("Physics space id=" + spaceId + " is already registered");
         }
@@ -190,6 +268,7 @@ public class PhysicsWorldResource implements Resource<EntityStore> {
         if (makeDefault) {
             defaultSpaceId = space.getId();
         }
+        markWorldChanged();
 
         LOGGER.at(Level.FINE).log(
             "World %s created physics space id=%s backend=%s collision=%s",
@@ -224,7 +303,14 @@ public class PhysicsWorldResource implements Resource<EntityStore> {
     }
 
     public int refreshBodySnapshots() {
-        return bodySnapshots.refresh(spaces.values(), bodyRegistry);
+        return callOnWorker("refresh physics body snapshots", () -> {
+            PublishedPhysicsSnapshotFrame frame = capturePublishedSnapshotFrameDirect(0L,
+                0L,
+                PublishedPhysicsSnapshotFrame.Status.COMPLETE,
+                0L,
+                false);
+            return applyPublishedSnapshotFrameDirect(frame);
+        });
     }
 
     @Nonnull
@@ -233,18 +319,129 @@ public class PhysicsWorldResource implements Resource<EntityStore> {
         if (snapshot != null) {
             return snapshot;
         }
+        return callOnWorker("refresh missing physics body snapshot",
+            () -> getBodySnapshotDirect(bodyId));
+    }
+
+    @Nonnull
+    private PhysicsBodySnapshot getBodySnapshotDirect(@Nonnull PhysicsBodyId bodyId) {
+        PhysicsBodySnapshot snapshot = bodySnapshots.get(bodyId);
+        if (snapshot != null) {
+            return snapshot;
+        }
         BodyRegistration registration = requireBodyRegistration(bodyId);
         PhysicsBody body = registration.body();
         snapshot = PhysicsBodySnapshot.from(body);
         bodySnapshots.put(bodyId, snapshot, registration.spaceId(), registration);
+        workerBodySnapshots.put(bodyId, snapshot, registration.spaceId(), registration);
         return snapshot;
+    }
+
+    @Nonnull
+    public PublishedPhysicsSnapshotFrame capturePublishedSnapshotFrame(long stepSequence,
+        long serverTick,
+        @Nonnull PublishedPhysicsSnapshotFrame.Status status,
+        long stepNanos,
+        boolean profilingEnabled) {
+        return callOnWorker("capture published physics snapshot frame",
+            () -> capturePublishedSnapshotFrameDirect(stepSequence,
+                serverTick,
+                status,
+                stepNanos,
+                profilingEnabled));
+    }
+
+    @Nonnull
+    private PublishedPhysicsSnapshotFrame capturePublishedSnapshotFrameDirect(long stepSequence,
+        long serverTick,
+        @Nonnull PublishedPhysicsSnapshotFrame.Status status,
+        long stepNanos,
+        boolean profilingEnabled) {
+        long frameEpoch = ++snapshotFrameEpoch;
+        long frameWorldEpoch = worldEpoch;
+        long snapshotStartNanos = profilingEnabled ? System.nanoTime() : 0L;
+        workerBodySnapshots.refresh(spaces.values(), bodyRegistry);
+        int spatialIndexCellCount = workerBodySnapshots.cellCount();
+        List<PublishedPhysicsSpaceFrame> spaceFrames = new ArrayList<>(spaces.size());
+        for (PhysicsSpace space : spaces.values()) {
+            SpaceId spaceId = space.getId();
+            List<PublishedPhysicsBodySnapshot> bodyFrames = new ArrayList<>(
+                workerBodySnapshots.bodyCount(spaceId));
+            workerBodySnapshots.forEach(spaceId, entry -> bodyFrames.add(
+                PublishedPhysicsBodySnapshot.from(entry.bodyId(),
+                    entry.spaceId(),
+                    frameEpoch,
+                    frameWorldEpoch,
+                    frameWorldEpoch,
+                    frameWorldEpoch,
+                    entry.registration().kind(),
+                    entry.registration().persistenceMode(),
+                    entry.snapshot())));
+            spaceFrames.add(new PublishedPhysicsSpaceFrame(spaceId,
+                frameEpoch,
+                frameWorldEpoch,
+                frameWorldEpoch,
+                bodyFrames));
+        }
+        long snapshotNanos = profilingEnabled ? System.nanoTime() - snapshotStartNanos : 0L;
+        PublishedPhysicsSnapshotFrame frame = new PublishedPhysicsSnapshotFrame(frameEpoch,
+            frameWorldEpoch,
+            stepSequence,
+            serverTick,
+            status,
+            spatialIndexCellCount,
+            stepNanos,
+            snapshotNanos,
+            spaceFrames);
+        latestPublishedFrame = frame;
+        return frame;
+    }
+
+    public int applyPublishedSnapshotFrame(@Nonnull PublishedPhysicsSnapshotFrame frame) {
+        Objects.requireNonNull(frame, "frame");
+        return applyPublishedSnapshotFrameDirect(frame);
+    }
+
+    private int applyPublishedSnapshotFrameDirect(@Nonnull PublishedPhysicsSnapshotFrame frame) {
+        if (frame.worldEpoch() != worldEpoch) {
+            return 0;
+        }
+
+        bodySnapshots.clear();
+        int applied = 0;
+        for (PublishedPhysicsSpaceFrame spaceFrame : frame.spaces()) {
+            for (PublishedPhysicsBodySnapshot bodyFrame : spaceFrame.bodies()) {
+                BodyRegistration registration = bodyRegistry.getRegistration(bodyFrame.bodyId());
+                if (registration == null || !registration.spaceId().equals(bodyFrame.spaceId())) {
+                    continue;
+                }
+                PhysicsBodySnapshot snapshot = new PhysicsBodySnapshot(registration.body(),
+                    bodyFrame.position(),
+                    bodyFrame.rotation(),
+                    bodyFrame.linearVelocity(),
+                    bodyFrame.angularVelocity(),
+                    bodyFrame.bodyType(),
+                    bodyFrame.sleeping(),
+                    bodyFrame.sensor(),
+                    bodyFrame.centerOfMassOffsetY());
+                bodySnapshots.put(bodyFrame.bodyId(), snapshot, bodyFrame.spaceId(), registration);
+                applied++;
+            }
+        }
+        return applied;
+    }
+
+    @Nonnull
+    public PublishedPhysicsSnapshotFrame getLatestPublishedFrame() {
+        return latestPublishedFrame;
     }
 
     @Nonnull
     public PhysicsBodySnapshot getBodySnapshot(@Nonnull PhysicsBody body) {
         PhysicsBodyId bodyId = getBodyId(body);
         if (bodyId == null) {
-            return PhysicsBodySnapshot.from(body);
+            return callOnWorker("read unregistered physics body snapshot",
+                () -> PhysicsBodySnapshot.from(body));
         }
         return getBodySnapshot(bodyId);
     }
@@ -283,6 +480,10 @@ public class PhysicsWorldResource implements Resource<EntityStore> {
     }
 
     public void removeSpace(@Nonnull SpaceId spaceId, @Nonnull String worldName) {
+        runOnWorker("remove physics space", () -> removeSpaceDirect(spaceId, worldName));
+    }
+
+    private void removeSpaceDirect(@Nonnull SpaceId spaceId, @Nonnull String worldName) {
         PhysicsSpace removed = spaces.remove(spaceId.value());
         spaceSettings.remove(spaceId.value());
         worldVoxelCollisionCache.clear(spaceId, removed);
@@ -302,16 +503,21 @@ public class PhysicsWorldResource implements Resource<EntityStore> {
                 removed.getId(),
                 removed.getBackendId());
             closeSpaceQuietly(removed, worldName, "removed physics space");
+            markWorldChanged();
         }
     }
 
     public void clearAllSpaces(@Nonnull String worldName) {
+        runOnWorker("clear physics spaces", () -> clearAllSpacesDirect(worldName));
+    }
+
+    private void clearAllSpacesDirect(@Nonnull String worldName) {
         List<SpaceId> ids = new ArrayList<>(spaces.size());
         for (PhysicsSpace space : spaces.values()) {
             ids.add(space.getId());
         }
         for (SpaceId spaceId : ids) {
-            removeSpace(spaceId, worldName);
+            removeSpaceDirect(spaceId, worldName);
         }
     }
 
@@ -321,6 +527,12 @@ public class PhysicsWorldResource implements Resource<EntityStore> {
      */
     @Nonnull
     public RuntimeResetResult resetRuntimeStateKeepingSpaces(@Nonnull String worldName) {
+        return callOnWorker("reset physics runtime state",
+            () -> resetRuntimeStateKeepingSpacesDirect(worldName));
+    }
+
+    @Nonnull
+    private RuntimeResetResult resetRuntimeStateKeepingSpacesDirect(@Nonnull String worldName) {
         List<SpaceReset> replacements = new ArrayList<>();
         for (PhysicsSpace previous : spaces.values()) {
             Vector3f gravity = previous.getGravity();
@@ -360,6 +572,11 @@ public class PhysicsWorldResource implements Resource<EntityStore> {
     }
 
     public void setSpaceSettings(@Nonnull SpaceId spaceId, @Nonnull PhysicsSpaceSettings settings) {
+        runOnWorker("set physics space settings", () -> setSpaceSettingsDirect(spaceId, settings));
+    }
+
+    private void setSpaceSettingsDirect(@Nonnull SpaceId spaceId,
+        @Nonnull PhysicsSpaceSettings settings) {
         PhysicsSpace space = spaces.get(spaceId.value());
         if (space == null) {
             throw new IllegalArgumentException("Physics space id=" + spaceId
@@ -436,6 +653,16 @@ public class PhysicsWorldResource implements Resource<EntityStore> {
         @Nonnull PhysicsBody body,
         @Nonnull PhysicsBodyKind kind,
         @Nonnull PhysicsBodyPersistenceMode persistenceMode) {
+        return callOnWorker("add physics body",
+            () -> addBodyDirect(bodyId, spaceId, body, kind, persistenceMode));
+    }
+
+    @Nonnull
+    private PhysicsBodyId addBodyDirect(@Nonnull PhysicsBodyId bodyId,
+        @Nonnull SpaceId spaceId,
+        @Nonnull PhysicsBody body,
+        @Nonnull PhysicsBodyKind kind,
+        @Nonnull PhysicsBodyPersistenceMode persistenceMode) {
         PhysicsSpace space = getSpace(spaceId);
         if (space == null) {
             throw new IllegalArgumentException("Physics space id=" + spaceId + " is not registered");
@@ -446,6 +673,8 @@ public class PhysicsWorldResource implements Resource<EntityStore> {
         BodyRegistration registration = bodyRegistry.registerBody(bodyId, body, spaceId, kind, persistenceMode);
         PhysicsBodySnapshot snapshot = PhysicsBodySnapshot.from(body);
         bodySnapshots.put(bodyId, snapshot, spaceId, registration);
+        workerBodySnapshots.put(bodyId, snapshot, spaceId, registration);
+        markWorldChanged();
         return bodyId;
     }
 
@@ -454,6 +683,10 @@ public class PhysicsWorldResource implements Resource<EntityStore> {
     }
 
     public void destroyBody(@Nonnull PhysicsBodyId bodyId, boolean removeFromSpace) {
+        runOnWorker("destroy physics body", () -> destroyBodyDirect(bodyId, removeFromSpace));
+    }
+
+    private void destroyBodyDirect(@Nonnull PhysicsBodyId bodyId, boolean removeFromSpace) {
         BodyRegistration registration = bodyRegistry.unregisterBody(bodyId);
         if (registration != null) {
             clearBodyRuntimeState(registration.body(), bodyId);
@@ -463,15 +696,21 @@ public class PhysicsWorldResource implements Resource<EntityStore> {
         if (removeFromSpace && registration != null) {
             removeBodyFromSpace(registration.body(), registration);
         }
+        markWorldChanged();
     }
 
     public void destroyBody(@Nonnull PhysicsBody body) {
+        runOnWorker("destroy physics body", () -> destroyBodyDirect(body));
+    }
+
+    private void destroyBodyDirect(@Nonnull PhysicsBody body) {
         PhysicsBodyId bodyId = getBodyId(body);
         if (bodyId != null) {
-            destroyBody(bodyId);
+            destroyBodyDirect(bodyId, true);
         } else {
             runtimeState.clearBody(body);
             removeBodyFromSpace(body, null);
+            markWorldChanged();
         }
     }
 
@@ -568,6 +807,10 @@ public class PhysicsWorldResource implements Resource<EntityStore> {
     }
 
     public void remapMigratedBodies(@Nonnull Map<PhysicsBody, PhysicsBody> bodyRemaps) {
+        runOnWorker("remap migrated physics bodies", () -> remapMigratedBodiesDirect(bodyRemaps));
+    }
+
+    private void remapMigratedBodiesDirect(@Nonnull Map<PhysicsBody, PhysicsBody> bodyRemaps) {
         List<PhysicsBodyId> remappedBodyIds = new ArrayList<>();
         for (PhysicsBody sourceBody : bodyRemaps.keySet()) {
             PhysicsBodyId bodyId = getBodyId(sourceBody);
@@ -579,13 +822,21 @@ public class PhysicsWorldResource implements Resource<EntityStore> {
         runtimeState.remapBodies(bodyRemaps);
         for (PhysicsBodyId bodyId : remappedBodyIds) {
             bodySnapshots.remove(bodyId);
+            workerBodySnapshots.remove(bodyId);
         }
+        markWorldChanged();
     }
 
     public void clearBodies() {
+        runOnWorker("clear physics bodies", this::clearBodiesDirect);
+    }
+
+    private void clearBodiesDirect() {
         bodyRegistry.clear();
         runtimeState.clear();
         bodySnapshots.clear();
+        workerBodySnapshots.clear();
+        markWorldChanged();
     }
 
     @Nonnull
@@ -657,15 +908,21 @@ public class PhysicsWorldResource implements Resource<EntityStore> {
     }
 
     public void clearBodyRuntimeState(@Nonnull PhysicsBodyId bodyId) {
+        runOnWorker("clear physics body runtime state", () -> clearBodyRuntimeStateDirect(bodyId));
+    }
+
+    private void clearBodyRuntimeStateDirect(@Nonnull PhysicsBodyId bodyId) {
         bodyRegistry.clearBodyRuntimeState(bodyId);
         runtimeState.clearBody(bodyId);
         bodySnapshots.remove(bodyId);
+        workerBodySnapshots.remove(bodyId);
     }
 
     private void clearBodyRuntimeState(@Nonnull PhysicsBody body, @Nonnull PhysicsBodyId bodyId) {
         bodyRegistry.clearBodyRuntimeState(bodyId);
         runtimeState.clearBody(body, bodyId);
         bodySnapshots.remove(bodyId);
+        workerBodySnapshots.remove(bodyId);
     }
 
     public void markContinuousCollisionForced(@Nonnull PhysicsBody body) {
@@ -682,6 +939,10 @@ public class PhysicsWorldResource implements Resource<EntityStore> {
     }
 
     public void copyFrom(@Nonnull PhysicsWorldResource other) {
+        runOnWorker("copy physics world resource", () -> copyFromDirect(other));
+    }
+
+    private void copyFromDirect(@Nonnull PhysicsWorldResource other) {
         if (this == other) {
             return;
         }
@@ -690,6 +951,7 @@ public class PhysicsWorldResource implements Resource<EntityStore> {
         bodyRegistry.clear();
         runtimeState.clear();
         bodySnapshots.clear();
+        workerBodySnapshots.clear();
         worldVoxelCollisionCache.copyFrom(new WorldVoxelCollisionCache());
         defaultSpaceId = other.defaultSpaceId;
         simulationSteps = other.simulationSteps;
@@ -698,6 +960,7 @@ public class PhysicsWorldResource implements Resource<EntityStore> {
         for (var entry : other.spaceSettings.int2ObjectEntrySet()) {
             spaceSettings.put(entry.getIntKey(), new PhysicsSpaceSettings(entry.getValue()));
         }
+        markWorldChanged();
     }
 
     /**
@@ -705,6 +968,10 @@ public class PhysicsWorldResource implements Resource<EntityStore> {
      * Higher values can improve stability at the cost of backend step time.
      */
     public void setSimulationSteps(int simulationSteps) {
+        runOnWorker("set simulation steps", () -> setSimulationStepsDirect(simulationSteps));
+    }
+
+    private void setSimulationStepsDirect(int simulationSteps) {
         if (simulationSteps < MIN_SIMULATION_STEPS || simulationSteps > MAX_SIMULATION_STEPS) {
             throw new IllegalArgumentException("Simulation steps must be between "
                 + MIN_SIMULATION_STEPS + " and " + MAX_SIMULATION_STEPS);
@@ -714,6 +981,14 @@ public class PhysicsWorldResource implements Resource<EntityStore> {
 
     @Nonnull
     public PhysicsSpace replaceSpace(@Nonnull SpaceId spaceId,
+        @Nonnull PhysicsSpace replacement,
+        @Nonnull String worldName) {
+        return callOnWorker("replace physics space",
+            () -> replaceSpaceDirect(spaceId, replacement, worldName));
+    }
+
+    @Nonnull
+    private PhysicsSpace replaceSpaceDirect(@Nonnull SpaceId spaceId,
         @Nonnull PhysicsSpace replacement,
         @Nonnull String worldName) {
         if (!spaceId.equals(replacement.getId())) {
@@ -734,6 +1009,7 @@ public class PhysicsWorldResource implements Resource<EntityStore> {
         applySolverTuning(replacement, settings);
         spaces.put(spaceId.value(), replacement);
         spaceSettings.put(spaceId.value(), new PhysicsSpaceSettings(settings));
+        markWorldChanged();
         LOGGER.at(Level.INFO).log(
             "World %s replaced physics space id=%s backend=%s -> backend=%s",
             worldName,
@@ -780,6 +1056,11 @@ public class PhysicsWorldResource implements Resource<EntityStore> {
             }
         }
         return false;
+    }
+
+    private void markWorldChanged() {
+        worldEpoch++;
+        latestPublishedFrame = PublishedPhysicsSnapshotFrame.empty(snapshotFrameEpoch, worldEpoch);
     }
 
     public record BodyRegistration(@Nonnull PhysicsBodyId id,
