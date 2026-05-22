@@ -13,6 +13,7 @@ import dev.hytalemodding.impulse.core.internal.diagnostics.PhysicsEntityDiagnost
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsRuntimeProfilingResource;
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsRuntimeProfilingResource.StepSnapshot;
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsRuntimeProfilingResource.SyncSnapshot;
+import dev.hytalemodding.impulse.core.internal.resources.PhysicsRuntimeProfilingResource.VisualSnapshot;
 import dev.hytalemodding.impulse.core.internal.worker.PhysicsWorkerAccess;
 import dev.hytalemodding.impulse.core.plugin.resources.PhysicsBodyKind;
 import dev.hytalemodding.impulse.core.plugin.resources.PhysicsWorldResource;
@@ -39,6 +40,9 @@ public class PerfReportCommand extends AbstractWorldCommand {
         SyncSnapshot cumulativeSync = runtimeProfiling.getCumulativeSync();
         SyncSnapshot latestSync = runtimeProfiling.getLatestSync();
         SyncSnapshot worstSync = runtimeProfiling.getWorstSync();
+        VisualSnapshot cumulativeVisual = runtimeProfiling.getCumulativeVisual();
+        VisualSnapshot latestVisual = runtimeProfiling.getLatestVisual();
+        VisualSnapshot worstVisual = runtimeProfiling.getWorstVisual();
         WorldCollisionProfilingResource profiling = store.getResource(
             WorldCollisionProfilingResource.getResourceType());
         Snapshot cumulative = profiling.getCumulativeSnapshot();
@@ -61,7 +65,9 @@ public class PerfReportCommand extends AbstractWorldCommand {
         ctx.sender().sendMessage(Message.raw("Impulse entity diagnostics: "
             + entityDiagnostics.impulseSummary()));
 
-        if (cumulativeStep.getTickSamples() > 0 || cumulativeSync.getTickSamples() > 0) {
+        if (cumulativeStep.getTickSamples() > 0
+            || cumulativeSync.getTickSamples() > 0
+            || cumulativeVisual.getTickSamples() > 0) {
             ctx.sender().sendMessage(Message.raw("Physics step avg ms/tick="
                 + formatAverageMillis(cumulativeStep.getTickNanos(), cumulativeStep.getTickSamples())
                 + " spaces=" + formatAverage(cumulativeStep.getSpaces(), cumulativeStep.getTickSamples())
@@ -70,13 +76,28 @@ public class PerfReportCommand extends AbstractWorldCommand {
                 + " indexCells=" + formatAverage(cumulativeStep.getSpatialIndexCells(), cumulativeStep.getTickSamples())));
             ctx.sender().sendMessage(Message.raw("Physics snapshot avg ms/tick="
                 + formatAverageMillis(cumulativeStep.getSnapshotNanos(), cumulativeStep.getTickSamples())));
+            ctx.sender().sendMessage(Message.raw("Physics worker avg queued/run/latency ms="
+                + formatAverageMillis(cumulativeStep.getWorkerQueuedNanos(), cumulativeStep.getTickSamples())
+                + "/" + formatAverageMillis(cumulativeStep.getWorkerRunNanos(), cumulativeStep.getTickSamples())
+                + "/" + formatAverageMillis(
+                cumulativeStep.getWorkerQueuedNanos() + cumulativeStep.getWorkerRunNanos(),
+                cumulativeStep.getTickSamples())
+                + " pendingSkips=" + cumulativeStep.getSkippedPendingSteps()
+                + " pendingAge avg/max ms="
+                + formatAverageMillis(cumulativeStep.getPendingStepAgeNanos(),
+                cumulativeStep.getSkippedPendingSteps())
+                + "/" + formatMillis(cumulativeStep.getMaxPendingStepAgeNanos())));
             ctx.sender().sendMessage(Message.raw("Physics step latest/worst ms="
                 + formatMillis(latestStep.getTickNanos())
                 + "/" + formatMillis(worstStep.getTickNanos())
                 + " latest spaces/substeps=" + latestStep.getSpaces()
                 + "/" + latestStep.getSubsteps()
                 + " snapshots/cells=" + latestStep.getBodySnapshots()
-                + "/" + latestStep.getSpatialIndexCells()));
+                + "/" + latestStep.getSpatialIndexCells()
+                + " snapshot latest/worst ms=" + formatMillis(latestStep.getSnapshotNanos())
+                + "/" + formatMillis(worstStep.getSnapshotNanos())
+                + " pendingAge latest/max ms=" + formatMillis(latestStep.getPendingStepAgeNanos())
+                + "/" + formatMillis(worstStep.getMaxPendingStepAgeNanos())));
             ctx.sender().sendMessage(Message.raw("Physics sync avg ms/tick="
                 + formatAverageMillis(cumulativeSync.getTickNanos(), cumulativeSync.getTickSamples())
                 + " inspected=" + formatAverage(cumulativeSync.getBodiesInspected(), cumulativeSync.getTickSamples())
@@ -99,8 +120,38 @@ public class PerfReportCommand extends AbstractWorldCommand {
             ctx.sender().sendMessage(Message.raw("Physics sync worst ms=" + formatMillis(worstSync.getTickNanos())
                 + " inspected/synced=" + worstSync.getBodiesInspected()
                 + "/" + worstSync.getBodiesSynced()));
+            if (cumulativeVisual.getTickSamples() > 0) {
+                ctx.sender().sendMessage(Message.raw("Detached visual materialization avg ms/tick="
+                    + formatAverageMillis(cumulativeVisual.getTickNanos(),
+                    cumulativeVisual.getTickSamples())
+                    + " interests=" + formatAverage(cumulativeVisual.getInterests(),
+                    cumulativeVisual.getTickSamples())
+                    + " materialized=" + formatAverage(cumulativeVisual.getMaterialized(),
+                    cumulativeVisual.getTickSamples())
+                    + " candidates=" + formatAverage(cumulativeVisual.getCandidates(),
+                    cumulativeVisual.getTickSamples())
+                    + " spawned/dematerialized=" + cumulativeVisual.getSpawned()
+                    + "/" + cumulativeVisual.getDematerialized()));
+                ctx.sender().sendMessage(Message.raw("Detached visual queries since reset: nearQueries="
+                    + cumulativeVisual.getNearQueries()
+                    + " nearCandidates=" + cumulativeVisual.getNearQueryCandidates()
+                    + " raycasts/cacheHits=" + cumulativeVisual.getRaycasts()
+                    + "/" + cumulativeVisual.getRaycastCacheHits()
+                    + " candidateRefresh/cacheUse=" + cumulativeVisual.getCandidateRefreshes()
+                    + "/" + cumulativeVisual.getCandidateCacheUses()
+                    + " visibilityChecks/skips=" + cumulativeVisual.getVisibilityChecks()
+                    + "/" + cumulativeVisual.getVisibilityCheckSkips()));
+                ctx.sender().sendMessage(Message.raw("Detached visual latest/worst ms="
+                    + formatMillis(latestVisual.getTickNanos())
+                    + "/" + formatMillis(worstVisual.getTickNanos())
+                    + " latest materialized/candidates/spawned/dematerialized="
+                    + latestVisual.getMaterialized()
+                    + "/" + latestVisual.getCandidates()
+                    + "/" + latestVisual.getSpawned()
+                    + "/" + latestVisual.getDematerialized()));
+            }
         } else {
-            ctx.sender().sendMessage(Message.raw("No profiled physics step/sync ticks recorded yet."
+            ctx.sender().sendMessage(Message.raw("No profiled physics step/sync/visual ticks recorded yet."
                 + (runtimeProfiling.isEnabled()
                 ? ""
                 : " Run /impulse perf enable, wait a few seconds, then run /impulse perf report.")));
@@ -123,6 +174,8 @@ public class PerfReportCommand extends AbstractWorldCommand {
             + "/" + cumulative.getBodySpatialIndexCandidates()
             + "/" + cumulative.getBodyStreamingTargets()
             + " spaces=" + cumulative.getStreamingSpaces()
+            + " terrainApply queued/skipped=" + cumulative.getTerrainApplyQueued()
+            + "/" + cumulative.getTerrainApplySkippedPending()
             + " sectionTargets player/body=" + cumulative.getPlayerSectionTargets()
             + "/" + cumulative.getBodySectionTargets()
             + " ensureCalls=" + cumulative.getEnsureCalls()
@@ -185,6 +238,8 @@ public class PerfReportCommand extends AbstractWorldCommand {
             + "/" + latest.getBodySpatialIndexCandidates()
             + "/" + latest.getBodyStreamingTargets()
             + " spaces=" + latest.getStreamingSpaces()
+            + " terrainApply queued/skipped=" + latest.getTerrainApplyQueued()
+            + "/" + latest.getTerrainApplySkippedPending()
             + " sectionTargets player/body=" + latest.getPlayerSectionTargets()
             + "/" + latest.getBodySectionTargets()
             + " ensure=" + latest.getEnsureCalls()
@@ -206,6 +261,8 @@ public class PerfReportCommand extends AbstractWorldCommand {
             + "/" + worst.getBodySpatialIndexCandidates()
             + "/" + worst.getBodyStreamingTargets()
             + " spaces=" + worst.getStreamingSpaces()
+            + " terrainApply queued/skipped=" + worst.getTerrainApplyQueued()
+            + "/" + worst.getTerrainApplySkippedPending()
             + " sectionTargets player/body=" + worst.getPlayerSectionTargets()
             + "/" + worst.getBodySectionTargets()
             + " ensure=" + worst.getEnsureCalls()
