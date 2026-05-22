@@ -5,9 +5,9 @@ use jni::objects::{JClass, JFloatArray, JIntArray, JLongArray};
 use jni::sys::{jboolean, jfloat, jfloatArray, jint, jlong};
 use jni::JNIEnv;
 use rapier3d::prelude::*;
-use std::collections::{HashMap, HashSet};
+use std::collections::HashMap;
 use std::panic::{catch_unwind, AssertUnwindSafe};
-use std::sync::{Mutex, OnceLock};
+use std::sync::{Arc, Mutex, OnceLock};
 
 // Integer ids shared with the Java side enums.
 const BODY_TYPE_STATIC: i32 = 0;
@@ -64,6 +64,8 @@ struct NativeSpace {
     dynamic_sleep_linear_threshold: f32,
     dynamic_sleep_angular_threshold: f32,
     dynamic_sleep_time_until_sleep: f32,
+    snapshot_body_ids: Vec<jlong>,
+    snapshot_body_values: Vec<jfloat>,
 }
 
 impl NativeSpace {
@@ -88,10 +90,13 @@ impl NativeSpace {
             dynamic_sleep_linear_threshold: IMPULSE_DYNAMIC_SLEEP_LINEAR_THRESHOLD,
             dynamic_sleep_angular_threshold: IMPULSE_DYNAMIC_SLEEP_ANGULAR_THRESHOLD,
             dynamic_sleep_time_until_sleep: IMPULSE_DYNAMIC_TIME_UNTIL_SLEEP,
+            snapshot_body_ids: Vec::new(),
+            snapshot_body_values: Vec::new(),
         }
     }
 
     fn step(&mut self, dt: f32) {
+        let dt = finite_or(dt, 0.0);
         if dt <= 0.0 {
             return;
         }
@@ -121,7 +126,8 @@ impl NativeSpace {
     ) {
         self.integration_parameters.num_solver_iterations = solver_iterations.max(1);
         self.integration_parameters.num_internal_pgs_iterations = internal_pgs_iterations.max(1);
-        self.integration_parameters.num_internal_stabilization_iterations = stabilization_iterations;
+        self.integration_parameters
+            .num_internal_stabilization_iterations = stabilization_iterations;
         self.integration_parameters.min_island_size = min_island_size.max(1);
     }
 
@@ -180,40 +186,100 @@ impl NativeSpace {
     }
 }
 
-static ACTIVE_SPACES: OnceLock<Mutex<HashSet<usize>>> = OnceLock::new();
-
-fn active_spaces() -> &'static Mutex<HashSet<usize>> {
-    ACTIVE_SPACES.get_or_init(|| Mutex::new(HashSet::new()))
+struct RegisteredSpace {
+    space: Mutex<Option<NativeSpace>>,
 }
 
-fn register_space(space: *mut NativeSpace) -> bool {
-    active_spaces()
-        .lock()
-        .map(|mut spaces| spaces.insert(space as usize))
-        .unwrap_or(false)
+struct SpaceRegistry {
+    next_slot: u32,
+    next_generation: u32,
+    spaces: HashMap<u64, Arc<RegisteredSpace>>,
 }
 
-fn unregister_space(handle: jlong) -> bool {
-    if handle == 0 || !is_aligned_space_handle(handle) {
-        return false;
+impl SpaceRegistry {
+    fn new() -> Self {
+        Self {
+            next_slot: 1,
+            next_generation: 1,
+            spaces: HashMap::new(),
+        }
     }
-    active_spaces()
-        .lock()
-        .map(|mut spaces| spaces.remove(&(handle as usize)))
-        .unwrap_or(false)
+
+    fn insert(&mut self, space: NativeSpace) -> jlong {
+        let slot = self.next_slot;
+        let generation = self.next_generation;
+        self.next_slot = self.next_slot.wrapping_add(1).max(1);
+        if self.next_slot == 1 {
+            self.next_generation = self.next_generation.wrapping_add(1).max(1);
+        }
+
+        let handle = pack_space_handle(slot, generation);
+        self.spaces.insert(
+            handle,
+            Arc::new(RegisteredSpace {
+                space: Mutex::new(Some(space)),
+            }),
+        );
+        handle as jlong
+    }
+
+    fn get(&self, handle: jlong) -> Option<Arc<RegisteredSpace>> {
+        unpack_space_handle(handle).and_then(|packed| self.spaces.get(&packed).cloned())
+    }
+
+    fn remove(&mut self, handle: jlong) -> Option<Arc<RegisteredSpace>> {
+        unpack_space_handle(handle).and_then(|packed| self.spaces.remove(&packed))
+    }
 }
 
-fn is_active_space_handle(handle: jlong) -> bool {
-    handle != 0
-        && is_aligned_space_handle(handle)
-        && active_spaces()
-            .lock()
-            .map(|spaces| spaces.contains(&(handle as usize)))
-            .unwrap_or(false)
+static SPACE_REGISTRY: OnceLock<Mutex<SpaceRegistry>> = OnceLock::new();
+
+fn space_registry() -> &'static Mutex<SpaceRegistry> {
+    SPACE_REGISTRY.get_or_init(|| Mutex::new(SpaceRegistry::new()))
 }
 
-fn is_aligned_space_handle(handle: jlong) -> bool {
-    (handle as usize) % std::mem::align_of::<NativeSpace>() == 0
+fn pack_space_handle(slot: u32, generation: u32) -> u64 {
+    ((generation as u64) << 32) | slot as u64
+}
+
+fn unpack_space_handle(handle: jlong) -> Option<u64> {
+    if handle <= 0 {
+        return None;
+    }
+    let packed = handle as u64;
+    let slot = packed as u32;
+    let generation = (packed >> 32) as u32;
+    if slot == 0 || generation == 0 {
+        None
+    } else {
+        Some(packed)
+    }
+}
+
+fn lock_registry() -> std::sync::MutexGuard<'static, SpaceRegistry> {
+    match space_registry().lock() {
+        Ok(registry) => registry,
+        Err(poisoned) => poisoned.into_inner(),
+    }
+}
+
+fn register_space(space: NativeSpace) -> jlong {
+    lock_registry().insert(space)
+}
+
+fn destroy_registered_space(handle: jlong) -> bool {
+    let Some(record) = lock_registry().remove(handle) else {
+        return false;
+    };
+    let mut space = match record.space.lock() {
+        Ok(space) => space,
+        Err(poisoned) => poisoned.into_inner(),
+    };
+    space.take().is_some()
+}
+
+fn space_record(handle: jlong) -> Option<Arc<RegisteredSpace>> {
+    lock_registry().get(handle)
 }
 
 fn bool_from_jboolean(value: jboolean) -> bool {
@@ -238,6 +304,27 @@ where
     }
 }
 
+fn with_space<T, F>(handle: jlong, default: T, f: F) -> T
+where
+    T: Clone,
+    F: FnOnce(&mut NativeSpace) -> T,
+{
+    let default_for_panic = default.clone();
+    catch_jni_default(default_for_panic, || {
+        let Some(record) = space_record(handle) else {
+            return default;
+        };
+        let mut guard = match record.space.lock() {
+            Ok(space) => space,
+            Err(poisoned) => poisoned.into_inner(),
+        };
+        let Some(space) = guard.as_mut() else {
+            return default;
+        };
+        f(space)
+    })
+}
+
 fn float_array_or_null(env: &JNIEnv<'_>, values: &[jfloat]) -> jfloatArray {
     if values.len() > i32::MAX as usize {
         return std::ptr::null_mut();
@@ -255,7 +342,12 @@ fn float_array_or_null(env: &JNIEnv<'_>, values: &[jfloat]) -> jfloatArray {
 }
 
 fn rotation_from_xyzw(x: f32, y: f32, z: f32, w: f32) -> Rotation {
-    let rotation = Rotation::from_xyzw(x, y, z, w);
+    let rotation = Rotation::from_xyzw(
+        finite_or(x, 0.0),
+        finite_or(y, 0.0),
+        finite_or(z, 0.0),
+        finite_or(w, 1.0),
+    );
     if rotation.length_squared() == 0.0 || !rotation.is_finite() {
         Rotation::IDENTITY
     } else {
@@ -305,6 +397,22 @@ fn finite_at_least(value: f32, min: f32) -> f32 {
     }
 }
 
+fn finite_or(value: f32, default: f32) -> f32 {
+    if value.is_finite() {
+        value
+    } else {
+        default
+    }
+}
+
+fn finite_vector_or_zero(x: f32, y: f32, z: f32) -> Vector {
+    Vector::new(finite_or(x, 0.0), finite_or(y, 0.0), finite_or(z, 0.0))
+}
+
+fn finite_nonnegative(value: f32) -> f32 {
+    finite_at_least(value, 0.0)
+}
+
 fn apply_dynamic_sleep_tuning(
     body: &mut RigidBody,
     linear_threshold: f32,
@@ -329,14 +437,26 @@ fn build_collider(
 ) -> ColliderBuilder {
     // Shapes are built in the backend local orientation.
     match shape_type {
-        SHAPE_SPHERE => ColliderBuilder::ball(radius.max(0.001)),
+        SHAPE_SPHERE => ColliderBuilder::ball(finite_at_least(radius, 0.001)),
         SHAPE_CAPSULE => match axis {
-            0 => ColliderBuilder::capsule_x(half_height.max(0.001), radius.max(0.001)),
-            2 => ColliderBuilder::capsule_z(half_height.max(0.001), radius.max(0.001)),
-            _ => ColliderBuilder::capsule_y(half_height.max(0.001), radius.max(0.001)),
+            0 => ColliderBuilder::capsule_x(
+                finite_at_least(half_height, 0.001),
+                finite_at_least(radius, 0.001),
+            ),
+            2 => ColliderBuilder::capsule_z(
+                finite_at_least(half_height, 0.001),
+                finite_at_least(radius, 0.001),
+            ),
+            _ => ColliderBuilder::capsule_y(
+                finite_at_least(half_height, 0.001),
+                finite_at_least(radius, 0.001),
+            ),
         },
         SHAPE_CYLINDER => {
-            let builder = ColliderBuilder::cylinder(half_height.max(0.001), radius.max(0.001));
+            let builder = ColliderBuilder::cylinder(
+                finite_at_least(half_height, 0.001),
+                finite_at_least(radius, 0.001),
+            );
             if axis == 1 {
                 builder
             } else {
@@ -344,7 +464,10 @@ fn build_collider(
             }
         }
         SHAPE_CONE => {
-            let builder = ColliderBuilder::cone(half_height.max(0.001), radius.max(0.001));
+            let builder = ColliderBuilder::cone(
+                finite_at_least(half_height, 0.001),
+                finite_at_least(radius, 0.001),
+            );
             if axis == 1 {
                 builder
             } else {
@@ -353,25 +476,20 @@ fn build_collider(
         }
         SHAPE_PLANE => ColliderBuilder::cuboid(10000.0, 0.05, 10000.0)
             .translation(Vector::new(0.0, -0.05, 0.0)),
-        _ => ColliderBuilder::cuboid(half_x.max(0.001), half_y.max(0.001), half_z.max(0.001)),
+        _ => ColliderBuilder::cuboid(
+            finite_at_least(half_x, 0.001),
+            finite_at_least(half_y, 0.001),
+            finite_at_least(half_z, 0.001),
+        ),
     }
 }
 
 fn normalized_or_y(x: f32, y: f32, z: f32) -> Vector {
-    let mut axis = Vector::new(x, y, z);
-    if axis.length_squared() == 0.0 {
+    let mut axis = finite_vector_or_zero(x, y, z);
+    if axis.length_squared() == 0.0 || !axis.is_finite() {
         axis = Vector::Y;
     }
     axis.normalize()
-}
-
-// Look up a native space from the opaque handle passed through JNI.
-unsafe fn space_mut(handle: jlong) -> Option<&'static mut NativeSpace> {
-    if !is_active_space_handle(handle) {
-        None
-    } else {
-        (handle as *mut NativeSpace).as_mut()
-    }
 }
 
 // Space lifecycle and world configuration.
@@ -404,4 +522,43 @@ mod joint_exports {
     use super::*;
 
     include!("joint_exports.rs");
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn registry_does_not_resolve_destroyed_handles() {
+        let handle = register_space(NativeSpace::new());
+        assert!(handle > 0);
+        assert!(space_record(handle).is_some());
+
+        assert!(destroy_registered_space(handle));
+        assert!(space_record(handle).is_none());
+        assert_eq!(with_space(handle, 7, |_| 1), 7);
+        assert!(!destroy_registered_space(handle));
+    }
+
+    #[test]
+    fn registry_advances_generation_when_slots_wrap() {
+        let mut registry = SpaceRegistry::new();
+        registry.next_slot = u32::MAX;
+        registry.next_generation = 7;
+
+        let before_wrap = registry.insert(NativeSpace::new());
+        let after_wrap = registry.insert(NativeSpace::new());
+
+        assert_eq!(
+            unpack_space_handle(before_wrap),
+            Some(pack_space_handle(u32::MAX, 7))
+        );
+        assert_eq!(
+            unpack_space_handle(after_wrap),
+            Some(pack_space_handle(1, 8))
+        );
+        assert_ne!(before_wrap, after_wrap);
+        assert!(registry.remove(before_wrap).is_some());
+        assert!(registry.remove(after_wrap).is_some());
+    }
 }

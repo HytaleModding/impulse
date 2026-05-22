@@ -149,6 +149,13 @@ public final class BulletSpace implements PhysicsSpace {
     }
 
     @Override
+    public boolean containsBody(@Nonnull PhysicsBody body) {
+        requireOpen();
+        return body instanceof BulletBody bulletBody && ownsBody(bulletBody)
+            && bulletBody.isAttachedToSpace();
+    }
+
+    @Override
     public void snapshotBodies(@Nonnull Consumer<PhysicsBodySnapshot> consumer) {
         snapshotBodies(_ -> null, consumer);
     }

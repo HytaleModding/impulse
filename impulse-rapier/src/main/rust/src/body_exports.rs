@@ -1,5 +1,100 @@
 const BODY_SNAPSHOT_FLOATS: usize = 16;
 
+fn resize_reused_buffer<T: Clone>(buffer: &mut Vec<T>, len: usize, fill: T) -> bool {
+    if buffer.len() < len && buffer.try_reserve(len - buffer.len()).is_err() {
+        return false;
+    }
+    buffer.resize(len, fill);
+    true
+}
+
+fn set_zero_float_array_region(env: &JNIEnv<'_>, out: &JFloatArray, len: usize) -> bool {
+    const ZERO_CHUNK_FLOATS: usize = BODY_SNAPSHOT_FLOATS * 16;
+
+    let zeros = [0.0_f32; ZERO_CHUNK_FLOATS];
+    let mut offset = 0;
+    while offset < len {
+        let chunk_len = (len - offset).min(ZERO_CHUNK_FLOATS);
+        if env
+            .set_float_array_region(out, offset as i32, &zeros[..chunk_len])
+            .is_err()
+        {
+            return false;
+        }
+        offset += chunk_len;
+    }
+    true
+}
+
+fn fill_snapshot_body_values<'space>(
+    space: &'space mut NativeSpace,
+    env: &JNIEnv<'_>,
+    body_ids: &JLongArray,
+    count: usize,
+) -> Option<&'space [jfloat]> {
+    let value_count = count.checked_mul(BODY_SNAPSHOT_FLOATS)?;
+    let NativeSpace {
+        snapshot_body_ids,
+        snapshot_body_values,
+        handles,
+        bodies,
+        colliders,
+        ..
+    } = space;
+
+    if !resize_reused_buffer(snapshot_body_ids, count, 0_i64) {
+        return None;
+    }
+    if env
+        .get_long_array_region(body_ids, 0, &mut snapshot_body_ids[..count])
+        .is_err()
+    {
+        return None;
+    }
+
+    if !resize_reused_buffer(snapshot_body_values, value_count, 0.0_f32) {
+        return None;
+    }
+    snapshot_body_values[..value_count].fill(0.0);
+
+    for (index, body_id) in snapshot_body_ids[..count].iter().enumerate() {
+        let Some(entry) = handles.get(body_id).copied() else {
+            continue;
+        };
+        let Some(body) = bodies.get(entry.body) else {
+            continue;
+        };
+
+        let offset = index * BODY_SNAPSHOT_FLOATS;
+        let translation = body.translation();
+        let rotation = body.rotation().to_array();
+        let linear_velocity = body.linvel();
+        let angular_velocity = body.angvel();
+
+        snapshot_body_values[offset] = translation.x;
+        snapshot_body_values[offset + 1] = translation.y;
+        snapshot_body_values[offset + 2] = translation.z;
+        snapshot_body_values[offset + 3] = rotation[0];
+        snapshot_body_values[offset + 4] = rotation[1];
+        snapshot_body_values[offset + 5] = rotation[2];
+        snapshot_body_values[offset + 6] = rotation[3];
+        snapshot_body_values[offset + 7] = linear_velocity.x;
+        snapshot_body_values[offset + 8] = linear_velocity.y;
+        snapshot_body_values[offset + 9] = linear_velocity.z;
+        snapshot_body_values[offset + 10] = angular_velocity.x;
+        snapshot_body_values[offset + 11] = angular_velocity.y;
+        snapshot_body_values[offset + 12] = angular_velocity.z;
+        snapshot_body_values[offset + 13] = body_type_to_int(body) as f32;
+        snapshot_body_values[offset + 14] = if body.is_sleeping() { 1.0 } else { 0.0 };
+        snapshot_body_values[offset + 15] = colliders
+            .get(entry.collider)
+            .map(|collider| if collider.is_sensor() { 1.0 } else { 0.0 })
+            .unwrap_or(0.0);
+    }
+
+    Some(&snapshot_body_values[..value_count])
+}
+
 #[no_mangle]
 pub extern "system" fn Java_dev_hytalemodding_impulse_rapier_RapierNative_addBodyNative(
     _env: JNIEnv,
@@ -36,20 +131,16 @@ pub extern "system" fn Java_dev_hytalemodding_impulse_rapier_RapierNative_addBod
     collision_mask: jint,
     ccd_enabled: jboolean,
 ) -> jlong {
-    unsafe {
-        let Some(space) = space_mut(space_handle) else {
-            return 0;
-        };
-
+    with_space(space_handle, 0, |space| {
         let body_builder = RigidBodyBuilder::new(body_type_from_int(body_type))
             .pose(Pose::from_parts(
-                Vector::new(pos_x, pos_y, pos_z),
+                finite_vector_or_zero(pos_x, pos_y, pos_z),
                 rotation_from_xyzw(rot_x, rot_y, rot_z, rot_w),
             ))
-            .linvel(Vector::new(lin_vel_x, lin_vel_y, lin_vel_z))
-            .angvel(Vector::new(ang_vel_x, ang_vel_y, ang_vel_z))
-            .linear_damping(linear_damping)
-            .angular_damping(angular_damping)
+            .linvel(finite_vector_or_zero(lin_vel_x, lin_vel_y, lin_vel_z))
+            .angvel(finite_vector_or_zero(ang_vel_x, ang_vel_y, ang_vel_z))
+            .linear_damping(finite_nonnegative(linear_damping))
+            .angular_damping(finite_nonnegative(angular_damping))
             .ccd_enabled(bool_from_jboolean(ccd_enabled));
         let mut rigid_body = body_builder.build();
         if body_type == BODY_TYPE_DYNAMIC {
@@ -72,13 +163,14 @@ pub extern "system" fn Java_dev_hytalemodding_impulse_rapier_RapierNative_addBod
             axis,
             pos_y,
         )
-        .friction(friction)
+        .friction(finite_nonnegative(friction))
         .friction_combine_rule(CoefficientCombineRule::Multiply)
         .restitution_combine_rule(CoefficientCombineRule::Multiply)
-        .restitution(restitution)
+        .restitution(finite_nonnegative(restitution))
         .sensor(bool_from_jboolean(sensor))
         .collision_groups(interaction_groups(collision_group, collision_mask));
 
+        let mass = finite_nonnegative(mass);
         if body_type == BODY_TYPE_DYNAMIC && mass > 0.0 {
             collider = collider.mass(mass);
         } else {
@@ -91,9 +183,8 @@ pub extern "system" fn Java_dev_hytalemodding_impulse_rapier_RapierNative_addBod
                 .insert_with_parent(collider, body_handle, &mut space.bodies);
 
         space.insert_entry(body_handle, collider_handle) as jlong
-    }
+    })
 }
-
 
 #[no_mangle]
 pub extern "system" fn Java_dev_hytalemodding_impulse_rapier_RapierNative_removeBodyNative(
@@ -102,10 +193,7 @@ pub extern "system" fn Java_dev_hytalemodding_impulse_rapier_RapierNative_remove
     space_handle: jlong,
     body_id: jlong,
 ) {
-    unsafe {
-        let Some(space) = space_mut(space_handle) else {
-            return;
-        };
+    with_space(space_handle, (), |space| {
         let Some(entry) = space.handles.remove(&body_id) else {
             return;
         };
@@ -118,7 +206,7 @@ pub extern "system" fn Java_dev_hytalemodding_impulse_rapier_RapierNative_remove
             &mut space.multibody_joints,
             true,
         );
-    }
+    });
 }
 
 #[no_mangle]
@@ -145,54 +233,22 @@ pub extern "system" fn Java_dev_hytalemodding_impulse_rapier_RapierNative_snapsh
         return 0;
     }
 
-    let mut ids = vec![0_i64; count];
-    if env.get_long_array_region(&body_ids, 0, &mut ids).is_err() {
+    let wrote = with_space(space_handle, None, |space| {
+        let Some(values) = fill_snapshot_body_values(space, &env, &body_ids, count) else {
+            return Some(false);
+        };
+        Some(env.set_float_array_region(&out, 0, values).is_ok())
+    });
+    if wrote == Some(false) {
         return 0;
     }
-
-    let mut values = vec![0.0_f32; count * BODY_SNAPSHOT_FLOATS];
-    unsafe {
-        if let Some(space) = space_mut(space_handle) {
-            for (index, body_id) in ids.iter().enumerate() {
-                let Some(entry) = space.entry(*body_id) else {
-                    continue;
-                };
-                let Some(body) = space.bodies.get(entry.body) else {
-                    continue;
-                };
-
-                let offset = index * BODY_SNAPSHOT_FLOATS;
-                let translation = body.translation();
-                let rotation = body.rotation().to_array();
-                let linear_velocity = body.linvel();
-                let angular_velocity = body.angvel();
-
-                values[offset] = translation.x;
-                values[offset + 1] = translation.y;
-                values[offset + 2] = translation.z;
-                values[offset + 3] = rotation[0];
-                values[offset + 4] = rotation[1];
-                values[offset + 5] = rotation[2];
-                values[offset + 6] = rotation[3];
-                values[offset + 7] = linear_velocity.x;
-                values[offset + 8] = linear_velocity.y;
-                values[offset + 9] = linear_velocity.z;
-                values[offset + 10] = angular_velocity.x;
-                values[offset + 11] = angular_velocity.y;
-                values[offset + 12] = angular_velocity.z;
-                values[offset + 13] = body_type_to_int(body) as f32;
-                values[offset + 14] = if body.is_sleeping() { 1.0 } else { 0.0 };
-                values[offset + 15] = space
-                    .colliders
-                    .get(entry.collider)
-                    .map(|collider| if collider.is_sensor() { 1.0 } else { 0.0 })
-                    .unwrap_or(0.0);
-            }
+    if wrote.is_none() {
+        let Some(value_count) = count.checked_mul(BODY_SNAPSHOT_FLOATS) else {
+            return 0;
+        };
+        if !set_zero_float_array_region(&env, &out, value_count) {
+            return 0;
         }
-    }
-
-    if env.set_float_array_region(&out, 0, &values).is_err() {
-        return 0;
     }
     count as jint
 }
@@ -205,17 +261,15 @@ pub extern "system" fn Java_dev_hytalemodding_impulse_rapier_RapierNative_getBod
     body_id: jlong,
     out: JFloatArray,
 ) {
-    let mut values = [0.0, 0.0, 0.0];
-    unsafe {
-        if let Some(space) = space_mut(space_handle) {
-            if let Some(entry) = space.entry(body_id) {
-                if let Some(body) = space.bodies.get(entry.body) {
-                    let pos = body.translation();
-                    values = [pos.x, pos.y, pos.z];
-                }
+    let values = with_space(space_handle, [0.0, 0.0, 0.0], |space| {
+        if let Some(entry) = space.entry(body_id) {
+            if let Some(body) = space.bodies.get(entry.body) {
+                let pos = body.translation();
+                return [pos.x, pos.y, pos.z];
             }
         }
-    }
+        [0.0, 0.0, 0.0]
+    });
     let _ = env.set_float_array_region(&out, 0, &values);
 }
 
@@ -229,15 +283,13 @@ pub extern "system" fn Java_dev_hytalemodding_impulse_rapier_RapierNative_setBod
     y: jfloat,
     z: jfloat,
 ) {
-    unsafe {
-        if let Some(space) = space_mut(space_handle) {
-            if let Some(entry) = space.entry(body_id) {
-                if let Some(body) = space.bodies.get_mut(entry.body) {
-                    body.set_translation(Vector::new(x, y, z), true);
-                }
+    with_space(space_handle, (), |space| {
+        if let Some(entry) = space.entry(body_id) {
+            if let Some(body) = space.bodies.get_mut(entry.body) {
+                body.set_translation(finite_vector_or_zero(x, y, z), true);
             }
         }
-    }
+    });
 }
 
 #[no_mangle]
@@ -248,17 +300,15 @@ pub extern "system" fn Java_dev_hytalemodding_impulse_rapier_RapierNative_getBod
     body_id: jlong,
     out: JFloatArray,
 ) {
-    let mut values = [0.0, 0.0, 0.0, 1.0];
-    unsafe {
-        if let Some(space) = space_mut(space_handle) {
-            if let Some(entry) = space.entry(body_id) {
-                if let Some(body) = space.bodies.get(entry.body) {
-                    let rot = body.rotation().to_array();
-                    values = [rot[0], rot[1], rot[2], rot[3]];
-                }
+    let values = with_space(space_handle, [0.0, 0.0, 0.0, 1.0], |space| {
+        if let Some(entry) = space.entry(body_id) {
+            if let Some(body) = space.bodies.get(entry.body) {
+                let rot = body.rotation().to_array();
+                return [rot[0], rot[1], rot[2], rot[3]];
             }
         }
-    }
+        [0.0, 0.0, 0.0, 1.0]
+    });
     let _ = env.set_float_array_region(&out, 0, &values);
 }
 
@@ -273,15 +323,13 @@ pub extern "system" fn Java_dev_hytalemodding_impulse_rapier_RapierNative_setBod
     z: jfloat,
     w: jfloat,
 ) {
-    unsafe {
-        if let Some(space) = space_mut(space_handle) {
-            if let Some(entry) = space.entry(body_id) {
-                if let Some(body) = space.bodies.get_mut(entry.body) {
-                    body.set_rotation(rotation_from_xyzw(x, y, z, w), true);
-                }
+    with_space(space_handle, (), |space| {
+        if let Some(entry) = space.entry(body_id) {
+            if let Some(body) = space.bodies.get_mut(entry.body) {
+                body.set_rotation(rotation_from_xyzw(x, y, z, w), true);
             }
         }
-    }
+    });
 }
 
 #[no_mangle]
@@ -292,17 +340,15 @@ pub extern "system" fn Java_dev_hytalemodding_impulse_rapier_RapierNative_getBod
     body_id: jlong,
     out: JFloatArray,
 ) {
-    let mut values = [0.0, 0.0, 0.0];
-    unsafe {
-        if let Some(space) = space_mut(space_handle) {
-            if let Some(entry) = space.entry(body_id) {
-                if let Some(body) = space.bodies.get(entry.body) {
-                    let vel = body.linvel();
-                    values = [vel.x, vel.y, vel.z];
-                }
+    let values = with_space(space_handle, [0.0, 0.0, 0.0], |space| {
+        if let Some(entry) = space.entry(body_id) {
+            if let Some(body) = space.bodies.get(entry.body) {
+                let vel = body.linvel();
+                return [vel.x, vel.y, vel.z];
             }
         }
-    }
+        [0.0, 0.0, 0.0]
+    });
     let _ = env.set_float_array_region(&out, 0, &values);
 }
 
@@ -316,15 +362,13 @@ pub extern "system" fn Java_dev_hytalemodding_impulse_rapier_RapierNative_setBod
     y: jfloat,
     z: jfloat,
 ) {
-    unsafe {
-        if let Some(space) = space_mut(space_handle) {
-            if let Some(entry) = space.entry(body_id) {
-                if let Some(body) = space.bodies.get_mut(entry.body) {
-                    body.set_linvel(Vector::new(x, y, z), true);
-                }
+    with_space(space_handle, (), |space| {
+        if let Some(entry) = space.entry(body_id) {
+            if let Some(body) = space.bodies.get_mut(entry.body) {
+                body.set_linvel(finite_vector_or_zero(x, y, z), true);
             }
         }
-    }
+    });
 }
 
 #[no_mangle]
@@ -335,17 +379,15 @@ pub extern "system" fn Java_dev_hytalemodding_impulse_rapier_RapierNative_getBod
     body_id: jlong,
     out: JFloatArray,
 ) {
-    let mut values = [0.0, 0.0, 0.0];
-    unsafe {
-        if let Some(space) = space_mut(space_handle) {
-            if let Some(entry) = space.entry(body_id) {
-                if let Some(body) = space.bodies.get(entry.body) {
-                    let vel = body.angvel();
-                    values = [vel.x, vel.y, vel.z];
-                }
+    let values = with_space(space_handle, [0.0, 0.0, 0.0], |space| {
+        if let Some(entry) = space.entry(body_id) {
+            if let Some(body) = space.bodies.get(entry.body) {
+                let vel = body.angvel();
+                return [vel.x, vel.y, vel.z];
             }
         }
-    }
+        [0.0, 0.0, 0.0]
+    });
     let _ = env.set_float_array_region(&out, 0, &values);
 }
 
@@ -359,15 +401,13 @@ pub extern "system" fn Java_dev_hytalemodding_impulse_rapier_RapierNative_setBod
     y: jfloat,
     z: jfloat,
 ) {
-    unsafe {
-        if let Some(space) = space_mut(space_handle) {
-            if let Some(entry) = space.entry(body_id) {
-                if let Some(body) = space.bodies.get_mut(entry.body) {
-                    body.set_angvel(Vector::new(x, y, z), true);
-                }
+    with_space(space_handle, (), |space| {
+        if let Some(entry) = space.entry(body_id) {
+            if let Some(body) = space.bodies.get_mut(entry.body) {
+                body.set_angvel(finite_vector_or_zero(x, y, z), true);
             }
         }
-    }
+    });
 }
 
 #[no_mangle]
@@ -378,23 +418,24 @@ pub extern "system" fn Java_dev_hytalemodding_impulse_rapier_RapierNative_setBod
     body_id: jlong,
     body_type: jint,
 ) {
-    unsafe {
-        if let Some(space) = space_mut(space_handle) {
-            if let Some(entry) = space.entry(body_id) {
-                if let Some(body) = space.bodies.get_mut(entry.body) {
-                    body.set_body_type(body_type_from_int(body_type), true);
-                    if body_type == BODY_TYPE_DYNAMIC {
-                        apply_dynamic_sleep_tuning(
-                            body,
-                            space.dynamic_sleep_linear_threshold,
-                            space.dynamic_sleep_angular_threshold,
-                            space.dynamic_sleep_time_until_sleep,
-                        );
-                    }
+    with_space(space_handle, (), |space| {
+        if let Some(entry) = space.entry(body_id) {
+            let linear_threshold = space.dynamic_sleep_linear_threshold;
+            let angular_threshold = space.dynamic_sleep_angular_threshold;
+            let time_until_sleep = space.dynamic_sleep_time_until_sleep;
+            if let Some(body) = space.bodies.get_mut(entry.body) {
+                body.set_body_type(body_type_from_int(body_type), true);
+                if body_type == BODY_TYPE_DYNAMIC {
+                    apply_dynamic_sleep_tuning(
+                        body,
+                        linear_threshold,
+                        angular_threshold,
+                        time_until_sleep,
+                    );
                 }
             }
         }
-    }
+    });
 }
 
 #[no_mangle]
@@ -404,16 +445,14 @@ pub extern "system" fn Java_dev_hytalemodding_impulse_rapier_RapierNative_getBod
     space_handle: jlong,
     body_id: jlong,
 ) -> jint {
-    unsafe {
-        if let Some(space) = space_mut(space_handle) {
-            if let Some(entry) = space.entry(body_id) {
-                if let Some(body) = space.bodies.get(entry.body) {
-                    return body_type_to_int(body);
-                }
+    with_space(space_handle, BODY_TYPE_STATIC, |space| {
+        if let Some(entry) = space.entry(body_id) {
+            if let Some(body) = space.bodies.get(entry.body) {
+                return body_type_to_int(body);
             }
         }
-    }
-    BODY_TYPE_STATIC
+        BODY_TYPE_STATIC
+    })
 }
 
 #[no_mangle]
@@ -424,24 +463,23 @@ pub extern "system" fn Java_dev_hytalemodding_impulse_rapier_RapierNative_setBod
     body_id: jlong,
     mass: jfloat,
 ) {
-    unsafe {
-        if let Some(space) = space_mut(space_handle) {
-            if let Some(entry) = space.entry(body_id) {
-                if let Some(collider) = space.colliders.get_mut(entry.collider) {
-                    if mass > 0.0 {
-                        collider.set_mass(mass);
-                    } else {
-                        collider.set_density(0.0);
-                    }
+    with_space(space_handle, (), |space| {
+        if let Some(entry) = space.entry(body_id) {
+            let mass = finite_nonnegative(mass);
+            if let Some(collider) = space.colliders.get_mut(entry.collider) {
+                if mass > 0.0 {
+                    collider.set_mass(mass);
+                } else {
+                    collider.set_density(0.0);
                 }
-                if let Some(body) = space.bodies.get_mut(entry.body) {
-                    if mass <= 0.0 {
-                        body.set_body_type(RigidBodyType::Fixed, true);
-                    }
+            }
+            if let Some(body) = space.bodies.get_mut(entry.body) {
+                if mass <= 0.0 {
+                    body.set_body_type(RigidBodyType::Fixed, true);
                 }
             }
         }
-    }
+    });
 }
 
 #[no_mangle]
@@ -451,16 +489,14 @@ pub extern "system" fn Java_dev_hytalemodding_impulse_rapier_RapierNative_getBod
     space_handle: jlong,
     body_id: jlong,
 ) -> jfloat {
-    unsafe {
-        if let Some(space) = space_mut(space_handle) {
-            if let Some(entry) = space.entry(body_id) {
-                if let Some(body) = space.bodies.get(entry.body) {
-                    return body.mass();
-                }
+    with_space(space_handle, 0.0, |space| {
+        if let Some(entry) = space.entry(body_id) {
+            if let Some(body) = space.bodies.get(entry.body) {
+                return finite_or(body.mass(), 0.0);
             }
         }
-    }
-    0.0
+        0.0
+    })
 }
 
 #[no_mangle]
@@ -472,16 +508,14 @@ pub extern "system" fn Java_dev_hytalemodding_impulse_rapier_RapierNative_setBod
     linear_damping: jfloat,
     angular_damping: jfloat,
 ) {
-    unsafe {
-        if let Some(space) = space_mut(space_handle) {
-            if let Some(entry) = space.entry(body_id) {
-                if let Some(body) = space.bodies.get_mut(entry.body) {
-                    body.set_linear_damping(linear_damping);
-                    body.set_angular_damping(angular_damping);
-                }
+    with_space(space_handle, (), |space| {
+        if let Some(entry) = space.entry(body_id) {
+            if let Some(body) = space.bodies.get_mut(entry.body) {
+                body.set_linear_damping(finite_nonnegative(linear_damping));
+                body.set_angular_damping(finite_nonnegative(angular_damping));
             }
         }
-    }
+    });
 }
 
 #[no_mangle]
@@ -492,16 +526,17 @@ pub extern "system" fn Java_dev_hytalemodding_impulse_rapier_RapierNative_getBod
     body_id: jlong,
     out: JFloatArray,
 ) {
-    let mut values = [0.0, 0.0];
-    unsafe {
-        if let Some(space) = space_mut(space_handle) {
-            if let Some(entry) = space.entry(body_id) {
-                if let Some(body) = space.bodies.get(entry.body) {
-                    values = [body.linear_damping(), body.angular_damping()];
-                }
+    let values = with_space(space_handle, [0.0, 0.0], |space| {
+        if let Some(entry) = space.entry(body_id) {
+            if let Some(body) = space.bodies.get(entry.body) {
+                return [
+                    finite_or(body.linear_damping(), 0.0),
+                    finite_or(body.angular_damping(), 0.0),
+                ];
             }
         }
-    }
+        [0.0, 0.0]
+    });
     let _ = env.set_float_array_region(&out, 0, &values);
 }
 
@@ -512,16 +547,14 @@ pub extern "system" fn Java_dev_hytalemodding_impulse_rapier_RapierNative_isBody
     space_handle: jlong,
     body_id: jlong,
 ) -> jboolean {
-    unsafe {
-        if let Some(space) = space_mut(space_handle) {
-            if let Some(entry) = space.entry(body_id) {
-                if let Some(body) = space.bodies.get(entry.body) {
-                    return jboolean_from_bool(body.is_sleeping());
-                }
+    with_space(space_handle, 0, |space| {
+        if let Some(entry) = space.entry(body_id) {
+            if let Some(body) = space.bodies.get(entry.body) {
+                return jboolean_from_bool(body.is_sleeping());
             }
         }
-    }
-    0
+        0
+    })
 }
 
 #[no_mangle]
@@ -531,15 +564,13 @@ pub extern "system" fn Java_dev_hytalemodding_impulse_rapier_RapierNative_sleepB
     space_handle: jlong,
     body_id: jlong,
 ) {
-    unsafe {
-        if let Some(space) = space_mut(space_handle) {
-            if let Some(entry) = space.entry(body_id) {
-                if let Some(body) = space.bodies.get_mut(entry.body) {
-                    body.sleep();
-                }
+    with_space(space_handle, (), |space| {
+        if let Some(entry) = space.entry(body_id) {
+            if let Some(body) = space.bodies.get_mut(entry.body) {
+                body.sleep();
             }
         }
-    }
+    });
 }
 
 #[no_mangle]
@@ -549,15 +580,13 @@ pub extern "system" fn Java_dev_hytalemodding_impulse_rapier_RapierNative_activa
     space_handle: jlong,
     body_id: jlong,
 ) {
-    unsafe {
-        if let Some(space) = space_mut(space_handle) {
-            if let Some(entry) = space.entry(body_id) {
-                if let Some(body) = space.bodies.get_mut(entry.body) {
-                    body.wake_up(true);
-                }
+    with_space(space_handle, (), |space| {
+        if let Some(entry) = space.entry(body_id) {
+            if let Some(body) = space.bodies.get_mut(entry.body) {
+                body.wake_up(true);
             }
         }
-    }
+    });
 }
 
 #[no_mangle]
@@ -570,15 +599,13 @@ pub extern "system" fn Java_dev_hytalemodding_impulse_rapier_RapierNative_applyB
     y: jfloat,
     z: jfloat,
 ) {
-    unsafe {
-        if let Some(space) = space_mut(space_handle) {
-            if let Some(entry) = space.entry(body_id) {
-                if let Some(body) = space.bodies.get_mut(entry.body) {
-                    body.add_force(Vector::new(x, y, z), true);
-                }
+    with_space(space_handle, (), |space| {
+        if let Some(entry) = space.entry(body_id) {
+            if let Some(body) = space.bodies.get_mut(entry.body) {
+                body.add_force(finite_vector_or_zero(x, y, z), true);
             }
         }
-    }
+    });
 }
 
 #[no_mangle]
@@ -594,16 +621,18 @@ pub extern "system" fn Java_dev_hytalemodding_impulse_rapier_RapierNative_applyB
     offset_y: jfloat,
     offset_z: jfloat,
 ) {
-    unsafe {
-        if let Some(space) = space_mut(space_handle) {
-            if let Some(entry) = space.entry(body_id) {
-                if let Some(body) = space.bodies.get_mut(entry.body) {
-                    let point = body.translation() + Vector::new(offset_x, offset_y, offset_z);
-                    body.add_force_at_point(Vector::new(force_x, force_y, force_z), point, true);
-                }
+    with_space(space_handle, (), |space| {
+        if let Some(entry) = space.entry(body_id) {
+            if let Some(body) = space.bodies.get_mut(entry.body) {
+                let point = body.translation() + finite_vector_or_zero(offset_x, offset_y, offset_z);
+                body.add_force_at_point(
+                    finite_vector_or_zero(force_x, force_y, force_z),
+                    point,
+                    true,
+                );
             }
         }
-    }
+    });
 }
 
 #[no_mangle]
@@ -616,15 +645,13 @@ pub extern "system" fn Java_dev_hytalemodding_impulse_rapier_RapierNative_applyB
     y: jfloat,
     z: jfloat,
 ) {
-    unsafe {
-        if let Some(space) = space_mut(space_handle) {
-            if let Some(entry) = space.entry(body_id) {
-                if let Some(body) = space.bodies.get_mut(entry.body) {
-                    body.apply_impulse(Vector::new(x, y, z), true);
-                }
+    with_space(space_handle, (), |space| {
+        if let Some(entry) = space.entry(body_id) {
+            if let Some(body) = space.bodies.get_mut(entry.body) {
+                body.apply_impulse(finite_vector_or_zero(x, y, z), true);
             }
         }
-    }
+    });
 }
 
 #[no_mangle]
@@ -640,20 +667,18 @@ pub extern "system" fn Java_dev_hytalemodding_impulse_rapier_RapierNative_applyB
     offset_y: jfloat,
     offset_z: jfloat,
 ) {
-    unsafe {
-        if let Some(space) = space_mut(space_handle) {
-            if let Some(entry) = space.entry(body_id) {
-                if let Some(body) = space.bodies.get_mut(entry.body) {
-                    let point = body.translation() + Vector::new(offset_x, offset_y, offset_z);
-                    body.apply_impulse_at_point(
-                        Vector::new(impulse_x, impulse_y, impulse_z),
-                        point,
-                        true,
-                    );
-                }
+    with_space(space_handle, (), |space| {
+        if let Some(entry) = space.entry(body_id) {
+            if let Some(body) = space.bodies.get_mut(entry.body) {
+                let point = body.translation() + finite_vector_or_zero(offset_x, offset_y, offset_z);
+                body.apply_impulse_at_point(
+                    finite_vector_or_zero(impulse_x, impulse_y, impulse_z),
+                    point,
+                    true,
+                );
             }
         }
-    }
+    });
 }
 
 #[no_mangle]
@@ -666,15 +691,13 @@ pub extern "system" fn Java_dev_hytalemodding_impulse_rapier_RapierNative_applyB
     y: jfloat,
     z: jfloat,
 ) {
-    unsafe {
-        if let Some(space) = space_mut(space_handle) {
-            if let Some(entry) = space.entry(body_id) {
-                if let Some(body) = space.bodies.get_mut(entry.body) {
-                    body.add_torque(Vector::new(x, y, z), true);
-                }
+    with_space(space_handle, (), |space| {
+        if let Some(entry) = space.entry(body_id) {
+            if let Some(body) = space.bodies.get_mut(entry.body) {
+                body.add_torque(finite_vector_or_zero(x, y, z), true);
             }
         }
-    }
+    });
 }
 
 #[no_mangle]
@@ -687,15 +710,13 @@ pub extern "system" fn Java_dev_hytalemodding_impulse_rapier_RapierNative_applyB
     y: jfloat,
     z: jfloat,
 ) {
-    unsafe {
-        if let Some(space) = space_mut(space_handle) {
-            if let Some(entry) = space.entry(body_id) {
-                if let Some(body) = space.bodies.get_mut(entry.body) {
-                    body.apply_torque_impulse(Vector::new(x, y, z), true);
-                }
+    with_space(space_handle, (), |space| {
+        if let Some(entry) = space.entry(body_id) {
+            if let Some(body) = space.bodies.get_mut(entry.body) {
+                body.apply_torque_impulse(finite_vector_or_zero(x, y, z), true);
             }
         }
-    }
+    });
 }
 
 #[no_mangle]
@@ -705,16 +726,14 @@ pub extern "system" fn Java_dev_hytalemodding_impulse_rapier_RapierNative_clearB
     space_handle: jlong,
     body_id: jlong,
 ) {
-    unsafe {
-        if let Some(space) = space_mut(space_handle) {
-            if let Some(entry) = space.entry(body_id) {
-                if let Some(body) = space.bodies.get_mut(entry.body) {
-                    body.reset_forces(true);
-                    body.reset_torques(true);
-                }
+    with_space(space_handle, (), |space| {
+        if let Some(entry) = space.entry(body_id) {
+            if let Some(body) = space.bodies.get_mut(entry.body) {
+                body.reset_forces(true);
+                body.reset_torques(true);
             }
         }
-    }
+    });
 }
 
 #[no_mangle]
@@ -725,15 +744,13 @@ pub extern "system" fn Java_dev_hytalemodding_impulse_rapier_RapierNative_setBod
     body_id: jlong,
     friction: jfloat,
 ) {
-    unsafe {
-        if let Some(space) = space_mut(space_handle) {
-            if let Some(entry) = space.entry(body_id) {
-                if let Some(collider) = space.colliders.get_mut(entry.collider) {
-                    collider.set_friction(friction);
-                }
+    with_space(space_handle, (), |space| {
+        if let Some(entry) = space.entry(body_id) {
+            if let Some(collider) = space.colliders.get_mut(entry.collider) {
+                collider.set_friction(finite_nonnegative(friction));
             }
         }
-    }
+    });
 }
 
 #[no_mangle]
@@ -744,15 +761,13 @@ pub extern "system" fn Java_dev_hytalemodding_impulse_rapier_RapierNative_setBod
     body_id: jlong,
     restitution: jfloat,
 ) {
-    unsafe {
-        if let Some(space) = space_mut(space_handle) {
-            if let Some(entry) = space.entry(body_id) {
-                if let Some(collider) = space.colliders.get_mut(entry.collider) {
-                    collider.set_restitution(restitution);
-                }
+    with_space(space_handle, (), |space| {
+        if let Some(entry) = space.entry(body_id) {
+            if let Some(collider) = space.colliders.get_mut(entry.collider) {
+                collider.set_restitution(finite_nonnegative(restitution));
             }
         }
-    }
+    });
 }
 
 #[no_mangle]
@@ -763,15 +778,13 @@ pub extern "system" fn Java_dev_hytalemodding_impulse_rapier_RapierNative_setBod
     body_id: jlong,
     sensor: jboolean,
 ) {
-    unsafe {
-        if let Some(space) = space_mut(space_handle) {
-            if let Some(entry) = space.entry(body_id) {
-                if let Some(collider) = space.colliders.get_mut(entry.collider) {
-                    collider.set_sensor(bool_from_jboolean(sensor));
-                }
+    with_space(space_handle, (), |space| {
+        if let Some(entry) = space.entry(body_id) {
+            if let Some(collider) = space.colliders.get_mut(entry.collider) {
+                collider.set_sensor(bool_from_jboolean(sensor));
             }
         }
-    }
+    });
 }
 
 #[no_mangle]
@@ -781,16 +794,14 @@ pub extern "system" fn Java_dev_hytalemodding_impulse_rapier_RapierNative_isBody
     space_handle: jlong,
     body_id: jlong,
 ) -> jboolean {
-    unsafe {
-        if let Some(space) = space_mut(space_handle) {
-            if let Some(entry) = space.entry(body_id) {
-                if let Some(collider) = space.colliders.get(entry.collider) {
-                    return jboolean_from_bool(collider.is_sensor());
-                }
+    with_space(space_handle, 0, |space| {
+        if let Some(entry) = space.entry(body_id) {
+            if let Some(collider) = space.colliders.get(entry.collider) {
+                return jboolean_from_bool(collider.is_sensor());
             }
         }
-    }
-    0
+        0
+    })
 }
 
 #[no_mangle]
@@ -802,15 +813,13 @@ pub extern "system" fn Java_dev_hytalemodding_impulse_rapier_RapierNative_setBod
     group: jint,
     mask: jint,
 ) {
-    unsafe {
-        if let Some(space) = space_mut(space_handle) {
-            if let Some(entry) = space.entry(body_id) {
-                if let Some(collider) = space.colliders.get_mut(entry.collider) {
-                    collider.set_collision_groups(interaction_groups(group, mask));
-                }
+    with_space(space_handle, (), |space| {
+        if let Some(entry) = space.entry(body_id) {
+            if let Some(collider) = space.colliders.get_mut(entry.collider) {
+                collider.set_collision_groups(interaction_groups(group, mask));
             }
         }
-    }
+    });
 }
 
 #[no_mangle]
@@ -821,20 +830,18 @@ pub extern "system" fn Java_dev_hytalemodding_impulse_rapier_RapierNative_getBod
     body_id: jlong,
     out: JIntArray,
 ) {
-    let mut values = [1, 1];
-    unsafe {
-        if let Some(space) = space_mut(space_handle) {
-            if let Some(entry) = space.entry(body_id) {
-                if let Some(collider) = space.colliders.get(entry.collider) {
-                    let groups = collider.collision_groups();
-                    values = [
-                        groups.memberships.bits() as i32,
-                        groups.filter.bits() as i32,
-                    ];
-                }
+    let values = with_space(space_handle, [1, 1], |space| {
+        if let Some(entry) = space.entry(body_id) {
+            if let Some(collider) = space.colliders.get(entry.collider) {
+                let groups = collider.collision_groups();
+                return [
+                    groups.memberships.bits() as i32,
+                    groups.filter.bits() as i32,
+                ];
             }
         }
-    }
+        [1, 1]
+    });
     let _ = env.set_int_array_region(&out, 0, &values);
 }
 
@@ -846,15 +853,13 @@ pub extern "system" fn Java_dev_hytalemodding_impulse_rapier_RapierNative_setBod
     body_id: jlong,
     enabled: jboolean,
 ) {
-    unsafe {
-        if let Some(space) = space_mut(space_handle) {
-            if let Some(entry) = space.entry(body_id) {
-                if let Some(body) = space.bodies.get_mut(entry.body) {
-                    body.enable_ccd(bool_from_jboolean(enabled));
-                }
+    with_space(space_handle, (), |space| {
+        if let Some(entry) = space.entry(body_id) {
+            if let Some(body) = space.bodies.get_mut(entry.body) {
+                body.enable_ccd(bool_from_jboolean(enabled));
             }
         }
-    }
+    });
 }
 
 #[no_mangle]
@@ -864,14 +869,12 @@ pub extern "system" fn Java_dev_hytalemodding_impulse_rapier_RapierNative_isBody
     space_handle: jlong,
     body_id: jlong,
 ) -> jboolean {
-    unsafe {
-        if let Some(space) = space_mut(space_handle) {
-            if let Some(entry) = space.entry(body_id) {
-                if let Some(body) = space.bodies.get(entry.body) {
-                    return jboolean_from_bool(body.is_ccd_enabled());
-                }
+    with_space(space_handle, 0, |space| {
+        if let Some(entry) = space.entry(body_id) {
+            if let Some(body) = space.bodies.get(entry.body) {
+                return jboolean_from_bool(body.is_ccd_enabled());
             }
         }
-    }
-    0
+        0
+    })
 }

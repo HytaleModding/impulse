@@ -3,6 +3,7 @@ package dev.hytalemodding.impulse.rapier;
 import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import dev.hytalemodding.impulse.api.PhysicsBackend;
@@ -11,6 +12,7 @@ import dev.hytalemodding.impulse.api.PhysicsBody;
 import dev.hytalemodding.impulse.api.PhysicsBodySnapshot;
 import dev.hytalemodding.impulse.api.PhysicsBodyType;
 import dev.hytalemodding.impulse.api.PhysicsCollisionFilters;
+import dev.hytalemodding.impulse.api.PhysicsRuntimeStats;
 import dev.hytalemodding.impulse.api.PhysicsSolverTuning;
 import dev.hytalemodding.impulse.api.PhysicsSpace;
 import dev.hytalemodding.impulse.api.ShapeType;
@@ -96,6 +98,57 @@ class RapierBackendContractTest extends PhysicsBackendContractTest {
     }
 
     @Test
+    void runtimeStatsExposeNativeSpaceCounters() {
+        PhysicsSpace space = createHeadlessSpace();
+        PhysicsBody plane = space.createStaticPlane(0.0f);
+        PhysicsBody body = space.createBox(0.5f, 0.5f, 0.5f, 1.0f);
+        body.setPosition(0.0f, 4.0f, 0.0f);
+
+        space.addBody(plane);
+        space.addBody(body);
+        space.step(1.0f / 60.0f);
+
+        PhysicsRuntimeStats stats = space.getRuntimeStats();
+        assertTrue(stats.available());
+        assertEquals(2, stats.bodyCount());
+        assertEquals(2, stats.colliderCount());
+        assertTrue(stats.activeBodyCount() >= 1);
+        assertEquals(0, stats.jointCount());
+    }
+
+    @Test
+    void runtimeStatsExposeContactPressureCounters() {
+        PhysicsSpace space = createHeadlessSpace();
+        PhysicsBody plane = space.createStaticPlane(0.0f);
+        plane.setCollisionFilter(PhysicsCollisionFilters.TERRAIN, PhysicsCollisionFilters.ALL);
+        space.addBody(plane);
+
+        PhysicsBody bodyA = space.createBox(0.5f, 0.5f, 0.5f, 1.0f);
+        bodyA.setPosition(0.0f, 0.45f, 0.0f);
+        bodyA.setCollisionFilter(PhysicsCollisionFilters.DYNAMIC_BODY,
+            PhysicsCollisionFilters.TERRAIN | PhysicsCollisionFilters.DYNAMIC_BODY);
+        space.addBody(bodyA);
+
+        PhysicsBody bodyB = space.createBox(0.5f, 0.5f, 0.5f, 1.0f);
+        bodyB.setPosition(0.85f, 0.45f, 0.0f);
+        bodyB.setCollisionFilter(PhysicsCollisionFilters.DYNAMIC_BODY,
+            PhysicsCollisionFilters.TERRAIN | PhysicsCollisionFilters.DYNAMIC_BODY);
+        space.addBody(bodyB);
+
+        space.step(1.0f / 60.0f);
+
+        PhysicsRuntimeStats stats = space.getRuntimeStats();
+        assertTrue(stats.available());
+        assertEquals(3, stats.bodyCount());
+        assertTrue(stats.contactPairCount() >= 2);
+        assertTrue(stats.contactManifoldCount() >= stats.contactPairCount());
+        assertTrue(stats.contactPointCount() >= 1);
+        assertTrue(stats.dynamicDynamicContactPairCount() >= 1);
+        assertTrue(stats.terrainContactPairCount() >= 1);
+        assertTrue(stats.activeIslandCount() >= 1);
+    }
+
+    @Test
     void denseDynamicBodyPileStepsAndSnapshots() {
         PhysicsSpace space = createHeadlessSpace();
         int count = 1_000;
@@ -121,6 +174,27 @@ class RapierBackendContractTest extends PhysicsBackendContractTest {
         List<PhysicsBodySnapshot> snapshots = new ArrayList<>();
         space.snapshotBodies(snapshots::add);
         assertEquals(count, snapshots.size());
+    }
+
+    @Test
+    void selectedSnapshotBodiesPreserveCollectedBodiesWhenBufferGrows() {
+        PhysicsSpace space = createHeadlessSpace();
+        List<PhysicsBody> selectedBodies = new ArrayList<>();
+        int count = 128;
+        for (int i = 0; i < count; i++) {
+            PhysicsBody body = space.createBox(0.48f, 0.48f, 0.48f, 1.0f);
+            body.setPosition(i, 5.0f, 0.0f);
+            space.addBody(body);
+            selectedBodies.add(body);
+        }
+
+        List<PhysicsBodySnapshot> snapshots = new ArrayList<>();
+        space.snapshotBodies(selectedBodies, _ -> null, snapshots::add);
+
+        assertEquals(count, snapshots.size());
+        for (int i = 0; i < count; i++) {
+            assertSame(selectedBodies.get(i), snapshots.get(i).body());
+        }
     }
 
     @Test

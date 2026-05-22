@@ -15,11 +15,7 @@ pub extern "system" fn Java_dev_hytalemodding_impulse_rapier_RapierNative_addVox
     collision_group: jint,
     collision_mask: jint,
 ) -> jlong {
-    unsafe {
-        let Some(space) = space_mut(space_handle) else {
-            return 0;
-        };
-
+    catch_jni_default(0, || {
         let Ok(length) = env.get_array_length(&voxel_coordinates) else {
             return 0;
         };
@@ -44,21 +40,22 @@ pub extern "system" fn Java_dev_hytalemodding_impulse_rapier_RapierNative_addVox
             return 0;
         }
 
+        with_space(space_handle, 0, |space| {
         let body_handle = space
             .bodies
-            .insert(RigidBodyBuilder::fixed().translation(Vector::new(pos_x, pos_y, pos_z)).build());
+            .insert(RigidBodyBuilder::fixed().translation(finite_vector_or_zero(pos_x, pos_y, pos_z)).build());
         let collider = ColliderBuilder::voxels(
             Vector::new(
-                voxel_size_x.max(0.001),
-                voxel_size_y.max(0.001),
-                voxel_size_z.max(0.001),
+                finite_at_least(voxel_size_x, 0.001),
+                finite_at_least(voxel_size_y, 0.001),
+                finite_at_least(voxel_size_z, 0.001),
             ),
             &voxels,
         )
         .density(0.0)
-        .friction(friction)
+        .friction(finite_nonnegative(friction))
         .friction_combine_rule(CoefficientCombineRule::Multiply)
-        .restitution(restitution)
+        .restitution(finite_nonnegative(restitution))
         .restitution_combine_rule(CoefficientCombineRule::Multiply)
         .collision_groups(interaction_groups(collision_group, collision_mask));
 
@@ -68,7 +65,8 @@ pub extern "system" fn Java_dev_hytalemodding_impulse_rapier_RapierNative_addVox
                 .insert_with_parent(collider, body_handle, &mut space.bodies);
 
         space.insert_entry(body_handle, collider_handle) as jlong
-    }
+        })
+    })
 }
 
 #[no_mangle]
@@ -82,10 +80,7 @@ pub extern "system" fn Java_dev_hytalemodding_impulse_rapier_RapierNative_combin
     shift_y: jint,
     shift_z: jint,
 ) {
-    unsafe {
-        let Some(space) = space_mut(space_handle) else {
-            return;
-        };
+    with_space(space_handle, (), |space| {
         let Some(entry_a) = space.entry(body_id_a) else {
             return;
         };
@@ -107,5 +102,5 @@ pub extern "system" fn Java_dev_hytalemodding_impulse_rapier_RapierNative_combin
         };
 
         voxels_a.combine_voxel_states(voxels_b, IVector::new(shift_x, shift_y, shift_z));
-    }
+    });
 }

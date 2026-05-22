@@ -45,24 +45,25 @@ fn raycast_all_values(
     to_z: jfloat,
 ) -> Vec<jfloat> {
     let mut values: Vec<jfloat> = Vec::new();
-    unsafe {
-        if let Some(space) = space_mut(space_handle) {
-            let from = Vector::new(from_x, from_y, from_z);
-            let to = Vector::new(to_x, to_y, to_z);
-            let delta = to - from;
-            let distance = delta.length();
-            if distance > 0.0 {
-                let ray = Ray::new(from, delta / distance);
-                let query = space.broad_phase.as_query_pipeline(
-                    space.narrow_phase.query_dispatcher(),
-                    &space.bodies,
-                    &space.colliders,
-                    QueryFilter::default(),
-                );
-                for (collider_handle, _collider, hit) in query.intersect_ray(ray, distance, true) {
-                    if let Some(body_id) = space.collider_to_body_id.get(&collider_handle) {
-                        let point = from + ray.dir * hit.time_of_impact;
-                        if !append_bounded(&mut values, &[
+    with_space(space_handle, (), |space| {
+        let from = finite_vector_or_zero(from_x, from_y, from_z);
+        let to = finite_vector_or_zero(to_x, to_y, to_z);
+        let delta = to - from;
+        let distance = delta.length();
+        if distance > 0.0 && distance.is_finite() {
+            let ray = Ray::new(from, delta / distance);
+            let query = space.broad_phase.as_query_pipeline(
+                space.narrow_phase.query_dispatcher(),
+                &space.bodies,
+                &space.colliders,
+                QueryFilter::default(),
+            );
+            for (collider_handle, _collider, hit) in query.intersect_ray(ray, distance, true) {
+                if let Some(body_id) = space.collider_to_body_id.get(&collider_handle) {
+                    let point = from + ray.dir * hit.time_of_impact;
+                    if !append_bounded(
+                        &mut values,
+                        &[
                             *body_id as jfloat,
                             point.x,
                             point.y,
@@ -72,14 +73,15 @@ fn raycast_all_values(
                             hit.normal.z,
                             hit.time_of_impact / distance,
                             hit.time_of_impact,
-                        ], MAX_RAYCAST_FLOATS) {
-                            break;
-                        }
+                        ],
+                        MAX_RAYCAST_FLOATS,
+                    ) {
+                        break;
                     }
                 }
             }
         }
-    }
+    });
     values
 }
 
@@ -95,20 +97,21 @@ pub extern "system" fn Java_dev_hytalemodding_impulse_rapier_RapierNative_getCon
 
 fn contact_values(space_handle: jlong) -> Vec<jfloat> {
     let mut values: Vec<jfloat> = Vec::new();
-    unsafe {
-        if let Some(space) = space_mut(space_handle) {
-            'contacts: for pair in space.narrow_phase.contact_pairs() {
-                let Some(body_a_id) = space.collider_to_body_id.get(&pair.collider1) else {
-                    continue;
-                };
-                let Some(body_b_id) = space.collider_to_body_id.get(&pair.collider2) else {
-                    continue;
-                };
-                for manifold in &pair.manifolds {
-                    let normal = manifold.data.normal;
-                    for contact in &manifold.data.solver_contacts {
-                        let point = contact.point;
-                        if !append_bounded(&mut values, &[
+    with_space(space_handle, (), |space| {
+        'contacts: for pair in space.narrow_phase.contact_pairs() {
+            let Some(body_a_id) = space.collider_to_body_id.get(&pair.collider1) else {
+                continue;
+            };
+            let Some(body_b_id) = space.collider_to_body_id.get(&pair.collider2) else {
+                continue;
+            };
+            for manifold in &pair.manifolds {
+                let normal = manifold.data.normal;
+                for contact in &manifold.data.solver_contacts {
+                    let point = contact.point;
+                    if !append_bounded(
+                        &mut values,
+                        &[
                             *body_a_id as jfloat,
                             *body_b_id as jfloat,
                             point.x,
@@ -122,13 +125,14 @@ fn contact_values(space_handle: jlong) -> Vec<jfloat> {
                             normal.z,
                             contact.dist,
                             contact.warmstart_impulse,
-                        ], MAX_CONTACT_FLOATS) {
-                            break 'contacts;
-                        }
+                        ],
+                        MAX_CONTACT_FLOATS,
+                    ) {
+                        break 'contacts;
                     }
                 }
             }
         }
-    }
+    });
     values
 }
