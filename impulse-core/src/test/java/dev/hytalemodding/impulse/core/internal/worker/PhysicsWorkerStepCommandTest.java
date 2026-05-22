@@ -31,6 +31,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
+import org.checkerframework.checker.nullness.compatqual.NonNullDecl;
 import org.joml.Quaternionf;
 import org.joml.Vector3f;
 import org.junit.jupiter.api.Test;
@@ -106,6 +107,23 @@ class PhysicsWorkerStepCommandTest {
         assertEquals(List.of(0.0875f, 0.0875f, 0.0875f, 0.0875f), space.stepDts);
         assertEquals(0L, snapshot.stepNanos());
         assertEquals(0L, snapshot.snapshotNanos());
+    }
+
+    @Test
+    void nonFiniteDtDoesNotReachBackendStep() {
+        CountingBackend backend = registerBackend(false);
+        PhysicsWorldResource resource = new PhysicsWorldResource();
+        CountingSpace space = (CountingSpace) resource.createSpace(backend.getId(),
+            "worker-test",
+            PhysicsSpaceSettings.defaults(),
+            true);
+        resource.setStepMode(PhysicsStepMode.FIXED);
+
+        PhysicsWorkerStepCommand.runStep(resource, Float.NaN, false);
+        PhysicsWorkerStepCommand.runStep(resource, Float.POSITIVE_INFINITY, false);
+        PhysicsWorkerStepCommand.runStep(resource, -1.0f, false);
+
+        assertEquals(List.of(0.0f, 0.0f, 0.0f), space.stepDts);
     }
 
     @Test
@@ -265,10 +283,11 @@ class PhysicsWorkerStepCommandTest {
         @Nullable
         private RuntimeException snapshotFailure;
 
+        @NonNullDecl
         @Override
         public PublishedPhysicsSnapshotFrame capturePublishedSnapshotFrame(long stepSequence,
             long serverTick,
-            PublishedPhysicsSnapshotFrame.Status status,
+            @NonNullDecl PublishedPhysicsSnapshotFrame.Status status,
             long stepNanos,
             boolean profilingEnabled) {
             if (snapshotFailure != null) {

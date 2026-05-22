@@ -13,6 +13,7 @@ import dev.hytalemodding.impulse.api.testsupport.FakePhysicsBackend;
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsRuntimeProfilingResource;
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsWorldWorkerResource;
 import dev.hytalemodding.impulse.core.internal.worker.PhysicsWorkerAccess;
+import dev.hytalemodding.impulse.core.internal.worker.PhysicsWorkerSnapshot;
 import dev.hytalemodding.impulse.core.internal.worker.PhysicsWorkerStepCommand;
 import dev.hytalemodding.impulse.core.plugin.resources.PhysicsBodyId;
 import dev.hytalemodding.impulse.core.plugin.resources.PhysicsBodyKind;
@@ -20,6 +21,7 @@ import dev.hytalemodding.impulse.core.plugin.resources.PhysicsBodyPersistenceMod
 import dev.hytalemodding.impulse.core.plugin.resources.PhysicsSpaceSettings;
 import dev.hytalemodding.impulse.core.plugin.resources.PhysicsWorldResource;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 import org.joml.Vector3f;
 import org.junit.jupiter.api.Test;
@@ -79,7 +81,34 @@ class PhysicsSnapshotPublicationSystemTest {
             assertEquals(new Vector3f(4.0f, 5.0f, 6.0f), snapshot.position());
             assertEquals(1, profiling.getCumulativeStep().getTickSamples());
             assertEquals(1, profiling.getCumulativeStep().getBodySnapshots());
+            assertTrue(profiling.getCumulativeStep().getWorkerRunNanos() > 0L);
+            assertTrue(profiling.getCumulativeStep().getWorkerQueuedNanos() >= 0L);
             assertFalse(worker.hasPendingStep());
+        }
+    }
+
+    @Test
+    void publicationSystemDrainsCompletedAsyncMutations() throws Exception {
+        AtomicInteger mutations = new AtomicInteger();
+        try (PhysicsWorldWorkerResource worker = new PhysicsWorldWorkerResource()) {
+            worker.start("async-mutation-publication-test");
+            worker.submitMutation("test mutation", () -> {
+                mutations.incrementAndGet();
+                return PhysicsWorkerSnapshot.empty();
+            });
+
+            long deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(2L);
+            int published = 0;
+            while (System.nanoTime() < deadline && published == 0) {
+                published += PhysicsSnapshotPublicationSystem.publishCompletedMutations(worker);
+                if (published == 0) {
+                    Thread.sleep(10L);
+                }
+            }
+
+            assertEquals(1, published);
+            assertEquals(1, mutations.get());
+            assertEquals(0, worker.pendingMutations());
         }
     }
 

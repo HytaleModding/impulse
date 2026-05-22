@@ -2,6 +2,7 @@ package dev.hytalemodding.impulse.core.internal.resources;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 import static org.junit.jupiter.api.Assertions.assertNotSame;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertSame;
@@ -12,15 +13,23 @@ import dev.hytalemodding.impulse.api.Impulse;
 import dev.hytalemodding.impulse.api.PhysicsBody;
 import dev.hytalemodding.impulse.api.PhysicsBodyType;
 import dev.hytalemodding.impulse.api.PhysicsSpace;
+import dev.hytalemodding.impulse.api.SpaceId;
 import dev.hytalemodding.impulse.api.testsupport.FakePhysicsBackend;
 import dev.hytalemodding.impulse.api.testsupport.FakePhysicsBackend.InMemoryPhysicsSpace;
+import dev.hytalemodding.impulse.core.internal.worker.PhysicsWorkerSnapshot;
 import dev.hytalemodding.impulse.core.plugin.resources.PhysicsBodyId;
 import dev.hytalemodding.impulse.core.plugin.resources.PhysicsBodyKind;
 import dev.hytalemodding.impulse.core.plugin.resources.PhysicsBodyPersistenceMode;
+import dev.hytalemodding.impulse.core.plugin.resources.PhysicsMutationHandle;
 import dev.hytalemodding.impulse.core.plugin.resources.PhysicsSpaceSettings;
 import dev.hytalemodding.impulse.core.plugin.resources.PhysicsWorldResource;
 import dev.hytalemodding.impulse.core.plugin.voxel.WorldCollisionMode;
+import java.time.Duration;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicReference;
 import org.joml.Quaternionf;
 import org.joml.Vector3f;
 import org.junit.jupiter.api.Test;
@@ -246,5 +255,120 @@ class PhysicsWorldResourceStateTest {
             snapshots.incrementAndGet();
         });
         assertEquals(1, snapshots.get());
+    }
+
+    @Test
+    void asyncBodyAddQueuesWithoutImmediateRegistration() throws Exception {
+        FakePhysicsBackend backend =
+            new FakePhysicsBackend("test:async-body-add-" + BACKEND_COUNTER.incrementAndGet());
+        Impulse.registerBackend(backend);
+
+        PhysicsWorldResource resource = new PhysicsWorldResource();
+        try (PhysicsWorldWorkerResource worker = new PhysicsWorldWorkerResource(4,
+            Duration.ofSeconds(2L))) {
+            worker.start("async-body-add");
+            resource.attachWorkerResource(worker);
+            PhysicsSpace space = resource.createSpace(backend.getId(),
+                "test-world",
+                PhysicsSpaceSettings.defaults(),
+                true);
+            AtomicReference<PhysicsBody> bodyRef = new AtomicReference<>();
+            worker.submitAndDrain(() -> {
+                PhysicsBody body = space.createBox(0.5f, 0.5f, 0.5f, 1.0f);
+                body.setPosition(1.0f, 2.0f, 3.0f);
+                bodyRef.set(body);
+                return PhysicsWorkerSnapshot.empty();
+            });
+
+            CountDownLatch blockerStarted = new CountDownLatch(1);
+            CountDownLatch releaseBlocker = new CountDownLatch(1);
+            worker.submitMutation("block async topology", () -> {
+                blockerStarted.countDown();
+                assertTrue(releaseBlocker.await(2, TimeUnit.SECONDS));
+                return PhysicsWorkerSnapshot.empty();
+            });
+            assertTrue(blockerStarted.await(2, TimeUnit.SECONDS));
+
+            PhysicsBodyId bodyId = PhysicsBodyId.random();
+            PhysicsMutationHandle<PhysicsBodyId> handle = resource.addBodyAsync(bodyId,
+                space.getId(),
+                bodyRef.get(),
+                PhysicsBodyKind.BODY,
+                PhysicsBodyPersistenceMode.RUNTIME_ONLY);
+
+            assertEquals(bodyId, handle.value());
+            assertFalse(handle.isDone());
+            assertNull(resource.getRegistration(bodyId));
+
+            releaseBlocker.countDown();
+            pollMutations(worker, 2);
+
+            assertTrue(handle.completedSuccessfully());
+            assertFalse(handle.failed());
+            assertEquals(bodyId, handle.join());
+            assertSame(bodyRef.get(), resource.requireBodyRegistration(bodyId).body());
+            assertEquals(new Vector3f(1.0f, 2.0f, 3.0f),
+                resource.getBodySnapshot(bodyId).position());
+            resource.detachWorkerResource(worker);
+        }
+    }
+
+    @Test
+    void asyncBodyAddHandleObservesWorkerFailureWithoutPublicationDrain() throws Exception {
+        FakePhysicsBackend backend =
+            new FakePhysicsBackend("test:async-body-add-failure-" + BACKEND_COUNTER.incrementAndGet());
+        Impulse.registerBackend(backend);
+
+        PhysicsWorldResource resource = new PhysicsWorldResource();
+        try (PhysicsWorldWorkerResource worker = new PhysicsWorldWorkerResource(4,
+            Duration.ofSeconds(2L))) {
+            worker.start("async-body-add-failure");
+            resource.attachWorkerResource(worker);
+            PhysicsSpace space = resource.createSpace(backend.getId(),
+                "test-world",
+                PhysicsSpaceSettings.defaults(),
+                true);
+            AtomicReference<PhysicsBody> bodyRef = new AtomicReference<>();
+            worker.submitAndDrain(() -> {
+                bodyRef.set(space.createBox(0.5f, 0.5f, 0.5f, 1.0f));
+                return PhysicsWorkerSnapshot.empty();
+            });
+
+            PhysicsBodyId bodyId = PhysicsBodyId.random();
+            PhysicsMutationHandle<PhysicsBodyId> handle = resource.addBodyAsync(bodyId,
+                new SpaceId(Integer.MAX_VALUE),
+                bodyRef.get(),
+                PhysicsBodyKind.BODY,
+                PhysicsBodyPersistenceMode.RUNTIME_ONLY);
+
+            ExecutionException thrown = assertThrows(ExecutionException.class,
+                () -> handle.completion().toCompletableFuture().get(2, TimeUnit.SECONDS));
+
+            assertEquals(bodyId, handle.value());
+            assertInstanceOf(IllegalArgumentException.class, thrown.getCause());
+            assertInstanceOf(IllegalArgumentException.class, handle.failure());
+            assertTrue(handle.failed());
+            assertFalse(handle.completedSuccessfully());
+            assertThrows(IllegalArgumentException.class, handle::throwIfFailed);
+            assertNull(resource.getRegistration(bodyId));
+            assertEquals(1, worker.pendingMutations());
+
+            pollMutations(worker, 1);
+            resource.detachWorkerResource(worker);
+        }
+    }
+
+    private static void pollMutations(PhysicsWorldWorkerResource worker,
+        int expected) throws InterruptedException {
+        long deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(2L);
+        int completed = 0;
+        while (System.nanoTime() < deadline) {
+            completed += worker.pollCompletedMutations(8).size();
+            if (completed >= expected) {
+                return;
+            }
+            Thread.sleep(10L);
+        }
+        assertEquals(expected, completed);
     }
 }

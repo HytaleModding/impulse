@@ -3,11 +3,13 @@ package dev.hytalemodding.impulse.core.internal.worker;
 import com.hypixel.hytale.component.Store;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsWorldWorkerResource;
+import dev.hytalemodding.impulse.core.plugin.resources.PhysicsMutationHandle;
 import java.util.Objects;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.atomic.AtomicReference;
 import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
 
 /**
  * Synchronous bridge for code paths that must mutate live physics state on the
@@ -31,6 +33,51 @@ public final class PhysicsWorkerAccess {
             mutation.run();
             return null;
         });
+    }
+
+    @Nonnull
+    public static PhysicsMutationHandle<Void> runAsync(@Nonnull Store<EntityStore> store,
+        @Nonnull String operation,
+        @Nonnull PhysicsWorkerMutation mutation) {
+        return runAsync(worker(store), operation, mutation);
+    }
+
+    @Nonnull
+    public static PhysicsMutationHandle<Void> runAsync(@Nonnull PhysicsWorldWorkerResource worker,
+        @Nonnull String operation,
+        @Nonnull PhysicsWorkerMutation mutation) {
+        return runAsync(worker, operation, null, mutation);
+    }
+
+    @Nonnull
+    public static <T> PhysicsMutationHandle<T> runAsync(@Nonnull Store<EntityStore> store,
+        @Nonnull String operation,
+        @Nullable T value,
+        @Nonnull PhysicsWorkerMutation mutation) {
+        return runAsync(worker(store), operation, value, mutation);
+    }
+
+    @Nonnull
+    public static <T> PhysicsMutationHandle<T> runAsync(@Nonnull PhysicsWorldWorkerResource worker,
+        @Nonnull String operation,
+        @Nullable T value,
+        @Nonnull PhysicsWorkerMutation mutation) {
+        Objects.requireNonNull(worker, "worker");
+        Objects.requireNonNull(operation, "operation");
+        Objects.requireNonNull(mutation, "mutation");
+        if (worker.isWorkerThread()) {
+            return runInlineAsync(operation, value, mutation);
+        }
+
+        PhysicsWorkerCommand command = () -> {
+            mutation.run();
+            return PhysicsWorkerSnapshot.empty();
+        };
+        try {
+            return worker.submitMutation(operation, value, command);
+        } catch (RejectedExecutionException exception) {
+            return PhysicsMutationHandle.failed(operation, value, exception);
+        }
     }
 
     @Nonnull
@@ -85,6 +132,18 @@ public final class PhysicsWorkerAccess {
         } catch (Exception exception) {
             throw new IllegalStateException("Physics worker operation " + operation + " failed",
                 exception);
+        }
+    }
+
+    @Nonnull
+    private static <T> PhysicsMutationHandle<T> runInlineAsync(@Nonnull String operation,
+        @Nullable T value,
+        @Nonnull PhysicsWorkerMutation mutation) {
+        try {
+            mutation.run();
+            return PhysicsMutationHandle.completed(operation, value);
+        } catch (Throwable throwable) {
+            return PhysicsMutationHandle.failed(operation, value, throwable);
         }
     }
 

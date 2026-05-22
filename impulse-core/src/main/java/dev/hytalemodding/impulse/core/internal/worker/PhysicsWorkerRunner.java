@@ -16,8 +16,9 @@ import javax.annotation.Nullable;
 /**
  * FIFO single-thread runner for physics worker execution.
  *
- * <p>Commands are drained by the caller for now, so the worker owns backend
- * mutations while preserving the current tick barrier.</p>
+ * <p>Step commands are still published through the tick barrier, while queued
+ * mutation commands can complete in the background and be observed later by the
+ * publication system.</p>
  */
 public final class PhysicsWorkerRunner implements AutoCloseable {
 
@@ -45,10 +46,20 @@ public final class PhysicsWorkerRunner implements AutoCloseable {
 
     @Nonnull
     public CompletableFuture<PhysicsWorkerResult> submit(@Nonnull PhysicsWorkerCommand command) {
+        try {
+            return submitOrThrow(command);
+        } catch (RejectedExecutionException exception) {
+            return rejected(exception.getMessage());
+        }
+    }
+
+    @Nonnull
+    public CompletableFuture<PhysicsWorkerResult> submitOrThrow(
+        @Nonnull PhysicsWorkerCommand command) {
         Objects.requireNonNull(command, "command");
         synchronized (lifecycleLock) {
             if (!accepting.get()) {
-                return rejected("physics worker runner is closed");
+                throw new RejectedExecutionException("physics worker runner is closed");
             }
 
             long sequence = nextSequence.getAndIncrement();
@@ -59,7 +70,7 @@ public final class PhysicsWorkerRunner implements AutoCloseable {
             pendingCommands.incrementAndGet();
             if (!commands.offer(queuedCommand)) {
                 pendingCommands.decrementAndGet();
-                return rejected("physics worker command queue is full");
+                throw new RejectedExecutionException("physics worker command queue is full");
             }
             return queuedCommand.future();
         }
