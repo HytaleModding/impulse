@@ -119,3 +119,23 @@ index 0f82b88..f3bf31f 100644
                  }
              }
  
+diff --git a/src/geometry/narrow_phase.rs b/src/geometry/narrow_phase.rs
+index 5d926e8..4e23c44 100644
+--- a/src/geometry/narrow_phase.rs
++++ b/src/geometry/narrow_phase.rs
+@@ -825,7 +825,13 @@ impl NarrowPhase {
+         par_iter_mut!(&mut self.contact_graph.graph.edges).for_each(|edge| {
+             let pair = &mut edge.weight;
+             let had_any_active_contact = pair.has_any_active_contact();
+-            let co1 = &colliders[pair.collider1];
+-            let co2 = &colliders[pair.collider2];
++            let Some(co1) = colliders.get(pair.collider1) else {
++                pair.clear();
++                return;
++            };
++            let Some(co2) = colliders.get(pair.collider2) else {
++                pair.clear();
++                return;
++            };
+             let rb_handle1 = co1.parent.map(|p| p.handle);
+             let rb_handle2 = co2.parent.map(|p| p.handle);
