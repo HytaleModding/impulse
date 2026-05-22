@@ -226,6 +226,24 @@ public final class PhysicsBodyRegistry {
         }
     }
 
+    public boolean clearGeneratedVisualProxy(@Nonnull PhysicsBodyId bodyId,
+        @Nonnull Ref<EntityStore> expectedProxy) {
+        Ref<EntityStore> proxy = generatedVisualProxies.get(bodyId);
+        if (proxy == null || !sameRef(proxy, expectedProxy)) {
+            return false;
+        }
+
+        generatedVisualProxies.remove(bodyId);
+        syncStateCleaner.accept(proxy);
+        return true;
+    }
+
+    public boolean isGeneratedVisualProxy(@Nonnull PhysicsBodyId bodyId,
+        @Nonnull Ref<EntityStore> proxy) {
+        Ref<EntityStore> registeredProxy = generatedVisualProxies.get(bodyId);
+        return registeredProxy != null && sameRef(registeredProxy, proxy);
+    }
+
     public void setSyntheticVisualInterests(@Nonnull Collection<PhysicsWorldResource.VisualInterest> interests) {
         syntheticVisualInterests.clear();
         syntheticVisualInterests.addAll(interests);
@@ -308,5 +326,10 @@ public final class PhysicsBodyRegistry {
         generatedVisualProxies.clear();
         syntheticVisualInterests.clear();
         bodyVisualInterestStates.clear();
+    }
+
+    private static boolean sameRef(@Nonnull Ref<EntityStore> first,
+        @Nonnull Ref<EntityStore> second) {
+        return first == second || first.equals(second);
     }
 }

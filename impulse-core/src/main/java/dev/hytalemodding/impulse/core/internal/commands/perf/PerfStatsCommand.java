@@ -9,6 +9,7 @@ import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import dev.hytalemodding.impulse.api.PhysicsBody;
 import dev.hytalemodding.impulse.api.PhysicsSpace;
 import dev.hytalemodding.impulse.api.ShapeType;
+import dev.hytalemodding.impulse.core.internal.worker.PhysicsWorkerAccess;
 import dev.hytalemodding.impulse.core.plugin.resources.PhysicsBodyKind;
 import dev.hytalemodding.impulse.core.plugin.resources.PhysicsWorldResource;
 import dev.hytalemodding.impulse.core.internal.voxel.WorldVoxelCollisionCache;
@@ -38,7 +39,9 @@ public class PerfStatsCommand extends AbstractWorldCommand {
         ctx.sender().sendMessage(Message.raw("Impulse runtime stats for world " + world.getName()
             + ": spaces=" + spaces.size()));
         for (PhysicsSpace space : spaces) {
-            SpaceStats stats = collectSpaceStats(resource, cache, space);
+            SpaceStats stats = PhysicsWorkerAccess.call(store,
+                "collect perf stats for space " + space.getId().value(),
+                () -> collectSpaceStats(resource, cache, space));
             totals.add(stats);
             ctx.sender().sendMessage(Message.raw("Space " + space.getId().value()
                 + " backend=" + space.getBackendId().value()

@@ -37,7 +37,11 @@ final class GeneratedProxyLifecycle {
         @Nonnull PhysicsWorldResource resource,
         @Nonnull PhysicsBodyId bodyId,
         @Nullable Ref<EntityStore> proxy) {
-        resource.clearGeneratedVisualProxy(bodyId);
+        if (proxy == null) {
+            resource.clearGeneratedVisualProxy(bodyId);
+        } else {
+            resource.clearGeneratedVisualProxy(bodyId, proxy);
+        }
         removeEntity(accessor, proxy);
     }
 
