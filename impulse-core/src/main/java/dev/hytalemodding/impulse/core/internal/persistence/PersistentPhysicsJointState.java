@@ -7,7 +7,7 @@ import com.hypixel.hytale.codec.codecs.EnumCodec;
 import com.hypixel.hytale.math.vector.Vector3fUtil;
 import dev.hytalemodding.impulse.api.PhysicsJoint;
 import dev.hytalemodding.impulse.api.PhysicsJointType;
-import dev.hytalemodding.impulse.core.plugin.resources.PhysicsBodyId;
+import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyId;
 import java.util.UUID;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;

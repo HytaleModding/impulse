@@ -17,7 +17,7 @@ import dev.hytalemodding.impulse.core.internal.persistence.PersistentPhysicsJoin
 import dev.hytalemodding.impulse.core.internal.persistence.PersistentPhysicsRuntimeSupport;
 import dev.hytalemodding.impulse.core.internal.persistence.PersistentPhysicsWorldResource;
 import dev.hytalemodding.impulse.core.internal.worker.PhysicsWorkerAccess;
-import dev.hytalemodding.impulse.core.plugin.resources.PhysicsBodyId;
+import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyId;
 import dev.hytalemodding.impulse.core.plugin.resources.PhysicsWorldResource;
 import it.unimi.dsi.fastutil.objects.ObjectOpenHashSet;
 import java.util.Set;

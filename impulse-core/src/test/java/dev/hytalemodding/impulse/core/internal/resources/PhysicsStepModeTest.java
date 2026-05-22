@@ -3,7 +3,7 @@ package dev.hytalemodding.impulse.core.internal.resources;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
-import dev.hytalemodding.impulse.core.plugin.resources.PhysicsStepMode;
+import dev.hytalemodding.impulse.core.plugin.settings.PhysicsStepMode;
 import org.junit.jupiter.api.Test;
 
 class PhysicsStepModeTest {

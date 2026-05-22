@@ -1,6 +1,6 @@
 package dev.hytalemodding.impulse.core.internal.systems.step;
 
-import dev.hytalemodding.impulse.core.plugin.resources.PhysicsStepMode;
+import dev.hytalemodding.impulse.core.plugin.settings.PhysicsStepMode;
 import dev.hytalemodding.impulse.core.plugin.resources.PhysicsWorldResource;
 import javax.annotation.Nonnull;
 

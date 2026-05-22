@@ -26,11 +26,11 @@ import dev.hytalemodding.impulse.core.plugin.components.ImpulseControllableCompo
 import dev.hytalemodding.impulse.core.plugin.components.PhysicsBodyAttachmentComponent;
 import dev.hytalemodding.impulse.core.plugin.components.PhysicsBodyAttachmentComponent.AttachmentLifecycle;
 import dev.hytalemodding.impulse.core.plugin.components.PhysicsBodyAttachmentComponent.TransformAuthority;
-import dev.hytalemodding.impulse.core.plugin.resources.PhysicsBodyId;
-import dev.hytalemodding.impulse.core.plugin.resources.PhysicsBodyKind;
-import dev.hytalemodding.impulse.core.plugin.resources.PhysicsBodyPersistenceMode;
-import dev.hytalemodding.impulse.core.plugin.resources.PhysicsOwnerCallable;
-import dev.hytalemodding.impulse.core.plugin.resources.PhysicsOwnerMutation;
+import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyId;
+import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyKind;
+import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyPersistenceMode;
+import dev.hytalemodding.impulse.core.plugin.execution.PhysicsOwnerCallable;
+import dev.hytalemodding.impulse.core.plugin.execution.PhysicsOwnerMutation;
 import dev.hytalemodding.impulse.core.plugin.resources.PhysicsWorldResource;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;

@@ -1,4 +1,4 @@
-package dev.hytalemodding.impulse.core.plugin.resources;
+package dev.hytalemodding.impulse.core.plugin.snapshot;
 
 import java.util.List;
 import java.util.Objects;

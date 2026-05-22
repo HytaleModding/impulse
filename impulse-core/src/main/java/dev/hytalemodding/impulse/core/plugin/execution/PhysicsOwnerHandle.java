@@ -1,4 +1,4 @@
-package dev.hytalemodding.impulse.core.plugin.resources;
+package dev.hytalemodding.impulse.core.plugin.execution;
 
 /**
  * Opaque owner for live physics backend state.

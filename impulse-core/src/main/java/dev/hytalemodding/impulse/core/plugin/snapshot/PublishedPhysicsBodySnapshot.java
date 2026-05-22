@@ -1,8 +1,11 @@
-package dev.hytalemodding.impulse.core.plugin.resources;
+package dev.hytalemodding.impulse.core.plugin.snapshot;
 
 import dev.hytalemodding.impulse.api.PhysicsBodySnapshot;
 import dev.hytalemodding.impulse.api.PhysicsBodyType;
 import dev.hytalemodding.impulse.api.SpaceId;
+import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyId;
+import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyKind;
+import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyPersistenceMode;
 import java.util.Objects;
 import javax.annotation.Nonnull;
 import org.joml.Quaternionf;

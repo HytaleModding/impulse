@@ -1,4 +1,4 @@
-package dev.hytalemodding.impulse.core.plugin.resources;
+package dev.hytalemodding.impulse.core.plugin.settings;
 
 import java.util.Locale;
 import javax.annotation.Nonnull;

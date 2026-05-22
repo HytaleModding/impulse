@@ -1,4 +1,4 @@
-package dev.hytalemodding.impulse.core.internal.components;
+package dev.hytalemodding.impulse.core.plugin.components;
 
 import com.hypixel.hytale.component.Component;
 import com.hypixel.hytale.component.ComponentType;
@@ -8,7 +8,7 @@ import dev.hytalemodding.impulse.api.PhysicsBodyType;
 import dev.hytalemodding.impulse.api.PhysicsJoint;
 import dev.hytalemodding.impulse.api.SpaceId;
 import dev.hytalemodding.impulse.core.ImpulsePlugin;
-import dev.hytalemodding.impulse.core.plugin.resources.PhysicsBodyId;
+import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyId;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 import org.joml.Vector3f;

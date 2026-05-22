@@ -1,4 +1,4 @@
-package dev.hytalemodding.impulse.core.plugin.resources;
+package dev.hytalemodding.impulse.core.plugin.execution;
 
 /**
  * Mutation that must run on the thread currently owning live physics backend state.

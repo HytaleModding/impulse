@@ -9,7 +9,7 @@ import com.hypixel.hytale.logger.HytaleLogger;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import dev.hytalemodding.impulse.core.internal.resources.profiling.PhysicsRuntimeProfilingResource;
 import dev.hytalemodding.impulse.core.internal.resources.worker.PhysicsWorldWorkerResource;
-import dev.hytalemodding.impulse.core.plugin.resources.PublishedPhysicsSnapshotFrame;
+import dev.hytalemodding.impulse.core.plugin.snapshot.PublishedPhysicsSnapshotFrame;
 import dev.hytalemodding.impulse.core.internal.systems.collision.PhysicsChunkBoundarySystem;
 import dev.hytalemodding.impulse.core.internal.systems.collision.PhysicsCollisionLodSystem;
 import dev.hytalemodding.impulse.core.internal.systems.collision.PhysicsWorldCollisionStreamingSystem;

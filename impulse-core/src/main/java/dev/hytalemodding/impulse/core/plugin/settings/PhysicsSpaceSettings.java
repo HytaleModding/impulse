@@ -1,6 +1,7 @@
-package dev.hytalemodding.impulse.core.plugin.resources;
+package dev.hytalemodding.impulse.core.plugin.settings;
 
-import dev.hytalemodding.impulse.core.plugin.voxel.WorldCollisionMode;
+import dev.hytalemodding.impulse.core.plugin.resources.PhysicsWorldResource;
+import dev.hytalemodding.impulse.core.plugin.collision.WorldCollisionMode;
 import lombok.Getter;
 import lombok.Setter;
 import javax.annotation.Nonnull;

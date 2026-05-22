@@ -1,8 +1,8 @@
 package dev.hytalemodding.impulse.core.internal.systems.sync;
 
-import dev.hytalemodding.impulse.core.plugin.resources.PhysicsSpaceSettings;
+import dev.hytalemodding.impulse.core.plugin.settings.PhysicsSpaceSettings;
 import dev.hytalemodding.impulse.core.plugin.resources.PhysicsWorldResource;
-import dev.hytalemodding.impulse.core.plugin.resources.VisualOcclusionMode;
+import dev.hytalemodding.impulse.core.plugin.settings.VisualOcclusionMode;
 import java.util.List;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;

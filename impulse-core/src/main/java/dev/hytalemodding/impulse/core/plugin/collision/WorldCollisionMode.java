@@ -1,5 +1,4 @@
-package dev.hytalemodding.impulse.core.plugin.voxel;
-
+package dev.hytalemodding.impulse.core.plugin.collision;
 
 /**
  * Controls how a physics space interacts with Hytale world voxel collision.

@@ -21,15 +21,16 @@ import dev.hytalemodding.impulse.core.internal.resources.profiling.PhysicsRuntim
 import dev.hytalemodding.impulse.core.internal.resources.profiling.PhysicsRuntimeProfilingResource.SyncSnapshot;
 import dev.hytalemodding.impulse.core.internal.resources.profiling.WorldCollisionProfilingResource;
 import dev.hytalemodding.impulse.core.internal.resources.profiling.WorldCollisionProfilingResource.Snapshot;
+import dev.hytalemodding.impulse.core.internal.voxel.WorldCollisionCacheAccess;
 import dev.hytalemodding.impulse.core.internal.voxel.WorldVoxelCollisionCache;
 import dev.hytalemodding.impulse.core.internal.voxel.WorldVoxelCollisionCache.BuildStats;
-import dev.hytalemodding.impulse.core.plugin.resources.PhysicsBodyId;
-import dev.hytalemodding.impulse.core.plugin.resources.PhysicsBodyKind;
-import dev.hytalemodding.impulse.core.plugin.resources.PhysicsBodyPersistenceMode;
-import dev.hytalemodding.impulse.core.plugin.resources.PhysicsSpaceSettings;
-import dev.hytalemodding.impulse.core.plugin.resources.PhysicsStepMode;
+import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyId;
+import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyKind;
+import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyPersistenceMode;
+import dev.hytalemodding.impulse.core.plugin.settings.PhysicsSpaceSettings;
+import dev.hytalemodding.impulse.core.plugin.settings.PhysicsStepMode;
 import dev.hytalemodding.impulse.core.plugin.resources.PhysicsWorldResource;
-import dev.hytalemodding.impulse.core.plugin.voxel.WorldCollisionMode;
+import dev.hytalemodding.impulse.core.plugin.collision.WorldCollisionMode;
 import it.unimi.dsi.fastutil.longs.LongOpenHashSet;
 import it.unimi.dsi.fastutil.longs.LongSet;
 import it.unimi.dsi.fastutil.objects.ObjectOpenHashSet;
@@ -329,7 +330,7 @@ final class ImpulseDetachedStreamingBenchmarkCrucibleTests {
         }
 
         private PrewarmStats prewarmWorldCollision(@Nonnull PhysicsSpace space, int count) {
-            WorldVoxelCollisionCache cache = physics.internalWorldCollisionState();
+            WorldVoxelCollisionCache cache = WorldCollisionCacheAccess.get(physics);
             BenchmarkLayout layout = BenchmarkLayout.flatGrid(count);
             LongSet visitedSections = new LongOpenHashSet();
             Set<StreamingPrewarmTarget> visitedTargets = new ObjectOpenHashSet<>();
@@ -958,7 +959,7 @@ final class ImpulseDetachedStreamingBenchmarkCrucibleTests {
         private static SpaceStats collect(@Nonnull PhysicsWorldResource physics,
             @Nonnull PhysicsSpace space) {
             SpaceStats stats = new SpaceStats();
-            WorldVoxelCollisionCache cache = physics.internalWorldCollisionState();
+            WorldVoxelCollisionCache cache = WorldCollisionCacheAccess.get(physics);
             for (PhysicsBody body : space.getBodies()) {
                 stats.classify(cache, space, body);
             }

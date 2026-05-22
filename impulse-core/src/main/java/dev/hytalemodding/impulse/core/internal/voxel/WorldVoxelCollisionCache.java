@@ -15,7 +15,7 @@ import dev.hytalemodding.impulse.core.internal.resources.profiling.WorldCollisio
 import dev.hytalemodding.impulse.core.internal.resources.profiling.WorldCollisionProfilingResource.Snapshot;
 import dev.hytalemodding.impulse.core.internal.resources.profiling.WorldCollisionProfilingResource.StreamingTargetDiagnostic;
 import dev.hytalemodding.impulse.core.internal.voxel.SectionCollisionGeometry.BoxCollider;
-import dev.hytalemodding.impulse.core.plugin.resources.PhysicsBodyId;
+import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyId;
 import it.unimi.dsi.fastutil.ints.Int2ObjectMap;
 import it.unimi.dsi.fastutil.ints.Int2ObjectOpenHashMap;
 import it.unimi.dsi.fastutil.longs.Long2LongMap;

@@ -16,10 +16,26 @@ import dev.hytalemodding.impulse.api.PhysicsSpace;
 import dev.hytalemodding.impulse.api.PhysicsSolverTuning;
 import dev.hytalemodding.impulse.api.SpaceId;
 import dev.hytalemodding.impulse.core.ImpulsePlugin;
+import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyId;
+import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyKind;
+import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyPersistenceMode;
+import dev.hytalemodding.impulse.core.plugin.collision.WorldCollisionBuildStats;
+import dev.hytalemodding.impulse.core.plugin.collision.WorldCollisionPrewarmStats;
+import dev.hytalemodding.impulse.core.plugin.collision.WorldCollisionStats;
+import dev.hytalemodding.impulse.core.plugin.execution.PhysicsMutationHandle;
+import dev.hytalemodding.impulse.core.plugin.execution.PhysicsOwnerCallable;
+import dev.hytalemodding.impulse.core.plugin.execution.PhysicsOwnerHandle;
+import dev.hytalemodding.impulse.core.plugin.execution.PhysicsOwnerMutation;
+import dev.hytalemodding.impulse.core.plugin.settings.PhysicsSpaceSettings;
+import dev.hytalemodding.impulse.core.plugin.settings.PhysicsStepMode;
+import dev.hytalemodding.impulse.core.plugin.snapshot.PublishedPhysicsBodySnapshot;
+import dev.hytalemodding.impulse.core.plugin.snapshot.PublishedPhysicsSnapshotFrame;
+import dev.hytalemodding.impulse.core.plugin.snapshot.PublishedPhysicsSpaceFrame;
 import dev.hytalemodding.impulse.core.internal.resources.body.PhysicsBodyRegistry;
 import dev.hytalemodding.impulse.core.internal.resources.body.PhysicsBodyRuntimeState;
 import dev.hytalemodding.impulse.core.internal.resources.body.PhysicsBodySnapshotStore;
 import dev.hytalemodding.impulse.core.internal.resources.worker.PhysicsWorldWorkerResource;
+import dev.hytalemodding.impulse.core.internal.voxel.WorldCollisionCacheAccess;
 import dev.hytalemodding.impulse.core.internal.voxel.WorldVoxelCollisionCache;
 import dev.hytalemodding.impulse.core.internal.worker.PhysicsWorkerAccess;
 import it.unimi.dsi.fastutil.ints.Int2ObjectMap;
@@ -488,12 +504,15 @@ public class PhysicsWorldResource implements Resource<EntityStore> {
         @Nonnull PublishedPhysicsSnapshotFrame.Status status,
         long stepNanos,
         boolean profilingEnabled) {
+
         long frameEpoch = ++snapshotFrameEpoch;
         long frameWorldEpoch = worldEpoch;
         long snapshotStartNanos = profilingEnabled ? System.nanoTime() : 0L;
         workerBodySnapshots.refresh(spaces.values(), bodyRegistry);
         int spatialIndexCellCount = workerBodySnapshots.cellCount();
+
         List<PublishedPhysicsSpaceFrame> spaceFrames = new ArrayList<>(spaces.size());
+
         for (PhysicsSpace space : spaces.values()) {
             SpaceId spaceId = space.getId();
             List<PublishedPhysicsBodySnapshot> bodyFrames = new ArrayList<>(
@@ -587,14 +606,13 @@ public class PhysicsWorldResource implements Resource<EntityStore> {
     }
 
     /**
-     * Internal escape hatch for Impulse systems that need streamed terrain cache internals.
-     * Plugin consumers should use the public world-collision facade methods on this resource.
+     * Internal bridge for Impulse systems that own streamed terrain cache behavior.
      */
-    @Deprecated
-    @SuppressWarnings("unchecked")
     @Nonnull
-    public <T> T internalWorldCollisionState() {
-        return (T) worldVoxelCollisionCache;
+    public Object internalWorldCollisionState(
+        @Nonnull WorldCollisionCacheAccess access) {
+        Objects.requireNonNull(access, "access");
+        return worldVoxelCollisionCache;
     }
 
     @Nonnull

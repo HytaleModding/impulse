@@ -14,7 +14,7 @@ import dev.hytalemodding.impulse.core.internal.resources.worker.PhysicsWorldWork
 import dev.hytalemodding.impulse.core.internal.systems.worker.PhysicsSnapshotPublicationSystem;
 import dev.hytalemodding.impulse.core.internal.worker.PhysicsWorkerAccess;
 import dev.hytalemodding.impulse.core.internal.worker.PhysicsWorkerSnapshot;
-import dev.hytalemodding.impulse.core.plugin.resources.PhysicsBodyPersistenceMode;
+import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyPersistenceMode;
 import dev.hytalemodding.impulse.core.plugin.resources.PhysicsWorldResource;
 import java.util.Map;
 import java.util.Set;

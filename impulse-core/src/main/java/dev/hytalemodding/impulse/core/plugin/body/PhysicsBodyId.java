@@ -1,4 +1,4 @@
-package dev.hytalemodding.impulse.core.plugin.resources;
+package dev.hytalemodding.impulse.core.plugin.body;
 
 import java.util.UUID;
 import javax.annotation.Nonnull;

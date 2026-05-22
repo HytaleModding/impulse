@@ -1,4 +1,4 @@
-package dev.hytalemodding.impulse.core.plugin.resources;
+package dev.hytalemodding.impulse.core.plugin.execution;
 
 import java.util.Objects;
 import java.util.concurrent.CancellationException;
@@ -106,14 +106,14 @@ public final class PhysicsMutationHandle<T> {
 
     public void throwIfFailed() {
         Throwable failure = failure();
-        if (failure == null) {
-            return;
-        }
-        if (failure instanceof RuntimeException runtimeException) {
-            throw runtimeException;
-        }
-        if (failure instanceof Error error) {
-            throw error;
+        switch (failure) {
+            case null -> {
+                return;
+            }
+            case RuntimeException runtimeException -> throw runtimeException;
+            case Error error -> throw error;
+            default -> {
+            }
         }
         throw new IllegalStateException("Async physics mutation " + operation + " failed",
             failure);
