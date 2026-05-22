@@ -1,5 +1,6 @@
 package dev.hytalemodding.impulse.examples.commands;
 
+import com.hypixel.hytale.component.ComponentType;
 import com.hypixel.hytale.component.Ref;
 import com.hypixel.hytale.component.Store;
 import com.hypixel.hytale.server.core.Message;
@@ -21,6 +22,8 @@ import org.joml.Vector3d;
 public class RaycastCommand extends AbstractAsyncPlayerCommand {
 
     private static final double RAY_LENGTH = 24.0;
+    private static final ComponentType<EntityStore, TransformComponent> TRANSFORM_TYPE =
+        TransformComponent.getComponentType();
 
     public RaycastCommand() {
         super("raycast", "Cast a physics ray from the player view");
@@ -33,7 +36,7 @@ public class RaycastCommand extends AbstractAsyncPlayerCommand {
         @Nonnull Ref<EntityStore> ref,
         @Nonnull PlayerRef playerRef,
         @Nonnull World world) {
-        TransformComponent transform = store.getComponent(ref, TransformComponent.getComponentType());
+        TransformComponent transform = store.getComponent(ref, TRANSFORM_TYPE);
         if (transform == null) {
             ctx.sender().sendMessage(Message.raw("Cannot determine player position."));
             return CompletableFuture.completedFuture(null);

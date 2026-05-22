@@ -14,7 +14,7 @@ import dev.hytalemodding.impulse.api.SpaceId;
 import dev.hytalemodding.impulse.core.internal.persistence.PersistentPhysicsWorldResource;
 import dev.hytalemodding.impulse.core.plugin.resources.PhysicsBodyPersistenceMode;
 import dev.hytalemodding.impulse.core.plugin.resources.PhysicsWorldResource;
-import dev.hytalemodding.impulse.core.internal.systems.PersistentPhysicsWorldSyncSystem;
+import dev.hytalemodding.impulse.core.internal.systems.persistence.PersistentPhysicsWorldSyncSystem;
 import javax.annotation.Nonnull;
 
 /**
@@ -70,7 +70,7 @@ public class PersistenceCommand extends AbstractCommandCollection {
             PhysicsWorldResource runtime = store.getResource(PhysicsWorldResource.getResourceType());
 
             PersistentPhysicsWorldSyncSystem.SyncResult result =
-                PersistentPhysicsWorldSyncSystem.syncRuntimeSnapshot(persistent, runtime);
+                PersistentPhysicsWorldSyncSystem.syncRuntimeSnapshot(store, persistent, runtime);
             if (!result.synced()) {
                 ctx.sendMessage(Message.raw("Cannot save Impulse world persistence while "
                     + result.skippedReason() + "."));
@@ -186,7 +186,7 @@ public class PersistenceCommand extends AbstractCommandCollection {
 
     private static int countRuntimeJoints(@Nonnull Store<EntityStore> store,
         @Nonnull PhysicsWorldResource runtime) {
-        return ExamplePhysicsUtils.physicsWorkerCall(store, "count runtime persistence joints", () -> {
+        return ExamplePhysicsUtils.physicsOwnerCall(store, "count runtime persistence joints", () -> {
             int count = 0;
             for (PhysicsSpace space : runtime.getSpaces()) {
                 count += space.getJoints().size();

@@ -73,7 +73,7 @@ public class ShapesCommand extends AbstractAsyncPlayerCommand {
         @Nonnull PhysicsSpace space,
         @Nonnull ShapeType type,
         @Nonnull PhysicsAxis axis) {
-        return ExamplePhysicsUtils.physicsWorkerCall(store, "create shape demo physics body",
+        return ExamplePhysicsUtils.physicsOwnerCall(store, "create shape demo physics body",
             () -> {
                 PhysicsBody body = switch (type) {
                     case BOX -> space.createBox(0.5f, 0.5f, 0.5f, 1.0f);
