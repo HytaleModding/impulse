@@ -93,7 +93,7 @@ public final class PhysicsWorkerStepCommand implements PhysicsWorkerCommand {
         long stepSequence,
         long serverTick) {
         Objects.requireNonNull(resource, "resource");
-        float safeDt = Math.max(dt, 0.0f);
+        float safeDt = Float.isFinite(dt) ? Math.max(dt, 0.0f) : 0.0f;
         PhysicsStepMode stepMode = resource.getStepMode();
         float maxStepDt = resource.getMaxStepDt() > 0f
             ? resource.getMaxStepDt()

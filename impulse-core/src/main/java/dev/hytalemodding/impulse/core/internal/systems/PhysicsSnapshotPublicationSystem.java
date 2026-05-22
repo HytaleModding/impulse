@@ -10,9 +10,12 @@ import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsRuntimeProfilingResource;
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsWorldWorkerResource;
 import dev.hytalemodding.impulse.core.internal.resources.PublishedPhysicsSnapshotFrame;
+import dev.hytalemodding.impulse.core.internal.worker.PhysicsWorkerMutationCompletion;
+import dev.hytalemodding.impulse.core.internal.worker.PhysicsWorkerResult;
 import dev.hytalemodding.impulse.core.internal.worker.PhysicsWorkerSnapshot;
 import dev.hytalemodding.impulse.core.internal.worker.PhysicsWorkerStepCompletion;
 import dev.hytalemodding.impulse.core.plugin.resources.PhysicsWorldResource;
+import java.util.List;
 import java.util.Set;
 import java.util.logging.Level;
 import javax.annotation.Nonnull;
@@ -24,6 +27,7 @@ import javax.annotation.Nonnull;
 public final class PhysicsSnapshotPublicationSystem extends TickingSystem<EntityStore> {
 
     private static final HytaleLogger LOGGER = HytaleLogger.get("Impulse");
+    private static final int MAX_MUTATION_COMPLETIONS_PER_TICK = 64;
 
     private static final Set<Dependency<EntityStore>> DEPENDENCIES = Set.of(
         new SystemDependency<>(Order.BEFORE, PhysicsChunkBoundarySystem.class),
@@ -42,7 +46,31 @@ public final class PhysicsSnapshotPublicationSystem extends TickingSystem<Entity
         PhysicsWorldResource resource = store.getResource(PhysicsWorldResource.getResourceType());
         PhysicsRuntimeProfilingResource profiling = store.getResource(
             PhysicsRuntimeProfilingResource.getResourceType());
+        publishCompletedMutations(worker);
         publishCompletedStep(worker, resource, profiling);
+    }
+
+    static int publishCompletedMutations(@Nonnull PhysicsWorldWorkerResource worker) {
+        int completed = 0;
+        while (true) {
+            List<PhysicsWorkerMutationCompletion> completions =
+                worker.pollCompletedMutations(MAX_MUTATION_COMPLETIONS_PER_TICK);
+            if (completions.isEmpty()) {
+                return completed;
+            }
+            completed += completions.size();
+            for (PhysicsWorkerMutationCompletion completion : completions) {
+                if (completion.executionFailure() != null) {
+                    LOGGER.at(Level.SEVERE).log(
+                        "Async physics worker mutation failed while running %s: %s",
+                        completion.operation(),
+                        completion.executionFailure().getMessage());
+                }
+            }
+            if (completions.size() < MAX_MUTATION_COMPLETIONS_PER_TICK) {
+                return completed;
+            }
+        }
     }
 
     static void publishCompletedStep(@Nonnull PhysicsWorldWorkerResource worker,
@@ -66,12 +94,15 @@ public final class PhysicsSnapshotPublicationSystem extends TickingSystem<Entity
 
         PhysicsWorkerSnapshot snapshot = completion.snapshotOrEmpty();
         if (profiling.isEnabled()) {
+            PhysicsWorkerResult result = completion.result();
             profiling.recordStep(snapshot.spaces(),
                 snapshot.substeps(),
                 snapshot.stepNanos(),
                 snapshot.bodySnapshots(),
                 snapshot.spatialIndexCells(),
-                snapshot.snapshotNanos());
+                snapshot.snapshotNanos(),
+                result != null ? result.queuedNanos() : 0L,
+                result != null ? result.runNanos() : 0L);
         }
 
         RuntimeException stepFailure = completion.stepFailure();

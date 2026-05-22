@@ -29,6 +29,9 @@ public class PhysicsRuntimeProfilingResource implements Resource<EntityStore> {
     private final SyncSnapshot cumulativeSync = new SyncSnapshot();
     private final SyncSnapshot latestSync = new SyncSnapshot();
     private final SyncSnapshot worstSync = new SyncSnapshot();
+    private final VisualSnapshot cumulativeVisual = new VisualSnapshot();
+    private final VisualSnapshot latestVisual = new VisualSnapshot();
+    private final VisualSnapshot worstVisual = new VisualSnapshot();
 
     @Nullable
     private transient SyncCollector activeSyncCollector;
@@ -37,7 +40,7 @@ public class PhysicsRuntimeProfilingResource implements Resource<EntityStore> {
     }
 
     public void recordStep(int spaces, int substeps, long nanos) {
-        recordStep(spaces, substeps, nanos, 0, 0, 0);
+        recordStep(spaces, substeps, nanos, 0, 0, 0, 0, 0);
     }
 
     public void recordStep(int spaces,
@@ -46,6 +49,24 @@ public class PhysicsRuntimeProfilingResource implements Resource<EntityStore> {
         int bodySnapshots,
         int spatialIndexCells,
         long snapshotNanos) {
+        recordStep(spaces,
+            substeps,
+            nanos,
+            bodySnapshots,
+            spatialIndexCells,
+            snapshotNanos,
+            0L,
+            0L);
+    }
+
+    public void recordStep(int spaces,
+        int substeps,
+        long nanos,
+        int bodySnapshots,
+        int spatialIndexCells,
+        long snapshotNanos,
+        long workerQueuedNanos,
+        long workerRunNanos) {
         StepSnapshot snapshot = new StepSnapshot();
         snapshot.recordTickSample();
         snapshot.setSpaces(spaces);
@@ -54,11 +75,28 @@ public class PhysicsRuntimeProfilingResource implements Resource<EntityStore> {
         snapshot.setBodySnapshots(bodySnapshots);
         snapshot.setSpatialIndexCells(spatialIndexCells);
         snapshot.setSnapshotNanos(snapshotNanos);
+        snapshot.setWorkerQueuedNanos(workerQueuedNanos);
+        snapshot.setWorkerRunNanos(workerRunNanos);
 
         latestStep.copyFrom(snapshot);
         cumulativeStep.add(snapshot);
         if (snapshot.getTickNanos() >= worstStep.getTickNanos()) {
             worstStep.copyFrom(snapshot);
+        }
+    }
+
+    public void recordStepSkippedPending(long pendingStepAgeNanos) {
+        long safePendingStepAgeNanos = Math.max(0L, pendingStepAgeNanos);
+        StepSnapshot snapshot = new StepSnapshot();
+        snapshot.setSkippedPendingSteps(1);
+        snapshot.setPendingStepAgeNanos(safePendingStepAgeNanos);
+        snapshot.setMaxPendingStepAgeNanos(safePendingStepAgeNanos);
+        latestStep.setSkippedPendingSteps(1);
+        latestStep.setPendingStepAgeNanos(safePendingStepAgeNanos);
+        latestStep.setMaxPendingStepAgeNanos(safePendingStepAgeNanos);
+        cumulativeStep.add(snapshot);
+        if (safePendingStepAgeNanos >= worstStep.getMaxPendingStepAgeNanos()) {
+            worstStep.setMaxPendingStepAgeNanos(safePendingStepAgeNanos);
         }
     }
 
@@ -84,6 +122,23 @@ public class PhysicsRuntimeProfilingResource implements Resource<EntityStore> {
         }
     }
 
+    @Nonnull
+    public VisualCollector beginVisualSample() {
+        return new VisualCollector();
+    }
+
+    public void finishVisualSample(@Nonnull VisualCollector collector, long nanos) {
+        VisualSnapshot snapshot = new VisualSnapshot();
+        snapshot.copyFrom(collector.snapshot(nanos));
+        snapshot.recordTickSample();
+
+        latestVisual.copyFrom(snapshot);
+        cumulativeVisual.add(snapshot);
+        if (snapshot.getTickNanos() >= worstVisual.getTickNanos()) {
+            worstVisual.copyFrom(snapshot);
+        }
+    }
+
     public void reset() {
         cumulativeStep.reset();
         latestStep.reset();
@@ -91,6 +146,9 @@ public class PhysicsRuntimeProfilingResource implements Resource<EntityStore> {
         cumulativeSync.reset();
         latestSync.reset();
         worstSync.reset();
+        cumulativeVisual.reset();
+        latestVisual.reset();
+        worstVisual.reset();
         activeSyncCollector = null;
     }
 
@@ -105,6 +163,9 @@ public class PhysicsRuntimeProfilingResource implements Resource<EntityStore> {
         copy.cumulativeSync.copyFrom(cumulativeSync);
         copy.latestSync.copyFrom(latestSync);
         copy.worstSync.copyFrom(worstSync);
+        copy.cumulativeVisual.copyFrom(cumulativeVisual);
+        copy.latestVisual.copyFrom(latestVisual);
+        copy.worstVisual.copyFrom(worstVisual);
         return copy;
     }
 
@@ -128,6 +189,16 @@ public class PhysicsRuntimeProfilingResource implements Resource<EntityStore> {
         private long tickNanos;
         @Setter
         private long snapshotNanos;
+        @Setter
+        private long workerQueuedNanos;
+        @Setter
+        private long workerRunNanos;
+        @Setter
+        private int skippedPendingSteps;
+        @Setter
+        private long pendingStepAgeNanos;
+        @Setter
+        private long maxPendingStepAgeNanos;
 
         public void recordTickSample() {
             tickSamples++;
@@ -141,6 +212,11 @@ public class PhysicsRuntimeProfilingResource implements Resource<EntityStore> {
             spatialIndexCells = other.spatialIndexCells;
             tickNanos = other.tickNanos;
             snapshotNanos = other.snapshotNanos;
+            workerQueuedNanos = other.workerQueuedNanos;
+            workerRunNanos = other.workerRunNanos;
+            skippedPendingSteps = other.skippedPendingSteps;
+            pendingStepAgeNanos = other.pendingStepAgeNanos;
+            maxPendingStepAgeNanos = other.maxPendingStepAgeNanos;
         }
 
         public void add(@Nonnull StepSnapshot other) {
@@ -151,6 +227,12 @@ public class PhysicsRuntimeProfilingResource implements Resource<EntityStore> {
             spatialIndexCells += other.spatialIndexCells;
             tickNanos += other.tickNanos;
             snapshotNanos += other.snapshotNanos;
+            workerQueuedNanos += other.workerQueuedNanos;
+            workerRunNanos += other.workerRunNanos;
+            skippedPendingSteps += other.skippedPendingSteps;
+            pendingStepAgeNanos += other.pendingStepAgeNanos;
+            maxPendingStepAgeNanos = Math.max(maxPendingStepAgeNanos,
+                other.maxPendingStepAgeNanos);
         }
 
         public void reset() {
@@ -161,6 +243,11 @@ public class PhysicsRuntimeProfilingResource implements Resource<EntityStore> {
             spatialIndexCells = 0;
             tickNanos = 0L;
             snapshotNanos = 0L;
+            workerQueuedNanos = 0L;
+            workerRunNanos = 0L;
+            skippedPendingSteps = 0;
+            pendingStepAgeNanos = 0L;
+            maxPendingStepAgeNanos = 0L;
         }
     }
 
@@ -307,6 +394,191 @@ public class PhysicsRuntimeProfilingResource implements Resource<EntityStore> {
             snapshot.setSkippedVisualRange(skippedVisualRange.get());
             snapshot.setSkippedStatic(skippedStatic.get());
             snapshot.setSkippedMissingSpace(skippedMissingSpace.get());
+            snapshot.setTickNanos(nanos);
+            return snapshot;
+        }
+    }
+
+    @Getter
+    public static final class VisualSnapshot {
+
+        private int tickSamples;
+        @Setter
+        private int interests;
+        @Setter
+        private int materialized;
+        @Setter
+        private int candidates;
+        @Setter
+        private int spawned;
+        @Setter
+        private int dematerialized;
+        @Setter
+        private int nearQueries;
+        @Setter
+        private int nearQueryCandidates;
+        @Setter
+        private int raycasts;
+        @Setter
+        private int raycastCacheHits;
+        @Setter
+        private int candidateRefreshes;
+        @Setter
+        private int candidateCacheUses;
+        @Setter
+        private int visibilityChecks;
+        @Setter
+        private int visibilityCheckSkips;
+        @Setter
+        private long tickNanos;
+
+        public void recordTickSample() {
+            tickSamples++;
+        }
+
+        public void copyFrom(@Nonnull VisualSnapshot other) {
+            tickSamples = other.tickSamples;
+            interests = other.interests;
+            materialized = other.materialized;
+            candidates = other.candidates;
+            spawned = other.spawned;
+            dematerialized = other.dematerialized;
+            nearQueries = other.nearQueries;
+            nearQueryCandidates = other.nearQueryCandidates;
+            raycasts = other.raycasts;
+            raycastCacheHits = other.raycastCacheHits;
+            candidateRefreshes = other.candidateRefreshes;
+            candidateCacheUses = other.candidateCacheUses;
+            visibilityChecks = other.visibilityChecks;
+            visibilityCheckSkips = other.visibilityCheckSkips;
+            tickNanos = other.tickNanos;
+        }
+
+        public void add(@Nonnull VisualSnapshot other) {
+            tickSamples += other.tickSamples;
+            interests += other.interests;
+            materialized += other.materialized;
+            candidates += other.candidates;
+            spawned += other.spawned;
+            dematerialized += other.dematerialized;
+            nearQueries += other.nearQueries;
+            nearQueryCandidates += other.nearQueryCandidates;
+            raycasts += other.raycasts;
+            raycastCacheHits += other.raycastCacheHits;
+            candidateRefreshes += other.candidateRefreshes;
+            candidateCacheUses += other.candidateCacheUses;
+            visibilityChecks += other.visibilityChecks;
+            visibilityCheckSkips += other.visibilityCheckSkips;
+            tickNanos += other.tickNanos;
+        }
+
+        public void reset() {
+            tickSamples = 0;
+            interests = 0;
+            materialized = 0;
+            candidates = 0;
+            spawned = 0;
+            dematerialized = 0;
+            nearQueries = 0;
+            nearQueryCandidates = 0;
+            raycasts = 0;
+            raycastCacheHits = 0;
+            candidateRefreshes = 0;
+            candidateCacheUses = 0;
+            visibilityChecks = 0;
+            visibilityCheckSkips = 0;
+            tickNanos = 0L;
+        }
+    }
+
+    public static final class VisualCollector {
+
+        private final AtomicInteger interests = new AtomicInteger();
+        private final AtomicInteger materialized = new AtomicInteger();
+        private final AtomicInteger candidates = new AtomicInteger();
+        private final AtomicInteger spawned = new AtomicInteger();
+        private final AtomicInteger dematerialized = new AtomicInteger();
+        private final AtomicInteger nearQueries = new AtomicInteger();
+        private final AtomicInteger nearQueryCandidates = new AtomicInteger();
+        private final AtomicInteger raycasts = new AtomicInteger();
+        private final AtomicInteger raycastCacheHits = new AtomicInteger();
+        private final AtomicInteger candidateRefreshes = new AtomicInteger();
+        private final AtomicInteger candidateCacheUses = new AtomicInteger();
+        private final AtomicInteger visibilityChecks = new AtomicInteger();
+        private final AtomicInteger visibilityCheckSkips = new AtomicInteger();
+
+        public void setInterests(int count) {
+            interests.set(count);
+        }
+
+        public void setMaterialized(int count) {
+            materialized.set(count);
+        }
+
+        public void setCandidates(int count) {
+            candidates.set(count);
+        }
+
+        public void incrementSpawned() {
+            spawned.incrementAndGet();
+        }
+
+        public void incrementDematerialized() {
+            dematerialized.incrementAndGet();
+        }
+
+        public void incrementNearQueries() {
+            nearQueries.incrementAndGet();
+        }
+
+        public void addNearQueryCandidates(int count) {
+            nearQueryCandidates.addAndGet(count);
+        }
+
+        public void incrementRaycasts() {
+            raycasts.incrementAndGet();
+        }
+
+        public void incrementRaycastCacheHits() {
+            raycastCacheHits.incrementAndGet();
+        }
+
+        public void incrementCandidateRefreshes() {
+            candidateRefreshes.incrementAndGet();
+        }
+
+        public void incrementCandidateCacheUses() {
+            candidateCacheUses.incrementAndGet();
+        }
+
+        public void incrementVisibilityChecks() {
+            visibilityChecks.incrementAndGet();
+        }
+
+        public void incrementVisibilityCheckSkips() {
+            visibilityCheckSkips.incrementAndGet();
+        }
+
+        public void addVisibilityCheckSkips(int count) {
+            visibilityCheckSkips.addAndGet(count);
+        }
+
+        @Nonnull
+        private VisualSnapshot snapshot(long nanos) {
+            VisualSnapshot snapshot = new VisualSnapshot();
+            snapshot.setInterests(interests.get());
+            snapshot.setMaterialized(materialized.get());
+            snapshot.setCandidates(candidates.get());
+            snapshot.setSpawned(spawned.get());
+            snapshot.setDematerialized(dematerialized.get());
+            snapshot.setNearQueries(nearQueries.get());
+            snapshot.setNearQueryCandidates(nearQueryCandidates.get());
+            snapshot.setRaycasts(raycasts.get());
+            snapshot.setRaycastCacheHits(raycastCacheHits.get());
+            snapshot.setCandidateRefreshes(candidateRefreshes.get());
+            snapshot.setCandidateCacheUses(candidateCacheUses.get());
+            snapshot.setVisibilityChecks(visibilityChecks.get());
+            snapshot.setVisibilityCheckSkips(visibilityCheckSkips.get());
             snapshot.setTickNanos(nanos);
             return snapshot;
         }

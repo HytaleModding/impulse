@@ -50,13 +50,14 @@ public class PhysicsStepSystem extends TickingSystem<ChunkStore> implements Auto
             return;
         }
 
-        submitStepIfIdle(worker, resource, dt, profiling.isEnabled());
+        submitStepIfIdle(worker, resource, dt, profiling);
     }
 
     private void submitStepIfIdle(@Nonnull PhysicsWorldWorkerResource worker,
         @Nonnull PhysicsWorldResource resource,
         float dt,
-        boolean profilingEnabled) {
+        @Nonnull PhysicsRuntimeProfilingResource profiling) {
+        boolean profilingEnabled = profiling.isEnabled();
         long sequence = nextStepSequence.getAndIncrement();
         PhysicsWorkerStepCommand command = new PhysicsWorkerStepCommand(resource,
             dt,
@@ -64,7 +65,9 @@ public class PhysicsStepSystem extends TickingSystem<ChunkStore> implements Auto
             sequence,
             sequence);
         try {
-            worker.submitStepIfIdle(command);
+            if (!worker.submitStepIfIdle(command) && profilingEnabled) {
+                profiling.recordStepSkippedPending(worker.pendingStepAgeNanos());
+            }
         } catch (RejectedExecutionException exception) {
             if (!worker.isClosed()) {
                 LOGGER.at(Level.WARNING).log(

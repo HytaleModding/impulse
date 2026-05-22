@@ -89,7 +89,7 @@ public class PhysicsWorldResource implements Resource<EntityStore> {
     private volatile PublishedPhysicsSnapshotFrame latestPublishedFrame =
         PublishedPhysicsSnapshotFrame.empty(0L, 0L);
     @Nullable
-    private PhysicsWorldWorkerResource workerResource;
+    private volatile PhysicsWorldWorkerResource workerResource;
 
     public PhysicsWorldResource() {
     }
@@ -104,21 +104,36 @@ public class PhysicsWorldResource implements Resource<EntityStore> {
         }
     }
 
+    public boolean canAccessLiveBackendDirectly() {
+        PhysicsWorldWorkerResource worker = workerResource;
+        return worker == null || worker.isWorkerThread();
+    }
+
     private void runOnWorker(@Nonnull String operation,
         @Nonnull PhysicsWorkerAccess.PhysicsWorkerMutation mutation) {
         PhysicsWorldWorkerResource worker = workerResource;
         if (worker == null || worker.isWorkerThread()) {
-            try {
-                mutation.run();
-            } catch (RuntimeException exception) {
-                throw exception;
-            } catch (Exception exception) {
-                throw new IllegalStateException("Physics operation " + operation + " failed",
-                    exception);
-            }
+            runDirect(operation, mutation);
             return;
         }
         PhysicsWorkerAccess.run(worker, operation, mutation);
+    }
+
+    @Nonnull
+    public PhysicsMutationHandle<Void> enqueueTopologyMutation(@Nonnull String operation,
+        @Nonnull PhysicsWorkerAccess.PhysicsWorkerMutation mutation) {
+        return enqueueTopologyMutation(operation, null, mutation);
+    }
+
+    @Nonnull
+    public <T> PhysicsMutationHandle<T> enqueueTopologyMutation(@Nonnull String operation,
+        @Nullable T value,
+        @Nonnull PhysicsWorkerAccess.PhysicsWorkerMutation mutation) {
+        PhysicsWorldWorkerResource worker = workerResource;
+        if (worker == null || worker.isWorkerThread()) {
+            return runDirectAsync(operation, value, mutation);
+        }
+        return PhysicsWorkerAccess.runAsync(worker, operation, value, mutation);
     }
 
     @Nonnull
@@ -136,6 +151,30 @@ public class PhysicsWorldResource implements Resource<EntityStore> {
             }
         }
         return PhysicsWorkerAccess.call(worker, operation, callable);
+    }
+
+    private void runDirect(@Nonnull String operation,
+        @Nonnull PhysicsWorkerAccess.PhysicsWorkerMutation mutation) {
+        try {
+            mutation.run();
+        } catch (RuntimeException exception) {
+            throw exception;
+        } catch (Exception exception) {
+            throw new IllegalStateException("Physics operation " + operation + " failed",
+                exception);
+        }
+    }
+
+    @Nonnull
+    private <T> PhysicsMutationHandle<T> runDirectAsync(@Nonnull String operation,
+        @Nullable T value,
+        @Nonnull PhysicsWorkerAccess.PhysicsWorkerMutation mutation) {
+        try {
+            mutation.run();
+            return PhysicsMutationHandle.completed(operation, value);
+        } catch (Throwable throwable) {
+            return PhysicsMutationHandle.failed(operation, value, throwable);
+        }
     }
 
     @Nullable
@@ -174,6 +213,13 @@ public class PhysicsWorldResource implements Resource<EntityStore> {
         runOnWorker("set default physics space", () -> setDefaultSpaceIdDirect(defaultSpaceId));
     }
 
+    @Nonnull
+    public PhysicsMutationHandle<SpaceId> setDefaultSpaceIdAsync(@Nullable SpaceId defaultSpaceId) {
+        return enqueueTopologyMutation("set default physics space",
+            defaultSpaceId,
+            () -> setDefaultSpaceIdDirect(defaultSpaceId));
+    }
+
     private void setDefaultSpaceIdDirect(@Nullable SpaceId defaultSpaceId) {
         if (defaultSpaceId != null && !spaces.containsKey(defaultSpaceId.value())) {
             throw new IllegalArgumentException("Physics space id=" + defaultSpaceId
@@ -191,6 +237,11 @@ public class PhysicsWorldResource implements Resource<EntityStore> {
         runOnWorker("set physics step mode", () -> setStepModeDirect(stepMode));
     }
 
+    @Nonnull
+    public PhysicsMutationHandle<Void> setStepModeAsync(@Nonnull PhysicsStepMode stepMode) {
+        return enqueueTopologyMutation("set physics step mode", () -> setStepModeDirect(stepMode));
+    }
+
     private void setStepModeDirect(@Nonnull PhysicsStepMode stepMode) {
         validateStepModeSupported(stepMode);
         this.stepMode = stepMode;
@@ -198,6 +249,11 @@ public class PhysicsWorldResource implements Resource<EntityStore> {
 
     public void setMaxStepDt(float maxStepDt) {
         runOnWorker("set max physics step dt", () -> this.maxStepDt = maxStepDt);
+    }
+
+    @Nonnull
+    public PhysicsMutationHandle<Void> setMaxStepDtAsync(float maxStepDt) {
+        return enqueueTopologyMutation("set max physics step dt", () -> this.maxStepDt = maxStepDt);
     }
 
     @Nonnull
@@ -235,6 +291,26 @@ public class PhysicsWorldResource implements Resource<EntityStore> {
         @Nonnull PhysicsSpaceSettings settings,
         boolean makeDefault) {
         return callOnWorker("create physics space",
+            () -> createSpaceDirect(backendId, spaceId, worldName, settings, makeDefault));
+    }
+
+    @Nonnull
+    public PhysicsMutationHandle<SpaceId> createSpaceAsync(@Nonnull BackendId backendId,
+        @Nonnull String worldName,
+        @Nonnull PhysicsSpaceSettings settings,
+        boolean makeDefault) {
+        SpaceId spaceId = SpaceId.next();
+        return createSpaceAsync(backendId, spaceId, worldName, settings, makeDefault);
+    }
+
+    @Nonnull
+    public PhysicsMutationHandle<SpaceId> createSpaceAsync(@Nonnull BackendId backendId,
+        @Nonnull SpaceId spaceId,
+        @Nonnull String worldName,
+        @Nonnull PhysicsSpaceSettings settings,
+        boolean makeDefault) {
+        return enqueueTopologyMutation("create physics space",
+            spaceId,
             () -> createSpaceDirect(backendId, spaceId, worldName, settings, makeDefault));
     }
 
@@ -309,7 +385,7 @@ public class PhysicsWorldResource implements Resource<EntityStore> {
                 PublishedPhysicsSnapshotFrame.Status.COMPLETE,
                 0L,
                 false);
-            return applyPublishedSnapshotFrameDirect(frame);
+            return applyPublishedSnapshotFrame(frame);
         });
     }
 
@@ -399,10 +475,6 @@ public class PhysicsWorldResource implements Resource<EntityStore> {
 
     public int applyPublishedSnapshotFrame(@Nonnull PublishedPhysicsSnapshotFrame frame) {
         Objects.requireNonNull(frame, "frame");
-        return applyPublishedSnapshotFrameDirect(frame);
-    }
-
-    private int applyPublishedSnapshotFrameDirect(@Nonnull PublishedPhysicsSnapshotFrame frame) {
         if (frame.worldEpoch() != worldEpoch) {
             return 0;
         }
@@ -483,6 +555,14 @@ public class PhysicsWorldResource implements Resource<EntityStore> {
         runOnWorker("remove physics space", () -> removeSpaceDirect(spaceId, worldName));
     }
 
+    @Nonnull
+    public PhysicsMutationHandle<SpaceId> removeSpaceAsync(@Nonnull SpaceId spaceId,
+        @Nonnull String worldName) {
+        return enqueueTopologyMutation("remove physics space",
+            spaceId,
+            () -> removeSpaceDirect(spaceId, worldName));
+    }
+
     private void removeSpaceDirect(@Nonnull SpaceId spaceId, @Nonnull String worldName) {
         PhysicsSpace removed = spaces.remove(spaceId.value());
         spaceSettings.remove(spaceId.value());
@@ -509,6 +589,12 @@ public class PhysicsWorldResource implements Resource<EntityStore> {
 
     public void clearAllSpaces(@Nonnull String worldName) {
         runOnWorker("clear physics spaces", () -> clearAllSpacesDirect(worldName));
+    }
+
+    @Nonnull
+    public PhysicsMutationHandle<Void> clearAllSpacesAsync(@Nonnull String worldName) {
+        return enqueueTopologyMutation("clear physics spaces",
+            () -> clearAllSpacesDirect(worldName));
     }
 
     private void clearAllSpacesDirect(@Nonnull String worldName) {
@@ -573,6 +659,14 @@ public class PhysicsWorldResource implements Resource<EntityStore> {
 
     public void setSpaceSettings(@Nonnull SpaceId spaceId, @Nonnull PhysicsSpaceSettings settings) {
         runOnWorker("set physics space settings", () -> setSpaceSettingsDirect(spaceId, settings));
+    }
+
+    @Nonnull
+    public PhysicsMutationHandle<SpaceId> setSpaceSettingsAsync(@Nonnull SpaceId spaceId,
+        @Nonnull PhysicsSpaceSettings settings) {
+        return enqueueTopologyMutation("set physics space settings",
+            spaceId,
+            () -> setSpaceSettingsDirect(spaceId, settings));
     }
 
     private void setSpaceSettingsDirect(@Nonnull SpaceId spaceId,
@@ -658,6 +752,26 @@ public class PhysicsWorldResource implements Resource<EntityStore> {
     }
 
     @Nonnull
+    public PhysicsMutationHandle<PhysicsBodyId> addBodyAsync(@Nonnull SpaceId spaceId,
+        @Nonnull PhysicsBody body,
+        @Nonnull PhysicsBodyKind kind,
+        @Nonnull PhysicsBodyPersistenceMode persistenceMode) {
+        PhysicsBodyId bodyId = PhysicsBodyId.random();
+        return addBodyAsync(bodyId, spaceId, body, kind, persistenceMode);
+    }
+
+    @Nonnull
+    public PhysicsMutationHandle<PhysicsBodyId> addBodyAsync(@Nonnull PhysicsBodyId bodyId,
+        @Nonnull SpaceId spaceId,
+        @Nonnull PhysicsBody body,
+        @Nonnull PhysicsBodyKind kind,
+        @Nonnull PhysicsBodyPersistenceMode persistenceMode) {
+        return enqueueTopologyMutation("add physics body",
+            bodyId,
+            () -> addBodyDirect(bodyId, spaceId, body, kind, persistenceMode));
+    }
+
+    @Nonnull
     private PhysicsBodyId addBodyDirect(@Nonnull PhysicsBodyId bodyId,
         @Nonnull SpaceId spaceId,
         @Nonnull PhysicsBody body,
@@ -682,8 +796,21 @@ public class PhysicsWorldResource implements Resource<EntityStore> {
         destroyBody(bodyId, true);
     }
 
+    @Nonnull
+    public PhysicsMutationHandle<PhysicsBodyId> destroyBodyAsync(@Nonnull PhysicsBodyId bodyId) {
+        return destroyBodyAsync(bodyId, true);
+    }
+
     public void destroyBody(@Nonnull PhysicsBodyId bodyId, boolean removeFromSpace) {
         runOnWorker("destroy physics body", () -> destroyBodyDirect(bodyId, removeFromSpace));
+    }
+
+    @Nonnull
+    public PhysicsMutationHandle<PhysicsBodyId> destroyBodyAsync(@Nonnull PhysicsBodyId bodyId,
+        boolean removeFromSpace) {
+        return enqueueTopologyMutation("destroy physics body",
+            bodyId,
+            () -> destroyBodyDirect(bodyId, removeFromSpace));
     }
 
     private void destroyBodyDirect(@Nonnull PhysicsBodyId bodyId, boolean removeFromSpace) {
@@ -701,6 +828,11 @@ public class PhysicsWorldResource implements Resource<EntityStore> {
 
     public void destroyBody(@Nonnull PhysicsBody body) {
         runOnWorker("destroy physics body", () -> destroyBodyDirect(body));
+    }
+
+    @Nonnull
+    public PhysicsMutationHandle<Void> destroyBodyAsync(@Nonnull PhysicsBody body) {
+        return enqueueTopologyMutation("destroy physics body", () -> destroyBodyDirect(body));
     }
 
     private void destroyBodyDirect(@Nonnull PhysicsBody body) {
@@ -793,6 +925,16 @@ public class PhysicsWorldResource implements Resource<EntityStore> {
         bodyRegistry.clearGeneratedVisualProxy(bodyId);
     }
 
+    public boolean clearGeneratedVisualProxy(@Nonnull PhysicsBodyId bodyId,
+        @Nonnull Ref<EntityStore> expectedProxy) {
+        return bodyRegistry.clearGeneratedVisualProxy(bodyId, expectedProxy);
+    }
+
+    public boolean isGeneratedVisualProxy(@Nonnull PhysicsBodyId bodyId,
+        @Nonnull Ref<EntityStore> proxy) {
+        return bodyRegistry.isGeneratedVisualProxy(bodyId, proxy);
+    }
+
     public void setSyntheticVisualInterests(@Nonnull Collection<VisualInterest> interests) {
         bodyRegistry.setSyntheticVisualInterests(interests);
     }
@@ -808,6 +950,13 @@ public class PhysicsWorldResource implements Resource<EntityStore> {
 
     public void remapMigratedBodies(@Nonnull Map<PhysicsBody, PhysicsBody> bodyRemaps) {
         runOnWorker("remap migrated physics bodies", () -> remapMigratedBodiesDirect(bodyRemaps));
+    }
+
+    @Nonnull
+    public PhysicsMutationHandle<Void> remapMigratedBodiesAsync(
+        @Nonnull Map<PhysicsBody, PhysicsBody> bodyRemaps) {
+        return enqueueTopologyMutation("remap migrated physics bodies",
+            () -> remapMigratedBodiesDirect(bodyRemaps));
     }
 
     private void remapMigratedBodiesDirect(@Nonnull Map<PhysicsBody, PhysicsBody> bodyRemaps) {
@@ -829,6 +978,11 @@ public class PhysicsWorldResource implements Resource<EntityStore> {
 
     public void clearBodies() {
         runOnWorker("clear physics bodies", this::clearBodiesDirect);
+    }
+
+    @Nonnull
+    public PhysicsMutationHandle<Void> clearBodiesAsync() {
+        return enqueueTopologyMutation("clear physics bodies", this::clearBodiesDirect);
     }
 
     private void clearBodiesDirect() {
@@ -911,6 +1065,14 @@ public class PhysicsWorldResource implements Resource<EntityStore> {
         runOnWorker("clear physics body runtime state", () -> clearBodyRuntimeStateDirect(bodyId));
     }
 
+    @Nonnull
+    public PhysicsMutationHandle<PhysicsBodyId> clearBodyRuntimeStateAsync(
+        @Nonnull PhysicsBodyId bodyId) {
+        return enqueueTopologyMutation("clear physics body runtime state",
+            bodyId,
+            () -> clearBodyRuntimeStateDirect(bodyId));
+    }
+
     private void clearBodyRuntimeStateDirect(@Nonnull PhysicsBodyId bodyId) {
         bodyRegistry.clearBodyRuntimeState(bodyId);
         runtimeState.clearBody(bodyId);
@@ -942,6 +1104,11 @@ public class PhysicsWorldResource implements Resource<EntityStore> {
         runOnWorker("copy physics world resource", () -> copyFromDirect(other));
     }
 
+    @Nonnull
+    public PhysicsMutationHandle<Void> copyFromAsync(@Nonnull PhysicsWorldResource other) {
+        return enqueueTopologyMutation("copy physics world resource", () -> copyFromDirect(other));
+    }
+
     private void copyFromDirect(@Nonnull PhysicsWorldResource other) {
         if (this == other) {
             return;
@@ -971,6 +1138,12 @@ public class PhysicsWorldResource implements Resource<EntityStore> {
         runOnWorker("set simulation steps", () -> setSimulationStepsDirect(simulationSteps));
     }
 
+    @Nonnull
+    public PhysicsMutationHandle<Void> setSimulationStepsAsync(int simulationSteps) {
+        return enqueueTopologyMutation("set simulation steps",
+            () -> setSimulationStepsDirect(simulationSteps));
+    }
+
     private void setSimulationStepsDirect(int simulationSteps) {
         if (simulationSteps < MIN_SIMULATION_STEPS || simulationSteps > MAX_SIMULATION_STEPS) {
             throw new IllegalArgumentException("Simulation steps must be between "
@@ -988,6 +1161,15 @@ public class PhysicsWorldResource implements Resource<EntityStore> {
     }
 
     @Nonnull
+    public PhysicsMutationHandle<SpaceId> replaceSpaceAsync(@Nonnull SpaceId spaceId,
+        @Nonnull PhysicsSpace replacement,
+        @Nonnull String worldName) {
+        return enqueueTopologyMutation("replace physics space",
+            spaceId,
+            () -> replaceSpaceDirect(spaceId, replacement, worldName));
+    }
+
+    @Nonnull
     private PhysicsSpace replaceSpaceDirect(@Nonnull SpaceId spaceId,
         @Nonnull PhysicsSpace replacement,
         @Nonnull String worldName) {
@@ -1001,6 +1183,7 @@ public class PhysicsWorldResource implements Resource<EntityStore> {
             throw new IllegalStateException("Cannot replace missing physics space id=" + spaceId);
         }
         validateSpaceCompatibleWithStepMode(replacement, stepMode);
+        worldVoxelCollisionCache.clear(spaceId, previous);
 
         PhysicsSpaceSettings settings = spaceSettings.get(spaceId.value());
         if (settings == null) {
