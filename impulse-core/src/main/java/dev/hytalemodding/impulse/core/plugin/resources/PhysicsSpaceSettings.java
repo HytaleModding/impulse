@@ -231,6 +231,26 @@ public class PhysicsSpaceSettings {
     public static final String DEFAULT_DETACHED_VISUAL_BLOCK_TYPE = "Rock_Stone";
 
     /**
+     * Ticks between refreshing player/synthetic visual interests for detached materialization.
+     */
+    public static final int DEFAULT_DETACHED_VISUAL_INTEREST_REFRESH_INTERVAL_TICKS = 4;
+
+    /**
+     * Ticks between refreshing detached materialization near-query/raycast spawn candidates.
+     */
+    public static final int DEFAULT_DETACHED_VISUAL_CANDIDATE_REFRESH_INTERVAL_TICKS = 4;
+
+    /**
+     * Ticks between checking existing generated proxies for dematerialization.
+     */
+    public static final int DEFAULT_DETACHED_VISUAL_VISIBILITY_CHECK_INTERVAL_TICKS = 10;
+
+    /**
+     * Hard tick cap for detached visual materialization cache intervals.
+     */
+    public static final int MAX_DETACHED_VISUAL_CACHE_INTERVAL_TICKS = 1_200;
+
+    /**
      * Default behavior when an entity-backed body reaches an unloaded chunk border.
      */
     @Nonnull
@@ -427,6 +447,27 @@ public class PhysicsSpaceSettings {
         DEFAULT_DETACHED_VISUAL_MAX_MATERIALIZED;
 
     /**
+     * Refresh cadence for player/synthetic interests used by detached visual materialization.
+     */
+    @Getter
+    private int detachedVisualInterestRefreshIntervalTicks =
+        DEFAULT_DETACHED_VISUAL_INTEREST_REFRESH_INTERVAL_TICKS;
+
+    /**
+     * Refresh cadence for detached visual materialization near-query/raycast candidates.
+     */
+    @Getter
+    private int detachedVisualCandidateRefreshIntervalTicks =
+        DEFAULT_DETACHED_VISUAL_CANDIDATE_REFRESH_INTERVAL_TICKS;
+
+    /**
+     * Refresh cadence for existing generated-proxy visibility/dematerialization checks.
+     */
+    @Getter
+    private int detachedVisualVisibilityCheckIntervalTicks =
+        DEFAULT_DETACHED_VISUAL_VISIBILITY_CHECK_INTERVAL_TICKS;
+
+    /**
      * Hytale block type used for default detached visual proxies.
      *
      * FIXME: this is temporary we cannot assume a specific blocktype since a physics body could be
@@ -466,6 +507,12 @@ public class PhysicsSpaceSettings {
         detachedVisualDematerializationRadius = settings.detachedVisualDematerializationRadius;
         detachedVisualMaxSpawnsPerTick = settings.detachedVisualMaxSpawnsPerTick;
         detachedVisualMaxMaterialized = settings.detachedVisualMaxMaterialized;
+        detachedVisualInterestRefreshIntervalTicks =
+            settings.detachedVisualInterestRefreshIntervalTicks;
+        detachedVisualCandidateRefreshIntervalTicks =
+            settings.detachedVisualCandidateRefreshIntervalTicks;
+        detachedVisualVisibilityCheckIntervalTicks =
+            settings.detachedVisualVisibilityCheckIntervalTicks;
         detachedVisualBlockType = settings.detachedVisualBlockType;
     }
 
@@ -699,6 +746,30 @@ public class PhysicsSpaceSettings {
             "Detached visual max materialized",
             detachedVisualMaxMaterialized,
             MAX_DETACHED_VISUAL_MAX_MATERIALIZED);
+    }
+
+    public void setDetachedVisualInterestRefreshIntervalTicks(
+        int detachedVisualInterestRefreshIntervalTicks) {
+        this.detachedVisualInterestRefreshIntervalTicks = requirePositiveAtMost(
+            "Detached visual interest refresh interval",
+            detachedVisualInterestRefreshIntervalTicks,
+            MAX_DETACHED_VISUAL_CACHE_INTERVAL_TICKS);
+    }
+
+    public void setDetachedVisualCandidateRefreshIntervalTicks(
+        int detachedVisualCandidateRefreshIntervalTicks) {
+        this.detachedVisualCandidateRefreshIntervalTicks = requirePositiveAtMost(
+            "Detached visual candidate refresh interval",
+            detachedVisualCandidateRefreshIntervalTicks,
+            MAX_DETACHED_VISUAL_CACHE_INTERVAL_TICKS);
+    }
+
+    public void setDetachedVisualVisibilityCheckIntervalTicks(
+        int detachedVisualVisibilityCheckIntervalTicks) {
+        this.detachedVisualVisibilityCheckIntervalTicks = requirePositiveAtMost(
+            "Detached visual visibility check interval",
+            detachedVisualVisibilityCheckIntervalTicks,
+            MAX_DETACHED_VISUAL_CACHE_INTERVAL_TICKS);
     }
 
     public void setDetachedVisualBlockType(@Nonnull String detachedVisualBlockType) {
