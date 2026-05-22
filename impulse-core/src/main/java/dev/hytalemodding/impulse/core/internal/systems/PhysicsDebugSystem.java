@@ -51,7 +51,6 @@ public class PhysicsDebugSystem extends TickingSystem<ChunkStore> {
     private static final ComponentType<EntityStore, TransformComponent> TRANSFORM_TYPE =
         TransformComponent.getComponentType();
 
-    private static final Vector3f SPACE_ONLY_POSITION_SCRATCH = new Vector3f();
     private static final Vector3f JOINT_BODY_A_POSITION_SCRATCH = new Vector3f();
     private static final Vector3f JOINT_BODY_B_POSITION_SCRATCH = new Vector3f();
 
@@ -117,11 +116,12 @@ public class PhysicsDebugSystem extends TickingSystem<ChunkStore> {
                     overlayLifetime);
             }
 
-            for (PhysicsSpace space : resource.iterateSpaces()) {
+            boolean liveBackendReadable = resource.canAccessLiveBackendDirectly();
+            for (PhysicsSpace space : resource.getSpaces()) {
                 if (overlayDue && debugShapes) {
-                    renderSpaceOnlyShapes(target, space, overlayLifetime);
+                    renderSpaceOnlyShapes(target, resource, space, overlayLifetime);
                 }
-                if (overlayDue && debugContacts) {
+                if (overlayDue && debugContacts && liveBackendReadable) {
                     renderContacts(target,
                         space,
                         viewerPosition,
@@ -129,7 +129,7 @@ public class PhysicsDebugSystem extends TickingSystem<ChunkStore> {
                         debug.getMaxContacts(),
                         overlayLifetime);
                 }
-                if (overlayDue && debugJoints) {
+                if (overlayDue && debugJoints && liveBackendReadable) {
                     renderJoints(target,
                         space,
                         viewerPosition,
@@ -239,7 +239,7 @@ public class PhysicsDebugSystem extends TickingSystem<ChunkStore> {
 
         int[] rendered = {0};
         double maxDistanceSquared = viewRadius * viewRadius;
-        for (PhysicsSpace space : resource.iterateSpaces()) {
+        for (PhysicsSpace space : resource.getSpaces()) {
             resource.forEachBodySnapshot(space.getId(), entry -> {
                 if (rendered[0] >= maxBodies) {
                     return;
@@ -279,20 +279,26 @@ public class PhysicsDebugSystem extends TickingSystem<ChunkStore> {
     }
 
     private static void renderSpaceOnlyShapes(@Nonnull Collection<PlayerRef> viewers,
+        @Nonnull PhysicsWorldResource resource,
         @Nonnull PhysicsSpace space,
         float time) {
-        space.forEachBody(body -> {
+        resource.forEachBodySnapshot(space.getId(), entry -> {
+            PhysicsBodySnapshot snapshot = entry.snapshot();
+            PhysicsBody body = snapshot.body();
             if (body.getShapeType() != ShapeType.PLANE) {
                 return;
             }
 
-            body.getPosition(SPACE_ONLY_POSITION_SCRATCH);
+            Vector3f position = snapshot.position();
+            Quaterniond rotation = new Quaterniond(snapshot.rotation().x,
+                snapshot.rotation().y,
+                snapshot.rotation().z,
+                snapshot.rotation().w);
             PhysicsDebugRenderer.renderBodyShape(viewers,
                 body,
-                new Vector3d(SPACE_ONLY_POSITION_SCRATCH.x,
-                    SPACE_ONLY_POSITION_SCRATCH.y,
-                    SPACE_ONLY_POSITION_SCRATCH.z),
-                new Quaterniond(), time);
+                new Vector3d(position.x, position.y, position.z),
+                rotation,
+                time);
         });
     }
 

@@ -61,12 +61,9 @@ public class PhysicsSyncSystem extends EntityTickingSystem<EntityStore> {
     private static final float LOW_SPEED_LINEAR_THRESHOLD_SQUARED = 0.2f * 0.2f;
     private static final float LOW_SPEED_ANGULAR_THRESHOLD_SQUARED = 0.5f * 0.5f;
 
-    /**
-     * Snapshot of player interest positions/directions for the current world tick. The list is built on the
-     * world thread before any parallel entity iteration and then treated as immutable.
-     */
     @Nonnull
-    private List<PhysicsSyncPolicy.PlayerInterest> playerInterests = List.of();
+    private final ThreadLocal<List<PhysicsSyncPolicy.PlayerInterest>> playerInterests =
+        ThreadLocal.withInitial(List::of);
 
     /**
      * Hytale may run entity ticks in parallel. Each worker needs independent temporary objects
@@ -83,7 +80,7 @@ public class PhysicsSyncSystem extends EntityTickingSystem<EntityStore> {
 
     @Override
     public void tick(float dt, int systemIndex, @Nonnull Store<EntityStore> store) {
-        playerInterests = VisualInterestCollector.collectSyncInterests(store);
+        playerInterests.set(VisualInterestCollector.collectSyncInterests(store));
         PhysicsRuntimeProfilingResource profiling = store.getResource(
             PhysicsRuntimeProfilingResource.getResourceType());
         PhysicsRuntimeProfilingResource.SyncCollector collector = profiling.isEnabled()
@@ -95,7 +92,7 @@ public class PhysicsSyncSystem extends EntityTickingSystem<EntityStore> {
             if (collector != null) {
                 profiling.finishSyncSample(collector, System.nanoTime() - startNanos);
             }
-            playerInterests = List.of();
+            playerInterests.remove();
         }
     }
 
@@ -163,7 +160,7 @@ public class PhysicsSyncSystem extends EntityTickingSystem<EntityStore> {
             resource.getBodyVisualInterestState(registration.id()),
             rangeLimitedVisual,
             controlled,
-            playerInterests,
+            playerInterests.get(),
             local.visualPosition);
 
         PhysicsWorldResource.BodySyncState syncState = resource.getOrCreateBodySyncState(entityRef);
@@ -258,7 +255,9 @@ public class PhysicsSyncSystem extends EntityTickingSystem<EntityStore> {
         private final Vector3f angularVelocity = new Vector3f();
 
         @Nullable
-        private Store<EntityStore> cachedStore;
+        private Store<EntityStore> cachedResourceStore;
+        @Nullable
+        private Store<EntityStore> cachedProfilingStore;
         @Nullable
         private PhysicsWorldResource cachedResource;
         @Nullable
@@ -266,8 +265,8 @@ public class PhysicsSyncSystem extends EntityTickingSystem<EntityStore> {
 
         @Nonnull
         private PhysicsWorldResource getResource(@Nonnull Store<EntityStore> store) {
-            if (cachedStore != store || cachedResource == null) {
-                cachedStore = store;
+            if (cachedResourceStore != store || cachedResource == null) {
+                cachedResourceStore = store;
                 cachedResource = store.getResource(PhysicsWorldResource.getResourceType());
             }
             return cachedResource;
@@ -276,8 +275,8 @@ public class PhysicsSyncSystem extends EntityTickingSystem<EntityStore> {
         @Nullable
         private PhysicsRuntimeProfilingResource.SyncCollector getSyncCollector(
             @Nonnull Store<EntityStore> store) {
-            if (cachedStore != store || cachedProfiling == null) {
-                cachedStore = store;
+            if (cachedProfilingStore != store || cachedProfiling == null) {
+                cachedProfilingStore = store;
                 cachedProfiling = store.getResource(PhysicsRuntimeProfilingResource.getResourceType());
             }
             return cachedProfiling.isEnabled() ? cachedProfiling.getActiveSyncCollector() : null;
