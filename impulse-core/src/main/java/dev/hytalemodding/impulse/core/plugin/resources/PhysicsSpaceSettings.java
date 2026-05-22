@@ -125,6 +125,36 @@ public class PhysicsSpaceSettings {
     public static final int MAX_VISUAL_OCCLUSION_CACHE_TICKS = 1_200;
 
     /**
+     * Whether visual sync may predict near dynamic poses between published physics snapshots.
+     */
+    public static final boolean DEFAULT_VISUAL_SNAPSHOT_PREDICTION_ENABLED = false;
+
+    /**
+     * Maximum seconds of visual pose prediction from the last published snapshot.
+     */
+    public static final float DEFAULT_VISUAL_SNAPSHOT_PREDICTION_MAX_SECONDS = 0.10f;
+
+    /**
+     * Hard cap for visual snapshot prediction.
+     */
+    public static final float MAX_VISUAL_SNAPSHOT_PREDICTION_MAX_SECONDS = 0.25f;
+
+    /**
+     * Whether near dynamic visuals should ease toward published snapshots instead of snapping.
+     */
+    public static final boolean DEFAULT_VISUAL_SNAPSHOT_SMOOTHING_ENABLED = false;
+
+    /**
+     * Per-second rate used by visual snapshot smoothing.
+     */
+    public static final float DEFAULT_VISUAL_SNAPSHOT_SMOOTHING_RATE = 14.0f;
+
+    /**
+     * Hard cap for visual snapshot smoothing rate.
+     */
+    public static final float MAX_VISUAL_SNAPSHOT_SMOOTHING_RATE = 120.0f;
+
+    /**
      * Rapier default solver iterations. Lower values are faster but less stable.
      */
     public static final int DEFAULT_SOLVER_ITERATIONS = 4;
@@ -251,6 +281,51 @@ public class PhysicsSpaceSettings {
     public static final int MAX_DETACHED_VISUAL_CACHE_INTERVAL_TICKS = 1_200;
 
     /**
+     * Whether distance-based dynamic-body collision LOD is active for this space.
+     */
+    public static final boolean DEFAULT_COLLISION_LOD_ENABLED = false;
+
+    /**
+     * Radius where managed dynamic bodies keep full terrain plus dynamic-body collision.
+     */
+    public static final int DEFAULT_COLLISION_LOD_NEAR_RADIUS = 64;
+
+    /**
+     * Radius where managed dynamic bodies keep terrain collision but drop dynamic-body collision.
+     */
+    public static final int DEFAULT_COLLISION_LOD_MID_RADIUS = 128;
+
+    /**
+     * Hard block-radius cap for collision LOD tiers.
+     */
+    public static final int MAX_COLLISION_LOD_RADIUS = 1_024;
+
+    /**
+     * Extra radius used before downgrading an already higher-priority collision tier.
+     */
+    public static final int DEFAULT_COLLISION_LOD_HYSTERESIS = 16;
+
+    /**
+     * Hard block-radius cap for collision LOD hysteresis.
+     */
+    public static final int MAX_COLLISION_LOD_HYSTERESIS = 256;
+
+    /**
+     * Ticks between refreshing distance-based collision LOD decisions.
+     */
+    public static final int DEFAULT_COLLISION_LOD_REFRESH_INTERVAL_TICKS = 10;
+
+    /**
+     * Hard tick cap for collision LOD refreshes.
+     */
+    public static final int MAX_COLLISION_LOD_REFRESH_INTERVAL_TICKS = 1_200;
+
+    /**
+     * Whether far managed dynamic bodies should be put to sleep after collision is reduced.
+     */
+    public static final boolean DEFAULT_COLLISION_LOD_FAR_SLEEP_ENABLED = true;
+
+    /**
      * Default behavior when an entity-backed body reaches an unloaded chunk border.
      */
     @Nonnull
@@ -344,6 +419,36 @@ public class PhysicsSpaceSettings {
      */
     @Getter
     private int visualOcclusionCacheTicks = DEFAULT_VISUAL_OCCLUSION_CACHE_TICKS;
+
+    /**
+     * If enabled, near dynamic visuals can dead-reckon briefly between snapshots.
+     */
+    @Getter
+    @Setter
+    private boolean visualSnapshotPredictionEnabled =
+        DEFAULT_VISUAL_SNAPSHOT_PREDICTION_ENABLED;
+
+    /**
+     * Maximum dead-reckoning window for visual snapshot prediction.
+     */
+    @Getter
+    private float visualSnapshotPredictionMaxSeconds =
+        DEFAULT_VISUAL_SNAPSHOT_PREDICTION_MAX_SECONDS;
+
+    /**
+     * If enabled, near dynamic visuals ease toward the latest snapshot target.
+     */
+    @Getter
+    @Setter
+    private boolean visualSnapshotSmoothingEnabled =
+        DEFAULT_VISUAL_SNAPSHOT_SMOOTHING_ENABLED;
+
+    /**
+     * Per-second convergence rate for visual snapshot smoothing.
+     */
+    @Getter
+    private float visualSnapshotSmoothingRate =
+        DEFAULT_VISUAL_SNAPSHOT_SMOOTHING_RATE;
 
     /**
      * Constraint solver iterations for tunable backends.
@@ -468,6 +573,45 @@ public class PhysicsSpaceSettings {
         DEFAULT_DETACHED_VISUAL_VISIBILITY_CHECK_INTERVAL_TICKS;
 
     /**
+     * If enabled, default dynamic bodies can reduce dynamic-body collision away from players.
+     */
+    @Getter
+    @Setter
+    private boolean collisionLodEnabled = DEFAULT_COLLISION_LOD_ENABLED;
+
+    /**
+     * Full-collision radius for collision LOD.
+     */
+    @Getter
+    private int collisionLodNearRadius = DEFAULT_COLLISION_LOD_NEAR_RADIUS;
+
+    /**
+     * Terrain-only radius for collision LOD.
+     */
+    @Getter
+    private int collisionLodMidRadius = DEFAULT_COLLISION_LOD_MID_RADIUS;
+
+    /**
+     * Downgrade hysteresis for collision LOD.
+     */
+    @Getter
+    private int collisionLodHysteresis = DEFAULT_COLLISION_LOD_HYSTERESIS;
+
+    /**
+     * Refresh cadence for collision LOD scans.
+     */
+    @Getter
+    private int collisionLodRefreshIntervalTicks =
+        DEFAULT_COLLISION_LOD_REFRESH_INTERVAL_TICKS;
+
+    /**
+     * If enabled, far collision LOD bodies are put to sleep after collision is reduced.
+     */
+    @Getter
+    @Setter
+    private boolean collisionLodFarSleepEnabled = DEFAULT_COLLISION_LOD_FAR_SLEEP_ENABLED;
+
+    /**
      * Hytale block type used for default detached visual proxies.
      *
      * FIXME: this is temporary we cannot assume a specific blocktype since a physics body could be
@@ -492,6 +636,10 @@ public class PhysicsSpaceSettings {
         visualOcclusionMode = settings.visualOcclusionMode;
         visualOcclusionRaycastsPerTick = settings.visualOcclusionRaycastsPerTick;
         visualOcclusionCacheTicks = settings.visualOcclusionCacheTicks;
+        visualSnapshotPredictionEnabled = settings.visualSnapshotPredictionEnabled;
+        visualSnapshotPredictionMaxSeconds = settings.visualSnapshotPredictionMaxSeconds;
+        visualSnapshotSmoothingEnabled = settings.visualSnapshotSmoothingEnabled;
+        visualSnapshotSmoothingRate = settings.visualSnapshotSmoothingRate;
         solverIterations = settings.solverIterations;
         internalPgsIterations = settings.internalPgsIterations;
         stabilizationIterations = settings.stabilizationIterations;
@@ -513,6 +661,12 @@ public class PhysicsSpaceSettings {
             settings.detachedVisualCandidateRefreshIntervalTicks;
         detachedVisualVisibilityCheckIntervalTicks =
             settings.detachedVisualVisibilityCheckIntervalTicks;
+        collisionLodEnabled = settings.collisionLodEnabled;
+        collisionLodNearRadius = settings.collisionLodNearRadius;
+        collisionLodMidRadius = settings.collisionLodMidRadius;
+        collisionLodHysteresis = settings.collisionLodHysteresis;
+        collisionLodRefreshIntervalTicks = settings.collisionLodRefreshIntervalTicks;
+        collisionLodFarSleepEnabled = settings.collisionLodFarSleepEnabled;
         detachedVisualBlockType = settings.detachedVisualBlockType;
     }
 
@@ -624,6 +778,26 @@ public class PhysicsSpaceSettings {
             "Visual occlusion cache ticks",
             visualOcclusionCacheTicks,
             MAX_VISUAL_OCCLUSION_CACHE_TICKS);
+    }
+
+    public void setVisualSnapshotPredictionMaxSeconds(float visualSnapshotPredictionMaxSeconds) {
+        if (!Float.isFinite(visualSnapshotPredictionMaxSeconds)
+            || visualSnapshotPredictionMaxSeconds < 0.0f
+            || visualSnapshotPredictionMaxSeconds > MAX_VISUAL_SNAPSHOT_PREDICTION_MAX_SECONDS) {
+            throw new IllegalArgumentException("Visual snapshot prediction max seconds must be between 0 and "
+                + MAX_VISUAL_SNAPSHOT_PREDICTION_MAX_SECONDS);
+        }
+        this.visualSnapshotPredictionMaxSeconds = visualSnapshotPredictionMaxSeconds;
+    }
+
+    public void setVisualSnapshotSmoothingRate(float visualSnapshotSmoothingRate) {
+        if (!Float.isFinite(visualSnapshotSmoothingRate)
+            || visualSnapshotSmoothingRate <= 0.0f
+            || visualSnapshotSmoothingRate > MAX_VISUAL_SNAPSHOT_SMOOTHING_RATE) {
+            throw new IllegalArgumentException("Visual snapshot smoothing rate must be > 0 and <= "
+                + MAX_VISUAL_SNAPSHOT_SMOOTHING_RATE);
+        }
+        this.visualSnapshotSmoothingRate = visualSnapshotSmoothingRate;
     }
 
     public void setSolverIterations(int solverIterations) {
@@ -777,6 +951,64 @@ public class PhysicsSpaceSettings {
             throw new IllegalArgumentException("Detached visual block type cannot be blank");
         }
         this.detachedVisualBlockType = detachedVisualBlockType;
+    }
+
+    public void setCollisionLodNearRadius(int collisionLodNearRadius) {
+        int boundedNearRadius = requirePositiveAtMost(
+            "Collision LOD near radius",
+            collisionLodNearRadius,
+            MAX_COLLISION_LOD_RADIUS);
+        if (boundedNearRadius > collisionLodMidRadius) {
+            throw new IllegalArgumentException(
+                "Collision LOD near radius cannot exceed mid radius");
+        }
+        this.collisionLodNearRadius = boundedNearRadius;
+    }
+
+    public void setCollisionLodMidRadius(int collisionLodMidRadius) {
+        int boundedMidRadius = requirePositiveAtMost(
+            "Collision LOD mid radius",
+            collisionLodMidRadius,
+            MAX_COLLISION_LOD_RADIUS);
+        if (boundedMidRadius < collisionLodNearRadius) {
+            throw new IllegalArgumentException(
+                "Collision LOD mid radius cannot be lower than near radius");
+        }
+        this.collisionLodMidRadius = boundedMidRadius;
+    }
+
+    public void setCollisionLodRadii(int collisionLodNearRadius,
+        int collisionLodMidRadius) {
+        int boundedNearRadius = requirePositiveAtMost(
+            "Collision LOD near radius",
+            collisionLodNearRadius,
+            MAX_COLLISION_LOD_RADIUS);
+        int boundedMidRadius = requirePositiveAtMost(
+            "Collision LOD mid radius",
+            collisionLodMidRadius,
+            MAX_COLLISION_LOD_RADIUS);
+        if (boundedNearRadius > boundedMidRadius) {
+            throw new IllegalArgumentException(
+                "Collision LOD near radius cannot exceed mid radius");
+        }
+        this.collisionLodNearRadius = boundedNearRadius;
+        this.collisionLodMidRadius = boundedMidRadius;
+    }
+
+    public void setCollisionLodHysteresis(int collisionLodHysteresis) {
+        if (collisionLodHysteresis < 0
+            || collisionLodHysteresis > MAX_COLLISION_LOD_HYSTERESIS) {
+            throw new IllegalArgumentException("Collision LOD hysteresis must be between 0 and "
+                + MAX_COLLISION_LOD_HYSTERESIS);
+        }
+        this.collisionLodHysteresis = collisionLodHysteresis;
+    }
+
+    public void setCollisionLodRefreshIntervalTicks(int collisionLodRefreshIntervalTicks) {
+        this.collisionLodRefreshIntervalTicks = requirePositiveAtMost(
+            "Collision LOD refresh interval",
+            collisionLodRefreshIntervalTicks,
+            MAX_COLLISION_LOD_REFRESH_INTERVAL_TICKS);
     }
 
     private static int requirePositiveAtMost(@Nonnull String label, int value, int maxValue) {

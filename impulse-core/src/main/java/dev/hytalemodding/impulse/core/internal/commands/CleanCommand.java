@@ -1,5 +1,6 @@
 package dev.hytalemodding.impulse.core.internal.commands;
 
+import com.hypixel.hytale.component.ComponentType;
 import com.hypixel.hytale.component.RemoveReason;
 import com.hypixel.hytale.component.Store;
 import com.hypixel.hytale.server.core.Message;
@@ -8,8 +9,8 @@ import com.hypixel.hytale.server.core.command.system.basecommands.AbstractWorldC
 import com.hypixel.hytale.server.core.entity.entities.BlockEntity;
 import com.hypixel.hytale.server.core.universe.world.World;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
-import dev.hytalemodding.impulse.core.plugin.components.PhysicsBodyAttachmentComponent;
 import dev.hytalemodding.impulse.core.internal.components.PhysicsControlSessionComponent;
+import dev.hytalemodding.impulse.core.plugin.components.PhysicsBodyAttachmentComponent;
 import dev.hytalemodding.impulse.core.plugin.resources.PhysicsSpaceSettings;
 import dev.hytalemodding.impulse.core.plugin.resources.PhysicsWorldResource;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -25,6 +26,12 @@ import javax.annotation.Nonnull;
  */
 public class CleanCommand extends AbstractWorldCommand {
 
+    private static final ComponentType<EntityStore, PhysicsBodyAttachmentComponent> ATTACHMENT_TYPE =
+        PhysicsBodyAttachmentComponent.getComponentType();
+    private static final ComponentType<EntityStore, BlockEntity> BLOCK_ENTITY_TYPE = BlockEntity.getComponentType();
+    private static final ComponentType<EntityStore, PhysicsControlSessionComponent> CONTROL_SESSION_TYPE =
+        PhysicsControlSessionComponent.getComponentType();
+
     public CleanCommand() {
         super("clean", "Remove all Impulse physics runtime state from the world", true);
     }
@@ -34,20 +41,20 @@ public class CleanCommand extends AbstractWorldCommand {
         @Nonnull World world,
         @Nonnull Store<EntityStore> store) {
         AtomicInteger removedBodyEntities = new AtomicInteger();
-        store.forEachEntityParallel(PhysicsBodyAttachmentComponent.getComponentType(),
+        store.forEachEntityParallel(ATTACHMENT_TYPE,
             (index, archetypeChunk, commandBuffer) -> {
                 removedBodyEntities.incrementAndGet();
                 commandBuffer.removeEntity(archetypeChunk.getReferenceTo(index), RemoveReason.REMOVE);
             });
 
         AtomicInteger removedOrphanVisualEntities = new AtomicInteger();
-        store.forEachEntityParallel(BlockEntity.getComponentType(),
+        store.forEachEntityParallel(BLOCK_ENTITY_TYPE,
             (index, archetypeChunk, commandBuffer) -> {
-                if (archetypeChunk.getComponent(index, PhysicsBodyAttachmentComponent.getComponentType()) != null) {
+                if (archetypeChunk.getComponent(index, ATTACHMENT_TYPE) != null) {
                     return;
                 }
 
-                BlockEntity blockEntity = archetypeChunk.getComponent(index, BlockEntity.getComponentType());
+                BlockEntity blockEntity = archetypeChunk.getComponent(index, BLOCK_ENTITY_TYPE);
                 if (blockEntity == null
                     || !PhysicsSpaceSettings.DEFAULT_DETACHED_VISUAL_BLOCK_TYPE.equals(blockEntity.getBlockTypeKey())) {
                     return;
@@ -58,11 +65,10 @@ public class CleanCommand extends AbstractWorldCommand {
             });
 
         AtomicInteger removedSessions = new AtomicInteger();
-        store.forEachEntityParallel(PhysicsControlSessionComponent.getComponentType(),
+        store.forEachEntityParallel(CONTROL_SESSION_TYPE,
             (index, archetypeChunk, commandBuffer) -> {
                 removedSessions.incrementAndGet();
-                commandBuffer.removeComponent(archetypeChunk.getReferenceTo(index),
-                    PhysicsControlSessionComponent.getComponentType());
+                commandBuffer.removeComponent(archetypeChunk.getReferenceTo(index), CONTROL_SESSION_TYPE);
             });
 
         PhysicsWorldResource resource = store.getResource(PhysicsWorldResource.getResourceType());

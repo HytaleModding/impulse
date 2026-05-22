@@ -12,6 +12,7 @@ public class SettingsCommand extends AbstractCommandCollection {
         addSubCommand(new SolverSettingsCommand());
         addSubCommand(new ExecutionSettingCommand());
         addSubCommand(new VisualSyncSettingsCommand());
+        addSubCommand(new CollisionLodSettingsCommand());
         addSubCommand(new WorldCollisionSettingsCommand());
     }
 }

@@ -1,6 +1,7 @@
 package dev.hytalemodding.impulse.core.internal.crucible;
 
 import com.hypixel.hytale.component.AddReason;
+import com.hypixel.hytale.component.ComponentType;
 import com.hypixel.hytale.component.Holder;
 import com.hypixel.hytale.component.Ref;
 import com.hypixel.hytale.component.Store;
@@ -34,6 +35,14 @@ import org.joml.Vector3d;
 final class ImpulseLiveCrucibleTests {
 
     private static final String DEFAULT_BLOCK_TYPE = "Rock_Stone";
+    private static final ComponentType<EntityStore, TransformComponent> TRANSFORM_TYPE =
+        TransformComponent.getComponentType();
+    private static final ComponentType<EntityStore, DespawnComponent> DESPAWN_TYPE =
+        DespawnComponent.getComponentType();
+    private static final ComponentType<EntityStore, PhysicsBodyAttachmentComponent> ATTACHMENT_TYPE =
+        PhysicsBodyAttachmentComponent.getComponentType();
+    private static final ComponentType<EntityStore, ImpulseControllableComponent> IMPULSE_CONTROLLABLE_TYPE =
+        ImpulseControllableComponent.getComponentType();
 
     private ImpulseLiveCrucibleTests() {
     }
@@ -93,7 +102,7 @@ final class ImpulseLiveCrucibleTests {
         if (!ref.isValid()) {
             return false;
         }
-        TransformComponent transform = store.getComponent(ref, TransformComponent.getComponentType());
+        TransformComponent transform = store.getComponent(ref, TRANSFORM_TYPE);
         if (transform == null) {
             return false;
         }
@@ -124,18 +133,17 @@ final class ImpulseLiveCrucibleTests {
             time,
             DEFAULT_BLOCK_TYPE,
             new Vector3d(visualPosition));
-        holder.removeComponent(DespawnComponent.getComponentType());
+        holder.removeComponent(DESPAWN_TYPE);
         PhysicsBodyId bodyId = resource.addBody(space.getId(),
             body,
             PhysicsBodyKind.BODY,
             PhysicsBodyPersistenceMode.PERSISTENT);
-        holder.addComponent(PhysicsBodyAttachmentComponent.getComponentType(),
+        holder.addComponent(ATTACHMENT_TYPE,
             new PhysicsBodyAttachmentComponent(bodyId,
                 space.getId(),
                 TransformAuthority.BODY,
                 AttachmentLifecycle.EXTERNAL_ENTITY));
-        holder.addComponent(ImpulseControllableComponent.getComponentType(),
-            new ImpulseControllableComponent());
+        holder.addComponent(IMPULSE_CONTROLLABLE_TYPE, new ImpulseControllableComponent());
 
         return store.addEntity(holder, AddReason.SPAWN);
     }

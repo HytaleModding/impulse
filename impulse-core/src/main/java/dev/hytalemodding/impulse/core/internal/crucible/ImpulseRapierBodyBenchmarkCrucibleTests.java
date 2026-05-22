@@ -1,5 +1,6 @@
 package dev.hytalemodding.impulse.core.internal.crucible;
 
+import com.hypixel.hytale.component.ComponentType;
 import com.hypixel.hytale.component.RemoveReason;
 import com.hypixel.hytale.component.Store;
 import com.hypixel.hytale.logger.HytaleLogger;
@@ -12,11 +13,11 @@ import dev.hytalemodding.impulse.api.PhysicsCollisionFilters;
 import dev.hytalemodding.impulse.api.PhysicsSpace;
 import dev.hytalemodding.impulse.api.ShapeType;
 import dev.hytalemodding.impulse.core.internal.components.PhysicsControlSessionComponent;
-import dev.hytalemodding.impulse.core.internal.resources.PhysicsRuntimeProfilingResource;
-import dev.hytalemodding.impulse.core.internal.resources.PhysicsRuntimeProfilingResource.StepSnapshot;
-import dev.hytalemodding.impulse.core.internal.resources.PhysicsRuntimeProfilingResource.SyncSnapshot;
-import dev.hytalemodding.impulse.core.internal.resources.WorldCollisionProfilingResource;
-import dev.hytalemodding.impulse.core.internal.resources.WorldCollisionProfilingResource.Snapshot;
+import dev.hytalemodding.impulse.core.internal.resources.profiling.PhysicsRuntimeProfilingResource;
+import dev.hytalemodding.impulse.core.internal.resources.profiling.PhysicsRuntimeProfilingResource.StepSnapshot;
+import dev.hytalemodding.impulse.core.internal.resources.profiling.PhysicsRuntimeProfilingResource.SyncSnapshot;
+import dev.hytalemodding.impulse.core.internal.resources.profiling.WorldCollisionProfilingResource;
+import dev.hytalemodding.impulse.core.internal.resources.profiling.WorldCollisionProfilingResource.Snapshot;
 import dev.hytalemodding.impulse.core.internal.voxel.WorldVoxelCollisionCache;
 import dev.hytalemodding.impulse.core.plugin.components.PhysicsBodyAttachmentComponent;
 import dev.hytalemodding.impulse.core.plugin.resources.PhysicsBodyKind;
@@ -70,6 +71,10 @@ final class ImpulseRapierBodyBenchmarkCrucibleTests {
     private static final float BODY_VOID_Y = -128.0f;
     private static final double DETACHED_SPACING = 1.5;
     private static final Vector3d ORIGIN = new Vector3d(0.0, 128.0, 0.0);
+    private static final ComponentType<EntityStore, PhysicsBodyAttachmentComponent> ATTACHMENT_TYPE =
+        PhysicsBodyAttachmentComponent.getComponentType();
+    private static final ComponentType<EntityStore, PhysicsControlSessionComponent> CONTROL_SESSION_TYPE =
+        PhysicsControlSessionComponent.getComponentType();
 
     private ImpulseRapierBodyBenchmarkCrucibleTests() {
     }
@@ -319,14 +324,14 @@ final class ImpulseRapierBodyBenchmarkCrucibleTests {
         }
 
         private void removeBenchmarkEntities() {
-            store.forEachEntityParallel(PhysicsBodyAttachmentComponent.getComponentType(),
+            store.forEachEntityParallel(ATTACHMENT_TYPE,
                 (index, archetypeChunk, commandBuffer) -> commandBuffer.removeEntity(
                     archetypeChunk.getReferenceTo(index),
                     RemoveReason.REMOVE));
-            store.forEachEntityParallel(PhysicsControlSessionComponent.getComponentType(),
+            store.forEachEntityParallel(CONTROL_SESSION_TYPE,
                 (index, archetypeChunk, commandBuffer) -> commandBuffer.removeComponent(
                     archetypeChunk.getReferenceTo(index),
-                    PhysicsControlSessionComponent.getComponentType()));
+                    CONTROL_SESSION_TYPE));
         }
 
         private void spawnDetachedBodies(@Nonnull PhysicsSpace space, int count) {
