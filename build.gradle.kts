@@ -82,5 +82,11 @@ gradle.projectsEvaluated {
             .orElse(providers.systemProperty("impulse.backend"))
             .orNull
             ?.let { runTask.systemProperty("impulse.backend", it) }
+
+        providers.gradleProperty("impulse.runAllModsJvmArgs")
+            .orElse(providers.systemProperty("impulse.runAllModsJvmArgs"))
+            .map { args -> args.split(Regex("\\s+")).filter { it.isNotBlank() } }
+            .orNull
+            ?.let { runTask.jvmArgs(it) }
     }
 }
