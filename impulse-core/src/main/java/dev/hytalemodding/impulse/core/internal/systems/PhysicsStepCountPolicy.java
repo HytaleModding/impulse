@@ -9,10 +9,10 @@ import javax.annotation.Nonnull;
  *
  * <p>Fixed-style modes use the configured count directly. Adaptive-style modes
  * treat it as a minimum and raise the count when the tick dt exceeds the
- * configured max substep dt. {@link PhysicsStepSystem} layers body-risk
+ * configured max substep dt. The worker step command layers body-risk
  * refinement on top for {@link PhysicsStepMode#ADAPTIVE}.</p>
  */
-final class PhysicsStepCountPolicy {
+public final class PhysicsStepCountPolicy {
 
     private PhysicsStepCountPolicy() {
     }
@@ -20,7 +20,7 @@ final class PhysicsStepCountPolicy {
     /**
      * Resolves the count used by modes that do not inspect individual bodies.
      */
-    static int resolveStepCount(float dt,
+    public static int resolveStepCount(float dt,
         int simulationSteps,
         float maxStepDt,
         @Nonnull PhysicsStepMode stepMode) {
@@ -38,7 +38,7 @@ final class PhysicsStepCountPolicy {
      * {@code maxStepDt}, falling back to the default threshold when configured
      * with a non-positive value.
      */
-    static int resolveMaxStepCount(float dt, int minimumSteps, float maxStepDt) {
+    public static int resolveMaxStepCount(float dt, int minimumSteps, float maxStepDt) {
         int baseSteps = clampStepCount(minimumSteps);
         float safeDt = Math.max(dt, 0.0f);
         if (safeDt <= 0.0f) {

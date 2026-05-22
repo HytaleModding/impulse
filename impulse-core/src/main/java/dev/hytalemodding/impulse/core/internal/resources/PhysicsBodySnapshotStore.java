@@ -7,6 +7,7 @@ import dev.hytalemodding.impulse.api.SpaceId;
 import dev.hytalemodding.impulse.core.plugin.resources.PhysicsBodyId;
 import dev.hytalemodding.impulse.core.plugin.resources.PhysicsWorldResource;
 import it.unimi.dsi.fastutil.objects.Object2ObjectLinkedOpenHashMap;
+import it.unimi.dsi.fastutil.objects.ObjectArrayList;
 import it.unimi.dsi.fastutil.objects.ObjectOpenHashSet;
 import java.util.Map;
 import java.util.Set;
@@ -25,23 +26,32 @@ public final class PhysicsBodySnapshotStore {
     private final PhysicsBodySpatialIndex spatialIndex = new PhysicsBodySpatialIndex();
 
     public int refresh(@Nonnull Iterable<PhysicsSpace> spaces, @Nonnull PhysicsBodyRegistry bodyRegistry) {
-        Set<PhysicsBodyId> liveBodies = new ObjectOpenHashSet<>();
+        Set<PhysicsBodyId> liveBodies = new ObjectOpenHashSet<>(bodyRegistry.getRegistrationCount());
+        ObjectArrayList<PhysicsBody> registeredBodies = new ObjectArrayList<>(bodyRegistry.getRegistrationCount());
         for (PhysicsSpace space : spaces) {
+            registeredBodies.clear();
             SpaceId spaceId = space.getId();
-            space.snapshotBodies(body -> {
-                PhysicsBodyId bodyId = bodyRegistry.getBodyId(body);
-                return bodyId != null ? snapshots.get(bodyId) : null;
+            bodyRegistry.forEachRegistration(registration -> {
+                if (registration.spaceId().equals(spaceId)
+                    && space.containsBody(registration.body())) {
+                    registeredBodies.add(registration.body());
+                }
+            });
+            if (registeredBodies.isEmpty()) {
+                continue;
+            }
+
+            space.snapshotBodies(registeredBodies, body -> {
+                PhysicsWorldResource.BodyRegistration registration = bodyRegistry.getRegistration(body);
+                return registration != null ? snapshots.get(registration.id()) : null;
             }, snapshot -> {
                 PhysicsBody body = snapshot.body();
-                PhysicsBodyId bodyId = bodyRegistry.getBodyId(body);
-                if (bodyId == null) {
-                    return;
-                }
                 PhysicsWorldResource.BodyRegistration registration = bodyRegistry.getRegistration(body);
-                if (registration == null) {
+                if (registration == null || !registration.spaceId().equals(spaceId)) {
                     return;
                 }
 
+                PhysicsBodyId bodyId = registration.id();
                 liveBodies.add(bodyId);
                 PhysicsBodySnapshot previous = snapshots.get(bodyId);
                 if (snapshot != previous) {

@@ -110,6 +110,10 @@ public final class PhysicsBodyRegistry {
         return registrationsById.size();
     }
 
+    public void forEachRegistration(@Nonnull Consumer<PhysicsWorldResource.BodyRegistration> consumer) {
+        registrationsById.values().forEach(consumer);
+    }
+
     public int getRegistrationCount(@Nonnull PhysicsBodyPersistenceMode persistenceMode) {
         int count = 0;
         for (PhysicsWorldResource.BodyRegistration registration : registrationsById.values()) {
@@ -164,7 +168,7 @@ public final class PhysicsBodyRegistry {
                 staleAttachments.add(attachment);
             }
         }
-        attachments.removeAll(staleAttachments);
+        staleAttachments.forEach(attachments::remove);
         for (Ref<EntityStore> staleAttachment : staleAttachments) {
             if (staleAttachment != null) {
                 syncStateCleaner.accept(staleAttachment);

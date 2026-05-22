@@ -6,6 +6,7 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertSame;
 
 import dev.hytalemodding.impulse.core.plugin.resources.PhysicsSpaceSettings;
+import dev.hytalemodding.impulse.core.plugin.resources.PhysicsSpaceSettings.ExecutionMode;
 import dev.hytalemodding.impulse.core.plugin.voxel.WorldCollisionMode;
 import org.junit.jupiter.api.Test;
 
@@ -98,6 +99,21 @@ class PhysicsSpaceSettingsTest {
         assertEquals(WorldCollisionMode.STREAMING, settings.getWorldCollisionMode());
         assertEquals(PhysicsSpaceSettings.DEFAULT_WORLD_COLLISION_RADIUS,
             settings.getWorldCollisionRadius());
+    }
+
+    @Test
+    void workerExecutionModeRemainsUnavailable() {
+        PhysicsSpaceSettings settings = new PhysicsSpaceSettings();
+
+        assertEquals(ExecutionMode.INLINE, PhysicsSpaceSettings.DEFAULT_EXECUTION_MODE);
+        assertEquals(ExecutionMode.INLINE, settings.getExecutionMode());
+
+        IllegalArgumentException exception = assertThrows(IllegalArgumentException.class,
+            () -> settings.setExecutionMode(ExecutionMode.WORKER));
+
+        assertEquals("Worker physics execution is not available yet; use inline execution",
+            exception.getMessage());
+        assertEquals(ExecutionMode.INLINE, settings.getExecutionMode());
     }
 
     @Test

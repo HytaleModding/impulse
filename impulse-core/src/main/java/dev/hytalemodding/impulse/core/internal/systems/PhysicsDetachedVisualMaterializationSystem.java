@@ -34,8 +34,11 @@ import it.unimi.dsi.fastutil.objects.ObjectOpenHashSet;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
+import java.util.Objects;
 import java.util.Optional;
+import java.util.Queue;
 import java.util.Set;
+import java.util.concurrent.ConcurrentLinkedQueue;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 import org.joml.Vector3d;
@@ -212,31 +215,44 @@ public class PhysicsDetachedVisualMaterializationSystem extends TickingSystem<En
 
     private static void removeOrphanVisualFollowers(@Nonnull Store<EntityStore> store,
         @Nonnull PhysicsWorldResource resource) {
+        Queue<OrphanVisualProxy> orphanProxies = new ConcurrentLinkedQueue<>();
         store.forEachEntityParallel(ATTACHMENT_TYPE,
             (index, archetypeChunk, commandBuffer) -> {
                 PhysicsBodyAttachmentComponent attachment = archetypeChunk.getComponent(index,
                     ATTACHMENT_TYPE);
                 if (attachment == null
-                    || attachment.getLifecycle() != AttachmentLifecycle.GENERATED_PROXY
-                    || hasLiveVisualTarget(resource, attachment)) {
+                    || attachment.getLifecycle() != AttachmentLifecycle.GENERATED_PROXY) {
                     return;
                 }
 
                 var ref = archetypeChunk.getReferenceTo(index);
-                GeneratedProxyLifecycle.removeProxy(commandBuffer,
-                    resource,
-                    attachment.getBodyId(),
-                    ref);
+                orphanProxies.add(new OrphanVisualProxy(attachment.getBodyId(),
+                    attachment.getSpaceId(),
+                    ref));
             });
+
+        for (OrphanVisualProxy proxy : orphanProxies) {
+            if (!hasLiveVisualTarget(resource, proxy.bodyId(), proxy.spaceId())) {
+                GeneratedProxyLifecycle.removeProxy(store, resource, proxy.bodyId(), proxy.ref());
+            }
+        }
     }
 
     private static boolean hasLiveVisualTarget(@Nonnull PhysicsWorldResource resource,
-        @Nonnull PhysicsBodyAttachmentComponent attachment) {
-        PhysicsWorldResource.BodyRegistration registration = resource.getRegistration(attachment.getBodyId());
-        if (registration == null || !sameSpaceId(registration.spaceId(), attachment.getSpaceId())) {
+        @Nonnull PhysicsBodyId bodyId,
+        @Nullable SpaceId spaceId) {
+        PhysicsWorldResource.BodyRegistration registration = resource.getRegistration(bodyId);
+        if (registration == null || !sameSpaceId(registration.spaceId(), spaceId)) {
             return false;
         }
         return resource.getSpace(registration.spaceId()) != null;
+    }
+
+    private record OrphanVisualProxy(
+        @Nonnull PhysicsBodyId bodyId,
+        @Nullable SpaceId spaceId,
+        @Nonnull Ref<EntityStore> ref
+    ) {
     }
 
     @Nullable
@@ -461,7 +477,8 @@ public class PhysicsDetachedVisualMaterializationSystem extends TickingSystem<En
             return false;
         }
 
-        WorldChunk worldChunk = chunkComponentStore.getComponent(chunkRef, WORLD_CHUNK_TYPE);
+        WorldChunk worldChunk = chunkComponentStore.getComponentConcurrent(chunkRef,
+            WORLD_CHUNK_TYPE);
         return worldChunk != null;
     }
 
@@ -480,10 +497,10 @@ public class PhysicsDetachedVisualMaterializationSystem extends TickingSystem<En
     }
 
     private static boolean sameSpaceId(@Nullable SpaceId first, @Nullable SpaceId second) {
-        return first == null ? second == null : first.equals(second);
+        return Objects.equals(first, second);
     }
 
-    @Nonnull
+    @Nullable
     private static Ref<EntityStore> spawnProxy(@Nonnull Store<EntityStore> store,
         @Nonnull PhysicsBodyId bodyId,
         @Nonnull PhysicsBodySnapshot snapshot,

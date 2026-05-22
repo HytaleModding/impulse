@@ -22,6 +22,7 @@ import dev.hytalemodding.impulse.api.PhysicsBodyType;
 import dev.hytalemodding.impulse.api.PhysicsJoint;
 import dev.hytalemodding.impulse.api.PhysicsSpace;
 import dev.hytalemodding.impulse.core.internal.components.PhysicsControlSessionComponent;
+import dev.hytalemodding.impulse.core.internal.worker.PhysicsWorkerAccess;
 import dev.hytalemodding.impulse.core.plugin.resources.PhysicsBodyId;
 import dev.hytalemodding.impulse.core.plugin.resources.PhysicsWorldResource;
 import java.util.Set;
@@ -121,30 +122,34 @@ public class PhysicsKinematicControlSystem extends EntityTickingSystem<EntitySto
         releaseVelocity.set(local.target).sub(previousTarget).div(safeDt);
         previousTarget.set(local.target);
 
-        if (anchorBody.getBodyType() != PhysicsBodyType.KINEMATIC) {
-            anchorBody.setBodyType(PhysicsBodyType.KINEMATIC);
-        }
-        anchorBody.setPosition(local.target);
-        anchorBody.setLinearVelocity(releaseVelocity);
-        anchorBody.activate();
-        body.activate();
+        PhysicsWorkerAccess.run(store, "update kinematic control anchor", () -> {
+            if (anchorBody.getBodyType() != PhysicsBodyType.KINEMATIC) {
+                anchorBody.setBodyType(PhysicsBodyType.KINEMATIC);
+            }
+            anchorBody.setPosition(local.target);
+            anchorBody.setLinearVelocity(releaseVelocity);
+            anchorBody.activate();
+            body.activate();
+        });
     }
 
     private static void cleanupSession(@Nonnull Store<EntityStore> store,
         @Nonnull PhysicsControlSessionComponent session) {
-        PhysicsWorldResource resource = store.getResource(PhysicsWorldResource.getResourceType());
-        if (session.getBodyId() != null) {
-            resource.clearControlledBody(session.getBodyId());
-        }
-        PhysicsSpace space = session.getSpaceId() != null ? resource.getSpace(session.getSpaceId()) : null;
-        if (space != null && session.getJoint() != null) {
-            PhysicsJoint joint = session.getJoint();
-            space.removeJoint(joint);
-        }
+        PhysicsWorkerAccess.run(store, "cleanup kinematic control session", () -> {
+            PhysicsWorldResource resource = store.getResource(PhysicsWorldResource.getResourceType());
+            if (session.getBodyId() != null) {
+                resource.clearControlledBody(session.getBodyId());
+            }
+            PhysicsSpace space = session.getSpaceId() != null ? resource.getSpace(session.getSpaceId()) : null;
+            if (space != null && session.getJoint() != null) {
+                PhysicsJoint joint = session.getJoint();
+                space.removeJoint(joint);
+            }
 
-        if (session.getAnchorBodyId() != null) {
-            resource.destroyBody(session.getAnchorBodyId());
-        }
+            if (session.getAnchorBodyId() != null) {
+                resource.destroyBody(session.getAnchorBodyId());
+            }
+        });
     }
 
     private static float eyeHeight(@Nonnull ArchetypeChunk<EntityStore> chunk,

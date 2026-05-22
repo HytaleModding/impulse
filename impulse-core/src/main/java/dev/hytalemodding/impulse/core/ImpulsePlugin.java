@@ -18,13 +18,11 @@ import dev.hytalemodding.impulse.api.BackendId;
 import dev.hytalemodding.impulse.api.Impulse;
 import dev.hytalemodding.impulse.api.PhysicsBackend;
 import dev.hytalemodding.impulse.core.internal.commands.ImpulseCommand;
-import dev.hytalemodding.impulse.core.plugin.components.ImpulseControllableComponent;
-import dev.hytalemodding.impulse.core.plugin.components.PhysicsBodyAttachmentComponent;
 import dev.hytalemodding.impulse.core.internal.components.PhysicsControlSessionComponent;
 import dev.hytalemodding.impulse.core.internal.persistence.PersistentPhysicsWorldResource;
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsDebugResource;
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsRuntimeProfilingResource;
-import dev.hytalemodding.impulse.core.plugin.resources.PhysicsWorldResource;
+import dev.hytalemodding.impulse.core.internal.resources.PhysicsWorldWorkerResource;
 import dev.hytalemodding.impulse.core.internal.resources.WorldCollisionProfilingResource;
 import dev.hytalemodding.impulse.core.internal.systems.PersistentPhysicsBodyHydrationSystem;
 import dev.hytalemodding.impulse.core.internal.systems.PersistentPhysicsJointHydrationSystem;
@@ -36,9 +34,14 @@ import dev.hytalemodding.impulse.core.internal.systems.PhysicsDebugSystem;
 import dev.hytalemodding.impulse.core.internal.systems.PhysicsDetachedVisualMaterializationSystem;
 import dev.hytalemodding.impulse.core.internal.systems.PhysicsKinematicControlSystem;
 import dev.hytalemodding.impulse.core.internal.systems.PhysicsRuntimeHolderSystem;
+import dev.hytalemodding.impulse.core.internal.systems.PhysicsSnapshotPublicationSystem;
 import dev.hytalemodding.impulse.core.internal.systems.PhysicsStepSystem;
 import dev.hytalemodding.impulse.core.internal.systems.PhysicsSyncSystem;
 import dev.hytalemodding.impulse.core.internal.systems.PhysicsWorldCollisionStreamingSystem;
+import dev.hytalemodding.impulse.core.internal.systems.PhysicsWorldWorkerLifecycleSystem;
+import dev.hytalemodding.impulse.core.plugin.components.ImpulseControllableComponent;
+import dev.hytalemodding.impulse.core.plugin.components.PhysicsBodyAttachmentComponent;
+import dev.hytalemodding.impulse.core.plugin.resources.PhysicsWorldResource;
 import java.util.Optional;
 import java.util.ServiceLoader;
 import java.util.logging.Level;
@@ -69,6 +72,9 @@ public final class ImpulsePlugin extends JavaPlugin {
     private ResourceType<EntityStore, PhysicsRuntimeProfilingResource> physicsRuntimeProfilingResourceType;
 
     @Getter
+    private ResourceType<EntityStore, PhysicsWorldWorkerResource> physicsWorldWorkerResourceType;
+
+    @Getter
     private ResourceType<EntityStore, WorldCollisionProfilingResource> worldCollisionProfilingResourceType;
 
     @Getter
@@ -79,6 +85,9 @@ public final class ImpulsePlugin extends JavaPlugin {
 
     @Getter
     private BackendId defaultBackendId;
+
+    private PhysicsStepSystem physicsStepSystem;
+    private PhysicsWorldWorkerLifecycleSystem physicsWorldWorkerLifecycleSystem;
 
     public ImpulsePlugin(@Nonnull JavaPluginInit init) {
         super(init);
@@ -101,6 +110,18 @@ public final class ImpulsePlugin extends JavaPlugin {
     @Override
     protected void start() {
         registerCrucibleSuites();
+    }
+
+    @Override
+    protected void shutdown() {
+        if (physicsStepSystem != null) {
+            physicsStepSystem.close();
+            physicsStepSystem = null;
+        }
+        if (physicsWorldWorkerLifecycleSystem != null) {
+            physicsWorldWorkerLifecycleSystem.close();
+            physicsWorldWorkerLifecycleSystem = null;
+        }
     }
 
     /**
@@ -211,6 +232,9 @@ public final class ImpulsePlugin extends JavaPlugin {
         physicsRuntimeProfilingResourceType = entityRegistry.registerResource(
             PhysicsRuntimeProfilingResource.class,
             PhysicsRuntimeProfilingResource::new);
+        physicsWorldWorkerResourceType = entityRegistry.registerResource(
+            PhysicsWorldWorkerResource.class,
+            PhysicsWorldWorkerResource::new);
         worldCollisionProfilingResourceType = entityRegistry.registerResource(
             WorldCollisionProfilingResource.class,
             WorldCollisionProfilingResource::new);
@@ -222,10 +246,13 @@ public final class ImpulsePlugin extends JavaPlugin {
 
     private void registerSystems() {
         ComponentRegistryProxy<ChunkStore> chunkRegistry = getChunkStoreRegistry();
-        chunkRegistry.registerSystem(new PhysicsStepSystem());
+        physicsStepSystem = new PhysicsStepSystem();
+        chunkRegistry.registerSystem(physicsStepSystem);
         chunkRegistry.registerSystem(new PhysicsDebugSystem());
 
         ComponentRegistryProxy<EntityStore> entityRegistry = getEntityStoreRegistry();
+        physicsWorldWorkerLifecycleSystem = new PhysicsWorldWorkerLifecycleSystem();
+        entityRegistry.registerSystem(physicsWorldWorkerLifecycleSystem);
         persistenceRestoreGroup = entityRegistry.registerSystemGroup();
         entityRegistry.registerSystem(new PersistentPhysicsSpaceBootstrapSystem());
         entityRegistry.registerSystem(new PersistentPhysicsBodyHydrationSystem());
@@ -236,6 +263,7 @@ public final class ImpulsePlugin extends JavaPlugin {
         entityRegistry.registerSystem(new PhysicsSyncSystem());
         entityRegistry.registerSystem(new PhysicsDetachedVisualMaterializationSystem());
         entityRegistry.registerSystem(new PhysicsChunkBoundarySystem());
+        entityRegistry.registerSystem(new PhysicsSnapshotPublicationSystem());
         entityRegistry.registerSystem(new PersistentPhysicsWorldSyncSystem());
         entityRegistry.registerSystem(new PhysicsKinematicControlSystem());
     }

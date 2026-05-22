@@ -13,6 +13,7 @@ import dev.hytalemodding.impulse.api.BackendId;
 import dev.hytalemodding.impulse.api.PhysicsSpace;
 import dev.hytalemodding.impulse.api.SpaceId;
 import dev.hytalemodding.impulse.core.ImpulsePlugin;
+import dev.hytalemodding.impulse.core.internal.worker.PhysicsWorkerAccess;
 import dev.hytalemodding.impulse.core.plugin.resources.PhysicsSpaceSettings;
 import dev.hytalemodding.impulse.core.plugin.resources.PhysicsWorldResource;
 import dev.hytalemodding.impulse.core.plugin.voxel.WorldCollisionMode;
@@ -123,11 +124,12 @@ public class SpaceCommand extends AbstractCommandCollection {
             SpaceId defaultSpaceId = resource.getDefaultSpaceId();
             for (PhysicsSpace space : spaces) {
                 PhysicsSpaceSettings settings = resource.getSpaceSettings(space.getId());
+                SpaceCounts counts = countSpaceContents(store, space);
                 String marker = space.getId().equals(defaultSpaceId) ? " default=true" : "";
                 context.sendMessage(Message.raw("- id=" + space.getId().value()
                     + " backend=" + space.getBackendId().value()
-                    + " bodies=" + space.bodyCount()
-                    + " joints=" + space.getJoints().size()
+                    + " bodies=" + counts.bodies()
+                    + " joints=" + counts.joints()
                     + " worldCollision="
                     + settings.getWorldCollisionMode().name().toLowerCase(Locale.ROOT)
                     + marker));
@@ -220,8 +222,9 @@ public class SpaceCommand extends AbstractCommandCollection {
              * so they still require an explicit clean/destroy before deleting the space.
              */
             int registeredBodies = countRegisteredBodies(resource, spaceId);
-            int backendBodies = space.bodyCount();
-            int joints = space.getJoints().size();
+            SpaceCounts counts = countSpaceContents(store, space);
+            int backendBodies = counts.bodies();
+            int joints = counts.joints();
             if (registeredBodies > 0 || joints > 0) {
                 context.sendMessage(Message.raw("Physics space id=" + rawSpaceId
                     + " is not empty (" + registeredBodies + " registered bodies, "
@@ -234,6 +237,13 @@ public class SpaceCommand extends AbstractCommandCollection {
             context.sendMessage(Message.raw("Deleted physics space id=" + rawSpaceId
                 + " with " + backendBodies + " backend bodies and " + joints + " joints."));
         }
+    }
+
+    @Nonnull
+    private static SpaceCounts countSpaceContents(@Nonnull Store<EntityStore> store,
+        @Nonnull PhysicsSpace space) {
+        return PhysicsWorkerAccess.call(store, "count physics space contents",
+            () -> new SpaceCounts(space.bodyCount(), space.getJoints().size()));
     }
 
     private static int countRegisteredBodies(@Nonnull PhysicsWorldResource resource,
@@ -281,5 +291,8 @@ public class SpaceCommand extends AbstractCommandCollection {
             case "false", "no", "n", "0", "nodefault" -> Boolean.FALSE;
             default -> null;
         };
+    }
+
+    private record SpaceCounts(int bodies, int joints) {
     }
 }

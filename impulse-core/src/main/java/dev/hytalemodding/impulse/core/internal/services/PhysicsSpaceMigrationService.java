@@ -12,6 +12,7 @@ import dev.hytalemodding.impulse.api.PhysicsJointType;
 import dev.hytalemodding.impulse.api.PhysicsSpace;
 import dev.hytalemodding.impulse.api.ShapeType;
 import dev.hytalemodding.impulse.api.SpaceId;
+import dev.hytalemodding.impulse.core.internal.worker.PhysicsWorkerAccess;
 import dev.hytalemodding.impulse.core.plugin.resources.PhysicsWorldResource;
 import it.unimi.dsi.fastutil.objects.Reference2ObjectOpenHashMap;
 import java.util.ArrayList;
@@ -41,6 +42,15 @@ public final class PhysicsSpaceMigrationService {
     @Nonnull
     public static MigrationResult migrateSpace(@Nonnull Store<EntityStore> store,
         @Nonnull PhysicsWorldResource resource,
+        @Nonnull SpaceId sourceSpaceId,
+        @Nonnull BackendId targetBackendId,
+        @Nonnull String worldName) {
+        return PhysicsWorkerAccess.call(store, "migrate physics space",
+            () -> migrateSpaceOnWorker(resource, sourceSpaceId, targetBackendId, worldName));
+    }
+
+    @Nonnull
+    private static MigrationResult migrateSpaceOnWorker(@Nonnull PhysicsWorldResource resource,
         @Nonnull SpaceId sourceSpaceId,
         @Nonnull BackendId targetBackendId,
         @Nonnull String worldName) {

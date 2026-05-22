@@ -16,6 +16,7 @@ import dev.hytalemodding.impulse.core.ImpulsePlugin;
 import dev.hytalemodding.impulse.core.internal.persistence.PersistentPhysicsJointState;
 import dev.hytalemodding.impulse.core.internal.persistence.PersistentPhysicsRuntimeSupport;
 import dev.hytalemodding.impulse.core.internal.persistence.PersistentPhysicsWorldResource;
+import dev.hytalemodding.impulse.core.internal.worker.PhysicsWorkerAccess;
 import dev.hytalemodding.impulse.core.plugin.resources.PhysicsBodyId;
 import dev.hytalemodding.impulse.core.plugin.resources.PhysicsWorldResource;
 import it.unimi.dsi.fastutil.objects.ObjectOpenHashSet;
@@ -57,6 +58,19 @@ public class PersistentPhysicsJointHydrationSystem extends TickingSystem<EntityS
             return;
         }
 
+        PhysicsWorkerAccess.run(store, "hydrate persisted physics joints", () -> hydrateJoints(store,
+            persistent));
+
+        persistent.clearRuntimeRestorePending();
+        if (persistent.hasRuntimeRestoreSkips()) {
+            LOGGER.at(Level.WARNING).log(persistent.runtimeRestoreSummary());
+        } else {
+            LOGGER.at(Level.INFO).log(persistent.runtimeRestoreSummary());
+        }
+    }
+
+    private static void hydrateJoints(@Nonnull Store<EntityStore> store,
+        @Nonnull PersistentPhysicsWorldResource persistent) {
         PhysicsWorldResource runtime = store.getResource(PhysicsWorldResource.getResourceType());
         Set<String> existing = new ObjectOpenHashSet<>();
         for (PhysicsSpace space : runtime.getSpaces()) {
@@ -116,13 +130,6 @@ public class PersistentPhysicsJointHydrationSystem extends TickingSystem<EntityS
             }
             persistent.recordRuntimeJointRestored();
             existing.add(key);
-        }
-
-        persistent.clearRuntimeRestorePending();
-        if (persistent.hasRuntimeRestoreSkips()) {
-            LOGGER.at(Level.WARNING).log(persistent.runtimeRestoreSummary());
-        } else {
-            LOGGER.at(Level.INFO).log(persistent.runtimeRestoreSummary());
         }
     }
 

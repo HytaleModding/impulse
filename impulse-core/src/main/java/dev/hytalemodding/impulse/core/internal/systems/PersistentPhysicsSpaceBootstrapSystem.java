@@ -19,6 +19,7 @@ import dev.hytalemodding.impulse.core.plugin.components.PhysicsBodyAttachmentCom
 import dev.hytalemodding.impulse.core.internal.components.PhysicsControlSessionComponent;
 import dev.hytalemodding.impulse.core.internal.persistence.PersistentPhysicsSpaceState;
 import dev.hytalemodding.impulse.core.internal.persistence.PersistentPhysicsWorldResource;
+import dev.hytalemodding.impulse.core.internal.worker.PhysicsWorkerAccess;
 import dev.hytalemodding.impulse.core.plugin.resources.PhysicsSpaceSettings;
 import dev.hytalemodding.impulse.core.plugin.resources.PhysicsWorldResource;
 import java.util.logging.Level;
@@ -71,9 +72,11 @@ public class PersistentPhysicsSpaceBootstrapSystem extends TickingSystem<EntityS
         PhysicsWorldResource runtime = store.getResource(PhysicsWorldResource.getResourceType());
         stripRuntimePhysicsStateForRestore(store, runtime, world);
         try {
-            runtime.setSimulationSteps(persistent.getSimulationSteps());
-            runtime.setStepMode(persistent.getStepMode());
-            runtime.setMaxStepDt(persistent.getMaxStepDt());
+            PhysicsWorkerAccess.run(store, "restore persisted physics runtime settings", () -> {
+                runtime.setSimulationSteps(persistent.getSimulationSteps());
+                runtime.setStepMode(persistent.getStepMode());
+                runtime.setMaxStepDt(persistent.getMaxStepDt());
+            });
         } catch (RuntimeException exception) {
             runtime.clearAllSpaces(world.getName());
             persistent.failRuntimeRestore("Invalid persisted physics runtime settings: "
@@ -94,17 +97,22 @@ public class PersistentPhysicsSpaceBootstrapSystem extends TickingSystem<EntityS
             SpaceId spaceId = state.toSpaceId();
             PhysicsSpace space = runtime.getSpace(spaceId);
             try {
-                if (space == null) {
-                    space = runtime.createSpace(state.toBackendId(),
-                        spaceId,
-                        world.getName(),
-                        state.toSettings(),
-                        persistent.getDefaultSpaceIdValue() != null
-                            && persistent.getDefaultSpaceIdValue().equals(spaceId));
-                } else {
-                    runtime.setSpaceSettings(spaceId, state.toSettings());
-                }
-                space.setGravity(state.getGravity().x, state.getGravity().y, state.getGravity().z);
+                PhysicsWorkerAccess.run(store, "bootstrap persisted physics space", () -> {
+                    PhysicsSpace targetSpace = space;
+                    if (targetSpace == null) {
+                        targetSpace = runtime.createSpace(state.toBackendId(),
+                            spaceId,
+                            world.getName(),
+                            state.toSettings(),
+                            persistent.getDefaultSpaceIdValue() != null
+                                && persistent.getDefaultSpaceIdValue().equals(spaceId));
+                    } else {
+                        runtime.setSpaceSettings(spaceId, state.toSettings());
+                    }
+                    targetSpace.setGravity(state.getGravity().x,
+                        state.getGravity().y,
+                        state.getGravity().z);
+                });
             } catch (RuntimeException exception) {
                 runtime.clearAllSpaces(world.getName());
                 persistent.failRuntimeRestore("Failed to bootstrap space id=" + state.getSpaceId()
@@ -119,7 +127,8 @@ public class PersistentPhysicsSpaceBootstrapSystem extends TickingSystem<EntityS
         }
 
         try {
-            runtime.setDefaultSpaceId(persistent.getDefaultSpaceIdValue());
+            PhysicsWorkerAccess.run(store, "restore default physics space", () ->
+                runtime.setDefaultSpaceId(persistent.getDefaultSpaceIdValue()));
         } catch (RuntimeException exception) {
             runtime.clearAllSpaces(world.getName());
             persistent.failRuntimeRestore("Invalid persisted default physics space: "
@@ -133,8 +142,10 @@ public class PersistentPhysicsSpaceBootstrapSystem extends TickingSystem<EntityS
     private static void stripRuntimePhysicsStateForRestore(@Nonnull Store<EntityStore> store,
         @Nonnull PhysicsWorldResource runtime,
         @Nonnull World world) {
-        runtime.clearAllSpaces(world.getName());
-        runtime.clearBodies();
+        PhysicsWorkerAccess.run(store, "strip runtime physics state for restore", () -> {
+            runtime.clearAllSpaces(world.getName());
+            runtime.clearBodies();
+        });
 
         store.forEachEntityParallel(ATTACHMENT_TYPE,
             (index, archetypeChunk, commandBuffer) -> {
