@@ -63,6 +63,7 @@ Cleanup does not create a replacement/default space implicitly. Run `/impulse sp
 - `/impulse settings visual-sync --fullRadius=<blocks> --maxRadius=<blocks> --farMode=cutoff|lod` - tune visual sync range behavior.
 - `/impulse settings visual-sync --midInterval=<ticks> --farInterval=<ticks>` - tune lower-frequency visual updates.
 - `/impulse settings visual-sync --occlusion=off|priority|cull --occlusionRaycasts=<n> --occlusionCache=<ticks>` - tune optional raycast-backed visual prioritization.
+- `/impulse settings visual-sync --materializationInterestInterval=<ticks> --materializationCandidateInterval=<ticks> --materializationVisibilityInterval=<ticks>` - tune detached visual materialization cache cadences.
 - `/impulse settings world-collision` - show world-collision settings for the default space.
 
 ## Profiling commands
@@ -73,6 +74,16 @@ Cleanup does not create a replacement/default space implicitly. Run `/impulse sp
 - `/impulse perf report` - print physics-step, sync, entity, detached, and world-collision profiling metrics.
 - `/impulse perf stats` - show per-space body, awake, sleeping, joint, contact, attachment, detached, and world-collision counts.
 - `/impulse perf reset` - reset profiling counters.
+
+Use this Spark capture when profiling threaded physics benchmarks so the exported profile includes
+both Hytale world threads and Impulse's per-world physics worker:
+
+```bash
+/spark profiler start --timeout 60 --save-to-file --regex --not-combined --ignore-sleeping --thread WorldThread.* --thread Impulse.*physics.*worker.* --thread ChunkLighting.* --thread WorldMap.*
+```
+
+Avoid contact debug rendering during benchmark captures; it calls backend contact enumeration and
+will distort the hot path.
 
 ## Debug commands
 

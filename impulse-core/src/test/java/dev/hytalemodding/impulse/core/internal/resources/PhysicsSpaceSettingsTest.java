@@ -20,6 +20,12 @@ class PhysicsSpaceSettingsTest {
             settings.getVisualFullSyncRadius());
         assertEquals(PhysicsSpaceSettings.DEFAULT_VISUAL_MAX_SYNC_RADIUS,
             settings.getVisualMaxSyncRadius());
+        assertEquals(PhysicsSpaceSettings.DEFAULT_DETACHED_VISUAL_INTEREST_REFRESH_INTERVAL_TICKS,
+            settings.getDetachedVisualInterestRefreshIntervalTicks());
+        assertEquals(PhysicsSpaceSettings.DEFAULT_DETACHED_VISUAL_CANDIDATE_REFRESH_INTERVAL_TICKS,
+            settings.getDetachedVisualCandidateRefreshIntervalTicks());
+        assertEquals(PhysicsSpaceSettings.DEFAULT_DETACHED_VISUAL_VISIBILITY_CHECK_INTERVAL_TICKS,
+            settings.getDetachedVisualVisibilityCheckIntervalTicks());
     }
 
     @Test
@@ -79,6 +85,18 @@ class PhysicsSpaceSettingsTest {
                 + PhysicsSpaceSettings.MAX_VISUAL_MAX_SYNC_RADIUS,
             assertThrows(IllegalArgumentException.class,
                 () -> settings.setVisualMaxSyncRadius(0)).getMessage());
+        assertEquals("Detached visual interest refresh interval must be between 1 and "
+                + PhysicsSpaceSettings.MAX_DETACHED_VISUAL_CACHE_INTERVAL_TICKS,
+            assertThrows(IllegalArgumentException.class,
+                () -> settings.setDetachedVisualInterestRefreshIntervalTicks(0)).getMessage());
+        assertEquals("Detached visual candidate refresh interval must be between 1 and "
+                + PhysicsSpaceSettings.MAX_DETACHED_VISUAL_CACHE_INTERVAL_TICKS,
+            assertThrows(IllegalArgumentException.class,
+                () -> settings.setDetachedVisualCandidateRefreshIntervalTicks(0)).getMessage());
+        assertEquals("Detached visual visibility check interval must be between 1 and "
+                + PhysicsSpaceSettings.MAX_DETACHED_VISUAL_CACHE_INTERVAL_TICKS,
+            assertThrows(IllegalArgumentException.class,
+                () -> settings.setDetachedVisualVisibilityCheckIntervalTicks(0)).getMessage());
     }
 
     @Test
@@ -125,6 +143,9 @@ class PhysicsSpaceSettingsTest {
         original.setWorldCollisionTtlTicks(180);
         original.setVisualMaxSyncRadius(160);
         original.setVisualFullSyncRadius(80);
+        original.setDetachedVisualInterestRefreshIntervalTicks(2);
+        original.setDetachedVisualCandidateRefreshIntervalTicks(3);
+        original.setDetachedVisualVisibilityCheckIntervalTicks(12);
 
         PhysicsSpaceSettings copy = new PhysicsSpaceSettings(original);
         original.setWorldCollisionRadius(20);
@@ -135,5 +156,8 @@ class PhysicsSpaceSettingsTest {
         assertEquals(180, copy.getWorldCollisionTtlTicks());
         assertEquals(160, copy.getVisualMaxSyncRadius());
         assertEquals(80, copy.getVisualFullSyncRadius());
+        assertEquals(2, copy.getDetachedVisualInterestRefreshIntervalTicks());
+        assertEquals(3, copy.getDetachedVisualCandidateRefreshIntervalTicks());
+        assertEquals(12, copy.getDetachedVisualVisibilityCheckIntervalTicks());
     }
 }

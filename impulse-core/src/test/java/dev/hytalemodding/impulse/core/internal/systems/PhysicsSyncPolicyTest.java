@@ -116,6 +116,65 @@ class PhysicsSyncPolicyTest {
     }
 
     @Test
+    void midRangeFollowersRespectConfiguredMinimumInterval() {
+        PhysicsSpaceSettings settings = PhysicsSpaceSettings.defaults();
+        settings.setVisualMidSyncIntervalTicks(4);
+        PhysicsWorldResource.BodySyncState syncState = initializedState(false);
+        syncState.recordSkip(0.15f);
+
+        assertEquals(PhysicsSyncPolicy.SyncDecision.SKIP_VISUAL_RANGE,
+            PhysicsSyncPolicy.resolveSyncDecision(syncState,
+                settings,
+                new Vector3f(1.0f, 0.0f, 0.0f),
+                new Quaternionf(),
+                false,
+                false,
+                false,
+                PhysicsSyncPolicy.SyncRangeTier.MID));
+
+        syncState.recordSkip(0.05f);
+        assertEquals(PhysicsSyncPolicy.SyncDecision.THRESHOLD,
+            PhysicsSyncPolicy.resolveSyncDecision(syncState,
+                settings,
+                new Vector3f(1.0f, 0.0f, 0.0f),
+                new Quaternionf(),
+                false,
+                false,
+                false,
+                PhysicsSyncPolicy.SyncRangeTier.MID));
+    }
+
+    @Test
+    void farRangeLodUsesConfiguredIntervalWhenCutoffIsDisabled() {
+        PhysicsSpaceSettings settings = PhysicsSpaceSettings.defaults();
+        settings.setVisualFarSyncCutoffEnabled(false);
+        settings.setVisualFarSyncIntervalTicks(40);
+        PhysicsWorldResource.BodySyncState syncState = initializedState(false);
+        syncState.recordSkip(1.95f);
+
+        assertEquals(PhysicsSyncPolicy.SyncDecision.SKIP_VISUAL_RANGE,
+            PhysicsSyncPolicy.resolveSyncDecision(syncState,
+                settings,
+                new Vector3f(),
+                new Quaternionf(),
+                false,
+                false,
+                false,
+                PhysicsSyncPolicy.SyncRangeTier.FAR));
+
+        syncState.recordSkip(0.05f);
+        assertEquals(PhysicsSyncPolicy.SyncDecision.KEEPALIVE,
+            PhysicsSyncPolicy.resolveSyncDecision(syncState,
+                settings,
+                new Vector3f(),
+                new Quaternionf(),
+                false,
+                false,
+                false,
+                PhysicsSyncPolicy.SyncRangeTier.FAR));
+    }
+
+    @Test
     void controlledBodiesBypassLowSpeedDeadzoneThresholds() {
         PhysicsWorldResource.BodySyncState syncState = initializedState(false);
 

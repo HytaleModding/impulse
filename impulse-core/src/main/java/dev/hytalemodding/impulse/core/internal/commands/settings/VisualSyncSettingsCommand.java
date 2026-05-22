@@ -64,6 +64,24 @@ public class VisualSyncSettingsCommand extends AbstractAsyncPlayerCommand {
             + PhysicsSpaceSettings.MAX_VISUAL_OCCLUSION_CACHE_TICKS
             + ")",
         ArgTypes.INTEGER);
+    private final OptionalArg<Integer> materializationInterestIntervalArg = this.withOptionalArg(
+        "materializationInterestInterval",
+        "Ticks between detached visual interest refreshes (1-"
+            + PhysicsSpaceSettings.MAX_DETACHED_VISUAL_CACHE_INTERVAL_TICKS
+            + ")",
+        ArgTypes.INTEGER);
+    private final OptionalArg<Integer> materializationCandidateIntervalArg = this.withOptionalArg(
+        "materializationCandidateInterval",
+        "Ticks between detached visual near-query/raycast candidate refreshes (1-"
+            + PhysicsSpaceSettings.MAX_DETACHED_VISUAL_CACHE_INTERVAL_TICKS
+            + ")",
+        ArgTypes.INTEGER);
+    private final OptionalArg<Integer> materializationVisibilityIntervalArg = this.withOptionalArg(
+        "materializationVisibilityInterval",
+        "Ticks between detached generated-proxy visibility checks (1-"
+            + PhysicsSpaceSettings.MAX_DETACHED_VISUAL_CACHE_INTERVAL_TICKS
+            + ")",
+        ArgTypes.INTEGER);
 
     public VisualSyncSettingsCommand() {
         super("visual-sync", "Get or set visual sync LOD settings for the default physics space");
@@ -138,6 +156,24 @@ public class VisualSyncSettingsCommand extends AbstractAsyncPlayerCommand {
                 + " ticks."));
             return CompletableFuture.completedFuture(null);
         }
+        if (materializationInterestIntervalArg.provided(ctx)
+            && outOfRange(materializationInterestIntervalArg.get(ctx),
+                PhysicsSpaceSettings.MAX_DETACHED_VISUAL_CACHE_INTERVAL_TICKS)) {
+            sendMaterializationIntervalError(ctx, "materializationInterestInterval");
+            return CompletableFuture.completedFuture(null);
+        }
+        if (materializationCandidateIntervalArg.provided(ctx)
+            && outOfRange(materializationCandidateIntervalArg.get(ctx),
+                PhysicsSpaceSettings.MAX_DETACHED_VISUAL_CACHE_INTERVAL_TICKS)) {
+            sendMaterializationIntervalError(ctx, "materializationCandidateInterval");
+            return CompletableFuture.completedFuture(null);
+        }
+        if (materializationVisibilityIntervalArg.provided(ctx)
+            && outOfRange(materializationVisibilityIntervalArg.get(ctx),
+                PhysicsSpaceSettings.MAX_DETACHED_VISUAL_CACHE_INTERVAL_TICKS)) {
+            sendMaterializationIntervalError(ctx, "materializationVisibilityInterval");
+            return CompletableFuture.completedFuture(null);
+        }
 
         if (farModeArg.provided(ctx)) {
             Boolean cutoff = parseFarCutoff(farModeArg.get(ctx));
@@ -169,6 +205,18 @@ public class VisualSyncSettingsCommand extends AbstractAsyncPlayerCommand {
         if (occlusionCacheArg.provided(ctx)) {
             settings.setVisualOcclusionCacheTicks(occlusionCacheArg.get(ctx));
         }
+        if (materializationInterestIntervalArg.provided(ctx)) {
+            settings.setDetachedVisualInterestRefreshIntervalTicks(
+                materializationInterestIntervalArg.get(ctx));
+        }
+        if (materializationCandidateIntervalArg.provided(ctx)) {
+            settings.setDetachedVisualCandidateRefreshIntervalTicks(
+                materializationCandidateIntervalArg.get(ctx));
+        }
+        if (materializationVisibilityIntervalArg.provided(ctx)) {
+            settings.setDetachedVisualVisibilityCheckIntervalTicks(
+                materializationVisibilityIntervalArg.get(ctx));
+        }
         resource.setSpaceSettings(defaultSpaceId, settings);
         sendSummary(ctx, defaultSpaceId, settings);
         return CompletableFuture.completedFuture(null);
@@ -182,7 +230,10 @@ public class VisualSyncSettingsCommand extends AbstractAsyncPlayerCommand {
             || farIntervalArg.provided(ctx)
             || occlusionArg.provided(ctx)
             || occlusionRaycastsArg.provided(ctx)
-            || occlusionCacheArg.provided(ctx);
+            || occlusionCacheArg.provided(ctx)
+            || materializationInterestIntervalArg.provided(ctx)
+            || materializationCandidateIntervalArg.provided(ctx)
+            || materializationVisibilityIntervalArg.provided(ctx);
     }
 
     private static boolean outOfRange(int value, int maxValue) {
@@ -201,7 +252,20 @@ public class VisualSyncSettingsCommand extends AbstractAsyncPlayerCommand {
             + " farInterval=" + settings.getVisualFarSyncIntervalTicks()
             + " occlusion=" + settings.getVisualOcclusionMode().name().toLowerCase(Locale.ROOT)
             + " occlusionRaycasts=" + settings.getVisualOcclusionRaycastsPerTick()
-            + " occlusionCache=" + settings.getVisualOcclusionCacheTicks()));
+            + " occlusionCache=" + settings.getVisualOcclusionCacheTicks()
+            + " materializationInterestInterval="
+            + settings.getDetachedVisualInterestRefreshIntervalTicks()
+            + " materializationCandidateInterval="
+            + settings.getDetachedVisualCandidateRefreshIntervalTicks()
+            + " materializationVisibilityInterval="
+            + settings.getDetachedVisualVisibilityCheckIntervalTicks()));
+    }
+
+    private static void sendMaterializationIntervalError(@Nonnull CommandContext ctx,
+        @Nonnull String name) {
+        ctx.sender().sendMessage(Message.raw(name + " must be 1-"
+            + PhysicsSpaceSettings.MAX_DETACHED_VISUAL_CACHE_INTERVAL_TICKS
+            + " ticks."));
     }
 
     private static Boolean parseFarCutoff(@Nonnull String value) {
