@@ -4,6 +4,7 @@ import com.hypixel.hytale.component.Resource;
 import com.hypixel.hytale.component.ResourceType;
 import com.hypixel.hytale.component.Ref;
 import com.hypixel.hytale.logger.HytaleLogger;
+import com.hypixel.hytale.server.core.universe.world.World;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import dev.hytalemodding.impulse.api.BackendId;
 import dev.hytalemodding.impulse.api.Impulse;
@@ -15,28 +16,30 @@ import dev.hytalemodding.impulse.api.PhysicsSpace;
 import dev.hytalemodding.impulse.api.PhysicsSolverTuning;
 import dev.hytalemodding.impulse.api.SpaceId;
 import dev.hytalemodding.impulse.core.ImpulsePlugin;
-import dev.hytalemodding.impulse.core.internal.resources.PhysicsBodyRegistry;
-import dev.hytalemodding.impulse.core.internal.resources.PhysicsBodyRuntimeState;
-import dev.hytalemodding.impulse.core.internal.resources.PhysicsBodySnapshotStore;
-import dev.hytalemodding.impulse.core.internal.resources.PhysicsWorldWorkerResource;
-import dev.hytalemodding.impulse.core.internal.resources.PublishedPhysicsBodySnapshot;
-import dev.hytalemodding.impulse.core.internal.resources.PublishedPhysicsSnapshotFrame;
-import dev.hytalemodding.impulse.core.internal.resources.PublishedPhysicsSpaceFrame;
+import dev.hytalemodding.impulse.core.internal.resources.body.PhysicsBodyRegistry;
+import dev.hytalemodding.impulse.core.internal.resources.body.PhysicsBodyRuntimeState;
+import dev.hytalemodding.impulse.core.internal.resources.body.PhysicsBodySnapshotStore;
+import dev.hytalemodding.impulse.core.internal.resources.worker.PhysicsWorldWorkerResource;
 import dev.hytalemodding.impulse.core.internal.voxel.WorldVoxelCollisionCache;
 import dev.hytalemodding.impulse.core.internal.worker.PhysicsWorkerAccess;
 import it.unimi.dsi.fastutil.ints.Int2ObjectMap;
 import it.unimi.dsi.fastutil.ints.Int2ObjectOpenHashMap;
+import it.unimi.dsi.fastutil.longs.LongOpenHashSet;
+import it.unimi.dsi.fastutil.longs.LongSet;
+import it.unimi.dsi.fastutil.objects.Object2IntOpenHashMap;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Consumer;
 import java.util.logging.Level;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 import lombok.Getter;
 import org.joml.Quaternionf;
+import org.joml.Vector3d;
 import org.joml.Vector3f;
 
 /**
@@ -61,6 +64,8 @@ public class PhysicsWorldResource implements Resource<EntityStore> {
     private final Int2ObjectMap<PhysicsSpaceSettings> spaceSettings = new Int2ObjectOpenHashMap<>();
 
     private final PhysicsBodyRegistry bodyRegistry = new PhysicsBodyRegistry(this::clearBodySyncState);
+    private final Object2IntOpenHashMap<PhysicsBodyId> pendingBodyCreations =
+        new Object2IntOpenHashMap<>();
 
     private final WorldVoxelCollisionCache worldVoxelCollisionCache = new WorldVoxelCollisionCache();
 
@@ -85,23 +90,38 @@ public class PhysicsWorldResource implements Resource<EntityStore> {
     private final PhysicsBodySnapshotStore workerBodySnapshots = new PhysicsBodySnapshotStore();
     private volatile long worldEpoch;
     private long snapshotFrameEpoch;
+    private volatile long visualInterestTick;
     @Nonnull
     private volatile PublishedPhysicsSnapshotFrame latestPublishedFrame =
         PublishedPhysicsSnapshotFrame.empty(0L, 0L);
+    @Getter
+    private volatile long latestSnapshotAppliedNanos;
     @Nullable
     private volatile PhysicsWorldWorkerResource workerResource;
 
     public PhysicsWorldResource() {
     }
 
-    public void attachWorkerResource(@Nonnull PhysicsWorldWorkerResource workerResource) {
-        this.workerResource = Objects.requireNonNull(workerResource, "workerResource");
+    public void attachWorkerResource(@Nonnull PhysicsOwnerHandle workerResource) {
+        this.workerResource = requireWorkerResource(workerResource);
     }
 
-    public void detachWorkerResource(@Nonnull PhysicsWorldWorkerResource workerResource) {
-        if (this.workerResource == workerResource) {
+    public void detachWorkerResource(@Nonnull PhysicsOwnerHandle workerResource) {
+        PhysicsWorldWorkerResource worker = requireWorkerResource(workerResource);
+        if (this.workerResource == worker) {
             this.workerResource = null;
         }
+    }
+
+    @Nonnull
+    private static PhysicsWorldWorkerResource requireWorkerResource(
+        @Nonnull PhysicsOwnerHandle workerResource) {
+        Objects.requireNonNull(workerResource, "workerResource");
+        if (workerResource instanceof PhysicsWorldWorkerResource worker) {
+            return worker;
+        }
+        throw new IllegalArgumentException("Unsupported physics owner handle "
+            + workerResource.getClass().getName());
     }
 
     public boolean canAccessLiveBackendDirectly() {
@@ -109,36 +129,62 @@ public class PhysicsWorldResource implements Resource<EntityStore> {
         return worker == null || worker.isWorkerThread();
     }
 
-    private void runOnWorker(@Nonnull String operation,
-        @Nonnull PhysicsWorkerAccess.PhysicsWorkerMutation mutation) {
+    /**
+     * Run a live-backend mutation on the current physics owner.
+     *
+     * <p>In inline execution this runs immediately on the caller thread. In worker execution this
+     * submits to the world's physics worker and blocks until the mutation completes. The callback
+     * may access live {@link PhysicsSpace} and {@link PhysicsBody} objects, but must not access
+     * Hytale ECS store state unless the caller owns that access.</p>
+     */
+    public void runOnPhysicsOwner(@Nonnull String operation,
+        @Nonnull PhysicsOwnerMutation mutation) {
+        Objects.requireNonNull(operation, "operation");
+        Objects.requireNonNull(mutation, "mutation");
         PhysicsWorldWorkerResource worker = workerResource;
         if (worker == null || worker.isWorkerThread()) {
             runDirect(operation, mutation);
             return;
         }
-        PhysicsWorkerAccess.run(worker, operation, mutation);
+        PhysicsWorkerAccess.run(worker, operation, mutation::run);
     }
 
     @Nonnull
-    public PhysicsMutationHandle<Void> enqueueTopologyMutation(@Nonnull String operation,
-        @Nonnull PhysicsWorkerAccess.PhysicsWorkerMutation mutation) {
-        return enqueueTopologyMutation(operation, null, mutation);
+    public PhysicsMutationHandle<Void> enqueuePhysicsMutation(@Nonnull String operation,
+        @Nonnull PhysicsOwnerMutation mutation) {
+        return enqueuePhysicsMutation(operation, null, mutation);
     }
 
+    /**
+     * Queue a live-backend mutation on the current physics owner without blocking the caller.
+     *
+     * <p>The returned handle completes when the mutation finishes or fails. The {@code value}
+     * parameter lets callers reserve and expose a logical id before the queued mutation runs.</p>
+     */
     @Nonnull
-    public <T> PhysicsMutationHandle<T> enqueueTopologyMutation(@Nonnull String operation,
+    public <T> PhysicsMutationHandle<T> enqueuePhysicsMutation(@Nonnull String operation,
         @Nullable T value,
-        @Nonnull PhysicsWorkerAccess.PhysicsWorkerMutation mutation) {
+        @Nonnull PhysicsOwnerMutation mutation) {
+        Objects.requireNonNull(operation, "operation");
+        Objects.requireNonNull(mutation, "mutation");
         PhysicsWorldWorkerResource worker = workerResource;
         if (worker == null || worker.isWorkerThread()) {
             return runDirectAsync(operation, value, mutation);
         }
-        return PhysicsWorkerAccess.runAsync(worker, operation, value, mutation);
+        return PhysicsWorkerAccess.runAsync(worker, operation, value, mutation::run);
     }
 
+    /**
+     * Run a live-backend read on the current physics owner and return its value.
+     *
+     * <p>Prefer published snapshots for ordinary gameplay reads. Use this for explicit live-backend
+     * operations that cannot be expressed through snapshots or the higher-level resource methods.</p>
+     */
     @Nonnull
-    private <T> T callOnWorker(@Nonnull String operation,
-        @Nonnull PhysicsWorkerAccess.PhysicsWorkerCallable<T> callable) {
+    public <T> T callOnPhysicsOwner(@Nonnull String operation,
+        @Nonnull PhysicsOwnerCallable<T> callable) {
+        Objects.requireNonNull(operation, "operation");
+        Objects.requireNonNull(callable, "callable");
         PhysicsWorldWorkerResource worker = workerResource;
         if (worker == null || worker.isWorkerThread()) {
             try {
@@ -150,11 +196,11 @@ public class PhysicsWorldResource implements Resource<EntityStore> {
                     exception);
             }
         }
-        return PhysicsWorkerAccess.call(worker, operation, callable);
+        return PhysicsWorkerAccess.call(worker, operation, callable::call);
     }
 
     private void runDirect(@Nonnull String operation,
-        @Nonnull PhysicsWorkerAccess.PhysicsWorkerMutation mutation) {
+        @Nonnull PhysicsOwnerMutation mutation) {
         try {
             mutation.run();
         } catch (RuntimeException exception) {
@@ -168,7 +214,7 @@ public class PhysicsWorldResource implements Resource<EntityStore> {
     @Nonnull
     private <T> PhysicsMutationHandle<T> runDirectAsync(@Nonnull String operation,
         @Nullable T value,
-        @Nonnull PhysicsWorkerAccess.PhysicsWorkerMutation mutation) {
+        @Nonnull PhysicsOwnerMutation mutation) {
         try {
             mutation.run();
             return PhysicsMutationHandle.completed(operation, value);
@@ -210,12 +256,12 @@ public class PhysicsWorldResource implements Resource<EntityStore> {
     }
 
     public void setDefaultSpaceId(@Nullable SpaceId defaultSpaceId) {
-        runOnWorker("set default physics space", () -> setDefaultSpaceIdDirect(defaultSpaceId));
+        runOnPhysicsOwner("set default physics space", () -> setDefaultSpaceIdDirect(defaultSpaceId));
     }
 
     @Nonnull
     public PhysicsMutationHandle<SpaceId> setDefaultSpaceIdAsync(@Nullable SpaceId defaultSpaceId) {
-        return enqueueTopologyMutation("set default physics space",
+        return enqueuePhysicsMutation("set default physics space",
             defaultSpaceId,
             () -> setDefaultSpaceIdDirect(defaultSpaceId));
     }
@@ -234,12 +280,12 @@ public class PhysicsWorldResource implements Resource<EntityStore> {
     }
 
     public void setStepMode(@Nonnull PhysicsStepMode stepMode) {
-        runOnWorker("set physics step mode", () -> setStepModeDirect(stepMode));
+        runOnPhysicsOwner("set physics step mode", () -> setStepModeDirect(stepMode));
     }
 
     @Nonnull
     public PhysicsMutationHandle<Void> setStepModeAsync(@Nonnull PhysicsStepMode stepMode) {
-        return enqueueTopologyMutation("set physics step mode", () -> setStepModeDirect(stepMode));
+        return enqueuePhysicsMutation("set physics step mode", () -> setStepModeDirect(stepMode));
     }
 
     private void setStepModeDirect(@Nonnull PhysicsStepMode stepMode) {
@@ -248,12 +294,12 @@ public class PhysicsWorldResource implements Resource<EntityStore> {
     }
 
     public void setMaxStepDt(float maxStepDt) {
-        runOnWorker("set max physics step dt", () -> this.maxStepDt = maxStepDt);
+        runOnPhysicsOwner("set max physics step dt", () -> this.maxStepDt = maxStepDt);
     }
 
     @Nonnull
     public PhysicsMutationHandle<Void> setMaxStepDtAsync(float maxStepDt) {
-        return enqueueTopologyMutation("set max physics step dt", () -> this.maxStepDt = maxStepDt);
+        return enqueuePhysicsMutation("set max physics step dt", () -> this.maxStepDt = maxStepDt);
     }
 
     @Nonnull
@@ -290,7 +336,7 @@ public class PhysicsWorldResource implements Resource<EntityStore> {
         @Nonnull String worldName,
         @Nonnull PhysicsSpaceSettings settings,
         boolean makeDefault) {
-        return callOnWorker("create physics space",
+        return callOnPhysicsOwner("create physics space",
             () -> createSpaceDirect(backendId, spaceId, worldName, settings, makeDefault));
     }
 
@@ -309,7 +355,7 @@ public class PhysicsWorldResource implements Resource<EntityStore> {
         @Nonnull String worldName,
         @Nonnull PhysicsSpaceSettings settings,
         boolean makeDefault) {
-        return enqueueTopologyMutation("create physics space",
+        return enqueuePhysicsMutation("create physics space",
             spaceId,
             () -> createSpaceDirect(backendId, spaceId, worldName, settings, makeDefault));
     }
@@ -361,6 +407,15 @@ public class PhysicsWorldResource implements Resource<EntityStore> {
     }
 
     @Nonnull
+    private PhysicsSpace requireSpace(@Nonnull SpaceId spaceId) {
+        PhysicsSpace space = getSpace(spaceId);
+        if (space == null) {
+            throw new IllegalArgumentException("Physics space id=" + spaceId + " is not registered");
+        }
+        return space;
+    }
+
+    @Nonnull
     public Collection<PhysicsSpace> getSpaces() {
         return new ArrayList<>(spaces.values());
     }
@@ -379,7 +434,7 @@ public class PhysicsWorldResource implements Resource<EntityStore> {
     }
 
     public int refreshBodySnapshots() {
-        return callOnWorker("refresh physics body snapshots", () -> {
+        return callOnPhysicsOwner("refresh physics body snapshots", () -> {
             PublishedPhysicsSnapshotFrame frame = capturePublishedSnapshotFrameDirect(0L,
                 0L,
                 PublishedPhysicsSnapshotFrame.Status.COMPLETE,
@@ -395,7 +450,7 @@ public class PhysicsWorldResource implements Resource<EntityStore> {
         if (snapshot != null) {
             return snapshot;
         }
-        return callOnWorker("refresh missing physics body snapshot",
+        return callOnPhysicsOwner("refresh missing physics body snapshot",
             () -> getBodySnapshotDirect(bodyId));
     }
 
@@ -419,7 +474,7 @@ public class PhysicsWorldResource implements Resource<EntityStore> {
         @Nonnull PublishedPhysicsSnapshotFrame.Status status,
         long stepNanos,
         boolean profilingEnabled) {
-        return callOnWorker("capture published physics snapshot frame",
+        return callOnPhysicsOwner("capture published physics snapshot frame",
             () -> capturePublishedSnapshotFrameDirect(stepSequence,
                 serverTick,
                 status,
@@ -500,6 +555,7 @@ public class PhysicsWorldResource implements Resource<EntityStore> {
                 applied++;
             }
         }
+        latestSnapshotAppliedNanos = System.nanoTime();
         return applied;
     }
 
@@ -512,7 +568,7 @@ public class PhysicsWorldResource implements Resource<EntityStore> {
     public PhysicsBodySnapshot getBodySnapshot(@Nonnull PhysicsBody body) {
         PhysicsBodyId bodyId = getBodyId(body);
         if (bodyId == null) {
-            return callOnWorker("read unregistered physics body snapshot",
+            return callOnPhysicsOwner("read unregistered physics body snapshot",
                 () -> PhysicsBodySnapshot.from(body));
         }
         return getBodySnapshot(bodyId);
@@ -530,9 +586,84 @@ public class PhysicsWorldResource implements Resource<EntityStore> {
         return bodySnapshots.cellCount();
     }
 
+    /**
+     * Internal escape hatch for Impulse systems that need streamed terrain cache internals.
+     * Plugin consumers should use the public world-collision facade methods on this resource.
+     */
+    @Deprecated
     @Nonnull
     public WorldVoxelCollisionCache getWorldVoxelCollisionCache() {
         return worldVoxelCollisionCache;
+    }
+
+    @Nonnull
+    public WorldCollisionBuildStats rebuildWorldCollisionAround(@Nonnull World world,
+        @Nonnull SpaceId spaceId,
+        @Nonnull Vector3d center,
+        int radius) {
+        return callOnPhysicsOwner("rebuild world collision", () -> {
+            PhysicsSpace space = requireSpace(spaceId);
+            return worldCollisionStats(worldVoxelCollisionCache.rebuildAround(world,
+                space,
+                center,
+                radius));
+        });
+    }
+
+    @Nonnull
+    public WorldCollisionPrewarmStats ensureWorldCollisionAround(@Nonnull World world,
+        @Nonnull SpaceId spaceId,
+        @Nonnull Iterable<Vector3d> centers,
+        int radius,
+        long tick) {
+        Objects.requireNonNull(centers, "centers");
+        return callOnPhysicsOwner("ensure world collision", () -> {
+            PhysicsSpace space = requireSpace(spaceId);
+            LongSet visitedSections = new LongOpenHashSet();
+            WorldVoxelCollisionCache.BuildStats total = WorldVoxelCollisionCache.BuildStats.empty();
+            for (Vector3d center : centers) {
+                total = total.plus(worldVoxelCollisionCache.ensureAround(world,
+                    space,
+                    center,
+                    radius,
+                    tick,
+                    null,
+                    visitedSections));
+            }
+            return new WorldCollisionPrewarmStats(visitedSections.size(),
+                worldCollisionStats(total));
+        });
+    }
+
+    public int clearWorldCollision(@Nonnull SpaceId spaceId) {
+        return callOnPhysicsOwner("clear world collision", () -> {
+            PhysicsSpace space = requireSpace(spaceId);
+            return worldVoxelCollisionCache.clear(space);
+        });
+    }
+
+    @Nonnull
+    public WorldCollisionStats getWorldCollisionStats() {
+        return callOnPhysicsOwner("read world collision stats", () -> new WorldCollisionStats(
+            worldVoxelCollisionCache.spaceCount(),
+            worldVoxelCollisionCache.sectionCount(),
+            worldVoxelCollisionCache.bodyCount(),
+            worldVoxelCollisionCache.shapeTemplateCount()));
+    }
+
+    @Nonnull
+    private static WorldCollisionBuildStats worldCollisionStats(
+        @Nonnull WorldVoxelCollisionCache.BuildStats stats) {
+        return new WorldCollisionBuildStats(stats.scannedBlocks(),
+            stats.solidBlocks(),
+            stats.culledInteriorBlocks(),
+            stats.fullCubeRuns(),
+            stats.detailBoxes(),
+            stats.colliderBodies(),
+            stats.removedBodies(),
+            stats.sectionsBuilt(),
+            stats.sectionsRebuilt(),
+            stats.voxelBodies());
     }
 
     public void forEachBodySnapshot(@Nonnull SpaceId spaceId,
@@ -552,13 +683,13 @@ public class PhysicsWorldResource implements Resource<EntityStore> {
     }
 
     public void removeSpace(@Nonnull SpaceId spaceId, @Nonnull String worldName) {
-        runOnWorker("remove physics space", () -> removeSpaceDirect(spaceId, worldName));
+        runOnPhysicsOwner("remove physics space", () -> removeSpaceDirect(spaceId, worldName));
     }
 
     @Nonnull
     public PhysicsMutationHandle<SpaceId> removeSpaceAsync(@Nonnull SpaceId spaceId,
         @Nonnull String worldName) {
-        return enqueueTopologyMutation("remove physics space",
+        return enqueuePhysicsMutation("remove physics space",
             spaceId,
             () -> removeSpaceDirect(spaceId, worldName));
     }
@@ -588,12 +719,12 @@ public class PhysicsWorldResource implements Resource<EntityStore> {
     }
 
     public void clearAllSpaces(@Nonnull String worldName) {
-        runOnWorker("clear physics spaces", () -> clearAllSpacesDirect(worldName));
+        runOnPhysicsOwner("clear physics spaces", () -> clearAllSpacesDirect(worldName));
     }
 
     @Nonnull
     public PhysicsMutationHandle<Void> clearAllSpacesAsync(@Nonnull String worldName) {
-        return enqueueTopologyMutation("clear physics spaces",
+        return enqueuePhysicsMutation("clear physics spaces",
             () -> clearAllSpacesDirect(worldName));
     }
 
@@ -613,7 +744,7 @@ public class PhysicsWorldResource implements Resource<EntityStore> {
      */
     @Nonnull
     public RuntimeResetResult resetRuntimeStateKeepingSpaces(@Nonnull String worldName) {
-        return callOnWorker("reset physics runtime state",
+        return callOnPhysicsOwner("reset physics runtime state",
             () -> resetRuntimeStateKeepingSpacesDirect(worldName));
     }
 
@@ -658,13 +789,13 @@ public class PhysicsWorldResource implements Resource<EntityStore> {
     }
 
     public void setSpaceSettings(@Nonnull SpaceId spaceId, @Nonnull PhysicsSpaceSettings settings) {
-        runOnWorker("set physics space settings", () -> setSpaceSettingsDirect(spaceId, settings));
+        runOnPhysicsOwner("set physics space settings", () -> setSpaceSettingsDirect(spaceId, settings));
     }
 
     @Nonnull
     public PhysicsMutationHandle<SpaceId> setSpaceSettingsAsync(@Nonnull SpaceId spaceId,
         @Nonnull PhysicsSpaceSettings settings) {
-        return enqueueTopologyMutation("set physics space settings",
+        return enqueuePhysicsMutation("set physics space settings",
             spaceId,
             () -> setSpaceSettingsDirect(spaceId, settings));
     }
@@ -747,7 +878,7 @@ public class PhysicsWorldResource implements Resource<EntityStore> {
         @Nonnull PhysicsBody body,
         @Nonnull PhysicsBodyKind kind,
         @Nonnull PhysicsBodyPersistenceMode persistenceMode) {
-        return callOnWorker("add physics body",
+        return callOnPhysicsOwner("add physics body",
             () -> addBodyDirect(bodyId, spaceId, body, kind, persistenceMode));
     }
 
@@ -766,9 +897,24 @@ public class PhysicsWorldResource implements Resource<EntityStore> {
         @Nonnull PhysicsBody body,
         @Nonnull PhysicsBodyKind kind,
         @Nonnull PhysicsBodyPersistenceMode persistenceMode) {
-        return enqueueTopologyMutation("add physics body",
+        markBodyCreationPending(bodyId);
+        AtomicBoolean pendingCleared = new AtomicBoolean();
+        Runnable clearPending = () -> {
+            if (pendingCleared.compareAndSet(false, true)) {
+                clearBodyCreationPending(bodyId);
+            }
+        };
+        PhysicsMutationHandle<PhysicsBodyId> handle = enqueuePhysicsMutation("add physics body",
             bodyId,
-            () -> addBodyDirect(bodyId, spaceId, body, kind, persistenceMode));
+            () -> {
+                try {
+                    addBodyDirect(bodyId, spaceId, body, kind, persistenceMode);
+                } finally {
+                    clearPending.run();
+                }
+            });
+        handle.completion().whenComplete((ignored, failure) -> clearPending.run());
+        return handle;
     }
 
     @Nonnull
@@ -802,13 +948,13 @@ public class PhysicsWorldResource implements Resource<EntityStore> {
     }
 
     public void destroyBody(@Nonnull PhysicsBodyId bodyId, boolean removeFromSpace) {
-        runOnWorker("destroy physics body", () -> destroyBodyDirect(bodyId, removeFromSpace));
+        runOnPhysicsOwner("destroy physics body", () -> destroyBodyDirect(bodyId, removeFromSpace));
     }
 
     @Nonnull
     public PhysicsMutationHandle<PhysicsBodyId> destroyBodyAsync(@Nonnull PhysicsBodyId bodyId,
         boolean removeFromSpace) {
-        return enqueueTopologyMutation("destroy physics body",
+        return enqueuePhysicsMutation("destroy physics body",
             bodyId,
             () -> destroyBodyDirect(bodyId, removeFromSpace));
     }
@@ -827,12 +973,12 @@ public class PhysicsWorldResource implements Resource<EntityStore> {
     }
 
     public void destroyBody(@Nonnull PhysicsBody body) {
-        runOnWorker("destroy physics body", () -> destroyBodyDirect(body));
+        runOnPhysicsOwner("destroy physics body", () -> destroyBodyDirect(body));
     }
 
     @Nonnull
     public PhysicsMutationHandle<Void> destroyBodyAsync(@Nonnull PhysicsBody body) {
-        return enqueueTopologyMutation("destroy physics body", () -> destroyBodyDirect(body));
+        return enqueuePhysicsMutation("destroy physics body", () -> destroyBodyDirect(body));
     }
 
     private void destroyBodyDirect(@Nonnull PhysicsBody body) {
@@ -865,6 +1011,12 @@ public class PhysicsWorldResource implements Resource<EntityStore> {
     @Nullable
     public BodyRegistration getRegistration(@Nonnull PhysicsBodyId bodyId) {
         return bodyRegistry.getRegistration(bodyId);
+    }
+
+    public boolean isBodyCreationPending(@Nonnull PhysicsBodyId bodyId) {
+        synchronized (pendingBodyCreations) {
+            return pendingBodyCreations.containsKey(bodyId);
+        }
     }
 
     @Nonnull
@@ -949,13 +1101,13 @@ public class PhysicsWorldResource implements Resource<EntityStore> {
     }
 
     public void remapMigratedBodies(@Nonnull Map<PhysicsBody, PhysicsBody> bodyRemaps) {
-        runOnWorker("remap migrated physics bodies", () -> remapMigratedBodiesDirect(bodyRemaps));
+        runOnPhysicsOwner("remap migrated physics bodies", () -> remapMigratedBodiesDirect(bodyRemaps));
     }
 
     @Nonnull
     public PhysicsMutationHandle<Void> remapMigratedBodiesAsync(
         @Nonnull Map<PhysicsBody, PhysicsBody> bodyRemaps) {
-        return enqueueTopologyMutation("remap migrated physics bodies",
+        return enqueuePhysicsMutation("remap migrated physics bodies",
             () -> remapMigratedBodiesDirect(bodyRemaps));
     }
 
@@ -977,12 +1129,12 @@ public class PhysicsWorldResource implements Resource<EntityStore> {
     }
 
     public void clearBodies() {
-        runOnWorker("clear physics bodies", this::clearBodiesDirect);
+        runOnPhysicsOwner("clear physics bodies", this::clearBodiesDirect);
     }
 
     @Nonnull
     public PhysicsMutationHandle<Void> clearBodiesAsync() {
-        return enqueueTopologyMutation("clear physics bodies", this::clearBodiesDirect);
+        return enqueuePhysicsMutation("clear physics bodies", this::clearBodiesDirect);
     }
 
     private void clearBodiesDirect() {
@@ -1009,12 +1161,22 @@ public class PhysicsWorldResource implements Resource<EntityStore> {
 
     @Nonnull
     public BodyVisualInterestState getOrCreateBodyVisualInterestState(@Nonnull PhysicsBodyId bodyId) {
-        return bodyRegistry.getOrCreateBodyVisualInterestState(bodyId);
+        BodyVisualInterestState state = bodyRegistry.getOrCreateBodyVisualInterestState(bodyId);
+        state.advanceVisualInterestTick(visualInterestTick);
+        return state;
     }
 
     @Nullable
     public BodyVisualInterestState getBodyVisualInterestState(@Nonnull PhysicsBodyId bodyId) {
-        return bodyRegistry.getBodyVisualInterestState(bodyId);
+        BodyVisualInterestState state = bodyRegistry.getBodyVisualInterestState(bodyId);
+        if (state != null) {
+            state.advanceVisualInterestTick(visualInterestTick);
+        }
+        return state;
+    }
+
+    public long advanceVisualInterestTick() {
+        return ++visualInterestTick;
     }
 
     public void markBodyControlled(@Nonnull PhysicsBodyId bodyId) {
@@ -1062,13 +1224,13 @@ public class PhysicsWorldResource implements Resource<EntityStore> {
     }
 
     public void clearBodyRuntimeState(@Nonnull PhysicsBodyId bodyId) {
-        runOnWorker("clear physics body runtime state", () -> clearBodyRuntimeStateDirect(bodyId));
+        runOnPhysicsOwner("clear physics body runtime state", () -> clearBodyRuntimeStateDirect(bodyId));
     }
 
     @Nonnull
     public PhysicsMutationHandle<PhysicsBodyId> clearBodyRuntimeStateAsync(
         @Nonnull PhysicsBodyId bodyId) {
-        return enqueueTopologyMutation("clear physics body runtime state",
+        return enqueuePhysicsMutation("clear physics body runtime state",
             bodyId,
             () -> clearBodyRuntimeStateDirect(bodyId));
     }
@@ -1101,12 +1263,12 @@ public class PhysicsWorldResource implements Resource<EntityStore> {
     }
 
     public void copyFrom(@Nonnull PhysicsWorldResource other) {
-        runOnWorker("copy physics world resource", () -> copyFromDirect(other));
+        runOnPhysicsOwner("copy physics world resource", () -> copyFromDirect(other));
     }
 
     @Nonnull
     public PhysicsMutationHandle<Void> copyFromAsync(@Nonnull PhysicsWorldResource other) {
-        return enqueueTopologyMutation("copy physics world resource", () -> copyFromDirect(other));
+        return enqueuePhysicsMutation("copy physics world resource", () -> copyFromDirect(other));
     }
 
     private void copyFromDirect(@Nonnull PhysicsWorldResource other) {
@@ -1135,12 +1297,12 @@ public class PhysicsWorldResource implements Resource<EntityStore> {
      * Higher values can improve stability at the cost of backend step time.
      */
     public void setSimulationSteps(int simulationSteps) {
-        runOnWorker("set simulation steps", () -> setSimulationStepsDirect(simulationSteps));
+        runOnPhysicsOwner("set simulation steps", () -> setSimulationStepsDirect(simulationSteps));
     }
 
     @Nonnull
     public PhysicsMutationHandle<Void> setSimulationStepsAsync(int simulationSteps) {
-        return enqueueTopologyMutation("set simulation steps",
+        return enqueuePhysicsMutation("set simulation steps",
             () -> setSimulationStepsDirect(simulationSteps));
     }
 
@@ -1156,7 +1318,7 @@ public class PhysicsWorldResource implements Resource<EntityStore> {
     public PhysicsSpace replaceSpace(@Nonnull SpaceId spaceId,
         @Nonnull PhysicsSpace replacement,
         @Nonnull String worldName) {
-        return callOnWorker("replace physics space",
+        return callOnPhysicsOwner("replace physics space",
             () -> replaceSpaceDirect(spaceId, replacement, worldName));
     }
 
@@ -1164,7 +1326,7 @@ public class PhysicsWorldResource implements Resource<EntityStore> {
     public PhysicsMutationHandle<SpaceId> replaceSpaceAsync(@Nonnull SpaceId spaceId,
         @Nonnull PhysicsSpace replacement,
         @Nonnull String worldName) {
-        return enqueueTopologyMutation("replace physics space",
+        return enqueuePhysicsMutation("replace physics space",
             spaceId,
             () -> replaceSpaceDirect(spaceId, replacement, worldName));
     }
@@ -1241,6 +1403,23 @@ public class PhysicsWorldResource implements Resource<EntityStore> {
         return false;
     }
 
+    private void markBodyCreationPending(@Nonnull PhysicsBodyId bodyId) {
+        synchronized (pendingBodyCreations) {
+            pendingBodyCreations.addTo(bodyId, 1);
+        }
+    }
+
+    private void clearBodyCreationPending(@Nonnull PhysicsBodyId bodyId) {
+        synchronized (pendingBodyCreations) {
+            int count = pendingBodyCreations.getInt(bodyId);
+            if (count <= 1) {
+                pendingBodyCreations.removeInt(bodyId);
+            } else {
+                pendingBodyCreations.put(bodyId, count - 1);
+            }
+        }
+    }
+
     private void markWorldChanged() {
         worldEpoch++;
         latestPublishedFrame = PublishedPhysicsSnapshotFrame.empty(snapshotFrameEpoch, worldEpoch);
@@ -1287,25 +1466,48 @@ public class PhysicsWorldResource implements Resource<EntityStore> {
         private boolean likelyVisible;
         @Getter
         private boolean raycastVisible;
-        private int ticksSinceRaycast = Integer.MAX_VALUE;
+        private long currentTick;
+        private long lastRaycastTick = Long.MIN_VALUE;
 
         public void recordInterest(float nearestDistanceSquared,
             boolean likelyVisible,
             boolean raycastVisible,
             boolean raycastEvaluated) {
+            recordInterest(nearestDistanceSquared,
+                likelyVisible,
+                raycastVisible,
+                raycastEvaluated,
+                currentTick);
+        }
+
+        public void recordInterest(float nearestDistanceSquared,
+            boolean likelyVisible,
+            boolean raycastVisible,
+            boolean raycastEvaluated,
+            long currentTick) {
+            long resolvedTick = advanceVisualInterestTick(currentTick);
             this.nearestDistanceSquared = nearestDistanceSquared;
             inRange = nearestDistanceSquared != Float.POSITIVE_INFINITY;
             this.likelyVisible = likelyVisible;
             if (raycastEvaluated) {
                 this.raycastVisible = raycastVisible;
-                ticksSinceRaycast = 0;
-            } else if (ticksSinceRaycast < Integer.MAX_VALUE) {
-                ticksSinceRaycast++;
+                lastRaycastTick = resolvedTick;
             }
         }
 
         public boolean hasFreshRaycast(int cacheTicks) {
-            return ticksSinceRaycast <= cacheTicks;
+            return hasFreshRaycast(cacheTicks, currentTick);
+        }
+
+        public boolean hasFreshRaycast(int cacheTicks, long currentTick) {
+            long resolvedTick = advanceVisualInterestTick(currentTick);
+            return lastRaycastTick != Long.MIN_VALUE
+                && resolvedTick - lastRaycastTick <= cacheTicks;
+        }
+
+        public long advanceVisualInterestTick(long currentTick) {
+            this.currentTick = Math.max(this.currentTick, currentTick);
+            return this.currentTick;
         }
 
     }

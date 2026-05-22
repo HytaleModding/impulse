@@ -16,6 +16,7 @@ import dev.hytalemodding.impulse.core.plugin.resources.PhysicsWorldResource;
 import java.util.UUID;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
+import lombok.Getter;
 import org.joml.Vector3f;
 
 /**
@@ -125,6 +126,7 @@ public class PersistentPhysicsBodyState {
 
     @Nullable
     private UUID bodyId;
+    @Getter
     private int spaceId = DEFAULT_SPACE_ID;
     @Nonnull
     private ShapeType shapeType = ShapeType.UNKNOWN;
@@ -132,11 +134,15 @@ public class PersistentPhysicsBodyState {
     private PhysicsAxis shapeAxis = PhysicsAxis.Y;
     @Nonnull
     private final Vector3f boxHalfExtents = new Vector3f();
+    @Getter
     private float sphereRadius;
+    @Getter
     private float halfHeight;
+    @Getter
     private float planeGroundY;
     @Nonnull
     private PhysicsBodyType bodyType = PhysicsBodyType.DYNAMIC;
+    @Getter
     private float mass = 1.0f;
     @Nonnull
     private final Vector3f position = new Vector3f();
@@ -146,14 +152,23 @@ public class PersistentPhysicsBodyState {
     private final Vector3f linearVelocity = new Vector3f();
     @Nonnull
     private final Vector3f angularVelocity = new Vector3f();
+    @Getter
     private float friction;
+    @Getter
     private float restitution;
+    @Getter
     private float linearDamping;
+    @Getter
     private float angularDamping;
+    @Getter
     private boolean sensor;
+    @Getter
     private int collisionGroup;
+    @Getter
     private int collisionMask;
+    @Getter
     private boolean continuousCollisionEnabled;
+    @Getter
     private boolean sleeping;
 
     public PersistentPhysicsBodyState() {
@@ -177,10 +192,6 @@ public class PersistentPhysicsBodyState {
         return bodyId;
     }
 
-    public int getSpaceId() {
-        return spaceId;
-    }
-
     @Nonnull
     public ShapeType getShapeType() {
         return shapeType;
@@ -196,25 +207,9 @@ public class PersistentPhysicsBodyState {
         return boxHalfExtents;
     }
 
-    public float getSphereRadius() {
-        return sphereRadius;
-    }
-
-    public float getHalfHeight() {
-        return halfHeight;
-    }
-
-    public float getPlaneGroundY() {
-        return planeGroundY;
-    }
-
     @Nonnull
     public PhysicsBodyType getBodyType() {
         return bodyType;
-    }
-
-    public float getMass() {
-        return mass;
     }
 
     @Nonnull
@@ -237,42 +232,6 @@ public class PersistentPhysicsBodyState {
         return angularVelocity;
     }
 
-    public float getFriction() {
-        return friction;
-    }
-
-    public float getRestitution() {
-        return restitution;
-    }
-
-    public float getLinearDamping() {
-        return linearDamping;
-    }
-
-    public float getAngularDamping() {
-        return angularDamping;
-    }
-
-    public boolean isSensor() {
-        return sensor;
-    }
-
-    public int getCollisionGroup() {
-        return collisionGroup;
-    }
-
-    public int getCollisionMask() {
-        return collisionMask;
-    }
-
-    public boolean isContinuousCollisionEnabled() {
-        return continuousCollisionEnabled;
-    }
-
-    public boolean isSleeping() {
-        return sleeping;
-    }
-
     public int resolveSpaceId(@Nullable SpaceId defaultSpaceId) {
         if (spaceId > 0) {
             return spaceId;
@@ -285,11 +244,8 @@ public class PersistentPhysicsBodyState {
         if (bodyId == null) {
             return "missing body id";
         }
-        if (shapeType == null || shapeType == ShapeType.UNKNOWN || shapeType == ShapeType.VOXELS) {
+        if (shapeType == ShapeType.UNKNOWN || shapeType == ShapeType.VOXELS) {
             return "unsupported body shape";
-        }
-        if (bodyType == null) {
-            return "missing body type";
         }
         if (!isFiniteVector(position)) {
             return "invalid position";
@@ -351,11 +307,7 @@ public class PersistentPhysicsBodyState {
         mass = nonNegativeFiniteOrDefaultForRestore(body.getMass(), 1.0f);
         copyFiniteVectorOrZero(position, body.getPosition());
         var bodyRotation = body.getRotation();
-        if (bodyRotation != null) {
-            rotation.set(bodyRotation);
-        } else {
-            rotation = new PersistentQuaternion();
-        }
+        rotation.set(bodyRotation);
         copyFiniteVectorOrZero(linearVelocity, body.getLinearVelocity());
         copyFiniteVectorOrZero(angularVelocity, body.getAngularVelocity());
         friction = nonNegativeFiniteOrZeroForRestore(body.getFriction());

@@ -6,8 +6,8 @@ import com.hypixel.hytale.server.core.command.system.CommandContext;
 import com.hypixel.hytale.server.core.command.system.basecommands.AbstractWorldCommand;
 import com.hypixel.hytale.server.core.universe.world.World;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
-import dev.hytalemodding.impulse.core.internal.resources.PhysicsRuntimeProfilingResource;
-import dev.hytalemodding.impulse.core.internal.resources.WorldCollisionProfilingResource;
+import dev.hytalemodding.impulse.core.internal.resources.profiling.PhysicsRuntimeProfilingResource;
+import dev.hytalemodding.impulse.core.internal.resources.profiling.WorldCollisionProfilingResource;
 import javax.annotation.Nonnull;
 
 public class PerfResetCommand extends AbstractWorldCommand {

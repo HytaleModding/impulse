@@ -104,74 +104,81 @@ class PhysicsWorkerRunnerTest {
 
     @Test
     void rejectsAfterShutdown() {
-        PhysicsWorkerRunner runner = new PhysicsWorkerRunner("Impulse closed physics worker", 1);
-        assertTrue(runner.shutdown(Duration.ofSeconds(2L)));
-        assertFalse(runner.isAccepting());
+        try (PhysicsWorkerRunner runner = new PhysicsWorkerRunner("Impulse closed physics worker", 1)) {
+            assertTrue(runner.shutdown(Duration.ofSeconds(2L)));
+            assertFalse(runner.isAccepting());
 
-        CompletableFuture<PhysicsWorkerResult> rejected = runner.submit(PhysicsWorkerSnapshot::empty);
-        ExecutionException thrown = assertThrows(ExecutionException.class,
-            () -> rejected.get(2, TimeUnit.SECONDS));
-        assertInstanceOf(RejectedExecutionException.class, thrown.getCause());
+            CompletableFuture<PhysicsWorkerResult> rejected = runner.submit(PhysicsWorkerSnapshot::empty);
+            ExecutionException thrown = assertThrows(ExecutionException.class,
+                () -> rejected.get(2, TimeUnit.SECONDS));
+            assertInstanceOf(RejectedExecutionException.class, thrown.getCause());
+        }
     }
 
     @Test
     void drainsQueuedCommandsSubmittedBeforeShutdown() throws Exception {
-        PhysicsWorkerRunner runner = new PhysicsWorkerRunner("Impulse draining physics worker", 2);
-        CountDownLatch started = new CountDownLatch(1);
         CountDownLatch release = new CountDownLatch(1);
-        CompletableFuture<PhysicsWorkerResult> running = runner.submit(() -> {
-            started.countDown();
-            assertTrue(release.await(2, TimeUnit.SECONDS));
-            return new PhysicsWorkerSnapshot(1, 1, 1, 1, 1L, 1L);
-        });
-        assertTrue(started.await(2, TimeUnit.SECONDS));
-        CompletableFuture<PhysicsWorkerResult> queued = runner.submit(() ->
-            new PhysicsWorkerSnapshot(2, 2, 2, 2, 2L, 2L));
+        try (PhysicsWorkerRunner runner = new PhysicsWorkerRunner("Impulse draining physics worker", 2)) {
+            CountDownLatch started = new CountDownLatch(1);
+            CompletableFuture<PhysicsWorkerResult> running = runner.submit(() -> {
+                started.countDown();
+                assertTrue(release.await(2, TimeUnit.SECONDS));
+                return new PhysicsWorkerSnapshot(1, 1, 1, 1, 1L, 1L);
+            });
+            assertTrue(started.await(2, TimeUnit.SECONDS));
+            CompletableFuture<PhysicsWorkerResult> queued = runner.submit(() ->
+                new PhysicsWorkerSnapshot(2, 2, 2, 2, 2L, 2L));
 
-        release.countDown();
-        assertTrue(runner.shutdown(Duration.ofSeconds(2L)));
+            release.countDown();
+            assertTrue(runner.shutdown(Duration.ofSeconds(2L)));
 
-        assertEquals(1, running.get(2, TimeUnit.SECONDS).snapshot().spaces());
-        assertEquals(2, queued.get(2, TimeUnit.SECONDS).snapshot().spaces());
-        assertEquals(0, runner.pendingCommands());
+            assertEquals(1, running.get(2, TimeUnit.SECONDS).snapshot().spaces());
+            assertEquals(2, queued.get(2, TimeUnit.SECONDS).snapshot().spaces());
+            assertEquals(0, runner.pendingCommands());
+        } finally {
+            release.countDown();
+        }
     }
 
     @Test
     void shutdownDoesNotInterruptActiveStepAndDrainsQueuedWork() throws Exception {
-        PhysicsWorkerRunner runner = new PhysicsWorkerRunner("Impulse active shutdown worker", 2);
-        CountDownLatch started = new CountDownLatch(1);
         CountDownLatch release = new CountDownLatch(1);
-        AtomicBoolean interrupted = new AtomicBoolean();
+        try (PhysicsWorkerRunner runner = new PhysicsWorkerRunner("Impulse active shutdown worker", 2)) {
+            CountDownLatch started = new CountDownLatch(1);
+            AtomicBoolean interrupted = new AtomicBoolean();
 
-        CompletableFuture<PhysicsWorkerResult> running = runner.submit(() -> {
-            started.countDown();
-            try {
-                assertTrue(release.await(2, TimeUnit.SECONDS));
-            } catch (InterruptedException e) {
-                interrupted.set(true);
-                Thread.currentThread().interrupt();
-                throw e;
-            }
-            return new PhysicsWorkerSnapshot(3, 3, 3, 3, 3L, 3L);
-        });
-        assertTrue(started.await(2, TimeUnit.SECONDS));
-        CompletableFuture<PhysicsWorkerResult> queued = runner.submit(() ->
-            new PhysicsWorkerSnapshot(4, 4, 4, 4, 4L, 4L));
+            CompletableFuture<PhysicsWorkerResult> running = runner.submit(() -> {
+                started.countDown();
+                try {
+                    assertTrue(release.await(2, TimeUnit.SECONDS));
+                } catch (InterruptedException e) {
+                    interrupted.set(true);
+                    Thread.currentThread().interrupt();
+                    throw e;
+                }
+                return new PhysicsWorkerSnapshot(3, 3, 3, 3, 3L, 3L);
+            });
+            assertTrue(started.await(2, TimeUnit.SECONDS));
+            CompletableFuture<PhysicsWorkerResult> queued = runner.submit(() ->
+                new PhysicsWorkerSnapshot(4, 4, 4, 4, 4L, 4L));
 
-        CompletableFuture<Boolean> shutdown = CompletableFuture.supplyAsync(() ->
-            runner.shutdown(Duration.ofSeconds(2L)));
-        assertFalse(shutdown.isDone());
-        assertFalse(running.isDone());
-        assertFalse(queued.isDone());
+            CompletableFuture<Boolean> shutdown = CompletableFuture.supplyAsync(() ->
+                runner.shutdown(Duration.ofSeconds(2L)));
+            assertFalse(shutdown.isDone());
+            assertFalse(running.isDone());
+            assertFalse(queued.isDone());
 
-        release.countDown();
+            release.countDown();
 
-        assertTrue(shutdown.get(2, TimeUnit.SECONDS));
-        assertFalse(runner.isAccepting());
-        assertFalse(interrupted.get());
-        assertEquals(3, running.get(2, TimeUnit.SECONDS).snapshot().spaces());
-        assertEquals(4, queued.get(2, TimeUnit.SECONDS).snapshot().spaces());
-        assertEquals(0, runner.pendingCommands());
+            assertTrue(shutdown.get(2, TimeUnit.SECONDS));
+            assertFalse(runner.isAccepting());
+            assertFalse(interrupted.get());
+            assertEquals(3, running.get(2, TimeUnit.SECONDS).snapshot().spaces());
+            assertEquals(4, queued.get(2, TimeUnit.SECONDS).snapshot().spaces());
+            assertEquals(0, runner.pendingCommands());
+        } finally {
+            release.countDown();
+        }
     }
 
     @Test

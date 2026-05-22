@@ -3,10 +3,15 @@ package dev.hytalemodding.impulse.core.internal.persistence;
 import com.hypixel.hytale.codec.Codec;
 import com.hypixel.hytale.codec.KeyedCodec;
 import com.hypixel.hytale.codec.builder.BuilderCodec;
+import com.hypixel.hytale.codec.codecs.array.ArrayCodec;
+import com.hypixel.hytale.codec.schema.SchemaContext;
+import com.hypixel.hytale.codec.schema.config.Schema;
+import com.hypixel.hytale.codec.validation.Validator;
+import com.hypixel.hytale.codec.validation.ValidationResults;
+import com.hypixel.hytale.codec.validation.Validators;
 import com.hypixel.hytale.component.Resource;
 import com.hypixel.hytale.component.ResourceType;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
-import com.hypixel.hytale.codec.codecs.array.ArrayCodec;
 import dev.hytalemodding.impulse.api.SpaceId;
 import dev.hytalemodding.impulse.core.ImpulsePlugin;
 import dev.hytalemodding.impulse.core.plugin.resources.PhysicsStepMode;
@@ -24,8 +29,7 @@ import lombok.Setter;
 /**
  * Codec-backed world-level physics resource for the persistence layer.
  *
- * <p>This resource is registered on the {@code EntityStore} and persisted by
- * Hytale's serialization. It stores the world-level state that does not belong
+ * <p>This resource stores the world-level state that does not belong
  * on individual entities: the space definitions (id, backend, gravity, world-collision
  * settings), the body states (keyed by stable physics body ids), the joint
  * definitions (keyed by endpoint body ids), the default
@@ -54,39 +58,58 @@ public class PersistentPhysicsWorldResource implements Resource<EntityStore> {
             PersistentPhysicsWorldResource.class,
             PersistentPhysicsWorldResource::new)
         .append(new KeyedCodec<>("SchemaVersion", Codec.INTEGER, false),
-            PersistentPhysicsWorldResource::setSchemaVersion,
+            (resource, value) -> resource.schemaVersion = value,
             PersistentPhysicsWorldResource::getSchemaVersion)
+        .addValidator(Validators.nonNull())
+        .addValidator(Validators.range(1, Integer.MAX_VALUE))
         .add()
         .append(new KeyedCodec<>("DefaultSpaceId", Codec.INTEGER),
             (resource, value) -> resource.defaultSpaceId = value,
             PersistentPhysicsWorldResource::getDefaultSpaceId)
+        .addValidator(Validators.nonNull())
+        .addValidator(Validators.range(0, Integer.MAX_VALUE))
         .add()
         .append(new KeyedCodec<>("SimulationSteps", Codec.INTEGER),
-            PersistentPhysicsWorldResource::setSimulationSteps,
+            (resource, value) -> resource.simulationSteps = value,
             PersistentPhysicsWorldResource::getSimulationSteps)
+        .addValidator(Validators.nonNull())
+        .addValidator(Validators.range(
+            PhysicsWorldResource.MIN_SIMULATION_STEPS,
+            PhysicsWorldResource.MAX_SIMULATION_STEPS))
         .add()
         .append(new KeyedCodec<>("StepMode", Codec.STRING, false),
             (resource, value) -> resource.setStepMode(parseStepModeOrDefault(value)),
             resource -> resource.getStepMode().getSerializedName())
+        .addValidator(Validators.nonNull())
+        .addValidator(stepModeName())
         .add()
         .append(new KeyedCodec<>("MaxStepDt", Codec.FLOAT, false),
-            PersistentPhysicsWorldResource::setMaxStepDt,
+            (resource, value) -> resource.maxStepDt = value,
             PersistentPhysicsWorldResource::getMaxStepDt)
+        .addValidator(Validators.nonNull())
+        .addValidator(Validators.greaterThan(0.0f))
+        .addValidator(Validators.max(Float.MAX_VALUE))
         .add()
         .append(new KeyedCodec<>("Spaces",
                 new ArrayCodec<>(PersistentPhysicsSpaceState.CODEC, PersistentPhysicsSpaceState[]::new)),
             (resource, value) -> resource.spaces = copySpaces(value),
             PersistentPhysicsWorldResource::getSpaces)
+        .addValidator(Validators.nonNull())
+        .addValidator(Validators.nonNullArrayElements())
         .add()
         .append(new KeyedCodec<>("Bodies",
                 new ArrayCodec<>(PersistentPhysicsBodyState.CODEC, PersistentPhysicsBodyState[]::new)),
             (resource, value) -> resource.bodies = copyBodies(value),
             PersistentPhysicsWorldResource::getBodies)
+        .addValidator(Validators.nonNull())
+        .addValidator(Validators.nonNullArrayElements())
         .add()
         .append(new KeyedCodec<>("Joints",
                 new ArrayCodec<>(PersistentPhysicsJointState.CODEC, PersistentPhysicsJointState[]::new)),
             (resource, value) -> resource.joints = copyJoints(value),
             PersistentPhysicsWorldResource::getJoints)
+        .addValidator(Validators.nonNull())
+        .addValidator(Validators.nonNullArrayElements())
         .add()
         .afterDecode(PersistentPhysicsWorldResource::markRuntimeRestorePending)
         .build();
@@ -98,6 +121,7 @@ public class PersistentPhysicsWorldResource implements Resource<EntityStore> {
     private int defaultSpaceId;
     @Getter
     private int simulationSteps = PhysicsWorldResource.MIN_SIMULATION_STEPS;
+    @Setter
     @Getter
     @Nonnull
     private PhysicsStepMode stepMode = PhysicsStepMode.PROGRESSIVE_REFINEMENT;
@@ -120,11 +144,11 @@ public class PersistentPhysicsWorldResource implements Resource<EntityStore> {
     private transient int runtimeRestoredBodyCount;
     private transient int runtimeRestoredJointCount;
     @Nonnull
-    private transient Object2IntMap<String> runtimeSkippedBodiesByReason = new Object2IntLinkedOpenHashMap<>();
+    private final transient Object2IntMap<String> runtimeSkippedBodiesByReason = new Object2IntLinkedOpenHashMap<>();
     @Nonnull
-    private transient Object2IntMap<String> runtimeSkippedJointsByReason = new Object2IntLinkedOpenHashMap<>();
+    private final transient Object2IntMap<String> runtimeSkippedJointsByReason = new Object2IntLinkedOpenHashMap<>();
     @Nonnull
-    private transient Set<String> runtimeSkippedJointKeys = new ObjectOpenHashSet<>();
+    private final transient Set<String> runtimeSkippedJointKeys = new ObjectOpenHashSet<>();
     private transient boolean runtimeSnapshotSynced;
     private transient int runtimeSnapshotSyncSkipTicks;
 
@@ -146,10 +170,6 @@ public class PersistentPhysicsWorldResource implements Resource<EntityStore> {
             return;
         }
         this.simulationSteps = simulationSteps;
-    }
-
-    public void setStepMode(@Nonnull PhysicsStepMode stepMode) {
-        this.stepMode = stepMode != null ? stepMode : PhysicsStepMode.PROGRESSIVE_REFINEMENT;
     }
 
     public void setMaxStepDt(float maxStepDt) {
@@ -203,7 +223,6 @@ public class PersistentPhysicsWorldResource implements Resource<EntityStore> {
     }
 
     public void markRuntimeRestorePending() {
-        ensureRuntimeTracking();
         runtimeRestorePending = true;
         runtimeSpaceBootstrapComplete = false;
         runtimeRestoreFailed = false;
@@ -250,7 +269,6 @@ public class PersistentPhysicsWorldResource implements Resource<EntityStore> {
     }
 
     public void failRuntimeRestore(@Nonnull String message) {
-        ensureRuntimeTracking();
         runtimeRestorePending = false;
         runtimeRestoreFailed = true;
         runtimeRestoreFailureMessage = message;
@@ -261,7 +279,6 @@ public class PersistentPhysicsWorldResource implements Resource<EntityStore> {
     }
 
     public void recordRuntimeBodySkipped(@Nonnull String reason) {
-        ensureRuntimeTracking();
         runtimeSkippedBodiesByReason.put(reason, runtimeSkippedBodiesByReason.getInt(reason) + 1);
     }
 
@@ -270,7 +287,6 @@ public class PersistentPhysicsWorldResource implements Resource<EntityStore> {
     }
 
     public void recordRuntimeJointSkipped(@Nonnull String key, @Nonnull String reason) {
-        ensureRuntimeTracking();
         if (!runtimeSkippedJointKeys.add(key)) {
             return;
         }
@@ -278,13 +294,11 @@ public class PersistentPhysicsWorldResource implements Resource<EntityStore> {
     }
 
     public boolean hasRuntimeRestoreSkips() {
-        ensureRuntimeTracking();
         return !runtimeSkippedBodiesByReason.isEmpty() || !runtimeSkippedJointsByReason.isEmpty();
     }
 
     @Nonnull
     public String runtimeRestoreSummary() {
-        ensureRuntimeTracking();
         return "Impulse persistence restore completed: "
             + runtimeRestoredSpaceCount + " spaces, "
             + runtimeRestoredBodyCount + " bodies restored, "
@@ -297,7 +311,6 @@ public class PersistentPhysicsWorldResource implements Resource<EntityStore> {
 
     @Nonnull
     public String runtimeRestoreFailureSummary() {
-        ensureRuntimeTracking();
         return "Impulse persistence restore failed: " + runtimeRestoreFailureMessage + " "
             + "Partial progress before failure: "
             + runtimeRestoredSpaceCount + " spaces, "
@@ -314,9 +327,7 @@ public class PersistentPhysicsWorldResource implements Resource<EntityStore> {
         schemaVersion = other.schemaVersion > 0 ? other.schemaVersion : CURRENT_SCHEMA_VERSION;
         defaultSpaceId = other.defaultSpaceId;
         setSimulationSteps(other.simulationSteps);
-        setStepMode(other.stepMode != null
-            ? other.stepMode
-            : PhysicsStepMode.PROGRESSIVE_REFINEMENT);
+        setStepMode(other.stepMode);
         setMaxStepDt(other.maxStepDt);
         spaces = copySpaces(other.spaces);
         bodies = copyBodies(other.bodies);
@@ -330,7 +341,6 @@ public class PersistentPhysicsWorldResource implements Resource<EntityStore> {
         runtimeRestoredJointCount = 0;
         runtimeSnapshotSynced = false;
         runtimeSnapshotSyncSkipTicks = 0;
-        ensureRuntimeTracking();
         runtimeSkippedBodiesByReason.clear();
         runtimeSkippedJointsByReason.clear();
         runtimeSkippedJointKeys.clear();
@@ -371,23 +381,8 @@ public class PersistentPhysicsWorldResource implements Resource<EntityStore> {
         return copy;
     }
 
-    private void ensureRuntimeTracking() {
-        if (runtimeSkippedBodiesByReason == null) {
-            runtimeSkippedBodiesByReason = new Object2IntLinkedOpenHashMap<>();
-        }
-        if (runtimeSkippedJointsByReason == null) {
-            runtimeSkippedJointsByReason = new Object2IntLinkedOpenHashMap<>();
-        }
-        if (runtimeSkippedJointKeys == null) {
-            runtimeSkippedJointKeys = new ObjectOpenHashSet<>();
-        }
-        if (runtimeRestoreFailureMessage == null) {
-            runtimeRestoreFailureMessage = "";
-        }
-    }
-
     @Nonnull
-    private static PhysicsStepMode parseStepModeOrDefault(@Nonnull String value) {
+    private static PhysicsStepMode parseStepModeOrDefault(@Nullable String value) {
         if (value == null) {
             return PhysicsStepMode.PROGRESSIVE_REFINEMENT;
         }
@@ -396,6 +391,27 @@ public class PersistentPhysicsWorldResource implements Resource<EntityStore> {
         } catch (IllegalArgumentException exception) {
             return PhysicsStepMode.PROGRESSIVE_REFINEMENT;
         }
+    }
+
+    @Nonnull
+    private static Validator<String> stepModeName() {
+        return new Validator<>() {
+            @Override
+            public void accept(String value, ValidationResults results) {
+                if (value == null) {
+                    return;
+                }
+                try {
+                    PhysicsStepMode.parse(value);
+                } catch (IllegalArgumentException exception) {
+                    results.fail("Persistent physics step mode is unknown: " + value);
+                }
+            }
+
+            @Override
+            public void updateSchema(SchemaContext context, Schema schema) {
+            }
+        };
     }
 
     private static int countReasons(@Nonnull Object2IntMap<String> reasons) {

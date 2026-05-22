@@ -1,6 +1,7 @@
 package dev.hytalemodding.impulse.core.internal.crucible;
 
 import com.hypixel.hytale.component.Archetype;
+import com.hypixel.hytale.component.ComponentType;
 import com.hypixel.hytale.component.Ref;
 import com.hypixel.hytale.component.Store;
 import com.hypixel.hytale.logger.HytaleLogger;
@@ -15,11 +16,11 @@ import dev.hytalemodding.impulse.api.PhysicsCollisionFilters;
 import dev.hytalemodding.impulse.api.PhysicsSpace;
 import dev.hytalemodding.impulse.api.ShapeType;
 import dev.hytalemodding.impulse.core.ImpulsePlugin;
-import dev.hytalemodding.impulse.core.internal.resources.PhysicsRuntimeProfilingResource;
-import dev.hytalemodding.impulse.core.internal.resources.PhysicsRuntimeProfilingResource.StepSnapshot;
-import dev.hytalemodding.impulse.core.internal.resources.PhysicsRuntimeProfilingResource.SyncSnapshot;
-import dev.hytalemodding.impulse.core.internal.resources.WorldCollisionProfilingResource;
-import dev.hytalemodding.impulse.core.internal.resources.WorldCollisionProfilingResource.Snapshot;
+import dev.hytalemodding.impulse.core.internal.resources.profiling.PhysicsRuntimeProfilingResource;
+import dev.hytalemodding.impulse.core.internal.resources.profiling.PhysicsRuntimeProfilingResource.StepSnapshot;
+import dev.hytalemodding.impulse.core.internal.resources.profiling.PhysicsRuntimeProfilingResource.SyncSnapshot;
+import dev.hytalemodding.impulse.core.internal.resources.profiling.WorldCollisionProfilingResource;
+import dev.hytalemodding.impulse.core.internal.resources.profiling.WorldCollisionProfilingResource.Snapshot;
 import dev.hytalemodding.impulse.core.internal.voxel.WorldVoxelCollisionCache;
 import dev.hytalemodding.impulse.core.internal.voxel.WorldVoxelCollisionCache.BuildStats;
 import dev.hytalemodding.impulse.core.plugin.resources.PhysicsBodyId;
@@ -48,6 +49,7 @@ import org.joml.Vector3f;
 /**
  * Benchmark-oriented Crucible scenario for detached bodies using streamed world collision.
  */
+@SuppressWarnings("SameParameterValue")
 final class ImpulseDetachedStreamingBenchmarkCrucibleTests {
 
     private static final HytaleLogger LOGGER = HytaleLogger.get("Impulse");
@@ -85,6 +87,8 @@ final class ImpulseDetachedStreamingBenchmarkCrucibleTests {
     private static final double STREAMING_HORIZONTAL_DRIFT_HALO_BLOCKS = 16.0;
     private static final double DETACHED_SPACING = 1.5;
     private static final Vector3d ORIGIN = new Vector3d(0.0, 128.0, 0.0);
+    private static final ComponentType<ChunkStore, WorldChunk> WORLD_CHUNK_TYPE =
+        WorldChunk.getComponentType();
 
     private ImpulseDetachedStreamingBenchmarkCrucibleTests() {
     }
@@ -117,6 +121,7 @@ final class ImpulseDetachedStreamingBenchmarkCrucibleTests {
         }
     }
 
+    @SuppressWarnings("BooleanMethodIsAlwaysInverted")
     private static final class StageRunner {
 
         private final CrucibleContext context;
@@ -263,6 +268,8 @@ final class ImpulseDetachedStreamingBenchmarkCrucibleTests {
                 stats,
                 worldCollision.getMissingChunks());
 
+            assert started.chunks() != null;
+            assert started.prewarm() != null;
             return new StageReport(count,
                 observedTickRate,
                 avgStepMs,
@@ -567,8 +574,7 @@ final class ImpulseDetachedStreamingBenchmarkCrucibleTests {
             if (chunkRef == null || !chunkRef.isValid()) {
                 return 0;
             }
-            WorldChunk worldChunk = chunkComponentStore.getComponent(chunkRef,
-                WorldChunk.getComponentType());
+            WorldChunk worldChunk = chunkComponentStore.getComponent(chunkRef, WORLD_CHUNK_TYPE);
             if (worldChunk == null || !worldChunk.is(ChunkFlag.TICKING)) {
                 return 0;
             }
@@ -593,8 +599,7 @@ final class ImpulseDetachedStreamingBenchmarkCrucibleTests {
             if (chunkRef == null || !chunkRef.isValid()) {
                 return false;
             }
-            WorldChunk worldChunk = chunkComponentStore.getComponent(chunkRef,
-                WorldChunk.getComponentType());
+            WorldChunk worldChunk = chunkComponentStore.getComponent(chunkRef, WORLD_CHUNK_TYPE);
             return worldChunk != null && worldChunk.is(ChunkFlag.TICKING);
         }
 
@@ -608,8 +613,7 @@ final class ImpulseDetachedStreamingBenchmarkCrucibleTests {
                 return false;
             }
             Archetype<ChunkStore> archetype = chunkComponentStore.getArchetype(chunkRef);
-            return archetype != null
-                && !archetype.contains(ChunkStore.REGISTRY.getNonTickingComponentType());
+            return !archetype.contains(ChunkStore.REGISTRY.getNonTickingComponentType());
         }
     }
 

@@ -11,9 +11,9 @@ import dev.hytalemodding.impulse.api.PhysicsBody;
 import dev.hytalemodding.impulse.api.PhysicsCollisionFilters;
 import dev.hytalemodding.impulse.api.PhysicsSpace;
 import dev.hytalemodding.impulse.api.SpaceId;
-import dev.hytalemodding.impulse.core.internal.resources.WorldCollisionProfilingResource.MissingSectionReason;
-import dev.hytalemodding.impulse.core.internal.resources.WorldCollisionProfilingResource.Snapshot;
-import dev.hytalemodding.impulse.core.internal.resources.WorldCollisionProfilingResource.StreamingTargetDiagnostic;
+import dev.hytalemodding.impulse.core.internal.resources.profiling.WorldCollisionProfilingResource.MissingSectionReason;
+import dev.hytalemodding.impulse.core.internal.resources.profiling.WorldCollisionProfilingResource.Snapshot;
+import dev.hytalemodding.impulse.core.internal.resources.profiling.WorldCollisionProfilingResource.StreamingTargetDiagnostic;
 import dev.hytalemodding.impulse.core.internal.voxel.SectionCollisionGeometry.BoxCollider;
 import dev.hytalemodding.impulse.core.plugin.resources.PhysicsBodyId;
 import it.unimi.dsi.fastutil.ints.Int2ObjectMap;
@@ -1112,7 +1112,7 @@ public final class WorldVoxelCollisionCache {
                              int voxelBodies) {
 
         @Nonnull
-        private static BuildStats empty() {
+        public static BuildStats empty() {
             return new BuildStats(0, 0, 0, 0, 0, 0, 0, 0, 0, 0);
         }
 
@@ -1136,7 +1136,7 @@ public final class WorldVoxelCollisionCache {
         }
 
         @Nonnull
-        private BuildStats plus(@Nonnull BuildStats stats) {
+        public BuildStats plus(@Nonnull BuildStats stats) {
             return new BuildStats(scannedBlocks + stats.scannedBlocks,
                 solidBlocks + stats.solidBlocks,
                 culledInteriorBlocks + stats.culledInteriorBlocks,

@@ -32,6 +32,7 @@ import org.joml.Vector3f;
  * The migration clones bodies and joints into a fresh target space, remaps the body-id
  * registry to the cloned backend handles, then swaps the resource entry.
  */
+@Deprecated
 public final class PhysicsSpaceMigrationService {
 
     private static final HytaleLogger LOGGER = HytaleLogger.get("Impulse");

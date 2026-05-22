@@ -16,6 +16,7 @@ import dev.hytalemodding.impulse.api.PhysicsSpace;
 import dev.hytalemodding.impulse.api.SpaceId;
 import dev.hytalemodding.impulse.api.testsupport.FakePhysicsBackend;
 import dev.hytalemodding.impulse.api.testsupport.FakePhysicsBackend.InMemoryPhysicsSpace;
+import dev.hytalemodding.impulse.core.internal.resources.worker.PhysicsWorldWorkerResource;
 import dev.hytalemodding.impulse.core.internal.worker.PhysicsWorkerSnapshot;
 import dev.hytalemodding.impulse.core.plugin.resources.PhysicsBodyId;
 import dev.hytalemodding.impulse.core.plugin.resources.PhysicsBodyKind;
@@ -299,12 +300,14 @@ class PhysicsWorldResourceStateTest {
             assertEquals(bodyId, handle.value());
             assertFalse(handle.isDone());
             assertNull(resource.getRegistration(bodyId));
+            assertTrue(resource.isBodyCreationPending(bodyId));
 
             releaseBlocker.countDown();
             pollMutations(worker, 2);
 
             assertTrue(handle.completedSuccessfully());
             assertFalse(handle.failed());
+            assertFalse(resource.isBodyCreationPending(bodyId));
             assertEquals(bodyId, handle.join());
             assertSame(bodyRef.get(), resource.requireBodyRegistration(bodyId).body());
             assertEquals(new Vector3f(1.0f, 2.0f, 3.0f),
@@ -351,8 +354,46 @@ class PhysicsWorldResourceStateTest {
             assertFalse(handle.completedSuccessfully());
             assertThrows(IllegalArgumentException.class, handle::throwIfFailed);
             assertNull(resource.getRegistration(bodyId));
+            assertFalse(resource.isBodyCreationPending(bodyId));
             assertEquals(1, worker.pendingMutations());
 
+            pollMutations(worker, 1);
+            resource.detachWorkerResource(worker);
+        }
+    }
+
+    @Test
+    void publicPhysicsOwnerApiRunsOnAttachedWorker() throws Exception {
+        PhysicsWorldResource resource = new PhysicsWorldResource();
+        try (PhysicsWorldWorkerResource worker = new PhysicsWorldWorkerResource(4,
+            Duration.ofSeconds(2L))) {
+            worker.start("public-owner-api");
+            resource.attachWorkerResource(worker);
+
+            AtomicReference<String> callThreadName = new AtomicReference<>();
+            int value = resource.callOnPhysicsOwner("public physics owner call", () -> {
+                assertTrue(worker.isWorkerThread());
+                callThreadName.set(Thread.currentThread().getName());
+                return 42;
+            });
+
+            assertEquals(42, value);
+            assertTrue(callThreadName.get().contains("public-owner-api"));
+
+            AtomicReference<String> mutationThreadName = new AtomicReference<>();
+            PhysicsMutationHandle<String> handle = resource.enqueuePhysicsMutation(
+                "public physics owner mutation",
+                "reserved-value",
+                () -> {
+                    assertTrue(worker.isWorkerThread());
+                    mutationThreadName.set(Thread.currentThread().getName());
+                });
+
+            assertEquals("reserved-value", handle.value());
+            assertEquals("reserved-value", handle.completion().toCompletableFuture()
+                .get(2, TimeUnit.SECONDS));
+            assertTrue(handle.completedSuccessfully());
+            assertTrue(mutationThreadName.get().contains("public-owner-api"));
             pollMutations(worker, 1);
             resource.detachWorkerResource(worker);
         }

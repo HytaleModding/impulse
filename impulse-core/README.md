@@ -35,11 +35,10 @@ First run in a fresh world should create the default space explicitly before com
 ## Backend commands
 
 - `/impulse backend list` - list discovered backends and active physics spaces.
-- `/impulse backend swap --backend=impulse:rapier` - migrate the default physics space to Rapier.
-- `/impulse backend swap --backend=impulse:bullet` - migrate the default physics space back to Bullet.
-- `/impulse backend swap --backend=<backend-id> --space=<space-id>` - migrate a specific space.
 
-Bullet is the default backend when it is available. Rapier currently has the strongest 10k-body direction because of native parallel stepping, but backend-facing APIs should stay common where practical.
+Backend swap is not registered as a public command. Create explicit spaces with the desired backend instead.
+
+Bullet is the default backend when it is available. Rapier currently has the strongest 10k-body direction, but backend-facing APIs should stay common where practical.
 
 ## Cleanup commands
 
@@ -55,15 +54,18 @@ Cleanup does not create a replacement/default space implicitly. Run `/impulse sp
 - `/impulse settings simulation-steps --steps=<count>` - set the minimum or fixed substep count, from 1 to 16.
 - `/impulse settings max-step-dt` - show the adaptive substep dt threshold.
 - `/impulse settings max-step-dt --dt=<seconds>` - set the adaptive substep dt threshold used by `progressive_refinement` and `adaptive`.
-- `/impulse settings execution` - show physics execution mode; currently inline on the world tick system.
-- `/impulse settings execution --mode=inline` - keep physics execution inline. Worker mode is reserved and rejected until the threaded runtime is available.
+- `/impulse settings execution` - show the reserved public execution selector for the default space. Internal per-world worker stepping is active independently; the public selector currently remains `inline`.
+- `/impulse settings execution --mode=inline` - keep the reserved selector inline. `--mode=worker` is reserved and rejected until public selection is available.
 - `/impulse settings solver` - show solver tuning for the default space.
 - `/impulse settings solver --solverIterations=<n> --pgsIterations=<n> --stabilizationIterations=<n> --minIslandSize=<n>` - tune compatible backends.
 - `/impulse settings visual-sync` - show visual LOD and occlusion settings.
 - `/impulse settings visual-sync --fullRadius=<blocks> --maxRadius=<blocks> --farMode=cutoff|lod` - tune visual sync range behavior.
 - `/impulse settings visual-sync --midInterval=<ticks> --farInterval=<ticks>` - tune lower-frequency visual updates.
 - `/impulse settings visual-sync --occlusion=off|priority|cull --occlusionRaycasts=<n> --occlusionCache=<ticks>` - tune optional raycast-backed visual prioritization.
-- `/impulse settings visual-sync --materializationInterestInterval=<ticks> --materializationCandidateInterval=<ticks> --materializationVisibilityInterval=<ticks>` - tune detached visual materialization cache cadences.
+- `/impulse settings visual-sync --smoothing=true --smoothingRate=14` - smooth near dynamic visuals toward published snapshots without extrapolating.
+- `/impulse settings visual-sync --prediction=true --predictionMaxSeconds=0.10` - allow near dynamic visuals to dead-reckon briefly between published physics snapshots; keep this off when it causes visible correction jitter.
+- `/impulse settings visual-sync --materializationInterestInterval=<ticks> --materializationCandidateInterval=<ticks> --materializationVisibilityInterval=<ticks> --materializationSpawnRate=<n> --materializationCap=<n>` - tune detached visual materialization cadence and proxy budgets.
+- `/impulse settings collision-lod --enabled=true --nearRadius=<blocks> --midRadius=<blocks> --hysteresis=<blocks> --interval=<ticks> --farSleep=true` - opt into distance collision LOD for default dynamic-body filters.
 - `/impulse settings world-collision` - show world-collision settings for the default space.
 
 ## Profiling commands

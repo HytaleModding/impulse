@@ -64,6 +64,26 @@ public class VisualSyncSettingsCommand extends AbstractAsyncPlayerCommand {
             + PhysicsSpaceSettings.MAX_VISUAL_OCCLUSION_CACHE_TICKS
             + ")",
         ArgTypes.INTEGER);
+    private final OptionalArg<String> predictionArg = this.withOptionalArg(
+        "prediction",
+        "Predict near dynamic visuals between snapshots: true or false",
+        ArgTypes.STRING);
+    private final OptionalArg<Float> predictionMaxSecondsArg = this.withOptionalArg(
+        "predictionMaxSeconds",
+        "Maximum visual snapshot prediction seconds (0-"
+            + PhysicsSpaceSettings.MAX_VISUAL_SNAPSHOT_PREDICTION_MAX_SECONDS
+            + ")",
+        ArgTypes.FLOAT);
+    private final OptionalArg<String> smoothingArg = this.withOptionalArg(
+        "smoothing",
+        "Smooth near dynamic visuals toward snapshots: true or false",
+        ArgTypes.STRING);
+    private final OptionalArg<Float> smoothingRateArg = this.withOptionalArg(
+        "smoothingRate",
+        "Visual snapshot smoothing rate (>0-"
+            + PhysicsSpaceSettings.MAX_VISUAL_SNAPSHOT_SMOOTHING_RATE
+            + ")",
+        ArgTypes.FLOAT);
     private final OptionalArg<Integer> materializationInterestIntervalArg = this.withOptionalArg(
         "materializationInterestInterval",
         "Ticks between detached visual interest refreshes (1-"
@@ -80,6 +100,18 @@ public class VisualSyncSettingsCommand extends AbstractAsyncPlayerCommand {
         "materializationVisibilityInterval",
         "Ticks between detached generated-proxy visibility checks (1-"
             + PhysicsSpaceSettings.MAX_DETACHED_VISUAL_CACHE_INTERVAL_TICKS
+            + ")",
+        ArgTypes.INTEGER);
+    private final OptionalArg<Integer> materializationSpawnRateArg = this.withOptionalArg(
+        "materializationSpawnRate",
+        "Maximum detached visual proxy spawns per tick (1-"
+            + PhysicsSpaceSettings.MAX_DETACHED_VISUAL_MAX_SPAWNS_PER_TICK
+            + ")",
+        ArgTypes.INTEGER);
+    private final OptionalArg<Integer> materializationCapArg = this.withOptionalArg(
+        "materializationCap",
+        "Maximum detached visual proxies materialized in the default space (1-"
+            + PhysicsSpaceSettings.MAX_DETACHED_VISUAL_MAX_MATERIALIZED
             + ")",
         ArgTypes.INTEGER);
 
@@ -156,6 +188,22 @@ public class VisualSyncSettingsCommand extends AbstractAsyncPlayerCommand {
                 + " ticks."));
             return CompletableFuture.completedFuture(null);
         }
+        if (predictionMaxSecondsArg.provided(ctx)
+            && outOfRange(predictionMaxSecondsArg.get(ctx),
+                PhysicsSpaceSettings.MAX_VISUAL_SNAPSHOT_PREDICTION_MAX_SECONDS)) {
+            ctx.sender().sendMessage(Message.raw("predictionMaxSeconds must be 0-"
+                + PhysicsSpaceSettings.MAX_VISUAL_SNAPSHOT_PREDICTION_MAX_SECONDS
+                + "."));
+            return CompletableFuture.completedFuture(null);
+        }
+        if (smoothingRateArg.provided(ctx)
+            && smoothingRateOutOfRange(smoothingRateArg.get(ctx),
+                PhysicsSpaceSettings.MAX_VISUAL_SNAPSHOT_SMOOTHING_RATE)) {
+            ctx.sender().sendMessage(Message.raw("smoothingRate must be > 0 and <= "
+                + PhysicsSpaceSettings.MAX_VISUAL_SNAPSHOT_SMOOTHING_RATE
+                + "."));
+            return CompletableFuture.completedFuture(null);
+        }
         if (materializationInterestIntervalArg.provided(ctx)
             && outOfRange(materializationInterestIntervalArg.get(ctx),
                 PhysicsSpaceSettings.MAX_DETACHED_VISUAL_CACHE_INTERVAL_TICKS)) {
@@ -172,6 +220,22 @@ public class VisualSyncSettingsCommand extends AbstractAsyncPlayerCommand {
             && outOfRange(materializationVisibilityIntervalArg.get(ctx),
                 PhysicsSpaceSettings.MAX_DETACHED_VISUAL_CACHE_INTERVAL_TICKS)) {
             sendMaterializationIntervalError(ctx, "materializationVisibilityInterval");
+            return CompletableFuture.completedFuture(null);
+        }
+        if (materializationSpawnRateArg.provided(ctx)
+            && outOfRange(materializationSpawnRateArg.get(ctx),
+                PhysicsSpaceSettings.MAX_DETACHED_VISUAL_MAX_SPAWNS_PER_TICK)) {
+            ctx.sender().sendMessage(Message.raw("materializationSpawnRate must be 1-"
+                + PhysicsSpaceSettings.MAX_DETACHED_VISUAL_MAX_SPAWNS_PER_TICK
+                + "."));
+            return CompletableFuture.completedFuture(null);
+        }
+        if (materializationCapArg.provided(ctx)
+            && outOfRange(materializationCapArg.get(ctx),
+                PhysicsSpaceSettings.MAX_DETACHED_VISUAL_MAX_MATERIALIZED)) {
+            ctx.sender().sendMessage(Message.raw("materializationCap must be 1-"
+                + PhysicsSpaceSettings.MAX_DETACHED_VISUAL_MAX_MATERIALIZED
+                + "."));
             return CompletableFuture.completedFuture(null);
         }
 
@@ -191,6 +255,22 @@ public class VisualSyncSettingsCommand extends AbstractAsyncPlayerCommand {
             }
             settings.setVisualOcclusionMode(occlusionMode);
         }
+        if (predictionArg.provided(ctx)) {
+            Boolean prediction = parseBoolean(predictionArg.get(ctx));
+            if (prediction == null) {
+                ctx.sender().sendMessage(Message.raw("prediction must be true or false."));
+                return CompletableFuture.completedFuture(null);
+            }
+            settings.setVisualSnapshotPredictionEnabled(prediction);
+        }
+        if (smoothingArg.provided(ctx)) {
+            Boolean smoothing = parseBoolean(smoothingArg.get(ctx));
+            if (smoothing == null) {
+                ctx.sender().sendMessage(Message.raw("smoothing must be true or false."));
+                return CompletableFuture.completedFuture(null);
+            }
+            settings.setVisualSnapshotSmoothingEnabled(smoothing);
+        }
 
         settings.setVisualSyncRadii(fullRadius, maxRadius);
         if (midIntervalArg.provided(ctx)) {
@@ -205,6 +285,12 @@ public class VisualSyncSettingsCommand extends AbstractAsyncPlayerCommand {
         if (occlusionCacheArg.provided(ctx)) {
             settings.setVisualOcclusionCacheTicks(occlusionCacheArg.get(ctx));
         }
+        if (predictionMaxSecondsArg.provided(ctx)) {
+            settings.setVisualSnapshotPredictionMaxSeconds(predictionMaxSecondsArg.get(ctx));
+        }
+        if (smoothingRateArg.provided(ctx)) {
+            settings.setVisualSnapshotSmoothingRate(smoothingRateArg.get(ctx));
+        }
         if (materializationInterestIntervalArg.provided(ctx)) {
             settings.setDetachedVisualInterestRefreshIntervalTicks(
                 materializationInterestIntervalArg.get(ctx));
@@ -216,6 +302,12 @@ public class VisualSyncSettingsCommand extends AbstractAsyncPlayerCommand {
         if (materializationVisibilityIntervalArg.provided(ctx)) {
             settings.setDetachedVisualVisibilityCheckIntervalTicks(
                 materializationVisibilityIntervalArg.get(ctx));
+        }
+        if (materializationSpawnRateArg.provided(ctx)) {
+            settings.setDetachedVisualMaxSpawnsPerTick(materializationSpawnRateArg.get(ctx));
+        }
+        if (materializationCapArg.provided(ctx)) {
+            settings.setDetachedVisualMaxMaterialized(materializationCapArg.get(ctx));
         }
         resource.setSpaceSettings(defaultSpaceId, settings);
         sendSummary(ctx, defaultSpaceId, settings);
@@ -231,13 +323,27 @@ public class VisualSyncSettingsCommand extends AbstractAsyncPlayerCommand {
             || occlusionArg.provided(ctx)
             || occlusionRaycastsArg.provided(ctx)
             || occlusionCacheArg.provided(ctx)
+            || predictionArg.provided(ctx)
+            || predictionMaxSecondsArg.provided(ctx)
+            || smoothingArg.provided(ctx)
+            || smoothingRateArg.provided(ctx)
             || materializationInterestIntervalArg.provided(ctx)
             || materializationCandidateIntervalArg.provided(ctx)
-            || materializationVisibilityIntervalArg.provided(ctx);
+            || materializationVisibilityIntervalArg.provided(ctx)
+            || materializationSpawnRateArg.provided(ctx)
+            || materializationCapArg.provided(ctx);
     }
 
     private static boolean outOfRange(int value, int maxValue) {
         return value < 1 || value > maxValue;
+    }
+
+    private static boolean outOfRange(float value, float maxValue) {
+        return !Float.isFinite(value) || value < 0.0f || value > maxValue;
+    }
+
+    private static boolean smoothingRateOutOfRange(float value, float maxValue) {
+        return !Float.isFinite(value) || value <= 0.0f || value > maxValue;
     }
 
     private static void sendSummary(@Nonnull CommandContext ctx,
@@ -253,12 +359,20 @@ public class VisualSyncSettingsCommand extends AbstractAsyncPlayerCommand {
             + " occlusion=" + settings.getVisualOcclusionMode().name().toLowerCase(Locale.ROOT)
             + " occlusionRaycasts=" + settings.getVisualOcclusionRaycastsPerTick()
             + " occlusionCache=" + settings.getVisualOcclusionCacheTicks()
+            + " prediction=" + settings.isVisualSnapshotPredictionEnabled()
+            + " predictionMaxSeconds=" + settings.getVisualSnapshotPredictionMaxSeconds()
+            + " smoothing=" + settings.isVisualSnapshotSmoothingEnabled()
+            + " smoothingRate=" + settings.getVisualSnapshotSmoothingRate()
             + " materializationInterestInterval="
             + settings.getDetachedVisualInterestRefreshIntervalTicks()
             + " materializationCandidateInterval="
             + settings.getDetachedVisualCandidateRefreshIntervalTicks()
             + " materializationVisibilityInterval="
-            + settings.getDetachedVisualVisibilityCheckIntervalTicks()));
+            + settings.getDetachedVisualVisibilityCheckIntervalTicks()
+            + " materializationSpawnRate="
+            + settings.getDetachedVisualMaxSpawnsPerTick()
+            + " materializationCap="
+            + settings.getDetachedVisualMaxMaterialized()));
     }
 
     private static void sendMaterializationIntervalError(@Nonnull CommandContext ctx,
@@ -281,6 +395,14 @@ public class VisualSyncSettingsCommand extends AbstractAsyncPlayerCommand {
             case "off", "none", "disabled" -> VisualOcclusionMode.OFF;
             case "priority", "prioritize", "sort" -> VisualOcclusionMode.PRIORITY;
             case "cull", "cutoff", "hide" -> VisualOcclusionMode.CULL;
+            default -> null;
+        };
+    }
+
+    private static Boolean parseBoolean(@Nonnull String value) {
+        return switch (value.toLowerCase(Locale.ROOT)) {
+            case "true", "yes", "on", "enabled" -> true;
+            case "false", "no", "off", "disabled" -> false;
             default -> null;
         };
     }
