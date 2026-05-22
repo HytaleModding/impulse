@@ -591,9 +591,10 @@ public class PhysicsWorldResource implements Resource<EntityStore> {
      * Plugin consumers should use the public world-collision facade methods on this resource.
      */
     @Deprecated
+    @SuppressWarnings("unchecked")
     @Nonnull
-    public WorldVoxelCollisionCache getWorldVoxelCollisionCache() {
-        return worldVoxelCollisionCache;
+    public <T> T internalWorldCollisionState() {
+        return (T) worldVoxelCollisionCache;
     }
 
     @Nonnull

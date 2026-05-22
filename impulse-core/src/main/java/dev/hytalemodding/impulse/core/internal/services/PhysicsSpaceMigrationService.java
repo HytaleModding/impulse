@@ -12,6 +12,7 @@ import dev.hytalemodding.impulse.api.PhysicsJointType;
 import dev.hytalemodding.impulse.api.PhysicsSpace;
 import dev.hytalemodding.impulse.api.ShapeType;
 import dev.hytalemodding.impulse.api.SpaceId;
+import dev.hytalemodding.impulse.core.internal.voxel.WorldVoxelCollisionCache;
 import dev.hytalemodding.impulse.core.internal.worker.PhysicsWorkerAccess;
 import dev.hytalemodding.impulse.core.plugin.resources.PhysicsWorldResource;
 import it.unimi.dsi.fastutil.objects.Reference2ObjectOpenHashMap;
@@ -70,7 +71,7 @@ public final class PhysicsSpaceMigrationService {
          * Generated terrain collision belongs to the world-collision cache, not to ECS bodies.
          * Drop it before migration so the target backend can rebuild it with its own best shape.
          */
-        resource.getWorldVoxelCollisionCache().clear(sourceSpaceId, sourceSpace);
+        resource.<WorldVoxelCollisionCache>internalWorldCollisionState().clear(sourceSpaceId, sourceSpace);
 
         List<PhysicsBody> sourceBodies = sourceSpace.getBodies();
         List<PhysicsJoint> sourceJoints = sourceSpace.getJoints();

@@ -35,7 +35,7 @@ public class PerfStatsCommand extends AbstractWorldCommand {
         }
 
         SpaceStats totals = new SpaceStats();
-        WorldVoxelCollisionCache cache = resource.getWorldVoxelCollisionCache();
+        WorldVoxelCollisionCache cache = resource.internalWorldCollisionState();
         ctx.sender().sendMessage(Message.raw("Impulse runtime stats for world " + world.getName()
             + ": spaces=" + spaces.size()));
         for (PhysicsSpace space : spaces) {
