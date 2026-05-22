@@ -51,10 +51,13 @@ public class DropCommand extends AbstractAsyncPlayerCommand {
             return CompletableFuture.completedFuture(null);
         }
 
-        PhysicsBody box = space.createBox(0.5f, 0.5f, 0.5f, 1.0f);
-        box.setPosition(spawnX, spawnY + box.getCenterOfMassOffsetY(), spawnZ);
-        box.setRestitution(0.5f);
-        box.setFriction(0.5f);
+        PhysicsBody box = ExamplePhysicsUtils.physicsWorkerCall(store, "create drop physics body",
+            () -> {
+                PhysicsBody created = space.createBox(0.5f, 0.5f, 0.5f, 1.0f);
+                created.setRestitution(0.5f);
+                created.setFriction(0.5f);
+                return created;
+            });
 
         ExamplePhysicsUtils.spawnBlockBody(store,
             world,

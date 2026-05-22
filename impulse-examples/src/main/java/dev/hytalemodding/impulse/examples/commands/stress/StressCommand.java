@@ -13,6 +13,5 @@ public class StressCommand extends AbstractCommandCollection {
         addSubCommand(new StressShapesCommand());
         addSubCommand(new StressJointsCommand());
         addSubCommand(new StressRaycastCommand());
-        addSubCommand(new StressSwapCommand());
     }
 }

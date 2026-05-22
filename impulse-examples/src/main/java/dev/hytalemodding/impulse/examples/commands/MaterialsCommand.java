@@ -61,10 +61,15 @@ public class MaterialsCommand extends AbstractAsyncPlayerCommand {
         float restitution,
         float friction,
         float speed) {
-        PhysicsBody body = space.createSphere(0.5f, 1.0f);
-        body.setRestitution(restitution);
-        body.setFriction(friction);
-        body.setLinearVelocity(speed, 0.0f, 0.0f);
+        PhysicsBody body = ExamplePhysicsUtils.physicsWorkerCall(store,
+            "create material demo physics body",
+            () -> {
+                PhysicsBody created = space.createSphere(0.5f, 1.0f);
+                created.setRestitution(restitution);
+                created.setFriction(friction);
+                created.setLinearVelocity(speed, 0.0f, 0.0f);
+                return created;
+            });
         ExamplePhysicsUtils.spawnBlockBody(store, world, resource, space, body, position);
     }
 }

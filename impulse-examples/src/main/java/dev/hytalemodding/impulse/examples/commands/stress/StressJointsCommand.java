@@ -104,11 +104,13 @@ public class StressJointsCommand extends AbstractAsyncPlayerCommand {
         for (int i = 0; i < jointCount; i++) {
             PhysicsBody current = spawnBox(store, time, resource, space,
                 new Vector3d(origin).add((i + 1) * spacing, 0.0, 0.0), 1.0f);
-            createJoint(space, previous, current, jointType);
+            createJoint(store, space, previous, current, jointType);
             if (jointType == 1 && i % 5 == 0) {
-                current.setLinearVelocity(0.0f, 0.0f, 1.0f);
+                ExamplePhysicsUtils.physicsWorkerRun(store, "set point joint stress velocity",
+                    () -> current.setLinearVelocity(0.0f, 0.0f, 1.0f));
             } else if (jointType == 4 && i % 3 == 0) {
-                current.setLinearVelocity(0.4f, 0.0f, 0.8f);
+                ExamplePhysicsUtils.physicsWorkerRun(store, "set spring joint stress velocity",
+                    () -> current.setLinearVelocity(0.4f, 0.0f, 0.8f));
             }
             previous = current;
             bodies++;
@@ -122,38 +124,46 @@ public class StressJointsCommand extends AbstractAsyncPlayerCommand {
         @Nonnull PhysicsSpace space,
         @Nonnull Vector3d position,
         float mass) {
-        PhysicsBody body = space.createBox(HALF_SIZE, HALF_SIZE, HALF_SIZE, mass);
-        body.setFriction(0.65f);
-        body.setRestitution(0.1f);
+        PhysicsBody body = ExamplePhysicsUtils.physicsWorkerCall(store,
+            "create stress joint physics body",
+            () -> {
+                PhysicsBody created = space.createBox(HALF_SIZE, HALF_SIZE, HALF_SIZE, mass);
+                created.setFriction(0.65f);
+                created.setRestitution(0.1f);
+                return created;
+            });
         ExamplePhysicsUtils.spawnBlockBody(store, time, resource, space.getId(), space, body, position);
         return body;
     }
 
-    private static void createJoint(@Nonnull PhysicsSpace space,
+    private static void createJoint(@Nonnull Store<EntityStore> store,
+        @Nonnull PhysicsSpace space,
         @Nonnull PhysicsBody previous,
         @Nonnull PhysicsBody current,
         int jointType) {
         Vector3f previousAnchor = new Vector3f(HALF_SIZE, 0.0f, 0.0f);
         Vector3f currentAnchor = new Vector3f(-HALF_SIZE, 0.0f, 0.0f);
-        PhysicsJoint joint = switch (jointType) {
-            case 0 -> space.createFixedJoint(previous, current, previousAnchor, currentAnchor);
-            case 1 -> space.createPointJoint(previous, current, previousAnchor, currentAnchor);
-            case 2 -> space.createHingeJoint(previous, current, previousAnchor, currentAnchor,
-                new Vector3f(0.0f, 0.0f, 1.0f));
-            case 3 -> space.createSliderJoint(previous, current, previousAnchor, currentAnchor,
-                new Vector3f(1.0f, 0.0f, 0.0f));
-            default -> space.createSpringJoint(previous, current, previousAnchor, currentAnchor,
-                SPRING_REST_LENGTH, 18.0f, 2.0f);
-        };
+        ExamplePhysicsUtils.physicsWorkerRun(store, "create stress joint", () -> {
+            PhysicsJoint joint = switch (jointType) {
+                case 0 -> space.createFixedJoint(previous, current, previousAnchor, currentAnchor);
+                case 1 -> space.createPointJoint(previous, current, previousAnchor, currentAnchor);
+                case 2 -> space.createHingeJoint(previous, current, previousAnchor, currentAnchor,
+                    new Vector3f(0.0f, 0.0f, 1.0f));
+                case 3 -> space.createSliderJoint(previous, current, previousAnchor, currentAnchor,
+                    new Vector3f(1.0f, 0.0f, 0.0f));
+                default -> space.createSpringJoint(previous, current, previousAnchor, currentAnchor,
+                    SPRING_REST_LENGTH, 18.0f, 2.0f);
+            };
 
-        if (jointType == 2) {
-            joint.setLimits(-0.8f, 0.8f);
-            joint.setMotor(0.6f, 2.0f);
-            joint.setMotorEnabled(true);
-        } else if (jointType == 3) {
-            joint.setLimits(-0.35f, 0.35f);
-            joint.setMotor(0.4f, 2.0f);
-            joint.setMotorEnabled(true);
-        }
+            if (jointType == 2) {
+                joint.setLimits(-0.8f, 0.8f);
+                joint.setMotor(0.6f, 2.0f);
+                joint.setMotorEnabled(true);
+            } else if (jointType == 3) {
+                joint.setLimits(-0.35f, 0.35f);
+                joint.setMotor(0.4f, 2.0f);
+                joint.setMotorEnabled(true);
+            }
+        });
     }
 }

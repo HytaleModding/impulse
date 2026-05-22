@@ -167,7 +167,7 @@ public class PersistenceCommand extends AbstractCommandCollection {
                 + runtime.getBodyRegistrationCount(PhysicsBodyPersistenceMode.PERSISTENT)
                 + ", runtimeOnlyBodies="
                 + runtime.getBodyRegistrationCount(PhysicsBodyPersistenceMode.RUNTIME_ONLY)
-                + ", joints=" + countRuntimeJoints(runtime)
+                + ", joints=" + countRuntimeJoints(store, runtime)
                 + ", defaultSpace=" + formatSpaceId(runtime.getDefaultSpaceId())
                 + "; stored schema=" + persistent.getSchemaVersion()
                 + ", spaces=" + persistent.getSpaceCount()
@@ -184,12 +184,15 @@ public class PersistenceCommand extends AbstractCommandCollection {
         }
     }
 
-    private static int countRuntimeJoints(@Nonnull PhysicsWorldResource runtime) {
-        int count = 0;
-        for (PhysicsSpace space : runtime.getSpaces()) {
-            count += space.getJoints().size();
-        }
-        return count;
+    private static int countRuntimeJoints(@Nonnull Store<EntityStore> store,
+        @Nonnull PhysicsWorldResource runtime) {
+        return ExamplePhysicsUtils.physicsWorkerCall(store, "count runtime persistence joints", () -> {
+            int count = 0;
+            for (PhysicsSpace space : runtime.getSpaces()) {
+                count += space.getJoints().size();
+            }
+            return count;
+        });
     }
 
     @Nonnull

@@ -66,19 +66,21 @@ public class StressRawBodiesCommand extends AbstractAsyncPlayerCommand {
         double originZ = playerPos.z + 5.0 - half;
 
         long startNanos = System.nanoTime();
-        for (int i = 0; i < count; i++) {
-            int x = i % side;
-            int z = (i / side) % side;
-            int y = i / (side * side);
+        ExamplePhysicsUtils.physicsWorkerRun(store, "spawn raw stress physics bodies", () -> {
+            for (int i = 0; i < count; i++) {
+                int x = i % side;
+                int z = (i / side) % side;
+                int y = i / (side * side);
 
-            PhysicsBody body = space.createBox(0.48f, 0.48f, 0.48f, 1.0f);
-            body.setPosition((float) (originX + x * SPACING),
-                (float) (originY + y * SPACING),
-                (float) (originZ + z * SPACING));
-            body.setFriction(0.65f);
-            body.setRestitution(0.15f);
-            space.addBody(body);
-        }
+                PhysicsBody body = space.createBox(0.48f, 0.48f, 0.48f, 1.0f);
+                body.setPosition((float) (originX + x * SPACING),
+                    (float) (originY + y * SPACING),
+                    (float) (originZ + z * SPACING));
+                body.setFriction(0.65f);
+                body.setRestitution(0.15f);
+                space.addBody(body);
+            }
+        });
         long elapsedNanos = System.nanoTime() - startNanos;
 
         ctx.sender().sendMessage(Message.raw("Spawned " + count

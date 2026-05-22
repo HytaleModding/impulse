@@ -49,27 +49,31 @@ public class ReleaseCommand extends AbstractAsyncPlayerCommand {
         @Nonnull PhysicsControlSessionComponent session) {
         PhysicsWorldResource resource = store.getResource(PhysicsWorldResource.getResourceType());
         PhysicsSpace space = session.getSpaceId() != null ? resource.getSpace(session.getSpaceId()) : null;
-        if (space != null) {
-            PhysicsJoint joint = session.getJoint();
-            if (joint != null) {
-                space.removeJoint(joint);
-            }
-
-        }
 
         PhysicsBodyId bodyId = session.getBodyId();
         PhysicsBody body = bodyId != null ? resource.getBody(bodyId) : null;
         if (body != null) {
             resource.clearControlledBody(bodyId);
             PhysicsBodyType originalBodyType = session.getOriginalBodyType();
-            body.setBodyType(originalBodyType);
-            if (originalBodyType == PhysicsBodyType.DYNAMIC) {
-                Vector3f velocity = session.getReleaseVelocity();
-                body.setLinearVelocity(velocity);
-            } else {
-                body.setLinearVelocity(0.0f, 0.0f, 0.0f);
-            }
-            body.activate();
+            ExamplePhysicsUtils.physicsWorkerRun(store, "release grabbed physics body",
+                () -> {
+                    PhysicsJoint joint = session.getJoint();
+                    if (space != null && joint != null) {
+                        space.removeJoint(joint);
+                    }
+                    body.setBodyType(originalBodyType);
+                    if (originalBodyType == PhysicsBodyType.DYNAMIC) {
+                        Vector3f velocity = session.getReleaseVelocity();
+                        body.setLinearVelocity(velocity);
+                    } else {
+                        body.setLinearVelocity(0.0f, 0.0f, 0.0f);
+                    }
+                    body.activate();
+                });
+        } else if (space != null && session.getJoint() != null) {
+            PhysicsJoint joint = session.getJoint();
+            ExamplePhysicsUtils.physicsWorkerRun(store, "release grabbed physics joint",
+                () -> space.removeJoint(joint));
         }
         if (session.getAnchorBodyId() != null) {
             resource.destroyBody(session.getAnchorBodyId());

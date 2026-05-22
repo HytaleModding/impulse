@@ -21,6 +21,7 @@ import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import dev.hytalemodding.impulse.api.PhysicsBody;
 import dev.hytalemodding.impulse.api.PhysicsSpace;
 import dev.hytalemodding.impulse.api.SpaceId;
+import dev.hytalemodding.impulse.core.internal.worker.PhysicsWorkerAccess;
 import dev.hytalemodding.impulse.core.plugin.components.ImpulseControllableComponent;
 import dev.hytalemodding.impulse.core.plugin.components.PhysicsBodyAttachmentComponent;
 import dev.hytalemodding.impulse.core.plugin.components.PhysicsBodyAttachmentComponent.AttachmentLifecycle;
@@ -74,6 +75,18 @@ public final class ExamplePhysicsUtils {
         return null;
     }
 
+    public static void physicsWorkerRun(@Nonnull Store<EntityStore> store,
+        @Nonnull String operation,
+        @Nonnull PhysicsWorkerAccess.PhysicsWorkerMutation mutation) {
+        PhysicsWorkerAccess.run(store, operation, mutation);
+    }
+
+    public static <T> T physicsWorkerCall(@Nonnull Store<EntityStore> store,
+        @Nonnull String operation,
+        @Nonnull PhysicsWorkerAccess.PhysicsWorkerCallable<T> callable) {
+        return PhysicsWorkerAccess.call(store, operation, callable);
+    }
+
     @Nonnull
     static Ref<EntityStore> spawnBlockBody(@Nonnull Store<EntityStore> store,
         @Nonnull World world,
@@ -100,9 +113,10 @@ public final class ExamplePhysicsUtils {
         );
         holder.removeComponent(DespawnComponent.getComponentType());
 
-        body.setPosition((float) visualPosition.x,
-            (float) (visualPosition.y + body.getCenterOfMassOffsetY()),
-            (float) visualPosition.z);
+        PhysicsWorkerAccess.run(store, "position example physics body", () ->
+            body.setPosition((float) visualPosition.x,
+                (float) (visualPosition.y + body.getCenterOfMassOffsetY()),
+                (float) visualPosition.z));
 
         return attachBlockBodyEntity(store, holder, resource, spaceId, body, true);
     }
@@ -116,7 +130,8 @@ public final class ExamplePhysicsUtils {
         Holder<EntityStore> holder = BlockEntity.assembleDefaultBlockEntity(
             time,
             DEFAULT_BLOCK_TYPE,
-            visualPositionFromBody(body)
+            physicsWorkerCall(store, "read example physics body visual position",
+                () -> visualPositionFromBody(body))
         );
         holder.removeComponent(DespawnComponent.getComponentType());
 
@@ -149,7 +164,9 @@ public final class ExamplePhysicsUtils {
                 spaceId,
                 TransformAuthority.BODY,
                 AttachmentLifecycle.EXTERNAL_ENTITY));
-        if (body.isDynamic()) {
+        boolean dynamic = physicsWorkerCall(store, "read example physics body type",
+            body::isDynamic);
+        if (dynamic) {
             holder.addComponent(ImpulseControllableComponent.getComponentType(),
                 new ImpulseControllableComponent());
         }
