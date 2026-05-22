@@ -36,13 +36,10 @@ The scalable path is `detached-view`: registered runtime-only bodies with on-dem
 - `/impulse-examples stress bodies --count=<n> --mode=entity` - spawn full Hytale entity-backed bodies for adapter overhead diagnostics.
 - `/impulse-examples stress raw-bodies --count=<n>` - spawn backend bodies without Hytale entities or body-id registration diagnostics.
 - `/impulse-examples stress benchmark --mode=raw|entity --count=<n>` - spawn a repeatable benchmark grid near the player.
-- `/impulse-examples stress auto-benchmark --confirm=true --mode=raw|detached|detached-view|detached-view-chunks|entity --count=<n> --sampleTicks=<n>` - run a fixed-origin benchmark and report profiling after the sample window. This defaults to `--mode=detached-view`.
 - `/impulse-examples stress shapes --sets=<n>` - spawn mixed box, sphere, capsule, cylinder, and cone bodies.
 - `/impulse-examples stress joints --count=<n>` - spawn separate fixed, point, hinge, slider, and spring rows.
 - `/impulse-examples stress raycast --rays=<n>` - run many raycasts and report timing.
 - `/impulse-examples stress swap --cycles=<n>` - repeatedly migrate the default space between Bullet and Rapier.
-
-`auto-benchmark` is destructive: it clears existing Impulse attachment entities, visual proxies, runtime spaces, registered bodies, and control sessions, then creates a fresh benchmark space and enables profiling. Use `detached-view` for the current 10k target path, `detached` or `raw-bodies` to isolate backend physics cost, `detached-view-chunks` to diagnose chunk-retained visual loading, and `entity` only when reviewing Hytale ECS, transform sync, networking, and rendering overhead.
 
 ## Persistence commands
 
