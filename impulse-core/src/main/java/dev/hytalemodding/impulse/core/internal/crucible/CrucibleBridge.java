@@ -7,6 +7,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
+import dev.hytalemodding.impulse.core.internal.crucible.CrucibleTestCase.TestOutcome;
 
 /**
  * Reflective adapter for Crucible's API.
@@ -136,10 +137,13 @@ final class CrucibleBridge {
                 throws ReflectiveOperationException {
 
                 try {
-                    if (test.body().run(context).toCompletableFuture().join()) {
+                    TestOutcome outcome = test.body().run(context).toCompletableFuture().join();
+                    if (outcome.passed()) {
                         return bridge.pass(suite.id(), test.name());
                     }
-                    return bridge.fail(suite.id(), test.name(), test.failureMessage());
+                    return bridge.fail(suite.id(),
+                        test.name(),
+                        failureMessage(test, outcome));
                 } catch (CompletionException e) {
                     return bridge.error(suite.id(), test.name(), asException(e));
                 } catch (Exception e) {
@@ -150,15 +154,17 @@ final class CrucibleBridge {
             private CompletableFuture<Object> runTestAsync(CrucibleContext context,
                 CrucibleTestCase test) {
                 try {
-                    return test.body().run(context).handle((passed, failure) -> {
+                    return test.body().run(context).handle((outcome, failure) -> {
                         try {
                             if (failure != null) {
                                 return bridge.error(suite.id(), test.name(), asException(failure));
                             }
-                            if (Boolean.TRUE.equals(passed)) {
+                            if (outcome != null && outcome.passed()) {
                                 return bridge.pass(suite.id(), test.name());
                             }
-                            return bridge.fail(suite.id(), test.name(), test.failureMessage());
+                            return bridge.fail(suite.id(),
+                                test.name(),
+                                failureMessage(test, outcome));
                         } catch (ReflectiveOperationException e) {
                             throw new CompletionException(e);
                         }
@@ -171,6 +177,15 @@ final class CrucibleBridge {
                         return CompletableFuture.failedFuture(reflective);
                     }
                 }
+            }
+
+            private static String failureMessage(CrucibleTestCase test,
+                TestOutcome outcome) {
+                if (outcome != null && outcome.failureMessage() != null
+                    && !outcome.failureMessage().isBlank()) {
+                    return outcome.failureMessage();
+                }
+                return test.failureMessage();
             }
 
             private static Exception asException(Throwable failure) {
