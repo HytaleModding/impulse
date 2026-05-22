@@ -132,16 +132,23 @@ public final class PhysicsWorkerRunner implements AutoCloseable {
 
     private void run(@Nonnull QueuedCommand command) {
         long startNanos = System.nanoTime();
+        PhysicsWorkerResult result = null;
+        Throwable failure = null;
         try {
             PhysicsWorkerSnapshot snapshot = command.command().run();
-            command.future().complete(new PhysicsWorkerResult(command.sequence(),
+            result = new PhysicsWorkerResult(command.sequence(),
                 snapshot,
                 startNanos - command.submittedNanos(),
-                System.nanoTime() - startNanos));
+                System.nanoTime() - startNanos);
         } catch (Throwable throwable) {
-            command.future().completeExceptionally(throwable);
+            failure = throwable;
         } finally {
             pendingCommands.decrementAndGet();
+        }
+        if (failure != null) {
+            command.future().completeExceptionally(failure);
+        } else {
+            command.future().complete(result);
         }
     }
 
