@@ -49,7 +49,14 @@ val preparePatchedRapier by tasks.registering(Exec::class) {
             set -euo pipefail
 
             registry_root="${dollar}{CARGO_HOME:-${dollar}{HOME}/.cargo}/registry/src"
-            base_dir="${dollar}(find "${dollar}registry_root" -path "*/rapier3d-$rapierVersion" -type d | sort | head -n 1)"
+            find_rapier_source() {
+                if [ -d "${dollar}registry_root" ]; then
+                    find "${dollar}registry_root" -path "*/rapier3d-$rapierVersion" -type d | sort | sed -n '1p'
+                fi
+                return 0
+            }
+
+            base_dir="${dollar}(find_rapier_source)"
             if [ -z "${dollar}base_dir" ]; then
                 fetch_dir="${dollar}(dirname "$patchedCargoConfigPath")/fetch"
                 fetch_manifest="${dollar}fetch_dir/Cargo.toml"
@@ -66,7 +73,7 @@ publish = false
 rapier3d = { version = "=$rapierVersion", default-features = false, features = ["dim3", "f32", "parallel", "profiler"] }
 EOF
                 cargo fetch --manifest-path "${dollar}fetch_manifest"
-                base_dir="${dollar}(find "${dollar}registry_root" -path "*/rapier3d-$rapierVersion" -type d | sort | head -n 1)"
+                base_dir="${dollar}(find_rapier_source)"
             fi
             if [ -z "${dollar}base_dir" ]; then
                 echo "Unable to locate rapier3d-$rapierVersion in ${dollar}registry_root" >&2
