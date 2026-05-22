@@ -67,11 +67,16 @@ public class StressShapesCommand extends AbstractAsyncPlayerCommand {
             int col = set % 4;
             Vector3d base = new Vector3d(origin).add(col * 7.0, row * 2.2, row * 1.5);
 
-            spawn(store, time, resource, space, space.createBox(0.45f, 0.55f, 0.35f, 1.0f), base, 0.0);
-            spawn(store, time, resource, space, space.createSphere(0.5f, 1.0f), base, 1.2);
-            spawn(store, time, resource, space, space.createCapsule(0.3f, 0.7f, axis, 1.0f), base, 2.4);
-            spawn(store, time, resource, space, space.createCylinder(0.4f, 0.65f, axis, 1.0f), base, 3.6);
-            spawn(store, time, resource, space, space.createCone(0.45f, 0.7f, axis, 1.0f), base, 4.8);
+            spawn(store, time, resource, space, createBody(store, space, ShapeType.BOX, axis),
+                base, 0.0);
+            spawn(store, time, resource, space, createBody(store, space, ShapeType.SPHERE, axis),
+                base, 1.2);
+            spawn(store, time, resource, space, createBody(store, space, ShapeType.CAPSULE, axis),
+                base, 2.4);
+            spawn(store, time, resource, space, createBody(store, space, ShapeType.CYLINDER, axis),
+                base, 3.6);
+            spawn(store, time, resource, space, createBody(store, space, ShapeType.CONE, axis),
+                base, 4.8);
         }
 
         ctx.sender().sendMessage(Message.raw("Spawned " + sets + " mixed shape sets ("
@@ -86,9 +91,35 @@ public class StressShapesCommand extends AbstractAsyncPlayerCommand {
         @Nonnull PhysicsBody body,
         @Nonnull Vector3d base,
         double xOffset) {
-        body.setFriction(0.6f);
-        body.setRestitution(0.25f);
         ExamplePhysicsUtils.spawnBlockBody(store, time, resource, space.getId(), space, body,
             new Vector3d(base).add(xOffset, 0.0, 0.0));
+    }
+
+    @Nonnull
+    private static PhysicsBody createBody(@Nonnull Store<EntityStore> store,
+        @Nonnull PhysicsSpace space,
+        @Nonnull ShapeType type,
+        @Nonnull PhysicsAxis axis) {
+        return ExamplePhysicsUtils.physicsWorkerCall(store, "create stress shape physics body",
+            () -> {
+                PhysicsBody body = switch (type) {
+                    case BOX -> space.createBox(0.45f, 0.55f, 0.35f, 1.0f);
+                    case SPHERE -> space.createSphere(0.5f, 1.0f);
+                    case CAPSULE -> space.createCapsule(0.3f, 0.7f, axis, 1.0f);
+                    case CYLINDER -> space.createCylinder(0.4f, 0.65f, axis, 1.0f);
+                    case CONE -> space.createCone(0.45f, 0.7f, axis, 1.0f);
+                };
+                body.setFriction(0.6f);
+                body.setRestitution(0.25f);
+                return body;
+            });
+    }
+
+    private enum ShapeType {
+        BOX,
+        SPHERE,
+        CAPSULE,
+        CYLINDER,
+        CONE
     }
 }

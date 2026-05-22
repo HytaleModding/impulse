@@ -68,15 +68,19 @@ public class StressBenchmarkCommand extends AbstractAsyncPlayerCommand {
             return CompletableFuture.completedFuture(null);
         }
         BenchmarkLayout layout = BenchmarkLayout.around(playerPos, request.count());
-        int beforeBodies = space.bodyCount();
+        int beforeBodies = ExamplePhysicsUtils.physicsWorkerCall(store,
+            "count benchmark physics bodies before spawn",
+            space::bodyCount);
 
         long startNanos = System.nanoTime();
         int spawned = switch (request.mode()) {
-            case RAW -> spawnRaw(space, layout, request.count());
+            case RAW -> spawnRaw(store, space, layout, request.count());
             case ENTITY -> spawnEntities(store, resource, space, layout, request.count());
         };
         long elapsedNanos = System.nanoTime() - startNanos;
-        int afterBodies = space.bodyCount();
+        int afterBodies = ExamplePhysicsUtils.physicsWorkerCall(store,
+            "count benchmark physics bodies after spawn",
+            space::bodyCount);
 
         if (spawned > 0) {
             ctx.sender().sendMessage(Message.raw("Spawned " + spawned + " "
@@ -112,15 +116,18 @@ public class StressBenchmarkCommand extends AbstractAsyncPlayerCommand {
         return new BenchmarkRequest(mode, count);
     }
 
-    private static int spawnRaw(@Nonnull PhysicsSpace space,
+    private static int spawnRaw(@Nonnull Store<EntityStore> store,
+        @Nonnull PhysicsSpace space,
         @Nonnull BenchmarkLayout layout,
         int count) {
-        for (int i = 0; i < count; i++) {
-            PhysicsBody body = createBenchmarkBody(space);
-            Vector3d position = layout.position(i);
-            body.setPosition((float) position.x, (float) position.y, (float) position.z);
-            space.addBody(body);
-        }
+        ExamplePhysicsUtils.physicsWorkerRun(store, "spawn raw benchmark physics bodies", () -> {
+            for (int i = 0; i < count; i++) {
+                PhysicsBody body = createBenchmarkBody(space);
+                Vector3d position = layout.position(i);
+                body.setPosition((float) position.x, (float) position.y, (float) position.z);
+                space.addBody(body);
+            }
+        });
         return count;
     }
 
@@ -131,7 +138,9 @@ public class StressBenchmarkCommand extends AbstractAsyncPlayerCommand {
         int count) {
         TimeResource time = store.getResource(TimeResource.getResourceType());
         for (int i = 0; i < count; i++) {
-            PhysicsBody body = createBenchmarkBody(space);
+            PhysicsBody body = ExamplePhysicsUtils.physicsWorkerCall(store,
+                "create entity benchmark physics body",
+                () -> createBenchmarkBody(space));
             ExamplePhysicsUtils.spawnBlockBody(store,
                 time,
                 resource,

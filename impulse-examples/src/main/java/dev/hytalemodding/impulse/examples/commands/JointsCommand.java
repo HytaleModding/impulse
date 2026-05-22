@@ -65,8 +65,9 @@ public class JointsCommand extends AbstractAsyncPlayerCommand {
         PhysicsBody anchor = spawnBox(store, world, resource, space, origin, 0.0f);
         PhysicsBody child = spawnBox(store, world, resource, space,
             new Vector3d(origin).add(0.0, -TOUCHING_SPACING, 0.0), 1.0f);
-        space.createFixedJoint(anchor, child, new Vector3f(0.0f, -HALF_SIZE, 0.0f),
-            new Vector3f(0.0f, HALF_SIZE, 0.0f));
+        ExamplePhysicsUtils.physicsWorkerRun(store, "create fixed joint demo",
+            () -> space.createFixedJoint(anchor, child, new Vector3f(0.0f, -HALF_SIZE, 0.0f),
+                new Vector3f(0.0f, HALF_SIZE, 0.0f)));
     }
 
     private static void createPoint(@Nonnull Store<EntityStore> store,
@@ -77,9 +78,12 @@ public class JointsCommand extends AbstractAsyncPlayerCommand {
         PhysicsBody anchor = spawnBox(store, world, resource, space, origin, 0.0f);
         PhysicsBody bob = spawnBox(store, world, resource, space,
             new Vector3d(origin).add(0.0, -TOUCHING_SPACING, 0.0), 1.0f);
-        bob.setLinearVelocity(1.5f, 0.0f, 0.0f);
-        space.createPointJoint(anchor, bob, new Vector3f(0.0f, -HALF_SIZE, 0.0f),
-            new Vector3f(0.0f, HALF_SIZE, 0.0f));
+        ExamplePhysicsUtils.physicsWorkerRun(store, "create point joint demo",
+            () -> {
+                bob.setLinearVelocity(1.5f, 0.0f, 0.0f);
+                space.createPointJoint(anchor, bob, new Vector3f(0.0f, -HALF_SIZE, 0.0f),
+                    new Vector3f(0.0f, HALF_SIZE, 0.0f));
+            });
     }
 
     private static void createHinge(@Nonnull Store<EntityStore> store,
@@ -90,13 +94,16 @@ public class JointsCommand extends AbstractAsyncPlayerCommand {
         PhysicsBody anchor = spawnBox(store, world, resource, space, origin, 0.0f);
         PhysicsBody arm = spawnBox(store, world, resource, space,
             new Vector3d(origin).add(0.0, -TOUCHING_SPACING, 0.0), 1.0f);
-        PhysicsJoint hinge = space.createHingeJoint(anchor, arm,
-            new Vector3f(0.0f, -HALF_SIZE, 0.0f),
-            new Vector3f(0.0f, HALF_SIZE, 0.0f),
-            new Vector3f(0.0f, 0.0f, 1.0f));
-        hinge.setLimits(-1.2f, 1.2f);
-        hinge.setMotor(1.5f, 3.0f);
-        hinge.setMotorEnabled(true);
+        ExamplePhysicsUtils.physicsWorkerRun(store, "create hinge joint demo",
+            () -> {
+                PhysicsJoint hinge = space.createHingeJoint(anchor, arm,
+                    new Vector3f(0.0f, -HALF_SIZE, 0.0f),
+                    new Vector3f(0.0f, HALF_SIZE, 0.0f),
+                    new Vector3f(0.0f, 0.0f, 1.0f));
+                hinge.setLimits(-1.2f, 1.2f);
+                hinge.setMotor(1.5f, 3.0f);
+                hinge.setMotorEnabled(true);
+            });
     }
 
     private static void createSlider(@Nonnull Store<EntityStore> store,
@@ -107,13 +114,16 @@ public class JointsCommand extends AbstractAsyncPlayerCommand {
         PhysicsBody anchor = spawnBox(store, world, resource, space, origin, 0.0f);
         PhysicsBody block = spawnBox(store, world, resource, space,
             new Vector3d(origin).add(TOUCHING_SPACING, 0.0, 0.0), 1.0f);
-        PhysicsJoint slider = space.createSliderJoint(anchor, block,
-            new Vector3f(HALF_SIZE, 0.0f, 0.0f),
-            new Vector3f(-HALF_SIZE, 0.0f, 0.0f),
-            new Vector3f(1.0f, 0.0f, 0.0f));
-        slider.setLimits(-1.0f, 1.0f);
-        slider.setMotor(1.0f, 4.0f);
-        slider.setMotorEnabled(true);
+        ExamplePhysicsUtils.physicsWorkerRun(store, "create slider joint demo",
+            () -> {
+                PhysicsJoint slider = space.createSliderJoint(anchor, block,
+                    new Vector3f(HALF_SIZE, 0.0f, 0.0f),
+                    new Vector3f(-HALF_SIZE, 0.0f, 0.0f),
+                    new Vector3f(1.0f, 0.0f, 0.0f));
+                slider.setLimits(-1.0f, 1.0f);
+                slider.setMotor(1.0f, 4.0f);
+                slider.setMotorEnabled(true);
+            });
     }
 
     private static void createSpring(@Nonnull Store<EntityStore> store,
@@ -125,9 +135,12 @@ public class JointsCommand extends AbstractAsyncPlayerCommand {
         PhysicsBody bob = spawnBox(store, world, resource, space,
             new Vector3d(origin).add(0.0, -(TOUCHING_SPACING + SPRING_REST_LENGTH), 0.0),
             1.0f);
-        bob.setLinearVelocity(1.0f, 0.0f, 0.0f);
-        space.createSpringJoint(anchor, bob, new Vector3f(0.0f, -HALF_SIZE, 0.0f),
-            new Vector3f(0.0f, HALF_SIZE, 0.0f), SPRING_REST_LENGTH, 20.0f, 2.0f);
+        ExamplePhysicsUtils.physicsWorkerRun(store, "create spring joint demo",
+            () -> {
+                bob.setLinearVelocity(1.0f, 0.0f, 0.0f);
+                space.createSpringJoint(anchor, bob, new Vector3f(0.0f, -HALF_SIZE, 0.0f),
+                    new Vector3f(0.0f, HALF_SIZE, 0.0f), SPRING_REST_LENGTH, 20.0f, 2.0f);
+            });
     }
 
     private static PhysicsBody spawnBox(@Nonnull Store<EntityStore> store,
@@ -136,9 +149,14 @@ public class JointsCommand extends AbstractAsyncPlayerCommand {
         @Nonnull PhysicsSpace space,
         @Nonnull Vector3d position,
         float mass) {
-        PhysicsBody body = space.createBox(HALF_SIZE, HALF_SIZE, HALF_SIZE, mass);
-        body.setFriction(0.6f);
-        body.setRestitution(0.15f);
+        PhysicsBody body = ExamplePhysicsUtils.physicsWorkerCall(store,
+            "create joint demo physics body",
+            () -> {
+                PhysicsBody created = space.createBox(HALF_SIZE, HALF_SIZE, HALF_SIZE, mass);
+                created.setFriction(0.6f);
+                created.setRestitution(0.15f);
+                return created;
+            });
         ExamplePhysicsUtils.spawnBlockBody(store, world, resource, space, body, position);
         return body;
     }
