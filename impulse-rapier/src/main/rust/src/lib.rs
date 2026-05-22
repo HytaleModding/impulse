@@ -8,6 +8,7 @@ use rapier3d::prelude::*;
 use std::collections::HashMap;
 use std::panic::{catch_unwind, AssertUnwindSafe};
 use std::sync::{Arc, Mutex, OnceLock};
+use std::time::{Duration, Instant};
 
 // Integer ids shared with the Java side enums.
 const BODY_TYPE_STATIC: i32 = 0;
@@ -66,6 +67,38 @@ struct NativeSpace {
     dynamic_sleep_time_until_sleep: f32,
     snapshot_body_ids: Vec<jlong>,
     snapshot_body_values: Vec<jfloat>,
+    step_phase_stats: NativeStepPhaseStats,
+}
+
+#[derive(Clone, Copy, Default)]
+struct NativeStepPhaseStats {
+    step_nanos: u64,
+    broad_phase_nanos: u64,
+    narrow_phase_nanos: u64,
+    solver_nanos: u64,
+    ccd_nanos: u64,
+    snapshot_nanos: u64,
+}
+
+impl NativeStepPhaseStats {
+    fn reset(&mut self) {
+        *self = Self::default();
+    }
+
+    fn add_snapshot_time(&mut self, elapsed: Duration) {
+        self.snapshot_nanos = saturating_add_u64(self.snapshot_nanos, duration_nanos(elapsed));
+    }
+
+    fn values(&self) -> [jlong; 6] {
+        [
+            saturating_jlong(self.step_nanos),
+            saturating_jlong(self.broad_phase_nanos),
+            saturating_jlong(self.narrow_phase_nanos),
+            saturating_jlong(self.solver_nanos),
+            saturating_jlong(self.ccd_nanos),
+            saturating_jlong(self.snapshot_nanos),
+        ]
+    }
 }
 
 impl NativeSpace {
@@ -92,6 +125,7 @@ impl NativeSpace {
             dynamic_sleep_time_until_sleep: IMPULSE_DYNAMIC_TIME_UNTIL_SLEEP,
             snapshot_body_ids: Vec::new(),
             snapshot_body_values: Vec::new(),
+            step_phase_stats: NativeStepPhaseStats::default(),
         }
     }
 
@@ -114,6 +148,38 @@ impl NativeSpace {
             &mut self.ccd_solver,
             &(),
             &(),
+        );
+        self.record_pipeline_phase_stats();
+    }
+
+    fn reset_step_phase_stats(&mut self) {
+        self.step_phase_stats.reset();
+    }
+
+    fn record_pipeline_phase_stats(&mut self) {
+        let counters = &self.pipeline.counters;
+        self.step_phase_stats.step_nanos = saturating_add_u64(
+            self.step_phase_stats.step_nanos,
+            duration_nanos(counters.step_time.time()),
+        );
+        self.step_phase_stats.broad_phase_nanos = saturating_add_u64(
+            self.step_phase_stats.broad_phase_nanos,
+            saturating_add_u64(
+                duration_nanos(counters.cd.broad_phase_time.time()),
+                duration_nanos(counters.cd.final_broad_phase_time.time()),
+            ),
+        );
+        self.step_phase_stats.narrow_phase_nanos = saturating_add_u64(
+            self.step_phase_stats.narrow_phase_nanos,
+            duration_nanos(counters.cd.narrow_phase_time.time()),
+        );
+        self.step_phase_stats.solver_nanos = saturating_add_u64(
+            self.step_phase_stats.solver_nanos,
+            duration_nanos(counters.stages.solver_time.time()),
+        );
+        self.step_phase_stats.ccd_nanos = saturating_add_u64(
+            self.step_phase_stats.ccd_nanos,
+            duration_nanos(counters.ccd.toi_computation_time.time()),
         );
     }
 
@@ -411,6 +477,18 @@ fn finite_vector_or_zero(x: f32, y: f32, z: f32) -> Vector {
 
 fn finite_nonnegative(value: f32) -> f32 {
     finite_at_least(value, 0.0)
+}
+
+fn duration_nanos(duration: Duration) -> u64 {
+    duration.as_nanos().min(u64::MAX as u128) as u64
+}
+
+fn saturating_add_u64(left: u64, right: u64) -> u64 {
+    left.saturating_add(right)
+}
+
+fn saturating_jlong(value: u64) -> jlong {
+    value.min(jlong::MAX as u64) as jlong
 }
 
 fn apply_dynamic_sleep_tuning(
