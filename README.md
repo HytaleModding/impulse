@@ -2,13 +2,11 @@
 
 Physics library for Hytale. 
 
-Currently wrapping [Libbulletjme](https://github.com/stephengold/Libbulletjme) as the default physics backend, with an experimental [Rapier](https://rapier.rs/) backend available.
-
 ## Modules
 
 - **impulse-api** - backend-agnostic API layer and contracts.
 - **impulse-bullet** - Libbulletjme backend implementation.
-- **impulse-rapier** - experimental Rapier backend with a small Rust/JNI native shim.
+- **impulse-rapier** - Rapier backend with a small Rust/JNI native shim.
 - **impulse-core** - Hytale ECS integration.
 - **impulse-examples** - example plugins to understand library usage.
 
@@ -20,9 +18,7 @@ You can start a debug server with all the example mods by running:
 ./gradlew runAllMods
 ```
 
-### WIP workaround, set PhysicsBackend for the main PhysicsSpace
-
-Bullet remains the default backend when it is present. To run the examples with Rapier instead, select it through a system property or environment variable:
+To create spaces with Rapier as the default backend use:
 
 ```bash
 ./gradlew -Dimpulse.backend=impulse:rapier runAllMods
@@ -46,6 +42,12 @@ The Rapier backend needs a Rust toolchain to build its native library. If `cargo
 ./gradlew :impulse-rapier:build -PbuildRapierNative=true
 ```
 
+it also supports SIMD optimizations that can be enabled using:
+
+```bash
+./gradlew -Dimpulse.backend=impulse:rapier -PrapierNativeFeatures=rapier-simd-stable runAllMods
+```
+
 ## Testing
 
 Impulse has a dedicated headless/serverless test lane that does not boot the Hytale server or example runtime:
@@ -54,11 +56,7 @@ Impulse has a dedicated headless/serverless test lane that does not boot the Hyt
 ./gradlew headlessTest
 ```
 
-This lane covers:
-
-- shared backend/API contract checks for Rapier,
-- Bullet adapter smoke tests for the Impulse-side integration layer,
-- pure runtime-policy tests in `impulse-core`.
+Crucible in-game tests are also provided.
 
 ## Commands
 
