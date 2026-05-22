@@ -1,6 +1,7 @@
 package dev.hytalemodding.impulse.examples.commands;
 
 import com.hypixel.hytale.component.AddReason;
+import com.hypixel.hytale.component.ComponentType;
 import com.hypixel.hytale.component.Holder;
 import com.hypixel.hytale.component.Ref;
 import com.hypixel.hytale.component.Store;
@@ -21,7 +22,6 @@ import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import dev.hytalemodding.impulse.api.PhysicsBody;
 import dev.hytalemodding.impulse.api.PhysicsSpace;
 import dev.hytalemodding.impulse.api.SpaceId;
-import dev.hytalemodding.impulse.core.internal.worker.PhysicsWorkerAccess;
 import dev.hytalemodding.impulse.core.plugin.components.ImpulseControllableComponent;
 import dev.hytalemodding.impulse.core.plugin.components.PhysicsBodyAttachmentComponent;
 import dev.hytalemodding.impulse.core.plugin.components.PhysicsBodyAttachmentComponent.AttachmentLifecycle;
@@ -29,6 +29,8 @@ import dev.hytalemodding.impulse.core.plugin.components.PhysicsBodyAttachmentCom
 import dev.hytalemodding.impulse.core.plugin.resources.PhysicsBodyId;
 import dev.hytalemodding.impulse.core.plugin.resources.PhysicsBodyKind;
 import dev.hytalemodding.impulse.core.plugin.resources.PhysicsBodyPersistenceMode;
+import dev.hytalemodding.impulse.core.plugin.resources.PhysicsOwnerCallable;
+import dev.hytalemodding.impulse.core.plugin.resources.PhysicsOwnerMutation;
 import dev.hytalemodding.impulse.core.plugin.resources.PhysicsWorldResource;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
@@ -39,6 +41,16 @@ import org.joml.Vector3f;
 public final class ExamplePhysicsUtils {
 
     private static final String DEFAULT_BLOCK_TYPE = "Rock_Stone";
+    private static final ComponentType<EntityStore, TransformComponent> TRANSFORM_TYPE =
+        TransformComponent.getComponentType();
+    private static final ComponentType<EntityStore, DespawnComponent> DESPAWN_TYPE =
+        DespawnComponent.getComponentType();
+    private static final ComponentType<EntityStore, PhysicsBodyAttachmentComponent> ATTACHMENT_TYPE =
+        PhysicsBodyAttachmentComponent.getComponentType();
+    private static final ComponentType<EntityStore, ImpulseControllableComponent> IMPULSE_CONTROLLABLE_TYPE =
+        ImpulseControllableComponent.getComponentType();
+    private static final ComponentType<EntityStore, ModelComponent> MODEL_TYPE = ModelComponent.getComponentType();
+    private static final ComponentType<EntityStore, HeadRotation> HEAD_ROTATION_TYPE = HeadRotation.getComponentType();
 
     private ExamplePhysicsUtils() {
     }
@@ -47,8 +59,7 @@ public final class ExamplePhysicsUtils {
     public static Vector3d playerPosition(@Nonnull CommandContext ctx,
         @Nonnull Store<EntityStore> store,
         @Nonnull Ref<EntityStore> ref) {
-        TransformComponent playerTransform = store.getComponent(ref,
-            TransformComponent.getComponentType());
+        TransformComponent playerTransform = store.getComponent(ref, TRANSFORM_TYPE);
         if (playerTransform == null) {
             ctx.sender().sendMessage(Message.raw("Cannot determine player position."));
             return null;
@@ -75,16 +86,16 @@ public final class ExamplePhysicsUtils {
         return null;
     }
 
-    public static void physicsWorkerRun(@Nonnull Store<EntityStore> store,
+    public static void physicsOwnerRun(@Nonnull Store<EntityStore> store,
         @Nonnull String operation,
-        @Nonnull PhysicsWorkerAccess.PhysicsWorkerMutation mutation) {
-        PhysicsWorkerAccess.run(store, operation, mutation);
+        @Nonnull PhysicsOwnerMutation mutation) {
+        resource(store).runOnPhysicsOwner(operation, mutation);
     }
 
-    public static <T> T physicsWorkerCall(@Nonnull Store<EntityStore> store,
+    public static <T> T physicsOwnerCall(@Nonnull Store<EntityStore> store,
         @Nonnull String operation,
-        @Nonnull PhysicsWorkerAccess.PhysicsWorkerCallable<T> callable) {
-        return PhysicsWorkerAccess.call(store, operation, callable);
+        @Nonnull PhysicsOwnerCallable<T> callable) {
+        return resource(store).callOnPhysicsOwner(operation, callable);
     }
 
     @Nonnull
@@ -111,9 +122,9 @@ public final class ExamplePhysicsUtils {
             DEFAULT_BLOCK_TYPE,
             new Vector3d(visualPosition)
         );
-        holder.removeComponent(DespawnComponent.getComponentType());
+        holder.removeComponent(DESPAWN_TYPE);
 
-        PhysicsWorkerAccess.run(store, "position example physics body", () ->
+        resource.runOnPhysicsOwner("position example physics body", () ->
             body.setPosition((float) visualPosition.x,
                 (float) (visualPosition.y + body.getCenterOfMassOffsetY()),
                 (float) visualPosition.z));
@@ -130,10 +141,10 @@ public final class ExamplePhysicsUtils {
         Holder<EntityStore> holder = BlockEntity.assembleDefaultBlockEntity(
             time,
             DEFAULT_BLOCK_TYPE,
-            physicsWorkerCall(store, "read example physics body visual position",
+            physicsOwnerCall(store, "read example physics body visual position",
                 () -> visualPositionFromBody(body))
         );
-        holder.removeComponent(DespawnComponent.getComponentType());
+        holder.removeComponent(DESPAWN_TYPE);
 
         return attachBlockBodyEntity(store, holder, resource, spaceId, body, false);
     }
@@ -159,16 +170,15 @@ public final class ExamplePhysicsUtils {
                 PhysicsBodyKind.BODY,
                 PhysicsBodyPersistenceMode.PERSISTENT);
         }
-        holder.addComponent(PhysicsBodyAttachmentComponent.getComponentType(),
+        holder.addComponent(ATTACHMENT_TYPE,
             new PhysicsBodyAttachmentComponent(bodyId,
                 spaceId,
                 TransformAuthority.BODY,
                 AttachmentLifecycle.EXTERNAL_ENTITY));
-        boolean dynamic = physicsWorkerCall(store, "read example physics body type",
+        boolean dynamic = physicsOwnerCall(store, "read example physics body type",
             body::isDynamic);
         if (dynamic) {
-            holder.addComponent(ImpulseControllableComponent.getComponentType(),
-                new ImpulseControllableComponent());
+            holder.addComponent(IMPULSE_CONTROLLABLE_TYPE, new ImpulseControllableComponent());
         }
         return store.addEntity(holder, AddReason.SPAWN);
     }
@@ -181,7 +191,7 @@ public final class ExamplePhysicsUtils {
     }
 
     static double eyeHeight(@Nonnull Store<EntityStore> store, @Nonnull Ref<EntityStore> ref) {
-        ModelComponent modelComponent = store.getComponent(ref, ModelComponent.getComponentType());
+        ModelComponent modelComponent = store.getComponent(ref, MODEL_TYPE);
         if (modelComponent == null) {
             return 1.6;
         }
@@ -197,7 +207,7 @@ public final class ExamplePhysicsUtils {
     public static Vector3d lookDirection(@Nonnull Store<EntityStore> store,
         @Nonnull Ref<EntityStore> ref,
         @Nonnull TransformComponent transform) {
-        HeadRotation headRotation = store.getComponent(ref, HeadRotation.getComponentType());
+        HeadRotation headRotation = store.getComponent(ref, HEAD_ROTATION_TYPE);
         Rotation3f rotation = headRotation != null ? headRotation.getRotation() : transform.getRotation();
         Quaterniond quaternion = rotation.getQuaternion(new Quaterniond());
         Vector3d direction = new Vector3d(Vector3dUtil.FORWARD);

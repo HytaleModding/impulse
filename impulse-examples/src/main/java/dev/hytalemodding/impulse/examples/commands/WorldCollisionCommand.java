@@ -13,7 +13,8 @@ import com.hypixel.hytale.server.core.universe.world.World;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import dev.hytalemodding.impulse.api.PhysicsSpace;
 import dev.hytalemodding.impulse.core.plugin.resources.PhysicsWorldResource;
-import dev.hytalemodding.impulse.core.internal.voxel.WorldVoxelCollisionCache;
+import dev.hytalemodding.impulse.core.plugin.resources.WorldCollisionBuildStats;
+import dev.hytalemodding.impulse.core.plugin.resources.WorldCollisionStats;
 import java.util.concurrent.CompletableFuture;
 import javax.annotation.Nonnull;
 import org.joml.Vector3d;
@@ -59,11 +60,13 @@ public class WorldCollisionCommand extends AbstractCommandCollection {
             int radius = ExamplePhysicsUtils.optionalInt(ctx, radiusArg, DEFAULT_RADIUS, 1, MAX_RADIUS);
             PhysicsWorldResource resource = ExamplePhysicsUtils.resource(store);
             PhysicsSpace space = ExamplePhysicsUtils.defaultSpace(ctx, resource);
-        if (space == null) {
-            return CompletableFuture.completedFuture(null);
-        }
-            WorldVoxelCollisionCache.BuildStats stats = resource.getWorldVoxelCollisionCache()
-                .rebuildAround(world, space, playerPos, radius);
+            if (space == null) {
+                return CompletableFuture.completedFuture(null);
+            }
+            WorldCollisionBuildStats stats = resource.rebuildWorldCollisionAround(world,
+                space.getId(),
+                playerPos,
+                radius);
 
             ctx.sender().sendMessage(Message.raw("Built world voxel collision: scanned "
                 + stats.scannedBlocks()
@@ -96,10 +99,10 @@ public class WorldCollisionCommand extends AbstractCommandCollection {
             @Nonnull World world) {
             PhysicsWorldResource resource = ExamplePhysicsUtils.resource(store);
             PhysicsSpace space = ExamplePhysicsUtils.defaultSpace(ctx, resource);
-        if (space == null) {
-            return CompletableFuture.completedFuture(null);
-        }
-            int removed = resource.getWorldVoxelCollisionCache().clear(space);
+            if (space == null) {
+                return CompletableFuture.completedFuture(null);
+            }
+            int removed = resource.clearWorldCollision(space.getId());
             ctx.sender().sendMessage(Message.raw("Removed " + removed
                 + " world voxel collision bodies."));
             return CompletableFuture.completedFuture(null);
@@ -120,12 +123,12 @@ public class WorldCollisionCommand extends AbstractCommandCollection {
             @Nonnull PlayerRef playerRef,
             @Nonnull World world) {
             PhysicsWorldResource resource = ExamplePhysicsUtils.resource(store);
-            WorldVoxelCollisionCache cache = resource.getWorldVoxelCollisionCache();
+            WorldCollisionStats stats = resource.getWorldCollisionStats();
             ctx.sender().sendMessage(Message.raw("World voxel collision: "
-                + cache.spaceCount() + " spaces, "
-                + cache.sectionCount() + " sections, "
-                + cache.bodyCount() + " bodies, "
-                + cache.shapeTemplateCount() + " shape templates."));
+                + stats.spaces() + " spaces, "
+                + stats.sections() + " sections, "
+                + stats.bodies() + " bodies, "
+                + stats.shapeTemplates() + " shape templates."));
             return CompletableFuture.completedFuture(null);
         }
     }

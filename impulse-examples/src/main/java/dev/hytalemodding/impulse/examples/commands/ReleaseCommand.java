@@ -1,5 +1,6 @@
 package dev.hytalemodding.impulse.examples.commands;
 
+import com.hypixel.hytale.component.ComponentType;
 import com.hypixel.hytale.component.Ref;
 import com.hypixel.hytale.component.Store;
 import com.hypixel.hytale.server.core.Message;
@@ -21,6 +22,9 @@ import org.joml.Vector3f;
 
 public class ReleaseCommand extends AbstractAsyncPlayerCommand {
 
+    private static final ComponentType<EntityStore, PhysicsControlSessionComponent> CONTROL_SESSION_TYPE =
+        PhysicsControlSessionComponent.getComponentType();
+
     public ReleaseCommand() {
         super("release", "Release the currently grabbed physics body");
     }
@@ -32,8 +36,7 @@ public class ReleaseCommand extends AbstractAsyncPlayerCommand {
         @Nonnull Ref<EntityStore> ref,
         @Nonnull PlayerRef playerRef,
         @Nonnull World world) {
-        PhysicsControlSessionComponent session = store.getComponent(ref,
-            PhysicsControlSessionComponent.getComponentType());
+        PhysicsControlSessionComponent session = store.getComponent(ref, CONTROL_SESSION_TYPE);
         if (session == null) {
             ctx.sender().sendMessage(Message.raw("No grabbed physics body."));
             return CompletableFuture.completedFuture(null);
@@ -55,7 +58,7 @@ public class ReleaseCommand extends AbstractAsyncPlayerCommand {
         if (body != null) {
             resource.clearControlledBody(bodyId);
             PhysicsBodyType originalBodyType = session.getOriginalBodyType();
-            ExamplePhysicsUtils.physicsWorkerRun(store, "release grabbed physics body",
+            ExamplePhysicsUtils.physicsOwnerRun(store, "release grabbed physics body",
                 () -> {
                     PhysicsJoint joint = session.getJoint();
                     if (space != null && joint != null) {
@@ -72,7 +75,7 @@ public class ReleaseCommand extends AbstractAsyncPlayerCommand {
                 });
         } else if (space != null && session.getJoint() != null) {
             PhysicsJoint joint = session.getJoint();
-            ExamplePhysicsUtils.physicsWorkerRun(store, "release grabbed physics joint",
+            ExamplePhysicsUtils.physicsOwnerRun(store, "release grabbed physics joint",
                 () -> space.removeJoint(joint));
         }
         if (session.getAnchorBodyId() != null) {
@@ -80,6 +83,6 @@ public class ReleaseCommand extends AbstractAsyncPlayerCommand {
         }
 
         session.deactivate();
-        store.removeComponent(playerRef, PhysicsControlSessionComponent.getComponentType());
+        store.removeComponent(playerRef, CONTROL_SESSION_TYPE);
     }
 }

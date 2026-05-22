@@ -68,7 +68,7 @@ public class StressBenchmarkCommand extends AbstractAsyncPlayerCommand {
             return CompletableFuture.completedFuture(null);
         }
         BenchmarkLayout layout = BenchmarkLayout.around(playerPos, request.count());
-        int beforeBodies = ExamplePhysicsUtils.physicsWorkerCall(store,
+        int beforeBodies = ExamplePhysicsUtils.physicsOwnerCall(store,
             "count benchmark physics bodies before spawn",
             space::bodyCount);
 
@@ -78,7 +78,7 @@ public class StressBenchmarkCommand extends AbstractAsyncPlayerCommand {
             case ENTITY -> spawnEntities(store, resource, space, layout, request.count());
         };
         long elapsedNanos = System.nanoTime() - startNanos;
-        int afterBodies = ExamplePhysicsUtils.physicsWorkerCall(store,
+        int afterBodies = ExamplePhysicsUtils.physicsOwnerCall(store,
             "count benchmark physics bodies after spawn",
             space::bodyCount);
 
@@ -120,7 +120,7 @@ public class StressBenchmarkCommand extends AbstractAsyncPlayerCommand {
         @Nonnull PhysicsSpace space,
         @Nonnull BenchmarkLayout layout,
         int count) {
-        ExamplePhysicsUtils.physicsWorkerRun(store, "spawn raw benchmark physics bodies", () -> {
+        ExamplePhysicsUtils.physicsOwnerRun(store, "spawn raw benchmark physics bodies", () -> {
             for (int i = 0; i < count; i++) {
                 PhysicsBody body = createBenchmarkBody(space);
                 Vector3d position = layout.position(i);
@@ -138,7 +138,7 @@ public class StressBenchmarkCommand extends AbstractAsyncPlayerCommand {
         int count) {
         TimeResource time = store.getResource(TimeResource.getResourceType());
         for (int i = 0; i < count; i++) {
-            PhysicsBody body = ExamplePhysicsUtils.physicsWorkerCall(store,
+            PhysicsBody body = ExamplePhysicsUtils.physicsOwnerCall(store,
                 "create entity benchmark physics body",
                 () -> createBenchmarkBody(space));
             ExamplePhysicsUtils.spawnBlockBody(store,

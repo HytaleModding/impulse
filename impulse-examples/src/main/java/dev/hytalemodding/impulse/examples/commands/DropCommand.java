@@ -1,5 +1,6 @@
 package dev.hytalemodding.impulse.examples.commands;
 
+import com.hypixel.hytale.component.ComponentType;
 import com.hypixel.hytale.component.Ref;
 import com.hypixel.hytale.component.Store;
 import com.hypixel.hytale.server.core.Message;
@@ -21,6 +22,9 @@ import org.joml.Vector3d;
  */
 public class DropCommand extends AbstractAsyncPlayerCommand {
 
+    private static final ComponentType<EntityStore, TransformComponent> TRANSFORM_TYPE =
+        TransformComponent.getComponentType();
+
     public DropCommand() {
         super("drop", "Spawn a physics box that falls under gravity");
     }
@@ -32,8 +36,7 @@ public class DropCommand extends AbstractAsyncPlayerCommand {
         @Nonnull Ref<EntityStore> ref,
         @Nonnull PlayerRef playerRef,
         @Nonnull World world) {
-        TransformComponent playerTransform = store.getComponent(ref,
-            TransformComponent.getComponentType());
+        TransformComponent playerTransform = store.getComponent(ref, TRANSFORM_TYPE);
 
         if (playerTransform == null) {
             ctx.sender().sendMessage(Message.raw("Cannot determine player position."));
@@ -51,7 +54,7 @@ public class DropCommand extends AbstractAsyncPlayerCommand {
             return CompletableFuture.completedFuture(null);
         }
 
-        PhysicsBody box = ExamplePhysicsUtils.physicsWorkerCall(store, "create drop physics body",
+        PhysicsBody box = ExamplePhysicsUtils.physicsOwnerCall(store, "create drop physics body",
             () -> {
                 PhysicsBody created = space.createBox(0.5f, 0.5f, 0.5f, 1.0f);
                 created.setRestitution(0.5f);

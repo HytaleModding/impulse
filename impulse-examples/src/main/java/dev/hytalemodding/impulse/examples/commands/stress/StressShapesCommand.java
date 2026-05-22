@@ -100,7 +100,7 @@ public class StressShapesCommand extends AbstractAsyncPlayerCommand {
         @Nonnull PhysicsSpace space,
         @Nonnull ShapeType type,
         @Nonnull PhysicsAxis axis) {
-        return ExamplePhysicsUtils.physicsWorkerCall(store, "create stress shape physics body",
+        return ExamplePhysicsUtils.physicsOwnerCall(store, "create stress shape physics body",
             () -> {
                 PhysicsBody body = switch (type) {
                     case BOX -> space.createBox(0.45f, 0.55f, 0.35f, 1.0f);

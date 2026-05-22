@@ -61,7 +61,7 @@ public class MaterialsCommand extends AbstractAsyncPlayerCommand {
         float restitution,
         float friction,
         float speed) {
-        PhysicsBody body = ExamplePhysicsUtils.physicsWorkerCall(store,
+        PhysicsBody body = ExamplePhysicsUtils.physicsOwnerCall(store,
             "create material demo physics body",
             () -> {
                 PhysicsBody created = space.createSphere(0.5f, 1.0f);

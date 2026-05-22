@@ -1,5 +1,6 @@
 package dev.hytalemodding.impulse.examples.commands;
 
+import com.hypixel.hytale.component.ComponentType;
 import com.hypixel.hytale.component.Ref;
 import com.hypixel.hytale.component.Store;
 import com.hypixel.hytale.server.core.Message;
@@ -15,9 +16,9 @@ import dev.hytalemodding.impulse.api.PhysicsJoint;
 import dev.hytalemodding.impulse.api.PhysicsRayHit;
 import dev.hytalemodding.impulse.api.PhysicsSpace;
 import dev.hytalemodding.impulse.api.SpaceId;
+import dev.hytalemodding.impulse.core.internal.components.PhysicsControlSessionComponent;
 import dev.hytalemodding.impulse.core.plugin.components.ImpulseControllableComponent;
 import dev.hytalemodding.impulse.core.plugin.components.PhysicsBodyAttachmentComponent;
-import dev.hytalemodding.impulse.core.internal.components.PhysicsControlSessionComponent;
 import dev.hytalemodding.impulse.core.plugin.resources.PhysicsBodyId;
 import dev.hytalemodding.impulse.core.plugin.resources.PhysicsBodyKind;
 import dev.hytalemodding.impulse.core.plugin.resources.PhysicsBodyPersistenceMode;
@@ -37,6 +38,14 @@ public class GrabCommand extends AbstractAsyncPlayerCommand {
     private static final double RAY_LENGTH = 24.0;
     private static final float MIN_HOLD_DISTANCE = 4.0f;
     private static final Vector3f VIEW_OFFSET = new Vector3f(0.85f, -0.35f, 0.0f);
+    private static final ComponentType<EntityStore, TransformComponent> TRANSFORM_TYPE =
+        TransformComponent.getComponentType();
+    private static final ComponentType<EntityStore, PhysicsControlSessionComponent> CONTROL_SESSION_TYPE =
+        PhysicsControlSessionComponent.getComponentType();
+    private static final ComponentType<EntityStore, PhysicsBodyAttachmentComponent> ATTACHMENT_TYPE =
+        PhysicsBodyAttachmentComponent.getComponentType();
+    private static final ComponentType<EntityStore, ImpulseControllableComponent> IMPULSE_CONTROLLABLE_TYPE =
+        ImpulseControllableComponent.getComponentType();
 
     public GrabCommand() {
         super("grab", "Grab a controllable physics body from your view");
@@ -49,7 +58,7 @@ public class GrabCommand extends AbstractAsyncPlayerCommand {
         @Nonnull Ref<EntityStore> ref,
         @Nonnull PlayerRef playerRef,
         @Nonnull World world) {
-        TransformComponent transform = store.getComponent(ref, TransformComponent.getComponentType());
+        TransformComponent transform = store.getComponent(ref, TRANSFORM_TYPE);
         if (transform == null) {
             ctx.sender().sendMessage(Message.raw("Cannot determine player position."));
             return CompletableFuture.completedFuture(null);
@@ -80,7 +89,7 @@ public class GrabCommand extends AbstractAsyncPlayerCommand {
             return CompletableFuture.completedFuture(null);
         }
 
-        GrabPhysicsState physicsState = ExamplePhysicsUtils.physicsWorkerCall(store,
+        GrabPhysicsState physicsState = ExamplePhysicsUtils.physicsOwnerCall(store,
             "create grabbed physics anchor",
             () -> {
                 PhysicsBody body = selection.hit.body();
@@ -107,7 +116,7 @@ public class GrabCommand extends AbstractAsyncPlayerCommand {
             });
 
         store.putComponent(ref,
-            PhysicsControlSessionComponent.getComponentType(),
+            CONTROL_SESSION_TYPE,
             new PhysicsControlSessionComponent(
                 selection.bodyId(),
                 physicsState.anchorBodyId(),
@@ -132,7 +141,7 @@ public class GrabCommand extends AbstractAsyncPlayerCommand {
         @Nonnull PhysicsSpace space,
         @Nonnull Vector3d start,
         @Nonnull Vector3d end) {
-        List<HitCandidate> candidates = ExamplePhysicsUtils.physicsWorkerCall(store,
+        List<HitCandidate> candidates = ExamplePhysicsUtils.physicsOwnerCall(store,
             "raycast controllable physics bodies",
             () -> {
                 List<PhysicsRayHit> hits = space.raycastAll(ExamplePhysicsUtils.toVector3f(start),
@@ -171,14 +180,12 @@ public class GrabCommand extends AbstractAsyncPlayerCommand {
         @Nonnull Store<EntityStore> store,
         @Nonnull PhysicsBodyId bodyId) {
         for (Ref<EntityStore> attachmentRef : resource.getBodyAttachments(bodyId)) {
-            PhysicsBodyAttachmentComponent attachment = store.getComponent(attachmentRef,
-                PhysicsBodyAttachmentComponent.getComponentType());
+            PhysicsBodyAttachmentComponent attachment = store.getComponent(attachmentRef, ATTACHMENT_TYPE);
             if (attachment == null
                 || attachment.getLifecycle() == PhysicsBodyAttachmentComponent.AttachmentLifecycle.GENERATED_PROXY) {
                 continue;
             }
-            ImpulseControllableComponent controllable = store.getComponent(attachmentRef,
-                ImpulseControllableComponent.getComponentType());
+            ImpulseControllableComponent controllable = store.getComponent(attachmentRef, IMPULSE_CONTROLLABLE_TYPE);
             if (controllable != null) {
                 return attachmentRef;
             }
@@ -190,8 +197,7 @@ public class GrabCommand extends AbstractAsyncPlayerCommand {
         @Nonnull Store<EntityStore> store,
         @Nonnull PhysicsBodyId bodyId) {
         for (Ref<EntityStore> attachmentRef : resource.getBodyAttachments(bodyId)) {
-            PhysicsBodyAttachmentComponent attachment = store.getComponent(attachmentRef,
-                PhysicsBodyAttachmentComponent.getComponentType());
+            PhysicsBodyAttachmentComponent attachment = store.getComponent(attachmentRef, ATTACHMENT_TYPE);
             if (attachment != null
                 && attachment.getLifecycle() != PhysicsBodyAttachmentComponent.AttachmentLifecycle.GENERATED_PROXY) {
                 return true;
@@ -202,8 +208,7 @@ public class GrabCommand extends AbstractAsyncPlayerCommand {
 
     private static void releaseExisting(@Nonnull Store<EntityStore> store,
         @Nonnull Ref<EntityStore> playerRef) {
-        PhysicsControlSessionComponent existing = store.getComponent(playerRef,
-            PhysicsControlSessionComponent.getComponentType());
+        PhysicsControlSessionComponent existing = store.getComponent(playerRef, CONTROL_SESSION_TYPE);
         if (existing == null) {
             return;
         }

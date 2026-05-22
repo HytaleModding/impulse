@@ -32,6 +32,12 @@ These commands are for gameplay/API demonstrations and may use full Hytale entit
 The scalable path is `detached-view`: registered runtime-only bodies with on-demand generated attachment proxies. Entity-backed stress is diagnostic only.
 
 - `/impulse-examples stress bodies --count=<n>` - spawn detached registry bodies with on-demand visual proxies. This defaults to `--mode=detached-view`.
+- `/impulse-examples stress bodies --count=1000 --visibility=cone` - require detached-view proxies to pass range and view-cone interest checks.
+- `/impulse-examples stress bodies --count=1000 --collisions=body` - allow detached bodies to collide with terrain and other dynamic bodies. The default `world` policy collides with terrain only.
+- `/impulse-examples stress bodies --count=1000 --visualRadius=64 --visualDematerializeRadius=80` - tune proxy materialization and hysteresis radii.
+- `/impulse-examples stress bodies --count=1000 --visualSpawnRate=64 --visualCap=500` - tune progressive proxy spawn budget and materialized proxy cap.
+- `/impulse-examples stress bodies --count=1000 --visualPrediction=true --visualSmoothing=false` - tune visual snapshot prediction and smoothing.
+- `/impulse-examples stress bodies --count=1000 --collisionLod=true` - enable distance collision LOD for default dynamic-body filters during the stress run.
 - `/impulse-examples stress bodies --count=<n> --mode=detached` - spawn backend bodies with no Hytale visuals.
 - `/impulse-examples stress bodies --count=<n> --mode=entity` - spawn full Hytale entity-backed bodies for adapter overhead diagnostics.
 - `/impulse-examples stress raw-bodies --count=<n>` - spawn backend bodies without Hytale entities or body-id registration diagnostics.
@@ -39,7 +45,6 @@ The scalable path is `detached-view`: registered runtime-only bodies with on-dem
 - `/impulse-examples stress shapes --sets=<n>` - spawn mixed box, sphere, capsule, cylinder, and cone bodies.
 - `/impulse-examples stress joints --count=<n>` - spawn separate fixed, point, hinge, slider, and spring rows.
 - `/impulse-examples stress raycast --rays=<n>` - run many raycasts and report timing.
-- `/impulse-examples stress swap --cycles=<n>` - repeatedly migrate the default space between Bullet and Rapier.
 
 ## Persistence commands
 

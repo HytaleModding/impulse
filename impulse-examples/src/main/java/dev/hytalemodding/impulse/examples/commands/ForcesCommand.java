@@ -44,26 +44,26 @@ public class ForcesCommand extends AbstractAsyncPlayerCommand {
         Vector3d origin = new Vector3d(playerPos).add(-2.0, 4.0, 4.0);
         Vector3d centralPosition = new Vector3d(origin);
         PhysicsBody central = spawnBox(store, world, resource, space, centralPosition);
-        ExamplePhysicsUtils.physicsWorkerRun(store, "apply central impulse demo",
+        ExamplePhysicsUtils.physicsOwnerRun(store, "apply central impulse demo",
             () -> central.applyCentralImpulse(4.0f, 2.0f, 0.0f));
         drawArrow(world, centralPosition, new Vector3d(2.0, 1.0, 0.0), DebugUtils.COLOR_GREEN);
 
         Vector3d offCenterPosition = new Vector3d(origin).add(2.0, 0.0, 0.0);
         PhysicsBody offCenter = spawnBox(store, world, resource, space, offCenterPosition);
-        ExamplePhysicsUtils.physicsWorkerRun(store, "apply off-center impulse demo",
+        ExamplePhysicsUtils.physicsOwnerRun(store, "apply off-center impulse demo",
             () -> offCenter.applyImpulse(new Vector3f(3.5f, 0.0f, 0.0f),
                 new Vector3f(0.0f, 0.5f, 0.5f)));
         drawArrow(world, offCenterPosition, new Vector3d(2.0, 0.0, 0.0), DebugUtils.COLOR_YELLOW);
 
         Vector3d torquePosition = new Vector3d(origin).add(4.0, 0.0, 0.0);
         PhysicsBody torque = spawnBox(store, world, resource, space, torquePosition);
-        ExamplePhysicsUtils.physicsWorkerRun(store, "apply torque impulse demo",
+        ExamplePhysicsUtils.physicsOwnerRun(store, "apply torque impulse demo",
             () -> torque.applyTorqueImpulse(new Vector3f(0.0f, 0.0f, 8.0f)));
         drawArrow(world, torquePosition, new Vector3d(0.0, 0.0, 2.0), DebugUtils.COLOR_MAGENTA);
 
         Vector3d forcePosition = new Vector3d(origin).add(6.0, 0.0, 0.0);
         PhysicsBody force = spawnBox(store, world, resource, space, forcePosition);
-        ExamplePhysicsUtils.physicsWorkerRun(store, "apply central force demo",
+        ExamplePhysicsUtils.physicsOwnerRun(store, "apply central force demo",
             () -> force.applyCentralForce(30.0f, 0.0f, 0.0f));
         drawArrow(world, forcePosition, new Vector3d(2.0, 0.0, 0.0), DebugUtils.COLOR_CYAN);
 
@@ -77,7 +77,7 @@ public class ForcesCommand extends AbstractAsyncPlayerCommand {
         @Nonnull PhysicsWorldResource resource,
         @Nonnull PhysicsSpace space,
         @Nonnull Vector3d position) {
-        PhysicsBody body = ExamplePhysicsUtils.physicsWorkerCall(store,
+        PhysicsBody body = ExamplePhysicsUtils.physicsOwnerCall(store,
             "create force demo physics body",
             () -> {
                 PhysicsBody created = space.createBox(0.5f, 0.5f, 0.5f, 1.0f);

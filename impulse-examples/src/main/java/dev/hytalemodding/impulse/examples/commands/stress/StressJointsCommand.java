@@ -106,10 +106,10 @@ public class StressJointsCommand extends AbstractAsyncPlayerCommand {
                 new Vector3d(origin).add((i + 1) * spacing, 0.0, 0.0), 1.0f);
             createJoint(store, space, previous, current, jointType);
             if (jointType == 1 && i % 5 == 0) {
-                ExamplePhysicsUtils.physicsWorkerRun(store, "set point joint stress velocity",
+                ExamplePhysicsUtils.physicsOwnerRun(store, "set point joint stress velocity",
                     () -> current.setLinearVelocity(0.0f, 0.0f, 1.0f));
             } else if (jointType == 4 && i % 3 == 0) {
-                ExamplePhysicsUtils.physicsWorkerRun(store, "set spring joint stress velocity",
+                ExamplePhysicsUtils.physicsOwnerRun(store, "set spring joint stress velocity",
                     () -> current.setLinearVelocity(0.4f, 0.0f, 0.8f));
             }
             previous = current;
@@ -124,7 +124,7 @@ public class StressJointsCommand extends AbstractAsyncPlayerCommand {
         @Nonnull PhysicsSpace space,
         @Nonnull Vector3d position,
         float mass) {
-        PhysicsBody body = ExamplePhysicsUtils.physicsWorkerCall(store,
+        PhysicsBody body = ExamplePhysicsUtils.physicsOwnerCall(store,
             "create stress joint physics body",
             () -> {
                 PhysicsBody created = space.createBox(HALF_SIZE, HALF_SIZE, HALF_SIZE, mass);
@@ -143,7 +143,7 @@ public class StressJointsCommand extends AbstractAsyncPlayerCommand {
         int jointType) {
         Vector3f previousAnchor = new Vector3f(HALF_SIZE, 0.0f, 0.0f);
         Vector3f currentAnchor = new Vector3f(-HALF_SIZE, 0.0f, 0.0f);
-        ExamplePhysicsUtils.physicsWorkerRun(store, "create stress joint", () -> {
+        ExamplePhysicsUtils.physicsOwnerRun(store, "create stress joint", () -> {
             PhysicsJoint joint = switch (jointType) {
                 case 0 -> space.createFixedJoint(previous, current, previousAnchor, currentAnchor);
                 case 1 -> space.createPointJoint(previous, current, previousAnchor, currentAnchor);
