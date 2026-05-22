@@ -3,6 +3,7 @@ package dev.hytalemodding.impulse.core.internal.systems;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
 
+import dev.hytalemodding.impulse.core.internal.voxel.WorldCollisionStreamingBounds;
 import org.joml.Vector3f;
 import org.junit.jupiter.api.Test;
 

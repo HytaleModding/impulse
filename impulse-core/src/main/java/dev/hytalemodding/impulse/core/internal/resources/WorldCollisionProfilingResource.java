@@ -5,9 +5,18 @@ import com.hypixel.hytale.component.ResourceType;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import dev.hytalemodding.impulse.core.ImpulsePlugin;
 import dev.hytalemodding.impulse.core.internal.voxel.WorldVoxelCollisionCache.BuildStats;
+import dev.hytalemodding.impulse.core.plugin.resources.PhysicsBodyId;
+import it.unimi.dsi.fastutil.longs.LongOpenHashSet;
+import it.unimi.dsi.fastutil.longs.LongSet;
+import java.util.ArrayList;
+import java.util.List;
 import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
+import lombok.AccessLevel;
 import lombok.Getter;
 import lombok.Setter;
+import org.joml.Vector3d;
+import org.joml.Vector3f;
 
 /**
  * Runtime-only profiling state for world collision streaming.
@@ -26,6 +35,9 @@ public class WorldCollisionProfilingResource implements Resource<EntityStore> {
     private final Snapshot cumulative = new Snapshot();
     private final Snapshot latestTick = new Snapshot();
     private final Snapshot worstTick = new Snapshot();
+    @Getter(AccessLevel.NONE)
+    @Nullable
+    private RetainedSectionEnvelope diagnosticRetainedEnvelope;
 
     public WorldCollisionProfilingResource() {
     }
@@ -33,6 +45,7 @@ public class WorldCollisionProfilingResource implements Resource<EntityStore> {
     @Nonnull
     public Snapshot beginTick() {
         Snapshot snapshot = new Snapshot();
+        snapshot.setDiagnosticRetainedEnvelope(diagnosticRetainedEnvelope);
         snapshot.recordTickSample();
         return snapshot;
     }
@@ -49,6 +62,20 @@ public class WorldCollisionProfilingResource implements Resource<EntityStore> {
         cumulative.reset();
         latestTick.reset();
         worstTick.reset();
+    }
+
+    public void setDiagnosticRetainedSections(@Nonnull LongSet sectionKeys) {
+        diagnosticRetainedEnvelope = new RetainedSectionEnvelope(sectionKeys);
+    }
+
+    public void clearDiagnosticRetainedSections() {
+        diagnosticRetainedEnvelope = null;
+    }
+
+    public static long packDiagnosticSectionKey(int chunkX, int sectionY, int chunkZ) {
+        return ((long) chunkX & 0x3FF_FFFFL) << 38
+            | ((long) chunkZ & 0x3FF_FFFFL) << 12
+            | (sectionY & 0xFFFL);
     }
 
     @Nonnull
@@ -74,6 +101,7 @@ public class WorldCollisionProfilingResource implements Resource<EntityStore> {
         copy.cumulative.copyFrom(cumulative);
         copy.latestTick.copyFrom(latestTick);
         copy.worstTick.copyFrom(worstTick);
+        copy.diagnosticRetainedEnvelope = diagnosticRetainedEnvelope;
         return copy;
     }
 
@@ -94,6 +122,14 @@ public class WorldCollisionProfilingResource implements Resource<EntityStore> {
         private int bodySpatialIndexCandidates;
         private int bodyStreamingTargets;
         private int bodyTargetDedupeSkips;
+        private int bodyTargetCacheHits;
+        private int bodyTargetFirstSeen;
+        private int bodyTargetBoundsChanged;
+        private int bodyTargetActiveRefreshes;
+        private int bodyTargetSleepingRefreshes;
+        private int bodyTargetActiveStableSkips;
+        private int bodyTargetSleepingStableSkips;
+        private int bodyTargetsPruned;
         private int playerSectionTargets;
         private int bodySectionTargets;
         private int streamingSpaces;
@@ -101,6 +137,15 @@ public class WorldCollisionProfilingResource implements Resource<EntityStore> {
         private int sectionRequests;
         private int sectionCacheHits;
         private int missingChunks;
+        private int missingBlockChunks;
+        private int missingBlockSections;
+        private int missingReasonUnknown;
+        private int missingBackoffSkips;
+        private int missingBlockChunkBackoffSkips;
+        private int missingBlockSectionBackoffSkips;
+        private int missingInsideRetainedEnvelope;
+        private int missingOutsideRetainedEnvelope;
+        private int missingUnconfiguredRetainedEnvelope;
         private int sectionsBuilt;
         private int sectionsRebuilt;
         private int voxelBodies;
@@ -122,6 +167,13 @@ public class WorldCollisionProfilingResource implements Resource<EntityStore> {
         private long ensureSectionNanos;
         private long pruneUnloadedNanos;
         private long pruneUnusedNanos;
+        @Getter(AccessLevel.NONE)
+        @Nullable
+        private RetainedSectionEnvelope diagnosticRetainedEnvelope;
+        private final LongSet uniqueMissingSectionKeys = new LongOpenHashSet();
+        private final List<MissingSectionSample> missingSectionSamples = new ArrayList<>();
+
+        private static final int MAX_MISSING_SECTION_SAMPLES = 8;
 
         public void recordTickSample() {
             tickSamples++;
@@ -147,6 +199,38 @@ public class WorldCollisionProfilingResource implements Resource<EntityStore> {
             bodyTargetDedupeSkips++;
         }
 
+        public void incrementBodyTargetCacheHits() {
+            bodyTargetCacheHits++;
+        }
+
+        public void incrementBodyTargetFirstSeen() {
+            bodyTargetFirstSeen++;
+        }
+
+        public void incrementBodyTargetBoundsChanged() {
+            bodyTargetBoundsChanged++;
+        }
+
+        public void incrementBodyTargetActiveRefreshes() {
+            bodyTargetActiveRefreshes++;
+        }
+
+        public void incrementBodyTargetSleepingRefreshes() {
+            bodyTargetSleepingRefreshes++;
+        }
+
+        public void incrementBodyTargetActiveStableSkips() {
+            bodyTargetActiveStableSkips++;
+        }
+
+        public void incrementBodyTargetSleepingStableSkips() {
+            bodyTargetSleepingStableSkips++;
+        }
+
+        public void addBodyTargetsPruned(int count) {
+            bodyTargetsPruned += count;
+        }
+
         public void addPlayerSectionTargets(int count) {
             playerSectionTargets += count;
         }
@@ -169,6 +253,47 @@ public class WorldCollisionProfilingResource implements Resource<EntityStore> {
 
         public void incrementMissingChunks() {
             missingChunks++;
+            missingReasonUnknown++;
+        }
+
+        public void incrementMissingBackoffSkip(@Nonnull MissingSectionReason reason) {
+            missingBackoffSkips++;
+            switch (reason) {
+                case BLOCK_CHUNK -> missingBlockChunkBackoffSkips++;
+                case BLOCK_SECTION -> missingBlockSectionBackoffSkips++;
+                case UNKNOWN -> {
+                }
+            }
+        }
+
+        public void recordMissingSection(@Nonnull MissingSectionReason reason,
+            int chunkX,
+            int sectionY,
+            int chunkZ,
+            @Nullable StreamingTargetDiagnostic target) {
+            missingChunks++;
+            switch (reason) {
+                case BLOCK_CHUNK -> missingBlockChunks++;
+                case BLOCK_SECTION -> missingBlockSections++;
+                case UNKNOWN -> missingReasonUnknown++;
+            }
+
+            long key = packDiagnosticSectionKey(chunkX, sectionY, chunkZ);
+            uniqueMissingSectionKeys.add(key);
+            RetainedEnvelopeStatus retainedStatus = retainedStatus(key);
+            switch (retainedStatus) {
+                case INSIDE -> missingInsideRetainedEnvelope++;
+                case OUTSIDE -> missingOutsideRetainedEnvelope++;
+                case UNCONFIGURED -> missingUnconfiguredRetainedEnvelope++;
+            }
+            if (missingSectionSamples.size() < MAX_MISSING_SECTION_SAMPLES) {
+                missingSectionSamples.add(new MissingSectionSample(chunkX,
+                    sectionY,
+                    chunkZ,
+                    reason,
+                    retainedStatus,
+                    target != null ? target : StreamingTargetDiagnostic.unknown()));
+            }
         }
 
         public void incrementDuplicateSkips() {
@@ -214,6 +339,10 @@ public class WorldCollisionProfilingResource implements Resource<EntityStore> {
             pruneUnusedNanos += nanos;
         }
 
+        public int getUniqueMissingSections() {
+            return uniqueMissingSectionKeys.size();
+        }
+
         @Nonnull
         public Snapshot copy() {
             Snapshot copy = new Snapshot();
@@ -228,6 +357,14 @@ public class WorldCollisionProfilingResource implements Resource<EntityStore> {
             bodySpatialIndexCandidates = other.bodySpatialIndexCandidates;
             bodyStreamingTargets = other.bodyStreamingTargets;
             bodyTargetDedupeSkips = other.bodyTargetDedupeSkips;
+            bodyTargetCacheHits = other.bodyTargetCacheHits;
+            bodyTargetFirstSeen = other.bodyTargetFirstSeen;
+            bodyTargetBoundsChanged = other.bodyTargetBoundsChanged;
+            bodyTargetActiveRefreshes = other.bodyTargetActiveRefreshes;
+            bodyTargetSleepingRefreshes = other.bodyTargetSleepingRefreshes;
+            bodyTargetActiveStableSkips = other.bodyTargetActiveStableSkips;
+            bodyTargetSleepingStableSkips = other.bodyTargetSleepingStableSkips;
+            bodyTargetsPruned = other.bodyTargetsPruned;
             playerSectionTargets = other.playerSectionTargets;
             bodySectionTargets = other.bodySectionTargets;
             streamingSpaces = other.streamingSpaces;
@@ -235,6 +372,15 @@ public class WorldCollisionProfilingResource implements Resource<EntityStore> {
             sectionRequests = other.sectionRequests;
             sectionCacheHits = other.sectionCacheHits;
             missingChunks = other.missingChunks;
+            missingBlockChunks = other.missingBlockChunks;
+            missingBlockSections = other.missingBlockSections;
+            missingReasonUnknown = other.missingReasonUnknown;
+            missingBackoffSkips = other.missingBackoffSkips;
+            missingBlockChunkBackoffSkips = other.missingBlockChunkBackoffSkips;
+            missingBlockSectionBackoffSkips = other.missingBlockSectionBackoffSkips;
+            missingInsideRetainedEnvelope = other.missingInsideRetainedEnvelope;
+            missingOutsideRetainedEnvelope = other.missingOutsideRetainedEnvelope;
+            missingUnconfiguredRetainedEnvelope = other.missingUnconfiguredRetainedEnvelope;
             sectionsBuilt = other.sectionsBuilt;
             sectionsRebuilt = other.sectionsRebuilt;
             voxelBodies = other.voxelBodies;
@@ -255,6 +401,10 @@ public class WorldCollisionProfilingResource implements Resource<EntityStore> {
             ensureSectionNanos = other.ensureSectionNanos;
             pruneUnloadedNanos = other.pruneUnloadedNanos;
             pruneUnusedNanos = other.pruneUnusedNanos;
+            uniqueMissingSectionKeys.clear();
+            uniqueMissingSectionKeys.addAll(other.uniqueMissingSectionKeys);
+            missingSectionSamples.clear();
+            missingSectionSamples.addAll(other.missingSectionSamples);
         }
 
         public void add(@Nonnull Snapshot other) {
@@ -264,6 +414,14 @@ public class WorldCollisionProfilingResource implements Resource<EntityStore> {
             bodySpatialIndexCandidates += other.bodySpatialIndexCandidates;
             bodyStreamingTargets += other.bodyStreamingTargets;
             bodyTargetDedupeSkips += other.bodyTargetDedupeSkips;
+            bodyTargetCacheHits += other.bodyTargetCacheHits;
+            bodyTargetFirstSeen += other.bodyTargetFirstSeen;
+            bodyTargetBoundsChanged += other.bodyTargetBoundsChanged;
+            bodyTargetActiveRefreshes += other.bodyTargetActiveRefreshes;
+            bodyTargetSleepingRefreshes += other.bodyTargetSleepingRefreshes;
+            bodyTargetActiveStableSkips += other.bodyTargetActiveStableSkips;
+            bodyTargetSleepingStableSkips += other.bodyTargetSleepingStableSkips;
+            bodyTargetsPruned += other.bodyTargetsPruned;
             playerSectionTargets += other.playerSectionTargets;
             bodySectionTargets += other.bodySectionTargets;
             streamingSpaces += other.streamingSpaces;
@@ -271,6 +429,15 @@ public class WorldCollisionProfilingResource implements Resource<EntityStore> {
             sectionRequests += other.sectionRequests;
             sectionCacheHits += other.sectionCacheHits;
             missingChunks += other.missingChunks;
+            missingBlockChunks += other.missingBlockChunks;
+            missingBlockSections += other.missingBlockSections;
+            missingReasonUnknown += other.missingReasonUnknown;
+            missingBackoffSkips += other.missingBackoffSkips;
+            missingBlockChunkBackoffSkips += other.missingBlockChunkBackoffSkips;
+            missingBlockSectionBackoffSkips += other.missingBlockSectionBackoffSkips;
+            missingInsideRetainedEnvelope += other.missingInsideRetainedEnvelope;
+            missingOutsideRetainedEnvelope += other.missingOutsideRetainedEnvelope;
+            missingUnconfiguredRetainedEnvelope += other.missingUnconfiguredRetainedEnvelope;
             sectionsBuilt += other.sectionsBuilt;
             sectionsRebuilt += other.sectionsRebuilt;
             voxelBodies += other.voxelBodies;
@@ -291,6 +458,8 @@ public class WorldCollisionProfilingResource implements Resource<EntityStore> {
             ensureSectionNanos += other.ensureSectionNanos;
             pruneUnloadedNanos += other.pruneUnloadedNanos;
             pruneUnusedNanos += other.pruneUnusedNanos;
+            uniqueMissingSectionKeys.addAll(other.uniqueMissingSectionKeys);
+            appendMissingSamples(other.missingSectionSamples);
         }
 
         public void reset() {
@@ -300,6 +469,14 @@ public class WorldCollisionProfilingResource implements Resource<EntityStore> {
             bodySpatialIndexCandidates = 0;
             bodyStreamingTargets = 0;
             bodyTargetDedupeSkips = 0;
+            bodyTargetCacheHits = 0;
+            bodyTargetFirstSeen = 0;
+            bodyTargetBoundsChanged = 0;
+            bodyTargetActiveRefreshes = 0;
+            bodyTargetSleepingRefreshes = 0;
+            bodyTargetActiveStableSkips = 0;
+            bodyTargetSleepingStableSkips = 0;
+            bodyTargetsPruned = 0;
             playerSectionTargets = 0;
             bodySectionTargets = 0;
             streamingSpaces = 0;
@@ -307,6 +484,15 @@ public class WorldCollisionProfilingResource implements Resource<EntityStore> {
             sectionRequests = 0;
             sectionCacheHits = 0;
             missingChunks = 0;
+            missingBlockChunks = 0;
+            missingBlockSections = 0;
+            missingReasonUnknown = 0;
+            missingBackoffSkips = 0;
+            missingBlockChunkBackoffSkips = 0;
+            missingBlockSectionBackoffSkips = 0;
+            missingInsideRetainedEnvelope = 0;
+            missingOutsideRetainedEnvelope = 0;
+            missingUnconfiguredRetainedEnvelope = 0;
             sectionsBuilt = 0;
             sectionsRebuilt = 0;
             voxelBodies = 0;
@@ -327,6 +513,118 @@ public class WorldCollisionProfilingResource implements Resource<EntityStore> {
             ensureSectionNanos = 0L;
             pruneUnloadedNanos = 0L;
             pruneUnusedNanos = 0L;
+            uniqueMissingSectionKeys.clear();
+            missingSectionSamples.clear();
         }
+
+        private void setDiagnosticRetainedEnvelope(@Nullable RetainedSectionEnvelope envelope) {
+            diagnosticRetainedEnvelope = envelope;
+        }
+
+        @Nonnull
+        private RetainedEnvelopeStatus retainedStatus(long sectionKey) {
+            if (diagnosticRetainedEnvelope == null) {
+                return RetainedEnvelopeStatus.UNCONFIGURED;
+            }
+            return diagnosticRetainedEnvelope.contains(sectionKey)
+                ? RetainedEnvelopeStatus.INSIDE
+                : RetainedEnvelopeStatus.OUTSIDE;
+        }
+
+        private void appendMissingSamples(@Nonnull List<MissingSectionSample> samples) {
+            for (MissingSectionSample sample : samples) {
+                if (missingSectionSamples.size() >= MAX_MISSING_SECTION_SAMPLES) {
+                    return;
+                }
+                missingSectionSamples.add(sample);
+            }
+        }
+    }
+
+    private static final class RetainedSectionEnvelope {
+
+        private final LongSet sectionKeys;
+
+        private RetainedSectionEnvelope(@Nonnull LongSet sectionKeys) {
+            this.sectionKeys = new LongOpenHashSet(sectionKeys);
+        }
+
+        private boolean contains(long sectionKey) {
+            return sectionKeys.contains(sectionKey);
+        }
+    }
+
+    public enum MissingSectionReason {
+        BLOCK_CHUNK,
+        BLOCK_SECTION,
+        UNKNOWN
+    }
+
+    public enum RetainedEnvelopeStatus {
+        INSIDE,
+        OUTSIDE,
+        UNCONFIGURED
+    }
+
+    public enum StreamingTargetType {
+        PLAYER,
+        BODY,
+        UNKNOWN
+    }
+
+    public record DiagnosticPosition(double x, double y, double z) {
+
+        @Nonnull
+        public static DiagnosticPosition from(@Nonnull Vector3d position) {
+            return new DiagnosticPosition(position.x, position.y, position.z);
+        }
+
+        @Nonnull
+        public static DiagnosticPosition from(@Nonnull Vector3f position) {
+            return new DiagnosticPosition(position.x, position.y, position.z);
+        }
+
+        @Nonnull
+        public String compact() {
+            return String.format(java.util.Locale.ROOT, "%.3f,%.3f,%.3f", x, y, z);
+        }
+    }
+
+    public record StreamingTargetDiagnostic(@Nonnull StreamingTargetType targetType,
+                                            @Nullable PhysicsBodyId bodyId,
+                                            @Nullable DiagnosticPosition snapshotPosition,
+                                            @Nullable DiagnosticPosition livePosition) {
+
+        @Nonnull
+        public static StreamingTargetDiagnostic player(@Nonnull Vector3d position) {
+            DiagnosticPosition diagnosticPosition = DiagnosticPosition.from(position);
+            return new StreamingTargetDiagnostic(StreamingTargetType.PLAYER,
+                null,
+                diagnosticPosition,
+                diagnosticPosition);
+        }
+
+        @Nonnull
+        public static StreamingTargetDiagnostic body(@Nonnull PhysicsBodyId bodyId,
+            @Nonnull Vector3f snapshotPosition,
+            @Nonnull Vector3f livePosition) {
+            return new StreamingTargetDiagnostic(StreamingTargetType.BODY,
+                bodyId,
+                DiagnosticPosition.from(snapshotPosition),
+                DiagnosticPosition.from(livePosition));
+        }
+
+        @Nonnull
+        public static StreamingTargetDiagnostic unknown() {
+            return new StreamingTargetDiagnostic(StreamingTargetType.UNKNOWN, null, null, null);
+        }
+    }
+
+    public record MissingSectionSample(int chunkX,
+                                       int sectionY,
+                                       int chunkZ,
+                                       @Nonnull MissingSectionReason reason,
+                                       @Nonnull RetainedEnvelopeStatus retainedEnvelopeStatus,
+                                       @Nonnull StreamingTargetDiagnostic target) {
     }
 }
