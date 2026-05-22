@@ -1,5 +1,38 @@
 const BODY_SNAPSHOT_FLOATS: usize = 16;
 
+enum SnapshotFailure {
+    BufferAllocation,
+    BodyIdRead,
+    StaleBodyHandle(jlong),
+    StaleRigidBody(jlong),
+    StaleCollider(jlong),
+    OutputWrite,
+}
+
+fn throw_snapshot_failure(env: &mut JNIEnv<'_>, failure: SnapshotFailure) {
+    let message = match failure {
+        SnapshotFailure::BufferAllocation => {
+            "Rapier native snapshot failed: unable to allocate snapshot buffer".to_string()
+        }
+        SnapshotFailure::BodyIdRead => {
+            "Rapier native snapshot failed: unable to read body handle array".to_string()
+        }
+        SnapshotFailure::StaleBodyHandle(body_id) => {
+            format!("Rapier native snapshot failed: stale body handle {body_id}")
+        }
+        SnapshotFailure::StaleRigidBody(body_id) => {
+            format!("Rapier native snapshot failed: stale rigid body handle for body {body_id}")
+        }
+        SnapshotFailure::StaleCollider(body_id) => {
+            format!("Rapier native snapshot failed: stale collider handle for body {body_id}")
+        }
+        SnapshotFailure::OutputWrite => {
+            "Rapier native snapshot failed: unable to write snapshot output array".to_string()
+        }
+    };
+    let _ = env.throw_new("java/lang/IllegalStateException", message);
+}
+
 fn resize_reused_buffer<T: Clone>(buffer: &mut Vec<T>, len: usize, fill: T) -> bool {
     if buffer.len() < len && buffer.try_reserve(len - buffer.len()).is_err() {
         return false;
@@ -8,31 +41,15 @@ fn resize_reused_buffer<T: Clone>(buffer: &mut Vec<T>, len: usize, fill: T) -> b
     true
 }
 
-fn set_zero_float_array_region(env: &JNIEnv<'_>, out: &JFloatArray, len: usize) -> bool {
-    const ZERO_CHUNK_FLOATS: usize = BODY_SNAPSHOT_FLOATS * 16;
-
-    let zeros = [0.0_f32; ZERO_CHUNK_FLOATS];
-    let mut offset = 0;
-    while offset < len {
-        let chunk_len = (len - offset).min(ZERO_CHUNK_FLOATS);
-        if env
-            .set_float_array_region(out, offset as i32, &zeros[..chunk_len])
-            .is_err()
-        {
-            return false;
-        }
-        offset += chunk_len;
-    }
-    true
-}
-
 fn fill_snapshot_body_values<'space>(
     space: &'space mut NativeSpace,
     env: &JNIEnv<'_>,
     body_ids: &JLongArray,
     count: usize,
-) -> Option<&'space [jfloat]> {
-    let value_count = count.checked_mul(BODY_SNAPSHOT_FLOATS)?;
+) -> Result<&'space [jfloat], SnapshotFailure> {
+    let value_count = count
+        .checked_mul(BODY_SNAPSHOT_FLOATS)
+        .ok_or(SnapshotFailure::BufferAllocation)?;
     let NativeSpace {
         snapshot_body_ids,
         snapshot_body_values,
@@ -43,26 +60,29 @@ fn fill_snapshot_body_values<'space>(
     } = space;
 
     if !resize_reused_buffer(snapshot_body_ids, count, 0_i64) {
-        return None;
+        return Err(SnapshotFailure::BufferAllocation);
     }
     if env
         .get_long_array_region(body_ids, 0, &mut snapshot_body_ids[..count])
         .is_err()
     {
-        return None;
+        return Err(SnapshotFailure::BodyIdRead);
     }
 
     if !resize_reused_buffer(snapshot_body_values, value_count, 0.0_f32) {
-        return None;
+        return Err(SnapshotFailure::BufferAllocation);
     }
     snapshot_body_values[..value_count].fill(0.0);
 
     for (index, body_id) in snapshot_body_ids[..count].iter().enumerate() {
         let Some(entry) = handles.get(body_id).copied() else {
-            continue;
+            return Err(SnapshotFailure::StaleBodyHandle(*body_id));
         };
         let Some(body) = bodies.get(entry.body) else {
-            continue;
+            return Err(SnapshotFailure::StaleRigidBody(*body_id));
+        };
+        let Some(collider) = colliders.get(entry.collider) else {
+            return Err(SnapshotFailure::StaleCollider(*body_id));
         };
 
         let offset = index * BODY_SNAPSHOT_FLOATS;
@@ -86,13 +106,10 @@ fn fill_snapshot_body_values<'space>(
         snapshot_body_values[offset + 12] = angular_velocity.z;
         snapshot_body_values[offset + 13] = body_type_to_int(body) as f32;
         snapshot_body_values[offset + 14] = if body.is_sleeping() { 1.0 } else { 0.0 };
-        snapshot_body_values[offset + 15] = colliders
-            .get(entry.collider)
-            .map(|collider| if collider.is_sensor() { 1.0 } else { 0.0 })
-            .unwrap_or(0.0);
+        snapshot_body_values[offset + 15] = if collider.is_sensor() { 1.0 } else { 0.0 };
     }
 
-    Some(&snapshot_body_values[..value_count])
+    Ok(&snapshot_body_values[..value_count])
 }
 
 #[no_mangle]
@@ -211,7 +228,7 @@ pub extern "system" fn Java_dev_hytalemodding_impulse_rapier_RapierNative_remove
 
 #[no_mangle]
 pub extern "system" fn Java_dev_hytalemodding_impulse_rapier_RapierNative_snapshotBodiesNative(
-    env: JNIEnv,
+    mut env: JNIEnv,
     _class: JClass,
     space_handle: jlong,
     body_ids: JLongArray,
@@ -219,10 +236,10 @@ pub extern "system" fn Java_dev_hytalemodding_impulse_rapier_RapierNative_snapsh
     out: JFloatArray,
 ) -> jint {
     let Ok(handle_capacity) = env.get_array_length(&body_ids) else {
-        return 0;
+        return -1;
     };
     let Ok(out_capacity) = env.get_array_length(&out) else {
-        return 0;
+        return -1;
     };
 
     let requested = body_count.max(0) as usize;
@@ -234,31 +251,34 @@ pub extern "system" fn Java_dev_hytalemodding_impulse_rapier_RapierNative_snapsh
     }
 
     let snapshot_start = Instant::now();
-    let wrote = with_space(space_handle, None, |space| {
-        let Some(values) = fill_snapshot_body_values(space, &env, &body_ids, count) else {
-            space
-                .step_phase_stats
-                .add_snapshot_time(snapshot_start.elapsed());
-            return Some(false);
+    let result = with_space_checked(space_handle, |space| {
+        let result = match fill_snapshot_body_values(space, &env, &body_ids, count) {
+            Ok(values) => {
+                if env.set_float_array_region(&out, 0, values).is_ok() {
+                    Ok(())
+                } else {
+                    Err(SnapshotFailure::OutputWrite)
+                }
+            }
+            Err(failure) => Err(failure),
         };
-        let ok = env.set_float_array_region(&out, 0, values).is_ok();
         space
             .step_phase_stats
             .add_snapshot_time(snapshot_start.elapsed());
-        Some(ok)
+        result
     });
-    if wrote == Some(false) {
-        return 0;
-    }
-    if wrote.is_none() {
-        let Some(value_count) = count.checked_mul(BODY_SNAPSHOT_FLOATS) else {
-            return 0;
-        };
-        if !set_zero_float_array_region(&env, &out, value_count) {
-            return 0;
+
+    match result {
+        Ok(Ok(())) => count as jint,
+        Ok(Err(failure)) => {
+            throw_snapshot_failure(&mut env, failure);
+            -1
+        }
+        Err(failure) => {
+            throw_native_space_failure(&mut env, "snapshot bodies", failure);
+            -1
         }
     }
-    count as jint
 }
 
 #[no_mangle]

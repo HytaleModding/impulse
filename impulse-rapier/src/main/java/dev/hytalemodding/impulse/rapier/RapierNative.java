@@ -65,7 +65,7 @@ final class RapierNative {
 
     static native void getGravityNative(long spaceHandle, float[] out);
 
-    static native void stepNative(long spaceHandle, float dt);
+    static native boolean stepNative(long spaceHandle, float dt);
 
     static native int[] getRuntimeStatsNative(long spaceHandle);
 
