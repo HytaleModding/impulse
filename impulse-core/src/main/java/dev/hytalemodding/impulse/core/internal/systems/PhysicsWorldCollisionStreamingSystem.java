@@ -13,12 +13,17 @@ import com.hypixel.hytale.server.core.universe.world.World;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import dev.hytalemodding.impulse.api.PhysicsSpace;
 import dev.hytalemodding.impulse.api.SpaceId;
+import dev.hytalemodding.impulse.core.internal.worker.PhysicsWorkerAccess;
 import dev.hytalemodding.impulse.core.plugin.resources.PhysicsSpaceSettings;
 import dev.hytalemodding.impulse.core.plugin.resources.PhysicsWorldResource;
 import dev.hytalemodding.impulse.core.internal.resources.WorldCollisionProfilingResource;
 import dev.hytalemodding.impulse.core.internal.resources.WorldCollisionProfilingResource.Snapshot;
+import dev.hytalemodding.impulse.core.internal.resources.WorldCollisionProfilingResource.StreamingTargetDiagnostic;
 import dev.hytalemodding.impulse.core.plugin.voxel.WorldCollisionMode;
+import dev.hytalemodding.impulse.core.internal.voxel.WorldCollisionStreamingBounds;
 import dev.hytalemodding.impulse.core.internal.voxel.WorldVoxelCollisionCache;
+import dev.hytalemodding.impulse.core.internal.voxel.WorldVoxelCollisionCache.SectionAccessCache;
+import dev.hytalemodding.impulse.core.internal.voxel.WorldVoxelCollisionCache.TargetRefreshDecision;
 import it.unimi.dsi.fastutil.longs.LongOpenHashSet;
 import it.unimi.dsi.fastutil.longs.LongSet;
 import it.unimi.dsi.fastutil.objects.Object2ObjectLinkedOpenHashMap;
@@ -55,7 +60,6 @@ public class PhysicsWorldCollisionStreamingSystem extends TickingSystem<EntitySt
      * as far as players do, but they still need terrain to land on.
      */
     public static final int DEFAULT_BODY_STREAMING_RADIUS = 4;
-    private static final int SLEEPING_BODY_STREAMING_INTERVAL_TICKS = 20;
 
     private long tick;
 
@@ -80,61 +84,17 @@ public class PhysicsWorldCollisionStreamingSystem extends TickingSystem<EntitySt
 
             long currentTick = ++tick;
             WorldVoxelCollisionCache cache = resource.getWorldVoxelCollisionCache();
+            SectionAccessCache sectionAccessCache = cache.newSectionAccessCache();
             for (PhysicsSpace space : resource.iterateSpaces()) {
-                PhysicsSpaceSettings settings = resource.getSpaceSettings(space.getId());
-                if (settings.getWorldCollisionMode() != WorldCollisionMode.STREAMING) {
-                    continue;
-                }
-
-                if (snapshot != null) {
-                    snapshot.incrementStreamingSpaces();
-                }
-
-                int playerRadius = settings.getWorldCollisionRadius();
-                int bodyRadius = settings.getWorldCollisionBodyRadius();
-                List<BodyStreamingTarget> bodyTargets = collectDynamicBodyTargets(resource,
-                    space.getId(),
-                    bodyRadius,
-                    currentTick,
-                    settings.getWorldCollisionTtlTicks(),
-                    snapshot);
-                LongSet visitedSections = new LongOpenHashSet();
-                for (Vector3d position : playerPositions) {
-                    int sectionsBefore = visitedSections.size();
-                    cache.ensureAround(world,
+                PhysicsWorkerAccess.run(store, "stream world collision",
+                    () -> streamSpaceCollision(world,
+                        resource,
+                        cache,
+                        sectionAccessCache,
                         space,
-                        position,
-                        playerRadius,
+                        playerPositions,
                         currentTick,
-                        snapshot,
-                        visitedSections);
-                    if (snapshot != null) {
-                        snapshot.addPlayerSectionTargets(visitedSections.size() - sectionsBefore);
-                    }
-                }
-                for (BodyStreamingTarget target : bodyTargets) {
-                    int sectionsBefore = visitedSections.size();
-                    if (target.buildSections()) {
-                        cache.ensureAround(world,
-                            space,
-                            target.position(),
-                            bodyRadius,
-                            currentTick,
-                            snapshot,
-                            visitedSections);
-                    } else {
-                        cache.touchAround(space.getId(), target.position(), bodyRadius, currentTick);
-                    }
-                    if (snapshot != null) {
-                        snapshot.addBodySectionTargets(visitedSections.size() - sectionsBefore);
-                    }
-                }
-                cache.pruneUnloaded(world, space.getId(), space, snapshot);
-                cache.pruneUnused(space.getId(),
-                    space,
-                    currentTick,
-                    settings.getWorldCollisionTtlTicks(),
-                    snapshot);
+                        snapshot));
             }
         } finally {
             if (snapshot != null) {
@@ -142,6 +102,71 @@ public class PhysicsWorldCollisionStreamingSystem extends TickingSystem<EntitySt
                 profiling.finishTick(snapshot);
             }
         }
+    }
+
+    private void streamSpaceCollision(@Nonnull World world,
+        @Nonnull PhysicsWorldResource resource,
+        @Nonnull WorldVoxelCollisionCache cache,
+        @Nonnull SectionAccessCache sectionAccessCache,
+        @Nonnull PhysicsSpace space,
+        @Nonnull List<Vector3d> playerPositions,
+        long currentTick,
+        @Nullable Snapshot snapshot) {
+        PhysicsSpaceSettings settings = resource.getSpaceSettings(space.getId());
+        if (settings.getWorldCollisionMode() != WorldCollisionMode.STREAMING) {
+            return;
+        }
+
+        if (snapshot != null) {
+            snapshot.incrementStreamingSpaces();
+        }
+
+        int playerRadius = settings.getWorldCollisionRadius();
+        int bodyRadius = settings.getWorldCollisionBodyRadius();
+        List<BodyStreamingTarget> bodyTargets = collectDynamicBodyTargets(resource,
+            cache,
+            space.getId(),
+            bodyRadius,
+            currentTick,
+            settings.getWorldCollisionTtlTicks(),
+            snapshot);
+        LongSet visitedSections = new LongOpenHashSet();
+        for (Vector3d position : playerPositions) {
+            int sectionsBefore = visitedSections.size();
+            cache.ensureAround(world,
+                space,
+                position,
+                playerRadius,
+                currentTick,
+                snapshot,
+                visitedSections,
+                snapshot != null ? StreamingTargetDiagnostic.player(position) : null,
+                sectionAccessCache);
+            if (snapshot != null) {
+                snapshot.addPlayerSectionTargets(visitedSections.size() - sectionsBefore);
+            }
+        }
+        for (BodyStreamingTarget target : bodyTargets) {
+            int sectionsBefore = visitedSections.size();
+            cache.ensureAround(world,
+                space,
+                target.position(),
+                bodyRadius,
+                currentTick,
+                snapshot,
+                visitedSections,
+                target.diagnostic(),
+                sectionAccessCache);
+            if (snapshot != null) {
+                snapshot.addBodySectionTargets(visitedSections.size() - sectionsBefore);
+            }
+        }
+        cache.pruneUnloaded(world, space.getId(), space, snapshot, sectionAccessCache);
+        cache.pruneUnused(space.getId(),
+            space,
+            currentTick,
+            settings.getWorldCollisionTtlTicks(),
+            snapshot);
     }
 
     private void collectPlayerPositions(@Nonnull ArchetypeChunk<EntityStore> chunk,
@@ -163,6 +188,7 @@ public class PhysicsWorldCollisionStreamingSystem extends TickingSystem<EntitySt
      */
     @Nonnull
     private List<BodyStreamingTarget> collectDynamicBodyTargets(@Nonnull PhysicsWorldResource resource,
+        @Nonnull WorldVoxelCollisionCache cache,
         @Nonnull SpaceId spaceId,
         int radius,
         long currentTick,
@@ -183,17 +209,27 @@ public class PhysicsWorldCollisionStreamingSystem extends TickingSystem<EntitySt
             Vector3f position = bodySnapshot.position();
             WorldCollisionStreamingBounds bounds = WorldCollisionStreamingBounds.from(position,
                 radius);
-            BodyStreamingTarget target = new BodyStreamingTarget(
-                new Vector3d(position.x, position.y, position.z),
-                !bodySnapshot.sleeping() || shouldRefreshSleepingBodyTarget(currentTick, ttlTicks));
-            BodyStreamingTarget previous = uniqueTargets.putIfAbsent(bounds, target);
-            if (previous != null && !previous.buildSections() && target.buildSections()) {
-                uniqueTargets.put(bounds, target);
+            TargetRefreshDecision refreshDecision = cache.shouldRefreshBodyTarget(spaceId,
+                entry.bodyId(),
+                bounds,
+                bodySnapshot.sleeping(),
+                currentTick,
+                ttlTicks,
+                snapshot);
+            if (!refreshDecision.refresh()) {
+                return;
+            }
+            BodyStreamingTarget previous = uniqueTargets.get(bounds);
+            if (previous == null) {
+                uniqueTargets.put(bounds, new BodyStreamingTarget(
+                    new Vector3d(position.x, position.y, position.z),
+                    diagnosticFor(snapshot, entry, position)));
             }
             if (previous != null && snapshot != null) {
                 snapshot.incrementBodyTargetDedupeSkips();
             }
         });
+        cache.pruneBodyStreamingTargets(spaceId, currentTick, ttlTicks, snapshot);
         if (snapshot != null) {
             snapshot.addBodyStreamingCandidates(candidateCount[0]);
             snapshot.addBodySpatialIndexCandidates(spatialIndexCandidateCount[0]);
@@ -202,12 +238,19 @@ public class PhysicsWorldCollisionStreamingSystem extends TickingSystem<EntitySt
         return new ArrayList<>(uniqueTargets.values());
     }
 
-    private static boolean shouldRefreshSleepingBodyTarget(long currentTick, int ttlTicks) {
-        int interval = Math.clamp(ttlTicks / 2, 1, SLEEPING_BODY_STREAMING_INTERVAL_TICKS);
-        return currentTick == 1L || currentTick % interval == 0L;
+    @Nullable
+    private static StreamingTargetDiagnostic diagnosticFor(@Nullable Snapshot snapshot,
+        @Nonnull PhysicsWorldResource.BodySnapshotEntry entry,
+        @Nonnull Vector3f snapshotPosition) {
+        if (snapshot == null) {
+            return null;
+        }
+
+        return StreamingTargetDiagnostic.body(entry.bodyId(), snapshotPosition, snapshotPosition);
     }
 
-    private record BodyStreamingTarget(@Nonnull Vector3d position, boolean buildSections) {
+    private record BodyStreamingTarget(@Nonnull Vector3d position,
+                                       @Nullable StreamingTargetDiagnostic diagnostic) {
     }
 
     @Nonnull

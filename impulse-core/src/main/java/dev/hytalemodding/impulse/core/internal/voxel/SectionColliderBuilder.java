@@ -11,6 +11,7 @@ import java.util.ArrayList;
 import java.util.BitSet;
 import java.util.List;
 import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
 
 /**
  * Builds optimized collision geometry for a single chunk section.
@@ -30,7 +31,16 @@ final class SectionColliderBuilder {
         int chunkX,
         int sectionY,
         int chunkZ) {
-        return new SectionBlockReader(world, templates, section, chunkX, sectionY, chunkZ)
+        return neighborhoodSignature(world, section, chunkX, sectionY, chunkZ, null);
+    }
+
+    long neighborhoodSignature(@Nonnull World world,
+        @Nonnull BlockSection section,
+        int chunkX,
+        int sectionY,
+        int chunkZ,
+        @Nullable WorldVoxelCollisionCache.SectionAccessCache accessCache) {
+        return new SectionBlockReader(world, templates, section, chunkX, sectionY, chunkZ, accessCache)
             .neighborhoodSignature();
     }
 
@@ -40,8 +50,18 @@ final class SectionColliderBuilder {
         int chunkX,
         int sectionY,
         int chunkZ) {
+        return build(world, section, chunkX, sectionY, chunkZ, null);
+    }
+
+    @Nonnull
+    SectionCollisionGeometry build(@Nonnull World world,
+        @Nonnull BlockSection section,
+        int chunkX,
+        int sectionY,
+        int chunkZ,
+        @Nullable WorldVoxelCollisionCache.SectionAccessCache accessCache) {
         SectionBlockReader reader = new SectionBlockReader(world, templates, section,
-            chunkX, sectionY, chunkZ);
+            chunkX, sectionY, chunkZ, accessCache);
         BitSet fullCubes = new BitSet(SECTION_VOLUME);
         IntArrayList voxelCoordinates = new IntArrayList();
         List<BoxCollider> detailBoxes = new ArrayList<>();

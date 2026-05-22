@@ -4,6 +4,8 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import dev.hytalemodding.impulse.core.internal.voxel.WorldVoxelCollisionCache.BuildStats;
+import dev.hytalemodding.impulse.core.internal.resources.WorldCollisionProfilingResource.MissingSectionReason;
+import it.unimi.dsi.fastutil.longs.LongOpenHashSet;
 import org.junit.jupiter.api.Test;
 
 class WorldCollisionProfilingResourceTest {
@@ -17,11 +19,23 @@ class WorldCollisionProfilingResourceTest {
         first.addBodyStreamingCandidates(5);
         first.addBodyStreamingTargets(3);
         first.incrementBodyTargetDedupeSkips();
+        first.incrementBodyTargetCacheHits();
+        first.incrementBodyTargetFirstSeen();
+        first.incrementBodyTargetBoundsChanged();
+        first.incrementBodyTargetActiveRefreshes();
+        first.incrementBodyTargetSleepingRefreshes();
+        first.incrementBodyTargetActiveStableSkips();
+        first.incrementBodyTargetSleepingStableSkips();
+        first.addBodyTargetsPruned(2);
         first.incrementStreamingSpaces();
         first.incrementEnsureCalls();
         first.incrementSectionRequests();
         first.incrementSectionCacheHits();
         first.incrementMissingChunks();
+        first.incrementMissingBackoffSkip(MissingSectionReason.BLOCK_CHUNK);
+        first.incrementMissingBackoffSkip(MissingSectionReason.BLOCK_SECTION);
+        first.recordMissingSection(MissingSectionReason.BLOCK_CHUNK, 1, 2, 3, null);
+        first.recordMissingSection(MissingSectionReason.BLOCK_SECTION, 1, 2, 3, null);
         first.incrementDuplicateSkips();
         first.addBuildStats(new BuildStats(10, 8, 2, 3, 4, 1, 1, 2, 1, 1));
         first.addUnloadedPrune(2, 3);
@@ -50,11 +64,28 @@ class WorldCollisionProfilingResourceTest {
         assertEquals(7, resource.getCumulative().getBodyStreamingCandidates());
         assertEquals(4, resource.getCumulative().getBodyStreamingTargets());
         assertEquals(1, resource.getCumulative().getBodyTargetDedupeSkips());
+        assertEquals(1, resource.getCumulative().getBodyTargetCacheHits());
+        assertEquals(1, resource.getCumulative().getBodyTargetFirstSeen());
+        assertEquals(1, resource.getCumulative().getBodyTargetBoundsChanged());
+        assertEquals(1, resource.getCumulative().getBodyTargetActiveRefreshes());
+        assertEquals(1, resource.getCumulative().getBodyTargetSleepingRefreshes());
+        assertEquals(1, resource.getCumulative().getBodyTargetActiveStableSkips());
+        assertEquals(1, resource.getCumulative().getBodyTargetSleepingStableSkips());
+        assertEquals(2, resource.getCumulative().getBodyTargetsPruned());
         assertEquals(1, resource.getCumulative().getStreamingSpaces());
         assertEquals(1, resource.getCumulative().getEnsureCalls());
         assertEquals(1, resource.getCumulative().getSectionRequests());
         assertEquals(1, resource.getCumulative().getSectionCacheHits());
-        assertEquals(1, resource.getCumulative().getMissingChunks());
+        assertEquals(3, resource.getCumulative().getMissingChunks());
+        assertEquals(1, resource.getCumulative().getMissingBlockChunks());
+        assertEquals(1, resource.getCumulative().getMissingBlockSections());
+        assertEquals(1, resource.getCumulative().getMissingReasonUnknown());
+        assertEquals(2, resource.getCumulative().getMissingBackoffSkips());
+        assertEquals(1, resource.getCumulative().getMissingBlockChunkBackoffSkips());
+        assertEquals(1, resource.getCumulative().getMissingBlockSectionBackoffSkips());
+        assertEquals(1, resource.getCumulative().getUniqueMissingSections());
+        assertEquals(2, resource.getCumulative().getMissingUnconfiguredRetainedEnvelope());
+        assertEquals(2, resource.getCumulative().getMissingSectionSamples().size());
         assertEquals(2, resource.getCumulative().getSectionsBuilt());
         assertEquals(1, resource.getCumulative().getSectionsRebuilt());
         assertEquals(1, resource.getCumulative().getVoxelBodies());
@@ -95,5 +126,32 @@ class WorldCollisionProfilingResourceTest {
         assertEquals(0, resource.getCumulative().getTickSamples());
         assertEquals(0L, resource.getLatestTick().getTickNanos());
         assertEquals(0L, resource.getWorstTick().getTickNanos());
+    }
+
+    @Test
+    void missingSectionDiagnosticsTrackRetainedEnvelopeStatus() {
+        WorldCollisionProfilingResource resource = new WorldCollisionProfilingResource();
+        LongOpenHashSet retained = new LongOpenHashSet();
+        retained.add(WorldCollisionProfilingResource.packDiagnosticSectionKey(1, 2, 3));
+        resource.setDiagnosticRetainedSections(retained);
+
+        WorldCollisionProfilingResource.Snapshot snapshot = resource.beginTick();
+        snapshot.recordMissingSection(MissingSectionReason.BLOCK_CHUNK, 1, 2, 3, null);
+        snapshot.recordMissingSection(MissingSectionReason.BLOCK_SECTION, 4, 5, 6, null);
+        resource.finishTick(snapshot);
+
+        WorldCollisionProfilingResource.Snapshot cumulative = resource.getCumulativeSnapshot();
+        assertEquals(2, cumulative.getMissingChunks());
+        assertEquals(1, cumulative.getMissingBlockChunks());
+        assertEquals(1, cumulative.getMissingBlockSections());
+        assertEquals(2, cumulative.getUniqueMissingSections());
+        assertEquals(1, cumulative.getMissingInsideRetainedEnvelope());
+        assertEquals(1, cumulative.getMissingOutsideRetainedEnvelope());
+        assertEquals(0, cumulative.getMissingUnconfiguredRetainedEnvelope());
+        assertEquals(2, cumulative.getMissingSectionSamples().size());
+        assertEquals(WorldCollisionProfilingResource.RetainedEnvelopeStatus.INSIDE,
+            cumulative.getMissingSectionSamples().get(0).retainedEnvelopeStatus());
+        assertEquals(WorldCollisionProfilingResource.RetainedEnvelopeStatus.OUTSIDE,
+            cumulative.getMissingSectionSamples().get(1).retainedEnvelopeStatus());
     }
 }

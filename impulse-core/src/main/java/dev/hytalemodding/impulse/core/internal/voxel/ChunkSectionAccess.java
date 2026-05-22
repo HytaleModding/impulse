@@ -1,11 +1,9 @@
 package dev.hytalemodding.impulse.core.internal.voxel;
 
-import com.hypixel.hytale.component.Holder;
 import com.hypixel.hytale.component.Ref;
 import com.hypixel.hytale.component.Store;
 import com.hypixel.hytale.math.util.ChunkUtil;
 import com.hypixel.hytale.server.core.universe.world.World;
-import com.hypixel.hytale.server.core.universe.world.chunk.ChunkColumn;
 import com.hypixel.hytale.server.core.universe.world.chunk.section.BlockSection;
 import com.hypixel.hytale.server.core.universe.world.storage.ChunkStore;
 import javax.annotation.Nonnull;
@@ -22,31 +20,13 @@ final class ChunkSectionAccess {
             return null;
         }
 
-        Ref<ChunkStore> chunkRef = world.getChunkStore()
-            .getChunkReference(ChunkUtil.indexChunk(chunkX, chunkZ));
-        if (chunkRef == null || !chunkRef.isValid()) {
-            return null;
-        }
-
-        Store<ChunkStore> store = world.getChunkStore().getStore();
-        // FIXME: ChunkColumn is deprecated! removal in the future 3d chunks update!
-        ChunkColumn column = store.getComponent(chunkRef, ChunkColumn.getComponentType());
-        if (column == null) {
-            return null;
-        }
-
-        Holder<ChunkStore>[] holders = column.getSectionHolders();
-        if (holders != null && sectionY < holders.length) {
-            Holder<ChunkStore> holder = holders[sectionY];
-            if (holder != null) {
-                return holder.ensureAndGetComponent(BlockSection.getComponentType());
-            }
-        }
-
-        Ref<ChunkStore> sectionRef = column.getSection(sectionY);
+        ChunkStore chunkStore = world.getChunkStore();
+        Ref<ChunkStore> sectionRef = chunkStore.getChunkSectionReference(chunkX, sectionY, chunkZ);
         if (sectionRef == null || !sectionRef.isValid()) {
             return null;
         }
-        return store.getComponent(sectionRef, BlockSection.getComponentType());
+
+        Store<ChunkStore> store = chunkStore.getStore();
+        return store.getComponentConcurrent(sectionRef, BlockSection.getComponentType());
     }
 }

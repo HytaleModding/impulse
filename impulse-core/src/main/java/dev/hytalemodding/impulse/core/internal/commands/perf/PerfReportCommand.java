@@ -7,11 +7,13 @@ import com.hypixel.hytale.server.core.command.system.basecommands.AbstractWorldC
 import com.hypixel.hytale.server.core.universe.world.World;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import dev.hytalemodding.impulse.api.PhysicsSpace;
+import dev.hytalemodding.impulse.api.PhysicsRuntimeStats;
 import dev.hytalemodding.impulse.api.SpaceId;
 import dev.hytalemodding.impulse.core.internal.diagnostics.PhysicsEntityDiagnostics;
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsRuntimeProfilingResource;
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsRuntimeProfilingResource.StepSnapshot;
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsRuntimeProfilingResource.SyncSnapshot;
+import dev.hytalemodding.impulse.core.internal.worker.PhysicsWorkerAccess;
 import dev.hytalemodding.impulse.core.plugin.resources.PhysicsBodyKind;
 import dev.hytalemodding.impulse.core.plugin.resources.PhysicsWorldResource;
 import dev.hytalemodding.impulse.core.internal.resources.WorldCollisionProfilingResource;
@@ -44,12 +46,16 @@ public class PerfReportCommand extends AbstractWorldCommand {
         Snapshot worst = profiling.getWorstTickSnapshot();
         PhysicsEntityDiagnostics.Snapshot entityDiagnostics = PhysicsEntityDiagnostics.collect(store);
         PhysicsWorldResource physicsWorld = store.getResource(PhysicsWorldResource.getResourceType());
-        RuntimeFootprint runtimeFootprint = RuntimeFootprint.collect(physicsWorld);
+        RuntimeFootprint runtimeFootprint = RuntimeFootprint.collect(store, physicsWorld);
 
         ctx.sender().sendMessage(Message.raw("Impulse runtime profiling: "
             + ((runtimeProfiling.isEnabled() || profiling.isEnabled()) ? "enabled" : "disabled")));
         ctx.sender().sendMessage(Message.raw("Impulse runtime physics: "
             + runtimeFootprint.summary()));
+        if (runtimeFootprint.hasRuntimeStats()) {
+            ctx.sender().sendMessage(Message.raw("Physics backend runtime stats: "
+                + runtimeFootprint.runtimeStatsSummary()));
+        }
         ctx.sender().sendMessage(Message.raw("Hytale entity diagnostics: "
             + entityDiagnostics.hytaleSummary()));
         ctx.sender().sendMessage(Message.raw("Impulse entity diagnostics: "
@@ -127,6 +133,33 @@ public class PerfReportCommand extends AbstractWorldCommand {
             + "/" + cumulative.getMissingChunks()
             + " targetDedupes=" + cumulative.getBodyTargetDedupeSkips()
             + " sectionDupSkips=" + cumulative.getDuplicateSkips()));
+        ctx.sender().sendMessage(Message.raw("Target cache since reset: hit/first/bounds/activeRefresh/sleepRefresh="
+            + cumulative.getBodyTargetCacheHits()
+            + "/" + cumulative.getBodyTargetFirstSeen()
+            + "/" + cumulative.getBodyTargetBoundsChanged()
+            + "/" + cumulative.getBodyTargetActiveRefreshes()
+            + "/" + cumulative.getBodyTargetSleepingRefreshes()
+            + " stableSkips active/sleeping="
+            + cumulative.getBodyTargetActiveStableSkips()
+            + "/" + cumulative.getBodyTargetSleepingStableSkips()
+            + " pruned=" + cumulative.getBodyTargetsPruned()));
+        ctx.sender().sendMessage(Message.raw("Missing sections: blockChunk/blockSection/unknown/unique="
+            + cumulative.getMissingBlockChunks()
+            + "/" + cumulative.getMissingBlockSections()
+            + "/" + cumulative.getMissingReasonUnknown()
+            + "/" + cumulative.getUniqueMissingSections()
+            + " backoff total/blockChunk/blockSection="
+            + cumulative.getMissingBackoffSkips()
+            + "/" + cumulative.getMissingBlockChunkBackoffSkips()
+            + "/" + cumulative.getMissingBlockSectionBackoffSkips()
+            + " retained inside/outside/unconfigured="
+            + cumulative.getMissingInsideRetainedEnvelope()
+            + "/" + cumulative.getMissingOutsideRetainedEnvelope()
+            + "/" + cumulative.getMissingUnconfiguredRetainedEnvelope()));
+        if (!cumulative.getMissingSectionSamples().isEmpty()) {
+            ctx.sender().sendMessage(Message.raw("Missing section samples: "
+                + formatMissingSectionSamples(cumulative)));
+        }
         ctx.sender().sendMessage(Message.raw("Since reset bodies+blocks: added="
             + cumulative.getColliderBodiesAdded()
             + " voxel=" + cumulative.getVoxelBodies()
@@ -161,6 +194,11 @@ public class PerfReportCommand extends AbstractWorldCommand {
             + "/" + latest.getSectionsRebuilt()
             + "/" + latest.getMissingChunks()
             + " targetDedupes=" + latest.getBodyTargetDedupeSkips()
+            + " targetCache hit/activeSkip/sleepSkip="
+            + latest.getBodyTargetCacheHits()
+            + "/" + latest.getBodyTargetActiveStableSkips()
+            + "/" + latest.getBodyTargetSleepingStableSkips()
+            + " missingBackoff=" + latest.getMissingBackoffSkips()
             + " sectionDupSkips=" + latest.getDuplicateSkips()));
         ctx.sender().sendMessage(Message.raw("Worst tick: ms=" + formatMillis(worst.getTickNanos())
             + " playerTargets=" + worst.getPlayerStreamingTargets()
@@ -177,7 +215,59 @@ public class PerfReportCommand extends AbstractWorldCommand {
             + "/" + worst.getSectionsRebuilt()
             + "/" + worst.getMissingChunks()
             + " targetDedupes=" + worst.getBodyTargetDedupeSkips()
+            + " targetCache hit/activeSkip/sleepSkip="
+            + worst.getBodyTargetCacheHits()
+            + "/" + worst.getBodyTargetActiveStableSkips()
+            + "/" + worst.getBodyTargetSleepingStableSkips()
+            + " missingBackoff=" + worst.getMissingBackoffSkips()
             + " sectionDupSkips=" + worst.getDuplicateSkips()));
+    }
+
+    @Nonnull
+    private static String formatMissingSectionSamples(@Nonnull Snapshot snapshot) {
+        StringBuilder builder = new StringBuilder();
+        int emitted = 0;
+        for (WorldCollisionProfilingResource.MissingSectionSample sample
+            : snapshot.getMissingSectionSamples()) {
+            if (emitted > 0) {
+                builder.append(" | ");
+            }
+            builder.append("section=")
+                .append(sample.chunkX())
+                .append("/")
+                .append(sample.sectionY())
+                .append("/")
+                .append(sample.chunkZ())
+                .append(" reason=")
+                .append(sample.reason().name().toLowerCase(Locale.ROOT))
+                .append(" retained=")
+                .append(sample.retainedEnvelopeStatus().name().toLowerCase(Locale.ROOT))
+                .append(" target=")
+                .append(sample.target().targetType().name().toLowerCase(Locale.ROOT));
+            if (sample.target().bodyId() != null) {
+                builder.append(" body=").append(sample.target().bodyId());
+            }
+            if (sample.target().snapshotPosition() != null) {
+                builder.append(" snapshot=(")
+                    .append(sample.target().snapshotPosition().compact())
+                    .append(")");
+            }
+            if (sample.target().livePosition() != null) {
+                builder.append(" live=(")
+                    .append(sample.target().livePosition().compact())
+                    .append(")");
+            }
+            emitted++;
+            if (emitted >= 3) {
+                break;
+            }
+        }
+        if (snapshot.getMissingSectionSamples().size() > emitted) {
+            builder.append(" | +")
+                .append(snapshot.getMissingSectionSamples().size() - emitted)
+                .append(" more");
+        }
+        return builder.toString();
     }
 
     @Nonnull
@@ -206,17 +296,61 @@ public class PerfReportCommand extends AbstractWorldCommand {
         int backendJoints,
         int detachedBodies,
         int detachedVisualProxies,
+        int runtimeStatsSpaces,
+        int runtimeBodies,
+        int runtimeColliders,
+        int runtimeActiveBodies,
+        int runtimeContactPairs,
+        int runtimeContactManifolds,
+        int runtimeContactPoints,
+        int runtimeDynamicDynamicContactPairs,
+        int runtimeTerrainContactPairs,
+        int runtimeActiveIslands,
+        int runtimeJoints,
         String defaultSpace) {
 
         @Nonnull
-        private static RuntimeFootprint collect(@Nonnull PhysicsWorldResource resource) {
+        private static RuntimeFootprint collect(@Nonnull Store<EntityStore> store,
+            @Nonnull PhysicsWorldResource resource) {
+            return PhysicsWorkerAccess.call(store, "collect perf runtime footprint",
+                () -> collectOnWorker(resource));
+        }
+
+        @Nonnull
+        private static RuntimeFootprint collectOnWorker(@Nonnull PhysicsWorldResource resource) {
             int spaces = 0;
             int backendBodies = 0;
             int backendJoints = 0;
+            int runtimeStatsSpaces = 0;
+            int runtimeBodies = 0;
+            int runtimeColliders = 0;
+            int runtimeActiveBodies = 0;
+            int runtimeContactPairs = 0;
+            int runtimeContactManifolds = 0;
+            int runtimeContactPoints = 0;
+            int runtimeDynamicDynamicContactPairs = 0;
+            int runtimeTerrainContactPairs = 0;
+            int runtimeActiveIslands = 0;
+            int runtimeJoints = 0;
             for (PhysicsSpace space : resource.getSpaces()) {
                 spaces++;
                 backendBodies += space.bodyCount();
-                backendJoints += space.getJoints().size();
+                backendJoints += space.jointCount();
+
+                PhysicsRuntimeStats runtimeStats = space.getRuntimeStats();
+                if (runtimeStats.available()) {
+                    runtimeStatsSpaces++;
+                    runtimeBodies += runtimeStats.bodyCount();
+                    runtimeColliders += runtimeStats.colliderCount();
+                    runtimeActiveBodies += runtimeStats.activeBodyCount();
+                    runtimeContactPairs += runtimeStats.contactPairCount();
+                    runtimeContactManifolds += runtimeStats.contactManifoldCount();
+                    runtimeContactPoints += runtimeStats.contactPointCount();
+                    runtimeDynamicDynamicContactPairs += runtimeStats.dynamicDynamicContactPairCount();
+                    runtimeTerrainContactPairs += runtimeStats.terrainContactPairCount();
+                    runtimeActiveIslands += runtimeStats.activeIslandCount();
+                    runtimeJoints += runtimeStats.jointCount();
+                }
             }
 
             int detachedBodies = 0;
@@ -239,6 +373,17 @@ public class PerfReportCommand extends AbstractWorldCommand {
                 backendJoints,
                 detachedBodies,
                 detachedVisualProxies,
+                runtimeStatsSpaces,
+                runtimeBodies,
+                runtimeColliders,
+                runtimeActiveBodies,
+                runtimeContactPairs,
+                runtimeContactManifolds,
+                runtimeContactPoints,
+                runtimeDynamicDynamicContactPairs,
+                runtimeTerrainContactPairs,
+                runtimeActiveIslands,
+                runtimeJoints,
                 defaultSpace);
         }
 
@@ -250,6 +395,25 @@ public class PerfReportCommand extends AbstractWorldCommand {
                 + " backendJoints=" + backendJoints
                 + " detachedBodies=" + detachedBodies
                 + " detachedVisualProxies=" + detachedVisualProxies;
+        }
+
+        private boolean hasRuntimeStats() {
+            return runtimeStatsSpaces > 0;
+        }
+
+        @Nonnull
+        private String runtimeStatsSummary() {
+            return "spaces=" + runtimeStatsSpaces
+                + " bodies=" + runtimeBodies
+                + " colliders=" + runtimeColliders
+                + " activeBodies=" + runtimeActiveBodies
+                + " activeIslands=" + runtimeActiveIslands
+                + " contactPairs=" + runtimeContactPairs
+                + " contactManifolds=" + runtimeContactManifolds
+                + " contactPoints=" + runtimeContactPoints
+                + " dynamicDynamicPairs=" + runtimeDynamicDynamicContactPairs
+                + " terrainPairs=" + runtimeTerrainContactPairs
+                + " joints=" + runtimeJoints;
         }
     }
 }
