@@ -9,12 +9,14 @@ import dev.hytalemodding.impulse.api.PhysicsContact;
 import dev.hytalemodding.impulse.api.PhysicsJoint;
 import dev.hytalemodding.impulse.api.PhysicsJointType;
 import dev.hytalemodding.impulse.api.PhysicsRayHit;
+import dev.hytalemodding.impulse.api.PhysicsRuntimeStats;
 import dev.hytalemodding.impulse.api.PhysicsSpace;
 import dev.hytalemodding.impulse.api.PhysicsSolverTuning;
 import dev.hytalemodding.impulse.api.ShapeType;
 import dev.hytalemodding.impulse.api.SpaceId;
 import java.lang.ref.Cleaner;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -31,6 +33,7 @@ public final class RapierSpace implements PhysicsSpace, PhysicsSolverTuning, Phy
     private static final int RAY_HIT_FLOATS = 9;
     private static final int CONTACT_FLOATS = 13;
     private static final int BODY_SNAPSHOT_FLOATS = 16;
+    private static final int RUNTIME_STATS_VALUES = 10;
 
     private final SpaceId id;
     private final RapierBackend backend;
@@ -41,6 +44,7 @@ public final class RapierSpace implements PhysicsSpace, PhysicsSolverTuning, Phy
     private final List<RapierJoint> joints = new ArrayList<>();
     private long[] snapshotBodyHandles = new long[0];
     private float[] snapshotBodyData = new float[0];
+    private RapierBody[] selectedSnapshotBodies = new RapierBody[0];
     private boolean closed;
 
     RapierSpace(@Nonnull SpaceId id, @Nonnull RapierBackend backend, long nativeSpaceHandle) {
@@ -175,6 +179,11 @@ public final class RapierSpace implements PhysicsSpace, PhysicsSolverTuning, Phy
     }
 
     @Override
+    public boolean containsBody(@Nonnull PhysicsBody body) {
+        return body instanceof RapierBody rapierBody && rapierBody.isAttachedTo(this);
+    }
+
+    @Override
     public void snapshotBodies(@Nonnull Consumer<PhysicsBodySnapshot> consumer) {
         snapshotBodies(body -> null, consumer);
     }
@@ -210,16 +219,88 @@ public final class RapierSpace implements PhysicsSpace, PhysicsSolverTuning, Phy
         }
     }
 
+    @Override
+    public void snapshotBodies(@Nonnull Iterable<? extends PhysicsBody> selectedBodies,
+        @Nonnull Function<PhysicsBody, PhysicsBodySnapshot> previousSnapshots,
+        @Nonnull Consumer<PhysicsBodySnapshot> consumer) {
+        ensureOpen();
+        int count = collectSelectedSnapshotBodies(selectedBodies, previousSnapshots, consumer);
+        if (count == 0) {
+            return;
+        }
+
+        int written = RapierNative.snapshotBodiesNative(nativeSpaceHandle,
+            snapshotBodyHandles,
+            count,
+            snapshotBodyData);
+        int limit = Math.min(count, Math.max(0, written));
+        for (int i = 0; i < limit; i++) {
+            RapierBody body = selectedSnapshotBodies[i];
+            consumer.accept(body.snapshotFromNative(snapshotBodyData,
+                i * BODY_SNAPSHOT_FLOATS,
+                previousSnapshots.apply(body)));
+        }
+        for (int i = limit; i < count; i++) {
+            RapierBody body = selectedSnapshotBodies[i];
+            consumer.accept(PhysicsBodySnapshot.from(body, previousSnapshots.apply(body)));
+        }
+        for (int i = 0; i < count; i++) {
+            selectedSnapshotBodies[i] = null;
+        }
+    }
+
+    private int collectSelectedSnapshotBodies(@Nonnull Iterable<? extends PhysicsBody> selectedBodies,
+        @Nonnull Function<PhysicsBody, PhysicsBodySnapshot> previousSnapshots,
+        @Nonnull Consumer<PhysicsBodySnapshot> consumer) {
+        int count = 0;
+        for (PhysicsBody body : selectedBodies) {
+            if (!(body instanceof RapierBody rapierBody) || !rapierBody.isAttachedTo(this)) {
+                consumer.accept(PhysicsBodySnapshot.from(body, previousSnapshots.apply(body)));
+                continue;
+            }
+
+            ensureSnapshotCapacity(count + 1);
+            selectedSnapshotBodies[count] = rapierBody;
+            snapshotBodyHandles[count] = rapierBody.getBodyHandle();
+            count++;
+        }
+        return count;
+    }
+
     private void ensureSnapshotCapacity(int count) {
         if (snapshotBodyHandles.length < count) {
             int capacity = Math.max(count, snapshotBodyHandles.length * 2);
-            snapshotBodyHandles = new long[capacity];
+            snapshotBodyHandles = Arrays.copyOf(snapshotBodyHandles, capacity);
         }
         int floats = count * BODY_SNAPSHOT_FLOATS;
         if (snapshotBodyData.length < floats) {
             int capacity = Math.max(floats, snapshotBodyData.length * 2);
             snapshotBodyData = new float[capacity];
         }
+        if (selectedSnapshotBodies.length < count) {
+            int capacity = Math.max(count, selectedSnapshotBodies.length * 2);
+            selectedSnapshotBodies = Arrays.copyOf(selectedSnapshotBodies, capacity);
+        }
+    }
+
+    @Nonnull
+    @Override
+    public PhysicsRuntimeStats getRuntimeStats() {
+        ensureOpen();
+        int[] values = RapierNative.getRuntimeStatsNative(nativeSpaceHandle);
+        if (values == null || values.length < RUNTIME_STATS_VALUES) {
+            return PhysicsRuntimeStats.unavailable();
+        }
+        return PhysicsRuntimeStats.available(values[0],
+            values[1],
+            values[2],
+            values[3],
+            values[4],
+            values[5],
+            values[6],
+            values[7],
+            values[8],
+            values[9]);
     }
 
     @Override

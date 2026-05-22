@@ -67,6 +67,16 @@ public interface PhysicsSpace {
     }
 
     /**
+     * Returns whether the given body is currently attached to this space.
+     *
+     * <p>Default implementation delegates to {@link #getBodies()}.
+     * Backends should override to avoid list allocation.</p>
+     */
+    default boolean containsBody(@Nonnull PhysicsBody body) {
+        return getBodies().contains(body);
+    }
+
+    /**
      * Publishes owner-thread body snapshots for systems that must not repeatedly
      * read mutable backend bodies.
      */
@@ -81,6 +91,31 @@ public interface PhysicsSpace {
     default void snapshotBodies(@Nonnull Function<PhysicsBody, PhysicsBodySnapshot> previousSnapshots,
         @Nonnull Consumer<PhysicsBodySnapshot> consumer) {
         forEachBody(body -> consumer.accept(PhysicsBodySnapshot.from(body, previousSnapshots.apply(body))));
+    }
+
+    /**
+     * Publishes owner-thread snapshots for a caller-selected subset of bodies.
+     *
+     * <p>This lets backends batch-read only bodies that higher-level systems actually
+     * need to publish. Callers should pass bodies that currently belong to this space.</p>
+     */
+    default void snapshotBodies(@Nonnull Iterable<? extends PhysicsBody> selectedBodies,
+        @Nonnull Function<PhysicsBody, PhysicsBodySnapshot> previousSnapshots,
+        @Nonnull Consumer<PhysicsBodySnapshot> consumer) {
+        for (PhysicsBody body : selectedBodies) {
+            consumer.accept(PhysicsBodySnapshot.from(body, previousSnapshots.apply(body)));
+        }
+    }
+
+    /**
+     * Returns optional backend runtime counters for diagnostics.
+     *
+     * <p>The default implementation reports no backend-specific runtime counters so
+     * existing backends do not need to synthesize opaque internal state.</p>
+     */
+    @Nonnull
+    default PhysicsRuntimeStats getRuntimeStats() {
+        return PhysicsRuntimeStats.unavailable();
     }
 
     @Nonnull
