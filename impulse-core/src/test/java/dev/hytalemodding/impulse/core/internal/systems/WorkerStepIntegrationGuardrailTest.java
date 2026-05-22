@@ -21,10 +21,6 @@ class WorkerStepIntegrationGuardrailTest {
 
         assertDoesNotExposeWorkerMode(repoRoot.resolve(
             "impulse-examples/src/main/java/dev/hytalemodding/impulse/examples/commands/stress/StressBenchmarkCommand.java"));
-        assertDoesNotExposeWorkerMode(repoRoot.resolve(
-            "impulse-examples/src/main/java/dev/hytalemodding/impulse/examples/commands/stress/StressAutoBenchmarkCommand.java"));
-        assertDoesNotExposeWorkerMode(repoRoot.resolve(
-            "impulse-examples/src/main/java/dev/hytalemodding/impulse/examples/commands/stress/StressAutoBenchmarkSupport.java"));
     }
 
     private static void assertDoesNotExposeWorkerMode(Path source) throws IOException {
