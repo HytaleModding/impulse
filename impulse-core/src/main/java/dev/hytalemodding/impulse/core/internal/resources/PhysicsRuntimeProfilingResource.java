@@ -3,6 +3,7 @@ package dev.hytalemodding.impulse.core.internal.resources;
 import com.hypixel.hytale.component.Resource;
 import com.hypixel.hytale.component.ResourceType;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
+import dev.hytalemodding.impulse.api.PhysicsStepPhaseStats;
 import dev.hytalemodding.impulse.core.ImpulsePlugin;
 import java.util.concurrent.atomic.AtomicInteger;
 import javax.annotation.Nonnull;
@@ -67,6 +68,26 @@ public class PhysicsRuntimeProfilingResource implements Resource<EntityStore> {
         long snapshotNanos,
         long workerQueuedNanos,
         long workerRunNanos) {
+        recordStep(spaces,
+            substeps,
+            nanos,
+            bodySnapshots,
+            spatialIndexCells,
+            snapshotNanos,
+            workerQueuedNanos,
+            workerRunNanos,
+            PhysicsStepPhaseStats.unavailable());
+    }
+
+    public void recordStep(int spaces,
+        int substeps,
+        long nanos,
+        int bodySnapshots,
+        int spatialIndexCells,
+        long snapshotNanos,
+        long workerQueuedNanos,
+        long workerRunNanos,
+        @Nonnull PhysicsStepPhaseStats nativePhaseStats) {
         StepSnapshot snapshot = new StepSnapshot();
         snapshot.recordTickSample();
         snapshot.setSpaces(spaces);
@@ -77,6 +98,7 @@ public class PhysicsRuntimeProfilingResource implements Resource<EntityStore> {
         snapshot.setSnapshotNanos(snapshotNanos);
         snapshot.setWorkerQueuedNanos(workerQueuedNanos);
         snapshot.setWorkerRunNanos(workerRunNanos);
+        snapshot.setNativePhaseStats(nativePhaseStats);
 
         latestStep.copyFrom(snapshot);
         cumulativeStep.add(snapshot);
@@ -199,6 +221,13 @@ public class PhysicsRuntimeProfilingResource implements Resource<EntityStore> {
         private long pendingStepAgeNanos;
         @Setter
         private long maxPendingStepAgeNanos;
+        private int nativePhaseSamples;
+        private long nativeStepNanos;
+        private long nativeBroadPhaseNanos;
+        private long nativeNarrowPhaseNanos;
+        private long nativeSolverNanos;
+        private long nativeCcdNanos;
+        private long nativeSnapshotNanos;
 
         public void recordTickSample() {
             tickSamples++;
@@ -217,6 +246,13 @@ public class PhysicsRuntimeProfilingResource implements Resource<EntityStore> {
             skippedPendingSteps = other.skippedPendingSteps;
             pendingStepAgeNanos = other.pendingStepAgeNanos;
             maxPendingStepAgeNanos = other.maxPendingStepAgeNanos;
+            nativePhaseSamples = other.nativePhaseSamples;
+            nativeStepNanos = other.nativeStepNanos;
+            nativeBroadPhaseNanos = other.nativeBroadPhaseNanos;
+            nativeNarrowPhaseNanos = other.nativeNarrowPhaseNanos;
+            nativeSolverNanos = other.nativeSolverNanos;
+            nativeCcdNanos = other.nativeCcdNanos;
+            nativeSnapshotNanos = other.nativeSnapshotNanos;
         }
 
         public void add(@Nonnull StepSnapshot other) {
@@ -233,6 +269,13 @@ public class PhysicsRuntimeProfilingResource implements Resource<EntityStore> {
             pendingStepAgeNanos += other.pendingStepAgeNanos;
             maxPendingStepAgeNanos = Math.max(maxPendingStepAgeNanos,
                 other.maxPendingStepAgeNanos);
+            nativePhaseSamples += other.nativePhaseSamples;
+            nativeStepNanos += other.nativeStepNanos;
+            nativeBroadPhaseNanos += other.nativeBroadPhaseNanos;
+            nativeNarrowPhaseNanos += other.nativeNarrowPhaseNanos;
+            nativeSolverNanos += other.nativeSolverNanos;
+            nativeCcdNanos += other.nativeCcdNanos;
+            nativeSnapshotNanos += other.nativeSnapshotNanos;
         }
 
         public void reset() {
@@ -248,6 +291,33 @@ public class PhysicsRuntimeProfilingResource implements Resource<EntityStore> {
             skippedPendingSteps = 0;
             pendingStepAgeNanos = 0L;
             maxPendingStepAgeNanos = 0L;
+            nativePhaseSamples = 0;
+            nativeStepNanos = 0L;
+            nativeBroadPhaseNanos = 0L;
+            nativeNarrowPhaseNanos = 0L;
+            nativeSolverNanos = 0L;
+            nativeCcdNanos = 0L;
+            nativeSnapshotNanos = 0L;
+        }
+
+        public void setNativePhaseStats(@Nonnull PhysicsStepPhaseStats stats) {
+            if (!stats.available()) {
+                nativePhaseSamples = 0;
+                nativeStepNanos = 0L;
+                nativeBroadPhaseNanos = 0L;
+                nativeNarrowPhaseNanos = 0L;
+                nativeSolverNanos = 0L;
+                nativeCcdNanos = 0L;
+                nativeSnapshotNanos = 0L;
+                return;
+            }
+            nativePhaseSamples = 1;
+            nativeStepNanos = stats.stepNanos();
+            nativeBroadPhaseNanos = stats.broadPhaseNanos();
+            nativeNarrowPhaseNanos = stats.narrowPhaseNanos();
+            nativeSolverNanos = stats.solverNanos();
+            nativeCcdNanos = stats.ccdNanos();
+            nativeSnapshotNanos = stats.snapshotNanos();
         }
     }
 

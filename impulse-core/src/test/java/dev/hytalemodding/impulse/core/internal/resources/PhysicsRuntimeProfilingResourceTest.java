@@ -3,6 +3,7 @@ package dev.hytalemodding.impulse.core.internal.resources;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
 
+import dev.hytalemodding.impulse.api.PhysicsStepPhaseStats;
 import org.junit.jupiter.api.Test;
 
 class PhysicsRuntimeProfilingResourceTest {
@@ -11,7 +12,15 @@ class PhysicsRuntimeProfilingResourceTest {
     void recordStepTracksLatestCumulativeAndWorstSamples() {
         PhysicsRuntimeProfilingResource resource = new PhysicsRuntimeProfilingResource();
 
-        resource.recordStep(2, 6, 100L, 7, 8, 30L, 10L, 90L);
+        resource.recordStep(2,
+            6,
+            100L,
+            7,
+            8,
+            30L,
+            10L,
+            90L,
+            PhysicsStepPhaseStats.available(91L, 11L, 22L, 33L, 4L, 5L));
         resource.recordStep(1, 3, 40L);
         resource.recordStepSkippedPending(75L);
 
@@ -21,6 +30,7 @@ class PhysicsRuntimeProfilingResourceTest {
         assertEquals(40L, resource.getLatestStep().getTickNanos());
         assertEquals(1, resource.getLatestStep().getSkippedPendingSteps());
         assertEquals(75L, resource.getLatestStep().getPendingStepAgeNanos());
+        assertEquals(0, resource.getLatestStep().getNativePhaseSamples());
 
         assertEquals(2, resource.getCumulativeStep().getTickSamples());
         assertEquals(3, resource.getCumulativeStep().getSpaces());
@@ -32,8 +42,17 @@ class PhysicsRuntimeProfilingResourceTest {
         assertEquals(1, resource.getCumulativeStep().getSkippedPendingSteps());
         assertEquals(75L, resource.getCumulativeStep().getPendingStepAgeNanos());
         assertEquals(75L, resource.getCumulativeStep().getMaxPendingStepAgeNanos());
+        assertEquals(1, resource.getCumulativeStep().getNativePhaseSamples());
+        assertEquals(91L, resource.getCumulativeStep().getNativeStepNanos());
+        assertEquals(11L, resource.getCumulativeStep().getNativeBroadPhaseNanos());
+        assertEquals(22L, resource.getCumulativeStep().getNativeNarrowPhaseNanos());
+        assertEquals(33L, resource.getCumulativeStep().getNativeSolverNanos());
+        assertEquals(4L, resource.getCumulativeStep().getNativeCcdNanos());
+        assertEquals(5L, resource.getCumulativeStep().getNativeSnapshotNanos());
 
         assertEquals(100L, resource.getWorstStep().getTickNanos());
+        assertEquals(1, resource.getWorstStep().getNativePhaseSamples());
+        assertEquals(91L, resource.getWorstStep().getNativeStepNanos());
         assertEquals(75L, resource.getWorstStep().getMaxPendingStepAgeNanos());
     }
 

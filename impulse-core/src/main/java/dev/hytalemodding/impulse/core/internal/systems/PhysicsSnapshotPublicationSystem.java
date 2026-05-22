@@ -102,7 +102,8 @@ public final class PhysicsSnapshotPublicationSystem extends TickingSystem<Entity
                 snapshot.spatialIndexCells(),
                 snapshot.snapshotNanos(),
                 result != null ? result.queuedNanos() : 0L,
-                result != null ? result.runNanos() : 0L);
+                result != null ? result.runNanos() : 0L,
+                snapshot.nativePhaseStats());
         }
 
         RuntimeException stepFailure = completion.stepFailure();

@@ -98,6 +98,31 @@ public class PerfReportCommand extends AbstractWorldCommand {
                 + "/" + formatMillis(worstStep.getSnapshotNanos())
                 + " pendingAge latest/max ms=" + formatMillis(latestStep.getPendingStepAgeNanos())
                 + "/" + formatMillis(worstStep.getMaxPendingStepAgeNanos())));
+            if (cumulativeStep.getNativePhaseSamples() > 0) {
+                ctx.sender().sendMessage(Message.raw("Physics native phases avg ms/tick "
+                    + "step/broad/narrow/solver/ccd/snapshot="
+                    + formatAverageMillis(cumulativeStep.getNativeStepNanos(),
+                    cumulativeStep.getNativePhaseSamples())
+                    + "/" + formatAverageMillis(cumulativeStep.getNativeBroadPhaseNanos(),
+                    cumulativeStep.getNativePhaseSamples())
+                    + "/" + formatAverageMillis(cumulativeStep.getNativeNarrowPhaseNanos(),
+                    cumulativeStep.getNativePhaseSamples())
+                    + "/" + formatAverageMillis(cumulativeStep.getNativeSolverNanos(),
+                    cumulativeStep.getNativePhaseSamples())
+                    + "/" + formatAverageMillis(cumulativeStep.getNativeCcdNanos(),
+                    cumulativeStep.getNativePhaseSamples())
+                    + "/" + formatAverageMillis(cumulativeStep.getNativeSnapshotNanos(),
+                    cumulativeStep.getNativePhaseSamples())
+                    + " samples=" + cumulativeStep.getNativePhaseSamples()));
+                ctx.sender().sendMessage(Message.raw("Physics native phases latest ms "
+                    + "step/broad/narrow/solver/ccd/snapshot="
+                    + formatMillis(latestStep.getNativeStepNanos())
+                    + "/" + formatMillis(latestStep.getNativeBroadPhaseNanos())
+                    + "/" + formatMillis(latestStep.getNativeNarrowPhaseNanos())
+                    + "/" + formatMillis(latestStep.getNativeSolverNanos())
+                    + "/" + formatMillis(latestStep.getNativeCcdNanos())
+                    + "/" + formatMillis(latestStep.getNativeSnapshotNanos())));
+            }
             ctx.sender().sendMessage(Message.raw("Physics sync avg ms/tick="
                 + formatAverageMillis(cumulativeSync.getTickNanos(), cumulativeSync.getTickSamples())
                 + " inspected=" + formatAverage(cumulativeSync.getBodiesInspected(), cumulativeSync.getTickSamples())

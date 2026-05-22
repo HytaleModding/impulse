@@ -12,6 +12,7 @@ import dev.hytalemodding.impulse.api.PhysicsRayHit;
 import dev.hytalemodding.impulse.api.PhysicsRuntimeStats;
 import dev.hytalemodding.impulse.api.PhysicsSpace;
 import dev.hytalemodding.impulse.api.PhysicsSolverTuning;
+import dev.hytalemodding.impulse.api.PhysicsStepPhaseStats;
 import dev.hytalemodding.impulse.api.ShapeType;
 import dev.hytalemodding.impulse.api.SpaceId;
 import java.lang.ref.Cleaner;
@@ -34,6 +35,7 @@ public final class RapierSpace implements PhysicsSpace, PhysicsSolverTuning, Phy
     private static final int CONTACT_FLOATS = 13;
     private static final int BODY_SNAPSHOT_FLOATS = 16;
     private static final int RUNTIME_STATS_VALUES = 10;
+    private static final int STEP_PHASE_STATS_VALUES = 6;
 
     private final SpaceId id;
     private final RapierBackend backend;
@@ -301,6 +303,28 @@ public final class RapierSpace implements PhysicsSpace, PhysicsSolverTuning, Phy
             values[7],
             values[8],
             values[9]);
+    }
+
+    @Override
+    public void resetStepPhaseStats() {
+        ensureOpen();
+        RapierNative.resetStepPhaseStatsNative(nativeSpaceHandle);
+    }
+
+    @Nonnull
+    @Override
+    public PhysicsStepPhaseStats getStepPhaseStats() {
+        ensureOpen();
+        long[] values = RapierNative.getStepPhaseStatsNative(nativeSpaceHandle);
+        if (values == null || values.length < STEP_PHASE_STATS_VALUES) {
+            return PhysicsStepPhaseStats.unavailable();
+        }
+        return PhysicsStepPhaseStats.available(values[0],
+            values[1],
+            values[2],
+            values[3],
+            values[4],
+            values[5]);
     }
 
     @Override

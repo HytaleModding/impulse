@@ -233,11 +233,19 @@ pub extern "system" fn Java_dev_hytalemodding_impulse_rapier_RapierNative_snapsh
         return 0;
     }
 
+    let snapshot_start = Instant::now();
     let wrote = with_space(space_handle, None, |space| {
         let Some(values) = fill_snapshot_body_values(space, &env, &body_ids, count) else {
+            space
+                .step_phase_stats
+                .add_snapshot_time(snapshot_start.elapsed());
             return Some(false);
         };
-        Some(env.set_float_array_region(&out, 0, values).is_ok())
+        let ok = env.set_float_array_region(&out, 0, values).is_ok();
+        space
+            .step_phase_stats
+            .add_snapshot_time(snapshot_start.elapsed());
+        Some(ok)
     });
     if wrote == Some(false) {
         return 0;

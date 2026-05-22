@@ -69,6 +69,10 @@ final class RapierNative {
 
     static native int[] getRuntimeStatsNative(long spaceHandle);
 
+    static native void resetStepPhaseStatsNative(long spaceHandle);
+
+    static native long[] getStepPhaseStatsNative(long spaceHandle);
+
     static native int snapshotBodiesNative(long spaceHandle, long[] bodyHandles, int bodyCount, float[] out);
 
     static native void setSolverTuningNative(long spaceHandle,

@@ -2,6 +2,7 @@ package dev.hytalemodding.impulse.core.internal.worker;
 
 import dev.hytalemodding.impulse.api.PhysicsBody;
 import dev.hytalemodding.impulse.api.PhysicsSpace;
+import dev.hytalemodding.impulse.api.PhysicsStepPhaseStats;
 import dev.hytalemodding.impulse.api.ShapeType;
 import dev.hytalemodding.impulse.core.internal.resources.PublishedPhysicsSnapshotFrame;
 import dev.hytalemodding.impulse.core.internal.systems.PhysicsStepCountPolicy;
@@ -109,6 +110,9 @@ public final class PhysicsWorkerStepCommand implements PhysicsWorkerCommand {
         StepCounters counters = new StepCounters();
         RuntimeException stepFailure = null;
         try {
+            if (profilingEnabled) {
+                resetStepPhaseStats(resource);
+            }
             if (stepMode != PhysicsStepMode.CCD) {
                 restoreForcedContinuousCollision(resource);
             }
@@ -135,12 +139,32 @@ public final class PhysicsWorkerStepCommand implements PhysicsWorkerCommand {
             throw exception;
         }
 
+        PhysicsStepPhaseStats nativePhaseStats = profilingEnabled
+            ? collectStepPhaseStats(resource)
+            : PhysicsStepPhaseStats.unavailable();
         return new StepExecution(new PhysicsWorkerSnapshot(counters.spaceCount(),
             counters.substeps(),
             frame.bodyCount(),
             frame.spatialIndexCellCount(),
             stepNanos,
-            frame.snapshotNanos()), stepFailure, frame);
+            frame.snapshotNanos(),
+            nativePhaseStats), stepFailure, frame);
+    }
+
+    private static void resetStepPhaseStats(@Nonnull PhysicsWorldResource resource) {
+        for (PhysicsSpace space : resource.iterateSpaces()) {
+            space.resetStepPhaseStats();
+        }
+    }
+
+    @Nonnull
+    private static PhysicsStepPhaseStats collectStepPhaseStats(
+        @Nonnull PhysicsWorldResource resource) {
+        PhysicsStepPhaseStats stats = PhysicsStepPhaseStats.unavailable();
+        for (PhysicsSpace space : resource.iterateSpaces()) {
+            stats = stats.add(space.getStepPhaseStats());
+        }
+        return stats;
     }
 
     private static int resolveAdaptiveStepCount(float dt,

@@ -1,4 +1,5 @@
 const RUNTIME_STATS_INTS: usize = 10;
+const STEP_PHASE_STATS_LONGS: usize = 6;
 const TERRAIN_COLLISION_GROUP: u32 = 0b0000_0001;
 const DYNAMIC_BODY_COLLISION_GROUP: u32 = 0b0000_0010;
 
@@ -69,6 +70,31 @@ pub extern "system" fn Java_dev_hytalemodding_impulse_rapier_RapierNative_getRun
 ) -> jni::sys::jintArray {
     let values = catch_jni_default([0; RUNTIME_STATS_INTS], || runtime_stats_values(space_handle));
     int_array_or_null(&env, &values)
+}
+
+#[no_mangle]
+pub extern "system" fn Java_dev_hytalemodding_impulse_rapier_RapierNative_resetStepPhaseStatsNative(
+    _env: JNIEnv,
+    _class: JClass,
+    space_handle: jlong,
+) {
+    with_space(space_handle, (), |space| {
+        space.reset_step_phase_stats();
+    });
+}
+
+#[no_mangle]
+pub extern "system" fn Java_dev_hytalemodding_impulse_rapier_RapierNative_getStepPhaseStatsNative(
+    env: JNIEnv,
+    _class: JClass,
+    space_handle: jlong,
+) -> jni::sys::jlongArray {
+    let values = catch_jni_default([0; STEP_PHASE_STATS_LONGS], || {
+        with_space(space_handle, [0; STEP_PHASE_STATS_LONGS], |space| {
+            space.step_phase_stats.values()
+        })
+    });
+    long_array_or_null(&env, &values)
 }
 
 fn runtime_stats_values(space_handle: jlong) -> [jint; RUNTIME_STATS_INTS] {
@@ -167,6 +193,22 @@ fn int_array_or_null(env: &JNIEnv<'_>, values: &[jint]) -> jni::sys::jintArray {
     };
 
     if env.set_int_array_region(&out, 0, values).is_err() {
+        return std::ptr::null_mut();
+    }
+
+    out.into_raw()
+}
+
+fn long_array_or_null(env: &JNIEnv<'_>, values: &[jlong]) -> jni::sys::jlongArray {
+    if values.len() > i32::MAX as usize {
+        return std::ptr::null_mut();
+    }
+
+    let Ok(out) = env.new_long_array(values.len() as i32) else {
+        return std::ptr::null_mut();
+    };
+
+    if env.set_long_array_region(&out, 0, values).is_err() {
         return std::ptr::null_mut();
     }
 

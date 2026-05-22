@@ -118,6 +118,25 @@ public interface PhysicsSpace {
         return PhysicsRuntimeStats.unavailable();
     }
 
+    /**
+     * Resets backend-native phase counters collected by {@link #getStepPhaseStats()}.
+     *
+     * <p>Backends that do not expose phase timings may keep the default no-op behavior.</p>
+     */
+    default void resetStepPhaseStats() {
+    }
+
+    /**
+     * Returns backend-native phase timings collected since the last reset.
+     *
+     * <p>These counters are intended for profiling only. Unsupported backends should return
+     * {@link PhysicsStepPhaseStats#unavailable()}.</p>
+     */
+    @Nonnull
+    default PhysicsStepPhaseStats getStepPhaseStats() {
+        return PhysicsStepPhaseStats.unavailable();
+    }
+
     @Nonnull
     PhysicsBody createStaticPlane(float groundY);
 
