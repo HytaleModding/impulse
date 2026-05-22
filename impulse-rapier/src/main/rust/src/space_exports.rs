@@ -52,14 +52,18 @@ pub extern "system" fn Java_dev_hytalemodding_impulse_rapier_RapierNative_getGra
 
 #[no_mangle]
 pub extern "system" fn Java_dev_hytalemodding_impulse_rapier_RapierNative_stepNative(
-    _env: JNIEnv,
+    mut env: JNIEnv,
     _class: JClass,
     space_handle: jlong,
     dt: jfloat,
-) {
-    with_space(space_handle, (), |space| {
-        space.step(dt);
-    });
+) -> jboolean {
+    match with_space_checked(space_handle, |space| space.step(dt)) {
+        Ok(()) => 1,
+        Err(failure) => {
+            throw_native_space_failure(&mut env, "step", failure);
+            0
+        }
+    }
 }
 
 #[no_mangle]

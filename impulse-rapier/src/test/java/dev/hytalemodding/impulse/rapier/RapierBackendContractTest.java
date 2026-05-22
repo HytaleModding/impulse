@@ -4,6 +4,7 @@ import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertSame;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import dev.hytalemodding.impulse.api.PhysicsBackend;
@@ -18,6 +19,7 @@ import dev.hytalemodding.impulse.api.PhysicsSpace;
 import dev.hytalemodding.impulse.api.ShapeType;
 import dev.hytalemodding.impulse.api.testsupport.PhysicsBackendContractTest;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import javax.annotation.Nonnull;
 import org.joml.Vector3f;
@@ -194,6 +196,36 @@ class RapierBackendContractTest extends PhysicsBackendContractTest {
         assertEquals(count, snapshots.size());
         for (int i = 0; i < count; i++) {
             assertSame(selectedBodies.get(i), snapshots.get(i).body());
+        }
+    }
+
+    @Test
+    void nativeStepRejectsStaleSpaceHandle() {
+        RapierNative.load(null);
+        long handle = RapierNative.createSpaceNative();
+        assertTrue(handle > 0L);
+
+        RapierNative.destroySpaceNative(handle);
+
+        assertThrows(IllegalStateException.class, () -> RapierNative.stepNative(handle, 1.0f / 60.0f));
+    }
+
+    @Test
+    void nativeSnapshotRejectsStaleBodyHandleWithoutWritingZeros() {
+        RapierNative.load(null);
+        long handle = RapierNative.createSpaceNative();
+        assertTrue(handle > 0L);
+        float[] out = new float[16];
+        float[] expected = new float[16];
+        Arrays.fill(out, -7.0f);
+        Arrays.fill(expected, -7.0f);
+
+        try {
+            assertThrows(IllegalStateException.class,
+                () -> RapierNative.snapshotBodiesNative(handle, new long[]{123L}, 1, out));
+            assertArrayEquals(expected, out, 0.0f);
+        } finally {
+            RapierNative.destroySpaceNative(handle);
         }
     }
 

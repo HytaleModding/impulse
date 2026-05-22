@@ -370,6 +370,47 @@ where
     }
 }
 
+#[derive(Clone, Copy)]
+enum NativeSpaceFailure {
+    StaleHandle,
+    DestroyedSpace,
+    Panic,
+}
+
+fn with_space_checked<T, F>(handle: jlong, f: F) -> Result<T, NativeSpaceFailure>
+where
+    F: FnOnce(&mut NativeSpace) -> T,
+{
+    match catch_unwind(AssertUnwindSafe(|| {
+        let Some(record) = space_record(handle) else {
+            return Err(NativeSpaceFailure::StaleHandle);
+        };
+        let mut guard = match record.space.lock() {
+            Ok(space) => space,
+            Err(poisoned) => poisoned.into_inner(),
+        };
+        let Some(space) = guard.as_mut() else {
+            return Err(NativeSpaceFailure::DestroyedSpace);
+        };
+        Ok(f(space))
+    })) {
+        Ok(result) => result,
+        Err(_) => Err(NativeSpaceFailure::Panic),
+    }
+}
+
+fn throw_native_space_failure(env: &mut JNIEnv<'_>, operation: &str, failure: NativeSpaceFailure) {
+    let reason = match failure {
+        NativeSpaceFailure::StaleHandle => "stale native space handle",
+        NativeSpaceFailure::DestroyedSpace => "destroyed native space",
+        NativeSpaceFailure::Panic => "caught Rust panic",
+    };
+    let _ = env.throw_new(
+        "java/lang/IllegalStateException",
+        format!("Rapier native {operation} failed: {reason}"),
+    );
+}
+
 fn with_space<T, F>(handle: jlong, default: T, f: F) -> T
 where
     T: Clone,

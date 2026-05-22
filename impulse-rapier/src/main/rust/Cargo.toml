@@ -10,9 +10,6 @@ name = "impulse_rapier"
 crate-type = ["cdylib"]
 
 [features]
-# Rapier 0.32's SIMD contact-manifold grouping can panic on dense 10k
-# body-body piles after island splitting leaves active contacts spanning islands.
-# Keep it opt-in until that path is proven stable for full-collision stress.
 rapier-simd-stable = ["rapier3d/simd-stable"]
 
 [dependencies]

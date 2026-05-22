@@ -77,7 +77,9 @@ public final class RapierSpace implements PhysicsSpace, PhysicsSolverTuning, Phy
             return;
         }
         ensureOpen();
-        RapierNative.stepNative(nativeSpaceHandle, dt);
+        if (!RapierNative.stepNative(nativeSpaceHandle, dt)) {
+            throw new IllegalStateException("Rapier native step failed");
+        }
     }
 
     @Override
@@ -208,6 +210,9 @@ public final class RapierSpace implements PhysicsSpace, PhysicsSolverTuning, Phy
             snapshotBodyHandles,
             count,
             snapshotBodyData);
+        if (written < 0) {
+            throw new IllegalStateException("Rapier native snapshot failed");
+        }
         int limit = Math.min(count, Math.max(0, written));
         for (int i = 0; i < limit; i++) {
             RapierBody body = bodies.get(i);
@@ -231,23 +236,29 @@ public final class RapierSpace implements PhysicsSpace, PhysicsSolverTuning, Phy
             return;
         }
 
-        int written = RapierNative.snapshotBodiesNative(nativeSpaceHandle,
-            snapshotBodyHandles,
-            count,
-            snapshotBodyData);
-        int limit = Math.min(count, Math.max(0, written));
-        for (int i = 0; i < limit; i++) {
-            RapierBody body = selectedSnapshotBodies[i];
-            consumer.accept(body.snapshotFromNative(snapshotBodyData,
-                i * BODY_SNAPSHOT_FLOATS,
-                previousSnapshots.apply(body)));
-        }
-        for (int i = limit; i < count; i++) {
-            RapierBody body = selectedSnapshotBodies[i];
-            consumer.accept(PhysicsBodySnapshot.from(body, previousSnapshots.apply(body)));
-        }
-        for (int i = 0; i < count; i++) {
-            selectedSnapshotBodies[i] = null;
+        try {
+            int written = RapierNative.snapshotBodiesNative(nativeSpaceHandle,
+                snapshotBodyHandles,
+                count,
+                snapshotBodyData);
+            if (written < 0) {
+                throw new IllegalStateException("Rapier native snapshot failed");
+            }
+            int limit = Math.min(count, Math.max(0, written));
+            for (int i = 0; i < limit; i++) {
+                RapierBody body = selectedSnapshotBodies[i];
+                consumer.accept(body.snapshotFromNative(snapshotBodyData,
+                    i * BODY_SNAPSHOT_FLOATS,
+                    previousSnapshots.apply(body)));
+            }
+            for (int i = limit; i < count; i++) {
+                RapierBody body = selectedSnapshotBodies[i];
+                consumer.accept(PhysicsBodySnapshot.from(body, previousSnapshots.apply(body)));
+            }
+        } finally {
+            for (int i = 0; i < count; i++) {
+                selectedSnapshotBodies[i] = null;
+            }
         }
     }
 
