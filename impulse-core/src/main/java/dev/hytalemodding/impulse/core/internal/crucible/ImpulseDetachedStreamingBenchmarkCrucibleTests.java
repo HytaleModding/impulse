@@ -329,7 +329,7 @@ final class ImpulseDetachedStreamingBenchmarkCrucibleTests {
         }
 
         private PrewarmStats prewarmWorldCollision(@Nonnull PhysicsSpace space, int count) {
-            WorldVoxelCollisionCache cache = physics.getWorldVoxelCollisionCache();
+            WorldVoxelCollisionCache cache = physics.internalWorldCollisionState();
             BenchmarkLayout layout = BenchmarkLayout.flatGrid(count);
             LongSet visitedSections = new LongOpenHashSet();
             Set<StreamingPrewarmTarget> visitedTargets = new ObjectOpenHashSet<>();
@@ -958,7 +958,7 @@ final class ImpulseDetachedStreamingBenchmarkCrucibleTests {
         private static SpaceStats collect(@Nonnull PhysicsWorldResource physics,
             @Nonnull PhysicsSpace space) {
             SpaceStats stats = new SpaceStats();
-            WorldVoxelCollisionCache cache = physics.getWorldVoxelCollisionCache();
+            WorldVoxelCollisionCache cache = physics.internalWorldCollisionState();
             for (PhysicsBody body : space.getBodies()) {
                 stats.classify(cache, space, body);
             }

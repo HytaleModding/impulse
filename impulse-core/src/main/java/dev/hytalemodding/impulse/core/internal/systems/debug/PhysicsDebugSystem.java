@@ -23,6 +23,7 @@ import dev.hytalemodding.impulse.core.plugin.resources.PhysicsBodyKind;
 import dev.hytalemodding.impulse.core.plugin.resources.PhysicsWorldResource;
 import dev.hytalemodding.impulse.core.plugin.resources.PhysicsWorldResource.BodyRegistration;
 import dev.hytalemodding.impulse.core.internal.voxel.SectionCollisionGeometry.BoxCollider;
+import dev.hytalemodding.impulse.core.internal.voxel.WorldVoxelCollisionCache;
 import dev.hytalemodding.impulse.core.internal.voxel.WorldVoxelCollisionCache.DebugSection;
 import it.unimi.dsi.fastutil.objects.ObjectOpenHashSet;
 import java.util.ArrayList;
@@ -395,7 +396,7 @@ public class PhysicsDebugSystem extends TickingSystem<ChunkStore> {
         @Nonnull Vector3d viewerPosition,
         double maxDistanceSquared) {
         List<VisibleDebugSection> visibleSections = new ArrayList<>();
-        resource.getWorldVoxelCollisionCache().forEachDebugSection(space.getId(), section -> {
+        resource.<WorldVoxelCollisionCache>internalWorldCollisionState().forEachDebugSection(space.getId(), section -> {
             double distanceSquared = distanceSquaredToSection(viewerPosition, section);
             if (distanceSquared > maxDistanceSquared) {
                 return;

@@ -75,7 +75,7 @@ public class PhysicsWorldCollisionStreamingSystem extends TickingSystem<EntitySt
         try {
             World world = store.getExternalData().getWorld();
             PhysicsWorldResource resource = store.getResource(PhysicsWorldResource.getResourceType());
-            WorldVoxelCollisionCache cache = resource.getWorldVoxelCollisionCache();
+            WorldVoxelCollisionCache cache = resource.internalWorldCollisionState();
             if (cache.isStreamingApplyPending()) {
                 recordSkippedTerrainApply(profiling);
                 return;

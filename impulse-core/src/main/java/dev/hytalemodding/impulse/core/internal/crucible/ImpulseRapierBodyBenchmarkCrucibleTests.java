@@ -718,7 +718,7 @@ final class ImpulseRapierBodyBenchmarkCrucibleTests {
         private static SpaceStats collect(@Nonnull PhysicsWorldResource physics,
             @Nonnull PhysicsSpace space) {
             SpaceStats stats = new SpaceStats();
-            WorldVoxelCollisionCache cache = physics.getWorldVoxelCollisionCache();
+            WorldVoxelCollisionCache cache = physics.internalWorldCollisionState();
             for (PhysicsBody body : space.getBodies()) {
                 stats.classify(physics, cache, space, body);
             }
