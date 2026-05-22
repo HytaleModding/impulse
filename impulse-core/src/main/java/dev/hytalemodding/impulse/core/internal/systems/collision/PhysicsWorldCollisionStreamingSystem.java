@@ -13,12 +13,13 @@ import com.hypixel.hytale.server.core.universe.world.World;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import dev.hytalemodding.impulse.api.PhysicsSpace;
 import dev.hytalemodding.impulse.api.SpaceId;
-import dev.hytalemodding.impulse.core.plugin.resources.PhysicsSpaceSettings;
+import dev.hytalemodding.impulse.core.plugin.settings.PhysicsSpaceSettings;
 import dev.hytalemodding.impulse.core.plugin.resources.PhysicsWorldResource;
 import dev.hytalemodding.impulse.core.internal.resources.profiling.WorldCollisionProfilingResource;
 import dev.hytalemodding.impulse.core.internal.resources.profiling.WorldCollisionProfilingResource.Snapshot;
 import dev.hytalemodding.impulse.core.internal.resources.profiling.WorldCollisionProfilingResource.StreamingTargetDiagnostic;
-import dev.hytalemodding.impulse.core.plugin.voxel.WorldCollisionMode;
+import dev.hytalemodding.impulse.core.plugin.collision.WorldCollisionMode;
+import dev.hytalemodding.impulse.core.internal.voxel.WorldCollisionCacheAccess;
 import dev.hytalemodding.impulse.core.internal.voxel.WorldCollisionStreamingBounds;
 import dev.hytalemodding.impulse.core.internal.voxel.WorldVoxelCollisionCache;
 import dev.hytalemodding.impulse.core.internal.voxel.WorldVoxelCollisionCache.SectionAccessCache;
@@ -75,7 +76,7 @@ public class PhysicsWorldCollisionStreamingSystem extends TickingSystem<EntitySt
         try {
             World world = store.getExternalData().getWorld();
             PhysicsWorldResource resource = store.getResource(PhysicsWorldResource.getResourceType());
-            WorldVoxelCollisionCache cache = resource.internalWorldCollisionState();
+            WorldVoxelCollisionCache cache = WorldCollisionCacheAccess.get(resource);
             if (cache.isStreamingApplyPending()) {
                 recordSkippedTerrainApply(profiling);
                 return;

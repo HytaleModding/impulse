@@ -1,6 +1,6 @@
 package dev.hytalemodding.impulse.core.internal.worker;
 
-import dev.hytalemodding.impulse.core.plugin.resources.PublishedPhysicsSnapshotFrame;
+import dev.hytalemodding.impulse.core.plugin.snapshot.PublishedPhysicsSnapshotFrame;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 

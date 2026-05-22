@@ -2,7 +2,7 @@ package dev.hytalemodding.impulse.core.internal.systems.step;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
-import dev.hytalemodding.impulse.core.plugin.resources.PhysicsStepMode;
+import dev.hytalemodding.impulse.core.plugin.settings.PhysicsStepMode;
 import dev.hytalemodding.impulse.core.plugin.resources.PhysicsWorldResource;
 import org.junit.jupiter.api.Test;
 

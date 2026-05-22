@@ -12,10 +12,10 @@ import dev.hytalemodding.impulse.core.internal.persistence.PersistentPhysicsBody
 import dev.hytalemodding.impulse.core.internal.persistence.PersistentPhysicsRuntimeSnapshot;
 import dev.hytalemodding.impulse.core.internal.persistence.PersistentPhysicsSpaceState;
 import dev.hytalemodding.impulse.core.internal.persistence.PersistentPhysicsWorldResource;
-import dev.hytalemodding.impulse.core.plugin.resources.PhysicsBodyId;
-import dev.hytalemodding.impulse.core.plugin.resources.PhysicsBodyKind;
-import dev.hytalemodding.impulse.core.plugin.resources.PhysicsBodyPersistenceMode;
-import dev.hytalemodding.impulse.core.plugin.resources.PhysicsSpaceSettings;
+import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyId;
+import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyKind;
+import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyPersistenceMode;
+import dev.hytalemodding.impulse.core.plugin.settings.PhysicsSpaceSettings;
 import dev.hytalemodding.impulse.core.plugin.resources.PhysicsWorldResource;
 import java.util.concurrent.atomic.AtomicInteger;
 import org.joml.Vector3f;

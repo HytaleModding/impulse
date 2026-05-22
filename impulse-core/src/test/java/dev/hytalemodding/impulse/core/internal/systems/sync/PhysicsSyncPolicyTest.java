@@ -2,7 +2,7 @@ package dev.hytalemodding.impulse.core.internal.systems.sync;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
-import dev.hytalemodding.impulse.core.plugin.resources.PhysicsSpaceSettings;
+import dev.hytalemodding.impulse.core.plugin.settings.PhysicsSpaceSettings;
 import dev.hytalemodding.impulse.core.plugin.resources.PhysicsWorldResource;
 import java.util.List;
 import org.joml.Quaternionf;

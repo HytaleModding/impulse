@@ -1,4 +1,4 @@
-package dev.hytalemodding.impulse.core.plugin.resources;
+package dev.hytalemodding.impulse.core.plugin.snapshot;
 
 import dev.hytalemodding.impulse.api.SpaceId;
 import java.util.List;

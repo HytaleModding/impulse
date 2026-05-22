@@ -1,4 +1,4 @@
-package dev.hytalemodding.impulse.core.plugin.resources;
+package dev.hytalemodding.impulse.core.plugin.collision;
 
 /**
  * Statistics from ensuring world collision around multiple target positions.

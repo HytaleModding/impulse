@@ -1,4 +1,4 @@
-package dev.hytalemodding.impulse.core.plugin.resources;
+package dev.hytalemodding.impulse.core.plugin.collision;
 
 /**
  * Aggregate statistics from building or rebuilding streamed world-collision geometry.

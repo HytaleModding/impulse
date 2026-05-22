@@ -1,3 +1,4 @@
+import org.gradle.api.GradleException
 import org.gradle.api.tasks.testing.Test
 import org.gradle.api.tasks.testing.logging.TestExceptionFormat
 import org.gradle.api.tasks.testing.logging.TestLogEvent
@@ -60,10 +61,39 @@ subprojects {
     }
 }
 
+val examplesSourceDir = layout.projectDirectory.dir("impulse-examples/src/main/java").asFile
+
+tasks.register("checkExampleImportBoundaries") {
+    group = "verification"
+    description = "Fails if impulse-examples imports unsupported impulse-core internals"
+    inputs.dir(examplesSourceDir)
+
+    doLast {
+        val offenders = examplesSourceDir.walkTopDown()
+            .filter { it.isFile && it.extension == "java" }
+            .flatMap { file ->
+                file.readLines().mapIndexedNotNull { index, line ->
+                    if (line.contains("dev.hytalemodding.impulse.core.internal")) {
+                        "${file.relativeTo(rootDir)}:${index + 1}: ${line.trim()}"
+                    } else {
+                        null
+                    }
+                }
+            }
+            .toList()
+
+        if (offenders.isNotEmpty()) {
+            throw GradleException("impulse-examples must not import impulse-core internal packages:\n"
+                + offenders.joinToString("\n"))
+        }
+    }
+}
+
 tasks.register("headlessTest") {
     group = "verification"
     description = "Runs automated headless/serverless tests without booting the Hytale server"
     dependsOn(
+        "checkExampleImportBoundaries",
         ":impulse-api:test",
         ":impulse-bullet:test",
         ":impulse-rapier:test",
