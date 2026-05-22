@@ -20,5 +20,7 @@ public final class ImpulseCrucibleSuites {
         CrucibleBridge bridge = CrucibleBridge.create(crucibleLoader);
         ImpulseApiCrucibleTests.register(bridge, crucibleLoader);
         ImpulseLiveCrucibleTests.register(bridge, crucibleLoader);
+        ImpulseDetachedStreamingBenchmarkCrucibleTests.register(bridge, crucibleLoader);
+        ImpulseRapierBodyBenchmarkCrucibleTests.register(bridge, crucibleLoader);
     }
 }

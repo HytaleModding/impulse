@@ -104,3 +104,17 @@ Run the live-tagged runtime suite:
 JAVA_TOOL_OPTIONS="-Dcrucible.autorun=true -Dcrucible.tags=live" \
   ./gradlew -Dimpulse.backend=impulse:rapier runAllMods
 ```
+
+Run the detached full-collision streaming benchmark scenario:
+
+```bash
+JAVA_TOOL_OPTIONS="-Dcrucible.autorun=true -Dcrucible.tags=benchmark" \
+  ./gradlew -Dimpulse.backend=impulse:rapier runAllMods
+```
+
+The benchmark scenario defaults to one 500-body stage. Override stages with
+`-Dimpulse.crucible.detachedStreaming.counts=250,500,1000`.
+The generated Crucible test world does not guarantee the benchmark's fixed
+`GROUND_Y=122` reference, so the plane-height gate is reported as a warning by
+default. Enable it with
+`-Dimpulse.crucible.detachedStreaming.strictPlaneGate=true`.
