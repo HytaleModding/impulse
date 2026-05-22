@@ -77,8 +77,8 @@ Cleanup does not create a replacement/default space implicitly. Run `/impulse sp
 - `/impulse perf stats` - show per-space body, awake, sleeping, joint, contact, attachment, detached, and world-collision counts.
 - `/impulse perf reset` - reset profiling counters.
 
-Use this Spark capture when profiling threaded physics benchmarks so the exported profile includes
-both Hytale world threads and Impulse's per-world physics worker:
+Spark plugin is advised to profile threaded physics benchmarks. By using the following command,
+the exported profile includes both Hytale world threads and Impulse's per-world physics worker:
 
 ```bash
 /spark profiler start --timeout 60 --save-to-file --regex --not-combined --ignore-sleeping --thread WorldThread.* --thread Impulse.*physics.*worker.* --thread ChunkLighting.* --thread WorldMap.*
@@ -124,10 +124,3 @@ Run the detached full-collision streaming benchmark scenario:
 JAVA_TOOL_OPTIONS="-Dcrucible.autorun=true -Dcrucible.tags=benchmark" \
   ./gradlew -Dimpulse.backend=impulse:rapier runAllMods
 ```
-
-The benchmark scenario defaults to one 500-body stage. Override stages with
-`-Dimpulse.crucible.detachedStreaming.counts=250,500,1000`.
-The generated Crucible test world does not guarantee the benchmark's fixed
-`GROUND_Y=122` reference, so the plane-height gate is reported as a warning by
-default. Enable it with
-`-Dimpulse.crucible.detachedStreaming.strictPlaneGate=true`.
