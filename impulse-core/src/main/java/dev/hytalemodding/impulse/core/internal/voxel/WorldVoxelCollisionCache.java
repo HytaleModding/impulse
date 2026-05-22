@@ -29,6 +29,7 @@ import it.unimi.dsi.fastutil.objects.Object2ObjectOpenHashMap;
 import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Consumer;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
@@ -51,12 +52,26 @@ public final class WorldVoxelCollisionCache {
     private final Int2ObjectMap<SpaceCollisionCache> spaces = new Int2ObjectOpenHashMap<>();
     private final ShapeTemplateCache shapeTemplates = new ShapeTemplateCache();
     private final SectionColliderBuilder sectionBuilder = new SectionColliderBuilder(shapeTemplates);
+    private final AtomicBoolean streamingApplyPending = new AtomicBoolean();
 
     public void copyFrom(@Nonnull WorldVoxelCollisionCache other) {
         spaces.clear();
         for (Int2ObjectMap.Entry<SpaceCollisionCache> entry : other.spaces.int2ObjectEntrySet()) {
             spaces.put(entry.getIntKey(), new SpaceCollisionCache(entry.getValue()));
         }
+        streamingApplyPending.set(false);
+    }
+
+    public boolean tryBeginStreamingApply() {
+        return streamingApplyPending.compareAndSet(false, true);
+    }
+
+    public void finishStreamingApply() {
+        streamingApplyPending.set(false);
+    }
+
+    public boolean isStreamingApplyPending() {
+        return streamingApplyPending.get();
     }
 
     @Nonnull
@@ -704,13 +719,6 @@ public final class WorldVoxelCollisionCache {
             return BuildStats.empty();
         }
 
-        int removed = 0;
-        boolean rebuilt = false;
-        if (cached != null) {
-            removed = cached.removeFrom(space);
-            rebuilt = true;
-        }
-
         SectionCollisionGeometry geometry = sectionBuilder.build(world,
             section,
             chunkX,
@@ -719,7 +727,23 @@ public final class WorldVoxelCollisionCache {
             accessCache);
         CachedSection built = new CachedSection(chunkX, sectionY, chunkZ, tick,
             neighborhoodSignature);
-        addGeometryBodies(space, built, geometry, chunkX, sectionY, chunkZ);
+        try {
+            addGeometryBodies(space, built, geometry, chunkX, sectionY, chunkZ);
+        } catch (RuntimeException exception) {
+            removeBuiltSectionAfterFailure(space, built, exception);
+            throw exception;
+        }
+
+        int removed = 0;
+        boolean rebuilt = cached != null;
+        try {
+            if (cached != null) {
+                removed = cached.removeFrom(space);
+            }
+        } catch (RuntimeException exception) {
+            removeBuiltSectionAfterFailure(space, built, exception);
+            throw exception;
+        }
         cache.sections.put(sectionKey, built);
 
         BuildStats stats = BuildStats.from(geometry,
@@ -733,6 +757,16 @@ public final class WorldVoxelCollisionCache {
             profiling.addEnsureSectionNanos(System.nanoTime() - start);
         }
         return stats;
+    }
+
+    private static void removeBuiltSectionAfterFailure(@Nonnull PhysicsSpace space,
+        @Nonnull CachedSection built,
+        @Nonnull RuntimeException failure) {
+        try {
+            built.removeFrom(space);
+        } catch (RuntimeException cleanupFailure) {
+            failure.addSuppressed(cleanupFailure);
+        }
     }
 
     private static void addGeometryBodies(@Nonnull PhysicsSpace space,

@@ -14,6 +14,33 @@ import org.junit.jupiter.api.Test;
 class WorldVoxelCollisionCacheTest {
 
     @Test
+    void streamingApplyGateAllowsOnlyOnePendingMutation() {
+        WorldVoxelCollisionCache cache = new WorldVoxelCollisionCache();
+
+        assertFalse(cache.isStreamingApplyPending());
+        assertTrue(cache.tryBeginStreamingApply());
+        assertTrue(cache.isStreamingApplyPending());
+        assertFalse(cache.tryBeginStreamingApply());
+
+        cache.finishStreamingApply();
+
+        assertFalse(cache.isStreamingApplyPending());
+        assertTrue(cache.tryBeginStreamingApply());
+    }
+
+    @Test
+    void copyFromDoesNotInheritPendingStreamingApply() {
+        WorldVoxelCollisionCache source = new WorldVoxelCollisionCache();
+        WorldVoxelCollisionCache target = new WorldVoxelCollisionCache();
+
+        assertTrue(source.tryBeginStreamingApply());
+
+        target.copyFrom(source);
+
+        assertFalse(target.isStreamingApplyPending());
+    }
+
+    @Test
     void bodyTargetCacheRefreshesActiveBodiesEveryFourTicks() {
         WorldVoxelCollisionCache cache = new WorldVoxelCollisionCache();
         WorldCollisionProfilingResource.Snapshot snapshot =

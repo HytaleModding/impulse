@@ -43,14 +43,14 @@ public class WorldCollisionProfilingResource implements Resource<EntityStore> {
     }
 
     @Nonnull
-    public Snapshot beginTick() {
+    public synchronized Snapshot beginTick() {
         Snapshot snapshot = new Snapshot();
         snapshot.setDiagnosticRetainedEnvelope(diagnosticRetainedEnvelope);
         snapshot.recordTickSample();
         return snapshot;
     }
 
-    public void finishTick(@Nonnull Snapshot snapshot) {
+    public synchronized void finishTick(@Nonnull Snapshot snapshot) {
         latestTick.copyFrom(snapshot);
         cumulative.add(snapshot);
         if (snapshot.getTickNanos() >= worstTick.getTickNanos()) {
@@ -58,17 +58,17 @@ public class WorldCollisionProfilingResource implements Resource<EntityStore> {
         }
     }
 
-    public void reset() {
+    public synchronized void reset() {
         cumulative.reset();
         latestTick.reset();
         worstTick.reset();
     }
 
-    public void setDiagnosticRetainedSections(@Nonnull LongSet sectionKeys) {
+    public synchronized void setDiagnosticRetainedSections(@Nonnull LongSet sectionKeys) {
         diagnosticRetainedEnvelope = new RetainedSectionEnvelope(sectionKeys);
     }
 
-    public void clearDiagnosticRetainedSections() {
+    public synchronized void clearDiagnosticRetainedSections() {
         diagnosticRetainedEnvelope = null;
     }
 
@@ -79,23 +79,23 @@ public class WorldCollisionProfilingResource implements Resource<EntityStore> {
     }
 
     @Nonnull
-    public Snapshot getCumulativeSnapshot() {
+    public synchronized Snapshot getCumulativeSnapshot() {
         return cumulative.copy();
     }
 
     @Nonnull
-    public Snapshot getLatestTickSnapshot() {
+    public synchronized Snapshot getLatestTickSnapshot() {
         return latestTick.copy();
     }
 
     @Nonnull
-    public Snapshot getWorstTickSnapshot() {
+    public synchronized Snapshot getWorstTickSnapshot() {
         return worstTick.copy();
     }
 
     @Nonnull
     @Override
-    public WorldCollisionProfilingResource clone() {
+    public synchronized WorldCollisionProfilingResource clone() {
         WorldCollisionProfilingResource copy = new WorldCollisionProfilingResource();
         copy.enabled = enabled;
         copy.cumulative.copyFrom(cumulative);
@@ -133,6 +133,8 @@ public class WorldCollisionProfilingResource implements Resource<EntityStore> {
         private int playerSectionTargets;
         private int bodySectionTargets;
         private int streamingSpaces;
+        private int terrainApplyQueued;
+        private int terrainApplySkippedPending;
         private int ensureCalls;
         private int sectionRequests;
         private int sectionCacheHits;
@@ -181,6 +183,14 @@ public class WorldCollisionProfilingResource implements Resource<EntityStore> {
 
         public void incrementStreamingSpaces() {
             streamingSpaces++;
+        }
+
+        public void incrementTerrainApplyQueued() {
+            terrainApplyQueued++;
+        }
+
+        public void incrementTerrainApplySkippedPending() {
+            terrainApplySkippedPending++;
         }
 
         public void addBodyStreamingCandidates(int count) {
@@ -368,6 +378,8 @@ public class WorldCollisionProfilingResource implements Resource<EntityStore> {
             playerSectionTargets = other.playerSectionTargets;
             bodySectionTargets = other.bodySectionTargets;
             streamingSpaces = other.streamingSpaces;
+            terrainApplyQueued = other.terrainApplyQueued;
+            terrainApplySkippedPending = other.terrainApplySkippedPending;
             ensureCalls = other.ensureCalls;
             sectionRequests = other.sectionRequests;
             sectionCacheHits = other.sectionCacheHits;
@@ -425,6 +437,8 @@ public class WorldCollisionProfilingResource implements Resource<EntityStore> {
             playerSectionTargets += other.playerSectionTargets;
             bodySectionTargets += other.bodySectionTargets;
             streamingSpaces += other.streamingSpaces;
+            terrainApplyQueued += other.terrainApplyQueued;
+            terrainApplySkippedPending += other.terrainApplySkippedPending;
             ensureCalls += other.ensureCalls;
             sectionRequests += other.sectionRequests;
             sectionCacheHits += other.sectionCacheHits;
@@ -480,6 +494,8 @@ public class WorldCollisionProfilingResource implements Resource<EntityStore> {
             playerSectionTargets = 0;
             bodySectionTargets = 0;
             streamingSpaces = 0;
+            terrainApplyQueued = 0;
+            terrainApplySkippedPending = 0;
             ensureCalls = 0;
             sectionRequests = 0;
             sectionCacheHits = 0;
