@@ -63,7 +63,7 @@ edition = "2021"
 publish = false
 
 [dependencies]
-rapier3d = { version = "=$rapierVersion", default-features = false, features = ["dim3", "f32", "parallel"] }
+rapier3d = { version = "=$rapierVersion", default-features = false, features = ["dim3", "f32", "parallel", "profiler"] }
 EOF
                 cargo fetch --manifest-path "${dollar}fetch_manifest"
                 base_dir="${dollar}(find "${dollar}registry_root" -path "*/rapier3d-$rapierVersion" -type d | sort | head -n 1)"
