@@ -306,7 +306,7 @@ public class PersistentPhysicsSpaceState {
     @Setter
     private String backendId = "";
     @Nonnull
-    private final Vector3f gravity = new Vector3f(0.0f, -9.81f, 0.0f);
+    private final Vector3f gravity = new Vector3f(0.0f, -32f, 0.0f);// new Vector3f(0.0f, -9.81f, 0.0f);
     @Nonnull
     @Setter
     private WorldCollisionMode worldCollisionMode = WorldCollisionMode.NONE;
