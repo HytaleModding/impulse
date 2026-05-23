@@ -9,7 +9,8 @@ import javax.annotation.Nonnull;
 public record PhysicsWorkerResult(long sequence,
                                   @Nonnull PhysicsWorkerSnapshot snapshot,
                                   long queuedNanos,
-                                  long runNanos) {
+                                  long runNanos,
+                                  long completedNanos) {
 
     public PhysicsWorkerResult {
         if (sequence < 1L) {
@@ -18,5 +19,13 @@ public record PhysicsWorkerResult(long sequence,
         Objects.requireNonNull(snapshot, "snapshot");
         queuedNanos = Math.max(0L, queuedNanos);
         runNanos = Math.max(0L, runNanos);
+        completedNanos = Math.max(0L, completedNanos);
+    }
+
+    public PhysicsWorkerResult(long sequence,
+        @Nonnull PhysicsWorkerSnapshot snapshot,
+        long queuedNanos,
+        long runNanos) {
+        this(sequence, snapshot, queuedNanos, runNanos, 0L);
     }
 }

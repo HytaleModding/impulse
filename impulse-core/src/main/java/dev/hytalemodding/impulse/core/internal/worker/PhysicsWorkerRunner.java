@@ -136,10 +136,12 @@ public final class PhysicsWorkerRunner implements AutoCloseable {
         Throwable failure = null;
         try {
             PhysicsWorkerSnapshot snapshot = command.command().run();
+            long completedNanos = System.nanoTime();
             result = new PhysicsWorkerResult(command.sequence(),
                 snapshot,
                 startNanos - command.submittedNanos(),
-                System.nanoTime() - startNanos);
+                completedNanos - startNanos,
+                completedNanos);
         } catch (Throwable throwable) {
             failure = throwable;
         } finally {
