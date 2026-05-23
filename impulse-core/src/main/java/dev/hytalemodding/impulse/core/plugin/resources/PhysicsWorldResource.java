@@ -12,6 +12,7 @@ import dev.hytalemodding.impulse.api.PhysicsActivationTuning;
 import dev.hytalemodding.impulse.api.PhysicsBody;
 import dev.hytalemodding.impulse.api.PhysicsBodySnapshot;
 import dev.hytalemodding.impulse.api.PhysicsBodyType;
+import dev.hytalemodding.impulse.api.PhysicsJoint;
 import dev.hytalemodding.impulse.api.PhysicsSpace;
 import dev.hytalemodding.impulse.api.PhysicsSolverTuning;
 import dev.hytalemodding.impulse.api.SpaceId;
@@ -46,9 +47,10 @@ import it.unimi.dsi.fastutil.objects.Object2IntOpenHashMap;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
-import java.util.Map;
 import java.util.Objects;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicLong;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Consumer;
 import java.util.logging.Level;
 import javax.annotation.Nonnull;
@@ -104,29 +106,26 @@ public class PhysicsWorldResource implements Resource<EntityStore> {
     private final PhysicsBodyRuntimeState runtimeState = new PhysicsBodyRuntimeState();
     private final PhysicsBodySnapshotStore bodySnapshots = new PhysicsBodySnapshotStore();
     private final PhysicsBodySnapshotStore workerBodySnapshots = new PhysicsBodySnapshotStore();
-    private volatile long worldEpoch;
-    private long snapshotFrameEpoch;
-    private volatile long visualInterestTick;
+    private final AtomicLong worldEpoch = new AtomicLong();
+    private final AtomicLong snapshotFrameEpoch = new AtomicLong();
+    private final AtomicLong visualInterestTick = new AtomicLong();
     @Nonnull
-    private volatile PublishedPhysicsSnapshotFrame latestPublishedFrame =
-        PublishedPhysicsSnapshotFrame.empty(0L, 0L);
+    private final AtomicReference<PublishedPhysicsSnapshotFrame> latestPublishedFrame =
+        new AtomicReference<>(PublishedPhysicsSnapshotFrame.empty(0L, 0L));
     @Getter
     private volatile long latestSnapshotAppliedNanos;
-    @Nullable
-    private volatile PhysicsWorldWorkerResource workerResource;
+    private final AtomicReference<PhysicsWorldWorkerResource> workerResource = new AtomicReference<>();
 
     public PhysicsWorldResource() {
     }
 
     public void attachWorkerResource(@Nonnull PhysicsOwnerHandle workerResource) {
-        this.workerResource = requireWorkerResource(workerResource);
+        this.workerResource.set(requireWorkerResource(workerResource));
     }
 
     public void detachWorkerResource(@Nonnull PhysicsOwnerHandle workerResource) {
         PhysicsWorldWorkerResource worker = requireWorkerResource(workerResource);
-        if (this.workerResource == worker) {
-            this.workerResource = null;
-        }
+        this.workerResource.compareAndSet(worker, null);
     }
 
     @Nonnull
@@ -141,7 +140,7 @@ public class PhysicsWorldResource implements Resource<EntityStore> {
     }
 
     public boolean canAccessLiveBackendDirectly() {
-        PhysicsWorldWorkerResource worker = workerResource;
+        PhysicsWorldWorkerResource worker = workerResource.get();
         return worker == null || worker.isWorkerThread();
     }
 
@@ -157,7 +156,7 @@ public class PhysicsWorldResource implements Resource<EntityStore> {
         @Nonnull PhysicsOwnerMutation mutation) {
         Objects.requireNonNull(operation, "operation");
         Objects.requireNonNull(mutation, "mutation");
-        PhysicsWorldWorkerResource worker = workerResource;
+        PhysicsWorldWorkerResource worker = workerResource.get();
         if (worker == null || worker.isWorkerThread()) {
             runDirect(operation, mutation);
             return;
@@ -183,7 +182,7 @@ public class PhysicsWorldResource implements Resource<EntityStore> {
         @Nonnull PhysicsOwnerMutation mutation) {
         Objects.requireNonNull(operation, "operation");
         Objects.requireNonNull(mutation, "mutation");
-        PhysicsWorldWorkerResource worker = workerResource;
+        PhysicsWorldWorkerResource worker = workerResource.get();
         if (worker == null || worker.isWorkerThread()) {
             return runDirectAsync(operation, value, mutation);
         }
@@ -201,7 +200,7 @@ public class PhysicsWorldResource implements Resource<EntityStore> {
         @Nonnull PhysicsOwnerCallable<T> callable) {
         Objects.requireNonNull(operation, "operation");
         Objects.requireNonNull(callable, "callable");
-        PhysicsWorldWorkerResource worker = workerResource;
+        PhysicsWorldWorkerResource worker = workerResource.get();
         if (worker == null || worker.isWorkerThread()) {
             try {
                 return callable.call();
@@ -505,8 +504,8 @@ public class PhysicsWorldResource implements Resource<EntityStore> {
         long stepNanos,
         boolean profilingEnabled) {
 
-        long frameEpoch = ++snapshotFrameEpoch;
-        long frameWorldEpoch = worldEpoch;
+        long frameEpoch = snapshotFrameEpoch.incrementAndGet();
+        long frameWorldEpoch = worldEpoch.get();
         long snapshotStartNanos = profilingEnabled ? System.nanoTime() : 0L;
         workerBodySnapshots.refresh(spaces.values(), bodyRegistry);
         int spatialIndexCellCount = workerBodySnapshots.cellCount();
@@ -543,13 +542,13 @@ public class PhysicsWorldResource implements Resource<EntityStore> {
             stepNanos,
             snapshotNanos,
             spaceFrames);
-        latestPublishedFrame = frame;
+        publishLatestFrameIfWorldCurrent(frame);
         return frame;
     }
 
     public int applyPublishedSnapshotFrame(@Nonnull PublishedPhysicsSnapshotFrame frame) {
         Objects.requireNonNull(frame, "frame");
-        if (frame.worldEpoch() != worldEpoch) {
+        if (frame.worldEpoch() != worldEpoch.get()) {
             return 0;
         }
 
@@ -580,7 +579,7 @@ public class PhysicsWorldResource implements Resource<EntityStore> {
 
     @Nonnull
     public PublishedPhysicsSnapshotFrame getLatestPublishedFrame() {
-        return latestPublishedFrame;
+        return latestPublishedFrame.get();
     }
 
     @Nonnull
@@ -794,7 +793,7 @@ public class PhysicsWorldResource implements Resource<EntityStore> {
             closeSpaceQuietly(previous, worldName, "cleaned physics space");
             keptSpaces++;
         }
-        clearBodies();
+        clearBodyStateDirect();
         return new RuntimeResetResult(removedBodies, removedJoints, keptSpaces);
     }
 
@@ -979,14 +978,15 @@ public class PhysicsWorldResource implements Resource<EntityStore> {
     }
 
     private void destroyBodyDirect(@Nonnull PhysicsBodyId bodyId, boolean removeFromSpace) {
-        BodyRegistration registration = bodyRegistry.unregisterBody(bodyId);
+        BodyRegistration registration = bodyRegistry.getRegistration(bodyId);
+        if (removeFromSpace && registration != null) {
+            removeBodyFromSpace(registration.body(), registration);
+        }
         if (registration != null) {
+            bodyRegistry.unregisterBody(bodyId);
             clearBodyRuntimeState(registration.body(), bodyId);
         } else {
             clearBodyRuntimeState(bodyId);
-        }
-        if (removeFromSpace && registration != null) {
-            removeBodyFromSpace(registration.body(), registration);
         }
         markWorldChanged();
     }
@@ -1119,44 +1119,46 @@ public class PhysicsWorldResource implements Resource<EntityStore> {
         bodyRegistry.clearSyntheticVisualInterests();
     }
 
-    public void remapMigratedBodies(@Nonnull Map<PhysicsBody, PhysicsBody> bodyRemaps) {
-        runOnPhysicsOwner("remap migrated physics bodies", () -> remapMigratedBodiesDirect(bodyRemaps));
-    }
-
-    @Nonnull
-    public PhysicsMutationHandle<Void> remapMigratedBodiesAsync(
-        @Nonnull Map<PhysicsBody, PhysicsBody> bodyRemaps) {
-        return enqueuePhysicsMutation("remap migrated physics bodies",
-            () -> remapMigratedBodiesDirect(bodyRemaps));
-    }
-
-    private void remapMigratedBodiesDirect(@Nonnull Map<PhysicsBody, PhysicsBody> bodyRemaps) {
-        List<PhysicsBodyId> remappedBodyIds = new ArrayList<>();
-        for (PhysicsBody sourceBody : bodyRemaps.keySet()) {
-            PhysicsBodyId bodyId = getBodyId(sourceBody);
-            if (bodyId != null) {
-                remappedBodyIds.add(bodyId);
-            }
-        }
-        bodyRegistry.remapBodies(bodyRemaps);
-        runtimeState.remapBodies(bodyRemaps);
-        for (PhysicsBodyId bodyId : remappedBodyIds) {
-            bodySnapshots.remove(bodyId);
-            workerBodySnapshots.remove(bodyId);
-        }
-        markWorldChanged();
-    }
-
     public void clearBodies() {
-        runOnPhysicsOwner("clear physics bodies", this::clearBodiesDirect);
+        runOnPhysicsOwner("clear physics bodies", this::destroyRegisteredBodiesDirect);
     }
 
     @Nonnull
     public PhysicsMutationHandle<Void> clearBodiesAsync() {
-        return enqueuePhysicsMutation("clear physics bodies", this::clearBodiesDirect);
+        return enqueuePhysicsMutation("clear physics bodies", this::destroyRegisteredBodiesDirect);
     }
 
-    private void clearBodiesDirect() {
+    private void destroyRegisteredBodiesDirect() {
+        RuntimeException failure = null;
+        boolean bodyFailure = false;
+        for (PhysicsSpace space : spaces.values()) {
+            for (PhysicsJoint joint : new ArrayList<>(space.getJoints())) {
+                try {
+                    space.removeJoint(joint);
+                } catch (RuntimeException exception) {
+                    failure = collectFailure(failure, exception);
+                }
+            }
+        }
+        List<BodyRegistration> registrations = new ArrayList<>(bodyRegistry.getRegistrations());
+        for (BodyRegistration registration : registrations) {
+            try {
+                destroyBodyDirect(registration.id(), true);
+            } catch (RuntimeException exception) {
+                bodyFailure = true;
+                failure = collectFailure(failure, exception);
+            }
+        }
+        if (bodyFailure) {
+            throw failure;
+        }
+        clearBodyStateDirect();
+        if (failure != null) {
+            throw failure;
+        }
+    }
+
+    private void clearBodyStateDirect() {
         bodyRegistry.clear();
         runtimeState.clear();
         bodySnapshots.clear();
@@ -1181,7 +1183,7 @@ public class PhysicsWorldResource implements Resource<EntityStore> {
     @Nonnull
     public BodyVisualInterestState getOrCreateBodyVisualInterestState(@Nonnull PhysicsBodyId bodyId) {
         BodyVisualInterestState state = bodyRegistry.getOrCreateBodyVisualInterestState(bodyId);
-        state.advanceVisualInterestTick(visualInterestTick);
+        state.advanceVisualInterestTick(visualInterestTick.get());
         return state;
     }
 
@@ -1189,13 +1191,13 @@ public class PhysicsWorldResource implements Resource<EntityStore> {
     public BodyVisualInterestState getBodyVisualInterestState(@Nonnull PhysicsBodyId bodyId) {
         BodyVisualInterestState state = bodyRegistry.getBodyVisualInterestState(bodyId);
         if (state != null) {
-            state.advanceVisualInterestTick(visualInterestTick);
+            state.advanceVisualInterestTick(visualInterestTick.get());
         }
         return state;
     }
 
     public long advanceVisualInterestTick() {
-        return ++visualInterestTick;
+        return visualInterestTick.incrementAndGet();
     }
 
     public void markBodyControlled(@Nonnull PhysicsBodyId bodyId) {
@@ -1399,6 +1401,16 @@ public class PhysicsWorldResource implements Resource<EntityStore> {
         }
     }
 
+    @Nonnull
+    private static RuntimeException collectFailure(@Nullable RuntimeException failure,
+        @Nonnull RuntimeException exception) {
+        if (failure == null) {
+            return exception;
+        }
+        failure.addSuppressed(exception);
+        return failure;
+    }
+
     private void removeBodyFromSpace(@Nonnull PhysicsBody body, @Nullable BodyRegistration registration) {
         if (registration != null) {
             PhysicsSpace space = getSpace(registration.spaceId());
@@ -1440,8 +1452,34 @@ public class PhysicsWorldResource implements Resource<EntityStore> {
     }
 
     private void markWorldChanged() {
-        worldEpoch++;
-        latestPublishedFrame = PublishedPhysicsSnapshotFrame.empty(snapshotFrameEpoch, worldEpoch);
+        long newWorldEpoch = worldEpoch.incrementAndGet();
+        publishLatestFrame(PublishedPhysicsSnapshotFrame.empty(snapshotFrameEpoch.get(), newWorldEpoch));
+    }
+
+    private void publishLatestFrameIfWorldCurrent(@Nonnull PublishedPhysicsSnapshotFrame frame) {
+        publishLatestFrame(frame, true);
+    }
+
+    private void publishLatestFrame(@Nonnull PublishedPhysicsSnapshotFrame frame) {
+        publishLatestFrame(frame, false);
+    }
+
+    private void publishLatestFrame(@Nonnull PublishedPhysicsSnapshotFrame frame,
+        boolean requireCurrentWorldEpoch) {
+        latestPublishedFrame.updateAndGet(current -> {
+            if (requireCurrentWorldEpoch && frame.worldEpoch() != worldEpoch.get()) {
+                return current;
+            }
+            return isNewerFrame(frame, current) ? frame : current;
+        });
+    }
+
+    private static boolean isNewerFrame(@Nonnull PublishedPhysicsSnapshotFrame candidate,
+        @Nonnull PublishedPhysicsSnapshotFrame current) {
+        if (candidate.worldEpoch() != current.worldEpoch()) {
+            return candidate.worldEpoch() > current.worldEpoch();
+        }
+        return candidate.frameEpoch() >= current.frameEpoch();
     }
 
     public record BodyRegistration(@Nonnull PhysicsBodyId id,

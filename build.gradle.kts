@@ -107,7 +107,7 @@ gradle.projectsEvaluated {
         val runTask = this as JavaExec
         runTask.standardInput = System.`in`
 
-        // FIXME: workaround until we have runtime based, backend swap
+        // Forward launch-time backend selection into the Hytale run task.
         providers.gradleProperty("impulse.backend")
             .orElse(providers.systemProperty("impulse.backend"))
             .orNull

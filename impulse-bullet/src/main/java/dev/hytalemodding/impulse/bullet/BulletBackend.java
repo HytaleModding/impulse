@@ -67,7 +67,7 @@ public final class BulletBackend implements PhysicsBackend {
     }
 
     @Override
-    public void init() {
+    public synchronized void init() {
         if (initialized) {
             return;
         }

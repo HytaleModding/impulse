@@ -22,6 +22,7 @@ import dev.hytalemodding.impulse.api.PhysicsBodySnapshot;
 import dev.hytalemodding.impulse.api.PhysicsRayHit;
 import dev.hytalemodding.impulse.api.PhysicsSpace;
 import dev.hytalemodding.impulse.api.SpaceId;
+import dev.hytalemodding.impulse.core.internal.components.GeneratedVisualProxyComponent;
 import dev.hytalemodding.impulse.core.internal.resources.profiling.PhysicsRuntimeProfilingResource;
 import dev.hytalemodding.impulse.core.internal.systems.sync.PhysicsSyncSystem;
 import dev.hytalemodding.impulse.core.plugin.components.PhysicsBodyAttachmentComponent;
@@ -809,6 +810,7 @@ public class PhysicsDetachedVisualMaterializationSystem extends TickingSystem<En
         holder.removeComponent(DESPAWN_TYPE);
         holder.removeComponent(VELOCITY_TYPE);
         holder.addComponent(store.getRegistry().getNonSerializedComponentType(), NonSerialized.get());
+        holder.addComponent(GeneratedVisualProxyComponent.getComponentType(), new GeneratedVisualProxyComponent());
         holder.addComponent(ATTACHMENT_TYPE,
             new PhysicsBodyAttachmentComponent(bodyId,
                 registration.spaceId(),

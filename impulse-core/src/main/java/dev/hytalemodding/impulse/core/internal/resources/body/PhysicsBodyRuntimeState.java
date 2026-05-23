@@ -104,16 +104,6 @@ public final class PhysicsBodyRuntimeState {
         forcedContinuousCollisionBodies.clear();
     }
 
-    public void remapBodies(@Nonnull Map<PhysicsBody, PhysicsBody> bodyRemaps) {
-        for (Map.Entry<PhysicsBody, PhysicsBody> entry : bodyRemaps.entrySet()) {
-            PhysicsBody sourceBody = entry.getKey();
-            PhysicsBody targetBody = entry.getValue();
-            if (sourceBody != targetBody && forcedContinuousCollisionBodies.remove(sourceBody)) {
-                forcedContinuousCollisionBodies.add(targetBody);
-            }
-        }
-    }
-
     public void clearBody(@Nonnull PhysicsBody body, @Nonnull PhysicsBodyId bodyId) {
         forcedContinuousCollisionBodies.remove(body);
         clearBody(bodyId);

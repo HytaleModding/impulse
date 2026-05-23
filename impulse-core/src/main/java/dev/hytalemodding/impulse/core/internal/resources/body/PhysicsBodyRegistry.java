@@ -70,7 +70,6 @@ public final class PhysicsBodyRegistry {
         }
 
         bodyIdsByBody.remove(registration.body());
-        clearBodyRuntimeState(bodyId);
         return registration;
     }
 
@@ -267,31 +266,6 @@ public final class PhysicsBodyRegistry {
     @Nullable
     public PhysicsWorldResource.BodyVisualInterestState getBodyVisualInterestState(@Nonnull PhysicsBodyId bodyId) {
         return bodyVisualInterestStates.get(bodyId);
-    }
-
-    public void remapBodies(@Nonnull Map<PhysicsBody, PhysicsBody> bodyRemaps) {
-        for (Map.Entry<PhysicsBody, PhysicsBody> entry : bodyRemaps.entrySet()) {
-            PhysicsBody sourceBody = entry.getKey();
-            PhysicsBody targetBody = entry.getValue();
-            if (sourceBody == targetBody) {
-                continue;
-            }
-
-            PhysicsBodyId bodyId = bodyIdsByBody.remove(sourceBody);
-            if (bodyId == null) {
-                continue;
-            }
-
-            bodyIdsByBody.put(targetBody, bodyId);
-            PhysicsWorldResource.BodyRegistration registration = registrationsById.get(bodyId);
-            if (registration != null) {
-                registrationsById.put(bodyId, new PhysicsWorldResource.BodyRegistration(bodyId,
-                    targetBody,
-                    registration.spaceId(),
-                    registration.kind(),
-                    registration.persistenceMode()));
-            }
-        }
     }
 
     public void clearBodyRuntimeState(@Nonnull PhysicsBodyId bodyId) {
