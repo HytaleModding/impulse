@@ -36,6 +36,7 @@ public class PhysicsRuntimeProfilingResource implements Resource<EntityStore> {
 
     @Nullable
     private transient SyncCollector activeSyncCollector;
+    private transient long previousWorkerStepCompletedNanos;
 
     public PhysicsRuntimeProfilingResource() {
     }
@@ -76,6 +77,7 @@ public class PhysicsRuntimeProfilingResource implements Resource<EntityStore> {
             snapshotNanos,
             workerQueuedNanos,
             workerRunNanos,
+            0L,
             PhysicsStepPhaseStats.unavailable());
     }
 
@@ -88,6 +90,28 @@ public class PhysicsRuntimeProfilingResource implements Resource<EntityStore> {
         long workerQueuedNanos,
         long workerRunNanos,
         @Nonnull PhysicsStepPhaseStats nativePhaseStats) {
+        recordStep(spaces,
+            substeps,
+            nanos,
+            bodySnapshots,
+            spatialIndexCells,
+            snapshotNanos,
+            workerQueuedNanos,
+            workerRunNanos,
+            0L,
+            nativePhaseStats);
+    }
+
+    public void recordStep(int spaces,
+        int substeps,
+        long nanos,
+        int bodySnapshots,
+        int spatialIndexCells,
+        long snapshotNanos,
+        long workerQueuedNanos,
+        long workerRunNanos,
+        long workerCompletedNanos,
+        @Nonnull PhysicsStepPhaseStats nativePhaseStats) {
         StepSnapshot snapshot = new StepSnapshot();
         snapshot.recordTickSample();
         snapshot.setSpaces(spaces);
@@ -98,6 +122,7 @@ public class PhysicsRuntimeProfilingResource implements Resource<EntityStore> {
         snapshot.setSnapshotNanos(snapshotNanos);
         snapshot.setWorkerQueuedNanos(workerQueuedNanos);
         snapshot.setWorkerRunNanos(workerRunNanos);
+        snapshot.recordWorkerStepInterval(recordWorkerStepInterval(workerCompletedNanos));
         snapshot.setNativePhaseStats(nativePhaseStats);
 
         latestStep.copyFrom(snapshot);
@@ -172,6 +197,7 @@ public class PhysicsRuntimeProfilingResource implements Resource<EntityStore> {
         latestVisual.reset();
         worstVisual.reset();
         activeSyncCollector = null;
+        previousWorkerStepCompletedNanos = 0L;
     }
 
     @Nonnull
@@ -188,7 +214,24 @@ public class PhysicsRuntimeProfilingResource implements Resource<EntityStore> {
         copy.cumulativeVisual.copyFrom(cumulativeVisual);
         copy.latestVisual.copyFrom(latestVisual);
         copy.worstVisual.copyFrom(worstVisual);
+        copy.previousWorkerStepCompletedNanos = previousWorkerStepCompletedNanos;
         return copy;
+    }
+
+    private long recordWorkerStepInterval(long workerCompletedNanos) {
+        if (workerCompletedNanos <= 0L) {
+            return 0L;
+        }
+        if (previousWorkerStepCompletedNanos <= 0L) {
+            previousWorkerStepCompletedNanos = workerCompletedNanos;
+            return 0L;
+        }
+        if (workerCompletedNanos <= previousWorkerStepCompletedNanos) {
+            return 0L;
+        }
+        long intervalNanos = workerCompletedNanos - previousWorkerStepCompletedNanos;
+        previousWorkerStepCompletedNanos = workerCompletedNanos;
+        return intervalNanos;
     }
 
     public static ResourceType<EntityStore, PhysicsRuntimeProfilingResource> getResourceType() {
@@ -215,6 +258,9 @@ public class PhysicsRuntimeProfilingResource implements Resource<EntityStore> {
         private long workerQueuedNanos;
         @Setter
         private long workerRunNanos;
+        private int workerStepRateSamples;
+        private long workerStepIntervalNanos;
+        private long maxWorkerStepIntervalNanos;
         @Setter
         private int skippedPendingSteps;
         @Setter
@@ -243,6 +289,9 @@ public class PhysicsRuntimeProfilingResource implements Resource<EntityStore> {
             snapshotNanos = other.snapshotNanos;
             workerQueuedNanos = other.workerQueuedNanos;
             workerRunNanos = other.workerRunNanos;
+            workerStepRateSamples = other.workerStepRateSamples;
+            workerStepIntervalNanos = other.workerStepIntervalNanos;
+            maxWorkerStepIntervalNanos = other.maxWorkerStepIntervalNanos;
             skippedPendingSteps = other.skippedPendingSteps;
             pendingStepAgeNanos = other.pendingStepAgeNanos;
             maxPendingStepAgeNanos = other.maxPendingStepAgeNanos;
@@ -265,6 +314,10 @@ public class PhysicsRuntimeProfilingResource implements Resource<EntityStore> {
             snapshotNanos += other.snapshotNanos;
             workerQueuedNanos += other.workerQueuedNanos;
             workerRunNanos += other.workerRunNanos;
+            workerStepRateSamples += other.workerStepRateSamples;
+            workerStepIntervalNanos += other.workerStepIntervalNanos;
+            maxWorkerStepIntervalNanos = Math.max(maxWorkerStepIntervalNanos,
+                other.maxWorkerStepIntervalNanos);
             skippedPendingSteps += other.skippedPendingSteps;
             pendingStepAgeNanos += other.pendingStepAgeNanos;
             maxPendingStepAgeNanos = Math.max(maxPendingStepAgeNanos,
@@ -288,6 +341,9 @@ public class PhysicsRuntimeProfilingResource implements Resource<EntityStore> {
             snapshotNanos = 0L;
             workerQueuedNanos = 0L;
             workerRunNanos = 0L;
+            workerStepRateSamples = 0;
+            workerStepIntervalNanos = 0L;
+            maxWorkerStepIntervalNanos = 0L;
             skippedPendingSteps = 0;
             pendingStepAgeNanos = 0L;
             maxPendingStepAgeNanos = 0L;
@@ -298,6 +354,18 @@ public class PhysicsRuntimeProfilingResource implements Resource<EntityStore> {
             nativeSolverNanos = 0L;
             nativeCcdNanos = 0L;
             nativeSnapshotNanos = 0L;
+        }
+
+        public void recordWorkerStepInterval(long intervalNanos) {
+            if (intervalNanos <= 0L) {
+                workerStepRateSamples = 0;
+                workerStepIntervalNanos = 0L;
+                maxWorkerStepIntervalNanos = 0L;
+                return;
+            }
+            workerStepRateSamples = 1;
+            workerStepIntervalNanos = intervalNanos;
+            maxWorkerStepIntervalNanos = intervalNanos;
         }
 
         public void setNativePhaseStats(@Nonnull PhysicsStepPhaseStats stats) {

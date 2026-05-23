@@ -71,7 +71,7 @@ Cleanup does not create a replacement/default space implicitly. Run `/impulse sp
 - `/impulse perf enable` - enable Impulse runtime and world-collision profiling.
 - `/impulse perf disable` - disable profiling.
 - `/impulse perf toggle` - toggle profiling.
-- `/impulse perf report` - print physics-step, sync, entity, detached, and world-collision profiling metrics.
+- `/impulse perf report` - print physics-step, worker TPS, sync, entity, detached, and world-collision profiling metrics.
 - `/impulse perf stats` - show per-space body, awake, sleeping, joint, contact, attachment, detached, and world-collision counts.
 - `/impulse perf reset` - reset profiling counters.
 

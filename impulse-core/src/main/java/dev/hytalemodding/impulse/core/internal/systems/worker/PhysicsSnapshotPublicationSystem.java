@@ -109,6 +109,7 @@ public final class PhysicsSnapshotPublicationSystem extends TickingSystem<Entity
                 snapshot.snapshotNanos(),
                 result != null ? result.queuedNanos() : 0L,
                 result != null ? result.runNanos() : 0L,
+                result != null ? result.completedNanos() : 0L,
                 snapshot.nativePhaseStats());
         }
 

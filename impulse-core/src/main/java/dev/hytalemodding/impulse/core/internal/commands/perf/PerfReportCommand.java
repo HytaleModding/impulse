@@ -82,6 +82,10 @@ public class PerfReportCommand extends AbstractWorldCommand {
                 + "/" + formatAverageMillis(
                 cumulativeStep.getWorkerQueuedNanos() + cumulativeStep.getWorkerRunNanos(),
                 cumulativeStep.getTickSamples())
+                + " workerTPS latest/avg=" + formatHertz(latestStep.getWorkerStepIntervalNanos())
+                + "/" + formatAverageHertz(cumulativeStep.getWorkerStepIntervalNanos(),
+                cumulativeStep.getWorkerStepRateSamples())
+                + " maxGapMs=" + formatMillis(cumulativeStep.getMaxWorkerStepIntervalNanos())
                 + " pendingSkips=" + cumulativeStep.getSkippedPendingSteps()
                 + " pendingAge avg/max ms="
                 + formatAverageMillis(cumulativeStep.getPendingStepAgeNanos(),
@@ -371,6 +375,24 @@ public class PerfReportCommand extends AbstractWorldCommand {
             return "0.0";
         }
         return String.format(Locale.ROOT, "%.1f", (double) total / samples);
+    }
+
+    @Nonnull
+    private static String formatHertz(long intervalNanos) {
+        if (intervalNanos <= 0L) {
+            return "0.0";
+        }
+        return String.format(Locale.ROOT, "%.1f", 1_000_000_000.0 / intervalNanos);
+    }
+
+    @Nonnull
+    private static String formatAverageHertz(long totalIntervalNanos, int samples) {
+        if (samples <= 0 || totalIntervalNanos <= 0L) {
+            return "0.0";
+        }
+        return String.format(Locale.ROOT,
+            "%.1f",
+            (samples * 1_000_000_000.0) / totalIntervalNanos);
     }
 
     private record RuntimeFootprint(int spaces,

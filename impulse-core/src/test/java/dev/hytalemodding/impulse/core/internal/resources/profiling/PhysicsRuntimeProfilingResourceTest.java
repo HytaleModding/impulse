@@ -90,6 +90,66 @@ class PhysicsRuntimeProfilingResourceTest {
     }
 
     @Test
+    void workerStepRateUsesCompletedWorkerStepIntervals() {
+        PhysicsRuntimeProfilingResource resource = new PhysicsRuntimeProfilingResource();
+
+        resource.recordStep(1,
+            2,
+            10L,
+            3,
+            4,
+            5L,
+            6L,
+            7L,
+            1_000_000_000L,
+            PhysicsStepPhaseStats.unavailable());
+        assertEquals(0, resource.getLatestStep().getWorkerStepRateSamples());
+        assertEquals(0L, resource.getLatestStep().getWorkerStepIntervalNanos());
+
+        resource.recordStep(1,
+            2,
+            10L,
+            3,
+            4,
+            5L,
+            6L,
+            7L,
+            1_050_000_000L,
+            PhysicsStepPhaseStats.unavailable());
+        resource.recordStep(1,
+            2,
+            10L,
+            3,
+            4,
+            5L,
+            6L,
+            7L,
+            1_150_000_000L,
+            PhysicsStepPhaseStats.unavailable());
+
+        assertEquals(1, resource.getLatestStep().getWorkerStepRateSamples());
+        assertEquals(100_000_000L, resource.getLatestStep().getWorkerStepIntervalNanos());
+        assertEquals(2, resource.getCumulativeStep().getWorkerStepRateSamples());
+        assertEquals(150_000_000L, resource.getCumulativeStep().getWorkerStepIntervalNanos());
+        assertEquals(100_000_000L, resource.getCumulativeStep().getMaxWorkerStepIntervalNanos());
+
+        resource.reset();
+        resource.recordStep(1,
+            2,
+            10L,
+            3,
+            4,
+            5L,
+            6L,
+            7L,
+            2_000_000_000L,
+            PhysicsStepPhaseStats.unavailable());
+
+        assertEquals(0, resource.getLatestStep().getWorkerStepRateSamples());
+        assertEquals(0L, resource.getLatestStep().getWorkerStepIntervalNanos());
+    }
+
+    @Test
     void finishVisualSampleCapturesQueryAndCacheMetrics() {
         PhysicsRuntimeProfilingResource resource = new PhysicsRuntimeProfilingResource();
 
