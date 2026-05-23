@@ -39,7 +39,7 @@ public final class PhysicsWorldWorkerResource implements Resource<EntityStore>, 
     @Nonnull
     private final Duration closeTimeout;
     @Nullable
-    private volatile OwnedPhysicsWorkerRunner runner;
+    private OwnedPhysicsWorkerRunner runner;
     @Nullable
     private PendingStep pendingStep;
     @Getter

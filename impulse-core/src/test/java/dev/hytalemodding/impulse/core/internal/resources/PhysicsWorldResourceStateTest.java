@@ -26,8 +26,15 @@ import dev.hytalemodding.impulse.core.plugin.settings.PhysicsSpaceSettings;
 import dev.hytalemodding.impulse.core.plugin.resources.PhysicsWorldResource;
 import dev.hytalemodding.impulse.core.plugin.collision.WorldCollisionMode;
 import java.time.Duration;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Set;
 import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutionException;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
@@ -170,6 +177,59 @@ class PhysicsWorldResourceStateTest {
         assertEquals(0, resource.getBodySnapshotCount(space.getId()));
         assertEquals(0, resource.getBodySnapshotCellCount());
         assertThrows(IllegalArgumentException.class, () -> resource.getBodySnapshot(bodyId));
+    }
+
+    @Test
+    void clearBodiesDestroysRegisteredBackendBodiesAndJoints() {
+        FakePhysicsBackend backend =
+            new FakePhysicsBackend("test:clear-bodies-" + BACKEND_COUNTER.incrementAndGet());
+        Impulse.registerBackend(backend);
+
+        PhysicsWorldResource resource = new PhysicsWorldResource();
+        PhysicsSpace space = resource.createSpace(backend.getId(),
+            "test-world",
+            PhysicsSpaceSettings.defaults(),
+            true);
+        PhysicsBody first = space.createBox(0.5f, 0.5f, 0.5f, 1.0f);
+        PhysicsBody second = space.createBox(0.5f, 0.5f, 0.5f, 1.0f);
+        PhysicsBodyId firstId = resource.addBody(space.getId(),
+            first,
+            PhysicsBodyKind.BODY,
+            PhysicsBodyPersistenceMode.PERSISTENT);
+        PhysicsBodyId secondId = resource.addBody(space.getId(),
+            second,
+            PhysicsBodyKind.BODY,
+            PhysicsBodyPersistenceMode.PERSISTENT);
+        space.createFixedJoint(first, second, new Vector3f(), new Vector3f());
+        resource.markContinuousCollisionForced(first);
+        resource.markBodyControlled(firstId);
+        resource.updateChunkBoundarySafeState(firstId, new Vector3f(1.0f), new Quaternionf());
+        resource.pauseChunkBoundaryBody(firstId,
+            42L,
+            PhysicsBodyType.DYNAMIC,
+            new Vector3f(2.0f, 0.0f, 0.0f),
+            new Vector3f(0.0f, 3.0f, 0.0f));
+
+        assertEquals(2, resource.refreshBodySnapshots());
+        assertEquals(2, space.bodyCount());
+        assertEquals(1, space.jointCount());
+        assertEquals(2, resource.getBodyRegistrationCount());
+
+        resource.clearBodies();
+
+        assertSame(space, resource.requireDefaultSpace());
+        assertEquals(0, space.bodyCount());
+        assertEquals(0, space.jointCount());
+        assertEquals(0, resource.getBodyRegistrationCount());
+        assertEquals(0, resource.getBodySnapshotCount());
+        assertEquals(0, resource.getBodySnapshotCellCount());
+        assertNull(resource.getBody(firstId));
+        assertNull(resource.getBody(secondId));
+        assertFalse(resource.isBodyControlled(firstId));
+        assertNull(resource.getChunkBoundarySafeState(firstId));
+        assertNull(resource.getChunkBoundaryPauseState(firstId));
+        assertTrue(resource.getForcedContinuousCollisionBodies().isEmpty());
+        assertThrows(IllegalArgumentException.class, () -> resource.getBodySnapshot(firstId));
     }
 
     @Test
@@ -397,6 +457,52 @@ class PhysicsWorldResourceStateTest {
             pollMutations(worker, 1);
             resource.detachWorkerResource(worker);
         }
+    }
+
+    @Test
+    void inlineWorldEpochAndVisualInterestCountersDoNotLoseConcurrentUpdates() throws Exception {
+        int threads = 8;
+        int iterations = 500;
+        int expectedUpdates = threads * iterations;
+
+        PhysicsWorldResource epochResource = new PhysicsWorldResource();
+        runConcurrently(threads, iterations, epochResource::clearBodies);
+
+        assertEquals(expectedUpdates, epochResource.getLatestPublishedFrame().worldEpoch());
+
+        PhysicsWorldResource visualInterestResource = new PhysicsWorldResource();
+        Set<Long> ticks = ConcurrentHashMap.newKeySet();
+        runConcurrently(threads, iterations,
+            () -> ticks.add(visualInterestResource.advanceVisualInterestTick()));
+
+        assertEquals(expectedUpdates, ticks.size());
+        assertEquals(expectedUpdates, ticks.stream().mapToLong(Long::longValue).max().orElseThrow());
+    }
+
+    private static void runConcurrently(int threads,
+        int iterations,
+        Runnable action) throws Exception {
+        ExecutorService executor = Executors.newFixedThreadPool(threads);
+        CountDownLatch start = new CountDownLatch(1);
+        List<Future<?>> futures = new ArrayList<>(threads);
+        try {
+            for (int thread = 0; thread < threads; thread++) {
+                futures.add(executor.submit(() -> {
+                    assertTrue(start.await(2, TimeUnit.SECONDS));
+                    for (int iteration = 0; iteration < iterations; iteration++) {
+                        action.run();
+                    }
+                    return null;
+                }));
+            }
+            start.countDown();
+            for (Future<?> future : futures) {
+                future.get(5, TimeUnit.SECONDS);
+            }
+        } finally {
+            executor.shutdownNow();
+        }
+        assertTrue(executor.awaitTermination(5, TimeUnit.SECONDS));
     }
 
     private static void pollMutations(PhysicsWorldWorkerResource worker,

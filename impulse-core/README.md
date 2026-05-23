@@ -54,8 +54,6 @@ Cleanup does not create a replacement/default space implicitly. Run `/impulse sp
 - `/impulse settings simulation-steps --steps=<count>` - set the minimum or fixed substep count, from 1 to 16.
 - `/impulse settings max-step-dt` - show the adaptive substep dt threshold.
 - `/impulse settings max-step-dt --dt=<seconds>` - set the adaptive substep dt threshold used by `progressive_refinement` and `adaptive`.
-- `/impulse settings execution` - show the reserved public execution selector for the default space. Internal per-world worker stepping is active independently; the public selector currently remains `inline`.
-- `/impulse settings execution --mode=inline` - keep the reserved selector inline. `--mode=worker` is reserved and rejected until public selection is available.
 - `/impulse settings solver` - show solver tuning for the default space.
 - `/impulse settings solver --solverIterations=<n> --pgsIterations=<n> --stabilizationIterations=<n> --minIslandSize=<n>` - tune compatible backends.
 - `/impulse settings visual-sync` - show visual LOD and occlusion settings.

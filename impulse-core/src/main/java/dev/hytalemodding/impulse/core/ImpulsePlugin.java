@@ -18,30 +18,31 @@ import dev.hytalemodding.impulse.api.BackendId;
 import dev.hytalemodding.impulse.api.Impulse;
 import dev.hytalemodding.impulse.api.PhysicsBackend;
 import dev.hytalemodding.impulse.core.internal.commands.ImpulseCommand;
-import dev.hytalemodding.impulse.core.plugin.components.PhysicsControlSessionComponent;
+import dev.hytalemodding.impulse.core.internal.components.GeneratedVisualProxyComponent;
 import dev.hytalemodding.impulse.core.internal.persistence.PersistentPhysicsWorldResource;
 import dev.hytalemodding.impulse.core.internal.resources.debug.PhysicsDebugResource;
 import dev.hytalemodding.impulse.core.internal.resources.profiling.PhysicsRuntimeProfilingResource;
-import dev.hytalemodding.impulse.core.internal.resources.worker.PhysicsWorldWorkerResource;
 import dev.hytalemodding.impulse.core.internal.resources.profiling.WorldCollisionProfilingResource;
+import dev.hytalemodding.impulse.core.internal.resources.worker.PhysicsWorldWorkerResource;
+import dev.hytalemodding.impulse.core.internal.systems.collision.PhysicsChunkBoundarySystem;
+import dev.hytalemodding.impulse.core.internal.systems.collision.PhysicsCollisionLodSystem;
+import dev.hytalemodding.impulse.core.internal.systems.collision.PhysicsWorldCollisionStreamingSystem;
+import dev.hytalemodding.impulse.core.internal.systems.debug.PhysicsDebugSystem;
 import dev.hytalemodding.impulse.core.internal.systems.persistence.PersistentPhysicsBodyHydrationSystem;
 import dev.hytalemodding.impulse.core.internal.systems.persistence.PersistentPhysicsJointHydrationSystem;
 import dev.hytalemodding.impulse.core.internal.systems.persistence.PersistentPhysicsSpaceBootstrapSystem;
 import dev.hytalemodding.impulse.core.internal.systems.persistence.PersistentPhysicsWorldSyncSystem;
-import dev.hytalemodding.impulse.core.internal.systems.sync.PhysicsBodyAttachmentIndexSystem;
-import dev.hytalemodding.impulse.core.internal.systems.collision.PhysicsChunkBoundarySystem;
-import dev.hytalemodding.impulse.core.internal.systems.collision.PhysicsCollisionLodSystem;
-import dev.hytalemodding.impulse.core.internal.systems.debug.PhysicsDebugSystem;
-import dev.hytalemodding.impulse.core.internal.systems.visual.PhysicsDetachedVisualMaterializationSystem;
-import dev.hytalemodding.impulse.core.internal.systems.step.PhysicsKinematicControlSystem;
 import dev.hytalemodding.impulse.core.internal.systems.persistence.PhysicsRuntimeHolderSystem;
-import dev.hytalemodding.impulse.core.internal.systems.worker.PhysicsSnapshotPublicationSystem;
+import dev.hytalemodding.impulse.core.internal.systems.step.PhysicsKinematicControlSystem;
 import dev.hytalemodding.impulse.core.internal.systems.step.PhysicsStepSystem;
+import dev.hytalemodding.impulse.core.internal.systems.sync.PhysicsBodyAttachmentIndexSystem;
 import dev.hytalemodding.impulse.core.internal.systems.sync.PhysicsSyncSystem;
-import dev.hytalemodding.impulse.core.internal.systems.collision.PhysicsWorldCollisionStreamingSystem;
+import dev.hytalemodding.impulse.core.internal.systems.visual.PhysicsDetachedVisualMaterializationSystem;
+import dev.hytalemodding.impulse.core.internal.systems.worker.PhysicsSnapshotPublicationSystem;
 import dev.hytalemodding.impulse.core.internal.systems.worker.PhysicsWorldWorkerLifecycleSystem;
 import dev.hytalemodding.impulse.core.plugin.components.ImpulseControllableComponent;
 import dev.hytalemodding.impulse.core.plugin.components.PhysicsBodyAttachmentComponent;
+import dev.hytalemodding.impulse.core.plugin.components.PhysicsControlSessionComponent;
 import dev.hytalemodding.impulse.core.plugin.resources.PhysicsWorldResource;
 import java.util.Optional;
 import java.util.ServiceLoader;
@@ -62,6 +63,9 @@ public final class ImpulsePlugin extends JavaPlugin {
 
     @Getter
     private ComponentType<EntityStore, PhysicsControlSessionComponent> physicsControlSessionComponentType;
+
+    @Getter
+    private ComponentType<EntityStore, GeneratedVisualProxyComponent> generatedVisualProxyComponentType;
 
     @Getter
     private ResourceType<EntityStore, PhysicsWorldResource> physicsWorldResourceType;
@@ -226,6 +230,10 @@ public final class ImpulsePlugin extends JavaPlugin {
             ImpulseControllableComponent.CODEC);
         physicsControlSessionComponentType = entityRegistry.registerComponent(
             PhysicsControlSessionComponent.class, PhysicsControlSessionComponent::new);
+        generatedVisualProxyComponentType = entityRegistry.registerComponent(
+            GeneratedVisualProxyComponent.class,
+            "GeneratedVisualProxy",
+            GeneratedVisualProxyComponent.CODEC);
         physicsWorldResourceType = entityRegistry.registerResource(PhysicsWorldResource.class,
             PhysicsWorldResource::new);
         physicsDebugResourceType = entityRegistry.registerResource(PhysicsDebugResource.class,

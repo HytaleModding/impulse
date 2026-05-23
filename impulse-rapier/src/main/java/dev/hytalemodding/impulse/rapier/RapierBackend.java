@@ -32,7 +32,7 @@ public final class RapierBackend implements PhysicsBackend {
     }
 
     @Override
-    public void init() {
+    public synchronized void init() {
         if (initialized) {
             return;
         }

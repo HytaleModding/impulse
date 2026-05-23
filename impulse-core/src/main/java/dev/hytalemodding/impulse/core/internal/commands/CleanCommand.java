@@ -6,12 +6,11 @@ import com.hypixel.hytale.component.Store;
 import com.hypixel.hytale.server.core.Message;
 import com.hypixel.hytale.server.core.command.system.CommandContext;
 import com.hypixel.hytale.server.core.command.system.basecommands.AbstractWorldCommand;
-import com.hypixel.hytale.server.core.entity.entities.BlockEntity;
 import com.hypixel.hytale.server.core.universe.world.World;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
+import dev.hytalemodding.impulse.core.internal.components.GeneratedVisualProxyComponent;
 import dev.hytalemodding.impulse.core.plugin.components.PhysicsControlSessionComponent;
 import dev.hytalemodding.impulse.core.plugin.components.PhysicsBodyAttachmentComponent;
-import dev.hytalemodding.impulse.core.plugin.settings.PhysicsSpaceSettings;
 import dev.hytalemodding.impulse.core.plugin.resources.PhysicsWorldResource;
 import java.util.concurrent.atomic.AtomicInteger;
 import javax.annotation.Nonnull;
@@ -28,7 +27,8 @@ public class CleanCommand extends AbstractWorldCommand {
 
     private static final ComponentType<EntityStore, PhysicsBodyAttachmentComponent> ATTACHMENT_TYPE =
         PhysicsBodyAttachmentComponent.getComponentType();
-    private static final ComponentType<EntityStore, BlockEntity> BLOCK_ENTITY_TYPE = BlockEntity.getComponentType();
+    private static final ComponentType<EntityStore, GeneratedVisualProxyComponent> GENERATED_PROXY_TYPE =
+        GeneratedVisualProxyComponent.getComponentType();
     private static final ComponentType<EntityStore, PhysicsControlSessionComponent> CONTROL_SESSION_TYPE =
         PhysicsControlSessionComponent.getComponentType();
 
@@ -48,15 +48,9 @@ public class CleanCommand extends AbstractWorldCommand {
             });
 
         AtomicInteger removedOrphanVisualEntities = new AtomicInteger();
-        store.forEachEntityParallel(BLOCK_ENTITY_TYPE,
+        store.forEachEntityParallel(GENERATED_PROXY_TYPE,
             (index, archetypeChunk, commandBuffer) -> {
                 if (archetypeChunk.getComponent(index, ATTACHMENT_TYPE) != null) {
-                    return;
-                }
-
-                BlockEntity blockEntity = archetypeChunk.getComponent(index, BLOCK_ENTITY_TYPE);
-                if (blockEntity == null
-                    || !PhysicsSpaceSettings.DEFAULT_DETACHED_VISUAL_BLOCK_TYPE.equals(blockEntity.getBlockTypeKey())) {
                     return;
                 }
 

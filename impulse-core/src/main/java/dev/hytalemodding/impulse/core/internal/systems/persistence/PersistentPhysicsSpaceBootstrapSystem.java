@@ -6,7 +6,6 @@ import com.hypixel.hytale.component.Store;
 import com.hypixel.hytale.component.SystemGroup;
 import com.hypixel.hytale.component.system.tick.TickingSystem;
 import com.hypixel.hytale.logger.HytaleLogger;
-import com.hypixel.hytale.server.core.entity.entities.BlockEntity;
 import com.hypixel.hytale.server.core.universe.world.World;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import dev.hytalemodding.impulse.api.BackendId;
@@ -14,12 +13,13 @@ import dev.hytalemodding.impulse.api.Impulse;
 import dev.hytalemodding.impulse.api.PhysicsSpace;
 import dev.hytalemodding.impulse.api.SpaceId;
 import dev.hytalemodding.impulse.core.ImpulsePlugin;
-import dev.hytalemodding.impulse.core.plugin.components.PhysicsBodyAttachmentComponent;
-import dev.hytalemodding.impulse.core.plugin.components.PhysicsBodyAttachmentComponent.AttachmentLifecycle;
-import dev.hytalemodding.impulse.core.plugin.components.PhysicsControlSessionComponent;
+import dev.hytalemodding.impulse.core.internal.components.GeneratedVisualProxyComponent;
 import dev.hytalemodding.impulse.core.internal.persistence.PersistentPhysicsSpaceState;
 import dev.hytalemodding.impulse.core.internal.persistence.PersistentPhysicsWorldResource;
 import dev.hytalemodding.impulse.core.internal.worker.PhysicsWorkerAccess;
+import dev.hytalemodding.impulse.core.plugin.components.PhysicsBodyAttachmentComponent;
+import dev.hytalemodding.impulse.core.plugin.components.PhysicsBodyAttachmentComponent.AttachmentLifecycle;
+import dev.hytalemodding.impulse.core.plugin.components.PhysicsControlSessionComponent;
 import dev.hytalemodding.impulse.core.plugin.settings.PhysicsSpaceSettings;
 import dev.hytalemodding.impulse.core.plugin.resources.PhysicsWorldResource;
 import java.util.logging.Level;
@@ -46,10 +46,10 @@ import javax.annotation.Nullable;
  */
 public class PersistentPhysicsSpaceBootstrapSystem extends TickingSystem<EntityStore> {
 
-    private static final ComponentType<EntityStore, BlockEntity> BLOCK_ENTITY_TYPE =
-        BlockEntity.getComponentType();
     private static final ComponentType<EntityStore, PhysicsBodyAttachmentComponent> ATTACHMENT_TYPE =
         PhysicsBodyAttachmentComponent.getComponentType();
+    private static final ComponentType<EntityStore, GeneratedVisualProxyComponent> GENERATED_PROXY_TYPE =
+        GeneratedVisualProxyComponent.getComponentType();
     private static final ComponentType<EntityStore, PhysicsControlSessionComponent> CONTROL_SESSION_TYPE =
         PhysicsControlSessionComponent.getComponentType();
 
@@ -160,21 +160,9 @@ public class PersistentPhysicsSpaceBootstrapSystem extends TickingSystem<EntityS
                 commandBuffer.removeEntity(ref, RemoveReason.REMOVE);
             });
 
-        /*
-         * Older runtime visual proxies may already exist in saved worlds as plain
-         * block entities after their transient visual component is stripped during
-         * unload/load. Remove those visual-only leftovers during restore so detached
-         * views can be rebuilt from the live physics registry.
-         */
-        store.forEachEntityParallel(BLOCK_ENTITY_TYPE,
+        store.forEachEntityParallel(GENERATED_PROXY_TYPE,
             (index, archetypeChunk, commandBuffer) -> {
                 if (archetypeChunk.getComponent(index, ATTACHMENT_TYPE) != null) {
-                    return;
-                }
-
-                BlockEntity blockEntity = archetypeChunk.getComponent(index, BLOCK_ENTITY_TYPE);
-                if (blockEntity == null
-                    || !PhysicsSpaceSettings.DEFAULT_DETACHED_VISUAL_BLOCK_TYPE.equals(blockEntity.getBlockTypeKey())) {
                     return;
                 }
 
