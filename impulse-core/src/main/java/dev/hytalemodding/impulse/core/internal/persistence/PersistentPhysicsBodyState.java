@@ -20,7 +20,7 @@ import lombok.Getter;
 import org.joml.Vector3f;
 
 /**
- * Schema-v3 world-level persistent state for one physics body.
+ * World-level persistent state for one physics body.
  */
 public class PersistentPhysicsBodyState {
 

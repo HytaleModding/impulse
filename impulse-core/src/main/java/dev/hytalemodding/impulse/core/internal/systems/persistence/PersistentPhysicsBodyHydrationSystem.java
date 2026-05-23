@@ -22,7 +22,7 @@ import java.util.Set;
 import javax.annotation.Nonnull;
 
 /**
- * Restores schema-v3 world-level body states keyed by {@link PhysicsBodyId}.
+ * Restores world-level body states keyed by {@link PhysicsBodyId}.
  */
 public class PersistentPhysicsBodyHydrationSystem extends TickingSystem<EntityStore> {
 
