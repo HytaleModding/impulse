@@ -1,0 +1,41 @@
+name: Build Core
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  build-core:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Java 25
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '25'
+
+      - name: Set up Gradle cache
+        uses: gradle/actions/setup-gradle@v4
+
+      - name: Build impulse-api
+        run: ./gradlew :impulse-api:build
+
+      - name: Build impulse-core
+        run: ./gradlew :impulse-core:build
+
+      - name: Upload impulse-api artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: impulse-api
+          path: impulse-api/build/libs/
+
+      - name: Upload impulse-core artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: impulse-core
+          path: impulse-core/build/libs/
+

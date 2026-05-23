@@ -1,0 +1,63 @@
+name: Build Rapier Natives
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  build-rapier-natives:
+    strategy:
+      matrix:
+        include:
+          - os: ubuntu-latest
+            platform: linux-x86_64
+            rust-target: x86_64-unknown-linux-gnu
+          - os: ubuntu-latest
+            platform: linux-aarch64
+            rust-target: aarch64-unknown-linux-gnu
+          - os: windows-latest
+            platform: windows-x86_64
+            rust-target: x86_64-pc-windows-msvc
+          - os: macos-latest
+            platform: macos-x86_64
+            rust-target: x86_64-apple-darwin
+          - os: macos-latest
+            platform: macos-aarch64
+            rust-target: aarch64-apple-darwin
+
+    runs-on: ${{ matrix.os }}
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Java 25
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '25'
+
+      - name: Set up Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.rust-target }}
+
+      - name: Set up Gradle cache
+        uses: gradle/actions/setup-gradle@v4
+
+      - name: Install cross (for Linux ARM64)
+        if: matrix.platform == 'linux-aarch64'
+        run: cargo install cross
+
+      - name: Build Rapier native (${{ matrix.platform }})
+        run: ./gradlew :impulse-rapier:build -PbuildRapierNative=true -PrapierBuildPlatform=${{ matrix.platform }}
+        env:
+          CARGO_BUILD_TARGET: ${{ matrix.rust-target }}
+
+      - name: Upload Rapier native artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: impulse-rapier-native-${{ matrix.platform }}
+          path: impulse-rapier/build/libs/
+

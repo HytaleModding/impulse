@@ -2,7 +2,34 @@ plugins {
     id("java-library")
 }
 
-val nativeLibraryName = "libimpulse_rapier.so"
+val targetPlatform = providers.gradleProperty("rapierBuildPlatform").orElse("linux-x86_64")
+val nativeLibraryName = targetPlatform.map { platform ->
+    when (platform) {
+        "windows-x86_64" -> "impulse_rapier.dll"
+        "osx-x86_64", "osx-arm64" -> "libimpulse_rapier.dylib"
+        else -> "libimpulse_rapier.so"
+    }
+}
+val outputDirectory = targetPlatform.map { platform ->
+    when (platform) {
+        "linux-x86_64" -> "linux/x86_64"
+        "linux-arm64" -> "linux/arm64"
+        "windows-x86_64" -> "windows/x86_64"
+        "osx-x86_64" -> "osx/x86_64"
+        "osx-arm64" -> "osx/arm64"
+        else -> "linux/x86_64"
+    }
+}
+val cargoTarget = targetPlatform.map { platform ->
+    when (platform) {
+        "linux-arm64" -> "aarch64-unknown-linux-gnu"
+        "windows-x86_64" -> "x86_64-pc-windows-msvc"
+        "osx-x86_64" -> "x86_64-apple-darwin"
+        "osx-arm64" -> "aarch64-apple-darwin"
+        else -> "x86_64-unknown-linux-gnu"
+    }
+}
+
 val rapierVersion = "0.32.0"
 val nativeProfile = providers.gradleProperty("rapierNativeProfile").orElse("release")
 val nativeFeatures = providers.gradleProperty("rapierNativeFeatures").orElse("")
@@ -106,14 +133,21 @@ val cargoBuildRapierNative by tasks.registering(Exec::class) {
     inputs.file(rapierPatchFile)
     inputs.dir(patchedRapierDirectory)
     inputs.property("rapierNativeFeatures", nativeFeatures)
-    outputs.file(nativeBuildDirectory.map { layout.projectDirectory.file("src/main/rust/target/$it/$nativeLibraryName") })
+    outputs.file(cargoTarget.flatMap { target ->
+        nativeBuildDirectory.flatMap { buildDir ->
+            nativeLibraryName.map { libName ->
+                layout.projectDirectory.file("src/main/rust/target/$target/$buildDir/$libName")
+            }
+        }
+    })
 
     doFirst {
         val command = mutableListOf("cargo",
             "--config",
             patchedCargoConfig.asFile.absolutePath,
             "build",
-            "--locked")
+            "--locked",
+            "--target", cargoTarget.get())
         if (nativeProfile.get() == "release") {
             command.add("--release")
         }
@@ -130,10 +164,16 @@ val copyRapierNative by tasks.registering(Copy::class) {
     dependsOn(cargoBuildRapierNative)
     onlyIf { buildNative.get() }
 
-    from(nativeBuildDirectory.map {
-        layout.projectDirectory.file("src/main/rust/target/$it/$nativeLibraryName")
+    from(cargoTarget.flatMap { target ->
+        nativeBuildDirectory.flatMap { buildDir ->
+            nativeLibraryName.map { libName ->
+                layout.projectDirectory.file("src/main/rust/target/$target/$buildDir/$libName")
+            }
+        }
     })
-    into(layout.buildDirectory.dir("generated/rapier-native/native/linux/x86_64"))
+    into(outputDirectory.map { dir ->
+        layout.buildDirectory.dir("generated/rapier-native/native/$dir")
+    })
 }
 
 sourceSets {

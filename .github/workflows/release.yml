@@ -1,0 +1,207 @@
+name: Release Build
+
+on:
+  workflow_dispatch:
+  push:
+    tags:
+      - 'v*'
+
+jobs:
+  # First, build all the native libraries and core modules
+  build-core:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Java 25
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '25'
+
+      - name: Set up Gradle cache
+        uses: gradle/actions/setup-gradle@v4
+
+      - name: Build impulse-api
+        run: ./gradlew :impulse-api:build
+
+      - name: Build impulse-core
+        run: ./gradlew :impulse-core:build
+
+      - name: Upload impulse-api artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: impulse-api
+          path: impulse-api/build/libs/
+          retention-days: 1
+
+      - name: Upload impulse-core artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: impulse-core
+          path: impulse-core/build/libs/
+          retention-days: 1
+
+  build-rapier-natives:
+    strategy:
+      matrix:
+        include:
+          - os: ubuntu-latest
+            platform: linux-x86_64
+            rust-target: x86_64-unknown-linux-gnu
+          - os: ubuntu-latest
+            platform: linux-aarch64
+            rust-target: aarch64-unknown-linux-gnu
+          - os: windows-latest
+            platform: windows-x86_64
+            rust-target: x86_64-pc-windows-msvc
+          - os: macos-latest
+            platform: macos-x86_64
+            rust-target: x86_64-apple-darwin
+          - os: macos-latest
+            platform: macos-aarch64
+            rust-target: aarch64-apple-darwin
+
+    runs-on: ${{ matrix.os }}
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Java 25
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '25'
+
+      - name: Set up Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.rust-target }}
+
+      - name: Set up Gradle cache
+        uses: gradle/actions/setup-gradle@v4
+
+      - name: Install cross (for Linux ARM64)
+        if: matrix.platform == 'linux-aarch64'
+        run: cargo install cross
+
+      - name: Build Rapier native (${{ matrix.platform }})
+        run: ./gradlew :impulse-rapier:build -PbuildRapierNative=true -PrapierBuildPlatform=${{ matrix.platform }}
+        env:
+          CARGO_BUILD_TARGET: ${{ matrix.rust-target }}
+
+      - name: Upload Rapier native artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: impulse-rapier-native-${{ matrix.platform }}
+          path: impulse-rapier/build/libs/
+          retention-days: 1
+
+  build-bullet:
+    strategy:
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+
+    runs-on: ${{ matrix.os }}
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Java 25
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '25'
+
+      - name: Set up Gradle cache
+        uses: gradle/actions/setup-gradle@v4
+
+      - name: Build impulse-bullet
+        run: ./gradlew :impulse-bullet:build
+
+      - name: Upload impulse-bullet artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: impulse-bullet-${{ runner.os }}
+          path: impulse-bullet/build/libs/
+          retention-days: 1
+
+  # Assemble all artifacts into a release package
+  create-release-package:
+    needs: [build-core, build-rapier-natives, build-bullet]
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Create release directory structure
+        run: |
+          mkdir -p release/Impulse-0.1.0/mods
+          mkdir -p release/Impulse-0.1.0/docs
+
+      - name: Download impulse-api
+        uses: actions/download-artifact@v4
+        with:
+          name: impulse-api
+          path: release/Impulse-0.1.0/mods
+
+      - name: Download impulse-core
+        uses: actions/download-artifact@v4
+        with:
+          name: impulse-core
+          path: release/Impulse-0.1.0/mods
+
+      - name: Download impulse-bullet artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: release/Impulse-0.1.0/mods/bullet-artifacts
+
+      - name: Download impulse-rapier artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: release/Impulse-0.1.0/mods/rapier-artifacts
+
+      - name: Organize rapier natives
+        run: |
+          mkdir -p release/Impulse-0.1.0/mods/rapier-natives
+          for dir in release/Impulse-0.1.0/mods/rapier-artifacts/impulse-rapier-native-*/; do
+            cp -r "$dir"/* release/Impulse-0.1.0/mods/rapier-natives/ || true
+          done
+          rm -rf release/Impulse-0.1.0/mods/rapier-artifacts
+
+      - name: Organize bullet builds
+        run: |
+          mkdir -p release/Impulse-0.1.0/mods/bullet-builds
+          for dir in release/Impulse-0.1.0/mods/bullet-artifacts/impulse-bullet-*/; do
+            cp -r "$dir"/* release/Impulse-0.1.0/mods/bullet-builds/ || true
+          done
+          rm -rf release/Impulse-0.1.0/mods/bullet-artifacts
+
+      - name: Copy documentation
+        run: |
+          cp README.md release/Impulse-0.1.0/docs/ || true
+          cp LICENSE release/Impulse-0.1.0/docs/ || true
+
+      - name: Create release archive
+        run: |
+          cd release
+          zip -r ../Impulse-0.1.0-release.zip Impulse-0.1.0
+
+      - name: Create GitHub Release
+        if: startsWith(github.ref, 'refs/tags/')
+        uses: softprops/action-gh-release@v1
+        with:
+          files: Impulse-0.1.0-release.zip
+          draft: false
+          prerelease: false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Upload release package as artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: Impulse-release-package
+          path: release/
+
