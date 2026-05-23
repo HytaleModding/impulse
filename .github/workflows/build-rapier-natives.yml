@@ -21,12 +21,12 @@ jobs:
           - os: windows-latest
             platform: windows-x86_64
             rust-target: x86_64-pc-windows-msvc
-#          - os: macos-latest
-#            platform: osx-x86_64
-#            rust-target: x86_64-apple-darwin
-#          - os: macos-latest
-#            platform: osx-arm64
-#            rust-target: aarch64-apple-darwin
+          - os: macos-latest
+            platform: osx-x86_64
+            rust-target: x86_64-apple-darwin
+          - os: macos-latest
+            platform: osx-arm64
+            rust-target: aarch64-apple-darwin
 
     runs-on: ${{ matrix.os }}
 
@@ -44,6 +44,11 @@ jobs:
         uses: dtolnay/rust-toolchain@stable
         with:
           targets: ${{ matrix.rust-target }}
+
+      - name: Ensure Rust target & components
+        run: |
+          rustup target add ${{ matrix.rust-target }} || true
+          rustup component add rust-src || true
 
       - name: Set up Gradle cache
         uses: gradle/actions/setup-gradle@v4

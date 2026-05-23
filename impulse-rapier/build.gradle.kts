@@ -160,20 +160,30 @@ val cargoBuildRapierNative by tasks.registering(Exec::class) {
     }
 }
 
-val copyRapierNative by tasks.registering(Copy::class) {
+val copyRapierNative by tasks.registering {
+    // Use a simple task and perform the copy at execution time where provider values can be resolved
     dependsOn(cargoBuildRapierNative)
     onlyIf { buildNative.get() }
 
-    from(cargoTarget.flatMap { target ->
-        nativeBuildDirectory.flatMap { buildDir ->
-            nativeLibraryName.map { libName ->
-                layout.projectDirectory.file("src/main/rust/target/$target/$buildDir/$libName")
-            }
+    doLast {
+        val target = cargoTarget.get()
+        val buildDir = nativeBuildDirectory.get()
+        val libName = nativeLibraryName.get()
+        val outDir = outputDirectory.get()
+
+        val src = layout.projectDirectory.file("src/main/rust/target/$target/$buildDir/$libName").asFile
+        val destDir = layout.buildDirectory.dir("generated/rapier-native/native/$outDir").get().asFile
+        destDir.mkdirs()
+
+        if (!src.exists()) {
+            throw GradleException("Rapier native not found: ${src.absolutePath}")
         }
-    })
-    into(outputDirectory.map { dir ->
-        layout.buildDirectory.dir("generated/rapier-native/native/$dir")
-    })
+
+        copy {
+            from(src)
+            into(destDir)
+        }
+    }
 }
 
 sourceSets {
