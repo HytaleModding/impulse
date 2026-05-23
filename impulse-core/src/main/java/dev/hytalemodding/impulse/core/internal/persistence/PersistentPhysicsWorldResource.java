@@ -138,7 +138,7 @@ public class PersistentPhysicsWorldResource implements Resource<EntityStore> {
     @Setter
     @Getter
     @Nonnull
-    private PhysicsStepMode stepMode = PhysicsStepMode.PROGRESSIVE_REFINEMENT;
+    private PhysicsStepMode stepMode = PhysicsStepMode.ADAPTIVE;
     @Getter
     private float maxStepDt = PhysicsWorldResource.DEFAULT_MAX_STEP_DT;
     @Nonnull
