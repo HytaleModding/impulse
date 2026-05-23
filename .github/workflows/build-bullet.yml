@@ -2,13 +2,18 @@ name: Build Bullet
 
 on:
   push:
+    branches:
+      - main
   pull_request:
 
 jobs:
   build-bullet:
     strategy:
       matrix:
-        os: [ubuntu-latest, windows-latest, macos-latest]
+        os:
+          - ubuntu-latest
+#          - windows-latest
+          - macos-latest
 
     runs-on: ${{ matrix.os }}
 
