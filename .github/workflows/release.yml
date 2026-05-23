@@ -146,24 +146,24 @@ jobs:
           mkdir -p release/Impulse-0.1.0/docs
 
       - name: Download impulse-api
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v4.1.3
         with:
           name: impulse-api
           path: release/Impulse-0.1.0/mods
 
       - name: Download impulse-core
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v4.1.3
         with:
           name: impulse-core
           path: release/Impulse-0.1.0/mods
 
       - name: Download impulse-bullet artifacts
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v4.1.3
         with:
           path: release/Impulse-0.1.0/mods/bullet-artifacts
 
       - name: Download impulse-rapier artifacts
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v4.1.3
         with:
           path: release/Impulse-0.1.0/mods/rapier-artifacts
 
@@ -208,4 +208,3 @@ jobs:
         with:
           name: Impulse-release-package
           path: release/
-
