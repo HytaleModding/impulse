@@ -57,10 +57,15 @@ jobs:
         if: matrix.platform == 'linux-arm64'
         run: cargo install cross
 
-      - name: Build Rapier native (${{ matrix.platform }})
+      - name: Build Rapier native (non-Windows)
+        if: matrix.os != 'windows-latest'
         run: ./gradlew :impulse-rapier:build -PbuildRapierNative=true -PrapierBuildPlatform=${{ matrix.platform }} -x test
         env:
           CARGO_BUILD_TARGET: ${{ matrix.rust-target }}
+
+      - name: Build Rapier jar only on Windows (skip native build)
+        if: matrix.os == 'windows-latest'
+        run: ./gradlew :impulse-rapier:build -PbuildRapierNative=false -x test
 
       - name: Upload Rapier native artifacts
         uses: actions/upload-artifact@v4
