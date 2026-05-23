@@ -160,18 +160,23 @@ jobs:
       - name: Download impulse-bullet artifacts
         uses: actions/download-artifact@v4.1.3
         with:
+          pattern: impulse-bullet-*
           path: release/Impulse-0.1.0/mods/bullet-artifacts
 
       - name: Download impulse-rapier artifacts
         uses: actions/download-artifact@v4.1.3
         with:
+          pattern: impulse-rapier-native-*
           path: release/Impulse-0.1.0/mods/rapier-artifacts
 
       - name: Organize rapier natives
         run: |
           mkdir -p release/Impulse-0.1.0/mods/rapier-natives
           for dir in release/Impulse-0.1.0/mods/rapier-artifacts/impulse-rapier-native-*/; do
-            cp -r "$dir"/* release/Impulse-0.1.0/mods/rapier-natives/ || true
+            [ -d "$dir" ] || continue
+            platform_dir="$(basename "$dir")"
+            mkdir -p "release/Impulse-0.1.0/mods/rapier-natives/$platform_dir"
+            cp -r "$dir"/* "release/Impulse-0.1.0/mods/rapier-natives/$platform_dir/" || true
           done
           rm -rf release/Impulse-0.1.0/mods/rapier-artifacts
 
