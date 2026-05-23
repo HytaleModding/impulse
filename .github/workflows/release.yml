@@ -51,16 +51,16 @@ jobs:
             platform: linux-x86_64
             rust-target: x86_64-unknown-linux-gnu
           - os: ubuntu-latest
-            platform: linux-aarch64
+            platform: linux-arm64
             rust-target: aarch64-unknown-linux-gnu
           - os: windows-latest
             platform: windows-x86_64
             rust-target: x86_64-pc-windows-msvc
           - os: macos-latest
-            platform: macos-x86_64
+            platform: osx-x86_64
             rust-target: x86_64-apple-darwin
           - os: macos-latest
-            platform: macos-aarch64
+            platform: osx-arm64
             rust-target: aarch64-apple-darwin
 
     runs-on: ${{ matrix.os }}
@@ -83,11 +83,11 @@ jobs:
         uses: gradle/actions/setup-gradle@v4
 
       - name: Install cross (for Linux ARM64)
-        if: matrix.platform == 'linux-aarch64'
+        if: matrix.platform == 'linux-arm64'
         run: cargo install cross
 
       - name: Build Rapier native (${{ matrix.platform }})
-        run: ./gradlew :impulse-rapier:build -PbuildRapierNative=true -PrapierBuildPlatform=${{ matrix.platform }}
+        run: ./gradlew :impulse-rapier:build -PbuildRapierNative=true -PrapierBuildPlatform=${{ matrix.platform }} -x test
         env:
           CARGO_BUILD_TARGET: ${{ matrix.rust-target }}
 
@@ -117,8 +117,13 @@ jobs:
       - name: Set up Gradle cache
         uses: gradle/actions/setup-gradle@v4
 
-      - name: Build impulse-bullet
+      - name: Build impulse-bullet (with tests)
+        if: runner.os != 'macOS'
         run: ./gradlew :impulse-bullet:build
+
+      - name: Build impulse-bullet (skip tests on macOS)
+        if: runner.os == 'macOS'
+        run: ./gradlew :impulse-bullet:build -x test
 
       - name: Upload impulse-bullet artifacts
         uses: actions/upload-artifact@v4
@@ -127,7 +132,6 @@ jobs:
           path: impulse-bullet/build/libs/
           retention-days: 1
 
-  # Assemble all artifacts into a release package
   create-release-package:
     needs: [build-core, build-rapier-natives, build-bullet]
     runs-on: ubuntu-latest

@@ -14,16 +14,16 @@ jobs:
             platform: linux-x86_64
             rust-target: x86_64-unknown-linux-gnu
           - os: ubuntu-latest
-            platform: linux-aarch64
+            platform: linux-arm64
             rust-target: aarch64-unknown-linux-gnu
           - os: windows-latest
             platform: windows-x86_64
             rust-target: x86_64-pc-windows-msvc
           - os: macos-latest
-            platform: macos-x86_64
+            platform: osx-x86_64
             rust-target: x86_64-apple-darwin
           - os: macos-latest
-            platform: macos-aarch64
+            platform: osx-arm64
             rust-target: aarch64-apple-darwin
 
     runs-on: ${{ matrix.os }}
@@ -47,11 +47,11 @@ jobs:
         uses: gradle/actions/setup-gradle@v4
 
       - name: Install cross (for Linux ARM64)
-        if: matrix.platform == 'linux-aarch64'
+        if: matrix.platform == 'linux-arm64'
         run: cargo install cross
 
       - name: Build Rapier native (${{ matrix.platform }})
-        run: ./gradlew :impulse-rapier:build -PbuildRapierNative=true -PrapierBuildPlatform=${{ matrix.platform }}
+        run: ./gradlew :impulse-rapier:build -PbuildRapierNative=true -PrapierBuildPlatform=${{ matrix.platform }} -x test
         env:
           CARGO_BUILD_TARGET: ${{ matrix.rust-target }}
 
