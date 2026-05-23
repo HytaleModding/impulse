@@ -142,7 +142,10 @@ val cargoBuildRapierNative by tasks.registering(Exec::class) {
     })
 
     doFirst {
-        val command = mutableListOf("cargo",
+        val useCross = System.getenv("USE_CROSS")?.lowercase() == "true"
+        val cargoCmd = if (useCross) "cross" else "cargo"
+
+        val command = mutableListOf(cargoCmd,
             "--config",
             patchedCargoConfig.asFile.absolutePath,
             "build",
