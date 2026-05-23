@@ -18,7 +18,7 @@ import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
 /**
- * Example controls for schema-v3 world-level Impulse persistence.
+ * Example controls for schema-v4 world-level Impulse persistence.
  */
 public class PersistenceCommand extends AbstractCommandCollection {
 
@@ -48,10 +48,10 @@ public class PersistenceCommand extends AbstractCommandCollection {
 
             String name = nameArg.get(ctx).trim();
             if (name.isEmpty()) {
-                return " Legacy name argument was ignored because schema-v3 persistence is stored with the world.";
+                return " Legacy name argument was ignored because schema-v4 persistence is stored with the world.";
             }
             return " Legacy --name '" + name
-                + "' was ignored because schema-v3 persistence is stored with the world.";
+                + "' was ignored because schema-v4 persistence is stored with the world.";
         }
     }
 

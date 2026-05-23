@@ -48,10 +48,12 @@ import lombok.Setter;
  */
 public class PersistentPhysicsWorldResource implements Resource<EntityStore> {
 
-    public static final int CURRENT_SCHEMA_VERSION = 3;
+    public static final int CURRENT_SCHEMA_VERSION = 4;
+    private static final int LEGACY_FLAT_ARRAY_SCHEMA_VERSION = 3;
     private static final PersistentPhysicsSpaceState[] EMPTY_SPACES = new PersistentPhysicsSpaceState[0];
     private static final PersistentPhysicsBodyState[] EMPTY_BODIES = new PersistentPhysicsBodyState[0];
     private static final PersistentPhysicsJointState[] EMPTY_JOINTS = new PersistentPhysicsJointState[0];
+    private static final PersistentPhysicsStateBlock[] EMPTY_STATE_BLOCKS = new PersistentPhysicsStateBlock[0];
 
     @Nonnull
     public static final BuilderCodec<PersistentPhysicsWorldResource> CODEC = BuilderCodec.builder(
@@ -100,18 +102,30 @@ public class PersistentPhysicsWorldResource implements Resource<EntityStore> {
         .append(new KeyedCodec<>("Bodies",
                 new ArrayCodec<>(PersistentPhysicsBodyState.CODEC, PersistentPhysicsBodyState[]::new)),
             (resource, value) -> resource.bodies = copyBodies(value),
-            PersistentPhysicsWorldResource::getBodies)
+            PersistentPhysicsWorldResource::getLegacyBodiesForCodec)
         .addValidator(Validators.nonNull())
         .addValidator(Validators.nonNullArrayElements())
         .add()
         .append(new KeyedCodec<>("Joints",
                 new ArrayCodec<>(PersistentPhysicsJointState.CODEC, PersistentPhysicsJointState[]::new)),
             (resource, value) -> resource.joints = copyJoints(value),
-            PersistentPhysicsWorldResource::getJoints)
+            PersistentPhysicsWorldResource::getLegacyJointsForCodec)
         .addValidator(Validators.nonNull())
         .addValidator(Validators.nonNullArrayElements())
         .add()
-        .afterDecode(PersistentPhysicsWorldResource::markRuntimeRestorePending)
+        .append(new KeyedCodec<>("BodyBlocks",
+                new ArrayCodec<>(PersistentPhysicsStateBlock.CODEC, PersistentPhysicsStateBlock[]::new), false),
+            (resource, value) -> resource.bodyBlocks = copyStateBlocks(value),
+            PersistentPhysicsWorldResource::getBodyBlocksForCodec)
+        .addValidator(Validators.nonNullArrayElements())
+        .add()
+        .append(new KeyedCodec<>("JointBlocks",
+                new ArrayCodec<>(PersistentPhysicsStateBlock.CODEC, PersistentPhysicsStateBlock[]::new), false),
+            (resource, value) -> resource.jointBlocks = copyStateBlocks(value),
+            PersistentPhysicsWorldResource::getJointBlocksForCodec)
+        .addValidator(Validators.nonNullArrayElements())
+        .add()
+        .afterDecode(PersistentPhysicsWorldResource::afterCodecDecode)
         .build();
 
     @Getter
@@ -133,6 +147,10 @@ public class PersistentPhysicsWorldResource implements Resource<EntityStore> {
     private PersistentPhysicsBodyState[] bodies = EMPTY_BODIES;
     @Nonnull
     private PersistentPhysicsJointState[] joints = EMPTY_JOINTS;
+    @Nonnull
+    private PersistentPhysicsStateBlock[] bodyBlocks = EMPTY_STATE_BLOCKS;
+    @Nonnull
+    private PersistentPhysicsStateBlock[] jointBlocks = EMPTY_STATE_BLOCKS;
     @Getter
     private transient boolean runtimeRestorePending;
     @Getter
@@ -332,6 +350,8 @@ public class PersistentPhysicsWorldResource implements Resource<EntityStore> {
         spaces = copySpaces(other.spaces);
         bodies = copyBodies(other.bodies);
         joints = copyJoints(other.joints);
+        bodyBlocks = EMPTY_STATE_BLOCKS;
+        jointBlocks = EMPTY_STATE_BLOCKS;
         runtimeRestorePending = false;
         runtimeSpaceBootstrapComplete = false;
         runtimeRestoreFailed = false;
@@ -344,6 +364,47 @@ public class PersistentPhysicsWorldResource implements Resource<EntityStore> {
         runtimeSkippedBodiesByReason.clear();
         runtimeSkippedJointsByReason.clear();
         runtimeSkippedJointKeys.clear();
+    }
+
+    private void afterCodecDecode() {
+        if (bodyBlocks.length > 0) {
+            bodies = PersistentPhysicsStateBlock.decodeBodyBlocks(bodyBlocks);
+        }
+        if (jointBlocks.length > 0) {
+            joints = PersistentPhysicsStateBlock.decodeJointBlocks(jointBlocks);
+        }
+        if (schemaVersion == LEGACY_FLAT_ARRAY_SCHEMA_VERSION) {
+            schemaVersion = CURRENT_SCHEMA_VERSION;
+        }
+        bodyBlocks = EMPTY_STATE_BLOCKS;
+        jointBlocks = EMPTY_STATE_BLOCKS;
+        markRuntimeRestorePending();
+    }
+
+    @Nonnull
+    private PersistentPhysicsBodyState[] getLegacyBodiesForCodec() {
+        return schemaVersion >= CURRENT_SCHEMA_VERSION ? EMPTY_BODIES : getBodies();
+    }
+
+    @Nonnull
+    private PersistentPhysicsJointState[] getLegacyJointsForCodec() {
+        return schemaVersion >= CURRENT_SCHEMA_VERSION ? EMPTY_JOINTS : getJoints();
+    }
+
+    @Nonnull
+    private PersistentPhysicsStateBlock[] getBodyBlocksForCodec() {
+        if (schemaVersion < CURRENT_SCHEMA_VERSION || bodies.length == 0) {
+            return EMPTY_STATE_BLOCKS;
+        }
+        return PersistentPhysicsStateBlock.bodyBlocks(bodies);
+    }
+
+    @Nonnull
+    private PersistentPhysicsStateBlock[] getJointBlocksForCodec() {
+        if (schemaVersion < CURRENT_SCHEMA_VERSION || joints.length == 0) {
+            return EMPTY_STATE_BLOCKS;
+        }
+        return PersistentPhysicsStateBlock.jointBlocks(joints);
     }
 
     @Nonnull
@@ -375,6 +436,18 @@ public class PersistentPhysicsWorldResource implements Resource<EntityStore> {
     @Nonnull
     private static PersistentPhysicsJointState[] copyJoints(@Nonnull PersistentPhysicsJointState[] source) {
         PersistentPhysicsJointState[] copy = Arrays.copyOf(source, source.length);
+        for (int i = 0; i < copy.length; i++) {
+            copy[i] = copy[i].copy();
+        }
+        return copy;
+    }
+
+    @Nonnull
+    private static PersistentPhysicsStateBlock[] copyStateBlocks(@Nullable PersistentPhysicsStateBlock[] source) {
+        if (source == null || source.length == 0) {
+            return EMPTY_STATE_BLOCKS;
+        }
+        PersistentPhysicsStateBlock[] copy = Arrays.copyOf(source, source.length);
         for (int i = 0; i < copy.length; i++) {
             copy[i] = copy[i].copy();
         }

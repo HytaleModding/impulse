@@ -13,7 +13,7 @@ import java.util.List;
 import javax.annotation.Nonnull;
 
 /**
- * Worker-owned copy of the live runtime state needed by schema-v3 persistence.
+ * Worker-owned copy of the live runtime state needed by world persistence.
  *
  * <p>{@link #capture(PhysicsWorldResource)} and {@link #captureFootprint(PhysicsWorldResource)}
  * read live backend spaces, bodies, and joints. Callers must invoke them from the physics
