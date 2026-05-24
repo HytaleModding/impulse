@@ -29,6 +29,7 @@ import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyKind;
 import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyPersistenceMode;
 import dev.hytalemodding.impulse.core.plugin.settings.PhysicsSpaceSettings;
 import dev.hytalemodding.impulse.core.plugin.settings.PhysicsStepMode;
+import dev.hytalemodding.impulse.core.plugin.settings.PhysicsStepSchedulingMode;
 import dev.hytalemodding.impulse.core.plugin.resources.PhysicsWorldResource;
 import dev.hytalemodding.impulse.core.plugin.collision.WorldCollisionMode;
 import it.unimi.dsi.fastutil.longs.LongOpenHashSet;
@@ -133,6 +134,7 @@ final class ImpulseDetachedStreamingBenchmarkCrucibleTests {
         private final PhysicsRuntimeProfilingResource runtimeProfiling;
         private final WorldCollisionProfilingResource worldCollisionProfiling;
         private final PhysicsStepMode previousStepMode;
+        private final PhysicsStepSchedulingMode previousStepSchedulingMode;
         private final int previousSimulationSteps;
         private final float previousMaxStepDt;
         private final List<WorldChunk> retainedChunks = new ArrayList<>();
@@ -148,6 +150,7 @@ final class ImpulseDetachedStreamingBenchmarkCrucibleTests {
             this.worldCollisionProfiling = store.getResource(
                 WorldCollisionProfilingResource.getResourceType());
             this.previousStepMode = physics.getStepMode();
+            this.previousStepSchedulingMode = physics.getStepSchedulingMode();
             this.previousSimulationSteps = physics.getSimulationSteps();
             this.previousMaxStepDt = physics.getMaxStepDt();
         }
@@ -198,6 +201,7 @@ final class ImpulseDetachedStreamingBenchmarkCrucibleTests {
         private CompletionStage<StartedStage> startStageWhenReady(int count, int attempt) {
             clearStageState();
             physics.setStepMode(PhysicsStepMode.PROGRESSIVE_REFINEMENT);
+            physics.setStepSchedulingMode(PhysicsStepSchedulingMode.DROP_PENDING_DT);
             physics.setSimulationSteps(1);
             physics.setMaxStepDt(TARGET_MAX_STEP_DT);
 
@@ -328,6 +332,7 @@ final class ImpulseDetachedStreamingBenchmarkCrucibleTests {
 
         private void restoreStepSettings() {
             physics.setStepMode(previousStepMode);
+            physics.setStepSchedulingMode(previousStepSchedulingMode);
             physics.setSimulationSteps(previousSimulationSteps);
             physics.setMaxStepDt(previousMaxStepDt);
         }

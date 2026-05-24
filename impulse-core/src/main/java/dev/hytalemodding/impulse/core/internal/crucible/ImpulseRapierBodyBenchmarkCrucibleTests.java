@@ -26,6 +26,7 @@ import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyPersistenceMode;
 import dev.hytalemodding.impulse.core.plugin.settings.PhysicsSpaceSettings;
 import dev.hytalemodding.impulse.core.plugin.settings.PhysicsSolverSettings;
 import dev.hytalemodding.impulse.core.plugin.settings.PhysicsStepMode;
+import dev.hytalemodding.impulse.core.plugin.settings.PhysicsStepSchedulingMode;
 import dev.hytalemodding.impulse.core.plugin.resources.PhysicsWorldResource;
 import dev.hytalemodding.impulse.core.plugin.collision.WorldCollisionMode;
 import java.util.ArrayList;
@@ -137,6 +138,7 @@ final class ImpulseRapierBodyBenchmarkCrucibleTests {
         private final PhysicsRuntimeProfilingResource runtimeProfiling;
         private final WorldCollisionProfilingResource worldCollisionProfiling;
         private final PhysicsStepMode previousStepMode;
+        private final PhysicsStepSchedulingMode previousStepSchedulingMode;
         private final int previousSimulationSteps;
         private final float previousMaxStepDt;
         private final boolean previousRuntimeProfilingEnabled;
@@ -153,6 +155,7 @@ final class ImpulseRapierBodyBenchmarkCrucibleTests {
             this.worldCollisionProfiling = store.getResource(
                 WorldCollisionProfilingResource.getResourceType());
             this.previousStepMode = physics.getStepMode();
+            this.previousStepSchedulingMode = physics.getStepSchedulingMode();
             this.previousSimulationSteps = physics.getSimulationSteps();
             this.previousMaxStepDt = physics.getMaxStepDt();
             this.previousRuntimeProfilingEnabled = runtimeProfiling.isEnabled();
@@ -206,6 +209,7 @@ final class ImpulseRapierBodyBenchmarkCrucibleTests {
         private CompletionStage<StartedCase> startCase(@Nonnull MatrixCase matrixCase) {
             clearCaseState();
             physics.setStepMode(PhysicsStepMode.FIXED);
+            physics.setStepSchedulingMode(PhysicsStepSchedulingMode.DROP_PENDING_DT);
             physics.setSimulationSteps(matrixCase.fixedSubsteps());
             physics.setMaxStepDt(TARGET_MAX_STEP_DT);
             physics.clearSyntheticVisualInterests();
@@ -225,6 +229,8 @@ final class ImpulseRapierBodyBenchmarkCrucibleTests {
                     true);
                 physics.runOnPhysicsOwner("prepare rapier body benchmark space", () -> {
                     PhysicsBody ground = space.createStaticPlane(GROUND_Y);
+                    ground.setCollisionFilter(PhysicsCollisionFilters.TERRAIN,
+                        PhysicsCollisionFilters.ALL);
                     space.addBody(ground);
                     spawnDetachedBodies(space, matrixCase.count());
                 });
@@ -321,6 +327,7 @@ final class ImpulseRapierBodyBenchmarkCrucibleTests {
 
         private void restoreSettings() {
             physics.setStepMode(previousStepMode);
+            physics.setStepSchedulingMode(previousStepSchedulingMode);
             physics.setSimulationSteps(previousSimulationSteps);
             physics.setMaxStepDt(previousMaxStepDt);
             runtimeProfiling.setEnabled(previousRuntimeProfilingEnabled);
