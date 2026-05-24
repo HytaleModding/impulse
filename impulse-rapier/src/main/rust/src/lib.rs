@@ -250,6 +250,15 @@ impl NativeSpace {
     fn joint(&self, id: i64) -> Option<JointEntry> {
         self.joints.get(&id).copied()
     }
+
+    fn refresh_query_aabb(&mut self, collider_handle: ColliderHandle) {
+        if let Some(collider) = self.colliders.get(collider_handle) {
+            let aabb =
+                collider.compute_broad_phase_aabb(&self.integration_parameters, &self.bodies);
+            self.broad_phase
+                .set_aabb(&self.integration_parameters, collider_handle, aabb);
+        }
+    }
 }
 
 struct RegisteredSpace {
@@ -360,6 +369,11 @@ fn jboolean_from_bool(value: bool) -> jboolean {
     }
 }
 
+// JNI native-space access policy:
+// - Use `with_space_checked` when Java-side state must stay in sync with native state.
+// - Use `with_space` only for best-effort reads, optional diagnostics, cleanup, or add paths
+//   where the Java caller converts the default return value into a failure.
+// - Attached-object mutations should throw instead of silently returning defaults.
 fn catch_jni_default<T, F>(default: T, f: F) -> T
 where
     F: FnOnce() -> T,
@@ -613,35 +627,11 @@ fn normalized_or_y(x: f32, y: f32, z: f32) -> Vector {
 
 // Space lifecycle and world configuration.
 
-mod space_exports {
-    use super::*;
-
-    include!("space_exports.rs");
-}
-
-mod body_exports {
-    use super::*;
-
-    include!("body_exports.rs");
-}
-
-mod voxel_exports {
-    use super::*;
-
-    include!("voxel_exports.rs");
-}
-
-mod query_exports {
-    use super::*;
-
-    include!("query_exports.rs");
-}
-
-mod joint_exports {
-    use super::*;
-
-    include!("joint_exports.rs");
-}
+mod body_exports;
+mod joint_exports;
+mod query_exports;
+mod space_exports;
+mod voxel_exports;
 
 #[cfg(test)]
 mod tests {
