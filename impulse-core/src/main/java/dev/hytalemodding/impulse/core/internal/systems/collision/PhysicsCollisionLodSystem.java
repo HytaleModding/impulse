@@ -24,7 +24,6 @@ import it.unimi.dsi.fastutil.objects.ObjectOpenHashSet;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Collections;
-import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Queue;
@@ -79,12 +78,12 @@ public class PhysicsCollisionLodSystem extends TickingSystem<EntityStore> {
             SpaceId spaceId = space.getId();
             activeSpaces.add(spaceId.value());
             PhysicsSpaceSettings settings = resource.getSpaceSettings(spaceId);
-            if (!settings.isCollisionLodEnabled()) {
+            if (!settings.getCollisionLodSettings().isCollisionLodEnabled()) {
                 state.collectRestoreUpdates(spaceId, updates);
                 continue;
             }
             if (!state.shouldRefresh(spaceId,
-                settings.getCollisionLodRefreshIntervalTicks(),
+                settings.getCollisionLodSettings().getCollisionLodRefreshIntervalTicks(),
                 tick)) {
                 continue;
             }
@@ -130,9 +129,9 @@ public class PhysicsCollisionLodSystem extends TickingSystem<EntityStore> {
             return CollisionLodTier.FAR_SLEEPING;
         }
 
-        int nearRadius = settings.getCollisionLodNearRadius();
-        int midRadius = settings.getCollisionLodMidRadius();
-        int hysteresis = settings.getCollisionLodHysteresis();
+        int nearRadius = settings.getCollisionLodSettings().getCollisionLodNearRadius();
+        int midRadius = settings.getCollisionLodSettings().getCollisionLodMidRadius();
+        int hysteresis = settings.getCollisionLodSettings().getCollisionLodHysteresis();
         if (previousTier == CollisionLodTier.NEAR_FULL) {
             return distanceSquared <= squared(nearRadius + hysteresis)
                 ? CollisionLodTier.NEAR_FULL
@@ -200,7 +199,7 @@ public class PhysicsCollisionLodSystem extends TickingSystem<EntityStore> {
                 continue;
             }
             PhysicsSpaceSettings settings = resource.getSpaceSettings(update.spaceId());
-            applyTier(body, update.tier(), settings.isCollisionLodFarSleepEnabled());
+            applyTier(body, update.tier(), settings.getCollisionLodSettings().isCollisionLodFarSleepEnabled());
         }
     }
 

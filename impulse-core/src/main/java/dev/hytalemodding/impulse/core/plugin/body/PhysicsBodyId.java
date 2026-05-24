@@ -8,7 +8,7 @@ import javax.annotation.Nonnull;
  *
  * <p>Backend {@code PhysicsBody} handles may change when spaces migrate between
  * backends. This id is the durable handle used by ECS attachments, persistence,
- * snapshots, and future threaded physics command queues.</p>
+ * snapshots, and physics-owner command queues.</p>
  */
 public record PhysicsBodyId(@Nonnull UUID value) {
 

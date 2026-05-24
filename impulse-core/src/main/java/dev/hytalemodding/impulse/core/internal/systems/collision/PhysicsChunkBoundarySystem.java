@@ -81,7 +81,7 @@ public class PhysicsChunkBoundarySystem extends TickingSystem<EntityStore> {
         }
 
         PhysicsSpaceSettings settings = resource.getSpaceSettings(registration.spaceId());
-        EntityChunkBoundaryMode mode = settings.getEntityChunkBoundaryMode();
+        EntityChunkBoundaryMode mode = settings.getWorldCollisionSettings().getEntityChunkBoundaryMode();
         PhysicsWorldResource.ChunkBoundaryPauseState pauseState =
             resource.getChunkBoundaryPauseState(bodyId);
         if (pauseState != null) {

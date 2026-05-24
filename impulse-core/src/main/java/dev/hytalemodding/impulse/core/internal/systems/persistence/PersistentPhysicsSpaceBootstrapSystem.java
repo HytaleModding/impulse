@@ -75,6 +75,7 @@ public class PersistentPhysicsSpaceBootstrapSystem extends TickingSystem<EntityS
             PhysicsWorkerAccess.run(store, "restore persisted physics runtime settings", () -> {
                 runtime.setSimulationSteps(persistent.getSimulationSteps());
                 runtime.setStepMode(persistent.getStepMode());
+                runtime.setStepSchedulingMode(persistent.getStepSchedulingMode());
                 runtime.setMaxStepDt(persistent.getMaxStepDt());
             });
         } catch (RuntimeException exception) {

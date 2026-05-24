@@ -123,7 +123,7 @@ public class PhysicsWorldCollisionStreamingSystem extends TickingSystem<EntitySt
                             continue;
                         }
                         PhysicsSpaceSettings settings = resource.getSpaceSettings(space.getId());
-                        if (settings.getWorldCollisionMode() != WorldCollisionMode.STREAMING) {
+                        if (settings.getWorldCollisionSettings().getWorldCollisionMode() != WorldCollisionMode.STREAMING) {
                             continue;
                         }
                         applySpaceCollision(world,
@@ -175,7 +175,7 @@ public class PhysicsWorldCollisionStreamingSystem extends TickingSystem<EntitySt
         List<SpaceStreamingPlan> plans = new ArrayList<>();
         for (PhysicsSpace space : resource.getSpaces()) {
             PhysicsSpaceSettings settings = resource.getSpaceSettings(space.getId());
-            if (settings.getWorldCollisionMode() != WorldCollisionMode.STREAMING) {
+            if (settings.getWorldCollisionSettings().getWorldCollisionMode() != WorldCollisionMode.STREAMING) {
                 continue;
             }
 
@@ -183,18 +183,18 @@ public class PhysicsWorldCollisionStreamingSystem extends TickingSystem<EntitySt
                 snapshot.incrementStreamingSpaces();
             }
 
-            int bodyRadius = settings.getWorldCollisionBodyRadius();
+            int bodyRadius = settings.getWorldCollisionSettings().getWorldCollisionBodyRadius();
             plans.add(new SpaceStreamingPlan(space.getId(),
-                settings.getWorldCollisionRadius(),
+                settings.getWorldCollisionSettings().getWorldCollisionRadius(),
                 bodyRadius,
-                settings.getWorldCollisionTtlTicks(),
+                settings.getWorldCollisionSettings().getWorldCollisionTtlTicks(),
                 playerPositions,
                 collectDynamicBodyTargets(resource,
                     cache,
                     space.getId(),
                     bodyRadius,
                     currentTick,
-                    settings.getWorldCollisionTtlTicks(),
+                    settings.getWorldCollisionSettings().getWorldCollisionTtlTicks(),
                     snapshot)));
         }
         return plans;

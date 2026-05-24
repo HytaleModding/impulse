@@ -88,8 +88,8 @@ class PhysicsWorldResourceStateTest {
 
         PhysicsWorldResource resource = new PhysicsWorldResource();
         PhysicsSpaceSettings settings = PhysicsSpaceSettings.streamingWorldCollision();
-        settings.setSolverIterations(7);
-        settings.setDetachedVisualMaxMaterialized(64);
+        settings.getSolverSettings().setSolverIterations(7);
+        settings.getVisualMaterializationSettings().setDetachedVisualMaxMaterialized(64);
         PhysicsSpace space = resource.createSpace(backend.getId(), "test-world", settings, true);
         space.setGravity(0.0f, -3.0f, 0.0f);
 
@@ -128,8 +128,8 @@ class PhysicsWorldResourceStateTest {
         assertEquals(7, replacement.getSolverIterations());
 
         PhysicsSpaceSettings preserved = resource.getSpaceSettings(space.getId());
-        assertEquals(WorldCollisionMode.STREAMING, preserved.getWorldCollisionMode());
-        assertEquals(64, preserved.getDetachedVisualMaxMaterialized());
+        assertEquals(WorldCollisionMode.STREAMING, preserved.getWorldCollisionSettings().getWorldCollisionMode());
+        assertEquals(64, preserved.getVisualMaterializationSettings().getDetachedVisualMaxMaterialized());
         assertEquals(0, resource.getBodyRegistrations().size());
         assertEquals(0, resource.getBodySnapshotCount());
         assertNull(resource.getBody(firstId));

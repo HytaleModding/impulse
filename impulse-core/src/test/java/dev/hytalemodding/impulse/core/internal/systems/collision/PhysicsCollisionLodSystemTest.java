@@ -170,8 +170,8 @@ class PhysicsCollisionLodSystemTest {
 
     private static PhysicsSpaceSettings testSettings() {
         PhysicsSpaceSettings settings = PhysicsSpaceSettings.defaults();
-        settings.setCollisionLodRadii(10, 30);
-        settings.setCollisionLodHysteresis(5);
+        settings.getCollisionLodSettings().setCollisionLodRadii(10, 30);
+        settings.getCollisionLodSettings().setCollisionLodHysteresis(5);
         return settings;
     }
 

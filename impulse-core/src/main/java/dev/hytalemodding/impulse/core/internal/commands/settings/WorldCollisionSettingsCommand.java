@@ -13,6 +13,7 @@ import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import dev.hytalemodding.impulse.api.SpaceId;
 import dev.hytalemodding.impulse.core.plugin.settings.EntityChunkBoundaryMode;
 import dev.hytalemodding.impulse.core.plugin.settings.PhysicsSpaceSettings;
+import dev.hytalemodding.impulse.core.plugin.settings.PhysicsWorldCollisionSettings;
 import dev.hytalemodding.impulse.core.plugin.resources.PhysicsWorldResource;
 import dev.hytalemodding.impulse.core.plugin.collision.WorldCollisionMode;
 import java.util.Locale;
@@ -29,19 +30,19 @@ public class WorldCollisionSettingsCommand extends AbstractAsyncPlayerCommand {
     private final OptionalArg<Integer> playerRadiusArg = this.withOptionalArg(
         "playerRadius",
         "Block radius streamed around players (1-"
-            + PhysicsSpaceSettings.MAX_WORLD_COLLISION_RADIUS
+            + PhysicsWorldCollisionSettings.MAX_WORLD_COLLISION_RADIUS
             + ")",
         ArgTypes.INTEGER);
     private final OptionalArg<Integer> bodyRadiusArg = this.withOptionalArg(
         "bodyRadius",
         "Block radius streamed around awake dynamic bodies (1-"
-            + PhysicsSpaceSettings.MAX_WORLD_COLLISION_BODY_RADIUS
+            + PhysicsWorldCollisionSettings.MAX_WORLD_COLLISION_BODY_RADIUS
             + ")",
         ArgTypes.INTEGER);
     private final OptionalArg<Integer> ttlArg = this.withOptionalArg(
         "ttl",
         "Ticks before unused streamed sections are pruned (1-"
-            + PhysicsSpaceSettings.MAX_WORLD_COLLISION_TTL_TICKS
+            + PhysicsWorldCollisionSettings.MAX_WORLD_COLLISION_TTL_TICKS
             + ")",
         ArgTypes.INTEGER);
     private final OptionalArg<String> chunkBoundaryArg = this.withOptionalArg(
@@ -50,7 +51,7 @@ public class WorldCollisionSettingsCommand extends AbstractAsyncPlayerCommand {
         ArgTypes.STRING);
 
     public WorldCollisionSettingsCommand() {
-        super("world-collision", "Get or set world collision streaming settings for the default physics space");
+        super("world", "Get or set world collision streaming settings for the default physics space");
     }
 
     @Nonnull
@@ -73,7 +74,7 @@ public class WorldCollisionSettingsCommand extends AbstractAsyncPlayerCommand {
             return CompletableFuture.completedFuture(null);
         }
 
-        WorldCollisionMode mode = settings.getWorldCollisionMode();
+        WorldCollisionMode mode = settings.getWorldCollisionSettings().getWorldCollisionMode();
         if (modeArg.provided(ctx)) {
             mode = parseMode(modeArg.get(ctx));
             if (mode == null) {
@@ -82,7 +83,7 @@ public class WorldCollisionSettingsCommand extends AbstractAsyncPlayerCommand {
             }
         }
 
-        EntityChunkBoundaryMode chunkBoundaryMode = settings.getEntityChunkBoundaryMode();
+        EntityChunkBoundaryMode chunkBoundaryMode = settings.getWorldCollisionSettings().getEntityChunkBoundaryMode();
         if (chunkBoundaryArg.provided(ctx)) {
             chunkBoundaryMode = parseChunkBoundaryMode(chunkBoundaryArg.get(ctx));
             if (chunkBoundaryMode == null) {
@@ -93,29 +94,29 @@ public class WorldCollisionSettingsCommand extends AbstractAsyncPlayerCommand {
 
         int playerRadius = playerRadiusArg.provided(ctx)
             ? playerRadiusArg.get(ctx)
-            : settings.getWorldCollisionRadius();
+            : settings.getWorldCollisionSettings().getWorldCollisionRadius();
         int bodyRadius = bodyRadiusArg.provided(ctx)
             ? bodyRadiusArg.get(ctx)
-            : settings.getWorldCollisionBodyRadius();
-        int ttl = ttlArg.provided(ctx) ? ttlArg.get(ctx) : settings.getWorldCollisionTtlTicks();
-        if (outOfRange(playerRadius, PhysicsSpaceSettings.MAX_WORLD_COLLISION_RADIUS)
-            || outOfRange(bodyRadius, PhysicsSpaceSettings.MAX_WORLD_COLLISION_BODY_RADIUS)
-            || outOfRange(ttl, PhysicsSpaceSettings.MAX_WORLD_COLLISION_TTL_TICKS)) {
+            : settings.getWorldCollisionSettings().getWorldCollisionBodyRadius();
+        int ttl = ttlArg.provided(ctx) ? ttlArg.get(ctx) : settings.getWorldCollisionSettings().getWorldCollisionTtlTicks();
+        if (outOfRange(playerRadius, PhysicsWorldCollisionSettings.MAX_WORLD_COLLISION_RADIUS)
+            || outOfRange(bodyRadius, PhysicsWorldCollisionSettings.MAX_WORLD_COLLISION_BODY_RADIUS)
+            || outOfRange(ttl, PhysicsWorldCollisionSettings.MAX_WORLD_COLLISION_TTL_TICKS)) {
             ctx.sender().sendMessage(Message.raw(
-                "playerRadius must be 1-" + PhysicsSpaceSettings.MAX_WORLD_COLLISION_RADIUS
+                "playerRadius must be 1-" + PhysicsWorldCollisionSettings.MAX_WORLD_COLLISION_RADIUS
                     + ", bodyRadius must be 1-"
-                    + PhysicsSpaceSettings.MAX_WORLD_COLLISION_BODY_RADIUS
+                    + PhysicsWorldCollisionSettings.MAX_WORLD_COLLISION_BODY_RADIUS
                     + ", and ttl must be 1-"
-                    + PhysicsSpaceSettings.MAX_WORLD_COLLISION_TTL_TICKS
+                    + PhysicsWorldCollisionSettings.MAX_WORLD_COLLISION_TTL_TICKS
                     + "."));
             return CompletableFuture.completedFuture(null);
         }
 
-        settings.setWorldCollisionMode(mode);
-        settings.setEntityChunkBoundaryMode(chunkBoundaryMode);
-        settings.setWorldCollisionRadius(playerRadius);
-        settings.setWorldCollisionBodyRadius(bodyRadius);
-        settings.setWorldCollisionTtlTicks(ttl);
+        settings.getWorldCollisionSettings().setWorldCollisionMode(mode);
+        settings.getWorldCollisionSettings().setEntityChunkBoundaryMode(chunkBoundaryMode);
+        settings.getWorldCollisionSettings().setWorldCollisionRadius(playerRadius);
+        settings.getWorldCollisionSettings().setWorldCollisionBodyRadius(bodyRadius);
+        settings.getWorldCollisionSettings().setWorldCollisionTtlTicks(ttl);
         resource.setSpaceSettings(defaultSpaceId, settings);
         sendSummary(ctx, defaultSpaceId, settings);
         return CompletableFuture.completedFuture(null);
@@ -138,12 +139,12 @@ public class WorldCollisionSettingsCommand extends AbstractAsyncPlayerCommand {
         @Nonnull PhysicsSpaceSettings settings) {
         ctx.sender().sendMessage(Message.raw("Impulse world collision settings for space "
             + spaceId.value()
-            + ": mode=" + settings.getWorldCollisionMode().name().toLowerCase(Locale.ROOT)
-            + " playerRadius=" + settings.getWorldCollisionRadius()
-            + " bodyRadius=" + settings.getWorldCollisionBodyRadius()
-            + " ttl=" + settings.getWorldCollisionTtlTicks()
+            + ": mode=" + settings.getWorldCollisionSettings().getWorldCollisionMode().name().toLowerCase(Locale.ROOT)
+            + " playerRadius=" + settings.getWorldCollisionSettings().getWorldCollisionRadius()
+            + " bodyRadius=" + settings.getWorldCollisionSettings().getWorldCollisionBodyRadius()
+            + " ttl=" + settings.getWorldCollisionSettings().getWorldCollisionTtlTicks()
             + " chunkBoundary="
-            + settings.getEntityChunkBoundaryMode().name().toLowerCase(Locale.ROOT)));
+            + settings.getWorldCollisionSettings().getEntityChunkBoundaryMode().name().toLowerCase(Locale.ROOT)));
     }
 
     @Nullable

@@ -2,6 +2,7 @@ package dev.hytalemodding.impulse.core.internal.systems.sync;
 
 import dev.hytalemodding.impulse.core.plugin.settings.PhysicsSpaceSettings;
 import dev.hytalemodding.impulse.core.plugin.resources.PhysicsWorldResource;
+import dev.hytalemodding.impulse.core.plugin.settings.PhysicsVisualSyncSettings;
 import dev.hytalemodding.impulse.core.plugin.settings.VisualOcclusionMode;
 import java.util.List;
 import javax.annotation.Nonnull;
@@ -68,18 +69,18 @@ public final class PhysicsSyncPolicy {
         if (settings == null) {
             return SyncRangeTier.NEAR;
         }
-        if (settings.getVisualOcclusionMode() == VisualOcclusionMode.CULL
+        if (settings.getVisualSyncSettings().getVisualOcclusionMode() == VisualOcclusionMode.CULL
             && visualInterestState != null
-            && visualInterestState.hasFreshRaycast(settings.getVisualOcclusionCacheTicks())
+            && visualInterestState.hasFreshRaycast(settings.getVisualSyncSettings().getVisualOcclusionCacheTicks())
             && !visualInterestState.isRaycastVisible()) {
             // Materialization owns the raycast budget; sync only consumes fresh CULL results.
             return SyncRangeTier.FAR;
         }
 
-        float fullRadiusSquared = square(settings.getVisualFullSyncRadius());
-        float maxRadiusSquared = square(settings.getVisualMaxSyncRadius());
+        float fullRadiusSquared = square(settings.getVisualSyncSettings().getVisualFullSyncRadius());
+        float maxRadiusSquared = square(settings.getVisualSyncSettings().getVisualMaxSyncRadius());
         float nearestDistanceSquared = Float.MAX_VALUE;
-        boolean visibilityCulling = settings.isVisualVisibilityCullingEnabled();
+        boolean visibilityCulling = settings.getVisualSyncSettings().isVisualVisibilityCullingEnabled();
         for (PlayerInterest playerInterest : playerInterests) {
             float distanceSquared = playerInterest.position().distanceSquared(visualPosition);
             if (distanceSquared <= fullRadiusSquared
@@ -109,7 +110,7 @@ public final class PhysicsSyncPolicy {
             return SyncDecision.TRANSITION;
         }
         if (rangeTier == SyncRangeTier.FAR
-            && (settings == null || settings.isVisualFarSyncCutoffEnabled())) {
+            && (settings == null || settings.getVisualSyncSettings().isVisualFarSyncCutoffEnabled())) {
             return SyncDecision.SKIP_VISUAL_RANGE;
         }
         if (sleeping && rangeTier != SyncRangeTier.NEAR) {
@@ -123,15 +124,15 @@ public final class PhysicsSyncPolicy {
         if (rangeTier == SyncRangeTier.FAR && !controlled) {
             positionThresholdSquared = MID_RANGE_POSITION_SYNC_THRESHOLD_SQUARED;
             rotationDotThreshold = MID_RANGE_ROTATION_SYNC_DOT_THRESHOLD;
-            keepaliveSeconds = intervalSeconds(settings.getVisualFarSyncIntervalTicks());
-            minimumIntervalTicks = settings.getVisualFarSyncIntervalTicks();
+            keepaliveSeconds = intervalSeconds(settings.getVisualSyncSettings().getVisualFarSyncIntervalTicks());
+            minimumIntervalTicks = settings.getVisualSyncSettings().getVisualFarSyncIntervalTicks();
         } else if (rangeTier == SyncRangeTier.MID && !controlled) {
             positionThresholdSquared = MID_RANGE_POSITION_SYNC_THRESHOLD_SQUARED;
             rotationDotThreshold = MID_RANGE_ROTATION_SYNC_DOT_THRESHOLD;
             keepaliveSeconds = MID_RANGE_KEEPALIVE_SECONDS;
             minimumIntervalTicks = settings != null
-                ? settings.getVisualMidSyncIntervalTicks()
-                : PhysicsSpaceSettings.DEFAULT_VISUAL_MID_SYNC_INTERVAL_TICKS;
+                ? settings.getVisualSyncSettings().getVisualMidSyncIntervalTicks()
+                : PhysicsVisualSyncSettings.DEFAULT_VISUAL_MID_SYNC_INTERVAL_TICKS;
         } else {
             positionThresholdSquared = lowSpeed && !controlled
                 ? LOW_SPEED_POSITION_SYNC_THRESHOLD_SQUARED : POSITION_SYNC_THRESHOLD_SQUARED;
@@ -201,13 +202,13 @@ public final class PhysicsSyncPolicy {
         long currentNanos,
         long snapshotAppliedNanos) {
         if (settings == null
-            || !settings.isVisualSnapshotPredictionEnabled()
+            || !settings.getVisualSyncSettings().isVisualSnapshotPredictionEnabled()
             || currentNanos <= snapshotAppliedNanos
             || snapshotAppliedNanos <= 0L) {
             return 0.0f;
         }
         float ageSeconds = (currentNanos - snapshotAppliedNanos) / 1_000_000_000.0f;
-        return Math.min(ageSeconds, settings.getVisualSnapshotPredictionMaxSeconds());
+        return Math.min(ageSeconds, settings.getVisualSyncSettings().getVisualSnapshotPredictionMaxSeconds());
     }
 
     public record PlayerInterest(@Nonnull Vector3f position, @Nonnull Vector3f direction) {

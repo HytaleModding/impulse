@@ -29,6 +29,7 @@ import dev.hytalemodding.impulse.core.plugin.execution.PhysicsOwnerHandle;
 import dev.hytalemodding.impulse.core.plugin.execution.PhysicsOwnerMutation;
 import dev.hytalemodding.impulse.core.plugin.settings.PhysicsSpaceSettings;
 import dev.hytalemodding.impulse.core.plugin.settings.PhysicsStepMode;
+import dev.hytalemodding.impulse.core.plugin.settings.PhysicsStepSchedulingMode;
 import dev.hytalemodding.impulse.core.plugin.snapshot.PublishedPhysicsBodySnapshot;
 import dev.hytalemodding.impulse.core.plugin.snapshot.PublishedPhysicsSnapshotFrame;
 import dev.hytalemodding.impulse.core.plugin.snapshot.PublishedPhysicsSpaceFrame;
@@ -73,6 +74,9 @@ public class PhysicsWorldResource implements Resource<EntityStore> {
     public static final int MIN_SIMULATION_STEPS = 1;
     public static final int MAX_SIMULATION_STEPS = 16;
     public static final float DEFAULT_MAX_STEP_DT = 1f / 30f;
+    @Nonnull
+    public static final PhysicsStepSchedulingMode DEFAULT_STEP_SCHEDULING_MODE =
+        PhysicsStepSchedulingMode.DROP_PENDING_DT;
 
     private final Int2ObjectMap<PhysicsSpace> spaces = new Int2ObjectOpenHashMap<>();
 
@@ -99,6 +103,9 @@ public class PhysicsWorldResource implements Resource<EntityStore> {
 
     @Nonnull
     private PhysicsStepMode stepMode = PhysicsStepMode.PROGRESSIVE_REFINEMENT;
+
+    @Nonnull
+    private PhysicsStepSchedulingMode stepSchedulingMode = DEFAULT_STEP_SCHEDULING_MODE;
 
     @Getter
     private float maxStepDt = DEFAULT_MAX_STEP_DT;
@@ -139,6 +146,13 @@ public class PhysicsWorldResource implements Resource<EntityStore> {
             + workerResource.getClass().getName());
     }
 
+    /**
+     * Returns whether the current thread may touch live backend objects without routing.
+     *
+     * <p>This is only an owner-thread check for code that already has a safe direct path. Gameplay,
+     * diagnostics, and commands should prefer {@link #runOnPhysicsOwner} or
+     * {@link #callOnPhysicsOwner} instead of skipping behavior when this is false.</p>
+     */
     public boolean canAccessLiveBackendDirectly() {
         PhysicsWorldWorkerResource worker = workerResource.get();
         return worker == null || worker.isWorkerThread();
@@ -147,10 +161,11 @@ public class PhysicsWorldResource implements Resource<EntityStore> {
     /**
      * Run a live-backend mutation on the current physics owner.
      *
-     * <p>In inline execution this runs immediately on the caller thread. In worker execution this
-     * submits to the world's physics worker and blocks until the mutation completes. The callback
-     * may access live {@link PhysicsSpace} and {@link PhysicsBody} objects, but must not access
-     * Hytale ECS store state unless the caller owns that access.</p>
+     * <p>When a world worker is attached, this submits to the physics worker and blocks until the
+     * mutation completes. If no worker is attached, or the caller is already on the worker thread,
+     * this runs immediately. The callback may access live {@link PhysicsSpace} and
+     * {@link PhysicsBody} objects, but must not access Hytale ECS store state unless the caller owns
+     * that access.</p>
      */
     public void runOnPhysicsOwner(@Nonnull String operation,
         @Nonnull PhysicsOwnerMutation mutation) {
@@ -308,6 +323,29 @@ public class PhysicsWorldResource implements Resource<EntityStore> {
         this.stepMode = stepMode;
     }
 
+    @Nonnull
+    public PhysicsStepSchedulingMode getStepSchedulingMode() {
+        return stepSchedulingMode;
+    }
+
+    public void setStepSchedulingMode(@Nonnull PhysicsStepSchedulingMode stepSchedulingMode) {
+        runOnPhysicsOwner("set physics step scheduling mode",
+            () -> setStepSchedulingModeDirect(stepSchedulingMode));
+    }
+
+    @Nonnull
+    public PhysicsMutationHandle<Void> setStepSchedulingModeAsync(
+        @Nonnull PhysicsStepSchedulingMode stepSchedulingMode) {
+        return enqueuePhysicsMutation("set physics step scheduling mode",
+            () -> setStepSchedulingModeDirect(stepSchedulingMode));
+    }
+
+    private void setStepSchedulingModeDirect(
+        @Nonnull PhysicsStepSchedulingMode stepSchedulingMode) {
+        this.stepSchedulingMode = Objects.requireNonNull(stepSchedulingMode,
+            "stepSchedulingMode");
+    }
+
     public void setMaxStepDt(float maxStepDt) {
         runOnPhysicsOwner("set max physics step dt", () -> this.maxStepDt = maxStepDt);
     }
@@ -390,7 +428,7 @@ public class PhysicsWorldResource implements Resource<EntityStore> {
             "World %s creating physics space using backend %s collision=%s",
             worldName,
             backendId,
-            settings.getWorldCollisionMode());
+            settings.getWorldCollisionSettings().getWorldCollisionMode());
 
         PhysicsSpace space = Impulse.createSpace(backendId, spaceId);
         try {
@@ -412,7 +450,7 @@ public class PhysicsWorldResource implements Resource<EntityStore> {
             worldName,
             space.getId(),
             space.getBackendId(),
-            settings.getWorldCollisionMode());
+            settings.getWorldCollisionSettings().getWorldCollisionMode());
         return space;
     }
 
@@ -872,10 +910,10 @@ public class PhysicsWorldResource implements Resource<EntityStore> {
             applyActivationTuning(space, settings);
             return;
         }
-        tuning.setSolverTuning(settings.getSolverIterations(),
-            settings.getInternalPgsIterations(),
-            settings.getStabilizationIterations(),
-            settings.getMinIslandSize());
+        tuning.setSolverTuning(settings.getSolverSettings().getSolverIterations(),
+            settings.getSolverSettings().getInternalPgsIterations(),
+            settings.getSolverSettings().getStabilizationIterations(),
+            settings.getSolverSettings().getMinIslandSize());
         applyActivationTuning(space, settings);
     }
 
@@ -884,9 +922,9 @@ public class PhysicsWorldResource implements Resource<EntityStore> {
         if (!(space instanceof PhysicsActivationTuning tuning)) {
             return;
         }
-        tuning.setDynamicSleepTuning(settings.getDynamicSleepLinearThreshold(),
-            settings.getDynamicSleepAngularThreshold(),
-            settings.getDynamicSleepTimeUntilSleep());
+        tuning.setDynamicSleepTuning(settings.getSolverSettings().getDynamicSleepLinearThreshold(),
+            settings.getSolverSettings().getDynamicSleepAngularThreshold(),
+            settings.getSolverSettings().getDynamicSleepTimeUntilSleep());
     }
 
     @Nonnull
@@ -1313,6 +1351,7 @@ public class PhysicsWorldResource implements Resource<EntityStore> {
         defaultSpaceId = other.defaultSpaceId;
         simulationSteps = other.simulationSteps;
         stepMode = other.stepMode;
+        stepSchedulingMode = other.stepSchedulingMode;
         maxStepDt = other.maxStepDt;
         for (var entry : other.spaceSettings.int2ObjectEntrySet()) {
             spaceSettings.put(entry.getIntKey(), new PhysicsSpaceSettings(entry.getValue()));

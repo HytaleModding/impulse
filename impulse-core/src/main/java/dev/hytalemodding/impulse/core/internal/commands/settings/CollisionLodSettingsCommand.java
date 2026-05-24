@@ -13,6 +13,7 @@ import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import dev.hytalemodding.impulse.api.SpaceId;
 import dev.hytalemodding.impulse.core.plugin.settings.PhysicsSpaceSettings;
 import dev.hytalemodding.impulse.core.plugin.resources.PhysicsWorldResource;
+import dev.hytalemodding.impulse.core.plugin.settings.PhysicsCollisionLodSettings;
 import java.util.concurrent.CompletableFuture;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
@@ -26,25 +27,25 @@ public class CollisionLodSettingsCommand extends AbstractAsyncPlayerCommand {
     private final OptionalArg<Integer> nearRadiusArg = this.withOptionalArg(
         "nearRadius",
         "Radius for full terrain plus body-body collision (1-"
-            + PhysicsSpaceSettings.MAX_COLLISION_LOD_RADIUS
+            + PhysicsCollisionLodSettings.MAX_COLLISION_LOD_RADIUS
             + ")",
         ArgTypes.INTEGER);
     private final OptionalArg<Integer> midRadiusArg = this.withOptionalArg(
         "midRadius",
         "Radius for terrain-only dynamic collision (1-"
-            + PhysicsSpaceSettings.MAX_COLLISION_LOD_RADIUS
+            + PhysicsCollisionLodSettings.MAX_COLLISION_LOD_RADIUS
             + ")",
         ArgTypes.INTEGER);
     private final OptionalArg<Integer> hysteresisArg = this.withOptionalArg(
         "hysteresis",
         "Extra radius before downgrading a collision tier (0-"
-            + PhysicsSpaceSettings.MAX_COLLISION_LOD_HYSTERESIS
+            + PhysicsCollisionLodSettings.MAX_COLLISION_LOD_HYSTERESIS
             + ")",
         ArgTypes.INTEGER);
     private final OptionalArg<Integer> intervalArg = this.withOptionalArg(
         "interval",
         "Ticks between collision LOD refreshes (1-"
-            + PhysicsSpaceSettings.MAX_COLLISION_LOD_REFRESH_INTERVAL_TICKS
+            + PhysicsCollisionLodSettings.MAX_COLLISION_LOD_REFRESH_INTERVAL_TICKS
             + ")",
         ArgTypes.INTEGER);
     private final OptionalArg<String> farSleepArg = this.withOptionalArg(
@@ -53,7 +54,7 @@ public class CollisionLodSettingsCommand extends AbstractAsyncPlayerCommand {
         ArgTypes.STRING);
 
     public CollisionLodSettingsCommand() {
-        super("collision-lod", "Get or set collision LOD settings for the default physics space");
+        super("lod", "Get or set collision LOD settings for the default physics space");
     }
 
     @Nonnull
@@ -76,7 +77,7 @@ public class CollisionLodSettingsCommand extends AbstractAsyncPlayerCommand {
             return CompletableFuture.completedFuture(null);
         }
 
-        Boolean enabled = settings.isCollisionLodEnabled();
+        Boolean enabled = settings.getCollisionLodSettings().isCollisionLodEnabled();
         if (enabledArg.provided(ctx)) {
             enabled = parseBoolean(enabledArg.get(ctx));
             if (enabled == null) {
@@ -85,7 +86,7 @@ public class CollisionLodSettingsCommand extends AbstractAsyncPlayerCommand {
             }
         }
 
-        Boolean farSleep = settings.isCollisionLodFarSleepEnabled();
+        Boolean farSleep = settings.getCollisionLodSettings().isCollisionLodFarSleepEnabled();
         if (farSleepArg.provided(ctx)) {
             farSleep = parseBoolean(farSleepArg.get(ctx));
             if (farSleep == null) {
@@ -96,38 +97,38 @@ public class CollisionLodSettingsCommand extends AbstractAsyncPlayerCommand {
 
         int nearRadius = nearRadiusArg.provided(ctx)
             ? nearRadiusArg.get(ctx)
-            : settings.getCollisionLodNearRadius();
+            : settings.getCollisionLodSettings().getCollisionLodNearRadius();
         int midRadius = midRadiusArg.provided(ctx)
             ? midRadiusArg.get(ctx)
-            : settings.getCollisionLodMidRadius();
+            : settings.getCollisionLodSettings().getCollisionLodMidRadius();
         int hysteresis = hysteresisArg.provided(ctx)
             ? hysteresisArg.get(ctx)
-            : settings.getCollisionLodHysteresis();
+            : settings.getCollisionLodSettings().getCollisionLodHysteresis();
         int interval = intervalArg.provided(ctx)
             ? intervalArg.get(ctx)
-            : settings.getCollisionLodRefreshIntervalTicks();
-        if (outOfRange(nearRadius, PhysicsSpaceSettings.MAX_COLLISION_LOD_RADIUS)
-            || outOfRange(midRadius, PhysicsSpaceSettings.MAX_COLLISION_LOD_RADIUS)
+            : settings.getCollisionLodSettings().getCollisionLodRefreshIntervalTicks();
+        if (outOfRange(nearRadius, PhysicsCollisionLodSettings.MAX_COLLISION_LOD_RADIUS)
+            || outOfRange(midRadius, PhysicsCollisionLodSettings.MAX_COLLISION_LOD_RADIUS)
             || nearRadius > midRadius
             || hysteresis < 0
-            || hysteresis > PhysicsSpaceSettings.MAX_COLLISION_LOD_HYSTERESIS
-            || outOfRange(interval, PhysicsSpaceSettings.MAX_COLLISION_LOD_REFRESH_INTERVAL_TICKS)) {
+            || hysteresis > PhysicsCollisionLodSettings.MAX_COLLISION_LOD_HYSTERESIS
+            || outOfRange(interval, PhysicsCollisionLodSettings.MAX_COLLISION_LOD_REFRESH_INTERVAL_TICKS)) {
             ctx.sender().sendMessage(Message.raw(
                 "nearRadius and midRadius must be 1-"
-                    + PhysicsSpaceSettings.MAX_COLLISION_LOD_RADIUS
+                    + PhysicsCollisionLodSettings.MAX_COLLISION_LOD_RADIUS
                     + " with nearRadius <= midRadius, hysteresis must be 0-"
-                    + PhysicsSpaceSettings.MAX_COLLISION_LOD_HYSTERESIS
+                    + PhysicsCollisionLodSettings.MAX_COLLISION_LOD_HYSTERESIS
                     + ", and interval must be 1-"
-                    + PhysicsSpaceSettings.MAX_COLLISION_LOD_REFRESH_INTERVAL_TICKS
+                    + PhysicsCollisionLodSettings.MAX_COLLISION_LOD_REFRESH_INTERVAL_TICKS
                     + "."));
             return CompletableFuture.completedFuture(null);
         }
 
-        settings.setCollisionLodEnabled(enabled);
-        settings.setCollisionLodRadii(nearRadius, midRadius);
-        settings.setCollisionLodHysteresis(hysteresis);
-        settings.setCollisionLodRefreshIntervalTicks(interval);
-        settings.setCollisionLodFarSleepEnabled(farSleep);
+        settings.getCollisionLodSettings().setCollisionLodEnabled(enabled);
+        settings.getCollisionLodSettings().setCollisionLodRadii(nearRadius, midRadius);
+        settings.getCollisionLodSettings().setCollisionLodHysteresis(hysteresis);
+        settings.getCollisionLodSettings().setCollisionLodRefreshIntervalTicks(interval);
+        settings.getCollisionLodSettings().setCollisionLodFarSleepEnabled(farSleep);
         resource.setSpaceSettings(defaultSpaceId, settings);
         sendSummary(ctx, defaultSpaceId, settings);
         return CompletableFuture.completedFuture(null);
@@ -151,12 +152,12 @@ public class CollisionLodSettingsCommand extends AbstractAsyncPlayerCommand {
         @Nonnull PhysicsSpaceSettings settings) {
         ctx.sender().sendMessage(Message.raw("Impulse collision LOD settings for space "
             + spaceId.value()
-            + ": enabled=" + settings.isCollisionLodEnabled()
-            + " nearRadius=" + settings.getCollisionLodNearRadius()
-            + " midRadius=" + settings.getCollisionLodMidRadius()
-            + " hysteresis=" + settings.getCollisionLodHysteresis()
-            + " interval=" + settings.getCollisionLodRefreshIntervalTicks()
-            + " farSleep=" + settings.isCollisionLodFarSleepEnabled()
+            + ": enabled=" + settings.getCollisionLodSettings().isCollisionLodEnabled()
+            + " nearRadius=" + settings.getCollisionLodSettings().getCollisionLodNearRadius()
+            + " midRadius=" + settings.getCollisionLodSettings().getCollisionLodMidRadius()
+            + " hysteresis=" + settings.getCollisionLodSettings().getCollisionLodHysteresis()
+            + " interval=" + settings.getCollisionLodSettings().getCollisionLodRefreshIntervalTicks()
+            + " farSleep=" + settings.getCollisionLodSettings().isCollisionLodFarSleepEnabled()
             + " tiers=near:terrain+body mid:terrain far:terrain+sleep"));
     }
 

@@ -15,6 +15,7 @@ import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import dev.hytalemodding.impulse.api.SpaceId;
 import dev.hytalemodding.impulse.core.ImpulsePlugin;
 import dev.hytalemodding.impulse.core.plugin.settings.PhysicsStepMode;
+import dev.hytalemodding.impulse.core.plugin.settings.PhysicsStepSchedulingMode;
 import dev.hytalemodding.impulse.core.plugin.resources.PhysicsWorldResource;
 import it.unimi.dsi.fastutil.objects.Object2IntLinkedOpenHashMap;
 import it.unimi.dsi.fastutil.objects.Object2IntMap;
@@ -85,6 +86,13 @@ public class PersistentPhysicsWorldResource implements Resource<EntityStore> {
         .addValidator(Validators.nonNull())
         .addValidator(stepModeName())
         .add()
+        .append(new KeyedCodec<>("StepSchedulingMode", Codec.STRING, false),
+            (resource, value) -> resource.setStepSchedulingMode(
+                parseStepSchedulingModeOrDefault(value)),
+            resource -> resource.getStepSchedulingMode().getSerializedName())
+        .addValidator(Validators.nonNull())
+        .addValidator(stepSchedulingModeName())
+        .add()
         .append(new KeyedCodec<>("MaxStepDt", Codec.FLOAT, false),
             (resource, value) -> resource.maxStepDt = value,
             PersistentPhysicsWorldResource::getMaxStepDt)
@@ -140,6 +148,10 @@ public class PersistentPhysicsWorldResource implements Resource<EntityStore> {
     @Nonnull
     private PhysicsStepMode stepMode = PhysicsStepMode.ADAPTIVE;
     @Getter
+    @Nonnull
+    private PhysicsStepSchedulingMode stepSchedulingMode =
+        PhysicsWorldResource.DEFAULT_STEP_SCHEDULING_MODE;
+    @Getter
     private float maxStepDt = PhysicsWorldResource.DEFAULT_MAX_STEP_DT;
     @Nonnull
     private PersistentPhysicsSpaceState[] spaces = EMPTY_SPACES;
@@ -194,6 +206,14 @@ public class PersistentPhysicsWorldResource implements Resource<EntityStore> {
         this.maxStepDt = Float.isFinite(maxStepDt) && maxStepDt > 0.0f
             ? maxStepDt
             : PhysicsWorldResource.DEFAULT_MAX_STEP_DT;
+    }
+
+    public void setStepSchedulingMode(
+        @Nonnull PhysicsStepSchedulingMode stepSchedulingMode) {
+        if (stepSchedulingMode == null) {
+            throw new NullPointerException("stepSchedulingMode");
+        }
+        this.stepSchedulingMode = stepSchedulingMode;
     }
 
     @Nonnull
@@ -346,6 +366,7 @@ public class PersistentPhysicsWorldResource implements Resource<EntityStore> {
         defaultSpaceId = other.defaultSpaceId;
         setSimulationSteps(other.simulationSteps);
         setStepMode(other.stepMode);
+        setStepSchedulingMode(other.stepSchedulingMode);
         setMaxStepDt(other.maxStepDt);
         spaces = copySpaces(other.spaces);
         bodies = copyBodies(other.bodies);
@@ -467,6 +488,19 @@ public class PersistentPhysicsWorldResource implements Resource<EntityStore> {
     }
 
     @Nonnull
+    private static PhysicsStepSchedulingMode parseStepSchedulingModeOrDefault(
+        @Nullable String value) {
+        if (value == null) {
+            return PhysicsWorldResource.DEFAULT_STEP_SCHEDULING_MODE;
+        }
+        try {
+            return PhysicsStepSchedulingMode.parse(value);
+        } catch (IllegalArgumentException exception) {
+            return PhysicsWorldResource.DEFAULT_STEP_SCHEDULING_MODE;
+        }
+    }
+
+    @Nonnull
     private static Validator<String> stepModeName() {
         return new Validator<>() {
             @Override
@@ -478,6 +512,27 @@ public class PersistentPhysicsWorldResource implements Resource<EntityStore> {
                     PhysicsStepMode.parse(value);
                 } catch (IllegalArgumentException exception) {
                     results.fail("Persistent physics step mode is unknown: " + value);
+                }
+            }
+
+            @Override
+            public void updateSchema(SchemaContext context, Schema schema) {
+            }
+        };
+    }
+
+    @Nonnull
+    private static Validator<String> stepSchedulingModeName() {
+        return new Validator<>() {
+            @Override
+            public void accept(String value, ValidationResults results) {
+                if (value == null) {
+                    return;
+                }
+                try {
+                    PhysicsStepSchedulingMode.parse(value);
+                } catch (IllegalArgumentException exception) {
+                    results.fail("Persistent physics step scheduling mode is unknown: " + value);
                 }
             }
 

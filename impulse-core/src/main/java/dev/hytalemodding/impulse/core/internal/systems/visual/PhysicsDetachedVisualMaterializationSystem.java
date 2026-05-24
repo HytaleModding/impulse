@@ -31,6 +31,7 @@ import dev.hytalemodding.impulse.core.plugin.components.PhysicsBodyAttachmentCom
 import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyId;
 import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyKind;
 import dev.hytalemodding.impulse.core.plugin.settings.PhysicsSpaceSettings;
+import dev.hytalemodding.impulse.core.plugin.settings.PhysicsVisualMaterializationSettings;
 import dev.hytalemodding.impulse.core.plugin.resources.PhysicsWorldResource;
 import dev.hytalemodding.impulse.core.plugin.settings.VisualOcclusionMode;
 import it.unimi.dsi.fastutil.objects.ObjectOpenHashSet;
@@ -262,8 +263,8 @@ public class PhysicsDetachedVisualMaterializationSystem extends TickingSystem<En
                 state.cachedMaterializationTargets.remove(index);
                 continue;
             }
-            if (spawned >= candidate.settings().getDetachedVisualMaxSpawnsPerTick()
-                || materialized >= candidate.settings().getDetachedVisualMaxMaterialized()) {
+            if (spawned >= candidate.settings().getVisualMaterializationSettings().getDetachedVisualMaxSpawnsPerTick()
+                || materialized >= candidate.settings().getVisualMaterializationSettings().getDetachedVisualMaxMaterialized()) {
                 index++;
                 continue;
             }
@@ -304,7 +305,7 @@ public class PhysicsDetachedVisualMaterializationSystem extends TickingSystem<En
         }
 
         PhysicsSpaceSettings settings = resolveSettings(resource, registration);
-        if (settings == null || !settings.isDetachedVisualMaterializationEnabled()) {
+        if (settings == null || !settings.getVisualMaterializationSettings().isDetachedVisualMaterializationEnabled()) {
             return null;
         }
 
@@ -326,22 +327,25 @@ public class PhysicsDetachedVisualMaterializationSystem extends TickingSystem<En
     private static int resolveVisualInterestRefreshInterval(
         @Nonnull PhysicsWorldResource resource) {
         return resolveMinimumDetachedVisualInterval(resource,
-            PhysicsSpaceSettings::getDetachedVisualInterestRefreshIntervalTicks,
-            PhysicsSpaceSettings.DEFAULT_DETACHED_VISUAL_INTEREST_REFRESH_INTERVAL_TICKS);
+            settings -> settings.getVisualMaterializationSettings()
+                .getDetachedVisualInterestRefreshIntervalTicks(),
+            PhysicsVisualMaterializationSettings.DEFAULT_DETACHED_VISUAL_INTEREST_REFRESH_INTERVAL_TICKS);
     }
 
     private static int resolveMaterializationCandidateRefreshInterval(
         @Nonnull PhysicsWorldResource resource) {
         return resolveMinimumDetachedVisualInterval(resource,
-            PhysicsSpaceSettings::getDetachedVisualCandidateRefreshIntervalTicks,
-            PhysicsSpaceSettings.DEFAULT_DETACHED_VISUAL_CANDIDATE_REFRESH_INTERVAL_TICKS);
+            settings -> settings.getVisualMaterializationSettings()
+                .getDetachedVisualCandidateRefreshIntervalTicks(),
+            PhysicsVisualMaterializationSettings.DEFAULT_DETACHED_VISUAL_CANDIDATE_REFRESH_INTERVAL_TICKS);
     }
 
     private static int resolveMaterializedVisibilityCheckInterval(
         @Nonnull PhysicsWorldResource resource) {
         return resolveMinimumDetachedVisualInterval(resource,
-            PhysicsSpaceSettings::getDetachedVisualVisibilityCheckIntervalTicks,
-            PhysicsSpaceSettings.DEFAULT_DETACHED_VISUAL_VISIBILITY_CHECK_INTERVAL_TICKS);
+            settings -> settings.getVisualMaterializationSettings()
+                .getDetachedVisualVisibilityCheckIntervalTicks(),
+            PhysicsVisualMaterializationSettings.DEFAULT_DETACHED_VISUAL_VISIBILITY_CHECK_INTERVAL_TICKS);
     }
 
     private static int resolveMinimumDetachedVisualInterval(
@@ -351,7 +355,7 @@ public class PhysicsDetachedVisualMaterializationSystem extends TickingSystem<En
         int interval = Integer.MAX_VALUE;
         for (PhysicsSpace space : resource.iterateSpaces()) {
             PhysicsSpaceSettings settings = resource.getSpaceSettings(space.getId());
-            if (settings.isDetachedVisualMaterializationEnabled()) {
+            if (settings.getVisualMaterializationSettings().isDetachedVisualMaterializationEnabled()) {
                 interval = Math.min(interval, intervalGetter.applyAsInt(settings));
             }
         }
@@ -396,7 +400,7 @@ public class PhysicsDetachedVisualMaterializationSystem extends TickingSystem<En
             }
 
             PhysicsSpaceSettings settings = resolveSettings(resource, registration);
-            if (settings == null || !settings.isDetachedVisualMaterializationEnabled()) {
+            if (settings == null || !settings.getVisualMaterializationSettings().isDetachedVisualMaterializationEnabled()) {
                 GeneratedProxyLifecycle.removeProxy(store, resource, bodyId);
                 if (collector != null) {
                     collector.incrementDematerialized();
@@ -432,7 +436,7 @@ public class PhysicsDetachedVisualMaterializationSystem extends TickingSystem<En
         Set<PhysicsBodyId> seenBodies = new ObjectOpenHashSet<>();
         for (PhysicsSpace space : resource.iterateSpaces()) {
             PhysicsSpaceSettings settings = resource.getSpaceSettings(space.getId());
-            if (!settings.isDetachedVisualMaterializationEnabled()) {
+            if (!settings.getVisualMaterializationSettings().isDetachedVisualMaterializationEnabled()) {
                 continue;
             }
 
@@ -442,7 +446,7 @@ public class PhysicsDetachedVisualMaterializationSystem extends TickingSystem<En
                 }
                 int nearCandidates = resource.forEachBodySnapshotNear(space.getId(),
                     interest.position(),
-                    settings.getDetachedVisualMaterializationRadius(),
+                    settings.getVisualMaterializationSettings().getDetachedVisualMaterializationRadius(),
                     entry -> {
                         PhysicsBodySnapshot snapshot = entry.snapshot();
                         PhysicsBodyId bodyId = entry.bodyId();
@@ -459,7 +463,7 @@ public class PhysicsDetachedVisualMaterializationSystem extends TickingSystem<En
                         }
                         PhysicsSpaceSettings registrationSettings = resolveSettings(resource, registration);
                         if (registrationSettings == null
-                            || !registrationSettings.isDetachedVisualMaterializationEnabled()) {
+                            || !registrationSettings.getVisualMaterializationSettings().isDetachedVisualMaterializationEnabled()) {
                             return;
                         }
 
@@ -470,7 +474,7 @@ public class PhysicsDetachedVisualMaterializationSystem extends TickingSystem<En
                             snapshot,
                             registrationSettings,
                             interests,
-                            registrationSettings.getDetachedVisualMaterializationRadius(),
+                            registrationSettings.getVisualMaterializationSettings().getDetachedVisualMaterializationRadius(),
                             visualInterestTick,
                             raycastBudget,
                             collector);
@@ -604,7 +608,7 @@ public class PhysicsDetachedVisualMaterializationSystem extends TickingSystem<En
         return visibleDistanceSquared(snapshot,
             settings,
             interests,
-            settings.getDetachedVisualMaterializationRadius()) != Float.POSITIVE_INFINITY;
+            settings.getVisualMaterializationSettings().getDetachedVisualMaterializationRadius()) != Float.POSITIVE_INFINITY;
     }
 
     private static boolean shouldDematerialize(@Nonnull PhysicsBodySnapshot snapshot,
@@ -616,7 +620,7 @@ public class PhysicsDetachedVisualMaterializationSystem extends TickingSystem<En
         return visibleDistanceSquared(snapshot,
             settings,
             interests,
-            settings.getDetachedVisualDematerializationRadius()) == Float.POSITIVE_INFINITY;
+            settings.getVisualMaterializationSettings().getDetachedVisualDematerializationRadius()) == Float.POSITIVE_INFINITY;
     }
 
     private static float visibleDistanceSquared(@Nonnull PhysicsBodySnapshot snapshot,
@@ -658,13 +662,13 @@ public class PhysicsDetachedVisualMaterializationSystem extends TickingSystem<En
             return InterestResult.notVisible();
         }
 
-        VisualOcclusionMode occlusionMode = settings.getVisualOcclusionMode();
+        VisualOcclusionMode occlusionMode = settings.getVisualSyncSettings().getVisualOcclusionMode();
         if (occlusionMode == VisualOcclusionMode.OFF || space == null) {
             state.recordInterest(probe.distanceSquared(), true, true, false, visualInterestTick);
             return InterestResult.visible(probe.distanceSquared(), probe.distanceSquared());
         }
 
-        boolean raycastKnown = state.hasFreshRaycast(settings.getVisualOcclusionCacheTicks(),
+        boolean raycastKnown = state.hasFreshRaycast(settings.getVisualSyncSettings().getVisualOcclusionCacheTicks(),
             visualInterestTick);
         boolean raycastVisible = raycastKnown && state.isRaycastVisible();
         boolean raycastEvaluated = false;
@@ -673,7 +677,7 @@ public class PhysicsDetachedVisualMaterializationSystem extends TickingSystem<En
         }
         if (!raycastKnown && raycastBudget.tryUse(settings)) {
             assert probe.interest() != null;
-            raycastVisible = raycastVisible(space, probe.interest(), snapshot);
+            raycastVisible = raycastVisible(resource, space, probe.interest(), snapshot);
             raycastKnown = true;
             raycastEvaluated = true;
             if (collector != null) {
@@ -730,11 +734,14 @@ public class PhysicsDetachedVisualMaterializationSystem extends TickingSystem<En
             : new InterestProbe(nearestInterest, nearestDistanceSquared);
     }
 
-    private static boolean raycastVisible(@Nonnull PhysicsSpace space,
+    private static boolean raycastVisible(@Nonnull PhysicsWorldResource resource,
+        @Nonnull PhysicsSpace space,
         @Nonnull PhysicsWorldResource.VisualInterest interest,
         @Nonnull PhysicsBodySnapshot snapshot) {
-        Optional<PhysicsRayHit> hit = space.raycastClosest(interest.position(), snapshot.position());
-        return hit.isPresent() && hit.get().body() == snapshot.body();
+        return resource.callOnPhysicsOwner("raycast visual occlusion", () -> {
+            Optional<PhysicsRayHit> hit = space.raycastClosest(interest.position(), snapshot.position());
+            return hit.isPresent() && hit.get().body() == snapshot.body();
+        });
     }
 
     private static boolean isInsideViewCone(@Nonnull PhysicsSpaceSettings settings,
@@ -743,7 +750,7 @@ public class PhysicsDetachedVisualMaterializationSystem extends TickingSystem<En
         float dy,
         float dz,
         float distanceSquared) {
-        if (!settings.isVisualVisibilityCullingEnabled()
+        if (!settings.getVisualSyncSettings().isVisualVisibilityCullingEnabled()
             || interest.direction() == null
             || distanceSquared <= VIEW_CONE_NEAR_RADIUS_SQUARED) {
             return true;
@@ -803,7 +810,7 @@ public class PhysicsDetachedVisualMaterializationSystem extends TickingSystem<En
         Vector3f position = snapshot.position();
         Holder<EntityStore> holder = BlockEntity.assembleDefaultBlockEntity(
             time,
-            settings.getDetachedVisualBlockType(),
+            settings.getVisualMaterializationSettings().getDetachedVisualBlockType(),
             new Vector3d(position.x,
                 position.y - snapshot.centerOfMassOffsetY(),
                 position.z));
@@ -874,7 +881,7 @@ public class PhysicsDetachedVisualMaterializationSystem extends TickingSystem<En
         private int used;
 
         boolean tryUse(@Nonnull PhysicsSpaceSettings settings) {
-            if (used >= settings.getVisualOcclusionRaycastsPerTick()) {
+            if (used >= settings.getVisualSyncSettings().getVisualOcclusionRaycastsPerTick()) {
                 return false;
             }
             used++;

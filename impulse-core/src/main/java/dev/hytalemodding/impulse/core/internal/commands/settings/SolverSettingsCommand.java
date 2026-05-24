@@ -70,25 +70,25 @@ public class SolverSettingsCommand extends AbstractWorldCommand {
 
         int solverIterations = solverIterationsArg.provided(ctx)
             ? solverIterationsArg.get(ctx)
-            : settings.getSolverIterations();
+            : settings.getSolverSettings().getSolverIterations();
         int pgsIterations = pgsIterationsArg.provided(ctx)
             ? pgsIterationsArg.get(ctx)
-            : settings.getInternalPgsIterations();
+            : settings.getSolverSettings().getInternalPgsIterations();
         int stabilizationIterations = stabilizationIterationsArg.provided(ctx)
             ? stabilizationIterationsArg.get(ctx)
-            : settings.getStabilizationIterations();
+            : settings.getSolverSettings().getStabilizationIterations();
         int minIslandSize = minIslandSizeArg.provided(ctx)
             ? minIslandSizeArg.get(ctx)
-            : settings.getMinIslandSize();
+            : settings.getSolverSettings().getMinIslandSize();
         float sleepLinearThreshold = sleepLinearThresholdArg.provided(ctx)
             ? sleepLinearThresholdArg.get(ctx)
-            : settings.getDynamicSleepLinearThreshold();
+            : settings.getSolverSettings().getDynamicSleepLinearThreshold();
         float sleepAngularThreshold = sleepAngularThresholdArg.provided(ctx)
             ? sleepAngularThresholdArg.get(ctx)
-            : settings.getDynamicSleepAngularThreshold();
+            : settings.getSolverSettings().getDynamicSleepAngularThreshold();
         float sleepTime = sleepTimeArg.provided(ctx)
             ? sleepTimeArg.get(ctx)
-            : settings.getDynamicSleepTimeUntilSleep();
+            : settings.getSolverSettings().getDynamicSleepTimeUntilSleep();
 
         if (solverIterations < 1
             || pgsIterations < 1
@@ -106,11 +106,11 @@ public class SolverSettingsCommand extends AbstractWorldCommand {
             return;
         }
 
-        settings.setSolverIterations(solverIterations);
-        settings.setInternalPgsIterations(pgsIterations);
-        settings.setStabilizationIterations(stabilizationIterations);
-        settings.setMinIslandSize(minIslandSize);
-        settings.setDynamicSleepTuning(sleepLinearThreshold, sleepAngularThreshold, sleepTime);
+        settings.getSolverSettings().setSolverIterations(solverIterations);
+        settings.getSolverSettings().setInternalPgsIterations(pgsIterations);
+        settings.getSolverSettings().setStabilizationIterations(stabilizationIterations);
+        settings.getSolverSettings().setMinIslandSize(minIslandSize);
+        settings.getSolverSettings().setDynamicSleepTuning(sleepLinearThreshold, sleepAngularThreshold, sleepTime);
         resource.setSpaceSettings(defaultSpaceId, settings);
         sendSummary(ctx, defaultSpaceId, space, settings);
     }
@@ -133,12 +133,12 @@ public class SolverSettingsCommand extends AbstractWorldCommand {
             + spaceId.value()
             + " backend=" + space.getBackendId().value()
             + " applied=" + (space instanceof PhysicsSolverTuning)
-            + ": solverIterations=" + settings.getSolverIterations()
-            + " pgsIterations=" + settings.getInternalPgsIterations()
-            + " stabilizationIterations=" + settings.getStabilizationIterations()
-            + " minIslandSize=" + settings.getMinIslandSize()
-            + " sleepLinearThreshold=" + settings.getDynamicSleepLinearThreshold()
-            + " sleepAngularThreshold=" + settings.getDynamicSleepAngularThreshold()
-            + " sleepTime=" + settings.getDynamicSleepTimeUntilSleep()));
+            + ": solverIterations=" + settings.getSolverSettings().getSolverIterations()
+            + " pgsIterations=" + settings.getSolverSettings().getInternalPgsIterations()
+            + " stabilizationIterations=" + settings.getSolverSettings().getStabilizationIterations()
+            + " minIslandSize=" + settings.getSolverSettings().getMinIslandSize()
+            + " sleepLinearThreshold=" + settings.getSolverSettings().getDynamicSleepLinearThreshold()
+            + " sleepAngularThreshold=" + settings.getSolverSettings().getDynamicSleepAngularThreshold()
+            + " sleepTime=" + settings.getSolverSettings().getDynamicSleepTimeUntilSleep()));
     }
 }

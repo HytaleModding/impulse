@@ -146,7 +146,7 @@ final class ImpulseApiCrucibleTests {
             return resource.getDefaultSpaceId().equals(spaceId)
                 && resource.getDefaultSpace() == space
                 && resource.getSpace(spaceId) == space
-                && resource.getSpaceSettings(spaceId).getWorldCollisionMode()
+                && resource.getSpaceSettings(spaceId).getWorldCollisionSettings().getWorldCollisionMode()
                 == WorldCollisionMode.STREAMING;
         } finally {
             resource.clearAllSpaces("crucible");
@@ -193,30 +193,30 @@ final class ImpulseApiCrucibleTests {
     private static boolean settingsRoundTrip() {
         PhysicsWorldResource resource = new PhysicsWorldResource();
         PhysicsSpaceSettings settings = PhysicsSpaceSettings.defaults();
-        settings.setWorldCollisionMode(WorldCollisionMode.STREAMING);
-        settings.setWorldCollisionRadius(9);
-        settings.setWorldCollisionBodyRadius(5);
-        settings.setWorldCollisionTtlTicks(77);
-        settings.setVisualMaxSyncRadius(96);
-        settings.setVisualFullSyncRadius(48);
-        settings.setVisualFarSyncCutoffEnabled(false);
-        settings.setVisualMidSyncIntervalTicks(3);
-        settings.setVisualFarSyncIntervalTicks(17);
-        settings.setVisualOcclusionMode(VisualOcclusionMode.PRIORITY);
-        settings.setVisualOcclusionRaycastsPerTick(31);
-        settings.setVisualOcclusionCacheTicks(7);
-        settings.setSolverIterations(5);
-        settings.setInternalPgsIterations(2);
-        settings.setStabilizationIterations(1);
-        settings.setMinIslandSize(64);
-        settings.setEntityVisualSyncCullingEnabled(true);
-        settings.setVisualVisibilityCullingEnabled(true);
-        settings.setDetachedVisualMaterializationEnabled(true);
-        settings.setDetachedVisualDematerializationRadius(72);
-        settings.setDetachedVisualMaterializationRadius(48);
-        settings.setDetachedVisualMaxSpawnsPerTick(33);
-        settings.setDetachedVisualMaxMaterialized(444);
-        settings.setDetachedVisualBlockType("Rock_Stone");
+        settings.getWorldCollisionSettings().setWorldCollisionMode(WorldCollisionMode.STREAMING);
+        settings.getWorldCollisionSettings().setWorldCollisionRadius(9);
+        settings.getWorldCollisionSettings().setWorldCollisionBodyRadius(5);
+        settings.getWorldCollisionSettings().setWorldCollisionTtlTicks(77);
+        settings.getVisualSyncSettings().setVisualMaxSyncRadius(96);
+        settings.getVisualSyncSettings().setVisualFullSyncRadius(48);
+        settings.getVisualSyncSettings().setVisualFarSyncCutoffEnabled(false);
+        settings.getVisualSyncSettings().setVisualMidSyncIntervalTicks(3);
+        settings.getVisualSyncSettings().setVisualFarSyncIntervalTicks(17);
+        settings.getVisualSyncSettings().setVisualOcclusionMode(VisualOcclusionMode.PRIORITY);
+        settings.getVisualSyncSettings().setVisualOcclusionRaycastsPerTick(31);
+        settings.getVisualSyncSettings().setVisualOcclusionCacheTicks(7);
+        settings.getSolverSettings().setSolverIterations(5);
+        settings.getSolverSettings().setInternalPgsIterations(2);
+        settings.getSolverSettings().setStabilizationIterations(1);
+        settings.getSolverSettings().setMinIslandSize(64);
+        settings.getVisualSyncSettings().setEntityVisualSyncCullingEnabled(true);
+        settings.getVisualSyncSettings().setVisualVisibilityCullingEnabled(true);
+        settings.getVisualMaterializationSettings().setDetachedVisualMaterializationEnabled(true);
+        settings.getVisualMaterializationSettings().setDetachedVisualDematerializationRadius(72);
+        settings.getVisualMaterializationSettings().setDetachedVisualMaterializationRadius(48);
+        settings.getVisualMaterializationSettings().setDetachedVisualMaxSpawnsPerTick(33);
+        settings.getVisualMaterializationSettings().setDetachedVisualMaxMaterialized(444);
+        settings.getVisualMaterializationSettings().setDetachedVisualBlockType("Rock_Stone");
 
         PhysicsSpace space = resource.createSpace(ImpulsePlugin.get().getDefaultBackendId(),
             "crucible",
@@ -224,30 +224,30 @@ final class ImpulseApiCrucibleTests {
             true);
         try {
             PhysicsSpaceSettings copy = resource.getSpaceSettings(space.getId());
-            return copy.getWorldCollisionMode() == WorldCollisionMode.STREAMING
-                && copy.getWorldCollisionRadius() == 9
-                && copy.getWorldCollisionBodyRadius() == 5
-                && copy.getWorldCollisionTtlTicks() == 77
-                && copy.getVisualFullSyncRadius() == 48
-                && copy.getVisualMaxSyncRadius() == 96
-                && !copy.isVisualFarSyncCutoffEnabled()
-                && copy.getVisualMidSyncIntervalTicks() == 3
-                && copy.getVisualFarSyncIntervalTicks() == 17
-                && copy.getVisualOcclusionMode() == VisualOcclusionMode.PRIORITY
-                && copy.getVisualOcclusionRaycastsPerTick() == 31
-                && copy.getVisualOcclusionCacheTicks() == 7
-                && copy.getSolverIterations() == 5
-                && copy.getInternalPgsIterations() == 2
-                && copy.getStabilizationIterations() == 1
-                && copy.getMinIslandSize() == 64
-                && copy.isEntityVisualSyncCullingEnabled()
-                && copy.isVisualVisibilityCullingEnabled()
-                && copy.isDetachedVisualMaterializationEnabled()
-                && copy.getDetachedVisualMaterializationRadius() == 48
-                && copy.getDetachedVisualDematerializationRadius() == 72
-                && copy.getDetachedVisualMaxSpawnsPerTick() == 33
-                && copy.getDetachedVisualMaxMaterialized() == 444
-                && "Rock_Stone".equals(copy.getDetachedVisualBlockType());
+            return copy.getWorldCollisionSettings().getWorldCollisionMode() == WorldCollisionMode.STREAMING
+                && copy.getWorldCollisionSettings().getWorldCollisionRadius() == 9
+                && copy.getWorldCollisionSettings().getWorldCollisionBodyRadius() == 5
+                && copy.getWorldCollisionSettings().getWorldCollisionTtlTicks() == 77
+                && copy.getVisualSyncSettings().getVisualFullSyncRadius() == 48
+                && copy.getVisualSyncSettings().getVisualMaxSyncRadius() == 96
+                && !copy.getVisualSyncSettings().isVisualFarSyncCutoffEnabled()
+                && copy.getVisualSyncSettings().getVisualMidSyncIntervalTicks() == 3
+                && copy.getVisualSyncSettings().getVisualFarSyncIntervalTicks() == 17
+                && copy.getVisualSyncSettings().getVisualOcclusionMode() == VisualOcclusionMode.PRIORITY
+                && copy.getVisualSyncSettings().getVisualOcclusionRaycastsPerTick() == 31
+                && copy.getVisualSyncSettings().getVisualOcclusionCacheTicks() == 7
+                && copy.getSolverSettings().getSolverIterations() == 5
+                && copy.getSolverSettings().getInternalPgsIterations() == 2
+                && copy.getSolverSettings().getStabilizationIterations() == 1
+                && copy.getSolverSettings().getMinIslandSize() == 64
+                && copy.getVisualSyncSettings().isEntityVisualSyncCullingEnabled()
+                && copy.getVisualSyncSettings().isVisualVisibilityCullingEnabled()
+                && copy.getVisualMaterializationSettings().isDetachedVisualMaterializationEnabled()
+                && copy.getVisualMaterializationSettings().getDetachedVisualMaterializationRadius() == 48
+                && copy.getVisualMaterializationSettings().getDetachedVisualDematerializationRadius() == 72
+                && copy.getVisualMaterializationSettings().getDetachedVisualMaxSpawnsPerTick() == 33
+                && copy.getVisualMaterializationSettings().getDetachedVisualMaxMaterialized() == 444
+                && "Rock_Stone".equals(copy.getVisualMaterializationSettings().getDetachedVisualBlockType());
         } finally {
             resource.clearAllSpaces("crucible");
         }

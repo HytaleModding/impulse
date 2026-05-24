@@ -219,19 +219,22 @@ final class ImpulseDetachedStreamingBenchmarkCrucibleTests {
             int retained = retainChunks(chunks);
             configureMissingSectionDiagnostics(chunks);
             PhysicsSpaceSettings settings = PhysicsSpaceSettings.defaults();
-            settings.setWorldCollisionMode(WorldCollisionMode.STREAMING);
-            settings.setWorldCollisionBodyRadius(BODY_STREAMING_RADIUS);
-            settings.setSolverIterations(4);
-            settings.setInternalPgsIterations(1);
-            settings.setStabilizationIterations(1);
-            settings.setMinIslandSize(128);
+            settings.getWorldCollisionSettings().setWorldCollisionMode(WorldCollisionMode.STREAMING);
+            settings.getWorldCollisionSettings().setWorldCollisionBodyRadius(BODY_STREAMING_RADIUS);
+            settings.getSolverSettings().setSolverIterations(4);
+            settings.getSolverSettings().setInternalPgsIterations(1);
+            settings.getSolverSettings().setStabilizationIterations(1);
+            settings.getSolverSettings().setMinIslandSize(128);
 
             PhysicsSpace space = physics.createSpace(ImpulsePlugin.get().getDefaultBackendId(),
                 world.getName(),
                 settings,
                 true);
-            PrewarmStats prewarm = prewarmWorldCollision(space, count);
-            spawnDetachedBodies(space, count);
+            PrewarmStats prewarm = physics.callOnPhysicsOwner(
+                "prewarm detached streaming benchmark collision",
+                () -> prewarmWorldCollision(space, count));
+            physics.runOnPhysicsOwner("spawn detached streaming benchmark bodies",
+                () -> spawnDetachedBodies(space, count));
             runtimeProfiling.reset();
             worldCollisionProfiling.reset();
             runtimeProfiling.setEnabled(true);
@@ -957,6 +960,12 @@ final class ImpulseDetachedStreamingBenchmarkCrucibleTests {
         private double minTerrainBottomClearance = Double.POSITIVE_INFINITY;
 
         private static SpaceStats collect(@Nonnull PhysicsWorldResource physics,
+            @Nonnull PhysicsSpace space) {
+            return physics.callOnPhysicsOwner("collect detached streaming benchmark space stats",
+                () -> collectOnOwner(physics, space));
+        }
+
+        private static SpaceStats collectOnOwner(@Nonnull PhysicsWorldResource physics,
             @Nonnull PhysicsSpace space) {
             SpaceStats stats = new SpaceStats();
             WorldVoxelCollisionCache cache = WorldCollisionCacheAccess.get(physics);
