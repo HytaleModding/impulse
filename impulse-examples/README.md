@@ -18,9 +18,9 @@ Use `/impulse space default --space=<space-id>` instead when selecting an existi
 
 ## Example commands
 
-These commands are for gameplay/API demonstrations and may use full Hytale entities intentionally. Example entities attach to registered `PhysicsBodyId`s; removing an entity no longer destroys the backend body unless a command explicitly destroys that body id.
+These commands are for gameplay/API demonstrations and may use full Hytale entities intentionally. Example entity-backed bodies are spawned through the shared body-id-first helper and attach to registered `PhysicsBodyId`s; removing an entity no longer destroys the backend body unless a command explicitly destroys that body id.
 
-- `/impulse-examples drop` - spawn one falling entity-owned box.
+- `/impulse-examples drop --blockType=Rock_Stone` - spawn one falling entity-owned box with a chosen block visual.
 - `/impulse-examples shapes` - spawn box, sphere, capsule, cylinder, and cone examples.
 - `/impulse-examples materials` - compare restitution and friction settings.
 - `/impulse-examples forces` - apply central impulse, off-center impulse, torque impulse, and force.
@@ -39,9 +39,10 @@ The scalable path is `detached-view`: registered runtime-only bodies with on-dem
 - `/impulse-examples stress bodies --count=1000 --visualPrediction=true --visualSmoothing=false` - tune visual snapshot prediction and smoothing.
 - `/impulse-examples stress bodies --count=1000 --collisionLod=true` - enable distance collision LOD for default dynamic-body filters during the stress run.
 - `/impulse-examples stress bodies --count=<n> --mode=detached` - spawn backend bodies with no Hytale visuals.
-- `/impulse-examples stress bodies --count=<n> --mode=entity` - spawn full Hytale entity-backed bodies for adapter overhead diagnostics.
+- `/impulse-examples stress bodies --count=<n> --mode=entity --blockType=Rock_Stone` - spawn full Hytale entity-backed bodies for adapter overhead diagnostics.
+- `/impulse-examples stress bodies --count=<n> --mode=detached-view --blockType=Rock_Stone` - choose the generated proxy block visual for detached-view bodies.
 - `/impulse-examples stress raw-bodies --count=<n>` - spawn backend bodies without Hytale entities or body-id registration diagnostics.
-- `/impulse-examples stress benchmark --mode=raw|entity --count=<n>` - spawn a repeatable benchmark grid near the player.
+- `/impulse-examples stress benchmark --mode=raw|entity --count=<n> --blockType=Rock_Stone` - spawn a repeatable benchmark grid near the player.
 - `/impulse-examples stress shapes --sets=<n>` - spawn mixed box, sphere, capsule, cylinder, and cone bodies.
 - `/impulse-examples stress joints --count=<n>` - spawn separate fixed, point, hinge, slider, and spring rows.
 - `/impulse-examples stress raycast --rays=<n>` - run many raycasts and report timing.

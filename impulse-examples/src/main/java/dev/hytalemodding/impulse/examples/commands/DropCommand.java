@@ -5,12 +5,14 @@ import com.hypixel.hytale.component.Ref;
 import com.hypixel.hytale.component.Store;
 import com.hypixel.hytale.server.core.Message;
 import com.hypixel.hytale.server.core.command.system.CommandContext;
+import com.hypixel.hytale.server.core.command.system.arguments.system.OptionalArg;
+import com.hypixel.hytale.server.core.command.system.arguments.types.ArgTypes;
 import com.hypixel.hytale.server.core.command.system.basecommands.AbstractAsyncPlayerCommand;
 import com.hypixel.hytale.server.core.modules.entity.component.TransformComponent;
+import com.hypixel.hytale.server.core.modules.time.TimeResource;
 import com.hypixel.hytale.server.core.universe.PlayerRef;
 import com.hypixel.hytale.server.core.universe.world.World;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
-import dev.hytalemodding.impulse.api.PhysicsBody;
 import dev.hytalemodding.impulse.api.PhysicsSpace;
 import dev.hytalemodding.impulse.core.plugin.resources.PhysicsWorldResource;
 import java.util.concurrent.CompletableFuture;
@@ -24,6 +26,10 @@ public class DropCommand extends AbstractAsyncPlayerCommand {
 
     private static final ComponentType<EntityStore, TransformComponent> TRANSFORM_TYPE =
         TransformComponent.getComponentType();
+    private final OptionalArg<String> blockTypeArg = this.withOptionalArg(
+        "blockType",
+        "Hytale block type used for the attached visual entity",
+        ArgTypes.STRING);
 
     public DropCommand() {
         super("drop", "Spawn a physics box that falls under gravity");
@@ -54,24 +60,30 @@ public class DropCommand extends AbstractAsyncPlayerCommand {
             return CompletableFuture.completedFuture(null);
         }
 
-        PhysicsBody box = ExamplePhysicsUtils.physicsOwnerCall(store, "create drop physics body",
-            () -> {
-                PhysicsBody created = space.createBox(0.5f, 0.5f, 0.5f, 1.0f);
+        TimeResource time = store.getResource(TimeResource.getResourceType());
+        ExamplePhysicsUtils.spawnBlockBody(store,
+            time,
+            resource,
+            space.getId(),
+            new Vector3d(spawnX, spawnY, spawnZ),
+            blockType(ctx),
+            bodySpace -> {
+                var created = bodySpace.createBox(0.5f, 0.5f, 0.5f, 1.0f);
                 created.setRestitution(0.5f);
                 created.setFriction(0.5f);
                 return created;
             });
 
-        ExamplePhysicsUtils.spawnBlockBody(store,
-            world,
-            resource,
-            space,
-            box,
-            new Vector3d(spawnX, spawnY, spawnZ));
-
         ctx.sender()
             .sendMessage(Message.raw("Dropped box at " + spawnX + ", " + spawnY + ", " + spawnZ));
 
         return CompletableFuture.completedFuture(null);
+    }
+
+    @Nonnull
+    private String blockType(@Nonnull CommandContext ctx) {
+        return blockTypeArg.provided(ctx)
+            ? ExamplePhysicsUtils.resolveBlockType(blockTypeArg.get(ctx))
+            : ExamplePhysicsUtils.DEFAULT_BLOCK_TYPE;
     }
 }

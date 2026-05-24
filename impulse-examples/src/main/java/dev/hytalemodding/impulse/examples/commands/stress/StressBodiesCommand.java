@@ -27,6 +27,7 @@ import dev.hytalemodding.impulse.core.plugin.settings.PhysicsSpaceSettings;
 import dev.hytalemodding.impulse.core.plugin.settings.PhysicsVisualMaterializationSettings;
 import dev.hytalemodding.impulse.core.plugin.settings.PhysicsVisualSyncSettings;
 import dev.hytalemodding.impulse.core.plugin.settings.PhysicsWorldCollisionSettings;
+import dev.hytalemodding.impulse.core.plugin.settings.PhysicsWorldSettings;
 import dev.hytalemodding.impulse.core.plugin.settings.VisualOcclusionMode;
 import dev.hytalemodding.impulse.examples.commands.ExamplePhysicsUtils;
 import java.util.ArrayList;
@@ -97,6 +98,10 @@ public class StressBodiesCommand extends AbstractAsyncPlayerCommand {
         "collisionLod",
         "Enable collision LOD for default dynamic filters: true or false",
         ArgTypes.STRING);
+    private final OptionalArg<String> blockTypeArg = this.withOptionalArg(
+        "blockType",
+        "Hytale block type for entity-backed or detached-view visual proxies",
+        ArgTypes.STRING);
 
     public StressBodiesCommand() {
         super("bodies", "Spawn many dynamic box bodies");
@@ -166,10 +171,13 @@ public class StressBodiesCommand extends AbstractAsyncPlayerCommand {
         if (mode == StressMode.ENTITY) {
             for (int i = 0; i < count; i++) {
                 Vector3d position = layout.position(i);
-                PhysicsBody body = resource.callOnPhysicsOwner(
-                    "create entity stress physics body",
-                    () -> createEntityBody(space));
-                ExamplePhysicsUtils.spawnBlockBody(store, time, resource, space.getId(), space, body, position);
+                ExamplePhysicsUtils.spawnBlockBody(store,
+                    time,
+                    resource,
+                    space.getId(),
+                    position,
+                    visualSettings.blockType(),
+                    StressBodiesCommand::createEntityBody);
             }
         } else {
             resource.runOnPhysicsOwner("spawn detached stress bodies", () -> {
@@ -195,6 +203,7 @@ public class StressBodiesCommand extends AbstractAsyncPlayerCommand {
             settings.getVisualMaterializationSettings();
         PhysicsVisualSyncSettings visualSyncSettings = settings.getVisualSyncSettings();
         PhysicsCollisionLodSettings collisionLodSettings = settings.getCollisionLodSettings();
+        PhysicsWorldSettings worldSettings = resource.getWorldSettings();
 
         ctx.sender().sendMessage(Message.raw("Spawned " + count
             + " stress bodies in "
@@ -204,10 +213,11 @@ public class StressBodiesCommand extends AbstractAsyncPlayerCommand {
             + " worldCollision=streaming"
             + " bodyCollisionRadius=" + worldCollisionSettings.getWorldCollisionBodyRadius()
             + " prewarmedSections=" + prewarmedSections
-            + " step=" + resource.getStepMode().getSerializedName()
-            + "/" + resource.getSimulationSteps()
-            + " maxStepDt=" + String.format(Locale.ROOT, "%.3f", resource.getMaxStepDt())
+            + " step=" + worldSettings.getStepMode().getSerializedName()
+            + "/" + worldSettings.getSimulationSteps()
+            + " maxStepDt=" + String.format(Locale.ROOT, "%.3f", worldSettings.getMaxStepDt())
             + " visuals=" + mode.visualDescription()
+            + (mode == StressMode.ENTITY ? " blockType=" + visualSettings.blockType() : "")
             + (mode == StressMode.DETACHED_VIEW
                 ? " visualProxyCap="
                 + visualMaterializationSettings.getDetachedVisualMaxMaterialized()
@@ -218,6 +228,7 @@ public class StressBodiesCommand extends AbstractAsyncPlayerCommand {
                 + " visualSpawnRate="
                 + visualMaterializationSettings.getDetachedVisualMaxSpawnsPerTick() + "/tick"
                 + " visualMaterialization=progressive"
+                + " blockType=" + visualMaterializationSettings.getDetachedVisualBlockType()
                 + " visualPrediction=" + visualSyncSettings.isVisualSnapshotPredictionEnabled()
                 + " visualSmoothing=" + visualSyncSettings.isVisualSnapshotSmoothingEnabled()
                 + " visibility=" + visibility.serialized()
@@ -265,6 +276,7 @@ public class StressBodiesCommand extends AbstractAsyncPlayerCommand {
                 visualSettings.dematerializationRadius());
             visualMaterializationSettings.setDetachedVisualMaxMaterialized(visualSettings.maxMaterialized());
             visualMaterializationSettings.setDetachedVisualMaxSpawnsPerTick(visualSettings.spawnRate());
+            visualMaterializationSettings.setDetachedVisualBlockType(visualSettings.blockType());
             visualSyncSettings.setVisualSnapshotPredictionEnabled(visualSettings.predictionEnabled());
             visualSyncSettings.setVisualSnapshotSmoothingEnabled(visualSettings.smoothingEnabled());
             if (collisionLod != null) {
@@ -454,8 +466,16 @@ public class StressBodiesCommand extends AbstractAsyncPlayerCommand {
             dematerializationRadius,
             spawnRate,
             maxMaterialized,
+            blockType(ctx),
             predictionEnabled,
             smoothingEnabled);
+    }
+
+    @Nonnull
+    private String blockType(@Nonnull CommandContext ctx) {
+        return blockTypeArg.provided(ctx)
+            ? ExamplePhysicsUtils.resolveBlockType(blockTypeArg.get(ctx))
+            : ExamplePhysicsUtils.DEFAULT_BLOCK_TYPE;
     }
 
     private static int defaultDematerializationRadius(int materializationRadius) {
@@ -574,6 +594,7 @@ public class StressBodiesCommand extends AbstractAsyncPlayerCommand {
                                         int dematerializationRadius,
                                         int spawnRate,
                                         int maxMaterialized,
+                                        @Nonnull String blockType,
                                         boolean predictionEnabled,
                                         boolean smoothingEnabled) {
     }
