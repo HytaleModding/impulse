@@ -120,12 +120,19 @@ public class PersistentPhysicsStateBlock {
     private String codec = "";
     @Nonnull
     private String compression = "";
+    @Getter
     private int schemaVersion;
+    @Getter
     private int blockIndex;
+    @Getter
     private int spaceId;
+    @Getter
     private int itemCount;
+    @Getter
     private int uncompressedBytes;
+    @Getter
     private int compressedBytes;
+    @Getter
     private long crc32;
     @Nonnull
     private byte[] payload = EMPTY_PAYLOAD;
@@ -175,6 +182,7 @@ public class PersistentPhysicsStateBlock {
         for (PersistentPhysicsStateBlock block : blocks) {
             BsonValue items = block.inflate(KIND_BODIES).get(PAYLOAD_ITEMS_KEY);
             PersistentPhysicsBodyState[] decoded = BODY_ARRAY_CODEC.decode(items, new ExtraInfo());
+            assert decoded != null;
             block.requireItemCount(decoded.length);
             for (PersistentPhysicsBodyState state : decoded) {
                 states.add(state.copy());
@@ -189,6 +197,7 @@ public class PersistentPhysicsStateBlock {
         for (PersistentPhysicsStateBlock block : blocks) {
             BsonValue items = block.inflate(KIND_JOINTS).get(PAYLOAD_ITEMS_KEY);
             PersistentPhysicsJointState[] decoded = JOINT_ARRAY_CODEC.decode(items, new ExtraInfo());
+            assert decoded != null;
             block.requireItemCount(decoded.length);
             for (PersistentPhysicsJointState state : decoded) {
                 states.add(state.copy());
@@ -227,34 +236,6 @@ public class PersistentPhysicsStateBlock {
     @Nonnull
     public String getCompression() {
         return compression;
-    }
-
-    public int getSchemaVersion() {
-        return schemaVersion;
-    }
-
-    public int getBlockIndex() {
-        return blockIndex;
-    }
-
-    public int getSpaceId() {
-        return spaceId;
-    }
-
-    public int getItemCount() {
-        return itemCount;
-    }
-
-    public int getUncompressedBytes() {
-        return uncompressedBytes;
-    }
-
-    public int getCompressedBytes() {
-        return compressedBytes;
-    }
-
-    public long getCrc32() {
-        return crc32;
     }
 
     @Nonnull

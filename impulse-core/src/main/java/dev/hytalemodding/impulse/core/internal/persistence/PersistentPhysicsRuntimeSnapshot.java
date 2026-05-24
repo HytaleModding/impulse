@@ -23,10 +23,13 @@ public final class PersistentPhysicsRuntimeSnapshot {
 
     @Nonnull
     private final Footprint footprint;
+    @Getter
     private final int simulationSteps;
     @Nonnull
     private final PhysicsStepMode stepMode;
+    @Getter
     private final float maxStepDt;
+    @Getter
     private final int defaultSpaceId;
     @Nonnull
     private final PersistentPhysicsSpaceState[] spaces;
@@ -89,21 +92,9 @@ public final class PersistentPhysicsRuntimeSnapshot {
             countPersistentJoints(runtime));
     }
 
-    public int getSimulationSteps() {
-        return simulationSteps;
-    }
-
     @Nonnull
     public PhysicsStepMode getStepMode() {
         return stepMode;
-    }
-
-    public float getMaxStepDt() {
-        return maxStepDt;
-    }
-
-    public int getDefaultSpaceId() {
-        return defaultSpaceId;
     }
 
     @Nonnull
