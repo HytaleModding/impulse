@@ -6,17 +6,10 @@ import com.hypixel.hytale.codec.ExtraInfo;
 import com.hypixel.hytale.codec.KeyedCodec;
 import com.hypixel.hytale.codec.builder.BuilderCodec;
 import com.hypixel.hytale.codec.codecs.array.ArrayCodec;
-import com.hypixel.hytale.codec.exception.CodecException;
-import com.hypixel.hytale.codec.schema.SchemaContext;
-import com.hypixel.hytale.codec.schema.config.Schema;
-import com.hypixel.hytale.codec.schema.config.StringSchema;
-import com.hypixel.hytale.codec.util.RawJsonReader;
 import com.hypixel.hytale.codec.validation.Validators;
-import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.Base64;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -48,7 +41,7 @@ public class PersistentPhysicsStateBlock {
     private static final String PAYLOAD_ITEMS_KEY = "Items";
     private static final int ZSTD_COMPRESSION_LEVEL = 3;
     private static final byte[] EMPTY_PAYLOAD = new byte[0];
-    private static final Codec<byte[]> BINARY_PAYLOAD_CODEC = new BinaryPayloadCodec();
+    private static final Codec<byte[]> BINARY_PAYLOAD_CODEC = new PersistentPhysicsBinaryPayloadCodec();
     private static final BsonDocumentCodec BSON_DOCUMENT_CODEC = new BsonDocumentCodec();
     private static final ArrayCodec<PersistentPhysicsBodyState> BODY_ARRAY_CODEC =
         new ArrayCodec<>(PersistentPhysicsBodyState.CODEC, PersistentPhysicsBodyState[]::new);
@@ -350,125 +343,4 @@ public class PersistentPhysicsStateBlock {
         return Arrays.copyOf(payload, payload.length);
     }
 
-    private static final class BinaryPayloadCodec implements Codec<byte[]> {
-
-        @Nonnull
-        @Override
-        public byte[] decode(@Nonnull BsonValue bsonValue, ExtraInfo extraInfo) {
-            return copyPayload(bsonValue.asBinary().getData());
-        }
-
-        @Nonnull
-        @Override
-        public BsonValue encode(@Nonnull byte[] bytes, ExtraInfo extraInfo) {
-            return new org.bson.BsonBinary(bytes);
-        }
-
-        @Nonnull
-        @Override
-        public byte[] decodeJson(@Nonnull RawJsonReader reader, ExtraInfo extraInfo) throws IOException {
-            reader.consumeWhiteSpace();
-            if (reader.peekFor('"')) {
-                return Base64.getDecoder().decode(reader.readString());
-            }
-            if (reader.peekFor('[')) {
-                return decodeLegacyByteArray(reader);
-            }
-            return decodeExtendedBinaryObject(reader);
-        }
-
-        @Nonnull
-        @Override
-        public Schema toSchema(@Nonnull SchemaContext context) {
-            StringSchema base64 = new StringSchema();
-            base64.setPattern(Codec.BASE64_PATTERN);
-            base64.setTitle("Binary payload");
-            return base64;
-        }
-
-        @Nonnull
-        private static byte[] decodeLegacyByteArray(@Nonnull RawJsonReader reader) throws IOException {
-            reader.expect('[');
-            reader.consumeWhiteSpace();
-            if (reader.tryConsume(']')) {
-                return EMPTY_PAYLOAD;
-            }
-
-            int count = 0;
-            byte[] values = new byte[16];
-            while (true) {
-                if (count == values.length) {
-                    values = Arrays.copyOf(values, values.length + 1 + (values.length >> 1));
-                }
-                values[count++] = reader.readByteValue();
-                reader.consumeWhiteSpace();
-                if (reader.tryConsumeOrExpect(']', ',')) {
-                    return count == values.length ? values : Arrays.copyOf(values, count);
-                }
-                reader.consumeWhiteSpace();
-            }
-        }
-
-        @Nonnull
-        private static byte[] decodeExtendedBinaryObject(@Nonnull RawJsonReader reader) throws IOException {
-            reader.expect('{');
-            reader.consumeWhiteSpace();
-
-            byte[] payload = null;
-            while (true) {
-                String key = reader.readString();
-                reader.consumeWhiteSpace();
-                reader.expect(':');
-                reader.consumeWhiteSpace();
-
-                if ("$binary".equals(key)) {
-                    payload = decodeBinaryValue(reader);
-                } else {
-                    reader.skipValue();
-                }
-
-                reader.consumeWhiteSpace();
-                if (reader.tryConsumeOrExpect('}', ',')) {
-                    if (payload == null) {
-                        throw new CodecException("Expected '$binary' field");
-                    }
-                    return payload;
-                }
-                reader.consumeWhiteSpace();
-            }
-        }
-
-        @Nonnull
-        private static byte[] decodeBinaryValue(@Nonnull RawJsonReader reader) throws IOException {
-            if (reader.peekFor('"')) {
-                return Base64.getDecoder().decode(reader.readString());
-            }
-
-            reader.expect('{');
-            reader.consumeWhiteSpace();
-
-            String base64 = null;
-            while (true) {
-                String key = reader.readString();
-                reader.consumeWhiteSpace();
-                reader.expect(':');
-                reader.consumeWhiteSpace();
-
-                if ("base64".equals(key)) {
-                    base64 = reader.readString();
-                } else {
-                    reader.skipValue();
-                }
-
-                reader.consumeWhiteSpace();
-                if (reader.tryConsumeOrExpect('}', ',')) {
-                    if (base64 == null) {
-                        throw new CodecException("Expected '$binary.base64' field");
-                    }
-                    return Base64.getDecoder().decode(base64);
-                }
-                reader.consumeWhiteSpace();
-            }
-        }
-    }
 }
