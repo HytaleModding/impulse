@@ -5,8 +5,10 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import dev.hytalemodding.impulse.api.PhysicsAxis;
 import dev.hytalemodding.impulse.api.PhysicsBodySnapshot;
 import dev.hytalemodding.impulse.api.PhysicsBodyType;
+import dev.hytalemodding.impulse.api.ShapeType;
 import dev.hytalemodding.impulse.api.SpaceId;
 import dev.hytalemodding.impulse.core.internal.systems.collision.PhysicsCollisionLodSystem.CollisionLodState;
 import dev.hytalemodding.impulse.core.internal.systems.collision.PhysicsCollisionLodSystem.CollisionLodTier;
@@ -186,21 +188,20 @@ class PhysicsCollisionLodSystemTest {
         boolean sensor) {
         PhysicsBodyId bodyId = PhysicsBodyId.random();
         SpaceId spaceId = new SpaceId(1);
-        PhysicsBodySnapshot snapshot = new PhysicsBodySnapshot(null,
-            new Vector3f(),
+        PhysicsBodySnapshot snapshot = new PhysicsBodySnapshot(new Vector3f(),
             new Quaternionf(),
             new Vector3f(),
             new Vector3f(),
             bodyType,
             false,
             sensor,
-            0.0f);
-        PhysicsWorldResource.BodyRegistration registration =
-            new PhysicsWorldResource.BodyRegistration(bodyId,
-                null,
-                spaceId,
-                kind,
-                persistenceMode);
-        return new PhysicsWorldResource.BodySnapshotEntry(bodyId, snapshot, spaceId, registration);
+            0.0f,
+            ShapeType.BOX,
+            new Vector3f(0.5f),
+            -1.0f,
+            -1.0f,
+            PhysicsAxis.Y,
+            Float.NaN);
+        return new PhysicsWorldResource.BodySnapshotEntry(bodyId, snapshot, spaceId, kind, persistenceMode);
     }
 }

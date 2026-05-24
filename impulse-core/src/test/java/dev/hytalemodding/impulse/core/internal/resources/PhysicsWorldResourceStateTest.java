@@ -130,7 +130,7 @@ class PhysicsWorldResourceStateTest {
         PhysicsSpaceSettings preserved = resource.getSpaceSettings(space.getId());
         assertEquals(WorldCollisionMode.STREAMING, preserved.getWorldCollisionSettings().getWorldCollisionMode());
         assertEquals(64, preserved.getVisualMaterializationSettings().getDetachedVisualMaxMaterialized());
-        assertEquals(0, resource.getBodyRegistrations().size());
+        assertEquals(0, resource.getBodyRegistrationViews().size());
         assertEquals(0, resource.getBodySnapshotCount());
         assertNull(resource.getBody(firstId));
         assertFalse(resource.isBodyControlled(firstId));
@@ -312,7 +312,8 @@ class PhysicsWorldResourceStateTest {
         AtomicInteger snapshots = new AtomicInteger();
         resource.forEachBodySnapshot(space.getId(), entry -> {
             assertEquals(registeredId, entry.bodyId());
-            assertSame(registered, entry.snapshot().body());
+            assertEquals(PhysicsBodyKind.BODY, entry.kind());
+            assertEquals(PhysicsBodyPersistenceMode.PERSISTENT, entry.persistenceMode());
             snapshots.incrementAndGet();
         });
         assertEquals(1, snapshots.get());
@@ -359,7 +360,7 @@ class PhysicsWorldResourceStateTest {
 
             assertEquals(bodyId, handle.value());
             assertFalse(handle.isDone());
-            assertNull(resource.getRegistration(bodyId));
+            assertNull(resource.getBodyRegistrationView(bodyId));
             assertTrue(resource.isBodyCreationPending(bodyId));
 
             releaseBlocker.countDown();
@@ -369,7 +370,9 @@ class PhysicsWorldResourceStateTest {
             assertFalse(handle.failed());
             assertFalse(resource.isBodyCreationPending(bodyId));
             assertEquals(bodyId, handle.join());
-            assertSame(bodyRef.get(), resource.requireBodyRegistration(bodyId).body());
+            PhysicsBody registeredBody = resource.callOnPhysicsOwner("read registered test body",
+                () -> resource.requireBodyRegistration(bodyId).body());
+            assertSame(bodyRef.get(), registeredBody);
             assertEquals(new Vector3f(1.0f, 2.0f, 3.0f),
                 resource.getBodySnapshot(bodyId).position());
             resource.detachWorkerResource(worker);
@@ -413,7 +416,7 @@ class PhysicsWorldResourceStateTest {
             assertTrue(handle.failed());
             assertFalse(handle.completedSuccessfully());
             assertThrows(IllegalArgumentException.class, handle::throwIfFailed);
-            assertNull(resource.getRegistration(bodyId));
+            assertNull(resource.getBodyRegistrationView(bodyId));
             assertFalse(resource.isBodyCreationPending(bodyId));
             assertEquals(1, worker.pendingMutations());
 

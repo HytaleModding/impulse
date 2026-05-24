@@ -204,11 +204,15 @@ class RapierBackendContractTest extends PhysicsBackendContractTest {
         }
 
         List<PhysicsBodySnapshot> snapshots = new ArrayList<>();
-        space.snapshotBodies(selectedBodies, _ -> null, snapshots::add);
+        List<PhysicsBody> snapshotBodies = new ArrayList<>();
+        space.snapshotBodies(selectedBodies, _ -> null, (body, snapshot) -> {
+            snapshotBodies.add(body);
+            snapshots.add(snapshot);
+        });
 
         assertEquals(count, snapshots.size());
         for (int i = 0; i < count; i++) {
-            assertSame(selectedBodies.get(i), snapshots.get(i).body());
+            assertSame(selectedBodies.get(i), snapshotBodies.get(i));
         }
     }
 
