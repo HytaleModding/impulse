@@ -1,7 +1,6 @@
 package dev.hytalemodding.impulse.examples.commands.stress;
 
 import com.hypixel.hytale.component.Ref;
-import com.hypixel.hytale.component.RemoveReason;
 import com.hypixel.hytale.component.Store;
 import com.hypixel.hytale.server.core.Message;
 import com.hypixel.hytale.server.core.command.system.CommandContext;
@@ -15,7 +14,6 @@ import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import dev.hytalemodding.impulse.api.PhysicsBody;
 import dev.hytalemodding.impulse.api.PhysicsCollisionFilters;
 import dev.hytalemodding.impulse.api.PhysicsSpace;
-import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyId;
 import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyKind;
 import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyPersistenceMode;
 import dev.hytalemodding.impulse.core.plugin.collision.WorldCollisionPrewarmStats;
@@ -30,9 +28,7 @@ import dev.hytalemodding.impulse.core.plugin.settings.PhysicsWorldCollisionSetti
 import dev.hytalemodding.impulse.core.plugin.settings.PhysicsWorldSettings;
 import dev.hytalemodding.impulse.core.plugin.settings.VisualOcclusionMode;
 import dev.hytalemodding.impulse.examples.commands.ExamplePhysicsUtils;
-import java.util.ArrayList;
 import java.util.Iterator;
-import java.util.List;
 import java.util.Locale;
 import java.util.concurrent.CompletableFuture;
 import javax.annotation.Nonnull;
@@ -52,8 +48,6 @@ public class StressBodiesCommand extends AbstractAsyncPlayerCommand {
     private static final int DETACHED_VISUAL_MAX_MATERIALIZED = 10_000;
     private static final int DETACHED_VISUAL_MAX_SPAWNS_PER_TICK = 128;
     private static final int STRESS_BODY_WORLD_COLLISION_RADIUS = 8;
-    private static final List<PhysicsBodyId> STRESS_DETACHED_BODIES = new ArrayList<>();
-
     private final OptionalArg<Integer> countArg = this.withOptionalArg(
         "count",
         "Number of dynamic boxes to spawn",
@@ -142,9 +136,6 @@ public class StressBodiesCommand extends AbstractAsyncPlayerCommand {
             return CompletableFuture.completedFuture(null);
         }
         PhysicsWorldResource resource = ExamplePhysicsUtils.resource(store);
-        if (mode.usesDetachedBodies()) {
-            clearPreviousStressDetachedBodies(store, resource);
-        }
         PhysicsSpace space = ExamplePhysicsUtils.defaultSpace(ctx, resource);
         if (space == null) {
             return CompletableFuture.completedFuture(null);
@@ -185,11 +176,10 @@ public class StressBodiesCommand extends AbstractAsyncPlayerCommand {
                     Vector3d position = layout.position(i);
                     PhysicsBody body = createDetachedBody(space, collisionPolicy);
                     body.setPosition((float) position.x, (float) position.y, (float) position.z);
-                    PhysicsBodyId bodyId = resource.addBody(space.getId(),
+                    resource.addBody(space.getId(),
                         body,
                         PhysicsBodyKind.BODY,
                         PhysicsBodyPersistenceMode.RUNTIME_ONLY);
-                    rememberStressDetachedBody(bodyId);
                 }
             });
         }
@@ -307,32 +297,6 @@ public class StressBodiesCommand extends AbstractAsyncPlayerCommand {
             worldCollisionSettings.getWorldCollisionBodyRadius(),
             0L);
         return stats.sectionTargets();
-    }
-
-    private static void rememberStressDetachedBody(@Nonnull PhysicsBodyId bodyId) {
-        synchronized (STRESS_DETACHED_BODIES) {
-            STRESS_DETACHED_BODIES.add(bodyId);
-        }
-    }
-
-    private static void clearPreviousStressDetachedBodies(@Nonnull Store<EntityStore> store,
-        @Nonnull PhysicsWorldResource resource) {
-        List<PhysicsBodyId> bodyIds;
-        synchronized (STRESS_DETACHED_BODIES) {
-            if (STRESS_DETACHED_BODIES.isEmpty()) {
-                return;
-            }
-            bodyIds = new ArrayList<>(STRESS_DETACHED_BODIES);
-            STRESS_DETACHED_BODIES.clear();
-        }
-
-        for (PhysicsBodyId bodyId : bodyIds) {
-            Ref<EntityStore> proxy = resource.getGeneratedVisualProxy(bodyId);
-            if (proxy != null && proxy.isValid()) {
-                store.removeEntity(proxy, RemoveReason.REMOVE);
-            }
-            resource.destroyBody(bodyId);
-        }
     }
 
     @Nonnull
