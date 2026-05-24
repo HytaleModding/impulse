@@ -60,19 +60,22 @@ public class StressRaycastCommand extends AbstractAsyncPlayerCommand {
         Vector3f start = new Vector3f();
         Vector3f end = new Vector3f();
 
-        int hits = 0;
         long startNanos = System.nanoTime();
-        for (int i = 0; i < rays; i++) {
-            int x = i % side;
-            int z = i / side;
-            float rayX = (float) (playerPos.x + x * SPACING - half);
-            float rayZ = (float) (playerPos.z + z * SPACING - half + 5.0);
-            start.set(rayX, (float) (playerPos.y + HEIGHT), rayZ);
-            end.set(rayX, (float) (playerPos.y - HEIGHT), rayZ);
-            if (space.raycastClosest(start, end).isPresent()) {
-                hits++;
+        int hits = ExamplePhysicsUtils.physicsOwnerCall(store, "run stress physics raycasts", () -> {
+            int totalHits = 0;
+            for (int i = 0; i < rays; i++) {
+                int x = i % side;
+                int z = i / side;
+                float rayX = (float) (playerPos.x + x * SPACING - half);
+                float rayZ = (float) (playerPos.z + z * SPACING - half + 5.0);
+                start.set(rayX, (float) (playerPos.y + HEIGHT), rayZ);
+                end.set(rayX, (float) (playerPos.y - HEIGHT), rayZ);
+                if (space.raycastClosest(start, end).isPresent()) {
+                    totalHits++;
+                }
             }
-        }
+            return totalHits;
+        });
         long elapsedNanos = System.nanoTime() - startNanos;
 
         ctx.sender().sendMessage(Message.raw("Ran " + rays + " raycasts: " + hits
@@ -84,4 +87,3 @@ public class StressRaycastCommand extends AbstractAsyncPlayerCommand {
         return String.format(Locale.ROOT, "%.3f", nanos / 1_000_000.0);
     }
 }
-

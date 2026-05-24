@@ -70,22 +70,26 @@ final class ImpulseLiveCrucibleTests {
             Store<EntityStore> store = world.getEntityStore().getStore();
             PhysicsWorldResource resource = store.getResource(PhysicsWorldResource.getResourceType());
             PhysicsSpace space = liveTestSpace(resource, world);
-            space.setGravity(0f, -9.81f, 0f);
 
             Vector3d visualPosition = new Vector3d(
                 context.wx(0),
                 context.wy(20),
                 context.wz(0));
-            PhysicsBody body = space.createBox(0.5f, 0.5f, 0.5f, 1.0f);
-            body.setPosition((float) visualPosition.x,
-                (float) (visualPosition.y + body.getCenterOfMassOffsetY()),
-                (float) visualPosition.z);
+            PhysicsBody body = resource.callOnPhysicsOwner("create live crucible physics body", () -> {
+                space.setGravity(0f, -9.81f, 0f);
+                PhysicsBody created = space.createBox(0.5f, 0.5f, 0.5f, 1.0f);
+                created.setPosition((float) visualPosition.x,
+                    (float) (visualPosition.y + created.getCenterOfMassOffsetY()),
+                    (float) visualPosition.z);
+                return created;
+            });
 
             Ref<EntityStore> ref = spawnLiveBlockBody(store, resource, space, body, visualPosition);
             double startY = visualPosition.y;
 
             return context.waitApproxTicksOnWorld(40).thenApply(ignored -> bodyAndEntityMovedDown(
                 store,
+                resource,
                 ref,
                 body,
                 startY));
@@ -95,6 +99,7 @@ final class ImpulseLiveCrucibleTests {
     }
 
     private static boolean bodyAndEntityMovedDown(Store<EntityStore> store,
+        PhysicsWorldResource resource,
         Ref<EntityStore> ref,
         PhysicsBody body,
         double startY) {
@@ -107,7 +112,8 @@ final class ImpulseLiveCrucibleTests {
             return false;
         }
         double transformY = transform.getPosition().y;
-        float bodyY = body.getPosition().y - body.getCenterOfMassOffsetY();
+        float bodyY = resource.callOnPhysicsOwner("read live crucible physics body position",
+            () -> body.getPosition().y - body.getCenterOfMassOffsetY());
         return transformY < startY - 0.05 && bodyY < startY - 0.05f;
     }
 

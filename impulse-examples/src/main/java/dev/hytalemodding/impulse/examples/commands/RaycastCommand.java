@@ -11,10 +11,8 @@ import com.hypixel.hytale.server.core.modules.entity.component.TransformComponen
 import com.hypixel.hytale.server.core.universe.PlayerRef;
 import com.hypixel.hytale.server.core.universe.world.World;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
-import dev.hytalemodding.impulse.api.PhysicsRayHit;
 import dev.hytalemodding.impulse.api.PhysicsSpace;
 import dev.hytalemodding.impulse.core.plugin.resources.PhysicsWorldResource;
-import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import javax.annotation.Nonnull;
 import org.joml.Vector3d;
@@ -54,24 +52,42 @@ public class RaycastCommand extends AbstractAsyncPlayerCommand {
 
         DebugUtils.addArrow(world, start, direction, DebugUtils.COLOR_WHITE, 0.8f, 4.0f,
             DebugUtils.FLAG_FADE);
-        Optional<PhysicsRayHit> hit = space.raycastClosest(ExamplePhysicsUtils.toVector3f(start),
-            ExamplePhysicsUtils.toVector3f(end));
-        if (hit.isEmpty()) {
+        RaycastResult hit = ExamplePhysicsUtils.physicsOwnerCall(store,
+            "cast example physics ray",
+            () -> space.raycastClosest(ExamplePhysicsUtils.toVector3f(start),
+                    ExamplePhysicsUtils.toVector3f(end))
+                .map(rayHit -> new RaycastResult(
+                    new Vector3d(rayHit.point().x, rayHit.point().y, rayHit.point().z),
+                    new Vector3d(rayHit.normal().x, rayHit.normal().y, rayHit.normal().z),
+                    rayHit.body().getShapeType().name(),
+                    rayHit.distance()))
+                .orElse(null));
+        if (hit == null) {
             ctx.sender().sendMessage(Message.raw("Physics ray missed."));
             return CompletableFuture.completedFuture(null);
         }
 
-        PhysicsRayHit rayHit = hit.get();
-        Vector3d hitPoint = new Vector3d(rayHit.point().x, rayHit.point().y, rayHit.point().z);
-        Vector3d normal = new Vector3d(rayHit.normal().x, rayHit.normal().y, rayHit.normal().z);
+        Vector3d hitPoint = hit.point();
+        Vector3d normal = hit.normal();
         DebugUtils.addSphere(world, hitPoint, DebugUtils.COLOR_RED, 0.18, 4.0f);
         if (normal.lengthSquared() > 0.0) {
             DebugUtils.addArrow(world, hitPoint, normal.normalize().mul(1.0), DebugUtils.COLOR_YELLOW,
                 0.8f, 4.0f, DebugUtils.FLAG_FADE);
         }
 
-        ctx.sender().sendMessage(Message.raw("Physics ray hit " + rayHit.body().getShapeType()
-            + " at distance " + rayHit.distance()));
+        ctx.sender().sendMessage(Message.raw("Physics ray hit " + hit.shapeType()
+            + " at distance " + hit.distance()));
         return CompletableFuture.completedFuture(null);
+    }
+
+    private record RaycastResult(@Nonnull Vector3d point,
+                                 @Nonnull Vector3d normal,
+                                 @Nonnull String shapeType,
+                                 float distance) {
+
+        private RaycastResult {
+            point = new Vector3d(point);
+            normal = new Vector3d(normal);
+        }
     }
 }
