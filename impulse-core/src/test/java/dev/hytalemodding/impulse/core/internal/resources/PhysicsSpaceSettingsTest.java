@@ -6,12 +6,13 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import com.hypixel.hytale.codec.ExtraInfo;
 import dev.hytalemodding.impulse.api.PhysicsSpace;
 import dev.hytalemodding.impulse.api.testsupport.FakePhysicsBackend;
 import dev.hytalemodding.impulse.core.internal.persistence.PersistentPhysicsSpaceState;
+import dev.hytalemodding.impulse.core.plugin.collision.WorldCollisionMode;
 import dev.hytalemodding.impulse.core.plugin.settings.PhysicsSpaceSettings;
 import dev.hytalemodding.impulse.core.plugin.settings.PhysicsSpaceSettings.ExecutionMode;
-import dev.hytalemodding.impulse.core.plugin.collision.WorldCollisionMode;
 import java.util.concurrent.atomic.AtomicInteger;
 import org.bson.BsonDocument;
 import org.junit.jupiter.api.Test;
@@ -254,12 +255,12 @@ class PhysicsSpaceSettingsTest {
             + BACKEND_COUNTER.incrementAndGet()).createSpace();
         PersistentPhysicsSpaceState state = PersistentPhysicsSpaceState.from(space, original);
 
-        BsonDocument encoded = PersistentPhysicsSpaceState.CODEC.encode(state).asDocument();
+        BsonDocument encoded = PersistentPhysicsSpaceState.CODEC.encode(state, new ExtraInfo()).asDocument();
 
         assertTrue(encoded.containsKey("DetachedVisualInterestRefreshIntervalTicks"));
         assertTrue(encoded.containsKey("DetachedVisualCandidateRefreshIntervalTicks"));
         assertTrue(encoded.containsKey("DetachedVisualVisibilityCheckIntervalTicks"));
-        assertDetachedVisualCadence(PersistentPhysicsSpaceState.CODEC.decode(encoded).toSettings(),
+        assertDetachedVisualCadence(PersistentPhysicsSpaceState.CODEC.decode(encoded, new ExtraInfo()).toSettings(),
             7,
             9,
             11);
