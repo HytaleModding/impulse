@@ -15,10 +15,9 @@ import dev.hytalemodding.impulse.api.PhysicsAxis;
 import dev.hytalemodding.impulse.api.PhysicsBody;
 import dev.hytalemodding.impulse.api.PhysicsSpace;
 import dev.hytalemodding.impulse.core.plugin.resources.PhysicsWorldResource;
+import dev.hytalemodding.impulse.examples.commands.ExamplePhysicsUtils;
 import java.util.concurrent.CompletableFuture;
 import javax.annotation.Nonnull;
-
-import dev.hytalemodding.impulse.examples.commands.ExamplePhysicsUtils;
 import org.joml.Vector3d;
 
 public class StressShapesCommand extends AbstractAsyncPlayerCommand {
@@ -67,15 +66,15 @@ public class StressShapesCommand extends AbstractAsyncPlayerCommand {
             int col = set % 4;
             Vector3d base = new Vector3d(origin).add(col * 7.0, row * 2.2, row * 1.5);
 
-            spawn(store, time, resource, space, createBody(store, space, ShapeType.BOX, axis),
+            spawn(store, time, resource, space, ShapeType.BOX, axis,
                 base, 0.0);
-            spawn(store, time, resource, space, createBody(store, space, ShapeType.SPHERE, axis),
+            spawn(store, time, resource, space, ShapeType.SPHERE, axis,
                 base, 1.2);
-            spawn(store, time, resource, space, createBody(store, space, ShapeType.CAPSULE, axis),
+            spawn(store, time, resource, space, ShapeType.CAPSULE, axis,
                 base, 2.4);
-            spawn(store, time, resource, space, createBody(store, space, ShapeType.CYLINDER, axis),
+            spawn(store, time, resource, space, ShapeType.CYLINDER, axis,
                 base, 3.6);
-            spawn(store, time, resource, space, createBody(store, space, ShapeType.CONE, axis),
+            spawn(store, time, resource, space, ShapeType.CONE, axis,
                 base, 4.8);
         }
 
@@ -88,31 +87,32 @@ public class StressShapesCommand extends AbstractAsyncPlayerCommand {
         @Nonnull TimeResource time,
         @Nonnull PhysicsWorldResource resource,
         @Nonnull PhysicsSpace space,
-        @Nonnull PhysicsBody body,
+        @Nonnull ShapeType type,
+        @Nonnull PhysicsAxis axis,
         @Nonnull Vector3d base,
         double xOffset) {
-        ExamplePhysicsUtils.spawnBlockBody(store, time, resource, space.getId(), space, body,
-            new Vector3d(base).add(xOffset, 0.0, 0.0));
+        ExamplePhysicsUtils.spawnBlockBody(store,
+            time,
+            resource,
+            space.getId(),
+            new Vector3d(base).add(xOffset, 0.0, 0.0),
+            bodySpace -> createBody(bodySpace, type, axis));
     }
 
     @Nonnull
-    private static PhysicsBody createBody(@Nonnull Store<EntityStore> store,
-        @Nonnull PhysicsSpace space,
+    private static PhysicsBody createBody(@Nonnull PhysicsSpace space,
         @Nonnull ShapeType type,
         @Nonnull PhysicsAxis axis) {
-        return ExamplePhysicsUtils.physicsOwnerCall(store, "create stress shape physics body",
-            () -> {
-                PhysicsBody body = switch (type) {
-                    case BOX -> space.createBox(0.45f, 0.55f, 0.35f, 1.0f);
-                    case SPHERE -> space.createSphere(0.5f, 1.0f);
-                    case CAPSULE -> space.createCapsule(0.3f, 0.7f, axis, 1.0f);
-                    case CYLINDER -> space.createCylinder(0.4f, 0.65f, axis, 1.0f);
-                    case CONE -> space.createCone(0.45f, 0.7f, axis, 1.0f);
-                };
-                body.setFriction(0.6f);
-                body.setRestitution(0.25f);
-                return body;
-            });
+        PhysicsBody body = switch (type) {
+            case BOX -> space.createBox(0.45f, 0.55f, 0.35f, 1.0f);
+            case SPHERE -> space.createSphere(0.5f, 1.0f);
+            case CAPSULE -> space.createCapsule(0.3f, 0.7f, axis, 1.0f);
+            case CYLINDER -> space.createCylinder(0.4f, 0.65f, axis, 1.0f);
+            case CONE -> space.createCone(0.45f, 0.7f, axis, 1.0f);
+        };
+        body.setFriction(0.6f);
+        body.setRestitution(0.25f);
+        return body;
     }
 
     private enum ShapeType {

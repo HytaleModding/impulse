@@ -17,21 +17,22 @@ import com.hypixel.hytale.server.core.modules.entity.component.HeadRotation;
 import com.hypixel.hytale.server.core.modules.entity.component.ModelComponent;
 import com.hypixel.hytale.server.core.modules.entity.component.TransformComponent;
 import com.hypixel.hytale.server.core.modules.time.TimeResource;
-import com.hypixel.hytale.server.core.universe.world.World;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import dev.hytalemodding.impulse.api.PhysicsBody;
 import dev.hytalemodding.impulse.api.PhysicsSpace;
 import dev.hytalemodding.impulse.api.SpaceId;
+import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodies;
+import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyFactory;
+import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyId;
+import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodySpawnResult;
+import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodySpawnSpec;
 import dev.hytalemodding.impulse.core.plugin.components.ImpulseControllableComponent;
 import dev.hytalemodding.impulse.core.plugin.components.PhysicsBodyAttachmentComponent;
-import dev.hytalemodding.impulse.core.plugin.components.PhysicsBodyAttachmentComponent.AttachmentLifecycle;
-import dev.hytalemodding.impulse.core.plugin.components.PhysicsBodyAttachmentComponent.TransformAuthority;
-import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyId;
-import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyKind;
-import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyPersistenceMode;
 import dev.hytalemodding.impulse.core.plugin.execution.PhysicsOwnerCallable;
 import dev.hytalemodding.impulse.core.plugin.execution.PhysicsOwnerMutation;
 import dev.hytalemodding.impulse.core.plugin.resources.PhysicsWorldResource;
+import dev.hytalemodding.impulse.core.plugin.settings.PhysicsVisualMaterializationSettings;
+import java.util.concurrent.atomic.AtomicBoolean;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 import org.joml.Quaterniond;
@@ -40,7 +41,8 @@ import org.joml.Vector3f;
 
 public final class ExamplePhysicsUtils {
 
-    private static final String DEFAULT_BLOCK_TYPE = "Rock_Stone";
+    public static final String DEFAULT_BLOCK_TYPE =
+        PhysicsVisualMaterializationSettings.DEFAULT_DETACHED_VISUAL_BLOCK_TYPE;
     private static final ComponentType<EntityStore, TransformComponent> TRANSFORM_TYPE =
         TransformComponent.getComponentType();
     private static final ComponentType<EntityStore, DespawnComponent> DESPAWN_TYPE =
@@ -99,88 +101,91 @@ public final class ExamplePhysicsUtils {
     }
 
     @Nonnull
-    static Ref<EntityStore> spawnBlockBody(@Nonnull Store<EntityStore> store,
-        @Nonnull World world,
-        @Nonnull PhysicsWorldResource resource,
-        @Nonnull PhysicsSpace space,
-        @Nonnull PhysicsBody body,
-        @Nonnull Vector3d visualPosition) {
-        TimeResource time = store.getResource(TimeResource.getResourceType());
-        return spawnBlockBody(store, time, resource, space.getId(), space, body, visualPosition);
-    }
-
-    @Nonnull
-    public static Ref<EntityStore> spawnBlockBody(@Nonnull Store<EntityStore> store,
+    public static SpawnedBlockBody spawnBlockBody(@Nonnull Store<EntityStore> store,
         @Nonnull TimeResource time,
         @Nonnull PhysicsWorldResource resource,
         @Nonnull SpaceId spaceId,
-        @Nonnull PhysicsSpace space,
-        @Nonnull PhysicsBody body,
-        @Nonnull Vector3d visualPosition) {
-        Holder<EntityStore> holder = BlockEntity.assembleDefaultBlockEntity(
-            time,
-            DEFAULT_BLOCK_TYPE,
-            new Vector3d(visualPosition)
-        );
-        holder.removeComponent(DESPAWN_TYPE);
-
-        resource.runOnPhysicsOwner("position example physics body", () ->
-            body.setPosition((float) visualPosition.x,
-                (float) (visualPosition.y + body.getCenterOfMassOffsetY()),
-                (float) visualPosition.z));
-
-        return attachBlockBodyEntity(store, holder, resource, spaceId, body, true);
+        @Nonnull Vector3d visualPosition,
+        @Nonnull PhysicsBodyFactory factory) {
+        return spawnBlockBody(store, time, resource, spaceId, visualPosition, DEFAULT_BLOCK_TYPE,
+            factory);
     }
 
     @Nonnull
-    public static Ref<EntityStore> attachExistingBlockBody(@Nonnull Store<EntityStore> store,
+    public static SpawnedBlockBody spawnBlockBody(@Nonnull Store<EntityStore> store,
         @Nonnull TimeResource time,
         @Nonnull PhysicsWorldResource resource,
         @Nonnull SpaceId spaceId,
-        @Nonnull PhysicsBody body) {
-        Holder<EntityStore> holder = BlockEntity.assembleDefaultBlockEntity(
-            time,
-            DEFAULT_BLOCK_TYPE,
-            physicsOwnerCall(store, "read example physics body visual position",
-                () -> visualPositionFromBody(body))
-        );
-        holder.removeComponent(DESPAWN_TYPE);
-
-        return attachBlockBodyEntity(store, holder, resource, spaceId, body, false);
-    }
-
-    @Nonnull
-    private static Ref<EntityStore> attachBlockBodyEntity(@Nonnull Store<EntityStore> store,
-        @Nonnull Holder<EntityStore> holder,
-        @Nonnull PhysicsWorldResource resource,
-        @Nonnull SpaceId spaceId,
-        @Nonnull PhysicsBody body,
-        boolean addBodyToSpace) {
-
-        PhysicsBodyId bodyId = resource.getBodyId(body);
-        if (bodyId == null) {
-            bodyId = resource.addBody(spaceId,
-                body,
-                PhysicsBodyKind.BODY,
-                PhysicsBodyPersistenceMode.PERSISTENT);
-        } else if (addBodyToSpace) {
-            resource.addBody(bodyId,
+        @Nonnull Vector3d visualPosition,
+        @Nullable String blockType,
+        @Nonnull PhysicsBodyFactory factory) {
+        AtomicBoolean dynamic = new AtomicBoolean();
+        PhysicsBodySpawnResult spawned = PhysicsBodies.spawn(resource,
+            PhysicsBodySpawnSpec.persistentBody(
                 spaceId,
-                body,
-                PhysicsBodyKind.BODY,
-                PhysicsBodyPersistenceMode.PERSISTENT);
+                space -> {
+                    PhysicsBody body = factory.create(space);
+                    body.setPosition((float) visualPosition.x,
+                        (float) (visualPosition.y + body.getCenterOfMassOffsetY()),
+                        (float) visualPosition.z);
+                    dynamic.set(body.isDynamic());
+                    return body;
+                }));
+        Ref<EntityStore> entity = spawnAttachedBlockEntity(store,
+            time,
+            spawned.bodyId(),
+            spawned.spaceId(),
+            blockType,
+            visualPosition,
+            dynamic.get());
+        return new SpawnedBlockBody(spawned.bodyId(), spawned.spaceId(), entity);
+    }
+
+    @Nonnull
+    public static PhysicsBody requireLiveBody(@Nonnull PhysicsWorldResource resource,
+        @Nonnull PhysicsBodyId bodyId) {
+        PhysicsBody body = resource.getBody(bodyId);
+        if (body == null) {
+            throw new IllegalArgumentException("Physics body id=" + bodyId + " is not registered");
         }
+        return body;
+    }
+
+    @Nonnull
+    private static Ref<EntityStore> spawnAttachedBlockEntity(@Nonnull Store<EntityStore> store,
+        @Nonnull TimeResource time,
+        @Nonnull PhysicsBodyId bodyId,
+        @Nonnull SpaceId spaceId,
+        @Nullable String blockType,
+        @Nonnull Vector3d visualPosition,
+        boolean controllable) {
+        Holder<EntityStore> holder = blockEntityHolder(time, blockType, visualPosition);
         holder.addComponent(ATTACHMENT_TYPE,
-            new PhysicsBodyAttachmentComponent(bodyId,
-                spaceId,
-                TransformAuthority.BODY,
-                AttachmentLifecycle.EXTERNAL_ENTITY));
-        boolean dynamic = physicsOwnerCall(store, "read example physics body type",
-            body::isDynamic);
-        if (dynamic) {
+            PhysicsBodyAttachmentComponent.externalEntity(bodyId, spaceId));
+        if (controllable) {
             holder.addComponent(IMPULSE_CONTROLLABLE_TYPE, new ImpulseControllableComponent());
         }
         return store.addEntity(holder, AddReason.SPAWN);
+    }
+
+    @Nonnull
+    private static Holder<EntityStore> blockEntityHolder(@Nonnull TimeResource time,
+        @Nullable String blockType,
+        @Nonnull Vector3d visualPosition) {
+        Holder<EntityStore> holder = BlockEntity.assembleDefaultBlockEntity(
+            time,
+            resolveBlockType(blockType),
+            new Vector3d(visualPosition)
+        );
+        holder.removeComponent(DESPAWN_TYPE);
+        return holder;
+    }
+
+    @Nonnull
+    public static String resolveBlockType(@Nullable String blockType) {
+        return blockType == null || blockType.isBlank()
+            ? DEFAULT_BLOCK_TYPE
+            : blockType.trim();
     }
 
     @Nonnull
@@ -230,20 +235,12 @@ public final class ExamplePhysicsUtils {
         return Math.min(value, max);
     }
 
-    static Vector3d bodyCenter(@Nonnull PhysicsBody body) {
-        Vector3f position = body.getPosition();
-        return new Vector3d(position.x, position.y, position.z);
-    }
-
-    @Nonnull
-    static Vector3d visualPositionFromBody(@Nonnull PhysicsBody body) {
-        Vector3f center = body.getPosition();
-        return new Vector3d(center.x,
-            center.y - body.getCenterOfMassOffsetY(),
-            center.z);
-    }
-
     static Vector3f toVector3f(@Nonnull Vector3d vector) {
         return new Vector3f((float) vector.x, (float) vector.y, (float) vector.z);
+    }
+
+    public record SpawnedBlockBody(@Nonnull PhysicsBodyId bodyId,
+                                   @Nonnull SpaceId spaceId,
+                                   @Nonnull Ref<EntityStore> entity) {
     }
 }
