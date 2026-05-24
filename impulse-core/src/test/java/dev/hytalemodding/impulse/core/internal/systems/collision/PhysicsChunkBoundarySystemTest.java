@@ -90,15 +90,20 @@ class PhysicsChunkBoundarySystemTest {
         @Nonnull Vector3f linearVelocity,
         @Nonnull Vector3f angularVelocity,
         @Nonnull PhysicsBodyType bodyType) {
-        return new PhysicsBodySnapshot(body,
-            position,
+        return new PhysicsBodySnapshot(position,
             rotation,
             linearVelocity,
             angularVelocity,
             bodyType,
             false,
             false,
-            0.0f);
+            0.0f,
+            ShapeType.BOX,
+            new Vector3f(0.5f),
+            -1.0f,
+            -1.0f,
+            PhysicsAxis.Y,
+            Float.NaN);
     }
 
     private static final class CountingBody implements PhysicsBody {

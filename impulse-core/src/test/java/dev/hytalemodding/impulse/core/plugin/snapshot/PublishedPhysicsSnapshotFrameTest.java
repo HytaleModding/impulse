@@ -5,15 +5,16 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
 import dev.hytalemodding.impulse.api.PhysicsBody;
+import dev.hytalemodding.impulse.api.PhysicsAxis;
 import dev.hytalemodding.impulse.api.PhysicsBodySnapshot;
 import dev.hytalemodding.impulse.api.PhysicsBodyType;
+import dev.hytalemodding.impulse.api.ShapeType;
 import dev.hytalemodding.impulse.api.SpaceId;
 import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyId;
 import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyKind;
 import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyPersistenceMode;
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
-import java.lang.reflect.Proxy;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
@@ -49,7 +50,13 @@ class PublishedPhysicsSnapshotFrameTest {
             PhysicsBodyType.DYNAMIC,
             false,
             true,
-            0.25f);
+            0.25f,
+            ShapeType.BOX,
+            new Vector3f(0.5f, 0.75f, 1.0f),
+            -1.0f,
+            -1.0f,
+            PhysicsAxis.Y,
+            Float.NaN);
 
         position.zero();
         rotation.identity();
@@ -74,15 +81,20 @@ class PublishedPhysicsSnapshotFrameTest {
 
     @Test
     void factoryCopiesExistingSnapshotDataWithoutPublishingHandle() {
-        PhysicsBodySnapshot ownerThreadSnapshot = new PhysicsBodySnapshot(bodyHandle(),
-            new Vector3f(1.0f, 0.0f, 0.0f),
+        PhysicsBodySnapshot ownerThreadSnapshot = new PhysicsBodySnapshot(new Vector3f(1.0f, 0.0f, 0.0f),
             new Quaternionf().rotateY(0.5f),
             new Vector3f(0.0f, 2.0f, 0.0f),
             new Vector3f(0.0f, 0.0f, 3.0f),
             PhysicsBodyType.KINEMATIC,
             true,
             false,
-            0.5f);
+            0.5f,
+            ShapeType.BOX,
+            new Vector3f(0.25f, 0.5f, 0.75f),
+            -1.0f,
+            -1.0f,
+            PhysicsAxis.Y,
+            Float.NaN);
 
         PublishedPhysicsBodySnapshot published = PublishedPhysicsBodySnapshot.from(BODY_ID,
             SPACE_ID,
@@ -106,6 +118,8 @@ class PublishedPhysicsSnapshotFrameTest {
         assertEquals(PhysicsBodyKind.BODY, published.kind());
         assertEquals(PhysicsBodyPersistenceMode.PERSISTENT, published.persistenceMode());
         assertEquals(PhysicsBodyType.KINEMATIC, published.bodyType());
+        assertEquals(ShapeType.BOX, published.shapeType());
+        assertEquals(new Vector3f(0.25f, 0.5f, 0.75f), published.boxHalfExtents());
     }
 
     @Test
@@ -219,14 +233,12 @@ class PublishedPhysicsSnapshotFrameTest {
             PhysicsBodyType.DYNAMIC,
             false,
             false,
-            0.0f);
-    }
-
-    private static PhysicsBody bodyHandle() {
-        return (PhysicsBody) Proxy.newProxyInstance(PhysicsBody.class.getClassLoader(),
-            new Class<?>[] {PhysicsBody.class},
-            (proxy, method, args) -> {
-                throw new UnsupportedOperationException(method.getName());
-            });
+            0.0f,
+            ShapeType.BOX,
+            new Vector3f(0.5f),
+            -1.0f,
+            -1.0f,
+            PhysicsAxis.Y,
+            Float.NaN);
     }
 }
