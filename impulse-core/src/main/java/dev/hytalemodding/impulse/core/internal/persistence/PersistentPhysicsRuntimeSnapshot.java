@@ -7,6 +7,7 @@ import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyPersistenceMode;
 import dev.hytalemodding.impulse.core.plugin.settings.PhysicsSpaceSettings;
 import dev.hytalemodding.impulse.core.plugin.settings.PhysicsStepMode;
 import dev.hytalemodding.impulse.core.plugin.resources.PhysicsWorldResource;
+import lombok.Getter;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;

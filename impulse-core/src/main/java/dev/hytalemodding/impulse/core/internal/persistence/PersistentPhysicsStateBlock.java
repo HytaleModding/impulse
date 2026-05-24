@@ -15,6 +15,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.zip.CRC32;
 import javax.annotation.Nonnull;
+import lombok.Getter;
 import org.bson.BsonBinaryReader;
 import org.bson.BsonBinaryWriter;
 import org.bson.BsonDocument;
