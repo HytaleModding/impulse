@@ -92,11 +92,29 @@ public final class PhysicsWorkerRunner implements AutoCloseable {
         synchronized (lifecycleLock) {
             accepting.set(false);
         }
-        long timeoutMillis = Math.max(0L, timeout.toMillis());
+        long timeoutNanos = Math.max(0L, timeout.toNanos());
+        long deadline = timeoutNanos == 0L
+            ? Long.MAX_VALUE
+            : System.nanoTime() + timeoutNanos;
+        boolean interrupted = false;
         try {
-            thread.join(timeoutMillis);
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
+            while (thread.isAlive()) {
+                long remainingNanos = deadline - System.nanoTime();
+                if (remainingNanos <= 0L) {
+                    break;
+                }
+                try {
+                    long millis = TimeUnit.NANOSECONDS.toMillis(remainingNanos);
+                    int nanos = (int) (remainingNanos - TimeUnit.MILLISECONDS.toNanos(millis));
+                    thread.join(millis, nanos);
+                } catch (InterruptedException e) {
+                    interrupted = true;
+                }
+            }
+        } finally {
+            if (interrupted) {
+                Thread.currentThread().interrupt();
+            }
         }
         return !thread.isAlive();
     }
