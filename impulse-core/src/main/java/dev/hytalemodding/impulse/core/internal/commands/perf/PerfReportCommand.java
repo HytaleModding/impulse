@@ -490,7 +490,7 @@ public class PerfReportCommand extends AbstractWorldCommand {
 
             int detachedBodies = 0;
             int detachedVisualProxies = 0;
-            for (PhysicsWorldResource.BodyRegistration registration : resource.getBodyRegistrations()) {
+            for (PhysicsWorldResource.BodyRegistrationView registration : resource.getBodyRegistrationViews()) {
                 if (registration.kind() != PhysicsBodyKind.BODY
                     || !resource.getBodyAttachments(registration.id()).isEmpty()) {
                     continue;

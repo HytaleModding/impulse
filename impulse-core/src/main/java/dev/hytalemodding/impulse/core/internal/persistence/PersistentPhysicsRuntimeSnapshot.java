@@ -63,6 +63,7 @@ public final class PersistentPhysicsRuntimeSnapshot {
 
     @Nonnull
     public static PersistentPhysicsRuntimeSnapshot capture(@Nonnull PhysicsWorldResource runtime) {
+        runtime.assertCanAccessLiveBackendDirectly("capture persistent physics runtime snapshot");
         SpaceId defaultSpaceId = runtime.getDefaultSpaceId();
         int resolvedDefaultSpaceId = defaultSpaceId != null
             ? defaultSpaceId.value()
@@ -94,6 +95,7 @@ public final class PersistentPhysicsRuntimeSnapshot {
 
     @Nonnull
     public static Footprint captureFootprint(@Nonnull PhysicsWorldResource runtime) {
+        runtime.assertCanAccessLiveBackendDirectly("capture persistent physics runtime footprint");
         return new Footprint(runtime.getSpaceCount(),
             runtime.getBodyRegistrationCount(PhysicsBodyPersistenceMode.PERSISTENT),
             countPersistentJoints(runtime));

@@ -92,10 +92,13 @@ public class GrabCommand extends AbstractAsyncPlayerCommand {
         GrabPhysicsState physicsState = ExamplePhysicsUtils.physicsOwnerCall(store,
             "create grabbed physics anchor",
             () -> {
-                PhysicsBody body = selection.hit.body();
+                PhysicsBody body = resource.getBody(selection.bodyId());
+                if (body == null) {
+                    return null;
+                }
                 PhysicsBodyType originalBodyType = body.getBodyType();
                 Vector3f bodyPosition = body.getPosition();
-                Vector3f hitPoint = new Vector3f(selection.hit.point());
+                Vector3f hitPoint = new Vector3f(selection.point());
                 Vector3f bodyLocalHit = new Vector3f(hitPoint).sub(bodyPosition);
                 new Quaternionf(body.getRotation()).invert().transform(bodyLocalHit);
 
@@ -114,6 +117,10 @@ public class GrabCommand extends AbstractAsyncPlayerCommand {
                 body.activate();
                 return new GrabPhysicsState(originalBodyType, anchorBodyId, joint, hitPoint);
             });
+        if (physicsState == null) {
+            ctx.sender().sendMessage(Message.raw("Selected physics body no longer exists."));
+            return CompletableFuture.completedFuture(null);
+        }
 
         store.putComponent(ref,
             CONTROL_SESSION_TYPE,
@@ -124,14 +131,14 @@ public class GrabCommand extends AbstractAsyncPlayerCommand {
                 selection.attachment(),
                 selectedSpaceId,
                 physicsState.originalBodyType(),
-                Math.max((float) selection.hit.distance(), MIN_HOLD_DISTANCE),
+                Math.max(selection.distance(), MIN_HOLD_DISTANCE),
                 VIEW_OFFSET,
                 physicsState.hitPoint()
             ));
         resource.markBodyControlled(selection.bodyId());
 
         ctx.sender().sendMessage(Message.raw("Grabbed physics body at distance "
-            + selection.hit.distance()));
+            + selection.distance()));
         return CompletableFuture.completedFuture(null);
     }
 
@@ -156,7 +163,11 @@ public class GrabCommand extends AbstractAsyncPlayerCommand {
                     if (registration == null || registration.kind() != PhysicsBodyKind.BODY) {
                         continue;
                     }
-                    found.add(new HitCandidate(hit, registration.id(), registration.spaceId()));
+                    found.add(new HitCandidate(registration.id(),
+                        registration.spaceId(),
+                        new Vector3f(hit.point()),
+                        hit.fraction(),
+                        hit.distance()));
                 }
                 return found;
             });
@@ -167,9 +178,13 @@ public class GrabCommand extends AbstractAsyncPlayerCommand {
                 continue;
             }
 
-            if (best == null || candidate.hit().fraction() < best.hit.fraction()) {
-                best = new HitSelection(candidate.hit(), candidate.bodyId(), attachment,
-                    candidate.spaceId());
+            if (best == null || candidate.fraction() < best.fraction()) {
+                best = new HitSelection(candidate.bodyId(),
+                    attachment,
+                    candidate.spaceId(),
+                    candidate.point(),
+                    candidate.fraction(),
+                    candidate.distance());
             }
         }
         return best;
@@ -215,15 +230,19 @@ public class GrabCommand extends AbstractAsyncPlayerCommand {
         ReleaseCommand.release(store, playerRef, existing);
     }
 
-    private record HitSelection(@Nonnull PhysicsRayHit hit,
-                                @Nonnull PhysicsBodyId bodyId,
+    private record HitSelection(@Nonnull PhysicsBodyId bodyId,
                                 @Nullable Ref<EntityStore> attachment,
-                                @Nullable SpaceId spaceId) {
+                                @Nullable SpaceId spaceId,
+                                @Nonnull Vector3f point,
+                                float fraction,
+                                float distance) {
     }
 
-    private record HitCandidate(@Nonnull PhysicsRayHit hit,
-                                @Nonnull PhysicsBodyId bodyId,
-                                @Nullable SpaceId spaceId) {
+    private record HitCandidate(@Nonnull PhysicsBodyId bodyId,
+                                @Nullable SpaceId spaceId,
+                                @Nonnull Vector3f point,
+                                float fraction,
+                                float distance) {
     }
 
     private record GrabPhysicsState(@Nonnull PhysicsBodyType originalBodyType,

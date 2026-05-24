@@ -103,7 +103,7 @@ public class PhysicsCollisionLodSystem extends TickingSystem<EntityStore> {
         resource.forEachBodySnapshot(spaceId, entry -> {
             PhysicsBodyId bodyId = entry.bodyId();
             seenBodies.add(bodyId);
-            if (entry.registration().persistenceMode() == PhysicsBodyPersistenceMode.PERSISTENT) {
+            if (entry.persistenceMode() == PhysicsBodyPersistenceMode.PERSISTENT) {
                 state.recordRestore(spaceId, bodyId, updates);
                 return;
             }
@@ -176,8 +176,8 @@ public class PhysicsCollisionLodSystem extends TickingSystem<EntityStore> {
 
     static boolean isCollisionLodCandidate(
         @Nonnull PhysicsWorldResource.BodySnapshotEntry entry) {
-        return entry.registration().persistenceMode() != PhysicsBodyPersistenceMode.PERSISTENT
-            && entry.registration().kind() == PhysicsBodyKind.BODY
+        return entry.persistenceMode() != PhysicsBodyPersistenceMode.PERSISTENT
+            && entry.kind() == PhysicsBodyKind.BODY
             && entry.snapshot().isDynamic()
             && !entry.snapshot().sensor();
     }

@@ -58,13 +58,13 @@ public class PhysicsChunkBoundarySystem extends TickingSystem<EntityStore> {
         ChunkStore chunkStore = world.getChunkStore();
         Store<ChunkStore> chunkComponentStore = chunkStore.getStore();
         PhysicsWorldResource resource = store.getResource(PhysicsWorldResource.getResourceType());
-        for (PhysicsWorldResource.BodyRegistration registration
-            : resource.getBodyRegistrations(PhysicsBodyKind.BODY)) {
+        for (PhysicsWorldResource.BodyRegistrationView registration
+            : resource.getBodyRegistrationViews(PhysicsBodyKind.BODY)) {
             processBody(registration, resource, store, chunkStore, chunkComponentStore);
         }
     }
 
-    private void processBody(@Nonnull PhysicsWorldResource.BodyRegistration registration,
+    private void processBody(@Nonnull PhysicsWorldResource.BodyRegistrationView registration,
         @Nonnull PhysicsWorldResource resource,
         @Nonnull Store<EntityStore> store,
         @Nonnull ChunkStore chunkStore,
@@ -74,7 +74,6 @@ public class PhysicsChunkBoundarySystem extends TickingSystem<EntityStore> {
         }
 
         PhysicsBodyId bodyId = registration.id();
-        PhysicsBody body = registration.body();
         PhysicsBodySnapshot snapshot = resource.getBodySnapshot(bodyId);
         if (snapshot.isStatic()) {
             return;
@@ -86,7 +85,6 @@ public class PhysicsChunkBoundarySystem extends TickingSystem<EntityStore> {
             resource.getChunkBoundaryPauseState(bodyId);
         if (pauseState != null) {
             handlePausedBody(bodyId,
-                body,
                 snapshot,
                 pauseState,
                 mode,
@@ -109,11 +107,10 @@ public class PhysicsChunkBoundarySystem extends TickingSystem<EntityStore> {
         }
 
         PhysicsWorkerAccess.run(store, "pause chunk-boundary physics body",
-            () -> pauseBody(bodyId, body, snapshot, targetChunkIndex, resource));
+            () -> pauseBody(bodyId, snapshot, targetChunkIndex, resource));
     }
 
     private void handlePausedBody(@Nonnull PhysicsBodyId bodyId,
-        @Nonnull PhysicsBody body,
         @Nonnull PhysicsBodySnapshot snapshot,
         @Nonnull PhysicsWorldResource.ChunkBoundaryPauseState pauseState,
         @Nonnull EntityChunkBoundaryMode mode,
@@ -131,6 +128,10 @@ public class PhysicsChunkBoundarySystem extends TickingSystem<EntityStore> {
         }
 
         PhysicsWorkerAccess.run(entityStore, "resume chunk-boundary physics body", () -> {
+            PhysicsBody body = resource.getBody(bodyId);
+            if (body == null) {
+                return;
+            }
             body.setBodyType(pauseState.getOriginalBodyType());
             body.setLinearVelocity(pauseState.getLinearVelocity());
             body.setAngularVelocity(pauseState.getAngularVelocity());
@@ -138,6 +139,17 @@ public class PhysicsChunkBoundarySystem extends TickingSystem<EntityStore> {
             resource.clearChunkBoundaryPauseState(bodyId);
             recordSafePose(bodyId, snapshot, resource);
         });
+    }
+
+    static void pauseBody(@Nonnull PhysicsBodyId bodyId,
+        @Nonnull PhysicsBodySnapshot snapshot,
+        long targetChunkIndex,
+        @Nonnull PhysicsWorldResource resource) {
+        PhysicsBody body = resource.getBody(bodyId);
+        if (body == null) {
+            return;
+        }
+        pauseBody(bodyId, body, snapshot, targetChunkIndex, resource);
     }
 
     static void pauseBody(@Nonnull PhysicsBodyId bodyId,

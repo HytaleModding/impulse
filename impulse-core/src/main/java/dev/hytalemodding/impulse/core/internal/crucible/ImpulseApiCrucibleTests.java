@@ -184,7 +184,7 @@ final class ImpulseApiCrucibleTests {
                 PhysicsBodyPersistenceMode.RUNTIME_ONLY);
 
             resource.destroyBody(bodyId);
-            return space.bodyCount() == 0 && resource.getBodyRegistrations().isEmpty();
+            return space.bodyCount() == 0 && resource.getBodyRegistrationViews().isEmpty();
         } finally {
             resource.clearAllSpaces("crucible");
         }

@@ -249,7 +249,7 @@ public class SpaceCommand extends AbstractCommandCollection {
     private static int countRegisteredBodies(@Nonnull PhysicsWorldResource resource,
         @Nonnull SpaceId spaceId) {
         int count = 0;
-        for (PhysicsWorldResource.BodyRegistration registration : resource.getBodyRegistrations()) {
+        for (PhysicsWorldResource.BodyRegistrationView registration : resource.getBodyRegistrationViews()) {
             if (registration.spaceId().equals(spaceId)) {
                 count++;
             }

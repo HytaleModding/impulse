@@ -11,7 +11,6 @@ import com.hypixel.hytale.server.core.universe.PlayerRef;
 import com.hypixel.hytale.server.core.universe.world.World;
 import com.hypixel.hytale.server.core.universe.world.storage.ChunkStore;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
-import dev.hytalemodding.impulse.api.PhysicsBody;
 import dev.hytalemodding.impulse.api.PhysicsBodySnapshot;
 import dev.hytalemodding.impulse.api.PhysicsSpace;
 import dev.hytalemodding.impulse.api.ShapeType;
@@ -20,7 +19,7 @@ import dev.hytalemodding.impulse.core.plugin.components.PhysicsBodyAttachmentCom
 import dev.hytalemodding.impulse.core.internal.resources.debug.PhysicsDebugResource;
 import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyKind;
 import dev.hytalemodding.impulse.core.plugin.resources.PhysicsWorldResource;
-import dev.hytalemodding.impulse.core.plugin.resources.PhysicsWorldResource.BodyRegistration;
+import dev.hytalemodding.impulse.core.plugin.resources.PhysicsWorldResource.BodyRegistrationView;
 import dev.hytalemodding.impulse.core.internal.voxel.SectionCollisionGeometry.BoxCollider;
 import dev.hytalemodding.impulse.core.internal.voxel.WorldCollisionCacheAccess;
 import dev.hytalemodding.impulse.core.internal.voxel.WorldVoxelCollisionCache;
@@ -182,7 +181,7 @@ public class PhysicsDebugSystem extends TickingSystem<ChunkStore> {
             return 0;
         }
         double maxDistanceSquared = viewRadius * viewRadius;
-        for (BodyRegistration registration : resource.getBodyRegistrations(PhysicsBodyKind.BODY)) {
+        for (BodyRegistrationView registration : resource.getBodyRegistrationViews(PhysicsBodyKind.BODY)) {
             if (resource.getBodyAttachments(registration.id()).isEmpty()) {
                 continue;
             }
@@ -200,9 +199,8 @@ public class PhysicsDebugSystem extends TickingSystem<ChunkStore> {
                     continue;
                 }
 
-                PhysicsBody body = registration.body();
                 PhysicsBodySnapshot snapshot = resource.getBodySnapshot(registration.id());
-                Vector3d center = PhysicsDebugRenderer.centerFromSyncedTransform(body,
+                Vector3d center = PhysicsDebugRenderer.centerFromSyncedTransform(snapshot,
                     transform.getPosition());
                 if (viewerPosition.distanceSquared(center) > maxDistanceSquared) {
                     continue;
@@ -250,9 +248,8 @@ public class PhysicsDebugSystem extends TickingSystem<ChunkStore> {
                     return;
                 }
 
-                BodyRegistration registration = entry.registration();
-                if (registration.kind() != PhysicsBodyKind.BODY
-                    || !resource.getBodyAttachments(registration.id()).isEmpty()) {
+                if (entry.kind() != PhysicsBodyKind.BODY
+                    || !resource.getBodyAttachments(entry.bodyId()).isEmpty()) {
                     return;
                 }
 
@@ -263,7 +260,6 @@ public class PhysicsDebugSystem extends TickingSystem<ChunkStore> {
                     return;
                 }
 
-                PhysicsBody body = snapshot.body();
                 Quaterniond rotation = new Quaterniond(snapshot.rotation().x,
                     snapshot.rotation().y,
                     snapshot.rotation().z,
@@ -293,8 +289,7 @@ public class PhysicsDebugSystem extends TickingSystem<ChunkStore> {
         float time) {
         resource.forEachBodySnapshot(space.getId(), entry -> {
             PhysicsBodySnapshot snapshot = entry.snapshot();
-            PhysicsBody body = snapshot.body();
-            if (body.getShapeType() != ShapeType.PLANE) {
+            if (snapshot.shapeType() != ShapeType.PLANE) {
                 return;
             }
 
@@ -321,7 +316,8 @@ public class PhysicsDebugSystem extends TickingSystem<ChunkStore> {
         List<ContactDebugPrimitive> contacts;
         try {
             contacts = resource.callOnPhysicsOwner("capture physics debug contacts",
-                () -> PhysicsContactDebugCapture.collectVisibleContactPrimitives(space,
+                () -> PhysicsContactDebugCapture.collectVisibleContactPrimitives(resource,
+                    space,
                     viewerPosition,
                     viewRadius,
                     maxContacts));
@@ -343,7 +339,8 @@ public class PhysicsDebugSystem extends TickingSystem<ChunkStore> {
         List<JointDebugPrimitive> joints;
         try {
             joints = resource.callOnPhysicsOwner("capture physics debug joints",
-                () -> PhysicsJointDebugCapture.collectVisibleJointPrimitives(space,
+                () -> PhysicsJointDebugCapture.collectVisibleJointPrimitives(resource,
+                    space,
                     viewerPosition,
                     viewRadius,
                     maxJoints));

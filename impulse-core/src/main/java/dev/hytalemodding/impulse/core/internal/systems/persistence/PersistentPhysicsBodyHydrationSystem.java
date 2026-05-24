@@ -50,7 +50,7 @@ public class PersistentPhysicsBodyHydrationSystem extends TickingSystem<EntitySt
                 persistent.recordRuntimeBodySkipped("missing body id");
                 continue;
             }
-            if (runtime.getRegistration(bodyId) != null) {
+            if (runtime.getBodyRegistrationView(bodyId) != null) {
                 continue;
             }
 

@@ -34,6 +34,7 @@ import java.util.IdentityHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.function.BiConsumer;
 import java.util.function.Consumer;
 import java.util.function.Function;
 import javax.annotation.Nonnull;
@@ -163,10 +164,16 @@ public final class BulletSpace implements PhysicsSpace {
     @Override
     public void snapshotBodies(@Nonnull Function<PhysicsBody, PhysicsBodySnapshot> previousSnapshots,
         @Nonnull Consumer<PhysicsBodySnapshot> consumer) {
+        snapshotBodies(previousSnapshots, (_, snapshot) -> consumer.accept(snapshot));
+    }
+
+    @Override
+    public void snapshotBodies(@Nonnull Function<PhysicsBody, PhysicsBodySnapshot> previousSnapshots,
+        @Nonnull BiConsumer<PhysicsBody, PhysicsBodySnapshot> consumer) {
         requireOpen();
         for (BulletBody body : bodies) {
             if (body.isAttachedToSpace()) {
-                consumer.accept(PhysicsBodySnapshot.from(body, previousSnapshots.apply(body)));
+                consumer.accept(body, PhysicsBodySnapshot.from(body, previousSnapshots.apply(body)));
             }
         }
     }

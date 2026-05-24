@@ -54,12 +54,15 @@ public class ReleaseCommand extends AbstractAsyncPlayerCommand {
         PhysicsSpace space = session.getSpaceId() != null ? resource.getSpace(session.getSpaceId()) : null;
 
         PhysicsBodyId bodyId = session.getBodyId();
-        PhysicsBody body = bodyId != null ? resource.getBody(bodyId) : null;
-        if (body != null) {
+        if (bodyId != null && resource.getBodyRegistrationView(bodyId) != null) {
             resource.clearControlledBody(bodyId);
             PhysicsBodyType originalBodyType = session.getOriginalBodyType();
             ExamplePhysicsUtils.physicsOwnerRun(store, "release grabbed physics body",
                 () -> {
+                    PhysicsBody body = resource.getBody(bodyId);
+                    if (body == null) {
+                        return;
+                    }
                     PhysicsJoint joint = session.getJoint();
                     if (space != null && joint != null) {
                         space.removeJoint(joint);

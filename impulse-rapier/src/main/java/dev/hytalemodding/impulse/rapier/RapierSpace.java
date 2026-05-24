@@ -22,6 +22,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.function.BiConsumer;
 import java.util.function.Consumer;
 import java.util.function.Function;
 import javax.annotation.Nonnull;
@@ -195,6 +196,12 @@ public final class RapierSpace implements PhysicsSpace, PhysicsSolverTuning, Phy
     @Override
     public void snapshotBodies(@Nonnull Function<PhysicsBody, PhysicsBodySnapshot> previousSnapshots,
         @Nonnull Consumer<PhysicsBodySnapshot> consumer) {
+        snapshotBodies(previousSnapshots, (_, snapshot) -> consumer.accept(snapshot));
+    }
+
+    @Override
+    public void snapshotBodies(@Nonnull Function<PhysicsBody, PhysicsBodySnapshot> previousSnapshots,
+        @Nonnull BiConsumer<PhysicsBody, PhysicsBodySnapshot> consumer) {
         ensureOpen();
         int count = bodies.size();
         if (count == 0) {
@@ -216,13 +223,13 @@ public final class RapierSpace implements PhysicsSpace, PhysicsSolverTuning, Phy
         int limit = Math.min(count, Math.max(0, written));
         for (int i = 0; i < limit; i++) {
             RapierBody body = bodies.get(i);
-            consumer.accept(body.snapshotFromNative(snapshotBodyData,
+            consumer.accept(body, body.snapshotFromNative(snapshotBodyData,
                 i * BODY_SNAPSHOT_FLOATS,
                 previousSnapshots.apply(body)));
         }
         for (int i = limit; i < count; i++) {
             RapierBody body = bodies.get(i);
-            consumer.accept(PhysicsBodySnapshot.from(body, previousSnapshots.apply(body)));
+            consumer.accept(body, PhysicsBodySnapshot.from(body, previousSnapshots.apply(body)));
         }
     }
 
@@ -230,6 +237,13 @@ public final class RapierSpace implements PhysicsSpace, PhysicsSolverTuning, Phy
     public void snapshotBodies(@Nonnull Iterable<? extends PhysicsBody> selectedBodies,
         @Nonnull Function<PhysicsBody, PhysicsBodySnapshot> previousSnapshots,
         @Nonnull Consumer<PhysicsBodySnapshot> consumer) {
+        snapshotBodies(selectedBodies, previousSnapshots, (_, snapshot) -> consumer.accept(snapshot));
+    }
+
+    @Override
+    public void snapshotBodies(@Nonnull Iterable<? extends PhysicsBody> selectedBodies,
+        @Nonnull Function<PhysicsBody, PhysicsBodySnapshot> previousSnapshots,
+        @Nonnull BiConsumer<PhysicsBody, PhysicsBodySnapshot> consumer) {
         ensureOpen();
         int count = collectSelectedSnapshotBodies(selectedBodies, previousSnapshots, consumer);
         if (count == 0) {
@@ -247,13 +261,13 @@ public final class RapierSpace implements PhysicsSpace, PhysicsSolverTuning, Phy
             int limit = Math.min(count, Math.max(0, written));
             for (int i = 0; i < limit; i++) {
                 RapierBody body = selectedSnapshotBodies[i];
-                consumer.accept(body.snapshotFromNative(snapshotBodyData,
+                consumer.accept(body, body.snapshotFromNative(snapshotBodyData,
                     i * BODY_SNAPSHOT_FLOATS,
                     previousSnapshots.apply(body)));
             }
             for (int i = limit; i < count; i++) {
                 RapierBody body = selectedSnapshotBodies[i];
-                consumer.accept(PhysicsBodySnapshot.from(body, previousSnapshots.apply(body)));
+                consumer.accept(body, PhysicsBodySnapshot.from(body, previousSnapshots.apply(body)));
             }
         } finally {
             for (int i = 0; i < count; i++) {
@@ -264,11 +278,11 @@ public final class RapierSpace implements PhysicsSpace, PhysicsSolverTuning, Phy
 
     private int collectSelectedSnapshotBodies(@Nonnull Iterable<? extends PhysicsBody> selectedBodies,
         @Nonnull Function<PhysicsBody, PhysicsBodySnapshot> previousSnapshots,
-        @Nonnull Consumer<PhysicsBodySnapshot> consumer) {
+        @Nonnull BiConsumer<PhysicsBody, PhysicsBodySnapshot> consumer) {
         int count = 0;
         for (PhysicsBody body : selectedBodies) {
             if (!(body instanceof RapierBody rapierBody) || !rapierBody.isAttachedTo(this)) {
-                consumer.accept(PhysicsBodySnapshot.from(body, previousSnapshots.apply(body)));
+                consumer.accept(body, PhysicsBodySnapshot.from(body, previousSnapshots.apply(body)));
                 continue;
             }
 
