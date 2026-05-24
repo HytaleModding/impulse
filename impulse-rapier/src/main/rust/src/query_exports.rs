@@ -1,3 +1,5 @@
+use super::*;
+
 const RAYCAST_HIT_FLOATS: usize = 9;
 const MAX_RAYCAST_HITS: usize = 4_096;
 const MAX_RAYCAST_FLOATS: usize = RAYCAST_HIT_FLOATS * MAX_RAYCAST_HITS;

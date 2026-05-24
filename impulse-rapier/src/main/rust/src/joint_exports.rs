@@ -1,3 +1,5 @@
+use super::*;
+
 #[no_mangle]
 pub extern "system" fn Java_dev_hytalemodding_impulse_rapier_RapierNative_addJointNative(
     _env: JNIEnv,

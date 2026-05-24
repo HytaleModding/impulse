@@ -119,6 +119,19 @@ class RapierBackendContractTest extends PhysicsBackendContractTest {
     }
 
     @Test
+    void raycastSeesStaticPlaneImmediatelyAfterAddBody() {
+        PhysicsSpace space = createHeadlessSpace();
+        PhysicsBody plane = space.createStaticPlane(0.0f);
+        space.addBody(plane);
+
+        var hits = space.raycastAll(new Vector3f(0.0f, 10.0f, 0.0f),
+            new Vector3f(0.0f, -10.0f, 0.0f));
+
+        assertFalse(hits.isEmpty());
+        assertSame(plane, hits.getFirst().body());
+    }
+
+    @Test
     void runtimeStatsExposeContactPressureCounters() {
         PhysicsSpace space = createHeadlessSpace();
         PhysicsBody plane = space.createStaticPlane(0.0f);
@@ -224,6 +237,22 @@ class RapierBackendContractTest extends PhysicsBackendContractTest {
             assertThrows(IllegalStateException.class,
                 () -> RapierNative.snapshotBodiesNative(handle, new long[]{123L}, 1, out));
             assertArrayEquals(expected, out, 0.0f);
+        } finally {
+            RapierNative.destroySpaceNative(handle);
+        }
+    }
+
+    @Test
+    void nativeAttachedBodyMutatorsRejectStaleBodyHandle() {
+        RapierNative.load(null);
+        long handle = RapierNative.createSpaceNative();
+        assertTrue(handle > 0L);
+
+        try {
+            assertThrows(IllegalStateException.class,
+                () -> RapierNative.setBodyPositionNative(handle, 123L, 1.0f, 2.0f, 3.0f));
+            assertThrows(IllegalStateException.class,
+                () -> RapierNative.setBodyFrictionNative(handle, 123L, 0.5f));
         } finally {
             RapierNative.destroySpaceNative(handle);
         }

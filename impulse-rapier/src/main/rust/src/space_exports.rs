@@ -1,3 +1,5 @@
+use super::*;
+
 const RUNTIME_STATS_INTS: usize = 10;
 const STEP_PHASE_STATS_LONGS: usize = 6;
 const TERRAIN_COLLISION_GROUP: u32 = 0b0000_0001;
@@ -72,7 +74,9 @@ pub extern "system" fn Java_dev_hytalemodding_impulse_rapier_RapierNative_getRun
     _class: JClass,
     space_handle: jlong,
 ) -> jni::sys::jintArray {
-    let values = catch_jni_default([0; RUNTIME_STATS_INTS], || runtime_stats_values(space_handle));
+    let values = catch_jni_default([0; RUNTIME_STATS_INTS], || {
+        runtime_stats_values(space_handle)
+    });
     int_array_or_null(&env, &values)
 }
 
@@ -114,7 +118,8 @@ fn runtime_stats_values(space_handle: jlong) -> [jint; RUNTIME_STATS_INTS] {
             for manifold in &pair.manifolds {
                 contact_points += manifold.data.solver_contacts.len();
             }
-            let (group_a, group_b) = contact_pair_memberships(space, pair.collider1, pair.collider2);
+            let (group_a, group_b) =
+                contact_pair_memberships(space, pair.collider1, pair.collider2);
             if is_dynamic_group(group_a) && is_dynamic_group(group_b) {
                 dynamic_dynamic_contact_pairs += 1;
             }
