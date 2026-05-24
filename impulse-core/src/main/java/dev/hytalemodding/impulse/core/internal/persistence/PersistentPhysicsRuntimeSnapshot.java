@@ -4,15 +4,14 @@ import dev.hytalemodding.impulse.api.PhysicsSpace;
 import dev.hytalemodding.impulse.api.SpaceId;
 import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyId;
 import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyPersistenceMode;
-import dev.hytalemodding.impulse.core.plugin.settings.PhysicsSpaceSettings;
-import dev.hytalemodding.impulse.core.plugin.settings.PhysicsStepMode;
-import dev.hytalemodding.impulse.core.plugin.settings.PhysicsStepSchedulingMode;
 import dev.hytalemodding.impulse.core.plugin.resources.PhysicsWorldResource;
-import lombok.Getter;
+import dev.hytalemodding.impulse.core.plugin.settings.PhysicsSpaceSettings;
+import dev.hytalemodding.impulse.core.plugin.settings.PhysicsWorldSettings;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import javax.annotation.Nonnull;
+import lombok.Getter;
 
 /**
  * Worker-owned copy of the live runtime state needed by world persistence.
@@ -25,14 +24,8 @@ public final class PersistentPhysicsRuntimeSnapshot {
 
     @Nonnull
     private final Footprint footprint;
-    @Getter
-    private final int simulationSteps;
     @Nonnull
-    private final PhysicsStepMode stepMode;
-    @Nonnull
-    private final PhysicsStepSchedulingMode stepSchedulingMode;
-    @Getter
-    private final float maxStepDt;
+    private final PhysicsWorldSettings worldSettings;
     @Getter
     private final int defaultSpaceId;
     @Nonnull
@@ -42,18 +35,12 @@ public final class PersistentPhysicsRuntimeSnapshot {
     @Nonnull
     private final PersistentPhysicsJointState[] joints;
 
-    private PersistentPhysicsRuntimeSnapshot(int simulationSteps,
-        @Nonnull PhysicsStepMode stepMode,
-        @Nonnull PhysicsStepSchedulingMode stepSchedulingMode,
-        float maxStepDt,
+    private PersistentPhysicsRuntimeSnapshot(@Nonnull PhysicsWorldSettings worldSettings,
         int defaultSpaceId,
         @Nonnull PersistentPhysicsSpaceState[] spaces,
         @Nonnull PersistentPhysicsBodyState[] bodies,
         @Nonnull PersistentPhysicsJointState[] joints) {
-        this.simulationSteps = simulationSteps;
-        this.stepMode = stepMode;
-        this.stepSchedulingMode = stepSchedulingMode;
-        this.maxStepDt = maxStepDt;
+        this.worldSettings = new PhysicsWorldSettings(worldSettings);
         this.defaultSpaceId = defaultSpaceId;
         this.spaces = copySpaces(spaces);
         this.bodies = copyBodies(bodies);
@@ -83,10 +70,7 @@ public final class PersistentPhysicsRuntimeSnapshot {
             capturePersistentJoints(runtime, space, joints);
         }
 
-        return new PersistentPhysicsRuntimeSnapshot(runtime.getSimulationSteps(),
-            runtime.getStepMode(),
-            runtime.getStepSchedulingMode(),
-            runtime.getMaxStepDt(),
+        return new PersistentPhysicsRuntimeSnapshot(runtime.getWorldSettings(),
             resolvedDefaultSpaceId,
             spaces.toArray(PersistentPhysicsSpaceState[]::new),
             bodies.toArray(PersistentPhysicsBodyState[]::new),
@@ -102,13 +86,8 @@ public final class PersistentPhysicsRuntimeSnapshot {
     }
 
     @Nonnull
-    public PhysicsStepMode getStepMode() {
-        return stepMode;
-    }
-
-    @Nonnull
-    public PhysicsStepSchedulingMode getStepSchedulingMode() {
-        return stepSchedulingMode;
+    public PhysicsWorldSettings getWorldSettings() {
+        return new PhysicsWorldSettings(worldSettings);
     }
 
     @Nonnull

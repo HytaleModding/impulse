@@ -21,10 +21,12 @@ import dev.hytalemodding.impulse.core.internal.worker.PhysicsWorkerSnapshot;
 import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyId;
 import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyKind;
 import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyPersistenceMode;
-import dev.hytalemodding.impulse.core.plugin.execution.PhysicsMutationHandle;
-import dev.hytalemodding.impulse.core.plugin.settings.PhysicsSpaceSettings;
-import dev.hytalemodding.impulse.core.plugin.resources.PhysicsWorldResource;
 import dev.hytalemodding.impulse.core.plugin.collision.WorldCollisionMode;
+import dev.hytalemodding.impulse.core.plugin.execution.PhysicsMutationHandle;
+import dev.hytalemodding.impulse.core.plugin.resources.PhysicsWorldResource;
+import dev.hytalemodding.impulse.core.plugin.settings.PhysicsSpaceSettings;
+import dev.hytalemodding.impulse.core.plugin.settings.PhysicsWorldSettings;
+import dev.hytalemodding.impulse.core.plugin.snapshot.PublishedPhysicsSnapshotFrame;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
@@ -45,6 +47,23 @@ import org.junit.jupiter.api.Test;
 class PhysicsWorldResourceStateTest {
 
     private static final AtomicInteger BACKEND_COUNTER = new AtomicInteger();
+
+    @Test
+    void worldSettingsAreCopiedAcrossResourceBoundary() {
+        PhysicsWorldResource resource = new PhysicsWorldResource();
+
+        PhysicsWorldSettings copy = resource.getWorldSettings();
+        copy.setSimulationSteps(4);
+
+        assertEquals(PhysicsWorldSettings.MIN_SIMULATION_STEPS,
+            resource.getWorldSettings().getSimulationSteps());
+
+        resource.setWorldSettings(copy);
+        assertEquals(4, resource.getWorldSettings().getSimulationSteps());
+
+        copy.setSimulationSteps(2);
+        assertEquals(4, resource.getWorldSettings().getSimulationSteps());
+    }
 
     @Test
     void bodySyncStateTracksLastSyncAndClampsNegativeSkipTime() {
@@ -463,6 +482,40 @@ class PhysicsWorldResourceStateTest {
     }
 
     @Test
+    void ownerRoutingRunsInlineWithoutWorkerAndAfterDetach() throws Exception {
+        PhysicsWorldResource resource = new PhysicsWorldResource();
+        Thread testThread = Thread.currentThread();
+
+        AtomicReference<Thread> inlineMutationThread = new AtomicReference<>();
+        resource.runOnPhysicsOwner("inline mutation", () -> inlineMutationThread.set(Thread.currentThread()));
+        assertSame(testThread, inlineMutationThread.get());
+
+        Thread inlineCallThread = resource.callOnPhysicsOwner("inline call", Thread::currentThread);
+        assertSame(testThread, inlineCallThread);
+
+        AtomicReference<Thread> inlineAsyncThread = new AtomicReference<>();
+        PhysicsMutationHandle<String> inlineHandle = resource.enqueuePhysicsMutation("inline async",
+            "inline",
+            () -> inlineAsyncThread.set(Thread.currentThread()));
+        assertSame(testThread, inlineAsyncThread.get());
+        assertTrue(inlineHandle.completedSuccessfully());
+        assertEquals("inline", inlineHandle.join());
+
+        try (PhysicsWorldWorkerResource worker = new PhysicsWorldWorkerResource(4,
+            Duration.ofSeconds(2L))) {
+            worker.start("owner-routing-detach");
+            resource.attachWorkerResource(worker);
+            Thread workerCallThread = resource.callOnPhysicsOwner("worker call", Thread::currentThread);
+            assertTrue(workerCallThread.getName().contains("owner-routing-detach"));
+
+            resource.detachWorkerResource(worker);
+            Thread detachedCallThread = resource.callOnPhysicsOwner("detached inline call",
+                Thread::currentThread);
+            assertSame(testThread, detachedCallThread);
+        }
+    }
+
+    @Test
     void liveBackendAccessAssertionRejectsOutsidePhysicsOwner() {
         FakePhysicsBackend backend =
             new FakePhysicsBackend("test:owner-guard-" + BACKEND_COUNTER.incrementAndGet());
@@ -499,6 +552,46 @@ class PhysicsWorldResourceStateTest {
 
             resource.detachWorkerResource(worker);
         }
+    }
+
+    @Test
+    void resetRuntimeStatePublishesEmptyFrameAndRejectsPreResetSnapshot() {
+        FakePhysicsBackend backend =
+            new FakePhysicsBackend("test:reset-snapshot-frame-" + BACKEND_COUNTER.incrementAndGet());
+        Impulse.registerBackend(backend);
+
+        PhysicsWorldResource resource = new PhysicsWorldResource();
+        PhysicsSpace space = resource.createSpace(backend.getId(),
+            "test-world",
+            PhysicsSpaceSettings.defaults(),
+            true);
+        PhysicsBody body = space.createBox(0.5f, 0.5f, 0.5f, 1.0f);
+        PhysicsBodyId bodyId = resource.addBody(space.getId(),
+            body,
+            PhysicsBodyKind.BODY,
+            PhysicsBodyPersistenceMode.RUNTIME_ONLY);
+
+        PublishedPhysicsSnapshotFrame preResetFrame = resource.capturePublishedSnapshotFrame(10L,
+            20L,
+            PublishedPhysicsSnapshotFrame.Status.COMPLETE,
+            30L,
+            false);
+        assertEquals(1, preResetFrame.bodyCount());
+        assertEquals(1, resource.getBodySnapshotCount());
+
+        PhysicsWorldResource.RuntimeResetResult reset =
+            resource.resetRuntimeStateKeepingSpaces("test-world");
+
+        PublishedPhysicsSnapshotFrame resetFrame = resource.getLatestPublishedFrame();
+        assertEquals(1, reset.removedBodies());
+        assertEquals(0, resource.getBodySnapshotCount());
+        assertEquals(PublishedPhysicsSnapshotFrame.Status.EMPTY, resetFrame.status());
+        assertEquals(0, resetFrame.bodyCount());
+        assertTrue(resetFrame.worldEpoch() > preResetFrame.worldEpoch());
+
+        assertEquals(0, resource.applyPublishedSnapshotFrame(preResetFrame));
+        assertEquals(0, resource.getBodySnapshotCount());
+        assertNull(resource.getBodyRegistrationView(bodyId));
     }
 
     @Test

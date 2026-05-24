@@ -1,7 +1,7 @@
 package dev.hytalemodding.impulse.core.internal.systems.step;
 
 import dev.hytalemodding.impulse.core.plugin.settings.PhysicsStepMode;
-import dev.hytalemodding.impulse.core.plugin.resources.PhysicsWorldResource;
+import dev.hytalemodding.impulse.core.plugin.settings.PhysicsWorldSettings;
 import javax.annotation.Nonnull;
 
 /**
@@ -45,13 +45,13 @@ public final class PhysicsStepCountPolicy {
             return baseSteps;
         }
 
-        float safeMaxStepDt = maxStepDt > 0f ? maxStepDt : PhysicsWorldResource.DEFAULT_MAX_STEP_DT;
+        float safeMaxStepDt = maxStepDt > 0f ? maxStepDt : PhysicsWorldSettings.DEFAULT_MAX_STEP_DT;
         int steps = Math.max(baseSteps, (int) Math.ceil(safeDt / safeMaxStepDt));
         return clampStepCount(steps);
     }
 
     private static int clampStepCount(int steps) {
-        return Math.clamp(steps, PhysicsWorldResource.MIN_SIMULATION_STEPS,
-            PhysicsWorldResource.MAX_SIMULATION_STEPS);
+        return Math.clamp(steps, PhysicsWorldSettings.MIN_SIMULATION_STEPS,
+            PhysicsWorldSettings.MAX_SIMULATION_STEPS);
     }
 }

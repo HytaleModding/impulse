@@ -3,7 +3,7 @@ package dev.hytalemodding.impulse.core.internal.systems.step;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
 import dev.hytalemodding.impulse.core.plugin.settings.PhysicsStepMode;
-import dev.hytalemodding.impulse.core.plugin.resources.PhysicsWorldResource;
+import dev.hytalemodding.impulse.core.plugin.settings.PhysicsWorldSettings;
 import org.junit.jupiter.api.Test;
 
 class PhysicsStepCountPolicyTest {
@@ -25,7 +25,7 @@ class PhysicsStepCountPolicyTest {
         assertEquals(3,
             PhysicsStepCountPolicy.resolveStepCount(0.02f,
                 3,
-                PhysicsWorldResource.DEFAULT_MAX_STEP_DT,
+                PhysicsWorldSettings.DEFAULT_MAX_STEP_DT,
                 PhysicsStepMode.PROGRESSIVE_REFINEMENT));
     }
 
@@ -49,7 +49,7 @@ class PhysicsStepCountPolicyTest {
 
     @Test
     void progressiveRefinementCapsAtMaximumSimulationSteps() {
-        assertEquals(PhysicsWorldResource.MAX_SIMULATION_STEPS,
+        assertEquals(PhysicsWorldSettings.MAX_SIMULATION_STEPS,
             PhysicsStepCountPolicy.resolveStepCount(2.0f,
                 1,
                 0.01f,

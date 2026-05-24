@@ -29,36 +29,10 @@ public class PersistenceCommand extends AbstractCommandCollection {
         addSubCommand(new StatusCommand());
     }
 
-    private abstract static class LegacyNamedWorldCommand extends AbstractWorldCommand {
-
-        protected final OptionalArg<String> nameArg = withOptionalArg(
-            "name",
-            "Ignored legacy snapshot name",
-            ArgTypes.STRING);
-
-        private LegacyNamedWorldCommand(@Nonnull String name, @Nonnull String description) {
-            super(name, description, false);
-        }
-
-        @Nonnull
-        protected String ignoredNameSuffix(@Nonnull CommandContext ctx) {
-            if (!nameArg.provided(ctx)) {
-                return "";
-            }
-
-            String name = nameArg.get(ctx).trim();
-            if (name.isEmpty()) {
-                return " Legacy name argument was ignored because schema-v4 persistence is stored with the world.";
-            }
-            return " Legacy --name '" + name
-                + "' was ignored because schema-v4 persistence is stored with the world.";
-        }
-    }
-
-    private static final class SaveCommand extends LegacyNamedWorldCommand {
+    private static final class SaveCommand extends AbstractWorldCommand {
 
         private SaveCommand() {
-            super("save", "Synchronize current runtime physics into Hytale world persistence");
+            super("save", "Synchronize current runtime physics into Hytale world persistence", false);
         }
 
         @Override
@@ -77,11 +51,11 @@ public class PersistenceCommand extends AbstractCommandCollection {
                 + ", spaces=" + result.spaces()
                 + ", persistentBodies=" + result.bodies()
                 + ", joints=" + result.joints()
-                + "." + ignoredNameSuffix(ctx)));
+                + "."));
         }
     }
 
-    private static final class LoadCommand extends LegacyNamedWorldCommand {
+    private static final class LoadCommand extends AbstractWorldCommand {
 
         private final OptionalArg<String> confirmArg = withOptionalArg(
             "confirm",
@@ -89,7 +63,7 @@ public class PersistenceCommand extends AbstractCommandCollection {
             ArgTypes.STRING);
 
         private LoadCommand() {
-            super("load", "Restore runtime physics from Hytale world persistence");
+            super("load", "Restore runtime physics from Hytale world persistence", false);
         }
 
         @Override
@@ -126,8 +100,7 @@ public class PersistenceCommand extends AbstractCommandCollection {
                 + ", spaces=" + status.storedSpaces()
                 + ", persistentBodies=" + status.storedBodies()
                 + ", joints=" + status.storedJoints()
-                + ". Runtime physics will reset and hydrate on the next tick."
-                + ignoredNameSuffix(ctx)));
+                + ". Runtime physics will reset and hydrate on the next tick."));
         }
 
         private boolean confirmRestore(@Nonnull CommandContext ctx,

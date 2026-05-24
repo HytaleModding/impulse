@@ -20,6 +20,7 @@ import dev.hytalemodding.impulse.core.ImpulsePlugin;
 import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyId;
 import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyKind;
 import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyPersistenceMode;
+import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodies;
 import dev.hytalemodding.impulse.core.plugin.collision.WorldCollisionBuildStats;
 import dev.hytalemodding.impulse.core.plugin.collision.WorldCollisionPrewarmStats;
 import dev.hytalemodding.impulse.core.plugin.collision.WorldCollisionStats;
@@ -29,17 +30,14 @@ import dev.hytalemodding.impulse.core.plugin.execution.PhysicsOwnerHandle;
 import dev.hytalemodding.impulse.core.plugin.execution.PhysicsOwnerMutation;
 import dev.hytalemodding.impulse.core.plugin.settings.PhysicsSpaceSettings;
 import dev.hytalemodding.impulse.core.plugin.settings.PhysicsStepMode;
-import dev.hytalemodding.impulse.core.plugin.settings.PhysicsStepSchedulingMode;
-import dev.hytalemodding.impulse.core.plugin.snapshot.PublishedPhysicsBodySnapshot;
+import dev.hytalemodding.impulse.core.plugin.settings.PhysicsWorldSettings;
 import dev.hytalemodding.impulse.core.plugin.snapshot.PublishedPhysicsSnapshotFrame;
-import dev.hytalemodding.impulse.core.plugin.snapshot.PublishedPhysicsSpaceFrame;
 import dev.hytalemodding.impulse.core.internal.resources.body.PhysicsBodyRegistry;
 import dev.hytalemodding.impulse.core.internal.resources.body.PhysicsBodyRuntimeState;
-import dev.hytalemodding.impulse.core.internal.resources.body.PhysicsBodySnapshotStore;
-import dev.hytalemodding.impulse.core.internal.resources.worker.PhysicsWorldWorkerResource;
+import dev.hytalemodding.impulse.core.internal.resources.owner.PhysicsOwnerGateway;
+import dev.hytalemodding.impulse.core.internal.resources.snapshot.PhysicsWorldSnapshotState;
 import dev.hytalemodding.impulse.core.internal.voxel.WorldCollisionCacheAccess;
 import dev.hytalemodding.impulse.core.internal.voxel.WorldVoxelCollisionCache;
-import dev.hytalemodding.impulse.core.internal.worker.PhysicsWorkerAccess;
 import it.unimi.dsi.fastutil.ints.Int2ObjectMap;
 import it.unimi.dsi.fastutil.ints.Int2ObjectOpenHashMap;
 import it.unimi.dsi.fastutil.longs.LongOpenHashSet;
@@ -51,7 +49,6 @@ import java.util.List;
 import java.util.Objects;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
-import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Consumer;
 import java.util.logging.Level;
 import javax.annotation.Nonnull;
@@ -71,12 +68,6 @@ import org.joml.Vector3f;
 public class PhysicsWorldResource implements Resource<EntityStore> {
 
     private static final HytaleLogger LOGGER = HytaleLogger.get("Impulse");
-    public static final int MIN_SIMULATION_STEPS = 1;
-    public static final int MAX_SIMULATION_STEPS = 16;
-    public static final float DEFAULT_MAX_STEP_DT = 1f / 30f;
-    @Nonnull
-    public static final PhysicsStepSchedulingMode DEFAULT_STEP_SCHEDULING_MODE =
-        PhysicsStepSchedulingMode.DROP_PENDING_DT;
 
     private final Int2ObjectMap<PhysicsSpace> spaces = new Int2ObjectOpenHashMap<>();
 
@@ -98,52 +89,23 @@ public class PhysicsWorldResource implements Resource<EntityStore> {
      */
     @Nullable
     private SpaceId defaultSpaceId;
-    @Getter
-    private int simulationSteps = MIN_SIMULATION_STEPS;
-
     @Nonnull
-    private PhysicsStepMode stepMode = PhysicsStepMode.PROGRESSIVE_REFINEMENT;
-
-    @Nonnull
-    private PhysicsStepSchedulingMode stepSchedulingMode = DEFAULT_STEP_SCHEDULING_MODE;
-
-    @Getter
-    private float maxStepDt = DEFAULT_MAX_STEP_DT;
+    private final PhysicsWorldSettings worldSettings = new PhysicsWorldSettings();
 
     private final PhysicsBodyRuntimeState runtimeState = new PhysicsBodyRuntimeState();
-    private final PhysicsBodySnapshotStore bodySnapshots = new PhysicsBodySnapshotStore();
-    private final PhysicsBodySnapshotStore workerBodySnapshots = new PhysicsBodySnapshotStore();
-    private final AtomicLong worldEpoch = new AtomicLong();
-    private final AtomicLong snapshotFrameEpoch = new AtomicLong();
+    private final PhysicsWorldSnapshotState snapshotState = new PhysicsWorldSnapshotState();
     private final AtomicLong visualInterestTick = new AtomicLong();
-    @Nonnull
-    private final AtomicReference<PublishedPhysicsSnapshotFrame> latestPublishedFrame =
-        new AtomicReference<>(PublishedPhysicsSnapshotFrame.empty(0L, 0L));
-    @Getter
-    private volatile long latestSnapshotAppliedNanos;
-    private final AtomicReference<PhysicsWorldWorkerResource> workerResource = new AtomicReference<>();
+    private final PhysicsOwnerGateway ownerGateway = new PhysicsOwnerGateway();
 
     public PhysicsWorldResource() {
     }
 
     public void attachWorkerResource(@Nonnull PhysicsOwnerHandle workerResource) {
-        this.workerResource.set(requireWorkerResource(workerResource));
+        ownerGateway.attachWorkerResource(workerResource);
     }
 
     public void detachWorkerResource(@Nonnull PhysicsOwnerHandle workerResource) {
-        PhysicsWorldWorkerResource worker = requireWorkerResource(workerResource);
-        this.workerResource.compareAndSet(worker, null);
-    }
-
-    @Nonnull
-    private static PhysicsWorldWorkerResource requireWorkerResource(
-        @Nonnull PhysicsOwnerHandle workerResource) {
-        Objects.requireNonNull(workerResource, "workerResource");
-        if (workerResource instanceof PhysicsWorldWorkerResource worker) {
-            return worker;
-        }
-        throw new IllegalArgumentException("Unsupported physics owner handle "
-            + workerResource.getClass().getName());
+        ownerGateway.detachWorkerResource(workerResource);
     }
 
     /**
@@ -154,8 +116,7 @@ public class PhysicsWorldResource implements Resource<EntityStore> {
      * {@link #callOnPhysicsOwner} instead of skipping behavior when this is false.</p>
      */
     public boolean canAccessLiveBackendDirectly() {
-        PhysicsWorldWorkerResource worker = workerResource.get();
-        return worker == null || worker.isWorkerThread();
+        return ownerGateway.canAccessLiveBackendDirectly();
     }
 
     /**
@@ -167,12 +128,7 @@ public class PhysicsWorldResource implements Resource<EntityStore> {
      * {@link #enqueuePhysicsMutation} instead.</p>
      */
     public void assertCanAccessLiveBackendDirectly(@Nonnull String operation) {
-        Objects.requireNonNull(operation, "operation");
-        if (!canAccessLiveBackendDirectly()) {
-            throw new IllegalStateException("Impulse live backend operation " + operation
-                + " must run on the physics owner thread. Use runOnPhysicsOwner, "
-                + "callOnPhysicsOwner, or enqueuePhysicsMutation.");
-        }
+        ownerGateway.assertCanAccessLiveBackendDirectly(operation);
     }
 
     /**
@@ -186,14 +142,7 @@ public class PhysicsWorldResource implements Resource<EntityStore> {
      */
     public void runOnPhysicsOwner(@Nonnull String operation,
         @Nonnull PhysicsOwnerMutation mutation) {
-        Objects.requireNonNull(operation, "operation");
-        Objects.requireNonNull(mutation, "mutation");
-        PhysicsWorldWorkerResource worker = workerResource.get();
-        if (worker == null || worker.isWorkerThread()) {
-            runDirect(operation, mutation);
-            return;
-        }
-        PhysicsWorkerAccess.run(worker, operation, mutation::run);
+        ownerGateway.run(operation, mutation);
     }
 
     @Nonnull
@@ -212,13 +161,7 @@ public class PhysicsWorldResource implements Resource<EntityStore> {
     public <T> PhysicsMutationHandle<T> enqueuePhysicsMutation(@Nonnull String operation,
         @Nullable T value,
         @Nonnull PhysicsOwnerMutation mutation) {
-        Objects.requireNonNull(operation, "operation");
-        Objects.requireNonNull(mutation, "mutation");
-        PhysicsWorldWorkerResource worker = workerResource.get();
-        if (worker == null || worker.isWorkerThread()) {
-            return runDirectAsync(operation, value, mutation);
-        }
-        return PhysicsWorkerAccess.runAsync(worker, operation, value, mutation::run);
+        return ownerGateway.enqueue(operation, value, mutation);
     }
 
     /**
@@ -230,44 +173,7 @@ public class PhysicsWorldResource implements Resource<EntityStore> {
     @Nonnull
     public <T> T callOnPhysicsOwner(@Nonnull String operation,
         @Nonnull PhysicsOwnerCallable<T> callable) {
-        Objects.requireNonNull(operation, "operation");
-        Objects.requireNonNull(callable, "callable");
-        PhysicsWorldWorkerResource worker = workerResource.get();
-        if (worker == null || worker.isWorkerThread()) {
-            try {
-                return callable.call();
-            } catch (RuntimeException exception) {
-                throw exception;
-            } catch (Exception exception) {
-                throw new IllegalStateException("Physics operation " + operation + " failed",
-                    exception);
-            }
-        }
-        return PhysicsWorkerAccess.call(worker, operation, callable::call);
-    }
-
-    private void runDirect(@Nonnull String operation,
-        @Nonnull PhysicsOwnerMutation mutation) {
-        try {
-            mutation.run();
-        } catch (RuntimeException exception) {
-            throw exception;
-        } catch (Exception exception) {
-            throw new IllegalStateException("Physics operation " + operation + " failed",
-                exception);
-        }
-    }
-
-    @Nonnull
-    private <T> PhysicsMutationHandle<T> runDirectAsync(@Nonnull String operation,
-        @Nullable T value,
-        @Nonnull PhysicsOwnerMutation mutation) {
-        try {
-            mutation.run();
-            return PhysicsMutationHandle.completed(operation, value);
-        } catch (Throwable throwable) {
-            return PhysicsMutationHandle.failed(operation, value, throwable);
-        }
+        return ownerGateway.call(operation, callable);
     }
 
     @Nullable
@@ -321,55 +227,40 @@ public class PhysicsWorldResource implements Resource<EntityStore> {
         this.defaultSpaceId = defaultSpaceId;
     }
 
+    /**
+     * Returns a defensive copy of the world-level simulation settings.
+     *
+     * <p>The live settings instance is owner-thread state. Change the returned copy, then apply it
+     * with {@link #setWorldSettings} or {@link #setWorldSettingsAsync}; direct mutation of the copy
+     * has no effect on the world.</p>
+     */
     @Nonnull
-    public PhysicsStepMode getStepMode() {
-        return stepMode;
+    public PhysicsWorldSettings getWorldSettings() {
+        return new PhysicsWorldSettings(worldSettings);
     }
 
-    public void setStepMode(@Nonnull PhysicsStepMode stepMode) {
-        runOnPhysicsOwner("set physics step mode", () -> setStepModeDirect(stepMode));
-    }
-
-    @Nonnull
-    public PhysicsMutationHandle<Void> setStepModeAsync(@Nonnull PhysicsStepMode stepMode) {
-        return enqueuePhysicsMutation("set physics step mode", () -> setStepModeDirect(stepMode));
-    }
-
-    private void setStepModeDirect(@Nonnull PhysicsStepMode stepMode) {
-        validateStepModeSupported(stepMode);
-        this.stepMode = stepMode;
-    }
-
-    @Nonnull
-    public PhysicsStepSchedulingMode getStepSchedulingMode() {
-        return stepSchedulingMode;
-    }
-
-    public void setStepSchedulingMode(@Nonnull PhysicsStepSchedulingMode stepSchedulingMode) {
-        runOnPhysicsOwner("set physics step scheduling mode",
-            () -> setStepSchedulingModeDirect(stepSchedulingMode));
+    /**
+     * Applies world-level simulation settings on the physics owner thread.
+     *
+     * <p>This is the only public write path for world step settings. It preserves worker routing
+     * and validates CCD compatibility before replacing the owned settings.</p>
+     */
+    public void setWorldSettings(@Nonnull PhysicsWorldSettings settings) {
+        PhysicsWorldSettings requested = new PhysicsWorldSettings(settings);
+        runOnPhysicsOwner("set physics world settings", () -> setWorldSettingsDirect(requested));
     }
 
     @Nonnull
-    public PhysicsMutationHandle<Void> setStepSchedulingModeAsync(
-        @Nonnull PhysicsStepSchedulingMode stepSchedulingMode) {
-        return enqueuePhysicsMutation("set physics step scheduling mode",
-            () -> setStepSchedulingModeDirect(stepSchedulingMode));
+    public PhysicsMutationHandle<Void> setWorldSettingsAsync(
+        @Nonnull PhysicsWorldSettings settings) {
+        PhysicsWorldSettings requested = new PhysicsWorldSettings(settings);
+        return enqueuePhysicsMutation("set physics world settings",
+            () -> setWorldSettingsDirect(requested));
     }
 
-    private void setStepSchedulingModeDirect(
-        @Nonnull PhysicsStepSchedulingMode stepSchedulingMode) {
-        this.stepSchedulingMode = Objects.requireNonNull(stepSchedulingMode,
-            "stepSchedulingMode");
-    }
-
-    public void setMaxStepDt(float maxStepDt) {
-        runOnPhysicsOwner("set max physics step dt", () -> this.maxStepDt = maxStepDt);
-    }
-
-    @Nonnull
-    public PhysicsMutationHandle<Void> setMaxStepDtAsync(float maxStepDt) {
-        return enqueuePhysicsMutation("set max physics step dt", () -> this.maxStepDt = maxStepDt);
+    private void setWorldSettingsDirect(@Nonnull PhysicsWorldSettings settings) {
+        validateStepModeSupported(settings.getStepMode());
+        worldSettings.copyFrom(settings);
     }
 
     @Nonnull
@@ -449,7 +340,7 @@ public class PhysicsWorldResource implements Resource<EntityStore> {
 
         PhysicsSpace space = Impulse.createSpace(backendId, spaceId);
         try {
-            validateSpaceCompatibleWithStepMode(space, stepMode);
+            validateSpaceCompatibleWithStepMode(space, worldSettings.getStepMode());
             applySolverTuning(space, settings);
         } catch (RuntimeException exception) {
             closeSpaceQuietly(space, worldName, "discarding failed physics space");
@@ -516,7 +407,7 @@ public class PhysicsWorldResource implements Resource<EntityStore> {
 
     @Nonnull
     public PhysicsBodySnapshot getBodySnapshot(@Nonnull PhysicsBodyId bodyId) {
-        PhysicsBodySnapshot snapshot = bodySnapshots.get(bodyId);
+        PhysicsBodySnapshot snapshot = snapshotState.getBodySnapshot(bodyId);
         if (snapshot != null) {
             return snapshot;
         }
@@ -526,24 +417,12 @@ public class PhysicsWorldResource implements Resource<EntityStore> {
 
     @Nonnull
     private PhysicsBodySnapshot getBodySnapshotDirect(@Nonnull PhysicsBodyId bodyId) {
-        PhysicsBodySnapshot snapshot = bodySnapshots.get(bodyId);
+        PhysicsBodySnapshot snapshot = snapshotState.getBodySnapshot(bodyId);
         if (snapshot != null) {
             return snapshot;
         }
         BodyRegistration registration = requireBodyRegistration(bodyId);
-        PhysicsBody body = registration.body();
-        snapshot = PhysicsBodySnapshot.from(body);
-        bodySnapshots.put(bodyId,
-            snapshot,
-            registration.spaceId(),
-            registration.kind(),
-            registration.persistenceMode());
-        workerBodySnapshots.put(bodyId,
-            snapshot,
-            registration.spaceId(),
-            registration.kind(),
-            registration.persistenceMode());
-        return snapshot;
+        return snapshotState.captureBodySnapshot(registration);
     }
 
     /**
@@ -575,91 +454,26 @@ public class PhysicsWorldResource implements Resource<EntityStore> {
         boolean profilingEnabled) {
 
         assertCanAccessLiveBackendDirectly("capture published physics snapshot frame");
-        long frameEpoch = snapshotFrameEpoch.incrementAndGet();
-        long frameWorldEpoch = worldEpoch.get();
-        long snapshotStartNanos = profilingEnabled ? System.nanoTime() : 0L;
-        workerBodySnapshots.refresh(spaces.values(), bodyRegistry);
-        int spatialIndexCellCount = workerBodySnapshots.cellCount();
-
-        List<PublishedPhysicsSpaceFrame> spaceFrames = new ArrayList<>(spaces.size());
-
-        for (PhysicsSpace space : spaces.values()) {
-            SpaceId spaceId = space.getId();
-            List<PublishedPhysicsBodySnapshot> bodyFrames = new ArrayList<>(
-                workerBodySnapshots.bodyCount(spaceId));
-            workerBodySnapshots.forEach(spaceId, entry -> bodyFrames.add(
-                PublishedPhysicsBodySnapshot.from(entry.bodyId(),
-                    entry.spaceId(),
-                    frameEpoch,
-                    frameWorldEpoch,
-                    frameWorldEpoch,
-                    frameWorldEpoch,
-                    entry.kind(),
-                    entry.persistenceMode(),
-                    entry.snapshot())));
-            spaceFrames.add(new PublishedPhysicsSpaceFrame(spaceId,
-                frameEpoch,
-                frameWorldEpoch,
-                frameWorldEpoch,
-                bodyFrames));
-        }
-        long snapshotNanos = profilingEnabled ? System.nanoTime() - snapshotStartNanos : 0L;
-        PublishedPhysicsSnapshotFrame frame = new PublishedPhysicsSnapshotFrame(frameEpoch,
-            frameWorldEpoch,
+        return snapshotState.capturePublishedSnapshotFrame(spaces.values(),
+            bodyRegistry,
             stepSequence,
             serverTick,
             status,
-            spatialIndexCellCount,
             stepNanos,
-            snapshotNanos,
-            spaceFrames);
-        publishLatestFrameIfWorldCurrent(frame);
-        return frame;
+            profilingEnabled);
     }
 
     public int applyPublishedSnapshotFrame(@Nonnull PublishedPhysicsSnapshotFrame frame) {
-        Objects.requireNonNull(frame, "frame");
-        if (frame.worldEpoch() != worldEpoch.get()) {
-            return 0;
-        }
-
-        bodySnapshots.clear();
-        int applied = 0;
-        for (PublishedPhysicsSpaceFrame spaceFrame : frame.spaces()) {
-            for (PublishedPhysicsBodySnapshot bodyFrame : spaceFrame.bodies()) {
-                BodyRegistration registration = bodyRegistry.getRegistration(bodyFrame.bodyId());
-                if (registration == null || !registration.spaceId().equals(bodyFrame.spaceId())) {
-                    continue;
-                }
-                PhysicsBodySnapshot snapshot = new PhysicsBodySnapshot(bodyFrame.position(),
-                    bodyFrame.rotation(),
-                    bodyFrame.linearVelocity(),
-                    bodyFrame.angularVelocity(),
-                    bodyFrame.bodyType(),
-                    bodyFrame.sleeping(),
-                    bodyFrame.sensor(),
-                    bodyFrame.centerOfMassOffsetY(),
-                    bodyFrame.shapeType(),
-                    bodyFrame.boxHalfExtents(),
-                    bodyFrame.sphereRadius(),
-                    bodyFrame.halfHeight(),
-                    bodyFrame.shapeAxis(),
-                    bodyFrame.planeGroundY());
-                bodySnapshots.put(bodyFrame.bodyId(),
-                    snapshot,
-                    bodyFrame.spaceId(),
-                    registration.kind(),
-                    registration.persistenceMode());
-                applied++;
-            }
-        }
-        latestSnapshotAppliedNanos = System.nanoTime();
-        return applied;
+        return snapshotState.applyPublishedSnapshotFrame(frame, bodyRegistry);
     }
 
     @Nonnull
     public PublishedPhysicsSnapshotFrame getLatestPublishedFrame() {
-        return latestPublishedFrame.get();
+        return snapshotState.getLatestPublishedFrame();
+    }
+
+    public long getLatestSnapshotAppliedNanos() {
+        return snapshotState.getLatestSnapshotAppliedNanos();
     }
 
     @Nonnull
@@ -673,15 +487,15 @@ public class PhysicsWorldResource implements Resource<EntityStore> {
     }
 
     public int getBodySnapshotCount() {
-        return bodySnapshots.bodyCount();
+        return snapshotState.getBodySnapshotCount();
     }
 
     public int getBodySnapshotCount(@Nonnull SpaceId spaceId) {
-        return bodySnapshots.bodyCount(spaceId);
+        return snapshotState.getBodySnapshotCount(spaceId);
     }
 
     public int getBodySnapshotCellCount() {
-        return bodySnapshots.cellCount();
+        return snapshotState.getBodySnapshotCellCount();
     }
 
     /**
@@ -766,14 +580,14 @@ public class PhysicsWorldResource implements Resource<EntityStore> {
 
     public void forEachBodySnapshot(@Nonnull SpaceId spaceId,
         @Nonnull Consumer<BodySnapshotEntry> consumer) {
-        bodySnapshots.forEach(spaceId, consumer);
+        snapshotState.forEachBodySnapshot(spaceId, consumer);
     }
 
     public int forEachBodySnapshotNear(@Nonnull SpaceId spaceId,
         @Nonnull Vector3f center,
         float radius,
         @Nonnull Consumer<BodySnapshotEntry> consumer) {
-        return bodySnapshots.forEachNear(spaceId, center, radius, consumer);
+        return snapshotState.forEachBodySnapshotNear(spaceId, center, radius, consumer);
     }
 
     public void removeSpace(@Nonnull SpaceId spaceId) {
@@ -853,7 +667,7 @@ public class PhysicsWorldResource implements Resource<EntityStore> {
             Vector3f gravity = previous.getGravity();
             PhysicsSpace replacement = Impulse.createSpace(previous.getBackendId(), previous.getId());
             try {
-                validateSpaceCompatibleWithStepMode(replacement, stepMode);
+                validateSpaceCompatibleWithStepMode(replacement, worldSettings.getStepMode());
                 replacement.setGravity(gravity.x, gravity.y, gravity.z);
                 replacements.add(new SpaceReset(previous.getId(), previous, replacement));
             } catch (RuntimeException exception) {
@@ -962,6 +776,13 @@ public class PhysicsWorldResource implements Resource<EntityStore> {
             settings.getSolverSettings().getDynamicSleepTimeUntilSleep());
     }
 
+    /**
+     * Registers an already-created live backend body with Impulse and returns its generated id.
+     *
+     * <p>This is the low-level path for code that already runs on the physics owner or received a
+     * body from another owner callback. Ordinary plugin body creation should prefer
+     * {@link PhysicsBodies} so creation, configuration, registration, and id return stay together.</p>
+     */
     @Nonnull
     public PhysicsBodyId addBody(@Nonnull SpaceId spaceId,
         @Nonnull PhysicsBody body,
@@ -970,6 +791,12 @@ public class PhysicsWorldResource implements Resource<EntityStore> {
         return addBody(PhysicsBodyId.random(), spaceId, body, kind, persistenceMode);
     }
 
+    /**
+     * Registers an already-created live backend body with Impulse under an explicit stable id.
+     *
+     * <p>Use this for restore, temporary helpers, and internal body flows that must supply the id
+     * directly. It is not the preferred public spawn path for ordinary gameplay bodies.</p>
+     */
     @Nonnull
     public PhysicsBodyId addBody(@Nonnull PhysicsBodyId bodyId,
         @Nonnull SpaceId spaceId,
@@ -980,6 +807,12 @@ public class PhysicsWorldResource implements Resource<EntityStore> {
             () -> addBodyDirect(bodyId, spaceId, body, kind, persistenceMode));
     }
 
+    /**
+     * Queues low-level registration for an already-created body.
+     *
+     * <p>The body must still have been created safely for the target backend owner. This method is
+     * not a factory-based spawn helper.</p>
+     */
     @Nonnull
     public PhysicsMutationHandle<PhysicsBodyId> addBodyAsync(@Nonnull SpaceId spaceId,
         @Nonnull PhysicsBody body,
@@ -989,6 +822,9 @@ public class PhysicsWorldResource implements Resource<EntityStore> {
         return addBodyAsync(bodyId, spaceId, body, kind, persistenceMode);
     }
 
+    /**
+     * Queues low-level registration for an already-created body under an explicit stable id.
+     */
     @Nonnull
     public PhysicsMutationHandle<PhysicsBodyId> addBodyAsync(@Nonnull PhysicsBodyId bodyId,
         @Nonnull SpaceId spaceId,
@@ -1030,12 +866,7 @@ public class PhysicsWorldResource implements Resource<EntityStore> {
         }
         BodyRegistration registration = bodyRegistry.registerBody(bodyId, body, spaceId, kind, persistenceMode);
         PhysicsBodySnapshot snapshot = PhysicsBodySnapshot.from(body);
-        bodySnapshots.put(bodyId,
-            snapshot,
-            spaceId,
-            registration.kind(),
-            registration.persistenceMode());
-        workerBodySnapshots.put(bodyId,
+        snapshotState.putBodySnapshot(bodyId,
             snapshot,
             spaceId,
             registration.kind(),
@@ -1277,8 +1108,7 @@ public class PhysicsWorldResource implements Resource<EntityStore> {
     private void clearBodyStateDirect() {
         bodyRegistry.clear();
         runtimeState.clear();
-        bodySnapshots.clear();
-        workerBodySnapshots.clear();
+        snapshotState.clearBodySnapshots();
         markWorldChanged();
     }
 
@@ -1375,15 +1205,13 @@ public class PhysicsWorldResource implements Resource<EntityStore> {
     private void clearBodyRuntimeStateDirect(@Nonnull PhysicsBodyId bodyId) {
         bodyRegistry.clearBodyRuntimeState(bodyId);
         runtimeState.clearBody(bodyId);
-        bodySnapshots.remove(bodyId);
-        workerBodySnapshots.remove(bodyId);
+        snapshotState.removeBodySnapshot(bodyId);
     }
 
     private void clearBodyRuntimeState(@Nonnull PhysicsBody body, @Nonnull PhysicsBodyId bodyId) {
         bodyRegistry.clearBodyRuntimeState(bodyId);
         runtimeState.clearBody(body, bodyId);
-        bodySnapshots.remove(bodyId);
-        workerBodySnapshots.remove(bodyId);
+        snapshotState.removeBodySnapshot(bodyId);
     }
 
     public void markContinuousCollisionForced(@Nonnull PhysicsBody body) {
@@ -1416,40 +1244,14 @@ public class PhysicsWorldResource implements Resource<EntityStore> {
         spaceSettings.clear();
         bodyRegistry.clear();
         runtimeState.clear();
-        bodySnapshots.clear();
-        workerBodySnapshots.clear();
+        snapshotState.clearBodySnapshots();
         worldVoxelCollisionCache.copyFrom(new WorldVoxelCollisionCache());
         defaultSpaceId = other.defaultSpaceId;
-        simulationSteps = other.simulationSteps;
-        stepMode = other.stepMode;
-        stepSchedulingMode = other.stepSchedulingMode;
-        maxStepDt = other.maxStepDt;
+        worldSettings.copyFrom(other.worldSettings);
         for (var entry : other.spaceSettings.int2ObjectEntrySet()) {
             spaceSettings.put(entry.getIntKey(), new PhysicsSpaceSettings(entry.getValue()));
         }
         markWorldChanged();
-    }
-
-    /**
-     * Set how many fixed substeps are run for each server tick.
-     * Higher values can improve stability at the cost of backend step time.
-     */
-    public void setSimulationSteps(int simulationSteps) {
-        runOnPhysicsOwner("set simulation steps", () -> setSimulationStepsDirect(simulationSteps));
-    }
-
-    @Nonnull
-    public PhysicsMutationHandle<Void> setSimulationStepsAsync(int simulationSteps) {
-        return enqueuePhysicsMutation("set simulation steps",
-            () -> setSimulationStepsDirect(simulationSteps));
-    }
-
-    private void setSimulationStepsDirect(int simulationSteps) {
-        if (simulationSteps < MIN_SIMULATION_STEPS || simulationSteps > MAX_SIMULATION_STEPS) {
-            throw new IllegalArgumentException("Simulation steps must be between "
-                + MIN_SIMULATION_STEPS + " and " + MAX_SIMULATION_STEPS);
-        }
-        this.simulationSteps = simulationSteps;
     }
 
     @Nonnull
@@ -1482,7 +1284,7 @@ public class PhysicsWorldResource implements Resource<EntityStore> {
         if (previous == null) {
             throw new IllegalStateException("Cannot replace missing physics space id=" + spaceId);
         }
-        validateSpaceCompatibleWithStepMode(replacement, stepMode);
+        validateSpaceCompatibleWithStepMode(replacement, worldSettings.getStepMode());
         worldVoxelCollisionCache.clear(spaceId, previous);
 
         PhysicsSpaceSettings settings = spaceSettings.get(spaceId.value());
@@ -1569,34 +1371,7 @@ public class PhysicsWorldResource implements Resource<EntityStore> {
     }
 
     private void markWorldChanged() {
-        long newWorldEpoch = worldEpoch.incrementAndGet();
-        publishLatestFrame(PublishedPhysicsSnapshotFrame.empty(snapshotFrameEpoch.get(), newWorldEpoch));
-    }
-
-    private void publishLatestFrameIfWorldCurrent(@Nonnull PublishedPhysicsSnapshotFrame frame) {
-        publishLatestFrame(frame, true);
-    }
-
-    private void publishLatestFrame(@Nonnull PublishedPhysicsSnapshotFrame frame) {
-        publishLatestFrame(frame, false);
-    }
-
-    private void publishLatestFrame(@Nonnull PublishedPhysicsSnapshotFrame frame,
-        boolean requireCurrentWorldEpoch) {
-        latestPublishedFrame.updateAndGet(current -> {
-            if (requireCurrentWorldEpoch && frame.worldEpoch() != worldEpoch.get()) {
-                return current;
-            }
-            return isNewerFrame(frame, current) ? frame : current;
-        });
-    }
-
-    private static boolean isNewerFrame(@Nonnull PublishedPhysicsSnapshotFrame candidate,
-        @Nonnull PublishedPhysicsSnapshotFrame current) {
-        if (candidate.worldEpoch() != current.worldEpoch()) {
-            return candidate.worldEpoch() > current.worldEpoch();
-        }
-        return candidate.frameEpoch() >= current.frameEpoch();
+        snapshotState.markWorldChanged();
     }
 
     @Nullable

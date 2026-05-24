@@ -9,6 +9,7 @@ import dev.hytalemodding.impulse.core.internal.resources.worker.PhysicsWorldWork
 import dev.hytalemodding.impulse.core.internal.worker.PhysicsWorkerStepCommand;
 import dev.hytalemodding.impulse.core.plugin.resources.PhysicsWorldResource;
 import dev.hytalemodding.impulse.core.plugin.settings.PhysicsStepSchedulingMode;
+import dev.hytalemodding.impulse.core.plugin.settings.PhysicsWorldSettings;
 import java.util.Collections;
 import java.util.Map;
 import java.util.WeakHashMap;
@@ -70,7 +71,8 @@ public class PhysicsStepSystem extends TickingSystem<ChunkStore> implements Auto
         float dt,
         @Nonnull PhysicsRuntimeProfilingResource profiling,
         long serverTick) {
-        if (resource.getStepSchedulingMode()
+        PhysicsWorldSettings settings = resource.getWorldSettings();
+        if (settings.getStepSchedulingMode()
             != PhysicsStepSchedulingMode.ACCUMULATE_PENDING_DT) {
             submitCurrentTickStepIfIdle(state, worker, resource, dt, profiling, serverTick);
             return;
@@ -224,12 +226,12 @@ public class PhysicsStepSystem extends TickingSystem<ChunkStore> implements Auto
     }
 
     static float maxAccumulatedStepDt(@Nonnull PhysicsWorldResource resource) {
-        float maxStepDt = resource.getMaxStepDt();
+        float maxStepDt = resource.getWorldSettings().getMaxStepDt();
         float safeMaxStepDt = Float.isFinite(maxStepDt) && maxStepDt > 0.0f
             ? maxStepDt
-            : PhysicsWorldResource.DEFAULT_MAX_STEP_DT;
+            : PhysicsWorldSettings.DEFAULT_MAX_STEP_DT;
         return Math.min(MAX_ACCUMULATED_STEP_DT,
-            safeMaxStepDt * PhysicsWorldResource.MAX_SIMULATION_STEPS);
+            safeMaxStepDt * PhysicsWorldSettings.MAX_SIMULATION_STEPS);
     }
 
     static final class StepSchedulerState {

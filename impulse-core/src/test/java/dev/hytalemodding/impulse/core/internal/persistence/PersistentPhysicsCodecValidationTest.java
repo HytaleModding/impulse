@@ -6,8 +6,6 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.hypixel.hytale.codec.ExtraInfo;
-import com.hypixel.hytale.codec.codecs.array.ArrayCodec;
-import com.hypixel.hytale.codec.exception.CodecValidationException;
 import com.hypixel.hytale.codec.util.RawJsonReader;
 import com.hypixel.hytale.server.core.util.BsonUtil;
 import dev.hytalemodding.impulse.api.PhysicsBody;
@@ -20,10 +18,12 @@ import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyPersistenceMode;
 import dev.hytalemodding.impulse.core.plugin.resources.PhysicsWorldResource;
 import dev.hytalemodding.impulse.core.plugin.settings.PhysicsSpaceSettings;
 import dev.hytalemodding.impulse.core.plugin.settings.PhysicsStepSchedulingMode;
+import dev.hytalemodding.impulse.core.plugin.settings.PhysicsWorldSettings;
 import java.util.UUID;
 import java.util.concurrent.atomic.AtomicInteger;
 import org.bson.BsonBinary;
 import org.bson.BsonDocument;
+import org.bson.BsonDouble;
 import org.bson.BsonInt32;
 import org.bson.BsonNull;
 import org.bson.BsonString;
@@ -34,8 +34,6 @@ import org.junit.jupiter.api.function.Executable;
 class PersistentPhysicsCodecValidationTest {
 
     private static final AtomicInteger BACKEND_COUNTER = new AtomicInteger();
-    private static final ArrayCodec<PersistentPhysicsBodyState> BODY_ARRAY_CODEC =
-        new ArrayCodec<>(PersistentPhysicsBodyState.CODEC, PersistentPhysicsBodyState[]::new);
 
     @Test
     void spaceStateCodecValidatorChecksCrossFieldSettingsAfterDecode() {
@@ -103,9 +101,22 @@ class PersistentPhysicsCodecValidationTest {
     }
 
     @Test
+    void worldResourceCodecRejectsOldSchemaVersion() {
+        BsonDocument encoded = encodeWorld(new PersistentPhysicsWorldResource());
+        encoded.put("SchemaVersion", new BsonInt32(3));
+
+        assertValidationFails(
+            () -> PersistentPhysicsWorldResource.CODEC.decode(encoded, new ExtraInfo()),
+            "Must be greater than or equal to "
+                + PersistentPhysicsWorldResource.CURRENT_SCHEMA_VERSION);
+    }
+
+    @Test
     void worldResourceCodecPreservesStepSchedulingMode() {
         PersistentPhysicsWorldResource resource = new PersistentPhysicsWorldResource();
-        resource.setStepSchedulingMode(PhysicsStepSchedulingMode.ACCUMULATE_PENDING_DT);
+        PhysicsWorldSettings settings = resource.getWorldSettings();
+        settings.setStepSchedulingMode(PhysicsStepSchedulingMode.ACCUMULATE_PENDING_DT);
+        resource.setWorldSettings(settings);
 
         BsonDocument encoded = encodeWorld(resource);
         PersistentPhysicsWorldResource decoded = PersistentPhysicsWorldResource.CODEC
@@ -114,23 +125,11 @@ class PersistentPhysicsCodecValidationTest {
         assertEquals("accumulate_pending_dt",
             encoded.getString("StepSchedulingMode").getValue());
         assertEquals(PhysicsStepSchedulingMode.ACCUMULATE_PENDING_DT,
-            decoded.getStepSchedulingMode());
+            decoded.getWorldSettings().getStepSchedulingMode());
     }
 
     @Test
-    void worldResourceCodecDefaultsMissingStepSchedulingMode() {
-        BsonDocument encoded = encodeWorld(new PersistentPhysicsWorldResource());
-        encoded.remove("StepSchedulingMode");
-
-        PersistentPhysicsWorldResource decoded = PersistentPhysicsWorldResource.CODEC
-            .decode(encoded, new ExtraInfo());
-
-        assertEquals(PhysicsStepSchedulingMode.DROP_PENDING_DT,
-            decoded.getStepSchedulingMode());
-    }
-
-    @Test
-    void worldResourceCodecWritesSchemaV4StateBlocksInsteadOfFlatBodiesAndJoints() {
+    void worldResourceCodecWritesStateBlocksWithoutFlatBodiesAndJoints() {
         PersistentPhysicsWorldResource resource = new PersistentPhysicsWorldResource();
         PersistentPhysicsBodyState body = persistentBodyState();
         PersistentPhysicsJointState joint = persistentJointState(body.getSpaceId());
@@ -141,8 +140,8 @@ class PersistentPhysicsCodecValidationTest {
 
         assertEquals(PersistentPhysicsWorldResource.CURRENT_SCHEMA_VERSION,
             encoded.getInt32("SchemaVersion").getValue());
-        assertTrue(encoded.getArray("Bodies").isEmpty());
-        assertTrue(encoded.getArray("Joints").isEmpty());
+        assertFalse(encoded.containsKey("Bodies"));
+        assertFalse(encoded.containsKey("Joints"));
         assertFalse(encoded.getArray("BodyBlocks").isEmpty());
         assertFalse(encoded.getArray("JointBlocks").isEmpty());
 
@@ -174,24 +173,6 @@ class PersistentPhysicsCodecValidationTest {
     }
 
     @Test
-    void worldResourceCodecMigratesSchemaV3FlatBodiesToSchemaV4RuntimeState() {
-        PersistentPhysicsBodyState body = persistentBodyState();
-        BsonDocument encoded = encodeWorld(new PersistentPhysicsWorldResource());
-        encoded.put("SchemaVersion", new BsonInt32(3));
-        encoded.remove("BodyBlocks");
-        encoded.remove("JointBlocks");
-        encoded.put("Bodies", BODY_ARRAY_CODEC.encode(new PersistentPhysicsBodyState[] { body }, new ExtraInfo()));
-
-        PersistentPhysicsWorldResource decoded = PersistentPhysicsWorldResource.CODEC
-            .decode(encoded, new ExtraInfo());
-
-        assertEquals(PersistentPhysicsWorldResource.CURRENT_SCHEMA_VERSION, decoded.getSchemaVersion());
-        assertEquals(1, decoded.getBodyCount());
-        assertEquals(body.getBodyIdValue(), decoded.getBodies()[0].getBodyIdValue());
-        assertTrue(decoded.isRuntimeRestorePending());
-    }
-
-    @Test
     void worldResourceCodecRejectsCorruptStateBlockPayload() {
         PersistentPhysicsWorldResource resource = new PersistentPhysicsWorldResource();
         resource.setBodies(new PersistentPhysicsBodyState[] { persistentBodyState() });
@@ -205,13 +186,142 @@ class PersistentPhysicsCodecValidationTest {
             () -> PersistentPhysicsWorldResource.CODEC.decode(encoded, new ExtraInfo()));
     }
 
-    private static void assertValidationFails(Executable executable, String expectedMessagePart) {
-        CodecValidationException exception = assertThrows(CodecValidationException.class,
-            executable);
+    @Test
+    void bodyStateCodecRejectsInvalidSpaceIdInsteadOfDefaultingToDefaultSpace() {
+        BsonDocument encoded = encodeBody(persistentBodyState());
+        encoded.put("SpaceId", new BsonInt32(0));
 
-        assertTrue(exception.getMessage().contains(expectedMessagePart),
+        assertValidationFails(
+            () -> PersistentPhysicsBodyState.CODEC.decode(encoded, new ExtraInfo()),
+            "Must be greater than or equal to 1");
+    }
+
+    @Test
+    void bodyStateCodecRejectsInvalidMassInsteadOfDefaulting() {
+        BsonDocument encoded = encodeBody(persistentBodyState());
+        encoded.put("Mass", new BsonDouble(Double.NaN));
+
+        assertValidationFails(
+            () -> PersistentPhysicsBodyState.CODEC.decode(encoded, new ExtraInfo()),
+            "Persisted body mass must be finite and >= 0");
+    }
+
+    @Test
+    void bodyStateCodecRejectsZeroQuaternionInsteadOfRestoringInvalidRotation() {
+        BsonDocument encoded = encodeBody(persistentBodyState());
+        BsonDocument rotation = encoded.getDocument("Rotation");
+        rotation.put("X", new BsonDouble(0.0));
+        rotation.put("Y", new BsonDouble(0.0));
+        rotation.put("Z", new BsonDouble(0.0));
+        rotation.put("W", new BsonDouble(0.0));
+
+        assertValidationFails(
+            () -> PersistentPhysicsBodyState.CODEC.decode(encoded, new ExtraInfo()),
+            "Persisted quaternion must be finite and non-zero");
+    }
+
+    @Test
+    void bodyStateCodecRejectsUnsupportedPersistentShape() {
+        BsonDocument encoded = encodeBody(persistentBodyState());
+        encoded.put("ShapeType", new BsonString("Voxels"));
+
+        assertValidationFails(
+            () -> PersistentPhysicsBodyState.CODEC.decode(encoded, new ExtraInfo()),
+            "Persisted body shape is unsupported: VOXELS");
+    }
+
+    @Test
+    void jointStateCodecRejectsInvalidSpaceIdInsteadOfDefaulting() {
+        BsonDocument encoded = encodeJoint(persistentJointState(1));
+        encoded.put("SpaceId", new BsonInt32(0));
+
+        assertValidationFails(
+            () -> PersistentPhysicsJointState.CODEC.decode(encoded, new ExtraInfo()),
+            "Must be greater than or equal to 1");
+    }
+
+    @Test
+    void jointStateCodecRejectsMissingAxisForAxisJoint() {
+        BsonDocument encoded = encodeJoint(persistentJointState(1));
+        encoded.put("Type", new BsonString("Hinge"));
+        encoded.remove("Axis");
+
+        assertValidationFails(
+            () -> PersistentPhysicsJointState.CODEC.decode(encoded, new ExtraInfo()),
+            "Persisted HINGE joint requires an axis");
+    }
+
+    @Test
+    void jointStateCodecRejectsInvalidSpringValuesInsteadOfDefaulting() {
+        BsonDocument encoded = encodeJoint(persistentJointState(1));
+        encoded.put("SpringStiffness", new BsonDouble(Double.NaN));
+
+        assertValidationFails(
+            () -> PersistentPhysicsJointState.CODEC.decode(encoded, new ExtraInfo()),
+            "Persisted joint spring stiffness must be finite and >= 0");
+    }
+
+    @Test
+    void stateBlockCodecRejectsOldSchemaVersionBeforeInflating() {
+        BsonDocument encoded = encodeStateBlock(bodyBlock());
+        encoded.put("SchemaVersion", new BsonInt32(3));
+
+        assertValidationFails(
+            () -> PersistentPhysicsStateBlock.CODEC.decode(encoded, new ExtraInfo()),
+            "Must be greater than or equal to "
+                + PersistentPhysicsWorldResource.CURRENT_SCHEMA_VERSION);
+    }
+
+    @Test
+    void stateBlockCodecRejectsUnsupportedEnvelopeFields() {
+        BsonDocument encoded = encodeStateBlock(bodyBlock());
+        encoded.put("Codec", new BsonString("legacy-json-array"));
+
+        assertValidationFails(
+            () -> PersistentPhysicsStateBlock.CODEC.decode(encoded, new ExtraInfo()),
+            "Persistent physics state block codec is unsupported");
+    }
+
+    @Test
+    void stateBlockCodecRejectsEmptyPayloadInsteadOfDefaulting() {
+        BsonDocument encoded = encodeStateBlock(bodyBlock());
+        encoded.put("Payload", new BsonBinary(new byte[0]));
+
+        assertValidationFails(
+            () -> PersistentPhysicsStateBlock.CODEC.decode(encoded, new ExtraInfo()),
+            "Persistent physics state block payload cannot be empty");
+    }
+
+    private static void assertValidationFails(Executable executable, String expectedMessagePart) {
+        RuntimeException exception = assertThrows(RuntimeException.class, executable);
+
+        assertTrue(exceptionContainsMessage(exception, expectedMessagePart),
             () -> "Expected validation message to contain: " + expectedMessagePart
-                + "\nActual: " + exception.getMessage());
+                + "\nActual: " + exceptionMessages(exception));
+    }
+
+    private static boolean exceptionContainsMessage(Throwable throwable, String expectedMessagePart) {
+        Throwable current = throwable;
+        while (current != null) {
+            if (current.getMessage() != null && current.getMessage().contains(expectedMessagePart)) {
+                return true;
+            }
+            current = current.getCause();
+        }
+        return false;
+    }
+
+    private static String exceptionMessages(Throwable throwable) {
+        StringBuilder messages = new StringBuilder();
+        Throwable current = throwable;
+        while (current != null) {
+            if (!messages.isEmpty()) {
+                messages.append(" -> ");
+            }
+            messages.append(current.getMessage());
+            current = current.getCause();
+        }
+        return messages.toString();
     }
 
     private static BsonDocument encodedSpaceState() {
@@ -224,8 +334,26 @@ class PersistentPhysicsCodecValidationTest {
         return PersistentPhysicsSpaceState.CODEC.encode(state, new ExtraInfo()).asDocument();
     }
 
+    private static BsonDocument encodeBody(PersistentPhysicsBodyState state) {
+        return PersistentPhysicsBodyState.CODEC.encode(state, new ExtraInfo()).asDocument();
+    }
+
+    private static BsonDocument encodeJoint(PersistentPhysicsJointState state) {
+        return PersistentPhysicsJointState.CODEC.encode(state, new ExtraInfo()).asDocument();
+    }
+
+    private static BsonDocument encodeStateBlock(PersistentPhysicsStateBlock block) {
+        return PersistentPhysicsStateBlock.CODEC.encode(block, new ExtraInfo()).asDocument();
+    }
+
     private static BsonDocument encodeWorld(PersistentPhysicsWorldResource resource) {
         return PersistentPhysicsWorldResource.CODEC.encode(resource, new ExtraInfo()).asDocument();
+    }
+
+    private static PersistentPhysicsStateBlock bodyBlock() {
+        return PersistentPhysicsStateBlock.bodyBlocks(new PersistentPhysicsBodyState[] {
+            persistentBodyState()
+        })[0];
     }
 
     private static PersistentPhysicsBodyState persistentBodyState() {

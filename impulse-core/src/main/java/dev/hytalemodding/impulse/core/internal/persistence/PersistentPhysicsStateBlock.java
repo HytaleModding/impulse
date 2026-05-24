@@ -13,6 +13,7 @@ import java.util.Arrays;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.zip.CRC32;
 import javax.annotation.Nonnull;
 import lombok.Getter;
@@ -39,6 +40,7 @@ public class PersistentPhysicsStateBlock {
     static final String CODEC_BSON_ARRAY_V1 = "bson-array-v1";
     static final String COMPRESSION_ZSTD = "zstd";
     private static final String PAYLOAD_ITEMS_KEY = "Items";
+    private static final Set<String> SUPPORTED_KINDS = Set.of(KIND_BODIES, KIND_JOINTS);
     private static final int ZSTD_COMPRESSION_LEVEL = 3;
     private static final byte[] EMPTY_PAYLOAD = new byte[0];
     private static final Codec<byte[]> BINARY_PAYLOAD_CODEC = new PersistentPhysicsBinaryPayloadCodec();
@@ -53,58 +55,65 @@ public class PersistentPhysicsStateBlock {
             PersistentPhysicsStateBlock.class,
             PersistentPhysicsStateBlock::new)
         .append(new KeyedCodec<>("Kind", Codec.STRING, false),
-            (block, value) -> block.kind = value != null ? value : "",
+            (block, value) -> block.kind = value,
             PersistentPhysicsStateBlock::getKind)
         .addValidator(Validators.nonNull())
+        .addValidator(PersistentPhysicsValidation.stringIn(SUPPORTED_KINDS,
+            "Persistent physics state block kind is unsupported"))
         .add()
         .append(new KeyedCodec<>("Codec", Codec.STRING, false),
-            (block, value) -> block.codec = value != null ? value : "",
+            (block, value) -> block.codec = value,
             PersistentPhysicsStateBlock::getCodec)
         .addValidator(Validators.nonNull())
+        .addValidator(PersistentPhysicsValidation.stringEquals(CODEC_BSON_ARRAY_V1,
+            "Persistent physics state block codec is unsupported"))
         .add()
         .append(new KeyedCodec<>("Compression", Codec.STRING, false),
-            (block, value) -> block.compression = value != null ? value : "",
+            (block, value) -> block.compression = value,
             PersistentPhysicsStateBlock::getCompression)
         .addValidator(Validators.nonNull())
+        .addValidator(PersistentPhysicsValidation.stringEquals(COMPRESSION_ZSTD,
+            "Persistent physics state block compression is unsupported"))
         .add()
         .append(new KeyedCodec<>("SchemaVersion", Codec.INTEGER, false),
-            (block, value) -> block.schemaVersion = value != null ? value : 0,
+            (block, value) -> block.schemaVersion = value,
             PersistentPhysicsStateBlock::getSchemaVersion)
         .addValidator(Validators.nonNull())
-        .addValidator(Validators.range(1, Integer.MAX_VALUE))
+        .addValidator(Validators.range(PersistentPhysicsWorldResource.CURRENT_SCHEMA_VERSION,
+            PersistentPhysicsWorldResource.CURRENT_SCHEMA_VERSION))
         .add()
         .append(new KeyedCodec<>("BlockIndex", Codec.INTEGER, false),
-            (block, value) -> block.blockIndex = value != null ? value : 0,
+            (block, value) -> block.blockIndex = value,
             PersistentPhysicsStateBlock::getBlockIndex)
         .addValidator(Validators.nonNull())
         .addValidator(Validators.range(0, Integer.MAX_VALUE))
         .add()
         .append(new KeyedCodec<>("SpaceId", Codec.INTEGER, false),
-            (block, value) -> block.spaceId = value != null ? value : PersistentPhysicsBodyState.DEFAULT_SPACE_ID,
+            (block, value) -> block.spaceId = value,
             PersistentPhysicsStateBlock::getSpaceId)
         .addValidator(Validators.nonNull())
-        .addValidator(Validators.range(0, Integer.MAX_VALUE))
+        .addValidator(Validators.range(1, Integer.MAX_VALUE))
         .add()
         .append(new KeyedCodec<>("ItemCount", Codec.INTEGER, false),
-            (block, value) -> block.itemCount = value != null ? value : 0,
+            (block, value) -> block.itemCount = value,
             PersistentPhysicsStateBlock::getItemCount)
         .addValidator(Validators.nonNull())
         .addValidator(Validators.range(0, Integer.MAX_VALUE))
         .add()
         .append(new KeyedCodec<>("UncompressedBytes", Codec.INTEGER, false),
-            (block, value) -> block.uncompressedBytes = value != null ? value : 0,
+            (block, value) -> block.uncompressedBytes = value,
             PersistentPhysicsStateBlock::getUncompressedBytes)
         .addValidator(Validators.nonNull())
         .addValidator(Validators.range(1, Integer.MAX_VALUE))
         .add()
         .append(new KeyedCodec<>("CompressedBytes", Codec.INTEGER, false),
-            (block, value) -> block.compressedBytes = value != null ? value : 0,
+            (block, value) -> block.compressedBytes = value,
             PersistentPhysicsStateBlock::getCompressedBytes)
         .addValidator(Validators.nonNull())
         .addValidator(Validators.range(1, Integer.MAX_VALUE))
         .add()
         .append(new KeyedCodec<>("Crc32", Codec.LONG, false),
-            (block, value) -> block.crc32 = value != null ? value : 0L,
+            (block, value) -> block.crc32 = value,
             PersistentPhysicsStateBlock::getCrc32)
         .addValidator(Validators.nonNull())
         .addValidator(Validators.range(0L, 0xffff_ffffL))
@@ -113,6 +122,8 @@ public class PersistentPhysicsStateBlock {
             (block, value) -> block.payload = copyPayload(value),
             PersistentPhysicsStateBlock::getPayload)
         .addValidator(Validators.nonNull())
+        .addValidator(PersistentPhysicsValidation.nonEmptyBytes(
+            "Persistent physics state block payload cannot be empty"))
         .add()
         .build();
 

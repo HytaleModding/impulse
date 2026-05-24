@@ -16,7 +16,7 @@ import dev.hytalemodding.impulse.api.SpaceId;
 import dev.hytalemodding.impulse.core.ImpulsePlugin;
 import dev.hytalemodding.impulse.core.plugin.settings.PhysicsStepMode;
 import dev.hytalemodding.impulse.core.plugin.settings.PhysicsStepSchedulingMode;
-import dev.hytalemodding.impulse.core.plugin.resources.PhysicsWorldResource;
+import dev.hytalemodding.impulse.core.plugin.settings.PhysicsWorldSettings;
 import it.unimi.dsi.fastutil.objects.Object2IntLinkedOpenHashMap;
 import it.unimi.dsi.fastutil.objects.Object2IntMap;
 import it.unimi.dsi.fastutil.objects.ObjectOpenHashSet;
@@ -50,7 +50,6 @@ import lombok.Setter;
 public class PersistentPhysicsWorldResource implements Resource<EntityStore> {
 
     public static final int CURRENT_SCHEMA_VERSION = 4;
-    private static final int LEGACY_FLAT_ARRAY_SCHEMA_VERSION = 3;
     private static final PersistentPhysicsSpaceState[] EMPTY_SPACES = new PersistentPhysicsSpaceState[0];
     private static final PersistentPhysicsBodyState[] EMPTY_BODIES = new PersistentPhysicsBodyState[0];
     private static final PersistentPhysicsJointState[] EMPTY_JOINTS = new PersistentPhysicsJointState[0];
@@ -61,10 +60,10 @@ public class PersistentPhysicsWorldResource implements Resource<EntityStore> {
             PersistentPhysicsWorldResource.class,
             PersistentPhysicsWorldResource::new)
         .append(new KeyedCodec<>("SchemaVersion", Codec.INTEGER, false),
-            (resource, value) -> resource.schemaVersion = value,
+            PersistentPhysicsWorldResource::setSchemaVersion,
             PersistentPhysicsWorldResource::getSchemaVersion)
         .addValidator(Validators.nonNull())
-        .addValidator(Validators.range(1, Integer.MAX_VALUE))
+        .addValidator(Validators.range(CURRENT_SCHEMA_VERSION, CURRENT_SCHEMA_VERSION))
         .add()
         .append(new KeyedCodec<>("DefaultSpaceId", Codec.INTEGER),
             (resource, value) -> resource.defaultSpaceId = value,
@@ -73,29 +72,29 @@ public class PersistentPhysicsWorldResource implements Resource<EntityStore> {
         .addValidator(Validators.range(0, Integer.MAX_VALUE))
         .add()
         .append(new KeyedCodec<>("SimulationSteps", Codec.INTEGER),
-            (resource, value) -> resource.simulationSteps = value,
-            PersistentPhysicsWorldResource::getSimulationSteps)
+            (resource, value) -> resource.worldSettings.setSimulationSteps(value),
+            resource -> resource.worldSettings.getSimulationSteps())
         .addValidator(Validators.nonNull())
         .addValidator(Validators.range(
-            PhysicsWorldResource.MIN_SIMULATION_STEPS,
-            PhysicsWorldResource.MAX_SIMULATION_STEPS))
+            PhysicsWorldSettings.MIN_SIMULATION_STEPS,
+            PhysicsWorldSettings.MAX_SIMULATION_STEPS))
         .add()
-        .append(new KeyedCodec<>("StepMode", Codec.STRING, false),
-            (resource, value) -> resource.setStepMode(parseStepModeOrDefault(value)),
-            resource -> resource.getStepMode().getSerializedName())
+        .append(new KeyedCodec<>("StepMode", Codec.STRING),
+            (resource, value) -> resource.worldSettings.setStepMode(PhysicsStepMode.parse(value)),
+            resource -> resource.worldSettings.getStepMode().getSerializedName())
         .addValidator(Validators.nonNull())
         .addValidator(stepModeName())
         .add()
-        .append(new KeyedCodec<>("StepSchedulingMode", Codec.STRING, false),
-            (resource, value) -> resource.setStepSchedulingMode(
-                parseStepSchedulingModeOrDefault(value)),
-            resource -> resource.getStepSchedulingMode().getSerializedName())
+        .append(new KeyedCodec<>("StepSchedulingMode", Codec.STRING),
+            (resource, value) -> resource.worldSettings.setStepSchedulingMode(
+                PhysicsStepSchedulingMode.parse(value)),
+            resource -> resource.worldSettings.getStepSchedulingMode().getSerializedName())
         .addValidator(Validators.nonNull())
         .addValidator(stepSchedulingModeName())
         .add()
-        .append(new KeyedCodec<>("MaxStepDt", Codec.FLOAT, false),
-            (resource, value) -> resource.maxStepDt = value,
-            PersistentPhysicsWorldResource::getMaxStepDt)
+        .append(new KeyedCodec<>("MaxStepDt", Codec.FLOAT),
+            (resource, value) -> resource.worldSettings.setMaxStepDt(value),
+            resource -> resource.worldSettings.getMaxStepDt())
         .addValidator(Validators.nonNull())
         .addValidator(Validators.greaterThan(0.0f))
         .addValidator(Validators.max(Float.MAX_VALUE))
@@ -107,30 +106,18 @@ public class PersistentPhysicsWorldResource implements Resource<EntityStore> {
         .addValidator(Validators.nonNull())
         .addValidator(Validators.nonNullArrayElements())
         .add()
-        .append(new KeyedCodec<>("Bodies",
-                new ArrayCodec<>(PersistentPhysicsBodyState.CODEC, PersistentPhysicsBodyState[]::new)),
-            (resource, value) -> resource.bodies = copyBodies(value),
-            PersistentPhysicsWorldResource::getLegacyBodiesForCodec)
-        .addValidator(Validators.nonNull())
-        .addValidator(Validators.nonNullArrayElements())
-        .add()
-        .append(new KeyedCodec<>("Joints",
-                new ArrayCodec<>(PersistentPhysicsJointState.CODEC, PersistentPhysicsJointState[]::new)),
-            (resource, value) -> resource.joints = copyJoints(value),
-            PersistentPhysicsWorldResource::getLegacyJointsForCodec)
-        .addValidator(Validators.nonNull())
-        .addValidator(Validators.nonNullArrayElements())
-        .add()
         .append(new KeyedCodec<>("BodyBlocks",
-                new ArrayCodec<>(PersistentPhysicsStateBlock.CODEC, PersistentPhysicsStateBlock[]::new), false),
+                new ArrayCodec<>(PersistentPhysicsStateBlock.CODEC, PersistentPhysicsStateBlock[]::new)),
             (resource, value) -> resource.bodyBlocks = copyStateBlocks(value),
             PersistentPhysicsWorldResource::getBodyBlocksForCodec)
+        .addValidator(Validators.nonNull())
         .addValidator(Validators.nonNullArrayElements())
         .add()
         .append(new KeyedCodec<>("JointBlocks",
-                new ArrayCodec<>(PersistentPhysicsStateBlock.CODEC, PersistentPhysicsStateBlock[]::new), false),
+                new ArrayCodec<>(PersistentPhysicsStateBlock.CODEC, PersistentPhysicsStateBlock[]::new)),
             (resource, value) -> resource.jointBlocks = copyStateBlocks(value),
             PersistentPhysicsWorldResource::getJointBlocksForCodec)
+        .addValidator(Validators.nonNull())
         .addValidator(Validators.nonNullArrayElements())
         .add()
         .afterDecode(PersistentPhysicsWorldResource::afterCodecDecode)
@@ -141,18 +128,8 @@ public class PersistentPhysicsWorldResource implements Resource<EntityStore> {
     @Getter
     @Setter
     private int defaultSpaceId;
-    @Getter
-    private int simulationSteps = PhysicsWorldResource.MIN_SIMULATION_STEPS;
-    @Setter
-    @Getter
     @Nonnull
-    private PhysicsStepMode stepMode = PhysicsStepMode.ADAPTIVE;
-    @Getter
-    @Nonnull
-    private PhysicsStepSchedulingMode stepSchedulingMode =
-        PhysicsWorldResource.DEFAULT_STEP_SCHEDULING_MODE;
-    @Getter
-    private float maxStepDt = PhysicsWorldResource.DEFAULT_MAX_STEP_DT;
+    private final PhysicsWorldSettings worldSettings = new PhysicsWorldSettings();
     @Nonnull
     private PersistentPhysicsSpaceState[] spaces = EMPTY_SPACES;
     @Nonnull
@@ -190,30 +167,20 @@ public class PersistentPhysicsWorldResource implements Resource<EntityStore> {
     }
 
     public void setSchemaVersion(int schemaVersion) {
-        this.schemaVersion = schemaVersion > 0 ? schemaVersion : CURRENT_SCHEMA_VERSION;
-    }
-
-    public void setSimulationSteps(int simulationSteps) {
-        if (simulationSteps < PhysicsWorldResource.MIN_SIMULATION_STEPS
-            || simulationSteps > PhysicsWorldResource.MAX_SIMULATION_STEPS) {
-            this.simulationSteps = PhysicsWorldResource.MIN_SIMULATION_STEPS;
-            return;
+        if (schemaVersion != CURRENT_SCHEMA_VERSION) {
+            throw new IllegalArgumentException("Schema version must be "
+                + CURRENT_SCHEMA_VERSION);
         }
-        this.simulationSteps = simulationSteps;
+        this.schemaVersion = schemaVersion;
     }
 
-    public void setMaxStepDt(float maxStepDt) {
-        this.maxStepDt = Float.isFinite(maxStepDt) && maxStepDt > 0.0f
-            ? maxStepDt
-            : PhysicsWorldResource.DEFAULT_MAX_STEP_DT;
+    @Nonnull
+    public PhysicsWorldSettings getWorldSettings() {
+        return new PhysicsWorldSettings(worldSettings);
     }
 
-    public void setStepSchedulingMode(
-        @Nonnull PhysicsStepSchedulingMode stepSchedulingMode) {
-        if (stepSchedulingMode == null) {
-            throw new NullPointerException("stepSchedulingMode");
-        }
-        this.stepSchedulingMode = stepSchedulingMode;
+    public void setWorldSettings(@Nonnull PhysicsWorldSettings settings) {
+        worldSettings.copyFrom(settings);
     }
 
     @Nonnull
@@ -362,12 +329,9 @@ public class PersistentPhysicsWorldResource implements Resource<EntityStore> {
         if (this == other) {
             return;
         }
-        schemaVersion = other.schemaVersion > 0 ? other.schemaVersion : CURRENT_SCHEMA_VERSION;
+        setSchemaVersion(other.schemaVersion);
         defaultSpaceId = other.defaultSpaceId;
-        setSimulationSteps(other.simulationSteps);
-        setStepMode(other.stepMode);
-        setStepSchedulingMode(other.stepSchedulingMode);
-        setMaxStepDt(other.maxStepDt);
+        worldSettings.copyFrom(other.worldSettings);
         spaces = copySpaces(other.spaces);
         bodies = copyBodies(other.bodies);
         joints = copyJoints(other.joints);
@@ -394,27 +358,14 @@ public class PersistentPhysicsWorldResource implements Resource<EntityStore> {
         if (jointBlocks.length > 0) {
             joints = PersistentPhysicsStateBlock.decodeJointBlocks(jointBlocks);
         }
-        if (schemaVersion == LEGACY_FLAT_ARRAY_SCHEMA_VERSION) {
-            schemaVersion = CURRENT_SCHEMA_VERSION;
-        }
         bodyBlocks = EMPTY_STATE_BLOCKS;
         jointBlocks = EMPTY_STATE_BLOCKS;
         markRuntimeRestorePending();
     }
 
     @Nonnull
-    private PersistentPhysicsBodyState[] getLegacyBodiesForCodec() {
-        return schemaVersion >= CURRENT_SCHEMA_VERSION ? EMPTY_BODIES : getBodies();
-    }
-
-    @Nonnull
-    private PersistentPhysicsJointState[] getLegacyJointsForCodec() {
-        return schemaVersion >= CURRENT_SCHEMA_VERSION ? EMPTY_JOINTS : getJoints();
-    }
-
-    @Nonnull
     private PersistentPhysicsStateBlock[] getBodyBlocksForCodec() {
-        if (schemaVersion < CURRENT_SCHEMA_VERSION || bodies.length == 0) {
+        if (bodies.length == 0) {
             return EMPTY_STATE_BLOCKS;
         }
         return PersistentPhysicsStateBlock.bodyBlocks(bodies);
@@ -422,7 +373,7 @@ public class PersistentPhysicsWorldResource implements Resource<EntityStore> {
 
     @Nonnull
     private PersistentPhysicsStateBlock[] getJointBlocksForCodec() {
-        if (schemaVersion < CURRENT_SCHEMA_VERSION || joints.length == 0) {
+        if (joints.length == 0) {
             return EMPTY_STATE_BLOCKS;
         }
         return PersistentPhysicsStateBlock.jointBlocks(joints);
@@ -473,31 +424,6 @@ public class PersistentPhysicsWorldResource implements Resource<EntityStore> {
             copy[i] = copy[i].copy();
         }
         return copy;
-    }
-
-    @Nonnull
-    private static PhysicsStepMode parseStepModeOrDefault(@Nullable String value) {
-        if (value == null) {
-            return PhysicsStepMode.PROGRESSIVE_REFINEMENT;
-        }
-        try {
-            return PhysicsStepMode.parse(value);
-        } catch (IllegalArgumentException exception) {
-            return PhysicsStepMode.PROGRESSIVE_REFINEMENT;
-        }
-    }
-
-    @Nonnull
-    private static PhysicsStepSchedulingMode parseStepSchedulingModeOrDefault(
-        @Nullable String value) {
-        if (value == null) {
-            return PhysicsWorldResource.DEFAULT_STEP_SCHEDULING_MODE;
-        }
-        try {
-            return PhysicsStepSchedulingMode.parse(value);
-        } catch (IllegalArgumentException exception) {
-            return PhysicsWorldResource.DEFAULT_STEP_SCHEDULING_MODE;
-        }
     }
 
     @Nonnull

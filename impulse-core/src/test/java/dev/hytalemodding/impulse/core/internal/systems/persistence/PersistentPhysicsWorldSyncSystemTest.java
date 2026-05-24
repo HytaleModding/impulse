@@ -15,9 +15,10 @@ import dev.hytalemodding.impulse.core.internal.persistence.PersistentPhysicsWorl
 import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyId;
 import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyKind;
 import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyPersistenceMode;
+import dev.hytalemodding.impulse.core.plugin.resources.PhysicsWorldResource;
 import dev.hytalemodding.impulse.core.plugin.settings.PhysicsSpaceSettings;
 import dev.hytalemodding.impulse.core.plugin.settings.PhysicsStepSchedulingMode;
-import dev.hytalemodding.impulse.core.plugin.resources.PhysicsWorldResource;
+import dev.hytalemodding.impulse.core.plugin.settings.PhysicsWorldSettings;
 import java.util.concurrent.atomic.AtomicInteger;
 import org.joml.Vector3f;
 import org.junit.jupiter.api.Test;
@@ -100,7 +101,9 @@ class PersistentPhysicsWorldSyncSystemTest {
     @Test
     void explicitRuntimeSnapshotSyncCopiesPersistentState() {
         RuntimeFixture fixture = createRuntimeFixture();
-        fixture.runtime.setStepSchedulingMode(PhysicsStepSchedulingMode.ACCUMULATE_PENDING_DT);
+        PhysicsWorldSettings settings = fixture.runtime.getWorldSettings();
+        settings.setStepSchedulingMode(PhysicsStepSchedulingMode.ACCUMULATE_PENDING_DT);
+        fixture.runtime.setWorldSettings(settings);
         PhysicsBody body = fixture.space.createBox(0.5f, 0.5f, 0.5f, 1.0f);
         fixture.runtime.addBody(fixture.space.getId(),
             body,
@@ -119,7 +122,7 @@ class PersistentPhysicsWorldSyncSystemTest {
         assertEquals(1, fixture.persistent.getBodyCount());
         assertEquals(0, fixture.persistent.getJointCount());
         assertEquals(PhysicsStepSchedulingMode.ACCUMULATE_PENDING_DT,
-            fixture.persistent.getStepSchedulingMode());
+            fixture.persistent.getWorldSettings().getStepSchedulingMode());
     }
 
     @Test

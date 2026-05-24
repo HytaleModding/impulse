@@ -14,6 +14,14 @@ Impulse runtime bodies fall into three categories:
 
 Backend body deletion is explicit through `PhysicsWorldResource.destroyBody(bodyId)`. Entity removal, view dematerialization, chunk migration, and sync cleanup must not implicitly remove backend bodies.
 
+Plugin code that creates normal gameplay bodies should prefer
+`PhysicsBodies.spawn(resource, PhysicsBodySpawnSpec.persistentBody(...))`: the factory runs on the
+physics owner, the result returns the stable `PhysicsBodyId`, and world-thread code can attach
+entities with `PhysicsBodyAttachmentComponent.externalEntity(bodyId, spaceId)`.
+`PhysicsWorldResource.addBody(...)` remains the lower-level registration primitive for code that
+already created a live backend body on the physics owner. Keep raw `PhysicsBody` handles inside
+owner callbacks unless a low-level backend operation explicitly requires them.
+
 ## Space commands
 
 Spaces are explicit. Commands should not create hidden default spaces.

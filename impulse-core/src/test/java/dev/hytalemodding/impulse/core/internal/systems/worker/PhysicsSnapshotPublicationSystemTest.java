@@ -2,6 +2,7 @@ package dev.hytalemodding.impulse.core.internal.systems.worker;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import dev.hytalemodding.impulse.api.BackendId;
@@ -112,6 +113,53 @@ class PhysicsSnapshotPublicationSystemTest {
         }
     }
 
+    @Test
+    void completedWorkerStepDoesNotRepublishAfterWorldMutation() throws Exception {
+        BackendId backendId = new BackendId("test:stale-worker-publication");
+        Impulse.registerBackend(new FakePhysicsBackend(backendId));
+        PhysicsWorldResource resource = new PhysicsWorldResource();
+        PhysicsRuntimeProfilingResource profiling = new PhysicsRuntimeProfilingResource();
+
+        try (PhysicsWorldWorkerResource worker = new PhysicsWorldWorkerResource()) {
+            worker.start("stale-worker-publication-test");
+            resource.attachWorkerResource(worker);
+            PhysicsSpace space = resource.createSpace(backendId,
+                "stale-worker-publication-test",
+                PhysicsSpaceSettings.defaults(),
+                true);
+            PhysicsBodyId bodyId = PhysicsWorkerAccess.call(worker,
+                "create stale publication body",
+                () -> {
+                    PhysicsBody body = space.createBox(0.5f, 0.5f, 0.5f, 1.0f);
+                    body.setPosition(1.0f, 2.0f, 3.0f);
+                    return resource.addBody(space.getId(),
+                        body,
+                        PhysicsBodyKind.BODY,
+                        PhysicsBodyPersistenceMode.RUNTIME_ONLY);
+                });
+
+            PhysicsWorkerStepCommand command = new PhysicsWorkerStepCommand(resource,
+                0.05f,
+                false,
+                1L,
+                1L);
+            assertTrue(worker.submitStepIfIdle(command));
+            waitForPublishedFrame(command);
+            assertEquals(1, command.publishedFrame().bodyCount());
+
+            resource.destroyBody(bodyId);
+            assertEquals(0, resource.getBodySnapshotCount());
+            assertNull(resource.getBodyRegistrationView(bodyId));
+
+            PhysicsSnapshotPublicationSystem.publishCompletedStep(worker, resource, profiling);
+
+            assertFalse(worker.hasPendingStep());
+            assertEquals(0, resource.getBodySnapshotCount());
+            assertNull(resource.getBodyRegistrationView(bodyId));
+            resource.detachWorkerResource(worker);
+        }
+    }
+
     private static void publishWhenReady(PhysicsWorldWorkerResource worker,
         PhysicsWorldResource resource,
         PhysicsRuntimeProfilingResource profiling) throws InterruptedException {
@@ -125,5 +173,14 @@ class PhysicsSnapshotPublicationSystemTest {
         }
         PhysicsSnapshotPublicationSystem.publishCompletedStep(worker, resource, profiling);
         assertFalse(worker.hasPendingStep());
+    }
+
+    private static void waitForPublishedFrame(PhysicsWorkerStepCommand command)
+        throws InterruptedException {
+        long deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(2L);
+        while (System.nanoTime() < deadline && command.publishedFrame() == null) {
+            Thread.sleep(10L);
+        }
+        assertTrue(command.publishedFrame() != null);
     }
 }

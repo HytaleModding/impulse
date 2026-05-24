@@ -11,6 +11,7 @@ import com.hypixel.hytale.server.core.universe.PlayerRef;
 import com.hypixel.hytale.server.core.universe.world.World;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import dev.hytalemodding.impulse.core.plugin.resources.PhysicsWorldResource;
+import dev.hytalemodding.impulse.core.plugin.settings.PhysicsWorldSettings;
 import java.util.concurrent.CompletableFuture;
 import javax.annotation.Nonnull;
 
@@ -35,17 +36,19 @@ public class MaxStepDtSettingCommand extends AbstractAsyncPlayerCommand {
         PhysicsWorldResource resource = store.getResource(PhysicsWorldResource.getResourceType());
         if (!dtArg.provided(ctx)) {
             ctx.sender().sendMessage(Message.raw("Impulse max step dt: "
-                + resource.getMaxStepDt() + " (used by adaptive step modes)"));
+                + resource.getWorldSettings().getMaxStepDt() + " (used by adaptive step modes)"));
             return CompletableFuture.completedFuture(null);
         }
 
         float maxStepDt = dtArg.get(ctx);
-        if (maxStepDt <= 0f) {
-            ctx.sender().sendMessage(Message.raw("Max step dt must be greater than 0."));
+        if (!Float.isFinite(maxStepDt) || maxStepDt <= 0f) {
+            ctx.sender().sendMessage(Message.raw("Max step dt must be finite and greater than 0."));
             return CompletableFuture.completedFuture(null);
         }
 
-        resource.setMaxStepDt(maxStepDt);
+        PhysicsWorldSettings settings = resource.getWorldSettings();
+        settings.setMaxStepDt(maxStepDt);
+        resource.setWorldSettings(settings);
         ctx.sender().sendMessage(Message.raw("Impulse max step dt set to " + maxStepDt));
         return CompletableFuture.completedFuture(null);
     }

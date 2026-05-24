@@ -70,25 +70,21 @@ public class PersistentPhysicsSpaceBootstrapSystem extends TickingSystem<EntityS
 
         World world = store.getExternalData().getWorld();
         PhysicsWorldResource runtime = store.getResource(PhysicsWorldResource.getResourceType());
-        stripRuntimePhysicsStateForRestore(store, runtime, world);
-        try {
-            PhysicsWorkerAccess.run(store, "restore persisted physics runtime settings", () -> {
-                runtime.setSimulationSteps(persistent.getSimulationSteps());
-                runtime.setStepMode(persistent.getStepMode());
-                runtime.setStepSchedulingMode(persistent.getStepSchedulingMode());
-                runtime.setMaxStepDt(persistent.getMaxStepDt());
-            });
-        } catch (RuntimeException exception) {
-            runtime.clearAllSpaces(world.getName());
-            persistent.failRuntimeRestore("Invalid persisted physics runtime settings: "
-                + exception.getMessage());
-            LOGGER.at(Level.SEVERE).log(persistent.runtimeRestoreFailureSummary());
-            return;
-        }
         PersistentPhysicsSpaceState[] spaces = persistent.getSpaces();
         String validationFailure = validateSpaces(spaces);
         if (validationFailure != null) {
             persistent.failRuntimeRestore(validationFailure);
+            LOGGER.at(Level.SEVERE).log(persistent.runtimeRestoreFailureSummary());
+            return;
+        }
+        stripRuntimePhysicsStateForRestore(store, runtime, world);
+        try {
+            PhysicsWorkerAccess.run(store, "restore persisted physics runtime settings",
+                () -> runtime.setWorldSettings(persistent.getWorldSettings()));
+        } catch (RuntimeException exception) {
+            runtime.clearAllSpaces(world.getName());
+            persistent.failRuntimeRestore("Invalid persisted physics runtime settings: "
+                + exception.getMessage());
             LOGGER.at(Level.SEVERE).log(persistent.runtimeRestoreFailureSummary());
             return;
         }

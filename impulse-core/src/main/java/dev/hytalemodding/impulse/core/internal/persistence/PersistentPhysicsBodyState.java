@@ -4,6 +4,7 @@ import com.hypixel.hytale.codec.Codec;
 import com.hypixel.hytale.codec.KeyedCodec;
 import com.hypixel.hytale.codec.builder.BuilderCodec;
 import com.hypixel.hytale.codec.codecs.EnumCodec;
+import com.hypixel.hytale.codec.validation.Validators;
 import com.hypixel.hytale.math.vector.Vector3fUtil;
 import dev.hytalemodding.impulse.api.PhysicsAxis;
 import dev.hytalemodding.impulse.api.PhysicsBody;
@@ -33,74 +34,110 @@ public class PersistentPhysicsBodyState {
         .append(new KeyedCodec<>("BodyId", Codec.UUID_BINARY),
             (state, value) -> state.bodyId = value,
             PersistentPhysicsBodyState::getBodyIdValue)
+        .addValidator(Validators.nonNull())
         .add()
         .append(new KeyedCodec<>("SpaceId", Codec.INTEGER),
-            (state, value) -> state.spaceId = sanitizeSpaceId(value),
+            (state, value) -> state.spaceId = value,
             PersistentPhysicsBodyState::getSpaceId)
+        .addValidator(Validators.nonNull())
+        .addValidator(Validators.range(1, Integer.MAX_VALUE))
         .add()
         .append(new KeyedCodec<>("ShapeType", new EnumCodec<>(ShapeType.class)),
-            (state, value) -> state.shapeType = value != null ? value : ShapeType.UNKNOWN,
+            (state, value) -> state.shapeType = value,
             PersistentPhysicsBodyState::getShapeType)
+        .addValidator(Validators.nonNull())
+        .addValidator(PersistentPhysicsValidation.persistentShapeType())
         .add()
         .append(new KeyedCodec<>("ShapeAxis", new EnumCodec<>(PhysicsAxis.class)),
-            (state, value) -> state.shapeAxis = value != null ? value : PhysicsAxis.Y,
+            (state, value) -> state.shapeAxis = value,
             PersistentPhysicsBodyState::getShapeAxis)
+        .addValidator(Validators.nonNull())
         .add()
         .append(new KeyedCodec<>("BoxHalfExtents", Vector3fUtil.CODEC),
-            (state, value) -> copyFiniteVectorOrZero(state.boxHalfExtents, value),
+            (state, value) -> state.boxHalfExtents.set(value),
             PersistentPhysicsBodyState::getBoxHalfExtents)
+        .addValidator(Validators.nonNull())
+        .addValidator(PersistentPhysicsValidation.finiteVector(
+            "Persisted body box half extents must be finite"))
         .add()
         .append(new KeyedCodec<>("SphereRadius", Codec.FLOAT),
-            (state, value) -> state.sphereRadius = positiveFiniteOrZeroForRestore(value),
+            (state, value) -> state.sphereRadius = value,
             PersistentPhysicsBodyState::getSphereRadius)
+        .addValidator(PersistentPhysicsValidation.nonNegativeFiniteFloat(
+            "Persisted body sphere radius must be finite and >= 0"))
         .add()
         .append(new KeyedCodec<>("HalfHeight", Codec.FLOAT),
-            (state, value) -> state.halfHeight = positiveFiniteOrZeroForRestore(value),
+            (state, value) -> state.halfHeight = value,
             PersistentPhysicsBodyState::getHalfHeight)
+        .addValidator(PersistentPhysicsValidation.nonNegativeFiniteFloat(
+            "Persisted body half height must be finite and >= 0"))
         .add()
         .append(new KeyedCodec<>("PlaneGroundY", Codec.FLOAT, false),
-            (state, value) -> state.planeGroundY = finiteOrZero(value),
+            (state, value) -> state.planeGroundY = value,
             PersistentPhysicsBodyState::getPlaneGroundY)
+        .addValidator(PersistentPhysicsValidation.finiteFloat(
+            "Persisted body plane height must be finite"))
         .add()
         .append(new KeyedCodec<>("BodyType", new EnumCodec<>(PhysicsBodyType.class)),
-            (state, value) -> state.bodyType = value != null ? value : PhysicsBodyType.DYNAMIC,
+            (state, value) -> state.bodyType = value,
             PersistentPhysicsBodyState::getBodyType)
+        .addValidator(Validators.nonNull())
         .add()
         .append(new KeyedCodec<>("Mass", Codec.FLOAT),
-            (state, value) -> state.mass = nonNegativeFiniteOrDefaultForRestore(value, 1.0f),
+            (state, value) -> state.mass = value,
             PersistentPhysicsBodyState::getMass)
+        .addValidator(PersistentPhysicsValidation.nonNegativeFiniteFloat(
+            "Persisted body mass must be finite and >= 0"))
         .add()
         .append(new KeyedCodec<>("Position", Vector3fUtil.CODEC),
-            (state, value) -> copyVectorOrZeroIfNull(state.position, value),
+            (state, value) -> state.position.set(value),
             PersistentPhysicsBodyState::getPosition)
+        .addValidator(Validators.nonNull())
+        .addValidator(PersistentPhysicsValidation.finiteVector(
+            "Persisted body position must be finite"))
         .add()
         .append(new KeyedCodec<>("Rotation", PersistentQuaternion.CODEC),
-            (state, value) -> state.rotation = value != null ? value.copy() : new PersistentQuaternion(),
+            (state, value) -> state.rotation = value.copy(),
             PersistentPhysicsBodyState::getRotation)
+        .addValidator(Validators.nonNull())
         .add()
         .append(new KeyedCodec<>("LinearVelocity", Vector3fUtil.CODEC),
-            (state, value) -> copyVectorOrZeroIfNull(state.linearVelocity, value),
+            (state, value) -> state.linearVelocity.set(value),
             PersistentPhysicsBodyState::getLinearVelocity)
+        .addValidator(Validators.nonNull())
+        .addValidator(PersistentPhysicsValidation.finiteVector(
+            "Persisted body linear velocity must be finite"))
         .add()
         .append(new KeyedCodec<>("AngularVelocity", Vector3fUtil.CODEC),
-            (state, value) -> copyVectorOrZeroIfNull(state.angularVelocity, value),
+            (state, value) -> state.angularVelocity.set(value),
             PersistentPhysicsBodyState::getAngularVelocity)
+        .addValidator(Validators.nonNull())
+        .addValidator(PersistentPhysicsValidation.finiteVector(
+            "Persisted body angular velocity must be finite"))
         .add()
         .append(new KeyedCodec<>("Friction", Codec.FLOAT),
-            (state, value) -> state.friction = nonNegativeFiniteOrZeroForRestore(value),
+            (state, value) -> state.friction = value,
             PersistentPhysicsBodyState::getFriction)
+        .addValidator(PersistentPhysicsValidation.nonNegativeFiniteFloat(
+            "Persisted body friction must be finite and >= 0"))
         .add()
         .append(new KeyedCodec<>("Restitution", Codec.FLOAT),
-            (state, value) -> state.restitution = nonNegativeFiniteOrZeroForRestore(value),
+            (state, value) -> state.restitution = value,
             PersistentPhysicsBodyState::getRestitution)
+        .addValidator(PersistentPhysicsValidation.nonNegativeFiniteFloat(
+            "Persisted body restitution must be finite and >= 0"))
         .add()
         .append(new KeyedCodec<>("LinearDamping", Codec.FLOAT),
-            (state, value) -> state.linearDamping = nonNegativeFiniteOrZeroForRestore(value),
+            (state, value) -> state.linearDamping = value,
             PersistentPhysicsBodyState::getLinearDamping)
+        .addValidator(PersistentPhysicsValidation.nonNegativeFiniteFloat(
+            "Persisted body linear damping must be finite and >= 0"))
         .add()
         .append(new KeyedCodec<>("AngularDamping", Codec.FLOAT),
-            (state, value) -> state.angularDamping = nonNegativeFiniteOrZeroForRestore(value),
+            (state, value) -> state.angularDamping = value,
             PersistentPhysicsBodyState::getAngularDamping)
+        .addValidator(PersistentPhysicsValidation.nonNegativeFiniteFloat(
+            "Persisted body angular damping must be finite and >= 0"))
         .add()
         .append(new KeyedCodec<>("Sensor", Codec.BOOLEAN),
             (state, value) -> state.sensor = value,
@@ -232,11 +269,8 @@ public class PersistentPhysicsBodyState {
         return angularVelocity;
     }
 
-    public int resolveSpaceId(@Nullable SpaceId defaultSpaceId) {
-        if (spaceId > 0) {
-            return spaceId;
-        }
-        return defaultSpaceId != null ? defaultSpaceId.value() : DEFAULT_SPACE_ID;
+    public int resolveSpaceId() {
+        return spaceId;
     }
 
     @Nullable
@@ -249,6 +283,9 @@ public class PersistentPhysicsBodyState {
         }
         if (!isFiniteVector(position)) {
             return "invalid position";
+        }
+        if (!rotation.isFiniteAndNonZero()) {
+            return "invalid rotation";
         }
         if (!isFiniteVector(linearVelocity)) {
             return "invalid linear velocity";
@@ -291,7 +328,7 @@ public class PersistentPhysicsBodyState {
     }
 
     public void updateFromBody(@Nonnull PhysicsBody body, @Nullable SpaceId spaceId) {
-        this.spaceId = spaceId != null ? sanitizeSpaceId(spaceId.value()) : DEFAULT_SPACE_ID;
+        this.spaceId = spaceId != null && spaceId.value() > 0 ? spaceId.value() : DEFAULT_SPACE_ID;
         shapeType = body.getShapeType() != null ? body.getShapeType() : ShapeType.UNKNOWN;
         shapeAxis = body.getShapeAxis() != null ? body.getShapeAxis() : PhysicsAxis.Y;
         Vector3f halfExtents = body.getBoxHalfExtents();
@@ -304,7 +341,7 @@ public class PersistentPhysicsBodyState {
         halfHeight = positiveFiniteOrZeroForRestore(body.getHalfHeight());
         planeGroundY = shapeType == ShapeType.PLANE ? finiteOrZero(body.getPlaneGroundY()) : 0.0f;
         bodyType = body.getBodyType() != null ? body.getBodyType() : PhysicsBodyType.DYNAMIC;
-        mass = nonNegativeFiniteOrDefaultForRestore(body.getMass(), 1.0f);
+        mass = nonNegativeFiniteOrDefaultForSnapshot(body.getMass(), 1.0f);
         copyFiniteVectorOrZero(position, body.getPosition());
         var bodyRotation = body.getRotation();
         rotation.set(bodyRotation);
@@ -386,20 +423,8 @@ public class PersistentPhysicsBodyState {
         return copy;
     }
 
-    private static int sanitizeSpaceId(@Nullable Integer value) {
-        return value != null && value > 0 ? value : DEFAULT_SPACE_ID;
-    }
-
     private static void copyFiniteVectorOrZero(@Nonnull Vector3f target, @Nullable Vector3f value) {
         if (isFiniteVector(value)) {
-            target.set(value);
-        } else {
-            target.zero();
-        }
-    }
-
-    private static void copyVectorOrZeroIfNull(@Nonnull Vector3f target, @Nullable Vector3f value) {
-        if (value != null) {
             target.set(value);
         } else {
             target.zero();
@@ -431,7 +456,7 @@ public class PersistentPhysicsBodyState {
         return isNonNegativeFiniteForRestore(value) ? value : 0.0f;
     }
 
-    private static float nonNegativeFiniteOrDefaultForRestore(float value, float defaultValue) {
+    private static float nonNegativeFiniteOrDefaultForSnapshot(float value, float defaultValue) {
         return isNonNegativeFiniteForRestore(value) ? value : defaultValue;
     }
 

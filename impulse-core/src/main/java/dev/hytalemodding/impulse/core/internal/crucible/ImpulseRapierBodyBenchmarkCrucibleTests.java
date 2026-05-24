@@ -27,6 +27,7 @@ import dev.hytalemodding.impulse.core.plugin.settings.PhysicsSpaceSettings;
 import dev.hytalemodding.impulse.core.plugin.settings.PhysicsSolverSettings;
 import dev.hytalemodding.impulse.core.plugin.settings.PhysicsStepMode;
 import dev.hytalemodding.impulse.core.plugin.settings.PhysicsStepSchedulingMode;
+import dev.hytalemodding.impulse.core.plugin.settings.PhysicsWorldSettings;
 import dev.hytalemodding.impulse.core.plugin.resources.PhysicsWorldResource;
 import dev.hytalemodding.impulse.core.plugin.collision.WorldCollisionMode;
 import java.util.ArrayList;
@@ -137,10 +138,7 @@ final class ImpulseRapierBodyBenchmarkCrucibleTests {
         private final PhysicsWorldResource physics;
         private final PhysicsRuntimeProfilingResource runtimeProfiling;
         private final WorldCollisionProfilingResource worldCollisionProfiling;
-        private final PhysicsStepMode previousStepMode;
-        private final PhysicsStepSchedulingMode previousStepSchedulingMode;
-        private final int previousSimulationSteps;
-        private final float previousMaxStepDt;
+        private final PhysicsWorldSettings previousWorldSettings;
         private final boolean previousRuntimeProfilingEnabled;
         private final boolean previousWorldCollisionProfilingEnabled;
 
@@ -154,10 +152,7 @@ final class ImpulseRapierBodyBenchmarkCrucibleTests {
             this.runtimeProfiling = store.getResource(PhysicsRuntimeProfilingResource.getResourceType());
             this.worldCollisionProfiling = store.getResource(
                 WorldCollisionProfilingResource.getResourceType());
-            this.previousStepMode = physics.getStepMode();
-            this.previousStepSchedulingMode = physics.getStepSchedulingMode();
-            this.previousSimulationSteps = physics.getSimulationSteps();
-            this.previousMaxStepDt = physics.getMaxStepDt();
+            this.previousWorldSettings = physics.getWorldSettings();
             this.previousRuntimeProfilingEnabled = runtimeProfiling.isEnabled();
             this.previousWorldCollisionProfilingEnabled = worldCollisionProfiling.isEnabled();
         }
@@ -208,10 +203,12 @@ final class ImpulseRapierBodyBenchmarkCrucibleTests {
 
         private CompletionStage<StartedCase> startCase(@Nonnull MatrixCase matrixCase) {
             clearCaseState();
-            physics.setStepMode(PhysicsStepMode.FIXED);
-            physics.setStepSchedulingMode(PhysicsStepSchedulingMode.DROP_PENDING_DT);
-            physics.setSimulationSteps(matrixCase.fixedSubsteps());
-            physics.setMaxStepDt(TARGET_MAX_STEP_DT);
+            PhysicsWorldSettings worldSettings = physics.getWorldSettings();
+            worldSettings.setStepMode(PhysicsStepMode.FIXED);
+            worldSettings.setStepSchedulingMode(PhysicsStepSchedulingMode.DROP_PENDING_DT);
+            worldSettings.setSimulationSteps(matrixCase.fixedSubsteps());
+            worldSettings.setMaxStepDt(TARGET_MAX_STEP_DT);
+            physics.setWorldSettings(worldSettings);
             physics.clearSyntheticVisualInterests();
 
             PhysicsSpaceSettings settings = PhysicsSpaceSettings.defaults();
@@ -326,10 +323,7 @@ final class ImpulseRapierBodyBenchmarkCrucibleTests {
         }
 
         private void restoreSettings() {
-            physics.setStepMode(previousStepMode);
-            physics.setStepSchedulingMode(previousStepSchedulingMode);
-            physics.setSimulationSteps(previousSimulationSteps);
-            physics.setMaxStepDt(previousMaxStepDt);
+            physics.setWorldSettings(previousWorldSettings);
             runtimeProfiling.setEnabled(previousRuntimeProfilingEnabled);
             worldCollisionProfiling.setEnabled(previousWorldCollisionProfilingEnabled);
         }
@@ -534,8 +528,8 @@ final class ImpulseRapierBodyBenchmarkCrucibleTests {
             for (String token : raw.split(",")) {
                 try {
                     int value = Math.clamp(Integer.parseInt(token.trim()),
-                        PhysicsWorldResource.MIN_SIMULATION_STEPS,
-                        PhysicsWorldResource.MAX_SIMULATION_STEPS);
+                        PhysicsWorldSettings.MIN_SIMULATION_STEPS,
+                        PhysicsWorldSettings.MAX_SIMULATION_STEPS);
                     if (!substeps.contains(value)) {
                         substeps.add(value);
                     }

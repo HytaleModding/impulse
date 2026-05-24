@@ -127,6 +127,36 @@ public class PhysicsBodyAttachmentComponent implements Component<EntityStore> {
         this.localRotationOffset.set(localRotationOffset);
     }
 
+    /**
+     * Creates the normal attachment for a plugin-owned gameplay or visual entity.
+     *
+     * <p>The entity follows the body but does not own backend body destruction.</p>
+     */
+    @Nonnull
+    public static PhysicsBodyAttachmentComponent externalEntity(@Nonnull PhysicsBodyId bodyId,
+        @Nullable SpaceId spaceId) {
+        return new PhysicsBodyAttachmentComponent(bodyId,
+            spaceId,
+            TransformAuthority.BODY,
+            AttachmentLifecycle.EXTERNAL_ENTITY);
+    }
+
+    /**
+     * Creates the normal external-entity attachment with a local transform offset.
+     */
+    @Nonnull
+    public static PhysicsBodyAttachmentComponent externalEntity(@Nonnull PhysicsBodyId bodyId,
+        @Nullable SpaceId spaceId,
+        @Nonnull Vector3f localPositionOffset,
+        @Nonnull Quaternionf localRotationOffset) {
+        return new PhysicsBodyAttachmentComponent(bodyId,
+            spaceId,
+            TransformAuthority.BODY,
+            AttachmentLifecycle.EXTERNAL_ENTITY,
+            localPositionOffset,
+            localRotationOffset);
+    }
+
     @Nonnull
     public PhysicsBodyId getBodyId() {
         return bodyId;
