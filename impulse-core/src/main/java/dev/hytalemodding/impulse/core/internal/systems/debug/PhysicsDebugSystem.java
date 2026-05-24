@@ -13,7 +13,6 @@ import com.hypixel.hytale.server.core.universe.world.storage.ChunkStore;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import dev.hytalemodding.impulse.api.PhysicsBody;
 import dev.hytalemodding.impulse.api.PhysicsBodySnapshot;
-import dev.hytalemodding.impulse.api.PhysicsContact;
 import dev.hytalemodding.impulse.api.PhysicsSpace;
 import dev.hytalemodding.impulse.api.ShapeType;
 import dev.hytalemodding.impulse.core.plugin.components.PhysicsBodyAttachmentComponent;
@@ -26,6 +25,8 @@ import dev.hytalemodding.impulse.core.internal.voxel.SectionCollisionGeometry.Bo
 import dev.hytalemodding.impulse.core.internal.voxel.WorldCollisionCacheAccess;
 import dev.hytalemodding.impulse.core.internal.voxel.WorldVoxelCollisionCache;
 import dev.hytalemodding.impulse.core.internal.voxel.WorldVoxelCollisionCache.DebugSection;
+import dev.hytalemodding.impulse.core.internal.systems.debug.PhysicsDebugRenderer.ContactDebugPrimitive;
+import dev.hytalemodding.impulse.core.internal.systems.debug.PhysicsDebugRenderer.JointDebugPrimitive;
 import it.unimi.dsi.fastutil.objects.ObjectOpenHashSet;
 import java.util.ArrayList;
 import java.util.Collection;
@@ -51,9 +52,6 @@ public class PhysicsDebugSystem extends TickingSystem<ChunkStore> {
         PhysicsBodyAttachmentComponent.getComponentType();
     private static final ComponentType<EntityStore, TransformComponent> TRANSFORM_TYPE =
         TransformComponent.getComponentType();
-
-    private static final Vector3f JOINT_BODY_A_POSITION_SCRATCH = new Vector3f();
-    private static final Vector3f JOINT_BODY_B_POSITION_SCRATCH = new Vector3f();
 
     @Override
     public void tick(float dt, int index, @Nonnull Store<ChunkStore> store) {
@@ -117,21 +115,22 @@ public class PhysicsDebugSystem extends TickingSystem<ChunkStore> {
                     overlayLifetime);
             }
 
-            boolean liveBackendReadable = resource.canAccessLiveBackendDirectly();
             for (PhysicsSpace space : resource.getSpaces()) {
                 if (overlayDue && debugShapes) {
                     renderSpaceOnlyShapes(target, resource, space, overlayLifetime);
                 }
-                if (overlayDue && debugContacts && liveBackendReadable) {
+                if (overlayDue && debugContacts) {
                     renderContacts(target,
+                        resource,
                         space,
                         viewerPosition,
                         debug.getViewRadius(),
                         debug.getMaxContacts(),
                         overlayLifetime);
                 }
-                if (overlayDue && debugJoints && liveBackendReadable) {
+                if (overlayDue && debugJoints) {
                     renderJoints(target,
+                        resource,
                         space,
                         viewerPosition,
                         debug.getViewRadius(),
@@ -304,52 +303,47 @@ public class PhysicsDebugSystem extends TickingSystem<ChunkStore> {
     }
 
     private static void renderContacts(@Nonnull Collection<PlayerRef> viewers,
+        @Nonnull PhysicsWorldResource resource,
         @Nonnull PhysicsSpace space,
         @Nonnull Vector3d viewerPosition,
         double viewRadius,
         int maxContacts,
         float time) {
-        int rendered = 0;
-        double maxDistanceSquared = viewRadius * viewRadius;
-        for (PhysicsContact contact : space.getContacts()) {
-            Vector3f point = contact.pointOnB();
-            if (distanceSquared(viewerPosition, point) > maxDistanceSquared) {
-                continue;
-            }
-
+        List<ContactDebugPrimitive> contacts;
+        try {
+            contacts = resource.callOnPhysicsOwner("capture physics debug contacts",
+                () -> PhysicsContactDebugCapture.collectVisibleContactPrimitives(space,
+                    viewerPosition,
+                    viewRadius,
+                    maxContacts));
+        } catch (RuntimeException exception) {
+            return;
+        }
+        for (ContactDebugPrimitive contact : contacts) {
             PhysicsDebugRenderer.renderContact(viewers, contact, time);
-            rendered++;
-            if (rendered >= maxContacts) {
-                return;
-            }
         }
     }
 
     private static void renderJoints(@Nonnull Collection<PlayerRef> viewers,
+        @Nonnull PhysicsWorldResource resource,
         @Nonnull PhysicsSpace space,
         @Nonnull Vector3d viewerPosition,
         double viewRadius,
         int maxJoints,
         float time) {
-        int[] rendered = {0};
-        double maxDistanceSquared = viewRadius * viewRadius;
-        space.forEachJoint(joint -> {
-            if (rendered[0] >= maxJoints) {
-                return;
-            }
-            joint.getBodyA().getPosition(JOINT_BODY_A_POSITION_SCRATCH);
-            joint.getBodyB().getPosition(JOINT_BODY_B_POSITION_SCRATCH);
-            Vector3d midpoint = new Vector3d((JOINT_BODY_A_POSITION_SCRATCH.x
-                + JOINT_BODY_B_POSITION_SCRATCH.x) * 0.5,
-                (JOINT_BODY_A_POSITION_SCRATCH.y + JOINT_BODY_B_POSITION_SCRATCH.y) * 0.5,
-                (JOINT_BODY_A_POSITION_SCRATCH.z + JOINT_BODY_B_POSITION_SCRATCH.z) * 0.5);
-            if (viewerPosition.distanceSquared(midpoint) > maxDistanceSquared) {
-                return;
-            }
-
+        List<JointDebugPrimitive> joints;
+        try {
+            joints = resource.callOnPhysicsOwner("capture physics debug joints",
+                () -> PhysicsJointDebugCapture.collectVisibleJointPrimitives(space,
+                    viewerPosition,
+                    viewRadius,
+                    maxJoints));
+        } catch (RuntimeException exception) {
+            return;
+        }
+        for (JointDebugPrimitive joint : joints) {
             PhysicsDebugRenderer.renderJoint(viewers, joint, time);
-            rendered[0]++;
-        });
+        }
     }
 
     private static void renderWorldCollision(@Nonnull Collection<PlayerRef> viewers,
@@ -443,14 +437,6 @@ public class PhysicsDebugSystem extends TickingSystem<ChunkStore> {
 
             visibleBoxes.add(new VisibleDebugBox(box, color, distanceSquared));
         }
-    }
-
-    private static double distanceSquared(@Nonnull Vector3d point,
-        @Nonnull Vector3f target) {
-        double dx = point.x - target.x;
-        double dy = point.y - target.y;
-        double dz = point.z - target.z;
-        return dx * dx + dy * dy + dz * dz;
     }
 
     private static double distanceSquaredToSection(@Nonnull Vector3d viewerPosition,

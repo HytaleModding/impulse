@@ -76,6 +76,7 @@ public final class FakePhysicsBackend implements PhysicsBackend {
         private final BackendId backendId;
         private final List<PhysicsBody> bodies = new ArrayList<>();
         private final List<PhysicsJoint> joints = new ArrayList<>();
+        private final List<PhysicsContact> contacts = new ArrayList<>();
         private final Vector3f gravity = new Vector3f();
         private boolean closed;
         private int solverIterations;
@@ -213,7 +214,11 @@ public final class FakePhysicsBackend implements PhysicsBackend {
         @Nonnull
         @Override
         public List<PhysicsContact> getContacts() {
-            return List.of();
+            return new ArrayList<>(contacts);
+        }
+
+        public void addContact(@Nonnull PhysicsContact contact) {
+            contacts.add(contact);
         }
 
         @Nonnull

@@ -70,7 +70,13 @@ final class PhysicsDebugRenderer {
     static void renderContact(@Nonnull Collection<PlayerRef> viewers,
         @Nonnull PhysicsContact contact,
         float time) {
-        Vector3d point = toVector3d(contact.pointOnB());
+        renderContact(viewers, captureContact(contact), time);
+    }
+
+    static void renderContact(@Nonnull Collection<PlayerRef> viewers,
+        @Nonnull ContactDebugPrimitive primitive,
+        float time) {
+        Vector3d point = primitive.point();
         PhysicsDebugPackets.addSphere(viewers,
             point,
             DebugUtils.COLOR_RED,
@@ -79,10 +85,8 @@ final class PhysicsDebugRenderer {
             time,
             VECTOR_FLAGS);
 
-        Vector3d normal = toVector3d(contact.normalOnB());
-        double magnitude = Math.max(CONTACT_NORMAL_SCALE, Math.abs(contact.impulse()) * 0.05);
-        if (normal.lengthSquared() > 0.0) {
-            normal.normalize().mul(magnitude);
+        Vector3d normal = primitive.normal();
+        if (normal != null && normal.lengthSquared() > 0.0) {
             PhysicsDebugPackets.addArrow(viewers,
                 point,
                 normal,
@@ -93,11 +97,31 @@ final class PhysicsDebugRenderer {
         }
     }
 
+    @Nonnull
+    static ContactDebugPrimitive captureContact(@Nonnull PhysicsContact contact) {
+        Vector3d point = toVector3d(contact.pointOnB());
+        Vector3d normal = toVector3d(contact.normalOnB());
+        if (normal.lengthSquared() > 0.0) {
+            double magnitude = Math.max(CONTACT_NORMAL_SCALE, Math.abs(contact.impulse()) * 0.05);
+            normal.normalize().mul(magnitude);
+        } else {
+            normal = null;
+        }
+        return new ContactDebugPrimitive(point, normal);
+    }
+
     static void renderJoint(@Nonnull Collection<PlayerRef> viewers,
         @Nonnull PhysicsJoint joint,
         float time) {
-        Vector3d anchorA = worldAnchor(joint.getBodyA(), joint.getAnchorA());
-        Vector3d anchorB = worldAnchor(joint.getBodyB(), joint.getAnchorB());
+        renderJoint(viewers, captureJoint(joint), time);
+    }
+
+    static void renderJoint(@Nonnull Collection<PlayerRef> viewers,
+        @Nonnull JointDebugPrimitive primitive,
+        float time) {
+        Vector3d anchorA = primitive.anchorA();
+        Vector3d anchorB = primitive.anchorB();
+        Vector3d axis = primitive.axis();
         PhysicsDebugPackets.addLine(viewers,
             anchorA,
             anchorB,
@@ -121,19 +145,29 @@ final class PhysicsDebugRenderer {
             time,
             VECTOR_FLAGS);
 
-        Vector3f axis = joint.getAxis();
-        if (axis != null && axis.lengthSquared() > 0f) {
-            Vector3d worldAxis = toVector3d(axis).normalize().mul(0.9);
-            Quaterniond bodyRotation = toQuaterniond(joint.getBodyA().getRotation());
-            bodyRotation.transform(worldAxis);
+        if (axis != null && axis.lengthSquared() > 0.0) {
             PhysicsDebugPackets.addArrow(viewers,
                 anchorA,
-                worldAxis,
+                axis,
                 DebugUtils.COLOR_CYAN,
                 0.8f,
                 time,
                 VECTOR_FLAGS);
         }
+    }
+
+    @Nonnull
+    static JointDebugPrimitive captureJoint(@Nonnull PhysicsJoint joint) {
+        Vector3d anchorA = worldAnchor(joint.getBodyA(), joint.getAnchorA());
+        Vector3d anchorB = worldAnchor(joint.getBodyB(), joint.getAnchorB());
+        Vector3d worldAxis = null;
+        Vector3f axis = joint.getAxis();
+        if (axis != null && axis.lengthSquared() > 0f) {
+            worldAxis = toVector3d(axis).normalize().mul(0.9);
+            Quaterniond bodyRotation = toQuaterniond(joint.getBodyA().getRotation());
+            bodyRotation.transform(worldAxis);
+        }
+        return new JointDebugPrimitive(anchorA, anchorB, worldAxis);
     }
 
     static void renderRay(@Nonnull Collection<PlayerRef> viewers,
@@ -448,5 +482,25 @@ final class PhysicsDebugRenderer {
             case KINEMATIC -> DebugUtils.COLOR_BLUE;
             case DYNAMIC -> DebugUtils.COLOR_LIME;
         };
+    }
+
+    record JointDebugPrimitive(@Nonnull Vector3d anchorA,
+                               @Nonnull Vector3d anchorB,
+                               Vector3d axis) {
+
+        JointDebugPrimitive {
+            anchorA = new Vector3d(anchorA);
+            anchorB = new Vector3d(anchorB);
+            axis = axis != null ? new Vector3d(axis) : null;
+        }
+    }
+
+    record ContactDebugPrimitive(@Nonnull Vector3d point,
+                                 Vector3d normal) {
+
+        ContactDebugPrimitive {
+            point = new Vector3d(point);
+            normal = normal != null ? new Vector3d(normal) : null;
+        }
     }
 }
