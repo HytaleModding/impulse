@@ -6,6 +6,17 @@ import javax.annotation.Nonnull;
 
 /**
  * Immutable async snapshot frame for world-level physics readers.
+ *
+ * <p>{@code frameEpoch} and {@code worldEpoch} are publication-ordering keys.
+ * {@code stepSequence} and {@code serverTick} are correlation metadata and must
+ * not be used to decide whether a frame is current for the world topology.</p>
+ *
+ * @param stepSequence Impulse step-scheduler sequence assigned to the worker
+ *     step; not a Hytale tick and not guaranteed contiguous in published frames
+ * @param serverTick Hytale world tick observed when the worker step was
+ *     scheduled; not a physics step counter and may diverge from
+ *     {@code stepSequence} under paused worlds, backpressure, or future
+ *     multi-rate scheduling
  */
 public record PublishedPhysicsSnapshotFrame(long frameEpoch,
                                             long worldEpoch,

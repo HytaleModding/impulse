@@ -21,6 +21,10 @@ public class PhysicsStepSystem extends TickingSystem<ChunkStore> implements Auto
 
     private static final HytaleLogger LOGGER = HytaleLogger.get("Impulse");
 
+    /**
+     * Impulse-local sequence for correlating worker step commands with published
+     * snapshot frames. This is not the Hytale world tick.
+     */
     private final AtomicLong nextStepSequence = new AtomicLong(1L);
     private volatile boolean closed;
 
@@ -33,7 +37,7 @@ public class PhysicsStepSystem extends TickingSystem<ChunkStore> implements Auto
     }
 
     @Override
-    public void tick(float dt, int index, @Nonnull Store<ChunkStore> store) {
+    public void tick(float dt, int systemIndex, @Nonnull Store<ChunkStore> store) {
         if (closed) {
             return;
         }
@@ -50,20 +54,21 @@ public class PhysicsStepSystem extends TickingSystem<ChunkStore> implements Auto
             return;
         }
 
-        submitStepIfIdle(worker, resource, dt, profiling);
+        submitStepIfIdle(worker, resource, dt, profiling, Math.max(0L, world.getTick()));
     }
 
-    private void submitStepIfIdle(@Nonnull PhysicsWorldWorkerResource worker,
+    void submitStepIfIdle(@Nonnull PhysicsWorldWorkerResource worker,
         @Nonnull PhysicsWorldResource resource,
         float dt,
-        @Nonnull PhysicsRuntimeProfilingResource profiling) {
+        @Nonnull PhysicsRuntimeProfilingResource profiling,
+        long serverTick) {
         boolean profilingEnabled = profiling.isEnabled();
         long sequence = nextStepSequence.getAndIncrement();
         PhysicsWorkerStepCommand command = new PhysicsWorkerStepCommand(resource,
             dt,
             profilingEnabled,
             sequence,
-            sequence);
+            serverTick);
         try {
             if (!worker.submitStepIfIdle(command) && profilingEnabled) {
                 profiling.recordStepSkippedPending(worker.pendingStepAgeNanos());

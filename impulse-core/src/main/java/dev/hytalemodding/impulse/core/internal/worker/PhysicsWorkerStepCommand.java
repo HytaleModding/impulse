@@ -20,6 +20,11 @@ import org.joml.Vector3f;
  * <p>{@link PhysicsSpace} mutations are owner-thread operations. Callers must
  * only submit this command when the worker is the exclusive owner of backend
  * spaces and the resource until the result has been consumed.</p>
+ *
+ * <p>{@code stepSequence} and {@code serverTick} are copied into the published
+ * snapshot frame for diagnostics and external correlation. They do not control
+ * publication freshness; that remains guarded by the resource's frame and world
+ * epochs.</p>
  */
 public final class PhysicsWorkerStepCommand implements PhysicsWorkerCommand {
 
@@ -45,6 +50,14 @@ public final class PhysicsWorkerStepCommand implements PhysicsWorkerCommand {
         this(resource, dt, profilingEnabled, 0L, 0L);
     }
 
+    /**
+     * Creates a worker step command with snapshot correlation metadata.
+     *
+     * @param stepSequence monotonic Impulse step-scheduler sequence; not a
+     *     Hytale world tick and not guaranteed contiguous in published frames
+     * @param serverTick Hytale world tick observed when the step command was
+     *     scheduled; not a physics step counter
+     */
     public PhysicsWorkerStepCommand(@Nonnull PhysicsWorldResource resource,
         float dt,
         boolean profilingEnabled,
