@@ -24,6 +24,7 @@ import dev.hytalemodding.impulse.core.plugin.components.PhysicsBodyAttachmentCom
 import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyKind;
 import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyPersistenceMode;
 import dev.hytalemodding.impulse.core.plugin.settings.PhysicsSpaceSettings;
+import dev.hytalemodding.impulse.core.plugin.settings.PhysicsSolverSettings;
 import dev.hytalemodding.impulse.core.plugin.settings.PhysicsStepMode;
 import dev.hytalemodding.impulse.core.plugin.resources.PhysicsWorldResource;
 import dev.hytalemodding.impulse.core.plugin.collision.WorldCollisionMode;
@@ -210,21 +211,23 @@ final class ImpulseRapierBodyBenchmarkCrucibleTests {
             physics.clearSyntheticVisualInterests();
 
             PhysicsSpaceSettings settings = PhysicsSpaceSettings.defaults();
-            settings.setWorldCollisionMode(WorldCollisionMode.NONE);
-            settings.setSolverIterations(PhysicsSpaceSettings.DEFAULT_SOLVER_ITERATIONS);
-            settings.setInternalPgsIterations(
-                PhysicsSpaceSettings.DEFAULT_INTERNAL_PGS_ITERATIONS);
-            settings.setStabilizationIterations(
-                PhysicsSpaceSettings.DEFAULT_STABILIZATION_ITERATIONS);
-            settings.setMinIslandSize(PhysicsSpaceSettings.DEFAULT_MIN_ISLAND_SIZE);
+            settings.getWorldCollisionSettings().setWorldCollisionMode(WorldCollisionMode.NONE);
+            settings.getSolverSettings().setSolverIterations(PhysicsSolverSettings.DEFAULT_SOLVER_ITERATIONS);
+            settings.getSolverSettings().setInternalPgsIterations(
+                PhysicsSolverSettings.DEFAULT_INTERNAL_PGS_ITERATIONS);
+            settings.getSolverSettings().setStabilizationIterations(
+                PhysicsSolverSettings.DEFAULT_STABILIZATION_ITERATIONS);
+            settings.getSolverSettings().setMinIslandSize(PhysicsSolverSettings.DEFAULT_MIN_ISLAND_SIZE);
             try {
                 PhysicsSpace space = physics.createSpace(RAPIER_BACKEND_ID,
                     world.getName(),
                     settings,
                     true);
-                PhysicsBody ground = space.createStaticPlane(GROUND_Y);
-                space.addBody(ground);
-                spawnDetachedBodies(space, matrixCase.count());
+                physics.runOnPhysicsOwner("prepare rapier body benchmark space", () -> {
+                    PhysicsBody ground = space.createStaticPlane(GROUND_Y);
+                    space.addBody(ground);
+                    spawnDetachedBodies(space, matrixCase.count());
+                });
                 return CompletableFuture.completedFuture(StartedCase.started(space));
             } catch (RuntimeException exception) {
                 return CompletableFuture.completedFuture(
@@ -717,6 +720,12 @@ final class ImpulseRapierBodyBenchmarkCrucibleTests {
         private double maxDynamicBodyY = Double.NEGATIVE_INFINITY;
 
         private static SpaceStats collect(@Nonnull PhysicsWorldResource physics,
+            @Nonnull PhysicsSpace space) {
+            return physics.callOnPhysicsOwner("collect rapier body benchmark space stats",
+                () -> collectOnOwner(physics, space));
+        }
+
+        private static SpaceStats collectOnOwner(@Nonnull PhysicsWorldResource physics,
             @Nonnull PhysicsSpace space) {
             SpaceStats stats = new SpaceStats();
             WorldVoxelCollisionCache cache = WorldCollisionCacheAccess.get(physics);

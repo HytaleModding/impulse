@@ -118,7 +118,7 @@ class PhysicsSyncPolicyTest {
     @Test
     void midRangeFollowersRespectConfiguredMinimumInterval() {
         PhysicsSpaceSettings settings = PhysicsSpaceSettings.defaults();
-        settings.setVisualMidSyncIntervalTicks(4);
+        settings.getVisualSyncSettings().setVisualMidSyncIntervalTicks(4);
         PhysicsWorldResource.BodySyncState syncState = initializedState(false);
         syncState.recordSkip(0.15f);
 
@@ -147,8 +147,8 @@ class PhysicsSyncPolicyTest {
     @Test
     void farRangeLodUsesConfiguredIntervalWhenCutoffIsDisabled() {
         PhysicsSpaceSettings settings = PhysicsSpaceSettings.defaults();
-        settings.setVisualFarSyncCutoffEnabled(false);
-        settings.setVisualFarSyncIntervalTicks(40);
+        settings.getVisualSyncSettings().setVisualFarSyncCutoffEnabled(false);
+        settings.getVisualSyncSettings().setVisualFarSyncIntervalTicks(40);
         PhysicsWorldResource.BodySyncState syncState = initializedState(false);
         syncState.recordSkip(1.95f);
 
@@ -268,8 +268,8 @@ class PhysicsSyncPolicyTest {
     @Test
     void rangeTierDistinguishesNearMidAndFarBands() {
         PhysicsSpaceSettings settings = PhysicsSpaceSettings.defaults();
-        settings.setVisualFullSyncRadius(10);
-        settings.setVisualMaxSyncRadius(20);
+        settings.getVisualSyncSettings().setVisualFullSyncRadius(10);
+        settings.getVisualSyncSettings().setVisualMaxSyncRadius(20);
 
         List<PhysicsSyncPolicy.PlayerInterest> players = interests(new Vector3f(0.0f, 0.0f, 0.0f));
 

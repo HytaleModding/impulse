@@ -10,8 +10,8 @@ class PhysicsSyncSystemTest {
     @Test
     void visualPredictionSecondsClampToConfiguredWindow() {
         PhysicsSpaceSettings settings = PhysicsSpaceSettings.defaults();
-        settings.setVisualSnapshotPredictionEnabled(true);
-        settings.setVisualSnapshotPredictionMaxSeconds(0.05f);
+        settings.getVisualSyncSettings().setVisualSnapshotPredictionEnabled(true);
+        settings.getVisualSyncSettings().setVisualSnapshotPredictionMaxSeconds(0.05f);
 
         assertEquals(0.05f,
             PhysicsSyncPolicy.visualPredictionSeconds(settings,
@@ -23,12 +23,12 @@ class PhysicsSyncSystemTest {
     @Test
     void visualPredictionSecondsStayZeroWhenDisabledOrMissingFrame() {
         PhysicsSpaceSettings settings = PhysicsSpaceSettings.defaults();
-        settings.setVisualSnapshotPredictionEnabled(true);
+        settings.getVisualSyncSettings().setVisualSnapshotPredictionEnabled(true);
 
         assertEquals(0.0f,
             PhysicsSyncPolicy.visualPredictionSeconds(settings, 1_100_000_000L, 0L),
             0.0001f);
-        settings.setVisualSnapshotPredictionEnabled(false);
+        settings.getVisualSyncSettings().setVisualSnapshotPredictionEnabled(false);
         assertEquals(0.0f,
             PhysicsSyncPolicy.visualPredictionSeconds(settings,
                 1_100_000_000L,

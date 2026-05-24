@@ -81,7 +81,7 @@ public class SpaceCommand extends AbstractCommandCollection {
             PhysicsSpaceSettings settings = worldCollisionMode == WorldCollisionMode.STREAMING
                 ? PhysicsSpaceSettings.streamingWorldCollision()
                 : PhysicsSpaceSettings.defaults();
-            settings.setWorldCollisionMode(worldCollisionMode);
+            settings.getWorldCollisionSettings().setWorldCollisionMode(worldCollisionMode);
 
             PhysicsWorldResource resource = store.getResource(PhysicsWorldResource.getResourceType());
             try {
@@ -131,7 +131,7 @@ public class SpaceCommand extends AbstractCommandCollection {
                     + " bodies=" + counts.bodies()
                     + " joints=" + counts.joints()
                     + " worldCollision="
-                    + settings.getWorldCollisionMode().name().toLowerCase(Locale.ROOT)
+                    + settings.getWorldCollisionSettings().getWorldCollisionMode().name().toLowerCase(Locale.ROOT)
                     + marker));
             }
         }

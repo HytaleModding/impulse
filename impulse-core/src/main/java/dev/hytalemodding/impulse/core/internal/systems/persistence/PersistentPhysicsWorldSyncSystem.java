@@ -104,15 +104,6 @@ public class PersistentPhysicsWorldSyncSystem extends TickingSystem<EntityStore>
 
     @Nonnull
     public static SyncResult syncRuntimeSnapshot(@Nonnull PersistentPhysicsWorldResource persistent,
-        @Nonnull PhysicsWorldResource runtime) {
-        if (!runtime.canAccessLiveBackendDirectly()) {
-            return SyncResult.skipped("physics worker active");
-        }
-        return syncRuntimeSnapshot(persistent, PersistentPhysicsRuntimeSnapshot.capture(runtime));
-    }
-
-    @Nonnull
-    public static SyncResult syncRuntimeSnapshot(@Nonnull PersistentPhysicsWorldResource persistent,
         @Nonnull PersistentPhysicsRuntimeSnapshot snapshot) {
         if (persistent.isRuntimeRestorePending()) {
             return SyncResult.skipped("restore pending");
@@ -124,6 +115,7 @@ public class PersistentPhysicsWorldSyncSystem extends TickingSystem<EntityStore>
         persistent.setSchemaVersion(PersistentPhysicsWorldResource.CURRENT_SCHEMA_VERSION);
         persistent.setSimulationSteps(snapshot.getSimulationSteps());
         persistent.setStepMode(snapshot.getStepMode());
+        persistent.setStepSchedulingMode(snapshot.getStepSchedulingMode());
         persistent.setMaxStepDt(snapshot.getMaxStepDt());
         persistent.setDefaultSpaceId(snapshot.getDefaultSpaceId());
         persistent.setSpaces(snapshot.getSpaces());
@@ -143,6 +135,7 @@ public class PersistentPhysicsWorldSyncSystem extends TickingSystem<EntityStore>
             : PersistentPhysicsBodyState.DEFAULT_SPACE_ID;
         return persistent.getSimulationSteps() != runtime.getSimulationSteps()
             || persistent.getStepMode() != runtime.getStepMode()
+            || persistent.getStepSchedulingMode() != runtime.getStepSchedulingMode()
             || Float.compare(persistent.getMaxStepDt(), runtime.getMaxStepDt()) != 0
             || persistent.getDefaultSpaceId() != resolvedDefaultSpaceId;
     }

@@ -66,6 +66,7 @@ public class PerfReportCommand extends AbstractWorldCommand {
             + entityDiagnostics.impulseSummary()));
 
         if (cumulativeStep.getTickSamples() > 0
+            || cumulativeStep.getSchedulerSamples() > 0
             || cumulativeSync.getTickSamples() > 0
             || cumulativeVisual.getTickSamples() > 0) {
             ctx.sender().sendMessage(Message.raw("Physics step avg ms/tick="
@@ -91,6 +92,23 @@ public class PerfReportCommand extends AbstractWorldCommand {
                 + formatAverageMillis(cumulativeStep.getPendingStepAgeNanos(),
                 cumulativeStep.getSkippedPendingSteps())
                 + "/" + formatMillis(cumulativeStep.getMaxPendingStepAgeNanos())));
+            if (cumulativeStep.getSchedulerSamples() > 0) {
+                ctx.sender().sendMessage(Message.raw("Physics scheduler dt avg input/submitted/backlog/dropped s="
+                    + formatAverageSeconds(cumulativeStep.getSchedulerInputDtNanos(),
+                    cumulativeStep.getSchedulerSamples())
+                    + "/" + formatAverageSeconds(cumulativeStep.getSchedulerSubmittedDtNanos(),
+                    cumulativeStep.getSchedulerSamples())
+                    + "/" + formatAverageSeconds(cumulativeStep.getSchedulerBacklogDtNanos(),
+                    cumulativeStep.getSchedulerSamples())
+                    + "/" + formatAverageSeconds(cumulativeStep.getDroppedBacklogDtNanos(),
+                    cumulativeStep.getSchedulerSamples())
+                    + " backlog latest/max s="
+                    + formatSeconds(latestStep.getSchedulerBacklogDtNanos())
+                    + "/" + formatSeconds(cumulativeStep.getMaxSchedulerBacklogDtNanos())
+                    + " droppedTotal s=" + formatSeconds(cumulativeStep.getDroppedBacklogDtNanos())
+                    + " capHits/droppedTicks=" + cumulativeStep.getDtCapHits()
+                    + "/" + cumulativeStep.getDroppedBacklogTicks()));
+            }
             ctx.sender().sendMessage(Message.raw("Physics step latest/worst ms="
                 + formatMillis(latestStep.getTickNanos())
                 + "/" + formatMillis(worstStep.getTickNanos())
@@ -367,6 +385,19 @@ public class PerfReportCommand extends AbstractWorldCommand {
             return "0.000";
         }
         return formatMillis(totalNanos / samples);
+    }
+
+    @Nonnull
+    private static String formatSeconds(long nanos) {
+        return String.format(Locale.ROOT, "%.3f", nanos / 1_000_000_000.0);
+    }
+
+    @Nonnull
+    private static String formatAverageSeconds(long totalNanos, int samples) {
+        if (samples <= 0) {
+            return "0.000";
+        }
+        return formatSeconds(totalNanos / samples);
     }
 
     @Nonnull

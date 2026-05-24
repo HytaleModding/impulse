@@ -6,6 +6,7 @@ import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyId;
 import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyPersistenceMode;
 import dev.hytalemodding.impulse.core.plugin.settings.PhysicsSpaceSettings;
 import dev.hytalemodding.impulse.core.plugin.settings.PhysicsStepMode;
+import dev.hytalemodding.impulse.core.plugin.settings.PhysicsStepSchedulingMode;
 import dev.hytalemodding.impulse.core.plugin.resources.PhysicsWorldResource;
 import lombok.Getter;
 import java.util.ArrayList;
@@ -28,6 +29,8 @@ public final class PersistentPhysicsRuntimeSnapshot {
     private final int simulationSteps;
     @Nonnull
     private final PhysicsStepMode stepMode;
+    @Nonnull
+    private final PhysicsStepSchedulingMode stepSchedulingMode;
     @Getter
     private final float maxStepDt;
     @Getter
@@ -41,6 +44,7 @@ public final class PersistentPhysicsRuntimeSnapshot {
 
     private PersistentPhysicsRuntimeSnapshot(int simulationSteps,
         @Nonnull PhysicsStepMode stepMode,
+        @Nonnull PhysicsStepSchedulingMode stepSchedulingMode,
         float maxStepDt,
         int defaultSpaceId,
         @Nonnull PersistentPhysicsSpaceState[] spaces,
@@ -48,6 +52,7 @@ public final class PersistentPhysicsRuntimeSnapshot {
         @Nonnull PersistentPhysicsJointState[] joints) {
         this.simulationSteps = simulationSteps;
         this.stepMode = stepMode;
+        this.stepSchedulingMode = stepSchedulingMode;
         this.maxStepDt = maxStepDt;
         this.defaultSpaceId = defaultSpaceId;
         this.spaces = copySpaces(spaces);
@@ -79,6 +84,7 @@ public final class PersistentPhysicsRuntimeSnapshot {
 
         return new PersistentPhysicsRuntimeSnapshot(runtime.getSimulationSteps(),
             runtime.getStepMode(),
+            runtime.getStepSchedulingMode(),
             runtime.getMaxStepDt(),
             resolvedDefaultSpaceId,
             spaces.toArray(PersistentPhysicsSpaceState[]::new),
@@ -96,6 +102,11 @@ public final class PersistentPhysicsRuntimeSnapshot {
     @Nonnull
     public PhysicsStepMode getStepMode() {
         return stepMode;
+    }
+
+    @Nonnull
+    public PhysicsStepSchedulingMode getStepSchedulingMode() {
+        return stepSchedulingMode;
     }
 
     @Nonnull

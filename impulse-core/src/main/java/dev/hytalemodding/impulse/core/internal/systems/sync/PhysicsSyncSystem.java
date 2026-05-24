@@ -254,7 +254,7 @@ public class PhysicsSyncSystem extends EntityTickingSystem<EntityStore> {
         @Nonnull PhysicsWorldResource.BodySyncState syncState,
         @Nonnull PhysicsSyncPolicy.SyncDecision decision) {
         return settings != null
-            && settings.isVisualSnapshotSmoothingEnabled()
+            && settings.getVisualSyncSettings().isVisualSnapshotSmoothingEnabled()
             && !controlled
             && rangeTier == PhysicsSyncPolicy.SyncRangeTier.NEAR
             && snapshot.isDynamic()
@@ -288,7 +288,7 @@ public class PhysicsSyncSystem extends EntityTickingSystem<EntityStore> {
             return 1.0f;
         }
         return Math.min(1.0f,
-            Math.max(MIN_SMOOTHING_ALPHA, dt * settings.getVisualSnapshotSmoothingRate()));
+            Math.max(MIN_SMOOTHING_ALPHA, dt * settings.getVisualSyncSettings().getVisualSnapshotSmoothingRate()));
     }
 
     private static void applySnapshotPrediction(@Nonnull PhysicsBodySnapshot snapshot,
@@ -344,7 +344,7 @@ public class PhysicsSyncSystem extends EntityTickingSystem<EntityStore> {
         if (attachment.getLifecycle() == AttachmentLifecycle.GENERATED_PROXY) {
             return true;
         }
-        return settings != null && settings.isEntityVisualSyncCullingEnabled();
+        return settings != null && settings.getVisualSyncSettings().isEntityVisualSyncCullingEnabled();
     }
 
     private static final class Scratch {

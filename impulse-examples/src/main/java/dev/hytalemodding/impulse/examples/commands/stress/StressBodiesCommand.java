@@ -18,11 +18,16 @@ import dev.hytalemodding.impulse.api.PhysicsSpace;
 import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyId;
 import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyKind;
 import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyPersistenceMode;
-import dev.hytalemodding.impulse.core.plugin.settings.PhysicsSpaceSettings;
-import dev.hytalemodding.impulse.core.plugin.resources.PhysicsWorldResource;
-import dev.hytalemodding.impulse.core.plugin.settings.VisualOcclusionMode;
 import dev.hytalemodding.impulse.core.plugin.collision.WorldCollisionPrewarmStats;
 import dev.hytalemodding.impulse.core.plugin.collision.WorldCollisionMode;
+import dev.hytalemodding.impulse.core.plugin.resources.PhysicsWorldResource;
+import dev.hytalemodding.impulse.core.plugin.settings.PhysicsCollisionLodSettings;
+import dev.hytalemodding.impulse.core.plugin.settings.PhysicsSolverSettings;
+import dev.hytalemodding.impulse.core.plugin.settings.PhysicsSpaceSettings;
+import dev.hytalemodding.impulse.core.plugin.settings.PhysicsVisualMaterializationSettings;
+import dev.hytalemodding.impulse.core.plugin.settings.PhysicsVisualSyncSettings;
+import dev.hytalemodding.impulse.core.plugin.settings.PhysicsWorldCollisionSettings;
+import dev.hytalemodding.impulse.core.plugin.settings.VisualOcclusionMode;
 import dev.hytalemodding.impulse.examples.commands.ExamplePhysicsUtils;
 import java.util.ArrayList;
 import java.util.Iterator;
@@ -184,6 +189,12 @@ public class StressBodiesCommand extends AbstractAsyncPlayerCommand {
             resource.refreshBodySnapshots();
         }
         long elapsedNanos = System.nanoTime() - startNanos;
+        PhysicsWorldCollisionSettings worldCollisionSettings =
+            settings.getWorldCollisionSettings();
+        PhysicsVisualMaterializationSettings visualMaterializationSettings =
+            settings.getVisualMaterializationSettings();
+        PhysicsVisualSyncSettings visualSyncSettings = settings.getVisualSyncSettings();
+        PhysicsCollisionLodSettings collisionLodSettings = settings.getCollisionLodSettings();
 
         ctx.sender().sendMessage(Message.raw("Spawned " + count
             + " stress bodies in "
@@ -191,23 +202,27 @@ public class StressBodiesCommand extends AbstractAsyncPlayerCommand {
             + " ms: mode=" + mode.serialized()
             + " space=" + space.getId().value()
             + " worldCollision=streaming"
-            + " bodyCollisionRadius=" + settings.getWorldCollisionBodyRadius()
+            + " bodyCollisionRadius=" + worldCollisionSettings.getWorldCollisionBodyRadius()
             + " prewarmedSections=" + prewarmedSections
             + " step=" + resource.getStepMode().getSerializedName()
             + "/" + resource.getSimulationSteps()
             + " maxStepDt=" + String.format(Locale.ROOT, "%.3f", resource.getMaxStepDt())
             + " visuals=" + mode.visualDescription()
             + (mode == StressMode.DETACHED_VIEW
-                ? " visualProxyCap=" + settings.getDetachedVisualMaxMaterialized()
-                + " visualRadius=" + settings.getDetachedVisualMaterializationRadius()
-                + " visualDematerializeRadius=" + settings.getDetachedVisualDematerializationRadius()
-                + " visualSpawnRate=" + settings.getDetachedVisualMaxSpawnsPerTick() + "/tick"
+                ? " visualProxyCap="
+                + visualMaterializationSettings.getDetachedVisualMaxMaterialized()
+                + " visualRadius="
+                + visualMaterializationSettings.getDetachedVisualMaterializationRadius()
+                + " visualDematerializeRadius="
+                + visualMaterializationSettings.getDetachedVisualDematerializationRadius()
+                + " visualSpawnRate="
+                + visualMaterializationSettings.getDetachedVisualMaxSpawnsPerTick() + "/tick"
                 + " visualMaterialization=progressive"
-                + " visualPrediction=" + settings.isVisualSnapshotPredictionEnabled()
-                + " visualSmoothing=" + settings.isVisualSnapshotSmoothingEnabled()
+                + " visualPrediction=" + visualSyncSettings.isVisualSnapshotPredictionEnabled()
+                + " visualSmoothing=" + visualSyncSettings.isVisualSnapshotSmoothingEnabled()
                 + " visibility=" + visibility.serialized()
                 + " collisions=" + collisionPolicy.serialized()
-                + " collisionLod=" + settings.isCollisionLodEnabled()
+                + " collisionLod=" + collisionLodSettings.isCollisionLodEnabled()
                 : "")
             + "."));
         return CompletableFuture.completedFuture(null);
@@ -222,30 +237,38 @@ public class StressBodiesCommand extends AbstractAsyncPlayerCommand {
         @Nonnull StressVisualSettings visualSettings,
         @Nullable Boolean collisionLod) {
         PhysicsSpaceSettings settings = new PhysicsSpaceSettings(resource.getSpaceSettings(space.getId()));
-        settings.setSolverIterations(1);
-        settings.setInternalPgsIterations(1);
-        settings.setStabilizationIterations(1);
-        settings.setDynamicSleepTuning(
-            PhysicsSpaceSettings.DEFAULT_DYNAMIC_SLEEP_LINEAR_THRESHOLD,
-            PhysicsSpaceSettings.DEFAULT_DYNAMIC_SLEEP_ANGULAR_THRESHOLD,
-            PhysicsSpaceSettings.DEFAULT_DYNAMIC_SLEEP_TIME_UNTIL_SLEEP);
-        settings.setWorldCollisionMode(WorldCollisionMode.STREAMING);
-        settings.setWorldCollisionBodyRadius(Math.max(settings.getWorldCollisionBodyRadius(),
-            STRESS_BODY_WORLD_COLLISION_RADIUS));
+        PhysicsSolverSettings solverSettings = settings.getSolverSettings();
+        solverSettings.setSolverIterations(1);
+        solverSettings.setInternalPgsIterations(1);
+        solverSettings.setStabilizationIterations(1);
+        solverSettings.setDynamicSleepTuning(
+            PhysicsSolverSettings.DEFAULT_DYNAMIC_SLEEP_LINEAR_THRESHOLD,
+            PhysicsSolverSettings.DEFAULT_DYNAMIC_SLEEP_ANGULAR_THRESHOLD,
+            PhysicsSolverSettings.DEFAULT_DYNAMIC_SLEEP_TIME_UNTIL_SLEEP);
+        PhysicsWorldCollisionSettings worldCollisionSettings =
+            settings.getWorldCollisionSettings();
+        worldCollisionSettings.setWorldCollisionMode(WorldCollisionMode.STREAMING);
+        worldCollisionSettings.setWorldCollisionBodyRadius(
+            Math.max(worldCollisionSettings.getWorldCollisionBodyRadius(),
+                STRESS_BODY_WORLD_COLLISION_RADIUS));
         if (mode.usesDetachedBodies()) {
-            settings.setDetachedVisualMaterializationEnabled(mode == StressMode.DETACHED_VIEW);
-            settings.setVisualVisibilityCullingEnabled(mode == StressMode.DETACHED_VIEW
+            PhysicsVisualMaterializationSettings visualMaterializationSettings =
+                settings.getVisualMaterializationSettings();
+            PhysicsVisualSyncSettings visualSyncSettings = settings.getVisualSyncSettings();
+            visualMaterializationSettings.setDetachedVisualMaterializationEnabled(
+                mode == StressMode.DETACHED_VIEW);
+            visualSyncSettings.setVisualVisibilityCullingEnabled(mode == StressMode.DETACHED_VIEW
                 && visibility == StressVisibility.CONE);
-            settings.setVisualFarSyncCutoffEnabled(false);
-            settings.setVisualOcclusionMode(VisualOcclusionMode.OFF);
-            settings.setDetachedVisualRadii(visualSettings.materializationRadius(),
+            visualSyncSettings.setVisualFarSyncCutoffEnabled(false);
+            visualSyncSettings.setVisualOcclusionMode(VisualOcclusionMode.OFF);
+            visualMaterializationSettings.setDetachedVisualRadii(visualSettings.materializationRadius(),
                 visualSettings.dematerializationRadius());
-            settings.setDetachedVisualMaxMaterialized(visualSettings.maxMaterialized());
-            settings.setDetachedVisualMaxSpawnsPerTick(visualSettings.spawnRate());
-            settings.setVisualSnapshotPredictionEnabled(visualSettings.predictionEnabled());
-            settings.setVisualSnapshotSmoothingEnabled(visualSettings.smoothingEnabled());
+            visualMaterializationSettings.setDetachedVisualMaxMaterialized(visualSettings.maxMaterialized());
+            visualMaterializationSettings.setDetachedVisualMaxSpawnsPerTick(visualSettings.spawnRate());
+            visualSyncSettings.setVisualSnapshotPredictionEnabled(visualSettings.predictionEnabled());
+            visualSyncSettings.setVisualSnapshotSmoothingEnabled(visualSettings.smoothingEnabled());
             if (collisionLod != null) {
-                settings.setCollisionLodEnabled(collisionLod);
+                settings.getCollisionLodSettings().setCollisionLodEnabled(collisionLod);
             }
         }
         resource.setSpaceSettings(space.getId(), settings);
@@ -259,14 +282,17 @@ public class StressBodiesCommand extends AbstractAsyncPlayerCommand {
         @Nonnull StressMode mode,
         @Nonnull StressLayout layout,
         int count) {
-        if (!mode.usesDetachedBodies() || settings.getWorldCollisionMode() != WorldCollisionMode.STREAMING) {
+        PhysicsWorldCollisionSettings worldCollisionSettings =
+            settings.getWorldCollisionSettings();
+        if (!mode.usesDetachedBodies()
+            || worldCollisionSettings.getWorldCollisionMode() != WorldCollisionMode.STREAMING) {
             return 0;
         }
 
         WorldCollisionPrewarmStats stats = resource.ensureWorldCollisionAround(world,
             space.getId(),
             layout.positions(count),
-            settings.getWorldCollisionBodyRadius(),
+            worldCollisionSettings.getWorldCollisionBodyRadius(),
             0L);
         return stats.sectionTargets();
     }
@@ -390,22 +416,22 @@ public class StressBodiesCommand extends AbstractAsyncPlayerCommand {
             visualRadiusArg,
             DETACHED_VISUAL_MATERIALIZATION_RADIUS,
             1,
-            PhysicsSpaceSettings.MAX_DETACHED_VISUAL_MATERIALIZATION_RADIUS);
+            PhysicsVisualMaterializationSettings.MAX_DETACHED_VISUAL_MATERIALIZATION_RADIUS);
         int dematerializationRadius = ExamplePhysicsUtils.optionalInt(ctx,
             visualDematerializeRadiusArg,
             defaultDematerializationRadius(materializationRadius),
             materializationRadius,
-            PhysicsSpaceSettings.MAX_DETACHED_VISUAL_DEMATERIALIZATION_RADIUS);
+            PhysicsVisualMaterializationSettings.MAX_DETACHED_VISUAL_DEMATERIALIZATION_RADIUS);
         int spawnRate = ExamplePhysicsUtils.optionalInt(ctx,
             visualSpawnRateArg,
             DETACHED_VISUAL_MAX_SPAWNS_PER_TICK,
             1,
-            PhysicsSpaceSettings.MAX_DETACHED_VISUAL_MAX_SPAWNS_PER_TICK);
+            PhysicsVisualMaterializationSettings.MAX_DETACHED_VISUAL_MAX_SPAWNS_PER_TICK);
         int maxMaterialized = ExamplePhysicsUtils.optionalInt(ctx,
             visualCapArg,
             Math.min(count, DETACHED_VISUAL_MAX_MATERIALIZED),
             1,
-            PhysicsSpaceSettings.MAX_DETACHED_VISUAL_MAX_MATERIALIZED);
+            PhysicsVisualMaterializationSettings.MAX_DETACHED_VISUAL_MAX_MATERIALIZED);
         boolean predictionEnabled = false;
         if (visualPredictionArg.provided(ctx)) {
             Boolean parsed = parseBoolean(visualPredictionArg.get(ctx));
@@ -433,7 +459,7 @@ public class StressBodiesCommand extends AbstractAsyncPlayerCommand {
     }
 
     private static int defaultDematerializationRadius(int materializationRadius) {
-        return Math.min(PhysicsSpaceSettings.MAX_DETACHED_VISUAL_DEMATERIALIZATION_RADIUS,
+        return Math.min(PhysicsVisualMaterializationSettings.MAX_DETACHED_VISUAL_DEMATERIALIZATION_RADIUS,
             materializationRadius + DETACHED_VISUAL_RADIUS_HYSTERESIS);
     }
 

@@ -6,12 +6,9 @@ public class SettingsCommand extends AbstractCommandCollection {
 
     public SettingsCommand() {
         super("settings", "Impulse runtime settings commands");
-        addSubCommand(new StepModeSettingCommand());
-        addSubCommand(new SimulationStepsSettingCommand());
-        addSubCommand(new MaxStepDtSettingCommand());
+        addSubCommand(new SimulationSettingsCommand());
         addSubCommand(new SolverSettingsCommand());
-        addSubCommand(new VisualSyncSettingsCommand());
-        addSubCommand(new CollisionLodSettingsCommand());
-        addSubCommand(new WorldCollisionSettingsCommand());
+        addSubCommand(new CollisionSettingsCommand());
+        addSubCommand(new VisualSettingsCommand());
     }
 }

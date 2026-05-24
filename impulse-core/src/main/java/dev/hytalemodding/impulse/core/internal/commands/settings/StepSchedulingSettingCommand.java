@@ -10,20 +10,20 @@ import com.hypixel.hytale.server.core.command.system.basecommands.AbstractAsyncP
 import com.hypixel.hytale.server.core.universe.PlayerRef;
 import com.hypixel.hytale.server.core.universe.world.World;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
-import dev.hytalemodding.impulse.core.plugin.settings.PhysicsStepMode;
 import dev.hytalemodding.impulse.core.plugin.resources.PhysicsWorldResource;
+import dev.hytalemodding.impulse.core.plugin.settings.PhysicsStepSchedulingMode;
 import java.util.concurrent.CompletableFuture;
 import javax.annotation.Nonnull;
 
-public class SimulationStepsSettingCommand extends AbstractAsyncPlayerCommand {
+public class StepSchedulingSettingCommand extends AbstractAsyncPlayerCommand {
 
-    private final OptionalArg<Integer> stepsArg = this.withOptionalArg(
-        "steps",
-        "Number of physics substeps per server tick",
-        ArgTypes.INTEGER);
+    private final OptionalArg<String> modeArg = this.withOptionalArg(
+        "mode",
+        "Step scheduling mode: drop_pending_dt or accumulate_pending_dt",
+        ArgTypes.STRING);
 
-    public SimulationStepsSettingCommand() {
-        super("steps", "Get or set physics substeps per server tick");
+    public StepSchedulingSettingCommand() {
+        super("scheduling", "Get or set how pending worker dt is handled");
     }
 
     @Nonnull
@@ -34,27 +34,25 @@ public class SimulationStepsSettingCommand extends AbstractAsyncPlayerCommand {
         @Nonnull PlayerRef playerRef,
         @Nonnull World world) {
         PhysicsWorldResource resource = store.getResource(PhysicsWorldResource.getResourceType());
-        PhysicsStepMode stepMode = resource.getStepMode();
-        if (!stepsArg.provided(ctx)) {
-            ctx.sender().sendMessage(Message.raw("Impulse simulation steps: "
-                + resource.getSimulationSteps() + " (" + stepMode.getSerializedName()
-                + ", " + stepMode.describeSimulationSteps() + ")"));
+        if (!modeArg.provided(ctx)) {
+            PhysicsStepSchedulingMode mode = resource.getStepSchedulingMode();
+            ctx.sender().sendMessage(Message.raw("Impulse step scheduling: "
+                + mode.getSerializedName() + " (" + mode.describePendingStepBehavior() + ")"));
             return CompletableFuture.completedFuture(null);
         }
 
-        int steps = stepsArg.get(ctx);
-        if (steps < PhysicsWorldResource.MIN_SIMULATION_STEPS
-            || steps > PhysicsWorldResource.MAX_SIMULATION_STEPS) {
-            ctx.sender().sendMessage(Message.raw("Simulation steps must be between "
-                + PhysicsWorldResource.MIN_SIMULATION_STEPS + " and "
-                + PhysicsWorldResource.MAX_SIMULATION_STEPS + "."));
+        PhysicsStepSchedulingMode mode;
+        try {
+            mode = PhysicsStepSchedulingMode.parse(modeArg.get(ctx));
+        } catch (IllegalArgumentException exception) {
+            ctx.sender().sendMessage(Message.raw("Unknown step scheduling mode. Use one of: "
+                + "drop_pending_dt, accumulate_pending_dt."));
             return CompletableFuture.completedFuture(null);
         }
 
-        resource.setSimulationSteps(steps);
-        ctx.sender().sendMessage(Message.raw("Impulse simulation steps set to " + steps
-            + " (" + stepMode.describeSimulationSteps() + " in "
-            + stepMode.getSerializedName() + " mode)"));
+        resource.setStepSchedulingMode(mode);
+        ctx.sender().sendMessage(Message.raw("Impulse step scheduling set to "
+            + mode.getSerializedName() + " (" + mode.describePendingStepBehavior() + ")"));
         return CompletableFuture.completedFuture(null);
     }
 }

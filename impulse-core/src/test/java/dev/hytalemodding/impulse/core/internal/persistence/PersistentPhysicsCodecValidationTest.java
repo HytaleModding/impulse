@@ -19,6 +19,7 @@ import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyKind;
 import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyPersistenceMode;
 import dev.hytalemodding.impulse.core.plugin.resources.PhysicsWorldResource;
 import dev.hytalemodding.impulse.core.plugin.settings.PhysicsSpaceSettings;
+import dev.hytalemodding.impulse.core.plugin.settings.PhysicsStepSchedulingMode;
 import java.util.UUID;
 import java.util.concurrent.atomic.AtomicInteger;
 import org.bson.BsonBinary;
@@ -39,7 +40,7 @@ class PersistentPhysicsCodecValidationTest {
     @Test
     void spaceStateCodecValidatorChecksCrossFieldSettingsAfterDecode() {
         PhysicsSpaceSettings settings = PhysicsSpaceSettings.defaults();
-        settings.setVisualSyncRadii(64, 128);
+        settings.getVisualSyncSettings().setVisualSyncRadii(64, 128);
         PhysicsSpace space = new FakePhysicsBackend("test:space-codec-validation-"
             + BACKEND_COUNTER.incrementAndGet()).createSpace();
         BsonDocument encoded = encodeSpace(PersistentPhysicsSpaceState.from(space, settings));
@@ -89,6 +90,43 @@ class PersistentPhysicsCodecValidationTest {
         assertValidationFails(
             () -> PersistentPhysicsWorldResource.CODEC.decode(encoded, new ExtraInfo()),
             "Persistent physics step mode is unknown: bogus");
+    }
+
+    @Test
+    void worldResourceFieldValidatorsRejectUnknownStepSchedulingMode() {
+        BsonDocument encoded = encodeWorld(new PersistentPhysicsWorldResource());
+        encoded.put("StepSchedulingMode", new BsonString("bogus"));
+
+        assertValidationFails(
+            () -> PersistentPhysicsWorldResource.CODEC.decode(encoded, new ExtraInfo()),
+            "Persistent physics step scheduling mode is unknown: bogus");
+    }
+
+    @Test
+    void worldResourceCodecPreservesStepSchedulingMode() {
+        PersistentPhysicsWorldResource resource = new PersistentPhysicsWorldResource();
+        resource.setStepSchedulingMode(PhysicsStepSchedulingMode.ACCUMULATE_PENDING_DT);
+
+        BsonDocument encoded = encodeWorld(resource);
+        PersistentPhysicsWorldResource decoded = PersistentPhysicsWorldResource.CODEC
+            .decode(encoded, new ExtraInfo());
+
+        assertEquals("accumulate_pending_dt",
+            encoded.getString("StepSchedulingMode").getValue());
+        assertEquals(PhysicsStepSchedulingMode.ACCUMULATE_PENDING_DT,
+            decoded.getStepSchedulingMode());
+    }
+
+    @Test
+    void worldResourceCodecDefaultsMissingStepSchedulingMode() {
+        BsonDocument encoded = encodeWorld(new PersistentPhysicsWorldResource());
+        encoded.remove("StepSchedulingMode");
+
+        PersistentPhysicsWorldResource decoded = PersistentPhysicsWorldResource.CODEC
+            .decode(encoded, new ExtraInfo());
+
+        assertEquals(PhysicsStepSchedulingMode.DROP_PENDING_DT,
+            decoded.getStepSchedulingMode());
     }
 
     @Test

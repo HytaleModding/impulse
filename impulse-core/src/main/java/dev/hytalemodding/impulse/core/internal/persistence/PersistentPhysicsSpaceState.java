@@ -15,11 +15,15 @@ import dev.hytalemodding.impulse.api.BackendId;
 import dev.hytalemodding.impulse.api.PhysicsSpace;
 import dev.hytalemodding.impulse.api.SpaceId;
 import dev.hytalemodding.impulse.core.internal.systems.persistence.PersistentPhysicsSpaceBootstrapSystem;
-import dev.hytalemodding.impulse.core.plugin.settings.EntityChunkBoundaryMode;
-import dev.hytalemodding.impulse.core.plugin.settings.PhysicsSpaceSettings.ExecutionMode;
-import dev.hytalemodding.impulse.core.plugin.settings.PhysicsSpaceSettings;
-import dev.hytalemodding.impulse.core.plugin.settings.VisualOcclusionMode;
 import dev.hytalemodding.impulse.core.plugin.collision.WorldCollisionMode;
+import dev.hytalemodding.impulse.core.plugin.settings.EntityChunkBoundaryMode;
+import dev.hytalemodding.impulse.core.plugin.settings.PhysicsCollisionLodSettings;
+import dev.hytalemodding.impulse.core.plugin.settings.PhysicsSolverSettings;
+import dev.hytalemodding.impulse.core.plugin.settings.PhysicsSpaceSettings;
+import dev.hytalemodding.impulse.core.plugin.settings.PhysicsVisualMaterializationSettings;
+import dev.hytalemodding.impulse.core.plugin.settings.PhysicsVisualSyncSettings;
+import dev.hytalemodding.impulse.core.plugin.settings.PhysicsWorldCollisionSettings;
+import dev.hytalemodding.impulse.core.plugin.settings.VisualOcclusionMode;
 import javax.annotation.Nonnull;
 import lombok.Getter;
 import lombok.Setter;
@@ -71,31 +75,31 @@ public class PersistentPhysicsSpaceState {
             (state, value) -> state.worldCollisionRadius = value,
             PersistentPhysicsSpaceState::getWorldCollisionRadius)
         .addValidator(Validators.nonNull())
-        .addValidator(Validators.range(1, PhysicsSpaceSettings.MAX_WORLD_COLLISION_RADIUS))
+        .addValidator(Validators.range(1, PhysicsWorldCollisionSettings.MAX_WORLD_COLLISION_RADIUS))
         .add()
         .append(new KeyedCodec<>("WorldCollisionBodyRadius", Codec.INTEGER, false),
             (state, value) -> state.worldCollisionBodyRadius = value,
             PersistentPhysicsSpaceState::getWorldCollisionBodyRadius)
         .addValidator(Validators.nonNull())
-        .addValidator(Validators.range(1, PhysicsSpaceSettings.MAX_WORLD_COLLISION_BODY_RADIUS))
+        .addValidator(Validators.range(1, PhysicsWorldCollisionSettings.MAX_WORLD_COLLISION_BODY_RADIUS))
         .add()
         .append(new KeyedCodec<>("WorldCollisionTtlTicks", Codec.INTEGER, false),
             (state, value) -> state.worldCollisionTtlTicks = value,
             PersistentPhysicsSpaceState::getWorldCollisionTtlTicks)
         .addValidator(Validators.nonNull())
-        .addValidator(Validators.range(1, PhysicsSpaceSettings.MAX_WORLD_COLLISION_TTL_TICKS))
+        .addValidator(Validators.range(1, PhysicsWorldCollisionSettings.MAX_WORLD_COLLISION_TTL_TICKS))
         .add()
         .append(new KeyedCodec<>("VisualFullSyncRadius", Codec.INTEGER, false),
             (state, value) -> state.visualFullSyncRadius = value,
             PersistentPhysicsSpaceState::getVisualFullSyncRadius)
         .addValidator(Validators.nonNull())
-        .addValidator(Validators.range(1, PhysicsSpaceSettings.MAX_VISUAL_FULL_SYNC_RADIUS))
+        .addValidator(Validators.range(1, PhysicsVisualSyncSettings.MAX_VISUAL_FULL_SYNC_RADIUS))
         .add()
         .append(new KeyedCodec<>("VisualMaxSyncRadius", Codec.INTEGER, false),
             (state, value) -> state.visualMaxSyncRadius = value,
             PersistentPhysicsSpaceState::getVisualMaxSyncRadius)
         .addValidator(Validators.nonNull())
-        .addValidator(Validators.range(1, PhysicsSpaceSettings.MAX_VISUAL_MAX_SYNC_RADIUS))
+        .addValidator(Validators.range(1, PhysicsVisualSyncSettings.MAX_VISUAL_MAX_SYNC_RADIUS))
         .add()
         .append(new KeyedCodec<>("VisualFarSyncCutoffEnabled", Codec.BOOLEAN, false),
             (state, value) -> state.visualFarSyncCutoffEnabled = value,
@@ -106,13 +110,13 @@ public class PersistentPhysicsSpaceState {
             (state, value) -> state.visualMidSyncIntervalTicks = value,
             PersistentPhysicsSpaceState::getVisualMidSyncIntervalTicks)
         .addValidator(Validators.nonNull())
-        .addValidator(Validators.range(1, PhysicsSpaceSettings.MAX_VISUAL_MID_SYNC_INTERVAL_TICKS))
+        .addValidator(Validators.range(1, PhysicsVisualSyncSettings.MAX_VISUAL_MID_SYNC_INTERVAL_TICKS))
         .add()
         .append(new KeyedCodec<>("VisualFarSyncIntervalTicks", Codec.INTEGER, false),
             (state, value) -> state.visualFarSyncIntervalTicks = value,
             PersistentPhysicsSpaceState::getVisualFarSyncIntervalTicks)
         .addValidator(Validators.nonNull())
-        .addValidator(Validators.range(1, PhysicsSpaceSettings.MAX_VISUAL_FAR_SYNC_INTERVAL_TICKS))
+        .addValidator(Validators.range(1, PhysicsVisualSyncSettings.MAX_VISUAL_FAR_SYNC_INTERVAL_TICKS))
         .add()
         .append(new KeyedCodec<>("VisualOcclusionMode", new EnumCodec<>(VisualOcclusionMode.class), false),
             (state, value) -> state.visualOcclusionMode = value,
@@ -123,13 +127,13 @@ public class PersistentPhysicsSpaceState {
             (state, value) -> state.visualOcclusionRaycastsPerTick = value,
             PersistentPhysicsSpaceState::getVisualOcclusionRaycastsPerTick)
         .addValidator(Validators.nonNull())
-        .addValidator(Validators.range(1, PhysicsSpaceSettings.MAX_VISUAL_OCCLUSION_RAYCASTS_PER_TICK))
+        .addValidator(Validators.range(1, PhysicsVisualSyncSettings.MAX_VISUAL_OCCLUSION_RAYCASTS_PER_TICK))
         .add()
         .append(new KeyedCodec<>("VisualOcclusionCacheTicks", Codec.INTEGER, false),
             (state, value) -> state.visualOcclusionCacheTicks = value,
             PersistentPhysicsSpaceState::getVisualOcclusionCacheTicks)
         .addValidator(Validators.nonNull())
-        .addValidator(Validators.range(1, PhysicsSpaceSettings.MAX_VISUAL_OCCLUSION_CACHE_TICKS))
+        .addValidator(Validators.range(1, PhysicsVisualSyncSettings.MAX_VISUAL_OCCLUSION_CACHE_TICKS))
         .add()
         .append(new KeyedCodec<>("VisualSnapshotPredictionEnabled", Codec.BOOLEAN, false),
             (state, value) -> state.visualSnapshotPredictionEnabled = value,
@@ -140,7 +144,7 @@ public class PersistentPhysicsSpaceState {
             (state, value) -> state.visualSnapshotPredictionMaxSeconds = value,
             PersistentPhysicsSpaceState::getVisualSnapshotPredictionMaxSeconds)
         .addValidator(Validators.nonNull())
-        .addValidator(Validators.range(0.0f, PhysicsSpaceSettings.MAX_VISUAL_SNAPSHOT_PREDICTION_MAX_SECONDS))
+        .addValidator(Validators.range(0.0f, PhysicsVisualSyncSettings.MAX_VISUAL_SNAPSHOT_PREDICTION_MAX_SECONDS))
         .add()
         .append(new KeyedCodec<>("VisualSnapshotSmoothingEnabled", Codec.BOOLEAN, false),
             (state, value) -> state.visualSnapshotSmoothingEnabled = value,
@@ -152,7 +156,7 @@ public class PersistentPhysicsSpaceState {
             PersistentPhysicsSpaceState::getVisualSnapshotSmoothingRate)
         .addValidator(Validators.nonNull())
         .addValidator(Validators.greaterThan(0.0f))
-        .addValidator(Validators.max(PhysicsSpaceSettings.MAX_VISUAL_SNAPSHOT_SMOOTHING_RATE))
+        .addValidator(Validators.max(PhysicsVisualSyncSettings.MAX_VISUAL_SNAPSHOT_SMOOTHING_RATE))
         .add()
         .append(new KeyedCodec<>("SolverIterations", Codec.INTEGER, false),
             (state, value) -> state.solverIterations = value,
@@ -196,11 +200,6 @@ public class PersistentPhysicsSpaceState {
         .addValidator(Validators.nonNull())
         .addValidator(Validators.range(0.0f, Float.MAX_VALUE))
         .add()
-        .append(new KeyedCodec<>("ExecutionMode", new EnumCodec<>(ExecutionMode.class), false),
-            (state, value) -> state.executionMode = value,
-            PersistentPhysicsSpaceState::getExecutionMode)
-        .addValidator(Validators.nonNull())
-        .add()
         .append(new KeyedCodec<>("EntityVisualSyncCullingEnabled", Codec.BOOLEAN, false),
             (state, value) -> state.entityVisualSyncCullingEnabled = value,
             PersistentPhysicsSpaceState::isEntityVisualSyncCullingEnabled)
@@ -220,43 +219,43 @@ public class PersistentPhysicsSpaceState {
             (state, value) -> state.detachedVisualMaterializationRadius = value,
             PersistentPhysicsSpaceState::getDetachedVisualMaterializationRadius)
         .addValidator(Validators.nonNull())
-        .addValidator(Validators.range(1, PhysicsSpaceSettings.MAX_DETACHED_VISUAL_MATERIALIZATION_RADIUS))
+        .addValidator(Validators.range(1, PhysicsVisualMaterializationSettings.MAX_DETACHED_VISUAL_MATERIALIZATION_RADIUS))
         .add()
         .append(new KeyedCodec<>("DetachedVisualDematerializationRadius", Codec.INTEGER, false),
             (state, value) -> state.detachedVisualDematerializationRadius = value,
             PersistentPhysicsSpaceState::getDetachedVisualDematerializationRadius)
         .addValidator(Validators.nonNull())
-        .addValidator(Validators.range(1, PhysicsSpaceSettings.MAX_DETACHED_VISUAL_DEMATERIALIZATION_RADIUS))
+        .addValidator(Validators.range(1, PhysicsVisualMaterializationSettings.MAX_DETACHED_VISUAL_DEMATERIALIZATION_RADIUS))
         .add()
         .append(new KeyedCodec<>("DetachedVisualMaxSpawnsPerTick", Codec.INTEGER, false),
             (state, value) -> state.detachedVisualMaxSpawnsPerTick = value,
             PersistentPhysicsSpaceState::getDetachedVisualMaxSpawnsPerTick)
         .addValidator(Validators.nonNull())
-        .addValidator(Validators.range(1, PhysicsSpaceSettings.MAX_DETACHED_VISUAL_MAX_SPAWNS_PER_TICK))
+        .addValidator(Validators.range(1, PhysicsVisualMaterializationSettings.MAX_DETACHED_VISUAL_MAX_SPAWNS_PER_TICK))
         .add()
         .append(new KeyedCodec<>("DetachedVisualMaxMaterialized", Codec.INTEGER, false),
             (state, value) -> state.detachedVisualMaxMaterialized = value,
             PersistentPhysicsSpaceState::getDetachedVisualMaxMaterialized)
         .addValidator(Validators.nonNull())
-        .addValidator(Validators.range(1, PhysicsSpaceSettings.MAX_DETACHED_VISUAL_MAX_MATERIALIZED))
+        .addValidator(Validators.range(1, PhysicsVisualMaterializationSettings.MAX_DETACHED_VISUAL_MAX_MATERIALIZED))
         .add()
         .append(new KeyedCodec<>("DetachedVisualInterestRefreshIntervalTicks", Codec.INTEGER, false),
             (state, value) -> state.detachedVisualInterestRefreshIntervalTicks = value,
             PersistentPhysicsSpaceState::getDetachedVisualInterestRefreshIntervalTicks)
         .addValidator(Validators.nonNull())
-        .addValidator(Validators.range(1, PhysicsSpaceSettings.MAX_DETACHED_VISUAL_CACHE_INTERVAL_TICKS))
+        .addValidator(Validators.range(1, PhysicsVisualMaterializationSettings.MAX_DETACHED_VISUAL_CACHE_INTERVAL_TICKS))
         .add()
         .append(new KeyedCodec<>("DetachedVisualCandidateRefreshIntervalTicks", Codec.INTEGER, false),
             (state, value) -> state.detachedVisualCandidateRefreshIntervalTicks = value,
             PersistentPhysicsSpaceState::getDetachedVisualCandidateRefreshIntervalTicks)
         .addValidator(Validators.nonNull())
-        .addValidator(Validators.range(1, PhysicsSpaceSettings.MAX_DETACHED_VISUAL_CACHE_INTERVAL_TICKS))
+        .addValidator(Validators.range(1, PhysicsVisualMaterializationSettings.MAX_DETACHED_VISUAL_CACHE_INTERVAL_TICKS))
         .add()
         .append(new KeyedCodec<>("DetachedVisualVisibilityCheckIntervalTicks", Codec.INTEGER, false),
             (state, value) -> state.detachedVisualVisibilityCheckIntervalTicks = value,
             PersistentPhysicsSpaceState::getDetachedVisualVisibilityCheckIntervalTicks)
         .addValidator(Validators.nonNull())
-        .addValidator(Validators.range(1, PhysicsSpaceSettings.MAX_DETACHED_VISUAL_CACHE_INTERVAL_TICKS))
+        .addValidator(Validators.range(1, PhysicsVisualMaterializationSettings.MAX_DETACHED_VISUAL_CACHE_INTERVAL_TICKS))
         .add()
         .append(new KeyedCodec<>("CollisionLodEnabled", Codec.BOOLEAN, false),
             (state, value) -> state.collisionLodEnabled = value,
@@ -267,25 +266,25 @@ public class PersistentPhysicsSpaceState {
             (state, value) -> state.collisionLodNearRadius = value,
             PersistentPhysicsSpaceState::getCollisionLodNearRadius)
         .addValidator(Validators.nonNull())
-        .addValidator(Validators.range(1, PhysicsSpaceSettings.MAX_COLLISION_LOD_RADIUS))
+        .addValidator(Validators.range(1, PhysicsCollisionLodSettings.MAX_COLLISION_LOD_RADIUS))
         .add()
         .append(new KeyedCodec<>("CollisionLodMidRadius", Codec.INTEGER, false),
             (state, value) -> state.collisionLodMidRadius = value,
             PersistentPhysicsSpaceState::getCollisionLodMidRadius)
         .addValidator(Validators.nonNull())
-        .addValidator(Validators.range(1, PhysicsSpaceSettings.MAX_COLLISION_LOD_RADIUS))
+        .addValidator(Validators.range(1, PhysicsCollisionLodSettings.MAX_COLLISION_LOD_RADIUS))
         .add()
         .append(new KeyedCodec<>("CollisionLodHysteresis", Codec.INTEGER, false),
             (state, value) -> state.collisionLodHysteresis = value,
             PersistentPhysicsSpaceState::getCollisionLodHysteresis)
         .addValidator(Validators.nonNull())
-        .addValidator(Validators.range(0, PhysicsSpaceSettings.MAX_COLLISION_LOD_HYSTERESIS))
+        .addValidator(Validators.range(0, PhysicsCollisionLodSettings.MAX_COLLISION_LOD_HYSTERESIS))
         .add()
         .append(new KeyedCodec<>("CollisionLodRefreshIntervalTicks", Codec.INTEGER, false),
             (state, value) -> state.collisionLodRefreshIntervalTicks = value,
             PersistentPhysicsSpaceState::getCollisionLodRefreshIntervalTicks)
         .addValidator(Validators.nonNull())
-        .addValidator(Validators.range(1, PhysicsSpaceSettings.MAX_COLLISION_LOD_REFRESH_INTERVAL_TICKS))
+        .addValidator(Validators.range(1, PhysicsCollisionLodSettings.MAX_COLLISION_LOD_REFRESH_INTERVAL_TICKS))
         .add()
         .append(new KeyedCodec<>("CollisionLodFarSleepEnabled", Codec.BOOLEAN, false),
             (state, value) -> state.collisionLodFarSleepEnabled = value,
@@ -314,97 +313,95 @@ public class PersistentPhysicsSpaceState {
     @Nonnull
     @Setter
     private EntityChunkBoundaryMode entityChunkBoundaryMode =
-        PhysicsSpaceSettings.DEFAULT_ENTITY_CHUNK_BOUNDARY_MODE;
-    private int worldCollisionRadius = PhysicsSpaceSettings.DEFAULT_WORLD_COLLISION_RADIUS;
-    private int worldCollisionBodyRadius = PhysicsSpaceSettings.DEFAULT_WORLD_COLLISION_BODY_RADIUS;
-    private int worldCollisionTtlTicks = PhysicsSpaceSettings.DEFAULT_WORLD_COLLISION_TTL_TICKS;
-    private int visualFullSyncRadius = PhysicsSpaceSettings.DEFAULT_VISUAL_FULL_SYNC_RADIUS;
-    private int visualMaxSyncRadius = PhysicsSpaceSettings.DEFAULT_VISUAL_MAX_SYNC_RADIUS;
+        PhysicsWorldCollisionSettings.DEFAULT_ENTITY_CHUNK_BOUNDARY_MODE;
+    private int worldCollisionRadius = PhysicsWorldCollisionSettings.DEFAULT_WORLD_COLLISION_RADIUS;
+    private int worldCollisionBodyRadius = PhysicsWorldCollisionSettings.DEFAULT_WORLD_COLLISION_BODY_RADIUS;
+    private int worldCollisionTtlTicks = PhysicsWorldCollisionSettings.DEFAULT_WORLD_COLLISION_TTL_TICKS;
+    private int visualFullSyncRadius = PhysicsVisualSyncSettings.DEFAULT_VISUAL_FULL_SYNC_RADIUS;
+    private int visualMaxSyncRadius = PhysicsVisualSyncSettings.DEFAULT_VISUAL_MAX_SYNC_RADIUS;
     @Setter
     private boolean visualFarSyncCutoffEnabled =
-        PhysicsSpaceSettings.DEFAULT_VISUAL_FAR_SYNC_CUTOFF_ENABLED;
+        PhysicsVisualSyncSettings.DEFAULT_VISUAL_FAR_SYNC_CUTOFF_ENABLED;
     private int visualMidSyncIntervalTicks =
-        PhysicsSpaceSettings.DEFAULT_VISUAL_MID_SYNC_INTERVAL_TICKS;
+        PhysicsVisualSyncSettings.DEFAULT_VISUAL_MID_SYNC_INTERVAL_TICKS;
     private int visualFarSyncIntervalTicks =
-        PhysicsSpaceSettings.DEFAULT_VISUAL_FAR_SYNC_INTERVAL_TICKS;
+        PhysicsVisualSyncSettings.DEFAULT_VISUAL_FAR_SYNC_INTERVAL_TICKS;
     @Nonnull
     @Setter
     private VisualOcclusionMode visualOcclusionMode =
-        PhysicsSpaceSettings.DEFAULT_VISUAL_OCCLUSION_MODE;
+        PhysicsVisualSyncSettings.DEFAULT_VISUAL_OCCLUSION_MODE;
     private int visualOcclusionRaycastsPerTick =
-        PhysicsSpaceSettings.DEFAULT_VISUAL_OCCLUSION_RAYCASTS_PER_TICK;
+        PhysicsVisualSyncSettings.DEFAULT_VISUAL_OCCLUSION_RAYCASTS_PER_TICK;
     private int visualOcclusionCacheTicks =
-        PhysicsSpaceSettings.DEFAULT_VISUAL_OCCLUSION_CACHE_TICKS;
+        PhysicsVisualSyncSettings.DEFAULT_VISUAL_OCCLUSION_CACHE_TICKS;
     @Setter
     private boolean visualSnapshotPredictionEnabled =
-        PhysicsSpaceSettings.DEFAULT_VISUAL_SNAPSHOT_PREDICTION_ENABLED;
+        PhysicsVisualSyncSettings.DEFAULT_VISUAL_SNAPSHOT_PREDICTION_ENABLED;
     private float visualSnapshotPredictionMaxSeconds =
-        PhysicsSpaceSettings.DEFAULT_VISUAL_SNAPSHOT_PREDICTION_MAX_SECONDS;
+        PhysicsVisualSyncSettings.DEFAULT_VISUAL_SNAPSHOT_PREDICTION_MAX_SECONDS;
     @Setter
     private boolean visualSnapshotSmoothingEnabled =
-        PhysicsSpaceSettings.DEFAULT_VISUAL_SNAPSHOT_SMOOTHING_ENABLED;
+        PhysicsVisualSyncSettings.DEFAULT_VISUAL_SNAPSHOT_SMOOTHING_ENABLED;
     private float visualSnapshotSmoothingRate =
-        PhysicsSpaceSettings.DEFAULT_VISUAL_SNAPSHOT_SMOOTHING_RATE;
+        PhysicsVisualSyncSettings.DEFAULT_VISUAL_SNAPSHOT_SMOOTHING_RATE;
     @Setter
-    private int solverIterations = PhysicsSpaceSettings.DEFAULT_SOLVER_ITERATIONS;
+    private int solverIterations = PhysicsSolverSettings.DEFAULT_SOLVER_ITERATIONS;
     @Setter
-    private int internalPgsIterations = PhysicsSpaceSettings.DEFAULT_INTERNAL_PGS_ITERATIONS;
+    private int internalPgsIterations = PhysicsSolverSettings.DEFAULT_INTERNAL_PGS_ITERATIONS;
     @Setter
-    private int stabilizationIterations = PhysicsSpaceSettings.DEFAULT_STABILIZATION_ITERATIONS;
+    private int stabilizationIterations = PhysicsSolverSettings.DEFAULT_STABILIZATION_ITERATIONS;
     @Setter
-    private int minIslandSize = PhysicsSpaceSettings.DEFAULT_MIN_ISLAND_SIZE;
+    private int minIslandSize = PhysicsSolverSettings.DEFAULT_MIN_ISLAND_SIZE;
     @Setter
     private float dynamicSleepLinearThreshold =
-        PhysicsSpaceSettings.DEFAULT_DYNAMIC_SLEEP_LINEAR_THRESHOLD;
+        PhysicsSolverSettings.DEFAULT_DYNAMIC_SLEEP_LINEAR_THRESHOLD;
     @Setter
     private float dynamicSleepAngularThreshold =
-        PhysicsSpaceSettings.DEFAULT_DYNAMIC_SLEEP_ANGULAR_THRESHOLD;
+        PhysicsSolverSettings.DEFAULT_DYNAMIC_SLEEP_ANGULAR_THRESHOLD;
     @Setter
     private float dynamicSleepTimeUntilSleep =
-        PhysicsSpaceSettings.DEFAULT_DYNAMIC_SLEEP_TIME_UNTIL_SLEEP;
-    @Nonnull
-    private ExecutionMode executionMode = PhysicsSpaceSettings.DEFAULT_EXECUTION_MODE;
+        PhysicsSolverSettings.DEFAULT_DYNAMIC_SLEEP_TIME_UNTIL_SLEEP;
     @Setter
     private boolean entityVisualSyncCullingEnabled =
-        PhysicsSpaceSettings.DEFAULT_ENTITY_VISUAL_SYNC_CULLING_ENABLED;
+        PhysicsVisualSyncSettings.DEFAULT_ENTITY_VISUAL_SYNC_CULLING_ENABLED;
     @Setter
     private boolean visualVisibilityCullingEnabled =
-        PhysicsSpaceSettings.DEFAULT_VISUAL_VISIBILITY_CULLING_ENABLED;
+        PhysicsVisualSyncSettings.DEFAULT_VISUAL_VISIBILITY_CULLING_ENABLED;
     @Setter
     private boolean detachedVisualMaterializationEnabled =
-        PhysicsSpaceSettings.DEFAULT_DETACHED_VISUAL_MATERIALIZATION_ENABLED;
+        PhysicsVisualMaterializationSettings.DEFAULT_DETACHED_VISUAL_MATERIALIZATION_ENABLED;
     private int detachedVisualMaterializationRadius =
-        PhysicsSpaceSettings.DEFAULT_DETACHED_VISUAL_MATERIALIZATION_RADIUS;
+        PhysicsVisualMaterializationSettings.DEFAULT_DETACHED_VISUAL_MATERIALIZATION_RADIUS;
     private int detachedVisualDematerializationRadius =
-        PhysicsSpaceSettings.DEFAULT_DETACHED_VISUAL_DEMATERIALIZATION_RADIUS;
+        PhysicsVisualMaterializationSettings.DEFAULT_DETACHED_VISUAL_DEMATERIALIZATION_RADIUS;
     private int detachedVisualMaxSpawnsPerTick =
-        PhysicsSpaceSettings.DEFAULT_DETACHED_VISUAL_MAX_SPAWNS_PER_TICK;
+        PhysicsVisualMaterializationSettings.DEFAULT_DETACHED_VISUAL_MAX_SPAWNS_PER_TICK;
     private int detachedVisualMaxMaterialized =
-        PhysicsSpaceSettings.DEFAULT_DETACHED_VISUAL_MAX_MATERIALIZED;
+        PhysicsVisualMaterializationSettings.DEFAULT_DETACHED_VISUAL_MAX_MATERIALIZED;
     private int detachedVisualInterestRefreshIntervalTicks =
-        PhysicsSpaceSettings.DEFAULT_DETACHED_VISUAL_INTEREST_REFRESH_INTERVAL_TICKS;
+        PhysicsVisualMaterializationSettings.DEFAULT_DETACHED_VISUAL_INTEREST_REFRESH_INTERVAL_TICKS;
     private int detachedVisualCandidateRefreshIntervalTicks =
-        PhysicsSpaceSettings.DEFAULT_DETACHED_VISUAL_CANDIDATE_REFRESH_INTERVAL_TICKS;
+        PhysicsVisualMaterializationSettings.DEFAULT_DETACHED_VISUAL_CANDIDATE_REFRESH_INTERVAL_TICKS;
     private int detachedVisualVisibilityCheckIntervalTicks =
-        PhysicsSpaceSettings.DEFAULT_DETACHED_VISUAL_VISIBILITY_CHECK_INTERVAL_TICKS;
+        PhysicsVisualMaterializationSettings.DEFAULT_DETACHED_VISUAL_VISIBILITY_CHECK_INTERVAL_TICKS;
     @Setter
     private boolean collisionLodEnabled =
-        PhysicsSpaceSettings.DEFAULT_COLLISION_LOD_ENABLED;
+        PhysicsCollisionLodSettings.DEFAULT_COLLISION_LOD_ENABLED;
     private int collisionLodNearRadius =
-        PhysicsSpaceSettings.DEFAULT_COLLISION_LOD_NEAR_RADIUS;
+        PhysicsCollisionLodSettings.DEFAULT_COLLISION_LOD_NEAR_RADIUS;
     private int collisionLodMidRadius =
-        PhysicsSpaceSettings.DEFAULT_COLLISION_LOD_MID_RADIUS;
+        PhysicsCollisionLodSettings.DEFAULT_COLLISION_LOD_MID_RADIUS;
     private int collisionLodHysteresis =
-        PhysicsSpaceSettings.DEFAULT_COLLISION_LOD_HYSTERESIS;
+        PhysicsCollisionLodSettings.DEFAULT_COLLISION_LOD_HYSTERESIS;
     private int collisionLodRefreshIntervalTicks =
-        PhysicsSpaceSettings.DEFAULT_COLLISION_LOD_REFRESH_INTERVAL_TICKS;
+        PhysicsCollisionLodSettings.DEFAULT_COLLISION_LOD_REFRESH_INTERVAL_TICKS;
     @Setter
     private boolean collisionLodFarSleepEnabled =
-        PhysicsSpaceSettings.DEFAULT_COLLISION_LOD_FAR_SLEEP_ENABLED;
+        PhysicsCollisionLodSettings.DEFAULT_COLLISION_LOD_FAR_SLEEP_ENABLED;
     @Nonnull
     @Setter
     private String detachedVisualBlockType =
-        PhysicsSpaceSettings.DEFAULT_DETACHED_VISUAL_BLOCK_TYPE;
+        PhysicsVisualMaterializationSettings.DEFAULT_DETACHED_VISUAL_BLOCK_TYPE;
 
     public PersistentPhysicsSpaceState() {
     }
@@ -416,51 +413,50 @@ public class PersistentPhysicsSpaceState {
         state.spaceId = space.getId().value();
         state.backendId = space.getBackendId().value();
         state.gravity.set(space.getGravity());
-        state.worldCollisionMode = settings.getWorldCollisionMode();
-        state.entityChunkBoundaryMode = settings.getEntityChunkBoundaryMode();
-        state.worldCollisionRadius = settings.getWorldCollisionRadius();
-        state.worldCollisionBodyRadius = settings.getWorldCollisionBodyRadius();
-        state.worldCollisionTtlTicks = settings.getWorldCollisionTtlTicks();
-        state.visualFullSyncRadius = settings.getVisualFullSyncRadius();
-        state.visualMaxSyncRadius = settings.getVisualMaxSyncRadius();
-        state.visualFarSyncCutoffEnabled = settings.isVisualFarSyncCutoffEnabled();
-        state.visualMidSyncIntervalTicks = settings.getVisualMidSyncIntervalTicks();
-        state.visualFarSyncIntervalTicks = settings.getVisualFarSyncIntervalTicks();
-        state.visualOcclusionMode = settings.getVisualOcclusionMode();
-        state.visualOcclusionRaycastsPerTick = settings.getVisualOcclusionRaycastsPerTick();
-        state.visualOcclusionCacheTicks = settings.getVisualOcclusionCacheTicks();
-        state.visualSnapshotPredictionEnabled = settings.isVisualSnapshotPredictionEnabled();
-        state.visualSnapshotPredictionMaxSeconds = settings.getVisualSnapshotPredictionMaxSeconds();
-        state.visualSnapshotSmoothingEnabled = settings.isVisualSnapshotSmoothingEnabled();
-        state.visualSnapshotSmoothingRate = settings.getVisualSnapshotSmoothingRate();
-        state.solverIterations = settings.getSolverIterations();
-        state.internalPgsIterations = settings.getInternalPgsIterations();
-        state.stabilizationIterations = settings.getStabilizationIterations();
-        state.minIslandSize = settings.getMinIslandSize();
-        state.dynamicSleepLinearThreshold = settings.getDynamicSleepLinearThreshold();
-        state.dynamicSleepAngularThreshold = settings.getDynamicSleepAngularThreshold();
-        state.dynamicSleepTimeUntilSleep = settings.getDynamicSleepTimeUntilSleep();
-        state.executionMode = settings.getExecutionMode();
-        state.entityVisualSyncCullingEnabled = settings.isEntityVisualSyncCullingEnabled();
-        state.visualVisibilityCullingEnabled = settings.isVisualVisibilityCullingEnabled();
-        state.detachedVisualMaterializationEnabled = settings.isDetachedVisualMaterializationEnabled();
-        state.detachedVisualMaterializationRadius = settings.getDetachedVisualMaterializationRadius();
-        state.detachedVisualDematerializationRadius = settings.getDetachedVisualDematerializationRadius();
-        state.detachedVisualMaxSpawnsPerTick = settings.getDetachedVisualMaxSpawnsPerTick();
-        state.detachedVisualMaxMaterialized = settings.getDetachedVisualMaxMaterialized();
+        state.worldCollisionMode = settings.getWorldCollisionSettings().getWorldCollisionMode();
+        state.entityChunkBoundaryMode = settings.getWorldCollisionSettings().getEntityChunkBoundaryMode();
+        state.worldCollisionRadius = settings.getWorldCollisionSettings().getWorldCollisionRadius();
+        state.worldCollisionBodyRadius = settings.getWorldCollisionSettings().getWorldCollisionBodyRadius();
+        state.worldCollisionTtlTicks = settings.getWorldCollisionSettings().getWorldCollisionTtlTicks();
+        state.visualFullSyncRadius = settings.getVisualSyncSettings().getVisualFullSyncRadius();
+        state.visualMaxSyncRadius = settings.getVisualSyncSettings().getVisualMaxSyncRadius();
+        state.visualFarSyncCutoffEnabled = settings.getVisualSyncSettings().isVisualFarSyncCutoffEnabled();
+        state.visualMidSyncIntervalTicks = settings.getVisualSyncSettings().getVisualMidSyncIntervalTicks();
+        state.visualFarSyncIntervalTicks = settings.getVisualSyncSettings().getVisualFarSyncIntervalTicks();
+        state.visualOcclusionMode = settings.getVisualSyncSettings().getVisualOcclusionMode();
+        state.visualOcclusionRaycastsPerTick = settings.getVisualSyncSettings().getVisualOcclusionRaycastsPerTick();
+        state.visualOcclusionCacheTicks = settings.getVisualSyncSettings().getVisualOcclusionCacheTicks();
+        state.visualSnapshotPredictionEnabled = settings.getVisualSyncSettings().isVisualSnapshotPredictionEnabled();
+        state.visualSnapshotPredictionMaxSeconds = settings.getVisualSyncSettings().getVisualSnapshotPredictionMaxSeconds();
+        state.visualSnapshotSmoothingEnabled = settings.getVisualSyncSettings().isVisualSnapshotSmoothingEnabled();
+        state.visualSnapshotSmoothingRate = settings.getVisualSyncSettings().getVisualSnapshotSmoothingRate();
+        state.solverIterations = settings.getSolverSettings().getSolverIterations();
+        state.internalPgsIterations = settings.getSolverSettings().getInternalPgsIterations();
+        state.stabilizationIterations = settings.getSolverSettings().getStabilizationIterations();
+        state.minIslandSize = settings.getSolverSettings().getMinIslandSize();
+        state.dynamicSleepLinearThreshold = settings.getSolverSettings().getDynamicSleepLinearThreshold();
+        state.dynamicSleepAngularThreshold = settings.getSolverSettings().getDynamicSleepAngularThreshold();
+        state.dynamicSleepTimeUntilSleep = settings.getSolverSettings().getDynamicSleepTimeUntilSleep();
+        state.entityVisualSyncCullingEnabled = settings.getVisualSyncSettings().isEntityVisualSyncCullingEnabled();
+        state.visualVisibilityCullingEnabled = settings.getVisualSyncSettings().isVisualVisibilityCullingEnabled();
+        state.detachedVisualMaterializationEnabled = settings.getVisualMaterializationSettings().isDetachedVisualMaterializationEnabled();
+        state.detachedVisualMaterializationRadius = settings.getVisualMaterializationSettings().getDetachedVisualMaterializationRadius();
+        state.detachedVisualDematerializationRadius = settings.getVisualMaterializationSettings().getDetachedVisualDematerializationRadius();
+        state.detachedVisualMaxSpawnsPerTick = settings.getVisualMaterializationSettings().getDetachedVisualMaxSpawnsPerTick();
+        state.detachedVisualMaxMaterialized = settings.getVisualMaterializationSettings().getDetachedVisualMaxMaterialized();
         state.detachedVisualInterestRefreshIntervalTicks =
-            settings.getDetachedVisualInterestRefreshIntervalTicks();
+            settings.getVisualMaterializationSettings().getDetachedVisualInterestRefreshIntervalTicks();
         state.detachedVisualCandidateRefreshIntervalTicks =
-            settings.getDetachedVisualCandidateRefreshIntervalTicks();
+            settings.getVisualMaterializationSettings().getDetachedVisualCandidateRefreshIntervalTicks();
         state.detachedVisualVisibilityCheckIntervalTicks =
-            settings.getDetachedVisualVisibilityCheckIntervalTicks();
-        state.collisionLodEnabled = settings.isCollisionLodEnabled();
-        state.collisionLodNearRadius = settings.getCollisionLodNearRadius();
-        state.collisionLodMidRadius = settings.getCollisionLodMidRadius();
-        state.collisionLodHysteresis = settings.getCollisionLodHysteresis();
-        state.collisionLodRefreshIntervalTicks = settings.getCollisionLodRefreshIntervalTicks();
-        state.collisionLodFarSleepEnabled = settings.isCollisionLodFarSleepEnabled();
-        state.detachedVisualBlockType = settings.getDetachedVisualBlockType();
+            settings.getVisualMaterializationSettings().getDetachedVisualVisibilityCheckIntervalTicks();
+        state.collisionLodEnabled = settings.getCollisionLodSettings().isCollisionLodEnabled();
+        state.collisionLodNearRadius = settings.getCollisionLodSettings().getCollisionLodNearRadius();
+        state.collisionLodMidRadius = settings.getCollisionLodSettings().getCollisionLodMidRadius();
+        state.collisionLodHysteresis = settings.getCollisionLodSettings().getCollisionLodHysteresis();
+        state.collisionLodRefreshIntervalTicks = settings.getCollisionLodSettings().getCollisionLodRefreshIntervalTicks();
+        state.collisionLodFarSleepEnabled = settings.getCollisionLodSettings().isCollisionLodFarSleepEnabled();
+        state.detachedVisualBlockType = settings.getVisualMaterializationSettings().getDetachedVisualBlockType();
         return state;
     }
 
@@ -477,50 +473,49 @@ public class PersistentPhysicsSpaceState {
     @Nonnull
     public PhysicsSpaceSettings toSettings() {
         PhysicsSpaceSettings settings = PhysicsSpaceSettings.defaults();
-        settings.setWorldCollisionMode(worldCollisionMode);
-        settings.setEntityChunkBoundaryMode(entityChunkBoundaryMode);
-        settings.setWorldCollisionRadius(worldCollisionRadius);
-        settings.setWorldCollisionBodyRadius(worldCollisionBodyRadius);
-        settings.setWorldCollisionTtlTicks(worldCollisionTtlTicks);
-        settings.setVisualSyncRadii(visualFullSyncRadius, visualMaxSyncRadius);
-        settings.setVisualFarSyncCutoffEnabled(visualFarSyncCutoffEnabled);
-        settings.setVisualMidSyncIntervalTicks(visualMidSyncIntervalTicks);
-        settings.setVisualFarSyncIntervalTicks(visualFarSyncIntervalTicks);
-        settings.setVisualOcclusionMode(visualOcclusionMode);
-        settings.setVisualOcclusionRaycastsPerTick(visualOcclusionRaycastsPerTick);
-        settings.setVisualOcclusionCacheTicks(visualOcclusionCacheTicks);
-        settings.setVisualSnapshotPredictionEnabled(visualSnapshotPredictionEnabled);
-        settings.setVisualSnapshotPredictionMaxSeconds(visualSnapshotPredictionMaxSeconds);
-        settings.setVisualSnapshotSmoothingEnabled(visualSnapshotSmoothingEnabled);
-        settings.setVisualSnapshotSmoothingRate(visualSnapshotSmoothingRate);
-        settings.setSolverIterations(solverIterations);
-        settings.setInternalPgsIterations(internalPgsIterations);
-        settings.setStabilizationIterations(stabilizationIterations);
-        settings.setMinIslandSize(minIslandSize);
-        settings.setDynamicSleepTuning(dynamicSleepLinearThreshold,
+        settings.getWorldCollisionSettings().setWorldCollisionMode(worldCollisionMode);
+        settings.getWorldCollisionSettings().setEntityChunkBoundaryMode(entityChunkBoundaryMode);
+        settings.getWorldCollisionSettings().setWorldCollisionRadius(worldCollisionRadius);
+        settings.getWorldCollisionSettings().setWorldCollisionBodyRadius(worldCollisionBodyRadius);
+        settings.getWorldCollisionSettings().setWorldCollisionTtlTicks(worldCollisionTtlTicks);
+        settings.getVisualSyncSettings().setVisualSyncRadii(visualFullSyncRadius, visualMaxSyncRadius);
+        settings.getVisualSyncSettings().setVisualFarSyncCutoffEnabled(visualFarSyncCutoffEnabled);
+        settings.getVisualSyncSettings().setVisualMidSyncIntervalTicks(visualMidSyncIntervalTicks);
+        settings.getVisualSyncSettings().setVisualFarSyncIntervalTicks(visualFarSyncIntervalTicks);
+        settings.getVisualSyncSettings().setVisualOcclusionMode(visualOcclusionMode);
+        settings.getVisualSyncSettings().setVisualOcclusionRaycastsPerTick(visualOcclusionRaycastsPerTick);
+        settings.getVisualSyncSettings().setVisualOcclusionCacheTicks(visualOcclusionCacheTicks);
+        settings.getVisualSyncSettings().setVisualSnapshotPredictionEnabled(visualSnapshotPredictionEnabled);
+        settings.getVisualSyncSettings().setVisualSnapshotPredictionMaxSeconds(visualSnapshotPredictionMaxSeconds);
+        settings.getVisualSyncSettings().setVisualSnapshotSmoothingEnabled(visualSnapshotSmoothingEnabled);
+        settings.getVisualSyncSettings().setVisualSnapshotSmoothingRate(visualSnapshotSmoothingRate);
+        settings.getSolverSettings().setSolverIterations(solverIterations);
+        settings.getSolverSettings().setInternalPgsIterations(internalPgsIterations);
+        settings.getSolverSettings().setStabilizationIterations(stabilizationIterations);
+        settings.getSolverSettings().setMinIslandSize(minIslandSize);
+        settings.getSolverSettings().setDynamicSleepTuning(dynamicSleepLinearThreshold,
             dynamicSleepAngularThreshold,
             dynamicSleepTimeUntilSleep);
-        settings.setExecutionMode(executionMode);
-        settings.setEntityVisualSyncCullingEnabled(entityVisualSyncCullingEnabled);
-        settings.setVisualVisibilityCullingEnabled(visualVisibilityCullingEnabled);
-        settings.setDetachedVisualMaterializationEnabled(detachedVisualMaterializationEnabled);
-        settings.setDetachedVisualRadii(
+        settings.getVisualSyncSettings().setEntityVisualSyncCullingEnabled(entityVisualSyncCullingEnabled);
+        settings.getVisualSyncSettings().setVisualVisibilityCullingEnabled(visualVisibilityCullingEnabled);
+        settings.getVisualMaterializationSettings().setDetachedVisualMaterializationEnabled(detachedVisualMaterializationEnabled);
+        settings.getVisualMaterializationSettings().setDetachedVisualRadii(
             detachedVisualMaterializationRadius,
             detachedVisualDematerializationRadius);
-        settings.setDetachedVisualMaxSpawnsPerTick(detachedVisualMaxSpawnsPerTick);
-        settings.setDetachedVisualMaxMaterialized(detachedVisualMaxMaterialized);
-        settings.setDetachedVisualInterestRefreshIntervalTicks(
+        settings.getVisualMaterializationSettings().setDetachedVisualMaxSpawnsPerTick(detachedVisualMaxSpawnsPerTick);
+        settings.getVisualMaterializationSettings().setDetachedVisualMaxMaterialized(detachedVisualMaxMaterialized);
+        settings.getVisualMaterializationSettings().setDetachedVisualInterestRefreshIntervalTicks(
             detachedVisualInterestRefreshIntervalTicks);
-        settings.setDetachedVisualCandidateRefreshIntervalTicks(
+        settings.getVisualMaterializationSettings().setDetachedVisualCandidateRefreshIntervalTicks(
             detachedVisualCandidateRefreshIntervalTicks);
-        settings.setDetachedVisualVisibilityCheckIntervalTicks(
+        settings.getVisualMaterializationSettings().setDetachedVisualVisibilityCheckIntervalTicks(
             detachedVisualVisibilityCheckIntervalTicks);
-        settings.setCollisionLodEnabled(collisionLodEnabled);
-        settings.setCollisionLodRadii(collisionLodNearRadius, collisionLodMidRadius);
-        settings.setCollisionLodHysteresis(collisionLodHysteresis);
-        settings.setCollisionLodRefreshIntervalTicks(collisionLodRefreshIntervalTicks);
-        settings.setCollisionLodFarSleepEnabled(collisionLodFarSleepEnabled);
-        settings.setDetachedVisualBlockType(detachedVisualBlockType);
+        settings.getCollisionLodSettings().setCollisionLodEnabled(collisionLodEnabled);
+        settings.getCollisionLodSettings().setCollisionLodRadii(collisionLodNearRadius, collisionLodMidRadius);
+        settings.getCollisionLodSettings().setCollisionLodHysteresis(collisionLodHysteresis);
+        settings.getCollisionLodSettings().setCollisionLodRefreshIntervalTicks(collisionLodRefreshIntervalTicks);
+        settings.getCollisionLodSettings().setCollisionLodFarSleepEnabled(collisionLodFarSleepEnabled);
+        settings.getVisualMaterializationSettings().setDetachedVisualBlockType(detachedVisualBlockType);
         return settings;
     }
 
@@ -606,7 +601,6 @@ public class PersistentPhysicsSpaceState {
         copy.dynamicSleepLinearThreshold = dynamicSleepLinearThreshold;
         copy.dynamicSleepAngularThreshold = dynamicSleepAngularThreshold;
         copy.dynamicSleepTimeUntilSleep = dynamicSleepTimeUntilSleep;
-        copy.executionMode = executionMode;
         copy.entityVisualSyncCullingEnabled = entityVisualSyncCullingEnabled;
         copy.visualVisibilityCullingEnabled = visualVisibilityCullingEnabled;
         copy.detachedVisualMaterializationEnabled = detachedVisualMaterializationEnabled;

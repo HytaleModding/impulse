@@ -147,6 +147,29 @@ public class PhysicsRuntimeProfilingResource implements Resource<EntityStore> {
         }
     }
 
+    public void recordStepScheduling(float inputDtSeconds,
+        float submittedDtSeconds,
+        float backlogDtSeconds,
+        float droppedBacklogDtSeconds,
+        boolean dtCapHit) {
+        StepSnapshot snapshot = new StepSnapshot();
+        snapshot.recordSchedulerSample(secondsToNanos(inputDtSeconds),
+            secondsToNanos(submittedDtSeconds),
+            secondsToNanos(backlogDtSeconds),
+            secondsToNanos(droppedBacklogDtSeconds),
+            dtCapHit);
+        latestStep.recordSchedulerSample(secondsToNanos(inputDtSeconds),
+            secondsToNanos(submittedDtSeconds),
+            secondsToNanos(backlogDtSeconds),
+            secondsToNanos(droppedBacklogDtSeconds),
+            dtCapHit);
+        cumulativeStep.add(snapshot);
+        if (snapshot.getMaxSchedulerBacklogDtNanos()
+            >= worstStep.getMaxSchedulerBacklogDtNanos()) {
+            worstStep.setMaxSchedulerBacklogDtNanos(snapshot.getMaxSchedulerBacklogDtNanos());
+        }
+    }
+
     @Nonnull
     public SyncCollector beginSyncSample() {
         SyncCollector collector = new SyncCollector();
@@ -234,6 +257,17 @@ public class PhysicsRuntimeProfilingResource implements Resource<EntityStore> {
         return intervalNanos;
     }
 
+    private static long secondsToNanos(float seconds) {
+        if (!Float.isFinite(seconds) || seconds <= 0.0f) {
+            return 0L;
+        }
+        double nanos = seconds * 1_000_000_000.0;
+        if (nanos >= Long.MAX_VALUE) {
+            return Long.MAX_VALUE;
+        }
+        return Math.max(0L, Math.round(nanos));
+    }
+
     public static ResourceType<EntityStore, PhysicsRuntimeProfilingResource> getResourceType() {
         return ImpulsePlugin.get().getPhysicsRuntimeProfilingResourceType();
     }
@@ -267,6 +301,15 @@ public class PhysicsRuntimeProfilingResource implements Resource<EntityStore> {
         private long pendingStepAgeNanos;
         @Setter
         private long maxPendingStepAgeNanos;
+        private int schedulerSamples;
+        private long schedulerInputDtNanos;
+        private long schedulerSubmittedDtNanos;
+        private long schedulerBacklogDtNanos;
+        @Setter
+        private long maxSchedulerBacklogDtNanos;
+        private long droppedBacklogDtNanos;
+        private int droppedBacklogTicks;
+        private int dtCapHits;
         private int nativePhaseSamples;
         private long nativeStepNanos;
         private long nativeBroadPhaseNanos;
@@ -295,6 +338,14 @@ public class PhysicsRuntimeProfilingResource implements Resource<EntityStore> {
             skippedPendingSteps = other.skippedPendingSteps;
             pendingStepAgeNanos = other.pendingStepAgeNanos;
             maxPendingStepAgeNanos = other.maxPendingStepAgeNanos;
+            schedulerSamples = other.schedulerSamples;
+            schedulerInputDtNanos = other.schedulerInputDtNanos;
+            schedulerSubmittedDtNanos = other.schedulerSubmittedDtNanos;
+            schedulerBacklogDtNanos = other.schedulerBacklogDtNanos;
+            maxSchedulerBacklogDtNanos = other.maxSchedulerBacklogDtNanos;
+            droppedBacklogDtNanos = other.droppedBacklogDtNanos;
+            droppedBacklogTicks = other.droppedBacklogTicks;
+            dtCapHits = other.dtCapHits;
             nativePhaseSamples = other.nativePhaseSamples;
             nativeStepNanos = other.nativeStepNanos;
             nativeBroadPhaseNanos = other.nativeBroadPhaseNanos;
@@ -322,6 +373,15 @@ public class PhysicsRuntimeProfilingResource implements Resource<EntityStore> {
             pendingStepAgeNanos += other.pendingStepAgeNanos;
             maxPendingStepAgeNanos = Math.max(maxPendingStepAgeNanos,
                 other.maxPendingStepAgeNanos);
+            schedulerSamples += other.schedulerSamples;
+            schedulerInputDtNanos += other.schedulerInputDtNanos;
+            schedulerSubmittedDtNanos += other.schedulerSubmittedDtNanos;
+            schedulerBacklogDtNanos += other.schedulerBacklogDtNanos;
+            maxSchedulerBacklogDtNanos = Math.max(maxSchedulerBacklogDtNanos,
+                other.maxSchedulerBacklogDtNanos);
+            droppedBacklogDtNanos += other.droppedBacklogDtNanos;
+            droppedBacklogTicks += other.droppedBacklogTicks;
+            dtCapHits += other.dtCapHits;
             nativePhaseSamples += other.nativePhaseSamples;
             nativeStepNanos += other.nativeStepNanos;
             nativeBroadPhaseNanos += other.nativeBroadPhaseNanos;
@@ -347,6 +407,14 @@ public class PhysicsRuntimeProfilingResource implements Resource<EntityStore> {
             skippedPendingSteps = 0;
             pendingStepAgeNanos = 0L;
             maxPendingStepAgeNanos = 0L;
+            schedulerSamples = 0;
+            schedulerInputDtNanos = 0L;
+            schedulerSubmittedDtNanos = 0L;
+            schedulerBacklogDtNanos = 0L;
+            maxSchedulerBacklogDtNanos = 0L;
+            droppedBacklogDtNanos = 0L;
+            droppedBacklogTicks = 0;
+            dtCapHits = 0;
             nativePhaseSamples = 0;
             nativeStepNanos = 0L;
             nativeBroadPhaseNanos = 0L;
@@ -366,6 +434,21 @@ public class PhysicsRuntimeProfilingResource implements Resource<EntityStore> {
             workerStepRateSamples = 1;
             workerStepIntervalNanos = intervalNanos;
             maxWorkerStepIntervalNanos = intervalNanos;
+        }
+
+        public void recordSchedulerSample(long inputDtNanos,
+            long submittedDtNanos,
+            long backlogDtNanos,
+            long droppedBacklogDtNanos,
+            boolean dtCapHit) {
+            schedulerSamples = 1;
+            schedulerInputDtNanos = inputDtNanos;
+            schedulerSubmittedDtNanos = submittedDtNanos;
+            schedulerBacklogDtNanos = backlogDtNanos;
+            maxSchedulerBacklogDtNanos = backlogDtNanos;
+            this.droppedBacklogDtNanos = droppedBacklogDtNanos;
+            droppedBacklogTicks = droppedBacklogDtNanos > 0L ? 1 : 0;
+            dtCapHits = dtCapHit ? 1 : 0;
         }
 
         public void setNativePhaseStats(@Nonnull PhysicsStepPhaseStats stats) {
