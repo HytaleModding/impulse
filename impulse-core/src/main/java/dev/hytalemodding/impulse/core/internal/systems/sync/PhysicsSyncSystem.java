@@ -124,8 +124,8 @@ public class PhysicsSyncSystem extends EntityTickingSystem<EntityStore> {
         if (collector != null) {
             collector.incrementBodiesInspected();
         }
-        PhysicsWorldResource.BodyRegistration registration =
-            resource.getRegistration(attachment.getBodyId());
+        PhysicsWorldResource.BodyRegistrationView registration =
+            resource.getBodyRegistrationView(attachment.getBodyId());
         if (registration == null) {
             if (resource.isBodyCreationPending(attachment.getBodyId())) {
                 return;

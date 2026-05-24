@@ -5,6 +5,8 @@ import dev.hytalemodding.impulse.api.PhysicsBodySnapshot;
 import dev.hytalemodding.impulse.api.PhysicsSpace;
 import dev.hytalemodding.impulse.api.SpaceId;
 import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyId;
+import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyKind;
+import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyPersistenceMode;
 import dev.hytalemodding.impulse.core.plugin.resources.PhysicsWorldResource;
 import it.unimi.dsi.fastutil.objects.Object2ObjectLinkedOpenHashMap;
 import it.unimi.dsi.fastutil.objects.ObjectArrayList;
@@ -44,8 +46,7 @@ public final class PhysicsBodySnapshotStore {
             space.snapshotBodies(registeredBodies, body -> {
                 PhysicsWorldResource.BodyRegistration registration = bodyRegistry.getRegistration(body);
                 return registration != null ? snapshots.get(registration.id()) : null;
-            }, snapshot -> {
-                PhysicsBody body = snapshot.body();
+            }, (body, snapshot) -> {
                 PhysicsWorldResource.BodyRegistration registration = bodyRegistry.getRegistration(body);
                 if (registration == null || !registration.spaceId().equals(spaceId)) {
                     return;
@@ -57,7 +58,11 @@ public final class PhysicsBodySnapshotStore {
                 if (snapshot != previous) {
                     snapshots.put(bodyId, snapshot);
                 }
-                spatialIndex.update(bodyId, snapshot, spaceId, registration);
+                spatialIndex.update(bodyId,
+                    snapshot,
+                    spaceId,
+                    registration.kind(),
+                    registration.persistenceMode());
             });
         }
 
@@ -69,9 +74,10 @@ public final class PhysicsBodySnapshotStore {
     public void put(@Nonnull PhysicsBodyId bodyId,
         @Nonnull PhysicsBodySnapshot snapshot,
         @Nonnull SpaceId spaceId,
-        @Nonnull PhysicsWorldResource.BodyRegistration registration) {
+        @Nonnull PhysicsBodyKind kind,
+        @Nonnull PhysicsBodyPersistenceMode persistenceMode) {
         snapshots.put(bodyId, snapshot);
-        spatialIndex.update(bodyId, snapshot, spaceId, registration);
+        spatialIndex.update(bodyId, snapshot, spaceId, kind, persistenceMode);
     }
 
     @Nullable

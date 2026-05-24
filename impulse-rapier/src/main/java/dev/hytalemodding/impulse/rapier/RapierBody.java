@@ -611,7 +611,7 @@ public final class RapierBody implements PhysicsBody {
         int offset,
         @Nullable PhysicsBodySnapshot previous) {
         boolean nativeSleeping = values[offset + 14] != 0.0f;
-        if (nativeSleeping && previous != null && previous.body() == this && previous.sleeping()) {
+        if (nativeSleeping && previous != null && previous.sleeping()) {
             return previous;
         }
 
@@ -628,15 +628,20 @@ public final class RapierBody implements PhysicsBody {
         }
         sensor = values[offset + 15] != 0.0f;
 
-        return new PhysicsBodySnapshot(this,
-            position,
+        return new PhysicsBodySnapshot(position,
             rotation,
             linearVelocity,
             angularVelocity,
             bodyType,
             nativeSleeping,
             sensor,
-            centerOfMassOffsetY);
+            centerOfMassOffsetY,
+            shapeType,
+            boxHalfExtents,
+            sphereRadius,
+            halfHeight,
+            axis,
+            planeGroundY);
     }
 
     @Nonnull

@@ -86,10 +86,12 @@ public class PhysicsKinematicControlSystem extends EntityTickingSystem<EntitySto
         PhysicsWorldResource resource = store.getResource(PhysicsWorldResource.getResourceType());
         PhysicsBodyId bodyId = session.getBodyId();
         PhysicsBodyId anchorBodyId = session.getAnchorBodyId();
-        PhysicsBody body = bodyId != null ? resource.getBody(bodyId) : null;
-        PhysicsBody anchorBody = anchorBodyId != null ? resource.getBody(anchorBodyId) : null;
         Ref<EntityStore> targetRef = session.getTargetRef();
-        if (body == null || anchorBody == null || (targetRef != null && !targetRef.isValid())) {
+        if (bodyId == null
+            || anchorBodyId == null
+            || resource.getBodyRegistrationView(bodyId) == null
+            || resource.getBodyRegistrationView(anchorBodyId) == null
+            || (targetRef != null && !targetRef.isValid())) {
             stateFor(store).clear(anchorBodyId);
             cleanupSession(store, session);
             commandBuffer.removeComponent(chunk.getReferenceTo(index), SESSION_TYPE);

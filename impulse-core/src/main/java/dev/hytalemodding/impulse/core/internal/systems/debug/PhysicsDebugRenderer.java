@@ -39,44 +39,19 @@ final class PhysicsDebugRenderer {
     }
 
     static void renderBodyShape(@Nonnull Collection<PlayerRef> viewers,
-        @Nonnull PhysicsBody body,
-        @Nonnull Vector3d center,
-        @Nonnull Quaterniond rotation,
-        float time) {
-        Vector3f color = colorForBody(body);
-        renderBodyShape(viewers, body, center, rotation, color, time);
-    }
-
-    static void renderBodyShape(@Nonnull Collection<PlayerRef> viewers,
         @Nonnull PhysicsBodySnapshot snapshot,
         @Nonnull Vector3d center,
         @Nonnull Quaterniond rotation,
         float time) {
-        renderBodyShape(viewers, snapshot.body(), center, rotation, colorForSnapshot(snapshot), time);
-    }
-
-    private static void renderBodyShape(@Nonnull Collection<PlayerRef> viewers,
-        @Nonnull PhysicsBody body,
-        @Nonnull Vector3d center,
-        @Nonnull Quaterniond rotation,
-        @Nonnull Vector3f color,
-        float time) {
-        switch (body.getShapeType()) {
-            case BOX -> renderBox(viewers, body, center, rotation, color, time);
-            case SPHERE -> renderSphere(viewers, body, center, color, time);
-            case CAPSULE -> renderCapsule(viewers, body, center, rotation, color, time);
-            case CYLINDER -> renderCylinder(viewers, body, center, rotation, color, time);
-            case CONE -> renderCone(viewers, body, center, rotation, color, time);
+        switch (snapshot.shapeType()) {
+            case BOX -> renderBox(viewers, snapshot, center, rotation, colorForSnapshot(snapshot), time);
+            case SPHERE -> renderSphere(viewers, snapshot, center, colorForSnapshot(snapshot), time);
+            case CAPSULE -> renderCapsule(viewers, snapshot, center, rotation, colorForSnapshot(snapshot), time);
+            case CYLINDER -> renderCylinder(viewers, snapshot, center, rotation, colorForSnapshot(snapshot), time);
+            case CONE -> renderCone(viewers, snapshot, center, rotation, colorForSnapshot(snapshot), time);
             case PLANE -> renderPlane(viewers, center, time);
             default -> renderUnknown(viewers, center, rotation, time);
         }
-    }
-
-    static void renderBodyMotion(@Nonnull Collection<PlayerRef> viewers,
-        @Nonnull PhysicsBody body,
-        @Nonnull Vector3d center,
-        float time) {
-        renderBodyMotion(viewers, center, body.getLinearVelocity(), body.getAngularVelocity(), time);
     }
 
     static void renderBodyMotion(@Nonnull Collection<PlayerRef> viewers,
@@ -232,18 +207,18 @@ final class PhysicsDebugRenderer {
             WORLD_COLLISION_EDGE_PADDING);
     }
 
-    static Vector3d centerFromSyncedTransform(@Nonnull PhysicsBody body,
+    static Vector3d centerFromSyncedTransform(@Nonnull PhysicsBodySnapshot snapshot,
         @Nonnull Vector3d transformPosition) {
-        return new Vector3d(transformPosition).add(0.0, body.getCenterOfMassOffsetY(), 0.0);
+        return new Vector3d(transformPosition).add(0.0, snapshot.centerOfMassOffsetY(), 0.0);
     }
 
     private static void renderBox(@Nonnull Collection<PlayerRef> viewers,
-        @Nonnull PhysicsBody body,
+        @Nonnull PhysicsBodySnapshot snapshot,
         @Nonnull Vector3d center,
         @Nonnull Quaterniond rotation,
         @Nonnull Vector3f color,
         float time) {
-        Vector3f half = body.getBoxHalfExtents();
+        Vector3f half = snapshot.boxHalfExtents();
         if (half == null) {
             return;
         }
@@ -302,11 +277,11 @@ final class PhysicsDebugRenderer {
     }
 
     private static void renderSphere(@Nonnull Collection<PlayerRef> viewers,
-        @Nonnull PhysicsBody body,
+        @Nonnull PhysicsBodySnapshot snapshot,
         @Nonnull Vector3d center,
         @Nonnull Vector3f color,
         float time) {
-        float radius = body.getSphereRadius();
+        float radius = snapshot.sphereRadius();
         if (radius <= 0f) {
             return;
         }
@@ -318,18 +293,18 @@ final class PhysicsDebugRenderer {
     }
 
     private static void renderCapsule(@Nonnull Collection<PlayerRef> viewers,
-        @Nonnull PhysicsBody body,
+        @Nonnull PhysicsBodySnapshot snapshot,
         @Nonnull Vector3d center,
         @Nonnull Quaterniond rotation,
         @Nonnull Vector3f color,
         float time) {
-        float radius = body.getSphereRadius();
-        float halfHeight = body.getHalfHeight();
+        float radius = snapshot.sphereRadius();
+        float halfHeight = snapshot.halfHeight();
         if (radius <= 0f || halfHeight <= 0f) {
             return;
         }
 
-        Quaterniond axisRotation = axisRotation(body.getShapeAxis());
+        Quaterniond axisRotation = axisRotation(snapshot.shapeAxis());
         Matrix4d cylinder = new Matrix4d()
             .translate(center)
             .rotate(new Quaterniond(rotation).mul(axisRotation))
@@ -344,7 +319,7 @@ final class PhysicsDebugRenderer {
             time,
             SHAPE_FLAGS);
 
-        Vector3d axis = axisVector(body.getShapeAxis());
+        Vector3d axis = axisVector(snapshot.shapeAxis());
         rotation.transform(axis);
         axis.mul(halfHeight);
         Matrix4d sphereA = new Matrix4d()
@@ -358,20 +333,20 @@ final class PhysicsDebugRenderer {
     }
 
     private static void renderCylinder(@Nonnull Collection<PlayerRef> viewers,
-        @Nonnull PhysicsBody body,
+        @Nonnull PhysicsBodySnapshot snapshot,
         @Nonnull Vector3d center,
         @Nonnull Quaterniond rotation,
         @Nonnull Vector3f color,
         float time) {
-        float radius = body.getSphereRadius();
-        float halfHeight = body.getHalfHeight();
+        float radius = snapshot.sphereRadius();
+        float halfHeight = snapshot.halfHeight();
         if (radius <= 0f || halfHeight <= 0f) {
             return;
         }
 
         Matrix4d transform = new Matrix4d()
             .translate(center)
-            .rotate(new Quaterniond(rotation).mul(axisRotation(body.getShapeAxis())))
+            .rotate(new Quaterniond(rotation).mul(axisRotation(snapshot.shapeAxis())))
             .scale(radius * 2 * SHAPE_INFLATION,
                 halfHeight * 2 * SHAPE_INFLATION,
                 radius * 2 * SHAPE_INFLATION);
@@ -385,20 +360,20 @@ final class PhysicsDebugRenderer {
     }
 
     private static void renderCone(@Nonnull Collection<PlayerRef> viewers,
-        @Nonnull PhysicsBody body,
+        @Nonnull PhysicsBodySnapshot snapshot,
         @Nonnull Vector3d center,
         @Nonnull Quaterniond rotation,
         @Nonnull Vector3f color,
         float time) {
-        float radius = body.getSphereRadius();
-        float halfHeight = body.getHalfHeight();
+        float radius = snapshot.sphereRadius();
+        float halfHeight = snapshot.halfHeight();
         if (radius <= 0f || halfHeight <= 0f) {
             return;
         }
 
         Matrix4d transform = new Matrix4d()
             .translate(center)
-            .rotate(new Quaterniond(rotation).mul(axisRotation(body.getShapeAxis())))
+            .rotate(new Quaterniond(rotation).mul(axisRotation(snapshot.shapeAxis())))
             .scale(radius * 2 * SHAPE_INFLATION,
                 halfHeight * 2 * SHAPE_INFLATION,
                 radius * 2 * SHAPE_INFLATION);
@@ -492,19 +467,6 @@ final class PhysicsDebugRenderer {
             case X -> new Vector3d(1.0, 0.0, 0.0);
             case Y -> new Vector3d(0.0, 1.0, 0.0);
             case Z -> new Vector3d(0.0, 0.0, 1.0);
-        };
-    }
-
-    @Nonnull
-    private static Vector3f colorForBody(@Nonnull PhysicsBody body) {
-        if (body.isSensor()) {
-            return DebugUtils.COLOR_MAGENTA;
-        }
-        PhysicsBodyType type = body.getBodyType();
-        return switch (type) {
-            case STATIC -> DebugUtils.COLOR_YELLOW;
-            case KINEMATIC -> DebugUtils.COLOR_BLUE;
-            case DYNAMIC -> DebugUtils.COLOR_LIME;
         };
     }
 

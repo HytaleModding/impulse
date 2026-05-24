@@ -533,8 +533,16 @@ public class PhysicsWorldResource implements Resource<EntityStore> {
         BodyRegistration registration = requireBodyRegistration(bodyId);
         PhysicsBody body = registration.body();
         snapshot = PhysicsBodySnapshot.from(body);
-        bodySnapshots.put(bodyId, snapshot, registration.spaceId(), registration);
-        workerBodySnapshots.put(bodyId, snapshot, registration.spaceId(), registration);
+        bodySnapshots.put(bodyId,
+            snapshot,
+            registration.spaceId(),
+            registration.kind(),
+            registration.persistenceMode());
+        workerBodySnapshots.put(bodyId,
+            snapshot,
+            registration.spaceId(),
+            registration.kind(),
+            registration.persistenceMode());
         return snapshot;
     }
 
@@ -566,6 +574,7 @@ public class PhysicsWorldResource implements Resource<EntityStore> {
         long stepNanos,
         boolean profilingEnabled) {
 
+        assertCanAccessLiveBackendDirectly("capture published physics snapshot frame");
         long frameEpoch = snapshotFrameEpoch.incrementAndGet();
         long frameWorldEpoch = worldEpoch.get();
         long snapshotStartNanos = profilingEnabled ? System.nanoTime() : 0L;
@@ -585,8 +594,8 @@ public class PhysicsWorldResource implements Resource<EntityStore> {
                     frameWorldEpoch,
                     frameWorldEpoch,
                     frameWorldEpoch,
-                    entry.registration().kind(),
-                    entry.registration().persistenceMode(),
+                    entry.kind(),
+                    entry.persistenceMode(),
                     entry.snapshot())));
             spaceFrames.add(new PublishedPhysicsSpaceFrame(spaceId,
                 frameEpoch,
@@ -622,16 +631,25 @@ public class PhysicsWorldResource implements Resource<EntityStore> {
                 if (registration == null || !registration.spaceId().equals(bodyFrame.spaceId())) {
                     continue;
                 }
-                PhysicsBodySnapshot snapshot = new PhysicsBodySnapshot(registration.body(),
-                    bodyFrame.position(),
+                PhysicsBodySnapshot snapshot = new PhysicsBodySnapshot(bodyFrame.position(),
                     bodyFrame.rotation(),
                     bodyFrame.linearVelocity(),
                     bodyFrame.angularVelocity(),
                     bodyFrame.bodyType(),
                     bodyFrame.sleeping(),
                     bodyFrame.sensor(),
-                    bodyFrame.centerOfMassOffsetY());
-                bodySnapshots.put(bodyFrame.bodyId(), snapshot, bodyFrame.spaceId(), registration);
+                    bodyFrame.centerOfMassOffsetY(),
+                    bodyFrame.shapeType(),
+                    bodyFrame.boxHalfExtents(),
+                    bodyFrame.sphereRadius(),
+                    bodyFrame.halfHeight(),
+                    bodyFrame.shapeAxis(),
+                    bodyFrame.planeGroundY());
+                bodySnapshots.put(bodyFrame.bodyId(),
+                    snapshot,
+                    bodyFrame.spaceId(),
+                    registration.kind(),
+                    registration.persistenceMode());
                 applied++;
             }
         }
@@ -1012,8 +1030,16 @@ public class PhysicsWorldResource implements Resource<EntityStore> {
         }
         BodyRegistration registration = bodyRegistry.registerBody(bodyId, body, spaceId, kind, persistenceMode);
         PhysicsBodySnapshot snapshot = PhysicsBodySnapshot.from(body);
-        bodySnapshots.put(bodyId, snapshot, spaceId, registration);
-        workerBodySnapshots.put(bodyId, snapshot, spaceId, registration);
+        bodySnapshots.put(bodyId,
+            snapshot,
+            spaceId,
+            registration.kind(),
+            registration.persistenceMode());
+        workerBodySnapshots.put(bodyId,
+            snapshot,
+            spaceId,
+            registration.kind(),
+            registration.persistenceMode());
         markWorldChanged();
         return bodyId;
     }
@@ -1075,6 +1101,7 @@ public class PhysicsWorldResource implements Resource<EntityStore> {
 
     @Nullable
     public PhysicsBody getBody(@Nonnull PhysicsBodyId bodyId) {
+        assertCanAccessLiveBackendDirectly("resolve live physics body");
         BodyRegistration registration = bodyRegistry.getRegistration(bodyId);
         return registration != null ? registration.body() : null;
     }
@@ -1086,12 +1113,19 @@ public class PhysicsWorldResource implements Resource<EntityStore> {
 
     @Nullable
     public BodyRegistration getBodyRegistration(@Nonnull PhysicsBody body) {
+        assertCanAccessLiveBackendDirectly("resolve live physics body registration");
         return bodyRegistry.getRegistration(body);
     }
 
     @Nullable
     public BodyRegistration getRegistration(@Nonnull PhysicsBodyId bodyId) {
+        assertCanAccessLiveBackendDirectly("resolve live physics body registration");
         return bodyRegistry.getRegistration(bodyId);
+    }
+
+    @Nullable
+    public BodyRegistrationView getBodyRegistrationView(@Nonnull PhysicsBodyId bodyId) {
+        return viewOf(bodyRegistry.getRegistration(bodyId));
     }
 
     public boolean isBodyCreationPending(@Nonnull PhysicsBodyId bodyId) {
@@ -1111,7 +1145,17 @@ public class PhysicsWorldResource implements Resource<EntityStore> {
 
     @Nonnull
     public Collection<BodyRegistration> getBodyRegistrations() {
+        assertCanAccessLiveBackendDirectly("list live physics body registrations");
         return bodyRegistry.getRegistrations();
+    }
+
+    @Nonnull
+    public Collection<BodyRegistrationView> getBodyRegistrationViews() {
+        List<BodyRegistrationView> views = new ArrayList<>();
+        for (BodyRegistration registration : bodyRegistry.getRegistrations()) {
+            views.add(viewOf(registration));
+        }
+        return views;
     }
 
     public int getBodyRegistrationCount() {
@@ -1124,7 +1168,17 @@ public class PhysicsWorldResource implements Resource<EntityStore> {
 
     @Nonnull
     public Collection<BodyRegistration> getBodyRegistrations(@Nonnull PhysicsBodyKind kind) {
+        assertCanAccessLiveBackendDirectly("list live physics body registrations");
         return bodyRegistry.getRegistrations(kind);
+    }
+
+    @Nonnull
+    public Collection<BodyRegistrationView> getBodyRegistrationViews(@Nonnull PhysicsBodyKind kind) {
+        List<BodyRegistrationView> views = new ArrayList<>();
+        for (BodyRegistration registration : bodyRegistry.getRegistrations(kind)) {
+            views.add(viewOf(registration));
+        }
+        return views;
     }
 
     @Nonnull
@@ -1545,8 +1599,35 @@ public class PhysicsWorldResource implements Resource<EntityStore> {
         return candidate.frameEpoch() >= current.frameEpoch();
     }
 
+    @Nullable
+    private static BodyRegistrationView viewOf(@Nullable BodyRegistration registration) {
+        if (registration == null) {
+            return null;
+        }
+        return new BodyRegistrationView(registration.id(),
+            registration.spaceId(),
+            registration.kind(),
+            registration.persistenceMode());
+    }
+
+    /**
+     * Owner-thread registration for a live backend body.
+     *
+     * <p>This record carries a {@link PhysicsBody} handle and must not be retained or read by
+     * world-thread systems when a physics worker is attached. Use {@link BodyRegistrationView} for
+     * public/off-owner metadata checks.</p>
+     */
     public record BodyRegistration(@Nonnull PhysicsBodyId id,
         @Nonnull PhysicsBody body,
+        @Nonnull SpaceId spaceId,
+        @Nonnull PhysicsBodyKind kind,
+        @Nonnull PhysicsBodyPersistenceMode persistenceMode) {
+    }
+
+    /**
+     * Immutable registration metadata safe for public and off-owner callers.
+     */
+    public record BodyRegistrationView(@Nonnull PhysicsBodyId id,
         @Nonnull SpaceId spaceId,
         @Nonnull PhysicsBodyKind kind,
         @Nonnull PhysicsBodyPersistenceMode persistenceMode) {
@@ -1563,7 +1644,8 @@ public class PhysicsWorldResource implements Resource<EntityStore> {
     public record BodySnapshotEntry(@Nonnull PhysicsBodyId bodyId,
         @Nonnull PhysicsBodySnapshot snapshot,
         @Nonnull SpaceId spaceId,
-        @Nonnull BodyRegistration registration) {
+        @Nonnull PhysicsBodyKind kind,
+        @Nonnull PhysicsBodyPersistenceMode persistenceMode) {
     }
 
     public record VisualInterest(@Nonnull Vector3f position, @Nullable Vector3f direction) {

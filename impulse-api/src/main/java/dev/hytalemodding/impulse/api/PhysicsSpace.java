@@ -2,6 +2,7 @@ package dev.hytalemodding.impulse.api;
 
 import java.util.List;
 import java.util.Optional;
+import java.util.function.BiConsumer;
 import java.util.function.Consumer;
 import java.util.function.Function;
 import javax.annotation.Nonnull;
@@ -90,7 +91,15 @@ public interface PhysicsSpace {
      */
     default void snapshotBodies(@Nonnull Function<PhysicsBody, PhysicsBodySnapshot> previousSnapshots,
         @Nonnull Consumer<PhysicsBodySnapshot> consumer) {
-        forEachBody(body -> consumer.accept(PhysicsBodySnapshot.from(body, previousSnapshots.apply(body))));
+        snapshotBodies(previousSnapshots, (_, snapshot) -> consumer.accept(snapshot));
+    }
+
+    /**
+     * Publishes owner-thread body snapshots with the live body available only during the callback.
+     */
+    default void snapshotBodies(@Nonnull Function<PhysicsBody, PhysicsBodySnapshot> previousSnapshots,
+        @Nonnull BiConsumer<PhysicsBody, PhysicsBodySnapshot> consumer) {
+        forEachBody(body -> consumer.accept(body, PhysicsBodySnapshot.from(body, previousSnapshots.apply(body))));
     }
 
     /**
@@ -102,8 +111,18 @@ public interface PhysicsSpace {
     default void snapshotBodies(@Nonnull Iterable<? extends PhysicsBody> selectedBodies,
         @Nonnull Function<PhysicsBody, PhysicsBodySnapshot> previousSnapshots,
         @Nonnull Consumer<PhysicsBodySnapshot> consumer) {
+        snapshotBodies(selectedBodies, previousSnapshots, (_, snapshot) -> consumer.accept(snapshot));
+    }
+
+    /**
+     * Publishes owner-thread snapshots for a caller-selected subset of bodies with the live body
+     * available only during the callback.
+     */
+    default void snapshotBodies(@Nonnull Iterable<? extends PhysicsBody> selectedBodies,
+        @Nonnull Function<PhysicsBody, PhysicsBodySnapshot> previousSnapshots,
+        @Nonnull BiConsumer<PhysicsBody, PhysicsBodySnapshot> consumer) {
         for (PhysicsBody body : selectedBodies) {
-            consumer.accept(PhysicsBodySnapshot.from(body, previousSnapshots.apply(body)));
+            consumer.accept(body, PhysicsBodySnapshot.from(body, previousSnapshots.apply(body)));
         }
     }
 

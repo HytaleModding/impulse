@@ -2,12 +2,15 @@ package dev.hytalemodding.impulse.core.plugin.snapshot;
 
 import dev.hytalemodding.impulse.api.PhysicsBodySnapshot;
 import dev.hytalemodding.impulse.api.PhysicsBodyType;
+import dev.hytalemodding.impulse.api.PhysicsAxis;
+import dev.hytalemodding.impulse.api.ShapeType;
 import dev.hytalemodding.impulse.api.SpaceId;
 import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyId;
 import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyKind;
 import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyPersistenceMode;
 import java.util.Objects;
 import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
 import org.joml.Quaternionf;
 import org.joml.Vector3f;
 
@@ -32,7 +35,13 @@ public record PublishedPhysicsBodySnapshot(@Nonnull PhysicsBodyId bodyId,
                                            @Nonnull PhysicsBodyType bodyType,
                                            boolean sleeping,
                                            boolean sensor,
-                                           float centerOfMassOffsetY) {
+                                           float centerOfMassOffsetY,
+                                           @Nonnull ShapeType shapeType,
+                                           @Nullable Vector3f boxHalfExtents,
+                                           float sphereRadius,
+                                           float halfHeight,
+                                           @Nonnull PhysicsAxis shapeAxis,
+                                           float planeGroundY) {
 
     public PublishedPhysicsBodySnapshot {
         Objects.requireNonNull(bodyId, "bodyId");
@@ -48,6 +57,9 @@ public record PublishedPhysicsBodySnapshot(@Nonnull PhysicsBodyId bodyId,
         linearVelocity = new Vector3f(Objects.requireNonNull(linearVelocity, "linearVelocity"));
         angularVelocity = new Vector3f(Objects.requireNonNull(angularVelocity, "angularVelocity"));
         Objects.requireNonNull(bodyType, "bodyType");
+        Objects.requireNonNull(shapeType, "shapeType");
+        boxHalfExtents = boxHalfExtents != null ? new Vector3f(boxHalfExtents) : null;
+        Objects.requireNonNull(shapeAxis, "shapeAxis");
     }
 
     @Nonnull
@@ -76,7 +88,13 @@ public record PublishedPhysicsBodySnapshot(@Nonnull PhysicsBodyId bodyId,
             snapshot.bodyType(),
             snapshot.sleeping(),
             snapshot.sensor(),
-            snapshot.centerOfMassOffsetY());
+            snapshot.centerOfMassOffsetY(),
+            snapshot.shapeType(),
+            snapshot.boxHalfExtents(),
+            snapshot.sphereRadius(),
+            snapshot.halfHeight(),
+            snapshot.shapeAxis(),
+            snapshot.planeGroundY());
     }
 
     @Nonnull
@@ -101,6 +119,12 @@ public record PublishedPhysicsBodySnapshot(@Nonnull PhysicsBodyId bodyId,
     @Override
     public Vector3f angularVelocity() {
         return new Vector3f(angularVelocity);
+    }
+
+    @Nullable
+    @Override
+    public Vector3f boxHalfExtents() {
+        return boxHalfExtents != null ? new Vector3f(boxHalfExtents) : null;
     }
 
     public boolean isStatic() {
