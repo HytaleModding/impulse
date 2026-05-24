@@ -21,9 +21,6 @@ public record PhysicsWorkerSnapshot(int spaces,
         spatialIndexCells = Math.max(0, spatialIndexCells);
         stepNanos = Math.max(0L, stepNanos);
         snapshotNanos = Math.max(0L, snapshotNanos);
-        nativePhaseStats = nativePhaseStats == null
-            ? PhysicsStepPhaseStats.unavailable()
-            : nativePhaseStats;
     }
 
     public PhysicsWorkerSnapshot(int spaces,
