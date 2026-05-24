@@ -6,6 +6,7 @@ import com.hypixel.hytale.server.core.modules.debug.DebugUtils;
 import com.hypixel.hytale.server.core.universe.PlayerRef;
 import dev.hytalemodding.impulse.api.PhysicsAxis;
 import dev.hytalemodding.impulse.api.PhysicsBody;
+import dev.hytalemodding.impulse.api.PhysicsBodySnapshot;
 import dev.hytalemodding.impulse.api.PhysicsBodyType;
 import dev.hytalemodding.impulse.api.PhysicsContact;
 import dev.hytalemodding.impulse.api.PhysicsJoint;
@@ -43,6 +44,23 @@ final class PhysicsDebugRenderer {
         @Nonnull Quaterniond rotation,
         float time) {
         Vector3f color = colorForBody(body);
+        renderBodyShape(viewers, body, center, rotation, color, time);
+    }
+
+    static void renderBodyShape(@Nonnull Collection<PlayerRef> viewers,
+        @Nonnull PhysicsBodySnapshot snapshot,
+        @Nonnull Vector3d center,
+        @Nonnull Quaterniond rotation,
+        float time) {
+        renderBodyShape(viewers, snapshot.body(), center, rotation, colorForSnapshot(snapshot), time);
+    }
+
+    private static void renderBodyShape(@Nonnull Collection<PlayerRef> viewers,
+        @Nonnull PhysicsBody body,
+        @Nonnull Vector3d center,
+        @Nonnull Quaterniond rotation,
+        @Nonnull Vector3f color,
+        float time) {
         switch (body.getShapeType()) {
             case BOX -> renderBox(viewers, body, center, rotation, color, time);
             case SPHERE -> renderSphere(viewers, body, center, color, time);
@@ -58,11 +76,17 @@ final class PhysicsDebugRenderer {
         @Nonnull PhysicsBody body,
         @Nonnull Vector3d center,
         float time) {
-        Vector3f linearVelocity = body.getLinearVelocity();
+        renderBodyMotion(viewers, center, body.getLinearVelocity(), body.getAngularVelocity(), time);
+    }
+
+    static void renderBodyMotion(@Nonnull Collection<PlayerRef> viewers,
+        @Nonnull Vector3d center,
+        @Nonnull Vector3f linearVelocity,
+        @Nonnull Vector3f angularVelocity,
+        float time) {
         renderArrow(viewers, center, toDebugDirection(linearVelocity, VELOCITY_SCALE),
             DebugUtils.COLOR_GREEN, time);
 
-        Vector3f angularVelocity = body.getAngularVelocity();
         renderArrow(viewers, center, toDebugDirection(angularVelocity, ANGULAR_VELOCITY_SCALE),
             DebugUtils.COLOR_MAGENTA, time);
     }
@@ -478,6 +502,18 @@ final class PhysicsDebugRenderer {
         }
         PhysicsBodyType type = body.getBodyType();
         return switch (type) {
+            case STATIC -> DebugUtils.COLOR_YELLOW;
+            case KINEMATIC -> DebugUtils.COLOR_BLUE;
+            case DYNAMIC -> DebugUtils.COLOR_LIME;
+        };
+    }
+
+    @Nonnull
+    private static Vector3f colorForSnapshot(@Nonnull PhysicsBodySnapshot snapshot) {
+        if (snapshot.sensor()) {
+            return DebugUtils.COLOR_MAGENTA;
+        }
+        return switch (snapshot.bodyType()) {
             case STATIC -> DebugUtils.COLOR_YELLOW;
             case KINEMATIC -> DebugUtils.COLOR_BLUE;
             case DYNAMIC -> DebugUtils.COLOR_LIME;
