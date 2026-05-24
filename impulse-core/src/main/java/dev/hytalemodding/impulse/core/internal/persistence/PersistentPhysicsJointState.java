@@ -1,9 +1,12 @@
 package dev.hytalemodding.impulse.core.internal.persistence;
 
 import com.hypixel.hytale.codec.Codec;
+import com.hypixel.hytale.codec.ExtraInfo;
 import com.hypixel.hytale.codec.KeyedCodec;
 import com.hypixel.hytale.codec.builder.BuilderCodec;
 import com.hypixel.hytale.codec.codecs.EnumCodec;
+import com.hypixel.hytale.codec.validation.ValidationResults;
+import com.hypixel.hytale.codec.validation.Validators;
 import com.hypixel.hytale.math.vector.Vector3fUtil;
 import dev.hytalemodding.impulse.api.PhysicsJoint;
 import dev.hytalemodding.impulse.api.PhysicsJointType;
@@ -34,38 +37,55 @@ public class PersistentPhysicsJointState {
         .append(new KeyedCodec<>("SpaceId", Codec.INTEGER),
             (state, value) -> state.spaceId = value,
             PersistentPhysicsJointState::getSpaceId)
+        .addValidator(Validators.nonNull())
+        .addValidator(Validators.range(1, Integer.MAX_VALUE))
         .add()
         .append(new KeyedCodec<>("BodyAId", Codec.UUID_BINARY),
             (state, value) -> state.bodyAId = value,
             PersistentPhysicsJointState::getBodyAIdValue)
+        .addValidator(Validators.nonNull())
         .add()
         .append(new KeyedCodec<>("BodyBId", Codec.UUID_BINARY),
             (state, value) -> state.bodyBId = value,
             PersistentPhysicsJointState::getBodyBIdValue)
+        .addValidator(Validators.nonNull())
         .add()
         .append(new KeyedCodec<>("Type", new EnumCodec<>(PhysicsJointType.class)),
             (state, value) -> state.type = value,
             PersistentPhysicsJointState::getType)
+        .addValidator(Validators.nonNull())
         .add()
         .append(new KeyedCodec<>("AnchorA", Vector3fUtil.CODEC),
             (state, value) -> state.anchorA.set(value),
             PersistentPhysicsJointState::getAnchorA)
+        .addValidator(Validators.nonNull())
+        .addValidator(PersistentPhysicsValidation.finiteVector(
+            "Persisted joint anchor A must be finite"))
         .add()
         .append(new KeyedCodec<>("AnchorB", Vector3fUtil.CODEC),
             (state, value) -> state.anchorB.set(value),
             PersistentPhysicsJointState::getAnchorB)
+        .addValidator(Validators.nonNull())
+        .addValidator(PersistentPhysicsValidation.finiteVector(
+            "Persisted joint anchor B must be finite"))
         .add()
         .append(new KeyedCodec<>("Axis", Vector3fUtil.CODEC, true),
             (state, value) -> state.axis = value != null ? new Vector3f(value) : null,
             PersistentPhysicsJointState::getAxis)
+        .addValidator(PersistentPhysicsValidation.finiteVector(
+            "Persisted joint axis must be finite"))
         .add()
         .append(new KeyedCodec<>("LowerLimit", Codec.FLOAT),
             (state, value) -> state.lowerLimit = value,
             PersistentPhysicsJointState::getLowerLimit)
+        .addValidator(PersistentPhysicsValidation.finiteFloat(
+            "Persisted joint lower limit must be finite"))
         .add()
         .append(new KeyedCodec<>("UpperLimit", Codec.FLOAT),
             (state, value) -> state.upperLimit = value,
             PersistentPhysicsJointState::getUpperLimit)
+        .addValidator(PersistentPhysicsValidation.finiteFloat(
+            "Persisted joint upper limit must be finite"))
         .add()
         .append(new KeyedCodec<>("Enabled", Codec.BOOLEAN),
             (state, value) -> state.enabled = value,
@@ -78,23 +98,34 @@ public class PersistentPhysicsJointState {
         .append(new KeyedCodec<>("MotorTargetVelocity", Codec.FLOAT),
             (state, value) -> state.motorTargetVelocity = value,
             PersistentPhysicsJointState::getMotorTargetVelocity)
+        .addValidator(PersistentPhysicsValidation.finiteFloat(
+            "Persisted joint motor target velocity must be finite"))
         .add()
         .append(new KeyedCodec<>("MotorMaxForce", Codec.FLOAT),
             (state, value) -> state.motorMaxForce = value,
             PersistentPhysicsJointState::getMotorMaxForce)
+        .addValidator(PersistentPhysicsValidation.nonNegativeFiniteFloat(
+            "Persisted joint motor max force must be finite and >= 0"))
         .add()
         .append(new KeyedCodec<>("SpringRestLength", Codec.FLOAT, false),
-            (state, value) -> state.springRestLength = nanToZero(value),
+            (state, value) -> state.springRestLength = value,
             PersistentPhysicsJointState::getSpringRestLength)
+        .addValidator(PersistentPhysicsValidation.nonNegativeFiniteFloat(
+            "Persisted joint spring rest length must be finite and >= 0"))
         .add()
         .append(new KeyedCodec<>("SpringStiffness", Codec.FLOAT, false),
-            (state, value) -> state.springStiffness = nanToZero(value),
+            (state, value) -> state.springStiffness = value,
             PersistentPhysicsJointState::getSpringStiffness)
+        .addValidator(PersistentPhysicsValidation.nonNegativeFiniteFloat(
+            "Persisted joint spring stiffness must be finite and >= 0"))
         .add()
         .append(new KeyedCodec<>("SpringDamping", Codec.FLOAT, false),
-            (state, value) -> state.springDamping = nanToZero(value),
+            (state, value) -> state.springDamping = value,
             PersistentPhysicsJointState::getSpringDamping)
+        .addValidator(PersistentPhysicsValidation.nonNegativeFiniteFloat(
+            "Persisted joint spring damping must be finite and >= 0"))
         .add()
+        .afterDecode(PersistentPhysicsJointState::validateAfterDecode)
         .build();
 
     @Getter
@@ -277,7 +308,7 @@ public class PersistentPhysicsJointState {
         return Float.isNaN(value) ? 0f : value;
     }
 
-        @Nonnull
+    @Nonnull
     public PersistentPhysicsJointState copy() {
         PersistentPhysicsJointState copy = new PersistentPhysicsJointState();
         copy.spaceId = spaceId;
@@ -297,5 +328,18 @@ public class PersistentPhysicsJointState {
         copy.springStiffness = springStiffness;
         copy.springDamping = springDamping;
         return copy;
+    }
+
+    private static void validateAfterDecode(@Nonnull PersistentPhysicsJointState state,
+        @Nonnull ExtraInfo extraInfo) {
+        ValidationResults results = extraInfo.getValidationResults();
+        if ((state.type == PhysicsJointType.HINGE || state.type == PhysicsJointType.SLIDER)
+            && state.axis == null) {
+            results.fail("Persisted " + state.type + " joint requires an axis");
+        }
+        if (state.lowerLimit > state.upperLimit) {
+            results.fail("Persisted joint lower limit cannot exceed upper limit");
+        }
+        results._processValidationResults();
     }
 }

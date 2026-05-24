@@ -34,7 +34,7 @@ class BodyVisualInterestStateTest {
     }
 
     @Test
-    void legacyFreshnessCheckUsesAdvancedVisualTick() {
+    void freshnessCheckUsesAdvancedVisualTick() {
         BodyVisualInterestState state = new BodyVisualInterestState();
 
         state.recordInterest(1.0f, true, true, true, 1L);

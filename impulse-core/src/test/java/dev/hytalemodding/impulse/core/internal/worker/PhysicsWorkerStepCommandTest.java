@@ -23,12 +23,14 @@ import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyKind;
 import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyPersistenceMode;
 import dev.hytalemodding.impulse.core.plugin.settings.PhysicsStepMode;
 import dev.hytalemodding.impulse.core.plugin.settings.PhysicsSpaceSettings;
+import dev.hytalemodding.impulse.core.plugin.settings.PhysicsWorldSettings;
 import dev.hytalemodding.impulse.core.plugin.resources.PhysicsWorldResource;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.function.Consumer;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 import org.checkerframework.checker.nullness.compatqual.NonNullDecl;
@@ -48,8 +50,10 @@ class PhysicsWorkerStepCommandTest {
             "worker-test",
             PhysicsSpaceSettings.defaults(),
             true);
-        resource.setStepMode(PhysicsStepMode.FIXED);
-        resource.setSimulationSteps(2);
+        configureWorldSettings(resource, settings -> {
+            settings.setStepMode(PhysicsStepMode.FIXED);
+            settings.setSimulationSteps(2);
+        });
 
         PhysicsBody first = space.createBox(0.5f, 0.5f, 0.5f, 1.0f);
         PhysicsBody second = space.createBox(0.5f, 0.5f, 0.5f, 1.0f);
@@ -96,9 +100,11 @@ class PhysicsWorkerStepCommandTest {
             "worker-test",
             PhysicsSpaceSettings.defaults(),
             true);
-        resource.setStepMode(PhysicsStepMode.PROGRESSIVE_REFINEMENT);
-        resource.setSimulationSteps(2);
-        resource.setMaxStepDt(0.1f);
+        configureWorldSettings(resource, settings -> {
+            settings.setStepMode(PhysicsStepMode.PROGRESSIVE_REFINEMENT);
+            settings.setSimulationSteps(2);
+            settings.setMaxStepDt(0.1f);
+        });
 
         PhysicsWorkerSnapshot snapshot = PhysicsWorkerStepCommand.runStep(resource, 0.35f, false);
 
@@ -117,7 +123,7 @@ class PhysicsWorkerStepCommandTest {
             "worker-test",
             PhysicsSpaceSettings.defaults(),
             true);
-        resource.setStepMode(PhysicsStepMode.FIXED);
+        configureWorldSettings(resource, settings -> settings.setStepMode(PhysicsStepMode.FIXED));
 
         PhysicsWorkerStepCommand.runStep(resource, Float.NaN, false);
         PhysicsWorkerStepCommand.runStep(resource, Float.POSITIVE_INFINITY, false);
@@ -134,9 +140,11 @@ class PhysicsWorkerStepCommandTest {
             "worker-test",
             PhysicsSpaceSettings.defaults(),
             true);
-        resource.setStepMode(PhysicsStepMode.ADAPTIVE);
-        resource.setSimulationSteps(1);
-        resource.setMaxStepDt(1.0f);
+        configureWorldSettings(resource, settings -> {
+            settings.setStepMode(PhysicsStepMode.ADAPTIVE);
+            settings.setSimulationSteps(1);
+            settings.setMaxStepDt(1.0f);
+        });
         PhysicsBody body = space.createBox(0.5f, 0.5f, 0.5f, 1.0f);
         body.setLinearVelocity(2.0f, 0.0f, 0.0f);
         resource.addBody(space.getId(),
@@ -171,7 +179,7 @@ class PhysicsWorkerStepCommandTest {
             PhysicsBodyKind.BODY,
             PhysicsBodyPersistenceMode.PERSISTENT);
 
-        resource.setStepMode(PhysicsStepMode.CCD);
+        configureWorldSettings(resource, settings -> settings.setStepMode(PhysicsStepMode.CCD));
         PhysicsWorkerStepCommand.runStep(resource, 0.05f, false);
 
         assertTrue(forced.isContinuousCollisionEnabled());
@@ -179,7 +187,7 @@ class PhysicsWorkerStepCommandTest {
         assertTrue(resource.getForcedContinuousCollisionBodies().contains(forced));
         assertFalse(resource.getForcedContinuousCollisionBodies().contains(alreadyEnabled));
 
-        resource.setStepMode(PhysicsStepMode.FIXED);
+        configureWorldSettings(resource, settings -> settings.setStepMode(PhysicsStepMode.FIXED));
         PhysicsWorkerStepCommand.runStep(resource, 0.05f, false);
 
         assertFalse(forced.isContinuousCollisionEnabled());
@@ -242,6 +250,13 @@ class PhysicsWorkerStepCommandTest {
             + BACKEND_COUNTER.incrementAndGet(), supportsContinuousCollision);
         Impulse.registerBackend(backend);
         return backend;
+    }
+
+    private static void configureWorldSettings(@Nonnull PhysicsWorldResource resource,
+        @Nonnull Consumer<PhysicsWorldSettings> configurator) {
+        PhysicsWorldSettings settings = resource.getWorldSettings();
+        configurator.accept(settings);
+        resource.setWorldSettings(settings);
     }
 
     private static final class CountingBackend implements PhysicsBackend {

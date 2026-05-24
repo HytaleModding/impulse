@@ -13,6 +13,7 @@ import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import dev.hytalemodding.impulse.api.PhysicsSpace;
 import dev.hytalemodding.impulse.core.plugin.settings.PhysicsStepMode;
 import dev.hytalemodding.impulse.core.plugin.resources.PhysicsWorldResource;
+import dev.hytalemodding.impulse.core.plugin.settings.PhysicsWorldSettings;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
@@ -39,7 +40,7 @@ public class StepModeSettingCommand extends AbstractAsyncPlayerCommand {
         PhysicsWorldResource resource = store.getResource(PhysicsWorldResource.getResourceType());
         if (!modeArg.provided(ctx)) {
             ctx.sender().sendMessage(Message.raw("Impulse step mode: "
-                + resource.getStepMode().getSerializedName()));
+                + resource.getWorldSettings().getStepMode().getSerializedName()));
             return CompletableFuture.completedFuture(null);
         }
 
@@ -61,7 +62,9 @@ public class StepModeSettingCommand extends AbstractAsyncPlayerCommand {
             }
         }
 
-        resource.setStepMode(stepMode);
+        PhysicsWorldSettings settings = resource.getWorldSettings();
+        settings.setStepMode(stepMode);
+        resource.setWorldSettings(settings);
         ctx.sender().sendMessage(Message.raw("Impulse step mode set to "
             + stepMode.getSerializedName()));
         return CompletableFuture.completedFuture(null);

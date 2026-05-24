@@ -22,6 +22,7 @@ import dev.hytalemodding.impulse.core.plugin.resources.PhysicsWorldResource;
 import dev.hytalemodding.impulse.core.plugin.settings.PhysicsSpaceSettings;
 import dev.hytalemodding.impulse.core.plugin.settings.PhysicsStepMode;
 import dev.hytalemodding.impulse.core.plugin.settings.PhysicsStepSchedulingMode;
+import dev.hytalemodding.impulse.core.plugin.settings.PhysicsWorldSettings;
 import dev.hytalemodding.impulse.core.plugin.snapshot.PublishedPhysicsSnapshotFrame;
 import java.time.Duration;
 import java.util.ArrayList;
@@ -30,6 +31,7 @@ import java.util.Optional;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.function.Consumer;
 import javax.annotation.Nonnull;
 import org.junit.jupiter.api.Test;
 import org.joml.Vector3f;
@@ -68,7 +70,8 @@ class PhysicsStepSystemTest {
         PhysicsStepSystem.StepSchedulerState state = new PhysicsStepSystem.StepSchedulerState();
         RecordingBackend backend = registerBackend();
         PhysicsWorldResource resource = fixedStepResource(backend);
-        resource.setStepSchedulingMode(PhysicsStepSchedulingMode.ACCUMULATE_PENDING_DT);
+        configureWorldSettings(resource,
+            settings -> settings.setStepSchedulingMode(PhysicsStepSchedulingMode.ACCUMULATE_PENDING_DT));
         PhysicsRuntimeProfilingResource profiling = new PhysicsRuntimeProfilingResource();
         RecordingSpace space = backend.space();
         CountDownLatch stepStarted = new CountDownLatch(1);
@@ -110,7 +113,8 @@ class PhysicsStepSystemTest {
         PhysicsStepSystem.StepSchedulerState state = new PhysicsStepSystem.StepSchedulerState();
         RecordingBackend backend = registerBackend();
         PhysicsWorldResource resource = fixedStepResource(backend);
-        resource.setStepSchedulingMode(PhysicsStepSchedulingMode.ACCUMULATE_PENDING_DT);
+        configureWorldSettings(resource,
+            settings -> settings.setStepSchedulingMode(PhysicsStepSchedulingMode.ACCUMULATE_PENDING_DT));
         PhysicsRuntimeProfilingResource profiling = new PhysicsRuntimeProfilingResource();
         profiling.setEnabled(true);
         RecordingSpace space = backend.space();
@@ -153,7 +157,8 @@ class PhysicsStepSystemTest {
         PhysicsStepSystem.StepSchedulerState state = new PhysicsStepSystem.StepSchedulerState();
         RecordingBackend backend = registerBackend();
         PhysicsWorldResource resource = fixedStepResource(backend);
-        resource.setStepSchedulingMode(PhysicsStepSchedulingMode.ACCUMULATE_PENDING_DT);
+        configureWorldSettings(resource,
+            settings -> settings.setStepSchedulingMode(PhysicsStepSchedulingMode.ACCUMULATE_PENDING_DT));
         PhysicsRuntimeProfilingResource profiling = new PhysicsRuntimeProfilingResource();
         RecordingSpace space = backend.space();
         CountDownLatch stepStarted = new CountDownLatch(1);
@@ -191,7 +196,8 @@ class PhysicsStepSystemTest {
         PhysicsStepSystem.StepSchedulerState state = new PhysicsStepSystem.StepSchedulerState();
         RecordingBackend backend = registerBackend();
         PhysicsWorldResource resource = fixedStepResource(backend);
-        resource.setStepSchedulingMode(PhysicsStepSchedulingMode.DROP_PENDING_DT);
+        configureWorldSettings(resource,
+            settings -> settings.setStepSchedulingMode(PhysicsStepSchedulingMode.DROP_PENDING_DT));
         PhysicsRuntimeProfilingResource profiling = new PhysicsRuntimeProfilingResource();
         profiling.setEnabled(true);
         RecordingSpace space = backend.space();
@@ -241,13 +247,22 @@ class PhysicsStepSystemTest {
     @Nonnull
     private static PhysicsWorldResource fixedStepResource(@Nonnull RecordingBackend backend) {
         PhysicsWorldResource resource = new PhysicsWorldResource();
-        resource.setStepMode(PhysicsStepMode.FIXED);
-        resource.setSimulationSteps(1);
+        configureWorldSettings(resource, settings -> {
+            settings.setStepMode(PhysicsStepMode.FIXED);
+            settings.setSimulationSteps(1);
+        });
         resource.createSpace(backend.getId(),
             "step-system-test",
             PhysicsSpaceSettings.defaults(),
             true);
         return resource;
+    }
+
+    private static void configureWorldSettings(@Nonnull PhysicsWorldResource resource,
+        @Nonnull Consumer<PhysicsWorldSettings> configurator) {
+        PhysicsWorldSettings settings = resource.getWorldSettings();
+        configurator.accept(settings);
+        resource.setWorldSettings(settings);
     }
 
     @Nonnull

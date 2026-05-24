@@ -5,9 +5,6 @@ import com.hypixel.hytale.codec.ExtraInfo;
 import com.hypixel.hytale.codec.KeyedCodec;
 import com.hypixel.hytale.codec.builder.BuilderCodec;
 import com.hypixel.hytale.codec.codecs.EnumCodec;
-import com.hypixel.hytale.codec.schema.SchemaContext;
-import com.hypixel.hytale.codec.schema.config.Schema;
-import com.hypixel.hytale.codec.validation.Validator;
 import com.hypixel.hytale.codec.validation.ValidationResults;
 import com.hypixel.hytale.codec.validation.Validators;
 import com.hypixel.hytale.math.vector.Vector3fUtil;
@@ -58,7 +55,8 @@ public class PersistentPhysicsSpaceState {
             (state, value) -> state.gravity.set(value),
             PersistentPhysicsSpaceState::getGravity)
         .addValidator(Validators.nonNull())
-        .addValidator(finiteVector("Persisted space gravity must be finite"))
+        .addValidator(PersistentPhysicsValidation.finiteVector(
+            "Persisted space gravity must be finite"))
         .add()
         .append(new KeyedCodec<>("WorldCollisionMode", new EnumCodec<>(WorldCollisionMode.class), false),
             (state, value) -> state.worldCollisionMode = value,
@@ -295,7 +293,8 @@ public class PersistentPhysicsSpaceState {
             (state, value) -> state.detachedVisualBlockType = value,
             PersistentPhysicsSpaceState::getDetachedVisualBlockType)
         .addValidator(Validators.nonNull())
-        .addValidator(nonBlankString("Persisted detached visual block type cannot be blank"))
+        .addValidator(PersistentPhysicsValidation.nonBlankString(
+            "Persisted detached visual block type cannot be blank"))
         .add()
         .afterDecode(PersistentPhysicsSpaceState::validateAfterDecode)
         .build();
@@ -531,44 +530,6 @@ public class PersistentPhysicsSpaceState {
     private static void validateAfterDecode(@Nonnull PersistentPhysicsSpaceState state,
         @Nonnull ExtraInfo extraInfo) {
         validate(state, extraInfo.getValidationResults());
-    }
-
-    @Nonnull
-    private static Validator<Vector3f> finiteVector(@Nonnull String message) {
-        return new Validator<>() {
-            @Override
-            public void accept(Vector3f value, ValidationResults results) {
-                if (value == null) {
-                    return;
-                }
-                if (!Float.isFinite(value.x) || !Float.isFinite(value.y) || !Float.isFinite(value.z)) {
-                    results.fail(message);
-                }
-            }
-
-            @Override
-            public void updateSchema(SchemaContext context, Schema schema) {
-            }
-        };
-    }
-
-    @Nonnull
-    private static Validator<String> nonBlankString(@Nonnull String message) {
-        return new Validator<>() {
-            @Override
-            public void accept(String value, ValidationResults results) {
-                if (value == null) {
-                    return;
-                }
-                if (value.isBlank()) {
-                    results.fail(message);
-                }
-            }
-
-            @Override
-            public void updateSchema(SchemaContext context, Schema schema) {
-            }
-        };
     }
 
     @Nonnull

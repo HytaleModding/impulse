@@ -30,6 +30,7 @@ import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyPersistenceMode;
 import dev.hytalemodding.impulse.core.plugin.settings.PhysicsSpaceSettings;
 import dev.hytalemodding.impulse.core.plugin.settings.PhysicsStepMode;
 import dev.hytalemodding.impulse.core.plugin.settings.PhysicsStepSchedulingMode;
+import dev.hytalemodding.impulse.core.plugin.settings.PhysicsWorldSettings;
 import dev.hytalemodding.impulse.core.plugin.resources.PhysicsWorldResource;
 import dev.hytalemodding.impulse.core.plugin.collision.WorldCollisionMode;
 import it.unimi.dsi.fastutil.longs.LongOpenHashSet;
@@ -133,10 +134,7 @@ final class ImpulseDetachedStreamingBenchmarkCrucibleTests {
         private final PhysicsWorldResource physics;
         private final PhysicsRuntimeProfilingResource runtimeProfiling;
         private final WorldCollisionProfilingResource worldCollisionProfiling;
-        private final PhysicsStepMode previousStepMode;
-        private final PhysicsStepSchedulingMode previousStepSchedulingMode;
-        private final int previousSimulationSteps;
-        private final float previousMaxStepDt;
+        private final PhysicsWorldSettings previousWorldSettings;
         private final List<WorldChunk> retainedChunks = new ArrayList<>();
 
         private StageRunner(@Nonnull CrucibleContext context, @Nonnull StagePlan plan)
@@ -149,10 +147,7 @@ final class ImpulseDetachedStreamingBenchmarkCrucibleTests {
             this.runtimeProfiling = store.getResource(PhysicsRuntimeProfilingResource.getResourceType());
             this.worldCollisionProfiling = store.getResource(
                 WorldCollisionProfilingResource.getResourceType());
-            this.previousStepMode = physics.getStepMode();
-            this.previousStepSchedulingMode = physics.getStepSchedulingMode();
-            this.previousSimulationSteps = physics.getSimulationSteps();
-            this.previousMaxStepDt = physics.getMaxStepDt();
+            this.previousWorldSettings = physics.getWorldSettings();
         }
 
         private CompletionStage<CrucibleTestCase.TestOutcome> run() {
@@ -200,10 +195,12 @@ final class ImpulseDetachedStreamingBenchmarkCrucibleTests {
 
         private CompletionStage<StartedStage> startStageWhenReady(int count, int attempt) {
             clearStageState();
-            physics.setStepMode(PhysicsStepMode.PROGRESSIVE_REFINEMENT);
-            physics.setStepSchedulingMode(PhysicsStepSchedulingMode.DROP_PENDING_DT);
-            physics.setSimulationSteps(1);
-            physics.setMaxStepDt(TARGET_MAX_STEP_DT);
+            PhysicsWorldSettings worldSettings = physics.getWorldSettings();
+            worldSettings.setStepMode(PhysicsStepMode.PROGRESSIVE_REFINEMENT);
+            worldSettings.setStepSchedulingMode(PhysicsStepSchedulingMode.DROP_PENDING_DT);
+            worldSettings.setSimulationSteps(1);
+            worldSettings.setMaxStepDt(TARGET_MAX_STEP_DT);
+            physics.setWorldSettings(worldSettings);
 
             BenchmarkChunks chunks = benchmarkChunks(count);
             if (!areChunksReady(chunks)) {
@@ -331,10 +328,7 @@ final class ImpulseDetachedStreamingBenchmarkCrucibleTests {
         }
 
         private void restoreStepSettings() {
-            physics.setStepMode(previousStepMode);
-            physics.setStepSchedulingMode(previousStepSchedulingMode);
-            physics.setSimulationSteps(previousSimulationSteps);
-            physics.setMaxStepDt(previousMaxStepDt);
+            physics.setWorldSettings(previousWorldSettings);
         }
 
         private PrewarmStats prewarmWorldCollision(@Nonnull PhysicsSpace space, int count) {

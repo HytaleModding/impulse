@@ -16,6 +16,7 @@ import dev.hytalemodding.impulse.core.internal.worker.PhysicsWorkerAccess;
 import dev.hytalemodding.impulse.core.internal.worker.PhysicsWorkerSnapshot;
 import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyPersistenceMode;
 import dev.hytalemodding.impulse.core.plugin.resources.PhysicsWorldResource;
+import dev.hytalemodding.impulse.core.plugin.settings.PhysicsWorldSettings;
 import java.util.Map;
 import java.util.Set;
 import java.util.WeakHashMap;
@@ -113,10 +114,7 @@ public class PersistentPhysicsWorldSyncSystem extends TickingSystem<EntityStore>
         }
 
         persistent.setSchemaVersion(PersistentPhysicsWorldResource.CURRENT_SCHEMA_VERSION);
-        persistent.setSimulationSteps(snapshot.getSimulationSteps());
-        persistent.setStepMode(snapshot.getStepMode());
-        persistent.setStepSchedulingMode(snapshot.getStepSchedulingMode());
-        persistent.setMaxStepDt(snapshot.getMaxStepDt());
+        persistent.setWorldSettings(snapshot.getWorldSettings());
         persistent.setDefaultSpaceId(snapshot.getDefaultSpaceId());
         persistent.setSpaces(snapshot.getSpaces());
         persistent.setBodies(snapshot.getBodies());
@@ -133,10 +131,12 @@ public class PersistentPhysicsWorldSyncSystem extends TickingSystem<EntityStore>
         int resolvedDefaultSpaceId = defaultSpaceId != null
             ? defaultSpaceId.value()
             : PersistentPhysicsBodyState.DEFAULT_SPACE_ID;
-        return persistent.getSimulationSteps() != runtime.getSimulationSteps()
-            || persistent.getStepMode() != runtime.getStepMode()
-            || persistent.getStepSchedulingMode() != runtime.getStepSchedulingMode()
-            || Float.compare(persistent.getMaxStepDt(), runtime.getMaxStepDt()) != 0
+        PhysicsWorldSettings runtimeSettings = runtime.getWorldSettings();
+        PhysicsWorldSettings persistedSettings = persistent.getWorldSettings();
+        return persistedSettings.getSimulationSteps() != runtimeSettings.getSimulationSteps()
+            || persistedSettings.getStepMode() != runtimeSettings.getStepMode()
+            || persistedSettings.getStepSchedulingMode() != runtimeSettings.getStepSchedulingMode()
+            || Float.compare(persistedSettings.getMaxStepDt(), runtimeSettings.getMaxStepDt()) != 0
             || persistent.getDefaultSpaceId() != resolvedDefaultSpaceId;
     }
 

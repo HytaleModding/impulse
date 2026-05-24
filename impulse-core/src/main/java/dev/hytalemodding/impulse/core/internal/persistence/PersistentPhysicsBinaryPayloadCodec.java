@@ -40,9 +40,6 @@ final class PersistentPhysicsBinaryPayloadCodec implements Codec<byte[]> {
         if (reader.peekFor('"')) {
             return Base64.getDecoder().decode(reader.readString());
         }
-        if (reader.peekFor('[')) {
-            return decodeLegacyByteArray(reader);
-        }
         return decodeExtendedBinaryObject(reader);
     }
 
@@ -53,29 +50,6 @@ final class PersistentPhysicsBinaryPayloadCodec implements Codec<byte[]> {
         base64.setPattern(Codec.BASE64_PATTERN);
         base64.setTitle("Binary payload");
         return base64;
-    }
-
-    @Nonnull
-    private static byte[] decodeLegacyByteArray(@Nonnull RawJsonReader reader) throws IOException {
-        reader.expect('[');
-        reader.consumeWhiteSpace();
-        if (reader.tryConsume(']')) {
-            return EMPTY_PAYLOAD;
-        }
-
-        int count = 0;
-        byte[] values = new byte[16];
-        while (true) {
-            if (count == values.length) {
-                values = Arrays.copyOf(values, values.length + 1 + (values.length >> 1));
-            }
-            values[count++] = reader.readByteValue();
-            reader.consumeWhiteSpace();
-            if (reader.tryConsumeOrExpect(']', ',')) {
-                return count == values.length ? values : Arrays.copyOf(values, count);
-            }
-            reader.consumeWhiteSpace();
-        }
     }
 
     @Nonnull

@@ -7,6 +7,7 @@ import dev.hytalemodding.impulse.api.ShapeType;
 import dev.hytalemodding.impulse.core.plugin.snapshot.PublishedPhysicsSnapshotFrame;
 import dev.hytalemodding.impulse.core.internal.systems.step.PhysicsStepCountPolicy;
 import dev.hytalemodding.impulse.core.plugin.settings.PhysicsStepMode;
+import dev.hytalemodding.impulse.core.plugin.settings.PhysicsWorldSettings;
 import dev.hytalemodding.impulse.core.plugin.resources.PhysicsWorldResource;
 import java.util.Collection;
 import java.util.Objects;
@@ -108,14 +109,17 @@ public final class PhysicsWorkerStepCommand implements PhysicsWorkerCommand {
         long serverTick) {
         Objects.requireNonNull(resource, "resource");
         float safeDt = Float.isFinite(dt) ? Math.max(dt, 0.0f) : 0.0f;
-        PhysicsStepMode stepMode = resource.getStepMode();
-        float maxStepDt = resource.getMaxStepDt() > 0f
-            ? resource.getMaxStepDt()
-            : PhysicsWorldResource.DEFAULT_MAX_STEP_DT;
+        PhysicsWorldSettings settings = resource.getWorldSettings();
+        PhysicsStepMode stepMode = settings.getStepMode();
+        int simulationSteps = settings.getSimulationSteps();
+        float configuredMaxStepDt = settings.getMaxStepDt();
+        float maxStepDt = configuredMaxStepDt > 0f
+            ? configuredMaxStepDt
+            : PhysicsWorldSettings.DEFAULT_MAX_STEP_DT;
         int steps = stepMode == PhysicsStepMode.ADAPTIVE
-            ? resolveAdaptiveStepCount(safeDt, maxStepDt, resource)
+            ? resolveAdaptiveStepCount(safeDt, simulationSteps, maxStepDt, resource)
             : PhysicsStepCountPolicy.resolveStepCount(safeDt,
-                resource.getSimulationSteps(),
+                simulationSteps,
                 maxStepDt,
                 stepMode);
 
@@ -181,15 +185,16 @@ public final class PhysicsWorkerStepCommand implements PhysicsWorkerCommand {
     }
 
     private static int resolveAdaptiveStepCount(float dt,
+        int simulationSteps,
         float maxStepDt,
         @Nonnull PhysicsWorldResource resource) {
         float sampledDt = Math.max(dt, 0.0f);
         if (sampledDt <= 0.0f) {
-            return resource.getSimulationSteps();
+            return simulationSteps;
         }
 
         int minimumSteps = PhysicsStepCountPolicy.resolveMaxStepCount(sampledDt,
-            resource.getSimulationSteps(),
+            simulationSteps,
             maxStepDt);
         StepRisk risk = new StepRisk(sampledDt, minimumSteps);
         for (PhysicsSpace space : resource.iterateSpaces()) {
@@ -319,7 +324,7 @@ public final class PhysicsWorkerStepCommand implements PhysicsWorkerCommand {
         }
 
         private void inspect(@Nonnull PhysicsBody body) {
-            if (steps >= PhysicsWorldResource.MAX_SIMULATION_STEPS
+            if (steps >= PhysicsWorldSettings.MAX_SIMULATION_STEPS
                 || body.isStatic()
                 || body.isSleeping()
                 || body.isSensor()
@@ -338,8 +343,8 @@ public final class PhysicsWorkerStepCommand implements PhysicsWorkerCommand {
                 requiredSteps(linearTravel, safeLinearTravel),
                 requiredSteps(angularSurfaceTravel, safeAngularTravel(body)));
             steps = Math.clamp(steps,
-                Math.min(requiredSteps, PhysicsWorldResource.MAX_SIMULATION_STEPS),
-                PhysicsWorldResource.MAX_SIMULATION_STEPS);
+                Math.min(requiredSteps, PhysicsWorldSettings.MAX_SIMULATION_STEPS),
+                PhysicsWorldSettings.MAX_SIMULATION_STEPS);
         }
 
         private int steps() {

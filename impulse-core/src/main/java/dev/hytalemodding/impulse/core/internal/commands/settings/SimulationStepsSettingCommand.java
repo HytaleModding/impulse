@@ -10,8 +10,9 @@ import com.hypixel.hytale.server.core.command.system.basecommands.AbstractAsyncP
 import com.hypixel.hytale.server.core.universe.PlayerRef;
 import com.hypixel.hytale.server.core.universe.world.World;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
-import dev.hytalemodding.impulse.core.plugin.settings.PhysicsStepMode;
 import dev.hytalemodding.impulse.core.plugin.resources.PhysicsWorldResource;
+import dev.hytalemodding.impulse.core.plugin.settings.PhysicsStepMode;
+import dev.hytalemodding.impulse.core.plugin.settings.PhysicsWorldSettings;
 import java.util.concurrent.CompletableFuture;
 import javax.annotation.Nonnull;
 
@@ -34,24 +35,26 @@ public class SimulationStepsSettingCommand extends AbstractAsyncPlayerCommand {
         @Nonnull PlayerRef playerRef,
         @Nonnull World world) {
         PhysicsWorldResource resource = store.getResource(PhysicsWorldResource.getResourceType());
-        PhysicsStepMode stepMode = resource.getStepMode();
+        PhysicsWorldSettings settings = resource.getWorldSettings();
+        PhysicsStepMode stepMode = settings.getStepMode();
         if (!stepsArg.provided(ctx)) {
             ctx.sender().sendMessage(Message.raw("Impulse simulation steps: "
-                + resource.getSimulationSteps() + " (" + stepMode.getSerializedName()
+                + settings.getSimulationSteps() + " (" + stepMode.getSerializedName()
                 + ", " + stepMode.describeSimulationSteps() + ")"));
             return CompletableFuture.completedFuture(null);
         }
 
         int steps = stepsArg.get(ctx);
-        if (steps < PhysicsWorldResource.MIN_SIMULATION_STEPS
-            || steps > PhysicsWorldResource.MAX_SIMULATION_STEPS) {
+        if (steps < PhysicsWorldSettings.MIN_SIMULATION_STEPS
+            || steps > PhysicsWorldSettings.MAX_SIMULATION_STEPS) {
             ctx.sender().sendMessage(Message.raw("Simulation steps must be between "
-                + PhysicsWorldResource.MIN_SIMULATION_STEPS + " and "
-                + PhysicsWorldResource.MAX_SIMULATION_STEPS + "."));
+                + PhysicsWorldSettings.MIN_SIMULATION_STEPS + " and "
+                + PhysicsWorldSettings.MAX_SIMULATION_STEPS + "."));
             return CompletableFuture.completedFuture(null);
         }
 
-        resource.setSimulationSteps(steps);
+        settings.setSimulationSteps(steps);
+        resource.setWorldSettings(settings);
         ctx.sender().sendMessage(Message.raw("Impulse simulation steps set to " + steps
             + " (" + stepMode.describeSimulationSteps() + " in "
             + stepMode.getSerializedName() + " mode)"));

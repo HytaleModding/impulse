@@ -60,7 +60,7 @@ public class PersistentPhysicsBodyHydrationSystem extends TickingSystem<EntitySt
                 continue;
             }
 
-            int resolvedSpaceId = state.resolveSpaceId(persistent.getDefaultSpaceIdValue());
+            int resolvedSpaceId = state.resolveSpaceId();
             if (resolvedSpaceId <= 0) {
                 persistent.recordRuntimeBodySkipped("no resolved space id");
                 continue;

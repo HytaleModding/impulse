@@ -12,6 +12,7 @@ import com.hypixel.hytale.server.core.universe.world.World;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import dev.hytalemodding.impulse.core.plugin.resources.PhysicsWorldResource;
 import dev.hytalemodding.impulse.core.plugin.settings.PhysicsStepSchedulingMode;
+import dev.hytalemodding.impulse.core.plugin.settings.PhysicsWorldSettings;
 import java.util.concurrent.CompletableFuture;
 import javax.annotation.Nonnull;
 
@@ -35,7 +36,7 @@ public class StepSchedulingSettingCommand extends AbstractAsyncPlayerCommand {
         @Nonnull World world) {
         PhysicsWorldResource resource = store.getResource(PhysicsWorldResource.getResourceType());
         if (!modeArg.provided(ctx)) {
-            PhysicsStepSchedulingMode mode = resource.getStepSchedulingMode();
+            PhysicsStepSchedulingMode mode = resource.getWorldSettings().getStepSchedulingMode();
             ctx.sender().sendMessage(Message.raw("Impulse step scheduling: "
                 + mode.getSerializedName() + " (" + mode.describePendingStepBehavior() + ")"));
             return CompletableFuture.completedFuture(null);
@@ -50,7 +51,9 @@ public class StepSchedulingSettingCommand extends AbstractAsyncPlayerCommand {
             return CompletableFuture.completedFuture(null);
         }
 
-        resource.setStepSchedulingMode(mode);
+        PhysicsWorldSettings settings = resource.getWorldSettings();
+        settings.setStepSchedulingMode(mode);
+        resource.setWorldSettings(settings);
         ctx.sender().sendMessage(Message.raw("Impulse step scheduling set to "
             + mode.getSerializedName() + " (" + mode.describePendingStepBehavior() + ")"));
         return CompletableFuture.completedFuture(null);
