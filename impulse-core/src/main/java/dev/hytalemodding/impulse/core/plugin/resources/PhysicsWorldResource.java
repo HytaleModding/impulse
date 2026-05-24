@@ -159,6 +159,23 @@ public class PhysicsWorldResource implements Resource<EntityStore> {
     }
 
     /**
+     * Fails when the current thread is not allowed to touch live backend objects directly.
+     *
+     * <p>Use this at lower-level integration points that intentionally accept a live
+     * {@link PhysicsSpace}, {@link PhysicsBody}, or {@link PhysicsJoint}. Most gameplay and command
+     * code should route through {@link #runOnPhysicsOwner}, {@link #callOnPhysicsOwner}, or
+     * {@link #enqueuePhysicsMutation} instead.</p>
+     */
+    public void assertCanAccessLiveBackendDirectly(@Nonnull String operation) {
+        Objects.requireNonNull(operation, "operation");
+        if (!canAccessLiveBackendDirectly()) {
+            throw new IllegalStateException("Impulse live backend operation " + operation
+                + " must run on the physics owner thread. Use runOnPhysicsOwner, "
+                + "callOnPhysicsOwner, or enqueuePhysicsMutation.");
+        }
+    }
+
+    /**
      * Run a live-backend mutation on the current physics owner.
      *
      * <p>When a world worker is attached, this submits to the physics worker and blocks until the

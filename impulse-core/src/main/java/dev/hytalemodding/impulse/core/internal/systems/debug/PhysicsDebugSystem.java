@@ -201,6 +201,7 @@ public class PhysicsDebugSystem extends TickingSystem<ChunkStore> {
                 }
 
                 PhysicsBody body = registration.body();
+                PhysicsBodySnapshot snapshot = resource.getBodySnapshot(registration.id());
                 Vector3d center = PhysicsDebugRenderer.centerFromSyncedTransform(body,
                     transform.getPosition());
                 if (viewerPosition.distanceSquared(center) > maxDistanceSquared) {
@@ -209,10 +210,14 @@ public class PhysicsDebugSystem extends TickingSystem<ChunkStore> {
 
                 Quaterniond rotation = transform.getRotation().getQuaternion(new Quaterniond());
                 if (debugShapes) {
-                    PhysicsDebugRenderer.renderBodyShape(viewers, body, center, rotation, time);
+                    PhysicsDebugRenderer.renderBodyShape(viewers, snapshot, center, rotation, time);
                 }
                 if (debugMotion) {
-                    PhysicsDebugRenderer.renderBodyMotion(viewers, body, center, time);
+                    PhysicsDebugRenderer.renderBodyMotion(viewers,
+                        center,
+                        snapshot.linearVelocity(),
+                        snapshot.angularVelocity(),
+                        time);
                 }
 
                 rendered++;
@@ -264,10 +269,14 @@ public class PhysicsDebugSystem extends TickingSystem<ChunkStore> {
                     snapshot.rotation().z,
                     snapshot.rotation().w);
                 if (debugShapes) {
-                    PhysicsDebugRenderer.renderBodyShape(viewers, body, center, rotation, time);
+                    PhysicsDebugRenderer.renderBodyShape(viewers, snapshot, center, rotation, time);
                 }
                 if (debugMotion) {
-                    PhysicsDebugRenderer.renderBodyMotion(viewers, body, center, time);
+                    PhysicsDebugRenderer.renderBodyMotion(viewers,
+                        center,
+                        snapshot.linearVelocity(),
+                        snapshot.angularVelocity(),
+                        time);
                 }
                 rendered[0]++;
             });
@@ -295,7 +304,7 @@ public class PhysicsDebugSystem extends TickingSystem<ChunkStore> {
                 snapshot.rotation().z,
                 snapshot.rotation().w);
             PhysicsDebugRenderer.renderBodyShape(viewers,
-                body,
+                snapshot,
                 new Vector3d(position.x, position.y, position.z),
                 rotation,
                 time);

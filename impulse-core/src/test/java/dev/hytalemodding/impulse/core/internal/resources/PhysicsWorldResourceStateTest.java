@@ -460,6 +460,45 @@ class PhysicsWorldResourceStateTest {
     }
 
     @Test
+    void liveBackendAccessAssertionRejectsOutsidePhysicsOwner() {
+        FakePhysicsBackend backend =
+            new FakePhysicsBackend("test:owner-guard-" + BACKEND_COUNTER.incrementAndGet());
+        Impulse.registerBackend(backend);
+
+        PhysicsWorldResource resource = new PhysicsWorldResource();
+        try (PhysicsWorldWorkerResource worker = new PhysicsWorldWorkerResource(4,
+            Duration.ofSeconds(2L))) {
+            worker.start("owner-guard");
+            resource.attachWorkerResource(worker);
+
+            PhysicsSpace space = resource.createSpace(backend.getId(),
+                "test-world",
+                PhysicsSpaceSettings.defaults(),
+                true);
+            PhysicsBody body = resource.callOnPhysicsOwner("create test body", () -> {
+                PhysicsBody created = space.createBox(0.5f, 0.5f, 0.5f, 1.0f);
+                resource.addBody(space.getId(),
+                    created,
+                    PhysicsBodyKind.BODY,
+                    PhysicsBodyPersistenceMode.RUNTIME_ONLY);
+                return created;
+            });
+
+            assertThrows(IllegalStateException.class, () -> resource.assertCanAccessLiveBackendDirectly(
+                "direct test access"));
+
+            resource.runOnPhysicsOwner("move test body", () -> {
+                resource.assertCanAccessLiveBackendDirectly("owner test access");
+                body.setPosition(1.0f, 2.0f, 3.0f);
+            });
+            assertEquals(new Vector3f(1.0f, 2.0f, 3.0f),
+                resource.callOnPhysicsOwner("read test body position", body::getPosition));
+
+            resource.detachWorkerResource(worker);
+        }
+    }
+
+    @Test
     void inlineWorldEpochAndVisualInterestCountersDoNotLoseConcurrentUpdates() throws Exception {
         int threads = 8;
         int iterations = 500;
