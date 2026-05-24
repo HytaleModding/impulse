@@ -1,6 +1,7 @@
 package dev.hytalemodding.impulse.core.internal.persistence;
 
 import com.hypixel.hytale.codec.Codec;
+import com.hypixel.hytale.codec.ExtraInfo;
 import com.hypixel.hytale.codec.KeyedCodec;
 import com.hypixel.hytale.codec.builder.BuilderCodec;
 import com.hypixel.hytale.codec.codecs.EnumCodec;
@@ -297,7 +298,7 @@ public class PersistentPhysicsSpaceState {
         .addValidator(Validators.nonNull())
         .addValidator(nonBlankString("Persisted detached visual block type cannot be blank"))
         .add()
-        .validator(PersistentPhysicsSpaceState::validate)
+        .afterDecode(PersistentPhysicsSpaceState::validateAfterDecode)
         .build();
 
     @Setter
@@ -530,6 +531,11 @@ public class PersistentPhysicsSpaceState {
         } catch (RuntimeException exception) {
             results.fail("Invalid persisted space settings: " + exception.getMessage());
         }
+    }
+
+    private static void validateAfterDecode(@Nonnull PersistentPhysicsSpaceState state,
+        @Nonnull ExtraInfo extraInfo) {
+        validate(state, extraInfo.getValidationResults());
     }
 
     @Nonnull
