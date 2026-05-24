@@ -483,6 +483,13 @@ public class PhysicsWorldResource implements Resource<EntityStore> {
         return snapshot;
     }
 
+    /**
+     * Captures an immutable snapshot frame on the physics owner thread.
+     *
+     * <p>The generated {@code frameEpoch} and current {@code worldEpoch} govern
+     * publication ordering and stale-frame rejection. {@code stepSequence} and
+     * {@code serverTick} are copied through as external correlation metadata.</p>
+     */
     @Nonnull
     public PublishedPhysicsSnapshotFrame capturePublishedSnapshotFrame(long stepSequence,
         long serverTick,
