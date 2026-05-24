@@ -116,6 +116,21 @@ class PhysicsWorkerRunnerTest {
     }
 
     @Test
+    void shutdownPreservesInterruptButStillWaitsForWorkerExit() {
+        try (PhysicsWorkerRunner runner = new PhysicsWorkerRunner("Impulse interrupted shutdown worker", 1)) {
+            try {
+                Thread.currentThread().interrupt();
+
+                assertTrue(runner.shutdown(Duration.ofSeconds(2L)));
+                assertTrue(Thread.interrupted());
+                assertFalse(runner.isAccepting());
+            } finally {
+                Thread.interrupted();
+            }
+        }
+    }
+
+    @Test
     void drainsQueuedCommandsSubmittedBeforeShutdown() throws Exception {
         CountDownLatch release = new CountDownLatch(1);
         try (PhysicsWorkerRunner runner = new PhysicsWorkerRunner("Impulse draining physics worker", 2)) {

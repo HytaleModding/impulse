@@ -51,9 +51,14 @@ public final class PhysicsWorldWorkerLifecycleSystem extends StoreSystem<EntityS
         String worldName = worldName(store);
         PhysicsWorldWorkerResource worker = store.getResource(workerResourceType);
         PhysicsWorldResource physics = store.getResource(physicsWorldResourceType);
-        physics.clearAllSpaces(worldName);
+        boolean clearedSpaces = clearSpaces(physics, worldName);
+        boolean closedWorker = closeWorker(worker);
         physics.detachWorkerResource(worker);
-        closeWorker(worker);
+
+        // Retry if it failed before, this could happen.
+        if (!clearedSpaces && closedWorker) {
+            clearSpaces(physics, worldName);
+        }
     }
 
     @Override
@@ -76,13 +81,15 @@ public final class PhysicsWorldWorkerLifecycleSystem extends StoreSystem<EntityS
         }
     }
 
-    void closeWorker(@Nonnull PhysicsWorldWorkerResource worker) {
+    boolean closeWorker(@Nonnull PhysicsWorldWorkerResource worker) {
         activeWorkers.remove(worker);
         try {
             worker.close();
+            return true;
         } catch (RuntimeException exception) {
             LOGGER.at(Level.WARNING).log("Failed to close physics worker runner: %s",
                 exception.getMessage());
+            return false;
         }
     }
 
@@ -92,10 +99,19 @@ public final class PhysicsWorldWorkerLifecycleSystem extends StoreSystem<EntityS
 
     @Nonnull
     private static String worldName(@Nonnull Store<EntityStore> store) {
-        EntityStore entityStore = store.getExternalData();
-        if (entityStore == null || entityStore.getWorld() == null) {
-            return "<unknown>";
+        return store.getExternalData().getWorld().getName();
+    }
+
+    private static boolean clearSpaces(@Nonnull PhysicsWorldResource physics,
+        @Nonnull String worldName) {
+        try {
+            physics.clearAllSpaces(worldName);
+            return true;
+        } catch (RuntimeException exception) {
+            LOGGER.at(Level.WARNING).log("Failed to clear physics spaces for world %s: %s",
+                worldName,
+                exception.getMessage());
+            return false;
         }
-        return entityStore.getWorld().getName();
     }
 }
