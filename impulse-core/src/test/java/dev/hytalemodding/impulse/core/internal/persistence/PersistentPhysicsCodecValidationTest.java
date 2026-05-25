@@ -239,12 +239,23 @@ class PersistentPhysicsCodecValidationTest {
     }
 
     @Test
-    void bodyStateRestoresPlaneHeightFromPositionY() {
+    void worldResourceCodecRestoresPlaneHeightFromPositionY() {
         PersistentPhysicsBodyState state = persistentPlaneBodyState(12.0f);
+        BsonDocument encodedBody = encodeBody(state);
+        assertEquals(12.0, encodedBody.getDocument("Position").getDouble("Y").doubleValue(), 0.0001);
+        PersistentPhysicsWorldResource resource = new PersistentPhysicsWorldResource();
+        resource.setBodies(new PersistentPhysicsBodyState[] { state });
+
+        PersistentPhysicsWorldResource decoded = PersistentPhysicsWorldResource.CODEC
+            .decode(encodeWorld(resource), new ExtraInfo());
         PhysicsSpace restoreSpace = new FakePhysicsBackend("test:plane-restore-"
             + BACKEND_COUNTER.incrementAndGet()).createSpace();
 
-        PhysicsBody restored = state.createBody(restoreSpace);
+        assertEquals(1, decoded.getBodyCount());
+        PersistentPhysicsBodyState decodedBody = decoded.getBodies()[0];
+        assertEquals(12.0f, decodedBody.getPosition().y, 0.0001f);
+        PhysicsBody restored = decodedBody.createBody(restoreSpace);
+        decodedBody.applyToBody(restored);
 
         assertEquals(ShapeType.PLANE, restored.getShapeType());
         assertEquals(12.0f, restored.getPosition().y, 0.0001f);
