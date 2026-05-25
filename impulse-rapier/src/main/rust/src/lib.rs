@@ -332,10 +332,9 @@ fn unpack_space_handle(handle: jlong) -> Option<u64> {
 }
 
 fn lock_registry() -> std::sync::MutexGuard<'static, SpaceRegistry> {
-    match space_registry().lock() {
-        Ok(registry) => registry,
-        Err(poisoned) => poisoned.into_inner(),
-    }
+    space_registry()
+        .lock()
+        .unwrap_or_else(|poisoned| poisoned.into_inner())
 }
 
 fn register_space(space: NativeSpace) -> jlong {
@@ -346,10 +345,10 @@ fn destroy_registered_space(handle: jlong) -> bool {
     let Some(record) = lock_registry().remove(handle) else {
         return false;
     };
-    let mut space = match record.space.lock() {
-        Ok(space) => space,
-        Err(poisoned) => poisoned.into_inner(),
-    };
+    let mut space = record
+        .space
+        .lock()
+        .unwrap_or_else(|poisoned| poisoned.into_inner());
     space.take().is_some()
 }
 
@@ -378,10 +377,7 @@ fn catch_jni_default<T, F>(default: T, f: F) -> T
 where
     F: FnOnce() -> T,
 {
-    match catch_unwind(AssertUnwindSafe(f)) {
-        Ok(value) => value,
-        Err(_) => default,
-    }
+    catch_unwind(AssertUnwindSafe(f)).unwrap_or(default)
 }
 
 #[derive(Clone, Copy)]
@@ -395,22 +391,20 @@ fn with_space_checked<T, F>(handle: jlong, f: F) -> Result<T, NativeSpaceFailure
 where
     F: FnOnce(&mut NativeSpace) -> T,
 {
-    match catch_unwind(AssertUnwindSafe(|| {
+    catch_unwind(AssertUnwindSafe(|| {
         let Some(record) = space_record(handle) else {
             return Err(NativeSpaceFailure::StaleHandle);
         };
-        let mut guard = match record.space.lock() {
-            Ok(space) => space,
-            Err(poisoned) => poisoned.into_inner(),
-        };
+        let mut guard = record
+            .space
+            .lock()
+            .unwrap_or_else(|poisoned| poisoned.into_inner());
         let Some(space) = guard.as_mut() else {
             return Err(NativeSpaceFailure::DestroyedSpace);
         };
         Ok(f(space))
-    })) {
-        Ok(result) => result,
-        Err(_) => Err(NativeSpaceFailure::Panic),
-    }
+    }))
+    .unwrap_or_else(|_| Err(NativeSpaceFailure::Panic))
 }
 
 fn throw_native_space_failure(env: &mut JNIEnv<'_>, operation: &str, failure: NativeSpaceFailure) {
@@ -435,10 +429,10 @@ where
         let Some(record) = space_record(handle) else {
             return default;
         };
-        let mut guard = match record.space.lock() {
-            Ok(space) => space,
-            Err(poisoned) => poisoned.into_inner(),
-        };
+        let mut guard = record
+            .space
+            .lock()
+            .unwrap_or_else(|poisoned| poisoned.into_inner());
         let Some(space) = guard.as_mut() else {
             return default;
         };
@@ -558,6 +552,7 @@ fn apply_dynamic_sleep_tuning(
     activation.time_until_sleep = time_until_sleep;
 }
 
+#[allow(clippy::too_many_arguments)]
 fn build_collider(
     shape_type: i32,
     half_x: f32,
@@ -634,9 +629,9 @@ mod voxel_exports;
 
 #[cfg(test)]
 mod tests {
-    use super::*;
+  use super::*;
 
-    #[test]
+  #[test]
     fn registry_does_not_resolve_destroyed_handles() {
         let handle = register_space(NativeSpace::new());
         assert!(handle > 0);
