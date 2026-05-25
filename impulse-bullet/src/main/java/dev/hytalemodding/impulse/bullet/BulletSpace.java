@@ -188,11 +188,12 @@ public final class BulletSpace implements PhysicsSpace {
     @Override
     public PhysicsBody createStaticPlane(float groundY) {
         requireOpen();
-        Plane plane = new Plane(com.jme3.math.Vector3f.UNIT_Y, groundY);
+        Plane plane = new Plane(com.jme3.math.Vector3f.UNIT_Y, 0.0f);
         CollisionShape shape = new PlaneCollisionShape(plane);
         PhysicsRigidBody body = new PhysicsRigidBody(shape,
             com.jme3.bullet.objects.PhysicsBody.massForStatic);
-        return trackBody(new BulletBody(body, groundY));
+        body.setPhysicsLocation(toJme(0.0f, groundY, 0.0f));
+        return trackBody(new BulletBody(body));
     }
 
     @Nonnull

@@ -40,8 +40,7 @@ public record PublishedPhysicsBodySnapshot(@Nonnull PhysicsBodyId bodyId,
                                            @Nullable Vector3f boxHalfExtents,
                                            float sphereRadius,
                                            float halfHeight,
-                                           @Nonnull PhysicsAxis shapeAxis,
-                                           float planeGroundY) {
+                                           @Nonnull PhysicsAxis shapeAxis) {
 
     public PublishedPhysicsBodySnapshot {
         Objects.requireNonNull(bodyId, "bodyId");
@@ -93,8 +92,7 @@ public record PublishedPhysicsBodySnapshot(@Nonnull PhysicsBodyId bodyId,
             snapshot.boxHalfExtents(),
             snapshot.sphereRadius(),
             snapshot.halfHeight(),
-            snapshot.shapeAxis(),
-            snapshot.planeGroundY());
+            snapshot.shapeAxis());
     }
 
     @Nonnull

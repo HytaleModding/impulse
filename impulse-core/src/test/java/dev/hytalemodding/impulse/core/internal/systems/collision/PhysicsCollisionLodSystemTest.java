@@ -200,8 +200,7 @@ class PhysicsCollisionLodSystemTest {
             new Vector3f(0.5f),
             -1.0f,
             -1.0f,
-            PhysicsAxis.Y,
-            Float.NaN);
+            PhysicsAxis.Y);
         return new PhysicsWorldResource.BodySnapshotEntry(bodyId, snapshot, spaceId, kind, persistenceMode);
     }
 }

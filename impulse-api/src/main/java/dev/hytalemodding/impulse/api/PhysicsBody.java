@@ -178,13 +178,4 @@ public interface PhysicsBody {
     PhysicsAxis getShapeAxis();
 
     float getCenterOfMassOffsetY();
-
-    /**
-     * Returns the configured ground Y for plane shapes.
-     * <p>
-     * Returns {@link Float#NaN} for non-plane shapes.
-     */
-    default float getPlaneGroundY() {
-        return Float.NaN;
-    }
 }

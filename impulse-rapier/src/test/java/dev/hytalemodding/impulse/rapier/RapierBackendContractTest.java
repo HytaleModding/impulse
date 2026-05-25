@@ -21,6 +21,7 @@ import dev.hytalemodding.impulse.api.testsupport.PhysicsBackendContractTest;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Objects;
 import javax.annotation.Nonnull;
 import org.joml.Vector3f;
 import org.junit.jupiter.api.Test;
@@ -45,7 +46,8 @@ class RapierBackendContractTest extends PhysicsBackendContractTest {
         PhysicsBody plane = space.createStaticPlane(12.0f);
 
         assertEquals(ShapeType.BOX, box.getShapeType());
-        assertVectorNear(new Vector3f(0.5f, 1.5f, 2.5f), box.getBoxHalfExtents(), 0.0001f);
+        assertVectorNear(new Vector3f(0.5f, 1.5f, 2.5f),
+            Objects.requireNonNull(box.getBoxHalfExtents()), 0.0001f);
         assertEquals(3.0f, box.getMass(), 0.0001f);
         assertEquals(PhysicsBodyType.DYNAMIC, box.getBodyType());
 
@@ -69,7 +71,7 @@ class RapierBackendContractTest extends PhysicsBackendContractTest {
 
         assertEquals(ShapeType.PLANE, plane.getShapeType());
         assertEquals(PhysicsBodyType.STATIC, plane.getBodyType());
-        assertEquals(12.0f, plane.getPlaneGroundY(), 0.0001f);
+        assertEquals(12.0f, plane.getPosition().y, 0.0001f);
     }
 
     @Test

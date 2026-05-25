@@ -22,27 +22,17 @@ public final class BulletBody implements PhysicsBody {
     private final PhysicsRigidBody body;
     private final com.jme3.math.Vector3f jmeVectorScratch = new com.jme3.math.Vector3f();
     private final com.jme3.math.Quaternion jmeQuaternionScratch = new com.jme3.math.Quaternion();
-    private final Vector3f jomlVectorScratch = new Vector3f();
     private BulletSpace owner;
     private boolean attachedToSpace;
     private boolean invalidated;
-    private float planeGroundY = Float.NaN;
 
     BulletBody(@Nonnull PhysicsRigidBody body) {
         this.body = body;
     }
 
-    BulletBody(@Nonnull PhysicsRigidBody body, float planeGroundY) {
-        this.body = body;
-        this.planeGroundY = planeGroundY;
-    }
-
     @Override
     public void setPosition(float x, float y, float z) {
         body.setPhysicsLocation(toJme(x, y, z));
-        if (getShapeType() == ShapeType.PLANE) {
-            planeGroundY = y;
-        }
     }
 
     @Override
@@ -467,18 +457,6 @@ public final class BulletBody implements PhysicsBody {
                 : cone.maxRadius();
         }
         return 0f;
-    }
-
-    @Override
-    public float getPlaneGroundY() {
-        if (getShapeType() != ShapeType.PLANE) {
-            return Float.NaN;
-        }
-        if (Float.isNaN(planeGroundY)) {
-            getPosition(jomlVectorScratch);
-            planeGroundY = jomlVectorScratch.y;
-        }
-        return planeGroundY;
     }
 
     @Nonnull

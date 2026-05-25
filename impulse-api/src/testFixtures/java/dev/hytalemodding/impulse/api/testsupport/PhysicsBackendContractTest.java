@@ -114,6 +114,40 @@ public abstract class PhysicsBackendContractTest {
     }
 
     @Test
+    void staticPlaneHeightIsStoredAsBodyPosition() {
+        PhysicsSpace space = createHeadlessSpace();
+        PhysicsBody plane = space.createStaticPlane(12.0f);
+        PhysicsBody body = space.createSphere(0.5f, 1.0f);
+        body.setPosition(0.0f, 16.0f, 0.0f);
+
+        assertEquals(12.0f, plane.getPosition().y, 0.0001f);
+
+        space.addBody(plane);
+        space.addBody(body);
+        stepSpace(space, MAX_SETTLE_STEPS);
+
+        assertEquals(12.5f, body.getPosition().y, POSITION_EPSILON,
+            "Dynamic sphere should settle on the plane surface derived from plane position");
+    }
+
+    @Test
+    void setPositionMovesStaticPlaneSurface() {
+        PhysicsSpace space = createHeadlessSpace();
+        PhysicsBody plane = space.createStaticPlane(0.0f);
+        space.addBody(plane);
+
+        plane.setPosition(0.0f, 5.0f, 0.0f);
+        PhysicsBody body = space.createSphere(0.5f, 1.0f);
+        body.setPosition(0.0f, 8.0f, 0.0f);
+        space.addBody(body);
+        stepSpace(space, MAX_SETTLE_STEPS);
+
+        assertEquals(5.0f, plane.getPosition().y, 0.0001f);
+        assertEquals(5.5f, body.getPosition().y, POSITION_EPSILON,
+            "Moving the plane body should move the collision surface");
+    }
+
+    @Test
     void splitLowTpsFramePreventsFastBodyFromTunnelingThroughPlane() {
         PhysicsSpace space = createHeadlessSpace();
         space.setGravity(0.0f, 0.0f, 0.0f);
@@ -168,7 +202,7 @@ public abstract class PhysicsBackendContractTest {
         space.addBody(plane);
         space.addBody(body);
 
-        boolean wentToSleep = stepUntil(space, MAX_SETTLE_STEPS, current -> body.isSleeping());
+        boolean wentToSleep = stepUntil(space, MAX_SETTLE_STEPS, _ -> body.isSleeping());
         assertTrue(wentToSleep, "Expected a simple resting body to eventually sleep");
         assertFalse(body.isActive(), "Sleeping body should not remain active");
     }

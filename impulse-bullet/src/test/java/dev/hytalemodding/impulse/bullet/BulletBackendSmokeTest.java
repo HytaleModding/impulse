@@ -18,8 +18,11 @@ import org.junit.jupiter.api.io.TempDir;
 
 class BulletBackendSmokeTest {
 
+    private static final float STEP_DT = 1.0f / 60.0f;
     private static final float LOW_TPS_FRAME_DT = 0.5f;
     private static final int LOW_TPS_SUBSTEPS = 16;
+    private static final int MAX_SETTLE_STEPS = 900;
+    private static final float POSITION_EPSILON = 0.05f;
 
     @TempDir
     Path tempDir;
@@ -101,6 +104,42 @@ class BulletBackendSmokeTest {
     }
 
     @Test
+    void staticPlaneHeightIsStoredAsBodyPosition() {
+        space = createSpace();
+
+        PhysicsBody plane = space.createStaticPlane(12.0f);
+        PhysicsBody body = space.createSphere(0.5f, 1.0f);
+        body.setPosition(0.0f, 16.0f, 0.0f);
+
+        assertEquals(12.0f, plane.getPosition().y, 0.0001f);
+
+        space.addBody(plane);
+        space.addBody(body);
+        stepSpace(space, MAX_SETTLE_STEPS);
+
+        assertEquals(12.5f, body.getPosition().y, POSITION_EPSILON,
+            "Dynamic sphere should settle on the plane surface derived from plane position");
+    }
+
+    @Test
+    void setPositionMovesStaticPlaneSurface() {
+        space = createSpace();
+
+        PhysicsBody plane = space.createStaticPlane(0.0f);
+        space.addBody(plane);
+
+        plane.setPosition(0.0f, 5.0f, 0.0f);
+        PhysicsBody body = space.createSphere(0.5f, 1.0f);
+        body.setPosition(0.0f, 8.0f, 0.0f);
+        space.addBody(body);
+        stepSpace(space, MAX_SETTLE_STEPS);
+
+        assertEquals(5.0f, plane.getPosition().y, 0.0001f);
+        assertEquals(5.5f, body.getPosition().y, POSITION_EPSILON,
+            "Moving the plane body should move the collision surface");
+    }
+
+    @Test
     void splitLowTpsFramePreventsFastBodyFromTunnelingThroughPlane() {
         space = createSpace();
         space.setGravity(0.0f, 0.0f, 0.0f);
@@ -126,6 +165,12 @@ class BulletBackendSmokeTest {
         backend.setInternalLoggingLevel(Level.OFF);
         Impulse.registerBackend(backend);
         return Impulse.createSpace(backend.getId());
+    }
+
+    private static void stepSpace(PhysicsSpace space, int steps) {
+        for (int i = 0; i < steps; i++) {
+            space.step(STEP_DT);
+        }
     }
 
     private static void stepFrameWithSubsteps(PhysicsSpace space, float frameDt, int substeps) {
