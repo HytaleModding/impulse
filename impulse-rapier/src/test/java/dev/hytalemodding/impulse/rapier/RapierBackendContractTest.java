@@ -8,7 +8,6 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import dev.hytalemodding.impulse.api.PhysicsBackend;
-import dev.hytalemodding.impulse.api.PhysicsAxis;
 import dev.hytalemodding.impulse.api.PhysicsBody;
 import dev.hytalemodding.impulse.api.PhysicsBodySnapshot;
 import dev.hytalemodding.impulse.api.PhysicsBodyType;
@@ -32,46 +31,6 @@ class RapierBackendContractTest extends PhysicsBackendContractTest {
     @Override
     protected PhysicsBackend createBackend() {
         return new RapierBackend();
-    }
-
-    @Test
-    void shapeFactoriesExposeExpectedStoredMetadata() {
-        PhysicsSpace space = createHeadlessSpace();
-
-        PhysicsBody box = space.createBox(0.5f, 1.5f, 2.5f, 3.0f);
-        PhysicsBody sphere = space.createSphere(1.25f, 2.0f);
-        PhysicsBody capsule = space.createCapsule(0.75f, 1.5f, PhysicsAxis.Z, 4.0f);
-        PhysicsBody cylinder = space.createCylinder(0.8f, 1.2f, PhysicsAxis.X, 5.0f);
-        PhysicsBody cone = space.createCone(0.6f, 0.9f, PhysicsAxis.Y, 6.0f);
-        PhysicsBody plane = space.createStaticPlane(12.0f);
-
-        assertEquals(ShapeType.BOX, box.getShapeType());
-        assertVectorNear(new Vector3f(0.5f, 1.5f, 2.5f),
-            Objects.requireNonNull(box.getBoxHalfExtents()), 0.0001f);
-        assertEquals(3.0f, box.getMass(), 0.0001f);
-        assertEquals(PhysicsBodyType.DYNAMIC, box.getBodyType());
-
-        assertEquals(ShapeType.SPHERE, sphere.getShapeType());
-        assertEquals(1.25f, sphere.getSphereRadius(), 0.0001f);
-
-        assertEquals(ShapeType.CAPSULE, capsule.getShapeType());
-        assertEquals(0.75f, capsule.getSphereRadius(), 0.0001f);
-        assertEquals(1.5f, capsule.getHalfHeight(), 0.0001f);
-        assertEquals(PhysicsAxis.Z, capsule.getShapeAxis());
-
-        assertEquals(ShapeType.CYLINDER, cylinder.getShapeType());
-        assertEquals(0.8f, cylinder.getSphereRadius(), 0.0001f);
-        assertEquals(1.2f, cylinder.getHalfHeight(), 0.0001f);
-        assertEquals(PhysicsAxis.X, cylinder.getShapeAxis());
-
-        assertEquals(ShapeType.CONE, cone.getShapeType());
-        assertEquals(0.6f, cone.getSphereRadius(), 0.0001f);
-        assertEquals(0.9f, cone.getHalfHeight(), 0.0001f);
-        assertEquals(PhysicsAxis.Y, cone.getShapeAxis());
-
-        assertEquals(ShapeType.PLANE, plane.getShapeType());
-        assertEquals(PhysicsBodyType.STATIC, plane.getBodyType());
-        assertEquals(12.0f, plane.getPosition().y, 0.0001f);
     }
 
     @Test
@@ -170,8 +129,12 @@ class RapierBackendContractTest extends PhysicsBackendContractTest {
         PhysicsSpace space = createHeadlessSpace();
         int count = 1_000;
         int side = (int) Math.ceil(Math.cbrt(count));
+        PhysicsBody representativeBody = null;
         for (int i = 0; i < count; i++) {
             PhysicsBody body = space.createBox(0.48f, 0.48f, 0.48f, 1.0f);
+            if (i == 0) {
+                representativeBody = body;
+            }
             int x = i % side;
             int z = (i / side) % side;
             int y = i / (side * side);
@@ -185,12 +148,18 @@ class RapierBackendContractTest extends PhysicsBackendContractTest {
         }
 
         assertEquals(count, space.bodyCount());
+        PhysicsBody representative = Objects.requireNonNull(representativeBody, "representativeBody");
+        float startY = representative.getPosition().y;
 
         stepSpace(space, 30);
 
+        assertTrue(representative.getPosition().y < startY - 0.01f,
+            "Representative dynamic body should move under gravity");
         List<PhysicsBodySnapshot> snapshots = new ArrayList<>();
         space.snapshotBodies(snapshots::add);
         assertEquals(count, snapshots.size());
+        assertEquals((long) count, countSnapshotsOfShape(snapshots, ShapeType.BOX));
+        assertDynamicSnapshotValues(snapshots, count);
     }
 
     @Test
@@ -276,9 +245,25 @@ class RapierBackendContractTest extends PhysicsBackendContractTest {
         space.addBody(plane);
 
         int count = 10_000;
+        PhysicsBody contactSentinelA = space.createBox(0.5f, 0.5f, 0.5f, 1.0f);
+        contactSentinelA.setPosition(0.0f, 0.45f, 0.0f);
+        contactSentinelA.setCollisionFilter(PhysicsCollisionFilters.DYNAMIC_BODY,
+            PhysicsCollisionFilters.TERRAIN | PhysicsCollisionFilters.DYNAMIC_BODY);
+        space.addBody(contactSentinelA);
+
+        PhysicsBody contactSentinelB = space.createBox(0.5f, 0.5f, 0.5f, 1.0f);
+        contactSentinelB.setPosition(0.85f, 0.45f, 0.0f);
+        contactSentinelB.setCollisionFilter(PhysicsCollisionFilters.DYNAMIC_BODY,
+            PhysicsCollisionFilters.TERRAIN | PhysicsCollisionFilters.DYNAMIC_BODY);
+        space.addBody(contactSentinelB);
+
         int side = (int) Math.ceil(Math.cbrt(count));
-        for (int i = 0; i < count; i++) {
+        PhysicsBody representativeBody = null;
+        for (int i = 0; i < count - 2; i++) {
             PhysicsBody body = space.createBox(0.48f, 0.48f, 0.48f, 1.0f);
+            if (i == 0) {
+                representativeBody = body;
+            }
             int x = i % side;
             int z = (i / side) % side;
             int y = i / (side * side);
@@ -291,11 +276,23 @@ class RapierBackendContractTest extends PhysicsBackendContractTest {
             space.addBody(body);
         }
 
+        PhysicsBody representative = Objects.requireNonNull(representativeBody, "representativeBody");
+        float startY = representative.getPosition().y;
         stepSpace(space, 10);
 
+        assertTrue(representative.getPosition().y < startY - 0.01f,
+            "Representative dynamic body should move under gravity");
+        PhysicsRuntimeStats stats = space.getRuntimeStats();
+        assertTrue(stats.available());
+        assertTrue(stats.terrainContactPairCount() >= 1);
+        assertTrue(stats.dynamicDynamicContactPairCount() >= 1);
+        assertTrue(stats.contactPointCount() >= 1);
         List<PhysicsBodySnapshot> snapshots = new ArrayList<>();
         space.snapshotBodies(snapshots::add);
         assertEquals(count + 1, snapshots.size());
+        assertEquals((long) count, countSnapshotsOfShape(snapshots, ShapeType.BOX));
+        assertEquals(1L, countSnapshotsOfShape(snapshots, ShapeType.PLANE));
+        assertDynamicSnapshotValues(snapshots, count);
     }
 
     @Test
@@ -315,10 +312,25 @@ class RapierBackendContractTest extends PhysicsBackendContractTest {
             }
         }
 
+        var terrainHit = space.raycastClosest(new Vector3f(0.5f, 10.0f, 0.5f),
+            new Vector3f(0.0f, -20.0f, 0.0f));
+        assertTrue(terrainHit.isPresent());
+        assertEquals(ShapeType.VOXELS, terrainHit.orElseThrow().body().getShapeType());
+
         int count = 10_000;
+        PhysicsBody contactSentinel = space.createBox(0.5f, 0.5f, 0.5f, 1.0f);
+        contactSentinel.setPosition(0.5f, 0.45f, 0.5f);
+        contactSentinel.setCollisionFilter(PhysicsCollisionFilters.DYNAMIC_BODY,
+            PhysicsCollisionFilters.TERRAIN | PhysicsCollisionFilters.DYNAMIC_BODY);
+        space.addBody(contactSentinel);
+
         int side = (int) Math.ceil(Math.cbrt(count));
-        for (int i = 0; i < count; i++) {
+        PhysicsBody representativeBody = null;
+        for (int i = 0; i < count - 1; i++) {
             PhysicsBody body = space.createBox(0.48f, 0.48f, 0.48f, 1.0f);
+            if (i == 0) {
+                representativeBody = body;
+            }
             int x = i % side;
             int z = (i / side) % side;
             int y = i / (side * side);
@@ -333,11 +345,22 @@ class RapierBackendContractTest extends PhysicsBackendContractTest {
             space.addBody(body);
         }
 
+        PhysicsBody representative = Objects.requireNonNull(representativeBody, "representativeBody");
+        float startY = representative.getPosition().y;
         stepSpace(space, 10);
 
+        assertTrue(representative.getPosition().y < startY - 0.01f,
+            "Representative dynamic body should move under gravity");
+        PhysicsRuntimeStats stats = space.getRuntimeStats();
+        assertTrue(stats.available());
+        assertTrue(stats.terrainContactPairCount() >= 1);
+        assertTrue(stats.contactPointCount() >= 1);
         List<PhysicsBodySnapshot> snapshots = new ArrayList<>();
         space.snapshotBodies(snapshots::add);
         assertEquals(count + 16, snapshots.size());
+        assertEquals((long) count, countSnapshotsOfShape(snapshots, ShapeType.BOX));
+        assertEquals(16L, countSnapshotsOfShape(snapshots, ShapeType.VOXELS));
+        assertDynamicSnapshotValues(snapshots, count);
     }
 
     @Test
@@ -404,5 +427,37 @@ class RapierBackendContractTest extends PhysicsBackendContractTest {
             }
         }
         return voxels;
+    }
+
+    private static long countSnapshotsOfShape(@Nonnull List<PhysicsBodySnapshot> snapshots,
+        @Nonnull ShapeType shapeType) {
+        return snapshots.stream()
+            .filter(snapshot -> snapshot.shapeType() == shapeType)
+            .count();
+    }
+
+    private static void assertDynamicSnapshotValues(@Nonnull List<PhysicsBodySnapshot> snapshots,
+        int expectedDynamicCount) {
+        long dynamicSnapshots = snapshots.stream()
+            .filter(snapshot -> snapshot.bodyType() == PhysicsBodyType.DYNAMIC)
+            .count();
+        assertEquals((long) expectedDynamicCount, dynamicSnapshots);
+
+        long finiteDynamicSnapshots = snapshots.stream()
+            .filter(snapshot -> snapshot.bodyType() == PhysicsBodyType.DYNAMIC)
+            .filter(snapshot -> isFinite(snapshot.position()))
+            .filter(snapshot -> isFinite(snapshot.linearVelocity()))
+            .count();
+        assertEquals((long) expectedDynamicCount, finiteDynamicSnapshots);
+
+        long fallingDynamicSnapshots = snapshots.stream()
+            .filter(snapshot -> snapshot.bodyType() == PhysicsBodyType.DYNAMIC)
+            .filter(snapshot -> snapshot.linearVelocity().y < -0.001f)
+            .count();
+        assertTrue(fallingDynamicSnapshots > expectedDynamicCount * 9L / 10L);
+    }
+
+    private static boolean isFinite(@Nonnull Vector3f vector) {
+        return Float.isFinite(vector.x) && Float.isFinite(vector.y) && Float.isFinite(vector.z);
     }
 }
