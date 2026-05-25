@@ -7,14 +7,19 @@ import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import dev.hytalemodding.impulse.api.Impulse;
+import dev.hytalemodding.impulse.api.PhysicsAxis;
 import dev.hytalemodding.impulse.api.PhysicsBackend;
 import dev.hytalemodding.impulse.api.PhysicsBody;
+import dev.hytalemodding.impulse.api.PhysicsBodySnapshot;
+import dev.hytalemodding.impulse.api.PhysicsBodyType;
 import dev.hytalemodding.impulse.api.PhysicsJoint;
 import dev.hytalemodding.impulse.api.PhysicsRayHit;
 import dev.hytalemodding.impulse.api.PhysicsSpace;
+import dev.hytalemodding.impulse.api.ShapeType;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.logging.Level;
 import javax.annotation.Nonnull;
@@ -61,6 +66,68 @@ public abstract class PhysicsBackendContractTest {
         assertEquals(0, space.jointCount());
 
         verifyGravityConfiguration(space);
+    }
+
+    @Test
+    void newBodiesAreNotReportedAsSpaceBodiesUntilAdded() {
+        PhysicsSpace space = createHeadlessSpace();
+        PhysicsBody body = space.createBox(0.5f, 0.5f, 0.5f, 1.0f);
+
+        assertEquals(0, space.bodyCount());
+        assertFalse(space.getBodies().contains(body));
+        assertFalse(space.containsBody(body));
+
+        space.addBody(body);
+
+        assertEquals(1, space.bodyCount());
+        assertTrue(space.getBodies().contains(body));
+        assertTrue(space.containsBody(body));
+
+        space.removeBody(body);
+
+        assertEquals(0, space.bodyCount());
+        assertFalse(space.getBodies().contains(body));
+        assertFalse(space.containsBody(body));
+    }
+
+    @Test
+    void shapeFactoriesExposeExpectedStoredMetadata() {
+        PhysicsSpace space = createHeadlessSpace();
+
+        PhysicsBody box = space.createBox(0.5f, 1.5f, 2.5f, 3.0f);
+        PhysicsBody sphere = space.createSphere(1.25f, 2.0f);
+        PhysicsBody capsule = space.createCapsule(0.75f, 1.5f, PhysicsAxis.Z, 4.0f);
+        PhysicsBody cylinder = space.createCylinder(0.8f, 1.2f, PhysicsAxis.X, 5.0f);
+        PhysicsBody cone = space.createCone(0.6f, 0.9f, PhysicsAxis.Y, 6.0f);
+        PhysicsBody plane = space.createStaticPlane(12.0f);
+
+        assertEquals(ShapeType.BOX, box.getShapeType());
+        assertVectorNear(new Vector3f(0.5f, 1.5f, 2.5f),
+            Objects.requireNonNull(box.getBoxHalfExtents()), 0.0001f);
+        assertEquals(3.0f, box.getMass(), 0.0001f);
+        assertEquals(PhysicsBodyType.DYNAMIC, box.getBodyType());
+
+        assertEquals(ShapeType.SPHERE, sphere.getShapeType());
+        assertEquals(1.25f, sphere.getSphereRadius(), 0.0001f);
+
+        assertEquals(ShapeType.CAPSULE, capsule.getShapeType());
+        assertEquals(0.75f, capsule.getSphereRadius(), 0.0001f);
+        assertEquals(1.5f, capsule.getHalfHeight(), 0.0001f);
+        assertEquals(PhysicsAxis.Z, capsule.getShapeAxis());
+
+        assertEquals(ShapeType.CYLINDER, cylinder.getShapeType());
+        assertEquals(0.8f, cylinder.getSphereRadius(), 0.0001f);
+        assertEquals(1.2f, cylinder.getHalfHeight(), 0.0001f);
+        assertEquals(PhysicsAxis.X, cylinder.getShapeAxis());
+
+        assertEquals(ShapeType.CONE, cone.getShapeType());
+        assertEquals(0.6f, cone.getSphereRadius(), 0.0001f);
+        assertEquals(0.9f, cone.getHalfHeight(), 0.0001f);
+        assertEquals(PhysicsAxis.Y, cone.getShapeAxis());
+
+        assertEquals(ShapeType.PLANE, plane.getShapeType());
+        assertEquals(PhysicsBodyType.STATIC, plane.getBodyType());
+        assertEquals(12.0f, plane.getPosition().y, 0.0001f);
     }
 
     @Test
@@ -133,7 +200,7 @@ public abstract class PhysicsBackendContractTest {
     @Test
     void setPositionMovesStaticPlaneSurface() {
         PhysicsSpace space = createHeadlessSpace();
-        PhysicsBody plane = space.createStaticPlane(0.0f);
+        PhysicsBody plane = space.createStaticPlane(12.0f);
         space.addBody(plane);
 
         plane.setPosition(0.0f, 5.0f, 0.0f);
@@ -145,6 +212,34 @@ public abstract class PhysicsBackendContractTest {
         assertEquals(5.0f, plane.getPosition().y, 0.0001f);
         assertEquals(5.5f, body.getPosition().y, POSITION_EPSILON,
             "Moving the plane body should move the collision surface");
+    }
+
+    @Test
+    void spaceSnapshotUsesPlaneBodyPositionForHeight() {
+        PhysicsSpace space = createHeadlessSpace();
+        PhysicsBody plane = space.createStaticPlane(12.0f);
+        space.addBody(plane);
+
+        List<PhysicsBodySnapshot> snapshots = new ArrayList<>();
+        space.snapshotBodies(snapshots::add);
+
+        assertEquals(1, snapshots.size());
+        PhysicsBodySnapshot initial = snapshots.get(0);
+        assertEquals(ShapeType.PLANE, initial.shapeType());
+        assertEquals(PhysicsBodyType.STATIC, initial.bodyType());
+        assertVectorNear(new Vector3f(0.0f, 12.0f, 0.0f), initial.position(), 0.0001f);
+        assertTrue(initial.isStatic());
+        assertFalse(initial.isDynamic());
+
+        plane.setPosition(0.0f, 5.0f, 0.0f);
+        snapshots.clear();
+        space.snapshotBodies(snapshots::add);
+
+        assertEquals(1, snapshots.size());
+        PhysicsBodySnapshot moved = snapshots.get(0);
+        assertEquals(ShapeType.PLANE, moved.shapeType());
+        assertEquals(PhysicsBodyType.STATIC, moved.bodyType());
+        assertVectorNear(new Vector3f(0.0f, 5.0f, 0.0f), moved.position(), 0.0001f);
     }
 
     @Test
