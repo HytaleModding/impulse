@@ -43,6 +43,7 @@ fn resize_reused_buffer<T: Clone>(buffer: &mut Vec<T>, len: usize, fill: T) -> b
     true
 }
 
+#[allow(clippy::enum_variant_names)]
 #[derive(Clone, Copy)]
 enum BodyMutationFailure {
     StaleBodyHandle(jlong),
@@ -90,22 +91,22 @@ fn checked_body_exists(
     }
 }
 
-fn checked_body_mut<'space>(
-    space: &'space mut NativeSpace,
+fn checked_body_mut(
+    space: &mut NativeSpace,
     entry: BodyEntry,
     body_id: jlong,
-) -> Result<&'space mut RigidBody, BodyMutationFailure> {
+) -> Result<&mut RigidBody, BodyMutationFailure> {
     space
         .bodies
         .get_mut(entry.body)
         .ok_or(BodyMutationFailure::StaleRigidBody(body_id))
 }
 
-fn checked_collider_mut<'space>(
-    space: &'space mut NativeSpace,
+fn checked_collider_mut(
+    space: &mut NativeSpace,
     entry: BodyEntry,
     body_id: jlong,
-) -> Result<&'space mut Collider, BodyMutationFailure> {
+) -> Result<&mut Collider, BodyMutationFailure> {
     space
         .colliders
         .get_mut(entry.collider)
