@@ -24,8 +24,7 @@ public record PhysicsBodySnapshot(@Nonnull Vector3f position,
                                   @Nullable Vector3f boxHalfExtents,
                                   float sphereRadius,
                                   float halfHeight,
-                                  @Nonnull PhysicsAxis shapeAxis,
-                                  float planeGroundY) {
+                                  @Nonnull PhysicsAxis shapeAxis) {
 
     public PhysicsBodySnapshot {
         position = new Vector3f(position);
@@ -71,8 +70,7 @@ public record PhysicsBodySnapshot(@Nonnull Vector3f position,
             body.getBoxHalfExtents(),
             body.getSphereRadius(),
             body.getHalfHeight(),
-            body.getShapeAxis(),
-            body.getPlaneGroundY());
+            body.getShapeAxis());
     }
 
     @Nonnull

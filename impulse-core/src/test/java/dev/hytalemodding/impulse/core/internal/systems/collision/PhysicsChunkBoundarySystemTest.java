@@ -102,8 +102,7 @@ class PhysicsChunkBoundarySystemTest {
             new Vector3f(0.5f),
             -1.0f,
             -1.0f,
-            PhysicsAxis.Y,
-            Float.NaN);
+            PhysicsAxis.Y);
     }
 
     private static final class CountingBody implements PhysicsBody {

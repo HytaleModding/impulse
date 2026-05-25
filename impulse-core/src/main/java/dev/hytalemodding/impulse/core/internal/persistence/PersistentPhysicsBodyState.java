@@ -72,12 +72,6 @@ public class PersistentPhysicsBodyState {
         .addValidator(PersistentPhysicsValidation.nonNegativeFiniteFloat(
             "Persisted body half height must be finite and >= 0"))
         .add()
-        .append(new KeyedCodec<>("PlaneGroundY", Codec.FLOAT, false),
-            (state, value) -> state.planeGroundY = value,
-            PersistentPhysicsBodyState::getPlaneGroundY)
-        .addValidator(PersistentPhysicsValidation.finiteFloat(
-            "Persisted body plane height must be finite"))
-        .add()
         .append(new KeyedCodec<>("BodyType", new EnumCodec<>(PhysicsBodyType.class)),
             (state, value) -> state.bodyType = value,
             PersistentPhysicsBodyState::getBodyType)
@@ -175,8 +169,6 @@ public class PersistentPhysicsBodyState {
     private float sphereRadius;
     @Getter
     private float halfHeight;
-    @Getter
-    private float planeGroundY;
     @Nonnull
     private PhysicsBodyType bodyType = PhysicsBodyType.DYNAMIC;
     @Getter
@@ -317,9 +309,6 @@ public class PersistentPhysicsBodyState {
         if (shapeType == ShapeType.SPHERE && !isPositiveFiniteForRestore(sphereRadius)) {
             return "invalid sphere radius";
         }
-        if (shapeType == ShapeType.PLANE && !Float.isFinite(planeGroundY)) {
-            return "invalid plane height";
-        }
         if (usesRadiusAndHalfHeight(shapeType)
             && (!isPositiveFiniteForRestore(sphereRadius) || !isPositiveFiniteForRestore(halfHeight))) {
             return "invalid swept shape dimensions";
@@ -329,8 +318,8 @@ public class PersistentPhysicsBodyState {
 
     public void updateFromBody(@Nonnull PhysicsBody body, @Nullable SpaceId spaceId) {
         this.spaceId = spaceId != null && spaceId.value() > 0 ? spaceId.value() : DEFAULT_SPACE_ID;
-        shapeType = body.getShapeType() != null ? body.getShapeType() : ShapeType.UNKNOWN;
-        shapeAxis = body.getShapeAxis() != null ? body.getShapeAxis() : PhysicsAxis.Y;
+        shapeType = body.getShapeType();
+        shapeAxis = body.getShapeAxis();
         Vector3f halfExtents = body.getBoxHalfExtents();
         if (isFiniteVector(halfExtents)) {
             boxHalfExtents.set(halfExtents);
@@ -339,8 +328,7 @@ public class PersistentPhysicsBodyState {
         }
         sphereRadius = positiveFiniteOrZeroForRestore(body.getSphereRadius());
         halfHeight = positiveFiniteOrZeroForRestore(body.getHalfHeight());
-        planeGroundY = shapeType == ShapeType.PLANE ? finiteOrZero(body.getPlaneGroundY()) : 0.0f;
-        bodyType = body.getBodyType() != null ? body.getBodyType() : PhysicsBodyType.DYNAMIC;
+        bodyType = body.getBodyType();
         mass = nonNegativeFiniteOrDefaultForSnapshot(body.getMass(), 1.0f);
         copyFiniteVectorOrZero(position, body.getPosition());
         var bodyRotation = body.getRotation();
@@ -367,7 +355,7 @@ public class PersistentPhysicsBodyState {
             case CAPSULE -> space.createCapsule(sphereRadius, halfHeight, shapeAxis, dynamicMass);
             case CYLINDER -> space.createCylinder(sphereRadius, halfHeight, shapeAxis, dynamicMass);
             case CONE -> space.createCone(sphereRadius, halfHeight, shapeAxis, dynamicMass);
-            case PLANE -> space.createStaticPlane(finiteOrZero(planeGroundY));
+            case PLANE -> space.createStaticPlane(finiteOrZero(position.y));
             case VOXELS -> throw new IllegalStateException(
                 "PersistentPhysicsBodyState cannot rebuild streamed voxel terrain bodies");
             case UNKNOWN -> throw new IllegalStateException("Persistent body shape is unknown");
@@ -404,7 +392,6 @@ public class PersistentPhysicsBodyState {
         copy.boxHalfExtents.set(boxHalfExtents);
         copy.sphereRadius = sphereRadius;
         copy.halfHeight = halfHeight;
-        copy.planeGroundY = planeGroundY;
         copy.bodyType = bodyType;
         copy.mass = mass;
         copy.position.set(position);

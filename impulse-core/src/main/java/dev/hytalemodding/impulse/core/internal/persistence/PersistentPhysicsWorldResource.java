@@ -49,7 +49,7 @@ import lombok.Setter;
  */
 public class PersistentPhysicsWorldResource implements Resource<EntityStore> {
 
-    public static final int CURRENT_SCHEMA_VERSION = 4;
+    public static final int CURRENT_SCHEMA_VERSION = 5;
     private static final PersistentPhysicsSpaceState[] EMPTY_SPACES = new PersistentPhysicsSpaceState[0];
     private static final PersistentPhysicsBodyState[] EMPTY_BODIES = new PersistentPhysicsBodyState[0];
     private static final PersistentPhysicsJointState[] EMPTY_JOINTS = new PersistentPhysicsJointState[0];

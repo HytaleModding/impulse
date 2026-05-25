@@ -11,6 +11,7 @@ import com.hypixel.hytale.server.core.util.BsonUtil;
 import dev.hytalemodding.impulse.api.PhysicsBody;
 import dev.hytalemodding.impulse.api.PhysicsJointType;
 import dev.hytalemodding.impulse.api.PhysicsSpace;
+import dev.hytalemodding.impulse.api.ShapeType;
 import dev.hytalemodding.impulse.api.testsupport.FakePhysicsBackend;
 import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyId;
 import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyKind;
@@ -103,7 +104,7 @@ class PersistentPhysicsCodecValidationTest {
     @Test
     void worldResourceCodecRejectsOldSchemaVersion() {
         BsonDocument encoded = encodeWorld(new PersistentPhysicsWorldResource());
-        encoded.put("SchemaVersion", new BsonInt32(3));
+        encoded.put("SchemaVersion", new BsonInt32(4));
 
         assertValidationFails(
             () -> PersistentPhysicsWorldResource.CODEC.decode(encoded, new ExtraInfo()),
@@ -156,7 +157,7 @@ class PersistentPhysicsCodecValidationTest {
     }
 
     @Test
-    void worldResourceCodecReadsSchemaV4StateBlocksFromJson() throws Exception {
+    void worldResourceCodecReadsSchemaV5StateBlocksFromJson() throws Exception {
         PersistentPhysicsWorldResource resource = new PersistentPhysicsWorldResource();
         PersistentPhysicsBodyState body = persistentBodyState();
         resource.setBodies(new PersistentPhysicsBodyState[] { body });
@@ -231,6 +232,25 @@ class PersistentPhysicsCodecValidationTest {
     }
 
     @Test
+    void bodyStateCodecDoesNotWritePlaneGroundY() {
+        BsonDocument encoded = encodeBody(persistentPlaneBodyState(12.0f));
+
+        assertFalse(encoded.containsKey("PlaneGroundY"));
+    }
+
+    @Test
+    void bodyStateRestoresPlaneHeightFromPositionY() {
+        PersistentPhysicsBodyState state = persistentPlaneBodyState(12.0f);
+        PhysicsSpace restoreSpace = new FakePhysicsBackend("test:plane-restore-"
+            + BACKEND_COUNTER.incrementAndGet()).createSpace();
+
+        PhysicsBody restored = state.createBody(restoreSpace);
+
+        assertEquals(ShapeType.PLANE, restored.getShapeType());
+        assertEquals(12.0f, restored.getPosition().y, 0.0001f);
+    }
+
+    @Test
     void jointStateCodecRejectsInvalidSpaceIdInsteadOfDefaulting() {
         BsonDocument encoded = encodeJoint(persistentJointState(1));
         encoded.put("SpaceId", new BsonInt32(0));
@@ -264,7 +284,7 @@ class PersistentPhysicsCodecValidationTest {
     @Test
     void stateBlockCodecRejectsOldSchemaVersionBeforeInflating() {
         BsonDocument encoded = encodeStateBlock(bodyBlock());
-        encoded.put("SchemaVersion", new BsonInt32(3));
+        encoded.put("SchemaVersion", new BsonInt32(4));
 
         assertValidationFails(
             () -> PersistentPhysicsStateBlock.CODEC.decode(encoded, new ExtraInfo()),
@@ -361,6 +381,20 @@ class PersistentPhysicsCodecValidationTest {
             + BACKEND_COUNTER.incrementAndGet()).createSpace();
         PhysicsBody body = space.createBox(0.5f, 0.75f, 1.0f, 1.0f);
         PhysicsBodyId bodyId = PhysicsBodyId.of(UUID.fromString("00000000-0000-0000-0000-000000000001"));
+        PhysicsWorldResource.BodyRegistration registration = new PhysicsWorldResource.BodyRegistration(
+            bodyId,
+            body,
+            space.getId(),
+            PhysicsBodyKind.BODY,
+            PhysicsBodyPersistenceMode.PERSISTENT);
+        return PersistentPhysicsBodyState.from(registration);
+    }
+
+    private static PersistentPhysicsBodyState persistentPlaneBodyState(float groundY) {
+        PhysicsSpace space = new FakePhysicsBackend("test:plane-body-state-block-"
+            + BACKEND_COUNTER.incrementAndGet()).createSpace();
+        PhysicsBody body = space.createStaticPlane(groundY);
+        PhysicsBodyId bodyId = PhysicsBodyId.of(UUID.fromString("00000000-0000-0000-0000-000000000003"));
         PhysicsWorldResource.BodyRegistration registration = new PhysicsWorldResource.BodyRegistration(
             bodyId,
             body,

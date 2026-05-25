@@ -55,8 +55,7 @@ class PublishedPhysicsSnapshotFrameTest {
             new Vector3f(0.5f, 0.75f, 1.0f),
             -1.0f,
             -1.0f,
-            PhysicsAxis.Y,
-            Float.NaN);
+            PhysicsAxis.Y);
 
         position.zero();
         rotation.identity();
@@ -93,8 +92,7 @@ class PublishedPhysicsSnapshotFrameTest {
             new Vector3f(0.25f, 0.5f, 0.75f),
             -1.0f,
             -1.0f,
-            PhysicsAxis.Y,
-            Float.NaN);
+            PhysicsAxis.Y);
 
         PublishedPhysicsBodySnapshot published = PublishedPhysicsBodySnapshot.from(BODY_ID,
             SPACE_ID,
@@ -238,7 +236,6 @@ class PublishedPhysicsSnapshotFrameTest {
             new Vector3f(0.5f),
             -1.0f,
             -1.0f,
-            PhysicsAxis.Y,
-            Float.NaN);
+            PhysicsAxis.Y);
     }
 }

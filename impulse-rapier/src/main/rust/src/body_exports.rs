@@ -303,7 +303,6 @@ pub extern "system" fn Java_dev_hytalemodding_impulse_rapier_RapierNative_addBod
             radius,
             half_height,
             axis,
-            pos_y,
         )
         .friction(finite_nonnegative(friction))
         .friction_combine_rule(CoefficientCombineRule::Multiply)

@@ -566,7 +566,6 @@ fn build_collider(
     radius: f32,
     half_height: f32,
     axis: i32,
-    _ground_y: f32,
 ) -> ColliderBuilder {
     // Shapes are built in the backend local orientation.
     match shape_type {

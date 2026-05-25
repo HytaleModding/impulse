@@ -22,6 +22,7 @@ import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Consumer;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
+import lombok.Getter;
 import org.joml.Vector3f;
 
 /**
@@ -41,6 +42,7 @@ public final class PhysicsWorldSnapshotState {
     @Nonnull
     private final AtomicReference<PublishedPhysicsSnapshotFrame> latestPublishedFrame =
         new AtomicReference<>(PublishedPhysicsSnapshotFrame.empty(0L, 0L));
+    @Getter
     private volatile long latestSnapshotAppliedNanos;
 
     @Nullable
@@ -154,8 +156,7 @@ public final class PhysicsWorldSnapshotState {
                     bodyFrame.boxHalfExtents(),
                     bodyFrame.sphereRadius(),
                     bodyFrame.halfHeight(),
-                    bodyFrame.shapeAxis(),
-                    bodyFrame.planeGroundY());
+                    bodyFrame.shapeAxis());
                 bodySnapshots.put(bodyFrame.bodyId(),
                     snapshot,
                     bodyFrame.spaceId(),
@@ -171,10 +172,6 @@ public final class PhysicsWorldSnapshotState {
     @Nonnull
     public PublishedPhysicsSnapshotFrame getLatestPublishedFrame() {
         return latestPublishedFrame.get();
-    }
-
-    public long getLatestSnapshotAppliedNanos() {
-        return latestSnapshotAppliedNanos;
     }
 
     public int getBodySnapshotCount() {
