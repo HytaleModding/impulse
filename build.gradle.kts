@@ -2,6 +2,7 @@ import org.gradle.api.GradleException
 import org.gradle.api.artifacts.ProjectDependency
 import org.gradle.api.tasks.Copy
 import org.gradle.api.tasks.Delete
+import org.gradle.api.tasks.compile.JavaCompile
 import org.gradle.api.tasks.testing.Test
 import org.gradle.api.tasks.testing.logging.TestExceptionFormat
 import org.gradle.api.tasks.testing.logging.TestLogEvent
@@ -68,6 +69,22 @@ subprojects {
 val examplesSourceDir = layout.projectDirectory.dir("impulse-examples/src/main/java").asFile
 val backendProjectPaths = setOf(":impulse-bullet", ":impulse-rapier")
 val backendJarIncludes = listOf("impulse-bullet-*.jar", "impulse-rapier-*.jar")
+val hytaleToolProjectPaths = listOf(
+    ":impulse-core",
+    ":impulse-examples",
+    ":impulse-bullet",
+    ":impulse-rapier")
+
+gradle.projectsEvaluated {
+    val hytaleAssetDownloads = hytaleToolProjectPaths
+        .map { path -> project(path).tasks.named("downloadAssetsZip") }
+
+    hytaleToolProjectPaths.forEach { path ->
+        project(path).tasks.withType<JavaCompile>().configureEach {
+            hytaleAssetDownloads.forEach { dependsOn(it) }
+        }
+    }
+}
 
 val cleanStagedBackendJars by tasks.registering(Delete::class) {
     delete(fileTree("run/mods") {
