@@ -10,6 +10,8 @@ import com.hypixel.hytale.server.core.command.system.basecommands.AbstractWorldC
 import com.hypixel.hytale.server.core.universe.world.World;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import dev.hytalemodding.impulse.api.BackendId;
+import dev.hytalemodding.impulse.api.Impulse;
+import dev.hytalemodding.impulse.api.PhysicsBackend;
 import dev.hytalemodding.impulse.api.PhysicsSpace;
 import dev.hytalemodding.impulse.api.SpaceId;
 import dev.hytalemodding.impulse.core.ImpulsePlugin;
@@ -270,7 +272,18 @@ public class SpaceCommand extends AbstractCommandCollection {
         @Nonnull OptionalArg<String> backendArg,
         boolean useDefaultWhenMissing) {
         if (!backendArg.provided(context)) {
-            return useDefaultWhenMissing ? ImpulsePlugin.get().getDefaultBackendId() : null;
+            if (!useDefaultWhenMissing) {
+                return null;
+            }
+
+            BackendId defaultBackendId = ImpulsePlugin.get().getDefaultBackendId();
+            if (defaultBackendId != null) {
+                return defaultBackendId;
+            }
+
+            context.sendMessage(Message.raw("Missing backend id. Multiple backends are installed; "
+                + "use --backend=<id>. Available backends: " + availableBackendIds()));
+            return null;
         }
 
         String rawBackendId = backendArg.get(context).trim();
@@ -299,6 +312,16 @@ public class SpaceCommand extends AbstractCommandCollection {
             case "false", "no", "n", "0", "nodefault" -> Boolean.FALSE;
             default -> null;
         };
+    }
+
+    @Nonnull
+    private static String availableBackendIds() {
+        List<String> backendIds = new ArrayList<>();
+        for (PhysicsBackend backend : Impulse.getBackends()) {
+            backendIds.add(backend.getId().value());
+        }
+        backendIds.sort(String::compareTo);
+        return backendIds.isEmpty() ? "<none>" : String.join(", ", backendIds);
     }
 
     private record SpaceCounts(int bodies, int joints) {

@@ -227,7 +227,7 @@ final class ImpulseDetachedStreamingBenchmarkCrucibleTests {
             settings.getSolverSettings().setStabilizationIterations(1);
             settings.getSolverSettings().setMinIslandSize(128);
 
-            PhysicsSpace space = physics.createLiveSpace(ImpulsePlugin.get().getDefaultBackendId(),
+            PhysicsSpace space = physics.createLiveSpace(CrucibleBackends.requireBackendId(),
                 world.getName(),
                 settings,
                 true);

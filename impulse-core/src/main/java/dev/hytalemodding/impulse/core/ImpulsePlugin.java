@@ -45,10 +45,11 @@ import dev.hytalemodding.impulse.core.plugin.components.ImpulseControllableCompo
 import dev.hytalemodding.impulse.core.plugin.components.PhysicsBodyAttachmentComponent;
 import dev.hytalemodding.impulse.core.plugin.components.PhysicsControlSessionComponent;
 import dev.hytalemodding.impulse.core.plugin.resources.PhysicsWorldResource;
-import java.util.Optional;
+import java.util.Collection;
 import java.util.ServiceLoader;
 import java.util.logging.Level;
 import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
 import lombok.Getter;
 
 public final class ImpulsePlugin extends JavaPlugin {
@@ -89,7 +90,7 @@ public final class ImpulsePlugin extends JavaPlugin {
     @Getter
     private SystemGroup<EntityStore> persistenceRestoreGroup;
 
-    @Getter
+    @Nullable
     private BackendId defaultBackendId;
 
     private PhysicsStepSystem physicsStepSystem;
@@ -102,6 +103,11 @@ public final class ImpulsePlugin extends JavaPlugin {
 
     public static ImpulsePlugin get() {
         return instance;
+    }
+
+    @Nullable
+    public BackendId getDefaultBackendId() {
+        return defaultBackendId;
     }
 
     @Override
@@ -161,6 +167,9 @@ public final class ImpulsePlugin extends JavaPlugin {
         ServiceLoader<PhysicsBackend> loader = ServiceLoader.load(PhysicsBackend.class);
         for (PhysicsBackend backend : loader) {
             Impulse.registerBackend(backend);
+        }
+
+        for (PhysicsBackend backend : Impulse.getBackends()) {
             backend.setDataDirectory(getDataDirectory());
             LOGGER.at(Level.INFO).log("Registered physics backend %s", backend.getId());
         }
@@ -169,42 +178,24 @@ public final class ImpulsePlugin extends JavaPlugin {
             throw new IllegalStateException("No physics backends discovered");
         }
 
-        Optional<String> configuredBackendId = getConfiguredBackendId();
-        if (configuredBackendId.isPresent()) {
-            defaultBackendId = Impulse.getBackends().stream()
-                .map(PhysicsBackend::getId)
-                .filter(id -> configuredBackendId.get().equals(id.value()))
-                .findFirst()
-                .orElseThrow(() -> new IllegalStateException(
-                    "Configured physics backend " + configuredBackendId.get()
-                        + " was not discovered. Available backends: " + getAvailableBackendIds()));
-            LOGGER.at(Level.INFO).log("Using configured physics backend %s", defaultBackendId);
+        defaultBackendId = selectDefaultBackendId(Impulse.getBackends());
+        if (defaultBackendId != null) {
+            LOGGER.at(Level.INFO).log("Using default physics backend %s", defaultBackendId);
             return;
         }
 
-        Optional<PhysicsBackend> bullet = Impulse.getBackends().stream()
-            .filter(backend -> "impulse:bullet".equals(backend.getId().value()))
-            .findFirst();
-
-        defaultBackendId = bullet
-            .map(PhysicsBackend::getId)
-            .orElseGet(() -> Impulse.getBackends().iterator().next().getId());
-        LOGGER.at(Level.INFO).log("Using default physics backend %s", defaultBackendId);
+        LOGGER.at(Level.INFO).log("Multiple physics backends discovered; no default backend "
+            + "selected. Pass --backend=<id> when creating spaces. Available backends: %s",
+            getAvailableBackendIds());
     }
 
-    @Nonnull
-    private Optional<String> getConfiguredBackendId() {
-        String systemProperty = System.getProperty("impulse.backend");
-        if (systemProperty != null && !systemProperty.isBlank()) {
-            return Optional.of(systemProperty.trim());
+    @Nullable
+    static BackendId selectDefaultBackendId(@Nonnull Collection<PhysicsBackend> backends) {
+        if (backends.size() != 1) {
+            return null;
         }
 
-        String environmentVariable = System.getenv("IMPULSE_BACKEND");
-        if (environmentVariable != null && !environmentVariable.isBlank()) {
-            return Optional.of(environmentVariable.trim());
-        }
-
-        return Optional.empty();
+        return backends.iterator().next().getId();
     }
 
     @Nonnull

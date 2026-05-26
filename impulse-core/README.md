@@ -29,11 +29,11 @@ Spaces are explicit. Commands should not create hidden default spaces.
 First run in a fresh world should create the default space explicitly before commands that target the default space:
 
 ```bash
-/impulse space create --default=true
+/impulse space create --backend=impulse:rapier --default=true
 ```
 
-- `/impulse space create --default=true` - create a physics space using the configured backend and streaming world collision, then make it default.
-- `/impulse space create` - create a physics space without relying on hidden default-space creation.
+- `/impulse space create --backend=impulse:rapier --default=true` - create a Rapier physics space using streaming world collision, then make it default.
+- `/impulse space create` - create a physics space only when exactly one backend is installed.
 - `/impulse space create --backend=impulse:rapier --worldCollision=streaming --default=true` - create a Rapier space and make it default.
 - `/impulse space list` - list spaces, body counts, joint counts, backend ids, and world-collision mode.
 - `/impulse space default` - show the default physics space.
@@ -44,9 +44,7 @@ First run in a fresh world should create the default space explicitly before com
 
 - `/impulse backend list` - list discovered backends and active physics spaces.
 
-Backend swap is not registered as a public command. Create explicit spaces with the desired backend instead.
-
-Bullet is the default backend when it is available. Rapier currently has the strongest 10k-body direction, but backend-facing APIs should stay common where practical.
+Backend swap is not registered as a public command. Create explicit spaces with the desired backend instead. If multiple backend jars are installed, Impulse does not select a default backend; commands that create spaces must pass `--backend=<id>`.
 
 ## Cleanup commands
 
@@ -114,19 +112,22 @@ Run the smoke-tagged runtime suite:
 
 ```bash
 JAVA_TOOL_OPTIONS="-Dcrucible.autorun=true -Dcrucible.tags=smoke" \
-  ./gradlew -Dimpulse.backend=impulse:rapier runAllMods
+  ./gradlew runAllMods
 ```
 
 Run the live-tagged runtime suite:
 
 ```bash
 JAVA_TOOL_OPTIONS="-Dcrucible.autorun=true -Dcrucible.tags=live" \
-  ./gradlew -Dimpulse.backend=impulse:rapier runAllMods
+  ./gradlew runAllMods
 ```
 
 Run the detached full-collision streaming benchmark scenario:
 
 ```bash
 JAVA_TOOL_OPTIONS="-Dcrucible.autorun=true -Dcrucible.tags=benchmark" \
-  ./gradlew -Dimpulse.backend=impulse:rapier runAllMods
+  ./gradlew runAllMods
 ```
+
+Crucible selects `impulse:rapier` when it is installed. Override that only for backend-specific
+debugging with `-Dimpulse.crucible.backend=<id>`.
