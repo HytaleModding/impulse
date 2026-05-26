@@ -130,8 +130,7 @@ public final class PhysicsWorkerAccess {
         } catch (RuntimeException exception) {
             throw exception;
         } catch (Exception exception) {
-            throw new IllegalStateException("Physics worker operation " + operation + " failed",
-                exception);
+            throw new IllegalStateException(workerFailureMessage(operation, exception), exception);
         }
     }
 
@@ -153,8 +152,21 @@ public final class PhysicsWorkerAccess {
         if (cause instanceof RuntimeException runtimeException) {
             return runtimeException;
         }
-        return new IllegalStateException("Physics worker operation " + operation + " failed",
-            cause);
+        return new IllegalStateException(workerFailureMessage(operation, cause), cause);
+    }
+
+    @Nonnull
+    private static String workerFailureMessage(@Nonnull String operation,
+        @Nonnull Throwable cause) {
+        StringBuilder message = new StringBuilder("Physics worker operation ")
+            .append(operation)
+            .append(" failed: ")
+            .append(cause.getClass().getSimpleName());
+        String causeMessage = cause.getMessage();
+        if (causeMessage != null && !causeMessage.isBlank()) {
+            message.append(": ").append(causeMessage);
+        }
+        return message.toString();
     }
 
     @FunctionalInterface

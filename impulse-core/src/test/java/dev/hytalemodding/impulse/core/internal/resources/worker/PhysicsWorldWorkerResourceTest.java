@@ -6,6 +6,7 @@ import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import dev.hytalemodding.impulse.core.internal.worker.PhysicsWorkerAccess;
 import dev.hytalemodding.impulse.core.internal.worker.PhysicsWorkerMutationCompletion;
 import dev.hytalemodding.impulse.core.internal.worker.PhysicsWorkerSnapshot;
 import dev.hytalemodding.impulse.core.internal.worker.PhysicsWorkerStepCommand;
@@ -115,6 +116,23 @@ class PhysicsWorldWorkerResourceTest {
             assertInstanceOf(IllegalStateException.class, completions.getFirst().executionFailure());
             assertFalse(completions.getFirst().completedSuccessfully());
             assertEquals(0, resource.pendingMutations());
+        }
+    }
+
+    @Test
+    void synchronousWorkerCallWrapsErrorsWithCauseSummary() {
+        try (PhysicsWorldWorkerResource resource = new PhysicsWorldWorkerResource(2,
+            Duration.ofSeconds(2L))) {
+            resource.start("worker-error");
+
+            IllegalStateException thrown = assertThrows(IllegalStateException.class,
+                () -> PhysicsWorkerAccess.call(resource, "load native backend", () -> {
+                    throw new UnsatisfiedLinkError("missing native symbol");
+                }));
+
+            assertEquals("Physics worker operation load native backend failed: "
+                + "UnsatisfiedLinkError: missing native symbol", thrown.getMessage());
+            assertInstanceOf(UnsatisfiedLinkError.class, thrown.getCause());
         }
     }
 
