@@ -50,9 +50,9 @@ final class ImpulseApiCrucibleTests {
                     Collection<PhysicsBackend> backends = Impulse.getBackends();
                     return !backends.isEmpty();
                 }, "No physics backends registered"),
-                CrucibleTestCase.sync("default backend", () ->
-                    ImpulsePlugin.get().getDefaultBackendId() != null,
-                    "Default backend id is null"),
+                CrucibleTestCase.sync("test backend selectable", () ->
+                    CrucibleBackends.requireBackendId() != null,
+                    "No backend id is available for Crucible tests"),
                 CrucibleTestCase.sync("create space and body",
                     ImpulseApiCrucibleTests::createSpaceAndBody,
                     "Expected a body to be added to the physics space"),
@@ -118,7 +118,7 @@ final class ImpulseApiCrucibleTests {
     }
 
     private static boolean createSpaceAndBody() {
-        BackendId backendId = ImpulsePlugin.get().getDefaultBackendId();
+        BackendId backendId = CrucibleBackends.requireBackendId();
         PhysicsSpace space = Impulse.createSpace(backendId);
         try {
             PhysicsBody body = space.createBox(0.5f, 0.5f, 0.5f, 1.0f);
@@ -137,7 +137,7 @@ final class ImpulseApiCrucibleTests {
 
     private static boolean createDefaultSpaceLifecycle() {
         PhysicsWorldResource resource = new PhysicsWorldRuntimeResource();
-        SpaceId spaceId = resource.createSpace(ImpulsePlugin.get().getDefaultBackendId(),
+        SpaceId spaceId = resource.createSpace(CrucibleBackends.requireBackendId(),
             "crucible",
             PhysicsSpaceSettings.streamingWorldCollision(),
             true);
@@ -154,7 +154,7 @@ final class ImpulseApiCrucibleTests {
 
     private static boolean clearPopulatedSpaces() {
         PhysicsWorldResource resource = new PhysicsWorldRuntimeResource();
-        SpaceId spaceId = resource.createSpace(ImpulsePlugin.get().getDefaultBackendId(),
+        SpaceId spaceId = resource.createSpace(CrucibleBackends.requireBackendId(),
             "crucible",
             PhysicsSpaceSettings.defaults(),
             true);
@@ -172,7 +172,7 @@ final class ImpulseApiCrucibleTests {
 
     private static boolean detachedUnregisterRemovesBackendBody() {
         PhysicsWorldResource resource = new PhysicsWorldRuntimeResource();
-        SpaceId spaceId = resource.createSpace(ImpulsePlugin.get().getDefaultBackendId(),
+        SpaceId spaceId = resource.createSpace(CrucibleBackends.requireBackendId(),
             "crucible",
             PhysicsSpaceSettings.defaults(),
             true);
@@ -224,7 +224,7 @@ final class ImpulseApiCrucibleTests {
         settings.getVisualMaterializationSettings().setDetachedVisualMaxMaterialized(444);
         settings.getVisualMaterializationSettings().setDetachedVisualBlockType("Rock_Stone");
 
-        SpaceId spaceId = resource.createSpace(ImpulsePlugin.get().getDefaultBackendId(),
+        SpaceId spaceId = resource.createSpace(CrucibleBackends.requireBackendId(),
             "crucible",
             settings,
             true);
@@ -260,7 +260,7 @@ final class ImpulseApiCrucibleTests {
     }
 
     private static boolean stepSpaceDoesNotThrow() {
-        BackendId backendId = ImpulsePlugin.get().getDefaultBackendId();
+        BackendId backendId = CrucibleBackends.requireBackendId();
         PhysicsSpace space = Impulse.createSpace(backendId);
         try {
             space.setGravity(0f, -9.81f, 0f);
@@ -275,7 +275,7 @@ final class ImpulseApiCrucibleTests {
     }
 
     private static boolean dynamicBodyFalls() {
-        BackendId backendId = ImpulsePlugin.get().getDefaultBackendId();
+        BackendId backendId = CrucibleBackends.requireBackendId();
         PhysicsSpace space = Impulse.createSpace(backendId);
         try {
             space.setGravity(0f, -9.81f, 0f);
@@ -297,7 +297,7 @@ final class ImpulseApiCrucibleTests {
     }
 
     private static boolean staticBodyDoesNotMove() {
-        BackendId backendId = ImpulsePlugin.get().getDefaultBackendId();
+        BackendId backendId = CrucibleBackends.requireBackendId();
         PhysicsSpace space = Impulse.createSpace(backendId);
         try {
             space.setGravity(0f, -9.81f, 0f);
@@ -318,7 +318,7 @@ final class ImpulseApiCrucibleTests {
     }
 
     private static boolean bodyLandsOnGroundPlane() {
-        BackendId backendId = ImpulsePlugin.get().getDefaultBackendId();
+        BackendId backendId = CrucibleBackends.requireBackendId();
         PhysicsSpace space = Impulse.createSpace(backendId);
         try {
             space.setGravity(0f, -9.81f, 0f);
@@ -342,7 +342,7 @@ final class ImpulseApiCrucibleTests {
     }
 
     private static boolean bodySettlesWithinTolerance() {
-        BackendId backendId = ImpulsePlugin.get().getDefaultBackendId();
+        BackendId backendId = CrucibleBackends.requireBackendId();
         PhysicsSpace space = Impulse.createSpace(backendId);
         try {
             space.setGravity(0f, -9.81f, 0f);
@@ -366,7 +366,7 @@ final class ImpulseApiCrucibleTests {
     }
 
     private static boolean raycastHitsGroundPlane() {
-        BackendId backendId = ImpulsePlugin.get().getDefaultBackendId();
+        BackendId backendId = CrucibleBackends.requireBackendId();
         PhysicsSpace space = Impulse.createSpace(backendId);
         try {
             PhysicsBody ground = space.createStaticPlane(0f);

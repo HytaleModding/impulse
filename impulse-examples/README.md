@@ -5,13 +5,13 @@ Example plugin for exercising Impulse from Hytale commands.
 Run the example mod with:
 
 ```bash
-./gradlew -Dimpulse.backend=impulse:rapier runAllMods
+./gradlew runAllMods
 ```
 
 Fresh worlds need an explicit default physics space before example commands that spawn into the default space:
 
 ```bash
-/impulse space create --default=true
+/impulse space create --backend=impulse:rapier --default=true
 ```
 
 Use `/impulse space default --space=<space-id>` instead when selecting an existing space. Missing-default errors are intentional and mean this setup step has not happened yet.

@@ -124,7 +124,7 @@ final class ImpulseLiveCrucibleTests {
             return resource.callOnPhysicsOwner("resolve live crucible default space",
                 access -> access.requireSpace(defaultSpaceId));
         }
-        SpaceId spaceId = resource.createSpace(ImpulsePlugin.get().getDefaultBackendId(),
+        SpaceId spaceId = resource.createSpace(CrucibleBackends.requireBackendId(),
             world.getName(),
             PhysicsSpaceSettings.defaults(),
             true);

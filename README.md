@@ -12,31 +12,19 @@ Physics library for Hytale.
 
 ## Getting started
 
-You can start a debug server with all the example mods by running:
+You can start a debug server with all the example mods and backend jars by running:
 
 ```bash
 ./gradlew runAllMods
 ```
 
-To create spaces with Rapier as the default backend use:
+When multiple backend jars are installed, create spaces with an explicit backend:
 
 ```bash
-./gradlew -Dimpulse.backend=impulse:rapier runAllMods
+/impulse space create --backend=impulse:rapier --default=true
 ```
 
-or:
-
-```bash
-./gradlew -Pimpulse.backend=impulse:rapier runAllMods
-```
-
-or:
-
-```bash
-IMPULSE_BACKEND=impulse:rapier ./gradlew runAllMods
-```
-
-The Rapier backend needs a Rust toolchain to build its native library. If `cargo` is available, `:impulse-rapier:processResources` builds and packages the Linux x86_64 native library automatically. You can also force native compilation with:
+The Rapier backend needs a Rust toolchain to build its native library. If `cargo` is available, `:impulse-rapier:processResources` builds and packages the current build platform native library automatically. You can also force native compilation with:
 
 ```bash
 ./gradlew :impulse-rapier:build -PbuildRapierNative=true
@@ -45,7 +33,7 @@ The Rapier backend needs a Rust toolchain to build its native library. If `cargo
 it also supports SIMD optimizations that can be enabled using:
 
 ```bash
-./gradlew -Dimpulse.backend=impulse:rapier -PrapierNativeFeatures=rapier-simd-stable runAllMods
+./gradlew -PrapierNativeFeatures=rapier-simd-stable runAllMods
 ```
 
 ## Testing
