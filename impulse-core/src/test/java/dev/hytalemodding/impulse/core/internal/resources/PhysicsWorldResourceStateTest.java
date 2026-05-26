@@ -16,6 +16,8 @@ import dev.hytalemodding.impulse.api.PhysicsSpace;
 import dev.hytalemodding.impulse.api.SpaceId;
 import dev.hytalemodding.impulse.api.testsupport.FakePhysicsBackend;
 import dev.hytalemodding.impulse.api.testsupport.FakePhysicsBackend.InMemoryPhysicsSpace;
+import dev.hytalemodding.impulse.core.internal.resources.body.PhysicsBodyRuntimeState.BodySyncState;
+import dev.hytalemodding.impulse.core.internal.resources.chunk.PhysicsChunkBoundaryRuntime.ChunkBoundaryPauseState;
 import dev.hytalemodding.impulse.core.internal.resources.worker.PhysicsWorldWorkerResource;
 import dev.hytalemodding.impulse.core.internal.worker.PhysicsWorkerSnapshot;
 import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyId;
@@ -23,6 +25,7 @@ import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyKind;
 import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyPersistenceMode;
 import dev.hytalemodding.impulse.core.plugin.collision.WorldCollisionMode;
 import dev.hytalemodding.impulse.core.plugin.execution.PhysicsMutationHandle;
+import dev.hytalemodding.impulse.core.plugin.resources.PhysicsRuntimeResetResult;
 import dev.hytalemodding.impulse.core.plugin.resources.PhysicsWorldResource;
 import dev.hytalemodding.impulse.core.plugin.settings.PhysicsSpaceSettings;
 import dev.hytalemodding.impulse.core.plugin.settings.PhysicsWorldSettings;
@@ -67,7 +70,7 @@ class PhysicsWorldResourceStateTest {
 
     @Test
     void bodySyncStateTracksLastSyncAndClampsNegativeSkipTime() {
-        PhysicsWorldResource.BodySyncState syncState = new PhysicsWorldResource.BodySyncState();
+        BodySyncState syncState = new BodySyncState();
 
         syncState.recordSync(new Vector3f(1.0f, 2.0f, 3.0f),
             new Quaternionf().rotateY(0.5f),
@@ -84,8 +87,8 @@ class PhysicsWorldResourceStateTest {
 
     @Test
     void chunkBoundaryPauseStateCopiesProvidedVectors() {
-        PhysicsWorldResource.ChunkBoundaryPauseState state =
-            new PhysicsWorldResource.ChunkBoundaryPauseState();
+        ChunkBoundaryPauseState state =
+            new ChunkBoundaryPauseState();
         Vector3f linear = new Vector3f(1.0f, 2.0f, 3.0f);
         Vector3f angular = new Vector3f(4.0f, 5.0f, 6.0f);
 
@@ -128,7 +131,7 @@ class PhysicsWorldResourceStateTest {
         resource.markBodyControlled(firstId);
         resource.updateChunkBoundarySafeState(firstId, new Vector3f(1.0f), new Quaternionf());
 
-        PhysicsWorldResource.RuntimeResetResult reset =
+        PhysicsRuntimeResetResult reset =
             resource.resetRuntimeStateKeepingSpaces("test-world");
 
         InMemoryPhysicsSpace original = backend.createdSpaces().get(0);
@@ -579,7 +582,7 @@ class PhysicsWorldResourceStateTest {
         assertEquals(1, preResetFrame.bodyCount());
         assertEquals(1, resource.getBodySnapshotCount());
 
-        PhysicsWorldResource.RuntimeResetResult reset =
+        PhysicsRuntimeResetResult reset =
             resource.resetRuntimeStateKeepingSpaces("test-world");
 
         PublishedPhysicsSnapshotFrame resetFrame = resource.getLatestPublishedFrame();

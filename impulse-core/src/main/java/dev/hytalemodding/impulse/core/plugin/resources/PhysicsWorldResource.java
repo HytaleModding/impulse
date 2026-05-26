@@ -7,19 +7,23 @@ import com.hypixel.hytale.logger.HytaleLogger;
 import com.hypixel.hytale.server.core.universe.world.World;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import dev.hytalemodding.impulse.api.BackendId;
-import dev.hytalemodding.impulse.api.Impulse;
-import dev.hytalemodding.impulse.api.PhysicsActivationTuning;
 import dev.hytalemodding.impulse.api.PhysicsBody;
 import dev.hytalemodding.impulse.api.PhysicsBodySnapshot;
 import dev.hytalemodding.impulse.api.PhysicsBodyType;
 import dev.hytalemodding.impulse.api.PhysicsJoint;
 import dev.hytalemodding.impulse.api.PhysicsSpace;
-import dev.hytalemodding.impulse.api.PhysicsSolverTuning;
 import dev.hytalemodding.impulse.api.SpaceId;
 import dev.hytalemodding.impulse.core.ImpulsePlugin;
+import dev.hytalemodding.impulse.core.internal.resources.body.PhysicsBodyRuntimeState.BodySyncState;
+import dev.hytalemodding.impulse.core.internal.resources.chunk.PhysicsChunkBoundaryRuntime.ChunkBoundaryPauseState;
+import dev.hytalemodding.impulse.core.internal.resources.chunk.PhysicsChunkBoundaryRuntime.ChunkBoundarySafeState;
+import dev.hytalemodding.impulse.core.internal.resources.visual.PhysicsVisualRuntime.BodyVisualInterestState;
+import dev.hytalemodding.impulse.core.internal.resources.visual.PhysicsVisualRuntime.VisualInterest;
 import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyId;
 import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyKind;
 import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyPersistenceMode;
+import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyRegistration;
+import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyRegistrationView;
 import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodies;
 import dev.hytalemodding.impulse.core.plugin.collision.WorldCollisionBuildStats;
 import dev.hytalemodding.impulse.core.plugin.collision.WorldCollisionPrewarmStats;
@@ -31,18 +35,19 @@ import dev.hytalemodding.impulse.core.plugin.execution.PhysicsOwnerMutation;
 import dev.hytalemodding.impulse.core.plugin.settings.PhysicsSpaceSettings;
 import dev.hytalemodding.impulse.core.plugin.settings.PhysicsStepMode;
 import dev.hytalemodding.impulse.core.plugin.settings.PhysicsWorldSettings;
+import dev.hytalemodding.impulse.core.plugin.snapshot.PhysicsBodySnapshotEntry;
 import dev.hytalemodding.impulse.core.plugin.snapshot.PublishedPhysicsSnapshotFrame;
 import dev.hytalemodding.impulse.core.internal.resources.body.PhysicsBodyRegistry;
+import dev.hytalemodding.impulse.core.internal.resources.body.PhysicsBodyRuntime;
 import dev.hytalemodding.impulse.core.internal.resources.body.PhysicsBodyRuntimeState;
+import dev.hytalemodding.impulse.core.internal.resources.chunk.PhysicsChunkBoundaryRuntime;
+import dev.hytalemodding.impulse.core.internal.resources.collision.PhysicsWorldCollisionRuntime;
 import dev.hytalemodding.impulse.core.internal.resources.owner.PhysicsOwnerGateway;
+import dev.hytalemodding.impulse.core.internal.resources.simulation.PhysicsSimulationRuntime;
+import dev.hytalemodding.impulse.core.internal.resources.space.PhysicsSpaceRuntime;
 import dev.hytalemodding.impulse.core.internal.resources.snapshot.PhysicsWorldSnapshotState;
+import dev.hytalemodding.impulse.core.internal.resources.visual.PhysicsVisualRuntime;
 import dev.hytalemodding.impulse.core.internal.voxel.WorldCollisionCacheAccess;
-import dev.hytalemodding.impulse.core.internal.voxel.WorldVoxelCollisionCache;
-import it.unimi.dsi.fastutil.ints.Int2ObjectMap;
-import it.unimi.dsi.fastutil.ints.Int2ObjectOpenHashMap;
-import it.unimi.dsi.fastutil.longs.LongOpenHashSet;
-import it.unimi.dsi.fastutil.longs.LongSet;
-import it.unimi.dsi.fastutil.objects.Object2IntOpenHashMap;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
@@ -53,7 +58,6 @@ import java.util.function.Consumer;
 import java.util.logging.Level;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
-import lombok.Getter;
 import org.joml.Quaternionf;
 import org.joml.Vector3d;
 import org.joml.Vector3f;
@@ -69,31 +73,28 @@ public class PhysicsWorldResource implements Resource<EntityStore> {
 
     private static final HytaleLogger LOGGER = HytaleLogger.get("Impulse");
 
-    private final Int2ObjectMap<PhysicsSpace> spaces = new Int2ObjectOpenHashMap<>();
+    private final PhysicsSpaceRuntime spaceRuntime = new PhysicsSpaceRuntime();
 
-    /**
-     * Per-space settings (world collision mode, radius, TTL, etc.). Keyed by space id value.
-     */
-    private final Int2ObjectMap<PhysicsSpaceSettings> spaceSettings = new Int2ObjectOpenHashMap<>();
+    private final PhysicsBodyRegistry bodyRegistry = new PhysicsBodyRegistry();
 
-    private final PhysicsBodyRegistry bodyRegistry = new PhysicsBodyRegistry(this::clearBodySyncState);
-    private final Object2IntOpenHashMap<PhysicsBodyId> pendingBodyCreations =
-        new Object2IntOpenHashMap<>();
+    private final PhysicsWorldCollisionRuntime collisionRuntime =
+        new PhysicsWorldCollisionRuntime();
 
-    private final WorldVoxelCollisionCache worldVoxelCollisionCache = new WorldVoxelCollisionCache();
-
-    /**
-     * The default space for this world, if one has been designated.
-     * This is an optional convenience -- integrators can manage multiple spaces
-     * without designating a default.
-     */
-    @Nullable
-    private SpaceId defaultSpaceId;
     @Nonnull
-    private final PhysicsWorldSettings worldSettings = new PhysicsWorldSettings();
+    private final PhysicsSimulationRuntime simulationRuntime = new PhysicsSimulationRuntime();
 
     private final PhysicsBodyRuntimeState runtimeState = new PhysicsBodyRuntimeState();
+    private final PhysicsChunkBoundaryRuntime chunkRuntime = new PhysicsChunkBoundaryRuntime();
+    private final PhysicsVisualRuntime visualRuntime = new PhysicsVisualRuntime(this::clearBodySyncState);
     private final PhysicsWorldSnapshotState snapshotState = new PhysicsWorldSnapshotState();
+    private final PhysicsBodyRuntime bodyRuntime = new PhysicsBodyRuntime(spaceRuntime,
+        bodyRegistry,
+        runtimeState,
+        chunkRuntime,
+        visualRuntime,
+        snapshotState,
+        this::markWorldChanged);
+
     private final AtomicLong visualInterestTick = new AtomicLong();
     private final PhysicsOwnerGateway ownerGateway = new PhysicsOwnerGateway();
 
@@ -178,34 +179,22 @@ public class PhysicsWorldResource implements Resource<EntityStore> {
 
     @Nullable
     public SpaceId getDefaultSpaceId() {
-        return defaultSpaceId;
+        return spaceRuntime.getDefaultSpaceId();
     }
 
     @Nonnull
     public SpaceId requireDefaultSpaceId() {
-        if (defaultSpaceId == null) {
-            throw new IllegalStateException("No default physics space is configured");
-        }
-        return defaultSpaceId;
+        return spaceRuntime.requireDefaultSpaceId();
     }
 
     @Nullable
     public PhysicsSpace getDefaultSpace() {
-        if (defaultSpaceId == null) {
-            return null;
-        }
-        return getSpace(defaultSpaceId);
+        return spaceRuntime.getDefaultSpace();
     }
 
     @Nonnull
     public PhysicsSpace requireDefaultSpace() {
-        SpaceId spaceId = requireDefaultSpaceId();
-        PhysicsSpace space = getSpace(spaceId);
-        if (space == null) {
-            throw new IllegalStateException("Default physics space id=" + spaceId
-                + " is not registered");
-        }
-        return space;
+        return spaceRuntime.requireDefaultSpace();
     }
 
     public void setDefaultSpaceId(@Nullable SpaceId defaultSpaceId) {
@@ -220,11 +209,7 @@ public class PhysicsWorldResource implements Resource<EntityStore> {
     }
 
     private void setDefaultSpaceIdDirect(@Nullable SpaceId defaultSpaceId) {
-        if (defaultSpaceId != null && !spaces.containsKey(defaultSpaceId.value())) {
-            throw new IllegalArgumentException("Physics space id=" + defaultSpaceId
-                + " is not registered");
-        }
-        this.defaultSpaceId = defaultSpaceId;
+        spaceRuntime.setDefaultSpaceId(defaultSpaceId);
     }
 
     /**
@@ -236,7 +221,7 @@ public class PhysicsWorldResource implements Resource<EntityStore> {
      */
     @Nonnull
     public PhysicsWorldSettings getWorldSettings() {
-        return new PhysicsWorldSettings(worldSettings);
+        return simulationRuntime.getWorldSettings();
     }
 
     /**
@@ -260,7 +245,7 @@ public class PhysicsWorldResource implements Resource<EntityStore> {
 
     private void setWorldSettingsDirect(@Nonnull PhysicsWorldSettings settings) {
         validateStepModeSupported(settings.getStepMode());
-        worldSettings.copyFrom(settings);
+        simulationRuntime.setWorldSettings(settings);
     }
 
     @Nonnull
@@ -327,62 +312,33 @@ public class PhysicsWorldResource implements Resource<EntityStore> {
         @Nonnull String worldName,
         @Nonnull PhysicsSpaceSettings settings,
         boolean makeDefault) {
-        if (spaces.containsKey(spaceId.value())) {
-            throw new IllegalArgumentException("Physics space id=" + spaceId + " is already registered");
-        }
-        SpaceId.reserveAtLeast(spaceId.value());
-
-        LOGGER.at(Level.FINE).log(
-            "World %s creating physics space using backend %s collision=%s",
+        PhysicsSpace space = spaceRuntime.createSpace(backendId,
+            spaceId,
             worldName,
-            backendId,
-            settings.getWorldCollisionSettings().getWorldCollisionMode());
-
-        PhysicsSpace space = Impulse.createSpace(backendId, spaceId);
-        try {
-            validateSpaceCompatibleWithStepMode(space, worldSettings.getStepMode());
-            applySolverTuning(space, settings);
-        } catch (RuntimeException exception) {
-            closeSpaceQuietly(space, worldName, "discarding failed physics space");
-            throw exception;
-        }
-        spaces.put(space.getId().value(), space);
-        spaceSettings.put(space.getId().value(), new PhysicsSpaceSettings(settings));
-        if (makeDefault) {
-            defaultSpaceId = space.getId();
-        }
+            settings,
+            makeDefault,
+            simulationRuntime.getWorldSettings().getStepMode());
         markWorldChanged();
-
-        LOGGER.at(Level.FINE).log(
-            "World %s created physics space id=%s backend=%s collision=%s",
-            worldName,
-            space.getId(),
-            space.getBackendId(),
-            settings.getWorldCollisionSettings().getWorldCollisionMode());
         return space;
     }
 
     @Nullable
     public PhysicsSpace getSpace(@Nonnull SpaceId spaceId) {
-        return spaces.get(spaceId.value());
+        return spaceRuntime.getSpace(spaceId);
     }
 
     @Nonnull
     private PhysicsSpace requireSpace(@Nonnull SpaceId spaceId) {
-        PhysicsSpace space = getSpace(spaceId);
-        if (space == null) {
-            throw new IllegalArgumentException("Physics space id=" + spaceId + " is not registered");
-        }
-        return space;
+        return spaceRuntime.requireSpace(spaceId);
     }
 
     @Nonnull
     public Collection<PhysicsSpace> getSpaces() {
-        return new ArrayList<>(spaces.values());
+        return spaceRuntime.getSpaces();
     }
 
     public int getSpaceCount() {
-        return spaces.size();
+        return spaceRuntime.getSpaceCount();
     }
 
     /**
@@ -391,7 +347,7 @@ public class PhysicsWorldResource implements Resource<EntityStore> {
      */
     @Nonnull
     public Iterable<PhysicsSpace> iterateSpaces() {
-        return spaces.values();
+        return spaceRuntime.iterateSpaces();
     }
 
     public int refreshBodySnapshots() {
@@ -421,7 +377,7 @@ public class PhysicsWorldResource implements Resource<EntityStore> {
         if (snapshot != null) {
             return snapshot;
         }
-        BodyRegistration registration = requireBodyRegistration(bodyId);
+        PhysicsBodyRegistration registration = requireBodyRegistration(bodyId);
         return snapshotState.captureBodySnapshot(registration);
     }
 
@@ -454,7 +410,7 @@ public class PhysicsWorldResource implements Resource<EntityStore> {
         boolean profilingEnabled) {
 
         assertCanAccessLiveBackendDirectly("capture published physics snapshot frame");
-        return snapshotState.capturePublishedSnapshotFrame(spaces.values(),
+        return snapshotState.capturePublishedSnapshotFrame(spaceRuntime.liveSpaces(),
             bodyRegistry,
             stepSequence,
             serverTick,
@@ -504,8 +460,7 @@ public class PhysicsWorldResource implements Resource<EntityStore> {
     @Nonnull
     public Object internalWorldCollisionState(
         @Nonnull WorldCollisionCacheAccess access) {
-        Objects.requireNonNull(access, "access");
-        return worldVoxelCollisionCache;
+        return collisionRuntime.internalState(access);
     }
 
     @Nonnull
@@ -515,10 +470,7 @@ public class PhysicsWorldResource implements Resource<EntityStore> {
         int radius) {
         return callOnPhysicsOwner("rebuild world collision", () -> {
             PhysicsSpace space = requireSpace(spaceId);
-            return worldCollisionStats(worldVoxelCollisionCache.rebuildAround(world,
-                space,
-                center,
-                radius));
+            return collisionRuntime.rebuildAround(world, space, center, radius);
         });
     }
 
@@ -531,62 +483,31 @@ public class PhysicsWorldResource implements Resource<EntityStore> {
         Objects.requireNonNull(centers, "centers");
         return callOnPhysicsOwner("ensure world collision", () -> {
             PhysicsSpace space = requireSpace(spaceId);
-            LongSet visitedSections = new LongOpenHashSet();
-            WorldVoxelCollisionCache.BuildStats total = WorldVoxelCollisionCache.BuildStats.empty();
-            for (Vector3d center : centers) {
-                total = total.plus(worldVoxelCollisionCache.ensureAround(world,
-                    space,
-                    center,
-                    radius,
-                    tick,
-                    null,
-                    visitedSections));
-            }
-            return new WorldCollisionPrewarmStats(visitedSections.size(),
-                worldCollisionStats(total));
+            return collisionRuntime.ensureAround(world, space, centers, radius, tick);
         });
     }
 
     public int clearWorldCollision(@Nonnull SpaceId spaceId) {
         return callOnPhysicsOwner("clear world collision", () -> {
             PhysicsSpace space = requireSpace(spaceId);
-            return worldVoxelCollisionCache.clear(space);
+            return collisionRuntime.clear(space);
         });
     }
 
     @Nonnull
     public WorldCollisionStats getWorldCollisionStats() {
-        return callOnPhysicsOwner("read world collision stats", () -> new WorldCollisionStats(
-            worldVoxelCollisionCache.spaceCount(),
-            worldVoxelCollisionCache.sectionCount(),
-            worldVoxelCollisionCache.bodyCount(),
-            worldVoxelCollisionCache.shapeTemplateCount()));
-    }
-
-    @Nonnull
-    private static WorldCollisionBuildStats worldCollisionStats(
-        @Nonnull WorldVoxelCollisionCache.BuildStats stats) {
-        return new WorldCollisionBuildStats(stats.scannedBlocks(),
-            stats.solidBlocks(),
-            stats.culledInteriorBlocks(),
-            stats.fullCubeRuns(),
-            stats.detailBoxes(),
-            stats.colliderBodies(),
-            stats.removedBodies(),
-            stats.sectionsBuilt(),
-            stats.sectionsRebuilt(),
-            stats.voxelBodies());
+        return callOnPhysicsOwner("read world collision stats", collisionRuntime::getStats);
     }
 
     public void forEachBodySnapshot(@Nonnull SpaceId spaceId,
-        @Nonnull Consumer<BodySnapshotEntry> consumer) {
+        @Nonnull Consumer<PhysicsBodySnapshotEntry> consumer) {
         snapshotState.forEachBodySnapshot(spaceId, consumer);
     }
 
     public int forEachBodySnapshotNear(@Nonnull SpaceId spaceId,
         @Nonnull Vector3f center,
         float radius,
-        @Nonnull Consumer<BodySnapshotEntry> consumer) {
+        @Nonnull Consumer<PhysicsBodySnapshotEntry> consumer) {
         return snapshotState.forEachBodySnapshotNear(spaceId, center, radius, consumer);
     }
 
@@ -607,12 +528,8 @@ public class PhysicsWorldResource implements Resource<EntityStore> {
     }
 
     private void removeSpaceDirect(@Nonnull SpaceId spaceId, @Nonnull String worldName) {
-        PhysicsSpace removed = spaces.remove(spaceId.value());
-        spaceSettings.remove(spaceId.value());
-        worldVoxelCollisionCache.clear(spaceId, removed);
-        if (defaultSpaceId != null && defaultSpaceId.equals(spaceId)) {
-            defaultSpaceId = null;
-        }
+        PhysicsSpace removed = spaceRuntime.removeSpace(spaceId);
+        collisionRuntime.clear(spaceId, removed);
         if (removed != null) {
             for (PhysicsBody body : new ArrayList<>(removed.getBodies())) {
                 PhysicsBodyId bodyId = getBodyId(body);
@@ -641,11 +558,7 @@ public class PhysicsWorldResource implements Resource<EntityStore> {
     }
 
     private void clearAllSpacesDirect(@Nonnull String worldName) {
-        List<SpaceId> ids = new ArrayList<>(spaces.size());
-        for (PhysicsSpace space : spaces.values()) {
-            ids.add(space.getId());
-        }
-        for (SpaceId spaceId : ids) {
+        for (SpaceId spaceId : spaceRuntime.getSpaceIds()) {
             removeSpaceDirect(spaceId, worldName);
         }
     }
@@ -655,49 +568,24 @@ public class PhysicsWorldResource implements Resource<EntityStore> {
      * space that keeps the same logical id, backend, settings, gravity, and default-space mapping.
      */
     @Nonnull
-    public RuntimeResetResult resetRuntimeStateKeepingSpaces(@Nonnull String worldName) {
+    public PhysicsRuntimeResetResult resetRuntimeStateKeepingSpaces(@Nonnull String worldName) {
         return callOnPhysicsOwner("reset physics runtime state",
             () -> resetRuntimeStateKeepingSpacesDirect(worldName));
     }
 
     @Nonnull
-    private RuntimeResetResult resetRuntimeStateKeepingSpacesDirect(@Nonnull String worldName) {
-        List<SpaceReset> replacements = new ArrayList<>();
-        for (PhysicsSpace previous : spaces.values()) {
-            Vector3f gravity = previous.getGravity();
-            PhysicsSpace replacement = Impulse.createSpace(previous.getBackendId(), previous.getId());
-            try {
-                validateSpaceCompatibleWithStepMode(replacement, worldSettings.getStepMode());
-                replacement.setGravity(gravity.x, gravity.y, gravity.z);
-                replacements.add(new SpaceReset(previous.getId(), previous, replacement));
-            } catch (RuntimeException exception) {
-                closeSpaceQuietly(replacement, worldName, "discarding failed clean replacement");
-                throw exception;
-            }
-        }
-
-        int removedBodies = 0;
-        int removedJoints = 0;
-        int keptSpaces = 0;
-        for (SpaceReset reset : replacements) {
-            removedBodies += reset.previous().bodyCount();
-            removedJoints += reset.previous().jointCount();
-            worldVoxelCollisionCache.clear(reset.spaceId(), null);
-            PhysicsSpace previous = replaceSpace(reset.spaceId(), reset.replacement(), worldName);
-            closeSpaceQuietly(previous, worldName, "cleaned physics space");
-            keptSpaces++;
-        }
+    private PhysicsRuntimeResetResult resetRuntimeStateKeepingSpacesDirect(@Nonnull String worldName) {
+        PhysicsRuntimeResetResult reset = spaceRuntime.resetKeepingSpaces(worldName,
+            simulationRuntime.getWorldSettings().getStepMode(),
+            collisionRuntime::clear,
+            this::markWorldChanged);
         clearBodyStateDirect();
-        return new RuntimeResetResult(removedBodies, removedJoints, keptSpaces);
+        return reset;
     }
 
     @Nonnull
     public PhysicsSpaceSettings getSpaceSettings(@Nonnull SpaceId spaceId) {
-        PhysicsSpaceSettings settings = spaceSettings.get(spaceId.value());
-        if (settings == null) {
-            throw new IllegalStateException("Physics space settings are missing for id=" + spaceId);
-        }
-        return settings;
+        return spaceRuntime.getSpaceSettings(spaceId);
     }
 
     public void setSpaceSettings(@Nonnull SpaceId spaceId, @Nonnull PhysicsSpaceSettings settings) {
@@ -714,66 +602,11 @@ public class PhysicsWorldResource implements Resource<EntityStore> {
 
     private void setSpaceSettingsDirect(@Nonnull SpaceId spaceId,
         @Nonnull PhysicsSpaceSettings settings) {
-        PhysicsSpace space = spaces.get(spaceId.value());
-        if (space == null) {
-            throw new IllegalArgumentException("Physics space id=" + spaceId
-                + " is not registered");
-        }
-        applySolverTuning(space, settings);
-        spaceSettings.put(spaceId.value(), new PhysicsSpaceSettings(settings));
+        spaceRuntime.setSpaceSettings(spaceId, settings);
     }
 
     private void validateStepModeSupported(@Nonnull PhysicsStepMode stepMode) {
-        if (stepMode != PhysicsStepMode.CCD) {
-            return;
-        }
-
-        List<String> unsupportedSpaces = new ArrayList<>();
-        for (PhysicsSpace space : spaces.values()) {
-            if (!space.supportsContinuousCollision()) {
-                unsupportedSpaces.add(formatSpace(space));
-            }
-        }
-        if (!unsupportedSpaces.isEmpty()) {
-            throw new IllegalArgumentException("CCD mode is not available for: "
-                + String.join(", ", unsupportedSpaces));
-        }
-    }
-
-    private static void validateSpaceCompatibleWithStepMode(@Nonnull PhysicsSpace space,
-        @Nonnull PhysicsStepMode stepMode) {
-        if (stepMode == PhysicsStepMode.CCD && !space.supportsContinuousCollision()) {
-            throw new IllegalArgumentException("CCD mode is not available for "
-                + formatSpace(space));
-        }
-    }
-
-    @Nonnull
-    private static String formatSpace(@Nonnull PhysicsSpace space) {
-        return "space " + space.getId().value() + " (" + space.getBackendId().value() + ")";
-    }
-
-    private static void applySolverTuning(@Nonnull PhysicsSpace space,
-        @Nonnull PhysicsSpaceSettings settings) {
-        if (!(space instanceof PhysicsSolverTuning tuning)) {
-            applyActivationTuning(space, settings);
-            return;
-        }
-        tuning.setSolverTuning(settings.getSolverSettings().getSolverIterations(),
-            settings.getSolverSettings().getInternalPgsIterations(),
-            settings.getSolverSettings().getStabilizationIterations(),
-            settings.getSolverSettings().getMinIslandSize());
-        applyActivationTuning(space, settings);
-    }
-
-    private static void applyActivationTuning(@Nonnull PhysicsSpace space,
-        @Nonnull PhysicsSpaceSettings settings) {
-        if (!(space instanceof PhysicsActivationTuning tuning)) {
-            return;
-        }
-        tuning.setDynamicSleepTuning(settings.getSolverSettings().getDynamicSleepLinearThreshold(),
-            settings.getSolverSettings().getDynamicSleepAngularThreshold(),
-            settings.getSolverSettings().getDynamicSleepTimeUntilSleep());
+        spaceRuntime.validateStepModeSupported(stepMode);
     }
 
     /**
@@ -847,7 +680,7 @@ public class PhysicsWorldResource implements Resource<EntityStore> {
                     clearPending.run();
                 }
             });
-        handle.completion().whenComplete((ignored, failure) -> clearPending.run());
+        handle.completion().whenComplete((ignored, _) -> clearPending.run());
         return handle;
     }
 
@@ -857,22 +690,7 @@ public class PhysicsWorldResource implements Resource<EntityStore> {
         @Nonnull PhysicsBody body,
         @Nonnull PhysicsBodyKind kind,
         @Nonnull PhysicsBodyPersistenceMode persistenceMode) {
-        PhysicsSpace space = getSpace(spaceId);
-        if (space == null) {
-            throw new IllegalArgumentException("Physics space id=" + spaceId + " is not registered");
-        }
-        if (!containsBody(space, body)) {
-            space.addBody(body);
-        }
-        BodyRegistration registration = bodyRegistry.registerBody(bodyId, body, spaceId, kind, persistenceMode);
-        PhysicsBodySnapshot snapshot = PhysicsBodySnapshot.from(body);
-        snapshotState.putBodySnapshot(bodyId,
-            snapshot,
-            spaceId,
-            registration.kind(),
-            registration.persistenceMode());
-        markWorldChanged();
-        return bodyId;
+        return bodyRuntime.addBody(bodyId, spaceId, body, kind, persistenceMode);
     }
 
     public void destroyBody(@Nonnull PhysicsBodyId bodyId) {
@@ -897,17 +715,7 @@ public class PhysicsWorldResource implements Resource<EntityStore> {
     }
 
     private void destroyBodyDirect(@Nonnull PhysicsBodyId bodyId, boolean removeFromSpace) {
-        BodyRegistration registration = bodyRegistry.getRegistration(bodyId);
-        if (removeFromSpace && registration != null) {
-            removeBodyFromSpace(registration.body(), registration);
-        }
-        if (registration != null) {
-            bodyRegistry.unregisterBody(bodyId);
-            clearBodyRuntimeState(registration.body(), bodyId);
-        } else {
-            clearBodyRuntimeState(bodyId);
-        }
-        markWorldChanged();
+        bodyRuntime.destroyBody(bodyId, removeFromSpace);
     }
 
     public void destroyBody(@Nonnull PhysicsBody body) {
@@ -920,20 +728,13 @@ public class PhysicsWorldResource implements Resource<EntityStore> {
     }
 
     private void destroyBodyDirect(@Nonnull PhysicsBody body) {
-        PhysicsBodyId bodyId = getBodyId(body);
-        if (bodyId != null) {
-            destroyBodyDirect(bodyId, true);
-        } else {
-            runtimeState.clearBody(body);
-            removeBodyFromSpace(body, null);
-            markWorldChanged();
-        }
+        bodyRuntime.destroyBody(body);
     }
 
     @Nullable
     public PhysicsBody getBody(@Nonnull PhysicsBodyId bodyId) {
         assertCanAccessLiveBackendDirectly("resolve live physics body");
-        BodyRegistration registration = bodyRegistry.getRegistration(bodyId);
+        PhysicsBodyRegistration registration = bodyRegistry.getRegistration(bodyId);
         return registration != null ? registration.body() : null;
     }
 
@@ -943,31 +744,29 @@ public class PhysicsWorldResource implements Resource<EntityStore> {
     }
 
     @Nullable
-    public BodyRegistration getBodyRegistration(@Nonnull PhysicsBody body) {
+    public PhysicsBodyRegistration getBodyRegistration(@Nonnull PhysicsBody body) {
         assertCanAccessLiveBackendDirectly("resolve live physics body registration");
         return bodyRegistry.getRegistration(body);
     }
 
     @Nullable
-    public BodyRegistration getRegistration(@Nonnull PhysicsBodyId bodyId) {
+    public PhysicsBodyRegistration getRegistration(@Nonnull PhysicsBodyId bodyId) {
         assertCanAccessLiveBackendDirectly("resolve live physics body registration");
         return bodyRegistry.getRegistration(bodyId);
     }
 
     @Nullable
-    public BodyRegistrationView getBodyRegistrationView(@Nonnull PhysicsBodyId bodyId) {
-        return viewOf(bodyRegistry.getRegistration(bodyId));
+    public PhysicsBodyRegistrationView getBodyRegistrationView(@Nonnull PhysicsBodyId bodyId) {
+        return bodyRegistry.getRegistrationView(bodyId);
     }
 
     public boolean isBodyCreationPending(@Nonnull PhysicsBodyId bodyId) {
-        synchronized (pendingBodyCreations) {
-            return pendingBodyCreations.containsKey(bodyId);
-        }
+        return bodyRuntime.isBodyCreationPending(bodyId);
     }
 
     @Nonnull
-    public BodyRegistration requireBodyRegistration(@Nonnull PhysicsBodyId bodyId) {
-        BodyRegistration registration = getRegistration(bodyId);
+    public PhysicsBodyRegistration requireBodyRegistration(@Nonnull PhysicsBodyId bodyId) {
+        PhysicsBodyRegistration registration = getRegistration(bodyId);
         if (registration == null) {
             throw new IllegalArgumentException("Physics body id=" + bodyId + " is not registered");
         }
@@ -975,18 +774,14 @@ public class PhysicsWorldResource implements Resource<EntityStore> {
     }
 
     @Nonnull
-    public Collection<BodyRegistration> getBodyRegistrations() {
+    public Collection<PhysicsBodyRegistration> getBodyRegistrations() {
         assertCanAccessLiveBackendDirectly("list live physics body registrations");
         return bodyRegistry.getRegistrations();
     }
 
     @Nonnull
-    public Collection<BodyRegistrationView> getBodyRegistrationViews() {
-        List<BodyRegistrationView> views = new ArrayList<>();
-        for (BodyRegistration registration : bodyRegistry.getRegistrations()) {
-            views.add(viewOf(registration));
-        }
-        return views;
+    public Collection<PhysicsBodyRegistrationView> getBodyRegistrationViews() {
+        return bodyRegistry.getRegistrationViews();
     }
 
     public int getBodyRegistrationCount() {
@@ -998,72 +793,68 @@ public class PhysicsWorldResource implements Resource<EntityStore> {
     }
 
     @Nonnull
-    public Collection<BodyRegistration> getBodyRegistrations(@Nonnull PhysicsBodyKind kind) {
+    public Collection<PhysicsBodyRegistration> getBodyRegistrations(@Nonnull PhysicsBodyKind kind) {
         assertCanAccessLiveBackendDirectly("list live physics body registrations");
         return bodyRegistry.getRegistrations(kind);
     }
 
     @Nonnull
-    public Collection<BodyRegistrationView> getBodyRegistrationViews(@Nonnull PhysicsBodyKind kind) {
-        List<BodyRegistrationView> views = new ArrayList<>();
-        for (BodyRegistration registration : bodyRegistry.getRegistrations(kind)) {
-            views.add(viewOf(registration));
-        }
-        return views;
+    public Collection<PhysicsBodyRegistrationView> getBodyRegistrationViews(@Nonnull PhysicsBodyKind kind) {
+        return bodyRegistry.getRegistrationViews(kind);
     }
 
     @Nonnull
     public Collection<Ref<EntityStore>> getBodyAttachments(@Nonnull PhysicsBodyId bodyId) {
-        return bodyRegistry.getAttachments(bodyId);
+        return visualRuntime.getAttachments(bodyId);
     }
 
     public void registerBodyAttachment(@Nonnull PhysicsBodyId bodyId, @Nonnull Ref<EntityStore> attachment) {
-        bodyRegistry.registerAttachment(bodyId, attachment);
+        visualRuntime.registerAttachment(bodyId, attachment);
     }
 
     public void unregisterBodyAttachment(@Nonnull PhysicsBodyId bodyId, @Nonnull Ref<EntityStore> attachment) {
-        bodyRegistry.unregisterAttachment(bodyId, attachment);
+        visualRuntime.unregisterAttachment(bodyId, attachment);
     }
 
     @Nullable
     public Ref<EntityStore> getGeneratedVisualProxy(@Nonnull PhysicsBodyId bodyId) {
-        return bodyRegistry.getGeneratedVisualProxy(bodyId);
+        return visualRuntime.getGeneratedVisualProxy(bodyId);
     }
 
     @Nonnull
     public Collection<PhysicsBodyId> getGeneratedVisualProxyBodyIds() {
-        return bodyRegistry.getGeneratedVisualProxyBodyIds();
+        return visualRuntime.getGeneratedVisualProxyBodyIds();
     }
 
     public void setGeneratedVisualProxy(@Nonnull PhysicsBodyId bodyId, @Nonnull Ref<EntityStore> proxy) {
-        bodyRegistry.setGeneratedVisualProxy(bodyId, proxy);
+        visualRuntime.setGeneratedVisualProxy(bodyId, proxy);
     }
 
     public void clearGeneratedVisualProxy(@Nonnull PhysicsBodyId bodyId) {
-        bodyRegistry.clearGeneratedVisualProxy(bodyId);
+        visualRuntime.clearGeneratedVisualProxy(bodyId);
     }
 
     public boolean clearGeneratedVisualProxy(@Nonnull PhysicsBodyId bodyId,
         @Nonnull Ref<EntityStore> expectedProxy) {
-        return bodyRegistry.clearGeneratedVisualProxy(bodyId, expectedProxy);
+        return visualRuntime.clearGeneratedVisualProxy(bodyId, expectedProxy);
     }
 
     public boolean isGeneratedVisualProxy(@Nonnull PhysicsBodyId bodyId,
         @Nonnull Ref<EntityStore> proxy) {
-        return bodyRegistry.isGeneratedVisualProxy(bodyId, proxy);
+        return visualRuntime.isGeneratedVisualProxy(bodyId, proxy);
     }
 
     public void setSyntheticVisualInterests(@Nonnull Collection<VisualInterest> interests) {
-        bodyRegistry.setSyntheticVisualInterests(interests);
+        visualRuntime.setSyntheticVisualInterests(interests);
     }
 
     @Nonnull
     public List<VisualInterest> getSyntheticVisualInterests() {
-        return bodyRegistry.getSyntheticVisualInterests();
+        return visualRuntime.getSyntheticVisualInterests();
     }
 
     public void clearSyntheticVisualInterests() {
-        bodyRegistry.clearSyntheticVisualInterests();
+        visualRuntime.clearSyntheticVisualInterests();
     }
 
     public void clearBodies() {
@@ -1076,40 +867,11 @@ public class PhysicsWorldResource implements Resource<EntityStore> {
     }
 
     private void destroyRegisteredBodiesDirect() {
-        RuntimeException failure = null;
-        boolean bodyFailure = false;
-        for (PhysicsSpace space : spaces.values()) {
-            for (PhysicsJoint joint : new ArrayList<>(space.getJoints())) {
-                try {
-                    space.removeJoint(joint);
-                } catch (RuntimeException exception) {
-                    failure = collectFailure(failure, exception);
-                }
-            }
-        }
-        List<BodyRegistration> registrations = new ArrayList<>(bodyRegistry.getRegistrations());
-        for (BodyRegistration registration : registrations) {
-            try {
-                destroyBodyDirect(registration.id(), true);
-            } catch (RuntimeException exception) {
-                bodyFailure = true;
-                failure = collectFailure(failure, exception);
-            }
-        }
-        if (bodyFailure) {
-            throw failure;
-        }
-        clearBodyStateDirect();
-        if (failure != null) {
-            throw failure;
-        }
+        bodyRuntime.destroyRegisteredBodies();
     }
 
     private void clearBodyStateDirect() {
-        bodyRegistry.clear();
-        runtimeState.clear();
-        snapshotState.clearBodySnapshots();
-        markWorldChanged();
+        bodyRuntime.clearBodyState();
     }
 
     @Nonnull
@@ -1128,14 +890,14 @@ public class PhysicsWorldResource implements Resource<EntityStore> {
 
     @Nonnull
     public BodyVisualInterestState getOrCreateBodyVisualInterestState(@Nonnull PhysicsBodyId bodyId) {
-        BodyVisualInterestState state = bodyRegistry.getOrCreateBodyVisualInterestState(bodyId);
+        BodyVisualInterestState state = visualRuntime.getOrCreateBodyVisualInterestState(bodyId);
         state.advanceVisualInterestTick(visualInterestTick.get());
         return state;
     }
 
     @Nullable
     public BodyVisualInterestState getBodyVisualInterestState(@Nonnull PhysicsBodyId bodyId) {
-        BodyVisualInterestState state = bodyRegistry.getBodyVisualInterestState(bodyId);
+        BodyVisualInterestState state = visualRuntime.getBodyVisualInterestState(bodyId);
         if (state != null) {
             state.advanceVisualInterestTick(visualInterestTick.get());
         }
@@ -1147,26 +909,26 @@ public class PhysicsWorldResource implements Resource<EntityStore> {
     }
 
     public void markBodyControlled(@Nonnull PhysicsBodyId bodyId) {
-        runtimeState.markBodyControlled(bodyId);
+        chunkRuntime.markBodyControlled(bodyId);
     }
 
     public void clearControlledBody(@Nonnull PhysicsBodyId bodyId) {
-        runtimeState.clearControlledBody(bodyId);
+        chunkRuntime.clearControlledBody(bodyId);
     }
 
     public boolean isBodyControlled(@Nonnull PhysicsBodyId bodyId) {
-        return runtimeState.isBodyControlled(bodyId);
+        return chunkRuntime.isBodyControlled(bodyId);
     }
 
     public void updateChunkBoundarySafeState(@Nonnull PhysicsBodyId bodyId,
         @Nonnull Vector3f position,
         @Nonnull Quaternionf rotation) {
-        runtimeState.updateChunkBoundarySafeState(bodyId, position, rotation);
+        chunkRuntime.updateChunkBoundarySafeState(bodyId, position, rotation);
     }
 
     @Nullable
     public ChunkBoundarySafeState getChunkBoundarySafeState(@Nonnull PhysicsBodyId bodyId) {
-        return runtimeState.getChunkBoundarySafeState(bodyId);
+        return chunkRuntime.getChunkBoundarySafeState(bodyId);
     }
 
     public void pauseChunkBoundaryBody(@Nonnull PhysicsBodyId bodyId,
@@ -1174,7 +936,7 @@ public class PhysicsWorldResource implements Resource<EntityStore> {
         @Nonnull PhysicsBodyType originalBodyType,
         @Nonnull Vector3f linearVelocity,
         @Nonnull Vector3f angularVelocity) {
-        runtimeState.pauseChunkBoundaryBody(bodyId,
+        chunkRuntime.pauseChunkBoundaryBody(bodyId,
             targetChunkIndex,
             originalBodyType,
             linearVelocity,
@@ -1183,11 +945,11 @@ public class PhysicsWorldResource implements Resource<EntityStore> {
 
     @Nullable
     public ChunkBoundaryPauseState getChunkBoundaryPauseState(@Nonnull PhysicsBodyId bodyId) {
-        return runtimeState.getChunkBoundaryPauseState(bodyId);
+        return chunkRuntime.getChunkBoundaryPauseState(bodyId);
     }
 
     public void clearChunkBoundaryPauseState(@Nonnull PhysicsBodyId bodyId) {
-        runtimeState.clearChunkBoundaryPauseState(bodyId);
+        chunkRuntime.clearChunkBoundaryPauseState(bodyId);
     }
 
     public void clearBodyRuntimeState(@Nonnull PhysicsBodyId bodyId) {
@@ -1203,28 +965,20 @@ public class PhysicsWorldResource implements Resource<EntityStore> {
     }
 
     private void clearBodyRuntimeStateDirect(@Nonnull PhysicsBodyId bodyId) {
-        bodyRegistry.clearBodyRuntimeState(bodyId);
-        runtimeState.clearBody(bodyId);
-        snapshotState.removeBodySnapshot(bodyId);
-    }
-
-    private void clearBodyRuntimeState(@Nonnull PhysicsBody body, @Nonnull PhysicsBodyId bodyId) {
-        bodyRegistry.clearBodyRuntimeState(bodyId);
-        runtimeState.clearBody(body, bodyId);
-        snapshotState.removeBodySnapshot(bodyId);
+        bodyRuntime.clearBodyRuntimeState(bodyId);
     }
 
     public void markContinuousCollisionForced(@Nonnull PhysicsBody body) {
-        runtimeState.markContinuousCollisionForced(body);
+        chunkRuntime.markContinuousCollisionForced(body);
     }
 
     @Nonnull
     public Collection<PhysicsBody> getForcedContinuousCollisionBodies() {
-        return runtimeState.getForcedContinuousCollisionBodies();
+        return chunkRuntime.getForcedContinuousCollisionBodies();
     }
 
     public void clearForcedContinuousCollisionBodies() {
-        runtimeState.clearForcedContinuousCollisionBodies();
+        chunkRuntime.clearForcedContinuousCollisionBodies();
     }
 
     public void copyFrom(@Nonnull PhysicsWorldResource other) {
@@ -1240,17 +994,14 @@ public class PhysicsWorldResource implements Resource<EntityStore> {
         if (this == other) {
             return;
         }
-        spaces.clear();
-        spaceSettings.clear();
+        spaceRuntime.copySettingsFrom(other.spaceRuntime);
         bodyRegistry.clear();
         runtimeState.clear();
+        chunkRuntime.clear();
+        visualRuntime.clear();
         snapshotState.clearBodySnapshots();
-        worldVoxelCollisionCache.copyFrom(new WorldVoxelCollisionCache());
-        defaultSpaceId = other.defaultSpaceId;
-        worldSettings.copyFrom(other.worldSettings);
-        for (var entry : other.spaceSettings.int2ObjectEntrySet()) {
-            spaceSettings.put(entry.getIntKey(), new PhysicsSpaceSettings(entry.getValue()));
-        }
+        collisionRuntime.clearAll();
+        simulationRuntime.copyFrom(other.simulationRuntime);
         markWorldChanged();
     }
 
@@ -1275,33 +1026,12 @@ public class PhysicsWorldResource implements Resource<EntityStore> {
     private PhysicsSpace replaceSpaceDirect(@Nonnull SpaceId spaceId,
         @Nonnull PhysicsSpace replacement,
         @Nonnull String worldName) {
-        if (!spaceId.equals(replacement.getId())) {
-            throw new IllegalArgumentException("Replacement space id " + replacement.getId()
-                + " does not match target id " + spaceId);
-        }
-
-        PhysicsSpace previous = spaces.get(spaceId.value());
-        if (previous == null) {
-            throw new IllegalStateException("Cannot replace missing physics space id=" + spaceId);
-        }
-        validateSpaceCompatibleWithStepMode(replacement, worldSettings.getStepMode());
-        worldVoxelCollisionCache.clear(spaceId, previous);
-
-        PhysicsSpaceSettings settings = spaceSettings.get(spaceId.value());
-        if (settings == null) {
-            settings = PhysicsSpaceSettings.defaults();
-        }
-        applySolverTuning(replacement, settings);
-        spaces.put(spaceId.value(), replacement);
-        spaceSettings.put(spaceId.value(), new PhysicsSpaceSettings(settings));
-        markWorldChanged();
-        LOGGER.at(Level.INFO).log(
-            "World %s replaced physics space id=%s backend=%s -> backend=%s",
+        return spaceRuntime.replaceSpace(spaceId,
+            replacement,
             worldName,
-            spaceId,
-            previous.getBackendId(),
-            replacement.getBackendId());
-        return previous;
+            simulationRuntime.getWorldSettings().getStepMode(),
+            collisionRuntime::clear,
+            this::markWorldChanged);
     }
 
     private static void closeSpaceQuietly(@Nonnull PhysicsSpace space,
@@ -1320,272 +1050,16 @@ public class PhysicsWorldResource implements Resource<EntityStore> {
         }
     }
 
-    @Nonnull
-    private static RuntimeException collectFailure(@Nullable RuntimeException failure,
-        @Nonnull RuntimeException exception) {
-        if (failure == null) {
-            return exception;
-        }
-        failure.addSuppressed(exception);
-        return failure;
-    }
-
-    private void removeBodyFromSpace(@Nonnull PhysicsBody body, @Nullable BodyRegistration registration) {
-        if (registration != null) {
-            PhysicsSpace space = getSpace(registration.spaceId());
-            if (space != null) {
-                space.removeBody(body);
-                return;
-            }
-        }
-
-        for (PhysicsSpace space : spaces.values()) {
-            space.removeBody(body);
-        }
-    }
-
-    private static boolean containsBody(@Nonnull PhysicsSpace space, @Nonnull PhysicsBody body) {
-        for (PhysicsBody existing : space.getBodies()) {
-            if (existing == body) {
-                return true;
-            }
-        }
-        return false;
-    }
-
     private void markBodyCreationPending(@Nonnull PhysicsBodyId bodyId) {
-        synchronized (pendingBodyCreations) {
-            pendingBodyCreations.addTo(bodyId, 1);
-        }
+        bodyRuntime.markBodyCreationPending(bodyId);
     }
 
     private void clearBodyCreationPending(@Nonnull PhysicsBodyId bodyId) {
-        synchronized (pendingBodyCreations) {
-            int count = pendingBodyCreations.getInt(bodyId);
-            if (count <= 1) {
-                pendingBodyCreations.removeInt(bodyId);
-            } else {
-                pendingBodyCreations.put(bodyId, count - 1);
-            }
-        }
+        bodyRuntime.clearBodyCreationPending(bodyId);
     }
 
     private void markWorldChanged() {
         snapshotState.markWorldChanged();
-    }
-
-    @Nullable
-    private static BodyRegistrationView viewOf(@Nullable BodyRegistration registration) {
-        if (registration == null) {
-            return null;
-        }
-        return new BodyRegistrationView(registration.id(),
-            registration.spaceId(),
-            registration.kind(),
-            registration.persistenceMode());
-    }
-
-    /**
-     * Owner-thread registration for a live backend body.
-     *
-     * <p>This record carries a {@link PhysicsBody} handle and must not be retained or read by
-     * world-thread systems when a physics worker is attached. Use {@link BodyRegistrationView} for
-     * public/off-owner metadata checks.</p>
-     */
-    public record BodyRegistration(@Nonnull PhysicsBodyId id,
-        @Nonnull PhysicsBody body,
-        @Nonnull SpaceId spaceId,
-        @Nonnull PhysicsBodyKind kind,
-        @Nonnull PhysicsBodyPersistenceMode persistenceMode) {
-    }
-
-    /**
-     * Immutable registration metadata safe for public and off-owner callers.
-     */
-    public record BodyRegistrationView(@Nonnull PhysicsBodyId id,
-        @Nonnull SpaceId spaceId,
-        @Nonnull PhysicsBodyKind kind,
-        @Nonnull PhysicsBodyPersistenceMode persistenceMode) {
-    }
-
-    public record RuntimeResetResult(int removedBodies, int removedJoints, int keptSpaces) {
-    }
-
-    private record SpaceReset(@Nonnull SpaceId spaceId,
-        @Nonnull PhysicsSpace previous,
-        @Nonnull PhysicsSpace replacement) {
-    }
-
-    public record BodySnapshotEntry(@Nonnull PhysicsBodyId bodyId,
-        @Nonnull PhysicsBodySnapshot snapshot,
-        @Nonnull SpaceId spaceId,
-        @Nonnull PhysicsBodyKind kind,
-        @Nonnull PhysicsBodyPersistenceMode persistenceMode) {
-    }
-
-    public record VisualInterest(@Nonnull Vector3f position, @Nullable Vector3f direction) {
-    }
-
-    /**
-     * Per-body visual-interest cache produced by detached visual materialization.
-     *
-     * <p>Physics sync can reuse fresh raycast results from this state when
-     * {@code VisualOcclusionMode.CULL} is enabled, so materialization and sync
-     * share one occlusion decision window instead of spending duplicate raycasts.</p>
-     */
-    public static final class BodyVisualInterestState {
-
-        @Getter
-        private float nearestDistanceSquared = Float.POSITIVE_INFINITY;
-        @Getter
-        private boolean inRange;
-        @Getter
-        private boolean likelyVisible;
-        @Getter
-        private boolean raycastVisible;
-        private long currentTick;
-        private long lastRaycastTick = Long.MIN_VALUE;
-
-        public void recordInterest(float nearestDistanceSquared,
-            boolean likelyVisible,
-            boolean raycastVisible,
-            boolean raycastEvaluated) {
-            recordInterest(nearestDistanceSquared,
-                likelyVisible,
-                raycastVisible,
-                raycastEvaluated,
-                currentTick);
-        }
-
-        public void recordInterest(float nearestDistanceSquared,
-            boolean likelyVisible,
-            boolean raycastVisible,
-            boolean raycastEvaluated,
-            long currentTick) {
-            long resolvedTick = advanceVisualInterestTick(currentTick);
-            this.nearestDistanceSquared = nearestDistanceSquared;
-            inRange = nearestDistanceSquared != Float.POSITIVE_INFINITY;
-            this.likelyVisible = likelyVisible;
-            if (raycastEvaluated) {
-                this.raycastVisible = raycastVisible;
-                lastRaycastTick = resolvedTick;
-            }
-        }
-
-        public boolean hasFreshRaycast(int cacheTicks) {
-            return hasFreshRaycast(cacheTicks, currentTick);
-        }
-
-        public boolean hasFreshRaycast(int cacheTicks, long currentTick) {
-            long resolvedTick = advanceVisualInterestTick(currentTick);
-            return lastRaycastTick != Long.MIN_VALUE
-                && resolvedTick - lastRaycastTick <= cacheTicks;
-        }
-
-        public long advanceVisualInterestTick(long currentTick) {
-            this.currentTick = Math.max(this.currentTick, currentTick);
-            return this.currentTick;
-        }
-
-    }
-
-    public static final class ChunkBoundarySafeState {
-
-        @Nonnull
-        private final Vector3f position = new Vector3f();
-        @Nonnull
-        private final Quaternionf rotation = new Quaternionf();
-
-        public void set(@Nonnull Vector3f position, @Nonnull Quaternionf rotation) {
-            this.position.set(position);
-            this.rotation.set(rotation);
-        }
-
-        @Nonnull
-        public Vector3f getPosition() {
-            return position;
-        }
-
-        @Nonnull
-        public Quaternionf getRotation() {
-            return rotation;
-        }
-    }
-
-    public static final class BodySyncState {
-
-        @Nonnull
-        private final Vector3f lastSyncedPosition = new Vector3f();
-        @Nonnull
-        private final Quaternionf lastSyncedRotation = new Quaternionf();
-        @Getter
-        private boolean initialized;
-        @Getter
-        private boolean sleeping;
-        @Getter
-        private float secondsSinceSync;
-
-        public void recordSync(@Nonnull Vector3f position,
-            @Nonnull Quaternionf rotation,
-            boolean sleeping) {
-            lastSyncedPosition.set(position);
-            lastSyncedRotation.set(rotation);
-            initialized = true;
-            this.sleeping = sleeping;
-            secondsSinceSync = 0.0f;
-        }
-
-        public void recordSkip(float dt) {
-            secondsSinceSync += Math.max(dt, 0.0f);
-        }
-
-        @Nonnull
-        public Vector3f getLastSyncedPosition() {
-            return lastSyncedPosition;
-        }
-
-        @Nonnull
-        public Quaternionf getLastSyncedRotation() {
-            return lastSyncedRotation;
-        }
-
-    }
-
-    public static final class ChunkBoundaryPauseState {
-
-        @Getter
-        private long targetChunkIndex;
-        @Nonnull
-        private PhysicsBodyType originalBodyType = PhysicsBodyType.DYNAMIC;
-        @Nonnull
-        private final Vector3f linearVelocity = new Vector3f();
-        @Nonnull
-        private final Vector3f angularVelocity = new Vector3f();
-
-        public void set(long targetChunkIndex,
-            @Nonnull PhysicsBodyType originalBodyType,
-            @Nonnull Vector3f linearVelocity,
-            @Nonnull Vector3f angularVelocity) {
-            this.targetChunkIndex = targetChunkIndex;
-            this.originalBodyType = originalBodyType;
-            this.linearVelocity.set(linearVelocity);
-            this.angularVelocity.set(angularVelocity);
-        }
-
-        @Nonnull
-        public PhysicsBodyType getOriginalBodyType() {
-            return originalBodyType;
-        }
-
-        @Nonnull
-        public Vector3f getLinearVelocity() {
-            return linearVelocity;
-        }
-
-        @Nonnull
-        public Vector3f getAngularVelocity() {
-            return angularVelocity;
-        }
     }
 
     public static ResourceType<EntityStore, PhysicsWorldResource> getResourceType()

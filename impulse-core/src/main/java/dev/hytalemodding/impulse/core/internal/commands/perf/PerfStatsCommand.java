@@ -11,6 +11,7 @@ import dev.hytalemodding.impulse.api.PhysicsSpace;
 import dev.hytalemodding.impulse.api.ShapeType;
 import dev.hytalemodding.impulse.core.internal.worker.PhysicsWorkerAccess;
 import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyKind;
+import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyRegistration;
 import dev.hytalemodding.impulse.core.plugin.resources.PhysicsWorldResource;
 import dev.hytalemodding.impulse.core.internal.voxel.WorldCollisionCacheAccess;
 import dev.hytalemodding.impulse.core.internal.voxel.WorldVoxelCollisionCache;
@@ -105,7 +106,7 @@ public class PerfStatsCommand extends AbstractWorldCommand {
             stats.staticBodies++;
         }
 
-        PhysicsWorldResource.BodyRegistration registration = resource.getBodyRegistration(body);
+        PhysicsBodyRegistration registration = resource.getBodyRegistration(body);
         if (registration != null && registration.kind() == PhysicsBodyKind.BODY) {
             if (resource.getBodyAttachments(registration.id()).isEmpty()) {
                 stats.detachedBodies++;

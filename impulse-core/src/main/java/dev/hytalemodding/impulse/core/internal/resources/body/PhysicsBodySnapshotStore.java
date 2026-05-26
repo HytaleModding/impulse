@@ -7,7 +7,9 @@ import dev.hytalemodding.impulse.api.SpaceId;
 import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyId;
 import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyKind;
 import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyPersistenceMode;
+import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyRegistration;
 import dev.hytalemodding.impulse.core.plugin.resources.PhysicsWorldResource;
+import dev.hytalemodding.impulse.core.plugin.snapshot.PhysicsBodySnapshotEntry;
 import it.unimi.dsi.fastutil.objects.Object2ObjectLinkedOpenHashMap;
 import it.unimi.dsi.fastutil.objects.ObjectArrayList;
 import it.unimi.dsi.fastutil.objects.ObjectOpenHashSet;
@@ -44,10 +46,10 @@ public final class PhysicsBodySnapshotStore {
             }
 
             space.snapshotBodies(registeredBodies, body -> {
-                PhysicsWorldResource.BodyRegistration registration = bodyRegistry.getRegistration(body);
+                PhysicsBodyRegistration registration = bodyRegistry.getRegistration(body);
                 return registration != null ? snapshots.get(registration.id()) : null;
             }, (body, snapshot) -> {
-                PhysicsWorldResource.BodyRegistration registration = bodyRegistry.getRegistration(body);
+                PhysicsBodyRegistration registration = bodyRegistry.getRegistration(body);
                 if (registration == null || !registration.spaceId().equals(spaceId)) {
                     return;
                 }
@@ -108,14 +110,14 @@ public final class PhysicsBodySnapshotStore {
     }
 
     public void forEach(@Nonnull SpaceId spaceId,
-        @Nonnull Consumer<PhysicsWorldResource.BodySnapshotEntry> consumer) {
+        @Nonnull Consumer<PhysicsBodySnapshotEntry> consumer) {
         spatialIndex.forEach(spaceId, consumer);
     }
 
     public int forEachNear(@Nonnull SpaceId spaceId,
         @Nonnull Vector3f center,
         float radius,
-        @Nonnull Consumer<PhysicsWorldResource.BodySnapshotEntry> consumer) {
+        @Nonnull Consumer<PhysicsBodySnapshotEntry> consumer) {
         return spatialIndex.forEachNear(spaceId, center, radius, consumer);
     }
 }

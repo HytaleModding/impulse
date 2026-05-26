@@ -13,6 +13,7 @@ import dev.hytalemodding.impulse.api.PhysicsSpace;
 import dev.hytalemodding.impulse.api.ShapeType;
 import dev.hytalemodding.impulse.api.SpaceId;
 import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyId;
+import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyRegistration;
 import dev.hytalemodding.impulse.core.plugin.resources.PhysicsWorldResource;
 import java.util.UUID;
 import javax.annotation.Nonnull;
@@ -204,7 +205,7 @@ public class PersistentPhysicsBodyState {
     }
 
     @Nonnull
-    public static PersistentPhysicsBodyState from(@Nonnull PhysicsWorldResource.BodyRegistration registration) {
+    public static PersistentPhysicsBodyState from(@Nonnull PhysicsBodyRegistration registration) {
         PersistentPhysicsBodyState state = new PersistentPhysicsBodyState();
         state.bodyId = registration.id().value();
         state.updateFromBody(registration.body(), registration.spaceId());

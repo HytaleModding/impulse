@@ -16,6 +16,7 @@ import dev.hytalemodding.impulse.core.internal.resources.profiling.PhysicsRuntim
 import dev.hytalemodding.impulse.core.internal.resources.profiling.PhysicsRuntimeProfilingResource.VisualSnapshot;
 import dev.hytalemodding.impulse.core.internal.worker.PhysicsWorkerAccess;
 import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyKind;
+import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyRegistrationView;
 import dev.hytalemodding.impulse.core.plugin.resources.PhysicsWorldResource;
 import dev.hytalemodding.impulse.core.internal.resources.profiling.WorldCollisionProfilingResource;
 import dev.hytalemodding.impulse.core.internal.resources.profiling.WorldCollisionProfilingResource.Snapshot;
@@ -490,7 +491,7 @@ public class PerfReportCommand extends AbstractWorldCommand {
 
             int detachedBodies = 0;
             int detachedVisualProxies = 0;
-            for (PhysicsWorldResource.BodyRegistrationView registration : resource.getBodyRegistrationViews()) {
+            for (PhysicsBodyRegistrationView registration : resource.getBodyRegistrationViews()) {
                 if (registration.kind() != PhysicsBodyKind.BODY
                     || !resource.getBodyAttachments(registration.id()).isEmpty()) {
                     continue;

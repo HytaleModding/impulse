@@ -14,6 +14,7 @@ import dev.hytalemodding.impulse.api.PhysicsSpace;
 import dev.hytalemodding.impulse.api.SpaceId;
 import dev.hytalemodding.impulse.core.ImpulsePlugin;
 import dev.hytalemodding.impulse.core.internal.worker.PhysicsWorkerAccess;
+import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyRegistrationView;
 import dev.hytalemodding.impulse.core.plugin.settings.PhysicsSpaceSettings;
 import dev.hytalemodding.impulse.core.plugin.resources.PhysicsWorldResource;
 import dev.hytalemodding.impulse.core.plugin.collision.WorldCollisionMode;
@@ -249,7 +250,7 @@ public class SpaceCommand extends AbstractCommandCollection {
     private static int countRegisteredBodies(@Nonnull PhysicsWorldResource resource,
         @Nonnull SpaceId spaceId) {
         int count = 0;
-        for (PhysicsWorldResource.BodyRegistrationView registration : resource.getBodyRegistrationViews()) {
+        for (PhysicsBodyRegistrationView registration : resource.getBodyRegistrationViews()) {
             if (registration.spaceId().equals(spaceId)) {
                 count++;
             }

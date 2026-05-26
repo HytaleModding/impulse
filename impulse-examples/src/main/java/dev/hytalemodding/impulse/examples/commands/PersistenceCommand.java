@@ -18,7 +18,7 @@ import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
 /**
- * Example controls for schema-v4 world-level Impulse persistence.
+ * Example controls for schema-v5 world-level Impulse persistence.
  */
 public class PersistenceCommand extends AbstractCommandCollection {
 

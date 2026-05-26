@@ -1,7 +1,8 @@
 package dev.hytalemodding.impulse.core.internal.systems.sync;
 
+import dev.hytalemodding.impulse.core.internal.resources.body.PhysicsBodyRuntimeState;
+import dev.hytalemodding.impulse.core.internal.resources.visual.PhysicsVisualRuntime.BodyVisualInterestState;
 import dev.hytalemodding.impulse.core.plugin.settings.PhysicsSpaceSettings;
-import dev.hytalemodding.impulse.core.plugin.resources.PhysicsWorldResource;
 import dev.hytalemodding.impulse.core.plugin.settings.PhysicsVisualSyncSettings;
 import dev.hytalemodding.impulse.core.plugin.settings.VisualOcclusionMode;
 import java.util.List;
@@ -55,7 +56,7 @@ public final class PhysicsSyncPolicy {
 
     @Nonnull
     static SyncRangeTier resolveRangeTier(@Nullable PhysicsSpaceSettings settings,
-        @Nullable PhysicsWorldResource.BodyVisualInterestState visualInterestState,
+        @Nullable BodyVisualInterestState visualInterestState,
         boolean rangeLimitedVisual,
         boolean controlled,
         @Nonnull List<PlayerInterest> playerInterests,
@@ -95,7 +96,7 @@ public final class PhysicsSyncPolicy {
     }
 
     @Nonnull
-    static SyncDecision resolveSyncDecision(@Nonnull PhysicsWorldResource.BodySyncState syncState,
+    static SyncDecision resolveSyncDecision(@Nonnull PhysicsBodyRuntimeState.BodySyncState syncState,
         @Nullable PhysicsSpaceSettings settings,
         @Nonnull Vector3f position,
         @Nonnull Quaternionf rotation,

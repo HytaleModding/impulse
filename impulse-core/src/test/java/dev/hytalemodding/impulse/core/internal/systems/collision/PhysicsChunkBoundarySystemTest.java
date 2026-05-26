@@ -9,6 +9,8 @@ import dev.hytalemodding.impulse.api.PhysicsBody;
 import dev.hytalemodding.impulse.api.PhysicsBodySnapshot;
 import dev.hytalemodding.impulse.api.PhysicsBodyType;
 import dev.hytalemodding.impulse.api.ShapeType;
+import dev.hytalemodding.impulse.core.internal.resources.chunk.PhysicsChunkBoundaryRuntime;
+import dev.hytalemodding.impulse.core.internal.resources.chunk.PhysicsChunkBoundaryRuntime.ChunkBoundarySafeState;
 import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyId;
 import dev.hytalemodding.impulse.core.plugin.resources.PhysicsWorldResource;
 import javax.annotation.Nonnull;
@@ -34,7 +36,7 @@ class PhysicsChunkBoundarySystemTest {
 
         PhysicsChunkBoundarySystem.recordSafePose(bodyId, snapshot, resource);
 
-        PhysicsWorldResource.ChunkBoundarySafeState safeState =
+        ChunkBoundarySafeState safeState =
             resource.getChunkBoundarySafeState(bodyId);
         assertNotNull(safeState);
         assertEquals(3.0f, safeState.getPosition().x);
@@ -67,7 +69,7 @@ class PhysicsChunkBoundarySystemTest {
 
         PhysicsChunkBoundarySystem.pauseBody(bodyId, body, snapshot, 42L, resource);
 
-        PhysicsWorldResource.ChunkBoundaryPauseState pauseState =
+        PhysicsChunkBoundaryRuntime.ChunkBoundaryPauseState pauseState =
             resource.getChunkBoundaryPauseState(bodyId);
         assertNotNull(pauseState);
         assertEquals(42L, pauseState.getTargetChunkIndex());

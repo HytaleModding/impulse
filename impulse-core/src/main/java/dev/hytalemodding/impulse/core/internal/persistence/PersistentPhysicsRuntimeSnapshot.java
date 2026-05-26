@@ -4,6 +4,7 @@ import dev.hytalemodding.impulse.api.PhysicsSpace;
 import dev.hytalemodding.impulse.api.SpaceId;
 import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyId;
 import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyPersistenceMode;
+import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyRegistration;
 import dev.hytalemodding.impulse.core.plugin.resources.PhysicsWorldResource;
 import dev.hytalemodding.impulse.core.plugin.settings.PhysicsSpaceSettings;
 import dev.hytalemodding.impulse.core.plugin.settings.PhysicsWorldSettings;
@@ -59,7 +60,7 @@ public final class PersistentPhysicsRuntimeSnapshot {
         List<PersistentPhysicsSpaceState> spaces = new ArrayList<>();
         List<PersistentPhysicsBodyState> bodies = new ArrayList<>();
         List<PersistentPhysicsJointState> joints = new ArrayList<>();
-        for (PhysicsWorldResource.BodyRegistration registration : runtime.getBodyRegistrations()) {
+        for (PhysicsBodyRegistration registration : runtime.getBodyRegistrations()) {
             if (registration.persistenceMode() == PhysicsBodyPersistenceMode.PERSISTENT) {
                 bodies.add(PersistentPhysicsBodyState.from(registration));
             }
@@ -119,8 +120,8 @@ public final class PersistentPhysicsRuntimeSnapshot {
                 if (bodyAId == null || bodyBId == null) {
                     return;
                 }
-                PhysicsWorldResource.BodyRegistration bodyA = runtime.getRegistration(bodyAId);
-                PhysicsWorldResource.BodyRegistration bodyB = runtime.getRegistration(bodyBId);
+                PhysicsBodyRegistration bodyA = runtime.getRegistration(bodyAId);
+                PhysicsBodyRegistration bodyB = runtime.getRegistration(bodyBId);
                 if (bodyA == null
                     || bodyB == null
                     || bodyA.persistenceMode() != PhysicsBodyPersistenceMode.PERSISTENT
@@ -142,8 +143,8 @@ public final class PersistentPhysicsRuntimeSnapshot {
             if (bodyAId == null || bodyBId == null) {
                 return;
             }
-            PhysicsWorldResource.BodyRegistration bodyA = runtime.getRegistration(bodyAId);
-            PhysicsWorldResource.BodyRegistration bodyB = runtime.getRegistration(bodyBId);
+            PhysicsBodyRegistration bodyA = runtime.getRegistration(bodyAId);
+            PhysicsBodyRegistration bodyB = runtime.getRegistration(bodyBId);
             if (bodyA == null
                 || bodyB == null
                 || bodyA.persistenceMode() != PhysicsBodyPersistenceMode.PERSISTENT

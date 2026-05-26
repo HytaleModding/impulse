@@ -65,14 +65,13 @@ public class PersistentPhysicsBodyHydrationSystem extends TickingSystem<EntitySt
                 persistent.recordRuntimeBodySkipped("no resolved space id");
                 continue;
             }
-            PhysicsSpace space = runtime.getSpace(new SpaceId(resolvedSpaceId));
-            if (space == null) {
-                persistent.recordRuntimeBodySkipped("missing target space");
-                continue;
-            }
 
             try {
-                PhysicsWorkerAccess.run(store, "hydrate persisted physics body", () -> {
+                boolean restored = PhysicsWorkerAccess.call(store, "hydrate persisted physics body", () -> {
+                    PhysicsSpace space = runtime.getSpace(new SpaceId(resolvedSpaceId));
+                    if (space == null) {
+                        return false;
+                    }
                     PhysicsBody body = state.createBody(space);
                     state.applyToBody(body);
                     runtime.addBody(bodyId,
@@ -80,8 +79,13 @@ public class PersistentPhysicsBodyHydrationSystem extends TickingSystem<EntitySt
                         body,
                         PhysicsBodyKind.BODY,
                         PhysicsBodyPersistenceMode.PERSISTENT);
+                    return true;
                 });
-                persistent.recordRuntimeBodyRestored();
+                if (restored) {
+                    persistent.recordRuntimeBodyRestored();
+                } else {
+                    persistent.recordRuntimeBodySkipped("missing target space");
+                }
             } catch (RuntimeException exception) {
                 persistent.recordRuntimeBodySkipped("body restore failed: "
                     + exception.getClass().getSimpleName());
