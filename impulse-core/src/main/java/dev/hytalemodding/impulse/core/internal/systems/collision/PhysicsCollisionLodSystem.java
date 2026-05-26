@@ -8,6 +8,7 @@ import dev.hytalemodding.impulse.api.PhysicsBody;
 import dev.hytalemodding.impulse.api.PhysicsCollisionFilters;
 import dev.hytalemodding.impulse.api.PhysicsSpace;
 import dev.hytalemodding.impulse.api.SpaceId;
+import dev.hytalemodding.impulse.core.internal.resources.PhysicsWorldRuntimeResource;
 import dev.hytalemodding.impulse.core.internal.resources.visual.PhysicsVisualRuntime;
 import dev.hytalemodding.impulse.core.internal.systems.visual.VisualInterestCollector;
 import dev.hytalemodding.impulse.core.internal.worker.PhysicsWorkerAccess;
@@ -49,7 +50,7 @@ public class PhysicsCollisionLodSystem extends TickingSystem<EntityStore> {
 
     @Override
     public void tick(float dt, int systemIndex, @Nonnull Store<EntityStore> store) {
-        PhysicsWorldResource resource = store.getResource(PhysicsWorldResource.getResourceType());
+        PhysicsWorldRuntimeResource resource = PhysicsWorldRuntimeResource.require(store);
         CollisionLodState state = stateFor(store);
         state.refreshPendingMutation();
         if (state.hasPendingMutation()) {
@@ -70,7 +71,7 @@ public class PhysicsCollisionLodSystem extends TickingSystem<EntityStore> {
 
     @Nonnull
     private List<CollisionLodUpdate> collectUpdates(@Nonnull Store<EntityStore> store,
-        @Nonnull PhysicsWorldResource resource,
+        @Nonnull PhysicsWorldRuntimeResource resource,
         @Nonnull CollisionLodState state,
         long tick) {
         List<CollisionLodUpdate> updates = new ArrayList<>();
@@ -96,7 +97,7 @@ public class PhysicsCollisionLodSystem extends TickingSystem<EntityStore> {
         return updates;
     }
 
-    private static void collectSpaceUpdates(@Nonnull PhysicsWorldResource resource,
+    private static void collectSpaceUpdates(@Nonnull PhysicsWorldRuntimeResource resource,
         @Nonnull SpaceId spaceId,
         @Nonnull PhysicsSpaceSettings settings,
         @Nonnull List<PhysicsVisualRuntime.VisualInterest> interests,

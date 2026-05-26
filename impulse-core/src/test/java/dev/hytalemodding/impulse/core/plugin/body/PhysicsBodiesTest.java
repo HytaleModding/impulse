@@ -8,6 +8,7 @@ import dev.hytalemodding.impulse.api.PhysicsBody;
 import dev.hytalemodding.impulse.api.PhysicsSpace;
 import dev.hytalemodding.impulse.api.testsupport.FakePhysicsBackend;
 import dev.hytalemodding.impulse.core.plugin.resources.PhysicsWorldResource;
+import dev.hytalemodding.impulse.core.internal.resources.PhysicsWorldRuntimeResource;
 import dev.hytalemodding.impulse.core.plugin.settings.PhysicsSpaceSettings;
 import java.util.concurrent.atomic.AtomicInteger;
 import org.joml.Vector3f;
@@ -23,7 +24,7 @@ class PhysicsBodiesTest {
             new FakePhysicsBackend("test:spawn-body-" + BACKEND_COUNTER.incrementAndGet());
         Impulse.registerBackend(backend);
 
-        PhysicsWorldResource resource = new PhysicsWorldResource();
+        PhysicsWorldResource resource = new PhysicsWorldRuntimeResource();
         PhysicsSpace space = resource.createSpace(backend.getId(),
             "test-world",
             PhysicsSpaceSettings.defaults(),
@@ -52,7 +53,7 @@ class PhysicsBodiesTest {
             new FakePhysicsBackend("test:spawn-duplicate-" + BACKEND_COUNTER.incrementAndGet());
         Impulse.registerBackend(backend);
 
-        PhysicsWorldResource resource = new PhysicsWorldResource();
+        PhysicsWorldResource resource = new PhysicsWorldRuntimeResource();
         PhysicsSpace space = resource.createSpace(backend.getId(),
             "test-world",
             PhysicsSpaceSettings.defaults(),

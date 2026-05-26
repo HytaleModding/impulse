@@ -17,6 +17,7 @@ import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import dev.hytalemodding.impulse.api.PhysicsBodySnapshot;
 import dev.hytalemodding.impulse.api.SpaceId;
 import dev.hytalemodding.impulse.core.ImpulsePlugin;
+import dev.hytalemodding.impulse.core.internal.resources.PhysicsWorldRuntimeResource;
 import dev.hytalemodding.impulse.core.internal.resources.body.PhysicsBodyRuntimeState;
 import dev.hytalemodding.impulse.core.internal.resources.profiling.PhysicsRuntimeProfilingResource;
 import dev.hytalemodding.impulse.core.internal.systems.visual.GeneratedProxyLifecycle;
@@ -25,7 +26,6 @@ import dev.hytalemodding.impulse.core.plugin.components.PhysicsBodyAttachmentCom
 import dev.hytalemodding.impulse.core.plugin.components.PhysicsBodyAttachmentComponent.AttachmentLifecycle;
 import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyRegistrationView;
 import dev.hytalemodding.impulse.core.plugin.settings.PhysicsSpaceSettings;
-import dev.hytalemodding.impulse.core.plugin.resources.PhysicsWorldResource;
 import java.util.List;
 import java.util.Set;
 import javax.annotation.Nonnull;
@@ -121,7 +121,7 @@ public class PhysicsSyncSystem extends EntityTickingSystem<EntityStore> {
         }
 
         Scratch local = scratch.get();
-        PhysicsWorldResource resource = local.getResource(store);
+        PhysicsWorldRuntimeResource resource = local.getResource(store);
         PhysicsRuntimeProfilingResource.SyncCollector collector = local.getSyncCollector(store);
         if (collector != null) {
             collector.incrementBodiesInspected();
@@ -328,7 +328,7 @@ public class PhysicsSyncSystem extends EntityTickingSystem<EntityStore> {
     }
 
     @Nullable
-    private static PhysicsSpaceSettings resolveSpaceSettings(@Nonnull PhysicsWorldResource resource,
+    private static PhysicsSpaceSettings resolveSpaceSettings(@Nonnull PhysicsWorldRuntimeResource resource,
         @Nullable SpaceId spaceId) {
         if (spaceId != null) {
             return resource.getSpaceSettings(spaceId);
@@ -368,15 +368,15 @@ public class PhysicsSyncSystem extends EntityTickingSystem<EntityStore> {
         @Nullable
         private Store<EntityStore> cachedProfilingStore;
         @Nullable
-        private PhysicsWorldResource cachedResource;
+        private PhysicsWorldRuntimeResource cachedResource;
         @Nullable
         private PhysicsRuntimeProfilingResource cachedProfiling;
 
         @Nonnull
-        private PhysicsWorldResource getResource(@Nonnull Store<EntityStore> store) {
+        private PhysicsWorldRuntimeResource getResource(@Nonnull Store<EntityStore> store) {
             if (cachedResourceStore != store || cachedResource == null) {
                 cachedResourceStore = store;
-                cachedResource = store.getResource(PhysicsWorldResource.getResourceType());
+                cachedResource = PhysicsWorldRuntimeResource.require(store);
             }
             return cachedResource;
         }

@@ -36,7 +36,7 @@ import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyRegistration;
 import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyRegistrationView;
 import dev.hytalemodding.impulse.core.plugin.settings.PhysicsSpaceSettings;
 import dev.hytalemodding.impulse.core.plugin.settings.PhysicsVisualMaterializationSettings;
-import dev.hytalemodding.impulse.core.plugin.resources.PhysicsWorldResource;
+import dev.hytalemodding.impulse.core.internal.resources.PhysicsWorldRuntimeResource;
 import dev.hytalemodding.impulse.core.plugin.settings.VisualOcclusionMode;
 import dev.hytalemodding.impulse.core.plugin.snapshot.PhysicsBodySnapshotEntry;
 import it.unimi.dsi.fastutil.objects.ObjectOpenHashSet;
@@ -115,7 +115,7 @@ public class PhysicsDetachedVisualMaterializationSystem extends TickingSystem<En
     private void tickMaterialization(@Nonnull Store<EntityStore> store,
         @Nullable PhysicsRuntimeProfilingResource.VisualCollector collector) {
         MaterializationState state = stateFor(store);
-        PhysicsWorldResource resource = store.getResource(PhysicsWorldResource.getResourceType());
+        PhysicsWorldRuntimeResource resource = PhysicsWorldRuntimeResource.require(store);
         if (state.orphanVisualCleanupCooldown <= 0) {
             removeOrphanVisualFollowers(store, resource);
             state.orphanVisualCleanupCooldown = ORPHAN_VISUAL_CLEANUP_INTERVAL_TICKS;
@@ -159,7 +159,7 @@ public class PhysicsDetachedVisualMaterializationSystem extends TickingSystem<En
     private List<VisualInterest> currentVisualInterests(
         @Nonnull MaterializationState state,
         @Nonnull Store<EntityStore> store,
-        @Nonnull PhysicsWorldResource resource,
+        @Nonnull PhysicsWorldRuntimeResource resource,
         @Nullable PhysicsRuntimeProfilingResource.VisualCollector collector) {
         int refreshInterval = resolveVisualInterestRefreshInterval(resource);
         state.visualInterestRefreshCooldown = Math.min(state.visualInterestRefreshCooldown,
@@ -179,7 +179,7 @@ public class PhysicsDetachedVisualMaterializationSystem extends TickingSystem<En
 
     private int currentMaterializedProxyCount(@Nonnull MaterializationState state,
         @Nonnull Store<EntityStore> store,
-        @Nonnull PhysicsWorldResource resource,
+        @Nonnull PhysicsWorldRuntimeResource resource,
         @Nonnull List<VisualInterest> interests,
         @Nullable PhysicsRuntimeProfilingResource.VisualCollector collector) {
         int refreshInterval = resolveMaterializedVisibilityCheckInterval(resource);
@@ -200,7 +200,7 @@ public class PhysicsDetachedVisualMaterializationSystem extends TickingSystem<En
 
     private void refreshCachedMaterializationTargets(@Nonnull MaterializationState state,
         @Nonnull Store<EntityStore> store,
-        @Nonnull PhysicsWorldResource resource,
+        @Nonnull PhysicsWorldRuntimeResource resource,
         @Nonnull List<VisualInterest> interests,
         long visualInterestTick,
         @Nullable PhysicsRuntimeProfilingResource.VisualCollector collector) {
@@ -250,7 +250,7 @@ public class PhysicsDetachedVisualMaterializationSystem extends TickingSystem<En
 
     private int spawnCachedMaterializationTargets(@Nonnull MaterializationState state,
         @Nonnull Store<EntityStore> store,
-        @Nonnull PhysicsWorldResource resource,
+        @Nonnull PhysicsWorldRuntimeResource resource,
         int materialized,
         @Nullable PhysicsRuntimeProfilingResource.VisualCollector collector) {
         int spawned = 0;
@@ -295,7 +295,7 @@ public class PhysicsDetachedVisualMaterializationSystem extends TickingSystem<En
     @Nullable
     private static MaterializationCandidate resolveCachedMaterializationCandidate(
         @Nonnull Store<EntityStore> store,
-        @Nonnull PhysicsWorldResource resource,
+        @Nonnull PhysicsWorldRuntimeResource resource,
         @Nonnull CachedMaterializationTarget target) {
         if (resource.getGeneratedVisualProxy(target.bodyId()) != null) {
             return null;
@@ -330,7 +330,7 @@ public class PhysicsDetachedVisualMaterializationSystem extends TickingSystem<En
     }
 
     private static int resolveVisualInterestRefreshInterval(
-        @Nonnull PhysicsWorldResource resource) {
+        @Nonnull PhysicsWorldRuntimeResource resource) {
         return resolveMinimumDetachedVisualInterval(resource,
             settings -> settings.getVisualMaterializationSettings()
                 .getDetachedVisualInterestRefreshIntervalTicks(),
@@ -338,7 +338,7 @@ public class PhysicsDetachedVisualMaterializationSystem extends TickingSystem<En
     }
 
     private static int resolveMaterializationCandidateRefreshInterval(
-        @Nonnull PhysicsWorldResource resource) {
+        @Nonnull PhysicsWorldRuntimeResource resource) {
         return resolveMinimumDetachedVisualInterval(resource,
             settings -> settings.getVisualMaterializationSettings()
                 .getDetachedVisualCandidateRefreshIntervalTicks(),
@@ -346,7 +346,7 @@ public class PhysicsDetachedVisualMaterializationSystem extends TickingSystem<En
     }
 
     private static int resolveMaterializedVisibilityCheckInterval(
-        @Nonnull PhysicsWorldResource resource) {
+        @Nonnull PhysicsWorldRuntimeResource resource) {
         return resolveMinimumDetachedVisualInterval(resource,
             settings -> settings.getVisualMaterializationSettings()
                 .getDetachedVisualVisibilityCheckIntervalTicks(),
@@ -354,7 +354,7 @@ public class PhysicsDetachedVisualMaterializationSystem extends TickingSystem<En
     }
 
     private static int resolveMinimumDetachedVisualInterval(
-        @Nonnull PhysicsWorldResource resource,
+        @Nonnull PhysicsWorldRuntimeResource resource,
         @Nonnull ToIntFunction<PhysicsSpaceSettings> intervalGetter,
         int defaultInterval) {
         int interval = Integer.MAX_VALUE;
@@ -368,7 +368,7 @@ public class PhysicsDetachedVisualMaterializationSystem extends TickingSystem<En
     }
 
     private static int processMaterializedProxies(@Nonnull Store<EntityStore> store,
-        @Nonnull PhysicsWorldResource resource,
+        @Nonnull PhysicsWorldRuntimeResource resource,
         @Nonnull List<VisualInterest> interests,
         @Nullable PhysicsRuntimeProfilingResource.VisualCollector collector) {
         int count = 0;
@@ -428,7 +428,7 @@ public class PhysicsDetachedVisualMaterializationSystem extends TickingSystem<En
     }
 
     private static void collectMaterializationCandidates(@Nonnull Store<EntityStore> store,
-        @Nonnull PhysicsWorldResource resource,
+        @Nonnull PhysicsWorldRuntimeResource resource,
         @Nonnull List<VisualInterest> interests,
         long visualInterestTick,
         @Nonnull RaycastBudget raycastBudget,
@@ -497,7 +497,7 @@ public class PhysicsDetachedVisualMaterializationSystem extends TickingSystem<En
     }
 
     private static void removeOrphanVisualFollowers(@Nonnull Store<EntityStore> store,
-        @Nonnull PhysicsWorldResource resource) {
+        @Nonnull PhysicsWorldRuntimeResource resource) {
         Queue<OrphanVisualProxy> orphanProxies = new ConcurrentLinkedQueue<>();
         store.forEachEntityParallel(ATTACHMENT_TYPE,
             (index, archetypeChunk, commandBuffer) -> {
@@ -521,7 +521,7 @@ public class PhysicsDetachedVisualMaterializationSystem extends TickingSystem<En
         }
     }
 
-    private static boolean hasLiveVisualTarget(@Nonnull PhysicsWorldResource resource,
+    private static boolean hasLiveVisualTarget(@Nonnull PhysicsWorldRuntimeResource resource,
         @Nonnull PhysicsBodyId bodyId,
         @Nullable SpaceId spaceId,
         @Nonnull Ref<EntityStore> proxyRef) {
@@ -546,7 +546,7 @@ public class PhysicsDetachedVisualMaterializationSystem extends TickingSystem<En
 
     @Nullable
     private static PhysicsBodyRegistrationView resolveBodyRegistration(
-        @Nonnull PhysicsWorldResource resource,
+        @Nonnull PhysicsWorldRuntimeResource resource,
         @Nonnull PhysicsBodySnapshotEntry entry) {
         PhysicsBodyRegistrationView registration =
             resource.getBodyRegistrationView(entry.bodyId());
@@ -563,7 +563,7 @@ public class PhysicsDetachedVisualMaterializationSystem extends TickingSystem<En
     }
 
     private static boolean hasGameplayAttachment(@Nonnull Store<EntityStore> store,
-        @Nonnull PhysicsWorldResource resource,
+        @Nonnull PhysicsWorldRuntimeResource resource,
         @Nonnull PhysicsBodyId bodyId,
         @Nonnull Ref<EntityStore> proxy) {
         for (Ref<EntityStore> attachmentRef : resource.getBodyAttachments(bodyId)) {
@@ -580,7 +580,7 @@ public class PhysicsDetachedVisualMaterializationSystem extends TickingSystem<En
     }
 
     @Nullable
-    private static PhysicsSpaceSettings resolveSettings(@Nonnull PhysicsWorldResource resource,
+    private static PhysicsSpaceSettings resolveSettings(@Nonnull PhysicsWorldRuntimeResource resource,
         @Nonnull PhysicsBodyRegistrationView registration) {
         if (resource.getSpace(registration.spaceId()) != null) {
             return resource.getSpaceSettings(registration.spaceId());
@@ -592,7 +592,7 @@ public class PhysicsDetachedVisualMaterializationSystem extends TickingSystem<En
     }
 
     @Nullable
-    private static PhysicsSpace resolveSpace(@Nonnull PhysicsWorldResource resource,
+    private static PhysicsSpace resolveSpace(@Nonnull PhysicsWorldRuntimeResource resource,
         @Nonnull PhysicsBodyRegistrationView registration) {
         PhysicsSpace space = resource.getSpace(registration.spaceId());
         if (space != null) {
@@ -646,7 +646,7 @@ public class PhysicsDetachedVisualMaterializationSystem extends TickingSystem<En
     }
 
     @Nonnull
-    private static InterestResult resolveVisualInterest(@Nonnull PhysicsWorldResource resource,
+    private static InterestResult resolveVisualInterest(@Nonnull PhysicsWorldRuntimeResource resource,
         @Nonnull PhysicsBodyId bodyId,
         @Nullable PhysicsSpace space,
         @Nonnull PhysicsBodySnapshot snapshot,
@@ -736,7 +736,7 @@ public class PhysicsDetachedVisualMaterializationSystem extends TickingSystem<En
             : new InterestProbe(nearestInterest, nearestDistanceSquared);
     }
 
-    private static boolean raycastVisible(@Nonnull PhysicsWorldResource resource,
+    private static boolean raycastVisible(@Nonnull PhysicsWorldRuntimeResource resource,
         @Nonnull PhysicsSpace space,
         @Nonnull VisualInterest interest,
         @Nonnull PhysicsBodyId bodyId,

@@ -5,6 +5,7 @@ import com.hypixel.hytale.component.Store;
 import com.hypixel.hytale.component.system.StoreSystem;
 import com.hypixel.hytale.logger.HytaleLogger;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
+import dev.hytalemodding.impulse.core.internal.resources.PhysicsWorldRuntimeResource;
 import dev.hytalemodding.impulse.core.internal.resources.worker.PhysicsWorldWorkerResource;
 import dev.hytalemodding.impulse.core.plugin.resources.PhysicsWorldResource;
 import java.util.ArrayList;
@@ -43,7 +44,8 @@ public final class PhysicsWorldWorkerLifecycleSystem extends StoreSystem<EntityS
     public void onSystemAddedToStore(@Nonnull Store<EntityStore> store) {
         PhysicsWorldWorkerResource worker = store.getResource(workerResourceType);
         startWorker(worker, worldName(store));
-        store.getResource(physicsWorldResourceType).attachWorkerResource(worker);
+        PhysicsWorldRuntimeResource.require(store.getResource(physicsWorldResourceType))
+            .attachWorkerResource(worker);
     }
 
     @Override
@@ -51,9 +53,10 @@ public final class PhysicsWorldWorkerLifecycleSystem extends StoreSystem<EntityS
         String worldName = worldName(store);
         PhysicsWorldWorkerResource worker = store.getResource(workerResourceType);
         PhysicsWorldResource physics = store.getResource(physicsWorldResourceType);
+        PhysicsWorldRuntimeResource runtime = PhysicsWorldRuntimeResource.require(physics);
         boolean clearedSpaces = clearSpaces(physics, worldName);
         boolean closedWorker = closeWorker(worker);
-        physics.detachWorkerResource(worker);
+        runtime.detachWorkerResource(worker);
 
         // Retry if it failed before, this could happen.
         if (!clearedSpaces && closedWorker) {

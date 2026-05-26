@@ -12,7 +12,7 @@ import dev.hytalemodding.impulse.api.ShapeType;
 import dev.hytalemodding.impulse.core.internal.resources.chunk.PhysicsChunkBoundaryRuntime;
 import dev.hytalemodding.impulse.core.internal.resources.chunk.PhysicsChunkBoundaryRuntime.ChunkBoundarySafeState;
 import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyId;
-import dev.hytalemodding.impulse.core.plugin.resources.PhysicsWorldResource;
+import dev.hytalemodding.impulse.core.internal.resources.PhysicsWorldRuntimeResource;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 import org.joml.Quaternionf;
@@ -23,7 +23,7 @@ class PhysicsChunkBoundarySystemTest {
 
     @Test
     void recordSafePoseUsesSnapshotPoseWithoutReadingBody() {
-        PhysicsWorldResource resource = new PhysicsWorldResource();
+        PhysicsWorldRuntimeResource resource = new PhysicsWorldRuntimeResource();
         PhysicsBodyId bodyId = PhysicsBodyId.random();
         CountingBody body = new CountingBody();
         Quaternionf rotation = new Quaternionf().rotateY(0.5f);
@@ -51,7 +51,7 @@ class PhysicsChunkBoundarySystemTest {
 
     @Test
     void pauseBodyUsesSnapshotVelocityAndTypeWithoutReadingBody() {
-        PhysicsWorldResource resource = new PhysicsWorldResource();
+        PhysicsWorldRuntimeResource resource = new PhysicsWorldRuntimeResource();
         PhysicsBodyId bodyId = PhysicsBodyId.random();
         CountingBody body = new CountingBody();
         Quaternionf safeRotation = new Quaternionf().rotateX(0.25f);

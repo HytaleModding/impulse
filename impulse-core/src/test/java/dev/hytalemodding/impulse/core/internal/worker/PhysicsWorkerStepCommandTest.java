@@ -24,7 +24,7 @@ import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyPersistenceMode;
 import dev.hytalemodding.impulse.core.plugin.settings.PhysicsStepMode;
 import dev.hytalemodding.impulse.core.plugin.settings.PhysicsSpaceSettings;
 import dev.hytalemodding.impulse.core.plugin.settings.PhysicsWorldSettings;
-import dev.hytalemodding.impulse.core.plugin.resources.PhysicsWorldResource;
+import dev.hytalemodding.impulse.core.internal.resources.PhysicsWorldRuntimeResource;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
@@ -45,7 +45,7 @@ class PhysicsWorkerStepCommandTest {
     @Test
     void runsStepOnWorkerThreadAndPublishesProfiledSnapshot() throws Exception {
         CountingBackend backend = registerBackend(true);
-        PhysicsWorldResource resource = new PhysicsWorldResource();
+        PhysicsWorldRuntimeResource resource = new PhysicsWorldRuntimeResource();
         CountingSpace space = (CountingSpace) resource.createSpace(backend.getId(),
             "worker-test",
             PhysicsSpaceSettings.defaults(),
@@ -95,7 +95,7 @@ class PhysicsWorkerStepCommandTest {
     @Test
     void progressiveRefinementUsesMaxStepDtBudget() {
         CountingBackend backend = registerBackend(false);
-        PhysicsWorldResource resource = new PhysicsWorldResource();
+        PhysicsWorldRuntimeResource resource = new PhysicsWorldRuntimeResource();
         CountingSpace space = (CountingSpace) resource.createSpace(backend.getId(),
             "worker-test",
             PhysicsSpaceSettings.defaults(),
@@ -118,7 +118,7 @@ class PhysicsWorkerStepCommandTest {
     @Test
     void nonFiniteDtDoesNotReachBackendStep() {
         CountingBackend backend = registerBackend(false);
-        PhysicsWorldResource resource = new PhysicsWorldResource();
+        PhysicsWorldRuntimeResource resource = new PhysicsWorldRuntimeResource();
         CountingSpace space = (CountingSpace) resource.createSpace(backend.getId(),
             "worker-test",
             PhysicsSpaceSettings.defaults(),
@@ -135,7 +135,7 @@ class PhysicsWorkerStepCommandTest {
     @Test
     void adaptiveRefinementRaisesStepsForFastBodies() {
         CountingBackend backend = registerBackend(false);
-        PhysicsWorldResource resource = new PhysicsWorldResource();
+        PhysicsWorldRuntimeResource resource = new PhysicsWorldRuntimeResource();
         CountingSpace space = (CountingSpace) resource.createSpace(backend.getId(),
             "worker-test",
             PhysicsSpaceSettings.defaults(),
@@ -162,7 +162,7 @@ class PhysicsWorkerStepCommandTest {
     @Test
     void ccdModeForcesAndRestoresOnlyWorkerOwnedOverrides() {
         CountingBackend backend = registerBackend(true);
-        PhysicsWorldResource resource = new PhysicsWorldResource();
+        PhysicsWorldRuntimeResource resource = new PhysicsWorldRuntimeResource();
         CountingSpace space = (CountingSpace) resource.createSpace(backend.getId(),
             "worker-test",
             PhysicsSpaceSettings.defaults(),
@@ -198,7 +198,7 @@ class PhysicsWorkerStepCommandTest {
     @Test
     void stepFailuresPublishSnapshotsAndRemainInspectable() throws Exception {
         CountingBackend backend = registerBackend(false);
-        PhysicsWorldResource resource = new PhysicsWorldResource();
+        PhysicsWorldRuntimeResource resource = new PhysicsWorldRuntimeResource();
         CountingSpace space = (CountingSpace) resource.createSpace(backend.getId(),
             "worker-test",
             PhysicsSpaceSettings.defaults(),
@@ -252,7 +252,7 @@ class PhysicsWorkerStepCommandTest {
         return backend;
     }
 
-    private static void configureWorldSettings(@Nonnull PhysicsWorldResource resource,
+    private static void configureWorldSettings(@Nonnull PhysicsWorldRuntimeResource resource,
         @Nonnull Consumer<PhysicsWorldSettings> configurator) {
         PhysicsWorldSettings settings = resource.getWorldSettings();
         configurator.accept(settings);
@@ -293,7 +293,7 @@ class PhysicsWorkerStepCommandTest {
         }
     }
 
-    private static final class FailingSnapshotWorldResource extends PhysicsWorldResource {
+    private static final class FailingSnapshotWorldResource extends PhysicsWorldRuntimeResource {
 
         @Nullable
         private RuntimeException snapshotFailure;

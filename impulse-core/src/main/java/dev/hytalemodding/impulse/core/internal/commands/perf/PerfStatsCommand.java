@@ -13,7 +13,7 @@ import dev.hytalemodding.impulse.core.internal.worker.PhysicsWorkerAccess;
 import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyKind;
 import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyRegistration;
 import dev.hytalemodding.impulse.core.plugin.resources.PhysicsWorldResource;
-import dev.hytalemodding.impulse.core.internal.voxel.WorldCollisionCacheAccess;
+import dev.hytalemodding.impulse.core.internal.resources.PhysicsWorldRuntimeResource;
 import dev.hytalemodding.impulse.core.internal.voxel.WorldVoxelCollisionCache;
 import java.util.Collection;
 import javax.annotation.Nonnull;
@@ -37,7 +37,7 @@ public class PerfStatsCommand extends AbstractWorldCommand {
         }
 
         SpaceStats totals = new SpaceStats();
-        WorldVoxelCollisionCache cache = WorldCollisionCacheAccess.get(resource);
+        WorldVoxelCollisionCache cache = PhysicsWorldRuntimeResource.require(resource).worldCollisionCache();
         ctx.sender().sendMessage(Message.raw("Impulse runtime stats for world " + world.getName()
             + ": spaces=" + spaces.size()));
         for (PhysicsSpace space : spaces) {

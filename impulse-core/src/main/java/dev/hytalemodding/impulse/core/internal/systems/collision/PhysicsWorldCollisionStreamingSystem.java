@@ -20,7 +20,7 @@ import dev.hytalemodding.impulse.core.internal.resources.profiling.WorldCollisio
 import dev.hytalemodding.impulse.core.internal.resources.profiling.WorldCollisionProfilingResource.Snapshot;
 import dev.hytalemodding.impulse.core.internal.resources.profiling.WorldCollisionProfilingResource.StreamingTargetDiagnostic;
 import dev.hytalemodding.impulse.core.plugin.collision.WorldCollisionMode;
-import dev.hytalemodding.impulse.core.internal.voxel.WorldCollisionCacheAccess;
+import dev.hytalemodding.impulse.core.internal.resources.PhysicsWorldRuntimeResource;
 import dev.hytalemodding.impulse.core.internal.voxel.WorldCollisionStreamingBounds;
 import dev.hytalemodding.impulse.core.internal.voxel.WorldVoxelCollisionCache;
 import dev.hytalemodding.impulse.core.internal.voxel.WorldVoxelCollisionCache.SectionAccessCache;
@@ -76,8 +76,8 @@ public class PhysicsWorldCollisionStreamingSystem extends TickingSystem<EntitySt
         long tickStart = 0L;
         try {
             World world = store.getExternalData().getWorld();
-            PhysicsWorldResource resource = store.getResource(PhysicsWorldResource.getResourceType());
-            WorldVoxelCollisionCache cache = WorldCollisionCacheAccess.get(resource);
+            PhysicsWorldRuntimeResource resource = PhysicsWorldRuntimeResource.require(store);
+            WorldVoxelCollisionCache cache = resource.worldCollisionCache();
             if (cache.isStreamingApplyPending()) {
                 recordSkippedTerrainApply(profiling);
                 return;

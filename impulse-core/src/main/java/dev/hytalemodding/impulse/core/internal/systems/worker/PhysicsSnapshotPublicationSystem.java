@@ -8,8 +8,8 @@ import com.hypixel.hytale.component.system.tick.TickingSystem;
 import com.hypixel.hytale.logger.HytaleLogger;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import dev.hytalemodding.impulse.core.internal.resources.profiling.PhysicsRuntimeProfilingResource;
+import dev.hytalemodding.impulse.core.internal.resources.PhysicsWorldRuntimeResource;
 import dev.hytalemodding.impulse.core.internal.resources.worker.PhysicsWorldWorkerResource;
-import dev.hytalemodding.impulse.core.plugin.snapshot.PublishedPhysicsSnapshotFrame;
 import dev.hytalemodding.impulse.core.internal.systems.collision.PhysicsChunkBoundarySystem;
 import dev.hytalemodding.impulse.core.internal.systems.collision.PhysicsCollisionLodSystem;
 import dev.hytalemodding.impulse.core.internal.systems.collision.PhysicsWorldCollisionStreamingSystem;
@@ -20,6 +20,7 @@ import dev.hytalemodding.impulse.core.internal.worker.PhysicsWorkerResult;
 import dev.hytalemodding.impulse.core.internal.worker.PhysicsWorkerSnapshot;
 import dev.hytalemodding.impulse.core.internal.worker.PhysicsWorkerStepCompletion;
 import dev.hytalemodding.impulse.core.plugin.resources.PhysicsWorldResource;
+import dev.hytalemodding.impulse.core.plugin.snapshot.PublishedPhysicsSnapshotFrame;
 import java.util.List;
 import java.util.Set;
 import java.util.logging.Level;
@@ -95,7 +96,7 @@ public final class PhysicsSnapshotPublicationSystem extends TickingSystem<Entity
 
         PublishedPhysicsSnapshotFrame frame = completion.frame();
         if (frame != null) {
-            resource.applyPublishedSnapshotFrame(frame);
+            PhysicsWorldRuntimeResource.require(resource).applyPublishedSnapshotFrame(frame);
         }
 
         PhysicsWorkerSnapshot snapshot = completion.snapshotOrEmpty();

@@ -18,6 +18,7 @@ import dev.hytalemodding.impulse.api.PhysicsBody;
 import dev.hytalemodding.impulse.api.PhysicsBodySnapshot;
 import dev.hytalemodding.impulse.api.PhysicsBodyType;
 import dev.hytalemodding.impulse.core.ImpulsePlugin;
+import dev.hytalemodding.impulse.core.internal.resources.PhysicsWorldRuntimeResource;
 import dev.hytalemodding.impulse.core.internal.resources.chunk.PhysicsChunkBoundaryRuntime;
 import dev.hytalemodding.impulse.core.internal.resources.chunk.PhysicsChunkBoundaryRuntime.ChunkBoundarySafeState;
 import dev.hytalemodding.impulse.core.internal.systems.sync.PhysicsSyncSystem;
@@ -27,7 +28,6 @@ import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyId;
 import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyKind;
 import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyRegistrationView;
 import dev.hytalemodding.impulse.core.plugin.settings.PhysicsSpaceSettings;
-import dev.hytalemodding.impulse.core.plugin.resources.PhysicsWorldResource;
 import it.unimi.dsi.fastutil.longs.LongOpenHashSet;
 import it.unimi.dsi.fastutil.longs.LongSet;
 import java.util.Set;
@@ -59,7 +59,7 @@ public class PhysicsChunkBoundarySystem extends TickingSystem<EntityStore> {
         World world = store.getExternalData().getWorld();
         ChunkStore chunkStore = world.getChunkStore();
         Store<ChunkStore> chunkComponentStore = chunkStore.getStore();
-        PhysicsWorldResource resource = store.getResource(PhysicsWorldResource.getResourceType());
+        PhysicsWorldRuntimeResource resource = PhysicsWorldRuntimeResource.require(store);
         for (PhysicsBodyRegistrationView registration
             : resource.getBodyRegistrationViews(PhysicsBodyKind.BODY)) {
             processBody(registration, resource, store, chunkStore, chunkComponentStore);
@@ -67,7 +67,7 @@ public class PhysicsChunkBoundarySystem extends TickingSystem<EntityStore> {
     }
 
     private void processBody(@Nonnull PhysicsBodyRegistrationView registration,
-        @Nonnull PhysicsWorldResource resource,
+        @Nonnull PhysicsWorldRuntimeResource resource,
         @Nonnull Store<EntityStore> store,
         @Nonnull ChunkStore chunkStore,
         @Nonnull Store<ChunkStore> chunkComponentStore) {
@@ -116,7 +116,7 @@ public class PhysicsChunkBoundarySystem extends TickingSystem<EntityStore> {
         @Nonnull PhysicsBodySnapshot snapshot,
         @Nonnull PhysicsChunkBoundaryRuntime.ChunkBoundaryPauseState pauseState,
         @Nonnull EntityChunkBoundaryMode mode,
-        @Nonnull PhysicsWorldResource resource,
+        @Nonnull PhysicsWorldRuntimeResource resource,
         @Nonnull Store<EntityStore> entityStore,
         @Nonnull ChunkStore chunkStore,
         @Nonnull Store<ChunkStore> chunkComponentStore) {
@@ -146,7 +146,7 @@ public class PhysicsChunkBoundarySystem extends TickingSystem<EntityStore> {
     static void pauseBody(@Nonnull PhysicsBodyId bodyId,
         @Nonnull PhysicsBodySnapshot snapshot,
         long targetChunkIndex,
-        @Nonnull PhysicsWorldResource resource) {
+        @Nonnull PhysicsWorldRuntimeResource resource) {
         PhysicsBody body = resource.getBody(bodyId);
         if (body == null) {
             return;
@@ -158,7 +158,7 @@ public class PhysicsChunkBoundarySystem extends TickingSystem<EntityStore> {
         @Nonnull PhysicsBody body,
         @Nonnull PhysicsBodySnapshot snapshot,
         long targetChunkIndex,
-        @Nonnull PhysicsWorldResource resource) {
+        @Nonnull PhysicsWorldRuntimeResource resource) {
         ChunkBoundarySafeState safeState =
             resource.getChunkBoundarySafeState(bodyId);
         resource.pauseChunkBoundaryBody(bodyId,
@@ -182,7 +182,7 @@ public class PhysicsChunkBoundarySystem extends TickingSystem<EntityStore> {
 
     static void recordSafePose(@Nonnull PhysicsBodyId bodyId,
         @Nonnull PhysicsBodySnapshot snapshot,
-        @Nonnull PhysicsWorldResource resource) {
+        @Nonnull PhysicsWorldRuntimeResource resource) {
         resource.updateChunkBoundarySafeState(bodyId, snapshot.position(), snapshot.rotation());
     }
 

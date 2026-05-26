@@ -21,6 +21,7 @@ import dev.hytalemodding.impulse.core.internal.commands.ImpulseCommand;
 import dev.hytalemodding.impulse.core.internal.components.GeneratedVisualProxyComponent;
 import dev.hytalemodding.impulse.core.internal.persistence.PersistentPhysicsWorldResource;
 import dev.hytalemodding.impulse.core.internal.resources.debug.PhysicsDebugResource;
+import dev.hytalemodding.impulse.core.internal.resources.PhysicsWorldRuntimeResource;
 import dev.hytalemodding.impulse.core.internal.resources.profiling.PhysicsRuntimeProfilingResource;
 import dev.hytalemodding.impulse.core.internal.resources.profiling.WorldCollisionProfilingResource;
 import dev.hytalemodding.impulse.core.internal.resources.worker.PhysicsWorldWorkerResource;
@@ -235,7 +236,7 @@ public final class ImpulsePlugin extends JavaPlugin {
             "GeneratedVisualProxy",
             GeneratedVisualProxyComponent.CODEC);
         physicsWorldResourceType = entityRegistry.registerResource(PhysicsWorldResource.class,
-            PhysicsWorldResource::new);
+            PhysicsWorldRuntimeResource::new);
         physicsDebugResourceType = entityRegistry.registerResource(PhysicsDebugResource.class,
             PhysicsDebugResource::new);
         physicsRuntimeProfilingResourceType = entityRegistry.registerResource(

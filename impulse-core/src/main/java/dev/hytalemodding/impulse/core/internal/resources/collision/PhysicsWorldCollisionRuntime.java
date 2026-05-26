@@ -3,7 +3,6 @@ package dev.hytalemodding.impulse.core.internal.resources.collision;
 import com.hypixel.hytale.server.core.universe.world.World;
 import dev.hytalemodding.impulse.api.PhysicsSpace;
 import dev.hytalemodding.impulse.api.SpaceId;
-import dev.hytalemodding.impulse.core.internal.voxel.WorldCollisionCacheAccess;
 import dev.hytalemodding.impulse.core.internal.voxel.WorldVoxelCollisionCache;
 import dev.hytalemodding.impulse.core.plugin.collision.WorldCollisionBuildStats;
 import dev.hytalemodding.impulse.core.plugin.collision.WorldCollisionPrewarmStats;
@@ -22,12 +21,8 @@ public final class PhysicsWorldCollisionRuntime {
 
     private final WorldVoxelCollisionCache worldVoxelCollisionCache = new WorldVoxelCollisionCache();
 
-    /**
-     * Internal bridge for Impulse systems that own streamed terrain cache behavior.
-     */
     @Nonnull
-    public Object internalState(@Nonnull WorldCollisionCacheAccess access) {
-        Objects.requireNonNull(access, "access");
+    public WorldVoxelCollisionCache worldVoxelCollisionCache() {
         return worldVoxelCollisionCache;
     }
 

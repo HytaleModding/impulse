@@ -5,7 +5,7 @@ import dev.hytalemodding.impulse.api.SpaceId;
 import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyId;
 import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyPersistenceMode;
 import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyRegistration;
-import dev.hytalemodding.impulse.core.plugin.resources.PhysicsWorldResource;
+import dev.hytalemodding.impulse.core.internal.resources.PhysicsWorldRuntimeResource;
 import dev.hytalemodding.impulse.core.plugin.settings.PhysicsSpaceSettings;
 import dev.hytalemodding.impulse.core.plugin.settings.PhysicsWorldSettings;
 import java.util.ArrayList;
@@ -17,7 +17,8 @@ import lombok.Getter;
 /**
  * Worker-owned copy of the live runtime state needed by world persistence.
  *
- * <p>{@link #capture(PhysicsWorldResource)} and {@link #captureFootprint(PhysicsWorldResource)}
+ * <p>{@link #capture(PhysicsWorldRuntimeResource)} and
+ * {@link #captureFootprint(PhysicsWorldRuntimeResource)}
  * read live backend spaces, bodies, and joints. Callers must invoke them from the physics
  * owner thread or through the physics worker bridge.</p>
  */
@@ -50,7 +51,7 @@ public final class PersistentPhysicsRuntimeSnapshot {
     }
 
     @Nonnull
-    public static PersistentPhysicsRuntimeSnapshot capture(@Nonnull PhysicsWorldResource runtime) {
+    public static PersistentPhysicsRuntimeSnapshot capture(@Nonnull PhysicsWorldRuntimeResource runtime) {
         runtime.assertCanAccessLiveBackendDirectly("capture persistent physics runtime snapshot");
         SpaceId defaultSpaceId = runtime.getDefaultSpaceId();
         int resolvedDefaultSpaceId = defaultSpaceId != null
@@ -79,7 +80,7 @@ public final class PersistentPhysicsRuntimeSnapshot {
     }
 
     @Nonnull
-    public static Footprint captureFootprint(@Nonnull PhysicsWorldResource runtime) {
+    public static Footprint captureFootprint(@Nonnull PhysicsWorldRuntimeResource runtime) {
         runtime.assertCanAccessLiveBackendDirectly("capture persistent physics runtime footprint");
         return new Footprint(runtime.getSpaceCount(),
             runtime.getBodyRegistrationCount(PhysicsBodyPersistenceMode.PERSISTENT),
@@ -111,7 +112,7 @@ public final class PersistentPhysicsRuntimeSnapshot {
         return copyJoints(joints);
     }
 
-    private static int countPersistentJoints(@Nonnull PhysicsWorldResource runtime) {
+    private static int countPersistentJoints(@Nonnull PhysicsWorldRuntimeResource runtime) {
         int[] count = new int[1];
         for (PhysicsSpace space : runtime.iterateSpaces()) {
             space.forEachJoint(joint -> {
@@ -134,7 +135,7 @@ public final class PersistentPhysicsRuntimeSnapshot {
         return count[0];
     }
 
-    private static void capturePersistentJoints(@Nonnull PhysicsWorldResource runtime,
+    private static void capturePersistentJoints(@Nonnull PhysicsWorldRuntimeResource runtime,
         @Nonnull PhysicsSpace space,
         @Nonnull List<PersistentPhysicsJointState> joints) {
         space.forEachJoint(joint -> {

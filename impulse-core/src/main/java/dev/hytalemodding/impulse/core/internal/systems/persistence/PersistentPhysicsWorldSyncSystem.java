@@ -10,13 +10,14 @@ import dev.hytalemodding.impulse.api.SpaceId;
 import dev.hytalemodding.impulse.core.internal.persistence.PersistentPhysicsBodyState;
 import dev.hytalemodding.impulse.core.internal.persistence.PersistentPhysicsRuntimeSnapshot;
 import dev.hytalemodding.impulse.core.internal.persistence.PersistentPhysicsWorldResource;
+import dev.hytalemodding.impulse.core.internal.resources.PhysicsWorldRuntimeResource;
 import dev.hytalemodding.impulse.core.internal.resources.worker.PhysicsWorldWorkerResource;
 import dev.hytalemodding.impulse.core.internal.systems.worker.PhysicsSnapshotPublicationSystem;
 import dev.hytalemodding.impulse.core.internal.worker.PhysicsWorkerAccess;
 import dev.hytalemodding.impulse.core.internal.worker.PhysicsWorkerSnapshot;
 import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyPersistenceMode;
-import dev.hytalemodding.impulse.core.plugin.resources.PhysicsWorldResource;
 import dev.hytalemodding.impulse.core.plugin.settings.PhysicsWorldSettings;
+import dev.hytalemodding.impulse.core.plugin.resources.PhysicsWorldResource;
 import java.util.Map;
 import java.util.Set;
 import java.util.WeakHashMap;
@@ -59,7 +60,7 @@ public class PersistentPhysicsWorldSyncSystem extends TickingSystem<EntityStore>
             return;
         }
 
-        PhysicsWorldResource runtime = store.getResource(PhysicsWorldResource.getResourceType());
+        PhysicsWorldRuntimeResource runtime = PhysicsWorldRuntimeResource.require(store);
         PendingRuntimeRead pending = pendingRuntimeReads.get(persistent);
         if (pending != null) {
             if (!pending.isDone()) {
@@ -97,9 +98,10 @@ public class PersistentPhysicsWorldSyncSystem extends TickingSystem<EntityStore>
             return SyncResult.skipped("restore failed");
         }
 
+        PhysicsWorldRuntimeResource runtimeResource = PhysicsWorldRuntimeResource.require(runtime);
         PersistentPhysicsRuntimeSnapshot snapshot = PhysicsWorkerAccess.call(store,
             "capture persisted physics runtime snapshot",
-            () -> PersistentPhysicsRuntimeSnapshot.capture(runtime));
+            () -> PersistentPhysicsRuntimeSnapshot.capture(runtimeResource));
         return syncRuntimeSnapshot(persistent, snapshot);
     }
 
@@ -126,7 +128,7 @@ public class PersistentPhysicsWorldSyncSystem extends TickingSystem<EntityStore>
     }
 
     private static boolean hasScalarWorldStateChanged(@Nonnull PersistentPhysicsWorldResource persistent,
-        @Nonnull PhysicsWorldResource runtime) {
+        @Nonnull PhysicsWorldRuntimeResource runtime) {
         SpaceId defaultSpaceId = runtime.getDefaultSpaceId();
         int resolvedDefaultSpaceId = defaultSpaceId != null
             ? defaultSpaceId.value()
@@ -142,7 +144,7 @@ public class PersistentPhysicsWorldSyncSystem extends TickingSystem<EntityStore>
 
     private static boolean hasCheapRuntimePersistenceFootprintChanged(
         @Nonnull PersistentPhysicsWorldResource persistent,
-        @Nonnull PhysicsWorldResource runtime) {
+        @Nonnull PhysicsWorldRuntimeResource runtime) {
         return persistent.getSpaceCount() != runtime.getSpaceCount()
             || persistent.getBodyCount() != runtime.getBodyRegistrationCount(
                 PhysicsBodyPersistenceMode.PERSISTENT);
@@ -158,7 +160,7 @@ public class PersistentPhysicsWorldSyncSystem extends TickingSystem<EntityStore>
 
     private void requestSnapshotRead(@Nonnull Store<EntityStore> store,
         @Nonnull PersistentPhysicsWorldResource persistent,
-        @Nonnull PhysicsWorldResource runtime) {
+        @Nonnull PhysicsWorldRuntimeResource runtime) {
         if (runtime.canAccessLiveBackendDirectly()) {
             syncRuntimeSnapshot(persistent, PersistentPhysicsRuntimeSnapshot.capture(runtime));
             return;
@@ -171,7 +173,7 @@ public class PersistentPhysicsWorldSyncSystem extends TickingSystem<EntityStore>
 
     private void requestFootprintRead(@Nonnull Store<EntityStore> store,
         @Nonnull PersistentPhysicsWorldResource persistent,
-        @Nonnull PhysicsWorldResource runtime) {
+        @Nonnull PhysicsWorldRuntimeResource runtime) {
         if (runtime.canAccessLiveBackendDirectly()) {
             PersistentPhysicsRuntimeSnapshot.Footprint footprint =
                 PersistentPhysicsRuntimeSnapshot.captureFootprint(runtime);

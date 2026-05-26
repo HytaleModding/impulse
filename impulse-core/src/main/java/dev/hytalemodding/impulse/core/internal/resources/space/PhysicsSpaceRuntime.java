@@ -7,7 +7,7 @@ import dev.hytalemodding.impulse.api.PhysicsActivationTuning;
 import dev.hytalemodding.impulse.api.PhysicsSolverTuning;
 import dev.hytalemodding.impulse.api.PhysicsSpace;
 import dev.hytalemodding.impulse.api.SpaceId;
-import dev.hytalemodding.impulse.core.plugin.resources.PhysicsRuntimeResetResult;
+import dev.hytalemodding.impulse.core.internal.resources.PhysicsRuntimeResetResult;
 import dev.hytalemodding.impulse.core.plugin.settings.PhysicsSpaceSettings;
 import dev.hytalemodding.impulse.core.plugin.settings.PhysicsStepMode;
 import it.unimi.dsi.fastutil.ints.Int2ObjectMap;

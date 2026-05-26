@@ -25,8 +25,8 @@ import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyKind;
 import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyPersistenceMode;
 import dev.hytalemodding.impulse.core.plugin.collision.WorldCollisionMode;
 import dev.hytalemodding.impulse.core.plugin.execution.PhysicsMutationHandle;
-import dev.hytalemodding.impulse.core.plugin.resources.PhysicsRuntimeResetResult;
-import dev.hytalemodding.impulse.core.plugin.resources.PhysicsWorldResource;
+import dev.hytalemodding.impulse.core.internal.resources.PhysicsRuntimeResetResult;
+import dev.hytalemodding.impulse.core.internal.resources.PhysicsWorldRuntimeResource;
 import dev.hytalemodding.impulse.core.plugin.settings.PhysicsSpaceSettings;
 import dev.hytalemodding.impulse.core.plugin.settings.PhysicsWorldSettings;
 import dev.hytalemodding.impulse.core.plugin.snapshot.PublishedPhysicsSnapshotFrame;
@@ -53,7 +53,7 @@ class PhysicsWorldResourceStateTest {
 
     @Test
     void worldSettingsAreCopiedAcrossResourceBoundary() {
-        PhysicsWorldResource resource = new PhysicsWorldResource();
+        PhysicsWorldRuntimeResource resource = new PhysicsWorldRuntimeResource();
 
         PhysicsWorldSettings copy = resource.getWorldSettings();
         copy.setSimulationSteps(4);
@@ -108,7 +108,7 @@ class PhysicsWorldResourceStateTest {
             new FakePhysicsBackend("test:reset-" + BACKEND_COUNTER.incrementAndGet());
         Impulse.registerBackend(backend);
 
-        PhysicsWorldResource resource = new PhysicsWorldResource();
+        PhysicsWorldRuntimeResource resource = new PhysicsWorldRuntimeResource();
         PhysicsSpaceSettings settings = PhysicsSpaceSettings.streamingWorldCollision();
         settings.getSolverSettings().setSolverIterations(7);
         settings.getVisualMaterializationSettings().setDetachedVisualMaxMaterialized(64);
@@ -166,7 +166,7 @@ class PhysicsWorldResourceStateTest {
             new FakePhysicsBackend("test:destroy-cleanup-" + BACKEND_COUNTER.incrementAndGet());
         Impulse.registerBackend(backend);
 
-        PhysicsWorldResource resource = new PhysicsWorldResource();
+        PhysicsWorldRuntimeResource resource = new PhysicsWorldRuntimeResource();
         PhysicsSpace space = resource.createSpace(backend.getId(),
             "test-world",
             PhysicsSpaceSettings.defaults(),
@@ -207,7 +207,7 @@ class PhysicsWorldResourceStateTest {
             new FakePhysicsBackend("test:clear-bodies-" + BACKEND_COUNTER.incrementAndGet());
         Impulse.registerBackend(backend);
 
-        PhysicsWorldResource resource = new PhysicsWorldResource();
+        PhysicsWorldRuntimeResource resource = new PhysicsWorldRuntimeResource();
         PhysicsSpace space = resource.createSpace(backend.getId(),
             "test-world",
             PhysicsSpaceSettings.defaults(),
@@ -260,7 +260,7 @@ class PhysicsWorldResourceStateTest {
             new FakePhysicsBackend("test:snapshot-store-" + BACKEND_COUNTER.incrementAndGet());
         Impulse.registerBackend(backend);
 
-        PhysicsWorldResource resource = new PhysicsWorldResource();
+        PhysicsWorldRuntimeResource resource = new PhysicsWorldRuntimeResource();
         PhysicsSpace space = resource.createSpace(backend.getId(),
             "test-world",
             PhysicsSpaceSettings.defaults(),
@@ -313,7 +313,7 @@ class PhysicsWorldResourceStateTest {
             new FakePhysicsBackend("test:snapshot-store-unregistered-" + BACKEND_COUNTER.incrementAndGet());
         Impulse.registerBackend(backend);
 
-        PhysicsWorldResource resource = new PhysicsWorldResource();
+        PhysicsWorldRuntimeResource resource = new PhysicsWorldRuntimeResource();
         PhysicsSpace space = resource.createSpace(backend.getId(),
             "test-world",
             PhysicsSpaceSettings.defaults(),
@@ -347,7 +347,7 @@ class PhysicsWorldResourceStateTest {
             new FakePhysicsBackend("test:async-body-add-" + BACKEND_COUNTER.incrementAndGet());
         Impulse.registerBackend(backend);
 
-        PhysicsWorldResource resource = new PhysicsWorldResource();
+        PhysicsWorldRuntimeResource resource = new PhysicsWorldRuntimeResource();
         try (PhysicsWorldWorkerResource worker = new PhysicsWorldWorkerResource(4,
             Duration.ofSeconds(2L))) {
             worker.start("async-body-add");
@@ -407,7 +407,7 @@ class PhysicsWorldResourceStateTest {
             new FakePhysicsBackend("test:async-body-add-failure-" + BACKEND_COUNTER.incrementAndGet());
         Impulse.registerBackend(backend);
 
-        PhysicsWorldResource resource = new PhysicsWorldResource();
+        PhysicsWorldRuntimeResource resource = new PhysicsWorldRuntimeResource();
         try (PhysicsWorldWorkerResource worker = new PhysicsWorldWorkerResource(4,
             Duration.ofSeconds(2L))) {
             worker.start("async-body-add-failure");
@@ -449,7 +449,7 @@ class PhysicsWorldResourceStateTest {
 
     @Test
     void publicPhysicsOwnerApiRunsOnAttachedWorker() throws Exception {
-        PhysicsWorldResource resource = new PhysicsWorldResource();
+        PhysicsWorldRuntimeResource resource = new PhysicsWorldRuntimeResource();
         try (PhysicsWorldWorkerResource worker = new PhysicsWorldWorkerResource(4,
             Duration.ofSeconds(2L))) {
             worker.start("public-owner-api");
@@ -486,7 +486,7 @@ class PhysicsWorldResourceStateTest {
 
     @Test
     void ownerRoutingRunsInlineWithoutWorkerAndAfterDetach() throws Exception {
-        PhysicsWorldResource resource = new PhysicsWorldResource();
+        PhysicsWorldRuntimeResource resource = new PhysicsWorldRuntimeResource();
         Thread testThread = Thread.currentThread();
 
         AtomicReference<Thread> inlineMutationThread = new AtomicReference<>();
@@ -524,7 +524,7 @@ class PhysicsWorldResourceStateTest {
             new FakePhysicsBackend("test:owner-guard-" + BACKEND_COUNTER.incrementAndGet());
         Impulse.registerBackend(backend);
 
-        PhysicsWorldResource resource = new PhysicsWorldResource();
+        PhysicsWorldRuntimeResource resource = new PhysicsWorldRuntimeResource();
         try (PhysicsWorldWorkerResource worker = new PhysicsWorldWorkerResource(4,
             Duration.ofSeconds(2L))) {
             worker.start("owner-guard");
@@ -563,7 +563,7 @@ class PhysicsWorldResourceStateTest {
             new FakePhysicsBackend("test:reset-snapshot-frame-" + BACKEND_COUNTER.incrementAndGet());
         Impulse.registerBackend(backend);
 
-        PhysicsWorldResource resource = new PhysicsWorldResource();
+        PhysicsWorldRuntimeResource resource = new PhysicsWorldRuntimeResource();
         PhysicsSpace space = resource.createSpace(backend.getId(),
             "test-world",
             PhysicsSpaceSettings.defaults(),
@@ -603,12 +603,12 @@ class PhysicsWorldResourceStateTest {
         int iterations = 500;
         int expectedUpdates = threads * iterations;
 
-        PhysicsWorldResource epochResource = new PhysicsWorldResource();
+        PhysicsWorldRuntimeResource epochResource = new PhysicsWorldRuntimeResource();
         runConcurrently(threads, iterations, epochResource::clearBodies);
 
         assertEquals(expectedUpdates, epochResource.getLatestPublishedFrame().worldEpoch());
 
-        PhysicsWorldResource visualInterestResource = new PhysicsWorldResource();
+        PhysicsWorldRuntimeResource visualInterestResource = new PhysicsWorldRuntimeResource();
         Set<Long> ticks = ConcurrentHashMap.newKeySet();
         runConcurrently(threads, iterations,
             () -> ticks.add(visualInterestResource.advanceVisualInterestTick()));

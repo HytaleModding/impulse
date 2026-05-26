@@ -11,7 +11,7 @@ import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import dev.hytalemodding.impulse.core.plugin.components.PhysicsBodyAttachmentComponent;
 import dev.hytalemodding.impulse.core.plugin.components.PhysicsBodyAttachmentComponent.AttachmentLifecycle;
 import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyId;
-import dev.hytalemodding.impulse.core.plugin.resources.PhysicsWorldResource;
+import dev.hytalemodding.impulse.core.internal.resources.PhysicsWorldRuntimeResource;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
@@ -27,14 +27,14 @@ public final class GeneratedProxyLifecycle {
     }
 
     static void removeProxy(@Nonnull ComponentAccessor<EntityStore> accessor,
-        @Nonnull PhysicsWorldResource resource,
+        @Nonnull PhysicsWorldRuntimeResource resource,
         @Nonnull PhysicsBodyId bodyId) {
         Ref<EntityStore> proxy = resource.getGeneratedVisualProxy(bodyId);
         removeProxy(accessor, resource, bodyId, proxy);
     }
 
     static void removeProxy(@Nonnull ComponentAccessor<EntityStore> accessor,
-        @Nonnull PhysicsWorldResource resource,
+        @Nonnull PhysicsWorldRuntimeResource resource,
         @Nonnull PhysicsBodyId bodyId,
         @Nullable Ref<EntityStore> proxy) {
         if (proxy == null) {
@@ -47,7 +47,7 @@ public final class GeneratedProxyLifecycle {
 
     public static void clearMissingAttachment(@Nonnull Ref<EntityStore> entityRef,
         @Nonnull PhysicsBodyAttachmentComponent attachment,
-        @Nonnull PhysicsWorldResource resource,
+        @Nonnull PhysicsWorldRuntimeResource resource,
         @Nonnull CommandBuffer<EntityStore> commandBuffer) {
         resource.unregisterBodyAttachment(attachment.getBodyId(), entityRef);
         resource.clearBodySyncState(entityRef);
