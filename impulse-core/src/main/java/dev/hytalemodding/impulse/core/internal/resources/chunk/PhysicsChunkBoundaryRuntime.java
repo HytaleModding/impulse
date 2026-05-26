@@ -1,11 +1,9 @@
 package dev.hytalemodding.impulse.core.internal.resources.chunk;
 
-import dev.hytalemodding.impulse.api.PhysicsBody;
 import dev.hytalemodding.impulse.api.PhysicsBodyType;
 import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyId;
 import it.unimi.dsi.fastutil.objects.Object2ObjectLinkedOpenHashMap;
 import it.unimi.dsi.fastutil.objects.ObjectOpenHashSet;
-import it.unimi.dsi.fastutil.objects.ReferenceOpenHashSet;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Map;
@@ -21,7 +19,7 @@ import org.joml.Vector3f;
  */
 public final class PhysicsChunkBoundaryRuntime {
 
-    private final Set<PhysicsBody> forcedContinuousCollisionBodies = new ReferenceOpenHashSet<>();
+    private final Set<PhysicsBodyId> forcedContinuousCollisionBodyIds = new ObjectOpenHashSet<>();
     private final Set<PhysicsBodyId> controlledBodies = new ObjectOpenHashSet<>();
     private final Map<PhysicsBodyId, ChunkBoundarySafeState> chunkBoundarySafeStates =
         new Object2ObjectLinkedOpenHashMap<>();
@@ -74,36 +72,28 @@ public final class PhysicsChunkBoundaryRuntime {
         chunkBoundaryPauseStates.remove(bodyId);
     }
 
-    public void markContinuousCollisionForced(@Nonnull PhysicsBody body) {
-        forcedContinuousCollisionBodies.add(body);
+    public void markContinuousCollisionForced(@Nonnull PhysicsBodyId bodyId) {
+        forcedContinuousCollisionBodyIds.add(bodyId);
     }
 
     @Nonnull
-    public Collection<PhysicsBody> getForcedContinuousCollisionBodies() {
-        return new ArrayList<>(forcedContinuousCollisionBodies);
+    public Collection<PhysicsBodyId> getForcedContinuousCollisionBodyIds() {
+        return new ArrayList<>(forcedContinuousCollisionBodyIds);
     }
 
     public void clearForcedContinuousCollisionBodies() {
-        forcedContinuousCollisionBodies.clear();
-    }
-
-    public void clearBody(@Nonnull PhysicsBody body, @Nonnull PhysicsBodyId bodyId) {
-        forcedContinuousCollisionBodies.remove(body);
-        clearBody(bodyId);
-    }
-
-    public void clearBody(@Nonnull PhysicsBody body) {
-        forcedContinuousCollisionBodies.remove(body);
+        forcedContinuousCollisionBodyIds.clear();
     }
 
     public void clearBody(@Nonnull PhysicsBodyId bodyId) {
+        forcedContinuousCollisionBodyIds.remove(bodyId);
         controlledBodies.remove(bodyId);
         chunkBoundarySafeStates.remove(bodyId);
         chunkBoundaryPauseStates.remove(bodyId);
     }
 
     public void clear() {
-        forcedContinuousCollisionBodies.clear();
+        forcedContinuousCollisionBodyIds.clear();
         controlledBodies.clear();
         chunkBoundarySafeStates.clear();
         chunkBoundaryPauseStates.clear();

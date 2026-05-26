@@ -20,7 +20,6 @@ import com.hypixel.hytale.server.core.modules.entity.component.TransformComponen
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import dev.hytalemodding.impulse.api.PhysicsBody;
 import dev.hytalemodding.impulse.api.PhysicsBodyType;
-import dev.hytalemodding.impulse.api.PhysicsJoint;
 import dev.hytalemodding.impulse.api.PhysicsSpace;
 import dev.hytalemodding.impulse.core.plugin.components.PhysicsControlSessionComponent;
 import dev.hytalemodding.impulse.core.internal.systems.sync.PhysicsSyncSystem;
@@ -182,9 +181,11 @@ public class PhysicsKinematicControlSystem extends EntityTickingSystem<EntitySto
                 resource.clearControlledBody(session.getBodyId());
             }
             PhysicsSpace space = session.getSpaceId() != null ? resource.getSpace(session.getSpaceId()) : null;
-            if (space != null && session.getJoint() != null) {
-                PhysicsJoint joint = session.getJoint();
-                space.removeJoint(joint);
+            if (space != null && session.getBodyId() != null && session.getAnchorBodyId() != null) {
+                PhysicsControlJointResolver.removeControlJoint(resource,
+                    space,
+                    session.getBodyId(),
+                    session.getAnchorBodyId());
             }
 
             if (session.getAnchorBodyId() != null) {

@@ -12,7 +12,6 @@ import com.hypixel.hytale.server.core.universe.world.World;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import dev.hytalemodding.impulse.api.PhysicsBody;
 import dev.hytalemodding.impulse.api.PhysicsBodyType;
-import dev.hytalemodding.impulse.api.PhysicsJoint;
 import dev.hytalemodding.impulse.api.PhysicsRayHit;
 import dev.hytalemodding.impulse.api.PhysicsSpace;
 import dev.hytalemodding.impulse.api.SpaceId;
@@ -112,10 +111,9 @@ public class GrabCommand extends AbstractAsyncPlayerCommand {
                     PhysicsBodyKind.TEMPORARY,
                     PhysicsBodyPersistenceMode.RUNTIME_ONLY);
 
-                PhysicsJoint joint = selectedSpace.createPointJoint(anchorBody, body,
-                    new Vector3f(), bodyLocalHit);
+                selectedSpace.createPointJoint(anchorBody, body, new Vector3f(), bodyLocalHit);
                 body.activate();
-                return new GrabPhysicsState(originalBodyType, anchorBodyId, joint, hitPoint);
+                return new GrabPhysicsState(originalBodyType, anchorBodyId, hitPoint);
             });
         if (physicsState == null) {
             ctx.sender().sendMessage(Message.raw("Selected physics body no longer exists."));
@@ -127,7 +125,6 @@ public class GrabCommand extends AbstractAsyncPlayerCommand {
             new PhysicsControlSessionComponent(
                 selection.bodyId(),
                 physicsState.anchorBodyId(),
-                physicsState.joint(),
                 selection.attachment(),
                 selectedSpaceId,
                 physicsState.originalBodyType(),
@@ -252,7 +249,6 @@ public class GrabCommand extends AbstractAsyncPlayerCommand {
 
     private record GrabPhysicsState(@Nonnull PhysicsBodyType originalBodyType,
                                     @Nonnull PhysicsBodyId anchorBodyId,
-                                    @Nonnull PhysicsJoint joint,
                                     @Nonnull Vector3f hitPoint) {
     }
 }

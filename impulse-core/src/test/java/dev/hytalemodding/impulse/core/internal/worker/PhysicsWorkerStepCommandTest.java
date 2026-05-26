@@ -169,6 +169,8 @@ class PhysicsWorkerStepCommandTest {
             true);
         PhysicsBody forced = space.createBox(0.5f, 0.5f, 0.5f, 1.0f);
         PhysicsBody alreadyEnabled = space.createBox(0.5f, 0.5f, 0.5f, 1.0f);
+        PhysicsBody unregistered = space.createBox(0.5f, 0.5f, 0.5f, 1.0f);
+        space.addBody(unregistered);
         alreadyEnabled.setContinuousCollisionEnabled(true);
         resource.addBody(space.getId(),
             forced,
@@ -184,15 +186,14 @@ class PhysicsWorkerStepCommandTest {
 
         assertTrue(forced.isContinuousCollisionEnabled());
         assertTrue(alreadyEnabled.isContinuousCollisionEnabled());
-        assertTrue(resource.getForcedContinuousCollisionBodies().contains(forced));
-        assertFalse(resource.getForcedContinuousCollisionBodies().contains(alreadyEnabled));
+        assertFalse(unregistered.isContinuousCollisionEnabled());
 
         configureWorldSettings(resource, settings -> settings.setStepMode(PhysicsStepMode.FIXED));
         PhysicsWorkerStepCommand.runStep(resource, 0.05f, false);
 
         assertFalse(forced.isContinuousCollisionEnabled());
         assertTrue(alreadyEnabled.isContinuousCollisionEnabled());
-        assertTrue(resource.getForcedContinuousCollisionBodies().isEmpty());
+        assertFalse(unregistered.isContinuousCollisionEnabled());
     }
 
     @Test
