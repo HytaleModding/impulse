@@ -22,8 +22,8 @@ import dev.hytalemodding.impulse.core.plugin.components.PhysicsBodyAttachmentCom
 import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyId;
 import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyKind;
 import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyPersistenceMode;
+import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyRegistrationView;
 import dev.hytalemodding.impulse.core.plugin.resources.PhysicsWorldResource;
-import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyRegistration;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
@@ -159,7 +159,12 @@ public class GrabCommand extends AbstractAsyncPlayerCommand {
                         continue;
                     }
 
-                    PhysicsBodyRegistration registration = resource.getBodyRegistration(hit.body());
+                    PhysicsBodyId bodyId = resource.getBodyId(hit.body());
+                    if (bodyId == null) {
+                        continue;
+                    }
+                    PhysicsBodyRegistrationView registration =
+                        resource.getBodyRegistrationView(bodyId);
                     if (registration == null || registration.kind() != PhysicsBodyKind.BODY) {
                         continue;
                     }
