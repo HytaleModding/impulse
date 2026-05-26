@@ -1,5 +1,6 @@
 package dev.hytalemodding.impulse.core.plugin.settings;
 
+import lombok.Getter;
 import java.util.Objects;
 import javax.annotation.Nonnull;
 
@@ -19,11 +20,13 @@ public class PhysicsWorldSettings {
     public static final PhysicsStepSchedulingMode DEFAULT_STEP_SCHEDULING_MODE =
         PhysicsStepSchedulingMode.DROP_PENDING_DT;
 
+    @Getter
     private int simulationSteps = MIN_SIMULATION_STEPS;
     @Nonnull
     private PhysicsStepMode stepMode = PhysicsStepMode.PROGRESSIVE_REFINEMENT;
     @Nonnull
     private PhysicsStepSchedulingMode stepSchedulingMode = DEFAULT_STEP_SCHEDULING_MODE;
+    @Getter
     private float maxStepDt = DEFAULT_MAX_STEP_DT;
 
     public PhysicsWorldSettings() {
@@ -44,10 +47,6 @@ public class PhysicsWorldSettings {
     @Nonnull
     public static PhysicsWorldSettings defaults() {
         return new PhysicsWorldSettings();
-    }
-
-    public int getSimulationSteps() {
-        return simulationSteps;
     }
 
     public void setSimulationSteps(int simulationSteps) {
@@ -75,10 +74,6 @@ public class PhysicsWorldSettings {
     public void setStepSchedulingMode(@Nonnull PhysicsStepSchedulingMode stepSchedulingMode) {
         this.stepSchedulingMode = Objects.requireNonNull(stepSchedulingMode,
             "stepSchedulingMode");
-    }
-
-    public float getMaxStepDt() {
-        return maxStepDt;
     }
 
     public void setMaxStepDt(float maxStepDt) {

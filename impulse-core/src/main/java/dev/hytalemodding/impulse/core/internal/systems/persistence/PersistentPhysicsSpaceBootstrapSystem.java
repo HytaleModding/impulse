@@ -92,10 +92,9 @@ public class PersistentPhysicsSpaceBootstrapSystem extends TickingSystem<EntityS
         int restoredSpaceCount = 0;
         for (PersistentPhysicsSpaceState state : spaces) {
             SpaceId spaceId = state.toSpaceId();
-            PhysicsSpace space = runtime.getSpace(spaceId);
             try {
                 PhysicsWorkerAccess.run(store, "bootstrap persisted physics space", () -> {
-                    PhysicsSpace targetSpace = space;
+                    PhysicsSpace targetSpace = runtime.getSpace(spaceId);
                     if (targetSpace == null) {
                         targetSpace = runtime.createSpace(state.toBackendId(),
                             spaceId,

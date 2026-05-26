@@ -19,7 +19,7 @@ import dev.hytalemodding.impulse.core.plugin.components.PhysicsBodyAttachmentCom
 import dev.hytalemodding.impulse.core.internal.resources.debug.PhysicsDebugResource;
 import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyKind;
 import dev.hytalemodding.impulse.core.plugin.resources.PhysicsWorldResource;
-import dev.hytalemodding.impulse.core.plugin.resources.PhysicsWorldResource.BodyRegistrationView;
+import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyRegistrationView;
 import dev.hytalemodding.impulse.core.internal.voxel.SectionCollisionGeometry.BoxCollider;
 import dev.hytalemodding.impulse.core.internal.voxel.WorldCollisionCacheAccess;
 import dev.hytalemodding.impulse.core.internal.voxel.WorldVoxelCollisionCache;
@@ -181,7 +181,7 @@ public class PhysicsDebugSystem extends TickingSystem<ChunkStore> {
             return 0;
         }
         double maxDistanceSquared = viewRadius * viewRadius;
-        for (BodyRegistrationView registration : resource.getBodyRegistrationViews(PhysicsBodyKind.BODY)) {
+        for (PhysicsBodyRegistrationView registration : resource.getBodyRegistrationViews(PhysicsBodyKind.BODY)) {
             if (resource.getBodyAttachments(registration.id()).isEmpty()) {
                 continue;
             }

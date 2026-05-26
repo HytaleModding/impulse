@@ -19,6 +19,7 @@ import dev.hytalemodding.impulse.core.internal.components.GeneratedVisualProxyCo
 import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyId;
 import dev.hytalemodding.impulse.core.plugin.components.PhysicsBodyAttachmentComponent;
 import dev.hytalemodding.impulse.core.plugin.components.PhysicsControlSessionComponent;
+import dev.hytalemodding.impulse.core.plugin.resources.PhysicsRuntimeResetResult;
 import dev.hytalemodding.impulse.core.plugin.resources.PhysicsWorldResource;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
@@ -101,7 +102,7 @@ public class CleanCommand extends AbstractWorldCommand {
             });
 
         PhysicsWorldResource resource = store.getResource(PhysicsWorldResource.getResourceType());
-        PhysicsWorldResource.RuntimeResetResult reset =
+        PhysicsRuntimeResetResult reset =
             resource.resetRuntimeStateKeepingSpaces(world.getName());
 
         context.sendMessage(Message.raw("Removed " + removedBodyEntities.get()
@@ -141,6 +142,7 @@ public class CleanCommand extends AbstractWorldCommand {
             (index, archetypeChunk, commandBuffer) -> {
                 PhysicsBodyAttachmentComponent attachment =
                     archetypeChunk.getComponent(index, ATTACHMENT_TYPE);
+                assert attachment != null;
                 if (!selectedBodies.contains(attachment.getBodyId())) {
                     return;
                 }
@@ -166,6 +168,7 @@ public class CleanCommand extends AbstractWorldCommand {
             (index, archetypeChunk, commandBuffer) -> {
                 PhysicsControlSessionComponent session =
                     archetypeChunk.getComponent(index, CONTROL_SESSION_TYPE);
+                assert session != null;
                 if (!controlSessionSelected(commandBuffer,
                     archetypeChunk,
                     index,
@@ -198,6 +201,7 @@ public class CleanCommand extends AbstractWorldCommand {
     private static Vector3d playerPosition(@Nonnull CommandContext context,
         @Nonnull Store<EntityStore> store) {
         Ref<EntityStore> playerRef = context.senderAsPlayerRef();
+        assert playerRef != null;
         TransformComponent transform = store.getComponent(playerRef, TRANSFORM_TYPE);
         return transform != null ? new Vector3d(transform.getPosition()) : null;
     }

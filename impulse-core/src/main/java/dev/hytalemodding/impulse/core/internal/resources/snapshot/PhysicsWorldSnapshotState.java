@@ -9,7 +9,9 @@ import dev.hytalemodding.impulse.core.internal.resources.body.PhysicsBodySnapsho
 import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyId;
 import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyKind;
 import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyPersistenceMode;
+import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyRegistration;
 import dev.hytalemodding.impulse.core.plugin.resources.PhysicsWorldResource;
+import dev.hytalemodding.impulse.core.plugin.snapshot.PhysicsBodySnapshotEntry;
 import dev.hytalemodding.impulse.core.plugin.snapshot.PublishedPhysicsBodySnapshot;
 import dev.hytalemodding.impulse.core.plugin.snapshot.PublishedPhysicsSnapshotFrame;
 import dev.hytalemodding.impulse.core.plugin.snapshot.PublishedPhysicsSpaceFrame;
@@ -52,7 +54,7 @@ public final class PhysicsWorldSnapshotState {
 
     @Nonnull
     public PhysicsBodySnapshot captureBodySnapshot(
-        @Nonnull PhysicsWorldResource.BodyRegistration registration) {
+        @Nonnull PhysicsBodyRegistration registration) {
         PhysicsBody body = registration.body();
         PhysicsBodySnapshot snapshot = PhysicsBodySnapshot.from(body);
         putBodySnapshot(registration.id(),
@@ -139,7 +141,7 @@ public final class PhysicsWorldSnapshotState {
         int applied = 0;
         for (PublishedPhysicsSpaceFrame spaceFrame : frame.spaces()) {
             for (PublishedPhysicsBodySnapshot bodyFrame : spaceFrame.bodies()) {
-                PhysicsWorldResource.BodyRegistration registration =
+                PhysicsBodyRegistration registration =
                     bodyRegistry.getRegistration(bodyFrame.bodyId());
                 if (registration == null || !registration.spaceId().equals(bodyFrame.spaceId())) {
                     continue;
@@ -187,14 +189,14 @@ public final class PhysicsWorldSnapshotState {
     }
 
     public void forEachBodySnapshot(@Nonnull SpaceId spaceId,
-        @Nonnull Consumer<PhysicsWorldResource.BodySnapshotEntry> consumer) {
+        @Nonnull Consumer<PhysicsBodySnapshotEntry> consumer) {
         bodySnapshots.forEach(spaceId, consumer);
     }
 
     public int forEachBodySnapshotNear(@Nonnull SpaceId spaceId,
         @Nonnull Vector3f center,
         float radius,
-        @Nonnull Consumer<PhysicsWorldResource.BodySnapshotEntry> consumer) {
+        @Nonnull Consumer<PhysicsBodySnapshotEntry> consumer) {
         return bodySnapshots.forEachNear(spaceId, center, radius, consumer);
     }
 

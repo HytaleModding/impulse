@@ -8,14 +8,17 @@ import dev.hytalemodding.impulse.api.PhysicsBody;
 import dev.hytalemodding.impulse.api.PhysicsCollisionFilters;
 import dev.hytalemodding.impulse.api.PhysicsSpace;
 import dev.hytalemodding.impulse.api.SpaceId;
+import dev.hytalemodding.impulse.core.internal.resources.visual.PhysicsVisualRuntime;
 import dev.hytalemodding.impulse.core.internal.systems.visual.VisualInterestCollector;
 import dev.hytalemodding.impulse.core.internal.worker.PhysicsWorkerAccess;
 import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyId;
 import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyKind;
 import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyPersistenceMode;
+import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyRegistration;
 import dev.hytalemodding.impulse.core.plugin.execution.PhysicsMutationHandle;
 import dev.hytalemodding.impulse.core.plugin.settings.PhysicsSpaceSettings;
 import dev.hytalemodding.impulse.core.plugin.resources.PhysicsWorldResource;
+import dev.hytalemodding.impulse.core.plugin.snapshot.PhysicsBodySnapshotEntry;
 import it.unimi.dsi.fastutil.ints.Int2LongOpenHashMap;
 import it.unimi.dsi.fastutil.ints.IntOpenHashSet;
 import it.unimi.dsi.fastutil.objects.Object2ObjectMap;
@@ -72,7 +75,7 @@ public class PhysicsCollisionLodSystem extends TickingSystem<EntityStore> {
         long tick) {
         List<CollisionLodUpdate> updates = new ArrayList<>();
         IntOpenHashSet activeSpaces = new IntOpenHashSet();
-        List<PhysicsWorldResource.VisualInterest> interests =
+        List<PhysicsVisualRuntime.VisualInterest> interests =
             VisualInterestCollector.collectMaterializationInterests(store, resource);
         for (PhysicsSpace space : resource.getSpaces()) {
             SpaceId spaceId = space.getId();
@@ -96,7 +99,7 @@ public class PhysicsCollisionLodSystem extends TickingSystem<EntityStore> {
     private static void collectSpaceUpdates(@Nonnull PhysicsWorldResource resource,
         @Nonnull SpaceId spaceId,
         @Nonnull PhysicsSpaceSettings settings,
-        @Nonnull List<PhysicsWorldResource.VisualInterest> interests,
+        @Nonnull List<PhysicsVisualRuntime.VisualInterest> interests,
         @Nonnull CollisionLodState state,
         @Nonnull List<CollisionLodUpdate> updates) {
         ObjectOpenHashSet<PhysicsBodyId> seenBodies = new ObjectOpenHashSet<>();
@@ -123,7 +126,7 @@ public class PhysicsCollisionLodSystem extends TickingSystem<EntityStore> {
     static CollisionLodTier resolveTier(@Nonnull PhysicsSpaceSettings settings,
         @Nullable CollisionLodTier previousTier,
         @Nonnull Vector3f position,
-        @Nonnull List<PhysicsWorldResource.VisualInterest> interests) {
+        @Nonnull List<PhysicsVisualRuntime.VisualInterest> interests) {
         float distanceSquared = nearestDistanceSquared(position, interests);
         if (distanceSquared == Float.POSITIVE_INFINITY) {
             return CollisionLodTier.FAR_SLEEPING;
@@ -162,9 +165,9 @@ public class PhysicsCollisionLodSystem extends TickingSystem<EntityStore> {
     }
 
     private static float nearestDistanceSquared(@Nonnull Vector3f position,
-        @Nonnull List<PhysicsWorldResource.VisualInterest> interests) {
+        @Nonnull List<PhysicsVisualRuntime.VisualInterest> interests) {
         float nearest = Float.POSITIVE_INFINITY;
-        for (PhysicsWorldResource.VisualInterest interest : interests) {
+        for (PhysicsVisualRuntime.VisualInterest interest : interests) {
             nearest = Math.min(nearest, position.distanceSquared(interest.position()));
         }
         return nearest;
@@ -175,7 +178,7 @@ public class PhysicsCollisionLodSystem extends TickingSystem<EntityStore> {
     }
 
     static boolean isCollisionLodCandidate(
-        @Nonnull PhysicsWorldResource.BodySnapshotEntry entry) {
+        @Nonnull PhysicsBodySnapshotEntry entry) {
         return entry.persistenceMode() != PhysicsBodyPersistenceMode.PERSISTENT
             && entry.kind() == PhysicsBodyKind.BODY
             && entry.snapshot().isDynamic()
@@ -185,7 +188,7 @@ public class PhysicsCollisionLodSystem extends TickingSystem<EntityStore> {
     private static void applyUpdates(@Nonnull PhysicsWorldResource resource,
         @Nonnull List<CollisionLodUpdate> updates) {
         for (CollisionLodUpdate update : updates) {
-            PhysicsWorldResource.BodyRegistration registration =
+            PhysicsBodyRegistration registration =
                 resource.getRegistration(update.bodyId());
             if (registration == null
                 || !registration.spaceId().equals(update.spaceId())

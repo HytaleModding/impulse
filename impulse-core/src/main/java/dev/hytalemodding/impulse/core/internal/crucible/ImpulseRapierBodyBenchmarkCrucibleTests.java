@@ -23,6 +23,7 @@ import dev.hytalemodding.impulse.core.internal.voxel.WorldVoxelCollisionCache;
 import dev.hytalemodding.impulse.core.plugin.components.PhysicsBodyAttachmentComponent;
 import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyKind;
 import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyPersistenceMode;
+import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyRegistration;
 import dev.hytalemodding.impulse.core.plugin.settings.PhysicsSpaceSettings;
 import dev.hytalemodding.impulse.core.plugin.settings.PhysicsSolverSettings;
 import dev.hytalemodding.impulse.core.plugin.settings.PhysicsStepMode;
@@ -761,7 +762,7 @@ final class ImpulseRapierBodyBenchmarkCrucibleTests {
                     awakeDynamicBodies++;
                 }
             }
-            PhysicsWorldResource.BodyRegistration registration = physics.getBodyRegistration(body);
+            PhysicsBodyRegistration registration = physics.getBodyRegistration(body);
             if (registration != null && registration.kind() == PhysicsBodyKind.BODY) {
                 if (physics.getBodyAttachments(registration.id()).isEmpty()) {
                     detachedBodies++;

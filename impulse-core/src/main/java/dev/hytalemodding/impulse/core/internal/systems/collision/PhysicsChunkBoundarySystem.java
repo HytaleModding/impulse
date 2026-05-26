@@ -1,6 +1,5 @@
 package dev.hytalemodding.impulse.core.internal.systems.collision;
 
-import com.hypixel.hytale.component.ComponentType;
 import com.hypixel.hytale.component.Store;
 import com.hypixel.hytale.component.dependency.Dependency;
 import com.hypixel.hytale.component.dependency.Order;
@@ -19,11 +18,14 @@ import dev.hytalemodding.impulse.api.PhysicsBody;
 import dev.hytalemodding.impulse.api.PhysicsBodySnapshot;
 import dev.hytalemodding.impulse.api.PhysicsBodyType;
 import dev.hytalemodding.impulse.core.ImpulsePlugin;
+import dev.hytalemodding.impulse.core.internal.resources.chunk.PhysicsChunkBoundaryRuntime;
+import dev.hytalemodding.impulse.core.internal.resources.chunk.PhysicsChunkBoundaryRuntime.ChunkBoundarySafeState;
 import dev.hytalemodding.impulse.core.internal.systems.sync.PhysicsSyncSystem;
 import dev.hytalemodding.impulse.core.internal.worker.PhysicsWorkerAccess;
 import dev.hytalemodding.impulse.core.plugin.settings.EntityChunkBoundaryMode;
 import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyId;
 import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyKind;
+import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyRegistrationView;
 import dev.hytalemodding.impulse.core.plugin.settings.PhysicsSpaceSettings;
 import dev.hytalemodding.impulse.core.plugin.resources.PhysicsWorldResource;
 import it.unimi.dsi.fastutil.longs.LongOpenHashSet;
@@ -58,13 +60,13 @@ public class PhysicsChunkBoundarySystem extends TickingSystem<EntityStore> {
         ChunkStore chunkStore = world.getChunkStore();
         Store<ChunkStore> chunkComponentStore = chunkStore.getStore();
         PhysicsWorldResource resource = store.getResource(PhysicsWorldResource.getResourceType());
-        for (PhysicsWorldResource.BodyRegistrationView registration
+        for (PhysicsBodyRegistrationView registration
             : resource.getBodyRegistrationViews(PhysicsBodyKind.BODY)) {
             processBody(registration, resource, store, chunkStore, chunkComponentStore);
         }
     }
 
-    private void processBody(@Nonnull PhysicsWorldResource.BodyRegistrationView registration,
+    private void processBody(@Nonnull PhysicsBodyRegistrationView registration,
         @Nonnull PhysicsWorldResource resource,
         @Nonnull Store<EntityStore> store,
         @Nonnull ChunkStore chunkStore,
@@ -81,7 +83,7 @@ public class PhysicsChunkBoundarySystem extends TickingSystem<EntityStore> {
 
         PhysicsSpaceSettings settings = resource.getSpaceSettings(registration.spaceId());
         EntityChunkBoundaryMode mode = settings.getWorldCollisionSettings().getEntityChunkBoundaryMode();
-        PhysicsWorldResource.ChunkBoundaryPauseState pauseState =
+        PhysicsChunkBoundaryRuntime.ChunkBoundaryPauseState pauseState =
             resource.getChunkBoundaryPauseState(bodyId);
         if (pauseState != null) {
             handlePausedBody(bodyId,
@@ -112,7 +114,7 @@ public class PhysicsChunkBoundarySystem extends TickingSystem<EntityStore> {
 
     private void handlePausedBody(@Nonnull PhysicsBodyId bodyId,
         @Nonnull PhysicsBodySnapshot snapshot,
-        @Nonnull PhysicsWorldResource.ChunkBoundaryPauseState pauseState,
+        @Nonnull PhysicsChunkBoundaryRuntime.ChunkBoundaryPauseState pauseState,
         @Nonnull EntityChunkBoundaryMode mode,
         @Nonnull PhysicsWorldResource resource,
         @Nonnull Store<EntityStore> entityStore,
@@ -157,7 +159,7 @@ public class PhysicsChunkBoundarySystem extends TickingSystem<EntityStore> {
         @Nonnull PhysicsBodySnapshot snapshot,
         long targetChunkIndex,
         @Nonnull PhysicsWorldResource resource) {
-        PhysicsWorldResource.ChunkBoundarySafeState safeState =
+        ChunkBoundarySafeState safeState =
             resource.getChunkBoundarySafeState(bodyId);
         resource.pauseChunkBoundaryBody(bodyId,
             targetChunkIndex,

@@ -15,6 +15,7 @@ import dev.hytalemodding.impulse.api.PhysicsSpace;
 import dev.hytalemodding.impulse.api.SpaceId;
 import dev.hytalemodding.impulse.core.plugin.settings.PhysicsSpaceSettings;
 import dev.hytalemodding.impulse.core.plugin.resources.PhysicsWorldResource;
+import dev.hytalemodding.impulse.core.plugin.snapshot.PhysicsBodySnapshotEntry;
 import dev.hytalemodding.impulse.core.internal.resources.profiling.WorldCollisionProfilingResource;
 import dev.hytalemodding.impulse.core.internal.resources.profiling.WorldCollisionProfilingResource.Snapshot;
 import dev.hytalemodding.impulse.core.internal.resources.profiling.WorldCollisionProfilingResource.StreamingTargetDiagnostic;
@@ -317,7 +318,7 @@ public class PhysicsWorldCollisionStreamingSystem extends TickingSystem<EntitySt
 
     @Nullable
     private static StreamingTargetDiagnostic diagnosticFor(@Nullable Snapshot snapshot,
-        @Nonnull PhysicsWorldResource.BodySnapshotEntry entry,
+        @Nonnull PhysicsBodySnapshotEntry entry,
         @Nonnull Vector3f snapshotPosition) {
         if (snapshot == null) {
             return null;

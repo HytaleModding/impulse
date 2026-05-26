@@ -16,6 +16,7 @@ import dev.hytalemodding.impulse.api.testsupport.FakePhysicsBackend;
 import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyId;
 import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyKind;
 import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyPersistenceMode;
+import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyRegistration;
 import dev.hytalemodding.impulse.core.plugin.resources.PhysicsWorldResource;
 import dev.hytalemodding.impulse.core.plugin.settings.PhysicsSpaceSettings;
 import dev.hytalemodding.impulse.core.plugin.settings.PhysicsStepSchedulingMode;
@@ -392,7 +393,7 @@ class PersistentPhysicsCodecValidationTest {
             + BACKEND_COUNTER.incrementAndGet()).createSpace();
         PhysicsBody body = space.createBox(0.5f, 0.75f, 1.0f, 1.0f);
         PhysicsBodyId bodyId = PhysicsBodyId.of(UUID.fromString("00000000-0000-0000-0000-000000000001"));
-        PhysicsWorldResource.BodyRegistration registration = new PhysicsWorldResource.BodyRegistration(
+        PhysicsBodyRegistration registration = new PhysicsBodyRegistration(
             bodyId,
             body,
             space.getId(),
@@ -406,7 +407,7 @@ class PersistentPhysicsCodecValidationTest {
             + BACKEND_COUNTER.incrementAndGet()).createSpace();
         PhysicsBody body = space.createStaticPlane(groundY);
         PhysicsBodyId bodyId = PhysicsBodyId.of(UUID.fromString("00000000-0000-0000-0000-000000000003"));
-        PhysicsWorldResource.BodyRegistration registration = new PhysicsWorldResource.BodyRegistration(
+        PhysicsBodyRegistration registration = new PhysicsBodyRegistration(
             bodyId,
             body,
             space.getId(),

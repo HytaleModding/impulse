@@ -6,6 +6,7 @@ import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyId;
 import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyKind;
 import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyPersistenceMode;
 import dev.hytalemodding.impulse.core.plugin.resources.PhysicsWorldResource;
+import dev.hytalemodding.impulse.core.plugin.snapshot.PhysicsBodySnapshotEntry;
 import it.unimi.dsi.fastutil.ints.Int2IntOpenHashMap;
 import it.unimi.dsi.fastutil.longs.Long2ObjectMap;
 import it.unimi.dsi.fastutil.longs.Long2ObjectOpenHashMap;
@@ -108,7 +109,7 @@ final class PhysicsBodySpatialIndex {
     }
 
     void forEach(@Nonnull SpaceId spaceId,
-        @Nonnull Consumer<PhysicsWorldResource.BodySnapshotEntry> consumer) {
+        @Nonnull Consumer<PhysicsBodySnapshotEntry> consumer) {
         for (IndexedBody indexed : entries.values()) {
             if (spaceId.equals(indexed.spaceId)) {
                 consumer.accept(indexed.entry());
@@ -119,7 +120,7 @@ final class PhysicsBodySpatialIndex {
     int forEachNear(@Nonnull SpaceId spaceId,
         @Nonnull Vector3f center,
         float radius,
-        @Nonnull Consumer<PhysicsWorldResource.BodySnapshotEntry> consumer) {
+        @Nonnull Consumer<PhysicsBodySnapshotEntry> consumer) {
         int minX = cellCoordinate(center.x - radius);
         int maxX = cellCoordinate(center.x + radius);
         int minY = cellCoordinate(center.y - radius);
@@ -228,8 +229,8 @@ final class PhysicsBodySpatialIndex {
         }
 
         @Nonnull
-        private PhysicsWorldResource.BodySnapshotEntry entry() {
-            return new PhysicsWorldResource.BodySnapshotEntry(bodyId,
+        private PhysicsBodySnapshotEntry entry() {
+            return new PhysicsBodySnapshotEntry(bodyId,
                 snapshot,
                 spaceId,
                 kind,

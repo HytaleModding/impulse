@@ -3,7 +3,7 @@ package dev.hytalemodding.impulse.core.internal.resources;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-import dev.hytalemodding.impulse.core.plugin.resources.PhysicsWorldResource.BodyVisualInterestState;
+import dev.hytalemodding.impulse.core.internal.resources.visual.PhysicsVisualRuntime.BodyVisualInterestState;
 import org.junit.jupiter.api.Test;
 
 class BodyVisualInterestStateTest {

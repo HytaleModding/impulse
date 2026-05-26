@@ -9,6 +9,7 @@ import com.hypixel.hytale.server.core.modules.entity.component.HeadRotation;
 import com.hypixel.hytale.server.core.modules.entity.component.TransformComponent;
 import com.hypixel.hytale.server.core.universe.PlayerRef;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
+import dev.hytalemodding.impulse.core.internal.resources.visual.PhysicsVisualRuntime;
 import dev.hytalemodding.impulse.core.internal.systems.sync.PhysicsSyncPolicy;
 import dev.hytalemodding.impulse.core.plugin.resources.PhysicsWorldResource;
 import java.util.ArrayList;
@@ -55,10 +56,10 @@ public final class VisualInterestCollector {
     }
 
     @Nonnull
-    public static List<PhysicsWorldResource.VisualInterest> collectMaterializationInterests(
+    public static List<PhysicsVisualRuntime.VisualInterest> collectMaterializationInterests(
         @Nonnull Store<EntityStore> store,
         @Nonnull PhysicsWorldResource resource) {
-        List<PhysicsWorldResource.VisualInterest> interests = new ArrayList<>();
+        List<PhysicsVisualRuntime.VisualInterest> interests = new ArrayList<>();
         for (PlayerRef playerRef : store.getExternalData().getWorld().getPlayerRefs()) {
             Ref<EntityStore> playerEntity = playerRef.getReference();
             if (playerEntity == null || !playerEntity.isValid()) {
@@ -71,7 +72,7 @@ public final class VisualInterestCollector {
             }
 
             Vector3d position = transform.getPosition();
-            interests.add(new PhysicsWorldResource.VisualInterest(
+            interests.add(new PhysicsVisualRuntime.VisualInterest(
                 new Vector3f((float) position.x, (float) position.y, (float) position.z),
                 playerLookDirection(store, playerEntity, transform)));
         }

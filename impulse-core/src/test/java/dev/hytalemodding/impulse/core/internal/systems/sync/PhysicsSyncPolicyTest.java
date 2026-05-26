@@ -2,8 +2,8 @@ package dev.hytalemodding.impulse.core.internal.systems.sync;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
+import dev.hytalemodding.impulse.core.internal.resources.body.PhysicsBodyRuntimeState;
 import dev.hytalemodding.impulse.core.plugin.settings.PhysicsSpaceSettings;
-import dev.hytalemodding.impulse.core.plugin.resources.PhysicsWorldResource;
 import java.util.List;
 import org.joml.Quaternionf;
 import org.joml.Vector3f;
@@ -13,7 +13,7 @@ class PhysicsSyncPolicyTest {
 
     @Test
     void returnsInitialForUninitializedSyncState() {
-        PhysicsWorldResource.BodySyncState syncState = new PhysicsWorldResource.BodySyncState();
+        PhysicsBodyRuntimeState.BodySyncState syncState = new PhysicsBodyRuntimeState.BodySyncState();
 
         assertEquals(PhysicsSyncPolicy.SyncDecision.INITIAL,
             PhysicsSyncPolicy.resolveSyncDecision(syncState,
@@ -28,7 +28,7 @@ class PhysicsSyncPolicyTest {
 
     @Test
     void returnsTransitionWhenSleepingStateChanges() {
-        PhysicsWorldResource.BodySyncState syncState = initializedState(false);
+        PhysicsBodyRuntimeState.BodySyncState syncState = initializedState(false);
 
         assertEquals(PhysicsSyncPolicy.SyncDecision.TRANSITION,
             PhysicsSyncPolicy.resolveSyncDecision(syncState,
@@ -43,7 +43,7 @@ class PhysicsSyncPolicyTest {
 
     @Test
     void farRangeFollowersSkipVisualSync() {
-        PhysicsWorldResource.BodySyncState syncState = initializedState(false);
+        PhysicsBodyRuntimeState.BodySyncState syncState = initializedState(false);
 
         assertEquals(PhysicsSyncPolicy.SyncDecision.SKIP_VISUAL_RANGE,
             PhysicsSyncPolicy.resolveSyncDecision(syncState,
@@ -58,7 +58,7 @@ class PhysicsSyncPolicyTest {
 
     @Test
     void lowSpeedNearBodiesUseVisualDeadzoneBeforeKeepalive() {
-        PhysicsWorldResource.BodySyncState syncState = initializedState(false);
+        PhysicsBodyRuntimeState.BodySyncState syncState = initializedState(false);
         syncState.recordSkip(1.0f);
 
         assertEquals(PhysicsSyncPolicy.SyncDecision.SKIP_VISUAL_DEADZONE,
@@ -74,7 +74,7 @@ class PhysicsSyncPolicyTest {
 
     @Test
     void lowSpeedNearBodiesTriggerKeepaliveAtLongerInterval() {
-        PhysicsWorldResource.BodySyncState syncState = initializedState(false);
+        PhysicsBodyRuntimeState.BodySyncState syncState = initializedState(false);
         syncState.recordSkip(1.25f);
 
         assertEquals(PhysicsSyncPolicy.SyncDecision.KEEPALIVE,
@@ -90,7 +90,7 @@ class PhysicsSyncPolicyTest {
 
     @Test
     void midRangeFollowersUseCoarseThresholdAndKeepalive() {
-        PhysicsWorldResource.BodySyncState syncState = initializedState(false);
+        PhysicsBodyRuntimeState.BodySyncState syncState = initializedState(false);
         syncState.recordSkip(2.4f);
 
         assertEquals(PhysicsSyncPolicy.SyncDecision.SKIP_VISUAL_RANGE,
@@ -119,7 +119,7 @@ class PhysicsSyncPolicyTest {
     void midRangeFollowersRespectConfiguredMinimumInterval() {
         PhysicsSpaceSettings settings = PhysicsSpaceSettings.defaults();
         settings.getVisualSyncSettings().setVisualMidSyncIntervalTicks(4);
-        PhysicsWorldResource.BodySyncState syncState = initializedState(false);
+        PhysicsBodyRuntimeState.BodySyncState syncState = initializedState(false);
         syncState.recordSkip(0.15f);
 
         assertEquals(PhysicsSyncPolicy.SyncDecision.SKIP_VISUAL_RANGE,
@@ -149,7 +149,7 @@ class PhysicsSyncPolicyTest {
         PhysicsSpaceSettings settings = PhysicsSpaceSettings.defaults();
         settings.getVisualSyncSettings().setVisualFarSyncCutoffEnabled(false);
         settings.getVisualSyncSettings().setVisualFarSyncIntervalTicks(40);
-        PhysicsWorldResource.BodySyncState syncState = initializedState(false);
+        PhysicsBodyRuntimeState.BodySyncState syncState = initializedState(false);
         syncState.recordSkip(1.95f);
 
         assertEquals(PhysicsSyncPolicy.SyncDecision.SKIP_VISUAL_RANGE,
@@ -176,7 +176,7 @@ class PhysicsSyncPolicyTest {
 
     @Test
     void controlledBodiesBypassLowSpeedDeadzoneThresholds() {
-        PhysicsWorldResource.BodySyncState syncState = initializedState(false);
+        PhysicsBodyRuntimeState.BodySyncState syncState = initializedState(false);
 
         assertEquals(PhysicsSyncPolicy.SyncDecision.THRESHOLD,
             PhysicsSyncPolicy.resolveSyncDecision(syncState,
@@ -191,7 +191,7 @@ class PhysicsSyncPolicyTest {
 
     @Test
     void activeBodiesTriggerThresholdOnRotationChange() {
-        PhysicsWorldResource.BodySyncState syncState = initializedState(false);
+        PhysicsBodyRuntimeState.BodySyncState syncState = initializedState(false);
         Quaternionf rotated = new Quaternionf().rotateY((float) Math.toRadians(4.0));
 
         assertEquals(PhysicsSyncPolicy.SyncDecision.THRESHOLD,
@@ -207,7 +207,7 @@ class PhysicsSyncPolicyTest {
 
     @Test
     void sleepingBodiesSkipAfterThresholdAndKeepaliveChecks() {
-        PhysicsWorldResource.BodySyncState syncState = initializedState(true);
+        PhysicsBodyRuntimeState.BodySyncState syncState = initializedState(true);
         syncState.recordSkip(5.0f);
 
         assertEquals(PhysicsSyncPolicy.SyncDecision.SKIP_SLEEPING,
@@ -296,8 +296,8 @@ class PhysicsSyncPolicyTest {
                 new Vector3f(25.0f, 0.0f, 0.0f)));
     }
 
-    private static PhysicsWorldResource.BodySyncState initializedState(boolean sleeping) {
-        PhysicsWorldResource.BodySyncState syncState = new PhysicsWorldResource.BodySyncState();
+    private static PhysicsBodyRuntimeState.BodySyncState initializedState(boolean sleeping) {
+        PhysicsBodyRuntimeState.BodySyncState syncState = new PhysicsBodyRuntimeState.BodySyncState();
         syncState.recordSync(new Vector3f(), new Quaternionf(), sleeping);
         return syncState;
     }

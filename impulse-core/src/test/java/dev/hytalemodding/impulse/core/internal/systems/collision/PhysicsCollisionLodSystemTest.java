@@ -10,6 +10,7 @@ import dev.hytalemodding.impulse.api.PhysicsBodySnapshot;
 import dev.hytalemodding.impulse.api.PhysicsBodyType;
 import dev.hytalemodding.impulse.api.ShapeType;
 import dev.hytalemodding.impulse.api.SpaceId;
+import dev.hytalemodding.impulse.core.internal.resources.visual.PhysicsVisualRuntime;
 import dev.hytalemodding.impulse.core.internal.systems.collision.PhysicsCollisionLodSystem.CollisionLodState;
 import dev.hytalemodding.impulse.core.internal.systems.collision.PhysicsCollisionLodSystem.CollisionLodTier;
 import dev.hytalemodding.impulse.core.internal.systems.collision.PhysicsCollisionLodSystem.CollisionLodUpdate;
@@ -19,6 +20,7 @@ import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyPersistenceMode;
 import dev.hytalemodding.impulse.core.plugin.execution.PhysicsMutationHandle;
 import dev.hytalemodding.impulse.core.plugin.settings.PhysicsSpaceSettings;
 import dev.hytalemodding.impulse.core.plugin.resources.PhysicsWorldResource;
+import dev.hytalemodding.impulse.core.plugin.snapshot.PhysicsBodySnapshotEntry;
 import java.util.ArrayList;
 import java.util.List;
 import org.joml.Quaternionf;
@@ -30,7 +32,7 @@ class PhysicsCollisionLodSystemTest {
     @Test
     void resolvesDistanceTiersAroundInterest() {
         PhysicsSpaceSettings settings = testSettings();
-        List<PhysicsWorldResource.VisualInterest> interests = interestsAtOrigin();
+        List<PhysicsVisualRuntime.VisualInterest> interests = interestsAtOrigin();
 
         assertEquals(CollisionLodTier.NEAR_FULL,
             PhysicsCollisionLodSystem.resolveTier(settings,
@@ -52,7 +54,7 @@ class PhysicsCollisionLodSystemTest {
     @Test
     void keepsPreviousTierInsideHysteresis() {
         PhysicsSpaceSettings settings = testSettings();
-        List<PhysicsWorldResource.VisualInterest> interests = interestsAtOrigin();
+        List<PhysicsVisualRuntime.VisualInterest> interests = interestsAtOrigin();
 
         assertEquals(CollisionLodTier.NEAR_FULL,
             PhysicsCollisionLodSystem.resolveTier(settings,
@@ -177,11 +179,11 @@ class PhysicsCollisionLodSystemTest {
         return settings;
     }
 
-    private static List<PhysicsWorldResource.VisualInterest> interestsAtOrigin() {
-        return List.of(new PhysicsWorldResource.VisualInterest(new Vector3f(), null));
+    private static List<PhysicsVisualRuntime.VisualInterest> interestsAtOrigin() {
+        return List.of(new PhysicsVisualRuntime.VisualInterest(new Vector3f(), null));
     }
 
-    private static PhysicsWorldResource.BodySnapshotEntry snapshotEntry(
+    private static PhysicsBodySnapshotEntry snapshotEntry(
         PhysicsBodyKind kind,
         PhysicsBodyPersistenceMode persistenceMode,
         PhysicsBodyType bodyType,
@@ -201,6 +203,6 @@ class PhysicsCollisionLodSystemTest {
             -1.0f,
             -1.0f,
             PhysicsAxis.Y);
-        return new PhysicsWorldResource.BodySnapshotEntry(bodyId, snapshot, spaceId, kind, persistenceMode);
+        return new PhysicsBodySnapshotEntry(bodyId, snapshot, spaceId, kind, persistenceMode);
     }
 }

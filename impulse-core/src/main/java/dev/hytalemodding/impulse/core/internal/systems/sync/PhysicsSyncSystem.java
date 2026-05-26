@@ -17,11 +17,13 @@ import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import dev.hytalemodding.impulse.api.PhysicsBodySnapshot;
 import dev.hytalemodding.impulse.api.SpaceId;
 import dev.hytalemodding.impulse.core.ImpulsePlugin;
+import dev.hytalemodding.impulse.core.internal.resources.body.PhysicsBodyRuntimeState;
 import dev.hytalemodding.impulse.core.internal.resources.profiling.PhysicsRuntimeProfilingResource;
 import dev.hytalemodding.impulse.core.internal.systems.visual.GeneratedProxyLifecycle;
 import dev.hytalemodding.impulse.core.internal.systems.visual.VisualInterestCollector;
 import dev.hytalemodding.impulse.core.plugin.components.PhysicsBodyAttachmentComponent;
 import dev.hytalemodding.impulse.core.plugin.components.PhysicsBodyAttachmentComponent.AttachmentLifecycle;
+import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyRegistrationView;
 import dev.hytalemodding.impulse.core.plugin.settings.PhysicsSpaceSettings;
 import dev.hytalemodding.impulse.core.plugin.resources.PhysicsWorldResource;
 import java.util.List;
@@ -124,7 +126,7 @@ public class PhysicsSyncSystem extends EntityTickingSystem<EntityStore> {
         if (collector != null) {
             collector.incrementBodiesInspected();
         }
-        PhysicsWorldResource.BodyRegistrationView registration =
+        PhysicsBodyRegistrationView registration =
             resource.getBodyRegistrationView(attachment.getBodyId());
         if (registration == null) {
             if (resource.isBodyCreationPending(attachment.getBodyId())) {
@@ -185,7 +187,7 @@ public class PhysicsSyncSystem extends EntityTickingSystem<EntityStore> {
             applyVisualPose(snapshot, attachment, local);
         }
 
-        PhysicsWorldResource.BodySyncState syncState = resource.getOrCreateBodySyncState(entityRef);
+        PhysicsBodyRuntimeState.BodySyncState syncState = resource.getOrCreateBodySyncState(entityRef);
         PhysicsSyncPolicy.SyncDecision decision = PhysicsSyncPolicy.resolveSyncDecision(syncState,
             settings,
             local.visualPosition,
@@ -251,7 +253,7 @@ public class PhysicsSyncSystem extends EntityTickingSystem<EntityStore> {
         @Nonnull PhysicsBodySnapshot snapshot,
         boolean controlled,
         @Nonnull PhysicsSyncPolicy.SyncRangeTier rangeTier,
-        @Nonnull PhysicsWorldResource.BodySyncState syncState,
+        @Nonnull PhysicsBodyRuntimeState.BodySyncState syncState,
         @Nonnull PhysicsSyncPolicy.SyncDecision decision) {
         return settings != null
             && settings.getVisualSyncSettings().isVisualSnapshotSmoothingEnabled()
@@ -266,7 +268,7 @@ public class PhysicsSyncSystem extends EntityTickingSystem<EntityStore> {
 
     private static void applyVisualSmoothing(@Nonnull PhysicsSpaceSettings settings,
         float dt,
-        @Nonnull PhysicsWorldResource.BodySyncState syncState,
+        @Nonnull PhysicsBodyRuntimeState.BodySyncState syncState,
         @Nonnull Scratch scratch) {
         if (scratch.visualPosition.distanceSquared(syncState.getLastSyncedPosition())
             > MAX_SMOOTHING_TELEPORT_DISTANCE_SQUARED) {
