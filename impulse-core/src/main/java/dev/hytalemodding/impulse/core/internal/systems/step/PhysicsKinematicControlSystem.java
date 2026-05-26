@@ -26,6 +26,7 @@ import dev.hytalemodding.impulse.core.internal.systems.sync.PhysicsSyncSystem;
 import dev.hytalemodding.impulse.core.internal.worker.PhysicsWorkerAccess;
 import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyId;
 import dev.hytalemodding.impulse.core.plugin.execution.PhysicsMutationHandle;
+import dev.hytalemodding.impulse.core.plugin.execution.PhysicsOwnerAccess;
 import dev.hytalemodding.impulse.core.plugin.resources.PhysicsWorldResource;
 import it.unimi.dsi.fastutil.objects.Object2ObjectMap;
 import it.unimi.dsi.fastutil.objects.Object2ObjectOpenHashMap;
@@ -97,7 +98,7 @@ public class PhysicsKinematicControlSystem extends EntityTickingSystem<EntitySto
             return;
         }
 
-        if (session.getSpaceId() != null && resource.getSpace(session.getSpaceId()) == null) {
+        if (session.getSpaceId() != null && !resource.hasSpace(session.getSpaceId())) {
             stateFor(store).clear(anchorBodyId);
             cleanupSession(store, session);
             commandBuffer.removeComponent(chunk.getReferenceTo(index), SESSION_TYPE);
@@ -152,14 +153,15 @@ public class PhysicsKinematicControlSystem extends EntityTickingSystem<EntitySto
             releaseVelocity);
         PhysicsMutationHandle<Void> handle = PhysicsWorkerAccess.runAsync(store,
             "update kinematic control anchor",
-            () -> applyControlUpdate(resource, update));
+            () -> resource.runOnPhysicsOwner("apply kinematic control anchor",
+                access -> applyControlUpdate(access, update)));
         state.trackPendingMutation(anchorBodyId, handle);
     }
 
-    static void applyControlUpdate(@Nonnull PhysicsWorldResource resource,
+    static void applyControlUpdate(@Nonnull PhysicsOwnerAccess access,
         @Nonnull ControlAnchorUpdate update) {
-        PhysicsBody body = resource.getBody(update.bodyId());
-        PhysicsBody anchorBody = resource.getBody(update.anchorBodyId());
+        PhysicsBody body = access.getBody(update.bodyId());
+        PhysicsBody anchorBody = access.getBody(update.anchorBodyId());
         if (body == null || anchorBody == null) {
             return;
         }
@@ -175,14 +177,14 @@ public class PhysicsKinematicControlSystem extends EntityTickingSystem<EntitySto
 
     private static void cleanupSession(@Nonnull Store<EntityStore> store,
         @Nonnull PhysicsControlSessionComponent session) {
-        PhysicsWorkerAccess.run(store, "cleanup kinematic control session", () -> {
-            PhysicsWorldResource resource = store.getResource(PhysicsWorldResource.getResourceType());
+        PhysicsWorldResource resource = store.getResource(PhysicsWorldResource.getResourceType());
+        resource.runOnPhysicsOwner("cleanup kinematic control session", access -> {
             if (session.getBodyId() != null) {
                 resource.clearControlledBody(session.getBodyId());
             }
-            PhysicsSpace space = session.getSpaceId() != null ? resource.getSpace(session.getSpaceId()) : null;
+            PhysicsSpace space = session.getSpaceId() != null ? access.getSpace(session.getSpaceId()) : null;
             if (space != null && session.getBodyId() != null && session.getAnchorBodyId() != null) {
-                PhysicsControlJointResolver.removeControlJoint(resource,
+                PhysicsControlJointResolver.removeControlJoint(access,
                     space,
                     session.getBodyId(),
                     session.getAnchorBodyId());

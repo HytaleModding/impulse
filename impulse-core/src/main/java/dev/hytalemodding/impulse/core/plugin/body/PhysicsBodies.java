@@ -2,7 +2,6 @@ package dev.hytalemodding.impulse.core.plugin.body;
 
 import dev.hytalemodding.impulse.api.PhysicsBody;
 import dev.hytalemodding.impulse.api.PhysicsSpace;
-import dev.hytalemodding.impulse.api.SpaceId;
 import dev.hytalemodding.impulse.core.plugin.resources.PhysicsWorldResource;
 import java.util.Objects;
 import javax.annotation.Nonnull;
@@ -10,10 +9,8 @@ import javax.annotation.Nonnull;
 /**
  * Canonical plugin-facing helpers for body-id-first body creation.
  *
- * <p>Use this facade for ordinary gameplay bodies. Use
- * {@link PhysicsWorldResource#addBody(SpaceId, PhysicsBody, PhysicsBodyKind, PhysicsBodyPersistenceMode)}
- * only when code already created a live backend body on the physics owner and needs the lower-level
- * registry operation.</p>
+ * <p>Use this facade for ordinary gameplay bodies. Low-level live backend registration is only
+ * available from scoped physics-owner callbacks.</p>
  */
 public final class PhysicsBodies {
 
@@ -32,18 +29,18 @@ public final class PhysicsBodies {
         @Nonnull PhysicsBodySpawnSpec spec) {
         Objects.requireNonNull(resource, "resource");
         Objects.requireNonNull(spec, "spec");
-        return resource.callOnPhysicsOwner("spawn physics body", () -> {
+        return resource.callOnPhysicsOwner("spawn physics body", access -> {
             if (resource.getBodyRegistrationView(spec.bodyId()) != null) {
                 throw new IllegalArgumentException("Physics body id=" + spec.bodyId()
                     + " is already registered");
             }
-            PhysicsSpace space = resource.getSpace(spec.spaceId());
+            PhysicsSpace space = access.getSpace(spec.spaceId());
             if (space == null) {
                 throw new IllegalArgumentException("Physics space id=" + spec.spaceId()
                     + " is not registered");
             }
             PhysicsBody body = Objects.requireNonNull(spec.factory().create(space), "body");
-            resource.addBody(spec.bodyId(),
+            access.addBody(spec.bodyId(),
                 spec.spaceId(),
                 body,
                 spec.kind(),

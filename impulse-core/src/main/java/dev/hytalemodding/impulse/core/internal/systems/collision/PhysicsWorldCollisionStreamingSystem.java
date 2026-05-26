@@ -114,16 +114,16 @@ public class PhysicsWorldCollisionStreamingSystem extends TickingSystem<EntitySt
             if (applySnapshot != null) {
                 applySnapshot.incrementTerrainApplyQueued();
             }
-            resource.enqueuePhysicsMutation("stream world collision terrain apply", () -> {
+            resource.enqueuePhysicsMutation("stream world collision terrain apply", access -> {
                 long applyStart = applySnapshot != null ? System.nanoTime() : 0L;
                 try {
                     SectionAccessCache sectionAccessCache = cache.newSectionAccessCache();
                     for (SpaceStreamingPlan plan : plans) {
-                        PhysicsSpace space = resource.getSpace(plan.spaceId());
+                        PhysicsSpace space = access.getSpace(plan.spaceId());
                         if (space == null) {
                             continue;
                         }
-                        PhysicsSpaceSettings settings = resource.getSpaceSettings(space.getId());
+                        PhysicsSpaceSettings settings = resource.getSpaceSettings(plan.spaceId());
                         if (settings.getWorldCollisionSettings().getWorldCollisionMode() != WorldCollisionMode.STREAMING) {
                             continue;
                         }
@@ -174,8 +174,8 @@ public class PhysicsWorldCollisionStreamingSystem extends TickingSystem<EntitySt
         long currentTick,
         @Nullable Snapshot snapshot) {
         List<SpaceStreamingPlan> plans = new ArrayList<>();
-        for (PhysicsSpace space : resource.getSpaces()) {
-            PhysicsSpaceSettings settings = resource.getSpaceSettings(space.getId());
+        for (SpaceId spaceId : resource.getSpaceIds()) {
+            PhysicsSpaceSettings settings = resource.getSpaceSettings(spaceId);
             if (settings.getWorldCollisionSettings().getWorldCollisionMode() != WorldCollisionMode.STREAMING) {
                 continue;
             }
@@ -185,14 +185,14 @@ public class PhysicsWorldCollisionStreamingSystem extends TickingSystem<EntitySt
             }
 
             int bodyRadius = settings.getWorldCollisionSettings().getWorldCollisionBodyRadius();
-            plans.add(new SpaceStreamingPlan(space.getId(),
+            plans.add(new SpaceStreamingPlan(spaceId,
                 settings.getWorldCollisionSettings().getWorldCollisionRadius(),
                 bodyRadius,
                 settings.getWorldCollisionSettings().getWorldCollisionTtlTicks(),
                 playerPositions,
                 collectDynamicBodyTargets(resource,
                     cache,
-                    space.getId(),
+                    spaceId,
                     bodyRadius,
                     currentTick,
                     settings.getWorldCollisionSettings().getWorldCollisionTtlTicks(),

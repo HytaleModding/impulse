@@ -8,7 +8,6 @@ import com.hypixel.hytale.server.core.command.system.arguments.types.ArgTypes;
 import com.hypixel.hytale.server.core.command.system.basecommands.AbstractWorldCommand;
 import com.hypixel.hytale.server.core.universe.world.World;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
-import dev.hytalemodding.impulse.api.PhysicsSpace;
 import dev.hytalemodding.impulse.api.PhysicsSolverTuning;
 import dev.hytalemodding.impulse.api.SpaceId;
 import dev.hytalemodding.impulse.core.plugin.settings.PhysicsSpaceSettings;
@@ -56,15 +55,20 @@ public class SolverSettingsCommand extends AbstractWorldCommand {
         @Nonnull Store<EntityStore> store) {
         PhysicsWorldResource resource = store.getResource(PhysicsWorldResource.getResourceType());
         SpaceId defaultSpaceId = resource.getDefaultSpaceId();
-        PhysicsSpace space = defaultSpaceId != null ? resource.getSpace(defaultSpaceId) : null;
-        if (defaultSpaceId == null || space == null) {
+        if (defaultSpaceId == null || !resource.hasSpace(defaultSpaceId)) {
             ctx.sender().sendMessage(Message.raw("No default physics space exists yet."));
             return;
         }
+        SolverSpaceSummary summary = resource.callOnPhysicsOwner("read solver space summary",
+            access -> {
+                var space = access.requireSpace(defaultSpaceId);
+                return new SolverSpaceSummary(space.getBackendId().value(),
+                    space instanceof PhysicsSolverTuning);
+            });
 
         PhysicsSpaceSettings settings = new PhysicsSpaceSettings(resource.getSpaceSettings(defaultSpaceId));
         if (!anyArgProvided(ctx)) {
-            sendSummary(ctx, defaultSpaceId, space, settings);
+            sendSummary(ctx, defaultSpaceId, summary, settings);
             return;
         }
 
@@ -112,7 +116,7 @@ public class SolverSettingsCommand extends AbstractWorldCommand {
         settings.getSolverSettings().setMinIslandSize(minIslandSize);
         settings.getSolverSettings().setDynamicSleepTuning(sleepLinearThreshold, sleepAngularThreshold, sleepTime);
         resource.setSpaceSettings(defaultSpaceId, settings);
-        sendSummary(ctx, defaultSpaceId, space, settings);
+        sendSummary(ctx, defaultSpaceId, summary, settings);
     }
 
     private boolean anyArgProvided(@Nonnull CommandContext ctx) {
@@ -127,12 +131,12 @@ public class SolverSettingsCommand extends AbstractWorldCommand {
 
     private static void sendSummary(@Nonnull CommandContext ctx,
         @Nonnull SpaceId spaceId,
-        @Nonnull PhysicsSpace space,
+        @Nonnull SolverSpaceSummary summary,
         @Nonnull PhysicsSpaceSettings settings) {
         ctx.sender().sendMessage(Message.raw("Impulse solver settings for space "
             + spaceId.value()
-            + " backend=" + space.getBackendId().value()
-            + " applied=" + (space instanceof PhysicsSolverTuning)
+            + " backend=" + summary.backendId()
+            + " applied=" + summary.applied()
             + ": solverIterations=" + settings.getSolverSettings().getSolverIterations()
             + " pgsIterations=" + settings.getSolverSettings().getInternalPgsIterations()
             + " stabilizationIterations=" + settings.getSolverSettings().getStabilizationIterations()
@@ -140,5 +144,8 @@ public class SolverSettingsCommand extends AbstractWorldCommand {
             + " sleepLinearThreshold=" + settings.getSolverSettings().getDynamicSleepLinearThreshold()
             + " sleepAngularThreshold=" + settings.getSolverSettings().getDynamicSleepAngularThreshold()
             + " sleepTime=" + settings.getSolverSettings().getDynamicSleepTimeUntilSleep()));
+    }
+
+    private record SolverSpaceSummary(@Nonnull String backendId, boolean applied) {
     }
 }

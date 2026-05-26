@@ -16,6 +16,7 @@ import dev.hytalemodding.impulse.core.ImpulsePlugin;
 import dev.hytalemodding.impulse.core.internal.components.GeneratedVisualProxyComponent;
 import dev.hytalemodding.impulse.core.internal.persistence.PersistentPhysicsSpaceState;
 import dev.hytalemodding.impulse.core.internal.persistence.PersistentPhysicsWorldResource;
+import dev.hytalemodding.impulse.core.internal.resources.PhysicsWorldRuntimeResource;
 import dev.hytalemodding.impulse.core.internal.worker.PhysicsWorkerAccess;
 import dev.hytalemodding.impulse.core.plugin.components.PhysicsBodyAttachmentComponent;
 import dev.hytalemodding.impulse.core.plugin.components.PhysicsBodyAttachmentComponent.AttachmentLifecycle;
@@ -69,7 +70,7 @@ public class PersistentPhysicsSpaceBootstrapSystem extends TickingSystem<EntityS
         }
 
         World world = store.getExternalData().getWorld();
-        PhysicsWorldResource runtime = store.getResource(PhysicsWorldResource.getResourceType());
+        PhysicsWorldRuntimeResource runtime = PhysicsWorldRuntimeResource.require(store);
         PersistentPhysicsSpaceState[] spaces = persistent.getSpaces();
         String validationFailure = validateSpaces(spaces);
         if (validationFailure != null) {
@@ -96,14 +97,19 @@ public class PersistentPhysicsSpaceBootstrapSystem extends TickingSystem<EntityS
                 PhysicsWorkerAccess.run(store, "bootstrap persisted physics space", () -> {
                     PhysicsSpace targetSpace = runtime.getSpace(spaceId);
                     if (targetSpace == null) {
-                        targetSpace = runtime.createSpace(state.toBackendId(),
+                        runtime.createSpace(state.toBackendId(),
                             spaceId,
                             world.getName(),
                             state.toSettings(),
                             persistent.getDefaultSpaceIdValue() != null
                                 && persistent.getDefaultSpaceIdValue().equals(spaceId));
+                        targetSpace = runtime.getSpace(spaceId);
                     } else {
                         runtime.setSpaceSettings(spaceId, state.toSettings());
+                    }
+                    if (targetSpace == null) {
+                        throw new IllegalStateException("Physics space id=" + spaceId
+                            + " was not registered after creation");
                     }
                     targetSpace.setGravity(state.getGravity().x,
                         state.getGravity().y,

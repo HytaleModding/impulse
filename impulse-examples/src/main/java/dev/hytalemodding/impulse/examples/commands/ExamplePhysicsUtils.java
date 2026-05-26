@@ -28,8 +28,11 @@ import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodySpawnResult;
 import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodySpawnSpec;
 import dev.hytalemodding.impulse.core.plugin.components.ImpulseControllableComponent;
 import dev.hytalemodding.impulse.core.plugin.components.PhysicsBodyAttachmentComponent;
+import dev.hytalemodding.impulse.core.plugin.execution.PhysicsOwnerAccess;
 import dev.hytalemodding.impulse.core.plugin.execution.PhysicsOwnerCallable;
 import dev.hytalemodding.impulse.core.plugin.execution.PhysicsOwnerMutation;
+import dev.hytalemodding.impulse.core.plugin.execution.PhysicsOwnerScopedCallable;
+import dev.hytalemodding.impulse.core.plugin.execution.PhysicsOwnerScopedMutation;
 import dev.hytalemodding.impulse.core.plugin.resources.PhysicsWorldResource;
 import dev.hytalemodding.impulse.core.plugin.settings.PhysicsVisualMaterializationSettings;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -75,11 +78,11 @@ public final class ExamplePhysicsUtils {
     }
 
     @Nullable
-    public static PhysicsSpace defaultSpace(@Nonnull CommandContext ctx,
+    public static SpaceId defaultSpaceId(@Nonnull CommandContext ctx,
         @Nonnull PhysicsWorldResource resource) {
-        PhysicsSpace existing = resource.getDefaultSpace();
-        if (existing != null) {
-            return existing;
+        SpaceId defaultSpaceId = resource.getDefaultSpaceId();
+        if (defaultSpaceId != null && resource.hasSpace(defaultSpaceId)) {
+            return defaultSpaceId;
         }
 
         ctx.sender().sendMessage(Message.raw("No default physics space exists. Run "
@@ -94,9 +97,21 @@ public final class ExamplePhysicsUtils {
         resource(store).runOnPhysicsOwner(operation, mutation);
     }
 
+    public static void physicsOwnerRun(@Nonnull Store<EntityStore> store,
+        @Nonnull String operation,
+        @Nonnull PhysicsOwnerScopedMutation mutation) {
+        resource(store).runOnPhysicsOwner(operation, mutation);
+    }
+
     public static <T> T physicsOwnerCall(@Nonnull Store<EntityStore> store,
         @Nonnull String operation,
         @Nonnull PhysicsOwnerCallable<T> callable) {
+        return resource(store).callOnPhysicsOwner(operation, callable);
+    }
+
+    public static <T> T physicsOwnerCall(@Nonnull Store<EntityStore> store,
+        @Nonnull String operation,
+        @Nonnull PhysicsOwnerScopedCallable<T> callable) {
         return resource(store).callOnPhysicsOwner(operation, callable);
     }
 
@@ -142,9 +157,9 @@ public final class ExamplePhysicsUtils {
     }
 
     @Nonnull
-    public static PhysicsBody requireLiveBody(@Nonnull PhysicsWorldResource resource,
+    public static PhysicsBody requireLiveBody(@Nonnull PhysicsOwnerAccess access,
         @Nonnull PhysicsBodyId bodyId) {
-        PhysicsBody body = resource.getBody(bodyId);
+        PhysicsBody body = access.getBody(bodyId);
         if (body == null) {
             throw new IllegalArgumentException("Physics body id=" + bodyId + " is not registered");
         }

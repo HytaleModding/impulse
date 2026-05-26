@@ -13,7 +13,6 @@ import dev.hytalemodding.impulse.api.BackendId;
 import dev.hytalemodding.impulse.api.PhysicsSpace;
 import dev.hytalemodding.impulse.api.SpaceId;
 import dev.hytalemodding.impulse.core.ImpulsePlugin;
-import dev.hytalemodding.impulse.core.internal.worker.PhysicsWorkerAccess;
 import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyRegistrationView;
 import dev.hytalemodding.impulse.core.plugin.settings.PhysicsSpaceSettings;
 import dev.hytalemodding.impulse.core.plugin.resources.PhysicsWorldResource;
@@ -86,13 +85,13 @@ public class SpaceCommand extends AbstractCommandCollection {
 
             PhysicsWorldResource resource = store.getResource(PhysicsWorldResource.getResourceType());
             try {
-                PhysicsSpace space = resource.createSpace(backendId,
+                SpaceId spaceId = resource.createSpace(backendId,
                     world.getName(),
                     settings,
                     makeDefault);
                 context.sendMessage(Message.raw("Created physics space id="
-                    + space.getId().value()
-                    + " backend=" + space.getBackendId().value()
+                    + spaceId.value()
+                    + " backend=" + backendId.value()
                     + " worldCollision=" + worldCollisionMode.name().toLowerCase(Locale.ROOT)
                     + (makeDefault ? " default=true" : " default=false")));
             } catch (RuntimeException exception) {
@@ -113,8 +112,20 @@ public class SpaceCommand extends AbstractCommandCollection {
             @Nonnull World world,
             @Nonnull Store<EntityStore> store) {
             PhysicsWorldResource resource = store.getResource(PhysicsWorldResource.getResourceType());
-            List<PhysicsSpace> spaces = new ArrayList<>(resource.getSpaces());
-            spaces.sort(Comparator.comparingInt(space -> space.getId().value()));
+            List<SpaceListEntry> spaces = resource.callOnPhysicsOwner("list physics spaces", access -> {
+                List<SpaceListEntry> entries = new ArrayList<>();
+                for (PhysicsSpace space : access.getSpaces()) {
+                    PhysicsSpaceSettings settings = resource.getSpaceSettings(space.getId());
+                    SpaceCounts counts = countSpaceContents(space);
+                    entries.add(new SpaceListEntry(space.getId(),
+                        space.getBackendId().value(),
+                        counts.bodies(),
+                        counts.joints(),
+                        settings.getWorldCollisionSettings().getWorldCollisionMode()));
+                }
+                entries.sort(Comparator.comparingInt(entry -> entry.spaceId().value()));
+                return entries;
+            });
 
             context.sendMessage(Message.raw("Physics spaces in world " + world.getName() + ":"));
             if (spaces.isEmpty()) {
@@ -123,16 +134,14 @@ public class SpaceCommand extends AbstractCommandCollection {
             }
 
             SpaceId defaultSpaceId = resource.getDefaultSpaceId();
-            for (PhysicsSpace space : spaces) {
-                PhysicsSpaceSettings settings = resource.getSpaceSettings(space.getId());
-                SpaceCounts counts = countSpaceContents(store, space);
-                String marker = space.getId().equals(defaultSpaceId) ? " default=true" : "";
-                context.sendMessage(Message.raw("- id=" + space.getId().value()
-                    + " backend=" + space.getBackendId().value()
-                    + " bodies=" + counts.bodies()
-                    + " joints=" + counts.joints()
+            for (SpaceListEntry space : spaces) {
+                String marker = space.spaceId().equals(defaultSpaceId) ? " default=true" : "";
+                context.sendMessage(Message.raw("- id=" + space.spaceId().value()
+                    + " backend=" + space.backendId()
+                    + " bodies=" + space.bodies()
+                    + " joints=" + space.joints()
                     + " worldCollision="
-                    + settings.getWorldCollisionSettings().getWorldCollisionMode().name().toLowerCase(Locale.ROOT)
+                    + space.worldCollisionMode().name().toLowerCase(Locale.ROOT)
                     + marker));
             }
         }
@@ -209,8 +218,7 @@ public class SpaceCommand extends AbstractCommandCollection {
 
             PhysicsWorldResource resource = store.getResource(PhysicsWorldResource.getResourceType());
             SpaceId spaceId = new SpaceId(rawSpaceId);
-            PhysicsSpace space = resource.getSpace(spaceId);
-            if (space == null) {
+            if (!resource.hasSpace(spaceId)) {
                 context.sendMessage(Message.raw("No physics space id=" + rawSpaceId
                     + " exists in world " + world.getName() + "."));
                 return;
@@ -223,7 +231,8 @@ public class SpaceCommand extends AbstractCommandCollection {
              * so they still require an explicit clean/destroy before deleting the space.
              */
             int registeredBodies = countRegisteredBodies(resource, spaceId);
-            SpaceCounts counts = countSpaceContents(store, space);
+            SpaceCounts counts = resource.callOnPhysicsOwner("count physics space contents",
+                access -> countSpaceContents(access.requireSpace(spaceId)));
             int backendBodies = counts.bodies();
             int joints = counts.joints();
             if (registeredBodies > 0 || joints > 0) {
@@ -241,10 +250,8 @@ public class SpaceCommand extends AbstractCommandCollection {
     }
 
     @Nonnull
-    private static SpaceCounts countSpaceContents(@Nonnull Store<EntityStore> store,
-        @Nonnull PhysicsSpace space) {
-        return PhysicsWorkerAccess.call(store, "count physics space contents",
-            () -> new SpaceCounts(space.bodyCount(), space.getJoints().size()));
+    private static SpaceCounts countSpaceContents(@Nonnull PhysicsSpace space) {
+        return new SpaceCounts(space.bodyCount(), space.getJoints().size());
     }
 
     private static int countRegisteredBodies(@Nonnull PhysicsWorldResource resource,
@@ -295,5 +302,12 @@ public class SpaceCommand extends AbstractCommandCollection {
     }
 
     private record SpaceCounts(int bodies, int joints) {
+    }
+
+    private record SpaceListEntry(@Nonnull SpaceId spaceId,
+                                  @Nonnull String backendId,
+                                  int bodies,
+                                  int joints,
+                                  @Nonnull WorldCollisionMode worldCollisionMode) {
     }
 }

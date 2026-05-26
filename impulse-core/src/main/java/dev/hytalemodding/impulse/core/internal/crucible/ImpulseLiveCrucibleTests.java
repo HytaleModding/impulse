@@ -13,6 +13,7 @@ import com.hypixel.hytale.server.core.universe.world.World;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import dev.hytalemodding.impulse.api.PhysicsBody;
 import dev.hytalemodding.impulse.api.PhysicsSpace;
+import dev.hytalemodding.impulse.api.SpaceId;
 import dev.hytalemodding.impulse.core.ImpulsePlugin;
 import dev.hytalemodding.impulse.core.plugin.components.ImpulseControllableComponent;
 import dev.hytalemodding.impulse.core.plugin.components.PhysicsBodyAttachmentComponent;
@@ -118,14 +119,17 @@ final class ImpulseLiveCrucibleTests {
     }
 
     private static PhysicsSpace liveTestSpace(PhysicsWorldResource resource, World world) {
-        PhysicsSpace existing = resource.getDefaultSpace();
-        if (existing != null) {
-            return existing;
+        SpaceId defaultSpaceId = resource.getDefaultSpaceId();
+        if (defaultSpaceId != null && resource.hasSpace(defaultSpaceId)) {
+            return resource.callOnPhysicsOwner("resolve live crucible default space",
+                access -> access.requireSpace(defaultSpaceId));
         }
-        return resource.createSpace(ImpulsePlugin.get().getDefaultBackendId(),
+        SpaceId spaceId = resource.createSpace(ImpulsePlugin.get().getDefaultBackendId(),
             world.getName(),
             PhysicsSpaceSettings.defaults(),
             true);
+        return resource.callOnPhysicsOwner("resolve live crucible test space",
+            access -> access.requireSpace(spaceId));
     }
 
     private static Ref<EntityStore> spawnLiveBlockBody(Store<EntityStore> store,
@@ -140,10 +144,11 @@ final class ImpulseLiveCrucibleTests {
             DEFAULT_BLOCK_TYPE,
             new Vector3d(visualPosition));
         holder.removeComponent(DESPAWN_TYPE);
-        PhysicsBodyId bodyId = resource.addBody(space.getId(),
-            body,
-            PhysicsBodyKind.BODY,
-            PhysicsBodyPersistenceMode.PERSISTENT);
+        PhysicsBodyId bodyId = resource.callOnPhysicsOwner("register live crucible body",
+            access -> access.addBody(space.getId(),
+                body,
+                PhysicsBodyKind.BODY,
+                PhysicsBodyPersistenceMode.PERSISTENT));
         holder.addComponent(ATTACHMENT_TYPE,
             new PhysicsBodyAttachmentComponent(bodyId,
                 space.getId(),

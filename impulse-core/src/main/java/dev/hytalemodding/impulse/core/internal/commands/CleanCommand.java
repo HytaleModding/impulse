@@ -14,7 +14,7 @@ import com.hypixel.hytale.server.core.command.system.basecommands.AbstractWorldC
 import com.hypixel.hytale.server.core.modules.entity.component.TransformComponent;
 import com.hypixel.hytale.server.core.universe.world.World;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
-import dev.hytalemodding.impulse.api.PhysicsSpace;
+import dev.hytalemodding.impulse.api.SpaceId;
 import dev.hytalemodding.impulse.core.internal.components.GeneratedVisualProxyComponent;
 import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyId;
 import dev.hytalemodding.impulse.core.plugin.components.PhysicsBodyAttachmentComponent;
@@ -213,8 +213,8 @@ public class CleanCommand extends AbstractWorldCommand {
         float radius) {
         Set<PhysicsBodyId> bodyIds = ConcurrentHashMap.newKeySet();
         Vector3f centerF = new Vector3f((float) center.x, (float) center.y, (float) center.z);
-        for (PhysicsSpace space : resource.getSpaces()) {
-            resource.forEachBodySnapshotNear(space.getId(), centerF, radius,
+        for (SpaceId spaceId : resource.getSpaceIds()) {
+            resource.forEachBodySnapshotNear(spaceId, centerF, radius,
                 entry -> bodyIds.add(entry.bodyId()));
         }
         return bodyIds;

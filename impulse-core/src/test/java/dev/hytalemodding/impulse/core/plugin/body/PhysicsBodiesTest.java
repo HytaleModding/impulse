@@ -24,8 +24,9 @@ class PhysicsBodiesTest {
             new FakePhysicsBackend("test:spawn-body-" + BACKEND_COUNTER.incrementAndGet());
         Impulse.registerBackend(backend);
 
-        PhysicsWorldResource resource = new PhysicsWorldRuntimeResource();
-        PhysicsSpace space = resource.createSpace(backend.getId(),
+        PhysicsWorldRuntimeResource runtime = new PhysicsWorldRuntimeResource();
+        PhysicsWorldResource resource = runtime;
+        PhysicsSpace space = runtime.createLiveSpace(backend.getId(),
             "test-world",
             PhysicsSpaceSettings.defaults(),
             true);
@@ -53,8 +54,9 @@ class PhysicsBodiesTest {
             new FakePhysicsBackend("test:spawn-duplicate-" + BACKEND_COUNTER.incrementAndGet());
         Impulse.registerBackend(backend);
 
-        PhysicsWorldResource resource = new PhysicsWorldRuntimeResource();
-        PhysicsSpace space = resource.createSpace(backend.getId(),
+        PhysicsWorldRuntimeResource runtime = new PhysicsWorldRuntimeResource();
+        PhysicsWorldResource resource = runtime;
+        PhysicsSpace space = runtime.createLiveSpace(backend.getId(),
             "test-world",
             PhysicsSpaceSettings.defaults(),
             true);

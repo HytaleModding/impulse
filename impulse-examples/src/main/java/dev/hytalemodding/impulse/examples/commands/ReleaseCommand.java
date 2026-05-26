@@ -16,6 +16,7 @@ import dev.hytalemodding.impulse.api.PhysicsSpace;
 import dev.hytalemodding.impulse.api.SpaceId;
 import dev.hytalemodding.impulse.core.plugin.components.PhysicsControlSessionComponent;
 import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyId;
+import dev.hytalemodding.impulse.core.plugin.execution.PhysicsOwnerAccess;
 import dev.hytalemodding.impulse.core.plugin.resources.PhysicsWorldResource;
 import java.util.ArrayList;
 import java.util.concurrent.CompletableFuture;
@@ -61,14 +62,14 @@ public class ReleaseCommand extends AbstractAsyncPlayerCommand {
             resource.clearControlledBody(bodyId);
             PhysicsBodyType originalBodyType = session.getOriginalBodyType();
             ExamplePhysicsUtils.physicsOwnerRun(store, "release grabbed physics body",
-                () -> {
-                    PhysicsSpace space = spaceId != null ? resource.getSpace(spaceId) : null;
-                    PhysicsBody body = resource.getBody(bodyId);
+                access -> {
+                    PhysicsSpace space = spaceId != null ? access.getSpace(spaceId) : null;
+                    PhysicsBody body = access.getBody(bodyId);
                     if (body == null) {
                         return;
                     }
                     if (space != null && anchorBodyId != null) {
-                        removeControlJoint(resource, space, bodyId, anchorBodyId);
+                        removeControlJoint(access, space, bodyId, anchorBodyId);
                     }
                     body.setBodyType(originalBodyType);
                     if (originalBodyType == PhysicsBodyType.DYNAMIC) {
@@ -81,10 +82,10 @@ public class ReleaseCommand extends AbstractAsyncPlayerCommand {
                 });
         } else if (bodyId != null && anchorBodyId != null && spaceId != null) {
             ExamplePhysicsUtils.physicsOwnerRun(store, "release grabbed physics joint",
-                () -> {
-                    PhysicsSpace space = resource.getSpace(spaceId);
+                access -> {
+                    PhysicsSpace space = access.getSpace(spaceId);
                     if (space != null) {
-                        removeControlJoint(resource, space, bodyId, anchorBodyId);
+                        removeControlJoint(access, space, bodyId, anchorBodyId);
                     }
                 });
         }
@@ -96,13 +97,13 @@ public class ReleaseCommand extends AbstractAsyncPlayerCommand {
         store.removeComponent(playerRef, CONTROL_SESSION_TYPE);
     }
 
-    private static boolean removeControlJoint(@Nonnull PhysicsWorldResource resource,
+    private static boolean removeControlJoint(@Nonnull PhysicsOwnerAccess access,
         @Nonnull PhysicsSpace space,
         @Nonnull PhysicsBodyId bodyId,
         @Nonnull PhysicsBodyId anchorBodyId) {
         for (PhysicsJoint joint : new ArrayList<>(space.getJoints())) {
-            PhysicsBodyId bodyAId = resource.getBodyId(joint.getBodyA());
-            PhysicsBodyId bodyBId = resource.getBodyId(joint.getBodyB());
+            PhysicsBodyId bodyAId = access.getBodyId(joint.getBodyA());
+            PhysicsBodyId bodyBId = access.getBodyId(joint.getBodyB());
             if (isControlJoint(bodyAId, bodyBId, bodyId, anchorBodyId)) {
                 space.removeJoint(joint);
                 return true;

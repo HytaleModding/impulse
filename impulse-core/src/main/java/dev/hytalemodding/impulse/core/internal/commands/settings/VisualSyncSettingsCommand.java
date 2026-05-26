@@ -107,7 +107,7 @@ public class VisualSyncSettingsCommand extends AbstractAsyncPlayerCommand {
         @Nonnull World world) {
         PhysicsWorldResource resource = store.getResource(PhysicsWorldResource.getResourceType());
         SpaceId defaultSpaceId = resource.getDefaultSpaceId();
-        if (defaultSpaceId == null || resource.getSpace(defaultSpaceId) == null) {
+        if (defaultSpaceId == null || !resource.hasSpace(defaultSpaceId)) {
             ctx.sender().sendMessage(Message.raw("No default physics space exists yet."));
             return CompletableFuture.completedFuture(null);
         }

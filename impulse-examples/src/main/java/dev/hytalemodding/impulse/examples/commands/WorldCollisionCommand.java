@@ -11,7 +11,7 @@ import com.hypixel.hytale.server.core.command.system.basecommands.AbstractComman
 import com.hypixel.hytale.server.core.universe.PlayerRef;
 import com.hypixel.hytale.server.core.universe.world.World;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
-import dev.hytalemodding.impulse.api.PhysicsSpace;
+import dev.hytalemodding.impulse.api.SpaceId;
 import dev.hytalemodding.impulse.core.plugin.resources.PhysicsWorldResource;
 import dev.hytalemodding.impulse.core.plugin.collision.WorldCollisionBuildStats;
 import dev.hytalemodding.impulse.core.plugin.collision.WorldCollisionStats;
@@ -59,12 +59,12 @@ public class WorldCollisionCommand extends AbstractCommandCollection {
 
             int radius = ExamplePhysicsUtils.optionalInt(ctx, radiusArg, DEFAULT_RADIUS, 1, MAX_RADIUS);
             PhysicsWorldResource resource = ExamplePhysicsUtils.resource(store);
-            PhysicsSpace space = ExamplePhysicsUtils.defaultSpace(ctx, resource);
-            if (space == null) {
+            SpaceId spaceId = ExamplePhysicsUtils.defaultSpaceId(ctx, resource);
+            if (spaceId == null) {
                 return CompletableFuture.completedFuture(null);
             }
             WorldCollisionBuildStats stats = resource.rebuildWorldCollisionAround(world,
-                space.getId(),
+                spaceId,
                 playerPos,
                 radius);
 
@@ -98,11 +98,11 @@ public class WorldCollisionCommand extends AbstractCommandCollection {
             @Nonnull PlayerRef playerRef,
             @Nonnull World world) {
             PhysicsWorldResource resource = ExamplePhysicsUtils.resource(store);
-            PhysicsSpace space = ExamplePhysicsUtils.defaultSpace(ctx, resource);
-            if (space == null) {
+            SpaceId spaceId = ExamplePhysicsUtils.defaultSpaceId(ctx, resource);
+            if (spaceId == null) {
                 return CompletableFuture.completedFuture(null);
             }
-            int removed = resource.clearWorldCollision(space.getId());
+            int removed = resource.clearWorldCollision(spaceId);
             ctx.sender().sendMessage(Message.raw("Removed " + removed
                 + " world voxel collision bodies."));
             return CompletableFuture.completedFuture(null);

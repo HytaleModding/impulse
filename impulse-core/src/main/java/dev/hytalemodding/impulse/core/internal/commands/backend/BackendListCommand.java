@@ -42,8 +42,14 @@ public class BackendListCommand extends AbstractAsyncPlayerCommand {
             + (backendIds.isEmpty() ? "<none>" : String.join(", ", backendIds))));
 
         PhysicsWorldResource resource = store.getResource(PhysicsWorldResource.getResourceType());
-        List<PhysicsSpace> spaces = new ArrayList<>(resource.getSpaces());
-        spaces.sort(Comparator.comparingInt(space -> space.getId().value()));
+        List<SpaceEntry> spaces = resource.callOnPhysicsOwner("list backend physics spaces", access -> {
+            List<SpaceEntry> entries = new ArrayList<>();
+            for (PhysicsSpace space : access.getSpaces()) {
+                entries.add(new SpaceEntry(space.getId(), space.getBackendId().value()));
+            }
+            entries.sort(Comparator.comparingInt(entry -> entry.spaceId().value()));
+            return entries;
+        });
         SpaceId defaultSpaceId = resource.getDefaultSpaceId();
 
         ctx.sender().sendMessage(Message.raw("Physics spaces in world " + world.getName() + ":"));
@@ -51,12 +57,15 @@ public class BackendListCommand extends AbstractAsyncPlayerCommand {
             ctx.sender().sendMessage(Message.raw("- <none>"));
             return CompletableFuture.completedFuture(null);
         }
-        for (PhysicsSpace space : spaces) {
-            String marker = space.getId().equals(defaultSpaceId) ? " (default)" : "";
-            ctx.sender().sendMessage(Message.raw("- id=" + space.getId().value()
-                + " backend=" + space.getBackendId().value() + marker));
+        for (SpaceEntry space : spaces) {
+            String marker = space.spaceId().equals(defaultSpaceId) ? " (default)" : "";
+            ctx.sender().sendMessage(Message.raw("- id=" + space.spaceId().value()
+                + " backend=" + space.backendId() + marker));
         }
 
         return CompletableFuture.completedFuture(null);
+    }
+
+    private record SpaceEntry(@Nonnull SpaceId spaceId, @Nonnull String backendId) {
     }
 }

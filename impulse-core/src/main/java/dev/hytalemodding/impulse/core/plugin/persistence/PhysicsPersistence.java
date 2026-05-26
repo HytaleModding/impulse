@@ -70,9 +70,9 @@ public final class PhysicsPersistence {
     }
 
     private static int countRuntimeJoints(@Nonnull PhysicsWorldResource runtime) {
-        return runtime.callOnPhysicsOwner("count runtime persistence joints", () -> {
+        return runtime.callOnPhysicsOwner("count runtime persistence joints", access -> {
             int count = 0;
-            for (PhysicsSpace space : runtime.getSpaces()) {
+            for (PhysicsSpace space : access.getSpaces()) {
                 count += space.getJoints().size();
             }
             return count;

@@ -3,7 +3,7 @@ package dev.hytalemodding.impulse.core.internal.systems.step;
 import dev.hytalemodding.impulse.api.PhysicsJoint;
 import dev.hytalemodding.impulse.api.PhysicsSpace;
 import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyId;
-import dev.hytalemodding.impulse.core.plugin.resources.PhysicsWorldResource;
+import dev.hytalemodding.impulse.core.plugin.execution.PhysicsOwnerAccess;
 import java.util.ArrayList;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
@@ -13,13 +13,13 @@ final class PhysicsControlJointResolver {
     private PhysicsControlJointResolver() {
     }
 
-    static boolean removeControlJoint(@Nonnull PhysicsWorldResource resource,
+    static boolean removeControlJoint(@Nonnull PhysicsOwnerAccess access,
         @Nonnull PhysicsSpace space,
         @Nonnull PhysicsBodyId bodyId,
         @Nonnull PhysicsBodyId anchorBodyId) {
         for (PhysicsJoint joint : new ArrayList<>(space.getJoints())) {
-            PhysicsBodyId bodyAId = resource.getBodyId(joint.getBodyA());
-            PhysicsBodyId bodyBId = resource.getBodyId(joint.getBodyB());
+            PhysicsBodyId bodyAId = access.getBodyId(joint.getBodyA());
+            PhysicsBodyId bodyBId = access.getBodyId(joint.getBodyB());
             if (isControlJoint(bodyAId, bodyBId, bodyId, anchorBodyId)) {
                 space.removeJoint(joint);
                 return true;

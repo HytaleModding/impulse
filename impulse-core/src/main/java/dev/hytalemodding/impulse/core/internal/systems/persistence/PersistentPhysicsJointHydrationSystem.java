@@ -16,6 +16,7 @@ import dev.hytalemodding.impulse.core.ImpulsePlugin;
 import dev.hytalemodding.impulse.core.internal.persistence.PersistentPhysicsJointState;
 import dev.hytalemodding.impulse.core.internal.persistence.PersistentPhysicsRuntimeSupport;
 import dev.hytalemodding.impulse.core.internal.persistence.PersistentPhysicsWorldResource;
+import dev.hytalemodding.impulse.core.internal.resources.PhysicsWorldRuntimeResource;
 import dev.hytalemodding.impulse.core.internal.worker.PhysicsWorkerAccess;
 import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyId;
 import dev.hytalemodding.impulse.core.plugin.resources.PhysicsWorldResource;
@@ -72,7 +73,7 @@ public class PersistentPhysicsJointHydrationSystem extends TickingSystem<EntityS
 
     private static void hydrateJoints(@Nonnull Store<EntityStore> store,
         @Nonnull PersistentPhysicsWorldResource persistent) {
-        PhysicsWorldResource runtime = store.getResource(PhysicsWorldResource.getResourceType());
+        PhysicsWorldRuntimeResource runtime = PhysicsWorldRuntimeResource.require(store);
         Set<String> existing = new ObjectOpenHashSet<>();
         for (PhysicsSpace space : runtime.getSpaces()) {
             space.forEachJoint(joint -> {

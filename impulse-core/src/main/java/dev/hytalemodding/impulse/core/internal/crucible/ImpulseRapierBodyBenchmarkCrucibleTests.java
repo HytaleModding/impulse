@@ -221,7 +221,7 @@ final class ImpulseRapierBodyBenchmarkCrucibleTests {
                 PhysicsSolverSettings.DEFAULT_STABILIZATION_ITERATIONS);
             settings.getSolverSettings().setMinIslandSize(PhysicsSolverSettings.DEFAULT_MIN_ISLAND_SIZE);
             try {
-                PhysicsSpace space = physics.createSpace(RAPIER_BACKEND_ID,
+                PhysicsSpace space = physics.createLiveSpace(RAPIER_BACKEND_ID,
                     world.getName(),
                     settings,
                     true);

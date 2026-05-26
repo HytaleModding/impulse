@@ -13,6 +13,7 @@ import com.hypixel.hytale.server.core.universe.world.World;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import dev.hytalemodding.impulse.api.PhysicsBody;
 import dev.hytalemodding.impulse.api.PhysicsSpace;
+import dev.hytalemodding.impulse.api.SpaceId;
 import dev.hytalemodding.impulse.core.plugin.resources.PhysicsWorldResource;
 import dev.hytalemodding.impulse.examples.commands.ExamplePhysicsUtils;
 import java.util.Locale;
@@ -66,24 +67,24 @@ public class StressBenchmarkCommand extends AbstractAsyncPlayerCommand {
         }
 
         PhysicsWorldResource resource = ExamplePhysicsUtils.resource(store);
-        PhysicsSpace space = ExamplePhysicsUtils.defaultSpace(ctx, resource);
-        if (space == null) {
+        SpaceId spaceId = ExamplePhysicsUtils.defaultSpaceId(ctx, resource);
+        if (spaceId == null) {
             return CompletableFuture.completedFuture(null);
         }
         BenchmarkLayout layout = BenchmarkLayout.around(playerPos, request.count());
         int beforeBodies = ExamplePhysicsUtils.physicsOwnerCall(store,
             "count benchmark physics bodies before spawn",
-            space::bodyCount);
+            access -> access.requireSpace(spaceId).bodyCount());
 
         long startNanos = System.nanoTime();
         int spawned = switch (request.mode()) {
-            case RAW -> spawnRaw(store, space, layout, request.count());
-            case ENTITY -> spawnEntities(store, resource, space, layout, request.count(), request.blockType());
+            case RAW -> spawnRaw(store, spaceId, layout, request.count());
+            case ENTITY -> spawnEntities(store, resource, spaceId, layout, request.count(), request.blockType());
         };
         long elapsedNanos = System.nanoTime() - startNanos;
         int afterBodies = ExamplePhysicsUtils.physicsOwnerCall(store,
             "count benchmark physics bodies after spawn",
-            space::bodyCount);
+            access -> access.requireSpace(spaceId).bodyCount());
 
         if (spawned > 0) {
             ctx.sender().sendMessage(Message.raw("Spawned " + spawned + " "
@@ -121,10 +122,11 @@ public class StressBenchmarkCommand extends AbstractAsyncPlayerCommand {
     }
 
     private static int spawnRaw(@Nonnull Store<EntityStore> store,
-        @Nonnull PhysicsSpace space,
+        @Nonnull SpaceId spaceId,
         @Nonnull BenchmarkLayout layout,
         int count) {
-        ExamplePhysicsUtils.physicsOwnerRun(store, "spawn raw benchmark physics bodies", () -> {
+        ExamplePhysicsUtils.physicsOwnerRun(store, "spawn raw benchmark physics bodies", access -> {
+            PhysicsSpace space = access.requireSpace(spaceId);
             for (int i = 0; i < count; i++) {
                 PhysicsBody body = createBenchmarkBody(space);
                 Vector3d position = layout.position(i);
@@ -137,7 +139,7 @@ public class StressBenchmarkCommand extends AbstractAsyncPlayerCommand {
 
     private static int spawnEntities(@Nonnull Store<EntityStore> store,
         @Nonnull PhysicsWorldResource resource,
-        @Nonnull PhysicsSpace space,
+        @Nonnull SpaceId spaceId,
         @Nonnull BenchmarkLayout layout,
         int count,
         @Nonnull String blockType) {
@@ -146,7 +148,7 @@ public class StressBenchmarkCommand extends AbstractAsyncPlayerCommand {
             ExamplePhysicsUtils.spawnBlockBody(store,
                 time,
                 resource,
-                space.getId(),
+                spaceId,
                 layout.position(i),
                 blockType,
                 StressBenchmarkCommand::createBenchmarkBody);

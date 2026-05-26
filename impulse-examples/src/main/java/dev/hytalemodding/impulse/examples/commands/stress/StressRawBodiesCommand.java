@@ -11,7 +11,7 @@ import com.hypixel.hytale.server.core.universe.PlayerRef;
 import com.hypixel.hytale.server.core.universe.world.World;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import dev.hytalemodding.impulse.api.PhysicsBody;
-import dev.hytalemodding.impulse.api.PhysicsSpace;
+import dev.hytalemodding.impulse.api.SpaceId;
 import dev.hytalemodding.impulse.core.plugin.resources.PhysicsWorldResource;
 import java.util.Locale;
 import java.util.concurrent.CompletableFuture;
@@ -54,8 +54,8 @@ public class StressRawBodiesCommand extends AbstractAsyncPlayerCommand {
 
         int count = ExamplePhysicsUtils.optionalInt(ctx, countArg, DEFAULT_COUNT, 1, MAX_COUNT);
         PhysicsWorldResource resource = ExamplePhysicsUtils.resource(store);
-        PhysicsSpace space = ExamplePhysicsUtils.defaultSpace(ctx, resource);
-        if (space == null) {
+        SpaceId spaceId = ExamplePhysicsUtils.defaultSpaceId(ctx, resource);
+        if (spaceId == null) {
             return CompletableFuture.completedFuture(null);
         }
 
@@ -66,7 +66,8 @@ public class StressRawBodiesCommand extends AbstractAsyncPlayerCommand {
         double originZ = playerPos.z + 5.0 - half;
 
         long startNanos = System.nanoTime();
-        ExamplePhysicsUtils.physicsOwnerRun(store, "spawn raw stress physics bodies", () -> {
+        ExamplePhysicsUtils.physicsOwnerRun(store, "spawn raw stress physics bodies", access -> {
+            var space = access.requireSpace(spaceId);
             for (int i = 0; i < count; i++) {
                 int x = i % side;
                 int z = (i / side) % side;

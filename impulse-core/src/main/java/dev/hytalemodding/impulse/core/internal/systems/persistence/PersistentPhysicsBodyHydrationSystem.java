@@ -13,6 +13,7 @@ import dev.hytalemodding.impulse.api.SpaceId;
 import dev.hytalemodding.impulse.core.ImpulsePlugin;
 import dev.hytalemodding.impulse.core.internal.persistence.PersistentPhysicsBodyState;
 import dev.hytalemodding.impulse.core.internal.persistence.PersistentPhysicsWorldResource;
+import dev.hytalemodding.impulse.core.internal.resources.PhysicsWorldRuntimeResource;
 import dev.hytalemodding.impulse.core.internal.worker.PhysicsWorkerAccess;
 import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyId;
 import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyKind;
@@ -43,7 +44,7 @@ public class PersistentPhysicsBodyHydrationSystem extends TickingSystem<EntitySt
             return;
         }
 
-        PhysicsWorldResource runtime = store.getResource(PhysicsWorldResource.getResourceType());
+        PhysicsWorldRuntimeResource runtime = PhysicsWorldRuntimeResource.require(store);
         for (PersistentPhysicsBodyState state : persistent.getBodies()) {
             PhysicsBodyId bodyId = state.getBodyId();
             if (bodyId == null) {
