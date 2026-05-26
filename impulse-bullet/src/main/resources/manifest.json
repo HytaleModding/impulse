@@ -1,0 +1,28 @@
+{
+    "Group": "HytaleModding",
+    "Name": "ImpulseBullet",
+    "Version": "${version}",
+    "Description": "Bullet backend provider for Impulse",
+    "Authors": [
+        {
+            "Name": "Neil"
+        },
+        {
+            "Name": "Blovien"
+        },
+        {
+            "Name": "Okuna"
+        }
+    ],
+    "Website": "impulse.hytalemodding.dev",
+    "ServerVersion": "${hytaleVersion}",
+    "Dependencies": {
+
+    },
+    "OptionalDependencies": {
+
+    },
+    "DisabledByDefault": false,
+    "Main": "dev.hytalemodding.impulse.bullet.BulletBackendPlugin",
+    "IncludesAssetPack": false
+}

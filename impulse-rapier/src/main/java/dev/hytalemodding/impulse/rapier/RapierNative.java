@@ -6,6 +6,7 @@ import electrostatic4j.snaploader.NativeBinaryLoader;
 import electrostatic4j.snaploader.filesystem.DirectoryPath;
 import electrostatic4j.snaploader.platform.NativeDynamicLibrary;
 import electrostatic4j.snaploader.platform.util.PlatformPredicate;
+import java.nio.file.Files;
 import java.nio.file.Path;
 import javax.annotation.Nullable;
 
@@ -18,6 +19,14 @@ import javax.annotation.Nullable;
 final class RapierNative {
 
     private static final String LIBRARY_NAME = "impulse_rapier";
+    private static final NativeDynamicLibrary[] NATIVE_LIBRARIES = {
+        new NativeDynamicLibrary("native/linux/arm64", PlatformPredicate.LINUX_ARM_64),
+        new NativeDynamicLibrary("native/linux/arm32", PlatformPredicate.LINUX_ARM_32),
+        new NativeDynamicLibrary("native/linux/x86_64", PlatformPredicate.LINUX_X86_64),
+        new NativeDynamicLibrary("native/osx/arm64", PlatformPredicate.MACOS_ARM_64),
+        new NativeDynamicLibrary("native/osx/x86_64", PlatformPredicate.MACOS_X86_64),
+        new NativeDynamicLibrary("native/windows/x86_64", PlatformPredicate.WIN_X86_64)
+    };
     private static volatile boolean loaded;
 
     private RapierNative() {
@@ -28,33 +37,41 @@ final class RapierNative {
             return;
         }
 
-        Path nativeDirectory = dataDirectory != null
-            ? dataDirectory.resolve("native")
-            : Path.of(System.getProperty("user.dir"), "impulse-rapier-native");
-        nativeDirectory.toFile().mkdirs();
-
-        LibraryInfo info = new LibraryInfo(null, LIBRARY_NAME,
-            new DirectoryPath(nativeDirectory.toAbsolutePath().toString()));
-        NativeBinaryLoader loader = new NativeBinaryLoader(info);
-        NativeDynamicLibrary[] libraries = {
-            new NativeDynamicLibrary("native/linux/x86_64", PlatformPredicate.LINUX_X86_64)
-            /*
-             * TODO: Add native binaries for the other supported platforms.
-             */
-        };
-
-        loader.registerNativeLibraries(libraries)
-            .initPlatformLibrary()
-            .setLoggingEnabled(true);
-        loader.setRetryWithCleanExtraction(true);
+        Path nativeDirectory = resolveNativeDirectory();
 
         try {
-            loader.loadLibrary(LoadingCriterion.CLEAN_EXTRACTION);
-        } catch (Exception e) {
-            throw new IllegalStateException("Failed to load the Rapier native library", e);
+            Files.createDirectories(nativeDirectory);
+            loadNativeLibrary(nativeDirectory);
+        } catch (Exception | LinkageError exception) {
+            throw new IllegalStateException("Failed to load the Rapier native library from "
+                + "packaged native resources into " + nativeDirectory.toAbsolutePath(),
+                exception);
         }
 
         loaded = true;
+    }
+
+    private static Path resolveNativeDirectory() {
+        // Hytale dev data directories can point at asset resources; native extraction is runtime cache.
+        String classLoaderId = Integer.toHexString(System.identityHashCode(
+            RapierNative.class.getClassLoader()));
+        return Path.of(System.getProperty("java.io.tmpdir"),
+            "impulse",
+            "native",
+            "rapier",
+            classLoaderId);
+    }
+
+    private static void loadNativeLibrary(Path nativeDirectory) throws Exception {
+        LibraryInfo info = new LibraryInfo(null, LIBRARY_NAME,
+            new DirectoryPath(nativeDirectory.toAbsolutePath().toString()));
+        NativeBinaryLoader loader = new NativeBinaryLoader(info);
+
+        loader.registerNativeLibraries(NATIVE_LIBRARIES)
+            .initPlatformLibrary()
+            .setLoggingEnabled(true);
+        loader.setRetryWithCleanExtraction(true);
+        loader.loadLibrary(LoadingCriterion.CLEAN_EXTRACTION);
     }
 
     static native long createSpaceNative();

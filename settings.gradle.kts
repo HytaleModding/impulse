@@ -14,6 +14,12 @@ dependencyResolutionManagement {
         maven {
             url = uri("https://maven.azuredoom.com/mods")
         }
+        maven {
+            url = uri("impulse-core/build/generated-sources-m2")
+        }
+        maven {
+            url = uri("https://gitlab.com/api/v4/projects/82033924/packages/maven")
+        }
     }
 }
 

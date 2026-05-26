@@ -1,0 +1,28 @@
+{
+    "Group": "HytaleModding",
+    "Name": "ImpulseRapier",
+    "Version": "${version}",
+    "Description": "Rapier backend provider for Impulse",
+    "Authors": [
+        {
+            "Name": "Neil"
+        },
+        {
+            "Name": "Blovien"
+        },
+        {
+            "Name": "Okuna"
+        }
+    ],
+    "Website": "impulse.hytalemodding.dev",
+    "ServerVersion": "${hytaleVersion}",
+    "Dependencies": {
+
+    },
+    "OptionalDependencies": {
+
+    },
+    "DisabledByDefault": false,
+    "Main": "dev.hytalemodding.impulse.rapier.RapierBackendPlugin",
+    "IncludesAssetPack": false
+}
