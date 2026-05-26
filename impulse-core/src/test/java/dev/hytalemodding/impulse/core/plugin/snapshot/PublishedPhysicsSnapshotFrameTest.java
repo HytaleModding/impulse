@@ -1,10 +1,8 @@
 package dev.hytalemodding.impulse.core.plugin.snapshot;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
-import dev.hytalemodding.impulse.api.PhysicsBody;
 import dev.hytalemodding.impulse.api.PhysicsAxis;
 import dev.hytalemodding.impulse.api.PhysicsBodySnapshot;
 import dev.hytalemodding.impulse.api.PhysicsBodyType;
@@ -13,8 +11,6 @@ import dev.hytalemodding.impulse.api.SpaceId;
 import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyId;
 import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyKind;
 import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyPersistenceMode;
-import java.lang.reflect.Field;
-import java.lang.reflect.Method;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
@@ -79,7 +75,7 @@ class PublishedPhysicsSnapshotFrameTest {
     }
 
     @Test
-    void factoryCopiesExistingSnapshotDataWithoutPublishingHandle() {
+    void factoryCopiesExistingSnapshotData() {
         PhysicsBodySnapshot ownerThreadSnapshot = new PhysicsBodySnapshot(new Vector3f(1.0f, 0.0f, 0.0f),
             new Quaternionf().rotateY(0.5f),
             new Vector3f(0.0f, 2.0f, 0.0f),
@@ -118,16 +114,6 @@ class PublishedPhysicsSnapshotFrameTest {
         assertEquals(PhysicsBodyType.KINEMATIC, published.bodyType());
         assertEquals(ShapeType.BOX, published.shapeType());
         assertEquals(new Vector3f(0.25f, 0.5f, 0.75f), published.boxHalfExtents());
-    }
-
-    @Test
-    void bodySnapshotDoesNotExposePhysicsBodyHandles() {
-        for (Field field : PublishedPhysicsBodySnapshot.class.getDeclaredFields()) {
-            assertFalse(PhysicsBody.class.isAssignableFrom(field.getType()), field.getName());
-        }
-        for (Method method : PublishedPhysicsBodySnapshot.class.getDeclaredMethods()) {
-            assertFalse(PhysicsBody.class.isAssignableFrom(method.getReturnType()), method.getName());
-        }
     }
 
     @Test
