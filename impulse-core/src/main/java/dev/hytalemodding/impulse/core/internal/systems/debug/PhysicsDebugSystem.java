@@ -228,7 +228,7 @@ public class PhysicsDebugSystem extends TickingSystem<ChunkStore> {
     }
 
     private static int renderDetachedBodies(@Nonnull Collection<PlayerRef> viewers,
-        @Nonnull PhysicsWorldResource resource,
+        @Nonnull PhysicsWorldRuntimeResource resource,
         @Nonnull Vector3d viewerPosition,
         double viewRadius,
         boolean debugShapes,

@@ -6,13 +6,10 @@ import com.hypixel.hytale.component.Ref;
 import com.hypixel.hytale.server.core.universe.world.World;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import dev.hytalemodding.impulse.api.BackendId;
-import dev.hytalemodding.impulse.api.PhysicsBody;
 import dev.hytalemodding.impulse.api.PhysicsBodySnapshot;
-import dev.hytalemodding.impulse.api.PhysicsSpace;
 import dev.hytalemodding.impulse.api.SpaceId;
 import dev.hytalemodding.impulse.core.ImpulsePlugin;
 import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyId;
-import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodies;
 import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyKind;
 import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyPersistenceMode;
 import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyRegistrationView;
@@ -22,6 +19,8 @@ import dev.hytalemodding.impulse.core.plugin.collision.WorldCollisionStats;
 import dev.hytalemodding.impulse.core.plugin.execution.PhysicsMutationHandle;
 import dev.hytalemodding.impulse.core.plugin.execution.PhysicsOwnerCallable;
 import dev.hytalemodding.impulse.core.plugin.execution.PhysicsOwnerMutation;
+import dev.hytalemodding.impulse.core.plugin.execution.PhysicsOwnerScopedCallable;
+import dev.hytalemodding.impulse.core.plugin.execution.PhysicsOwnerScopedMutation;
 import dev.hytalemodding.impulse.core.plugin.settings.PhysicsSpaceSettings;
 import dev.hytalemodding.impulse.core.plugin.settings.PhysicsWorldSettings;
 import dev.hytalemodding.impulse.core.plugin.snapshot.PhysicsBodySnapshotEntry;
@@ -43,9 +42,11 @@ import org.joml.Vector3f;
  * <p>No physics space is created implicitly. A default space only exists after the consumer creates
  * one with {@code makeDefault=true} or calls {@link #setDefaultSpaceId(SpaceId)}.</p>
  *
- * <p>Methods that return {@link PhysicsSpace} or {@link PhysicsBody} expose live backend objects.
- * Read or mutate those objects only through {@link #runOnPhysicsOwner(String, PhysicsOwnerMutation)}
- * or {@link #callOnPhysicsOwner(String, PhysicsOwnerCallable)}.</p>
+ * <p>This facade does not directly return live backend spaces or bodies. Code that genuinely needs
+ * live backend access must use a scoped owner callback, such as
+ * {@link #runOnPhysicsOwner(String, PhysicsOwnerScopedMutation)} or
+ * {@link #callOnPhysicsOwner(String, PhysicsOwnerScopedCallable)}, and resolve live objects from
+ * the callback parameter.</p>
  */
 public abstract class PhysicsWorldResource implements Resource<EntityStore> {
 
@@ -57,11 +58,17 @@ public abstract class PhysicsWorldResource implements Resource<EntityStore> {
      *
      * <p>When a world worker is attached, this submits to the physics worker and blocks until the
      * mutation completes. If no worker is attached, or the caller is already on the worker thread,
-     * this runs immediately. The callback may access live backend physics objects, but must not
-     * assume it owns unrelated Hytale ECS state.</p>
+     * this runs immediately. Use the scoped overload when the operation needs to resolve live
+     * backend objects. The callback must not assume it owns unrelated Hytale ECS state.</p>
      */
     public abstract void runOnPhysicsOwner(@Nonnull String operation,
         @Nonnull PhysicsOwnerMutation mutation);
+
+    /**
+     * Runs a live-backend mutation on the current physics owner with scoped live-object access.
+     */
+    public abstract void runOnPhysicsOwner(@Nonnull String operation,
+        @Nonnull PhysicsOwnerScopedMutation mutation);
 
     /**
      * Queues a live-backend mutation on the current physics owner without blocking the caller.
@@ -70,6 +77,14 @@ public abstract class PhysicsWorldResource implements Resource<EntityStore> {
     public abstract PhysicsMutationHandle<Void> enqueuePhysicsMutation(
         @Nonnull String operation,
         @Nonnull PhysicsOwnerMutation mutation);
+
+    /**
+     * Queues a live-backend mutation with scoped live-object access.
+     */
+    @Nonnull
+    public abstract PhysicsMutationHandle<Void> enqueuePhysicsMutation(
+        @Nonnull String operation,
+        @Nonnull PhysicsOwnerScopedMutation mutation);
 
     /**
      * Queues a live-backend mutation and returns a handle that is already associated with a value.
@@ -84,14 +99,31 @@ public abstract class PhysicsWorldResource implements Resource<EntityStore> {
         @Nonnull PhysicsOwnerMutation mutation);
 
     /**
+     * Queues a live-backend mutation with scoped live-object access and a reserved value.
+     */
+    @Nonnull
+    public abstract <T> PhysicsMutationHandle<T> enqueuePhysicsMutation(
+        @Nonnull String operation,
+        @Nullable T value,
+        @Nonnull PhysicsOwnerScopedMutation mutation);
+
+    /**
      * Runs a live-backend read or write operation on the current physics owner and returns its value.
      *
      * <p>Prefer published snapshots for ordinary gameplay reads. Use this for explicit live-backend
-     * operations that cannot be expressed through snapshots or higher-level resource methods.</p>
+     * operations that cannot be expressed through snapshots or higher-level resource methods. Use
+     * the scoped overload when the operation needs to resolve live backend objects.</p>
      */
     @Nonnull
     public abstract <T> T callOnPhysicsOwner(@Nonnull String operation,
         @Nonnull PhysicsOwnerCallable<T> callable);
+
+    /**
+     * Runs a live-backend read or write operation with scoped live-object access.
+     */
+    @Nonnull
+    public abstract <T> T callOnPhysicsOwner(@Nonnull String operation,
+        @Nonnull PhysicsOwnerScopedCallable<T> callable);
 
     /**
      * Returns the configured default space id, or {@code null} when this world has no default.
@@ -106,20 +138,6 @@ public abstract class PhysicsWorldResource implements Resource<EntityStore> {
      */
     @Nonnull
     public abstract SpaceId requireDefaultSpaceId();
-
-    /**
-     * Returns the live default physics space, or {@code null} when this world has no default.
-     */
-    @Nullable
-    public abstract PhysicsSpace getDefaultSpace();
-
-    /**
-     * Returns the live default physics space.
-     *
-     * @throws IllegalStateException when this world has no default space or the default id is stale
-     */
-    @Nonnull
-    public abstract PhysicsSpace requireDefaultSpace();
 
     /**
      * Sets or clears the default space id on the physics owner thread.
@@ -156,23 +174,23 @@ public abstract class PhysicsWorldResource implements Resource<EntityStore> {
         @Nonnull PhysicsWorldSettings settings);
 
     /**
-     * Creates a non-default physics space using default space settings.
+     * Creates a non-default physics space using default space settings and returns its id.
      */
     @Nonnull
-    public abstract PhysicsSpace createSpace(@Nonnull BackendId backendId);
+    public abstract SpaceId createSpace(@Nonnull BackendId backendId);
 
     /**
-     * Creates a non-default physics space for logging under the supplied world name.
+     * Creates a non-default physics space for logging under the supplied world name and returns its id.
      */
     @Nonnull
-    public abstract PhysicsSpace createSpace(@Nonnull BackendId backendId,
+    public abstract SpaceId createSpace(@Nonnull BackendId backendId,
         @Nonnull String worldName);
 
     /**
      * Creates a physics space with generated logical id, supplied settings, and optional default flag.
      */
     @Nonnull
-    public abstract PhysicsSpace createSpace(@Nonnull BackendId backendId,
+    public abstract SpaceId createSpace(@Nonnull BackendId backendId,
         @Nonnull String worldName,
         @Nonnull PhysicsSpaceSettings settings,
         boolean makeDefault);
@@ -181,7 +199,7 @@ public abstract class PhysicsWorldResource implements Resource<EntityStore> {
      * Creates a physics space with an explicit logical id, supplied settings, and optional default flag.
      */
     @Nonnull
-    public abstract PhysicsSpace createSpace(@Nonnull BackendId backendId,
+    public abstract SpaceId createSpace(@Nonnull BackendId backendId,
         @Nonnull SpaceId spaceId,
         @Nonnull String worldName,
         @Nonnull PhysicsSpaceSettings settings,
@@ -209,16 +227,15 @@ public abstract class PhysicsWorldResource implements Resource<EntityStore> {
         boolean makeDefault);
 
     /**
-     * Returns the live physics space for a logical id, or {@code null} when absent.
+     * Returns whether a physics space id is currently registered.
      */
-    @Nullable
-    public abstract PhysicsSpace getSpace(@Nonnull SpaceId spaceId);
+    public abstract boolean hasSpace(@Nonnull SpaceId spaceId);
 
     /**
-     * Returns a snapshot collection of the world's live physics spaces.
+     * Returns a snapshot collection of registered physics space ids.
      */
     @Nonnull
-    public abstract Collection<PhysicsSpace> getSpaces();
+    public abstract Collection<SpaceId> getSpaceIds();
 
     /**
      * Returns the number of registered physics spaces.
@@ -348,48 +365,6 @@ public abstract class PhysicsWorldResource implements Resource<EntityStore> {
         @Nonnull PhysicsSpaceSettings settings);
 
     /**
-     * Registers an already-created live backend body with Impulse and returns its generated id.
-     *
-     * <p>This is the low-level path for code that already runs on the physics owner or received a
-     * body from another owner callback. Ordinary plugin body creation should prefer
-     * {@link PhysicsBodies} so creation, configuration, registration, and id return stay together.</p>
-     */
-    @Nonnull
-    public abstract PhysicsBodyId addBody(@Nonnull SpaceId spaceId,
-        @Nonnull PhysicsBody body,
-        @Nonnull PhysicsBodyKind kind,
-        @Nonnull PhysicsBodyPersistenceMode persistenceMode);
-
-    /**
-     * Registers an already-created live backend body with Impulse under an explicit stable id.
-     */
-    @Nonnull
-    public abstract PhysicsBodyId addBody(@Nonnull PhysicsBodyId bodyId,
-        @Nonnull SpaceId spaceId,
-        @Nonnull PhysicsBody body,
-        @Nonnull PhysicsBodyKind kind,
-        @Nonnull PhysicsBodyPersistenceMode persistenceMode);
-
-    /**
-     * Queues low-level registration for an already-created live backend body.
-     */
-    @Nonnull
-    public abstract PhysicsMutationHandle<PhysicsBodyId> addBodyAsync(@Nonnull SpaceId spaceId,
-        @Nonnull PhysicsBody body,
-        @Nonnull PhysicsBodyKind kind,
-        @Nonnull PhysicsBodyPersistenceMode persistenceMode);
-
-    /**
-     * Queues low-level registration for an already-created live backend body under an explicit id.
-     */
-    @Nonnull
-    public abstract PhysicsMutationHandle<PhysicsBodyId> addBodyAsync(@Nonnull PhysicsBodyId bodyId,
-        @Nonnull SpaceId spaceId,
-        @Nonnull PhysicsBody body,
-        @Nonnull PhysicsBodyKind kind,
-        @Nonnull PhysicsBodyPersistenceMode persistenceMode);
-
-    /**
      * Destroys a registered body by stable id and removes it from its physics space.
      */
     public abstract void destroyBody(@Nonnull PhysicsBodyId bodyId);
@@ -400,20 +375,6 @@ public abstract class PhysicsWorldResource implements Resource<EntityStore> {
     @Nonnull
     public abstract PhysicsMutationHandle<PhysicsBodyId> destroyBodyAsync(
         @Nonnull PhysicsBodyId bodyId);
-
-    /**
-     * Resolves a stable body id to a live backend body.
-     *
-     * <p>This method requires owner-thread access because the returned body is a live backend handle.</p>
-     */
-    @Nullable
-    public abstract PhysicsBody getBody(@Nonnull PhysicsBodyId bodyId);
-
-    /**
-     * Resolves a live backend body to its stable id, or {@code null} when the body is not registered.
-     */
-    @Nullable
-    public abstract PhysicsBodyId getBodyId(@Nonnull PhysicsBody body);
 
     /**
      * Returns immutable registration metadata for a body id.

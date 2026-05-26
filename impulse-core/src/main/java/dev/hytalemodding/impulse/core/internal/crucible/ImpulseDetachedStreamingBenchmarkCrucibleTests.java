@@ -131,7 +131,7 @@ final class ImpulseDetachedStreamingBenchmarkCrucibleTests {
         private final StagePlan plan;
         private final World world;
         private final Store<EntityStore> store;
-        private final PhysicsWorldResource physics;
+        private final PhysicsWorldRuntimeResource physics;
         private final PhysicsRuntimeProfilingResource runtimeProfiling;
         private final WorldCollisionProfilingResource worldCollisionProfiling;
         private final PhysicsWorldSettings previousWorldSettings;
@@ -143,7 +143,7 @@ final class ImpulseDetachedStreamingBenchmarkCrucibleTests {
             this.plan = plan;
             this.world = context.world();
             this.store = world.getEntityStore().getStore();
-            this.physics = store.getResource(PhysicsWorldResource.getResourceType());
+            this.physics = PhysicsWorldRuntimeResource.require(store);
             this.runtimeProfiling = store.getResource(PhysicsRuntimeProfilingResource.getResourceType());
             this.worldCollisionProfiling = store.getResource(
                 WorldCollisionProfilingResource.getResourceType());
@@ -227,7 +227,7 @@ final class ImpulseDetachedStreamingBenchmarkCrucibleTests {
             settings.getSolverSettings().setStabilizationIterations(1);
             settings.getSolverSettings().setMinIslandSize(128);
 
-            PhysicsSpace space = physics.createSpace(ImpulsePlugin.get().getDefaultBackendId(),
+            PhysicsSpace space = physics.createLiveSpace(ImpulsePlugin.get().getDefaultBackendId(),
                 world.getName(),
                 settings,
                 true);
@@ -251,7 +251,7 @@ final class ImpulseDetachedStreamingBenchmarkCrucibleTests {
                 return StageReport.failedPreflight(count, started.failureMessage());
             }
             PhysicsSpace space = started.space();
-            if (space == null || physics.getSpace(space.getId()) == null) {
+            if (space == null || !physics.hasSpace(space.getId())) {
                 return StageReport.failedPreflight(count, "space disappeared during benchmark");
             }
 

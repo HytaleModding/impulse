@@ -83,7 +83,7 @@ class PhysicsKinematicControlSystemTest {
             new FakePhysicsBackend("test:control-joint-" + BACKEND_COUNTER.incrementAndGet());
         Impulse.registerBackend(backend);
         PhysicsWorldRuntimeResource resource = new PhysicsWorldRuntimeResource();
-        PhysicsSpace space = resource.createSpace(backend.getId());
+        PhysicsSpace space = resource.createLiveSpace(backend.getId());
         PhysicsBody body = space.createBox(0.5f, 0.5f, 0.5f, 1.0f);
         PhysicsBody anchorBody = space.createSphere(0.1f, 1.0f);
         PhysicsBodyId bodyId = resource.addBody(space.getId(),
@@ -98,10 +98,12 @@ class PhysicsKinematicControlSystemTest {
 
         assertEquals(1, space.jointCount());
 
-        assertTrue(PhysicsControlJointResolver.removeControlJoint(resource,
-            space,
-            bodyId,
-            anchorBodyId));
+        boolean removed = resource.callOnPhysicsOwner("remove control joint",
+            access -> PhysicsControlJointResolver.removeControlJoint(access,
+                space,
+                bodyId,
+                anchorBodyId));
+        assertTrue(removed);
 
         assertEquals(0, space.jointCount());
     }

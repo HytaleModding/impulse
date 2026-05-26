@@ -470,7 +470,7 @@ public class PerfReportCommand extends AbstractWorldCommand {
             int runtimeTerrainContactPairs = 0;
             int runtimeActiveIslands = 0;
             int runtimeJoints = 0;
-            for (PhysicsSpace space : resource.getSpaces()) {
+            for (PhysicsSpace space : runtime.getSpaces()) {
                 spaces++;
                 backendBodies += space.bodyCount();
                 backendJoints += space.jointCount();

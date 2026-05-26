@@ -14,6 +14,7 @@ import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import dev.hytalemodding.impulse.api.PhysicsAxis;
 import dev.hytalemodding.impulse.api.PhysicsBody;
 import dev.hytalemodding.impulse.api.PhysicsSpace;
+import dev.hytalemodding.impulse.api.SpaceId;
 import dev.hytalemodding.impulse.core.plugin.resources.PhysicsWorldResource;
 import dev.hytalemodding.impulse.examples.commands.ExamplePhysicsUtils;
 import java.util.concurrent.CompletableFuture;
@@ -53,8 +54,8 @@ public class StressShapesCommand extends AbstractAsyncPlayerCommand {
 
         int sets = ExamplePhysicsUtils.optionalInt(ctx, setsArg, DEFAULT_SETS, 1, MAX_SETS);
         PhysicsWorldResource resource = ExamplePhysicsUtils.resource(store);
-        PhysicsSpace space = ExamplePhysicsUtils.defaultSpace(ctx, resource);
-        if (space == null) {
+        SpaceId spaceId = ExamplePhysicsUtils.defaultSpaceId(ctx, resource);
+        if (spaceId == null) {
             return CompletableFuture.completedFuture(null);
         }
         TimeResource time = store.getResource(TimeResource.getResourceType());
@@ -66,15 +67,15 @@ public class StressShapesCommand extends AbstractAsyncPlayerCommand {
             int col = set % 4;
             Vector3d base = new Vector3d(origin).add(col * 7.0, row * 2.2, row * 1.5);
 
-            spawn(store, time, resource, space, ShapeType.BOX, axis,
+            spawn(store, time, resource, spaceId, ShapeType.BOX, axis,
                 base, 0.0);
-            spawn(store, time, resource, space, ShapeType.SPHERE, axis,
+            spawn(store, time, resource, spaceId, ShapeType.SPHERE, axis,
                 base, 1.2);
-            spawn(store, time, resource, space, ShapeType.CAPSULE, axis,
+            spawn(store, time, resource, spaceId, ShapeType.CAPSULE, axis,
                 base, 2.4);
-            spawn(store, time, resource, space, ShapeType.CYLINDER, axis,
+            spawn(store, time, resource, spaceId, ShapeType.CYLINDER, axis,
                 base, 3.6);
-            spawn(store, time, resource, space, ShapeType.CONE, axis,
+            spawn(store, time, resource, spaceId, ShapeType.CONE, axis,
                 base, 4.8);
         }
 
@@ -86,7 +87,7 @@ public class StressShapesCommand extends AbstractAsyncPlayerCommand {
     private static void spawn(@Nonnull Store<EntityStore> store,
         @Nonnull TimeResource time,
         @Nonnull PhysicsWorldResource resource,
-        @Nonnull PhysicsSpace space,
+        @Nonnull SpaceId spaceId,
         @Nonnull ShapeType type,
         @Nonnull PhysicsAxis axis,
         @Nonnull Vector3d base,
@@ -94,7 +95,7 @@ public class StressShapesCommand extends AbstractAsyncPlayerCommand {
         ExamplePhysicsUtils.spawnBlockBody(store,
             time,
             resource,
-            space.getId(),
+            spaceId,
             new Vector3d(base).add(xOffset, 0.0, 0.0),
             bodySpace -> createBody(bodySpace, type, axis));
     }

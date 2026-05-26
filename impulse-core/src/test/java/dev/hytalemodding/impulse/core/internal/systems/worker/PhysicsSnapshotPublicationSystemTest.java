@@ -40,7 +40,7 @@ class PhysicsSnapshotPublicationSystemTest {
         try (PhysicsWorldWorkerResource worker = new PhysicsWorldWorkerResource()) {
             worker.start("async-publication-test");
             resource.attachWorkerResource(worker);
-            PhysicsSpace space = resource.createSpace(backendId,
+            PhysicsSpace space = resource.createLiveSpace(backendId,
                 "async-publication-test",
                 PhysicsSpaceSettings.defaults(),
                 true);
@@ -123,7 +123,7 @@ class PhysicsSnapshotPublicationSystemTest {
         try (PhysicsWorldWorkerResource worker = new PhysicsWorldWorkerResource()) {
             worker.start("stale-worker-publication-test");
             resource.attachWorkerResource(worker);
-            PhysicsSpace space = resource.createSpace(backendId,
+            PhysicsSpace space = resource.createLiveSpace(backendId,
                 "stale-worker-publication-test",
                 PhysicsSpaceSettings.defaults(),
                 true);

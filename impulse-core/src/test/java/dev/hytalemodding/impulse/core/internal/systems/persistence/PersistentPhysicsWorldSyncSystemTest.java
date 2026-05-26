@@ -145,7 +145,7 @@ class PersistentPhysicsWorldSyncSystemTest {
 
         PhysicsWorldRuntimeResource runtime = new PhysicsWorldRuntimeResource();
         PhysicsSpaceSettings settings = PhysicsSpaceSettings.defaults();
-        PhysicsSpace space = runtime.createSpace(backend.getId(),
+        PhysicsSpace space = runtime.createLiveSpace(backend.getId(),
             "test-world",
             settings,
             true);

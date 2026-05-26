@@ -10,7 +10,7 @@ import com.hypixel.hytale.server.core.universe.PlayerRef;
 import com.hypixel.hytale.server.core.universe.world.World;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import dev.hytalemodding.impulse.api.PhysicsBody;
-import dev.hytalemodding.impulse.api.PhysicsSpace;
+import dev.hytalemodding.impulse.api.SpaceId;
 import dev.hytalemodding.impulse.core.plugin.resources.PhysicsWorldResource;
 import java.util.concurrent.CompletableFuture;
 import javax.annotation.Nonnull;
@@ -35,19 +35,19 @@ public class MaterialsCommand extends AbstractAsyncPlayerCommand {
         }
 
         PhysicsWorldResource resource = ExamplePhysicsUtils.resource(store);
-        PhysicsSpace space = ExamplePhysicsUtils.defaultSpace(ctx, resource);
-        if (space == null) {
+        SpaceId spaceId = ExamplePhysicsUtils.defaultSpaceId(ctx, resource);
+        if (spaceId == null) {
             return CompletableFuture.completedFuture(null);
         }
         TimeResource time = store.getResource(TimeResource.getResourceType());
 
         Vector3d origin = new Vector3d(playerPos).add(-3.0, 5.0, 4.0);
-        spawnSphere(store, time, resource, space, new Vector3d(origin), 0.05f, 0.9f, 3.0f);
-        spawnSphere(store, time, resource, space, new Vector3d(origin).add(2.0, 0.0, 0.0),
+        spawnSphere(store, time, resource, spaceId, new Vector3d(origin), 0.05f, 0.9f, 3.0f);
+        spawnSphere(store, time, resource, spaceId, new Vector3d(origin).add(2.0, 0.0, 0.0),
             0.95f, 0.9f, 3.0f);
-        spawnSphere(store, time, resource, space, new Vector3d(origin).add(4.0, 0.0, 0.0),
+        spawnSphere(store, time, resource, spaceId, new Vector3d(origin).add(4.0, 0.0, 0.0),
             0.5f, 0.0f, 2.0f);
-        spawnSphere(store, time, resource, space, new Vector3d(origin).add(6.0, 0.0, 0.0),
+        spawnSphere(store, time, resource, spaceId, new Vector3d(origin).add(6.0, 0.0, 0.0),
             0.5f, 0.95f, 2.0f);
 
         ctx.sender().sendMessage(Message.raw(
@@ -58,7 +58,7 @@ public class MaterialsCommand extends AbstractAsyncPlayerCommand {
     private static void spawnSphere(@Nonnull Store<EntityStore> store,
         @Nonnull TimeResource time,
         @Nonnull PhysicsWorldResource resource,
-        @Nonnull PhysicsSpace space,
+        @Nonnull SpaceId spaceId,
         @Nonnull Vector3d position,
         float restitution,
         float friction,
@@ -66,7 +66,7 @@ public class MaterialsCommand extends AbstractAsyncPlayerCommand {
         ExamplePhysicsUtils.spawnBlockBody(store,
             time,
             resource,
-            space.getId(),
+            spaceId,
             position,
             bodySpace -> {
                 PhysicsBody created = bodySpace.createSphere(0.5f, 1.0f);

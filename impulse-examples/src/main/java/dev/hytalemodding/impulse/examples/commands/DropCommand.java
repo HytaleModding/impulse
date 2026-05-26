@@ -13,7 +13,7 @@ import com.hypixel.hytale.server.core.modules.time.TimeResource;
 import com.hypixel.hytale.server.core.universe.PlayerRef;
 import com.hypixel.hytale.server.core.universe.world.World;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
-import dev.hytalemodding.impulse.api.PhysicsSpace;
+import dev.hytalemodding.impulse.api.SpaceId;
 import dev.hytalemodding.impulse.core.plugin.resources.PhysicsWorldResource;
 import java.util.concurrent.CompletableFuture;
 import javax.annotation.Nonnull;
@@ -55,8 +55,8 @@ public class DropCommand extends AbstractAsyncPlayerCommand {
         float spawnZ = (float) playerPos.z();
 
         PhysicsWorldResource resource = store.getResource(PhysicsWorldResource.getResourceType());
-        PhysicsSpace space = ExamplePhysicsUtils.defaultSpace(ctx, resource);
-        if (space == null) {
+        SpaceId spaceId = ExamplePhysicsUtils.defaultSpaceId(ctx, resource);
+        if (spaceId == null) {
             return CompletableFuture.completedFuture(null);
         }
 
@@ -64,7 +64,7 @@ public class DropCommand extends AbstractAsyncPlayerCommand {
         ExamplePhysicsUtils.spawnBlockBody(store,
             time,
             resource,
-            space.getId(),
+            spaceId,
             new Vector3d(spawnX, spawnY, spawnZ),
             blockType(ctx),
             bodySpace -> {

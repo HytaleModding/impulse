@@ -13,7 +13,7 @@ import com.hypixel.hytale.server.core.universe.world.World;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import dev.hytalemodding.impulse.api.PhysicsBody;
 import dev.hytalemodding.impulse.api.PhysicsJoint;
-import dev.hytalemodding.impulse.api.PhysicsSpace;
+import dev.hytalemodding.impulse.api.SpaceId;
 import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyId;
 import dev.hytalemodding.impulse.core.plugin.resources.PhysicsWorldResource;
 import dev.hytalemodding.impulse.examples.commands.ExamplePhysicsUtils;
@@ -66,8 +66,8 @@ public class StressJointsCommand extends AbstractAsyncPlayerCommand {
             MAX_JOINTS);
         String blockType = blockType(ctx);
         PhysicsWorldResource resource = ExamplePhysicsUtils.resource(store);
-        PhysicsSpace space = ExamplePhysicsUtils.defaultSpace(ctx, resource);
-        if (space == null) {
+        SpaceId spaceId = ExamplePhysicsUtils.defaultSpaceId(ctx, resource);
+        if (spaceId == null) {
             return CompletableFuture.completedFuture(null);
         }
         TimeResource time = store.getResource(TimeResource.getResourceType());
@@ -84,7 +84,7 @@ public class StressJointsCommand extends AbstractAsyncPlayerCommand {
             }
 
             Vector3d rowOrigin = new Vector3d(origin).add(0.0, 0.0, row * ROW_SPACING);
-            createdBodies += createRow(store, time, resource, space, rowOrigin, rowJoints, row,
+            createdBodies += createRow(store, time, resource, spaceId, rowOrigin, rowJoints, row,
                 blockType);
             createdJoints += rowJoints;
         }
@@ -98,27 +98,27 @@ public class StressJointsCommand extends AbstractAsyncPlayerCommand {
     private static int createRow(@Nonnull Store<EntityStore> store,
         @Nonnull TimeResource time,
         @Nonnull PhysicsWorldResource resource,
-        @Nonnull PhysicsSpace space,
+        @Nonnull SpaceId spaceId,
         @Nonnull Vector3d origin,
         int jointCount,
         int jointType,
         @Nonnull String blockType) {
         double spacing = jointType == 4 ? TOUCHING_SPACING + SPRING_REST_LENGTH
             : TOUCHING_SPACING;
-        PhysicsBodyId previous = spawnBox(store, time, resource, space, origin, blockType, 0.0f);
+        PhysicsBodyId previous = spawnBox(store, time, resource, spaceId, origin, blockType, 0.0f);
         int bodies = 1;
 
         for (int i = 0; i < jointCount; i++) {
-            PhysicsBodyId current = spawnBox(store, time, resource, space,
+            PhysicsBodyId current = spawnBox(store, time, resource, spaceId,
                 new Vector3d(origin).add((i + 1) * spacing, 0.0, 0.0), blockType, 1.0f);
-            createJoint(store, resource, space, previous, current, jointType);
+            createJoint(store, spaceId, previous, current, jointType);
             if (jointType == 1 && i % 5 == 0) {
                 ExamplePhysicsUtils.physicsOwnerRun(store, "set point joint stress velocity",
-                    () -> ExamplePhysicsUtils.requireLiveBody(resource, current)
+                    access -> ExamplePhysicsUtils.requireLiveBody(access, current)
                         .setLinearVelocity(0.0f, 0.0f, 1.0f));
             } else if (jointType == 4 && i % 3 == 0) {
                 ExamplePhysicsUtils.physicsOwnerRun(store, "set spring joint stress velocity",
-                    () -> ExamplePhysicsUtils.requireLiveBody(resource, current)
+                    access -> ExamplePhysicsUtils.requireLiveBody(access, current)
                         .setLinearVelocity(0.4f, 0.0f, 0.8f));
             }
             previous = current;
@@ -130,14 +130,14 @@ public class StressJointsCommand extends AbstractAsyncPlayerCommand {
     private static PhysicsBodyId spawnBox(@Nonnull Store<EntityStore> store,
         @Nonnull TimeResource time,
         @Nonnull PhysicsWorldResource resource,
-        @Nonnull PhysicsSpace space,
+        @Nonnull SpaceId spaceId,
         @Nonnull Vector3d position,
         @Nonnull String blockType,
         float mass) {
         return ExamplePhysicsUtils.spawnBlockBody(store,
             time,
             resource,
-            space.getId(),
+            spaceId,
             position,
             blockType,
             bodySpace -> {
@@ -156,24 +156,25 @@ public class StressJointsCommand extends AbstractAsyncPlayerCommand {
     }
 
     private static void createJoint(@Nonnull Store<EntityStore> store,
-        @Nonnull PhysicsWorldResource resource,
-        @Nonnull PhysicsSpace space,
+        @Nonnull SpaceId spaceId,
         @Nonnull PhysicsBodyId previousId,
         @Nonnull PhysicsBodyId currentId,
         int jointType) {
         Vector3f previousAnchor = new Vector3f(HALF_SIZE, 0.0f, 0.0f);
         Vector3f currentAnchor = new Vector3f(-HALF_SIZE, 0.0f, 0.0f);
-        ExamplePhysicsUtils.physicsOwnerRun(store, "create stress joint", () -> {
-            PhysicsBody previous = ExamplePhysicsUtils.requireLiveBody(resource, previousId);
-            PhysicsBody current = ExamplePhysicsUtils.requireLiveBody(resource, currentId);
+        ExamplePhysicsUtils.physicsOwnerRun(store, "create stress joint", access -> {
+            PhysicsBody previous = ExamplePhysicsUtils.requireLiveBody(access, previousId);
+            PhysicsBody current = ExamplePhysicsUtils.requireLiveBody(access, currentId);
             PhysicsJoint joint = switch (jointType) {
-                case 0 -> space.createFixedJoint(previous, current, previousAnchor, currentAnchor);
-                case 1 -> space.createPointJoint(previous, current, previousAnchor, currentAnchor);
-                case 2 -> space.createHingeJoint(previous, current, previousAnchor, currentAnchor,
+                case 0 -> access.requireSpace(spaceId)
+                    .createFixedJoint(previous, current, previousAnchor, currentAnchor);
+                case 1 -> access.requireSpace(spaceId)
+                    .createPointJoint(previous, current, previousAnchor, currentAnchor);
+                case 2 -> access.requireSpace(spaceId).createHingeJoint(previous, current, previousAnchor, currentAnchor,
                     new Vector3f(0.0f, 0.0f, 1.0f));
-                case 3 -> space.createSliderJoint(previous, current, previousAnchor, currentAnchor,
+                case 3 -> access.requireSpace(spaceId).createSliderJoint(previous, current, previousAnchor, currentAnchor,
                     new Vector3f(1.0f, 0.0f, 0.0f));
-                default -> space.createSpringJoint(previous, current, previousAnchor, currentAnchor,
+                default -> access.requireSpace(spaceId).createSpringJoint(previous, current, previousAnchor, currentAnchor,
                     SPRING_REST_LENGTH, 18.0f, 2.0f);
             };
 

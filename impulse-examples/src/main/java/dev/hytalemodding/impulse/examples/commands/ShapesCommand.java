@@ -12,6 +12,7 @@ import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import dev.hytalemodding.impulse.api.PhysicsAxis;
 import dev.hytalemodding.impulse.api.PhysicsBody;
 import dev.hytalemodding.impulse.api.PhysicsSpace;
+import dev.hytalemodding.impulse.api.SpaceId;
 import dev.hytalemodding.impulse.core.plugin.resources.PhysicsWorldResource;
 import java.util.concurrent.CompletableFuture;
 import javax.annotation.Nonnull;
@@ -36,19 +37,19 @@ public class ShapesCommand extends AbstractAsyncPlayerCommand {
         }
 
         PhysicsWorldResource resource = ExamplePhysicsUtils.resource(store);
-        PhysicsSpace space = ExamplePhysicsUtils.defaultSpace(ctx, resource);
-        if (space == null) {
+        SpaceId spaceId = ExamplePhysicsUtils.defaultSpaceId(ctx, resource);
+        if (spaceId == null) {
             return CompletableFuture.completedFuture(null);
         }
         TimeResource time = store.getResource(TimeResource.getResourceType());
 
         Vector3d origin = new Vector3d(playerPos).add(-4.0, 3.0, 3.0);
-        spawn(store, time, resource, space, ShapeType.BOX, PhysicsAxis.Y,
+        spawn(store, time, resource, spaceId, ShapeType.BOX, PhysicsAxis.Y,
             origin, 0);
-        spawn(store, time, resource, space, ShapeType.SPHERE, PhysicsAxis.Y, origin, 2);
-        spawn(store, time, resource, space, ShapeType.CAPSULE, PhysicsAxis.Y, origin, 4);
-        spawn(store, time, resource, space, ShapeType.CYLINDER, PhysicsAxis.Y, origin, 6);
-        spawn(store, time, resource, space, ShapeType.CONE, PhysicsAxis.Y, origin, 8);
+        spawn(store, time, resource, spaceId, ShapeType.SPHERE, PhysicsAxis.Y, origin, 2);
+        spawn(store, time, resource, spaceId, ShapeType.CAPSULE, PhysicsAxis.Y, origin, 4);
+        spawn(store, time, resource, spaceId, ShapeType.CYLINDER, PhysicsAxis.Y, origin, 6);
+        spawn(store, time, resource, spaceId, ShapeType.CONE, PhysicsAxis.Y, origin, 8);
 
         ctx.sender().sendMessage(Message.raw("Spawned shape demo."));
         return CompletableFuture.completedFuture(null);
@@ -57,7 +58,7 @@ public class ShapesCommand extends AbstractAsyncPlayerCommand {
     private static void spawn(@Nonnull Store<EntityStore> store,
         @Nonnull TimeResource time,
         @Nonnull PhysicsWorldResource resource,
-        @Nonnull PhysicsSpace space,
+        @Nonnull SpaceId spaceId,
         @Nonnull ShapeType type,
         @Nonnull PhysicsAxis axis,
         @Nonnull Vector3d origin,
@@ -65,7 +66,7 @@ public class ShapesCommand extends AbstractAsyncPlayerCommand {
         ExamplePhysicsUtils.spawnBlockBody(store,
             time,
             resource,
-            space.getId(),
+            spaceId,
             new Vector3d(origin).add(xOffset, 0.0, 0.0),
             bodySpace -> createBody(bodySpace, type, axis));
     }

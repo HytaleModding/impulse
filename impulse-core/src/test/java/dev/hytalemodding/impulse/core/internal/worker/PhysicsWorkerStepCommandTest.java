@@ -46,7 +46,7 @@ class PhysicsWorkerStepCommandTest {
     void runsStepOnWorkerThreadAndPublishesProfiledSnapshot() throws Exception {
         CountingBackend backend = registerBackend(true);
         PhysicsWorldRuntimeResource resource = new PhysicsWorldRuntimeResource();
-        CountingSpace space = (CountingSpace) resource.createSpace(backend.getId(),
+        CountingSpace space = (CountingSpace) resource.createLiveSpace(backend.getId(),
             "worker-test",
             PhysicsSpaceSettings.defaults(),
             true);
@@ -96,7 +96,7 @@ class PhysicsWorkerStepCommandTest {
     void progressiveRefinementUsesMaxStepDtBudget() {
         CountingBackend backend = registerBackend(false);
         PhysicsWorldRuntimeResource resource = new PhysicsWorldRuntimeResource();
-        CountingSpace space = (CountingSpace) resource.createSpace(backend.getId(),
+        CountingSpace space = (CountingSpace) resource.createLiveSpace(backend.getId(),
             "worker-test",
             PhysicsSpaceSettings.defaults(),
             true);
@@ -119,7 +119,7 @@ class PhysicsWorkerStepCommandTest {
     void nonFiniteDtDoesNotReachBackendStep() {
         CountingBackend backend = registerBackend(false);
         PhysicsWorldRuntimeResource resource = new PhysicsWorldRuntimeResource();
-        CountingSpace space = (CountingSpace) resource.createSpace(backend.getId(),
+        CountingSpace space = (CountingSpace) resource.createLiveSpace(backend.getId(),
             "worker-test",
             PhysicsSpaceSettings.defaults(),
             true);
@@ -136,7 +136,7 @@ class PhysicsWorkerStepCommandTest {
     void adaptiveRefinementRaisesStepsForFastBodies() {
         CountingBackend backend = registerBackend(false);
         PhysicsWorldRuntimeResource resource = new PhysicsWorldRuntimeResource();
-        CountingSpace space = (CountingSpace) resource.createSpace(backend.getId(),
+        CountingSpace space = (CountingSpace) resource.createLiveSpace(backend.getId(),
             "worker-test",
             PhysicsSpaceSettings.defaults(),
             true);
@@ -163,7 +163,7 @@ class PhysicsWorkerStepCommandTest {
     void ccdModeForcesAndRestoresOnlyWorkerOwnedOverrides() {
         CountingBackend backend = registerBackend(true);
         PhysicsWorldRuntimeResource resource = new PhysicsWorldRuntimeResource();
-        CountingSpace space = (CountingSpace) resource.createSpace(backend.getId(),
+        CountingSpace space = (CountingSpace) resource.createLiveSpace(backend.getId(),
             "worker-test",
             PhysicsSpaceSettings.defaults(),
             true);
@@ -200,7 +200,7 @@ class PhysicsWorkerStepCommandTest {
     void stepFailuresPublishSnapshotsAndRemainInspectable() throws Exception {
         CountingBackend backend = registerBackend(false);
         PhysicsWorldRuntimeResource resource = new PhysicsWorldRuntimeResource();
-        CountingSpace space = (CountingSpace) resource.createSpace(backend.getId(),
+        CountingSpace space = (CountingSpace) resource.createLiveSpace(backend.getId(),
             "worker-test",
             PhysicsSpaceSettings.defaults(),
             true);
@@ -228,7 +228,7 @@ class PhysicsWorkerStepCommandTest {
     void snapshotFailureIsSuppressedWhenStepAlreadyFailed() {
         CountingBackend backend = registerBackend(false);
         FailingSnapshotWorldResource resource = new FailingSnapshotWorldResource();
-        CountingSpace space = (CountingSpace) resource.createSpace(backend.getId(),
+        CountingSpace space = (CountingSpace) resource.createLiveSpace(backend.getId(),
             "worker-test",
             PhysicsSpaceSettings.defaults(),
             true);

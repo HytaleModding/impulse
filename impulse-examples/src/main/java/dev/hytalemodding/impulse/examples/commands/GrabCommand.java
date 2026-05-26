@@ -64,8 +64,8 @@ public class GrabCommand extends AbstractAsyncPlayerCommand {
         }
 
         PhysicsWorldResource resource = ExamplePhysicsUtils.resource(store);
-        PhysicsSpace space = ExamplePhysicsUtils.defaultSpace(ctx, resource);
-        if (space == null) {
+        SpaceId defaultSpaceId = ExamplePhysicsUtils.defaultSpaceId(ctx, resource);
+        if (defaultSpaceId == null) {
             return CompletableFuture.completedFuture(null);
         }
 
@@ -73,7 +73,7 @@ public class GrabCommand extends AbstractAsyncPlayerCommand {
         Vector3d direction = ExamplePhysicsUtils.lookDirection(store, ref, transform).mul(RAY_LENGTH);
         Vector3d end = new Vector3d(start).add(direction);
 
-        HitSelection selection = findControllableHit(resource, store, space, start, end);
+        HitSelection selection = findControllableHit(resource, store, defaultSpaceId, start, end);
         if (selection == null) {
             ctx.sender().sendMessage(Message.raw("No controllable physics body in sight."));
             return CompletableFuture.completedFuture(null);
@@ -81,20 +81,20 @@ public class GrabCommand extends AbstractAsyncPlayerCommand {
 
         releaseExisting(store, ref);
 
-        SpaceId selectedSpaceId = selection.spaceId() != null ? selection.spaceId() : space.getId();
-        PhysicsSpace selectedSpace = resource.getSpace(selectedSpaceId);
-        if (selectedSpace == null) {
+        SpaceId selectedSpaceId = selection.spaceId() != null ? selection.spaceId() : defaultSpaceId;
+        if (!resource.hasSpace(selectedSpaceId)) {
             ctx.sender().sendMessage(Message.raw("Selected physics space no longer exists."));
             return CompletableFuture.completedFuture(null);
         }
 
         GrabPhysicsState physicsState = ExamplePhysicsUtils.physicsOwnerCall(store,
             "create grabbed physics anchor",
-            () -> {
-                PhysicsBody body = resource.getBody(selection.bodyId());
+            access -> {
+                PhysicsBody body = access.getBody(selection.bodyId());
                 if (body == null) {
                     return null;
                 }
+                PhysicsSpace selectedSpace = access.requireSpace(selectedSpaceId);
                 PhysicsBodyType originalBodyType = body.getBodyType();
                 Vector3f bodyPosition = body.getPosition();
                 Vector3f hitPoint = new Vector3f(selection.point());
@@ -106,7 +106,7 @@ public class GrabCommand extends AbstractAsyncPlayerCommand {
                 anchorBody.setSensor(true);
                 anchorBody.setCollisionFilter(1, 0);
                 anchorBody.setPosition(hitPoint);
-                PhysicsBodyId anchorBodyId = resource.addBody(selectedSpaceId,
+                PhysicsBodyId anchorBodyId = access.addBody(selectedSpaceId,
                     anchorBody,
                     PhysicsBodyKind.TEMPORARY,
                     PhysicsBodyPersistenceMode.RUNTIME_ONLY);
@@ -142,12 +142,13 @@ public class GrabCommand extends AbstractAsyncPlayerCommand {
     @Nullable
     private static HitSelection findControllableHit(@Nonnull PhysicsWorldResource resource,
         @Nonnull Store<EntityStore> store,
-        @Nonnull PhysicsSpace space,
+        @Nonnull SpaceId spaceId,
         @Nonnull Vector3d start,
         @Nonnull Vector3d end) {
         List<HitCandidate> candidates = ExamplePhysicsUtils.physicsOwnerCall(store,
             "raycast controllable physics bodies",
-            () -> {
+            access -> {
+                PhysicsSpace space = access.requireSpace(spaceId);
                 List<PhysicsRayHit> hits = space.raycastAll(ExamplePhysicsUtils.toVector3f(start),
                     ExamplePhysicsUtils.toVector3f(end));
                 List<HitCandidate> found = new ArrayList<>(hits.size());
@@ -156,7 +157,7 @@ public class GrabCommand extends AbstractAsyncPlayerCommand {
                         continue;
                     }
 
-                    PhysicsBodyId bodyId = resource.getBodyId(hit.body());
+                    PhysicsBodyId bodyId = access.getBodyId(hit.body());
                     if (bodyId == null) {
                         continue;
                     }

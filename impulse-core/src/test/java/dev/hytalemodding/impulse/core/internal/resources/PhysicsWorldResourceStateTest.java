@@ -115,7 +115,7 @@ class PhysicsWorldResourceStateTest {
         PhysicsSpaceSettings settings = PhysicsSpaceSettings.streamingWorldCollision();
         settings.getSolverSettings().setSolverIterations(7);
         settings.getVisualMaterializationSettings().setDetachedVisualMaxMaterialized(64);
-        PhysicsSpace space = resource.createSpace(backend.getId(), "test-world", settings, true);
+        PhysicsSpace space = resource.createLiveSpace(backend.getId(), "test-world", settings, true);
         space.setGravity(0.0f, -3.0f, 0.0f);
 
         PhysicsBody first = space.createBox(0.5f, 0.5f, 0.5f, 1.0f);
@@ -170,7 +170,7 @@ class PhysicsWorldResourceStateTest {
         Impulse.registerBackend(backend);
 
         PhysicsWorldRuntimeResource resource = new PhysicsWorldRuntimeResource();
-        PhysicsSpace space = resource.createSpace(backend.getId(),
+        PhysicsSpace space = resource.createLiveSpace(backend.getId(),
             "test-world",
             PhysicsSpaceSettings.defaults(),
             true);
@@ -211,7 +211,7 @@ class PhysicsWorldResourceStateTest {
         Impulse.registerBackend(backend);
 
         PhysicsWorldRuntimeResource resource = new PhysicsWorldRuntimeResource();
-        PhysicsSpace space = resource.createSpace(backend.getId(),
+        PhysicsSpace space = resource.createLiveSpace(backend.getId(),
             "test-world",
             PhysicsSpaceSettings.defaults(),
             true);
@@ -264,7 +264,7 @@ class PhysicsWorldResourceStateTest {
         Impulse.registerBackend(backend);
 
         PhysicsWorldRuntimeResource resource = new PhysicsWorldRuntimeResource();
-        PhysicsSpace space = resource.createSpace(backend.getId(),
+        PhysicsSpace space = resource.createLiveSpace(backend.getId(),
             "test-world",
             PhysicsSpaceSettings.defaults(),
             true);
@@ -317,7 +317,7 @@ class PhysicsWorldResourceStateTest {
         Impulse.registerBackend(backend);
 
         PhysicsWorldRuntimeResource resource = new PhysicsWorldRuntimeResource();
-        PhysicsSpace space = resource.createSpace(backend.getId(),
+        PhysicsSpace space = resource.createLiveSpace(backend.getId(),
             "test-world",
             PhysicsSpaceSettings.defaults(),
             true);
@@ -355,7 +355,7 @@ class PhysicsWorldResourceStateTest {
             Duration.ofSeconds(2L))) {
             worker.start("async-body-add");
             resource.attachWorkerResource(worker);
-            PhysicsSpace space = resource.createSpace(backend.getId(),
+            PhysicsSpace space = resource.createLiveSpace(backend.getId(),
                 "test-world",
                 PhysicsSpaceSettings.defaults(),
                 true);
@@ -415,7 +415,7 @@ class PhysicsWorldResourceStateTest {
             Duration.ofSeconds(2L))) {
             worker.start("async-body-add-failure");
             resource.attachWorkerResource(worker);
-            PhysicsSpace space = resource.createSpace(backend.getId(),
+            PhysicsSpace space = resource.createLiveSpace(backend.getId(),
                 "test-world",
                 PhysicsSpaceSettings.defaults(),
                 true);
@@ -533,7 +533,7 @@ class PhysicsWorldResourceStateTest {
             worker.start("owner-guard");
             resource.attachWorkerResource(worker);
 
-            PhysicsSpace space = resource.createSpace(backend.getId(),
+            PhysicsSpace space = resource.createLiveSpace(backend.getId(),
                 "test-world",
                 PhysicsSpaceSettings.defaults(),
                 true);
@@ -554,7 +554,7 @@ class PhysicsWorldResourceStateTest {
                 body.setPosition(1.0f, 2.0f, 3.0f);
             });
             assertEquals(new Vector3f(1.0f, 2.0f, 3.0f),
-                resource.callOnPhysicsOwner("read test body position", body::getPosition));
+                resource.callOnPhysicsOwner("read test body position", access -> body.getPosition()));
 
             resource.detachWorkerResource(worker);
         }
@@ -567,7 +567,7 @@ class PhysicsWorldResourceStateTest {
         Impulse.registerBackend(backend);
 
         PhysicsWorldRuntimeResource resource = new PhysicsWorldRuntimeResource();
-        PhysicsSpace space = resource.createSpace(backend.getId(),
+        PhysicsSpace space = resource.createLiveSpace(backend.getId(),
             "test-world",
             PhysicsSpaceSettings.defaults(),
             true);

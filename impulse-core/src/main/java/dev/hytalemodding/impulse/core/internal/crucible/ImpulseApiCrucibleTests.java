@@ -132,21 +132,19 @@ final class ImpulseApiCrucibleTests {
 
     private static boolean defaultSpaceIsExplicit() {
         PhysicsWorldResource resource = new PhysicsWorldRuntimeResource();
-        return resource.getDefaultSpaceId() == null && resource.getDefaultSpace() == null;
+        return resource.getDefaultSpaceId() == null && resource.getSpaceIds().isEmpty();
     }
 
     private static boolean createDefaultSpaceLifecycle() {
         PhysicsWorldResource resource = new PhysicsWorldRuntimeResource();
-        PhysicsSpace space = resource.createSpace(ImpulsePlugin.get().getDefaultBackendId(),
+        SpaceId spaceId = resource.createSpace(ImpulsePlugin.get().getDefaultBackendId(),
             "crucible",
             PhysicsSpaceSettings.streamingWorldCollision(),
             true);
         try {
-            SpaceId spaceId = space.getId();
             assert resource.getDefaultSpaceId() != null;
             return resource.getDefaultSpaceId().equals(spaceId)
-                && resource.getDefaultSpace() == space
-                && resource.getSpace(spaceId) == space
+                && resource.hasSpace(spaceId)
                 && resource.getSpaceSettings(spaceId).getWorldCollisionSettings().getWorldCollisionMode()
                 == WorldCollisionMode.STREAMING;
         } finally {
@@ -156,36 +154,43 @@ final class ImpulseApiCrucibleTests {
 
     private static boolean clearPopulatedSpaces() {
         PhysicsWorldResource resource = new PhysicsWorldRuntimeResource();
-        PhysicsSpace space = resource.createSpace(ImpulsePlugin.get().getDefaultBackendId(),
+        SpaceId spaceId = resource.createSpace(ImpulsePlugin.get().getDefaultBackendId(),
             "crucible",
             PhysicsSpaceSettings.defaults(),
             true);
-        PhysicsBody body = space.createBox(0.5f, 0.5f, 0.5f, 1.0f);
-        body.setPosition(0f, 5f, 0f);
-        space.addBody(body);
+        resource.runOnPhysicsOwner("populate crucible physics space", access -> {
+            PhysicsSpace space = access.requireSpace(spaceId);
+            PhysicsBody body = space.createBox(0.5f, 0.5f, 0.5f, 1.0f);
+            body.setPosition(0f, 5f, 0f);
+            space.addBody(body);
+        });
 
         resource.clearAllSpaces("crucible");
-        return resource.getSpaces().isEmpty()
-            && resource.getDefaultSpaceId() == null
-            && resource.getDefaultSpace() == null;
+        return resource.getSpaceIds().isEmpty()
+            && resource.getDefaultSpaceId() == null;
     }
 
     private static boolean detachedUnregisterRemovesBackendBody() {
         PhysicsWorldResource resource = new PhysicsWorldRuntimeResource();
-        PhysicsSpace space = resource.createSpace(ImpulsePlugin.get().getDefaultBackendId(),
+        SpaceId spaceId = resource.createSpace(ImpulsePlugin.get().getDefaultBackendId(),
             "crucible",
             PhysicsSpaceSettings.defaults(),
             true);
         try {
-            PhysicsBody body = space.createBox(0.5f, 0.5f, 0.5f, 1.0f);
-            body.setPosition(0f, 5f, 0f);
-            PhysicsBodyId bodyId = resource.addBody(space.getId(),
-                body,
-                PhysicsBodyKind.BODY,
-                PhysicsBodyPersistenceMode.RUNTIME_ONLY);
+            PhysicsBodyId bodyId = resource.callOnPhysicsOwner("register crucible detached body", access -> {
+                PhysicsSpace space = access.requireSpace(spaceId);
+                PhysicsBody body = space.createBox(0.5f, 0.5f, 0.5f, 1.0f);
+                body.setPosition(0f, 5f, 0f);
+                return access.addBody(spaceId,
+                    body,
+                    PhysicsBodyKind.BODY,
+                    PhysicsBodyPersistenceMode.RUNTIME_ONLY);
+            });
 
             resource.destroyBody(bodyId);
-            return space.bodyCount() == 0 && resource.getBodyRegistrationViews().isEmpty();
+            boolean spaceEmpty = resource.callOnPhysicsOwner("count crucible detached space",
+                access -> access.requireSpace(spaceId).bodyCount() == 0);
+            return spaceEmpty && resource.getBodyRegistrationViews().isEmpty();
         } finally {
             resource.clearAllSpaces("crucible");
         }
@@ -219,12 +224,12 @@ final class ImpulseApiCrucibleTests {
         settings.getVisualMaterializationSettings().setDetachedVisualMaxMaterialized(444);
         settings.getVisualMaterializationSettings().setDetachedVisualBlockType("Rock_Stone");
 
-        PhysicsSpace space = resource.createSpace(ImpulsePlugin.get().getDefaultBackendId(),
+        SpaceId spaceId = resource.createSpace(ImpulsePlugin.get().getDefaultBackendId(),
             "crucible",
             settings,
             true);
         try {
-            PhysicsSpaceSettings copy = resource.getSpaceSettings(space.getId());
+            PhysicsSpaceSettings copy = resource.getSpaceSettings(spaceId);
             return copy.getWorldCollisionSettings().getWorldCollisionMode() == WorldCollisionMode.STREAMING
                 && copy.getWorldCollisionSettings().getWorldCollisionRadius() == 9
                 && copy.getWorldCollisionSettings().getWorldCollisionBodyRadius() == 5

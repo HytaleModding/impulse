@@ -72,15 +72,17 @@ public class StepModeSettingCommand extends AbstractAsyncPlayerCommand {
 
     @Nonnull
     private static List<String> unsupportedCcdSpaces(@Nonnull PhysicsWorldResource resource) {
-        List<String> unsupportedSpaces = new ArrayList<>();
-        for (PhysicsSpace space : resource.getSpaces()) {
-            if (space.supportsContinuousCollision()) {
-                continue;
-            }
+        return resource.callOnPhysicsOwner("check CCD space support", access -> {
+            List<String> unsupportedSpaces = new ArrayList<>();
+            for (PhysicsSpace space : access.getSpaces()) {
+                if (space.supportsContinuousCollision()) {
+                    continue;
+                }
 
-            unsupportedSpaces.add("space " + space.getId().value() + " ("
-                + space.getBackendId().value() + ")");
-        }
-        return unsupportedSpaces;
+                unsupportedSpaces.add("space " + space.getId().value() + " ("
+                    + space.getBackendId().value() + ")");
+            }
+            return unsupportedSpaces;
+        });
     }
 }

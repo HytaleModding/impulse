@@ -11,7 +11,7 @@ import com.hypixel.hytale.server.core.modules.entity.component.TransformComponen
 import com.hypixel.hytale.server.core.universe.PlayerRef;
 import com.hypixel.hytale.server.core.universe.world.World;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
-import dev.hytalemodding.impulse.api.PhysicsSpace;
+import dev.hytalemodding.impulse.api.SpaceId;
 import dev.hytalemodding.impulse.core.plugin.resources.PhysicsWorldResource;
 import java.util.concurrent.CompletableFuture;
 import javax.annotation.Nonnull;
@@ -41,8 +41,8 @@ public class RaycastCommand extends AbstractAsyncPlayerCommand {
         }
 
         PhysicsWorldResource resource = ExamplePhysicsUtils.resource(store);
-        PhysicsSpace space = ExamplePhysicsUtils.defaultSpace(ctx, resource);
-        if (space == null) {
+        SpaceId spaceId = ExamplePhysicsUtils.defaultSpaceId(ctx, resource);
+        if (spaceId == null) {
             return CompletableFuture.completedFuture(null);
         }
 
@@ -54,7 +54,7 @@ public class RaycastCommand extends AbstractAsyncPlayerCommand {
             DebugUtils.FLAG_FADE);
         RaycastResult hit = ExamplePhysicsUtils.physicsOwnerCall(store,
             "cast example physics ray",
-            () -> space.raycastClosest(ExamplePhysicsUtils.toVector3f(start),
+            access -> access.requireSpace(spaceId).raycastClosest(ExamplePhysicsUtils.toVector3f(start),
                     ExamplePhysicsUtils.toVector3f(end))
                 .map(rayHit -> new RaycastResult(
                     new Vector3d(rayHit.point().x, rayHit.point().y, rayHit.point().z),

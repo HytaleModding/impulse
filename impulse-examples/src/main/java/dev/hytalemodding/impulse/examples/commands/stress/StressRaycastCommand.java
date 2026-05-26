@@ -10,7 +10,7 @@ import com.hypixel.hytale.server.core.command.system.basecommands.AbstractAsyncP
 import com.hypixel.hytale.server.core.universe.PlayerRef;
 import com.hypixel.hytale.server.core.universe.world.World;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
-import dev.hytalemodding.impulse.api.PhysicsSpace;
+import dev.hytalemodding.impulse.api.SpaceId;
 import dev.hytalemodding.impulse.core.plugin.resources.PhysicsWorldResource;
 import java.util.Locale;
 import java.util.concurrent.CompletableFuture;
@@ -50,8 +50,8 @@ public class StressRaycastCommand extends AbstractAsyncPlayerCommand {
 
         int rays = ExamplePhysicsUtils.optionalInt(ctx, raysArg, DEFAULT_RAYS, 1, MAX_RAYS);
         PhysicsWorldResource resource = ExamplePhysicsUtils.resource(store);
-        PhysicsSpace space = ExamplePhysicsUtils.defaultSpace(ctx, resource);
-        if (space == null) {
+        SpaceId spaceId = ExamplePhysicsUtils.defaultSpaceId(ctx, resource);
+        if (spaceId == null) {
             return CompletableFuture.completedFuture(null);
         }
 
@@ -61,7 +61,8 @@ public class StressRaycastCommand extends AbstractAsyncPlayerCommand {
         Vector3f end = new Vector3f();
 
         long startNanos = System.nanoTime();
-        int hits = ExamplePhysicsUtils.physicsOwnerCall(store, "run stress physics raycasts", () -> {
+        int hits = ExamplePhysicsUtils.physicsOwnerCall(store, "run stress physics raycasts", access -> {
+            var space = access.requireSpace(spaceId);
             int totalHits = 0;
             for (int i = 0; i < rays; i++) {
                 int x = i % side;
