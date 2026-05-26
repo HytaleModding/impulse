@@ -9,7 +9,6 @@ import dev.hytalemodding.impulse.api.BackendId;
 import dev.hytalemodding.impulse.api.PhysicsBody;
 import dev.hytalemodding.impulse.api.PhysicsBodySnapshot;
 import dev.hytalemodding.impulse.api.PhysicsBodyType;
-import dev.hytalemodding.impulse.api.PhysicsJoint;
 import dev.hytalemodding.impulse.api.PhysicsSpace;
 import dev.hytalemodding.impulse.api.SpaceId;
 import dev.hytalemodding.impulse.core.internal.resources.body.PhysicsBodyRegistry;
@@ -33,7 +32,6 @@ import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyKind;
 import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyPersistenceMode;
 import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyRegistration;
 import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyRegistrationView;
-import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodies;
 import dev.hytalemodding.impulse.core.plugin.collision.WorldCollisionBuildStats;
 import dev.hytalemodding.impulse.core.plugin.collision.WorldCollisionPrewarmStats;
 import dev.hytalemodding.impulse.core.plugin.collision.WorldCollisionStats;
@@ -62,11 +60,7 @@ import org.joml.Vector3d;
 import org.joml.Vector3f;
 
 /**
- * ECS resource that holds the physics spaces for a world.
- *
- * <p>Spaces are created explicitly by the consumer via {@link #createSpace}.
- * No space is created implicitly; the default space is opt-in and set by
- * the consumer at creation time or via {@link #setDefaultSpaceId}.</p>
+ * Internal ECS resource implementation behind {@link PhysicsWorldResource}.
  */
 public class PhysicsWorldRuntimeResource extends PhysicsWorldResource {
 
@@ -122,38 +116,14 @@ public class PhysicsWorldRuntimeResource extends PhysicsWorldResource {
         ownerGateway.detachWorkerResource(workerResource);
     }
 
-    /**
-     * Returns whether the current thread may touch live backend objects without routing.
-     *
-     * <p>This is only an owner-thread check for code that already has a safe direct path. Gameplay,
-     * diagnostics, and commands should prefer {@link #runOnPhysicsOwner} or
-     * {@link #callOnPhysicsOwner} instead of skipping behavior when this is false.</p>
-     */
     public boolean canAccessLiveBackendDirectly() {
         return ownerGateway.canAccessLiveBackendDirectly();
     }
 
-    /**
-     * Fails when the current thread is not allowed to touch live backend objects directly.
-     *
-     * <p>Use this at lower-level integration points that intentionally accept a live
-     * {@link PhysicsSpace}, {@link PhysicsBody}, or {@link PhysicsJoint}. Most gameplay and command
-     * code should route through {@link #runOnPhysicsOwner}, {@link #callOnPhysicsOwner}, or
-     * {@link #enqueuePhysicsMutation} instead.</p>
-     */
     public void assertCanAccessLiveBackendDirectly(@Nonnull String operation) {
         ownerGateway.assertCanAccessLiveBackendDirectly(operation);
     }
 
-    /**
-     * Run a live-backend mutation on the current physics owner.
-     *
-     * <p>When a world worker is attached, this submits to the physics worker and blocks until the
-     * mutation completes. If no worker is attached, or the caller is already on the worker thread,
-     * this runs immediately. The callback may access live {@link PhysicsSpace} and
-     * {@link PhysicsBody} objects, but must not access Hytale ECS store state unless the caller owns
-     * that access.</p>
-     */
     public void runOnPhysicsOwner(@Nonnull String operation,
         @Nonnull PhysicsOwnerMutation mutation) {
         ownerGateway.run(operation, mutation);
@@ -165,12 +135,6 @@ public class PhysicsWorldRuntimeResource extends PhysicsWorldResource {
         return enqueuePhysicsMutation(operation, null, mutation);
     }
 
-    /**
-     * Queue a live-backend mutation on the current physics owner without blocking the caller.
-     *
-     * <p>The returned handle completes when the mutation finishes or fails. The {@code value}
-     * parameter lets callers reserve and expose a logical id before the queued mutation runs.</p>
-     */
     @Nonnull
     public <T> PhysicsMutationHandle<T> enqueuePhysicsMutation(@Nonnull String operation,
         @Nullable T value,
@@ -178,12 +142,6 @@ public class PhysicsWorldRuntimeResource extends PhysicsWorldResource {
         return ownerGateway.enqueue(operation, value, mutation);
     }
 
-    /**
-     * Run a live-backend read on the current physics owner and return its value.
-     *
-     * <p>Prefer published snapshots for ordinary gameplay reads. Use this for explicit live-backend
-     * operations that cannot be expressed through snapshots or the higher-level resource methods.</p>
-     */
     @Nonnull
     public <T> T callOnPhysicsOwner(@Nonnull String operation,
         @Nonnull PhysicsOwnerCallable<T> callable) {
@@ -225,24 +183,11 @@ public class PhysicsWorldRuntimeResource extends PhysicsWorldResource {
         spaceRuntime.setDefaultSpaceId(defaultSpaceId);
     }
 
-    /**
-     * Returns a defensive copy of the world-level simulation settings.
-     *
-     * <p>The live settings instance is owner-thread state. Change the returned copy, then apply it
-     * with {@link #setWorldSettings} or {@link #setWorldSettingsAsync}; direct mutation of the copy
-     * has no effect on the world.</p>
-     */
     @Nonnull
     public PhysicsWorldSettings getWorldSettings() {
         return simulationRuntime.getWorldSettings();
     }
 
-    /**
-     * Applies world-level simulation settings on the physics owner thread.
-     *
-     * <p>This is the only public write path for world step settings. It preserves worker routing
-     * and validates CCD compatibility before replacing the owned settings.</p>
-     */
     public void setWorldSettings(@Nonnull PhysicsWorldSettings settings) {
         PhysicsWorldSettings requested = new PhysicsWorldSettings(settings);
         runOnPhysicsOwner("set physics world settings", () -> setWorldSettingsDirect(requested));
@@ -271,11 +216,6 @@ public class PhysicsWorldRuntimeResource extends PhysicsWorldResource {
         return createSpace(backendId, worldName, PhysicsSpaceSettings.defaults(), false);
     }
 
-    /**
-     * Creates a new physics space with the given backend and settings.
-     *
-     * @param makeDefault if true, this space becomes the default space
-     */
     @Nonnull
     public PhysicsSpace createSpace(@Nonnull BackendId backendId,
         @Nonnull String worldName,
@@ -284,11 +224,6 @@ public class PhysicsWorldRuntimeResource extends PhysicsWorldResource {
         return createSpace(backendId, SpaceId.next(), worldName, settings, makeDefault);
     }
 
-    /**
-     * Creates a new physics space with the given backend, explicit logical id, and settings.
-     *
-     * @param makeDefault if true, this space becomes the default space
-     */
     @Nonnull
     public PhysicsSpace createSpace(@Nonnull BackendId backendId,
         @Nonnull SpaceId spaceId,
@@ -618,13 +553,6 @@ public class PhysicsWorldRuntimeResource extends PhysicsWorldResource {
         spaceRuntime.validateStepModeSupported(stepMode);
     }
 
-    /**
-     * Registers an already-created live backend body with Impulse and returns its generated id.
-     *
-     * <p>This is the low-level path for code that already runs on the physics owner or received a
-     * body from another owner callback. Ordinary plugin body creation should prefer
-     * {@link PhysicsBodies} so creation, configuration, registration, and id return stay together.</p>
-     */
     @Nonnull
     public PhysicsBodyId addBody(@Nonnull SpaceId spaceId,
         @Nonnull PhysicsBody body,
@@ -633,12 +561,6 @@ public class PhysicsWorldRuntimeResource extends PhysicsWorldResource {
         return addBody(PhysicsBodyId.random(), spaceId, body, kind, persistenceMode);
     }
 
-    /**
-     * Registers an already-created live backend body with Impulse under an explicit stable id.
-     *
-     * <p>Use this for restore, temporary helpers, and internal body flows that must supply the id
-     * directly. It is not the preferred public spawn path for ordinary gameplay bodies.</p>
-     */
     @Nonnull
     public PhysicsBodyId addBody(@Nonnull PhysicsBodyId bodyId,
         @Nonnull SpaceId spaceId,
@@ -649,12 +571,6 @@ public class PhysicsWorldRuntimeResource extends PhysicsWorldResource {
             () -> addBodyDirect(bodyId, spaceId, body, kind, persistenceMode));
     }
 
-    /**
-     * Queues low-level registration for an already-created body.
-     *
-     * <p>The body must still have been created safely for the target backend owner. This method is
-     * not a factory-based spawn helper.</p>
-     */
     @Nonnull
     public PhysicsMutationHandle<PhysicsBodyId> addBodyAsync(@Nonnull SpaceId spaceId,
         @Nonnull PhysicsBody body,
@@ -664,9 +580,6 @@ public class PhysicsWorldRuntimeResource extends PhysicsWorldResource {
         return addBodyAsync(bodyId, spaceId, body, kind, persistenceMode);
     }
 
-    /**
-     * Queues low-level registration for an already-created body under an explicit stable id.
-     */
     @Nonnull
     public PhysicsMutationHandle<PhysicsBodyId> addBodyAsync(@Nonnull PhysicsBodyId bodyId,
         @Nonnull SpaceId spaceId,

@@ -18,7 +18,6 @@ import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyPersistenceMode;
 import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyRegistration;
 import dev.hytalemodding.impulse.core.plugin.execution.PhysicsMutationHandle;
 import dev.hytalemodding.impulse.core.plugin.settings.PhysicsSpaceSettings;
-import dev.hytalemodding.impulse.core.plugin.resources.PhysicsWorldResource;
 import dev.hytalemodding.impulse.core.plugin.snapshot.PhysicsBodySnapshotEntry;
 import it.unimi.dsi.fastutil.ints.Int2LongOpenHashMap;
 import it.unimi.dsi.fastutil.ints.IntOpenHashSet;
@@ -186,7 +185,7 @@ public class PhysicsCollisionLodSystem extends TickingSystem<EntityStore> {
             && !entry.snapshot().sensor();
     }
 
-    private static void applyUpdates(@Nonnull PhysicsWorldResource resource,
+    private static void applyUpdates(@Nonnull PhysicsWorldRuntimeResource resource,
         @Nonnull List<CollisionLodUpdate> updates) {
         for (CollisionLodUpdate update : updates) {
             PhysicsBodyRegistration registration =

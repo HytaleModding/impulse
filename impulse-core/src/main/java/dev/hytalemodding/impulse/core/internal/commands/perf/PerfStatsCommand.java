@@ -9,12 +9,12 @@ import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import dev.hytalemodding.impulse.api.PhysicsBody;
 import dev.hytalemodding.impulse.api.PhysicsSpace;
 import dev.hytalemodding.impulse.api.ShapeType;
+import dev.hytalemodding.impulse.core.internal.resources.PhysicsWorldRuntimeResource;
+import dev.hytalemodding.impulse.core.internal.voxel.WorldVoxelCollisionCache;
 import dev.hytalemodding.impulse.core.internal.worker.PhysicsWorkerAccess;
 import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyKind;
 import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyRegistration;
 import dev.hytalemodding.impulse.core.plugin.resources.PhysicsWorldResource;
-import dev.hytalemodding.impulse.core.internal.resources.PhysicsWorldRuntimeResource;
-import dev.hytalemodding.impulse.core.internal.voxel.WorldVoxelCollisionCache;
 import java.util.Collection;
 import javax.annotation.Nonnull;
 
@@ -29,7 +29,8 @@ public class PerfStatsCommand extends AbstractWorldCommand {
         @Nonnull World world,
         @Nonnull Store<EntityStore> store) {
         PhysicsWorldResource resource = store.getResource(PhysicsWorldResource.getResourceType());
-        Collection<PhysicsSpace> spaces = resource.getSpaces();
+        PhysicsWorldRuntimeResource runtime = PhysicsWorldRuntimeResource.require(resource);
+        Collection<PhysicsSpace> spaces = runtime.getSpaces();
         if (spaces.isEmpty()) {
             ctx.sender().sendMessage(Message.raw("Impulse runtime stats: no physics spaces in world "
                 + world.getName() + "."));
@@ -37,13 +38,13 @@ public class PerfStatsCommand extends AbstractWorldCommand {
         }
 
         SpaceStats totals = new SpaceStats();
-        WorldVoxelCollisionCache cache = PhysicsWorldRuntimeResource.require(resource).worldCollisionCache();
+        WorldVoxelCollisionCache cache = runtime.worldCollisionCache();
         ctx.sender().sendMessage(Message.raw("Impulse runtime stats for world " + world.getName()
             + ": spaces=" + spaces.size()));
         for (PhysicsSpace space : spaces) {
             SpaceStats stats = PhysicsWorkerAccess.call(store,
                 "collect perf stats for space " + space.getId().value(),
-                () -> collectSpaceStats(resource, cache, space));
+                () -> collectSpaceStats(runtime, cache, space));
             totals.add(stats);
             ctx.sender().sendMessage(Message.raw("Space " + space.getId().value()
                 + " backend=" + space.getBackendId().value()
@@ -77,7 +78,7 @@ public class PerfStatsCommand extends AbstractWorldCommand {
     }
 
     @Nonnull
-    private static SpaceStats collectSpaceStats(@Nonnull PhysicsWorldResource resource,
+    private static SpaceStats collectSpaceStats(@Nonnull PhysicsWorldRuntimeResource resource,
         @Nonnull WorldVoxelCollisionCache cache,
         @Nonnull PhysicsSpace space) {
         SpaceStats stats = new SpaceStats();
@@ -87,7 +88,7 @@ public class PerfStatsCommand extends AbstractWorldCommand {
         return stats;
     }
 
-    private static void classifyBody(@Nonnull PhysicsWorldResource resource,
+    private static void classifyBody(@Nonnull PhysicsWorldRuntimeResource resource,
         @Nonnull WorldVoxelCollisionCache cache,
         @Nonnull PhysicsSpace space,
         @Nonnull PhysicsBody body,
