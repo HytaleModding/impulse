@@ -1,12 +1,19 @@
+import org.gradle.api.GradleException
+import org.gradle.api.file.DuplicatesStrategy
+
 plugins {
     id("java-library")
 }
 
-val nativeLibraryName = "libimpulse_rapier.so"
 val rapierVersion = "0.32.0"
 val nativeProfile = providers.gradleProperty("rapierNativeProfile").orElse("release")
 val nativeFeatures = providers.gradleProperty("rapierNativeFeatures").orElse("")
 val rustDirectory = layout.projectDirectory.dir("src/main/rust")
+val nativeResourceOs = detectNativeResourceOs()
+val nativeResourceArch = detectNativeResourceArch(nativeResourceOs)
+val nativeLibraryName = nativeLibraryNameFor(nativeResourceOs)
+val nativeResourcePath = "native/$nativeResourceOs/$nativeResourceArch"
+val nativeResourceEntry = "$nativeResourcePath/$nativeLibraryName"
 val rapierPatchFile = rustDirectory.file("patches/rapier3d-$rapierVersion-simd-body-masks.patch")
 val patchedRapierDirectory = rustDirectory.dir("target/impulse-patched/rapier3d-$rapierVersion-impulse")
 val patchedCargoConfig = rustDirectory.file("target/impulse-patched/cargo-config.toml")
@@ -15,6 +22,44 @@ val nativeBuildDirectory = nativeProfile.map { profile ->
         "release"
     } else {
         "debug"
+    }
+}
+
+extensions.extraProperties["impulseRapierPackagedNativeResourceEntries"] = listOf(
+    nativeResourceEntry)
+
+fun detectNativeResourceOs(): String {
+    val osName = System.getProperty("os.name").lowercase()
+    return when {
+        osName.contains("linux") -> "linux"
+        osName.contains("mac") || osName.contains("darwin") -> "osx"
+        osName.contains("windows") -> "windows"
+        else -> throw GradleException("Unsupported Rapier native packaging OS: "
+            + System.getProperty("os.name"))
+    }
+}
+
+fun detectNativeResourceArch(resourceOs: String): String {
+    val osArch = System.getProperty("os.arch").lowercase()
+    val resourceArch = when (osArch) {
+        "amd64", "x86_64" -> "x86_64"
+        "aarch64", "arm64" -> "arm64"
+        "arm", "arm32" -> "arm32"
+        else -> throw GradleException("Unsupported Rapier native packaging architecture: "
+            + System.getProperty("os.arch"))
+    }
+    if (resourceOs == "windows" && resourceArch != "x86_64") {
+        throw GradleException("Unsupported Rapier native packaging platform: "
+            + System.getProperty("os.name") + " " + System.getProperty("os.arch"))
+    }
+    return resourceArch
+}
+
+fun nativeLibraryNameFor(resourceOs: String): String {
+    return when (resourceOs) {
+        "windows" -> "impulse_rapier.dll"
+        "osx" -> "libimpulse_rapier.dylib"
+        else -> "libimpulse_rapier.so"
     }
 }
 
@@ -126,14 +171,14 @@ val cargoBuildRapierNative by tasks.registering(Exec::class) {
     }
 }
 
-val copyRapierNative by tasks.registering(Copy::class) {
+val stageRapierNativeResource by tasks.registering(Copy::class) {
     dependsOn(cargoBuildRapierNative)
     onlyIf { buildNative.get() }
 
     from(nativeBuildDirectory.map {
         layout.projectDirectory.file("src/main/rust/target/$it/$nativeLibraryName")
     })
-    into(layout.buildDirectory.dir("generated/rapier-native/native/linux/x86_64"))
+    into(layout.buildDirectory.dir("generated/rapier-native/$nativeResourcePath"))
 }
 
 sourceSets {
@@ -143,13 +188,34 @@ sourceSets {
 }
 
 tasks.processResources {
-    dependsOn(copyRapierNative)
+    dependsOn(stageRapierNativeResource)
+    filesMatching("manifest.json") {
+        expand(mapOf(
+            "version" to project.version,
+            "hytaleVersion" to project.property("hytale_version")
+        ))
+    }
+}
+
+tasks.compileJava {
+    dependsOn(project(":impulse-core").tasks.named("downloadAssetsZip"))
 }
 
 dependencies {
     api(project(":impulse-api"))
 
     implementation(libs.snaploader)
+    compileOnly("com.hypixel.hytale:Server:${property("hytale_version") as String}")
 
     testImplementation(testFixtures(project(":impulse-api")))
+}
+
+tasks.jar {
+    duplicatesStrategy = DuplicatesStrategy.EXCLUDE
+    from({
+        configurations.runtimeClasspath.get()
+            .filter { file -> !file.name.startsWith("impulse-api-") }
+            .map { file -> if (file.isDirectory) file else zipTree(file) }
+    })
+    exclude("META-INF/*.SF", "META-INF/*.DSA", "META-INF/*.RSA")
 }

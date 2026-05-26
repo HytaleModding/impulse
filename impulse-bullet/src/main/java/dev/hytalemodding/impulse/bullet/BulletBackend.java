@@ -11,6 +11,8 @@ import electrostatic4j.snaploader.NativeBinaryLoader;
 import electrostatic4j.snaploader.filesystem.DirectoryPath;
 import electrostatic4j.snaploader.platform.NativeDynamicLibrary;
 import electrostatic4j.snaploader.platform.util.PlatformPredicate;
+import java.io.IOException;
+import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.logging.Level;
@@ -29,20 +31,13 @@ public final class BulletBackend implements PhysicsBackend {
     private static final Object NATIVE_LOAD_LOCK = new Object();
     private static volatile boolean nativeLibraryLoaded;
 
-    private volatile String extractionDirectory;
     private volatile Level internalLoggingLevel = Level.WARNING;
 
     private volatile boolean initialized;
 
     @Override
     public void setDataDirectory(@Nullable Path dataDirectory) {
-        if (dataDirectory == null) {
-            return;
-        }
-
-        Path nativeLibDir = dataDirectory.resolve("native");
-        nativeLibDir.toFile().mkdirs();
-        extractionDirectory = nativeLibDir.toAbsolutePath().toString();
+        // Hytale dev data directories can point at asset resources; native extraction is runtime cache.
     }
 
     @Nonnull
@@ -72,14 +67,30 @@ public final class BulletBackend implements PhysicsBackend {
             return;
         }
 
-        String dir = extractionDirectory != null ? extractionDirectory
-            : System.getProperty("user.dir");
-        loadNativeLibrary(dir);
+        Path nativeDirectory = resolveNativeDirectory();
+        try {
+            Files.createDirectories(nativeDirectory);
+        } catch (IOException exception) {
+            throw new IllegalStateException("Failed to prepare Bullet native extraction directory "
+                + nativeDirectory.toAbsolutePath(), exception);
+        }
+
+        loadNativeLibrary(nativeDirectory.toAbsolutePath().toString());
         NativeLibrary.setStartupMessageEnabled(false);
 
         initialized = true;
         applyInternalLoggingLevel(internalLoggingLevel);
         LOGGER.log(Level.INFO, "Bullet backend initialized");
+    }
+
+    private static Path resolveNativeDirectory() {
+        String classLoaderId = Integer.toHexString(System.identityHashCode(
+            BulletBackend.class.getClassLoader()));
+        return Path.of(System.getProperty("java.io.tmpdir"),
+            "impulse",
+            "native",
+            "bullet",
+            classLoaderId);
     }
 
     private static void loadNativeLibrary(@Nonnull String dir) {

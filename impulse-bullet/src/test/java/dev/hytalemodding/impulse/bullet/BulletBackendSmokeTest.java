@@ -1,6 +1,7 @@
 package dev.hytalemodding.impulse.bullet;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import dev.hytalemodding.impulse.api.Impulse;
@@ -32,6 +33,15 @@ class BulletBackendSmokeTest {
 
         assertTrue(space.supportsContinuousCollision());
         assertEquals(BulletBackend.ID, space.getBackendId());
+    }
+
+    @Test
+    void setDataDirectoryDoesNotCreateNativeDirectoryInProvidedDataDirectory() {
+        BulletBackend backend = new BulletBackend();
+
+        backend.setDataDirectory(tempDir);
+
+        assertFalse(tempDir.resolve("native").toFile().exists());
     }
 
     private PhysicsSpace createSpace() {
