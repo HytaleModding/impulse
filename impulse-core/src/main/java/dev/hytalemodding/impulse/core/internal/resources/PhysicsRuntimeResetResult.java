@@ -1,4 +1,4 @@
-package dev.hytalemodding.impulse.core.plugin.resources;
+package dev.hytalemodding.impulse.core.internal.resources;
 
 /**
  * Summary of runtime physics state removed while preserving world-level space topology.

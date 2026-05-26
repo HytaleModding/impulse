@@ -21,7 +21,7 @@ import dev.hytalemodding.impulse.core.internal.resources.profiling.PhysicsRuntim
 import dev.hytalemodding.impulse.core.internal.resources.profiling.PhysicsRuntimeProfilingResource.SyncSnapshot;
 import dev.hytalemodding.impulse.core.internal.resources.profiling.WorldCollisionProfilingResource;
 import dev.hytalemodding.impulse.core.internal.resources.profiling.WorldCollisionProfilingResource.Snapshot;
-import dev.hytalemodding.impulse.core.internal.voxel.WorldCollisionCacheAccess;
+import dev.hytalemodding.impulse.core.internal.resources.PhysicsWorldRuntimeResource;
 import dev.hytalemodding.impulse.core.internal.voxel.WorldVoxelCollisionCache;
 import dev.hytalemodding.impulse.core.internal.voxel.WorldVoxelCollisionCache.BuildStats;
 import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyId;
@@ -332,7 +332,7 @@ final class ImpulseDetachedStreamingBenchmarkCrucibleTests {
         }
 
         private PrewarmStats prewarmWorldCollision(@Nonnull PhysicsSpace space, int count) {
-            WorldVoxelCollisionCache cache = WorldCollisionCacheAccess.get(physics);
+            WorldVoxelCollisionCache cache = PhysicsWorldRuntimeResource.require(physics).worldCollisionCache();
             BenchmarkLayout layout = BenchmarkLayout.flatGrid(count);
             LongSet visitedSections = new LongOpenHashSet();
             Set<StreamingPrewarmTarget> visitedTargets = new ObjectOpenHashSet<>();
@@ -967,7 +967,7 @@ final class ImpulseDetachedStreamingBenchmarkCrucibleTests {
         private static SpaceStats collectOnOwner(@Nonnull PhysicsWorldResource physics,
             @Nonnull PhysicsSpace space) {
             SpaceStats stats = new SpaceStats();
-            WorldVoxelCollisionCache cache = WorldCollisionCacheAccess.get(physics);
+            WorldVoxelCollisionCache cache = PhysicsWorldRuntimeResource.require(physics).worldCollisionCache();
             for (PhysicsBody body : space.getBodies()) {
                 stats.classify(cache, space, body);
             }

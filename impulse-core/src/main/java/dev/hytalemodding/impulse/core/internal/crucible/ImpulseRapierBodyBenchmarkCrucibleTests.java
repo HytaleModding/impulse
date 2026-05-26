@@ -18,7 +18,7 @@ import dev.hytalemodding.impulse.core.internal.resources.profiling.PhysicsRuntim
 import dev.hytalemodding.impulse.core.internal.resources.profiling.PhysicsRuntimeProfilingResource.SyncSnapshot;
 import dev.hytalemodding.impulse.core.internal.resources.profiling.WorldCollisionProfilingResource;
 import dev.hytalemodding.impulse.core.internal.resources.profiling.WorldCollisionProfilingResource.Snapshot;
-import dev.hytalemodding.impulse.core.internal.voxel.WorldCollisionCacheAccess;
+import dev.hytalemodding.impulse.core.internal.resources.PhysicsWorldRuntimeResource;
 import dev.hytalemodding.impulse.core.internal.voxel.WorldVoxelCollisionCache;
 import dev.hytalemodding.impulse.core.plugin.components.PhysicsBodyAttachmentComponent;
 import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyKind;
@@ -136,7 +136,7 @@ final class ImpulseRapierBodyBenchmarkCrucibleTests {
         private final MatrixPlan plan;
         private final World world;
         private final Store<EntityStore> store;
-        private final PhysicsWorldResource physics;
+        private final PhysicsWorldRuntimeResource physics;
         private final PhysicsRuntimeProfilingResource runtimeProfiling;
         private final WorldCollisionProfilingResource worldCollisionProfiling;
         private final PhysicsWorldSettings previousWorldSettings;
@@ -149,7 +149,7 @@ final class ImpulseRapierBodyBenchmarkCrucibleTests {
             this.plan = plan;
             this.world = context.world();
             this.store = world.getEntityStore().getStore();
-            this.physics = store.getResource(PhysicsWorldResource.getResourceType());
+            this.physics = PhysicsWorldRuntimeResource.require(store);
             this.runtimeProfiling = store.getResource(PhysicsRuntimeProfilingResource.getResourceType());
             this.worldCollisionProfiling = store.getResource(
                 WorldCollisionProfilingResource.getResourceType());
@@ -730,7 +730,7 @@ final class ImpulseRapierBodyBenchmarkCrucibleTests {
         private static SpaceStats collectOnOwner(@Nonnull PhysicsWorldResource physics,
             @Nonnull PhysicsSpace space) {
             SpaceStats stats = new SpaceStats();
-            WorldVoxelCollisionCache cache = WorldCollisionCacheAccess.get(physics);
+            WorldVoxelCollisionCache cache = PhysicsWorldRuntimeResource.require(physics).worldCollisionCache();
             for (PhysicsBody body : space.getBodies()) {
                 stats.classify(physics, cache, space, body);
             }

@@ -20,7 +20,7 @@ import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyId;
 import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyKind;
 import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyPersistenceMode;
 import dev.hytalemodding.impulse.core.plugin.settings.PhysicsSpaceSettings;
-import dev.hytalemodding.impulse.core.plugin.resources.PhysicsWorldResource;
+import dev.hytalemodding.impulse.core.internal.resources.PhysicsWorldRuntimeResource;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
@@ -33,7 +33,7 @@ class PhysicsSnapshotPublicationSystemTest {
     void completedWorkerStepPublishesSnapshotWithoutDrain() throws Exception {
         BackendId backendId = new BackendId("test:async-publication");
         Impulse.registerBackend(new FakePhysicsBackend(backendId));
-        PhysicsWorldResource resource = new PhysicsWorldResource();
+        PhysicsWorldRuntimeResource resource = new PhysicsWorldRuntimeResource();
         PhysicsRuntimeProfilingResource profiling = new PhysicsRuntimeProfilingResource();
         profiling.setEnabled(true);
 
@@ -117,7 +117,7 @@ class PhysicsSnapshotPublicationSystemTest {
     void completedWorkerStepDoesNotRepublishAfterWorldMutation() throws Exception {
         BackendId backendId = new BackendId("test:stale-worker-publication");
         Impulse.registerBackend(new FakePhysicsBackend(backendId));
-        PhysicsWorldResource resource = new PhysicsWorldResource();
+        PhysicsWorldRuntimeResource resource = new PhysicsWorldRuntimeResource();
         PhysicsRuntimeProfilingResource profiling = new PhysicsRuntimeProfilingResource();
 
         try (PhysicsWorldWorkerResource worker = new PhysicsWorldWorkerResource()) {
@@ -161,7 +161,7 @@ class PhysicsSnapshotPublicationSystemTest {
     }
 
     private static void publishWhenReady(PhysicsWorldWorkerResource worker,
-        PhysicsWorldResource resource,
+        PhysicsWorldRuntimeResource resource,
         PhysicsRuntimeProfilingResource profiling) throws InterruptedException {
         long deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(2L);
         while (System.nanoTime() < deadline) {

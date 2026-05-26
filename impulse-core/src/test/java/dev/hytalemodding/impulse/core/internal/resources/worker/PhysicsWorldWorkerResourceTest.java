@@ -11,6 +11,7 @@ import dev.hytalemodding.impulse.core.internal.worker.PhysicsWorkerSnapshot;
 import dev.hytalemodding.impulse.core.internal.worker.PhysicsWorkerStepCommand;
 import dev.hytalemodding.impulse.core.plugin.execution.PhysicsMutationHandle;
 import dev.hytalemodding.impulse.core.plugin.resources.PhysicsWorldResource;
+import dev.hytalemodding.impulse.core.internal.resources.PhysicsWorldRuntimeResource;
 import java.time.Duration;
 import java.util.List;
 import java.util.concurrent.CountDownLatch;
@@ -162,7 +163,7 @@ class PhysicsWorldWorkerResourceTest {
             });
             assertTrue(blockerStarted.await(2, TimeUnit.SECONDS));
 
-            PhysicsWorkerStepCommand command = new PhysicsWorkerStepCommand(new PhysicsWorldResource(),
+            PhysicsWorkerStepCommand command = new PhysicsWorkerStepCommand(new PhysicsWorldRuntimeResource(),
                 0.05f,
                 false,
                 1L,

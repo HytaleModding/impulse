@@ -19,7 +19,8 @@ import dev.hytalemodding.impulse.core.internal.components.GeneratedVisualProxyCo
 import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyId;
 import dev.hytalemodding.impulse.core.plugin.components.PhysicsBodyAttachmentComponent;
 import dev.hytalemodding.impulse.core.plugin.components.PhysicsControlSessionComponent;
-import dev.hytalemodding.impulse.core.plugin.resources.PhysicsRuntimeResetResult;
+import dev.hytalemodding.impulse.core.internal.resources.PhysicsRuntimeResetResult;
+import dev.hytalemodding.impulse.core.internal.resources.PhysicsWorldRuntimeResource;
 import dev.hytalemodding.impulse.core.plugin.resources.PhysicsWorldResource;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
@@ -101,7 +102,7 @@ public class CleanCommand extends AbstractWorldCommand {
                 commandBuffer.removeComponent(archetypeChunk.getReferenceTo(index), CONTROL_SESSION_TYPE);
             });
 
-        PhysicsWorldResource resource = store.getResource(PhysicsWorldResource.getResourceType());
+        PhysicsWorldRuntimeResource resource = PhysicsWorldRuntimeResource.require(store);
         PhysicsRuntimeResetResult reset =
             resource.resetRuntimeStateKeepingSpaces(world.getName());
 

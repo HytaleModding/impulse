@@ -10,6 +10,7 @@ import dev.hytalemodding.impulse.api.PhysicsSpace;
 import dev.hytalemodding.impulse.api.PhysicsRuntimeStats;
 import dev.hytalemodding.impulse.api.SpaceId;
 import dev.hytalemodding.impulse.core.internal.diagnostics.PhysicsEntityDiagnostics;
+import dev.hytalemodding.impulse.core.internal.resources.PhysicsWorldRuntimeResource;
 import dev.hytalemodding.impulse.core.internal.resources.profiling.PhysicsRuntimeProfilingResource;
 import dev.hytalemodding.impulse.core.internal.resources.profiling.PhysicsRuntimeProfilingResource.StepSnapshot;
 import dev.hytalemodding.impulse.core.internal.resources.profiling.PhysicsRuntimeProfilingResource.SyncSnapshot;
@@ -454,6 +455,7 @@ public class PerfReportCommand extends AbstractWorldCommand {
 
         @Nonnull
         private static RuntimeFootprint collectOnWorker(@Nonnull PhysicsWorldResource resource) {
+            PhysicsWorldRuntimeResource runtime = PhysicsWorldRuntimeResource.require(resource);
             int spaces = 0;
             int backendBodies = 0;
             int backendJoints = 0;
@@ -497,7 +499,7 @@ public class PerfReportCommand extends AbstractWorldCommand {
                     continue;
                 }
                 detachedBodies++;
-                if (resource.getGeneratedVisualProxy(registration.id()) != null) {
+                if (runtime.getGeneratedVisualProxy(registration.id()) != null) {
                     detachedVisualProxies++;
                 }
             }

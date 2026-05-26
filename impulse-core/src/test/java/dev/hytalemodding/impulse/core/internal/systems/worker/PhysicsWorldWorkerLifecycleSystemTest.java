@@ -11,6 +11,7 @@ import com.hypixel.hytale.server.core.universe.world.World;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import dev.hytalemodding.impulse.core.internal.resources.worker.PhysicsWorldWorkerResource;
 import dev.hytalemodding.impulse.core.plugin.resources.PhysicsWorldResource;
+import dev.hytalemodding.impulse.core.internal.resources.PhysicsWorldRuntimeResource;
 import java.lang.reflect.Field;
 import javax.annotation.Nonnull;
 import org.junit.jupiter.api.Test;
@@ -100,7 +101,7 @@ class PhysicsWorldWorkerLifecycleSystemTest {
         registry.shutdown();
     }
 
-    private static final class CountingPhysicsWorldResource extends PhysicsWorldResource {
+    private static final class CountingPhysicsWorldResource extends PhysicsWorldRuntimeResource {
 
         private int clearCalls;
 
@@ -111,7 +112,7 @@ class PhysicsWorldWorkerLifecycleSystemTest {
         }
     }
 
-    private static final class FailingOncePhysicsWorldResource extends PhysicsWorldResource {
+    private static final class FailingOncePhysicsWorldResource extends PhysicsWorldRuntimeResource {
 
         private int clearCalls;
 

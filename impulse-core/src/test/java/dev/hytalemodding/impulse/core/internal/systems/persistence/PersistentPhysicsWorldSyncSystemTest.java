@@ -15,7 +15,7 @@ import dev.hytalemodding.impulse.core.internal.persistence.PersistentPhysicsWorl
 import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyId;
 import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyKind;
 import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyPersistenceMode;
-import dev.hytalemodding.impulse.core.plugin.resources.PhysicsWorldResource;
+import dev.hytalemodding.impulse.core.internal.resources.PhysicsWorldRuntimeResource;
 import dev.hytalemodding.impulse.core.plugin.settings.PhysicsSpaceSettings;
 import dev.hytalemodding.impulse.core.plugin.settings.PhysicsStepSchedulingMode;
 import dev.hytalemodding.impulse.core.plugin.settings.PhysicsWorldSettings;
@@ -143,7 +143,7 @@ class PersistentPhysicsWorldSyncSystemTest {
             new FakePhysicsBackend("test:persistence-sync-" + BACKEND_COUNTER.incrementAndGet());
         Impulse.registerBackend(backend);
 
-        PhysicsWorldResource runtime = new PhysicsWorldResource();
+        PhysicsWorldRuntimeResource runtime = new PhysicsWorldRuntimeResource();
         PhysicsSpaceSettings settings = PhysicsSpaceSettings.defaults();
         PhysicsSpace space = runtime.createSpace(backend.getId(),
             "test-world",
@@ -154,7 +154,7 @@ class PersistentPhysicsWorldSyncSystemTest {
         return new RuntimeFixture(runtime, persistent, space);
     }
 
-    private record RuntimeFixture(PhysicsWorldResource runtime,
+    private record RuntimeFixture(PhysicsWorldRuntimeResource runtime,
         PersistentPhysicsWorldResource persistent,
         PhysicsSpace space) {
 

@@ -11,7 +11,7 @@ import com.hypixel.hytale.server.core.universe.PlayerRef;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import dev.hytalemodding.impulse.core.internal.resources.visual.PhysicsVisualRuntime;
 import dev.hytalemodding.impulse.core.internal.systems.sync.PhysicsSyncPolicy;
-import dev.hytalemodding.impulse.core.plugin.resources.PhysicsWorldResource;
+import dev.hytalemodding.impulse.core.internal.resources.PhysicsWorldRuntimeResource;
 import java.util.ArrayList;
 import java.util.List;
 import javax.annotation.Nonnull;
@@ -58,7 +58,7 @@ public final class VisualInterestCollector {
     @Nonnull
     public static List<PhysicsVisualRuntime.VisualInterest> collectMaterializationInterests(
         @Nonnull Store<EntityStore> store,
-        @Nonnull PhysicsWorldResource resource) {
+        @Nonnull PhysicsWorldRuntimeResource resource) {
         List<PhysicsVisualRuntime.VisualInterest> interests = new ArrayList<>();
         for (PlayerRef playerRef : store.getExternalData().getWorld().getPlayerRefs()) {
             Ref<EntityStore> playerEntity = playerRef.getReference();

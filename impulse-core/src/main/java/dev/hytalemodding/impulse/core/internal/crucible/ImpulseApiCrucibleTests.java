@@ -12,6 +12,7 @@ import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyKind;
 import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyPersistenceMode;
 import dev.hytalemodding.impulse.core.plugin.settings.PhysicsSpaceSettings;
 import dev.hytalemodding.impulse.core.plugin.resources.PhysicsWorldResource;
+import dev.hytalemodding.impulse.core.internal.resources.PhysicsWorldRuntimeResource;
 import dev.hytalemodding.impulse.core.plugin.settings.VisualOcclusionMode;
 import dev.hytalemodding.impulse.core.plugin.collision.WorldCollisionMode;
 import java.util.Collection;
@@ -130,12 +131,12 @@ final class ImpulseApiCrucibleTests {
     }
 
     private static boolean defaultSpaceIsExplicit() {
-        PhysicsWorldResource resource = new PhysicsWorldResource();
+        PhysicsWorldResource resource = new PhysicsWorldRuntimeResource();
         return resource.getDefaultSpaceId() == null && resource.getDefaultSpace() == null;
     }
 
     private static boolean createDefaultSpaceLifecycle() {
-        PhysicsWorldResource resource = new PhysicsWorldResource();
+        PhysicsWorldResource resource = new PhysicsWorldRuntimeResource();
         PhysicsSpace space = resource.createSpace(ImpulsePlugin.get().getDefaultBackendId(),
             "crucible",
             PhysicsSpaceSettings.streamingWorldCollision(),
@@ -154,7 +155,7 @@ final class ImpulseApiCrucibleTests {
     }
 
     private static boolean clearPopulatedSpaces() {
-        PhysicsWorldResource resource = new PhysicsWorldResource();
+        PhysicsWorldResource resource = new PhysicsWorldRuntimeResource();
         PhysicsSpace space = resource.createSpace(ImpulsePlugin.get().getDefaultBackendId(),
             "crucible",
             PhysicsSpaceSettings.defaults(),
@@ -170,7 +171,7 @@ final class ImpulseApiCrucibleTests {
     }
 
     private static boolean detachedUnregisterRemovesBackendBody() {
-        PhysicsWorldResource resource = new PhysicsWorldResource();
+        PhysicsWorldResource resource = new PhysicsWorldRuntimeResource();
         PhysicsSpace space = resource.createSpace(ImpulsePlugin.get().getDefaultBackendId(),
             "crucible",
             PhysicsSpaceSettings.defaults(),
@@ -191,7 +192,7 @@ final class ImpulseApiCrucibleTests {
     }
 
     private static boolean settingsRoundTrip() {
-        PhysicsWorldResource resource = new PhysicsWorldResource();
+        PhysicsWorldResource resource = new PhysicsWorldRuntimeResource();
         PhysicsSpaceSettings settings = PhysicsSpaceSettings.defaults();
         settings.getWorldCollisionSettings().setWorldCollisionMode(WorldCollisionMode.STREAMING);
         settings.getWorldCollisionSettings().setWorldCollisionRadius(9);

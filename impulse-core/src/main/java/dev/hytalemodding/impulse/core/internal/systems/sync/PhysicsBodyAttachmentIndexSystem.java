@@ -7,6 +7,7 @@ import com.hypixel.hytale.component.Store;
 import com.hypixel.hytale.component.query.Query;
 import com.hypixel.hytale.component.system.RefChangeSystem;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
+import dev.hytalemodding.impulse.core.internal.resources.PhysicsWorldRuntimeResource;
 import dev.hytalemodding.impulse.core.plugin.components.PhysicsBodyAttachmentComponent;
 import dev.hytalemodding.impulse.core.plugin.resources.PhysicsWorldResource;
 import javax.annotation.Nonnull;
@@ -26,7 +27,8 @@ public class PhysicsBodyAttachmentIndexSystem
         @Nonnull PhysicsBodyAttachmentComponent component,
         @Nonnull Store<EntityStore> store,
         @Nonnull CommandBuffer<EntityStore> commandBuffer) {
-        commandBuffer.getResource(PhysicsWorldResource.getResourceType())
+        PhysicsWorldRuntimeResource.require(
+                commandBuffer.getResource(PhysicsWorldResource.getResourceType()))
             .registerBodyAttachment(component.getBodyId(), ref);
     }
 
@@ -36,7 +38,8 @@ public class PhysicsBodyAttachmentIndexSystem
         @Nonnull PhysicsBodyAttachmentComponent newComponent,
         @Nonnull Store<EntityStore> store,
         @Nonnull CommandBuffer<EntityStore> commandBuffer) {
-        PhysicsWorldResource resource = commandBuffer.getResource(PhysicsWorldResource.getResourceType());
+        PhysicsWorldRuntimeResource resource = PhysicsWorldRuntimeResource.require(
+            commandBuffer.getResource(PhysicsWorldResource.getResourceType()));
         if (!oldComponent.getBodyId().equals(newComponent.getBodyId())) {
             resource.unregisterBodyAttachment(oldComponent.getBodyId(), ref);
             resource.registerBodyAttachment(newComponent.getBodyId(), ref);
@@ -49,7 +52,8 @@ public class PhysicsBodyAttachmentIndexSystem
         @Nonnull PhysicsBodyAttachmentComponent component,
         @Nonnull Store<EntityStore> store,
         @Nonnull CommandBuffer<EntityStore> commandBuffer) {
-        PhysicsWorldResource resource = commandBuffer.getResource(PhysicsWorldResource.getResourceType());
+        PhysicsWorldRuntimeResource resource = PhysicsWorldRuntimeResource.require(
+            commandBuffer.getResource(PhysicsWorldResource.getResourceType()));
         resource.unregisterBodyAttachment(component.getBodyId(), ref);
         resource.clearBodySyncState(ref);
     }

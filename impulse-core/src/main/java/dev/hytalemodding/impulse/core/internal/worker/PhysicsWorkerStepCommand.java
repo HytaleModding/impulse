@@ -4,11 +4,12 @@ import dev.hytalemodding.impulse.api.PhysicsBody;
 import dev.hytalemodding.impulse.api.PhysicsSpace;
 import dev.hytalemodding.impulse.api.PhysicsStepPhaseStats;
 import dev.hytalemodding.impulse.api.ShapeType;
-import dev.hytalemodding.impulse.core.plugin.snapshot.PublishedPhysicsSnapshotFrame;
+import dev.hytalemodding.impulse.core.internal.resources.PhysicsWorldRuntimeResource;
 import dev.hytalemodding.impulse.core.internal.systems.step.PhysicsStepCountPolicy;
+import dev.hytalemodding.impulse.core.plugin.resources.PhysicsWorldResource;
 import dev.hytalemodding.impulse.core.plugin.settings.PhysicsStepMode;
 import dev.hytalemodding.impulse.core.plugin.settings.PhysicsWorldSettings;
-import dev.hytalemodding.impulse.core.plugin.resources.PhysicsWorldResource;
+import dev.hytalemodding.impulse.core.plugin.snapshot.PublishedPhysicsSnapshotFrame;
 import java.util.Collection;
 import java.util.Objects;
 import javax.annotation.Nonnull;
@@ -35,7 +36,7 @@ public final class PhysicsWorkerStepCommand implements PhysicsWorkerCommand {
     private static final float MAX_ANGULAR_RADIANS_PER_SUBSTEP = (float) Math.toRadians(30.0);
 
     @Nonnull
-    private final PhysicsWorldResource resource;
+    private final PhysicsWorldRuntimeResource resource;
     private final float dt;
     private final boolean profilingEnabled;
     private final long stepSequence;
@@ -64,7 +65,8 @@ public final class PhysicsWorkerStepCommand implements PhysicsWorkerCommand {
         boolean profilingEnabled,
         long stepSequence,
         long serverTick) {
-        this.resource = Objects.requireNonNull(resource, "resource");
+        this.resource = PhysicsWorldRuntimeResource.require(
+            Objects.requireNonNull(resource, "resource"));
         this.dt = dt;
         this.profilingEnabled = profilingEnabled;
         this.stepSequence = Math.max(0L, stepSequence);
@@ -107,9 +109,10 @@ public final class PhysicsWorkerStepCommand implements PhysicsWorkerCommand {
         boolean profilingEnabled,
         long stepSequence,
         long serverTick) {
-        Objects.requireNonNull(resource, "resource");
+        PhysicsWorldRuntimeResource runtime = PhysicsWorldRuntimeResource.require(
+            Objects.requireNonNull(resource, "resource"));
         float safeDt = Float.isFinite(dt) ? Math.max(dt, 0.0f) : 0.0f;
-        PhysicsWorldSettings settings = resource.getWorldSettings();
+        PhysicsWorldSettings settings = runtime.getWorldSettings();
         PhysicsStepMode stepMode = settings.getStepMode();
         int simulationSteps = settings.getSimulationSteps();
         float configuredMaxStepDt = settings.getMaxStepDt();
@@ -117,7 +120,7 @@ public final class PhysicsWorkerStepCommand implements PhysicsWorkerCommand {
             ? configuredMaxStepDt
             : PhysicsWorldSettings.DEFAULT_MAX_STEP_DT;
         int steps = stepMode == PhysicsStepMode.ADAPTIVE
-            ? resolveAdaptiveStepCount(safeDt, simulationSteps, maxStepDt, resource)
+            ? resolveAdaptiveStepCount(safeDt, simulationSteps, maxStepDt, runtime)
             : PhysicsStepCountPolicy.resolveStepCount(safeDt,
                 simulationSteps,
                 maxStepDt,
@@ -128,12 +131,12 @@ public final class PhysicsWorkerStepCommand implements PhysicsWorkerCommand {
         RuntimeException stepFailure = null;
         try {
             if (profilingEnabled) {
-                resetStepPhaseStats(resource);
+                resetStepPhaseStats(runtime);
             }
             if (stepMode != PhysicsStepMode.CCD) {
-                restoreForcedContinuousCollision(resource);
+                restoreForcedContinuousCollision(runtime);
             }
-            executeSteps(resource, safeDt, stepMode, steps, counters);
+            executeSteps(runtime, safeDt, stepMode, steps, counters);
         } catch (RuntimeException exception) {
             stepFailure = exception;
         }
@@ -141,7 +144,7 @@ public final class PhysicsWorkerStepCommand implements PhysicsWorkerCommand {
 
         PublishedPhysicsSnapshotFrame frame;
         try {
-            frame = resource.capturePublishedSnapshotFrame(stepSequence,
+            frame = runtime.capturePublishedSnapshotFrame(stepSequence,
                 serverTick,
                 stepFailure == null
                     ? PublishedPhysicsSnapshotFrame.Status.COMPLETE
@@ -157,7 +160,7 @@ public final class PhysicsWorkerStepCommand implements PhysicsWorkerCommand {
         }
 
         PhysicsStepPhaseStats nativePhaseStats = profilingEnabled
-            ? collectStepPhaseStats(resource)
+            ? collectStepPhaseStats(runtime)
             : PhysicsStepPhaseStats.unavailable();
         return new StepExecution(new PhysicsWorkerSnapshot(counters.spaceCount(),
             counters.substeps(),
@@ -168,7 +171,7 @@ public final class PhysicsWorkerStepCommand implements PhysicsWorkerCommand {
             nativePhaseStats), stepFailure, frame);
     }
 
-    private static void resetStepPhaseStats(@Nonnull PhysicsWorldResource resource) {
+    private static void resetStepPhaseStats(@Nonnull PhysicsWorldRuntimeResource resource) {
         for (PhysicsSpace space : resource.iterateSpaces()) {
             space.resetStepPhaseStats();
         }
@@ -176,7 +179,7 @@ public final class PhysicsWorkerStepCommand implements PhysicsWorkerCommand {
 
     @Nonnull
     private static PhysicsStepPhaseStats collectStepPhaseStats(
-        @Nonnull PhysicsWorldResource resource) {
+        @Nonnull PhysicsWorldRuntimeResource resource) {
         PhysicsStepPhaseStats stats = PhysicsStepPhaseStats.unavailable();
         for (PhysicsSpace space : resource.iterateSpaces()) {
             stats = stats.add(space.getStepPhaseStats());
@@ -187,7 +190,7 @@ public final class PhysicsWorkerStepCommand implements PhysicsWorkerCommand {
     private static int resolveAdaptiveStepCount(float dt,
         int simulationSteps,
         float maxStepDt,
-        @Nonnull PhysicsWorldResource resource) {
+        @Nonnull PhysicsWorldRuntimeResource resource) {
         float sampledDt = Math.max(dt, 0.0f);
         if (sampledDt <= 0.0f) {
             return simulationSteps;
@@ -203,7 +206,7 @@ public final class PhysicsWorkerStepCommand implements PhysicsWorkerCommand {
         return risk.steps();
     }
 
-    private static void executeSteps(@Nonnull PhysicsWorldResource resource,
+    private static void executeSteps(@Nonnull PhysicsWorldRuntimeResource resource,
         float safeDt,
         @Nonnull PhysicsStepMode stepMode,
         int steps,
@@ -285,7 +288,7 @@ public final class PhysicsWorkerStepCommand implements PhysicsWorkerCommand {
         return DEFAULT_LINEAR_TRAVEL_PER_SUBSTEP;
     }
 
-    private static void forceContinuousCollision(@Nonnull PhysicsWorldResource resource,
+    private static void forceContinuousCollision(@Nonnull PhysicsWorldRuntimeResource resource,
         @Nonnull PhysicsSpace space) {
         space.forEachBody(body -> {
             if (!body.isDynamic() || body.isContinuousCollisionEnabled()) {
@@ -297,7 +300,7 @@ public final class PhysicsWorkerStepCommand implements PhysicsWorkerCommand {
         });
     }
 
-    private static void restoreForcedContinuousCollision(@Nonnull PhysicsWorldResource resource) {
+    private static void restoreForcedContinuousCollision(@Nonnull PhysicsWorldRuntimeResource resource) {
         Collection<PhysicsBody> forcedBodies = resource.getForcedContinuousCollisionBodies();
         if (forcedBodies.isEmpty()) {
             return;
