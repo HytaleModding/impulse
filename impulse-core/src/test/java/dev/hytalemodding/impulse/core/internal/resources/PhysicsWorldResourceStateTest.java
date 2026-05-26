@@ -20,6 +20,7 @@ import dev.hytalemodding.impulse.core.internal.resources.body.PhysicsBodyRuntime
 import dev.hytalemodding.impulse.core.internal.resources.chunk.PhysicsChunkBoundaryRuntime.ChunkBoundaryPauseState;
 import dev.hytalemodding.impulse.core.internal.resources.worker.PhysicsWorldWorkerResource;
 import dev.hytalemodding.impulse.core.internal.worker.PhysicsWorkerSnapshot;
+import dev.hytalemodding.impulse.core.internal.worker.PhysicsWorkerStepCommand;
 import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyId;
 import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyKind;
 import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyPersistenceMode;
@@ -28,6 +29,7 @@ import dev.hytalemodding.impulse.core.plugin.execution.PhysicsMutationHandle;
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsRuntimeResetResult;
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsWorldRuntimeResource;
 import dev.hytalemodding.impulse.core.plugin.settings.PhysicsSpaceSettings;
+import dev.hytalemodding.impulse.core.plugin.settings.PhysicsStepMode;
 import dev.hytalemodding.impulse.core.plugin.settings.PhysicsWorldSettings;
 import dev.hytalemodding.impulse.core.plugin.snapshot.PublishedPhysicsSnapshotFrame;
 import java.time.Duration;
@@ -43,6 +45,7 @@ import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
+import javax.annotation.Nonnull;
 import org.joml.Quaternionf;
 import org.joml.Vector3f;
 import org.junit.jupiter.api.Test;
@@ -127,7 +130,7 @@ class PhysicsWorldResourceStateTest {
             PhysicsBodyKind.BODY,
             PhysicsBodyPersistenceMode.RUNTIME_ONLY);
         space.createFixedJoint(first, second, new Vector3f(), new Vector3f());
-        resource.markContinuousCollisionForced(first);
+        resource.markContinuousCollisionForced(firstId);
         resource.markBodyControlled(firstId);
         resource.updateChunkBoundarySafeState(firstId, new Vector3f(1.0f), new Quaternionf());
 
@@ -157,7 +160,7 @@ class PhysicsWorldResourceStateTest {
         assertNull(resource.getBody(firstId));
         assertFalse(resource.isBodyControlled(firstId));
         assertNull(resource.getChunkBoundarySafeState(firstId));
-        assertTrue(resource.getForcedContinuousCollisionBodies().isEmpty());
+        assertForcedCcdRestoreDoesNotAffectReusedBodyId(resource, replacement, firstId);
     }
 
     @Test
@@ -177,7 +180,7 @@ class PhysicsWorldResourceStateTest {
             body,
             PhysicsBodyKind.BODY,
             PhysicsBodyPersistenceMode.PERSISTENT);
-        resource.markContinuousCollisionForced(body);
+        resource.markContinuousCollisionForced(bodyId);
         resource.markBodyControlled(bodyId);
         resource.updateChunkBoundarySafeState(bodyId, new Vector3f(1.0f), new Quaternionf());
         resource.pauseChunkBoundaryBody(bodyId,
@@ -194,11 +197,11 @@ class PhysicsWorldResourceStateTest {
         assertFalse(resource.isBodyControlled(bodyId));
         assertNull(resource.getChunkBoundarySafeState(bodyId));
         assertNull(resource.getChunkBoundaryPauseState(bodyId));
-        assertTrue(resource.getForcedContinuousCollisionBodies().isEmpty());
         assertEquals(0, resource.getBodySnapshotCount());
         assertEquals(0, resource.getBodySnapshotCount(space.getId()));
         assertEquals(0, resource.getBodySnapshotCellCount());
         assertThrows(IllegalArgumentException.class, () -> resource.getBodySnapshot(bodyId));
+        assertForcedCcdRestoreDoesNotAffectReusedBodyId(resource, space, bodyId);
     }
 
     @Test
@@ -223,7 +226,7 @@ class PhysicsWorldResourceStateTest {
             PhysicsBodyKind.BODY,
             PhysicsBodyPersistenceMode.PERSISTENT);
         space.createFixedJoint(first, second, new Vector3f(), new Vector3f());
-        resource.markContinuousCollisionForced(first);
+        resource.markContinuousCollisionForced(firstId);
         resource.markBodyControlled(firstId);
         resource.updateChunkBoundarySafeState(firstId, new Vector3f(1.0f), new Quaternionf());
         resource.pauseChunkBoundaryBody(firstId,
@@ -250,8 +253,8 @@ class PhysicsWorldResourceStateTest {
         assertFalse(resource.isBodyControlled(firstId));
         assertNull(resource.getChunkBoundarySafeState(firstId));
         assertNull(resource.getChunkBoundaryPauseState(firstId));
-        assertTrue(resource.getForcedContinuousCollisionBodies().isEmpty());
         assertThrows(IllegalArgumentException.class, () -> resource.getBodySnapshot(firstId));
+        assertForcedCcdRestoreDoesNotAffectReusedBodyId(resource, space, firstId);
     }
 
     @Test
@@ -641,6 +644,27 @@ class PhysicsWorldResourceStateTest {
             executor.shutdownNow();
         }
         assertTrue(executor.awaitTermination(5, TimeUnit.SECONDS));
+    }
+
+    private static void assertForcedCcdRestoreDoesNotAffectReusedBodyId(
+        @Nonnull PhysicsWorldRuntimeResource resource,
+        @Nonnull PhysicsSpace space,
+        @Nonnull PhysicsBodyId bodyId) {
+        PhysicsBody replacement = space.createBox(0.5f, 0.5f, 0.5f, 1.0f);
+        replacement.setContinuousCollisionEnabled(true);
+        resource.addBody(bodyId,
+            space.getId(),
+            replacement,
+            PhysicsBodyKind.BODY,
+            PhysicsBodyPersistenceMode.PERSISTENT);
+        PhysicsWorldSettings settings = resource.getWorldSettings();
+        settings.setStepMode(PhysicsStepMode.FIXED);
+        resource.setWorldSettings(settings);
+
+        new PhysicsWorkerStepCommand(resource, 0.05f, false).run();
+
+        assertTrue(replacement.isContinuousCollisionEnabled());
+        resource.destroyBody(bodyId);
     }
 
     private static void pollMutations(PhysicsWorldWorkerResource worker,

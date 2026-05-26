@@ -7,6 +7,7 @@ import dev.hytalemodding.impulse.api.ShapeType;
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsWorldRuntimeResource;
 import dev.hytalemodding.impulse.core.internal.systems.step.PhysicsStepCountPolicy;
 import dev.hytalemodding.impulse.core.plugin.resources.PhysicsWorldResource;
+import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyId;
 import dev.hytalemodding.impulse.core.plugin.settings.PhysicsStepMode;
 import dev.hytalemodding.impulse.core.plugin.settings.PhysicsWorldSettings;
 import dev.hytalemodding.impulse.core.plugin.snapshot.PublishedPhysicsSnapshotFrame;
@@ -295,19 +296,26 @@ public final class PhysicsWorkerStepCommand implements PhysicsWorkerCommand {
                 return;
             }
 
+            PhysicsBodyId bodyId = resource.getBodyId(body);
+            if (bodyId == null) {
+                return;
+            }
             body.setContinuousCollisionEnabled(true);
-            resource.markContinuousCollisionForced(body);
+            resource.markContinuousCollisionForced(bodyId);
         });
     }
 
     private static void restoreForcedContinuousCollision(@Nonnull PhysicsWorldRuntimeResource resource) {
-        Collection<PhysicsBody> forcedBodies = resource.getForcedContinuousCollisionBodies();
-        if (forcedBodies.isEmpty()) {
+        Collection<PhysicsBodyId> forcedBodyIds = resource.getForcedContinuousCollisionBodyIds();
+        if (forcedBodyIds.isEmpty()) {
             return;
         }
 
-        for (PhysicsBody body : forcedBodies) {
-            body.setContinuousCollisionEnabled(false);
+        for (PhysicsBodyId bodyId : forcedBodyIds) {
+            PhysicsBody body = resource.getBody(bodyId);
+            if (body != null) {
+                body.setContinuousCollisionEnabled(false);
+            }
         }
         resource.clearForcedContinuousCollisionBodies();
     }

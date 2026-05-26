@@ -890,13 +890,13 @@ public class PhysicsWorldRuntimeResource extends PhysicsWorldResource {
         bodyRuntime.clearBodyRuntimeState(bodyId);
     }
 
-    public void markContinuousCollisionForced(@Nonnull PhysicsBody body) {
-        chunkRuntime.markContinuousCollisionForced(body);
+    public void markContinuousCollisionForced(@Nonnull PhysicsBodyId bodyId) {
+        chunkRuntime.markContinuousCollisionForced(bodyId);
     }
 
     @Nonnull
-    public Collection<PhysicsBody> getForcedContinuousCollisionBodies() {
-        return chunkRuntime.getForcedContinuousCollisionBodies();
+    public Collection<PhysicsBodyId> getForcedContinuousCollisionBodyIds() {
+        return chunkRuntime.getForcedContinuousCollisionBodyIds();
     }
 
     public void clearForcedContinuousCollisionBodies() {

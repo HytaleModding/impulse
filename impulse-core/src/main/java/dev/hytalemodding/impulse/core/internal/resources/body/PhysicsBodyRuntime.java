@@ -98,7 +98,7 @@ public final class PhysicsBodyRuntime {
         }
         if (registration != null) {
             bodyRegistry.unregisterBody(bodyId);
-            clearBodyRuntimeState(registration.body(), bodyId);
+            clearBodyRuntimeState(bodyId);
         } else {
             clearBodyRuntimeState(bodyId);
         }
@@ -110,7 +110,6 @@ public final class PhysicsBodyRuntime {
         if (bodyId != null) {
             destroyBody(bodyId, true);
         } else {
-            chunkRuntime.clearBody(body);
             removeBodyFromSpace(body, null);
             worldChangedMarker.run();
         }
@@ -157,12 +156,6 @@ public final class PhysicsBodyRuntime {
     public void clearBodyRuntimeState(@Nonnull PhysicsBodyId bodyId) {
         visualRuntime.clearBodyRuntimeState(bodyId);
         chunkRuntime.clearBody(bodyId);
-        snapshotState.removeBodySnapshot(bodyId);
-    }
-
-    private void clearBodyRuntimeState(@Nonnull PhysicsBody body, @Nonnull PhysicsBodyId bodyId) {
-        visualRuntime.clearBodyRuntimeState(bodyId);
-        chunkRuntime.clearBody(body, bodyId);
         snapshotState.removeBodySnapshot(bodyId);
     }
 

@@ -13,11 +13,14 @@ import dev.hytalemodding.impulse.api.PhysicsBody;
 import dev.hytalemodding.impulse.api.PhysicsBodyType;
 import dev.hytalemodding.impulse.api.PhysicsJoint;
 import dev.hytalemodding.impulse.api.PhysicsSpace;
+import dev.hytalemodding.impulse.api.SpaceId;
 import dev.hytalemodding.impulse.core.plugin.components.PhysicsControlSessionComponent;
 import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyId;
 import dev.hytalemodding.impulse.core.plugin.resources.PhysicsWorldResource;
+import java.util.ArrayList;
 import java.util.concurrent.CompletableFuture;
 import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
 import org.joml.Vector3f;
 
 public class ReleaseCommand extends AbstractAsyncPlayerCommand {
@@ -51,21 +54,21 @@ public class ReleaseCommand extends AbstractAsyncPlayerCommand {
         @Nonnull Ref<EntityStore> playerRef,
         @Nonnull PhysicsControlSessionComponent session) {
         PhysicsWorldResource resource = store.getResource(PhysicsWorldResource.getResourceType());
-        PhysicsSpace space = session.getSpaceId() != null ? resource.getSpace(session.getSpaceId()) : null;
-
         PhysicsBodyId bodyId = session.getBodyId();
+        PhysicsBodyId anchorBodyId = session.getAnchorBodyId();
+        SpaceId spaceId = session.getSpaceId();
         if (bodyId != null && resource.getBodyRegistrationView(bodyId) != null) {
             resource.clearControlledBody(bodyId);
             PhysicsBodyType originalBodyType = session.getOriginalBodyType();
             ExamplePhysicsUtils.physicsOwnerRun(store, "release grabbed physics body",
                 () -> {
+                    PhysicsSpace space = spaceId != null ? resource.getSpace(spaceId) : null;
                     PhysicsBody body = resource.getBody(bodyId);
                     if (body == null) {
                         return;
                     }
-                    PhysicsJoint joint = session.getJoint();
-                    if (space != null && joint != null) {
-                        space.removeJoint(joint);
+                    if (space != null && anchorBodyId != null) {
+                        removeControlJoint(resource, space, bodyId, anchorBodyId);
                     }
                     body.setBodyType(originalBodyType);
                     if (originalBodyType == PhysicsBodyType.DYNAMIC) {
@@ -76,16 +79,43 @@ public class ReleaseCommand extends AbstractAsyncPlayerCommand {
                     }
                     body.activate();
                 });
-        } else if (space != null && session.getJoint() != null) {
-            PhysicsJoint joint = session.getJoint();
+        } else if (bodyId != null && anchorBodyId != null && spaceId != null) {
             ExamplePhysicsUtils.physicsOwnerRun(store, "release grabbed physics joint",
-                () -> space.removeJoint(joint));
+                () -> {
+                    PhysicsSpace space = resource.getSpace(spaceId);
+                    if (space != null) {
+                        removeControlJoint(resource, space, bodyId, anchorBodyId);
+                    }
+                });
         }
-        if (session.getAnchorBodyId() != null) {
-            resource.destroyBody(session.getAnchorBodyId());
+        if (anchorBodyId != null) {
+            resource.destroyBody(anchorBodyId);
         }
 
         session.deactivate();
         store.removeComponent(playerRef, CONTROL_SESSION_TYPE);
+    }
+
+    private static boolean removeControlJoint(@Nonnull PhysicsWorldResource resource,
+        @Nonnull PhysicsSpace space,
+        @Nonnull PhysicsBodyId bodyId,
+        @Nonnull PhysicsBodyId anchorBodyId) {
+        for (PhysicsJoint joint : new ArrayList<>(space.getJoints())) {
+            PhysicsBodyId bodyAId = resource.getBodyId(joint.getBodyA());
+            PhysicsBodyId bodyBId = resource.getBodyId(joint.getBodyB());
+            if (isControlJoint(bodyAId, bodyBId, bodyId, anchorBodyId)) {
+                space.removeJoint(joint);
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private static boolean isControlJoint(@Nullable PhysicsBodyId bodyAId,
+        @Nullable PhysicsBodyId bodyBId,
+        @Nonnull PhysicsBodyId bodyId,
+        @Nonnull PhysicsBodyId anchorBodyId) {
+        return (anchorBodyId.equals(bodyAId) && bodyId.equals(bodyBId))
+            || (anchorBodyId.equals(bodyBId) && bodyId.equals(bodyAId));
     }
 }

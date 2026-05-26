@@ -5,7 +5,6 @@ import com.hypixel.hytale.component.ComponentType;
 import com.hypixel.hytale.component.Ref;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import dev.hytalemodding.impulse.api.PhysicsBodyType;
-import dev.hytalemodding.impulse.api.PhysicsJoint;
 import dev.hytalemodding.impulse.api.SpaceId;
 import dev.hytalemodding.impulse.core.ImpulsePlugin;
 import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyId;
@@ -21,8 +20,6 @@ public class PhysicsControlSessionComponent implements Component<EntityStore> {
     private PhysicsBodyId bodyId;
     @Nullable
     private PhysicsBodyId anchorBodyId;
-    @Nullable
-    private PhysicsJoint joint;
     @Nullable
     private Ref<EntityStore> targetRef;
     @Nullable
@@ -45,7 +42,6 @@ public class PhysicsControlSessionComponent implements Component<EntityStore> {
 
     public PhysicsControlSessionComponent(@Nonnull PhysicsBodyId bodyId,
         @Nonnull PhysicsBodyId anchorBodyId,
-        @Nonnull PhysicsJoint joint,
         @Nullable Ref<EntityStore> targetRef,
         @Nullable SpaceId spaceId,
         @Nonnull PhysicsBodyType originalBodyType,
@@ -54,7 +50,6 @@ public class PhysicsControlSessionComponent implements Component<EntityStore> {
         @Nonnull Vector3f previousTarget) {
         this.bodyId = bodyId;
         this.anchorBodyId = anchorBodyId;
-        this.joint = joint;
         this.targetRef = targetRef;
         this.spaceId = spaceId;
         this.originalBodyType = originalBodyType;
@@ -78,7 +73,6 @@ public class PhysicsControlSessionComponent implements Component<EntityStore> {
         PhysicsControlSessionComponent copy = new PhysicsControlSessionComponent();
         copy.bodyId = bodyId;
         copy.anchorBodyId = anchorBodyId;
-        copy.joint = joint;
         copy.targetRef = targetRef;
         copy.spaceId = spaceId;
         copy.originalBodyType = originalBodyType;
