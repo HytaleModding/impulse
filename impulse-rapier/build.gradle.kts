@@ -1,12 +1,12 @@
-import org.gradle.api.GradleException
-import org.gradle.api.file.DuplicatesStrategy
-
 plugins {
     id("java-library")
     id("com.azuredoom.hytale-tools")
 }
 
 val rapierVersion = "0.32.0"
+val rapierCargoLocked = providers.gradleProperty("rapierCargoLocked")
+        .map { it.toBoolean() }
+        .orElse(true)
 val nativeProfile = providers.gradleProperty("rapierNativeProfile").orElse("release")
 val nativeFeatures = providers.gradleProperty("rapierNativeFeatures").orElse("")
 val rustDirectory = layout.projectDirectory.dir("src/main/rust")
@@ -26,8 +26,10 @@ val nativeBuildDirectory = nativeProfile.map { profile ->
     }
 }
 
+
+
 extensions.extraProperties["impulseRapierPackagedNativeResourceEntries"] = listOf(
-    nativeResourceEntry)
+        nativeResourceEntry)
 
 fun detectNativeResourceOs(): String {
     val osName = System.getProperty("os.name").lowercase()
@@ -36,7 +38,7 @@ fun detectNativeResourceOs(): String {
         osName.contains("mac") || osName.contains("darwin") -> "osx"
         osName.contains("windows") -> "windows"
         else -> throw GradleException("Unsupported Rapier native packaging OS: "
-            + System.getProperty("os.name"))
+                + System.getProperty("os.name"))
     }
 }
 
@@ -47,11 +49,11 @@ fun detectNativeResourceArch(resourceOs: String): String {
         "aarch64", "arm64" -> "arm64"
         "arm", "arm32" -> "arm32"
         else -> throw GradleException("Unsupported Rapier native packaging architecture: "
-            + System.getProperty("os.arch"))
+                + System.getProperty("os.arch"))
     }
     if (resourceOs == "windows" && resourceArch != "x86_64") {
         throw GradleException("Unsupported Rapier native packaging platform: "
-            + System.getProperty("os.name") + " " + System.getProperty("os.arch"))
+                + System.getProperty("os.name") + " " + System.getProperty("os.arch"))
     }
     return resourceArch
 }
@@ -66,82 +68,66 @@ fun nativeLibraryNameFor(resourceOs: String): String {
 
 val cargoAvailable = try {
     ProcessBuilder("bash", "-lc", "command -v cargo >/dev/null 2>&1")
-        .start()
-        .waitFor() == 0
+            .start()
+            .waitFor() == 0
 } catch (_: Exception) {
     false
 }
 
 val buildNative = providers.gradleProperty("buildRapierNative")
-    .map { it.toBoolean() }
-    .orElse(cargoAvailable)
+        .map { it.toBoolean() }
+        .orElse(cargoAvailable)
 
 val preparePatchedRapier by tasks.registering(Exec::class) {
+    description = "Prepares a patched version of Rapier for building the native library."
     onlyIf { buildNative.get() }
     workingDir = rustDirectory.asFile
 
-    inputs.file(layout.projectDirectory.file("src/main/rust/Cargo.toml"))
-    inputs.file(layout.projectDirectory.file("src/main/rust/Cargo.lock"))
-    inputs.file(rapierPatchFile)
+    inputs.files(
+            layout.projectDirectory.file("src/main/rust/Cargo.toml"),
+            layout.projectDirectory.file("src/main/rust/Cargo.lock"),
+            rapierPatchFile,
+    )
     outputs.dir(patchedRapierDirectory)
     outputs.file(patchedCargoConfig)
 
-    doFirst {
-        val patchedRapierPath = patchedRapierDirectory.asFile.absolutePath
-        val patchedCargoConfigPath = patchedCargoConfig.asFile.absolutePath
-        val rapierPatchPath = rapierPatchFile.asFile.absolutePath
-        val dollar = "$"
-        val script = """
-            set -euo pipefail
+    environment("RAPIER_VERSION", rapierVersion)
+    environment("PATCHED_RAPIER_PATH", patchedRapierDirectory.asFile.absolutePath)
+    environment("PATCHED_CARGO_CONFIG_PATH", patchedCargoConfig.asFile.absolutePath)
+    environment("RAPIER_PATCH_PATH", rapierPatchFile.asFile.absolutePath)
 
-            registry_root="${dollar}{CARGO_HOME:-${dollar}{HOME}/.cargo}/registry/src"
-            find_rapier_source() {
-                if [ -d "${dollar}registry_root" ]; then
-                    find "${dollar}registry_root" -path "*/rapier3d-$rapierVersion" -type d | sort | sed -n '1p'
-                fi
-                return 0
-            }
+    when (nativeResourceOs) {
+        "linux" -> {
+            inputs.file(layout.projectDirectory.file("src/main/rust/scripts/prepare-rapier-patched.sh"))
+            commandLine(
+                    "bash",
+                    layout.projectDirectory.file("src/main/rust/scripts/prepare-rapier-patched.sh").asFile.absolutePath
+            )
+        }
 
-            base_dir="${dollar}(find_rapier_source)"
-            if [ -z "${dollar}base_dir" ]; then
-                fetch_dir="${dollar}(dirname "$patchedCargoConfigPath")/fetch"
-                fetch_manifest="${dollar}fetch_dir/Cargo.toml"
-                mkdir -p "${dollar}fetch_dir/src"
-                touch "${dollar}fetch_dir/src/lib.rs"
-                cat > "${dollar}fetch_manifest" <<EOF
-[package]
-name = "impulse-rapier-fetch"
-version = "0.0.0"
-edition = "2021"
-publish = false
+        "windows" -> {
+            inputs.file(layout.projectDirectory.file("src/main/rust/scripts/prepare-rapier-patched.ps1"))
+            commandLine(
+                    "pwsh",
+                    "-NoProfile",
+                    "-ExecutionPolicy",
+                    "Bypass",
+                    "-File",
+                    layout.projectDirectory.file("src/main/rust/scripts/prepare-rapier-patched.ps1").asFile.absolutePath
+            )
+        }
 
-[dependencies]
-rapier3d = { version = "=$rapierVersion", default-features = false, features = ["dim3", "f32", "parallel", "profiler"] }
-EOF
-                cargo fetch --manifest-path "${dollar}fetch_manifest"
-                base_dir="${dollar}(find_rapier_source)"
-            fi
-            if [ -z "${dollar}base_dir" ]; then
-                echo "Unable to locate rapier3d-$rapierVersion in ${dollar}registry_root" >&2
-                exit 1
-            fi
-
-            rm -rf "$patchedRapierPath"
-            mkdir -p "${dollar}(dirname "$patchedRapierPath")"
-            cp -a "${dollar}base_dir" "$patchedRapierPath"
-            patch -d "$patchedRapierPath" -p1 < "$rapierPatchPath"
-
-            mkdir -p "${dollar}(dirname "$patchedCargoConfigPath")"
-            cat > "$patchedCargoConfigPath" <<EOF
-[patch.crates-io]
-rapier3d = { path = "$patchedRapierPath" }
-EOF
-        """.trimIndent()
-        commandLine("bash", "-lc", script)
+        else -> {
+            throw GradleException(
+                    "Unsupported Rapier native packaging OS: "
+                            + System.getProperty("os.name")
+            )
+        }
     }
 }
 
 val cargoBuildRapierNative by tasks.registering(Exec::class) {
+    description = "Builds the Rapier native library using Cargo"
     dependsOn(preparePatchedRapier)
     onlyIf { buildNative.get() }
     workingDir = rustDirectory.asFile
@@ -155,11 +141,16 @@ val cargoBuildRapierNative by tasks.registering(Exec::class) {
     outputs.file(nativeBuildDirectory.map { layout.projectDirectory.file("src/main/rust/target/$it/$nativeLibraryName") })
 
     doFirst {
+        println("rapierCargoLocked = ${rapierCargoLocked.get()}")
         val command = mutableListOf("cargo",
-            "--config",
-            patchedCargoConfig.asFile.absolutePath,
-            "build",
-            "--locked")
+                "--config",
+                patchedCargoConfig.asFile.absolutePath,
+                "build")
+
+        if (rapierCargoLocked.get()) {
+            command.add("--locked")
+        }
+
         if (nativeProfile.get() == "release") {
             command.add("--release")
         }
@@ -192,8 +183,8 @@ tasks.processResources {
     dependsOn(stageRapierNativeResource)
     filesMatching("manifest.json") {
         expand(mapOf(
-            "version" to project.version,
-            "hytaleVersion" to project.property("hytale_version")
+                "version" to project.version,
+                "hytaleVersion" to project.property("hytale_version")
         ))
     }
 }
@@ -231,8 +222,8 @@ tasks.jar {
     duplicatesStrategy = DuplicatesStrategy.EXCLUDE
     from({
         configurations.runtimeClasspath.get()
-            .filter { file -> !file.name.startsWith("impulse-api-") }
-            .map { file -> if (file.isDirectory) file else zipTree(file) }
+                .filter { file -> !file.name.startsWith("impulse-api-") }
+                .map { file -> if (file.isDirectory) file else zipTree(file) }
     })
     exclude("META-INF/*.SF", "META-INF/*.DSA", "META-INF/*.RSA")
 }

@@ -1,9 +1,3 @@
-import org.gradle.api.GradleException
-import org.gradle.api.artifacts.ProjectDependency
-import org.gradle.api.tasks.Copy
-import org.gradle.api.tasks.Delete
-import org.gradle.api.tasks.compile.JavaCompile
-import org.gradle.api.tasks.testing.Test
 import org.gradle.api.tasks.testing.logging.TestExceptionFormat
 import org.gradle.api.tasks.testing.logging.TestLogEvent
 import java.util.zip.ZipFile
@@ -16,8 +10,8 @@ group = property("group") as String
 version = property("version") as String
 
 val coreOnlyWorkspace = providers.gradleProperty("impulse.coreOnlyWorkspace")
-    .map(String::toBoolean)
-    .orElse(false)
+        .map(String::toBoolean)
+        .orElse(false)
 
 hytaleWorkspace {
     modProjects = if (coreOnlyWorkspace.get()) {
@@ -53,9 +47,9 @@ subprojects {
             jvmArgs("--enable-native-access=ALL-UNNAMED")
             testLogging {
                 events = setOf(
-                    TestLogEvent.PASSED,
-                    TestLogEvent.SKIPPED,
-                    TestLogEvent.FAILED
+                        TestLogEvent.PASSED,
+                        TestLogEvent.SKIPPED,
+                        TestLogEvent.FAILED
                 )
                 exceptionFormat = TestExceptionFormat.FULL
                 showCauses = true
@@ -70,14 +64,14 @@ val examplesSourceDir = layout.projectDirectory.dir("impulse-examples/src/main/j
 val backendProjectPaths = setOf(":impulse-bullet", ":impulse-rapier")
 val backendJarIncludes = listOf("impulse-bullet-*.jar", "impulse-rapier-*.jar")
 val hytaleToolProjectPaths = listOf(
-    ":impulse-core",
-    ":impulse-examples",
-    ":impulse-bullet",
-    ":impulse-rapier")
+        ":impulse-core",
+        ":impulse-examples",
+        ":impulse-bullet",
+        ":impulse-rapier")
 
 gradle.projectsEvaluated {
     val hytaleAssetDownloads = hytaleToolProjectPaths
-        .map { path -> project(path).tasks.named("downloadAssetsZip") }
+            .map { path -> project(path).tasks.named("downloadAssetsZip") }
 
     hytaleToolProjectPaths.forEach { path ->
         project(path).tasks.withType<JavaCompile>().configureEach {
@@ -87,6 +81,7 @@ gradle.projectsEvaluated {
 }
 
 val cleanStagedBackendJars by tasks.registering(Delete::class) {
+    description = "Cleans staged backend provider jars from run/mods for runAllMods"
     delete(fileTree("run/mods") {
         backendJarIncludes.forEach(::include)
     })
@@ -112,21 +107,21 @@ tasks.register("checkExampleImportBoundaries") {
 
     doLast {
         val offenders = examplesSourceDir.walkTopDown()
-            .filter { it.isFile && it.extension == "java" }
-            .flatMap { file ->
-                file.readLines().mapIndexedNotNull { index, line ->
-                    if (line.contains("dev.hytalemodding.impulse.core.internal")) {
-                        "${file.relativeTo(rootDir)}:${index + 1}: ${line.trim()}"
-                    } else {
-                        null
+                .filter { it.isFile && it.extension == "java" }
+                .flatMap { file ->
+                    file.readLines().mapIndexedNotNull { index, line ->
+                        if (line.contains("dev.hytalemodding.impulse.core.internal")) {
+                            "${file.relativeTo(rootDir)}:${index + 1}: ${line.trim()}"
+                        } else {
+                            null
+                        }
                     }
                 }
-            }
-            .toList()
+                .toList()
 
         if (offenders.isNotEmpty()) {
             throw GradleException("impulse-examples must not import impulse-core internal packages:\n"
-                + offenders.joinToString("\n"))
+                    + offenders.joinToString("\n"))
         }
     }
 }
@@ -138,20 +133,20 @@ tasks.register("checkBackendJarStaging") {
 
     doLast {
         val exampleRuntimeBackends = listOf("implementation", "runtimeOnly", "runtimeClasspath")
-            .flatMap { configurationName ->
-                project(":impulse-examples")
-                    .configurations
-                    .getByName(configurationName)
-                    .allDependencies
-                    .filterIsInstance<ProjectDependency>()
-                    .map { it.path }
-            }
-            .filter { it in backendProjectPaths }
-            .distinct()
+                .flatMap { configurationName ->
+                    project(":impulse-examples")
+                            .configurations
+                            .getByName(configurationName)
+                            .allDependencies
+                            .filterIsInstance<ProjectDependency>()
+                            .map { it.path }
+                }
+                .filter { it in backendProjectPaths }
+                .distinct()
 
         if (exampleRuntimeBackends.isNotEmpty()) {
             throw GradleException("impulse-examples must not carry backend runtime project "
-                + "dependencies: " + exampleRuntimeBackends.joinToString(", "))
+                    + "dependencies: " + exampleRuntimeBackends.joinToString(", "))
         }
 
         val stagedBackendNames = fileTree("run/mods") {
@@ -164,39 +159,39 @@ tasks.register("checkBackendJarStaging") {
         }
 
         val missingBackends = listOf("impulse-bullet", "impulse-rapier")
-            .filter { backendName ->
-                stagedBackendNames.keys.none { it.removePrefix(":") == backendName }
-            }
+                .filter { backendName ->
+                    stagedBackendNames.keys.none { it.removePrefix(":") == backendName }
+                }
         if (missingBackends.isNotEmpty()) {
             throw GradleException("Missing staged backend jars in run/mods: "
-                + missingBackends.joinToString(", "))
+                    + missingBackends.joinToString(", "))
         }
 
         stagedBackendNames.forEach { (backendPath, backendJar) ->
             ZipFile(backendJar).use { zip ->
                 if (zip.getEntry("manifest.json") == null) {
                     throw GradleException("${backendJar.name} for $backendPath is missing "
-                        + "Hytale manifest.json")
+                            + "Hytale manifest.json")
                 }
                 if (zip.getEntry("META-INF/services/dev.hytalemodding.impulse.api.PhysicsBackend")
-                    == null) {
+                        == null) {
                     throw GradleException("${backendJar.name} for $backendPath is missing "
-                        + "PhysicsBackend service metadata")
+                            + "PhysicsBackend service metadata")
                 }
                 if (backendPath == ":impulse-rapier") {
                     val nativeEntries = project(":impulse-rapier")
-                        .extensions
-                        .extraProperties["impulseRapierPackagedNativeResourceEntries"]
+                            .extensions
+                            .extraProperties["impulseRapierPackagedNativeResourceEntries"]
                     val requiredEntries = when (nativeEntries) {
                         is Iterable<*> -> nativeEntries.map { it.toString() }
                         else -> listOf(nativeEntries.toString())
                     }
                     val missingEntries = requiredEntries
-                        .filter { entry -> zip.getEntry(entry) == null }
+                            .filter { entry -> zip.getEntry(entry) == null }
                     if (missingEntries.isNotEmpty()) {
                         throw GradleException("${backendJar.name} for $backendPath is missing "
-                            + "packaged Rapier native resources: "
-                            + missingEntries.joinToString(", "))
+                                + "packaged Rapier native resources: "
+                                + missingEntries.joinToString(", "))
                     }
                 }
             }
@@ -208,12 +203,12 @@ tasks.register("headlessTest") {
     group = "verification"
     description = "Runs automated headless/serverless tests without booting the Hytale server"
     dependsOn(
-        "checkExampleImportBoundaries",
-        "checkBackendJarStaging",
-        ":impulse-api:test",
-        ":impulse-bullet:test",
-        ":impulse-rapier:test",
-        ":impulse-core:test"
+            "checkExampleImportBoundaries",
+            "checkBackendJarStaging",
+            ":impulse-api:test",
+            ":impulse-bullet:test",
+            ":impulse-rapier:test",
+            ":impulse-core:test"
     )
 }
 
@@ -226,9 +221,9 @@ gradle.projectsEvaluated {
         runTask.standardInput = System.`in`
 
         providers.gradleProperty("impulse.runAllModsJvmArgs")
-            .orElse(providers.systemProperty("impulse.runAllModsJvmArgs"))
-            .map { args -> args.split(Regex("\\s+")).filter { it.isNotBlank() } }
-            .orNull
-            ?.let { runTask.jvmArgs(it) }
+                .orElse(providers.systemProperty("impulse.runAllModsJvmArgs"))
+                .map { args -> args.split(Regex("\\s+")).filter { it.isNotBlank() } }
+                .orNull
+                ?.let { runTask.jvmArgs(it) }
     }
 }
