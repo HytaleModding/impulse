@@ -56,8 +56,7 @@ public class PhysicsDebugSystem extends TickingSystem<ChunkStore> {
     public void tick(float dt, int index, @Nonnull Store<ChunkStore> store) {
         World world = store.getExternalData().getWorld();
         Store<EntityStore> entityStore = world.getEntityStore().getStore();
-        PhysicsWorldResource resource = entityStore.getResource(
-            PhysicsWorldResource.getResourceType());
+        PhysicsWorldRuntimeResource resource = PhysicsWorldRuntimeResource.require(entityStore);
         PhysicsDebugResource debug = entityStore.getResource(PhysicsDebugResource.getResourceType());
 
         if (!debug.hasSubscribers()) {
@@ -307,7 +306,7 @@ public class PhysicsDebugSystem extends TickingSystem<ChunkStore> {
     }
 
     private static void renderContacts(@Nonnull Collection<PlayerRef> viewers,
-        @Nonnull PhysicsWorldResource resource,
+        @Nonnull PhysicsWorldRuntimeResource resource,
         @Nonnull PhysicsSpace space,
         @Nonnull Vector3d viewerPosition,
         double viewRadius,
@@ -330,7 +329,7 @@ public class PhysicsDebugSystem extends TickingSystem<ChunkStore> {
     }
 
     private static void renderJoints(@Nonnull Collection<PlayerRef> viewers,
-        @Nonnull PhysicsWorldResource resource,
+        @Nonnull PhysicsWorldRuntimeResource resource,
         @Nonnull PhysicsSpace space,
         @Nonnull Vector3d viewerPosition,
         double viewRadius,

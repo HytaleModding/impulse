@@ -45,30 +45,12 @@ import org.joml.Vector3f;
  *
  * <p>Methods that return {@link PhysicsSpace} or {@link PhysicsBody} expose live backend objects.
  * Read or mutate those objects only through {@link #runOnPhysicsOwner(String, PhysicsOwnerMutation)}
- * or {@link #callOnPhysicsOwner(String, PhysicsOwnerCallable)} unless
- * {@link #canAccessLiveBackendDirectly()} is true.</p>
+ * or {@link #callOnPhysicsOwner(String, PhysicsOwnerCallable)}.</p>
  */
 public abstract class PhysicsWorldResource implements Resource<EntityStore> {
 
     protected PhysicsWorldResource() {
     }
-
-    /**
-     * Returns whether the current thread may touch live backend objects without routing.
-     *
-     * <p>This is an owner-thread check for code that already has a safe direct path. Gameplay,
-     * diagnostics, and commands should prefer {@link #runOnPhysicsOwner(String, PhysicsOwnerMutation)}
-     * or {@link #callOnPhysicsOwner(String, PhysicsOwnerCallable)} when they need live backend state.</p>
-     */
-    public abstract boolean canAccessLiveBackendDirectly();
-
-    /**
-     * Fails when the current thread is not allowed to touch live backend objects directly.
-     *
-     * <p>Use this at lower-level integration points that intentionally accept live backend objects.
-     * Ordinary plugin logic should route through the owner-thread methods instead.</p>
-     */
-    public abstract void assertCanAccessLiveBackendDirectly(@Nonnull String operation);
 
     /**
      * Runs a live-backend mutation on the current physics owner.
