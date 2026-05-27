@@ -35,6 +35,7 @@ dependencies {
 }
 
 tasks.jar {
+    dependsOn(project(":impulse-rapier:native").tasks.named("jar"))
     duplicatesStrategy = DuplicatesStrategy.EXCLUDE
 
     from({
