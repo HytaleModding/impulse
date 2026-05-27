@@ -72,6 +72,41 @@ class PhysicsWorldResourceStateTest {
     }
 
     @Test
+    void copyFromCopiesWorldSettingsWithoutLiveSpaceMetadata() {
+        FakePhysicsBackend backend =
+            new FakePhysicsBackend("test:copy-topology-" + BACKEND_COUNTER.incrementAndGet());
+        Impulse.registerBackend(backend);
+
+        PhysicsWorldRuntimeResource source = new PhysicsWorldRuntimeResource();
+        PhysicsWorldSettings sourceSettings = source.getWorldSettings();
+        sourceSettings.setSimulationSteps(4);
+        source.setWorldSettings(sourceSettings);
+        PhysicsSpaceSettings sourceSpaceSettings = PhysicsSpaceSettings.streamingWorldCollision();
+        PhysicsSpace sourceSpace = source.createLiveSpace(backend.getId(),
+            "source-world",
+            sourceSpaceSettings,
+            true);
+
+        PhysicsWorldRuntimeResource target = new PhysicsWorldRuntimeResource();
+        PhysicsSpace targetSpace = target.createLiveSpace(backend.getId(),
+            "target-world",
+            PhysicsSpaceSettings.defaults(),
+            true);
+
+        target.copyFrom(source);
+
+        assertEquals(4, target.getWorldSettings().getSimulationSteps());
+        assertEquals(0, target.getSpaceCount());
+        assertTrue(target.getSpaceIds().isEmpty());
+        assertNull(target.getDefaultSpaceId());
+        assertFalse(target.hasSpace(sourceSpace.getId()));
+        assertThrows(IllegalStateException.class, target::requireDefaultSpaceId);
+        assertThrows(IllegalStateException.class, () -> target.getSpaceSettings(sourceSpace.getId()));
+        assertTrue(((InMemoryPhysicsSpace) targetSpace).isClosed());
+        assertFalse(((InMemoryPhysicsSpace) sourceSpace).isClosed());
+    }
+
+    @Test
     void bodySyncStateTracksLastSyncAndClampsNegativeSkipTime() {
         BodySyncState syncState = new BodySyncState();
 

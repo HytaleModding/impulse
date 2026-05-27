@@ -8,6 +8,7 @@ import com.hypixel.hytale.component.Store;
 import com.hypixel.hytale.component.query.Query;
 import com.hypixel.hytale.component.system.HolderSystem;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
+import dev.hytalemodding.impulse.core.internal.systems.step.PhysicsControlSessionCleanup;
 import dev.hytalemodding.impulse.core.plugin.components.ImpulseControllableComponent;
 import dev.hytalemodding.impulse.core.plugin.components.PhysicsBodyAttachmentComponent;
 import dev.hytalemodding.impulse.core.plugin.components.PhysicsBodyAttachmentComponent.AttachmentLifecycle;
@@ -36,7 +37,7 @@ public class PhysicsRuntimeHolderSystem extends HolderSystem<EntityStore> {
         @Nonnull AddReason reason,
         @Nonnull Store<EntityStore> store) {
         if (reason == AddReason.LOAD) {
-            cleanupHolder(holder);
+            cleanupHolder(holder, store);
         }
     }
 
@@ -44,15 +45,20 @@ public class PhysicsRuntimeHolderSystem extends HolderSystem<EntityStore> {
     public void onEntityRemoved(@Nonnull Holder<EntityStore> holder,
         @Nonnull RemoveReason reason,
         @Nonnull Store<EntityStore> store) {
-        cleanupHolder(holder);
+        cleanupHolder(holder, store);
     }
 
-    private static void cleanupHolder(@Nonnull Holder<EntityStore> holder) {
+    private static void cleanupHolder(@Nonnull Holder<EntityStore> holder,
+        @Nonnull Store<EntityStore> store) {
         PhysicsBodyAttachmentComponent attachment = holder.getComponent(ATTACHMENT_TYPE);
         if (attachment == null
             || attachment.getLifecycle() == AttachmentLifecycle.GENERATED_PROXY) {
             holder.tryRemoveComponent(ATTACHMENT_TYPE);
             holder.tryRemoveComponent(IMPULSE_CONTROLLABLE_TYPE);
+        }
+        PhysicsControlSessionComponent session = holder.getComponent(PHYSICS_CONTROL_SESSION_TYPE);
+        if (session != null) {
+            PhysicsControlSessionCleanup.cleanup(store, session);
         }
         holder.tryRemoveComponent(PHYSICS_CONTROL_SESSION_TYPE);
     }

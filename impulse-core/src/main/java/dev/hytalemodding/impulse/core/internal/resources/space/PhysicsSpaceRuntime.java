@@ -291,13 +291,13 @@ public final class PhysicsSpaceRuntime {
         return previous;
     }
 
-    public void copySettingsFrom(@Nonnull PhysicsSpaceRuntime other) {
+    public void clearLiveTopology(@Nonnull String worldName) {
+        for (PhysicsSpace space : new ArrayList<>(spaces.values())) {
+            closeSpaceQuietly(space, worldName, "discarded copied physics space");
+        }
         spaces.clear();
         spaceSettings.clear();
-        defaultSpaceId = other.defaultSpaceId;
-        for (var entry : other.spaceSettings.int2ObjectEntrySet()) {
-            spaceSettings.put(entry.getIntKey(), new PhysicsSpaceSettings(entry.getValue()));
-        }
+        defaultSpaceId = null;
     }
 
     private static void validateSpaceCompatibleWithStepMode(@Nonnull PhysicsSpace space,

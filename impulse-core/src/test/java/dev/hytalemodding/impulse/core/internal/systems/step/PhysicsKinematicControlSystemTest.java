@@ -2,6 +2,7 @@ package dev.hytalemodding.impulse.core.internal.systems.step;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import dev.hytalemodding.impulse.api.Impulse;
@@ -14,6 +15,7 @@ import dev.hytalemodding.impulse.core.internal.systems.step.PhysicsKinematicCont
 import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyId;
 import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyKind;
 import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyPersistenceMode;
+import dev.hytalemodding.impulse.core.plugin.components.PhysicsControlSessionComponent;
 import dev.hytalemodding.impulse.core.plugin.execution.PhysicsMutationHandle;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -106,5 +108,44 @@ class PhysicsKinematicControlSystemTest {
         assertTrue(removed);
 
         assertEquals(0, space.jointCount());
+    }
+
+    @Test
+    void sessionCleanupDestroysAnchorBodyAndClearsControlledState() {
+        FakePhysicsBackend backend =
+            new FakePhysicsBackend("test:control-cleanup-" + BACKEND_COUNTER.incrementAndGet());
+        Impulse.registerBackend(backend);
+        PhysicsWorldRuntimeResource resource = new PhysicsWorldRuntimeResource();
+        PhysicsSpace space = resource.createLiveSpace(backend.getId());
+        PhysicsBody body = space.createBox(0.5f, 0.5f, 0.5f, 1.0f);
+        PhysicsBody anchorBody = space.createSphere(0.1f, 1.0f);
+        PhysicsBodyId bodyId = resource.addBody(space.getId(),
+            body,
+            PhysicsBodyKind.BODY,
+            PhysicsBodyPersistenceMode.PERSISTENT);
+        PhysicsBodyId anchorBodyId = resource.addBody(space.getId(),
+            anchorBody,
+            PhysicsBodyKind.TEMPORARY,
+            PhysicsBodyPersistenceMode.RUNTIME_ONLY);
+        space.createPointJoint(anchorBody, body, new Vector3f(), new Vector3f());
+        resource.markBodyControlled(bodyId);
+        PhysicsControlSessionComponent session = new PhysicsControlSessionComponent(bodyId,
+            anchorBodyId,
+            null,
+            space.getId(),
+            body.getBodyType(),
+            4.0f,
+            new Vector3f(),
+            new Vector3f());
+
+        PhysicsControlSessionCleanup.cleanup(resource, session);
+
+        assertFalse(resource.isBodyControlled(bodyId));
+        assertEquals(1, space.bodyCount());
+        assertEquals(0, space.jointCount());
+        assertTrue(space.containsBody(body));
+        assertFalse(space.containsBody(anchorBody));
+        assertEquals(body, resource.getBody(bodyId));
+        assertNull(resource.getBodyRegistrationView(anchorBodyId));
     }
 }
