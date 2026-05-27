@@ -16,6 +16,7 @@ import com.hypixel.hytale.server.core.universe.world.World;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import dev.hytalemodding.impulse.api.SpaceId;
 import dev.hytalemodding.impulse.core.internal.components.GeneratedVisualProxyComponent;
+import dev.hytalemodding.impulse.core.internal.systems.step.PhysicsControlSessionCleanup;
 import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyId;
 import dev.hytalemodding.impulse.core.plugin.components.PhysicsBodyAttachmentComponent;
 import dev.hytalemodding.impulse.core.plugin.components.PhysicsControlSessionComponent;
@@ -181,6 +182,7 @@ public class CleanCommand extends AbstractWorldCommand {
                 }
 
                 removedSessions.incrementAndGet();
+                PhysicsControlSessionCleanup.cleanup(resource, session);
                 commandBuffer.removeComponent(archetypeChunk.getReferenceTo(index), CONTROL_SESSION_TYPE);
             });
 

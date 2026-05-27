@@ -986,7 +986,7 @@ public class PhysicsWorldRuntimeResource extends PhysicsWorldResource {
             return;
         }
         PhysicsWorldRuntimeResource otherRuntime = require(other);
-        spaceRuntime.copySettingsFrom(otherRuntime.spaceRuntime);
+        spaceRuntime.clearLiveTopology("<copy>");
         bodyRegistry.clear();
         runtimeState.clear();
         chunkRuntime.clear();

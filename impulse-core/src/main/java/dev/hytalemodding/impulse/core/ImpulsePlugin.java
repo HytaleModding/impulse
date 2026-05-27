@@ -34,6 +34,7 @@ import dev.hytalemodding.impulse.core.internal.systems.persistence.PersistentPhy
 import dev.hytalemodding.impulse.core.internal.systems.persistence.PersistentPhysicsSpaceBootstrapSystem;
 import dev.hytalemodding.impulse.core.internal.systems.persistence.PersistentPhysicsWorldSyncSystem;
 import dev.hytalemodding.impulse.core.internal.systems.persistence.PhysicsRuntimeHolderSystem;
+import dev.hytalemodding.impulse.core.internal.systems.step.PhysicsControlSessionCleanupSystem;
 import dev.hytalemodding.impulse.core.internal.systems.step.PhysicsKinematicControlSystem;
 import dev.hytalemodding.impulse.core.internal.systems.step.PhysicsStepSystem;
 import dev.hytalemodding.impulse.core.internal.systems.sync.PhysicsBodyAttachmentIndexSystem;
@@ -260,6 +261,7 @@ public final class ImpulsePlugin extends JavaPlugin {
         entityRegistry.registerSystem(new PersistentPhysicsJointHydrationSystem());
         entityRegistry.registerSystem(new PhysicsRuntimeHolderSystem());
         entityRegistry.registerSystem(new PhysicsBodyAttachmentIndexSystem());
+        entityRegistry.registerSystem(new PhysicsControlSessionCleanupSystem());
         entityRegistry.registerSystem(new PhysicsWorldCollisionStreamingSystem());
         entityRegistry.registerSystem(new PhysicsCollisionLodSystem());
         entityRegistry.registerSystem(new PhysicsSyncSystem());

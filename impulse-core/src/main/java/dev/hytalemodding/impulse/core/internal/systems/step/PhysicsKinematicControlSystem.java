@@ -20,7 +20,6 @@ import com.hypixel.hytale.server.core.modules.entity.component.TransformComponen
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import dev.hytalemodding.impulse.api.PhysicsBody;
 import dev.hytalemodding.impulse.api.PhysicsBodyType;
-import dev.hytalemodding.impulse.api.PhysicsSpace;
 import dev.hytalemodding.impulse.core.plugin.components.PhysicsControlSessionComponent;
 import dev.hytalemodding.impulse.core.internal.systems.sync.PhysicsSyncSystem;
 import dev.hytalemodding.impulse.core.internal.worker.PhysicsWorkerAccess;
@@ -93,14 +92,14 @@ public class PhysicsKinematicControlSystem extends EntityTickingSystem<EntitySto
             || resource.getBodyRegistrationView(anchorBodyId) == null
             || (targetRef != null && !targetRef.isValid())) {
             stateFor(store).clear(anchorBodyId);
-            cleanupSession(store, session);
+            PhysicsControlSessionCleanup.cleanup(resource, session);
             commandBuffer.removeComponent(chunk.getReferenceTo(index), SESSION_TYPE);
             return;
         }
 
         if (session.getSpaceId() != null && !resource.hasSpace(session.getSpaceId())) {
             stateFor(store).clear(anchorBodyId);
-            cleanupSession(store, session);
+            PhysicsControlSessionCleanup.cleanup(resource, session);
             commandBuffer.removeComponent(chunk.getReferenceTo(index), SESSION_TYPE);
             return;
         }
@@ -173,27 +172,6 @@ public class PhysicsKinematicControlSystem extends EntityTickingSystem<EntitySto
         anchorBody.setLinearVelocity(update.releaseVelocity());
         anchorBody.activate();
         body.activate();
-    }
-
-    private static void cleanupSession(@Nonnull Store<EntityStore> store,
-        @Nonnull PhysicsControlSessionComponent session) {
-        PhysicsWorldResource resource = store.getResource(PhysicsWorldResource.getResourceType());
-        resource.runOnPhysicsOwner("cleanup kinematic control session", access -> {
-            if (session.getBodyId() != null) {
-                resource.clearControlledBody(session.getBodyId());
-            }
-            PhysicsSpace space = session.getSpaceId() != null ? access.getSpace(session.getSpaceId()) : null;
-            if (space != null && session.getBodyId() != null && session.getAnchorBodyId() != null) {
-                PhysicsControlJointResolver.removeControlJoint(access,
-                    space,
-                    session.getBodyId(),
-                    session.getAnchorBodyId());
-            }
-
-            if (session.getAnchorBodyId() != null) {
-                resource.destroyBody(session.getAnchorBodyId());
-            }
-        });
     }
 
     private static float eyeHeight(@Nonnull ArchetypeChunk<EntityStore> chunk,
