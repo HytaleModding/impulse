@@ -6,8 +6,6 @@ import com.hypixel.hytale.component.dependency.Order;
 import com.hypixel.hytale.component.dependency.SystemDependency;
 import com.hypixel.hytale.component.system.tick.TickingSystem;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
-import dev.hytalemodding.impulse.api.SpaceId;
-import dev.hytalemodding.impulse.core.internal.persistence.PersistentPhysicsBodyState;
 import dev.hytalemodding.impulse.core.internal.persistence.PersistentPhysicsRuntimeSnapshot;
 import dev.hytalemodding.impulse.core.internal.persistence.PersistentPhysicsWorldResource;
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsWorldRuntimeResource;
@@ -117,7 +115,6 @@ public class PersistentPhysicsWorldSyncSystem extends TickingSystem<EntityStore>
 
         persistent.setSchemaVersion(PersistentPhysicsWorldResource.CURRENT_SCHEMA_VERSION);
         persistent.setWorldSettings(snapshot.getWorldSettings());
-        persistent.setDefaultSpaceId(snapshot.getDefaultSpaceId());
         persistent.setSpaces(snapshot.getSpaces());
         persistent.setBodies(snapshot.getBodies());
         persistent.setJoints(snapshot.getJoints());
@@ -129,17 +126,12 @@ public class PersistentPhysicsWorldSyncSystem extends TickingSystem<EntityStore>
 
     private static boolean hasScalarWorldStateChanged(@Nonnull PersistentPhysicsWorldResource persistent,
         @Nonnull PhysicsWorldRuntimeResource runtime) {
-        SpaceId defaultSpaceId = runtime.getDefaultSpaceId();
-        int resolvedDefaultSpaceId = defaultSpaceId != null
-            ? defaultSpaceId.value()
-            : PersistentPhysicsBodyState.DEFAULT_SPACE_ID;
         PhysicsWorldSettings runtimeSettings = runtime.getWorldSettings();
         PhysicsWorldSettings persistedSettings = persistent.getWorldSettings();
         return persistedSettings.getSimulationSteps() != runtimeSettings.getSimulationSteps()
             || persistedSettings.getStepMode() != runtimeSettings.getStepMode()
             || persistedSettings.getStepSchedulingMode() != runtimeSettings.getStepSchedulingMode()
-            || Float.compare(persistedSettings.getMaxStepDt(), runtimeSettings.getMaxStepDt()) != 0
-            || persistent.getDefaultSpaceId() != resolvedDefaultSpaceId;
+            || Float.compare(persistedSettings.getMaxStepDt(), runtimeSettings.getMaxStepDt()) != 0;
     }
 
     private static boolean hasCheapRuntimePersistenceFootprintChanged(

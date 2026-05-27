@@ -48,8 +48,7 @@ class PhysicsWorkerStepCommandTest {
         PhysicsWorldRuntimeResource resource = new PhysicsWorldRuntimeResource();
         CountingSpace space = (CountingSpace) resource.createLiveSpace(backend.getId(),
             "worker-test",
-            PhysicsSpaceSettings.defaults(),
-            true);
+            PhysicsSpaceSettings.defaults());
         configureWorldSettings(resource, settings -> {
             settings.setStepMode(PhysicsStepMode.FIXED);
             settings.setSimulationSteps(2);
@@ -98,8 +97,7 @@ class PhysicsWorkerStepCommandTest {
         PhysicsWorldRuntimeResource resource = new PhysicsWorldRuntimeResource();
         CountingSpace space = (CountingSpace) resource.createLiveSpace(backend.getId(),
             "worker-test",
-            PhysicsSpaceSettings.defaults(),
-            true);
+            PhysicsSpaceSettings.defaults());
         configureWorldSettings(resource, settings -> {
             settings.setStepMode(PhysicsStepMode.PROGRESSIVE_REFINEMENT);
             settings.setSimulationSteps(2);
@@ -121,8 +119,7 @@ class PhysicsWorkerStepCommandTest {
         PhysicsWorldRuntimeResource resource = new PhysicsWorldRuntimeResource();
         CountingSpace space = (CountingSpace) resource.createLiveSpace(backend.getId(),
             "worker-test",
-            PhysicsSpaceSettings.defaults(),
-            true);
+            PhysicsSpaceSettings.defaults());
         configureWorldSettings(resource, settings -> settings.setStepMode(PhysicsStepMode.FIXED));
 
         PhysicsWorkerStepCommand.runStep(resource, Float.NaN, false);
@@ -138,8 +135,7 @@ class PhysicsWorkerStepCommandTest {
         PhysicsWorldRuntimeResource resource = new PhysicsWorldRuntimeResource();
         CountingSpace space = (CountingSpace) resource.createLiveSpace(backend.getId(),
             "worker-test",
-            PhysicsSpaceSettings.defaults(),
-            true);
+            PhysicsSpaceSettings.defaults());
         configureWorldSettings(resource, settings -> {
             settings.setStepMode(PhysicsStepMode.ADAPTIVE);
             settings.setSimulationSteps(1);
@@ -165,8 +161,7 @@ class PhysicsWorkerStepCommandTest {
         PhysicsWorldRuntimeResource resource = new PhysicsWorldRuntimeResource();
         CountingSpace space = (CountingSpace) resource.createLiveSpace(backend.getId(),
             "worker-test",
-            PhysicsSpaceSettings.defaults(),
-            true);
+            PhysicsSpaceSettings.defaults());
         PhysicsBody forced = space.createBox(0.5f, 0.5f, 0.5f, 1.0f);
         PhysicsBody alreadyEnabled = space.createBox(0.5f, 0.5f, 0.5f, 1.0f);
         PhysicsBody unregistered = space.createBox(0.5f, 0.5f, 0.5f, 1.0f);
@@ -202,8 +197,7 @@ class PhysicsWorkerStepCommandTest {
         PhysicsWorldRuntimeResource resource = new PhysicsWorldRuntimeResource();
         CountingSpace space = (CountingSpace) resource.createLiveSpace(backend.getId(),
             "worker-test",
-            PhysicsSpaceSettings.defaults(),
-            true);
+            PhysicsSpaceSettings.defaults());
         RuntimeException failure = new RuntimeException("step failed");
         space.stepFailure = failure;
 
@@ -230,8 +224,7 @@ class PhysicsWorkerStepCommandTest {
         FailingSnapshotWorldResource resource = new FailingSnapshotWorldResource();
         CountingSpace space = (CountingSpace) resource.createLiveSpace(backend.getId(),
             "worker-test",
-            PhysicsSpaceSettings.defaults(),
-            true);
+            PhysicsSpaceSettings.defaults());
         RuntimeException stepFailure = new RuntimeException("step failed");
         RuntimeException snapshotFailure = new RuntimeException("snapshot failed");
         space.stepFailure = stepFailure;

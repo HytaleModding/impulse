@@ -42,8 +42,7 @@ class PhysicsSnapshotPublicationSystemTest {
             resource.attachWorkerResource(worker);
             PhysicsSpace space = resource.createLiveSpace(backendId,
                 "async-publication-test",
-                PhysicsSpaceSettings.defaults(),
-                true);
+                PhysicsSpaceSettings.defaults());
             AtomicReference<PhysicsBody> bodyRef = new AtomicReference<>();
             PhysicsBodyId bodyId = PhysicsWorkerAccess.call(worker,
                 "create async publication body",
@@ -125,8 +124,7 @@ class PhysicsSnapshotPublicationSystemTest {
             resource.attachWorkerResource(worker);
             PhysicsSpace space = resource.createLiveSpace(backendId,
                 "stale-worker-publication-test",
-                PhysicsSpaceSettings.defaults(),
-                true);
+                PhysicsSpaceSettings.defaults());
             PhysicsBodyId bodyId = PhysicsWorkerAccess.call(worker,
                 "create stale publication body",
                 () -> {

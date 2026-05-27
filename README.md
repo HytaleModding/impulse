@@ -21,7 +21,7 @@ You can start a debug server with all the example mods and backend jars by runni
 When multiple backend jars are installed, create spaces with an explicit backend:
 
 ```bash
-/impulse space create --backend=impulse:rapier --default=true
+/impulse space create --backend=impulse:rapier
 ```
 
 The Rapier backend needs a Rust toolchain to build its native library. If `cargo` is available, `:impulse-rapier:processResources` builds and packages the current build platform native library automatically. You can also force native compilation with:

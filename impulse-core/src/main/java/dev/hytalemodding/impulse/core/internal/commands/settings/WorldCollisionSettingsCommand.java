@@ -11,6 +11,7 @@ import com.hypixel.hytale.server.core.universe.PlayerRef;
 import com.hypixel.hytale.server.core.universe.world.World;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import dev.hytalemodding.impulse.api.SpaceId;
+import dev.hytalemodding.impulse.core.internal.commands.SpaceSelection;
 import dev.hytalemodding.impulse.core.plugin.settings.EntityChunkBoundaryMode;
 import dev.hytalemodding.impulse.core.plugin.settings.PhysicsSpaceSettings;
 import dev.hytalemodding.impulse.core.plugin.settings.PhysicsWorldCollisionSettings;
@@ -49,9 +50,13 @@ public class WorldCollisionSettingsCommand extends AbstractAsyncPlayerCommand {
         "chunkBoundary",
         "Entity body chunk-boundary mode: pause or load",
         ArgTypes.STRING);
+    private final OptionalArg<Integer> spaceArg = this.withOptionalArg(
+        "space",
+        "Physics space id to target",
+        ArgTypes.INTEGER);
 
     public WorldCollisionSettingsCommand() {
-        super("world", "Get or set world collision streaming settings for the default physics space");
+        super("world", "Get or set world collision streaming settings for a physics space");
     }
 
     @Nonnull
@@ -62,15 +67,14 @@ public class WorldCollisionSettingsCommand extends AbstractAsyncPlayerCommand {
         @Nonnull PlayerRef playerRef,
         @Nonnull World world) {
         PhysicsWorldResource resource = store.getResource(PhysicsWorldResource.getResourceType());
-        SpaceId defaultSpaceId = resource.getDefaultSpaceId();
-        if (defaultSpaceId == null || !resource.hasSpace(defaultSpaceId)) {
-            ctx.sender().sendMessage(Message.raw("No default physics space exists yet."));
+        SpaceId spaceId = SpaceSelection.resolve(ctx, world, resource, spaceArg);
+        if (spaceId == null) {
             return CompletableFuture.completedFuture(null);
         }
 
-        PhysicsSpaceSettings settings = new PhysicsSpaceSettings(resource.getSpaceSettings(defaultSpaceId));
+        PhysicsSpaceSettings settings = new PhysicsSpaceSettings(resource.getSpaceSettings(spaceId));
         if (!anyArgProvided(ctx)) {
-            sendSummary(ctx, defaultSpaceId, settings);
+            sendSummary(ctx, spaceId, settings);
             return CompletableFuture.completedFuture(null);
         }
 
@@ -117,8 +121,8 @@ public class WorldCollisionSettingsCommand extends AbstractAsyncPlayerCommand {
         settings.getWorldCollisionSettings().setWorldCollisionRadius(playerRadius);
         settings.getWorldCollisionSettings().setWorldCollisionBodyRadius(bodyRadius);
         settings.getWorldCollisionSettings().setWorldCollisionTtlTicks(ttl);
-        resource.setSpaceSettings(defaultSpaceId, settings);
-        sendSummary(ctx, defaultSpaceId, settings);
+        resource.setSpaceSettings(spaceId, settings);
+        sendSummary(ctx, spaceId, settings);
         return CompletableFuture.completedFuture(null);
     }
 

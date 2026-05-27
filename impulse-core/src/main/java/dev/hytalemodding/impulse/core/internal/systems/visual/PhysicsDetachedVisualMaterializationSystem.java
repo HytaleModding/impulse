@@ -585,9 +585,6 @@ public class PhysicsDetachedVisualMaterializationSystem extends TickingSystem<En
         if (resource.getSpace(registration.spaceId()) != null) {
             return resource.getSpaceSettings(registration.spaceId());
         }
-        if (resource.getDefaultSpaceId() != null) {
-            return resource.getSpaceSettings(resource.getDefaultSpaceId());
-        }
         return null;
     }
 
@@ -598,7 +595,7 @@ public class PhysicsDetachedVisualMaterializationSystem extends TickingSystem<En
         if (space != null) {
             return space;
         }
-        return resource.getDefaultSpace();
+        return null;
     }
 
     private static boolean shouldMaterialize(@Nonnull PhysicsBodySnapshot snapshot,

@@ -35,6 +35,10 @@ public class StressShapesCommand extends AbstractAsyncPlayerCommand {
         "sets",
         "Number of mixed shape sets to spawn",
         ArgTypes.INTEGER);
+    private final OptionalArg<Integer> spaceArg = this.withOptionalArg(
+        "space",
+        "Physics space id to target",
+        ArgTypes.INTEGER);
 
     public StressShapesCommand() {
         super("shapes", "Spawn many mixed collider shapes");
@@ -54,7 +58,7 @@ public class StressShapesCommand extends AbstractAsyncPlayerCommand {
 
         int sets = ExamplePhysicsUtils.optionalInt(ctx, setsArg, DEFAULT_SETS, 1, MAX_SETS);
         PhysicsWorldResource resource = ExamplePhysicsUtils.resource(store);
-        SpaceId spaceId = ExamplePhysicsUtils.defaultSpaceId(ctx, resource);
+        SpaceId spaceId = ExamplePhysicsUtils.spaceId(ctx, resource, spaceArg);
         if (spaceId == null) {
             return CompletableFuture.completedFuture(null);
         }

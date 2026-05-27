@@ -8,19 +8,19 @@ Run the example mod with:
 ./gradlew runAllMods
 ```
 
-Fresh worlds need an explicit default physics space before example commands that spawn into the default space:
+Fresh worlds need an explicit physics space before example commands can spawn bodies:
 
 ```bash
-/impulse space create --backend=impulse:rapier --default=true
+/impulse space create --backend=impulse:rapier
 ```
 
-Use `/impulse space default --space=<space-id>` instead when selecting an existing space. Missing-default errors are intentional and mean this setup step has not happened yet.
+Example commands accept `--space=<space-id>` when a specific space should be used. If omitted, they use the lowest registered space id; if no spaces exist, they report the missing setup step.
 
 ## Example commands
 
 These commands are for gameplay/API demonstrations and may use full Hytale entities intentionally. Example entity-backed bodies are spawned through the shared body-id-first helper and attach to registered `PhysicsBodyId`s; removing an entity no longer destroys the backend body unless a command explicitly destroys that body id.
 
-- `/impulse-examples drop --blockType=Rock_Stone` - spawn one falling entity-owned box with a chosen block visual.
+- `/impulse-examples drop --space=<space-id> --blockType=Rock_Stone` - spawn one falling entity-owned box with a chosen block visual.
 - `/impulse-examples shapes` - spawn box, sphere, capsule, cylinder, and cone examples.
 - `/impulse-examples materials` - compare restitution and friction settings.
 - `/impulse-examples forces` - apply central impulse, off-center impulse, torque impulse, and force.

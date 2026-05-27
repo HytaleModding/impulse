@@ -11,6 +11,7 @@ import com.hypixel.hytale.server.core.universe.PlayerRef;
 import com.hypixel.hytale.server.core.universe.world.World;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import dev.hytalemodding.impulse.api.SpaceId;
+import dev.hytalemodding.impulse.core.internal.commands.SpaceSelection;
 import dev.hytalemodding.impulse.core.plugin.settings.PhysicsSpaceSettings;
 import dev.hytalemodding.impulse.core.plugin.resources.PhysicsWorldResource;
 import dev.hytalemodding.impulse.core.plugin.settings.PhysicsCollisionLodSettings;
@@ -52,9 +53,13 @@ public class CollisionLodSettingsCommand extends AbstractAsyncPlayerCommand {
         "farSleep",
         "Put far collision-LOD bodies to sleep: true or false",
         ArgTypes.STRING);
+    private final OptionalArg<Integer> spaceArg = this.withOptionalArg(
+        "space",
+        "Physics space id to target",
+        ArgTypes.INTEGER);
 
     public CollisionLodSettingsCommand() {
-        super("lod", "Get or set collision LOD settings for the default physics space");
+        super("lod", "Get or set collision LOD settings for a physics space");
     }
 
     @Nonnull
@@ -65,15 +70,14 @@ public class CollisionLodSettingsCommand extends AbstractAsyncPlayerCommand {
         @Nonnull PlayerRef playerRef,
         @Nonnull World world) {
         PhysicsWorldResource resource = store.getResource(PhysicsWorldResource.getResourceType());
-        SpaceId defaultSpaceId = resource.getDefaultSpaceId();
-        if (defaultSpaceId == null || !resource.hasSpace(defaultSpaceId)) {
-            ctx.sender().sendMessage(Message.raw("No default physics space exists yet."));
+        SpaceId spaceId = SpaceSelection.resolve(ctx, world, resource, spaceArg);
+        if (spaceId == null) {
             return CompletableFuture.completedFuture(null);
         }
 
-        PhysicsSpaceSettings settings = new PhysicsSpaceSettings(resource.getSpaceSettings(defaultSpaceId));
+        PhysicsSpaceSettings settings = new PhysicsSpaceSettings(resource.getSpaceSettings(spaceId));
         if (!anyArgProvided(ctx)) {
-            sendSummary(ctx, defaultSpaceId, settings);
+            sendSummary(ctx, spaceId, settings);
             return CompletableFuture.completedFuture(null);
         }
 
@@ -129,8 +133,8 @@ public class CollisionLodSettingsCommand extends AbstractAsyncPlayerCommand {
         settings.getCollisionLodSettings().setCollisionLodHysteresis(hysteresis);
         settings.getCollisionLodSettings().setCollisionLodRefreshIntervalTicks(interval);
         settings.getCollisionLodSettings().setCollisionLodFarSleepEnabled(farSleep);
-        resource.setSpaceSettings(defaultSpaceId, settings);
-        sendSummary(ctx, defaultSpaceId, settings);
+        resource.setSpaceSettings(spaceId, settings);
+        sendSummary(ctx, spaceId, settings);
         return CompletableFuture.completedFuture(null);
     }
 

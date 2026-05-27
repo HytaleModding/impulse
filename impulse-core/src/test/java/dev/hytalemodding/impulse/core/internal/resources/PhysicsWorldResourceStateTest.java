@@ -84,23 +84,19 @@ class PhysicsWorldResourceStateTest {
         PhysicsSpaceSettings sourceSpaceSettings = PhysicsSpaceSettings.streamingWorldCollision();
         PhysicsSpace sourceSpace = source.createLiveSpace(backend.getId(),
             "source-world",
-            sourceSpaceSettings,
-            true);
+            sourceSpaceSettings);
 
         PhysicsWorldRuntimeResource target = new PhysicsWorldRuntimeResource();
         PhysicsSpace targetSpace = target.createLiveSpace(backend.getId(),
             "target-world",
-            PhysicsSpaceSettings.defaults(),
-            true);
+            PhysicsSpaceSettings.defaults());
 
         target.copyFrom(source);
 
         assertEquals(4, target.getWorldSettings().getSimulationSteps());
         assertEquals(0, target.getSpaceCount());
         assertTrue(target.getSpaceIds().isEmpty());
-        assertNull(target.getDefaultSpaceId());
         assertFalse(target.hasSpace(sourceSpace.getId()));
-        assertThrows(IllegalStateException.class, target::requireDefaultSpaceId);
         assertThrows(IllegalStateException.class, () -> target.getSpaceSettings(sourceSpace.getId()));
         assertTrue(((InMemoryPhysicsSpace) targetSpace).isClosed());
         assertFalse(((InMemoryPhysicsSpace) sourceSpace).isClosed());
@@ -150,7 +146,7 @@ class PhysicsWorldResourceStateTest {
         PhysicsSpaceSettings settings = PhysicsSpaceSettings.streamingWorldCollision();
         settings.getSolverSettings().setSolverIterations(7);
         settings.getVisualMaterializationSettings().setDetachedVisualMaxMaterialized(64);
-        PhysicsSpace space = resource.createLiveSpace(backend.getId(), "test-world", settings, true);
+        PhysicsSpace space = resource.createLiveSpace(backend.getId(), "test-world", settings);
         space.setGravity(0.0f, -3.0f, 0.0f);
 
         PhysicsBody first = space.createBox(0.5f, 0.5f, 0.5f, 1.0f);
@@ -179,9 +175,10 @@ class PhysicsWorldResourceStateTest {
         assertEquals(1, reset.keptSpaces());
         assertTrue(original.isClosed());
         assertFalse(replacement.isClosed());
-        assertSame(replacement, resource.requireDefaultSpace());
-        assertNotSame(original, resource.requireDefaultSpace());
-        assertEquals(space.getId(), resource.requireDefaultSpaceId());
+        PhysicsSpace restoredSpace = resource.callOnPhysicsOwner("resolve reset replacement space",
+            access -> access.requireSpace(space.getId()));
+        assertSame(replacement, restoredSpace);
+        assertNotSame(original, restoredSpace);
         assertEquals(new Vector3f(0.0f, -3.0f, 0.0f), replacement.getGravity());
         assertEquals(0, replacement.bodyCount());
         assertEquals(0, replacement.jointCount());
@@ -207,8 +204,7 @@ class PhysicsWorldResourceStateTest {
         PhysicsWorldRuntimeResource resource = new PhysicsWorldRuntimeResource();
         PhysicsSpace space = resource.createLiveSpace(backend.getId(),
             "test-world",
-            PhysicsSpaceSettings.defaults(),
-            true);
+            PhysicsSpaceSettings.defaults());
         PhysicsBody body = space.createBox(0.5f, 0.5f, 0.5f, 1.0f);
         body.setContinuousCollisionEnabled(true);
         PhysicsBodyId bodyId = resource.addBody(space.getId(),
@@ -248,8 +244,7 @@ class PhysicsWorldResourceStateTest {
         PhysicsWorldRuntimeResource resource = new PhysicsWorldRuntimeResource();
         PhysicsSpace space = resource.createLiveSpace(backend.getId(),
             "test-world",
-            PhysicsSpaceSettings.defaults(),
-            true);
+            PhysicsSpaceSettings.defaults());
         PhysicsBody first = space.createBox(0.5f, 0.5f, 0.5f, 1.0f);
         PhysicsBody second = space.createBox(0.5f, 0.5f, 0.5f, 1.0f);
         PhysicsBodyId firstId = resource.addBody(space.getId(),
@@ -277,7 +272,9 @@ class PhysicsWorldResourceStateTest {
 
         resource.clearBodies();
 
-        assertSame(space, resource.requireDefaultSpace());
+        PhysicsSpace retainedSpace = resource.callOnPhysicsOwner("resolve clear bodies space",
+            access -> access.requireSpace(space.getId()));
+        assertSame(space, retainedSpace);
         assertEquals(0, space.bodyCount());
         assertEquals(0, space.jointCount());
         assertEquals(0, resource.getBodyRegistrationCount());
@@ -301,8 +298,7 @@ class PhysicsWorldResourceStateTest {
         PhysicsWorldRuntimeResource resource = new PhysicsWorldRuntimeResource();
         PhysicsSpace space = resource.createLiveSpace(backend.getId(),
             "test-world",
-            PhysicsSpaceSettings.defaults(),
-            true);
+            PhysicsSpaceSettings.defaults());
         PhysicsBody near = space.createBox(0.5f, 0.5f, 0.5f, 1.0f);
         near.setPosition(0.0f, 0.0f, 0.0f);
         PhysicsBody far = space.createBox(0.5f, 0.5f, 0.5f, 1.0f);
@@ -354,8 +350,7 @@ class PhysicsWorldResourceStateTest {
         PhysicsWorldRuntimeResource resource = new PhysicsWorldRuntimeResource();
         PhysicsSpace space = resource.createLiveSpace(backend.getId(),
             "test-world",
-            PhysicsSpaceSettings.defaults(),
-            true);
+            PhysicsSpaceSettings.defaults());
         PhysicsBody registered = space.createBox(0.5f, 0.5f, 0.5f, 1.0f);
         registered.setPosition(0.0f, 0.0f, 0.0f);
         PhysicsBody unregistered = space.createBox(0.5f, 0.5f, 0.5f, 1.0f);
@@ -392,8 +387,7 @@ class PhysicsWorldResourceStateTest {
             resource.attachWorkerResource(worker);
             PhysicsSpace space = resource.createLiveSpace(backend.getId(),
                 "test-world",
-                PhysicsSpaceSettings.defaults(),
-                true);
+                PhysicsSpaceSettings.defaults());
             AtomicReference<PhysicsBody> bodyRef = new AtomicReference<>();
             worker.submitAndDrain(() -> {
                 PhysicsBody body = space.createBox(0.5f, 0.5f, 0.5f, 1.0f);
@@ -452,8 +446,7 @@ class PhysicsWorldResourceStateTest {
             resource.attachWorkerResource(worker);
             PhysicsSpace space = resource.createLiveSpace(backend.getId(),
                 "test-world",
-                PhysicsSpaceSettings.defaults(),
-                true);
+                PhysicsSpaceSettings.defaults());
             AtomicReference<PhysicsBody> bodyRef = new AtomicReference<>();
             worker.submitAndDrain(() -> {
                 bodyRef.set(space.createBox(0.5f, 0.5f, 0.5f, 1.0f));
@@ -570,8 +563,7 @@ class PhysicsWorldResourceStateTest {
 
             PhysicsSpace space = resource.createLiveSpace(backend.getId(),
                 "test-world",
-                PhysicsSpaceSettings.defaults(),
-                true);
+                PhysicsSpaceSettings.defaults());
             PhysicsBody body = resource.callOnPhysicsOwner("create test body", () -> {
                 PhysicsBody created = space.createBox(0.5f, 0.5f, 0.5f, 1.0f);
                 resource.addBody(space.getId(),
@@ -604,8 +596,7 @@ class PhysicsWorldResourceStateTest {
         PhysicsWorldRuntimeResource resource = new PhysicsWorldRuntimeResource();
         PhysicsSpace space = resource.createLiveSpace(backend.getId(),
             "test-world",
-            PhysicsSpaceSettings.defaults(),
-            true);
+            PhysicsSpaceSettings.defaults());
         PhysicsBody body = space.createBox(0.5f, 0.5f, 0.5f, 1.0f);
         PhysicsBodyId bodyId = resource.addBody(space.getId(),
             body,

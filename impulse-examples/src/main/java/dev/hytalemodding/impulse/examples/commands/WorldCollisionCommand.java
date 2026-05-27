@@ -40,6 +40,10 @@ public class WorldCollisionCommand extends AbstractCommandCollection {
             "radius",
             "Block radius around the player to scan",
             ArgTypes.INTEGER);
+        private final OptionalArg<Integer> spaceArg = withOptionalArg(
+            "space",
+            "Physics space id to target",
+            ArgTypes.INTEGER);
 
         private BuildCommand() {
             super("build", "Rebuild nearby static voxel collision");
@@ -59,7 +63,7 @@ public class WorldCollisionCommand extends AbstractCommandCollection {
 
             int radius = ExamplePhysicsUtils.optionalInt(ctx, radiusArg, DEFAULT_RADIUS, 1, MAX_RADIUS);
             PhysicsWorldResource resource = ExamplePhysicsUtils.resource(store);
-            SpaceId spaceId = ExamplePhysicsUtils.defaultSpaceId(ctx, resource);
+            SpaceId spaceId = ExamplePhysicsUtils.spaceId(ctx, resource, spaceArg);
             if (spaceId == null) {
                 return CompletableFuture.completedFuture(null);
             }
@@ -86,6 +90,11 @@ public class WorldCollisionCommand extends AbstractCommandCollection {
 
     private static final class ClearCommand extends AbstractAsyncPlayerCommand {
 
+        private final OptionalArg<Integer> spaceArg = withOptionalArg(
+            "space",
+            "Physics space id to target",
+            ArgTypes.INTEGER);
+
         private ClearCommand() {
             super("clear", "Remove generated static voxel collision");
         }
@@ -98,7 +107,7 @@ public class WorldCollisionCommand extends AbstractCommandCollection {
             @Nonnull PlayerRef playerRef,
             @Nonnull World world) {
             PhysicsWorldResource resource = ExamplePhysicsUtils.resource(store);
-            SpaceId spaceId = ExamplePhysicsUtils.defaultSpaceId(ctx, resource);
+            SpaceId spaceId = ExamplePhysicsUtils.spaceId(ctx, resource, spaceArg);
             if (spaceId == null) {
                 return CompletableFuture.completedFuture(null);
             }

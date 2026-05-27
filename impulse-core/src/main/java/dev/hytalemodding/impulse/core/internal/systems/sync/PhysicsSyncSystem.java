@@ -333,8 +333,7 @@ public class PhysicsSyncSystem extends EntityTickingSystem<EntityStore> {
         if (spaceId != null) {
             return resource.getSpaceSettings(spaceId);
         }
-        SpaceId defaultSpaceId = resource.getDefaultSpaceId();
-        return defaultSpaceId != null ? resource.getSpaceSettings(defaultSpaceId) : null;
+        return null;
     }
 
     private static boolean shouldCullVisualSync(@Nullable PhysicsSpaceSettings settings,

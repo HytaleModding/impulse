@@ -253,8 +253,7 @@ class PhysicsStepSystemTest {
         });
         resource.createSpace(backend.getId(),
             "step-system-test",
-            PhysicsSpaceSettings.defaults(),
-            true);
+            PhysicsSpaceSettings.defaults());
         return resource;
     }
 

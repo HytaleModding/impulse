@@ -12,7 +12,6 @@ import com.hypixel.hytale.codec.validation.Validators;
 import com.hypixel.hytale.component.Resource;
 import com.hypixel.hytale.component.ResourceType;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
-import dev.hytalemodding.impulse.api.SpaceId;
 import dev.hytalemodding.impulse.core.ImpulsePlugin;
 import dev.hytalemodding.impulse.core.plugin.settings.PhysicsStepMode;
 import dev.hytalemodding.impulse.core.plugin.settings.PhysicsStepSchedulingMode;
@@ -25,7 +24,6 @@ import java.util.Set;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 import lombok.Getter;
-import lombok.Setter;
 
 /**
  * Codec-backed world-level physics resource for the persistence layer.
@@ -33,8 +31,7 @@ import lombok.Setter;
  * <p>This resource stores the world-level state that does not belong
  * on individual entities: the space definitions (id, backend, gravity, world-collision
  * settings), the body states (keyed by stable physics body ids), the joint
- * definitions (keyed by endpoint body ids), the default
- * space id, and the simulation step count.</p>
+ * definitions (keyed by endpoint body ids), and world simulation settings.</p>
  *
  * <p>The {@code runtimeRestorePending} flag is set by {@code afterDecode} whenever
  * Hytale deserializes this resource. It signals the hydration systems that they
@@ -64,12 +61,6 @@ public class PersistentPhysicsWorldResource implements Resource<EntityStore> {
             PersistentPhysicsWorldResource::getSchemaVersion)
         .addValidator(Validators.nonNull())
         .addValidator(Validators.range(CURRENT_SCHEMA_VERSION, CURRENT_SCHEMA_VERSION))
-        .add()
-        .append(new KeyedCodec<>("DefaultSpaceId", Codec.INTEGER),
-            (resource, value) -> resource.defaultSpaceId = value,
-            PersistentPhysicsWorldResource::getDefaultSpaceId)
-        .addValidator(Validators.nonNull())
-        .addValidator(Validators.range(0, Integer.MAX_VALUE))
         .add()
         .append(new KeyedCodec<>("SimulationSteps", Codec.INTEGER),
             (resource, value) -> resource.worldSettings.setSimulationSteps(value),
@@ -125,9 +116,6 @@ public class PersistentPhysicsWorldResource implements Resource<EntityStore> {
 
     @Getter
     private int schemaVersion = CURRENT_SCHEMA_VERSION;
-    @Getter
-    @Setter
-    private int defaultSpaceId;
     @Nonnull
     private final PhysicsWorldSettings worldSettings = new PhysicsWorldSettings();
     @Nonnull
@@ -220,11 +208,6 @@ public class PersistentPhysicsWorldResource implements Resource<EntityStore> {
 
     public void setJoints(@Nonnull PersistentPhysicsJointState[] joints) {
         this.joints = copyJoints(joints);
-    }
-
-    @Nullable
-    public SpaceId getDefaultSpaceIdValue() {
-        return defaultSpaceId > 0 ? new SpaceId(defaultSpaceId) : null;
     }
 
     public void markRuntimeRestorePending() {
@@ -330,7 +313,6 @@ public class PersistentPhysicsWorldResource implements Resource<EntityStore> {
             return;
         }
         setSchemaVersion(other.schemaVersion);
-        defaultSpaceId = other.defaultSpaceId;
         worldSettings.copyFrom(other.worldSettings);
         spaces = copySpaces(other.spaces);
         bodies = copyBodies(other.bodies);

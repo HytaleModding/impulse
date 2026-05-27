@@ -24,33 +24,31 @@ owner callbacks unless a low-level backend operation explicitly requires them.
 
 ## Space commands
 
-Spaces are explicit. Commands should not create hidden default spaces.
+Spaces are explicit. Commands do not create hidden spaces or store a runtime fallback.
 
-First run in a fresh world should create the default space explicitly before commands that target the default space:
+First run in a fresh world should create an explicit space before commands that target space settings:
 
 ```bash
-/impulse space create --backend=impulse:rapier --default=true
+/impulse space create --backend=impulse:rapier
 ```
 
-- `/impulse space create --backend=impulse:rapier --default=true` - create a Rapier physics space using streaming world collision, then make it default.
+- `/impulse space create --backend=impulse:rapier` - create a Rapier physics space using streaming world collision.
 - `/impulse space create` - create a physics space only when exactly one backend is installed.
-- `/impulse space create --backend=impulse:rapier --worldCollision=streaming --default=true` - create a Rapier space and make it default.
+- `/impulse space create --backend=impulse:rapier --worldCollision=streaming` - create a Rapier space using streaming world collision.
 - `/impulse space list` - list spaces, body counts, joint counts, backend ids, and world-collision mode.
-- `/impulse space default` - show the default physics space.
-- `/impulse space default --space=<space-id>` - set the default physics space.
 - `/impulse space delete --space=<space-id> --confirm` - delete an empty physics space and close its backend state.
 
 ## Backend commands
 
 - `/impulse backend list` - list discovered backends and active physics spaces.
 
-Backend swap is not registered as a public command. Create explicit spaces with the desired backend instead. If multiple backend jars are installed, Impulse does not select a default backend; commands that create spaces must pass `--backend=<id>`.
+Backend swap is not registered as a public command. Create explicit spaces with the desired backend instead. If multiple backend jars are installed, Impulse does not select a backend; commands that create spaces must pass `--backend=<id>`.
 
 ## Cleanup commands
 
 - `/impulse clean --confirm` - remove Impulse attachment entities, visual proxies, runtime bodies, joints, and control sessions from the current world while keeping explicit spaces.
 
-Cleanup does not create a replacement/default space implicitly. Run `/impulse space create --default=true` after cleaning when the next workflow needs a default space.
+Cleanup does not create a replacement space implicitly. Run `/impulse space create --backend=<id>` if the next workflow needs a space and none exists.
 
 ## Settings commands
 
@@ -60,8 +58,8 @@ Cleanup does not create a replacement/default space implicitly. Run `/impulse sp
 - `/impulse settings simulation-steps --steps=<count>` - set the minimum or fixed substep count, from 1 to 16.
 - `/impulse settings max-step-dt` - show the adaptive substep dt threshold.
 - `/impulse settings max-step-dt --dt=<seconds>` - set the adaptive substep dt threshold used by `progressive_refinement` and `adaptive`.
-- `/impulse settings solver` - show solver tuning for the default space.
-- `/impulse settings solver --solverIterations=<n> --pgsIterations=<n> --stabilizationIterations=<n> --minIslandSize=<n>` - tune compatible backends.
+- `/impulse settings solver` - show solver tuning for the lowest registered space id.
+- `/impulse settings solver --space=<space-id> --solverIterations=<n> --pgsIterations=<n> --stabilizationIterations=<n> --minIslandSize=<n>` - tune compatible backends.
 - `/impulse settings visual-sync` - show visual LOD and occlusion settings.
 - `/impulse settings visual-sync --fullRadius=<blocks> --maxRadius=<blocks> --farMode=cutoff|lod` - tune visual sync range behavior.
 - `/impulse settings visual-sync --midInterval=<ticks> --farInterval=<ticks>` - tune lower-frequency visual updates.
@@ -69,8 +67,8 @@ Cleanup does not create a replacement/default space implicitly. Run `/impulse sp
 - `/impulse settings visual-sync --smoothing=true --smoothingRate=14` - smooth near dynamic visuals toward published snapshots without extrapolating.
 - `/impulse settings visual-sync --prediction=true --predictionMaxSeconds=0.10` - allow near dynamic visuals to dead-reckon briefly between published physics snapshots; keep this off when it causes visible correction jitter.
 - `/impulse settings visual-sync --materializationInterestInterval=<ticks> --materializationCandidateInterval=<ticks> --materializationVisibilityInterval=<ticks> --materializationSpawnRate=<n> --materializationCap=<n>` - tune detached visual materialization cadence and proxy budgets.
-- `/impulse settings collision-lod --enabled=true --nearRadius=<blocks> --midRadius=<blocks> --hysteresis=<blocks> --interval=<ticks> --farSleep=true` - opt into distance collision LOD for default dynamic-body filters.
-- `/impulse settings world-collision` - show world-collision settings for the default space.
+- `/impulse settings collision-lod --space=<space-id> --enabled=true --nearRadius=<blocks> --midRadius=<blocks> --hysteresis=<blocks> --interval=<ticks> --farSleep=true` - opt into distance collision LOD for dynamic-body filters in one space.
+- `/impulse settings world-collision` - show world-collision settings for the lowest registered space id.
 
 ## Profiling commands
 

@@ -44,6 +44,10 @@ public class StressBenchmarkCommand extends AbstractAsyncPlayerCommand {
         "blockType",
         "Hytale block type for entity-backed benchmark visuals",
         ArgTypes.STRING);
+    private final OptionalArg<Integer> spaceArg = this.withOptionalArg(
+        "space",
+        "Physics space id to target",
+        ArgTypes.INTEGER);
 
     public StressBenchmarkCommand() {
         super("benchmark", "Spawn repeatable raw or entity-backed benchmark body grids");
@@ -67,7 +71,7 @@ public class StressBenchmarkCommand extends AbstractAsyncPlayerCommand {
         }
 
         PhysicsWorldResource resource = ExamplePhysicsUtils.resource(store);
-        SpaceId spaceId = ExamplePhysicsUtils.defaultSpaceId(ctx, resource);
+        SpaceId spaceId = ExamplePhysicsUtils.spaceId(ctx, resource, spaceArg);
         if (spaceId == null) {
             return CompletableFuture.completedFuture(null);
         }

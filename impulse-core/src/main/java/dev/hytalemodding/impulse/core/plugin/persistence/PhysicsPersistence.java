@@ -3,13 +3,11 @@ package dev.hytalemodding.impulse.core.plugin.persistence;
 import com.hypixel.hytale.component.Store;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import dev.hytalemodding.impulse.api.PhysicsSpace;
-import dev.hytalemodding.impulse.api.SpaceId;
 import dev.hytalemodding.impulse.core.internal.persistence.PersistentPhysicsWorldResource;
 import dev.hytalemodding.impulse.core.internal.systems.persistence.PersistentPhysicsWorldSyncSystem;
 import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyPersistenceMode;
 import dev.hytalemodding.impulse.core.plugin.resources.PhysicsWorldResource;
 import javax.annotation.Nonnull;
-import javax.annotation.Nullable;
 
 /**
  * Public command/plugin facade for world-level Impulse persistence status and lifecycle actions.
@@ -59,12 +57,10 @@ public final class PhysicsPersistence {
             runtime.getBodyRegistrationCount(PhysicsBodyPersistenceMode.PERSISTENT),
             runtime.getBodyRegistrationCount(PhysicsBodyPersistenceMode.RUNTIME_ONLY),
             countRuntimeJoints(runtime),
-            runtime.getDefaultSpaceId(),
             persistent.getSchemaVersion(),
             persistent.getSpaceCount(),
             persistent.getBodyCount(),
             persistent.getJointCount(),
-            persistent.getDefaultSpaceIdValue(),
             restoreState(persistent),
             restoreMessage(persistent));
     }
@@ -149,12 +145,10 @@ public final class PhysicsPersistence {
                          int runtimePersistentBodies,
                          int runtimeOnlyBodies,
                          int runtimeJoints,
-                         @Nullable SpaceId runtimeDefaultSpaceId,
                          int schemaVersion,
                          int storedSpaces,
                          int storedBodies,
                          int storedJoints,
-                         @Nullable SpaceId storedDefaultSpaceId,
                          @Nonnull RestoreState restoreState,
                          @Nonnull String restoreMessage) {
 

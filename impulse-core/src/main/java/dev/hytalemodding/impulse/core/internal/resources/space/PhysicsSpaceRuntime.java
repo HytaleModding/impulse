@@ -36,58 +36,11 @@ public final class PhysicsSpaceRuntime {
     private final Int2ObjectMap<PhysicsSpaceSettings> spaceSettings =
         new Int2ObjectOpenHashMap<>();
 
-    /**
-     * The default space for this world, if one has been designated.
-     */
-    @Nullable
-    private SpaceId defaultSpaceId;
-
-    @Nullable
-    public SpaceId getDefaultSpaceId() {
-        return defaultSpaceId;
-    }
-
-    @Nonnull
-    public SpaceId requireDefaultSpaceId() {
-        if (defaultSpaceId == null) {
-            throw new IllegalStateException("No default physics space is configured");
-        }
-        return defaultSpaceId;
-    }
-
-    @Nullable
-    public PhysicsSpace getDefaultSpace() {
-        if (defaultSpaceId == null) {
-            return null;
-        }
-        return getSpace(defaultSpaceId);
-    }
-
-    @Nonnull
-    public PhysicsSpace requireDefaultSpace() {
-        SpaceId spaceId = requireDefaultSpaceId();
-        PhysicsSpace space = getSpace(spaceId);
-        if (space == null) {
-            throw new IllegalStateException("Default physics space id=" + spaceId
-                + " is not registered");
-        }
-        return space;
-    }
-
-    public void setDefaultSpaceId(@Nullable SpaceId defaultSpaceId) {
-        if (defaultSpaceId != null && !spaces.containsKey(defaultSpaceId.value())) {
-            throw new IllegalArgumentException("Physics space id=" + defaultSpaceId
-                + " is not registered");
-        }
-        this.defaultSpaceId = defaultSpaceId;
-    }
-
     @Nonnull
     public PhysicsSpace createSpace(@Nonnull BackendId backendId,
         @Nonnull SpaceId spaceId,
         @Nonnull String worldName,
         @Nonnull PhysicsSpaceSettings settings,
-        boolean makeDefault,
         @Nonnull PhysicsStepMode stepMode) {
         if (spaces.containsKey(spaceId.value())) {
             throw new IllegalArgumentException("Physics space id=" + spaceId + " is already registered");
@@ -110,9 +63,6 @@ public final class PhysicsSpaceRuntime {
         }
         spaces.put(space.getId().value(), space);
         spaceSettings.put(space.getId().value(), new PhysicsSpaceSettings(settings));
-        if (makeDefault) {
-            defaultSpaceId = space.getId();
-        }
 
         LOGGER.at(Level.FINE).log(
             "World %s created physics space id=%s backend=%s collision=%s",
@@ -173,9 +123,6 @@ public final class PhysicsSpaceRuntime {
     public PhysicsSpace removeSpace(@Nonnull SpaceId spaceId) {
         PhysicsSpace removed = spaces.remove(spaceId.value());
         spaceSettings.remove(spaceId.value());
-        if (defaultSpaceId != null && defaultSpaceId.equals(spaceId)) {
-            defaultSpaceId = null;
-        }
         return removed;
     }
 
@@ -297,7 +244,6 @@ public final class PhysicsSpaceRuntime {
         }
         spaces.clear();
         spaceSettings.clear();
-        defaultSpaceId = null;
     }
 
     private static void validateSpaceCompatibleWithStepMode(@Nonnull PhysicsSpace space,

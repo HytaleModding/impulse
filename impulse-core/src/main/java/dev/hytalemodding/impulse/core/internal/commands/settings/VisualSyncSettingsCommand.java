@@ -11,6 +11,7 @@ import com.hypixel.hytale.server.core.universe.PlayerRef;
 import com.hypixel.hytale.server.core.universe.world.World;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import dev.hytalemodding.impulse.api.SpaceId;
+import dev.hytalemodding.impulse.core.internal.commands.SpaceSelection;
 import dev.hytalemodding.impulse.core.plugin.settings.PhysicsSpaceSettings;
 import dev.hytalemodding.impulse.core.plugin.resources.PhysicsWorldResource;
 import dev.hytalemodding.impulse.core.plugin.settings.PhysicsVisualSyncSettings;
@@ -93,9 +94,13 @@ public class VisualSyncSettingsCommand extends AbstractAsyncPlayerCommand {
             + PhysicsVisualSyncSettings.MAX_VISUAL_SNAPSHOT_SMOOTHING_RATE
             + ")",
         ArgTypes.FLOAT);
+    private final OptionalArg<Integer> spaceArg = this.withOptionalArg(
+        "space",
+        "Physics space id to target",
+        ArgTypes.INTEGER);
 
     public VisualSyncSettingsCommand() {
-        super("sync", "Get or set visual sync LOD settings for the default physics space");
+        super("sync", "Get or set visual sync LOD settings for a physics space");
     }
 
     @Nonnull
@@ -106,16 +111,15 @@ public class VisualSyncSettingsCommand extends AbstractAsyncPlayerCommand {
         @Nonnull PlayerRef playerRef,
         @Nonnull World world) {
         PhysicsWorldResource resource = store.getResource(PhysicsWorldResource.getResourceType());
-        SpaceId defaultSpaceId = resource.getDefaultSpaceId();
-        if (defaultSpaceId == null || !resource.hasSpace(defaultSpaceId)) {
-            ctx.sender().sendMessage(Message.raw("No default physics space exists yet."));
+        SpaceId spaceId = SpaceSelection.resolve(ctx, world, resource, spaceArg);
+        if (spaceId == null) {
             return CompletableFuture.completedFuture(null);
         }
 
         PhysicsSpaceSettings settings = new PhysicsSpaceSettings(
-            resource.getSpaceSettings(defaultSpaceId));
+            resource.getSpaceSettings(spaceId));
         if (!anyArgProvided(ctx)) {
-            sendSummary(ctx, defaultSpaceId, settings);
+            sendSummary(ctx, spaceId, settings);
             return CompletableFuture.completedFuture(null);
         }
 
@@ -252,8 +256,8 @@ public class VisualSyncSettingsCommand extends AbstractAsyncPlayerCommand {
         if (smoothingRateArg.provided(ctx)) {
             settings.getVisualSyncSettings().setVisualSnapshotSmoothingRate(smoothingRateArg.get(ctx));
         }
-        resource.setSpaceSettings(defaultSpaceId, settings);
-        sendSummary(ctx, defaultSpaceId, settings);
+        resource.setSpaceSettings(spaceId, settings);
+        sendSummary(ctx, spaceId, settings);
         return CompletableFuture.completedFuture(null);
     }
 

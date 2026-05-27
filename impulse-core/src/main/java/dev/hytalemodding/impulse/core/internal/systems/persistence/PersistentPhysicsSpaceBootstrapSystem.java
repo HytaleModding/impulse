@@ -100,9 +100,7 @@ public class PersistentPhysicsSpaceBootstrapSystem extends TickingSystem<EntityS
                         runtime.createSpace(state.toBackendId(),
                             spaceId,
                             world.getName(),
-                            state.toSettings(),
-                            persistent.getDefaultSpaceIdValue() != null
-                                && persistent.getDefaultSpaceIdValue().equals(spaceId));
+                            state.toSettings());
                         targetSpace = runtime.getSpace(spaceId);
                     } else {
                         runtime.setSpaceSettings(spaceId, state.toSettings());
@@ -128,16 +126,6 @@ public class PersistentPhysicsSpaceBootstrapSystem extends TickingSystem<EntityS
             restoredSpaceCount++;
         }
 
-        try {
-            PhysicsWorkerAccess.run(store, "restore default physics space", () ->
-                runtime.setDefaultSpaceId(persistent.getDefaultSpaceIdValue()));
-        } catch (RuntimeException exception) {
-            runtime.clearAllSpaces(world.getName());
-            persistent.failRuntimeRestore("Invalid persisted default physics space: "
-                + exception.getMessage());
-            LOGGER.at(Level.SEVERE).log(persistent.runtimeRestoreFailureSummary());
-            return;
-        }
         persistent.markRuntimeSpaceBootstrapComplete(restoredSpaceCount);
     }
 

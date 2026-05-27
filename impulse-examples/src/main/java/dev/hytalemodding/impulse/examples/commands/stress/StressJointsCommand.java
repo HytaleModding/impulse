@@ -45,6 +45,10 @@ public class StressJointsCommand extends AbstractAsyncPlayerCommand {
         "blockType",
         "Hytale block type for stress joint body visuals",
         ArgTypes.STRING);
+    private final OptionalArg<Integer> spaceArg = this.withOptionalArg(
+        "space",
+        "Physics space id to target",
+        ArgTypes.INTEGER);
 
     public StressJointsCommand() {
         super("joints", "Spawn separate fixed, point, hinge, slider, and spring stress rows");
@@ -66,7 +70,7 @@ public class StressJointsCommand extends AbstractAsyncPlayerCommand {
             MAX_JOINTS);
         String blockType = blockType(ctx);
         PhysicsWorldResource resource = ExamplePhysicsUtils.resource(store);
-        SpaceId spaceId = ExamplePhysicsUtils.defaultSpaceId(ctx, resource);
+        SpaceId spaceId = ExamplePhysicsUtils.spaceId(ctx, resource, spaceArg);
         if (spaceId == null) {
             return CompletableFuture.completedFuture(null);
         }
