@@ -4,6 +4,8 @@ import com.hypixel.hytale.component.Ref;
 import com.hypixel.hytale.component.Store;
 import com.hypixel.hytale.server.core.Message;
 import com.hypixel.hytale.server.core.command.system.CommandContext;
+import com.hypixel.hytale.server.core.command.system.arguments.system.OptionalArg;
+import com.hypixel.hytale.server.core.command.system.arguments.types.ArgTypes;
 import com.hypixel.hytale.server.core.command.system.basecommands.AbstractAsyncPlayerCommand;
 import com.hypixel.hytale.server.core.modules.time.TimeResource;
 import com.hypixel.hytale.server.core.universe.PlayerRef;
@@ -17,6 +19,11 @@ import javax.annotation.Nonnull;
 import org.joml.Vector3d;
 
 public class MaterialsCommand extends AbstractAsyncPlayerCommand {
+
+    private final OptionalArg<Integer> spaceArg = this.withOptionalArg(
+        "space",
+        "Physics space id to target",
+        ArgTypes.INTEGER);
 
     public MaterialsCommand() {
         super("materials", "Spawn restitution and friction comparison bodies");
@@ -35,7 +42,7 @@ public class MaterialsCommand extends AbstractAsyncPlayerCommand {
         }
 
         PhysicsWorldResource resource = ExamplePhysicsUtils.resource(store);
-        SpaceId spaceId = ExamplePhysicsUtils.defaultSpaceId(ctx, resource);
+        SpaceId spaceId = ExamplePhysicsUtils.spaceId(ctx, resource, spaceArg);
         if (spaceId == null) {
             return CompletableFuture.completedFuture(null);
         }

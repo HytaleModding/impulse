@@ -189,7 +189,7 @@ class PersistentPhysicsCodecValidationTest {
     }
 
     @Test
-    void bodyStateCodecRejectsInvalidSpaceIdInsteadOfDefaultingToDefaultSpace() {
+    void bodyStateCodecRejectsInvalidSpaceIdWithoutRuntimeFallback() {
         BsonDocument encoded = encodeBody(persistentBodyState());
         encoded.put("SpaceId", new BsonInt32(0));
 

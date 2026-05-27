@@ -223,8 +223,7 @@ final class ImpulseRapierBodyBenchmarkCrucibleTests {
             try {
                 PhysicsSpace space = physics.createLiveSpace(RAPIER_BACKEND_ID,
                     world.getName(),
-                    settings,
-                    true);
+                    settings);
                 physics.runOnPhysicsOwner("prepare rapier body benchmark space", () -> {
                     PhysicsBody ground = space.createStaticPlane(GROUND_Y);
                     ground.setCollisionFilter(PhysicsCollisionFilters.TERRAIN,

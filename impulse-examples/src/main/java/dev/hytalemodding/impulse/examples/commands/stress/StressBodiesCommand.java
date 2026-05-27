@@ -97,6 +97,10 @@ public class StressBodiesCommand extends AbstractAsyncPlayerCommand {
         "blockType",
         "Hytale block type for entity-backed or detached-view visual proxies",
         ArgTypes.STRING);
+    private final OptionalArg<Integer> spaceArg = this.withOptionalArg(
+        "space",
+        "Physics space id to target",
+        ArgTypes.INTEGER);
 
     public StressBodiesCommand() {
         super("bodies", "Spawn many dynamic box bodies");
@@ -137,7 +141,7 @@ public class StressBodiesCommand extends AbstractAsyncPlayerCommand {
             return CompletableFuture.completedFuture(null);
         }
         PhysicsWorldResource resource = ExamplePhysicsUtils.resource(store);
-        SpaceId spaceId = ExamplePhysicsUtils.defaultSpaceId(ctx, resource);
+        SpaceId spaceId = ExamplePhysicsUtils.spaceId(ctx, resource, spaceArg);
         if (spaceId == null) {
             return CompletableFuture.completedFuture(null);
         }

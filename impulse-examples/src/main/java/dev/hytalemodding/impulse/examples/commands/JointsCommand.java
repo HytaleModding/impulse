@@ -4,6 +4,8 @@ import com.hypixel.hytale.component.Ref;
 import com.hypixel.hytale.component.Store;
 import com.hypixel.hytale.server.core.Message;
 import com.hypixel.hytale.server.core.command.system.CommandContext;
+import com.hypixel.hytale.server.core.command.system.arguments.system.OptionalArg;
+import com.hypixel.hytale.server.core.command.system.arguments.types.ArgTypes;
 import com.hypixel.hytale.server.core.command.system.basecommands.AbstractAsyncPlayerCommand;
 import com.hypixel.hytale.server.core.modules.time.TimeResource;
 import com.hypixel.hytale.server.core.universe.PlayerRef;
@@ -24,6 +26,10 @@ public class JointsCommand extends AbstractAsyncPlayerCommand {
     private static final float HALF_SIZE = 0.45f;
     private static final float TOUCHING_SPACING = HALF_SIZE * 2.0f;
     private static final float SPRING_REST_LENGTH = 1.2f;
+    private final OptionalArg<Integer> spaceArg = this.withOptionalArg(
+        "space",
+        "Physics space id to target",
+        ArgTypes.INTEGER);
 
     public JointsCommand() {
         super("joints", "Spawn fixed, point, hinge, slider, and spring joint examples");
@@ -42,7 +48,7 @@ public class JointsCommand extends AbstractAsyncPlayerCommand {
         }
 
         PhysicsWorldResource resource = ExamplePhysicsUtils.resource(store);
-        SpaceId spaceId = ExamplePhysicsUtils.defaultSpaceId(ctx, resource);
+        SpaceId spaceId = ExamplePhysicsUtils.spaceId(ctx, resource, spaceArg);
         if (spaceId == null) {
             return CompletableFuture.completedFuture(null);
         }

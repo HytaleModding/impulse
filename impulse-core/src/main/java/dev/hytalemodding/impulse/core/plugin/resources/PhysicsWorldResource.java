@@ -39,8 +39,8 @@ import org.joml.Vector3f;
  * id, immutable snapshots, read-only registration views, public attachment/control hooks, and world
  * collision operations.</p>
  *
- * <p>No physics space is created implicitly. A default space only exists after the consumer creates
- * one with {@code makeDefault=true} or calls {@link #setDefaultSpaceId(SpaceId)}.</p>
+ * <p>No physics space is created implicitly. Consumers choose which explicit {@link SpaceId} to
+ * target for each operation.</p>
  *
  * <p>This facade does not directly return live backend spaces or bodies. Code that genuinely needs
  * live backend access must use a scoped owner callback, such as
@@ -126,32 +126,6 @@ public abstract class PhysicsWorldResource implements Resource<EntityStore> {
         @Nonnull PhysicsOwnerScopedCallable<T> callable);
 
     /**
-     * Returns the configured default space id, or {@code null} when this world has no default.
-     */
-    @Nullable
-    public abstract SpaceId getDefaultSpaceId();
-
-    /**
-     * Returns the configured default space id.
-     *
-     * @throws IllegalStateException when this world has no default space
-     */
-    @Nonnull
-    public abstract SpaceId requireDefaultSpaceId();
-
-    /**
-     * Sets or clears the default space id on the physics owner thread.
-     */
-    public abstract void setDefaultSpaceId(@Nullable SpaceId defaultSpaceId);
-
-    /**
-     * Queues a default-space update and returns the requested default id.
-     */
-    @Nonnull
-    public abstract PhysicsMutationHandle<SpaceId> setDefaultSpaceIdAsync(
-        @Nullable SpaceId defaultSpaceId);
-
-    /**
      * Returns a defensive copy of the world-level simulation settings.
      *
      * <p>Changing the returned copy has no effect until it is passed to
@@ -174,36 +148,34 @@ public abstract class PhysicsWorldResource implements Resource<EntityStore> {
         @Nonnull PhysicsWorldSettings settings);
 
     /**
-     * Creates a non-default physics space using default space settings and returns its id.
+     * Creates a physics space using default settings and returns its id.
      */
     @Nonnull
     public abstract SpaceId createSpace(@Nonnull BackendId backendId);
 
     /**
-     * Creates a non-default physics space for logging under the supplied world name and returns its id.
+     * Creates a physics space for logging under the supplied world name and returns its id.
      */
     @Nonnull
     public abstract SpaceId createSpace(@Nonnull BackendId backendId,
         @Nonnull String worldName);
 
     /**
-     * Creates a physics space with generated logical id, supplied settings, and optional default flag.
+     * Creates a physics space with generated logical id and supplied settings.
      */
     @Nonnull
     public abstract SpaceId createSpace(@Nonnull BackendId backendId,
         @Nonnull String worldName,
-        @Nonnull PhysicsSpaceSettings settings,
-        boolean makeDefault);
+        @Nonnull PhysicsSpaceSettings settings);
 
     /**
-     * Creates a physics space with an explicit logical id, supplied settings, and optional default flag.
+     * Creates a physics space with an explicit logical id and supplied settings.
      */
     @Nonnull
     public abstract SpaceId createSpace(@Nonnull BackendId backendId,
         @Nonnull SpaceId spaceId,
         @Nonnull String worldName,
-        @Nonnull PhysicsSpaceSettings settings,
-        boolean makeDefault);
+        @Nonnull PhysicsSpaceSettings settings);
 
     /**
      * Queues physics-space creation and returns the reserved generated space id.
@@ -212,8 +184,7 @@ public abstract class PhysicsWorldResource implements Resource<EntityStore> {
     public abstract PhysicsMutationHandle<SpaceId> createSpaceAsync(
         @Nonnull BackendId backendId,
         @Nonnull String worldName,
-        @Nonnull PhysicsSpaceSettings settings,
-        boolean makeDefault);
+        @Nonnull PhysicsSpaceSettings settings);
 
     /**
      * Queues physics-space creation and returns the requested explicit space id.
@@ -223,8 +194,7 @@ public abstract class PhysicsWorldResource implements Resource<EntityStore> {
         @Nonnull BackendId backendId,
         @Nonnull SpaceId spaceId,
         @Nonnull String worldName,
-        @Nonnull PhysicsSpaceSettings settings,
-        boolean makeDefault);
+        @Nonnull PhysicsSpaceSettings settings);
 
     /**
      * Returns whether a physics space id is currently registered.

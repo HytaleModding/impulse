@@ -11,6 +11,7 @@ import com.hypixel.hytale.server.core.universe.PlayerRef;
 import com.hypixel.hytale.server.core.universe.world.World;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import dev.hytalemodding.impulse.api.SpaceId;
+import dev.hytalemodding.impulse.core.internal.commands.SpaceSelection;
 import dev.hytalemodding.impulse.core.plugin.resources.PhysicsWorldResource;
 import dev.hytalemodding.impulse.core.plugin.settings.PhysicsSpaceSettings;
 import dev.hytalemodding.impulse.core.plugin.settings.PhysicsVisualMaterializationSettings;
@@ -62,7 +63,7 @@ public class VisualMaterializationSettingsCommand extends AbstractAsyncPlayerCom
         ArgTypes.INTEGER);
     private final OptionalArg<Integer> capArg = this.withOptionalArg(
         "cap",
-        "Maximum detached visual proxies materialized in the default space (1-"
+        "Maximum detached visual proxies materialized in the target space (1-"
             + PhysicsVisualMaterializationSettings.MAX_DETACHED_VISUAL_MAX_MATERIALIZED
             + ")",
         ArgTypes.INTEGER);
@@ -70,6 +71,10 @@ public class VisualMaterializationSettingsCommand extends AbstractAsyncPlayerCom
         "blockType",
         "Default Hytale block type for detached visual proxies",
         ArgTypes.STRING);
+    private final OptionalArg<Integer> spaceArg = this.withOptionalArg(
+        "space",
+        "Physics space id to target",
+        ArgTypes.INTEGER);
 
     public VisualMaterializationSettingsCommand() {
         super("materialization", "Get or set detached visual materialization settings");
@@ -83,16 +88,15 @@ public class VisualMaterializationSettingsCommand extends AbstractAsyncPlayerCom
         @Nonnull PlayerRef playerRef,
         @Nonnull World world) {
         PhysicsWorldResource resource = store.getResource(PhysicsWorldResource.getResourceType());
-        SpaceId defaultSpaceId = resource.getDefaultSpaceId();
-        if (defaultSpaceId == null || !resource.hasSpace(defaultSpaceId)) {
-            ctx.sender().sendMessage(Message.raw("No default physics space exists yet."));
+        SpaceId spaceId = SpaceSelection.resolve(ctx, world, resource, spaceArg);
+        if (spaceId == null) {
             return CompletableFuture.completedFuture(null);
         }
 
         PhysicsSpaceSettings settings = new PhysicsSpaceSettings(
-            resource.getSpaceSettings(defaultSpaceId));
+            resource.getSpaceSettings(spaceId));
         if (!anyArgProvided(ctx)) {
-            sendSummary(ctx, defaultSpaceId, settings);
+            sendSummary(ctx, spaceId, settings);
             return CompletableFuture.completedFuture(null);
         }
 
@@ -139,8 +143,8 @@ public class VisualMaterializationSettingsCommand extends AbstractAsyncPlayerCom
             return CompletableFuture.completedFuture(null);
         }
 
-        resource.setSpaceSettings(defaultSpaceId, settings);
-        sendSummary(ctx, defaultSpaceId, settings);
+        resource.setSpaceSettings(spaceId, settings);
+        sendSummary(ctx, spaceId, settings);
         return CompletableFuture.completedFuture(null);
     }
 

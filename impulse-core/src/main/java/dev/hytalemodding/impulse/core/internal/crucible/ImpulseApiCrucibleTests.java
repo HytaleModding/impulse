@@ -68,12 +68,12 @@ final class ImpulseApiCrucibleTests {
             "Verifies explicit space lifecycle, detached cleanup, and settings retention",
             Set.of("smoke", "stability"),
             List.of(
-                CrucibleTestCase.sync("default space is explicit",
-                    ImpulseApiCrucibleTests::defaultSpaceIsExplicit,
-                    "Fresh PhysicsWorldResource unexpectedly has a default space"),
-                CrucibleTestCase.sync("create default space",
-                    ImpulseApiCrucibleTests::createDefaultSpaceLifecycle,
-                    "Explicit default space was not registered correctly"),
+                CrucibleTestCase.sync("fresh world has no spaces",
+                    ImpulseApiCrucibleTests::freshWorldHasNoSpaces,
+                    "Fresh PhysicsWorldResource unexpectedly has spaces"),
+                CrucibleTestCase.sync("created explicit space lifecycle works",
+                    ImpulseApiCrucibleTests::createdExplicitSpaceLifecycleWorks,
+                    "Explicit space was not registered correctly"),
                 CrucibleTestCase.sync("clear populated spaces",
                     ImpulseApiCrucibleTests::clearPopulatedSpaces,
                     "clearAllSpaces did not remove populated runtime spaces"),
@@ -130,21 +130,18 @@ final class ImpulseApiCrucibleTests {
         }
     }
 
-    private static boolean defaultSpaceIsExplicit() {
+    private static boolean freshWorldHasNoSpaces() {
         PhysicsWorldResource resource = new PhysicsWorldRuntimeResource();
-        return resource.getDefaultSpaceId() == null && resource.getSpaceIds().isEmpty();
+        return resource.getSpaceIds().isEmpty();
     }
 
-    private static boolean createDefaultSpaceLifecycle() {
+    private static boolean createdExplicitSpaceLifecycleWorks() {
         PhysicsWorldResource resource = new PhysicsWorldRuntimeResource();
         SpaceId spaceId = resource.createSpace(CrucibleBackends.requireBackendId(),
             "crucible",
-            PhysicsSpaceSettings.streamingWorldCollision(),
-            true);
+            PhysicsSpaceSettings.streamingWorldCollision());
         try {
-            assert resource.getDefaultSpaceId() != null;
-            return resource.getDefaultSpaceId().equals(spaceId)
-                && resource.hasSpace(spaceId)
+            return resource.hasSpace(spaceId)
                 && resource.getSpaceSettings(spaceId).getWorldCollisionSettings().getWorldCollisionMode()
                 == WorldCollisionMode.STREAMING;
         } finally {
@@ -156,8 +153,7 @@ final class ImpulseApiCrucibleTests {
         PhysicsWorldResource resource = new PhysicsWorldRuntimeResource();
         SpaceId spaceId = resource.createSpace(CrucibleBackends.requireBackendId(),
             "crucible",
-            PhysicsSpaceSettings.defaults(),
-            true);
+            PhysicsSpaceSettings.defaults());
         resource.runOnPhysicsOwner("populate crucible physics space", access -> {
             PhysicsSpace space = access.requireSpace(spaceId);
             PhysicsBody body = space.createBox(0.5f, 0.5f, 0.5f, 1.0f);
@@ -166,16 +162,14 @@ final class ImpulseApiCrucibleTests {
         });
 
         resource.clearAllSpaces("crucible");
-        return resource.getSpaceIds().isEmpty()
-            && resource.getDefaultSpaceId() == null;
+        return resource.getSpaceIds().isEmpty();
     }
 
     private static boolean detachedUnregisterRemovesBackendBody() {
         PhysicsWorldResource resource = new PhysicsWorldRuntimeResource();
         SpaceId spaceId = resource.createSpace(CrucibleBackends.requireBackendId(),
             "crucible",
-            PhysicsSpaceSettings.defaults(),
-            true);
+            PhysicsSpaceSettings.defaults());
         try {
             PhysicsBodyId bodyId = resource.callOnPhysicsOwner("register crucible detached body", access -> {
                 PhysicsSpace space = access.requireSpace(spaceId);
@@ -226,8 +220,7 @@ final class ImpulseApiCrucibleTests {
 
         SpaceId spaceId = resource.createSpace(CrucibleBackends.requireBackendId(),
             "crucible",
-            settings,
-            true);
+            settings);
         try {
             PhysicsSpaceSettings copy = resource.getSpaceSettings(spaceId);
             return copy.getWorldCollisionSettings().getWorldCollisionMode() == WorldCollisionMode.STREAMING

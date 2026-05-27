@@ -179,41 +179,6 @@ public class PhysicsWorldRuntimeResource extends PhysicsWorldResource {
         return ownerGateway.call(operation, () -> callable.call(ownerAccess));
     }
 
-    @Nullable
-    public SpaceId getDefaultSpaceId() {
-        return spaceRuntime.getDefaultSpaceId();
-    }
-
-    @Nonnull
-    public SpaceId requireDefaultSpaceId() {
-        return spaceRuntime.requireDefaultSpaceId();
-    }
-
-    @Nullable
-    public PhysicsSpace getDefaultSpace() {
-        return spaceRuntime.getDefaultSpace();
-    }
-
-    @Nonnull
-    public PhysicsSpace requireDefaultSpace() {
-        return spaceRuntime.requireDefaultSpace();
-    }
-
-    public void setDefaultSpaceId(@Nullable SpaceId defaultSpaceId) {
-        runOnPhysicsOwner("set default physics space", () -> setDefaultSpaceIdDirect(defaultSpaceId));
-    }
-
-    @Nonnull
-    public PhysicsMutationHandle<SpaceId> setDefaultSpaceIdAsync(@Nullable SpaceId defaultSpaceId) {
-        return enqueuePhysicsMutation("set default physics space",
-            defaultSpaceId,
-            () -> setDefaultSpaceIdDirect(defaultSpaceId));
-    }
-
-    private void setDefaultSpaceIdDirect(@Nullable SpaceId defaultSpaceId) {
-        spaceRuntime.setDefaultSpaceId(defaultSpaceId);
-    }
-
     @Nonnull
     public PhysicsWorldSettings getWorldSettings() {
         return simulationRuntime.getWorldSettings();
@@ -239,92 +204,84 @@ public class PhysicsWorldRuntimeResource extends PhysicsWorldResource {
 
     @Nonnull
     public SpaceId createSpace(@Nonnull BackendId backendId) {
-        return createSpace(backendId, "<unknown>", PhysicsSpaceSettings.defaults(), false);
+        return createSpace(backendId, "<unknown>", PhysicsSpaceSettings.defaults());
     }
 
     @Nonnull
     public SpaceId createSpace(@Nonnull BackendId backendId, @Nonnull String worldName) {
-        return createSpace(backendId, worldName, PhysicsSpaceSettings.defaults(), false);
+        return createSpace(backendId, worldName, PhysicsSpaceSettings.defaults());
     }
 
     @Nonnull
     public SpaceId createSpace(@Nonnull BackendId backendId,
         @Nonnull String worldName,
-        @Nonnull PhysicsSpaceSettings settings,
-        boolean makeDefault) {
-        return createSpace(backendId, SpaceId.next(), worldName, settings, makeDefault);
+        @Nonnull PhysicsSpaceSettings settings) {
+        return createSpace(backendId, SpaceId.next(), worldName, settings);
     }
 
     @Nonnull
     public SpaceId createSpace(@Nonnull BackendId backendId,
         @Nonnull SpaceId spaceId,
         @Nonnull String worldName,
-        @Nonnull PhysicsSpaceSettings settings,
-        boolean makeDefault) {
+        @Nonnull PhysicsSpaceSettings settings) {
         callOnPhysicsOwner("create physics space",
-            () -> createSpaceDirect(backendId, spaceId, worldName, settings, makeDefault));
+            () -> createSpaceDirect(backendId, spaceId, worldName, settings));
         return spaceId;
     }
 
     @Nonnull
     public PhysicsSpace createLiveSpace(@Nonnull BackendId backendId) {
-        return createLiveSpace(backendId, "<unknown>", PhysicsSpaceSettings.defaults(), false);
+        return createLiveSpace(backendId, "<unknown>", PhysicsSpaceSettings.defaults());
     }
 
     @Nonnull
     public PhysicsSpace createLiveSpace(@Nonnull BackendId backendId, @Nonnull String worldName) {
-        return createLiveSpace(backendId, worldName, PhysicsSpaceSettings.defaults(), false);
+        return createLiveSpace(backendId, worldName, PhysicsSpaceSettings.defaults());
     }
 
     @Nonnull
     public PhysicsSpace createLiveSpace(@Nonnull BackendId backendId,
         @Nonnull String worldName,
-        @Nonnull PhysicsSpaceSettings settings,
-        boolean makeDefault) {
-        return createLiveSpace(backendId, SpaceId.next(), worldName, settings, makeDefault);
+        @Nonnull PhysicsSpaceSettings settings) {
+        return createLiveSpace(backendId, SpaceId.next(), worldName, settings);
     }
 
     @Nonnull
     public PhysicsSpace createLiveSpace(@Nonnull BackendId backendId,
         @Nonnull SpaceId spaceId,
         @Nonnull String worldName,
-        @Nonnull PhysicsSpaceSettings settings,
-        boolean makeDefault) {
+        @Nonnull PhysicsSpaceSettings settings) {
         return callOnPhysicsOwner("create physics space",
-            () -> createSpaceDirect(backendId, spaceId, worldName, settings, makeDefault));
+            () -> createSpaceDirect(backendId, spaceId, worldName, settings));
     }
 
     @Nonnull
     public PhysicsMutationHandle<SpaceId> createSpaceAsync(@Nonnull BackendId backendId,
         @Nonnull String worldName,
-        @Nonnull PhysicsSpaceSettings settings,
-        boolean makeDefault) {
+        @Nonnull PhysicsSpaceSettings settings) {
         SpaceId spaceId = SpaceId.next();
-        return createSpaceAsync(backendId, spaceId, worldName, settings, makeDefault);
+        return createSpaceAsync(backendId, spaceId, worldName, settings);
     }
 
     @Nonnull
     public PhysicsMutationHandle<SpaceId> createSpaceAsync(@Nonnull BackendId backendId,
         @Nonnull SpaceId spaceId,
         @Nonnull String worldName,
-        @Nonnull PhysicsSpaceSettings settings,
-        boolean makeDefault) {
+        @Nonnull PhysicsSpaceSettings settings) {
         return enqueuePhysicsMutation("create physics space",
             spaceId,
-            () -> createSpaceDirect(backendId, spaceId, worldName, settings, makeDefault));
+            () -> createSpaceDirect(backendId, spaceId, worldName, settings));
     }
 
     @Nonnull
     private PhysicsSpace createSpaceDirect(@Nonnull BackendId backendId,
         @Nonnull SpaceId spaceId,
         @Nonnull String worldName,
-        @Nonnull PhysicsSpaceSettings settings,
-        boolean makeDefault) {
+        @Nonnull PhysicsSpaceSettings settings) {
         PhysicsSpace space = spaceRuntime.createSpace(backendId,
             spaceId,
             worldName,
             settings,
-            makeDefault,
             simulationRuntime.getWorldSettings().getStepMode());
         markWorldChanged();
         return space;
@@ -578,7 +535,7 @@ public class PhysicsWorldRuntimeResource extends PhysicsWorldResource {
 
     /**
      * Clears runtime physics state by replacing each native backend space with an empty
-     * space that keeps the same logical id, backend, settings, gravity, and default-space mapping.
+     * space that keeps the same logical id, backend, settings, and gravity.
      */
     @Nonnull
     public PhysicsRuntimeResetResult resetRuntimeStateKeepingSpaces(@Nonnull String worldName) {

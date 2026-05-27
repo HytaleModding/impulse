@@ -8,7 +8,6 @@ import com.hypixel.hytale.server.core.universe.world.World;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import dev.hytalemodding.impulse.api.PhysicsSpace;
 import dev.hytalemodding.impulse.api.PhysicsRuntimeStats;
-import dev.hytalemodding.impulse.api.SpaceId;
 import dev.hytalemodding.impulse.core.internal.diagnostics.PhysicsEntityDiagnostics;
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsWorldRuntimeResource;
 import dev.hytalemodding.impulse.core.internal.resources.profiling.PhysicsRuntimeProfilingResource;
@@ -443,8 +442,7 @@ public class PerfReportCommand extends AbstractWorldCommand {
         int runtimeDynamicDynamicContactPairs,
         int runtimeTerrainContactPairs,
         int runtimeActiveIslands,
-        int runtimeJoints,
-        String defaultSpace) {
+        int runtimeJoints) {
 
         @Nonnull
         private static RuntimeFootprint collect(@Nonnull Store<EntityStore> store,
@@ -504,8 +502,6 @@ public class PerfReportCommand extends AbstractWorldCommand {
                 }
             }
 
-            SpaceId defaultSpaceId = resource.getDefaultSpaceId();
-            String defaultSpace = defaultSpaceId == null ? "none" : String.valueOf(defaultSpaceId.value());
             return new RuntimeFootprint(spaces,
                 backendBodies,
                 backendJoints,
@@ -521,14 +517,12 @@ public class PerfReportCommand extends AbstractWorldCommand {
                 runtimeDynamicDynamicContactPairs,
                 runtimeTerrainContactPairs,
                 runtimeActiveIslands,
-                runtimeJoints,
-                defaultSpace);
+                runtimeJoints);
         }
 
         @Nonnull
         private String summary() {
             return "spaces=" + spaces
-                + " defaultSpace=" + defaultSpace
                 + " backendBodies=" + backendBodies
                 + " backendJoints=" + backendJoints
                 + " detachedBodies=" + detachedBodies

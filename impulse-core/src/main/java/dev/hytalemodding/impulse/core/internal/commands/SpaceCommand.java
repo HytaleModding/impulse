@@ -32,7 +32,6 @@ public class SpaceCommand extends AbstractCommandCollection {
         super("space", "Explicit physics space lifecycle commands");
         addSubCommand(new CreateCommand());
         addSubCommand(new ListCommand());
-        addSubCommand(new DefaultCommand());
         addSubCommand(new DeleteCommand());
     }
 
@@ -46,11 +45,6 @@ public class SpaceCommand extends AbstractCommandCollection {
             "worldCollision",
             "World collision mode: none, manual, or streaming",
             ArgTypes.STRING);
-        private final OptionalArg<String> defaultArg = withOptionalArg(
-            "default",
-            "Whether this space becomes default: true or false",
-            ArgTypes.STRING);
-
         private CreateCommand() {
             super("create", "Create an explicit physics space", false);
         }
@@ -72,14 +66,6 @@ public class SpaceCommand extends AbstractCommandCollection {
                 return;
             }
 
-            Boolean makeDefault = defaultArg.provided(context)
-                ? parseBoolean(defaultArg.get(context))
-                : Boolean.TRUE;
-            if (makeDefault == null) {
-                context.sendMessage(Message.raw("default must be true or false."));
-                return;
-            }
-
             PhysicsSpaceSettings settings = worldCollisionMode == WorldCollisionMode.STREAMING
                 ? PhysicsSpaceSettings.streamingWorldCollision()
                 : PhysicsSpaceSettings.defaults();
@@ -89,13 +75,12 @@ public class SpaceCommand extends AbstractCommandCollection {
             try {
                 SpaceId spaceId = resource.createSpace(backendId,
                     world.getName(),
-                    settings,
-                    makeDefault);
+                    settings);
                 context.sendMessage(Message.raw("Created physics space id="
                     + spaceId.value()
                     + " backend=" + backendId.value()
                     + " worldCollision=" + worldCollisionMode.name().toLowerCase(Locale.ROOT)
-                    + (makeDefault ? " default=true" : " default=false")));
+                    + "."));
             } catch (RuntimeException exception) {
                 context.sendMessage(Message.raw("Failed to create physics space: "
                     + exception.getMessage()));
@@ -135,58 +120,13 @@ public class SpaceCommand extends AbstractCommandCollection {
                 return;
             }
 
-            SpaceId defaultSpaceId = resource.getDefaultSpaceId();
             for (SpaceListEntry space : spaces) {
-                String marker = space.spaceId().equals(defaultSpaceId) ? " default=true" : "";
                 context.sendMessage(Message.raw("- id=" + space.spaceId().value()
                     + " backend=" + space.backendId()
                     + " bodies=" + space.bodies()
                     + " joints=" + space.joints()
                     + " worldCollision="
-                    + space.worldCollisionMode().name().toLowerCase(Locale.ROOT)
-                    + marker));
-            }
-        }
-    }
-
-    private static final class DefaultCommand extends AbstractWorldCommand {
-
-        private final OptionalArg<Integer> spaceArg = withOptionalArg(
-            "space",
-            "Space id to make default",
-            ArgTypes.INTEGER);
-
-        private DefaultCommand() {
-            super("default", "Show or set the default physics space", false);
-        }
-
-        @Override
-        protected void execute(@Nonnull CommandContext context,
-            @Nonnull World world,
-            @Nonnull Store<EntityStore> store) {
-            PhysicsWorldResource resource = store.getResource(PhysicsWorldResource.getResourceType());
-            if (!spaceArg.provided(context)) {
-                SpaceId defaultSpaceId = resource.getDefaultSpaceId();
-                context.sendMessage(Message.raw(defaultSpaceId == null
-                    ? "No default physics space is configured."
-                    : "Default physics space id=" + defaultSpaceId.value()));
-                return;
-            }
-
-            int rawSpaceId = spaceArg.get(context);
-            if (rawSpaceId <= 0) {
-                context.sendMessage(Message.raw("Space id must be a positive integer."));
-                return;
-            }
-
-            SpaceId spaceId = new SpaceId(rawSpaceId);
-            try {
-                resource.setDefaultSpaceId(spaceId);
-                context.sendMessage(Message.raw("Default physics space set to id="
-                    + spaceId.value() + " in world " + world.getName() + "."));
-            } catch (RuntimeException exception) {
-                context.sendMessage(Message.raw("Failed to set default physics space: "
-                    + exception.getMessage()));
+                    + space.worldCollisionMode().name().toLowerCase(Locale.ROOT)));
             }
         }
     }
@@ -301,15 +241,6 @@ public class SpaceCommand extends AbstractCommandCollection {
             case "none", "off", "disabled" -> WorldCollisionMode.NONE;
             case "manual" -> WorldCollisionMode.MANUAL;
             case "streaming", "stream", "on", "enabled" -> WorldCollisionMode.STREAMING;
-            default -> null;
-        };
-    }
-
-    @Nullable
-    private static Boolean parseBoolean(@Nonnull String value) {
-        return switch (value.toLowerCase(Locale.ROOT)) {
-            case "true", "yes", "y", "1", "default" -> Boolean.TRUE;
-            case "false", "no", "n", "0", "nodefault" -> Boolean.FALSE;
             default -> null;
         };
     }

@@ -28,8 +28,7 @@ class PhysicsBodiesTest {
         PhysicsWorldResource resource = runtime;
         PhysicsSpace space = runtime.createLiveSpace(backend.getId(),
             "test-world",
-            PhysicsSpaceSettings.defaults(),
-            true);
+            PhysicsSpaceSettings.defaults());
 
         PhysicsBodySpawnResult result = PhysicsBodies.spawn(resource,
             PhysicsBodySpawnSpec.persistentBody(space.getId(),
@@ -58,8 +57,7 @@ class PhysicsBodiesTest {
         PhysicsWorldResource resource = runtime;
         PhysicsSpace space = runtime.createLiveSpace(backend.getId(),
             "test-world",
-            PhysicsSpaceSettings.defaults(),
-            true);
+            PhysicsSpaceSettings.defaults());
         PhysicsBodySpawnResult first = PhysicsBodies.spawn(resource,
             PhysicsBodySpawnSpec.persistentBody(space.getId(),
                 ownerSpace -> ownerSpace.createBox(0.5f, 0.5f, 0.5f, 1.0f)));

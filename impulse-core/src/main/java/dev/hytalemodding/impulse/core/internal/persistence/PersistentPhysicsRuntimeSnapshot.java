@@ -1,7 +1,6 @@
 package dev.hytalemodding.impulse.core.internal.persistence;
 
 import dev.hytalemodding.impulse.api.PhysicsSpace;
-import dev.hytalemodding.impulse.api.SpaceId;
 import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyId;
 import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyPersistenceMode;
 import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyRegistration;
@@ -12,7 +11,6 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import javax.annotation.Nonnull;
-import lombok.Getter;
 
 /**
  * Worker-owned copy of the live runtime state needed by world persistence.
@@ -28,8 +26,6 @@ public final class PersistentPhysicsRuntimeSnapshot {
     private final Footprint footprint;
     @Nonnull
     private final PhysicsWorldSettings worldSettings;
-    @Getter
-    private final int defaultSpaceId;
     @Nonnull
     private final PersistentPhysicsSpaceState[] spaces;
     @Nonnull
@@ -38,12 +34,10 @@ public final class PersistentPhysicsRuntimeSnapshot {
     private final PersistentPhysicsJointState[] joints;
 
     private PersistentPhysicsRuntimeSnapshot(@Nonnull PhysicsWorldSettings worldSettings,
-        int defaultSpaceId,
         @Nonnull PersistentPhysicsSpaceState[] spaces,
         @Nonnull PersistentPhysicsBodyState[] bodies,
         @Nonnull PersistentPhysicsJointState[] joints) {
         this.worldSettings = new PhysicsWorldSettings(worldSettings);
-        this.defaultSpaceId = defaultSpaceId;
         this.spaces = copySpaces(spaces);
         this.bodies = copyBodies(bodies);
         this.joints = copyJoints(joints);
@@ -53,10 +47,6 @@ public final class PersistentPhysicsRuntimeSnapshot {
     @Nonnull
     public static PersistentPhysicsRuntimeSnapshot capture(@Nonnull PhysicsWorldRuntimeResource runtime) {
         runtime.assertCanAccessLiveBackendDirectly("capture persistent physics runtime snapshot");
-        SpaceId defaultSpaceId = runtime.getDefaultSpaceId();
-        int resolvedDefaultSpaceId = defaultSpaceId != null
-            ? defaultSpaceId.value()
-            : PersistentPhysicsBodyState.DEFAULT_SPACE_ID;
 
         List<PersistentPhysicsSpaceState> spaces = new ArrayList<>();
         List<PersistentPhysicsBodyState> bodies = new ArrayList<>();
@@ -73,7 +63,6 @@ public final class PersistentPhysicsRuntimeSnapshot {
         }
 
         return new PersistentPhysicsRuntimeSnapshot(runtime.getWorldSettings(),
-            resolvedDefaultSpaceId,
             spaces.toArray(PersistentPhysicsSpaceState[]::new),
             bodies.toArray(PersistentPhysicsBodyState[]::new),
             joints.toArray(PersistentPhysicsJointState[]::new));

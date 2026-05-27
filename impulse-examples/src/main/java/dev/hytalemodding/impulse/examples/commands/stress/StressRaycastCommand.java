@@ -31,6 +31,10 @@ public class StressRaycastCommand extends AbstractAsyncPlayerCommand {
         "rays",
         "Number of downward raycasts to run",
         ArgTypes.INTEGER);
+    private final OptionalArg<Integer> spaceArg = this.withOptionalArg(
+        "space",
+        "Physics space id to target",
+        ArgTypes.INTEGER);
 
     public StressRaycastCommand() {
         super("raycast", "Run many physics raycasts and report timing");
@@ -50,7 +54,7 @@ public class StressRaycastCommand extends AbstractAsyncPlayerCommand {
 
         int rays = ExamplePhysicsUtils.optionalInt(ctx, raysArg, DEFAULT_RAYS, 1, MAX_RAYS);
         PhysicsWorldResource resource = ExamplePhysicsUtils.resource(store);
-        SpaceId spaceId = ExamplePhysicsUtils.defaultSpaceId(ctx, resource);
+        SpaceId spaceId = ExamplePhysicsUtils.spaceId(ctx, resource, spaceArg);
         if (spaceId == null) {
             return CompletableFuture.completedFuture(null);
         }

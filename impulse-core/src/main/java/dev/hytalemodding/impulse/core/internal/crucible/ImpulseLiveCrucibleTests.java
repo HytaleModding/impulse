@@ -24,6 +24,7 @@ import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyKind;
 import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyPersistenceMode;
 import dev.hytalemodding.impulse.core.plugin.settings.PhysicsSpaceSettings;
 import dev.hytalemodding.impulse.core.plugin.resources.PhysicsWorldResource;
+import java.util.Comparator;
 import java.util.List;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
@@ -119,15 +120,17 @@ final class ImpulseLiveCrucibleTests {
     }
 
     private static PhysicsSpace liveTestSpace(PhysicsWorldResource resource, World world) {
-        SpaceId defaultSpaceId = resource.getDefaultSpaceId();
-        if (defaultSpaceId != null && resource.hasSpace(defaultSpaceId)) {
-            return resource.callOnPhysicsOwner("resolve live crucible default space",
-                access -> access.requireSpace(defaultSpaceId));
+        SpaceId existingSpaceId = resource.getSpaceIds()
+            .stream()
+            .min(Comparator.comparingInt(SpaceId::value))
+            .orElse(null);
+        if (existingSpaceId != null) {
+            return resource.callOnPhysicsOwner("resolve live crucible test space",
+                access -> access.requireSpace(existingSpaceId));
         }
         SpaceId spaceId = resource.createSpace(CrucibleBackends.requireBackendId(),
             world.getName(),
-            PhysicsSpaceSettings.defaults(),
-            true);
+            PhysicsSpaceSettings.defaults());
         return resource.callOnPhysicsOwner("resolve live crucible test space",
             access -> access.requireSpace(spaceId));
     }

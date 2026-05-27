@@ -5,6 +5,8 @@ import com.hypixel.hytale.component.Ref;
 import com.hypixel.hytale.component.Store;
 import com.hypixel.hytale.server.core.Message;
 import com.hypixel.hytale.server.core.command.system.CommandContext;
+import com.hypixel.hytale.server.core.command.system.arguments.system.OptionalArg;
+import com.hypixel.hytale.server.core.command.system.arguments.types.ArgTypes;
 import com.hypixel.hytale.server.core.command.system.basecommands.AbstractAsyncPlayerCommand;
 import com.hypixel.hytale.server.core.modules.entity.component.TransformComponent;
 import com.hypixel.hytale.server.core.universe.PlayerRef;
@@ -45,6 +47,10 @@ public class GrabCommand extends AbstractAsyncPlayerCommand {
         PhysicsBodyAttachmentComponent.getComponentType();
     private static final ComponentType<EntityStore, ImpulseControllableComponent> IMPULSE_CONTROLLABLE_TYPE =
         ImpulseControllableComponent.getComponentType();
+    private final OptionalArg<Integer> spaceArg = this.withOptionalArg(
+        "space",
+        "Physics space id to target",
+        ArgTypes.INTEGER);
 
     public GrabCommand() {
         super("grab", "Grab a controllable physics body from your view");
@@ -64,8 +70,8 @@ public class GrabCommand extends AbstractAsyncPlayerCommand {
         }
 
         PhysicsWorldResource resource = ExamplePhysicsUtils.resource(store);
-        SpaceId defaultSpaceId = ExamplePhysicsUtils.defaultSpaceId(ctx, resource);
-        if (defaultSpaceId == null) {
+        SpaceId targetSpaceId = ExamplePhysicsUtils.spaceId(ctx, resource, spaceArg);
+        if (targetSpaceId == null) {
             return CompletableFuture.completedFuture(null);
         }
 
@@ -73,7 +79,7 @@ public class GrabCommand extends AbstractAsyncPlayerCommand {
         Vector3d direction = ExamplePhysicsUtils.lookDirection(store, ref, transform).mul(RAY_LENGTH);
         Vector3d end = new Vector3d(start).add(direction);
 
-        HitSelection selection = findControllableHit(resource, store, defaultSpaceId, start, end);
+        HitSelection selection = findControllableHit(resource, store, targetSpaceId, start, end);
         if (selection == null) {
             ctx.sender().sendMessage(Message.raw("No controllable physics body in sight."));
             return CompletableFuture.completedFuture(null);
@@ -81,7 +87,7 @@ public class GrabCommand extends AbstractAsyncPlayerCommand {
 
         releaseExisting(store, ref);
 
-        SpaceId selectedSpaceId = selection.spaceId() != null ? selection.spaceId() : defaultSpaceId;
+        SpaceId selectedSpaceId = selection.spaceId() != null ? selection.spaceId() : targetSpaceId;
         if (!resource.hasSpace(selectedSpaceId)) {
             ctx.sender().sendMessage(Message.raw("Selected physics space no longer exists."));
             return CompletableFuture.completedFuture(null);

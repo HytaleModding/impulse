@@ -10,6 +10,7 @@ import com.hypixel.hytale.server.core.universe.world.World;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import dev.hytalemodding.impulse.api.PhysicsSolverTuning;
 import dev.hytalemodding.impulse.api.SpaceId;
+import dev.hytalemodding.impulse.core.internal.commands.SpaceSelection;
 import dev.hytalemodding.impulse.core.plugin.settings.PhysicsSpaceSettings;
 import dev.hytalemodding.impulse.core.plugin.resources.PhysicsWorldResource;
 import javax.annotation.Nonnull;
@@ -44,9 +45,13 @@ public class SolverSettingsCommand extends AbstractWorldCommand {
         "sleepTime",
         "Seconds before eligible dynamic bodies sleep",
         ArgTypes.FLOAT);
+    private final OptionalArg<Integer> spaceArg = this.withOptionalArg(
+        "space",
+        "Physics space id to target",
+        ArgTypes.INTEGER);
 
     public SolverSettingsCommand() {
-        super("solver", "Get or set solver tuning for the default physics space", true);
+        super("solver", "Get or set solver tuning for a physics space", true);
     }
 
     @Override
@@ -54,21 +59,20 @@ public class SolverSettingsCommand extends AbstractWorldCommand {
         @Nonnull World world,
         @Nonnull Store<EntityStore> store) {
         PhysicsWorldResource resource = store.getResource(PhysicsWorldResource.getResourceType());
-        SpaceId defaultSpaceId = resource.getDefaultSpaceId();
-        if (defaultSpaceId == null || !resource.hasSpace(defaultSpaceId)) {
-            ctx.sender().sendMessage(Message.raw("No default physics space exists yet."));
+        SpaceId spaceId = SpaceSelection.resolve(ctx, world, resource, spaceArg);
+        if (spaceId == null) {
             return;
         }
         SolverSpaceSummary summary = resource.callOnPhysicsOwner("read solver space summary",
             access -> {
-                var space = access.requireSpace(defaultSpaceId);
+                var space = access.requireSpace(spaceId);
                 return new SolverSpaceSummary(space.getBackendId().value(),
                     space instanceof PhysicsSolverTuning);
             });
 
-        PhysicsSpaceSettings settings = new PhysicsSpaceSettings(resource.getSpaceSettings(defaultSpaceId));
+        PhysicsSpaceSettings settings = new PhysicsSpaceSettings(resource.getSpaceSettings(spaceId));
         if (!anyArgProvided(ctx)) {
-            sendSummary(ctx, defaultSpaceId, summary, settings);
+            sendSummary(ctx, spaceId, summary, settings);
             return;
         }
 
@@ -115,8 +119,8 @@ public class SolverSettingsCommand extends AbstractWorldCommand {
         settings.getSolverSettings().setStabilizationIterations(stabilizationIterations);
         settings.getSolverSettings().setMinIslandSize(minIslandSize);
         settings.getSolverSettings().setDynamicSleepTuning(sleepLinearThreshold, sleepAngularThreshold, sleepTime);
-        resource.setSpaceSettings(defaultSpaceId, settings);
-        sendSummary(ctx, defaultSpaceId, summary, settings);
+        resource.setSpaceSettings(spaceId, settings);
+        sendSummary(ctx, spaceId, summary, settings);
     }
 
     private boolean anyArgProvided(@Nonnull CommandContext ctx) {

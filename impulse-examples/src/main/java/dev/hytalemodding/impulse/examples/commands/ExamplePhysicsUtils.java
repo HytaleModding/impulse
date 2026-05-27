@@ -35,6 +35,7 @@ import dev.hytalemodding.impulse.core.plugin.execution.PhysicsOwnerScopedCallabl
 import dev.hytalemodding.impulse.core.plugin.execution.PhysicsOwnerScopedMutation;
 import dev.hytalemodding.impulse.core.plugin.resources.PhysicsWorldResource;
 import dev.hytalemodding.impulse.core.plugin.settings.PhysicsVisualMaterializationSettings;
+import java.util.Comparator;
 import java.util.concurrent.atomic.AtomicBoolean;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
@@ -78,17 +79,32 @@ public final class ExamplePhysicsUtils {
     }
 
     @Nullable
-    public static SpaceId defaultSpaceId(@Nonnull CommandContext ctx,
-        @Nonnull PhysicsWorldResource resource) {
-        SpaceId defaultSpaceId = resource.getDefaultSpaceId();
-        if (defaultSpaceId != null && resource.hasSpace(defaultSpaceId)) {
-            return defaultSpaceId;
+    public static SpaceId spaceId(@Nonnull CommandContext ctx,
+        @Nonnull PhysicsWorldResource resource,
+        @Nonnull OptionalArg<Integer> spaceArg) {
+        if (spaceArg.provided(ctx)) {
+            int rawSpaceId = spaceArg.get(ctx);
+            if (rawSpaceId <= 0) {
+                ctx.sender().sendMessage(Message.raw("Space id must be a positive integer."));
+                return null;
+            }
+            SpaceId spaceId = new SpaceId(rawSpaceId);
+            if (!resource.hasSpace(spaceId)) {
+                ctx.sender().sendMessage(Message.raw("No physics space id=" + rawSpaceId + " exists."));
+                return null;
+            }
+            return spaceId;
         }
 
-        ctx.sender().sendMessage(Message.raw("No default physics space exists. Run "
-            + "`/impulse space create --default=true` or select one with "
-            + "`/impulse space default --space=<space-id>` before running Impulse example commands."));
-        return null;
+        SpaceId firstSpaceId = resource.getSpaceIds()
+            .stream()
+            .min(Comparator.comparingInt(SpaceId::value))
+            .orElse(null);
+        if (firstSpaceId == null) {
+            ctx.sender().sendMessage(Message.raw("No physics space exists. Run "
+                + "`/impulse space create --backend=<id>` before running Impulse example commands."));
+        }
+        return firstSpaceId;
     }
 
     public static void physicsOwnerRun(@Nonnull Store<EntityStore> store,

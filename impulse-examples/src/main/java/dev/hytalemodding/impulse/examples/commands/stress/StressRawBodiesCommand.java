@@ -35,6 +35,10 @@ public class StressRawBodiesCommand extends AbstractAsyncPlayerCommand {
         "count",
         "Number of physics-only boxes to spawn",
         ArgTypes.INTEGER);
+    private final OptionalArg<Integer> spaceArg = this.withOptionalArg(
+        "space",
+        "Physics space id to target",
+        ArgTypes.INTEGER);
 
     public StressRawBodiesCommand() {
         super("raw-bodies", "Spawn physics bodies without Hytale entities");
@@ -54,7 +58,7 @@ public class StressRawBodiesCommand extends AbstractAsyncPlayerCommand {
 
         int count = ExamplePhysicsUtils.optionalInt(ctx, countArg, DEFAULT_COUNT, 1, MAX_COUNT);
         PhysicsWorldResource resource = ExamplePhysicsUtils.resource(store);
-        SpaceId spaceId = ExamplePhysicsUtils.defaultSpaceId(ctx, resource);
+        SpaceId spaceId = ExamplePhysicsUtils.spaceId(ctx, resource, spaceArg);
         if (spaceId == null) {
             return CompletableFuture.completedFuture(null);
         }

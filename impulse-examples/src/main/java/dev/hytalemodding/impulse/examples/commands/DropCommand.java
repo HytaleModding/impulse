@@ -30,6 +30,10 @@ public class DropCommand extends AbstractAsyncPlayerCommand {
         "blockType",
         "Hytale block type used for the attached visual entity",
         ArgTypes.STRING);
+    private final OptionalArg<Integer> spaceArg = this.withOptionalArg(
+        "space",
+        "Physics space id to target",
+        ArgTypes.INTEGER);
 
     public DropCommand() {
         super("drop", "Spawn a physics box that falls under gravity");
@@ -55,7 +59,7 @@ public class DropCommand extends AbstractAsyncPlayerCommand {
         float spawnZ = (float) playerPos.z();
 
         PhysicsWorldResource resource = store.getResource(PhysicsWorldResource.getResourceType());
-        SpaceId spaceId = ExamplePhysicsUtils.defaultSpaceId(ctx, resource);
+        SpaceId spaceId = ExamplePhysicsUtils.spaceId(ctx, resource, spaceArg);
         if (spaceId == null) {
             return CompletableFuture.completedFuture(null);
         }

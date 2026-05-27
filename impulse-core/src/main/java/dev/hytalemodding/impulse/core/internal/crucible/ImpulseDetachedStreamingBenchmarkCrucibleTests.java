@@ -229,8 +229,7 @@ final class ImpulseDetachedStreamingBenchmarkCrucibleTests {
 
             PhysicsSpace space = physics.createLiveSpace(CrucibleBackends.requireBackendId(),
                 world.getName(),
-                settings,
-                true);
+                settings);
             PrewarmStats prewarm = physics.callOnPhysicsOwner(
                 "prewarm detached streaming benchmark collision",
                 () -> prewarmWorldCollision(space, count));

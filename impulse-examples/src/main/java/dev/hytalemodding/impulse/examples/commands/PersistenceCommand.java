@@ -9,13 +9,11 @@ import com.hypixel.hytale.server.core.command.system.basecommands.AbstractComman
 import com.hypixel.hytale.server.core.command.system.basecommands.AbstractWorldCommand;
 import com.hypixel.hytale.server.core.universe.world.World;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
-import dev.hytalemodding.impulse.api.SpaceId;
 import dev.hytalemodding.impulse.core.plugin.persistence.PhysicsPersistence;
 import dev.hytalemodding.impulse.core.plugin.persistence.PhysicsPersistence.RestoreRequestResult;
 import dev.hytalemodding.impulse.core.plugin.persistence.PhysicsPersistence.SaveResult;
 import dev.hytalemodding.impulse.core.plugin.persistence.PhysicsPersistence.Status;
 import javax.annotation.Nonnull;
-import javax.annotation.Nullable;
 
 /**
  * Example controls for schema-v5 world-level Impulse persistence.
@@ -140,12 +138,10 @@ public class PersistenceCommand extends AbstractCommandCollection {
                 + ", runtimeOnlyBodies="
                 + status.runtimeOnlyBodies()
                 + ", joints=" + status.runtimeJoints()
-                + ", defaultSpace=" + formatSpaceId(status.runtimeDefaultSpaceId())
                 + "; stored schema=" + status.schemaVersion()
                 + ", spaces=" + status.storedSpaces()
                 + ", bodies=" + status.storedBodies()
                 + ", joints=" + status.storedJoints()
-                + ", defaultSpace=" + formatSpaceId(status.storedDefaultSpaceId())
                 + ", restore=" + status.restoreState().serialized()
                 + "."));
             if (status.hasRestoreMessage()) {
@@ -154,8 +150,4 @@ public class PersistenceCommand extends AbstractCommandCollection {
         }
     }
 
-    @Nonnull
-    private static String formatSpaceId(@Nullable SpaceId spaceId) {
-        return spaceId != null ? Integer.toString(spaceId.value()) : "<none>";
-    }
 }
