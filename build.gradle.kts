@@ -86,6 +86,16 @@ gradle.projectsEvaluated {
     }
 }
 
+gradle.taskGraph.whenReady {
+    if (hasTask(":headlessTest")) {
+        hytaleToolProjectPaths.forEach { path ->
+            project(path).tasks.named("downloadAssetsZip").configure {
+                enabled = false
+            }
+        }
+    }
+}
+
 val cleanStagedBackendJars by tasks.registering(Delete::class) {
     delete(fileTree("run/mods") {
         backendJarIncludes.forEach(::include)
