@@ -31,5 +31,5 @@ hytaleTools {
     modCredits = property("mod_credits") as String
     modUrl = property("mod_website") as String
     modDescription = property("mod_description") as String
-    manifestOptionalDependencies = "HytaleModding:ImpulseBullet=*,HytaleModding:ImpulseRapier=*,com.ionforgelabs:crucible=*"
+    manifestOptionalDependencies = "com.ionforgelabs:crucible=*"
 }

@@ -3,7 +3,6 @@ import org.gradle.api.file.DuplicatesStrategy
 
 plugins {
     id("java-library")
-    id("com.azuredoom.hytale-tools")
 }
 
 val rapierVersion = "0.32.0"
@@ -190,39 +189,12 @@ sourceSets {
 
 tasks.processResources {
     dependsOn(stageRapierNativeResource)
-    filesMatching("manifest.json") {
-        expand(mapOf(
-            "version" to project.version,
-            "hytaleVersion" to project.property("hytale_version")
-        ))
-    }
-}
-
-tasks.compileJava {
-    dependsOn(project(":impulse-core").tasks.named("downloadAssetsZip"))
-}
-
-tasks.named("updatePluginManifest").configure {
-    enabled = false
-}
-
-tasks.named("validateManifest").configure {
-    enabled = false
-}
-
-hytaleTools {
-    modId = property("mod_name") as String + "Rapier"
-    mainClass = "dev.hytalemodding.impulse.rapier.RapierBackendPlugin"
-    modCredits = property("mod_credits") as String
-    modUrl = property("mod_website") as String
-    modDescription = "Rapier backend provider for Impulse"
 }
 
 dependencies {
     api(project(":impulse-api"))
 
-    implementation(libs.snaploader)
-    compileOnly("com.hypixel.hytale:Server:${property("hytale_version") as String}")
+    implementation(project(":impulse-native-loader"))
 
     testImplementation(testFixtures(project(":impulse-api")))
 }

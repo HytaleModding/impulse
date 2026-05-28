@@ -64,12 +64,10 @@ subprojects {
 }
 
 val backendProjectPaths = setOf(":impulse-bullet", ":impulse-rapier")
-val backendJarIncludes = listOf("impulse-bullet-*.jar", "impulse-rapier-*.jar")
+val stagedBackendJarDirectory = layout.projectDirectory.dir("run/mods/impulse-backends")
 val hytaleToolProjectPaths = listOf(
     ":impulse-core",
-    ":impulse-examples",
-    ":impulse-bullet",
-    ":impulse-rapier")
+    ":impulse-examples")
 
 gradle.projectsEvaluated {
     val hytaleAssetDownloads = hytaleToolProjectPaths
@@ -93,9 +91,7 @@ gradle.taskGraph.whenReady {
 }
 
 val cleanStagedBackendJars by tasks.registering(Delete::class) {
-    delete(fileTree("run/mods") {
-        backendJarIncludes.forEach(::include)
-    })
+    delete(stagedBackendJarDirectory)
 }
 
 val stageBackendJarsForRunAllMods by tasks.registering(Copy::class) {
@@ -108,7 +104,7 @@ val stageBackendJarsForRunAllMods by tasks.registering(Copy::class) {
         dependsOn(backendJar)
         from(backendJar)
     }
-    into(layout.projectDirectory.dir("run/mods"))
+    into(stagedBackendJarDirectory)
 }
 
 tasks.register("headlessTest") {
@@ -116,6 +112,7 @@ tasks.register("headlessTest") {
     description = "Runs automated headless/serverless tests without booting the Hytale server"
     dependsOn(
         ":impulse-api:test",
+        ":impulse-native-loader:test",
         ":impulse-bullet:test",
         ":impulse-rapier:test",
         ":impulse-core:test"
