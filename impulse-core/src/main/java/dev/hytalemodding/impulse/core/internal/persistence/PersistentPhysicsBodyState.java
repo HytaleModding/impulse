@@ -15,6 +15,7 @@ import dev.hytalemodding.impulse.api.SpaceId;
 import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyId;
 import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyRegistration;
 import dev.hytalemodding.impulse.core.plugin.resources.PhysicsWorldResource;
+import java.util.Objects;
 import java.util.UUID;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
@@ -25,8 +26,6 @@ import org.joml.Vector3f;
  * World-level persistent state for one physics body.
  */
 public class PersistentPhysicsBodyState {
-
-    public static final int DEFAULT_SPACE_ID = 0;
 
     @Nonnull
     public static final BuilderCodec<PersistentPhysicsBodyState> CODEC = BuilderCodec.builder(
@@ -159,7 +158,7 @@ public class PersistentPhysicsBodyState {
     @Nullable
     private UUID bodyId;
     @Getter
-    private int spaceId = DEFAULT_SPACE_ID;
+    private int spaceId;
     @Nonnull
     private ShapeType shapeType = ShapeType.UNKNOWN;
     @Nonnull
@@ -317,8 +316,13 @@ public class PersistentPhysicsBodyState {
         return null;
     }
 
-    public void updateFromBody(@Nonnull PhysicsBody body, @Nullable SpaceId spaceId) {
-        this.spaceId = spaceId != null && spaceId.value() > 0 ? spaceId.value() : DEFAULT_SPACE_ID;
+    public void updateFromBody(@Nonnull PhysicsBody body, @Nonnull SpaceId spaceId) {
+        Objects.requireNonNull(spaceId, "spaceId");
+        if (spaceId.value() <= 0) {
+            throw new IllegalArgumentException(
+                "Persistent body state requires a positive explicit space id");
+        }
+        this.spaceId = spaceId.value();
         shapeType = body.getShapeType();
         shapeAxis = body.getShapeAxis();
         Vector3f halfExtents = body.getBoxHalfExtents();
