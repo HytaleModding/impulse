@@ -1,3 +1,4 @@
+import org.gradle.api.file.FileCollection
 import org.gradle.api.file.DuplicatesStrategy
 import org.gradle.jvm.tasks.Jar
 import java.io.File
@@ -47,22 +48,30 @@ bulletBackendPlatforms.forEach { platform ->
         "com.github.stephengold:${platform.nativeArtifact}:${libs.versions.libbulletjme.get()}:SpRelease")
 }
 
-fun runtimeClasspathWithoutBundledApiAndHostNative(): List<Any> {
+fun runtimeClasspathWithoutBundledApi(): FileCollection {
     return configurations.runtimeClasspath.get()
         .filter { file -> !file.name.startsWith("impulse-api-") }
-        .filterNot(::isBulletNativeJar)
-        .map { file -> if (file.isDirectory) file else zipTree(file) }
+}
+
+fun runtimeClasspathWithoutBundledApiAndHostNative(): FileCollection {
+    return runtimeClasspathWithoutBundledApi()
+        .filter { file -> !isBulletNativeJar(file) }
 }
 
 fun isBulletNativeJar(file: File): Boolean {
     return file.name.startsWith("Libbulletjme-") && file.name.contains("-Sp")
 }
 
+fun Jar.expandRuntimeClasspath(runtimeClasspath: FileCollection) {
+    dependsOn(runtimeClasspath.buildDependencies)
+    from({
+        runtimeClasspath.map { file -> if (file.isDirectory) file else zipTree(file) }
+    })
+}
+
 fun Jar.includeBackendRuntime() {
     duplicatesStrategy = DuplicatesStrategy.EXCLUDE
-    from({
-        runtimeClasspathWithoutBundledApiAndHostNative()
-    })
+    expandRuntimeClasspath(runtimeClasspathWithoutBundledApiAndHostNative())
     exclude("META-INF/*.SF", "META-INF/*.DSA", "META-INF/*.RSA")
 }
 
@@ -79,11 +88,7 @@ fun Jar.includeBackendLicenseNotices() {
 
 tasks.jar {
     duplicatesStrategy = DuplicatesStrategy.EXCLUDE
-    from({
-        configurations.runtimeClasspath.get()
-            .filter { file -> !file.name.startsWith("impulse-api-") }
-            .map { file -> if (file.isDirectory) file else zipTree(file) }
-    })
+    expandRuntimeClasspath(runtimeClasspathWithoutBundledApi())
     includeBackendLicenseNotices()
     exclude("META-INF/*.SF", "META-INF/*.DSA", "META-INF/*.RSA")
 }

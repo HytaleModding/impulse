@@ -1,4 +1,5 @@
 import org.gradle.api.GradleException
+import org.gradle.api.file.FileCollection
 import org.gradle.api.file.DuplicatesStrategy
 import org.gradle.jvm.tasks.Jar
 
@@ -233,17 +234,21 @@ dependencies {
     testImplementation(testFixtures(project(":impulse-api")))
 }
 
-fun runtimeClasspathWithoutBundledApi(): List<Any> {
+fun runtimeClasspathWithoutBundledApi(): FileCollection {
     return configurations.runtimeClasspath.get()
         .filter { file -> !file.name.startsWith("impulse-api-") }
-        .map { file -> if (file.isDirectory) file else zipTree(file) }
+}
+
+fun Jar.expandRuntimeClasspath(runtimeClasspath: FileCollection) {
+    dependsOn(runtimeClasspath.buildDependencies)
+    from({
+        runtimeClasspath.map { file -> if (file.isDirectory) file else zipTree(file) }
+    })
 }
 
 fun Jar.includeBackendRuntime() {
     duplicatesStrategy = DuplicatesStrategy.EXCLUDE
-    from({
-        runtimeClasspathWithoutBundledApi()
-    })
+    expandRuntimeClasspath(runtimeClasspathWithoutBundledApi())
     exclude("META-INF/*.SF", "META-INF/*.DSA", "META-INF/*.RSA")
 }
 
@@ -280,11 +285,7 @@ fun Jar.includeRapierNativeResource(platform: RapierBackendPlatform) {
 
 tasks.jar {
     duplicatesStrategy = DuplicatesStrategy.EXCLUDE
-    from({
-        configurations.runtimeClasspath.get()
-            .filter { file -> !file.name.startsWith("impulse-api-") }
-            .map { file -> if (file.isDirectory) file else zipTree(file) }
-    })
+    expandRuntimeClasspath(runtimeClasspathWithoutBundledApi())
     includeBackendLicenseNotices()
     exclude("META-INF/*.SF", "META-INF/*.DSA", "META-INF/*.RSA")
 }
