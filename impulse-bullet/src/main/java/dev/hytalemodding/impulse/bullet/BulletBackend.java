@@ -5,14 +5,8 @@ import dev.hytalemodding.impulse.api.BackendId;
 import dev.hytalemodding.impulse.api.PhysicsBackend;
 import dev.hytalemodding.impulse.api.PhysicsSpace;
 import dev.hytalemodding.impulse.api.SpaceId;
-import electrostatic4j.snaploader.LibraryInfo;
-import electrostatic4j.snaploader.LoadingCriterion;
-import electrostatic4j.snaploader.NativeBinaryLoader;
-import electrostatic4j.snaploader.filesystem.DirectoryPath;
-import electrostatic4j.snaploader.platform.NativeDynamicLibrary;
-import electrostatic4j.snaploader.platform.util.PlatformPredicate;
-import java.io.IOException;
-import java.nio.file.Files;
+import dev.hytalemodding.impulse.internal.nativelib.NativeLibraryLoader;
+import dev.hytalemodding.impulse.internal.nativelib.NativeLibraryResource;
 import java.nio.file.Path;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.logging.Level;
@@ -67,15 +61,7 @@ public final class BulletBackend implements PhysicsBackend {
             return;
         }
 
-        Path nativeDirectory = resolveNativeDirectory();
-        try {
-            Files.createDirectories(nativeDirectory);
-        } catch (IOException exception) {
-            throw new IllegalStateException("Failed to prepare Bullet native extraction directory "
-                + nativeDirectory.toAbsolutePath(), exception);
-        }
-
-        loadNativeLibrary(nativeDirectory.toAbsolutePath().toString());
+        loadNativeLibrary();
         NativeLibrary.setStartupMessageEnabled(false);
 
         initialized = true;
@@ -83,17 +69,7 @@ public final class BulletBackend implements PhysicsBackend {
         LOGGER.log(Level.INFO, "Bullet backend initialized");
     }
 
-    private static Path resolveNativeDirectory() {
-        String classLoaderId = Integer.toHexString(System.identityHashCode(
-            BulletBackend.class.getClassLoader()));
-        return Path.of(System.getProperty("java.io.tmpdir"),
-            "impulse",
-            "native",
-            "bullet",
-            classLoaderId);
-    }
-
-    private static void loadNativeLibrary(@Nonnull String dir) {
+    private static void loadNativeLibrary() {
         if (nativeLibraryLoaded) {
             return;
         }
@@ -103,28 +79,13 @@ public final class BulletBackend implements PhysicsBackend {
                 return;
             }
 
-            LibraryInfo info = new LibraryInfo(null, "bulletjme",
-                new DirectoryPath(dir));
-            NativeBinaryLoader loader = new NativeBinaryLoader(info);
-
-            NativeDynamicLibrary[] libraries = {
-                new NativeDynamicLibrary("native/linux/arm64", PlatformPredicate.LINUX_ARM_64),
-                new NativeDynamicLibrary("native/linux/arm32", PlatformPredicate.LINUX_ARM_32),
-                new NativeDynamicLibrary("native/linux/x86_64", PlatformPredicate.LINUX_X86_64),
-                new NativeDynamicLibrary("native/osx/arm64", PlatformPredicate.MACOS_ARM_64),
-                new NativeDynamicLibrary("native/osx/x86_64", PlatformPredicate.MACOS_X86_64),
-                new NativeDynamicLibrary("native/windows/x86_64", PlatformPredicate.WIN_X86_64)
-            };
-
-            loader.registerNativeLibraries(libraries)
-                .initPlatformLibrary()
-                .setLoggingEnabled(true);
-            loader.setRetryWithCleanExtraction(true);
-
             try {
-                loader.loadLibrary(LoadingCriterion.CLEAN_EXTRACTION);
-            } catch (Exception e) {
-                throw new IllegalStateException("Failed to load the Libbulletjme native library", e);
+                NativeLibraryLoader.load(BulletBackend.class,
+                    "bullet",
+                    NativeLibraryResource.forCurrentPlatform("bulletjme"));
+            } catch (IllegalArgumentException | IllegalStateException exception) {
+                throw new IllegalStateException("Failed to load the Libbulletjme native library",
+                    exception);
             }
 
             nativeLibraryLoaded = true;

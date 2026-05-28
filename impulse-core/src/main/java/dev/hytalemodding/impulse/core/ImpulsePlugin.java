@@ -7,6 +7,7 @@ import com.hypixel.hytale.component.SystemGroup;
 import com.hypixel.hytale.common.plugin.PluginIdentifier;
 import com.hypixel.hytale.logger.HytaleLogger;
 import com.hypixel.hytale.server.core.HytaleServer;
+import com.hypixel.hytale.server.core.Options;
 import com.hypixel.hytale.server.core.command.system.CommandRegistry;
 import com.hypixel.hytale.server.core.plugin.JavaPlugin;
 import com.hypixel.hytale.server.core.plugin.JavaPluginInit;
@@ -46,8 +47,10 @@ import dev.hytalemodding.impulse.core.plugin.components.ImpulseControllableCompo
 import dev.hytalemodding.impulse.core.plugin.components.PhysicsBodyAttachmentComponent;
 import dev.hytalemodding.impulse.core.plugin.components.PhysicsControlSessionComponent;
 import dev.hytalemodding.impulse.core.plugin.resources.PhysicsWorldResource;
+import java.nio.file.Path;
+import java.util.ArrayList;
 import java.util.Collection;
-import java.util.ServiceLoader;
+import java.util.List;
 import java.util.logging.Level;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
@@ -165,8 +168,8 @@ public final class ImpulsePlugin extends JavaPlugin {
     }
 
     private void discoverBackends() {
-        ServiceLoader<PhysicsBackend> loader = ServiceLoader.load(PhysicsBackend.class);
-        for (PhysicsBackend backend : loader) {
+        for (PhysicsBackend backend : BackendDiscovery.discover(backendSearchRoots(),
+            getClassLoader())) {
             Impulse.registerBackend(backend);
         }
 
@@ -188,6 +191,14 @@ public final class ImpulsePlugin extends JavaPlugin {
         LOGGER.at(Level.INFO).log("Multiple physics backends discovered; no default backend "
             + "selected. Pass --backend=<id> when creating spaces. Available backends: %s",
             getAvailableBackendIds());
+    }
+
+    @Nonnull
+    private List<Path> backendSearchRoots() {
+        List<Path> paths = new ArrayList<>();
+        paths.add(PluginManager.MODS_PATH);
+        paths.addAll(Options.getOptionSet().valuesOf(Options.MODS_DIRECTORIES));
+        return paths;
     }
 
     @Nullable

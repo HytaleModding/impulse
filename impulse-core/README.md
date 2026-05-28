@@ -42,7 +42,11 @@ First run in a fresh world should create an explicit space before commands that 
 
 - `/impulse backend list` - list discovered backends and active physics spaces.
 
-Backend swap is not registered as a public command. Create explicit spaces with the desired backend instead. If multiple backend jars are installed, Impulse does not select a backend; commands that create spaces must pass `--backend=<id>`.
+Backend jars are Java service-provider jars, not Hytale plugins. Impulse discovers
+`PhysicsBackend` providers from jars anywhere under the configured Hytale `mods` directories.
+Backend swap is not registered as a public command. Create explicit spaces with the desired backend
+instead. If multiple backend jars are installed, Impulse does not select a backend; commands that
+create spaces must pass `--backend=<id>`.
 
 ## Cleanup commands
 

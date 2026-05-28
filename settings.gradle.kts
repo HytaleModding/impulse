@@ -27,6 +27,7 @@ dependencyResolutionManagement {
 rootProject.name = "impulse"
 
 include("impulse-api")
+include("impulse-native-loader")
 include("impulse-bullet")
 include("impulse-rapier")
 include("impulse-core")
