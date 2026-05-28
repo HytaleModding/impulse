@@ -190,7 +190,7 @@ public final class RapierSpace implements PhysicsSpace, PhysicsSolverTuning, Phy
 
     @Override
     public void snapshotBodies(@Nonnull Consumer<PhysicsBodySnapshot> consumer) {
-        snapshotBodies(body -> null, consumer);
+        snapshotBodies(_ -> null, consumer);
     }
 
     @Override
@@ -220,7 +220,7 @@ public final class RapierSpace implements PhysicsSpace, PhysicsSolverTuning, Phy
         if (written < 0) {
             throw new IllegalStateException("Rapier native snapshot failed");
         }
-        int limit = Math.min(count, Math.max(0, written));
+        int limit = Math.clamp(written, 0, count);
         for (int i = 0; i < limit; i++) {
             RapierBody body = bodies.get(i);
             consumer.accept(body, body.snapshotFromNative(snapshotBodyData,

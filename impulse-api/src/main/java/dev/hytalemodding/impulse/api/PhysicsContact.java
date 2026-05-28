@@ -16,4 +16,22 @@ public record PhysicsContact(@Nonnull PhysicsBody bodyA,
         pointOnB = new Vector3f(pointOnB);
         normalOnB = new Vector3f(normalOnB);
     }
+
+    @Nonnull
+    @Override
+    public Vector3f pointOnA() {
+        return new Vector3f(pointOnA);
+    }
+
+    @Nonnull
+    @Override
+    public Vector3f pointOnB() {
+        return new Vector3f(pointOnB);
+    }
+
+    @Nonnull
+    @Override
+    public Vector3f normalOnB() {
+        return new Vector3f(normalOnB);
+    }
 }
