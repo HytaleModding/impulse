@@ -72,6 +72,38 @@ class PhysicsWorldResourceStateTest {
     }
 
     @Test
+    void spaceSettingsAreCopiedAcrossResourceBoundary() {
+        FakePhysicsBackend backend =
+            new FakePhysicsBackend("test:space-settings-copy-" + BACKEND_COUNTER.incrementAndGet());
+        Impulse.registerBackend(backend);
+
+        PhysicsWorldRuntimeResource resource = new PhysicsWorldRuntimeResource();
+        PhysicsSpaceSettings initial = PhysicsSpaceSettings.streamingWorldCollision();
+        initial.getSolverSettings().setSolverIterations(7);
+        PhysicsSpace space = resource.createLiveSpace(backend.getId(),
+            "test-world",
+            initial);
+
+        PhysicsSpaceSettings copy = resource.getSpaceSettings(space.getId());
+        copy.getSolverSettings().setSolverIterations(3);
+        copy.getWorldCollisionSettings().setWorldCollisionMode(WorldCollisionMode.NONE);
+
+        assertEquals(7, resource.getSpaceSettings(space.getId()).getSolverSettings().getSolverIterations());
+        assertEquals(WorldCollisionMode.STREAMING,
+            resource.getSpaceSettings(space.getId()).getWorldCollisionSettings().getWorldCollisionMode());
+        assertEquals(7, ((InMemoryPhysicsSpace) space).getSolverIterations());
+
+        resource.setSpaceSettings(space.getId(), copy);
+        assertEquals(3, resource.getSpaceSettings(space.getId()).getSolverSettings().getSolverIterations());
+        assertEquals(WorldCollisionMode.NONE,
+            resource.getSpaceSettings(space.getId()).getWorldCollisionSettings().getWorldCollisionMode());
+        assertEquals(3, ((InMemoryPhysicsSpace) space).getSolverIterations());
+
+        copy.getSolverSettings().setSolverIterations(5);
+        assertEquals(3, resource.getSpaceSettings(space.getId()).getSolverSettings().getSolverIterations());
+    }
+
+    @Test
     void copyFromCopiesWorldSettingsWithoutLiveSpaceMetadata() {
         FakePhysicsBackend backend =
             new FakePhysicsBackend("test:copy-topology-" + BACKEND_COUNTER.incrementAndGet());

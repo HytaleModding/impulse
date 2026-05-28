@@ -51,7 +51,10 @@ final class ImpulseApiCrucibleTests {
                     return !backends.isEmpty();
                 }, "No physics backends registered"),
                 CrucibleTestCase.sync("test backend selectable", () ->
-                    CrucibleBackends.requireBackendId() != null,
+                    {
+                        CrucibleBackends.requireBackendId();
+                        return true;
+                    },
                     "No backend id is available for Crucible tests"),
                 CrucibleTestCase.sync("create space and body",
                     ImpulseApiCrucibleTests::createSpaceAndBody,

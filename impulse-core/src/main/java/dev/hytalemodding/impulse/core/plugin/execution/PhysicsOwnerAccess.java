@@ -1,11 +1,13 @@
 package dev.hytalemodding.impulse.core.plugin.execution;
 
 import dev.hytalemodding.impulse.api.PhysicsBody;
+import dev.hytalemodding.impulse.api.PhysicsJoint;
 import dev.hytalemodding.impulse.api.PhysicsSpace;
 import dev.hytalemodding.impulse.api.SpaceId;
 import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyId;
 import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyKind;
 import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyPersistenceMode;
+import dev.hytalemodding.impulse.core.plugin.joint.PhysicsJointId;
 import java.util.Collection;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
@@ -49,4 +51,22 @@ public interface PhysicsOwnerAccess {
         @Nonnull PhysicsBody body,
         @Nonnull PhysicsBodyKind kind,
         @Nonnull PhysicsBodyPersistenceMode persistenceMode);
+
+    @Nullable
+    PhysicsJoint getJoint(@Nonnull PhysicsJointId jointId);
+
+    @Nonnull
+    PhysicsJoint requireJoint(@Nonnull PhysicsJointId jointId);
+
+    @Nullable
+    PhysicsJointId getJointId(@Nonnull PhysicsJoint joint);
+
+    @Nonnull
+    PhysicsJointId addJoint(@Nonnull SpaceId spaceId,
+        @Nonnull PhysicsJoint joint);
+
+    @Nonnull
+    PhysicsJointId addJoint(@Nonnull PhysicsJointId jointId,
+        @Nonnull SpaceId spaceId,
+        @Nonnull PhysicsJoint joint);
 }

@@ -36,6 +36,7 @@ import javax.annotation.Nullable;
 import org.checkerframework.checker.nullness.compatqual.NonNullDecl;
 import org.joml.Quaternionf;
 import org.joml.Vector3f;
+import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
 
 class PhysicsWorkerStepCommandTest {
@@ -81,6 +82,7 @@ class PhysicsWorkerStepCommandTest {
             assertTrue(result.snapshot().stepNanos() > 0L);
             assertTrue(result.snapshot().snapshotNanos() > 0L);
             PublishedPhysicsSnapshotFrame frame = command.publishedFrame();
+            Assertions.assertNotNull(frame);
             assertEquals(PublishedPhysicsSnapshotFrame.Status.COMPLETE, frame.status());
             assertEquals(12L, frame.stepSequence());
             assertEquals(34L, frame.serverTick());
@@ -210,6 +212,7 @@ class PhysicsWorkerStepCommandTest {
             PhysicsWorkerResult result = runner.submit(command).get(2, TimeUnit.SECONDS);
 
             assertSame(failure, command.failure());
+            Assertions.assertNotNull(command.publishedFrame());
             assertEquals(PublishedPhysicsSnapshotFrame.Status.PARTIAL,
                 command.publishedFrame().status());
             assertEquals(1, result.snapshot().spaces());
@@ -822,7 +825,7 @@ class PhysicsWorkerStepCommandTest {
             return shapeType;
         }
 
-        @Nullable
+        @Nonnull
         @Override
         public Vector3f getBoxHalfExtents() {
             return new Vector3f(halfExtents);

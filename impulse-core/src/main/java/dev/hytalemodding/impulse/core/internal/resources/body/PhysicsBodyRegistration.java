@@ -1,15 +1,14 @@
-package dev.hytalemodding.impulse.core.plugin.body;
+package dev.hytalemodding.impulse.core.internal.resources.body;
 
 import dev.hytalemodding.impulse.api.PhysicsBody;
 import dev.hytalemodding.impulse.api.SpaceId;
+import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyId;
+import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyKind;
+import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyPersistenceMode;
 import javax.annotation.Nonnull;
 
 /**
  * Owner-thread registration for a live backend body.
- *
- * <p>This record carries a {@link PhysicsBody} handle and must not be retained or read by
- * world-thread systems when a physics worker is attached. Use {@link PhysicsBodyRegistrationView}
- * for public/off-owner metadata checks.</p>
  */
 public record PhysicsBodyRegistration(@Nonnull PhysicsBodyId id,
     @Nonnull PhysicsBody body,

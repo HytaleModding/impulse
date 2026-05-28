@@ -331,7 +331,7 @@ public class PhysicsSyncSystem extends EntityTickingSystem<EntityStore> {
     private static PhysicsSpaceSettings resolveSpaceSettings(@Nonnull PhysicsWorldRuntimeResource resource,
         @Nullable SpaceId spaceId) {
         if (spaceId != null) {
-            return resource.getSpaceSettings(spaceId);
+            return resource.getLiveSpaceSettings(spaceId);
         }
         return null;
     }

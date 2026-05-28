@@ -4,7 +4,6 @@ import dev.hytalemodding.impulse.api.PhysicsBody;
 import dev.hytalemodding.impulse.api.SpaceId;
 import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyId;
 import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyKind;
-import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyRegistration;
 import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyRegistrationView;
 import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyPersistenceMode;
 import it.unimi.dsi.fastutil.objects.Object2ObjectLinkedOpenHashMap;
@@ -72,14 +71,14 @@ public final class PhysicsBodyRegistry {
 
     @Nullable
     public PhysicsBodyRegistrationView getRegistrationView(@Nonnull PhysicsBodyId bodyId) {
-        return PhysicsBodyRegistrationView.from(getRegistration(bodyId));
+        return toView(getRegistration(bodyId));
     }
 
     @Nonnull
     public Collection<PhysicsBodyRegistrationView> getRegistrationViews() {
         List<PhysicsBodyRegistrationView> views = new ArrayList<>();
         for (PhysicsBodyRegistration registration : registrationsById.values()) {
-            views.add(PhysicsBodyRegistrationView.from(registration));
+            views.add(toView(registration));
         }
         return views;
     }
@@ -89,7 +88,7 @@ public final class PhysicsBodyRegistry {
         List<PhysicsBodyRegistrationView> views = new ArrayList<>();
         for (PhysicsBodyRegistration registration : registrationsById.values()) {
             if (registration.kind() == kind) {
-                views.add(PhysicsBodyRegistrationView.from(registration));
+                views.add(toView(registration));
             }
         }
         return views;
@@ -148,5 +147,16 @@ public final class PhysicsBodyRegistry {
     public void clear() {
         registrationsById.clear();
         bodyIdsByBody.clear();
+    }
+
+    @Nullable
+    private static PhysicsBodyRegistrationView toView(@Nullable PhysicsBodyRegistration registration) {
+        if (registration == null) {
+            return null;
+        }
+        return new PhysicsBodyRegistrationView(registration.id(),
+            registration.spaceId(),
+            registration.kind(),
+            registration.persistenceMode());
     }
 }

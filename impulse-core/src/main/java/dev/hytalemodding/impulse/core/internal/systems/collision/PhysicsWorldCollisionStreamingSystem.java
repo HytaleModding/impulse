@@ -123,7 +123,7 @@ public class PhysicsWorldCollisionStreamingSystem extends TickingSystem<EntitySt
                         if (space == null) {
                             continue;
                         }
-                        PhysicsSpaceSettings settings = resource.getSpaceSettings(plan.spaceId());
+                        PhysicsSpaceSettings settings = resource.getLiveSpaceSettings(plan.spaceId());
                         if (settings.getWorldCollisionSettings().getWorldCollisionMode() != WorldCollisionMode.STREAMING) {
                             continue;
                         }
@@ -168,14 +168,14 @@ public class PhysicsWorldCollisionStreamingSystem extends TickingSystem<EntitySt
 
     @Nonnull
     private List<SpaceStreamingPlan> collectStreamingPlans(
-        @Nonnull PhysicsWorldResource resource,
+        @Nonnull PhysicsWorldRuntimeResource resource,
         @Nonnull WorldVoxelCollisionCache cache,
         @Nonnull List<Vector3d> playerPositions,
         long currentTick,
         @Nullable Snapshot snapshot) {
         List<SpaceStreamingPlan> plans = new ArrayList<>();
         for (SpaceId spaceId : resource.getSpaceIds()) {
-            PhysicsSpaceSettings settings = resource.getSpaceSettings(spaceId);
+            PhysicsSpaceSettings settings = resource.getLiveSpaceSettings(spaceId);
             if (settings.getWorldCollisionSettings().getWorldCollisionMode() != WorldCollisionMode.STREAMING) {
                 continue;
             }

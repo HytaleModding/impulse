@@ -3,7 +3,7 @@ package dev.hytalemodding.impulse.core.internal.persistence;
 import dev.hytalemodding.impulse.api.PhysicsSpace;
 import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyId;
 import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyPersistenceMode;
-import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyRegistration;
+import dev.hytalemodding.impulse.core.internal.resources.body.PhysicsBodyRegistration;
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsWorldRuntimeResource;
 import dev.hytalemodding.impulse.core.plugin.settings.PhysicsSpaceSettings;
 import dev.hytalemodding.impulse.core.plugin.settings.PhysicsWorldSettings;
@@ -57,7 +57,7 @@ public final class PersistentPhysicsRuntimeSnapshot {
             }
         }
         for (PhysicsSpace space : runtime.iterateSpaces()) {
-            PhysicsSpaceSettings settings = runtime.getSpaceSettings(space.getId());
+            PhysicsSpaceSettings settings = runtime.getLiveSpaceSettings(space.getId());
             spaces.add(PersistentPhysicsSpaceState.from(space, settings));
             capturePersistentJoints(runtime, space, joints);
         }

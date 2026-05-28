@@ -45,7 +45,8 @@ import dev.hytalemodding.impulse.core.internal.systems.worker.PhysicsSnapshotPub
 import dev.hytalemodding.impulse.core.internal.systems.worker.PhysicsWorldWorkerLifecycleSystem;
 import dev.hytalemodding.impulse.core.plugin.components.ImpulseControllableComponent;
 import dev.hytalemodding.impulse.core.plugin.components.PhysicsBodyAttachmentComponent;
-import dev.hytalemodding.impulse.core.plugin.components.PhysicsControlSessionComponent;
+import dev.hytalemodding.impulse.core.internal.components.PhysicsControlSessionComponent;
+import dev.hytalemodding.impulse.core.plugin.persistence.PhysicsPersistenceResource;
 import dev.hytalemodding.impulse.core.plugin.resources.PhysicsWorldResource;
 import java.nio.file.Path;
 import java.util.ArrayList;
@@ -68,9 +69,6 @@ public final class ImpulsePlugin extends JavaPlugin {
     private ComponentType<EntityStore, ImpulseControllableComponent> impulseControllableComponentType;
 
     @Getter
-    private ComponentType<EntityStore, PhysicsControlSessionComponent> physicsControlSessionComponentType;
-
-    @Getter
     private ComponentType<EntityStore, GeneratedVisualProxyComponent> generatedVisualProxyComponentType;
 
     @Getter
@@ -89,7 +87,7 @@ public final class ImpulsePlugin extends JavaPlugin {
     private ResourceType<EntityStore, WorldCollisionProfilingResource> worldCollisionProfilingResourceType;
 
     @Getter
-    private ResourceType<EntityStore, PersistentPhysicsWorldResource> persistentPhysicsWorldResourceType;
+    private ResourceType<EntityStore, ? extends PhysicsPersistenceResource> persistentPhysicsWorldResourceType;
 
     @Getter
     private SystemGroup<EntityStore> persistenceRestoreGroup;
@@ -232,8 +230,8 @@ public final class ImpulsePlugin extends JavaPlugin {
             ImpulseControllableComponent.class,
             "ImpulseControllable",
             ImpulseControllableComponent.CODEC);
-        physicsControlSessionComponentType = entityRegistry.registerComponent(
-            PhysicsControlSessionComponent.class, PhysicsControlSessionComponent::new);
+        PhysicsControlSessionComponent.setComponentType(entityRegistry.registerComponent(
+            PhysicsControlSessionComponent.class, PhysicsControlSessionComponent::new));
         generatedVisualProxyComponentType = entityRegistry.registerComponent(
             GeneratedVisualProxyComponent.class,
             "GeneratedVisualProxy",

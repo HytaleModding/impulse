@@ -32,7 +32,7 @@ import dev.hytalemodding.impulse.core.plugin.components.PhysicsBodyAttachmentCom
 import dev.hytalemodding.impulse.core.plugin.components.PhysicsBodyAttachmentComponent.TransformAuthority;
 import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyId;
 import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyKind;
-import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyRegistration;
+import dev.hytalemodding.impulse.core.internal.resources.body.PhysicsBodyRegistration;
 import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyRegistrationView;
 import dev.hytalemodding.impulse.core.plugin.settings.PhysicsSpaceSettings;
 import dev.hytalemodding.impulse.core.plugin.settings.PhysicsVisualMaterializationSettings;
@@ -359,7 +359,7 @@ public class PhysicsDetachedVisualMaterializationSystem extends TickingSystem<En
         int defaultInterval) {
         int interval = Integer.MAX_VALUE;
         for (PhysicsSpace space : resource.iterateSpaces()) {
-            PhysicsSpaceSettings settings = resource.getSpaceSettings(space.getId());
+            PhysicsSpaceSettings settings = resource.getLiveSpaceSettings(space.getId());
             if (settings.getVisualMaterializationSettings().isDetachedVisualMaterializationEnabled()) {
                 interval = Math.min(interval, intervalGetter.applyAsInt(settings));
             }
@@ -440,7 +440,7 @@ public class PhysicsDetachedVisualMaterializationSystem extends TickingSystem<En
 
         Set<PhysicsBodyId> seenBodies = new ObjectOpenHashSet<>();
         for (PhysicsSpace space : resource.iterateSpaces()) {
-            PhysicsSpaceSettings settings = resource.getSpaceSettings(space.getId());
+            PhysicsSpaceSettings settings = resource.getLiveSpaceSettings(space.getId());
             if (!settings.getVisualMaterializationSettings().isDetachedVisualMaterializationEnabled()) {
                 continue;
             }
@@ -583,7 +583,7 @@ public class PhysicsDetachedVisualMaterializationSystem extends TickingSystem<En
     private static PhysicsSpaceSettings resolveSettings(@Nonnull PhysicsWorldRuntimeResource resource,
         @Nonnull PhysicsBodyRegistrationView registration) {
         if (resource.getSpace(registration.spaceId()) != null) {
-            return resource.getSpaceSettings(registration.spaceId());
+            return resource.getLiveSpaceSettings(registration.spaceId());
         }
         return null;
     }

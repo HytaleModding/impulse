@@ -246,7 +246,7 @@ public class PhysicsStepSystem extends TickingSystem<ChunkStore> implements Auto
         @Nonnull
         private StepSchedulerSample accumulate(float dt, float maxAccumulatedDt) {
             double candidate = accumulatedStepDt + Math.max(0.0f, dt);
-            double capped = Math.min(candidate, Math.max(0.0f, maxAccumulatedDt));
+            double capped = Math.clamp(maxAccumulatedDt, 0.0f, candidate);
             accumulatedStepDt = capped;
             double dropped = Math.max(0.0, candidate - capped);
             return new StepSchedulerSample((float) dropped, dropped > 0.0);

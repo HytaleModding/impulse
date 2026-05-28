@@ -9,10 +9,14 @@ import com.hypixel.hytale.codec.schema.config.Schema;
 import com.hypixel.hytale.codec.validation.Validator;
 import com.hypixel.hytale.codec.validation.ValidationResults;
 import com.hypixel.hytale.codec.validation.Validators;
-import com.hypixel.hytale.component.Resource;
 import com.hypixel.hytale.component.ResourceType;
+import com.hypixel.hytale.component.Store;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import dev.hytalemodding.impulse.core.ImpulsePlugin;
+import dev.hytalemodding.impulse.core.internal.systems.persistence.PersistentPhysicsWorldSyncSystem;
+import dev.hytalemodding.impulse.core.plugin.persistence.PhysicsPersistenceResource;
+import dev.hytalemodding.impulse.core.plugin.persistence.PhysicsPersistenceSyncResult;
+import dev.hytalemodding.impulse.core.plugin.resources.PhysicsWorldResource;
 import dev.hytalemodding.impulse.core.plugin.settings.PhysicsStepMode;
 import dev.hytalemodding.impulse.core.plugin.settings.PhysicsStepSchedulingMode;
 import dev.hytalemodding.impulse.core.plugin.settings.PhysicsWorldSettings;
@@ -23,7 +27,6 @@ import java.util.Arrays;
 import java.util.Set;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
-import lombok.Getter;
 
 /**
  * Codec-backed world-level physics resource for the persistence layer.
@@ -44,9 +47,9 @@ import lombok.Getter;
  * failures: those entries are skipped, counted, and reported so restore can finish
  * instead of hanging forever.</p>
  */
-public class PersistentPhysicsWorldResource implements Resource<EntityStore> {
+public class PersistentPhysicsWorldResource extends PhysicsPersistenceResource {
 
-    public static final int CURRENT_SCHEMA_VERSION = 5;
+    public static final int CURRENT_SCHEMA_VERSION = PhysicsPersistenceResource.CURRENT_SCHEMA_VERSION;
     private static final PersistentPhysicsSpaceState[] EMPTY_SPACES = new PersistentPhysicsSpaceState[0];
     private static final PersistentPhysicsBodyState[] EMPTY_BODIES = new PersistentPhysicsBodyState[0];
     private static final PersistentPhysicsJointState[] EMPTY_JOINTS = new PersistentPhysicsJointState[0];
@@ -114,7 +117,6 @@ public class PersistentPhysicsWorldResource implements Resource<EntityStore> {
         .afterDecode(PersistentPhysicsWorldResource::afterCodecDecode)
         .build();
 
-    @Getter
     private int schemaVersion = CURRENT_SCHEMA_VERSION;
     @Nonnull
     private final PhysicsWorldSettings worldSettings = new PhysicsWorldSettings();
@@ -128,9 +130,7 @@ public class PersistentPhysicsWorldResource implements Resource<EntityStore> {
     private PersistentPhysicsStateBlock[] bodyBlocks = EMPTY_STATE_BLOCKS;
     @Nonnull
     private PersistentPhysicsStateBlock[] jointBlocks = EMPTY_STATE_BLOCKS;
-    @Getter
     private transient boolean runtimeRestorePending;
-    @Getter
     private transient boolean runtimeSpaceBootstrapComplete;
     private transient boolean runtimeRestoreFailed;
     @Nonnull
@@ -150,8 +150,15 @@ public class PersistentPhysicsWorldResource implements Resource<EntityStore> {
     public PersistentPhysicsWorldResource() {
     }
 
+    @SuppressWarnings("unchecked")
     public static ResourceType<EntityStore, PersistentPhysicsWorldResource> getResourceType() {
-        return ImpulsePlugin.get().getPersistentPhysicsWorldResourceType();
+        return (ResourceType<EntityStore, PersistentPhysicsWorldResource>)
+            ImpulsePlugin.get().getPersistentPhysicsWorldResourceType();
+    }
+
+    @Override
+    public int getSchemaVersion() {
+        return schemaVersion;
     }
 
     public void setSchemaVersion(int schemaVersion) {
@@ -160,6 +167,19 @@ public class PersistentPhysicsWorldResource implements Resource<EntityStore> {
                 + CURRENT_SCHEMA_VERSION);
         }
         this.schemaVersion = schemaVersion;
+    }
+
+    @Nonnull
+    @Override
+    public PhysicsPersistenceSyncResult saveRuntimeSnapshot(@Nonnull Store<EntityStore> store,
+        @Nonnull PhysicsWorldResource runtime) {
+        PersistentPhysicsWorldSyncSystem.SyncResult result =
+            PersistentPhysicsWorldSyncSystem.syncRuntimeSnapshot(store, this, runtime);
+        return new PhysicsPersistenceSyncResult(result.synced(),
+            result.spaces(),
+            result.bodies(),
+            result.joints(),
+            result.skippedReason());
     }
 
     @Nonnull
@@ -210,6 +230,12 @@ public class PersistentPhysicsWorldResource implements Resource<EntityStore> {
         this.joints = copyJoints(joints);
     }
 
+    @Override
+    public boolean isRuntimeRestorePending() {
+        return runtimeRestorePending;
+    }
+
+    @Override
     public void markRuntimeRestorePending() {
         runtimeRestorePending = true;
         runtimeSpaceBootstrapComplete = false;
@@ -223,6 +249,11 @@ public class PersistentPhysicsWorldResource implements Resource<EntityStore> {
         runtimeSkippedBodiesByReason.clear();
         runtimeSkippedJointsByReason.clear();
         runtimeSkippedJointKeys.clear();
+    }
+
+    @Override
+    public boolean isRuntimeSpaceBootstrapComplete() {
+        return runtimeSpaceBootstrapComplete;
     }
 
     public void clearRuntimeRestorePending() {

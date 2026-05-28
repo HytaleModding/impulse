@@ -384,16 +384,6 @@ public abstract class PhysicsWorldResource implements Resource<EntityStore> {
     public abstract Collection<Ref<EntityStore>> getBodyAttachments(@Nonnull PhysicsBodyId bodyId);
 
     /**
-     * Marks a body as externally controlled so runtime systems avoid fighting the controller.
-     */
-    public abstract void markBodyControlled(@Nonnull PhysicsBodyId bodyId);
-
-    /**
-     * Clears external-control state for a body.
-     */
-    public abstract void clearControlledBody(@Nonnull PhysicsBodyId bodyId);
-
-    /**
      * Destroys all registered bodies while preserving registered physics spaces.
      */
     public abstract void clearBodies();
