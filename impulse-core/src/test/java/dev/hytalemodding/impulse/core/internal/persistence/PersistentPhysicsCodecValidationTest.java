@@ -12,6 +12,7 @@ import dev.hytalemodding.impulse.api.PhysicsBody;
 import dev.hytalemodding.impulse.api.PhysicsJointType;
 import dev.hytalemodding.impulse.api.PhysicsSpace;
 import dev.hytalemodding.impulse.api.ShapeType;
+import dev.hytalemodding.impulse.api.SpaceId;
 import dev.hytalemodding.impulse.api.testsupport.FakePhysicsBackend;
 import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyId;
 import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyKind;
@@ -196,6 +197,32 @@ class PersistentPhysicsCodecValidationTest {
         assertValidationFails(
             () -> PersistentPhysicsBodyState.CODEC.decode(encoded, new ExtraInfo()),
             "Must be greater than or equal to 1");
+    }
+
+    @Test
+    void bodyStateCaptureRejectsMissingSpaceId() {
+        PhysicsBody body = new FakePhysicsBackend("test:missing-body-space-"
+            + BACKEND_COUNTER.incrementAndGet())
+            .createSpace()
+            .createBox(0.5f, 0.75f, 1.0f, 1.0f);
+        PersistentPhysicsBodyState state = new PersistentPhysicsBodyState();
+
+        assertThrows(NullPointerException.class, () -> state.updateFromBody(body, null));
+    }
+
+    @Test
+    void bodyStateCaptureRejectsInvalidSpaceId() {
+        PhysicsBody body = new FakePhysicsBackend("test:invalid-body-space-"
+            + BACKEND_COUNTER.incrementAndGet())
+            .createSpace()
+            .createBox(0.5f, 0.75f, 1.0f, 1.0f);
+        PersistentPhysicsBodyState state = new PersistentPhysicsBodyState();
+
+        IllegalArgumentException exception = assertThrows(IllegalArgumentException.class,
+            () -> state.updateFromBody(body, new SpaceId(0)));
+
+        assertEquals("Persistent body state requires a positive explicit space id",
+            exception.getMessage());
     }
 
     @Test
