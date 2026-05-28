@@ -17,7 +17,7 @@ import dev.hytalemodding.impulse.api.testsupport.FakePhysicsBackend;
 import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyId;
 import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyKind;
 import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyPersistenceMode;
-import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyRegistration;
+import dev.hytalemodding.impulse.core.internal.resources.body.PhysicsBodyRegistration;
 import dev.hytalemodding.impulse.core.plugin.resources.PhysicsWorldResource;
 import dev.hytalemodding.impulse.core.plugin.settings.PhysicsSpaceSettings;
 import dev.hytalemodding.impulse.core.plugin.settings.PhysicsStepSchedulingMode;
@@ -127,6 +127,7 @@ class PersistentPhysicsCodecValidationTest {
 
         assertEquals("accumulate_pending_dt",
             encoded.getString("StepSchedulingMode").getValue());
+        Assertions.assertNotNull(decoded);
         assertEquals(PhysicsStepSchedulingMode.ACCUMULATE_PENDING_DT,
             decoded.getWorldSettings().getStepSchedulingMode());
     }
@@ -171,6 +172,7 @@ class PersistentPhysicsCodecValidationTest {
             decoded = PersistentPhysicsWorldResource.CODEC.decodeJson(reader, new ExtraInfo());
         }
 
+        Assertions.assertNotNull(decoded);
         assertEquals(1, decoded.getBodyCount());
         assertEquals(body.getBodyIdValue(), decoded.getBodies()[0].getBodyIdValue());
     }
@@ -279,6 +281,7 @@ class PersistentPhysicsCodecValidationTest {
         PhysicsSpace restoreSpace = new FakePhysicsBackend("test:plane-restore-"
             + BACKEND_COUNTER.incrementAndGet()).createSpace();
 
+        Assertions.assertNotNull(decoded);
         assertEquals(1, decoded.getBodyCount());
         PersistentPhysicsBodyState decodedBody = decoded.getBodies()[0];
         assertEquals(12.0f, decodedBody.getPosition().y, 0.0001f);

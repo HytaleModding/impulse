@@ -9,8 +9,10 @@ import dev.hytalemodding.impulse.api.BackendId;
 import dev.hytalemodding.impulse.api.PhysicsBody;
 import dev.hytalemodding.impulse.api.PhysicsBodySnapshot;
 import dev.hytalemodding.impulse.api.PhysicsBodyType;
+import dev.hytalemodding.impulse.api.PhysicsJoint;
 import dev.hytalemodding.impulse.api.PhysicsSpace;
 import dev.hytalemodding.impulse.api.SpaceId;
+import dev.hytalemodding.impulse.core.internal.control.PhysicsControlRuntimeState;
 import dev.hytalemodding.impulse.core.internal.resources.body.PhysicsBodyRegistry;
 import dev.hytalemodding.impulse.core.internal.resources.body.PhysicsBodyRuntimeState.BodySyncState;
 import dev.hytalemodding.impulse.core.internal.resources.body.PhysicsBodyRuntime;
@@ -19,6 +21,8 @@ import dev.hytalemodding.impulse.core.internal.resources.chunk.PhysicsChunkBound
 import dev.hytalemodding.impulse.core.internal.resources.chunk.PhysicsChunkBoundaryRuntime.ChunkBoundarySafeState;
 import dev.hytalemodding.impulse.core.internal.resources.chunk.PhysicsChunkBoundaryRuntime;
 import dev.hytalemodding.impulse.core.internal.resources.collision.PhysicsWorldCollisionRuntime;
+import dev.hytalemodding.impulse.core.internal.resources.joint.PhysicsJointRegistration;
+import dev.hytalemodding.impulse.core.internal.resources.joint.PhysicsJointRegistry;
 import dev.hytalemodding.impulse.core.internal.resources.owner.PhysicsOwnerGateway;
 import dev.hytalemodding.impulse.core.internal.resources.simulation.PhysicsSimulationRuntime;
 import dev.hytalemodding.impulse.core.internal.resources.space.PhysicsSpaceRuntime;
@@ -30,7 +34,7 @@ import dev.hytalemodding.impulse.core.internal.voxel.WorldVoxelCollisionCache;
 import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyId;
 import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyKind;
 import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyPersistenceMode;
-import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyRegistration;
+import dev.hytalemodding.impulse.core.internal.resources.body.PhysicsBodyRegistration;
 import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyRegistrationView;
 import dev.hytalemodding.impulse.core.plugin.collision.WorldCollisionBuildStats;
 import dev.hytalemodding.impulse.core.plugin.collision.WorldCollisionPrewarmStats;
@@ -42,6 +46,7 @@ import dev.hytalemodding.impulse.core.plugin.execution.PhysicsOwnerHandle;
 import dev.hytalemodding.impulse.core.plugin.execution.PhysicsOwnerMutation;
 import dev.hytalemodding.impulse.core.plugin.execution.PhysicsOwnerScopedCallable;
 import dev.hytalemodding.impulse.core.plugin.execution.PhysicsOwnerScopedMutation;
+import dev.hytalemodding.impulse.core.plugin.joint.PhysicsJointId;
 import dev.hytalemodding.impulse.core.plugin.resources.PhysicsWorldResource;
 import dev.hytalemodding.impulse.core.plugin.settings.PhysicsSpaceSettings;
 import dev.hytalemodding.impulse.core.plugin.settings.PhysicsStepMode;
@@ -80,12 +85,16 @@ public class PhysicsWorldRuntimeResource extends PhysicsWorldResource {
     private final PhysicsSimulationRuntime simulationRuntime = new PhysicsSimulationRuntime();
 
     private final PhysicsBodyRuntimeState runtimeState = new PhysicsBodyRuntimeState();
+    private final PhysicsControlRuntimeState controlRuntime = new PhysicsControlRuntimeState();
+    private final PhysicsJointRegistry jointRegistry = new PhysicsJointRegistry();
     private final PhysicsChunkBoundaryRuntime chunkRuntime = new PhysicsChunkBoundaryRuntime();
     private final PhysicsVisualRuntime visualRuntime = new PhysicsVisualRuntime(this::clearBodySyncState);
     private final PhysicsWorldSnapshotState snapshotState = new PhysicsWorldSnapshotState();
     private final PhysicsBodyRuntime bodyRuntime = new PhysicsBodyRuntime(spaceRuntime,
         bodyRegistry,
         runtimeState,
+        controlRuntime,
+        jointRegistry,
         chunkRuntime,
         visualRuntime,
         snapshotState,
@@ -501,6 +510,7 @@ public class PhysicsWorldRuntimeResource extends PhysicsWorldResource {
         PhysicsSpace removed = spaceRuntime.removeSpace(spaceId);
         collisionRuntime.clear(spaceId, removed);
         if (removed != null) {
+            jointRegistry.unregisterSpace(spaceId);
             for (PhysicsBody body : new ArrayList<>(removed.getBodies())) {
                 PhysicsBodyId bodyId = getBodyId(body);
                 if (bodyId != null) {
@@ -558,16 +568,23 @@ public class PhysicsWorldRuntimeResource extends PhysicsWorldResource {
         return spaceRuntime.getSpaceSettings(spaceId);
     }
 
+    @Nonnull
+    public PhysicsSpaceSettings getLiveSpaceSettings(@Nonnull SpaceId spaceId) {
+        return spaceRuntime.getLiveSpaceSettings(spaceId);
+    }
+
     public void setSpaceSettings(@Nonnull SpaceId spaceId, @Nonnull PhysicsSpaceSettings settings) {
-        runOnPhysicsOwner("set physics space settings", () -> setSpaceSettingsDirect(spaceId, settings));
+        PhysicsSpaceSettings requested = new PhysicsSpaceSettings(settings);
+        runOnPhysicsOwner("set physics space settings", () -> setSpaceSettingsDirect(spaceId, requested));
     }
 
     @Nonnull
     public PhysicsMutationHandle<SpaceId> setSpaceSettingsAsync(@Nonnull SpaceId spaceId,
         @Nonnull PhysicsSpaceSettings settings) {
+        PhysicsSpaceSettings requested = new PhysicsSpaceSettings(settings);
         return enqueuePhysicsMutation("set physics space settings",
             spaceId,
-            () -> setSpaceSettingsDirect(spaceId, settings));
+            () -> setSpaceSettingsDirect(spaceId, requested));
     }
 
     private void setSpaceSettingsDirect(@Nonnull SpaceId spaceId,
@@ -706,6 +723,70 @@ public class PhysicsWorldRuntimeResource extends PhysicsWorldResource {
     @Nullable
     public PhysicsBodyRegistrationView getBodyRegistrationView(@Nonnull PhysicsBodyId bodyId) {
         return bodyRegistry.getRegistrationView(bodyId);
+    }
+
+    @Nonnull
+    public PhysicsJointId addJoint(@Nonnull SpaceId spaceId,
+        @Nonnull PhysicsJoint joint) {
+        return addJoint(PhysicsJointId.random(), spaceId, joint);
+    }
+
+    @Nonnull
+    public PhysicsJointId addJoint(@Nonnull PhysicsJointId jointId,
+        @Nonnull SpaceId spaceId,
+        @Nonnull PhysicsJoint joint) {
+        return callOnPhysicsOwner("add physics joint",
+            () -> addJointDirect(jointId, spaceId, joint));
+    }
+
+    @Nonnull
+    private PhysicsJointId addJointDirect(@Nonnull PhysicsJointId jointId,
+        @Nonnull SpaceId spaceId,
+        @Nonnull PhysicsJoint joint) {
+        if (spaceRuntime.getSpace(spaceId) == null) {
+            throw new IllegalArgumentException("Physics space id=" + spaceId + " is not registered");
+        }
+        jointRegistry.registerJoint(jointId, spaceId, joint);
+        markWorldChanged();
+        return jointId;
+    }
+
+    public boolean removeJoint(@Nonnull PhysicsJointId jointId) {
+        return callOnPhysicsOwner("remove physics joint", () -> removeJointDirect(jointId));
+    }
+
+    private boolean removeJointDirect(@Nonnull PhysicsJointId jointId) {
+        PhysicsJointRegistration registration = jointRegistry.getRegistration(jointId);
+        if (registration == null) {
+            return false;
+        }
+
+        PhysicsSpace space = spaceRuntime.getSpace(registration.spaceId());
+        if (space != null) {
+            space.removeJoint(registration.joint());
+        }
+        jointRegistry.unregisterJoint(jointId);
+        markWorldChanged();
+        return true;
+    }
+
+    @Nullable
+    public PhysicsJoint getJoint(@Nonnull PhysicsJointId jointId) {
+        assertCanAccessLiveBackendDirectly("resolve live physics joint");
+        PhysicsJointRegistration registration = jointRegistry.getRegistration(jointId);
+        return registration != null ? registration.joint() : null;
+    }
+
+    @Nullable
+    public PhysicsJointId getJointId(@Nonnull PhysicsJoint joint) {
+        assertCanAccessLiveBackendDirectly("resolve live physics joint id");
+        return jointRegistry.getJointId(joint);
+    }
+
+    @Nullable
+    public PhysicsJointRegistration getJointRegistration(@Nonnull PhysicsJointId jointId) {
+        assertCanAccessLiveBackendDirectly("resolve live physics joint registration");
+        return jointRegistry.getRegistration(jointId);
     }
 
     public boolean isBodyCreationPending(@Nonnull PhysicsBodyId bodyId) {
@@ -857,15 +938,15 @@ public class PhysicsWorldRuntimeResource extends PhysicsWorldResource {
     }
 
     public void markBodyControlled(@Nonnull PhysicsBodyId bodyId) {
-        chunkRuntime.markBodyControlled(bodyId);
+        controlRuntime.markBodyControlled(bodyId);
     }
 
     public void clearControlledBody(@Nonnull PhysicsBodyId bodyId) {
-        chunkRuntime.clearControlledBody(bodyId);
+        controlRuntime.clearControlledBody(bodyId);
     }
 
     public boolean isBodyControlled(@Nonnull PhysicsBodyId bodyId) {
-        return chunkRuntime.isBodyControlled(bodyId);
+        return controlRuntime.isBodyControlled(bodyId);
     }
 
     public void updateChunkBoundarySafeState(@Nonnull PhysicsBodyId bodyId,
@@ -946,6 +1027,8 @@ public class PhysicsWorldRuntimeResource extends PhysicsWorldResource {
         spaceRuntime.clearLiveTopology("<copy>");
         bodyRegistry.clear();
         runtimeState.clear();
+        controlRuntime.clear();
+        jointRegistry.clear();
         chunkRuntime.clear();
         visualRuntime.clear();
         snapshotState.clearBodySnapshots();
@@ -1063,6 +1146,44 @@ public class PhysicsWorldRuntimeResource extends PhysicsWorldResource {
             @Nonnull PhysicsBodyPersistenceMode persistenceMode) {
             assertCanAccessLiveBackendDirectly("add physics body");
             return addBodyDirect(bodyId, spaceId, body, kind, persistenceMode);
+        }
+
+        @Nullable
+        @Override
+        public PhysicsJoint getJoint(@Nonnull PhysicsJointId jointId) {
+            return PhysicsWorldRuntimeResource.this.getJoint(jointId);
+        }
+
+        @Nonnull
+        @Override
+        public PhysicsJoint requireJoint(@Nonnull PhysicsJointId jointId) {
+            PhysicsJoint joint = getJoint(jointId);
+            if (joint == null) {
+                throw new IllegalArgumentException("Physics joint id=" + jointId + " is not registered");
+            }
+            return joint;
+        }
+
+        @Nullable
+        @Override
+        public PhysicsJointId getJointId(@Nonnull PhysicsJoint joint) {
+            return PhysicsWorldRuntimeResource.this.getJointId(joint);
+        }
+
+        @Nonnull
+        @Override
+        public PhysicsJointId addJoint(@Nonnull SpaceId spaceId,
+            @Nonnull PhysicsJoint joint) {
+            return addJoint(PhysicsJointId.random(), spaceId, joint);
+        }
+
+        @Nonnull
+        @Override
+        public PhysicsJointId addJoint(@Nonnull PhysicsJointId jointId,
+            @Nonnull SpaceId spaceId,
+            @Nonnull PhysicsJoint joint) {
+            assertCanAccessLiveBackendDirectly("add physics joint");
+            return addJointDirect(jointId, spaceId, joint);
         }
     }
 

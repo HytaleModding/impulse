@@ -15,7 +15,7 @@ import dev.hytalemodding.impulse.core.internal.worker.PhysicsWorkerAccess;
 import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyId;
 import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyKind;
 import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyPersistenceMode;
-import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyRegistration;
+import dev.hytalemodding.impulse.core.internal.resources.body.PhysicsBodyRegistration;
 import dev.hytalemodding.impulse.core.plugin.execution.PhysicsMutationHandle;
 import dev.hytalemodding.impulse.core.plugin.settings.PhysicsSpaceSettings;
 import dev.hytalemodding.impulse.core.plugin.snapshot.PhysicsBodySnapshotEntry;
@@ -80,7 +80,7 @@ public class PhysicsCollisionLodSystem extends TickingSystem<EntityStore> {
         for (PhysicsSpace space : resource.getSpaces()) {
             SpaceId spaceId = space.getId();
             activeSpaces.add(spaceId.value());
-            PhysicsSpaceSettings settings = resource.getSpaceSettings(spaceId);
+            PhysicsSpaceSettings settings = resource.getLiveSpaceSettings(spaceId);
             if (!settings.getCollisionLodSettings().isCollisionLodEnabled()) {
                 state.collectRestoreUpdates(spaceId, updates);
                 continue;
@@ -201,7 +201,7 @@ public class PhysicsCollisionLodSystem extends TickingSystem<EntityStore> {
             if (!body.isDynamic() || body.isSensor() || !isDefaultDynamicFilter(body)) {
                 continue;
             }
-            PhysicsSpaceSettings settings = resource.getSpaceSettings(update.spaceId());
+            PhysicsSpaceSettings settings = resource.getLiveSpaceSettings(update.spaceId());
             applyTier(body, update.tier(), settings.getCollisionLodSettings().isCollisionLodFarSleepEnabled());
         }
     }

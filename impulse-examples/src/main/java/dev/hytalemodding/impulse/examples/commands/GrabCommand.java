@@ -14,16 +14,18 @@ import com.hypixel.hytale.server.core.universe.world.World;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import dev.hytalemodding.impulse.api.PhysicsBody;
 import dev.hytalemodding.impulse.api.PhysicsBodyType;
+import dev.hytalemodding.impulse.api.PhysicsJoint;
 import dev.hytalemodding.impulse.api.PhysicsRayHit;
 import dev.hytalemodding.impulse.api.PhysicsSpace;
 import dev.hytalemodding.impulse.api.SpaceId;
-import dev.hytalemodding.impulse.core.plugin.components.PhysicsControlSessionComponent;
 import dev.hytalemodding.impulse.core.plugin.components.ImpulseControllableComponent;
 import dev.hytalemodding.impulse.core.plugin.components.PhysicsBodyAttachmentComponent;
 import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyId;
 import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyKind;
 import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyPersistenceMode;
 import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyRegistrationView;
+import dev.hytalemodding.impulse.core.plugin.control.PhysicsControlSessions;
+import dev.hytalemodding.impulse.core.plugin.joint.PhysicsJointId;
 import dev.hytalemodding.impulse.core.plugin.resources.PhysicsWorldResource;
 import java.util.ArrayList;
 import java.util.List;
@@ -41,8 +43,6 @@ public class GrabCommand extends AbstractAsyncPlayerCommand {
     private static final Vector3f VIEW_OFFSET = new Vector3f(0.85f, -0.35f, 0.0f);
     private static final ComponentType<EntityStore, TransformComponent> TRANSFORM_TYPE =
         TransformComponent.getComponentType();
-    private static final ComponentType<EntityStore, PhysicsControlSessionComponent> CONTROL_SESSION_TYPE =
-        PhysicsControlSessionComponent.getComponentType();
     private static final ComponentType<EntityStore, PhysicsBodyAttachmentComponent> ATTACHMENT_TYPE =
         PhysicsBodyAttachmentComponent.getComponentType();
     private static final ComponentType<EntityStore, ImpulseControllableComponent> IMPULSE_CONTROLLABLE_TYPE =
@@ -117,28 +117,28 @@ public class GrabCommand extends AbstractAsyncPlayerCommand {
                     PhysicsBodyKind.TEMPORARY,
                     PhysicsBodyPersistenceMode.RUNTIME_ONLY);
 
-                selectedSpace.createPointJoint(anchorBody, body, new Vector3f(), bodyLocalHit);
+                PhysicsJoint controlJoint =
+                    selectedSpace.createPointJoint(anchorBody, body, new Vector3f(), bodyLocalHit);
+                PhysicsJointId controlJointId = access.addJoint(selectedSpaceId, controlJoint);
                 body.activate();
-                return new GrabPhysicsState(originalBodyType, anchorBodyId, hitPoint);
+                return new GrabPhysicsState(originalBodyType, anchorBodyId, controlJointId, hitPoint);
             });
         if (physicsState == null) {
             ctx.sender().sendMessage(Message.raw("Selected physics body no longer exists."));
             return CompletableFuture.completedFuture(null);
         }
 
-        store.putComponent(ref,
-            CONTROL_SESSION_TYPE,
-            new PhysicsControlSessionComponent(
-                selection.bodyId(),
-                physicsState.anchorBodyId(),
-                selection.attachment(),
-                selectedSpaceId,
-                physicsState.originalBodyType(),
-                Math.max(selection.distance(), MIN_HOLD_DISTANCE),
-                VIEW_OFFSET,
-                physicsState.hitPoint()
-            ));
-        resource.markBodyControlled(selection.bodyId());
+        PhysicsControlSessions.startSession(store,
+            ref,
+            selection.bodyId(),
+            physicsState.anchorBodyId(),
+            physicsState.controlJointId(),
+            selection.attachment(),
+            selectedSpaceId,
+            physicsState.originalBodyType(),
+            Math.max(selection.distance(), MIN_HOLD_DISTANCE),
+            VIEW_OFFSET,
+            physicsState.hitPoint());
 
         ctx.sender().sendMessage(Message.raw("Grabbed physics body at distance "
             + selection.distance()));
@@ -232,11 +232,7 @@ public class GrabCommand extends AbstractAsyncPlayerCommand {
 
     private static void releaseExisting(@Nonnull Store<EntityStore> store,
         @Nonnull Ref<EntityStore> playerRef) {
-        PhysicsControlSessionComponent existing = store.getComponent(playerRef, CONTROL_SESSION_TYPE);
-        if (existing == null) {
-            return;
-        }
-        ReleaseCommand.release(store, playerRef, existing);
+        PhysicsControlSessions.releaseSession(store, playerRef);
     }
 
     private record HitSelection(@Nonnull PhysicsBodyId bodyId,
@@ -256,6 +252,7 @@ public class GrabCommand extends AbstractAsyncPlayerCommand {
 
     private record GrabPhysicsState(@Nonnull PhysicsBodyType originalBodyType,
                                     @Nonnull PhysicsBodyId anchorBodyId,
+                                    @Nonnull PhysicsJointId controlJointId,
                                     @Nonnull Vector3f hitPoint) {
     }
 }

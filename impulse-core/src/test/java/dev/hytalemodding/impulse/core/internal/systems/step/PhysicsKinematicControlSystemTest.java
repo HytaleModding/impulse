@@ -3,20 +3,25 @@ package dev.hytalemodding.impulse.core.internal.systems.step;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import dev.hytalemodding.impulse.api.Impulse;
 import dev.hytalemodding.impulse.api.PhysicsBody;
+import dev.hytalemodding.impulse.api.PhysicsJoint;
 import dev.hytalemodding.impulse.api.PhysicsSpace;
 import dev.hytalemodding.impulse.api.testsupport.FakePhysicsBackend;
+import dev.hytalemodding.impulse.core.internal.control.PhysicsControlJointResolver;
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsWorldRuntimeResource;
 import dev.hytalemodding.impulse.core.internal.systems.step.PhysicsKinematicControlSystem.ControlAnchorUpdate;
 import dev.hytalemodding.impulse.core.internal.systems.step.PhysicsKinematicControlSystem.ControlMutationState;
 import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyId;
 import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyKind;
 import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyPersistenceMode;
-import dev.hytalemodding.impulse.core.plugin.components.PhysicsControlSessionComponent;
+import dev.hytalemodding.impulse.core.internal.components.PhysicsControlSessionComponent;
 import dev.hytalemodding.impulse.core.plugin.execution.PhysicsMutationHandle;
+import dev.hytalemodding.impulse.core.plugin.joint.PhysicsJointId;
+import java.util.Arrays;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.atomic.AtomicInteger;
 import org.joml.Vector3f;
@@ -127,10 +132,13 @@ class PhysicsKinematicControlSystemTest {
             anchorBody,
             PhysicsBodyKind.TEMPORARY,
             PhysicsBodyPersistenceMode.RUNTIME_ONLY);
-        space.createPointJoint(anchorBody, body, new Vector3f(), new Vector3f());
+        PhysicsJoint controlJoint =
+            space.createPointJoint(anchorBody, body, new Vector3f(), new Vector3f());
+        PhysicsJointId controlJointId = resource.addJoint(space.getId(), controlJoint);
         resource.markBodyControlled(bodyId);
         PhysicsControlSessionComponent session = new PhysicsControlSessionComponent(bodyId,
             anchorBodyId,
+            controlJointId,
             null,
             space.getId(),
             body.getBodyType(),
@@ -138,9 +146,16 @@ class PhysicsKinematicControlSystemTest {
             new Vector3f(),
             new Vector3f());
 
+        assertFalse(Arrays.stream(PhysicsControlSessionComponent.class.getDeclaredFields())
+            .anyMatch(field -> PhysicsJoint.class.isAssignableFrom(field.getType())));
+        assertEquals(controlJointId, session.getControlJointId());
+        assertEquals(controlJointId, session.clone().getControlJointId());
+        assertSame(controlJoint, resource.getJoint(controlJointId));
+
         PhysicsControlSessionCleanup.cleanup(resource, session);
 
         assertFalse(resource.isBodyControlled(bodyId));
+        assertNull(resource.getJoint(controlJointId));
         assertEquals(1, space.bodyCount());
         assertEquals(0, space.jointCount());
         assertTrue(space.containsBody(body));

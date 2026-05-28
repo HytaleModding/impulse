@@ -5,14 +5,16 @@ import dev.hytalemodding.impulse.api.PhysicsBodySnapshot;
 import dev.hytalemodding.impulse.api.PhysicsJoint;
 import dev.hytalemodding.impulse.api.PhysicsSpace;
 import dev.hytalemodding.impulse.api.SpaceId;
+import dev.hytalemodding.impulse.core.internal.control.PhysicsControlRuntimeState;
 import dev.hytalemodding.impulse.core.internal.resources.chunk.PhysicsChunkBoundaryRuntime;
+import dev.hytalemodding.impulse.core.internal.resources.joint.PhysicsJointRegistry;
 import dev.hytalemodding.impulse.core.internal.resources.snapshot.PhysicsWorldSnapshotState;
 import dev.hytalemodding.impulse.core.internal.resources.space.PhysicsSpaceRuntime;
 import dev.hytalemodding.impulse.core.internal.resources.visual.PhysicsVisualRuntime;
 import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyId;
 import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyKind;
 import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyPersistenceMode;
-import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyRegistration;
+import dev.hytalemodding.impulse.core.internal.resources.body.PhysicsBodyRegistration;
 import java.util.ArrayList;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
@@ -29,6 +31,10 @@ public final class PhysicsBodyRuntime {
     @Nonnull
     private final PhysicsBodyRuntimeState runtimeState;
     @Nonnull
+    private final PhysicsControlRuntimeState controlRuntime;
+    @Nonnull
+    private final PhysicsJointRegistry jointRegistry;
+    @Nonnull
     private final PhysicsChunkBoundaryRuntime chunkRuntime;
     @Nonnull
     private final PhysicsVisualRuntime visualRuntime;
@@ -42,6 +48,8 @@ public final class PhysicsBodyRuntime {
     public PhysicsBodyRuntime(@Nonnull PhysicsSpaceRuntime spaceRuntime,
         @Nonnull PhysicsBodyRegistry bodyRegistry,
         @Nonnull PhysicsBodyRuntimeState runtimeState,
+        @Nonnull PhysicsControlRuntimeState controlRuntime,
+        @Nonnull PhysicsJointRegistry jointRegistry,
         @Nonnull PhysicsChunkBoundaryRuntime chunkRuntime,
         @Nonnull PhysicsVisualRuntime visualRuntime,
         @Nonnull PhysicsWorldSnapshotState snapshotState,
@@ -49,6 +57,8 @@ public final class PhysicsBodyRuntime {
         this.spaceRuntime = spaceRuntime;
         this.bodyRegistry = bodyRegistry;
         this.runtimeState = runtimeState;
+        this.controlRuntime = controlRuntime;
+        this.jointRegistry = jointRegistry;
         this.chunkRuntime = chunkRuntime;
         this.visualRuntime = visualRuntime;
         this.snapshotState = snapshotState;
@@ -147,6 +157,8 @@ public final class PhysicsBodyRuntime {
     public void clearBodyState() {
         bodyRegistry.clear();
         runtimeState.clear();
+        controlRuntime.clear();
+        jointRegistry.clear();
         chunkRuntime.clear();
         visualRuntime.clear();
         snapshotState.clearBodySnapshots();
@@ -155,11 +167,13 @@ public final class PhysicsBodyRuntime {
 
     public void clearBodyRuntimeState(@Nonnull PhysicsBodyId bodyId) {
         visualRuntime.clearBodyRuntimeState(bodyId);
+        controlRuntime.clearBody(bodyId);
         chunkRuntime.clearBody(bodyId);
         snapshotState.removeBodySnapshot(bodyId);
     }
 
     private void removeBodyFromSpace(@Nonnull PhysicsBody body, @Nullable PhysicsBodyRegistration registration) {
+        jointRegistry.unregisterJointsForBody(body);
         if (registration != null) {
             PhysicsSpace space = spaceRuntime.getSpace(registration.spaceId());
             if (space != null) {

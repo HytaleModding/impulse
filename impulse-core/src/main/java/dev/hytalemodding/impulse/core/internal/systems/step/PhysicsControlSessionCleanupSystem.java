@@ -7,7 +7,7 @@ import com.hypixel.hytale.component.Store;
 import com.hypixel.hytale.component.query.Query;
 import com.hypixel.hytale.component.system.RefChangeSystem;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
-import dev.hytalemodding.impulse.core.plugin.components.PhysicsControlSessionComponent;
+import dev.hytalemodding.impulse.core.internal.components.PhysicsControlSessionComponent;
 import java.util.Objects;
 import javax.annotation.Nonnull;
 
@@ -59,6 +59,7 @@ public final class PhysicsControlSessionCleanupSystem
         @Nonnull PhysicsControlSessionComponent second) {
         return Objects.equals(first.getBodyId(), second.getBodyId())
             && Objects.equals(first.getAnchorBodyId(), second.getAnchorBodyId())
+            && Objects.equals(first.getControlJointId(), second.getControlJointId())
             && Objects.equals(first.getSpaceId(), second.getSpaceId());
     }
 }

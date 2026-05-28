@@ -3,8 +3,6 @@ package dev.hytalemodding.impulse.core.plugin.persistence;
 import com.hypixel.hytale.component.Store;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import dev.hytalemodding.impulse.api.PhysicsSpace;
-import dev.hytalemodding.impulse.core.internal.persistence.PersistentPhysicsWorldResource;
-import dev.hytalemodding.impulse.core.internal.systems.persistence.PersistentPhysicsWorldSyncSystem;
 import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyPersistenceMode;
 import dev.hytalemodding.impulse.core.plugin.resources.PhysicsWorldResource;
 import javax.annotation.Nonnull;
@@ -15,17 +13,16 @@ import javax.annotation.Nonnull;
 public final class PhysicsPersistence {
 
     public static final int CURRENT_SCHEMA_VERSION =
-        PersistentPhysicsWorldResource.CURRENT_SCHEMA_VERSION;
+        PhysicsPersistenceResource.CURRENT_SCHEMA_VERSION;
 
     private PhysicsPersistence() {
     }
 
     @Nonnull
     public static SaveResult saveRuntimeSnapshot(@Nonnull Store<EntityStore> store) {
-        PersistentPhysicsWorldResource persistent = persistent(store);
+        PhysicsPersistenceResource persistent = persistent(store);
         PhysicsWorldResource runtime = runtime(store);
-        PersistentPhysicsWorldSyncSystem.SyncResult result =
-            PersistentPhysicsWorldSyncSystem.syncRuntimeSnapshot(store, persistent, runtime);
+        PhysicsPersistenceSyncResult result = persistent.saveRuntimeSnapshot(store, runtime);
         return new SaveResult(result.synced(),
             persistent.getSchemaVersion(),
             result.spaces(),
@@ -36,7 +33,7 @@ public final class PhysicsPersistence {
 
     @Nonnull
     public static RestoreRequestResult requestRuntimeRestore(@Nonnull Store<EntityStore> store) {
-        PersistentPhysicsWorldResource persistent = persistent(store);
+        PhysicsPersistenceResource persistent = persistent(store);
         Status status = status(store);
         if (persistent.isRuntimeRestorePending()) {
             return new RestoreRequestResult(false, "already-pending", status);
@@ -51,7 +48,7 @@ public final class PhysicsPersistence {
 
     @Nonnull
     public static Status status(@Nonnull Store<EntityStore> store) {
-        PersistentPhysicsWorldResource persistent = persistent(store);
+        PhysicsPersistenceResource persistent = persistent(store);
         PhysicsWorldResource runtime = runtime(store);
         return new Status(runtime.getSpaceCount(),
             runtime.getBodyRegistrationCount(PhysicsBodyPersistenceMode.PERSISTENT),
@@ -76,7 +73,7 @@ public final class PhysicsPersistence {
     }
 
     @Nonnull
-    private static RestoreState restoreState(@Nonnull PersistentPhysicsWorldResource persistent) {
+    private static RestoreState restoreState(@Nonnull PhysicsPersistenceResource persistent) {
         if (persistent.hasRuntimeRestoreFailed()) {
             return RestoreState.FAILED;
         }
@@ -89,7 +86,7 @@ public final class PhysicsPersistence {
     }
 
     @Nonnull
-    private static String restoreMessage(@Nonnull PersistentPhysicsWorldResource persistent) {
+    private static String restoreMessage(@Nonnull PhysicsPersistenceResource persistent) {
         if (persistent.hasRuntimeRestoreFailed()) {
             return persistent.runtimeRestoreFailureSummary();
         }
@@ -100,8 +97,8 @@ public final class PhysicsPersistence {
     }
 
     @Nonnull
-    private static PersistentPhysicsWorldResource persistent(@Nonnull Store<EntityStore> store) {
-        return store.getResource(PersistentPhysicsWorldResource.getResourceType());
+    private static PhysicsPersistenceResource persistent(@Nonnull Store<EntityStore> store) {
+        return store.getResource(PhysicsPersistenceResource.getResourceType());
     }
 
     @Nonnull

@@ -1,4 +1,4 @@
-package dev.hytalemodding.impulse.core.internal.systems.step;
+package dev.hytalemodding.impulse.core.internal.control;
 
 import dev.hytalemodding.impulse.api.PhysicsJoint;
 import dev.hytalemodding.impulse.api.PhysicsSpace;
@@ -8,12 +8,12 @@ import java.util.ArrayList;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
-final class PhysicsControlJointResolver {
+public final class PhysicsControlJointResolver {
 
     private PhysicsControlJointResolver() {
     }
 
-    static boolean removeControlJoint(@Nonnull PhysicsOwnerAccess access,
+    public static boolean removeControlJoint(@Nonnull PhysicsOwnerAccess access,
         @Nonnull PhysicsSpace space,
         @Nonnull PhysicsBodyId bodyId,
         @Nonnull PhysicsBodyId anchorBodyId) {

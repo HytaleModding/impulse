@@ -20,23 +20,10 @@ import org.joml.Vector3f;
 public final class PhysicsChunkBoundaryRuntime {
 
     private final Set<PhysicsBodyId> forcedContinuousCollisionBodyIds = new ObjectOpenHashSet<>();
-    private final Set<PhysicsBodyId> controlledBodies = new ObjectOpenHashSet<>();
     private final Map<PhysicsBodyId, ChunkBoundarySafeState> chunkBoundarySafeStates =
         new Object2ObjectLinkedOpenHashMap<>();
     private final Map<PhysicsBodyId, ChunkBoundaryPauseState> chunkBoundaryPauseStates =
         new Object2ObjectLinkedOpenHashMap<>();
-
-    public void markBodyControlled(@Nonnull PhysicsBodyId bodyId) {
-        controlledBodies.add(bodyId);
-    }
-
-    public void clearControlledBody(@Nonnull PhysicsBodyId bodyId) {
-        controlledBodies.remove(bodyId);
-    }
-
-    public boolean isBodyControlled(@Nonnull PhysicsBodyId bodyId) {
-        return controlledBodies.contains(bodyId);
-    }
 
     public void updateChunkBoundarySafeState(@Nonnull PhysicsBodyId bodyId,
         @Nonnull Vector3f position,
@@ -87,14 +74,12 @@ public final class PhysicsChunkBoundaryRuntime {
 
     public void clearBody(@Nonnull PhysicsBodyId bodyId) {
         forcedContinuousCollisionBodyIds.remove(bodyId);
-        controlledBodies.remove(bodyId);
         chunkBoundarySafeStates.remove(bodyId);
         chunkBoundaryPauseStates.remove(bodyId);
     }
 
     public void clear() {
         forcedContinuousCollisionBodyIds.clear();
-        controlledBodies.clear();
         chunkBoundarySafeStates.clear();
         chunkBoundaryPauseStates.clear();
     }

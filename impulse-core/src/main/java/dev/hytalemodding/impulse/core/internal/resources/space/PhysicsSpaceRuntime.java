@@ -167,6 +167,11 @@ public final class PhysicsSpaceRuntime {
 
     @Nonnull
     public PhysicsSpaceSettings getSpaceSettings(@Nonnull SpaceId spaceId) {
+        return new PhysicsSpaceSettings(getLiveSpaceSettings(spaceId));
+    }
+
+    @Nonnull
+    public PhysicsSpaceSettings getLiveSpaceSettings(@Nonnull SpaceId spaceId) {
         PhysicsSpaceSettings settings = spaceSettings.get(spaceId.value());
         if (settings == null) {
             throw new IllegalStateException("Physics space settings are missing for id=" + spaceId);

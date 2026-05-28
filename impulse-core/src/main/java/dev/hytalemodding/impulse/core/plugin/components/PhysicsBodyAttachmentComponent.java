@@ -10,8 +10,8 @@ import com.hypixel.hytale.math.vector.Vector3fUtil;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import dev.hytalemodding.impulse.api.SpaceId;
 import dev.hytalemodding.impulse.core.ImpulsePlugin;
-import dev.hytalemodding.impulse.core.internal.persistence.PersistentQuaternion;
 import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyId;
+import dev.hytalemodding.impulse.core.plugin.codec.ImpulseCodecs;
 import java.util.UUID;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
@@ -63,11 +63,11 @@ public class PhysicsBodyAttachmentComponent implements Component<EntityStore> {
                 : new Vector3f()),
             PhysicsBodyAttachmentComponent::getLocalPositionOffset)
         .add()
-        .append(new KeyedCodec<>("LocalRotationOffset", PersistentQuaternion.CODEC, false),
+        .append(new KeyedCodec<>("LocalRotationOffset", ImpulseCodecs.QUATERNIONF, false),
             (component, value) -> component.localRotationOffset.set(value != null
-                ? value.toQuaternionf()
+                ? value
                 : new Quaternionf()),
-            component -> PersistentQuaternion.of(component.localRotationOffset))
+            component -> new Quaternionf(component.localRotationOffset))
         .add()
         .build();
 

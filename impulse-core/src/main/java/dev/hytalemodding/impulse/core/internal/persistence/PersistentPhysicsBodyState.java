@@ -13,13 +13,15 @@ import dev.hytalemodding.impulse.api.PhysicsSpace;
 import dev.hytalemodding.impulse.api.ShapeType;
 import dev.hytalemodding.impulse.api.SpaceId;
 import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyId;
-import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyRegistration;
+import dev.hytalemodding.impulse.core.internal.resources.body.PhysicsBodyRegistration;
+import dev.hytalemodding.impulse.core.plugin.codec.ImpulseCodecs;
 import dev.hytalemodding.impulse.core.plugin.resources.PhysicsWorldResource;
 import java.util.Objects;
 import java.util.UUID;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 import lombok.Getter;
+import org.joml.Quaternionf;
 import org.joml.Vector3f;
 
 /**
@@ -90,8 +92,12 @@ public class PersistentPhysicsBodyState {
         .addValidator(PersistentPhysicsValidation.finiteVector(
             "Persisted body position must be finite"))
         .add()
-        .append(new KeyedCodec<>("Rotation", PersistentQuaternion.CODEC),
-            (state, value) -> state.rotation = value.copy(),
+        .append(new KeyedCodec<>("Rotation", ImpulseCodecs.QUATERNIONF),
+            (state, value) -> {
+                if (value != null) {
+                    state.rotation.set(value);
+                }
+            },
             PersistentPhysicsBodyState::getRotation)
         .addValidator(Validators.nonNull())
         .add()
@@ -176,7 +182,7 @@ public class PersistentPhysicsBodyState {
     @Nonnull
     private final Vector3f position = new Vector3f();
     @Nonnull
-    private PersistentQuaternion rotation = new PersistentQuaternion();
+    private final Quaternionf rotation = new Quaternionf();
     @Nonnull
     private final Vector3f linearVelocity = new Vector3f();
     @Nonnull
@@ -247,8 +253,8 @@ public class PersistentPhysicsBodyState {
     }
 
     @Nonnull
-    public PersistentQuaternion getRotation() {
-        return rotation;
+    public Quaternionf getRotation() {
+        return new Quaternionf(rotation);
     }
 
     @Nonnull
@@ -276,7 +282,7 @@ public class PersistentPhysicsBodyState {
         if (!isFiniteVector(position)) {
             return "invalid position";
         }
-        if (!rotation.isFiniteAndNonZero()) {
+        if (!ImpulseCodecs.isFiniteAndNonZero(rotation)) {
             return "invalid rotation";
         }
         if (!isFiniteVector(linearVelocity)) {
@@ -371,7 +377,7 @@ public class PersistentPhysicsBodyState {
         body.setBodyType(bodyType);
         body.setMass(mass);
         body.setPosition(position);
-        body.setRotation(rotation.toQuaternionf());
+        body.setRotation(rotation);
         body.setLinearVelocity(linearVelocity);
         body.setAngularVelocity(angularVelocity);
         body.setFriction(friction);
@@ -400,7 +406,7 @@ public class PersistentPhysicsBodyState {
         copy.bodyType = bodyType;
         copy.mass = mass;
         copy.position.set(position);
-        copy.rotation = rotation.copy();
+        copy.rotation.set(rotation);
         copy.linearVelocity.set(linearVelocity);
         copy.angularVelocity.set(angularVelocity);
         copy.friction = friction;
