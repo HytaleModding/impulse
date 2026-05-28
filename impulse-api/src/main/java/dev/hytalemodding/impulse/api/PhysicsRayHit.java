@@ -13,4 +13,16 @@ public record PhysicsRayHit(@Nonnull PhysicsBody body,
         point = new Vector3f(point);
         normal = new Vector3f(normal);
     }
+
+    @Nonnull
+    @Override
+    public Vector3f point() {
+        return new Vector3f(point);
+    }
+
+    @Nonnull
+    @Override
+    public Vector3f normal() {
+        return new Vector3f(normal);
+    }
 }

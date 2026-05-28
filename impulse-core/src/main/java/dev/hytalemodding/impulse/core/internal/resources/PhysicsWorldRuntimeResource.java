@@ -53,7 +53,6 @@ import dev.hytalemodding.impulse.core.plugin.settings.PhysicsStepMode;
 import dev.hytalemodding.impulse.core.plugin.settings.PhysicsWorldSettings;
 import dev.hytalemodding.impulse.core.plugin.snapshot.PhysicsBodySnapshotEntry;
 import dev.hytalemodding.impulse.core.plugin.snapshot.PublishedPhysicsSnapshotFrame;
-import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
 import java.util.Objects;
@@ -511,10 +510,9 @@ public class PhysicsWorldRuntimeResource extends PhysicsWorldResource {
         collisionRuntime.clear(spaceId, removed);
         if (removed != null) {
             jointRegistry.unregisterSpace(spaceId);
-            for (PhysicsBody body : new ArrayList<>(removed.getBodies())) {
-                PhysicsBodyId bodyId = getBodyId(body);
-                if (bodyId != null) {
-                    destroyBody(bodyId, false);
+            for (PhysicsBodyRegistration registration : bodyRegistry.getRegistrations()) {
+                if (registration.spaceId().equals(spaceId)) {
+                    destroyBody(registration.id(), false);
                 }
             }
             LOGGER.at(Level.FINE).log(
