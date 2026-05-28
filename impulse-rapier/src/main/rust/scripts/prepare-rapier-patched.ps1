@@ -91,7 +91,19 @@ try {
         Copy-Item -Destination $tmpDir -Recurse -Force
 
     if (Get-Command git -ErrorAction SilentlyContinue) {
-        & git -C $tmpDir apply $rapierPatchPath
+        $oldGitCeilingDirectories = $env:GIT_CEILING_DIRECTORIES
+        try {
+            if ([string]::IsNullOrEmpty($oldGitCeilingDirectories)) {
+                $env:GIT_CEILING_DIRECTORIES = $patchedParent
+            } else {
+                $env:GIT_CEILING_DIRECTORIES = $patchedParent `
+                    + [System.IO.Path]::PathSeparator `
+                    + $oldGitCeilingDirectories
+            }
+            & git -C $tmpDir apply $rapierPatchPath
+        } finally {
+            $env:GIT_CEILING_DIRECTORIES = $oldGitCeilingDirectories
+        }
         if ($LASTEXITCODE -ne 0) {
             Fail "git apply failed with exit code $LASTEXITCODE"
         }

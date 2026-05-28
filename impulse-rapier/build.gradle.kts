@@ -35,6 +35,8 @@ val nativeResourcePath = "native/$nativeResourceOs/$nativeResourceArch"
 val cargoTarget = cargoTargetForPlatform(rapierBuildPlatform)
 val rapierPatchFile = rustDirectory.file("patches/rapier3d-$rapierVersion-simd-body-masks.patch")
 val patchedRapierDirectory = rustDirectory.dir("target/impulse-patched/rapier3d-$rapierVersion-impulse")
+val patchedInteractionGroupsFile = patchedRapierDirectory.file("src/dynamics/solver/interaction_groups.rs")
+val patchedInteractionGroupsMarker = "fn include_active_set_id"
 val checkedInCargoConfig = rootProject.layout.projectDirectory.file(".cargo/config.toml")
 val nativeBuildDirectory = nativeProfile.map { profile ->
     if (profile == "release") {
@@ -149,6 +151,11 @@ val preparePatchedRapier by tasks.registering(Exec::class) {
         layout.projectDirectory.file("src/main/rust/Cargo.lock"),
         rapierPatchFile)
     outputs.dir(patchedRapierDirectory)
+    outputs.upToDateWhen {
+        val interactionGroups = patchedInteractionGroupsFile.asFile
+        interactionGroups.isFile
+            && interactionGroups.readText().contains(patchedInteractionGroupsMarker)
+    }
 
     environment("RAPIER_VERSION", rapierVersion)
     environment("PATCHED_RAPIER_PATH", patchedRapierDirectory.asFile.absolutePath)
@@ -167,6 +174,15 @@ val preparePatchedRapier by tasks.registering(Exec::class) {
         val script = layout.projectDirectory.file("src/main/rust/scripts/prepare-rapier-patched.sh")
         inputs.file(script)
         commandLine("bash", script.asFile.absolutePath)
+    }
+
+    doLast {
+        val interactionGroups = patchedInteractionGroupsFile.asFile
+        if (!interactionGroups.isFile
+            || !interactionGroups.readText().contains(patchedInteractionGroupsMarker)
+        ) {
+            throw GradleException("Patched Rapier source is missing the SIMD body-mask guard.")
+        }
     }
 }
 
