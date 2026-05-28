@@ -25,7 +25,8 @@ jobs:
             library: libimpulse_rapier.so
             gradle-command: ./gradlew :impulse-rapier:stageRapierNativeResource
           - platform: osx-x86_64
-            runner: macos-15-intel
+            # Cross-compile on Apple Silicon to avoid scarce Intel runner queues.
+            runner: macos-15
             rust-target: x86_64-apple-darwin
             resource-path: osx/x86_64
             library: libimpulse_rapier.dylib
