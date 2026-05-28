@@ -62,7 +62,8 @@ tmp_dir="$(mktemp -d "$patched_parent/.rapier3d-$RAPIER_VERSION.XXXXXX")"
 cp -a "$base_dir"/. "$tmp_dir"/
 
 if command -v git >/dev/null 2>&1; then
-  git -C "$tmp_dir" apply "$RAPIER_PATCH_PATH"
+  GIT_CEILING_DIRECTORIES="$patched_parent${GIT_CEILING_DIRECTORIES:+:$GIT_CEILING_DIRECTORIES}" \
+    git -C "$tmp_dir" apply "$RAPIER_PATCH_PATH"
 elif command -v patch >/dev/null 2>&1; then
   patch -d "$tmp_dir" -p1 -i "$RAPIER_PATCH_PATH"
 else
