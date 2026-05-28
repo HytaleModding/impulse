@@ -136,7 +136,7 @@ public class StressBodiesCommand extends AbstractAsyncPlayerCommand {
         }
 
         int count = ExamplePhysicsUtils.optionalInt(ctx, countArg, DEFAULT_COUNT, 1, mode.maxCount());
-        StressVisualSettings visualSettings = parseVisualSettings(ctx, count);
+        StressVisualSettings visualSettings = parseVisualSettings(ctx);
         if (visualSettings == null) {
             return CompletableFuture.completedFuture(null);
         }
@@ -393,7 +393,7 @@ public class StressBodiesCommand extends AbstractAsyncPlayerCommand {
     }
 
     @Nullable
-    private StressVisualSettings parseVisualSettings(@Nonnull CommandContext ctx, int count) {
+    private StressVisualSettings parseVisualSettings(@Nonnull CommandContext ctx) {
         int materializationRadius = ExamplePhysicsUtils.optionalInt(ctx,
             visualRadiusArg,
             DETACHED_VISUAL_MATERIALIZATION_RADIUS,
@@ -411,7 +411,7 @@ public class StressBodiesCommand extends AbstractAsyncPlayerCommand {
             PhysicsVisualMaterializationSettings.MAX_DETACHED_VISUAL_MAX_SPAWNS_PER_TICK);
         int maxMaterialized = ExamplePhysicsUtils.optionalInt(ctx,
             visualCapArg,
-            Math.min(count, DETACHED_VISUAL_MAX_MATERIALIZED),
+            DETACHED_VISUAL_MAX_MATERIALIZED,
             1,
             PhysicsVisualMaterializationSettings.MAX_DETACHED_VISUAL_MAX_MATERIALIZED);
         boolean predictionEnabled = false;
