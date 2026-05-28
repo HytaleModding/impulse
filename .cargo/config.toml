@@ -1,0 +1,2 @@
+[patch.crates-io]
+rapier3d = { path = "impulse-rapier/src/main/rust/target/impulse-patched/rapier3d-0.32.0-impulse" }

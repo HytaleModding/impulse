@@ -107,6 +107,15 @@ val stageBackendJarsForRunAllMods by tasks.registering(Copy::class) {
     into(stagedBackendJarDirectory)
 }
 
+tasks.register("packageBackendPlatformJars") {
+    group = "build"
+    description = "Packages all per-platform and universal backend provider jars"
+    dependsOn(
+        ":impulse-bullet:packageBulletBackendPlatformJars",
+        ":impulse-rapier:packageRapierBackendPlatformJars"
+    )
+}
+
 tasks.register("headlessTest") {
     group = "verification"
     description = "Runs automated headless/serverless tests without booting the Hytale server"
