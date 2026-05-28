@@ -8,11 +8,11 @@ plugins {
 }
 
 data class RapierBackendPlatform(
-    val taskSuffix: String,
-    val archiveClassifier: String,
-    val resourceOs: String,
-    val resourceArch: String,
-    val libraryName: String
+        val taskSuffix: String,
+        val archiveClassifier: String,
+        val resourceOs: String,
+        val resourceArch: String,
+        val libraryName: String
 ) {
     val nativeResourcePath: String = "native/$resourceOs/$resourceArch"
     val nativeResourceEntry: String = "$nativeResourcePath/$libraryName"
@@ -20,14 +20,14 @@ data class RapierBackendPlatform(
 
 val rapierVersion = "0.32.0"
 val rapierCargoLocked = providers.gradleProperty("rapierCargoLocked")
-    .map { it.toBoolean() }
-    .orElse(true)
+        .map { it.toBoolean() }
+        .orElse(true)
 val nativeProfile = providers.gradleProperty("rapierNativeProfile").orElse("release")
 val nativeFeatures = providers.gradleProperty("rapierNativeFeatures").orElse("")
 val rustDirectory = layout.projectDirectory.dir("src/main/rust")
 val rapierBuildPlatform = providers.gradleProperty("rapierBuildPlatform")
-    .orElse(detectRapierBuildPlatform())
-    .get()
+        .orElse(detectRapierBuildPlatform())
+        .get()
 val nativeResourceOs = resourceOsForPlatform(rapierBuildPlatform)
 val nativeResourceArch = resourceArchForPlatform(rapierBuildPlatform)
 val nativeLibraryName = nativeLibraryNameFor(nativeResourceOs)
@@ -47,17 +47,17 @@ val nativeBuildDirectory = nativeProfile.map { profile ->
 }
 val providedRapierNativeResourceRoot = providers.gradleProperty("impulse.rapierNativeResourceRoot")
 val rapierNativeResourceRoot = providedRapierNativeResourceRoot
-    .map { path -> file(path) }
-    .orElse(layout.buildDirectory.dir("generated/rapier-native").map { directory -> directory.asFile })
+        .map { path -> file(path) }
+        .orElse(layout.buildDirectory.dir("generated/rapier-native").map { directory -> directory.asFile })
 val rapierBackendPlatforms = listOf(
-    RapierBackendPlatform("LinuxX64", "linux-x86_64", "linux", "x86_64", "libimpulse_rapier.so"),
-    RapierBackendPlatform("LinuxArm64", "linux-arm64", "linux", "arm64", "libimpulse_rapier.so"),
-    RapierBackendPlatform("OsxArm64", "osx-arm64", "osx", "arm64", "libimpulse_rapier.dylib"),
-    RapierBackendPlatform("WindowsX64", "windows-x86_64", "windows", "x86_64", "impulse_rapier.dll")
+        RapierBackendPlatform("LinuxX64", "linux-x86_64", "linux", "x86_64", "libimpulse_rapier.so"),
+        RapierBackendPlatform("LinuxArm64", "linux-arm64", "linux", "arm64", "libimpulse_rapier.so"),
+        RapierBackendPlatform("OsxArm64", "osx-arm64", "osx", "arm64", "libimpulse_rapier.dylib"),
+        RapierBackendPlatform("WindowsX64", "windows-x86_64", "windows", "x86_64", "impulse_rapier.dll")
 )
 val impulseLicenseFile = rootProject.layout.projectDirectory.file("LICENSE")
 val rapierRustBackendLicenseFile = rootProject.layout.projectDirectory.file(
-    "licenses/RAPIER_RUST_BACKEND_LICENSES")
+        "licenses/RAPIER_RUST_BACKEND_LICENSES")
 
 fun detectNativeResourceOs(): String {
     val osName = System.getProperty("os.name").lowercase()
@@ -66,7 +66,7 @@ fun detectNativeResourceOs(): String {
         osName.contains("mac") || osName.contains("darwin") -> "osx"
         osName.contains("windows") -> "windows"
         else -> throw GradleException("Unsupported Rapier native packaging OS: "
-            + System.getProperty("os.name"))
+                + System.getProperty("os.name"))
     }
 }
 
@@ -110,11 +110,11 @@ fun detectNativeResourceArch(resourceOs: String): String {
         "aarch64", "arm64" -> "arm64"
         "arm", "arm32" -> "arm32"
         else -> throw GradleException("Unsupported Rapier native packaging architecture: "
-            + System.getProperty("os.arch"))
+                + System.getProperty("os.arch"))
     }
     if (resourceOs == "windows" && resourceArch != "x86_64") {
         throw GradleException("Unsupported Rapier native packaging platform: "
-            + System.getProperty("os.name") + " " + System.getProperty("os.arch"))
+                + System.getProperty("os.name") + " " + System.getProperty("os.arch"))
     }
     return resourceArch
 }
@@ -129,17 +129,17 @@ fun nativeLibraryNameFor(resourceOs: String): String {
 
 val cargoAvailable = try {
     ProcessBuilder("cargo", "--version")
-        .redirectOutput(ProcessBuilder.Redirect.DISCARD)
-        .redirectError(ProcessBuilder.Redirect.DISCARD)
-        .start()
-        .waitFor() == 0
+            .redirectOutput(ProcessBuilder.Redirect.DISCARD)
+            .redirectError(ProcessBuilder.Redirect.DISCARD)
+            .start()
+            .waitFor() == 0
 } catch (_: Exception) {
     false
 }
 
 val buildNative = providers.gradleProperty("buildRapierNative")
-    .map { it.toBoolean() }
-    .orElse(cargoAvailable)
+        .map { it.toBoolean() }
+        .orElse(cargoAvailable)
 
 val preparePatchedRapier by tasks.registering(Exec::class) {
     description = "Prepares a patched version of Rapier for building the native library."
@@ -147,14 +147,14 @@ val preparePatchedRapier by tasks.registering(Exec::class) {
     workingDir = rustDirectory.asFile
 
     inputs.files(
-        layout.projectDirectory.file("src/main/rust/Cargo.toml"),
-        layout.projectDirectory.file("src/main/rust/Cargo.lock"),
-        rapierPatchFile)
+            layout.projectDirectory.file("src/main/rust/Cargo.toml"),
+            layout.projectDirectory.file("src/main/rust/Cargo.lock"),
+            rapierPatchFile)
     outputs.dir(patchedRapierDirectory)
     outputs.upToDateWhen {
         val interactionGroups = patchedInteractionGroupsFile.asFile
         interactionGroups.isFile
-            && interactionGroups.readText().contains(patchedInteractionGroupsMarker)
+                && interactionGroups.readText().contains(patchedInteractionGroupsMarker)
     }
 
     environment("RAPIER_VERSION", rapierVersion)
@@ -165,11 +165,14 @@ val preparePatchedRapier by tasks.registering(Exec::class) {
         val script = layout.projectDirectory.file("src/main/rust/scripts/prepare-rapier-patched.ps1")
         inputs.file(script)
         commandLine("pwsh",
-            "-NoProfile",
-            "-ExecutionPolicy",
-            "Bypass",
-            "-File",
-            script.asFile.absolutePath)
+                "-NoProfile",
+                "-ExecutionPolicy",
+                "Bypass",
+                "-File",
+                script.asFile.absolutePath)
+        isIgnoreExitValue = false
+        standardOutput = System.out
+        errorOutput = System.err
     } else {
         val script = layout.projectDirectory.file("src/main/rust/scripts/prepare-rapier-patched.sh")
         inputs.file(script)
@@ -179,7 +182,7 @@ val preparePatchedRapier by tasks.registering(Exec::class) {
     doLast {
         val interactionGroups = patchedInteractionGroupsFile.asFile
         if (!interactionGroups.isFile
-            || !interactionGroups.readText().contains(patchedInteractionGroupsMarker)
+                || !interactionGroups.readText().contains(patchedInteractionGroupsMarker)
         ) {
             throw GradleException("Patched Rapier source is missing the SIMD body-mask guard.")
         }
@@ -204,7 +207,7 @@ val cargoBuildRapierNative by tasks.registering(Exec::class) {
 
     doFirst {
         val command = mutableListOf("cargo",
-            "build")
+                "build")
         if (rapierCargoLocked.get()) {
             command.add("--locked")
         }
@@ -252,7 +255,7 @@ dependencies {
 
 fun runtimeClasspathWithoutBundledApi(): FileCollection {
     return configurations.runtimeClasspath.get()
-        .filter { file -> !file.name.startsWith("impulse-api-") }
+            .filter { file -> !file.name.startsWith("impulse-api-") }
 }
 
 fun Jar.expandRuntimeClasspath(runtimeClasspath: FileCollection) {
@@ -293,8 +296,8 @@ fun Jar.includeRapierNativeResource(platform: RapierBackendPlatform) {
         val nativeResource = rapierNativeResourceRoot.get().resolve(nativeResourceEntry)
         if (!nativeResource.isFile) {
             throw GradleException("Missing Rapier native resource for "
-                + archiveClassifier + ": " + nativeResource.absolutePath
-                + ". Build it on a matching runner or provide -Pimpulse.rapierNativeResourceRoot.")
+                    + archiveClassifier + ": " + nativeResource.absolutePath
+                    + ". Build it on a matching runner or provide -Pimpulse.rapierNativeResourceRoot.")
         }
     }
 }
@@ -313,8 +316,8 @@ val platformJarTasks = rapierBackendPlatforms.map { platform ->
         archiveClassifier.set(platform.archiveClassifier)
 
         if (!providedRapierNativeResourceRoot.isPresent
-            && platform.resourceOs == nativeResourceOs
-            && platform.resourceArch == nativeResourceArch) {
+                && platform.resourceOs == nativeResourceOs
+                && platform.resourceArch == nativeResourceArch) {
             dependsOn(stageRapierNativeResource)
         }
 
