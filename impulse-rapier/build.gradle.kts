@@ -49,7 +49,6 @@ val rapierNativeResourceRoot = providedRapierNativeResourceRoot
 val rapierBackendPlatforms = listOf(
     RapierBackendPlatform("LinuxX64", "linux-x86_64", "linux", "x86_64", "libimpulse_rapier.so"),
     RapierBackendPlatform("LinuxArm64", "linux-arm64", "linux", "arm64", "libimpulse_rapier.so"),
-    RapierBackendPlatform("OsxX64", "osx-x86_64", "osx", "x86_64", "libimpulse_rapier.dylib"),
     RapierBackendPlatform("OsxArm64", "osx-arm64", "osx", "arm64", "libimpulse_rapier.dylib"),
     RapierBackendPlatform("WindowsX64", "windows-x86_64", "windows", "x86_64", "impulse_rapier.dll")
 )
@@ -77,7 +76,7 @@ fun detectRapierBuildPlatform(): String {
 fun resourceOsForPlatform(platform: String): String {
     return when (platform) {
         "linux-x86_64", "linux-arm64" -> "linux"
-        "osx-x86_64", "osx-arm64" -> "osx"
+        "osx-arm64" -> "osx"
         "windows-x86_64" -> "windows"
         else -> throw GradleException("Unsupported Rapier build platform: $platform")
     }
@@ -85,7 +84,7 @@ fun resourceOsForPlatform(platform: String): String {
 
 fun resourceArchForPlatform(platform: String): String {
     return when (platform) {
-        "linux-x86_64", "osx-x86_64", "windows-x86_64" -> "x86_64"
+        "linux-x86_64", "windows-x86_64" -> "x86_64"
         "linux-arm64", "osx-arm64" -> "arm64"
         else -> throw GradleException("Unsupported Rapier build platform: $platform")
     }
@@ -95,7 +94,6 @@ fun cargoTargetForPlatform(platform: String): String {
     return when (platform) {
         "linux-x86_64" -> "x86_64-unknown-linux-gnu"
         "linux-arm64" -> "aarch64-unknown-linux-gnu"
-        "osx-x86_64" -> "x86_64-apple-darwin"
         "osx-arm64" -> "aarch64-apple-darwin"
         "windows-x86_64" -> "x86_64-pc-windows-msvc"
         else -> throw GradleException("Unsupported Rapier build platform: $platform")

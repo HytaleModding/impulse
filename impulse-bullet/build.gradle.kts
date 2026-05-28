@@ -15,7 +15,6 @@ data class BulletBackendPlatform(
 val bulletBackendPlatforms = listOf(
     BulletBackendPlatform("LinuxX64", "linux-x86_64", "Libbulletjme-Linux64"),
     BulletBackendPlatform("LinuxArm64", "linux-arm64", "Libbulletjme-Linux_ARM64"),
-    BulletBackendPlatform("OsxX64", "osx-x86_64", "Libbulletjme-MacOSX64"),
     BulletBackendPlatform("OsxArm64", "osx-arm64", "Libbulletjme-MacOSX_ARM64"),
     BulletBackendPlatform("WindowsX64", "windows-x86_64", "Libbulletjme-Windows64")
 )

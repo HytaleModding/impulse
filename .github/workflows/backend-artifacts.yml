@@ -24,13 +24,6 @@ jobs:
             resource-path: linux/arm64
             library: libimpulse_rapier.so
             gradle-command: ./gradlew :impulse-rapier:stageRapierNativeResource
-          - platform: osx-x86_64
-            # Cross-compile on Apple Silicon to avoid scarce Intel runner queues.
-            runner: macos-15
-            rust-target: x86_64-apple-darwin
-            resource-path: osx/x86_64
-            library: libimpulse_rapier.dylib
-            gradle-command: ./gradlew :impulse-rapier:stageRapierNativeResource
           - platform: osx-arm64
             runner: macos-15
             rust-target: aarch64-apple-darwin
@@ -149,13 +142,11 @@ jobs:
             licenses/RAPIER_RUST_BACKEND_LICENSES
             impulse-bullet/build/libs/impulse-bullet-*-linux-x86_64.jar
             impulse-bullet/build/libs/impulse-bullet-*-linux-arm64.jar
-            impulse-bullet/build/libs/impulse-bullet-*-osx-x86_64.jar
             impulse-bullet/build/libs/impulse-bullet-*-osx-arm64.jar
             impulse-bullet/build/libs/impulse-bullet-*-windows-x86_64.jar
             impulse-bullet/build/libs/impulse-bullet-*-universal.jar
             impulse-rapier/build/libs/impulse-rapier-*-linux-x86_64.jar
             impulse-rapier/build/libs/impulse-rapier-*-linux-arm64.jar
-            impulse-rapier/build/libs/impulse-rapier-*-osx-x86_64.jar
             impulse-rapier/build/libs/impulse-rapier-*-osx-arm64.jar
             impulse-rapier/build/libs/impulse-rapier-*-windows-x86_64.jar
             impulse-rapier/build/libs/impulse-rapier-*-universal.jar
