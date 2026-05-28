@@ -1,0 +1,161 @@
+name: Backend Artifacts
+
+on:
+  workflow_dispatch:
+
+jobs:
+  rapier-native:
+    name: Rapier native ${{ matrix.platform }}
+    runs-on: ${{ matrix.runner }}
+
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - platform: linux-x86_64
+            runner: ubuntu-24.04
+            rust-target: x86_64-unknown-linux-gnu
+            resource-path: linux/x86_64
+            library: libimpulse_rapier.so
+            gradle-command: ./gradlew :impulse-rapier:stageRapierNativeResource
+          - platform: linux-arm64
+            runner: ubuntu-24.04-arm
+            rust-target: aarch64-unknown-linux-gnu
+            resource-path: linux/arm64
+            library: libimpulse_rapier.so
+            gradle-command: ./gradlew :impulse-rapier:stageRapierNativeResource
+          - platform: osx-x86_64
+            runner: macos-15-intel
+            rust-target: x86_64-apple-darwin
+            resource-path: osx/x86_64
+            library: libimpulse_rapier.dylib
+            gradle-command: ./gradlew :impulse-rapier:stageRapierNativeResource
+          - platform: osx-arm64
+            runner: macos-15
+            rust-target: aarch64-apple-darwin
+            resource-path: osx/arm64
+            library: libimpulse_rapier.dylib
+            gradle-command: ./gradlew :impulse-rapier:stageRapierNativeResource
+          - platform: windows-x86_64
+            runner: windows-2025
+            rust-target: x86_64-pc-windows-msvc
+            resource-path: windows/x86_64
+            library: impulse_rapier.dll
+            gradle-command: ./gradlew.bat :impulse-rapier:stageRapierNativeResource
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Java 25
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '25'
+
+      - name: Set up Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.rust-target }}
+
+      - name: Set up Gradle cache
+        uses: gradle/actions/setup-gradle@v4
+
+      - name: Build Rapier native resource
+        shell: bash
+        run: >
+          ${{ matrix.gradle-command }}
+          -PrapierBuildPlatform=${{ matrix.platform }}
+
+      - name: Stage Rapier native artifact
+        shell: bash
+        run: |
+          artifact_dir="rapier-native-artifact/native/${{ matrix.resource-path }}"
+          mkdir -p "$artifact_dir"
+          cp "impulse-rapier/build/generated/rapier-native/native/${{ matrix.resource-path }}/${{ matrix.library }}" "$artifact_dir/"
+
+      - name: Upload Rapier native resource
+        uses: actions/upload-artifact@v4
+        with:
+          name: rapier-native-${{ matrix.platform }}
+          path: rapier-native-artifact
+          if-no-files-found: error
+
+  backend-jars:
+    name: Backend provider jars
+    runs-on: ubuntu-24.04
+    needs: rapier-native
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Java 25
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '25'
+
+      - name: Set up Gradle cache
+        uses: gradle/actions/setup-gradle@v4
+
+      - name: Download Rapier native resources
+        uses: actions/download-artifact@v4
+        with:
+          pattern: rapier-native-*
+          path: impulse-rapier/build/ci/rapier-native-downloads
+
+      - name: Normalize Rapier native resource tree
+        shell: bash
+        run: |
+          mkdir -p impulse-rapier/build/ci/rapier-native/native
+          for dir in impulse-rapier/build/ci/rapier-native-downloads/rapier-native-*; do
+            if [ -d "$dir/native" ]; then
+              cp -R "$dir/native/." impulse-rapier/build/ci/rapier-native/native/
+            else
+              cp -R "$dir/." impulse-rapier/build/ci/rapier-native/native/
+            fi
+          done
+          find impulse-rapier/build/ci/rapier-native/native -type f | sort
+
+      - name: Build backend provider jars
+        run: >
+          ./gradlew packageBackendPlatformJars
+          -PbuildRapierNative=false
+          -Pimpulse.rapierNativeResourceRoot=${{ github.workspace }}/impulse-rapier/build/ci/rapier-native
+
+      - name: Write artifact notice
+        shell: bash
+        run: |
+          cat > BACKEND_ARTIFACT_NOTICE.md <<'EOF'
+          # Backend Artifact Notice
+
+          These backend provider jars may include third-party native binaries so Impulse can load the backend at runtime.
+
+          They are convenience packages for Impulse plugins and are not the official upstream distribution channel for those native libraries. Download standalone Bullet/Libbulletjme or Rapier binaries from their upstream projects instead.
+
+          See LICENSE and licenses/ in this artifact for packaged license notices.
+          EOF
+
+      - name: Upload backend provider jars
+        uses: actions/upload-artifact@v4
+        with:
+          name: backend-provider-jars
+          path: |
+            BACKEND_ARTIFACT_NOTICE.md
+            LICENSE
+            licenses/LIBBULLETJME_LICENSE
+            licenses/RAPIER_RUST_BACKEND_LICENSES
+            impulse-bullet/build/libs/impulse-bullet-*-linux-x86_64.jar
+            impulse-bullet/build/libs/impulse-bullet-*-linux-arm64.jar
+            impulse-bullet/build/libs/impulse-bullet-*-osx-x86_64.jar
+            impulse-bullet/build/libs/impulse-bullet-*-osx-arm64.jar
+            impulse-bullet/build/libs/impulse-bullet-*-windows-x86_64.jar
+            impulse-bullet/build/libs/impulse-bullet-*-universal.jar
+            impulse-rapier/build/libs/impulse-rapier-*-linux-x86_64.jar
+            impulse-rapier/build/libs/impulse-rapier-*-linux-arm64.jar
+            impulse-rapier/build/libs/impulse-rapier-*-osx-x86_64.jar
+            impulse-rapier/build/libs/impulse-rapier-*-osx-arm64.jar
+            impulse-rapier/build/libs/impulse-rapier-*-windows-x86_64.jar
+            impulse-rapier/build/libs/impulse-rapier-*-universal.jar
+          if-no-files-found: error
