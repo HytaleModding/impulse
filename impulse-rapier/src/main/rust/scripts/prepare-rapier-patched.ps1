@@ -2,8 +2,7 @@
 
 $ErrorActionPreference = 'Stop'
 
-function Fail([string]$Message)
-{
+function Fail([string]$Message) {
   throw $Message
 }
 
@@ -11,10 +10,8 @@ foreach ($Name in @(
   'RAPIER_VERSION',
   'PATCHED_RAPIER_PATH',
   'RAPIER_PATCH_PATH'
-))
-{
-  if (-not [Environment]::GetEnvironmentVariable($Name))
-  {
+)) {
+  if (-not [Environment]::GetEnvironmentVariable($Name)) {
     Fail "$Name is required"
   }
 }
@@ -23,23 +20,18 @@ $rapierVersion = $env:RAPIER_VERSION
 $patchedRapierPath = $env:PATCHED_RAPIER_PATH
 $rapierPatchPath = $env:RAPIER_PATCH_PATH
 
-if ($env:CARGO_HOME)
-{
+if ($env:CARGO_HOME) {
   $registryRoot = Join-Path $env:CARGO_HOME 'registry/src'
 }
-elseif ($env:USERPROFILE)
-{
+elseif ($env:USERPROFILE) {
   $registryRoot = Join-Path $env:USERPROFILE '.cargo/registry/src'
 }
-else
-{
+else {
   $registryRoot = Join-Path $env:HOME '.cargo/registry/src'
 }
 
-function Find-RapierSource([string]$Root, [string]$Version)
-{
-  if (-not (Test-Path -LiteralPath $Root))
-  {
+function Find-RapierSource([string]$Root, [string]$Version) {
+  if (-not (Test-Path -LiteralPath $Root)) {
     return $null
   }
 
@@ -50,8 +42,7 @@ function Find-RapierSource([string]$Root, [string]$Version)
 }
 
 $baseDirItem = Find-RapierSource $registryRoot $rapierVersion
-if (-not $baseDirItem)
-{
+if (-not $baseDirItem) {
   $fetchDir = Join-Path ([System.IO.Path]::GetTempPath()) `
         ("impulse-rapier-fetch-" + [Guid]::NewGuid().ToString("N"))
   $fetchManifest = Join-Path $fetchDir 'Cargo.toml'
@@ -70,21 +61,17 @@ rapier3d = { version = "=$rapierVersion", default-features = false, features = [
 "@
   [System.IO.File]::WriteAllText($fetchManifest, $fetchContent,[System.Text.UTF8Encoding]::new($false))
 
-  if (-not (Get-Command cargo -ErrorAction SilentlyContinue))
-  {
+  if (-not (Get-Command cargo -ErrorAction SilentlyContinue)) {
     Fail "cargo not found in PATH."
   }
-  try
-  {
+  try {
     Push-Location $fetchDir
     & cargo fetch --manifest-path $fetchManifest
-    if ($LASTEXITCODE -ne 0)
-    {
+    if ($LASTEXITCODE -ne 0) {
       Fail "cargo fetch failed with exit code $LASTEXITCODE"
     }
   }
-  finally
-  {
+  finally {
     Pop-Location
     Remove-Item -LiteralPath $fetchDir -Recurse -Force -ErrorAction SilentlyContinue
   }
@@ -92,8 +79,7 @@ rapier3d = { version = "=$rapierVersion", default-features = false, features = [
   $baseDirItem = Find-RapierSource $registryRoot $rapierVersion
 }
 
-if (-not $baseDirItem)
-{
+if (-not $baseDirItem) {
   Fail "Unable to locate rapier3d-$rapierVersion in $registryRoot"
 }
 
@@ -103,65 +89,52 @@ New-Item -ItemType Directory -Force -Path $patchedParent | Out-Null
 $tmpDir = Join-Path $patchedParent (".rapier3d-$rapierVersion." + [Guid]::NewGuid().ToString("N"))
 New-Item -ItemType Directory -Force -Path $tmpDir | Out-Null
 
-try
-{
+try {
   Get-ChildItem -LiteralPath $baseDir -Force |
       Copy-Item -Destination $tmpDir -Recurse -Force
 
-  if (Get-Command git -ErrorAction SilentlyContinue)
-  {
+  if (Get-Command git -ErrorAction SilentlyContinue) {
     $oldGitCeilingDirectories = $env:GIT_CEILING_DIRECTORIES
-    try
-    {
-      if ( [string]::IsNullOrEmpty($oldGitCeilingDirectories))
-      {
+    try {
+      if ( [string]::IsNullOrEmpty($oldGitCeilingDirectories)) {
         $env:GIT_CEILING_DIRECTORIES = $patchedParent
       }
-      else
-      {
+      else {
         $env:GIT_CEILING_DIRECTORIES = $patchedParent `
-                     + [System.IO.Path]::PathSeparator `
-                     + $oldGitCeilingDirectories
+                        + [System.IO.Path]::PathSeparator `
+                        + $oldGitCeilingDirectories
       }
       & git -C $tmpDir apply --ignore-space-change --ignore-whitespace --whitespace=nowarn $rapierPatchPath
     }
-    finally
-    {
+    finally {
       $env:GIT_CEILING_DIRECTORIES = $oldGitCeilingDirectories
     }
-    if ($LASTEXITCODE -ne 0)
-    {
+    if ($LASTEXITCODE -ne 0) {
       Fail "git apply failed with exit code $LASTEXITCODE"
     }
   }
-  elseif (Get-Command patch -ErrorAction SilentlyContinue)
-  {
+  elseif (Get-Command patch -ErrorAction SilentlyContinue) {
     & patch -d $tmpDir -p1 -i $rapierPatchPath
-    if ($LASTEXITCODE -ne 0)
-    {
+    if ($LASTEXITCODE -ne 0) {
       Fail "patch failed with exit code $LASTEXITCODE"
+
     }
   }
-  else
-  {
+  else {
     Fail "Neither git nor patch found in PATH."
   }
 
-  if (-not (Test-Path -LiteralPath (Join-Path $tmpDir 'Cargo.toml')))
-  {
+  if (-not (Test-Path -LiteralPath (Join-Path $tmpDir 'Cargo.toml'))) {
     Fail "Cargo.toml missing in staged Rapier source: $tmpDir"
   }
 
-  if (Test-Path -LiteralPath $patchedRapierPath)
-  {
+  if (Test-Path -LiteralPath $patchedRapierPath) {
     Remove-Item -LiteralPath $patchedRapierPath -Recurse -Force
   }
   Move-Item -LiteralPath $tmpDir -Destination $patchedRapierPath
 }
-catch
-{
-  if (Test-Path -LiteralPath $tmpDir)
-  {
+catch {
+  if (Test-Path -LiteralPath $tmpDir) {
     Remove-Item -LiteralPath $tmpDir -Recurse -Force -ErrorAction SilentlyContinue
   }
   throw
