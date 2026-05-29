@@ -6,61 +6,6 @@
 #ifndef INB_SPACE
 #define INB_SPACE
 
-typedef struct
-{
-  int32_t body_count;
-  int32_t collider_count;
-  int32_t active_body_count;
-  int32_t contact_pair_count;
-  int32_t contact_manifold_count;
-  int32_t contact_point_count;
-  int32_t dynamic_dynamic_contact_pair_count;
-  int32_t terrain_contact_pair_count;
-  int32_t active_island_count;
-  int32_t joint_count;
-  int8_t available;
-} INB_RuntimeStats;
-
-typedef struct
-{
-
-  int64_t step_nanos;
-  int64_t broad_phase_nanos;
-  int64_t narrow_phase_nanos;
-  int64_t solver_nanos;
-  int64_t ccd_nanos;
-  int64_t snapshot_nanos;
-  int8_t available;
-} INB_StepPhaseStats;
-
-static_assert(_Alignof(INB_StepPhaseStats) == 8, "INB_Contact must be 8-byte aligned");
-
-typedef struct
-{
-  int64_t body_id;
-  INB_Vector3f point;
-  INB_Vector3f normal;
-  float fraction;
-  float distance;
-} INB_RayHit;
-
-static_assert(_Alignof(INB_RayHit) == 8, "INB_Contact must be 8-byte aligned");
-
-typedef struct
-{
-  int64_t bodyA_id;
-  int64_t bodyB_id;
-  INB_Vector3f pointOnA;
-  INB_Vector3f pointOnB;
-  INB_Vector3f normalOnB;
-  float distance;
-  float impulse;
-  float _pad;
-} INB_Contact;
-
-// Callback type: takes an ID and a "user_data" pointer for state
-typedef void (*JointCallback)(int64_t joint_id, void *user_data);
-
 #ifdef __cplusplus
 extern "C"
 {
@@ -96,6 +41,21 @@ extern "C"
    */
   INB_API void inb_space_remove_body(int32_t space_id, int64_t body_id);
 
+    typedef struct
+  {
+    int32_t body_count;
+    int32_t collider_count;
+    int32_t active_body_count;
+    int32_t contact_pair_count;
+    int32_t contact_manifold_count;
+    int32_t contact_point_count;
+    int32_t dynamic_dynamic_contact_pair_count;
+    int32_t terrain_contact_pair_count;
+    int32_t active_island_count;
+    int32_t joint_count;
+    int8_t available;
+  } INB_RuntimeStats;
+
   /**
    * Writes the runtimes stats on the given memory segment.
    *
@@ -109,6 +69,20 @@ extern "C"
    */
   INB_API bool inb_space_get_runtime_stats(int32_t space_id, INB_RuntimeStats *output);
 
+  typedef struct
+  {
+
+    int64_t step_nanos;
+    int64_t broad_phase_nanos;
+    int64_t narrow_phase_nanos;
+    int64_t solver_nanos;
+    int64_t ccd_nanos;
+    int64_t snapshot_nanos;
+    int8_t available;
+  } INB_StepPhaseStats;
+
+  static_assert(_Alignof(INB_StepPhaseStats) == 8, "INB_Contact must be 8-byte aligned");
+
   /**
    * Writes the phase stats on the given memory segment.
    *
@@ -120,7 +94,7 @@ extern "C"
    * @return bool True if the function is implemented and the memory segment
    *              contains valid data, false otherwise.
    */
-  INB_API bool inb_space_get_step_phase_stats(int32_t space_id);
+  INB_API bool inb_space_get_step_phase_stats(int32_t space_id, INB_StepPhaseStats *output);
 
   /**
    * Resets phase counters collected by @see inb_space_runtime_stats().
@@ -197,6 +171,17 @@ extern "C"
    */
   INB_API int64_t inb_space_create_cone(int32_t space_id, float radius, float halfHeight, int32_t axis, float mass);
 
+  typedef struct
+  {
+    int64_t body_id;
+    INB_Vector3f point;
+    INB_Vector3f normal;
+    float fraction;
+    float distance;
+  } INB_RayHit;
+
+  static_assert(_Alignof(INB_RayHit) == 8, "INB_Contact must be 8-byte aligned");
+
   /**
    * Performs a closest raycast query between two points.
    * @param space_id  The ID of the target space.
@@ -207,6 +192,18 @@ extern "C"
    * @return True if a hit was found, false otherwise.
    */
   INB_API bool inb_space_raycast_closest(int64_t space_id, const INB_Vector3f *from, const INB_Vector3f *to, INB_RayHit *output);
+
+  typedef struct
+  {
+    int64_t bodyA_id;
+    int64_t bodyB_id;
+    INB_Vector3f pointOnA;
+    INB_Vector3f pointOnB;
+    INB_Vector3f normalOnB;
+    float distance;
+    float impulse;
+    float _pad;
+  } INB_Contact;
 
   /**
    * Writes the current list of contact to the given memory segment.

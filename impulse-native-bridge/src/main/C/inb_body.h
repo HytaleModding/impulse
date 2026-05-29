@@ -7,32 +7,6 @@
 #ifndef INB_BODY
 #define INB_BODY
 
-typedef enum
-{
-  BODY_TYPE_STATIC = 0,
-  BODY_TYPE_DYNAMIC = 1,
-  BODY_TYPE_KINEMATIC = 2,
-} BodyType;
-
-typedef enum
-{
-  BOX = 0,
-  SPHERE = 1,
-  CAPSULE = 2,
-  CYLINDER = 3,
-  CONE = 4,
-  PLANE = 5,
-  VOXELS = 6,
-  UNKNOWN = 7,
-} BodyShapeType;
-
-typedef enum
-{
-  X = 0,
-  Y = 1,
-  Z = 2,
-} Axis;
-
 #ifdef __cplusplus
 extern "C"
 {
@@ -147,6 +121,13 @@ extern "C"
    * @param angular_damping The angular damping value.
    */
   INB_API void inb_body_set_damping(int64_t body_id, float linear_damping, float angular_damping);
+
+  typedef enum
+  {
+    BODY_TYPE_STATIC = 0,
+    BODY_TYPE_DYNAMIC = 1,
+    BODY_TYPE_KINEMATIC = 2,
+  } BodyType;
 
   /**
    * Sets the body type of a body.
@@ -273,6 +254,18 @@ extern "C"
    */
   INB_API bool inb_body_is_ccd_enabled(int64_t body_id);
 
+  typedef enum
+  {
+    BOX = 0,
+    SPHERE = 1,
+    CAPSULE = 2,
+    CYLINDER = 3,
+    CONE = 4,
+    PLANE = 5,
+    VOXELS = 6,
+    UNKNOWN = 7,
+  } BodyShapeType;
+
   /**
    * Gets a body shape type.
    * @param body_id         The ID of the target body.
@@ -303,6 +296,13 @@ extern "C"
    * @return float   The body half height.
    */
   INB_API float inb_body_get_half_height(int64_t body_id);
+
+  typedef enum
+  {
+    X = 0,
+    Y = 1,
+    Z = 2,
+  } Axis;
 
   /**
    * Gets a body shape axis.

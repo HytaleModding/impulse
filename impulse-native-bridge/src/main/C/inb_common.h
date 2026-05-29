@@ -17,19 +17,28 @@
 #define INB_API __attribute__((visibility("default")))
 #endif
 
-typedef struct
+#ifdef __cplusplus
+extern "C"
 {
-  float x;
-  float y;
-  float z;
-} INB_Vector3f;
+#endif
 
-typedef struct
-{
-  float x;
-  float y;
-  float z;
-  float w;
-} INB_Quaternionf;
+  typedef struct
+  {
+    float x;
+    float y;
+    float z;
+  } INB_Vector3f;
+
+  typedef struct
+  {
+    float x;
+    float y;
+    float z;
+    float w;
+  } INB_Quaternionf;
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif

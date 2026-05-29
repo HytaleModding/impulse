@@ -9,8 +9,6 @@
 #ifndef INB_BRIDGE
 #define INB_BRIDGE
 
-typedef void (*nb_log_callback)(int level, const char *message);
-
 #ifdef __cplusplus
 extern "C"
 {
@@ -20,6 +18,8 @@ extern "C"
    * Initialize the backend.
    */
   INB_API void inb_backend_init(void);
+
+  typedef void (*nb_log_callback)(int level, const char *message);
 
   /**
    * Registers the java logger.
