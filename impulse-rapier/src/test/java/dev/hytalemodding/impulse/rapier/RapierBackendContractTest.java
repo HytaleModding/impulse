@@ -13,9 +13,15 @@ import dev.hytalemodding.impulse.api.PhysicsBodySnapshot;
 import dev.hytalemodding.impulse.api.PhysicsBodyType;
 import dev.hytalemodding.impulse.api.PhysicsCollisionFilters;
 import dev.hytalemodding.impulse.api.PhysicsRuntimeStats;
-import dev.hytalemodding.impulse.api.PhysicsSolverTuning;
 import dev.hytalemodding.impulse.api.PhysicsSpace;
 import dev.hytalemodding.impulse.api.ShapeType;
+import dev.hytalemodding.impulse.api.capability.PhysicsActivationTuning;
+import dev.hytalemodding.impulse.api.capability.PhysicsActivationTuningCapability;
+import dev.hytalemodding.impulse.api.capability.PhysicsCapability;
+import dev.hytalemodding.impulse.api.capability.PhysicsContinuousCollisionCapability;
+import dev.hytalemodding.impulse.api.capability.PhysicsSolverTuning;
+import dev.hytalemodding.impulse.api.capability.PhysicsSolverTuningCapability;
+import dev.hytalemodding.impulse.api.capability.PhysicsVoxelTerrainCapability;
 import dev.hytalemodding.impulse.api.testsupport.PhysicsBackendContractTest;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -36,11 +42,11 @@ class RapierBackendContractTest extends PhysicsBackendContractTest {
     @Test
     void rapierSupportsVoxelTerrainMetadataAndBodyTypeSwitching() {
         PhysicsSpace space = createHeadlessSpace();
+        PhysicsVoxelTerrainCapability voxelTerrain = requiredCapability(space, PhysicsVoxelTerrainCapability.class);
 
-        assertTrue(space.supportsVoxelTerrain());
-        assertTrue(space.supportsContinuousCollision());
+        assertTrue(space.getCapability(PhysicsContinuousCollisionCapability.class).isPresent());
 
-        RapierBody terrain = (RapierBody) space.createVoxelTerrain(1.0f,
+        RapierBody terrain = (RapierBody) voxelTerrain.createVoxelTerrain(1.0f,
             2.0f,
             3.0f,
             new int[]{0, 0, 0, 1, 0, 0});
@@ -58,6 +64,26 @@ class RapierBackendContractTest extends PhysicsBackendContractTest {
         assertEquals(PhysicsBodyType.KINEMATIC, body.getBodyType());
         body.setKinematic(false);
         assertEquals(PhysicsBodyType.DYNAMIC, body.getBodyType());
+    }
+
+    @Test
+    void rapierTuningCapabilitiesApplyAndGuardClosedSpace() {
+        PhysicsSpace space = createHeadlessSpace();
+        PhysicsSolverTuningCapability solverTuning = requiredCapability(space, PhysicsSolverTuningCapability.class);
+        PhysicsActivationTuningCapability activationTuning = requiredCapability(space,
+            PhysicsActivationTuningCapability.class);
+
+        solverTuning.setSolverTuning(new PhysicsSolverTuning(1, 1));
+        activationTuning.setActivationTuning(new PhysicsActivationTuning(0.01f, 0.01f, 0.1f));
+
+        space.close();
+
+        assertThrows(IllegalStateException.class,
+            () -> solverTuning.setSolverTuning(new PhysicsSolverTuning(1, 1)));
+        assertThrows(IllegalStateException.class,
+            () -> activationTuning.setActivationTuning(new PhysicsActivationTuning(0.01f,
+                0.01f,
+                0.1f)));
     }
 
     @Test
@@ -236,9 +262,8 @@ class RapierBackendContractTest extends PhysicsBackendContractTest {
     @Test
     void tenThousandDynamicBodyPileWithBodyContactsStepsAndSnapshots() {
         PhysicsSpace space = createHeadlessSpace();
-        if (space instanceof PhysicsSolverTuning tuning) {
-            tuning.setSolverTuning(1, 1, 1, 1);
-        }
+        requiredCapability(space, PhysicsSolverTuningCapability.class)
+            .setSolverTuning(new PhysicsSolverTuning(1, 1));
 
         PhysicsBody plane = space.createStaticPlane(0.0f);
         plane.setCollisionFilter(PhysicsCollisionFilters.TERRAIN, PhysicsCollisionFilters.ALL);
@@ -298,14 +323,14 @@ class RapierBackendContractTest extends PhysicsBackendContractTest {
     @Test
     void tenThousandDynamicBodyPileOverVoxelTerrainStepsAndSnapshots() {
         PhysicsSpace space = createHeadlessSpace();
-        if (space instanceof PhysicsSolverTuning tuning) {
-            tuning.setSolverTuning(1, 1, 1, 1);
-        }
+        requiredCapability(space, PhysicsSolverTuningCapability.class)
+            .setSolverTuning(new PhysicsSolverTuning(1, 1));
+        PhysicsVoxelTerrainCapability voxelTerrain = requiredCapability(space, PhysicsVoxelTerrainCapability.class);
 
         int[] floorVoxels = floorSectionVoxels();
         for (int x = -1; x <= 2; x++) {
             for (int z = -1; z <= 2; z++) {
-                PhysicsBody terrain = space.createVoxelTerrain(1.0f, 1.0f, 1.0f, floorVoxels);
+                PhysicsBody terrain = voxelTerrain.createVoxelTerrain(1.0f, 1.0f, 1.0f, floorVoxels);
                 terrain.setPosition(x * 16.0f, 0.0f, z * 16.0f);
                 terrain.setCollisionFilter(PhysicsCollisionFilters.TERRAIN, PhysicsCollisionFilters.ALL);
                 space.addBody(terrain);
@@ -366,14 +391,15 @@ class RapierBackendContractTest extends PhysicsBackendContractTest {
     @Test
     void adjacentDenseVoxelTerrainSectionsCanCombineAndStep() {
         PhysicsSpace space = createHeadlessSpace();
-        PhysicsBody first = space.createVoxelTerrain(1.0f, 1.0f, 1.0f, fullSectionVoxels());
-        PhysicsBody second = space.createVoxelTerrain(1.0f, 1.0f, 1.0f, fullSectionVoxels());
+        PhysicsVoxelTerrainCapability voxelTerrain = requiredCapability(space, PhysicsVoxelTerrainCapability.class);
+        PhysicsBody first = voxelTerrain.createVoxelTerrain(1.0f, 1.0f, 1.0f, fullSectionVoxels());
+        PhysicsBody second = voxelTerrain.createVoxelTerrain(1.0f, 1.0f, 1.0f, fullSectionVoxels());
         first.setPosition(0.0f, 0.0f, 0.0f);
         second.setPosition(16.0f, 0.0f, 0.0f);
         space.addBody(first);
         space.addBody(second);
 
-        space.combineVoxelTerrains(first, second, 16, 0, 0);
+        voxelTerrain.combineVoxelTerrains(first, second, 16, 0, 0);
         space.step(1.0f / 60.0f);
 
         assertEquals(2, space.bodyCount());
@@ -382,12 +408,13 @@ class RapierBackendContractTest extends PhysicsBackendContractTest {
     @Test
     void denseVoxelTerrainGridCanStepWithoutCombiningSections() {
         PhysicsSpace space = createHeadlessSpace();
+        PhysicsVoxelTerrainCapability voxelTerrain = requiredCapability(space, PhysicsVoxelTerrainCapability.class);
         int[] voxels = fullSectionVoxels();
         int sectionsPerAxis = 3;
         for (int x = 0; x < sectionsPerAxis; x++) {
             for (int y = 0; y < sectionsPerAxis; y++) {
                 for (int z = 0; z < sectionsPerAxis; z++) {
-                    PhysicsBody body = space.createVoxelTerrain(1.0f, 1.0f, 1.0f, voxels);
+                    PhysicsBody body = voxelTerrain.createVoxelTerrain(1.0f, 1.0f, 1.0f, voxels);
                     body.setPosition(x * 16.0f, y * 16.0f, z * 16.0f);
                     space.addBody(body);
                 }
@@ -459,5 +486,12 @@ class RapierBackendContractTest extends PhysicsBackendContractTest {
 
     private static boolean isFinite(@Nonnull Vector3f vector) {
         return Float.isFinite(vector.x) && Float.isFinite(vector.y) && Float.isFinite(vector.z);
+    }
+
+    @Nonnull
+    private static <T extends PhysicsCapability> T requiredCapability(@Nonnull PhysicsSpace space,
+        @Nonnull Class<T> capabilityType) {
+        return space.getCapability(capabilityType)
+            .orElseThrow(() -> new AssertionError("Missing capability: " + capabilityType.getSimpleName()));
     }
 }

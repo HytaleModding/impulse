@@ -1,7 +1,6 @@
 package dev.hytalemodding.impulse.rapier;
 
 import dev.hytalemodding.impulse.api.BackendId;
-import dev.hytalemodding.impulse.api.PhysicsActivationTuning;
 import dev.hytalemodding.impulse.api.PhysicsAxis;
 import dev.hytalemodding.impulse.api.PhysicsBody;
 import dev.hytalemodding.impulse.api.PhysicsBodySnapshot;
@@ -11,16 +10,26 @@ import dev.hytalemodding.impulse.api.PhysicsJointType;
 import dev.hytalemodding.impulse.api.PhysicsRayHit;
 import dev.hytalemodding.impulse.api.PhysicsRuntimeStats;
 import dev.hytalemodding.impulse.api.PhysicsSpace;
-import dev.hytalemodding.impulse.api.PhysicsSolverTuning;
 import dev.hytalemodding.impulse.api.PhysicsStepPhaseStats;
 import dev.hytalemodding.impulse.api.ShapeType;
 import dev.hytalemodding.impulse.api.SpaceId;
+import dev.hytalemodding.impulse.api.capability.PhysicsActivationTuning;
+import dev.hytalemodding.impulse.api.capability.PhysicsActivationTuningCapability;
+import dev.hytalemodding.impulse.api.capability.PhysicsCapability;
+import dev.hytalemodding.impulse.api.capability.PhysicsCapabilityDescriptor;
+import dev.hytalemodding.impulse.api.capability.PhysicsCapabilityId;
+import dev.hytalemodding.impulse.api.capability.PhysicsContinuousCollisionCapability;
+import dev.hytalemodding.impulse.api.capability.PhysicsExtensionSettingsCapability;
+import dev.hytalemodding.impulse.api.capability.PhysicsSolverTuning;
+import dev.hytalemodding.impulse.api.capability.PhysicsSolverTuningCapability;
+import dev.hytalemodding.impulse.api.capability.PhysicsVoxelTerrainCapability;
 import java.lang.ref.Cleaner;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.function.BiConsumer;
 import java.util.function.Consumer;
@@ -29,9 +38,28 @@ import javax.annotation.Nonnull;
 import org.joml.Quaternionf;
 import org.joml.Vector3f;
 
-public final class RapierSpace implements PhysicsSpace, PhysicsSolverTuning, PhysicsActivationTuning {
+public final class RapierSpace implements PhysicsSpace {
 
     private static final Cleaner CLEANER = Cleaner.create();
+    private static final PhysicsCapabilityId RAPIER_SOLVER_EXTENSION_ID =
+        new PhysicsCapabilityId("impulse:rapier_solver");
+    private static final String INTERNAL_PGS_ITERATIONS = "internalPgsIterations";
+    private static final String MIN_ISLAND_SIZE = "minIslandSize";
+    private static final PhysicsCapabilityDescriptor RAPIER_SOLVER_EXTENSION_DESCRIPTOR =
+        new PhysicsCapabilityDescriptor(RAPIER_SOLVER_EXTENSION_ID,
+            "Rapier solver",
+            "Configures Rapier-specific solver batching settings");
+    private static final List<PhysicsCapabilityDescriptor> CAPABILITY_DESCRIPTORS = List.of(
+        PhysicsSolverTuningCapability.DESCRIPTOR,
+        PhysicsActivationTuningCapability.DESCRIPTOR,
+        PhysicsContinuousCollisionCapability.DESCRIPTOR,
+        PhysicsVoxelTerrainCapability.DESCRIPTOR,
+        PhysicsExtensionSettingsCapability.DESCRIPTOR,
+        RAPIER_SOLVER_EXTENSION_DESCRIPTOR);
+    private static final int DEFAULT_SOLVER_ITERATIONS = 4;
+    private static final int DEFAULT_INTERNAL_PGS_ITERATIONS = 1;
+    private static final int DEFAULT_STABILIZATION_ITERATIONS = 1;
+    private static final int DEFAULT_MIN_ISLAND_SIZE = 128;
     private static final int RAY_HIT_FLOATS = 9;
     private static final int CONTACT_FLOATS = 13;
     private static final int BODY_SNAPSHOT_FLOATS = 16;
@@ -42,12 +70,27 @@ public final class RapierSpace implements PhysicsSpace, PhysicsSolverTuning, Phy
     private final RapierBackend backend;
     private long nativeSpaceHandle;
     private final Cleaner.Cleanable cleanable;
+    private final PhysicsSolverTuningCapability solverTuningCapability =
+        new RapierSolverTuningCapability();
+    private final PhysicsActivationTuningCapability activationTuningCapability =
+        new RapierActivationTuningCapability();
+    private final PhysicsContinuousCollisionCapability continuousCollisionCapability =
+        new PhysicsContinuousCollisionCapability() {
+        };
+    private final PhysicsVoxelTerrainCapability voxelTerrainCapability =
+        new RapierVoxelTerrainCapability();
+    private final PhysicsExtensionSettingsCapability extensionSettingsCapability =
+        new RapierExtensionSettingsCapability();
     private final List<RapierBody> bodies = new ArrayList<>();
     private final Map<Long, RapierBody> bodiesByHandle = new HashMap<>();
     private final List<RapierJoint> joints = new ArrayList<>();
     private long[] snapshotBodyHandles = new long[0];
     private float[] snapshotBodyData = new float[0];
     private RapierBody[] selectedSnapshotBodies = new RapierBody[0];
+    private int solverIterations = DEFAULT_SOLVER_ITERATIONS;
+    private int internalPgsIterations = DEFAULT_INTERNAL_PGS_ITERATIONS;
+    private int stabilizationIterations = DEFAULT_STABILIZATION_ITERATIONS;
+    private int minIslandSize = DEFAULT_MIN_ISLAND_SIZE;
     private boolean closed;
 
     RapierSpace(@Nonnull SpaceId id, @Nonnull RapierBackend backend, long nativeSpaceHandle) {
@@ -83,12 +126,15 @@ public final class RapierSpace implements PhysicsSpace, PhysicsSolverTuning, Phy
         }
     }
 
-    @Override
-    public void setSolverTuning(int solverIterations,
+    private void setSolverTuning(int solverIterations,
         int internalPgsIterations,
         int stabilizationIterations,
         int minIslandSize) {
         ensureOpen();
+        this.solverIterations = solverIterations;
+        this.internalPgsIterations = internalPgsIterations;
+        this.stabilizationIterations = stabilizationIterations;
+        this.minIslandSize = minIslandSize;
         RapierNative.setSolverTuningNative(nativeSpaceHandle,
             solverIterations,
             internalPgsIterations,
@@ -96,8 +142,7 @@ public final class RapierSpace implements PhysicsSpace, PhysicsSolverTuning, Phy
             minIslandSize);
     }
 
-    @Override
-    public void setDynamicSleepTuning(float linearThreshold,
+    private void setDynamicSleepTuning(float linearThreshold,
         float angularThreshold,
         float timeUntilSleep) {
         ensureOpen();
@@ -105,6 +150,13 @@ public final class RapierSpace implements PhysicsSpace, PhysicsSolverTuning, Phy
             linearThreshold,
             angularThreshold,
             timeUntilSleep);
+    }
+
+    private void applyCurrentSolverTuning() {
+        setSolverTuning(solverIterations,
+            internalPgsIterations,
+            stabilizationIterations,
+            minIslandSize);
     }
 
     @Override
@@ -186,6 +238,34 @@ public final class RapierSpace implements PhysicsSpace, PhysicsSolverTuning, Phy
     @Override
     public boolean containsBody(@Nonnull PhysicsBody body) {
         return body instanceof RapierBody rapierBody && rapierBody.isAttachedTo(this);
+    }
+
+    @Nonnull
+    @Override
+    public <T extends PhysicsCapability> Optional<T> getCapability(@Nonnull Class<T> type) {
+        Objects.requireNonNull(type, "type");
+        if (type == PhysicsSolverTuningCapability.class) {
+            return Optional.of(type.cast(solverTuningCapability));
+        }
+        if (type == PhysicsActivationTuningCapability.class) {
+            return Optional.of(type.cast(activationTuningCapability));
+        }
+        if (type == PhysicsContinuousCollisionCapability.class) {
+            return Optional.of(type.cast(continuousCollisionCapability));
+        }
+        if (type == PhysicsVoxelTerrainCapability.class) {
+            return Optional.of(type.cast(voxelTerrainCapability));
+        }
+        if (type == PhysicsExtensionSettingsCapability.class) {
+            return Optional.of(type.cast(extensionSettingsCapability));
+        }
+        return Optional.empty();
+    }
+
+    @Nonnull
+    @Override
+    public List<PhysicsCapabilityDescriptor> getCapabilityDescriptors() {
+        return CAPABILITY_DESCRIPTORS;
     }
 
     @Override
@@ -352,11 +432,6 @@ public final class RapierSpace implements PhysicsSpace, PhysicsSolverTuning, Phy
             values[5]);
     }
 
-    @Override
-    public boolean supportsContinuousCollision() {
-        return true;
-    }
-
     @Nonnull
     @Override
     public PhysicsBody createStaticPlane(float groundY) {
@@ -375,22 +450,15 @@ public final class RapierSpace implements PhysicsSpace, PhysicsSolverTuning, Phy
         return createBox(halfExtents.x, halfExtents.y, halfExtents.z, mass);
     }
 
-    @Override
-    public boolean supportsVoxelTerrain() {
-        return true;
-    }
-
     @Nonnull
-    @Override
-    public PhysicsBody createVoxelTerrain(float voxelSizeX,
+    private PhysicsBody createVoxelTerrain(float voxelSizeX,
         float voxelSizeY,
         float voxelSizeZ,
         @Nonnull int[] voxelCoordinates) {
         return RapierBody.voxelTerrain(voxelSizeX, voxelSizeY, voxelSizeZ, voxelCoordinates);
     }
 
-    @Override
-    public void combineVoxelTerrains(@Nonnull PhysicsBody bodyA,
+    private void combineVoxelTerrains(@Nonnull PhysicsBody bodyA,
         @Nonnull PhysicsBody bodyB,
         int shiftX,
         int shiftY,
@@ -746,6 +814,93 @@ public final class RapierSpace implements PhysicsSpace, PhysicsSolverTuning, Phy
             normalized.set(0f, 1f, 0f);
         }
         return normalized.normalize();
+    }
+
+    private final class RapierSolverTuningCapability implements PhysicsSolverTuningCapability {
+
+        @Override
+        public void setSolverTuning(@Nonnull PhysicsSolverTuning tuning) {
+            Objects.requireNonNull(tuning, "tuning");
+            solverIterations = tuning.solverIterations();
+            stabilizationIterations = tuning.stabilizationIterations();
+            applyCurrentSolverTuning();
+        }
+    }
+
+    private final class RapierActivationTuningCapability implements PhysicsActivationTuningCapability {
+
+        @Override
+        public void setActivationTuning(@Nonnull PhysicsActivationTuning tuning) {
+            Objects.requireNonNull(tuning, "tuning");
+            setDynamicSleepTuning(tuning.linearSleepThreshold(),
+                tuning.angularSleepThreshold(),
+                tuning.timeUntilSleep());
+        }
+    }
+
+    private final class RapierVoxelTerrainCapability implements PhysicsVoxelTerrainCapability {
+
+        @Nonnull
+        @Override
+        public PhysicsBody createVoxelTerrain(float voxelSizeX,
+            float voxelSizeY,
+            float voxelSizeZ,
+            @Nonnull int[] voxelCoordinates) {
+            return RapierSpace.this.createVoxelTerrain(voxelSizeX,
+                voxelSizeY,
+                voxelSizeZ,
+                voxelCoordinates);
+        }
+
+        @Override
+        public void combineVoxelTerrains(@Nonnull PhysicsBody bodyA,
+            @Nonnull PhysicsBody bodyB,
+            int shiftX,
+            int shiftY,
+            int shiftZ) {
+            RapierSpace.this.combineVoxelTerrains(bodyA, bodyB, shiftX, shiftY, shiftZ);
+        }
+    }
+
+    private final class RapierExtensionSettingsCapability implements PhysicsExtensionSettingsCapability {
+
+        @Override
+        public void applyExtensionSettings(@Nonnull PhysicsCapabilityId capabilityId,
+            @Nonnull Map<String, String> values) {
+            Objects.requireNonNull(capabilityId, "capabilityId");
+            Objects.requireNonNull(values, "values");
+            if (!RAPIER_SOLVER_EXTENSION_ID.equals(capabilityId)) {
+                return;
+            }
+            internalPgsIterations = parsePositive(values,
+                INTERNAL_PGS_ITERATIONS,
+                internalPgsIterations);
+            minIslandSize = parsePositive(values,
+                MIN_ISLAND_SIZE,
+                minIslandSize);
+            applyCurrentSolverTuning();
+        }
+
+        private int parsePositive(@Nonnull Map<String, String> values,
+            @Nonnull String key,
+            int fallback) {
+            String value = values.get(key);
+            if (value == null) {
+                return fallback;
+            }
+            int parsed;
+            try {
+                parsed = Integer.parseInt(value);
+            } catch (NumberFormatException exception) {
+                throw new IllegalArgumentException("Rapier extension setting " + key
+                    + " must be an integer", exception);
+            }
+            if (parsed < 1) {
+                throw new IllegalArgumentException("Rapier extension setting " + key
+                    + " must be positive");
+            }
+            return parsed;
+        }
     }
 
     private static final class NativeSpaceCleanup implements Runnable {

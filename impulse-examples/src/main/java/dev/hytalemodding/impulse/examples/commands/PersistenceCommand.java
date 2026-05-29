@@ -16,7 +16,7 @@ import dev.hytalemodding.impulse.core.plugin.persistence.PhysicsPersistence.Stat
 import javax.annotation.Nonnull;
 
 /**
- * Example controls for schema-v5 world-level Impulse persistence.
+ * Example controls for schema-v6 world-level Impulse persistence.
  */
 public class PersistenceCommand extends AbstractCommandCollection {
 

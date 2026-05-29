@@ -10,6 +10,7 @@ import dev.hytalemodding.impulse.core.ImpulsePlugin;
 import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyId;
 import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyKind;
 import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyPersistenceMode;
+import dev.hytalemodding.impulse.core.plugin.settings.PhysicsBackendExtensionId;
 import dev.hytalemodding.impulse.core.plugin.settings.PhysicsSpaceSettings;
 import dev.hytalemodding.impulse.core.plugin.resources.PhysicsWorldResource;
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsWorldRuntimeResource;
@@ -24,6 +25,11 @@ import org.joml.Vector3f;
  * Crucible suites that exercise Impulse API behavior inside a live Hytale server.
  */
 final class ImpulseApiCrucibleTests {
+
+    private static final PhysicsBackendExtensionId RAPIER_SOLVER_EXTENSION_ID =
+        new PhysicsBackendExtensionId("impulse:rapier_solver");
+    private static final String RAPIER_INTERNAL_PGS_ITERATIONS = "internalPgsIterations";
+    private static final String RAPIER_MIN_ISLAND_SIZE = "minIslandSize";
 
     private ImpulseApiCrucibleTests() {
     }
@@ -209,9 +215,13 @@ final class ImpulseApiCrucibleTests {
         settings.getVisualSyncSettings().setVisualOcclusionRaycastsPerTick(31);
         settings.getVisualSyncSettings().setVisualOcclusionCacheTicks(7);
         settings.getSolverSettings().setSolverIterations(5);
-        settings.getSolverSettings().setInternalPgsIterations(2);
         settings.getSolverSettings().setStabilizationIterations(1);
-        settings.getSolverSettings().setMinIslandSize(64);
+        settings.getExtensionSettings().setInt(RAPIER_SOLVER_EXTENSION_ID,
+            RAPIER_INTERNAL_PGS_ITERATIONS,
+            2);
+        settings.getExtensionSettings().setInt(RAPIER_SOLVER_EXTENSION_ID,
+            RAPIER_MIN_ISLAND_SIZE,
+            64);
         settings.getVisualSyncSettings().setEntityVisualSyncCullingEnabled(true);
         settings.getVisualSyncSettings().setVisualVisibilityCullingEnabled(true);
         settings.getVisualMaterializationSettings().setDetachedVisualMaterializationEnabled(true);
@@ -239,9 +249,15 @@ final class ImpulseApiCrucibleTests {
                 && copy.getVisualSyncSettings().getVisualOcclusionRaycastsPerTick() == 31
                 && copy.getVisualSyncSettings().getVisualOcclusionCacheTicks() == 7
                 && copy.getSolverSettings().getSolverIterations() == 5
-                && copy.getSolverSettings().getInternalPgsIterations() == 2
                 && copy.getSolverSettings().getStabilizationIterations() == 1
-                && copy.getSolverSettings().getMinIslandSize() == 64
+                && copy.getExtensionSettings()
+                    .getInt(RAPIER_SOLVER_EXTENSION_ID,
+                        RAPIER_INTERNAL_PGS_ITERATIONS)
+                    .orElse(-1) == 2
+                && copy.getExtensionSettings()
+                    .getInt(RAPIER_SOLVER_EXTENSION_ID,
+                        RAPIER_MIN_ISLAND_SIZE)
+                    .orElse(-1) == 64
                 && copy.getVisualSyncSettings().isEntityVisualSyncCullingEnabled()
                 && copy.getVisualSyncSettings().isVisualVisibilityCullingEnabled()
                 && copy.getVisualMaterializationSettings().isDetachedVisualMaterializationEnabled()

@@ -3,11 +3,17 @@ package dev.hytalemodding.impulse.core.internal.resources.space;
 import com.hypixel.hytale.logger.HytaleLogger;
 import dev.hytalemodding.impulse.api.BackendId;
 import dev.hytalemodding.impulse.api.Impulse;
-import dev.hytalemodding.impulse.api.PhysicsActivationTuning;
-import dev.hytalemodding.impulse.api.PhysicsSolverTuning;
 import dev.hytalemodding.impulse.api.PhysicsSpace;
 import dev.hytalemodding.impulse.api.SpaceId;
+import dev.hytalemodding.impulse.api.capability.PhysicsActivationTuning;
+import dev.hytalemodding.impulse.api.capability.PhysicsActivationTuningCapability;
+import dev.hytalemodding.impulse.api.capability.PhysicsCapabilityId;
+import dev.hytalemodding.impulse.api.capability.PhysicsContinuousCollisionCapability;
+import dev.hytalemodding.impulse.api.capability.PhysicsExtensionSettingsCapability;
+import dev.hytalemodding.impulse.api.capability.PhysicsSolverTuning;
+import dev.hytalemodding.impulse.api.capability.PhysicsSolverTuningCapability;
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsRuntimeResetResult;
+import dev.hytalemodding.impulse.core.plugin.settings.PhysicsBackendExtensionId;
 import dev.hytalemodding.impulse.core.plugin.settings.PhysicsSpaceSettings;
 import dev.hytalemodding.impulse.core.plugin.settings.PhysicsStepMode;
 import it.unimi.dsi.fastutil.ints.Int2ObjectMap;
@@ -197,7 +203,7 @@ public final class PhysicsSpaceRuntime {
 
         List<String> unsupportedSpaces = new ArrayList<>();
         for (PhysicsSpace space : spaces.values()) {
-            if (!space.supportsContinuousCollision()) {
+            if (!supportsContinuousCollision(space)) {
                 unsupportedSpaces.add(formatSpace(space));
             }
         }
@@ -253,7 +259,7 @@ public final class PhysicsSpaceRuntime {
 
     private static void validateSpaceCompatibleWithStepMode(@Nonnull PhysicsSpace space,
         @Nonnull PhysicsStepMode stepMode) {
-        if (stepMode == PhysicsStepMode.CCD && !space.supportsContinuousCollision()) {
+        if (stepMode == PhysicsStepMode.CCD && !supportsContinuousCollision(space)) {
             throw new IllegalArgumentException("CCD mode is not available for "
                 + formatSpace(space));
         }
@@ -266,25 +272,36 @@ public final class PhysicsSpaceRuntime {
 
     private static void applySolverTuning(@Nonnull PhysicsSpace space,
         @Nonnull PhysicsSpaceSettings settings) {
-        if (!(space instanceof PhysicsSolverTuning tuning)) {
-            applyActivationTuning(space, settings);
-            return;
-        }
-        tuning.setSolverTuning(settings.getSolverSettings().getSolverIterations(),
-            settings.getSolverSettings().getInternalPgsIterations(),
-            settings.getSolverSettings().getStabilizationIterations(),
-            settings.getSolverSettings().getMinIslandSize());
+        space.getCapability(PhysicsSolverTuningCapability.class)
+            .ifPresent(tuning -> tuning.setSolverTuning(new PhysicsSolverTuning(
+                settings.getSolverSettings().getSolverIterations(),
+                settings.getSolverSettings().getStabilizationIterations())));
         applyActivationTuning(space, settings);
+        applyExtensionSettings(space, settings);
     }
 
     private static void applyActivationTuning(@Nonnull PhysicsSpace space,
         @Nonnull PhysicsSpaceSettings settings) {
-        if (!(space instanceof PhysicsActivationTuning tuning)) {
-            return;
-        }
-        tuning.setDynamicSleepTuning(settings.getSolverSettings().getDynamicSleepLinearThreshold(),
-            settings.getSolverSettings().getDynamicSleepAngularThreshold(),
-            settings.getSolverSettings().getDynamicSleepTimeUntilSleep());
+        space.getCapability(PhysicsActivationTuningCapability.class)
+            .ifPresent(tuning -> tuning.setActivationTuning(new PhysicsActivationTuning(
+                settings.getSolverSettings().getDynamicSleepLinearThreshold(),
+                settings.getSolverSettings().getDynamicSleepAngularThreshold(),
+                settings.getSolverSettings().getDynamicSleepTimeUntilSleep())));
+    }
+
+    private static void applyExtensionSettings(@Nonnull PhysicsSpace space,
+        @Nonnull PhysicsSpaceSettings settings) {
+        space.getCapability(PhysicsExtensionSettingsCapability.class)
+            .ifPresent(capability -> {
+                for (PhysicsBackendExtensionId extensionId : settings.getExtensionSettings().asMap().keySet()) {
+                    capability.applyExtensionSettings(new PhysicsCapabilityId(extensionId.value()),
+                        settings.getExtensionSettings().asStringMap(extensionId));
+                }
+            });
+    }
+
+    private static boolean supportsContinuousCollision(@Nonnull PhysicsSpace space) {
+        return space.getCapability(PhysicsContinuousCollisionCapability.class).isPresent();
     }
 
     private static void closeSpaceQuietly(@Nonnull PhysicsSpace space,

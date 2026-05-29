@@ -5,6 +5,7 @@ import com.hypixel.hytale.codec.ExtraInfo;
 import com.hypixel.hytale.codec.KeyedCodec;
 import com.hypixel.hytale.codec.builder.BuilderCodec;
 import com.hypixel.hytale.codec.codecs.EnumCodec;
+import com.hypixel.hytale.codec.codecs.array.ArrayCodec;
 import com.hypixel.hytale.codec.validation.ValidationResults;
 import com.hypixel.hytale.codec.validation.Validators;
 import com.hypixel.hytale.math.vector.Vector3fUtil;
@@ -36,6 +37,9 @@ import org.joml.Vector3f;
  */
 @Getter
 public class PersistentPhysicsSpaceState {
+
+    private static final PersistentPhysicsExtensionSettingState[] EMPTY_EXTENSION_SETTINGS =
+        new PersistentPhysicsExtensionSettingState[0];
 
     @Nonnull
     public static final BuilderCodec<PersistentPhysicsSpaceState> CODEC = BuilderCodec.builder(
@@ -162,23 +166,11 @@ public class PersistentPhysicsSpaceState {
         .addValidator(Validators.nonNull())
         .addValidator(Validators.min(1))
         .add()
-        .append(new KeyedCodec<>("InternalPgsIterations", Codec.INTEGER, false),
-            (state, value) -> state.internalPgsIterations = value,
-            PersistentPhysicsSpaceState::getInternalPgsIterations)
-        .addValidator(Validators.nonNull())
-        .addValidator(Validators.min(1))
-        .add()
         .append(new KeyedCodec<>("StabilizationIterations", Codec.INTEGER, false),
             (state, value) -> state.stabilizationIterations = value,
             PersistentPhysicsSpaceState::getStabilizationIterations)
         .addValidator(Validators.nonNull())
         .addValidator(Validators.min(0))
-        .add()
-        .append(new KeyedCodec<>("MinIslandSize", Codec.INTEGER, false),
-            (state, value) -> state.minIslandSize = value,
-            PersistentPhysicsSpaceState::getMinIslandSize)
-        .addValidator(Validators.nonNull())
-        .addValidator(Validators.min(1))
         .add()
         .append(new KeyedCodec<>("DynamicSleepLinearThreshold", Codec.FLOAT, false),
             (state, value) -> state.dynamicSleepLinearThreshold = value,
@@ -197,6 +189,15 @@ public class PersistentPhysicsSpaceState {
             PersistentPhysicsSpaceState::getDynamicSleepTimeUntilSleep)
         .addValidator(Validators.nonNull())
         .addValidator(Validators.range(0.0f, Float.MAX_VALUE))
+        .add()
+        .append(new KeyedCodec<>("ExtensionSettings",
+                new ArrayCodec<>(PersistentPhysicsExtensionSettingState.CODEC,
+                    PersistentPhysicsExtensionSettingState[]::new),
+                false),
+            (state, value) -> state.extensionSettings = copyExtensionSettings(value),
+            PersistentPhysicsSpaceState::getExtensionSettings)
+        .addValidator(Validators.nonNull())
+        .addValidator(Validators.nonNullArrayElements())
         .add()
         .append(new KeyedCodec<>("EntityVisualSyncCullingEnabled", Codec.BOOLEAN, false),
             (state, value) -> state.entityVisualSyncCullingEnabled = value,
@@ -346,11 +347,7 @@ public class PersistentPhysicsSpaceState {
     @Setter
     private int solverIterations = PhysicsSolverSettings.DEFAULT_SOLVER_ITERATIONS;
     @Setter
-    private int internalPgsIterations = PhysicsSolverSettings.DEFAULT_INTERNAL_PGS_ITERATIONS;
-    @Setter
     private int stabilizationIterations = PhysicsSolverSettings.DEFAULT_STABILIZATION_ITERATIONS;
-    @Setter
-    private int minIslandSize = PhysicsSolverSettings.DEFAULT_MIN_ISLAND_SIZE;
     @Setter
     private float dynamicSleepLinearThreshold =
         PhysicsSolverSettings.DEFAULT_DYNAMIC_SLEEP_LINEAR_THRESHOLD;
@@ -360,6 +357,8 @@ public class PersistentPhysicsSpaceState {
     @Setter
     private float dynamicSleepTimeUntilSleep =
         PhysicsSolverSettings.DEFAULT_DYNAMIC_SLEEP_TIME_UNTIL_SLEEP;
+    @Nonnull
+    private PersistentPhysicsExtensionSettingState[] extensionSettings = EMPTY_EXTENSION_SETTINGS;
     @Setter
     private boolean entityVisualSyncCullingEnabled =
         PhysicsVisualSyncSettings.DEFAULT_ENTITY_VISUAL_SYNC_CULLING_ENABLED;
@@ -430,12 +429,11 @@ public class PersistentPhysicsSpaceState {
         state.visualSnapshotSmoothingEnabled = settings.getVisualSyncSettings().isVisualSnapshotSmoothingEnabled();
         state.visualSnapshotSmoothingRate = settings.getVisualSyncSettings().getVisualSnapshotSmoothingRate();
         state.solverIterations = settings.getSolverSettings().getSolverIterations();
-        state.internalPgsIterations = settings.getSolverSettings().getInternalPgsIterations();
         state.stabilizationIterations = settings.getSolverSettings().getStabilizationIterations();
-        state.minIslandSize = settings.getSolverSettings().getMinIslandSize();
         state.dynamicSleepLinearThreshold = settings.getSolverSettings().getDynamicSleepLinearThreshold();
         state.dynamicSleepAngularThreshold = settings.getSolverSettings().getDynamicSleepAngularThreshold();
         state.dynamicSleepTimeUntilSleep = settings.getSolverSettings().getDynamicSleepTimeUntilSleep();
+        state.extensionSettings = extensionSettingsFrom(settings);
         state.entityVisualSyncCullingEnabled = settings.getVisualSyncSettings().isEntityVisualSyncCullingEnabled();
         state.visualVisibilityCullingEnabled = settings.getVisualSyncSettings().isVisualVisibilityCullingEnabled();
         state.detachedVisualMaterializationEnabled = settings.getVisualMaterializationSettings().isDetachedVisualMaterializationEnabled();
@@ -489,12 +487,13 @@ public class PersistentPhysicsSpaceState {
         settings.getVisualSyncSettings().setVisualSnapshotSmoothingEnabled(visualSnapshotSmoothingEnabled);
         settings.getVisualSyncSettings().setVisualSnapshotSmoothingRate(visualSnapshotSmoothingRate);
         settings.getSolverSettings().setSolverIterations(solverIterations);
-        settings.getSolverSettings().setInternalPgsIterations(internalPgsIterations);
         settings.getSolverSettings().setStabilizationIterations(stabilizationIterations);
-        settings.getSolverSettings().setMinIslandSize(minIslandSize);
         settings.getSolverSettings().setDynamicSleepTuning(dynamicSleepLinearThreshold,
             dynamicSleepAngularThreshold,
             dynamicSleepTimeUntilSleep);
+        for (PersistentPhysicsExtensionSettingState extensionSetting : extensionSettings) {
+            extensionSetting.applyTo(settings.getExtensionSettings());
+        }
         settings.getVisualSyncSettings().setEntityVisualSyncCullingEnabled(entityVisualSyncCullingEnabled);
         settings.getVisualSyncSettings().setVisualVisibilityCullingEnabled(visualVisibilityCullingEnabled);
         settings.getVisualMaterializationSettings().setDetachedVisualMaterializationEnabled(detachedVisualMaterializationEnabled);
@@ -556,12 +555,11 @@ public class PersistentPhysicsSpaceState {
         copy.visualSnapshotSmoothingEnabled = visualSnapshotSmoothingEnabled;
         copy.visualSnapshotSmoothingRate = visualSnapshotSmoothingRate;
         copy.solverIterations = solverIterations;
-        copy.internalPgsIterations = internalPgsIterations;
         copy.stabilizationIterations = stabilizationIterations;
-        copy.minIslandSize = minIslandSize;
         copy.dynamicSleepLinearThreshold = dynamicSleepLinearThreshold;
         copy.dynamicSleepAngularThreshold = dynamicSleepAngularThreshold;
         copy.dynamicSleepTimeUntilSleep = dynamicSleepTimeUntilSleep;
+        copy.extensionSettings = copyExtensionSettings(extensionSettings);
         copy.entityVisualSyncCullingEnabled = entityVisualSyncCullingEnabled;
         copy.visualVisibilityCullingEnabled = visualVisibilityCullingEnabled;
         copy.detachedVisualMaterializationEnabled = detachedVisualMaterializationEnabled;
@@ -582,6 +580,31 @@ public class PersistentPhysicsSpaceState {
         copy.collisionLodRefreshIntervalTicks = collisionLodRefreshIntervalTicks;
         copy.collisionLodFarSleepEnabled = collisionLodFarSleepEnabled;
         copy.detachedVisualBlockType = detachedVisualBlockType;
+        return copy;
+    }
+
+    @Nonnull
+    private static PersistentPhysicsExtensionSettingState[] extensionSettingsFrom(
+        @Nonnull PhysicsSpaceSettings settings) {
+        return settings.getExtensionSettings().asMap().entrySet().stream()
+            .flatMap(entry -> entry.getValue().entrySet().stream()
+                .map(setting -> PersistentPhysicsExtensionSettingState.from(entry.getKey(),
+                    setting.getKey(),
+                    setting.getValue())))
+            .toArray(PersistentPhysicsExtensionSettingState[]::new);
+    }
+
+    @Nonnull
+    private static PersistentPhysicsExtensionSettingState[] copyExtensionSettings(
+        @Nonnull PersistentPhysicsExtensionSettingState[] settings) {
+        if (settings.length == 0) {
+            return EMPTY_EXTENSION_SETTINGS;
+        }
+        PersistentPhysicsExtensionSettingState[] copy =
+            new PersistentPhysicsExtensionSettingState[settings.length];
+        for (int i = 0; i < settings.length; i++) {
+            copy[i] = settings[i].copy();
+        }
         return copy;
     }
 }

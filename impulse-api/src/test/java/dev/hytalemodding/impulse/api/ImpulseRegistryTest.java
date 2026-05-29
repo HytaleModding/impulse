@@ -5,6 +5,7 @@ import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import dev.hytalemodding.impulse.api.capability.PhysicsContinuousCollisionCapability;
 import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -68,6 +69,14 @@ class ImpulseRegistryTest {
 
         assertTrue(exception.getMessage().contains("created space id"));
         assertTrue(exception.getMessage().contains("expected"));
+    }
+
+    @Test
+    void defaultCapabilityLookupReportsUnsupported() {
+        PhysicsSpace space = new FakePhysicsSpace(new SpaceId(1), new BackendId(uniqueId()));
+
+        assertTrue(space.getCapability(PhysicsContinuousCollisionCapability.class).isEmpty());
+        assertEquals(List.of(), space.getCapabilityDescriptors());
     }
 
     private static String uniqueId() {

@@ -16,6 +16,7 @@ import dev.hytalemodding.impulse.api.PhysicsJoint;
 import dev.hytalemodding.impulse.api.PhysicsRayHit;
 import dev.hytalemodding.impulse.api.PhysicsSpace;
 import dev.hytalemodding.impulse.api.ShapeType;
+import dev.hytalemodding.impulse.api.capability.PhysicsContinuousCollisionCapability;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
@@ -251,7 +252,7 @@ public abstract class PhysicsBackendContractTest {
         PhysicsBody body = space.createBox(0.5f, 0.5f, 0.5f, 1.0f);
         body.setPosition(0.0f, 6.0f, 0.0f);
         body.setLinearVelocity(0.0f, -25.0f, 0.0f);
-        if (space.supportsContinuousCollision()) {
+        if (space.getCapability(PhysicsContinuousCollisionCapability.class).isPresent()) {
             body.setContinuousCollisionEnabled(true);
         }
 

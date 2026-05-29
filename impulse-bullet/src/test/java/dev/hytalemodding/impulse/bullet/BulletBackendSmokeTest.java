@@ -6,6 +6,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import dev.hytalemodding.impulse.api.Impulse;
 import dev.hytalemodding.impulse.api.PhysicsSpace;
+import dev.hytalemodding.impulse.api.capability.PhysicsContinuousCollisionCapability;
 import java.nio.file.Path;
 import java.util.logging.Level;
 import org.junit.jupiter.api.AfterEach;
@@ -31,7 +32,7 @@ class BulletBackendSmokeTest {
     void exposesExpectedBackendCapabilities() {
         space = createSpace();
 
-        assertTrue(space.supportsContinuousCollision());
+        assertTrue(space.getCapability(PhysicsContinuousCollisionCapability.class).isPresent());
         assertEquals(BulletBackend.ID, space.getBackendId());
     }
 

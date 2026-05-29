@@ -27,6 +27,7 @@ import dev.hytalemodding.impulse.core.internal.voxel.WorldVoxelCollisionCache.Bu
 import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyId;
 import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyKind;
 import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyPersistenceMode;
+import dev.hytalemodding.impulse.core.plugin.settings.PhysicsBackendExtensionId;
 import dev.hytalemodding.impulse.core.plugin.settings.PhysicsSpaceSettings;
 import dev.hytalemodding.impulse.core.plugin.settings.PhysicsStepMode;
 import dev.hytalemodding.impulse.core.plugin.settings.PhysicsStepSchedulingMode;
@@ -67,6 +68,10 @@ final class ImpulseDetachedStreamingBenchmarkCrucibleTests {
         "impulse.crucible.detachedStreaming.warnTps";
     private static final String STRICT_PLANE_GATE_PROPERTY =
         "impulse.crucible.detachedStreaming.strictPlaneGate";
+    private static final PhysicsBackendExtensionId RAPIER_SOLVER_EXTENSION_ID =
+        new PhysicsBackendExtensionId("impulse:rapier_solver");
+    private static final String RAPIER_INTERNAL_PGS_ITERATIONS = "internalPgsIterations";
+    private static final String RAPIER_MIN_ISLAND_SIZE = "minIslandSize";
 
     private static final int DEFAULT_STAGE_COUNT = 500;
     private static final int DEFAULT_WARMUP_TICKS = 60;
@@ -223,9 +228,13 @@ final class ImpulseDetachedStreamingBenchmarkCrucibleTests {
             settings.getWorldCollisionSettings().setWorldCollisionMode(WorldCollisionMode.STREAMING);
             settings.getWorldCollisionSettings().setWorldCollisionBodyRadius(BODY_STREAMING_RADIUS);
             settings.getSolverSettings().setSolverIterations(4);
-            settings.getSolverSettings().setInternalPgsIterations(1);
             settings.getSolverSettings().setStabilizationIterations(1);
-            settings.getSolverSettings().setMinIslandSize(128);
+            settings.getExtensionSettings().setInt(RAPIER_SOLVER_EXTENSION_ID,
+                RAPIER_INTERNAL_PGS_ITERATIONS,
+                1);
+            settings.getExtensionSettings().setInt(RAPIER_SOLVER_EXTENSION_ID,
+                RAPIER_MIN_ISLAND_SIZE,
+                128);
 
             PhysicsSpace space = physics.createLiveSpace(CrucibleBackends.requireBackendId(),
                 world.getName(),

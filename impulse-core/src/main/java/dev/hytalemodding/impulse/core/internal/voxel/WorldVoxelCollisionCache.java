@@ -11,6 +11,7 @@ import dev.hytalemodding.impulse.api.PhysicsBody;
 import dev.hytalemodding.impulse.api.PhysicsCollisionFilters;
 import dev.hytalemodding.impulse.api.PhysicsSpace;
 import dev.hytalemodding.impulse.api.SpaceId;
+import dev.hytalemodding.impulse.api.capability.PhysicsVoxelTerrainCapability;
 import dev.hytalemodding.impulse.core.internal.resources.profiling.WorldCollisionProfilingResource.MissingSectionReason;
 import dev.hytalemodding.impulse.core.internal.resources.profiling.WorldCollisionProfilingResource.Snapshot;
 import dev.hytalemodding.impulse.core.internal.resources.profiling.WorldCollisionProfilingResource.StreamingTargetDiagnostic;
@@ -725,10 +726,12 @@ public final class WorldVoxelCollisionCache {
             sectionY,
             chunkZ,
             accessCache);
+        PhysicsVoxelTerrainCapability voxelTerrainCapability =
+            space.getCapability(PhysicsVoxelTerrainCapability.class).orElse(null);
         CachedSection built = new CachedSection(chunkX, sectionY, chunkZ, tick,
             neighborhoodSignature);
         try {
-            addGeometryBodies(space, built, geometry, chunkX, sectionY, chunkZ);
+            addGeometryBodies(space, built, geometry, voxelTerrainCapability, chunkX, sectionY, chunkZ);
         } catch (RuntimeException exception) {
             removeBuiltSectionAfterFailure(space, built, exception);
             throw exception;
@@ -751,7 +754,7 @@ public final class WorldVoxelCollisionCache {
             removed,
             rebuilt ? 0 : 1,
             rebuilt ? 1 : 0,
-            space.supportsVoxelTerrain() && geometry.hasFullCubeVoxels() ? 1 : 0);
+            voxelTerrainCapability != null && geometry.hasFullCubeVoxels() ? 1 : 0);
         if (profiling != null) {
             profiling.addBuildStats(stats);
             profiling.addEnsureSectionNanos(System.nanoTime() - start);
@@ -772,14 +775,18 @@ public final class WorldVoxelCollisionCache {
     private static void addGeometryBodies(@Nonnull PhysicsSpace space,
         @Nonnull CachedSection target,
         @Nonnull SectionCollisionGeometry geometry,
+        @Nullable PhysicsVoxelTerrainCapability voxelTerrainCapability,
         int chunkX,
         int sectionY,
         int chunkZ) {
         target.fullCubeBoxes.addAll(geometry.mergedFullCubeBoxes());
         target.detailBoxes.addAll(geometry.detailBoxes());
-        if (space.supportsVoxelTerrain() && geometry.hasFullCubeVoxels()) {
+        if (voxelTerrainCapability != null && geometry.hasFullCubeVoxels()) {
             target.voxelTerrain = true;
-            PhysicsBody voxelBody = space.createVoxelTerrain(1.0f, 1.0f, 1.0f, geometry.fullCubeVoxels());
+            PhysicsBody voxelBody = voxelTerrainCapability.createVoxelTerrain(1.0f,
+                1.0f,
+                1.0f,
+                geometry.fullCubeVoxels());
             voxelBody.setPosition(chunkX << ChunkUtil.BITS,
                 sectionY << ChunkUtil.BITS,
                 chunkZ << ChunkUtil.BITS);

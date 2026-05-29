@@ -1,7 +1,6 @@
 package dev.hytalemodding.impulse.api.testsupport;
 
 import dev.hytalemodding.impulse.api.BackendId;
-import dev.hytalemodding.impulse.api.PhysicsActivationTuning;
 import dev.hytalemodding.impulse.api.PhysicsAxis;
 import dev.hytalemodding.impulse.api.PhysicsBackend;
 import dev.hytalemodding.impulse.api.PhysicsBody;
@@ -10,12 +9,18 @@ import dev.hytalemodding.impulse.api.PhysicsContact;
 import dev.hytalemodding.impulse.api.PhysicsJoint;
 import dev.hytalemodding.impulse.api.PhysicsJointType;
 import dev.hytalemodding.impulse.api.PhysicsRayHit;
-import dev.hytalemodding.impulse.api.PhysicsSolverTuning;
 import dev.hytalemodding.impulse.api.PhysicsSpace;
 import dev.hytalemodding.impulse.api.ShapeType;
 import dev.hytalemodding.impulse.api.SpaceId;
+import dev.hytalemodding.impulse.api.capability.PhysicsActivationTuning;
+import dev.hytalemodding.impulse.api.capability.PhysicsActivationTuningCapability;
+import dev.hytalemodding.impulse.api.capability.PhysicsCapability;
+import dev.hytalemodding.impulse.api.capability.PhysicsCapabilityDescriptor;
+import dev.hytalemodding.impulse.api.capability.PhysicsSolverTuning;
+import dev.hytalemodding.impulse.api.capability.PhysicsSolverTuningCapability;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Objects;
 import java.util.Optional;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
@@ -69,8 +74,8 @@ public final class FakePhysicsBackend implements PhysicsBackend {
     }
 
     public static final class InMemoryPhysicsSpace implements PhysicsSpace,
-        PhysicsSolverTuning,
-        PhysicsActivationTuning {
+        PhysicsSolverTuningCapability,
+        PhysicsActivationTuningCapability {
 
         private final SpaceId id;
         private final BackendId backendId;
@@ -80,9 +85,7 @@ public final class FakePhysicsBackend implements PhysicsBackend {
         private final Vector3f gravity = new Vector3f();
         private boolean closed;
         private int solverIterations;
-        private int internalPgsIterations;
         private int stabilizationIterations;
-        private int minIslandSize;
         private float sleepLinearThreshold;
         private float sleepAngularThreshold;
         private float sleepTimeUntilSleep;
@@ -138,6 +141,22 @@ public final class FakePhysicsBackend implements PhysicsBackend {
         @Override
         public int bodyCount() {
             return bodies.size();
+        }
+
+        @Nonnull
+        @Override
+        public <T extends PhysicsCapability> Optional<T> getCapability(@Nonnull Class<T> type) {
+            Objects.requireNonNull(type, "type");
+            if (type == PhysicsSolverTuningCapability.class || type == PhysicsActivationTuningCapability.class) {
+                return Optional.of(type.cast(this));
+            }
+            return Optional.empty();
+        }
+
+        @Nonnull
+        @Override
+        public List<PhysicsCapabilityDescriptor> getCapabilityDescriptors() {
+            return List.of(PhysicsSolverTuningCapability.DESCRIPTOR, PhysicsActivationTuningCapability.DESCRIPTOR);
         }
 
         @Nonnull
@@ -293,23 +312,18 @@ public final class FakePhysicsBackend implements PhysicsBackend {
         }
 
         @Override
-        public void setSolverTuning(int solverIterations,
-            int internalPgsIterations,
-            int stabilizationIterations,
-            int minIslandSize) {
-            this.solverIterations = solverIterations;
-            this.internalPgsIterations = internalPgsIterations;
-            this.stabilizationIterations = stabilizationIterations;
-            this.minIslandSize = minIslandSize;
+        public void setSolverTuning(@Nonnull PhysicsSolverTuning tuning) {
+            Objects.requireNonNull(tuning, "tuning");
+            solverIterations = tuning.solverIterations();
+            stabilizationIterations = tuning.stabilizationIterations();
         }
 
         @Override
-        public void setDynamicSleepTuning(float linearThreshold,
-            float angularThreshold,
-            float timeUntilSleep) {
-            sleepLinearThreshold = linearThreshold;
-            sleepAngularThreshold = angularThreshold;
-            sleepTimeUntilSleep = timeUntilSleep;
+        public void setActivationTuning(@Nonnull PhysicsActivationTuning tuning) {
+            Objects.requireNonNull(tuning, "tuning");
+            sleepLinearThreshold = tuning.linearSleepThreshold();
+            sleepAngularThreshold = tuning.angularSleepThreshold();
+            sleepTimeUntilSleep = tuning.timeUntilSleep();
         }
 
         public boolean isClosed() {
@@ -320,16 +334,8 @@ public final class FakePhysicsBackend implements PhysicsBackend {
             return solverIterations;
         }
 
-        public int getInternalPgsIterations() {
-            return internalPgsIterations;
-        }
-
         public int getStabilizationIterations() {
             return stabilizationIterations;
-        }
-
-        public int getMinIslandSize() {
-            return minIslandSize;
         }
 
         public float getSleepLinearThreshold() {

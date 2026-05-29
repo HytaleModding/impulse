@@ -1,6 +1,9 @@
 package dev.hytalemodding.impulse.api;
 
+import dev.hytalemodding.impulse.api.capability.PhysicsCapability;
+import dev.hytalemodding.impulse.api.capability.PhysicsCapabilityDescriptor;
 import java.util.List;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.function.BiConsumer;
 import java.util.function.Consumer;
@@ -156,6 +159,29 @@ public interface PhysicsSpace {
         return PhysicsStepPhaseStats.unavailable();
     }
 
+    /**
+     * Returns an optional backend-specific capability for this space.
+     *
+     * <p>The default implementation supports spaces that directly implement a capability
+     * interface. Backends that expose separate capability objects should override this method.</p>
+     */
+    @Nonnull
+    default <T extends PhysicsCapability> Optional<T> getCapability(@Nonnull Class<T> type) {
+        Objects.requireNonNull(type, "type");
+        if (type.isInstance(this)) {
+            return Optional.of(type.cast(this));
+        }
+        return Optional.empty();
+    }
+
+    /**
+     * Returns metadata for backend-specific capabilities exposed by this space.
+     */
+    @Nonnull
+    default List<PhysicsCapabilityDescriptor> getCapabilityDescriptors() {
+        return List.of();
+    }
+
     @Nonnull
     PhysicsBody createStaticPlane(float groundY);
 
@@ -164,56 +190,6 @@ public interface PhysicsSpace {
 
     @Nonnull
     PhysicsBody createBox(@Nonnull Vector3f halfExtents, float mass);
-
-    /**
-     * Returns true when the backend can create one static voxel collider from local voxel cells.
-     *
-     * <p>This is intended for section-sized terrain batches. Backends that do not support a
-     * native voxel shape can return false and let higher-level code fall back to merged boxes.</p>
-     */
-    default boolean supportsVoxelTerrain() {
-        return false;
-    }
-
-    /**
-     * Returns true when the backend supports continuous collision detection on bodies.
-     *
-     * <p>World-level CCD stepping modes should check this before force-enabling CCD
-     * across a space.</p>
-     */
-    default boolean supportsContinuousCollision() {
-        return false;
-    }
-
-    /**
-     * Creates a static terrain body made from occupied voxel cells.
-     *
-     * <p>The {@code voxelCoordinates} array stores triples of local integer grid coordinates:
-     * {@code x0, y0, z0, x1, y1, z1, ...}. The returned body can then be positioned at the
-     * section/world origin like any other static body.</p>
-     */
-    @Nonnull
-    default PhysicsBody createVoxelTerrain(float voxelSizeX,
-        float voxelSizeY,
-        float voxelSizeZ,
-        @Nonnull int[] voxelCoordinates) {
-        throw new UnsupportedOperationException("This physics backend does not support voxel terrain");
-    }
-
-    /**
-     * Couples two adjacent voxel terrain bodies so the backend can treat their shared boundary
-     * as continuous terrain instead of two unrelated voxel sets.
-     *
-     * <p>The shift is expressed in voxel units from {@code bodyA}'s local voxel origin to
-     * {@code bodyB}'s local voxel origin. Backends that do not use native voxel terrain can keep
-     * the default no-op behavior.</p>
-     */
-    default void combineVoxelTerrains(@Nonnull PhysicsBody bodyA,
-        @Nonnull PhysicsBody bodyB,
-        int shiftX,
-        int shiftY,
-        int shiftZ) {
-    }
 
     @Nonnull
     PhysicsBody createSphere(float radius, float mass);

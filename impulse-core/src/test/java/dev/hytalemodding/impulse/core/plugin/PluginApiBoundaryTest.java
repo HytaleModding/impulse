@@ -22,6 +22,8 @@ import org.junit.jupiter.api.Test;
 class PluginApiBoundaryTest {
     private static final Pattern INTERNAL_REFERENCE =
             Pattern.compile("\\bdev\\.hytalemodding\\.impulse\\.core\\.internal\\.");
+    private static final Pattern BACKEND_CAPABILITY_API_REFERENCE =
+        Pattern.compile("\\bdev\\.hytalemodding\\.impulse\\.api\\.capability\\.");
 
     @Test
     void pluginApiPublicSurfaceDoesNotExposeInternalImplementationPackages() throws IOException {
@@ -59,6 +61,30 @@ class PluginApiBoundaryTest {
             "Codec DTO helpers should not become plugin persistence ABI");
         assertFalse(Files.exists(pluginSourceRoot().resolve("components/PersistentQuaternion.java")),
             "Component codec DTO helpers should not be duplicated as plugin ABI");
+    }
+
+    @Test
+    void pluginApiDoesNotExposeBackendCapabilityTypes() throws IOException {
+        Path pluginSourceRoot = pluginSourceRoot();
+        List<String> violations = new ArrayList<>();
+
+        try (var paths = Files.walk(pluginSourceRoot)) {
+            paths.filter(path -> path.toString().endsWith(".java"))
+                .forEach(path -> {
+                    try {
+                        String source = Files.readString(path);
+                        if (BACKEND_CAPABILITY_API_REFERENCE.matcher(source).find()) {
+                            violations.add(pluginSourceRoot.relativize(path).toString());
+                        }
+                    } catch (IOException exception) {
+                        throw new IllegalStateException("Failed to inspect " + path, exception);
+                    }
+                });
+        }
+
+        assertTrue(violations.isEmpty(),
+            () -> "Plugin API must not expose backend capability API imports:\n"
+                + String.join("\n", violations));
     }
 
     @Test

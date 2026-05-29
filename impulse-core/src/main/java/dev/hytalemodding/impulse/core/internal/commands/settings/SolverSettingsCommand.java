@@ -8,8 +8,9 @@ import com.hypixel.hytale.server.core.command.system.arguments.types.ArgTypes;
 import com.hypixel.hytale.server.core.command.system.basecommands.AbstractWorldCommand;
 import com.hypixel.hytale.server.core.universe.world.World;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
-import dev.hytalemodding.impulse.api.PhysicsSolverTuning;
 import dev.hytalemodding.impulse.api.SpaceId;
+import dev.hytalemodding.impulse.api.capability.PhysicsActivationTuningCapability;
+import dev.hytalemodding.impulse.api.capability.PhysicsSolverTuningCapability;
 import dev.hytalemodding.impulse.core.internal.commands.SpaceSelection;
 import dev.hytalemodding.impulse.core.plugin.settings.PhysicsSpaceSettings;
 import dev.hytalemodding.impulse.core.plugin.resources.PhysicsWorldResource;
@@ -21,17 +22,9 @@ public class SolverSettingsCommand extends AbstractWorldCommand {
         "solverIterations",
         "Constraint solver iterations",
         ArgTypes.INTEGER);
-    private final OptionalArg<Integer> pgsIterationsArg = this.withOptionalArg(
-        "pgsIterations",
-        "Internal PGS iterations per solver iteration",
-        ArgTypes.INTEGER);
     private final OptionalArg<Integer> stabilizationIterationsArg = this.withOptionalArg(
         "stabilizationIterations",
         "Stabilization iterations per solver iteration",
-        ArgTypes.INTEGER);
-    private final OptionalArg<Integer> minIslandSizeArg = this.withOptionalArg(
-        "minIslandSize",
-        "Minimum island size used by compatible parallel solvers",
         ArgTypes.INTEGER);
     private final OptionalArg<Float> sleepLinearThresholdArg = this.withOptionalArg(
         "sleepLinearThreshold",
@@ -67,7 +60,8 @@ public class SolverSettingsCommand extends AbstractWorldCommand {
             access -> {
                 var space = access.requireSpace(spaceId);
                 return new SolverSpaceSummary(space.getBackendId().value(),
-                    space instanceof PhysicsSolverTuning);
+                    space.getCapability(PhysicsSolverTuningCapability.class).isPresent(),
+                    space.getCapability(PhysicsActivationTuningCapability.class).isPresent());
             });
 
         PhysicsSpaceSettings settings = new PhysicsSpaceSettings(resource.getSpaceSettings(spaceId));
@@ -79,15 +73,9 @@ public class SolverSettingsCommand extends AbstractWorldCommand {
         int solverIterations = solverIterationsArg.provided(ctx)
             ? solverIterationsArg.get(ctx)
             : settings.getSolverSettings().getSolverIterations();
-        int pgsIterations = pgsIterationsArg.provided(ctx)
-            ? pgsIterationsArg.get(ctx)
-            : settings.getSolverSettings().getInternalPgsIterations();
         int stabilizationIterations = stabilizationIterationsArg.provided(ctx)
             ? stabilizationIterationsArg.get(ctx)
             : settings.getSolverSettings().getStabilizationIterations();
-        int minIslandSize = minIslandSizeArg.provided(ctx)
-            ? minIslandSizeArg.get(ctx)
-            : settings.getSolverSettings().getMinIslandSize();
         float sleepLinearThreshold = sleepLinearThresholdArg.provided(ctx)
             ? sleepLinearThresholdArg.get(ctx)
             : settings.getSolverSettings().getDynamicSleepLinearThreshold();
@@ -99,9 +87,7 @@ public class SolverSettingsCommand extends AbstractWorldCommand {
             : settings.getSolverSettings().getDynamicSleepTimeUntilSleep();
 
         if (solverIterations < 1
-            || pgsIterations < 1
             || stabilizationIterations < 0
-            || minIslandSize < 1
             || !Float.isFinite(sleepLinearThreshold)
             || !Float.isFinite(sleepAngularThreshold)
             || !Float.isFinite(sleepTime)
@@ -109,15 +95,12 @@ public class SolverSettingsCommand extends AbstractWorldCommand {
             || sleepAngularThreshold < 0.0f
             || sleepTime < 0.0f) {
             ctx.sender().sendMessage(Message.raw(
-                "solverIterations, pgsIterations, and minIslandSize must be >= 1; "
-                    + "stabilizationIterations and sleep tuning values must be >= 0."));
+                "solverIterations must be >= 1; stabilizationIterations and sleep tuning values must be >= 0."));
             return;
         }
 
         settings.getSolverSettings().setSolverIterations(solverIterations);
-        settings.getSolverSettings().setInternalPgsIterations(pgsIterations);
         settings.getSolverSettings().setStabilizationIterations(stabilizationIterations);
-        settings.getSolverSettings().setMinIslandSize(minIslandSize);
         settings.getSolverSettings().setDynamicSleepTuning(sleepLinearThreshold, sleepAngularThreshold, sleepTime);
         resource.setSpaceSettings(spaceId, settings);
         sendSummary(ctx, spaceId, summary, settings);
@@ -125,9 +108,7 @@ public class SolverSettingsCommand extends AbstractWorldCommand {
 
     private boolean anyArgProvided(@Nonnull CommandContext ctx) {
         return solverIterationsArg.provided(ctx)
-            || pgsIterationsArg.provided(ctx)
             || stabilizationIterationsArg.provided(ctx)
-            || minIslandSizeArg.provided(ctx)
             || sleepLinearThresholdArg.provided(ctx)
             || sleepAngularThresholdArg.provided(ctx)
             || sleepTimeArg.provided(ctx);
@@ -140,16 +121,17 @@ public class SolverSettingsCommand extends AbstractWorldCommand {
         ctx.sender().sendMessage(Message.raw("Impulse solver settings for space "
             + spaceId.value()
             + " backend=" + summary.backendId()
-            + " applied=" + summary.applied()
+            + " solverApplied=" + summary.solverApplied()
+            + " sleepApplied=" + summary.sleepApplied()
             + ": solverIterations=" + settings.getSolverSettings().getSolverIterations()
-            + " pgsIterations=" + settings.getSolverSettings().getInternalPgsIterations()
             + " stabilizationIterations=" + settings.getSolverSettings().getStabilizationIterations()
-            + " minIslandSize=" + settings.getSolverSettings().getMinIslandSize()
             + " sleepLinearThreshold=" + settings.getSolverSettings().getDynamicSleepLinearThreshold()
             + " sleepAngularThreshold=" + settings.getSolverSettings().getDynamicSleepAngularThreshold()
             + " sleepTime=" + settings.getSolverSettings().getDynamicSleepTimeUntilSleep()));
     }
 
-    private record SolverSpaceSummary(@Nonnull String backendId, boolean applied) {
+    private record SolverSpaceSummary(@Nonnull String backendId,
+                                      boolean solverApplied,
+                                      boolean sleepApplied) {
     }
 }
