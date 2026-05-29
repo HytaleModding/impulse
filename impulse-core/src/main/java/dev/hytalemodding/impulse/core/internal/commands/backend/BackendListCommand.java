@@ -57,16 +57,6 @@ public class BackendListCommand extends AbstractAsyncPlayerCommand {
             entries.sort(Comparator.comparingInt(entry -> entry.spaceId().value()));
             return entries;
         });
-        ctx.sender().sendMessage(Message.raw("Physics spaces in world " + world.getName() + ":"));
-        if (spaces.isEmpty()) {
-            ctx.sender().sendMessage(Message.raw("- <none>"));
-            return CompletableFuture.completedFuture(null);
-        }
-        for (SpaceEntry space : spaces) {
-            ctx.sender().sendMessage(Message.raw("- id=" + space.spaceId().value()
-                + " backend=" + space.backendId()
-                + " capabilities=" + formatCapabilities(space.capabilityIds())));
-        }
 
         return CompletableFuture.completedFuture(null);
     }
