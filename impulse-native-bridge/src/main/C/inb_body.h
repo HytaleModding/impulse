@@ -54,7 +54,7 @@ extern "C"
    *@param body_id  The ID of the target body.
    * @param output  The memory segment where the position should be written.
    */
-  INB_API void inb_body_get_position(int64_t body_id, float *output);
+  INB_API void inb_body_get_position(int64_t body_id, INB_Vector3f *output);
 
   /**
    *  Sets the rotation of a body in the world.
@@ -73,7 +73,7 @@ extern "C"
    * @param body_id  The ID of the target body.
    * @param output   The memory segment where the rotation should be written.
    */
-  INB_API void inb_body_get_rotation(int64_t body_id, float *output);
+  INB_API void inb_body_get_rotation(int64_t body_id, INB_Vector3f *output);
 
   /**
    * Sets the linear velocity of a body in the world.
@@ -91,7 +91,7 @@ extern "C"
    * @param body_id  The ID of the target body.
    * @param output  The memory segment where the linear velocity should be written.
    */
-  INB_API void inb_body_get_linear_velocity(int64_t body_id, float *output);
+  INB_API void inb_body_get_linear_velocity(int64_t body_id, INB_Vector3f *output);
 
   /**
    * Sets the angular velocity of a body in the world.
@@ -109,7 +109,7 @@ extern "C"
    * @param body_id  The ID of the target body.
    * @param output  The memory segment where the angular velocity should be written.
    */
-  INB_API void inb_body_get_angular_velocity(int64_t body_id, float *output);
+  INB_API void inb_body_get_angular_velocity(int64_t body_id, INB_Vector3f *output);
 
   /**
    * Sets the restituion of a body in the world.
@@ -408,7 +408,7 @@ extern "C"
    * @param output   The memory segment where the half extents should be written.
    * @return bool    True if the body is a box, false otherwise.
    */
-  INB_API bool inb_body_get_half_extents(int64_t body_id, float *output);
+  INB_API bool inb_body_get_half_extents(int64_t body_id, INB_Vector3f *output);
 
   /**
    * Gets a body half height.

@@ -14,8 +14,10 @@ extern "C"
 {
 #endif
 
-  /* --- SYSTEM CONTROL --- */
-  INB_API void inb_system_init(void);
+  /**
+   * Initialize the backend.
+   */
+  INB_API void inb_backend_init(void);
 
   /**
    * Registers the java logger.
@@ -24,14 +26,21 @@ extern "C"
    *
    * @param callback The memory segment containing the java callback function pointer.
    */
-  INB_API void inb_system_set_logger(nb_log_callback callback);
+  INB_API void inb_backend_set_logger(nb_log_callback callback);
 
   /**
    * Creates a new space.
    *
    * @return int32t The space ID.
    */
-  INB_API int32_t inb_system_create_space(void);
+  INB_API int32_t inb_backend_create_space(void);
+
+  /**
+   * Creates a new space with the given ID.
+   *
+   * @param space_id  The space id to create the space with.
+   */
+  INB_API void inb_backend_create_space(int32_t space_id);
 
 #ifdef __cplusplus
 }
