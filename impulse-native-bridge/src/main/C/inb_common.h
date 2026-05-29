@@ -17,18 +17,13 @@
 #define INB_API __attribute__((visibility("default")))
 #endif
 
-// Forces 4-byte alignment.
-#pragma pack(push, 4)
 typedef struct
 {
   float x;
   float y;
   float z;
 } INB_Vector3f;
-#pragma pack(pop)
 
-// Forces 4-byte alignment.
-#pragma pack(push, 4)
 typedef struct
 {
   float x;
@@ -36,6 +31,5 @@ typedef struct
   float z;
   float w;
 } INB_Quaternionf;
-#pragma pack(pop)
 
 #endif
