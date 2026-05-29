@@ -4,6 +4,7 @@ import dev.hytalemodding.impulse.api.PhysicsBody;
 import dev.hytalemodding.impulse.api.PhysicsSpace;
 import dev.hytalemodding.impulse.api.PhysicsStepPhaseStats;
 import dev.hytalemodding.impulse.api.ShapeType;
+import dev.hytalemodding.impulse.api.capability.PhysicsContinuousCollisionCapability;
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsWorldRuntimeResource;
 import dev.hytalemodding.impulse.core.internal.systems.step.PhysicsStepCountPolicy;
 import dev.hytalemodding.impulse.core.plugin.resources.PhysicsWorldResource;
@@ -215,7 +216,7 @@ public final class PhysicsWorkerStepCommand implements PhysicsWorkerCommand {
         float stepDt = safeDt / steps;
         for (PhysicsSpace space : resource.iterateSpaces()) {
             counters.spaceCount++;
-            if (stepMode == PhysicsStepMode.CCD && space.supportsContinuousCollision()) {
+            if (stepMode == PhysicsStepMode.CCD && supportsContinuousCollision(space)) {
                 forceContinuousCollision(resource, space);
             }
             for (int step = 0; step < steps; step++) {
@@ -223,6 +224,10 @@ public final class PhysicsWorkerStepCommand implements PhysicsWorkerCommand {
                 counters.substeps++;
             }
         }
+    }
+
+    private static boolean supportsContinuousCollision(@Nonnull PhysicsSpace space) {
+        return space.getCapability(PhysicsContinuousCollisionCapability.class).isPresent();
     }
 
     private static int requiredSteps(float travel, float safeTravel) {

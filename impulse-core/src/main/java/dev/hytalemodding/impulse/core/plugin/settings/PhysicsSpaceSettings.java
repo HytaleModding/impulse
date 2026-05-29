@@ -32,6 +32,8 @@ public class PhysicsSpaceSettings {
     private final PhysicsVisualMaterializationSettings visualMaterializationSettings;
     @Nonnull
     private final PhysicsCollisionLodSettings collisionLodSettings;
+    @Nonnull
+    private final PhysicsExtensionSettings extensionSettings;
 
     public PhysicsSpaceSettings() {
         worldCollisionSettings = new PhysicsWorldCollisionSettings();
@@ -39,6 +41,7 @@ public class PhysicsSpaceSettings {
         solverSettings = new PhysicsSolverSettings();
         visualMaterializationSettings = new PhysicsVisualMaterializationSettings();
         collisionLodSettings = new PhysicsCollisionLodSettings();
+        extensionSettings = new PhysicsExtensionSettings();
     }
 
     public PhysicsSpaceSettings(@Nonnull PhysicsSpaceSettings settings) {
@@ -52,6 +55,7 @@ public class PhysicsSpaceSettings {
             new PhysicsVisualMaterializationSettings(settings.visualMaterializationSettings);
         collisionLodSettings =
             new PhysicsCollisionLodSettings(settings.collisionLodSettings);
+        extensionSettings = new PhysicsExtensionSettings(settings.extensionSettings);
     }
 
     /**
@@ -92,6 +96,14 @@ public class PhysicsSpaceSettings {
     @Nonnull
     public PhysicsCollisionLodSettings getCollisionLodSettings() {
         return collisionLodSettings;
+    }
+
+    /**
+     * Capability-keyed backend extension settings.
+     */
+    @Nonnull
+    public PhysicsExtensionSettings getExtensionSettings() {
+        return extensionSettings;
     }
 
     @Nonnull

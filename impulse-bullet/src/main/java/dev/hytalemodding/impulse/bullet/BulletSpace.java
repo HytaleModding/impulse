@@ -28,11 +28,15 @@ import dev.hytalemodding.impulse.api.PhysicsJointType;
 import dev.hytalemodding.impulse.api.PhysicsRayHit;
 import dev.hytalemodding.impulse.api.PhysicsSpace;
 import dev.hytalemodding.impulse.api.SpaceId;
+import dev.hytalemodding.impulse.api.capability.PhysicsCapability;
+import dev.hytalemodding.impulse.api.capability.PhysicsCapabilityDescriptor;
+import dev.hytalemodding.impulse.api.capability.PhysicsContinuousCollisionCapability;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.IdentityHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.function.BiConsumer;
 import java.util.function.Consumer;
@@ -41,6 +45,10 @@ import javax.annotation.Nonnull;
 import org.joml.Vector3f;
 
 public final class BulletSpace implements PhysicsSpace {
+
+    private static final PhysicsContinuousCollisionCapability CONTINUOUS_COLLISION_CAPABILITY =
+        new PhysicsContinuousCollisionCapability() {
+        };
 
     private final SpaceId id;
     private final BulletBackend backend;
@@ -178,10 +186,20 @@ public final class BulletSpace implements PhysicsSpace {
         }
     }
 
+    @Nonnull
     @Override
-    public boolean supportsContinuousCollision() {
-        requireOpen();
-        return true;
+    public <T extends PhysicsCapability> Optional<T> getCapability(@Nonnull Class<T> type) {
+        Objects.requireNonNull(type, "type");
+        if (type == PhysicsContinuousCollisionCapability.class) {
+            return Optional.of(type.cast(CONTINUOUS_COLLISION_CAPABILITY));
+        }
+        return Optional.empty();
+    }
+
+    @Nonnull
+    @Override
+    public List<PhysicsCapabilityDescriptor> getCapabilityDescriptors() {
+        return List.of(PhysicsContinuousCollisionCapability.DESCRIPTOR);
     }
 
     @Nonnull

@@ -63,7 +63,7 @@ Cleanup does not create a replacement space implicitly. Run `/impulse space crea
 - `/impulse settings max-step-dt` - show the adaptive substep dt threshold.
 - `/impulse settings max-step-dt --dt=<seconds>` - set the adaptive substep dt threshold used by `progressive_refinement` and `adaptive`.
 - `/impulse settings solver` - show solver tuning for the lowest registered space id.
-- `/impulse settings solver --space=<space-id> --solverIterations=<n> --pgsIterations=<n> --stabilizationIterations=<n> --minIslandSize=<n>` - tune compatible backends.
+- `/impulse settings solver --space=<space-id> --solverIterations=<n> --stabilizationIterations=<n>` - tune portable solver settings for compatible backends.
 - `/impulse settings visual-sync` - show visual LOD and occlusion settings.
 - `/impulse settings visual-sync --fullRadius=<blocks> --maxRadius=<blocks> --farMode=cutoff|lod` - tune visual sync range behavior.
 - `/impulse settings visual-sync --midInterval=<ticks> --farInterval=<ticks>` - tune lower-frequency visual updates.

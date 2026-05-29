@@ -18,6 +18,8 @@ import dev.hytalemodding.impulse.api.PhysicsRayHit;
 import dev.hytalemodding.impulse.api.PhysicsSpace;
 import dev.hytalemodding.impulse.api.ShapeType;
 import dev.hytalemodding.impulse.api.SpaceId;
+import dev.hytalemodding.impulse.api.capability.PhysicsCapability;
+import dev.hytalemodding.impulse.api.capability.PhysicsContinuousCollisionCapability;
 import dev.hytalemodding.impulse.core.plugin.snapshot.PublishedPhysicsSnapshotFrame;
 import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyKind;
 import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyPersistenceMode;
@@ -27,6 +29,7 @@ import dev.hytalemodding.impulse.core.plugin.settings.PhysicsWorldSettings;
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsWorldRuntimeResource;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -398,8 +401,13 @@ class PhysicsWorkerStepCommandTest {
         }
 
         @Override
-        public boolean supportsContinuousCollision() {
-            return supportsContinuousCollision;
+        public <T extends PhysicsCapability> Optional<T> getCapability(@Nonnull Class<T> type) {
+            Objects.requireNonNull(type, "type");
+            if (supportsContinuousCollision && type == PhysicsContinuousCollisionCapability.class) {
+                return Optional.of(type.cast(new PhysicsContinuousCollisionCapability() {
+                }));
+            }
+            return Optional.empty();
         }
 
         @Nonnull

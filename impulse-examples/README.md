@@ -51,6 +51,6 @@ The scalable path is `detached-view`: registered runtime-only bodies with on-dem
 
 - `/impulse-examples persistence save` - force-sync current runtime spaces, persistent bodies, and persistent-body joints into Hytale world persistence.
 - `/impulse-examples persistence load --confirm=true` - queue a runtime restore from Hytale world persistence; hydration systems rebuild spaces, bodies, and joints on the next tick.
-- `/impulse-examples persistence status` - compare runtime counts with stored schema-v4 world persistence counts and show restore state.
+- `/impulse-examples persistence status` - compare runtime counts with stored schema-v6 world persistence counts and show restore state.
 
 Hytale world persistence stores persistent body state at world level by `PhysicsBodyId`. Example gameplay bodies spawned through the regular commands are persistent; stress detached-view bodies remain runtime-only benchmark state.

@@ -17,6 +17,7 @@ import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
+import java.util.stream.Collectors;
 import javax.annotation.Nonnull;
 
 public class BackendListCommand extends AbstractAsyncPlayerCommand {
@@ -45,7 +46,13 @@ public class BackendListCommand extends AbstractAsyncPlayerCommand {
         List<SpaceEntry> spaces = resource.callOnPhysicsOwner("list backend physics spaces", access -> {
             List<SpaceEntry> entries = new ArrayList<>();
             for (PhysicsSpace space : access.getSpaces()) {
-                entries.add(new SpaceEntry(space.getId(), space.getBackendId().value()));
+                List<String> capabilityIds = space.getCapabilityDescriptors().stream()
+                    .map(descriptor -> descriptor.id().value())
+                    .sorted()
+                    .toList();
+                entries.add(new SpaceEntry(space.getId(),
+                    space.getBackendId().value(),
+                    capabilityIds));
             }
             entries.sort(Comparator.comparingInt(entry -> entry.spaceId().value()));
             return entries;
@@ -57,12 +64,23 @@ public class BackendListCommand extends AbstractAsyncPlayerCommand {
         }
         for (SpaceEntry space : spaces) {
             ctx.sender().sendMessage(Message.raw("- id=" + space.spaceId().value()
-                + " backend=" + space.backendId()));
+                + " backend=" + space.backendId()
+                + " capabilities=" + formatCapabilities(space.capabilityIds())));
         }
 
         return CompletableFuture.completedFuture(null);
     }
 
-    private record SpaceEntry(@Nonnull SpaceId spaceId, @Nonnull String backendId) {
+    @Nonnull
+    private static String formatCapabilities(@Nonnull List<String> capabilityIds) {
+        if (capabilityIds.isEmpty()) {
+            return "<none>";
+        }
+        return capabilityIds.stream().collect(Collectors.joining(","));
+    }
+
+    private record SpaceEntry(@Nonnull SpaceId spaceId,
+                              @Nonnull String backendId,
+                              @Nonnull List<String> capabilityIds) {
     }
 }

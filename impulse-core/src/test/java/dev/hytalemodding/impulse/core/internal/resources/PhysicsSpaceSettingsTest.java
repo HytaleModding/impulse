@@ -11,7 +11,9 @@ import dev.hytalemodding.impulse.api.PhysicsSpace;
 import dev.hytalemodding.impulse.api.testsupport.FakePhysicsBackend;
 import dev.hytalemodding.impulse.core.internal.persistence.PersistentPhysicsSpaceState;
 import dev.hytalemodding.impulse.core.plugin.collision.WorldCollisionMode;
+import dev.hytalemodding.impulse.core.plugin.settings.PhysicsBackendExtensionId;
 import dev.hytalemodding.impulse.core.plugin.settings.PhysicsCollisionLodSettings;
+import dev.hytalemodding.impulse.core.plugin.settings.PhysicsSolverSettings;
 import dev.hytalemodding.impulse.core.plugin.settings.PhysicsSpaceSettings;
 import dev.hytalemodding.impulse.core.plugin.settings.PhysicsVisualMaterializationSettings;
 import dev.hytalemodding.impulse.core.plugin.settings.PhysicsVisualSyncSettings;
@@ -197,16 +199,65 @@ class PhysicsSpaceSettingsTest {
 
         settings.getWorldCollisionSettings().setWorldCollisionBodyRadius(5);
         settings.getVisualSyncSettings().setVisualMidSyncIntervalTicks(3);
-        settings.getSolverSettings().setInternalPgsIterations(2);
+        settings.getSolverSettings().setDynamicSleepLinearThreshold(0.45f);
         settings.getVisualMaterializationSettings().setDetachedVisualMaxSpawnsPerTick(16);
         settings.getCollisionLodSettings().setCollisionLodHysteresis(4);
 
         assertEquals(5, settings.getWorldCollisionSettings().getWorldCollisionBodyRadius());
         assertEquals(3, settings.getVisualSyncSettings().getVisualMidSyncIntervalTicks());
-        assertEquals(2, settings.getSolverSettings().getInternalPgsIterations());
+        assertEquals(0.45f, settings.getSolverSettings().getDynamicSleepLinearThreshold(), 0.0001f);
         assertEquals(16,
             settings.getVisualMaterializationSettings().getDetachedVisualMaxSpawnsPerTick());
         assertEquals(4, settings.getCollisionLodSettings().getCollisionLodHysteresis());
+    }
+
+    @Test
+    void solverSettingsExposeOnlyPortableSolverFields() throws NoSuchMethodException {
+        PhysicsSolverSettings settings = new PhysicsSolverSettings();
+
+        assertEquals(PhysicsSolverSettings.DEFAULT_SOLVER_ITERATIONS, settings.getSolverIterations());
+        assertEquals(PhysicsSolverSettings.DEFAULT_STABILIZATION_ITERATIONS,
+            settings.getStabilizationIterations());
+        assertEquals(PhysicsSolverSettings.DEFAULT_DYNAMIC_SLEEP_LINEAR_THRESHOLD,
+            settings.getDynamicSleepLinearThreshold(),
+            0.0001f);
+        assertThrows(NoSuchMethodException.class,
+            () -> PhysicsSolverSettings.class.getMethod("getInternalPgsIterations"));
+        assertThrows(NoSuchMethodException.class,
+            () -> PhysicsSolverSettings.class.getMethod("setInternalPgsIterations", int.class));
+        assertThrows(NoSuchMethodException.class,
+            () -> PhysicsSolverSettings.class.getMethod("getMinIslandSize"));
+        assertThrows(NoSuchMethodException.class,
+            () -> PhysicsSolverSettings.class.getMethod("setMinIslandSize", int.class));
+    }
+
+    @Test
+    void extensionSettingsAreTypedAndCopyIsolated() {
+        PhysicsSpaceSettings settings = PhysicsSpaceSettings.defaults();
+        PhysicsBackendExtensionId extensionId = new PhysicsBackendExtensionId("test:extension");
+
+        settings.getExtensionSettings().setInt(extensionId, "iterations", 7);
+        settings.getExtensionSettings().setFloat(extensionId, "scale", 1.5f);
+        settings.getExtensionSettings().setBoolean(extensionId, "enabled", true);
+        settings.getExtensionSettings().setString(extensionId, "mode", "stable");
+
+        PhysicsSpaceSettings copy = new PhysicsSpaceSettings(settings);
+        settings.getExtensionSettings().setInt(extensionId, "iterations", 11);
+        copy.getExtensionSettings().setString(extensionId, "mode", "copy");
+
+        assertEquals(11, settings.getExtensionSettings().getInt(extensionId, "iterations").orElseThrow());
+        assertEquals("stable", settings.getExtensionSettings().getString(extensionId, "mode").orElseThrow());
+        assertEquals(7, copy.getExtensionSettings().getInt(extensionId, "iterations").orElseThrow());
+        assertEquals(1.5f, copy.getExtensionSettings().getFloat(extensionId, "scale").orElseThrow(), 0.0001f);
+        assertTrue(copy.getExtensionSettings().getBoolean(extensionId, "enabled").orElseThrow());
+        assertEquals("copy", copy.getExtensionSettings().getString(extensionId, "mode").orElseThrow());
+    }
+
+    @Test
+    void defaultsDoNotCarryBackendExtensionValues() {
+        PhysicsSpaceSettings settings = PhysicsSpaceSettings.defaults();
+
+        assertTrue(settings.getExtensionSettings().isEmpty());
     }
 
     @Test

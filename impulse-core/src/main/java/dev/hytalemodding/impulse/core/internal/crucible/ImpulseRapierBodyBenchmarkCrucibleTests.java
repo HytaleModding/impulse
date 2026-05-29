@@ -24,6 +24,7 @@ import dev.hytalemodding.impulse.core.plugin.components.PhysicsBodyAttachmentCom
 import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyKind;
 import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyPersistenceMode;
 import dev.hytalemodding.impulse.core.internal.resources.body.PhysicsBodyRegistration;
+import dev.hytalemodding.impulse.core.plugin.settings.PhysicsBackendExtensionId;
 import dev.hytalemodding.impulse.core.plugin.settings.PhysicsSpaceSettings;
 import dev.hytalemodding.impulse.core.plugin.settings.PhysicsSolverSettings;
 import dev.hytalemodding.impulse.core.plugin.settings.PhysicsStepMode;
@@ -51,6 +52,10 @@ final class ImpulseRapierBodyBenchmarkCrucibleTests {
 
     private static final HytaleLogger LOGGER = HytaleLogger.get("Impulse");
     private static final BackendId RAPIER_BACKEND_ID = new BackendId("impulse:rapier");
+    private static final PhysicsBackendExtensionId RAPIER_SOLVER_EXTENSION_ID =
+        new PhysicsBackendExtensionId("impulse:rapier_solver");
+    private static final String RAPIER_INTERNAL_PGS_ITERATIONS = "internalPgsIterations";
+    private static final String RAPIER_MIN_ISLAND_SIZE = "minIslandSize";
     private static final String COUNT_PROPERTY = "impulse.crucible.rapierBodyMatrix.count";
     private static final String SUBSTEPS_PROPERTY = "impulse.crucible.rapierBodyMatrix.substeps";
     private static final String WARMUP_TICKS_PROPERTY =
@@ -215,11 +220,14 @@ final class ImpulseRapierBodyBenchmarkCrucibleTests {
             PhysicsSpaceSettings settings = PhysicsSpaceSettings.defaults();
             settings.getWorldCollisionSettings().setWorldCollisionMode(WorldCollisionMode.NONE);
             settings.getSolverSettings().setSolverIterations(PhysicsSolverSettings.DEFAULT_SOLVER_ITERATIONS);
-            settings.getSolverSettings().setInternalPgsIterations(
-                PhysicsSolverSettings.DEFAULT_INTERNAL_PGS_ITERATIONS);
             settings.getSolverSettings().setStabilizationIterations(
                 PhysicsSolverSettings.DEFAULT_STABILIZATION_ITERATIONS);
-            settings.getSolverSettings().setMinIslandSize(PhysicsSolverSettings.DEFAULT_MIN_ISLAND_SIZE);
+            settings.getExtensionSettings().setInt(RAPIER_SOLVER_EXTENSION_ID,
+                RAPIER_INTERNAL_PGS_ITERATIONS,
+                1);
+            settings.getExtensionSettings().setInt(RAPIER_SOLVER_EXTENSION_ID,
+                RAPIER_MIN_ISLAND_SIZE,
+                128);
             try {
                 PhysicsSpace space = physics.createLiveSpace(RAPIER_BACKEND_ID,
                     world.getName(),

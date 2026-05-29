@@ -11,6 +11,7 @@ import com.hypixel.hytale.server.core.universe.PlayerRef;
 import com.hypixel.hytale.server.core.universe.world.World;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import dev.hytalemodding.impulse.api.PhysicsSpace;
+import dev.hytalemodding.impulse.api.capability.PhysicsContinuousCollisionCapability;
 import dev.hytalemodding.impulse.core.plugin.settings.PhysicsStepMode;
 import dev.hytalemodding.impulse.core.plugin.resources.PhysicsWorldResource;
 import dev.hytalemodding.impulse.core.plugin.settings.PhysicsWorldSettings;
@@ -75,7 +76,7 @@ public class StepModeSettingCommand extends AbstractAsyncPlayerCommand {
         return resource.callOnPhysicsOwner("check CCD space support", access -> {
             List<String> unsupportedSpaces = new ArrayList<>();
             for (PhysicsSpace space : access.getSpaces()) {
-                if (space.supportsContinuousCollision()) {
+                if (space.getCapability(PhysicsContinuousCollisionCapability.class).isPresent()) {
                     continue;
                 }
 

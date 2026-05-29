@@ -13,7 +13,7 @@ import javax.annotation.Nonnull;
  */
 public abstract class PhysicsPersistenceResource implements Resource<EntityStore> {
 
-    public static final int CURRENT_SCHEMA_VERSION = 5;
+    public static final int CURRENT_SCHEMA_VERSION = 6;
 
     @Nonnull
     public static ResourceType<EntityStore, ? extends PhysicsPersistenceResource> getResourceType() {

@@ -20,6 +20,7 @@ import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyPersistenceMode;
 import dev.hytalemodding.impulse.core.plugin.collision.WorldCollisionPrewarmStats;
 import dev.hytalemodding.impulse.core.plugin.collision.WorldCollisionMode;
 import dev.hytalemodding.impulse.core.plugin.resources.PhysicsWorldResource;
+import dev.hytalemodding.impulse.core.plugin.settings.PhysicsBackendExtensionId;
 import dev.hytalemodding.impulse.core.plugin.settings.PhysicsCollisionLodSettings;
 import dev.hytalemodding.impulse.core.plugin.settings.PhysicsSolverSettings;
 import dev.hytalemodding.impulse.core.plugin.settings.PhysicsSpaceSettings;
@@ -49,6 +50,9 @@ public class StressBodiesCommand extends AbstractAsyncPlayerCommand {
     private static final int DETACHED_VISUAL_MAX_MATERIALIZED = 10_000;
     private static final int DETACHED_VISUAL_MAX_SPAWNS_PER_TICK = 128;
     private static final int STRESS_BODY_WORLD_COLLISION_RADIUS = 8;
+    private static final PhysicsBackendExtensionId RAPIER_SOLVER_EXTENSION_ID =
+        new PhysicsBackendExtensionId("impulse:rapier_solver");
+    private static final String RAPIER_INTERNAL_PGS_ITERATIONS = "internalPgsIterations";
     private final OptionalArg<Integer> countArg = this.withOptionalArg(
         "count",
         "Number of dynamic boxes to spawn",
@@ -246,8 +250,10 @@ public class StressBodiesCommand extends AbstractAsyncPlayerCommand {
         PhysicsSpaceSettings settings = new PhysicsSpaceSettings(resource.getSpaceSettings(spaceId));
         PhysicsSolverSettings solverSettings = settings.getSolverSettings();
         solverSettings.setSolverIterations(1);
-        solverSettings.setInternalPgsIterations(1);
         solverSettings.setStabilizationIterations(1);
+        settings.getExtensionSettings().setInt(RAPIER_SOLVER_EXTENSION_ID,
+            RAPIER_INTERNAL_PGS_ITERATIONS,
+            1);
         solverSettings.setDynamicSleepTuning(
             PhysicsSolverSettings.DEFAULT_DYNAMIC_SLEEP_LINEAR_THRESHOLD,
             PhysicsSolverSettings.DEFAULT_DYNAMIC_SLEEP_ANGULAR_THRESHOLD,
