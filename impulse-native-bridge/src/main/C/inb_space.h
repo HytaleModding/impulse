@@ -1,10 +1,12 @@
-
+#pragma once
 #include <inb_common.h>
 #include <stdint.h>
 
 #ifndef INB_SPACE
 #define INB_SPACE
 
+// Forces 4-byte alignment.
+#pragma pack(push, 4)
 typedef struct
 {
   int8_t available;    // Treat as boolean.
@@ -20,11 +22,14 @@ typedef struct
   int32_t active_island_count;
   int32_t joint_count;
 } INB_RuntimeStats;
+#pragma pack(pop)
 
+// Forces 4-byte alignment.
+#pragma pack(push, 4)
 typedef struct
 {
   int8_t available;
-  uint8_t _padding[7]; // 7 bytes padding to reach 8-byte alignment, no data held.
+  uint8_t _padding[3]; // 3 bytes padding to reach 4-byte alignment, no data held.
   int64_t step_nanos;
   int64_t broad_phase_nanos;
   int64_t narrow_phase_nanos;
@@ -32,6 +37,19 @@ typedef struct
   int64_t ccd_nanos;
   int64_t snapshot_nanos;
 } INB_StepPhaseStats;
+#pragma pack(pop)
+
+// Forces 4-byte alignment.
+#pragma pack(push, 4)
+typedef struct
+{
+  int64_t body_id;
+  INB_Vector3f point;
+  INB_Vector3f normal;
+  float fraction;
+  float distance;
+} INB_RayHit;
+#pragma pack(pop)
 
 #ifdef __cplusplus
 extern "C"
@@ -39,33 +57,10 @@ extern "C"
 #endif
 
   /**
-   * Executes a single processing tick on the native backend using a unified
-   * Input/Output byte-stream architecture.
-   *
-   * @param input_stream      Pointer to the input data buffer (Java -> Native).
-   * @param input_bytes       Total size of the input payload in bytes.
-   * @param output_stream     Pointer to the poutput buffer (Native -> Java).
-   * @param max_output_bytes  Maximum capacity of the allocated output buffer.
-   * @param steps             Simulation step time slice.
-   * @return int32_t The actual number of bytes written to the output_stream.
+   * Executes a single processing tick on the native backend.
+   * @param steps Simulation step time slice.
    */
-  INB_API int32_t inb_space_step(
-      int32_t space_id,
-      const uint8_t *input_stream,
-      int64_t input_bytes,
-      uint8_t *output_stream,
-      int64_t max_output_bytes,
-      float steps);
-
-  /**
-   * Sets the space gravity.
-   *
-   * @param space_id  The ID of the target space.
-   * @param x         X component.
-   * @param y         Y component.
-   * @param z         Z component.
-   */
-  INB_API void inb_space_set_gravity(int32_t space_id, float x, float y, float z);
+  INB_API void inb_space_step(float steps);
 
   /**
    * Writes the space gravity on the given memory segment.
@@ -74,6 +69,14 @@ extern "C"
    * @param output    The memory segment where the gravity should be written.
    */
   INB_API void inb_space_get_gravity(int32_t space_id, INB_Vector3f *output);
+
+  /**
+   * Sets the space gravity.
+   *
+   * @param space_id  The ID of the target space.
+   * @param gravity   Pointer to the gravity vector.
+   */
+  INB_API void inb_space_set_gravity(int32_t space_id, const INB_Vector3f *gravity);
 
   /**
    * Removes a body from the specified space.
@@ -131,24 +134,12 @@ extern "C"
   /**
    * Creates a box body using dimensions.
    *
-   * @param space_id  The ID of the target space.
-   * @param halfX     Half-extent along the X-axis.
-   * @param halfY     Half-extent along the Y-axis.
-   * @param halfZ     Half-extent along the Z-axis.
-   * @param mass      The mass of the body.
-   * @return The ID of the created physics body.
-   */
-  INB_API int64_t inb_space_create_box(int32_t space_id, float halfX, float halfY, float halfZ, float mass);
-
-  /**
-   * Creates a box body using a vector for extents.
-   *
    * @param space_id    The ID of the target space.
-   * @param halfExtents Pointer to the Vector3f (x, y, z) data.
+   * @param half_extent Pointer to the half extent vector.
    * @param mass        The mass of the body.
    * @return The ID of the created physics body.
    */
-  INB_API int64_t inb_space_create_box_v(int32_t space_id, const float *halfExtents, float mass);
+  INB_API int64_t inb_space_create_box(int32_t space_id, const INB_Vector3f *half_extent, float mass);
 
   /**
    * Creates a sphere body.
@@ -195,6 +186,17 @@ extern "C"
    * @return The ID of the created physics body.
    */
   INB_API int64_t inb_space_create_cone(int32_t space_id, float radius, float halfHeight, int32_t axis, float mass);
+
+  /**
+   * Performs a closest raycast query between two points.
+   * @param space_id  The ID of the target space.
+   * @param from      Pointer to the starting Vector3f.
+   * @param to        Pointer to the ending Vector3f.
+   * @param output    Pointer to the buffer where the hit result will be written.
+   * Only modified if the function returns true.
+   * @return          True if a hit was found, false otherwise.
+   */
+  INB_API bool inb_space_raycast_closest(int64_t space_id, const INB_Vector3f *from, const INB_Vector3f *to, INB_RayHit *output);
 
 #ifdef __cplusplus
 }
