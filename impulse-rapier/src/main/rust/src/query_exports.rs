@@ -1,10 +1,10 @@
 use super::*;
 
-const RAYCAST_HIT_FLOATS: usize = 9;
+const RAYCAST_HIT_FLOATS: usize = 10;
 const MAX_RAYCAST_HITS: usize = 4_096;
 const MAX_RAYCAST_FLOATS: usize = RAYCAST_HIT_FLOATS * MAX_RAYCAST_HITS;
 
-const CONTACT_FLOATS: usize = 13;
+const CONTACT_FLOATS: usize = 15;
 const MAX_CONTACT_POINTS: usize = 16_384;
 const MAX_CONTACT_FLOATS: usize = CONTACT_FLOATS * MAX_CONTACT_POINTS;
 
@@ -17,6 +17,15 @@ fn append_bounded(values: &mut Vec<jfloat>, record: &[jfloat], max_floats: usize
     }
     values.extend_from_slice(record);
     true
+}
+pub fn i32_to_raw_bit_f32_pair(packed: i64) -> (f32, f32) {
+    let upper_bits = (packed >> 32) as u32;
+    let lower_bits = packed as u32;
+
+    let upper_float = f32::from_bits(upper_bits);
+    let lower_float = f32::from_bits(lower_bits);
+
+    (upper_float, lower_float)
 }
 
 #[no_mangle]
@@ -63,10 +72,12 @@ fn raycast_all_values(
             for (collider_handle, _collider, hit) in query.intersect_ray(ray, distance, true) {
                 if let Some(body_id) = space.collider_to_body_id.get(&collider_handle) {
                     let point = from + ray.dir * hit.time_of_impact;
+                    let (upper_bits, lower_bits) = i32_to_raw_bit_f32_pair(*body_id);
                     if !append_bounded(
                         &mut values,
                         &[
-                            *body_id as jfloat,
+                            upper_bits,
+                            lower_bits,
                             point.x,
                             point.y,
                             point.z,
@@ -104,9 +115,12 @@ fn contact_values(space_handle: jlong) -> Vec<jfloat> {
             let Some(body_a_id) = space.collider_to_body_id.get(&pair.collider1) else {
                 continue;
             };
+            let (upper_a_bits, lower_a_bits) = i32_to_raw_bit_f32_pair(*body_a_id);
             let Some(body_b_id) = space.collider_to_body_id.get(&pair.collider2) else {
                 continue;
             };
+            let (upper_b_bits, lower_b_bits) = i32_to_raw_bit_f32_pair(*body_b_id);
+
             for manifold in &pair.manifolds {
                 let normal = manifold.data.normal;
                 for contact in &manifold.data.solver_contacts {
@@ -114,8 +128,10 @@ fn contact_values(space_handle: jlong) -> Vec<jfloat> {
                     if !append_bounded(
                         &mut values,
                         &[
-                            *body_a_id as jfloat,
-                            *body_b_id as jfloat,
+                            upper_a_bits,
+                            lower_a_bits,
+                            upper_b_bits,
+                            lower_b_bits,
                             point.x,
                             point.y,
                             point.z,

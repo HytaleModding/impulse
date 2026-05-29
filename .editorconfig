@@ -496,6 +496,11 @@ ij_shell_minify_program = false
 ij_shell_redirect_followed_by_space = false
 ij_shell_switch_cases_indented = false
 
+[*.{ps1,psm1,psd1}]
+ij_powershell_block_brace_style = end_of_line
+ij_powershell_class_brace_style = end_of_line
+ij_powershell_method_brace_style = end_of_line
+
 [{*.gant,*.gradle,*.groovy,*.gy}]
 indent_size = 4
 tab_width = 4
