@@ -60,8 +60,8 @@ public final class RapierSpace implements PhysicsSpace {
     private static final int DEFAULT_INTERNAL_PGS_ITERATIONS = 1;
     private static final int DEFAULT_STABILIZATION_ITERATIONS = 1;
     private static final int DEFAULT_MIN_ISLAND_SIZE = 128;
-    private static final int RAY_HIT_FLOATS = 9;
-    private static final int CONTACT_FLOATS = 13;
+    private static final int RAY_HIT_FLOATS = 10;
+    private static final int CONTACT_FLOATS = 15;
     private static final int BODY_SNAPSHOT_FLOATS = 16;
     private static final int RUNTIME_STATS_VALUES = 10;
     private static final int STEP_PHASE_STATS_VALUES = 6;
@@ -274,13 +274,15 @@ public final class RapierSpace implements PhysicsSpace {
     }
 
     @Override
-    public void snapshotBodies(@Nonnull Function<PhysicsBody, PhysicsBodySnapshot> previousSnapshots,
+    public void snapshotBodies(
+        @Nonnull Function<PhysicsBody, PhysicsBodySnapshot> previousSnapshots,
         @Nonnull Consumer<PhysicsBodySnapshot> consumer) {
         snapshotBodies(previousSnapshots, (_, snapshot) -> consumer.accept(snapshot));
     }
 
     @Override
-    public void snapshotBodies(@Nonnull Function<PhysicsBody, PhysicsBodySnapshot> previousSnapshots,
+    public void snapshotBodies(
+        @Nonnull Function<PhysicsBody, PhysicsBodySnapshot> previousSnapshots,
         @Nonnull BiConsumer<PhysicsBody, PhysicsBodySnapshot> consumer) {
         ensureOpen();
         int count = bodies.size();
@@ -317,7 +319,8 @@ public final class RapierSpace implements PhysicsSpace {
     public void snapshotBodies(@Nonnull Iterable<? extends PhysicsBody> selectedBodies,
         @Nonnull Function<PhysicsBody, PhysicsBodySnapshot> previousSnapshots,
         @Nonnull Consumer<PhysicsBodySnapshot> consumer) {
-        snapshotBodies(selectedBodies, previousSnapshots, (_, snapshot) -> consumer.accept(snapshot));
+        snapshotBodies(selectedBodies, previousSnapshots,
+            (_, snapshot) -> consumer.accept(snapshot));
     }
 
     @Override
@@ -347,7 +350,8 @@ public final class RapierSpace implements PhysicsSpace {
             }
             for (int i = limit; i < count; i++) {
                 RapierBody body = selectedSnapshotBodies[i];
-                consumer.accept(body, PhysicsBodySnapshot.from(body, previousSnapshots.apply(body)));
+                consumer.accept(body,
+                    PhysicsBodySnapshot.from(body, previousSnapshots.apply(body)));
             }
         } finally {
             for (int i = 0; i < count; i++) {
@@ -356,13 +360,15 @@ public final class RapierSpace implements PhysicsSpace {
         }
     }
 
-    private int collectSelectedSnapshotBodies(@Nonnull Iterable<? extends PhysicsBody> selectedBodies,
+    private int collectSelectedSnapshotBodies(
+        @Nonnull Iterable<? extends PhysicsBody> selectedBodies,
         @Nonnull Function<PhysicsBody, PhysicsBodySnapshot> previousSnapshots,
         @Nonnull BiConsumer<PhysicsBody, PhysicsBodySnapshot> consumer) {
         int count = 0;
         for (PhysicsBody body : selectedBodies) {
             if (!(body instanceof RapierBody rapierBody) || !rapierBody.isAttachedTo(this)) {
-                consumer.accept(body, PhysicsBodySnapshot.from(body, previousSnapshots.apply(body)));
+                consumer.accept(body,
+                    PhysicsBodySnapshot.from(body, previousSnapshots.apply(body)));
                 continue;
             }
 
@@ -500,7 +506,8 @@ public final class RapierSpace implements PhysicsSpace {
 
     @Nonnull
     @Override
-    public PhysicsBody createCone(float radius, float halfHeight, @Nonnull PhysicsAxis axis, float mass) {
+    public PhysicsBody createCone(float radius, float halfHeight, @Nonnull PhysicsAxis axis,
+        float mass) {
         return RapierBody.cone(radius, halfHeight, axis, mass);
     }
 
@@ -518,6 +525,13 @@ public final class RapierSpace implements PhysicsSpace {
         return Optional.ofNullable(closest);
     }
 
+    public long rawBitFloatPairToLong(float upper, float lower) {
+        long upperBits = Float.floatToRawIntBits(upper);
+        long lowerBits = Float.floatToRawIntBits(lower) & 0xFFFFFFFFL;
+
+        return (upperBits << 32) | lowerBits;
+    }
+
     @Nonnull
     @Override
     public List<PhysicsRayHit> raycastAll(@Nonnull Vector3f from, @Nonnull Vector3f to) {
@@ -526,13 +540,13 @@ public final class RapierSpace implements PhysicsSpace {
             from.x, from.y, from.z, to.x, to.y, to.z);
         List<PhysicsRayHit> hits = new ArrayList<>(raw.length / RAY_HIT_FLOATS);
         for (int i = 0; i + RAY_HIT_FLOATS <= raw.length; i += RAY_HIT_FLOATS) {
-            RapierBody body = bodiesByHandle.get((long) raw[i]);
+            RapierBody body = bodiesByHandle.get(rawBitFloatPairToLong(raw[i], raw[i + 1]));
             if (body == null) {
                 continue;
             }
-            Vector3f point = new Vector3f(raw[i + 1], raw[i + 2], raw[i + 3]);
-            Vector3f normal = new Vector3f(raw[i + 4], raw[i + 5], raw[i + 6]);
-            hits.add(new PhysicsRayHit(body, point, normal, raw[i + 7], raw[i + 8]));
+            Vector3f point = new Vector3f(raw[i + 2], raw[i + 3], raw[i + 4]);
+            Vector3f normal = new Vector3f(raw[i + 5], raw[i + 6], raw[i + 7]);
+            hits.add(new PhysicsRayHit(body, point, normal, raw[i + 8], raw[i + 9]));
         }
         return hits;
     }
@@ -544,16 +558,16 @@ public final class RapierSpace implements PhysicsSpace {
         float[] raw = RapierNative.getContactsNative(nativeSpaceHandle);
         List<PhysicsContact> contacts = new ArrayList<>(raw.length / CONTACT_FLOATS);
         for (int i = 0; i + CONTACT_FLOATS <= raw.length; i += CONTACT_FLOATS) {
-            RapierBody bodyA = bodiesByHandle.get((long) raw[i]);
-            RapierBody bodyB = bodiesByHandle.get((long) raw[i + 1]);
+            RapierBody bodyA = bodiesByHandle.get(rawBitFloatPairToLong(raw[i], raw[i + 1]));
+            RapierBody bodyB = bodiesByHandle.get(rawBitFloatPairToLong(raw[i + 2], raw[i + 3]));
             if (bodyA == null || bodyB == null) {
                 continue;
             }
-            Vector3f pointA = new Vector3f(raw[i + 2], raw[i + 3], raw[i + 4]);
-            Vector3f pointB = new Vector3f(raw[i + 5], raw[i + 6], raw[i + 7]);
-            Vector3f normal = new Vector3f(raw[i + 8], raw[i + 9], raw[i + 10]);
+            Vector3f pointA = new Vector3f(raw[i + 4], raw[i + 5], raw[i + 6]);
+            Vector3f pointB = new Vector3f(raw[i + 7], raw[i + 8], raw[i + 9]);
+            Vector3f normal = new Vector3f(raw[i + 10], raw[i + 11], raw[i + 12]);
             contacts.add(new PhysicsContact(bodyA, bodyB, pointA, pointB, normal,
-                raw[i + 11], raw[i + 12]));
+                raw[i + 13], raw[i + 14]));
         }
         return contacts;
     }
