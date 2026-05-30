@@ -1,87 +1,26 @@
 # impulse-core
 
-Hytale ECS integration for Impulse.
+Hytale ECS integration and plugin API for Impulse.
 
-Impulse is currently unreleased. The primary runtime model is backend bodies registered in `PhysicsWorldResource` by stable `PhysicsBodyId`. Full Hytale entities are gameplay adapters or generated visual views; they do not own backend body destruction.
+## Software architecture
 
-## Body lifecycle
+Impulse core is divided in two categories:
 
-Impulse runtime bodies fall into three categories:
+- `internal`: core logic and backend ABI.
+- `plugin`: impulse api exposed to hytale plugins
 
-- Entity-attached bodies: gameplay objects such as players, NPCs, mobs, vehicles, props, and examples keep Hytale entities for identity and interaction. Those entities hold a `PhysicsBodyAttachmentComponent` with a body id. Removing the entity clears the attachment only.
-- Detached bodies with optional views: backend bodies can exist without any Hytale entity. `PhysicsDetachedVisualMaterializationSystem` may create generated visual proxy entities near viewers; deleting a proxy does not delete the body.
-- Runtime-only helper bodies: temporary anchors, world-collision helpers, and stress/runtime support bodies are registered as runtime-only resources and are never persisted.
-
-Backend body deletion is explicit through `PhysicsWorldResource.destroyBody(bodyId)`. Entity removal, view dematerialization, chunk migration, and sync cleanup must not implicitly remove backend bodies.
-
-Plugin code that creates normal gameplay bodies should prefer
-`PhysicsBodies.spawn(resource, PhysicsBodySpawnSpec.persistentBody(...))`: the factory runs on the
-physics owner, the result returns the stable `PhysicsBodyId`, and world-thread code can attach
-entities with `PhysicsBodyAttachmentComponent.externalEntity(bodyId, spaceId)`.
-`PhysicsWorldResource.addBody(...)` remains the lower-level registration primitive for code that
-already created a live backend body on the physics owner. Keep raw `PhysicsBody` handles inside
-owner callbacks unless a low-level backend operation explicitly requires them.
-
-## Space commands
-
-Spaces are explicit. Commands do not create hidden spaces or store a runtime fallback.
-
-First run in a fresh world should create an explicit space before commands that target space settings:
-
-```bash
-/impulse space create --backend=impulse:rapier
-```
-
-- `/impulse space create --backend=impulse:rapier` - create a Rapier physics space using streaming world collision.
-- `/impulse space create` - create a physics space only when exactly one backend is installed.
-- `/impulse space create --backend=impulse:rapier --worldCollision=streaming` - create a Rapier space using streaming world collision.
-- `/impulse space list` - list spaces, body counts, joint counts, backend ids, and world-collision mode.
-- `/impulse space delete --space=<space-id> --confirm` - delete an empty physics space and close its backend state.
-
-## Backend commands
+## Backend
 
 - `/impulse backend list` - list discovered backends and active physics spaces.
 
-Backend jars are Java service-provider jars, not Hytale plugins. Impulse discovers
-`PhysicsBackend` providers from jars anywhere under the configured Hytale `mods` directories.
-Backend swap is not registered as a public command. Create explicit spaces with the desired backend
-instead. If multiple backend jars are installed, Impulse does not select a backend; commands that
-create spaces must pass `--backend=<id>`.
+Backend jars are Java service-provider jars. Impulse discovers `PhysicsBackend` providers from jars 
+anywhere under the configured Hytale `mods` directories.
 
 ## Cleanup commands
 
 - `/impulse clean --confirm` - remove Impulse attachment entities, visual proxies, runtime bodies, joints, and control sessions from the current world while keeping explicit spaces.
 
-Cleanup does not create a replacement space implicitly. Run `/impulse space create --backend=<id>` if the next workflow needs a space and none exists.
-
-## Settings commands
-
-- `/impulse settings step-mode` - show the world physics step mode.
-- `/impulse settings step-mode --mode=progressive_refinement|adaptive|fixed|ccd` - choose dt-limited adaptive substeps, body-aware adaptive refinement, fixed substeps, or world-level CCD mode.
-- `/impulse settings simulation-steps` - show the configured substep count.
-- `/impulse settings simulation-steps --steps=<count>` - set the minimum or fixed substep count, from 1 to 16.
-- `/impulse settings max-step-dt` - show the adaptive substep dt threshold.
-- `/impulse settings max-step-dt --dt=<seconds>` - set the adaptive substep dt threshold used by `progressive_refinement` and `adaptive`.
-- `/impulse settings solver` - show solver tuning for the lowest registered space id.
-- `/impulse settings solver --space=<space-id> --solverIterations=<n> --stabilizationIterations=<n>` - tune portable solver settings for compatible backends.
-- `/impulse settings visual-sync` - show visual LOD and occlusion settings.
-- `/impulse settings visual-sync --fullRadius=<blocks> --maxRadius=<blocks> --farMode=cutoff|lod` - tune visual sync range behavior.
-- `/impulse settings visual-sync --midInterval=<ticks> --farInterval=<ticks>` - tune lower-frequency visual updates.
-- `/impulse settings visual-sync --occlusion=off|priority|cull --occlusionRaycasts=<n> --occlusionCache=<ticks>` - tune optional raycast-backed visual prioritization.
-- `/impulse settings visual-sync --smoothing=true --smoothingRate=14` - smooth near dynamic visuals toward published snapshots without extrapolating.
-- `/impulse settings visual-sync --prediction=true --predictionMaxSeconds=0.10` - allow near dynamic visuals to dead-reckon briefly between published physics snapshots; keep this off when it causes visible correction jitter.
-- `/impulse settings visual-sync --materializationInterestInterval=<ticks> --materializationCandidateInterval=<ticks> --materializationVisibilityInterval=<ticks> --materializationSpawnRate=<n> --materializationCap=<n>` - tune detached visual materialization cadence and proxy budgets.
-- `/impulse settings collision-lod --space=<space-id> --enabled=true --nearRadius=<blocks> --midRadius=<blocks> --hysteresis=<blocks> --interval=<ticks> --farSleep=true` - opt into distance collision LOD for dynamic-body filters in one space.
-- `/impulse settings world-collision` - show world-collision settings for the lowest registered space id.
-
-## Profiling commands
-
-- `/impulse perf enable` - enable Impulse runtime and world-collision profiling.
-- `/impulse perf disable` - disable profiling.
-- `/impulse perf toggle` - toggle profiling.
-- `/impulse perf report` - print physics-step, worker TPS, sync, entity, detached, and world-collision profiling metrics.
-- `/impulse perf stats` - show per-space body, awake, sleeping, joint, contact, attachment, detached, and world-collision counts.
-- `/impulse perf reset` - reset profiling counters.
+## Profiling
 
 Spark plugin is advised to profile threaded physics benchmarks. By using the following command,
 the exported profile includes both Hytale world threads and Impulse's per-world physics worker:
@@ -93,16 +32,7 @@ the exported profile includes both Hytale world threads and Impulse's per-world 
 Avoid contact debug rendering during benchmark captures; it calls backend contact enumeration and
 will distort the hot path.
 
-## Debug commands
-
-- `/impulse debug` - show debug command usage.
-- `/impulse debug toggle` - toggle Impulse debug rendering globally.
-- `/impulse debug shapes` - toggle collider shape overlays.
-- `/impulse debug motion` - toggle linear and angular velocity arrows.
-- `/impulse debug contacts` - toggle contact point and normal overlays.
-- `/impulse debug joints` - toggle joint anchor, axis, and link overlays.
-
-## Crucible smoke
+## Crucible tests
 
 Install the patched Crucible runtime jar:
 
