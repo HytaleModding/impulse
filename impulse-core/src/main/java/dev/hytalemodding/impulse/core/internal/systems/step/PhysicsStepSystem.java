@@ -151,6 +151,7 @@ public class PhysicsStepSystem extends TickingSystem<ChunkStore> implements Auto
                 }
                 return;
             }
+            // TODO: In ACCUMULATE_PENDING_DT mode, clamp or subdivide fixed/CCD catch-up dt against maxStepDt.
             command = new PhysicsWorkerStepCommand(resource,
                 state.submittedStepDt(),
                 profilingEnabled,
