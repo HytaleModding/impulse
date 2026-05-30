@@ -2,7 +2,7 @@ package dev.hytalemodding.impulse.core.internal.resources.body;
 
 import dev.hytalemodding.impulse.api.PhysicsBodySnapshot;
 import dev.hytalemodding.impulse.api.SpaceId;
-import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyId;
+import dev.hytalemodding.impulse.core.plugin.body.RigidBodyKey;
 import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyKind;
 import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyPersistenceMode;
 import dev.hytalemodding.impulse.core.plugin.resources.PhysicsWorldResource;
@@ -14,7 +14,6 @@ import it.unimi.dsi.fastutil.objects.Object2ObjectLinkedOpenHashMap;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
 import java.util.function.Consumer;
 import javax.annotation.Nonnull;
 import org.joml.Vector3f;
@@ -23,7 +22,7 @@ import org.joml.Vector3f;
  * Snapshot-side spatial hash for detached physics bodies.
  *
  * <p>Stores the latest published {@link PhysicsBodySnapshot} for each
- * {@link PhysicsBodyId} and groups those snapshots into fixed-size world cells.
+ * {@link RigidBodyKey} and groups those snapshots into fixed-size world cells.
  * Cell membership is updated whenever a body publishes a snapshot in a new
  * position.</p>
  *
@@ -37,20 +36,20 @@ final class PhysicsBodySpatialIndex {
     private static final float CELL_SIZE = 16.0f;
     private static final int AXIS_MASK = 0x1F_FFFF;
 
-    private final Map<PhysicsBodyId, IndexedBody> entries = new Object2ObjectLinkedOpenHashMap<>();
+    private final Map<RigidBodyKey, IndexedBody> entries = new Object2ObjectLinkedOpenHashMap<>();
     private final Long2ObjectMap<List<IndexedBody>> cells = new Long2ObjectOpenHashMap<>();
     private final Int2IntOpenHashMap spaceBodyCounts = new Int2IntOpenHashMap();
 
-    void update(@Nonnull PhysicsBodyId bodyId,
+    void update(@Nonnull RigidBodyKey bodyKey,
         @Nonnull PhysicsBodySnapshot snapshot,
         @Nonnull SpaceId spaceId,
         @Nonnull PhysicsBodyKind kind,
         @Nonnull PhysicsBodyPersistenceMode persistenceMode) {
-        long cellKey = cellKey(snapshot.position());
-        IndexedBody indexed = entries.get(bodyId);
+        long cellKey = cellKey(snapshot.positionX(), snapshot.positionY(), snapshot.positionZ());
+        IndexedBody indexed = entries.get(bodyKey);
         if (indexed == null) {
-            indexed = new IndexedBody(bodyId, snapshot, spaceId, kind, persistenceMode, cellKey);
-            entries.put(bodyId, indexed);
+            indexed = new IndexedBody(bodyKey, snapshot, spaceId, kind, persistenceMode, cellKey);
+            entries.put(bodyKey, indexed);
             addToCell(indexed, cellKey);
             spaceBodyCounts.addTo(spaceId.value(), 1);
             return;
@@ -70,23 +69,11 @@ final class PhysicsBodySpatialIndex {
         indexed.persistenceMode = persistenceMode;
     }
 
-    void remove(@Nonnull PhysicsBodyId bodyId) {
-        IndexedBody indexed = entries.remove(bodyId);
+    void remove(@Nonnull RigidBodyKey bodyKey) {
+        IndexedBody indexed = entries.remove(bodyKey);
         if (indexed != null) {
             removeFromCell(indexed);
             spaceBodyCounts.addTo(indexed.spaceId.value(), -1);
-        }
-    }
-
-    void retainOnly(@Nonnull Set<PhysicsBodyId> liveBodies) {
-        List<PhysicsBodyId> stale = new ArrayList<>();
-        for (PhysicsBodyId bodyId : entries.keySet()) {
-            if (!liveBodies.contains(bodyId)) {
-                stale.add(bodyId);
-            }
-        }
-        for (PhysicsBodyId bodyId : stale) {
-            remove(bodyId);
         }
     }
 
@@ -117,6 +104,15 @@ final class PhysicsBodySpatialIndex {
         }
     }
 
+    void forEachIndexed(@Nonnull SpaceId spaceId,
+        @Nonnull PhysicsBodySnapshotVisitor visitor) {
+        for (IndexedBody indexed : entries.values()) {
+            if (spaceId.equals(indexed.spaceId)) {
+                indexed.visit(visitor);
+            }
+        }
+    }
+
     int forEachNear(@Nonnull SpaceId spaceId,
         @Nonnull Vector3f center,
         float radius,
@@ -141,12 +137,48 @@ final class PhysicsBodySpatialIndex {
                             continue;
                         }
                         candidates++;
-                        Vector3f position = indexed.snapshot.position();
-                        float dx = position.x - center.x;
-                        float dy = position.y - center.y;
-                        float dz = position.z - center.z;
+                        float dx = indexed.snapshot.positionX() - center.x;
+                        float dy = indexed.snapshot.positionY() - center.y;
+                        float dz = indexed.snapshot.positionZ() - center.z;
                         if (dx * dx + dy * dy + dz * dz <= radiusSquared) {
                             consumer.accept(indexed.entry());
+                        }
+                    }
+                }
+            }
+        }
+        return candidates;
+    }
+
+    int forEachIndexedNear(@Nonnull SpaceId spaceId,
+        @Nonnull Vector3f center,
+        float radius,
+        @Nonnull PhysicsBodySnapshotVisitor visitor) {
+        int minX = cellCoordinate(center.x - radius);
+        int maxX = cellCoordinate(center.x + radius);
+        int minY = cellCoordinate(center.y - radius);
+        int maxY = cellCoordinate(center.y + radius);
+        int minZ = cellCoordinate(center.z - radius);
+        int maxZ = cellCoordinate(center.z + radius);
+        float radiusSquared = radius * radius;
+        int candidates = 0;
+        for (int cellX = minX; cellX <= maxX; cellX++) {
+            for (int cellY = minY; cellY <= maxY; cellY++) {
+                for (int cellZ = minZ; cellZ <= maxZ; cellZ++) {
+                    List<IndexedBody> bucket = cells.get(packCell(cellX, cellY, cellZ));
+                    if (bucket == null) {
+                        continue;
+                    }
+                    for (IndexedBody indexed : bucket) {
+                        if (!spaceId.equals(indexed.spaceId)) {
+                            continue;
+                        }
+                        candidates++;
+                        float dx = indexed.snapshot.positionX() - center.x;
+                        float dy = indexed.snapshot.positionY() - center.y;
+                        float dz = indexed.snapshot.positionZ() - center.z;
+                        if (dx * dx + dy * dy + dz * dz <= radiusSquared) {
+                            indexed.visit(visitor);
                         }
                     }
                 }
@@ -183,10 +215,10 @@ final class PhysicsBodySpatialIndex {
         bucket.add(indexed);
     }
 
-    private static long cellKey(@Nonnull Vector3f position) {
-        return packCell(cellCoordinate(position.x),
-            cellCoordinate(position.y),
-            cellCoordinate(position.z));
+    private static long cellKey(float positionX, float positionY, float positionZ) {
+        return packCell(cellCoordinate(positionX),
+            cellCoordinate(positionY),
+            cellCoordinate(positionZ));
     }
 
     private static int cellCoordinate(float value) {
@@ -202,7 +234,7 @@ final class PhysicsBodySpatialIndex {
     private static final class IndexedBody {
 
         @Nonnull
-        private final PhysicsBodyId bodyId;
+        private final RigidBodyKey bodyKey;
         @Nonnull
         private PhysicsBodySnapshot snapshot;
         @Nonnull
@@ -214,13 +246,13 @@ final class PhysicsBodySpatialIndex {
         private long cellKey;
         private int cellIndex = -1;
 
-        private IndexedBody(@Nonnull PhysicsBodyId bodyId,
+        private IndexedBody(@Nonnull RigidBodyKey bodyKey,
             @Nonnull PhysicsBodySnapshot snapshot,
             @Nonnull SpaceId spaceId,
             @Nonnull PhysicsBodyKind kind,
             @Nonnull PhysicsBodyPersistenceMode persistenceMode,
             long cellKey) {
-            this.bodyId = bodyId;
+            this.bodyKey = bodyKey;
             this.snapshot = snapshot;
             this.spaceId = spaceId;
             this.kind = kind;
@@ -230,7 +262,15 @@ final class PhysicsBodySpatialIndex {
 
         @Nonnull
         private PhysicsBodySnapshotEntry entry() {
-            return new PhysicsBodySnapshotEntry(bodyId,
+            return new PhysicsBodySnapshotEntry(bodyKey,
+                snapshot,
+                spaceId,
+                kind,
+                persistenceMode);
+        }
+
+        private void visit(@Nonnull PhysicsBodySnapshotVisitor visitor) {
+            visitor.accept(bodyKey,
                 snapshot,
                 spaceId,
                 kind,

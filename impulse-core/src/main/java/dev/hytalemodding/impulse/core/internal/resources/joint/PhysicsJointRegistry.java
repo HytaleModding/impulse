@@ -3,7 +3,7 @@ package dev.hytalemodding.impulse.core.internal.resources.joint;
 import dev.hytalemodding.impulse.api.PhysicsBody;
 import dev.hytalemodding.impulse.api.PhysicsJoint;
 import dev.hytalemodding.impulse.api.SpaceId;
-import dev.hytalemodding.impulse.core.plugin.joint.PhysicsJointId;
+import dev.hytalemodding.impulse.core.plugin.joint.JointKey;
 import it.unimi.dsi.fastutil.objects.Object2ObjectLinkedOpenHashMap;
 import it.unimi.dsi.fastutil.objects.Reference2ObjectOpenHashMap;
 import java.util.ArrayList;
@@ -16,83 +16,83 @@ import javax.annotation.Nullable;
  */
 public final class PhysicsJointRegistry {
 
-    private final Map<PhysicsJointId, PhysicsJointRegistration> registrationsById =
+    private final Map<JointKey, PhysicsJointRegistration> registrationsByKey =
         new Object2ObjectLinkedOpenHashMap<>();
-    private final Map<PhysicsJoint, PhysicsJointId> jointIdsByJoint = new Reference2ObjectOpenHashMap<>();
+    private final Map<PhysicsJoint, JointKey> jointKeysByJoint = new Reference2ObjectOpenHashMap<>();
 
     @Nonnull
-    public PhysicsJointRegistration registerJoint(@Nonnull PhysicsJointId jointId,
+    public PhysicsJointRegistration registerJoint(@Nonnull JointKey jointKey,
         @Nonnull SpaceId spaceId,
         @Nonnull PhysicsJoint joint) {
-        PhysicsJointId existingId = jointIdsByJoint.get(joint);
-        if (existingId != null && !existingId.equals(jointId)) {
-            throw new IllegalArgumentException("Physics joint is already registered as " + existingId);
+        JointKey existingKey = jointKeysByJoint.get(joint);
+        if (existingKey != null && !existingKey.equals(jointKey)) {
+            throw new IllegalArgumentException("Physics joint is already registered as " + existingKey);
         }
-        PhysicsJointRegistration existingRegistration = registrationsById.get(jointId);
+        PhysicsJointRegistration existingRegistration = registrationsByKey.get(jointKey);
         if (existingRegistration != null && existingRegistration.joint() != joint) {
-            throw new IllegalArgumentException("Physics joint id=" + jointId
+            throw new IllegalArgumentException("Physics joint key=" + jointKey
                 + " is already registered to another backend joint");
         }
-        PhysicsJointRegistration registration = new PhysicsJointRegistration(jointId, joint, spaceId);
-        registrationsById.put(jointId, registration);
-        jointIdsByJoint.put(joint, jointId);
+        PhysicsJointRegistration registration = new PhysicsJointRegistration(jointKey, joint, spaceId);
+        registrationsByKey.put(jointKey, registration);
+        jointKeysByJoint.put(joint, jointKey);
         return registration;
     }
 
     @Nullable
-    public PhysicsJointRegistration unregisterJoint(@Nonnull PhysicsJointId jointId) {
-        PhysicsJointRegistration registration = registrationsById.remove(jointId);
+    public PhysicsJointRegistration unregisterJoint(@Nonnull JointKey jointKey) {
+        PhysicsJointRegistration registration = registrationsByKey.remove(jointKey);
         if (registration == null) {
             return null;
         }
 
-        jointIdsByJoint.remove(registration.joint());
+        jointKeysByJoint.remove(registration.joint());
         return registration;
     }
 
     @Nullable
     public PhysicsJointRegistration unregisterJoint(@Nonnull PhysicsJoint joint) {
-        PhysicsJointId jointId = jointIdsByJoint.get(joint);
-        return jointId != null ? unregisterJoint(jointId) : null;
+        JointKey jointKey = jointKeysByJoint.get(joint);
+        return jointKey != null ? unregisterJoint(jointKey) : null;
     }
 
     public void unregisterJointsForBody(@Nonnull PhysicsBody body) {
-        ArrayList<PhysicsJointId> removed = new ArrayList<>();
-        for (PhysicsJointRegistration registration : registrationsById.values()) {
+        ArrayList<JointKey> removed = new ArrayList<>();
+        for (PhysicsJointRegistration registration : registrationsByKey.values()) {
             PhysicsJoint joint = registration.joint();
             if (joint.getBodyA() == body || joint.getBodyB() == body) {
                 removed.add(registration.id());
             }
         }
-        for (PhysicsJointId jointId : removed) {
-            unregisterJoint(jointId);
+        for (JointKey jointKey : removed) {
+            unregisterJoint(jointKey);
         }
     }
 
     public void unregisterSpace(@Nonnull SpaceId spaceId) {
-        ArrayList<PhysicsJointId> removed = new ArrayList<>();
-        for (PhysicsJointRegistration registration : registrationsById.values()) {
+        ArrayList<JointKey> removed = new ArrayList<>();
+        for (PhysicsJointRegistration registration : registrationsByKey.values()) {
             if (registration.spaceId().equals(spaceId)) {
                 removed.add(registration.id());
             }
         }
-        for (PhysicsJointId jointId : removed) {
-            unregisterJoint(jointId);
+        for (JointKey jointKey : removed) {
+            unregisterJoint(jointKey);
         }
     }
 
     @Nullable
-    public PhysicsJointRegistration getRegistration(@Nonnull PhysicsJointId jointId) {
-        return registrationsById.get(jointId);
+    public PhysicsJointRegistration getRegistration(@Nonnull JointKey jointKey) {
+        return registrationsByKey.get(jointKey);
     }
 
     @Nullable
-    public PhysicsJointId getJointId(@Nonnull PhysicsJoint joint) {
-        return jointIdsByJoint.get(joint);
+    public JointKey getJointKey(@Nonnull PhysicsJoint joint) {
+        return jointKeysByJoint.get(joint);
     }
 
     public void clear() {
-        registrationsById.clear();
-        jointIdsByJoint.clear();
+        registrationsByKey.clear();
+        jointKeysByJoint.clear();
     }
 }

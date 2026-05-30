@@ -54,35 +54,34 @@ public final class PhysicsSnapshotPublicationSystem extends TickingSystem<Entity
         PhysicsRuntimeProfilingResource profiling = store.getResource(
             PhysicsRuntimeProfilingResource.getResourceType());
         publishCompletedMutations(worker);
-        publishCompletedStep(worker, resource, profiling);
+        long publicationServerTick = Math.max(0L, store.getExternalData().getWorld().getTick());
+        publishCompletedStep(worker, resource, profiling, publicationServerTick);
     }
 
     static int publishCompletedMutations(@Nonnull PhysicsWorldWorkerResource worker) {
-        int completed = 0;
-        while (true) {
-            List<PhysicsWorkerMutationCompletion> completions =
-                worker.pollCompletedMutations(MAX_MUTATION_COMPLETIONS_PER_TICK);
-            if (completions.isEmpty()) {
-                return completed;
-            }
-            completed += completions.size();
-            for (PhysicsWorkerMutationCompletion completion : completions) {
-                if (completion.executionFailure() != null) {
-                    LOGGER.at(Level.SEVERE).log(
-                        "Async physics worker mutation failed while running %s: %s",
-                        completion.operation(),
-                        completion.executionFailure().getMessage());
-                }
-            }
-            if (completions.size() < MAX_MUTATION_COMPLETIONS_PER_TICK) {
-                return completed;
+        List<PhysicsWorkerMutationCompletion> completions =
+            worker.pollCompletedMutations(MAX_MUTATION_COMPLETIONS_PER_TICK);
+        for (PhysicsWorkerMutationCompletion completion : completions) {
+            if (completion.executionFailure() != null) {
+                LOGGER.at(Level.SEVERE).log(
+                    "Async physics worker mutation failed while running %s: %s",
+                    completion.operation(),
+                    completion.executionFailure().getMessage());
             }
         }
+        return completions.size();
     }
 
     static void publishCompletedStep(@Nonnull PhysicsWorldWorkerResource worker,
         @Nonnull PhysicsWorldResource resource,
         @Nonnull PhysicsRuntimeProfilingResource profiling) {
+        publishCompletedStep(worker, resource, profiling, 0L);
+    }
+
+    static void publishCompletedStep(@Nonnull PhysicsWorldWorkerResource worker,
+        @Nonnull PhysicsWorldResource resource,
+        @Nonnull PhysicsRuntimeProfilingResource profiling,
+        long publicationServerTick) {
         PhysicsWorkerStepCompletion completion = worker.pollCompletedStep();
         if (completion == null) {
             return;
@@ -96,7 +95,8 @@ public final class PhysicsSnapshotPublicationSystem extends TickingSystem<Entity
 
         PublishedPhysicsSnapshotFrame frame = completion.frame();
         if (frame != null) {
-            PhysicsWorldRuntimeResource.require(resource).applyPublishedSnapshotFrame(frame);
+            PhysicsWorldRuntimeResource.require(resource)
+                .applyPublishedSnapshotFrame(frame, publicationServerTick);
         }
 
         PhysicsWorkerSnapshot snapshot = completion.snapshotOrEmpty();
