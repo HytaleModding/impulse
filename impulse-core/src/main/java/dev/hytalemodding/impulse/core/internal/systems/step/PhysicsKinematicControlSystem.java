@@ -18,14 +18,11 @@ import com.hypixel.hytale.server.core.modules.entity.component.HeadRotation;
 import com.hypixel.hytale.server.core.modules.entity.component.ModelComponent;
 import com.hypixel.hytale.server.core.modules.entity.component.TransformComponent;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
-import dev.hytalemodding.impulse.api.PhysicsBody;
 import dev.hytalemodding.impulse.api.PhysicsBodyType;
 import dev.hytalemodding.impulse.core.internal.components.PhysicsControlSessionComponent;
 import dev.hytalemodding.impulse.core.internal.systems.sync.PhysicsSyncSystem;
-import dev.hytalemodding.impulse.core.internal.worker.PhysicsWorkerAccess;
-import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyId;
-import dev.hytalemodding.impulse.core.plugin.execution.PhysicsMutationHandle;
-import dev.hytalemodding.impulse.core.plugin.execution.PhysicsOwnerAccess;
+import dev.hytalemodding.impulse.core.plugin.body.RigidBodyKey;
+import dev.hytalemodding.impulse.core.plugin.resources.PhysicsMutationHandle;
 import dev.hytalemodding.impulse.core.plugin.resources.PhysicsWorldResource;
 import it.unimi.dsi.fastutil.objects.Object2ObjectMap;
 import it.unimi.dsi.fastutil.objects.Object2ObjectOpenHashMap;
@@ -60,7 +57,7 @@ public class PhysicsKinematicControlSystem extends EntityTickingSystem<EntitySto
     );
 
     private final ThreadLocal<Scratch> scratch = ThreadLocal.withInitial(Scratch::new);
-    // Anchor updates are worker-owned; keep at most one queued mutation per session anchor.
+    // Anchor updates are copied commands; keep at most one queued update per session anchor.
     @Nonnull
     private final Map<Store<EntityStore>, ControlMutationState> statesByStore =
         Collections.synchronizedMap(new WeakHashMap<>());
@@ -83,22 +80,22 @@ public class PhysicsKinematicControlSystem extends EntityTickingSystem<EntitySto
         }
 
         PhysicsWorldResource resource = store.getResource(PhysicsWorldResource.getResourceType());
-        PhysicsBodyId bodyId = session.getBodyId();
-        PhysicsBodyId anchorBodyId = session.getAnchorBodyId();
+        RigidBodyKey bodyKey = session.getBodyKey();
+        RigidBodyKey anchorBodyKey = session.getAnchorBodyKey();
         Ref<EntityStore> targetRef = session.getTargetRef();
-        if (bodyId == null
-            || anchorBodyId == null
-            || resource.getBodyRegistrationView(bodyId) == null
-            || resource.getBodyRegistrationView(anchorBodyId) == null
+        if (bodyKey == null
+            || anchorBodyKey == null
+            || resource.getBodyRegistrationView(bodyKey) == null
+            || resource.getBodyRegistrationView(anchorBodyKey) == null
             || (targetRef != null && !targetRef.isValid())) {
-            stateFor(store).clear(anchorBodyId);
+            stateFor(store).clear(anchorBodyKey);
             PhysicsControlSessionCleanup.cleanup(resource, session);
             commandBuffer.removeComponent(chunk.getReferenceTo(index), SESSION_TYPE);
             return;
         }
 
         if (session.getSpaceId() != null && !resource.hasSpace(session.getSpaceId())) {
-            stateFor(store).clear(anchorBodyId);
+            stateFor(store).clear(anchorBodyKey);
             PhysicsControlSessionCleanup.cleanup(resource, session);
             commandBuffer.removeComponent(chunk.getReferenceTo(index), SESSION_TYPE);
             return;
@@ -142,36 +139,35 @@ public class PhysicsKinematicControlSystem extends EntityTickingSystem<EntitySto
         previousTarget.set(local.target);
 
         ControlMutationState state = stateFor(store);
-        if (state.hasPendingMutation(anchorBodyId)) {
+        if (state.hasPendingMutation(anchorBodyKey)) {
             return;
         }
 
-        ControlAnchorUpdate update = new ControlAnchorUpdate(bodyId,
-            anchorBodyId,
+        ControlAnchorUpdate update = new ControlAnchorUpdate(bodyKey,
+            anchorBodyKey,
             local.target,
             releaseVelocity);
-        PhysicsMutationHandle<Void> handle = PhysicsWorkerAccess.runAsync(store,
+        PhysicsMutationHandle<Void> handle = PhysicsMutationHandle.fromCompletion(
             "update kinematic control anchor",
-            () -> resource.runOnPhysicsOwner("apply kinematic control anchor",
-                access -> applyControlUpdate(access, update)));
-        state.trackPendingMutation(anchorBodyId, handle);
-    }
-
-    static void applyControlUpdate(@Nonnull PhysicsOwnerAccess access,
-        @Nonnull ControlAnchorUpdate update) {
-        PhysicsBody body = access.getBody(update.bodyId());
-        PhysicsBody anchorBody = access.getBody(update.anchorBodyId());
-        if (body == null || anchorBody == null) {
-            return;
-        }
-
-        if (anchorBody.getBodyType() != PhysicsBodyType.KINEMATIC) {
-            anchorBody.setBodyType(PhysicsBodyType.KINEMATIC);
-        }
-        anchorBody.setPosition(update.target());
-        anchorBody.setLinearVelocity(update.releaseVelocity());
-        anchorBody.activate();
-        body.activate();
+            null,
+            resource.submitCommands(0L, 4, commands -> commands
+                    .setBodyType(update.anchorBodyKey(), PhysicsBodyType.KINEMATIC)
+                    .setBodyPosition(update.anchorBodyKey(),
+                        update.target().x,
+                        update.target().y,
+                        update.target().z,
+                        false)
+                    .setBodyVelocity(update.anchorBodyKey(),
+                        update.releaseVelocity().x,
+                        update.releaseVelocity().y,
+                        update.releaseVelocity().z,
+                        0.0f,
+                        0.0f,
+                        0.0f,
+                        true)
+                    .activateBody(update.bodyKey()))
+                .completionSummary());
+        state.trackPendingMutation(anchorBodyKey, handle);
     }
 
     private static float eyeHeight(@Nonnull ArchetypeChunk<EntityStore> chunk,
@@ -222,8 +218,8 @@ public class PhysicsKinematicControlSystem extends EntityTickingSystem<EntitySto
         }
     }
 
-    record ControlAnchorUpdate(@Nonnull PhysicsBodyId bodyId,
-                               @Nonnull PhysicsBodyId anchorBodyId,
+    record ControlAnchorUpdate(@Nonnull RigidBodyKey bodyKey,
+                               @Nonnull RigidBodyKey anchorBodyKey,
                                @Nonnull Vector3f target,
                                @Nonnull Vector3f releaseVelocity) {
 
@@ -236,42 +232,42 @@ public class PhysicsKinematicControlSystem extends EntityTickingSystem<EntitySto
     static final class ControlMutationState {
 
         @Nonnull
-        private final Object2ObjectMap<PhysicsBodyId, PhysicsMutationHandle<Void>> pendingMutations =
+        private final Object2ObjectMap<RigidBodyKey, PhysicsMutationHandle<Void>> pendingMutations =
             new Object2ObjectOpenHashMap<>();
 
-        synchronized boolean hasPendingMutation(@Nonnull PhysicsBodyId bodyId) {
-            PhysicsMutationHandle<Void> handle = pendingMutations.get(bodyId);
+        synchronized boolean hasPendingMutation(@Nonnull RigidBodyKey bodyKey) {
+            PhysicsMutationHandle<Void> handle = pendingMutations.get(bodyKey);
             if (handle == null) {
                 return false;
             }
             if (!handle.isDone()) {
                 return true;
             }
-            pendingMutations.remove(bodyId);
+            pendingMutations.remove(bodyKey);
             return false;
         }
 
-        synchronized void trackPendingMutation(@Nonnull PhysicsBodyId bodyId,
+        synchronized void trackPendingMutation(@Nonnull RigidBodyKey bodyKey,
             @Nonnull PhysicsMutationHandle<Void> handle) {
             if (handle.isDone()) {
                 logImmediateFailure(handle);
                 return;
             }
-            pendingMutations.put(bodyId, handle);
-            handle.completion().whenComplete((ignored, failure) -> clear(bodyId, handle));
+            pendingMutations.put(bodyKey, handle);
+            handle.completion().whenComplete((ignored, failure) -> clear(bodyKey, handle));
         }
 
-        synchronized void clear(@Nullable PhysicsBodyId bodyId) {
-            if (bodyId != null) {
-                pendingMutations.remove(bodyId);
+        synchronized void clear(@Nullable RigidBodyKey bodyKey) {
+            if (bodyKey != null) {
+                pendingMutations.remove(bodyKey);
             }
         }
 
-        private synchronized void clear(@Nonnull PhysicsBodyId bodyId,
+        private synchronized void clear(@Nonnull RigidBodyKey bodyKey,
             @Nonnull PhysicsMutationHandle<Void> expectedHandle) {
-            PhysicsMutationHandle<Void> current = pendingMutations.get(bodyId);
+            PhysicsMutationHandle<Void> current = pendingMutations.get(bodyKey);
             if (current == expectedHandle) {
-                pendingMutations.remove(bodyId);
+                pendingMutations.remove(bodyKey);
             }
         }
 
@@ -279,7 +275,7 @@ public class PhysicsKinematicControlSystem extends EntityTickingSystem<EntitySto
             Throwable failure = handle.failure();
             if (failure != null) {
                 LOGGER.at(Level.WARNING).log(
-                    "Kinematic control worker mutation could not be queued: %s",
+                    "Kinematic control anchor update could not be queued: %s",
                     failure.getMessage());
             }
         }

@@ -10,7 +10,7 @@ import com.hypixel.hytale.codec.validation.Validators;
 import com.hypixel.hytale.math.vector.Vector3fUtil;
 import dev.hytalemodding.impulse.api.PhysicsJoint;
 import dev.hytalemodding.impulse.api.PhysicsJointType;
-import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyId;
+import dev.hytalemodding.impulse.core.plugin.body.RigidBodyKey;
 import java.util.UUID;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
@@ -21,7 +21,7 @@ import org.joml.Vector3f;
 /**
  * Codec-backed definition of one physics joint for the persistence layer.
  *
- * This class uses stable physics body ids to identify the two endpoint bodies.
+ * This class uses stable physics body keys to identify the two endpoint bodies.
  *
  * <p>The {@link #key()} method produces a deterministic string from all fields
  * (using {@link Float#floatToIntBits(float)} to avoid floating-point drift).
@@ -197,8 +197,8 @@ public class PersistentPhysicsJointState {
 
     @Nonnull
     public static PersistentPhysicsJointState from(int spaceId,
-        @Nonnull PhysicsBodyId bodyAId,
-        @Nonnull PhysicsBodyId bodyBId,
+        @Nonnull RigidBodyKey bodyAId,
+        @Nonnull RigidBodyKey bodyBId,
         @Nonnull PhysicsJoint joint) {
         PersistentPhysicsJointState state = new PersistentPhysicsJointState();
         state.spaceId = spaceId;
@@ -222,8 +222,8 @@ public class PersistentPhysicsJointState {
     }
 
     @Nullable
-    public PhysicsBodyId getBodyAId() {
-        return bodyAId != null ? PhysicsBodyId.of(bodyAId) : null;
+    public RigidBodyKey getBodyAId() {
+        return bodyAId != null ? RigidBodyKey.of(bodyAId) : null;
     }
 
     @Nullable
@@ -231,13 +231,13 @@ public class PersistentPhysicsJointState {
         return bodyAId;
     }
 
-    public void setBodyAId(@Nullable PhysicsBodyId bodyAId) {
+    public void setBodyAId(@Nullable RigidBodyKey bodyAId) {
         this.bodyAId = bodyAId != null ? bodyAId.value() : null;
     }
 
     @Nullable
-    public PhysicsBodyId getBodyBId() {
-        return bodyBId != null ? PhysicsBodyId.of(bodyBId) : null;
+    public RigidBodyKey getBodyBId() {
+        return bodyBId != null ? RigidBodyKey.of(bodyBId) : null;
     }
 
     @Nullable
@@ -245,7 +245,7 @@ public class PersistentPhysicsJointState {
         return bodyBId;
     }
 
-    public void setBodyBId(@Nullable PhysicsBodyId bodyBId) {
+    public void setBodyBId(@Nullable RigidBodyKey bodyBId) {
         this.bodyBId = bodyBId != null ? bodyBId.value() : null;
     }
 

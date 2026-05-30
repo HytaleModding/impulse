@@ -4,12 +4,16 @@ import dev.hytalemodding.impulse.api.BackendId;
 import dev.hytalemodding.impulse.api.Impulse;
 import dev.hytalemodding.impulse.api.PhysicsBackend;
 import dev.hytalemodding.impulse.api.PhysicsBody;
+import dev.hytalemodding.impulse.api.PhysicsBodyType;
 import dev.hytalemodding.impulse.api.PhysicsSpace;
 import dev.hytalemodding.impulse.api.SpaceId;
 import dev.hytalemodding.impulse.core.ImpulsePlugin;
-import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyId;
+import dev.hytalemodding.impulse.core.plugin.body.RigidBodyKey;
 import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyKind;
 import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyPersistenceMode;
+import dev.hytalemodding.impulse.core.plugin.simulation.PhysicsShapeSpec;
+import dev.hytalemodding.impulse.core.plugin.simulation.RigidBodySpawnSettings;
+import dev.hytalemodding.impulse.core.plugin.simulation.SpaceBodyCountQuery;
 import dev.hytalemodding.impulse.core.plugin.settings.PhysicsBackendExtensionId;
 import dev.hytalemodding.impulse.core.plugin.settings.PhysicsSpaceSettings;
 import dev.hytalemodding.impulse.core.plugin.resources.PhysicsWorldResource;
@@ -19,6 +23,7 @@ import dev.hytalemodding.impulse.core.plugin.collision.WorldCollisionMode;
 import java.util.Collection;
 import java.util.List;
 import java.util.Set;
+import javax.annotation.Nonnull;
 import org.joml.Vector3f;
 
 /**
@@ -163,12 +168,7 @@ final class ImpulseApiCrucibleTests {
         SpaceId spaceId = resource.createSpace(CrucibleBackends.requireBackendId(),
             "crucible",
             PhysicsSpaceSettings.defaults());
-        resource.runOnPhysicsOwner("populate crucible physics space", access -> {
-            PhysicsSpace space = access.requireSpace(spaceId);
-            PhysicsBody body = space.createBox(0.5f, 0.5f, 0.5f, 1.0f);
-            body.setPosition(0f, 5f, 0f);
-            space.addBody(body);
-        });
+        submitCrucibleBox(resource, spaceId, RigidBodyKey.random());
 
         resource.clearAllSpaces("crucible");
         return resource.getSpaceIds().isEmpty();
@@ -180,23 +180,41 @@ final class ImpulseApiCrucibleTests {
             "crucible",
             PhysicsSpaceSettings.defaults());
         try {
-            PhysicsBodyId bodyId = resource.callOnPhysicsOwner("register crucible detached body", access -> {
-                PhysicsSpace space = access.requireSpace(spaceId);
-                PhysicsBody body = space.createBox(0.5f, 0.5f, 0.5f, 1.0f);
-                body.setPosition(0f, 5f, 0f);
-                return access.addBody(spaceId,
-                    body,
-                    PhysicsBodyKind.BODY,
-                    PhysicsBodyPersistenceMode.RUNTIME_ONLY);
-            });
+            RigidBodyKey bodyKey = RigidBodyKey.random();
+            submitCrucibleBox(resource, spaceId, bodyKey);
 
-            resource.destroyBody(bodyId);
-            boolean spaceEmpty = resource.callOnPhysicsOwner("count crucible detached space",
-                access -> access.requireSpace(spaceId).bodyCount() == 0);
+            resource.destroyBody(bodyKey);
+            boolean spaceEmpty = resource.query(new SpaceBodyCountQuery(spaceId))
+                .completion()
+                .toCompletableFuture()
+                .join() == 0;
             return spaceEmpty && resource.getBodyRegistrationViews().isEmpty();
         } finally {
             resource.clearAllSpaces("crucible");
         }
+    }
+
+    private static void submitCrucibleBox(@Nonnull PhysicsWorldResource resource,
+        @Nonnull SpaceId spaceId,
+        @Nonnull RigidBodyKey bodyKey) {
+        resource.submitCommands(0L,
+                1,
+                commands -> commands.spawnBody(bodyKey, spawn -> spawn
+                    .space(spaceId)
+                    .shape(PhysicsShapeSpec.box(0.5f, 0.5f, 0.5f))
+                    .mass(1.0f)
+                    .type(PhysicsBodyType.DYNAMIC)
+                    .position(0f, 5f, 0f)
+                    .settings(RigidBodySpawnSettings.defaults())
+                    .kind(PhysicsBodyKind.BODY)
+                    .persistence(PhysicsBodyPersistenceMode.RUNTIME_ONLY)))
+            .firstRejected()
+            .toCompletableFuture()
+            .join()
+            .ifPresent(result -> {
+                throw new IllegalStateException("spawn crucible box command "
+                    + result.commandSequence() + " rejected: " + result.message());
+            });
     }
 
     private static boolean settingsRoundTrip() {

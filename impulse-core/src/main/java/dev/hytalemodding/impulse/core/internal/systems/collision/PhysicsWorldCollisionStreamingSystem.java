@@ -13,18 +13,17 @@ import com.hypixel.hytale.server.core.universe.world.World;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import dev.hytalemodding.impulse.api.PhysicsSpace;
 import dev.hytalemodding.impulse.api.SpaceId;
-import dev.hytalemodding.impulse.core.plugin.settings.PhysicsSpaceSettings;
-import dev.hytalemodding.impulse.core.plugin.resources.PhysicsWorldResource;
-import dev.hytalemodding.impulse.core.plugin.snapshot.PhysicsBodySnapshotEntry;
 import dev.hytalemodding.impulse.core.internal.resources.profiling.WorldCollisionProfilingResource;
 import dev.hytalemodding.impulse.core.internal.resources.profiling.WorldCollisionProfilingResource.Snapshot;
 import dev.hytalemodding.impulse.core.internal.resources.profiling.WorldCollisionProfilingResource.StreamingTargetDiagnostic;
-import dev.hytalemodding.impulse.core.plugin.collision.WorldCollisionMode;
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsWorldRuntimeResource;
 import dev.hytalemodding.impulse.core.internal.voxel.WorldCollisionStreamingBounds;
 import dev.hytalemodding.impulse.core.internal.voxel.WorldVoxelCollisionCache;
 import dev.hytalemodding.impulse.core.internal.voxel.WorldVoxelCollisionCache.SectionAccessCache;
 import dev.hytalemodding.impulse.core.internal.voxel.WorldVoxelCollisionCache.TargetRefreshDecision;
+import dev.hytalemodding.impulse.core.plugin.body.RigidBodyKey;
+import dev.hytalemodding.impulse.core.plugin.collision.WorldCollisionMode;
+import dev.hytalemodding.impulse.core.plugin.settings.PhysicsSpaceSettings;
 import it.unimi.dsi.fastutil.longs.LongOpenHashSet;
 import it.unimi.dsi.fastutil.longs.LongSet;
 import it.unimi.dsi.fastutil.objects.Object2ObjectLinkedOpenHashMap;
@@ -37,7 +36,6 @@ import java.util.function.BiConsumer;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 import org.joml.Vector3d;
-import org.joml.Vector3f;
 
 /**
  * Streams world voxel collision around online players and dynamic physics bodies
@@ -114,7 +112,7 @@ public class PhysicsWorldCollisionStreamingSystem extends TickingSystem<EntitySt
             if (applySnapshot != null) {
                 applySnapshot.incrementTerrainApplyQueued();
             }
-            resource.enqueuePhysicsMutation("stream world collision terrain apply", access -> {
+            resource.enqueueOwnerMutation("stream world collision terrain apply", access -> {
                 long applyStart = applySnapshot != null ? System.nanoTime() : 0L;
                 try {
                     SectionAccessCache sectionAccessCache = cache.newSectionAccessCache();
@@ -265,7 +263,7 @@ public class PhysicsWorldCollisionStreamingSystem extends TickingSystem<EntitySt
      * work for big piles where many bodies share the same neighborhood.</p>
      */
     @Nonnull
-    private List<BodyStreamingTarget> collectDynamicBodyTargets(@Nonnull PhysicsWorldResource resource,
+    private List<BodyStreamingTarget> collectDynamicBodyTargets(@Nonnull PhysicsWorldRuntimeResource resource,
         @Nonnull WorldVoxelCollisionCache cache,
         @Nonnull SpaceId spaceId,
         int radius,
@@ -276,19 +274,22 @@ public class PhysicsWorldCollisionStreamingSystem extends TickingSystem<EntitySt
             new Object2ObjectLinkedOpenHashMap<>();
         int[] spatialIndexCandidateCount = {0};
         int[] candidateCount = {0};
-        resource.forEachBodySnapshot(spaceId, entry -> {
+        resource.forEachIndexedBodySnapshot(spaceId, (bodyKey, bodySnapshot, bodySpaceId, kind, persistenceMode) -> {
             spatialIndexCandidateCount[0]++;
-            var bodySnapshot = entry.snapshot();
             if (!bodySnapshot.isDynamic()) {
                 return;
             }
 
             candidateCount[0]++;
-            Vector3f position = bodySnapshot.position();
-            WorldCollisionStreamingBounds bounds = WorldCollisionStreamingBounds.from(position,
+            float positionX = bodySnapshot.positionX();
+            float positionY = bodySnapshot.positionY();
+            float positionZ = bodySnapshot.positionZ();
+            WorldCollisionStreamingBounds bounds = WorldCollisionStreamingBounds.from(positionX,
+                positionY,
+                positionZ,
                 radius);
             TargetRefreshDecision refreshDecision = cache.shouldRefreshBodyTarget(spaceId,
-                entry.bodyId(),
+                bodyKey,
                 bounds,
                 bodySnapshot.sleeping(),
                 currentTick,
@@ -300,8 +301,8 @@ public class PhysicsWorldCollisionStreamingSystem extends TickingSystem<EntitySt
             BodyStreamingTarget previous = uniqueTargets.get(bounds);
             if (previous == null) {
                 uniqueTargets.put(bounds, new BodyStreamingTarget(
-                    new Vector3d(position.x, position.y, position.z),
-                    diagnosticFor(snapshot, entry, position)));
+                    new Vector3d(positionX, positionY, positionZ),
+                    diagnosticFor(snapshot, bodyKey, positionX, positionY, positionZ)));
             }
             if (previous != null && snapshot != null) {
                 snapshot.incrementBodyTargetDedupeSkips();
@@ -318,13 +319,21 @@ public class PhysicsWorldCollisionStreamingSystem extends TickingSystem<EntitySt
 
     @Nullable
     private static StreamingTargetDiagnostic diagnosticFor(@Nullable Snapshot snapshot,
-        @Nonnull PhysicsBodySnapshotEntry entry,
-        @Nonnull Vector3f snapshotPosition) {
+        @Nonnull RigidBodyKey bodyKey,
+        float positionX,
+        float positionY,
+        float positionZ) {
         if (snapshot == null) {
             return null;
         }
 
-        return StreamingTargetDiagnostic.body(entry.bodyId(), snapshotPosition, snapshotPosition);
+        return StreamingTargetDiagnostic.body(bodyKey,
+            positionX,
+            positionY,
+            positionZ,
+            positionX,
+            positionY,
+            positionZ);
     }
 
     @Nonnull

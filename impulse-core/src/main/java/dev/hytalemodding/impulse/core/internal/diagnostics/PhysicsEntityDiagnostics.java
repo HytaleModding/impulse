@@ -10,6 +10,7 @@ import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import dev.hytalemodding.impulse.core.plugin.components.PhysicsBodyAttachmentComponent;
 import dev.hytalemodding.impulse.core.plugin.components.PhysicsBodyAttachmentComponent.AttachmentLifecycle;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicIntegerArray;
 import javax.annotation.Nonnull;
 
 /**
@@ -27,6 +28,15 @@ public final class PhysicsEntityDiagnostics {
         Visible.getComponentType();
     private static final ComponentType<EntityStore, EntityViewer> ENTITY_VIEWER_TYPE =
         EntityViewer.getComponentType();
+    private static final int BODY_PHYSICS_BODIES = 0;
+    private static final int BODY_WITH_TRANSFORM = 1;
+    private static final int BODY_WITH_NETWORK_ID = 2;
+    private static final int BODY_WITH_VISIBLE = 3;
+    private static final int BODY_MATERIALIZED = 4;
+    private static final int BODY_COUNTERS = 5;
+    private static final int VISUAL_VISUALS = 0;
+    private static final int VISUAL_MATERIALIZED = 1;
+    private static final int VISUAL_COUNTERS = 2;
 
     private PhysicsEntityDiagnostics() {
     }
@@ -62,53 +72,49 @@ public final class PhysicsEntityDiagnostics {
         @Nonnull ComponentType<EntityStore, TransformComponent> transformType,
         @Nonnull ComponentType<EntityStore, NetworkId> networkIdType,
         @Nonnull ComponentType<EntityStore, Visible> visibleType) {
-        AtomicInteger physicsBodies = new AtomicInteger();
-        AtomicInteger withTransform = new AtomicInteger();
-        AtomicInteger withNetworkId = new AtomicInteger();
-        AtomicInteger withVisible = new AtomicInteger();
-        AtomicInteger materialized = new AtomicInteger();
+        AtomicIntegerArray counters = new AtomicIntegerArray(BODY_COUNTERS);
         store.forEachEntityParallel(attachmentType, (index, chunk, commandBuffer) -> {
-            physicsBodies.incrementAndGet();
+            counters.incrementAndGet(BODY_PHYSICS_BODIES);
             boolean transform = chunk.getComponent(index, transformType) != null;
             boolean networkId = chunk.getComponent(index, networkIdType) != null;
             if (transform) {
-                withTransform.incrementAndGet();
+                counters.incrementAndGet(BODY_WITH_TRANSFORM);
             }
             if (networkId) {
-                withNetworkId.incrementAndGet();
+                counters.incrementAndGet(BODY_WITH_NETWORK_ID);
             }
             if (chunk.getComponent(index, visibleType) != null) {
-                withVisible.incrementAndGet();
+                counters.incrementAndGet(BODY_WITH_VISIBLE);
             }
             if (transform && networkId) {
-                materialized.incrementAndGet();
+                counters.incrementAndGet(BODY_MATERIALIZED);
             }
         });
-        return new EntityFootprint(physicsBodies.get(),
-            withTransform.get(),
-            withNetworkId.get(),
-            withVisible.get(),
-            materialized.get());
+        return new EntityFootprint(counters.get(BODY_PHYSICS_BODIES),
+            counters.get(BODY_WITH_TRANSFORM),
+            counters.get(BODY_WITH_NETWORK_ID),
+            counters.get(BODY_WITH_VISIBLE),
+            counters.get(BODY_MATERIALIZED));
     }
 
     private static VisualFootprint collectVisualFootprint(@Nonnull Store<EntityStore> store,
         @Nonnull ComponentType<EntityStore, PhysicsBodyAttachmentComponent> attachmentType,
         @Nonnull ComponentType<EntityStore, TransformComponent> transformType,
         @Nonnull ComponentType<EntityStore, NetworkId> networkIdType) {
-        AtomicInteger visuals = new AtomicInteger();
-        AtomicInteger materialized = new AtomicInteger();
+        AtomicIntegerArray counters = new AtomicIntegerArray(VISUAL_COUNTERS);
         store.forEachEntityParallel(attachmentType, (index, chunk, commandBuffer) -> {
             PhysicsBodyAttachmentComponent attachment = chunk.getComponent(index, attachmentType);
             if (attachment == null || attachment.getLifecycle() != AttachmentLifecycle.GENERATED_PROXY) {
                 return;
             }
-            visuals.incrementAndGet();
+            counters.incrementAndGet(VISUAL_VISUALS);
             if (chunk.getComponent(index, transformType) != null
                 && chunk.getComponent(index, networkIdType) != null) {
-                materialized.incrementAndGet();
+                counters.incrementAndGet(VISUAL_MATERIALIZED);
             }
         });
-        return new VisualFootprint(visuals.get(), materialized.get());
+        return new VisualFootprint(counters.get(VISUAL_VISUALS),
+            counters.get(VISUAL_MATERIALIZED));
     }
 
     private static int count(@Nonnull Store<EntityStore> store,

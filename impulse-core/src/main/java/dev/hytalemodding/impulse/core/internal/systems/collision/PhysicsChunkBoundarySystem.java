@@ -24,7 +24,7 @@ import dev.hytalemodding.impulse.core.internal.resources.chunk.PhysicsChunkBound
 import dev.hytalemodding.impulse.core.internal.systems.sync.PhysicsSyncSystem;
 import dev.hytalemodding.impulse.core.internal.worker.PhysicsWorkerAccess;
 import dev.hytalemodding.impulse.core.plugin.settings.EntityChunkBoundaryMode;
-import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyId;
+import dev.hytalemodding.impulse.core.plugin.body.RigidBodyKey;
 import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyKind;
 import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyRegistrationView;
 import dev.hytalemodding.impulse.core.plugin.settings.PhysicsSpaceSettings;
@@ -36,7 +36,7 @@ import javax.annotation.Nonnull;
 /**
  * Keeps registered dynamic physics bodies from drifting into unloaded chunks.
  *
- * <p>The body id is the identity boundary here. Entity views may be absent, stale,
+ * <p>The body key is the identity boundary here. Entity views may be absent, stale,
  * or generated later, so this system uses the body's last known safe pose instead
  * of entity transforms.</p>
  */
@@ -75,8 +75,8 @@ public class PhysicsChunkBoundarySystem extends TickingSystem<EntityStore> {
             return;
         }
 
-        PhysicsBodyId bodyId = registration.id();
-        PhysicsBodySnapshot snapshot = resource.getBodySnapshot(bodyId);
+        RigidBodyKey bodyKey = registration.id();
+        PhysicsBodySnapshot snapshot = resource.getBodySnapshot(bodyKey);
         if (snapshot.isStatic()) {
             return;
         }
@@ -84,9 +84,9 @@ public class PhysicsChunkBoundarySystem extends TickingSystem<EntityStore> {
         PhysicsSpaceSettings settings = resource.getLiveSpaceSettings(registration.spaceId());
         EntityChunkBoundaryMode mode = settings.getWorldCollisionSettings().getEntityChunkBoundaryMode();
         PhysicsChunkBoundaryRuntime.ChunkBoundaryPauseState pauseState =
-            resource.getChunkBoundaryPauseState(bodyId);
+            resource.getChunkBoundaryPauseState(bodyKey);
         if (pauseState != null) {
-            handlePausedBody(bodyId,
+            handlePausedBody(bodyKey,
                 snapshot,
                 pauseState,
                 mode,
@@ -97,9 +97,9 @@ public class PhysicsChunkBoundarySystem extends TickingSystem<EntityStore> {
             return;
         }
 
-        long targetChunkIndex = chunkIndex(snapshot.position().x, snapshot.position().z);
+        long targetChunkIndex = chunkIndex(snapshot.positionX(), snapshot.positionZ());
         if (isChunkTicking(targetChunkIndex, chunkStore, chunkComponentStore)) {
-            recordSafePose(bodyId, snapshot, resource);
+            recordSafePose(bodyKey, snapshot, resource);
             return;
         }
 
@@ -109,10 +109,10 @@ public class PhysicsChunkBoundarySystem extends TickingSystem<EntityStore> {
         }
 
         PhysicsWorkerAccess.run(store, "pause chunk-boundary physics body",
-            () -> pauseBody(bodyId, snapshot, targetChunkIndex, resource));
+            () -> pauseBody(bodyKey, snapshot, targetChunkIndex, resource));
     }
 
-    private void handlePausedBody(@Nonnull PhysicsBodyId bodyId,
+    private void handlePausedBody(@Nonnull RigidBodyKey bodyKey,
         @Nonnull PhysicsBodySnapshot snapshot,
         @Nonnull PhysicsChunkBoundaryRuntime.ChunkBoundaryPauseState pauseState,
         @Nonnull EntityChunkBoundaryMode mode,
@@ -130,7 +130,7 @@ public class PhysicsChunkBoundarySystem extends TickingSystem<EntityStore> {
         }
 
         PhysicsWorkerAccess.run(entityStore, "resume chunk-boundary physics body", () -> {
-            PhysicsBody body = resource.getBody(bodyId);
+            PhysicsBody body = resource.getBody(bodyKey);
             if (body == null) {
                 return;
             }
@@ -138,34 +138,32 @@ public class PhysicsChunkBoundarySystem extends TickingSystem<EntityStore> {
             body.setLinearVelocity(pauseState.getLinearVelocity());
             body.setAngularVelocity(pauseState.getAngularVelocity());
             body.activate();
-            resource.clearChunkBoundaryPauseState(bodyId);
-            recordSafePose(bodyId, snapshot, resource);
+            resource.clearChunkBoundaryPauseState(bodyKey);
+            recordSafePose(bodyKey, snapshot, resource);
         });
     }
 
-    static void pauseBody(@Nonnull PhysicsBodyId bodyId,
+    static void pauseBody(@Nonnull RigidBodyKey bodyKey,
         @Nonnull PhysicsBodySnapshot snapshot,
         long targetChunkIndex,
         @Nonnull PhysicsWorldRuntimeResource resource) {
-        PhysicsBody body = resource.getBody(bodyId);
+        PhysicsBody body = resource.getBody(bodyKey);
         if (body == null) {
             return;
         }
-        pauseBody(bodyId, body, snapshot, targetChunkIndex, resource);
+        pauseBody(bodyKey, body, snapshot, targetChunkIndex, resource);
     }
 
-    static void pauseBody(@Nonnull PhysicsBodyId bodyId,
+    static void pauseBody(@Nonnull RigidBodyKey bodyKey,
         @Nonnull PhysicsBody body,
         @Nonnull PhysicsBodySnapshot snapshot,
         long targetChunkIndex,
         @Nonnull PhysicsWorldRuntimeResource resource) {
         ChunkBoundarySafeState safeState =
-            resource.getChunkBoundarySafeState(bodyId);
-        resource.pauseChunkBoundaryBody(bodyId,
+            resource.getChunkBoundarySafeState(bodyKey);
+        resource.pauseChunkBoundaryBody(bodyKey,
             targetChunkIndex,
-            snapshot.bodyType(),
-            snapshot.linearVelocity(),
-            snapshot.angularVelocity());
+            snapshot);
 
         if (safeState != null) {
             body.setPosition(safeState.getPosition());
@@ -180,10 +178,10 @@ public class PhysicsChunkBoundarySystem extends TickingSystem<EntityStore> {
         body.clearForces();
     }
 
-    static void recordSafePose(@Nonnull PhysicsBodyId bodyId,
+    static void recordSafePose(@Nonnull RigidBodyKey bodyKey,
         @Nonnull PhysicsBodySnapshot snapshot,
         @Nonnull PhysicsWorldRuntimeResource resource) {
-        resource.updateChunkBoundarySafeState(bodyId, snapshot.position(), snapshot.rotation());
+        resource.updateChunkBoundarySafeState(bodyKey, snapshot);
     }
 
     private void requestTickingChunk(@Nonnull ChunkStore chunkStore, long chunkIndex) {

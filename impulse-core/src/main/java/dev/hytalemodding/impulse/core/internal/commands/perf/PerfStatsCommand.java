@@ -6,16 +6,13 @@ import com.hypixel.hytale.server.core.command.system.CommandContext;
 import com.hypixel.hytale.server.core.command.system.basecommands.AbstractWorldCommand;
 import com.hypixel.hytale.server.core.universe.world.World;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
-import dev.hytalemodding.impulse.api.PhysicsBody;
-import dev.hytalemodding.impulse.api.PhysicsSpace;
-import dev.hytalemodding.impulse.api.ShapeType;
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsWorldRuntimeResource;
-import dev.hytalemodding.impulse.core.internal.voxel.WorldVoxelCollisionCache;
-import dev.hytalemodding.impulse.core.internal.worker.PhysicsWorkerAccess;
-import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyKind;
-import dev.hytalemodding.impulse.core.internal.resources.body.PhysicsBodyRegistration;
+import dev.hytalemodding.impulse.core.internal.simulation.PhysicsSpaceRuntimeStatsQuery;
+import dev.hytalemodding.impulse.core.internal.simulation.PhysicsSpaceRuntimeStatsView;
 import dev.hytalemodding.impulse.core.plugin.resources.PhysicsWorldResource;
-import java.util.Collection;
+import dev.hytalemodding.impulse.core.plugin.simulation.SpaceSummary;
+import dev.hytalemodding.impulse.core.plugin.simulation.SpaceSummaryQuery;
+import java.util.List;
 import javax.annotation.Nonnull;
 
 public class PerfStatsCommand extends AbstractWorldCommand {
@@ -30,7 +27,10 @@ public class PerfStatsCommand extends AbstractWorldCommand {
         @Nonnull Store<EntityStore> store) {
         PhysicsWorldResource resource = store.getResource(PhysicsWorldResource.getResourceType());
         PhysicsWorldRuntimeResource runtime = PhysicsWorldRuntimeResource.require(resource);
-        Collection<PhysicsSpace> spaces = runtime.getSpaces();
+        List<SpaceSummary> spaces = resource.query(new SpaceSummaryQuery(null))
+            .completion()
+            .toCompletableFuture()
+            .join();
         if (spaces.isEmpty()) {
             ctx.sender().sendMessage(Message.raw("Impulse runtime stats: no physics spaces in world "
                 + world.getName() + "."));
@@ -38,16 +38,16 @@ public class PerfStatsCommand extends AbstractWorldCommand {
         }
 
         SpaceStats totals = new SpaceStats();
-        WorldVoxelCollisionCache cache = runtime.worldCollisionCache();
         ctx.sender().sendMessage(Message.raw("Impulse runtime stats for world " + world.getName()
             + ": spaces=" + spaces.size()));
-        for (PhysicsSpace space : spaces) {
-            SpaceStats stats = PhysicsWorkerAccess.call(store,
-                "collect perf stats for space " + space.getId().value(),
-                () -> collectSpaceStats(runtime, cache, space));
+        for (SpaceSummary space : spaces) {
+            SpaceStats stats = SpaceStats.from(runtime.queryInternal(
+                    new PhysicsSpaceRuntimeStatsQuery(space.spaceId()))
+                .toCompletableFuture()
+                .join());
             totals.add(stats);
-            ctx.sender().sendMessage(Message.raw("Space " + space.getId().value()
-                + " backend=" + space.getBackendId().value()
+            ctx.sender().sendMessage(Message.raw("Space " + space.spaceId().value()
+                + " backend=" + space.backendId().value()
                 + " bodies=" + stats.bodies
                 + " dynamic=" + stats.dynamicBodies
                 + " awake=" + stats.awakeDynamicBodies
@@ -77,60 +77,6 @@ public class PerfStatsCommand extends AbstractWorldCommand {
             + " contacts=" + totals.contacts));
     }
 
-    @Nonnull
-    private static SpaceStats collectSpaceStats(@Nonnull PhysicsWorldRuntimeResource resource,
-        @Nonnull WorldVoxelCollisionCache cache,
-        @Nonnull PhysicsSpace space) {
-        SpaceStats stats = new SpaceStats();
-        space.forEachBody(body -> classifyBody(resource, cache, space, body, stats));
-        stats.joints = space.jointCount();
-        stats.contacts = space.getContacts().size();
-        return stats;
-    }
-
-    private static void classifyBody(@Nonnull PhysicsWorldRuntimeResource resource,
-        @Nonnull WorldVoxelCollisionCache cache,
-        @Nonnull PhysicsSpace space,
-        @Nonnull PhysicsBody body,
-        @Nonnull SpaceStats stats) {
-        stats.bodies++;
-        if (body.isDynamic()) {
-            stats.dynamicBodies++;
-            if (body.isSleeping()) {
-                stats.sleepingDynamicBodies++;
-            } else {
-                stats.awakeDynamicBodies++;
-            }
-        } else if (body.isKinematic()) {
-            stats.kinematicBodies++;
-        } else {
-            stats.staticBodies++;
-        }
-
-        PhysicsBodyRegistration registration = resource.getBodyRegistration(body);
-        if (registration != null && registration.kind() == PhysicsBodyKind.BODY) {
-            if (resource.getBodyAttachments(registration.id()).isEmpty()) {
-                stats.detachedBodies++;
-            } else {
-                stats.entityOwnedBodies++;
-            }
-            return;
-        }
-        if (registration != null && registration.kind() == PhysicsBodyKind.WORLD_COLLISION) {
-            stats.worldCollisionBodies++;
-            return;
-        }
-        if (body.getShapeType() == ShapeType.PLANE) {
-            stats.planeBodies++;
-            return;
-        }
-        if (cache.containsBody(space.getId(), body)) {
-            stats.worldCollisionBodies++;
-            return;
-        }
-        stats.rawBodies++;
-    }
-
     private static final class SpaceStats {
 
         private int bodies;
@@ -146,6 +92,25 @@ public class PerfStatsCommand extends AbstractWorldCommand {
         private int rawBodies;
         private int joints;
         private int contacts;
+
+        @Nonnull
+        private static SpaceStats from(@Nonnull PhysicsSpaceRuntimeStatsView view) {
+            SpaceStats stats = new SpaceStats();
+            stats.bodies = view.bodies();
+            stats.dynamicBodies = view.dynamicBodies();
+            stats.awakeDynamicBodies = view.awakeDynamicBodies();
+            stats.sleepingDynamicBodies = view.sleepingDynamicBodies();
+            stats.staticBodies = view.staticBodies();
+            stats.kinematicBodies = view.kinematicBodies();
+            stats.entityOwnedBodies = view.entityOwnedBodies();
+            stats.detachedBodies = view.detachedBodies();
+            stats.worldCollisionBodies = view.worldCollisionBodies();
+            stats.planeBodies = view.planeBodies();
+            stats.rawBodies = view.rawBodies();
+            stats.joints = view.joints();
+            stats.contacts = view.contacts();
+            return stats;
+        }
 
         private void add(@Nonnull SpaceStats stats) {
             bodies += stats.bodies;

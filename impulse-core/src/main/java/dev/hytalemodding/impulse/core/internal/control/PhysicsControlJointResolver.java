@@ -2,8 +2,8 @@ package dev.hytalemodding.impulse.core.internal.control;
 
 import dev.hytalemodding.impulse.api.PhysicsJoint;
 import dev.hytalemodding.impulse.api.PhysicsSpace;
-import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyId;
-import dev.hytalemodding.impulse.core.plugin.execution.PhysicsOwnerAccess;
+import dev.hytalemodding.impulse.core.plugin.body.RigidBodyKey;
+import dev.hytalemodding.impulse.core.plugin.simulation.PhysicsOwnerAccess;
 import java.util.ArrayList;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
@@ -15,12 +15,12 @@ public final class PhysicsControlJointResolver {
 
     public static boolean removeControlJoint(@Nonnull PhysicsOwnerAccess access,
         @Nonnull PhysicsSpace space,
-        @Nonnull PhysicsBodyId bodyId,
-        @Nonnull PhysicsBodyId anchorBodyId) {
+        @Nonnull RigidBodyKey bodyKey,
+        @Nonnull RigidBodyKey anchorBodyKey) {
         for (PhysicsJoint joint : new ArrayList<>(space.getJoints())) {
-            PhysicsBodyId bodyAId = access.getBodyId(joint.getBodyA());
-            PhysicsBodyId bodyBId = access.getBodyId(joint.getBodyB());
-            if (isControlJoint(bodyAId, bodyBId, bodyId, anchorBodyId)) {
+            RigidBodyKey bodyAKey = access.getBodyKey(joint.getBodyA());
+            RigidBodyKey bodyBKey = access.getBodyKey(joint.getBodyB());
+            if (isControlJoint(bodyAKey, bodyBKey, bodyKey, anchorBodyKey)) {
                 space.removeJoint(joint);
                 return true;
             }
@@ -28,11 +28,11 @@ public final class PhysicsControlJointResolver {
         return false;
     }
 
-    private static boolean isControlJoint(@Nullable PhysicsBodyId bodyAId,
-        @Nullable PhysicsBodyId bodyBId,
-        @Nonnull PhysicsBodyId bodyId,
-        @Nonnull PhysicsBodyId anchorBodyId) {
-        return (anchorBodyId.equals(bodyAId) && bodyId.equals(bodyBId))
-            || (anchorBodyId.equals(bodyBId) && bodyId.equals(bodyAId));
+    private static boolean isControlJoint(@Nullable RigidBodyKey bodyAKey,
+        @Nullable RigidBodyKey bodyBKey,
+        @Nonnull RigidBodyKey bodyKey,
+        @Nonnull RigidBodyKey anchorBodyKey) {
+        return (anchorBodyKey.equals(bodyAKey) && bodyKey.equals(bodyBKey))
+            || (anchorBodyKey.equals(bodyBKey) && bodyKey.equals(bodyAKey));
     }
 }

@@ -1,6 +1,6 @@
 package dev.hytalemodding.impulse.core.internal.control;
 
-import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyId;
+import dev.hytalemodding.impulse.core.plugin.body.RigidBodyKey;
 import it.unimi.dsi.fastutil.objects.ObjectOpenHashSet;
 import java.util.Set;
 import javax.annotation.Nonnull;
@@ -10,22 +10,22 @@ import javax.annotation.Nonnull;
  */
 public final class PhysicsControlRuntimeState {
 
-    private final Set<PhysicsBodyId> controlledBodies = new ObjectOpenHashSet<>();
+    private final Set<RigidBodyKey> controlledBodies = new ObjectOpenHashSet<>();
 
-    public void markBodyControlled(@Nonnull PhysicsBodyId bodyId) {
-        controlledBodies.add(bodyId);
+    public void markBodyControlled(@Nonnull RigidBodyKey bodyKey) {
+        controlledBodies.add(bodyKey);
     }
 
-    public void clearControlledBody(@Nonnull PhysicsBodyId bodyId) {
-        controlledBodies.remove(bodyId);
+    public void clearControlledBody(@Nonnull RigidBodyKey bodyKey) {
+        controlledBodies.remove(bodyKey);
     }
 
-    public boolean isBodyControlled(@Nonnull PhysicsBodyId bodyId) {
-        return controlledBodies.contains(bodyId);
+    public boolean isBodyControlled(@Nonnull RigidBodyKey bodyKey) {
+        return controlledBodies.contains(bodyKey);
     }
 
-    public void clearBody(@Nonnull PhysicsBodyId bodyId) {
-        controlledBodies.remove(bodyId);
+    public void clearBody(@Nonnull RigidBodyKey bodyKey) {
+        controlledBodies.remove(bodyKey);
     }
 
     public void clear() {

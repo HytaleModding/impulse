@@ -10,7 +10,7 @@ import com.hypixel.hytale.math.vector.Vector3fUtil;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import dev.hytalemodding.impulse.api.SpaceId;
 import dev.hytalemodding.impulse.core.ImpulsePlugin;
-import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyId;
+import dev.hytalemodding.impulse.core.plugin.body.RigidBodyKey;
 import dev.hytalemodding.impulse.core.plugin.codec.ImpulseCodecs;
 import java.util.UUID;
 import javax.annotation.Nonnull;
@@ -21,7 +21,7 @@ import org.joml.Quaternionf;
 import org.joml.Vector3f;
 
 /**
- * Runtime attachment from a Hytale entity to an Impulse body id.
+ * Runtime attachment from a Hytale entity to an Impulse body key.
  *
  * <p>The entity is a gameplay or visual representation. It does not own backend
  * body destruction; removing the entity only removes this attachment unless the
@@ -34,10 +34,10 @@ public class PhysicsBodyAttachmentComponent implements Component<EntityStore> {
             PhysicsBodyAttachmentComponent.class,
             PhysicsBodyAttachmentComponent::new)
         .append(new KeyedCodec<>("BodyId", Codec.UUID_BINARY, false),
-            (component, value) -> component.bodyId = value != null
-                ? PhysicsBodyId.of(value)
-                : PhysicsBodyId.random(),
-            PhysicsBodyAttachmentComponent::getBodyIdValue)
+            (component, value) -> component.bodyKey = value != null
+                ? RigidBodyKey.of(value)
+                : RigidBodyKey.random(),
+            PhysicsBodyAttachmentComponent::getBodyKeyValue)
         .add()
         .append(new KeyedCodec<>("SpaceId", Codec.INTEGER, false),
             (component, value) -> component.spaceId = value != null && value > 0
@@ -71,8 +71,7 @@ public class PhysicsBodyAttachmentComponent implements Component<EntityStore> {
         .add()
         .build();
 
-    @Setter
-    private PhysicsBodyId bodyId = PhysicsBodyId.random();
+    private RigidBodyKey bodyKey = RigidBodyKey.random();
 
     @Setter
     @Getter
@@ -96,9 +95,9 @@ public class PhysicsBodyAttachmentComponent implements Component<EntityStore> {
     public PhysicsBodyAttachmentComponent() {
     }
 
-    public PhysicsBodyAttachmentComponent(@Nonnull PhysicsBodyId bodyId,
+    public PhysicsBodyAttachmentComponent(@Nonnull RigidBodyKey bodyKey,
         @Nullable SpaceId spaceId) {
-        this(bodyId,
+        this(bodyKey,
             spaceId,
             TransformAuthority.BODY,
             AttachmentLifecycle.EXTERNAL_ENTITY,
@@ -106,20 +105,20 @@ public class PhysicsBodyAttachmentComponent implements Component<EntityStore> {
             new Quaternionf());
     }
 
-    public PhysicsBodyAttachmentComponent(@Nonnull PhysicsBodyId bodyId,
+    public PhysicsBodyAttachmentComponent(@Nonnull RigidBodyKey bodyKey,
         @Nullable SpaceId spaceId,
         @Nonnull TransformAuthority transformAuthority,
         @Nonnull AttachmentLifecycle lifecycle) {
-        this(bodyId, spaceId, transformAuthority, lifecycle, new Vector3f(), new Quaternionf());
+        this(bodyKey, spaceId, transformAuthority, lifecycle, new Vector3f(), new Quaternionf());
     }
 
-    public PhysicsBodyAttachmentComponent(@Nonnull PhysicsBodyId bodyId,
+    public PhysicsBodyAttachmentComponent(@Nonnull RigidBodyKey bodyKey,
         @Nullable SpaceId spaceId,
         @Nonnull TransformAuthority transformAuthority,
         @Nonnull AttachmentLifecycle lifecycle,
         @Nonnull Vector3f localPositionOffset,
         @Nonnull Quaternionf localRotationOffset) {
-        this.bodyId = bodyId;
+        this.bodyKey = bodyKey;
         this.spaceId = spaceId;
         this.transformAuthority = transformAuthority;
         this.lifecycle = lifecycle;
@@ -133,9 +132,9 @@ public class PhysicsBodyAttachmentComponent implements Component<EntityStore> {
      * <p>The entity follows the body but does not own backend body destruction.</p>
      */
     @Nonnull
-    public static PhysicsBodyAttachmentComponent externalEntity(@Nonnull PhysicsBodyId bodyId,
+    public static PhysicsBodyAttachmentComponent externalEntity(@Nonnull RigidBodyKey bodyKey,
         @Nullable SpaceId spaceId) {
-        return new PhysicsBodyAttachmentComponent(bodyId,
+        return new PhysicsBodyAttachmentComponent(bodyKey,
             spaceId,
             TransformAuthority.BODY,
             AttachmentLifecycle.EXTERNAL_ENTITY);
@@ -145,11 +144,11 @@ public class PhysicsBodyAttachmentComponent implements Component<EntityStore> {
      * Creates the normal external-entity attachment with a local transform offset.
      */
     @Nonnull
-    public static PhysicsBodyAttachmentComponent externalEntity(@Nonnull PhysicsBodyId bodyId,
+    public static PhysicsBodyAttachmentComponent externalEntity(@Nonnull RigidBodyKey bodyKey,
         @Nullable SpaceId spaceId,
         @Nonnull Vector3f localPositionOffset,
         @Nonnull Quaternionf localRotationOffset) {
-        return new PhysicsBodyAttachmentComponent(bodyId,
+        return new PhysicsBodyAttachmentComponent(bodyKey,
             spaceId,
             TransformAuthority.BODY,
             AttachmentLifecycle.EXTERNAL_ENTITY,
@@ -158,8 +157,21 @@ public class PhysicsBodyAttachmentComponent implements Component<EntityStore> {
     }
 
     @Nonnull
-    public PhysicsBodyId getBodyId() {
-        return bodyId;
+    public RigidBodyKey getBodyId() {
+        return bodyKey;
+    }
+
+    @Nonnull
+    public RigidBodyKey getBodyKey() {
+        return bodyKey;
+    }
+
+    public void setBodyId(@Nonnull RigidBodyKey bodyKey) {
+        setBodyKey(bodyKey);
+    }
+
+    public void setBodyKey(@Nonnull RigidBodyKey bodyKey) {
+        this.bodyKey = bodyKey;
     }
 
     @Nonnull
@@ -177,8 +189,8 @@ public class PhysicsBodyAttachmentComponent implements Component<EntityStore> {
     }
 
     @Nonnull
-    private UUID getBodyIdValue() {
-        return bodyId.value();
+    private UUID getBodyKeyValue() {
+        return bodyKey.value();
     }
 
     @Nullable
@@ -189,7 +201,7 @@ public class PhysicsBodyAttachmentComponent implements Component<EntityStore> {
     @Nonnull
     @Override
     public PhysicsBodyAttachmentComponent clone() {
-        return new PhysicsBodyAttachmentComponent(bodyId,
+        return new PhysicsBodyAttachmentComponent(bodyKey,
             spaceId,
             transformAuthority,
             lifecycle,

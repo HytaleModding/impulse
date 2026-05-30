@@ -15,7 +15,7 @@ import dev.hytalemodding.impulse.core.internal.persistence.PersistentPhysicsBody
 import dev.hytalemodding.impulse.core.internal.persistence.PersistentPhysicsWorldResource;
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsWorldRuntimeResource;
 import dev.hytalemodding.impulse.core.internal.worker.PhysicsWorkerAccess;
-import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyId;
+import dev.hytalemodding.impulse.core.plugin.body.RigidBodyKey;
 import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyKind;
 import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyPersistenceMode;
 import dev.hytalemodding.impulse.core.plugin.resources.PhysicsWorldResource;
@@ -23,7 +23,7 @@ import java.util.Set;
 import javax.annotation.Nonnull;
 
 /**
- * Restores world-level body states keyed by {@link PhysicsBodyId}.
+ * Restores world-level body states keyed by {@link RigidBodyKey}.
  */
 public class PersistentPhysicsBodyHydrationSystem extends TickingSystem<EntityStore> {
 
@@ -46,12 +46,12 @@ public class PersistentPhysicsBodyHydrationSystem extends TickingSystem<EntitySt
 
         PhysicsWorldRuntimeResource runtime = PhysicsWorldRuntimeResource.require(store);
         for (PersistentPhysicsBodyState state : persistent.getBodies()) {
-            PhysicsBodyId bodyId = state.getBodyId();
-            if (bodyId == null) {
-                persistent.recordRuntimeBodySkipped("missing body id");
+            RigidBodyKey bodyKey = state.getBodyKey();
+            if (bodyKey == null) {
+                persistent.recordRuntimeBodySkipped("missing body key");
                 continue;
             }
-            if (runtime.getBodyRegistrationView(bodyId) != null) {
+            if (runtime.getBodyRegistrationView(bodyKey) != null) {
                 continue;
             }
 
@@ -75,7 +75,7 @@ public class PersistentPhysicsBodyHydrationSystem extends TickingSystem<EntitySt
                     }
                     PhysicsBody body = state.createBody(space);
                     state.applyToBody(body);
-                    runtime.addBody(bodyId,
+                    runtime.addBody(bodyKey,
                         space.getId(),
                         body,
                         PhysicsBodyKind.BODY,

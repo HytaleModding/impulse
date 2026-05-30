@@ -57,9 +57,9 @@ public final class PhysicsControlSessionCleanupSystem
 
     private static boolean sameSessionOwner(@Nonnull PhysicsControlSessionComponent first,
         @Nonnull PhysicsControlSessionComponent second) {
-        return Objects.equals(first.getBodyId(), second.getBodyId())
-            && Objects.equals(first.getAnchorBodyId(), second.getAnchorBodyId())
-            && Objects.equals(first.getControlJointId(), second.getControlJointId())
+        return Objects.equals(first.getBodyKey(), second.getBodyKey())
+            && Objects.equals(first.getAnchorBodyKey(), second.getAnchorBodyKey())
+            && Objects.equals(first.getControlJointKey(), second.getControlJointKey())
             && Objects.equals(first.getSpaceId(), second.getSpaceId());
     }
 }

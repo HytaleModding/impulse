@@ -40,7 +40,7 @@ import org.joml.Vector3f;
  * hydrated bodies, and hydrated joints are all settled before this system reads
  * body transforms.</p>
  *
- * <p>Entities attach to body ids. Backend body destruction is explicit at the
+ * <p>Entities attach to body keys. Backend body destruction is explicit at the
  * world resource boundary; missing generated visual proxies are removed, while
  * gameplay entities merely lose the attachment.</p>
  */
@@ -127,9 +127,9 @@ public class PhysicsSyncSystem extends EntityTickingSystem<EntityStore> {
             collector.incrementBodiesInspected();
         }
         PhysicsBodyRegistrationView registration =
-            resource.getBodyRegistrationView(attachment.getBodyId());
+            resource.getBodyRegistrationView(attachment.getBodyKey());
         if (registration == null) {
-            if (resource.isBodyCreationPending(attachment.getBodyId())) {
+            if (resource.isBodyCreationPending(attachment.getBodyKey())) {
                 return;
             }
             GeneratedProxyLifecycle.clearMissingAttachment(entityRef, attachment, resource, commandBuffer);
@@ -154,16 +154,16 @@ public class PhysicsSyncSystem extends EntityTickingSystem<EntityStore> {
         }
 
         PhysicsSpaceSettings settings = resolveSpaceSettings(resource, spaceId);
-        local.position.set(snapshot.position());
-        local.rotation.set(snapshot.rotation());
+        snapshot.copyPositionTo(local.position);
+        snapshot.copyRotationTo(local.rotation);
         applyVisualPose(snapshot, attachment, local);
 
         boolean sleeping = snapshot.sleeping();
         boolean controlled = resource.isBodyControlled(registration.id());
         boolean lowSpeed = false;
         if (!sleeping && snapshot.isDynamic() && !controlled) {
-            local.linearVelocity.set(snapshot.linearVelocity());
-            local.angularVelocity.set(snapshot.angularVelocity());
+            snapshot.copyLinearVelocityTo(local.linearVelocity);
+            snapshot.copyAngularVelocityTo(local.angularVelocity);
             lowSpeed = local.linearVelocity.lengthSquared() <= LOW_SPEED_LINEAR_THRESHOLD_SQUARED
                 && local.angularVelocity.lengthSquared() <= LOW_SPEED_ANGULAR_THRESHOLD_SQUARED;
         }
@@ -177,8 +177,8 @@ public class PhysicsSyncSystem extends EntityTickingSystem<EntityStore> {
             playerInterests.get(),
             local.visualPosition);
         if (rangeTier == PhysicsSyncPolicy.SyncRangeTier.NEAR) {
-            local.position.set(snapshot.position());
-            local.rotation.set(snapshot.rotation());
+            snapshot.copyPositionTo(local.position);
+            snapshot.copyRotationTo(local.rotation);
             applySnapshotPrediction(snapshot,
                 PhysicsSyncPolicy.visualPredictionSeconds(settings,
                     syncNanos.get(),
@@ -300,12 +300,12 @@ public class PhysicsSyncSystem extends EntityTickingSystem<EntityStore> {
             return;
         }
 
-        scratch.linearVelocity.set(snapshot.linearVelocity());
+        snapshot.copyLinearVelocityTo(scratch.linearVelocity);
         if (isFinite(scratch.linearVelocity)) {
             scratch.position.fma(predictionSeconds, scratch.linearVelocity);
         }
 
-        scratch.angularVelocity.set(snapshot.angularVelocity());
+        snapshot.copyAngularVelocityTo(scratch.angularVelocity);
         if (!isFinite(scratch.angularVelocity)) {
             return;
         }

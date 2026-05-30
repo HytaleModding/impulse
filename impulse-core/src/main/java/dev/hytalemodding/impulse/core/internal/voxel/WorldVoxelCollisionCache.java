@@ -16,14 +16,13 @@ import dev.hytalemodding.impulse.core.internal.resources.profiling.WorldCollisio
 import dev.hytalemodding.impulse.core.internal.resources.profiling.WorldCollisionProfilingResource.Snapshot;
 import dev.hytalemodding.impulse.core.internal.resources.profiling.WorldCollisionProfilingResource.StreamingTargetDiagnostic;
 import dev.hytalemodding.impulse.core.internal.voxel.SectionCollisionGeometry.BoxCollider;
-import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyId;
+import dev.hytalemodding.impulse.core.plugin.body.RigidBodyKey;
 import it.unimi.dsi.fastutil.ints.Int2ObjectMap;
 import it.unimi.dsi.fastutil.ints.Int2ObjectOpenHashMap;
 import it.unimi.dsi.fastutil.longs.Long2LongMap;
 import it.unimi.dsi.fastutil.longs.Long2LongOpenHashMap;
 import it.unimi.dsi.fastutil.longs.Long2ObjectMap;
 import it.unimi.dsi.fastutil.longs.Long2ObjectOpenHashMap;
-import it.unimi.dsi.fastutil.longs.LongOpenHashSet;
 import it.unimi.dsi.fastutil.longs.LongSet;
 import it.unimi.dsi.fastutil.objects.Object2ObjectMap;
 import it.unimi.dsi.fastutil.objects.Object2ObjectOpenHashMap;
@@ -82,16 +81,16 @@ public final class WorldVoxelCollisionCache {
 
     @Nonnull
     public TargetRefreshDecision shouldRefreshBodyTarget(@Nonnull SpaceId spaceId,
-        @Nonnull PhysicsBodyId bodyId,
+        @Nonnull RigidBodyKey bodyKey,
         @Nonnull WorldCollisionStreamingBounds bounds,
         boolean sleeping,
         long currentTick,
         int ttlTicks,
         @Nullable Snapshot profiling) {
         SpaceCollisionCache cache = spaces.computeIfAbsent(spaceId.value(), ignored -> new SpaceCollisionCache());
-        CachedBodyStreamingTarget target = cache.bodyTargets.get(bodyId);
+        CachedBodyStreamingTarget target = cache.bodyTargets.get(bodyKey);
         if (target == null) {
-            cache.bodyTargets.put(bodyId, new CachedBodyStreamingTarget(bounds,
+            cache.bodyTargets.put(bodyKey, new CachedBodyStreamingTarget(bounds,
                 sleeping,
                 currentTick,
                 currentTick));
@@ -152,7 +151,7 @@ public final class WorldVoxelCollisionCache {
 
         long maxAge = Math.max(1L, ttlTicks) * 2L;
         int removed = 0;
-        Iterator<Object2ObjectMap.Entry<PhysicsBodyId, CachedBodyStreamingTarget>> iterator =
+        Iterator<Object2ObjectMap.Entry<RigidBodyKey, CachedBodyStreamingTarget>> iterator =
             cache.bodyTargets.object2ObjectEntrySet().iterator();
         while (iterator.hasNext()) {
             CachedBodyStreamingTarget target = iterator.next().getValue();
@@ -874,13 +873,7 @@ public final class WorldVoxelCollisionCache {
     }
 
     private static void pruneExpiredMissingBackoffs(@Nonnull Long2LongMap backoffs, long currentTick) {
-        Iterator<Long2LongMap.Entry> iterator = backoffs.long2LongEntrySet().iterator();
-        while (iterator.hasNext()) {
-            Long2LongMap.Entry entry = iterator.next();
-            if (currentTick >= entry.getLongValue()) {
-                iterator.remove();
-            }
-        }
+        backoffs.long2LongEntrySet().removeIf(entry -> currentTick >= entry.getLongValue());
     }
 
     private static void removeSectionBackoffsForChunk(@Nonnull SpaceCollisionCache cache,
@@ -920,7 +913,7 @@ public final class WorldVoxelCollisionCache {
     private static final class SpaceCollisionCache {
 
         private final Long2ObjectMap<CachedSection> sections = new Long2ObjectOpenHashMap<>();
-        private final Object2ObjectMap<PhysicsBodyId, CachedBodyStreamingTarget> bodyTargets =
+        private final Object2ObjectMap<RigidBodyKey, CachedBodyStreamingTarget> bodyTargets =
             new Object2ObjectOpenHashMap<>();
         private final Long2LongMap missingBlockChunkBackoffs = new Long2LongOpenHashMap();
         private final Long2LongMap missingBlockSectionBackoffs = new Long2LongOpenHashMap();
@@ -930,7 +923,7 @@ public final class WorldVoxelCollisionCache {
 
         private SpaceCollisionCache(@Nonnull SpaceCollisionCache other) {
             sections.putAll(other.sections);
-            for (Object2ObjectMap.Entry<PhysicsBodyId, CachedBodyStreamingTarget> entry
+            for (Object2ObjectMap.Entry<RigidBodyKey, CachedBodyStreamingTarget> entry
                 : other.bodyTargets.object2ObjectEntrySet()) {
                 bodyTargets.put(entry.getKey(), new CachedBodyStreamingTarget(entry.getValue()));
             }

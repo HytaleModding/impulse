@@ -12,7 +12,7 @@ import dev.hytalemodding.impulse.api.PhysicsBodyType;
 import dev.hytalemodding.impulse.api.PhysicsSpace;
 import dev.hytalemodding.impulse.api.ShapeType;
 import dev.hytalemodding.impulse.api.SpaceId;
-import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyId;
+import dev.hytalemodding.impulse.core.plugin.body.RigidBodyKey;
 import dev.hytalemodding.impulse.core.internal.resources.body.PhysicsBodyRegistration;
 import dev.hytalemodding.impulse.core.plugin.codec.ImpulseCodecs;
 import dev.hytalemodding.impulse.core.plugin.resources.PhysicsWorldResource;
@@ -218,8 +218,13 @@ public class PersistentPhysicsBodyState {
     }
 
     @Nullable
-    public PhysicsBodyId getBodyId() {
-        return bodyId != null ? PhysicsBodyId.of(bodyId) : null;
+    public RigidBodyKey getBodyId() {
+        return getBodyKey();
+    }
+
+    @Nullable
+    public RigidBodyKey getBodyKey() {
+        return bodyId != null ? RigidBodyKey.of(bodyId) : null;
     }
 
     @Nullable
@@ -274,7 +279,7 @@ public class PersistentPhysicsBodyState {
     @Nullable
     public String restoreValidationFailureReason() {
         if (bodyId == null) {
-            return "missing body id";
+            return "missing body key";
         }
         if (shapeType == ShapeType.UNKNOWN || shapeType == ShapeType.VOXELS) {
             return "unsupported body shape";

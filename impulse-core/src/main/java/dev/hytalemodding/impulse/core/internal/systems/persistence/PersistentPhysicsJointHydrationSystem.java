@@ -18,7 +18,7 @@ import dev.hytalemodding.impulse.core.internal.persistence.PersistentPhysicsRunt
 import dev.hytalemodding.impulse.core.internal.persistence.PersistentPhysicsWorldResource;
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsWorldRuntimeResource;
 import dev.hytalemodding.impulse.core.internal.worker.PhysicsWorkerAccess;
-import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyId;
+import dev.hytalemodding.impulse.core.plugin.body.RigidBodyKey;
 import dev.hytalemodding.impulse.core.plugin.resources.PhysicsWorldResource;
 import it.unimi.dsi.fastutil.objects.ObjectOpenHashSet;
 import java.util.Set;
@@ -30,7 +30,7 @@ import javax.annotation.Nonnull;
  *
  * <p>Runs when {@code runtimeRestorePending} is true.
  * Scans the persisted joint definitions and creates each joint in the target space
- * if both endpoint bodies have already been hydrated by body id.</p>
+ * if both endpoint bodies have already been hydrated by body key.</p>
  *
  * <p>Uses deterministic key strings (from {@link PersistentPhysicsJointState#key()})
  * to avoid duplicating joints that already exist in the runtime space. Clears
@@ -77,24 +77,24 @@ public class PersistentPhysicsJointHydrationSystem extends TickingSystem<EntityS
         Set<String> existing = new ObjectOpenHashSet<>();
         for (PhysicsSpace space : runtime.getSpaces()) {
             space.forEachJoint(joint -> {
-                PhysicsBodyId bodyAId = runtime.getBodyId(joint.getBodyA());
-                PhysicsBodyId bodyBId = runtime.getBodyId(joint.getBodyB());
-                if (bodyAId == null || bodyBId == null) {
+                RigidBodyKey bodyAKey = runtime.getBodyKey(joint.getBodyA());
+                RigidBodyKey bodyBKey = runtime.getBodyKey(joint.getBodyB());
+                if (bodyAKey == null || bodyBKey == null) {
                     return;
                 }
                 existing.add(PersistentPhysicsRuntimeSupport.jointKey(space.getId().value(),
-                    bodyAId,
-                    bodyBId,
+                    bodyAKey,
+                    bodyBKey,
                     joint));
             });
         }
 
         for (PersistentPhysicsJointState state : persistent.getJoints()) {
             String key = state.key();
-            PhysicsBodyId bodyAId = state.getBodyAId();
-            PhysicsBodyId bodyBId = state.getBodyBId();
+            RigidBodyKey bodyAId = state.getBodyAId();
+            RigidBodyKey bodyBId = state.getBodyBId();
             if (bodyAId == null || bodyBId == null) {
-                persistent.recordRuntimeJointSkipped(key, "missing endpoint body id");
+                persistent.recordRuntimeJointSkipped(key, "missing endpoint body key");
                 continue;
             }
 
