@@ -1,20 +1,11 @@
 #pragma once
 
-#ifndef COMMON_H
-#define COMMON_H
-
 #include <stdint.h>
 
 #if defined(__GNUC__) || defined(__clang__)
-#define INB_OPTIONAL __attribute__((weak))
+#define ENGINE_OPTIONAL __attribute__((weak))
 #else
 #error "Unsupported compiler: This project requires GCC or Clang."
-#endif
-
-#if defined(_WIN32)
-#define INB_API __declspec(dllexport)
-#else
-#define INB_API __attribute__((visibility("default")))
 #endif
 
 #ifdef __cplusplus
@@ -27,7 +18,7 @@ extern "C"
     float x;
     float y;
     float z;
-  } INB_Vector3f;
+  } Vector3f;
 
   typedef struct
   {
@@ -35,10 +26,20 @@ extern "C"
     float y;
     float z;
     float w;
-  } INB_Quaternionf;
+  } Quaternionf;
 
+  typedef enum
+  {
+    X = 0,
+    Y = 1,
+    Z = 2,
+  } Axis;
 #ifdef __cplusplus
 }
 #endif
 
+#if defined(_WIN32)
+#define ENGINE_API __declspec(dllexport)
+#else
+#define ENGINE_API __attribute__((visibility("default")))
 #endif

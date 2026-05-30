@@ -3,10 +3,7 @@
 #include <stdint.h>
 #include <assert.h>
 
-#include "inb_common.h"
-
-#ifndef INB_SPACE
-#define INB_SPACE
+#include "engine_common.h"
 
 #ifdef __cplusplus
 extern "C"
@@ -17,15 +14,15 @@ extern "C"
    * Executes a single processing tick on the native backend.
    * @param steps Simulation step time slice.
    */
-  INB_API void inb_space_step(float steps);
+  ENGINE_API void inb_space_step(float steps);
 
   /**
-   * Writes the space gravity on the given memory segment.
+   * Gets the space gravity vector.
    *
    * @param space_id  The ID of the target space.
-   * @param output    The memory segment where the gravity should be written.
+   * @return Vector3f The gravity vector for the space.
    */
-  INB_API void inb_space_get_gravity(int32_t space_id, INB_Vector3f *output);
+  ENGINE_API Vector3f inb_space_get_gravity(int32_t space_id);
 
   /**
    * Sets the space gravity.
@@ -33,7 +30,7 @@ extern "C"
    * @param space_id  The ID of the target space.
    * @param gravity   Pointer to the gravity vector.
    */
-  INB_API void inb_space_set_gravity(int32_t space_id, const INB_Vector3f *gravity);
+  ENGINE_API void inb_space_set_gravity(int32_t space_id, const Vector3f *gravity);
 
   /**
    * Removes a body from the specified space.
@@ -41,7 +38,7 @@ extern "C"
    * @param space_id  The ID of the space from which to remove the body.
    * @param body_id   The ID of the body to be removed.
    */
-  INB_API void inb_space_remove_body(int32_t space_id, int64_t body_id);
+  ENGINE_API void inb_space_remove_body(int32_t space_id, int64_t body_id);
 
   typedef struct
   {
@@ -59,17 +56,15 @@ extern "C"
   } INB_RuntimeStats;
 
   /**
-   * Writes the runtimes stats on the given memory segment.
+   * Gets the runtime statistics for the space.
    *
-   * @note This function is optional. If not implemented by the user,
-   * the system will default to returning false and not write to segment.
+   * This function returns an INB_RuntimeStats struct. If the backend does not
+   * populate runtime stats the returned struct's `available` field will be 0.
    *
    * @param space_id  The ID of the space from which to get the runtime stats.
-   * @param output    The memory segment where the runtime stats should be written.
-   * @return bool True if the function is implemented and the memory segment
-   *              contains valid data, false otherwise.
+   * @return INB_RuntimeStats The runtime statistics. Check `available` to verify validity.
    */
-  INB_API bool inb_space_get_runtime_stats(int32_t space_id, INB_RuntimeStats *output);
+  ENGINE_API INB_RuntimeStats inb_space_get_runtime_stats(int32_t space_id);
 
   typedef struct
   {
@@ -86,17 +81,15 @@ extern "C"
   static_assert(_Alignof(INB_StepPhaseStats) == 8, "INB_Contact must be 8-byte aligned");
 
   /**
-   * Writes the phase stats on the given memory segment.
+   * Gets per-step phase timing statistics for the space.
    *
-   * @note This function is optional. If not implemented by the user,
-   * the system will default to returning false and not write to segment.
+   * Returns an INB_StepPhaseStats struct. If the backend does not populate
+   * these stats the returned struct's `available` field will be 0.
    *
    * @param space_id  The ID of the space from which to get the phase stats.
-   * @param output    The memory segment where the runtime stats should be written.
-   * @return bool True if the function is implemented and the memory segment
-   *              contains valid data, false otherwise.
+   * @return INB_StepPhaseStats The phase timing statistics. Check `available` to verify validity.
    */
-  INB_API bool inb_space_get_step_phase_stats(int32_t space_id, INB_StepPhaseStats *output);
+  ENGINE_API INB_StepPhaseStats inb_space_get_step_phase_stats(int32_t space_id);
 
   /**
    * Resets phase counters collected by @see inb_space_runtime_stats().
@@ -106,7 +99,7 @@ extern "C"
    *
    * @param space_id  The ID of the space from which to remove the body.
    */
-  INB_API void inb_space_reset_step_phase_stats(int32_t space_id);
+  ENGINE_API void inb_space_reset_step_phase_stats(int32_t space_id);
 
   /**
    * Creates a static plane body.
@@ -115,7 +108,7 @@ extern "C"
    * @param groundY   The Y-coordinate of the ground plane.
    * @return The ID of the created physics body.
    */
-  INB_API int64_t inb_space_create_static_plane(int32_t space_id, float groundY);
+  ENGINE_API int64_t inb_space_create_static_plane(int32_t space_id, float groundY);
 
   /**
    * Creates a box body using dimensions.
@@ -125,7 +118,7 @@ extern "C"
    * @param mass        The mass of the body.
    * @return The ID of the created physics body.
    */
-  INB_API int64_t inb_space_create_box(int32_t space_id, const INB_Vector3f *half_extent, float mass);
+  ENGINE_API int64_t inb_space_create_box(int32_t space_id, const Vector3f *half_extent, float mass);
 
   /**
    * Creates a sphere body.
@@ -135,7 +128,7 @@ extern "C"
    * @param mass      The mass of the body.
    * @return The ID of the created physics body.
    */
-  INB_API int64_t inb_space_create_sphere(int32_t space_id, float radius, float mass);
+  ENGINE_API int64_t inb_space_create_sphere(int32_t space_id, float radius, float mass);
 
   /**
    * Creates a capsule body.
@@ -147,7 +140,7 @@ extern "C"
    * @param mass       The mass of the body.
    * @return The ID of the created physics body.
    */
-  INB_API int64_t inb_space_create_capsule(int32_t space_id, float radius, float halfHeight, int32_t axis, float mass);
+  ENGINE_API int64_t inb_space_create_capsule(int32_t space_id, float radius, float halfHeight, int32_t axis, float mass);
 
   /**
    * Creates a cylinder body.
@@ -159,7 +152,7 @@ extern "C"
    * @param mass       The mass of the body.
    * @return The ID of the created physics body.
    */
-  INB_API int64_t inb_space_create_cylinder(int32_t space_id, float radius, float halfHeight, int32_t axis, float mass);
+  ENGINE_API int64_t inb_space_create_cylinder(int32_t space_id, float radius, float halfHeight, int32_t axis, float mass);
 
   /**
    * Creates a cone body.
@@ -171,41 +164,41 @@ extern "C"
    * @param mass       The mass of the body.
    * @return The ID of the created physics body.
    */
-  INB_API int64_t inb_space_create_cone(int32_t space_id, float radius, float halfHeight, int32_t axis, float mass);
+  ENGINE_API int64_t inb_space_create_cone(int32_t space_id, float radius, float halfHeight, int32_t axis, float mass);
 
   typedef struct
   {
     int64_t body_id;
-    INB_Vector3f point;
-    INB_Vector3f normal;
+    Vector3f point;
+    Vector3f normal;
     float fraction;
     float distance;
-  } INB_RayHit;
+  } RayHit;
 
-  static_assert(_Alignof(INB_RayHit) == 8, "INB_Contact must be 8-byte aligned");
+  static_assert(_Alignof(RayHit) == 8, "RayHit must be 8-byte aligned");
 
   /**
    * Performs a closest raycast query between two points.
+   *
    * @param space_id  The ID of the target space.
    * @param from      Pointer to the starting Vector3f.
    * @param to        Pointer to the ending Vector3f.
-   * @param output    Pointer to the buffer where the hit result will be written.
-   *                  Only modified if the function returns true.
-   * @return True if a hit was found, false otherwise.
+   * @return INB_RayHit The closest hit result. If no hit is found the returned
+   *                    struct will have `body_id` set to -1.
    */
-  INB_API bool inb_space_raycast_closest(int64_t space_id, const INB_Vector3f *from, const INB_Vector3f *to, INB_RayHit *output);
+  ENGINE_API RayHit inb_space_raycast_closest(int64_t space_id, const Vector3f *from, const Vector3f *to);
 
   typedef struct
   {
     int64_t bodyA_id;
     int64_t bodyB_id;
-    INB_Vector3f pointOnA;
-    INB_Vector3f pointOnB;
-    INB_Vector3f normalOnB;
+    Vector3f pointOnA;
+    Vector3f pointOnB;
+    Vector3f normalOnB;
     float distance;
     float impulse;
     float _pad;
-  } INB_Contact;
+  } Contact;
 
   /**
    * Writes the current list of contact to the given memory segment.
@@ -217,7 +210,7 @@ extern "C"
    * @param max_contacts The maximum number of contacts to write to the output buffer.
    * @return The actual number of contacts written to the output buffer.
    */
-  INB_API int32_t inb_space_get_contacts(int32_t space_id, INB_Contact *output, int32_t max_contacts);
+  ENGINE_API int32_t inb_space_get_contacts(int32_t space_id, Contact *output, int32_t max_contacts);
 
   /**
    * Create a fixed joint.
@@ -231,7 +224,7 @@ extern "C"
    * @param anchorB   Pointer to the local anchor on bodyB.
    * @return The ID of the created fixed joint.
    */
-  INB_API int64_t inb_space_create_fixed_joint(int32_t space_id, int64_t bodyA, int64_t bodyB, const INB_Vector3f *anchorA, const INB_Vector3f *anchorB);
+  ENGINE_API int64_t inb_space_create_fixed_joint(int32_t space_id, int64_t bodyA, int64_t bodyB, const Vector3f *anchorA, const Vector3f *anchorB);
 
   /**
    * Create a point joint.
@@ -245,7 +238,7 @@ extern "C"
    * @param anchorB   Pointer to the local anchor on bodyB.
    * @return The ID of the created point joint.
    */
-  INB_API int64_t inb_space_create_point_joint(int32_t space_id, int64_t bodyA, int64_t bodyB, const INB_Vector3f *anchorA, const INB_Vector3f *anchorB);
+  ENGINE_API int64_t inb_space_create_point_joint(int32_t space_id, int64_t bodyA, int64_t bodyB, const Vector3f *anchorA, const Vector3f *anchorB);
 
   /**
    * Create a hinge joint.
@@ -261,7 +254,7 @@ extern "C"
    * @param axis      Pointer to the hinge axis vector.
    * @return The ID of the created hinge joint.
    */
-  INB_API int64_t inb_space_create_hinge_joint(int32_t space_id, int64_t bodyA, int64_t bodyB, const INB_Vector3f *anchorA, const INB_Vector3f *anchorB, const INB_Vector3f *axis);
+  ENGINE_API int64_t inb_space_create_hinge_joint(int32_t space_id, int64_t bodyA, int64_t bodyB, const Vector3f *anchorA, const Vector3f *anchorB, const Vector3f *axis);
 
   /**
    * Create a slider joint.
@@ -277,7 +270,7 @@ extern "C"
    * @param axis      Pointer to the slide axis vector.
    * @return The ID of the created slider joint.
    */
-  INB_API int64_t inb_space_create_slider_joint(int32_t space_id, int64_t bodyA, int64_t bodyB, const INB_Vector3f *anchorA, const INB_Vector3f *anchorB, const INB_Vector3f *axis);
+  ENGINE_API int64_t inb_space_create_slider_joint(int32_t space_id, int64_t bodyA, int64_t bodyB, const Vector3f *anchorA, const Vector3f *anchorB, const Vector3f *axis);
 
   /**
    * Create a spring joint.
@@ -294,7 +287,7 @@ extern "C"
    * @param damping    The spring damping coefficient.
    * @return The ID of the created spring joint.
    */
-  INB_API int64_t inb_space_create_spring_joint(int32_t space_id, int64_t bodyA, int64_t bodyB, const INB_Vector3f *anchorA, const INB_Vector3f *anchorB, float restLength, float stiffness, float damping);
+  ENGINE_API int64_t inb_space_create_spring_joint(int32_t space_id, int64_t bodyA, int64_t bodyB, const Vector3f *anchorA, const Vector3f *anchorB, float restLength, float stiffness, float damping);
 
   /**
    * Removes a joint from the specified space.
@@ -302,7 +295,7 @@ extern "C"
    * @param space_id The ID of the space.
    * @param joint_id The ID of the joint to be removed.
    */
-  INB_API void inb_space_remove_joint(int32_t space_id, int64_t joint_id);
+  ENGINE_API void inb_space_remove_joint(int32_t space_id, int64_t joint_id);
 
   /**
    * Returns the number of joints currently present in the specified space.
@@ -310,14 +303,14 @@ extern "C"
    * @param space_id The ID of the target space.
    * @return The count of active joints in the space.
    */
-  INB_API int32_t inb_space_get_joint_count(int32_t space_id);
+  ENGINE_API int32_t inb_space_get_joint_count(int32_t space_id);
 
   /**
    * Release all backend resources associated with the specified space.
    *
    * @param space_id The ID of the space to destroy.
    */
-  INB_API void inb_space_destroy(int32_t space_id);
+  ENGINE_API void inb_space_destroy(int32_t space_id);
 
   /**
    * Signature for the joint iteration callback.
@@ -340,10 +333,8 @@ extern "C"
    * @param callback Pointer to the function to execute for each joint.
    * @param user_data Pointer to arbitrary user data to pass to the callback.
    */
-  INB_API void inb_space_iterate_joints(int32_t space_id, INB_JointCallback callback, void *user_data);
+  ENGINE_API void inb_space_iterate_joints(int32_t space_id, INB_JointCallback callback, void *user_data);
 
 #ifdef __cplusplus
 }
-#endif
-
 #endif

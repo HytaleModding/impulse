@@ -16,5 +16,5 @@ target_include_directories(impulse-bridge PUBLIC
 
 target_precompile_headers(impulse-bridge
     PUBLIC
-        ${CMAKE_CURRENT_SOURCE_DIR}/src/main/include/inb_pch.h
+        ${CMAKE_CURRENT_SOURCE_DIR}/src/main/include/pch.h
 )
