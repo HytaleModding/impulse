@@ -11,12 +11,12 @@ import com.hypixel.hytale.server.core.modules.time.TimeResource;
 import com.hypixel.hytale.server.core.universe.PlayerRef;
 import com.hypixel.hytale.server.core.universe.world.World;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
-import dev.hytalemodding.impulse.api.PhysicsBody;
+import dev.hytalemodding.impulse.api.PhysicsBodyType;
 import dev.hytalemodding.impulse.api.PhysicsCollisionFilters;
-import dev.hytalemodding.impulse.api.PhysicsSpace;
 import dev.hytalemodding.impulse.api.SpaceId;
 import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyKind;
 import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyPersistenceMode;
+import dev.hytalemodding.impulse.core.plugin.body.RigidBodyKey;
 import dev.hytalemodding.impulse.core.plugin.collision.WorldCollisionPrewarmStats;
 import dev.hytalemodding.impulse.core.plugin.collision.WorldCollisionMode;
 import dev.hytalemodding.impulse.core.plugin.resources.PhysicsWorldResource;
@@ -29,6 +29,8 @@ import dev.hytalemodding.impulse.core.plugin.settings.PhysicsVisualSyncSettings;
 import dev.hytalemodding.impulse.core.plugin.settings.PhysicsWorldCollisionSettings;
 import dev.hytalemodding.impulse.core.plugin.settings.PhysicsWorldSettings;
 import dev.hytalemodding.impulse.core.plugin.settings.VisualOcclusionMode;
+import dev.hytalemodding.impulse.core.plugin.simulation.PhysicsShapeSpec;
+import dev.hytalemodding.impulse.core.plugin.simulation.RigidBodySpawnSettings;
 import dev.hytalemodding.impulse.examples.commands.ExamplePhysicsUtils;
 import java.util.Iterator;
 import java.util.Locale;
@@ -159,6 +161,7 @@ public class StressBodiesCommand extends AbstractAsyncPlayerCommand {
         TimeResource time = store.getResource(TimeResource.getResourceType());
 
         StressLayout layout = StressLayout.forCount(count, playerPos);
+        long prewarmStartNanos = System.nanoTime();
         int prewarmedSections = prewarmStressWorldCollision(world,
             resource,
             spaceId,
@@ -166,37 +169,63 @@ public class StressBodiesCommand extends AbstractAsyncPlayerCommand {
             mode,
             layout,
             count);
+        long prewarmNanos = System.nanoTime() - prewarmStartNanos;
 
-        long startNanos = System.nanoTime();
+        long serverTick = Math.max(0L, world.getTick());
+        StressSpawnTiming timing;
         if (mode == StressMode.ENTITY) {
-            for (int i = 0; i < count; i++) {
-                Vector3d position = layout.position(i);
-                ExamplePhysicsUtils.spawnBlockBody(store,
-                    time,
-                    resource,
-                    spaceId,
-                    position,
-                    visualSettings.blockType(),
-                    StressBodiesCommand::createEntityBody);
-            }
+            PhysicsShapeSpec box = PhysicsShapeSpec.box(0.48f, 0.48f, 0.48f);
+            RigidBodySpawnSettings spawnSettings = RigidBodySpawnSettings.material(0.65f, 0.15f);
+            ExamplePhysicsUtils.BlockBodyBatchTiming batchTiming = ExamplePhysicsUtils.spawnBlockBodiesMeasured(store,
+                time,
+                resource,
+                serverTick,
+                spaceId,
+                count,
+                visualSettings.blockType(),
+                box,
+                1.0f,
+                spawnSettings,
+                bodies -> {
+                    for (int i = 0; i < count; i++) {
+                        bodies.addBody(layout.positionX(i),
+                            layout.positionY(i),
+                            layout.positionZ(i));
+                    }
+                });
+            timing = new StressSpawnTiming(batchTiming.commandApplyNanos(),
+                batchTiming.entityAttachNanos(),
+                0L);
         } else {
-            resource.runOnPhysicsOwner("spawn detached stress bodies", access -> {
-                PhysicsSpace space = access.requireSpace(spaceId);
-                for (int i = 0; i < count; i++) {
-                    Vector3d position = layout.position(i);
-                    PhysicsBody body = createDetachedBody(space, collisionPolicy);
-                    body.setPosition((float) position.x, (float) position.y, (float) position.z);
-                    access.addBody(spaceId,
-                        body,
-                        PhysicsBodyKind.BODY,
-                        PhysicsBodyPersistenceMode.RUNTIME_ONLY);
-                }
-            });
+            PhysicsShapeSpec box = PhysicsShapeSpec.box(0.48f, 0.48f, 0.48f);
+            RigidBodySpawnSettings spawnSettings = detachedSpawnSettings(collisionPolicy);
+            long bodyKeyRunId = RigidBodyKey.random().mostSignificantBits();
+            long commandStartNanos = System.nanoTime();
+            ExamplePhysicsUtils.requireApplied(resource.submitCommands(serverTick, 1, commands ->
+                commands.spawnBodies(count,
+                    spaceId,
+                    box,
+                    1.0f,
+                    PhysicsBodyType.DYNAMIC,
+                    spawnSettings,
+                    PhysicsBodyKind.BODY,
+                    PhysicsBodyPersistenceMode.RUNTIME_ONLY,
+                    spawns -> {
+                        for (int i = 0; i < count; i++) {
+                            spawns.body(bodyKeyRunId,
+                                i + 1L,
+                                layout.positionX(i),
+                                layout.positionY(i),
+                                layout.positionZ(i));
+                        }
+                    })), "spawn detached stress bodies");
+            timing = new StressSpawnTiming(System.nanoTime() - commandStartNanos, 0L, 0L);
         }
         if (mode.usesDetachedBodies()) {
+            long snapshotStartNanos = System.nanoTime();
             resource.refreshBodySnapshots();
+            timing = timing.withSnapshotRefreshNanos(System.nanoTime() - snapshotStartNanos);
         }
-        long elapsedNanos = System.nanoTime() - startNanos;
         PhysicsWorldCollisionSettings worldCollisionSettings =
             settings.getWorldCollisionSettings();
         PhysicsVisualMaterializationSettings visualMaterializationSettings =
@@ -206,9 +235,17 @@ public class StressBodiesCommand extends AbstractAsyncPlayerCommand {
         PhysicsWorldSettings worldSettings = resource.getWorldSettings();
 
         ctx.sender().sendMessage(Message.raw("Spawned " + count
-            + " stress bodies in "
-            + millis(elapsedNanos)
-            + " ms: mode=" + mode.serialized()
+            + " stress bodies: setupWallMs="
+            + millis(prewarmNanos + timing.setupWallNanos())
+            + " prewarmMs=" + millis(prewarmNanos)
+            + " commandApplyMs=" + millis(timing.commandApplyNanos())
+            + (timing.snapshotRefreshNanos() > 0L
+                ? " snapshotRefreshMs=" + millis(timing.snapshotRefreshNanos())
+                : "")
+            + (timing.entityAttachNanos() > 0L
+                ? " entityAttachMs=" + millis(timing.entityAttachNanos())
+                : "")
+            + ": mode=" + mode.serialized()
             + " space=" + spaceId.value()
             + " worldCollision=streaming"
             + " bodyCollisionRadius=" + worldCollisionSettings.getWorldCollisionBodyRadius()
@@ -312,27 +349,17 @@ public class StressBodiesCommand extends AbstractAsyncPlayerCommand {
     }
 
     @Nonnull
-    private static PhysicsBody createEntityBody(@Nonnull PhysicsSpace space) {
-        PhysicsBody body = space.createBox(0.48f, 0.48f, 0.48f, 1.0f);
-        body.setFriction(0.65f);
-        body.setRestitution(0.15f);
-        return body;
-    }
-
-    @Nonnull
-    private static PhysicsBody createDetachedBody(@Nonnull PhysicsSpace space,
+    private static RigidBodySpawnSettings detachedSpawnSettings(
         @Nonnull StressCollisionPolicy collisionPolicy) {
-        PhysicsBody body = space.createBox(0.48f, 0.48f, 0.48f, 1.0f);
-        body.setFriction(0.45f);
-        body.setRestitution(0.0f);
-        body.setDamping(0.02f, 0.25f);
-        if (collisionPolicy == StressCollisionPolicy.WORLD) {
-            body.setCollisionFilter(PhysicsCollisionFilters.DYNAMIC_BODY, PhysicsCollisionFilters.TERRAIN);
-        } else {
-            body.setCollisionFilter(PhysicsCollisionFilters.DYNAMIC_BODY,
-                PhysicsCollisionFilters.TERRAIN | PhysicsCollisionFilters.DYNAMIC_BODY);
-        }
-        return body;
+        int collisionMask = collisionPolicy == StressCollisionPolicy.WORLD
+            ? PhysicsCollisionFilters.TERRAIN
+            : PhysicsCollisionFilters.TERRAIN | PhysicsCollisionFilters.DYNAMIC_BODY;
+        return RigidBodySpawnSettings.of(0.45f,
+            0.0f,
+            0.02f,
+            0.25f,
+            PhysicsCollisionFilters.DYNAMIC_BODY,
+            collisionMask);
     }
 
     @Nullable
@@ -575,6 +602,28 @@ public class StressBodiesCommand extends AbstractAsyncPlayerCommand {
                                         boolean smoothingEnabled) {
     }
 
+    private record StressSpawnTiming(long commandApplyNanos,
+                                     long entityAttachNanos,
+                                     long snapshotRefreshNanos) {
+
+        private StressSpawnTiming {
+            commandApplyNanos = Math.max(0L, commandApplyNanos);
+            entityAttachNanos = Math.max(0L, entityAttachNanos);
+            snapshotRefreshNanos = Math.max(0L, snapshotRefreshNanos);
+        }
+
+        @Nonnull
+        private StressSpawnTiming withSnapshotRefreshNanos(long snapshotRefreshNanos) {
+            return new StressSpawnTiming(commandApplyNanos,
+                entityAttachNanos,
+                snapshotRefreshNanos);
+        }
+
+        private long setupWallNanos() {
+            return commandApplyNanos + entityAttachNanos + snapshotRefreshNanos;
+        }
+    }
+
     private record StressLayout(@Nonnull Vector3d origin,
         int side,
         double spacing) {
@@ -598,6 +647,21 @@ public class StressBodiesCommand extends AbstractAsyncPlayerCommand {
             int z = (index / side) % side;
             int y = index / (side * side);
             return new Vector3d(origin).add(x * spacing, y * spacing, z * spacing);
+        }
+
+        private float positionX(int index) {
+            int x = index % side;
+            return (float) (origin.x + x * spacing);
+        }
+
+        private float positionY(int index) {
+            int y = index / (side * side);
+            return (float) (origin.y + y * spacing);
+        }
+
+        private float positionZ(int index) {
+            int z = (index / side) % side;
+            return (float) (origin.z + z * spacing);
         }
 
         @Nonnull

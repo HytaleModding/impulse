@@ -15,6 +15,8 @@ import com.hypixel.hytale.server.core.universe.world.World;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import dev.hytalemodding.impulse.api.SpaceId;
 import dev.hytalemodding.impulse.core.plugin.resources.PhysicsWorldResource;
+import dev.hytalemodding.impulse.core.plugin.simulation.RaycastClosestQuery;
+import dev.hytalemodding.impulse.core.plugin.simulation.RaycastHitView;
 import java.util.concurrent.CompletableFuture;
 import javax.annotation.Nonnull;
 import org.joml.Vector3d;
@@ -58,16 +60,14 @@ public class RaycastCommand extends AbstractAsyncPlayerCommand {
 
         DebugUtils.addArrow(world, start, direction, DebugUtils.COLOR_WHITE, 0.8f, 4.0f,
             DebugUtils.FLAG_FADE);
-        RaycastResult hit = ExamplePhysicsUtils.physicsOwnerCall(store,
-            "cast example physics ray",
-            access -> access.requireSpace(spaceId).raycastClosest(ExamplePhysicsUtils.toVector3f(start),
-                    ExamplePhysicsUtils.toVector3f(end))
-                .map(rayHit -> new RaycastResult(
-                    new Vector3d(rayHit.point().x, rayHit.point().y, rayHit.point().z),
-                    new Vector3d(rayHit.normal().x, rayHit.normal().y, rayHit.normal().z),
-                    rayHit.body().getShapeType().name(),
-                    rayHit.distance()))
-                .orElse(null));
+        RaycastResult hit = resource.query(new RaycastClosestQuery(spaceId,
+                ExamplePhysicsUtils.toVector3f(start),
+                ExamplePhysicsUtils.toVector3f(end)))
+            .completion()
+            .toCompletableFuture()
+            .join()
+            .map(RaycastCommand::toResult)
+            .orElse(null);
         if (hit == null) {
             ctx.sender().sendMessage(Message.raw("Physics ray missed."));
             return CompletableFuture.completedFuture(null);
@@ -95,5 +95,14 @@ public class RaycastCommand extends AbstractAsyncPlayerCommand {
             point = new Vector3d(point);
             normal = new Vector3d(normal);
         }
+    }
+
+    @Nonnull
+    private static RaycastResult toResult(@Nonnull RaycastHitView hit) {
+        return new RaycastResult(
+            new Vector3d(hit.point().x, hit.point().y, hit.point().z),
+            new Vector3d(hit.normal().x, hit.normal().y, hit.normal().z),
+            hit.shapeType().name(),
+            hit.distance());
     }
 }

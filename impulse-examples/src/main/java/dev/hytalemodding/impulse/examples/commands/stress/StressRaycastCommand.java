@@ -12,13 +12,15 @@ import com.hypixel.hytale.server.core.universe.world.World;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import dev.hytalemodding.impulse.api.SpaceId;
 import dev.hytalemodding.impulse.core.plugin.resources.PhysicsWorldResource;
+import dev.hytalemodding.impulse.core.plugin.simulation.RaycastClosestBatchQuery;
+import dev.hytalemodding.impulse.core.plugin.simulation.RaycastSegment;
+import dev.hytalemodding.impulse.examples.commands.ExamplePhysicsUtils;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Locale;
 import java.util.concurrent.CompletableFuture;
 import javax.annotation.Nonnull;
-
-import dev.hytalemodding.impulse.examples.commands.ExamplePhysicsUtils;
 import org.joml.Vector3d;
-import org.joml.Vector3f;
 
 public class StressRaycastCommand extends AbstractAsyncPlayerCommand {
 
@@ -60,32 +62,38 @@ public class StressRaycastCommand extends AbstractAsyncPlayerCommand {
         }
 
         int side = (int) Math.ceil(Math.sqrt(rays));
-        double half = side * SPACING * 0.5;
-        Vector3f start = new Vector3f();
-        Vector3f end = new Vector3f();
+        List<RaycastSegment> segments = getRaycastSegments(side, rays, playerPos);
 
         long startNanos = System.nanoTime();
-        int hits = ExamplePhysicsUtils.physicsOwnerCall(store, "run stress physics raycasts", access -> {
-            var space = access.requireSpace(spaceId);
-            int totalHits = 0;
-            for (int i = 0; i < rays; i++) {
-                int x = i % side;
-                int z = i / side;
-                float rayX = (float) (playerPos.x + x * SPACING - half);
-                float rayZ = (float) (playerPos.z + z * SPACING - half + 5.0);
-                start.set(rayX, (float) (playerPos.y + HEIGHT), rayZ);
-                end.set(rayX, (float) (playerPos.y - HEIGHT), rayZ);
-                if (space.raycastClosest(start, end).isPresent()) {
-                    totalHits++;
-                }
-            }
-            return totalHits;
-        });
+        long hits = resource.query(new RaycastClosestBatchQuery(spaceId, segments))
+            .completion()
+            .toCompletableFuture()
+            .join()
+            .hitCount();
         long elapsedNanos = System.nanoTime() - startNanos;
 
         ctx.sender().sendMessage(Message.raw("Ran " + rays + " raycasts: " + hits
             + " hits in " + millis(elapsedNanos) + " ms."));
         return CompletableFuture.completedFuture(null);
+    }
+
+    @Nonnull
+    private static List<RaycastSegment> getRaycastSegments(int side, int rays, Vector3d playerPos) {
+        double half = side * SPACING * 0.5;
+        List<RaycastSegment> segments = new ArrayList<>(rays);
+        for (int i = 0; i < rays; i++) {
+            int x = i % side;
+            int z = i / side;
+            float rayX = (float) (playerPos.x + x * SPACING - half);
+            float rayZ = (float) (playerPos.z + z * SPACING - half + 5.0);
+            segments.add(new RaycastSegment(rayX,
+                (float) (playerPos.y + HEIGHT),
+                rayZ,
+                rayX,
+                (float) (playerPos.y - HEIGHT),
+                rayZ));
+        }
+        return segments;
     }
 
     private static String millis(long nanos) {

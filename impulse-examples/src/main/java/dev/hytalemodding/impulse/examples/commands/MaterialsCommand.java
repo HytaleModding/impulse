@@ -11,12 +11,14 @@ import com.hypixel.hytale.server.core.modules.time.TimeResource;
 import com.hypixel.hytale.server.core.universe.PlayerRef;
 import com.hypixel.hytale.server.core.universe.world.World;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
-import dev.hytalemodding.impulse.api.PhysicsBody;
 import dev.hytalemodding.impulse.api.SpaceId;
 import dev.hytalemodding.impulse.core.plugin.resources.PhysicsWorldResource;
+import dev.hytalemodding.impulse.core.plugin.simulation.PhysicsShapeSpec;
+import dev.hytalemodding.impulse.core.plugin.simulation.RigidBodySpawnSettings;
 import java.util.concurrent.CompletableFuture;
 import javax.annotation.Nonnull;
 import org.joml.Vector3d;
+import org.joml.Vector3f;
 
 public class MaterialsCommand extends AbstractAsyncPlayerCommand {
 
@@ -75,12 +77,10 @@ public class MaterialsCommand extends AbstractAsyncPlayerCommand {
             resource,
             spaceId,
             position,
-            bodySpace -> {
-                PhysicsBody created = bodySpace.createSphere(0.5f, 1.0f);
-                created.setRestitution(restitution);
-                created.setFriction(friction);
-                created.setLinearVelocity(speed, 0.0f, 0.0f);
-                return created;
-            });
+            ExamplePhysicsUtils.DEFAULT_BLOCK_TYPE,
+            PhysicsShapeSpec.sphere(0.5f),
+            1.0f,
+            RigidBodySpawnSettings.material(friction, restitution),
+            new Vector3f(speed, 0.0f, 0.0f));
     }
 }
