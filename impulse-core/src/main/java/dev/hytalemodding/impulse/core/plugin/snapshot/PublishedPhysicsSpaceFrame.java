@@ -3,6 +3,7 @@ package dev.hytalemodding.impulse.core.plugin.snapshot;
 import dev.hytalemodding.impulse.api.SpaceId;
 import java.util.List;
 import java.util.Objects;
+import java.util.function.Consumer;
 import javax.annotation.Nonnull;
 
 /**
@@ -27,6 +28,13 @@ public record PublishedPhysicsSpaceFrame(@Nonnull SpaceId spaceId,
 
     public int bodyCount() {
         return bodies.size();
+    }
+
+    public void forEachBody(@Nonnull Consumer<? super PublishedPhysicsBodySnapshot> consumer) {
+        Objects.requireNonNull(consumer, "consumer");
+        for (PublishedPhysicsBodySnapshot body : bodies) {
+            consumer.accept(body);
+        }
     }
 
     private static void requireBodyInFrame(@Nonnull SpaceId spaceId,
