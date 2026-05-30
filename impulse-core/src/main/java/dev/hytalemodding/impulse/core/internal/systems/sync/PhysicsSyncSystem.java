@@ -145,6 +145,10 @@ public class PhysicsSyncSystem extends EntityTickingSystem<EntityStore> {
             return;
         }
 
+        if (!PhysicsTransformAuthority.shouldApplyBodyTransform(attachment)) {
+            return;
+        }
+
         PhysicsBodySnapshot snapshot = resource.getBodySnapshot(registration.id());
         if (snapshot.isStatic()) {
             if (collector != null) {
