@@ -13,6 +13,7 @@ import dev.hytalemodding.impulse.api.PhysicsSpace;
 import dev.hytalemodding.impulse.api.testsupport.FakePhysicsBackend;
 import dev.hytalemodding.impulse.core.internal.control.PhysicsControlJointResolver;
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsWorldRuntimeResource;
+import dev.hytalemodding.impulse.core.internal.resources.worker.PhysicsWorldWorkerResource;
 import dev.hytalemodding.impulse.core.internal.systems.step.PhysicsKinematicControlSystem.ControlAnchorUpdate;
 import dev.hytalemodding.impulse.core.internal.systems.step.PhysicsKinematicControlSystem.ControlMutationState;
 import dev.hytalemodding.impulse.core.plugin.body.RigidBodyKey;
@@ -21,8 +22,10 @@ import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyPersistenceMode;
 import dev.hytalemodding.impulse.core.internal.components.PhysicsControlSessionComponent;
 import dev.hytalemodding.impulse.core.plugin.resources.PhysicsMutationHandle;
 import dev.hytalemodding.impulse.core.plugin.joint.JointKey;
+import java.time.Duration;
 import java.util.Arrays;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import org.joml.Vector3f;
 import org.junit.jupiter.api.Test;
@@ -82,6 +85,37 @@ class PhysicsKinematicControlSystemTest {
 
         completion.complete(null);
         assertFalse(state.hasPendingMutation(bodyId));
+    }
+
+    @Test
+    void pendingAnchorCreationIsUsableBeforePublishedRegistrationViewArrives() throws Exception {
+        FakePhysicsBackend backend =
+            new FakePhysicsBackend("test:control-pending-anchor-" + BACKEND_COUNTER.incrementAndGet());
+        Impulse.registerBackend(backend);
+        PhysicsWorldRuntimeResource resource = new PhysicsWorldRuntimeResource();
+        try (PhysicsWorldWorkerResource worker = new PhysicsWorldWorkerResource(4,
+            Duration.ofSeconds(2L))) {
+            worker.start("control-pending-anchor");
+            resource.attachWorkerResource(worker);
+            PhysicsSpace space = resource.createLiveSpace(backend.getId());
+            RigidBodyKey anchorBodyId = RigidBodyKey.random();
+
+            resource.submitCommands(10L, commands -> commands
+                    .spawnBody(anchorBodyId, spawn -> spawn
+                        .space(space.getId())
+                        .sphere(0.08f)
+                        .kinematic()
+                        .temporary()
+                        .runtimeOnly()))
+                .completionSummary()
+                .toCompletableFuture()
+                .get(2L, TimeUnit.SECONDS);
+
+            assertNull(resource.getBodyRegistrationView(anchorBodyId));
+            assertTrue(resource.hasPublishedOrPendingBodyRegistration(anchorBodyId));
+
+            resource.detachWorkerResource(worker);
+        }
     }
 
     @Test
@@ -148,8 +182,8 @@ class PhysicsKinematicControlSystemTest {
 
         assertFalse(Arrays.stream(PhysicsControlSessionComponent.class.getDeclaredFields())
             .anyMatch(field -> PhysicsJoint.class.isAssignableFrom(field.getType())));
-        assertEquals(controlJointId, session.getControlJointId());
-        assertEquals(controlJointId, session.clone().getControlJointId());
+        assertEquals(controlJointId, session.getControlJointKey());
+        assertEquals(controlJointId, session.clone().getControlJointKey());
         assertSame(controlJoint, resource.getJoint(controlJointId));
 
         PhysicsControlSessionCleanup.cleanup(resource, session);

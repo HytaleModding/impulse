@@ -48,7 +48,7 @@ class PhysicsVisualRuntimeTest {
 
         assertEquals(1, runtime.generatedVisualProxyCount());
         assertEquals(1, cleaned.get());
-        assertEquals(1, runtime.getGeneratedVisualProxyBodyIds().size());
+        assertEquals(1, runtime.getGeneratedVisualProxyBodyKeys().size());
     }
 
     private static final class TestRef extends Ref<EntityStore> {
