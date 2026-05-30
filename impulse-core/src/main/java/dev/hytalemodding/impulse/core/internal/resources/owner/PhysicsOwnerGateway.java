@@ -5,11 +5,9 @@ import dev.hytalemodding.impulse.api.PhysicsJoint;
 import dev.hytalemodding.impulse.api.PhysicsSpace;
 import dev.hytalemodding.impulse.core.internal.resources.worker.PhysicsWorldWorkerResource;
 import dev.hytalemodding.impulse.core.internal.worker.PhysicsWorkerAccess;
-import dev.hytalemodding.impulse.core.plugin.execution.PhysicsMutationHandle;
-import dev.hytalemodding.impulse.core.plugin.execution.PhysicsOwnerCallable;
-import dev.hytalemodding.impulse.core.plugin.execution.PhysicsOwnerHandle;
-import dev.hytalemodding.impulse.core.plugin.execution.PhysicsOwnerMutation;
+import dev.hytalemodding.impulse.core.plugin.resources.PhysicsMutationHandle;
 import java.util.Objects;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.atomic.AtomicReference;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
@@ -43,12 +41,16 @@ public final class PhysicsOwnerGateway {
         return worker == null || worker.isWorkerThread();
     }
 
+    public boolean hasWorkerResource() {
+        return workerResource.get() != null;
+    }
+
     public void assertCanAccessLiveBackendDirectly(@Nonnull String operation) {
         Objects.requireNonNull(operation, "operation");
         if (!canAccessLiveBackendDirectly()) {
             throw new IllegalStateException("Impulse live backend operation " + operation
-                + " must run on the physics owner thread. Use runOnPhysicsOwner, "
-                + "callOnPhysicsOwner, or enqueuePhysicsMutation.");
+                + " must run on the physics owner thread. Use copied simulation commands, "
+                + "copied queries, or an internal owner-routed resource method.");
         }
     }
 
@@ -81,6 +83,18 @@ public final class PhysicsOwnerGateway {
             return runDirectAsync(operation, value, mutation);
         }
         return PhysicsWorkerAccess.runAsync(worker, operation, value, mutation::run);
+    }
+
+    @Nonnull
+    public <T> CompletableFuture<T> enqueueCall(@Nonnull String operation,
+        @Nonnull PhysicsOwnerCallable<T> callable) {
+        Objects.requireNonNull(operation, "operation");
+        Objects.requireNonNull(callable, "callable");
+        PhysicsWorldWorkerResource worker = workerResource.get();
+        if (worker == null || worker.isWorkerThread()) {
+            return callDirectAsync(operation, callable);
+        }
+        return PhysicsWorkerAccess.callAsync(worker, operation, callable::call);
     }
 
     @Nonnull
@@ -134,6 +148,18 @@ public final class PhysicsOwnerGateway {
             return PhysicsMutationHandle.completed(operation, value);
         } catch (Throwable throwable) {
             return PhysicsMutationHandle.failed(operation, value, throwable);
+        }
+    }
+
+    @Nonnull
+    private static <T> CompletableFuture<T> callDirectAsync(@Nonnull String operation,
+        @Nonnull PhysicsOwnerCallable<T> callable) {
+        try {
+            return CompletableFuture.completedFuture(callable.call());
+        } catch (Throwable throwable) {
+            CompletableFuture<T> completion = new CompletableFuture<>();
+            completion.completeExceptionally(throwable);
+            return completion;
         }
     }
 }

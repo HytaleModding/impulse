@@ -6,7 +6,7 @@ import javax.annotation.Nonnull;
 /**
  * Immutable body registration metadata safe for public and off-owner callers.
  */
-public record PhysicsBodyRegistrationView(@Nonnull PhysicsBodyId id,
+public record PhysicsBodyRegistrationView(@Nonnull RigidBodyKey id,
     @Nonnull SpaceId spaceId,
     @Nonnull PhysicsBodyKind kind,
     @Nonnull PhysicsBodyPersistenceMode persistenceMode) {

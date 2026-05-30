@@ -9,20 +9,20 @@ import dev.hytalemodding.impulse.api.BackendId;
 import dev.hytalemodding.impulse.api.PhysicsBodySnapshot;
 import dev.hytalemodding.impulse.api.SpaceId;
 import dev.hytalemodding.impulse.core.ImpulsePlugin;
-import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyId;
+import dev.hytalemodding.impulse.core.plugin.body.RigidBodyKey;
 import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyKind;
 import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyPersistenceMode;
 import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyRegistrationView;
 import dev.hytalemodding.impulse.core.plugin.collision.WorldCollisionBuildStats;
 import dev.hytalemodding.impulse.core.plugin.collision.WorldCollisionPrewarmStats;
 import dev.hytalemodding.impulse.core.plugin.collision.WorldCollisionStats;
-import dev.hytalemodding.impulse.core.plugin.execution.PhysicsMutationHandle;
-import dev.hytalemodding.impulse.core.plugin.execution.PhysicsOwnerCallable;
-import dev.hytalemodding.impulse.core.plugin.execution.PhysicsOwnerMutation;
-import dev.hytalemodding.impulse.core.plugin.execution.PhysicsOwnerScopedCallable;
-import dev.hytalemodding.impulse.core.plugin.execution.PhysicsOwnerScopedMutation;
+import dev.hytalemodding.impulse.core.plugin.events.PhysicsEventFrame;
 import dev.hytalemodding.impulse.core.plugin.settings.PhysicsSpaceSettings;
 import dev.hytalemodding.impulse.core.plugin.settings.PhysicsWorldSettings;
+import dev.hytalemodding.impulse.core.plugin.simulation.PhysicsCommandHandle;
+import dev.hytalemodding.impulse.core.plugin.simulation.PhysicsCommandRecipe;
+import dev.hytalemodding.impulse.core.plugin.simulation.PhysicsQuery;
+import dev.hytalemodding.impulse.core.plugin.simulation.PhysicsQueryHandle;
 import dev.hytalemodding.impulse.core.plugin.snapshot.PhysicsBodySnapshotEntry;
 import java.util.Collection;
 import java.util.function.Consumer;
@@ -35,18 +35,17 @@ import org.joml.Vector3f;
  * Public alpha facade for a world's physics runtime resource.
  *
  * <p>The concrete Impulse runtime lives in the internal package. Plugin-facing code should depend on
- * this facade for explicit space lifecycle, world settings, owner-thread routing, body lifetime by
- * id, immutable snapshots, read-only registration views, public attachment/control hooks, and world
+ * this facade for explicit space lifecycle, world settings, command submission, body lifetime by key,
+ * immutable snapshots, read-only registration views, public attachment/control hooks, and world
  * collision operations.</p>
  *
  * <p>No physics space is created implicitly. Consumers choose which explicit {@link SpaceId} to
  * target for each operation.</p>
  *
- * <p>This facade does not directly return live backend spaces or bodies. Code that genuinely needs
- * live backend access must use a scoped owner callback, such as
- * {@link #runOnPhysicsOwner(String, PhysicsOwnerScopedMutation)} or
- * {@link #callOnPhysicsOwner(String, PhysicsOwnerScopedCallable)}, and resolve live objects from
- * the callback parameter.</p>
+ * <p>This facade does not directly return live backend spaces or bodies. Gameplay code should use
+ * physics simulation commands and queries. The explicit live-owner escape hatch is available inside
+ * the command recipe for advanced diagnostics that cannot yet be expressed as copied recorder
+ * operations.</p>
  */
 public abstract class PhysicsWorldResource implements Resource<EntityStore> {
 
@@ -54,76 +53,45 @@ public abstract class PhysicsWorldResource implements Resource<EntityStore> {
     }
 
     /**
-     * Runs a live-backend mutation on the current physics owner.
+     * Records copied simulation intent through the fluent command DSL and submits it.
      *
-     * <p>When a world worker is attached, this submits to the physics worker and blocks until the
-     * mutation completes. If no worker is attached, or the caller is already on the worker thread,
-     * this runs immediately. Use the scoped overload when the operation needs to resolve live
-     * backend objects. The callback must not assume it owns unrelated Hytale ECS state.</p>
-     */
-    public abstract void runOnPhysicsOwner(@Nonnull String operation,
-        @Nonnull PhysicsOwnerMutation mutation);
-
-    /**
-     * Runs a live-backend mutation on the current physics owner with scoped live-object access.
-     */
-    public abstract void runOnPhysicsOwner(@Nonnull String operation,
-        @Nonnull PhysicsOwnerScopedMutation mutation);
-
-    /**
-     * Queues a live-backend mutation on the current physics owner without blocking the caller.
+     * <p>The returned handle completes when the physics owner executes the batch. Snapshot
+     * publication and ECS visual synchronization are separate phases and can lag behind command
+     * completion.</p>
      */
     @Nonnull
-    public abstract PhysicsMutationHandle<Void> enqueuePhysicsMutation(
-        @Nonnull String operation,
-        @Nonnull PhysicsOwnerMutation mutation);
+    public abstract PhysicsCommandHandle submitCommands(long submittedServerTick,
+        @Nonnull PhysicsCommandRecipe recipe);
 
     /**
-     * Queues a live-backend mutation with scoped live-object access.
-     */
-    @Nonnull
-    public abstract PhysicsMutationHandle<Void> enqueuePhysicsMutation(
-        @Nonnull String operation,
-        @Nonnull PhysicsOwnerScopedMutation mutation);
-
-    /**
-     * Queues a live-backend mutation and returns a handle that is already associated with a value.
+     * Records copied simulation intent through the fluent command DSL with a capacity hint.
      *
-     * <p>The {@code value} parameter lets callers reserve and expose a logical id before the queued
-     * mutation runs.</p>
+     * <p>{@code expectedOperations} sizes the internal recorder arrays. It is a performance hint,
+     * not a correctness requirement.</p>
      */
     @Nonnull
-    public abstract <T> PhysicsMutationHandle<T> enqueuePhysicsMutation(
-        @Nonnull String operation,
-        @Nullable T value,
-        @Nonnull PhysicsOwnerMutation mutation);
+    public abstract PhysicsCommandHandle submitCommands(long submittedServerTick,
+        int expectedOperations,
+        @Nonnull PhysicsCommandRecipe recipe);
 
     /**
-     * Queues a live-backend mutation with scoped live-object access and a reserved value.
-     */
-    @Nonnull
-    public abstract <T> PhysicsMutationHandle<T> enqueuePhysicsMutation(
-        @Nonnull String operation,
-        @Nullable T value,
-        @Nonnull PhysicsOwnerScopedMutation mutation);
-
-    /**
-     * Runs a live-backend read or write operation on the current physics owner and returns its value.
+     * Runs a copied owner-thread physics query without exposing live backend handles.
      *
-     * <p>Prefer published snapshots for ordinary gameplay reads. Use this for explicit live-backend
-     * operations that cannot be expressed through snapshots or higher-level resource methods. Use
-     * the scoped overload when the operation needs to resolve live backend objects.</p>
+     * <p>Queries should return immutable or defensively copied values. Use commands for mutations
+     * so all writes stay ordered through the physics owner.</p>
      */
     @Nonnull
-    public abstract <T> T callOnPhysicsOwner(@Nonnull String operation,
-        @Nonnull PhysicsOwnerCallable<T> callable);
+    public abstract <R> PhysicsQueryHandle<R> query(@Nonnull PhysicsQuery<R> query);
 
     /**
-     * Runs a live-backend read or write operation with scoped live-object access.
+     * Returns the latest value-only physics owner event frame.
+     *
+     * <p>Event frames describe owner-thread outcomes. They do not expose live
+     * backend handles and do not imply that command completion has become
+     * visible in a published body snapshot.</p>
      */
     @Nonnull
-    public abstract <T> T callOnPhysicsOwner(@Nonnull String operation,
-        @Nonnull PhysicsOwnerScopedCallable<T> callable);
+    public abstract PhysicsEventFrame getLatestEventFrame();
 
     /**
      * Returns a defensive copy of the world-level simulation settings.
@@ -224,7 +192,7 @@ public abstract class PhysicsWorldResource implements Resource<EntityStore> {
      * owner if the body is registered but missing from the published frame.
      */
     @Nonnull
-    public abstract PhysicsBodySnapshot getBodySnapshot(@Nonnull PhysicsBodyId bodyId);
+    public abstract PhysicsBodySnapshot getBodySnapshot(@Nonnull RigidBodyKey bodyKey);
 
     /**
      * Returns the number of body snapshots in the latest published frame.
@@ -335,23 +303,23 @@ public abstract class PhysicsWorldResource implements Resource<EntityStore> {
         @Nonnull PhysicsSpaceSettings settings);
 
     /**
-     * Destroys a registered body by stable id and removes it from its physics space.
+     * Destroys a registered body by stable key and removes it from its physics space.
      */
-    public abstract void destroyBody(@Nonnull PhysicsBodyId bodyId);
+    public abstract void destroyBody(@Nonnull RigidBodyKey bodyKey);
 
     /**
-     * Queues destruction of a registered body by stable id.
+     * Queues destruction of a registered body by stable key.
      */
     @Nonnull
-    public abstract PhysicsMutationHandle<PhysicsBodyId> destroyBodyAsync(
-        @Nonnull PhysicsBodyId bodyId);
+    public abstract PhysicsMutationHandle<RigidBodyKey> destroyBodyAsync(
+        @Nonnull RigidBodyKey bodyKey);
 
     /**
-     * Returns immutable registration metadata for a body id.
+     * Returns immutable registration metadata for a body key.
      */
     @Nullable
     public abstract PhysicsBodyRegistrationView getBodyRegistrationView(
-        @Nonnull PhysicsBodyId bodyId);
+        @Nonnull RigidBodyKey bodyKey);
 
     /**
      * Returns immutable registration metadata for every registered body.
@@ -378,10 +346,16 @@ public abstract class PhysicsWorldResource implements Resource<EntityStore> {
         @Nonnull PhysicsBodyKind kind);
 
     /**
-     * Returns ECS attachments associated with a registered body id.
+     * Returns ECS attachments associated with a registered body key.
      */
     @Nonnull
-    public abstract Collection<Ref<EntityStore>> getBodyAttachments(@Nonnull PhysicsBodyId bodyId);
+    public abstract Collection<Ref<EntityStore>> getBodyAttachments(@Nonnull RigidBodyKey bodyKey);
+
+    /**
+     * Returns whether a registered body has one or more ECS attachments without materializing the
+     * attachment collection.
+     */
+    public abstract boolean hasBodyAttachments(@Nonnull RigidBodyKey bodyKey);
 
     /**
      * Destroys all registered bodies while preserving registered physics spaces.
