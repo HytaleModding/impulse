@@ -2,9 +2,9 @@ package dev.hytalemodding.impulse.core.internal.worker;
 
 import java.time.Duration;
 import java.util.Objects;
-import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.PriorityBlockingQueue;
 import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -26,9 +26,11 @@ public final class PhysicsWorkerRunner implements AutoCloseable {
     private static final long POLL_MILLIS = 100L;
 
     private final BlockingQueue<QueuedCommand> commands;
+    private final int queueCapacity;
     private final AtomicBoolean accepting = new AtomicBoolean(true);
     private final AtomicLong nextSequence = new AtomicLong(1L);
     private final AtomicInteger pendingCommands = new AtomicInteger();
+    private final AtomicInteger queuedCommands = new AtomicInteger();
     private final Object lifecycleLock = new Object();
     private final Thread thread;
     @Nullable
@@ -38,7 +40,8 @@ public final class PhysicsWorkerRunner implements AutoCloseable {
         if (queueCapacity < 1) {
             throw new IllegalArgumentException("queueCapacity must be positive");
         }
-        commands = new ArrayBlockingQueue<>(queueCapacity);
+        this.queueCapacity = queueCapacity;
+        commands = new PriorityBlockingQueue<>(queueCapacity);
         thread = new Thread(this::runLoop, Objects.requireNonNull(threadName, "threadName"));
         thread.setDaemon(true);
         thread.start();
@@ -56,19 +59,38 @@ public final class PhysicsWorkerRunner implements AutoCloseable {
     @Nonnull
     public CompletableFuture<PhysicsWorkerResult> submitOrThrow(
         @Nonnull PhysicsWorkerCommand command) {
+        return submitOrThrow(command, CommandPriority.MUTATION);
+    }
+
+    @Nonnull
+    public CompletableFuture<PhysicsWorkerResult> submitStepOrThrow(
+        @Nonnull PhysicsWorkerCommand command) {
+        return submitOrThrow(command, CommandPriority.STEP);
+    }
+
+    @Nonnull
+    private CompletableFuture<PhysicsWorkerResult> submitOrThrow(
+        @Nonnull PhysicsWorkerCommand command,
+        @Nonnull CommandPriority priority) {
         Objects.requireNonNull(command, "command");
         synchronized (lifecycleLock) {
             if (!accepting.get()) {
                 throw new RejectedExecutionException("physics worker runner is closed");
             }
+            if (queuedCommands.get() >= queueCapacity) {
+                throw new RejectedExecutionException("physics worker command queue is full");
+            }
 
             long sequence = nextSequence.getAndIncrement();
             QueuedCommand queuedCommand = new QueuedCommand(sequence,
+                priority,
                 command,
                 System.nanoTime(),
                 new CompletableFuture<>());
             pendingCommands.incrementAndGet();
+            queuedCommands.incrementAndGet();
             if (!commands.offer(queuedCommand)) {
+                queuedCommands.decrementAndGet();
                 pendingCommands.decrementAndGet();
                 throw new RejectedExecutionException("physics worker command queue is full");
             }
@@ -140,6 +162,7 @@ public final class PhysicsWorkerRunner implements AutoCloseable {
                 if (command == null) {
                     continue;
                 }
+                queuedCommands.decrementAndGet();
                 run(command);
             }
         } finally {
@@ -177,6 +200,7 @@ public final class PhysicsWorkerRunner implements AutoCloseable {
         while ((queuedCommand = commands.poll()) != null) {
             queuedCommand.future().completeExceptionally(new RejectedExecutionException(
                 "physics worker runner closed before command executed"));
+            queuedCommands.decrementAndGet();
             pendingCommands.decrementAndGet();
         }
     }
@@ -189,8 +213,27 @@ public final class PhysicsWorkerRunner implements AutoCloseable {
     }
 
     private record QueuedCommand(long sequence,
+                                 @Nonnull CommandPriority priority,
                                  @Nonnull PhysicsWorkerCommand command,
                                  long submittedNanos,
-                                 @Nonnull CompletableFuture<PhysicsWorkerResult> future) {
+                                 @Nonnull CompletableFuture<PhysicsWorkerResult> future)
+        implements Comparable<QueuedCommand> {
+
+        @Override
+        public int compareTo(@Nonnull QueuedCommand other) {
+            int priorityOrder = Integer.compare(priority.order, other.priority.order);
+            return priorityOrder != 0 ? priorityOrder : Long.compare(sequence, other.sequence);
+        }
+    }
+
+    private enum CommandPriority {
+        STEP(0),
+        MUTATION(1);
+
+        private final int order;
+
+        CommandPriority(int order) {
+            this.order = order;
+        }
     }
 }

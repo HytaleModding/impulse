@@ -3,8 +3,9 @@ package dev.hytalemodding.impulse.core.internal.worker;
 import com.hypixel.hytale.component.Store;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import dev.hytalemodding.impulse.core.internal.resources.worker.PhysicsWorldWorkerResource;
-import dev.hytalemodding.impulse.core.plugin.execution.PhysicsMutationHandle;
+import dev.hytalemodding.impulse.core.plugin.resources.PhysicsMutationHandle;
 import java.util.Objects;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.atomic.AtomicReference;
@@ -118,6 +119,35 @@ public final class PhysicsWorkerAccess {
     }
 
     @Nonnull
+    public static <T> CompletableFuture<T> callAsync(@Nonnull PhysicsWorldWorkerResource worker,
+        @Nonnull String operation,
+        @Nonnull PhysicsWorkerCallable<T> callable) {
+        Objects.requireNonNull(worker, "worker");
+        Objects.requireNonNull(operation, "operation");
+        Objects.requireNonNull(callable, "callable");
+        if (worker.isWorkerThread()) {
+            return callInlineAsync(operation, callable);
+        }
+
+        CompletableFuture<T> completion = new CompletableFuture<>();
+        PhysicsWorkerCommand command = () -> {
+            completion.complete(callable.call());
+            return PhysicsWorkerSnapshot.empty();
+        };
+        try {
+            worker.submitMutationFuture(operation, command)
+                .whenComplete((ignored, failure) -> {
+                    if (failure != null) {
+                        completion.completeExceptionally(failure);
+                    }
+                });
+        } catch (RejectedExecutionException exception) {
+            completion.completeExceptionally(exception);
+        }
+        return completion;
+    }
+
+    @Nonnull
     private static PhysicsWorldWorkerResource worker(@Nonnull Store<EntityStore> store) {
         return store.getResource(PhysicsWorldWorkerResource.getResourceType());
     }
@@ -143,6 +173,18 @@ public final class PhysicsWorkerAccess {
             return PhysicsMutationHandle.completed(operation, value);
         } catch (Throwable throwable) {
             return PhysicsMutationHandle.failed(operation, value, throwable);
+        }
+    }
+
+    @Nonnull
+    private static <T> CompletableFuture<T> callInlineAsync(@Nonnull String operation,
+        @Nonnull PhysicsWorkerCallable<T> callable) {
+        try {
+            return CompletableFuture.completedFuture(callable.call());
+        } catch (Throwable throwable) {
+            CompletableFuture<T> completion = new CompletableFuture<>();
+            completion.completeExceptionally(throwable);
+            return completion;
         }
     }
 

@@ -5,19 +5,16 @@ import dev.hytalemodding.impulse.api.PhysicsBodySnapshot;
 import dev.hytalemodding.impulse.api.PhysicsSpace;
 import dev.hytalemodding.impulse.api.SpaceId;
 import dev.hytalemodding.impulse.core.internal.resources.body.PhysicsBodyRegistry;
+import dev.hytalemodding.impulse.core.internal.resources.body.PhysicsBodySnapshotVisitor;
 import dev.hytalemodding.impulse.core.internal.resources.body.PhysicsBodySnapshotStore;
-import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyId;
+import dev.hytalemodding.impulse.core.plugin.body.RigidBodyKey;
 import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyKind;
 import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyPersistenceMode;
 import dev.hytalemodding.impulse.core.internal.resources.body.PhysicsBodyRegistration;
 import dev.hytalemodding.impulse.core.plugin.resources.PhysicsWorldResource;
 import dev.hytalemodding.impulse.core.plugin.snapshot.PhysicsBodySnapshotEntry;
-import dev.hytalemodding.impulse.core.plugin.snapshot.PublishedPhysicsBodySnapshot;
 import dev.hytalemodding.impulse.core.plugin.snapshot.PublishedPhysicsSnapshotFrame;
-import dev.hytalemodding.impulse.core.plugin.snapshot.PublishedPhysicsSpaceFrame;
-import java.util.ArrayList;
 import java.util.Collection;
-import java.util.List;
 import java.util.Objects;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
@@ -48,8 +45,8 @@ public final class PhysicsWorldSnapshotState {
     private volatile long latestSnapshotAppliedNanos;
 
     @Nullable
-    public PhysicsBodySnapshot getBodySnapshot(@Nonnull PhysicsBodyId bodyId) {
-        return bodySnapshots.get(bodyId);
+    public PhysicsBodySnapshot getBodySnapshot(@Nonnull RigidBodyKey bodyKey) {
+        return bodySnapshots.get(bodyKey);
     }
 
     @Nonnull
@@ -65,13 +62,13 @@ public final class PhysicsWorldSnapshotState {
         return snapshot;
     }
 
-    public void putBodySnapshot(@Nonnull PhysicsBodyId bodyId,
+    public void putBodySnapshot(@Nonnull RigidBodyKey bodyKey,
         @Nonnull PhysicsBodySnapshot snapshot,
         @Nonnull SpaceId spaceId,
         @Nonnull PhysicsBodyKind kind,
         @Nonnull PhysicsBodyPersistenceMode persistenceMode) {
-        bodySnapshots.put(bodyId, snapshot, spaceId, kind, persistenceMode);
-        workerBodySnapshots.put(bodyId, snapshot, spaceId, kind, persistenceMode);
+        bodySnapshots.put(bodyKey, snapshot, spaceId, kind, persistenceMode);
+        workerBodySnapshots.put(bodyKey, snapshot, spaceId, kind, persistenceMode);
     }
 
     @Nonnull
@@ -80,6 +77,7 @@ public final class PhysicsWorldSnapshotState {
         @Nonnull PhysicsBodyRegistry bodyRegistry,
         long stepSequence,
         long serverTick,
+        long commandBatchSequenceWatermark,
         @Nonnull PublishedPhysicsSnapshotFrame.Status status,
         long stepNanos,
         boolean profilingEnabled) {
@@ -93,38 +91,37 @@ public final class PhysicsWorldSnapshotState {
         workerBodySnapshots.refresh(spaces, bodyRegistry);
         int spatialIndexCellCount = workerBodySnapshots.cellCount();
 
-        List<PublishedPhysicsSpaceFrame> spaceFrames = new ArrayList<>(spaces.size());
+        int bodyCount = 0;
         for (PhysicsSpace space : spaces) {
-            SpaceId spaceId = space.getId();
-            List<PublishedPhysicsBodySnapshot> bodyFrames = new ArrayList<>(
-                workerBodySnapshots.bodyCount(spaceId));
-            workerBodySnapshots.forEach(spaceId, entry -> bodyFrames.add(
-                PublishedPhysicsBodySnapshot.from(entry.bodyId(),
-                    entry.spaceId(),
-                    frameEpoch,
-                    frameWorldEpoch,
-                    frameWorldEpoch,
-                    frameWorldEpoch,
-                    entry.kind(),
-                    entry.persistenceMode(),
-                    entry.snapshot())));
-            spaceFrames.add(new PublishedPhysicsSpaceFrame(spaceId,
-                frameEpoch,
-                frameWorldEpoch,
-                frameWorldEpoch,
-                bodyFrames));
+            bodyCount += workerBodySnapshots.bodyCount(space.getId());
         }
 
         long snapshotNanos = profilingEnabled ? System.nanoTime() - snapshotStartNanos : 0L;
-        PublishedPhysicsSnapshotFrame frame = new PublishedPhysicsSnapshotFrame(frameEpoch,
+        PublishedPhysicsSnapshotFrame.Builder frameBuilder = PublishedPhysicsSnapshotFrame.compactBuilder(frameEpoch,
             frameWorldEpoch,
             stepSequence,
             serverTick,
+            commandBatchSequenceWatermark,
             status,
             spatialIndexCellCount,
             stepNanos,
             snapshotNanos,
-            spaceFrames);
+            spaces.size(),
+            bodyCount);
+        for (PhysicsSpace space : spaces) {
+            SpaceId spaceId = space.getId();
+            int spaceBodyCount = workerBodySnapshots.bodyCount(spaceId);
+            frameBuilder.addSpace(spaceId, frameWorldEpoch, spaceBodyCount);
+            workerBodySnapshots.forEachIndexed(spaceId,
+                (bodyKey, snapshot, bodySpaceId, kind, persistenceMode) -> frameBuilder.addBody(bodyKey,
+                    bodySpaceId,
+                    frameWorldEpoch,
+                    frameWorldEpoch,
+                    kind,
+                    persistenceMode,
+                    snapshot));
+        }
+        PublishedPhysicsSnapshotFrame frame = frameBuilder.build();
         publishLatestFrameIfWorldCurrent(frame);
         return frame;
     }
@@ -137,43 +134,19 @@ public final class PhysicsWorldSnapshotState {
             return 0;
         }
 
-        bodySnapshots.clear();
-        int applied = 0;
-        for (PublishedPhysicsSpaceFrame spaceFrame : frame.spaces()) {
-            for (PublishedPhysicsBodySnapshot bodyFrame : spaceFrame.bodies()) {
-                PhysicsBodyRegistration registration =
-                    bodyRegistry.getRegistration(bodyFrame.bodyId());
-                if (registration == null || !registration.spaceId().equals(bodyFrame.spaceId())) {
-                    continue;
-                }
-                PhysicsBodySnapshot snapshot = new PhysicsBodySnapshot(bodyFrame.position(),
-                    bodyFrame.rotation(),
-                    bodyFrame.linearVelocity(),
-                    bodyFrame.angularVelocity(),
-                    bodyFrame.bodyType(),
-                    bodyFrame.sleeping(),
-                    bodyFrame.sensor(),
-                    bodyFrame.centerOfMassOffsetY(),
-                    bodyFrame.shapeType(),
-                    bodyFrame.boxHalfExtents(),
-                    bodyFrame.sphereRadius(),
-                    bodyFrame.halfHeight(),
-                    bodyFrame.shapeAxis());
-                bodySnapshots.put(bodyFrame.bodyId(),
-                    snapshot,
-                    bodyFrame.spaceId(),
-                    registration.kind(),
-                    registration.persistenceMode());
-                applied++;
-            }
-        }
+        PhysicsBodySnapshotStore.ApplyStats stats =
+            bodySnapshots.applyPublishedFrame(frame, bodyRegistry);
         latestSnapshotAppliedNanos = System.nanoTime();
-        return applied;
+        return stats.applied();
     }
 
     @Nonnull
     public PublishedPhysicsSnapshotFrame getLatestPublishedFrame() {
         return latestPublishedFrame.get();
+    }
+
+    public long worldEpoch() {
+        return worldEpoch.get();
     }
 
     public int getBodySnapshotCount() {
@@ -193,6 +166,11 @@ public final class PhysicsWorldSnapshotState {
         bodySnapshots.forEach(spaceId, consumer);
     }
 
+    public void forEachIndexedBodySnapshot(@Nonnull SpaceId spaceId,
+        @Nonnull PhysicsBodySnapshotVisitor visitor) {
+        bodySnapshots.forEachIndexed(spaceId, visitor);
+    }
+
     public int forEachBodySnapshotNear(@Nonnull SpaceId spaceId,
         @Nonnull Vector3f center,
         float radius,
@@ -200,9 +178,16 @@ public final class PhysicsWorldSnapshotState {
         return bodySnapshots.forEachNear(spaceId, center, radius, consumer);
     }
 
-    public void removeBodySnapshot(@Nonnull PhysicsBodyId bodyId) {
-        bodySnapshots.remove(bodyId);
-        workerBodySnapshots.remove(bodyId);
+    public int forEachIndexedBodySnapshotNear(@Nonnull SpaceId spaceId,
+        @Nonnull Vector3f center,
+        float radius,
+        @Nonnull PhysicsBodySnapshotVisitor visitor) {
+        return bodySnapshots.forEachIndexedNear(spaceId, center, radius, visitor);
+    }
+
+    public void removeBodySnapshot(@Nonnull RigidBodyKey bodyKey) {
+        bodySnapshots.remove(bodyKey);
+        workerBodySnapshots.remove(bodyKey);
     }
 
     public void clearBodySnapshots() {

@@ -4,17 +4,17 @@ import dev.hytalemodding.impulse.api.PhysicsBody;
 import dev.hytalemodding.impulse.api.PhysicsBodySnapshot;
 import dev.hytalemodding.impulse.api.PhysicsSpace;
 import dev.hytalemodding.impulse.api.SpaceId;
-import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyId;
+import dev.hytalemodding.impulse.core.plugin.body.RigidBodyKey;
 import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyKind;
 import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyPersistenceMode;
-import dev.hytalemodding.impulse.core.internal.resources.body.PhysicsBodyRegistration;
-import dev.hytalemodding.impulse.core.plugin.resources.PhysicsWorldResource;
 import dev.hytalemodding.impulse.core.plugin.snapshot.PhysicsBodySnapshotEntry;
+import dev.hytalemodding.impulse.core.plugin.snapshot.PublishedPhysicsBodySnapshotCursor;
+import dev.hytalemodding.impulse.core.plugin.snapshot.PublishedPhysicsSnapshotFrame;
+import it.unimi.dsi.fastutil.objects.Object2LongOpenHashMap;
 import it.unimi.dsi.fastutil.objects.Object2ObjectLinkedOpenHashMap;
-import it.unimi.dsi.fastutil.objects.ObjectArrayList;
-import it.unimi.dsi.fastutil.objects.ObjectOpenHashSet;
+import java.util.Iterator;
 import java.util.Map;
-import java.util.Set;
+import java.util.NoSuchElementException;
 import java.util.function.Consumer;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
@@ -25,27 +25,26 @@ import org.joml.Vector3f;
  */
 public final class PhysicsBodySnapshotStore {
 
-    private final Map<PhysicsBodyId, PhysicsBodySnapshot> snapshots =
+    private final Map<RigidBodyKey, PhysicsBodySnapshot> snapshots =
         new Object2ObjectLinkedOpenHashMap<>();
+    private final Object2LongOpenHashMap<RigidBodyKey> livenessMarks =
+        new Object2LongOpenHashMap<>();
     private final PhysicsBodySpatialIndex spatialIndex = new PhysicsBodySpatialIndex();
+    private long livenessGeneration;
+
+    public record ApplyStats(int applied, int inserted, int removed) {
+    }
 
     public int refresh(@Nonnull Iterable<PhysicsSpace> spaces, @Nonnull PhysicsBodyRegistry bodyRegistry) {
-        Set<PhysicsBodyId> liveBodies = new ObjectOpenHashSet<>(bodyRegistry.getRegistrationCount());
-        ObjectArrayList<PhysicsBody> registeredBodies = new ObjectArrayList<>(bodyRegistry.getRegistrationCount());
+        long generation = nextLivenessGeneration();
+        MutableInt liveBodies = new MutableInt();
         for (PhysicsSpace space : spaces) {
-            registeredBodies.clear();
             SpaceId spaceId = space.getId();
-            bodyRegistry.forEachRegistration(registration -> {
-                if (registration.spaceId().equals(spaceId)
-                    && space.containsBody(registration.body())) {
-                    registeredBodies.add(registration.body());
-                }
-            });
-            if (registeredBodies.isEmpty()) {
+            if (bodyRegistry.getRegistrationCount(spaceId) == 0) {
                 continue;
             }
 
-            space.snapshotBodies(registeredBodies, body -> {
+            space.snapshotBodies(new RegisteredSpaceBodies(space, bodyRegistry), body -> {
                 PhysicsBodyRegistration registration = bodyRegistry.getRegistration(body);
                 return registration != null ? snapshots.get(registration.id()) : null;
             }, (body, snapshot) -> {
@@ -54,13 +53,13 @@ public final class PhysicsBodySnapshotStore {
                     return;
                 }
 
-                PhysicsBodyId bodyId = registration.id();
-                liveBodies.add(bodyId);
-                PhysicsBodySnapshot previous = snapshots.get(bodyId);
+                RigidBodyKey bodyKey = registration.id();
+                markLive(bodyKey, generation, liveBodies);
+                PhysicsBodySnapshot previous = snapshots.get(bodyKey);
                 if (snapshot != previous) {
-                    snapshots.put(bodyId, snapshot);
+                    snapshots.put(bodyKey, snapshot);
                 }
-                spatialIndex.update(bodyId,
+                spatialIndex.update(bodyKey,
                     snapshot,
                     spaceId,
                     registration.kind(),
@@ -68,32 +67,42 @@ public final class PhysicsBodySnapshotStore {
             });
         }
 
-        spatialIndex.retainOnly(liveBodies);
-        snapshots.keySet().removeIf(bodyId -> !liveBodies.contains(bodyId));
-        return liveBodies.size();
+        retainMarked(generation);
+        return liveBodies.value();
     }
 
-    public void put(@Nonnull PhysicsBodyId bodyId,
+    @Nonnull
+    public ApplyStats applyPublishedFrame(@Nonnull PublishedPhysicsSnapshotFrame frame,
+        @Nonnull PhysicsBodyRegistry bodyRegistry) {
+        PublishedFrameApplier applier = new PublishedFrameApplier(nextLivenessGeneration());
+        frame.forEachBodyCursor(applier);
+        return new ApplyStats(applier.applied(), applier.inserted(), retainMarked(applier.generation()));
+    }
+
+    public void put(@Nonnull RigidBodyKey bodyKey,
         @Nonnull PhysicsBodySnapshot snapshot,
         @Nonnull SpaceId spaceId,
         @Nonnull PhysicsBodyKind kind,
         @Nonnull PhysicsBodyPersistenceMode persistenceMode) {
-        snapshots.put(bodyId, snapshot);
-        spatialIndex.update(bodyId, snapshot, spaceId, kind, persistenceMode);
+        snapshots.put(bodyKey, snapshot);
+        livenessMarks.put(bodyKey, livenessGeneration);
+        spatialIndex.update(bodyKey, snapshot, spaceId, kind, persistenceMode);
     }
 
     @Nullable
-    public PhysicsBodySnapshot get(@Nonnull PhysicsBodyId bodyId) {
-        return snapshots.get(bodyId);
+    public PhysicsBodySnapshot get(@Nonnull RigidBodyKey bodyKey) {
+        return snapshots.get(bodyKey);
     }
 
-    public void remove(@Nonnull PhysicsBodyId bodyId) {
-        snapshots.remove(bodyId);
-        spatialIndex.remove(bodyId);
+    public void remove(@Nonnull RigidBodyKey bodyKey) {
+        snapshots.remove(bodyKey);
+        livenessMarks.removeLong(bodyKey);
+        spatialIndex.remove(bodyKey);
     }
 
     public void clear() {
         snapshots.clear();
+        livenessMarks.clear();
         spatialIndex.clear();
     }
 
@@ -114,10 +123,167 @@ public final class PhysicsBodySnapshotStore {
         spatialIndex.forEach(spaceId, consumer);
     }
 
+    public void forEachIndexed(@Nonnull SpaceId spaceId,
+        @Nonnull PhysicsBodySnapshotVisitor visitor) {
+        spatialIndex.forEachIndexed(spaceId, visitor);
+    }
+
     public int forEachNear(@Nonnull SpaceId spaceId,
         @Nonnull Vector3f center,
         float radius,
         @Nonnull Consumer<PhysicsBodySnapshotEntry> consumer) {
         return spatialIndex.forEachNear(spaceId, center, radius, consumer);
+    }
+
+    public int forEachIndexedNear(@Nonnull SpaceId spaceId,
+        @Nonnull Vector3f center,
+        float radius,
+        @Nonnull PhysicsBodySnapshotVisitor visitor) {
+        return spatialIndex.forEachIndexedNear(spaceId, center, radius, visitor);
+    }
+
+    private long nextLivenessGeneration() {
+        livenessGeneration++;
+        if (livenessGeneration == 0L) {
+            livenessGeneration = 1L;
+            livenessMarks.clear();
+        }
+        return livenessGeneration;
+    }
+
+    private void markLive(@Nonnull RigidBodyKey bodyKey,
+        long generation,
+        @Nonnull MutableInt liveBodies) {
+        if (livenessMarks.put(bodyKey, generation) != generation) {
+            liveBodies.increment();
+        }
+    }
+
+    private int retainMarked(long generation) {
+        int removed = 0;
+        Iterator<RigidBodyKey> iterator = snapshots.keySet().iterator();
+        while (iterator.hasNext()) {
+            RigidBodyKey bodyKey = iterator.next();
+            if (livenessMarks.getLong(bodyKey) != generation) {
+                iterator.remove();
+                livenessMarks.removeLong(bodyKey);
+                spatialIndex.remove(bodyKey);
+                removed++;
+            }
+        }
+        return removed;
+    }
+
+    private final class PublishedFrameApplier implements Consumer<PublishedPhysicsBodySnapshotCursor> {
+
+        private final long generation;
+        private final MutableInt liveBodies = new MutableInt();
+        private int applied;
+        private int inserted;
+
+        private PublishedFrameApplier(long generation) {
+            this.generation = generation;
+        }
+
+        @Override
+        public void accept(@Nonnull PublishedPhysicsBodySnapshotCursor bodyFrame) {
+            RigidBodyKey bodyKey = bodyFrame.bodyKey();
+            markLive(bodyKey, generation, liveBodies);
+            PhysicsBodySnapshot snapshot = snapshots.get(bodyKey);
+            if (snapshot == null) {
+                inserted++;
+                snapshot = bodyFrame.toBodySnapshot();
+                snapshots.put(bodyKey, snapshot);
+            } else if (!bodyFrame.matchesSnapshot(snapshot)) {
+                snapshot = bodyFrame.toBodySnapshot();
+                snapshots.put(bodyKey, snapshot);
+            } else {
+                applied++;
+                return;
+            }
+            spatialIndex.update(bodyKey,
+                snapshot,
+                bodyFrame.spaceId(),
+                bodyFrame.kind(),
+                bodyFrame.persistenceMode());
+            applied++;
+        }
+
+        private int applied() {
+            return applied;
+        }
+
+        private int inserted() {
+            return inserted;
+        }
+
+        private long generation() {
+            return generation;
+        }
+    }
+
+    private static final class RegisteredSpaceBodies implements Iterable<PhysicsBody> {
+
+        private final PhysicsSpace space;
+        private final PhysicsBodyRegistry bodyRegistry;
+
+        private RegisteredSpaceBodies(@Nonnull PhysicsSpace space,
+            @Nonnull PhysicsBodyRegistry bodyRegistry) {
+            this.space = space;
+            this.bodyRegistry = bodyRegistry;
+        }
+
+        @Nonnull
+        @Override
+        public Iterator<PhysicsBody> iterator() {
+            Iterator<PhysicsBodyRegistration> registrations =
+                bodyRegistry.registrationIterator(space.getId());
+            return new Iterator<>() {
+
+                @Nullable
+                private PhysicsBody next;
+                private boolean nextReady;
+
+                @Override
+                public boolean hasNext() {
+                    advance();
+                    return nextReady;
+                }
+
+                @Override
+                public PhysicsBody next() {
+                    if (!hasNext()) {
+                        throw new NoSuchElementException();
+                    }
+                    PhysicsBody body = next;
+                    next = null;
+                    nextReady = false;
+                    return body;
+                }
+
+                private void advance() {
+                    while (!nextReady && registrations.hasNext()) {
+                        PhysicsBody candidate = registrations.next().body();
+                        if (space.containsBody(candidate)) {
+                            next = candidate;
+                            nextReady = true;
+                        }
+                    }
+                }
+            };
+        }
+    }
+
+    private static final class MutableInt {
+
+        private int value;
+
+        private void increment() {
+            value++;
+        }
+
+        private int value() {
+            return value;
+        }
     }
 }

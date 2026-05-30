@@ -11,7 +11,7 @@ import dev.hytalemodding.impulse.core.internal.resources.joint.PhysicsJointRegis
 import dev.hytalemodding.impulse.core.internal.resources.snapshot.PhysicsWorldSnapshotState;
 import dev.hytalemodding.impulse.core.internal.resources.space.PhysicsSpaceRuntime;
 import dev.hytalemodding.impulse.core.internal.resources.visual.PhysicsVisualRuntime;
-import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyId;
+import dev.hytalemodding.impulse.core.plugin.body.RigidBodyKey;
 import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyKind;
 import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyPersistenceMode;
 import dev.hytalemodding.impulse.core.internal.resources.body.PhysicsBodyRegistration;
@@ -65,20 +65,20 @@ public final class PhysicsBodyRuntime {
         this.worldChangedMarker = worldChangedMarker;
     }
 
-    public void markBodyCreationPending(@Nonnull PhysicsBodyId bodyId) {
-        creationTracker.markPending(bodyId);
+    public void markBodyCreationPending(@Nonnull RigidBodyKey bodyKey) {
+        creationTracker.markPending(bodyKey);
     }
 
-    public void clearBodyCreationPending(@Nonnull PhysicsBodyId bodyId) {
-        creationTracker.clearPending(bodyId);
+    public void clearBodyCreationPending(@Nonnull RigidBodyKey bodyKey) {
+        creationTracker.clearPending(bodyKey);
     }
 
-    public boolean isBodyCreationPending(@Nonnull PhysicsBodyId bodyId) {
-        return creationTracker.isPending(bodyId);
+    public boolean isBodyCreationPending(@Nonnull RigidBodyKey bodyKey) {
+        return creationTracker.isPending(bodyKey);
     }
 
     @Nonnull
-    public PhysicsBodyId addBody(@Nonnull PhysicsBodyId bodyId,
+    public RigidBodyKey addBody(@Nonnull RigidBodyKey bodyKey,
         @Nonnull SpaceId spaceId,
         @Nonnull PhysicsBody body,
         @Nonnull PhysicsBodyKind kind,
@@ -90,35 +90,35 @@ public final class PhysicsBodyRuntime {
         if (!containsBody(space, body)) {
             space.addBody(body);
         }
-        PhysicsBodyRegistration registration = bodyRegistry.registerBody(bodyId, body, spaceId, kind, persistenceMode);
+        PhysicsBodyRegistration registration = bodyRegistry.registerBody(bodyKey, body, spaceId, kind, persistenceMode);
         PhysicsBodySnapshot snapshot = PhysicsBodySnapshot.from(body);
-        snapshotState.putBodySnapshot(bodyId,
+        snapshotState.putBodySnapshot(bodyKey,
             snapshot,
             spaceId,
             registration.kind(),
             registration.persistenceMode());
         worldChangedMarker.run();
-        return bodyId;
+        return bodyKey;
     }
 
-    public void destroyBody(@Nonnull PhysicsBodyId bodyId, boolean removeFromSpace) {
-        PhysicsBodyRegistration registration = bodyRegistry.getRegistration(bodyId);
+    public void destroyBody(@Nonnull RigidBodyKey bodyKey, boolean removeFromSpace) {
+        PhysicsBodyRegistration registration = bodyRegistry.getRegistration(bodyKey);
         if (removeFromSpace && registration != null) {
             removeBodyFromSpace(registration.body(), registration);
         }
         if (registration != null) {
-            bodyRegistry.unregisterBody(bodyId);
-            clearBodyRuntimeState(bodyId);
+            bodyRegistry.unregisterBody(bodyKey);
+            clearBodyRuntimeState(bodyKey);
         } else {
-            clearBodyRuntimeState(bodyId);
+            clearBodyRuntimeState(bodyKey);
         }
         worldChangedMarker.run();
     }
 
     public void destroyBody(@Nonnull PhysicsBody body) {
-        PhysicsBodyId bodyId = bodyRegistry.getBodyId(body);
-        if (bodyId != null) {
-            destroyBody(bodyId, true);
+        RigidBodyKey bodyKey = bodyRegistry.getBodyKey(body);
+        if (bodyKey != null) {
+            destroyBody(bodyKey, true);
         } else {
             removeBodyFromSpace(body, null);
             worldChangedMarker.run();
@@ -162,14 +162,15 @@ public final class PhysicsBodyRuntime {
         chunkRuntime.clear();
         visualRuntime.clear();
         snapshotState.clearBodySnapshots();
+        creationTracker.clear();
         worldChangedMarker.run();
     }
 
-    public void clearBodyRuntimeState(@Nonnull PhysicsBodyId bodyId) {
-        visualRuntime.clearBodyRuntimeState(bodyId);
-        controlRuntime.clearBody(bodyId);
-        chunkRuntime.clearBody(bodyId);
-        snapshotState.removeBodySnapshot(bodyId);
+    public void clearBodyRuntimeState(@Nonnull RigidBodyKey bodyKey) {
+        visualRuntime.clearBodyRuntimeState(bodyKey);
+        controlRuntime.clearBody(bodyKey);
+        chunkRuntime.clearBody(bodyKey);
+        snapshotState.removeBodySnapshot(bodyKey);
     }
 
     private void removeBodyFromSpace(@Nonnull PhysicsBody body, @Nullable PhysicsBodyRegistration registration) {

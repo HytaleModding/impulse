@@ -1,37 +1,47 @@
 package dev.hytalemodding.impulse.core.internal.resources.body;
 
-import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyId;
+import dev.hytalemodding.impulse.core.plugin.body.RigidBodyKey;
 import it.unimi.dsi.fastutil.objects.Object2IntOpenHashMap;
 import javax.annotation.Nonnull;
 
 /**
- * Tracks body ids reserved by async body registrations until worker completion is observed.
+ * Tracks body keys reserved by async body registrations until publication catches up.
  */
 public final class PhysicsBodyCreationTracker {
 
-    private final Object2IntOpenHashMap<PhysicsBodyId> pendingBodyCreations =
+    private final Object2IntOpenHashMap<RigidBodyKey> pendingBodyCreations =
         new Object2IntOpenHashMap<>();
 
-    public void markPending(@Nonnull PhysicsBodyId bodyId) {
+    public void markPending(@Nonnull RigidBodyKey bodyKey) {
         synchronized (pendingBodyCreations) {
-            pendingBodyCreations.addTo(bodyId, 1);
+            pendingBodyCreations.addTo(bodyKey, 1);
         }
     }
 
-    public void clearPending(@Nonnull PhysicsBodyId bodyId) {
+    public void clearPending(@Nonnull RigidBodyKey bodyKey) {
         synchronized (pendingBodyCreations) {
-            int count = pendingBodyCreations.getInt(bodyId);
-            if (count <= 1) {
-                pendingBodyCreations.removeInt(bodyId);
-            } else {
-                pendingBodyCreations.put(bodyId, count - 1);
-            }
+            clearPendingDirect(bodyKey);
         }
     }
 
-    public boolean isPending(@Nonnull PhysicsBodyId bodyId) {
+    public boolean isPending(@Nonnull RigidBodyKey bodyKey) {
         synchronized (pendingBodyCreations) {
-            return pendingBodyCreations.containsKey(bodyId);
+            return pendingBodyCreations.containsKey(bodyKey);
+        }
+    }
+
+    public void clear() {
+        synchronized (pendingBodyCreations) {
+            pendingBodyCreations.clear();
+        }
+    }
+
+    private void clearPendingDirect(RigidBodyKey bodyKey) {
+        int count = pendingBodyCreations.getInt(bodyKey);
+        if (count <= 1) {
+            pendingBodyCreations.removeInt(bodyKey);
+        } else {
+            pendingBodyCreations.put(bodyKey, count - 1);
         }
     }
 }

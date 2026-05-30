@@ -8,11 +8,10 @@ import dev.hytalemodding.impulse.api.capability.PhysicsContinuousCollisionCapabi
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsWorldRuntimeResource;
 import dev.hytalemodding.impulse.core.internal.systems.step.PhysicsStepCountPolicy;
 import dev.hytalemodding.impulse.core.plugin.resources.PhysicsWorldResource;
-import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyId;
+import dev.hytalemodding.impulse.core.plugin.body.RigidBodyKey;
 import dev.hytalemodding.impulse.core.plugin.settings.PhysicsStepMode;
 import dev.hytalemodding.impulse.core.plugin.settings.PhysicsWorldSettings;
 import dev.hytalemodding.impulse.core.plugin.snapshot.PublishedPhysicsSnapshotFrame;
-import java.util.Collection;
 import java.util.Objects;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
@@ -301,27 +300,26 @@ public final class PhysicsWorkerStepCommand implements PhysicsWorkerCommand {
                 return;
             }
 
-            PhysicsBodyId bodyId = resource.getBodyId(body);
-            if (bodyId == null) {
+            RigidBodyKey bodyKey = resource.getBodyKey(body);
+            if (bodyKey == null) {
                 return;
             }
             body.setContinuousCollisionEnabled(true);
-            resource.markContinuousCollisionForced(bodyId);
+            resource.markContinuousCollisionForced(bodyKey);
         });
     }
 
     private static void restoreForcedContinuousCollision(@Nonnull PhysicsWorldRuntimeResource resource) {
-        Collection<PhysicsBodyId> forcedBodyIds = resource.getForcedContinuousCollisionBodyIds();
-        if (forcedBodyIds.isEmpty()) {
+        if (!resource.hasForcedContinuousCollisionBodies()) {
             return;
         }
 
-        for (PhysicsBodyId bodyId : forcedBodyIds) {
-            PhysicsBody body = resource.getBody(bodyId);
+        resource.forEachForcedContinuousCollisionBody(bodyKey -> {
+            PhysicsBody body = resource.getBody(bodyKey);
             if (body != null) {
                 body.setContinuousCollisionEnabled(false);
             }
-        }
+        });
         resource.clearForcedContinuousCollisionBodies();
     }
 

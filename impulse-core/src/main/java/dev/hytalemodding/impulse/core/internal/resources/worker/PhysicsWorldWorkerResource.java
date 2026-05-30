@@ -10,10 +10,11 @@ import dev.hytalemodding.impulse.core.internal.worker.PhysicsWorkerResult;
 import dev.hytalemodding.impulse.core.internal.worker.PhysicsWorkerRunner;
 import dev.hytalemodding.impulse.core.internal.worker.PhysicsWorkerStepCommand;
 import dev.hytalemodding.impulse.core.internal.worker.PhysicsWorkerStepCompletion;
-import dev.hytalemodding.impulse.core.plugin.execution.PhysicsOwnerHandle;
-import dev.hytalemodding.impulse.core.plugin.execution.PhysicsMutationHandle;
+import dev.hytalemodding.impulse.core.internal.resources.owner.PhysicsOwnerHandle;
+import dev.hytalemodding.impulse.core.plugin.resources.PhysicsMutationHandle;
 import java.time.Duration;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.Objects;
 import java.util.Queue;
@@ -80,7 +81,7 @@ public final class PhysicsWorldWorkerResource implements Resource<EntityStore>, 
             if (pendingStep != null) {
                 return false;
             }
-            CompletableFuture<PhysicsWorkerResult> future = borrowRunnerLocked().submitOrThrow(command);
+            CompletableFuture<PhysicsWorkerResult> future = borrowRunnerLocked().submitStepOrThrow(command);
             pendingStep = new PendingStep(command, future, System.nanoTime());
             return true;
         }
@@ -96,20 +97,33 @@ public final class PhysicsWorldWorkerResource implements Resource<EntityStore>, 
     public <T> PhysicsMutationHandle<T> submitMutation(@Nonnull String operation,
         @Nullable T value,
         @Nonnull PhysicsWorkerCommand command) {
+        CompletableFuture<PhysicsWorkerResult> future = submitMutationFuture(operation, command);
+        return PhysicsMutationHandle.fromCompletion(operation, value, future);
+    }
+
+    @Nonnull
+    public CompletableFuture<PhysicsWorkerResult> submitMutationFuture(@Nonnull String operation,
+        @Nonnull PhysicsWorkerCommand command) {
         Objects.requireNonNull(operation, "operation");
         Objects.requireNonNull(command, "command");
-        CompletableFuture<PhysicsWorkerResult> future;
         synchronized (lifecycleLock) {
-            future = borrowRunnerLocked().submitOrThrow(command);
+            CompletableFuture<PhysicsWorkerResult> future = borrowRunnerLocked().submitOrThrow(command);
             pendingMutations.add(new PendingMutation(operation, future));
+            return future;
         }
-        return PhysicsMutationHandle.fromCompletion(operation, value, future);
     }
 
     @Nonnull
     public List<PhysicsWorkerMutationCompletion> pollCompletedMutations(int maxCompletions) {
         int limit = Math.max(0, maxCompletions);
-        List<PhysicsWorkerMutationCompletion> completions = new ArrayList<>();
+        if (limit == 0) {
+            return Collections.emptyList();
+        }
+        PendingMutation first = pendingMutations.peek();
+        if (first == null || !first.future().isDone()) {
+            return Collections.emptyList();
+        }
+        List<PhysicsWorkerMutationCompletion> completions = new ArrayList<>(limit);
         while (completions.size() < limit) {
             PendingMutation current = pendingMutations.peek();
             if (current == null || !current.future().isDone()) {
@@ -299,6 +313,12 @@ public final class PhysicsWorldWorkerResource implements Resource<EntityStore>, 
         private CompletableFuture<PhysicsWorkerResult> submitOrThrow(
             @Nonnull PhysicsWorkerCommand command) {
             return runner.submitOrThrow(command);
+        }
+
+        @Nonnull
+        private CompletableFuture<PhysicsWorkerResult> submitStepOrThrow(
+            @Nonnull PhysicsWorkerCommand command) {
+            return runner.submitStepOrThrow(command);
         }
 
         private boolean isAccepting() {
