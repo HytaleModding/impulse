@@ -1010,6 +1010,11 @@ public class PhysicsWorldRuntimeResource extends PhysicsWorldResource {
             || hasPendingCommandBodyCreationPublication();
     }
 
+    public boolean hasPublishedOrPendingBodyRegistration(@Nonnull RigidBodyKey bodyKey) {
+        return getBodyRegistrationView(bodyKey) != null
+            || isBodyCreationPending(bodyKey);
+    }
+
     @Nonnull
     public PhysicsBodyRegistration requireBodyRegistration(@Nonnull RigidBodyKey bodyKey) {
         PhysicsBodyRegistration registration = getRegistration(bodyKey);

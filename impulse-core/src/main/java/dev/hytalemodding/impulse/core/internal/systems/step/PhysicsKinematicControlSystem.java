@@ -20,10 +20,10 @@ import com.hypixel.hytale.server.core.modules.entity.component.TransformComponen
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import dev.hytalemodding.impulse.api.PhysicsBodyType;
 import dev.hytalemodding.impulse.core.internal.components.PhysicsControlSessionComponent;
+import dev.hytalemodding.impulse.core.internal.resources.PhysicsWorldRuntimeResource;
 import dev.hytalemodding.impulse.core.internal.systems.sync.PhysicsSyncSystem;
 import dev.hytalemodding.impulse.core.plugin.body.RigidBodyKey;
 import dev.hytalemodding.impulse.core.plugin.resources.PhysicsMutationHandle;
-import dev.hytalemodding.impulse.core.plugin.resources.PhysicsWorldResource;
 import it.unimi.dsi.fastutil.objects.Object2ObjectMap;
 import it.unimi.dsi.fastutil.objects.Object2ObjectOpenHashMap;
 import java.util.Collections;
@@ -79,14 +79,14 @@ public class PhysicsKinematicControlSystem extends EntityTickingSystem<EntitySto
             return;
         }
 
-        PhysicsWorldResource resource = store.getResource(PhysicsWorldResource.getResourceType());
+        PhysicsWorldRuntimeResource resource = PhysicsWorldRuntimeResource.require(store);
         RigidBodyKey bodyKey = session.getBodyKey();
         RigidBodyKey anchorBodyKey = session.getAnchorBodyKey();
         Ref<EntityStore> targetRef = session.getTargetRef();
         if (bodyKey == null
             || anchorBodyKey == null
-            || resource.getBodyRegistrationView(bodyKey) == null
-            || resource.getBodyRegistrationView(anchorBodyKey) == null
+            || !resource.hasPublishedOrPendingBodyRegistration(bodyKey)
+            || !resource.hasPublishedOrPendingBodyRegistration(anchorBodyKey)
             || (targetRef != null && !targetRef.isValid())) {
             stateFor(store).clear(anchorBodyKey);
             PhysicsControlSessionCleanup.cleanup(resource, session);
