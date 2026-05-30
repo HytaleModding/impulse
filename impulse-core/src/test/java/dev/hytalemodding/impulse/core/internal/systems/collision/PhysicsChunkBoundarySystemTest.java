@@ -11,7 +11,7 @@ import dev.hytalemodding.impulse.api.PhysicsBodyType;
 import dev.hytalemodding.impulse.api.ShapeType;
 import dev.hytalemodding.impulse.core.internal.resources.chunk.PhysicsChunkBoundaryRuntime;
 import dev.hytalemodding.impulse.core.internal.resources.chunk.PhysicsChunkBoundaryRuntime.ChunkBoundarySafeState;
-import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyId;
+import dev.hytalemodding.impulse.core.plugin.body.RigidBodyKey;
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsWorldRuntimeResource;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
@@ -24,7 +24,7 @@ class PhysicsChunkBoundarySystemTest {
     @Test
     void recordSafePoseUsesSnapshotPoseWithoutReadingBody() {
         PhysicsWorldRuntimeResource resource = new PhysicsWorldRuntimeResource();
-        PhysicsBodyId bodyId = PhysicsBodyId.random();
+        RigidBodyKey bodyId = RigidBodyKey.random();
         CountingBody body = new CountingBody();
         Quaternionf rotation = new Quaternionf().rotateY(0.5f);
         PhysicsBodySnapshot snapshot = snapshot(body,
@@ -52,7 +52,7 @@ class PhysicsChunkBoundarySystemTest {
     @Test
     void pauseBodyUsesSnapshotVelocityAndTypeWithoutReadingBody() {
         PhysicsWorldRuntimeResource resource = new PhysicsWorldRuntimeResource();
-        PhysicsBodyId bodyId = PhysicsBodyId.random();
+        RigidBodyKey bodyId = RigidBodyKey.random();
         CountingBody body = new CountingBody();
         Quaternionf safeRotation = new Quaternionf().rotateX(0.25f);
         resource.updateChunkBoundarySafeState(bodyId,

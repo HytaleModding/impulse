@@ -12,7 +12,7 @@ import dev.hytalemodding.impulse.core.internal.persistence.PersistentPhysicsBody
 import dev.hytalemodding.impulse.core.internal.persistence.PersistentPhysicsRuntimeSnapshot;
 import dev.hytalemodding.impulse.core.internal.persistence.PersistentPhysicsSpaceState;
 import dev.hytalemodding.impulse.core.internal.persistence.PersistentPhysicsWorldResource;
-import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyId;
+import dev.hytalemodding.impulse.core.plugin.body.RigidBodyKey;
 import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyKind;
 import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyPersistenceMode;
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsWorldRuntimeResource;
@@ -71,11 +71,11 @@ class PersistentPhysicsWorldSyncSystemTest {
         RuntimeFixture fixture = createRuntimeFixture();
         PhysicsBody first = fixture.space.createBox(0.5f, 0.5f, 0.5f, 1.0f);
         PhysicsBody second = fixture.space.createBox(0.5f, 0.5f, 0.5f, 1.0f);
-        PhysicsBodyId firstId = fixture.runtime.addBody(fixture.space.getId(),
+        RigidBodyKey firstId = fixture.runtime.addBody(fixture.space.getId(),
             first,
             PhysicsBodyKind.BODY,
             PhysicsBodyPersistenceMode.PERSISTENT);
-        PhysicsBodyId secondId = fixture.runtime.addBody(fixture.space.getId(),
+        RigidBodyKey secondId = fixture.runtime.addBody(fixture.space.getId(),
             second,
             PhysicsBodyKind.BODY,
             PhysicsBodyPersistenceMode.PERSISTENT);

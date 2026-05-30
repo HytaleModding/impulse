@@ -10,7 +10,7 @@ import dev.hytalemodding.impulse.api.SpaceId;
 import dev.hytalemodding.impulse.api.testsupport.FakePhysicsBackend;
 import dev.hytalemodding.impulse.core.internal.resources.profiling.WorldCollisionProfilingResource;
 import dev.hytalemodding.impulse.core.internal.voxel.SectionCollisionGeometry.BoxCollider;
-import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyId;
+import dev.hytalemodding.impulse.core.plugin.body.RigidBodyKey;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.InvocationHandler;
 import java.lang.reflect.InvocationTargetException;
@@ -60,7 +60,7 @@ class WorldVoxelCollisionCacheTest {
         WorldCollisionProfilingResource.Snapshot snapshot =
             new WorldCollisionProfilingResource.Snapshot();
         SpaceId spaceId = new SpaceId(1001);
-        PhysicsBodyId bodyId = bodyId(1);
+        RigidBodyKey bodyId = bodyId(1);
         WorldCollisionStreamingBounds bounds = boundsAt(10.0f, 65.0f, 10.0f);
 
         assertTrue(cache.shouldRefreshBodyTarget(spaceId, bodyId, bounds, false, 1L, 100, snapshot)
@@ -86,7 +86,7 @@ class WorldVoxelCollisionCacheTest {
         WorldCollisionProfilingResource.Snapshot snapshot =
             new WorldCollisionProfilingResource.Snapshot();
         SpaceId spaceId = new SpaceId(1002);
-        PhysicsBodyId bodyId = bodyId(2);
+        RigidBodyKey bodyId = bodyId(2);
         WorldCollisionStreamingBounds bounds = boundsAt(10.0f, 65.0f, 10.0f);
 
         assertTrue(cache.shouldRefreshBodyTarget(spaceId, bodyId, bounds, true, 1L, 100, snapshot)
@@ -108,7 +108,7 @@ class WorldVoxelCollisionCacheTest {
         WorldCollisionProfilingResource.Snapshot snapshot =
             new WorldCollisionProfilingResource.Snapshot();
         SpaceId spaceId = new SpaceId(1003);
-        PhysicsBodyId bodyId = bodyId(3);
+        RigidBodyKey bodyId = bodyId(3);
 
         assertTrue(cache.shouldRefreshBodyTarget(spaceId,
             bodyId,
@@ -136,7 +136,7 @@ class WorldVoxelCollisionCacheTest {
         WorldCollisionProfilingResource.Snapshot snapshot =
             new WorldCollisionProfilingResource.Snapshot();
         SpaceId spaceId = new SpaceId(1004);
-        PhysicsBodyId bodyId = bodyId(4);
+        RigidBodyKey bodyId = bodyId(4);
         WorldCollisionStreamingBounds bounds = boundsAt(10.0f, 65.0f, 10.0f);
 
         assertTrue(cache.shouldRefreshBodyTarget(spaceId, bodyId, bounds, false, 1L, 100, snapshot)
@@ -172,8 +172,8 @@ class WorldVoxelCollisionCacheTest {
         assertEquals(0, recording.createdVoxelTerrains());
     }
 
-    private static PhysicsBodyId bodyId(long leastSignificantBits) {
-        return PhysicsBodyId.of(new UUID(0L, leastSignificantBits));
+    private static RigidBodyKey bodyId(long leastSignificantBits) {
+        return RigidBodyKey.of(new UUID(0L, leastSignificantBits));
     }
 
     private static WorldCollisionStreamingBounds boundsAt(float x, float y, float z) {

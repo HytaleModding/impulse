@@ -14,13 +14,12 @@ import dev.hytalemodding.impulse.core.internal.resources.visual.PhysicsVisualRun
 import dev.hytalemodding.impulse.core.internal.systems.collision.PhysicsCollisionLodSystem.CollisionLodState;
 import dev.hytalemodding.impulse.core.internal.systems.collision.PhysicsCollisionLodSystem.CollisionLodTier;
 import dev.hytalemodding.impulse.core.internal.systems.collision.PhysicsCollisionLodSystem.CollisionLodUpdate;
-import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyId;
+import dev.hytalemodding.impulse.core.plugin.body.RigidBodyKey;
 import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyKind;
 import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyPersistenceMode;
-import dev.hytalemodding.impulse.core.plugin.execution.PhysicsMutationHandle;
+import dev.hytalemodding.impulse.core.plugin.resources.PhysicsMutationHandle;
 import dev.hytalemodding.impulse.core.plugin.settings.PhysicsSpaceSettings;
 import dev.hytalemodding.impulse.core.plugin.resources.PhysicsWorldResource;
-import dev.hytalemodding.impulse.core.plugin.snapshot.PhysicsBodySnapshotEntry;
 import java.util.ArrayList;
 import java.util.List;
 import org.joml.Quaternionf;
@@ -91,37 +90,37 @@ class PhysicsCollisionLodSystemTest {
 
     @Test
     void persistentBodiesAreNotCollisionLodCandidates() {
-        assertFalse(PhysicsCollisionLodSystem.isCollisionLodCandidate(snapshotEntry(
-            PhysicsBodyKind.BODY,
-            PhysicsBodyPersistenceMode.PERSISTENT,
+        assertFalse(PhysicsCollisionLodSystem.isCollisionLodCandidate(snapshot(
             PhysicsBodyType.DYNAMIC,
-            false)));
+            false),
+            PhysicsBodyKind.BODY,
+            PhysicsBodyPersistenceMode.PERSISTENT));
     }
 
     @Test
     void onlyRuntimeDynamicBodiesAreCollisionLodCandidates() {
-        assertTrue(PhysicsCollisionLodSystem.isCollisionLodCandidate(snapshotEntry(
-            PhysicsBodyKind.BODY,
-            PhysicsBodyPersistenceMode.RUNTIME_ONLY,
+        assertTrue(PhysicsCollisionLodSystem.isCollisionLodCandidate(snapshot(
             PhysicsBodyType.DYNAMIC,
-            false)));
-        assertFalse(PhysicsCollisionLodSystem.isCollisionLodCandidate(snapshotEntry(
+            false),
             PhysicsBodyKind.BODY,
-            PhysicsBodyPersistenceMode.RUNTIME_ONLY,
+            PhysicsBodyPersistenceMode.RUNTIME_ONLY));
+        assertFalse(PhysicsCollisionLodSystem.isCollisionLodCandidate(snapshot(
             PhysicsBodyType.STATIC,
-            false)));
-        assertFalse(PhysicsCollisionLodSystem.isCollisionLodCandidate(snapshotEntry(
+            false),
             PhysicsBodyKind.BODY,
-            PhysicsBodyPersistenceMode.RUNTIME_ONLY,
+            PhysicsBodyPersistenceMode.RUNTIME_ONLY));
+        assertFalse(PhysicsCollisionLodSystem.isCollisionLodCandidate(snapshot(
             PhysicsBodyType.DYNAMIC,
-            true)));
+            true),
+            PhysicsBodyKind.BODY,
+            PhysicsBodyPersistenceMode.RUNTIME_ONLY));
     }
 
     @Test
     void tierStateCommitsAfterSuccessfulWorkerMutation() {
         CollisionLodState state = new CollisionLodState();
         SpaceId spaceId = new SpaceId(1);
-        PhysicsBodyId bodyId = PhysicsBodyId.random();
+        RigidBodyKey bodyId = RigidBodyKey.random();
         List<CollisionLodUpdate> updates = new ArrayList<>();
 
         state.recordTier(spaceId, bodyId, CollisionLodTier.MID_TERRAIN, updates);
@@ -138,7 +137,7 @@ class PhysicsCollisionLodSystemTest {
     void tierStateRetriesAfterFailedWorkerMutation() {
         CollisionLodState state = new CollisionLodState();
         SpaceId spaceId = new SpaceId(1);
-        PhysicsBodyId bodyId = PhysicsBodyId.random();
+        RigidBodyKey bodyId = RigidBodyKey.random();
         List<CollisionLodUpdate> updates = new ArrayList<>();
 
         assertTrue(state.shouldRefresh(spaceId, 20, 1L));
@@ -157,7 +156,7 @@ class PhysicsCollisionLodSystemTest {
     void restoreClearsTierStateAfterSuccessfulWorkerMutation() {
         CollisionLodState state = new CollisionLodState();
         SpaceId spaceId = new SpaceId(1);
-        PhysicsBodyId bodyId = PhysicsBodyId.random();
+        RigidBodyKey bodyId = RigidBodyKey.random();
         List<CollisionLodUpdate> updates = new ArrayList<>();
 
         state.recordTier(spaceId, bodyId, CollisionLodTier.MID_TERRAIN, updates);
@@ -183,14 +182,8 @@ class PhysicsCollisionLodSystemTest {
         return List.of(new PhysicsVisualRuntime.VisualInterest(new Vector3f(), null));
     }
 
-    private static PhysicsBodySnapshotEntry snapshotEntry(
-        PhysicsBodyKind kind,
-        PhysicsBodyPersistenceMode persistenceMode,
-        PhysicsBodyType bodyType,
-        boolean sensor) {
-        PhysicsBodyId bodyId = PhysicsBodyId.random();
-        SpaceId spaceId = new SpaceId(1);
-        PhysicsBodySnapshot snapshot = new PhysicsBodySnapshot(new Vector3f(),
+    private static PhysicsBodySnapshot snapshot(PhysicsBodyType bodyType, boolean sensor) {
+        return new PhysicsBodySnapshot(new Vector3f(),
             new Quaternionf(),
             new Vector3f(),
             new Vector3f(),
@@ -203,6 +196,5 @@ class PhysicsCollisionLodSystemTest {
             -1.0f,
             -1.0f,
             PhysicsAxis.Y);
-        return new PhysicsBodySnapshotEntry(bodyId, snapshot, spaceId, kind, persistenceMode);
     }
 }

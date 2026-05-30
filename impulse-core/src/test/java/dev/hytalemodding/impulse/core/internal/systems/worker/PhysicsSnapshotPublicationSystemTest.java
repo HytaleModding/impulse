@@ -16,7 +16,7 @@ import dev.hytalemodding.impulse.core.internal.resources.worker.PhysicsWorldWork
 import dev.hytalemodding.impulse.core.internal.worker.PhysicsWorkerAccess;
 import dev.hytalemodding.impulse.core.internal.worker.PhysicsWorkerSnapshot;
 import dev.hytalemodding.impulse.core.internal.worker.PhysicsWorkerStepCommand;
-import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyId;
+import dev.hytalemodding.impulse.core.plugin.body.RigidBodyKey;
 import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyKind;
 import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyPersistenceMode;
 import dev.hytalemodding.impulse.core.plugin.settings.PhysicsSpaceSettings;
@@ -44,7 +44,7 @@ class PhysicsSnapshotPublicationSystemTest {
                 "async-publication-test",
                 PhysicsSpaceSettings.defaults());
             AtomicReference<PhysicsBody> bodyRef = new AtomicReference<>();
-            PhysicsBodyId bodyId = PhysicsWorkerAccess.call(worker,
+            RigidBodyKey bodyId = PhysicsWorkerAccess.call(worker,
                 "create async publication body",
                 () -> {
                     PhysicsBody body = space.createBox(0.5f, 0.5f, 0.5f, 1.0f);
@@ -113,6 +113,36 @@ class PhysicsSnapshotPublicationSystemTest {
     }
 
     @Test
+    void publicationSystemCapsCompletedAsyncMutationDrainPerTick() throws Exception {
+        AtomicInteger mutations = new AtomicInteger();
+        int mutationCount = 80;
+        try (PhysicsWorldWorkerResource worker = new PhysicsWorldWorkerResource()) {
+            worker.start("async-mutation-publication-cap-test");
+            for (int index = 0; index < mutationCount; index++) {
+                worker.submitMutation("test mutation " + index, () -> {
+                    mutations.incrementAndGet();
+                    return PhysicsWorkerSnapshot.empty();
+                });
+            }
+
+            long deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(2L);
+            while (System.nanoTime() < deadline && worker.pendingCommands() > 0) {
+                Thread.sleep(10L);
+            }
+            assertEquals(0, worker.pendingCommands());
+            assertEquals(mutationCount, mutations.get());
+
+            int firstTickPublished = PhysicsSnapshotPublicationSystem.publishCompletedMutations(worker);
+
+            assertEquals(64, firstTickPublished);
+            assertEquals(mutationCount - 64, worker.pendingMutations());
+            assertEquals(mutationCount - 64,
+                PhysicsSnapshotPublicationSystem.publishCompletedMutations(worker));
+            assertEquals(0, worker.pendingMutations());
+        }
+    }
+
+    @Test
     void completedWorkerStepDoesNotRepublishAfterWorldMutation() throws Exception {
         BackendId backendId = new BackendId("test:stale-worker-publication");
         Impulse.registerBackend(new FakePhysicsBackend(backendId));
@@ -125,7 +155,7 @@ class PhysicsSnapshotPublicationSystemTest {
             PhysicsSpace space = resource.createLiveSpace(backendId,
                 "stale-worker-publication-test",
                 PhysicsSpaceSettings.defaults());
-            PhysicsBodyId bodyId = PhysicsWorkerAccess.call(worker,
+            RigidBodyKey bodyId = PhysicsWorkerAccess.call(worker,
                 "create stale publication body",
                 () -> {
                     PhysicsBody body = space.createBox(0.5f, 0.5f, 0.5f, 1.0f);

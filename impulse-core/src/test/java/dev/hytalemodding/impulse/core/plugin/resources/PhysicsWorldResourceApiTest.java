@@ -3,6 +3,7 @@ package dev.hytalemodding.impulse.core.plugin.resources;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
 import dev.hytalemodding.impulse.api.PhysicsBody;
+import dev.hytalemodding.impulse.api.PhysicsJoint;
 import dev.hytalemodding.impulse.api.PhysicsSpace;
 import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
@@ -41,7 +42,8 @@ class PhysicsWorldResourceApiTest {
     private static boolean usesLiveBackendObject(Type type) {
         if (type instanceof Class<?> clazz) {
             return PhysicsSpace.class.isAssignableFrom(clazz)
-                || PhysicsBody.class.isAssignableFrom(clazz);
+                || PhysicsBody.class.isAssignableFrom(clazz)
+                || PhysicsJoint.class.isAssignableFrom(clazz);
         }
         if (type instanceof ParameterizedType parameterizedType) {
             if (usesLiveBackendObject(parameterizedType.getRawType())) {
