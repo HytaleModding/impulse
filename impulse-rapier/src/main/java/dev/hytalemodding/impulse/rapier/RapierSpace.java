@@ -578,8 +578,41 @@ public final class RapierSpace implements PhysicsSpace {
         @Nonnull PhysicsBody bodyB,
         @Nonnull Vector3f anchorA,
         @Nonnull Vector3f anchorB) {
-        return createJoint(PhysicsJointType.FIXED, bodyA, bodyB, anchorA, anchorB,
-            new Vector3f(0f, 1f, 0f), 0f, 0f, 0f);
+        return createFixedJoint(bodyA,
+            bodyB,
+            anchorA.x,
+            anchorA.y,
+            anchorA.z,
+            anchorB.x,
+            anchorB.y,
+            anchorB.z);
+    }
+
+    @Nonnull
+    @Override
+    public PhysicsJoint createFixedJoint(@Nonnull PhysicsBody bodyA,
+        @Nonnull PhysicsBody bodyB,
+        float anchorAX,
+        float anchorAY,
+        float anchorAZ,
+        float anchorBX,
+        float anchorBY,
+        float anchorBZ) {
+        return createJoint(PhysicsJointType.FIXED,
+            bodyA,
+            bodyB,
+            anchorAX,
+            anchorAY,
+            anchorAZ,
+            anchorBX,
+            anchorBY,
+            anchorBZ,
+            0f,
+            1f,
+            0f,
+            0f,
+            0f,
+            0f);
     }
 
     @Nonnull
@@ -588,8 +621,41 @@ public final class RapierSpace implements PhysicsSpace {
         @Nonnull PhysicsBody bodyB,
         @Nonnull Vector3f anchorA,
         @Nonnull Vector3f anchorB) {
-        return createJoint(PhysicsJointType.POINT, bodyA, bodyB, anchorA, anchorB,
-            new Vector3f(0f, 1f, 0f), 0f, 0f, 0f);
+        return createPointJoint(bodyA,
+            bodyB,
+            anchorA.x,
+            anchorA.y,
+            anchorA.z,
+            anchorB.x,
+            anchorB.y,
+            anchorB.z);
+    }
+
+    @Nonnull
+    @Override
+    public PhysicsJoint createPointJoint(@Nonnull PhysicsBody bodyA,
+        @Nonnull PhysicsBody bodyB,
+        float anchorAX,
+        float anchorAY,
+        float anchorAZ,
+        float anchorBX,
+        float anchorBY,
+        float anchorBZ) {
+        return createJoint(PhysicsJointType.POINT,
+            bodyA,
+            bodyB,
+            anchorAX,
+            anchorAY,
+            anchorAZ,
+            anchorBX,
+            anchorBY,
+            anchorBZ,
+            0f,
+            1f,
+            0f,
+            0f,
+            0f,
+            0f);
     }
 
     @Nonnull
@@ -599,8 +665,47 @@ public final class RapierSpace implements PhysicsSpace {
         @Nonnull Vector3f anchorA,
         @Nonnull Vector3f anchorB,
         @Nonnull Vector3f axis) {
-        return createJoint(PhysicsJointType.HINGE, bodyA, bodyB, anchorA, anchorB,
-            axis, 0f, 0f, 0f);
+        return createHingeJoint(bodyA,
+            bodyB,
+            anchorA.x,
+            anchorA.y,
+            anchorA.z,
+            anchorB.x,
+            anchorB.y,
+            anchorB.z,
+            axis.x,
+            axis.y,
+            axis.z);
+    }
+
+    @Nonnull
+    @Override
+    public PhysicsJoint createHingeJoint(@Nonnull PhysicsBody bodyA,
+        @Nonnull PhysicsBody bodyB,
+        float anchorAX,
+        float anchorAY,
+        float anchorAZ,
+        float anchorBX,
+        float anchorBY,
+        float anchorBZ,
+        float axisX,
+        float axisY,
+        float axisZ) {
+        return createJoint(PhysicsJointType.HINGE,
+            bodyA,
+            bodyB,
+            anchorAX,
+            anchorAY,
+            anchorAZ,
+            anchorBX,
+            anchorBY,
+            anchorBZ,
+            axisX,
+            axisY,
+            axisZ,
+            0f,
+            0f,
+            0f);
     }
 
     @Nonnull
@@ -610,8 +715,47 @@ public final class RapierSpace implements PhysicsSpace {
         @Nonnull Vector3f anchorA,
         @Nonnull Vector3f anchorB,
         @Nonnull Vector3f axis) {
-        return createJoint(PhysicsJointType.SLIDER, bodyA, bodyB, anchorA, anchorB,
-            axis, 0f, 0f, 0f);
+        return createSliderJoint(bodyA,
+            bodyB,
+            anchorA.x,
+            anchorA.y,
+            anchorA.z,
+            anchorB.x,
+            anchorB.y,
+            anchorB.z,
+            axis.x,
+            axis.y,
+            axis.z);
+    }
+
+    @Nonnull
+    @Override
+    public PhysicsJoint createSliderJoint(@Nonnull PhysicsBody bodyA,
+        @Nonnull PhysicsBody bodyB,
+        float anchorAX,
+        float anchorAY,
+        float anchorAZ,
+        float anchorBX,
+        float anchorBY,
+        float anchorBZ,
+        float axisX,
+        float axisY,
+        float axisZ) {
+        return createJoint(PhysicsJointType.SLIDER,
+            bodyA,
+            bodyB,
+            anchorAX,
+            anchorAY,
+            anchorAZ,
+            anchorBX,
+            anchorBY,
+            anchorBZ,
+            axisX,
+            axisY,
+            axisZ,
+            0f,
+            0f,
+            0f);
     }
 
     @Nonnull
@@ -623,8 +767,47 @@ public final class RapierSpace implements PhysicsSpace {
         float restLength,
         float stiffness,
         float damping) {
-        return createJoint(PhysicsJointType.SPRING, bodyA, bodyB, anchorA, anchorB,
-            new Vector3f(0f, 1f, 0f), restLength, stiffness, damping);
+        return createSpringJoint(bodyA,
+            bodyB,
+            anchorA.x,
+            anchorA.y,
+            anchorA.z,
+            anchorB.x,
+            anchorB.y,
+            anchorB.z,
+            restLength,
+            stiffness,
+            damping);
+    }
+
+    @Nonnull
+    @Override
+    public PhysicsJoint createSpringJoint(@Nonnull PhysicsBody bodyA,
+        @Nonnull PhysicsBody bodyB,
+        float anchorAX,
+        float anchorAY,
+        float anchorAZ,
+        float anchorBX,
+        float anchorBY,
+        float anchorBZ,
+        float restLength,
+        float stiffness,
+        float damping) {
+        return createJoint(PhysicsJointType.SPRING,
+            bodyA,
+            bodyB,
+            anchorAX,
+            anchorAY,
+            anchorAZ,
+            anchorBX,
+            anchorBY,
+            anchorBZ,
+            0f,
+            1f,
+            0f,
+            restLength,
+            stiffness,
+            damping);
     }
 
     @Override
@@ -768,29 +951,48 @@ public final class RapierSpace implements PhysicsSpace {
     private PhysicsJoint createJoint(@Nonnull PhysicsJointType type,
         @Nonnull PhysicsBody bodyA,
         @Nonnull PhysicsBody bodyB,
-        @Nonnull Vector3f anchorA,
-        @Nonnull Vector3f anchorB,
-        @Nonnull Vector3f axis,
+        float anchorAX,
+        float anchorAY,
+        float anchorAZ,
+        float anchorBX,
+        float anchorBY,
+        float anchorBZ,
+        float axisX,
+        float axisY,
+        float axisZ,
         float restLength,
         float stiffness,
         float damping) {
         ensureOpen();
         RapierBody rapierA = requireAttachedBody(bodyA);
         RapierBody rapierB = requireAttachedBody(bodyB);
-        Vector3f normalizedAxis = normalizedOrDefault(axis);
+        float normalizedAxisX = axisX;
+        float normalizedAxisY = axisY;
+        float normalizedAxisZ = axisZ;
+        float axisLengthSquared = axisX * axisX + axisY * axisY + axisZ * axisZ;
+        if (axisLengthSquared == 0f) {
+            normalizedAxisX = 0f;
+            normalizedAxisY = 1f;
+            normalizedAxisZ = 0f;
+        } else {
+            float inverseLength = (float) (1.0 / Math.sqrt(axisLengthSquared));
+            normalizedAxisX *= inverseLength;
+            normalizedAxisY *= inverseLength;
+            normalizedAxisZ *= inverseLength;
+        }
         long handle = RapierNative.addJointNative(nativeSpaceHandle,
             type.ordinal(),
             rapierA.getBodyHandle(),
             rapierB.getBodyHandle(),
-            anchorA.x,
-            anchorA.y,
-            anchorA.z,
-            anchorB.x,
-            anchorB.y,
-            anchorB.z,
-            normalizedAxis.x,
-            normalizedAxis.y,
-            normalizedAxis.z,
+            anchorAX,
+            anchorAY,
+            anchorAZ,
+            anchorBX,
+            anchorBY,
+            anchorBZ,
+            normalizedAxisX,
+            normalizedAxisY,
+            normalizedAxisZ,
             restLength,
             stiffness,
             damping);
@@ -798,7 +1000,18 @@ public final class RapierSpace implements PhysicsSpace {
             throw new IllegalStateException("Rapier returned a null native joint handle");
         }
         RapierJoint joint = new RapierJoint(this, type, rapierA, rapierB, handle,
-            anchorA, anchorB, normalizedAxis, restLength, stiffness, damping);
+            anchorAX,
+            anchorAY,
+            anchorAZ,
+            anchorBX,
+            anchorBY,
+            anchorBZ,
+            normalizedAxisX,
+            normalizedAxisY,
+            normalizedAxisZ,
+            restLength,
+            stiffness,
+            damping);
         joints.add(joint);
         return joint;
     }
@@ -820,14 +1033,6 @@ public final class RapierSpace implements PhysicsSpace {
         if (closed || nativeSpaceHandle == 0L) {
             throw new IllegalStateException("Rapier space is closed");
         }
-    }
-
-    private static Vector3f normalizedOrDefault(@Nonnull Vector3f axis) {
-        Vector3f normalized = new Vector3f(axis);
-        if (normalized.lengthSquared() == 0f) {
-            normalized.set(0f, 1f, 0f);
-        }
-        return normalized.normalize();
     }
 
     private final class RapierSolverTuningCapability implements PhysicsSolverTuningCapability {

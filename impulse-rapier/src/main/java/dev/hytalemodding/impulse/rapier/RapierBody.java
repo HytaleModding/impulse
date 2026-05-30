@@ -388,9 +388,19 @@ public final class RapierBody implements PhysicsBody {
 
     @Override
     public void applyForce(@Nonnull Vector3f force, @Nonnull Vector3f offset) {
+        applyForce(force.x, force.y, force.z, offset.x, offset.y, offset.z);
+    }
+
+    @Override
+    public void applyForce(float x,
+        float y,
+        float z,
+        float offsetX,
+        float offsetY,
+        float offsetZ) {
         if (isAttached()) {
             RapierNative.applyBodyForceNative(getSpaceHandle(), bodyHandle,
-                force.x, force.y, force.z, offset.x, offset.y, offset.z);
+                x, y, z, offsetX, offsetY, offsetZ);
         }
     }
 
@@ -408,25 +418,45 @@ public final class RapierBody implements PhysicsBody {
 
     @Override
     public void applyImpulse(@Nonnull Vector3f impulse, @Nonnull Vector3f offset) {
+        applyImpulse(impulse.x, impulse.y, impulse.z, offset.x, offset.y, offset.z);
+    }
+
+    @Override
+    public void applyImpulse(float x,
+        float y,
+        float z,
+        float offsetX,
+        float offsetY,
+        float offsetZ) {
         if (isAttached()) {
             RapierNative.applyBodyImpulseNative(getSpaceHandle(), bodyHandle,
-                impulse.x, impulse.y, impulse.z, offset.x, offset.y, offset.z);
+                x, y, z, offsetX, offsetY, offsetZ);
         }
     }
 
     @Override
     public void applyTorque(@Nonnull Vector3f torque) {
+        applyTorque(torque.x, torque.y, torque.z);
+    }
+
+    @Override
+    public void applyTorque(float x, float y, float z) {
         if (isAttached()) {
             RapierNative.applyBodyTorqueNative(getSpaceHandle(), bodyHandle,
-                torque.x, torque.y, torque.z);
+                x, y, z);
         }
     }
 
     @Override
     public void applyTorqueImpulse(@Nonnull Vector3f torqueImpulse) {
+        applyTorqueImpulse(torqueImpulse.x, torqueImpulse.y, torqueImpulse.z);
+    }
+
+    @Override
+    public void applyTorqueImpulse(float x, float y, float z) {
         if (isAttached()) {
             RapierNative.applyBodyTorqueImpulseNative(getSpaceHandle(), bodyHandle,
-                torqueImpulse.x, torqueImpulse.y, torqueImpulse.z);
+                x, y, z);
         }
     }
 

@@ -126,15 +126,57 @@ public interface PhysicsBody {
 
     void applyForce(@Nonnull Vector3f force, @Nonnull Vector3f offset);
 
+    /**
+     * Applies force at a world-space offset without requiring caller-side vector allocation.
+     * Backends should override this to avoid the default temporary vector fallback.
+     */
+    default void applyForce(float x,
+        float y,
+        float z,
+        float offsetX,
+        float offsetY,
+        float offsetZ) {
+        applyForce(new Vector3f(x, y, z), new Vector3f(offsetX, offsetY, offsetZ));
+    }
+
     void applyCentralImpulse(@Nonnull Vector3f impulse);
 
     void applyCentralImpulse(float x, float y, float z);
 
     void applyImpulse(@Nonnull Vector3f impulse, @Nonnull Vector3f offset);
 
+    /**
+     * Applies impulse at a world-space offset without requiring caller-side vector allocation.
+     * Backends should override this to avoid the default temporary vector fallback.
+     */
+    default void applyImpulse(float x,
+        float y,
+        float z,
+        float offsetX,
+        float offsetY,
+        float offsetZ) {
+        applyImpulse(new Vector3f(x, y, z), new Vector3f(offsetX, offsetY, offsetZ));
+    }
+
     void applyTorque(@Nonnull Vector3f torque);
 
+    /**
+     * Applies torque without requiring caller-side vector allocation.
+     * Backends should override this to avoid the default temporary vector fallback.
+     */
+    default void applyTorque(float x, float y, float z) {
+        applyTorque(new Vector3f(x, y, z));
+    }
+
     void applyTorqueImpulse(@Nonnull Vector3f torqueImpulse);
+
+    /**
+     * Applies torque impulse without requiring caller-side vector allocation.
+     * Backends should override this to avoid the default temporary vector fallback.
+     */
+    default void applyTorqueImpulse(float x, float y, float z) {
+        applyTorqueImpulse(new Vector3f(x, y, z));
+    }
 
     void clearForces();
 
