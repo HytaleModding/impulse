@@ -12,21 +12,21 @@ import com.hypixel.hytale.server.core.modules.entity.component.TransformComponen
 import com.hypixel.hytale.server.core.universe.PlayerRef;
 import com.hypixel.hytale.server.core.universe.world.World;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
-import dev.hytalemodding.impulse.api.PhysicsBody;
 import dev.hytalemodding.impulse.api.PhysicsBodyType;
-import dev.hytalemodding.impulse.api.PhysicsJoint;
-import dev.hytalemodding.impulse.api.PhysicsRayHit;
-import dev.hytalemodding.impulse.api.PhysicsSpace;
 import dev.hytalemodding.impulse.api.SpaceId;
 import dev.hytalemodding.impulse.core.plugin.components.ImpulseControllableComponent;
 import dev.hytalemodding.impulse.core.plugin.components.PhysicsBodyAttachmentComponent;
-import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyId;
 import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyKind;
-import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyPersistenceMode;
 import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyRegistrationView;
+import dev.hytalemodding.impulse.core.plugin.body.RigidBodyKey;
 import dev.hytalemodding.impulse.core.plugin.control.PhysicsControlSessions;
-import dev.hytalemodding.impulse.core.plugin.joint.PhysicsJointId;
+import dev.hytalemodding.impulse.core.plugin.joint.JointKey;
 import dev.hytalemodding.impulse.core.plugin.resources.PhysicsWorldResource;
+import dev.hytalemodding.impulse.core.plugin.simulation.RaycastAllQuery;
+import dev.hytalemodding.impulse.core.plugin.simulation.RaycastHitView;
+import dev.hytalemodding.impulse.core.plugin.simulation.RigidBodySpawnSettings;
+import dev.hytalemodding.impulse.core.plugin.simulation.RigidBodyStateQuery;
+import dev.hytalemodding.impulse.core.plugin.simulation.RigidBodyStateView;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
@@ -85,7 +85,7 @@ public class GrabCommand extends AbstractAsyncPlayerCommand {
             return CompletableFuture.completedFuture(null);
         }
 
-        releaseExisting(store, ref);
+        PhysicsControlSessions.releaseSession(store, ref);
 
         SpaceId selectedSpaceId = selection.spaceId() != null ? selection.spaceId() : targetSpaceId;
         if (!resource.hasSpace(selectedSpaceId)) {
@@ -93,36 +93,10 @@ public class GrabCommand extends AbstractAsyncPlayerCommand {
             return CompletableFuture.completedFuture(null);
         }
 
-        GrabPhysicsState physicsState = ExamplePhysicsUtils.physicsOwnerCall(store,
-            "create grabbed physics anchor",
-            access -> {
-                PhysicsBody body = access.getBody(selection.bodyId());
-                if (body == null) {
-                    return null;
-                }
-                PhysicsSpace selectedSpace = access.requireSpace(selectedSpaceId);
-                PhysicsBodyType originalBodyType = body.getBodyType();
-                Vector3f bodyPosition = body.getPosition();
-                Vector3f hitPoint = new Vector3f(selection.point());
-                Vector3f bodyLocalHit = new Vector3f(hitPoint).sub(bodyPosition);
-                new Quaternionf(body.getRotation()).invert().transform(bodyLocalHit);
-
-                PhysicsBody anchorBody = selectedSpace.createSphere(0.08f, 1.0f);
-                anchorBody.setBodyType(PhysicsBodyType.KINEMATIC);
-                anchorBody.setSensor(true);
-                anchorBody.setCollisionFilter(1, 0);
-                anchorBody.setPosition(hitPoint);
-                PhysicsBodyId anchorBodyId = access.addBody(selectedSpaceId,
-                    anchorBody,
-                    PhysicsBodyKind.TEMPORARY,
-                    PhysicsBodyPersistenceMode.RUNTIME_ONLY);
-
-                PhysicsJoint controlJoint =
-                    selectedSpace.createPointJoint(anchorBody, body, new Vector3f(), bodyLocalHit);
-                PhysicsJointId controlJointId = access.addJoint(selectedSpaceId, controlJoint);
-                body.activate();
-                return new GrabPhysicsState(originalBodyType, anchorBodyId, controlJointId, hitPoint);
-            });
+        GrabPhysicsState physicsState = createGrabControl(resource,
+            selectedSpaceId,
+            selection,
+            Math.max(0L, world.getTick()));
         if (physicsState == null) {
             ctx.sender().sendMessage(Message.raw("Selected physics body no longer exists."));
             return CompletableFuture.completedFuture(null);
@@ -130,9 +104,9 @@ public class GrabCommand extends AbstractAsyncPlayerCommand {
 
         PhysicsControlSessions.startSession(store,
             ref,
-            selection.bodyId(),
-            physicsState.anchorBodyId(),
-            physicsState.controlJointId(),
+            selection.bodyKey(),
+            physicsState.anchorBodyKey(),
+            physicsState.controlJointKey(),
             selection.attachment(),
             selectedSpaceId,
             physicsState.originalBodyType(),
@@ -146,50 +120,91 @@ public class GrabCommand extends AbstractAsyncPlayerCommand {
     }
 
     @Nullable
+    private static GrabPhysicsState createGrabControl(@Nonnull PhysicsWorldResource resource,
+        @Nonnull SpaceId selectedSpaceId,
+        @Nonnull HitSelection selection,
+        long serverTick) {
+        RigidBodyStateView selectedState = resource.query(new RigidBodyStateQuery(selection.bodyKey()))
+            .completion()
+            .toCompletableFuture()
+            .join()
+            .orElse(null);
+        if (selectedState == null) {
+            return null;
+        }
+
+        Vector3f hitPoint = new Vector3f(selection.point());
+        Vector3f bodyLocalHit = new Vector3f(hitPoint).sub(selectedState.pose().position());
+        Quaternionf inverseBodyRotation = selectedState.pose().rotation();
+        inverseBodyRotation.invert().transform(bodyLocalHit);
+
+        RigidBodyKey anchorBodyKey = RigidBodyKey.random();
+        JointKey controlJointKey = JointKey.random();
+        boolean rejected = resource.submitCommands(serverTick, commands -> {
+            commands.spawnBody(anchorBodyKey, spawn -> spawn
+                .space(selectedSpaceId)
+                .sphere(0.08f)
+                .mass(1.0f)
+                .kinematic()
+                .position(hitPoint)
+                .settings(RigidBodySpawnSettings.defaults().withSensor(true).withCollisionFilter(1, 0))
+                .temporary()
+                .runtimeOnly());
+            commands.joint(controlJointKey, joint -> joint
+                .space(selectedSpaceId)
+                .bodies(anchorBodyKey, selection.bodyKey())
+                .point(new Vector3f(), bodyLocalHit));
+            commands.activateBody(selection.bodyKey());
+        })
+            .firstRejected()
+            .toCompletableFuture()
+            .join()
+            .isPresent();
+        if (rejected) {
+            return null;
+        }
+        return new GrabPhysicsState(selectedState.bodyType(), anchorBodyKey, controlJointKey, hitPoint);
+    }
+
+    @Nullable
     private static HitSelection findControllableHit(@Nonnull PhysicsWorldResource resource,
         @Nonnull Store<EntityStore> store,
         @Nonnull SpaceId spaceId,
         @Nonnull Vector3d start,
         @Nonnull Vector3d end) {
-        List<HitCandidate> candidates = ExamplePhysicsUtils.physicsOwnerCall(store,
-            "raycast controllable physics bodies",
-            access -> {
-                PhysicsSpace space = access.requireSpace(spaceId);
-                List<PhysicsRayHit> hits = space.raycastAll(ExamplePhysicsUtils.toVector3f(start),
-                    ExamplePhysicsUtils.toVector3f(end));
-                List<HitCandidate> found = new ArrayList<>(hits.size());
-                for (PhysicsRayHit hit : hits) {
-                    if (hit.body().getBodyType() != PhysicsBodyType.DYNAMIC) {
-                        continue;
-                    }
-
-                    PhysicsBodyId bodyId = access.getBodyId(hit.body());
-                    if (bodyId == null) {
-                        continue;
-                    }
-                    PhysicsBodyRegistrationView registration =
-                        resource.getBodyRegistrationView(bodyId);
-                    if (registration == null || registration.kind() != PhysicsBodyKind.BODY) {
-                        continue;
-                    }
-                    found.add(new HitCandidate(registration.id(),
-                        registration.spaceId(),
-                        new Vector3f(hit.point()),
-                        hit.fraction(),
-                        hit.distance()));
-                }
-                return found;
-            });
+        List<RaycastHitView> hits = resource.query(new RaycastAllQuery(spaceId,
+                ExamplePhysicsUtils.toVector3f(start),
+                ExamplePhysicsUtils.toVector3f(end)))
+            .completion()
+            .toCompletableFuture()
+            .join();
+        List<HitCandidate> candidates = new ArrayList<>(hits.size());
+        for (RaycastHitView hit : hits) {
+            if (hit.bodyType() != PhysicsBodyType.DYNAMIC || hit.bodyKey() == null) {
+                continue;
+            }
+            PhysicsBodyRegistrationView registration =
+                resource.getBodyRegistrationView(hit.bodyKey());
+            if (registration == null || registration.kind() != PhysicsBodyKind.BODY) {
+                continue;
+            }
+            candidates.add(new HitCandidate(registration.id(),
+                registration.spaceId(),
+                hit.point(),
+                hit.fraction(),
+                hit.distance()));
+        }
         HitSelection best = null;
         for (HitCandidate candidate : candidates) {
-            Ref<EntityStore> attachment = findControllableAttachment(resource, store, candidate.bodyId());
-            if (attachment == null && hasGameplayAttachment(resource, store, candidate.bodyId())) {
+            AttachmentSelection attachments =
+                inspectGameplayAttachments(resource, store, candidate.bodyKey());
+            if (attachments.controllableAttachment() == null && attachments.hasGameplayAttachment()) {
                 continue;
             }
 
             if (best == null || candidate.fraction() < best.fraction()) {
-                best = new HitSelection(candidate.bodyId(),
-                    attachment,
+                best = new HitSelection(candidate.bodyKey(),
+                    attachments.controllableAttachment(),
                     candidate.spaceId(),
                     candidate.point(),
                     candidate.fraction(),
@@ -199,43 +214,27 @@ public class GrabCommand extends AbstractAsyncPlayerCommand {
         return best;
     }
 
-    @Nullable
-    private static Ref<EntityStore> findControllableAttachment(@Nonnull PhysicsWorldResource resource,
+    @Nonnull
+    private static AttachmentSelection inspectGameplayAttachments(@Nonnull PhysicsWorldResource resource,
         @Nonnull Store<EntityStore> store,
-        @Nonnull PhysicsBodyId bodyId) {
-        for (Ref<EntityStore> attachmentRef : resource.getBodyAttachments(bodyId)) {
+        @Nonnull RigidBodyKey bodyKey) {
+        boolean hasGameplayAttachment = false;
+        for (Ref<EntityStore> attachmentRef : resource.getBodyAttachments(bodyKey)) {
             PhysicsBodyAttachmentComponent attachment = store.getComponent(attachmentRef, ATTACHMENT_TYPE);
             if (attachment == null
                 || attachment.getLifecycle() == PhysicsBodyAttachmentComponent.AttachmentLifecycle.GENERATED_PROXY) {
                 continue;
             }
+            hasGameplayAttachment = true;
             ImpulseControllableComponent controllable = store.getComponent(attachmentRef, IMPULSE_CONTROLLABLE_TYPE);
             if (controllable != null) {
-                return attachmentRef;
+                return new AttachmentSelection(attachmentRef, true);
             }
         }
-        return null;
+        return new AttachmentSelection(null, hasGameplayAttachment);
     }
 
-    private static boolean hasGameplayAttachment(@Nonnull PhysicsWorldResource resource,
-        @Nonnull Store<EntityStore> store,
-        @Nonnull PhysicsBodyId bodyId) {
-        for (Ref<EntityStore> attachmentRef : resource.getBodyAttachments(bodyId)) {
-            PhysicsBodyAttachmentComponent attachment = store.getComponent(attachmentRef, ATTACHMENT_TYPE);
-            if (attachment != null
-                && attachment.getLifecycle() != PhysicsBodyAttachmentComponent.AttachmentLifecycle.GENERATED_PROXY) {
-                return true;
-            }
-        }
-        return false;
-    }
-
-    private static void releaseExisting(@Nonnull Store<EntityStore> store,
-        @Nonnull Ref<EntityStore> playerRef) {
-        PhysicsControlSessions.releaseSession(store, playerRef);
-    }
-
-    private record HitSelection(@Nonnull PhysicsBodyId bodyId,
+    private record HitSelection(@Nonnull RigidBodyKey bodyKey,
                                 @Nullable Ref<EntityStore> attachment,
                                 @Nullable SpaceId spaceId,
                                 @Nonnull Vector3f point,
@@ -243,16 +242,20 @@ public class GrabCommand extends AbstractAsyncPlayerCommand {
                                 float distance) {
     }
 
-    private record HitCandidate(@Nonnull PhysicsBodyId bodyId,
+    private record HitCandidate(@Nonnull RigidBodyKey bodyKey,
                                 @Nullable SpaceId spaceId,
                                 @Nonnull Vector3f point,
                                 float fraction,
                                 float distance) {
     }
 
+    private record AttachmentSelection(@Nullable Ref<EntityStore> controllableAttachment,
+                                       boolean hasGameplayAttachment) {
+    }
+
     private record GrabPhysicsState(@Nonnull PhysicsBodyType originalBodyType,
-                                    @Nonnull PhysicsBodyId anchorBodyId,
-                                    @Nonnull PhysicsJointId controlJointId,
+                                    @Nonnull RigidBodyKey anchorBodyKey,
+                                    @Nonnull JointKey controlJointKey,
                                     @Nonnull Vector3f hitPoint) {
     }
 }

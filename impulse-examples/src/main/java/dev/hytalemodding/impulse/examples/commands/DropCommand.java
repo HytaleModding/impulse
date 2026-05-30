@@ -15,6 +15,8 @@ import com.hypixel.hytale.server.core.universe.world.World;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import dev.hytalemodding.impulse.api.SpaceId;
 import dev.hytalemodding.impulse.core.plugin.resources.PhysicsWorldResource;
+import dev.hytalemodding.impulse.core.plugin.simulation.PhysicsShapeSpec;
+import dev.hytalemodding.impulse.core.plugin.simulation.RigidBodySpawnSettings;
 import java.util.concurrent.CompletableFuture;
 import javax.annotation.Nonnull;
 import org.joml.Vector3d;
@@ -71,12 +73,9 @@ public class DropCommand extends AbstractAsyncPlayerCommand {
             spaceId,
             new Vector3d(spawnX, spawnY, spawnZ),
             blockType(ctx),
-            bodySpace -> {
-                var created = bodySpace.createBox(0.5f, 0.5f, 0.5f, 1.0f);
-                created.setRestitution(0.5f);
-                created.setFriction(0.5f);
-                return created;
-            });
+            PhysicsShapeSpec.box(0.5f, 0.5f, 0.5f),
+            1.0f,
+            RigidBodySpawnSettings.material(0.5f, 0.5f));
 
         ctx.sender()
             .sendMessage(Message.raw("Dropped box at " + spawnX + ", " + spawnY + ", " + spawnZ));

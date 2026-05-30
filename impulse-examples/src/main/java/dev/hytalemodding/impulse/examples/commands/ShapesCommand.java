@@ -12,10 +12,10 @@ import com.hypixel.hytale.server.core.universe.PlayerRef;
 import com.hypixel.hytale.server.core.universe.world.World;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import dev.hytalemodding.impulse.api.PhysicsAxis;
-import dev.hytalemodding.impulse.api.PhysicsBody;
-import dev.hytalemodding.impulse.api.PhysicsSpace;
 import dev.hytalemodding.impulse.api.SpaceId;
 import dev.hytalemodding.impulse.core.plugin.resources.PhysicsWorldResource;
+import dev.hytalemodding.impulse.core.plugin.simulation.PhysicsShapeSpec;
+import dev.hytalemodding.impulse.core.plugin.simulation.RigidBodySpawnSettings;
 import java.util.concurrent.CompletableFuture;
 import javax.annotation.Nonnull;
 import org.joml.Vector3d;
@@ -75,23 +75,21 @@ public class ShapesCommand extends AbstractAsyncPlayerCommand {
             resource,
             spaceId,
             new Vector3d(origin).add(xOffset, 0.0, 0.0),
-            bodySpace -> createBody(bodySpace, type, axis));
+            shape(type, axis),
+            1.0f,
+            RigidBodySpawnSettings.material(0.7f, 0.35f));
     }
 
     @Nonnull
-    private static PhysicsBody createBody(@Nonnull PhysicsSpace space,
-        @Nonnull ShapeType type,
+    private static PhysicsShapeSpec shape(@Nonnull ShapeType type,
         @Nonnull PhysicsAxis axis) {
-        PhysicsBody body = switch (type) {
-            case BOX -> space.createBox(0.5f, 0.5f, 0.5f, 1.0f);
-            case SPHERE -> space.createSphere(0.5f, 1.0f);
-            case CAPSULE -> space.createCapsule(0.35f, 0.7f, axis, 1.0f);
-            case CYLINDER -> space.createCylinder(0.45f, 0.6f, axis, 1.0f);
-            case CONE -> space.createCone(0.5f, 0.7f, axis, 1.0f);
+        return switch (type) {
+            case BOX -> PhysicsShapeSpec.box(0.5f, 0.5f, 0.5f);
+            case SPHERE -> PhysicsShapeSpec.sphere(0.5f);
+            case CAPSULE -> PhysicsShapeSpec.capsule(0.35f, 0.7f, axis);
+            case CYLINDER -> PhysicsShapeSpec.cylinder(0.45f, 0.6f, axis);
+            case CONE -> PhysicsShapeSpec.cone(0.5f, 0.7f, axis);
         };
-        body.setRestitution(0.35f);
-        body.setFriction(0.7f);
-        return body;
     }
 
     private enum ShapeType {

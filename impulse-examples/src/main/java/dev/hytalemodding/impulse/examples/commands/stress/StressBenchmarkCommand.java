@@ -11,10 +11,15 @@ import com.hypixel.hytale.server.core.modules.time.TimeResource;
 import com.hypixel.hytale.server.core.universe.PlayerRef;
 import com.hypixel.hytale.server.core.universe.world.World;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
-import dev.hytalemodding.impulse.api.PhysicsBody;
-import dev.hytalemodding.impulse.api.PhysicsSpace;
+import dev.hytalemodding.impulse.api.PhysicsBodyType;
 import dev.hytalemodding.impulse.api.SpaceId;
+import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyKind;
+import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyPersistenceMode;
+import dev.hytalemodding.impulse.core.plugin.body.RigidBodyKey;
 import dev.hytalemodding.impulse.core.plugin.resources.PhysicsWorldResource;
+import dev.hytalemodding.impulse.core.plugin.simulation.PhysicsShapeSpec;
+import dev.hytalemodding.impulse.core.plugin.simulation.RigidBodySpawnSettings;
+import dev.hytalemodding.impulse.core.plugin.simulation.SpaceBodyCountQuery;
 import dev.hytalemodding.impulse.examples.commands.ExamplePhysicsUtils;
 import java.util.Locale;
 import java.util.concurrent.CompletableFuture;
@@ -76,24 +81,36 @@ public class StressBenchmarkCommand extends AbstractAsyncPlayerCommand {
             return CompletableFuture.completedFuture(null);
         }
         BenchmarkLayout layout = BenchmarkLayout.around(playerPos, request.count());
-        int beforeBodies = ExamplePhysicsUtils.physicsOwnerCall(store,
-            "count benchmark physics bodies before spawn",
-            access -> access.requireSpace(spaceId).bodyCount());
+        int beforeBodies = resource.query(new SpaceBodyCountQuery(spaceId))
+            .completion()
+            .toCompletableFuture()
+            .join();
 
-        long startNanos = System.nanoTime();
-        int spawned = switch (request.mode()) {
-            case RAW -> spawnRaw(store, spaceId, layout, request.count());
-            case ENTITY -> spawnEntities(store, resource, spaceId, layout, request.count(), request.blockType());
+        long serverTick = Math.max(0L, world.getTick());
+        BenchmarkSpawnTiming timing = switch (request.mode()) {
+            case RAW -> spawnRaw(resource, spaceId, layout, request.count(), serverTick);
+            case ENTITY -> spawnEntities(store,
+                resource,
+                spaceId,
+                layout,
+                request.count(),
+                request.blockType(),
+                serverTick);
         };
-        long elapsedNanos = System.nanoTime() - startNanos;
-        int afterBodies = ExamplePhysicsUtils.physicsOwnerCall(store,
-            "count benchmark physics bodies after spawn",
-            access -> access.requireSpace(spaceId).bodyCount());
+        int afterBodies = resource.query(new SpaceBodyCountQuery(spaceId))
+            .completion()
+            .toCompletableFuture()
+            .join();
 
-        if (spawned > 0) {
-            ctx.sender().sendMessage(Message.raw("Spawned " + spawned + " "
-                + request.mode().label() + " benchmark bodies in " + millis(elapsedNanos)
-                + " ms (" + microsPerBody(elapsedNanos, spawned)
+        if (timing.spawned() > 0) {
+            ctx.sender().sendMessage(Message.raw("Spawned " + timing.spawned() + " "
+                + request.mode().label() + " benchmark bodies: setupWallMs="
+                + millis(timing.setupWallNanos())
+                + " commandApplyMs=" + millis(timing.commandApplyNanos())
+                + (timing.entityAttachNanos() > 0L
+                    ? " entityAttachMs=" + millis(timing.entityAttachNanos())
+                    : "")
+                + " (" + microsPerBody(timing.setupWallNanos(), timing.spawned())
                 + " us/body). Space bodies: " + beforeBodies + " -> " + afterBodies
                 + (request.mode() == BenchmarkMode.ENTITY ? ". blockType=" + request.blockType() : "")
                 + ". For clean comparisons run /impulse clean, /impulse perf reset,"
@@ -125,39 +142,69 @@ public class StressBenchmarkCommand extends AbstractAsyncPlayerCommand {
         return new BenchmarkRequest(mode, count, blockType(ctx));
     }
 
-    private static int spawnRaw(@Nonnull Store<EntityStore> store,
+    @Nonnull
+    private static BenchmarkSpawnTiming spawnRaw(@Nonnull PhysicsWorldResource resource,
         @Nonnull SpaceId spaceId,
         @Nonnull BenchmarkLayout layout,
-        int count) {
-        ExamplePhysicsUtils.physicsOwnerRun(store, "spawn raw benchmark physics bodies", access -> {
-            PhysicsSpace space = access.requireSpace(spaceId);
-            for (int i = 0; i < count; i++) {
-                PhysicsBody body = createBenchmarkBody(space);
-                Vector3d position = layout.position(i);
-                body.setPosition((float) position.x, (float) position.y, (float) position.z);
-                space.addBody(body);
-            }
-        });
-        return count;
+        int count,
+        long serverTick) {
+        PhysicsShapeSpec box = PhysicsShapeSpec.box(0.48f, 0.48f, 0.48f);
+        RigidBodySpawnSettings spawnSettings = RigidBodySpawnSettings.material(0.65f, 0.15f);
+        long bodyKeyRunId = RigidBodyKey.random().mostSignificantBits();
+        long commandStartNanos = System.nanoTime();
+        ExamplePhysicsUtils.requireApplied(resource.submitCommands(serverTick, 1, commands ->
+            commands.spawnBodies(count,
+                spaceId,
+                box,
+                1.0f,
+                PhysicsBodyType.DYNAMIC,
+                spawnSettings,
+                PhysicsBodyKind.TEMPORARY,
+                PhysicsBodyPersistenceMode.RUNTIME_ONLY,
+                spawns -> {
+                    for (int i = 0; i < count; i++) {
+                        spawns.body(bodyKeyRunId,
+                            i + 1L,
+                            layout.positionX(i),
+                            layout.positionY(i),
+                            layout.positionZ(i));
+                    }
+                })), "spawn raw benchmark physics bodies");
+        long commandApplyNanos = System.nanoTime() - commandStartNanos;
+        return new BenchmarkSpawnTiming(count, commandApplyNanos, 0L);
     }
 
-    private static int spawnEntities(@Nonnull Store<EntityStore> store,
+    @Nonnull
+    private static BenchmarkSpawnTiming spawnEntities(@Nonnull Store<EntityStore> store,
         @Nonnull PhysicsWorldResource resource,
         @Nonnull SpaceId spaceId,
         @Nonnull BenchmarkLayout layout,
         int count,
-        @Nonnull String blockType) {
+        @Nonnull String blockType,
+        long serverTick) {
         TimeResource time = store.getResource(TimeResource.getResourceType());
-        for (int i = 0; i < count; i++) {
-            ExamplePhysicsUtils.spawnBlockBody(store,
-                time,
-                resource,
-                spaceId,
-                layout.position(i),
-                blockType,
-                StressBenchmarkCommand::createBenchmarkBody);
-        }
-        return count;
+        PhysicsShapeSpec box = PhysicsShapeSpec.box(0.48f, 0.48f, 0.48f);
+        RigidBodySpawnSettings spawnSettings = RigidBodySpawnSettings.material(0.65f, 0.15f);
+        ExamplePhysicsUtils.BlockBodyBatchTiming timing = ExamplePhysicsUtils.spawnBlockBodiesMeasured(store,
+            time,
+            resource,
+            serverTick,
+            spaceId,
+            count,
+            blockType,
+            box,
+            1.0f,
+            spawnSettings,
+            bodies -> {
+                for (int i = 0; i < count; i++) {
+                    bodies.addBody(layout.positionX(i),
+                        layout.positionY(i),
+                        layout.positionZ(i));
+                }
+            });
+        return new BenchmarkSpawnTiming(timing.count(),
+            timing.commandApplyNanos(),
+            timing.entityAttachNanos());
     }
 
     @Nonnull
@@ -165,14 +212,6 @@ public class StressBenchmarkCommand extends AbstractAsyncPlayerCommand {
         return blockTypeArg.provided(ctx)
             ? ExamplePhysicsUtils.resolveBlockType(blockTypeArg.get(ctx))
             : ExamplePhysicsUtils.DEFAULT_BLOCK_TYPE;
-    }
-
-    @Nonnull
-    private static PhysicsBody createBenchmarkBody(@Nonnull PhysicsSpace space) {
-        PhysicsBody body = space.createBox(0.48f, 0.48f, 0.48f, 1.0f);
-        body.setFriction(0.65f);
-        body.setRestitution(0.15f);
-        return body;
     }
 
     @Nonnull
@@ -229,6 +268,20 @@ public class StressBenchmarkCommand extends AbstractAsyncPlayerCommand {
     private record BenchmarkRequest(BenchmarkMode mode, int count, @Nonnull String blockType) {
     }
 
+    private record BenchmarkSpawnTiming(int spawned,
+                                        long commandApplyNanos,
+                                        long entityAttachNanos) {
+
+        private BenchmarkSpawnTiming {
+            commandApplyNanos = Math.max(0L, commandApplyNanos);
+            entityAttachNanos = Math.max(0L, entityAttachNanos);
+        }
+
+        private long setupWallNanos() {
+            return commandApplyNanos + entityAttachNanos;
+        }
+    }
+
     private record BenchmarkLayout(Vector3d origin, int side) {
 
         @Nonnull
@@ -247,6 +300,21 @@ public class StressBenchmarkCommand extends AbstractAsyncPlayerCommand {
             int z = (index / side) % side;
             int y = index / (side * side);
             return new Vector3d(origin).add(x * SPACING, y * SPACING, z * SPACING);
+        }
+
+        private float positionX(int index) {
+            int x = index % side;
+            return (float) (origin.x + x * SPACING);
+        }
+
+        private float positionY(int index) {
+            int y = index / (side * side);
+            return (float) (origin.y + y * SPACING);
+        }
+
+        private float positionZ(int index) {
+            int z = (index / side) % side;
+            return (float) (origin.z + z * SPACING);
         }
     }
 }
