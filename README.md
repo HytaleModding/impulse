@@ -20,21 +20,13 @@ You can start a debug server with all the example mods and backend jars by runni
 
 ### Backend Provider Jars
 
-Backend jars are Java service-provider jars, not Hytale plugins. Impulse discovers
-`PhysicsBackend` providers from jars anywhere under the configured Hytale `mods` directories.
+Backend jars are Java service-provider jars. Impulse discovers `PhysicsBackend` providers from jars anywhere under the configured Hytale `mods` directories.
 
 When multiple backend jars are installed, create spaces with an explicit backend:
 
 ```bash
 /impulse space create --backend=impulse:rapier
 ```
-
-#### Native Binary Notice
-
-Backend provider artifacts may include third-party native binaries so Impulse can load the
-backend at runtime. These artifacts are convenience packages for Impulse plugins; they are not
-the official upstream distribution channel for those native libraries. Download standalone
-Bullet/Libbulletjme or Rapier binaries from their upstream projects instead.
 
 The Rapier backend needs a Rust toolchain to build its native library. If `cargo` is available, `:impulse-rapier:processResources` builds and packages the current build platform native library automatically. You can also force native compilation with:
 
@@ -62,6 +54,13 @@ Crucible in-game tests are also provided.
 
 - [`impulse-core`](impulse-core/README.md) documents `/impulse` runtime commands and local Crucible smoke.
 - [`impulse-examples`](impulse-examples/README.md) documents example and stress commands.
+
+## Native Binary Notice
+
+Backend provider artifacts may include third-party native binaries so Impulse can load the
+backend at runtime. These artifacts are convenience packages for Impulse plugins; they are not
+the official upstream distribution channel for those native libraries. Download standalone
+Bullet/Libbulletjme or Rapier binaries from their upstream projects instead.
 
 ## Code of Conduct
 This project and everyone participating in it is governed by HytaleModding's 
