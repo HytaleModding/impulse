@@ -5,7 +5,7 @@ import com.hypixel.hytale.component.ResourceType;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import dev.hytalemodding.impulse.core.ImpulsePlugin;
 import dev.hytalemodding.impulse.core.internal.voxel.WorldVoxelCollisionCache.BuildStats;
-import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyId;
+import dev.hytalemodding.impulse.core.plugin.body.RigidBodyKey;
 import it.unimi.dsi.fastutil.longs.LongOpenHashSet;
 import it.unimi.dsi.fastutil.longs.LongSet;
 import java.util.ArrayList;
@@ -602,13 +602,18 @@ public class WorldCollisionProfilingResource implements Resource<EntityStore> {
         }
 
         @Nonnull
+        public static DiagnosticPosition from(float x, float y, float z) {
+            return new DiagnosticPosition(x, y, z);
+        }
+
+        @Nonnull
         public String compact() {
             return String.format(java.util.Locale.ROOT, "%.3f,%.3f,%.3f", x, y, z);
         }
     }
 
     public record StreamingTargetDiagnostic(@Nonnull StreamingTargetType targetType,
-                                            @Nullable PhysicsBodyId bodyId,
+                                            @Nullable RigidBodyKey bodyKey,
                                             @Nullable DiagnosticPosition snapshotPosition,
                                             @Nullable DiagnosticPosition livePosition) {
 
@@ -622,13 +627,27 @@ public class WorldCollisionProfilingResource implements Resource<EntityStore> {
         }
 
         @Nonnull
-        public static StreamingTargetDiagnostic body(@Nonnull PhysicsBodyId bodyId,
+        public static StreamingTargetDiagnostic body(@Nonnull RigidBodyKey bodyKey,
             @Nonnull Vector3f snapshotPosition,
             @Nonnull Vector3f livePosition) {
             return new StreamingTargetDiagnostic(StreamingTargetType.BODY,
-                bodyId,
+                bodyKey,
                 DiagnosticPosition.from(snapshotPosition),
                 DiagnosticPosition.from(livePosition));
+        }
+
+        @Nonnull
+        public static StreamingTargetDiagnostic body(@Nonnull RigidBodyKey bodyKey,
+            float snapshotX,
+            float snapshotY,
+            float snapshotZ,
+            float liveX,
+            float liveY,
+            float liveZ) {
+            return new StreamingTargetDiagnostic(StreamingTargetType.BODY,
+                bodyKey,
+                DiagnosticPosition.from(snapshotX, snapshotY, snapshotZ),
+                DiagnosticPosition.from(liveX, liveY, liveZ));
         }
 
         @Nonnull

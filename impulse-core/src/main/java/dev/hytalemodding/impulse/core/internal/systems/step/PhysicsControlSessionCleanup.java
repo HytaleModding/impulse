@@ -2,12 +2,10 @@ package dev.hytalemodding.impulse.core.internal.systems.step;
 
 import com.hypixel.hytale.component.Store;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
-import dev.hytalemodding.impulse.api.PhysicsSpace;
-import dev.hytalemodding.impulse.core.internal.control.PhysicsControlJointResolver;
-import dev.hytalemodding.impulse.core.internal.resources.PhysicsWorldRuntimeResource;
-import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyId;
 import dev.hytalemodding.impulse.core.internal.components.PhysicsControlSessionComponent;
-import dev.hytalemodding.impulse.core.plugin.joint.PhysicsJointId;
+import dev.hytalemodding.impulse.core.internal.resources.PhysicsWorldRuntimeResource;
+import dev.hytalemodding.impulse.core.plugin.body.RigidBodyKey;
+import dev.hytalemodding.impulse.core.plugin.joint.JointKey;
 import dev.hytalemodding.impulse.core.plugin.resources.PhysicsWorldResource;
 import javax.annotation.Nonnull;
 
@@ -32,29 +30,24 @@ public final class PhysicsControlSessionCleanup {
             return;
         }
 
-        PhysicsBodyId bodyId = session.getBodyId();
-        PhysicsBodyId anchorBodyId = session.getAnchorBodyId();
-        PhysicsJointId controlJointId = session.getControlJointId();
-        resource.runOnPhysicsOwner("cleanup kinematic control session", access -> {
-            if (bodyId != null) {
-                resource.clearControlledBody(bodyId);
-            }
+        RigidBodyKey bodyKey = session.getBodyKey();
+        RigidBodyKey anchorBodyKey = session.getAnchorBodyKey();
+        JointKey controlJointKey = session.getControlJointKey();
+        if (bodyKey != null) {
+            resource.clearControlledBody(bodyKey);
+        }
 
-            boolean removedControlJoint =
-                controlJointId != null && resource.removeJoint(controlJointId);
-            PhysicsSpace space = session.getSpaceId() != null
-                ? access.getSpace(session.getSpaceId())
-                : null;
-            if (!removedControlJoint && space != null && bodyId != null && anchorBodyId != null) {
-                PhysicsControlJointResolver.removeControlJoint(access,
-                    space,
-                    bodyId,
-                    anchorBodyId);
-            }
-
-            if (anchorBodyId != null) {
-                resource.destroyBody(anchorBodyId);
-            }
-        });
+        if (controlJointKey != null || anchorBodyKey != null) {
+            resource.submitCommands(0L, 2, commands -> {
+                if (session.getSpaceId() != null && bodyKey != null && anchorBodyKey != null) {
+                    commands.destroyJointBetween(controlJointKey, session.getSpaceId(), anchorBodyKey, bodyKey);
+                } else if (controlJointKey != null) {
+                    commands.destroyJoint(controlJointKey);
+                }
+                if (anchorBodyKey != null) {
+                    commands.destroyBody(anchorBodyKey);
+                }
+            }).completionSummary().toCompletableFuture().join();
+        }
     }
 }

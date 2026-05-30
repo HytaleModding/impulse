@@ -8,10 +8,9 @@ import com.hypixel.hytale.server.core.universe.world.World;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import dev.hytalemodding.impulse.api.BackendId;
 import dev.hytalemodding.impulse.api.Impulse;
-import dev.hytalemodding.impulse.api.PhysicsBody;
+import dev.hytalemodding.impulse.api.PhysicsBodyType;
 import dev.hytalemodding.impulse.api.PhysicsCollisionFilters;
 import dev.hytalemodding.impulse.api.PhysicsSpace;
-import dev.hytalemodding.impulse.api.ShapeType;
 import dev.hytalemodding.impulse.core.internal.components.PhysicsControlSessionComponent;
 import dev.hytalemodding.impulse.core.internal.resources.profiling.PhysicsRuntimeProfilingResource;
 import dev.hytalemodding.impulse.core.internal.resources.profiling.PhysicsRuntimeProfilingResource.StepSnapshot;
@@ -19,19 +18,21 @@ import dev.hytalemodding.impulse.core.internal.resources.profiling.PhysicsRuntim
 import dev.hytalemodding.impulse.core.internal.resources.profiling.WorldCollisionProfilingResource;
 import dev.hytalemodding.impulse.core.internal.resources.profiling.WorldCollisionProfilingResource.Snapshot;
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsWorldRuntimeResource;
-import dev.hytalemodding.impulse.core.internal.voxel.WorldVoxelCollisionCache;
 import dev.hytalemodding.impulse.core.plugin.components.PhysicsBodyAttachmentComponent;
 import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyKind;
 import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyPersistenceMode;
-import dev.hytalemodding.impulse.core.internal.resources.body.PhysicsBodyRegistration;
+import dev.hytalemodding.impulse.core.plugin.body.RigidBodyKey;
 import dev.hytalemodding.impulse.core.plugin.settings.PhysicsBackendExtensionId;
 import dev.hytalemodding.impulse.core.plugin.settings.PhysicsSpaceSettings;
 import dev.hytalemodding.impulse.core.plugin.settings.PhysicsSolverSettings;
 import dev.hytalemodding.impulse.core.plugin.settings.PhysicsStepMode;
 import dev.hytalemodding.impulse.core.plugin.settings.PhysicsStepSchedulingMode;
 import dev.hytalemodding.impulse.core.plugin.settings.PhysicsWorldSettings;
-import dev.hytalemodding.impulse.core.plugin.resources.PhysicsWorldResource;
 import dev.hytalemodding.impulse.core.plugin.collision.WorldCollisionMode;
+import dev.hytalemodding.impulse.core.internal.simulation.BenchmarkSpaceStatsQuery;
+import dev.hytalemodding.impulse.core.internal.simulation.BenchmarkSpaceStatsView;
+import dev.hytalemodding.impulse.core.plugin.simulation.PhysicsShapeSpec;
+import dev.hytalemodding.impulse.core.plugin.simulation.RigidBodySpawnSettings;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
@@ -43,7 +44,6 @@ import java.util.logging.Level;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 import org.joml.Vector3d;
-import org.joml.Vector3f;
 
 /**
  * Benchmark-oriented Crucible scenario for Rapier detached body-only fixed substeps.
@@ -232,18 +232,65 @@ final class ImpulseRapierBodyBenchmarkCrucibleTests {
                 PhysicsSpace space = physics.createLiveSpace(RAPIER_BACKEND_ID,
                     world.getName(),
                     settings);
-                physics.runOnPhysicsOwner("prepare rapier body benchmark space", () -> {
-                    PhysicsBody ground = space.createStaticPlane(GROUND_Y);
-                    ground.setCollisionFilter(PhysicsCollisionFilters.TERRAIN,
-                        PhysicsCollisionFilters.ALL);
-                    space.addBody(ground);
-                    spawnDetachedBodies(space, matrixCase.count());
-                });
-                return CompletableFuture.completedFuture(StartedCase.started(space));
+                return populateBenchmarkSpace(space, matrixCase);
             } catch (RuntimeException exception) {
                 return CompletableFuture.completedFuture(
                     StartedCase.failed(exception.getMessage()));
             }
+        }
+
+        private CompletionStage<StartedCase> populateBenchmarkSpace(@Nonnull PhysicsSpace space,
+            @Nonnull MatrixCase matrixCase) {
+            BenchmarkLayout layout = BenchmarkLayout.flatGrid(matrixCase.count());
+            RigidBodySpawnSettings groundSettings = RigidBodySpawnSettings.defaults()
+                .withCollisionFilter(PhysicsCollisionFilters.TERRAIN, PhysicsCollisionFilters.ALL);
+            RigidBodySpawnSettings bodySettings = RigidBodySpawnSettings.of(0.45f,
+                0.0f,
+                0.02f,
+                0.25f,
+                PhysicsCollisionFilters.DYNAMIC_BODY,
+                PhysicsCollisionFilters.TERRAIN | PhysicsCollisionFilters.DYNAMIC_BODY);
+            long bodyKeyRunId = RigidBodyKey.random().mostSignificantBits();
+            return physics.submitCommands(Math.max(0L, world.getTick()),
+                    2,
+                    commands -> {
+                        commands.spawnBody(RigidBodyKey.random(),
+                            body -> body.space(space.getId())
+                                .plane(GROUND_Y)
+                                .type(PhysicsBodyType.STATIC)
+                                .settings(groundSettings)
+                                .temporary()
+                                .runtimeOnly());
+                        commands.spawnBodies(matrixCase.count(),
+                            space.getId(),
+                            PhysicsShapeSpec.box(0.48f, 0.48f, 0.48f),
+                            1.0f,
+                            PhysicsBodyType.DYNAMIC,
+                            bodySettings,
+                            PhysicsBodyKind.BODY,
+                            PhysicsBodyPersistenceMode.RUNTIME_ONLY,
+                            spawns -> {
+                                for (int i = 0; i < matrixCase.count(); i++) {
+                                    spawns.body(bodyKeyRunId,
+                                        i + 1L,
+                                        (float) layout.positionX(i),
+                                        (float) layout.positionY(i),
+                                        (float) layout.positionZ(i));
+                                }
+                            });
+                    })
+                .completionSummary()
+                .handle((completion, failure) -> {
+                    if (failure != null) {
+                        return StartedCase.failed(failure.getMessage());
+                    }
+                    return completion.firstRejected()
+                        .map(result -> StartedCase.failed("prepare command "
+                                + result.commandSequence()
+                                + " rejected: "
+                                + result.message()))
+                        .orElseGet(() -> StartedCase.started(space));
+                });
         }
 
         private MatrixReport finishCase(@Nonnull MatrixCase matrixCase,
@@ -347,23 +394,6 @@ final class ImpulseRapierBodyBenchmarkCrucibleTests {
                     CONTROL_SESSION_TYPE));
         }
 
-        private void spawnDetachedBodies(@Nonnull PhysicsSpace space, int count) {
-            BenchmarkLayout layout = BenchmarkLayout.flatGrid(count);
-            for (int i = 0; i < count; i++) {
-                PhysicsBody body = space.createBox(0.48f, 0.48f, 0.48f, 1.0f);
-                body.setFriction(0.45f);
-                body.setRestitution(0.0f);
-                body.setDamping(0.02f, 0.25f);
-                body.setCollisionFilter(PhysicsCollisionFilters.DYNAMIC_BODY,
-                    PhysicsCollisionFilters.TERRAIN | PhysicsCollisionFilters.DYNAMIC_BODY);
-                Vector3d position = layout.position(i);
-                body.setPosition((float) position.x, (float) position.y, (float) position.z);
-                physics.addBody(space.getId(),
-                    body,
-                    PhysicsBodyKind.BODY,
-                    PhysicsBodyPersistenceMode.RUNTIME_ONLY);
-            }
-        }
     }
 
     private static CrucibleTestCase.TestOutcome outcome(@Nonnull List<MatrixReport> reports) {
@@ -706,10 +736,16 @@ final class ImpulseRapierBodyBenchmarkCrucibleTests {
                 ORIGIN.z - half), side, DETACHED_SPACING);
         }
 
-        private Vector3d position(int index) {
-            int x = index % side;
-            int z = index / side;
-            return new Vector3d(origin).add(x * spacing, 0.0, z * spacing);
+        private double positionX(int index) {
+            return origin.x + (index % side) * spacing;
+        }
+
+        private double positionY(int index) {
+            return origin.y;
+        }
+
+        private double positionZ(int index) {
+            return origin.z + (index / side) * spacing;
         }
     }
 
@@ -728,63 +764,30 @@ final class ImpulseRapierBodyBenchmarkCrucibleTests {
         private double minDynamicBodyY = Double.POSITIVE_INFINITY;
         private double maxDynamicBodyY = Double.NEGATIVE_INFINITY;
 
-        private static SpaceStats collect(@Nonnull PhysicsWorldResource physics,
+        private static SpaceStats collect(@Nonnull PhysicsWorldRuntimeResource physics,
             @Nonnull PhysicsSpace space) {
-            return physics.callOnPhysicsOwner("collect rapier body benchmark space stats",
-                () -> collectOnOwner(physics, space));
-        }
-
-        private static SpaceStats collectOnOwner(@Nonnull PhysicsWorldResource physics,
-            @Nonnull PhysicsSpace space) {
+            BenchmarkSpaceStatsView view = physics.queryInternal(new BenchmarkSpaceStatsQuery(space.getId(),
+                    GROUND_Y,
+                    BELOW_PLANE_TOLERANCE,
+                    BODY_WORLD_MIN_Y,
+                    BODY_VOID_Y,
+                    false))
+                .toCompletableFuture()
+                .join();
             SpaceStats stats = new SpaceStats();
-            PhysicsWorldRuntimeResource runtime = PhysicsWorldRuntimeResource.require(physics);
-            WorldVoxelCollisionCache cache = runtime.worldCollisionCache();
-            for (PhysicsBody body : space.getBodies()) {
-                stats.classify(runtime, cache, space, body);
-            }
+            stats.bodies = view.bodies();
+            stats.dynamicBodies = view.dynamicBodies();
+            stats.awakeDynamicBodies = view.awakeDynamicBodies();
+            stats.sleepingDynamicBodies = view.sleepingDynamicBodies();
+            stats.detachedBodies = view.detachedBodies();
+            stats.rawBodies = view.rawBodies();
+            stats.worldCollisionBodies = view.worldCollisionBodies();
+            stats.belowPlaneBodies = view.belowPlaneBodies();
+            stats.belowWorldMinBodies = view.belowWorldMinBodies();
+            stats.belowVoidBodies = view.belowVoidBodies();
+            stats.minDynamicBodyY = view.minDynamicBodyY();
+            stats.maxDynamicBodyY = view.maxDynamicBodyY();
             return stats;
-        }
-
-        private void classify(@Nonnull PhysicsWorldRuntimeResource physics,
-            @Nonnull WorldVoxelCollisionCache cache,
-            @Nonnull PhysicsSpace space,
-            @Nonnull PhysicsBody body) {
-            bodies++;
-            if (body.isDynamic()) {
-                dynamicBodies++;
-                Vector3f position = body.getPosition();
-                minDynamicBodyY = Math.min(minDynamicBodyY, position.y);
-                maxDynamicBodyY = Math.max(maxDynamicBodyY, position.y);
-                if (position.y < GROUND_Y - BELOW_PLANE_TOLERANCE) {
-                    belowPlaneBodies++;
-                }
-                if (position.y < BODY_WORLD_MIN_Y) {
-                    belowWorldMinBodies++;
-                }
-                if (position.y < BODY_VOID_Y) {
-                    belowVoidBodies++;
-                }
-                if (body.isSleeping()) {
-                    sleepingDynamicBodies++;
-                } else {
-                    awakeDynamicBodies++;
-                }
-            }
-            PhysicsBodyRegistration registration = physics.getBodyRegistration(body);
-            if (registration != null && registration.kind() == PhysicsBodyKind.BODY) {
-                if (physics.getBodyAttachments(registration.id()).isEmpty()) {
-                    detachedBodies++;
-                }
-                return;
-            }
-            if (body.getShapeType() == ShapeType.PLANE) {
-                return;
-            }
-            if (cache.containsBody(space.getId(), body)) {
-                worldCollisionBodies++;
-                return;
-            }
-            rawBodies++;
         }
 
         private double minDynamicBodyY() {

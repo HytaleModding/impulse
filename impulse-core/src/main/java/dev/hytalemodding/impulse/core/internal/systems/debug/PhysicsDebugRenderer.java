@@ -10,6 +10,8 @@ import dev.hytalemodding.impulse.api.PhysicsBodySnapshot;
 import dev.hytalemodding.impulse.api.PhysicsBodyType;
 import dev.hytalemodding.impulse.api.PhysicsContact;
 import dev.hytalemodding.impulse.api.PhysicsJoint;
+import dev.hytalemodding.impulse.core.internal.simulation.PhysicsDebugContactView;
+import dev.hytalemodding.impulse.core.internal.simulation.PhysicsDebugJointView;
 import dev.hytalemodding.impulse.core.internal.voxel.SectionCollisionGeometry.BoxCollider;
 import java.util.Collection;
 import javax.annotation.Nonnull;
@@ -66,6 +68,29 @@ final class PhysicsDebugRenderer {
             DebugUtils.COLOR_MAGENTA, time);
     }
 
+    static void renderBodyMotion(@Nonnull Collection<PlayerRef> viewers,
+        @Nonnull Vector3d center,
+        @Nonnull PhysicsBodySnapshot snapshot,
+        float time) {
+        renderArrow(viewers,
+            center,
+            toDebugDirection(snapshot.linearVelocityX(),
+                snapshot.linearVelocityY(),
+                snapshot.linearVelocityZ(),
+                VELOCITY_SCALE),
+            DebugUtils.COLOR_GREEN,
+            time);
+
+        renderArrow(viewers,
+            center,
+            toDebugDirection(snapshot.angularVelocityX(),
+                snapshot.angularVelocityY(),
+                snapshot.angularVelocityZ(),
+                ANGULAR_VELOCITY_SCALE),
+            DebugUtils.COLOR_MAGENTA,
+            time);
+    }
+
     static void renderContact(@Nonnull Collection<PlayerRef> viewers,
         @Nonnull PhysicsContact contact,
         float time) {
@@ -93,6 +118,32 @@ final class PhysicsDebugRenderer {
                 0.8f,
                 time,
                 VECTOR_FLAGS);
+        }
+    }
+
+    static void renderContact(@Nonnull Collection<PlayerRef> viewers,
+        @Nonnull PhysicsDebugContactView view,
+        float time) {
+        Vector3d point = new Vector3d(view.pointX(), view.pointY(), view.pointZ());
+        PhysicsDebugPackets.addSphere(viewers,
+            point,
+            DebugUtils.COLOR_RED,
+            0.8f,
+            0.12,
+            time,
+            VECTOR_FLAGS);
+
+        if (view.hasNormal()) {
+            Vector3d normal = new Vector3d(view.normalX(), view.normalY(), view.normalZ());
+            if (normal.lengthSquared() > 0.0) {
+                PhysicsDebugPackets.addArrow(viewers,
+                    point,
+                    normal,
+                    DebugUtils.COLOR_YELLOW,
+                    0.8f,
+                    time,
+                    VECTOR_FLAGS);
+            }
         }
     }
 
@@ -152,6 +203,48 @@ final class PhysicsDebugRenderer {
                 0.8f,
                 time,
                 VECTOR_FLAGS);
+        }
+    }
+
+    static void renderJoint(@Nonnull Collection<PlayerRef> viewers,
+        @Nonnull PhysicsDebugJointView view,
+        float time) {
+        Vector3d anchorA = new Vector3d(view.anchorAX(), view.anchorAY(), view.anchorAZ());
+        Vector3d anchorB = new Vector3d(view.anchorBX(), view.anchorBY(), view.anchorBZ());
+        PhysicsDebugPackets.addLine(viewers,
+            anchorA,
+            anchorB,
+            DebugUtils.COLOR_PURPLE,
+            0.035,
+            0.8f,
+            time,
+            VECTOR_FLAGS);
+        PhysicsDebugPackets.addSphere(viewers,
+            anchorA,
+            DebugUtils.COLOR_PURPLE,
+            0.8f,
+            0.12,
+            time,
+            VECTOR_FLAGS);
+        PhysicsDebugPackets.addSphere(viewers,
+            anchorB,
+            DebugUtils.COLOR_PURPLE,
+            0.8f,
+            0.12,
+            time,
+            VECTOR_FLAGS);
+
+        if (view.hasAxis()) {
+            Vector3d axis = new Vector3d(view.axisX(), view.axisY(), view.axisZ());
+            if (axis.lengthSquared() > 0.0) {
+                PhysicsDebugPackets.addArrow(viewers,
+                    anchorA,
+                    axis,
+                    DebugUtils.COLOR_CYAN,
+                    0.8f,
+                    time,
+                    VECTOR_FLAGS);
+            }
         }
     }
 
@@ -425,7 +518,12 @@ final class PhysicsDebugRenderer {
 
     @Nonnull
     private static Vector3d toDebugDirection(@Nonnull Vector3f vector, double scale) {
-        Vector3d direction = new Vector3d(vector.x, vector.y, vector.z).mul(scale);
+        return toDebugDirection(vector.x, vector.y, vector.z, scale);
+    }
+
+    @Nonnull
+    private static Vector3d toDebugDirection(float x, float y, float z, double scale) {
+        Vector3d direction = new Vector3d(x, y, z).mul(scale);
         double length = direction.length();
         if (length > MAX_ARROW_LENGTH) {
             direction.mul(MAX_ARROW_LENGTH / length);

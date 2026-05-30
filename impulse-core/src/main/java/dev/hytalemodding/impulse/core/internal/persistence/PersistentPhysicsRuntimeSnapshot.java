@@ -1,7 +1,7 @@
 package dev.hytalemodding.impulse.core.internal.persistence;
 
 import dev.hytalemodding.impulse.api.PhysicsSpace;
-import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyId;
+import dev.hytalemodding.impulse.core.plugin.body.RigidBodyKey;
 import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyPersistenceMode;
 import dev.hytalemodding.impulse.core.internal.resources.body.PhysicsBodyRegistration;
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsWorldRuntimeResource;
@@ -105,13 +105,13 @@ public final class PersistentPhysicsRuntimeSnapshot {
         int[] count = new int[1];
         for (PhysicsSpace space : runtime.iterateSpaces()) {
             space.forEachJoint(joint -> {
-                PhysicsBodyId bodyAId = runtime.getBodyId(joint.getBodyA());
-                PhysicsBodyId bodyBId = runtime.getBodyId(joint.getBodyB());
-                if (bodyAId == null || bodyBId == null) {
+                RigidBodyKey bodyAKey = runtime.getBodyKey(joint.getBodyA());
+                RigidBodyKey bodyBKey = runtime.getBodyKey(joint.getBodyB());
+                if (bodyAKey == null || bodyBKey == null) {
                     return;
                 }
-                PhysicsBodyRegistration bodyA = runtime.getRegistration(bodyAId);
-                PhysicsBodyRegistration bodyB = runtime.getRegistration(bodyBId);
+                PhysicsBodyRegistration bodyA = runtime.getRegistration(bodyAKey);
+                PhysicsBodyRegistration bodyB = runtime.getRegistration(bodyBKey);
                 if (bodyA == null
                     || bodyB == null
                     || bodyA.persistenceMode() != PhysicsBodyPersistenceMode.PERSISTENT
@@ -128,13 +128,13 @@ public final class PersistentPhysicsRuntimeSnapshot {
         @Nonnull PhysicsSpace space,
         @Nonnull List<PersistentPhysicsJointState> joints) {
         space.forEachJoint(joint -> {
-            PhysicsBodyId bodyAId = runtime.getBodyId(joint.getBodyA());
-            PhysicsBodyId bodyBId = runtime.getBodyId(joint.getBodyB());
-            if (bodyAId == null || bodyBId == null) {
+            RigidBodyKey bodyAKey = runtime.getBodyKey(joint.getBodyA());
+            RigidBodyKey bodyBKey = runtime.getBodyKey(joint.getBodyB());
+            if (bodyAKey == null || bodyBKey == null) {
                 return;
             }
-            PhysicsBodyRegistration bodyA = runtime.getRegistration(bodyAId);
-            PhysicsBodyRegistration bodyB = runtime.getRegistration(bodyBId);
+            PhysicsBodyRegistration bodyA = runtime.getRegistration(bodyAKey);
+            PhysicsBodyRegistration bodyB = runtime.getRegistration(bodyBKey);
             if (bodyA == null
                 || bodyB == null
                 || bodyA.persistenceMode() != PhysicsBodyPersistenceMode.PERSISTENT
@@ -142,8 +142,8 @@ public final class PersistentPhysicsRuntimeSnapshot {
                 return;
             }
             joints.add(PersistentPhysicsJointState.from(space.getId().value(),
-                bodyAId,
-                bodyBId,
+                bodyAKey,
+                bodyBKey,
                 joint));
         });
     }

@@ -11,21 +11,25 @@ import com.hypixel.hytale.server.core.modules.entity.component.TransformComponen
 import com.hypixel.hytale.server.core.modules.time.TimeResource;
 import com.hypixel.hytale.server.core.universe.world.World;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
-import dev.hytalemodding.impulse.api.PhysicsBody;
-import dev.hytalemodding.impulse.api.PhysicsSpace;
+import dev.hytalemodding.impulse.api.PhysicsBodyType;
 import dev.hytalemodding.impulse.api.SpaceId;
 import dev.hytalemodding.impulse.core.ImpulsePlugin;
 import dev.hytalemodding.impulse.core.plugin.components.ImpulseControllableComponent;
 import dev.hytalemodding.impulse.core.plugin.components.PhysicsBodyAttachmentComponent;
 import dev.hytalemodding.impulse.core.plugin.components.PhysicsBodyAttachmentComponent.AttachmentLifecycle;
 import dev.hytalemodding.impulse.core.plugin.components.PhysicsBodyAttachmentComponent.TransformAuthority;
-import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyId;
+import dev.hytalemodding.impulse.core.plugin.body.RigidBodyKey;
 import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyKind;
 import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyPersistenceMode;
 import dev.hytalemodding.impulse.core.plugin.settings.PhysicsSpaceSettings;
 import dev.hytalemodding.impulse.core.plugin.resources.PhysicsWorldResource;
+import dev.hytalemodding.impulse.core.plugin.simulation.PhysicsShapeSpec;
+import dev.hytalemodding.impulse.core.plugin.simulation.RigidBodySpawnSettings;
+import dev.hytalemodding.impulse.core.plugin.simulation.RigidBodyStateQuery;
+import dev.hytalemodding.impulse.core.plugin.simulation.RigidBodyStateView;
 import java.util.Comparator;
 import java.util.List;
+import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
@@ -71,29 +75,28 @@ final class ImpulseLiveCrucibleTests {
             World world = context.world();
             Store<EntityStore> store = world.getEntityStore().getStore();
             PhysicsWorldResource resource = store.getResource(PhysicsWorldResource.getResourceType());
-            PhysicsSpace space = liveTestSpace(resource, world);
+            SpaceId spaceId = liveTestSpaceId(resource, world);
 
             Vector3d visualPosition = new Vector3d(
                 context.wx(0),
                 context.wy(20),
                 context.wz(0));
-            PhysicsBody body = resource.callOnPhysicsOwner("create live crucible physics body", () -> {
-                space.setGravity(0f, -9.81f, 0f);
-                PhysicsBody created = space.createBox(0.5f, 0.5f, 0.5f, 1.0f);
-                created.setPosition((float) visualPosition.x,
-                    (float) (visualPosition.y + created.getCenterOfMassOffsetY()),
-                    (float) visualPosition.z);
-                return created;
-            });
+            resource.submitCommands(0L,
+                    commands -> commands.setSpaceGravity(spaceId, 0f, -9.81f, 0f))
+                .completionSummary()
+                .toCompletableFuture()
+                .join();
+            RigidBodyKey bodyKey = RigidBodyKey.random();
+            submitLiveBody(resource, spaceId, bodyKey, visualPosition);
 
-            Ref<EntityStore> ref = spawnLiveBlockBody(store, resource, space, body, visualPosition);
+            Ref<EntityStore> ref = spawnLiveBlockBody(store, spaceId, bodyKey, visualPosition);
             double startY = visualPosition.y;
 
             return context.waitApproxTicksOnWorld(40).thenApply(ignored -> bodyAndEntityMovedDown(
                 store,
                 resource,
                 ref,
-                body,
+                bodyKey,
                 startY));
         } catch (ReflectiveOperationException e) {
             return CompletableFuture.failedFuture(e);
@@ -103,7 +106,7 @@ final class ImpulseLiveCrucibleTests {
     private static boolean bodyAndEntityMovedDown(Store<EntityStore> store,
         PhysicsWorldResource resource,
         Ref<EntityStore> ref,
-        PhysicsBody body,
+        RigidBodyKey bodyKey,
         double startY) {
 
         if (!ref.isValid()) {
@@ -114,31 +117,59 @@ final class ImpulseLiveCrucibleTests {
             return false;
         }
         double transformY = transform.getPosition().y;
-        float bodyY = resource.callOnPhysicsOwner("read live crucible physics body position",
-            () -> body.getPosition().y - body.getCenterOfMassOffsetY());
+        Optional<RigidBodyStateView> state = resource.query(new RigidBodyStateQuery(bodyKey))
+            .completion()
+            .toCompletableFuture()
+            .join();
+        if (state.isEmpty()) {
+            return false;
+        }
+        float bodyY = state.get().pose().position().y;
         return transformY < startY - 0.05 && bodyY < startY - 0.05f;
     }
 
-    private static PhysicsSpace liveTestSpace(PhysicsWorldResource resource, World world) {
+    private static SpaceId liveTestSpaceId(PhysicsWorldResource resource, World world) {
         SpaceId existingSpaceId = resource.getSpaceIds()
             .stream()
             .min(Comparator.comparingInt(SpaceId::value))
             .orElse(null);
         if (existingSpaceId != null) {
-            return resource.callOnPhysicsOwner("resolve live crucible test space",
-                access -> access.requireSpace(existingSpaceId));
+            return existingSpaceId;
         }
-        SpaceId spaceId = resource.createSpace(CrucibleBackends.requireBackendId(),
+        return resource.createSpace(CrucibleBackends.requireBackendId(),
             world.getName(),
             PhysicsSpaceSettings.defaults());
-        return resource.callOnPhysicsOwner("resolve live crucible test space",
-            access -> access.requireSpace(spaceId));
+    }
+
+    private static void submitLiveBody(PhysicsWorldResource resource,
+        SpaceId spaceId,
+        RigidBodyKey bodyKey,
+        Vector3d visualPosition) {
+        resource.submitCommands(0L,
+                1,
+                commands -> commands.spawnBody(bodyKey, spawn -> spawn
+                    .space(spaceId)
+                    .shape(PhysicsShapeSpec.box(0.5f, 0.5f, 0.5f))
+                    .mass(1.0f)
+                    .type(PhysicsBodyType.DYNAMIC)
+                    .position((float) visualPosition.x,
+                        (float) visualPosition.y,
+                        (float) visualPosition.z)
+                    .settings(RigidBodySpawnSettings.defaults())
+                    .kind(PhysicsBodyKind.BODY)
+                    .persistence(PhysicsBodyPersistenceMode.PERSISTENT)))
+            .firstRejected()
+            .toCompletableFuture()
+            .join()
+            .ifPresent(result -> {
+                throw new IllegalStateException("spawn live crucible body command "
+                    + result.commandSequence() + " rejected: " + result.message());
+            });
     }
 
     private static Ref<EntityStore> spawnLiveBlockBody(Store<EntityStore> store,
-        PhysicsWorldResource resource,
-        PhysicsSpace space,
-        PhysicsBody body,
+        SpaceId spaceId,
+        RigidBodyKey bodyKey,
         Vector3d visualPosition) {
 
         TimeResource time = store.getResource(TimeResource.getResourceType());
@@ -147,14 +178,9 @@ final class ImpulseLiveCrucibleTests {
             DEFAULT_BLOCK_TYPE,
             new Vector3d(visualPosition));
         holder.removeComponent(DESPAWN_TYPE);
-        PhysicsBodyId bodyId = resource.callOnPhysicsOwner("register live crucible body",
-            access -> access.addBody(space.getId(),
-                body,
-                PhysicsBodyKind.BODY,
-                PhysicsBodyPersistenceMode.PERSISTENT));
         holder.addComponent(ATTACHMENT_TYPE,
-            new PhysicsBodyAttachmentComponent(bodyId,
-                space.getId(),
+            new PhysicsBodyAttachmentComponent(bodyKey,
+                spaceId,
                 TransformAuthority.BODY,
                 AttachmentLifecycle.EXTERNAL_ENTITY));
         holder.addComponent(IMPULSE_CONTROLLABLE_TYPE, new ImpulseControllableComponent());

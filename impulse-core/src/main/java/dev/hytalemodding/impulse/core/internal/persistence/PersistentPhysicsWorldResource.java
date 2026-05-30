@@ -33,8 +33,8 @@ import javax.annotation.Nullable;
  *
  * <p>This resource stores the world-level state that does not belong
  * on individual entities: the space definitions (id, backend, gravity, world-collision
- * settings), the body states (keyed by stable physics body ids), the joint
- * definitions (keyed by endpoint body ids), and world simulation settings.</p>
+ * settings), the body states (keyed by stable physics body keys), the joint
+ * definitions (keyed by endpoint body keys), and world simulation settings.</p>
  *
  * <p>The {@code runtimeRestorePending} flag is set by {@code afterDecode} whenever
  * Hytale deserializes this resource. It signals the hydration systems that they
@@ -150,6 +150,7 @@ public class PersistentPhysicsWorldResource extends PhysicsPersistenceResource {
     public PersistentPhysicsWorldResource() {
     }
 
+    @Nonnull
     @SuppressWarnings("unchecked")
     public static ResourceType<EntityStore, PersistentPhysicsWorldResource> getResourceType() {
         return (ResourceType<EntityStore, PersistentPhysicsWorldResource>)

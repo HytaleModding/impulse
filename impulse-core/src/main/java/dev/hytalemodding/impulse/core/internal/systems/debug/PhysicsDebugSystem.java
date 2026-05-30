@@ -18,14 +18,15 @@ import dev.hytalemodding.impulse.core.plugin.components.PhysicsBodyAttachmentCom
 import dev.hytalemodding.impulse.core.plugin.components.PhysicsBodyAttachmentComponent.AttachmentLifecycle;
 import dev.hytalemodding.impulse.core.internal.resources.debug.PhysicsDebugResource;
 import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyKind;
-import dev.hytalemodding.impulse.core.plugin.resources.PhysicsWorldResource;
 import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyRegistrationView;
 import dev.hytalemodding.impulse.core.internal.voxel.SectionCollisionGeometry.BoxCollider;
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsWorldRuntimeResource;
+import dev.hytalemodding.impulse.core.internal.simulation.PhysicsDebugContactView;
+import dev.hytalemodding.impulse.core.internal.simulation.PhysicsDebugContactsQuery;
+import dev.hytalemodding.impulse.core.internal.simulation.PhysicsDebugJointView;
+import dev.hytalemodding.impulse.core.internal.simulation.PhysicsDebugJointsQuery;
 import dev.hytalemodding.impulse.core.internal.voxel.WorldVoxelCollisionCache;
 import dev.hytalemodding.impulse.core.internal.voxel.WorldVoxelCollisionCache.DebugSection;
-import dev.hytalemodding.impulse.core.internal.systems.debug.PhysicsDebugRenderer.ContactDebugPrimitive;
-import dev.hytalemodding.impulse.core.internal.systems.debug.PhysicsDebugRenderer.JointDebugPrimitive;
 import it.unimi.dsi.fastutil.objects.ObjectOpenHashSet;
 import java.util.ArrayList;
 import java.util.Collection;
@@ -168,7 +169,7 @@ public class PhysicsDebugSystem extends TickingSystem<ChunkStore> {
 
     private static int renderEntityBodies(@Nonnull Collection<PlayerRef> viewers,
         @Nonnull Store<EntityStore> store,
-        @Nonnull PhysicsWorldResource resource,
+        @Nonnull PhysicsWorldRuntimeResource resource,
         @Nonnull Vector3d viewerPosition,
         double viewRadius,
         boolean debugShapes,
@@ -181,7 +182,7 @@ public class PhysicsDebugSystem extends TickingSystem<ChunkStore> {
         }
         double maxDistanceSquared = viewRadius * viewRadius;
         for (PhysicsBodyRegistrationView registration : resource.getBodyRegistrationViews(PhysicsBodyKind.BODY)) {
-            if (resource.getBodyAttachments(registration.id()).isEmpty()) {
+            if (!resource.hasBodyAttachments(registration.id())) {
                 continue;
             }
 
@@ -210,11 +211,7 @@ public class PhysicsDebugSystem extends TickingSystem<ChunkStore> {
                     PhysicsDebugRenderer.renderBodyShape(viewers, snapshot, center, rotation, time);
                 }
                 if (debugMotion) {
-                    PhysicsDebugRenderer.renderBodyMotion(viewers,
-                        center,
-                        snapshot.linearVelocity(),
-                        snapshot.angularVelocity(),
-                        time);
+                    PhysicsDebugRenderer.renderBodyMotion(viewers, center, snapshot, time);
                 }
 
                 rendered++;
@@ -242,36 +239,32 @@ public class PhysicsDebugSystem extends TickingSystem<ChunkStore> {
         int[] rendered = {0};
         double maxDistanceSquared = viewRadius * viewRadius;
         for (PhysicsSpace space : resource.getSpaces()) {
-            resource.forEachBodySnapshot(space.getId(), entry -> {
+            resource.forEachIndexedBodySnapshot(space.getId(), (bodyKey, snapshot, spaceId, kind, persistenceMode) -> {
                 if (rendered[0] >= maxBodies) {
                     return;
                 }
 
-                if (entry.kind() != PhysicsBodyKind.BODY
-                    || !resource.getBodyAttachments(entry.bodyId()).isEmpty()) {
+                if (kind != PhysicsBodyKind.BODY
+                    || resource.hasBodyAttachments(bodyKey)) {
                     return;
                 }
 
-                PhysicsBodySnapshot snapshot = entry.snapshot();
-                Vector3f position = snapshot.position();
-                Vector3d center = new Vector3d(position.x, position.y, position.z);
+                Vector3d center = new Vector3d(snapshot.positionX(),
+                    snapshot.positionY(),
+                    snapshot.positionZ());
                 if (viewerPosition.distanceSquared(center) > maxDistanceSquared) {
                     return;
                 }
 
-                Quaterniond rotation = new Quaterniond(snapshot.rotation().x,
-                    snapshot.rotation().y,
-                    snapshot.rotation().z,
-                    snapshot.rotation().w);
+                Quaterniond rotation = new Quaterniond(snapshot.rotationX(),
+                    snapshot.rotationY(),
+                    snapshot.rotationZ(),
+                    snapshot.rotationW());
                 if (debugShapes) {
                     PhysicsDebugRenderer.renderBodyShape(viewers, snapshot, center, rotation, time);
                 }
                 if (debugMotion) {
-                    PhysicsDebugRenderer.renderBodyMotion(viewers,
-                        center,
-                        snapshot.linearVelocity(),
-                        snapshot.angularVelocity(),
-                        time);
+                    PhysicsDebugRenderer.renderBodyMotion(viewers, center, snapshot, time);
                 }
                 rendered[0]++;
             });
@@ -283,23 +276,21 @@ public class PhysicsDebugSystem extends TickingSystem<ChunkStore> {
     }
 
     private static void renderSpaceOnlyShapes(@Nonnull Collection<PlayerRef> viewers,
-        @Nonnull PhysicsWorldResource resource,
+        @Nonnull PhysicsWorldRuntimeResource resource,
         @Nonnull PhysicsSpace space,
         float time) {
-        resource.forEachBodySnapshot(space.getId(), entry -> {
-            PhysicsBodySnapshot snapshot = entry.snapshot();
+        resource.forEachIndexedBodySnapshot(space.getId(), (bodyKey, snapshot, spaceId, kind, persistenceMode) -> {
             if (snapshot.shapeType() != ShapeType.PLANE) {
                 return;
             }
 
-            Vector3f position = snapshot.position();
-            Quaterniond rotation = new Quaterniond(snapshot.rotation().x,
-                snapshot.rotation().y,
-                snapshot.rotation().z,
-                snapshot.rotation().w);
+            Quaterniond rotation = new Quaterniond(snapshot.rotationX(),
+                snapshot.rotationY(),
+                snapshot.rotationZ(),
+                snapshot.rotationW());
             PhysicsDebugRenderer.renderBodyShape(viewers,
                 snapshot,
-                new Vector3d(position.x, position.y, position.z),
+                new Vector3d(snapshot.positionX(), snapshot.positionY(), snapshot.positionZ()),
                 rotation,
                 time);
         });
@@ -312,18 +303,20 @@ public class PhysicsDebugSystem extends TickingSystem<ChunkStore> {
         double viewRadius,
         int maxContacts,
         float time) {
-        List<ContactDebugPrimitive> contacts;
+        List<PhysicsDebugContactView> contacts;
         try {
-            contacts = resource.callOnPhysicsOwner("capture physics debug contacts",
-                () -> PhysicsContactDebugCapture.collectVisibleContactPrimitives(resource,
-                    space,
-                    viewerPosition,
+            contacts = resource.queryInternal(new PhysicsDebugContactsQuery(space.getId(),
+                    viewerPosition.x,
+                    viewerPosition.y,
+                    viewerPosition.z,
                     viewRadius,
-                    maxContacts));
+                    maxContacts))
+                .toCompletableFuture()
+                .join();
         } catch (RuntimeException exception) {
             return;
         }
-        for (ContactDebugPrimitive contact : contacts) {
+        for (PhysicsDebugContactView contact : contacts) {
             PhysicsDebugRenderer.renderContact(viewers, contact, time);
         }
     }
@@ -335,24 +328,26 @@ public class PhysicsDebugSystem extends TickingSystem<ChunkStore> {
         double viewRadius,
         int maxJoints,
         float time) {
-        List<JointDebugPrimitive> joints;
+        List<PhysicsDebugJointView> joints;
         try {
-            joints = resource.callOnPhysicsOwner("capture physics debug joints",
-                () -> PhysicsJointDebugCapture.collectVisibleJointPrimitives(resource,
-                    space,
-                    viewerPosition,
+            joints = resource.queryInternal(new PhysicsDebugJointsQuery(space.getId(),
+                    viewerPosition.x,
+                    viewerPosition.y,
+                    viewerPosition.z,
                     viewRadius,
-                    maxJoints));
+                    maxJoints))
+                .toCompletableFuture()
+                .join();
         } catch (RuntimeException exception) {
             return;
         }
-        for (JointDebugPrimitive joint : joints) {
+        for (PhysicsDebugJointView joint : joints) {
             PhysicsDebugRenderer.renderJoint(viewers, joint, time);
         }
     }
 
     private static void renderWorldCollision(@Nonnull Collection<PlayerRef> viewers,
-        @Nonnull PhysicsWorldResource resource,
+        @Nonnull PhysicsWorldRuntimeResource resource,
         @Nonnull PhysicsSpace space,
         @Nonnull Vector3d viewerPosition,
         double viewRadius,
@@ -391,12 +386,12 @@ public class PhysicsDebugSystem extends TickingSystem<ChunkStore> {
 
     @Nonnull
     private static List<VisibleDebugSection> collectVisibleWorldCollisionSections(
-        @Nonnull PhysicsWorldResource resource,
+        @Nonnull PhysicsWorldRuntimeResource resource,
         @Nonnull PhysicsSpace space,
         @Nonnull Vector3d viewerPosition,
         double maxDistanceSquared) {
         List<VisibleDebugSection> visibleSections = new ArrayList<>();
-        PhysicsWorldRuntimeResource.require(resource).worldCollisionCache().forEachDebugSection(space.getId(), section -> {
+        resource.worldCollisionCache().forEachDebugSection(space.getId(), section -> {
             double distanceSquared = distanceSquaredToSection(viewerPosition, section);
             if (distanceSquared > maxDistanceSquared) {
                 return;

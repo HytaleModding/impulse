@@ -11,9 +11,10 @@ import dev.hytalemodding.impulse.core.internal.resources.PhysicsWorldRuntimeReso
 import dev.hytalemodding.impulse.core.plugin.components.PhysicsBodyAttachmentComponent;
 import dev.hytalemodding.impulse.core.plugin.resources.PhysicsWorldResource;
 import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
 
 /**
- * Keeps the body-id to entity-ref attachment index in sync with ECS component changes.
+ * Keeps the body-key to entity-ref attachment index in sync with ECS component changes.
  */
 public class PhysicsBodyAttachmentIndexSystem
     extends RefChangeSystem<EntityStore, PhysicsBodyAttachmentComponent> {
@@ -29,20 +30,21 @@ public class PhysicsBodyAttachmentIndexSystem
         @Nonnull CommandBuffer<EntityStore> commandBuffer) {
         PhysicsWorldRuntimeResource.require(
                 commandBuffer.getResource(PhysicsWorldResource.getResourceType()))
-            .registerBodyAttachment(component.getBodyId(), ref);
+            .registerBodyAttachment(component.getBodyKey(), ref);
     }
 
     @Override
     public void onComponentSet(@Nonnull Ref<EntityStore> ref,
-        @Nonnull PhysicsBodyAttachmentComponent oldComponent,
+        @Nullable PhysicsBodyAttachmentComponent oldComponent,
         @Nonnull PhysicsBodyAttachmentComponent newComponent,
         @Nonnull Store<EntityStore> store,
         @Nonnull CommandBuffer<EntityStore> commandBuffer) {
         PhysicsWorldRuntimeResource resource = PhysicsWorldRuntimeResource.require(
             commandBuffer.getResource(PhysicsWorldResource.getResourceType()));
-        if (!oldComponent.getBodyId().equals(newComponent.getBodyId())) {
-            resource.unregisterBodyAttachment(oldComponent.getBodyId(), ref);
-            resource.registerBodyAttachment(newComponent.getBodyId(), ref);
+        assert oldComponent != null;
+        if (!oldComponent.getBodyKey().equals(newComponent.getBodyKey())) {
+            resource.unregisterBodyAttachment(oldComponent.getBodyKey(), ref);
+            resource.registerBodyAttachment(newComponent.getBodyKey(), ref);
         }
         resource.clearBodySyncState(ref);
     }
@@ -54,10 +56,11 @@ public class PhysicsBodyAttachmentIndexSystem
         @Nonnull CommandBuffer<EntityStore> commandBuffer) {
         PhysicsWorldRuntimeResource resource = PhysicsWorldRuntimeResource.require(
             commandBuffer.getResource(PhysicsWorldResource.getResourceType()));
-        resource.unregisterBodyAttachment(component.getBodyId(), ref);
+        resource.unregisterBodyAttachment(component.getBodyKey(), ref);
         resource.clearBodySyncState(ref);
     }
 
+    @Nonnull
     @Override
     public ComponentType<EntityStore, PhysicsBodyAttachmentComponent> componentType() {
         return ATTACHMENT_TYPE;

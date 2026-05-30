@@ -19,26 +19,25 @@ import com.hypixel.hytale.server.core.universe.world.chunk.WorldChunk;
 import com.hypixel.hytale.server.core.universe.world.storage.ChunkStore;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import dev.hytalemodding.impulse.api.PhysicsBodySnapshot;
-import dev.hytalemodding.impulse.api.PhysicsRayHit;
 import dev.hytalemodding.impulse.api.PhysicsSpace;
 import dev.hytalemodding.impulse.api.SpaceId;
 import dev.hytalemodding.impulse.core.internal.components.GeneratedVisualProxyComponent;
+import dev.hytalemodding.impulse.core.internal.resources.PhysicsWorldRuntimeResource;
 import dev.hytalemodding.impulse.core.internal.resources.profiling.PhysicsRuntimeProfilingResource;
 import dev.hytalemodding.impulse.core.internal.resources.visual.PhysicsVisualRuntime;
 import dev.hytalemodding.impulse.core.internal.resources.visual.PhysicsVisualRuntime.VisualInterest;
 import dev.hytalemodding.impulse.core.internal.systems.sync.PhysicsSyncSystem;
+import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyKind;
+import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyRegistrationView;
+import dev.hytalemodding.impulse.core.plugin.body.RigidBodyKey;
 import dev.hytalemodding.impulse.core.plugin.components.PhysicsBodyAttachmentComponent;
 import dev.hytalemodding.impulse.core.plugin.components.PhysicsBodyAttachmentComponent.AttachmentLifecycle;
 import dev.hytalemodding.impulse.core.plugin.components.PhysicsBodyAttachmentComponent.TransformAuthority;
-import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyId;
-import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyKind;
-import dev.hytalemodding.impulse.core.internal.resources.body.PhysicsBodyRegistration;
-import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyRegistrationView;
 import dev.hytalemodding.impulse.core.plugin.settings.PhysicsSpaceSettings;
 import dev.hytalemodding.impulse.core.plugin.settings.PhysicsVisualMaterializationSettings;
-import dev.hytalemodding.impulse.core.internal.resources.PhysicsWorldRuntimeResource;
 import dev.hytalemodding.impulse.core.plugin.settings.VisualOcclusionMode;
-import dev.hytalemodding.impulse.core.plugin.snapshot.PhysicsBodySnapshotEntry;
+import dev.hytalemodding.impulse.core.plugin.simulation.RaycastClosestQuery;
+import dev.hytalemodding.impulse.core.plugin.simulation.RaycastHitView;
 import it.unimi.dsi.fastutil.objects.ObjectOpenHashSet;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -79,12 +78,8 @@ public class PhysicsDetachedVisualMaterializationSystem extends TickingSystem<En
         new SystemDependency<>(Order.BEFORE, PhysicsSyncSystem.class)
     );
 
-    /*
-     * Approximate visibility policy for optional visual culling. Close bodies
-     * bypass the cone so players do not lose nearby proxies while turning.
-     */
-    private static final float VIEW_CONE_DOT = 0.35f;
-    private static final float VIEW_CONE_NEAR_RADIUS_SQUARED = 8.0f * 8.0f;
+    private static final ThreadLocal<Vector3f> RAYCAST_TARGET =
+        ThreadLocal.withInitial(Vector3f::new);
 
     /**
      * Bounds generated-proxy orphan scans. Regular materialized-proxy
@@ -191,7 +186,7 @@ public class PhysicsDetachedVisualMaterializationSystem extends TickingSystem<En
         }
 
         state.materializedVisibilityCheckCooldown--;
-        int materialized = resource.getGeneratedVisualProxyBodyIds().size();
+        int materialized = resource.getGeneratedVisualProxyCount();
         if (collector != null) {
             collector.addVisibilityCheckSkips(materialized);
         }
@@ -275,14 +270,14 @@ public class PhysicsDetachedVisualMaterializationSystem extends TickingSystem<En
             }
             state.cachedMaterializationTargets.remove(index);
             Ref<EntityStore> proxy = spawnProxy(store,
-                candidate.bodyId(),
+                candidate.bodyKey(),
                 candidate.snapshot(),
                 candidate.registration(),
                 candidate.settings());
             if (proxy == null) {
                 continue;
             }
-            resource.setGeneratedVisualProxy(candidate.bodyId(), proxy);
+            resource.setGeneratedVisualProxy(candidate.bodyKey(), proxy);
             spawned++;
             materialized++;
             if (collector != null) {
@@ -297,15 +292,15 @@ public class PhysicsDetachedVisualMaterializationSystem extends TickingSystem<En
         @Nonnull Store<EntityStore> store,
         @Nonnull PhysicsWorldRuntimeResource resource,
         @Nonnull CachedMaterializationTarget target) {
-        if (resource.getGeneratedVisualProxy(target.bodyId()) != null) {
+        if (resource.getGeneratedVisualProxy(target.bodyKey()) != null) {
             return null;
         }
 
-        PhysicsBodyRegistrationView registration = resource.getBodyRegistrationView(target.bodyId());
+        PhysicsBodyRegistrationView registration = resource.getBodyRegistrationView(target.bodyKey());
         if (registration == null
             || registration.kind() != PhysicsBodyKind.BODY
             || !sameSpaceId(registration.spaceId(), target.spaceId())
-            || !resource.getBodyAttachments(registration.id()).isEmpty()) {
+            || resource.hasBodyAttachments(registration.id())) {
             return null;
         }
 
@@ -314,11 +309,11 @@ public class PhysicsDetachedVisualMaterializationSystem extends TickingSystem<En
             return null;
         }
 
-        PhysicsBodySnapshot snapshot = resource.getBodySnapshot(target.bodyId());
+        PhysicsBodySnapshot snapshot = resource.getBodySnapshot(target.bodyKey());
         if (!isBodyChunkLoaded(store, snapshot)) {
             return null;
         }
-        return new MaterializationCandidate(target.bodyId(),
+        return new MaterializationCandidate(target.bodyKey(),
             snapshot,
             registration,
             settings,
@@ -372,32 +367,32 @@ public class PhysicsDetachedVisualMaterializationSystem extends TickingSystem<En
         @Nonnull List<VisualInterest> interests,
         @Nullable PhysicsRuntimeProfilingResource.VisualCollector collector) {
         int count = 0;
-        for (PhysicsBodyId bodyId : resource.getGeneratedVisualProxyBodyIds()) {
+        for (RigidBodyKey bodyKey : resource.getGeneratedVisualProxyBodyKeys()) {
             if (collector != null) {
                 collector.incrementVisibilityChecks();
             }
-            PhysicsBodyRegistrationView registration = resource.getBodyRegistrationView(bodyId);
+            PhysicsBodyRegistrationView registration = resource.getBodyRegistrationView(bodyKey);
             if (registration == null || registration.kind() != PhysicsBodyKind.BODY) {
-                if (registration == null && resource.isBodyCreationPending(bodyId)) {
+                if (registration == null && resource.isBodyCreationPending(bodyKey)) {
                     count++;
                     continue;
                 }
-                GeneratedProxyLifecycle.removeProxy(store, resource, bodyId);
+                GeneratedProxyLifecycle.removeProxy(store, resource, bodyKey);
                 if (collector != null) {
                     collector.incrementDematerialized();
                 }
                 continue;
             }
-            Ref<EntityStore> proxy = resource.getGeneratedVisualProxy(bodyId);
-            if (proxy == null || !isExpectedProxy(store, proxy, bodyId, registration.spaceId())) {
-                GeneratedProxyLifecycle.removeProxy(store, resource, bodyId);
+            Ref<EntityStore> proxy = resource.getGeneratedVisualProxy(bodyKey);
+            if (proxy == null || !isExpectedProxy(store, proxy, bodyKey, registration.spaceId())) {
+                GeneratedProxyLifecycle.removeProxy(store, resource, bodyKey);
                 if (collector != null) {
                     collector.incrementDematerialized();
                 }
                 continue;
             }
-            if (hasGameplayAttachment(store, resource, bodyId, proxy)) {
-                GeneratedProxyLifecycle.removeProxy(store, resource, bodyId);
+            if (hasGameplayAttachment(store, resource, bodyKey, proxy)) {
+                GeneratedProxyLifecycle.removeProxy(store, resource, bodyKey);
                 if (collector != null) {
                     collector.incrementDematerialized();
                 }
@@ -406,17 +401,17 @@ public class PhysicsDetachedVisualMaterializationSystem extends TickingSystem<En
 
             PhysicsSpaceSettings settings = resolveSettings(resource, registration);
             if (settings == null || !settings.getVisualMaterializationSettings().isDetachedVisualMaterializationEnabled()) {
-                GeneratedProxyLifecycle.removeProxy(store, resource, bodyId);
+                GeneratedProxyLifecycle.removeProxy(store, resource, bodyKey);
                 if (collector != null) {
                     collector.incrementDematerialized();
                 }
                 continue;
             }
 
-            PhysicsBodySnapshot snapshot = resource.getBodySnapshot(bodyId);
+            PhysicsBodySnapshot snapshot = resource.getBodySnapshot(bodyKey);
             if (!isBodyChunkLoaded(store, snapshot)
                 || shouldDematerialize(snapshot, settings, interests)) {
-                GeneratedProxyLifecycle.removeProxy(store, resource, bodyId);
+                GeneratedProxyLifecycle.removeProxy(store, resource, bodyKey);
                 if (collector != null) {
                     collector.incrementDematerialized();
                 }
@@ -438,54 +433,46 @@ public class PhysicsDetachedVisualMaterializationSystem extends TickingSystem<En
             return;
         }
 
-        Set<PhysicsBodyId> seenBodies = new ObjectOpenHashSet<>();
+        Set<RigidBodyKey> seenBodies = new ObjectOpenHashSet<>();
         for (PhysicsSpace space : resource.iterateSpaces()) {
             PhysicsSpaceSettings settings = resource.getLiveSpaceSettings(space.getId());
             if (!settings.getVisualMaterializationSettings().isDetachedVisualMaterializationEnabled()) {
                 continue;
             }
 
-            for (VisualInterest interest : interests) {
+            for (int interestIndex = 0; interestIndex < interests.size(); interestIndex++) {
+                VisualInterest interest = interests.get(interestIndex);
                 if (collector != null) {
                     collector.incrementNearQueries();
                 }
-                int nearCandidates = resource.forEachBodySnapshotNear(space.getId(),
+                int nearCandidates = resource.forEachIndexedBodySnapshotNear(space.getId(),
                     interest.position(),
                     settings.getVisualMaterializationSettings().getDetachedVisualMaterializationRadius(),
-                    entry -> {
-                        PhysicsBodySnapshot snapshot = entry.snapshot();
-                        PhysicsBodyId bodyId = entry.bodyId();
-                        if (!seenBodies.add(bodyId) || resource.getGeneratedVisualProxy(bodyId) != null) {
+                    (bodyKey, snapshot, bodySpaceId, kind, persistenceMode) -> {
+                        if (!seenBodies.add(bodyKey) || resource.getGeneratedVisualProxy(bodyKey) != null) {
                             return;
                         }
-                        PhysicsBodyRegistrationView registration =
-                            resolveBodyRegistration(resource, entry);
-                        if (registration == null) {
+                        if (kind != PhysicsBodyKind.BODY
+                            || !bodySpaceId.equals(space.getId())
+                            || resource.hasBodyAttachments(bodyKey)) {
                             return;
                         }
                         if (!isBodyChunkLoaded(store, snapshot)) {
                             return;
                         }
-                        PhysicsSpaceSettings registrationSettings = resolveSettings(resource, registration);
-                        if (registrationSettings == null
-                            || !registrationSettings.getVisualMaterializationSettings().isDetachedVisualMaterializationEnabled()) {
-                            return;
-                        }
-
-                        PhysicsSpace resolvedSpace = resolveSpace(resource, registration);
                         InterestResult materializeInterest = resolveVisualInterest(resource,
-                            bodyId,
-                            resolvedSpace,
+                            bodyKey,
+                            space,
                             snapshot,
-                            registrationSettings,
+                            settings,
                             interests,
-                            registrationSettings.getVisualMaterializationSettings().getDetachedVisualMaterializationRadius(),
+                            settings.getVisualMaterializationSettings().getDetachedVisualMaterializationRadius(),
                             visualInterestTick,
                             raycastBudget,
                             collector);
                         if (materializeInterest.shouldMaterialize()) {
-                            candidates.add(new CachedMaterializationTarget(bodyId,
-                                registration.spaceId(),
+                            candidates.add(new CachedMaterializationTarget(bodyKey,
+                                bodySpaceId,
                                 materializeInterest.priorityDistanceSquared()));
                         }
                     });
@@ -509,64 +496,46 @@ public class PhysicsDetachedVisualMaterializationSystem extends TickingSystem<En
                 }
 
                 var ref = archetypeChunk.getReferenceTo(index);
-                orphanProxies.add(new OrphanVisualProxy(attachment.getBodyId(),
+                orphanProxies.add(new OrphanVisualProxy(attachment.getBodyKey(),
                     attachment.getSpaceId(),
                     ref));
             });
 
         for (OrphanVisualProxy proxy : orphanProxies) {
-            if (!hasLiveVisualTarget(resource, proxy.bodyId(), proxy.spaceId(), proxy.ref())) {
-                GeneratedProxyLifecycle.removeProxy(store, resource, proxy.bodyId(), proxy.ref());
+            if (!hasLiveVisualTarget(resource, proxy.bodyKey(), proxy.spaceId(), proxy.ref())) {
+                GeneratedProxyLifecycle.removeProxy(store, resource, proxy.bodyKey(), proxy.ref());
             }
         }
     }
 
     private static boolean hasLiveVisualTarget(@Nonnull PhysicsWorldRuntimeResource resource,
-        @Nonnull PhysicsBodyId bodyId,
+        @Nonnull RigidBodyKey bodyKey,
         @Nullable SpaceId spaceId,
         @Nonnull Ref<EntityStore> proxyRef) {
-        PhysicsBodyRegistrationView registration = resource.getBodyRegistrationView(bodyId);
+        PhysicsBodyRegistrationView registration = resource.getBodyRegistrationView(bodyKey);
         if (registration == null) {
-            return resource.isBodyCreationPending(bodyId)
-                && resource.isGeneratedVisualProxy(bodyId, proxyRef);
+            return resource.isBodyCreationPending(bodyKey)
+                && resource.isGeneratedVisualProxy(bodyKey, proxyRef);
         }
         if (!sameSpaceId(registration.spaceId(), spaceId)) {
             return false;
         }
         return resource.getSpace(registration.spaceId()) != null
-            && resource.isGeneratedVisualProxy(bodyId, proxyRef);
+            && resource.isGeneratedVisualProxy(bodyKey, proxyRef);
     }
 
     private record OrphanVisualProxy(
-        @Nonnull PhysicsBodyId bodyId,
+        @Nonnull RigidBodyKey bodyKey,
         @Nullable SpaceId spaceId,
         @Nonnull Ref<EntityStore> ref
     ) {
     }
 
-    @Nullable
-    private static PhysicsBodyRegistrationView resolveBodyRegistration(
-        @Nonnull PhysicsWorldRuntimeResource resource,
-        @Nonnull PhysicsBodySnapshotEntry entry) {
-        PhysicsBodyRegistrationView registration =
-            resource.getBodyRegistrationView(entry.bodyId());
-        if (registration == null
-            || registration.kind() != PhysicsBodyKind.BODY
-            || !resource.getBodyAttachments(registration.id()).isEmpty()) {
-            return null;
-        }
-        SpaceId registrationSpaceId = registration.spaceId();
-        if (!registrationSpaceId.equals(entry.spaceId())) {
-            return null;
-        }
-        return registration;
-    }
-
     private static boolean hasGameplayAttachment(@Nonnull Store<EntityStore> store,
         @Nonnull PhysicsWorldRuntimeResource resource,
-        @Nonnull PhysicsBodyId bodyId,
+        @Nonnull RigidBodyKey bodyKey,
         @Nonnull Ref<EntityStore> proxy) {
-        for (Ref<EntityStore> attachmentRef : resource.getBodyAttachments(bodyId)) {
+        for (Ref<EntityStore> attachmentRef : resource.getBodyAttachments(bodyKey)) {
             if (attachmentRef == proxy || attachmentRef.equals(proxy)) {
                 continue;
             }
@@ -591,11 +560,7 @@ public class PhysicsDetachedVisualMaterializationSystem extends TickingSystem<En
     @Nullable
     private static PhysicsSpace resolveSpace(@Nonnull PhysicsWorldRuntimeResource resource,
         @Nonnull PhysicsBodyRegistrationView registration) {
-        PhysicsSpace space = resource.getSpace(registration.spaceId());
-        if (space != null) {
-            return space;
-        }
-        return null;
+        return resource.getSpace(registration.spaceId());
     }
 
     private static boolean shouldMaterialize(@Nonnull PhysicsBodySnapshot snapshot,
@@ -626,25 +591,17 @@ public class PhysicsDetachedVisualMaterializationSystem extends TickingSystem<En
         @Nonnull PhysicsSpaceSettings settings,
         @Nonnull List<VisualInterest> interests,
         float radius) {
-        float radiusSquared = radius * radius;
-        Vector3f bodyPosition = snapshot.position();
-        float nearestDistanceSquared = Float.POSITIVE_INFINITY;
-        for (VisualInterest interest : interests) {
-            float dx = bodyPosition.x - interest.position().x;
-            float dy = bodyPosition.y - interest.position().y;
-            float dz = bodyPosition.z - interest.position().z;
-            float distanceSquared = dx * dx + dy * dy + dz * dz;
-            if (distanceSquared <= radiusSquared
-                && isInsideViewCone(settings, interest, dx, dy, dz, distanceSquared)) {
-                nearestDistanceSquared = Math.min(nearestDistanceSquared, distanceSquared);
-            }
-        }
-        return nearestDistanceSquared;
+        return DetachedVisualGeometry.visibleDistanceSquared(snapshot.positionX(),
+            snapshot.positionY(),
+            snapshot.positionZ(),
+            settings,
+            interests,
+            radius);
     }
 
     @Nonnull
     private static InterestResult resolveVisualInterest(@Nonnull PhysicsWorldRuntimeResource resource,
-        @Nonnull PhysicsBodyId bodyId,
+        @Nonnull RigidBodyKey bodyKey,
         @Nullable PhysicsSpace space,
         @Nonnull PhysicsBodySnapshot snapshot,
         @Nonnull PhysicsSpaceSettings settings,
@@ -655,7 +612,7 @@ public class PhysicsDetachedVisualMaterializationSystem extends TickingSystem<En
         @Nullable PhysicsRuntimeProfilingResource.VisualCollector collector) {
         InterestProbe probe = probeNearestLikelyInterest(snapshot, settings, interests, radius);
         PhysicsVisualRuntime.BodyVisualInterestState state =
-            resource.getOrCreateBodyVisualInterestState(bodyId);
+            resource.getOrCreateBodyVisualInterestState(bodyKey);
         if (!probe.inRange()) {
             state.recordInterest(Float.POSITIVE_INFINITY, false, false, false, visualInterestTick);
             return InterestResult.notVisible();
@@ -676,7 +633,7 @@ public class PhysicsDetachedVisualMaterializationSystem extends TickingSystem<En
         }
         if (!raycastKnown && raycastBudget.tryUse(settings)) {
             assert probe.interest() != null;
-            raycastVisible = raycastVisible(resource, space, probe.interest(), bodyId, snapshot);
+            raycastVisible = raycastVisible(resource, space, probe.interest(), bodyKey, snapshot);
             raycastKnown = true;
             raycastEvaluated = true;
             if (collector != null) {
@@ -712,18 +669,38 @@ public class PhysicsDetachedVisualMaterializationSystem extends TickingSystem<En
         @Nonnull PhysicsSpaceSettings settings,
         @Nonnull List<VisualInterest> interests,
         float radius) {
+        return probeNearestLikelyInterest(snapshot.positionX(),
+            snapshot.positionY(),
+            snapshot.positionZ(),
+            settings,
+            interests,
+            radius);
+    }
+
+    @Nonnull
+    private static InterestProbe probeNearestLikelyInterest(float positionX,
+        float positionY,
+        float positionZ,
+        @Nonnull PhysicsSpaceSettings settings,
+        @Nonnull List<VisualInterest> interests,
+        float radius) {
         float radiusSquared = radius * radius;
-        Vector3f bodyPosition = snapshot.position();
         float nearestDistanceSquared = Float.POSITIVE_INFINITY;
         VisualInterest nearestInterest = null;
-        for (VisualInterest interest : interests) {
-            float dx = bodyPosition.x - interest.position().x;
-            float dy = bodyPosition.y - interest.position().y;
-            float dz = bodyPosition.z - interest.position().z;
+        for (int index = 0; index < interests.size(); index++) {
+            VisualInterest interest = interests.get(index);
+            float dx = positionX - interest.position().x;
+            float dy = positionY - interest.position().y;
+            float dz = positionZ - interest.position().z;
             float distanceSquared = dx * dx + dy * dy + dz * dz;
             if (distanceSquared <= radiusSquared
                 && distanceSquared < nearestDistanceSquared
-                && isInsideViewCone(settings, interest, dx, dy, dz, distanceSquared)) {
+                && DetachedVisualGeometry.isInsideViewCone(settings,
+                    interest,
+                    dx,
+                    dy,
+                    dz,
+                    distanceSquared)) {
                 nearestDistanceSquared = distanceSquared;
                 nearestInterest = interest;
             }
@@ -736,48 +713,25 @@ public class PhysicsDetachedVisualMaterializationSystem extends TickingSystem<En
     private static boolean raycastVisible(@Nonnull PhysicsWorldRuntimeResource resource,
         @Nonnull PhysicsSpace space,
         @Nonnull VisualInterest interest,
-        @Nonnull PhysicsBodyId bodyId,
+        @Nonnull RigidBodyKey bodyKey,
         @Nonnull PhysicsBodySnapshot snapshot) {
-        return resource.callOnPhysicsOwner("raycast visual occlusion", () -> {
-            Optional<PhysicsRayHit> hit = space.raycastClosest(interest.position(), snapshot.position());
-            if (hit.isEmpty()) {
-                return false;
-            }
-            PhysicsBodyRegistration registration =
-                resource.getBodyRegistration(hit.get().body());
-            return registration != null && registration.id().equals(bodyId);
-        });
-    }
-
-    private static boolean isInsideViewCone(@Nonnull PhysicsSpaceSettings settings,
-        @Nonnull VisualInterest interest,
-        float dx,
-        float dy,
-        float dz,
-        float distanceSquared) {
-        if (!settings.getVisualSyncSettings().isVisualVisibilityCullingEnabled()
-            || interest.direction() == null
-            || distanceSquared <= VIEW_CONE_NEAR_RADIUS_SQUARED) {
-            return true;
-        }
-
-        float length = (float) Math.sqrt(distanceSquared);
-        if (length <= 0.0f) {
-            return true;
-        }
-        Vector3f direction = interest.direction();
-        float dot = (dx * direction.x + dy * direction.y + dz * direction.z) / length;
-        return dot >= VIEW_CONE_DOT;
+        Vector3f target = snapshot.copyPositionTo(RAYCAST_TARGET.get());
+        Optional<RaycastHitView> hit = resource.query(new RaycastClosestQuery(space.getId(),
+                interest.position(),
+                target))
+            .completion()
+            .toCompletableFuture()
+            .join();
+        return hit.map(view -> bodyKey.equals(view.bodyKey())).orElse(false);
     }
 
     private static boolean isBodyChunkLoaded(@Nonnull Store<EntityStore> store,
         @Nonnull PhysicsBodySnapshot snapshot) {
-        Vector3f position = snapshot.position();
         ChunkStore chunkStore = store.getExternalData().getWorld().getChunkStore();
         Store<ChunkStore> chunkComponentStore = chunkStore.getStore();
         Ref<ChunkStore> chunkRef = chunkStore.getChunkReference(ChunkUtil.indexChunk(
-            ChunkUtil.chunkCoordinate(position.x),
-            ChunkUtil.chunkCoordinate(position.z)));
+            ChunkUtil.chunkCoordinate(snapshot.positionX()),
+            ChunkUtil.chunkCoordinate(snapshot.positionZ())));
         if (chunkRef == null || !chunkRef.isValid()) {
             return false;
         }
@@ -789,7 +743,7 @@ public class PhysicsDetachedVisualMaterializationSystem extends TickingSystem<En
 
     private static boolean isExpectedProxy(@Nonnull Store<EntityStore> store,
         @Nonnull Ref<EntityStore> proxy,
-        @Nonnull PhysicsBodyId bodyId,
+        @Nonnull RigidBodyKey bodyKey,
         @Nullable SpaceId spaceId) {
         if (!proxy.isValid()) {
             return false;
@@ -797,7 +751,7 @@ public class PhysicsDetachedVisualMaterializationSystem extends TickingSystem<En
         PhysicsBodyAttachmentComponent attachment = store.getComponent(proxy, ATTACHMENT_TYPE);
         return attachment != null
             && attachment.getLifecycle() == AttachmentLifecycle.GENERATED_PROXY
-            && attachment.getBodyId().equals(bodyId)
+            && attachment.getBodyKey().equals(bodyKey)
             && sameSpaceId(attachment.getSpaceId(), spaceId);
     }
 
@@ -807,38 +761,37 @@ public class PhysicsDetachedVisualMaterializationSystem extends TickingSystem<En
 
     @Nullable
     private static Ref<EntityStore> spawnProxy(@Nonnull Store<EntityStore> store,
-        @Nonnull PhysicsBodyId bodyId,
+        @Nonnull RigidBodyKey bodyKey,
         @Nonnull PhysicsBodySnapshot snapshot,
         @Nonnull PhysicsBodyRegistrationView registration,
         @Nonnull PhysicsSpaceSettings settings) {
         TimeResource time = store.getResource(TimeResource.getResourceType());
-        Vector3f position = snapshot.position();
         Holder<EntityStore> holder = BlockEntity.assembleDefaultBlockEntity(
             time,
             settings.getVisualMaterializationSettings().getDetachedVisualBlockType(),
-            new Vector3d(position.x,
-                position.y - snapshot.centerOfMassOffsetY(),
-                position.z));
+            new Vector3d(snapshot.positionX(),
+                snapshot.positionY() - snapshot.centerOfMassOffsetY(),
+                snapshot.positionZ()));
         holder.removeComponent(DESPAWN_TYPE);
         holder.removeComponent(VELOCITY_TYPE);
         holder.addComponent(store.getRegistry().getNonSerializedComponentType(), NonSerialized.get());
         holder.addComponent(GeneratedVisualProxyComponent.getComponentType(), new GeneratedVisualProxyComponent());
         holder.addComponent(ATTACHMENT_TYPE,
-            new PhysicsBodyAttachmentComponent(bodyId,
+            new PhysicsBodyAttachmentComponent(bodyKey,
                 registration.spaceId(),
                 TransformAuthority.BODY,
                 AttachmentLifecycle.GENERATED_PROXY));
         return store.addEntity(holder, AddReason.SPAWN);
     }
 
-    private record MaterializationCandidate(@Nonnull PhysicsBodyId bodyId,
+    private record MaterializationCandidate(@Nonnull RigidBodyKey bodyKey,
         @Nonnull PhysicsBodySnapshot snapshot,
         @Nonnull PhysicsBodyRegistrationView registration,
         @Nonnull PhysicsSpaceSettings settings,
         float distanceSquared) {
     }
 
-    private record CachedMaterializationTarget(@Nonnull PhysicsBodyId bodyId,
+    private record CachedMaterializationTarget(@Nonnull RigidBodyKey bodyKey,
         @Nonnull SpaceId spaceId,
         float distanceSquared) {
     }

@@ -10,12 +10,11 @@ import com.hypixel.hytale.server.core.command.system.basecommands.AbstractAsyncP
 import com.hypixel.hytale.server.core.universe.PlayerRef;
 import com.hypixel.hytale.server.core.universe.world.World;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
-import dev.hytalemodding.impulse.api.PhysicsSpace;
-import dev.hytalemodding.impulse.api.capability.PhysicsContinuousCollisionCapability;
 import dev.hytalemodding.impulse.core.plugin.settings.PhysicsStepMode;
 import dev.hytalemodding.impulse.core.plugin.resources.PhysicsWorldResource;
 import dev.hytalemodding.impulse.core.plugin.settings.PhysicsWorldSettings;
-import java.util.ArrayList;
+import dev.hytalemodding.impulse.core.plugin.simulation.SpaceSummary;
+import dev.hytalemodding.impulse.core.plugin.simulation.UnsupportedCcdSpacesQuery;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import javax.annotation.Nonnull;
@@ -73,17 +72,17 @@ public class StepModeSettingCommand extends AbstractAsyncPlayerCommand {
 
     @Nonnull
     private static List<String> unsupportedCcdSpaces(@Nonnull PhysicsWorldResource resource) {
-        return resource.callOnPhysicsOwner("check CCD space support", access -> {
-            List<String> unsupportedSpaces = new ArrayList<>();
-            for (PhysicsSpace space : access.getSpaces()) {
-                if (space.getCapability(PhysicsContinuousCollisionCapability.class).isPresent()) {
-                    continue;
-                }
+        return resource.query(new UnsupportedCcdSpacesQuery())
+            .completion()
+            .toCompletableFuture()
+            .join()
+            .stream()
+            .map(StepModeSettingCommand::formatSpace)
+            .toList();
+    }
 
-                unsupportedSpaces.add("space " + space.getId().value() + " ("
-                    + space.getBackendId().value() + ")");
-            }
-            return unsupportedSpaces;
-        });
+    @Nonnull
+    private static String formatSpace(@Nonnull SpaceSummary summary) {
+        return "space " + summary.spaceId().value() + " (" + summary.backendId().value() + ")";
     }
 }

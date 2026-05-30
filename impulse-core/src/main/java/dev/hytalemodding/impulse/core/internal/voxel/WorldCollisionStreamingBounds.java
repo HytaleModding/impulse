@@ -19,12 +19,20 @@ public record WorldCollisionStreamingBounds(int minChunkX,
 
     @Nonnull
     public static WorldCollisionStreamingBounds from(@Nonnull Vector3f center, int radius) {
-        int minX = (int) Math.floor(center.x) - radius;
-        int maxX = (int) Math.floor(center.x) + radius;
-        int minY = Math.max(0, (int) Math.floor(center.y) - radius);
-        int maxY = Math.clamp((int) Math.floor(center.y) + radius, 0, ChunkUtil.HEIGHT_MINUS_1);
-        int minZ = (int) Math.floor(center.z) - radius;
-        int maxZ = (int) Math.floor(center.z) + radius;
+        return from(center.x, center.y, center.z, radius);
+    }
+
+    @Nonnull
+    public static WorldCollisionStreamingBounds from(float centerX,
+        float centerY,
+        float centerZ,
+        int radius) {
+        int minX = (int) Math.floor(centerX) - radius;
+        int maxX = (int) Math.floor(centerX) + radius;
+        int minY = Math.max(0, (int) Math.floor(centerY) - radius);
+        int maxY = Math.clamp((int) Math.floor(centerY) + radius, 0, ChunkUtil.HEIGHT_MINUS_1);
+        int minZ = (int) Math.floor(centerZ) - radius;
+        int maxZ = (int) Math.floor(centerZ) + radius;
         return new WorldCollisionStreamingBounds(
             ChunkUtil.chunkCoordinate(minX),
             ChunkUtil.chunkCoordinate(maxX),

@@ -1,13 +1,15 @@
 package dev.hytalemodding.impulse.core.internal.resources.chunk;
 
 import dev.hytalemodding.impulse.api.PhysicsBodyType;
-import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyId;
+import dev.hytalemodding.impulse.api.PhysicsBodySnapshot;
+import dev.hytalemodding.impulse.core.plugin.body.RigidBodyKey;
 import it.unimi.dsi.fastutil.objects.Object2ObjectLinkedOpenHashMap;
 import it.unimi.dsi.fastutil.objects.ObjectOpenHashSet;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Map;
 import java.util.Set;
+import java.util.function.Consumer;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 import lombok.Getter;
@@ -19,67 +21,90 @@ import org.joml.Vector3f;
  */
 public final class PhysicsChunkBoundaryRuntime {
 
-    private final Set<PhysicsBodyId> forcedContinuousCollisionBodyIds = new ObjectOpenHashSet<>();
-    private final Map<PhysicsBodyId, ChunkBoundarySafeState> chunkBoundarySafeStates =
+    private final Set<RigidBodyKey> forcedContinuousCollisionBodyKeys = new ObjectOpenHashSet<>();
+    private final Map<RigidBodyKey, ChunkBoundarySafeState> chunkBoundarySafeStates =
         new Object2ObjectLinkedOpenHashMap<>();
-    private final Map<PhysicsBodyId, ChunkBoundaryPauseState> chunkBoundaryPauseStates =
+    private final Map<RigidBodyKey, ChunkBoundaryPauseState> chunkBoundaryPauseStates =
         new Object2ObjectLinkedOpenHashMap<>();
 
-    public void updateChunkBoundarySafeState(@Nonnull PhysicsBodyId bodyId,
+    public void updateChunkBoundarySafeState(@Nonnull RigidBodyKey bodyKey,
         @Nonnull Vector3f position,
         @Nonnull Quaternionf rotation) {
-        ChunkBoundarySafeState state = chunkBoundarySafeStates.computeIfAbsent(bodyId,
+        ChunkBoundarySafeState state = chunkBoundarySafeStates.computeIfAbsent(bodyKey,
             ignored -> new ChunkBoundarySafeState());
         state.set(position, rotation);
     }
 
-    @Nullable
-    public ChunkBoundarySafeState getChunkBoundarySafeState(
-        @Nonnull PhysicsBodyId bodyId) {
-        return chunkBoundarySafeStates.get(bodyId);
+    public void updateChunkBoundarySafeState(@Nonnull RigidBodyKey bodyKey,
+        @Nonnull PhysicsBodySnapshot snapshot) {
+        ChunkBoundarySafeState state = chunkBoundarySafeStates.computeIfAbsent(bodyKey,
+            ignored -> new ChunkBoundarySafeState());
+        state.set(snapshot);
     }
 
-    public void pauseChunkBoundaryBody(@Nonnull PhysicsBodyId bodyId,
+    @Nullable
+    public ChunkBoundarySafeState getChunkBoundarySafeState(
+        @Nonnull RigidBodyKey bodyKey) {
+        return chunkBoundarySafeStates.get(bodyKey);
+    }
+
+    public void pauseChunkBoundaryBody(@Nonnull RigidBodyKey bodyKey,
         long targetChunkIndex,
         @Nonnull PhysicsBodyType originalBodyType,
         @Nonnull Vector3f linearVelocity,
         @Nonnull Vector3f angularVelocity) {
-        ChunkBoundaryPauseState state = chunkBoundaryPauseStates.computeIfAbsent(bodyId,
+        ChunkBoundaryPauseState state = chunkBoundaryPauseStates.computeIfAbsent(bodyKey,
             ignored -> new ChunkBoundaryPauseState());
         state.set(targetChunkIndex, originalBodyType, linearVelocity, angularVelocity);
     }
 
+    public void pauseChunkBoundaryBody(@Nonnull RigidBodyKey bodyKey,
+        long targetChunkIndex,
+        @Nonnull PhysicsBodySnapshot snapshot) {
+        ChunkBoundaryPauseState state = chunkBoundaryPauseStates.computeIfAbsent(bodyKey,
+            ignored -> new ChunkBoundaryPauseState());
+        state.set(targetChunkIndex, snapshot);
+    }
+
     @Nullable
     public ChunkBoundaryPauseState getChunkBoundaryPauseState(
-        @Nonnull PhysicsBodyId bodyId) {
-        return chunkBoundaryPauseStates.get(bodyId);
+        @Nonnull RigidBodyKey bodyKey) {
+        return chunkBoundaryPauseStates.get(bodyKey);
     }
 
-    public void clearChunkBoundaryPauseState(@Nonnull PhysicsBodyId bodyId) {
-        chunkBoundaryPauseStates.remove(bodyId);
+    public void clearChunkBoundaryPauseState(@Nonnull RigidBodyKey bodyKey) {
+        chunkBoundaryPauseStates.remove(bodyKey);
     }
 
-    public void markContinuousCollisionForced(@Nonnull PhysicsBodyId bodyId) {
-        forcedContinuousCollisionBodyIds.add(bodyId);
+    public void markContinuousCollisionForced(@Nonnull RigidBodyKey bodyKey) {
+        forcedContinuousCollisionBodyKeys.add(bodyKey);
     }
 
     @Nonnull
-    public Collection<PhysicsBodyId> getForcedContinuousCollisionBodyIds() {
-        return new ArrayList<>(forcedContinuousCollisionBodyIds);
+    public Collection<RigidBodyKey> getForcedContinuousCollisionBodyKeys() {
+        return new ArrayList<>(forcedContinuousCollisionBodyKeys);
+    }
+
+    public boolean hasForcedContinuousCollisionBodies() {
+        return !forcedContinuousCollisionBodyKeys.isEmpty();
+    }
+
+    public void forEachForcedContinuousCollisionBody(@Nonnull Consumer<RigidBodyKey> consumer) {
+        forcedContinuousCollisionBodyKeys.forEach(consumer);
     }
 
     public void clearForcedContinuousCollisionBodies() {
-        forcedContinuousCollisionBodyIds.clear();
+        forcedContinuousCollisionBodyKeys.clear();
     }
 
-    public void clearBody(@Nonnull PhysicsBodyId bodyId) {
-        forcedContinuousCollisionBodyIds.remove(bodyId);
-        chunkBoundarySafeStates.remove(bodyId);
-        chunkBoundaryPauseStates.remove(bodyId);
+    public void clearBody(@Nonnull RigidBodyKey bodyKey) {
+        forcedContinuousCollisionBodyKeys.remove(bodyKey);
+        chunkBoundarySafeStates.remove(bodyKey);
+        chunkBoundaryPauseStates.remove(bodyKey);
     }
 
     public void clear() {
-        forcedContinuousCollisionBodyIds.clear();
+        forcedContinuousCollisionBodyKeys.clear();
         chunkBoundarySafeStates.clear();
         chunkBoundaryPauseStates.clear();
     }
@@ -103,6 +128,13 @@ public final class PhysicsChunkBoundaryRuntime {
             this.originalBodyType = originalBodyType;
             this.linearVelocity.set(linearVelocity);
             this.angularVelocity.set(angularVelocity);
+        }
+
+        public void set(long targetChunkIndex, @Nonnull PhysicsBodySnapshot snapshot) {
+            this.targetChunkIndex = targetChunkIndex;
+            this.originalBodyType = snapshot.bodyType();
+            snapshot.copyLinearVelocityTo(this.linearVelocity);
+            snapshot.copyAngularVelocityTo(this.angularVelocity);
         }
 
         @Nonnull
@@ -131,6 +163,11 @@ public final class PhysicsChunkBoundaryRuntime {
         public void set(@Nonnull Vector3f position, @Nonnull Quaternionf rotation) {
             this.position.set(position);
             this.rotation.set(rotation);
+        }
+
+        public void set(@Nonnull PhysicsBodySnapshot snapshot) {
+            snapshot.copyPositionTo(this.position);
+            snapshot.copyRotationTo(this.rotation);
         }
 
         @Nonnull

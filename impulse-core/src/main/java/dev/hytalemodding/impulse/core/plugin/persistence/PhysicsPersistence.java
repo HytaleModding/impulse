@@ -2,9 +2,9 @@ package dev.hytalemodding.impulse.core.plugin.persistence;
 
 import com.hypixel.hytale.component.Store;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
-import dev.hytalemodding.impulse.api.PhysicsSpace;
 import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyPersistenceMode;
 import dev.hytalemodding.impulse.core.plugin.resources.PhysicsWorldResource;
+import dev.hytalemodding.impulse.core.plugin.simulation.RuntimeJointCountQuery;
 import javax.annotation.Nonnull;
 
 /**
@@ -63,13 +63,10 @@ public final class PhysicsPersistence {
     }
 
     private static int countRuntimeJoints(@Nonnull PhysicsWorldResource runtime) {
-        return runtime.callOnPhysicsOwner("count runtime persistence joints", access -> {
-            int count = 0;
-            for (PhysicsSpace space : access.getSpaces()) {
-                count += space.getJoints().size();
-            }
-            return count;
-        });
+        return runtime.query(new RuntimeJointCountQuery())
+            .completion()
+            .toCompletableFuture()
+            .join();
     }
 
     @Nonnull

@@ -11,10 +11,9 @@ import com.hypixel.hytale.server.core.universe.world.chunk.ChunkFlag;
 import com.hypixel.hytale.server.core.universe.world.chunk.WorldChunk;
 import com.hypixel.hytale.server.core.universe.world.storage.ChunkStore;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
-import dev.hytalemodding.impulse.api.PhysicsBody;
+import dev.hytalemodding.impulse.api.PhysicsBodyType;
 import dev.hytalemodding.impulse.api.PhysicsCollisionFilters;
 import dev.hytalemodding.impulse.api.PhysicsSpace;
-import dev.hytalemodding.impulse.api.ShapeType;
 import dev.hytalemodding.impulse.core.ImpulsePlugin;
 import dev.hytalemodding.impulse.core.internal.resources.profiling.PhysicsRuntimeProfilingResource;
 import dev.hytalemodding.impulse.core.internal.resources.profiling.PhysicsRuntimeProfilingResource.StepSnapshot;
@@ -22,18 +21,21 @@ import dev.hytalemodding.impulse.core.internal.resources.profiling.PhysicsRuntim
 import dev.hytalemodding.impulse.core.internal.resources.profiling.WorldCollisionProfilingResource;
 import dev.hytalemodding.impulse.core.internal.resources.profiling.WorldCollisionProfilingResource.Snapshot;
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsWorldRuntimeResource;
-import dev.hytalemodding.impulse.core.internal.voxel.WorldVoxelCollisionCache;
-import dev.hytalemodding.impulse.core.internal.voxel.WorldVoxelCollisionCache.BuildStats;
-import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyId;
+import dev.hytalemodding.impulse.core.internal.simulation.BenchmarkSpaceStatsQuery;
+import dev.hytalemodding.impulse.core.internal.simulation.BenchmarkSpaceStatsView;
+import dev.hytalemodding.impulse.core.internal.simulation.WorldCollisionPrewarmEnvelopeQuery;
+import dev.hytalemodding.impulse.core.plugin.body.RigidBodyKey;
 import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyKind;
 import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyPersistenceMode;
+import dev.hytalemodding.impulse.core.plugin.collision.WorldCollisionPrewarmStats;
 import dev.hytalemodding.impulse.core.plugin.settings.PhysicsBackendExtensionId;
 import dev.hytalemodding.impulse.core.plugin.settings.PhysicsSpaceSettings;
 import dev.hytalemodding.impulse.core.plugin.settings.PhysicsStepMode;
 import dev.hytalemodding.impulse.core.plugin.settings.PhysicsStepSchedulingMode;
 import dev.hytalemodding.impulse.core.plugin.settings.PhysicsWorldSettings;
-import dev.hytalemodding.impulse.core.plugin.resources.PhysicsWorldResource;
 import dev.hytalemodding.impulse.core.plugin.collision.WorldCollisionMode;
+import dev.hytalemodding.impulse.core.plugin.simulation.PhysicsShapeSpec;
+import dev.hytalemodding.impulse.core.plugin.simulation.RigidBodySpawnSettings;
 import it.unimi.dsi.fastutil.longs.LongOpenHashSet;
 import it.unimi.dsi.fastutil.longs.LongSet;
 import it.unimi.dsi.fastutil.objects.ObjectOpenHashSet;
@@ -48,7 +50,6 @@ import java.util.logging.Level;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 import org.joml.Vector3d;
-import org.joml.Vector3f;
 
 /**
  * Benchmark-oriented Crucible scenario for detached bodies using streamed world collision.
@@ -239,11 +240,8 @@ final class ImpulseDetachedStreamingBenchmarkCrucibleTests {
             PhysicsSpace space = physics.createLiveSpace(CrucibleBackends.requireBackendId(),
                 world.getName(),
                 settings);
-            PrewarmStats prewarm = physics.callOnPhysicsOwner(
-                "prewarm detached streaming benchmark collision",
-                () -> prewarmWorldCollision(space, count));
-            physics.runOnPhysicsOwner("spawn detached streaming benchmark bodies",
-                () -> spawnDetachedBodies(space, count));
+            PrewarmStats prewarm = prewarmWorldCollision(space, count);
+            spawnDetachedBodies(space, count);
             runtimeProfiling.reset();
             worldCollisionProfiling.reset();
             runtimeProfiling.setEnabled(true);
@@ -340,128 +338,24 @@ final class ImpulseDetachedStreamingBenchmarkCrucibleTests {
         }
 
         private PrewarmStats prewarmWorldCollision(@Nonnull PhysicsSpace space, int count) {
-            WorldVoxelCollisionCache cache = PhysicsWorldRuntimeResource.require(physics).worldCollisionCache();
             BenchmarkLayout layout = BenchmarkLayout.flatGrid(count);
-            LongSet visitedSections = new LongOpenHashSet();
-            Set<StreamingPrewarmTarget> visitedTargets = new ObjectOpenHashSet<>();
-            int sectionsBuilt = 0;
-            int colliderBodies = 0;
-            for (int i = 0; i < count; i++) {
-                Vector3d position = layout.position(i);
-                PrewarmStats stats = prewarmStreamingCollisionEnvelope(cache,
-                    space,
-                    position,
-                    visitedSections,
-                    visitedTargets);
-                sectionsBuilt += stats.sectionsBuilt();
-                colliderBodies += stats.colliderBodies();
-            }
-            return new PrewarmStats(visitedSections.size(), sectionsBuilt, colliderBodies);
-        }
-
-        private PrewarmStats prewarmStreamingCollisionEnvelope(
-            @Nonnull WorldVoxelCollisionCache cache,
-            @Nonnull PhysicsSpace space,
-            @Nonnull Vector3d position,
-            @Nonnull LongSet visitedSections,
-            @Nonnull Set<StreamingPrewarmTarget> visitedTargets) {
-            int sectionsBuilt = 0;
-            int colliderBodies = 0;
-            for (int offsetX = -1; offsetX <= 1; offsetX++) {
-                for (int offsetZ = -1; offsetZ <= 1; offsetZ++) {
-                    Vector3d shifted = new Vector3d(position).add(
-                        offsetX * STREAMING_HORIZONTAL_DRIFT_HALO_BLOCKS,
-                        0.0,
-                        offsetZ * STREAMING_HORIZONTAL_DRIFT_HALO_BLOCKS);
-                    PrewarmStats stats = prewarmStreamingCollisionEnvelopeAt(cache,
-                        space,
-                        shifted,
-                        visitedSections,
-                        visitedTargets);
-                    sectionsBuilt += stats.sectionsBuilt();
-                    colliderBodies += stats.colliderBodies();
-                }
-            }
-            return new PrewarmStats(0, sectionsBuilt, colliderBodies);
-        }
-
-        private PrewarmStats prewarmStreamingCollisionEnvelopeAt(
-            @Nonnull WorldVoxelCollisionCache cache,
-            @Nonnull PhysicsSpace space,
-            @Nonnull Vector3d position,
-            @Nonnull LongSet visitedSections,
-            @Nonnull Set<StreamingPrewarmTarget> visitedTargets) {
-            double step = Math.max(1.0, BODY_STREAMING_RADIUS * 2.0);
-            double minCenterY = Math.min(position.y,
-                STREAMING_FALL_ENVELOPE_MIN_Y + BODY_STREAMING_RADIUS);
-            Vector3d center = new Vector3d(position);
-            int sectionsBuilt = 0;
-            int colliderBodies = 0;
-            double lastY = Double.NaN;
-            for (double y = position.y; y >= minCenterY; y -= step) {
-                center.y = y;
-                BuildStats stats = prewarmStreamingCollisionTarget(cache,
-                    space,
-                    center,
-                    visitedSections,
-                    visitedTargets);
-                sectionsBuilt += stats.sectionsBuilt();
-                colliderBodies += stats.colliderBodies();
-                lastY = y;
-            }
-            if (Double.isNaN(lastY) || lastY > minCenterY) {
-                center.y = minCenterY;
-                BuildStats stats = prewarmStreamingCollisionTarget(cache,
-                    space,
-                    center,
-                    visitedSections,
-                    visitedTargets);
-                sectionsBuilt += stats.sectionsBuilt();
-                colliderBodies += stats.colliderBodies();
-            }
-            return new PrewarmStats(0, sectionsBuilt, colliderBodies);
-        }
-
-        @Nonnull
-        private BuildStats prewarmStreamingCollisionTarget(
-            @Nonnull WorldVoxelCollisionCache cache,
-            @Nonnull PhysicsSpace space,
-            @Nonnull Vector3d center,
-            @Nonnull LongSet visitedSections,
-            @Nonnull Set<StreamingPrewarmTarget> visitedTargets) {
-            StreamingPrewarmTarget target = streamingPrewarmTarget(center, BODY_STREAMING_RADIUS);
-            if (!visitedTargets.add(target)) {
-                return emptyBuildStats();
-            }
-            return cache.ensureAround(world,
-                space,
-                center,
-                BODY_STREAMING_RADIUS,
-                0L,
-                null,
-                visitedSections);
-        }
-
-        @Nonnull
-        private StreamingPrewarmTarget streamingPrewarmTarget(@Nonnull Vector3d center, int radius) {
-            int minX = (int) Math.floor(center.x) - radius;
-            int maxX = (int) Math.floor(center.x) + radius;
-            int minY = Math.max(0, (int) Math.floor(center.y) - radius);
-            int maxY = Math.min(ChunkUtil.HEIGHT_MINUS_1, (int) Math.floor(center.y) + radius);
-            int minZ = (int) Math.floor(center.z) - radius;
-            int maxZ = (int) Math.floor(center.z) + radius;
-            return new StreamingPrewarmTarget(
-                ChunkUtil.chunkCoordinate(minX),
-                ChunkUtil.chunkCoordinate(maxX),
-                ChunkUtil.indexSection(minY),
-                ChunkUtil.indexSection(maxY),
-                ChunkUtil.chunkCoordinate(minZ),
-                ChunkUtil.chunkCoordinate(maxZ));
-        }
-
-        @Nonnull
-        private BuildStats emptyBuildStats() {
-            return new BuildStats(0, 0, 0, 0, 0, 0, 0, 0, 0, 0);
+            WorldCollisionPrewarmStats stats = physics.queryInternal(new WorldCollisionPrewarmEnvelopeQuery(world,
+                    space.getId(),
+                    count,
+                    (float) layout.origin().x,
+                    (float) layout.origin().y,
+                    (float) layout.origin().z,
+                    layout.side(),
+                    (float) layout.spacing(),
+                    BODY_STREAMING_RADIUS,
+                    (float) STREAMING_FALL_ENVELOPE_MIN_Y,
+                    (float) STREAMING_HORIZONTAL_DRIFT_HALO_BLOCKS,
+                    0L))
+                .toCompletableFuture()
+                .join();
+            return new PrewarmStats(stats.sectionTargets(),
+                stats.buildStats().sectionsBuilt(),
+                stats.buildStats().colliderBodies());
         }
 
         private void configureMissingSectionDiagnostics(@Nonnull BenchmarkChunks chunks) {
@@ -477,20 +371,40 @@ final class ImpulseDetachedStreamingBenchmarkCrucibleTests {
 
         private void spawnDetachedBodies(@Nonnull PhysicsSpace space, int count) {
             BenchmarkLayout layout = BenchmarkLayout.flatGrid(count);
-            for (int i = 0; i < count; i++) {
-                PhysicsBody body = space.createBox(0.48f, 0.48f, 0.48f, 1.0f);
-                body.setFriction(0.45f);
-                body.setRestitution(0.0f);
-                body.setDamping(0.02f, 0.25f);
-                body.setCollisionFilter(PhysicsCollisionFilters.DYNAMIC_BODY,
-                    PhysicsCollisionFilters.TERRAIN | PhysicsCollisionFilters.DYNAMIC_BODY);
-                Vector3d position = layout.position(i);
-                body.setPosition((float) position.x, (float) position.y, (float) position.z);
-                PhysicsBodyId ignored = physics.addBody(space.getId(),
-                    body,
-                    PhysicsBodyKind.BODY,
-                    PhysicsBodyPersistenceMode.RUNTIME_ONLY);
-            }
+            PhysicsShapeSpec box = PhysicsShapeSpec.box(0.48f, 0.48f, 0.48f);
+            RigidBodySpawnSettings settings = RigidBodySpawnSettings.of(0.45f,
+                0.0f,
+                0.02f,
+                0.25f,
+                PhysicsCollisionFilters.DYNAMIC_BODY,
+                PhysicsCollisionFilters.TERRAIN | PhysicsCollisionFilters.DYNAMIC_BODY);
+            long bodyKeyRunId = RigidBodyKey.random().mostSignificantBits();
+            physics.submitCommands(Math.max(0L, world.getTick()),
+                    1,
+                    commands -> commands.spawnBodies(count,
+                        space.getId(),
+                        box,
+                        1.0f,
+                        PhysicsBodyType.DYNAMIC,
+                        settings,
+                        PhysicsBodyKind.BODY,
+                        PhysicsBodyPersistenceMode.RUNTIME_ONLY,
+                        spawns -> {
+                            for (int i = 0; i < count; i++) {
+                                spawns.body(bodyKeyRunId,
+                                    i + 1L,
+                                    (float) layout.positionX(i),
+                                    (float) layout.positionY(i),
+                                    (float) layout.positionZ(i));
+                            }
+                        }))
+                .firstRejected()
+                .toCompletableFuture()
+                .join()
+                .ifPresent(result -> {
+                    throw new IllegalStateException("spawn detached streaming benchmark bodies command "
+                        + result.commandSequence() + " rejected: " + result.message());
+                });
         }
 
         private BenchmarkChunks benchmarkChunks(int count) {
@@ -498,25 +412,31 @@ final class ImpulseDetachedStreamingBenchmarkCrucibleTests {
             Set<ChunkSection> sections = new ObjectOpenHashSet<>();
             BenchmarkLayout layout = BenchmarkLayout.flatGrid(count);
             for (int i = 0; i < count; i++) {
-                addStreamingCollisionChunks(columns, sections, layout.position(i));
+                addStreamingCollisionChunks(columns,
+                    sections,
+                    layout.positionX(i),
+                    layout.positionY(i),
+                    layout.positionZ(i));
             }
             return new BenchmarkChunks(columns, sections);
         }
 
         private void addStreamingCollisionChunks(@Nonnull LongSet columns,
             @Nonnull Set<ChunkSection> sections,
-            @Nonnull Vector3d position) {
-            int centerBlockX = (int) Math.floor(position.x);
-            int centerBlockZ = (int) Math.floor(position.z);
+            double positionX,
+            double positionY,
+            double positionZ) {
+            int centerBlockX = (int) Math.floor(positionX);
+            int centerBlockZ = (int) Math.floor(positionZ);
             int horizontalRadius = BODY_STREAMING_RADIUS
                 + (int) Math.ceil(STREAMING_HORIZONTAL_DRIFT_HALO_BLOCKS);
             int minChunkX = ChunkUtil.chunkCoordinate(centerBlockX - horizontalRadius);
             int maxChunkX = ChunkUtil.chunkCoordinate(centerBlockX + horizontalRadius);
             int minBlockY = Math.max(0, (int) Math.floor(Math.min(
-                position.y - BODY_STREAMING_RADIUS,
+                positionY - BODY_STREAMING_RADIUS,
                 STREAMING_FALL_ENVELOPE_MIN_Y)));
             int maxBlockY = Math.min(ChunkUtil.HEIGHT_MINUS_1,
-                (int) Math.floor(position.y + BODY_STREAMING_RADIUS));
+                (int) Math.floor(positionY + BODY_STREAMING_RADIUS));
             int minChunkY = ChunkUtil.indexSection(minBlockY);
             int maxChunkY = ChunkUtil.indexSection(maxBlockY);
             int minChunkZ = ChunkUtil.chunkCoordinate(centerBlockZ - horizontalRadius);
@@ -924,18 +844,10 @@ final class ImpulseDetachedStreamingBenchmarkCrucibleTests {
         }
     }
 
-        private record ChunkSection(int x, int y, int z) {
-        }
+    private record ChunkSection(int x, int y, int z) {
+    }
 
-        private record StreamingPrewarmTarget(int minChunkX,
-            int maxChunkX,
-            int minSectionY,
-            int maxSectionY,
-            int minChunkZ,
-            int maxChunkZ) {
-        }
-
-        private record BenchmarkLayout(@Nonnull Vector3d origin, int side, double spacing) {
+    private record BenchmarkLayout(@Nonnull Vector3d origin, int side, double spacing) {
 
         private static BenchmarkLayout flatGrid(int count) {
             int side = (int) Math.ceil(Math.sqrt(count));
@@ -946,10 +858,18 @@ final class ImpulseDetachedStreamingBenchmarkCrucibleTests {
                 ORIGIN.z - half), side, DETACHED_SPACING);
         }
 
-        private Vector3d position(int index) {
+        private double positionX(int index) {
             int x = index % side;
+            return origin.x + x * spacing;
+        }
+
+        private double positionY(int index) {
+            return origin.y;
+        }
+
+        private double positionZ(int index) {
             int z = index / side;
-            return new Vector3d(origin).add(x * spacing, 0.0, z * spacing);
+            return origin.z + z * spacing;
         }
     }
 
@@ -966,86 +886,28 @@ final class ImpulseDetachedStreamingBenchmarkCrucibleTests {
         private int missingTerrainBaselineBodies;
         private double minTerrainBottomClearance = Double.POSITIVE_INFINITY;
 
-        private static SpaceStats collect(@Nonnull PhysicsWorldResource physics,
+        private static SpaceStats collect(@Nonnull PhysicsWorldRuntimeResource physics,
             @Nonnull PhysicsSpace space) {
-            return physics.callOnPhysicsOwner("collect detached streaming benchmark space stats",
-                () -> collectOnOwner(physics, space));
-        }
-
-        private static SpaceStats collectOnOwner(@Nonnull PhysicsWorldResource physics,
-            @Nonnull PhysicsSpace space) {
+            BenchmarkSpaceStatsView view = physics.queryInternal(new BenchmarkSpaceStatsQuery(space.getId(),
+                    GROUND_Y,
+                    BELOW_PLANE_TOLERANCE,
+                    BODY_WORLD_MIN_Y,
+                    BODY_VOID_Y,
+                    true))
+                .toCompletableFuture()
+                .join();
             SpaceStats stats = new SpaceStats();
-            WorldVoxelCollisionCache cache = PhysicsWorldRuntimeResource.require(physics).worldCollisionCache();
-            for (PhysicsBody body : space.getBodies()) {
-                stats.classify(cache, space, body);
-            }
+            stats.bodies = view.bodies();
+            stats.dynamicBodies = view.dynamicBodies();
+            stats.worldCollisionBodies = view.worldCollisionBodies();
+            stats.belowPlaneBodies = view.belowPlaneBodies();
+            stats.belowTerrainBodies = view.belowTerrainBodies();
+            stats.belowWorldMinBodies = view.belowWorldMinBodies();
+            stats.belowVoidBodies = view.belowVoidBodies();
+            stats.terrainBaselineBodies = view.terrainBaselineBodies();
+            stats.missingTerrainBaselineBodies = view.missingTerrainBaselineBodies();
+            stats.minTerrainBottomClearance = view.minTerrainBottomClearance();
             return stats;
-        }
-
-        private void classify(@Nonnull WorldVoxelCollisionCache cache,
-            @Nonnull PhysicsSpace space,
-            @Nonnull PhysicsBody body) {
-            bodies++;
-            if (body.isDynamic()) {
-                dynamicBodies++;
-                Vector3f position = body.getPosition();
-                if (position.y < GROUND_Y - BELOW_PLANE_TOLERANCE) {
-                    belowPlaneBodies++;
-                }
-                WorldVoxelCollisionCache.GroundProbe ground = cache.probeGround(space.getId(),
-                    position.x,
-                    position.z,
-                    horizontalHalfExtent(body));
-                if (ground.found()) {
-                    terrainBaselineBodies++;
-                    double bottomClearance = position.y - verticalHalfExtent(body) - ground.topY();
-                    minTerrainBottomClearance = Math.min(minTerrainBottomClearance, bottomClearance);
-                    if (bottomClearance < -BELOW_PLANE_TOLERANCE) {
-                        belowTerrainBodies++;
-                    }
-                } else {
-                    missingTerrainBaselineBodies++;
-                }
-                if (position.y < BODY_WORLD_MIN_Y) {
-                    belowWorldMinBodies++;
-                }
-                if (position.y < BODY_VOID_Y) {
-                    belowVoidBodies++;
-                }
-            }
-            if (body.getShapeType() == ShapeType.PLANE) {
-                return;
-            }
-            if (cache.containsBody(space.getId(), body)) {
-                worldCollisionBodies++;
-            }
-        }
-
-        private static double horizontalHalfExtent(@Nonnull PhysicsBody body) {
-            if (body.getShapeType() == ShapeType.BOX) {
-                Vector3f halfExtents = body.getBoxHalfExtents();
-                if (halfExtents != null) {
-                    return Math.max(finitePositive(halfExtents.x), finitePositive(halfExtents.z));
-                }
-            }
-            return Math.max(finitePositive(body.getSphereRadius()), finitePositive(body.getHalfHeight()));
-        }
-
-        private static double verticalHalfExtent(@Nonnull PhysicsBody body) {
-            if (body.getShapeType() == ShapeType.BOX) {
-                Vector3f halfExtents = body.getBoxHalfExtents();
-                if (halfExtents != null) {
-                    return finitePositive(halfExtents.y);
-                }
-            }
-            if (body.getShapeType() == ShapeType.SPHERE) {
-                return finitePositive(body.getSphereRadius());
-            }
-            return finitePositive(body.getHalfHeight()) + finitePositive(body.getSphereRadius());
-        }
-
-        private static double finitePositive(float value) {
-            return Float.isFinite(value) ? Math.max(0.0f, value) : 0.0;
         }
 
         private double minTerrainBottomClearance() {

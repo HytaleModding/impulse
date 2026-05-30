@@ -16,16 +16,15 @@ import com.hypixel.hytale.server.core.universe.world.World;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import dev.hytalemodding.impulse.api.SpaceId;
 import dev.hytalemodding.impulse.core.internal.components.GeneratedVisualProxyComponent;
-import dev.hytalemodding.impulse.core.internal.systems.step.PhysicsControlSessionCleanup;
-import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyId;
-import dev.hytalemodding.impulse.core.plugin.components.PhysicsBodyAttachmentComponent;
 import dev.hytalemodding.impulse.core.internal.components.PhysicsControlSessionComponent;
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsRuntimeResetResult;
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsWorldRuntimeResource;
-import dev.hytalemodding.impulse.core.plugin.resources.PhysicsWorldResource;
+import dev.hytalemodding.impulse.core.internal.systems.step.PhysicsControlSessionCleanup;
+import dev.hytalemodding.impulse.core.plugin.body.RigidBodyKey;
+import dev.hytalemodding.impulse.core.plugin.components.PhysicsBodyAttachmentComponent;
+import it.unimi.dsi.fastutil.objects.ObjectOpenHashSet;
 import java.util.Set;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicIntegerArray;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 import org.joml.Vector3d;
@@ -53,6 +52,10 @@ public class CleanCommand extends AbstractWorldCommand {
         PhysicsControlSessionComponent.getComponentType();
     private static final ComponentType<EntityStore, TransformComponent> TRANSFORM_TYPE =
         TransformComponent.getComponentType();
+    private static final int REMOVED_BODY_ENTITIES = 0;
+    private static final int REMOVED_ORPHAN_VISUAL_ENTITIES = 1;
+    private static final int REMOVED_SESSIONS = 2;
+    private static final int REMOVED_ENTITY_COUNTERS = 3;
 
     private final OptionalArg<Float> radiusArg = this.withOptionalArg(
         "radius",
@@ -78,28 +81,26 @@ public class CleanCommand extends AbstractWorldCommand {
     private static void cleanAll(@Nonnull CommandContext context,
         @Nonnull World world,
         @Nonnull Store<EntityStore> store) {
-        AtomicInteger removedBodyEntities = new AtomicInteger();
+        AtomicIntegerArray removedEntities = new AtomicIntegerArray(REMOVED_ENTITY_COUNTERS);
         store.forEachEntityParallel(ATTACHMENT_TYPE,
             (index, archetypeChunk, commandBuffer) -> {
-                removedBodyEntities.incrementAndGet();
+                removedEntities.incrementAndGet(REMOVED_BODY_ENTITIES);
                 commandBuffer.removeEntity(archetypeChunk.getReferenceTo(index), RemoveReason.REMOVE);
             });
 
-        AtomicInteger removedOrphanVisualEntities = new AtomicInteger();
         store.forEachEntityParallel(GENERATED_PROXY_TYPE,
             (index, archetypeChunk, commandBuffer) -> {
                 if (archetypeChunk.getComponent(index, ATTACHMENT_TYPE) != null) {
                     return;
                 }
 
-                removedOrphanVisualEntities.incrementAndGet();
+                removedEntities.incrementAndGet(REMOVED_ORPHAN_VISUAL_ENTITIES);
                 commandBuffer.removeEntity(archetypeChunk.getReferenceTo(index), RemoveReason.REMOVE);
             });
 
-        AtomicInteger removedSessions = new AtomicInteger();
         store.forEachEntityParallel(CONTROL_SESSION_TYPE,
             (index, archetypeChunk, commandBuffer) -> {
-                removedSessions.incrementAndGet();
+                removedEntities.incrementAndGet(REMOVED_SESSIONS);
                 commandBuffer.removeComponent(archetypeChunk.getReferenceTo(index), CONTROL_SESSION_TYPE);
             });
 
@@ -107,11 +108,11 @@ public class CleanCommand extends AbstractWorldCommand {
         PhysicsRuntimeResetResult reset =
             resource.resetRuntimeStateKeepingSpaces(world.getName());
 
-        context.sendMessage(Message.raw("Removed " + removedBodyEntities.get()
-            + " Impulse attachment entities, " + removedOrphanVisualEntities.get()
+        context.sendMessage(Message.raw("Removed " + removedEntities.get(REMOVED_BODY_ENTITIES)
+            + " Impulse attachment entities, " + removedEntities.get(REMOVED_ORPHAN_VISUAL_ENTITIES)
             + " orphan visual proxy entities, " + reset.removedBodies() + " runtime bodies, "
             + reset.removedJoints() + " joints, and "
-            + removedSessions.get() + " control sessions in world " + world.getName()
+            + removedEntities.get(REMOVED_SESSIONS) + " control sessions in world " + world.getName()
             + ". Kept " + reset.keptSpaces() + " explicit physics spaces."));
     }
 
@@ -134,26 +135,25 @@ public class CleanCommand extends AbstractWorldCommand {
             return;
         }
 
-        PhysicsWorldResource resource = store.getResource(PhysicsWorldResource.getResourceType());
+        PhysicsWorldRuntimeResource resource = PhysicsWorldRuntimeResource.require(store);
         resource.refreshBodySnapshots();
-        Set<PhysicsBodyId> selectedBodies = selectBodyIdsNear(resource, center, radius);
+        Set<RigidBodyKey> selectedBodyKeys = selectBodyKeysNear(resource, center, radius);
         double radiusSquared = (double) radius * radius;
 
-        AtomicInteger removedBodyEntities = new AtomicInteger();
+        AtomicIntegerArray removedEntities = new AtomicIntegerArray(REMOVED_ENTITY_COUNTERS);
         store.forEachEntityParallel(ATTACHMENT_TYPE,
             (index, archetypeChunk, commandBuffer) -> {
                 PhysicsBodyAttachmentComponent attachment =
                     archetypeChunk.getComponent(index, ATTACHMENT_TYPE);
                 assert attachment != null;
-                if (!selectedBodies.contains(attachment.getBodyId())) {
+                if (!selectedBodyKeys.contains(attachment.getBodyKey())) {
                     return;
                 }
 
-                removedBodyEntities.incrementAndGet();
+                removedEntities.incrementAndGet(REMOVED_BODY_ENTITIES);
                 commandBuffer.removeEntity(archetypeChunk.getReferenceTo(index), RemoveReason.REMOVE);
             });
 
-        AtomicInteger removedOrphanVisualEntities = new AtomicInteger();
         store.forEachEntityParallel(GENERATED_PROXY_TYPE,
             (index, archetypeChunk, commandBuffer) -> {
                 if (archetypeChunk.getComponent(index, ATTACHMENT_TYPE) != null
@@ -161,11 +161,10 @@ public class CleanCommand extends AbstractWorldCommand {
                     return;
                 }
 
-                removedOrphanVisualEntities.incrementAndGet();
+                removedEntities.incrementAndGet(REMOVED_ORPHAN_VISUAL_ENTITIES);
                 commandBuffer.removeEntity(archetypeChunk.getReferenceTo(index), RemoveReason.REMOVE);
             });
 
-        AtomicInteger removedSessions = new AtomicInteger();
         store.forEachEntityParallel(CONTROL_SESSION_TYPE,
             (index, archetypeChunk, commandBuffer) -> {
                 PhysicsControlSessionComponent session =
@@ -175,27 +174,27 @@ public class CleanCommand extends AbstractWorldCommand {
                     archetypeChunk,
                     index,
                     session,
-                    selectedBodies,
+                    selectedBodyKeys,
                     center,
                     radiusSquared)) {
                     return;
                 }
 
-                removedSessions.incrementAndGet();
+                removedEntities.incrementAndGet(REMOVED_SESSIONS);
                 PhysicsControlSessionCleanup.cleanup(resource, session);
                 commandBuffer.removeComponent(archetypeChunk.getReferenceTo(index), CONTROL_SESSION_TYPE);
             });
 
-        AtomicInteger removedBodies = new AtomicInteger();
-        for (PhysicsBodyId bodyId : selectedBodies) {
-            resource.destroyBody(bodyId);
-            removedBodies.incrementAndGet();
+        int removedBodies = 0;
+        for (RigidBodyKey bodyKey : selectedBodyKeys) {
+            resource.destroyBody(bodyKey);
+            removedBodies++;
         }
 
-        context.sendMessage(Message.raw("Removed " + removedBodyEntities.get()
-            + " Impulse attachment entities, " + removedOrphanVisualEntities.get()
-            + " orphan visual proxy entities, " + removedBodies.get()
-            + " runtime bodies, and " + removedSessions.get()
+        context.sendMessage(Message.raw("Removed " + removedEntities.get(REMOVED_BODY_ENTITIES)
+            + " Impulse attachment entities, " + removedEntities.get(REMOVED_ORPHAN_VISUAL_ENTITIES)
+            + " orphan visual proxy entities, " + removedBodies
+            + " runtime bodies, and " + removedEntities.get(REMOVED_SESSIONS)
             + " control sessions within radius " + radius + " in world " + world.getName()
             + ". Kept explicit physics spaces and world-collision cache."));
     }
@@ -210,16 +209,18 @@ public class CleanCommand extends AbstractWorldCommand {
     }
 
     @Nonnull
-    private static Set<PhysicsBodyId> selectBodyIdsNear(@Nonnull PhysicsWorldResource resource,
+    private static Set<RigidBodyKey> selectBodyKeysNear(@Nonnull PhysicsWorldRuntimeResource resource,
         @Nonnull Vector3d center,
         float radius) {
-        Set<PhysicsBodyId> bodyIds = ConcurrentHashMap.newKeySet();
+        Set<RigidBodyKey> bodyKeys = new ObjectOpenHashSet<>();
         Vector3f centerF = new Vector3f((float) center.x, (float) center.y, (float) center.z);
         for (SpaceId spaceId : resource.getSpaceIds()) {
-            resource.forEachBodySnapshotNear(spaceId, centerF, radius,
-                entry -> bodyIds.add(entry.bodyId()));
+            resource.forEachIndexedBodySnapshotNear(spaceId,
+                centerF,
+                radius,
+                (bodyKey, snapshot, bodySpaceId, kind, persistenceMode) -> bodyKeys.add(bodyKey));
         }
-        return bodyIds;
+        return bodyKeys;
     }
 
     private static boolean controlSessionSelected(
@@ -227,11 +228,11 @@ public class CleanCommand extends AbstractWorldCommand {
         @Nonnull ArchetypeChunk<EntityStore> archetypeChunk,
         int index,
         @Nonnull PhysicsControlSessionComponent session,
-        @Nonnull Set<PhysicsBodyId> selectedBodies,
+        @Nonnull Set<RigidBodyKey> selectedBodyKeys,
         @Nonnull Vector3d center,
         double radiusSquared) {
-        if (containsBody(selectedBodies, session.getBodyId())
-            || containsBody(selectedBodies, session.getAnchorBodyId())
+        if (containsBody(selectedBodyKeys, session.getBodyKey())
+            || containsBody(selectedBodyKeys, session.getAnchorBodyKey())
             || entityWithinRadius(archetypeChunk, index, center, radiusSquared)) {
             return true;
         }
@@ -247,9 +248,9 @@ public class CleanCommand extends AbstractWorldCommand {
             radiusSquared);
     }
 
-    private static boolean containsBody(@Nonnull Set<PhysicsBodyId> bodyIds,
-        @Nullable PhysicsBodyId bodyId) {
-        return bodyId != null && bodyIds.contains(bodyId);
+    private static boolean containsBody(@Nonnull Set<RigidBodyKey> bodyKeys,
+        @Nullable RigidBodyKey bodyKey) {
+        return bodyKey != null && bodyKeys.contains(bodyKey);
     }
 
     private static boolean entityWithinRadius(@Nonnull ArchetypeChunk<EntityStore> archetypeChunk,

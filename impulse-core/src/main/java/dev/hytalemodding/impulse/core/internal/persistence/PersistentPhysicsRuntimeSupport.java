@@ -4,7 +4,7 @@ import dev.hytalemodding.impulse.api.PhysicsBody;
 import dev.hytalemodding.impulse.api.PhysicsJoint;
 import dev.hytalemodding.impulse.api.PhysicsJointType;
 import dev.hytalemodding.impulse.api.PhysicsSpace;
-import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyId;
+import dev.hytalemodding.impulse.core.plugin.body.RigidBodyKey;
 import dev.hytalemodding.impulse.core.plugin.resources.PhysicsWorldResource;
 import javax.annotation.Nonnull;
 import org.joml.Vector3f;
@@ -13,7 +13,7 @@ import org.joml.Vector3f;
  * Shared helpers for bridging persisted physics state to live runtime objects.
  *
  * <p>Used by the hydration and sync systems to construct joints from persisted
- * body-id endpoint definitions and produce stable keys for deduplicating joints
+ * body-key endpoint definitions and produce stable keys for deduplicating joints
  * across hydration ticks.</p>
  */
 public final class PersistentPhysicsRuntimeSupport {
@@ -23,8 +23,8 @@ public final class PersistentPhysicsRuntimeSupport {
 
     @Nonnull
     public static String jointKey(int spaceId,
-        @Nonnull PhysicsBodyId bodyAId,
-        @Nonnull PhysicsBodyId bodyBId,
+        @Nonnull RigidBodyKey bodyAId,
+        @Nonnull RigidBodyKey bodyBId,
         @Nonnull PhysicsJoint joint) {
         return PersistentPhysicsJointState.from(spaceId, bodyAId, bodyBId, joint).key();
     }

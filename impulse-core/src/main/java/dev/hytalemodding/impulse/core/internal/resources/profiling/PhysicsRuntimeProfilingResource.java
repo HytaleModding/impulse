@@ -5,7 +5,6 @@ import com.hypixel.hytale.component.ResourceType;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import dev.hytalemodding.impulse.api.PhysicsStepPhaseStats;
 import dev.hytalemodding.impulse.core.ImpulsePlugin;
-import java.util.concurrent.atomic.AtomicInteger;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 import lombok.Getter;
@@ -551,70 +550,70 @@ public class PhysicsRuntimeProfilingResource implements Resource<EntityStore> {
 
     public static final class SyncCollector {
 
-        private final AtomicInteger bodiesInspected = new AtomicInteger();
-        private final AtomicInteger bodiesSynced = new AtomicInteger();
-        private final AtomicInteger transitionSyncs = new AtomicInteger();
-        private final AtomicInteger keepaliveSyncs = new AtomicInteger();
-        private final AtomicInteger skippedSleeping = new AtomicInteger();
-        private final AtomicInteger skippedThreshold = new AtomicInteger();
-        private final AtomicInteger skippedVisualDeadzone = new AtomicInteger();
-        private final AtomicInteger skippedVisualRange = new AtomicInteger();
-        private final AtomicInteger skippedStatic = new AtomicInteger();
-        private final AtomicInteger skippedMissingSpace = new AtomicInteger();
+        private int bodiesInspected;
+        private int bodiesSynced;
+        private int transitionSyncs;
+        private int keepaliveSyncs;
+        private int skippedSleeping;
+        private int skippedThreshold;
+        private int skippedVisualDeadzone;
+        private int skippedVisualRange;
+        private int skippedStatic;
+        private int skippedMissingSpace;
 
         public void incrementBodiesInspected() {
-            bodiesInspected.incrementAndGet();
+            bodiesInspected++;
         }
 
         public void incrementBodiesSynced() {
-            bodiesSynced.incrementAndGet();
+            bodiesSynced++;
         }
 
         public void incrementTransitionSyncs() {
-            transitionSyncs.incrementAndGet();
+            transitionSyncs++;
         }
 
         public void incrementKeepaliveSyncs() {
-            keepaliveSyncs.incrementAndGet();
+            keepaliveSyncs++;
         }
 
         public void incrementSkippedSleeping() {
-            skippedSleeping.incrementAndGet();
+            skippedSleeping++;
         }
 
         public void incrementSkippedThreshold() {
-            skippedThreshold.incrementAndGet();
+            skippedThreshold++;
         }
 
         public void incrementSkippedVisualDeadzone() {
-            skippedVisualDeadzone.incrementAndGet();
+            skippedVisualDeadzone++;
         }
 
         public void incrementSkippedVisualRange() {
-            skippedVisualRange.incrementAndGet();
+            skippedVisualRange++;
         }
 
         public void incrementSkippedStatic() {
-            skippedStatic.incrementAndGet();
+            skippedStatic++;
         }
 
         public void incrementSkippedMissingSpace() {
-            skippedMissingSpace.incrementAndGet();
+            skippedMissingSpace++;
         }
 
         @Nonnull
         private SyncSnapshot snapshot(long nanos) {
             SyncSnapshot snapshot = new SyncSnapshot();
-            snapshot.setBodiesInspected(bodiesInspected.get());
-            snapshot.setBodiesSynced(bodiesSynced.get());
-            snapshot.setTransitionSyncs(transitionSyncs.get());
-            snapshot.setKeepaliveSyncs(keepaliveSyncs.get());
-            snapshot.setSkippedSleeping(skippedSleeping.get());
-            snapshot.setSkippedThreshold(skippedThreshold.get());
-            snapshot.setSkippedVisualDeadzone(skippedVisualDeadzone.get());
-            snapshot.setSkippedVisualRange(skippedVisualRange.get());
-            snapshot.setSkippedStatic(skippedStatic.get());
-            snapshot.setSkippedMissingSpace(skippedMissingSpace.get());
+            snapshot.setBodiesInspected(bodiesInspected);
+            snapshot.setBodiesSynced(bodiesSynced);
+            snapshot.setTransitionSyncs(transitionSyncs);
+            snapshot.setKeepaliveSyncs(keepaliveSyncs);
+            snapshot.setSkippedSleeping(skippedSleeping);
+            snapshot.setSkippedThreshold(skippedThreshold);
+            snapshot.setSkippedVisualDeadzone(skippedVisualDeadzone);
+            snapshot.setSkippedVisualRange(skippedVisualRange);
+            snapshot.setSkippedStatic(skippedStatic);
+            snapshot.setSkippedMissingSpace(skippedMissingSpace);
             snapshot.setTickNanos(nanos);
             return snapshot;
         }
@@ -714,92 +713,92 @@ public class PhysicsRuntimeProfilingResource implements Resource<EntityStore> {
 
     public static final class VisualCollector {
 
-        private final AtomicInteger interests = new AtomicInteger();
-        private final AtomicInteger materialized = new AtomicInteger();
-        private final AtomicInteger candidates = new AtomicInteger();
-        private final AtomicInteger spawned = new AtomicInteger();
-        private final AtomicInteger dematerialized = new AtomicInteger();
-        private final AtomicInteger nearQueries = new AtomicInteger();
-        private final AtomicInteger nearQueryCandidates = new AtomicInteger();
-        private final AtomicInteger raycasts = new AtomicInteger();
-        private final AtomicInteger raycastCacheHits = new AtomicInteger();
-        private final AtomicInteger candidateRefreshes = new AtomicInteger();
-        private final AtomicInteger candidateCacheUses = new AtomicInteger();
-        private final AtomicInteger visibilityChecks = new AtomicInteger();
-        private final AtomicInteger visibilityCheckSkips = new AtomicInteger();
+        private int interests;
+        private int materialized;
+        private int candidates;
+        private int spawned;
+        private int dematerialized;
+        private int nearQueries;
+        private int nearQueryCandidates;
+        private int raycasts;
+        private int raycastCacheHits;
+        private int candidateRefreshes;
+        private int candidateCacheUses;
+        private int visibilityChecks;
+        private int visibilityCheckSkips;
 
         public void setInterests(int count) {
-            interests.set(count);
+            interests = count;
         }
 
         public void setMaterialized(int count) {
-            materialized.set(count);
+            materialized = count;
         }
 
         public void setCandidates(int count) {
-            candidates.set(count);
+            candidates = count;
         }
 
         public void incrementSpawned() {
-            spawned.incrementAndGet();
+            spawned++;
         }
 
         public void incrementDematerialized() {
-            dematerialized.incrementAndGet();
+            dematerialized++;
         }
 
         public void incrementNearQueries() {
-            nearQueries.incrementAndGet();
+            nearQueries++;
         }
 
         public void addNearQueryCandidates(int count) {
-            nearQueryCandidates.addAndGet(count);
+            nearQueryCandidates += count;
         }
 
         public void incrementRaycasts() {
-            raycasts.incrementAndGet();
+            raycasts++;
         }
 
         public void incrementRaycastCacheHits() {
-            raycastCacheHits.incrementAndGet();
+            raycastCacheHits++;
         }
 
         public void incrementCandidateRefreshes() {
-            candidateRefreshes.incrementAndGet();
+            candidateRefreshes++;
         }
 
         public void incrementCandidateCacheUses() {
-            candidateCacheUses.incrementAndGet();
+            candidateCacheUses++;
         }
 
         public void incrementVisibilityChecks() {
-            visibilityChecks.incrementAndGet();
+            visibilityChecks++;
         }
 
         public void incrementVisibilityCheckSkips() {
-            visibilityCheckSkips.incrementAndGet();
+            visibilityCheckSkips++;
         }
 
         public void addVisibilityCheckSkips(int count) {
-            visibilityCheckSkips.addAndGet(count);
+            visibilityCheckSkips += count;
         }
 
         @Nonnull
         private VisualSnapshot snapshot(long nanos) {
             VisualSnapshot snapshot = new VisualSnapshot();
-            snapshot.setInterests(interests.get());
-            snapshot.setMaterialized(materialized.get());
-            snapshot.setCandidates(candidates.get());
-            snapshot.setSpawned(spawned.get());
-            snapshot.setDematerialized(dematerialized.get());
-            snapshot.setNearQueries(nearQueries.get());
-            snapshot.setNearQueryCandidates(nearQueryCandidates.get());
-            snapshot.setRaycasts(raycasts.get());
-            snapshot.setRaycastCacheHits(raycastCacheHits.get());
-            snapshot.setCandidateRefreshes(candidateRefreshes.get());
-            snapshot.setCandidateCacheUses(candidateCacheUses.get());
-            snapshot.setVisibilityChecks(visibilityChecks.get());
-            snapshot.setVisibilityCheckSkips(visibilityCheckSkips.get());
+            snapshot.setInterests(interests);
+            snapshot.setMaterialized(materialized);
+            snapshot.setCandidates(candidates);
+            snapshot.setSpawned(spawned);
+            snapshot.setDematerialized(dematerialized);
+            snapshot.setNearQueries(nearQueries);
+            snapshot.setNearQueryCandidates(nearQueryCandidates);
+            snapshot.setRaycasts(raycasts);
+            snapshot.setRaycastCacheHits(raycastCacheHits);
+            snapshot.setCandidateRefreshes(candidateRefreshes);
+            snapshot.setCandidateCacheUses(candidateCacheUses);
+            snapshot.setVisibilityChecks(visibilityChecks);
+            snapshot.setVisibilityCheckSkips(visibilityCheckSkips);
             snapshot.setTickNanos(nanos);
             return snapshot;
         }

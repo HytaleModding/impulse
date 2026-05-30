@@ -3,15 +3,13 @@ package dev.hytalemodding.impulse.core.plugin.control;
 import com.hypixel.hytale.component.Ref;
 import com.hypixel.hytale.component.Store;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
-import dev.hytalemodding.impulse.api.PhysicsBody;
 import dev.hytalemodding.impulse.api.PhysicsBodyType;
-import dev.hytalemodding.impulse.api.PhysicsSpace;
 import dev.hytalemodding.impulse.api.SpaceId;
 import dev.hytalemodding.impulse.core.internal.components.PhysicsControlSessionComponent;
-import dev.hytalemodding.impulse.core.internal.control.PhysicsControlJointResolver;
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsWorldRuntimeResource;
-import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyId;
-import dev.hytalemodding.impulse.core.plugin.joint.PhysicsJointId;
+import dev.hytalemodding.impulse.core.plugin.body.RigidBodyKey;
+import dev.hytalemodding.impulse.core.plugin.joint.JointKey;
+import dev.hytalemodding.impulse.core.plugin.simulation.PhysicsCommandRecorder;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 import org.joml.Vector3f;
@@ -40,8 +38,8 @@ public final class PhysicsControlSessions {
      */
     public static void startSession(@Nonnull Store<EntityStore> store,
         @Nonnull Ref<EntityStore> controllerRef,
-        @Nonnull PhysicsBodyId bodyId,
-        @Nonnull PhysicsBodyId anchorBodyId,
+        @Nonnull RigidBodyKey bodyKey,
+        @Nonnull RigidBodyKey anchorBodyKey,
         @Nullable Ref<EntityStore> targetRef,
         @Nullable SpaceId spaceId,
         @Nonnull PhysicsBodyType originalBodyType,
@@ -50,8 +48,8 @@ public final class PhysicsControlSessions {
         @Nonnull Vector3f previousTarget) {
         startSession(store,
             controllerRef,
-            bodyId,
-            anchorBodyId,
+            bodyKey,
+            anchorBodyKey,
             null,
             targetRef,
             spaceId,
@@ -67,9 +65,9 @@ public final class PhysicsControlSessions {
      */
     public static void startSession(@Nonnull Store<EntityStore> store,
         @Nonnull Ref<EntityStore> controllerRef,
-        @Nonnull PhysicsBodyId bodyId,
-        @Nonnull PhysicsBodyId anchorBodyId,
-        @Nullable PhysicsJointId controlJointId,
+        @Nonnull RigidBodyKey bodyKey,
+        @Nonnull RigidBodyKey anchorBodyKey,
+        @Nullable JointKey controlJointKey,
         @Nullable Ref<EntityStore> targetRef,
         @Nullable SpaceId spaceId,
         @Nonnull PhysicsBodyType originalBodyType,
@@ -80,16 +78,16 @@ public final class PhysicsControlSessions {
         releaseSession(resource, store, controllerRef);
         store.putComponent(controllerRef,
             PhysicsControlSessionComponent.getComponentType(),
-            new PhysicsControlSessionComponent(bodyId,
-                anchorBodyId,
-                controlJointId,
+            new PhysicsControlSessionComponent(bodyKey,
+                anchorBodyKey,
+                controlJointKey,
                 targetRef,
                 spaceId,
                 originalBodyType,
                 grabDistance,
                 viewOffset,
                 previousTarget));
-        resource.markBodyControlled(bodyId);
+        resource.markBodyControlled(bodyKey);
     }
 
     /**
@@ -119,57 +117,55 @@ public final class PhysicsControlSessions {
         @Nonnull Store<EntityStore> store,
         @Nonnull Ref<EntityStore> controllerRef,
         @Nonnull PhysicsControlSessionComponent session) {
-        PhysicsBodyId bodyId = session.getBodyId();
-        PhysicsBodyId anchorBodyId = session.getAnchorBodyId();
-        PhysicsJointId controlJointId = session.getControlJointId();
+        RigidBodyKey bodyKey = session.getBodyKey();
+        RigidBodyKey anchorBodyKey = session.getAnchorBodyKey();
+        JointKey controlJointKey = session.getControlJointKey();
         SpaceId spaceId = session.getSpaceId();
-        if (bodyId != null) {
-            resource.clearControlledBody(bodyId);
+        if (bodyKey != null) {
+            resource.clearControlledBody(bodyKey);
         }
-        if (bodyId != null && resource.getBodyRegistrationView(bodyId) != null) {
-            PhysicsBodyType originalBodyType = session.getOriginalBodyType();
-            resource.runOnPhysicsOwner("release grabbed physics body",
-                access -> {
-                    boolean removedControlJoint =
-                        controlJointId != null && resource.removeJoint(controlJointId);
-                    PhysicsSpace space = spaceId != null ? access.getSpace(spaceId) : null;
-                    if (!removedControlJoint && space != null && anchorBodyId != null) {
-                        PhysicsControlJointResolver.removeControlJoint(access,
-                            space,
-                            bodyId,
-                            anchorBodyId);
-                    }
-                    PhysicsBody body = access.getBody(bodyId);
-                    if (body == null) {
-                        return;
-                    }
-                    body.setBodyType(originalBodyType);
+        boolean releaseJoint = (spaceId != null && anchorBodyKey != null && bodyKey != null)
+            || controlJointKey != null;
+        boolean restoreBody = bodyKey != null && resource.getBodyRegistrationView(bodyKey) != null;
+        if (releaseJoint || restoreBody || anchorBodyKey != null) {
+            resource.submitCommands(0L, 4, commands -> {
+                addJointReleaseCommand(commands, controlJointKey, spaceId, anchorBodyKey, bodyKey);
+                if (restoreBody) {
+                    PhysicsBodyType originalBodyType = session.getOriginalBodyType();
+                    commands.setBodyType(bodyKey, originalBodyType);
                     if (originalBodyType == PhysicsBodyType.DYNAMIC) {
-                        body.setLinearVelocity(session.getReleaseVelocity());
+                        Vector3f releaseVelocity = session.getReleaseVelocity();
+                        commands.setBodyVelocity(bodyKey,
+                            releaseVelocity.x,
+                            releaseVelocity.y,
+                            releaseVelocity.z,
+                            0.0f,
+                            0.0f,
+                            0.0f,
+                            true);
                     } else {
-                        body.setLinearVelocity(0.0f, 0.0f, 0.0f);
+                        commands.setBodyVelocity(bodyKey, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, true);
                     }
-                    body.activate();
-                });
-        } else if (bodyId != null && anchorBodyId != null && spaceId != null) {
-            resource.runOnPhysicsOwner("release grabbed physics joint",
-                access -> {
-                    boolean removedControlJoint =
-                        controlJointId != null && resource.removeJoint(controlJointId);
-                    PhysicsSpace space = access.getSpace(spaceId);
-                    if (!removedControlJoint && space != null) {
-                        PhysicsControlJointResolver.removeControlJoint(access,
-                            space,
-                            bodyId,
-                            anchorBodyId);
-                    }
-                });
-        }
-        if (anchorBodyId != null) {
-            resource.destroyBody(anchorBodyId);
+                }
+                if (anchorBodyKey != null) {
+                    commands.destroyBody(anchorBodyKey);
+                }
+            }).completionSummary().toCompletableFuture().join();
         }
 
         session.deactivate();
         store.removeComponent(controllerRef, PhysicsControlSessionComponent.getComponentType());
+    }
+
+    private static void addJointReleaseCommand(@Nonnull PhysicsCommandRecorder commands,
+        @Nullable JointKey controlJointKey,
+        @Nullable SpaceId spaceId,
+        @Nullable RigidBodyKey anchorBodyKey,
+        @Nullable RigidBodyKey bodyKey) {
+        if (spaceId != null && anchorBodyKey != null && bodyKey != null) {
+            commands.destroyJointBetween(controlJointKey, spaceId, anchorBodyKey, bodyKey);
+        } else if (controlJointKey != null) {
+            commands.destroyJoint(controlJointKey);
+        }
     }
 }

@@ -10,7 +10,7 @@ import com.hypixel.hytale.component.Store;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import dev.hytalemodding.impulse.core.plugin.components.PhysicsBodyAttachmentComponent;
 import dev.hytalemodding.impulse.core.plugin.components.PhysicsBodyAttachmentComponent.AttachmentLifecycle;
-import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyId;
+import dev.hytalemodding.impulse.core.plugin.body.RigidBodyKey;
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsWorldRuntimeResource;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
@@ -28,19 +28,19 @@ public final class GeneratedProxyLifecycle {
 
     static void removeProxy(@Nonnull ComponentAccessor<EntityStore> accessor,
         @Nonnull PhysicsWorldRuntimeResource resource,
-        @Nonnull PhysicsBodyId bodyId) {
-        Ref<EntityStore> proxy = resource.getGeneratedVisualProxy(bodyId);
-        removeProxy(accessor, resource, bodyId, proxy);
+        @Nonnull RigidBodyKey bodyKey) {
+        Ref<EntityStore> proxy = resource.getGeneratedVisualProxy(bodyKey);
+        removeProxy(accessor, resource, bodyKey, proxy);
     }
 
     static void removeProxy(@Nonnull ComponentAccessor<EntityStore> accessor,
         @Nonnull PhysicsWorldRuntimeResource resource,
-        @Nonnull PhysicsBodyId bodyId,
+        @Nonnull RigidBodyKey bodyKey,
         @Nullable Ref<EntityStore> proxy) {
         if (proxy == null) {
-            resource.clearGeneratedVisualProxy(bodyId);
+            resource.clearGeneratedVisualProxy(bodyKey);
         } else {
-            resource.clearGeneratedVisualProxy(bodyId, proxy);
+            resource.clearGeneratedVisualProxy(bodyKey, proxy);
         }
         removeEntity(accessor, proxy);
     }
@@ -49,10 +49,10 @@ public final class GeneratedProxyLifecycle {
         @Nonnull PhysicsBodyAttachmentComponent attachment,
         @Nonnull PhysicsWorldRuntimeResource resource,
         @Nonnull CommandBuffer<EntityStore> commandBuffer) {
-        resource.unregisterBodyAttachment(attachment.getBodyId(), entityRef);
+        resource.unregisterBodyAttachment(attachment.getBodyKey(), entityRef);
         resource.clearBodySyncState(entityRef);
         if (attachment.getLifecycle() == AttachmentLifecycle.GENERATED_PROXY) {
-            removeProxy(commandBuffer, resource, attachment.getBodyId(), entityRef);
+            removeProxy(commandBuffer, resource, attachment.getBodyKey(), entityRef);
         } else {
             commandBuffer.removeComponent(entityRef, ATTACHMENT_TYPE);
         }

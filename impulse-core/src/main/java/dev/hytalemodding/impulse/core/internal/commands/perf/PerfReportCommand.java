@@ -6,20 +6,24 @@ import com.hypixel.hytale.server.core.command.system.CommandContext;
 import com.hypixel.hytale.server.core.command.system.basecommands.AbstractWorldCommand;
 import com.hypixel.hytale.server.core.universe.world.World;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
-import dev.hytalemodding.impulse.api.PhysicsSpace;
-import dev.hytalemodding.impulse.api.PhysicsRuntimeStats;
 import dev.hytalemodding.impulse.core.internal.diagnostics.PhysicsEntityDiagnostics;
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsWorldRuntimeResource;
 import dev.hytalemodding.impulse.core.internal.resources.profiling.PhysicsRuntimeProfilingResource;
 import dev.hytalemodding.impulse.core.internal.resources.profiling.PhysicsRuntimeProfilingResource.StepSnapshot;
 import dev.hytalemodding.impulse.core.internal.resources.profiling.PhysicsRuntimeProfilingResource.SyncSnapshot;
 import dev.hytalemodding.impulse.core.internal.resources.profiling.PhysicsRuntimeProfilingResource.VisualSnapshot;
-import dev.hytalemodding.impulse.core.internal.worker.PhysicsWorkerAccess;
+import dev.hytalemodding.impulse.core.internal.simulation.PhysicsSpaceRuntimeStatsQuery;
+import dev.hytalemodding.impulse.core.internal.simulation.PhysicsSpaceRuntimeStatsView;
 import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyKind;
 import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyRegistrationView;
+import dev.hytalemodding.impulse.core.plugin.events.PhysicsCommandBatchEvent;
+import dev.hytalemodding.impulse.core.plugin.events.PhysicsEventFrame;
 import dev.hytalemodding.impulse.core.plugin.resources.PhysicsWorldResource;
+import dev.hytalemodding.impulse.core.plugin.simulation.SpaceSummary;
+import dev.hytalemodding.impulse.core.plugin.simulation.SpaceSummaryQuery;
 import dev.hytalemodding.impulse.core.internal.resources.profiling.WorldCollisionProfilingResource;
 import dev.hytalemodding.impulse.core.internal.resources.profiling.WorldCollisionProfilingResource.Snapshot;
+import java.util.List;
 import java.util.Locale;
 import javax.annotation.Nonnull;
 
@@ -51,7 +55,7 @@ public class PerfReportCommand extends AbstractWorldCommand {
         Snapshot worst = profiling.getWorstTickSnapshot();
         PhysicsEntityDiagnostics.Snapshot entityDiagnostics = PhysicsEntityDiagnostics.collect(store);
         PhysicsWorldResource physicsWorld = store.getResource(PhysicsWorldResource.getResourceType());
-        RuntimeFootprint runtimeFootprint = RuntimeFootprint.collect(store, physicsWorld);
+        RuntimeFootprint runtimeFootprint = RuntimeFootprint.collect(physicsWorld);
 
         ctx.sender().sendMessage(Message.raw("Impulse runtime profiling: "
             + ((runtimeProfiling.isEnabled() || profiling.isEnabled()) ? "enabled" : "disabled")));
@@ -61,6 +65,8 @@ public class PerfReportCommand extends AbstractWorldCommand {
             ctx.sender().sendMessage(Message.raw("Physics backend runtime stats: "
                 + runtimeFootprint.runtimeStatsSummary()));
         }
+        ctx.sender().sendMessage(Message.raw("Physics event frame: "
+            + formatEventFrameSummary(physicsWorld.getLatestEventFrame())));
         ctx.sender().sendMessage(Message.raw("Hytale entity diagnostics: "
             + entityDiagnostics.hytaleSummary()));
         ctx.sender().sendMessage(Message.raw("Impulse entity diagnostics: "
@@ -349,8 +355,8 @@ public class PerfReportCommand extends AbstractWorldCommand {
                 .append(sample.retainedEnvelopeStatus().name().toLowerCase(Locale.ROOT))
                 .append(" target=")
                 .append(sample.target().targetType().name().toLowerCase(Locale.ROOT));
-            if (sample.target().bodyId() != null) {
-                builder.append(" body=").append(sample.target().bodyId());
+            if (sample.target().bodyKey() != null) {
+                builder.append(" body=").append(sample.target().bodyKey());
             }
             if (sample.target().snapshotPosition() != null) {
                 builder.append(" snapshot=(")
@@ -371,6 +377,73 @@ public class PerfReportCommand extends AbstractWorldCommand {
             builder.append(" | +")
                 .append(snapshot.getMissingSectionSamples().size() - emitted)
                 .append(" more");
+        }
+        return builder.toString();
+    }
+
+    @Nonnull
+    static String formatEventFrameSummary(@Nonnull PhysicsEventFrame frame) {
+        StringBuilder builder = new StringBuilder()
+            .append("frame=")
+            .append(frame.frameSequence())
+            .append(" worldEpoch=")
+            .append(frame.worldEpoch())
+            .append(" snapshotFrame=")
+            .append(frame.latestSnapshotFrameEpoch())
+            .append(" snapshotStep=")
+            .append(frame.latestSnapshotStepSequence())
+            .append(" snapshotTick=")
+            .append(frame.latestSnapshotServerTick())
+            .append(" snapshotCommandWatermark=")
+            .append(frame.latestSnapshotCommandBatchSequenceWatermark())
+            .append(" events=")
+            .append(frame.eventCount())
+            .append(" commandBatches=")
+            .append(frame.commandBatchCount())
+            .append(" steps=")
+            .append(frame.stepCount())
+            .append(" publications=")
+            .append(frame.snapshotPublicationCount());
+        PhysicsCommandBatchEvent latestCommand = frame.latestCommandBatch();
+        if (latestCommand != null) {
+            boolean snapshotVisible = frame.latestSnapshotIncludes(latestCommand);
+            builder.append(" latestCommand=")
+                .append(latestCommand.commandBatchSequence())
+                .append(" submittedTick=")
+                .append(latestCommand.submittedServerTick())
+                .append(" bodyRefs=")
+                .append(latestCommand.bodyKeyReferenceCount())
+                .append(" jointRefs=")
+                .append(latestCommand.jointKeyReferenceCount())
+                .append(" snapshotVisible=")
+                .append(snapshotVisible);
+            if (latestCommand.firstBodyKey() != null) {
+                builder.append(" firstBody=")
+                    .append(latestCommand.firstBodyKey());
+            }
+            if (latestCommand.firstJointKey() != null) {
+                builder.append(" firstJoint=")
+                    .append(latestCommand.firstJointKey());
+            }
+            if (latestCommand.hasLiveOwnerTransactions()) {
+                builder.append(" liveOwnerTransactions=")
+                    .append(latestCommand.liveOwnerTransactionCount());
+            }
+            if (snapshotVisible) {
+                builder.append(" snapshotTickLatency=")
+                    .append(frame.visibleSnapshotServerTickLatency(latestCommand));
+            }
+            if (!latestCommand.allApplied()) {
+                builder.append(" firstRejected=")
+                    .append(latestCommand.firstRejectedCommandSequence());
+            }
+        }
+        var latestPublication = frame.latestSnapshotPublication();
+        if (latestPublication != null) {
+            builder.append(" publishedTick=")
+                .append(latestPublication.publicationServerTick())
+                .append(" framePublicationTickLatency=")
+                .append(latestPublication.frameToPublicationServerTickLatency());
         }
         return builder.toString();
     }
@@ -445,14 +518,7 @@ public class PerfReportCommand extends AbstractWorldCommand {
         int runtimeJoints) {
 
         @Nonnull
-        private static RuntimeFootprint collect(@Nonnull Store<EntityStore> store,
-            @Nonnull PhysicsWorldResource resource) {
-            return PhysicsWorkerAccess.call(store, "collect perf runtime footprint",
-                () -> collectOnWorker(resource));
-        }
-
-        @Nonnull
-        private static RuntimeFootprint collectOnWorker(@Nonnull PhysicsWorldResource resource) {
+        private static RuntimeFootprint collect(@Nonnull PhysicsWorldResource resource) {
             PhysicsWorldRuntimeResource runtime = PhysicsWorldRuntimeResource.require(resource);
             int spaces = 0;
             int backendBodies = 0;
@@ -468,24 +534,30 @@ public class PerfReportCommand extends AbstractWorldCommand {
             int runtimeTerrainContactPairs = 0;
             int runtimeActiveIslands = 0;
             int runtimeJoints = 0;
-            for (PhysicsSpace space : runtime.getSpaces()) {
+            List<SpaceSummary> summaries = resource.query(new SpaceSummaryQuery(null))
+                .completion()
+                .toCompletableFuture()
+                .join();
+            for (SpaceSummary summary : summaries) {
+                PhysicsSpaceRuntimeStatsView stats = runtime.queryInternal(
+                        new PhysicsSpaceRuntimeStatsQuery(summary.spaceId()))
+                    .toCompletableFuture()
+                    .join();
                 spaces++;
-                backendBodies += space.bodyCount();
-                backendJoints += space.jointCount();
-
-                PhysicsRuntimeStats runtimeStats = space.getRuntimeStats();
-                if (runtimeStats.available()) {
+                backendBodies += stats.bodies();
+                backendJoints += stats.joints();
+                if (stats.runtimeStatsAvailable()) {
                     runtimeStatsSpaces++;
-                    runtimeBodies += runtimeStats.bodyCount();
-                    runtimeColliders += runtimeStats.colliderCount();
-                    runtimeActiveBodies += runtimeStats.activeBodyCount();
-                    runtimeContactPairs += runtimeStats.contactPairCount();
-                    runtimeContactManifolds += runtimeStats.contactManifoldCount();
-                    runtimeContactPoints += runtimeStats.contactPointCount();
-                    runtimeDynamicDynamicContactPairs += runtimeStats.dynamicDynamicContactPairCount();
-                    runtimeTerrainContactPairs += runtimeStats.terrainContactPairCount();
-                    runtimeActiveIslands += runtimeStats.activeIslandCount();
-                    runtimeJoints += runtimeStats.jointCount();
+                    runtimeBodies += stats.runtimeBodyCount();
+                    runtimeColliders += stats.runtimeColliderCount();
+                    runtimeActiveBodies += stats.runtimeActiveBodyCount();
+                    runtimeContactPairs += stats.runtimeContactPairCount();
+                    runtimeContactManifolds += stats.runtimeContactManifoldCount();
+                    runtimeContactPoints += stats.runtimeContactPointCount();
+                    runtimeDynamicDynamicContactPairs += stats.runtimeDynamicDynamicContactPairCount();
+                    runtimeTerrainContactPairs += stats.runtimeTerrainContactPairCount();
+                    runtimeActiveIslands += stats.runtimeActiveIslandCount();
+                    runtimeJoints += stats.runtimeJointCount();
                 }
             }
 
@@ -493,7 +565,7 @@ public class PerfReportCommand extends AbstractWorldCommand {
             int detachedVisualProxies = 0;
             for (PhysicsBodyRegistrationView registration : resource.getBodyRegistrationViews()) {
                 if (registration.kind() != PhysicsBodyKind.BODY
-                    || !resource.getBodyAttachments(registration.id()).isEmpty()) {
+                    || resource.hasBodyAttachments(registration.id())) {
                     continue;
                 }
                 detachedBodies++;
