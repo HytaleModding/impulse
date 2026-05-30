@@ -1,27 +1,34 @@
 package dev.hytalemodding.impulse.core.plugin.snapshot;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import dev.hytalemodding.impulse.api.PhysicsAxis;
 import dev.hytalemodding.impulse.api.PhysicsBodySnapshot;
 import dev.hytalemodding.impulse.api.PhysicsBodyType;
 import dev.hytalemodding.impulse.api.ShapeType;
 import dev.hytalemodding.impulse.api.SpaceId;
-import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyId;
+import dev.hytalemodding.impulse.core.plugin.body.RigidBodyKey;
 import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyKind;
 import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyPersistenceMode;
+import java.io.IOException;
+import java.lang.reflect.Modifier;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
+import org.checkerframework.checker.nullness.compatqual.NonNullDecl;
 import org.joml.Quaternionf;
 import org.joml.Vector3f;
 import org.junit.jupiter.api.Test;
 
 class PublishedPhysicsSnapshotFrameTest {
 
-    private static final PhysicsBodyId BODY_ID =
-        PhysicsBodyId.of(UUID.fromString("00000000-0000-0000-0000-000000000001"));
+    private static final RigidBodyKey BODY_ID =
+        RigidBodyKey.of(UUID.fromString("00000000-0000-0000-0000-000000000001"));
+    private static final RigidBodyKey SECOND_BODY_ID =
+        RigidBodyKey.of(UUID.fromString("00000000-0000-0000-0000-000000000002"));
     private static final SpaceId SPACE_ID = new SpaceId(7);
 
     @Test
@@ -75,6 +82,17 @@ class PublishedPhysicsSnapshotFrameTest {
     }
 
     @Test
+    void bodySnapshotStoresPublishedStateWithoutNestedJomlObjects() {
+        List<String> nestedJomlFields = java.util.Arrays.stream(PublishedPhysicsBodySnapshot.class.getDeclaredFields())
+            .filter(field -> !Modifier.isStatic(field.getModifiers()))
+            .filter(field -> field.getType().equals(Vector3f.class) || field.getType().equals(Quaternionf.class))
+            .map(java.lang.reflect.Field::getName)
+            .toList();
+
+        assertEquals(List.of(), nestedJomlFields);
+    }
+
+    @Test
     void factoryCopiesExistingSnapshotData() {
         PhysicsBodySnapshot ownerThreadSnapshot = new PhysicsBodySnapshot(new Vector3f(1.0f, 0.0f, 0.0f),
             new Quaternionf().rotateY(0.5f),
@@ -117,6 +135,75 @@ class PublishedPhysicsSnapshotFrameTest {
     }
 
     @Test
+    void factoryDoesNotAliasThreadLocalScratchAcrossPublishedSnapshots() {
+        PhysicsBodySnapshot firstSnapshot = new PhysicsBodySnapshot(new Vector3f(1.0f, 2.0f, 3.0f),
+            new Quaternionf().rotateY(0.25f),
+            new Vector3f(4.0f, 5.0f, 6.0f),
+            new Vector3f(7.0f, 8.0f, 9.0f),
+            PhysicsBodyType.DYNAMIC,
+            false,
+            false,
+            0.0f,
+            ShapeType.BOX,
+            new Vector3f(0.25f, 0.5f, 0.75f),
+            -1.0f,
+            -1.0f,
+            PhysicsAxis.Y);
+        PhysicsBodySnapshot secondSnapshot = new PhysicsBodySnapshot(new Vector3f(11.0f, 12.0f, 13.0f),
+            new Quaternionf().rotateX(0.75f),
+            new Vector3f(14.0f, 15.0f, 16.0f),
+            new Vector3f(17.0f, 18.0f, 19.0f),
+            PhysicsBodyType.KINEMATIC,
+            true,
+            false,
+            1.0f,
+            ShapeType.SPHERE,
+            null,
+            2.0f,
+            -1.0f,
+            PhysicsAxis.Y);
+
+        PublishedPhysicsBodySnapshot first = PublishedPhysicsBodySnapshot.from(BODY_ID,
+            SPACE_ID,
+            1L,
+            2L,
+            3L,
+            4L,
+            PhysicsBodyKind.BODY,
+            PhysicsBodyPersistenceMode.PERSISTENT,
+            firstSnapshot);
+        PublishedPhysicsBodySnapshot.from(BODY_ID,
+            SPACE_ID,
+            2L,
+            2L,
+            2L,
+            2L,
+            PhysicsBodyKind.BODY,
+            PhysicsBodyPersistenceMode.PERSISTENT,
+            secondSnapshot);
+
+        assertEquals(new Vector3f(1.0f, 2.0f, 3.0f), first.position());
+        assertEquals(new Quaternionf().rotateY(0.25f), first.rotation());
+        assertEquals(new Vector3f(4.0f, 5.0f, 6.0f), first.linearVelocity());
+        assertEquals(new Vector3f(7.0f, 8.0f, 9.0f), first.angularVelocity());
+        assertEquals(new Vector3f(0.25f, 0.5f, 0.75f), first.boxHalfExtents());
+    }
+
+    @Test
+    void toBodySnapshotPreservesDefensiveCopyBoundary() {
+        PublishedPhysicsBodySnapshot published = bodySnapshot(10L, 20L, 30L, SPACE_ID);
+
+        PhysicsBodySnapshot snapshot = published.toBodySnapshot();
+        snapshot.position().zero();
+        snapshot.linearVelocity().zero();
+
+        assertEquals(new Vector3f(1.0f, 2.0f, 3.0f), published.position());
+        assertEquals(new Vector3f(4.0f, 5.0f, 6.0f), published.linearVelocity());
+        assertEquals(new Vector3f(1.0f, 2.0f, 3.0f), snapshot.position());
+        assertEquals(new Vector3f(4.0f, 5.0f, 6.0f), snapshot.linearVelocity());
+    }
+
+    @Test
     void framesCopyListsAndExposeCounts() {
         PublishedPhysicsBodySnapshot body = bodySnapshot(10L, 20L, 30L, SPACE_ID);
         List<PublishedPhysicsBodySnapshot> bodies = new ArrayList<>();
@@ -148,6 +235,45 @@ class PublishedPhysicsSnapshotFrameTest {
         assertEquals(1, frame.spaceCount());
         assertEquals(1, frame.bodyCount());
         assertThrows(UnsupportedOperationException.class, () -> frame.spaces().clear());
+    }
+
+    @Test
+    void framesVisitBodiesInPublicationOrder() {
+        PublishedPhysicsBodySnapshot firstBody = bodySnapshot(BODY_ID,
+            10L,
+            20L,
+            30L,
+            SPACE_ID);
+        PublishedPhysicsBodySnapshot secondBody = bodySnapshot(SECOND_BODY_ID,
+            10L,
+            20L,
+            30L,
+            SPACE_ID);
+        List<RigidBodyKey> visited = getRigidBodyKeys(firstBody, secondBody);
+
+        assertEquals(List.of(BODY_ID, SECOND_BODY_ID), visited);
+    }
+
+    @NonNullDecl
+    private static List<RigidBodyKey> getRigidBodyKeys(PublishedPhysicsBodySnapshot firstBody,
+        PublishedPhysicsBodySnapshot secondBody) {
+        PublishedPhysicsSnapshotFrame frame = new PublishedPhysicsSnapshotFrame(10L,
+            20L,
+            40L,
+            50L,
+            PublishedPhysicsSnapshotFrame.Status.COMPLETE,
+            12,
+            100L,
+            200L,
+            List.of(new PublishedPhysicsSpaceFrame(SPACE_ID,
+                10L,
+                20L,
+                30L,
+                List.of(firstBody, secondBody))));
+        List<RigidBodyKey> visited = new ArrayList<>();
+
+        frame.forEachBody(body -> visited.add(body.bodyId()));
+        return visited;
     }
 
     @Test
@@ -202,7 +328,15 @@ class PublishedPhysicsSnapshotFrameTest {
         long worldEpoch,
         long spaceEpoch,
         SpaceId spaceId) {
-        return new PublishedPhysicsBodySnapshot(BODY_ID,
+        return bodySnapshot(BODY_ID, frameEpoch, worldEpoch, spaceEpoch, spaceId);
+    }
+
+    private static PublishedPhysicsBodySnapshot bodySnapshot(RigidBodyKey bodyId,
+        long frameEpoch,
+        long worldEpoch,
+        long spaceEpoch,
+        SpaceId spaceId) {
+        return new PublishedPhysicsBodySnapshot(bodyId,
             spaceId,
             frameEpoch,
             worldEpoch,

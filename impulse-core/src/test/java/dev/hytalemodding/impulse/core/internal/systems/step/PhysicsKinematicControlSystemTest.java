@@ -15,12 +15,12 @@ import dev.hytalemodding.impulse.core.internal.control.PhysicsControlJointResolv
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsWorldRuntimeResource;
 import dev.hytalemodding.impulse.core.internal.systems.step.PhysicsKinematicControlSystem.ControlAnchorUpdate;
 import dev.hytalemodding.impulse.core.internal.systems.step.PhysicsKinematicControlSystem.ControlMutationState;
-import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyId;
+import dev.hytalemodding.impulse.core.plugin.body.RigidBodyKey;
 import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyKind;
 import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyPersistenceMode;
 import dev.hytalemodding.impulse.core.internal.components.PhysicsControlSessionComponent;
-import dev.hytalemodding.impulse.core.plugin.execution.PhysicsMutationHandle;
-import dev.hytalemodding.impulse.core.plugin.joint.PhysicsJointId;
+import dev.hytalemodding.impulse.core.plugin.resources.PhysicsMutationHandle;
+import dev.hytalemodding.impulse.core.plugin.joint.JointKey;
 import java.util.Arrays;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -33,8 +33,8 @@ class PhysicsKinematicControlSystemTest {
 
     @Test
     void controlAnchorUpdateCopiesMutableVectors() {
-        PhysicsBodyId bodyId = PhysicsBodyId.random();
-        PhysicsBodyId anchorBodyId = PhysicsBodyId.random();
+        RigidBodyKey bodyId = RigidBodyKey.random();
+        RigidBodyKey anchorBodyId = RigidBodyKey.random();
         Vector3f target = new Vector3f(1.0f, 2.0f, 3.0f);
         Vector3f releaseVelocity = new Vector3f(4.0f, 5.0f, 6.0f);
         ControlAnchorUpdate update = new ControlAnchorUpdate(bodyId,
@@ -51,7 +51,7 @@ class PhysicsKinematicControlSystemTest {
     @Test
     void pendingControlMutationBlocksAnotherSubmissionUntilComplete() {
         ControlMutationState state = new ControlMutationState();
-        PhysicsBodyId bodyId = PhysicsBodyId.random();
+        RigidBodyKey bodyId = RigidBodyKey.random();
         CompletableFuture<Void> completion = new CompletableFuture<>();
         PhysicsMutationHandle<Void> handle = PhysicsMutationHandle.fromCompletion("test",
             null,
@@ -69,7 +69,7 @@ class PhysicsKinematicControlSystemTest {
     @Test
     void clearingControlMutationStateAllowsImmediateRetry() {
         ControlMutationState state = new ControlMutationState();
-        PhysicsBodyId bodyId = PhysicsBodyId.random();
+        RigidBodyKey bodyId = RigidBodyKey.random();
         CompletableFuture<Void> completion = new CompletableFuture<>();
         PhysicsMutationHandle<Void> handle = PhysicsMutationHandle.fromCompletion("test",
             null,
@@ -93,11 +93,11 @@ class PhysicsKinematicControlSystemTest {
         PhysicsSpace space = resource.createLiveSpace(backend.getId());
         PhysicsBody body = space.createBox(0.5f, 0.5f, 0.5f, 1.0f);
         PhysicsBody anchorBody = space.createSphere(0.1f, 1.0f);
-        PhysicsBodyId bodyId = resource.addBody(space.getId(),
+        RigidBodyKey bodyId = resource.addBody(space.getId(),
             body,
             PhysicsBodyKind.BODY,
             PhysicsBodyPersistenceMode.PERSISTENT);
-        PhysicsBodyId anchorBodyId = resource.addBody(space.getId(),
+        RigidBodyKey anchorBodyId = resource.addBody(space.getId(),
             anchorBody,
             PhysicsBodyKind.TEMPORARY,
             PhysicsBodyPersistenceMode.RUNTIME_ONLY);
@@ -105,7 +105,7 @@ class PhysicsKinematicControlSystemTest {
 
         assertEquals(1, space.jointCount());
 
-        boolean removed = resource.callOnPhysicsOwner("remove control joint",
+        boolean removed = resource.callOwner("remove control joint",
             access -> PhysicsControlJointResolver.removeControlJoint(access,
                 space,
                 bodyId,
@@ -124,17 +124,17 @@ class PhysicsKinematicControlSystemTest {
         PhysicsSpace space = resource.createLiveSpace(backend.getId());
         PhysicsBody body = space.createBox(0.5f, 0.5f, 0.5f, 1.0f);
         PhysicsBody anchorBody = space.createSphere(0.1f, 1.0f);
-        PhysicsBodyId bodyId = resource.addBody(space.getId(),
+        RigidBodyKey bodyId = resource.addBody(space.getId(),
             body,
             PhysicsBodyKind.BODY,
             PhysicsBodyPersistenceMode.PERSISTENT);
-        PhysicsBodyId anchorBodyId = resource.addBody(space.getId(),
+        RigidBodyKey anchorBodyId = resource.addBody(space.getId(),
             anchorBody,
             PhysicsBodyKind.TEMPORARY,
             PhysicsBodyPersistenceMode.RUNTIME_ONLY);
         PhysicsJoint controlJoint =
             space.createPointJoint(anchorBody, body, new Vector3f(), new Vector3f());
-        PhysicsJointId controlJointId = resource.addJoint(space.getId(), controlJoint);
+        JointKey controlJointId = resource.addJoint(space.getId(), controlJoint);
         resource.markBodyControlled(bodyId);
         PhysicsControlSessionComponent session = new PhysicsControlSessionComponent(bodyId,
             anchorBodyId,

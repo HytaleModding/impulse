@@ -14,7 +14,7 @@ import dev.hytalemodding.impulse.api.PhysicsSpace;
 import dev.hytalemodding.impulse.api.ShapeType;
 import dev.hytalemodding.impulse.api.SpaceId;
 import dev.hytalemodding.impulse.api.testsupport.FakePhysicsBackend;
-import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyId;
+import dev.hytalemodding.impulse.core.plugin.body.RigidBodyKey;
 import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyKind;
 import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyPersistenceMode;
 import dev.hytalemodding.impulse.core.internal.resources.body.PhysicsBodyRegistration;
@@ -465,7 +465,7 @@ class PersistentPhysicsCodecValidationTest {
         PhysicsSpace space = new FakePhysicsBackend("test:body-state-block-"
             + BACKEND_COUNTER.incrementAndGet()).createSpace();
         PhysicsBody body = space.createBox(0.5f, 0.75f, 1.0f, 1.0f);
-        PhysicsBodyId bodyId = PhysicsBodyId.of(UUID.fromString("00000000-0000-0000-0000-000000000001"));
+        RigidBodyKey bodyId = RigidBodyKey.of(UUID.fromString("00000000-0000-0000-0000-000000000001"));
         PhysicsBodyRegistration registration = new PhysicsBodyRegistration(
             bodyId,
             body,
@@ -479,7 +479,7 @@ class PersistentPhysicsCodecValidationTest {
         PhysicsSpace space = new FakePhysicsBackend("test:plane-body-state-block-"
             + BACKEND_COUNTER.incrementAndGet()).createSpace();
         PhysicsBody body = space.createStaticPlane(groundY);
-        PhysicsBodyId bodyId = PhysicsBodyId.of(UUID.fromString("00000000-0000-0000-0000-000000000003"));
+        RigidBodyKey bodyId = RigidBodyKey.of(UUID.fromString("00000000-0000-0000-0000-000000000003"));
         PhysicsBodyRegistration registration = new PhysicsBodyRegistration(
             bodyId,
             body,
@@ -492,8 +492,8 @@ class PersistentPhysicsCodecValidationTest {
     private static PersistentPhysicsJointState persistentJointState(int spaceId) {
         PersistentPhysicsJointState joint = new PersistentPhysicsJointState();
         joint.setSpaceId(spaceId);
-        joint.setBodyAId(PhysicsBodyId.of(UUID.fromString("00000000-0000-0000-0000-000000000001")));
-        joint.setBodyBId(PhysicsBodyId.of(UUID.fromString("00000000-0000-0000-0000-000000000002")));
+        joint.setBodyAId(RigidBodyKey.of(UUID.fromString("00000000-0000-0000-0000-000000000001")));
+        joint.setBodyBId(RigidBodyKey.of(UUID.fromString("00000000-0000-0000-0000-000000000002")));
         joint.setType(PhysicsJointType.FIXED);
         return joint;
     }

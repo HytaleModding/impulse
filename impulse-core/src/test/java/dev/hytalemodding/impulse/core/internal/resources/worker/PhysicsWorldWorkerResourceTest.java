@@ -3,6 +3,7 @@ package dev.hytalemodding.impulse.core.internal.resources.worker;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -10,7 +11,8 @@ import dev.hytalemodding.impulse.core.internal.worker.PhysicsWorkerAccess;
 import dev.hytalemodding.impulse.core.internal.worker.PhysicsWorkerMutationCompletion;
 import dev.hytalemodding.impulse.core.internal.worker.PhysicsWorkerSnapshot;
 import dev.hytalemodding.impulse.core.internal.worker.PhysicsWorkerStepCommand;
-import dev.hytalemodding.impulse.core.plugin.execution.PhysicsMutationHandle;
+import dev.hytalemodding.impulse.core.internal.worker.PhysicsWorkerStepCompletion;
+import dev.hytalemodding.impulse.core.plugin.resources.PhysicsMutationHandle;
 import dev.hytalemodding.impulse.core.plugin.resources.PhysicsWorldResource;
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsWorldRuntimeResource;
 import java.time.Duration;
@@ -20,6 +22,8 @@ import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
+import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
 import org.junit.jupiter.api.Test;
 
 class PhysicsWorldWorkerResourceTest {
@@ -207,6 +211,51 @@ class PhysicsWorldWorkerResourceTest {
     }
 
     @Test
+    void submittedStepRunsBeforeQueuedMutationBacklogAfterActiveCommand() throws Exception {
+        CountDownLatch activeMutationStarted = new CountDownLatch(1);
+        CountDownLatch releaseActiveMutation = new CountDownLatch(1);
+        CountDownLatch queuedMutationStarted = new CountDownLatch(1);
+        CountDownLatch releaseQueuedMutation = new CountDownLatch(1);
+        try (PhysicsWorldWorkerResource resource = new PhysicsWorldWorkerResource(4,
+            Duration.ofSeconds(2L))) {
+            resource.start("step-priority");
+
+            resource.submitMutation("active mutation", () -> {
+                activeMutationStarted.countDown();
+                assertTrue(releaseActiveMutation.await(2, TimeUnit.SECONDS));
+                return PhysicsWorkerSnapshot.empty();
+            });
+            assertTrue(activeMutationStarted.await(2, TimeUnit.SECONDS));
+
+            resource.submitMutation("queued long mutation", () -> {
+                queuedMutationStarted.countDown();
+                assertTrue(releaseQueuedMutation.await(2, TimeUnit.SECONDS));
+                return PhysicsWorkerSnapshot.empty();
+            });
+
+            PhysicsWorkerStepCommand step = new PhysicsWorkerStepCommand(
+                new PhysicsWorldRuntimeResource(),
+                0.05f,
+                false,
+                1L,
+                1L);
+            assertTrue(resource.submitStepIfIdle(step));
+
+            releaseActiveMutation.countDown();
+            PhysicsWorkerStepCompletion completed = pollStepCompletion(resource,
+                Duration.ofMillis(500L));
+
+            assertNotNull(completed,
+                "queued mutations must not starve an already-submitted physics step");
+            assertTrue(completed.completedSuccessfully());
+            releaseQueuedMutation.countDown();
+        } finally {
+            releaseActiveMutation.countDown();
+            releaseQueuedMutation.countDown();
+        }
+    }
+
+    @Test
     void cloneDoesNotShareStartedRunner() {
         try (PhysicsWorldWorkerResource resource = new PhysicsWorldWorkerResource(2,
             Duration.ofSeconds(2L))) {
@@ -239,5 +288,21 @@ class PhysicsWorldWorkerResourceTest {
             Thread.sleep(10L);
         }
         return completions;
+    }
+
+    @Nullable
+    private static PhysicsWorkerStepCompletion pollStepCompletion(
+        PhysicsWorldWorkerResource resource,
+        @Nonnull Duration timeout) throws InterruptedException {
+        long deadline = System.nanoTime() + timeout.toNanos();
+        PhysicsWorkerStepCompletion completion = null;
+        while (System.nanoTime() < deadline) {
+            completion = resource.pollCompletedStep();
+            if (completion != null) {
+                return completion;
+            }
+            Thread.sleep(10L);
+        }
+        return resource.pollCompletedStep();
     }
 }

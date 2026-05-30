@@ -45,4 +45,18 @@ class WorldCollisionStreamingBoundsTest {
         assertEquals(0, bounds.maxSectionY(),
             "Below-world targets should clamp to the lowest valid streamed section");
     }
+
+    @Test
+    void scalarFactoryMatchesVectorFactory() {
+        WorldCollisionStreamingBounds vectorBounds = WorldCollisionStreamingBounds.from(
+            new Vector3f(10.2f, 65.4f, -3.7f),
+            4);
+        WorldCollisionStreamingBounds scalarBounds = WorldCollisionStreamingBounds.from(
+            10.2f,
+            65.4f,
+            -3.7f,
+            4);
+
+        assertEquals(vectorBounds, scalarBounds);
+    }
 }
