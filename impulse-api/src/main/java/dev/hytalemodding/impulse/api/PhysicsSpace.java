@@ -215,6 +215,16 @@ public interface PhysicsSpace {
     List<PhysicsContact> getContacts();
 
     /**
+     * Returns the number of active contacts in this space.
+     *
+     * <p>Default implementation delegates to {@link #getContacts()}.
+     * Backends should override to avoid contact-list allocation.</p>
+     */
+    default int contactCount() {
+        return getContacts().size();
+    }
+
+    /**
      * Create a fixed joint.
      * Anchors are local to each body.
      * The joint locks the bodies together with no relative translation or rotation.
@@ -224,6 +234,21 @@ public interface PhysicsSpace {
         @Nonnull PhysicsBody bodyB,
         @Nonnull Vector3f anchorA,
         @Nonnull Vector3f anchorB);
+
+    @Nonnull
+    default PhysicsJoint createFixedJoint(@Nonnull PhysicsBody bodyA,
+        @Nonnull PhysicsBody bodyB,
+        float anchorAX,
+        float anchorAY,
+        float anchorAZ,
+        float anchorBX,
+        float anchorBY,
+        float anchorBZ) {
+        return createFixedJoint(bodyA,
+            bodyB,
+            new Vector3f(anchorAX, anchorAY, anchorAZ),
+            new Vector3f(anchorBX, anchorBY, anchorBZ));
+    }
 
     /**
      * Create a point joint.
@@ -235,6 +260,21 @@ public interface PhysicsSpace {
         @Nonnull PhysicsBody bodyB,
         @Nonnull Vector3f anchorA,
         @Nonnull Vector3f anchorB);
+
+    @Nonnull
+    default PhysicsJoint createPointJoint(@Nonnull PhysicsBody bodyA,
+        @Nonnull PhysicsBody bodyB,
+        float anchorAX,
+        float anchorAY,
+        float anchorAZ,
+        float anchorBX,
+        float anchorBY,
+        float anchorBZ) {
+        return createPointJoint(bodyA,
+            bodyB,
+            new Vector3f(anchorAX, anchorAY, anchorAZ),
+            new Vector3f(anchorBX, anchorBY, anchorBZ));
+    }
 
     /**
      * Create a hinge joint.
@@ -249,6 +289,25 @@ public interface PhysicsSpace {
         @Nonnull Vector3f anchorB,
         @Nonnull Vector3f axis);
 
+    @Nonnull
+    default PhysicsJoint createHingeJoint(@Nonnull PhysicsBody bodyA,
+        @Nonnull PhysicsBody bodyB,
+        float anchorAX,
+        float anchorAY,
+        float anchorAZ,
+        float anchorBX,
+        float anchorBY,
+        float anchorBZ,
+        float axisX,
+        float axisY,
+        float axisZ) {
+        return createHingeJoint(bodyA,
+            bodyB,
+            new Vector3f(anchorAX, anchorAY, anchorAZ),
+            new Vector3f(anchorBX, anchorBY, anchorBZ),
+            new Vector3f(axisX, axisY, axisZ));
+    }
+
     /**
      * Create a slider joint.
      * Anchors are local to each body.
@@ -261,6 +320,25 @@ public interface PhysicsSpace {
         @Nonnull Vector3f anchorA,
         @Nonnull Vector3f anchorB,
         @Nonnull Vector3f axis);
+
+    @Nonnull
+    default PhysicsJoint createSliderJoint(@Nonnull PhysicsBody bodyA,
+        @Nonnull PhysicsBody bodyB,
+        float anchorAX,
+        float anchorAY,
+        float anchorAZ,
+        float anchorBX,
+        float anchorBY,
+        float anchorBZ,
+        float axisX,
+        float axisY,
+        float axisZ) {
+        return createSliderJoint(bodyA,
+            bodyB,
+            new Vector3f(anchorAX, anchorAY, anchorAZ),
+            new Vector3f(anchorBX, anchorBY, anchorBZ),
+            new Vector3f(axisX, axisY, axisZ));
+    }
 
     /**
      * Create a spring joint.
@@ -275,6 +353,27 @@ public interface PhysicsSpace {
         float restLength,
         float stiffness,
         float damping);
+
+    @Nonnull
+    default PhysicsJoint createSpringJoint(@Nonnull PhysicsBody bodyA,
+        @Nonnull PhysicsBody bodyB,
+        float anchorAX,
+        float anchorAY,
+        float anchorAZ,
+        float anchorBX,
+        float anchorBY,
+        float anchorBZ,
+        float restLength,
+        float stiffness,
+        float damping) {
+        return createSpringJoint(bodyA,
+            bodyB,
+            new Vector3f(anchorAX, anchorAY, anchorAZ),
+            new Vector3f(anchorBX, anchorBY, anchorBZ),
+            restLength,
+            stiffness,
+            damping);
+    }
 
     void removeJoint(@Nonnull PhysicsJoint joint);
 

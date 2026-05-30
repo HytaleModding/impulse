@@ -14,9 +14,15 @@ final class RapierJoint implements PhysicsJoint {
     private final RapierBody bodyA;
     private final RapierBody bodyB;
     private final long jointHandle;
-    private final Vector3f anchorA;
-    private final Vector3f anchorB;
-    private final Vector3f axis;
+    private final float anchorAX;
+    private final float anchorAY;
+    private final float anchorAZ;
+    private final float anchorBX;
+    private final float anchorBY;
+    private final float anchorBZ;
+    private final float axisX;
+    private final float axisY;
+    private final float axisZ;
     private float lowerLimit;
     private float upperLimit;
     private boolean motorEnabled;
@@ -32,9 +38,15 @@ final class RapierJoint implements PhysicsJoint {
         @Nonnull RapierBody bodyA,
         @Nonnull RapierBody bodyB,
         long jointHandle,
-        @Nonnull Vector3f anchorA,
-        @Nonnull Vector3f anchorB,
-        @Nullable Vector3f axis,
+        float anchorAX,
+        float anchorAY,
+        float anchorAZ,
+        float anchorBX,
+        float anchorBY,
+        float anchorBZ,
+        float axisX,
+        float axisY,
+        float axisZ,
         float springRestLength,
         float springStiffness,
         float springDamping) {
@@ -43,9 +55,15 @@ final class RapierJoint implements PhysicsJoint {
         this.bodyA = bodyA;
         this.bodyB = bodyB;
         this.jointHandle = jointHandle;
-        this.anchorA = new Vector3f(anchorA);
-        this.anchorB = new Vector3f(anchorB);
-        this.axis = axis != null ? new Vector3f(axis) : null;
+        this.anchorAX = anchorAX;
+        this.anchorAY = anchorAY;
+        this.anchorAZ = anchorAZ;
+        this.anchorBX = anchorBX;
+        this.anchorBY = anchorBY;
+        this.anchorBZ = anchorBZ;
+        this.axisX = axisX;
+        this.axisY = axisY;
+        this.axisZ = axisZ;
         this.springRestLength = springRestLength;
         this.springStiffness = springStiffness;
         this.springDamping = springDamping;
@@ -88,19 +106,19 @@ final class RapierJoint implements PhysicsJoint {
     @Nonnull
     @Override
     public Vector3f getAnchorA() {
-        return new Vector3f(anchorA);
+        return new Vector3f(anchorAX, anchorAY, anchorAZ);
     }
 
     @Nonnull
     @Override
     public Vector3f getAnchorB() {
-        return new Vector3f(anchorB);
+        return new Vector3f(anchorBX, anchorBY, anchorBZ);
     }
 
     @Nullable
     @Override
     public Vector3f getAxis() {
-        return axis != null ? new Vector3f(axis) : null;
+        return new Vector3f(axisX, axisY, axisZ);
     }
 
     @Override

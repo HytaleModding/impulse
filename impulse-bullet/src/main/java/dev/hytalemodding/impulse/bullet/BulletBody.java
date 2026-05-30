@@ -263,7 +263,17 @@ public final class BulletBody implements PhysicsBody {
 
     @Override
     public void applyForce(@Nonnull Vector3f force, @Nonnull Vector3f offset) {
-        body.applyForce(toJme(force), toJme(offset));
+        applyForce(force.x, force.y, force.z, offset.x, offset.y, offset.z);
+    }
+
+    @Override
+    public void applyForce(float x,
+        float y,
+        float z,
+        float offsetX,
+        float offsetY,
+        float offsetZ) {
+        body.applyForce(toJme(x, y, z), toJme(offsetX, offsetY, offsetZ));
     }
 
     @Override
@@ -278,17 +288,37 @@ public final class BulletBody implements PhysicsBody {
 
     @Override
     public void applyImpulse(@Nonnull Vector3f impulse, @Nonnull Vector3f offset) {
-        body.applyImpulse(toJme(impulse), toJme(offset));
+        applyImpulse(impulse.x, impulse.y, impulse.z, offset.x, offset.y, offset.z);
+    }
+
+    @Override
+    public void applyImpulse(float x,
+        float y,
+        float z,
+        float offsetX,
+        float offsetY,
+        float offsetZ) {
+        body.applyImpulse(toJme(x, y, z), toJme(offsetX, offsetY, offsetZ));
     }
 
     @Override
     public void applyTorque(@Nonnull Vector3f torque) {
-        body.applyTorque(toJme(torque));
+        applyTorque(torque.x, torque.y, torque.z);
+    }
+
+    @Override
+    public void applyTorque(float x, float y, float z) {
+        body.applyTorque(toJme(x, y, z));
     }
 
     @Override
     public void applyTorqueImpulse(@Nonnull Vector3f torqueImpulse) {
-        body.applyTorqueImpulse(toJme(torqueImpulse));
+        applyTorqueImpulse(torqueImpulse.x, torqueImpulse.y, torqueImpulse.z);
+    }
+
+    @Override
+    public void applyTorqueImpulse(float x, float y, float z) {
+        body.applyTorqueImpulse(toJme(x, y, z));
     }
 
     @Override
