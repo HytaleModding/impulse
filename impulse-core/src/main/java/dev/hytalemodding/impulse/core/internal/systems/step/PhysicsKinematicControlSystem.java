@@ -254,7 +254,7 @@ public class PhysicsKinematicControlSystem extends EntityTickingSystem<EntitySto
                 return;
             }
             pendingMutations.put(bodyKey, handle);
-            handle.completion().whenComplete((ignored, failure) -> clear(bodyKey, handle));
+            handle.completion().whenComplete((ignored, _) -> clear(bodyKey, handle));
         }
 
         synchronized void clear(@Nullable RigidBodyKey bodyKey) {

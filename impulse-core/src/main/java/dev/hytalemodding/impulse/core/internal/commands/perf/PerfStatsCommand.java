@@ -31,6 +31,7 @@ public class PerfStatsCommand extends AbstractWorldCommand {
             .completion()
             .toCompletableFuture()
             .join();
+
         if (spaces.isEmpty()) {
             ctx.sender().sendMessage(Message.raw("Impulse runtime stats: no physics spaces in world "
                 + world.getName() + "."));

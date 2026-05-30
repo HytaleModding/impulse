@@ -18,16 +18,6 @@ import javax.annotation.Nullable;
  * <p>{@code frameEpoch} and {@code worldEpoch} are publication-ordering keys.
  * {@code stepSequence} and {@code serverTick} are correlation metadata and must
  * not be used to decide whether a frame is current for the world topology.</p>
- *
- * @param stepSequence Impulse step-scheduler sequence assigned to the worker
- *     step; not a Hytale tick and not guaranteed contiguous in published frames
- * @param serverTick Hytale world tick observed when the worker step was
- *     scheduled; not a physics step counter and may diverge from
- *     {@code stepSequence} under paused worlds, backpressure, or future
- *     multi-rate scheduling
- * @param commandBatchSequenceWatermark latest command-batch sequence whose
- *     owner-thread execution completed before this frame was captured; command
- *     completion can precede visibility in a later published frame
  */
 public final class PublishedPhysicsSnapshotFrame {
 
@@ -40,8 +30,25 @@ public final class PublishedPhysicsSnapshotFrame {
 
     private final long frameEpoch;
     private final long worldEpoch;
+
+    /**
+     * Impulse step-scheduler sequence assigned to the worker step
+     * not a Hytale tick and not guaranteed contiguous in published frames
+     */
     private final long stepSequence;
+
+    /**
+     * Hytale world tick observed when the worker step was scheduled.
+     * This is not a physics step counter and may diverge from {@code stepSequence} under paused
+     * worlds, backpressure, or future multi-rate scheduling
+     */
     private final long serverTick;
+
+    /**
+     * latest command-batch sequence whose owner-thread execution completed before this frame was
+     * captured.
+     * Command completion can precede visibility in a later published frame
+     */
     private final long commandBatchSequenceWatermark;
     @Nonnull
     private final Status status;
@@ -304,8 +311,8 @@ public final class PublishedPhysicsSnapshotFrame {
         }
         int count = 0;
         List<PublishedPhysicsSpaceFrame> currentSpaces = spaces();
-        for (int index = 0; index < currentSpaces.size(); index++) {
-            count += currentSpaces.get(index).bodyCount();
+        for (PublishedPhysicsSpaceFrame currentSpace : currentSpaces) {
+            count += currentSpace.bodyCount();
         }
         return count;
     }
