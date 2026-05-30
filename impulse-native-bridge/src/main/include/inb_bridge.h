@@ -2,9 +2,11 @@
 
 #include <stdint.h>
 #include <stdbool.h>
-#include <inb_body.h>
-#include <inb_common.h>
-#include <inb_space.h>
+
+#include "inb_body.h"
+#include "inb_common.h"
+#include "inb_space.h"
+#include "inb_joint.h"
 
 #ifndef INB_BRIDGE
 #define INB_BRIDGE
@@ -42,7 +44,7 @@ extern "C"
    *
    * @param space_id  The space id to create the space with.
    */
-  INB_API void inb_backend_create_space(int32_t space_id);
+  INB_API void inb_backend_create_space_with_id(int32_t space_id);
 
 #ifdef __cplusplus
 }

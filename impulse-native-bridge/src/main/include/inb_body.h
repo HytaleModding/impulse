@@ -1,8 +1,9 @@
 #pragma once
 
-#include <inb_common.h>
 #include <stdint.h>
 #include <stdbool.h>
+
+#include "inb_common.h"
 
 #ifndef INB_BODY
 #define INB_BODY

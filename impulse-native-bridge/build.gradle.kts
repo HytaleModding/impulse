@@ -37,11 +37,15 @@ val platformClassifier = when {
     else -> if (arch.contains("aarch64") || arch.contains("arm64")) "linux-aarch64" else "linux-x64"
 }
 
-val jextractUrl = "https://download.java.net/java/early_access/jextract/25/2/openjdk-25-jextract+2-4_${platformClassifier}_bin.tar.gz"
 
 val downloadDir = layout.buildDirectory.dir("jextract-download")
 val extractedToolDir = layout.buildDirectory.dir("jextract-tool")
 val generatedSourcesDir = layout.buildDirectory.dir("generated/sources/jextract")
+
+val jextractVer = project.property("jextractVersion") as String
+val jextractFull = project.property("jextractFullVersion") as String
+val jextractUrl = "https://download.java.net/java/early_access/jextract/$jextractVer/2/openjdk-${jextractFull}_${platformClassifier}_bin.tar.gz"
+val jextractFolderName = "jextract-$jextractVer"
 
 val downloadJextract by tasks.registering {
     group = "build"
@@ -77,12 +81,12 @@ val extractJextract by tasks.registering(Copy::class) {
     into(extractedToolDir)
 }
 
-val generateApiBindings by tasks.registering(Exec::class) {
+val generateBridgeBindings by tasks.registering(Exec::class) {
     group = "build"
     description = "Generates Panama Java bindings using the platform-specific extracted tool"
     dependsOn(extractJextract)
 
-    val headerFile = file("src/main/c/bridge.h")
+    val headerFile = file("src/main/include/inb_bridge.h")
 
     inputs.file(headerFile)
     outputs.dir(generatedSourcesDir)
@@ -91,11 +95,13 @@ val generateApiBindings by tasks.registering(Exec::class) {
     val className = "NativeBridge"
     val libraryLinkName = "impulse_bridge"
 
+    workingDir = extractedToolDir.get().asFile.resolve("$jextractFolderName/bin")
+
     if (osName.contains("win")) {
-        val jextractScript = File(extractedToolDir.get().asFile, "jextract-25/bin/jextract.bat")
+        val jextractPath = workingDir.resolve("jextract.bat").absolutePath
 
         commandLine(
-                "cmd", "/c", jextractScript.absolutePath,
+                "cmd", "/c", jextractPath,
                 "--output", generatedSourcesDir.get().asFile.absolutePath,
                 "--target-package", targetPackage,
                 "--header-class-name", className,
@@ -103,10 +109,10 @@ val generateApiBindings by tasks.registering(Exec::class) {
                 headerFile.absolutePath
         )
     } else {
-        val jextractBin = File(extractedToolDir.get().asFile, "jextract-25/bin/jextract")
+        val jextractPath = "jextract"
 
         commandLine(
-                jextractBin.absolutePath,
+                jextractPath,
                 "--output", generatedSourcesDir.get().asFile.absolutePath,
                 "--target-package", targetPackage,
                 "--header-class-name", className,
@@ -126,6 +132,65 @@ val generateApiBindings by tasks.registering(Exec::class) {
     }
 }
 
+
+fun isCompilerAvailable(command: String): Boolean {
+    return try {
+        val execOutput = providers.exec {
+            commandLine(command, "--version")
+        }
+
+        execOutput.result.get().exitValue == 0
+    } catch (e: Exception) {
+        false
+    }
+}
+
+val nativeBuildDir = layout.buildDirectory.dir("native-build").get().asFile
+
+
+val configureCmake by tasks.registering(Exec::class) {
+    group = "build"
+
+    doFirst {
+        nativeBuildDir.deleteRecursively()
+        nativeBuildDir.mkdirs()
+    }
+
+
+    val args = mutableListOf("cmake", "-S", ".", "-B", nativeBuildDir.absolutePath, "-G", "Ninja")
+
+    if (osName.contains("windows")) {
+        val toolchainFile = rootDir.resolve("toolchains/clang-win-x86_64.cmake").absolutePath
+
+        if (!isCompilerAvailable("clang")) {
+            throw GradleException("Clang compiler not found in PATH. Please ensure Clang is installed and available.")
+        }
+        args.add("-DCMAKE_TOOLCHAIN_FILE=$toolchainFile")
+    }
+
+    commandLine(args)
+}
+
+val preCompileHeaders by tasks.registering(Exec::class) {
+    group = "build"
+    dependsOn(configureCmake)
+
+    val commandArgs = mutableListOf("cmake", "--build", nativeBuildDir.absolutePath)
+
+    if (osName.contains("windows")) {
+        commandArgs.addAll(listOf("--config", "Release"))
+    }
+
+    standardOutput = System.out
+    errorOutput = System.err
+
+    doFirst {
+        println("Executing: ${commandLine.joinToString(" ")}")
+    }
+
+    commandLine(commandArgs)
+}
+
 sourceSets {
     main {
         java.srcDir(generatedSourcesDir)
@@ -133,7 +198,7 @@ sourceSets {
 }
 
 tasks.compileJava {
-    dependsOn(generateApiBindings)
+    dependsOn(generateBridgeBindings, preCompileHeaders)
 }
 
 dependencies {

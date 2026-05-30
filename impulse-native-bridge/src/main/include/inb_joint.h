@@ -1,7 +1,8 @@
 #pragma once
 
-#include <inb_common.h>
 #include <stdint.h>
+
+#include "inb_common.h"
 
 #ifndef INB_SPACE
 #define INB_SPACE

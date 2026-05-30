@@ -1,7 +1,9 @@
 #pragma once
 
-#include <inb_common.h>
 #include <stdint.h>
+#include <assert.h>
+
+#include "inb_common.h"
 
 #ifndef INB_SPACE
 #define INB_SPACE
@@ -41,7 +43,7 @@ extern "C"
    */
   INB_API void inb_space_remove_body(int32_t space_id, int64_t body_id);
 
-    typedef struct
+  typedef struct
   {
     int32_t body_count;
     int32_t collider_count;
