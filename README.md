@@ -1,6 +1,6 @@
 # Impulse
 
-Physics library for Hytale. 
+Physics framework for Hytale. 
 
 ## Modules
 
