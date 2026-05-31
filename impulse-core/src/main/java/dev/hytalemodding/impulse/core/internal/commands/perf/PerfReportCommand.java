@@ -388,14 +388,14 @@ public class PerfReportCommand extends AbstractWorldCommand {
             .append(frame.frameSequence())
             .append(" worldEpoch=")
             .append(frame.worldEpoch())
-            .append(" snapshotFrame=")
-            .append(frame.latestSnapshotFrameEpoch())
-            .append(" snapshotStep=")
-            .append(frame.latestSnapshotStepSequence())
-            .append(" snapshotTick=")
-            .append(frame.latestSnapshotServerTick())
-            .append(" snapshotCommandWatermark=")
-            .append(frame.latestSnapshotCommandBatchSequenceWatermark())
+            .append(" latestCapturedSnapshotFrame=")
+            .append(frame.latestCapturedSnapshotFrameEpoch())
+            .append(" latestCapturedSnapshotStep=")
+            .append(frame.latestCapturedSnapshotStepSequence())
+            .append(" latestCapturedSnapshotTick=")
+            .append(frame.latestCapturedSnapshotServerTick())
+            .append(" latestCapturedSnapshotLastIncludedCommandBatch=")
+            .append(frame.latestCapturedSnapshotLastIncludedCommandBatchSequence())
             .append(" events=")
             .append(frame.eventCount())
             .append(" commandBatches=")
@@ -406,7 +406,7 @@ public class PerfReportCommand extends AbstractWorldCommand {
             .append(frame.snapshotPublicationCount());
         PhysicsCommandBatchEvent latestCommand = frame.latestCommandBatch();
         if (latestCommand != null) {
-            boolean snapshotVisible = frame.latestSnapshotIncludes(latestCommand);
+            boolean capturedSnapshotIncluded = frame.latestCapturedSnapshotIncludes(latestCommand);
             builder.append(" latestCommand=")
                 .append(latestCommand.commandBatchSequence())
                 .append(" submittedTick=")
@@ -415,8 +415,8 @@ public class PerfReportCommand extends AbstractWorldCommand {
                 .append(latestCommand.bodyKeyReferenceCount())
                 .append(" jointRefs=")
                 .append(latestCommand.jointKeyReferenceCount())
-                .append(" snapshotVisible=")
-                .append(snapshotVisible);
+                .append(" capturedSnapshotIncluded=")
+                .append(capturedSnapshotIncluded);
             if (latestCommand.firstBodyKey() != null) {
                 builder.append(" firstBody=")
                     .append(latestCommand.firstBodyKey());
@@ -429,9 +429,9 @@ public class PerfReportCommand extends AbstractWorldCommand {
                 builder.append(" liveOwnerTransactions=")
                     .append(latestCommand.liveOwnerTransactionCount());
             }
-            if (snapshotVisible) {
-                builder.append(" snapshotTickLatency=")
-                    .append(frame.visibleSnapshotServerTickLatency(latestCommand));
+            if (capturedSnapshotIncluded) {
+                builder.append(" capturedSnapshotTickLatency=")
+                    .append(frame.capturedSnapshotServerTickLatency(latestCommand));
             }
             if (!latestCommand.allApplied()) {
                 builder.append(" firstRejected=")

@@ -16,22 +16,23 @@ import javax.annotation.Nullable;
  *
  * @param frameSequence event-frame publication sequence
  * @param worldEpoch physics world epoch observed when the event frame was published
- * @param latestSnapshotFrameEpoch latest published snapshot frame visible when the event frame was
+ * @param latestCapturedSnapshotFrameEpoch latest captured snapshot frame known when the event frame was
  *     published
- * @param latestSnapshotStepSequence step-scheduler sequence carried by that latest snapshot frame
- * @param latestSnapshotServerTick server tick carried by that latest snapshot frame
- * @param latestSnapshotCommandBatchSequenceWatermark command-batch watermark on that latest
- *     snapshot frame
+ * @param latestCapturedSnapshotStepSequence step-scheduler sequence carried by that latest captured snapshot
+ *     frame
+ * @param latestCapturedSnapshotServerTick server tick carried by that latest captured snapshot frame
+ * @param latestCapturedSnapshotLastIncludedCommandBatchSequence latest command-batch sequence
+ *     included by that captured snapshot frame
  * @param commandBatches copied command-batch outcome events in this frame
  * @param steps copied physics step snapshot-capture events in this frame
  * @param snapshotPublications copied reader-side snapshot-publication events in this frame
  */
 public record PhysicsEventFrame(long frameSequence,
                                 long worldEpoch,
-                                long latestSnapshotFrameEpoch,
-                                long latestSnapshotStepSequence,
-                                long latestSnapshotServerTick,
-                                long latestSnapshotCommandBatchSequenceWatermark,
+                                long latestCapturedSnapshotFrameEpoch,
+                                long latestCapturedSnapshotStepSequence,
+                                long latestCapturedSnapshotServerTick,
+                                long latestCapturedSnapshotLastIncludedCommandBatchSequence,
                                 @Nonnull List<PhysicsCommandBatchEvent> commandBatches,
                                 @Nonnull List<PhysicsStepEvent> steps,
                                 @Nonnull List<PhysicsSnapshotPublicationEvent> snapshotPublications) {
@@ -39,11 +40,11 @@ public record PhysicsEventFrame(long frameSequence,
     public PhysicsEventFrame {
         frameSequence = Math.max(0L, frameSequence);
         worldEpoch = Math.max(0L, worldEpoch);
-        latestSnapshotFrameEpoch = Math.max(0L, latestSnapshotFrameEpoch);
-        latestSnapshotStepSequence = Math.max(0L, latestSnapshotStepSequence);
-        latestSnapshotServerTick = Math.max(0L, latestSnapshotServerTick);
-        latestSnapshotCommandBatchSequenceWatermark =
-            Math.max(0L, latestSnapshotCommandBatchSequenceWatermark);
+        latestCapturedSnapshotFrameEpoch = Math.max(0L, latestCapturedSnapshotFrameEpoch);
+        latestCapturedSnapshotStepSequence = Math.max(0L, latestCapturedSnapshotStepSequence);
+        latestCapturedSnapshotServerTick = Math.max(0L, latestCapturedSnapshotServerTick);
+        latestCapturedSnapshotLastIncludedCommandBatchSequence =
+            Math.max(0L, latestCapturedSnapshotLastIncludedCommandBatchSequence);
         commandBatches = List.copyOf(Objects.requireNonNull(commandBatches, "commandBatches"));
         steps = List.copyOf(Objects.requireNonNull(steps, "steps"));
         snapshotPublications =
@@ -52,17 +53,17 @@ public record PhysicsEventFrame(long frameSequence,
 
     public PhysicsEventFrame(long frameSequence,
         long worldEpoch,
-        long latestSnapshotFrameEpoch,
-        long latestSnapshotCommandBatchSequenceWatermark,
+        long latestCapturedSnapshotFrameEpoch,
+        long latestCapturedSnapshotLastIncludedCommandBatchSequence,
         @Nonnull List<PhysicsCommandBatchEvent> commandBatches,
         @Nonnull List<PhysicsStepEvent> steps,
         @Nonnull List<PhysicsSnapshotPublicationEvent> snapshotPublications) {
         this(frameSequence,
             worldEpoch,
-            latestSnapshotFrameEpoch,
+            latestCapturedSnapshotFrameEpoch,
             0L,
             0L,
-            latestSnapshotCommandBatchSequenceWatermark,
+            latestCapturedSnapshotLastIncludedCommandBatchSequence,
             commandBatches,
             steps,
             snapshotPublications);
@@ -70,15 +71,15 @@ public record PhysicsEventFrame(long frameSequence,
 
     public PhysicsEventFrame(long frameSequence,
         long worldEpoch,
-        long latestSnapshotFrameEpoch,
-        long latestSnapshotCommandBatchSequenceWatermark,
+        long latestCapturedSnapshotFrameEpoch,
+        long latestCapturedSnapshotLastIncludedCommandBatchSequence,
         @Nonnull List<PhysicsCommandBatchEvent> commandBatches) {
         this(frameSequence,
             worldEpoch,
-            latestSnapshotFrameEpoch,
+            latestCapturedSnapshotFrameEpoch,
             0L,
             0L,
-            latestSnapshotCommandBatchSequenceWatermark,
+            latestCapturedSnapshotLastIncludedCommandBatchSequence,
             commandBatches,
             List.of(),
             List.of());
@@ -127,36 +128,36 @@ public record PhysicsEventFrame(long frameSequence,
         return count == 0 ? null : snapshotPublications.get(count - 1);
     }
 
-    public boolean latestSnapshotIncludes(@Nonnull PhysicsCommandBatchEvent event) {
-        return latestSnapshotIncludesCommandBatch(
+    public boolean latestCapturedSnapshotIncludes(@Nonnull PhysicsCommandBatchEvent event) {
+        return latestCapturedSnapshotIncludesCommandBatch(
             Objects.requireNonNull(event, "event").commandBatchSequence());
     }
 
-    public boolean latestSnapshotIncludesCommandBatch(long commandBatchSequence) {
+    public boolean latestCapturedSnapshotIncludesCommandBatch(long commandBatchSequence) {
         return commandBatchSequence > 0L
-            && latestSnapshotCommandBatchSequenceWatermark >= commandBatchSequence;
+            && latestCapturedSnapshotLastIncludedCommandBatchSequence >= commandBatchSequence;
     }
 
-    public long visibleSnapshotServerTickLatency(@Nonnull PhysicsCommandBatchEvent event) {
-        if (!latestSnapshotIncludes(event)) {
+    public long capturedSnapshotServerTickLatency(@Nonnull PhysicsCommandBatchEvent event) {
+        if (!latestCapturedSnapshotIncludes(event)) {
             return 0L;
         }
-        return latestSnapshotServerTickLatencyFromSubmittedTick(event.submittedServerTick());
+        return latestCapturedSnapshotServerTickLatencyFromSubmittedTick(event.submittedServerTick());
     }
 
-    public long latestSnapshotServerTickLatencyFromSubmittedTick(long submittedServerTick) {
+    public long latestCapturedSnapshotServerTickLatencyFromSubmittedTick(long submittedServerTick) {
         long submitted = Math.max(0L, submittedServerTick);
-        if (latestSnapshotServerTick <= 0L || latestSnapshotServerTick < submitted) {
+        if (latestCapturedSnapshotServerTick <= 0L || latestCapturedSnapshotServerTick < submitted) {
             return 0L;
         }
-        return latestSnapshotServerTick - submitted;
+        return latestCapturedSnapshotServerTick - submitted;
     }
 
-    public long latestSnapshotFrameLatencyFrom(long snapshotFrameEpoch) {
+    public long latestCapturedSnapshotFrameLatencyFrom(long snapshotFrameEpoch) {
         long frameEpoch = Math.max(0L, snapshotFrameEpoch);
-        if (latestSnapshotFrameEpoch <= frameEpoch) {
+        if (latestCapturedSnapshotFrameEpoch <= frameEpoch) {
             return 0L;
         }
-        return latestSnapshotFrameEpoch - frameEpoch;
+        return latestCapturedSnapshotFrameEpoch - frameEpoch;
     }
 }

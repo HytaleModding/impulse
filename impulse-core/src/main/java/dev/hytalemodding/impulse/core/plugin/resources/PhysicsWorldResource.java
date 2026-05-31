@@ -87,8 +87,8 @@ public abstract class PhysicsWorldResource implements Resource<EntityStore> {
      * Returns the latest value-only physics owner event frame.
      *
      * <p>Event frames describe owner-thread outcomes. They do not expose live
-     * backend handles and do not imply that command completion has become
-     * visible in a published body snapshot.</p>
+     * backend handles and do not imply that command completion has been
+     * included in a captured or reader-applied body snapshot.</p>
      */
     @Nonnull
     public abstract PhysicsEventFrame getLatestEventFrame();

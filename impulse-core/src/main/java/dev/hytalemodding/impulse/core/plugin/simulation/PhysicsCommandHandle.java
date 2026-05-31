@@ -14,8 +14,8 @@ import javax.annotation.Nonnull;
  *
  * <p>The completion stage reports owner-thread execution of the batch. It does not mean the
  * latest published snapshot, ECS attachments, or debug readers have observed the resulting body
- * state yet. Use the snapshot-visibility helpers when callers need to correlate a completion to
- * a published physics snapshot.</p>
+ * state yet. Use the snapshot-frame inclusion helpers when callers need to correlate a completion
+ * to a captured physics snapshot frame.</p>
  */
 public final class PhysicsCommandHandle {
 
@@ -67,31 +67,31 @@ public final class PhysicsCommandHandle {
     }
 
     /**
-     * Returns whether the latest snapshot watermark in {@code frame} is known to include this
+     * Returns whether the latest captured snapshot in {@code frame} is known to include this
      * submitted command batch.
      */
-    public boolean isVisibleInLatestSnapshot(@Nonnull PhysicsEventFrame frame) {
+    public boolean isIncludedInLatestCapturedSnapshot(@Nonnull PhysicsEventFrame frame) {
         return Objects.requireNonNull(frame, "frame")
-            .latestSnapshotIncludesCommandBatch(batch.metadata().commandBatchSequence());
+            .latestCapturedSnapshotIncludesCommandBatch(batch.metadata().commandBatchSequence());
     }
 
     /**
-     * Returns the submitted-server-tick distance from this command batch to the latest published
+     * Returns the submitted-server-tick distance from this command batch to the latest captured
      * snapshot in {@code frame}, or {@code 0} when that snapshot is not known to include this batch.
      */
-    public long visibleSnapshotServerTickLatency(@Nonnull PhysicsEventFrame frame) {
+    public long capturedSnapshotServerTickLatency(@Nonnull PhysicsEventFrame frame) {
         PhysicsEventFrame eventFrame = Objects.requireNonNull(frame, "frame");
-        if (!eventFrame.latestSnapshotIncludesCommandBatch(batch.metadata().commandBatchSequence())) {
+        if (!eventFrame.latestCapturedSnapshotIncludesCommandBatch(batch.metadata().commandBatchSequence())) {
             return 0L;
         }
-        return eventFrame.latestSnapshotServerTickLatencyFromSubmittedTick(
+        return eventFrame.latestCapturedSnapshotServerTickLatencyFromSubmittedTick(
             batch.metadata().submittedServerTick());
     }
 
     /**
      * Returns whether {@code frame} is known to include this submitted command batch.
      */
-    public boolean isVisibleInSnapshotFrame(@Nonnull PublishedPhysicsSnapshotFrame frame) {
+    public boolean isIncludedInSnapshotFrame(@Nonnull PublishedPhysicsSnapshotFrame frame) {
         return Objects.requireNonNull(frame, "frame")
             .includesCommandBatch(batch.metadata().commandBatchSequence());
     }
@@ -100,7 +100,7 @@ public final class PhysicsCommandHandle {
      * Returns the submitted-server-tick distance from this command batch to {@code frame}, or
      * {@code 0} when the snapshot is not known to include this batch.
      */
-    public long visibleSnapshotServerTickLatency(@Nonnull PublishedPhysicsSnapshotFrame frame) {
+    public long capturedSnapshotServerTickLatency(@Nonnull PublishedPhysicsSnapshotFrame frame) {
         PublishedPhysicsSnapshotFrame snapshotFrame = Objects.requireNonNull(frame, "frame");
         if (!snapshotFrame.includesCommandBatch(batch.metadata().commandBatchSequence())) {
             return 0L;
@@ -118,8 +118,9 @@ public final class PhysicsCommandHandle {
      * Returns the owner-thread execution summary for this batch.
      *
      * <p>This stage completes before snapshot capture, reader-side snapshot application, and ECS
-     * consumption. Use {@link #isVisibleInSnapshotFrame(PublishedPhysicsSnapshotFrame)} or
-     * {@link #isVisibleInLatestSnapshot(PhysicsEventFrame)} when visibility matters.</p>
+     * consumption. Use {@link #isIncludedInSnapshotFrame(PublishedPhysicsSnapshotFrame)} or
+     * {@link #isIncludedInLatestCapturedSnapshot(PhysicsEventFrame)} when snapshot-frame inclusion
+     * matters.</p>
      */
     @Nonnull
     public CompletionStage<PhysicsCommandCompletion> completionSummary() {

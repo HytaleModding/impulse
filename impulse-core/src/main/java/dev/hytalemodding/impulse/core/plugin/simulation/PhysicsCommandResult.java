@@ -9,7 +9,7 @@ import javax.annotation.Nullable;
  *
  * @param commandBatchSequence owner FIFO batch sequence assigned when the command batch was submitted
  * @param submittedServerTick server tick supplied by the caller when the command context was recorded
- * @param visibleSnapshotFrameEpoch published snapshot frame that is known to include this command,
+ * @param includedSnapshotFrameEpoch published snapshot frame that is known to include this command,
  *                                  or {@code 0} when completion has not been correlated to a
  *                                  snapshot frame
  */
@@ -17,7 +17,7 @@ public record PhysicsCommandResult(@Nonnull Status status,
                                    long commandSequence,
                                    long commandBatchSequence,
                                    long submittedServerTick,
-                                   long visibleSnapshotFrameEpoch,
+                                   long includedSnapshotFrameEpoch,
                                    @Nullable String message) {
 
     public PhysicsCommandResult {
@@ -25,7 +25,7 @@ public record PhysicsCommandResult(@Nonnull Status status,
         commandSequence = Math.max(0L, commandSequence);
         commandBatchSequence = Math.max(0L, commandBatchSequence);
         submittedServerTick = Math.max(0L, submittedServerTick);
-        visibleSnapshotFrameEpoch = Math.max(0L, visibleSnapshotFrameEpoch);
+        includedSnapshotFrameEpoch = Math.max(0L, includedSnapshotFrameEpoch);
     }
 
     @Nonnull

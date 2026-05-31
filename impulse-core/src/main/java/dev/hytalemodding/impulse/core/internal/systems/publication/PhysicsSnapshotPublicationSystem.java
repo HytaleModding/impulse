@@ -44,8 +44,8 @@ public final class PhysicsSnapshotPublicationSystem extends TickingSystem<Entity
         PhysicsWorldResource resource = store.getResource(PhysicsWorldResource.getResourceType());
         PhysicsRuntimeProfilingResource profiling = store.getResource(
             PhysicsRuntimeProfilingResource.getResourceType());
-        // Mutation futures are drained for failures/completion only; snapshot visibility is still
-        // determined by the next captured and applied PublishedPhysicsSnapshotFrame watermark.
+        // Mutation futures are drained for failures/completion only; snapshot inclusion is still
+        // determined by the next captured and applied PublishedPhysicsSnapshotFrame.
         PhysicsPublicationPipeline.publishCompletedMutations(worker);
         long publicationServerTick = Math.max(0L, store.getExternalData().getWorld().getTick());
         PhysicsPublicationPipeline.publishCompletedStep(worker, resource, profiling, publicationServerTick);

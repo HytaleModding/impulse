@@ -18,7 +18,7 @@ import org.junit.jupiter.api.Test;
 class PhysicsCommandVisibilityStateTest {
 
     @Test
-    void singleSpawnBodyCreationUsesExactPendingKeyUntilSnapshotWatermarkApplies() {
+    void singleSpawnBodyCreationUsesExactPendingKeyUntilSnapshotIncludesBatch() {
         PhysicsCommandVisibilityState state = new PhysicsCommandVisibilityState();
         RigidBodyKey bodyKey = RigidBodyKey.random();
         RecordedPhysicsCommandBatch batch = singleSpawnBatch(7L, bodyKey);
@@ -28,13 +28,13 @@ class PhysicsCommandVisibilityStateTest {
         assertTrue(state.isBodyCreationPending(bodyKey, false, true));
         assertFalse(state.isBodyCreationPending(RigidBodyKey.random(), false, true));
 
-        state.applyCommandBatchSequenceWatermark(7L);
+        state.applyLastIncludedCommandBatchSequence(7L);
 
         assertFalse(state.isBodyCreationPending(bodyKey, false, true));
     }
 
     @Test
-    void multiSpawnBodyCreationUsesConservativeBatchWatermarkFallback() {
+    void multiSpawnBodyCreationUsesConservativeSequenceFallback() {
         PhysicsCommandVisibilityState state = new PhysicsCommandVisibilityState();
         RecordedPhysicsCommandBatch batch = multiSpawnBatch(11L);
 
@@ -42,10 +42,10 @@ class PhysicsCommandVisibilityStateTest {
 
         assertTrue(state.isBodyCreationPending(RigidBodyKey.random(), false, true));
 
-        state.applyCommandBatchSequenceWatermark(10L);
+        state.applyLastIncludedCommandBatchSequence(10L);
         assertTrue(state.isBodyCreationPending(RigidBodyKey.random(), false, true));
 
-        state.applyCommandBatchSequenceWatermark(11L);
+        state.applyLastIncludedCommandBatchSequence(11L);
         assertFalse(state.isBodyCreationPending(RigidBodyKey.random(), false, true));
     }
 
@@ -70,7 +70,7 @@ class PhysicsCommandVisibilityStateTest {
     }
 
     @Test
-    void commandCompletionWatermarkTracksMaxCompletedBatch() {
+    void commandCompletionSequenceTracksMaxCompletedBatch() {
         PhysicsCommandVisibilityState state = new PhysicsCommandVisibilityState();
 
         state.markCommandBatchCompleted(4L);

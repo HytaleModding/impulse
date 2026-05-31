@@ -18,7 +18,7 @@ public final class PhysicsCommandVisibilityState {
     private final AtomicLong commandBatchSequence = new AtomicLong();
     /*
      * Highest command batch that has finished owner-thread execution. Snapshot capture copies this
-     * watermark so readers know which command results are included in a published frame.
+     * value as the frame's last-included command-batch sequence.
      */
     private final AtomicLong completedCommandBatchSequence = new AtomicLong();
     /*
@@ -27,10 +27,10 @@ public final class PhysicsCommandVisibilityState {
      * spawns do not need per-body pending keys.
      */
     private final AtomicLong submittedBodyCreationCommandBatchSequence = new AtomicLong();
-    private final AtomicLong appliedCommandBatchSequenceWatermark = new AtomicLong();
+    private final AtomicLong appliedLastIncludedCommandBatchSequence = new AtomicLong();
     /*
      * Single-spawn command batches use exact pending keys so control anchors and attached bodies do
-     * not make unrelated bodies look pending. Multi-spawn/template paths keep the batch watermark
+     * not make unrelated bodies look pending. Multi-spawn/template paths keep the sequence-level
      * fallback above to avoid high-allocation tracking on stress paths.
      */
     private final Object2LongOpenHashMap<RigidBodyKey> pendingCommandBodyCreationSequences =
@@ -109,7 +109,7 @@ public final class PhysicsCommandVisibilityState {
     public void clearBodyCreationPublication(@Nonnull RecordedPhysicsCommandBatch batch) {
         RigidBodyKey singleSpawnBodyKey = batch.singleSpawnBodyKey();
         if (singleSpawnBodyKey == null) {
-            appliedCommandBatchSequenceWatermark.accumulateAndGet(
+            appliedLastIncludedCommandBatchSequence.accumulateAndGet(
                 batch.metadata().commandBatchSequence(),
                 Math::max);
             return;
@@ -122,13 +122,13 @@ public final class PhysicsCommandVisibilityState {
         }
     }
 
-    public void applyCommandBatchSequenceWatermark(long commandBatchSequenceWatermark) {
-        appliedCommandBatchSequenceWatermark.accumulateAndGet(commandBatchSequenceWatermark, Math::max);
+    public void applyLastIncludedCommandBatchSequence(long lastIncludedCommandBatchSequence) {
+        appliedLastIncludedCommandBatchSequence.accumulateAndGet(lastIncludedCommandBatchSequence, Math::max);
         synchronized (pendingCommandBodyCreationSequences) {
             var iterator = pendingCommandBodyCreationSequences.object2LongEntrySet().iterator();
             while (iterator.hasNext()) {
                 var entry = iterator.next();
-                if (entry.getLongValue() <= commandBatchSequenceWatermark) {
+                if (entry.getLongValue() <= lastIncludedCommandBatchSequence) {
                     iterator.remove();
                 }
             }
@@ -156,6 +156,6 @@ public final class PhysicsCommandVisibilityState {
          */
         return workerAttached
             && submittedBodyCreationCommandBatchSequence.get()
-                > appliedCommandBatchSequenceWatermark.get();
+                > appliedLastIncludedCommandBatchSequence.get();
     }
 }

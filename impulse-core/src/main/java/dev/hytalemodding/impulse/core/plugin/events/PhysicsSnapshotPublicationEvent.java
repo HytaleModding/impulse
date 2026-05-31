@@ -9,7 +9,7 @@ import javax.annotation.Nonnull;
  * @param worldEpoch frame world epoch
  * @param stepSequence Impulse step-scheduler sequence carried by the frame
  * @param serverTick Hytale server tick carried by the frame
- * @param commandBatchSequenceWatermark latest completed command batch included by the frame
+ * @param lastIncludedCommandBatchSequence latest completed command batch included by the frame
  * @param publicationServerTick Hytale server tick observed when this frame was applied to
  *     reader-side stores, or {@code 0} when unavailable
  * @param publicationNanoTime monotonic nano time sampled when this publication event was created,
@@ -20,7 +20,7 @@ public record PhysicsSnapshotPublicationEvent(long snapshotFrameEpoch,
                                               long worldEpoch,
                                               long stepSequence,
                                               long serverTick,
-                                              long commandBatchSequenceWatermark,
+                                              long lastIncludedCommandBatchSequence,
                                               long publicationServerTick,
                                               long publicationNanoTime,
                                               int appliedBodyCount) {
@@ -29,13 +29,13 @@ public record PhysicsSnapshotPublicationEvent(long snapshotFrameEpoch,
         long worldEpoch,
         long stepSequence,
         long serverTick,
-        long commandBatchSequenceWatermark,
+        long lastIncludedCommandBatchSequence,
         int appliedBodyCount) {
         this(snapshotFrameEpoch,
             worldEpoch,
             stepSequence,
             serverTick,
-            commandBatchSequenceWatermark,
+            lastIncludedCommandBatchSequence,
             0L,
             0L,
             appliedBodyCount);
@@ -46,7 +46,7 @@ public record PhysicsSnapshotPublicationEvent(long snapshotFrameEpoch,
         worldEpoch = Math.max(0L, worldEpoch);
         stepSequence = Math.max(0L, stepSequence);
         serverTick = Math.max(0L, serverTick);
-        commandBatchSequenceWatermark = Math.max(0L, commandBatchSequenceWatermark);
+        lastIncludedCommandBatchSequence = Math.max(0L, lastIncludedCommandBatchSequence);
         publicationServerTick = Math.max(0L, publicationServerTick);
         publicationNanoTime = Math.max(0L, publicationNanoTime);
         appliedBodyCount = Math.max(0, appliedBodyCount);
@@ -54,7 +54,7 @@ public record PhysicsSnapshotPublicationEvent(long snapshotFrameEpoch,
 
     public boolean includesCommandBatch(long commandBatchSequence) {
         return commandBatchSequence > 0L
-            && commandBatchSequenceWatermark >= commandBatchSequence;
+            && lastIncludedCommandBatchSequence >= commandBatchSequence;
     }
 
     public boolean includesCommandBatch(@Nonnull PhysicsCommandBatchEvent event) {

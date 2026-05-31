@@ -100,8 +100,8 @@ class PhysicsWorldLifecycleStateTest {
     }
 
     @Test
-    void appliedFrameUpdatesCommandWatermarkVisibility() {
-        Fixture fixture = createFixture("command-watermark");
+    void appliedFrameUpdatesCapturedSnapshotCommandInclusion() {
+        Fixture fixture = createFixture("command-last-included");
         PhysicsCommandResult result = fixture.resource.submitCommands(40L,
                 commands -> commands.setSpaceGravity(fixture.space.getId(), 0.0f, -4.0f, 0.0f))
             .completion()
@@ -117,10 +117,10 @@ class PhysicsWorldLifecycleStateTest {
         fixture.resource.applyPublishedSnapshotFrame(frame);
         PhysicsEventFrame eventFrame = fixture.resource.getLatestEventFrame();
 
-        assertTrue(frame.commandBatchSequenceWatermark() >= result.commandBatchSequence());
-        assertTrue(eventFrame.latestSnapshotIncludesCommandBatch(result.commandBatchSequence()));
-        assertEquals(frame.commandBatchSequenceWatermark(),
-            eventFrame.latestSnapshotCommandBatchSequenceWatermark());
+        assertTrue(frame.lastIncludedCommandBatchSequence() >= result.commandBatchSequence());
+        assertTrue(eventFrame.latestCapturedSnapshotIncludesCommandBatch(result.commandBatchSequence()));
+        assertEquals(frame.lastIncludedCommandBatchSequence(),
+            eventFrame.latestCapturedSnapshotLastIncludedCommandBatchSequence());
     }
 
     @Test
@@ -144,7 +144,7 @@ class PhysicsWorldLifecycleStateTest {
         assertEquals(frame.worldEpoch(), event.worldEpoch());
         assertEquals(frame.stepSequence(), event.stepSequence());
         assertEquals(frame.serverTick(), event.serverTick());
-        assertEquals(frame.commandBatchSequenceWatermark(), event.commandBatchSequenceWatermark());
+        assertEquals(frame.lastIncludedCommandBatchSequence(), event.lastIncludedCommandBatchSequence());
         assertEquals(43L, event.publicationServerTick());
         assertTrue(event.publicationNanoTime() > 0L);
         assertEquals(applied, event.appliedBodyCount());

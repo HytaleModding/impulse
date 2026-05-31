@@ -104,17 +104,18 @@ public class StressRawBodiesCommand extends AbstractAsyncPlayerCommand {
                     }));
         ExamplePhysicsUtils.requireApplied(handle, "spawn raw stress physics bodies");
         PhysicsEventFrame eventFrame = resource.getLatestEventFrame();
-        boolean snapshotVisible = handle.isVisibleInLatestSnapshot(eventFrame);
-        long snapshotTickLatency = handle.visibleSnapshotServerTickLatency(eventFrame);
+        boolean capturedSnapshotIncluded = handle.isIncludedInLatestCapturedSnapshot(eventFrame);
+        long capturedSnapshotTickLatency = handle.capturedSnapshotServerTickLatency(eventFrame);
         long commandApplyNanos = System.nanoTime() - commandStartNanos;
 
         ctx.sender().sendMessage(Message.raw("Spawned " + count
             + " raw physics bodies without entities: commandApplyMs="
             + millis(commandApplyNanos)
-            + " latestSnapshotVisible=" + snapshotVisible
-            + " latestSnapshotFrame=" + eventFrame.latestSnapshotFrameEpoch()
-            + " latestSnapshotTick=" + eventFrame.latestSnapshotServerTick()
-            + " snapshotTickLatency=" + (snapshotVisible ? Long.toString(snapshotTickLatency) : "pending")
+            + " latestCapturedSnapshotIncluded=" + capturedSnapshotIncluded
+            + " latestCapturedSnapshotFrame=" + eventFrame.latestCapturedSnapshotFrameEpoch()
+            + " latestCapturedSnapshotTick=" + eventFrame.latestCapturedSnapshotServerTick()
+            + " capturedSnapshotTickLatency="
+            + (capturedSnapshotIncluded ? Long.toString(capturedSnapshotTickLatency) : "pending")
             + ". Use this to separate backend cost from entity/render cost."));
         return CompletableFuture.completedFuture(null);
     }
