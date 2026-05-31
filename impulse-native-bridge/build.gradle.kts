@@ -86,7 +86,7 @@ val generateBridgeBindings by tasks.registering(Exec::class) {
     description = "Generates Panama Java bindings using the platform-specific extracted tool"
     dependsOn(extractJextract)
 
-    val headerFile = file("src/main/include/inb_bridge.h")
+    val headerFile = file("src/main/include/pch.h")
 
     inputs.file(headerFile)
     outputs.dir(generatedSourcesDir)
@@ -132,65 +132,6 @@ val generateBridgeBindings by tasks.registering(Exec::class) {
     }
 }
 
-
-fun isCompilerAvailable(command: String): Boolean {
-    return try {
-        val execOutput = providers.exec {
-            commandLine(command, "--version")
-        }
-
-        execOutput.result.get().exitValue == 0
-    } catch (e: Exception) {
-        false
-    }
-}
-
-val nativeBuildDir = layout.buildDirectory.dir("native-build").get().asFile
-
-
-val configureCmake by tasks.registering(Exec::class) {
-    group = "build"
-
-    doFirst {
-        nativeBuildDir.deleteRecursively()
-        nativeBuildDir.mkdirs()
-    }
-
-
-    val args = mutableListOf("cmake", "-S", ".", "-B", nativeBuildDir.absolutePath, "-G", "Ninja")
-
-    if (osName.contains("windows")) {
-        val toolchainFile = rootDir.resolve("toolchains/clang-win-x86_64.cmake").absolutePath
-
-        if (!isCompilerAvailable("clang")) {
-            throw GradleException("Clang compiler not found in PATH. Please ensure Clang is installed and available.")
-        }
-        args.add("-DCMAKE_TOOLCHAIN_FILE=$toolchainFile")
-    }
-
-    commandLine(args)
-}
-
-val preCompileHeaders by tasks.registering(Exec::class) {
-    group = "build"
-    dependsOn(configureCmake)
-
-    val commandArgs = mutableListOf("cmake", "--build", nativeBuildDir.absolutePath)
-
-    if (osName.contains("windows")) {
-        commandArgs.addAll(listOf("--config", "Release"))
-    }
-
-    standardOutput = System.out
-    errorOutput = System.err
-
-    doFirst {
-        println("Executing: ${commandLine.joinToString(" ")}")
-    }
-
-    commandLine(commandArgs)
-}
-
 sourceSets {
     main {
         java.srcDir(generatedSourcesDir)
@@ -198,7 +139,7 @@ sourceSets {
 }
 
 tasks.compileJava {
-    dependsOn(generateBridgeBindings, preCompileHeaders)
+    dependsOn(generateBridgeBindings)
 }
 
 dependencies {

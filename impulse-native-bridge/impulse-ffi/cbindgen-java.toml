@@ -1,0 +1,10 @@
+language = "C"
+
+header = "#include <stdint.h>\n#include <stdbool.h>\n#include <stddef.h>"
+
+[parse]
+parse_deps = false
+include = ["src/ffi_internal.rs"]
+
+[export]
+include = ["ffi_internal"]
