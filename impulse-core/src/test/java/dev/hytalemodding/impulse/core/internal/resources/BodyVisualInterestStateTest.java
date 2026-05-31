@@ -1,9 +1,18 @@
 package dev.hytalemodding.impulse.core.internal.resources;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-import dev.hytalemodding.impulse.core.internal.resources.visual.PhysicsVisualRuntime.BodyVisualInterestState;
+import dev.hytalemodding.impulse.api.PhysicsBodyType;
+import dev.hytalemodding.impulse.api.ShapeType;
+import dev.hytalemodding.impulse.core.internal.resources.PhysicsVisualRuntime.BodyVisualInterestState;
+import dev.hytalemodding.impulse.core.plugin.body.RigidBodyKey;
+import dev.hytalemodding.impulse.core.plugin.simulation.RaycastHitView;
+import java.util.Optional;
+import java.util.concurrent.CompletableFuture;
+import org.joml.Vector3f;
 import org.junit.jupiter.api.Test;
 
 class BodyVisualInterestStateTest {
@@ -45,5 +54,29 @@ class BodyVisualInterestStateTest {
         state.advanceVisualInterestTick(4L);
 
         assertFalse(state.hasFreshRaycast(2));
+    }
+
+    @Test
+    void pendingRaycastResultsArePolledWithoutBlocking() {
+        BodyVisualInterestState state = new BodyVisualInterestState();
+        CompletableFuture<Optional<RaycastHitView>> pending = new CompletableFuture<>();
+        RigidBodyKey bodyKey = RigidBodyKey.random();
+        RaycastHitView hit = new RaycastHitView(bodyKey,
+            PhysicsBodyType.DYNAMIC,
+            new Vector3f(),
+            new Vector3f(0.0f, 1.0f, 0.0f),
+            ShapeType.BOX,
+            0.5f,
+            4.0f);
+
+        assertTrue(state.startPendingRaycast(pending));
+        assertFalse(state.startPendingRaycast(CompletableFuture.completedFuture(Optional.empty())));
+        assertNull(state.pollCompletedRaycast());
+
+        pending.complete(Optional.of(hit));
+
+        assertEquals(Optional.of(hit), state.pollCompletedRaycast());
+        assertNull(state.pollCompletedRaycast());
+        assertTrue(state.startPendingRaycast(CompletableFuture.completedFuture(Optional.empty())));
     }
 }

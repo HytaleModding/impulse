@@ -13,7 +13,8 @@ import dev.hytalemodding.impulse.api.PhysicsSpace;
 import dev.hytalemodding.impulse.api.testsupport.FakePhysicsBackend;
 import dev.hytalemodding.impulse.core.internal.control.PhysicsControlJointResolver;
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsWorldRuntimeResource;
-import dev.hytalemodding.impulse.core.internal.resources.worker.PhysicsWorldWorkerResource;
+import dev.hytalemodding.impulse.core.internal.resources.PhysicsWorldWorkerResource;
+import dev.hytalemodding.impulse.core.internal.worker.PhysicsWorkerSnapshot;
 import dev.hytalemodding.impulse.core.internal.systems.step.PhysicsKinematicControlSystem.ControlAnchorUpdate;
 import dev.hytalemodding.impulse.core.internal.systems.step.PhysicsKinematicControlSystem.ControlMutationState;
 import dev.hytalemodding.impulse.core.plugin.body.RigidBodyKey;
@@ -25,8 +26,10 @@ import dev.hytalemodding.impulse.core.plugin.joint.JointKey;
 import java.time.Duration;
 import java.util.Arrays;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
+import javax.annotation.Nonnull;
 import org.joml.Vector3f;
 import org.junit.jupiter.api.Test;
 
@@ -59,10 +62,13 @@ class PhysicsKinematicControlSystemTest {
         PhysicsMutationHandle<Void> handle = PhysicsMutationHandle.fromCompletion("test",
             null,
             completion);
+        ControlAnchorUpdate first = update(bodyId, bodyId, 1.0f);
+        ControlAnchorUpdate second = update(bodyId, bodyId, 2.0f);
 
-        state.trackPendingMutation(bodyId, handle);
+        state.trackPendingMutation(bodyId, handle, first);
 
         assertTrue(state.hasPendingMutation(bodyId));
+        assertNull(state.selectReadyUpdate(bodyId, second));
 
         completion.complete(null);
 
@@ -78,13 +84,38 @@ class PhysicsKinematicControlSystemTest {
             null,
             completion);
 
-        state.trackPendingMutation(bodyId, handle);
+        state.trackPendingMutation(bodyId, handle, update(bodyId, bodyId, 1.0f));
         state.clear(bodyId);
 
         assertFalse(state.hasPendingMutation(bodyId));
 
         completion.complete(null);
         assertFalse(state.hasPendingMutation(bodyId));
+    }
+
+    @Test
+    void pendingControlMutationCoalescesLatestTargetUntilCompletion() {
+        ControlMutationState state = new ControlMutationState();
+        RigidBodyKey bodyId = RigidBodyKey.random();
+        RigidBodyKey anchorBodyId = RigidBodyKey.random();
+        CompletableFuture<Void> completion = new CompletableFuture<>();
+        PhysicsMutationHandle<Void> handle = PhysicsMutationHandle.fromCompletion("test",
+            null,
+            completion);
+        ControlAnchorUpdate first = update(bodyId, anchorBodyId, 1.0f);
+        ControlAnchorUpdate second = update(bodyId, anchorBodyId, 2.0f);
+        ControlAnchorUpdate third = update(bodyId, anchorBodyId, 3.0f);
+        ControlAnchorUpdate current = update(bodyId, anchorBodyId, 4.0f);
+
+        state.trackPendingMutation(anchorBodyId, handle, first);
+
+        assertNull(state.selectReadyUpdate(anchorBodyId, second));
+        assertNull(state.selectReadyUpdate(anchorBodyId, third));
+
+        completion.complete(null);
+        ControlAnchorUpdate ready = state.selectReadyUpdate(anchorBodyId, current);
+
+        assertSame(third, ready);
     }
 
     @Test
@@ -196,5 +227,88 @@ class PhysicsKinematicControlSystemTest {
         assertFalse(space.containsBody(anchorBody));
         assertEquals(body, resource.getBody(bodyId));
         assertNull(resource.getBodyRegistrationView(anchorBodyId));
+    }
+
+    @Test
+    void sessionCleanupQueuesWorkerReleaseWithoutBlocking() throws Exception {
+        FakePhysicsBackend backend =
+            new FakePhysicsBackend("test:control-cleanup-worker-" + BACKEND_COUNTER.incrementAndGet());
+        Impulse.registerBackend(backend);
+        PhysicsWorldRuntimeResource resource = new PhysicsWorldRuntimeResource();
+        PhysicsSpace space = resource.createLiveSpace(backend.getId());
+        PhysicsBody body = space.createBox(0.5f, 0.5f, 0.5f, 1.0f);
+        PhysicsBody anchorBody = space.createSphere(0.1f, 1.0f);
+        RigidBodyKey bodyId = resource.addBody(space.getId(),
+            body,
+            PhysicsBodyKind.BODY,
+            PhysicsBodyPersistenceMode.PERSISTENT);
+        RigidBodyKey anchorBodyId = resource.addBody(space.getId(),
+            anchorBody,
+            PhysicsBodyKind.TEMPORARY,
+            PhysicsBodyPersistenceMode.RUNTIME_ONLY);
+        PhysicsJoint controlJoint =
+            space.createPointJoint(anchorBody, body, new Vector3f(), new Vector3f());
+        JointKey controlJointId = resource.addJoint(space.getId(), controlJoint);
+        resource.markBodyControlled(bodyId);
+        PhysicsControlSessionComponent session = new PhysicsControlSessionComponent(bodyId,
+            anchorBodyId,
+            controlJointId,
+            null,
+            space.getId(),
+            body.getBodyType(),
+            4.0f,
+            new Vector3f(),
+            new Vector3f());
+
+        CountDownLatch mutationStarted = new CountDownLatch(1);
+        CountDownLatch releaseMutation = new CountDownLatch(1);
+        try (PhysicsWorldWorkerResource worker = new PhysicsWorldWorkerResource(4,
+            Duration.ofSeconds(2L))) {
+            worker.start("control-cleanup-worker");
+            resource.attachWorkerResource(worker);
+            worker.submitMutation("blocking mutation", () -> {
+                mutationStarted.countDown();
+                assertTrue(releaseMutation.await(2L, TimeUnit.SECONDS));
+                return PhysicsWorkerSnapshot.empty();
+            });
+            assertTrue(mutationStarted.await(2L, TimeUnit.SECONDS));
+
+            CompletableFuture<Void> cleanup = CompletableFuture.runAsync(
+                () -> PhysicsControlSessionCleanup.cleanup(resource, session));
+            cleanup.get(200L, TimeUnit.MILLISECONDS);
+
+            assertFalse(resource.isBodyControlled(bodyId));
+            assertEquals(2, worker.pendingMutations());
+
+            releaseMutation.countDown();
+            pollMutationCompletions(worker, 2);
+            resource.detachWorkerResource(worker);
+        } finally {
+            releaseMutation.countDown();
+        }
+    }
+
+    @Nonnull
+    private static ControlAnchorUpdate update(@Nonnull RigidBodyKey bodyId,
+        @Nonnull RigidBodyKey anchorBodyId,
+        float coordinate) {
+        return new ControlAnchorUpdate(bodyId,
+            anchorBodyId,
+            new Vector3f(coordinate, coordinate, coordinate),
+            new Vector3f(coordinate + 1.0f, coordinate + 1.0f, coordinate + 1.0f));
+    }
+
+    private static void pollMutationCompletions(@Nonnull PhysicsWorldWorkerResource worker,
+        int expected) throws InterruptedException {
+        long deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(2L);
+        int completed = 0;
+        while (System.nanoTime() < deadline) {
+            completed += worker.pollCompletedMutations(8).size();
+            if (completed >= expected) {
+                return;
+            }
+            Thread.sleep(10L);
+        }
+        assertEquals(expected, completed);
     }
 }

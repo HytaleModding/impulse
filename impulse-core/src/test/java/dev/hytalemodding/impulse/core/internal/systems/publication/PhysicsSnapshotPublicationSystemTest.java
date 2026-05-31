@@ -1,10 +1,14 @@
-package dev.hytalemodding.impulse.core.internal.systems.worker;
+package dev.hytalemodding.impulse.core.internal.systems.publication;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import com.hypixel.hytale.component.dependency.Dependency;
+import com.hypixel.hytale.component.dependency.Order;
+import com.hypixel.hytale.component.dependency.SystemDependency;
+import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import dev.hytalemodding.impulse.api.BackendId;
 import dev.hytalemodding.impulse.api.Impulse;
 import dev.hytalemodding.impulse.api.PhysicsBody;
@@ -12,7 +16,13 @@ import dev.hytalemodding.impulse.api.PhysicsBodySnapshot;
 import dev.hytalemodding.impulse.api.PhysicsSpace;
 import dev.hytalemodding.impulse.api.testsupport.FakePhysicsBackend;
 import dev.hytalemodding.impulse.core.internal.resources.profiling.PhysicsRuntimeProfilingResource;
-import dev.hytalemodding.impulse.core.internal.resources.worker.PhysicsWorldWorkerResource;
+import dev.hytalemodding.impulse.core.internal.resources.PhysicsWorldWorkerResource;
+import dev.hytalemodding.impulse.core.internal.systems.collision.PhysicsChunkBoundarySystem;
+import dev.hytalemodding.impulse.core.internal.systems.collision.PhysicsCollisionLodSystem;
+import dev.hytalemodding.impulse.core.internal.systems.collision.PhysicsWorldCollisionStreamingSystem;
+import dev.hytalemodding.impulse.core.internal.systems.persistence.PersistentPhysicsWorldSyncSystem;
+import dev.hytalemodding.impulse.core.internal.systems.sync.PhysicsSyncSystem;
+import dev.hytalemodding.impulse.core.internal.systems.visual.PhysicsDetachedVisualMaterializationSystem;
 import dev.hytalemodding.impulse.core.internal.worker.PhysicsWorkerAccess;
 import dev.hytalemodding.impulse.core.internal.worker.PhysicsWorkerSnapshot;
 import dev.hytalemodding.impulse.core.internal.worker.PhysicsWorkerStepCommand;
@@ -21,6 +31,7 @@ import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyKind;
 import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyPersistenceMode;
 import dev.hytalemodding.impulse.core.plugin.settings.PhysicsSpaceSettings;
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsWorldRuntimeResource;
+import java.util.Set;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
@@ -28,6 +39,23 @@ import org.joml.Vector3f;
 import org.junit.jupiter.api.Test;
 
 class PhysicsSnapshotPublicationSystemTest {
+
+    @Test
+    void publicationDependenciesKeepReadersBehindSnapshotApply() {
+        Set<Dependency<EntityStore>> dependencies =
+            new PhysicsSnapshotPublicationSystem().getDependencies();
+
+        assertSystemDependency(dependencies, Order.BEFORE, PhysicsCollisionLodSystem.class);
+        assertSystemDependency(dependencies, Order.BEFORE, PhysicsChunkBoundarySystem.class);
+        assertSystemDependency(dependencies, Order.BEFORE, PhysicsWorldCollisionStreamingSystem.class);
+        assertSystemDependency(dependencies,
+            Order.BEFORE,
+            PhysicsDetachedVisualMaterializationSystem.class);
+        assertSystemDependency(dependencies, Order.BEFORE, PhysicsSyncSystem.class);
+        assertSystemDependency(new PersistentPhysicsWorldSyncSystem().getDependencies(),
+            Order.AFTER,
+            PhysicsSnapshotPublicationSystem.class);
+    }
 
     @Test
     void completedWorkerStepPublishesSnapshotWithoutDrain() throws Exception {
@@ -210,5 +238,14 @@ class PhysicsSnapshotPublicationSystemTest {
             Thread.sleep(10L);
         }
         assertTrue(command.publishedFrame() != null);
+    }
+
+    private static void assertSystemDependency(Set<Dependency<EntityStore>> dependencies,
+        Order order,
+        Class<?> systemClass) {
+        assertTrue(dependencies.stream().anyMatch(dependency ->
+            dependency.getOrder() == order
+                && dependency instanceof SystemDependency<?, ?> systemDependency
+                && systemDependency.getSystemClass().equals(systemClass)));
     }
 }

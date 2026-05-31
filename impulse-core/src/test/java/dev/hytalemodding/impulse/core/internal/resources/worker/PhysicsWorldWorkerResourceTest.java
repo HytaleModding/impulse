@@ -7,15 +7,17 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import dev.hytalemodding.impulse.core.internal.resources.PhysicsWorldWorkerResource;
 import dev.hytalemodding.impulse.core.internal.worker.PhysicsWorkerAccess;
 import dev.hytalemodding.impulse.core.internal.worker.PhysicsWorkerMutationCompletion;
 import dev.hytalemodding.impulse.core.internal.worker.PhysicsWorkerSnapshot;
 import dev.hytalemodding.impulse.core.internal.worker.PhysicsWorkerStepCommand;
 import dev.hytalemodding.impulse.core.internal.worker.PhysicsWorkerStepCompletion;
 import dev.hytalemodding.impulse.core.plugin.resources.PhysicsMutationHandle;
-import dev.hytalemodding.impulse.core.plugin.resources.PhysicsWorldResource;
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsWorldRuntimeResource;
 import java.time.Duration;
+import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.RejectedExecutionException;
@@ -252,6 +254,49 @@ class PhysicsWorldWorkerResourceTest {
         } finally {
             releaseActiveMutation.countDown();
             releaseQueuedMutation.countDown();
+        }
+    }
+
+    @Test
+    void stepPriorityDoesNotReorderMutationsWithinMutationLane() throws Exception {
+        CountDownLatch activeMutationStarted = new CountDownLatch(1);
+        CountDownLatch releaseActiveMutation = new CountDownLatch(1);
+        try (PhysicsWorldWorkerResource resource = new PhysicsWorldWorkerResource(8,
+            Duration.ofSeconds(2L))) {
+            resource.start("mutation-fifo-with-step-priority");
+            List<String> order = Collections.synchronizedList(new ArrayList<>());
+
+            resource.submitMutation("active mutation", () -> {
+                order.add("active");
+                activeMutationStarted.countDown();
+                assertTrue(releaseActiveMutation.await(2, TimeUnit.SECONDS));
+                return PhysicsWorkerSnapshot.empty();
+            });
+            assertTrue(activeMutationStarted.await(2, TimeUnit.SECONDS));
+
+            resource.submitMutation("queued mutation 1", () -> {
+                order.add("mutation-1");
+                return PhysicsWorkerSnapshot.empty();
+            });
+            resource.submitMutation("queued mutation 2", () -> {
+                order.add("mutation-2");
+                return PhysicsWorkerSnapshot.empty();
+            });
+            PhysicsWorkerStepCommand step = new PhysicsWorkerStepCommand(
+                new PhysicsWorldRuntimeResource(),
+                0.05f,
+                false,
+                1L,
+                1L);
+            assertTrue(resource.submitStepIfIdle(step));
+
+            releaseActiveMutation.countDown();
+            assertNotNull(pollStepCompletion(resource, Duration.ofSeconds(2L)));
+            pollMutationCompletions(resource, 3);
+
+            assertEquals(List.of("active", "mutation-1", "mutation-2"), order);
+        } finally {
+            releaseActiveMutation.countDown();
         }
     }
 

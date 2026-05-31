@@ -894,7 +894,9 @@ class PluginApiBoundaryTest {
     @Test
     void visualOcclusionUsesCopiedRaycastQueries() throws IOException {
         String visualSystem = Files.readString(coreSourceRoot()
-            .resolve("internal/systems/visual/PhysicsDetachedVisualMaterializationSystem.java"));
+            .resolve("internal/systems/visual/PhysicsDetachedVisualMaterializationSystem.java"))
+            + Files.readString(coreSourceRoot()
+                .resolve("internal/systems/visual/DetachedVisualOcclusion.java"));
 
         assertFalse(visualSystem.contains("callOnPhysicsOwner(\"raycast visual occlusion\""),
             "Visual occlusion should use copied raycast query results, not live owner callbacks");

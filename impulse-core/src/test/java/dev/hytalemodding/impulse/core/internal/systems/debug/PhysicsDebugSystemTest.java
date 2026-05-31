@@ -1,6 +1,7 @@
 package dev.hytalemodding.impulse.core.internal.systems.debug;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import dev.hytalemodding.impulse.api.BackendId;
@@ -11,12 +12,123 @@ import dev.hytalemodding.impulse.api.SpaceId;
 import dev.hytalemodding.impulse.api.testsupport.FakePhysicsBackend;
 import dev.hytalemodding.impulse.api.testsupport.FakePhysicsBackend.InMemoryPhysicsSpace;
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsWorldRuntimeResource;
+import dev.hytalemodding.impulse.core.internal.simulation.PhysicsDebugContactView;
+import dev.hytalemodding.impulse.core.internal.simulation.PhysicsDebugJointView;
+import java.util.concurrent.CompletableFuture;
 import java.util.List;
+import java.util.UUID;
+import java.util.concurrent.atomic.AtomicInteger;
 import org.joml.Vector3d;
 import org.joml.Vector3f;
 import org.junit.jupiter.api.Test;
 
 class PhysicsDebugSystemTest {
+
+    @Test
+    void debugQueryCachePollsCompletedResultsWithoutBlocking() {
+        PhysicsDebugSystem.DebugQueryCache cache = new PhysicsDebugSystem.DebugQueryCache();
+        PhysicsDebugSystem.DebugQueryKey contactsKey =
+            PhysicsDebugSystem.DebugQueryKey.contacts(new SpaceId(11), UUID.randomUUID());
+        PhysicsDebugSystem.DebugQueryKey jointsKey =
+            PhysicsDebugSystem.DebugQueryKey.joints(new SpaceId(11), UUID.randomUUID());
+        CompletableFuture<List<PhysicsDebugContactView>> pendingContacts = new CompletableFuture<>();
+        CompletableFuture<List<PhysicsDebugJointView>> pendingJoints = new CompletableFuture<>();
+        List<PhysicsDebugContactView> contacts = List.of(new PhysicsDebugContactView(1.0f,
+            2.0f,
+            3.0f,
+            true,
+            0.0f,
+            1.0f,
+            0.0f));
+        List<PhysicsDebugJointView> joints = List.of(new PhysicsDebugJointView(1.0f,
+            2.0f,
+            3.0f,
+            4.0f,
+            5.0f,
+            6.0f,
+            true,
+            0.0f,
+            1.0f,
+            0.0f));
+
+        assertTrue(cache.requestContactsIfIdle(contactsKey, () -> pendingContacts));
+        assertTrue(cache.requestJointsIfIdle(jointsKey, () -> pendingJoints));
+        assertTrue(cache.contactsOrEmpty(contactsKey).isEmpty());
+        assertTrue(cache.jointsOrEmpty(jointsKey).isEmpty());
+
+        pendingContacts.complete(contacts);
+        pendingJoints.complete(joints);
+
+        assertEquals(contacts, cache.contactsOrEmpty(contactsKey));
+        assertEquals(joints, cache.jointsOrEmpty(jointsKey));
+        assertTrue(cache.requestContactsIfIdle(contactsKey,
+            () -> CompletableFuture.completedFuture(List.of())));
+        assertTrue(cache.requestJointsIfIdle(jointsKey,
+            () -> CompletableFuture.completedFuture(List.of())));
+    }
+
+    @Test
+    void debugQueryCacheDoesNotSubmitDuplicateContactsWhilePending() {
+        PhysicsDebugSystem.DebugQueryCache cache = new PhysicsDebugSystem.DebugQueryCache();
+        PhysicsDebugSystem.DebugQueryKey key =
+            PhysicsDebugSystem.DebugQueryKey.contacts(new SpaceId(12), UUID.randomUUID());
+        CompletableFuture<List<PhysicsDebugContactView>> pending = new CompletableFuture<>();
+        AtomicInteger submissions = new AtomicInteger();
+        List<PhysicsDebugContactView> contacts = List.of(new PhysicsDebugContactView(1.0f,
+            2.0f,
+            3.0f,
+            true,
+            0.0f,
+            1.0f,
+            0.0f));
+
+        assertTrue(cache.requestContactsIfIdle(key, () -> {
+            submissions.incrementAndGet();
+            return pending;
+        }));
+        assertFalse(cache.requestContactsIfIdle(key, () -> {
+            submissions.incrementAndGet();
+            return CompletableFuture.completedFuture(List.of());
+        }));
+
+        assertEquals(1, submissions.get());
+        assertTrue(cache.contactsOrEmpty(key).isEmpty());
+        pending.complete(contacts);
+        assertEquals(contacts, cache.contactsOrEmpty(key));
+    }
+
+    @Test
+    void debugQueryCacheDoesNotSubmitDuplicateJointsWhilePending() {
+        PhysicsDebugSystem.DebugQueryCache cache = new PhysicsDebugSystem.DebugQueryCache();
+        PhysicsDebugSystem.DebugQueryKey key =
+            PhysicsDebugSystem.DebugQueryKey.joints(new SpaceId(13), UUID.randomUUID());
+        CompletableFuture<List<PhysicsDebugJointView>> pending = new CompletableFuture<>();
+        AtomicInteger submissions = new AtomicInteger();
+        List<PhysicsDebugJointView> joints = List.of(new PhysicsDebugJointView(1.0f,
+            2.0f,
+            3.0f,
+            4.0f,
+            5.0f,
+            6.0f,
+            true,
+            0.0f,
+            1.0f,
+            0.0f));
+
+        assertTrue(cache.requestJointsIfIdle(key, () -> {
+            submissions.incrementAndGet();
+            return pending;
+        }));
+        assertFalse(cache.requestJointsIfIdle(key, () -> {
+            submissions.incrementAndGet();
+            return CompletableFuture.completedFuture(List.of());
+        }));
+
+        assertEquals(1, submissions.get());
+        assertTrue(cache.jointsOrEmpty(key).isEmpty());
+        pending.complete(joints);
+        assertEquals(joints, cache.jointsOrEmpty(key));
+    }
 
     @Test
     void collectVisibleJointPrimitivesUsesAnchorsForDistanceAndRendering() {
