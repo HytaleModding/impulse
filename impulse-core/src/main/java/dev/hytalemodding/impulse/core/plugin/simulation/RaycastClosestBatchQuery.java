@@ -6,7 +6,7 @@ import java.util.Objects;
 import javax.annotation.Nonnull;
 
 /**
- * Owner-thread query for closest hits across many ray segments in one physics space.
+ * Owner-lane query for closest hits across many ray segments in one physics space.
  *
  * <p>The ray list is copied on construction. Result indexes match the input ray order.</p>
  */

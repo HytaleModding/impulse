@@ -17,8 +17,9 @@ import dev.hytalemodding.impulse.api.PhysicsRayHit;
 import dev.hytalemodding.impulse.api.PhysicsSpace;
 import dev.hytalemodding.impulse.api.SpaceId;
 import dev.hytalemodding.impulse.core.internal.resources.profiling.PhysicsRuntimeProfilingResource;
-import dev.hytalemodding.impulse.core.internal.resources.PhysicsWorldWorkerResource;
-import dev.hytalemodding.impulse.core.internal.worker.PhysicsWorkerStepCompletion;
+import dev.hytalemodding.impulse.core.internal.resources.owner.TestPhysicsOwnerLane;
+import dev.hytalemodding.impulse.core.internal.resources.owner.PhysicsOwnerResource;
+import dev.hytalemodding.impulse.core.internal.resources.owner.PhysicsOwnerStepCompletion;
 import dev.hytalemodding.impulse.core.internal.persistence.PersistentPhysicsWorldResource;
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsWorldRuntimeResource;
 import dev.hytalemodding.impulse.core.plugin.settings.PhysicsSpaceSettings;
@@ -49,16 +50,16 @@ class PhysicsStepSystemTest {
         PhysicsWorldRuntimeResource resource = new PhysicsWorldRuntimeResource();
         PhysicsRuntimeProfilingResource profiling = new PhysicsRuntimeProfilingResource();
 
-        try (PhysicsWorldWorkerResource worker = new PhysicsWorldWorkerResource(2,
+        try (TestPhysicsOwnerLane owner = new TestPhysicsOwnerLane(2,
             Duration.ofSeconds(2L))) {
-            worker.start("step-system-sequence-test");
-            resource.attachWorkerResource(worker);
+            owner.start("step-system-sequence-test");
+            resource.attachOwnerExecutor(owner);
 
-            // Worker steps run detached from the scheduling tick, so the published
+            // Owner steps run detached from the scheduling tick, so the published
             // frame must preserve the scheduling metadata captured at submission.
-            system.submitStepIfIdle(state, worker, resource, 0.05f, profiling, 42L);
+            system.submitStepIfIdle(state, owner, resource, 0.05f, profiling, 42L);
 
-            PhysicsWorkerStepCompletion completion = pollCompletedStep(worker);
+            PhysicsOwnerStepCompletion completion = pollCompletedStep(owner);
             PublishedPhysicsSnapshotFrame frame = completion.frame();
             assertNotNull(frame);
             assertEquals(1L, frame.stepSequence());
@@ -67,7 +68,7 @@ class PhysicsStepSystemTest {
     }
 
     @Test
-    void pendingWorkerStepAccumulatesElapsedDtForNextSubmission() throws Exception {
+    void pendingOwnerStepAccumulatesElapsedDtForNextSubmission() throws Exception {
         PhysicsStepSystem system = new PhysicsStepSystem();
         PhysicsStepSystem.StepSchedulerState state = new PhysicsStepSystem.StepSchedulerState();
         RecordingBackend backend = registerBackend();
@@ -82,23 +83,23 @@ class PhysicsStepSystemTest {
         CountDownLatch stepStarted = new CountDownLatch(1);
         CountDownLatch releaseStep = new CountDownLatch(1);
 
-        try (PhysicsWorldWorkerResource worker = new PhysicsWorldWorkerResource(2,
+        try (TestPhysicsOwnerLane owner = new TestPhysicsOwnerLane(2,
             Duration.ofSeconds(2L))) {
-            worker.start("step-system-accumulated-dt-test");
-            resource.attachWorkerResource(worker);
+            owner.start("step-system-accumulated-dt-test");
+            resource.attachOwnerExecutor(owner);
             space.blockNextStep(stepStarted, releaseStep);
 
-            system.submitStepIfIdle(state, worker, resource, 0.05f, profiling, 1L);
+            system.submitStepIfIdle(state, owner, resource, 0.05f, profiling, 1L);
             assertTrue(stepStarted.await(2, TimeUnit.SECONDS));
 
-            system.submitStepIfIdle(state, worker, resource, 0.05f, profiling, 2L);
-            system.submitStepIfIdle(state, worker, resource, 0.05f, profiling, 3L);
+            system.submitStepIfIdle(state, owner, resource, 0.05f, profiling, 2L);
+            system.submitStepIfIdle(state, owner, resource, 0.05f, profiling, 3L);
 
             releaseStep.countDown();
-            pollCompletedStep(worker);
+            pollCompletedStep(owner);
 
-            system.submitStepIfIdle(state, worker, resource, 0.05f, profiling, 4L);
-            PhysicsWorkerStepCompletion completion = pollCompletedStep(worker);
+            system.submitStepIfIdle(state, owner, resource, 0.05f, profiling, 4L);
+            PhysicsOwnerStepCompletion completion = pollCompletedStep(owner);
 
             assertEquals(2, space.stepDts.size());
             assertEquals(0.05f, space.stepDts.get(0), 0.00001f);
@@ -128,23 +129,23 @@ class PhysicsStepSystemTest {
         CountDownLatch stepStarted = new CountDownLatch(1);
         CountDownLatch releaseStep = new CountDownLatch(1);
 
-        try (PhysicsWorldWorkerResource worker = new PhysicsWorldWorkerResource(2,
+        try (TestPhysicsOwnerLane owner = new TestPhysicsOwnerLane(2,
             Duration.ofSeconds(2L))) {
-            worker.start("step-system-capped-dt-test");
-            resource.attachWorkerResource(worker);
+            owner.start("step-system-capped-dt-test");
+            resource.attachOwnerExecutor(owner);
             space.blockNextStep(stepStarted, releaseStep);
 
-            system.submitStepIfIdle(state, worker, resource, 0.05f, profiling, 1L);
+            system.submitStepIfIdle(state, owner, resource, 0.05f, profiling, 1L);
             assertTrue(stepStarted.await(2, TimeUnit.SECONDS));
             for (int tick = 2; tick < 12; tick++) {
-                system.submitStepIfIdle(state, worker, resource, 0.05f, profiling, tick);
+                system.submitStepIfIdle(state, owner, resource, 0.05f, profiling, tick);
             }
 
             releaseStep.countDown();
-            pollCompletedStep(worker);
+            pollCompletedStep(owner);
 
-            system.submitStepIfIdle(state, worker, resource, 0.0f, profiling, 12L);
-            pollCompletedStep(worker);
+            system.submitStepIfIdle(state, owner, resource, 0.0f, profiling, 12L);
+            pollCompletedStep(owner);
 
             assertEquals(2, space.stepDts.size());
             assertEquals(0.05f, space.stepDts.get(1), 0.00001f);
@@ -194,24 +195,24 @@ class PhysicsStepSystemTest {
         CountDownLatch stepStarted = new CountDownLatch(1);
         CountDownLatch releaseStep = new CountDownLatch(1);
 
-        try (PhysicsWorldWorkerResource worker = new PhysicsWorldWorkerResource(2,
+        try (TestPhysicsOwnerLane owner = new TestPhysicsOwnerLane(2,
             Duration.ofSeconds(2L))) {
-            worker.start("step-system-safe-dt-test");
-            resource.attachWorkerResource(worker);
+            owner.start("step-system-safe-dt-test");
+            resource.attachOwnerExecutor(owner);
             space.blockNextStep(stepStarted, releaseStep);
 
-            system.submitStepIfIdle(state, worker, resource, 0.05f, profiling, 1L);
+            system.submitStepIfIdle(state, owner, resource, 0.05f, profiling, 1L);
             assertTrue(stepStarted.await(2, TimeUnit.SECONDS));
-            system.submitStepIfIdle(state, worker, resource, Float.NaN, profiling, 2L);
-            system.submitStepIfIdle(state, worker, resource, Float.POSITIVE_INFINITY, profiling, 3L);
-            system.submitStepIfIdle(state, worker, resource, -1.0f, profiling, 4L);
-            system.submitStepIfIdle(state, worker, resource, 0.05f, profiling, 5L);
+            system.submitStepIfIdle(state, owner, resource, Float.NaN, profiling, 2L);
+            system.submitStepIfIdle(state, owner, resource, Float.POSITIVE_INFINITY, profiling, 3L);
+            system.submitStepIfIdle(state, owner, resource, -1.0f, profiling, 4L);
+            system.submitStepIfIdle(state, owner, resource, 0.05f, profiling, 5L);
 
             releaseStep.countDown();
-            pollCompletedStep(worker);
+            pollCompletedStep(owner);
 
-            system.submitStepIfIdle(state, worker, resource, 0.0f, profiling, 6L);
-            pollCompletedStep(worker);
+            system.submitStepIfIdle(state, owner, resource, 0.0f, profiling, 6L);
+            pollCompletedStep(owner);
 
             assertEquals(2, space.stepDts.size());
             assertEquals(0.05f, space.stepDts.get(1), 0.00001f);
@@ -234,23 +235,23 @@ class PhysicsStepSystemTest {
         CountDownLatch stepStarted = new CountDownLatch(1);
         CountDownLatch releaseStep = new CountDownLatch(1);
 
-        try (PhysicsWorldWorkerResource worker = new PhysicsWorldWorkerResource(2,
+        try (TestPhysicsOwnerLane owner = new TestPhysicsOwnerLane(2,
             Duration.ofSeconds(2L))) {
-            worker.start("step-system-drop-pending-dt-test");
-            resource.attachWorkerResource(worker);
+            owner.start("step-system-drop-pending-dt-test");
+            resource.attachOwnerExecutor(owner);
             space.blockNextStep(stepStarted, releaseStep);
 
-            system.submitStepIfIdle(state, worker, resource, 0.05f, profiling, 1L);
+            system.submitStepIfIdle(state, owner, resource, 0.05f, profiling, 1L);
             assertTrue(stepStarted.await(2, TimeUnit.SECONDS));
 
-            system.submitStepIfIdle(state, worker, resource, 0.05f, profiling, 2L);
-            system.submitStepIfIdle(state, worker, resource, 0.05f, profiling, 3L);
+            system.submitStepIfIdle(state, owner, resource, 0.05f, profiling, 2L);
+            system.submitStepIfIdle(state, owner, resource, 0.05f, profiling, 3L);
 
             releaseStep.countDown();
-            pollCompletedStep(worker);
+            pollCompletedStep(owner);
 
-            system.submitStepIfIdle(state, worker, resource, 0.05f, profiling, 4L);
-            PhysicsWorkerStepCompletion completion = pollCompletedStep(worker);
+            system.submitStepIfIdle(state, owner, resource, 0.05f, profiling, 4L);
+            PhysicsOwnerStepCompletion completion = pollCompletedStep(owner);
 
             assertEquals(2, space.stepDts.size());
             assertEquals(0.05f, space.stepDts.get(0), 0.00001f);
@@ -282,30 +283,30 @@ class PhysicsStepSystemTest {
         CountDownLatch stepStarted = new CountDownLatch(1);
         CountDownLatch releaseStep = new CountDownLatch(1);
 
-        try (PhysicsWorldWorkerResource worker = new PhysicsWorldWorkerResource(2,
+        try (TestPhysicsOwnerLane owner = new TestPhysicsOwnerLane(2,
             Duration.ofSeconds(2L))) {
-            worker.start("step-system-restore-guard-test");
-            resource.attachWorkerResource(worker);
+            owner.start("step-system-restore-guard-test");
+            resource.attachOwnerExecutor(owner);
             space.blockNextStep(stepStarted, releaseStep);
 
-            system.submitStepIfIdle(state, worker, resource, 0.05f, profiling, 1L);
+            system.submitStepIfIdle(state, owner, resource, 0.05f, profiling, 1L);
             assertTrue(stepStarted.await(2, TimeUnit.SECONDS));
-            system.submitStepIfIdle(state, worker, resource, 0.05f, profiling, 2L);
+            system.submitStepIfIdle(state, owner, resource, 0.05f, profiling, 2L);
 
             persistent.markRuntimeRestorePending();
             assertFalse(system.submitStepIfRestoreReady(state,
                 persistent,
-                worker,
+                owner,
                 resource,
                 0.05f,
                 profiling,
                 3L));
 
             releaseStep.countDown();
-            pollCompletedStep(worker);
+            pollCompletedStep(owner);
 
-            system.submitStepIfIdle(state, worker, resource, 0.0f, profiling, 4L);
-            pollCompletedStep(worker);
+            system.submitStepIfIdle(state, owner, resource, 0.0f, profiling, 4L);
+            pollCompletedStep(owner);
 
             assertEquals(2, space.stepDts.size());
             assertEquals(0.05f, space.stepDts.get(0), 0.00001f);
@@ -325,16 +326,16 @@ class PhysicsStepSystemTest {
         PersistentPhysicsWorldResource persistent = new PersistentPhysicsWorldResource();
         persistent.failRuntimeRestore("bad persisted state");
 
-        try (PhysicsWorldWorkerResource worker = new PhysicsWorldWorkerResource(2,
+        try (TestPhysicsOwnerLane owner = new TestPhysicsOwnerLane(2,
             Duration.ofSeconds(2L))) {
             assertFalse(system.submitStepIfRestoreReady(state,
                 persistent,
-                worker,
+                owner,
                 resource,
                 0.05f,
                 profiling,
                 1L));
-            assertFalse(worker.hasPendingStep());
+            assertFalse(owner.hasPendingStep());
         }
     }
 
@@ -367,11 +368,11 @@ class PhysicsStepSystemTest {
     }
 
     @Nonnull
-    private static PhysicsWorkerStepCompletion pollCompletedStep(
-        @Nonnull PhysicsWorldWorkerResource worker) throws InterruptedException {
+    private static PhysicsOwnerStepCompletion pollCompletedStep(
+        @Nonnull PhysicsOwnerResource owner) throws InterruptedException {
         long deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(2L);
         while (System.nanoTime() < deadline) {
-            PhysicsWorkerStepCompletion completion = worker.pollCompletedStep();
+            PhysicsOwnerStepCompletion completion = owner.pollCompletedStep();
             if (completion != null) {
                 return completion;
             }
@@ -448,13 +449,13 @@ class PhysicsStepSystemTest {
 
         @Nonnull
         @Override
-        public SpaceId getId() {
+        public SpaceId id() {
             return id;
         }
 
         @Nonnull
         @Override
-        public BackendId getBackendId() {
+        public BackendId backendId() {
             return backendId;
         }
 

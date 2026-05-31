@@ -160,31 +160,31 @@ public final class PhysicsWorldLifecycleState {
 
     public boolean isBodyCreationPending(@Nonnull RigidBodyKey bodyKey,
         boolean directBodyCreationPending,
-        boolean workerAttached) {
+        boolean ownerExecutorAttached) {
         return commandVisibility.isBodyCreationPending(bodyKey,
             directBodyCreationPending,
-            workerAttached);
+            ownerExecutorAttached);
     }
 
     public boolean trackBodyCreationPublication(@Nonnull RecordedPhysicsCommandBatch batch,
-        boolean workerAttached) {
-        return commandVisibility.trackBodyCreationPublication(batch, workerAttached);
+        boolean ownerExecutorAttached) {
+        return commandVisibility.trackBodyCreationPublication(batch, ownerExecutorAttached);
     }
 
     public void clearBodyCreationPublication(@Nonnull RecordedPhysicsCommandBatch batch) {
         commandVisibility.clearBodyCreationPublication(batch);
     }
 
-    public void publishDetachedWorkerRegistrationViews(@Nonnull PhysicsBodyRegistry bodyRegistry) {
+    public void publishDetachedOwnerRegistrationViews(@Nonnull PhysicsBodyRegistry bodyRegistry) {
         bodyRegistry.publishLiveRegistrationViews();
         commandVisibility.applyLastIncludedCommandBatchSequence(
             commandVisibility.completedCommandBatchSequence());
     }
 
     public void markWorldChanged(@Nonnull PhysicsBodyRegistry bodyRegistry,
-        boolean workerAttached) {
+        boolean ownerExecutorAttached) {
         snapshotState.markWorldChanged();
-        if (!workerAttached) {
+        if (!ownerExecutorAttached) {
             bodyRegistry.publishLiveRegistrationViews();
         }
         if (commandVisibility.markWorldChanged()) {

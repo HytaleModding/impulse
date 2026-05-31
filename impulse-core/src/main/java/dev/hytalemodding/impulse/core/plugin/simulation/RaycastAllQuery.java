@@ -7,7 +7,7 @@ import javax.annotation.Nonnull;
 import org.joml.Vector3f;
 
 /**
- * Owner-thread query for every ray hit in one physics space.
+ * Owner-lane query for every ray hit in one physics space.
  *
  * <p>The endpoints are defensively copied so callers can reuse mutable vector instances after
  * submission.</p>

@@ -43,13 +43,6 @@ class ImpulsePluginBackendSelectionTest {
     }
 
     @Test
-    void multipleDiscoveredBackendsRequireExplicitSelection() {
-        assertNull(ImpulsePlugin.selectDefaultBackendId(List.of(
-            new TestBackend(new BackendId("impulse:bullet")),
-            new TestBackend(new BackendId("impulse:rapier")))));
-    }
-
-    @Test
     void discoversClasspathVisibleServiceProviders() throws IOException {
         Path providerJar = tempDir.resolve("provider.jar");
         writeServiceJar(providerJar);

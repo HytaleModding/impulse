@@ -23,10 +23,10 @@ anywhere under the configured Hytale `mods` directories.
 ## Profiling
 
 Spark plugin is advised to profile threaded physics benchmarks. By using the following command,
-the exported profile includes both Hytale world threads and Impulse's per-world physics worker:
+the exported profile includes both Hytale world threads and Impulse's physics owner-lane executor threads:
 
 ```bash
-/spark profiler start --timeout 60 --save-to-file --regex --not-combined --ignore-sleeping --thread WorldThread.* --thread Impulse.*physics.*worker.* --thread ChunkLighting.* --thread WorldMap.*
+/spark profiler start --timeout 60 --save-to-file --regex --not-combined --ignore-sleeping --thread WorldThread.* --thread Impulse.*physics.*owner.* --thread ChunkLighting.* --thread WorldMap.*
 ```
 
 Avoid contact debug rendering during benchmark captures; it calls backend contact enumeration and

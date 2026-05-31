@@ -37,8 +37,8 @@ class PhysicsRuntimeProfilingResourceTest {
         assertEquals(9, resource.getCumulativeStep().getSubsteps());
         assertEquals(140L, resource.getCumulativeStep().getTickNanos());
         assertEquals(30L, resource.getCumulativeStep().getSnapshotNanos());
-        assertEquals(10L, resource.getCumulativeStep().getWorkerQueuedNanos());
-        assertEquals(90L, resource.getCumulativeStep().getWorkerRunNanos());
+        assertEquals(10L, resource.getCumulativeStep().getOwnerQueuedNanos());
+        assertEquals(90L, resource.getCumulativeStep().getOwnerRunNanos());
         assertEquals(1, resource.getCumulativeStep().getSkippedPendingSteps());
         assertEquals(75L, resource.getCumulativeStep().getPendingStepAgeNanos());
         assertEquals(75L, resource.getCumulativeStep().getMaxPendingStepAgeNanos());
@@ -92,6 +92,11 @@ class PhysicsRuntimeProfilingResourceTest {
         first.incrementBodiesSynced();
         first.incrementTransitionSyncs();
         first.incrementSkippedVisualDeadzone();
+        first.recordBodySnapshotMotion(Float.NaN);
+        first.recordBodySnapshotMotion(0.125f);
+        first.recordBodySnapshotMotion(0.25f);
+        first.recordVisualCorrection(-1.0f);
+        first.recordVisualCorrection(0.5f);
         resource.finishSyncSample(first, 80L);
 
         assertNull(resource.getActiveSyncCollector());
@@ -100,11 +105,19 @@ class PhysicsRuntimeProfilingResourceTest {
         assertEquals(1, resource.getLatestSync().getBodiesSynced());
         assertEquals(1, resource.getLatestSync().getTransitionSyncs());
         assertEquals(1, resource.getLatestSync().getSkippedVisualDeadzone());
+        assertEquals(2, resource.getLatestSync().getBodySnapshotMotionSamples());
+        assertEquals(0.375, resource.getLatestSync().getBodySnapshotMotionDistance(), 0.0001);
+        assertEquals(0.25, resource.getLatestSync().getMaxBodySnapshotMotionDistance(), 0.0001);
+        assertEquals(1, resource.getLatestSync().getVisualCorrectionSamples());
+        assertEquals(0.5, resource.getLatestSync().getVisualCorrectionDistance(), 0.0001);
+        assertEquals(0.5, resource.getLatestSync().getMaxVisualCorrectionDistance(), 0.0001);
         assertEquals(80L, resource.getLatestSync().getTickNanos());
 
         PhysicsRuntimeProfilingResource.SyncCollector second = resource.beginSyncSample();
         second.incrementBodiesInspected();
         second.incrementKeepaliveSyncs();
+        second.recordBodySnapshotMotion(0.5f);
+        second.recordVisualCorrection(0.25f);
         resource.finishSyncSample(second, 40L);
 
         assertEquals(2, resource.getCumulativeSync().getTickSamples());
@@ -112,11 +125,17 @@ class PhysicsRuntimeProfilingResourceTest {
         assertEquals(1, resource.getCumulativeSync().getBodiesSynced());
         assertEquals(1, resource.getCumulativeSync().getTransitionSyncs());
         assertEquals(1, resource.getCumulativeSync().getKeepaliveSyncs());
+        assertEquals(3, resource.getCumulativeSync().getBodySnapshotMotionSamples());
+        assertEquals(0.875, resource.getCumulativeSync().getBodySnapshotMotionDistance(), 0.0001);
+        assertEquals(0.5, resource.getCumulativeSync().getMaxBodySnapshotMotionDistance(), 0.0001);
+        assertEquals(2, resource.getCumulativeSync().getVisualCorrectionSamples());
+        assertEquals(0.75, resource.getCumulativeSync().getVisualCorrectionDistance(), 0.0001);
+        assertEquals(0.5, resource.getCumulativeSync().getMaxVisualCorrectionDistance(), 0.0001);
         assertEquals(80L, resource.getWorstSync().getTickNanos());
     }
 
     @Test
-    void workerStepRateUsesCompletedWorkerStepIntervals() {
+    void ownerStepRateUsesCompletedOwnerStepIntervals() {
         PhysicsRuntimeProfilingResource resource = new PhysicsRuntimeProfilingResource();
 
         resource.recordStep(1,
@@ -129,8 +148,8 @@ class PhysicsRuntimeProfilingResourceTest {
             7L,
             1_000_000_000L,
             PhysicsStepPhaseStats.unavailable());
-        assertEquals(0, resource.getLatestStep().getWorkerStepRateSamples());
-        assertEquals(0L, resource.getLatestStep().getWorkerStepIntervalNanos());
+        assertEquals(0, resource.getLatestStep().getOwnerStepRateSamples());
+        assertEquals(0L, resource.getLatestStep().getOwnerStepIntervalNanos());
 
         resource.recordStep(1,
             2,
@@ -153,11 +172,11 @@ class PhysicsRuntimeProfilingResourceTest {
             1_150_000_000L,
             PhysicsStepPhaseStats.unavailable());
 
-        assertEquals(1, resource.getLatestStep().getWorkerStepRateSamples());
-        assertEquals(100_000_000L, resource.getLatestStep().getWorkerStepIntervalNanos());
-        assertEquals(2, resource.getCumulativeStep().getWorkerStepRateSamples());
-        assertEquals(150_000_000L, resource.getCumulativeStep().getWorkerStepIntervalNanos());
-        assertEquals(100_000_000L, resource.getCumulativeStep().getMaxWorkerStepIntervalNanos());
+        assertEquals(1, resource.getLatestStep().getOwnerStepRateSamples());
+        assertEquals(100_000_000L, resource.getLatestStep().getOwnerStepIntervalNanos());
+        assertEquals(2, resource.getCumulativeStep().getOwnerStepRateSamples());
+        assertEquals(150_000_000L, resource.getCumulativeStep().getOwnerStepIntervalNanos());
+        assertEquals(100_000_000L, resource.getCumulativeStep().getMaxOwnerStepIntervalNanos());
 
         resource.reset();
         resource.recordStep(1,
@@ -171,8 +190,8 @@ class PhysicsRuntimeProfilingResourceTest {
             2_000_000_000L,
             PhysicsStepPhaseStats.unavailable());
 
-        assertEquals(0, resource.getLatestStep().getWorkerStepRateSamples());
-        assertEquals(0L, resource.getLatestStep().getWorkerStepIntervalNanos());
+        assertEquals(0, resource.getLatestStep().getOwnerStepRateSamples());
+        assertEquals(0L, resource.getLatestStep().getOwnerStepIntervalNanos());
     }
 
     @Test
@@ -220,6 +239,8 @@ class PhysicsRuntimeProfilingResourceTest {
         resource.recordStepScheduling(0.125f, 0.125f, 0.0f, 0.0f, false);
         PhysicsRuntimeProfilingResource.SyncCollector collector = resource.beginSyncSample();
         collector.incrementBodiesSynced();
+        collector.recordBodySnapshotMotion(0.375f);
+        collector.recordVisualCorrection(0.625f);
         resource.finishSyncSample(collector, 15L);
 
         PhysicsRuntimeProfilingResource copy = resource.clone();
@@ -227,6 +248,10 @@ class PhysicsRuntimeProfilingResourceTest {
         assertEquals(resource.getLatestStep().getSchedulerSubmittedDtNanos(),
             copy.getLatestStep().getSchedulerSubmittedDtNanos());
         assertEquals(resource.getLatestSync().getBodiesSynced(), copy.getLatestSync().getBodiesSynced());
+        assertEquals(resource.getLatestSync().getBodySnapshotMotionDistance(),
+            copy.getLatestSync().getBodySnapshotMotionDistance(), 0.0001);
+        assertEquals(resource.getLatestSync().getVisualCorrectionDistance(),
+            copy.getLatestSync().getVisualCorrectionDistance(), 0.0001);
         assertNull(copy.getActiveSyncCollector());
 
         resource.reset();
@@ -235,6 +260,8 @@ class PhysicsRuntimeProfilingResourceTest {
         assertEquals(0, resource.getLatestStep().getTickNanos());
         assertEquals(0L, resource.getLatestStep().getSchedulerSubmittedDtNanos());
         assertEquals(0, resource.getWorstSync().getTickNanos());
+        assertEquals(0, resource.getCumulativeSync().getBodySnapshotMotionSamples());
+        assertEquals(0.0, resource.getCumulativeSync().getVisualCorrectionDistance(), 0.0001);
         assertNull(resource.getActiveSyncCollector());
     }
 }

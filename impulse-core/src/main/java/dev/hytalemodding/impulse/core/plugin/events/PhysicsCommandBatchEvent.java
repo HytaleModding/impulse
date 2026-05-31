@@ -5,11 +5,11 @@ import dev.hytalemodding.impulse.core.plugin.joint.JointKey;
 import javax.annotation.Nullable;
 
 /**
- * Value-only owner-thread outcome for one submitted physics command batch.
+ * Value-only owner-lane outcome for one submitted physics command batch.
  *
  * @param commandBatchSequence owner FIFO sequence assigned when the command batch was submitted
  * @param submittedServerTick server tick supplied by the caller when the batch was recorded
- * @param ownerCompletedNanoTime monotonic nano time sampled when the owner-thread command-batch
+ * @param ownerCompletedNanoTime monotonic nano time sampled when the owner-lane command-batch
  *     outcome event was published, or {@code 0} when unavailable
  * @param commandCount number of recorded command operations in the batch
  * @param bodyKeyReferenceCount number of body-key references copied from recorded operations

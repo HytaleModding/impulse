@@ -13,12 +13,12 @@ import java.util.List;
 import javax.annotation.Nonnull;
 
 /**
- * Worker-owned copy of the live runtime state needed by world persistence.
+ * Owner-owned copy of the live runtime state needed by world persistence.
  *
  * <p>{@link #capture(PhysicsWorldRuntimeResource)} and
  * {@link #captureFootprint(PhysicsWorldRuntimeResource)}
  * read live backend spaces, bodies, and joints. Callers must invoke them from the physics
- * owner thread or through the physics worker bridge.</p>
+ * owner lane or through the physics owner bridge.</p>
  */
 public final class PersistentPhysicsRuntimeSnapshot {
 
@@ -57,7 +57,7 @@ public final class PersistentPhysicsRuntimeSnapshot {
             }
         }
         for (PhysicsSpace space : runtime.iterateSpaces()) {
-            PhysicsSpaceSettings settings = runtime.getLiveSpaceSettings(space.getId());
+            PhysicsSpaceSettings settings = runtime.getLiveSpaceSettings(space.id());
             spaces.add(PersistentPhysicsSpaceState.from(space, settings));
             capturePersistentJoints(runtime, space, joints);
         }
@@ -141,7 +141,7 @@ public final class PersistentPhysicsRuntimeSnapshot {
                 || bodyB.persistenceMode() != PhysicsBodyPersistenceMode.PERSISTENT) {
                 return;
             }
-            joints.add(PersistentPhysicsJointState.from(space.getId().value(),
+            joints.add(PersistentPhysicsJointState.from(space.id().value(),
                 bodyAKey,
                 bodyBKey,
                 joint));

@@ -35,7 +35,7 @@ public class PhysicsRuntimeProfilingResource implements Resource<EntityStore> {
 
     @Nullable
     private transient SyncCollector activeSyncCollector;
-    private transient long previousWorkerStepCompletedNanos;
+    private transient long previousOwnerStepCompletedNanos;
 
     public PhysicsRuntimeProfilingResource() {
     }
@@ -66,16 +66,16 @@ public class PhysicsRuntimeProfilingResource implements Resource<EntityStore> {
         int bodySnapshots,
         int spatialIndexCells,
         long snapshotNanos,
-        long workerQueuedNanos,
-        long workerRunNanos) {
+        long ownerQueuedNanos,
+        long ownerRunNanos) {
         recordStep(spaces,
             substeps,
             nanos,
             bodySnapshots,
             spatialIndexCells,
             snapshotNanos,
-            workerQueuedNanos,
-            workerRunNanos,
+            ownerQueuedNanos,
+            ownerRunNanos,
             0L,
             PhysicsStepPhaseStats.unavailable());
     }
@@ -86,8 +86,8 @@ public class PhysicsRuntimeProfilingResource implements Resource<EntityStore> {
         int bodySnapshots,
         int spatialIndexCells,
         long snapshotNanos,
-        long workerQueuedNanos,
-        long workerRunNanos,
+        long ownerQueuedNanos,
+        long ownerRunNanos,
         @Nonnull PhysicsStepPhaseStats nativePhaseStats) {
         recordStep(spaces,
             substeps,
@@ -95,8 +95,8 @@ public class PhysicsRuntimeProfilingResource implements Resource<EntityStore> {
             bodySnapshots,
             spatialIndexCells,
             snapshotNanos,
-            workerQueuedNanos,
-            workerRunNanos,
+            ownerQueuedNanos,
+            ownerRunNanos,
             0L,
             nativePhaseStats);
     }
@@ -107,9 +107,9 @@ public class PhysicsRuntimeProfilingResource implements Resource<EntityStore> {
         int bodySnapshots,
         int spatialIndexCells,
         long snapshotNanos,
-        long workerQueuedNanos,
-        long workerRunNanos,
-        long workerCompletedNanos,
+        long ownerQueuedNanos,
+        long ownerRunNanos,
+        long ownerCompletedNanos,
         @Nonnull PhysicsStepPhaseStats nativePhaseStats) {
         StepSnapshot snapshot = new StepSnapshot();
         snapshot.recordTickSample();
@@ -119,9 +119,9 @@ public class PhysicsRuntimeProfilingResource implements Resource<EntityStore> {
         snapshot.setBodySnapshots(bodySnapshots);
         snapshot.setSpatialIndexCells(spatialIndexCells);
         snapshot.setSnapshotNanos(snapshotNanos);
-        snapshot.setWorkerQueuedNanos(workerQueuedNanos);
-        snapshot.setWorkerRunNanos(workerRunNanos);
-        snapshot.recordWorkerStepInterval(recordWorkerStepInterval(workerCompletedNanos));
+        snapshot.setOwnerQueuedNanos(ownerQueuedNanos);
+        snapshot.setOwnerRunNanos(ownerRunNanos);
+        snapshot.recordOwnerStepInterval(recordOwnerStepInterval(ownerCompletedNanos));
         snapshot.setNativePhaseStats(nativePhaseStats);
 
         latestStep.copyFrom(snapshot);
@@ -219,7 +219,7 @@ public class PhysicsRuntimeProfilingResource implements Resource<EntityStore> {
         latestVisual.reset();
         worstVisual.reset();
         activeSyncCollector = null;
-        previousWorkerStepCompletedNanos = 0L;
+        previousOwnerStepCompletedNanos = 0L;
     }
 
     @Nonnull
@@ -236,23 +236,23 @@ public class PhysicsRuntimeProfilingResource implements Resource<EntityStore> {
         copy.cumulativeVisual.copyFrom(cumulativeVisual);
         copy.latestVisual.copyFrom(latestVisual);
         copy.worstVisual.copyFrom(worstVisual);
-        copy.previousWorkerStepCompletedNanos = previousWorkerStepCompletedNanos;
+        copy.previousOwnerStepCompletedNanos = previousOwnerStepCompletedNanos;
         return copy;
     }
 
-    private long recordWorkerStepInterval(long workerCompletedNanos) {
-        if (workerCompletedNanos <= 0L) {
+    private long recordOwnerStepInterval(long ownerCompletedNanos) {
+        if (ownerCompletedNanos <= 0L) {
             return 0L;
         }
-        if (previousWorkerStepCompletedNanos <= 0L) {
-            previousWorkerStepCompletedNanos = workerCompletedNanos;
+        if (previousOwnerStepCompletedNanos <= 0L) {
+            previousOwnerStepCompletedNanos = ownerCompletedNanos;
             return 0L;
         }
-        if (workerCompletedNanos <= previousWorkerStepCompletedNanos) {
+        if (ownerCompletedNanos <= previousOwnerStepCompletedNanos) {
             return 0L;
         }
-        long intervalNanos = workerCompletedNanos - previousWorkerStepCompletedNanos;
-        previousWorkerStepCompletedNanos = workerCompletedNanos;
+        long intervalNanos = ownerCompletedNanos - previousOwnerStepCompletedNanos;
+        previousOwnerStepCompletedNanos = ownerCompletedNanos;
         return intervalNanos;
     }
 
@@ -288,12 +288,12 @@ public class PhysicsRuntimeProfilingResource implements Resource<EntityStore> {
         @Setter
         private long snapshotNanos;
         @Setter
-        private long workerQueuedNanos;
+        private long ownerQueuedNanos;
         @Setter
-        private long workerRunNanos;
-        private int workerStepRateSamples;
-        private long workerStepIntervalNanos;
-        private long maxWorkerStepIntervalNanos;
+        private long ownerRunNanos;
+        private int ownerStepRateSamples;
+        private long ownerStepIntervalNanos;
+        private long maxOwnerStepIntervalNanos;
         @Setter
         private int skippedPendingSteps;
         @Setter
@@ -329,11 +329,11 @@ public class PhysicsRuntimeProfilingResource implements Resource<EntityStore> {
             spatialIndexCells = other.spatialIndexCells;
             tickNanos = other.tickNanos;
             snapshotNanos = other.snapshotNanos;
-            workerQueuedNanos = other.workerQueuedNanos;
-            workerRunNanos = other.workerRunNanos;
-            workerStepRateSamples = other.workerStepRateSamples;
-            workerStepIntervalNanos = other.workerStepIntervalNanos;
-            maxWorkerStepIntervalNanos = other.maxWorkerStepIntervalNanos;
+            ownerQueuedNanos = other.ownerQueuedNanos;
+            ownerRunNanos = other.ownerRunNanos;
+            ownerStepRateSamples = other.ownerStepRateSamples;
+            ownerStepIntervalNanos = other.ownerStepIntervalNanos;
+            maxOwnerStepIntervalNanos = other.maxOwnerStepIntervalNanos;
             skippedPendingSteps = other.skippedPendingSteps;
             pendingStepAgeNanos = other.pendingStepAgeNanos;
             maxPendingStepAgeNanos = other.maxPendingStepAgeNanos;
@@ -362,12 +362,12 @@ public class PhysicsRuntimeProfilingResource implements Resource<EntityStore> {
             spatialIndexCells += other.spatialIndexCells;
             tickNanos += other.tickNanos;
             snapshotNanos += other.snapshotNanos;
-            workerQueuedNanos += other.workerQueuedNanos;
-            workerRunNanos += other.workerRunNanos;
-            workerStepRateSamples += other.workerStepRateSamples;
-            workerStepIntervalNanos += other.workerStepIntervalNanos;
-            maxWorkerStepIntervalNanos = Math.max(maxWorkerStepIntervalNanos,
-                other.maxWorkerStepIntervalNanos);
+            ownerQueuedNanos += other.ownerQueuedNanos;
+            ownerRunNanos += other.ownerRunNanos;
+            ownerStepRateSamples += other.ownerStepRateSamples;
+            ownerStepIntervalNanos += other.ownerStepIntervalNanos;
+            maxOwnerStepIntervalNanos = Math.max(maxOwnerStepIntervalNanos,
+                other.maxOwnerStepIntervalNanos);
             skippedPendingSteps += other.skippedPendingSteps;
             pendingStepAgeNanos += other.pendingStepAgeNanos;
             maxPendingStepAgeNanos = Math.max(maxPendingStepAgeNanos,
@@ -398,11 +398,11 @@ public class PhysicsRuntimeProfilingResource implements Resource<EntityStore> {
             spatialIndexCells = 0;
             tickNanos = 0L;
             snapshotNanos = 0L;
-            workerQueuedNanos = 0L;
-            workerRunNanos = 0L;
-            workerStepRateSamples = 0;
-            workerStepIntervalNanos = 0L;
-            maxWorkerStepIntervalNanos = 0L;
+            ownerQueuedNanos = 0L;
+            ownerRunNanos = 0L;
+            ownerStepRateSamples = 0;
+            ownerStepIntervalNanos = 0L;
+            maxOwnerStepIntervalNanos = 0L;
             skippedPendingSteps = 0;
             pendingStepAgeNanos = 0L;
             maxPendingStepAgeNanos = 0L;
@@ -423,16 +423,16 @@ public class PhysicsRuntimeProfilingResource implements Resource<EntityStore> {
             nativeSnapshotNanos = 0L;
         }
 
-        public void recordWorkerStepInterval(long intervalNanos) {
+        public void recordOwnerStepInterval(long intervalNanos) {
             if (intervalNanos <= 0L) {
-                workerStepRateSamples = 0;
-                workerStepIntervalNanos = 0L;
-                maxWorkerStepIntervalNanos = 0L;
+                ownerStepRateSamples = 0;
+                ownerStepIntervalNanos = 0L;
+                maxOwnerStepIntervalNanos = 0L;
                 return;
             }
-            workerStepRateSamples = 1;
-            workerStepIntervalNanos = intervalNanos;
-            maxWorkerStepIntervalNanos = intervalNanos;
+            ownerStepRateSamples = 1;
+            ownerStepIntervalNanos = intervalNanos;
+            maxOwnerStepIntervalNanos = intervalNanos;
         }
 
         public void recordSchedulerSample(long inputDtNanos,
@@ -497,6 +497,18 @@ public class PhysicsRuntimeProfilingResource implements Resource<EntityStore> {
         private int skippedMissingSpace;
         @Setter
         private long tickNanos;
+        @Setter
+        private int bodySnapshotMotionSamples;
+        @Setter
+        private double bodySnapshotMotionDistance;
+        @Setter
+        private double maxBodySnapshotMotionDistance;
+        @Setter
+        private int visualCorrectionSamples;
+        @Setter
+        private double visualCorrectionDistance;
+        @Setter
+        private double maxVisualCorrectionDistance;
 
         public void recordTickSample() {
             tickSamples++;
@@ -515,6 +527,12 @@ public class PhysicsRuntimeProfilingResource implements Resource<EntityStore> {
             skippedStatic = other.skippedStatic;
             skippedMissingSpace = other.skippedMissingSpace;
             tickNanos = other.tickNanos;
+            bodySnapshotMotionSamples = other.bodySnapshotMotionSamples;
+            bodySnapshotMotionDistance = other.bodySnapshotMotionDistance;
+            maxBodySnapshotMotionDistance = other.maxBodySnapshotMotionDistance;
+            visualCorrectionSamples = other.visualCorrectionSamples;
+            visualCorrectionDistance = other.visualCorrectionDistance;
+            maxVisualCorrectionDistance = other.maxVisualCorrectionDistance;
         }
 
         public void add(@Nonnull SyncSnapshot other) {
@@ -530,6 +548,14 @@ public class PhysicsRuntimeProfilingResource implements Resource<EntityStore> {
             skippedStatic += other.skippedStatic;
             skippedMissingSpace += other.skippedMissingSpace;
             tickNanos += other.tickNanos;
+            bodySnapshotMotionSamples += other.bodySnapshotMotionSamples;
+            bodySnapshotMotionDistance += other.bodySnapshotMotionDistance;
+            maxBodySnapshotMotionDistance = Math.max(maxBodySnapshotMotionDistance,
+                other.maxBodySnapshotMotionDistance);
+            visualCorrectionSamples += other.visualCorrectionSamples;
+            visualCorrectionDistance += other.visualCorrectionDistance;
+            maxVisualCorrectionDistance = Math.max(maxVisualCorrectionDistance,
+                other.maxVisualCorrectionDistance);
         }
 
         public void reset() {
@@ -545,6 +571,12 @@ public class PhysicsRuntimeProfilingResource implements Resource<EntityStore> {
             skippedStatic = 0;
             skippedMissingSpace = 0;
             tickNanos = 0L;
+            bodySnapshotMotionSamples = 0;
+            bodySnapshotMotionDistance = 0.0;
+            maxBodySnapshotMotionDistance = 0.0;
+            visualCorrectionSamples = 0;
+            visualCorrectionDistance = 0.0;
+            maxVisualCorrectionDistance = 0.0;
         }
     }
 
@@ -560,6 +592,12 @@ public class PhysicsRuntimeProfilingResource implements Resource<EntityStore> {
         private int skippedVisualRange;
         private int skippedStatic;
         private int skippedMissingSpace;
+        private int bodySnapshotMotionSamples;
+        private double bodySnapshotMotionDistance;
+        private double maxBodySnapshotMotionDistance;
+        private int visualCorrectionSamples;
+        private double visualCorrectionDistance;
+        private double maxVisualCorrectionDistance;
 
         public void incrementBodiesInspected() {
             bodiesInspected++;
@@ -601,6 +639,24 @@ public class PhysicsRuntimeProfilingResource implements Resource<EntityStore> {
             skippedMissingSpace++;
         }
 
+        public void recordBodySnapshotMotion(float distance) {
+            if (!Float.isFinite(distance) || distance < 0.0f) {
+                return;
+            }
+            bodySnapshotMotionSamples++;
+            bodySnapshotMotionDistance += distance;
+            maxBodySnapshotMotionDistance = Math.max(maxBodySnapshotMotionDistance, distance);
+        }
+
+        public void recordVisualCorrection(float distance) {
+            if (!Float.isFinite(distance) || distance < 0.0f) {
+                return;
+            }
+            visualCorrectionSamples++;
+            visualCorrectionDistance += distance;
+            maxVisualCorrectionDistance = Math.max(maxVisualCorrectionDistance, distance);
+        }
+
         @Nonnull
         private SyncSnapshot snapshot(long nanos) {
             SyncSnapshot snapshot = new SyncSnapshot();
@@ -615,6 +671,12 @@ public class PhysicsRuntimeProfilingResource implements Resource<EntityStore> {
             snapshot.setSkippedStatic(skippedStatic);
             snapshot.setSkippedMissingSpace(skippedMissingSpace);
             snapshot.setTickNanos(nanos);
+            snapshot.setBodySnapshotMotionSamples(bodySnapshotMotionSamples);
+            snapshot.setBodySnapshotMotionDistance(bodySnapshotMotionDistance);
+            snapshot.setMaxBodySnapshotMotionDistance(maxBodySnapshotMotionDistance);
+            snapshot.setVisualCorrectionSamples(visualCorrectionSamples);
+            snapshot.setVisualCorrectionDistance(visualCorrectionDistance);
+            snapshot.setMaxVisualCorrectionDistance(maxVisualCorrectionDistance);
             return snapshot;
         }
     }

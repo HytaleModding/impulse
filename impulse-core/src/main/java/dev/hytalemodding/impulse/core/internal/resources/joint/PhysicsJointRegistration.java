@@ -6,7 +6,7 @@ import dev.hytalemodding.impulse.core.plugin.joint.JointKey;
 import javax.annotation.Nonnull;
 
 /**
- * Owner-thread registration for a live backend joint.
+ * Owner-lane registration for a live backend joint.
  */
 public record PhysicsJointRegistration(@Nonnull JointKey id,
     @Nonnull PhysicsJoint joint,

@@ -9,7 +9,6 @@ import com.hypixel.hytale.component.system.tick.TickingSystem;
 import com.hypixel.hytale.logger.HytaleLogger;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import dev.hytalemodding.impulse.api.PhysicsBody;
-import dev.hytalemodding.impulse.api.PhysicsJoint;
 import dev.hytalemodding.impulse.api.PhysicsSpace;
 import dev.hytalemodding.impulse.api.SpaceId;
 import dev.hytalemodding.impulse.core.ImpulsePlugin;
@@ -17,9 +16,8 @@ import dev.hytalemodding.impulse.core.internal.persistence.PersistentPhysicsJoin
 import dev.hytalemodding.impulse.core.internal.persistence.PersistentPhysicsRuntimeSupport;
 import dev.hytalemodding.impulse.core.internal.persistence.PersistentPhysicsWorldResource;
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsWorldRuntimeResource;
-import dev.hytalemodding.impulse.core.internal.worker.PhysicsWorkerAccess;
+import dev.hytalemodding.impulse.core.internal.resources.owner.PhysicsOwnerBridge;
 import dev.hytalemodding.impulse.core.plugin.body.RigidBodyKey;
-import dev.hytalemodding.impulse.core.plugin.resources.PhysicsWorldResource;
 import it.unimi.dsi.fastutil.objects.ObjectOpenHashSet;
 import java.util.Set;
 import java.util.logging.Level;
@@ -60,7 +58,7 @@ public class PersistentPhysicsJointHydrationSystem extends TickingSystem<EntityS
             return;
         }
 
-        PhysicsWorkerAccess.run(store, "hydrate persisted physics joints", () -> hydrateJoints(store,
+        PhysicsOwnerBridge.run(store, "hydrate persisted physics joints", () -> hydrateJoints(store,
             persistent));
 
         persistent.clearRuntimeRestorePending();
@@ -82,7 +80,7 @@ public class PersistentPhysicsJointHydrationSystem extends TickingSystem<EntityS
                 if (bodyAKey == null || bodyBKey == null) {
                     return;
                 }
-                existing.add(PersistentPhysicsRuntimeSupport.jointKey(space.getId().value(),
+                existing.add(PersistentPhysicsRuntimeSupport.jointKey(space.id().value(),
                     bodyAKey,
                     bodyBKey,
                     joint));

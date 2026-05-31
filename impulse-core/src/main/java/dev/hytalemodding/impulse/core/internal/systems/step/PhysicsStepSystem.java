@@ -6,8 +6,8 @@ import com.hypixel.hytale.logger.HytaleLogger;
 import com.hypixel.hytale.server.core.universe.world.storage.ChunkStore;
 import dev.hytalemodding.impulse.core.internal.persistence.PersistentPhysicsWorldResource;
 import dev.hytalemodding.impulse.core.internal.resources.profiling.PhysicsRuntimeProfilingResource;
-import dev.hytalemodding.impulse.core.internal.resources.PhysicsWorldWorkerResource;
-import dev.hytalemodding.impulse.core.internal.worker.PhysicsWorkerStepCommand;
+import dev.hytalemodding.impulse.core.internal.resources.owner.PhysicsOwnerResource;
+import dev.hytalemodding.impulse.core.internal.resources.owner.PhysicsOwnerStepCommand;
 import dev.hytalemodding.impulse.core.plugin.resources.PhysicsWorldResource;
 import dev.hytalemodding.impulse.core.plugin.settings.PhysicsStepSchedulingMode;
 import dev.hytalemodding.impulse.core.plugin.settings.PhysicsWorldSettings;
@@ -21,7 +21,7 @@ import javax.annotation.Nonnull;
 /**
  * Chunk-tick scheduler for physics steps.
  *
- * <p>This system only submits work to the per-world physics worker. It does not wait for step
+ * <p>This system only submits work to the per-world physics owner lane. It does not wait for step
  * results or apply snapshots; {@code PhysicsSnapshotPublicationSystem} performs reader-side
  * publication later on the entity-store tick.</p>
  */
@@ -55,9 +55,9 @@ public class PhysicsStepSystem extends TickingSystem<ChunkStore> implements Auto
             PhysicsWorldResource.getResourceType());
         PhysicsRuntimeProfilingResource profiling = entityStore.getResource(
             PhysicsRuntimeProfilingResource.getResourceType());
-        PhysicsWorldWorkerResource worker = entityStore.getResource(
-            PhysicsWorldWorkerResource.getResourceType());
-        if (worker.isClosed()) {
+        PhysicsOwnerResource owner = entityStore.getResource(
+            PhysicsOwnerResource.getResourceType());
+        if (owner.isClosed()) {
             return;
         }
         PersistentPhysicsWorldResource persistent = entityStore.getResource(
@@ -65,7 +65,7 @@ public class PhysicsStepSystem extends TickingSystem<ChunkStore> implements Auto
 
         submitStepIfRestoreReady(stateFor(store),
             persistent,
-            worker,
+            owner,
             resource,
             dt,
             profiling,
@@ -74,7 +74,7 @@ public class PhysicsStepSystem extends TickingSystem<ChunkStore> implements Auto
 
     boolean submitStepIfRestoreReady(@Nonnull StepSchedulerState state,
         @Nonnull PersistentPhysicsWorldResource persistent,
-        @Nonnull PhysicsWorldWorkerResource worker,
+        @Nonnull PhysicsOwnerResource owner,
         @Nonnull PhysicsWorldResource resource,
         float dt,
         @Nonnull PhysicsRuntimeProfilingResource profiling,
@@ -89,12 +89,12 @@ public class PhysicsStepSystem extends TickingSystem<ChunkStore> implements Auto
             }
             return false;
         }
-        submitStepIfIdle(state, worker, resource, dt, profiling, serverTick);
+        submitStepIfIdle(state, owner, resource, dt, profiling, serverTick);
         return true;
     }
 
     void submitStepIfIdle(@Nonnull StepSchedulerState state,
-        @Nonnull PhysicsWorldWorkerResource worker,
+        @Nonnull PhysicsOwnerResource owner,
         @Nonnull PhysicsWorldResource resource,
         float dt,
         @Nonnull PhysicsRuntimeProfilingResource profiling,
@@ -102,15 +102,15 @@ public class PhysicsStepSystem extends TickingSystem<ChunkStore> implements Auto
         PhysicsWorldSettings settings = resource.getWorldSettings();
         if (settings.getStepSchedulingMode()
             != PhysicsStepSchedulingMode.ACCUMULATE_PENDING_DT) {
-            submitCurrentTickStepIfIdle(state, worker, resource, dt, profiling, serverTick);
+            submitCurrentTickStepIfIdle(state, owner, resource, dt, profiling, serverTick);
             return;
         }
 
-        submitAccumulatedStepIfIdle(state, worker, resource, dt, profiling, serverTick);
+        submitAccumulatedStepIfIdle(state, owner, resource, dt, profiling, serverTick);
     }
 
     private void submitCurrentTickStepIfIdle(@Nonnull StepSchedulerState state,
-        @Nonnull PhysicsWorldWorkerResource worker,
+        @Nonnull PhysicsOwnerResource owner,
         @Nonnull PhysicsWorldResource resource,
         float dt,
         @Nonnull PhysicsRuntimeProfilingResource profiling,
@@ -119,42 +119,42 @@ public class PhysicsStepSystem extends TickingSystem<ChunkStore> implements Auto
         synchronized (state) {
             state.clearAccumulatedStepDt();
         }
-        if (worker.hasPendingStep()) {
+        if (owner.hasPendingStep()) {
             if (profilingEnabled) {
-                profiling.recordStepSkippedPending(worker.pendingStepAgeNanos());
+                profiling.recordStepSkippedPending(owner.pendingStepAgeNanos());
             }
             return;
         }
 
-        PhysicsWorkerStepCommand command;
+        PhysicsOwnerStepCommand command;
         synchronized (state) {
-            command = new PhysicsWorkerStepCommand(resource,
+            command = new PhysicsOwnerStepCommand(resource,
                 dt,
                 profilingEnabled,
                 state.nextStepSequence(),
                 serverTick);
         }
         try {
-            if (worker.submitStepIfIdle(command)) {
+            if (owner.submitStepIfIdle(command)) {
                 synchronized (state) {
                     state.consumeStepSequence();
                 }
                 return;
             }
             if (profilingEnabled) {
-                profiling.recordStepSkippedPending(worker.pendingStepAgeNanos());
+                profiling.recordStepSkippedPending(owner.pendingStepAgeNanos());
             }
         } catch (RejectedExecutionException exception) {
-            if (!worker.isClosed()) {
+            if (!owner.isClosed()) {
                 LOGGER.at(Level.WARNING).log(
-                    "Skipping async physics step because the worker path is unavailable: %s",
+                    "Skipping async physics step because the owner lane is unavailable: %s",
                     exception.getMessage());
             }
         }
     }
 
     private void submitAccumulatedStepIfIdle(@Nonnull StepSchedulerState state,
-        @Nonnull PhysicsWorldWorkerResource worker,
+        @Nonnull PhysicsOwnerResource owner,
         @Nonnull PhysicsWorldResource resource,
         float dt,
         @Nonnull PhysicsRuntimeProfilingResource profiling,
@@ -163,10 +163,10 @@ public class PhysicsStepSystem extends TickingSystem<ChunkStore> implements Auto
         float safeDt = safeStepDt(dt);
         float maxAccumulatedDt = maxAccumulatedStepDt(resource);
         StepSchedulerSample sample;
-        PhysicsWorkerStepCommand command;
+        PhysicsOwnerStepCommand command;
         synchronized (state) {
             sample = state.accumulate(safeDt, maxAccumulatedDt);
-            if (worker.hasPendingStep()) {
+            if (owner.hasPendingStep()) {
                 recordSchedulerSample(profiling,
                     profilingEnabled,
                     safeDt,
@@ -175,18 +175,18 @@ public class PhysicsStepSystem extends TickingSystem<ChunkStore> implements Auto
                     sample.droppedDt(),
                     sample.capHit());
                 if (profilingEnabled) {
-                    profiling.recordStepSkippedPending(worker.pendingStepAgeNanos());
+                    profiling.recordStepSkippedPending(owner.pendingStepAgeNanos());
                 }
                 return;
             }
-            command = new PhysicsWorkerStepCommand(resource,
+            command = new PhysicsOwnerStepCommand(resource,
                 state.submittedStepDt(),
                 profilingEnabled,
                 state.nextStepSequence(),
                 serverTick);
         }
         try {
-            if (worker.submitStepIfIdle(command)) {
+            if (owner.submitStepIfIdle(command)) {
                 float submittedDt;
                 synchronized (state) {
                     submittedDt = state.consumeSubmittedStepDt();
@@ -210,7 +210,7 @@ public class PhysicsStepSystem extends TickingSystem<ChunkStore> implements Auto
                     sample.capHit());
             }
             if (profilingEnabled) {
-                profiling.recordStepSkippedPending(worker.pendingStepAgeNanos());
+                profiling.recordStepSkippedPending(owner.pendingStepAgeNanos());
             }
         } catch (RejectedExecutionException exception) {
             synchronized (state) {
@@ -222,9 +222,9 @@ public class PhysicsStepSystem extends TickingSystem<ChunkStore> implements Auto
                     sample.droppedDt(),
                     sample.capHit());
             }
-            if (!worker.isClosed()) {
+            if (!owner.isClosed()) {
                 LOGGER.at(Level.WARNING).log(
-                    "Skipping async physics step because the worker path is unavailable: %s",
+                    "Skipping async physics step because the owner lane is unavailable: %s",
                     exception.getMessage());
             }
         }
@@ -260,7 +260,7 @@ public class PhysicsStepSystem extends TickingSystem<ChunkStore> implements Auto
             ? maxStepDt
             : PhysicsWorldSettings.DEFAULT_MAX_STEP_DT;
         /*
-         * Fixed and CCD modes do not refine catch-up dt inside the worker: they
+         * Fixed and CCD modes do not refine catch-up dt inside the owner lane: they
          * use the configured substep count directly. Cap accumulated submissions
          * to that exact budget and drop the rest through the scheduler profiling
          * path. Adaptive/progressive modes keep the wider refinement window.
@@ -277,13 +277,13 @@ public class PhysicsStepSystem extends TickingSystem<ChunkStore> implements Auto
     static final class StepSchedulerState {
 
         /**
-         * Impulse-local sequence for correlating worker step commands with published
+         * Impulse-local sequence for correlating owner step commands with published
          * snapshot frames. This is not the Hytale world tick.
          */
         private long nextStepSequence = 1L;
         /*
          * Accumulated scheduler dt is intentionally local to this ChunkStore scheduler. It is
-         * submitted only when the worker has no in-flight step.
+         * submitted only when the owner lane has no in-flight step.
          */
         private double accumulatedStepDt;
 

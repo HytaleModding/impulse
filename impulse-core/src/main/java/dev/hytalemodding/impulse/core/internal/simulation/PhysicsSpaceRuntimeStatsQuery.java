@@ -5,7 +5,7 @@ import java.util.Objects;
 import javax.annotation.Nonnull;
 
 /**
- * Internal owner-thread query for live backend and registry counters in one physics space.
+ * Internal owner-lane query for live backend and registry counters in one physics space.
  */
 public record PhysicsSpaceRuntimeStatsQuery(@Nonnull SpaceId spaceId)
     implements PhysicsInternalQuery<PhysicsSpaceRuntimeStatsView> {

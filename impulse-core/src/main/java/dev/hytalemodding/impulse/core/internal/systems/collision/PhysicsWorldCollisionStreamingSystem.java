@@ -237,8 +237,8 @@ public class PhysicsWorldCollisionStreamingSystem extends TickingSystem<EntitySt
                 snapshot.addBodySectionTargets(visitedSections.size() - sectionsBefore);
             }
         }
-        cache.pruneUnloaded(world, space.getId(), space, snapshot, sectionAccessCache);
-        cache.pruneUnused(space.getId(),
+        cache.pruneUnloaded(world, space.id(), space, snapshot, sectionAccessCache);
+        cache.pruneUnused(space.id(),
             space,
             currentTick,
             plan.ttlTicks(),

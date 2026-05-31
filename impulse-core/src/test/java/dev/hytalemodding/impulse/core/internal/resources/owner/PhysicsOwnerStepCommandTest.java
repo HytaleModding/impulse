@@ -1,4 +1,4 @@
-package dev.hytalemodding.impulse.core.internal.worker;
+package dev.hytalemodding.impulse.core.internal.resources.owner;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
@@ -27,11 +27,11 @@ import dev.hytalemodding.impulse.core.plugin.settings.PhysicsStepMode;
 import dev.hytalemodding.impulse.core.plugin.settings.PhysicsSpaceSettings;
 import dev.hytalemodding.impulse.core.plugin.settings.PhysicsWorldSettings;
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsWorldRuntimeResource;
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
-import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Consumer;
 import javax.annotation.Nonnull;
@@ -42,16 +42,16 @@ import org.joml.Vector3f;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
 
-class PhysicsWorkerStepCommandTest {
+class PhysicsOwnerStepCommandTest {
 
     private static final AtomicInteger BACKEND_COUNTER = new AtomicInteger();
 
     @Test
-    void runsStepOnWorkerThreadAndPublishesProfiledSnapshot() throws Exception {
+    void runsStepOnOwnerLaneAndPublishesProfiledSnapshot() throws Exception {
         CountingBackend backend = registerBackend(true);
         PhysicsWorldRuntimeResource resource = new PhysicsWorldRuntimeResource();
         CountingSpace space = (CountingSpace) resource.createLiveSpace(backend.getId(),
-            "worker-test",
+            "owner-test",
             PhysicsSpaceSettings.defaults());
         configureWorldSettings(resource, settings -> {
             settings.setStepMode(PhysicsStepMode.FIXED);
@@ -61,22 +61,23 @@ class PhysicsWorkerStepCommandTest {
         PhysicsBody first = space.createBox(0.5f, 0.5f, 0.5f, 1.0f);
         PhysicsBody second = space.createBox(0.5f, 0.5f, 0.5f, 1.0f);
         second.setPosition(32.0f, 0.0f, 0.0f);
-        resource.addBody(space.getId(),
+        resource.addBody(space.id(),
             first,
             PhysicsBodyKind.BODY,
             PhysicsBodyPersistenceMode.PERSISTENT);
-        resource.addBody(space.getId(),
+        resource.addBody(space.id(),
             second,
             PhysicsBodyKind.BODY,
             PhysicsBodyPersistenceMode.PERSISTENT);
 
-        try (PhysicsWorkerRunner runner = new PhysicsWorkerRunner("Impulse step worker test", 2)) {
-            PhysicsWorkerStepCommand command = new PhysicsWorkerStepCommand(resource,
+        try (TestPhysicsOwnerLane owner = new TestPhysicsOwnerLane(2, Duration.ofSeconds(2L))) {
+            owner.start("step-command-test");
+            PhysicsOwnerStepCommand command = new PhysicsOwnerStepCommand(resource,
                 0.05f,
                 true,
                 12L,
                 34L);
-            PhysicsWorkerResult result = runner.submit(command).get(2, TimeUnit.SECONDS);
+            PhysicsOwnerResult result = owner.submitAndDrain(command);
 
             assertEquals(1, result.snapshot().spaces());
             assertEquals(2, result.snapshot().substeps());
@@ -90,8 +91,9 @@ class PhysicsWorkerStepCommandTest {
             assertEquals(12L, frame.stepSequence());
             assertEquals(34L, frame.serverTick());
             assertEquals(2, frame.bodyCount());
-            assertEquals(List.of("Impulse step worker test", "Impulse step worker test"),
-                space.stepThreadNames);
+            assertEquals(2, space.stepThreadNames.size());
+            assertTrue(space.stepThreadNames.stream()
+                .allMatch(name -> name.startsWith("Impulse physics owner lane executor ")));
             assertEquals(List.of(0.025f, 0.025f), space.stepDts);
         }
     }
@@ -101,7 +103,7 @@ class PhysicsWorkerStepCommandTest {
         CountingBackend backend = registerBackend(false);
         PhysicsWorldRuntimeResource resource = new PhysicsWorldRuntimeResource();
         CountingSpace space = (CountingSpace) resource.createLiveSpace(backend.getId(),
-            "worker-test",
+            "owner-test",
             PhysicsSpaceSettings.defaults());
         configureWorldSettings(resource, settings -> {
             settings.setStepMode(PhysicsStepMode.PROGRESSIVE_REFINEMENT);
@@ -109,7 +111,7 @@ class PhysicsWorkerStepCommandTest {
             settings.setMaxStepDt(0.1f);
         });
 
-        PhysicsWorkerSnapshot snapshot = PhysicsWorkerStepCommand.runStep(resource, 0.35f, false);
+        PhysicsOwnerSnapshot snapshot = PhysicsOwnerStepCommand.runStep(resource, 0.35f, false);
 
         assertEquals(1, snapshot.spaces());
         assertEquals(4, snapshot.substeps());
@@ -123,13 +125,13 @@ class PhysicsWorkerStepCommandTest {
         CountingBackend backend = registerBackend(false);
         PhysicsWorldRuntimeResource resource = new PhysicsWorldRuntimeResource();
         CountingSpace space = (CountingSpace) resource.createLiveSpace(backend.getId(),
-            "worker-test",
+            "owner-test",
             PhysicsSpaceSettings.defaults());
         configureWorldSettings(resource, settings -> settings.setStepMode(PhysicsStepMode.FIXED));
 
-        PhysicsWorkerStepCommand.runStep(resource, Float.NaN, false);
-        PhysicsWorkerStepCommand.runStep(resource, Float.POSITIVE_INFINITY, false);
-        PhysicsWorkerStepCommand.runStep(resource, -1.0f, false);
+        PhysicsOwnerStepCommand.runStep(resource, Float.NaN, false);
+        PhysicsOwnerStepCommand.runStep(resource, Float.POSITIVE_INFINITY, false);
+        PhysicsOwnerStepCommand.runStep(resource, -1.0f, false);
 
         assertEquals(List.of(0.0f, 0.0f, 0.0f), space.stepDts);
     }
@@ -139,7 +141,7 @@ class PhysicsWorkerStepCommandTest {
         CountingBackend backend = registerBackend(false);
         PhysicsWorldRuntimeResource resource = new PhysicsWorldRuntimeResource();
         CountingSpace space = (CountingSpace) resource.createLiveSpace(backend.getId(),
-            "worker-test",
+            "owner-test",
             PhysicsSpaceSettings.defaults());
         configureWorldSettings(resource, settings -> {
             settings.setStepMode(PhysicsStepMode.ADAPTIVE);
@@ -148,12 +150,12 @@ class PhysicsWorkerStepCommandTest {
         });
         PhysicsBody body = space.createBox(0.5f, 0.5f, 0.5f, 1.0f);
         body.setLinearVelocity(2.0f, 0.0f, 0.0f);
-        resource.addBody(space.getId(),
+        resource.addBody(space.id(),
             body,
             PhysicsBodyKind.BODY,
             PhysicsBodyPersistenceMode.PERSISTENT);
 
-        PhysicsWorkerSnapshot snapshot = PhysicsWorkerStepCommand.runStep(resource, 0.5f, false);
+        PhysicsOwnerSnapshot snapshot = PhysicsOwnerStepCommand.runStep(resource, 0.5f, false);
 
         assertEquals(3, snapshot.substeps());
         assertEquals(3, space.stepDts.size());
@@ -161,35 +163,35 @@ class PhysicsWorkerStepCommandTest {
     }
 
     @Test
-    void ccdModeForcesAndRestoresOnlyWorkerOwnedOverrides() {
+    void ccdModeForcesAndRestoresOnlyOwnerAppliedOverrides() {
         CountingBackend backend = registerBackend(true);
         PhysicsWorldRuntimeResource resource = new PhysicsWorldRuntimeResource();
         CountingSpace space = (CountingSpace) resource.createLiveSpace(backend.getId(),
-            "worker-test",
+            "owner-test",
             PhysicsSpaceSettings.defaults());
         PhysicsBody forced = space.createBox(0.5f, 0.5f, 0.5f, 1.0f);
         PhysicsBody alreadyEnabled = space.createBox(0.5f, 0.5f, 0.5f, 1.0f);
         PhysicsBody unregistered = space.createBox(0.5f, 0.5f, 0.5f, 1.0f);
         space.addBody(unregistered);
         alreadyEnabled.setContinuousCollisionEnabled(true);
-        resource.addBody(space.getId(),
+        resource.addBody(space.id(),
             forced,
             PhysicsBodyKind.BODY,
             PhysicsBodyPersistenceMode.PERSISTENT);
-        resource.addBody(space.getId(),
+        resource.addBody(space.id(),
             alreadyEnabled,
             PhysicsBodyKind.BODY,
             PhysicsBodyPersistenceMode.PERSISTENT);
 
         configureWorldSettings(resource, settings -> settings.setStepMode(PhysicsStepMode.CCD));
-        PhysicsWorkerStepCommand.runStep(resource, 0.05f, false);
+        PhysicsOwnerStepCommand.runStep(resource, 0.05f, false);
 
         assertTrue(forced.isContinuousCollisionEnabled());
         assertTrue(alreadyEnabled.isContinuousCollisionEnabled());
         assertFalse(unregistered.isContinuousCollisionEnabled());
 
         configureWorldSettings(resource, settings -> settings.setStepMode(PhysicsStepMode.FIXED));
-        PhysicsWorkerStepCommand.runStep(resource, 0.05f, false);
+        PhysicsOwnerStepCommand.runStep(resource, 0.05f, false);
 
         assertFalse(forced.isContinuousCollisionEnabled());
         assertTrue(alreadyEnabled.isContinuousCollisionEnabled());
@@ -201,18 +203,19 @@ class PhysicsWorkerStepCommandTest {
         CountingBackend backend = registerBackend(false);
         PhysicsWorldRuntimeResource resource = new PhysicsWorldRuntimeResource();
         CountingSpace space = (CountingSpace) resource.createLiveSpace(backend.getId(),
-            "worker-test",
+            "owner-test",
             PhysicsSpaceSettings.defaults());
         RuntimeException failure = new RuntimeException("step failed");
         space.stepFailure = failure;
 
-        try (PhysicsWorkerRunner runner = new PhysicsWorkerRunner(
-            "Impulse failing step worker test",
-            1)) {
-            PhysicsWorkerStepCommand command = new PhysicsWorkerStepCommand(resource,
+        try (TestPhysicsOwnerLane owner = new TestPhysicsOwnerLane(1,
+            1,
+            Duration.ofSeconds(2L))) {
+            owner.start("failing-step-command-test");
+            PhysicsOwnerStepCommand command = new PhysicsOwnerStepCommand(resource,
                 0.05f,
                 false);
-            PhysicsWorkerResult result = runner.submit(command).get(2, TimeUnit.SECONDS);
+            PhysicsOwnerResult result = owner.submitAndDrain(command);
 
             assertSame(failure, command.failure());
             Assertions.assertNotNull(command.publishedFrame());
@@ -220,7 +223,7 @@ class PhysicsWorkerStepCommandTest {
                 command.publishedFrame().status());
             assertEquals(1, result.snapshot().spaces());
             assertEquals(0, result.snapshot().substeps());
-            assertEquals(0, runner.pendingCommands());
+            assertEquals(0, owner.pendingCommands());
         }
     }
 
@@ -229,7 +232,7 @@ class PhysicsWorkerStepCommandTest {
         CountingBackend backend = registerBackend(false);
         FailingSnapshotWorldResource resource = new FailingSnapshotWorldResource();
         CountingSpace space = (CountingSpace) resource.createLiveSpace(backend.getId(),
-            "worker-test",
+            "owner-test",
             PhysicsSpaceSettings.defaults());
         RuntimeException stepFailure = new RuntimeException("step failed");
         RuntimeException snapshotFailure = new RuntimeException("snapshot failed");
@@ -237,7 +240,7 @@ class PhysicsWorkerStepCommandTest {
         resource.snapshotFailure = snapshotFailure;
 
         RuntimeException thrown = assertThrows(RuntimeException.class,
-            () -> PhysicsWorkerStepCommand.runStep(resource, 0.05f, false));
+            () -> PhysicsOwnerStepCommand.runStep(resource, 0.05f, false));
 
         assertSame(stepFailure, thrown);
         assertEquals(1, thrown.getSuppressed().length);
@@ -246,7 +249,7 @@ class PhysicsWorkerStepCommandTest {
 
     @Nonnull
     private static CountingBackend registerBackend(boolean supportsContinuousCollision) {
-        CountingBackend backend = new CountingBackend("test:worker-step-"
+        CountingBackend backend = new CountingBackend("test:owner-step-"
             + BACKEND_COUNTER.incrementAndGet(), supportsContinuousCollision);
         Impulse.registerBackend(backend);
         return backend;
@@ -344,13 +347,13 @@ class PhysicsWorkerStepCommandTest {
 
         @Nonnull
         @Override
-        public SpaceId getId() {
+        public SpaceId id() {
             return id;
         }
 
         @Nonnull
         @Override
-        public BackendId getBackendId() {
+        public BackendId backendId() {
             return backendId;
         }
 
@@ -400,6 +403,7 @@ class PhysicsWorkerStepCommandTest {
             return bodies.contains(body);
         }
 
+        @NonNullDecl
         @Override
         public <T extends PhysicsCapability> Optional<T> getCapability(@Nonnull Class<T> type) {
             Objects.requireNonNull(type, "type");

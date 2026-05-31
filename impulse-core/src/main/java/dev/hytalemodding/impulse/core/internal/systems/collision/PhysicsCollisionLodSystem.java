@@ -12,7 +12,7 @@ import dev.hytalemodding.impulse.api.SpaceId;
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsWorldRuntimeResource;
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsVisualRuntime;
 import dev.hytalemodding.impulse.core.internal.systems.visual.VisualInterestCollector;
-import dev.hytalemodding.impulse.core.internal.worker.PhysicsWorkerAccess;
+import dev.hytalemodding.impulse.core.internal.resources.owner.PhysicsOwnerBridge;
 import dev.hytalemodding.impulse.core.plugin.body.RigidBodyKey;
 import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyKind;
 import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyPersistenceMode;
@@ -62,7 +62,7 @@ public class PhysicsCollisionLodSystem extends TickingSystem<EntityStore> {
             return;
         }
 
-        PhysicsMutationHandle<Void> handle = PhysicsWorkerAccess.runAsync(store,
+        PhysicsMutationHandle<Void> handle = PhysicsOwnerBridge.runAsync(store,
             "apply collision LOD filters",
             () -> applyUpdates(resource, updates));
         state.trackPendingMutation(handle, updates);
@@ -78,7 +78,7 @@ public class PhysicsCollisionLodSystem extends TickingSystem<EntityStore> {
         List<PhysicsVisualRuntime.VisualInterest> interests =
             VisualInterestCollector.collectMaterializationInterests(store, resource);
         for (PhysicsSpace space : resource.getSpaces()) {
-            SpaceId spaceId = space.getId();
+            SpaceId spaceId = space.id();
             activeSpaces.add(spaceId.value());
             PhysicsSpaceSettings settings = resource.getLiveSpaceSettings(spaceId);
             if (!settings.getCollisionLodSettings().isCollisionLodEnabled()) {
@@ -312,7 +312,7 @@ public class PhysicsCollisionLodSystem extends TickingSystem<EntityStore> {
             Throwable failure = pendingHandle.failure();
             if (failure != null) {
                 LOGGER.at(Level.WARNING)
-                    .log("Collision LOD worker mutation failed: %s", failure.getMessage());
+                    .log("Collision LOD owner mutation failed: %s", failure.getMessage());
                 clearPendingRefreshes();
             } else {
                 commitPendingUpdates();

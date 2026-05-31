@@ -19,7 +19,7 @@ import javax.annotation.Nullable;
  * PhysicsOwnerTransaction)} callbacks and are callback-local. Runtime implementations reject use
  * after the callback returns, even if the caller retained the resolver object.</p>
  *
- * <p>This API intentionally exposes live backend objects only inside the owner-thread callback.
+ * <p>This API intentionally exposes live backend objects only inside the owner-lane callback.
  * Plugin state that survives the callback should store stable {@link RigidBodyKey} and
  * {@link JointKey} values instead of backend handles.</p>
  */

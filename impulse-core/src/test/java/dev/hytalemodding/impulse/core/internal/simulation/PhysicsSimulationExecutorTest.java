@@ -46,7 +46,7 @@ class PhysicsSimulationExecutorTest {
         SpaceId spaceId = resource.createLiveSpace(backend.getId(),
                 "test-world",
                 PhysicsSpaceSettings.defaults())
-            .getId();
+            .id();
         RigidBodyKey first = RigidBodyKey.random();
         RigidBodyKey second = RigidBodyKey.random();
 
@@ -79,7 +79,7 @@ class PhysicsSimulationExecutorTest {
         SpaceId spaceId = resource.createLiveSpace(backend.getId(),
                 "test-world",
                 PhysicsSpaceSettings.defaults())
-            .getId();
+            .id();
         RigidBodyKey bodyKey = RigidBodyKey.random();
         ScalarRecordingBody body = new ScalarRecordingBody();
         resource.addBodyOnOwner(bodyKey,
@@ -119,7 +119,7 @@ class PhysicsSimulationExecutorTest {
         SpaceId spaceId = resource.createLiveSpace(backend.getId(),
                 "test-world",
                 PhysicsSpaceSettings.defaults())
-            .getId();
+            .id();
         RigidBodyKey bodyKey = RigidBodyKey.random();
         ScalarRecordingBody body = new ScalarRecordingBody();
         resource.addBodyOnOwner(bodyKey,
@@ -153,7 +153,7 @@ class PhysicsSimulationExecutorTest {
         SpaceId spaceId = resource.createLiveSpace(backend.getId(),
                 "test-world",
                 PhysicsSpaceSettings.defaults())
-            .getId();
+            .id();
         RigidBodyKey bodyKey = RigidBodyKey.random();
         ScalarRecordingBody body = new ScalarRecordingBody();
         resource.addBodyOnOwner(bodyKey,
@@ -198,7 +198,7 @@ class PhysicsSimulationExecutorTest {
             -0.1f,
             20.0f));
 
-        List<PhysicsDebugContactView> visible = resource.queryInternal(new PhysicsDebugContactsQuery(space.getId(),
+        List<PhysicsDebugContactView> visible = resource.queryInternal(new PhysicsDebugContactsQuery(space.id(),
                 1.0f,
                 2.0f,
                 3.0f,
@@ -217,7 +217,7 @@ class PhysicsSimulationExecutorTest {
         assertEquals(1.0f, contact.normalY(), 0.00001f);
         assertEquals(0.0f, contact.normalZ(), 0.00001f);
 
-        assertTrue(resource.queryInternal(new PhysicsDebugContactsQuery(space.getId(),
+        assertTrue(resource.queryInternal(new PhysicsDebugContactsQuery(space.id(),
                 3.0f,
                 2.0f,
                 3.0f,
@@ -226,7 +226,7 @@ class PhysicsSimulationExecutorTest {
             .toCompletableFuture()
             .join()
             .isEmpty());
-        assertTrue(resource.queryInternal(new PhysicsDebugContactsQuery(space.getId(),
+        assertTrue(resource.queryInternal(new PhysicsDebugContactsQuery(space.id(),
                 1.0f,
                 2.0f,
                 3.0f,
@@ -256,7 +256,7 @@ class PhysicsSimulationExecutorTest {
             new Vector3f(-1.0f, 0.0f, 0.0f),
             new Vector3f(0.0f, 1.0f, 0.0f));
 
-        List<PhysicsDebugJointView> visible = resource.queryInternal(new PhysicsDebugJointsQuery(space.getId(),
+        List<PhysicsDebugJointView> visible = resource.queryInternal(new PhysicsDebugJointsQuery(space.id(),
                 3.0f,
                 0.0f,
                 0.0f,
@@ -278,7 +278,7 @@ class PhysicsSimulationExecutorTest {
         assertEquals(0.9f, joint.axisY(), 0.00001f);
         assertEquals(0.0f, joint.axisZ(), 0.00001f);
 
-        assertTrue(resource.queryInternal(new PhysicsDebugJointsQuery(space.getId(),
+        assertTrue(resource.queryInternal(new PhysicsDebugJointsQuery(space.id(),
                 8.0f,
                 0.0f,
                 0.0f,
@@ -287,7 +287,7 @@ class PhysicsSimulationExecutorTest {
             .toCompletableFuture()
             .join()
             .isEmpty());
-        assertTrue(resource.queryInternal(new PhysicsDebugJointsQuery(space.getId(),
+        assertTrue(resource.queryInternal(new PhysicsDebugJointsQuery(space.id(),
                 3.0f,
                 0.0f,
                 0.0f,
@@ -307,7 +307,7 @@ class PhysicsSimulationExecutorTest {
         SpaceId spaceId = resource.createLiveSpace(backend.getId(),
                 "test-world",
                 PhysicsSpaceSettings.defaults())
-            .getId();
+            .id();
 
         RaycastClosestBatchResult result = resource.query(new RaycastClosestBatchQuery(spaceId,
                 List.of(new RaycastSegment(0.0f, 1.0f, 0.0f, 0.0f, -1.0f, 0.0f),
@@ -334,7 +334,7 @@ class PhysicsSimulationExecutorTest {
         PhysicsBody registered = space.createBox(0.5f, 0.5f, 0.5f, 1.0f);
         registered.setPosition(0.0f, 124.0f, 0.0f);
         resource.addBodyOnOwner(RigidBodyKey.random(),
-            space.getId(),
+            space.id(),
             registered,
             PhysicsBodyKind.BODY,
             PhysicsBodyPersistenceMode.RUNTIME_ONLY);
@@ -343,7 +343,7 @@ class PhysicsSimulationExecutorTest {
         space.addBody(raw);
         space.addBody(space.createStaticPlane(122.0f));
 
-        BenchmarkSpaceStatsView stats = resource.queryInternal(new BenchmarkSpaceStatsQuery(space.getId(),
+        BenchmarkSpaceStatsView stats = resource.queryInternal(new BenchmarkSpaceStatsQuery(space.id(),
                 122.0f,
                 1.0f,
                 -32.0f,

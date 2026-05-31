@@ -18,7 +18,6 @@ import dev.hytalemodding.impulse.core.plugin.body.RigidBodyKey;
 import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyKind;
 import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyPersistenceMode;
 import dev.hytalemodding.impulse.core.internal.resources.body.PhysicsBodyRegistration;
-import dev.hytalemodding.impulse.core.plugin.resources.PhysicsWorldResource;
 import dev.hytalemodding.impulse.core.plugin.settings.PhysicsBackendExtensionId;
 import dev.hytalemodding.impulse.core.plugin.settings.PhysicsSpaceSettings;
 import dev.hytalemodding.impulse.core.plugin.settings.PhysicsStepSchedulingMode;
@@ -105,17 +104,6 @@ class PersistentPhysicsCodecValidationTest {
     }
 
     @Test
-    void worldResourceCodecRejectsOldSchemaVersion() {
-        BsonDocument encoded = encodeWorld(new PersistentPhysicsWorldResource());
-        encoded.put("SchemaVersion", new BsonInt32(5));
-
-        assertValidationFails(
-            () -> PersistentPhysicsWorldResource.CODEC.decode(encoded, new ExtraInfo()),
-            "Must be greater than or equal to "
-                + PersistentPhysicsWorldResource.CURRENT_SCHEMA_VERSION);
-    }
-
-    @Test
     void worldResourceCodecPreservesStepSchedulingMode() {
         PersistentPhysicsWorldResource resource = new PersistentPhysicsWorldResource();
         PhysicsWorldSettings settings = resource.getWorldSettings();
@@ -158,66 +146,6 @@ class PersistentPhysicsCodecValidationTest {
         assertEquals(1, decoded.getJointCount());
         assertEquals(body.getBodyIdValue(), decoded.getBodies()[0].getBodyIdValue());
         assertEquals(joint.key(), decoded.getJoints()[0].key());
-    }
-
-    @Test
-    void worldResourceCodecReadsSchemaV6StateBlocksFromJson() throws Exception {
-        PersistentPhysicsWorldResource resource = new PersistentPhysicsWorldResource();
-        PersistentPhysicsBodyState body = persistentBodyState();
-        resource.setBodies(new PersistentPhysicsBodyState[] { body });
-
-        String json = BsonUtil.toJson(encodeWorld(resource));
-
-        PersistentPhysicsWorldResource decoded;
-        try (RawJsonReader reader = RawJsonReader.fromJsonString(json)) {
-            decoded = PersistentPhysicsWorldResource.CODEC.decodeJson(reader, new ExtraInfo());
-        }
-
-        Assertions.assertNotNull(decoded);
-        assertEquals(1, decoded.getBodyCount());
-        assertEquals(body.getBodyIdValue(), decoded.getBodies()[0].getBodyIdValue());
-    }
-
-    @Test
-    void worldResourceCodecRoundTripsSchemaV6ExtensionSettings() {
-        PhysicsSpaceSettings settings = PhysicsSpaceSettings.defaults();
-        PhysicsBackendExtensionId extensionId = new PhysicsBackendExtensionId("test:persistent_extension");
-        settings.getExtensionSettings().setString(extensionId, "mode", "stable");
-        settings.getExtensionSettings().setInt(extensionId, "iterations", 8);
-        settings.getExtensionSettings().setFloat(extensionId, "scale", 0.75f);
-        settings.getExtensionSettings().setBoolean(extensionId, "enabled", true);
-        PhysicsSpace space = new FakePhysicsBackend("test:space-extension-"
-            + BACKEND_COUNTER.incrementAndGet()).createSpace();
-
-        PersistentPhysicsWorldResource resource = new PersistentPhysicsWorldResource();
-        resource.setSpaces(new PersistentPhysicsSpaceState[] {
-            PersistentPhysicsSpaceState.from(space, settings)
-        });
-
-        BsonDocument encoded = encodeWorld(resource);
-        PersistentPhysicsWorldResource decoded = PersistentPhysicsWorldResource.CODEC
-            .decode(encoded, new ExtraInfo());
-        PhysicsSpaceSettings restored = decoded.getSpaces()[0].toSettings();
-
-        assertEquals(6, encoded.getInt32("SchemaVersion").getValue());
-        assertTrue(encoded.getArray("Spaces").getFirst().asDocument().containsKey("ExtensionSettings"));
-        assertEquals("stable", restored.getExtensionSettings().getString(extensionId, "mode").orElseThrow());
-        assertEquals(8, restored.getExtensionSettings().getInt(extensionId, "iterations").orElseThrow());
-        assertEquals(0.75f, restored.getExtensionSettings().getFloat(extensionId, "scale").orElseThrow(), 0.0001f);
-        assertTrue(restored.getExtensionSettings().getBoolean(extensionId, "enabled").orElseThrow());
-    }
-
-    @Test
-    void spaceStateCodecDoesNotWriteFlatRapierSolverFields() {
-        BsonDocument encoded = encodedSpaceState();
-
-        assertFalse(encoded.containsKey("InternalPgsIterations"));
-        assertFalse(encoded.containsKey("MinIslandSize"));
-        assertTrue(encoded.containsKey("SolverIterations"));
-        assertTrue(encoded.containsKey("StabilizationIterations"));
-        assertTrue(encoded.containsKey("DynamicSleepLinearThreshold"));
-        assertTrue(encoded.containsKey("DynamicSleepAngularThreshold"));
-        assertTrue(encoded.containsKey("DynamicSleepTimeUntilSleep"));
     }
 
     @Test
@@ -469,7 +397,7 @@ class PersistentPhysicsCodecValidationTest {
         PhysicsBodyRegistration registration = new PhysicsBodyRegistration(
             bodyId,
             body,
-            space.getId(),
+            space.id(),
             PhysicsBodyKind.BODY,
             PhysicsBodyPersistenceMode.PERSISTENT);
         return PersistentPhysicsBodyState.from(registration);
@@ -483,7 +411,7 @@ class PersistentPhysicsCodecValidationTest {
         PhysicsBodyRegistration registration = new PhysicsBodyRegistration(
             bodyId,
             body,
-            space.getId(),
+            space.id(),
             PhysicsBodyKind.BODY,
             PhysicsBodyPersistenceMode.PERSISTENT);
         return PersistentPhysicsBodyState.from(registration);

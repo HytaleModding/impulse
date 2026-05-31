@@ -26,7 +26,7 @@ class PhysicsStepSchedulingModeTest {
 
     @Test
     void describesPendingStepBehavior() {
-        assertEquals("drop dt while a worker step is pending",
+        assertEquals("drop dt while an owner step is pending",
             PhysicsStepSchedulingMode.DROP_PENDING_DT.describePendingStepBehavior());
         assertEquals("accumulate pending dt for one capped catch-up step",
             PhysicsStepSchedulingMode.ACCUMULATE_PENDING_DT.describePendingStepBehavior());

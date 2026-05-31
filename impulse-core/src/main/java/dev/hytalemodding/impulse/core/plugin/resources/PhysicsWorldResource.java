@@ -75,7 +75,7 @@ public abstract class PhysicsWorldResource implements Resource<EntityStore> {
         @Nonnull PhysicsCommandRecipe recipe);
 
     /**
-     * Runs a copied owner-thread physics query without exposing live backend handles.
+     * Runs a copied owner-lane physics query without exposing live backend handles.
      *
      * <p>Queries should return immutable or defensively copied values. Use commands for mutations
      * so all writes stay ordered through the physics owner.</p>
@@ -86,7 +86,7 @@ public abstract class PhysicsWorldResource implements Resource<EntityStore> {
     /**
      * Returns the latest value-only physics owner event frame.
      *
-     * <p>Event frames describe owner-thread outcomes. They do not expose live
+     * <p>Event frames describe owner-lane outcomes. They do not expose live
      * backend handles and do not imply that command completion has been
      * included in a captured or reader-applied body snapshot.</p>
      */
@@ -104,7 +104,7 @@ public abstract class PhysicsWorldResource implements Resource<EntityStore> {
     public abstract PhysicsWorldSettings getWorldSettings();
 
     /**
-     * Applies world-level simulation settings on the physics owner thread.
+     * Applies world-level simulation settings on the physics owner lane.
      */
     public abstract void setWorldSettings(@Nonnull PhysicsWorldSettings settings);
 
@@ -117,12 +117,18 @@ public abstract class PhysicsWorldResource implements Resource<EntityStore> {
 
     /**
      * Creates a physics space using default settings and returns its id.
+     *
+     * <p>Creation is serialized through this world's logical physics owner lane. Callers must not
+     * infer a stable Java thread identity from the synchronous return path.</p>
      */
     @Nonnull
     public abstract SpaceId createSpace(@Nonnull BackendId backendId);
 
     /**
      * Creates a physics space for logging under the supplied world name and returns its id.
+     *
+     * <p>No default space is created implicitly; the returned id is the explicit space handle for
+     * later world-resource operations.</p>
      */
     @Nonnull
     public abstract SpaceId createSpace(@Nonnull BackendId backendId,
@@ -130,6 +136,9 @@ public abstract class PhysicsWorldResource implements Resource<EntityStore> {
 
     /**
      * Creates a physics space with generated logical id and supplied settings.
+     *
+     * <p>The live backend space is created inside the serialized owner lane. Use the async variant
+     * when the caller should not block on owner-lane execution.</p>
      */
     @Nonnull
     public abstract SpaceId createSpace(@Nonnull BackendId backendId,
@@ -138,6 +147,9 @@ public abstract class PhysicsWorldResource implements Resource<EntityStore> {
 
     /**
      * Creates a physics space with an explicit logical id and supplied settings.
+     *
+     * <p>The explicit id is reserved by the caller, but live backend creation still runs inside the
+     * serialized owner lane.</p>
      */
     @Nonnull
     public abstract SpaceId createSpace(@Nonnull BackendId backendId,
@@ -147,6 +159,9 @@ public abstract class PhysicsWorldResource implements Resource<EntityStore> {
 
     /**
      * Queues physics-space creation and returns the reserved generated space id.
+     *
+     * <p>The returned mutation handle completes when the owner lane creates the live backend
+     * space, not when a later snapshot or ECS reader has consumed any resulting state.</p>
      */
     @Nonnull
     public abstract PhysicsMutationHandle<SpaceId> createSpaceAsync(
@@ -156,6 +171,9 @@ public abstract class PhysicsWorldResource implements Resource<EntityStore> {
 
     /**
      * Queues physics-space creation and returns the requested explicit space id.
+     *
+     * <p>Different worlds may queue work concurrently, but this world's spaces remain serialized by
+     * its owner lane.</p>
      */
     @Nonnull
     public abstract PhysicsMutationHandle<SpaceId> createSpaceAsync(
@@ -290,7 +308,7 @@ public abstract class PhysicsWorldResource implements Resource<EntityStore> {
     public abstract PhysicsSpaceSettings getSpaceSettings(@Nonnull SpaceId spaceId);
 
     /**
-     * Applies settings to a registered physics space on the physics owner thread.
+     * Applies settings to a registered physics space on the physics owner lane.
      */
     public abstract void setSpaceSettings(@Nonnull SpaceId spaceId,
         @Nonnull PhysicsSpaceSettings settings);

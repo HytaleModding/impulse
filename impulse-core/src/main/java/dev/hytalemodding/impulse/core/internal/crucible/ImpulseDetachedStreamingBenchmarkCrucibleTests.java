@@ -14,7 +14,6 @@ import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import dev.hytalemodding.impulse.api.PhysicsBodyType;
 import dev.hytalemodding.impulse.api.PhysicsCollisionFilters;
 import dev.hytalemodding.impulse.api.PhysicsSpace;
-import dev.hytalemodding.impulse.core.ImpulsePlugin;
 import dev.hytalemodding.impulse.core.internal.resources.profiling.PhysicsRuntimeProfilingResource;
 import dev.hytalemodding.impulse.core.internal.resources.profiling.PhysicsRuntimeProfilingResource.StepSnapshot;
 import dev.hytalemodding.impulse.core.internal.resources.profiling.PhysicsRuntimeProfilingResource.SyncSnapshot;
@@ -257,7 +256,7 @@ final class ImpulseDetachedStreamingBenchmarkCrucibleTests {
                 return StageReport.failedPreflight(count, started.failureMessage());
             }
             PhysicsSpace space = started.space();
-            if (space == null || !physics.hasSpace(space.getId())) {
+            if (space == null || !physics.hasSpace(space.id())) {
                 return StageReport.failedPreflight(count, "space disappeared during benchmark");
             }
 
@@ -340,7 +339,7 @@ final class ImpulseDetachedStreamingBenchmarkCrucibleTests {
         private PrewarmStats prewarmWorldCollision(@Nonnull PhysicsSpace space, int count) {
             BenchmarkLayout layout = BenchmarkLayout.flatGrid(count);
             WorldCollisionPrewarmStats stats = physics.queryInternal(new WorldCollisionPrewarmEnvelopeQuery(world,
-                    space.getId(),
+                    space.id(),
                     count,
                     (float) layout.origin().x,
                     (float) layout.origin().y,
@@ -382,7 +381,7 @@ final class ImpulseDetachedStreamingBenchmarkCrucibleTests {
             physics.submitCommands(Math.max(0L, world.getTick()),
                     1,
                     commands -> commands.spawnBodies(count,
-                        space.getId(),
+                        space.id(),
                         box,
                         1.0f,
                         PhysicsBodyType.DYNAMIC,
@@ -888,7 +887,7 @@ final class ImpulseDetachedStreamingBenchmarkCrucibleTests {
 
         private static SpaceStats collect(@Nonnull PhysicsWorldRuntimeResource physics,
             @Nonnull PhysicsSpace space) {
-            BenchmarkSpaceStatsView view = physics.queryInternal(new BenchmarkSpaceStatsQuery(space.getId(),
+            BenchmarkSpaceStatsView view = physics.queryInternal(new BenchmarkSpaceStatsQuery(space.id(),
                     GROUND_Y,
                     BELOW_PLANE_TOLERANCE,
                     BODY_WORLD_MIN_Y,

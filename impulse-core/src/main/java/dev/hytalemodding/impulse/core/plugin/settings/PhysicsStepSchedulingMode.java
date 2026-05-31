@@ -5,16 +5,16 @@ import javax.annotation.Nonnull;
 
 /**
  * Controls how the world-level scheduler handles elapsed {@code dt} while a
- * previous worker step is still unpublished.
+ * previous owner step is still unpublished.
  */
 public enum PhysicsStepSchedulingMode {
     /**
-     * Pending worker ticks do not add their {@code dt} to the next accepted step.
+     * Pending owner-lane steps do not add their {@code dt} to the next accepted step.
      */
     DROP_PENDING_DT("drop_pending_dt"),
 
     /**
-     * Pending worker ticks accumulate elapsed {@code dt}; the next accepted step
+     * Pending owner-lane steps accumulate elapsed {@code dt}; the next accepted step
      * catches up once, bounded by the scheduler's hard cap.
      */
     ACCUMULATE_PENDING_DT("accumulate_pending_dt");
@@ -34,7 +34,7 @@ public enum PhysicsStepSchedulingMode {
     @Nonnull
     public String describePendingStepBehavior() {
         return switch (this) {
-            case DROP_PENDING_DT -> "drop dt while a worker step is pending";
+            case DROP_PENDING_DT -> "drop dt while an owner step is pending";
             case ACCUMULATE_PENDING_DT -> "accumulate pending dt for one capped catch-up step";
         };
     }

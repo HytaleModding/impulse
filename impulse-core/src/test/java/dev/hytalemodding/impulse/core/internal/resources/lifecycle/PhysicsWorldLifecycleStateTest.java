@@ -11,7 +11,7 @@ import dev.hytalemodding.impulse.api.PhysicsBody;
 import dev.hytalemodding.impulse.api.PhysicsSpace;
 import dev.hytalemodding.impulse.api.testsupport.FakePhysicsBackend;
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsWorldRuntimeResource;
-import dev.hytalemodding.impulse.core.internal.resources.PhysicsWorldWorkerResource;
+import dev.hytalemodding.impulse.core.internal.resources.owner.TestPhysicsOwnerLane;
 import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyKind;
 import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyPersistenceMode;
 import dev.hytalemodding.impulse.core.plugin.body.RigidBodyKey;
@@ -68,15 +68,15 @@ class PhysicsWorldLifecycleStateTest {
     @Test
     void commandRegistrationViewsPublishOnlyWhenCurrentFrameApplies() throws Exception {
         Fixture fixture = createFixture("registration-view");
-        try (PhysicsWorldWorkerResource worker = new PhysicsWorldWorkerResource(4,
+        try (TestPhysicsOwnerLane owner = new TestPhysicsOwnerLane(4,
             Duration.ofSeconds(2L))) {
-            worker.start("lifecycle-registration-view");
-            fixture.resource.attachWorkerResource(worker);
+            owner.start("lifecycle-registration-view");
+            fixture.resource.attachOwnerExecutor(owner);
 
             RigidBodyKey bodyId = RigidBodyKey.random();
             var handle = fixture.resource.submitCommands(30L, commands -> commands
                 .spawnBody(bodyId, spawn -> spawn
-                    .space(fixture.space.getId())
+                    .space(fixture.space.id())
                     .box(0.5f, 0.5f, 0.5f)
                     .dynamic()));
             handle.completion().toCompletableFuture().get(2, TimeUnit.SECONDS);
@@ -95,7 +95,7 @@ class PhysicsWorldLifecycleStateTest {
             assertNotNull(fixture.resource.getBodyRegistrationView(bodyId));
             assertFalse(fixture.resource.isBodyCreationPending(bodyId));
 
-            fixture.resource.detachWorkerResource(worker);
+            fixture.resource.detachOwnerExecutor(owner);
         }
     }
 
@@ -103,7 +103,7 @@ class PhysicsWorldLifecycleStateTest {
     void appliedFrameUpdatesCapturedSnapshotCommandInclusion() {
         Fixture fixture = createFixture("command-last-included");
         PhysicsCommandResult result = fixture.resource.submitCommands(40L,
-                commands -> commands.setSpaceGravity(fixture.space.getId(), 0.0f, -4.0f, 0.0f))
+                commands -> commands.setSpaceGravity(fixture.space.id(), 0.0f, -4.0f, 0.0f))
             .completion()
             .toCompletableFuture()
             .join()
@@ -163,7 +163,7 @@ class PhysicsWorldLifecycleStateTest {
 
     private static RigidBodyKey registerBox(Fixture fixture) {
         PhysicsBody body = fixture.space.createBox(0.5f, 0.5f, 0.5f, 1.0f);
-        return fixture.resource.addBody(fixture.space.getId(),
+        return fixture.resource.addBody(fixture.space.id(),
             body,
             PhysicsBodyKind.BODY,
             PhysicsBodyPersistenceMode.RUNTIME_ONLY);

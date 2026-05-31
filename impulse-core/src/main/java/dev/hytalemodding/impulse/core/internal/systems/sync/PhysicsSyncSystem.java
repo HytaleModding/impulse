@@ -31,6 +31,7 @@ import java.util.Set;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 import org.joml.Quaternionf;
+import org.joml.Vector3d;
 import org.joml.Vector3f;
 
 /**
@@ -75,7 +76,7 @@ public class PhysicsSyncSystem extends EntityTickingSystem<EntityStore> {
     private final ThreadLocal<Long> syncNanos = ThreadLocal.withInitial(() -> 0L);
 
     /**
-     * Hytale may run entity ticks in parallel. Each worker needs independent temporary objects
+     * Hytale may run entity ticks in parallel. Each tick task needs independent temporary objects
      * because the backend out-parameter getters write into caller-owned vectors.
      */
     private final ThreadLocal<Scratch> scratch = ThreadLocal.withInitial(Scratch::new);
@@ -161,6 +162,12 @@ public class PhysicsSyncSystem extends EntityTickingSystem<EntityStore> {
         snapshot.copyPositionTo(local.position);
         snapshot.copyRotationTo(local.rotation);
         applyVisualPose(snapshot, attachment, local);
+        PhysicsBodyRuntimeState.BodySyncState syncState = resource.getOrCreateBodySyncState(entityRef);
+        if (collector != null) {
+            collector.recordBodySnapshotMotion(syncState.recordSnapshotObservation(local.visualPosition));
+        } else {
+            syncState.recordSnapshotObservation(local.visualPosition);
+        }
 
         boolean sleeping = snapshot.sleeping();
         boolean controlled = resource.isBodyControlled(registration.id());
@@ -191,7 +198,6 @@ public class PhysicsSyncSystem extends EntityTickingSystem<EntityStore> {
             applyVisualPose(snapshot, attachment, local);
         }
 
-        PhysicsBodyRuntimeState.BodySyncState syncState = resource.getOrCreateBodySyncState(entityRef);
         PhysicsSyncPolicy.SyncDecision decision = PhysicsSyncPolicy.resolveSyncDecision(syncState,
             settings,
             local.visualPosition,
@@ -223,6 +229,9 @@ public class PhysicsSyncSystem extends EntityTickingSystem<EntityStore> {
             applyVisualSmoothing(settings, dt, syncState, local);
         }
 
+        if (collector != null) {
+            collector.recordVisualCorrection(distance(transform.getPosition(), local.visualPosition));
+        }
         transform.getPosition().set(local.visualPosition.x,
             local.visualPosition.y,
             local.visualPosition.z);
@@ -237,6 +246,17 @@ public class PhysicsSyncSystem extends EntityTickingSystem<EntityStore> {
                 collector.incrementKeepaliveSyncs();
             }
         }
+    }
+
+    private static float distance(@Nonnull Vector3d from, @Nonnull Vector3f to) {
+        double dx = from.x - to.x;
+        double dy = from.y - to.y;
+        double dz = from.z - to.z;
+        double distanceSquared = dx * dx + dy * dy + dz * dz;
+        if (!Double.isFinite(distanceSquared)) {
+            return Float.NaN;
+        }
+        return (float) Math.sqrt(distanceSquared);
     }
 
     private void applyVisualPose(@Nonnull PhysicsBodySnapshot snapshot,

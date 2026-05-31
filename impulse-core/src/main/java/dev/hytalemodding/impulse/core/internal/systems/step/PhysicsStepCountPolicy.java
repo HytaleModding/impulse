@@ -9,7 +9,7 @@ import javax.annotation.Nonnull;
  *
  * <p>Fixed-style modes use the configured count directly. Adaptive-style modes
  * treat it as a minimum and raise the count when the tick dt exceeds the
- * configured max substep dt. The worker step command layers body-risk
+ * configured max substep dt. The owner step command layers body-risk
  * refinement on top for {@link PhysicsStepMode#ADAPTIVE}.</p>
  */
 public final class PhysicsStepCountPolicy {

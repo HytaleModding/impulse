@@ -84,16 +84,16 @@ public class PerfReportCommand extends AbstractWorldCommand {
                 + " indexCells=" + formatAverage(cumulativeStep.getSpatialIndexCells(), cumulativeStep.getTickSamples())));
             ctx.sender().sendMessage(Message.raw("Physics snapshot avg ms/tick="
                 + formatAverageMillis(cumulativeStep.getSnapshotNanos(), cumulativeStep.getTickSamples())));
-            ctx.sender().sendMessage(Message.raw("Physics worker avg queued/run/latency ms="
-                + formatAverageMillis(cumulativeStep.getWorkerQueuedNanos(), cumulativeStep.getTickSamples())
-                + "/" + formatAverageMillis(cumulativeStep.getWorkerRunNanos(), cumulativeStep.getTickSamples())
+            ctx.sender().sendMessage(Message.raw("Physics owner lane avg queued/run/latency ms="
+                + formatAverageMillis(cumulativeStep.getOwnerQueuedNanos(), cumulativeStep.getTickSamples())
+                + "/" + formatAverageMillis(cumulativeStep.getOwnerRunNanos(), cumulativeStep.getTickSamples())
                 + "/" + formatAverageMillis(
-                cumulativeStep.getWorkerQueuedNanos() + cumulativeStep.getWorkerRunNanos(),
+                cumulativeStep.getOwnerQueuedNanos() + cumulativeStep.getOwnerRunNanos(),
                 cumulativeStep.getTickSamples())
-                + " workerTPS latest/avg=" + formatHertz(latestStep.getWorkerStepIntervalNanos())
-                + "/" + formatAverageHertz(cumulativeStep.getWorkerStepIntervalNanos(),
-                cumulativeStep.getWorkerStepRateSamples())
-                + " maxGapMs=" + formatMillis(cumulativeStep.getMaxWorkerStepIntervalNanos())
+                + " ownerTPS latest/avg=" + formatHertz(latestStep.getOwnerStepIntervalNanos())
+                + "/" + formatAverageHertz(cumulativeStep.getOwnerStepIntervalNanos(),
+                cumulativeStep.getOwnerStepRateSamples())
+                + " maxGapMs=" + formatMillis(cumulativeStep.getMaxOwnerStepIntervalNanos())
                 + " pendingSkips=" + cumulativeStep.getSkippedPendingSteps()
                 + " pendingAge avg/max ms="
                 + formatAverageMillis(cumulativeStep.getPendingStepAgeNanos(),
@@ -160,6 +160,16 @@ public class PerfReportCommand extends AbstractWorldCommand {
                 + " skipThreshold=" + formatAverage(cumulativeSync.getSkippedThreshold(), cumulativeSync.getTickSamples())
                 + " skipVisualDeadzone=" + formatAverage(cumulativeSync.getSkippedVisualDeadzone(), cumulativeSync.getTickSamples())
                 + " skipVisualRange=" + formatAverage(cumulativeSync.getSkippedVisualRange(), cumulativeSync.getTickSamples())));
+            ctx.sender().sendMessage(Message.raw("Physics sync motion avg/max blocks snapshotDelta="
+                + formatAverageDistance(cumulativeSync.getBodySnapshotMotionDistance(),
+                cumulativeSync.getBodySnapshotMotionSamples())
+                + "/" + formatDistance(cumulativeSync.getMaxBodySnapshotMotionDistance())
+                + " visualCorrection="
+                + formatAverageDistance(cumulativeSync.getVisualCorrectionDistance(),
+                cumulativeSync.getVisualCorrectionSamples())
+                + "/" + formatDistance(cumulativeSync.getMaxVisualCorrectionDistance())
+                + " samples=" + cumulativeSync.getBodySnapshotMotionSamples()
+                + "/" + cumulativeSync.getVisualCorrectionSamples()));
             ctx.sender().sendMessage(Message.raw("Physics sync latest ms=" + formatMillis(latestSync.getTickNanos())
                 + " inspected/synced=" + latestSync.getBodiesInspected()
                 + "/" + latestSync.getBodiesSynced()
@@ -480,6 +490,19 @@ public class PerfReportCommand extends AbstractWorldCommand {
             return "0.0";
         }
         return String.format(Locale.ROOT, "%.1f", (double) total / samples);
+    }
+
+    @Nonnull
+    private static String formatDistance(double blocks) {
+        return String.format(Locale.ROOT, "%.4f", blocks);
+    }
+
+    @Nonnull
+    private static String formatAverageDistance(double totalBlocks, int samples) {
+        if (samples <= 0) {
+            return "0.0000";
+        }
+        return formatDistance(totalBlocks / samples);
     }
 
     @Nonnull

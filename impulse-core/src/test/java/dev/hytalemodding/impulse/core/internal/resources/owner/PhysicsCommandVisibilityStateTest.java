@@ -34,6 +34,29 @@ class PhysicsCommandVisibilityStateTest {
     }
 
     @Test
+    void completedSpawnBodyCreationStaysPendingUntilSnapshotIncludesBatch() {
+        PhysicsCommandVisibilityState state = new PhysicsCommandVisibilityState();
+        RigidBodyKey bodyKey = RigidBodyKey.random();
+        RecordedPhysicsCommandBatch batch = singleSpawnBatch(8L, bodyKey);
+
+        assertTrue(state.trackBodyCreationPublication(batch, true));
+
+        state.markCommandBatchCompleted(8L);
+
+        assertEquals(8L, state.completedCommandBatchSequence());
+        assertTrue(state.isBodyCreationPending(bodyKey, false, true));
+        assertFalse(state.isBodyCreationPending(RigidBodyKey.random(), false, true));
+
+        state.applyLastIncludedCommandBatchSequence(7L);
+
+        assertTrue(state.isBodyCreationPending(bodyKey, false, true));
+
+        state.applyLastIncludedCommandBatchSequence(8L);
+
+        assertFalse(state.isBodyCreationPending(bodyKey, false, true));
+    }
+
+    @Test
     void multiSingleSpawnBodyCreationTracksOnlySpawnedKeysUntilSnapshotIncludesBatch() {
         PhysicsCommandVisibilityState state = new PhysicsCommandVisibilityState();
         RigidBodyKey firstBodyKey = RigidBodyKey.random();

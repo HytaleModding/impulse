@@ -5,7 +5,7 @@ import java.util.Objects;
 import javax.annotation.Nonnull;
 
 /**
- * Internal owner-thread query for stress benchmark health counters.
+ * Internal owner-lane query for stress benchmark health counters.
  */
 public record BenchmarkSpaceStatsQuery(@Nonnull SpaceId spaceId,
                                        float groundY,

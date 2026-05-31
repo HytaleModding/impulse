@@ -39,7 +39,7 @@ class PersistentPhysicsWorldSyncSystemTest {
             PersistentPhysicsRuntimeSnapshot.captureFootprint(fixture.runtime)));
 
         PhysicsBody body = fixture.space.createBox(0.5f, 0.5f, 0.5f, 1.0f);
-        fixture.runtime.addBody(fixture.space.getId(),
+        fixture.runtime.addBody(fixture.space.id(),
             body,
             PhysicsBodyKind.BODY,
             PhysicsBodyPersistenceMode.PERSISTENT);
@@ -56,7 +56,7 @@ class PersistentPhysicsWorldSyncSystemTest {
         fixture.persistent.markRuntimeSnapshotSynced();
 
         PhysicsBody body = fixture.space.createBox(0.5f, 0.5f, 0.5f, 1.0f);
-        fixture.runtime.addBody(fixture.space.getId(),
+        fixture.runtime.addBody(fixture.space.id(),
             body,
             PhysicsBodyKind.TEMPORARY,
             PhysicsBodyPersistenceMode.RUNTIME_ONLY);
@@ -71,11 +71,11 @@ class PersistentPhysicsWorldSyncSystemTest {
         RuntimeFixture fixture = createRuntimeFixture();
         PhysicsBody first = fixture.space.createBox(0.5f, 0.5f, 0.5f, 1.0f);
         PhysicsBody second = fixture.space.createBox(0.5f, 0.5f, 0.5f, 1.0f);
-        RigidBodyKey firstId = fixture.runtime.addBody(fixture.space.getId(),
+        RigidBodyKey firstId = fixture.runtime.addBody(fixture.space.id(),
             first,
             PhysicsBodyKind.BODY,
             PhysicsBodyPersistenceMode.PERSISTENT);
-        RigidBodyKey secondId = fixture.runtime.addBody(fixture.space.getId(),
+        RigidBodyKey secondId = fixture.runtime.addBody(fixture.space.id(),
             second,
             PhysicsBodyKind.BODY,
             PhysicsBodyPersistenceMode.PERSISTENT);
@@ -105,7 +105,7 @@ class PersistentPhysicsWorldSyncSystemTest {
         settings.setStepSchedulingMode(PhysicsStepSchedulingMode.ACCUMULATE_PENDING_DT);
         fixture.runtime.setWorldSettings(settings);
         PhysicsBody body = fixture.space.createBox(0.5f, 0.5f, 0.5f, 1.0f);
-        fixture.runtime.addBody(fixture.space.getId(),
+        fixture.runtime.addBody(fixture.space.id(),
             body,
             PhysicsBodyKind.BODY,
             PhysicsBodyPersistenceMode.PERSISTENT);
@@ -155,7 +155,7 @@ class PersistentPhysicsWorldSyncSystemTest {
     void bodyHydrationChecksLiveRegistrationBeforeCreatingBackendBody() {
         RuntimeFixture fixture = createRuntimeFixture();
         PhysicsBody body = fixture.space.createBox(0.5f, 0.5f, 0.5f, 1.0f);
-        RigidBodyKey bodyKey = fixture.runtime.addBody(fixture.space.getId(),
+        RigidBodyKey bodyKey = fixture.runtime.addBody(fixture.space.id(),
             body,
             PhysicsBodyKind.BODY,
             PhysicsBodyPersistenceMode.PERSISTENT);
@@ -189,7 +189,7 @@ class PersistentPhysicsWorldSyncSystemTest {
 
         private void syncPersistentSpaces() {
             persistent.setSpaces(new PersistentPhysicsSpaceState[] {
-                PersistentPhysicsSpaceState.from(space, runtime.getSpaceSettings(space.getId()))
+                PersistentPhysicsSpaceState.from(space, runtime.getSpaceSettings(space.id()))
             });
         }
     }

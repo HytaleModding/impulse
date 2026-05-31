@@ -129,14 +129,14 @@ public class PhysicsWorldRuntimeResource extends PhysicsWorldResource {
             "Physics world resource is not the Impulse runtime implementation");
     }
 
-    public void attachWorkerResource(@Nonnull PhysicsOwnerHandle workerResource) {
-        ownerGateway.attachWorkerResource(workerResource);
+    public void attachOwnerExecutor(@Nonnull PhysicsOwnerHandle ownerExecutor) {
+        ownerGateway.attachOwnerExecutor(ownerExecutor);
     }
 
-    public void detachWorkerResource(@Nonnull PhysicsOwnerHandle workerResource) {
-        ownerGateway.detachWorkerResource(workerResource);
-        if (!ownerGateway.hasWorkerResource()) {
-            lifecycleState.publishDetachedWorkerRegistrationViews(bodyRegistry);
+    public void detachOwnerExecutor(@Nonnull PhysicsOwnerHandle ownerExecutor) {
+        ownerGateway.detachOwnerExecutor(ownerExecutor);
+        if (!ownerGateway.hasOwnerExecutor()) {
+            lifecycleState.publishDetachedOwnerRegistrationViews(bodyRegistry);
         }
     }
 
@@ -512,7 +512,7 @@ public class PhysicsWorldRuntimeResource extends PhysicsWorldResource {
     }
 
     /**
-     * Captures an immutable snapshot frame on the physics owner thread.
+     * Captures an immutable snapshot frame on the physics owner lane.
      *
      * <p>The generated {@code frameEpoch} and current {@code worldEpoch} govern
      * publication ordering and stale-frame rejection. {@code stepSequence} and
@@ -683,8 +683,8 @@ public class PhysicsWorldRuntimeResource extends PhysicsWorldResource {
             LOGGER.at(Level.FINE).log(
                 "World %s removed physics space id=%s backend=%s",
                 worldName,
-                removed.getId(),
-                removed.getBackendId());
+                removed.id(),
+                removed.backendId());
             closeSpaceQuietly(removed, worldName, "removed physics space");
             markWorldChanged();
         }
@@ -966,7 +966,7 @@ public class PhysicsWorldRuntimeResource extends PhysicsWorldResource {
     public boolean isBodyCreationPending(@Nonnull RigidBodyKey bodyKey) {
         return lifecycleState.isBodyCreationPending(bodyKey,
             bodyRuntime.isBodyCreationPending(bodyKey),
-            ownerGateway.hasWorkerResource());
+            ownerGateway.hasOwnerExecutor());
     }
 
     public boolean hasPublishedOrPendingBodyRegistration(@Nonnull RigidBodyKey bodyKey) {
@@ -1285,8 +1285,8 @@ public class PhysicsWorldRuntimeResource extends PhysicsWorldResource {
                 "World %s failed to close %s id=%s backend=%s: %s",
                 worldName,
                 action,
-                space.getId(),
-                space.getBackendId(),
+                space.id(),
+                space.backendId(),
                 exception.getMessage());
         }
     }
@@ -1408,7 +1408,7 @@ public class PhysicsWorldRuntimeResource extends PhysicsWorldResource {
     }
 
     private boolean trackCommandBodyCreationPublication(@Nonnull RecordedPhysicsCommandBatch batch) {
-        return lifecycleState.trackBodyCreationPublication(batch, ownerGateway.hasWorkerResource());
+        return lifecycleState.trackBodyCreationPublication(batch, ownerGateway.hasOwnerExecutor());
     }
 
     private void clearCommandBodyCreationPublication(@Nonnull RecordedPhysicsCommandBatch batch) {
@@ -1416,7 +1416,7 @@ public class PhysicsWorldRuntimeResource extends PhysicsWorldResource {
     }
 
     private void markWorldChanged() {
-        lifecycleState.markWorldChanged(bodyRegistry, ownerGateway.hasWorkerResource());
+        lifecycleState.markWorldChanged(bodyRegistry, ownerGateway.hasOwnerExecutor());
     }
 
     @Nonnull

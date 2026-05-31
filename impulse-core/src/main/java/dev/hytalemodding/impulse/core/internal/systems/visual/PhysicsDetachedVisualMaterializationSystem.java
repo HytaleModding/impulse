@@ -346,7 +346,7 @@ public class PhysicsDetachedVisualMaterializationSystem extends TickingSystem<En
         int defaultInterval) {
         int interval = Integer.MAX_VALUE;
         for (PhysicsSpace space : resource.iterateSpaces()) {
-            PhysicsSpaceSettings settings = resource.getLiveSpaceSettings(space.getId());
+            PhysicsSpaceSettings settings = resource.getLiveSpaceSettings(space.id());
             if (settings.getVisualMaterializationSettings().isDetachedVisualMaterializationEnabled()) {
                 interval = Math.min(interval, intervalGetter.applyAsInt(settings));
             }
@@ -427,7 +427,7 @@ public class PhysicsDetachedVisualMaterializationSystem extends TickingSystem<En
 
         Set<RigidBodyKey> seenBodies = new ObjectOpenHashSet<>();
         for (PhysicsSpace space : resource.iterateSpaces()) {
-            PhysicsSpaceSettings settings = resource.getLiveSpaceSettings(space.getId());
+            PhysicsSpaceSettings settings = resource.getLiveSpaceSettings(space.id());
             if (!settings.getVisualMaterializationSettings().isDetachedVisualMaterializationEnabled()) {
                 continue;
             }
@@ -437,7 +437,7 @@ public class PhysicsDetachedVisualMaterializationSystem extends TickingSystem<En
                 if (collector != null) {
                     collector.incrementNearQueries();
                 }
-                int nearCandidates = resource.forEachIndexedBodySnapshotNear(space.getId(),
+                int nearCandidates = resource.forEachIndexedBodySnapshotNear(space.id(),
                     interest.position(),
                     settings.getVisualMaterializationSettings().getDetachedVisualMaterializationRadius(),
                     (bodyKey, snapshot, bodySpaceId, kind, persistenceMode) -> {
@@ -445,7 +445,7 @@ public class PhysicsDetachedVisualMaterializationSystem extends TickingSystem<En
                             return;
                         }
                         if (kind != PhysicsBodyKind.BODY
-                            || !bodySpaceId.equals(space.getId())
+                            || !bodySpaceId.equals(space.id())
                             || resource.hasBodyAttachments(bodyKey)) {
                             return;
                         }

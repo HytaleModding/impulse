@@ -1,7 +1,7 @@
 package dev.hytalemodding.impulse.core.internal.simulation;
 
 /**
- * Copied owner-thread runtime counters for one physics space.
+ * Copied owner-lane runtime counters for one physics space.
  */
 public record PhysicsSpaceRuntimeStatsView(int bodies,
                                            int dynamicBodies,

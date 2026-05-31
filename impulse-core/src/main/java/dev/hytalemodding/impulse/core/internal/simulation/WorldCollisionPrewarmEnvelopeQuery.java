@@ -7,7 +7,7 @@ import java.util.Objects;
 import javax.annotation.Nonnull;
 
 /**
- * Internal owner-thread query that computes collision prewarm coverage for a spawn envelope.
+ * Internal owner-lane query that computes collision prewarm coverage for a spawn envelope.
  */
 public record WorldCollisionPrewarmEnvelopeQuery(@Nonnull World world,
                                                  @Nonnull SpaceId spaceId,

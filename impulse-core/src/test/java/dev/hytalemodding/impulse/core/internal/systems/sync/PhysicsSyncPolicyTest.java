@@ -1,6 +1,7 @@
 package dev.hytalemodding.impulse.core.internal.systems.sync;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import dev.hytalemodding.impulse.core.internal.resources.body.PhysicsBodyRuntimeState;
 import dev.hytalemodding.impulse.core.plugin.settings.PhysicsSpaceSettings;
@@ -203,6 +204,20 @@ class PhysicsSyncPolicyTest {
                 false,
                 false,
                 PhysicsSyncPolicy.SyncRangeTier.NEAR));
+    }
+
+    @Test
+    void bodySyncStateTracksPublishedSnapshotMotion() {
+        PhysicsBodyRuntimeState.BodySyncState syncState = new PhysicsBodyRuntimeState.BodySyncState();
+
+        assertTrue(Float.isNaN(syncState.recordSnapshotObservation(new Vector3f(1.0f,
+            2.0f,
+            3.0f))));
+        assertTrue(syncState.isSnapshotObserved());
+        assertEquals(0.5f,
+            syncState.recordSnapshotObservation(new Vector3f(1.5f, 2.0f, 3.0f)),
+            0.0001f);
+        assertEquals(1.5f, syncState.getLastObservedSnapshotPosition().x, 0.0001f);
     }
 
     @Test

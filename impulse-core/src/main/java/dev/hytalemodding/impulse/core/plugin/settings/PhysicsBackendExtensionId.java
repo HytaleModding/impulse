@@ -6,7 +6,7 @@ import javax.annotation.Nonnull;
 /**
  * Stable plugin-facing identifier for backend extension settings.
  *
- * @param value namespaced extension identifier, for example {@code impulse:rapier_solver}
+ * @param value namespaced extension identifier, for example {@code example:solver}
  */
 public record PhysicsBackendExtensionId(@Nonnull String value) {
 

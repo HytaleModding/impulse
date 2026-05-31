@@ -1,4 +1,4 @@
-package dev.hytalemodding.impulse.core.internal.systems.worker;
+package dev.hytalemodding.impulse.core.internal.systems.owner;
 
 import com.hypixel.hytale.component.ResourceType;
 import com.hypixel.hytale.component.Store;
@@ -6,7 +6,7 @@ import com.hypixel.hytale.component.system.StoreSystem;
 import com.hypixel.hytale.logger.HytaleLogger;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsWorldRuntimeResource;
-import dev.hytalemodding.impulse.core.internal.resources.PhysicsWorldWorkerResource;
+import dev.hytalemodding.impulse.core.internal.resources.owner.PhysicsOwnerResource;
 import dev.hytalemodding.impulse.core.plugin.resources.PhysicsWorldResource;
 import java.util.ArrayList;
 import java.util.Set;
@@ -15,89 +15,92 @@ import java.util.logging.Level;
 import javax.annotation.Nonnull;
 
 /**
- * Starts and stops the per-world physics worker with the EntityStore lifecycle.
+ * Starts and stops the per-world physics owner lane with the EntityStore lifecycle.
  */
-public final class PhysicsWorldWorkerLifecycleSystem extends StoreSystem<EntityStore>
+public final class PhysicsOwnerLifecycleSystem extends StoreSystem<EntityStore>
     implements AutoCloseable {
 
     private static final HytaleLogger LOGGER = HytaleLogger.get("Impulse");
 
     @Nonnull
-    private final ResourceType<EntityStore, PhysicsWorldWorkerResource> workerResourceType;
+    private final ResourceType<EntityStore, ? extends PhysicsOwnerResource> ownerResourceType;
     @Nonnull
     private final ResourceType<EntityStore, ? extends PhysicsWorldResource> physicsWorldResourceType;
     @Nonnull
-    private final Set<PhysicsWorldWorkerResource> activeWorkers = ConcurrentHashMap.newKeySet();
+    private final Set<PhysicsOwnerResource> activeOwners = ConcurrentHashMap.newKeySet();
 
-    public PhysicsWorldWorkerLifecycleSystem() {
-        this(PhysicsWorldWorkerResource.getResourceType(), PhysicsWorldResource.getResourceType());
+    public PhysicsOwnerLifecycleSystem() {
+        this(PhysicsOwnerResource.getResourceType(), PhysicsWorldResource.getResourceType());
     }
 
-    PhysicsWorldWorkerLifecycleSystem(
-        @Nonnull ResourceType<EntityStore, PhysicsWorldWorkerResource> workerResourceType,
+    PhysicsOwnerLifecycleSystem(
+        @Nonnull ResourceType<EntityStore, ? extends PhysicsOwnerResource> ownerResourceType,
         @Nonnull ResourceType<EntityStore, ? extends PhysicsWorldResource> physicsWorldResourceType) {
-        this.workerResourceType = workerResourceType;
+        this.ownerResourceType = ownerResourceType;
         this.physicsWorldResourceType = physicsWorldResourceType;
     }
 
     @Override
     public void onSystemAddedToStore(@Nonnull Store<EntityStore> store) {
-        PhysicsWorldWorkerResource worker = store.getResource(workerResourceType);
-        startWorker(worker, worldName(store));
-        PhysicsWorldRuntimeResource.require(store.getResource(physicsWorldResourceType))
-            .attachWorkerResource(worker);
+        PhysicsOwnerResource owner = store.getResource(ownerResourceType);
+        if (startOwner(owner, worldName(store))) {
+            PhysicsWorldRuntimeResource.require(store.getResource(physicsWorldResourceType))
+                .attachOwnerExecutor(owner);
+        }
     }
 
     @Override
     public void onSystemRemovedFromStore(@Nonnull Store<EntityStore> store) {
         String worldName = worldName(store);
-        PhysicsWorldWorkerResource worker = store.getResource(workerResourceType);
+        PhysicsOwnerResource owner = store.getResource(ownerResourceType);
         PhysicsWorldResource physics = store.getResource(physicsWorldResourceType);
         PhysicsWorldRuntimeResource runtime = PhysicsWorldRuntimeResource.require(physics);
         boolean clearedSpaces = clearSpaces(physics, worldName);
-        boolean closedWorker = closeWorker(worker);
-        runtime.detachWorkerResource(worker);
+        boolean closedOwner = closeOwner(owner);
+        runtime.detachOwnerExecutor(owner);
 
         // Retry if it failed before, this could happen.
-        if (!clearedSpaces && closedWorker) {
+        if (!clearedSpaces && closedOwner) {
             clearSpaces(physics, worldName);
         }
     }
 
     @Override
     public void close() {
-        for (PhysicsWorldWorkerResource worker : new ArrayList<>(activeWorkers)) {
-            closeWorker(worker);
+        for (PhysicsOwnerResource owner : new ArrayList<>(activeOwners)) {
+            closeOwner(owner);
         }
     }
 
-    void startWorker(@Nonnull PhysicsWorldWorkerResource worker, @Nonnull String worldName) {
+    boolean startOwner(@Nonnull PhysicsOwnerResource owner, @Nonnull String worldName) {
         try {
-            worker.start(worldName);
-            if (worker.isStarted()) {
-                activeWorkers.add(worker);
+            owner.start(worldName);
+            if (owner.isStarted()) {
+                activeOwners.add(owner);
+                return true;
             }
         } catch (RuntimeException exception) {
-            LOGGER.at(Level.WARNING).log("Physics worker could not be started for world %s: %s",
+            LOGGER.at(Level.WARNING).log("Physics owner lane could not be started for world %s: %s",
                 worldName,
                 exception.getMessage());
         }
+        return false;
     }
 
-    boolean closeWorker(@Nonnull PhysicsWorldWorkerResource worker) {
-        activeWorkers.remove(worker);
+    boolean closeOwner(@Nonnull PhysicsOwnerResource owner) {
+        activeOwners.remove(owner);
         try {
-            worker.close();
+            owner.close();
             return true;
         } catch (RuntimeException exception) {
-            LOGGER.at(Level.WARNING).log("Failed to close physics worker runner: %s",
+            LOGGER.at(Level.WARNING).log("Failed to close physics owner lane: %s",
                 exception.getMessage());
             return false;
         }
     }
 
-    int activeWorkerCount() {
-        return activeWorkers.size();
+    int activeOwnerCount() {
+        return activeOwners.size();
     }
 
     @Nonnull
