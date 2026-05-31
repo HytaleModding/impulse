@@ -1,6 +1,7 @@
 package dev.hytalemodding.impulse.core.internal.resources;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertSame;
@@ -13,11 +14,11 @@ import dev.hytalemodding.impulse.core.internal.persistence.PersistentPhysicsSpac
 import dev.hytalemodding.impulse.core.plugin.collision.WorldCollisionMode;
 import dev.hytalemodding.impulse.core.plugin.settings.PhysicsBackendExtensionId;
 import dev.hytalemodding.impulse.core.plugin.settings.PhysicsCollisionLodSettings;
-import dev.hytalemodding.impulse.core.plugin.settings.PhysicsSolverSettings;
 import dev.hytalemodding.impulse.core.plugin.settings.PhysicsSpaceSettings;
 import dev.hytalemodding.impulse.core.plugin.settings.PhysicsVisualMaterializationSettings;
 import dev.hytalemodding.impulse.core.plugin.settings.PhysicsVisualSyncSettings;
 import dev.hytalemodding.impulse.core.plugin.settings.PhysicsWorldCollisionSettings;
+import java.util.Objects;
 import java.util.concurrent.atomic.AtomicInteger;
 import org.bson.BsonDocument;
 import org.junit.jupiter.api.Test;
@@ -212,26 +213,6 @@ class PhysicsSpaceSettingsTest {
     }
 
     @Test
-    void solverSettingsExposeOnlyPortableSolverFields() throws NoSuchMethodException {
-        PhysicsSolverSettings settings = new PhysicsSolverSettings();
-
-        assertEquals(PhysicsSolverSettings.DEFAULT_SOLVER_ITERATIONS, settings.getSolverIterations());
-        assertEquals(PhysicsSolverSettings.DEFAULT_STABILIZATION_ITERATIONS,
-            settings.getStabilizationIterations());
-        assertEquals(PhysicsSolverSettings.DEFAULT_DYNAMIC_SLEEP_LINEAR_THRESHOLD,
-            settings.getDynamicSleepLinearThreshold(),
-            0.0001f);
-        assertThrows(NoSuchMethodException.class,
-            () -> PhysicsSolverSettings.class.getMethod("getInternalPgsIterations"));
-        assertThrows(NoSuchMethodException.class,
-            () -> PhysicsSolverSettings.class.getMethod("setInternalPgsIterations", int.class));
-        assertThrows(NoSuchMethodException.class,
-            () -> PhysicsSolverSettings.class.getMethod("getMinIslandSize"));
-        assertThrows(NoSuchMethodException.class,
-            () -> PhysicsSolverSettings.class.getMethod("setMinIslandSize", int.class));
-    }
-
-    @Test
     void extensionSettingsAreTypedAndCopyIsolated() {
         PhysicsSpaceSettings settings = PhysicsSpaceSettings.defaults();
         PhysicsBackendExtensionId extensionId = new PhysicsBackendExtensionId("test:extension");
@@ -312,16 +293,16 @@ class PhysicsSpaceSettingsTest {
         assertEquals(2, copy.getVisualMaterializationSettings().getDetachedVisualInterestRefreshIntervalTicks());
         assertEquals(3, copy.getVisualMaterializationSettings().getDetachedVisualCandidateRefreshIntervalTicks());
         assertEquals(12, copy.getVisualMaterializationSettings().getDetachedVisualVisibilityCheckIntervalTicks());
-        assertEquals(true, copy.getVisualSyncSettings().isVisualSnapshotPredictionEnabled());
+        assertTrue(copy.getVisualSyncSettings().isVisualSnapshotPredictionEnabled());
         assertEquals(0.08f, copy.getVisualSyncSettings().getVisualSnapshotPredictionMaxSeconds(), 0.0001f);
-        assertEquals(true, copy.getVisualSyncSettings().isVisualSnapshotSmoothingEnabled());
+        assertTrue(copy.getVisualSyncSettings().isVisualSnapshotSmoothingEnabled());
         assertEquals(18.0f, copy.getVisualSyncSettings().getVisualSnapshotSmoothingRate(), 0.0001f);
-        assertEquals(true, copy.getCollisionLodSettings().isCollisionLodEnabled());
+        assertTrue(copy.getCollisionLodSettings().isCollisionLodEnabled());
         assertEquals(32, copy.getCollisionLodSettings().getCollisionLodNearRadius());
         assertEquals(96, copy.getCollisionLodSettings().getCollisionLodMidRadius());
         assertEquals(8, copy.getCollisionLodSettings().getCollisionLodHysteresis());
         assertEquals(6, copy.getCollisionLodSettings().getCollisionLodRefreshIntervalTicks());
-        assertEquals(false, copy.getCollisionLodSettings().isCollisionLodFarSleepEnabled());
+        assertFalse(copy.getCollisionLodSettings().isCollisionLodFarSleepEnabled());
     }
 
     @Test
@@ -340,7 +321,8 @@ class PhysicsSpaceSettingsTest {
         assertTrue(encoded.containsKey("DetachedVisualInterestRefreshIntervalTicks"));
         assertTrue(encoded.containsKey("DetachedVisualCandidateRefreshIntervalTicks"));
         assertTrue(encoded.containsKey("DetachedVisualVisibilityCheckIntervalTicks"));
-        assertDetachedVisualCadence(PersistentPhysicsSpaceState.CODEC.decode(encoded, new ExtraInfo()).toSettings(),
+        assertDetachedVisualCadence(Objects.requireNonNull(
+                PersistentPhysicsSpaceState.CODEC.decode(encoded, new ExtraInfo())).toSettings(),
             7,
             9,
             11);

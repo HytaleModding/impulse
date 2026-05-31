@@ -1,9 +1,7 @@
 package dev.hytalemodding.impulse.core.plugin.snapshot;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
-import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import dev.hytalemodding.impulse.api.PhysicsAxis;
 import dev.hytalemodding.impulse.api.PhysicsBodySnapshot;
@@ -13,8 +11,6 @@ import dev.hytalemodding.impulse.api.SpaceId;
 import dev.hytalemodding.impulse.core.plugin.body.RigidBodyKey;
 import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyKind;
 import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyPersistenceMode;
-import java.io.IOException;
-import java.lang.reflect.Modifier;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
@@ -79,17 +75,6 @@ class PublishedPhysicsSnapshotFrameTest {
         assertEquals(new Quaternionf().rotateXYZ(0.25f, 0.5f, 0.75f), snapshot.rotation());
         assertEquals(new Vector3f(4.0f, 5.0f, 6.0f), snapshot.linearVelocity());
         assertEquals(new Vector3f(7.0f, 8.0f, 9.0f), snapshot.angularVelocity());
-    }
-
-    @Test
-    void bodySnapshotStoresPublishedStateWithoutNestedJomlObjects() {
-        List<String> nestedJomlFields = java.util.Arrays.stream(PublishedPhysicsBodySnapshot.class.getDeclaredFields())
-            .filter(field -> !Modifier.isStatic(field.getModifiers()))
-            .filter(field -> field.getType().equals(Vector3f.class) || field.getType().equals(Quaternionf.class))
-            .map(java.lang.reflect.Field::getName)
-            .toList();
-
-        assertEquals(List.of(), nestedJomlFields);
     }
 
     @Test

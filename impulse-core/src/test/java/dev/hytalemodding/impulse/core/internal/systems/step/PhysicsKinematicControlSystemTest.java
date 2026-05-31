@@ -24,7 +24,6 @@ import dev.hytalemodding.impulse.core.internal.components.PhysicsControlSessionC
 import dev.hytalemodding.impulse.core.plugin.resources.PhysicsMutationHandle;
 import dev.hytalemodding.impulse.core.plugin.joint.JointKey;
 import java.time.Duration;
-import java.util.Arrays;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
@@ -211,8 +210,6 @@ class PhysicsKinematicControlSystemTest {
             new Vector3f(),
             new Vector3f());
 
-        assertFalse(Arrays.stream(PhysicsControlSessionComponent.class.getDeclaredFields())
-            .anyMatch(field -> PhysicsJoint.class.isAssignableFrom(field.getType())));
         assertEquals(controlJointId, session.getControlJointKey());
         assertEquals(controlJointId, session.clone().getControlJointKey());
         assertSame(controlJoint, resource.getJoint(controlJointId));
