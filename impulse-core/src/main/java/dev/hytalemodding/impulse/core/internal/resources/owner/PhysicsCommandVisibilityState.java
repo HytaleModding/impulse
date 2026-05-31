@@ -23,15 +23,8 @@ public final class PhysicsCommandVisibilityState {
     private final AtomicLong completedCommandBatchSequence = new AtomicLong();
     /*
      * Reader-side body materialization can observe command completion before the next published
-     * registration frame has applied. Track that gap at command-batch sequence granularity so bulk
-     * spawns do not need per-body pending keys.
-     */
-    private final AtomicLong submittedBodyCreationCommandBatchSequence = new AtomicLong();
-    private final AtomicLong appliedLastIncludedCommandBatchSequence = new AtomicLong();
-    /*
-     * Single-spawn command batches use exact pending keys so control anchors and attached bodies do
-     * not make unrelated bodies look pending. Multi-spawn/template paths keep the sequence-level
-     * fallback above to avoid high-allocation tracking on stress paths.
+     * registration frame has applied. Track exact command-created body keys so missing unrelated
+     * registrations can still be cleaned up during that publication gap.
      */
     private final Object2LongOpenHashMap<RigidBodyKey> pendingCommandBodyCreationSequences =
         new Object2LongOpenHashMap<>();
@@ -90,48 +83,35 @@ public final class PhysicsCommandVisibilityState {
         if (!batch.hasBodyCreationCommands() || !workerAttached) {
             return false;
         }
-        RigidBodyKey singleSpawnBodyKey = batch.singleSpawnBodyKey();
-        if (singleSpawnBodyKey == null) {
-            submittedBodyCreationCommandBatchSequence.accumulateAndGet(
-                batch.metadata().commandBatchSequence(),
-                Math::max);
-            return true;
-        }
-
+        long commandBatchSequence = batch.metadata().commandBatchSequence();
         synchronized (pendingCommandBodyCreationSequences) {
-            pendingCommandBodyCreationSequences.put(singleSpawnBodyKey,
-                Math.max(pendingCommandBodyCreationSequences.getLong(singleSpawnBodyKey),
-                    batch.metadata().commandBatchSequence()));
+            for (int index = 0; index < batch.bodyCreationKeyCount(); index++) {
+                RigidBodyKey bodyKey = batch.bodyCreationKey(index);
+                pendingCommandBodyCreationSequences.put(bodyKey,
+                    Math.max(pendingCommandBodyCreationSequences.getLong(bodyKey),
+                        commandBatchSequence));
+            }
         }
         return true;
     }
 
     public void clearBodyCreationPublication(@Nonnull RecordedPhysicsCommandBatch batch) {
-        RigidBodyKey singleSpawnBodyKey = batch.singleSpawnBodyKey();
-        if (singleSpawnBodyKey == null) {
-            appliedLastIncludedCommandBatchSequence.accumulateAndGet(
-                batch.metadata().commandBatchSequence(),
-                Math::max);
-            return;
-        }
+        long commandBatchSequence = batch.metadata().commandBatchSequence();
         synchronized (pendingCommandBodyCreationSequences) {
-            long current = pendingCommandBodyCreationSequences.getLong(singleSpawnBodyKey);
-            if (current <= batch.metadata().commandBatchSequence()) {
-                pendingCommandBodyCreationSequences.removeLong(singleSpawnBodyKey);
+            for (int index = 0; index < batch.bodyCreationKeyCount(); index++) {
+                RigidBodyKey bodyKey = batch.bodyCreationKey(index);
+                long current = pendingCommandBodyCreationSequences.getLong(bodyKey);
+                if (current <= commandBatchSequence) {
+                    pendingCommandBodyCreationSequences.removeLong(bodyKey);
+                }
             }
         }
     }
 
     public void applyLastIncludedCommandBatchSequence(long lastIncludedCommandBatchSequence) {
-        appliedLastIncludedCommandBatchSequence.accumulateAndGet(lastIncludedCommandBatchSequence, Math::max);
         synchronized (pendingCommandBodyCreationSequences) {
-            var iterator = pendingCommandBodyCreationSequences.object2LongEntrySet().iterator();
-            while (iterator.hasNext()) {
-                var entry = iterator.next();
-                if (entry.getLongValue() <= lastIncludedCommandBatchSequence) {
-                    iterator.remove();
-                }
-            }
+            pendingCommandBodyCreationSequences.object2LongEntrySet()
+                .removeIf(entry -> entry.getLongValue() <= lastIncludedCommandBatchSequence);
         }
     }
 
@@ -139,23 +119,12 @@ public final class PhysicsCommandVisibilityState {
         boolean directBodyCreationPending,
         boolean workerAttached) {
         return directBodyCreationPending
-            || isCommandBodyCreationPending(bodyKey)
-            || hasPendingCommandBodyCreationPublication(workerAttached);
+            || isCommandBodyCreationPending(bodyKey);
     }
 
     private boolean isCommandBodyCreationPending(@Nonnull RigidBodyKey bodyKey) {
         synchronized (pendingCommandBodyCreationSequences) {
             return pendingCommandBodyCreationSequences.containsKey(bodyKey);
         }
-    }
-
-    private boolean hasPendingCommandBodyCreationPublication(boolean workerAttached) {
-        /*
-         * This is intentionally conservative: any unapplied body-creation batch keeps new-body
-         * readers from assuming that a missing published registration view means the body is absent.
-         */
-        return workerAttached
-            && submittedBodyCreationCommandBatchSequence.get()
-                > appliedLastIncludedCommandBatchSequence.get();
     }
 }

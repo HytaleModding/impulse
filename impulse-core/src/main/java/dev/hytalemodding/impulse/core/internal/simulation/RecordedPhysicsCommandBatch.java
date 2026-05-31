@@ -20,9 +20,8 @@ public final class RecordedPhysicsCommandBatch {
     private final PhysicsCommandOperations operations;
     @Nonnull
     private final PhysicsCommandBatch publicBatch;
-    private final boolean bodyCreationCommands;
-    @Nullable
-    private final RigidBodyKey singleSpawnBodyKey;
+    @Nonnull
+    private final RecordedBodyCreationKeys bodyCreationKeys;
     private final int bodyKeyReferenceCount;
     @Nullable
     private final RigidBodyKey firstBodyKey;
@@ -38,8 +37,7 @@ public final class RecordedPhysicsCommandBatch {
         this.commandWorldEpoch = Math.max(0L, commandWorldEpoch);
         this.operations = Objects.requireNonNull(operations, "operations");
         this.publicBatch = new PhysicsCommandBatch(metadata, operations.size());
-        this.bodyCreationCommands = operations.hasBodyCreationCommands();
-        this.singleSpawnBodyKey = operations.singleSpawnBodyKey();
+        this.bodyCreationKeys = operations.bodyCreationKeys();
         PhysicsCommandOperations.EntityReferences references = operations.entityReferences();
         this.bodyKeyReferenceCount = references.bodyKeyReferenceCount();
         this.firstBodyKey = references.firstBodyKey();
@@ -73,24 +71,26 @@ public final class RecordedPhysicsCommandBatch {
 
     /**
      * Returns whether the frozen batch can create rigid bodies.
-     *
-     * <p>This is a batch-level flag, not a per-body-key list. It lets the reader side guard the
-     * publication gap between owner completion and registration-view snapshot application without
-     * allocating one tracking object per spawned body.</p>
      */
     public boolean hasBodyCreationCommands() {
-        return bodyCreationCommands;
+        return !bodyCreationKeys.isEmpty();
     }
 
     /**
-     * Returns the exact created body key for single-spawn command batches.
-     *
-     * <p>Multi-spawn and template-spawn batches intentionally return {@code null}; those paths keep
-     * the cheaper sequence-level publication fallback instead of allocating per-body tracking.</p>
+     * Returns the exact created body key when this batch creates exactly one rigid body.
      */
     @Nullable
     public RigidBodyKey singleSpawnBodyKey() {
-        return singleSpawnBodyKey;
+        return bodyCreationKeys.singleBodyKey();
+    }
+
+    public int bodyCreationKeyCount() {
+        return bodyCreationKeys.size();
+    }
+
+    @Nonnull
+    public RigidBodyKey bodyCreationKey(int index) {
+        return bodyCreationKeys.bodyKey(index);
     }
 
     public int bodyKeyReferenceCount() {

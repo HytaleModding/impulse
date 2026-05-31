@@ -1256,15 +1256,15 @@ class PhysicsWorldResourceStateTest {
     }
 
     @Test
-    void multiSpawnCommandKeepsBatchLastIncludedBodyCreationFallback() throws Exception {
+    void multiSingleSpawnCommandTracksOnlySpawnedPendingKeys() throws Exception {
         FakePhysicsBackend backend =
-            new FakePhysicsBackend("test:worker-command-registration-fallback-" + BACKEND_COUNTER.incrementAndGet());
+            new FakePhysicsBackend("test:worker-command-registration-multi-single-" + BACKEND_COUNTER.incrementAndGet());
         Impulse.registerBackend(backend);
 
         PhysicsWorldRuntimeResource resource = new PhysicsWorldRuntimeResource();
         try (PhysicsWorldWorkerResource worker = new PhysicsWorldWorkerResource(4,
             Duration.ofSeconds(2L))) {
-            worker.start("worker-command-registration-fallback");
+            worker.start("worker-command-registration-multi-single");
             resource.attachWorkerResource(worker);
             PhysicsSpace space = resource.createLiveSpace(backend.getId(),
                 "test-world",
@@ -1287,7 +1287,10 @@ class PhysicsWorldResourceStateTest {
 
             assertTrue(resource.isBodyCreationPending(firstBodyId));
             assertTrue(resource.isBodyCreationPending(secondBodyId));
-            assertTrue(resource.isBodyCreationPending(RigidBodyKey.random()));
+            assertTrue(resource.hasPublishedOrPendingBodyRegistration(firstBodyId));
+            assertTrue(resource.hasPublishedOrPendingBodyRegistration(secondBodyId));
+            assertFalse(resource.isBodyCreationPending(RigidBodyKey.random()));
+            assertFalse(resource.hasPublishedOrPendingBodyRegistration(RigidBodyKey.random()));
 
             PublishedPhysicsSnapshotFrame frame = resource.capturePublishedSnapshotFrame(1L,
                 302L,
@@ -1299,6 +1302,239 @@ class PhysicsWorldResourceStateTest {
             assertFalse(resource.isBodyCreationPending(firstBodyId));
             assertFalse(resource.isBodyCreationPending(secondBodyId));
             resource.detachWorkerResource(worker);
+        }
+    }
+
+    @Test
+    void bulkSpawnCommandTracksOnlySpawnedPendingKeys() throws Exception {
+        FakePhysicsBackend backend =
+            new FakePhysicsBackend("test:worker-command-registration-bulk-" + BACKEND_COUNTER.incrementAndGet());
+        Impulse.registerBackend(backend);
+
+        PhysicsWorldRuntimeResource resource = new PhysicsWorldRuntimeResource();
+        try (PhysicsWorldWorkerResource worker = new PhysicsWorldWorkerResource(4,
+            Duration.ofSeconds(2L))) {
+            worker.start("worker-command-registration-bulk");
+            resource.attachWorkerResource(worker);
+            PhysicsSpace space = resource.createLiveSpace(backend.getId(),
+                "test-world",
+                PhysicsSpaceSettings.defaults());
+
+            RigidBodyKey firstBodyId = RigidBodyKey.random();
+            RigidBodyKey secondBodyId = RigidBodyKey.random();
+            var handle = resource.submitCommands(311L, commands -> commands.spawnBodies(2, spawns -> {
+                spawns.body(firstBodyId, spawn -> spawn
+                    .space(space.getId())
+                    .box(0.5f, 0.5f, 0.5f)
+                    .dynamic());
+                spawns.body(secondBodyId, spawn -> spawn
+                    .space(space.getId())
+                    .box(0.5f, 0.5f, 0.5f)
+                    .dynamic());
+            }));
+
+            handle.completion().toCompletableFuture().get(2, TimeUnit.SECONDS);
+
+            assertTrue(resource.isBodyCreationPending(firstBodyId));
+            assertTrue(resource.isBodyCreationPending(secondBodyId));
+            assertTrue(resource.hasPublishedOrPendingBodyRegistration(firstBodyId));
+            assertTrue(resource.hasPublishedOrPendingBodyRegistration(secondBodyId));
+            assertFalse(resource.isBodyCreationPending(RigidBodyKey.random()));
+            assertFalse(resource.hasPublishedOrPendingBodyRegistration(RigidBodyKey.random()));
+
+            PublishedPhysicsSnapshotFrame frame = resource.capturePublishedSnapshotFrame(1L,
+                312L,
+                PublishedPhysicsSnapshotFrame.Status.COMPLETE,
+                0L,
+                false);
+            resource.applyPublishedSnapshotFrame(frame);
+
+            assertFalse(resource.isBodyCreationPending(firstBodyId));
+            assertFalse(resource.isBodyCreationPending(secondBodyId));
+            assertNotNull(resource.getBodyRegistrationView(firstBodyId));
+            assertNotNull(resource.getBodyRegistrationView(secondBodyId));
+            resource.detachWorkerResource(worker);
+        }
+    }
+
+    @Test
+    void templateSpawnCommandTracksOnlySpawnedPendingKeys() throws Exception {
+        FakePhysicsBackend backend =
+            new FakePhysicsBackend("test:worker-command-registration-template-" + BACKEND_COUNTER.incrementAndGet());
+        Impulse.registerBackend(backend);
+
+        PhysicsWorldRuntimeResource resource = new PhysicsWorldRuntimeResource();
+        try (PhysicsWorldWorkerResource worker = new PhysicsWorldWorkerResource(4,
+            Duration.ofSeconds(2L))) {
+            worker.start("worker-command-registration-template");
+            resource.attachWorkerResource(worker);
+            PhysicsSpace space = resource.createLiveSpace(backend.getId(),
+                "test-world",
+                PhysicsSpaceSettings.defaults());
+
+            RigidBodyKey firstBodyId = RigidBodyKey.random();
+            RigidBodyKey secondBodyId = RigidBodyKey.random();
+            var handle = resource.submitCommands(321L, commands -> commands.spawnBodies(2,
+                space.getId(),
+                PhysicsShapeSpec.box(0.5f, 0.5f, 0.5f),
+                1.0f,
+                PhysicsBodyType.DYNAMIC,
+                RigidBodySpawnSettings.defaults(),
+                PhysicsBodyKind.BODY,
+                PhysicsBodyPersistenceMode.RUNTIME_ONLY,
+                spawns -> spawns
+                    .body(firstBodyId, 0.0f, 0.0f, 0.0f)
+                    .body(secondBodyId, 1.0f, 0.0f, 0.0f)));
+
+            handle.completion().toCompletableFuture().get(2, TimeUnit.SECONDS);
+
+            assertTrue(resource.isBodyCreationPending(firstBodyId));
+            assertTrue(resource.isBodyCreationPending(secondBodyId));
+            assertTrue(resource.hasPublishedOrPendingBodyRegistration(firstBodyId));
+            assertTrue(resource.hasPublishedOrPendingBodyRegistration(secondBodyId));
+            assertFalse(resource.isBodyCreationPending(RigidBodyKey.random()));
+            assertFalse(resource.hasPublishedOrPendingBodyRegistration(RigidBodyKey.random()));
+
+            PublishedPhysicsSnapshotFrame frame = resource.capturePublishedSnapshotFrame(1L,
+                322L,
+                PublishedPhysicsSnapshotFrame.Status.COMPLETE,
+                0L,
+                false);
+            resource.applyPublishedSnapshotFrame(frame);
+
+            assertFalse(resource.isBodyCreationPending(firstBodyId));
+            assertFalse(resource.isBodyCreationPending(secondBodyId));
+            assertNotNull(resource.getBodyRegistrationView(firstBodyId));
+            assertNotNull(resource.getBodyRegistrationView(secondBodyId));
+            resource.detachWorkerResource(worker);
+        }
+    }
+
+    @Test
+    void rejectedSpawnCommandClearsPendingKeyAfterIncludedSnapshotFrame() throws Exception {
+        FakePhysicsBackend backend =
+            new FakePhysicsBackend("test:worker-command-registration-rejected-" + BACKEND_COUNTER.incrementAndGet());
+        Impulse.registerBackend(backend);
+
+        PhysicsWorldRuntimeResource resource = new PhysicsWorldRuntimeResource();
+        try (PhysicsWorldWorkerResource worker = new PhysicsWorldWorkerResource(4,
+            Duration.ofSeconds(2L))) {
+            worker.start("worker-command-registration-rejected");
+            resource.attachWorkerResource(worker);
+
+            RigidBodyKey bodyId = RigidBodyKey.random();
+            var handle = resource.submitCommands(331L, commands -> commands
+                .spawnBody(bodyId, spawn -> spawn
+                    .space(new SpaceId(Integer.MAX_VALUE))
+                    .box(0.5f, 0.5f, 0.5f)
+                    .dynamic()));
+
+            var results = handle.completion().toCompletableFuture().get(2, TimeUnit.SECONDS);
+
+            assertEquals(PhysicsCommandResult.Status.REJECTED, results.getFirst().status());
+            assertTrue(resource.isBodyCreationPending(bodyId));
+            assertFalse(resource.isBodyCreationPending(RigidBodyKey.random()));
+
+            PublishedPhysicsSnapshotFrame frame = resource.capturePublishedSnapshotFrame(1L,
+                332L,
+                PublishedPhysicsSnapshotFrame.Status.COMPLETE,
+                0L,
+                false);
+            resource.applyPublishedSnapshotFrame(frame);
+
+            assertFalse(resource.isBodyCreationPending(bodyId));
+            assertNull(resource.getBodyRegistrationView(bodyId));
+            resource.detachWorkerResource(worker);
+        }
+    }
+
+    @Test
+    void partiallyRejectedBulkSpawnClearsAllRequestedPendingKeysAfterIncludedSnapshotFrame() throws Exception {
+        FakePhysicsBackend backend =
+            new FakePhysicsBackend("test:worker-command-registration-partial-" + BACKEND_COUNTER.incrementAndGet());
+        Impulse.registerBackend(backend);
+
+        PhysicsWorldRuntimeResource resource = new PhysicsWorldRuntimeResource();
+        PhysicsSpace space = resource.createLiveSpace(backend.getId(),
+            "test-world",
+            PhysicsSpaceSettings.defaults());
+        RigidBodyKey createdBodyId = RigidBodyKey.random();
+        RigidBodyKey duplicateBodyId = RigidBodyKey.random();
+        resource.addBody(duplicateBodyId,
+            space.getId(),
+            space.createBox(0.5f, 0.5f, 0.5f, 1.0f),
+            PhysicsBodyKind.BODY,
+            PhysicsBodyPersistenceMode.RUNTIME_ONLY);
+
+        try (PhysicsWorldWorkerResource worker = new PhysicsWorldWorkerResource(4,
+            Duration.ofSeconds(2L))) {
+            worker.start("worker-command-registration-partial");
+            resource.attachWorkerResource(worker);
+
+            var handle = resource.submitCommands(341L, commands -> commands.spawnBodies(2, spawns -> {
+                spawns.body(createdBodyId, spawn -> spawn
+                    .space(space.getId())
+                    .box(0.5f, 0.5f, 0.5f)
+                    .dynamic());
+                spawns.body(duplicateBodyId, spawn -> spawn
+                    .space(space.getId())
+                    .box(0.5f, 0.5f, 0.5f)
+                    .dynamic());
+            }));
+
+            var results = handle.completion().toCompletableFuture().get(2, TimeUnit.SECONDS);
+
+            assertEquals(PhysicsCommandResult.Status.REJECTED, results.getFirst().status());
+            assertTrue(resource.isBodyCreationPending(createdBodyId));
+            assertTrue(resource.isBodyCreationPending(duplicateBodyId));
+            assertFalse(resource.isBodyCreationPending(RigidBodyKey.random()));
+
+            PublishedPhysicsSnapshotFrame frame = resource.capturePublishedSnapshotFrame(1L,
+                342L,
+                PublishedPhysicsSnapshotFrame.Status.COMPLETE,
+                0L,
+                false);
+            resource.applyPublishedSnapshotFrame(frame);
+
+            assertNotNull(resource.getBodyRegistrationView(createdBodyId));
+            assertNotNull(resource.getBodyRegistrationView(duplicateBodyId));
+            assertFalse(resource.isBodyCreationPending(createdBodyId));
+            assertFalse(resource.isBodyCreationPending(duplicateBodyId));
+            resource.detachWorkerResource(worker);
+        }
+    }
+
+    @Test
+    void workerDetachPublishesCommandSpawnRegistrationViewsAndClearsPendingKeys() throws Exception {
+        FakePhysicsBackend backend =
+            new FakePhysicsBackend("test:worker-command-registration-detach-" + BACKEND_COUNTER.incrementAndGet());
+        Impulse.registerBackend(backend);
+
+        PhysicsWorldRuntimeResource resource = new PhysicsWorldRuntimeResource();
+        try (PhysicsWorldWorkerResource worker = new PhysicsWorldWorkerResource(4,
+            Duration.ofSeconds(2L))) {
+            worker.start("worker-command-registration-detach");
+            resource.attachWorkerResource(worker);
+            PhysicsSpace space = resource.createLiveSpace(backend.getId(),
+                "test-world",
+                PhysicsSpaceSettings.defaults());
+
+            RigidBodyKey bodyId = RigidBodyKey.random();
+            var handle = resource.submitCommands(351L, commands -> commands
+                .spawnBody(bodyId, spawn -> spawn
+                    .space(space.getId())
+                    .box(0.5f, 0.5f, 0.5f)
+                    .dynamic()));
+
+            handle.completion().toCompletableFuture().get(2, TimeUnit.SECONDS);
+
+            assertNull(resource.getBodyRegistrationView(bodyId));
+            assertTrue(resource.isBodyCreationPending(bodyId));
+
+            resource.detachWorkerResource(worker);
+
+            assertNotNull(resource.getBodyRegistrationView(bodyId));
+            assertFalse(resource.isBodyCreationPending(bodyId));
         }
     }
 

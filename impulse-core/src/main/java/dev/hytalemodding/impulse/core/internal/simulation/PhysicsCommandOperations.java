@@ -356,42 +356,33 @@ final class PhysicsCommandOperations {
         return size;
     }
 
-    boolean hasBodyCreationCommands() {
-        // Keep this scan allocation-free. It runs once per submitted batch and deliberately avoids
-        // materializing per-body creation metadata for high-volume spawn batches.
+    @Nonnull
+    RecordedBodyCreationKeys bodyCreationKeys() {
+        RecordedBodyCreationKeys.Builder keys = RecordedBodyCreationKeys.builder();
         for (int index = 0; index < size; index++) {
             switch (opcode(index)) {
-                case SPAWN_RIGID_BODY,
-                     SPAWN_RIGID_BODY_BATCH,
-                     SPAWN_RIGID_BODY_TEMPLATE_BATCH -> {
-                    return true;
+                case SPAWN_RIGID_BODY -> keys.add(
+                    Objects.requireNonNull(objectAt(index, 0, RigidBodyKey.class)));
+                case SPAWN_RIGID_BODY_BATCH -> {
+                    RigidBodySpawnBatch batch = objectAt(index, 0, RigidBodySpawnBatch.class);
+                    assert batch != null;
+                    keys.addAll(batch.bodyKeyMostSignificantBits(),
+                        batch.bodyKeyLeastSignificantBits(),
+                        batch.size());
+                }
+                case SPAWN_RIGID_BODY_TEMPLATE_BATCH -> {
+                    RigidBodySpawnTemplateBatch batch =
+                        objectAt(index, 0, RigidBodySpawnTemplateBatch.class);
+                    assert batch != null;
+                    keys.addAll(batch.bodyKeyMostSignificantBits(),
+                        batch.bodyKeyLeastSignificantBits(),
+                        batch.size());
                 }
                 default -> {
                 }
             }
         }
-        return false;
-    }
-
-    @Nullable
-    RigidBodyKey singleSpawnBodyKey() {
-        RigidBodyKey bodyKey = null;
-        for (int index = 0; index < size; index++) {
-            switch (opcode(index)) {
-                case SPAWN_RIGID_BODY -> {
-                    if (bodyKey != null) {
-                        return null;
-                    }
-                    bodyKey = objectAt(index, 0, RigidBodyKey.class);
-                }
-                case SPAWN_RIGID_BODY_BATCH, SPAWN_RIGID_BODY_TEMPLATE_BATCH -> {
-                    return null;
-                }
-                default -> {
-                }
-            }
-        }
-        return bodyKey;
+        return keys.build();
     }
 
     @Nonnull
@@ -407,24 +398,32 @@ final class PhysicsCommandOperations {
                      SET_RIGID_BODY_TYPE,
                      ACTIVATE_RIGID_BODY,
                      APPLY_RIGID_BODY_IMPULSE,
-                     APPLY_RIGID_BODY_FORCE -> accumulator.addBody(objectAt(index, 0, RigidBodyKey.class));
+                     APPLY_RIGID_BODY_FORCE -> accumulator.addBody(
+                    Objects.requireNonNull(objectAt(index, 0, RigidBodyKey.class)));
                 case SPAWN_RIGID_BODY_BATCH ->
-                    accumulator.addSpawnBatch(objectAt(index, 0, RigidBodySpawnBatch.class));
+                    accumulator.addSpawnBatch(
+                        Objects.requireNonNull(objectAt(index, 0, RigidBodySpawnBatch.class)));
                 case SPAWN_RIGID_BODY_TEMPLATE_BATCH ->
-                    accumulator.addSpawnTemplateBatch(objectAt(index, 0, RigidBodySpawnTemplateBatch.class));
+                    accumulator.addSpawnTemplateBatch(Objects.requireNonNull(
+                        objectAt(index, 0, RigidBodySpawnTemplateBatch.class)));
                 case CREATE_JOINT -> {
-                    accumulator.addJoint(objectAt(index, 0, JointKey.class));
-                    accumulator.addBody(objectAt(index, 2, RigidBodyKey.class));
-                    accumulator.addBody(objectAt(index, 3, RigidBodyKey.class));
+                    accumulator.addJoint(Objects.requireNonNull(objectAt(index, 0, JointKey.class)));
+                    accumulator.addBody(
+                        Objects.requireNonNull(objectAt(index, 2, RigidBodyKey.class)));
+                    accumulator.addBody(
+                        Objects.requireNonNull(objectAt(index, 3, RigidBodyKey.class)));
                 }
-                case DESTROY_JOINT -> accumulator.addJoint(objectAt(index, 0, JointKey.class));
+                case DESTROY_JOINT -> accumulator.addJoint(
+                    Objects.requireNonNull(objectAt(index, 0, JointKey.class)));
                 case DESTROY_JOINT_BETWEEN_BODIES -> {
                     JointKey jointKey = (JointKey) objectAt(index, 0);
                     if (jointKey != null) {
                         accumulator.addJoint(jointKey);
                     }
-                    accumulator.addBody(objectAt(index, 2, RigidBodyKey.class));
-                    accumulator.addBody(objectAt(index, 3, RigidBodyKey.class));
+                    accumulator.addBody(
+                        Objects.requireNonNull(objectAt(index, 2, RigidBodyKey.class)));
+                    accumulator.addBody(
+                        Objects.requireNonNull(objectAt(index, 3, RigidBodyKey.class)));
                 }
                 case LIVE_OWNER_TRANSACTION -> accumulator.addLiveOwnerTransaction();
                 default -> {
