@@ -69,13 +69,13 @@ public final class BulletSpace implements PhysicsSpace {
 
     @Nonnull
     @Override
-    public SpaceId getId() {
+    public SpaceId id() {
         return id;
     }
 
     @Nonnull
     @Override
-    public BackendId getBackendId() {
+    public BackendId backendId() {
         return backend.getId();
     }
 

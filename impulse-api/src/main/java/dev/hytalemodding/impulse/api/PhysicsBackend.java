@@ -14,8 +14,11 @@ import javax.annotation.Nullable;
  *     <li>{@link #init()} must be idempotent and safe when called multiple times.</li>
  *     <li>Backends are expected to be used through {@link Impulse}, which provides
  *     thread-safe one-time initialization.</li>
- *     <li>{@link #createSpace()} may be called from multiple world threads after initialization.
- *     Implementations with mutable factory state must synchronize internally.</li>
+ *     <li>{@link #createSpace()} and {@link #createSpace(SpaceId)} may be called from multiple
+ *     owner lanes after initialization. Implementations with mutable factory state must
+ *     synchronize internally.</li>
+ *     <li>Different spaces may run concurrently on different owner lanes. Each individual
+ *     {@link PhysicsSpace} remains serialized by its own owner lane.</li>
  * </ul>
  */
 public interface PhysicsBackend {
@@ -57,6 +60,7 @@ public interface PhysicsBackend {
     /**
      * Create a new independent simulation space with a specific logical id.
      * <p>
+     * This method may be called concurrently after {@link #init()} has completed.
      * Implementations should preserve this id on the returned space object.
      */
     @Nonnull
