@@ -16,12 +16,20 @@ import dev.hytalemodding.impulse.api.PhysicsJoint;
 import dev.hytalemodding.impulse.api.PhysicsRayHit;
 import dev.hytalemodding.impulse.api.PhysicsSpace;
 import dev.hytalemodding.impulse.api.ShapeType;
+import dev.hytalemodding.impulse.api.SpaceId;
 import dev.hytalemodding.impulse.api.capability.PhysicsContinuousCollisionCapability;
 import java.nio.file.Path;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.Set;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
+import java.util.concurrent.TimeUnit;
 import java.util.logging.Level;
 import javax.annotation.Nonnull;
 import org.joml.Vector3f;
@@ -42,6 +50,7 @@ public abstract class PhysicsBackendContractTest {
     protected static final int LOW_TPS_SUBSTEPS = 16;
     protected static final int MAX_SETTLE_STEPS = 900;
     protected static final float POSITION_EPSILON = 0.05f;
+    protected static final int CONCURRENT_SPACE_CREATIONS = 4;
 
     @TempDir
     Path tempDir;
@@ -67,6 +76,83 @@ public abstract class PhysicsBackendContractTest {
         assertEquals(0, space.jointCount());
 
         verifyGravityConfiguration(space);
+    }
+
+    @Test
+    void createsDistinctLogicalSpacesConcurrently() throws Exception {
+        PhysicsBackend backend = createBackend();
+        backend.setDataDirectory(tempDir);
+        backend.setInternalLoggingLevel(Level.OFF);
+        backend.init();
+
+        ExecutorService executor = Executors.newFixedThreadPool(CONCURRENT_SPACE_CREATIONS);
+        CountDownLatch ready = new CountDownLatch(CONCURRENT_SPACE_CREATIONS);
+        CountDownLatch start = new CountDownLatch(1);
+        List<SpaceId> requestedIds = new ArrayList<>();
+        List<Future<PhysicsSpace>> futures = new ArrayList<>();
+        try {
+            for (int i = 0; i < CONCURRENT_SPACE_CREATIONS; i++) {
+                SpaceId spaceId = new SpaceId(10_000 + i);
+                requestedIds.add(spaceId);
+                futures.add(executor.submit(() -> {
+                    ready.countDown();
+                    assertTrue(start.await(5, TimeUnit.SECONDS), "Timed out waiting to start space creation");
+                    return backend.createSpace(spaceId);
+                }));
+            }
+
+            assertTrue(ready.await(5, TimeUnit.SECONDS), "Timed out waiting for space creation tasks");
+            start.countDown();
+
+            Set<SpaceId> returnedIds = new HashSet<>();
+            for (Future<PhysicsSpace> future : futures) {
+                PhysicsSpace space = future.get(10, TimeUnit.SECONDS);
+                spaces.add(space);
+                assertEquals(backend.getId(), space.backendId());
+                assertTrue(returnedIds.add(space.id()), "Each created space should have a distinct logical id");
+            }
+
+            assertEquals(Set.copyOf(requestedIds), returnedIds);
+        } finally {
+            executor.shutdownNow();
+        }
+    }
+
+    @Test
+    void createsGeneratedSpacesConcurrently() throws Exception {
+        PhysicsBackend backend = createBackend();
+        backend.setDataDirectory(tempDir);
+        backend.setInternalLoggingLevel(Level.OFF);
+        backend.init();
+
+        ExecutorService executor = Executors.newFixedThreadPool(CONCURRENT_SPACE_CREATIONS);
+        CountDownLatch ready = new CountDownLatch(CONCURRENT_SPACE_CREATIONS);
+        CountDownLatch start = new CountDownLatch(1);
+        List<Future<PhysicsSpace>> futures = new ArrayList<>();
+        try {
+            for (int i = 0; i < CONCURRENT_SPACE_CREATIONS; i++) {
+                futures.add(executor.submit(() -> {
+                    ready.countDown();
+                    assertTrue(start.await(5, TimeUnit.SECONDS), "Timed out waiting to start space creation");
+                    return backend.createSpace();
+                }));
+            }
+
+            assertTrue(ready.await(5, TimeUnit.SECONDS), "Timed out waiting for space creation tasks");
+            start.countDown();
+
+            Set<SpaceId> returnedIds = new HashSet<>();
+            for (Future<PhysicsSpace> future : futures) {
+                PhysicsSpace space = future.get(10, TimeUnit.SECONDS);
+                spaces.add(space);
+                assertEquals(backend.getId(), space.backendId());
+                assertTrue(returnedIds.add(space.id()), "Each created space should have a distinct logical id");
+            }
+
+            assertEquals(CONCURRENT_SPACE_CREATIONS, returnedIds.size());
+        } finally {
+            executor.shutdownNow();
+        }
     }
 
     @Test
@@ -225,7 +311,7 @@ public abstract class PhysicsBackendContractTest {
         space.snapshotBodies(snapshots::add);
 
         assertEquals(1, snapshots.size());
-        PhysicsBodySnapshot initial = snapshots.get(0);
+        PhysicsBodySnapshot initial = snapshots.getFirst();
         assertEquals(ShapeType.PLANE, initial.shapeType());
         assertEquals(PhysicsBodyType.STATIC, initial.bodyType());
         assertVectorNear(new Vector3f(0.0f, 12.0f, 0.0f), initial.position(), 0.0001f);
@@ -237,7 +323,7 @@ public abstract class PhysicsBackendContractTest {
         space.snapshotBodies(snapshots::add);
 
         assertEquals(1, snapshots.size());
-        PhysicsBodySnapshot moved = snapshots.get(0);
+        PhysicsBodySnapshot moved = snapshots.getFirst();
         assertEquals(ShapeType.PLANE, moved.shapeType());
         assertEquals(PhysicsBodyType.STATIC, moved.bodyType());
         assertVectorNear(new Vector3f(0.0f, 5.0f, 0.0f), moved.position(), 0.0001f);

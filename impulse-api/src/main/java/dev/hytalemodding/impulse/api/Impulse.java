@@ -62,6 +62,9 @@ public final class Impulse {
 
     /**
      * Create a space for the given backend id.
+     *
+     * <p>This method is safe to call concurrently after the backend is registered. The returned
+     * space is live backend state and must still be owned by one serialized physics owner lane.</p>
      */
     @Nonnull
     public static PhysicsSpace createSpace(@Nonnull BackendId backendId) {
@@ -70,6 +73,9 @@ public final class Impulse {
 
     /**
      * Create a space for the given backend id and logical space id.
+     *
+     * <p>This method is safe to call concurrently after the backend is registered. The returned
+     * space is live backend state and must still be owned by one serialized physics owner lane.</p>
      */
     @Nonnull
     public static PhysicsSpace createSpace(@Nonnull BackendId backendId,
@@ -77,9 +83,9 @@ public final class Impulse {
         PhysicsBackend backend = getBackend(backendId);
         ensureBackendInitialized(backendId, backend);
         PhysicsSpace space = backend.createSpace(spaceId);
-        if (!spaceId.equals(space.getId())) {
+        if (!spaceId.equals(space.id())) {
             throw new IllegalStateException("Backend " + backendId
-                + " created space id " + space.getId() + " but expected " + spaceId);
+                + " created space id " + space.id() + " but expected " + spaceId);
         }
         return space;
     }

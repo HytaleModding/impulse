@@ -33,7 +33,7 @@ class BulletBackendSmokeTest {
         space = createSpace();
 
         assertTrue(space.getCapability(PhysicsContinuousCollisionCapability.class).isPresent());
-        assertEquals(BulletBackend.ID, space.getBackendId());
+        assertEquals(BulletBackend.ID, space.backendId());
     }
 
     @Test

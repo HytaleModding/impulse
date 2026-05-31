@@ -22,17 +22,20 @@ import org.joml.Vector3f;
  * between implementations.
  * <ul>
  *     <li>This type must not be assumed to be thread-safe.</li>
- *     <li>All mutations and stepping must happen from a single owner thread.</li>
- *     <li>If other threads need to interact, queue commands onto the owner thread.</li>
+ *     <li>All mutations, stepping, and live snapshots must happen from a single serialized owner
+ *     lane.</li>
+ *     <li>The owner lane is a logical execution context, not a public Java thread identity. It may
+ *     be backed by pooled executor lanes, but it must not execute the same space concurrently.</li>
+ *     <li>If other threads need to interact, queue commands onto the owner lane.</li>
  * </ul>
  */
 public interface PhysicsSpace {
 
     @Nonnull
-    SpaceId getId();
+    SpaceId id();
 
     @Nonnull
-    BackendId getBackendId();
+    BackendId backendId();
 
     void step(float dt);
 
@@ -81,7 +84,7 @@ public interface PhysicsSpace {
     }
 
     /**
-     * Publishes owner-thread body snapshots for systems that must not repeatedly
+     * Publishes owner-lane body snapshots for systems that must not repeatedly
      * read mutable backend bodies.
      */
     default void snapshotBodies(@Nonnull Consumer<PhysicsBodySnapshot> consumer) {
@@ -89,7 +92,7 @@ public interface PhysicsSpace {
     }
 
     /**
-     * Publishes owner-thread body snapshots, allowing callers to provide the last
+     * Publishes owner-lane body snapshots, allowing callers to provide the last
      * published snapshot so backends can avoid stable sleeping-body refreshes.
      */
     default void snapshotBodies(@Nonnull Function<PhysicsBody, PhysicsBodySnapshot> previousSnapshots,
@@ -98,7 +101,7 @@ public interface PhysicsSpace {
     }
 
     /**
-     * Publishes owner-thread body snapshots with the live body available only during the callback.
+     * Publishes owner-lane body snapshots with the live body available only during the callback.
      */
     default void snapshotBodies(@Nonnull Function<PhysicsBody, PhysicsBodySnapshot> previousSnapshots,
         @Nonnull BiConsumer<PhysicsBody, PhysicsBodySnapshot> consumer) {
@@ -106,7 +109,7 @@ public interface PhysicsSpace {
     }
 
     /**
-     * Publishes owner-thread snapshots for a caller-selected subset of bodies.
+     * Publishes owner-lane snapshots for a caller-selected subset of bodies.
      *
      * <p>This lets backends batch-read only bodies that higher-level systems actually
      * need to publish. Callers should pass bodies that currently belong to this space.</p>
@@ -118,7 +121,7 @@ public interface PhysicsSpace {
     }
 
     /**
-     * Publishes owner-thread snapshots for a caller-selected subset of bodies with the live body
+     * Publishes owner-lane snapshots for a caller-selected subset of bodies with the live body
      * available only during the callback.
      */
     default void snapshotBodies(@Nonnull Iterable<? extends PhysicsBody> selectedBodies,
