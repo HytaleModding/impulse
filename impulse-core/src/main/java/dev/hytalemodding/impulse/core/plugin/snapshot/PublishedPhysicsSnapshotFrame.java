@@ -248,7 +248,9 @@ public final class PublishedPhysicsSnapshotFrame {
      * submitted command batch sequence.
      *
      * <p>This is an owner-execution watermark captured with the snapshot. It does not mean a
-     * separate ECS visual sync pass has already consumed the frame.</p>
+     * separate ECS visual sync pass has already consumed the frame. A watermark is the latest
+     * command-batch sequence observed at capture time; batches at or below it are included in this
+     * frame's copied body data.</p>
      */
     public boolean includesCommandBatch(long commandBatchSequence) {
         return commandBatchSequence > 0L

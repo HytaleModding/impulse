@@ -2,7 +2,7 @@ package dev.hytalemodding.impulse.core.internal.worker;
 
 import com.hypixel.hytale.component.Store;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
-import dev.hytalemodding.impulse.core.internal.resources.worker.PhysicsWorldWorkerResource;
+import dev.hytalemodding.impulse.core.internal.resources.PhysicsWorldWorkerResource;
 import dev.hytalemodding.impulse.core.plugin.resources.PhysicsMutationHandle;
 import java.util.Objects;
 import java.util.concurrent.CompletableFuture;

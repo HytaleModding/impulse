@@ -14,9 +14,10 @@ import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import dev.hytalemodding.impulse.api.PhysicsBodySnapshot;
 import dev.hytalemodding.impulse.api.PhysicsSpace;
 import dev.hytalemodding.impulse.api.ShapeType;
+import dev.hytalemodding.impulse.api.SpaceId;
 import dev.hytalemodding.impulse.core.plugin.components.PhysicsBodyAttachmentComponent;
 import dev.hytalemodding.impulse.core.plugin.components.PhysicsBodyAttachmentComponent.AttachmentLifecycle;
-import dev.hytalemodding.impulse.core.internal.resources.debug.PhysicsDebugResource;
+import dev.hytalemodding.impulse.core.internal.resources.PhysicsDebugResource;
 import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyKind;
 import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyRegistrationView;
 import dev.hytalemodding.impulse.core.internal.voxel.SectionCollisionGeometry.BoxCollider;
@@ -25,15 +26,22 @@ import dev.hytalemodding.impulse.core.internal.simulation.PhysicsDebugContactVie
 import dev.hytalemodding.impulse.core.internal.simulation.PhysicsDebugContactsQuery;
 import dev.hytalemodding.impulse.core.internal.simulation.PhysicsDebugJointView;
 import dev.hytalemodding.impulse.core.internal.simulation.PhysicsDebugJointsQuery;
-import dev.hytalemodding.impulse.core.internal.voxel.WorldVoxelCollisionCache;
 import dev.hytalemodding.impulse.core.internal.voxel.WorldVoxelCollisionCache.DebugSection;
+import it.unimi.dsi.fastutil.objects.Object2ObjectOpenHashMap;
 import it.unimi.dsi.fastutil.objects.ObjectOpenHashSet;
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.Comparator;
 import java.util.List;
+import java.util.Map;
+import java.util.Objects;
 import java.util.Set;
 import java.util.UUID;
+import java.util.WeakHashMap;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionStage;
+import java.util.function.Supplier;
 import javax.annotation.Nonnull;
 import org.joml.Quaterniond;
 import org.joml.Vector3d;
@@ -52,6 +60,10 @@ public class PhysicsDebugSystem extends TickingSystem<ChunkStore> {
         PhysicsBodyAttachmentComponent.getComponentType();
     private static final ComponentType<EntityStore, TransformComponent> TRANSFORM_TYPE =
         TransformComponent.getComponentType();
+
+    @Nonnull
+    private final Map<Store<ChunkStore>, DebugQueryCache> queryCachesByStore =
+        Collections.synchronizedMap(new WeakHashMap<>());
 
     @Override
     public void tick(float dt, int index, @Nonnull Store<ChunkStore> store) {
@@ -89,10 +101,12 @@ public class PhysicsDebugSystem extends TickingSystem<ChunkStore> {
             debug.getOverlayRefreshSeconds(), dt);
         float worldCollisionLifetime = PhysicsDebugRenderer.lifetimeForRefresh(
             debug.getWorldCollisionRefreshSeconds(), dt);
+        DebugQueryCache queryCache = queryCacheFor(store);
 
         for (PlayerRef viewer : viewers) {
             Vector3d viewerPosition = new Vector3d(viewer.getTransform().getPosition());
             List<PlayerRef> target = List.of(viewer);
+            UUID viewerUuid = viewer.getUuid();
 
             if (overlayDue && (debugShapes || debugMotion)) {
                 int renderedBodies = renderEntityBodies(target,
@@ -122,6 +136,8 @@ public class PhysicsDebugSystem extends TickingSystem<ChunkStore> {
                     renderContacts(target,
                         resource,
                         space,
+                        viewerUuid,
+                        queryCache,
                         viewerPosition,
                         debug.getViewRadius(),
                         debug.getMaxContacts(),
@@ -131,6 +147,8 @@ public class PhysicsDebugSystem extends TickingSystem<ChunkStore> {
                     renderJoints(target,
                         resource,
                         space,
+                        viewerUuid,
+                        queryCache,
                         viewerPosition,
                         debug.getViewRadius(),
                         debug.getMaxJoints(),
@@ -147,6 +165,13 @@ public class PhysicsDebugSystem extends TickingSystem<ChunkStore> {
                         worldCollisionLifetime);
                 }
             }
+        }
+    }
+
+    @Nonnull
+    private DebugQueryCache queryCacheFor(@Nonnull Store<ChunkStore> store) {
+        synchronized (queryCachesByStore) {
+            return queryCachesByStore.computeIfAbsent(store, ignored -> new DebugQueryCache());
         }
     }
 
@@ -299,24 +324,25 @@ public class PhysicsDebugSystem extends TickingSystem<ChunkStore> {
     private static void renderContacts(@Nonnull Collection<PlayerRef> viewers,
         @Nonnull PhysicsWorldRuntimeResource resource,
         @Nonnull PhysicsSpace space,
+        @Nonnull UUID viewerUuid,
+        @Nonnull DebugQueryCache queryCache,
         @Nonnull Vector3d viewerPosition,
         double viewRadius,
         int maxContacts,
         float time) {
-        List<PhysicsDebugContactView> contacts;
+        DebugQueryKey key = DebugQueryKey.contacts(space.getId(), viewerUuid);
         try {
-            contacts = resource.queryInternal(new PhysicsDebugContactsQuery(space.getId(),
+            queryCache.requestContactsIfIdle(key,
+                () -> resource.queryInternal(new PhysicsDebugContactsQuery(space.getId(),
                     viewerPosition.x,
                     viewerPosition.y,
                     viewerPosition.z,
                     viewRadius,
-                    maxContacts))
-                .toCompletableFuture()
-                .join();
+                    maxContacts)));
         } catch (RuntimeException exception) {
             return;
         }
-        for (PhysicsDebugContactView contact : contacts) {
+        for (PhysicsDebugContactView contact : queryCache.contactsOrEmpty(key)) {
             PhysicsDebugRenderer.renderContact(viewers, contact, time);
         }
     }
@@ -324,24 +350,25 @@ public class PhysicsDebugSystem extends TickingSystem<ChunkStore> {
     private static void renderJoints(@Nonnull Collection<PlayerRef> viewers,
         @Nonnull PhysicsWorldRuntimeResource resource,
         @Nonnull PhysicsSpace space,
+        @Nonnull UUID viewerUuid,
+        @Nonnull DebugQueryCache queryCache,
         @Nonnull Vector3d viewerPosition,
         double viewRadius,
         int maxJoints,
         float time) {
-        List<PhysicsDebugJointView> joints;
+        DebugQueryKey key = DebugQueryKey.joints(space.getId(), viewerUuid);
         try {
-            joints = resource.queryInternal(new PhysicsDebugJointsQuery(space.getId(),
+            queryCache.requestJointsIfIdle(key,
+                () -> resource.queryInternal(new PhysicsDebugJointsQuery(space.getId(),
                     viewerPosition.x,
                     viewerPosition.y,
                     viewerPosition.z,
                     viewRadius,
-                    maxJoints))
-                .toCompletableFuture()
-                .join();
+                    maxJoints)));
         } catch (RuntimeException exception) {
             return;
         }
-        for (PhysicsDebugJointView joint : joints) {
+        for (PhysicsDebugJointView joint : queryCache.jointsOrEmpty(key)) {
             PhysicsDebugRenderer.renderJoint(viewers, joint, time);
         }
     }
@@ -485,6 +512,112 @@ public class PhysicsDebugSystem extends TickingSystem<ChunkStore> {
             return value - max;
         }
         return 0.0;
+    }
+
+    static final class DebugQueryCache {
+
+        /*
+         * Debug overlays run in the tick path, so contact/joint queries are cached and polled.
+         * If a worker query is still incomplete, the renderer uses the previous completed result
+         * or skips that overlay for the frame instead of joining the world thread.
+         */
+        @Nonnull
+        private final Map<DebugQueryKey, CompletableFuture<List<PhysicsDebugContactView>>> pendingContacts =
+            new Object2ObjectOpenHashMap<>();
+        @Nonnull
+        private final Map<DebugQueryKey, List<PhysicsDebugContactView>> completedContacts =
+            new Object2ObjectOpenHashMap<>();
+        @Nonnull
+        private final Map<DebugQueryKey, CompletableFuture<List<PhysicsDebugJointView>>> pendingJoints =
+            new Object2ObjectOpenHashMap<>();
+        @Nonnull
+        private final Map<DebugQueryKey, List<PhysicsDebugJointView>> completedJoints =
+            new Object2ObjectOpenHashMap<>();
+
+        synchronized boolean requestContactsIfIdle(@Nonnull DebugQueryKey key,
+            @Nonnull Supplier<CompletionStage<List<PhysicsDebugContactView>>> completionSupplier) {
+            pollContacts(key);
+            if (pendingContacts.containsKey(key)) {
+                return false;
+            }
+            pendingContacts.put(key, completionSupplier.get().toCompletableFuture());
+            return true;
+        }
+
+        @Nonnull
+        synchronized List<PhysicsDebugContactView> contactsOrEmpty(@Nonnull DebugQueryKey key) {
+            pollContacts(key);
+            return completedContacts.getOrDefault(key, List.of());
+        }
+
+        synchronized boolean requestJointsIfIdle(@Nonnull DebugQueryKey key,
+            @Nonnull Supplier<CompletionStage<List<PhysicsDebugJointView>>> completionSupplier) {
+            pollJoints(key);
+            if (pendingJoints.containsKey(key)) {
+                return false;
+            }
+            pendingJoints.put(key, completionSupplier.get().toCompletableFuture());
+            return true;
+        }
+
+        @Nonnull
+        synchronized List<PhysicsDebugJointView> jointsOrEmpty(@Nonnull DebugQueryKey key) {
+            pollJoints(key);
+            return completedJoints.getOrDefault(key, List.of());
+        }
+
+        private void pollContacts(@Nonnull DebugQueryKey key) {
+            CompletableFuture<List<PhysicsDebugContactView>> pending = pendingContacts.get(key);
+            if (pending == null || !pending.isDone()) {
+                return;
+            }
+            pendingContacts.remove(key);
+            completedContacts.put(key, completedList(pending));
+        }
+
+        private void pollJoints(@Nonnull DebugQueryKey key) {
+            CompletableFuture<List<PhysicsDebugJointView>> pending = pendingJoints.get(key);
+            if (pending == null || !pending.isDone()) {
+                return;
+            }
+            pendingJoints.remove(key);
+            completedJoints.put(key, completedList(pending));
+        }
+
+        @Nonnull
+        private static <T> List<T> completedList(@Nonnull CompletableFuture<List<T>> future) {
+            try {
+                return List.copyOf(future.getNow(List.of()));
+            } catch (RuntimeException exception) {
+                return List.of();
+            }
+        }
+    }
+
+    record DebugQueryKey(@Nonnull QueryKind kind,
+                         @Nonnull SpaceId spaceId,
+                         @Nonnull UUID viewerUuid) {
+
+        DebugQueryKey {
+            Objects.requireNonNull(kind, "kind");
+            Objects.requireNonNull(spaceId, "spaceId");
+            Objects.requireNonNull(viewerUuid, "viewerUuid");
+        }
+
+        @Nonnull
+        static DebugQueryKey contacts(@Nonnull SpaceId spaceId, @Nonnull UUID viewerUuid) {
+            return new DebugQueryKey(QueryKind.CONTACTS, spaceId, viewerUuid);
+        }
+
+        @Nonnull
+        static DebugQueryKey joints(@Nonnull SpaceId spaceId, @Nonnull UUID viewerUuid) {
+            return new DebugQueryKey(QueryKind.JOINTS, spaceId, viewerUuid);
+        }
+    }
+
+    enum QueryKind {
+        CONTACTS,
+        JOINTS
     }
 
     private record VisibleDebugSection(@Nonnull DebugSection section, double distanceSquared) {

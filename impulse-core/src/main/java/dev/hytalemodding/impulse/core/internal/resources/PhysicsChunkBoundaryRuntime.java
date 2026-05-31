@@ -1,4 +1,4 @@
-package dev.hytalemodding.impulse.core.internal.resources.chunk;
+package dev.hytalemodding.impulse.core.internal.resources;
 
 import dev.hytalemodding.impulse.api.PhysicsBodyType;
 import dev.hytalemodding.impulse.api.PhysicsBodySnapshot;

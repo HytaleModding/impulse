@@ -4,8 +4,9 @@ import com.hypixel.hytale.component.Store;
 import com.hypixel.hytale.component.system.tick.TickingSystem;
 import com.hypixel.hytale.logger.HytaleLogger;
 import com.hypixel.hytale.server.core.universe.world.storage.ChunkStore;
+import dev.hytalemodding.impulse.core.internal.persistence.PersistentPhysicsWorldResource;
 import dev.hytalemodding.impulse.core.internal.resources.profiling.PhysicsRuntimeProfilingResource;
-import dev.hytalemodding.impulse.core.internal.resources.worker.PhysicsWorldWorkerResource;
+import dev.hytalemodding.impulse.core.internal.resources.PhysicsWorldWorkerResource;
 import dev.hytalemodding.impulse.core.internal.worker.PhysicsWorkerStepCommand;
 import dev.hytalemodding.impulse.core.plugin.resources.PhysicsWorldResource;
 import dev.hytalemodding.impulse.core.plugin.settings.PhysicsStepSchedulingMode;
@@ -18,8 +19,11 @@ import java.util.logging.Level;
 import javax.annotation.Nonnull;
 
 /**
- * Submits world physics steps to the physics worker without draining them on
- * the main tick.
+ * Chunk-tick scheduler for physics steps.
+ *
+ * <p>This system only submits work to the per-world physics worker. It does not wait for step
+ * results or apply snapshots; {@code PhysicsSnapshotPublicationSystem} performs reader-side
+ * publication later on the entity-store tick.</p>
  */
 public class PhysicsStepSystem extends TickingSystem<ChunkStore> implements AutoCloseable {
 
@@ -56,13 +60,37 @@ public class PhysicsStepSystem extends TickingSystem<ChunkStore> implements Auto
         if (worker.isClosed()) {
             return;
         }
+        PersistentPhysicsWorldResource persistent = entityStore.getResource(
+            PersistentPhysicsWorldResource.getResourceType());
 
-        submitStepIfIdle(stateFor(store),
+        submitStepIfRestoreReady(stateFor(store),
+            persistent,
             worker,
             resource,
             dt,
             profiling,
             Math.max(0L, world.getTick()));
+    }
+
+    boolean submitStepIfRestoreReady(@Nonnull StepSchedulerState state,
+        @Nonnull PersistentPhysicsWorldResource persistent,
+        @Nonnull PhysicsWorldWorkerResource worker,
+        @Nonnull PhysicsWorldResource resource,
+        float dt,
+        @Nonnull PhysicsRuntimeProfilingResource profiling,
+        long serverTick) {
+        if (!PhysicsStepRestoreGate.canSubmitStep(persistent)) {
+            /*
+             * Restore replaces runtime topology. Dropping catch-up dt avoids replaying stale
+             * backlog against newly restored spaces after restore completes.
+             */
+            synchronized (state) {
+                state.clearAccumulatedStepDt();
+            }
+            return false;
+        }
+        submitStepIfIdle(state, worker, resource, dt, profiling, serverTick);
+        return true;
     }
 
     void submitStepIfIdle(@Nonnull StepSchedulerState state,
@@ -151,7 +179,6 @@ public class PhysicsStepSystem extends TickingSystem<ChunkStore> implements Auto
                 }
                 return;
             }
-            // TODO: In ACCUMULATE_PENDING_DT mode, clamp or subdivide fixed/CCD catch-up dt against maxStepDt.
             command = new PhysicsWorkerStepCommand(resource,
                 state.submittedStepDt(),
                 profilingEnabled,
@@ -227,12 +254,24 @@ public class PhysicsStepSystem extends TickingSystem<ChunkStore> implements Auto
     }
 
     static float maxAccumulatedStepDt(@Nonnull PhysicsWorldResource resource) {
-        float maxStepDt = resource.getWorldSettings().getMaxStepDt();
+        PhysicsWorldSettings settings = resource.getWorldSettings();
+        float maxStepDt = settings.getMaxStepDt();
         float safeMaxStepDt = Float.isFinite(maxStepDt) && maxStepDt > 0.0f
             ? maxStepDt
             : PhysicsWorldSettings.DEFAULT_MAX_STEP_DT;
-        return Math.min(MAX_ACCUMULATED_STEP_DT,
-            safeMaxStepDt * PhysicsWorldSettings.MAX_SIMULATION_STEPS);
+        /*
+         * Fixed and CCD modes do not refine catch-up dt inside the worker: they
+         * use the configured substep count directly. Cap accumulated submissions
+         * to that exact budget and drop the rest through the scheduler profiling
+         * path. Adaptive/progressive modes keep the wider refinement window.
+         */
+        int stepBudget = switch (settings.getStepMode()) {
+            case FIXED, CCD -> Math.clamp(settings.getSimulationSteps(),
+                PhysicsWorldSettings.MIN_SIMULATION_STEPS,
+                PhysicsWorldSettings.MAX_SIMULATION_STEPS);
+            case ADAPTIVE, PROGRESSIVE_REFINEMENT -> PhysicsWorldSettings.MAX_SIMULATION_STEPS;
+        };
+        return Math.min(MAX_ACCUMULATED_STEP_DT, safeMaxStepDt * stepBudget);
     }
 
     static final class StepSchedulerState {
@@ -242,6 +281,10 @@ public class PhysicsStepSystem extends TickingSystem<ChunkStore> implements Auto
          * snapshot frames. This is not the Hytale world tick.
          */
         private long nextStepSequence = 1L;
+        /*
+         * Accumulated scheduler dt is intentionally local to this ChunkStore scheduler. It is
+         * submitted only when the worker has no in-flight step.
+         */
         private double accumulatedStepDt;
 
         @Nonnull

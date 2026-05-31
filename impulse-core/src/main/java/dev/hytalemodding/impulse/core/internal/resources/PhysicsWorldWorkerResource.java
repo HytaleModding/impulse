@@ -1,4 +1,4 @@
-package dev.hytalemodding.impulse.core.internal.resources.worker;
+package dev.hytalemodding.impulse.core.internal.resources;
 
 import com.hypixel.hytale.component.Resource;
 import com.hypixel.hytale.component.ResourceType;
@@ -28,6 +28,10 @@ import lombok.Getter;
 
 /**
  * Runtime-only worker owner for one world EntityStore.
+ *
+ * <p>Submission completion means the owner thread ran the command. It does not mean a published
+ * snapshot or reader-side registration view has caught up. Tick systems should poll this resource
+ * and let publication apply completed frames instead of blocking on worker futures.</p>
  */
 public final class PhysicsWorldWorkerResource implements Resource<EntityStore>, AutoCloseable, PhysicsOwnerHandle {
 
@@ -115,6 +119,7 @@ public final class PhysicsWorldWorkerResource implements Resource<EntityStore>, 
 
     @Nonnull
     public List<PhysicsWorkerMutationCompletion> pollCompletedMutations(int maxCompletions) {
+        // Mutation publication is intentionally nonblocking: only completed futures are drained.
         int limit = Math.max(0, maxCompletions);
         if (limit == 0) {
             return Collections.emptyList();
@@ -137,6 +142,7 @@ public final class PhysicsWorldWorkerResource implements Resource<EntityStore>, 
 
     @Nullable
     public PhysicsWorkerStepCompletion pollCompletedStep() {
+        // The isDone guard keeps the world tick from waiting on the physics step.
         PendingStep completed;
         synchronized (lifecycleLock) {
             PendingStep current = pendingStep;

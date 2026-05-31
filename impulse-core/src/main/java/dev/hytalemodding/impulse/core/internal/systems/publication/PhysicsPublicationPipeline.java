@@ -1,20 +1,9 @@
-package dev.hytalemodding.impulse.core.internal.systems.worker;
+package dev.hytalemodding.impulse.core.internal.systems.publication;
 
-import com.hypixel.hytale.component.Store;
-import com.hypixel.hytale.component.dependency.Dependency;
-import com.hypixel.hytale.component.dependency.Order;
-import com.hypixel.hytale.component.dependency.SystemDependency;
-import com.hypixel.hytale.component.system.tick.TickingSystem;
 import com.hypixel.hytale.logger.HytaleLogger;
-import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
-import dev.hytalemodding.impulse.core.internal.resources.profiling.PhysicsRuntimeProfilingResource;
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsWorldRuntimeResource;
-import dev.hytalemodding.impulse.core.internal.resources.worker.PhysicsWorldWorkerResource;
-import dev.hytalemodding.impulse.core.internal.systems.collision.PhysicsChunkBoundarySystem;
-import dev.hytalemodding.impulse.core.internal.systems.collision.PhysicsCollisionLodSystem;
-import dev.hytalemodding.impulse.core.internal.systems.collision.PhysicsWorldCollisionStreamingSystem;
-import dev.hytalemodding.impulse.core.internal.systems.sync.PhysicsSyncSystem;
-import dev.hytalemodding.impulse.core.internal.systems.visual.PhysicsDetachedVisualMaterializationSystem;
+import dev.hytalemodding.impulse.core.internal.resources.profiling.PhysicsRuntimeProfilingResource;
+import dev.hytalemodding.impulse.core.internal.resources.PhysicsWorldWorkerResource;
 import dev.hytalemodding.impulse.core.internal.worker.PhysicsWorkerMutationCompletion;
 import dev.hytalemodding.impulse.core.internal.worker.PhysicsWorkerResult;
 import dev.hytalemodding.impulse.core.internal.worker.PhysicsWorkerSnapshot;
@@ -22,43 +11,25 @@ import dev.hytalemodding.impulse.core.internal.worker.PhysicsWorkerStepCompletio
 import dev.hytalemodding.impulse.core.plugin.resources.PhysicsWorldResource;
 import dev.hytalemodding.impulse.core.plugin.snapshot.PublishedPhysicsSnapshotFrame;
 import java.util.List;
-import java.util.Set;
 import java.util.logging.Level;
 import javax.annotation.Nonnull;
 
 /**
- * Publishes completed worker snapshots to the main-thread snapshot store without
- * waiting for an in-flight physics step.
+ * Names the frame boundary between worker execution and reader-visible physics state.
+ *
+ * <p>The publication system uses this class to drain completed mutations, apply one completed
+ * step snapshot, and write profiling data without blocking the entity-store tick.</p>
  */
-public final class PhysicsSnapshotPublicationSystem extends TickingSystem<EntityStore> {
+public final class PhysicsPublicationPipeline {
 
     private static final HytaleLogger LOGGER = HytaleLogger.get("Impulse");
     private static final int MAX_MUTATION_COMPLETIONS_PER_TICK = 64;
 
-    private static final Set<Dependency<EntityStore>> DEPENDENCIES = Set.of(
-        new SystemDependency<>(Order.BEFORE, PhysicsCollisionLodSystem.class),
-        new SystemDependency<>(Order.BEFORE, PhysicsChunkBoundarySystem.class),
-        new SystemDependency<>(Order.BEFORE, PhysicsWorldCollisionStreamingSystem.class),
-        new SystemDependency<>(Order.BEFORE, PhysicsDetachedVisualMaterializationSystem.class),
-        new SystemDependency<>(Order.BEFORE, PhysicsSyncSystem.class)
-    );
-
-    @Override
-    public void tick(float dt, int systemIndex, @Nonnull Store<EntityStore> store) {
-        PhysicsWorldWorkerResource worker = store.getResource(
-            PhysicsWorldWorkerResource.getResourceType());
-        if (worker.isClosed()) {
-            return;
-        }
-        PhysicsWorldResource resource = store.getResource(PhysicsWorldResource.getResourceType());
-        PhysicsRuntimeProfilingResource profiling = store.getResource(
-            PhysicsRuntimeProfilingResource.getResourceType());
-        publishCompletedMutations(worker);
-        long publicationServerTick = Math.max(0L, store.getExternalData().getWorld().getTick());
-        publishCompletedStep(worker, resource, profiling, publicationServerTick);
+    private PhysicsPublicationPipeline() {
     }
 
-    static int publishCompletedMutations(@Nonnull PhysicsWorldWorkerResource worker) {
+    public static int publishCompletedMutations(@Nonnull PhysicsWorldWorkerResource worker) {
+        // Mutation completions report failures and clear handles; they do not publish snapshots.
         List<PhysicsWorkerMutationCompletion> completions =
             worker.pollCompletedMutations(MAX_MUTATION_COMPLETIONS_PER_TICK);
         for (PhysicsWorkerMutationCompletion completion : completions) {
@@ -72,13 +43,13 @@ public final class PhysicsSnapshotPublicationSystem extends TickingSystem<Entity
         return completions.size();
     }
 
-    static void publishCompletedStep(@Nonnull PhysicsWorldWorkerResource worker,
+    public static void publishCompletedStep(@Nonnull PhysicsWorldWorkerResource worker,
         @Nonnull PhysicsWorldResource resource,
         @Nonnull PhysicsRuntimeProfilingResource profiling) {
         publishCompletedStep(worker, resource, profiling, 0L);
     }
 
-    static void publishCompletedStep(@Nonnull PhysicsWorldWorkerResource worker,
+    public static void publishCompletedStep(@Nonnull PhysicsWorldWorkerResource worker,
         @Nonnull PhysicsWorldResource resource,
         @Nonnull PhysicsRuntimeProfilingResource profiling,
         long publicationServerTick) {
@@ -95,6 +66,7 @@ public final class PhysicsSnapshotPublicationSystem extends TickingSystem<Entity
 
         PublishedPhysicsSnapshotFrame frame = completion.frame();
         if (frame != null) {
+            // Reader-side apply happens here; command handles may have completed earlier.
             PhysicsWorldRuntimeResource.require(resource)
                 .applyPublishedSnapshotFrame(frame, publicationServerTick);
         }
@@ -122,11 +94,5 @@ public final class PhysicsSnapshotPublicationSystem extends TickingSystem<Entity
                 frame != null ? frame.status() : "<missing>",
                 stepFailure.getMessage());
         }
-    }
-
-    @Nonnull
-    @Override
-    public Set<Dependency<EntityStore>> getDependencies() {
-        return DEPENDENCIES;
     }
 }

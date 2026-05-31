@@ -21,6 +21,8 @@ public final class RecordedPhysicsCommandBatch {
     @Nonnull
     private final PhysicsCommandBatch publicBatch;
     private final boolean bodyCreationCommands;
+    @Nullable
+    private final RigidBodyKey singleSpawnBodyKey;
     private final int bodyKeyReferenceCount;
     @Nullable
     private final RigidBodyKey firstBodyKey;
@@ -37,6 +39,7 @@ public final class RecordedPhysicsCommandBatch {
         this.operations = Objects.requireNonNull(operations, "operations");
         this.publicBatch = new PhysicsCommandBatch(metadata, operations.size());
         this.bodyCreationCommands = operations.hasBodyCreationCommands();
+        this.singleSpawnBodyKey = operations.singleSpawnBodyKey();
         PhysicsCommandOperations.EntityReferences references = operations.entityReferences();
         this.bodyKeyReferenceCount = references.bodyKeyReferenceCount();
         this.firstBodyKey = references.firstBodyKey();
@@ -77,6 +80,17 @@ public final class RecordedPhysicsCommandBatch {
      */
     public boolean hasBodyCreationCommands() {
         return bodyCreationCommands;
+    }
+
+    /**
+     * Returns the exact created body key for single-spawn command batches.
+     *
+     * <p>Multi-spawn and template-spawn batches intentionally return {@code null}; those paths keep
+     * the cheaper batch-watermark publication fallback instead of allocating per-body tracking.</p>
+     */
+    @Nullable
+    public RigidBodyKey singleSpawnBodyKey() {
+        return singleSpawnBodyKey;
     }
 
     public int bodyKeyReferenceCount() {

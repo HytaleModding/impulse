@@ -8,24 +8,21 @@ import com.hypixel.hytale.component.system.tick.TickingSystem;
 import com.hypixel.hytale.logger.HytaleLogger;
 import com.hypixel.hytale.server.core.universe.world.World;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
-import dev.hytalemodding.impulse.api.BackendId;
-import dev.hytalemodding.impulse.api.Impulse;
 import dev.hytalemodding.impulse.api.PhysicsSpace;
 import dev.hytalemodding.impulse.api.SpaceId;
 import dev.hytalemodding.impulse.core.ImpulsePlugin;
 import dev.hytalemodding.impulse.core.internal.components.GeneratedVisualProxyComponent;
+import dev.hytalemodding.impulse.core.internal.components.PhysicsControlSessionComponent;
+import dev.hytalemodding.impulse.core.internal.persistence.PersistentPhysicsRestorePreflight;
 import dev.hytalemodding.impulse.core.internal.persistence.PersistentPhysicsSpaceState;
 import dev.hytalemodding.impulse.core.internal.persistence.PersistentPhysicsWorldResource;
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsWorldRuntimeResource;
 import dev.hytalemodding.impulse.core.internal.worker.PhysicsWorkerAccess;
 import dev.hytalemodding.impulse.core.plugin.components.PhysicsBodyAttachmentComponent;
 import dev.hytalemodding.impulse.core.plugin.components.PhysicsBodyAttachmentComponent.AttachmentLifecycle;
-import dev.hytalemodding.impulse.core.internal.components.PhysicsControlSessionComponent;
-import dev.hytalemodding.impulse.core.plugin.settings.PhysicsSpaceSettings;
 import dev.hytalemodding.impulse.core.plugin.resources.PhysicsWorldResource;
 import java.util.logging.Level;
 import javax.annotation.Nonnull;
-import javax.annotation.Nullable;
 
 /**
  * First stage of persistence restore: recreates physics spaces from persisted world state.
@@ -72,7 +69,7 @@ public class PersistentPhysicsSpaceBootstrapSystem extends TickingSystem<EntityS
         World world = store.getExternalData().getWorld();
         PhysicsWorldRuntimeResource runtime = PhysicsWorldRuntimeResource.require(store);
         PersistentPhysicsSpaceState[] spaces = persistent.getSpaces();
-        String validationFailure = validateSpaces(spaces);
+        String validationFailure = PersistentPhysicsRestorePreflight.validate(persistent);
         if (validationFailure != null) {
             persistent.failRuntimeRestore(validationFailure);
             LOGGER.at(Level.SEVERE).log(persistent.runtimeRestoreFailureSummary());
@@ -163,23 +160,6 @@ public class PersistentPhysicsSpaceBootstrapSystem extends TickingSystem<EntityS
             (index, archetypeChunk, commandBuffer) -> commandBuffer.removeComponent(
                 archetypeChunk.getReferenceTo(index),
                 CONTROL_SESSION_TYPE));
-    }
-
-    @Nullable
-    private static String validateSpaces(@Nonnull PersistentPhysicsSpaceState[] spaces) {
-        for (PersistentPhysicsSpaceState state : spaces) {
-            if (state.getSpaceId() <= 0) {
-                return "Persisted space id must be positive, found " + state.getSpaceId();
-            }
-
-            BackendId backendId = state.toBackendId();
-            try {
-                Impulse.getBackend(backendId);
-            } catch (IllegalStateException exception) {
-                return "Saved backend " + backendId + " is not available for restore";
-            }
-        }
-        return null;
     }
 
     @Nonnull

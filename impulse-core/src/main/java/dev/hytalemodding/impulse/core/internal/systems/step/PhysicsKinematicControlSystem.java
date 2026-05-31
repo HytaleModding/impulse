@@ -57,7 +57,8 @@ public class PhysicsKinematicControlSystem extends EntityTickingSystem<EntitySto
     );
 
     private final ThreadLocal<Scratch> scratch = ThreadLocal.withInitial(Scratch::new);
-    // Anchor updates are copied commands; keep at most one queued update per session anchor.
+    // Anchor updates are copied commands; keep one owner command in flight and at most one latest
+    // queued target per session anchor.
     @Nonnull
     private final Map<Store<EntityStore>, ControlMutationState> statesByStore =
         Collections.synchronizedMap(new WeakHashMap<>());
@@ -139,35 +140,36 @@ public class PhysicsKinematicControlSystem extends EntityTickingSystem<EntitySto
         previousTarget.set(local.target);
 
         ControlMutationState state = stateFor(store);
-        if (state.hasPendingMutation(anchorBodyKey)) {
-            return;
-        }
-
         ControlAnchorUpdate update = new ControlAnchorUpdate(bodyKey,
             anchorBodyKey,
             local.target,
             releaseVelocity);
+        ControlAnchorUpdate readyUpdate = state.selectReadyUpdate(anchorBodyKey, update);
+        if (readyUpdate == null) {
+            return;
+        }
+
         PhysicsMutationHandle<Void> handle = PhysicsMutationHandle.fromCompletion(
             "update kinematic control anchor",
             null,
             resource.submitCommands(0L, 4, commands -> commands
-                    .setBodyType(update.anchorBodyKey(), PhysicsBodyType.KINEMATIC)
-                    .setBodyPosition(update.anchorBodyKey(),
-                        update.target().x,
-                        update.target().y,
-                        update.target().z,
+                    .setBodyType(readyUpdate.anchorBodyKey(), PhysicsBodyType.KINEMATIC)
+                    .setBodyPosition(readyUpdate.anchorBodyKey(),
+                        readyUpdate.target().x,
+                        readyUpdate.target().y,
+                        readyUpdate.target().z,
                         false)
-                    .setBodyVelocity(update.anchorBodyKey(),
-                        update.releaseVelocity().x,
-                        update.releaseVelocity().y,
-                        update.releaseVelocity().z,
+                    .setBodyVelocity(readyUpdate.anchorBodyKey(),
+                        readyUpdate.releaseVelocity().x,
+                        readyUpdate.releaseVelocity().y,
+                        readyUpdate.releaseVelocity().z,
                         0.0f,
                         0.0f,
                         0.0f,
                         true)
-                    .activateBody(update.bodyKey()))
+                    .activateBody(readyUpdate.bodyKey()))
                 .completionSummary());
-        state.trackPendingMutation(anchorBodyKey, handle);
+        state.trackPendingMutation(anchorBodyKey, handle, readyUpdate);
     }
 
     private static float eyeHeight(@Nonnull ArchetypeChunk<EntityStore> chunk,
@@ -231,8 +233,19 @@ public class PhysicsKinematicControlSystem extends EntityTickingSystem<EntitySto
 
     static final class ControlMutationState {
 
+        /*
+         * Coalescing happens on the tick thread: completion callbacks only clear the in-flight
+         * marker. The next tick decides whether the latest queued target still belongs to an active
+         * session and is different enough to submit.
+         */
         @Nonnull
         private final Object2ObjectMap<RigidBodyKey, PhysicsMutationHandle<Void>> pendingMutations =
+            new Object2ObjectOpenHashMap<>();
+        @Nonnull
+        private final Object2ObjectMap<RigidBodyKey, ControlAnchorUpdate> queuedUpdates =
+            new Object2ObjectOpenHashMap<>();
+        @Nonnull
+        private final Object2ObjectMap<RigidBodyKey, ControlAnchorUpdate> submittedUpdates =
             new Object2ObjectOpenHashMap<>();
 
         synchronized boolean hasPendingMutation(@Nonnull RigidBodyKey bodyKey) {
@@ -247,8 +260,35 @@ public class PhysicsKinematicControlSystem extends EntityTickingSystem<EntitySto
             return false;
         }
 
+        @Nullable
+        synchronized ControlAnchorUpdate selectReadyUpdate(@Nonnull RigidBodyKey bodyKey,
+            @Nonnull ControlAnchorUpdate currentUpdate) {
+            PhysicsMutationHandle<Void> handle = pendingMutations.get(bodyKey);
+            if (handle != null && !handle.isDone()) {
+                queuedUpdates.put(bodyKey, currentUpdate);
+                return null;
+            }
+            if (handle != null) {
+                pendingMutations.remove(bodyKey);
+            }
+
+            ControlAnchorUpdate queuedUpdate = queuedUpdates.remove(bodyKey);
+            ControlAnchorUpdate submittedUpdate = submittedUpdates.get(bodyKey);
+            if (queuedUpdate != null) {
+                if (!sameTarget(queuedUpdate, submittedUpdate)) {
+                    return queuedUpdate;
+                }
+                if (sameTarget(currentUpdate, submittedUpdate)) {
+                    return null;
+                }
+            }
+            return currentUpdate;
+        }
+
         synchronized void trackPendingMutation(@Nonnull RigidBodyKey bodyKey,
-            @Nonnull PhysicsMutationHandle<Void> handle) {
+            @Nonnull PhysicsMutationHandle<Void> handle,
+            @Nonnull ControlAnchorUpdate submittedUpdate) {
+            submittedUpdates.put(bodyKey, submittedUpdate);
             if (handle.isDone()) {
                 logImmediateFailure(handle);
                 return;
@@ -260,6 +300,8 @@ public class PhysicsKinematicControlSystem extends EntityTickingSystem<EntitySto
         synchronized void clear(@Nullable RigidBodyKey bodyKey) {
             if (bodyKey != null) {
                 pendingMutations.remove(bodyKey);
+                queuedUpdates.remove(bodyKey);
+                submittedUpdates.remove(bodyKey);
             }
         }
 
@@ -269,6 +311,14 @@ public class PhysicsKinematicControlSystem extends EntityTickingSystem<EntitySto
             if (current == expectedHandle) {
                 pendingMutations.remove(bodyKey);
             }
+        }
+
+        private static boolean sameTarget(@Nonnull ControlAnchorUpdate first,
+            @Nullable ControlAnchorUpdate second) {
+            return second != null
+                && Float.compare(first.target().x, second.target().x) == 0
+                && Float.compare(first.target().y, second.target().y) == 0
+                && Float.compare(first.target().z, second.target().z) == 0;
         }
 
         private static void logImmediateFailure(@Nonnull PhysicsMutationHandle<Void> handle) {

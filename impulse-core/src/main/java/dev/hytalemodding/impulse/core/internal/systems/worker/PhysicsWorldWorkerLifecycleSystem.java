@@ -6,7 +6,7 @@ import com.hypixel.hytale.component.system.StoreSystem;
 import com.hypixel.hytale.logger.HytaleLogger;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsWorldRuntimeResource;
-import dev.hytalemodding.impulse.core.internal.resources.worker.PhysicsWorldWorkerResource;
+import dev.hytalemodding.impulse.core.internal.resources.PhysicsWorldWorkerResource;
 import dev.hytalemodding.impulse.core.plugin.resources.PhysicsWorldResource;
 import java.util.ArrayList;
 import java.util.Set;

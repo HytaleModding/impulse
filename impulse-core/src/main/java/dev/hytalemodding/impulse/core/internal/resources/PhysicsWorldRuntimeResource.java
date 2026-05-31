@@ -18,11 +18,8 @@ import dev.hytalemodding.impulse.core.internal.resources.body.PhysicsBodyRuntime
 import dev.hytalemodding.impulse.core.internal.resources.body.PhysicsBodyRuntime;
 import dev.hytalemodding.impulse.core.internal.resources.body.PhysicsBodyRuntimeState;
 import dev.hytalemodding.impulse.core.internal.resources.body.PhysicsBodySnapshotVisitor;
-import dev.hytalemodding.impulse.core.internal.resources.chunk.PhysicsChunkBoundaryRuntime.ChunkBoundaryPauseState;
-import dev.hytalemodding.impulse.core.internal.resources.chunk.PhysicsChunkBoundaryRuntime.ChunkBoundarySafeState;
-import dev.hytalemodding.impulse.core.internal.resources.chunk.PhysicsChunkBoundaryRuntime;
-import dev.hytalemodding.impulse.core.internal.resources.collision.PhysicsWorldCollisionRuntime;
-import dev.hytalemodding.impulse.core.internal.resources.event.PhysicsWorldEventState;
+import dev.hytalemodding.impulse.core.internal.resources.PhysicsChunkBoundaryRuntime.ChunkBoundaryPauseState;
+import dev.hytalemodding.impulse.core.internal.resources.PhysicsChunkBoundaryRuntime.ChunkBoundarySafeState;
 import dev.hytalemodding.impulse.core.internal.resources.joint.PhysicsJointRegistration;
 import dev.hytalemodding.impulse.core.internal.resources.joint.PhysicsJointRegistry;
 import dev.hytalemodding.impulse.core.internal.resources.owner.PhysicsOwnerCallable;
@@ -30,12 +27,8 @@ import dev.hytalemodding.impulse.core.internal.resources.owner.PhysicsOwnerGatew
 import dev.hytalemodding.impulse.core.internal.resources.owner.PhysicsOwnerHandle;
 import dev.hytalemodding.impulse.core.internal.resources.owner.PhysicsOwnerMutation;
 import dev.hytalemodding.impulse.core.internal.resources.owner.PhysicsOwnerScopedCallable;
-import dev.hytalemodding.impulse.core.internal.resources.simulation.PhysicsSimulationRuntime;
-import dev.hytalemodding.impulse.core.internal.resources.space.PhysicsSpaceRuntime;
-import dev.hytalemodding.impulse.core.internal.resources.snapshot.PhysicsWorldSnapshotState;
-import dev.hytalemodding.impulse.core.internal.resources.visual.PhysicsVisualRuntime.BodyVisualInterestState;
-import dev.hytalemodding.impulse.core.internal.resources.visual.PhysicsVisualRuntime.VisualInterest;
-import dev.hytalemodding.impulse.core.internal.resources.visual.PhysicsVisualRuntime;
+import dev.hytalemodding.impulse.core.internal.resources.PhysicsVisualRuntime.BodyVisualInterestState;
+import dev.hytalemodding.impulse.core.internal.resources.PhysicsVisualRuntime.VisualInterest;
 import dev.hytalemodding.impulse.core.internal.simulation.MutablePhysicsCommandContext;
 import dev.hytalemodding.impulse.core.internal.simulation.PhysicsInternalQuery;
 import dev.hytalemodding.impulse.core.internal.simulation.PhysicsSimulationExecutor;
@@ -61,7 +54,6 @@ import dev.hytalemodding.impulse.core.plugin.settings.PhysicsWorldSettings;
 import dev.hytalemodding.impulse.core.plugin.simulation.PhysicsCommandCompletion;
 import dev.hytalemodding.impulse.core.plugin.simulation.PhysicsCommandHandle;
 import dev.hytalemodding.impulse.core.plugin.simulation.PhysicsCommandRecipe;
-import dev.hytalemodding.impulse.core.plugin.simulation.PhysicsCommandResult;
 import dev.hytalemodding.impulse.core.plugin.simulation.PhysicsQuery;
 import dev.hytalemodding.impulse.core.plugin.simulation.PhysicsQueryHandle;
 import dev.hytalemodding.impulse.core.plugin.snapshot.PhysicsBodySnapshotEntry;
@@ -103,8 +95,7 @@ public class PhysicsWorldRuntimeResource extends PhysicsWorldResource {
     private final PhysicsJointRegistry jointRegistry = new PhysicsJointRegistry();
     private final PhysicsChunkBoundaryRuntime chunkRuntime = new PhysicsChunkBoundaryRuntime();
     private final PhysicsVisualRuntime visualRuntime = new PhysicsVisualRuntime(this::clearBodySyncState);
-    private final PhysicsWorldSnapshotState snapshotState = new PhysicsWorldSnapshotState();
-    private final PhysicsWorldEventState eventState = new PhysicsWorldEventState();
+    private final PhysicsWorldLifecycleState lifecycleState = new PhysicsWorldLifecycleState();
     private final PhysicsBodyRuntime bodyRuntime = new PhysicsBodyRuntime(spaceRuntime,
         bodyRegistry,
         runtimeState,
@@ -112,24 +103,13 @@ public class PhysicsWorldRuntimeResource extends PhysicsWorldResource {
         jointRegistry,
         chunkRuntime,
         visualRuntime,
-        snapshotState,
+        lifecycleState,
         this::markWorldChanged);
 
     private final AtomicLong visualInterestTick = new AtomicLong();
     private final PhysicsOwnerGateway ownerGateway = new PhysicsOwnerGateway();
     private final PhysicsOwnerAccess ownerAccess = new RuntimePhysicsOwnerAccess();
     private final PhysicsSimulationExecutor simulationExecutor = new PhysicsSimulationExecutor(this);
-    private final AtomicLong commandBatchSequence = new AtomicLong();
-    private final AtomicLong completedCommandBatchSequence = new AtomicLong();
-    /*
-     * Reader-side body materialization can observe command completion before the next published
-     * registration frame has applied. Track that gap at command-batch sequence granularity so bulk
-     * spawns do not need per-body pending keys.
-     */
-    private final AtomicLong submittedBodyCreationCommandBatchSequence = new AtomicLong();
-    private final AtomicLong appliedCommandBatchSequenceWatermark = new AtomicLong();
-    private final AtomicLong commandWorldEpoch = new AtomicLong();
-    private final ThreadLocal<Integer> commandBatchExecutionDepth = ThreadLocal.withInitial(() -> 0);
     private final ThreadLocal<Integer> ownerAccessDepth = ThreadLocal.withInitial(() -> 0);
 
     public PhysicsWorldRuntimeResource() {
@@ -156,9 +136,7 @@ public class PhysicsWorldRuntimeResource extends PhysicsWorldResource {
     public void detachWorkerResource(@Nonnull PhysicsOwnerHandle workerResource) {
         ownerGateway.detachWorkerResource(workerResource);
         if (!ownerGateway.hasWorkerResource()) {
-            bodyRegistry.publishLiveRegistrationViews();
-            appliedCommandBatchSequenceWatermark.accumulateAndGet(completedCommandBatchSequence.get(),
-                Math::max);
+            lifecycleState.publishDetachedWorkerRegistrationViews(bodyRegistry);
         }
     }
 
@@ -167,23 +145,24 @@ public class PhysicsWorldRuntimeResource extends PhysicsWorldResource {
     }
 
     public long worldEpoch() {
-        return snapshotState.worldEpoch();
+        return lifecycleState.worldEpoch();
     }
 
     public long commandWorldEpoch() {
-        return commandWorldEpoch.get();
+        return lifecycleState.commandWorldEpoch();
     }
 
     @Nonnull
     public MutablePhysicsCommandContext createMutableCommandContext(long submittedServerTick) {
-        return new MutablePhysicsCommandContext(submittedServerTick, commandWorldEpoch.get());
+        return new MutablePhysicsCommandContext(submittedServerTick,
+            lifecycleState.commandWorldEpoch());
     }
 
     @Nonnull
     public MutablePhysicsCommandContext createMutableCommandContext(long submittedServerTick,
         int expectedOperations) {
         return new MutablePhysicsCommandContext(submittedServerTick,
-            commandWorldEpoch.get(),
+            lifecycleState.commandWorldEpoch(),
             expectedOperations);
     }
 
@@ -211,27 +190,19 @@ public class PhysicsWorldRuntimeResource extends PhysicsWorldResource {
     public PhysicsCommandHandle submitRecordedCommands(@Nonnull MutablePhysicsCommandContext context) {
         Objects.requireNonNull(context, "context");
         RecordedPhysicsCommandBatch batch =
-            context.freezeInternal(commandBatchSequence.incrementAndGet());
+            context.freezeInternal(lifecycleState.nextCommandBatchSequence());
         /*
          * Body creation through commands publishes registration views with the next snapshot frame.
          * Until that frame is applied, sync/materialization must treat creation as pending even
          * though the owner may already have completed the command batch.
          */
-        boolean trackBodyCreationPublication =
-            batch.hasBodyCreationCommands() && ownerGateway.hasWorkerResource();
-        if (trackBodyCreationPublication) {
-            submittedBodyCreationCommandBatchSequence.accumulateAndGet(
-                batch.metadata().commandBatchSequence(),
-                Math::max);
-        }
+        boolean trackBodyCreationPublication = trackCommandBodyCreationPublication(batch);
         CompletableFuture<PhysicsCommandCompletion> completion =
             ownerGateway.enqueueCall("execute physics command batch", () -> executeCommandBatch(batch));
         if (trackBodyCreationPublication) {
             completion.whenComplete((ignored, failure) -> {
                 if (failure != null) {
-                    appliedCommandBatchSequenceWatermark.accumulateAndGet(
-                        batch.metadata().commandBatchSequence(),
-                        Math::max);
+                    clearCommandBodyCreationPublication(batch);
                 }
             });
         }
@@ -259,7 +230,7 @@ public class PhysicsWorldRuntimeResource extends PhysicsWorldResource {
     @Nonnull
     @Override
     public PhysicsEventFrame getLatestEventFrame() {
-        return eventState.getLatestFrame();
+        return lifecycleState.latestEventFrame();
     }
 
     public void assertCanAccessLiveBackendDirectly(@Nonnull String operation) {
@@ -522,7 +493,7 @@ public class PhysicsWorldRuntimeResource extends PhysicsWorldResource {
 
     @Nonnull
     public PhysicsBodySnapshot getBodySnapshot(@Nonnull RigidBodyKey bodyKey) {
-        PhysicsBodySnapshot snapshot = snapshotState.getBodySnapshot(bodyKey);
+        PhysicsBodySnapshot snapshot = lifecycleState.getBodySnapshot(bodyKey);
         if (snapshot != null) {
             return snapshot;
         }
@@ -532,12 +503,12 @@ public class PhysicsWorldRuntimeResource extends PhysicsWorldResource {
 
     @Nonnull
     private PhysicsBodySnapshot getBodySnapshotDirect(@Nonnull RigidBodyKey bodyKey) {
-        PhysicsBodySnapshot snapshot = snapshotState.getBodySnapshot(bodyKey);
+        PhysicsBodySnapshot snapshot = lifecycleState.getBodySnapshot(bodyKey);
         if (snapshot != null) {
             return snapshot;
         }
         PhysicsBodyRegistration registration = requireBodyRegistration(bodyKey);
-        return snapshotState.captureBodySnapshot(registration);
+        return lifecycleState.captureBodySnapshot(registration);
     }
 
     /**
@@ -569,16 +540,13 @@ public class PhysicsWorldRuntimeResource extends PhysicsWorldResource {
         boolean profilingEnabled) {
 
         assertCanAccessLiveBackendDirectly("capture published physics snapshot frame");
-        PublishedPhysicsSnapshotFrame frame = snapshotState.capturePublishedSnapshotFrame(spaceRuntime.liveSpaces(),
+        return lifecycleState.capturePublishedSnapshotFrame(spaceRuntime.liveSpaces(),
             bodyRegistry,
             stepSequence,
             serverTick,
-            completedCommandBatchSequence.get(),
             status,
             stepNanos,
             profilingEnabled);
-        eventState.publishStepCaptured(frame.worldEpoch(), frame);
-        return frame;
     }
 
     public int applyPublishedSnapshotFrame(@Nonnull PublishedPhysicsSnapshotFrame frame) {
@@ -587,27 +555,16 @@ public class PhysicsWorldRuntimeResource extends PhysicsWorldResource {
 
     public int applyPublishedSnapshotFrame(@Nonnull PublishedPhysicsSnapshotFrame frame,
         long publicationServerTick) {
-        int applied = snapshotState.applyPublishedSnapshotFrame(frame, bodyRegistry);
-        if (frame.worldEpoch() == snapshotState.worldEpoch()) {
-            bodyRegistry.applyPublishedRegistrationFrame(frame);
-            appliedCommandBatchSequenceWatermark.accumulateAndGet(
-                frame.commandBatchSequenceWatermark(),
-                Math::max);
-            eventState.publishSnapshotPublication(snapshotState.worldEpoch(),
-                frame,
-                applied,
-                publicationServerTick);
-        }
-        return applied;
+        return lifecycleState.applyPublishedSnapshotFrame(frame, bodyRegistry, publicationServerTick);
     }
 
     @Nonnull
     public PublishedPhysicsSnapshotFrame getLatestPublishedFrame() {
-        return snapshotState.getLatestPublishedFrame();
+        return lifecycleState.latestPublishedFrame();
     }
 
     public long getLatestSnapshotAppliedNanos() {
-        return snapshotState.getLatestSnapshotAppliedNanos();
+        return lifecycleState.latestSnapshotAppliedNanos();
     }
 
     @Nonnull
@@ -621,15 +578,15 @@ public class PhysicsWorldRuntimeResource extends PhysicsWorldResource {
     }
 
     public int getBodySnapshotCount() {
-        return snapshotState.getBodySnapshotCount();
+        return lifecycleState.bodySnapshotCount();
     }
 
     public int getBodySnapshotCount(@Nonnull SpaceId spaceId) {
-        return snapshotState.getBodySnapshotCount(spaceId);
+        return lifecycleState.bodySnapshotCount(spaceId);
     }
 
     public int getBodySnapshotCellCount() {
-        return snapshotState.getBodySnapshotCellCount();
+        return lifecycleState.bodySnapshotCellCount();
     }
 
     @Nonnull
@@ -675,26 +632,26 @@ public class PhysicsWorldRuntimeResource extends PhysicsWorldResource {
 
     public void forEachBodySnapshot(@Nonnull SpaceId spaceId,
         @Nonnull Consumer<PhysicsBodySnapshotEntry> consumer) {
-        snapshotState.forEachBodySnapshot(spaceId, consumer);
+        lifecycleState.forEachBodySnapshot(spaceId, consumer);
     }
 
     public void forEachIndexedBodySnapshot(@Nonnull SpaceId spaceId,
         @Nonnull PhysicsBodySnapshotVisitor visitor) {
-        snapshotState.forEachIndexedBodySnapshot(spaceId, visitor);
+        lifecycleState.forEachIndexedBodySnapshot(spaceId, visitor);
     }
 
     public int forEachBodySnapshotNear(@Nonnull SpaceId spaceId,
         @Nonnull Vector3f center,
         float radius,
         @Nonnull Consumer<PhysicsBodySnapshotEntry> consumer) {
-        return snapshotState.forEachBodySnapshotNear(spaceId, center, radius, consumer);
+        return lifecycleState.forEachBodySnapshotNear(spaceId, center, radius, consumer);
     }
 
     public int forEachIndexedBodySnapshotNear(@Nonnull SpaceId spaceId,
         @Nonnull Vector3f center,
         float radius,
         @Nonnull PhysicsBodySnapshotVisitor visitor) {
-        return snapshotState.forEachIndexedBodySnapshotNear(spaceId, center, radius, visitor);
+        return lifecycleState.forEachIndexedBodySnapshotNear(spaceId, center, radius, visitor);
     }
 
     public void removeSpace(@Nonnull SpaceId spaceId) {
@@ -765,7 +722,8 @@ public class PhysicsWorldRuntimeResource extends PhysicsWorldResource {
             simulationRuntime.getWorldSettings().getStepMode(),
             collisionRuntime::clear,
             this::markWorldChanged);
-        clearBodyStateDirect();
+        clearRuntimeTopologyDirect(false);
+        markWorldChanged();
         return reset;
     }
 
@@ -1006,8 +964,9 @@ public class PhysicsWorldRuntimeResource extends PhysicsWorldResource {
     }
 
     public boolean isBodyCreationPending(@Nonnull RigidBodyKey bodyKey) {
-        return bodyRuntime.isBodyCreationPending(bodyKey)
-            || hasPendingCommandBodyCreationPublication();
+        return lifecycleState.isBodyCreationPending(bodyKey,
+            bodyRuntime.isBodyCreationPending(bodyKey),
+            ownerGateway.hasWorkerResource());
     }
 
     public boolean hasPublishedOrPendingBodyRegistration(@Nonnull RigidBodyKey bodyKey) {
@@ -1130,7 +1089,8 @@ public class PhysicsWorldRuntimeResource extends PhysicsWorldResource {
     }
 
     private void clearBodyStateDirect() {
-        bodyRuntime.clearBodyState();
+        clearRuntimeTopologyDirect(false);
+        markWorldChanged();
     }
 
     @Nonnull
@@ -1274,16 +1234,16 @@ public class PhysicsWorldRuntimeResource extends PhysicsWorldResource {
         }
         PhysicsWorldRuntimeResource otherRuntime = require(other);
         spaceRuntime.clearLiveTopology("<copy>");
-        bodyRegistry.clear();
-        runtimeState.clear();
-        controlRuntime.clear();
-        jointRegistry.clear();
-        chunkRuntime.clear();
-        visualRuntime.clear();
-        snapshotState.clearBodySnapshots();
-        collisionRuntime.clearAll();
+        clearRuntimeTopologyDirect(true);
         simulationRuntime.copyFrom(otherRuntime.simulationRuntime);
         markWorldChanged();
+    }
+
+    private void clearRuntimeTopologyDirect(boolean clearCollision) {
+        bodyRuntime.clearBodyStateWithoutMarkingWorldChanged();
+        if (clearCollision) {
+            collisionRuntime.clearAll();
+        }
     }
 
     @Nonnull
@@ -1447,46 +1407,21 @@ public class PhysicsWorldRuntimeResource extends PhysicsWorldResource {
         bodyRuntime.clearBodyCreationPending(bodyKey);
     }
 
-    private boolean hasPendingCommandBodyCreationPublication() {
-        /*
-         * This is intentionally conservative: any unapplied body-creation batch keeps new-body
-         * readers from assuming that a missing published registration view means the body is absent.
-         */
-        return ownerGateway.hasWorkerResource()
-            && submittedBodyCreationCommandBatchSequence.get()
-                > appliedCommandBatchSequenceWatermark.get();
+    private boolean trackCommandBodyCreationPublication(@Nonnull RecordedPhysicsCommandBatch batch) {
+        return lifecycleState.trackBodyCreationPublication(batch, ownerGateway.hasWorkerResource());
+    }
+
+    private void clearCommandBodyCreationPublication(@Nonnull RecordedPhysicsCommandBatch batch) {
+        lifecycleState.clearBodyCreationPublication(batch);
     }
 
     private void markWorldChanged() {
-        snapshotState.markWorldChanged();
-        if (!ownerGateway.hasWorkerResource()) {
-            bodyRegistry.publishLiveRegistrationViews();
-        }
-        if (commandBatchExecutionDepth.get() == 0) {
-            commandWorldEpoch.incrementAndGet();
-            eventState.publishEmpty(snapshotState.worldEpoch(), snapshotState.getLatestPublishedFrame());
-        }
+        lifecycleState.markWorldChanged(bodyRegistry, ownerGateway.hasWorkerResource());
     }
 
     @Nonnull
     private PhysicsCommandCompletion executeCommandBatch(@Nonnull RecordedPhysicsCommandBatch batch) {
-        int depth = commandBatchExecutionDepth.get();
-        commandBatchExecutionDepth.set(depth + 1);
-        try {
-            PhysicsCommandCompletion completion = simulationExecutor.execute(batch);
-            completedCommandBatchSequence.accumulateAndGet(batch.metadata().commandBatchSequence(), Math::max);
-            eventState.publishCommandCompletion(snapshotState.worldEpoch(),
-                snapshotState.getLatestPublishedFrame(),
-                batch,
-                completion);
-            return completion;
-        } finally {
-            if (depth == 0) {
-                commandBatchExecutionDepth.remove();
-            } else {
-                commandBatchExecutionDepth.set(depth);
-            }
-        }
+        return lifecycleState.executeCommandBatch(batch, simulationExecutor::execute);
     }
 
     @Nonnull

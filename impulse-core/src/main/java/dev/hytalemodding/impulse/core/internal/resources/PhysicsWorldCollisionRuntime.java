@@ -1,4 +1,4 @@
-package dev.hytalemodding.impulse.core.internal.resources.collision;
+package dev.hytalemodding.impulse.core.internal.resources;
 
 import com.hypixel.hytale.server.core.universe.world.World;
 import dev.hytalemodding.impulse.api.PhysicsSpace;

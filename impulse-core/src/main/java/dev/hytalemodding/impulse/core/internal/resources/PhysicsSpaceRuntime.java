@@ -1,4 +1,4 @@
-package dev.hytalemodding.impulse.core.internal.resources.space;
+package dev.hytalemodding.impulse.core.internal.resources;
 
 import com.hypixel.hytale.logger.HytaleLogger;
 import dev.hytalemodding.impulse.api.BackendId;
@@ -12,7 +12,6 @@ import dev.hytalemodding.impulse.api.capability.PhysicsContinuousCollisionCapabi
 import dev.hytalemodding.impulse.api.capability.PhysicsExtensionSettingsCapability;
 import dev.hytalemodding.impulse.api.capability.PhysicsSolverTuning;
 import dev.hytalemodding.impulse.api.capability.PhysicsSolverTuningCapability;
-import dev.hytalemodding.impulse.core.internal.resources.PhysicsRuntimeResetResult;
 import dev.hytalemodding.impulse.core.plugin.settings.PhysicsBackendExtensionId;
 import dev.hytalemodding.impulse.core.plugin.settings.PhysicsSpaceSettings;
 import dev.hytalemodding.impulse.core.plugin.settings.PhysicsStepMode;

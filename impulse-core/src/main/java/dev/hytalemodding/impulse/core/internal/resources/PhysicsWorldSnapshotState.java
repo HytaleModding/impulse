@@ -1,4 +1,4 @@
-package dev.hytalemodding.impulse.core.internal.resources.snapshot;
+package dev.hytalemodding.impulse.core.internal.resources;
 
 import dev.hytalemodding.impulse.api.PhysicsBody;
 import dev.hytalemodding.impulse.api.PhysicsBodySnapshot;
@@ -11,7 +11,6 @@ import dev.hytalemodding.impulse.core.plugin.body.RigidBodyKey;
 import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyKind;
 import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyPersistenceMode;
 import dev.hytalemodding.impulse.core.internal.resources.body.PhysicsBodyRegistration;
-import dev.hytalemodding.impulse.core.plugin.resources.PhysicsWorldResource;
 import dev.hytalemodding.impulse.core.plugin.snapshot.PhysicsBodySnapshotEntry;
 import dev.hytalemodding.impulse.core.plugin.snapshot.PublishedPhysicsSnapshotFrame;
 import java.util.Collection;
@@ -126,18 +125,23 @@ public final class PhysicsWorldSnapshotState {
         return frame;
     }
 
-    public int applyPublishedSnapshotFrame(@Nonnull PublishedPhysicsSnapshotFrame frame,
+    @Nonnull
+    public ApplyResult applyPublishedSnapshotFrame(
+        @Nonnull PublishedPhysicsSnapshotFrame frame,
         @Nonnull PhysicsBodyRegistry bodyRegistry) {
         Objects.requireNonNull(frame, "frame");
         Objects.requireNonNull(bodyRegistry, "bodyRegistry");
         if (frame.worldEpoch() != worldEpoch.get()) {
-            return 0;
+            return new ApplyResult(0, false);
         }
 
         PhysicsBodySnapshotStore.ApplyStats stats =
             bodySnapshots.applyPublishedFrame(frame, bodyRegistry);
         latestSnapshotAppliedNanos = System.nanoTime();
-        return stats.applied();
+        return new ApplyResult(stats.applied(), true);
+    }
+
+    public record ApplyResult(int appliedCount, boolean currentWorldEpoch) {
     }
 
     @Nonnull

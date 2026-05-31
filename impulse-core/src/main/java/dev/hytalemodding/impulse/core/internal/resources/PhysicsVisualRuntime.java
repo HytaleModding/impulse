@@ -1,21 +1,25 @@
-package dev.hytalemodding.impulse.core.internal.resources.visual;
+package dev.hytalemodding.impulse.core.internal.resources;
 
 import com.hypixel.hytale.component.Ref;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import dev.hytalemodding.impulse.core.plugin.body.RigidBodyKey;
+import dev.hytalemodding.impulse.core.plugin.simulation.RaycastHitView;
 import it.unimi.dsi.fastutil.objects.Object2ObjectLinkedOpenHashMap;
 import it.unimi.dsi.fastutil.objects.ObjectOpenHashSet;
-import lombok.Getter;
-import org.joml.Vector3f;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionStage;
 import java.util.function.Consumer;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
+import lombok.Getter;
+import org.joml.Vector3f;
 
 /**
  * Visual attachment, generated-proxy, and visual-interest state for one physics world.
@@ -258,7 +262,9 @@ public final class PhysicsVisualRuntime {
      *
      * <p>Physics sync can reuse fresh raycast results from this state when
      * {@code VisualOcclusionMode.CULL} is enabled, so materialization and sync
-     * share one occlusion decision window instead of spending duplicate raycasts.</p>
+     * share one occlusion decision window instead of spending duplicate raycasts. Raycasts are
+     * submitted asynchronously; callers poll this state and use the last-known visibility while a
+     * worker query is still incomplete.</p>
      */
     public static final class BodyVisualInterestState {
 
@@ -272,6 +278,8 @@ public final class PhysicsVisualRuntime {
         private boolean raycastVisible;
         private long currentTick;
         private long lastRaycastTick = Long.MIN_VALUE;
+        @Nullable
+        private CompletableFuture<Optional<RaycastHitView>> pendingRaycast;
 
         public void recordInterest(float nearestDistanceSquared,
             boolean likelyVisible,
@@ -307,6 +315,42 @@ public final class PhysicsVisualRuntime {
             long resolvedTick = advanceVisualInterestTick(currentTick);
             return lastRaycastTick != Long.MIN_VALUE
                 && resolvedTick - lastRaycastTick <= cacheTicks;
+        }
+
+        public boolean hasRaycastResult() {
+            return lastRaycastTick != Long.MIN_VALUE;
+        }
+
+        public synchronized boolean hasPendingRaycast() {
+            CompletableFuture<Optional<RaycastHitView>> current = pendingRaycast;
+            return current != null && !current.isDone();
+        }
+
+        public synchronized boolean startPendingRaycast(
+            @Nonnull CompletionStage<Optional<RaycastHitView>> completion) {
+            if (pendingRaycast != null) {
+                return false;
+            }
+            pendingRaycast = completion.toCompletableFuture();
+            return true;
+        }
+
+        public synchronized void clearPendingRaycast() {
+            pendingRaycast = null;
+        }
+
+        @Nullable
+        public synchronized Optional<RaycastHitView> pollCompletedRaycast() {
+            CompletableFuture<Optional<RaycastHitView>> current = pendingRaycast;
+            if (current == null || !current.isDone()) {
+                return null;
+            }
+            pendingRaycast = null;
+            try {
+                return current.getNow(Optional.empty());
+            } catch (RuntimeException exception) {
+                return Optional.empty();
+            }
         }
 
         public long advanceVisualInterestTick(long currentTick) {

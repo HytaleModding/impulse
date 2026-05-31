@@ -9,7 +9,7 @@ import com.hypixel.hytale.server.core.modules.entity.component.HeadRotation;
 import com.hypixel.hytale.server.core.modules.entity.component.TransformComponent;
 import com.hypixel.hytale.server.core.universe.PlayerRef;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
-import dev.hytalemodding.impulse.core.internal.resources.visual.PhysicsVisualRuntime;
+import dev.hytalemodding.impulse.core.internal.resources.PhysicsVisualRuntime;
 import dev.hytalemodding.impulse.core.internal.systems.sync.PhysicsSyncPolicy;
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsWorldRuntimeResource;
 import java.util.ArrayList;

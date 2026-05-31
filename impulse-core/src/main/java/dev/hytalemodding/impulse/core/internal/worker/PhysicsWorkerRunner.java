@@ -14,11 +14,13 @@ import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
 /**
- * FIFO single-thread runner for physics worker execution.
+ * Single-thread runner for physics owner execution.
  *
- * <p>Step commands are still published through the tick barrier, while queued
- * mutation commands can complete in the background and be observed later by the
- * publication system.</p>
+ * <p>The active command is non-preemptive: once a mutation or step starts, it runs to completion
+ * before any later command can execute. Queued commands use a provisional two-lane policy where
+ * steps have priority over queued mutations, while mutations remain FIFO within their own lane.
+ * TODO: Future multi-space, multi-backend, or multi-threaded scheduling work must update this policy and
+ * its scheduler-contract tests together.</p>
  */
 public final class PhysicsWorkerRunner implements AutoCloseable {
 
@@ -227,6 +229,7 @@ public final class PhysicsWorkerRunner implements AutoCloseable {
     }
 
     private enum CommandPriority {
+        // Step priority keeps snapshot publication moving even when mutation backlog exists.
         STEP(0),
         MUTATION(1);
 

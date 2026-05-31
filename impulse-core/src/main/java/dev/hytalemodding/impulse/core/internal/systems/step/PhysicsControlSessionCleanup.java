@@ -38,6 +38,10 @@ public final class PhysicsControlSessionCleanup {
         }
 
         if (controlJointKey != null || anchorBodyKey != null) {
+            // Tick-driven session cleanup must not wait behind worker backlog.
+            // The owner command releases the backend joint/body when it reaches
+            // the worker; command/admin helpers may still choose synchronous
+            // semantics when they need immediate textual feedback.
             resource.submitCommands(0L, 2, commands -> {
                 if (session.getSpaceId() != null && bodyKey != null && anchorBodyKey != null) {
                     commands.destroyJointBetween(controlJointKey, session.getSpaceId(), anchorBodyKey, bodyKey);
@@ -47,7 +51,7 @@ public final class PhysicsControlSessionCleanup {
                 if (anchorBodyKey != null) {
                     commands.destroyBody(anchorBodyKey);
                 }
-            }).completionSummary().toCompletableFuture().join();
+            });
         }
     }
 }

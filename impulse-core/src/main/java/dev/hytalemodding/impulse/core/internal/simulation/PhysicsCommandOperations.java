@@ -373,6 +373,27 @@ final class PhysicsCommandOperations {
         return false;
     }
 
+    @Nullable
+    RigidBodyKey singleSpawnBodyKey() {
+        RigidBodyKey bodyKey = null;
+        for (int index = 0; index < size; index++) {
+            switch (opcode(index)) {
+                case SPAWN_RIGID_BODY -> {
+                    if (bodyKey != null) {
+                        return null;
+                    }
+                    bodyKey = objectAt(index, 0, RigidBodyKey.class);
+                }
+                case SPAWN_RIGID_BODY_BATCH, SPAWN_RIGID_BODY_TEMPLATE_BATCH -> {
+                    return null;
+                }
+                default -> {
+                }
+            }
+        }
+        return bodyKey;
+    }
+
     @Nonnull
     EntityReferences entityReferences() {
         EntityReferenceAccumulator accumulator = new EntityReferenceAccumulator();
@@ -436,7 +457,7 @@ final class PhysicsCommandOperations {
         return objects[objectOffsets[index] + slot];
     }
 
-    @Nonnull
+    @Nullable
     public <T> T objectAt(int index,
         int slot,
         @Nonnull Class<T> type) {
