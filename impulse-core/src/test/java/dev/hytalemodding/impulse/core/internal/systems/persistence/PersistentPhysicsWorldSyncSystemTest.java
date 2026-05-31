@@ -138,6 +138,37 @@ class PersistentPhysicsWorldSyncSystemTest {
         assertEquals("restore pending", result.skippedReason());
     }
 
+    @Test
+    void explicitRuntimeSnapshotSyncSkipsFailedRestore() {
+        RuntimeFixture fixture = createRuntimeFixture();
+        fixture.persistent.failRuntimeRestore("bad persisted state");
+
+        PersistentPhysicsWorldSyncSystem.SyncResult result =
+            PersistentPhysicsWorldSyncSystem.syncRuntimeSnapshot(fixture.persistent,
+                PersistentPhysicsRuntimeSnapshot.capture(fixture.runtime));
+
+        assertFalse(result.synced());
+        assertEquals("restore failed", result.skippedReason());
+    }
+
+    @Test
+    void bodyHydrationChecksLiveRegistrationBeforeCreatingBackendBody() {
+        RuntimeFixture fixture = createRuntimeFixture();
+        PhysicsBody body = fixture.space.createBox(0.5f, 0.5f, 0.5f, 1.0f);
+        RigidBodyKey bodyKey = fixture.runtime.addBody(fixture.space.getId(),
+            body,
+            PhysicsBodyKind.BODY,
+            PhysicsBodyPersistenceMode.PERSISTENT);
+        PersistentPhysicsBodyState state =
+            PersistentPhysicsBodyState.from(fixture.runtime.requireBodyRegistration(bodyKey));
+
+        PersistentPhysicsBodyHydrationSystem.RestoreBodyResult result =
+            PersistentPhysicsBodyHydrationSystem.restoreBodyOnOwner(fixture.runtime, state, bodyKey);
+
+        assertEquals(PersistentPhysicsBodyHydrationSystem.RestoreBodyResult.ALREADY_REGISTERED, result);
+        assertEquals(1, fixture.space.bodyCount());
+    }
+
     private static RuntimeFixture createRuntimeFixture() {
         FakePhysicsBackend backend =
             new FakePhysicsBackend("test:persistence-sync-" + BACKEND_COUNTER.incrementAndGet());

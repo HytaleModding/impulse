@@ -1,6 +1,7 @@
 package dev.hytalemodding.impulse.core.internal.systems.step;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.Assertions.fail;
@@ -16,8 +17,9 @@ import dev.hytalemodding.impulse.api.PhysicsRayHit;
 import dev.hytalemodding.impulse.api.PhysicsSpace;
 import dev.hytalemodding.impulse.api.SpaceId;
 import dev.hytalemodding.impulse.core.internal.resources.profiling.PhysicsRuntimeProfilingResource;
-import dev.hytalemodding.impulse.core.internal.resources.worker.PhysicsWorldWorkerResource;
+import dev.hytalemodding.impulse.core.internal.resources.PhysicsWorldWorkerResource;
 import dev.hytalemodding.impulse.core.internal.worker.PhysicsWorkerStepCompletion;
+import dev.hytalemodding.impulse.core.internal.persistence.PersistentPhysicsWorldResource;
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsWorldRuntimeResource;
 import dev.hytalemodding.impulse.core.plugin.settings.PhysicsSpaceSettings;
 import dev.hytalemodding.impulse.core.plugin.settings.PhysicsStepMode;
@@ -70,8 +72,11 @@ class PhysicsStepSystemTest {
         PhysicsStepSystem.StepSchedulerState state = new PhysicsStepSystem.StepSchedulerState();
         RecordingBackend backend = registerBackend();
         PhysicsWorldRuntimeResource resource = fixedStepResource(backend);
-        configureWorldSettings(resource,
-            settings -> settings.setStepSchedulingMode(PhysicsStepSchedulingMode.ACCUMULATE_PENDING_DT));
+        configureWorldSettings(resource, settings -> {
+            settings.setStepSchedulingMode(PhysicsStepSchedulingMode.ACCUMULATE_PENDING_DT);
+            settings.setStepMode(PhysicsStepMode.PROGRESSIVE_REFINEMENT);
+            settings.setMaxStepDt(1.0f);
+        });
         PhysicsRuntimeProfilingResource profiling = new PhysicsRuntimeProfilingResource();
         RecordingSpace space = backend.space();
         CountDownLatch stepStarted = new CountDownLatch(1);
@@ -113,8 +118,10 @@ class PhysicsStepSystemTest {
         PhysicsStepSystem.StepSchedulerState state = new PhysicsStepSystem.StepSchedulerState();
         RecordingBackend backend = registerBackend();
         PhysicsWorldRuntimeResource resource = fixedStepResource(backend);
-        configureWorldSettings(resource,
-            settings -> settings.setStepSchedulingMode(PhysicsStepSchedulingMode.ACCUMULATE_PENDING_DT));
+        configureWorldSettings(resource, settings -> {
+            settings.setStepSchedulingMode(PhysicsStepSchedulingMode.ACCUMULATE_PENDING_DT);
+            settings.setMaxStepDt(0.05f);
+        });
         PhysicsRuntimeProfilingResource profiling = new PhysicsRuntimeProfilingResource();
         profiling.setEnabled(true);
         RecordingSpace space = backend.space();
@@ -140,15 +147,36 @@ class PhysicsStepSystemTest {
             pollCompletedStep(worker);
 
             assertEquals(2, space.stepDts.size());
-            assertEquals(0.25f, space.stepDts.get(1), 0.00001f);
+            assertEquals(0.05f, space.stepDts.get(1), 0.00001f);
             assertTrue(profiling.getCumulativeStep().getDtCapHits() > 0);
             assertTrue(profiling.getCumulativeStep().getDroppedBacklogTicks() > 0);
             assertTrue(profiling.getCumulativeStep().getDroppedBacklogDtNanos() > 0L);
-            assertEquals(250_000_000L,
-                profiling.getCumulativeStep().getMaxSchedulerBacklogDtNanos());
+            long maxBacklogDtNanos =
+                profiling.getCumulativeStep().getMaxSchedulerBacklogDtNanos();
+            assertTrue(Math.abs(maxBacklogDtNanos - 50_000_000L) <= 1L);
         } finally {
             releaseStep.countDown();
         }
+    }
+
+    @Test
+    void fixedAndCcdAccumulatedDtCapUsesConfiguredStepBudget() {
+        PhysicsWorldRuntimeResource fixed = new PhysicsWorldRuntimeResource();
+        configureWorldSettings(fixed, settings -> {
+            settings.setStepMode(PhysicsStepMode.FIXED);
+            settings.setSimulationSteps(3);
+            settings.setMaxStepDt(0.02f);
+        });
+
+        PhysicsWorldRuntimeResource ccd = new PhysicsWorldRuntimeResource();
+        configureWorldSettings(ccd, settings -> {
+            settings.setStepMode(PhysicsStepMode.CCD);
+            settings.setSimulationSteps(2);
+            settings.setMaxStepDt(0.02f);
+        });
+
+        assertEquals(0.06f, PhysicsStepSystem.maxAccumulatedStepDt(fixed), 0.00001f);
+        assertEquals(0.04f, PhysicsStepSystem.maxAccumulatedStepDt(ccd), 0.00001f);
     }
 
     @Test
@@ -157,8 +185,10 @@ class PhysicsStepSystemTest {
         PhysicsStepSystem.StepSchedulerState state = new PhysicsStepSystem.StepSchedulerState();
         RecordingBackend backend = registerBackend();
         PhysicsWorldRuntimeResource resource = fixedStepResource(backend);
-        configureWorldSettings(resource,
-            settings -> settings.setStepSchedulingMode(PhysicsStepSchedulingMode.ACCUMULATE_PENDING_DT));
+        configureWorldSettings(resource, settings -> {
+            settings.setStepSchedulingMode(PhysicsStepSchedulingMode.ACCUMULATE_PENDING_DT);
+            settings.setMaxStepDt(0.05f);
+        });
         PhysicsRuntimeProfilingResource profiling = new PhysicsRuntimeProfilingResource();
         RecordingSpace space = backend.space();
         CountDownLatch stepStarted = new CountDownLatch(1);
@@ -236,6 +266,78 @@ class PhysicsStepSystemTest {
         }
     }
 
+    @Test
+    void restoreGuardSkipsStepSubmissionAndClearsAccumulatedDt() throws Exception {
+        PhysicsStepSystem system = new PhysicsStepSystem();
+        PhysicsStepSystem.StepSchedulerState state = new PhysicsStepSystem.StepSchedulerState();
+        RecordingBackend backend = registerBackend();
+        PhysicsWorldRuntimeResource resource = fixedStepResource(backend);
+        configureWorldSettings(resource, settings -> {
+            settings.setStepSchedulingMode(PhysicsStepSchedulingMode.ACCUMULATE_PENDING_DT);
+            settings.setMaxStepDt(1.0f);
+        });
+        PhysicsRuntimeProfilingResource profiling = new PhysicsRuntimeProfilingResource();
+        PersistentPhysicsWorldResource persistent = new PersistentPhysicsWorldResource();
+        RecordingSpace space = backend.space();
+        CountDownLatch stepStarted = new CountDownLatch(1);
+        CountDownLatch releaseStep = new CountDownLatch(1);
+
+        try (PhysicsWorldWorkerResource worker = new PhysicsWorldWorkerResource(2,
+            Duration.ofSeconds(2L))) {
+            worker.start("step-system-restore-guard-test");
+            resource.attachWorkerResource(worker);
+            space.blockNextStep(stepStarted, releaseStep);
+
+            system.submitStepIfIdle(state, worker, resource, 0.05f, profiling, 1L);
+            assertTrue(stepStarted.await(2, TimeUnit.SECONDS));
+            system.submitStepIfIdle(state, worker, resource, 0.05f, profiling, 2L);
+
+            persistent.markRuntimeRestorePending();
+            assertFalse(system.submitStepIfRestoreReady(state,
+                persistent,
+                worker,
+                resource,
+                0.05f,
+                profiling,
+                3L));
+
+            releaseStep.countDown();
+            pollCompletedStep(worker);
+
+            system.submitStepIfIdle(state, worker, resource, 0.0f, profiling, 4L);
+            pollCompletedStep(worker);
+
+            assertEquals(2, space.stepDts.size());
+            assertEquals(0.05f, space.stepDts.get(0), 0.00001f);
+            assertEquals(0.0f, space.stepDts.get(1), 0.00001f);
+        } finally {
+            releaseStep.countDown();
+        }
+    }
+
+    @Test
+    void failedRestoreGuardSkipsStepSubmission() {
+        PhysicsStepSystem system = new PhysicsStepSystem();
+        PhysicsStepSystem.StepSchedulerState state = new PhysicsStepSystem.StepSchedulerState();
+        RecordingBackend backend = registerBackend();
+        PhysicsWorldRuntimeResource resource = fixedStepResource(backend);
+        PhysicsRuntimeProfilingResource profiling = new PhysicsRuntimeProfilingResource();
+        PersistentPhysicsWorldResource persistent = new PersistentPhysicsWorldResource();
+        persistent.failRuntimeRestore("bad persisted state");
+
+        try (PhysicsWorldWorkerResource worker = new PhysicsWorldWorkerResource(2,
+            Duration.ofSeconds(2L))) {
+            assertFalse(system.submitStepIfRestoreReady(state,
+                persistent,
+                worker,
+                resource,
+                0.05f,
+                profiling,
+                1L));
+            assertFalse(worker.hasPendingStep());
+        }
+    }
+
     @Nonnull
     private static RecordingBackend registerBackend() {
         RecordingBackend backend = new RecordingBackend("test:step-system-"
@@ -283,7 +385,6 @@ class PhysicsStepSystemTest {
 
         @Nonnull
         private final BackendId id;
-        @Nonnull
         private RecordingSpace space;
 
         private RecordingBackend(@Nonnull String id) {

@@ -18,9 +18,8 @@ import dev.hytalemodding.impulse.api.SpaceId;
 import dev.hytalemodding.impulse.api.testsupport.FakePhysicsBackend;
 import dev.hytalemodding.impulse.api.testsupport.FakePhysicsBackend.InMemoryPhysicsSpace;
 import dev.hytalemodding.impulse.core.internal.resources.body.PhysicsBodyRuntimeState.BodySyncState;
-import dev.hytalemodding.impulse.core.internal.resources.chunk.PhysicsChunkBoundaryRuntime.ChunkBoundaryPauseState;
+import dev.hytalemodding.impulse.core.internal.resources.PhysicsChunkBoundaryRuntime.ChunkBoundaryPauseState;
 import dev.hytalemodding.impulse.core.internal.simulation.MutablePhysicsCommandContext;
-import dev.hytalemodding.impulse.core.internal.resources.worker.PhysicsWorldWorkerResource;
 import dev.hytalemodding.impulse.core.internal.worker.PhysicsWorkerSnapshot;
 import dev.hytalemodding.impulse.core.internal.worker.PhysicsWorkerStepCommand;
 import dev.hytalemodding.impulse.core.plugin.body.RigidBodyKey;
@@ -29,8 +28,6 @@ import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyPersistenceMode;
 import dev.hytalemodding.impulse.core.plugin.collision.WorldCollisionMode;
 import dev.hytalemodding.impulse.core.plugin.simulation.PhysicsOwnerAccess;
 import dev.hytalemodding.impulse.core.plugin.resources.PhysicsMutationHandle;
-import dev.hytalemodding.impulse.core.internal.resources.PhysicsRuntimeResetResult;
-import dev.hytalemodding.impulse.core.internal.resources.PhysicsWorldRuntimeResource;
 import dev.hytalemodding.impulse.core.plugin.events.PhysicsCommandBatchEvent;
 import dev.hytalemodding.impulse.core.plugin.events.PhysicsEventFrame;
 import dev.hytalemodding.impulse.core.plugin.events.PhysicsSnapshotPublicationEvent;
@@ -38,7 +35,6 @@ import dev.hytalemodding.impulse.core.plugin.events.PhysicsStepEvent;
 import dev.hytalemodding.impulse.core.plugin.settings.PhysicsSpaceSettings;
 import dev.hytalemodding.impulse.core.plugin.settings.PhysicsStepMode;
 import dev.hytalemodding.impulse.core.plugin.settings.PhysicsWorldSettings;
-import dev.hytalemodding.impulse.core.plugin.simulation.JointType;
 import dev.hytalemodding.impulse.core.plugin.simulation.PhysicsCommandResult;
 import dev.hytalemodding.impulse.core.plugin.simulation.PhysicsShapeSpec;
 import dev.hytalemodding.impulse.core.plugin.simulation.RigidBodySpawnSettings;
@@ -679,6 +675,37 @@ class PhysicsWorldResourceStateTest {
     }
 
     @Test
+    void duplicateBodyKeyDoesNotLeaveUnregisteredBackendBodyInSpace() {
+        FakePhysicsBackend backend =
+            new FakePhysicsBackend("test:duplicate-body-key-no-leak-" + BACKEND_COUNTER.incrementAndGet());
+        Impulse.registerBackend(backend);
+
+        PhysicsWorldRuntimeResource resource = new PhysicsWorldRuntimeResource();
+        PhysicsSpace space = resource.createLiveSpace(backend.getId(),
+            "test-world",
+            PhysicsSpaceSettings.defaults());
+        RigidBodyKey bodyKey = RigidBodyKey.random();
+        PhysicsBody first = space.createBox(0.5f, 0.5f, 0.5f, 1.0f);
+        PhysicsBody second = space.createBox(0.5f, 0.5f, 0.5f, 1.0f);
+
+        resource.addBody(bodyKey,
+            space.getId(),
+            first,
+            PhysicsBodyKind.BODY,
+            PhysicsBodyPersistenceMode.RUNTIME_ONLY);
+
+        assertThrows(IllegalArgumentException.class, () -> resource.addBody(bodyKey,
+            space.getId(),
+            second,
+            PhysicsBodyKind.BODY,
+            PhysicsBodyPersistenceMode.RUNTIME_ONLY));
+
+        assertEquals(1, space.bodyCount());
+        assertFalse(space.getBodies().contains(second));
+        assertSame(first, resource.getBody(bodyKey));
+    }
+
+    @Test
     void simulationSpawnSettingsAndStateQueryUseCopiedData() {
         FakePhysicsBackend backend =
             new FakePhysicsBackend("test:simulation-spawn-settings-" + BACKEND_COUNTER.incrementAndGet());
@@ -704,6 +731,7 @@ class PhysicsWorldResourceStateTest {
             .join();
 
         PhysicsBody body = resource.getBody(bodyKey);
+        assertNotNull(body);
         assertEquals(PhysicsBodyType.KINEMATIC, body.getBodyType());
         assertEquals(new Vector3f(7.0f, 8.0f, 9.0f), body.getPosition());
         assertEquals(0.35f, body.getFriction(), 0.0001f);
@@ -754,7 +782,9 @@ class PhysicsWorldResourceStateTest {
         assertEquals(2, space.bodyCount());
         PhysicsBody first = resource.getBody(firstKey);
         PhysicsBody second = resource.getBody(secondKey);
+        assertNotNull(first);
         assertEquals(new Vector3f(1.0f, 2.0f, 3.0f), first.getPosition());
+        assertNotNull(second);
         assertEquals(new Vector3f(4.0f, 5.0f, 6.0f), second.getPosition());
         assertEquals(0.25f, first.getFriction(), 0.0001f);
         assertEquals(0.1f, second.getRestitution(), 0.0001f);
@@ -1193,6 +1223,8 @@ class PhysicsWorldResourceStateTest {
             assertEquals(PhysicsCommandResult.Status.APPLIED, results.getFirst().status());
             assertNull(resource.getBodyRegistrationView(bodyId));
             assertEquals(0, resource.getBodyRegistrationCount());
+            assertTrue(resource.isBodyCreationPending(bodyId));
+            assertFalse(resource.isBodyCreationPending(RigidBodyKey.random()));
 
             PublishedPhysicsSnapshotFrame frame = resource.capturePublishedSnapshotFrame(1L,
                 202L,
@@ -1208,6 +1240,54 @@ class PhysicsWorldResourceStateTest {
 
             assertNotNull(resource.getBodyRegistrationView(bodyId));
             assertEquals(1, resource.getBodyRegistrationCount());
+            assertFalse(resource.isBodyCreationPending(bodyId));
+            resource.detachWorkerResource(worker);
+        }
+    }
+
+    @Test
+    void multiSpawnCommandKeepsBatchWatermarkBodyCreationFallback() throws Exception {
+        FakePhysicsBackend backend =
+            new FakePhysicsBackend("test:worker-command-registration-fallback-" + BACKEND_COUNTER.incrementAndGet());
+        Impulse.registerBackend(backend);
+
+        PhysicsWorldRuntimeResource resource = new PhysicsWorldRuntimeResource();
+        try (PhysicsWorldWorkerResource worker = new PhysicsWorldWorkerResource(4,
+            Duration.ofSeconds(2L))) {
+            worker.start("worker-command-registration-fallback");
+            resource.attachWorkerResource(worker);
+            PhysicsSpace space = resource.createLiveSpace(backend.getId(),
+                "test-world",
+                PhysicsSpaceSettings.defaults());
+
+            RigidBodyKey firstBodyId = RigidBodyKey.random();
+            RigidBodyKey secondBodyId = RigidBodyKey.random();
+            var handle = resource.submitCommands(301L, commands -> {
+                commands.spawnBody(firstBodyId, spawn -> spawn
+                    .space(space.getId())
+                    .box(0.5f, 0.5f, 0.5f)
+                    .dynamic());
+                commands.spawnBody(secondBodyId, spawn -> spawn
+                    .space(space.getId())
+                    .box(0.5f, 0.5f, 0.5f)
+                    .dynamic());
+            });
+
+            handle.completion().toCompletableFuture().get(2, TimeUnit.SECONDS);
+
+            assertTrue(resource.isBodyCreationPending(firstBodyId));
+            assertTrue(resource.isBodyCreationPending(secondBodyId));
+            assertTrue(resource.isBodyCreationPending(RigidBodyKey.random()));
+
+            PublishedPhysicsSnapshotFrame frame = resource.capturePublishedSnapshotFrame(1L,
+                302L,
+                PublishedPhysicsSnapshotFrame.Status.COMPLETE,
+                0L,
+                false);
+            resource.applyPublishedSnapshotFrame(frame);
+
+            assertFalse(resource.isBodyCreationPending(firstBodyId));
+            assertFalse(resource.isBodyCreationPending(secondBodyId));
             resource.detachWorkerResource(worker);
         }
     }
