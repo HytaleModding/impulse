@@ -34,19 +34,64 @@ class PhysicsCommandVisibilityStateTest {
     }
 
     @Test
-    void multiSpawnBodyCreationUsesConservativeSequenceFallback() {
+    void multiSingleSpawnBodyCreationTracksOnlySpawnedKeysUntilSnapshotIncludesBatch() {
         PhysicsCommandVisibilityState state = new PhysicsCommandVisibilityState();
-        RecordedPhysicsCommandBatch batch = multiSpawnBatch(11L);
+        RigidBodyKey firstBodyKey = RigidBodyKey.random();
+        RigidBodyKey secondBodyKey = RigidBodyKey.random();
+        RecordedPhysicsCommandBatch batch = multiSingleSpawnBatch(11L, firstBodyKey, secondBodyKey);
 
         assertTrue(state.trackBodyCreationPublication(batch, true));
 
-        assertTrue(state.isBodyCreationPending(RigidBodyKey.random(), false, true));
+        assertTrue(state.isBodyCreationPending(firstBodyKey, false, true));
+        assertTrue(state.isBodyCreationPending(secondBodyKey, false, true));
+        assertFalse(state.isBodyCreationPending(RigidBodyKey.random(), false, true));
 
         state.applyLastIncludedCommandBatchSequence(10L);
-        assertTrue(state.isBodyCreationPending(RigidBodyKey.random(), false, true));
+        assertTrue(state.isBodyCreationPending(firstBodyKey, false, true));
+        assertTrue(state.isBodyCreationPending(secondBodyKey, false, true));
+        assertFalse(state.isBodyCreationPending(RigidBodyKey.random(), false, true));
 
         state.applyLastIncludedCommandBatchSequence(11L);
+        assertFalse(state.isBodyCreationPending(firstBodyKey, false, true));
+        assertFalse(state.isBodyCreationPending(secondBodyKey, false, true));
+    }
+
+    @Test
+    void spawnBatchBodyCreationTracksOnlySpawnedKeysUntilSnapshotIncludesBatch() {
+        PhysicsCommandVisibilityState state = new PhysicsCommandVisibilityState();
+        RigidBodyKey firstBodyKey = RigidBodyKey.random();
+        RigidBodyKey secondBodyKey = RigidBodyKey.random();
+        RecordedPhysicsCommandBatch batch = spawnBatch(12L, firstBodyKey, secondBodyKey);
+
+        assertTrue(state.trackBodyCreationPublication(batch, true));
+
+        assertTrue(state.isBodyCreationPending(firstBodyKey, false, true));
+        assertTrue(state.isBodyCreationPending(secondBodyKey, false, true));
         assertFalse(state.isBodyCreationPending(RigidBodyKey.random(), false, true));
+
+        state.applyLastIncludedCommandBatchSequence(12L);
+
+        assertFalse(state.isBodyCreationPending(firstBodyKey, false, true));
+        assertFalse(state.isBodyCreationPending(secondBodyKey, false, true));
+    }
+
+    @Test
+    void templateSpawnBodyCreationTracksOnlySpawnedKeysUntilSnapshotIncludesBatch() {
+        PhysicsCommandVisibilityState state = new PhysicsCommandVisibilityState();
+        RigidBodyKey firstBodyKey = RigidBodyKey.random();
+        RigidBodyKey secondBodyKey = RigidBodyKey.random();
+        RecordedPhysicsCommandBatch batch = templateSpawnBatch(13L, firstBodyKey, secondBodyKey);
+
+        assertTrue(state.trackBodyCreationPublication(batch, true));
+
+        assertTrue(state.isBodyCreationPending(firstBodyKey, false, true));
+        assertTrue(state.isBodyCreationPending(secondBodyKey, false, true));
+        assertFalse(state.isBodyCreationPending(RigidBodyKey.random(), false, true));
+
+        state.applyLastIncludedCommandBatchSequence(13L);
+
+        assertFalse(state.isBodyCreationPending(firstBodyKey, false, true));
+        assertFalse(state.isBodyCreationPending(secondBodyKey, false, true));
     }
 
     @Test
@@ -92,7 +137,53 @@ class PhysicsCommandVisibilityStateTest {
         return context.freezeInternal(sequence);
     }
 
-    private static RecordedPhysicsCommandBatch multiSpawnBatch(long sequence) {
+    private static RecordedPhysicsCommandBatch multiSingleSpawnBatch(long sequence,
+        RigidBodyKey firstBodyKey,
+        RigidBodyKey secondBodyKey) {
+        MutablePhysicsCommandContext context = new MutablePhysicsCommandContext(1L, 0L);
+        context.spawnBody(firstBodyKey, spawn -> spawn
+            .space(new SpaceId(1))
+            .box(0.5f, 0.5f, 0.5f)
+            .mass(1.0f)
+            .dynamic()
+            .kind(PhysicsBodyKind.BODY)
+            .persistence(PhysicsBodyPersistenceMode.RUNTIME_ONLY));
+        context.spawnBody(secondBodyKey, spawn -> spawn
+            .space(new SpaceId(1))
+            .box(0.5f, 0.5f, 0.5f)
+            .mass(1.0f)
+            .dynamic()
+            .kind(PhysicsBodyKind.BODY)
+            .persistence(PhysicsBodyPersistenceMode.RUNTIME_ONLY));
+        return context.freezeInternal(sequence);
+    }
+
+    private static RecordedPhysicsCommandBatch spawnBatch(long sequence,
+        RigidBodyKey firstBodyKey,
+        RigidBodyKey secondBodyKey) {
+        MutablePhysicsCommandContext context = new MutablePhysicsCommandContext(1L, 0L);
+        context.spawnBodies(2, spawns -> {
+            spawns.body(firstBodyKey, spawn -> spawn
+                .space(new SpaceId(1))
+                .box(0.5f, 0.5f, 0.5f)
+                .mass(1.0f)
+                .dynamic()
+                .kind(PhysicsBodyKind.BODY)
+                .persistence(PhysicsBodyPersistenceMode.RUNTIME_ONLY));
+            spawns.body(secondBodyKey, spawn -> spawn
+                .space(new SpaceId(1))
+                .box(0.5f, 0.5f, 0.5f)
+                .mass(1.0f)
+                .dynamic()
+                .kind(PhysicsBodyKind.BODY)
+                .persistence(PhysicsBodyPersistenceMode.RUNTIME_ONLY));
+        });
+        return context.freezeInternal(sequence);
+    }
+
+    private static RecordedPhysicsCommandBatch templateSpawnBatch(long sequence,
+        RigidBodyKey firstBodyKey,
+        RigidBodyKey secondBodyKey) {
         MutablePhysicsCommandContext context = new MutablePhysicsCommandContext(1L, 0L);
         context.spawnBodies(2,
             new SpaceId(1),
@@ -103,8 +194,8 @@ class PhysicsCommandVisibilityStateTest {
             PhysicsBodyKind.BODY,
             PhysicsBodyPersistenceMode.RUNTIME_ONLY,
             spawns -> {
-                spawns.body(RigidBodyKey.random(), 0.0f, 0.0f, 0.0f);
-                spawns.body(RigidBodyKey.random(), 1.0f, 0.0f, 0.0f);
+                spawns.body(firstBodyKey, 0.0f, 0.0f, 0.0f);
+                spawns.body(secondBodyKey, 1.0f, 0.0f, 0.0f);
             });
         return context.freezeInternal(sequence);
     }

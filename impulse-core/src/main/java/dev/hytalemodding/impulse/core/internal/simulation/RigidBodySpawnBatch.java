@@ -133,6 +133,16 @@ final class RigidBodySpawnBatch {
     }
 
     @Nonnull
+    long[] bodyKeyMostSignificantBits() {
+        return bodyKeyMostSignificantBits;
+    }
+
+    @Nonnull
+    long[] bodyKeyLeastSignificantBits() {
+        return bodyKeyLeastSignificantBits;
+    }
+
+    @Nonnull
     public SpaceId spaceId(int index) {
         return object(index, 0, SpaceId.class);
     }
