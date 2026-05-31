@@ -10,7 +10,7 @@ import dev.hytalemodding.impulse.api.PhysicsCollisionFilters;
 import dev.hytalemodding.impulse.api.PhysicsSpace;
 import dev.hytalemodding.impulse.api.SpaceId;
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsWorldRuntimeResource;
-import dev.hytalemodding.impulse.core.internal.resources.visual.PhysicsVisualRuntime;
+import dev.hytalemodding.impulse.core.internal.resources.PhysicsVisualRuntime;
 import dev.hytalemodding.impulse.core.internal.systems.visual.VisualInterestCollector;
 import dev.hytalemodding.impulse.core.internal.worker.PhysicsWorkerAccess;
 import dev.hytalemodding.impulse.core.plugin.body.RigidBodyKey;

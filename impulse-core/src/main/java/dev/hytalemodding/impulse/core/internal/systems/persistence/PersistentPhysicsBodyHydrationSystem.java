@@ -51,9 +51,6 @@ public class PersistentPhysicsBodyHydrationSystem extends TickingSystem<EntitySt
                 persistent.recordRuntimeBodySkipped("missing body key");
                 continue;
             }
-            if (runtime.getBodyRegistrationView(bodyKey) != null) {
-                continue;
-            }
 
             String validationFailure = state.restoreValidationFailureReason();
             if (validationFailure != null) {
@@ -68,23 +65,12 @@ public class PersistentPhysicsBodyHydrationSystem extends TickingSystem<EntitySt
             }
 
             try {
-                boolean restored = PhysicsWorkerAccess.call(store, "hydrate persisted physics body", () -> {
-                    PhysicsSpace space = runtime.getSpace(new SpaceId(resolvedSpaceId));
-                    if (space == null) {
-                        return false;
-                    }
-                    PhysicsBody body = state.createBody(space);
-                    state.applyToBody(body);
-                    runtime.addBody(bodyKey,
-                        space.getId(),
-                        body,
-                        PhysicsBodyKind.BODY,
-                        PhysicsBodyPersistenceMode.PERSISTENT);
-                    return true;
-                });
-                if (restored) {
+                RestoreBodyResult result = PhysicsWorkerAccess.call(store,
+                    "hydrate persisted physics body",
+                    () -> restoreBodyOnOwner(runtime, state, bodyKey));
+                if (result == RestoreBodyResult.RESTORED) {
                     persistent.recordRuntimeBodyRestored();
-                } else {
+                } else if (result == RestoreBodyResult.MISSING_SPACE) {
                     persistent.recordRuntimeBodySkipped("missing target space");
                 }
             } catch (RuntimeException exception) {
@@ -92,6 +78,34 @@ public class PersistentPhysicsBodyHydrationSystem extends TickingSystem<EntitySt
                     + exception.getClass().getSimpleName());
             }
         }
+    }
+
+    static RestoreBodyResult restoreBodyOnOwner(@Nonnull PhysicsWorldRuntimeResource runtime,
+        @Nonnull PersistentPhysicsBodyState state,
+        @Nonnull RigidBodyKey bodyKey) {
+        if (runtime.getRegistration(bodyKey) != null) {
+            return RestoreBodyResult.ALREADY_REGISTERED;
+        }
+
+        PhysicsSpace space = runtime.getSpace(new SpaceId(state.resolveSpaceId()));
+        if (space == null) {
+            return RestoreBodyResult.MISSING_SPACE;
+        }
+
+        PhysicsBody body = state.createBody(space);
+        state.applyToBody(body);
+        runtime.addBody(bodyKey,
+            space.getId(),
+            body,
+            PhysicsBodyKind.BODY,
+            PhysicsBodyPersistenceMode.PERSISTENT);
+        return RestoreBodyResult.RESTORED;
+    }
+
+    enum RestoreBodyResult {
+        RESTORED,
+        ALREADY_REGISTERED,
+        MISSING_SPACE
     }
 
     @Nonnull

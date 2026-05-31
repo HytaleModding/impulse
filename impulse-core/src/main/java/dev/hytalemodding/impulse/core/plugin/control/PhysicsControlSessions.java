@@ -128,6 +128,11 @@ public final class PhysicsControlSessions {
             || controlJointKey != null;
         boolean restoreBody = bodyKey != null && resource.getBodyRegistrationView(bodyKey) != null;
         if (releaseJoint || restoreBody || anchorBodyKey != null) {
+            /*
+             * Explicit release/start helpers keep synchronous semantics so command handlers can
+             * report replacement state immediately. Tick-driven cleanup uses
+             * PhysicsControlSessionCleanup and does not join the worker.
+             */
             resource.submitCommands(0L, 4, commands -> {
                 addJointReleaseCommand(commands, controlJointKey, spaceId, anchorBodyKey, bodyKey);
                 if (restoreBody) {

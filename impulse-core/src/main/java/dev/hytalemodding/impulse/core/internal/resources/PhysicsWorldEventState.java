@@ -1,4 +1,4 @@
-package dev.hytalemodding.impulse.core.internal.resources.event;
+package dev.hytalemodding.impulse.core.internal.resources;
 
 import dev.hytalemodding.impulse.core.plugin.events.PhysicsCommandBatchEvent;
 import dev.hytalemodding.impulse.core.plugin.events.PhysicsEventFrame;

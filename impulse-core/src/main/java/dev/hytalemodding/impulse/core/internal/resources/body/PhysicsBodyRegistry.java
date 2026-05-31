@@ -48,15 +48,8 @@ public final class PhysicsBodyRegistry {
         @Nonnull SpaceId spaceId,
         @Nonnull PhysicsBodyKind kind,
         @Nonnull PhysicsBodyPersistenceMode persistenceMode) {
-        RigidBodyKey existingKey = bodyKeysByBody.get(body);
-        if (existingKey != null && !existingKey.equals(bodyKey)) {
-            throw new IllegalArgumentException("Physics body is already registered as " + existingKey);
-        }
+        validateRegisterable(bodyKey, body);
         PhysicsBodyRegistration existingRegistration = registrationsByKey.get(bodyKey);
-        if (existingRegistration != null && existingRegistration.body() != body) {
-            throw new IllegalArgumentException("Physics body key=" + bodyKey
-                + " is already registered to another backend body");
-        }
         if (existingRegistration != null) {
             removeFromSpace(existingRegistration);
         }
@@ -68,6 +61,19 @@ public final class PhysicsBodyRegistry {
         bodyKeysByBody.put(body, bodyKey);
         addToSpace(registration);
         return registration;
+    }
+
+    public void validateRegisterable(@Nonnull RigidBodyKey bodyKey,
+        @Nonnull PhysicsBody body) {
+        RigidBodyKey existingKey = bodyKeysByBody.get(body);
+        if (existingKey != null && !existingKey.equals(bodyKey)) {
+            throw new IllegalArgumentException("Physics body is already registered as " + existingKey);
+        }
+        PhysicsBodyRegistration existingRegistration = registrationsByKey.get(bodyKey);
+        if (existingRegistration != null && existingRegistration.body() != body) {
+            throw new IllegalArgumentException("Physics body key=" + bodyKey
+                + " is already registered to another backend body");
+        }
     }
 
     @Nullable

@@ -116,6 +116,10 @@ public final class PhysicsCommandHandle {
 
     /**
      * Returns the owner-thread execution summary for this batch.
+     *
+     * <p>This stage completes before snapshot capture, reader-side snapshot application, and ECS
+     * consumption. Use {@link #isVisibleInSnapshotFrame(PublishedPhysicsSnapshotFrame)} or
+     * {@link #isVisibleInLatestSnapshot(PhysicsEventFrame)} when visibility matters.</p>
      */
     @Nonnull
     public CompletionStage<PhysicsCommandCompletion> completionSummary() {

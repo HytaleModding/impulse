@@ -3,7 +3,7 @@ package dev.hytalemodding.impulse.core.internal.resources.owner;
 import dev.hytalemodding.impulse.api.PhysicsBody;
 import dev.hytalemodding.impulse.api.PhysicsJoint;
 import dev.hytalemodding.impulse.api.PhysicsSpace;
-import dev.hytalemodding.impulse.core.internal.resources.worker.PhysicsWorldWorkerResource;
+import dev.hytalemodding.impulse.core.internal.resources.PhysicsWorldWorkerResource;
 import dev.hytalemodding.impulse.core.internal.worker.PhysicsWorkerAccess;
 import dev.hytalemodding.impulse.core.plugin.resources.PhysicsMutationHandle;
 import java.util.Objects;

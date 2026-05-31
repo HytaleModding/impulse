@@ -1,6 +1,6 @@
 package dev.hytalemodding.impulse.core.internal.systems.visual;
 
-import dev.hytalemodding.impulse.core.internal.resources.visual.PhysicsVisualRuntime.VisualInterest;
+import dev.hytalemodding.impulse.core.internal.resources.PhysicsVisualRuntime.VisualInterest;
 import dev.hytalemodding.impulse.core.plugin.settings.PhysicsSpaceSettings;
 import java.util.List;
 import javax.annotation.Nonnull;

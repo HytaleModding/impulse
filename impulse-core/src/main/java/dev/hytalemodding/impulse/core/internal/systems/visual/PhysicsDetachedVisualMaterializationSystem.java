@@ -24,8 +24,7 @@ import dev.hytalemodding.impulse.api.SpaceId;
 import dev.hytalemodding.impulse.core.internal.components.GeneratedVisualProxyComponent;
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsWorldRuntimeResource;
 import dev.hytalemodding.impulse.core.internal.resources.profiling.PhysicsRuntimeProfilingResource;
-import dev.hytalemodding.impulse.core.internal.resources.visual.PhysicsVisualRuntime;
-import dev.hytalemodding.impulse.core.internal.resources.visual.PhysicsVisualRuntime.VisualInterest;
+import dev.hytalemodding.impulse.core.internal.resources.PhysicsVisualRuntime.VisualInterest;
 import dev.hytalemodding.impulse.core.internal.systems.sync.PhysicsSyncSystem;
 import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyKind;
 import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyRegistrationView;
@@ -35,9 +34,6 @@ import dev.hytalemodding.impulse.core.plugin.components.PhysicsBodyAttachmentCom
 import dev.hytalemodding.impulse.core.plugin.components.PhysicsBodyAttachmentComponent.TransformAuthority;
 import dev.hytalemodding.impulse.core.plugin.settings.PhysicsSpaceSettings;
 import dev.hytalemodding.impulse.core.plugin.settings.PhysicsVisualMaterializationSettings;
-import dev.hytalemodding.impulse.core.plugin.settings.VisualOcclusionMode;
-import dev.hytalemodding.impulse.core.plugin.simulation.RaycastClosestQuery;
-import dev.hytalemodding.impulse.core.plugin.simulation.RaycastHitView;
 import it.unimi.dsi.fastutil.objects.ObjectOpenHashSet;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -45,7 +41,6 @@ import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
-import java.util.Optional;
 import java.util.Queue;
 import java.util.Set;
 import java.util.concurrent.ConcurrentLinkedQueue;
@@ -54,7 +49,6 @@ import java.util.WeakHashMap;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 import org.joml.Vector3d;
-import org.joml.Vector3f;
 
 /**
  * Materializes disposable Hytale visual followers for detached physics bodies near players.
@@ -77,9 +71,6 @@ public class PhysicsDetachedVisualMaterializationSystem extends TickingSystem<En
     private static final Set<Dependency<EntityStore>> DEPENDENCIES = Set.of(
         new SystemDependency<>(Order.BEFORE, PhysicsSyncSystem.class)
     );
-
-    private static final ThreadLocal<Vector3f> RAYCAST_TARGET =
-        ThreadLocal.withInitial(Vector3f::new);
 
     /**
      * Bounds generated-proxy orphan scans. Regular materialized-proxy
@@ -214,7 +205,8 @@ public class PhysicsDetachedVisualMaterializationSystem extends TickingSystem<En
             refreshCooldown(refreshInterval));
         if (state.materializationCandidateRefreshCooldown <= 0) {
             List<CachedMaterializationTarget> refreshedTargets = new ArrayList<>();
-            RaycastBudget raycastBudget = new RaycastBudget();
+            DetachedVisualOcclusion.RaycastBudget raycastBudget =
+                new DetachedVisualOcclusion.RaycastBudget();
             if (collector != null) {
                 collector.incrementCandidateRefreshes();
             }
@@ -426,7 +418,7 @@ public class PhysicsDetachedVisualMaterializationSystem extends TickingSystem<En
         @Nonnull PhysicsWorldRuntimeResource resource,
         @Nonnull List<VisualInterest> interests,
         long visualInterestTick,
-        @Nonnull RaycastBudget raycastBudget,
+        @Nonnull DetachedVisualOcclusion.RaycastBudget raycastBudget,
         @Nonnull List<CachedMaterializationTarget> candidates,
         @Nullable PhysicsRuntimeProfilingResource.VisualCollector collector) {
         if (interests.isEmpty()) {
@@ -460,7 +452,8 @@ public class PhysicsDetachedVisualMaterializationSystem extends TickingSystem<En
                         if (!isBodyChunkLoaded(store, snapshot)) {
                             return;
                         }
-                        InterestResult materializeInterest = resolveVisualInterest(resource,
+                        DetachedVisualOcclusion.Result materializeInterest =
+                            DetachedVisualOcclusion.resolve(resource,
                             bodyKey,
                             space,
                             snapshot,
@@ -599,132 +592,6 @@ public class PhysicsDetachedVisualMaterializationSystem extends TickingSystem<En
             radius);
     }
 
-    @Nonnull
-    private static InterestResult resolveVisualInterest(@Nonnull PhysicsWorldRuntimeResource resource,
-        @Nonnull RigidBodyKey bodyKey,
-        @Nullable PhysicsSpace space,
-        @Nonnull PhysicsBodySnapshot snapshot,
-        @Nonnull PhysicsSpaceSettings settings,
-        @Nonnull List<VisualInterest> interests,
-        float radius,
-        long visualInterestTick,
-        @Nonnull RaycastBudget raycastBudget,
-        @Nullable PhysicsRuntimeProfilingResource.VisualCollector collector) {
-        InterestProbe probe = probeNearestLikelyInterest(snapshot, settings, interests, radius);
-        PhysicsVisualRuntime.BodyVisualInterestState state =
-            resource.getOrCreateBodyVisualInterestState(bodyKey);
-        if (!probe.inRange()) {
-            state.recordInterest(Float.POSITIVE_INFINITY, false, false, false, visualInterestTick);
-            return InterestResult.notVisible();
-        }
-
-        VisualOcclusionMode occlusionMode = settings.getVisualSyncSettings().getVisualOcclusionMode();
-        if (occlusionMode == VisualOcclusionMode.OFF || space == null) {
-            state.recordInterest(probe.distanceSquared(), true, true, false, visualInterestTick);
-            return InterestResult.visible(probe.distanceSquared(), probe.distanceSquared());
-        }
-
-        boolean raycastKnown = state.hasFreshRaycast(settings.getVisualSyncSettings().getVisualOcclusionCacheTicks(),
-            visualInterestTick);
-        boolean raycastVisible = raycastKnown && state.isRaycastVisible();
-        boolean raycastEvaluated = false;
-        if (raycastKnown && collector != null) {
-            collector.incrementRaycastCacheHits();
-        }
-        if (!raycastKnown && raycastBudget.tryUse(settings)) {
-            assert probe.interest() != null;
-            raycastVisible = raycastVisible(resource, space, probe.interest(), bodyKey, snapshot);
-            raycastKnown = true;
-            raycastEvaluated = true;
-            if (collector != null) {
-                collector.incrementRaycasts();
-            }
-        }
-
-        state.recordInterest(probe.distanceSquared(),
-            true,
-            raycastVisible,
-            raycastEvaluated,
-            visualInterestTick);
-        if (occlusionMode == VisualOcclusionMode.CULL && raycastKnown && !raycastVisible) {
-            return InterestResult.notVisible();
-        }
-
-        /*
-         * PRIORITY only biases spawn order: visible bodies move forward in the
-         * queue and occluded bodies move back. CULL above is the mode that skips
-         * occluded candidates entirely.
-         */
-        float priorityDistanceSquared = probe.distanceSquared();
-        if (occlusionMode == VisualOcclusionMode.PRIORITY && raycastKnown) {
-            priorityDistanceSquared = raycastVisible
-                ? probe.distanceSquared() * 0.25f
-                : probe.distanceSquared() + radius * radius;
-        }
-        return InterestResult.visible(probe.distanceSquared(), priorityDistanceSquared);
-    }
-
-    @Nonnull
-    private static InterestProbe probeNearestLikelyInterest(@Nonnull PhysicsBodySnapshot snapshot,
-        @Nonnull PhysicsSpaceSettings settings,
-        @Nonnull List<VisualInterest> interests,
-        float radius) {
-        return probeNearestLikelyInterest(snapshot.positionX(),
-            snapshot.positionY(),
-            snapshot.positionZ(),
-            settings,
-            interests,
-            radius);
-    }
-
-    @Nonnull
-    private static InterestProbe probeNearestLikelyInterest(float positionX,
-        float positionY,
-        float positionZ,
-        @Nonnull PhysicsSpaceSettings settings,
-        @Nonnull List<VisualInterest> interests,
-        float radius) {
-        float radiusSquared = radius * radius;
-        float nearestDistanceSquared = Float.POSITIVE_INFINITY;
-        VisualInterest nearestInterest = null;
-        for (int index = 0; index < interests.size(); index++) {
-            VisualInterest interest = interests.get(index);
-            float dx = positionX - interest.position().x;
-            float dy = positionY - interest.position().y;
-            float dz = positionZ - interest.position().z;
-            float distanceSquared = dx * dx + dy * dy + dz * dz;
-            if (distanceSquared <= radiusSquared
-                && distanceSquared < nearestDistanceSquared
-                && DetachedVisualGeometry.isInsideViewCone(settings,
-                    interest,
-                    dx,
-                    dy,
-                    dz,
-                    distanceSquared)) {
-                nearestDistanceSquared = distanceSquared;
-                nearestInterest = interest;
-            }
-        }
-        return nearestInterest == null
-            ? InterestProbe.notVisible()
-            : new InterestProbe(nearestInterest, nearestDistanceSquared);
-    }
-
-    private static boolean raycastVisible(@Nonnull PhysicsWorldRuntimeResource resource,
-        @Nonnull PhysicsSpace space,
-        @Nonnull VisualInterest interest,
-        @Nonnull RigidBodyKey bodyKey,
-        @Nonnull PhysicsBodySnapshot snapshot) {
-        Vector3f target = snapshot.copyPositionTo(RAYCAST_TARGET.get());
-        Optional<RaycastHitView> hit = resource.query(new RaycastClosestQuery(space.getId(),
-                interest.position(),
-                target))
-            .completion()
-            .toCompletableFuture()
-            .join();
-        return hit.map(view -> bodyKey.equals(view.bodyKey())).orElse(false);
-    }
-
     private static boolean isBodyChunkLoaded(@Nonnull Store<EntityStore> store,
         @Nonnull PhysicsBodySnapshot snapshot) {
         ChunkStore chunkStore = store.getExternalData().getWorld().getChunkStore();
@@ -807,44 +674,6 @@ public class PhysicsDetachedVisualMaterializationSystem extends TickingSystem<En
         @Nonnull
         private final List<CachedMaterializationTarget> cachedMaterializationTargets =
             new ArrayList<>();
-    }
-
-    private record InterestProbe(@Nullable VisualInterest interest,
-        float distanceSquared) {
-
-        static InterestProbe notVisible() {
-            return new InterestProbe(null, Float.POSITIVE_INFINITY);
-        }
-
-        boolean inRange() {
-            return interest != null;
-        }
-    }
-
-    private record InterestResult(boolean shouldMaterialize,
-        float distanceSquared,
-        float priorityDistanceSquared) {
-
-        static InterestResult notVisible() {
-            return new InterestResult(false, Float.POSITIVE_INFINITY, Float.POSITIVE_INFINITY);
-        }
-
-        static InterestResult visible(float distanceSquared, float priorityDistanceSquared) {
-            return new InterestResult(true, distanceSquared, priorityDistanceSquared);
-        }
-    }
-
-    private static final class RaycastBudget {
-
-        private int used;
-
-        boolean tryUse(@Nonnull PhysicsSpaceSettings settings) {
-            if (used >= settings.getVisualSyncSettings().getVisualOcclusionRaycastsPerTick()) {
-                return false;
-            }
-            used++;
-            return true;
-        }
     }
 
     @Nonnull

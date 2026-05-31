@@ -6,15 +6,14 @@ import dev.hytalemodding.impulse.api.PhysicsJoint;
 import dev.hytalemodding.impulse.api.PhysicsSpace;
 import dev.hytalemodding.impulse.api.SpaceId;
 import dev.hytalemodding.impulse.core.internal.control.PhysicsControlRuntimeState;
-import dev.hytalemodding.impulse.core.internal.resources.chunk.PhysicsChunkBoundaryRuntime;
+import dev.hytalemodding.impulse.core.internal.resources.PhysicsChunkBoundaryRuntime;
 import dev.hytalemodding.impulse.core.internal.resources.joint.PhysicsJointRegistry;
-import dev.hytalemodding.impulse.core.internal.resources.snapshot.PhysicsWorldSnapshotState;
-import dev.hytalemodding.impulse.core.internal.resources.space.PhysicsSpaceRuntime;
-import dev.hytalemodding.impulse.core.internal.resources.visual.PhysicsVisualRuntime;
+import dev.hytalemodding.impulse.core.internal.resources.PhysicsWorldLifecycleState;
+import dev.hytalemodding.impulse.core.internal.resources.PhysicsSpaceRuntime;
+import dev.hytalemodding.impulse.core.internal.resources.PhysicsVisualRuntime;
 import dev.hytalemodding.impulse.core.plugin.body.RigidBodyKey;
 import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyKind;
 import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyPersistenceMode;
-import dev.hytalemodding.impulse.core.internal.resources.body.PhysicsBodyRegistration;
 import java.util.ArrayList;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
@@ -39,7 +38,7 @@ public final class PhysicsBodyRuntime {
     @Nonnull
     private final PhysicsVisualRuntime visualRuntime;
     @Nonnull
-    private final PhysicsWorldSnapshotState snapshotState;
+    private final PhysicsWorldLifecycleState lifecycleState;
     @Nonnull
     private final Runnable worldChangedMarker;
     @Nonnull
@@ -52,7 +51,7 @@ public final class PhysicsBodyRuntime {
         @Nonnull PhysicsJointRegistry jointRegistry,
         @Nonnull PhysicsChunkBoundaryRuntime chunkRuntime,
         @Nonnull PhysicsVisualRuntime visualRuntime,
-        @Nonnull PhysicsWorldSnapshotState snapshotState,
+        @Nonnull PhysicsWorldLifecycleState lifecycleState,
         @Nonnull Runnable worldChangedMarker) {
         this.spaceRuntime = spaceRuntime;
         this.bodyRegistry = bodyRegistry;
@@ -61,7 +60,7 @@ public final class PhysicsBodyRuntime {
         this.jointRegistry = jointRegistry;
         this.chunkRuntime = chunkRuntime;
         this.visualRuntime = visualRuntime;
-        this.snapshotState = snapshotState;
+        this.lifecycleState = lifecycleState;
         this.worldChangedMarker = worldChangedMarker;
     }
 
@@ -87,12 +86,23 @@ public final class PhysicsBodyRuntime {
         if (space == null) {
             throw new IllegalArgumentException("Physics space id=" + spaceId + " is not registered");
         }
+        bodyRegistry.validateRegisterable(bodyKey, body);
+        boolean addedToSpace = false;
         if (!containsBody(space, body)) {
             space.addBody(body);
+            addedToSpace = true;
         }
-        PhysicsBodyRegistration registration = bodyRegistry.registerBody(bodyKey, body, spaceId, kind, persistenceMode);
+        PhysicsBodyRegistration registration;
+        try {
+            registration = bodyRegistry.registerBody(bodyKey, body, spaceId, kind, persistenceMode);
+        } catch (RuntimeException exception) {
+            if (addedToSpace) {
+                space.removeBody(body);
+            }
+            throw exception;
+        }
         PhysicsBodySnapshot snapshot = PhysicsBodySnapshot.from(body);
-        snapshotState.putBodySnapshot(bodyKey,
+        lifecycleState.putBodySnapshot(bodyKey,
             snapshot,
             spaceId,
             registration.kind(),
@@ -155,22 +165,26 @@ public final class PhysicsBodyRuntime {
     }
 
     public void clearBodyState() {
+        clearBodyStateWithoutMarkingWorldChanged();
+        worldChangedMarker.run();
+    }
+
+    public void clearBodyStateWithoutMarkingWorldChanged() {
         bodyRegistry.clear();
         runtimeState.clear();
         controlRuntime.clear();
         jointRegistry.clear();
         chunkRuntime.clear();
         visualRuntime.clear();
-        snapshotState.clearBodySnapshots();
+        lifecycleState.clearBodySnapshots();
         creationTracker.clear();
-        worldChangedMarker.run();
     }
 
     public void clearBodyRuntimeState(@Nonnull RigidBodyKey bodyKey) {
         visualRuntime.clearBodyRuntimeState(bodyKey);
         controlRuntime.clearBody(bodyKey);
         chunkRuntime.clearBody(bodyKey);
-        snapshotState.removeBodySnapshot(bodyKey);
+        lifecycleState.removeBodySnapshot(bodyKey);
     }
 
     private void removeBodyFromSpace(@Nonnull PhysicsBody body, @Nullable PhysicsBodyRegistration registration) {
