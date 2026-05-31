@@ -255,14 +255,14 @@ final class ImpulseRapierBodyBenchmarkCrucibleTests {
                     2,
                     commands -> {
                         commands.spawnBody(RigidBodyKey.random(),
-                            body -> body.space(space.getId())
+                            body -> body.space(space.id())
                                 .plane(GROUND_Y)
                                 .type(PhysicsBodyType.STATIC)
                                 .settings(groundSettings)
                                 .temporary()
                                 .runtimeOnly());
                         commands.spawnBodies(matrixCase.count(),
-                            space.getId(),
+                            space.id(),
                             PhysicsShapeSpec.box(0.48f, 0.48f, 0.48f),
                             1.0f,
                             PhysicsBodyType.DYNAMIC,
@@ -300,7 +300,7 @@ final class ImpulseRapierBodyBenchmarkCrucibleTests {
                 return MatrixReport.failedPreflight(matrixCase, started.failureMessage());
             }
             PhysicsSpace space = started.space();
-            if (space == null || physics.getSpace(space.getId()) == null) {
+            if (space == null || physics.getSpace(space.id()) == null) {
                 return MatrixReport.failedPreflight(matrixCase,
                     "space disappeared during benchmark");
             }
@@ -766,7 +766,7 @@ final class ImpulseRapierBodyBenchmarkCrucibleTests {
 
         private static SpaceStats collect(@Nonnull PhysicsWorldRuntimeResource physics,
             @Nonnull PhysicsSpace space) {
-            BenchmarkSpaceStatsView view = physics.queryInternal(new BenchmarkSpaceStatsQuery(space.getId(),
+            BenchmarkSpaceStatsView view = physics.queryInternal(new BenchmarkSpaceStatsQuery(space.id(),
                     GROUND_Y,
                     BELOW_PLANE_TOLERANCE,
                     BODY_WORLD_MIN_Y,

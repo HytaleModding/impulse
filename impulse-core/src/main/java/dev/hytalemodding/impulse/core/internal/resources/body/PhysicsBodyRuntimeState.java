@@ -42,10 +42,14 @@ public final class PhysicsBodyRuntimeState {
         private final Vector3f lastSyncedPosition = new Vector3f();
         @Nonnull
         private final Quaternionf lastSyncedRotation = new Quaternionf();
+        @Nonnull
+        private final Vector3f lastObservedSnapshotPosition = new Vector3f();
         @Getter
         private boolean initialized;
         @Getter
         private boolean sleeping;
+        @Getter
+        private boolean snapshotObserved;
         @Getter
         private float secondsSinceSync;
 
@@ -57,6 +61,17 @@ public final class PhysicsBodyRuntimeState {
             initialized = true;
             this.sleeping = sleeping;
             secondsSinceSync = 0.0f;
+        }
+
+        public float recordSnapshotObservation(@Nonnull Vector3f position) {
+            if (!snapshotObserved) {
+                lastObservedSnapshotPosition.set(position);
+                snapshotObserved = true;
+                return Float.NaN;
+            }
+            float distance = lastObservedSnapshotPosition.distance(position);
+            lastObservedSnapshotPosition.set(position);
+            return distance;
         }
 
         public void recordSkip(float dt) {
@@ -71,6 +86,11 @@ public final class PhysicsBodyRuntimeState {
         @Nonnull
         public Quaternionf getLastSyncedRotation() {
             return lastSyncedRotation;
+        }
+
+        @Nonnull
+        public Vector3f getLastObservedSnapshotPosition() {
+            return lastObservedSnapshotPosition;
         }
 
     }

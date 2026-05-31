@@ -5,7 +5,7 @@ import java.util.List;
 import javax.annotation.Nullable;
 
 /**
- * Owner-thread query for copied space diagnostics.
+ * Owner-lane query for copied space diagnostics.
  *
  * <p>A {@code null} space id requests summaries for every registered physics space.</p>
  */

@@ -9,10 +9,10 @@ import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import dev.hytalemodding.impulse.core.internal.persistence.PersistentPhysicsRuntimeSnapshot;
 import dev.hytalemodding.impulse.core.internal.persistence.PersistentPhysicsWorldResource;
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsWorldRuntimeResource;
-import dev.hytalemodding.impulse.core.internal.resources.PhysicsWorldWorkerResource;
+import dev.hytalemodding.impulse.core.internal.resources.owner.PhysicsOwnerResource;
 import dev.hytalemodding.impulse.core.internal.systems.publication.PhysicsSnapshotPublicationSystem;
-import dev.hytalemodding.impulse.core.internal.worker.PhysicsWorkerAccess;
-import dev.hytalemodding.impulse.core.internal.worker.PhysicsWorkerSnapshot;
+import dev.hytalemodding.impulse.core.internal.resources.owner.PhysicsOwnerBridge;
+import dev.hytalemodding.impulse.core.internal.resources.owner.PhysicsOwnerSnapshot;
 import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyPersistenceMode;
 import dev.hytalemodding.impulse.core.plugin.settings.PhysicsWorldSettings;
 import dev.hytalemodding.impulse.core.plugin.resources.PhysicsWorldResource;
@@ -25,13 +25,13 @@ import java.util.concurrent.RejectedExecutionException;
 import javax.annotation.Nonnull;
 
 /**
- * Syncs the persisted world resource from worker-owned runtime snapshots.
+ * Syncs the persisted world resource from owner-lane runtime snapshots.
  *
  * <p>Mirrors the live spaces, their settings, persistent bodies, and persistent
  * endpoint joints back into {@link PersistentPhysicsWorldResource} on a bounded
  * cadence. Scalar world settings and cheap topology count changes request a full
- * worker snapshot immediately; joint-only footprint checks are queued as light
- * worker reads so the main tick does not inspect live backend joints.</p>
+ * owner snapshot immediately; joint-only footprint checks are queued as light
+ * owner reads so the main tick does not inspect live backend joints.</p>
  *
  * <p>Runs after restore hydration to ensure both sides are settled before copying.
  * Skipped while a restore is in progress, or after a hard restore failure, to avoid
@@ -97,7 +97,7 @@ public class PersistentPhysicsWorldSyncSystem extends TickingSystem<EntityStore>
         }
 
         PhysicsWorldRuntimeResource runtimeResource = PhysicsWorldRuntimeResource.require(runtime);
-        PersistentPhysicsRuntimeSnapshot snapshot = PhysicsWorkerAccess.call(store,
+        PersistentPhysicsRuntimeSnapshot snapshot = PhysicsOwnerBridge.call(store,
             "capture persisted physics runtime snapshot",
             () -> PersistentPhysicsRuntimeSnapshot.capture(runtimeResource));
         return syncRuntimeSnapshot(persistent, snapshot);
@@ -157,7 +157,7 @@ public class PersistentPhysicsWorldSyncSystem extends TickingSystem<EntityStore>
             syncRuntimeSnapshot(persistent, PersistentPhysicsRuntimeSnapshot.capture(runtime));
             return;
         }
-        submitWorkerRead(store,
+        submitOwnerRead(store,
             persistent,
             PendingRuntimeRead.snapshot(),
             future -> future.complete(PersistentPhysicsRuntimeSnapshot.capture(runtime)));
@@ -174,26 +174,26 @@ public class PersistentPhysicsWorldSyncSystem extends TickingSystem<EntityStore>
             }
             return;
         }
-        submitWorkerRead(store,
+        submitOwnerRead(store,
             persistent,
             PendingRuntimeRead.footprint(),
             future -> future.complete(PersistentPhysicsRuntimeSnapshot.captureFootprint(runtime)));
     }
 
-    private void submitWorkerRead(@Nonnull Store<EntityStore> store,
+    private void submitOwnerRead(@Nonnull Store<EntityStore> store,
         @Nonnull PersistentPhysicsWorldResource persistent,
         @Nonnull PendingRuntimeRead pending,
-        @Nonnull WorkerReadCapture capture) {
-        PhysicsWorldWorkerResource worker = store.getResource(PhysicsWorldWorkerResource.getResourceType());
-        if (worker.isClosed()) {
+        @Nonnull OwnerReadCapture capture) {
+        PhysicsOwnerResource owner = store.getResource(PhysicsOwnerResource.getResourceType());
+        if (owner.isClosed()) {
             return;
         }
 
         try {
-            worker.submitMutation(pending.operation(), () -> {
+            owner.submitMutation(pending.operation(), () -> {
                 try {
                     capture.capture(pending.future());
-                    return PhysicsWorkerSnapshot.empty();
+                    return PhysicsOwnerSnapshot.empty();
                 } catch (RuntimeException | Error exception) {
                     pending.future().completeExceptionally(exception);
                     throw exception;
@@ -279,7 +279,7 @@ public class PersistentPhysicsWorldSyncSystem extends TickingSystem<EntityStore>
     }
 
     @FunctionalInterface
-    private interface WorkerReadCapture {
+    private interface OwnerReadCapture {
 
         void capture(@Nonnull CompletableFuture<Object> future);
     }

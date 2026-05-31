@@ -12,7 +12,7 @@ import javax.annotation.Nonnull;
 /**
  * Completion handle for a submitted physics command batch.
  *
- * <p>The completion stage reports owner-thread execution of the batch. It does not mean the
+ * <p>The completion stage reports owner-lane execution of the batch. It does not mean the
  * latest published snapshot, ECS attachments, or debug readers have observed the resulting body
  * state yet. Use the snapshot-frame inclusion helpers when callers need to correlate a completion
  * to a captured physics snapshot frame.</p>
@@ -115,7 +115,7 @@ public final class PhysicsCommandHandle {
     }
 
     /**
-     * Returns the owner-thread execution summary for this batch.
+     * Returns the owner-lane execution summary for this batch.
      *
      * <p>This stage completes before snapshot capture, reader-side snapshot application, and ECS
      * consumption. Use {@link #isIncludedInSnapshotFrame(PublishedPhysicsSnapshotFrame)} or
@@ -128,7 +128,7 @@ public final class PhysicsCommandHandle {
     }
 
     /**
-     * Returns whether every recorded operation applied on the physics owner thread.
+     * Returns whether every recorded operation applied on the physics owner lane.
      */
     @Nonnull
     public CompletionStage<Boolean> allApplied() {
@@ -136,7 +136,7 @@ public final class PhysicsCommandHandle {
     }
 
     /**
-     * Returns the first owner-thread rejection, if any.
+     * Returns the first owner-lane rejection, if any.
      */
     @Nonnull
     public CompletionStage<Optional<PhysicsCommandResult>> firstRejected() {

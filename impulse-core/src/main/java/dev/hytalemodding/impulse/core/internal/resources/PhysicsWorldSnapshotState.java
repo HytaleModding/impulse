@@ -26,15 +26,15 @@ import org.joml.Vector3f;
 /**
  * Snapshot and epoch state for a world physics resource.
  *
- * <p>The worker-side store is used while capturing immutable frames on the physics owner. The
+ * <p>The owner-side store is used while capturing immutable frames on the physics owner. The
  * reader-side store is only updated when a frame is applied for the current world epoch. Keeping
- * both stores and the epoch counters together prevents stale worker frames from repopulating
+ * both stores and the epoch counters together prevents stale owner frames from repopulating
  * world-thread snapshots after topology changes.</p>
  */
 public final class PhysicsWorldSnapshotState {
 
     private final PhysicsBodySnapshotStore bodySnapshots = new PhysicsBodySnapshotStore();
-    private final PhysicsBodySnapshotStore workerBodySnapshots = new PhysicsBodySnapshotStore();
+    private final PhysicsBodySnapshotStore ownerBodySnapshots = new PhysicsBodySnapshotStore();
     private final AtomicLong worldEpoch = new AtomicLong();
     private final AtomicLong snapshotFrameEpoch = new AtomicLong();
     @Nonnull
@@ -67,7 +67,7 @@ public final class PhysicsWorldSnapshotState {
         @Nonnull PhysicsBodyKind kind,
         @Nonnull PhysicsBodyPersistenceMode persistenceMode) {
         bodySnapshots.put(bodyKey, snapshot, spaceId, kind, persistenceMode);
-        workerBodySnapshots.put(bodyKey, snapshot, spaceId, kind, persistenceMode);
+        ownerBodySnapshots.put(bodyKey, snapshot, spaceId, kind, persistenceMode);
     }
 
     @Nonnull
@@ -87,12 +87,12 @@ public final class PhysicsWorldSnapshotState {
         long frameEpoch = snapshotFrameEpoch.incrementAndGet();
         long frameWorldEpoch = worldEpoch.get();
         long snapshotStartNanos = profilingEnabled ? System.nanoTime() : 0L;
-        workerBodySnapshots.refresh(spaces, bodyRegistry);
-        int spatialIndexCellCount = workerBodySnapshots.cellCount();
+        ownerBodySnapshots.refresh(spaces, bodyRegistry);
+        int spatialIndexCellCount = ownerBodySnapshots.cellCount();
 
         int bodyCount = 0;
         for (PhysicsSpace space : spaces) {
-            bodyCount += workerBodySnapshots.bodyCount(space.getId());
+            bodyCount += ownerBodySnapshots.bodyCount(space.id());
         }
 
         long snapshotNanos = profilingEnabled ? System.nanoTime() - snapshotStartNanos : 0L;
@@ -108,10 +108,10 @@ public final class PhysicsWorldSnapshotState {
             spaces.size(),
             bodyCount);
         for (PhysicsSpace space : spaces) {
-            SpaceId spaceId = space.getId();
-            int spaceBodyCount = workerBodySnapshots.bodyCount(spaceId);
+            SpaceId spaceId = space.id();
+            int spaceBodyCount = ownerBodySnapshots.bodyCount(spaceId);
             frameBuilder.addSpace(spaceId, frameWorldEpoch, spaceBodyCount);
-            workerBodySnapshots.forEachIndexed(spaceId,
+            ownerBodySnapshots.forEachIndexed(spaceId,
                 (bodyKey, snapshot, bodySpaceId, kind, persistenceMode) -> frameBuilder.addBody(bodyKey,
                     bodySpaceId,
                     frameWorldEpoch,
@@ -191,12 +191,12 @@ public final class PhysicsWorldSnapshotState {
 
     public void removeBodySnapshot(@Nonnull RigidBodyKey bodyKey) {
         bodySnapshots.remove(bodyKey);
-        workerBodySnapshots.remove(bodyKey);
+        ownerBodySnapshots.remove(bodyKey);
     }
 
     public void clearBodySnapshots() {
         bodySnapshots.clear();
-        workerBodySnapshots.clear();
+        ownerBodySnapshots.clear();
     }
 
     public void markWorldChanged() {

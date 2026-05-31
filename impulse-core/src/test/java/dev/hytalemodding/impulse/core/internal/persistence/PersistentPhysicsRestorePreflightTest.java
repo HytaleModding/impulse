@@ -35,7 +35,7 @@ class PersistentPhysicsRestorePreflightTest {
     void rejectsDuplicateSpaceIdsBeforeRuntimeStrip() {
         RuntimeFixture fixture = createRuntimeFixture();
         PersistentPhysicsSpaceState first =
-            PersistentPhysicsSpaceState.from(fixture.space, fixture.runtime.getSpaceSettings(fixture.space.getId()));
+            PersistentPhysicsSpaceState.from(fixture.space, fixture.runtime.getSpaceSettings(fixture.space.id()));
         PersistentPhysicsSpaceState second = first.copy();
         fixture.persistent.setSpaces(new PersistentPhysicsSpaceState[] { first, second });
 
@@ -76,7 +76,7 @@ class PersistentPhysicsRestorePreflightTest {
     void rejectsInvalidSpaceSettingsBeforeRuntimeStrip() throws Exception {
         RuntimeFixture fixture = createRuntimeFixture();
         PersistentPhysicsSpaceState state =
-            PersistentPhysicsSpaceState.from(fixture.space, fixture.runtime.getSpaceSettings(fixture.space.getId()));
+            PersistentPhysicsSpaceState.from(fixture.space, fixture.runtime.getSpaceSettings(fixture.space.id()));
         setIntField(state, "worldCollisionRadius", 0);
         fixture.persistent.setSpaces(new PersistentPhysicsSpaceState[] { state });
 
@@ -90,7 +90,7 @@ class PersistentPhysicsRestorePreflightTest {
     void rejectsBlankBackendIdBeforeRuntimeStrip() throws Exception {
         RuntimeFixture fixture = createRuntimeFixture();
         PersistentPhysicsSpaceState state =
-            PersistentPhysicsSpaceState.from(fixture.space, fixture.runtime.getSpaceSettings(fixture.space.getId()));
+            PersistentPhysicsSpaceState.from(fixture.space, fixture.runtime.getSpaceSettings(fixture.space.id()));
         setStringField(state, "backendId", " ");
         fixture.persistent.setSpaces(new PersistentPhysicsSpaceState[] { state });
 
@@ -124,7 +124,7 @@ class PersistentPhysicsRestorePreflightTest {
             "test-world",
             PhysicsSpaceSettings.defaults());
         PhysicsBody body = space.createBox(0.5f, 0.5f, 0.5f, 1.0f);
-        runtime.addBody(space.getId(),
+        runtime.addBody(space.id(),
             body,
             PhysicsBodyKind.BODY,
             PhysicsBodyPersistenceMode.PERSISTENT);
@@ -156,7 +156,7 @@ class PersistentPhysicsRestorePreflightTest {
         private void syncPersistentState() {
             persistent.setWorldSettings(runtime.getWorldSettings());
             persistent.setSpaces(new PersistentPhysicsSpaceState[] {
-                PersistentPhysicsSpaceState.from(space, runtime.getSpaceSettings(space.getId()))
+                PersistentPhysicsSpaceState.from(space, runtime.getSpaceSettings(space.id()))
             });
             persistent.setBodies(PersistentPhysicsRuntimeSnapshot.capture(runtime).getBodies());
         }

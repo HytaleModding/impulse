@@ -114,7 +114,7 @@ final class DetachedVisualOcclusion {
         VisualInterest interest = Objects.requireNonNull(probe.interest(), "interest");
         Vector3f target = RAYCAST_TARGET.get()
             .set(snapshot.positionX(), snapshot.positionY(), snapshot.positionZ());
-        state.startPendingRaycast(resource.query(new RaycastClosestQuery(space.getId(),
+        state.startPendingRaycast(resource.query(new RaycastClosestQuery(space.id(),
             interest.position(),
             target)).completion());
     }

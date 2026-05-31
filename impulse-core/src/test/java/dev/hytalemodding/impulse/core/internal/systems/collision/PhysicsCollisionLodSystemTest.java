@@ -116,7 +116,7 @@ class PhysicsCollisionLodSystemTest {
     }
 
     @Test
-    void tierStateCommitsAfterSuccessfulWorkerMutation() {
+    void tierStateCommitsAfterSuccessfulOwnerMutation() {
         CollisionLodState state = new CollisionLodState();
         SpaceId spaceId = new SpaceId(1);
         RigidBodyKey bodyId = RigidBodyKey.random();
@@ -133,7 +133,7 @@ class PhysicsCollisionLodSystemTest {
     }
 
     @Test
-    void tierStateRetriesAfterFailedWorkerMutation() {
+    void tierStateRetriesAfterFailedOwnerMutation() {
         CollisionLodState state = new CollisionLodState();
         SpaceId spaceId = new SpaceId(1);
         RigidBodyKey bodyId = RigidBodyKey.random();
@@ -152,7 +152,7 @@ class PhysicsCollisionLodSystemTest {
     }
 
     @Test
-    void restoreClearsTierStateAfterSuccessfulWorkerMutation() {
+    void restoreClearsTierStateAfterSuccessfulOwnerMutation() {
         CollisionLodState state = new CollisionLodState();
         SpaceId spaceId = new SpaceId(1);
         RigidBodyKey bodyId = RigidBodyKey.random();

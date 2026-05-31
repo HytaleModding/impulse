@@ -17,7 +17,7 @@ import dev.hytalemodding.impulse.core.internal.persistence.PersistentPhysicsRest
 import dev.hytalemodding.impulse.core.internal.persistence.PersistentPhysicsSpaceState;
 import dev.hytalemodding.impulse.core.internal.persistence.PersistentPhysicsWorldResource;
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsWorldRuntimeResource;
-import dev.hytalemodding.impulse.core.internal.worker.PhysicsWorkerAccess;
+import dev.hytalemodding.impulse.core.internal.resources.owner.PhysicsOwnerBridge;
 import dev.hytalemodding.impulse.core.plugin.components.PhysicsBodyAttachmentComponent;
 import dev.hytalemodding.impulse.core.plugin.components.PhysicsBodyAttachmentComponent.AttachmentLifecycle;
 import dev.hytalemodding.impulse.core.plugin.resources.PhysicsWorldResource;
@@ -77,7 +77,7 @@ public class PersistentPhysicsSpaceBootstrapSystem extends TickingSystem<EntityS
         }
         stripRuntimePhysicsStateForRestore(store, runtime, world);
         try {
-            PhysicsWorkerAccess.run(store, "restore persisted physics runtime settings",
+            PhysicsOwnerBridge.run(store, "restore persisted physics runtime settings",
                 () -> runtime.setWorldSettings(persistent.getWorldSettings()));
         } catch (RuntimeException exception) {
             runtime.clearAllSpaces(world.getName());
@@ -91,7 +91,7 @@ public class PersistentPhysicsSpaceBootstrapSystem extends TickingSystem<EntityS
         for (PersistentPhysicsSpaceState state : spaces) {
             SpaceId spaceId = state.toSpaceId();
             try {
-                PhysicsWorkerAccess.run(store, "bootstrap persisted physics space", () -> {
+                PhysicsOwnerBridge.run(store, "bootstrap persisted physics space", () -> {
                     PhysicsSpace targetSpace = runtime.getSpace(spaceId);
                     if (targetSpace == null) {
                         runtime.createSpace(state.toBackendId(),
@@ -129,7 +129,7 @@ public class PersistentPhysicsSpaceBootstrapSystem extends TickingSystem<EntityS
     private static void stripRuntimePhysicsStateForRestore(@Nonnull Store<EntityStore> store,
         @Nonnull PhysicsWorldResource runtime,
         @Nonnull World world) {
-        PhysicsWorkerAccess.run(store, "strip runtime physics state for restore", () -> {
+        PhysicsOwnerBridge.run(store, "strip runtime physics state for restore", () -> {
             runtime.clearAllSpaces(world.getName());
             runtime.clearBodies();
         });

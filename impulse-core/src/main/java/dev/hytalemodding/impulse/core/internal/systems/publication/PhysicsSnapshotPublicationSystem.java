@@ -7,7 +7,7 @@ import com.hypixel.hytale.component.dependency.SystemDependency;
 import com.hypixel.hytale.component.system.tick.TickingSystem;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import dev.hytalemodding.impulse.core.internal.resources.profiling.PhysicsRuntimeProfilingResource;
-import dev.hytalemodding.impulse.core.internal.resources.PhysicsWorldWorkerResource;
+import dev.hytalemodding.impulse.core.internal.resources.owner.PhysicsOwnerResource;
 import dev.hytalemodding.impulse.core.internal.systems.collision.PhysicsChunkBoundarySystem;
 import dev.hytalemodding.impulse.core.internal.systems.collision.PhysicsCollisionLodSystem;
 import dev.hytalemodding.impulse.core.internal.systems.collision.PhysicsWorldCollisionStreamingSystem;
@@ -18,11 +18,11 @@ import java.util.Set;
 import javax.annotation.Nonnull;
 
 /**
- * Entity-tick publication stage for completed physics worker output.
+ * Entity-tick publication stage for completed physics owner-lane output.
  *
  * <p>The command-buffer visibility chain is: recorded, queued, owner completed, snapshot captured,
  * reader-side applied, then ECS systems consume the reader view. This system owns the reader-side
- * apply step and intentionally never waits for an in-flight worker step.</p>
+ * apply step and intentionally never waits for an in-flight owner-lane step.</p>
  */
 public final class PhysicsSnapshotPublicationSystem extends TickingSystem<EntityStore> {
 
@@ -36,9 +36,9 @@ public final class PhysicsSnapshotPublicationSystem extends TickingSystem<Entity
 
     @Override
     public void tick(float dt, int systemIndex, @Nonnull Store<EntityStore> store) {
-        PhysicsWorldWorkerResource worker = store.getResource(
-            PhysicsWorldWorkerResource.getResourceType());
-        if (worker.isClosed()) {
+        PhysicsOwnerResource owner = store.getResource(
+            PhysicsOwnerResource.getResourceType());
+        if (owner.isClosed()) {
             return;
         }
         PhysicsWorldResource resource = store.getResource(PhysicsWorldResource.getResourceType());
@@ -46,26 +46,26 @@ public final class PhysicsSnapshotPublicationSystem extends TickingSystem<Entity
             PhysicsRuntimeProfilingResource.getResourceType());
         // Mutation futures are drained for failures/completion only; snapshot inclusion is still
         // determined by the next captured and applied PublishedPhysicsSnapshotFrame.
-        PhysicsPublicationPipeline.publishCompletedMutations(worker);
+        PhysicsPublicationPipeline.publishCompletedMutations(owner);
         long publicationServerTick = Math.max(0L, store.getExternalData().getWorld().getTick());
-        PhysicsPublicationPipeline.publishCompletedStep(worker, resource, profiling, publicationServerTick);
+        PhysicsPublicationPipeline.publishCompletedStep(owner, resource, profiling, publicationServerTick);
     }
 
-    static int publishCompletedMutations(@Nonnull PhysicsWorldWorkerResource worker) {
-        return PhysicsPublicationPipeline.publishCompletedMutations(worker);
+    static int publishCompletedMutations(@Nonnull PhysicsOwnerResource owner) {
+        return PhysicsPublicationPipeline.publishCompletedMutations(owner);
     }
 
-    static void publishCompletedStep(@Nonnull PhysicsWorldWorkerResource worker,
+    static void publishCompletedStep(@Nonnull PhysicsOwnerResource owner,
         @Nonnull PhysicsWorldResource resource,
         @Nonnull PhysicsRuntimeProfilingResource profiling) {
-        PhysicsPublicationPipeline.publishCompletedStep(worker, resource, profiling);
+        PhysicsPublicationPipeline.publishCompletedStep(owner, resource, profiling);
     }
 
-    static void publishCompletedStep(@Nonnull PhysicsWorldWorkerResource worker,
+    static void publishCompletedStep(@Nonnull PhysicsOwnerResource owner,
         @Nonnull PhysicsWorldResource resource,
         @Nonnull PhysicsRuntimeProfilingResource profiling,
         long publicationServerTick) {
-        PhysicsPublicationPipeline.publishCompletedStep(worker, resource, profiling, publicationServerTick);
+        PhysicsPublicationPipeline.publishCompletedStep(owner, resource, profiling, publicationServerTick);
     }
 
     @Nonnull

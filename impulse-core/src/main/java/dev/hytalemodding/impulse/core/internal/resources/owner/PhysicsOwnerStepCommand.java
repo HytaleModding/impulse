@@ -1,4 +1,4 @@
-package dev.hytalemodding.impulse.core.internal.worker;
+package dev.hytalemodding.impulse.core.internal.resources.owner;
 
 import dev.hytalemodding.impulse.api.PhysicsBody;
 import dev.hytalemodding.impulse.api.PhysicsSpace;
@@ -18,10 +18,10 @@ import javax.annotation.Nullable;
 import org.joml.Vector3f;
 
 /**
- * Worker-owned execution of the world physics step.
+ * Owner-lane execution of the world physics step.
  *
- * <p>{@link PhysicsSpace} mutations are owner-thread operations. Callers must
- * only submit this command when the worker is the exclusive owner of backend
+ * <p>{@link PhysicsSpace} mutations are owner-lane operations. Callers must
+ * only submit this command when the lane is the exclusive owner of backend
  * spaces and the resource until the result has been consumed.</p>
  *
  * <p>{@code stepSequence} and {@code serverTick} are copied into the published
@@ -29,7 +29,7 @@ import org.joml.Vector3f;
  * publication freshness; that remains guarded by the resource's frame and world
  * epochs.</p>
  */
-public final class PhysicsWorkerStepCommand implements PhysicsWorkerCommand {
+public final class PhysicsOwnerStepCommand implements PhysicsOwnerCommand {
 
     private static final float DEFAULT_LINEAR_TRAVEL_PER_SUBSTEP = 0.45f;
     private static final float MIN_LINEAR_TRAVEL_PER_SUBSTEP = 0.125f;
@@ -47,21 +47,21 @@ public final class PhysicsWorkerStepCommand implements PhysicsWorkerCommand {
     @Nullable
     private PublishedPhysicsSnapshotFrame publishedFrame;
 
-    public PhysicsWorkerStepCommand(@Nonnull PhysicsWorldResource resource,
+    public PhysicsOwnerStepCommand(@Nonnull PhysicsWorldResource resource,
         float dt,
         boolean profilingEnabled) {
         this(resource, dt, profilingEnabled, 0L, 0L);
     }
 
     /**
-     * Creates a worker step command with snapshot correlation metadata.
+     * Creates an owner step command with snapshot correlation metadata.
      *
      * @param stepSequence monotonic Impulse step-scheduler sequence; not a
      *     Hytale world tick and not guaranteed contiguous in published frames
      * @param serverTick Hytale world tick observed when the step command was
      *     scheduled; not a physics step counter
      */
-    public PhysicsWorkerStepCommand(@Nonnull PhysicsWorldResource resource,
+    public PhysicsOwnerStepCommand(@Nonnull PhysicsWorldResource resource,
         float dt,
         boolean profilingEnabled,
         long stepSequence,
@@ -76,7 +76,7 @@ public final class PhysicsWorkerStepCommand implements PhysicsWorkerCommand {
 
     @Nonnull
     @Override
-    public PhysicsWorkerSnapshot run() {
+    public PhysicsOwnerSnapshot run() {
         StepExecution result = runStepCycle(resource,
             dt,
             profilingEnabled,
@@ -98,7 +98,7 @@ public final class PhysicsWorkerStepCommand implements PhysicsWorkerCommand {
     }
 
     @Nonnull
-    static PhysicsWorkerSnapshot runStep(@Nonnull PhysicsWorldResource resource,
+    static PhysicsOwnerSnapshot runStep(@Nonnull PhysicsWorldResource resource,
         float dt,
         boolean profilingEnabled) {
         return runStepCycle(resource, dt, profilingEnabled, 0L, 0L).snapshot();
@@ -163,7 +163,7 @@ public final class PhysicsWorkerStepCommand implements PhysicsWorkerCommand {
         PhysicsStepPhaseStats nativePhaseStats = profilingEnabled
             ? collectStepPhaseStats(runtime)
             : PhysicsStepPhaseStats.unavailable();
-        return new StepExecution(new PhysicsWorkerSnapshot(counters.spaceCount(),
+        return new StepExecution(new PhysicsOwnerSnapshot(counters.spaceCount(),
             counters.substeps(),
             frame.bodyCount(),
             frame.spatialIndexCellCount(),
@@ -366,7 +366,7 @@ public final class PhysicsWorkerStepCommand implements PhysicsWorkerCommand {
         }
     }
 
-    record StepExecution(@Nonnull PhysicsWorkerSnapshot snapshot,
+    record StepExecution(@Nonnull PhysicsOwnerSnapshot snapshot,
                          @Nullable RuntimeException failure,
                          @Nonnull PublishedPhysicsSnapshotFrame frame) {
     }

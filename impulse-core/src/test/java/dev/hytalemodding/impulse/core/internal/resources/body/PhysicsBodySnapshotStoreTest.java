@@ -23,7 +23,6 @@ import dev.hytalemodding.impulse.core.plugin.body.RigidBodyKey;
 import dev.hytalemodding.impulse.core.plugin.snapshot.PublishedPhysicsBodySnapshot;
 import dev.hytalemodding.impulse.core.plugin.snapshot.PublishedPhysicsSnapshotFrame;
 import dev.hytalemodding.impulse.core.plugin.snapshot.PublishedPhysicsSpaceFrame;
-import java.io.IOException;
 import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
@@ -46,7 +45,7 @@ class PhysicsBodySnapshotStoreTest {
         PhysicsBodyRegistry registry = new PhysicsBodyRegistry();
         registry.registerBody(bodyId,
             body,
-            delegate.getId(),
+            delegate.id(),
             PhysicsBodyKind.BODY,
             PhysicsBodyPersistenceMode.RUNTIME_ONLY);
         RecordingSnapshotSpace space = new RecordingSnapshotSpace(delegate);
@@ -68,16 +67,16 @@ class PhysicsBodySnapshotStoreTest {
         PhysicsBodyRegistry registry = new PhysicsBodyRegistry();
         registry.registerBody(bodyId,
             body,
-            space.getId(),
+            space.id(),
             PhysicsBodyKind.BODY,
             PhysicsBodyPersistenceMode.RUNTIME_ONLY);
         PhysicsBodySnapshotStore store = new PhysicsBodySnapshotStore();
 
         PhysicsBodySnapshotStore.ApplyStats firstApply = store.applyPublishedFrame(
-            frame(space.getId(), bodyId, 1L, new Vector3f(1.0f, 2.0f, 3.0f)),
+            frame(space.id(), bodyId, 1L, new Vector3f(1.0f, 2.0f, 3.0f)),
             registry);
         PhysicsBodySnapshotStore.ApplyStats secondApply = store.applyPublishedFrame(
-            frame(space.getId(), bodyId, 2L, new Vector3f(2.0f, 2.0f, 3.0f)),
+            frame(space.id(), bodyId, 2L, new Vector3f(2.0f, 2.0f, 3.0f)),
             registry);
 
         assertEquals(1, firstApply.applied());
@@ -87,7 +86,7 @@ class PhysicsBodySnapshotStoreTest {
         assertEquals(0, secondApply.inserted());
         assertEquals(0, secondApply.removed());
         assertEquals(1, store.bodyCount());
-        assertEquals(1, store.bodyCount(space.getId()));
+        assertEquals(1, store.bodyCount(space.id()));
         assertEquals(1, store.cellCount());
     }
 
@@ -116,15 +115,15 @@ class PhysicsBodySnapshotStoreTest {
         PhysicsBodyRegistry registry = new PhysicsBodyRegistry();
         registry.registerBody(bodyId,
             body,
-            space.getId(),
+            space.id(),
             PhysicsBodyKind.BODY,
             PhysicsBodyPersistenceMode.RUNTIME_ONLY);
         PhysicsBodySnapshotStore store = new PhysicsBodySnapshotStore();
 
-        store.applyPublishedFrame(frame(space.getId(), bodyId, 1L, new Vector3f(1.0f, 2.0f, 3.0f)),
+        store.applyPublishedFrame(frame(space.id(), bodyId, 1L, new Vector3f(1.0f, 2.0f, 3.0f)),
             registry);
         var firstSnapshot = store.get(bodyId);
-        store.applyPublishedFrame(frame(space.getId(), bodyId, 2L, new Vector3f(1.0f, 2.0f, 3.0f)),
+        store.applyPublishedFrame(frame(space.id(), bodyId, 2L, new Vector3f(1.0f, 2.0f, 3.0f)),
             registry);
 
         assertSame(firstSnapshot, store.get(bodyId));
@@ -229,14 +228,14 @@ class PhysicsBodySnapshotStoreTest {
 
         @Nonnull
         @Override
-        public SpaceId getId() {
-            return delegate.getId();
+        public SpaceId id() {
+            return delegate.id();
         }
 
         @Nonnull
         @Override
-        public BackendId getBackendId() {
-            return delegate.getBackendId();
+        public BackendId backendId() {
+            return delegate.backendId();
         }
 
         @Override

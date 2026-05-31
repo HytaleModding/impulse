@@ -6,7 +6,7 @@ import java.util.Objects;
 import javax.annotation.Nonnull;
 
 /**
- * Internal owner-thread query for nearby joints used by debug rendering.
+ * Internal owner-lane query for nearby joints used by debug rendering.
  */
 public record PhysicsDebugJointsQuery(@Nonnull SpaceId spaceId,
                                       double viewerX,

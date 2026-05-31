@@ -38,9 +38,9 @@ public final class PhysicsControlSessionCleanup {
         }
 
         if (controlJointKey != null || anchorBodyKey != null) {
-            // Tick-driven session cleanup must not wait behind worker backlog.
+            // Tick-driven session cleanup must not wait behind owner backlog.
             // The owner command releases the backend joint/body when it reaches
-            // the worker; command/admin helpers may still choose synchronous
+            // the owner lane; command/admin helpers may still choose synchronous
             // semantics when they need immediate textual feedback.
             resource.submitCommands(0L, 2, commands -> {
                 if (session.getSpaceId() != null && bodyKey != null && anchorBodyKey != null) {

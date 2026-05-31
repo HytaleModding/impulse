@@ -14,11 +14,10 @@ import dev.hytalemodding.impulse.core.ImpulsePlugin;
 import dev.hytalemodding.impulse.core.internal.persistence.PersistentPhysicsBodyState;
 import dev.hytalemodding.impulse.core.internal.persistence.PersistentPhysicsWorldResource;
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsWorldRuntimeResource;
-import dev.hytalemodding.impulse.core.internal.worker.PhysicsWorkerAccess;
+import dev.hytalemodding.impulse.core.internal.resources.owner.PhysicsOwnerBridge;
 import dev.hytalemodding.impulse.core.plugin.body.RigidBodyKey;
 import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyKind;
 import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyPersistenceMode;
-import dev.hytalemodding.impulse.core.plugin.resources.PhysicsWorldResource;
 import java.util.Set;
 import javax.annotation.Nonnull;
 
@@ -65,7 +64,7 @@ public class PersistentPhysicsBodyHydrationSystem extends TickingSystem<EntitySt
             }
 
             try {
-                RestoreBodyResult result = PhysicsWorkerAccess.call(store,
+                RestoreBodyResult result = PhysicsOwnerBridge.call(store,
                     "hydrate persisted physics body",
                     () -> restoreBodyOnOwner(runtime, state, bodyKey));
                 if (result == RestoreBodyResult.RESTORED) {
@@ -95,7 +94,7 @@ public class PersistentPhysicsBodyHydrationSystem extends TickingSystem<EntitySt
         PhysicsBody body = state.createBody(space);
         state.applyToBody(body);
         runtime.addBody(bodyKey,
-            space.getId(),
+            space.id(),
             body,
             PhysicsBodyKind.BODY,
             PhysicsBodyPersistenceMode.PERSISTENT);

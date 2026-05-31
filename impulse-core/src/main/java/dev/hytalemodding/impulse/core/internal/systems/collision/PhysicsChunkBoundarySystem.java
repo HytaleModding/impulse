@@ -22,7 +22,7 @@ import dev.hytalemodding.impulse.core.internal.resources.PhysicsWorldRuntimeReso
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsChunkBoundaryRuntime;
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsChunkBoundaryRuntime.ChunkBoundarySafeState;
 import dev.hytalemodding.impulse.core.internal.systems.sync.PhysicsSyncSystem;
-import dev.hytalemodding.impulse.core.internal.worker.PhysicsWorkerAccess;
+import dev.hytalemodding.impulse.core.internal.resources.owner.PhysicsOwnerBridge;
 import dev.hytalemodding.impulse.core.plugin.settings.EntityChunkBoundaryMode;
 import dev.hytalemodding.impulse.core.plugin.body.RigidBodyKey;
 import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyKind;
@@ -108,7 +108,7 @@ public class PhysicsChunkBoundarySystem extends TickingSystem<EntityStore> {
             return;
         }
 
-        PhysicsWorkerAccess.run(store, "pause chunk-boundary physics body",
+        PhysicsOwnerBridge.run(store, "pause chunk-boundary physics body",
             () -> pauseBody(bodyKey, snapshot, targetChunkIndex, resource));
     }
 
@@ -129,7 +129,7 @@ public class PhysicsChunkBoundarySystem extends TickingSystem<EntityStore> {
             return;
         }
 
-        PhysicsWorkerAccess.run(entityStore, "resume chunk-boundary physics body", () -> {
+        PhysicsOwnerBridge.run(entityStore, "resume chunk-boundary physics body", () -> {
             PhysicsBody body = resource.getBody(bodyKey);
             if (body == null) {
                 return;

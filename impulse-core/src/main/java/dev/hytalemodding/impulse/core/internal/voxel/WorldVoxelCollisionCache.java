@@ -478,7 +478,7 @@ public final class WorldVoxelCollisionCache {
      * Removes all cached sections for the given space.
      */
     public int clear(@Nonnull PhysicsSpace space) {
-        return clear(space.getId(), space);
+        return clear(space.id(), space);
     }
 
     /**
@@ -643,7 +643,7 @@ public final class WorldVoxelCollisionCache {
             profiling.incrementSectionRequests();
         }
 
-        SpaceCollisionCache cache = spaces.computeIfAbsent(space.getId().value(), ignored -> new SpaceCollisionCache());
+        SpaceCollisionCache cache = spaces.computeIfAbsent(space.id().value(), ignored -> new SpaceCollisionCache());
         long chunkKey = ChunkUtil.indexChunk(chunkX, chunkZ);
         long sectionKey = packSectionKey(chunkX, sectionY, chunkZ);
         if (isBackedOff(cache.missingBlockChunkBackoffs, chunkKey, tick)) {

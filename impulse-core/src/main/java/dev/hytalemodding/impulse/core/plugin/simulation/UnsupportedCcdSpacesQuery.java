@@ -3,7 +3,7 @@ package dev.hytalemodding.impulse.core.plugin.simulation;
 import java.util.List;
 
 /**
- * Owner-thread query for spaces whose backend does not support continuous collision detection.
+ * Owner-lane query for spaces whose backend does not support continuous collision detection.
  */
 public record UnsupportedCcdSpacesQuery() implements PhysicsQuery<List<SpaceSummary>> {
 }

@@ -61,7 +61,7 @@ import org.joml.Quaternionf;
 import org.joml.Vector3f;
 
 /**
- * Owner-thread translator from public simulation commands to live backend calls.
+ * Owner-lane translator from public simulation commands to live backend calls.
  */
 public final class PhysicsSimulationExecutor implements PhysicsCommandDispatcher {
 
@@ -690,7 +690,7 @@ public final class PhysicsSimulationExecutor implements PhysicsCommandDispatcher
     @Nonnull
     private Optional<RaycastHitView> raycastClosest(@Nonnull RaycastClosestQuery query) {
         Optional<PhysicsRayHit> hit = requireSpace(query.spaceId()).raycastClosest(query.from(), query.to());
-        return hit.isPresent() ? Optional.of(toView(hit.get())) : Optional.empty();
+        return hit.map(this::toView);
     }
 
     @Nonnull
@@ -702,7 +702,7 @@ public final class PhysicsSimulationExecutor implements PhysicsCommandDispatcher
         for (int index = 0; index < query.rays().size(); index++) {
             RaycastSegment ray = query.rays().get(index);
             Optional<PhysicsRayHit> hit = space.raycastClosest(ray.copyFrom(from), ray.copyTo(to));
-            hits[index] = hit.isPresent() ? toView(hit.get()) : null;
+            hits[index] = hit.map(this::toView).orElse(null);
         }
         return new RaycastClosestBatchResult(hits);
     }
@@ -819,7 +819,7 @@ public final class PhysicsSimulationExecutor implements PhysicsCommandDispatcher
             stats.planeBodies++;
             return;
         }
-        if (cache.containsBody(space.getId(), body)) {
+        if (cache.containsBody(space.id(), body)) {
             stats.worldCollisionBodies++;
             return;
         }
@@ -850,7 +850,7 @@ public final class PhysicsSimulationExecutor implements PhysicsCommandDispatcher
                 stats.belowPlaneBodies++;
             }
             if (query.includeTerrainProbe()) {
-                WorldVoxelCollisionCache.GroundProbe ground = cache.probeGround(space.getId(),
+                WorldVoxelCollisionCache.GroundProbe ground = cache.probeGround(space.id(),
                     position.x,
                     position.z,
                     horizontalHalfExtent(body));
@@ -889,7 +889,7 @@ public final class PhysicsSimulationExecutor implements PhysicsCommandDispatcher
         if (body.getShapeType() == ShapeType.PLANE) {
             return;
         }
-        if (cache.containsBody(space.getId(), body)) {
+        if (cache.containsBody(space.id(), body)) {
             stats.worldCollisionBodies++;
             return;
         }
@@ -907,7 +907,7 @@ public final class PhysicsSimulationExecutor implements PhysicsCommandDispatcher
         for (int index = 0; index < Math.max(0, query.count()); index++) {
             double positionX = query.originX() + (index % query.side()) * query.spacing();
             double positionY = query.originY();
-            double positionZ = query.originZ() + (index / query.side()) * query.spacing();
+            double positionZ = query.originZ() + ((double) index / query.side()) * query.spacing();
             total = total.plus(prewarmStreamingCollisionEnvelope(cache,
                 space,
                 query,
@@ -1331,8 +1331,8 @@ public final class PhysicsSimulationExecutor implements PhysicsCommandDispatcher
     @Nonnull
     private SolverCapabilitySummary solverCapability(@Nonnull SolverCapabilityQuery query) {
         PhysicsSpace space = requireSpace(query.spaceId());
-        return new SolverCapabilitySummary(space.getId(),
-            space.getBackendId().value(),
+        return new SolverCapabilitySummary(space.id(),
+            space.backendId().value(),
             space.getCapability(PhysicsSolverTuningCapability.class).isPresent(),
             space.getCapability(PhysicsActivationTuningCapability.class).isPresent());
     }
@@ -1351,7 +1351,7 @@ public final class PhysicsSimulationExecutor implements PhysicsCommandDispatcher
 
     @Nonnull
     private SpaceSummary summary(@Nonnull PhysicsSpace space) {
-        return new SpaceSummary(space.getId(), space.getBackendId(), space.bodyCount(), space.jointCount());
+        return new SpaceSummary(space.id(), space.backendId(), space.bodyCount(), space.jointCount());
     }
 
     @Nonnull

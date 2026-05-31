@@ -79,7 +79,7 @@ class PublishedPhysicsSnapshotFrameTest {
 
     @Test
     void factoryCopiesExistingSnapshotData() {
-        PhysicsBodySnapshot ownerThreadSnapshot = new PhysicsBodySnapshot(new Vector3f(1.0f, 0.0f, 0.0f),
+        PhysicsBodySnapshot ownerLaneSnapshot = new PhysicsBodySnapshot(new Vector3f(1.0f, 0.0f, 0.0f),
             new Quaternionf().rotateY(0.5f),
             new Vector3f(0.0f, 2.0f, 0.0f),
             new Vector3f(0.0f, 0.0f, 3.0f),
@@ -101,11 +101,11 @@ class PublishedPhysicsSnapshotFrameTest {
             4L,
             PhysicsBodyKind.BODY,
             PhysicsBodyPersistenceMode.PERSISTENT,
-            ownerThreadSnapshot);
-        ownerThreadSnapshot.position().zero();
-        ownerThreadSnapshot.rotation().identity();
-        ownerThreadSnapshot.linearVelocity().zero();
-        ownerThreadSnapshot.angularVelocity().zero();
+            ownerLaneSnapshot);
+        ownerLaneSnapshot.position().zero();
+        ownerLaneSnapshot.rotation().identity();
+        ownerLaneSnapshot.linearVelocity().zero();
+        ownerLaneSnapshot.angularVelocity().zero();
 
         assertEquals(new Vector3f(1.0f, 0.0f, 0.0f), published.position());
         assertEquals(new Quaternionf().rotateY(0.5f), published.rotation());

@@ -23,9 +23,10 @@ import dev.hytalemodding.impulse.core.internal.components.GeneratedVisualProxyCo
 import dev.hytalemodding.impulse.core.internal.persistence.PersistentPhysicsWorldResource;
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsDebugResource;
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsWorldRuntimeResource;
+import dev.hytalemodding.impulse.core.internal.resources.owner.PhysicsOwnerLaneScheduler;
+import dev.hytalemodding.impulse.core.internal.resources.owner.PhysicsOwnerResource;
 import dev.hytalemodding.impulse.core.internal.resources.profiling.PhysicsRuntimeProfilingResource;
 import dev.hytalemodding.impulse.core.internal.resources.profiling.WorldCollisionProfilingResource;
-import dev.hytalemodding.impulse.core.internal.resources.PhysicsWorldWorkerResource;
 import dev.hytalemodding.impulse.core.internal.systems.collision.PhysicsChunkBoundarySystem;
 import dev.hytalemodding.impulse.core.internal.systems.collision.PhysicsCollisionLodSystem;
 import dev.hytalemodding.impulse.core.internal.systems.collision.PhysicsWorldCollisionStreamingSystem;
@@ -35,17 +36,17 @@ import dev.hytalemodding.impulse.core.internal.systems.persistence.PersistentPhy
 import dev.hytalemodding.impulse.core.internal.systems.persistence.PersistentPhysicsSpaceBootstrapSystem;
 import dev.hytalemodding.impulse.core.internal.systems.persistence.PersistentPhysicsWorldSyncSystem;
 import dev.hytalemodding.impulse.core.internal.systems.persistence.PhysicsRuntimeHolderSystem;
+import dev.hytalemodding.impulse.core.internal.systems.publication.PhysicsSnapshotPublicationSystem;
 import dev.hytalemodding.impulse.core.internal.systems.step.PhysicsControlSessionCleanupSystem;
 import dev.hytalemodding.impulse.core.internal.systems.step.PhysicsKinematicControlSystem;
 import dev.hytalemodding.impulse.core.internal.systems.step.PhysicsStepSystem;
 import dev.hytalemodding.impulse.core.internal.systems.sync.PhysicsBodyAttachmentIndexSystem;
 import dev.hytalemodding.impulse.core.internal.systems.sync.PhysicsSyncSystem;
 import dev.hytalemodding.impulse.core.internal.systems.visual.PhysicsDetachedVisualMaterializationSystem;
-import dev.hytalemodding.impulse.core.internal.systems.publication.PhysicsSnapshotPublicationSystem;
-import dev.hytalemodding.impulse.core.internal.systems.worker.PhysicsWorldWorkerLifecycleSystem;
+import dev.hytalemodding.impulse.core.internal.systems.owner.PhysicsOwnerLifecycleSystem;
+import dev.hytalemodding.impulse.core.internal.components.PhysicsControlSessionComponent;
 import dev.hytalemodding.impulse.core.plugin.components.ImpulseControllableComponent;
 import dev.hytalemodding.impulse.core.plugin.components.PhysicsBodyAttachmentComponent;
-import dev.hytalemodding.impulse.core.internal.components.PhysicsControlSessionComponent;
 import dev.hytalemodding.impulse.core.plugin.persistence.PhysicsPersistenceResource;
 import dev.hytalemodding.impulse.core.plugin.resources.PhysicsWorldResource;
 import java.nio.file.Path;
@@ -61,6 +62,7 @@ public final class ImpulsePlugin extends JavaPlugin {
 
     private static ImpulsePlugin instance;
     private static final HytaleLogger LOGGER = HytaleLogger.get("Impulse");
+    static final String OWNER_POOL_SIZE_PROPERTY = "impulse.ownerPool.size";
 
     @Getter
     private ComponentType<EntityStore, PhysicsBodyAttachmentComponent> physicsBodyAttachmentComponentType;
@@ -81,7 +83,7 @@ public final class ImpulsePlugin extends JavaPlugin {
     private ResourceType<EntityStore, PhysicsRuntimeProfilingResource> physicsRuntimeProfilingResourceType;
 
     @Getter
-    private ResourceType<EntityStore, PhysicsWorldWorkerResource> physicsWorldWorkerResourceType;
+    private ResourceType<EntityStore, PhysicsOwnerResource> physicsOwnerResourceType;
 
     @Getter
     private ResourceType<EntityStore, WorldCollisionProfilingResource> worldCollisionProfilingResourceType;
@@ -95,8 +97,9 @@ public final class ImpulsePlugin extends JavaPlugin {
     @Nullable
     private BackendId defaultBackendId;
 
+    private PhysicsOwnerLaneScheduler physicsOwnerLaneScheduler;
     private PhysicsStepSystem physicsStepSystem;
-    private PhysicsWorldWorkerLifecycleSystem physicsWorldWorkerLifecycleSystem;
+    private PhysicsOwnerLifecycleSystem physicsOwnerLifecycleSystem;
 
     public ImpulsePlugin(@Nonnull JavaPluginInit init) {
         super(init);
@@ -132,9 +135,13 @@ public final class ImpulsePlugin extends JavaPlugin {
             physicsStepSystem.close();
             physicsStepSystem = null;
         }
-        if (physicsWorldWorkerLifecycleSystem != null) {
-            physicsWorldWorkerLifecycleSystem.close();
-            physicsWorldWorkerLifecycleSystem = null;
+        if (physicsOwnerLifecycleSystem != null) {
+            physicsOwnerLifecycleSystem.close();
+            physicsOwnerLifecycleSystem = null;
+        }
+        if (physicsOwnerLaneScheduler != null) {
+            physicsOwnerLaneScheduler.close();
+            physicsOwnerLaneScheduler = null;
         }
     }
 
@@ -208,6 +215,23 @@ public final class ImpulsePlugin extends JavaPlugin {
         return backends.iterator().next().getId();
     }
 
+    static int configuredPositiveInt(@Nonnull String property,
+        int defaultValue) {
+        if (defaultValue < 1) {
+            throw new IllegalArgumentException("defaultValue must be positive");
+        }
+        String configured = System.getProperty(property);
+        if (configured == null || configured.isBlank()) {
+            return defaultValue;
+        }
+        try {
+            int parsed = Integer.parseInt(configured.trim());
+            return parsed > 0 ? parsed : defaultValue;
+        } catch (NumberFormatException exception) {
+            return defaultValue;
+        }
+    }
+
     @Nonnull
     private String getAvailableBackendIds() {
         StringBuilder ids = new StringBuilder();
@@ -243,9 +267,14 @@ public final class ImpulsePlugin extends JavaPlugin {
         physicsRuntimeProfilingResourceType = entityRegistry.registerResource(
             PhysicsRuntimeProfilingResource.class,
             PhysicsRuntimeProfilingResource::new);
-        physicsWorldWorkerResourceType = entityRegistry.registerResource(
-            PhysicsWorldWorkerResource.class,
-            PhysicsWorldWorkerResource::new);
+        physicsOwnerLaneScheduler = new PhysicsOwnerLaneScheduler(
+            configuredPositiveInt(OWNER_POOL_SIZE_PROPERTY,
+                PhysicsOwnerLaneScheduler.DEFAULT_POOL_SIZE),
+            PhysicsOwnerLaneScheduler.DEFAULT_QUEUE_CAPACITY,
+            PhysicsOwnerLaneScheduler.DEFAULT_CLOSE_TIMEOUT);
+        physicsOwnerResourceType = entityRegistry.registerResource(
+            PhysicsOwnerResource.class,
+            physicsOwnerLaneScheduler::createLane);
         worldCollisionProfilingResourceType = entityRegistry.registerResource(
             WorldCollisionProfilingResource.class,
             WorldCollisionProfilingResource::new);
@@ -262,8 +291,8 @@ public final class ImpulsePlugin extends JavaPlugin {
         chunkRegistry.registerSystem(new PhysicsDebugSystem());
 
         ComponentRegistryProxy<EntityStore> entityRegistry = getEntityStoreRegistry();
-        physicsWorldWorkerLifecycleSystem = new PhysicsWorldWorkerLifecycleSystem();
-        entityRegistry.registerSystem(physicsWorldWorkerLifecycleSystem);
+        physicsOwnerLifecycleSystem = new PhysicsOwnerLifecycleSystem();
+        entityRegistry.registerSystem(physicsOwnerLifecycleSystem);
         persistenceRestoreGroup = entityRegistry.registerSystemGroup();
         entityRegistry.registerSystem(new PersistentPhysicsSpaceBootstrapSystem());
         entityRegistry.registerSystem(new PersistentPhysicsBodyHydrationSystem());
@@ -271,12 +300,12 @@ public final class ImpulsePlugin extends JavaPlugin {
         entityRegistry.registerSystem(new PhysicsRuntimeHolderSystem());
         entityRegistry.registerSystem(new PhysicsBodyAttachmentIndexSystem());
         entityRegistry.registerSystem(new PhysicsControlSessionCleanupSystem());
-        entityRegistry.registerSystem(new PhysicsSnapshotPublicationSystem());
         entityRegistry.registerSystem(new PhysicsWorldCollisionStreamingSystem());
         entityRegistry.registerSystem(new PhysicsCollisionLodSystem());
         entityRegistry.registerSystem(new PhysicsSyncSystem());
         entityRegistry.registerSystem(new PhysicsDetachedVisualMaterializationSystem());
         entityRegistry.registerSystem(new PhysicsChunkBoundarySystem());
+        entityRegistry.registerSystem(new PhysicsSnapshotPublicationSystem());
         entityRegistry.registerSystem(new PersistentPhysicsWorldSyncSystem());
         entityRegistry.registerSystem(new PhysicsKinematicControlSystem());
     }

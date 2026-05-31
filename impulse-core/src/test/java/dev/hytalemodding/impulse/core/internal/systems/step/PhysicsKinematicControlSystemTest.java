@@ -13,8 +13,8 @@ import dev.hytalemodding.impulse.api.PhysicsSpace;
 import dev.hytalemodding.impulse.api.testsupport.FakePhysicsBackend;
 import dev.hytalemodding.impulse.core.internal.control.PhysicsControlJointResolver;
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsWorldRuntimeResource;
-import dev.hytalemodding.impulse.core.internal.resources.PhysicsWorldWorkerResource;
-import dev.hytalemodding.impulse.core.internal.worker.PhysicsWorkerSnapshot;
+import dev.hytalemodding.impulse.core.internal.resources.owner.TestPhysicsOwnerLane;
+import dev.hytalemodding.impulse.core.internal.resources.owner.PhysicsOwnerSnapshot;
 import dev.hytalemodding.impulse.core.internal.systems.step.PhysicsKinematicControlSystem.ControlAnchorUpdate;
 import dev.hytalemodding.impulse.core.internal.systems.step.PhysicsKinematicControlSystem.ControlMutationState;
 import dev.hytalemodding.impulse.core.plugin.body.RigidBodyKey;
@@ -123,16 +123,16 @@ class PhysicsKinematicControlSystemTest {
             new FakePhysicsBackend("test:control-pending-anchor-" + BACKEND_COUNTER.incrementAndGet());
         Impulse.registerBackend(backend);
         PhysicsWorldRuntimeResource resource = new PhysicsWorldRuntimeResource();
-        try (PhysicsWorldWorkerResource worker = new PhysicsWorldWorkerResource(4,
+        try (TestPhysicsOwnerLane owner = new TestPhysicsOwnerLane(4,
             Duration.ofSeconds(2L))) {
-            worker.start("control-pending-anchor");
-            resource.attachWorkerResource(worker);
+            owner.start("control-pending-anchor");
+            resource.attachOwnerExecutor(owner);
             PhysicsSpace space = resource.createLiveSpace(backend.getId());
             RigidBodyKey anchorBodyId = RigidBodyKey.random();
 
             resource.submitCommands(10L, commands -> commands
                     .spawnBody(anchorBodyId, spawn -> spawn
-                        .space(space.getId())
+                        .space(space.id())
                         .sphere(0.08f)
                         .kinematic()
                         .temporary()
@@ -144,7 +144,7 @@ class PhysicsKinematicControlSystemTest {
             assertNull(resource.getBodyRegistrationView(anchorBodyId));
             assertTrue(resource.hasPublishedOrPendingBodyRegistration(anchorBodyId));
 
-            resource.detachWorkerResource(worker);
+            resource.detachOwnerExecutor(owner);
         }
     }
 
@@ -157,11 +157,11 @@ class PhysicsKinematicControlSystemTest {
         PhysicsSpace space = resource.createLiveSpace(backend.getId());
         PhysicsBody body = space.createBox(0.5f, 0.5f, 0.5f, 1.0f);
         PhysicsBody anchorBody = space.createSphere(0.1f, 1.0f);
-        RigidBodyKey bodyId = resource.addBody(space.getId(),
+        RigidBodyKey bodyId = resource.addBody(space.id(),
             body,
             PhysicsBodyKind.BODY,
             PhysicsBodyPersistenceMode.PERSISTENT);
-        RigidBodyKey anchorBodyId = resource.addBody(space.getId(),
+        RigidBodyKey anchorBodyId = resource.addBody(space.id(),
             anchorBody,
             PhysicsBodyKind.TEMPORARY,
             PhysicsBodyPersistenceMode.RUNTIME_ONLY);
@@ -188,23 +188,23 @@ class PhysicsKinematicControlSystemTest {
         PhysicsSpace space = resource.createLiveSpace(backend.getId());
         PhysicsBody body = space.createBox(0.5f, 0.5f, 0.5f, 1.0f);
         PhysicsBody anchorBody = space.createSphere(0.1f, 1.0f);
-        RigidBodyKey bodyId = resource.addBody(space.getId(),
+        RigidBodyKey bodyId = resource.addBody(space.id(),
             body,
             PhysicsBodyKind.BODY,
             PhysicsBodyPersistenceMode.PERSISTENT);
-        RigidBodyKey anchorBodyId = resource.addBody(space.getId(),
+        RigidBodyKey anchorBodyId = resource.addBody(space.id(),
             anchorBody,
             PhysicsBodyKind.TEMPORARY,
             PhysicsBodyPersistenceMode.RUNTIME_ONLY);
         PhysicsJoint controlJoint =
             space.createPointJoint(anchorBody, body, new Vector3f(), new Vector3f());
-        JointKey controlJointId = resource.addJoint(space.getId(), controlJoint);
+        JointKey controlJointId = resource.addJoint(space.id(), controlJoint);
         resource.markBodyControlled(bodyId);
         PhysicsControlSessionComponent session = new PhysicsControlSessionComponent(bodyId,
             anchorBodyId,
             controlJointId,
             null,
-            space.getId(),
+            space.id(),
             body.getBodyType(),
             4.0f,
             new Vector3f(),
@@ -227,31 +227,31 @@ class PhysicsKinematicControlSystemTest {
     }
 
     @Test
-    void sessionCleanupQueuesWorkerReleaseWithoutBlocking() throws Exception {
+    void sessionCleanupQueuesOwnerReleaseWithoutBlocking() throws Exception {
         FakePhysicsBackend backend =
-            new FakePhysicsBackend("test:control-cleanup-worker-" + BACKEND_COUNTER.incrementAndGet());
+            new FakePhysicsBackend("test:control-cleanup-owner-" + BACKEND_COUNTER.incrementAndGet());
         Impulse.registerBackend(backend);
         PhysicsWorldRuntimeResource resource = new PhysicsWorldRuntimeResource();
         PhysicsSpace space = resource.createLiveSpace(backend.getId());
         PhysicsBody body = space.createBox(0.5f, 0.5f, 0.5f, 1.0f);
         PhysicsBody anchorBody = space.createSphere(0.1f, 1.0f);
-        RigidBodyKey bodyId = resource.addBody(space.getId(),
+        RigidBodyKey bodyId = resource.addBody(space.id(),
             body,
             PhysicsBodyKind.BODY,
             PhysicsBodyPersistenceMode.PERSISTENT);
-        RigidBodyKey anchorBodyId = resource.addBody(space.getId(),
+        RigidBodyKey anchorBodyId = resource.addBody(space.id(),
             anchorBody,
             PhysicsBodyKind.TEMPORARY,
             PhysicsBodyPersistenceMode.RUNTIME_ONLY);
         PhysicsJoint controlJoint =
             space.createPointJoint(anchorBody, body, new Vector3f(), new Vector3f());
-        JointKey controlJointId = resource.addJoint(space.getId(), controlJoint);
+        JointKey controlJointId = resource.addJoint(space.id(), controlJoint);
         resource.markBodyControlled(bodyId);
         PhysicsControlSessionComponent session = new PhysicsControlSessionComponent(bodyId,
             anchorBodyId,
             controlJointId,
             null,
-            space.getId(),
+            space.id(),
             body.getBodyType(),
             4.0f,
             new Vector3f(),
@@ -259,14 +259,14 @@ class PhysicsKinematicControlSystemTest {
 
         CountDownLatch mutationStarted = new CountDownLatch(1);
         CountDownLatch releaseMutation = new CountDownLatch(1);
-        try (PhysicsWorldWorkerResource worker = new PhysicsWorldWorkerResource(4,
+        try (TestPhysicsOwnerLane owner = new TestPhysicsOwnerLane(4,
             Duration.ofSeconds(2L))) {
-            worker.start("control-cleanup-worker");
-            resource.attachWorkerResource(worker);
-            worker.submitMutation("blocking mutation", () -> {
+            owner.start("control-cleanup-owner");
+            resource.attachOwnerExecutor(owner);
+            owner.submitMutation("blocking mutation", () -> {
                 mutationStarted.countDown();
                 assertTrue(releaseMutation.await(2L, TimeUnit.SECONDS));
-                return PhysicsWorkerSnapshot.empty();
+                return PhysicsOwnerSnapshot.empty();
             });
             assertTrue(mutationStarted.await(2L, TimeUnit.SECONDS));
 
@@ -275,11 +275,11 @@ class PhysicsKinematicControlSystemTest {
             cleanup.get(200L, TimeUnit.MILLISECONDS);
 
             assertFalse(resource.isBodyControlled(bodyId));
-            assertEquals(2, worker.pendingMutations());
+            assertEquals(2, owner.pendingMutations());
 
             releaseMutation.countDown();
-            pollMutationCompletions(worker, 2);
-            resource.detachWorkerResource(worker);
+            pollMutationCompletions(owner, 2);
+            resource.detachOwnerExecutor(owner);
         } finally {
             releaseMutation.countDown();
         }
@@ -295,12 +295,12 @@ class PhysicsKinematicControlSystemTest {
             new Vector3f(coordinate + 1.0f, coordinate + 1.0f, coordinate + 1.0f));
     }
 
-    private static void pollMutationCompletions(@Nonnull PhysicsWorldWorkerResource worker,
+    private static void pollMutationCompletions(@Nonnull TestPhysicsOwnerLane owner,
         int expected) throws InterruptedException {
         long deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(2L);
         int completed = 0;
         while (System.nanoTime() < deadline) {
-            completed += worker.pollCompletedMutations(8).size();
+            completed += owner.pollCompletedMutations(8).size();
             if (completed >= expected) {
                 return;
             }

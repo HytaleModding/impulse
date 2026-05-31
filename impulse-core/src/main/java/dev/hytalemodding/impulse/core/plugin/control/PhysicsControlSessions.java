@@ -131,7 +131,7 @@ public final class PhysicsControlSessions {
             /*
              * Explicit release/start helpers keep synchronous semantics so command handlers can
              * report replacement state immediately. Tick-driven cleanup uses
-             * PhysicsControlSessionCleanup and does not join the worker.
+             * PhysicsControlSessionCleanup and does not join the owner lane.
              */
             resource.submitCommands(0L, 4, commands -> {
                 addJointReleaseCommand(commands, controlJointKey, spaceId, anchorBodyKey, bodyKey);

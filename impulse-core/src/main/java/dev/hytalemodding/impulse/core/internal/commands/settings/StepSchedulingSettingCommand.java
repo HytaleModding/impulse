@@ -24,7 +24,7 @@ public class StepSchedulingSettingCommand extends AbstractAsyncPlayerCommand {
         ArgTypes.STRING);
 
     public StepSchedulingSettingCommand() {
-        super("scheduling", "Get or set how pending worker dt is handled");
+        super("scheduling", "Get or set how pending owner dt is handled");
     }
 
     @Nonnull

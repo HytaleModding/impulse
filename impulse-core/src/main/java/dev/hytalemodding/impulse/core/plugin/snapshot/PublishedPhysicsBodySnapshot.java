@@ -18,7 +18,7 @@ import org.joml.Vector3f;
  * Immutable body state published as part of an async snapshot frame.
  *
  * <p>This type deliberately carries an Impulse body key instead of backend
- * body handles so published frames can be read away from the owner thread.</p>
+ * body handles so published frames can be read away from the owner lane.</p>
  */
 public final class PublishedPhysicsBodySnapshot implements PublishedPhysicsBodySnapshotCursor {
 

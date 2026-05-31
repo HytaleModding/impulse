@@ -29,27 +29,27 @@ class PhysicsBodyRegistryTest {
 
         registry.registerBody(firstId,
             firstBody,
-            firstSpace.getId(),
+            firstSpace.id(),
             PhysicsBodyKind.BODY,
             PhysicsBodyPersistenceMode.RUNTIME_ONLY);
         registry.registerBody(secondId,
             secondBody,
-            secondSpace.getId(),
+            secondSpace.id(),
             PhysicsBodyKind.TEMPORARY,
             PhysicsBodyPersistenceMode.RUNTIME_ONLY);
 
         List<RigidBodyKey> firstSpaceIds = new ArrayList<>();
-        registry.forEachRegistration(firstSpace.getId(),
+        registry.forEachRegistration(firstSpace.id(),
             registration -> firstSpaceIds.add(registration.id()));
 
         assertEquals(List.of(firstId), firstSpaceIds);
-        assertEquals(1, registry.getRegistrationCount(firstSpace.getId()));
-        assertEquals(1, registry.getRegistrationCount(secondSpace.getId()));
+        assertEquals(1, registry.getRegistrationCount(firstSpace.id()));
+        assertEquals(1, registry.getRegistrationCount(secondSpace.id()));
 
         registry.unregisterBody(firstId);
 
-        assertEquals(0, registry.getRegistrationCount(firstSpace.getId()));
-        assertEquals(1, registry.getRegistrationCount(secondSpace.getId()));
+        assertEquals(0, registry.getRegistrationCount(firstSpace.id()));
+        assertEquals(1, registry.getRegistrationCount(secondSpace.id()));
     }
 
     @Test
@@ -62,20 +62,20 @@ class PhysicsBodyRegistryTest {
         PhysicsBodyRegistry registry = new PhysicsBodyRegistry();
         registry.registerBody(bodyId,
             body,
-            firstSpace.getId(),
+            firstSpace.id(),
             PhysicsBodyKind.BODY,
             PhysicsBodyPersistenceMode.RUNTIME_ONLY);
 
         registry.registerBody(bodyId,
             body,
-            secondSpace.getId(),
+            secondSpace.id(),
             PhysicsBodyKind.BODY,
             PhysicsBodyPersistenceMode.RUNTIME_ONLY);
 
-        assertEquals(0, registry.getRegistrationCount(firstSpace.getId()));
-        assertEquals(1, registry.getRegistrationCount(secondSpace.getId()));
+        assertEquals(0, registry.getRegistrationCount(firstSpace.id()));
+        assertEquals(1, registry.getRegistrationCount(secondSpace.id()));
         List<RigidBodyKey> secondSpaceIds = new ArrayList<>();
-        registry.forEachRegistration(secondSpace.getId(),
+        registry.forEachRegistration(secondSpace.id(),
             registration -> secondSpaceIds.add(registration.id()));
         assertEquals(List.of(bodyId), secondSpaceIds);
     }
@@ -89,7 +89,7 @@ class PhysicsBodyRegistryTest {
         PhysicsBodyRegistry registry = new PhysicsBodyRegistry();
         registry.registerBody(bodyId,
             body,
-            space.getId(),
+            space.id(),
             PhysicsBodyKind.BODY,
             PhysicsBodyPersistenceMode.RUNTIME_ONLY);
 

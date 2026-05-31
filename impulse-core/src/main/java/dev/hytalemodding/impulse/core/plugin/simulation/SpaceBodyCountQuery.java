@@ -5,7 +5,7 @@ import java.util.Objects;
 import javax.annotation.Nonnull;
 
 /**
- * Owner-thread query for the current live rigid body count in one physics space.
+ * Owner-lane query for the current live rigid body count in one physics space.
  */
 public record SpaceBodyCountQuery(@Nonnull SpaceId spaceId) implements PhysicsQuery<Integer> {
 

@@ -264,7 +264,7 @@ public class PhysicsDebugSystem extends TickingSystem<ChunkStore> {
         int[] rendered = {0};
         double maxDistanceSquared = viewRadius * viewRadius;
         for (PhysicsSpace space : resource.getSpaces()) {
-            resource.forEachIndexedBodySnapshot(space.getId(), (bodyKey, snapshot, spaceId, kind, persistenceMode) -> {
+            resource.forEachIndexedBodySnapshot(space.id(), (bodyKey, snapshot, spaceId, kind, persistenceMode) -> {
                 if (rendered[0] >= maxBodies) {
                     return;
                 }
@@ -304,7 +304,7 @@ public class PhysicsDebugSystem extends TickingSystem<ChunkStore> {
         @Nonnull PhysicsWorldRuntimeResource resource,
         @Nonnull PhysicsSpace space,
         float time) {
-        resource.forEachIndexedBodySnapshot(space.getId(), (bodyKey, snapshot, spaceId, kind, persistenceMode) -> {
+        resource.forEachIndexedBodySnapshot(space.id(), (bodyKey, snapshot, spaceId, kind, persistenceMode) -> {
             if (snapshot.shapeType() != ShapeType.PLANE) {
                 return;
             }
@@ -330,10 +330,10 @@ public class PhysicsDebugSystem extends TickingSystem<ChunkStore> {
         double viewRadius,
         int maxContacts,
         float time) {
-        DebugQueryKey key = DebugQueryKey.contacts(space.getId(), viewerUuid);
+        DebugQueryKey key = DebugQueryKey.contacts(space.id(), viewerUuid);
         try {
             queryCache.requestContactsIfIdle(key,
-                () -> resource.queryInternal(new PhysicsDebugContactsQuery(space.getId(),
+                () -> resource.queryInternal(new PhysicsDebugContactsQuery(space.id(),
                     viewerPosition.x,
                     viewerPosition.y,
                     viewerPosition.z,
@@ -356,10 +356,10 @@ public class PhysicsDebugSystem extends TickingSystem<ChunkStore> {
         double viewRadius,
         int maxJoints,
         float time) {
-        DebugQueryKey key = DebugQueryKey.joints(space.getId(), viewerUuid);
+        DebugQueryKey key = DebugQueryKey.joints(space.id(), viewerUuid);
         try {
             queryCache.requestJointsIfIdle(key,
-                () -> resource.queryInternal(new PhysicsDebugJointsQuery(space.getId(),
+                () -> resource.queryInternal(new PhysicsDebugJointsQuery(space.id(),
                     viewerPosition.x,
                     viewerPosition.y,
                     viewerPosition.z,
@@ -418,7 +418,7 @@ public class PhysicsDebugSystem extends TickingSystem<ChunkStore> {
         @Nonnull Vector3d viewerPosition,
         double maxDistanceSquared) {
         List<VisibleDebugSection> visibleSections = new ArrayList<>();
-        resource.worldCollisionCache().forEachDebugSection(space.getId(), section -> {
+        resource.worldCollisionCache().forEachDebugSection(space.id(), section -> {
             double distanceSquared = distanceSquaredToSection(viewerPosition, section);
             if (distanceSquared > maxDistanceSquared) {
                 return;
@@ -518,7 +518,7 @@ public class PhysicsDebugSystem extends TickingSystem<ChunkStore> {
 
         /*
          * Debug overlays run in the tick path, so contact/joint queries are cached and polled.
-         * If a worker query is still incomplete, the renderer uses the previous completed result
+         * If an owner query is still incomplete, the renderer uses the previous completed result
          * or skips that overlay for the frame instead of joining the world thread.
          */
         @Nonnull

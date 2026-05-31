@@ -1,20 +1,20 @@
-package dev.hytalemodding.impulse.core.internal.worker;
+package dev.hytalemodding.impulse.core.internal.resources.owner;
 
 import dev.hytalemodding.impulse.api.PhysicsStepPhaseStats;
 import javax.annotation.Nonnull;
 
 /**
- * Step output published by a physics worker command.
+ * Step output published by a physics owner command.
  */
-public record PhysicsWorkerSnapshot(int spaces,
-                                    int substeps,
-                                    int bodySnapshots,
-                                    int spatialIndexCells,
-                                    long stepNanos,
-                                    long snapshotNanos,
-                                    @Nonnull PhysicsStepPhaseStats nativePhaseStats) {
+public record PhysicsOwnerSnapshot(int spaces,
+                                   int substeps,
+                                   int bodySnapshots,
+                                   int spatialIndexCells,
+                                   long stepNanos,
+                                   long snapshotNanos,
+                                   @Nonnull PhysicsStepPhaseStats nativePhaseStats) {
 
-    public PhysicsWorkerSnapshot {
+    public PhysicsOwnerSnapshot {
         spaces = Math.max(0, spaces);
         substeps = Math.max(0, substeps);
         bodySnapshots = Math.max(0, bodySnapshots);
@@ -23,7 +23,7 @@ public record PhysicsWorkerSnapshot(int spaces,
         snapshotNanos = Math.max(0L, snapshotNanos);
     }
 
-    public PhysicsWorkerSnapshot(int spaces,
+    public PhysicsOwnerSnapshot(int spaces,
         int substeps,
         int bodySnapshots,
         int spatialIndexCells,
@@ -39,8 +39,8 @@ public record PhysicsWorkerSnapshot(int spaces,
     }
 
     @Nonnull
-    public static PhysicsWorkerSnapshot empty() {
-        return new PhysicsWorkerSnapshot(0,
+    public static PhysicsOwnerSnapshot empty() {
+        return new PhysicsOwnerSnapshot(0,
             0,
             0,
             0,

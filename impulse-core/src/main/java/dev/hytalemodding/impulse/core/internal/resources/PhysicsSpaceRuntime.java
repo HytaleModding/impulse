@@ -66,14 +66,14 @@ public final class PhysicsSpaceRuntime {
             closeSpaceQuietly(space, worldName, "discarding failed physics space");
             throw exception;
         }
-        spaces.put(space.getId().value(), space);
-        spaceSettings.put(space.getId().value(), new PhysicsSpaceSettings(settings));
+        spaces.put(space.id().value(), space);
+        spaceSettings.put(space.id().value(), new PhysicsSpaceSettings(settings));
 
         LOGGER.at(Level.FINE).log(
             "World %s created physics space id=%s backend=%s collision=%s",
             worldName,
-            space.getId(),
-            space.getBackendId(),
+            space.id(),
+            space.backendId(),
             settings.getWorldCollisionSettings().getWorldCollisionMode());
         return space;
     }
@@ -119,7 +119,7 @@ public final class PhysicsSpaceRuntime {
     public List<SpaceId> getSpaceIds() {
         List<SpaceId> ids = new ArrayList<>(spaces.size());
         for (PhysicsSpace space : spaces.values()) {
-            ids.add(space.getId());
+            ids.add(space.id());
         }
         return ids;
     }
@@ -140,11 +140,11 @@ public final class PhysicsSpaceRuntime {
         List<SpaceReset> replacements = new ArrayList<>();
         for (PhysicsSpace previous : spaces.values()) {
             Vector3f gravity = previous.getGravity();
-            PhysicsSpace replacement = Impulse.createSpace(previous.getBackendId(), previous.getId());
+            PhysicsSpace replacement = Impulse.createSpace(previous.backendId(), previous.id());
             try {
                 validateSpaceCompatibleWithStepMode(replacement, stepMode);
                 replacement.setGravity(gravity.x, gravity.y, gravity.z);
-                replacements.add(new SpaceReset(previous.getId(), previous, replacement));
+                replacements.add(new SpaceReset(previous.id(), previous, replacement));
             } catch (RuntimeException exception) {
                 closeSpaceQuietly(replacement, worldName, "discarding failed clean replacement");
                 throw exception;
@@ -219,8 +219,8 @@ public final class PhysicsSpaceRuntime {
         @Nonnull PhysicsStepMode stepMode,
         @Nonnull BiConsumer<SpaceId, PhysicsSpace> collisionClearer,
         @Nonnull Runnable worldChangedMarker) {
-        if (!spaceId.equals(replacement.getId())) {
-            throw new IllegalArgumentException("Replacement space id " + replacement.getId()
+        if (!spaceId.equals(replacement.id())) {
+            throw new IllegalArgumentException("Replacement space id " + replacement.id()
                 + " does not match target id " + spaceId);
         }
 
@@ -243,8 +243,8 @@ public final class PhysicsSpaceRuntime {
             "World %s replaced physics space id=%s backend=%s -> backend=%s",
             worldName,
             spaceId,
-            previous.getBackendId(),
-            replacement.getBackendId());
+            previous.backendId(),
+            replacement.backendId());
         return previous;
     }
 
@@ -266,7 +266,7 @@ public final class PhysicsSpaceRuntime {
 
     @Nonnull
     private static String formatSpace(@Nonnull PhysicsSpace space) {
-        return "space " + space.getId().value() + " (" + space.getBackendId().value() + ")";
+        return "space " + space.id().value() + " (" + space.backendId().value() + ")";
     }
 
     private static void applySolverTuning(@Nonnull PhysicsSpace space,
@@ -313,8 +313,8 @@ public final class PhysicsSpaceRuntime {
                 "World %s failed to close %s id=%s backend=%s: %s",
                 worldName,
                 action,
-                space.getId(),
-                space.getBackendId(),
+                space.id(),
+                space.backendId(),
                 exception.getMessage());
         }
     }

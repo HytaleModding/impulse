@@ -4,7 +4,7 @@ import dev.hytalemodding.impulse.core.plugin.simulation.PhysicsOwnerAccess;
 import javax.annotation.Nonnull;
 
 /**
- * Internal owner-thread operation that resolves live backend objects through scoped access.
+ * Internal owner-context operation that resolves live backend objects through scoped access.
  *
  * @param <T> value returned to the caller
  */

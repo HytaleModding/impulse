@@ -39,7 +39,7 @@ public final class PhysicsBodySnapshotStore {
         long generation = nextLivenessGeneration();
         MutableInt liveBodies = new MutableInt();
         for (PhysicsSpace space : spaces) {
-            SpaceId spaceId = space.getId();
+            SpaceId spaceId = space.id();
             if (bodyRegistry.getRegistrationCount(spaceId) == 0) {
                 continue;
             }
@@ -237,7 +237,7 @@ public final class PhysicsBodySnapshotStore {
         @Override
         public Iterator<PhysicsBody> iterator() {
             Iterator<PhysicsBodyRegistration> registrations =
-                bodyRegistry.registrationIterator(space.getId());
+                bodyRegistry.registrationIterator(space.id());
             return new Iterator<>() {
 
                 @Nullable

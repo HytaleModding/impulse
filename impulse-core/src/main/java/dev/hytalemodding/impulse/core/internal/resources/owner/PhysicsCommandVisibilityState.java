@@ -12,12 +12,12 @@ import javax.annotation.Nonnull;
 public final class PhysicsCommandVisibilityState {
 
     /*
-     * Monotonic owner-command sequence assigned at submission. It is separate from worker step
+     * Monotonic owner-command sequence assigned at submission. It is separate from owner step
      * sequence and Hytale world ticks because commands can complete between published snapshots.
      */
     private final AtomicLong commandBatchSequence = new AtomicLong();
     /*
-     * Highest command batch that has finished owner-thread execution. Snapshot capture copies this
+     * Highest command batch that has finished owner-lane execution. Snapshot capture copies this
      * value as the frame's last-included command-batch sequence.
      */
     private final AtomicLong completedCommandBatchSequence = new AtomicLong();
@@ -79,8 +79,8 @@ public final class PhysicsCommandVisibilityState {
     }
 
     public boolean trackBodyCreationPublication(@Nonnull RecordedPhysicsCommandBatch batch,
-        boolean workerAttached) {
-        if (!batch.hasBodyCreationCommands() || !workerAttached) {
+        boolean ownerExecutorAttached) {
+        if (!batch.hasBodyCreationCommands() || !ownerExecutorAttached) {
             return false;
         }
         long commandBatchSequence = batch.metadata().commandBatchSequence();
@@ -117,7 +117,7 @@ public final class PhysicsCommandVisibilityState {
 
     public boolean isBodyCreationPending(@Nonnull RigidBodyKey bodyKey,
         boolean directBodyCreationPending,
-        boolean workerAttached) {
+        boolean ownerExecutorAttached) {
         return directBodyCreationPending
             || isCommandBodyCreationPending(bodyKey);
     }

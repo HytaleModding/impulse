@@ -5,7 +5,7 @@ import java.util.Objects;
 import javax.annotation.Nonnull;
 
 /**
- * Owner-thread query for backend solver-tuning support in one physics space.
+ * Owner-lane query for backend solver-tuning support in one physics space.
  */
 public record SolverCapabilityQuery(@Nonnull SpaceId spaceId)
     implements PhysicsQuery<SolverCapabilitySummary> {
