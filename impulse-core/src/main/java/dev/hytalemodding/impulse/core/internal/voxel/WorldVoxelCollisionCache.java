@@ -782,6 +782,8 @@ public final class WorldVoxelCollisionCache {
         target.detailBoxes.addAll(geometry.detailBoxes());
         if (voxelTerrainCapability != null && geometry.hasFullCubeVoxels()) {
             target.voxelTerrain = true;
+            // TODO: Wire adjacent voxel terrain bodies through combineVoxelTerrains
+            // so Rapier can use native adjacency hints across streamed section boundaries.
             PhysicsBody voxelBody = voxelTerrainCapability.createVoxelTerrain(1.0f,
                 1.0f,
                 1.0f,
