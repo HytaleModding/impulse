@@ -95,8 +95,8 @@ public final class PhysicsWorldLifecycleState {
         ApplyResult result = snapshotState.applyPublishedSnapshotFrame(frame, bodyRegistry);
         if (result.currentWorldEpoch()) {
             bodyRegistry.applyPublishedRegistrationFrame(frame);
-            commandVisibility.applyCommandBatchSequenceWatermark(
-                frame.commandBatchSequenceWatermark());
+            commandVisibility.applyLastIncludedCommandBatchSequence(
+                frame.lastIncludedCommandBatchSequence());
             eventState.publishSnapshotPublication(snapshotState.worldEpoch(),
                 frame,
                 result.appliedCount(),
@@ -177,7 +177,7 @@ public final class PhysicsWorldLifecycleState {
 
     public void publishDetachedWorkerRegistrationViews(@Nonnull PhysicsBodyRegistry bodyRegistry) {
         bodyRegistry.publishLiveRegistrationViews();
-        commandVisibility.applyCommandBatchSequenceWatermark(
+        commandVisibility.applyLastIncludedCommandBatchSequence(
             commandVisibility.completedCommandBatchSequence());
     }
 

@@ -23,7 +23,7 @@ import javax.annotation.Nullable;
  *
  * <p>This state intentionally replaces the previous frame instead of queueing history. The public
  * event frame is a low-overhead diagnostic snapshot of the newest owner outcome and latest
- * published snapshot watermark.</p>
+ * captured snapshot inclusion state.</p>
  */
 public final class PhysicsWorldEventState {
 
@@ -39,12 +39,12 @@ public final class PhysicsWorldEventState {
 
     @Nonnull
     public PhysicsEventFrame publishCommandCompletion(long worldEpoch,
-        @Nonnull PublishedPhysicsSnapshotFrame latestSnapshotFrame,
+        @Nonnull PublishedPhysicsSnapshotFrame latestCapturedSnapshotFrame,
         @Nonnull PhysicsCommandMetadata metadata,
         int commandCount,
         @Nonnull PhysicsCommandCompletion completion) {
         return publishCommandCompletion(worldEpoch,
-            latestSnapshotFrame,
+            latestCapturedSnapshotFrame,
             metadata,
             commandCount,
             0,
@@ -57,12 +57,12 @@ public final class PhysicsWorldEventState {
 
     @Nonnull
     public PhysicsEventFrame publishCommandCompletion(long worldEpoch,
-        @Nonnull PublishedPhysicsSnapshotFrame latestSnapshotFrame,
+        @Nonnull PublishedPhysicsSnapshotFrame latestCapturedSnapshotFrame,
         @Nonnull RecordedPhysicsCommandBatch batch,
         @Nonnull PhysicsCommandCompletion completion) {
         Objects.requireNonNull(batch, "batch");
         return publishCommandCompletion(worldEpoch,
-            latestSnapshotFrame,
+            latestCapturedSnapshotFrame,
             batch.metadata(),
             batch.publicBatch().commandCount(),
             batch.bodyKeyReferenceCount(),
@@ -75,7 +75,7 @@ public final class PhysicsWorldEventState {
 
     @Nonnull
     private PhysicsEventFrame publishCommandCompletion(long worldEpoch,
-        @Nonnull PublishedPhysicsSnapshotFrame latestSnapshotFrame,
+        @Nonnull PublishedPhysicsSnapshotFrame latestCapturedSnapshotFrame,
         @Nonnull PhysicsCommandMetadata metadata,
         int commandCount,
         int bodyKeyReferenceCount,
@@ -84,7 +84,7 @@ public final class PhysicsWorldEventState {
         @Nullable JointKey firstJointKey,
         int liveOwnerTransactionCount,
         @Nonnull PhysicsCommandCompletion completion) {
-        Objects.requireNonNull(latestSnapshotFrame, "latestSnapshotFrame");
+        Objects.requireNonNull(latestCapturedSnapshotFrame, "latestCapturedSnapshotFrame");
         Objects.requireNonNull(metadata, "metadata");
         Objects.requireNonNull(completion, "completion");
         PhysicsCommandResult firstRejected = completion.firstRejected().orElse(null);
@@ -100,7 +100,7 @@ public final class PhysicsWorldEventState {
             completion.allApplied(),
             firstRejected != null ? firstRejected.commandSequence() : 0L,
             firstRejected != null ? firstRejected.message() : null);
-        return publishFrame(worldEpoch, latestSnapshotFrame, List.of(commandEvent), List.of(), List.of());
+        return publishFrame(worldEpoch, latestCapturedSnapshotFrame, List.of(commandEvent), List.of(), List.of());
     }
 
     @Nonnull
@@ -111,7 +111,7 @@ public final class PhysicsWorldEventState {
             snapshotFrame.serverTick(),
             snapshotFrame.frameEpoch(),
             snapshotFrame.status(),
-            snapshotFrame.commandBatchSequenceWatermark(),
+            snapshotFrame.lastIncludedCommandBatchSequence(),
             snapshotFrame.bodyCount(),
             snapshotFrame.stepNanos(),
             snapshotFrame.snapshotNanos());
@@ -136,7 +136,7 @@ public final class PhysicsWorldEventState {
                 snapshotFrame.worldEpoch(),
                 snapshotFrame.stepSequence(),
                 snapshotFrame.serverTick(),
-                snapshotFrame.commandBatchSequenceWatermark(),
+                snapshotFrame.lastIncludedCommandBatchSequence(),
                 publicationServerTick,
                 System.nanoTime(),
                 appliedBodyCount);
@@ -145,9 +145,9 @@ public final class PhysicsWorldEventState {
 
     @Nonnull
     public PhysicsEventFrame publishEmpty(long worldEpoch,
-        @Nonnull PublishedPhysicsSnapshotFrame latestSnapshotFrame) {
+        @Nonnull PublishedPhysicsSnapshotFrame latestCapturedSnapshotFrame) {
         return publishFrame(worldEpoch,
-            Objects.requireNonNull(latestSnapshotFrame, "latestSnapshotFrame"),
+            Objects.requireNonNull(latestCapturedSnapshotFrame, "latestCapturedSnapshotFrame"),
             List.of(),
             List.of(),
             List.of());
@@ -155,16 +155,16 @@ public final class PhysicsWorldEventState {
 
     @Nonnull
     private PhysicsEventFrame publishFrame(long worldEpoch,
-        @Nonnull PublishedPhysicsSnapshotFrame latestSnapshotFrame,
+        @Nonnull PublishedPhysicsSnapshotFrame latestCapturedSnapshotFrame,
         @Nonnull List<PhysicsCommandBatchEvent> commandEvents,
         @Nonnull List<PhysicsStepEvent> stepEvents,
         @Nonnull List<PhysicsSnapshotPublicationEvent> publicationEvents) {
         PhysicsEventFrame frame = new PhysicsEventFrame(eventFrameSequence.incrementAndGet(),
             worldEpoch,
-            latestSnapshotFrame.frameEpoch(),
-            latestSnapshotFrame.stepSequence(),
-            latestSnapshotFrame.serverTick(),
-            latestSnapshotFrame.commandBatchSequenceWatermark(),
+            latestCapturedSnapshotFrame.frameEpoch(),
+            latestCapturedSnapshotFrame.stepSequence(),
+            latestCapturedSnapshotFrame.serverTick(),
+            latestCapturedSnapshotFrame.lastIncludedCommandBatchSequence(),
             commandEvents,
             stepEvents,
             publicationEvents);

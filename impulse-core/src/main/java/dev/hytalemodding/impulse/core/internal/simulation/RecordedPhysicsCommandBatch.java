@@ -86,7 +86,7 @@ public final class RecordedPhysicsCommandBatch {
      * Returns the exact created body key for single-spawn command batches.
      *
      * <p>Multi-spawn and template-spawn batches intentionally return {@code null}; those paths keep
-     * the cheaper batch-watermark publication fallback instead of allocating per-body tracking.</p>
+     * the cheaper sequence-level publication fallback instead of allocating per-body tracking.</p>
      */
     @Nullable
     public RigidBodyKey singleSpawnBodyKey() {

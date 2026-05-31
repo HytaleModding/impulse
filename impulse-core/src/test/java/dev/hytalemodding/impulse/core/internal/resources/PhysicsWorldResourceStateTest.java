@@ -43,7 +43,6 @@ import dev.hytalemodding.impulse.core.plugin.simulation.RigidBodyStateView;
 import dev.hytalemodding.impulse.core.plugin.simulation.SpaceBodyCountQuery;
 import dev.hytalemodding.impulse.core.plugin.joint.JointKey;
 import dev.hytalemodding.impulse.core.plugin.snapshot.PublishedPhysicsSnapshotFrame;
-import java.lang.reflect.Field;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
@@ -209,6 +208,7 @@ class PhysicsWorldResourceStateTest {
         assertEquals(1L, results.getFirst().commandSequence());
         assertEquals(2L, results.get(1).commandSequence());
         PhysicsBody body = resource.getBody(bodyKey);
+        assertNotNull(body);
         assertEquals(new Vector3f(1.0f, 2.0f, 3.0f), body.getPosition());
         assertEquals(new Vector3f(4.0f, 5.0f, 6.0f), body.getLinearVelocity());
         assertEquals(new Vector3f(0.1f, 0.2f, 0.3f), body.getAngularVelocity());
@@ -242,7 +242,7 @@ class PhysicsWorldResourceStateTest {
         assertEquals(PhysicsCommandResult.Status.REJECTED, results.getFirst().status());
         assertTrue(results.getFirst().commandBatchSequence() > 0L);
         assertEquals(107L, results.getFirst().submittedServerTick());
-        assertEquals(0L, results.getFirst().visibleSnapshotFrameEpoch());
+        assertEquals(0L, results.getFirst().includedSnapshotFrameEpoch());
         assertTrue(results.getFirst().message().contains("stale"));
         assertNull(resource.getBody(bodyKey));
         assertEquals(0, resource.query(new SpaceBodyCountQuery(space.getId()))
@@ -341,6 +341,7 @@ class PhysicsWorldResourceStateTest {
 
         assertEquals(2, results.size());
         PhysicsBody body = resource.getBody(bodyKey);
+        assertNotNull(body);
         assertEquals(new Vector3f(1.0f, 2.0f, 3.0f), body.getPosition());
         assertEquals(new Vector3f(2.0f, 0.0f, 0.0f), body.getLinearVelocity());
     }
@@ -371,7 +372,7 @@ class PhysicsWorldResourceStateTest {
         assertEquals(1L, result.commandSequence());
         assertTrue(result.commandBatchSequence() > 0L);
         assertEquals(123L, result.submittedServerTick());
-        assertEquals(0L, result.visibleSnapshotFrameEpoch());
+        assertEquals(0L, result.includedSnapshotFrameEpoch());
         PublishedPhysicsSnapshotFrame frameAtCompletion = resource.getLatestPublishedFrame();
         assertEquals(PublishedPhysicsSnapshotFrame.Status.EMPTY, frameAtCompletion.status());
         assertEquals(0, frameAtCompletion.bodyCount());
@@ -382,7 +383,7 @@ class PhysicsWorldResourceStateTest {
             0L,
             false);
 
-        assertTrue(published.frameEpoch() > result.visibleSnapshotFrameEpoch());
+        assertTrue(published.frameEpoch() > result.includedSnapshotFrameEpoch());
         assertEquals(1, published.bodyCount());
         assertEquals(124L, published.serverTick());
     }
@@ -399,12 +400,12 @@ class PhysicsWorldResourceStateTest {
             PhysicsSpaceSettings.defaults());
         RigidBodyKey bodyKey = RigidBodyKey.random();
 
-        var results = resource.submitCommands(127L, commands -> commands
-                .spawnBody(bodyKey, spawn -> spawn
-                    .space(space.getId())
-                    .box(0.5f, 0.5f, 0.5f)
-                    .dynamic()))
-            .completion()
+        var handle = resource.submitCommands(127L, commands -> commands
+            .spawnBody(bodyKey, spawn -> spawn
+                .space(space.getId())
+                .box(0.5f, 0.5f, 0.5f)
+                .dynamic()));
+        var results = handle.completion()
             .toCompletableFuture()
             .join();
 
@@ -414,8 +415,10 @@ class PhysicsWorldResourceStateTest {
 
         assertEquals(1, eventFrame.commandBatchCount());
         assertEquals(resource.worldEpoch(), eventFrame.worldEpoch());
-        assertEquals(0L, eventFrame.latestSnapshotFrameEpoch());
-        assertEquals(0L, eventFrame.latestSnapshotCommandBatchSequenceWatermark());
+        assertEquals(0L, eventFrame.latestCapturedSnapshotFrameEpoch());
+        assertEquals(0L, eventFrame.latestCapturedSnapshotLastIncludedCommandBatchSequence());
+        assertFalse(handle.isIncludedInLatestCapturedSnapshot(eventFrame));
+        assertEquals(0L, handle.capturedSnapshotServerTickLatency(eventFrame));
         assertEquals(result.commandBatchSequence(), event.commandBatchSequence());
         assertEquals(127L, event.submittedServerTick());
         assertEquals(1, event.commandCount());
@@ -429,8 +432,13 @@ class PhysicsWorldResourceStateTest {
             0L,
             false);
 
-        assertTrue(published.commandBatchSequenceWatermark() >= event.commandBatchSequence());
-        assertEquals(0L, result.visibleSnapshotFrameEpoch());
+        assertTrue(published.lastIncludedCommandBatchSequence() >= event.commandBatchSequence());
+        assertTrue(handle.isIncludedInSnapshotFrame(published));
+        assertEquals(1L, handle.capturedSnapshotServerTickLatency(published));
+        PhysicsEventFrame capturedEventFrame = resource.getLatestEventFrame();
+        assertTrue(handle.isIncludedInLatestCapturedSnapshot(capturedEventFrame));
+        assertEquals(1L, handle.capturedSnapshotServerTickLatency(capturedEventFrame));
+        assertEquals(0L, result.includedSnapshotFrameEpoch());
     }
 
     @Test
@@ -463,14 +471,14 @@ class PhysicsWorldResourceStateTest {
 
         assertEquals(1, stepFrame.stepCount());
         assertEquals(0, stepFrame.commandBatchCount());
-        assertEquals(captured.frameEpoch(), stepFrame.latestSnapshotFrameEpoch());
-        assertEquals(captured.commandBatchSequenceWatermark(),
-            stepFrame.latestSnapshotCommandBatchSequenceWatermark());
+        assertEquals(captured.frameEpoch(), stepFrame.latestCapturedSnapshotFrameEpoch());
+        assertEquals(captured.lastIncludedCommandBatchSequence(),
+            stepFrame.latestCapturedSnapshotLastIncludedCommandBatchSequence());
         assertEquals(80L, stepEvent.stepSequence());
         assertEquals(130L, stepEvent.serverTick());
         assertEquals(captured.frameEpoch(), stepEvent.snapshotFrameEpoch());
         assertEquals(captured.status(), stepEvent.snapshotStatus());
-        assertEquals(captured.commandBatchSequenceWatermark(), stepEvent.commandBatchSequenceWatermark());
+        assertEquals(captured.lastIncludedCommandBatchSequence(), stepEvent.lastIncludedCommandBatchSequence());
         assertEquals(1, stepEvent.bodyCount());
 
         int applied = resource.applyPublishedSnapshotFrame(captured);
@@ -483,8 +491,8 @@ class PhysicsWorldResourceStateTest {
         assertEquals(captured.frameEpoch(), publicationEvent.snapshotFrameEpoch());
         assertEquals(captured.stepSequence(), publicationEvent.stepSequence());
         assertEquals(captured.serverTick(), publicationEvent.serverTick());
-        assertEquals(captured.commandBatchSequenceWatermark(),
-            publicationEvent.commandBatchSequenceWatermark());
+        assertEquals(captured.lastIncludedCommandBatchSequence(),
+            publicationEvent.lastIncludedCommandBatchSequence());
         assertEquals(applied, publicationEvent.appliedBodyCount());
     }
 
@@ -504,11 +512,11 @@ class PhysicsWorldResourceStateTest {
             PublishedPhysicsSnapshotFrame.Status.COMPLETE,
             0L,
             false);
-        long capturedWatermark = capturedBeforeCommand.commandBatchSequenceWatermark();
+        long capturedLastIncludedCommandBatchSequence = capturedBeforeCommand.lastIncludedCommandBatchSequence();
 
-        var results = resource.submitCommands(132L, commands -> commands
-                .setSpaceGravity(space.getId(), 0.0f, -4.0f, 0.0f))
-            .completion()
+        var handle = resource.submitCommands(132L, commands -> commands
+            .setSpaceGravity(space.getId(), 0.0f, -4.0f, 0.0f));
+        var results = handle.completion()
             .toCompletableFuture()
             .join();
         PhysicsCommandResult commandResult = results.getFirst();
@@ -516,9 +524,11 @@ class PhysicsWorldResourceStateTest {
         PhysicsCommandBatchEvent commandEvent = commandEventFrame.commandBatches().getFirst();
 
         assertEquals(commandResult.commandBatchSequence(), commandEvent.commandBatchSequence());
-        assertTrue(commandEvent.commandBatchSequence() > capturedWatermark);
-        assertFalse(commandEventFrame.latestSnapshotIncludesCommandBatch(commandEvent.commandBatchSequence()));
-        assertFalse(commandEventFrame.latestSnapshotIncludes(commandEvent));
+        assertTrue(commandEvent.commandBatchSequence() > capturedLastIncludedCommandBatchSequence);
+        assertFalse(commandEventFrame.latestCapturedSnapshotIncludesCommandBatch(
+            commandEvent.commandBatchSequence()));
+        assertFalse(commandEventFrame.latestCapturedSnapshotIncludes(commandEvent));
+        assertFalse(handle.isIncludedInLatestCapturedSnapshot(commandEventFrame));
 
         int applied = resource.applyPublishedSnapshotFrame(capturedBeforeCommand);
         PhysicsEventFrame publicationEventFrame = resource.getLatestEventFrame();
@@ -527,8 +537,10 @@ class PhysicsWorldResourceStateTest {
 
         assertEquals(0, applied);
         assertEquals(capturedBeforeCommand.frameEpoch(), publicationEvent.snapshotFrameEpoch());
-        assertEquals(capturedWatermark, publicationEvent.commandBatchSequenceWatermark());
-        assertFalse(publicationEventFrame.latestSnapshotIncludesCommandBatch(commandEvent.commandBatchSequence()));
+        assertEquals(capturedLastIncludedCommandBatchSequence, publicationEvent.lastIncludedCommandBatchSequence());
+        assertFalse(publicationEventFrame.latestCapturedSnapshotIncludesCommandBatch(
+            commandEvent.commandBatchSequence()));
+        assertFalse(handle.isIncludedInLatestCapturedSnapshot(publicationEventFrame));
     }
 
     @Test
@@ -562,9 +574,7 @@ class PhysicsWorldResourceStateTest {
 
         assertEquals(1, published.bodyCount());
         assertEquals(List.of(bodyKey), visitedBodies);
-        assertNull(rawField(published, "spaces"));
         assertNotNull(published.spaces());
-        assertNotNull(rawField(published, "spaces"));
     }
 
     @Test
@@ -643,7 +653,7 @@ class PhysicsWorldResourceStateTest {
         assertEquals(1L, results.getFirst().commandSequence());
         assertTrue(results.getFirst().commandBatchSequence() > 0L);
         assertEquals(107L, results.getFirst().submittedServerTick());
-        assertEquals(0L, results.getFirst().visibleSnapshotFrameEpoch());
+        assertEquals(0L, results.getFirst().includedSnapshotFrameEpoch());
         assertTrue(results.getFirst().message().contains("failing diagnostic body mutation"));
     }
 
@@ -1246,7 +1256,7 @@ class PhysicsWorldResourceStateTest {
     }
 
     @Test
-    void multiSpawnCommandKeepsBatchWatermarkBodyCreationFallback() throws Exception {
+    void multiSpawnCommandKeepsBatchLastIncludedBodyCreationFallback() throws Exception {
         FakePhysicsBackend backend =
             new FakePhysicsBackend("test:worker-command-registration-fallback-" + BACKEND_COUNTER.incrementAndGet());
         Impulse.registerBackend(backend);
@@ -1521,13 +1531,4 @@ class PhysicsWorldResourceStateTest {
         assertEquals(expected, completed);
     }
 
-    private static Object rawField(Object instance, String name) {
-        try {
-            Field field = instance.getClass().getDeclaredField(name);
-            field.setAccessible(true);
-            return field.get(instance);
-        } catch (ReflectiveOperationException exception) {
-            throw new AssertionError(exception);
-        }
-    }
 }

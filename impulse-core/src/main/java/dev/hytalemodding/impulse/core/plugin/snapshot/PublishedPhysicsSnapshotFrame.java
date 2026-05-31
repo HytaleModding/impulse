@@ -45,11 +45,11 @@ public final class PublishedPhysicsSnapshotFrame {
     private final long serverTick;
 
     /**
-     * latest command-batch sequence whose owner-thread execution completed before this frame was
+     * Latest command-batch sequence whose owner-thread execution completed before this frame was
      * captured.
-     * Command completion can precede visibility in a later published frame
+     * Command completion can precede inclusion in a later captured frame.
      */
-    private final long commandBatchSequenceWatermark;
+    private final long lastIncludedCommandBatchSequence;
     @Nonnull
     private final Status status;
     private final int spatialIndexCellCount;
@@ -86,7 +86,7 @@ public final class PublishedPhysicsSnapshotFrame {
         long worldEpoch,
         long stepSequence,
         long serverTick,
-        long commandBatchSequenceWatermark,
+        long lastIncludedCommandBatchSequence,
         @Nonnull Status status,
         int spatialIndexCellCount,
         long stepNanos,
@@ -96,7 +96,7 @@ public final class PublishedPhysicsSnapshotFrame {
             worldEpoch,
             stepSequence,
             serverTick,
-            commandBatchSequenceWatermark,
+            lastIncludedCommandBatchSequence,
             status,
             spatialIndexCellCount,
             stepNanos,
@@ -109,7 +109,7 @@ public final class PublishedPhysicsSnapshotFrame {
         long worldEpoch,
         long stepSequence,
         long serverTick,
-        long commandBatchSequenceWatermark,
+        long lastIncludedCommandBatchSequence,
         @Nonnull Status status,
         int spatialIndexCellCount,
         long stepNanos,
@@ -119,7 +119,7 @@ public final class PublishedPhysicsSnapshotFrame {
             worldEpoch,
             stepSequence,
             serverTick,
-            commandBatchSequenceWatermark,
+            lastIncludedCommandBatchSequence,
             status,
             spatialIndexCellCount,
             stepNanos,
@@ -132,7 +132,7 @@ public final class PublishedPhysicsSnapshotFrame {
         long worldEpoch,
         long stepSequence,
         long serverTick,
-        long commandBatchSequenceWatermark,
+        long lastIncludedCommandBatchSequence,
         @Nonnull Status status,
         int spatialIndexCellCount,
         long stepNanos,
@@ -143,7 +143,7 @@ public final class PublishedPhysicsSnapshotFrame {
             worldEpoch,
             stepSequence,
             serverTick,
-            commandBatchSequenceWatermark,
+            lastIncludedCommandBatchSequence,
             status,
             spatialIndexCellCount,
             stepNanos,
@@ -152,7 +152,7 @@ public final class PublishedPhysicsSnapshotFrame {
         this.worldEpoch = worldEpoch;
         this.stepSequence = stepSequence;
         this.serverTick = serverTick;
-        this.commandBatchSequenceWatermark = commandBatchSequenceWatermark;
+        this.lastIncludedCommandBatchSequence = lastIncludedCommandBatchSequence;
         this.status = status;
         this.spatialIndexCellCount = spatialIndexCellCount;
         this.stepNanos = stepNanos;
@@ -203,7 +203,7 @@ public final class PublishedPhysicsSnapshotFrame {
         long worldEpoch,
         long stepSequence,
         long serverTick,
-        long commandBatchSequenceWatermark,
+        long lastIncludedCommandBatchSequence,
         @Nonnull Status status,
         int spatialIndexCellCount,
         long stepNanos,
@@ -214,7 +214,7 @@ public final class PublishedPhysicsSnapshotFrame {
             worldEpoch,
             stepSequence,
             serverTick,
-            commandBatchSequenceWatermark,
+            lastIncludedCommandBatchSequence,
             status,
             spatialIndexCellCount,
             stepNanos,
@@ -239,22 +239,21 @@ public final class PublishedPhysicsSnapshotFrame {
         return serverTick;
     }
 
-    public long commandBatchSequenceWatermark() {
-        return commandBatchSequenceWatermark;
+    public long lastIncludedCommandBatchSequence() {
+        return lastIncludedCommandBatchSequence;
     }
 
     /**
      * Returns whether this snapshot frame is known to include owner-thread execution of the
      * submitted command batch sequence.
      *
-     * <p>This is an owner-execution watermark captured with the snapshot. It does not mean a
-     * separate ECS visual sync pass has already consumed the frame. A watermark is the latest
-     * command-batch sequence observed at capture time; batches at or below it are included in this
-     * frame's copied body data.</p>
+     * <p>This is the latest owner-executed command-batch sequence included by the captured
+     * snapshot. It does not mean a separate ECS visual sync pass has already consumed the frame.
+     * Batches at or below this sequence are included in this frame's copied body data.</p>
      */
     public boolean includesCommandBatch(long commandBatchSequence) {
         return commandBatchSequence > 0L
-            && commandBatchSequenceWatermark >= commandBatchSequence;
+            && lastIncludedCommandBatchSequence >= commandBatchSequence;
     }
 
     /**
@@ -368,7 +367,7 @@ public final class PublishedPhysicsSnapshotFrame {
             && worldEpoch == that.worldEpoch
             && stepSequence == that.stepSequence
             && serverTick == that.serverTick
-            && commandBatchSequenceWatermark == that.commandBatchSequenceWatermark
+            && lastIncludedCommandBatchSequence == that.lastIncludedCommandBatchSequence
             && spatialIndexCellCount == that.spatialIndexCellCount
             && stepNanos == that.stepNanos
             && snapshotNanos == that.snapshotNanos
@@ -382,7 +381,7 @@ public final class PublishedPhysicsSnapshotFrame {
         result = 31 * result + Long.hashCode(worldEpoch);
         result = 31 * result + Long.hashCode(stepSequence);
         result = 31 * result + Long.hashCode(serverTick);
-        result = 31 * result + Long.hashCode(commandBatchSequenceWatermark);
+        result = 31 * result + Long.hashCode(lastIncludedCommandBatchSequence);
         result = 31 * result + status.hashCode();
         result = 31 * result + Integer.hashCode(spatialIndexCellCount);
         result = 31 * result + Long.hashCode(stepNanos);
@@ -398,7 +397,7 @@ public final class PublishedPhysicsSnapshotFrame {
             + ", worldEpoch=" + worldEpoch
             + ", stepSequence=" + stepSequence
             + ", serverTick=" + serverTick
-            + ", commandBatchSequenceWatermark=" + commandBatchSequenceWatermark
+            + ", lastIncludedCommandBatchSequence=" + lastIncludedCommandBatchSequence
             + ", status=" + status
             + ", spatialIndexCellCount=" + spatialIndexCellCount
             + ", stepNanos=" + stepNanos
@@ -444,7 +443,7 @@ public final class PublishedPhysicsSnapshotFrame {
         long worldEpoch,
         long stepSequence,
         long serverTick,
-        long commandBatchSequenceWatermark,
+        long lastIncludedCommandBatchSequence,
         @Nonnull Status status,
         int spatialIndexCellCount,
         long stepNanos,
@@ -453,7 +452,7 @@ public final class PublishedPhysicsSnapshotFrame {
         requireNonNegativeEpoch(worldEpoch, "worldEpoch");
         requireNonNegativeEpoch(stepSequence, "stepSequence");
         requireNonNegativeEpoch(serverTick, "serverTick");
-        requireNonNegativeEpoch(commandBatchSequenceWatermark, "commandBatchSequenceWatermark");
+        requireNonNegativeEpoch(lastIncludedCommandBatchSequence, "lastIncludedCommandBatchSequence");
         Objects.requireNonNull(status, "status");
         if (spatialIndexCellCount < 0) {
             throw new IllegalArgumentException("spatialIndexCellCount cannot be negative");
@@ -485,7 +484,7 @@ public final class PublishedPhysicsSnapshotFrame {
         private final long worldEpoch;
         private final long stepSequence;
         private final long serverTick;
-        private final long commandBatchSequenceWatermark;
+        private final long lastIncludedCommandBatchSequence;
         @Nonnull
         private final Status status;
         private final int spatialIndexCellCount;
@@ -520,7 +519,7 @@ public final class PublishedPhysicsSnapshotFrame {
             long worldEpoch,
             long stepSequence,
             long serverTick,
-            long commandBatchSequenceWatermark,
+            long lastIncludedCommandBatchSequence,
             @Nonnull Status status,
             int spatialIndexCellCount,
             long stepNanos,
@@ -531,7 +530,7 @@ public final class PublishedPhysicsSnapshotFrame {
                 worldEpoch,
                 stepSequence,
                 serverTick,
-                commandBatchSequenceWatermark,
+                lastIncludedCommandBatchSequence,
                 status,
                 spatialIndexCellCount,
                 stepNanos,
@@ -540,7 +539,7 @@ public final class PublishedPhysicsSnapshotFrame {
             this.worldEpoch = worldEpoch;
             this.stepSequence = stepSequence;
             this.serverTick = serverTick;
-            this.commandBatchSequenceWatermark = commandBatchSequenceWatermark;
+            this.lastIncludedCommandBatchSequence = lastIncludedCommandBatchSequence;
             this.status = status;
             this.spatialIndexCellCount = spatialIndexCellCount;
             this.stepNanos = stepNanos;
@@ -581,7 +580,7 @@ public final class PublishedPhysicsSnapshotFrame {
                 worldEpoch,
                 stepSequence,
                 serverTick,
-                commandBatchSequenceWatermark,
+                lastIncludedCommandBatchSequence,
                 status,
                 spatialIndexCellCount,
                 stepNanos,
