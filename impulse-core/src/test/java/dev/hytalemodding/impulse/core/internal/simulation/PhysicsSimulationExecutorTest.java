@@ -1,6 +1,8 @@
 package dev.hytalemodding.impulse.core.internal.simulation;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import dev.hytalemodding.impulse.api.Impulse;
@@ -18,6 +20,7 @@ import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyPersistenceMode;
 import dev.hytalemodding.impulse.core.plugin.body.RigidBodyKey;
 import dev.hytalemodding.impulse.core.plugin.simulation.PhysicsCommandResult;
 import dev.hytalemodding.impulse.core.plugin.simulation.PhysicsShapeSpec;
+import dev.hytalemodding.impulse.core.plugin.simulation.RaycastClosestBatchResult;
 import dev.hytalemodding.impulse.core.plugin.simulation.RaycastClosestBatchQuery;
 import dev.hytalemodding.impulse.core.plugin.simulation.RaycastSegment;
 import dev.hytalemodding.impulse.core.plugin.simulation.RigidBodySpawnSettings;
@@ -63,7 +66,7 @@ class PhysicsSimulationExecutorTest {
             .join();
 
         assertEquals(1, results.size());
-        assertEquals(PhysicsCommandResult.Status.APPLIED, results.get(0).status());
+        assertEquals(PhysicsCommandResult.Status.APPLIED, results.getFirst().status());
         assertEquals(2, resource.getBodyRegistrationCount());
     }
 
@@ -296,7 +299,7 @@ class PhysicsSimulationExecutorTest {
     }
 
     @Test
-    void raycastClosestBatchReturnsCompactResultViewWithoutOptionalMisses() throws Exception {
+    void raycastClosestBatchReturnsMissesByIndex() {
         FakePhysicsBackend backend =
             new FakePhysicsBackend("test:raycast-batch-result-" + BACKEND_COUNTER.incrementAndGet());
         Impulse.registerBackend(backend);
@@ -306,19 +309,17 @@ class PhysicsSimulationExecutorTest {
                 PhysicsSpaceSettings.defaults())
             .getId();
 
-        Object result = resource.query(new RaycastClosestBatchQuery(spaceId,
+        RaycastClosestBatchResult result = resource.query(new RaycastClosestBatchQuery(spaceId,
                 List.of(new RaycastSegment(0.0f, 1.0f, 0.0f, 0.0f, -1.0f, 0.0f),
                     new RaycastSegment(1.0f, 1.0f, 0.0f, 1.0f, -1.0f, 0.0f))))
             .completion()
             .toCompletableFuture()
             .join();
 
-        assertEquals("dev.hytalemodding.impulse.core.plugin.simulation.RaycastClosestBatchResult",
-            result.getClass().getName());
-        assertEquals(2, result.getClass().getMethod("rayCount").invoke(result));
-        assertEquals(0, result.getClass().getMethod("hitCount").invoke(result));
-        assertEquals(false, result.getClass().getMethod("hasHit", int.class).invoke(result, 0));
-        assertEquals(null, result.getClass().getMethod("hit", int.class).invoke(result, 0));
+        assertEquals(2, result.rayCount());
+        assertEquals(0, result.hitCount());
+        assertFalse(result.hasHit(0));
+        assertNull(result.hit(0));
     }
 
     @Test
@@ -381,12 +382,12 @@ class PhysicsSimulationExecutorTest {
         private int scalarTorqueImpulseCalls;
         private int objectPositionCalls;
         private int objectRotationCalls;
-        private Vector3f lastForce = new Vector3f();
-        private Vector3f lastForceOffset = new Vector3f();
-        private Vector3f lastImpulse = new Vector3f();
-        private Vector3f lastImpulseOffset = new Vector3f();
-        private Vector3f lastTorque = new Vector3f();
-        private Vector3f lastTorqueImpulse = new Vector3f();
+        private final Vector3f lastForce = new Vector3f();
+        private final Vector3f lastForceOffset = new Vector3f();
+        private final Vector3f lastImpulse = new Vector3f();
+        private final Vector3f lastImpulseOffset = new Vector3f();
+        private final Vector3f lastTorque = new Vector3f();
+        private final Vector3f lastTorqueImpulse = new Vector3f();
 
         @Override
         public void setPosition(float x, float y, float z) {

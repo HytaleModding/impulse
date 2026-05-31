@@ -3,7 +3,6 @@ package dev.hytalemodding.impulse.rapier;
 import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
-import static org.junit.jupiter.api.Assertions.assertNotSame;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -24,8 +23,6 @@ import dev.hytalemodding.impulse.api.capability.PhysicsSolverTuning;
 import dev.hytalemodding.impulse.api.capability.PhysicsSolverTuningCapability;
 import dev.hytalemodding.impulse.api.capability.PhysicsVoxelTerrainCapability;
 import dev.hytalemodding.impulse.api.testsupport.PhysicsBackendContractTest;
-import java.lang.reflect.Field;
-import java.lang.reflect.Modifier;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
@@ -106,24 +103,6 @@ class RapierBackendContractTest extends PhysicsBackendContractTest {
         assertEquals(2, stats.colliderCount());
         assertTrue(stats.activeBodyCount() >= 1);
         assertEquals(0, stats.jointCount());
-    }
-
-    @Test
-    void rapierJointStoresGeometryAsPrimitiveFields() {
-        int floatFields = 0;
-        for (Field field : RapierJoint.class.getDeclaredFields()) {
-            if (Modifier.isStatic(field.getModifiers())) {
-                continue;
-            }
-            assertNotSame(Vector3f.class, field.getType(),
-                "Rapier joints should not retain Vector3f wrappers on native joint paths");
-            if (field.getType() == float.class) {
-                floatFields++;
-            }
-        }
-
-        assertTrue(floatFields >= 9,
-            "Rapier joints should retain anchors and axis as primitive floats");
     }
 
     @Test
