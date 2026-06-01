@@ -2,9 +2,11 @@ package dev.hytalemodding.impulse.rapier;
 
 import dev.hytalemodding.impulse.api.BackendId;
 import dev.hytalemodding.impulse.api.PhysicsAxis;
+import dev.hytalemodding.impulse.api.PhysicsBackendEventSink;
 import dev.hytalemodding.impulse.api.PhysicsBody;
 import dev.hytalemodding.impulse.api.PhysicsBodySnapshot;
 import dev.hytalemodding.impulse.api.PhysicsContact;
+import dev.hytalemodding.impulse.api.PhysicsContactPhase;
 import dev.hytalemodding.impulse.api.PhysicsJoint;
 import dev.hytalemodding.impulse.api.PhysicsJointType;
 import dev.hytalemodding.impulse.api.PhysicsRayHit;
@@ -123,6 +125,24 @@ public final class RapierSpace implements PhysicsSpace {
         ensureOpen();
         if (!RapierNative.stepNative(nativeSpaceHandle, dt)) {
             throw new IllegalStateException("Rapier native step failed");
+        }
+    }
+
+    @Override
+    public void step(float dt, @Nonnull PhysicsBackendEventSink events) {
+        step(dt);
+        if (dt <= 0f) {
+            return;
+        }
+        for (PhysicsContact contact : getContacts()) {
+            events.contact(PhysicsContactPhase.OBSERVED,
+                contact.bodyA(),
+                contact.bodyB(),
+                contact.pointOnA(),
+                contact.pointOnB(),
+                contact.normalOnB(),
+                contact.distance(),
+                contact.impulse());
         }
     }
 
