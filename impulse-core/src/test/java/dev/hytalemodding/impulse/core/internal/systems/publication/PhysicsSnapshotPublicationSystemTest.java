@@ -12,6 +12,7 @@ import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import dev.hytalemodding.impulse.api.BackendId;
 import dev.hytalemodding.impulse.api.Impulse;
 import dev.hytalemodding.impulse.api.PhysicsBody;
+import dev.hytalemodding.impulse.api.PhysicsContact;
 import dev.hytalemodding.impulse.api.PhysicsBodySnapshot;
 import dev.hytalemodding.impulse.api.PhysicsSpace;
 import dev.hytalemodding.impulse.api.testsupport.FakePhysicsBackend;
@@ -30,7 +31,9 @@ import dev.hytalemodding.impulse.core.internal.resources.owner.PhysicsOwnerStepC
 import dev.hytalemodding.impulse.core.plugin.body.RigidBodyKey;
 import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyKind;
 import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyPersistenceMode;
+import dev.hytalemodding.impulse.core.plugin.events.PhysicsEventFrame;
 import dev.hytalemodding.impulse.core.plugin.settings.PhysicsSpaceSettings;
+import dev.hytalemodding.impulse.core.plugin.settings.PhysicsStepMode;
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsWorldRuntimeResource;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
@@ -63,6 +66,10 @@ class PhysicsSnapshotPublicationSystemTest {
         BackendId backendId = new BackendId("test:async-publication");
         Impulse.registerBackend(new FakePhysicsBackend(backendId));
         PhysicsWorldRuntimeResource resource = new PhysicsWorldRuntimeResource();
+        var settings = resource.getWorldSettings();
+        settings.setStepMode(PhysicsStepMode.FIXED);
+        settings.setSimulationSteps(1);
+        resource.setWorldSettings(settings);
         PhysicsRuntimeProfilingResource profiling = new PhysicsRuntimeProfilingResource();
         profiling.setEnabled(true);
 
@@ -72,6 +79,8 @@ class PhysicsSnapshotPublicationSystemTest {
             PhysicsSpace space = resource.createLiveSpace(backendId,
                 "async-publication-test",
                 PhysicsSpaceSettings.defaults());
+            FakePhysicsBackend.InMemoryPhysicsSpace inMemorySpace =
+                (FakePhysicsBackend.InMemoryPhysicsSpace) space;
             AtomicReference<PhysicsBody> bodyRef = new AtomicReference<>();
             RigidBodyKey bodyId = PhysicsOwnerBridge.call(owner,
                 "create async publication body",
@@ -84,6 +93,23 @@ class PhysicsSnapshotPublicationSystemTest {
                         PhysicsBodyKind.BODY,
                         PhysicsBodyPersistenceMode.RUNTIME_ONLY);
                 });
+            PhysicsBody secondBody = PhysicsOwnerBridge.call(owner,
+                "create async publication contact body",
+                () -> {
+                    PhysicsBody body = space.createBox(0.5f, 0.5f, 0.5f, 1.0f);
+                    resource.addBody(space.id(),
+                        body,
+                        PhysicsBodyKind.BODY,
+                        PhysicsBodyPersistenceMode.RUNTIME_ONLY);
+                    return body;
+                });
+            inMemorySpace.addContact(new PhysicsContact(bodyRef.get(),
+                secondBody,
+                new Vector3f(1.0f, 2.0f, 3.0f),
+                new Vector3f(4.0f, 5.0f, 6.0f),
+                new Vector3f(0.0f, 1.0f, 0.0f),
+                -0.125f,
+                2.5f));
             assertEquals(new Vector3f(1.0f, 2.0f, 3.0f),
                 resource.getBodySnapshot(bodyId).position());
 
@@ -104,12 +130,13 @@ class PhysicsSnapshotPublicationSystemTest {
                 2L,
                 2L)));
 
-            publishWhenReady(owner, resource, profiling);
+            PhysicsEventFrame eventFrame = publishWhenReady(owner, resource, profiling);
 
             PhysicsBodySnapshot snapshot = resource.getBodySnapshot(bodyId);
             assertEquals(new Vector3f(4.0f, 5.0f, 6.0f), snapshot.position());
+            assertEquals(1, eventFrame.physicsEventCount());
             assertEquals(1, profiling.getCumulativeStep().getTickSamples());
-            assertEquals(1, profiling.getCumulativeStep().getBodySnapshots());
+            assertEquals(2, profiling.getCumulativeStep().getBodySnapshots());
             assertTrue(profiling.getCumulativeStep().getOwnerRunNanos() > 0L);
             assertTrue(profiling.getCumulativeStep().getOwnerQueuedNanos() >= 0L);
             assertFalse(owner.hasPendingStep());
@@ -217,19 +244,21 @@ class PhysicsSnapshotPublicationSystemTest {
         }
     }
 
-    private static void publishWhenReady(PhysicsOwnerResource owner,
+    private static PhysicsEventFrame publishWhenReady(PhysicsOwnerResource owner,
         PhysicsWorldRuntimeResource resource,
         PhysicsRuntimeProfilingResource profiling) throws InterruptedException {
         long deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(2L);
+        PhysicsEventFrame eventFrame = null;
         while (System.nanoTime() < deadline) {
-            PhysicsSnapshotPublicationSystem.publishCompletedStep(owner, resource, profiling);
+            eventFrame = PhysicsSnapshotPublicationSystem.publishCompletedStep(owner, resource, profiling);
             if (!owner.hasPendingStep()) {
-                return;
+                return eventFrame;
             }
             Thread.sleep(10L);
         }
-        PhysicsSnapshotPublicationSystem.publishCompletedStep(owner, resource, profiling);
+        eventFrame = PhysicsSnapshotPublicationSystem.publishCompletedStep(owner, resource, profiling);
         assertFalse(owner.hasPendingStep());
+        return eventFrame;
     }
 
     private static void waitForPublishedFrame(PhysicsOwnerStepCommand command)
