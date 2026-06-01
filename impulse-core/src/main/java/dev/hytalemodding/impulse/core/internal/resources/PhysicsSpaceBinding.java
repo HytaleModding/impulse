@@ -11,12 +11,13 @@ import javax.annotation.Nonnull;
  */
 public record PhysicsSpaceBinding(@Nonnull BackendId backendId,
                                   @Nonnull SpaceId spaceId,
-                                  int backendSpaceId,
+                                  @Nonnull BackendSpaceHandle backendSpaceHandle,
                                   @Nonnull PhysicsBackendRuntime runtime) {
 
     public PhysicsSpaceBinding {
         Objects.requireNonNull(backendId, "backendId");
         Objects.requireNonNull(spaceId, "spaceId");
+        Objects.requireNonNull(backendSpaceHandle, "backendSpaceHandle");
         Objects.requireNonNull(runtime, "runtime");
     }
 }

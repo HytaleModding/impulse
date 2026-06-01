@@ -12,6 +12,7 @@ import dev.hytalemodding.impulse.api.PhysicsBodyType;
 import dev.hytalemodding.impulse.api.ShapeType;
 import dev.hytalemodding.impulse.api.SpaceId;
 import dev.hytalemodding.impulse.api.runtime.BackendRuntimeCodes;
+import dev.hytalemodding.impulse.core.internal.resources.BackendBodyHandle;
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsSpaceBinding;
 import dev.hytalemodding.impulse.core.plugin.body.RigidBodyKey;
 import dev.hytalemodding.impulse.core.internal.resources.body.PhysicsBodyRegistration;
@@ -214,14 +215,9 @@ public class PersistentPhysicsBodyState {
     public static PersistentPhysicsBodyState from(@Nonnull PhysicsBodyRegistration registration,
         @Nonnull PhysicsBodySnapshot snapshot) {
         PersistentPhysicsBodyState state = new PersistentPhysicsBodyState();
-        state.bodyId = registration.id().value();
+        state.bodyId = registration.bodyKey().value();
         state.updateFromSnapshot(snapshot, registration.spaceId());
         return state;
-    }
-
-    @Nullable
-    public RigidBodyKey getBodyId() {
-        return getBodyKey();
     }
 
     @Nullable
@@ -355,10 +351,12 @@ public class PersistentPhysicsBodyState {
         sleeping = snapshot.sleeping();
     }
 
-    public long createBackendBody(@Nonnull PhysicsSpaceBinding space) {
+    @Nonnull
+    public BackendBodyHandle createBackendBody(@Nonnull PhysicsSpaceBinding space) {
         float dynamicMass = bodyType == PhysicsBodyType.DYNAMIC ? mass : 0.0f;
-        return switch (shapeType) {
-            case BOX, SPHERE, CAPSULE, CYLINDER, CONE, PLANE -> space.runtime().createBody(space.backendSpaceId(),
+        long backendBodyId = switch (shapeType) {
+            case BOX, SPHERE, CAPSULE, CYLINDER, CONE, PLANE -> space.runtime().createBody(
+                space.backendSpaceHandle().value(),
                 BackendRuntimeCodes.shapeTypeCode(shapeType),
                 boxHalfExtents.x,
                 boxHalfExtents.y,
@@ -380,13 +378,15 @@ public class PersistentPhysicsBodyState {
                 "PersistentPhysicsBodyState cannot rebuild streamed voxel terrain bodies");
             case UNKNOWN -> throw new IllegalStateException("Persistent body shape is unknown");
         };
+        return new BackendBodyHandle(backendBodyId);
     }
 
-    public void applyToBody(@Nonnull PhysicsSpaceBinding space, long backendBodyId) {
-        space.runtime().setBodyType(space.backendSpaceId(),
+    public void applyToBody(@Nonnull PhysicsSpaceBinding space, @Nonnull BackendBodyHandle backendBodyHandle) {
+        long backendBodyId = backendBodyHandle.value();
+        space.runtime().setBodyType(space.backendSpaceHandle().value(),
             backendBodyId,
             dev.hytalemodding.impulse.api.runtime.BackendRuntimeCodes.bodyTypeCode(bodyType));
-        space.runtime().setBodyTransform(space.backendSpaceId(),
+        space.runtime().setBodyTransform(space.backendSpaceHandle().value(),
             backendBodyId,
             position.x,
             position.y,
@@ -395,7 +395,7 @@ public class PersistentPhysicsBodyState {
             rotation.y,
             rotation.z,
             rotation.w);
-        space.runtime().setBodyVelocity(space.backendSpaceId(),
+        space.runtime().setBodyVelocity(space.backendSpaceHandle().value(),
             backendBodyId,
             linearVelocity.x,
             linearVelocity.y,
@@ -403,17 +403,17 @@ public class PersistentPhysicsBodyState {
             angularVelocity.x,
             angularVelocity.y,
             angularVelocity.z);
-        space.runtime().setBodyFriction(space.backendSpaceId(), backendBodyId, friction);
-        space.runtime().setBodyRestitution(space.backendSpaceId(), backendBodyId, restitution);
-        space.runtime().setBodyDamping(space.backendSpaceId(), backendBodyId, linearDamping, angularDamping);
-        space.runtime().setBodySensor(space.backendSpaceId(), backendBodyId, sensor);
-        space.runtime().setBodyCollisionFilter(space.backendSpaceId(), backendBodyId, collisionGroup, collisionMask);
+        space.runtime().setBodyFriction(space.backendSpaceHandle().value(), backendBodyId, friction);
+        space.runtime().setBodyRestitution(space.backendSpaceHandle().value(), backendBodyId, restitution);
+        space.runtime().setBodyDamping(space.backendSpaceHandle().value(), backendBodyId, linearDamping, angularDamping);
+        space.runtime().setBodySensor(space.backendSpaceHandle().value(), backendBodyId, sensor);
+        space.runtime().setBodyCollisionFilter(space.backendSpaceHandle().value(), backendBodyId, collisionGroup, collisionMask);
         space.runtime()
-            .setBodyContinuousCollision(space.backendSpaceId(), backendBodyId, continuousCollisionEnabled);
+            .setBodyContinuousCollision(space.backendSpaceHandle().value(), backendBodyId, continuousCollisionEnabled);
         if (sleeping && bodyType == PhysicsBodyType.DYNAMIC) {
-            space.runtime().sleepBody(space.backendSpaceId(), backendBodyId);
+            space.runtime().sleepBody(space.backendSpaceHandle().value(), backendBodyId);
         } else {
-            space.runtime().activateBody(space.backendSpaceId(), backendBodyId);
+            space.runtime().activateBody(space.backendSpaceHandle().value(), backendBodyId);
         }
     }
 

@@ -106,7 +106,7 @@ public class PersistentPhysicsSpaceBootstrapSystem extends TickingSystem<EntityS
                         throw new IllegalStateException("Physics space id=" + spaceId
                             + " was not registered after creation");
                     }
-                    targetSpace.runtime().setGravity(targetSpace.backendSpaceId(),
+                    targetSpace.runtime().setGravity(targetSpace.backendSpaceHandle().value(),
                         state.getGravity().x,
                         state.getGravity().y,
                         state.getGravity().z);

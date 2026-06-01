@@ -54,9 +54,9 @@ public final class PhysicsSpaceRuntime {
             settings.getWorldCollisionSettings().getWorldCollisionMode());
 
         PhysicsBackendRuntime runtime = Impulse.createRuntime(backendId);
-        int backendSpaceId = runtime.createSpace(spaceId);
+        BackendSpaceHandle backendSpaceHandle = new BackendSpaceHandle(runtime.createSpace(spaceId));
         PhysicsSpaceBinding binding =
-            new PhysicsSpaceBinding(backendId, spaceId, backendSpaceId, runtime);
+            new PhysicsSpaceBinding(backendId, spaceId, backendSpaceHandle, runtime);
         try {
             validateSpaceCompatibleWithStepMode(binding, stepMode);
             applySolverTuning(binding, settings);
@@ -128,14 +128,18 @@ public final class PhysicsSpaceRuntime {
         List<PhysicsSpaceBinding> replacements = new ArrayList<>(previousBindings.size());
         for (PhysicsSpaceBinding previous : previousBindings) {
             Vector3f gravity = new Vector3f();
-            previous.runtime().getGravity(previous.backendSpaceId(), gravity::set);
+            previous.runtime().getGravity(previous.backendSpaceHandle().value(), gravity::set);
             PhysicsBackendRuntime runtime = Impulse.createRuntime(previous.backendId());
-            int backendSpaceId = runtime.createSpace(previous.spaceId());
+            BackendSpaceHandle backendSpaceHandle =
+                new BackendSpaceHandle(runtime.createSpace(previous.spaceId()));
             PhysicsSpaceBinding replacement =
-                new PhysicsSpaceBinding(previous.backendId(), previous.spaceId(), backendSpaceId, runtime);
+                new PhysicsSpaceBinding(previous.backendId(),
+                    previous.spaceId(),
+                    backendSpaceHandle,
+                    runtime);
             try {
                 validateSpaceCompatibleWithStepMode(replacement, stepMode);
-                replacement.runtime().setGravity(backendSpaceId, gravity.x, gravity.y, gravity.z);
+                replacement.runtime().setGravity(backendSpaceHandle.value(), gravity.x, gravity.y, gravity.z);
                 replacements.add(replacement);
             } catch (RuntimeException exception) {
                 closeBindingQuietly(replacement, worldName, "discarding failed clean replacement");
@@ -146,8 +150,8 @@ public final class PhysicsSpaceRuntime {
         int removedBodies = 0;
         int removedJoints = 0;
         for (PhysicsSpaceBinding previous : previousBindings) {
-            removedBodies += previous.runtime().bodyCount(previous.backendSpaceId());
-            removedJoints += previous.runtime().jointCount(previous.backendSpaceId());
+            removedBodies += previous.runtime().bodyCount(previous.backendSpaceHandle().value());
+            removedJoints += previous.runtime().jointCount(previous.backendSpaceHandle().value());
         }
         spaces.clear();
         for (PhysicsSpaceBinding replacement : replacements) {
@@ -226,35 +230,35 @@ public final class PhysicsSpaceRuntime {
 
     private static void applySolverTuning(@Nonnull PhysicsSpaceBinding binding,
         @Nonnull PhysicsSpaceSettings settings) {
-        if (binding.runtime().supportsSolverTuning(binding.backendSpaceId())) {
-            binding.runtime().applySolverTuning(binding.backendSpaceId(),
+        if (binding.runtime().supportsSolverTuning(binding.backendSpaceHandle().value())) {
+            binding.runtime().applySolverTuning(binding.backendSpaceHandle().value(),
                 new PhysicsSolverTuning(
                     settings.getSolverSettings().getSolverIterations(),
                     settings.getSolverSettings().getStabilizationIterations()));
         }
-        if (binding.runtime().supportsActivationTuning(binding.backendSpaceId())) {
-            binding.runtime().applyActivationTuning(binding.backendSpaceId(),
+        if (binding.runtime().supportsActivationTuning(binding.backendSpaceHandle().value())) {
+            binding.runtime().applyActivationTuning(binding.backendSpaceHandle().value(),
                 new PhysicsActivationTuning(
                     settings.getSolverSettings().getDynamicSleepLinearThreshold(),
                     settings.getSolverSettings().getDynamicSleepAngularThreshold(),
                     settings.getSolverSettings().getDynamicSleepTimeUntilSleep()));
         }
         for (PhysicsBackendExtensionId extensionId : settings.getExtensionSettings().asMap().keySet()) {
-            binding.runtime().applyExtensionSettings(binding.backendSpaceId(),
+            binding.runtime().applyExtensionSettings(binding.backendSpaceHandle().value(),
                 new PhysicsCapabilityId(extensionId.value()),
                 consumer -> settings.getExtensionSettings().asStringMap(extensionId).forEach(consumer));
         }
     }
 
     private static boolean supportsContinuousCollision(@Nonnull PhysicsSpaceBinding binding) {
-        return binding.runtime().supportsContinuousCollision(binding.backendSpaceId());
+        return binding.runtime().supportsContinuousCollision(binding.backendSpaceHandle().value());
     }
 
     static void closeBindingQuietly(@Nonnull PhysicsSpaceBinding binding,
         @Nonnull String worldName,
         @Nonnull String action) {
         try {
-            binding.runtime().destroySpace(binding.backendSpaceId());
+            binding.runtime().destroySpace(binding.backendSpaceHandle().value());
         } catch (RuntimeException exception) {
             LOGGER.at(Level.WARNING).log(
                 "World %s failed to close %s id=%s backend=%s: %s",

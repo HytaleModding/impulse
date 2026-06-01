@@ -186,8 +186,8 @@ public class StressJointsCommand extends AbstractAsyncPlayerCommand {
     private static void createJoint(@Nonnull PhysicsCommandRecorder commands,
         @Nonnull JointKey jointKey,
         @Nonnull SpaceId spaceId,
-        @Nonnull RigidBodyKey previousId,
-        @Nonnull RigidBodyKey currentId,
+        @Nonnull RigidBodyKey previousKey,
+        @Nonnull RigidBodyKey currentKey,
         int jointType) {
         JointType type = switch (jointType) {
             case 0 -> JointType.FIXED;
@@ -197,7 +197,7 @@ public class StressJointsCommand extends AbstractAsyncPlayerCommand {
             default -> JointType.SPRING;
         };
         commands.joint(jointKey, joint -> {
-            joint.space(spaceId).bodies(previousId, currentId);
+            joint.space(spaceId).bodies(previousKey, currentKey);
             switch (type) {
                 case FIXED -> joint.fixed(HALF_SIZE, 0.0f, 0.0f, -HALF_SIZE, 0.0f, 0.0f);
                 case POINT -> joint.point(HALF_SIZE, 0.0f, 0.0f, -HALF_SIZE, 0.0f, 0.0f);

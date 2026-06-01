@@ -601,7 +601,7 @@ public class PhysicsWorldRuntimeResource extends PhysicsWorldResource {
             jointRegistry.unregisterSpace(spaceId);
             for (PhysicsBodyRegistration registration : bodyRegistry.getRegistrations()) {
                 if (registration.spaceId().equals(spaceId)) {
-                    destroyBody(registration.id(), false);
+                    destroyBody(registration.bodyKey(), false);
                 }
             }
             LOGGER.at(Level.FINE).log(
@@ -686,20 +686,20 @@ public class PhysicsWorldRuntimeResource extends PhysicsWorldResource {
     @Nonnull
     public RigidBodyKey addBodyOnOwner(@Nonnull RigidBodyKey bodyKey,
         @Nonnull SpaceId spaceId,
-        long backendBodyId,
+        @Nonnull BackendBodyHandle backendBodyHandle,
         @Nonnull PhysicsBodyKind kind,
         @Nonnull PhysicsBodyPersistenceMode persistenceMode) {
         assertCanAccessLiveBackendDirectly("add physics body");
-        return addBodyDirect(bodyKey, spaceId, backendBodyId, kind, persistenceMode);
+        return addBodyDirect(bodyKey, spaceId, backendBodyHandle, kind, persistenceMode);
     }
 
     @Nonnull
     private RigidBodyKey addBodyDirect(@Nonnull RigidBodyKey bodyKey,
         @Nonnull SpaceId spaceId,
-        long backendBodyId,
+        @Nonnull BackendBodyHandle backendBodyHandle,
         @Nonnull PhysicsBodyKind kind,
         @Nonnull PhysicsBodyPersistenceMode persistenceMode) {
-        return bodyRuntime.addBody(bodyKey, spaceId, backendBodyId, kind, persistenceMode);
+        return bodyRuntime.addBody(bodyKey, spaceId, backendBodyHandle, kind, persistenceMode);
     }
 
     public void destroyBody(@Nonnull RigidBodyKey bodyKey) {
@@ -753,7 +753,7 @@ public class PhysicsWorldRuntimeResource extends PhysicsWorldResource {
     @Nonnull
     public JointKey addJointOnOwner(@Nonnull JointKey jointKey,
         @Nonnull SpaceId spaceId,
-        long backendJointId,
+        @Nonnull BackendJointHandle backendJointHandle,
         @Nonnull RigidBodyKey bodyA,
         @Nonnull RigidBodyKey bodyB,
         @Nonnull JointType type,
@@ -777,7 +777,7 @@ public class PhysicsWorldRuntimeResource extends PhysicsWorldResource {
         assertCanAccessLiveBackendDirectly("add physics joint");
         return addJointDirect(jointKey,
             spaceId,
-            backendJointId,
+            backendJointHandle,
             bodyA,
             bodyB,
             type,
@@ -803,7 +803,7 @@ public class PhysicsWorldRuntimeResource extends PhysicsWorldResource {
     @Nonnull
     private JointKey addJointDirect(@Nonnull JointKey jointKey,
         @Nonnull SpaceId spaceId,
-        long backendJointId,
+        @Nonnull BackendJointHandle backendJointHandle,
         @Nonnull RigidBodyKey bodyA,
         @Nonnull RigidBodyKey bodyB,
         @Nonnull JointType type,
@@ -829,7 +829,7 @@ public class PhysicsWorldRuntimeResource extends PhysicsWorldResource {
         }
         jointRegistry.registerJoint(jointKey,
             spaceId,
-            backendJointId,
+            backendJointHandle,
             bodyA,
             bodyB,
             type,
@@ -866,7 +866,7 @@ public class PhysicsWorldRuntimeResource extends PhysicsWorldResource {
 
         PhysicsSpaceBinding binding = spaceRuntime.getBinding(registration.spaceId());
         if (binding != null) {
-            binding.runtime().removeJoint(binding.backendSpaceId(), registration.backendJointId());
+            binding.runtime().removeJoint(binding.backendSpaceHandle().value(), registration.backendJointHandle().value());
         }
         jointRegistry.unregisterJoint(jointKey);
         markWorldChanged();

@@ -221,13 +221,13 @@ public class PhysicsCollisionLodSystem extends TickingSystem<EntityStore> {
             if (space == null) {
                 continue;
             }
-            PhysicsBodySnapshot snapshot = PhysicsBodySnapshots.read(space, registration.backendBodyId());
+            PhysicsBodySnapshot snapshot = PhysicsBodySnapshots.read(space, registration.backendBodyHandle().value());
             if (snapshot == null || !snapshot.isDynamic() || snapshot.sensor()) {
                 continue;
             }
             PhysicsSpaceSettings settings = resource.getLiveSpaceSettings(update.spaceId());
             applyTier(space,
-                registration.backendBodyId(),
+                registration.backendBodyHandle().value(),
                 update.tier(),
                 settings.getCollisionLodSettings().isCollisionLodFarSleepEnabled());
         }
@@ -242,26 +242,26 @@ public class PhysicsCollisionLodSystem extends TickingSystem<EntityStore> {
             | PhysicsCollisionFilters.DYNAMIC_BODY;
         switch (tier) {
             case NEAR_FULL -> {
-                space.runtime().setBodyCollisionFilter(space.backendSpaceId(),
+                space.runtime().setBodyCollisionFilter(space.backendSpaceHandle().value(),
                     backendBodyId,
                     PhysicsCollisionFilters.DYNAMIC_BODY,
                     fullDynamicMask);
-                space.runtime().activateBody(space.backendSpaceId(), backendBodyId);
+                space.runtime().activateBody(space.backendSpaceHandle().value(), backendBodyId);
             }
             case MID_TERRAIN -> {
-                space.runtime().setBodyCollisionFilter(space.backendSpaceId(),
+                space.runtime().setBodyCollisionFilter(space.backendSpaceHandle().value(),
                     backendBodyId,
                     PhysicsCollisionFilters.DYNAMIC_BODY,
                     terrainOnlyMask);
-                space.runtime().activateBody(space.backendSpaceId(), backendBodyId);
+                space.runtime().activateBody(space.backendSpaceHandle().value(), backendBodyId);
             }
             case FAR_SLEEPING -> {
-                space.runtime().setBodyCollisionFilter(space.backendSpaceId(),
+                space.runtime().setBodyCollisionFilter(space.backendSpaceHandle().value(),
                     backendBodyId,
                     PhysicsCollisionFilters.DYNAMIC_BODY,
                     terrainOnlyMask);
                 if (farSleepEnabled) {
-                    space.runtime().sleepBody(space.backendSpaceId(), backendBodyId);
+                    space.runtime().sleepBody(space.backendSpaceHandle().value(), backendBodyId);
                 }
             }
         }

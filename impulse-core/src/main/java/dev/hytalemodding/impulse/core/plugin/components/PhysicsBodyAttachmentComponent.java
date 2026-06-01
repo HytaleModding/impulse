@@ -157,17 +157,8 @@ public class PhysicsBodyAttachmentComponent implements Component<EntityStore> {
     }
 
     @Nonnull
-    public RigidBodyKey getBodyId() {
-        return bodyKey;
-    }
-
-    @Nonnull
     public RigidBodyKey getBodyKey() {
         return bodyKey;
-    }
-
-    public void setBodyId(@Nonnull RigidBodyKey bodyKey) {
-        setBodyKey(bodyKey);
     }
 
     public void setBodyKey(@Nonnull RigidBodyKey bodyKey) {

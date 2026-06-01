@@ -791,7 +791,7 @@ public final class WorldVoxelCollisionCache {
             return;
         }
 
-        long bodyId = space.runtime().createBody(space.backendSpaceId(),
+        long bodyId = space.runtime().createBody(space.backendSpaceHandle().value(),
             BackendRuntimeCodes.SHAPE_BOX,
             (float) box.halfX(),
             (float) box.halfY(),
@@ -809,9 +809,9 @@ public final class WorldVoxelCollisionCache {
             0.0f,
             0.0f,
             1.0f);
-        space.runtime().setBodyFriction(space.backendSpaceId(), bodyId, 0.75f);
+        space.runtime().setBodyFriction(space.backendSpaceHandle().value(), bodyId, 0.75f);
         space.runtime()
-            .setBodyCollisionFilter(space.backendSpaceId(),
+            .setBodyCollisionFilter(space.backendSpaceHandle().value(),
                 bodyId,
                 PhysicsCollisionFilters.TERRAIN,
                 PhysicsCollisionFilters.ALL);
@@ -992,7 +992,7 @@ public final class WorldVoxelCollisionCache {
         private int removeFrom(@Nonnull PhysicsSpaceBinding space) {
             int removed = bodies.size();
             for (long bodyId : bodies) {
-                space.runtime().removeBody(space.backendSpaceId(), bodyId);
+                space.runtime().removeBody(space.backendSpaceHandle().value(), bodyId);
             }
             bodies.clear();
             return removed;

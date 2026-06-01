@@ -320,11 +320,6 @@ public final class PublishedPhysicsBodySnapshot implements PublishedPhysicsBodyS
     }
 
     @Nonnull
-    public RigidBodyKey bodyId() {
-        return bodyKey();
-    }
-
-    @Nonnull
     public RigidBodyKey bodyKey() {
         return bodyKey;
     }

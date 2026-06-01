@@ -200,7 +200,7 @@ public final class PhysicsOwnerStepCommand implements PhysicsOwnerCommand {
 
     private static void resetStepPhaseStats(@Nonnull PhysicsWorldRuntimeResource resource) {
         for (PhysicsSpaceBinding space : resource.iterateSpaceBindings()) {
-            space.runtime().resetStepPhaseStats(space.backendSpaceId());
+            space.runtime().resetStepPhaseStats(space.backendSpaceHandle().value());
         }
     }
 
@@ -210,7 +210,7 @@ public final class PhysicsOwnerStepCommand implements PhysicsOwnerCommand {
         PhysicsStepPhaseStats stats = PhysicsStepPhaseStats.unavailable();
         for (PhysicsSpaceBinding space : resource.iterateSpaceBindings()) {
             PhysicsStepPhaseStats[] spaceStats = { PhysicsStepPhaseStats.unavailable() };
-            space.runtime().stepPhaseStats(space.backendSpaceId(),
+            space.runtime().stepPhaseStats(space.backendSpaceHandle().value(),
                 (stepNanos,
                     broadPhaseNanos,
                     narrowPhaseNanos,
@@ -248,7 +248,7 @@ public final class PhysicsOwnerStepCommand implements PhysicsOwnerCommand {
             if (space == null) {
                 continue;
             }
-            PhysicsBodySnapshot snapshot = PhysicsBodySnapshots.read(space, registration.backendBodyId());
+            PhysicsBodySnapshot snapshot = PhysicsBodySnapshots.read(space, registration.backendBodyHandle().value());
             if (snapshot != null) {
                 risk.inspect(snapshot);
             }
@@ -270,7 +270,7 @@ public final class PhysicsOwnerStepCommand implements PhysicsOwnerCommand {
                 forceContinuousCollision(resource, space);
             }
             for (int step = 0; step < steps; step++) {
-                space.runtime().step(space.backendSpaceId(), stepDt);
+                space.runtime().step(space.backendSpaceHandle().value(), stepDt);
                 counters.substeps++;
                 if (collectBackendEvents) {
                     collectContactEvents(resource, space, backendEvents);
@@ -282,7 +282,7 @@ public final class PhysicsOwnerStepCommand implements PhysicsOwnerCommand {
     private static void collectContactEvents(@Nonnull PhysicsWorldRuntimeResource resource,
         @Nonnull PhysicsSpaceBinding space,
         @Nonnull StepBackendEvents backendEvents) {
-        space.runtime().contacts(space.backendSpaceId(), (bodyAId,
+        space.runtime().contacts(space.backendSpaceHandle().value(), (bodyAId,
             bodyBId,
             pointAX,
             pointAY,
@@ -314,7 +314,7 @@ public final class PhysicsOwnerStepCommand implements PhysicsOwnerCommand {
     }
 
     private static boolean supportsContinuousCollision(@Nonnull PhysicsSpaceBinding space) {
-        return space.runtime().supportsContinuousCollision(space.backendSpaceId());
+        return space.runtime().supportsContinuousCollision(space.backendSpaceHandle().value());
     }
 
     private static int requiredSteps(float travel, float safeTravel) {
@@ -387,15 +387,15 @@ public final class PhysicsOwnerStepCommand implements PhysicsOwnerCommand {
             if (!registration.spaceId().equals(space.spaceId())) {
                 continue;
             }
-            PhysicsBodySnapshot snapshot = PhysicsBodySnapshots.read(space, registration.backendBodyId());
+            PhysicsBodySnapshot snapshot = PhysicsBodySnapshots.read(space, registration.backendBodyHandle().value());
             if (snapshot == null
                 || !snapshot.isDynamic()
-                || space.runtime().isBodyContinuousCollisionEnabled(space.backendSpaceId(),
-                    registration.backendBodyId())) {
+                || space.runtime().isBodyContinuousCollisionEnabled(space.backendSpaceHandle().value(),
+                    registration.backendBodyHandle().value())) {
                 continue;
             }
-            space.runtime().setBodyContinuousCollision(space.backendSpaceId(), registration.backendBodyId(), true);
-            resource.markContinuousCollisionForced(registration.id());
+            space.runtime().setBodyContinuousCollision(space.backendSpaceHandle().value(), registration.backendBodyHandle().value(), true);
+            resource.markContinuousCollisionForced(registration.bodyKey());
         }
     }
 
@@ -410,7 +410,7 @@ public final class PhysicsOwnerStepCommand implements PhysicsOwnerCommand {
                 PhysicsSpaceBinding space = resource.getSpaceBinding(registration.spaceId());
                 if (space != null) {
                     space.runtime()
-                        .setBodyContinuousCollision(space.backendSpaceId(), registration.backendBodyId(), false);
+                        .setBodyContinuousCollision(space.backendSpaceHandle().value(), registration.backendBodyHandle().value(), false);
                 }
             }
         });

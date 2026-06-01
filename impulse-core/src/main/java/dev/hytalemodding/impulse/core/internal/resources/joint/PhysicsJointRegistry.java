@@ -1,6 +1,7 @@
 package dev.hytalemodding.impulse.core.internal.resources.joint;
 
 import dev.hytalemodding.impulse.api.SpaceId;
+import dev.hytalemodding.impulse.core.internal.resources.BackendJointHandle;
 import dev.hytalemodding.impulse.core.plugin.body.RigidBodyKey;
 import dev.hytalemodding.impulse.core.plugin.joint.JointKey;
 import dev.hytalemodding.impulse.core.plugin.simulation.JointType;
@@ -26,7 +27,7 @@ public final class PhysicsJointRegistry {
     @Nonnull
     public PhysicsJointRegistration registerJoint(@Nonnull JointKey jointKey,
         @Nonnull SpaceId spaceId,
-        long backendJointId,
+        @Nonnull BackendJointHandle backendJointHandle,
         @Nonnull RigidBodyKey bodyA,
         @Nonnull RigidBodyKey bodyB,
         @Nonnull JointType type,
@@ -47,19 +48,19 @@ public final class PhysicsJointRegistry {
         boolean motorEnabled,
         float motorTargetVelocity,
         float motorMaxForce) {
-        JointKey existingKey = getJointKey(spaceId, backendJointId);
+        JointKey existingKey = getJointKey(spaceId, backendJointHandle);
         if (existingKey != null && !existingKey.equals(jointKey)) {
             throw new IllegalArgumentException("Physics joint is already registered as " + existingKey);
         }
         PhysicsJointRegistration existingRegistration = registrationsByKey.get(jointKey);
         if (existingRegistration != null
-            && (existingRegistration.backendJointId() != backendJointId
+            && (!existingRegistration.backendJointHandle().equals(backendJointHandle)
                 || !existingRegistration.spaceId().equals(spaceId))) {
             throw new IllegalArgumentException("Physics joint key=" + jointKey
                 + " is already registered to another backend joint");
         }
         PhysicsJointRegistration registration = new PhysicsJointRegistration(jointKey,
-            backendJointId,
+            backendJointHandle,
             spaceId,
             bodyA,
             bodyB,
@@ -84,7 +85,7 @@ public final class PhysicsJointRegistry {
         registrationsByKey.put(jointKey, registration);
         jointKeysByBackendId
             .computeIfAbsent(spaceId.value(), ignored -> new Long2ObjectOpenHashMap<>())
-            .put(backendJointId, jointKey);
+            .put(backendJointHandle.value(), jointKey);
         return registration;
     }
 
@@ -110,7 +111,7 @@ public final class PhysicsJointRegistry {
         ArrayList<JointKey> removed = new ArrayList<>();
         for (PhysicsJointRegistration registration : registrationsByKey.values()) {
             if (registration.bodyA().equals(bodyKey) || registration.bodyB().equals(bodyKey)) {
-                removed.add(registration.id());
+                removed.add(registration.jointKey());
             }
         }
         ArrayList<PhysicsJointRegistration> registrations = new ArrayList<>(removed.size());
@@ -127,7 +128,7 @@ public final class PhysicsJointRegistry {
         ArrayList<JointKey> removed = new ArrayList<>();
         for (PhysicsJointRegistration registration : registrationsByKey.values()) {
             if (registration.spaceId().equals(spaceId)) {
-                removed.add(registration.id());
+                removed.add(registration.jointKey());
             }
         }
         for (JointKey jointKey : removed) {
@@ -145,6 +146,12 @@ public final class PhysicsJointRegistry {
         Long2ObjectOpenHashMap<JointKey> jointKeys =
             jointKeysByBackendId.get(spaceId.value());
         return jointKeys != null ? jointKeys.get(backendJointId) : null;
+    }
+
+    @Nullable
+    public JointKey getJointKey(@Nonnull SpaceId spaceId,
+        @Nonnull BackendJointHandle backendJointHandle) {
+        return getJointKey(spaceId, backendJointHandle.value());
     }
 
     @Nullable
@@ -178,7 +185,7 @@ public final class PhysicsJointRegistry {
         if (jointKeys == null) {
             return;
         }
-        jointKeys.remove(registration.backendJointId());
+        jointKeys.remove(registration.backendJointHandle().value());
         if (jointKeys.isEmpty()) {
             jointKeysByBackendId.remove(registration.spaceId().value());
         }

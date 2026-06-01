@@ -49,9 +49,9 @@ public final class PhysicsWorldSnapshotState {
     @Nonnull
     public PhysicsBodySnapshot captureBodySnapshot(
         @Nonnull PhysicsBodyRegistration registration) {
-        PhysicsBodySnapshot snapshot = bodySnapshots.get(registration.id());
+        PhysicsBodySnapshot snapshot = bodySnapshots.get(registration.bodyKey());
         if (snapshot == null) {
-            throw new IllegalStateException("No physics body snapshot is available for " + registration.id());
+            throw new IllegalStateException("No physics body snapshot is available for " + registration.bodyKey());
         }
         return snapshot;
     }

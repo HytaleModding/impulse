@@ -83,9 +83,9 @@ public class PersistentPhysicsJointHydrationSystem extends TickingSystem<EntityS
 
         for (PersistentPhysicsJointState state : persistent.getJoints()) {
             String key = state.key();
-            RigidBodyKey bodyAId = state.getBodyAId();
-            RigidBodyKey bodyBId = state.getBodyBId();
-            if (bodyAId == null || bodyBId == null) {
+            RigidBodyKey bodyAKey = state.getBodyAKey();
+            RigidBodyKey bodyBKey = state.getBodyBKey();
+            if (bodyAKey == null || bodyBKey == null) {
                 persistent.recordRuntimeJointSkipped(key, "missing endpoint body key");
                 continue;
             }
@@ -95,8 +95,8 @@ public class PersistentPhysicsJointHydrationSystem extends TickingSystem<EntityS
             }
 
             PhysicsSpaceBinding space = runtime.getSpaceBinding(new SpaceId(state.getSpaceId()));
-            PhysicsBodyRegistration bodyA = runtime.getRegistration(bodyAId);
-            PhysicsBodyRegistration bodyB = runtime.getRegistration(bodyBId);
+            PhysicsBodyRegistration bodyA = runtime.getRegistration(bodyAKey);
+            PhysicsBodyRegistration bodyB = runtime.getRegistration(bodyBKey);
             if (space == null) {
                 persistent.recordRuntimeJointSkipped(key, "missing target space");
                 continue;
@@ -113,7 +113,7 @@ public class PersistentPhysicsJointHydrationSystem extends TickingSystem<EntityS
             }
 
             try {
-                PersistentPhysicsRuntimeSupport.createJoint(runtime, space, state, bodyAId, bodyA, bodyBId, bodyB);
+                PersistentPhysicsRuntimeSupport.createJoint(runtime, space, state, bodyAKey, bodyA, bodyBKey, bodyB);
             } catch (RuntimeException exception) {
                 persistent.recordRuntimeJointSkipped(key, "joint creation failed");
                 LOGGER.at(Level.WARNING).log(

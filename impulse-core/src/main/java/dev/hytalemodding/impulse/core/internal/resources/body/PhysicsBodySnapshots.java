@@ -18,7 +18,7 @@ public final class PhysicsBodySnapshots {
     public static PhysicsBodySnapshot read(@Nonnull PhysicsSpaceBinding space,
         long backendBodyId) {
         PhysicsBodySnapshot[] snapshot = new PhysicsBodySnapshot[1];
-        space.runtime().bodySnapshot(space.backendSpaceId(),
+        space.runtime().bodySnapshot(space.backendSpaceHandle().value(),
             backendBodyId,
             (bodyId,
                 shapeTypeCode,

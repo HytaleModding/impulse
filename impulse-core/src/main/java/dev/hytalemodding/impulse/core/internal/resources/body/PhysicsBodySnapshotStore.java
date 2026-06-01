@@ -45,11 +45,11 @@ public final class PhysicsBodySnapshotStore {
             Iterator<PhysicsBodyRegistration> registrations = bodyRegistry.registrationIterator(spaceId);
             while (registrations.hasNext()) {
                 PhysicsBodyRegistration registration = registrations.next();
-                PhysicsBodySnapshot snapshot = PhysicsBodySnapshots.read(space, registration.backendBodyId());
+                PhysicsBodySnapshot snapshot = PhysicsBodySnapshots.read(space, registration.backendBodyHandle().value());
                 if (snapshot == null) {
                     continue;
                 }
-                RigidBodyKey bodyKey = registration.id();
+                RigidBodyKey bodyKey = registration.bodyKey();
                 markLive(bodyKey, generation, liveBodies);
                 PhysicsBodySnapshot previous = snapshots.get(bodyKey);
                 if (snapshot != previous) {

@@ -1,6 +1,7 @@
 package dev.hytalemodding.impulse.core.internal.resources.joint;
 
 import dev.hytalemodding.impulse.api.SpaceId;
+import dev.hytalemodding.impulse.core.internal.resources.BackendJointHandle;
 import dev.hytalemodding.impulse.core.plugin.joint.JointKey;
 import dev.hytalemodding.impulse.core.plugin.body.RigidBodyKey;
 import dev.hytalemodding.impulse.core.plugin.simulation.JointType;
@@ -9,8 +10,8 @@ import javax.annotation.Nonnull;
 /**
  * Owner-lane registration for a backend joint id.
  */
-public record PhysicsJointRegistration(@Nonnull JointKey id,
-    long backendJointId,
+public record PhysicsJointRegistration(@Nonnull JointKey jointKey,
+    @Nonnull BackendJointHandle backendJointHandle,
     @Nonnull SpaceId spaceId,
     @Nonnull RigidBodyKey bodyA,
     @Nonnull RigidBodyKey bodyB,

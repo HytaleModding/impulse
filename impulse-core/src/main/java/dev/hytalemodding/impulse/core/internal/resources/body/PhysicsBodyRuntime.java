@@ -3,6 +3,7 @@ package dev.hytalemodding.impulse.core.internal.resources.body;
 import dev.hytalemodding.impulse.api.PhysicsBodySnapshot;
 import dev.hytalemodding.impulse.api.SpaceId;
 import dev.hytalemodding.impulse.core.internal.control.PhysicsControlRuntimeState;
+import dev.hytalemodding.impulse.core.internal.resources.BackendBodyHandle;
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsChunkBoundaryRuntime;
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsSpaceBinding;
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsSpaceRuntime;
@@ -78,17 +79,18 @@ public final class PhysicsBodyRuntime {
     @Nonnull
     public RigidBodyKey addBody(@Nonnull RigidBodyKey bodyKey,
         @Nonnull SpaceId spaceId,
-        long backendBodyId,
+        @Nonnull BackendBodyHandle backendBodyHandle,
         @Nonnull PhysicsBodyKind kind,
         @Nonnull PhysicsBodyPersistenceMode persistenceMode) {
         PhysicsSpaceBinding binding = spaceRuntime.requireBinding(spaceId);
-        if (!binding.runtime().containsBody(binding.backendSpaceId(), backendBodyId)) {
+        long backendBodyId = backendBodyHandle.value();
+        if (!binding.runtime().containsBody(binding.backendSpaceHandle().value(), backendBodyId)) {
             throw new IllegalArgumentException("Physics backend body id=" + backendBodyId
                 + " is not registered in space " + spaceId);
         }
-        bodyRegistry.validateRegisterable(bodyKey, backendBodyId, spaceId);
+        bodyRegistry.validateRegisterable(bodyKey, backendBodyHandle, spaceId);
         PhysicsBodyRegistration registration =
-            bodyRegistry.registerBody(bodyKey, backendBodyId, spaceId, kind, persistenceMode);
+            bodyRegistry.registerBody(bodyKey, backendBodyHandle, spaceId, kind, persistenceMode);
         PhysicsBodySnapshot snapshot = PhysicsBodySnapshots.read(binding, backendBodyId);
         if (snapshot != null) {
             lifecycleState.putBodySnapshot(bodyKey,
@@ -120,7 +122,7 @@ public final class PhysicsBodyRuntime {
         boolean bodyFailure = false;
         for (PhysicsBodyRegistration registration : new ArrayList<>(bodyRegistry.getRegistrations())) {
             try {
-                destroyBody(registration.id(), true);
+                destroyBody(registration.bodyKey(), true);
             } catch (RuntimeException exception) {
                 bodyFailure = true;
                 failure = collectFailure(failure, exception);
@@ -159,15 +161,15 @@ public final class PhysicsBodyRuntime {
     }
 
     private void removeBodyFromSpace(@Nonnull PhysicsBodyRegistration registration) {
-        for (PhysicsJointRegistration joint : jointRegistry.unregisterJointsForBody(registration.id())) {
+        for (PhysicsJointRegistration joint : jointRegistry.unregisterJointsForBody(registration.bodyKey())) {
             PhysicsSpaceBinding jointSpace = spaceRuntime.getBinding(joint.spaceId());
             if (jointSpace != null) {
-                jointSpace.runtime().removeJoint(jointSpace.backendSpaceId(), joint.backendJointId());
+                jointSpace.runtime().removeJoint(jointSpace.backendSpaceHandle().value(), joint.backendJointHandle().value());
             }
         }
         PhysicsSpaceBinding binding = spaceRuntime.getBinding(registration.spaceId());
         if (binding != null) {
-            binding.runtime().removeBody(binding.backendSpaceId(), registration.backendBodyId());
+            binding.runtime().removeBody(binding.backendSpaceHandle().value(), registration.backendBodyHandle().value());
         }
     }
 

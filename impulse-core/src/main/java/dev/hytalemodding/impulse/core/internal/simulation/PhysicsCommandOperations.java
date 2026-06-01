@@ -5,7 +5,6 @@ import dev.hytalemodding.impulse.api.SpaceId;
 import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyKind;
 import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyPersistenceMode;
 import dev.hytalemodding.impulse.core.plugin.body.RigidBodyKey;
-import dev.hytalemodding.impulse.core.plugin.simulation.PhysicsOwnerTransaction;
 import dev.hytalemodding.impulse.core.plugin.joint.JointKey;
 import dev.hytalemodding.impulse.core.plugin.simulation.JointType;
 import dev.hytalemodding.impulse.core.plugin.simulation.PhysicsCommandContext;
@@ -40,7 +39,6 @@ final class PhysicsCommandOperations {
     public static final byte CREATE_JOINT = 10;
     public static final byte DESTROY_JOINT = 11;
     public static final byte DESTROY_JOINT_BETWEEN_BODIES = 12;
-    public static final byte LIVE_OWNER_TRANSACTION = 13;
     public static final byte SPAWN_RIGID_BODY_TEMPLATE_BATCH = 14;
     public static final byte SET_RIGID_BODY_POSITION = 15;
     public static final byte SET_SPACE_GRAVITY = 16;
@@ -342,16 +340,6 @@ final class PhysicsCommandOperations {
         object(index, 3, bodyB);
     }
 
-    void addLiveOwnerTransaction(@Nonnull String operation,
-        @Nonnull PhysicsOwnerTransaction transaction) {
-        if (Objects.requireNonNull(operation, "operation").isBlank()) {
-            throw new IllegalArgumentException("operation must not be blank");
-        }
-        int index = add(LIVE_OWNER_TRANSACTION, 0, 2, 0);
-        object(index, 0, operation);
-        object(index, 1, transaction);
-    }
-
     public int size() {
         return size;
     }
@@ -425,7 +413,6 @@ final class PhysicsCommandOperations {
                     accumulator.addBody(
                         Objects.requireNonNull(objectAt(index, 3, RigidBodyKey.class)));
                 }
-                case LIVE_OWNER_TRANSACTION -> accumulator.addLiveOwnerTransaction();
                 default -> {
                 }
             }
@@ -557,18 +544,15 @@ final class PhysicsCommandOperations {
         private final int jointKeyReferenceCount;
         @Nullable
         private final JointKey firstJointKey;
-        private final int liveOwnerTransactionCount;
 
         private EntityReferences(int bodyKeyReferenceCount,
             @Nullable RigidBodyKey firstBodyKey,
             int jointKeyReferenceCount,
-            @Nullable JointKey firstJointKey,
-            int liveOwnerTransactionCount) {
+            @Nullable JointKey firstJointKey) {
             this.bodyKeyReferenceCount = Math.max(0, bodyKeyReferenceCount);
             this.firstBodyKey = this.bodyKeyReferenceCount > 0 ? firstBodyKey : null;
             this.jointKeyReferenceCount = Math.max(0, jointKeyReferenceCount);
             this.firstJointKey = this.jointKeyReferenceCount > 0 ? firstJointKey : null;
-            this.liveOwnerTransactionCount = Math.max(0, liveOwnerTransactionCount);
         }
 
         int bodyKeyReferenceCount() {
@@ -588,10 +572,6 @@ final class PhysicsCommandOperations {
         JointKey firstJointKey() {
             return firstJointKey;
         }
-
-        int liveOwnerTransactionCount() {
-            return liveOwnerTransactionCount;
-        }
     }
 
     private static final class EntityReferenceAccumulator {
@@ -602,7 +582,6 @@ final class PhysicsCommandOperations {
         private int jointKeyReferenceCount;
         @Nullable
         private JointKey firstJointKey;
-        private int liveOwnerTransactionCount;
 
         void addBody(@Nonnull RigidBodyKey bodyKey) {
             if (firstBodyKey == null) {
@@ -640,17 +619,12 @@ final class PhysicsCommandOperations {
             jointKeyReferenceCount++;
         }
 
-        void addLiveOwnerTransaction() {
-            liveOwnerTransactionCount++;
-        }
-
         @Nonnull
         EntityReferences references() {
             return new EntityReferences(bodyKeyReferenceCount,
                 firstBodyKey,
                 jointKeyReferenceCount,
-                firstJointKey,
-                liveOwnerTransactionCount);
+                firstJointKey);
         }
     }
 }

@@ -18,6 +18,7 @@ import dev.hytalemodding.impulse.api.PhysicsRayHit;
 import dev.hytalemodding.impulse.api.PhysicsSpace;
 import dev.hytalemodding.impulse.api.SpaceId;
 import dev.hytalemodding.impulse.api.testsupport.FakePhysicsBackend;
+import dev.hytalemodding.impulse.core.internal.resources.BackendBodyHandle;
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsSpaceBinding;
 import dev.hytalemodding.impulse.core.internal.testsupport.LegacyLiveHandleTestResource;
 import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyKind;
@@ -54,7 +55,7 @@ class PhysicsBodySnapshotStoreTest {
         PhysicsSpaceBinding binding = resource.requireSpaceBinding(delegate.id());
         PhysicsBodyRegistry registry = new PhysicsBodyRegistry();
         registry.registerBody(bodyId,
-            resource.requireBodyRegistration(bodyId).backendBodyId(),
+            resource.requireBodyRegistration(bodyId).backendBodyHandle(),
             delegate.id(),
             PhysicsBodyKind.BODY,
             PhysicsBodyPersistenceMode.RUNTIME_ONLY);
@@ -73,7 +74,7 @@ class PhysicsBodySnapshotStoreTest {
         RigidBodyKey bodyId = RigidBodyKey.of(0L, 1L);
         PhysicsBodyRegistry registry = new PhysicsBodyRegistry();
         registry.registerBody(bodyId,
-            1L,
+            handle(1L),
             space.id(),
             PhysicsBodyKind.BODY,
             PhysicsBodyPersistenceMode.RUNTIME_ONLY);
@@ -121,7 +122,7 @@ class PhysicsBodySnapshotStoreTest {
         RigidBodyKey bodyId = RigidBodyKey.of(0L, 2L);
         PhysicsBodyRegistry registry = new PhysicsBodyRegistry();
         registry.registerBody(bodyId,
-            1L,
+            handle(1L),
             space.id(),
             PhysicsBodyKind.BODY,
             PhysicsBodyPersistenceMode.RUNTIME_ONLY);
@@ -221,6 +222,11 @@ class PhysicsBodySnapshotStoreTest {
             0.0f,
             0.0f,
             PhysicsAxis.Y);
+    }
+
+    @Nonnull
+    private static BackendBodyHandle handle(long value) {
+        return new BackendBodyHandle(value);
     }
 
     private static final class RecordingSnapshotSpace implements PhysicsSpace {
