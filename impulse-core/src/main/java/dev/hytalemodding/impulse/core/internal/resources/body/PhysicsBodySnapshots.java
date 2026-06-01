@@ -20,7 +20,7 @@ public final class PhysicsBodySnapshots {
         PhysicsBodySnapshot[] snapshot = new PhysicsBodySnapshot[1];
         space.runtime().bodySnapshot(space.backendSpaceHandle().value(),
             backendBodyId,
-            (bodyId,
+            (_,
                 shapeTypeCode,
                 bodyTypeCode,
                 positionX,

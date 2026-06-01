@@ -21,7 +21,7 @@ public final class PhysicsJointRegistry {
 
     private final Map<JointKey, PhysicsJointRegistration> registrationsByKey =
         new Object2ObjectLinkedOpenHashMap<>();
-    private final Int2ObjectOpenHashMap<Long2ObjectOpenHashMap<JointKey>> jointKeysByBackendId =
+    private final Int2ObjectOpenHashMap<Long2ObjectOpenHashMap<JointKey>> jointKeysByRawBackendId =
         new Int2ObjectOpenHashMap<>();
 
     @Nonnull
@@ -83,7 +83,7 @@ public final class PhysicsJointRegistry {
             motorTargetVelocity,
             motorMaxForce);
         registrationsByKey.put(jointKey, registration);
-        jointKeysByBackendId
+        jointKeysByRawBackendId
             .computeIfAbsent(spaceId.value(), ignored -> new Long2ObjectOpenHashMap<>())
             .put(backendJointHandle.value(), jointKey);
         return registration;
@@ -144,7 +144,7 @@ public final class PhysicsJointRegistry {
     @Nullable
     public JointKey getJointKey(@Nonnull SpaceId spaceId, long backendJointId) {
         Long2ObjectOpenHashMap<JointKey> jointKeys =
-            jointKeysByBackendId.get(spaceId.value());
+            jointKeysByRawBackendId.get(spaceId.value());
         return jointKeys != null ? jointKeys.get(backendJointId) : null;
     }
 
@@ -176,18 +176,18 @@ public final class PhysicsJointRegistry {
 
     public void clear() {
         registrationsByKey.clear();
-        jointKeysByBackendId.clear();
+        jointKeysByRawBackendId.clear();
     }
 
     private void removeBackendIndex(@Nonnull PhysicsJointRegistration registration) {
         Long2ObjectOpenHashMap<JointKey> jointKeys =
-            jointKeysByBackendId.get(registration.spaceId().value());
+            jointKeysByRawBackendId.get(registration.spaceId().value());
         if (jointKeys == null) {
             return;
         }
         jointKeys.remove(registration.backendJointHandle().value());
         if (jointKeys.isEmpty()) {
-            jointKeysByBackendId.remove(registration.spaceId().value());
+            jointKeysByRawBackendId.remove(registration.spaceId().value());
         }
     }
 

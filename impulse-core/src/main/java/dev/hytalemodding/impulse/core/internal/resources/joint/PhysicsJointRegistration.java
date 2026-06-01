@@ -8,7 +8,7 @@ import dev.hytalemodding.impulse.core.plugin.simulation.JointType;
 import javax.annotation.Nonnull;
 
 /**
- * Owner-lane registration for a backend joint id.
+ * Owner-lane registration for a stable joint key and backend-local joint handle.
  */
 public record PhysicsJointRegistration(@Nonnull JointKey jointKey,
     @Nonnull BackendJointHandle backendJointHandle,
