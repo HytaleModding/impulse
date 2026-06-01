@@ -139,7 +139,10 @@ public class PhysicsChunkBoundarySystem extends TickingSystem<EntityStore> {
                 return;
             }
             space.runtime()
-                .setBodyType(space.backendSpaceId(), registration.backendBodyId(), pauseState.getOriginalBodyType());
+                .setBodyType(space.backendSpaceId(),
+                    registration.backendBodyId(),
+                    dev.hytalemodding.impulse.api.runtime.BackendRuntimeCodes.bodyTypeCode(
+                        pauseState.getOriginalBodyType()));
             space.runtime().setBodyVelocity(space.backendSpaceId(),
                 registration.backendBodyId(),
                 pauseState.getLinearVelocity().x,
@@ -185,7 +188,9 @@ public class PhysicsChunkBoundarySystem extends TickingSystem<EntityStore> {
         }
 
         if (snapshot.bodyType() != PhysicsBodyType.KINEMATIC) {
-            space.runtime().setBodyType(space.backendSpaceId(), registration.backendBodyId(), PhysicsBodyType.KINEMATIC);
+            space.runtime().setBodyType(space.backendSpaceId(),
+                registration.backendBodyId(),
+                dev.hytalemodding.impulse.api.runtime.BackendRuntimeCodes.bodyTypeCode(PhysicsBodyType.KINEMATIC));
         }
         space.runtime().setBodyVelocity(space.backendSpaceId(),
             registration.backendBodyId(),

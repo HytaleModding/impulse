@@ -6,8 +6,6 @@ import dev.hytalemodding.impulse.api.PhysicsJoint;
 import dev.hytalemodding.impulse.api.PhysicsJointType;
 import dev.hytalemodding.impulse.api.PhysicsSpace;
 import dev.hytalemodding.impulse.api.SpaceId;
-import dev.hytalemodding.impulse.api.runtime.BackendJointSpec;
-import dev.hytalemodding.impulse.api.runtime.BackendJointType;
 import dev.hytalemodding.impulse.api.runtime.legacy.LegacyPhysicsBackendRuntime;
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsSpaceBinding;
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsWorldRuntimeResource;
@@ -124,14 +122,35 @@ public class LegacyLiveHandleTestResource extends PhysicsWorldRuntimeResource {
             throw new IllegalArgumentException("Both joint bodies must be registered before registering the joint");
         }
         JointKey jointKey = JointKey.random();
-        BackendJointSpec spec = jointSpec(joint, bodyA.backendBodyId(), bodyB.backendBodyId());
+        Vector3f anchorA = joint.getAnchorA();
+        Vector3f anchorB = joint.getAnchorB();
+        Vector3f axis = joint.getAxis();
+        if (axis == null) {
+            axis = new Vector3f(0.0f, 1.0f, 0.0f);
+        }
         return super.addJointOnOwner(jointKey,
             spaceId,
             backendJointId,
             bodyA.id(),
             bodyB.id(),
             jointType(joint.getType()),
-            spec);
+            anchorA.x,
+            anchorA.y,
+            anchorA.z,
+            anchorB.x,
+            anchorB.y,
+            anchorB.z,
+            axis.x,
+            axis.y,
+            axis.z,
+            0.0f,
+            0.0f,
+            0.0f,
+            joint.getLowerLimit(),
+            joint.getUpperLimit(),
+            joint.isMotorEnabled(),
+            joint.getMotorTargetVelocity(),
+            joint.getMotorMaxForce());
     }
 
     @Nullable
@@ -206,38 +225,6 @@ public class LegacyLiveHandleTestResource extends PhysicsWorldRuntimeResource {
     }
 
     @Nonnull
-    private static BackendJointSpec jointSpec(@Nonnull PhysicsJoint joint,
-        long bodyAId,
-        long bodyBId) {
-        Vector3f anchorA = joint.getAnchorA();
-        Vector3f anchorB = joint.getAnchorB();
-        Vector3f axis = joint.getAxis();
-        if (axis == null) {
-            axis = new Vector3f(0.0f, 1.0f, 0.0f);
-        }
-        return new BackendJointSpec(backendJointType(joint.getType()),
-            bodyAId,
-            bodyBId,
-            anchorA.x,
-            anchorA.y,
-            anchorA.z,
-            anchorB.x,
-            anchorB.y,
-            anchorB.z,
-            axis.x,
-            axis.y,
-            axis.z,
-            0.0f,
-            0.0f,
-            0.0f,
-            joint.getLowerLimit(),
-            joint.getUpperLimit(),
-            joint.isMotorEnabled(),
-            joint.getMotorTargetVelocity(),
-            joint.getMotorMaxForce());
-    }
-
-    @Nonnull
     private static JointType jointType(@Nonnull PhysicsJointType type) {
         return switch (type) {
             case FIXED -> JointType.FIXED;
@@ -245,17 +232,6 @@ public class LegacyLiveHandleTestResource extends PhysicsWorldRuntimeResource {
             case HINGE -> JointType.HINGE;
             case SLIDER -> JointType.SLIDER;
             case SPRING -> JointType.SPRING;
-        };
-    }
-
-    @Nonnull
-    private static BackendJointType backendJointType(@Nonnull PhysicsJointType type) {
-        return switch (type) {
-            case FIXED -> BackendJointType.FIXED;
-            case POINT -> BackendJointType.POINT;
-            case HINGE -> BackendJointType.HINGE;
-            case SLIDER -> BackendJointType.SLIDER;
-            case SPRING -> BackendJointType.SPRING;
         };
     }
 

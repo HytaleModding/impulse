@@ -2,15 +2,14 @@ package dev.hytalemodding.impulse.core.internal.crucible;
 
 import dev.hytalemodding.impulse.api.BackendId;
 import dev.hytalemodding.impulse.api.Impulse;
-import dev.hytalemodding.impulse.api.PhysicsAxis;
 import dev.hytalemodding.impulse.api.PhysicsBackend;
 import dev.hytalemodding.impulse.api.PhysicsBodySnapshot;
 import dev.hytalemodding.impulse.api.PhysicsBodyType;
-import dev.hytalemodding.impulse.api.ShapeType;
 import dev.hytalemodding.impulse.api.SpaceId;
-import dev.hytalemodding.impulse.api.runtime.BackendBodySpec;
+import dev.hytalemodding.impulse.api.runtime.BackendRuntimeCodes;
 import dev.hytalemodding.impulse.api.runtime.PhysicsBackendRuntime;
 import dev.hytalemodding.impulse.core.ImpulsePlugin;
+import dev.hytalemodding.impulse.core.internal.resources.body.PhysicsBodySnapshots;
 import dev.hytalemodding.impulse.core.plugin.body.RigidBodyKey;
 import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyKind;
 import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyPersistenceMode;
@@ -27,7 +26,6 @@ import java.util.Collection;
 import java.util.List;
 import java.util.Set;
 import javax.annotation.Nonnull;
-import org.joml.Vector3f;
 
 /**
  * Crucible suites that exercise Impulse API behavior inside a live Hytale server.
@@ -139,7 +137,23 @@ final class ImpulseApiCrucibleTests {
         int spaceId = runtime.createSpace(SpaceId.next());
         try {
             long bodyId = runtime.createBody(spaceId,
-                BackendBodySpec.box(0.5f, 0.5f, 0.5f, 1.0f, PhysicsBodyType.DYNAMIC, 0f, 10f, 0f));
+                BackendRuntimeCodes.SHAPE_BOX,
+                0.5f,
+                0.5f,
+                0.5f,
+                0.0f,
+                0.0f,
+                BackendRuntimeCodes.AXIS_Y,
+                0.0f,
+                1.0f,
+                BackendRuntimeCodes.bodyTypeCode(PhysicsBodyType.DYNAMIC),
+                0f,
+                10f,
+                0f,
+                0.0f,
+                0.0f,
+                0.0f,
+                1.0f);
             return runtime.bodyCount(spaceId) == 1 && runtime.containsBody(spaceId, bodyId);
         } finally {
             runtime.destroySpace(spaceId);
@@ -296,8 +310,7 @@ final class ImpulseApiCrucibleTests {
         int spaceId = runtime.createSpace(SpaceId.next());
         try {
             runtime.setGravity(spaceId, 0f, -9.81f, 0f);
-            runtime.createBody(spaceId,
-                BackendBodySpec.box(0.5f, 0.5f, 0.5f, 1.0f, PhysicsBodyType.DYNAMIC, 0f, 10f, 0f));
+            createBox(runtime, spaceId, 1.0f, PhysicsBodyType.DYNAMIC, 0f, 10f, 0f);
             runtime.step(spaceId, 1f / 60f);
             return true;
         } finally {
@@ -310,8 +323,7 @@ final class ImpulseApiCrucibleTests {
         int spaceId = runtime.createSpace(SpaceId.next());
         try {
             runtime.setGravity(spaceId, 0f, -9.81f, 0f);
-            long bodyId = runtime.createBody(spaceId,
-                BackendBodySpec.box(0.5f, 0.5f, 0.5f, 1.0f, PhysicsBodyType.DYNAMIC, 0f, 20f, 0f));
+            long bodyId = createBox(runtime, spaceId, 1.0f, PhysicsBodyType.DYNAMIC, 0f, 20f, 0f);
 
             float dt = 1f / 60f;
             for (int i = 0; i < 60; i++) {
@@ -332,8 +344,7 @@ final class ImpulseApiCrucibleTests {
         int spaceId = runtime.createSpace(SpaceId.next());
         try {
             runtime.setGravity(spaceId, 0f, -9.81f, 0f);
-            long bodyId = runtime.createBody(spaceId,
-                BackendBodySpec.box(0.5f, 0.5f, 0.5f, 0.0f, PhysicsBodyType.STATIC, 0f, 10f, 0f));
+            long bodyId = createBox(runtime, spaceId, 0.0f, PhysicsBodyType.STATIC, 0f, 10f, 0f);
 
             float dt = 1f / 60f;
             for (int i = 0; i < 60; i++) {
@@ -352,10 +363,9 @@ final class ImpulseApiCrucibleTests {
         int spaceId = runtime.createSpace(SpaceId.next());
         try {
             runtime.setGravity(spaceId, 0f, -9.81f, 0f);
-            runtime.createBody(spaceId, planeSpec(0f));
+            createPlane(runtime, spaceId, 0f);
 
-            long bodyId = runtime.createBody(spaceId,
-                BackendBodySpec.box(0.5f, 0.5f, 0.5f, 1.0f, PhysicsBodyType.DYNAMIC, 0f, 5f, 0f));
+            long bodyId = createBox(runtime, spaceId, 1.0f, PhysicsBodyType.DYNAMIC, 0f, 5f, 0f);
 
             float dt = 1f / 60f;
             for (int i = 0; i < 300; i++) {
@@ -374,10 +384,9 @@ final class ImpulseApiCrucibleTests {
         int spaceId = runtime.createSpace(SpaceId.next());
         try {
             runtime.setGravity(spaceId, 0f, -9.81f, 0f);
-            runtime.createBody(spaceId, planeSpec(0f));
+            createPlane(runtime, spaceId, 0f);
 
-            long bodyId = runtime.createBody(spaceId,
-                BackendBodySpec.box(0.5f, 0.5f, 0.5f, 1.0f, PhysicsBodyType.DYNAMIC, 0f, 2f, 0f));
+            long bodyId = createBox(runtime, spaceId, 1.0f, PhysicsBodyType.DYNAMIC, 0f, 2f, 0f);
 
             float dt = 1f / 60f;
             for (int i = 0; i < 300; i++) {
@@ -395,13 +404,10 @@ final class ImpulseApiCrucibleTests {
         PhysicsBackendRuntime runtime = Impulse.createRuntime(CrucibleBackends.requireBackendId());
         int spaceId = runtime.createSpace(SpaceId.next());
         try {
-            runtime.createBody(spaceId, planeSpec(0f));
+            createPlane(runtime, spaceId, 0f);
 
-            var hits = runtime.raycastAll(spaceId,
-                new Vector3f(0f, 10f, 0f),
-                new Vector3f(0f, -10f, 0f));
-
-            return !hits.isEmpty();
+            return runtime.raycastAll(spaceId, 0f, 10f, 0f, 0f, -10f, 0f, (_, _, _, _, _, _, _, _, _) -> {
+            }) > 0;
         } finally {
             runtime.destroySpace(spaceId);
         }
@@ -411,23 +417,104 @@ final class ImpulseApiCrucibleTests {
     private static PhysicsBodySnapshot requireSnapshot(@Nonnull PhysicsBackendRuntime runtime,
         int spaceId,
         long bodyId) {
-        return runtime.bodySnapshot(spaceId, bodyId)
-            .orElseThrow(() -> new IllegalStateException("Missing backend snapshot for body " + bodyId))
-            .snapshot();
+        PhysicsBodySnapshot[] snapshot = new PhysicsBodySnapshot[1];
+        runtime.bodySnapshot(spaceId,
+            bodyId,
+            (ignoredBodyId,
+                shapeTypeCode,
+                bodyTypeCode,
+                positionX,
+                positionY,
+                positionZ,
+                rotationX,
+                rotationY,
+                rotationZ,
+                rotationW,
+                linearVelocityX,
+                linearVelocityY,
+                linearVelocityZ,
+                angularVelocityX,
+                angularVelocityY,
+                angularVelocityZ,
+                sleeping,
+                sensor,
+                centerOfMassOffsetY,
+                hasBoxHalfExtents,
+                halfExtentX,
+                halfExtentY,
+                halfExtentZ,
+                radius,
+                halfHeight,
+                axisCode) -> snapshot[0] = PhysicsBodySnapshots.fromRuntimeFields(shapeTypeCode,
+                bodyTypeCode,
+                positionX,
+                positionY,
+                positionZ,
+                rotationX,
+                rotationY,
+                rotationZ,
+                rotationW,
+                linearVelocityX,
+                linearVelocityY,
+                linearVelocityZ,
+                angularVelocityX,
+                angularVelocityY,
+                angularVelocityZ,
+                sleeping,
+                sensor,
+                centerOfMassOffsetY,
+                hasBoxHalfExtents,
+                halfExtentX,
+                halfExtentY,
+                halfExtentZ,
+                radius,
+                halfHeight,
+                axisCode));
+        if (snapshot[0] == null) {
+            throw new IllegalStateException("Missing backend snapshot for body " + bodyId);
+        }
+        return snapshot[0];
     }
 
-    @Nonnull
-    private static BackendBodySpec planeSpec(float groundY) {
-        return new BackendBodySpec(ShapeType.PLANE,
+    private static long createBox(@Nonnull PhysicsBackendRuntime runtime,
+        int spaceId,
+        float mass,
+        @Nonnull PhysicsBodyType bodyType,
+        float positionX,
+        float positionY,
+        float positionZ) {
+        return runtime.createBody(spaceId,
+            BackendRuntimeCodes.SHAPE_BOX,
+            0.5f,
+            0.5f,
+            0.5f,
+            0.0f,
+            0.0f,
+            BackendRuntimeCodes.AXIS_Y,
+            0.0f,
+            mass,
+            BackendRuntimeCodes.bodyTypeCode(bodyType),
+            positionX,
+            positionY,
+            positionZ,
+            0.0f,
+            0.0f,
+            0.0f,
+            1.0f);
+    }
+
+    private static long createPlane(@Nonnull PhysicsBackendRuntime runtime, int spaceId, float groundY) {
+        return runtime.createBody(spaceId,
+            BackendRuntimeCodes.SHAPE_PLANE,
             0.0f,
             0.0f,
             0.0f,
             0.0f,
             0.0f,
-            PhysicsAxis.Y,
+            BackendRuntimeCodes.AXIS_Y,
             groundY,
             0.0f,
-            PhysicsBodyType.STATIC,
+            BackendRuntimeCodes.bodyTypeCode(PhysicsBodyType.STATIC),
             0.0f,
             groundY,
             0.0f,

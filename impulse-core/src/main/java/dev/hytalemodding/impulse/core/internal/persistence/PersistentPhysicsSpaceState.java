@@ -410,7 +410,7 @@ public class PersistentPhysicsSpaceState {
         PersistentPhysicsSpaceState state = new PersistentPhysicsSpaceState();
         state.spaceId = space.spaceId().value();
         state.backendId = space.backendId().value();
-        state.gravity.set(space.runtime().getGravity(space.backendSpaceId()));
+        space.runtime().getGravity(space.backendSpaceId(), state.gravity::set);
         state.worldCollisionMode = settings.getWorldCollisionSettings().getWorldCollisionMode();
         state.entityChunkBoundaryMode = settings.getWorldCollisionSettings().getEntityChunkBoundaryMode();
         state.worldCollisionRadius = settings.getWorldCollisionSettings().getWorldCollisionRadius();

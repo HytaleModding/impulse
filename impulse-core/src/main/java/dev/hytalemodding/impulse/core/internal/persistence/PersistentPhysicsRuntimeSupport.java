@@ -1,8 +1,7 @@
 package dev.hytalemodding.impulse.core.internal.persistence;
 
 import dev.hytalemodding.impulse.api.PhysicsJointType;
-import dev.hytalemodding.impulse.api.runtime.BackendJointSpec;
-import dev.hytalemodding.impulse.api.runtime.BackendJointType;
+import dev.hytalemodding.impulse.api.runtime.BackendRuntimeCodes;
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsSpaceBinding;
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsWorldRuntimeResource;
 import dev.hytalemodding.impulse.core.internal.resources.body.PhysicsBodyRegistration;
@@ -42,31 +41,15 @@ public final class PersistentPhysicsRuntimeSupport {
         @Nonnull RigidBodyKey bodyBKey,
         @Nonnull PhysicsBodyRegistration bodyB) {
         JointType type = toRuntimeJointType(state.getType());
-        BackendJointSpec spec = jointSpec(state, bodyA.backendBodyId(), bodyB.backendBodyId());
-        long backendJointId = space.runtime().createJoint(space.backendSpaceId(), spec);
-        JointKey jointKey = JointKey.random();
-        runtime.addJointOnOwner(jointKey,
-            space.spaceId(),
-            backendJointId,
-            bodyAKey,
-            bodyBKey,
-            type,
-            spec);
-        return jointKey;
-    }
-
-    @Nonnull
-    public static BackendJointSpec jointSpec(@Nonnull PersistentPhysicsJointState state,
-        long bodyAId,
-        long bodyBId) {
         Vector3f anchorA = new Vector3f(state.getAnchorA());
         Vector3f anchorB = new Vector3f(state.getAnchorB());
         Vector3f axis = state.getType() == PhysicsJointType.HINGE || state.getType() == PhysicsJointType.SLIDER
             ? requireAxis(state)
             : new Vector3f();
-        return new BackendJointSpec(toBackendJointType(state.getType()),
-            bodyAId,
-            bodyBId,
+        long backendJointId = space.runtime().createJoint(space.backendSpaceId(),
+            toRuntimeJointTypeCode(state.getType()),
+            bodyA.backendBodyId(),
+            bodyB.backendBodyId(),
             anchorA.x,
             anchorA.y,
             anchorA.z,
@@ -84,6 +67,31 @@ public final class PersistentPhysicsRuntimeSupport {
             state.isMotorEnabled(),
             state.getMotorTargetVelocity(),
             state.getMotorMaxForce());
+        JointKey jointKey = JointKey.random();
+        runtime.addJointOnOwner(jointKey,
+            space.spaceId(),
+            backendJointId,
+            bodyAKey,
+            bodyBKey,
+            type,
+            anchorA.x,
+            anchorA.y,
+            anchorA.z,
+            anchorB.x,
+            anchorB.y,
+            anchorB.z,
+            axis.x,
+            axis.y,
+            axis.z,
+            state.getSpringRestLength(),
+            state.getSpringStiffness(),
+            state.getSpringDamping(),
+            state.getLowerLimit(),
+            state.getUpperLimit(),
+            state.isMotorEnabled(),
+            state.getMotorTargetVelocity(),
+            state.getMotorMaxForce());
+        return jointKey;
     }
 
     @Nonnull
@@ -95,14 +103,13 @@ public final class PersistentPhysicsRuntimeSupport {
         return new Vector3f(axis);
     }
 
-    @Nonnull
-    private static BackendJointType toBackendJointType(@Nonnull PhysicsJointType type) {
+    private static int toRuntimeJointTypeCode(@Nonnull PhysicsJointType type) {
         return switch (type) {
-            case FIXED -> BackendJointType.FIXED;
-            case POINT -> BackendJointType.POINT;
-            case HINGE -> BackendJointType.HINGE;
-            case SLIDER -> BackendJointType.SLIDER;
-            case SPRING -> BackendJointType.SPRING;
+            case FIXED -> BackendRuntimeCodes.JOINT_FIXED;
+            case POINT -> BackendRuntimeCodes.JOINT_POINT;
+            case HINGE -> BackendRuntimeCodes.JOINT_HINGE;
+            case SLIDER -> BackendRuntimeCodes.JOINT_SLIDER;
+            case SPRING -> BackendRuntimeCodes.JOINT_SPRING;
         };
     }
 

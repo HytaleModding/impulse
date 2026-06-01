@@ -2,7 +2,6 @@ package dev.hytalemodding.impulse.core.internal.resources.body;
 
 import dev.hytalemodding.impulse.api.PhysicsBodySnapshot;
 import dev.hytalemodding.impulse.api.SpaceId;
-import dev.hytalemodding.impulse.api.runtime.BackendBodySnapshot;
 import dev.hytalemodding.impulse.core.internal.control.PhysicsControlRuntimeState;
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsChunkBoundaryRuntime;
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsSpaceBinding;
@@ -90,13 +89,14 @@ public final class PhysicsBodyRuntime {
         bodyRegistry.validateRegisterable(bodyKey, backendBodyId, spaceId);
         PhysicsBodyRegistration registration =
             bodyRegistry.registerBody(bodyKey, backendBodyId, spaceId, kind, persistenceMode);
-        binding.runtime().bodySnapshot(binding.backendSpaceId(), backendBodyId)
-            .map(BackendBodySnapshot::toPhysicsSnapshot)
-            .ifPresent(snapshot -> lifecycleState.putBodySnapshot(bodyKey,
+        PhysicsBodySnapshot snapshot = PhysicsBodySnapshots.read(binding, backendBodyId);
+        if (snapshot != null) {
+            lifecycleState.putBodySnapshot(bodyKey,
                 snapshot,
                 spaceId,
                 registration.kind(),
-                registration.persistenceMode()));
+                registration.persistenceMode());
+        }
         worldChangedMarker.run();
         return bodyKey;
     }

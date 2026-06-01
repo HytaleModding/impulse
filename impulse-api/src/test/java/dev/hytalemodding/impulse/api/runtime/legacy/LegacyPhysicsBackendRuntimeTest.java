@@ -4,16 +4,12 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-import dev.hytalemodding.impulse.api.PhysicsAxis;
 import dev.hytalemodding.impulse.api.PhysicsBodyType;
 import dev.hytalemodding.impulse.api.ShapeType;
 import dev.hytalemodding.impulse.api.SpaceId;
-import dev.hytalemodding.impulse.api.runtime.BackendBodySpec;
-import dev.hytalemodding.impulse.api.runtime.BackendBodySnapshot;
-import dev.hytalemodding.impulse.api.runtime.BackendJointSpec;
 import dev.hytalemodding.impulse.api.runtime.BackendJointType;
+import dev.hytalemodding.impulse.api.runtime.BackendRuntimeCodes;
 import dev.hytalemodding.impulse.api.testsupport.FakePhysicsBackend;
-import java.util.Optional;
 import org.junit.jupiter.api.Test;
 
 class LegacyPhysicsBackendRuntimeTest {
@@ -25,18 +21,62 @@ class LegacyPhysicsBackendRuntimeTest {
 
         int spaceId = runtime.createSpace(new SpaceId(9001));
         long bodyA = runtime.createBody(spaceId,
-            BackendBodySpec.sphere(0.5f, 1.0f, PhysicsBodyType.DYNAMIC, 0.0f, 3.0f, 0.0f));
+            BackendRuntimeCodes.SHAPE_SPHERE,
+            0.0f,
+            0.0f,
+            0.0f,
+            0.5f,
+            0.0f,
+            BackendRuntimeCodes.AXIS_Y,
+            0.0f,
+            1.0f,
+            BackendRuntimeCodes.bodyTypeCode(PhysicsBodyType.DYNAMIC),
+            0.0f,
+            3.0f,
+            0.0f,
+            0.0f,
+            0.0f,
+            0.0f,
+            1.0f);
         long bodyB = runtime.createBody(spaceId,
-            BackendBodySpec.box(0.5f,
-                0.5f,
-                0.5f,
-                1.0f,
-                PhysicsBodyType.DYNAMIC,
-                1.0f,
-                3.0f,
-                0.0f));
+            BackendRuntimeCodes.SHAPE_BOX,
+            0.5f,
+            0.5f,
+            0.5f,
+            0.0f,
+            0.0f,
+            BackendRuntimeCodes.AXIS_Y,
+            0.0f,
+            1.0f,
+            BackendRuntimeCodes.bodyTypeCode(PhysicsBodyType.DYNAMIC),
+            1.0f,
+            3.0f,
+            0.0f,
+            0.0f,
+            0.0f,
+            0.0f,
+            1.0f);
         long joint = runtime.createJoint(spaceId,
-            BackendJointSpec.point(bodyA, bodyB, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f));
+            BackendRuntimeCodes.JOINT_POINT,
+            bodyA,
+            bodyB,
+            0.0f,
+            0.0f,
+            0.0f,
+            0.0f,
+            0.0f,
+            0.0f,
+            0.0f,
+            1.0f,
+            0.0f,
+            0.0f,
+            0.0f,
+            0.0f,
+            0.0f,
+            0.0f,
+            false,
+            0.0f,
+            0.0f);
 
         assertEquals(9001, spaceId);
         assertNotEquals(bodyA, bodyB);
@@ -46,13 +86,44 @@ class LegacyPhysicsBackendRuntimeTest {
         assertEquals(2, runtime.bodyCount(spaceId));
         assertEquals(1, runtime.jointCount(spaceId));
 
-        Optional<BackendBodySnapshot> snapshot = runtime.bodySnapshot(spaceId, bodyA);
+        int[] snapshotShape = { BackendRuntimeCodes.SHAPE_UNKNOWN };
+        int[] snapshotAxis = { -1 };
+        boolean snapshotPresent = runtime.bodySnapshot(spaceId,
+            bodyA,
+            (bodyId,
+                shapeTypeCode,
+                bodyTypeCode,
+                positionX,
+                positionY,
+                positionZ,
+                rotationX,
+                rotationY,
+                rotationZ,
+                rotationW,
+                linearVelocityX,
+                linearVelocityY,
+                linearVelocityZ,
+                angularVelocityX,
+                angularVelocityY,
+                angularVelocityZ,
+                sleeping,
+                sensor,
+                centerOfMassOffsetY,
+                hasBoxHalfExtents,
+                halfExtentX,
+                halfExtentY,
+                halfExtentZ,
+                radius,
+                halfHeight,
+                axisCode) -> {
+                snapshotShape[0] = shapeTypeCode;
+                snapshotAxis[0] = axisCode;
+            });
 
-        assertTrue(snapshot.isPresent());
-        assertEquals(bodyA, snapshot.orElseThrow().bodyId());
-        assertEquals(ShapeType.SPHERE, snapshot.orElseThrow().shapeType());
-        assertEquals(PhysicsAxis.Y, snapshot.orElseThrow().shapeAxis());
-        assertEquals(BackendJointType.POINT, runtime.jointType(spaceId, joint));
+        assertTrue(snapshotPresent);
+        assertEquals(ShapeType.SPHERE, BackendRuntimeCodes.shapeType(snapshotShape[0]));
+        assertEquals(BackendRuntimeCodes.AXIS_Y, snapshotAxis[0]);
+        assertEquals(BackendRuntimeCodes.jointTypeCode(BackendJointType.POINT), runtime.jointType(spaceId, joint));
         assertEquals(bodyA, runtime.jointBodyA(spaceId, joint));
         assertEquals(bodyB, runtime.jointBodyB(spaceId, joint));
     }

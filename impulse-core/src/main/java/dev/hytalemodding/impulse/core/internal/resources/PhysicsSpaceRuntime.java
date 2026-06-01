@@ -127,7 +127,8 @@ public final class PhysicsSpaceRuntime {
         List<PhysicsSpaceBinding> previousBindings = new ArrayList<>(spaces.values());
         List<PhysicsSpaceBinding> replacements = new ArrayList<>(previousBindings.size());
         for (PhysicsSpaceBinding previous : previousBindings) {
-            Vector3f gravity = previous.runtime().getGravity(previous.backendSpaceId());
+            Vector3f gravity = new Vector3f();
+            previous.runtime().getGravity(previous.backendSpaceId(), gravity::set);
             PhysicsBackendRuntime runtime = Impulse.createRuntime(previous.backendId());
             int backendSpaceId = runtime.createSpace(previous.spaceId());
             PhysicsSpaceBinding replacement =
@@ -241,7 +242,7 @@ public final class PhysicsSpaceRuntime {
         for (PhysicsBackendExtensionId extensionId : settings.getExtensionSettings().asMap().keySet()) {
             binding.runtime().applyExtensionSettings(binding.backendSpaceId(),
                 new PhysicsCapabilityId(extensionId.value()),
-                settings.getExtensionSettings().asStringMap(extensionId));
+                consumer -> settings.getExtensionSettings().asStringMap(extensionId).forEach(consumer));
         }
     }
 

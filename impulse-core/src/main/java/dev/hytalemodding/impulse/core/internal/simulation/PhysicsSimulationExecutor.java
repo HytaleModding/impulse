@@ -5,15 +5,11 @@ import dev.hytalemodding.impulse.api.PhysicsBodySnapshot;
 import dev.hytalemodding.impulse.api.PhysicsBodyType;
 import dev.hytalemodding.impulse.api.ShapeType;
 import dev.hytalemodding.impulse.api.SpaceId;
-import dev.hytalemodding.impulse.api.runtime.BackendBodySpec;
-import dev.hytalemodding.impulse.api.runtime.BackendContact;
-import dev.hytalemodding.impulse.api.runtime.BackendJointSpec;
-import dev.hytalemodding.impulse.api.runtime.BackendJointType;
-import dev.hytalemodding.impulse.api.runtime.BackendRayHit;
-import dev.hytalemodding.impulse.api.runtime.BackendRuntimeStats;
+import dev.hytalemodding.impulse.api.runtime.BackendRuntimeCodes;
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsSpaceBinding;
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsWorldRuntimeResource;
 import dev.hytalemodding.impulse.core.internal.resources.body.PhysicsBodyRegistration;
+import dev.hytalemodding.impulse.core.internal.resources.body.PhysicsBodySnapshots;
 import dev.hytalemodding.impulse.core.internal.resources.joint.PhysicsJointRegistration;
 import dev.hytalemodding.impulse.core.internal.voxel.WorldVoxelCollisionCache;
 import dev.hytalemodding.impulse.core.internal.voxel.WorldVoxelCollisionCache.BuildStats;
@@ -392,8 +388,13 @@ public final class PhysicsSimulationExecutor implements PhysicsCommandDispatcher
         @Nonnull RigidBodySpawnSettings settings,
         @Nonnull PhysicsBodyKind kind,
         @Nonnull PhysicsBodyPersistenceMode persistenceMode) {
-        long backendBodyId = space.runtime().createBody(space.backendSpaceId(),
-            createBodySpec(shape, mass, bodyType, positionX, positionY, positionZ));
+        long backendBodyId = createRuntimeBody(space,
+            shape,
+            mass,
+            bodyType,
+            positionX,
+            positionY,
+            positionZ);
         applySpawnSettings(space, backendBodyId, settings);
         runtime.addBodyOnOwner(bodyKey,
             spaceId,
@@ -431,23 +432,24 @@ public final class PhysicsSimulationExecutor implements PhysicsCommandDispatcher
         }
     }
 
-    @Nonnull
-    private BackendBodySpec createBodySpec(@Nonnull PhysicsShapeSpec shape,
+    private long createRuntimeBody(@Nonnull PhysicsSpaceBinding space,
+        @Nonnull PhysicsShapeSpec shape,
         float mass,
         @Nonnull PhysicsBodyType bodyType,
         float positionX,
         float positionY,
         float positionZ) {
-        return new BackendBodySpec(shape.type(),
+        return space.runtime().createBody(space.backendSpaceId(),
+            BackendRuntimeCodes.shapeTypeCode(shape.type()),
             shape.halfExtentX(),
             shape.halfExtentY(),
             shape.halfExtentZ(),
             shape.radius(),
             shape.halfHeight(),
-            shape.axis(),
+            BackendRuntimeCodes.axisCode(shape.axis()),
             shape.groundY(),
             mass,
-            bodyType,
+            BackendRuntimeCodes.bodyTypeCode(bodyType),
             positionX,
             positionY,
             positionZ,
@@ -545,7 +547,9 @@ public final class PhysicsSimulationExecutor implements PhysicsCommandDispatcher
         boolean activate) {
         PhysicsBodyRegistration registration = requireBodyRegistration(bodyKey);
         PhysicsSpaceBinding space = requireSpace(registration.spaceId());
-        space.runtime().setBodyType(space.backendSpaceId(), registration.backendBodyId(), bodyType);
+        space.runtime().setBodyType(space.backendSpaceId(),
+            registration.backendBodyId(),
+            BackendRuntimeCodes.bodyTypeCode(bodyType));
         if (activate) {
             space.runtime().activateBody(space.backendSpaceId(), registration.backendBodyId());
         }
@@ -637,7 +641,8 @@ public final class PhysicsSimulationExecutor implements PhysicsCommandDispatcher
         if (!bodyA.spaceId().equals(spaceId) || !bodyB.spaceId().equals(spaceId)) {
             throw new IllegalArgumentException("Joint bodies must both be registered in space " + spaceId);
         }
-        BackendJointSpec spec = new BackendJointSpec(toBackendJointType(type),
+        long backendJointId = space.runtime().createJoint(space.backendSpaceId(),
+            toRuntimeJointTypeCode(type),
             bodyA.backendBodyId(),
             bodyB.backendBodyId(),
             anchorAX,
@@ -657,8 +662,29 @@ public final class PhysicsSimulationExecutor implements PhysicsCommandDispatcher
             motorEnabled,
             motorTargetVelocity,
             motorMaxForce);
-        long backendJointId = space.runtime().createJoint(space.backendSpaceId(), spec);
-        runtime.addJointOnOwner(jointKey, spaceId, backendJointId, bodyAKey, bodyBKey, type, spec);
+        runtime.addJointOnOwner(jointKey,
+            spaceId,
+            backendJointId,
+            bodyAKey,
+            bodyBKey,
+            type,
+            anchorAX,
+            anchorAY,
+            anchorAZ,
+            anchorBX,
+            anchorBY,
+            anchorBZ,
+            axisX,
+            axisY,
+            axisZ,
+            restLength,
+            stiffness,
+            damping,
+            lowerLimit,
+            upperLimit,
+            motorEnabled,
+            motorTargetVelocity,
+            motorMaxForce);
     }
 
     @Override
@@ -689,9 +715,34 @@ public final class PhysicsSimulationExecutor implements PhysicsCommandDispatcher
     @Nonnull
     private Optional<RaycastHitView> raycastClosest(@Nonnull RaycastClosestQuery query) {
         PhysicsSpaceBinding space = requireSpace(query.spaceId());
-        Optional<BackendRayHit> hit =
-            space.runtime().raycastClosest(space.backendSpaceId(), query.from(), query.to());
-        return hit.map(this::toView);
+        RaycastHitView[] hit = new RaycastHitView[1];
+        Vector3f from = query.from();
+        Vector3f to = query.to();
+        space.runtime().raycastClosest(space.backendSpaceId(),
+            from.x,
+            from.y,
+            from.z,
+            to.x,
+            to.y,
+            to.z,
+            (bodyId,
+                pointX,
+                pointY,
+                pointZ,
+                normalX,
+                normalY,
+                normalZ,
+                fraction,
+                distance) -> hit[0] = toView(bodyId,
+                pointX,
+                pointY,
+                pointZ,
+                normalX,
+                normalY,
+                normalZ,
+                fraction,
+                distance));
+        return Optional.ofNullable(hit[0]);
     }
 
     @Nonnull
@@ -702,9 +753,33 @@ public final class PhysicsSimulationExecutor implements PhysicsCommandDispatcher
         Vector3f to = new Vector3f();
         for (int index = 0; index < query.rays().size(); index++) {
             RaycastSegment ray = query.rays().get(index);
-            Optional<BackendRayHit> hit =
-                space.runtime().raycastClosest(space.backendSpaceId(), ray.copyFrom(from), ray.copyTo(to));
-            hits[index] = hit.map(this::toView).orElse(null);
+            ray.copyFrom(from);
+            ray.copyTo(to);
+            int rayIndex = index;
+            space.runtime().raycastClosest(space.backendSpaceId(),
+                from.x,
+                from.y,
+                from.z,
+                to.x,
+                to.y,
+                to.z,
+                (bodyId,
+                    pointX,
+                    pointY,
+                    pointZ,
+                    normalX,
+                    normalY,
+                    normalZ,
+                    fraction,
+                    distance) -> hits[rayIndex] = toView(bodyId,
+                    pointX,
+                    pointY,
+                    pointZ,
+                    normalX,
+                    normalY,
+                    normalZ,
+                    fraction,
+                    distance));
         }
         return new RaycastClosestBatchResult(hits);
     }
@@ -712,13 +787,35 @@ public final class PhysicsSimulationExecutor implements PhysicsCommandDispatcher
     @Nonnull
     private List<RaycastHitView> raycastAll(@Nonnull RaycastAllQuery query) {
         PhysicsSpaceBinding space = requireSpace(query.spaceId());
-        List<BackendRayHit> hits = space.runtime().raycastAll(space.backendSpaceId(), query.from(), query.to());
-        if (hits.isEmpty()) {
+        Vector3f from = query.from();
+        Vector3f to = query.to();
+        List<RaycastHitView> views = new ArrayList<>();
+        space.runtime().raycastAll(space.backendSpaceId(),
+            from.x,
+            from.y,
+            from.z,
+            to.x,
+            to.y,
+            to.z,
+            (bodyId,
+                pointX,
+                pointY,
+                pointZ,
+                normalX,
+                normalY,
+                normalZ,
+                fraction,
+                distance) -> views.add(toView(bodyId,
+                pointX,
+                pointY,
+                pointZ,
+                normalX,
+                normalY,
+                normalZ,
+                fraction,
+                distance)));
+        if (views.isEmpty()) {
             return List.of();
-        }
-        List<RaycastHitView> views = new ArrayList<>(hits.size());
-        for (BackendRayHit hit : hits) {
-            views.add(toView(hit));
         }
         return List.copyOf(views);
     }
@@ -771,26 +868,41 @@ public final class PhysicsSimulationExecutor implements PhysicsCommandDispatcher
             if (!registration.spaceId().equals(query.spaceId())) {
                 continue;
             }
-            space.runtime().bodySnapshot(space.backendSpaceId(), registration.backendBodyId())
-                .ifPresent(snapshot -> classifyRuntimeBody(stats, cache, space, registration, snapshot.snapshot()));
+            PhysicsBodySnapshot snapshot = PhysicsBodySnapshots.read(space, registration.backendBodyId());
+            if (snapshot != null) {
+                classifyRuntimeBody(stats, cache, space, registration, snapshot);
+            }
         }
         stats.worldCollisionBodies += cache.bodyCount();
         stats.joints = space.runtime().jointCount(space.backendSpaceId());
         stats.contacts = space.runtime().contactCount(space.backendSpaceId());
-        BackendRuntimeStats runtimeStats = space.runtime().runtimeStats(space.backendSpaceId());
-        if (runtimeStats.available()) {
+        space.runtime().runtimeStats(space.backendSpaceId(),
+            (bodyCount,
+                colliderCount,
+                activeBodyCount,
+                contactPairCount,
+                contactManifoldCount,
+                contactPointCount,
+                dynamicDynamicContactPairCount,
+                terrainContactPairCount,
+                activeIslandCount,
+                jointCount,
+                available) -> {
+            if (!available) {
+                return;
+            }
             stats.runtimeStatsAvailable = true;
-            stats.runtimeBodyCount = runtimeStats.bodyCount();
-            stats.runtimeColliderCount = runtimeStats.colliderCount();
-            stats.runtimeActiveBodyCount = runtimeStats.activeBodyCount();
-            stats.runtimeContactPairCount = runtimeStats.contactPairCount();
-            stats.runtimeContactManifoldCount = runtimeStats.contactManifoldCount();
-            stats.runtimeContactPointCount = runtimeStats.contactPointCount();
-            stats.runtimeDynamicDynamicContactPairCount = runtimeStats.dynamicDynamicContactPairCount();
-            stats.runtimeTerrainContactPairCount = runtimeStats.terrainContactPairCount();
-            stats.runtimeActiveIslandCount = runtimeStats.activeIslandCount();
-            stats.runtimeJointCount = runtimeStats.jointCount();
-        }
+            stats.runtimeBodyCount = bodyCount;
+            stats.runtimeColliderCount = colliderCount;
+            stats.runtimeActiveBodyCount = activeBodyCount;
+            stats.runtimeContactPairCount = contactPairCount;
+            stats.runtimeContactManifoldCount = contactManifoldCount;
+            stats.runtimeContactPointCount = contactPointCount;
+            stats.runtimeDynamicDynamicContactPairCount = dynamicDynamicContactPairCount;
+            stats.runtimeTerrainContactPairCount = terrainContactPairCount;
+            stats.runtimeActiveIslandCount = activeIslandCount;
+            stats.runtimeJointCount = jointCount;
+        });
         return stats.toView();
     }
 
@@ -845,13 +957,15 @@ public final class PhysicsSimulationExecutor implements PhysicsCommandDispatcher
             if (!registration.spaceId().equals(query.spaceId())) {
                 continue;
             }
-            space.runtime().bodySnapshot(space.backendSpaceId(), registration.backendBodyId())
-                .ifPresent(snapshot -> classifyBenchmarkBody(stats,
+            PhysicsBodySnapshot snapshot = PhysicsBodySnapshots.read(space, registration.backendBodyId());
+            if (snapshot != null) {
+                classifyBenchmarkBody(stats,
                     cache,
                     space,
                     registration,
-                    snapshot.snapshot(),
-                    query));
+                    snapshot,
+                    query);
+            }
         }
         return stats.toView();
     }
@@ -1102,23 +1216,40 @@ public final class PhysicsSimulationExecutor implements PhysicsCommandDispatcher
         PhysicsSpaceBinding space = requireSpace(query.spaceId());
         double maxDistanceSquared = query.viewRadius() * query.viewRadius();
         List<PhysicsDebugContactView> visible = new ArrayList<>(Math.min(limit, 64));
-        for (BackendContact contact : space.runtime().contacts(space.backendSpaceId())) {
+        space.runtime().contacts(space.backendSpaceId(), (bodyAId,
+            bodyBId,
+            pointAX,
+            pointAY,
+            pointAZ,
+            pointBX,
+            pointBY,
+            pointBZ,
+            normalBX,
+            normalBY,
+            normalBZ,
+            distance,
+            impulse) -> {
             if (visible.size() >= limit) {
-                break;
+                return;
             }
 
-            Vector3f point = contact.pointOnB();
-            if (distanceSquared(point.x,
-                point.y,
-                point.z,
+            if (distanceSquared(pointBX,
+                pointBY,
+                pointBZ,
                 query.viewerX(),
                 query.viewerY(),
                 query.viewerZ()) > maxDistanceSquared) {
-                continue;
+                return;
             }
 
-            visible.add(toDebugContactView(contact, point));
-        }
+            visible.add(toDebugContactView(pointBX,
+                pointBY,
+                pointBZ,
+                normalBX,
+                normalBY,
+                normalBZ,
+                impulse));
+        });
         return List.copyOf(visible);
     }
 
@@ -1158,24 +1289,29 @@ public final class PhysicsSimulationExecutor implements PhysicsCommandDispatcher
     }
 
     @Nonnull
-    private static PhysicsDebugContactView toDebugContactView(@Nonnull BackendContact contact,
-        @Nonnull Vector3f point) {
-        Vector3f normal = contact.normalOnB();
+    private static PhysicsDebugContactView toDebugContactView(float pointX,
+        float pointY,
+        float pointZ,
+        float normalX,
+        float normalY,
+        float normalZ,
+        float impulse) {
+        Vector3f normal = new Vector3f(normalX, normalY, normalZ);
         if (normal.lengthSquared() <= 0.0f) {
-            return new PhysicsDebugContactView(point.x,
-                point.y,
-                point.z,
+            return new PhysicsDebugContactView(pointX,
+                pointY,
+                pointZ,
                 false,
                 0.0f,
                 0.0f,
                 0.0f);
         }
 
-        float magnitude = Math.max(CONTACT_NORMAL_SCALE, Math.abs(contact.impulse()) * 0.05f);
+        float magnitude = Math.max(CONTACT_NORMAL_SCALE, Math.abs(impulse) * 0.05f);
         normal.normalize().mul(magnitude);
-        return new PhysicsDebugContactView(point.x,
-            point.y,
-            point.z,
+        return new PhysicsDebugContactView(pointX,
+            pointY,
+            pointZ,
             true,
             normal.x,
             normal.y,
@@ -1350,15 +1486,13 @@ public final class PhysicsSimulationExecutor implements PhysicsCommandDispatcher
             return Optional.empty();
         }
         PhysicsSpaceBinding space = requireSpace(registration.spaceId());
-        Optional<PhysicsBodySnapshot> snapshot = space.runtime()
-            .bodySnapshot(space.backendSpaceId(), registration.backendBodyId())
-            .map(backendSnapshot -> backendSnapshot.snapshot());
-        if (snapshot.isEmpty()) {
+        PhysicsBodySnapshot snapshot = PhysicsBodySnapshots.read(space, registration.backendBodyId());
+        if (snapshot == null) {
             return Optional.empty();
         }
         return Optional.of(new RigidBodyStateView(query.bodyKey(),
-            snapshot.get().bodyType(),
-            RigidBodyPose.of(snapshot.get().position(), snapshot.get().rotation())));
+            snapshot.bodyType(),
+            RigidBodyPose.of(snapshot.position(), snapshot.rotation())));
     }
 
     @Nonnull
@@ -1391,19 +1525,27 @@ public final class PhysicsSimulationExecutor implements PhysicsCommandDispatcher
     }
 
     @Nonnull
-    private RaycastHitView toView(@Nonnull BackendRayHit hit) {
-        PhysicsBodyRegistration registration = findBodyRegistration(hit.bodyId());
+    private RaycastHitView toView(long bodyId,
+        float pointX,
+        float pointY,
+        float pointZ,
+        float normalX,
+        float normalY,
+        float normalZ,
+        float fraction,
+        float distance) {
+        PhysicsBodyRegistration registration = findBodyRegistration(bodyId);
         RigidBodyKey bodyKey = registration != null ? registration.id() : null;
         PhysicsBodySnapshot snapshot = registration != null
             ? runtime.getBodySnapshot(registration.id())
             : null;
         return new RaycastHitView(bodyKey,
             snapshot != null ? snapshot.bodyType() : PhysicsBodyType.STATIC,
-            hit.point(),
-            hit.normal(),
+            new Vector3f(pointX, pointY, pointZ),
+            new Vector3f(normalX, normalY, normalZ),
             snapshot != null ? snapshot.shapeType() : ShapeType.BOX,
-            hit.fraction(),
-            hit.distance());
+            fraction,
+            distance);
     }
 
     @Nonnull
@@ -1434,14 +1576,13 @@ public final class PhysicsSimulationExecutor implements PhysicsCommandDispatcher
         return null;
     }
 
-    @Nonnull
-    private static BackendJointType toBackendJointType(@Nonnull JointType type) {
+    private static int toRuntimeJointTypeCode(@Nonnull JointType type) {
         return switch (type) {
-            case FIXED -> BackendJointType.FIXED;
-            case POINT -> BackendJointType.POINT;
-            case HINGE -> BackendJointType.HINGE;
-            case SLIDER -> BackendJointType.SLIDER;
-            case SPRING -> BackendJointType.SPRING;
+            case FIXED -> BackendRuntimeCodes.JOINT_FIXED;
+            case POINT -> BackendRuntimeCodes.JOINT_POINT;
+            case HINGE -> BackendRuntimeCodes.JOINT_HINGE;
+            case SLIDER -> BackendRuntimeCodes.JOINT_SLIDER;
+            case SPRING -> BackendRuntimeCodes.JOINT_SPRING;
         };
     }
 }

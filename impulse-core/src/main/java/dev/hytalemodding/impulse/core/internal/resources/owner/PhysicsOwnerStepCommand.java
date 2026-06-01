@@ -4,11 +4,10 @@ import dev.hytalemodding.impulse.api.PhysicsBodySnapshot;
 import dev.hytalemodding.impulse.api.PhysicsContactPhase;
 import dev.hytalemodding.impulse.api.PhysicsStepPhaseStats;
 import dev.hytalemodding.impulse.api.ShapeType;
-import dev.hytalemodding.impulse.api.runtime.BackendContact;
-import dev.hytalemodding.impulse.api.runtime.BackendStepPhaseStats;
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsSpaceBinding;
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsWorldRuntimeResource;
 import dev.hytalemodding.impulse.core.internal.resources.body.PhysicsBodyRegistration;
+import dev.hytalemodding.impulse.core.internal.resources.body.PhysicsBodySnapshots;
 import dev.hytalemodding.impulse.core.internal.systems.step.PhysicsStepCountPolicy;
 import dev.hytalemodding.impulse.core.plugin.resources.PhysicsWorldResource;
 import dev.hytalemodding.impulse.core.plugin.body.RigidBodyKey;
@@ -210,22 +209,25 @@ public final class PhysicsOwnerStepCommand implements PhysicsOwnerCommand {
         @Nonnull PhysicsWorldRuntimeResource resource) {
         PhysicsStepPhaseStats stats = PhysicsStepPhaseStats.unavailable();
         for (PhysicsSpaceBinding space : resource.iterateSpaceBindings()) {
-            stats = stats.add(toPhysicsStepPhaseStats(space.runtime()
-                .stepPhaseStats(space.backendSpaceId())));
+            PhysicsStepPhaseStats[] spaceStats = { PhysicsStepPhaseStats.unavailable() };
+            space.runtime().stepPhaseStats(space.backendSpaceId(),
+                (stepNanos,
+                    broadPhaseNanos,
+                    narrowPhaseNanos,
+                    solverNanos,
+                    continuousCollisionNanos,
+                    snapshotNanos,
+                    available) -> spaceStats[0] = available
+                    ? PhysicsStepPhaseStats.available(stepNanos,
+                        broadPhaseNanos,
+                        narrowPhaseNanos,
+                        solverNanos,
+                        continuousCollisionNanos,
+                        snapshotNanos)
+                    : PhysicsStepPhaseStats.unavailable());
+            stats = stats.add(spaceStats[0]);
         }
         return stats;
-    }
-
-    @Nonnull
-    private static PhysicsStepPhaseStats toPhysicsStepPhaseStats(@Nonnull BackendStepPhaseStats stats) {
-        return stats.available()
-            ? PhysicsStepPhaseStats.available(stats.stepNanos(),
-                stats.broadPhaseNanos(),
-                stats.narrowPhaseNanos(),
-                stats.solverNanos(),
-                stats.continuousCollisionNanos(),
-                stats.snapshotNanos())
-            : PhysicsStepPhaseStats.unavailable();
     }
 
     private static int resolveAdaptiveStepCount(float dt,
@@ -246,8 +248,10 @@ public final class PhysicsOwnerStepCommand implements PhysicsOwnerCommand {
             if (space == null) {
                 continue;
             }
-            space.runtime().bodySnapshot(space.backendSpaceId(), registration.backendBodyId())
-                .ifPresent(snapshot -> risk.inspect(snapshot.snapshot()));
+            PhysicsBodySnapshot snapshot = PhysicsBodySnapshots.read(space, registration.backendBodyId());
+            if (snapshot != null) {
+                risk.inspect(snapshot);
+            }
         }
         return risk.steps();
     }
@@ -278,23 +282,35 @@ public final class PhysicsOwnerStepCommand implements PhysicsOwnerCommand {
     private static void collectContactEvents(@Nonnull PhysicsWorldRuntimeResource resource,
         @Nonnull PhysicsSpaceBinding space,
         @Nonnull StepBackendEvents backendEvents) {
-        for (BackendContact contact : space.runtime().contacts(space.backendSpaceId())) {
-            RigidBodyKey bodyAKey = resource.getBodyKey(space.spaceId(), contact.bodyAId());
-            RigidBodyKey bodyBKey = resource.getBodyKey(space.spaceId(), contact.bodyBId());
+        space.runtime().contacts(space.backendSpaceId(), (bodyAId,
+            bodyBId,
+            pointAX,
+            pointAY,
+            pointAZ,
+            pointBX,
+            pointBY,
+            pointBZ,
+            normalBX,
+            normalBY,
+            normalBZ,
+            distance,
+            impulse) -> {
+            RigidBodyKey bodyAKey = resource.getBodyKey(space.spaceId(), bodyAId);
+            RigidBodyKey bodyBKey = resource.getBodyKey(space.spaceId(), bodyBId);
             if (bodyAKey == null || bodyBKey == null) {
                 backendEvents.droppedBackendEventCount++;
-                continue;
+                return;
             }
             backendEvents.physicsEvents.add(new PhysicsContactEvent(space.spaceId(),
                 PhysicsContactPhase.OBSERVED,
                 bodyAKey,
                 bodyBKey,
-                contact.pointOnA(),
-                contact.pointOnB(),
-                contact.normalOnB(),
-                contact.distance(),
-                contact.impulse()));
-        }
+                new Vector3f(pointAX, pointAY, pointAZ),
+                new Vector3f(pointBX, pointBY, pointBZ),
+                new Vector3f(normalBX, normalBY, normalBZ),
+                distance,
+                impulse));
+        });
     }
 
     private static boolean supportsContinuousCollision(@Nonnull PhysicsSpaceBinding space) {
@@ -371,10 +387,7 @@ public final class PhysicsOwnerStepCommand implements PhysicsOwnerCommand {
             if (!registration.spaceId().equals(space.spaceId())) {
                 continue;
             }
-            PhysicsBodySnapshot snapshot = space.runtime()
-                .bodySnapshot(space.backendSpaceId(), registration.backendBodyId())
-                .map(backendSnapshot -> backendSnapshot.snapshot())
-                .orElse(null);
+            PhysicsBodySnapshot snapshot = PhysicsBodySnapshots.read(space, registration.backendBodyId());
             if (snapshot == null
                 || !snapshot.isDynamic()
                 || space.runtime().isBodyContinuousCollisionEnabled(space.backendSpaceId(),

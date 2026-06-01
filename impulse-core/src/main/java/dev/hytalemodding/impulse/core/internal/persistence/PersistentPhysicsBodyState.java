@@ -11,7 +11,7 @@ import dev.hytalemodding.impulse.api.PhysicsBodySnapshot;
 import dev.hytalemodding.impulse.api.PhysicsBodyType;
 import dev.hytalemodding.impulse.api.ShapeType;
 import dev.hytalemodding.impulse.api.SpaceId;
-import dev.hytalemodding.impulse.api.runtime.BackendBodySpec;
+import dev.hytalemodding.impulse.api.runtime.BackendRuntimeCodes;
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsSpaceBinding;
 import dev.hytalemodding.impulse.core.plugin.body.RigidBodyKey;
 import dev.hytalemodding.impulse.core.internal.resources.body.PhysicsBodyRegistration;
@@ -355,20 +355,20 @@ public class PersistentPhysicsBodyState {
         sleeping = snapshot.sleeping();
     }
 
-    @Nonnull
-    public BackendBodySpec toBackendBodySpec() {
+    public long createBackendBody(@Nonnull PhysicsSpaceBinding space) {
         float dynamicMass = bodyType == PhysicsBodyType.DYNAMIC ? mass : 0.0f;
         return switch (shapeType) {
-            case BOX, SPHERE, CAPSULE, CYLINDER, CONE, PLANE -> new BackendBodySpec(shapeType,
+            case BOX, SPHERE, CAPSULE, CYLINDER, CONE, PLANE -> space.runtime().createBody(space.backendSpaceId(),
+                BackendRuntimeCodes.shapeTypeCode(shapeType),
                 boxHalfExtents.x,
                 boxHalfExtents.y,
                 boxHalfExtents.z,
                 sphereRadius,
                 halfHeight,
-                shapeAxis,
+                BackendRuntimeCodes.axisCode(shapeAxis),
                 finiteOrZero(position.y),
                 dynamicMass,
-                bodyType,
+                BackendRuntimeCodes.bodyTypeCode(bodyType),
                 position.x,
                 position.y,
                 position.z,
@@ -383,7 +383,9 @@ public class PersistentPhysicsBodyState {
     }
 
     public void applyToBody(@Nonnull PhysicsSpaceBinding space, long backendBodyId) {
-        space.runtime().setBodyType(space.backendSpaceId(), backendBodyId, bodyType);
+        space.runtime().setBodyType(space.backendSpaceId(),
+            backendBodyId,
+            dev.hytalemodding.impulse.api.runtime.BackendRuntimeCodes.bodyTypeCode(bodyType));
         space.runtime().setBodyTransform(space.backendSpaceId(),
             backendBodyId,
             position.x,
