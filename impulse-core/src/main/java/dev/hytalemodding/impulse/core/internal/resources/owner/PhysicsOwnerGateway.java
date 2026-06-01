@@ -1,8 +1,5 @@
 package dev.hytalemodding.impulse.core.internal.resources.owner;
 
-import dev.hytalemodding.impulse.api.PhysicsBody;
-import dev.hytalemodding.impulse.api.PhysicsJoint;
-import dev.hytalemodding.impulse.api.PhysicsSpace;
 import dev.hytalemodding.impulse.core.plugin.resources.PhysicsMutationHandle;
 import java.util.Objects;
 import java.util.concurrent.CompletableFuture;
@@ -14,9 +11,8 @@ import javax.annotation.Nullable;
  * Internal owner-lane gateway for one world physics resource.
  *
  * <p>This class centralizes owner-context routing while {@code PhysicsWorldResource} remains the
- * plugin-facing facade. Callbacks routed through this gateway may touch live {@link PhysicsSpace},
- * {@link PhysicsBody}, and {@link PhysicsJoint} instances; ordinary world-thread reads should use
- * published snapshots instead.</p>
+ * plugin-facing facade. Callbacks routed through this gateway may touch backend runtime state;
+ * ordinary world-thread reads should use published snapshots instead.</p>
  */
 public final class PhysicsOwnerGateway {
 

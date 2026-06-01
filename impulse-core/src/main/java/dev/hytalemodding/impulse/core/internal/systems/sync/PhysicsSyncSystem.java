@@ -138,7 +138,7 @@ public class PhysicsSyncSystem extends EntityTickingSystem<EntityStore> {
         }
 
         SpaceId spaceId = registration.spaceId();
-        if (resource.getSpace(spaceId) == null) {
+        if (resource.getSpaceBinding(spaceId) == null) {
             if (collector != null) {
                 collector.incrementSkippedMissingSpace();
             }

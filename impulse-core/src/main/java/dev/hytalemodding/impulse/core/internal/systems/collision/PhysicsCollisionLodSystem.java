@@ -4,11 +4,10 @@ import com.hypixel.hytale.component.Store;
 import com.hypixel.hytale.component.system.tick.TickingSystem;
 import com.hypixel.hytale.logger.HytaleLogger;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
-import dev.hytalemodding.impulse.api.PhysicsBody;
 import dev.hytalemodding.impulse.api.PhysicsBodySnapshot;
 import dev.hytalemodding.impulse.api.PhysicsCollisionFilters;
-import dev.hytalemodding.impulse.api.PhysicsSpace;
 import dev.hytalemodding.impulse.api.SpaceId;
+import dev.hytalemodding.impulse.core.internal.resources.PhysicsSpaceBinding;
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsWorldRuntimeResource;
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsVisualRuntime;
 import dev.hytalemodding.impulse.core.internal.systems.visual.VisualInterestCollector;
@@ -77,8 +76,8 @@ public class PhysicsCollisionLodSystem extends TickingSystem<EntityStore> {
         IntOpenHashSet activeSpaces = new IntOpenHashSet();
         List<PhysicsVisualRuntime.VisualInterest> interests =
             VisualInterestCollector.collectMaterializationInterests(store, resource);
-        for (PhysicsSpace space : resource.getSpaces()) {
-            SpaceId spaceId = space.id();
+        for (PhysicsSpaceBinding space : resource.getSpaceBindings()) {
+            SpaceId spaceId = space.spaceId();
             activeSpaces.add(spaceId.value());
             PhysicsSpaceSettings settings = resource.getLiveSpaceSettings(spaceId);
             if (!settings.getCollisionLodSettings().isCollisionLodEnabled()) {
@@ -217,24 +216,27 @@ public class PhysicsCollisionLodSystem extends TickingSystem<EntityStore> {
                     && registration.persistenceMode() == PhysicsBodyPersistenceMode.PERSISTENT)) {
                 continue;
             }
-            PhysicsBody body = registration.body();
-            if (!body.isDynamic() || body.isSensor() || !isDefaultDynamicFilter(body)) {
+            PhysicsSpaceBinding space = resource.getSpaceBinding(registration.spaceId());
+            if (space == null) {
+                continue;
+            }
+            PhysicsBodySnapshot snapshot = space.runtime()
+                .bodySnapshot(space.backendSpaceId(), registration.backendBodyId())
+                .map(backendSnapshot -> backendSnapshot.snapshot())
+                .orElse(null);
+            if (snapshot == null || !snapshot.isDynamic() || snapshot.sensor()) {
                 continue;
             }
             PhysicsSpaceSettings settings = resource.getLiveSpaceSettings(update.spaceId());
-            applyTier(body, update.tier(), settings.getCollisionLodSettings().isCollisionLodFarSleepEnabled());
+            applyTier(space,
+                registration.backendBodyId(),
+                update.tier(),
+                settings.getCollisionLodSettings().isCollisionLodFarSleepEnabled());
         }
     }
 
-    private static boolean isDefaultDynamicFilter(@Nonnull PhysicsBody body) {
-        int fullDynamicMask = PhysicsCollisionFilters.TERRAIN
-            | PhysicsCollisionFilters.DYNAMIC_BODY;
-        return body.getCollisionGroup() == PhysicsCollisionFilters.DYNAMIC_BODY
-            && (body.getCollisionMask() == PhysicsCollisionFilters.TERRAIN
-                || body.getCollisionMask() == fullDynamicMask);
-    }
-
-    private static void applyTier(@Nonnull PhysicsBody body,
+    private static void applyTier(@Nonnull PhysicsSpaceBinding space,
+        long backendBodyId,
         @Nonnull CollisionLodTier tier,
         boolean farSleepEnabled) {
         int terrainOnlyMask = PhysicsCollisionFilters.TERRAIN;
@@ -242,17 +244,26 @@ public class PhysicsCollisionLodSystem extends TickingSystem<EntityStore> {
             | PhysicsCollisionFilters.DYNAMIC_BODY;
         switch (tier) {
             case NEAR_FULL -> {
-                body.setCollisionFilter(PhysicsCollisionFilters.DYNAMIC_BODY, fullDynamicMask);
-                body.activate();
+                space.runtime().setBodyCollisionFilter(space.backendSpaceId(),
+                    backendBodyId,
+                    PhysicsCollisionFilters.DYNAMIC_BODY,
+                    fullDynamicMask);
+                space.runtime().activateBody(space.backendSpaceId(), backendBodyId);
             }
             case MID_TERRAIN -> {
-                body.setCollisionFilter(PhysicsCollisionFilters.DYNAMIC_BODY, terrainOnlyMask);
-                body.activate();
+                space.runtime().setBodyCollisionFilter(space.backendSpaceId(),
+                    backendBodyId,
+                    PhysicsCollisionFilters.DYNAMIC_BODY,
+                    terrainOnlyMask);
+                space.runtime().activateBody(space.backendSpaceId(), backendBodyId);
             }
             case FAR_SLEEPING -> {
-                body.setCollisionFilter(PhysicsCollisionFilters.DYNAMIC_BODY, terrainOnlyMask);
+                space.runtime().setBodyCollisionFilter(space.backendSpaceId(),
+                    backendBodyId,
+                    PhysicsCollisionFilters.DYNAMIC_BODY,
+                    terrainOnlyMask);
                 if (farSleepEnabled) {
-                    body.sleep();
+                    space.runtime().sleepBody(space.backendSpaceId(), backendBodyId);
                 }
             }
         }

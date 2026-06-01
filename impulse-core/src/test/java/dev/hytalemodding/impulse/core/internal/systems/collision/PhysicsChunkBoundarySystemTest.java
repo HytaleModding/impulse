@@ -12,7 +12,7 @@ import dev.hytalemodding.impulse.api.ShapeType;
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsChunkBoundaryRuntime;
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsChunkBoundaryRuntime.ChunkBoundarySafeState;
 import dev.hytalemodding.impulse.core.plugin.body.RigidBodyKey;
-import dev.hytalemodding.impulse.core.internal.resources.PhysicsWorldRuntimeResource;
+import dev.hytalemodding.impulse.core.internal.testsupport.LegacyLiveHandleTestResource;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 import org.joml.Quaternionf;
@@ -23,7 +23,7 @@ class PhysicsChunkBoundarySystemTest {
 
     @Test
     void recordSafePoseUsesSnapshotPoseWithoutReadingBody() {
-        PhysicsWorldRuntimeResource resource = new PhysicsWorldRuntimeResource();
+        LegacyLiveHandleTestResource resource = new LegacyLiveHandleTestResource();
         RigidBodyKey bodyId = RigidBodyKey.random();
         CountingBody body = new CountingBody();
         Quaternionf rotation = new Quaternionf().rotateY(0.5f);
@@ -51,7 +51,7 @@ class PhysicsChunkBoundarySystemTest {
 
     @Test
     void pauseBodyUsesSnapshotVelocityAndTypeWithoutReadingBody() {
-        PhysicsWorldRuntimeResource resource = new PhysicsWorldRuntimeResource();
+        LegacyLiveHandleTestResource resource = new LegacyLiveHandleTestResource();
         RigidBodyKey bodyId = RigidBodyKey.random();
         CountingBody body = new CountingBody();
         Quaternionf safeRotation = new Quaternionf().rotateX(0.25f);
@@ -67,7 +67,7 @@ class PhysicsChunkBoundarySystemTest {
             angularVelocity,
             PhysicsBodyType.DYNAMIC);
 
-        PhysicsChunkBoundarySystem.pauseBody(bodyId, body, snapshot, 42L, resource);
+        resource.pauseChunkBoundaryBody(bodyId, 42L, snapshot);
 
         PhysicsChunkBoundaryRuntime.ChunkBoundaryPauseState pauseState =
             resource.getChunkBoundaryPauseState(bodyId);
@@ -76,12 +76,6 @@ class PhysicsChunkBoundarySystemTest {
         assertEquals(PhysicsBodyType.DYNAMIC, pauseState.getOriginalBodyType());
         assertEquals(linearVelocity, pauseState.getLinearVelocity());
         assertEquals(angularVelocity, pauseState.getAngularVelocity());
-        assertEquals(PhysicsBodyType.KINEMATIC, body.bodyType);
-        assertEquals(new Vector3f(), body.linearVelocity);
-        assertEquals(new Vector3f(), body.angularVelocity);
-        assertEquals(new Vector3f(8.0f, 9.0f, 10.0f), body.position);
-        assertEquals(safeRotation, body.rotation);
-        assertTrue(body.forcesCleared);
         assertEquals(0, body.liveGetterCalls());
     }
 

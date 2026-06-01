@@ -8,9 +8,10 @@ import com.hypixel.hytale.codec.codecs.EnumCodec;
 import com.hypixel.hytale.codec.validation.ValidationResults;
 import com.hypixel.hytale.codec.validation.Validators;
 import com.hypixel.hytale.math.vector.Vector3fUtil;
-import dev.hytalemodding.impulse.api.PhysicsJoint;
 import dev.hytalemodding.impulse.api.PhysicsJointType;
+import dev.hytalemodding.impulse.core.internal.resources.joint.PhysicsJointRegistration;
 import dev.hytalemodding.impulse.core.plugin.body.RigidBodyKey;
+import dev.hytalemodding.impulse.core.plugin.simulation.JointType;
 import java.util.UUID;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
@@ -199,25 +200,25 @@ public class PersistentPhysicsJointState {
     public static PersistentPhysicsJointState from(int spaceId,
         @Nonnull RigidBodyKey bodyAId,
         @Nonnull RigidBodyKey bodyBId,
-        @Nonnull PhysicsJoint joint) {
+        @Nonnull PhysicsJointRegistration joint) {
         PersistentPhysicsJointState state = new PersistentPhysicsJointState();
         state.spaceId = spaceId;
         state.bodyAId = bodyAId.value();
         state.bodyBId = bodyBId.value();
-        state.type = joint.getType();
-        state.anchorA.set(joint.getAnchorA());
-        state.anchorB.set(joint.getAnchorB());
-        Vector3f jointAxis = joint.getAxis();
-        state.axis = jointAxis != null ? new Vector3f(jointAxis) : null;
-        state.lowerLimit = joint.getLowerLimit();
-        state.upperLimit = joint.getUpperLimit();
-        state.enabled = joint.isEnabled();
-        state.motorEnabled = joint.isMotorEnabled();
-        state.motorTargetVelocity = joint.getMotorTargetVelocity();
-        state.motorMaxForce = joint.getMotorMaxForce();
-        state.springRestLength = nanToZero(joint.getSpringRestLength());
-        state.springStiffness = nanToZero(joint.getSpringStiffness());
-        state.springDamping = nanToZero(joint.getSpringDamping());
+        state.type = toPersistentJointType(joint.type());
+        state.anchorA.set(joint.anchorAX(), joint.anchorAY(), joint.anchorAZ());
+        state.anchorB.set(joint.anchorBX(), joint.anchorBY(), joint.anchorBZ());
+        Vector3f jointAxis = new Vector3f(joint.axisX(), joint.axisY(), joint.axisZ());
+        state.axis = jointAxis.lengthSquared() > 0.0f ? jointAxis : null;
+        state.lowerLimit = joint.lowerLimit();
+        state.upperLimit = joint.upperLimit();
+        state.enabled = true;
+        state.motorEnabled = joint.motorEnabled();
+        state.motorTargetVelocity = joint.motorTargetVelocity();
+        state.motorMaxForce = joint.motorMaxForce();
+        state.springRestLength = nanToZero(joint.restLength());
+        state.springStiffness = nanToZero(joint.stiffness());
+        state.springDamping = nanToZero(joint.damping());
         return state;
     }
 
@@ -306,6 +307,17 @@ public class PersistentPhysicsJointState {
 
     private static float nanToZero(float value) {
         return Float.isNaN(value) ? 0f : value;
+    }
+
+    @Nonnull
+    private static PhysicsJointType toPersistentJointType(@Nonnull JointType type) {
+        return switch (type) {
+            case FIXED -> PhysicsJointType.FIXED;
+            case POINT -> PhysicsJointType.POINT;
+            case HINGE -> PhysicsJointType.HINGE;
+            case SLIDER -> PhysicsJointType.SLIDER;
+            case SPRING -> PhysicsJointType.SPRING;
+        };
     }
 
     @Nonnull

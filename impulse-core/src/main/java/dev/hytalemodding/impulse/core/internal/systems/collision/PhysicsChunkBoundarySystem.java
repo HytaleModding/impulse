@@ -14,10 +14,10 @@ import com.hypixel.hytale.server.core.universe.world.chunk.ChunkFlag;
 import com.hypixel.hytale.server.core.universe.world.chunk.WorldChunk;
 import com.hypixel.hytale.server.core.universe.world.storage.ChunkStore;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
-import dev.hytalemodding.impulse.api.PhysicsBody;
 import dev.hytalemodding.impulse.api.PhysicsBodySnapshot;
 import dev.hytalemodding.impulse.api.PhysicsBodyType;
 import dev.hytalemodding.impulse.core.ImpulsePlugin;
+import dev.hytalemodding.impulse.core.internal.resources.PhysicsSpaceBinding;
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsWorldRuntimeResource;
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsChunkBoundaryRuntime;
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsChunkBoundaryRuntime.ChunkBoundarySafeState;
@@ -71,7 +71,7 @@ public class PhysicsChunkBoundarySystem extends TickingSystem<EntityStore> {
         @Nonnull Store<EntityStore> store,
         @Nonnull ChunkStore chunkStore,
         @Nonnull Store<ChunkStore> chunkComponentStore) {
-        if (resource.getSpace(registration.spaceId()) == null) {
+        if (resource.getSpaceBinding(registration.spaceId()) == null) {
             return;
         }
 
@@ -130,14 +130,25 @@ public class PhysicsChunkBoundarySystem extends TickingSystem<EntityStore> {
         }
 
         PhysicsOwnerBridge.run(entityStore, "resume chunk-boundary physics body", () -> {
-            PhysicsBody body = resource.getBody(bodyKey);
-            if (body == null) {
+            var registration = resource.getRegistration(bodyKey);
+            if (registration == null) {
                 return;
             }
-            body.setBodyType(pauseState.getOriginalBodyType());
-            body.setLinearVelocity(pauseState.getLinearVelocity());
-            body.setAngularVelocity(pauseState.getAngularVelocity());
-            body.activate();
+            PhysicsSpaceBinding space = resource.getSpaceBinding(registration.spaceId());
+            if (space == null) {
+                return;
+            }
+            space.runtime()
+                .setBodyType(space.backendSpaceId(), registration.backendBodyId(), pauseState.getOriginalBodyType());
+            space.runtime().setBodyVelocity(space.backendSpaceId(),
+                registration.backendBodyId(),
+                pauseState.getLinearVelocity().x,
+                pauseState.getLinearVelocity().y,
+                pauseState.getLinearVelocity().z,
+                pauseState.getAngularVelocity().x,
+                pauseState.getAngularVelocity().y,
+                pauseState.getAngularVelocity().z);
+            space.runtime().activateBody(space.backendSpaceId(), registration.backendBodyId());
             resource.clearChunkBoundaryPauseState(bodyKey);
             recordSafePose(bodyKey, snapshot, resource);
         });
@@ -147,18 +158,14 @@ public class PhysicsChunkBoundarySystem extends TickingSystem<EntityStore> {
         @Nonnull PhysicsBodySnapshot snapshot,
         long targetChunkIndex,
         @Nonnull PhysicsWorldRuntimeResource resource) {
-        PhysicsBody body = resource.getBody(bodyKey);
-        if (body == null) {
+        var registration = resource.getRegistration(bodyKey);
+        if (registration == null) {
             return;
         }
-        pauseBody(bodyKey, body, snapshot, targetChunkIndex, resource);
-    }
-
-    static void pauseBody(@Nonnull RigidBodyKey bodyKey,
-        @Nonnull PhysicsBody body,
-        @Nonnull PhysicsBodySnapshot snapshot,
-        long targetChunkIndex,
-        @Nonnull PhysicsWorldRuntimeResource resource) {
+        PhysicsSpaceBinding space = resource.getSpaceBinding(registration.spaceId());
+        if (space == null) {
+            return;
+        }
         ChunkBoundarySafeState safeState =
             resource.getChunkBoundarySafeState(bodyKey);
         resource.pauseChunkBoundaryBody(bodyKey,
@@ -166,16 +173,28 @@ public class PhysicsChunkBoundarySystem extends TickingSystem<EntityStore> {
             snapshot);
 
         if (safeState != null) {
-            body.setPosition(safeState.getPosition());
-            body.setRotation(safeState.getRotation());
+            space.runtime().setBodyTransform(space.backendSpaceId(),
+                registration.backendBodyId(),
+                safeState.getPosition().x,
+                safeState.getPosition().y,
+                safeState.getPosition().z,
+                safeState.getRotation().x,
+                safeState.getRotation().y,
+                safeState.getRotation().z,
+                safeState.getRotation().w);
         }
 
         if (snapshot.bodyType() != PhysicsBodyType.KINEMATIC) {
-            body.setBodyType(PhysicsBodyType.KINEMATIC);
+            space.runtime().setBodyType(space.backendSpaceId(), registration.backendBodyId(), PhysicsBodyType.KINEMATIC);
         }
-        body.setLinearVelocity(0.0f, 0.0f, 0.0f);
-        body.setAngularVelocity(0.0f, 0.0f, 0.0f);
-        body.clearForces();
+        space.runtime().setBodyVelocity(space.backendSpaceId(),
+            registration.backendBodyId(),
+            0.0f,
+            0.0f,
+            0.0f,
+            0.0f,
+            0.0f,
+            0.0f);
     }
 
     static void recordSafePose(@Nonnull RigidBodyKey bodyKey,

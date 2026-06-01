@@ -6,7 +6,7 @@ import static org.junit.jupiter.api.Assertions.assertNull;
 import dev.hytalemodding.impulse.api.Impulse;
 import dev.hytalemodding.impulse.api.SpaceId;
 import dev.hytalemodding.impulse.api.testsupport.FakePhysicsBackend;
-import dev.hytalemodding.impulse.core.internal.resources.PhysicsWorldRuntimeResource;
+import dev.hytalemodding.impulse.core.internal.testsupport.LegacyLiveHandleTestResource;
 import dev.hytalemodding.impulse.core.plugin.settings.PhysicsSpaceSettings;
 import java.util.concurrent.atomic.AtomicInteger;
 import org.junit.jupiter.api.Test;
@@ -68,9 +68,9 @@ class SpaceSelectionTest {
         FakePhysicsBackend backend = new FakePhysicsBackend("test:space-selection-"
             + BACKEND_COUNTER.incrementAndGet());
         Impulse.registerBackend(backend);
-        return new Fixture(backend, new PhysicsWorldRuntimeResource());
+        return new Fixture(backend, new LegacyLiveHandleTestResource());
     }
 
-    private record Fixture(FakePhysicsBackend backend, PhysicsWorldRuntimeResource resource) {
+    private record Fixture(FakePhysicsBackend backend, LegacyLiveHandleTestResource resource) {
     }
 }

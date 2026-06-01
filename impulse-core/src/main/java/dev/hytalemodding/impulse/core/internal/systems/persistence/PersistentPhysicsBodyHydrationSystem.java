@@ -7,12 +7,11 @@ import com.hypixel.hytale.component.dependency.Order;
 import com.hypixel.hytale.component.dependency.SystemDependency;
 import com.hypixel.hytale.component.system.tick.TickingSystem;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
-import dev.hytalemodding.impulse.api.PhysicsBody;
-import dev.hytalemodding.impulse.api.PhysicsSpace;
 import dev.hytalemodding.impulse.api.SpaceId;
 import dev.hytalemodding.impulse.core.ImpulsePlugin;
 import dev.hytalemodding.impulse.core.internal.persistence.PersistentPhysicsBodyState;
 import dev.hytalemodding.impulse.core.internal.persistence.PersistentPhysicsWorldResource;
+import dev.hytalemodding.impulse.core.internal.resources.PhysicsSpaceBinding;
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsWorldRuntimeResource;
 import dev.hytalemodding.impulse.core.internal.resources.owner.PhysicsOwnerBridge;
 import dev.hytalemodding.impulse.core.plugin.body.RigidBodyKey;
@@ -86,16 +85,16 @@ public class PersistentPhysicsBodyHydrationSystem extends TickingSystem<EntitySt
             return RestoreBodyResult.ALREADY_REGISTERED;
         }
 
-        PhysicsSpace space = runtime.getSpace(new SpaceId(state.resolveSpaceId()));
+        PhysicsSpaceBinding space = runtime.getSpaceBinding(new SpaceId(state.resolveSpaceId()));
         if (space == null) {
             return RestoreBodyResult.MISSING_SPACE;
         }
 
-        PhysicsBody body = state.createBody(space);
-        state.applyToBody(body);
-        runtime.addBody(bodyKey,
-            space.id(),
-            body,
+        long backendBodyId = space.runtime().createBody(space.backendSpaceId(), state.toBackendBodySpec());
+        state.applyToBody(space, backendBodyId);
+        runtime.addBodyOnOwner(bodyKey,
+            space.spaceId(),
+            backendBodyId,
             PhysicsBodyKind.BODY,
             PhysicsBodyPersistenceMode.PERSISTENT);
         return RestoreBodyResult.RESTORED;

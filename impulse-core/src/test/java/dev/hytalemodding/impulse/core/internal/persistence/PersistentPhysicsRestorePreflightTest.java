@@ -9,7 +9,7 @@ import dev.hytalemodding.impulse.api.Impulse;
 import dev.hytalemodding.impulse.api.PhysicsBody;
 import dev.hytalemodding.impulse.api.PhysicsSpace;
 import dev.hytalemodding.impulse.api.testsupport.FakePhysicsBackend;
-import dev.hytalemodding.impulse.core.internal.resources.PhysicsWorldRuntimeResource;
+import dev.hytalemodding.impulse.core.internal.testsupport.LegacyLiveHandleTestResource;
 import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyKind;
 import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyPersistenceMode;
 import dev.hytalemodding.impulse.core.plugin.settings.PhysicsSpaceSettings;
@@ -35,7 +35,7 @@ class PersistentPhysicsRestorePreflightTest {
     void rejectsDuplicateSpaceIdsBeforeRuntimeStrip() {
         RuntimeFixture fixture = createRuntimeFixture();
         PersistentPhysicsSpaceState first =
-            PersistentPhysicsSpaceState.from(fixture.space, fixture.runtime.getSpaceSettings(fixture.space.id()));
+            fixture.spaceState();
         PersistentPhysicsSpaceState second = first.copy();
         fixture.persistent.setSpaces(new PersistentPhysicsSpaceState[] { first, second });
 
@@ -76,7 +76,7 @@ class PersistentPhysicsRestorePreflightTest {
     void rejectsInvalidSpaceSettingsBeforeRuntimeStrip() throws Exception {
         RuntimeFixture fixture = createRuntimeFixture();
         PersistentPhysicsSpaceState state =
-            PersistentPhysicsSpaceState.from(fixture.space, fixture.runtime.getSpaceSettings(fixture.space.id()));
+            fixture.spaceState();
         setIntField(state, "worldCollisionRadius", 0);
         fixture.persistent.setSpaces(new PersistentPhysicsSpaceState[] { state });
 
@@ -90,7 +90,7 @@ class PersistentPhysicsRestorePreflightTest {
     void rejectsBlankBackendIdBeforeRuntimeStrip() throws Exception {
         RuntimeFixture fixture = createRuntimeFixture();
         PersistentPhysicsSpaceState state =
-            PersistentPhysicsSpaceState.from(fixture.space, fixture.runtime.getSpaceSettings(fixture.space.id()));
+            fixture.spaceState();
         setStringField(state, "backendId", " ");
         fixture.persistent.setSpaces(new PersistentPhysicsSpaceState[] { state });
 
@@ -119,7 +119,7 @@ class PersistentPhysicsRestorePreflightTest {
             new FakePhysicsBackend("test:persistence-preflight-" + BACKEND_COUNTER.incrementAndGet());
         Impulse.registerBackend(backend);
 
-        PhysicsWorldRuntimeResource runtime = new PhysicsWorldRuntimeResource();
+        LegacyLiveHandleTestResource runtime = new LegacyLiveHandleTestResource();
         PhysicsSpace space = runtime.createLiveSpace(backend.getId(),
             "test-world",
             PhysicsSpaceSettings.defaults());
@@ -149,16 +149,21 @@ class PersistentPhysicsRestorePreflightTest {
         field.set(target, value);
     }
 
-    private record RuntimeFixture(PhysicsWorldRuntimeResource runtime,
+    private record RuntimeFixture(LegacyLiveHandleTestResource runtime,
         PersistentPhysicsWorldResource persistent,
         PhysicsSpace space) {
 
         private void syncPersistentState() {
             persistent.setWorldSettings(runtime.getWorldSettings());
             persistent.setSpaces(new PersistentPhysicsSpaceState[] {
-                PersistentPhysicsSpaceState.from(space, runtime.getSpaceSettings(space.id()))
+                spaceState()
             });
             persistent.setBodies(PersistentPhysicsRuntimeSnapshot.capture(runtime).getBodies());
+        }
+
+        private PersistentPhysicsSpaceState spaceState() {
+            return PersistentPhysicsSpaceState.from(runtime.requireSpaceBinding(space.id()),
+                runtime.getSpaceSettings(space.id()));
         }
     }
 }

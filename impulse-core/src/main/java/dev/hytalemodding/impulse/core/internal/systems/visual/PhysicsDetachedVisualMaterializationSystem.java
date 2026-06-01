@@ -19,9 +19,9 @@ import com.hypixel.hytale.server.core.universe.world.chunk.WorldChunk;
 import com.hypixel.hytale.server.core.universe.world.storage.ChunkStore;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import dev.hytalemodding.impulse.api.PhysicsBodySnapshot;
-import dev.hytalemodding.impulse.api.PhysicsSpace;
 import dev.hytalemodding.impulse.api.SpaceId;
 import dev.hytalemodding.impulse.core.internal.components.GeneratedVisualProxyComponent;
+import dev.hytalemodding.impulse.core.internal.resources.PhysicsSpaceBinding;
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsWorldRuntimeResource;
 import dev.hytalemodding.impulse.core.internal.resources.profiling.PhysicsRuntimeProfilingResource;
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsVisualRuntime.VisualInterest;
@@ -345,8 +345,8 @@ public class PhysicsDetachedVisualMaterializationSystem extends TickingSystem<En
         @Nonnull ToIntFunction<PhysicsSpaceSettings> intervalGetter,
         int defaultInterval) {
         int interval = Integer.MAX_VALUE;
-        for (PhysicsSpace space : resource.iterateSpaces()) {
-            PhysicsSpaceSettings settings = resource.getLiveSpaceSettings(space.id());
+        for (PhysicsSpaceBinding space : resource.iterateSpaceBindings()) {
+            PhysicsSpaceSettings settings = resource.getLiveSpaceSettings(space.spaceId());
             if (settings.getVisualMaterializationSettings().isDetachedVisualMaterializationEnabled()) {
                 interval = Math.min(interval, intervalGetter.applyAsInt(settings));
             }
@@ -426,8 +426,8 @@ public class PhysicsDetachedVisualMaterializationSystem extends TickingSystem<En
         }
 
         Set<RigidBodyKey> seenBodies = new ObjectOpenHashSet<>();
-        for (PhysicsSpace space : resource.iterateSpaces()) {
-            PhysicsSpaceSettings settings = resource.getLiveSpaceSettings(space.id());
+        for (PhysicsSpaceBinding space : resource.iterateSpaceBindings()) {
+            PhysicsSpaceSettings settings = resource.getLiveSpaceSettings(space.spaceId());
             if (!settings.getVisualMaterializationSettings().isDetachedVisualMaterializationEnabled()) {
                 continue;
             }
@@ -437,7 +437,7 @@ public class PhysicsDetachedVisualMaterializationSystem extends TickingSystem<En
                 if (collector != null) {
                     collector.incrementNearQueries();
                 }
-                int nearCandidates = resource.forEachIndexedBodySnapshotNear(space.id(),
+                int nearCandidates = resource.forEachIndexedBodySnapshotNear(space.spaceId(),
                     interest.position(),
                     settings.getVisualMaterializationSettings().getDetachedVisualMaterializationRadius(),
                     (bodyKey, snapshot, bodySpaceId, kind, persistenceMode) -> {
@@ -445,7 +445,7 @@ public class PhysicsDetachedVisualMaterializationSystem extends TickingSystem<En
                             return;
                         }
                         if (kind != PhysicsBodyKind.BODY
-                            || !bodySpaceId.equals(space.id())
+                            || !bodySpaceId.equals(space.spaceId())
                             || resource.hasBodyAttachments(bodyKey)) {
                             return;
                         }
@@ -513,7 +513,7 @@ public class PhysicsDetachedVisualMaterializationSystem extends TickingSystem<En
         if (!sameSpaceId(registration.spaceId(), spaceId)) {
             return false;
         }
-        return resource.getSpace(registration.spaceId()) != null
+        return resource.getSpaceBinding(registration.spaceId()) != null
             && resource.isGeneratedVisualProxy(bodyKey, proxyRef);
     }
 
@@ -544,16 +544,16 @@ public class PhysicsDetachedVisualMaterializationSystem extends TickingSystem<En
     @Nullable
     private static PhysicsSpaceSettings resolveSettings(@Nonnull PhysicsWorldRuntimeResource resource,
         @Nonnull PhysicsBodyRegistrationView registration) {
-        if (resource.getSpace(registration.spaceId()) != null) {
+        if (resource.getSpaceBinding(registration.spaceId()) != null) {
             return resource.getLiveSpaceSettings(registration.spaceId());
         }
         return null;
     }
 
     @Nullable
-    private static PhysicsSpace resolveSpace(@Nonnull PhysicsWorldRuntimeResource resource,
+    private static PhysicsSpaceBinding resolveSpace(@Nonnull PhysicsWorldRuntimeResource resource,
         @Nonnull PhysicsBodyRegistrationView registration) {
-        return resource.getSpace(registration.spaceId());
+        return resource.getSpaceBinding(registration.spaceId());
     }
 
     private static boolean shouldMaterialize(@Nonnull PhysicsBodySnapshot snapshot,

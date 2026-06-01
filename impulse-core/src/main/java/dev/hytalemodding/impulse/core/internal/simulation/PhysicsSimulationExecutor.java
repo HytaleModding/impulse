@@ -1,17 +1,20 @@
 package dev.hytalemodding.impulse.core.internal.simulation;
 
 import com.hypixel.hytale.math.util.ChunkUtil;
-import dev.hytalemodding.impulse.api.PhysicsBody;
+import dev.hytalemodding.impulse.api.PhysicsBodySnapshot;
 import dev.hytalemodding.impulse.api.PhysicsBodyType;
-import dev.hytalemodding.impulse.api.PhysicsContact;
-import dev.hytalemodding.impulse.api.PhysicsJoint;
-import dev.hytalemodding.impulse.api.PhysicsRayHit;
-import dev.hytalemodding.impulse.api.PhysicsRuntimeStats;
-import dev.hytalemodding.impulse.api.PhysicsSpace;
 import dev.hytalemodding.impulse.api.ShapeType;
 import dev.hytalemodding.impulse.api.SpaceId;
+import dev.hytalemodding.impulse.api.runtime.BackendBodySpec;
+import dev.hytalemodding.impulse.api.runtime.BackendContact;
+import dev.hytalemodding.impulse.api.runtime.BackendJointSpec;
+import dev.hytalemodding.impulse.api.runtime.BackendJointType;
+import dev.hytalemodding.impulse.api.runtime.BackendRayHit;
+import dev.hytalemodding.impulse.api.runtime.BackendRuntimeStats;
+import dev.hytalemodding.impulse.core.internal.resources.PhysicsSpaceBinding;
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsWorldRuntimeResource;
 import dev.hytalemodding.impulse.core.internal.resources.body.PhysicsBodyRegistration;
+import dev.hytalemodding.impulse.core.internal.resources.joint.PhysicsJointRegistration;
 import dev.hytalemodding.impulse.core.internal.voxel.WorldVoxelCollisionCache;
 import dev.hytalemodding.impulse.core.internal.voxel.WorldVoxelCollisionCache.BuildStats;
 import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyKind;
@@ -19,7 +22,6 @@ import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyPersistenceMode;
 import dev.hytalemodding.impulse.core.plugin.body.RigidBodyKey;
 import dev.hytalemodding.impulse.core.plugin.collision.WorldCollisionBuildStats;
 import dev.hytalemodding.impulse.core.plugin.collision.WorldCollisionPrewarmStats;
-import dev.hytalemodding.impulse.core.plugin.simulation.PhysicsOwnerTransaction;
 import dev.hytalemodding.impulse.core.plugin.joint.JointKey;
 import dev.hytalemodding.impulse.core.plugin.simulation.CcdSupportQuery;
 import dev.hytalemodding.impulse.core.plugin.simulation.JointType;
@@ -44,9 +46,6 @@ import dev.hytalemodding.impulse.core.plugin.simulation.SpaceBodyCountQuery;
 import dev.hytalemodding.impulse.core.plugin.simulation.SpaceSummary;
 import dev.hytalemodding.impulse.core.plugin.simulation.SpaceSummaryQuery;
 import dev.hytalemodding.impulse.core.plugin.simulation.UnsupportedCcdSpacesQuery;
-import dev.hytalemodding.impulse.api.capability.PhysicsContinuousCollisionCapability;
-import dev.hytalemodding.impulse.api.capability.PhysicsActivationTuningCapability;
-import dev.hytalemodding.impulse.api.capability.PhysicsSolverTuningCapability;
 import it.unimi.dsi.fastutil.longs.LongOpenHashSet;
 import it.unimi.dsi.fastutil.longs.LongSet;
 import it.unimi.dsi.fastutil.objects.ObjectOpenHashSet;
@@ -200,7 +199,9 @@ public final class PhysicsSimulationExecutor implements PhysicsCommandDispatcher
                 operations.objectAt(index, 3, RigidBodyKey.class));
             case PhysicsCommandOperations.LIVE_OWNER_TRANSACTION -> liveOwnerTransaction(
                 operations.objectAt(index, 0, String.class),
-                operations.objectAt(index, 1, PhysicsOwnerTransaction.class));
+                operations.objectAt(index,
+                    1,
+                    dev.hytalemodding.impulse.core.plugin.simulation.PhysicsOwnerTransaction.class));
             default -> throw new IllegalArgumentException("Unsupported physics command opcode "
                 + operations.opcode(index));
         }
@@ -328,7 +329,7 @@ public final class PhysicsSimulationExecutor implements PhysicsCommandDispatcher
             throw new IllegalArgumentException("Rigid body key=" + bodyKey
                 + " is already registered");
         }
-        PhysicsSpace space = requireSpace(spaceId);
+        PhysicsSpaceBinding space = requireSpace(spaceId);
         spawnRigidBody(space,
             bodyKey,
             spaceId,
@@ -355,7 +356,7 @@ public final class PhysicsSimulationExecutor implements PhysicsCommandDispatcher
         @Nonnull RigidBodySpawnSettings settings,
         @Nonnull PhysicsBodyKind kind,
         @Nonnull PhysicsBodyPersistenceMode persistenceMode) {
-        PhysicsSpace space = requireSpace(spaceId);
+        PhysicsSpaceBinding space = requireSpace(spaceId);
         for (int index = 0; index < bodyCount; index++) {
             RigidBodyKey bodyKey = RigidBodyKey.of(bodyKeyMostSignificantBits[index],
                 bodyKeyLeastSignificantBits[index]);
@@ -379,7 +380,7 @@ public final class PhysicsSimulationExecutor implements PhysicsCommandDispatcher
         }
     }
 
-    private void spawnRigidBody(@Nonnull PhysicsSpace space,
+    private void spawnRigidBody(@Nonnull PhysicsSpaceBinding space,
         @Nonnull RigidBodyKey bodyKey,
         @Nonnull SpaceId spaceId,
         @Nonnull PhysicsShapeSpec shape,
@@ -391,54 +392,69 @@ public final class PhysicsSimulationExecutor implements PhysicsCommandDispatcher
         @Nonnull RigidBodySpawnSettings settings,
         @Nonnull PhysicsBodyKind kind,
         @Nonnull PhysicsBodyPersistenceMode persistenceMode) {
-        PhysicsBody body = createBody(space, shape, mass);
-        body.setBodyType(bodyType);
-        body.setPosition(positionX, positionY, positionZ);
-        applySpawnSettings(body, settings);
+        long backendBodyId = space.runtime().createBody(space.backendSpaceId(),
+            createBodySpec(shape, mass, bodyType, positionX, positionY, positionZ));
+        applySpawnSettings(space, backendBodyId, settings);
         runtime.addBodyOnOwner(bodyKey,
             spaceId,
-            body,
+            backendBodyId,
             kind,
             persistenceMode);
     }
 
-    private void applySpawnSettings(@Nonnull PhysicsBody body,
+    private void applySpawnSettings(@Nonnull PhysicsSpaceBinding space,
+        long backendBodyId,
         @Nonnull RigidBodySpawnSettings settings) {
         if (settings.hasFriction()) {
-            body.setFriction(settings.friction());
+            space.runtime().setBodyFriction(space.backendSpaceId(), backendBodyId, settings.friction());
         }
         if (settings.hasRestitution()) {
-            body.setRestitution(settings.restitution());
+            space.runtime().setBodyRestitution(space.backendSpaceId(), backendBodyId, settings.restitution());
         }
         if (settings.hasLinearDamping()) {
-            body.setLinearDamping(settings.linearDamping());
-        }
-        if (settings.hasAngularDamping()) {
-            body.setAngularDamping(settings.angularDamping());
+            space.runtime().setBodyDamping(space.backendSpaceId(),
+                backendBodyId,
+                settings.linearDamping(),
+                settings.hasAngularDamping() ? settings.angularDamping() : 0.0f);
+        } else if (settings.hasAngularDamping()) {
+            space.runtime().setBodyDamping(space.backendSpaceId(), backendBodyId, 0.0f, settings.angularDamping());
         }
         if (settings.hasCollisionFilter()) {
-            body.setCollisionFilter(settings.collisionGroup(), settings.collisionMask());
+            space.runtime()
+                .setBodyCollisionFilter(space.backendSpaceId(),
+                    backendBodyId,
+                    settings.collisionGroup(),
+                    settings.collisionMask());
         }
         if (settings.hasSensor()) {
-            body.setSensor(settings.sensor());
+            space.runtime().setBodySensor(space.backendSpaceId(), backendBodyId, settings.sensor());
         }
     }
 
     @Nonnull
-    private PhysicsBody createBody(@Nonnull PhysicsSpace space,
-        @Nonnull PhysicsShapeSpec shape,
-        float mass) {
-        return switch (shape.type()) {
-            case BOX -> {
-                yield space.createBox(shape.halfExtentX(), shape.halfExtentY(), shape.halfExtentZ(), mass);
-            }
-            case SPHERE -> space.createSphere(shape.radius(), mass);
-            case CAPSULE -> space.createCapsule(shape.radius(), shape.halfHeight(), shape.axis(), mass);
-            case CYLINDER -> space.createCylinder(shape.radius(), shape.halfHeight(), shape.axis(), mass);
-            case CONE -> space.createCone(shape.radius(), shape.halfHeight(), shape.axis(), mass);
-            case PLANE -> space.createStaticPlane(shape.groundY());
-            default -> throw new IllegalArgumentException("Unsupported rigid body shape " + shape.type());
-        };
+    private BackendBodySpec createBodySpec(@Nonnull PhysicsShapeSpec shape,
+        float mass,
+        @Nonnull PhysicsBodyType bodyType,
+        float positionX,
+        float positionY,
+        float positionZ) {
+        return new BackendBodySpec(shape.type(),
+            shape.halfExtentX(),
+            shape.halfExtentY(),
+            shape.halfExtentZ(),
+            shape.radius(),
+            shape.halfHeight(),
+            shape.axis(),
+            shape.groundY(),
+            mass,
+            bodyType,
+            positionX,
+            positionY,
+            positionZ,
+            0.0f,
+            0.0f,
+            0.0f,
+            1.0f);
     }
 
     @Override
@@ -451,7 +467,8 @@ public final class PhysicsSimulationExecutor implements PhysicsCommandDispatcher
         float x,
         float y,
         float z) {
-        requireSpace(spaceId).setGravity(x, y, z);
+        PhysicsSpaceBinding space = requireSpace(spaceId);
+        space.runtime().setGravity(space.backendSpaceId(), x, y, z);
     }
 
     @Override
@@ -464,11 +481,19 @@ public final class PhysicsSimulationExecutor implements PhysicsCommandDispatcher
         float rotationZ,
         float rotationW,
         boolean activate) {
-        PhysicsBody body = requireBody(bodyKey);
-        body.setPosition(positionX, positionY, positionZ);
-        body.setRotation(rotationX, rotationY, rotationZ, rotationW);
+        PhysicsBodyRegistration registration = requireBodyRegistration(bodyKey);
+        PhysicsSpaceBinding space = requireSpace(registration.spaceId());
+        space.runtime().setBodyTransform(space.backendSpaceId(),
+            registration.backendBodyId(),
+            positionX,
+            positionY,
+            positionZ,
+            rotationX,
+            rotationY,
+            rotationZ,
+            rotationW);
         if (activate) {
-            body.activate();
+            space.runtime().activateBody(space.backendSpaceId(), registration.backendBodyId());
         }
     }
 
@@ -478,10 +503,15 @@ public final class PhysicsSimulationExecutor implements PhysicsCommandDispatcher
         float positionY,
         float positionZ,
         boolean activate) {
-        PhysicsBody body = requireBody(bodyKey);
-        body.setPosition(positionX, positionY, positionZ);
+        PhysicsBodyRegistration registration = requireBodyRegistration(bodyKey);
+        PhysicsSpaceBinding space = requireSpace(registration.spaceId());
+        space.runtime().setBodyPosition(space.backendSpaceId(),
+            registration.backendBodyId(),
+            positionX,
+            positionY,
+            positionZ);
         if (activate) {
-            body.activate();
+            space.runtime().activateBody(space.backendSpaceId(), registration.backendBodyId());
         }
     }
 
@@ -494,11 +524,18 @@ public final class PhysicsSimulationExecutor implements PhysicsCommandDispatcher
         float angularY,
         float angularZ,
         boolean activate) {
-        PhysicsBody body = requireBody(bodyKey);
-        body.setLinearVelocity(linearX, linearY, linearZ);
-        body.setAngularVelocity(angularX, angularY, angularZ);
+        PhysicsBodyRegistration registration = requireBodyRegistration(bodyKey);
+        PhysicsSpaceBinding space = requireSpace(registration.spaceId());
+        space.runtime().setBodyVelocity(space.backendSpaceId(),
+            registration.backendBodyId(),
+            linearX,
+            linearY,
+            linearZ,
+            angularX,
+            angularY,
+            angularZ);
         if (activate) {
-            body.activate();
+            space.runtime().activateBody(space.backendSpaceId(), registration.backendBodyId());
         }
     }
 
@@ -506,16 +543,19 @@ public final class PhysicsSimulationExecutor implements PhysicsCommandDispatcher
     public void setRigidBodyType(@Nonnull RigidBodyKey bodyKey,
         @Nonnull PhysicsBodyType bodyType,
         boolean activate) {
-        PhysicsBody body = requireBody(bodyKey);
-        body.setBodyType(bodyType);
+        PhysicsBodyRegistration registration = requireBodyRegistration(bodyKey);
+        PhysicsSpaceBinding space = requireSpace(registration.spaceId());
+        space.runtime().setBodyType(space.backendSpaceId(), registration.backendBodyId(), bodyType);
         if (activate) {
-            body.activate();
+            space.runtime().activateBody(space.backendSpaceId(), registration.backendBodyId());
         }
     }
 
     @Override
     public void activateRigidBody(@Nonnull RigidBodyKey bodyKey) {
-        requireBody(bodyKey).activate();
+        PhysicsBodyRegistration registration = requireBodyRegistration(bodyKey);
+        PhysicsSpaceBinding space = requireSpace(registration.spaceId());
+        space.runtime().activateBody(space.backendSpaceId(), registration.backendBodyId());
     }
 
     @Override
@@ -528,15 +568,19 @@ public final class PhysicsSimulationExecutor implements PhysicsCommandDispatcher
         float offsetY,
         float offsetZ,
         boolean torque) {
-        PhysicsBody body = requireBody(bodyKey);
-        if (torque) {
-            body.applyTorqueImpulse(x, y, z);
-        } else if (hasOffset) {
-            body.applyImpulse(x, y, z, offsetX, offsetY, offsetZ);
-        } else {
-            body.applyCentralImpulse(x, y, z);
-        }
-        body.activate();
+        PhysicsBodyRegistration registration = requireBodyRegistration(bodyKey);
+        PhysicsSpaceBinding space = requireSpace(registration.spaceId());
+        space.runtime().applyBodyImpulse(space.backendSpaceId(),
+            registration.backendBodyId(),
+            x,
+            y,
+            z,
+            hasOffset,
+            offsetX,
+            offsetY,
+            offsetZ,
+            torque);
+        space.runtime().activateBody(space.backendSpaceId(), registration.backendBodyId());
     }
 
     @Override
@@ -549,15 +593,19 @@ public final class PhysicsSimulationExecutor implements PhysicsCommandDispatcher
         float offsetY,
         float offsetZ,
         boolean torque) {
-        PhysicsBody body = requireBody(bodyKey);
-        if (torque) {
-            body.applyTorque(x, y, z);
-        } else if (hasOffset) {
-            body.applyForce(x, y, z, offsetX, offsetY, offsetZ);
-        } else {
-            body.applyCentralForce(x, y, z);
-        }
-        body.activate();
+        PhysicsBodyRegistration registration = requireBodyRegistration(bodyKey);
+        PhysicsSpaceBinding space = requireSpace(registration.spaceId());
+        space.runtime().applyBodyForce(space.backendSpaceId(),
+            registration.backendBodyId(),
+            x,
+            y,
+            z,
+            hasOffset,
+            offsetX,
+            offsetY,
+            offsetZ,
+            torque);
+        space.runtime().activateBody(space.backendSpaceId(), registration.backendBodyId());
     }
 
     @Override
@@ -583,66 +631,34 @@ public final class PhysicsSimulationExecutor implements PhysicsCommandDispatcher
         boolean motorEnabled,
         float motorTargetVelocity,
         float motorMaxForce) {
-        PhysicsSpace space = requireSpace(spaceId);
-        PhysicsBody bodyA = requireBody(bodyAKey);
-        PhysicsBody bodyB = requireBody(bodyBKey);
-        PhysicsJoint joint = switch (type) {
-            case FIXED -> space.createFixedJoint(bodyA,
-                bodyB,
-                anchorAX,
-                anchorAY,
-                anchorAZ,
-                anchorBX,
-                anchorBY,
-                anchorBZ);
-            case POINT -> space.createPointJoint(bodyA,
-                bodyB,
-                anchorAX,
-                anchorAY,
-                anchorAZ,
-                anchorBX,
-                anchorBY,
-                anchorBZ);
-            case HINGE -> space.createHingeJoint(bodyA,
-                bodyB,
-                anchorAX,
-                anchorAY,
-                anchorAZ,
-                anchorBX,
-                anchorBY,
-                anchorBZ,
-                axisX,
-                axisY,
-                axisZ);
-            case SLIDER -> space.createSliderJoint(bodyA,
-                bodyB,
-                anchorAX,
-                anchorAY,
-                anchorAZ,
-                anchorBX,
-                anchorBY,
-                anchorBZ,
-                axisX,
-                axisY,
-                axisZ);
-            case SPRING -> space.createSpringJoint(bodyA,
-                bodyB,
-                anchorAX,
-                anchorAY,
-                anchorAZ,
-                anchorBX,
-                anchorBY,
-                anchorBZ,
-                restLength,
-                stiffness,
-                damping);
-        };
-        if (type == JointType.HINGE || type == JointType.SLIDER) {
-            joint.setLimits(lowerLimit, upperLimit);
-            joint.setMotor(motorTargetVelocity, motorMaxForce);
-            joint.setMotorEnabled(motorEnabled);
+        PhysicsSpaceBinding space = requireSpace(spaceId);
+        PhysicsBodyRegistration bodyA = requireBodyRegistration(bodyAKey);
+        PhysicsBodyRegistration bodyB = requireBodyRegistration(bodyBKey);
+        if (!bodyA.spaceId().equals(spaceId) || !bodyB.spaceId().equals(spaceId)) {
+            throw new IllegalArgumentException("Joint bodies must both be registered in space " + spaceId);
         }
-        runtime.addJoint(jointKey, spaceId, joint);
+        BackendJointSpec spec = new BackendJointSpec(toBackendJointType(type),
+            bodyA.backendBodyId(),
+            bodyB.backendBodyId(),
+            anchorAX,
+            anchorAY,
+            anchorAZ,
+            anchorBX,
+            anchorBY,
+            anchorBZ,
+            axisX,
+            axisY,
+            axisZ,
+            restLength,
+            stiffness,
+            damping,
+            lowerLimit,
+            upperLimit,
+            motorEnabled,
+            motorTargetVelocity,
+            motorMaxForce);
+        long backendJointId = space.runtime().createJoint(space.backendSpaceId(), spec);
+        runtime.addJointOnOwner(jointKey, spaceId, backendJointId, bodyAKey, bodyBKey, type, spec);
     }
 
     @Override
@@ -658,50 +674,36 @@ public final class PhysicsSimulationExecutor implements PhysicsCommandDispatcher
         if (preferredJointKey != null && runtime.removeJoint(preferredJointKey)) {
             return;
         }
-        PhysicsSpace space = requireSpace(spaceId);
-        for (PhysicsJoint joint : new ArrayList<>(space.getJoints())) {
-            RigidBodyKey bodyAKey = runtime.getBodyKey(joint.getBodyA());
-            RigidBodyKey bodyBKey = runtime.getBodyKey(joint.getBodyB());
-            if (connects(bodyA, bodyB, bodyAKey, bodyBKey)) {
-                space.removeJoint(joint);
-                return;
-            }
+        PhysicsJointRegistration registration = runtime.findJointBetween(spaceId, bodyA, bodyB);
+        if (registration != null) {
+            runtime.removeJoint(registration.id());
         }
     }
 
     @Override
     public void liveOwnerTransaction(@Nonnull String operation,
-        @Nonnull PhysicsOwnerTransaction transaction) {
-        try {
-            runtime.runOwnerTransactionDirect(transaction);
-        } catch (Exception exception) {
-            throw new IllegalStateException("Live owner transaction failed: " + operation, exception);
-        }
-    }
-
-    private static boolean connects(@Nonnull RigidBodyKey expectedA,
-        @Nonnull RigidBodyKey expectedB,
-        @Nullable RigidBodyKey actualA,
-        @Nullable RigidBodyKey actualB) {
-        return (expectedA.equals(actualA) && expectedB.equals(actualB))
-            || (expectedA.equals(actualB) && expectedB.equals(actualA));
+        @Nonnull dev.hytalemodding.impulse.core.plugin.simulation.PhysicsOwnerTransaction transaction) {
+        throw new UnsupportedOperationException("Live owner transactions are not available through the id runtime");
     }
 
     @Nonnull
     private Optional<RaycastHitView> raycastClosest(@Nonnull RaycastClosestQuery query) {
-        Optional<PhysicsRayHit> hit = requireSpace(query.spaceId()).raycastClosest(query.from(), query.to());
+        PhysicsSpaceBinding space = requireSpace(query.spaceId());
+        Optional<BackendRayHit> hit =
+            space.runtime().raycastClosest(space.backendSpaceId(), query.from(), query.to());
         return hit.map(this::toView);
     }
 
     @Nonnull
     private RaycastClosestBatchResult raycastClosestBatch(@Nonnull RaycastClosestBatchQuery query) {
-        PhysicsSpace space = requireSpace(query.spaceId());
+        PhysicsSpaceBinding space = requireSpace(query.spaceId());
         RaycastHitView[] hits = new RaycastHitView[query.rays().size()];
         Vector3f from = new Vector3f();
         Vector3f to = new Vector3f();
         for (int index = 0; index < query.rays().size(); index++) {
             RaycastSegment ray = query.rays().get(index);
-            Optional<PhysicsRayHit> hit = space.raycastClosest(ray.copyFrom(from), ray.copyTo(to));
+            Optional<BackendRayHit> hit =
+                space.runtime().raycastClosest(space.backendSpaceId(), ray.copyFrom(from), ray.copyTo(to));
             hits[index] = hit.map(this::toView).orElse(null);
         }
         return new RaycastClosestBatchResult(hits);
@@ -709,41 +711,42 @@ public final class PhysicsSimulationExecutor implements PhysicsCommandDispatcher
 
     @Nonnull
     private List<RaycastHitView> raycastAll(@Nonnull RaycastAllQuery query) {
-        List<PhysicsRayHit> hits = requireSpace(query.spaceId()).raycastAll(query.from(), query.to());
+        PhysicsSpaceBinding space = requireSpace(query.spaceId());
+        List<BackendRayHit> hits = space.runtime().raycastAll(space.backendSpaceId(), query.from(), query.to());
         if (hits.isEmpty()) {
             return List.of();
         }
         List<RaycastHitView> views = new ArrayList<>(hits.size());
-        for (PhysicsRayHit hit : hits) {
+        for (BackendRayHit hit : hits) {
             views.add(toView(hit));
         }
         return List.copyOf(views);
     }
 
     private int spaceBodyCount(@Nonnull SpaceBodyCountQuery query) {
-        PhysicsSpace space = runtime.getSpace(query.spaceId());
-        return space != null ? space.bodyCount() : 0;
+        PhysicsSpaceBinding space = runtime.getSpaceBinding(query.spaceId());
+        return space != null ? space.runtime().bodyCount(space.backendSpaceId()) : 0;
     }
 
     @Nonnull
     private List<SpaceSummary> spaceSummary(@Nonnull SpaceSummaryQuery query) {
         List<SpaceSummary> summaries = new ArrayList<>();
         if (query.spaceId() != null) {
-            PhysicsSpace space = runtime.getSpace(query.spaceId());
+            PhysicsSpaceBinding space = runtime.getSpaceBinding(query.spaceId());
             if (space != null) {
                 summaries.add(summary(space));
             }
             return List.copyOf(summaries);
         }
-        for (PhysicsSpace space : runtime.getSpaces()) {
+        for (PhysicsSpaceBinding space : runtime.getSpaceBindings()) {
             summaries.add(summary(space));
         }
         return List.copyOf(summaries);
     }
 
     private boolean ccdSupported() {
-        for (PhysicsSpace space : runtime.getSpaces()) {
-            if (space.getCapability(PhysicsContinuousCollisionCapability.class).isPresent()) {
+        for (PhysicsSpaceBinding space : runtime.getSpaceBindings()) {
+            if (space.runtime().supportsContinuousCollision(space.backendSpaceId())) {
                 return true;
             }
         }
@@ -752,8 +755,8 @@ public final class PhysicsSimulationExecutor implements PhysicsCommandDispatcher
 
     private int runtimeJointCount() {
         int count = 0;
-        for (PhysicsSpace space : runtime.getSpaces()) {
-            count += space.jointCount();
+        for (PhysicsSpaceBinding space : runtime.getSpaceBindings()) {
+            count += space.runtime().jointCount(space.backendSpaceId());
         }
         return count;
     }
@@ -761,13 +764,20 @@ public final class PhysicsSimulationExecutor implements PhysicsCommandDispatcher
     @Nonnull
     private PhysicsSpaceRuntimeStatsView physicsSpaceRuntimeStats(
         @Nonnull PhysicsSpaceRuntimeStatsQuery query) {
-        PhysicsSpace space = requireSpace(query.spaceId());
+        PhysicsSpaceBinding space = requireSpace(query.spaceId());
         WorldVoxelCollisionCache cache = runtime.worldCollisionCache();
         PhysicsSpaceRuntimeStatsAccumulator stats = new PhysicsSpaceRuntimeStatsAccumulator();
-        space.forEachBody(body -> classifyRuntimeBody(stats, cache, space, body));
-        stats.joints = space.jointCount();
-        stats.contacts = space.contactCount();
-        PhysicsRuntimeStats runtimeStats = space.getRuntimeStats();
+        for (PhysicsBodyRegistration registration : runtime.getBodyRegistrations()) {
+            if (!registration.spaceId().equals(query.spaceId())) {
+                continue;
+            }
+            space.runtime().bodySnapshot(space.backendSpaceId(), registration.backendBodyId())
+                .ifPresent(snapshot -> classifyRuntimeBody(stats, cache, space, registration, snapshot.snapshot()));
+        }
+        stats.worldCollisionBodies += cache.bodyCount();
+        stats.joints = space.runtime().jointCount(space.backendSpaceId());
+        stats.contacts = space.runtime().contactCount(space.backendSpaceId());
+        BackendRuntimeStats runtimeStats = space.runtime().runtimeStats(space.backendSpaceId());
         if (runtimeStats.available()) {
             stats.runtimeStatsAvailable = true;
             stats.runtimeBodyCount = runtimeStats.bodyCount();
@@ -786,24 +796,24 @@ public final class PhysicsSimulationExecutor implements PhysicsCommandDispatcher
 
     private void classifyRuntimeBody(@Nonnull PhysicsSpaceRuntimeStatsAccumulator stats,
         @Nonnull WorldVoxelCollisionCache cache,
-        @Nonnull PhysicsSpace space,
-        @Nonnull PhysicsBody body) {
+        @Nonnull PhysicsSpaceBinding space,
+        @Nonnull PhysicsBodyRegistration registration,
+        @Nonnull PhysicsBodySnapshot snapshot) {
         stats.bodies++;
-        if (body.isDynamic()) {
+        if (snapshot.isDynamic()) {
             stats.dynamicBodies++;
-            if (body.isSleeping()) {
+            if (snapshot.sleeping()) {
                 stats.sleepingDynamicBodies++;
             } else {
                 stats.awakeDynamicBodies++;
             }
-        } else if (body.isKinematic()) {
+        } else if (snapshot.isKinematic()) {
             stats.kinematicBodies++;
         } else {
             stats.staticBodies++;
         }
 
-        PhysicsBodyRegistration registration = runtime.getBodyRegistration(body);
-        if (registration != null && registration.kind() == PhysicsBodyKind.BODY) {
+        if (registration.kind() == PhysicsBodyKind.BODY) {
             if (runtime.hasBodyAttachments(registration.id())) {
                 stats.entityOwnedBodies++;
             } else {
@@ -811,15 +821,15 @@ public final class PhysicsSimulationExecutor implements PhysicsCommandDispatcher
             }
             return;
         }
-        if (registration != null && registration.kind() == PhysicsBodyKind.WORLD_COLLISION) {
+        if (registration.kind() == PhysicsBodyKind.WORLD_COLLISION) {
             stats.worldCollisionBodies++;
             return;
         }
-        if (body.getShapeType() == ShapeType.PLANE) {
+        if (snapshot.shapeType() == ShapeType.PLANE) {
             stats.planeBodies++;
             return;
         }
-        if (cache.containsBody(space.id(), body)) {
+        if (cache.containsBody(space.spaceId(), registration.backendBodyId())) {
             stats.worldCollisionBodies++;
             return;
         }
@@ -828,35 +838,47 @@ public final class PhysicsSimulationExecutor implements PhysicsCommandDispatcher
 
     @Nonnull
     private BenchmarkSpaceStatsView benchmarkSpaceStats(@Nonnull BenchmarkSpaceStatsQuery query) {
-        PhysicsSpace space = requireSpace(query.spaceId());
+        PhysicsSpaceBinding space = requireSpace(query.spaceId());
         WorldVoxelCollisionCache cache = runtime.worldCollisionCache();
         BenchmarkSpaceStatsAccumulator stats = new BenchmarkSpaceStatsAccumulator();
-        space.forEachBody(body -> classifyBenchmarkBody(stats, cache, space, body, query));
+        for (PhysicsBodyRegistration registration : runtime.getBodyRegistrations()) {
+            if (!registration.spaceId().equals(query.spaceId())) {
+                continue;
+            }
+            space.runtime().bodySnapshot(space.backendSpaceId(), registration.backendBodyId())
+                .ifPresent(snapshot -> classifyBenchmarkBody(stats,
+                    cache,
+                    space,
+                    registration,
+                    snapshot.snapshot(),
+                    query));
+        }
         return stats.toView();
     }
 
     private void classifyBenchmarkBody(@Nonnull BenchmarkSpaceStatsAccumulator stats,
         @Nonnull WorldVoxelCollisionCache cache,
-        @Nonnull PhysicsSpace space,
-        @Nonnull PhysicsBody body,
+        @Nonnull PhysicsSpaceBinding space,
+        @Nonnull PhysicsBodyRegistration registration,
+        @Nonnull PhysicsBodySnapshot snapshot,
         @Nonnull BenchmarkSpaceStatsQuery query) {
         stats.bodies++;
-        if (body.isDynamic()) {
+        if (snapshot.isDynamic()) {
             stats.dynamicBodies++;
-            Vector3f position = body.getPosition();
+            Vector3f position = snapshot.position();
             stats.minDynamicBodyY = Math.min(stats.minDynamicBodyY, position.y);
             stats.maxDynamicBodyY = Math.max(stats.maxDynamicBodyY, position.y);
             if (position.y < query.groundY() - query.belowPlaneTolerance()) {
                 stats.belowPlaneBodies++;
             }
             if (query.includeTerrainProbe()) {
-                WorldVoxelCollisionCache.GroundProbe ground = cache.probeGround(space.id(),
+                WorldVoxelCollisionCache.GroundProbe ground = cache.probeGround(space.spaceId(),
                     position.x,
                     position.z,
-                    horizontalHalfExtent(body));
+                    horizontalHalfExtent(snapshot));
                 if (ground.found()) {
                     stats.terrainBaselineBodies++;
-                    double bottomClearance = position.y - verticalHalfExtent(body) - ground.topY();
+                    double bottomClearance = position.y - verticalHalfExtent(snapshot) - ground.topY();
                     stats.minTerrainBottomClearance =
                         Math.min(stats.minTerrainBottomClearance, bottomClearance);
                     if (bottomClearance < -query.belowPlaneTolerance()) {
@@ -872,24 +894,23 @@ public final class PhysicsSimulationExecutor implements PhysicsCommandDispatcher
             if (position.y < query.bodyVoidY()) {
                 stats.belowVoidBodies++;
             }
-            if (body.isSleeping()) {
+            if (snapshot.sleeping()) {
                 stats.sleepingDynamicBodies++;
             } else {
                 stats.awakeDynamicBodies++;
             }
         }
 
-        PhysicsBodyRegistration registration = runtime.getBodyRegistration(body);
-        if (registration != null && registration.kind() == PhysicsBodyKind.BODY) {
+        if (registration.kind() == PhysicsBodyKind.BODY) {
             if (!runtime.hasBodyAttachments(registration.id())) {
                 stats.detachedBodies++;
             }
             return;
         }
-        if (body.getShapeType() == ShapeType.PLANE) {
+        if (snapshot.shapeType() == ShapeType.PLANE) {
             return;
         }
-        if (cache.containsBody(space.id(), body)) {
+        if (cache.containsBody(space.spaceId(), registration.backendBodyId())) {
             stats.worldCollisionBodies++;
             return;
         }
@@ -899,7 +920,7 @@ public final class PhysicsSimulationExecutor implements PhysicsCommandDispatcher
     @Nonnull
     private WorldCollisionPrewarmStats prewarmWorldCollisionEnvelope(
         @Nonnull WorldCollisionPrewarmEnvelopeQuery query) {
-        PhysicsSpace space = requireSpace(query.spaceId());
+        PhysicsSpaceBinding space = requireSpace(query.spaceId());
         WorldVoxelCollisionCache cache = runtime.worldCollisionCache();
         LongSet visitedSections = new LongOpenHashSet();
         Set<StreamingPrewarmTarget> visitedTargets = new ObjectOpenHashSet<>();
@@ -923,7 +944,7 @@ public final class PhysicsSimulationExecutor implements PhysicsCommandDispatcher
     @Nonnull
     private BuildStats prewarmStreamingCollisionEnvelope(
         @Nonnull WorldVoxelCollisionCache cache,
-        @Nonnull PhysicsSpace space,
+        @Nonnull PhysicsSpaceBinding space,
         @Nonnull WorldCollisionPrewarmEnvelopeQuery query,
         double positionX,
         double positionY,
@@ -950,7 +971,7 @@ public final class PhysicsSimulationExecutor implements PhysicsCommandDispatcher
     @Nonnull
     private BuildStats prewarmStreamingCollisionEnvelopeAt(
         @Nonnull WorldVoxelCollisionCache cache,
-        @Nonnull PhysicsSpace space,
+        @Nonnull PhysicsSpaceBinding space,
         @Nonnull WorldCollisionPrewarmEnvelopeQuery query,
         double positionX,
         double positionY,
@@ -988,7 +1009,7 @@ public final class PhysicsSimulationExecutor implements PhysicsCommandDispatcher
     @Nonnull
     private BuildStats prewarmStreamingCollisionTarget(
         @Nonnull WorldVoxelCollisionCache cache,
-        @Nonnull PhysicsSpace space,
+        @Nonnull PhysicsSpaceBinding space,
         @Nonnull WorldCollisionPrewarmEnvelopeQuery query,
         double centerX,
         double centerY,
@@ -1044,27 +1065,27 @@ public final class PhysicsSimulationExecutor implements PhysicsCommandDispatcher
             stats.voxelBodies());
     }
 
-    private static double horizontalHalfExtent(@Nonnull PhysicsBody body) {
-        if (body.getShapeType() == ShapeType.BOX) {
-            Vector3f halfExtents = body.getBoxHalfExtents();
+    private static double horizontalHalfExtent(@Nonnull PhysicsBodySnapshot snapshot) {
+        if (snapshot.shapeType() == ShapeType.BOX) {
+            Vector3f halfExtents = snapshot.boxHalfExtents();
             if (halfExtents != null) {
                 return Math.max(finitePositive(halfExtents.x), finitePositive(halfExtents.z));
             }
         }
-        return Math.max(finitePositive(body.getSphereRadius()), finitePositive(body.getHalfHeight()));
+        return Math.max(finitePositive(snapshot.sphereRadius()), finitePositive(snapshot.halfHeight()));
     }
 
-    private static double verticalHalfExtent(@Nonnull PhysicsBody body) {
-        if (body.getShapeType() == ShapeType.BOX) {
-            Vector3f halfExtents = body.getBoxHalfExtents();
+    private static double verticalHalfExtent(@Nonnull PhysicsBodySnapshot snapshot) {
+        if (snapshot.shapeType() == ShapeType.BOX) {
+            Vector3f halfExtents = snapshot.boxHalfExtents();
             if (halfExtents != null) {
                 return finitePositive(halfExtents.y);
             }
         }
-        if (body.getShapeType() == ShapeType.SPHERE) {
-            return finitePositive(body.getSphereRadius());
+        if (snapshot.shapeType() == ShapeType.SPHERE) {
+            return finitePositive(snapshot.sphereRadius());
         }
-        return finitePositive(body.getHalfHeight()) + finitePositive(body.getSphereRadius());
+        return finitePositive(snapshot.halfHeight()) + finitePositive(snapshot.sphereRadius());
     }
 
     private static double finitePositive(float value) {
@@ -1078,10 +1099,10 @@ public final class PhysicsSimulationExecutor implements PhysicsCommandDispatcher
             return List.of();
         }
 
-        PhysicsSpace space = requireSpace(query.spaceId());
+        PhysicsSpaceBinding space = requireSpace(query.spaceId());
         double maxDistanceSquared = query.viewRadius() * query.viewRadius();
         List<PhysicsDebugContactView> visible = new ArrayList<>(Math.min(limit, 64));
-        for (PhysicsContact contact : space.getContacts()) {
+        for (BackendContact contact : space.runtime().contacts(space.backendSpaceId())) {
             if (visible.size() >= limit) {
                 break;
             }
@@ -1108,12 +1129,14 @@ public final class PhysicsSimulationExecutor implements PhysicsCommandDispatcher
             return List.of();
         }
 
-        PhysicsSpace space = requireSpace(query.spaceId());
         double maxDistanceSquared = query.viewRadius() * query.viewRadius();
         List<PhysicsDebugJointView> visible = new ArrayList<>(Math.min(limit, 64));
-        space.forEachJoint(joint -> {
+        for (PhysicsJointRegistration joint : runtime.getJointRegistrations()) {
+            if (!joint.spaceId().equals(query.spaceId())) {
+                continue;
+            }
             if (visible.size() >= limit) {
-                return;
+                break;
             }
 
             PhysicsDebugJointView view = toDebugJointView(joint);
@@ -1126,16 +1149,16 @@ public final class PhysicsSimulationExecutor implements PhysicsCommandDispatcher
                 query.viewerX(),
                 query.viewerY(),
                 query.viewerZ()) > maxDistanceSquared) {
-                return;
+                continue;
             }
 
             visible.add(view);
-        });
+        }
         return List.copyOf(visible);
     }
 
     @Nonnull
-    private static PhysicsDebugContactView toDebugContactView(@Nonnull PhysicsContact contact,
+    private static PhysicsDebugContactView toDebugContactView(@Nonnull BackendContact contact,
         @Nonnull Vector3f point) {
         Vector3f normal = contact.normalOnB();
         if (normal.lengthSquared() <= 0.0f) {
@@ -1160,10 +1183,12 @@ public final class PhysicsSimulationExecutor implements PhysicsCommandDispatcher
     }
 
     @Nonnull
-    private static PhysicsDebugJointView toDebugJointView(@Nonnull PhysicsJoint joint) {
-        Vector3f anchorA = worldAnchor(joint.getBodyA(), joint.getAnchorA());
-        Vector3f anchorB = worldAnchor(joint.getBodyB(), joint.getAnchorB());
-        Vector3f axis = joint.getAxis();
+    private PhysicsDebugJointView toDebugJointView(@Nonnull PhysicsJointRegistration joint) {
+        PhysicsBodySnapshot bodyA = runtime.getBodySnapshot(joint.bodyA());
+        PhysicsBodySnapshot bodyB = runtime.getBodySnapshot(joint.bodyB());
+        Vector3f anchorA = worldAnchor(bodyA, joint.anchorAX(), joint.anchorAY(), joint.anchorAZ());
+        Vector3f anchorB = worldAnchor(bodyB, joint.anchorBX(), joint.anchorBY(), joint.anchorBZ());
+        Vector3f axis = new Vector3f(joint.axisX(), joint.axisY(), joint.axisZ());
         if (axis == null || axis.lengthSquared() <= 0.0f) {
             return new PhysicsDebugJointView(anchorA.x,
                 anchorA.y,
@@ -1178,7 +1203,7 @@ public final class PhysicsSimulationExecutor implements PhysicsCommandDispatcher
         }
 
         Vector3f worldAxis = new Vector3f(axis).normalize().mul(JOINT_AXIS_SCALE);
-        joint.getBodyA().getRotation().transform(worldAxis);
+        bodyA.rotation().transform(worldAxis);
         return new PhysicsDebugJointView(anchorA.x,
             anchorA.y,
             anchorA.z,
@@ -1192,12 +1217,13 @@ public final class PhysicsSimulationExecutor implements PhysicsCommandDispatcher
     }
 
     @Nonnull
-    private static Vector3f worldAnchor(@Nonnull PhysicsBody body,
-        @Nonnull Vector3f localAnchor) {
-        Vector3f anchor = new Vector3f(localAnchor);
-        Quaternionf rotation = body.getRotation();
-        rotation.transform(anchor);
-        Vector3f position = body.getPosition();
+    private static Vector3f worldAnchor(@Nonnull PhysicsBodySnapshot body,
+        float localX,
+        float localY,
+        float localZ) {
+        Vector3f anchor = new Vector3f(localX, localY, localZ);
+        body.rotation().transform(anchor);
+        Vector3f position = body.position();
         return anchor.add(position);
     }
 
@@ -1319,29 +1345,36 @@ public final class PhysicsSimulationExecutor implements PhysicsCommandDispatcher
 
     @Nonnull
     private Optional<RigidBodyStateView> rigidBodyState(@Nonnull RigidBodyStateQuery query) {
-        PhysicsBody body = runtime.getBody(query.bodyKey());
-        if (body == null) {
+        PhysicsBodyRegistration registration = runtime.getRegistration(query.bodyKey());
+        if (registration == null) {
+            return Optional.empty();
+        }
+        PhysicsSpaceBinding space = requireSpace(registration.spaceId());
+        Optional<PhysicsBodySnapshot> snapshot = space.runtime()
+            .bodySnapshot(space.backendSpaceId(), registration.backendBodyId())
+            .map(backendSnapshot -> backendSnapshot.snapshot());
+        if (snapshot.isEmpty()) {
             return Optional.empty();
         }
         return Optional.of(new RigidBodyStateView(query.bodyKey(),
-            body.getBodyType(),
-            RigidBodyPose.of(body.getPosition(), body.getRotation())));
+            snapshot.get().bodyType(),
+            RigidBodyPose.of(snapshot.get().position(), snapshot.get().rotation())));
     }
 
     @Nonnull
     private SolverCapabilitySummary solverCapability(@Nonnull SolverCapabilityQuery query) {
-        PhysicsSpace space = requireSpace(query.spaceId());
-        return new SolverCapabilitySummary(space.id(),
+        PhysicsSpaceBinding space = requireSpace(query.spaceId());
+        return new SolverCapabilitySummary(space.spaceId(),
             space.backendId().value(),
-            space.getCapability(PhysicsSolverTuningCapability.class).isPresent(),
-            space.getCapability(PhysicsActivationTuningCapability.class).isPresent());
+            space.runtime().supportsSolverTuning(space.backendSpaceId()),
+            space.runtime().supportsActivationTuning(space.backendSpaceId()));
     }
 
     @Nonnull
     private List<SpaceSummary> unsupportedCcdSpaces() {
         List<SpaceSummary> spaces = new ArrayList<>();
-        for (PhysicsSpace space : runtime.getSpaces()) {
-            if (space.getCapability(PhysicsContinuousCollisionCapability.class).isPresent()) {
+        for (PhysicsSpaceBinding space : runtime.getSpaceBindings()) {
+            if (space.runtime().supportsContinuousCollision(space.backendSpaceId())) {
                 continue;
             }
             spaces.add(summary(space));
@@ -1350,26 +1383,32 @@ public final class PhysicsSimulationExecutor implements PhysicsCommandDispatcher
     }
 
     @Nonnull
-    private SpaceSummary summary(@Nonnull PhysicsSpace space) {
-        return new SpaceSummary(space.id(), space.backendId(), space.bodyCount(), space.jointCount());
+    private SpaceSummary summary(@Nonnull PhysicsSpaceBinding space) {
+        return new SpaceSummary(space.spaceId(),
+            space.backendId(),
+            space.runtime().bodyCount(space.backendSpaceId()),
+            space.runtime().jointCount(space.backendSpaceId()));
     }
 
     @Nonnull
-    private RaycastHitView toView(@Nonnull PhysicsRayHit hit) {
-        RigidBodyKey bodyKey = runtime.getBodyKey(hit.body());
-        ShapeType shapeType = hit.body().getShapeType();
+    private RaycastHitView toView(@Nonnull BackendRayHit hit) {
+        PhysicsBodyRegistration registration = findBodyRegistration(hit.bodyId());
+        RigidBodyKey bodyKey = registration != null ? registration.id() : null;
+        PhysicsBodySnapshot snapshot = registration != null
+            ? runtime.getBodySnapshot(registration.id())
+            : null;
         return new RaycastHitView(bodyKey,
-            hit.body().getBodyType(),
+            snapshot != null ? snapshot.bodyType() : PhysicsBodyType.STATIC,
             hit.point(),
             hit.normal(),
-            shapeType,
+            snapshot != null ? snapshot.shapeType() : ShapeType.BOX,
             hit.fraction(),
             hit.distance());
     }
 
     @Nonnull
-    private PhysicsSpace requireSpace(@Nonnull dev.hytalemodding.impulse.api.SpaceId spaceId) {
-        PhysicsSpace space = runtime.getSpace(spaceId);
+    private PhysicsSpaceBinding requireSpace(@Nonnull dev.hytalemodding.impulse.api.SpaceId spaceId) {
+        PhysicsSpaceBinding space = runtime.getSpaceBinding(spaceId);
         if (space == null) {
             throw new IllegalArgumentException("Physics space id=" + spaceId + " is not registered");
         }
@@ -1377,11 +1416,32 @@ public final class PhysicsSimulationExecutor implements PhysicsCommandDispatcher
     }
 
     @Nonnull
-    private PhysicsBody requireBody(@Nonnull RigidBodyKey bodyKey) {
-        PhysicsBody body = runtime.getBody(bodyKey);
-        if (body == null) {
+    private PhysicsBodyRegistration requireBodyRegistration(@Nonnull RigidBodyKey bodyKey) {
+        PhysicsBodyRegistration registration = runtime.getRegistration(bodyKey);
+        if (registration == null) {
             throw new IllegalArgumentException("Rigid body key=" + bodyKey + " is not registered");
         }
-        return body;
+        return registration;
+    }
+
+    @Nullable
+    private PhysicsBodyRegistration findBodyRegistration(long backendBodyId) {
+        for (PhysicsBodyRegistration registration : runtime.getBodyRegistrations()) {
+            if (registration.backendBodyId() == backendBodyId) {
+                return registration;
+            }
+        }
+        return null;
+    }
+
+    @Nonnull
+    private static BackendJointType toBackendJointType(@Nonnull JointType type) {
+        return switch (type) {
+            case FIXED -> BackendJointType.FIXED;
+            case POINT -> BackendJointType.POINT;
+            case HINGE -> BackendJointType.HINGE;
+            case SLIDER -> BackendJointType.SLIDER;
+            case SPRING -> BackendJointType.SPRING;
+        };
     }
 }

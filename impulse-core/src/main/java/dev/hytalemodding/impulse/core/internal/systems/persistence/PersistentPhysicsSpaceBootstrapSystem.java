@@ -8,7 +8,6 @@ import com.hypixel.hytale.component.system.tick.TickingSystem;
 import com.hypixel.hytale.logger.HytaleLogger;
 import com.hypixel.hytale.server.core.universe.world.World;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
-import dev.hytalemodding.impulse.api.PhysicsSpace;
 import dev.hytalemodding.impulse.api.SpaceId;
 import dev.hytalemodding.impulse.core.ImpulsePlugin;
 import dev.hytalemodding.impulse.core.internal.components.GeneratedVisualProxyComponent;
@@ -16,6 +15,7 @@ import dev.hytalemodding.impulse.core.internal.components.PhysicsControlSessionC
 import dev.hytalemodding.impulse.core.internal.persistence.PersistentPhysicsRestorePreflight;
 import dev.hytalemodding.impulse.core.internal.persistence.PersistentPhysicsSpaceState;
 import dev.hytalemodding.impulse.core.internal.persistence.PersistentPhysicsWorldResource;
+import dev.hytalemodding.impulse.core.internal.resources.PhysicsSpaceBinding;
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsWorldRuntimeResource;
 import dev.hytalemodding.impulse.core.internal.resources.owner.PhysicsOwnerBridge;
 import dev.hytalemodding.impulse.core.plugin.components.PhysicsBodyAttachmentComponent;
@@ -92,13 +92,13 @@ public class PersistentPhysicsSpaceBootstrapSystem extends TickingSystem<EntityS
             SpaceId spaceId = state.toSpaceId();
             try {
                 PhysicsOwnerBridge.run(store, "bootstrap persisted physics space", () -> {
-                    PhysicsSpace targetSpace = runtime.getSpace(spaceId);
+                    PhysicsSpaceBinding targetSpace = runtime.getSpaceBinding(spaceId);
                     if (targetSpace == null) {
                         runtime.createSpace(state.toBackendId(),
                             spaceId,
                             world.getName(),
                             state.toSettings());
-                        targetSpace = runtime.getSpace(spaceId);
+                        targetSpace = runtime.getSpaceBinding(spaceId);
                     } else {
                         runtime.setSpaceSettings(spaceId, state.toSettings());
                     }
@@ -106,7 +106,8 @@ public class PersistentPhysicsSpaceBootstrapSystem extends TickingSystem<EntityS
                         throw new IllegalStateException("Physics space id=" + spaceId
                             + " was not registered after creation");
                     }
-                    targetSpace.setGravity(state.getGravity().x,
+                    targetSpace.runtime().setGravity(targetSpace.backendSpaceId(),
+                        state.getGravity().x,
                         state.getGravity().y,
                         state.getGravity().z);
                 });

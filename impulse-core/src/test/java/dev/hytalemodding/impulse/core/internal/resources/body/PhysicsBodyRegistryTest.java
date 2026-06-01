@@ -2,10 +2,9 @@ package dev.hytalemodding.impulse.core.internal.resources.body;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertSame;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 
-import dev.hytalemodding.impulse.api.PhysicsBody;
 import dev.hytalemodding.impulse.api.SpaceId;
-import dev.hytalemodding.impulse.api.testsupport.FakePhysicsBackend;
 import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyKind;
 import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyPersistenceMode;
 import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyRegistrationView;
@@ -18,78 +17,67 @@ class PhysicsBodyRegistryTest {
 
     @Test
     void indexesRegistrationsBySpaceWithoutScanningUnrelatedSpaces() {
-        FakePhysicsBackend backend = new FakePhysicsBackend("test:body-registry-space-index");
-        var firstSpace = backend.createSpace(new SpaceId(1));
-        var secondSpace = backend.createSpace(new SpaceId(2));
-        PhysicsBody firstBody = firstSpace.createBox(0.5f, 0.5f, 0.5f, 1.0f);
-        PhysicsBody secondBody = secondSpace.createBox(0.5f, 0.5f, 0.5f, 1.0f);
+        SpaceId firstSpace = new SpaceId(1);
+        SpaceId secondSpace = new SpaceId(2);
         RigidBodyKey firstId = RigidBodyKey.of(0L, 1L);
         RigidBodyKey secondId = RigidBodyKey.of(0L, 2L);
         PhysicsBodyRegistry registry = new PhysicsBodyRegistry();
 
         registry.registerBody(firstId,
-            firstBody,
-            firstSpace.id(),
+            11L,
+            firstSpace,
             PhysicsBodyKind.BODY,
             PhysicsBodyPersistenceMode.RUNTIME_ONLY);
         registry.registerBody(secondId,
-            secondBody,
-            secondSpace.id(),
+            12L,
+            secondSpace,
             PhysicsBodyKind.TEMPORARY,
             PhysicsBodyPersistenceMode.RUNTIME_ONLY);
 
         List<RigidBodyKey> firstSpaceIds = new ArrayList<>();
-        registry.forEachRegistration(firstSpace.id(),
+        registry.forEachRegistration(firstSpace,
             registration -> firstSpaceIds.add(registration.id()));
 
         assertEquals(List.of(firstId), firstSpaceIds);
-        assertEquals(1, registry.getRegistrationCount(firstSpace.id()));
-        assertEquals(1, registry.getRegistrationCount(secondSpace.id()));
+        assertEquals(1, registry.getRegistrationCount(firstSpace));
+        assertEquals(1, registry.getRegistrationCount(secondSpace));
 
         registry.unregisterBody(firstId);
 
-        assertEquals(0, registry.getRegistrationCount(firstSpace.id()));
-        assertEquals(1, registry.getRegistrationCount(secondSpace.id()));
+        assertEquals(0, registry.getRegistrationCount(firstSpace));
+        assertEquals(1, registry.getRegistrationCount(secondSpace));
     }
 
     @Test
-    void reRegisteringSameBodyMovesSpaceIndexEntry() {
-        FakePhysicsBackend backend = new FakePhysicsBackend("test:body-registry-space-move");
-        var firstSpace = backend.createSpace(new SpaceId(1));
-        var secondSpace = backend.createSpace(new SpaceId(2));
-        PhysicsBody body = firstSpace.createBox(0.5f, 0.5f, 0.5f, 1.0f);
+    void reRegisteringSameBodyWithDifferentSpaceIsRejectedWithoutMovingIndex() {
+        SpaceId firstSpace = new SpaceId(1);
+        SpaceId secondSpace = new SpaceId(2);
         RigidBodyKey bodyId = RigidBodyKey.of(0L, 3L);
         PhysicsBodyRegistry registry = new PhysicsBodyRegistry();
         registry.registerBody(bodyId,
-            body,
-            firstSpace.id(),
+            21L,
+            firstSpace,
             PhysicsBodyKind.BODY,
             PhysicsBodyPersistenceMode.RUNTIME_ONLY);
 
-        registry.registerBody(bodyId,
-            body,
-            secondSpace.id(),
+        assertThrows(IllegalArgumentException.class, () -> registry.registerBody(bodyId,
+            21L,
+            secondSpace,
             PhysicsBodyKind.BODY,
-            PhysicsBodyPersistenceMode.RUNTIME_ONLY);
+            PhysicsBodyPersistenceMode.RUNTIME_ONLY));
 
-        assertEquals(0, registry.getRegistrationCount(firstSpace.id()));
-        assertEquals(1, registry.getRegistrationCount(secondSpace.id()));
-        List<RigidBodyKey> secondSpaceIds = new ArrayList<>();
-        registry.forEachRegistration(secondSpace.id(),
-            registration -> secondSpaceIds.add(registration.id()));
-        assertEquals(List.of(bodyId), secondSpaceIds);
+        assertEquals(1, registry.getRegistrationCount(firstSpace));
+        assertEquals(0, registry.getRegistrationCount(secondSpace));
     }
 
     @Test
     void registrationViewsReuseCachedImmutableMetadata() {
-        FakePhysicsBackend backend = new FakePhysicsBackend("test:body-registry-view-cache");
-        var space = backend.createSpace(new SpaceId(1));
-        PhysicsBody body = space.createBox(0.5f, 0.5f, 0.5f, 1.0f);
+        SpaceId space = new SpaceId(1);
         RigidBodyKey bodyId = RigidBodyKey.of(0L, 4L);
         PhysicsBodyRegistry registry = new PhysicsBodyRegistry();
         registry.registerBody(bodyId,
-            body,
-            space.id(),
+            31L,
+            space,
             PhysicsBodyKind.BODY,
             PhysicsBodyPersistenceMode.RUNTIME_ONLY);
 

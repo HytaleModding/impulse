@@ -1,8 +1,6 @@
 package dev.hytalemodding.impulse.core.internal.resources;
 
-import dev.hytalemodding.impulse.api.PhysicsBody;
 import dev.hytalemodding.impulse.api.PhysicsBodySnapshot;
-import dev.hytalemodding.impulse.api.PhysicsSpace;
 import dev.hytalemodding.impulse.api.SpaceId;
 import dev.hytalemodding.impulse.core.internal.resources.body.PhysicsBodyRegistry;
 import dev.hytalemodding.impulse.core.internal.resources.body.PhysicsBodySnapshotVisitor;
@@ -51,13 +49,10 @@ public final class PhysicsWorldSnapshotState {
     @Nonnull
     public PhysicsBodySnapshot captureBodySnapshot(
         @Nonnull PhysicsBodyRegistration registration) {
-        PhysicsBody body = registration.body();
-        PhysicsBodySnapshot snapshot = PhysicsBodySnapshot.from(body);
-        putBodySnapshot(registration.id(),
-            snapshot,
-            registration.spaceId(),
-            registration.kind(),
-            registration.persistenceMode());
+        PhysicsBodySnapshot snapshot = bodySnapshots.get(registration.id());
+        if (snapshot == null) {
+            throw new IllegalStateException("No physics body snapshot is available for " + registration.id());
+        }
         return snapshot;
     }
 
@@ -72,7 +67,7 @@ public final class PhysicsWorldSnapshotState {
 
     @Nonnull
     public PublishedPhysicsSnapshotFrame capturePublishedSnapshotFrame(
-        @Nonnull Collection<PhysicsSpace> spaces,
+        @Nonnull Collection<PhysicsSpaceBinding> spaces,
         @Nonnull PhysicsBodyRegistry bodyRegistry,
         long stepSequence,
         long serverTick,
@@ -91,8 +86,8 @@ public final class PhysicsWorldSnapshotState {
         int spatialIndexCellCount = ownerBodySnapshots.cellCount();
 
         int bodyCount = 0;
-        for (PhysicsSpace space : spaces) {
-            bodyCount += ownerBodySnapshots.bodyCount(space.id());
+        for (PhysicsSpaceBinding space : spaces) {
+            bodyCount += ownerBodySnapshots.bodyCount(space.spaceId());
         }
 
         long snapshotNanos = profilingEnabled ? System.nanoTime() - snapshotStartNanos : 0L;
@@ -107,8 +102,8 @@ public final class PhysicsWorldSnapshotState {
             snapshotNanos,
             spaces.size(),
             bodyCount);
-        for (PhysicsSpace space : spaces) {
-            SpaceId spaceId = space.id();
+        for (PhysicsSpaceBinding space : spaces) {
+            SpaceId spaceId = space.spaceId();
             int spaceBodyCount = ownerBodySnapshots.bodyCount(spaceId);
             frameBuilder.addSpace(spaceId, frameWorldEpoch, spaceBodyCount);
             ownerBodySnapshots.forEachIndexed(spaceId,

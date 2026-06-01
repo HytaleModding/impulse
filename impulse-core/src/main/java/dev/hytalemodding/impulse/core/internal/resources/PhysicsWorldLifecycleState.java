@@ -1,7 +1,6 @@
 package dev.hytalemodding.impulse.core.internal.resources;
 
 import dev.hytalemodding.impulse.api.PhysicsBodySnapshot;
-import dev.hytalemodding.impulse.api.PhysicsSpace;
 import dev.hytalemodding.impulse.api.SpaceId;
 import dev.hytalemodding.impulse.core.internal.resources.body.PhysicsBodyRegistration;
 import dev.hytalemodding.impulse.core.internal.resources.body.PhysicsBodyRegistry;
@@ -72,7 +71,7 @@ public final class PhysicsWorldLifecycleState {
 
     @Nonnull
     public PublishedPhysicsSnapshotFrame capturePublishedSnapshotFrame(
-        @Nonnull Collection<PhysicsSpace> spaces,
+        @Nonnull Collection<PhysicsSpaceBinding> spaces,
         @Nonnull PhysicsBodyRegistry bodyRegistry,
         long stepSequence,
         long serverTick,
@@ -92,7 +91,7 @@ public final class PhysicsWorldLifecycleState {
 
     @Nonnull
     public PublishedPhysicsSnapshotFrame capturePublishedSnapshotFrame(
-        @Nonnull Collection<PhysicsSpace> spaces,
+        @Nonnull Collection<PhysicsSpaceBinding> spaces,
         @Nonnull PhysicsBodyRegistry bodyRegistry,
         long stepSequence,
         long serverTick,

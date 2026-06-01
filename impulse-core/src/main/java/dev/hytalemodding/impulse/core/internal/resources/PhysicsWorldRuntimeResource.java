@@ -6,12 +6,10 @@ import com.hypixel.hytale.logger.HytaleLogger;
 import com.hypixel.hytale.server.core.universe.world.World;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import dev.hytalemodding.impulse.api.BackendId;
-import dev.hytalemodding.impulse.api.PhysicsBody;
 import dev.hytalemodding.impulse.api.PhysicsBodySnapshot;
 import dev.hytalemodding.impulse.api.PhysicsBodyType;
-import dev.hytalemodding.impulse.api.PhysicsJoint;
-import dev.hytalemodding.impulse.api.PhysicsSpace;
 import dev.hytalemodding.impulse.api.SpaceId;
+import dev.hytalemodding.impulse.api.runtime.BackendJointSpec;
 import dev.hytalemodding.impulse.core.internal.control.PhysicsControlRuntimeState;
 import dev.hytalemodding.impulse.core.internal.resources.body.PhysicsBodyRegistry;
 import dev.hytalemodding.impulse.core.internal.resources.body.PhysicsBodyRuntimeState.BodySyncState;
@@ -26,7 +24,6 @@ import dev.hytalemodding.impulse.core.internal.resources.owner.PhysicsOwnerCalla
 import dev.hytalemodding.impulse.core.internal.resources.owner.PhysicsOwnerGateway;
 import dev.hytalemodding.impulse.core.internal.resources.owner.PhysicsOwnerHandle;
 import dev.hytalemodding.impulse.core.internal.resources.owner.PhysicsOwnerMutation;
-import dev.hytalemodding.impulse.core.internal.resources.owner.PhysicsOwnerScopedCallable;
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsVisualRuntime.BodyVisualInterestState;
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsVisualRuntime.VisualInterest;
 import dev.hytalemodding.impulse.core.internal.simulation.MutablePhysicsCommandContext;
@@ -45,13 +42,12 @@ import dev.hytalemodding.impulse.core.plugin.collision.WorldCollisionStats;
 import dev.hytalemodding.impulse.core.plugin.events.PhysicsEventFrame;
 import dev.hytalemodding.impulse.core.plugin.events.PhysicsFrameEvent;
 import dev.hytalemodding.impulse.core.plugin.resources.PhysicsMutationHandle;
-import dev.hytalemodding.impulse.core.plugin.simulation.PhysicsOwnerAccess;
-import dev.hytalemodding.impulse.core.plugin.simulation.PhysicsOwnerTransaction;
 import dev.hytalemodding.impulse.core.plugin.joint.JointKey;
 import dev.hytalemodding.impulse.core.plugin.resources.PhysicsWorldResource;
 import dev.hytalemodding.impulse.core.plugin.settings.PhysicsSpaceSettings;
 import dev.hytalemodding.impulse.core.plugin.settings.PhysicsStepMode;
 import dev.hytalemodding.impulse.core.plugin.settings.PhysicsWorldSettings;
+import dev.hytalemodding.impulse.core.plugin.simulation.JointType;
 import dev.hytalemodding.impulse.core.plugin.simulation.PhysicsCommandCompletion;
 import dev.hytalemodding.impulse.core.plugin.simulation.PhysicsCommandHandle;
 import dev.hytalemodding.impulse.core.plugin.simulation.PhysicsCommandRecipe;
@@ -64,7 +60,6 @@ import java.util.List;
 import java.util.Objects;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
-import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.Consumer;
 import java.util.logging.Level;
@@ -109,9 +104,7 @@ public class PhysicsWorldRuntimeResource extends PhysicsWorldResource {
 
     private final AtomicLong visualInterestTick = new AtomicLong();
     private final PhysicsOwnerGateway ownerGateway = new PhysicsOwnerGateway();
-    private final PhysicsOwnerAccess ownerAccess = new RuntimePhysicsOwnerAccess();
     private final PhysicsSimulationExecutor simulationExecutor = new PhysicsSimulationExecutor(this);
-    private final ThreadLocal<Integer> ownerAccessDepth = ThreadLocal.withInitial(() -> 0);
 
     public PhysicsWorldRuntimeResource() {
     }
@@ -238,75 +231,17 @@ public class PhysicsWorldRuntimeResource extends PhysicsWorldResource {
         ownerGateway.assertCanAccessLiveBackendDirectly(operation);
     }
 
-    private void assertOwnerAccessActive(@Nonnull String operation) {
-        Objects.requireNonNull(operation, "operation");
-        if (ownerAccessDepth.get() <= 0) {
-            throw new IllegalStateException("Physics owner access for " + operation
-                + " is only valid inside the owner callback");
-        }
-        assertCanAccessLiveBackendDirectly(operation);
-    }
-
-    private void runWithOwnerAccess(@Nonnull PhysicsOwnerTransaction mutation)
-        throws Exception {
-        Objects.requireNonNull(mutation, "mutation");
-        int depth = ownerAccessDepth.get();
-        ownerAccessDepth.set(depth + 1);
-        try {
-            mutation.run(ownerAccess);
-        } finally {
-            if (depth == 0) {
-                ownerAccessDepth.remove();
-            } else {
-                ownerAccessDepth.set(depth);
-            }
-        }
-    }
-
-    @Nonnull
-    private <T> T callWithOwnerAccess(@Nonnull PhysicsOwnerScopedCallable<T> callable)
-        throws Exception {
-        Objects.requireNonNull(callable, "callable");
-        int depth = ownerAccessDepth.get();
-        ownerAccessDepth.set(depth + 1);
-        try {
-            return callable.call(ownerAccess);
-        } finally {
-            if (depth == 0) {
-                ownerAccessDepth.remove();
-            } else {
-                ownerAccessDepth.set(depth);
-            }
-        }
-    }
-
     public void runOwnerMutation(@Nonnull String operation,
         @Nonnull PhysicsOwnerMutation mutation) {
         ownerGateway.run(operation, mutation);
     }
 
-    public void runOwnerMutation(@Nonnull String operation,
-        @Nonnull PhysicsOwnerTransaction mutation) {
-        Objects.requireNonNull(mutation, "mutation");
-        ownerGateway.run(operation, () -> runWithOwnerAccess(mutation));
-    }
-
-    public void runOwnerTransactionDirect(@Nonnull PhysicsOwnerTransaction transaction)
-        throws Exception {
-        runWithOwnerAccess(transaction);
-    }
-
     @Nonnull
     public PhysicsMutationHandle<Void> enqueueOwnerMutation(@Nonnull String operation,
         @Nonnull PhysicsOwnerMutation mutation) {
         return enqueueOwnerMutation(operation, null, mutation);
     }
 
-    @Nonnull
-    public PhysicsMutationHandle<Void> enqueueOwnerMutation(@Nonnull String operation,
-        @Nonnull PhysicsOwnerTransaction mutation) {
-        return enqueueOwnerMutation(operation, null, mutation);
-    }
 
     @Nonnull
     public <T> PhysicsMutationHandle<T> enqueueOwnerMutation(@Nonnull String operation,
@@ -315,13 +250,6 @@ public class PhysicsWorldRuntimeResource extends PhysicsWorldResource {
         return ownerGateway.enqueue(operation, value, mutation);
     }
 
-    @Nonnull
-    public <T> PhysicsMutationHandle<T> enqueueOwnerMutation(@Nonnull String operation,
-        @Nullable T value,
-        @Nonnull PhysicsOwnerTransaction mutation) {
-        Objects.requireNonNull(mutation, "mutation");
-        return ownerGateway.enqueue(operation, value, () -> runWithOwnerAccess(mutation));
-    }
 
     @Nonnull
     public <T> T callOwner(@Nonnull String operation,
@@ -329,12 +257,6 @@ public class PhysicsWorldRuntimeResource extends PhysicsWorldResource {
         return ownerGateway.call(operation, callable);
     }
 
-    @Nonnull
-    public <T> T callOwner(@Nonnull String operation,
-        @Nonnull PhysicsOwnerScopedCallable<T> callable) {
-        Objects.requireNonNull(callable, "callable");
-        return ownerGateway.call(operation, () -> callWithOwnerAccess(callable));
-    }
 
     @Nonnull
     public PhysicsWorldSettings getWorldSettings() {
@@ -387,32 +309,6 @@ public class PhysicsWorldRuntimeResource extends PhysicsWorldResource {
     }
 
     @Nonnull
-    public PhysicsSpace createLiveSpace(@Nonnull BackendId backendId) {
-        return createLiveSpace(backendId, "<unknown>", PhysicsSpaceSettings.defaults());
-    }
-
-    @Nonnull
-    public PhysicsSpace createLiveSpace(@Nonnull BackendId backendId, @Nonnull String worldName) {
-        return createLiveSpace(backendId, worldName, PhysicsSpaceSettings.defaults());
-    }
-
-    @Nonnull
-    public PhysicsSpace createLiveSpace(@Nonnull BackendId backendId,
-        @Nonnull String worldName,
-        @Nonnull PhysicsSpaceSettings settings) {
-        return createLiveSpace(backendId, SpaceId.next(), worldName, settings);
-    }
-
-    @Nonnull
-    public PhysicsSpace createLiveSpace(@Nonnull BackendId backendId,
-        @Nonnull SpaceId spaceId,
-        @Nonnull String worldName,
-        @Nonnull PhysicsSpaceSettings settings) {
-        return callOwner("create physics space",
-            () -> createSpaceDirect(backendId, spaceId, worldName, settings));
-    }
-
-    @Nonnull
     public PhysicsMutationHandle<SpaceId> createSpaceAsync(@Nonnull BackendId backendId,
         @Nonnull String worldName,
         @Nonnull PhysicsSpaceSettings settings) {
@@ -431,36 +327,36 @@ public class PhysicsWorldRuntimeResource extends PhysicsWorldResource {
     }
 
     @Nonnull
-    private PhysicsSpace createSpaceDirect(@Nonnull BackendId backendId,
+    private PhysicsSpaceBinding createSpaceDirect(@Nonnull BackendId backendId,
         @Nonnull SpaceId spaceId,
         @Nonnull String worldName,
         @Nonnull PhysicsSpaceSettings settings) {
-        PhysicsSpace space = spaceRuntime.createSpace(backendId,
+        PhysicsSpaceBinding binding = spaceRuntime.createSpace(backendId,
             spaceId,
             worldName,
             settings,
             simulationRuntime.getWorldSettings().getStepMode());
         markWorldChanged();
-        return space;
+        return binding;
     }
 
     @Nullable
-    public PhysicsSpace getSpace(@Nonnull SpaceId spaceId) {
-        return spaceRuntime.getSpace(spaceId);
+    public PhysicsSpaceBinding getSpaceBinding(@Nonnull SpaceId spaceId) {
+        return spaceRuntime.getBinding(spaceId);
     }
 
     public boolean hasSpace(@Nonnull SpaceId spaceId) {
-        return spaceRuntime.getSpace(spaceId) != null;
+        return spaceRuntime.getBinding(spaceId) != null;
     }
 
     @Nonnull
-    private PhysicsSpace requireSpace(@Nonnull SpaceId spaceId) {
-        return spaceRuntime.requireSpace(spaceId);
+    public PhysicsSpaceBinding requireSpaceBinding(@Nonnull SpaceId spaceId) {
+        return spaceRuntime.requireBinding(spaceId);
     }
 
     @Nonnull
-    public Collection<PhysicsSpace> getSpaces() {
-        return spaceRuntime.getSpaces();
+    public Collection<PhysicsSpaceBinding> getSpaceBindings() {
+        return spaceRuntime.getBindings();
     }
 
     @Nonnull
@@ -477,8 +373,8 @@ public class PhysicsWorldRuntimeResource extends PhysicsWorldResource {
      * Use this from tick systems that do not mutate the space map while iterating.
      */
     @Nonnull
-    public Iterable<PhysicsSpace> iterateSpaces() {
-        return spaceRuntime.iterateSpaces();
+    public Iterable<PhysicsSpaceBinding> iterateSpaceBindings() {
+        return spaceRuntime.iterateBindings();
     }
 
     public int refreshBodySnapshots() {
@@ -577,7 +473,7 @@ public class PhysicsWorldRuntimeResource extends PhysicsWorldResource {
         int droppedBackendEventCount) {
 
         assertCanAccessLiveBackendDirectly("capture published physics snapshot frame");
-        return lifecycleState.capturePublishedSnapshotFrame(spaceRuntime.liveSpaces(),
+        return lifecycleState.capturePublishedSnapshotFrame(spaceRuntime.getBindings(),
             bodyRegistry,
             stepSequence,
             serverTick,
@@ -606,16 +502,6 @@ public class PhysicsWorldRuntimeResource extends PhysicsWorldResource {
         return lifecycleState.latestSnapshotAppliedNanos();
     }
 
-    @Nonnull
-    public PhysicsBodySnapshot getBodySnapshot(@Nonnull PhysicsBody body) {
-        RigidBodyKey bodyKey = getBodyKey(body);
-        if (bodyKey == null) {
-            return callOwner("read unregistered physics body snapshot",
-                () -> PhysicsBodySnapshot.from(body));
-        }
-        return getBodySnapshot(bodyKey);
-    }
-
     public int getBodySnapshotCount() {
         return lifecycleState.bodySnapshotCount();
     }
@@ -639,7 +525,7 @@ public class PhysicsWorldRuntimeResource extends PhysicsWorldResource {
         @Nonnull Vector3d center,
         int radius) {
         return callOwner("rebuild world collision", () -> {
-            PhysicsSpace space = requireSpace(spaceId);
+            PhysicsSpaceBinding space = requireSpaceBinding(spaceId);
             return collisionRuntime.rebuildAround(world, space, center, radius);
         });
     }
@@ -652,14 +538,14 @@ public class PhysicsWorldRuntimeResource extends PhysicsWorldResource {
         long tick) {
         Objects.requireNonNull(centers, "centers");
         return callOwner("ensure world collision", () -> {
-            PhysicsSpace space = requireSpace(spaceId);
+            PhysicsSpaceBinding space = requireSpaceBinding(spaceId);
             return collisionRuntime.ensureAround(world, space, centers, radius, tick);
         });
     }
 
     public int clearWorldCollision(@Nonnull SpaceId spaceId) {
         return callOwner("clear world collision", () -> {
-            PhysicsSpace space = requireSpace(spaceId);
+            PhysicsSpaceBinding space = requireSpaceBinding(spaceId);
             return collisionRuntime.clear(space);
         });
     }
@@ -710,7 +596,7 @@ public class PhysicsWorldRuntimeResource extends PhysicsWorldResource {
     }
 
     private void removeSpaceDirect(@Nonnull SpaceId spaceId, @Nonnull String worldName) {
-        PhysicsSpace removed = spaceRuntime.removeSpace(spaceId);
+        PhysicsSpaceBinding removed = spaceRuntime.removeSpace(spaceId);
         collisionRuntime.clear(spaceId, removed);
         if (removed != null) {
             jointRegistry.unregisterSpace(spaceId);
@@ -722,9 +608,9 @@ public class PhysicsWorldRuntimeResource extends PhysicsWorldResource {
             LOGGER.at(Level.FINE).log(
                 "World %s removed physics space id=%s backend=%s",
                 worldName,
-                removed.id(),
+                removed.spaceId(),
                 removed.backendId());
-            closeSpaceQuietly(removed, worldName, "removed physics space");
+            PhysicsSpaceRuntime.closeBindingQuietly(removed, worldName, "removed physics space");
             markWorldChanged();
         }
     }
@@ -758,9 +644,8 @@ public class PhysicsWorldRuntimeResource extends PhysicsWorldResource {
     @Nonnull
     private PhysicsRuntimeResetResult resetRuntimeStateKeepingSpacesDirect(@Nonnull String worldName) {
         PhysicsRuntimeResetResult reset = spaceRuntime.resetKeepingSpaces(worldName,
-            simulationRuntime.getWorldSettings().getStepMode(),
-            collisionRuntime::clear,
-            this::markWorldChanged);
+            simulationRuntime.getWorldSettings().getStepMode());
+        collisionRuntime.clearAll();
         clearRuntimeTopologyDirect(false);
         markWorldChanged();
         return reset;
@@ -800,75 +685,22 @@ public class PhysicsWorldRuntimeResource extends PhysicsWorldResource {
     }
 
     @Nonnull
-    public RigidBodyKey addBody(@Nonnull SpaceId spaceId,
-        @Nonnull PhysicsBody body,
-        @Nonnull PhysicsBodyKind kind,
-        @Nonnull PhysicsBodyPersistenceMode persistenceMode) {
-        return addBody(RigidBodyKey.random(), spaceId, body, kind, persistenceMode);
-    }
-
-    @Nonnull
-    public RigidBodyKey addBody(@Nonnull RigidBodyKey bodyKey,
+    public RigidBodyKey addBodyOnOwner(@Nonnull RigidBodyKey bodyKey,
         @Nonnull SpaceId spaceId,
-        @Nonnull PhysicsBody body,
+        long backendBodyId,
         @Nonnull PhysicsBodyKind kind,
         @Nonnull PhysicsBodyPersistenceMode persistenceMode) {
-        return callOwner("add physics body",
-            () -> addBodyDirect(bodyKey, spaceId, body, kind, persistenceMode));
-    }
-
-    @Nonnull
-    public PhysicsMutationHandle<RigidBodyKey> addBodyAsync(@Nonnull SpaceId spaceId,
-        @Nonnull PhysicsBody body,
-        @Nonnull PhysicsBodyKind kind,
-        @Nonnull PhysicsBodyPersistenceMode persistenceMode) {
-        RigidBodyKey bodyKey = RigidBodyKey.random();
-        return addBodyAsync(bodyKey, spaceId, body, kind, persistenceMode);
-    }
-
-    @Nonnull
-    public PhysicsMutationHandle<RigidBodyKey> addBodyAsync(@Nonnull RigidBodyKey bodyKey,
-        @Nonnull SpaceId spaceId,
-        @Nonnull PhysicsBody body,
-        @Nonnull PhysicsBodyKind kind,
-        @Nonnull PhysicsBodyPersistenceMode persistenceMode) {
-        markBodyCreationPending(bodyKey);
-        AtomicBoolean pendingCleared = new AtomicBoolean();
-        Runnable clearPending = () -> {
-            if (pendingCleared.compareAndSet(false, true)) {
-                clearBodyCreationPending(bodyKey);
-            }
-        };
-        PhysicsMutationHandle<RigidBodyKey> handle = enqueueOwnerMutation("add physics body",
-            bodyKey,
-            () -> {
-                try {
-                    addBodyDirect(bodyKey, spaceId, body, kind, persistenceMode);
-                } finally {
-                    clearPending.run();
-                }
-            });
-        handle.completion().whenComplete((ignored, _) -> clearPending.run());
-        return handle;
+        assertCanAccessLiveBackendDirectly("add physics body");
+        return addBodyDirect(bodyKey, spaceId, backendBodyId, kind, persistenceMode);
     }
 
     @Nonnull
     private RigidBodyKey addBodyDirect(@Nonnull RigidBodyKey bodyKey,
         @Nonnull SpaceId spaceId,
-        @Nonnull PhysicsBody body,
+        long backendBodyId,
         @Nonnull PhysicsBodyKind kind,
         @Nonnull PhysicsBodyPersistenceMode persistenceMode) {
-        return bodyRuntime.addBody(bodyKey, spaceId, body, kind, persistenceMode);
-    }
-
-    @Nonnull
-    public RigidBodyKey addBodyOnOwner(@Nonnull RigidBodyKey bodyKey,
-        @Nonnull SpaceId spaceId,
-        @Nonnull PhysicsBody body,
-        @Nonnull PhysicsBodyKind kind,
-        @Nonnull PhysicsBodyPersistenceMode persistenceMode) {
-        assertCanAccessLiveBackendDirectly("add physics body");
-        return addBodyDirect(bodyKey, spaceId, body, kind, persistenceMode);
+        return bodyRuntime.addBody(bodyKey, spaceId, backendBodyId, kind, persistenceMode);
     }
 
     public void destroyBody(@Nonnull RigidBodyKey bodyKey) {
@@ -896,40 +728,21 @@ public class PhysicsWorldRuntimeResource extends PhysicsWorldResource {
         bodyRuntime.destroyBody(bodyKey, removeFromSpace);
     }
 
-    public void destroyBody(@Nonnull PhysicsBody body) {
-        runOwnerMutation("destroy physics body", () -> destroyBodyDirect(body));
-    }
-
-    @Nonnull
-    public PhysicsMutationHandle<Void> destroyBodyAsync(@Nonnull PhysicsBody body) {
-        return enqueueOwnerMutation("destroy physics body", () -> destroyBodyDirect(body));
-    }
-
-    private void destroyBodyDirect(@Nonnull PhysicsBody body) {
-        bodyRuntime.destroyBody(body);
+    @Nullable
+    public RigidBodyKey getBodyKey(@Nonnull SpaceId spaceId, long backendBodyId) {
+        return bodyRegistry.getBodyKey(spaceId, backendBodyId);
     }
 
     @Nullable
-    public PhysicsBody getBody(@Nonnull RigidBodyKey bodyKey) {
-        assertCanAccessLiveBackendDirectly("resolve live physics body");
-        PhysicsBodyRegistration registration = bodyRegistry.getRegistration(bodyKey);
-        return registration != null ? registration.body() : null;
-    }
-
-    @Nullable
-    public RigidBodyKey getBodyKey(@Nonnull PhysicsBody body) {
-        return bodyRegistry.getBodyKey(body);
-    }
-
-    @Nullable
-    public PhysicsBodyRegistration getBodyRegistration(@Nonnull PhysicsBody body) {
-        assertCanAccessLiveBackendDirectly("resolve live physics body registration");
-        return bodyRegistry.getRegistration(body);
+    public PhysicsBodyRegistration getBodyRegistration(@Nonnull SpaceId spaceId, long backendBodyId) {
+        assertCanAccessLiveBackendDirectly("resolve physics body registration");
+        RigidBodyKey bodyKey = bodyRegistry.getBodyKey(spaceId, backendBodyId);
+        return bodyKey != null ? bodyRegistry.getRegistration(bodyKey) : null;
     }
 
     @Nullable
     public PhysicsBodyRegistration getRegistration(@Nonnull RigidBodyKey bodyKey) {
-        assertCanAccessLiveBackendDirectly("resolve live physics body registration");
+        assertCanAccessLiveBackendDirectly("resolve physics body registration");
         return bodyRegistry.getRegistration(bodyKey);
     }
 
@@ -939,27 +752,51 @@ public class PhysicsWorldRuntimeResource extends PhysicsWorldResource {
     }
 
     @Nonnull
-    public JointKey addJoint(@Nonnull SpaceId spaceId,
-        @Nonnull PhysicsJoint joint) {
-        return addJoint(JointKey.random(), spaceId, joint);
-    }
-
-    @Nonnull
-    public JointKey addJoint(@Nonnull JointKey jointKey,
+    public JointKey addJointOnOwner(@Nonnull JointKey jointKey,
         @Nonnull SpaceId spaceId,
-        @Nonnull PhysicsJoint joint) {
-        return callOwner("add physics joint",
-            () -> addJointDirect(jointKey, spaceId, joint));
+        long backendJointId,
+        @Nonnull RigidBodyKey bodyA,
+        @Nonnull RigidBodyKey bodyB,
+        @Nonnull JointType type,
+        @Nonnull BackendJointSpec spec) {
+        assertCanAccessLiveBackendDirectly("add physics joint");
+        return addJointDirect(jointKey, spaceId, backendJointId, bodyA, bodyB, type, spec);
     }
 
     @Nonnull
     private JointKey addJointDirect(@Nonnull JointKey jointKey,
         @Nonnull SpaceId spaceId,
-        @Nonnull PhysicsJoint joint) {
-        if (spaceRuntime.getSpace(spaceId) == null) {
+        long backendJointId,
+        @Nonnull RigidBodyKey bodyA,
+        @Nonnull RigidBodyKey bodyB,
+        @Nonnull JointType type,
+        @Nonnull BackendJointSpec spec) {
+        if (spaceRuntime.getBinding(spaceId) == null) {
             throw new IllegalArgumentException("Physics space id=" + spaceId + " is not registered");
         }
-        jointRegistry.registerJoint(jointKey, spaceId, joint);
+        jointRegistry.registerJoint(jointKey,
+            spaceId,
+            backendJointId,
+            bodyA,
+            bodyB,
+            type,
+            spec.anchorAX(),
+            spec.anchorAY(),
+            spec.anchorAZ(),
+            spec.anchorBX(),
+            spec.anchorBY(),
+            spec.anchorBZ(),
+            spec.axisX(),
+            spec.axisY(),
+            spec.axisZ(),
+            spec.restLength(),
+            spec.stiffness(),
+            spec.damping(),
+            spec.lowerLimit(),
+            spec.upperLimit(),
+            spec.motorEnabled(),
+            spec.motorTargetVelocity(),
+            spec.motorMaxForce());
         markWorldChanged();
         return jointKey;
     }
@@ -974,9 +811,9 @@ public class PhysicsWorldRuntimeResource extends PhysicsWorldResource {
             return false;
         }
 
-        PhysicsSpace space = spaceRuntime.getSpace(registration.spaceId());
-        if (space != null) {
-            space.removeJoint(registration.joint());
+        PhysicsSpaceBinding binding = spaceRuntime.getBinding(registration.spaceId());
+        if (binding != null) {
+            binding.runtime().removeJoint(binding.backendSpaceId(), registration.backendJointId());
         }
         jointRegistry.unregisterJoint(jointKey);
         markWorldChanged();
@@ -984,22 +821,29 @@ public class PhysicsWorldRuntimeResource extends PhysicsWorldResource {
     }
 
     @Nullable
-    public PhysicsJoint getJoint(@Nonnull JointKey jointKey) {
-        assertCanAccessLiveBackendDirectly("resolve live physics joint");
-        PhysicsJointRegistration registration = jointRegistry.getRegistration(jointKey);
-        return registration != null ? registration.joint() : null;
-    }
-
-    @Nullable
-    public JointKey getJointKey(@Nonnull PhysicsJoint joint) {
-        assertCanAccessLiveBackendDirectly("resolve live physics joint key");
-        return jointRegistry.getJointKey(joint);
+    public JointKey getJointKey(@Nonnull SpaceId spaceId, long backendJointId) {
+        assertCanAccessLiveBackendDirectly("resolve physics joint key");
+        return jointRegistry.getJointKey(spaceId, backendJointId);
     }
 
     @Nullable
     public PhysicsJointRegistration getJointRegistration(@Nonnull JointKey jointKey) {
-        assertCanAccessLiveBackendDirectly("resolve live physics joint registration");
+        assertCanAccessLiveBackendDirectly("resolve physics joint registration");
         return jointRegistry.getRegistration(jointKey);
+    }
+
+    @Nonnull
+    public Collection<PhysicsJointRegistration> getJointRegistrations() {
+        assertCanAccessLiveBackendDirectly("list physics joint registrations");
+        return jointRegistry.getRegistrations();
+    }
+
+    @Nullable
+    public PhysicsJointRegistration findJointBetween(@Nonnull SpaceId spaceId,
+        @Nonnull RigidBodyKey bodyA,
+        @Nonnull RigidBodyKey bodyB) {
+        assertCanAccessLiveBackendDirectly("resolve physics joint registration");
+        return jointRegistry.findJointBetween(spaceId, bodyA, bodyB);
     }
 
     public boolean isBodyCreationPending(@Nonnull RigidBodyKey bodyKey) {
@@ -1024,7 +868,7 @@ public class PhysicsWorldRuntimeResource extends PhysicsWorldResource {
 
     @Nonnull
     public Collection<PhysicsBodyRegistration> getBodyRegistrations() {
-        assertCanAccessLiveBackendDirectly("list live physics body registrations");
+        assertCanAccessLiveBackendDirectly("list physics body registrations");
         return bodyRegistry.getRegistrations();
     }
 
@@ -1043,7 +887,7 @@ public class PhysicsWorldRuntimeResource extends PhysicsWorldResource {
 
     @Nonnull
     public Collection<PhysicsBodyRegistration> getBodyRegistrations(@Nonnull PhysicsBodyKind kind) {
-        assertCanAccessLiveBackendDirectly("list live physics body registrations");
+        assertCanAccessLiveBackendDirectly("list physics body registrations");
         return bodyRegistry.getRegistrations(kind);
     }
 
@@ -1282,159 +1126,6 @@ public class PhysicsWorldRuntimeResource extends PhysicsWorldResource {
         bodyRuntime.clearBodyStateWithoutMarkingWorldChanged();
         if (clearCollision) {
             collisionRuntime.clearAll();
-        }
-    }
-
-    @Nonnull
-    public PhysicsSpace replaceSpace(@Nonnull SpaceId spaceId,
-        @Nonnull PhysicsSpace replacement,
-        @Nonnull String worldName) {
-        return callOwner("replace physics space",
-            () -> replaceSpaceDirect(spaceId, replacement, worldName));
-    }
-
-    @Nonnull
-    public PhysicsMutationHandle<SpaceId> replaceSpaceAsync(@Nonnull SpaceId spaceId,
-        @Nonnull PhysicsSpace replacement,
-        @Nonnull String worldName) {
-        return enqueueOwnerMutation("replace physics space",
-            spaceId,
-            () -> replaceSpaceDirect(spaceId, replacement, worldName));
-    }
-
-    @Nonnull
-    private PhysicsSpace replaceSpaceDirect(@Nonnull SpaceId spaceId,
-        @Nonnull PhysicsSpace replacement,
-        @Nonnull String worldName) {
-        return spaceRuntime.replaceSpace(spaceId,
-            replacement,
-            worldName,
-            simulationRuntime.getWorldSettings().getStepMode(),
-            collisionRuntime::clear,
-            this::markWorldChanged);
-    }
-
-    private static void closeSpaceQuietly(@Nonnull PhysicsSpace space,
-        @Nonnull String worldName,
-        @Nonnull String action) {
-        try {
-            space.close();
-        } catch (RuntimeException exception) {
-            LOGGER.at(Level.WARNING).log(
-                "World %s failed to close %s id=%s backend=%s: %s",
-                worldName,
-                action,
-                space.id(),
-                space.backendId(),
-                exception.getMessage());
-        }
-    }
-
-    private final class RuntimePhysicsOwnerAccess implements PhysicsOwnerAccess {
-
-        @Nullable
-        @Override
-        public PhysicsSpace getSpace(@Nonnull SpaceId spaceId) {
-            assertOwnerAccessActive("resolve live physics space");
-            return spaceRuntime.getSpace(spaceId);
-        }
-
-        @Nonnull
-        @Override
-        public PhysicsSpace requireSpace(@Nonnull SpaceId spaceId) {
-            assertOwnerAccessActive("resolve live physics space");
-            return spaceRuntime.requireSpace(spaceId);
-        }
-
-        @Nonnull
-        @Override
-        public Collection<PhysicsSpace> getSpaces() {
-            assertOwnerAccessActive("list live physics spaces");
-            return spaceRuntime.getSpaces();
-        }
-
-        @Nullable
-        @Override
-        public PhysicsBody getBody(@Nonnull RigidBodyKey bodyKey) {
-            assertOwnerAccessActive("resolve live physics body");
-            return PhysicsWorldRuntimeResource.this.getBody(bodyKey);
-        }
-
-        @Nonnull
-        @Override
-        public PhysicsBody requireBody(@Nonnull RigidBodyKey bodyKey) {
-            PhysicsBody body = getBody(bodyKey);
-            if (body == null) {
-                throw new IllegalArgumentException("Physics body key=" + bodyKey + " is not registered");
-            }
-            return body;
-        }
-
-        @Nullable
-        @Override
-        public RigidBodyKey getBodyKey(@Nonnull PhysicsBody body) {
-            assertOwnerAccessActive("resolve live physics body key");
-            return bodyRegistry.getBodyKey(body);
-        }
-
-        @Nonnull
-        @Override
-        public RigidBodyKey addBody(@Nonnull SpaceId spaceId,
-            @Nonnull PhysicsBody body,
-            @Nonnull PhysicsBodyKind kind,
-            @Nonnull PhysicsBodyPersistenceMode persistenceMode) {
-            return addBody(RigidBodyKey.random(), spaceId, body, kind, persistenceMode);
-        }
-
-        @Nonnull
-        @Override
-        public RigidBodyKey addBody(@Nonnull RigidBodyKey bodyKey,
-            @Nonnull SpaceId spaceId,
-            @Nonnull PhysicsBody body,
-            @Nonnull PhysicsBodyKind kind,
-            @Nonnull PhysicsBodyPersistenceMode persistenceMode) {
-            assertOwnerAccessActive("add physics body");
-            return addBodyDirect(bodyKey, spaceId, body, kind, persistenceMode);
-        }
-
-        @Nullable
-        @Override
-        public PhysicsJoint getJoint(@Nonnull JointKey jointKey) {
-            assertOwnerAccessActive("resolve live physics joint");
-            return PhysicsWorldRuntimeResource.this.getJoint(jointKey);
-        }
-
-        @Nonnull
-        @Override
-        public PhysicsJoint requireJoint(@Nonnull JointKey jointKey) {
-            PhysicsJoint joint = getJoint(jointKey);
-            if (joint == null) {
-                throw new IllegalArgumentException("Physics joint key=" + jointKey + " is not registered");
-            }
-            return joint;
-        }
-
-        @Nullable
-        @Override
-        public JointKey getJointKey(@Nonnull PhysicsJoint joint) {
-            assertOwnerAccessActive("resolve live physics joint key");
-            return PhysicsWorldRuntimeResource.this.getJointKey(joint);
-        }
-
-        @Nonnull
-        @Override
-        public JointKey addJoint(@Nonnull SpaceId spaceId,
-            @Nonnull PhysicsJoint joint) {
-            return addJoint(JointKey.random(), spaceId, joint);
-        }
-
-        @Nonnull
-        @Override
-        public JointKey addJoint(@Nonnull JointKey jointKey,
-            @Nonnull SpaceId spaceId,
-            @Nonnull PhysicsJoint joint) {
-            assertOwnerAccessActive("add physics joint");
-            return addJointDirect(jointKey, spaceId, joint);
         }
     }
 

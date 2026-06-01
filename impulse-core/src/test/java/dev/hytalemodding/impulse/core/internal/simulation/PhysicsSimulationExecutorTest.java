@@ -14,7 +14,7 @@ import dev.hytalemodding.impulse.api.ShapeType;
 import dev.hytalemodding.impulse.api.SpaceId;
 import dev.hytalemodding.impulse.api.testsupport.FakePhysicsBackend;
 import dev.hytalemodding.impulse.api.testsupport.FakePhysicsBackend.InMemoryPhysicsSpace;
-import dev.hytalemodding.impulse.core.internal.resources.PhysicsWorldRuntimeResource;
+import dev.hytalemodding.impulse.core.internal.testsupport.LegacyLiveHandleTestResource;
 import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyKind;
 import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyPersistenceMode;
 import dev.hytalemodding.impulse.core.plugin.body.RigidBodyKey;
@@ -42,7 +42,7 @@ class PhysicsSimulationExecutorTest {
         FakePhysicsBackend backend =
             new FakePhysicsBackend("test:bulk-spawn-executor-" + BACKEND_COUNTER.incrementAndGet());
         Impulse.registerBackend(backend);
-        PhysicsWorldRuntimeResource resource = new PhysicsWorldRuntimeResource();
+        LegacyLiveHandleTestResource resource = new LegacyLiveHandleTestResource();
         SpaceId spaceId = resource.createLiveSpace(backend.getId(),
                 "test-world",
                 PhysicsSpaceSettings.defaults())
@@ -75,7 +75,7 @@ class PhysicsSimulationExecutorTest {
         FakePhysicsBackend backend =
             new FakePhysicsBackend("test:scalar-body-force-" + BACKEND_COUNTER.incrementAndGet());
         Impulse.registerBackend(backend);
-        PhysicsWorldRuntimeResource resource = new PhysicsWorldRuntimeResource();
+        LegacyLiveHandleTestResource resource = new LegacyLiveHandleTestResource();
         SpaceId spaceId = resource.createLiveSpace(backend.getId(),
                 "test-world",
                 PhysicsSpaceSettings.defaults())
@@ -115,7 +115,7 @@ class PhysicsSimulationExecutorTest {
         FakePhysicsBackend backend =
             new FakePhysicsBackend("test:scalar-transform-" + BACKEND_COUNTER.incrementAndGet());
         Impulse.registerBackend(backend);
-        PhysicsWorldRuntimeResource resource = new PhysicsWorldRuntimeResource();
+        LegacyLiveHandleTestResource resource = new LegacyLiveHandleTestResource();
         SpaceId spaceId = resource.createLiveSpace(backend.getId(),
                 "test-world",
                 PhysicsSpaceSettings.defaults())
@@ -149,7 +149,7 @@ class PhysicsSimulationExecutorTest {
         FakePhysicsBackend backend =
             new FakePhysicsBackend("test:scalar-position-" + BACKEND_COUNTER.incrementAndGet());
         Impulse.registerBackend(backend);
-        PhysicsWorldRuntimeResource resource = new PhysicsWorldRuntimeResource();
+        LegacyLiveHandleTestResource resource = new LegacyLiveHandleTestResource();
         SpaceId spaceId = resource.createLiveSpace(backend.getId(),
                 "test-world",
                 PhysicsSpaceSettings.defaults())
@@ -184,12 +184,20 @@ class PhysicsSimulationExecutorTest {
         FakePhysicsBackend backend =
             new FakePhysicsBackend("test:debug-contact-query-" + BACKEND_COUNTER.incrementAndGet());
         Impulse.registerBackend(backend);
-        PhysicsWorldRuntimeResource resource = new PhysicsWorldRuntimeResource();
+        LegacyLiveHandleTestResource resource = new LegacyLiveHandleTestResource();
         InMemoryPhysicsSpace space = (InMemoryPhysicsSpace) resource.createLiveSpace(backend.getId(),
             "test-world",
             PhysicsSpaceSettings.defaults());
         PhysicsBody bodyA = space.createBox(0.5f, 0.5f, 0.5f, 1.0f);
         PhysicsBody bodyB = space.createBox(0.5f, 0.5f, 0.5f, 1.0f);
+        resource.addBody(space.id(),
+            bodyA,
+            PhysicsBodyKind.TEMPORARY,
+            PhysicsBodyPersistenceMode.RUNTIME_ONLY);
+        resource.addBody(space.id(),
+            bodyB,
+            PhysicsBodyKind.TEMPORARY,
+            PhysicsBodyPersistenceMode.RUNTIME_ONLY);
         space.addContact(new PhysicsContact(bodyA,
             bodyB,
             new Vector3f(0.0f, 0.0f, 0.0f),
@@ -242,7 +250,7 @@ class PhysicsSimulationExecutorTest {
         FakePhysicsBackend backend =
             new FakePhysicsBackend("test:debug-joint-query-" + BACKEND_COUNTER.incrementAndGet());
         Impulse.registerBackend(backend);
-        PhysicsWorldRuntimeResource resource = new PhysicsWorldRuntimeResource();
+        LegacyLiveHandleTestResource resource = new LegacyLiveHandleTestResource();
         InMemoryPhysicsSpace space = (InMemoryPhysicsSpace) resource.createLiveSpace(backend.getId(),
             "test-world",
             PhysicsSpaceSettings.defaults());
@@ -250,11 +258,20 @@ class PhysicsSimulationExecutorTest {
         PhysicsBody bodyB = space.createBox(0.5f, 0.5f, 0.5f, 1.0f);
         bodyA.setPosition(1.0f, 0.0f, 0.0f);
         bodyB.setPosition(5.0f, 0.0f, 0.0f);
-        space.createHingeJoint(bodyA,
+        resource.addBody(space.id(),
+            bodyA,
+            PhysicsBodyKind.TEMPORARY,
+            PhysicsBodyPersistenceMode.RUNTIME_ONLY);
+        resource.addBody(space.id(),
+            bodyB,
+            PhysicsBodyKind.TEMPORARY,
+            PhysicsBodyPersistenceMode.RUNTIME_ONLY);
+        var liveJoint = space.createHingeJoint(bodyA,
             bodyB,
             new Vector3f(1.0f, 0.0f, 0.0f),
             new Vector3f(-1.0f, 0.0f, 0.0f),
             new Vector3f(0.0f, 1.0f, 0.0f));
+        resource.addJoint(space.id(), liveJoint);
 
         List<PhysicsDebugJointView> visible = resource.queryInternal(new PhysicsDebugJointsQuery(space.id(),
                 3.0f,
@@ -303,7 +320,7 @@ class PhysicsSimulationExecutorTest {
         FakePhysicsBackend backend =
             new FakePhysicsBackend("test:raycast-batch-result-" + BACKEND_COUNTER.incrementAndGet());
         Impulse.registerBackend(backend);
-        PhysicsWorldRuntimeResource resource = new PhysicsWorldRuntimeResource();
+        LegacyLiveHandleTestResource resource = new LegacyLiveHandleTestResource();
         SpaceId spaceId = resource.createLiveSpace(backend.getId(),
                 "test-world",
                 PhysicsSpaceSettings.defaults())
@@ -327,7 +344,7 @@ class PhysicsSimulationExecutorTest {
         FakePhysicsBackend backend =
             new FakePhysicsBackend("test:benchmark-space-stats-" + BACKEND_COUNTER.incrementAndGet());
         Impulse.registerBackend(backend);
-        PhysicsWorldRuntimeResource resource = new PhysicsWorldRuntimeResource();
+        LegacyLiveHandleTestResource resource = new LegacyLiveHandleTestResource();
         InMemoryPhysicsSpace space = (InMemoryPhysicsSpace) resource.createLiveSpace(backend.getId(),
             "test-world",
             PhysicsSpaceSettings.defaults());
@@ -340,8 +357,14 @@ class PhysicsSimulationExecutorTest {
             PhysicsBodyPersistenceMode.RUNTIME_ONLY);
         PhysicsBody raw = space.createSphere(1.0f, 1.0f);
         raw.setPosition(0.0f, -40.0f, 0.0f);
-        space.addBody(raw);
-        space.addBody(space.createStaticPlane(122.0f));
+        resource.addBody(space.id(),
+            raw,
+            PhysicsBodyKind.TEMPORARY,
+            PhysicsBodyPersistenceMode.RUNTIME_ONLY);
+        resource.addBody(space.id(),
+            space.createStaticPlane(122.0f),
+            PhysicsBodyKind.WORLD_COLLISION,
+            PhysicsBodyPersistenceMode.RUNTIME_ONLY);
 
         BenchmarkSpaceStatsView stats = resource.queryInternal(new BenchmarkSpaceStatsQuery(space.id(),
                 122.0f,

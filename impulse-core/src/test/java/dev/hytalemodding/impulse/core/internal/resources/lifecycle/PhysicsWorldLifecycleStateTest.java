@@ -10,7 +10,7 @@ import dev.hytalemodding.impulse.api.Impulse;
 import dev.hytalemodding.impulse.api.PhysicsBody;
 import dev.hytalemodding.impulse.api.PhysicsSpace;
 import dev.hytalemodding.impulse.api.testsupport.FakePhysicsBackend;
-import dev.hytalemodding.impulse.core.internal.resources.PhysicsWorldRuntimeResource;
+import dev.hytalemodding.impulse.core.internal.testsupport.LegacyLiveHandleTestResource;
 import dev.hytalemodding.impulse.core.internal.resources.owner.TestPhysicsOwnerLane;
 import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyKind;
 import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyPersistenceMode;
@@ -154,7 +154,7 @@ class PhysicsWorldLifecycleStateTest {
         FakePhysicsBackend backend =
             new FakePhysicsBackend("test:lifecycle-" + name + "-" + BACKEND_COUNTER.incrementAndGet());
         Impulse.registerBackend(backend);
-        PhysicsWorldRuntimeResource resource = new PhysicsWorldRuntimeResource();
+        LegacyLiveHandleTestResource resource = new LegacyLiveHandleTestResource();
         PhysicsSpace space = resource.createLiveSpace(backend.getId(),
             "test-world",
             PhysicsSpaceSettings.defaults());
@@ -169,7 +169,7 @@ class PhysicsWorldLifecycleStateTest {
             PhysicsBodyPersistenceMode.RUNTIME_ONLY);
     }
 
-    private record Fixture(PhysicsWorldRuntimeResource resource,
+    private record Fixture(LegacyLiveHandleTestResource resource,
                            PhysicsSpace space) {
     }
 }
