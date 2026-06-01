@@ -191,13 +191,14 @@ public final class PhysicsOwnerLaneResource implements PhysicsOwnerResource {
             PhysicsOwnerResult result = completed.future().get();
             return new PhysicsOwnerStepCompletion(result,
                 completed.command().publishedFrame(),
+                completed.command().eventFrame(),
                 completed.command().failure(),
                 null);
         } catch (InterruptedException exception) {
             Thread.currentThread().interrupt();
-            return new PhysicsOwnerStepCompletion(null, null, null, exception);
+            return new PhysicsOwnerStepCompletion(null, null, null, null, exception);
         } catch (ExecutionException exception) {
-            return new PhysicsOwnerStepCompletion(null, null, null, exception.getCause());
+            return new PhysicsOwnerStepCompletion(null, null, null, null, exception.getCause());
         }
     }
 

@@ -2,6 +2,7 @@ package dev.hytalemodding.impulse.core.internal.resources;
 
 import dev.hytalemodding.impulse.core.plugin.events.PhysicsCommandBatchEvent;
 import dev.hytalemodding.impulse.core.plugin.events.PhysicsEventFrame;
+import dev.hytalemodding.impulse.core.plugin.events.PhysicsFrameEvent;
 import dev.hytalemodding.impulse.core.plugin.events.PhysicsSnapshotPublicationEvent;
 import dev.hytalemodding.impulse.core.plugin.events.PhysicsStepEvent;
 import dev.hytalemodding.impulse.core.internal.simulation.RecordedPhysicsCommandBatch;
@@ -106,6 +107,14 @@ public final class PhysicsWorldEventState {
     @Nonnull
     public PhysicsEventFrame publishStepCaptured(long worldEpoch,
         @Nonnull PublishedPhysicsSnapshotFrame snapshotFrame) {
+        return publishStepCaptured(worldEpoch, snapshotFrame, List.of(), 0);
+    }
+
+    @Nonnull
+    public PhysicsEventFrame publishStepCaptured(long worldEpoch,
+        @Nonnull PublishedPhysicsSnapshotFrame snapshotFrame,
+        @Nonnull List<PhysicsFrameEvent> physicsEvents,
+        int droppedBackendEventCount) {
         Objects.requireNonNull(snapshotFrame, "snapshotFrame");
         PhysicsStepEvent stepEvent = new PhysicsStepEvent(snapshotFrame.stepSequence(),
             snapshotFrame.serverTick(),
@@ -115,7 +124,13 @@ public final class PhysicsWorldEventState {
             snapshotFrame.bodyCount(),
             snapshotFrame.stepNanos(),
             snapshotFrame.snapshotNanos());
-        return publishFrame(worldEpoch, snapshotFrame, List.of(), List.of(stepEvent), List.of());
+        return publishFrame(worldEpoch,
+            snapshotFrame,
+            List.of(),
+            List.of(stepEvent),
+            List.of(),
+            physicsEvents,
+            droppedBackendEventCount);
     }
 
     @Nonnull
@@ -159,6 +174,23 @@ public final class PhysicsWorldEventState {
         @Nonnull List<PhysicsCommandBatchEvent> commandEvents,
         @Nonnull List<PhysicsStepEvent> stepEvents,
         @Nonnull List<PhysicsSnapshotPublicationEvent> publicationEvents) {
+        return publishFrame(worldEpoch,
+            latestCapturedSnapshotFrame,
+            commandEvents,
+            stepEvents,
+            publicationEvents,
+            List.of(),
+            0);
+    }
+
+    @Nonnull
+    private PhysicsEventFrame publishFrame(long worldEpoch,
+        @Nonnull PublishedPhysicsSnapshotFrame latestCapturedSnapshotFrame,
+        @Nonnull List<PhysicsCommandBatchEvent> commandEvents,
+        @Nonnull List<PhysicsStepEvent> stepEvents,
+        @Nonnull List<PhysicsSnapshotPublicationEvent> publicationEvents,
+        @Nonnull List<PhysicsFrameEvent> physicsEvents,
+        int droppedBackendEventCount) {
         PhysicsEventFrame frame = new PhysicsEventFrame(eventFrameSequence.incrementAndGet(),
             worldEpoch,
             latestCapturedSnapshotFrame.frameEpoch(),
@@ -167,7 +199,9 @@ public final class PhysicsWorldEventState {
             latestCapturedSnapshotFrame.lastIncludedCommandBatchSequence(),
             commandEvents,
             stepEvents,
-            publicationEvents);
+            publicationEvents,
+            physicsEvents,
+            droppedBackendEventCount);
         latestFrame.set(frame);
         return frame;
     }

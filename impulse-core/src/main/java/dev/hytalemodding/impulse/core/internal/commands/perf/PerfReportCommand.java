@@ -413,7 +413,11 @@ public class PerfReportCommand extends AbstractWorldCommand {
             .append(" steps=")
             .append(frame.stepCount())
             .append(" publications=")
-            .append(frame.snapshotPublicationCount());
+            .append(frame.snapshotPublicationCount())
+            .append(" physicsEvents=")
+            .append(frame.physicsEventCount())
+            .append(" droppedBackendEvents=")
+            .append(frame.droppedBackendEventCount());
         PhysicsCommandBatchEvent latestCommand = frame.latestCommandBatch();
         if (latestCommand != null) {
             boolean capturedSnapshotIncluded = frame.latestCapturedSnapshotIncludes(latestCommand);
