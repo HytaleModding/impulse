@@ -19,6 +19,7 @@ import dev.hytalemodding.impulse.api.ShapeType;
 import dev.hytalemodding.impulse.api.SpaceId;
 import dev.hytalemodding.impulse.api.testsupport.FakePhysicsBackend;
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsSpaceBinding;
+import dev.hytalemodding.impulse.core.internal.resources.body.PhysicsBodySnapshots;
 import dev.hytalemodding.impulse.core.internal.testsupport.LegacyLiveHandleTestResource;
 import dev.hytalemodding.impulse.core.plugin.body.RigidBodyKey;
 import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyKind;
@@ -283,16 +284,11 @@ class PersistentPhysicsCodecValidationTest {
         assertEquals(1, decoded.getBodyCount());
         PersistentPhysicsBodyState decodedBody = decoded.getBodies()[0];
         assertEquals(12.0f, decodedBody.getPosition().y, 0.0001f);
-        long restoredBodyId = restore.binding()
-            .runtime()
-            .createBody(restore.binding().backendSpaceId(), decodedBody.toBackendBodySpec());
+        long restoredBodyId = decodedBody.createBackendBody(restore.binding());
         decodedBody.applyToBody(restore.binding(), restoredBodyId);
-        PhysicsBodySnapshot restored = restore.binding()
-            .runtime()
-            .bodySnapshot(restore.binding().backendSpaceId(), restoredBodyId)
-            .orElseThrow()
-            .snapshot();
+        PhysicsBodySnapshot restored = PhysicsBodySnapshots.read(restore.binding(), restoredBodyId);
 
+        Assertions.assertNotNull(restored);
         assertEquals(ShapeType.PLANE, restored.shapeType());
         assertEquals(12.0f, restored.positionY(), 0.0001f);
     }

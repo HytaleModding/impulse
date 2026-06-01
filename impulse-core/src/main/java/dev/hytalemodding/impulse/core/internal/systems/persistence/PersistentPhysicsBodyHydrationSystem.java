@@ -90,7 +90,7 @@ public class PersistentPhysicsBodyHydrationSystem extends TickingSystem<EntitySt
             return RestoreBodyResult.MISSING_SPACE;
         }
 
-        long backendBodyId = space.runtime().createBody(space.backendSpaceId(), state.toBackendBodySpec());
+        long backendBodyId = state.createBackendBody(space);
         state.applyToBody(space, backendBodyId);
         runtime.addBodyOnOwner(bodyKey,
             space.spaceId(),

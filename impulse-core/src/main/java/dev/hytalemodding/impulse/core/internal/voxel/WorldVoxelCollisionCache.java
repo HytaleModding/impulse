@@ -10,7 +10,7 @@ import com.hypixel.hytale.server.core.universe.world.storage.ChunkStore;
 import dev.hytalemodding.impulse.api.PhysicsBodyType;
 import dev.hytalemodding.impulse.api.PhysicsCollisionFilters;
 import dev.hytalemodding.impulse.api.SpaceId;
-import dev.hytalemodding.impulse.api.runtime.BackendBodySpec;
+import dev.hytalemodding.impulse.api.runtime.BackendRuntimeCodes;
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsSpaceBinding;
 import dev.hytalemodding.impulse.core.internal.resources.profiling.WorldCollisionProfilingResource.MissingSectionReason;
 import dev.hytalemodding.impulse.core.internal.resources.profiling.WorldCollisionProfilingResource.Snapshot;
@@ -792,14 +792,23 @@ public final class WorldVoxelCollisionCache {
         }
 
         long bodyId = space.runtime().createBody(space.backendSpaceId(),
-            BackendBodySpec.box((float) box.halfX(),
+            BackendRuntimeCodes.SHAPE_BOX,
+            (float) box.halfX(),
             (float) box.halfY(),
             (float) box.halfZ(),
             0.0f,
-            PhysicsBodyType.STATIC,
+            0.0f,
+            BackendRuntimeCodes.AXIS_Y,
+            0.0f,
+            0.0f,
+            BackendRuntimeCodes.bodyTypeCode(PhysicsBodyType.STATIC),
             (float) box.centerX(),
             (float) box.centerY(),
-            (float) box.centerZ()));
+            (float) box.centerZ(),
+            0.0f,
+            0.0f,
+            0.0f,
+            1.0f);
         space.runtime().setBodyFriction(space.backendSpaceId(), bodyId, 0.75f);
         space.runtime()
             .setBodyCollisionFilter(space.backendSpaceId(),

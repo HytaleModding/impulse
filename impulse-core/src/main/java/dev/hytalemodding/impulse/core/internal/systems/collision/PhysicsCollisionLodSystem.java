@@ -9,6 +9,7 @@ import dev.hytalemodding.impulse.api.PhysicsCollisionFilters;
 import dev.hytalemodding.impulse.api.SpaceId;
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsSpaceBinding;
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsWorldRuntimeResource;
+import dev.hytalemodding.impulse.core.internal.resources.body.PhysicsBodySnapshots;
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsVisualRuntime;
 import dev.hytalemodding.impulse.core.internal.systems.visual.VisualInterestCollector;
 import dev.hytalemodding.impulse.core.internal.resources.owner.PhysicsOwnerBridge;
@@ -220,10 +221,7 @@ public class PhysicsCollisionLodSystem extends TickingSystem<EntityStore> {
             if (space == null) {
                 continue;
             }
-            PhysicsBodySnapshot snapshot = space.runtime()
-                .bodySnapshot(space.backendSpaceId(), registration.backendBodyId())
-                .map(backendSnapshot -> backendSnapshot.snapshot())
-                .orElse(null);
+            PhysicsBodySnapshot snapshot = PhysicsBodySnapshots.read(space, registration.backendBodyId());
             if (snapshot == null || !snapshot.isDynamic() || snapshot.sensor()) {
                 continue;
             }

@@ -1,19 +1,13 @@
 package dev.hytalemodding.impulse.api.runtime;
 
-import dev.hytalemodding.impulse.api.PhysicsBodyType;
 import dev.hytalemodding.impulse.api.SpaceId;
 import dev.hytalemodding.impulse.api.capability.PhysicsActivationTuning;
 import dev.hytalemodding.impulse.api.capability.PhysicsCapabilityId;
 import dev.hytalemodding.impulse.api.capability.PhysicsSolverTuning;
-import java.util.List;
-import java.util.Map;
-import java.util.Optional;
-import java.util.function.BiConsumer;
 import javax.annotation.Nonnull;
-import org.joml.Vector3f;
 
 /**
- * Owner-lane backend runtime port using backend-local numeric ids.
+ * Owner-lane backend runtime port using backend-local numeric ids and primitive payloads.
  */
 public interface PhysicsBackendRuntime {
 
@@ -25,10 +19,26 @@ public interface PhysicsBackendRuntime {
 
     void setGravity(int spaceId, float x, float y, float z);
 
-    @Nonnull
-    Vector3f getGravity(int spaceId);
+    void getGravity(int spaceId, @Nonnull BackendVec3Sink sink);
 
-    long createBody(int spaceId, @Nonnull BackendBodySpec spec);
+    long createBody(int spaceId,
+        int shapeTypeCode,
+        float halfExtentX,
+        float halfExtentY,
+        float halfExtentZ,
+        float radius,
+        float halfHeight,
+        int axisCode,
+        float groundY,
+        float mass,
+        int bodyTypeCode,
+        float positionX,
+        float positionY,
+        float positionZ,
+        float rotationX,
+        float rotationY,
+        float rotationZ,
+        float rotationW);
 
     void removeBody(int spaceId, long bodyId);
 
@@ -36,12 +46,11 @@ public interface PhysicsBackendRuntime {
 
     boolean containsBody(int spaceId, long bodyId);
 
-    @Nonnull
-    Optional<BackendBodySnapshot> bodySnapshot(int spaceId, long bodyId);
+    boolean bodySnapshot(int spaceId, long bodyId, @Nonnull BackendBodySnapshotSink sink);
 
     void snapshotBodies(int spaceId,
-        @Nonnull Iterable<Long> bodyIds,
-        @Nonnull BiConsumer<Long, BackendBodySnapshot> consumer);
+        @Nonnull BackendBodyIdSource bodyIds,
+        @Nonnull BackendBodySnapshotSink sink);
 
     void setBodyTransform(int spaceId,
         long bodyId,
@@ -64,7 +73,7 @@ public interface PhysicsBackendRuntime {
         float angularY,
         float angularZ);
 
-    void setBodyType(int spaceId, long bodyId, @Nonnull PhysicsBodyType bodyType);
+    void setBodyType(int spaceId, long bodyId, int bodyTypeCode);
 
     void setBodyDamping(int spaceId, long bodyId, float linearDamping, float angularDamping);
 
@@ -106,37 +115,65 @@ public interface PhysicsBackendRuntime {
         float offsetZ,
         boolean torque);
 
-    long createJoint(int spaceId, @Nonnull BackendJointSpec spec);
+    long createJoint(int spaceId,
+        int jointTypeCode,
+        long bodyAId,
+        long bodyBId,
+        float anchorAX,
+        float anchorAY,
+        float anchorAZ,
+        float anchorBX,
+        float anchorBY,
+        float anchorBZ,
+        float axisX,
+        float axisY,
+        float axisZ,
+        float restLength,
+        float stiffness,
+        float damping,
+        float lowerLimit,
+        float upperLimit,
+        boolean motorEnabled,
+        float motorTargetVelocity,
+        float motorMaxForce);
 
     void removeJoint(int spaceId, long jointId);
 
     int jointCount(int spaceId);
 
-    @Nonnull
-    BackendJointType jointType(int spaceId, long jointId);
+    int jointType(int spaceId, long jointId);
 
     long jointBodyA(int spaceId, long jointId);
 
     long jointBodyB(int spaceId, long jointId);
 
-    @Nonnull
-    Optional<BackendRayHit> raycastClosest(int spaceId, @Nonnull Vector3f from, @Nonnull Vector3f to);
+    boolean raycastClosest(int spaceId,
+        float fromX,
+        float fromY,
+        float fromZ,
+        float toX,
+        float toY,
+        float toZ,
+        @Nonnull BackendRayHitSink sink);
 
-    @Nonnull
-    List<BackendRayHit> raycastAll(int spaceId, @Nonnull Vector3f from, @Nonnull Vector3f to);
+    int raycastAll(int spaceId,
+        float fromX,
+        float fromY,
+        float fromZ,
+        float toX,
+        float toY,
+        float toZ,
+        @Nonnull BackendRayHitSink sink);
 
-    @Nonnull
-    List<BackendContact> contacts(int spaceId);
+    int contacts(int spaceId, @Nonnull BackendContactSink sink);
 
     int contactCount(int spaceId);
 
-    @Nonnull
-    BackendRuntimeStats runtimeStats(int spaceId);
+    void runtimeStats(int spaceId, @Nonnull BackendRuntimeStatsSink sink);
 
     void resetStepPhaseStats(int spaceId);
 
-    @Nonnull
-    BackendStepPhaseStats stepPhaseStats(int spaceId);
+    void stepPhaseStats(int spaceId, @Nonnull BackendStepPhaseStatsSink sink);
 
     boolean supportsContinuousCollision(int spaceId);
 
@@ -150,5 +187,5 @@ public interface PhysicsBackendRuntime {
 
     void applyExtensionSettings(int spaceId,
         @Nonnull PhysicsCapabilityId capabilityId,
-        @Nonnull Map<String, String> settings);
+        @Nonnull BackendExtensionSettingsSource settings);
 }

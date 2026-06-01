@@ -45,10 +45,7 @@ public final class PhysicsBodySnapshotStore {
             Iterator<PhysicsBodyRegistration> registrations = bodyRegistry.registrationIterator(spaceId);
             while (registrations.hasNext()) {
                 PhysicsBodyRegistration registration = registrations.next();
-                PhysicsBodySnapshot snapshot = space.runtime()
-                    .bodySnapshot(space.backendSpaceId(), registration.backendBodyId())
-                    .map(backendSnapshot -> backendSnapshot.toPhysicsSnapshot())
-                    .orElse(null);
+                PhysicsBodySnapshot snapshot = PhysicsBodySnapshots.read(space, registration.backendBodyId());
                 if (snapshot == null) {
                     continue;
                 }

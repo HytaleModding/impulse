@@ -9,7 +9,6 @@ import dev.hytalemodding.impulse.api.BackendId;
 import dev.hytalemodding.impulse.api.PhysicsBodySnapshot;
 import dev.hytalemodding.impulse.api.PhysicsBodyType;
 import dev.hytalemodding.impulse.api.SpaceId;
-import dev.hytalemodding.impulse.api.runtime.BackendJointSpec;
 import dev.hytalemodding.impulse.core.internal.control.PhysicsControlRuntimeState;
 import dev.hytalemodding.impulse.core.internal.resources.body.PhysicsBodyRegistry;
 import dev.hytalemodding.impulse.core.internal.resources.body.PhysicsBodyRuntimeState.BodySyncState;
@@ -758,9 +757,47 @@ public class PhysicsWorldRuntimeResource extends PhysicsWorldResource {
         @Nonnull RigidBodyKey bodyA,
         @Nonnull RigidBodyKey bodyB,
         @Nonnull JointType type,
-        @Nonnull BackendJointSpec spec) {
+        float anchorAX,
+        float anchorAY,
+        float anchorAZ,
+        float anchorBX,
+        float anchorBY,
+        float anchorBZ,
+        float axisX,
+        float axisY,
+        float axisZ,
+        float restLength,
+        float stiffness,
+        float damping,
+        float lowerLimit,
+        float upperLimit,
+        boolean motorEnabled,
+        float motorTargetVelocity,
+        float motorMaxForce) {
         assertCanAccessLiveBackendDirectly("add physics joint");
-        return addJointDirect(jointKey, spaceId, backendJointId, bodyA, bodyB, type, spec);
+        return addJointDirect(jointKey,
+            spaceId,
+            backendJointId,
+            bodyA,
+            bodyB,
+            type,
+            anchorAX,
+            anchorAY,
+            anchorAZ,
+            anchorBX,
+            anchorBY,
+            anchorBZ,
+            axisX,
+            axisY,
+            axisZ,
+            restLength,
+            stiffness,
+            damping,
+            lowerLimit,
+            upperLimit,
+            motorEnabled,
+            motorTargetVelocity,
+            motorMaxForce);
     }
 
     @Nonnull
@@ -770,7 +807,23 @@ public class PhysicsWorldRuntimeResource extends PhysicsWorldResource {
         @Nonnull RigidBodyKey bodyA,
         @Nonnull RigidBodyKey bodyB,
         @Nonnull JointType type,
-        @Nonnull BackendJointSpec spec) {
+        float anchorAX,
+        float anchorAY,
+        float anchorAZ,
+        float anchorBX,
+        float anchorBY,
+        float anchorBZ,
+        float axisX,
+        float axisY,
+        float axisZ,
+        float restLength,
+        float stiffness,
+        float damping,
+        float lowerLimit,
+        float upperLimit,
+        boolean motorEnabled,
+        float motorTargetVelocity,
+        float motorMaxForce) {
         if (spaceRuntime.getBinding(spaceId) == null) {
             throw new IllegalArgumentException("Physics space id=" + spaceId + " is not registered");
         }
@@ -780,23 +833,23 @@ public class PhysicsWorldRuntimeResource extends PhysicsWorldResource {
             bodyA,
             bodyB,
             type,
-            spec.anchorAX(),
-            spec.anchorAY(),
-            spec.anchorAZ(),
-            spec.anchorBX(),
-            spec.anchorBY(),
-            spec.anchorBZ(),
-            spec.axisX(),
-            spec.axisY(),
-            spec.axisZ(),
-            spec.restLength(),
-            spec.stiffness(),
-            spec.damping(),
-            spec.lowerLimit(),
-            spec.upperLimit(),
-            spec.motorEnabled(),
-            spec.motorTargetVelocity(),
-            spec.motorMaxForce());
+            anchorAX,
+            anchorAY,
+            anchorAZ,
+            anchorBX,
+            anchorBY,
+            anchorBZ,
+            axisX,
+            axisY,
+            axisZ,
+            restLength,
+            stiffness,
+            damping,
+            lowerLimit,
+            upperLimit,
+            motorEnabled,
+            motorTargetVelocity,
+            motorMaxForce);
         markWorldChanged();
         return jointKey;
     }

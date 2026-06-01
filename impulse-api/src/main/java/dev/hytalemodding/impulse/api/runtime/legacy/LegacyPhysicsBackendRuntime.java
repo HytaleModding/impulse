@@ -13,6 +13,7 @@ import dev.hytalemodding.impulse.api.PhysicsRuntimeStats;
 import dev.hytalemodding.impulse.api.PhysicsSpace;
 import dev.hytalemodding.impulse.api.PhysicsStepPhaseStats;
 import dev.hytalemodding.impulse.api.SpaceId;
+import dev.hytalemodding.impulse.api.ShapeType;
 import dev.hytalemodding.impulse.api.capability.PhysicsActivationTuning;
 import dev.hytalemodding.impulse.api.capability.PhysicsActivationTuningCapability;
 import dev.hytalemodding.impulse.api.capability.PhysicsCapabilityId;
@@ -20,23 +21,21 @@ import dev.hytalemodding.impulse.api.capability.PhysicsContinuousCollisionCapabi
 import dev.hytalemodding.impulse.api.capability.PhysicsExtensionSettingsCapability;
 import dev.hytalemodding.impulse.api.capability.PhysicsSolverTuning;
 import dev.hytalemodding.impulse.api.capability.PhysicsSolverTuningCapability;
-import dev.hytalemodding.impulse.api.runtime.BackendBodySnapshot;
-import dev.hytalemodding.impulse.api.runtime.BackendBodySpec;
-import dev.hytalemodding.impulse.api.runtime.BackendContact;
-import dev.hytalemodding.impulse.api.runtime.BackendJointSpec;
+import dev.hytalemodding.impulse.api.runtime.BackendBodyIdSource;
+import dev.hytalemodding.impulse.api.runtime.BackendBodySnapshotSink;
+import dev.hytalemodding.impulse.api.runtime.BackendContactSink;
+import dev.hytalemodding.impulse.api.runtime.BackendExtensionSettingsSource;
 import dev.hytalemodding.impulse.api.runtime.BackendJointType;
-import dev.hytalemodding.impulse.api.runtime.BackendRayHit;
-import dev.hytalemodding.impulse.api.runtime.BackendRuntimeStats;
-import dev.hytalemodding.impulse.api.runtime.BackendStepPhaseStats;
+import dev.hytalemodding.impulse.api.runtime.BackendRayHitSink;
+import dev.hytalemodding.impulse.api.runtime.BackendRuntimeCodes;
+import dev.hytalemodding.impulse.api.runtime.BackendRuntimeStatsSink;
+import dev.hytalemodding.impulse.api.runtime.BackendStepPhaseStatsSink;
+import dev.hytalemodding.impulse.api.runtime.BackendVec3Sink;
 import dev.hytalemodding.impulse.api.runtime.PhysicsBackendRuntime;
-import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.IdentityHashMap;
-import java.util.List;
 import java.util.Map;
 import java.util.Objects;
-import java.util.Optional;
-import java.util.function.BiConsumer;
 import javax.annotation.Nonnull;
 import org.joml.Vector3f;
 
@@ -84,19 +83,45 @@ public final class LegacyPhysicsBackendRuntime implements PhysicsBackendRuntime 
         requireSpace(spaceId).space.setGravity(x, y, z);
     }
 
-    @Nonnull
     @Override
-    public Vector3f getGravity(int spaceId) {
-        return requireSpace(spaceId).space.getGravity();
+    public void getGravity(int spaceId, @Nonnull BackendVec3Sink sink) {
+        Vector3f gravity = requireSpace(spaceId).space.getGravity();
+        sink.accept(gravity.x, gravity.y, gravity.z);
     }
 
     @Override
-    public long createBody(int spaceId, @Nonnull BackendBodySpec spec) {
+    public long createBody(int spaceId,
+        int shapeTypeCode,
+        float halfExtentX,
+        float halfExtentY,
+        float halfExtentZ,
+        float radius,
+        float halfHeight,
+        int axisCode,
+        float groundY,
+        float mass,
+        int bodyTypeCode,
+        float positionX,
+        float positionY,
+        float positionZ,
+        float rotationX,
+        float rotationY,
+        float rotationZ,
+        float rotationW) {
         SpaceState state = requireSpace(spaceId);
-        PhysicsBody body = createLiveBody(state.space, spec);
-        body.setBodyType(spec.bodyType());
-        body.setPosition(spec.positionX(), spec.positionY(), spec.positionZ());
-        body.setRotation(spec.rotationX(), spec.rotationY(), spec.rotationZ(), spec.rotationW());
+        PhysicsBody body = createLiveBody(state.space,
+            shapeTypeCode,
+            halfExtentX,
+            halfExtentY,
+            halfExtentZ,
+            radius,
+            halfHeight,
+            axisCode,
+            groundY,
+            mass);
+        body.setBodyType(BackendRuntimeCodes.bodyType(bodyTypeCode));
+        body.setPosition(positionX, positionY, positionZ);
+        body.setRotation(rotationX, rotationY, rotationZ, rotationW);
         long bodyId = nextBodyId++;
         state.space.addBody(body);
         state.bodiesById.put(bodyId, body);
@@ -127,30 +152,30 @@ public final class LegacyPhysicsBackendRuntime implements PhysicsBackendRuntime 
         return body != null && state.space.getBodies().contains(body);
     }
 
-    @Nonnull
     @Override
-    public Optional<BackendBodySnapshot> bodySnapshot(int spaceId, long bodyId) {
+    public boolean bodySnapshot(int spaceId,
+        long bodyId,
+        @Nonnull BackendBodySnapshotSink sink) {
         SpaceState state = requireSpace(spaceId);
         PhysicsBody body = state.bodiesById.get(bodyId);
-        return body != null && state.space.getBodies().contains(body)
-            ? Optional.of(new BackendBodySnapshot(bodyId, PhysicsBodySnapshot.from(body)))
-            : Optional.empty();
+        if (body == null || !state.space.getBodies().contains(body)) {
+            return false;
+        }
+        emitBodySnapshot(bodyId, PhysicsBodySnapshot.from(body), sink);
+        return true;
     }
 
     @Override
     public void snapshotBodies(int spaceId,
-        @Nonnull Iterable<Long> bodyIds,
-        @Nonnull BiConsumer<Long, BackendBodySnapshot> consumer) {
+        @Nonnull BackendBodyIdSource bodyIds,
+        @Nonnull BackendBodySnapshotSink sink) {
         SpaceState state = requireSpace(spaceId);
-        for (Long bodyId : bodyIds) {
-            if (bodyId == null) {
-                continue;
-            }
+        bodyIds.forEachBodyId(bodyId -> {
             PhysicsBody body = state.bodiesById.get(bodyId);
             if (body != null && state.space.getBodies().contains(body)) {
-                consumer.accept(bodyId, new BackendBodySnapshot(bodyId, PhysicsBodySnapshot.from(body)));
+                emitBodySnapshot(bodyId, PhysicsBodySnapshot.from(body), sink);
             }
-        }
+        });
     }
 
     @Override
@@ -188,8 +213,8 @@ public final class LegacyPhysicsBackendRuntime implements PhysicsBackendRuntime 
     }
 
     @Override
-    public void setBodyType(int spaceId, long bodyId, @Nonnull PhysicsBodyType bodyType) {
-        requireBody(spaceId, bodyId).setBodyType(bodyType);
+    public void setBodyType(int spaceId, long bodyId, int bodyTypeCode) {
+        requireBody(spaceId, bodyId).setBodyType(BackendRuntimeCodes.bodyType(bodyTypeCode));
     }
 
     @Override
@@ -280,11 +305,51 @@ public final class LegacyPhysicsBackendRuntime implements PhysicsBackendRuntime 
     }
 
     @Override
-    public long createJoint(int spaceId, @Nonnull BackendJointSpec spec) {
+    public long createJoint(int spaceId,
+        int jointTypeCode,
+        long bodyAId,
+        long bodyBId,
+        float anchorAX,
+        float anchorAY,
+        float anchorAZ,
+        float anchorBX,
+        float anchorBY,
+        float anchorBZ,
+        float axisX,
+        float axisY,
+        float axisZ,
+        float restLength,
+        float stiffness,
+        float damping,
+        float lowerLimit,
+        float upperLimit,
+        boolean motorEnabled,
+        float motorTargetVelocity,
+        float motorMaxForce) {
         SpaceState state = requireSpace(spaceId);
-        PhysicsBody bodyA = requireBody(spaceId, spec.bodyAId());
-        PhysicsBody bodyB = requireBody(spaceId, spec.bodyBId());
-        PhysicsJoint joint = createLiveJoint(state.space, bodyA, bodyB, spec);
+        PhysicsBody bodyA = requireBody(spaceId, bodyAId);
+        PhysicsBody bodyB = requireBody(spaceId, bodyBId);
+        PhysicsJoint joint = createLiveJoint(state.space,
+            bodyA,
+            bodyB,
+            jointTypeCode,
+            anchorAX,
+            anchorAY,
+            anchorAZ,
+            anchorBX,
+            anchorBY,
+            anchorBZ,
+            axisX,
+            axisY,
+            axisZ,
+            restLength,
+            stiffness,
+            damping,
+            lowerLimit,
+            upperLimit,
+            motorEnabled,
+            motorTargetVelocity,
+            motorMaxForce);
         long jointId = nextJointId++;
         state.jointsById.put(jointId, joint);
         state.jointIdsByJoint.put(joint, jointId);
@@ -307,10 +372,9 @@ public final class LegacyPhysicsBackendRuntime implements PhysicsBackendRuntime 
         return requireSpace(spaceId).space.jointCount();
     }
 
-    @Nonnull
     @Override
-    public BackendJointType jointType(int spaceId, long jointId) {
-        return toBackendJointType(requireJoint(spaceId, jointId).getType());
+    public int jointType(int spaceId, long jointId) {
+        return BackendRuntimeCodes.jointTypeCode(toBackendJointType(requireJoint(spaceId, jointId).getType()));
     }
 
     @Override
@@ -329,48 +393,69 @@ public final class LegacyPhysicsBackendRuntime implements PhysicsBackendRuntime 
         return bodyId != null ? bodyId : -1L;
     }
 
-    @Nonnull
     @Override
-    public Optional<BackendRayHit> raycastClosest(int spaceId,
-        @Nonnull Vector3f from,
-        @Nonnull Vector3f to) {
+    public boolean raycastClosest(int spaceId,
+        float fromX,
+        float fromY,
+        float fromZ,
+        float toX,
+        float toY,
+        float toZ,
+        @Nonnull BackendRayHitSink sink) {
         SpaceState state = requireSpace(spaceId);
-        return state.space.raycastClosest(from, to)
-            .flatMap(hit -> toBackendRayHit(state, hit));
+        return state.space.raycastClosest(new Vector3f(fromX, fromY, fromZ), new Vector3f(toX, toY, toZ))
+            .map(hit -> emitRayHit(state, hit, sink))
+            .orElse(false);
     }
 
-    @Nonnull
     @Override
-    public List<BackendRayHit> raycastAll(int spaceId,
-        @Nonnull Vector3f from,
-        @Nonnull Vector3f to) {
+    public int raycastAll(int spaceId,
+        float fromX,
+        float fromY,
+        float fromZ,
+        float toX,
+        float toY,
+        float toZ,
+        @Nonnull BackendRayHitSink sink) {
         SpaceState state = requireSpace(spaceId);
-        List<BackendRayHit> hits = new ArrayList<>();
-        for (PhysicsRayHit hit : state.space.raycastAll(from, to)) {
-            toBackendRayHit(state, hit).ifPresent(hits::add);
+        int hits = 0;
+        for (PhysicsRayHit hit : state.space.raycastAll(new Vector3f(fromX, fromY, fromZ),
+            new Vector3f(toX, toY, toZ))) {
+            if (emitRayHit(state, hit, sink)) {
+                hits++;
+            }
         }
-        return List.copyOf(hits);
+        return hits;
     }
 
-    @Nonnull
     @Override
-    public List<BackendContact> contacts(int spaceId) {
+    public int contacts(int spaceId, @Nonnull BackendContactSink sink) {
         SpaceState state = requireSpace(spaceId);
-        List<BackendContact> contacts = new ArrayList<>();
+        int contacts = 0;
         for (PhysicsContact contact : state.space.getContacts()) {
             Long bodyAId = state.bodyIdsByBody.get(contact.bodyA());
             Long bodyBId = state.bodyIdsByBody.get(contact.bodyB());
             if (bodyAId != null && bodyBId != null) {
-                contacts.add(new BackendContact(bodyAId,
+                Vector3f pointOnA = contact.pointOnA();
+                Vector3f pointOnB = contact.pointOnB();
+                Vector3f normalOnB = contact.normalOnB();
+                sink.accept(bodyAId,
                     bodyBId,
-                    contact.pointOnA(),
-                    contact.pointOnB(),
-                    contact.normalOnB(),
+                    pointOnA.x,
+                    pointOnA.y,
+                    pointOnA.z,
+                    pointOnB.x,
+                    pointOnB.y,
+                    pointOnB.z,
+                    normalOnB.x,
+                    normalOnB.y,
+                    normalOnB.z,
                     contact.distance(),
-                    contact.impulse()));
+                    contact.impulse());
+                contacts++;
             }
         }
-        return List.copyOf(contacts);
+        return contacts;
     }
 
     @Override
@@ -378,11 +463,10 @@ public final class LegacyPhysicsBackendRuntime implements PhysicsBackendRuntime 
         return requireSpace(spaceId).space.contactCount();
     }
 
-    @Nonnull
     @Override
-    public BackendRuntimeStats runtimeStats(int spaceId) {
+    public void runtimeStats(int spaceId, @Nonnull BackendRuntimeStatsSink sink) {
         PhysicsRuntimeStats stats = requireSpace(spaceId).space.getRuntimeStats();
-        return new BackendRuntimeStats(stats.bodyCount(),
+        sink.accept(stats.bodyCount(),
             stats.colliderCount(),
             stats.activeBodyCount(),
             stats.contactPairCount(),
@@ -400,11 +484,10 @@ public final class LegacyPhysicsBackendRuntime implements PhysicsBackendRuntime 
         requireSpace(spaceId).space.resetStepPhaseStats();
     }
 
-    @Nonnull
     @Override
-    public BackendStepPhaseStats stepPhaseStats(int spaceId) {
+    public void stepPhaseStats(int spaceId, @Nonnull BackendStepPhaseStatsSink sink) {
         PhysicsStepPhaseStats stats = requireSpace(spaceId).space.getStepPhaseStats();
-        return new BackendStepPhaseStats(stats.stepNanos(),
+        sink.accept(stats.stepNanos(),
             stats.broadPhaseNanos(),
             stats.narrowPhaseNanos(),
             stats.solverNanos(),
@@ -443,9 +526,13 @@ public final class LegacyPhysicsBackendRuntime implements PhysicsBackendRuntime 
     @Override
     public void applyExtensionSettings(int spaceId,
         @Nonnull PhysicsCapabilityId capabilityId,
-        @Nonnull Map<String, String> settings) {
+        @Nonnull BackendExtensionSettingsSource settings) {
         requireSpace(spaceId).space.getCapability(PhysicsExtensionSettingsCapability.class)
-            .ifPresent(capability -> capability.applyExtensionSettings(capabilityId, settings));
+            .ifPresent(capability -> {
+                Map<String, String> copied = new HashMap<>();
+                settings.forEachSetting(copied::put);
+                capability.applyExtensionSettings(capabilityId, copied);
+            });
     }
 
     @Nonnull
@@ -482,15 +569,25 @@ public final class LegacyPhysicsBackendRuntime implements PhysicsBackendRuntime 
 
     @Nonnull
     private static PhysicsBody createLiveBody(@Nonnull PhysicsSpace space,
-        @Nonnull BackendBodySpec spec) {
-        return switch (spec.shapeType()) {
-            case BOX -> space.createBox(spec.halfExtentX(), spec.halfExtentY(), spec.halfExtentZ(), spec.mass());
-            case SPHERE -> space.createSphere(spec.radius(), spec.mass());
-            case CAPSULE -> space.createCapsule(spec.radius(), spec.halfHeight(), spec.axis(), spec.mass());
-            case CYLINDER -> space.createCylinder(spec.radius(), spec.halfHeight(), spec.axis(), spec.mass());
-            case CONE -> space.createCone(spec.radius(), spec.halfHeight(), spec.axis(), spec.mass());
-            case PLANE -> space.createStaticPlane(spec.groundY());
-            default -> throw new IllegalArgumentException("Unsupported shape " + spec.shapeType());
+        int shapeTypeCode,
+        float halfExtentX,
+        float halfExtentY,
+        float halfExtentZ,
+        float radius,
+        float halfHeight,
+        int axisCode,
+        float groundY,
+        float mass) {
+        ShapeType shapeType = BackendRuntimeCodes.shapeType(shapeTypeCode);
+        PhysicsAxis axis = BackendRuntimeCodes.axis(axisCode);
+        return switch (shapeType) {
+            case BOX -> space.createBox(halfExtentX, halfExtentY, halfExtentZ, mass);
+            case SPHERE -> space.createSphere(radius, mass);
+            case CAPSULE -> space.createCapsule(radius, halfHeight, axis, mass);
+            case CYLINDER -> space.createCylinder(radius, halfHeight, axis, mass);
+            case CONE -> space.createCone(radius, halfHeight, axis, mass);
+            case PLANE -> space.createStaticPlane(groundY);
+            default -> throw new IllegalArgumentException("Unsupported shape " + shapeType);
         };
     }
 
@@ -498,78 +595,134 @@ public final class LegacyPhysicsBackendRuntime implements PhysicsBackendRuntime 
     private static PhysicsJoint createLiveJoint(@Nonnull PhysicsSpace space,
         @Nonnull PhysicsBody bodyA,
         @Nonnull PhysicsBody bodyB,
-        @Nonnull BackendJointSpec spec) {
-        PhysicsJoint joint = switch (spec.type()) {
+        int jointTypeCode,
+        float anchorAX,
+        float anchorAY,
+        float anchorAZ,
+        float anchorBX,
+        float anchorBY,
+        float anchorBZ,
+        float axisX,
+        float axisY,
+        float axisZ,
+        float restLength,
+        float stiffness,
+        float damping,
+        float lowerLimit,
+        float upperLimit,
+        boolean motorEnabled,
+        float motorTargetVelocity,
+        float motorMaxForce) {
+        BackendJointType type = BackendRuntimeCodes.jointType(jointTypeCode);
+        PhysicsJoint joint = switch (type) {
             case FIXED -> space.createFixedJoint(bodyA,
                 bodyB,
-                spec.anchorAX(),
-                spec.anchorAY(),
-                spec.anchorAZ(),
-                spec.anchorBX(),
-                spec.anchorBY(),
-                spec.anchorBZ());
+                anchorAX,
+                anchorAY,
+                anchorAZ,
+                anchorBX,
+                anchorBY,
+                anchorBZ);
             case POINT -> space.createPointJoint(bodyA,
                 bodyB,
-                spec.anchorAX(),
-                spec.anchorAY(),
-                spec.anchorAZ(),
-                spec.anchorBX(),
-                spec.anchorBY(),
-                spec.anchorBZ());
+                anchorAX,
+                anchorAY,
+                anchorAZ,
+                anchorBX,
+                anchorBY,
+                anchorBZ);
             case HINGE -> space.createHingeJoint(bodyA,
                 bodyB,
-                spec.anchorAX(),
-                spec.anchorAY(),
-                spec.anchorAZ(),
-                spec.anchorBX(),
-                spec.anchorBY(),
-                spec.anchorBZ(),
-                spec.axisX(),
-                spec.axisY(),
-                spec.axisZ());
+                anchorAX,
+                anchorAY,
+                anchorAZ,
+                anchorBX,
+                anchorBY,
+                anchorBZ,
+                axisX,
+                axisY,
+                axisZ);
             case SLIDER -> space.createSliderJoint(bodyA,
                 bodyB,
-                spec.anchorAX(),
-                spec.anchorAY(),
-                spec.anchorAZ(),
-                spec.anchorBX(),
-                spec.anchorBY(),
-                spec.anchorBZ(),
-                spec.axisX(),
-                spec.axisY(),
-                spec.axisZ());
+                anchorAX,
+                anchorAY,
+                anchorAZ,
+                anchorBX,
+                anchorBY,
+                anchorBZ,
+                axisX,
+                axisY,
+                axisZ);
             case SPRING -> space.createSpringJoint(bodyA,
                 bodyB,
-                spec.anchorAX(),
-                spec.anchorAY(),
-                spec.anchorAZ(),
-                spec.anchorBX(),
-                spec.anchorBY(),
-                spec.anchorBZ(),
-                spec.restLength(),
-                spec.stiffness(),
-                spec.damping());
+                anchorAX,
+                anchorAY,
+                anchorAZ,
+                anchorBX,
+                anchorBY,
+                anchorBZ,
+                restLength,
+                stiffness,
+                damping);
         };
-        if (spec.type() == BackendJointType.HINGE || spec.type() == BackendJointType.SLIDER) {
-            joint.setLimits(spec.lowerLimit(), spec.upperLimit());
-            joint.setMotor(spec.motorTargetVelocity(), spec.motorMaxForce());
-            joint.setMotorEnabled(spec.motorEnabled());
+        if (type == BackendJointType.HINGE || type == BackendJointType.SLIDER) {
+            joint.setLimits(lowerLimit, upperLimit);
+            joint.setMotor(motorTargetVelocity, motorMaxForce);
+            joint.setMotorEnabled(motorEnabled);
         }
         return joint;
     }
 
-    @Nonnull
-    private static Optional<BackendRayHit> toBackendRayHit(@Nonnull SpaceState state,
-        @Nonnull PhysicsRayHit hit) {
+    private static boolean emitRayHit(@Nonnull SpaceState state,
+        @Nonnull PhysicsRayHit hit,
+        @Nonnull BackendRayHitSink sink) {
         Long bodyId = state.bodyIdsByBody.get(hit.body());
         if (bodyId == null) {
-            return Optional.empty();
+            return false;
         }
-        return Optional.of(new BackendRayHit(bodyId,
-            hit.point(),
-            hit.normal(),
+        Vector3f point = hit.point();
+        Vector3f normal = hit.normal();
+        sink.accept(bodyId,
+            point.x,
+            point.y,
+            point.z,
+            normal.x,
+            normal.y,
+            normal.z,
             hit.fraction(),
-            hit.distance()));
+            hit.distance());
+        return true;
+    }
+
+    private static void emitBodySnapshot(long bodyId,
+        @Nonnull PhysicsBodySnapshot snapshot,
+        @Nonnull BackendBodySnapshotSink sink) {
+        sink.accept(bodyId,
+            BackendRuntimeCodes.shapeTypeCode(snapshot.shapeType()),
+            BackendRuntimeCodes.bodyTypeCode(snapshot.bodyType()),
+            snapshot.positionX(),
+            snapshot.positionY(),
+            snapshot.positionZ(),
+            snapshot.rotationX(),
+            snapshot.rotationY(),
+            snapshot.rotationZ(),
+            snapshot.rotationW(),
+            snapshot.linearVelocityX(),
+            snapshot.linearVelocityY(),
+            snapshot.linearVelocityZ(),
+            snapshot.angularVelocityX(),
+            snapshot.angularVelocityY(),
+            snapshot.angularVelocityZ(),
+            snapshot.sleeping(),
+            snapshot.sensor(),
+            snapshot.centerOfMassOffsetY(),
+            snapshot.hasBoxHalfExtents(),
+            snapshot.boxHalfExtentX(),
+            snapshot.boxHalfExtentY(),
+            snapshot.boxHalfExtentZ(),
+            snapshot.sphereRadius(),
+            snapshot.halfHeight(),
+            BackendRuntimeCodes.axisCode(snapshot.shapeAxis()));
     }
 
     @Nonnull
