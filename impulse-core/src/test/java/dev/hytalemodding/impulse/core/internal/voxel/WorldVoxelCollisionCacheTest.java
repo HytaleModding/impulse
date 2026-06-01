@@ -174,7 +174,7 @@ class WorldVoxelCollisionCacheTest {
             0,
             0));
 
-        assertEquals(2, binding.runtime().bodyCount(binding.backendSpaceId()));
+        assertEquals(2, binding.runtime().bodyCount(binding.backendSpaceHandle().value()));
     }
 
     private static RigidBodyKey bodyId(long leastSignificantBits) {

@@ -188,7 +188,7 @@ public class GrabCommand extends AbstractAsyncPlayerCommand {
             if (registration == null || registration.kind() != PhysicsBodyKind.BODY) {
                 continue;
             }
-            candidates.add(new HitCandidate(registration.id(),
+            candidates.add(new HitCandidate(registration.bodyKey(),
                 registration.spaceId(),
                 hit.point(),
                 hit.fraction(),

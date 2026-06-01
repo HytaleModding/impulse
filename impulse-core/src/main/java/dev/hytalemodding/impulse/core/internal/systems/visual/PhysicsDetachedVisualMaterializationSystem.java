@@ -292,7 +292,7 @@ public class PhysicsDetachedVisualMaterializationSystem extends TickingSystem<En
         if (registration == null
             || registration.kind() != PhysicsBodyKind.BODY
             || !sameSpaceId(registration.spaceId(), target.spaceId())
-            || resource.hasBodyAttachments(registration.id())) {
+            || resource.hasBodyAttachments(registration.bodyKey())) {
             return null;
         }
 

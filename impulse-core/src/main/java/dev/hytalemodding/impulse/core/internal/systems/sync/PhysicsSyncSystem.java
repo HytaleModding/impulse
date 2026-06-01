@@ -150,7 +150,7 @@ public class PhysicsSyncSystem extends EntityTickingSystem<EntityStore> {
             return;
         }
 
-        PhysicsBodySnapshot snapshot = resource.getBodySnapshot(registration.id());
+        PhysicsBodySnapshot snapshot = resource.getBodySnapshot(registration.bodyKey());
         if (snapshot.isStatic()) {
             if (collector != null) {
                 collector.incrementSkippedStatic();
@@ -170,7 +170,7 @@ public class PhysicsSyncSystem extends EntityTickingSystem<EntityStore> {
         }
 
         boolean sleeping = snapshot.sleeping();
-        boolean controlled = resource.isBodyControlled(registration.id());
+        boolean controlled = resource.isBodyControlled(registration.bodyKey());
         boolean lowSpeed = false;
         if (!sleeping && snapshot.isDynamic() && !controlled) {
             snapshot.copyLinearVelocityTo(local.linearVelocity);
@@ -182,7 +182,7 @@ public class PhysicsSyncSystem extends EntityTickingSystem<EntityStore> {
         boolean rangeLimitedVisual = shouldCullVisualSync(settings, attachment, controlled);
         PhysicsSyncPolicy.SyncRangeTier rangeTier = PhysicsSyncPolicy.resolveRangeTier(
             settings,
-            resource.getBodyVisualInterestState(registration.id()),
+            resource.getBodyVisualInterestState(registration.bodyKey()),
             rangeLimitedVisual,
             controlled,
             playerInterests.get(),

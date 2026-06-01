@@ -198,13 +198,13 @@ public class PersistentPhysicsJointState {
 
     @Nonnull
     public static PersistentPhysicsJointState from(int spaceId,
-        @Nonnull RigidBodyKey bodyAId,
-        @Nonnull RigidBodyKey bodyBId,
+        @Nonnull RigidBodyKey bodyAKey,
+        @Nonnull RigidBodyKey bodyBKey,
         @Nonnull PhysicsJointRegistration joint) {
         PersistentPhysicsJointState state = new PersistentPhysicsJointState();
         state.spaceId = spaceId;
-        state.bodyAId = bodyAId.value();
-        state.bodyBId = bodyBId.value();
+        state.bodyAId = bodyAKey.value();
+        state.bodyBId = bodyBKey.value();
         state.type = toPersistentJointType(joint.type());
         state.anchorA.set(joint.anchorAX(), joint.anchorAY(), joint.anchorAZ());
         state.anchorB.set(joint.anchorBX(), joint.anchorBY(), joint.anchorBZ());
@@ -223,7 +223,7 @@ public class PersistentPhysicsJointState {
     }
 
     @Nullable
-    public RigidBodyKey getBodyAId() {
+    public RigidBodyKey getBodyAKey() {
         return bodyAId != null ? RigidBodyKey.of(bodyAId) : null;
     }
 
@@ -232,12 +232,12 @@ public class PersistentPhysicsJointState {
         return bodyAId;
     }
 
-    public void setBodyAId(@Nullable RigidBodyKey bodyAId) {
-        this.bodyAId = bodyAId != null ? bodyAId.value() : null;
+    public void setBodyAKey(@Nullable RigidBodyKey bodyAKey) {
+        this.bodyAId = bodyAKey != null ? bodyAKey.value() : null;
     }
 
     @Nullable
-    public RigidBodyKey getBodyBId() {
+    public RigidBodyKey getBodyBKey() {
         return bodyBId != null ? RigidBodyKey.of(bodyBId) : null;
     }
 
@@ -246,8 +246,8 @@ public class PersistentPhysicsJointState {
         return bodyBId;
     }
 
-    public void setBodyBId(@Nullable RigidBodyKey bodyBId) {
-        this.bodyBId = bodyBId != null ? bodyBId.value() : null;
+    public void setBodyBKey(@Nullable RigidBodyKey bodyBKey) {
+        this.bodyBId = bodyBKey != null ? bodyBKey.value() : null;
     }
 
     public void setAxis(@Nullable Vector3f axis) {

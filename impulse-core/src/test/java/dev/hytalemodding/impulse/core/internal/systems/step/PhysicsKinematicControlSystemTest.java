@@ -11,7 +11,6 @@ import dev.hytalemodding.impulse.api.PhysicsBody;
 import dev.hytalemodding.impulse.api.PhysicsJoint;
 import dev.hytalemodding.impulse.api.PhysicsSpace;
 import dev.hytalemodding.impulse.api.testsupport.FakePhysicsBackend;
-import dev.hytalemodding.impulse.core.internal.control.PhysicsControlJointResolver;
 import dev.hytalemodding.impulse.core.internal.testsupport.LegacyLiveHandleTestResource;
 import dev.hytalemodding.impulse.core.internal.resources.owner.TestPhysicsOwnerLane;
 import dev.hytalemodding.impulse.core.internal.resources.owner.PhysicsOwnerSnapshot;

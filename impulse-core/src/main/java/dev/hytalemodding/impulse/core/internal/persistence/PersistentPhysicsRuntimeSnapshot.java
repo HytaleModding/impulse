@@ -55,7 +55,7 @@ public final class PersistentPhysicsRuntimeSnapshot {
         for (PhysicsBodyRegistration registration : runtime.getBodyRegistrations()) {
             if (registration.persistenceMode() == PhysicsBodyPersistenceMode.PERSISTENT) {
                 bodies.add(PersistentPhysicsBodyState.from(registration,
-                    runtime.getBodySnapshot(registration.id())));
+                    runtime.getBodySnapshot(registration.bodyKey())));
             }
         }
         for (PhysicsSpaceBinding space : runtime.iterateSpaceBindings()) {

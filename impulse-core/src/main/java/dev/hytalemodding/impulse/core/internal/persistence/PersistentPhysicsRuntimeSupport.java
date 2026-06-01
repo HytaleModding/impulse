@@ -2,6 +2,7 @@ package dev.hytalemodding.impulse.core.internal.persistence;
 
 import dev.hytalemodding.impulse.api.PhysicsJointType;
 import dev.hytalemodding.impulse.api.runtime.BackendRuntimeCodes;
+import dev.hytalemodding.impulse.core.internal.resources.BackendJointHandle;
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsSpaceBinding;
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsWorldRuntimeResource;
 import dev.hytalemodding.impulse.core.internal.resources.body.PhysicsBodyRegistration;
@@ -26,10 +27,10 @@ public final class PersistentPhysicsRuntimeSupport {
 
     @Nonnull
     public static String jointKey(int spaceId,
-        @Nonnull RigidBodyKey bodyAId,
-        @Nonnull RigidBodyKey bodyBId,
+        @Nonnull RigidBodyKey bodyAKey,
+        @Nonnull RigidBodyKey bodyBKey,
         @Nonnull PhysicsJointRegistration joint) {
-        return PersistentPhysicsJointState.from(spaceId, bodyAId, bodyBId, joint).key();
+        return PersistentPhysicsJointState.from(spaceId, bodyAKey, bodyBKey, joint).key();
     }
 
     @Nonnull
@@ -46,10 +47,11 @@ public final class PersistentPhysicsRuntimeSupport {
         Vector3f axis = state.getType() == PhysicsJointType.HINGE || state.getType() == PhysicsJointType.SLIDER
             ? requireAxis(state)
             : new Vector3f();
-        long backendJointId = space.runtime().createJoint(space.backendSpaceId(),
+        BackendJointHandle backendJointHandle = new BackendJointHandle(space.runtime().createJoint(
+            space.backendSpaceHandle().value(),
             toRuntimeJointTypeCode(state.getType()),
-            bodyA.backendBodyId(),
-            bodyB.backendBodyId(),
+            bodyA.backendBodyHandle().value(),
+            bodyB.backendBodyHandle().value(),
             anchorA.x,
             anchorA.y,
             anchorA.z,
@@ -66,11 +68,11 @@ public final class PersistentPhysicsRuntimeSupport {
             state.getUpperLimit(),
             state.isMotorEnabled(),
             state.getMotorTargetVelocity(),
-            state.getMotorMaxForce());
+            state.getMotorMaxForce()));
         JointKey jointKey = JointKey.random();
         runtime.addJointOnOwner(jointKey,
             space.spaceId(),
-            backendJointId,
+            backendJointHandle,
             bodyAKey,
             bodyBKey,
             type,

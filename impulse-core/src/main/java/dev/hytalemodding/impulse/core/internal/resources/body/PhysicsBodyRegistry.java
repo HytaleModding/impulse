@@ -1,6 +1,7 @@
 package dev.hytalemodding.impulse.core.internal.resources.body;
 
 import dev.hytalemodding.impulse.api.SpaceId;
+import dev.hytalemodding.impulse.core.internal.resources.BackendBodyHandle;
 import dev.hytalemodding.impulse.core.plugin.body.RigidBodyKey;
 import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyKind;
 import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyRegistrationView;
@@ -44,40 +45,40 @@ public final class PhysicsBodyRegistry {
 
     @Nonnull
     public PhysicsBodyRegistration registerBody(@Nonnull RigidBodyKey bodyKey,
-        long backendBodyId,
+        @Nonnull BackendBodyHandle backendBodyHandle,
         @Nonnull SpaceId spaceId,
         @Nonnull PhysicsBodyKind kind,
         @Nonnull PhysicsBodyPersistenceMode persistenceMode) {
-        validateRegisterable(bodyKey, backendBodyId, spaceId);
+        validateRegisterable(bodyKey, backendBodyHandle, spaceId);
         PhysicsBodyRegistration existingRegistration = registrationsByKey.get(bodyKey);
         if (existingRegistration != null) {
             removeFromSpace(existingRegistration);
             removeBackendIndex(existingRegistration);
         }
         PhysicsBodyRegistration registration =
-            new PhysicsBodyRegistration(bodyKey, backendBodyId, spaceId, kind, persistenceMode);
+            new PhysicsBodyRegistration(bodyKey, backendBodyHandle, spaceId, kind, persistenceMode);
         registrationsByKey.put(bodyKey, registration);
         registrationViewsByKey.put(bodyKey,
             new PhysicsBodyRegistrationView(bodyKey, spaceId, kind, persistenceMode));
         bodyKeysByBackendId
             .computeIfAbsent(spaceId.value(), ignored -> new Long2ObjectOpenHashMap<>())
-            .put(backendBodyId, bodyKey);
+            .put(backendBodyHandle.value(), bodyKey);
         addToSpace(registration);
         return registration;
     }
 
     public void validateRegisterable(@Nonnull RigidBodyKey bodyKey,
-        long backendBodyId,
+        @Nonnull BackendBodyHandle backendBodyHandle,
         @Nonnull SpaceId spaceId) {
         Long2ObjectOpenHashMap<RigidBodyKey> bodyKeys =
             bodyKeysByBackendId.get(spaceId.value());
-        RigidBodyKey existingKey = bodyKeys != null ? bodyKeys.get(backendBodyId) : null;
+        RigidBodyKey existingKey = bodyKeys != null ? bodyKeys.get(backendBodyHandle.value()) : null;
         if (existingKey != null && !existingKey.equals(bodyKey)) {
             throw new IllegalArgumentException("Physics body is already registered as " + existingKey);
         }
         PhysicsBodyRegistration existingRegistration = registrationsByKey.get(bodyKey);
         if (existingRegistration != null
-            && (existingRegistration.backendBodyId() != backendBodyId
+            && (!existingRegistration.backendBodyHandle().equals(backendBodyHandle)
                 || !existingRegistration.spaceId().equals(spaceId))) {
             throw new IllegalArgumentException("Physics body key=" + bodyKey
                 + " is already registered to another backend body");
@@ -122,7 +123,7 @@ public final class PhysicsBodyRegistry {
     public Collection<PhysicsBodyRegistrationView> getRegistrationViews() {
         List<PhysicsBodyRegistrationView> views = new ArrayList<>();
         for (PhysicsBodyRegistration registration : registrationsByKey.values()) {
-            views.add(registrationViewsByKey.get(registration.id()));
+            views.add(registrationViewsByKey.get(registration.bodyKey()));
         }
         return views;
     }
@@ -148,7 +149,7 @@ public final class PhysicsBodyRegistry {
         List<PhysicsBodyRegistrationView> views = new ArrayList<>();
         for (PhysicsBodyRegistration registration : registrationsByKey.values()) {
             if (registration.kind() == kind) {
-                views.add(registrationViewsByKey.get(registration.id()));
+                views.add(registrationViewsByKey.get(registration.bodyKey()));
             }
         }
         return views;
@@ -159,6 +160,12 @@ public final class PhysicsBodyRegistry {
         Long2ObjectOpenHashMap<RigidBodyKey> bodyKeys =
             bodyKeysByBackendId.get(spaceId.value());
         return bodyKeys != null ? bodyKeys.get(backendBodyId) : null;
+    }
+
+    @Nullable
+    public RigidBodyKey getBodyKey(@Nonnull SpaceId spaceId,
+        @Nonnull BackendBodyHandle backendBodyHandle) {
+        return getBodyKey(spaceId, backendBodyHandle.value());
     }
 
     @Nonnull
@@ -268,7 +275,7 @@ public final class PhysicsBodyRegistry {
     public void publishLiveRegistrationViews() {
         long generation = nextPublishedLivenessGeneration();
         for (PhysicsBodyRegistration registration : registrationsByKey.values()) {
-            publishRegistrationView(registration.id(),
+            publishRegistrationView(registration.bodyKey(),
                 registration.spaceId(),
                 registration.kind(),
                 registration.persistenceMode(),
@@ -307,7 +314,7 @@ public final class PhysicsBodyRegistry {
         if (bodyKeys == null) {
             return;
         }
-        bodyKeys.remove(registration.backendBodyId());
+        bodyKeys.remove(registration.backendBodyHandle().value());
         if (bodyKeys.isEmpty()) {
             bodyKeysByBackendId.remove(registration.spaceId().value());
         }

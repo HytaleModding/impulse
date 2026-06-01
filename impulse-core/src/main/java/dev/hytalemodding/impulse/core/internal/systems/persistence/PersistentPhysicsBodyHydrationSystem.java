@@ -11,6 +11,7 @@ import dev.hytalemodding.impulse.api.SpaceId;
 import dev.hytalemodding.impulse.core.ImpulsePlugin;
 import dev.hytalemodding.impulse.core.internal.persistence.PersistentPhysicsBodyState;
 import dev.hytalemodding.impulse.core.internal.persistence.PersistentPhysicsWorldResource;
+import dev.hytalemodding.impulse.core.internal.resources.BackendBodyHandle;
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsSpaceBinding;
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsWorldRuntimeResource;
 import dev.hytalemodding.impulse.core.internal.resources.owner.PhysicsOwnerBridge;
@@ -90,11 +91,11 @@ public class PersistentPhysicsBodyHydrationSystem extends TickingSystem<EntitySt
             return RestoreBodyResult.MISSING_SPACE;
         }
 
-        long backendBodyId = state.createBackendBody(space);
-        state.applyToBody(space, backendBodyId);
+        BackendBodyHandle backendBodyHandle = state.createBackendBody(space);
+        state.applyToBody(space, backendBodyHandle);
         runtime.addBodyOnOwner(bodyKey,
             space.spaceId(),
-            backendBodyId,
+            backendBodyHandle,
             PhysicsBodyKind.BODY,
             PhysicsBodyPersistenceMode.PERSISTENT);
         return RestoreBodyResult.RESTORED;

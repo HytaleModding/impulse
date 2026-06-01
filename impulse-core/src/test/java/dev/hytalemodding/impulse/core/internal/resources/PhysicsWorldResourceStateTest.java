@@ -29,7 +29,6 @@ import dev.hytalemodding.impulse.core.plugin.body.RigidBodyKey;
 import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyKind;
 import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyPersistenceMode;
 import dev.hytalemodding.impulse.core.plugin.collision.WorldCollisionMode;
-import dev.hytalemodding.impulse.core.plugin.simulation.PhysicsOwnerAccess;
 import dev.hytalemodding.impulse.core.plugin.resources.PhysicsMutationHandle;
 import dev.hytalemodding.impulse.core.plugin.events.PhysicsCommandBatchEvent;
 import dev.hytalemodding.impulse.core.plugin.events.PhysicsEventFrame;
@@ -573,93 +572,11 @@ class PhysicsWorldResourceStateTest {
             false);
         List<RigidBodyKey> visitedBodies = new ArrayList<>();
 
-        published.forEachBodyCursor(body -> visitedBodies.add(body.bodyId()));
+        published.forEachBodyCursor(body -> visitedBodies.add(body.bodyKey()));
 
         assertEquals(1, published.bodyCount());
         assertEquals(List.of(bodyKey), visitedBodies);
         assertNotNull(published.spaces());
-    }
-
-    @Test
-    void liveOwnerTransactionExecutesAsOpaqueAdvancedEscapeHatch() {
-        FakePhysicsBackend backend =
-            new FakePhysicsBackend("test:simulation-owner-transaction-" + BACKEND_COUNTER.incrementAndGet());
-        Impulse.registerBackend(backend);
-
-        LegacyLiveHandleTestResource resource = new LegacyLiveHandleTestResource();
-        PhysicsSpace space = resource.createLiveSpace(backend.getId(),
-            "test-world",
-            PhysicsSpaceSettings.defaults());
-        RigidBodyKey bodyKey = RigidBodyKey.random();
-
-        var results = resource.submitCommands(105L, commands -> commands.liveOwnerTransaction(
-                "register diagnostic body",
-                access -> {
-                    PhysicsBody body = access.requireSpace(space.id())
-                        .createSphere(0.25f, 1.0f);
-                    access.addBody(space.id(),
-                        body,
-                        PhysicsBodyKind.TEMPORARY,
-                        PhysicsBodyPersistenceMode.RUNTIME_ONLY);
-                }))
-            .completion()
-            .toCompletableFuture()
-            .join();
-
-        assertEquals(1, results.size());
-        assertEquals(PhysicsCommandResult.Status.REJECTED, results.getFirst().status());
-        assertEquals(1L, results.getFirst().commandSequence());
-        assertTrue(results.getFirst().message().contains("id runtime"));
-        assertEquals(0, space.bodyCount());
-    }
-
-    @Test
-    void liveOwnerTransactionAccessCannotBeRetainedAfterCallback() {
-        FakePhysicsBackend backend =
-            new FakePhysicsBackend("test:simulation-owner-access-scope-" + BACKEND_COUNTER.incrementAndGet());
-        Impulse.registerBackend(backend);
-
-        LegacyLiveHandleTestResource resource = new LegacyLiveHandleTestResource();
-        PhysicsSpace space = resource.createLiveSpace(backend.getId(),
-            "test-world",
-            PhysicsSpaceSettings.defaults());
-        AtomicReference<PhysicsOwnerAccess> captured = new AtomicReference<>();
-
-        var results = resource.submitCommands(106L, commands -> commands.liveOwnerTransaction(
-                "capture owner access",
-                access -> {
-                    captured.set(access);
-                    assertSame(space, access.requireSpace(space.id()));
-                }))
-            .completion()
-            .toCompletableFuture()
-            .join();
-
-        assertEquals(PhysicsCommandResult.Status.REJECTED, results.getFirst().status());
-        assertNull(captured.get());
-        assertTrue(results.getFirst().message().contains("id runtime"));
-    }
-
-    @Test
-    void liveOwnerTransactionFailureIsReportedAsRejectedOpaqueCommand() {
-        LegacyLiveHandleTestResource resource = new LegacyLiveHandleTestResource();
-
-        var results = resource.submitCommands(107L, commands -> commands.liveOwnerTransaction(
-                "failing diagnostic body mutation",
-                access -> {
-                    throw new IllegalStateException("diagnostic failure");
-                }))
-            .completion()
-            .toCompletableFuture()
-            .join();
-
-        assertEquals(1, results.size());
-        assertEquals(PhysicsCommandResult.Status.REJECTED, results.getFirst().status());
-        assertEquals(1L, results.getFirst().commandSequence());
-        assertTrue(results.getFirst().commandBatchSequence() > 0L);
-        assertEquals(107L, results.getFirst().submittedServerTick());
-        assertEquals(0L, results.getFirst().includedSnapshotFrameEpoch());
-        assertTrue(results.getFirst().message().contains("id runtime"));
     }
 
     @Test
@@ -1039,7 +956,7 @@ class PhysicsWorldResourceStateTest {
             new Vector3f(),
             8.0f,
             entry -> {
-                assertEquals(nearId, entry.bodyId());
+                assertEquals(nearId, entry.bodyKey());
                 nearMatches.incrementAndGet();
             });
         assertEquals(1, candidates);
@@ -1052,7 +969,7 @@ class PhysicsWorldResourceStateTest {
         assertEquals(1, resource.getBodySnapshotCount(space.id()));
         AtomicInteger remainingSnapshots = new AtomicInteger();
         resource.forEachBodySnapshot(space.id(), entry -> {
-            assertEquals(nearId, entry.bodyId());
+            assertEquals(nearId, entry.bodyKey());
             remainingSnapshots.incrementAndGet();
         });
         assertEquals(1, remainingSnapshots.get());
@@ -1086,7 +1003,7 @@ class PhysicsWorldResourceStateTest {
 
         AtomicInteger snapshots = new AtomicInteger();
         resource.forEachBodySnapshot(space.id(), entry -> {
-            assertEquals(registeredId, entry.bodyId());
+            assertEquals(registeredId, entry.bodyKey());
             assertEquals(PhysicsBodyKind.BODY, entry.kind());
             assertEquals(PhysicsBodyPersistenceMode.PERSISTENT, entry.persistenceMode());
             snapshots.incrementAndGet();

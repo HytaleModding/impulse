@@ -18,6 +18,7 @@ import dev.hytalemodding.impulse.api.PhysicsSpace;
 import dev.hytalemodding.impulse.api.ShapeType;
 import dev.hytalemodding.impulse.api.SpaceId;
 import dev.hytalemodding.impulse.api.testsupport.FakePhysicsBackend;
+import dev.hytalemodding.impulse.core.internal.resources.BackendBodyHandle;
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsSpaceBinding;
 import dev.hytalemodding.impulse.core.internal.resources.body.PhysicsBodySnapshots;
 import dev.hytalemodding.impulse.core.internal.testsupport.LegacyLiveHandleTestResource;
@@ -284,9 +285,9 @@ class PersistentPhysicsCodecValidationTest {
         assertEquals(1, decoded.getBodyCount());
         PersistentPhysicsBodyState decodedBody = decoded.getBodies()[0];
         assertEquals(12.0f, decodedBody.getPosition().y, 0.0001f);
-        long restoredBodyId = decodedBody.createBackendBody(restore.binding());
-        decodedBody.applyToBody(restore.binding(), restoredBodyId);
-        PhysicsBodySnapshot restored = PhysicsBodySnapshots.read(restore.binding(), restoredBodyId);
+        BackendBodyHandle restoredBodyHandle = decodedBody.createBackendBody(restore.binding());
+        decodedBody.applyToBody(restore.binding(), restoredBodyHandle);
+        PhysicsBodySnapshot restored = PhysicsBodySnapshots.read(restore.binding(), restoredBodyHandle.value());
 
         Assertions.assertNotNull(restored);
         assertEquals(ShapeType.PLANE, restored.shapeType());
@@ -423,7 +424,7 @@ class PersistentPhysicsCodecValidationTest {
         RigidBodyKey bodyId = RigidBodyKey.of(UUID.fromString("00000000-0000-0000-0000-000000000001"));
         PhysicsBodyRegistration registration = new PhysicsBodyRegistration(
             bodyId,
-            1L,
+            new BackendBodyHandle(1L),
             new SpaceId(1),
             PhysicsBodyKind.BODY,
             PhysicsBodyPersistenceMode.PERSISTENT);
@@ -434,7 +435,7 @@ class PersistentPhysicsCodecValidationTest {
         RigidBodyKey bodyId = RigidBodyKey.of(UUID.fromString("00000000-0000-0000-0000-000000000003"));
         PhysicsBodyRegistration registration = new PhysicsBodyRegistration(
             bodyId,
-            1L,
+            new BackendBodyHandle(1L),
             new SpaceId(1),
             PhysicsBodyKind.BODY,
             PhysicsBodyPersistenceMode.PERSISTENT);
@@ -497,8 +498,8 @@ class PersistentPhysicsCodecValidationTest {
     private static PersistentPhysicsJointState persistentJointState(int spaceId) {
         PersistentPhysicsJointState joint = new PersistentPhysicsJointState();
         joint.setSpaceId(spaceId);
-        joint.setBodyAId(RigidBodyKey.of(UUID.fromString("00000000-0000-0000-0000-000000000001")));
-        joint.setBodyBId(RigidBodyKey.of(UUID.fromString("00000000-0000-0000-0000-000000000002")));
+        joint.setBodyAKey(RigidBodyKey.of(UUID.fromString("00000000-0000-0000-0000-000000000001")));
+        joint.setBodyBKey(RigidBodyKey.of(UUID.fromString("00000000-0000-0000-0000-000000000002")));
         joint.setType(PhysicsJointType.FIXED);
         return joint;
     }

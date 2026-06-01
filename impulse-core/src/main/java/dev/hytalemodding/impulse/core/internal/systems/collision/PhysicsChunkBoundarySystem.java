@@ -75,7 +75,7 @@ public class PhysicsChunkBoundarySystem extends TickingSystem<EntityStore> {
             return;
         }
 
-        RigidBodyKey bodyKey = registration.id();
+        RigidBodyKey bodyKey = registration.bodyKey();
         PhysicsBodySnapshot snapshot = resource.getBodySnapshot(bodyKey);
         if (snapshot.isStatic()) {
             return;
@@ -139,19 +139,19 @@ public class PhysicsChunkBoundarySystem extends TickingSystem<EntityStore> {
                 return;
             }
             space.runtime()
-                .setBodyType(space.backendSpaceId(),
-                    registration.backendBodyId(),
+                .setBodyType(space.backendSpaceHandle().value(),
+                    registration.backendBodyHandle().value(),
                     dev.hytalemodding.impulse.api.runtime.BackendRuntimeCodes.bodyTypeCode(
                         pauseState.getOriginalBodyType()));
-            space.runtime().setBodyVelocity(space.backendSpaceId(),
-                registration.backendBodyId(),
+            space.runtime().setBodyVelocity(space.backendSpaceHandle().value(),
+                registration.backendBodyHandle().value(),
                 pauseState.getLinearVelocity().x,
                 pauseState.getLinearVelocity().y,
                 pauseState.getLinearVelocity().z,
                 pauseState.getAngularVelocity().x,
                 pauseState.getAngularVelocity().y,
                 pauseState.getAngularVelocity().z);
-            space.runtime().activateBody(space.backendSpaceId(), registration.backendBodyId());
+            space.runtime().activateBody(space.backendSpaceHandle().value(), registration.backendBodyHandle().value());
             resource.clearChunkBoundaryPauseState(bodyKey);
             recordSafePose(bodyKey, snapshot, resource);
         });
@@ -176,8 +176,8 @@ public class PhysicsChunkBoundarySystem extends TickingSystem<EntityStore> {
             snapshot);
 
         if (safeState != null) {
-            space.runtime().setBodyTransform(space.backendSpaceId(),
-                registration.backendBodyId(),
+            space.runtime().setBodyTransform(space.backendSpaceHandle().value(),
+                registration.backendBodyHandle().value(),
                 safeState.getPosition().x,
                 safeState.getPosition().y,
                 safeState.getPosition().z,
@@ -188,12 +188,12 @@ public class PhysicsChunkBoundarySystem extends TickingSystem<EntityStore> {
         }
 
         if (snapshot.bodyType() != PhysicsBodyType.KINEMATIC) {
-            space.runtime().setBodyType(space.backendSpaceId(),
-                registration.backendBodyId(),
+            space.runtime().setBodyType(space.backendSpaceHandle().value(),
+                registration.backendBodyHandle().value(),
                 dev.hytalemodding.impulse.api.runtime.BackendRuntimeCodes.bodyTypeCode(PhysicsBodyType.KINEMATIC));
         }
-        space.runtime().setBodyVelocity(space.backendSpaceId(),
-            registration.backendBodyId(),
+        space.runtime().setBodyVelocity(space.backendSpaceHandle().value(),
+            registration.backendBodyHandle().value(),
             0.0f,
             0.0f,
             0.0f,

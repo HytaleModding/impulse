@@ -16,8 +16,4 @@ public record PhysicsBodySnapshotEntry(@Nonnull RigidBodyKey bodyKey,
     @Nonnull PhysicsBodyKind kind,
     @Nonnull PhysicsBodyPersistenceMode persistenceMode) {
 
-    @Nonnull
-    public RigidBodyKey bodyId() {
-        return bodyKey;
-    }
 }

@@ -5,7 +5,6 @@ import dev.hytalemodding.impulse.api.SpaceId;
 import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyKind;
 import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyPersistenceMode;
 import dev.hytalemodding.impulse.core.plugin.body.RigidBodyKey;
-import dev.hytalemodding.impulse.core.plugin.simulation.PhysicsOwnerTransaction;
 import dev.hytalemodding.impulse.core.plugin.joint.JointKey;
 import dev.hytalemodding.impulse.core.plugin.simulation.JointCommandRecorder;
 import dev.hytalemodding.impulse.core.plugin.simulation.JointType;
@@ -337,14 +336,6 @@ public final class MutablePhysicsCommandContext implements PhysicsCommandContext
     }
 
     @Nonnull
-    @Override
-    public PhysicsCommandContext liveOwnerTransaction(@Nonnull String operation,
-        @Nonnull PhysicsOwnerTransaction transaction) {
-        recordLiveOwnerTransaction(operation, transaction);
-        return this;
-    }
-
-    @Nonnull
     public RecordedPhysicsCommandBatch freezeInternal(long commandBatchSequence) {
         if (frozen) {
             throw new IllegalStateException("Physics command context is already frozen");
@@ -550,12 +541,6 @@ public final class MutablePhysicsCommandContext implements PhysicsCommandContext
         @Nonnull RigidBodyKey bodyB) {
         assertMutable();
         operations.addDestroyJointBetween(preferredJointKey, spaceId, bodyA, bodyB);
-    }
-
-    void recordLiveOwnerTransaction(@Nonnull String operation,
-        @Nonnull PhysicsOwnerTransaction transaction) {
-        assertMutable();
-        operations.addLiveOwnerTransaction(operation, transaction);
     }
 
     private void assertMutable() {

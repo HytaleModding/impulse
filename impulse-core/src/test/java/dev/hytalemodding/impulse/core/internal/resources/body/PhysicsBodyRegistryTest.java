@@ -5,12 +5,14 @@ import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
 import dev.hytalemodding.impulse.api.SpaceId;
+import dev.hytalemodding.impulse.core.internal.resources.BackendBodyHandle;
 import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyKind;
 import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyPersistenceMode;
 import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyRegistrationView;
 import dev.hytalemodding.impulse.core.plugin.body.RigidBodyKey;
 import java.util.ArrayList;
 import java.util.List;
+import javax.annotation.Nonnull;
 import org.junit.jupiter.api.Test;
 
 class PhysicsBodyRegistryTest {
@@ -24,19 +26,19 @@ class PhysicsBodyRegistryTest {
         PhysicsBodyRegistry registry = new PhysicsBodyRegistry();
 
         registry.registerBody(firstId,
-            11L,
+            handle(11L),
             firstSpace,
             PhysicsBodyKind.BODY,
             PhysicsBodyPersistenceMode.RUNTIME_ONLY);
         registry.registerBody(secondId,
-            12L,
+            handle(12L),
             secondSpace,
             PhysicsBodyKind.TEMPORARY,
             PhysicsBodyPersistenceMode.RUNTIME_ONLY);
 
         List<RigidBodyKey> firstSpaceIds = new ArrayList<>();
         registry.forEachRegistration(firstSpace,
-            registration -> firstSpaceIds.add(registration.id()));
+            registration -> firstSpaceIds.add(registration.bodyKey()));
 
         assertEquals(List.of(firstId), firstSpaceIds);
         assertEquals(1, registry.getRegistrationCount(firstSpace));
@@ -55,13 +57,13 @@ class PhysicsBodyRegistryTest {
         RigidBodyKey bodyId = RigidBodyKey.of(0L, 3L);
         PhysicsBodyRegistry registry = new PhysicsBodyRegistry();
         registry.registerBody(bodyId,
-            21L,
+            handle(21L),
             firstSpace,
             PhysicsBodyKind.BODY,
             PhysicsBodyPersistenceMode.RUNTIME_ONLY);
 
         assertThrows(IllegalArgumentException.class, () -> registry.registerBody(bodyId,
-            21L,
+            handle(21L),
             secondSpace,
             PhysicsBodyKind.BODY,
             PhysicsBodyPersistenceMode.RUNTIME_ONLY));
@@ -76,7 +78,7 @@ class PhysicsBodyRegistryTest {
         RigidBodyKey bodyId = RigidBodyKey.of(0L, 4L);
         PhysicsBodyRegistry registry = new PhysicsBodyRegistry();
         registry.registerBody(bodyId,
-            31L,
+            handle(31L),
             space,
             PhysicsBodyKind.BODY,
             PhysicsBodyPersistenceMode.RUNTIME_ONLY);
@@ -89,5 +91,11 @@ class PhysicsBodyRegistryTest {
 
         assertSame(first, second);
         assertSame(first, fromCollection);
+        assertEquals(bodyId, first.bodyKey());
+    }
+
+    @Nonnull
+    private static BackendBodyHandle handle(long value) {
+        return new BackendBodyHandle(value);
     }
 }

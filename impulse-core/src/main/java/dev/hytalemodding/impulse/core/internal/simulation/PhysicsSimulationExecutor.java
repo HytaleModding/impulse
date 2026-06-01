@@ -6,6 +6,8 @@ import dev.hytalemodding.impulse.api.PhysicsBodyType;
 import dev.hytalemodding.impulse.api.ShapeType;
 import dev.hytalemodding.impulse.api.SpaceId;
 import dev.hytalemodding.impulse.api.runtime.BackendRuntimeCodes;
+import dev.hytalemodding.impulse.core.internal.resources.BackendBodyHandle;
+import dev.hytalemodding.impulse.core.internal.resources.BackendJointHandle;
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsSpaceBinding;
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsWorldRuntimeResource;
 import dev.hytalemodding.impulse.core.internal.resources.body.PhysicsBodyRegistration;
@@ -193,11 +195,6 @@ public final class PhysicsSimulationExecutor implements PhysicsCommandDispatcher
                 operations.objectAt(index, 1, SpaceId.class),
                 operations.objectAt(index, 2, RigidBodyKey.class),
                 operations.objectAt(index, 3, RigidBodyKey.class));
-            case PhysicsCommandOperations.LIVE_OWNER_TRANSACTION -> liveOwnerTransaction(
-                operations.objectAt(index, 0, String.class),
-                operations.objectAt(index,
-                    1,
-                    dev.hytalemodding.impulse.core.plugin.simulation.PhysicsOwnerTransaction.class));
             default -> throw new IllegalArgumentException("Unsupported physics command opcode "
                 + operations.opcode(index));
         }
@@ -388,58 +385,60 @@ public final class PhysicsSimulationExecutor implements PhysicsCommandDispatcher
         @Nonnull RigidBodySpawnSettings settings,
         @Nonnull PhysicsBodyKind kind,
         @Nonnull PhysicsBodyPersistenceMode persistenceMode) {
-        long backendBodyId = createRuntimeBody(space,
+        BackendBodyHandle backendBodyHandle = createRuntimeBody(space,
             shape,
             mass,
             bodyType,
             positionX,
             positionY,
             positionZ);
-        applySpawnSettings(space, backendBodyId, settings);
+        applySpawnSettings(space, backendBodyHandle, settings);
         runtime.addBodyOnOwner(bodyKey,
             spaceId,
-            backendBodyId,
+            backendBodyHandle,
             kind,
             persistenceMode);
     }
 
     private void applySpawnSettings(@Nonnull PhysicsSpaceBinding space,
-        long backendBodyId,
+        @Nonnull BackendBodyHandle backendBodyHandle,
         @Nonnull RigidBodySpawnSettings settings) {
+        long backendBodyId = backendBodyHandle.value();
         if (settings.hasFriction()) {
-            space.runtime().setBodyFriction(space.backendSpaceId(), backendBodyId, settings.friction());
+            space.runtime().setBodyFriction(space.backendSpaceHandle().value(), backendBodyId, settings.friction());
         }
         if (settings.hasRestitution()) {
-            space.runtime().setBodyRestitution(space.backendSpaceId(), backendBodyId, settings.restitution());
+            space.runtime().setBodyRestitution(space.backendSpaceHandle().value(), backendBodyId, settings.restitution());
         }
         if (settings.hasLinearDamping()) {
-            space.runtime().setBodyDamping(space.backendSpaceId(),
+            space.runtime().setBodyDamping(space.backendSpaceHandle().value(),
                 backendBodyId,
                 settings.linearDamping(),
                 settings.hasAngularDamping() ? settings.angularDamping() : 0.0f);
         } else if (settings.hasAngularDamping()) {
-            space.runtime().setBodyDamping(space.backendSpaceId(), backendBodyId, 0.0f, settings.angularDamping());
+            space.runtime().setBodyDamping(space.backendSpaceHandle().value(), backendBodyId, 0.0f, settings.angularDamping());
         }
         if (settings.hasCollisionFilter()) {
             space.runtime()
-                .setBodyCollisionFilter(space.backendSpaceId(),
+                .setBodyCollisionFilter(space.backendSpaceHandle().value(),
                     backendBodyId,
                     settings.collisionGroup(),
                     settings.collisionMask());
         }
         if (settings.hasSensor()) {
-            space.runtime().setBodySensor(space.backendSpaceId(), backendBodyId, settings.sensor());
+            space.runtime().setBodySensor(space.backendSpaceHandle().value(), backendBodyId, settings.sensor());
         }
     }
 
-    private long createRuntimeBody(@Nonnull PhysicsSpaceBinding space,
+    @Nonnull
+    private BackendBodyHandle createRuntimeBody(@Nonnull PhysicsSpaceBinding space,
         @Nonnull PhysicsShapeSpec shape,
         float mass,
         @Nonnull PhysicsBodyType bodyType,
         float positionX,
         float positionY,
         float positionZ) {
-        return space.runtime().createBody(space.backendSpaceId(),
+        long backendBodyId = space.runtime().createBody(space.backendSpaceHandle().value(),
             BackendRuntimeCodes.shapeTypeCode(shape.type()),
             shape.halfExtentX(),
             shape.halfExtentY(),
@@ -457,6 +456,7 @@ public final class PhysicsSimulationExecutor implements PhysicsCommandDispatcher
             0.0f,
             0.0f,
             1.0f);
+        return new BackendBodyHandle(backendBodyId);
     }
 
     @Override
@@ -470,7 +470,7 @@ public final class PhysicsSimulationExecutor implements PhysicsCommandDispatcher
         float y,
         float z) {
         PhysicsSpaceBinding space = requireSpace(spaceId);
-        space.runtime().setGravity(space.backendSpaceId(), x, y, z);
+        space.runtime().setGravity(space.backendSpaceHandle().value(), x, y, z);
     }
 
     @Override
@@ -485,8 +485,8 @@ public final class PhysicsSimulationExecutor implements PhysicsCommandDispatcher
         boolean activate) {
         PhysicsBodyRegistration registration = requireBodyRegistration(bodyKey);
         PhysicsSpaceBinding space = requireSpace(registration.spaceId());
-        space.runtime().setBodyTransform(space.backendSpaceId(),
-            registration.backendBodyId(),
+        space.runtime().setBodyTransform(space.backendSpaceHandle().value(),
+            registration.backendBodyHandle().value(),
             positionX,
             positionY,
             positionZ,
@@ -495,7 +495,7 @@ public final class PhysicsSimulationExecutor implements PhysicsCommandDispatcher
             rotationZ,
             rotationW);
         if (activate) {
-            space.runtime().activateBody(space.backendSpaceId(), registration.backendBodyId());
+            space.runtime().activateBody(space.backendSpaceHandle().value(), registration.backendBodyHandle().value());
         }
     }
 
@@ -507,13 +507,13 @@ public final class PhysicsSimulationExecutor implements PhysicsCommandDispatcher
         boolean activate) {
         PhysicsBodyRegistration registration = requireBodyRegistration(bodyKey);
         PhysicsSpaceBinding space = requireSpace(registration.spaceId());
-        space.runtime().setBodyPosition(space.backendSpaceId(),
-            registration.backendBodyId(),
+        space.runtime().setBodyPosition(space.backendSpaceHandle().value(),
+            registration.backendBodyHandle().value(),
             positionX,
             positionY,
             positionZ);
         if (activate) {
-            space.runtime().activateBody(space.backendSpaceId(), registration.backendBodyId());
+            space.runtime().activateBody(space.backendSpaceHandle().value(), registration.backendBodyHandle().value());
         }
     }
 
@@ -528,8 +528,8 @@ public final class PhysicsSimulationExecutor implements PhysicsCommandDispatcher
         boolean activate) {
         PhysicsBodyRegistration registration = requireBodyRegistration(bodyKey);
         PhysicsSpaceBinding space = requireSpace(registration.spaceId());
-        space.runtime().setBodyVelocity(space.backendSpaceId(),
-            registration.backendBodyId(),
+        space.runtime().setBodyVelocity(space.backendSpaceHandle().value(),
+            registration.backendBodyHandle().value(),
             linearX,
             linearY,
             linearZ,
@@ -537,7 +537,7 @@ public final class PhysicsSimulationExecutor implements PhysicsCommandDispatcher
             angularY,
             angularZ);
         if (activate) {
-            space.runtime().activateBody(space.backendSpaceId(), registration.backendBodyId());
+            space.runtime().activateBody(space.backendSpaceHandle().value(), registration.backendBodyHandle().value());
         }
     }
 
@@ -547,11 +547,11 @@ public final class PhysicsSimulationExecutor implements PhysicsCommandDispatcher
         boolean activate) {
         PhysicsBodyRegistration registration = requireBodyRegistration(bodyKey);
         PhysicsSpaceBinding space = requireSpace(registration.spaceId());
-        space.runtime().setBodyType(space.backendSpaceId(),
-            registration.backendBodyId(),
+        space.runtime().setBodyType(space.backendSpaceHandle().value(),
+            registration.backendBodyHandle().value(),
             BackendRuntimeCodes.bodyTypeCode(bodyType));
         if (activate) {
-            space.runtime().activateBody(space.backendSpaceId(), registration.backendBodyId());
+            space.runtime().activateBody(space.backendSpaceHandle().value(), registration.backendBodyHandle().value());
         }
     }
 
@@ -559,7 +559,7 @@ public final class PhysicsSimulationExecutor implements PhysicsCommandDispatcher
     public void activateRigidBody(@Nonnull RigidBodyKey bodyKey) {
         PhysicsBodyRegistration registration = requireBodyRegistration(bodyKey);
         PhysicsSpaceBinding space = requireSpace(registration.spaceId());
-        space.runtime().activateBody(space.backendSpaceId(), registration.backendBodyId());
+        space.runtime().activateBody(space.backendSpaceHandle().value(), registration.backendBodyHandle().value());
     }
 
     @Override
@@ -574,8 +574,8 @@ public final class PhysicsSimulationExecutor implements PhysicsCommandDispatcher
         boolean torque) {
         PhysicsBodyRegistration registration = requireBodyRegistration(bodyKey);
         PhysicsSpaceBinding space = requireSpace(registration.spaceId());
-        space.runtime().applyBodyImpulse(space.backendSpaceId(),
-            registration.backendBodyId(),
+        space.runtime().applyBodyImpulse(space.backendSpaceHandle().value(),
+            registration.backendBodyHandle().value(),
             x,
             y,
             z,
@@ -584,7 +584,7 @@ public final class PhysicsSimulationExecutor implements PhysicsCommandDispatcher
             offsetY,
             offsetZ,
             torque);
-        space.runtime().activateBody(space.backendSpaceId(), registration.backendBodyId());
+        space.runtime().activateBody(space.backendSpaceHandle().value(), registration.backendBodyHandle().value());
     }
 
     @Override
@@ -599,8 +599,8 @@ public final class PhysicsSimulationExecutor implements PhysicsCommandDispatcher
         boolean torque) {
         PhysicsBodyRegistration registration = requireBodyRegistration(bodyKey);
         PhysicsSpaceBinding space = requireSpace(registration.spaceId());
-        space.runtime().applyBodyForce(space.backendSpaceId(),
-            registration.backendBodyId(),
+        space.runtime().applyBodyForce(space.backendSpaceHandle().value(),
+            registration.backendBodyHandle().value(),
             x,
             y,
             z,
@@ -609,7 +609,7 @@ public final class PhysicsSimulationExecutor implements PhysicsCommandDispatcher
             offsetY,
             offsetZ,
             torque);
-        space.runtime().activateBody(space.backendSpaceId(), registration.backendBodyId());
+        space.runtime().activateBody(space.backendSpaceHandle().value(), registration.backendBodyHandle().value());
     }
 
     @Override
@@ -641,10 +641,11 @@ public final class PhysicsSimulationExecutor implements PhysicsCommandDispatcher
         if (!bodyA.spaceId().equals(spaceId) || !bodyB.spaceId().equals(spaceId)) {
             throw new IllegalArgumentException("Joint bodies must both be registered in space " + spaceId);
         }
-        long backendJointId = space.runtime().createJoint(space.backendSpaceId(),
+        BackendJointHandle backendJointHandle = new BackendJointHandle(space.runtime().createJoint(
+            space.backendSpaceHandle().value(),
             toRuntimeJointTypeCode(type),
-            bodyA.backendBodyId(),
-            bodyB.backendBodyId(),
+            bodyA.backendBodyHandle().value(),
+            bodyB.backendBodyHandle().value(),
             anchorAX,
             anchorAY,
             anchorAZ,
@@ -661,10 +662,10 @@ public final class PhysicsSimulationExecutor implements PhysicsCommandDispatcher
             upperLimit,
             motorEnabled,
             motorTargetVelocity,
-            motorMaxForce);
+            motorMaxForce));
         runtime.addJointOnOwner(jointKey,
             spaceId,
-            backendJointId,
+            backendJointHandle,
             bodyAKey,
             bodyBKey,
             type,
@@ -702,14 +703,8 @@ public final class PhysicsSimulationExecutor implements PhysicsCommandDispatcher
         }
         PhysicsJointRegistration registration = runtime.findJointBetween(spaceId, bodyA, bodyB);
         if (registration != null) {
-            runtime.removeJoint(registration.id());
+            runtime.removeJoint(registration.jointKey());
         }
-    }
-
-    @Override
-    public void liveOwnerTransaction(@Nonnull String operation,
-        @Nonnull dev.hytalemodding.impulse.core.plugin.simulation.PhysicsOwnerTransaction transaction) {
-        throw new UnsupportedOperationException("Live owner transactions are not available through the id runtime");
     }
 
     @Nonnull
@@ -718,7 +713,7 @@ public final class PhysicsSimulationExecutor implements PhysicsCommandDispatcher
         RaycastHitView[] hit = new RaycastHitView[1];
         Vector3f from = query.from();
         Vector3f to = query.to();
-        space.runtime().raycastClosest(space.backendSpaceId(),
+        space.runtime().raycastClosest(space.backendSpaceHandle().value(),
             from.x,
             from.y,
             from.z,
@@ -756,7 +751,7 @@ public final class PhysicsSimulationExecutor implements PhysicsCommandDispatcher
             ray.copyFrom(from);
             ray.copyTo(to);
             int rayIndex = index;
-            space.runtime().raycastClosest(space.backendSpaceId(),
+            space.runtime().raycastClosest(space.backendSpaceHandle().value(),
                 from.x,
                 from.y,
                 from.z,
@@ -790,7 +785,7 @@ public final class PhysicsSimulationExecutor implements PhysicsCommandDispatcher
         Vector3f from = query.from();
         Vector3f to = query.to();
         List<RaycastHitView> views = new ArrayList<>();
-        space.runtime().raycastAll(space.backendSpaceId(),
+        space.runtime().raycastAll(space.backendSpaceHandle().value(),
             from.x,
             from.y,
             from.z,
@@ -822,7 +817,7 @@ public final class PhysicsSimulationExecutor implements PhysicsCommandDispatcher
 
     private int spaceBodyCount(@Nonnull SpaceBodyCountQuery query) {
         PhysicsSpaceBinding space = runtime.getSpaceBinding(query.spaceId());
-        return space != null ? space.runtime().bodyCount(space.backendSpaceId()) : 0;
+        return space != null ? space.runtime().bodyCount(space.backendSpaceHandle().value()) : 0;
     }
 
     @Nonnull
@@ -843,7 +838,7 @@ public final class PhysicsSimulationExecutor implements PhysicsCommandDispatcher
 
     private boolean ccdSupported() {
         for (PhysicsSpaceBinding space : runtime.getSpaceBindings()) {
-            if (space.runtime().supportsContinuousCollision(space.backendSpaceId())) {
+            if (space.runtime().supportsContinuousCollision(space.backendSpaceHandle().value())) {
                 return true;
             }
         }
@@ -853,7 +848,7 @@ public final class PhysicsSimulationExecutor implements PhysicsCommandDispatcher
     private int runtimeJointCount() {
         int count = 0;
         for (PhysicsSpaceBinding space : runtime.getSpaceBindings()) {
-            count += space.runtime().jointCount(space.backendSpaceId());
+            count += space.runtime().jointCount(space.backendSpaceHandle().value());
         }
         return count;
     }
@@ -868,15 +863,15 @@ public final class PhysicsSimulationExecutor implements PhysicsCommandDispatcher
             if (!registration.spaceId().equals(query.spaceId())) {
                 continue;
             }
-            PhysicsBodySnapshot snapshot = PhysicsBodySnapshots.read(space, registration.backendBodyId());
+            PhysicsBodySnapshot snapshot = PhysicsBodySnapshots.read(space, registration.backendBodyHandle().value());
             if (snapshot != null) {
                 classifyRuntimeBody(stats, cache, space, registration, snapshot);
             }
         }
         stats.worldCollisionBodies += cache.bodyCount();
-        stats.joints = space.runtime().jointCount(space.backendSpaceId());
-        stats.contacts = space.runtime().contactCount(space.backendSpaceId());
-        space.runtime().runtimeStats(space.backendSpaceId(),
+        stats.joints = space.runtime().jointCount(space.backendSpaceHandle().value());
+        stats.contacts = space.runtime().contactCount(space.backendSpaceHandle().value());
+        space.runtime().runtimeStats(space.backendSpaceHandle().value(),
             (bodyCount,
                 colliderCount,
                 activeBodyCount,
@@ -926,7 +921,7 @@ public final class PhysicsSimulationExecutor implements PhysicsCommandDispatcher
         }
 
         if (registration.kind() == PhysicsBodyKind.BODY) {
-            if (runtime.hasBodyAttachments(registration.id())) {
+            if (runtime.hasBodyAttachments(registration.bodyKey())) {
                 stats.entityOwnedBodies++;
             } else {
                 stats.detachedBodies++;
@@ -941,7 +936,7 @@ public final class PhysicsSimulationExecutor implements PhysicsCommandDispatcher
             stats.planeBodies++;
             return;
         }
-        if (cache.containsBody(space.spaceId(), registration.backendBodyId())) {
+        if (cache.containsBody(space.spaceId(), registration.backendBodyHandle().value())) {
             stats.worldCollisionBodies++;
             return;
         }
@@ -957,7 +952,7 @@ public final class PhysicsSimulationExecutor implements PhysicsCommandDispatcher
             if (!registration.spaceId().equals(query.spaceId())) {
                 continue;
             }
-            PhysicsBodySnapshot snapshot = PhysicsBodySnapshots.read(space, registration.backendBodyId());
+            PhysicsBodySnapshot snapshot = PhysicsBodySnapshots.read(space, registration.backendBodyHandle().value());
             if (snapshot != null) {
                 classifyBenchmarkBody(stats,
                     cache,
@@ -1016,7 +1011,7 @@ public final class PhysicsSimulationExecutor implements PhysicsCommandDispatcher
         }
 
         if (registration.kind() == PhysicsBodyKind.BODY) {
-            if (!runtime.hasBodyAttachments(registration.id())) {
+            if (!runtime.hasBodyAttachments(registration.bodyKey())) {
                 stats.detachedBodies++;
             }
             return;
@@ -1024,7 +1019,7 @@ public final class PhysicsSimulationExecutor implements PhysicsCommandDispatcher
         if (snapshot.shapeType() == ShapeType.PLANE) {
             return;
         }
-        if (cache.containsBody(space.spaceId(), registration.backendBodyId())) {
+        if (cache.containsBody(space.spaceId(), registration.backendBodyHandle().value())) {
             stats.worldCollisionBodies++;
             return;
         }
@@ -1216,7 +1211,7 @@ public final class PhysicsSimulationExecutor implements PhysicsCommandDispatcher
         PhysicsSpaceBinding space = requireSpace(query.spaceId());
         double maxDistanceSquared = query.viewRadius() * query.viewRadius();
         List<PhysicsDebugContactView> visible = new ArrayList<>(Math.min(limit, 64));
-        space.runtime().contacts(space.backendSpaceId(), (bodyAId,
+        space.runtime().contacts(space.backendSpaceHandle().value(), (bodyAId,
             bodyBId,
             pointAX,
             pointAY,
@@ -1486,7 +1481,7 @@ public final class PhysicsSimulationExecutor implements PhysicsCommandDispatcher
             return Optional.empty();
         }
         PhysicsSpaceBinding space = requireSpace(registration.spaceId());
-        PhysicsBodySnapshot snapshot = PhysicsBodySnapshots.read(space, registration.backendBodyId());
+        PhysicsBodySnapshot snapshot = PhysicsBodySnapshots.read(space, registration.backendBodyHandle().value());
         if (snapshot == null) {
             return Optional.empty();
         }
@@ -1500,15 +1495,15 @@ public final class PhysicsSimulationExecutor implements PhysicsCommandDispatcher
         PhysicsSpaceBinding space = requireSpace(query.spaceId());
         return new SolverCapabilitySummary(space.spaceId(),
             space.backendId().value(),
-            space.runtime().supportsSolverTuning(space.backendSpaceId()),
-            space.runtime().supportsActivationTuning(space.backendSpaceId()));
+            space.runtime().supportsSolverTuning(space.backendSpaceHandle().value()),
+            space.runtime().supportsActivationTuning(space.backendSpaceHandle().value()));
     }
 
     @Nonnull
     private List<SpaceSummary> unsupportedCcdSpaces() {
         List<SpaceSummary> spaces = new ArrayList<>();
         for (PhysicsSpaceBinding space : runtime.getSpaceBindings()) {
-            if (space.runtime().supportsContinuousCollision(space.backendSpaceId())) {
+            if (space.runtime().supportsContinuousCollision(space.backendSpaceHandle().value())) {
                 continue;
             }
             spaces.add(summary(space));
@@ -1520,8 +1515,8 @@ public final class PhysicsSimulationExecutor implements PhysicsCommandDispatcher
     private SpaceSummary summary(@Nonnull PhysicsSpaceBinding space) {
         return new SpaceSummary(space.spaceId(),
             space.backendId(),
-            space.runtime().bodyCount(space.backendSpaceId()),
-            space.runtime().jointCount(space.backendSpaceId()));
+            space.runtime().bodyCount(space.backendSpaceHandle().value()),
+            space.runtime().jointCount(space.backendSpaceHandle().value()));
     }
 
     @Nonnull
@@ -1535,9 +1530,9 @@ public final class PhysicsSimulationExecutor implements PhysicsCommandDispatcher
         float fraction,
         float distance) {
         PhysicsBodyRegistration registration = findBodyRegistration(bodyId);
-        RigidBodyKey bodyKey = registration != null ? registration.id() : null;
+        RigidBodyKey bodyKey = registration != null ? registration.bodyKey() : null;
         PhysicsBodySnapshot snapshot = registration != null
-            ? runtime.getBodySnapshot(registration.id())
+            ? runtime.getBodySnapshot(registration.bodyKey())
             : null;
         return new RaycastHitView(bodyKey,
             snapshot != null ? snapshot.bodyType() : PhysicsBodyType.STATIC,
@@ -1569,7 +1564,7 @@ public final class PhysicsSimulationExecutor implements PhysicsCommandDispatcher
     @Nullable
     private PhysicsBodyRegistration findBodyRegistration(long backendBodyId) {
         for (PhysicsBodyRegistration registration : runtime.getBodyRegistrations()) {
-            if (registration.backendBodyId() == backendBodyId) {
+            if (registration.backendBodyHandle().value() == backendBodyId) {
                 return registration;
             }
         }

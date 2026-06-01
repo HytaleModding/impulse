@@ -25,11 +25,6 @@ public interface PublishedPhysicsBodySnapshotCursor {
     RigidBodyKey bodyKey();
 
     @Nonnull
-    default RigidBodyKey bodyId() {
-        return bodyKey();
-    }
-
-    @Nonnull
     SpaceId spaceId();
 
     long frameEpoch();

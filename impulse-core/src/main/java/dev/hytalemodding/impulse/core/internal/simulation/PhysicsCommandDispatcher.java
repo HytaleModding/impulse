@@ -5,7 +5,6 @@ import dev.hytalemodding.impulse.api.SpaceId;
 import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyKind;
 import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyPersistenceMode;
 import dev.hytalemodding.impulse.core.plugin.body.RigidBodyKey;
-import dev.hytalemodding.impulse.core.plugin.simulation.PhysicsOwnerTransaction;
 import dev.hytalemodding.impulse.core.plugin.joint.JointKey;
 import dev.hytalemodding.impulse.core.plugin.simulation.JointType;
 import dev.hytalemodding.impulse.core.plugin.simulation.PhysicsShapeSpec;
@@ -172,7 +171,4 @@ public interface PhysicsCommandDispatcher {
         @Nonnull SpaceId spaceId,
         @Nonnull RigidBodyKey bodyA,
         @Nonnull RigidBodyKey bodyB);
-
-    void liveOwnerTransaction(@Nonnull String operation,
-        @Nonnull PhysicsOwnerTransaction transaction);
 }

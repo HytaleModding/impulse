@@ -207,11 +207,11 @@ public class PhysicsDebugSystem extends TickingSystem<ChunkStore> {
         }
         double maxDistanceSquared = viewRadius * viewRadius;
         for (PhysicsBodyRegistrationView registration : resource.getBodyRegistrationViews(PhysicsBodyKind.BODY)) {
-            if (!resource.hasBodyAttachments(registration.id())) {
+            if (!resource.hasBodyAttachments(registration.bodyKey())) {
                 continue;
             }
 
-            for (Ref<EntityStore> attachmentRef : resource.getBodyAttachments(registration.id())) {
+            for (Ref<EntityStore> attachmentRef : resource.getBodyAttachments(registration.bodyKey())) {
                 if (!attachmentRef.isValid()) {
                     continue;
                 }
@@ -224,7 +224,7 @@ public class PhysicsDebugSystem extends TickingSystem<ChunkStore> {
                     continue;
                 }
 
-                PhysicsBodySnapshot snapshot = resource.getBodySnapshot(registration.id());
+                PhysicsBodySnapshot snapshot = resource.getBodySnapshot(registration.bodyKey());
                 Vector3d center = PhysicsDebugRenderer.centerFromSyncedTransform(snapshot,
                     transform.getPosition());
                 if (viewerPosition.distanceSquared(center) > maxDistanceSquared) {

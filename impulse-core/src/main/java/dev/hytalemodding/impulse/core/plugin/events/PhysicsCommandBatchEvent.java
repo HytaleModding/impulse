@@ -16,7 +16,6 @@ import javax.annotation.Nullable;
  * @param firstBodyKey first copied body key seen in recorded order, if any
  * @param jointKeyReferenceCount number of joint-key references copied from recorded operations
  * @param firstJointKey first copied joint key seen in recorded order, if any
- * @param liveOwnerTransactionCount number of opaque live-owner transactions in the batch
  * @param allApplied whether every command operation in the batch applied successfully
  * @param firstRejectedCommandSequence one-based command sequence for the first rejection, or
  *     {@code 0} when no rejection is known
@@ -30,7 +29,6 @@ public record PhysicsCommandBatchEvent(long commandBatchSequence,
                                        @Nullable RigidBodyKey firstBodyKey,
                                        int jointKeyReferenceCount,
                                        @Nullable JointKey firstJointKey,
-                                       int liveOwnerTransactionCount,
                                        boolean allApplied,
                                        long firstRejectedCommandSequence,
                                        @Nullable String firstRejectedMessage) {
@@ -50,7 +48,6 @@ public record PhysicsCommandBatchEvent(long commandBatchSequence,
             null,
             0,
             null,
-            0,
             allApplied,
             firstRejectedCommandSequence,
             firstRejectedMessage);
@@ -70,7 +67,6 @@ public record PhysicsCommandBatchEvent(long commandBatchSequence,
             null,
             0,
             null,
-            0,
             allApplied,
             firstRejectedCommandSequence,
             firstRejectedMessage);
@@ -89,7 +85,6 @@ public record PhysicsCommandBatchEvent(long commandBatchSequence,
         if (jointKeyReferenceCount == 0) {
             firstJointKey = null;
         }
-        liveOwnerTransactionCount = Math.max(0, liveOwnerTransactionCount);
         firstRejectedCommandSequence = Math.max(0L, firstRejectedCommandSequence);
         if (allApplied) {
             firstRejectedCommandSequence = 0L;
@@ -107,9 +102,5 @@ public record PhysicsCommandBatchEvent(long commandBatchSequence,
 
     public boolean referencesJoints() {
         return jointKeyReferenceCount > 0;
-    }
-
-    public boolean hasLiveOwnerTransactions() {
-        return liveOwnerTransactionCount > 0;
     }
 }
