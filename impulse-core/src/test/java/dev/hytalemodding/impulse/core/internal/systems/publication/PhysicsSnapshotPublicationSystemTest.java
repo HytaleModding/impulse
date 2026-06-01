@@ -32,6 +32,7 @@ import dev.hytalemodding.impulse.core.plugin.body.RigidBodyKey;
 import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyKind;
 import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyPersistenceMode;
 import dev.hytalemodding.impulse.core.plugin.events.PhysicsEventFrame;
+import dev.hytalemodding.impulse.core.plugin.settings.PhysicsEventCollectionMode;
 import dev.hytalemodding.impulse.core.plugin.settings.PhysicsSpaceSettings;
 import dev.hytalemodding.impulse.core.plugin.settings.PhysicsStepMode;
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsWorldRuntimeResource;
@@ -69,6 +70,7 @@ class PhysicsSnapshotPublicationSystemTest {
         var settings = resource.getWorldSettings();
         settings.setStepMode(PhysicsStepMode.FIXED);
         settings.setSimulationSteps(1);
+        settings.setEventCollectionMode(PhysicsEventCollectionMode.CONTACTS);
         resource.setWorldSettings(settings);
         PhysicsRuntimeProfilingResource profiling = new PhysicsRuntimeProfilingResource();
         profiling.setEnabled(true);

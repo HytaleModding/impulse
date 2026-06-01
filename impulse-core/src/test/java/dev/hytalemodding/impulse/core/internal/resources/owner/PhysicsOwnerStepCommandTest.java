@@ -30,6 +30,7 @@ import dev.hytalemodding.impulse.core.plugin.body.RigidBodyKey;
 import dev.hytalemodding.impulse.core.plugin.events.PhysicsContactEvent;
 import dev.hytalemodding.impulse.core.plugin.events.PhysicsEventFrame;
 import dev.hytalemodding.impulse.core.plugin.events.PhysicsFrameEvent;
+import dev.hytalemodding.impulse.core.plugin.settings.PhysicsEventCollectionMode;
 import dev.hytalemodding.impulse.core.plugin.settings.PhysicsStepMode;
 import dev.hytalemodding.impulse.core.plugin.settings.PhysicsSpaceSettings;
 import dev.hytalemodding.impulse.core.plugin.settings.PhysicsWorldSettings;
@@ -170,6 +171,42 @@ class PhysicsOwnerStepCommandTest {
     }
 
     @Test
+    void disabledEventCollectionStepsWithoutBackendEventSink() {
+        CountingBackend backend = registerBackend(false);
+        PhysicsWorldRuntimeResource resource = new PhysicsWorldRuntimeResource();
+        CountingSpace space = (CountingSpace) resource.createLiveSpace(backend.getId(),
+            "owner-test",
+            PhysicsSpaceSettings.defaults());
+        configureWorldSettings(resource, settings -> {
+            settings.setStepMode(PhysicsStepMode.FIXED);
+            settings.setSimulationSteps(1);
+        });
+        PhysicsBody first = space.createBox(0.5f, 0.5f, 0.5f, 1.0f);
+        PhysicsBody second = space.createBox(0.5f, 0.5f, 0.5f, 1.0f);
+        resource.addBody(space.id(),
+            first,
+            PhysicsBodyKind.BODY,
+            PhysicsBodyPersistenceMode.PERSISTENT);
+        resource.addBody(space.id(),
+            second,
+            PhysicsBodyKind.BODY,
+            PhysicsBodyPersistenceMode.PERSISTENT);
+        space.contactToEmit = new PhysicsContact(first,
+            second,
+            new Vector3f(1.0f, 2.0f, 3.0f),
+            new Vector3f(4.0f, 5.0f, 6.0f),
+            new Vector3f(0.0f, 1.0f, 0.0f),
+            -0.125f,
+            2.5f);
+
+        PhysicsOwnerStepCommand.runStep(resource, 0.05f, false);
+
+        PhysicsEventFrame frame = resource.getLatestEventFrame();
+        assertEquals(0, space.eventStepCount);
+        assertEquals(0, frame.physicsEventCount());
+    }
+
+    @Test
     void translatesBackendContactEventsToStableBodyKeysInStepFrame() {
         CountingBackend backend = registerBackend(false);
         PhysicsWorldRuntimeResource resource = new PhysicsWorldRuntimeResource();
@@ -179,6 +216,7 @@ class PhysicsOwnerStepCommandTest {
         configureWorldSettings(resource, settings -> {
             settings.setStepMode(PhysicsStepMode.FIXED);
             settings.setSimulationSteps(1);
+            settings.setEventCollectionMode(PhysicsEventCollectionMode.CONTACTS);
         });
         PhysicsBody first = space.createBox(0.5f, 0.5f, 0.5f, 1.0f);
         PhysicsBody second = space.createBox(0.5f, 0.5f, 0.5f, 1.0f);
@@ -395,6 +433,7 @@ class PhysicsOwnerStepCommandTest {
         private RuntimeException stepFailure;
         @Nullable
         private PhysicsContact contactToEmit;
+        private int eventStepCount;
 
         private CountingSpace(@Nonnull SpaceId id,
             @Nonnull BackendId backendId,
@@ -427,6 +466,7 @@ class PhysicsOwnerStepCommandTest {
 
         @Override
         public void step(float dt, @Nonnull PhysicsBackendEventSink events) {
+            eventStepCount++;
             step(dt);
             if (contactToEmit != null) {
                 events.contact(PhysicsContactPhase.OBSERVED,

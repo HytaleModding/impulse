@@ -17,6 +17,7 @@ import dev.hytalemodding.impulse.core.internal.systems.persistence.PersistentPhy
 import dev.hytalemodding.impulse.core.plugin.persistence.PhysicsPersistenceResource;
 import dev.hytalemodding.impulse.core.plugin.persistence.PhysicsPersistenceSyncResult;
 import dev.hytalemodding.impulse.core.plugin.resources.PhysicsWorldResource;
+import dev.hytalemodding.impulse.core.plugin.settings.PhysicsEventCollectionMode;
 import dev.hytalemodding.impulse.core.plugin.settings.PhysicsStepMode;
 import dev.hytalemodding.impulse.core.plugin.settings.PhysicsStepSchedulingMode;
 import dev.hytalemodding.impulse.core.plugin.settings.PhysicsWorldSettings;
@@ -85,6 +86,13 @@ public class PersistentPhysicsWorldResource extends PhysicsPersistenceResource {
             resource -> resource.worldSettings.getStepSchedulingMode().getSerializedName())
         .addValidator(Validators.nonNull())
         .addValidator(stepSchedulingModeName())
+        .add()
+        .append(new KeyedCodec<>("EventCollectionMode", Codec.STRING, false),
+            (resource, value) -> resource.worldSettings.setEventCollectionMode(
+                PhysicsEventCollectionMode.parse(value)),
+            resource -> resource.worldSettings.getEventCollectionMode().getSerializedName())
+        .addValidator(Validators.nonNull())
+        .addValidator(eventCollectionModeName())
         .add()
         .append(new KeyedCodec<>("MaxStepDt", Codec.FLOAT),
             (resource, value) -> resource.worldSettings.setMaxStepDt(value),
@@ -473,6 +481,27 @@ public class PersistentPhysicsWorldResource extends PhysicsPersistenceResource {
                     PhysicsStepSchedulingMode.parse(value);
                 } catch (IllegalArgumentException exception) {
                     results.fail("Persistent physics step scheduling mode is unknown: " + value);
+                }
+            }
+
+            @Override
+            public void updateSchema(SchemaContext context, Schema schema) {
+            }
+        };
+    }
+
+    @Nonnull
+    private static Validator<String> eventCollectionModeName() {
+        return new Validator<>() {
+            @Override
+            public void accept(String value, ValidationResults results) {
+                if (value == null) {
+                    return;
+                }
+                try {
+                    PhysicsEventCollectionMode.parse(value);
+                } catch (IllegalArgumentException exception) {
+                    results.fail("Persistent physics event collection mode is unknown: " + value);
                 }
             }
 

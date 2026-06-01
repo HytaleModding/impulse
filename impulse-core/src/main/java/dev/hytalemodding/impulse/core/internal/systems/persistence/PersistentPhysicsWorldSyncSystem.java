@@ -131,6 +131,7 @@ public class PersistentPhysicsWorldSyncSystem extends TickingSystem<EntityStore>
         return persistedSettings.getSimulationSteps() != runtimeSettings.getSimulationSteps()
             || persistedSettings.getStepMode() != runtimeSettings.getStepMode()
             || persistedSettings.getStepSchedulingMode() != runtimeSettings.getStepSchedulingMode()
+            || persistedSettings.getEventCollectionMode() != runtimeSettings.getEventCollectionMode()
             || Float.compare(persistedSettings.getMaxStepDt(), runtimeSettings.getMaxStepDt()) != 0;
     }
 

@@ -21,6 +21,7 @@ import dev.hytalemodding.impulse.core.plugin.events.PhysicsEventFrame;
 import dev.hytalemodding.impulse.core.plugin.events.PhysicsFrameEvent;
 import dev.hytalemodding.impulse.core.plugin.events.PhysicsJointBreakEvent;
 import dev.hytalemodding.impulse.core.plugin.joint.JointKey;
+import dev.hytalemodding.impulse.core.plugin.settings.PhysicsEventCollectionMode;
 import dev.hytalemodding.impulse.core.plugin.settings.PhysicsStepMode;
 import dev.hytalemodding.impulse.core.plugin.settings.PhysicsWorldSettings;
 import dev.hytalemodding.impulse.core.plugin.snapshot.PublishedPhysicsSnapshotFrame;
@@ -136,6 +137,7 @@ public final class PhysicsOwnerStepCommand implements PhysicsOwnerCommand {
         float safeDt = Float.isFinite(dt) ? Math.max(dt, 0.0f) : 0.0f;
         PhysicsWorldSettings settings = runtime.getWorldSettings();
         PhysicsStepMode stepMode = settings.getStepMode();
+        PhysicsEventCollectionMode eventCollectionMode = settings.getEventCollectionMode();
         int simulationSteps = settings.getSimulationSteps();
         float configuredMaxStepDt = settings.getMaxStepDt();
         float maxStepDt = configuredMaxStepDt > 0f
@@ -159,7 +161,13 @@ public final class PhysicsOwnerStepCommand implements PhysicsOwnerCommand {
             if (stepMode != PhysicsStepMode.CCD) {
                 restoreForcedContinuousCollision(runtime);
             }
-            executeSteps(runtime, safeDt, stepMode, steps, counters, backendEvents);
+            executeSteps(runtime,
+                safeDt,
+                stepMode,
+                steps,
+                counters,
+                backendEvents,
+                eventCollectionMode.collectsBackendEvents());
         } catch (RuntimeException exception) {
             stepFailure = exception;
         }
@@ -237,17 +245,24 @@ public final class PhysicsOwnerStepCommand implements PhysicsOwnerCommand {
         @Nonnull PhysicsStepMode stepMode,
         int steps,
         @Nonnull StepCounters counters,
-        @Nonnull StepBackendEvents backendEvents) {
+        @Nonnull StepBackendEvents backendEvents,
+        boolean collectBackendEvents) {
         float stepDt = safeDt / steps;
-        PhysicsBackendEventBuffer eventBuffer = new PhysicsBackendEventBuffer();
+        PhysicsBackendEventBuffer eventBuffer = collectBackendEvents
+            ? new PhysicsBackendEventBuffer()
+            : null;
         for (PhysicsSpace space : resource.iterateSpaces()) {
             counters.spaceCount++;
             if (stepMode == PhysicsStepMode.CCD && supportsContinuousCollision(space)) {
                 forceContinuousCollision(resource, space);
             }
             for (int step = 0; step < steps; step++) {
-                space.step(stepDt, eventBuffer);
-                drainBackendEvents(resource, space, eventBuffer, backendEvents);
+                if (eventBuffer == null) {
+                    space.step(stepDt);
+                } else {
+                    space.step(stepDt, eventBuffer);
+                    drainBackendEvents(resource, space, eventBuffer, backendEvents);
+                }
                 counters.substeps++;
             }
         }
