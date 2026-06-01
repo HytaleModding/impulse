@@ -4,12 +4,10 @@ import dev.hytalemodding.impulse.api.BackendId;
 import dev.hytalemodding.impulse.api.PhysicsBackend;
 import dev.hytalemodding.impulse.api.PhysicsSpace;
 import dev.hytalemodding.impulse.api.SpaceId;
-import java.nio.file.Path;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import javax.annotation.Nonnull;
-import javax.annotation.Nullable;
 
 public final class RapierBackend implements PhysicsBackend {
 
@@ -17,13 +15,7 @@ public final class RapierBackend implements PhysicsBackend {
     private static final Logger LOGGER = Logger.getLogger("Impulse");
     private static final AtomicInteger SPACES_CREATED = new AtomicInteger(0);
 
-    private volatile Path dataDirectory;
     private volatile boolean initialized;
-
-    @Override
-    public void setDataDirectory(@Nullable Path dataDirectory) {
-        this.dataDirectory = dataDirectory;
-    }
 
     @Nonnull
     @Override
@@ -37,7 +29,7 @@ public final class RapierBackend implements PhysicsBackend {
             return;
         }
 
-        RapierNative.load(dataDirectory);
+        RapierNative.load();
         initialized = true;
         LOGGER.log(Level.INFO, "Rapier backend initialized");
     }

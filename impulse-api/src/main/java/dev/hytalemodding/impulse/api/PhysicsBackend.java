@@ -1,9 +1,7 @@
 package dev.hytalemodding.impulse.api;
 
-import java.nio.file.Path;
 import java.util.logging.Level;
 import javax.annotation.Nonnull;
-import javax.annotation.Nullable;
 
 /**
  * Backend factory and lifecycle hooks.
@@ -25,14 +23,6 @@ public interface PhysicsBackend {
 
     @Nonnull
     BackendId getId();
-
-    /**
-     * Set the plugin data directory where backend-specific files (e.g. native libraries)
-     * can be extracted. Called by the plugin before {@link #init()}.
-     * Backends that do not need a data directory can implement this as a no-op.
-     */
-    default void setDataDirectory(@Nullable Path dataDirectory) {
-    }
 
     /**
      * Set the verbosity of the backend's internal library logging.
