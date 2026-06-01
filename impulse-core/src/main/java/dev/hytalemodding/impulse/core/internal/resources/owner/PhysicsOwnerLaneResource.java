@@ -41,6 +41,8 @@ public final class PhysicsOwnerLaneResource implements PhysicsOwnerResource {
     private boolean closed;
     private boolean active;
     @Nullable
+    private QueuedCommand activeCommand;
+    @Nullable
     private PendingStep pendingStep;
 
     PhysicsOwnerLaneResource(@Nonnull PhysicsOwnerLaneScheduler scheduler,
@@ -227,7 +229,7 @@ public final class PhysicsOwnerLaneResource implements PhysicsOwnerResource {
     @Override
     public int pendingCommands() {
         synchronized (lock) {
-            return queuedCommandCountLocked() + (active ? 1 : 0);
+            return queuedCommandCountLocked() + (activeCommandPendingLocked() ? 1 : 0);
         }
     }
 
@@ -406,6 +408,7 @@ public final class PhysicsOwnerLaneResource implements PhysicsOwnerResource {
 
         synchronized (lock) {
             active = false;
+            activeCommand = null;
             if (closing && mutationQueue.isEmpty() && stepQueue.isEmpty()) {
                 closed = true;
                 scheduler.unregister(this);
@@ -473,10 +476,12 @@ public final class PhysicsOwnerLaneResource implements PhysicsOwnerResource {
             return;
         }
         active = true;
+        activeCommand = next;
         try {
             scheduler.execute(this, () -> runQueuedCommand(next));
         } catch (RejectedExecutionException exception) {
             active = false;
+            activeCommand = null;
             next.future().completeExceptionally(exception);
             if (closing && mutationQueue.isEmpty() && stepQueue.isEmpty()) {
                 closed = true;
@@ -490,6 +495,13 @@ public final class PhysicsOwnerLaneResource implements PhysicsOwnerResource {
 
     private int queuedCommandCountLocked() {
         return mutationQueue.size() + stepQueue.size();
+    }
+
+    private boolean activeCommandPendingLocked() {
+        if (!active) {
+            return false;
+        }
+        return activeCommand == null || !activeCommand.future().isDone();
     }
 
     private void requireAcceptingLocked() {

@@ -19,6 +19,7 @@ import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicInteger;
 import javax.annotation.Nonnull;
 import org.junit.jupiter.api.Test;
 
@@ -232,6 +233,38 @@ class PhysicsOwnerLaneSchedulerTest {
 
             assertEquals(List.of("outer-before", "nested-run", "nested-call", "done"), order);
             assertEquals(1, pollMutationCompletions(lane, 1).size());
+        }
+    }
+
+    @Test
+    void completedMutationFutureIsNotReportedAsPendingCommand() throws Exception {
+        CountDownLatch commandStarted = new CountDownLatch(1);
+        CountDownLatch releaseCommand = new CountDownLatch(1);
+        CountDownLatch completionObserved = new CountDownLatch(1);
+        AtomicInteger pendingAtCompletion = new AtomicInteger(-1);
+        try (PhysicsOwnerLaneScheduler scheduler = new PhysicsOwnerLaneScheduler(1,
+            8,
+            CLOSE_TIMEOUT)) {
+            PhysicsOwnerLaneResource lane = scheduler.createLane();
+            lane.start("completion-pending");
+
+            PhysicsMutationHandle<Void> handle = lane.submitMutation("blocked", () -> {
+                commandStarted.countDown();
+                assertTrue(releaseCommand.await(TIMEOUT_MILLIS, TimeUnit.MILLISECONDS));
+                return PhysicsOwnerSnapshot.empty();
+            });
+            assertTrue(commandStarted.await(TIMEOUT_MILLIS, TimeUnit.MILLISECONDS));
+            handle.completion().whenComplete((ignored, failure) -> {
+                pendingAtCompletion.set(lane.pendingCommands());
+                completionObserved.countDown();
+            });
+
+            releaseCommand.countDown();
+            assertTrue(completionObserved.await(TIMEOUT_MILLIS, TimeUnit.MILLISECONDS));
+
+            assertEquals(0, pendingAtCompletion.get());
+        } finally {
+            releaseCommand.countDown();
         }
     }
 
