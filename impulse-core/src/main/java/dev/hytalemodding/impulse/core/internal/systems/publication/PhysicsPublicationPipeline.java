@@ -8,11 +8,13 @@ import dev.hytalemodding.impulse.core.internal.resources.owner.PhysicsOwnerMutat
 import dev.hytalemodding.impulse.core.internal.resources.owner.PhysicsOwnerResult;
 import dev.hytalemodding.impulse.core.internal.resources.owner.PhysicsOwnerSnapshot;
 import dev.hytalemodding.impulse.core.internal.resources.owner.PhysicsOwnerStepCompletion;
+import dev.hytalemodding.impulse.core.plugin.events.PhysicsEventFrame;
 import dev.hytalemodding.impulse.core.plugin.resources.PhysicsWorldResource;
 import dev.hytalemodding.impulse.core.plugin.snapshot.PublishedPhysicsSnapshotFrame;
 import java.util.List;
 import java.util.logging.Level;
 import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
 
 /**
  * Names the frame boundary between owner execution and reader-visible physics state.
@@ -43,32 +45,38 @@ public final class PhysicsPublicationPipeline {
         return completions.size();
     }
 
-    public static void publishCompletedStep(@Nonnull PhysicsOwnerResource owner,
+    @Nullable
+    public static PhysicsEventFrame publishCompletedStep(@Nonnull PhysicsOwnerResource owner,
         @Nonnull PhysicsWorldResource resource,
         @Nonnull PhysicsRuntimeProfilingResource profiling) {
-        publishCompletedStep(owner, resource, profiling, 0L);
+        return publishCompletedStep(owner, resource, profiling, 0L);
     }
 
-    public static void publishCompletedStep(@Nonnull PhysicsOwnerResource owner,
+    @Nullable
+    public static PhysicsEventFrame publishCompletedStep(@Nonnull PhysicsOwnerResource owner,
         @Nonnull PhysicsWorldResource resource,
         @Nonnull PhysicsRuntimeProfilingResource profiling,
         long publicationServerTick) {
         PhysicsOwnerStepCompletion completion = owner.pollCompletedStep();
         if (completion == null) {
-            return;
+            return null;
         }
 
         if (completion.executionFailure() != null) {
             LOGGER.at(Level.SEVERE).log("Async physics owner-lane step failed: %s",
                 completion.executionFailure().getMessage());
-            return;
+            return null;
         }
 
+        boolean currentFrame = true;
         PublishedPhysicsSnapshotFrame frame = completion.frame();
         if (frame != null) {
             // Reader-side apply happens here; command handles may have completed earlier.
-            PhysicsWorldRuntimeResource.require(resource)
-                .applyPublishedSnapshotFrame(frame, publicationServerTick);
+            PhysicsWorldRuntimeResource runtime = PhysicsWorldRuntimeResource.require(resource);
+            runtime.applyPublishedSnapshotFrame(frame, publicationServerTick);
+            if (frame.worldEpoch() != runtime.worldEpoch()) {
+                currentFrame = false;
+            }
         }
 
         PhysicsOwnerSnapshot snapshot = completion.snapshotOrEmpty();
@@ -94,5 +102,6 @@ public final class PhysicsPublicationPipeline {
                 frame != null ? frame.status() : "<missing>",
                 stepFailure.getMessage());
         }
+        return currentFrame ? completion.eventFrame() : null;
     }
 }

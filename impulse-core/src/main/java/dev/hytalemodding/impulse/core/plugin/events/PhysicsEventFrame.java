@@ -26,6 +26,8 @@ import javax.annotation.Nullable;
  * @param commandBatches copied command-batch outcome events in this frame
  * @param steps copied physics step snapshot-capture events in this frame
  * @param snapshotPublications copied reader-side snapshot-publication events in this frame
+ * @param physicsEvents copied stable physics events in this frame
+ * @param droppedBackendEventCount backend events dropped while bounded buffers were full
  */
 public record PhysicsEventFrame(long frameSequence,
                                 long worldEpoch,
@@ -35,7 +37,9 @@ public record PhysicsEventFrame(long frameSequence,
                                 long latestCapturedSnapshotLastIncludedCommandBatchSequence,
                                 @Nonnull List<PhysicsCommandBatchEvent> commandBatches,
                                 @Nonnull List<PhysicsStepEvent> steps,
-                                @Nonnull List<PhysicsSnapshotPublicationEvent> snapshotPublications) {
+                                @Nonnull List<PhysicsSnapshotPublicationEvent> snapshotPublications,
+                                @Nonnull List<PhysicsFrameEvent> physicsEvents,
+                                int droppedBackendEventCount) {
 
     public PhysicsEventFrame {
         frameSequence = Math.max(0L, frameSequence);
@@ -49,6 +53,8 @@ public record PhysicsEventFrame(long frameSequence,
         steps = List.copyOf(Objects.requireNonNull(steps, "steps"));
         snapshotPublications =
             List.copyOf(Objects.requireNonNull(snapshotPublications, "snapshotPublications"));
+        physicsEvents = List.copyOf(Objects.requireNonNull(physicsEvents, "physicsEvents"));
+        droppedBackendEventCount = Math.max(0, droppedBackendEventCount);
     }
 
     public PhysicsEventFrame(long frameSequence,
@@ -66,7 +72,9 @@ public record PhysicsEventFrame(long frameSequence,
             latestCapturedSnapshotLastIncludedCommandBatchSequence,
             commandBatches,
             steps,
-            snapshotPublications);
+            snapshotPublications,
+            List.of(),
+            0);
     }
 
     public PhysicsEventFrame(long frameSequence,
@@ -82,12 +90,24 @@ public record PhysicsEventFrame(long frameSequence,
             latestCapturedSnapshotLastIncludedCommandBatchSequence,
             commandBatches,
             List.of(),
-            List.of());
+            List.of(),
+            List.of(),
+            0);
     }
 
     @Nonnull
     public static PhysicsEventFrame empty(long worldEpoch) {
-        return new PhysicsEventFrame(0L, worldEpoch, 0L, 0L, 0L, 0L, List.of(), List.of(), List.of());
+        return new PhysicsEventFrame(0L,
+            worldEpoch,
+            0L,
+            0L,
+            0L,
+            0L,
+            List.of(),
+            List.of(),
+            List.of(),
+            List.of(),
+            0);
     }
 
     public int commandBatchCount() {
@@ -102,8 +122,12 @@ public record PhysicsEventFrame(long frameSequence,
         return snapshotPublications.size();
     }
 
+    public int physicsEventCount() {
+        return physicsEvents.size();
+    }
+
     public int eventCount() {
-        return commandBatchCount() + stepCount() + snapshotPublicationCount();
+        return commandBatchCount() + stepCount() + snapshotPublicationCount() + physicsEventCount();
     }
 
     public boolean isEmpty() {

@@ -50,6 +50,7 @@ public final class PersistentPhysicsRestorePreflight {
             validated.setSimulationSteps(settings.getSimulationSteps());
             validated.setStepMode(settings.getStepMode());
             validated.setStepSchedulingMode(settings.getStepSchedulingMode());
+            validated.setEventCollectionMode(settings.getEventCollectionMode());
             validated.setMaxStepDt(settings.getMaxStepDt());
             return null;
         } catch (RuntimeException exception) {

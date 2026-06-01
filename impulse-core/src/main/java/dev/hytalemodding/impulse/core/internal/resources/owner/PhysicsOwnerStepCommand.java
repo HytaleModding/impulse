@@ -1,6 +1,12 @@
 package dev.hytalemodding.impulse.core.internal.resources.owner;
 
 import dev.hytalemodding.impulse.api.PhysicsBody;
+import dev.hytalemodding.impulse.api.PhysicsBackendBodyActivationEvent;
+import dev.hytalemodding.impulse.api.PhysicsBackendContactEvent;
+import dev.hytalemodding.impulse.api.PhysicsBackendEvent;
+import dev.hytalemodding.impulse.api.PhysicsBackendEventBatch;
+import dev.hytalemodding.impulse.api.PhysicsBackendEventBuffer;
+import dev.hytalemodding.impulse.api.PhysicsBackendJointBreakEvent;
 import dev.hytalemodding.impulse.api.PhysicsSpace;
 import dev.hytalemodding.impulse.api.PhysicsStepPhaseStats;
 import dev.hytalemodding.impulse.api.ShapeType;
@@ -9,9 +15,17 @@ import dev.hytalemodding.impulse.core.internal.resources.PhysicsWorldRuntimeReso
 import dev.hytalemodding.impulse.core.internal.systems.step.PhysicsStepCountPolicy;
 import dev.hytalemodding.impulse.core.plugin.resources.PhysicsWorldResource;
 import dev.hytalemodding.impulse.core.plugin.body.RigidBodyKey;
+import dev.hytalemodding.impulse.core.plugin.events.PhysicsBodyActivationEvent;
+import dev.hytalemodding.impulse.core.plugin.events.PhysicsContactEvent;
+import dev.hytalemodding.impulse.core.plugin.events.PhysicsEventFrame;
+import dev.hytalemodding.impulse.core.plugin.events.PhysicsFrameEvent;
+import dev.hytalemodding.impulse.core.plugin.events.PhysicsJointBreakEvent;
+import dev.hytalemodding.impulse.core.plugin.joint.JointKey;
+import dev.hytalemodding.impulse.core.plugin.settings.PhysicsEventCollectionMode;
 import dev.hytalemodding.impulse.core.plugin.settings.PhysicsStepMode;
 import dev.hytalemodding.impulse.core.plugin.settings.PhysicsWorldSettings;
 import dev.hytalemodding.impulse.core.plugin.snapshot.PublishedPhysicsSnapshotFrame;
+import java.util.ArrayList;
 import java.util.Objects;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
@@ -46,6 +60,8 @@ public final class PhysicsOwnerStepCommand implements PhysicsOwnerCommand {
     private RuntimeException failure;
     @Nullable
     private PublishedPhysicsSnapshotFrame publishedFrame;
+    @Nullable
+    private PhysicsEventFrame eventFrame;
 
     public PhysicsOwnerStepCommand(@Nonnull PhysicsWorldResource resource,
         float dt,
@@ -84,6 +100,7 @@ public final class PhysicsOwnerStepCommand implements PhysicsOwnerCommand {
             serverTick);
         failure = result.failure();
         publishedFrame = result.frame();
+        eventFrame = result.eventFrame();
         return result.snapshot();
     }
 
@@ -95,6 +112,11 @@ public final class PhysicsOwnerStepCommand implements PhysicsOwnerCommand {
     @Nullable
     public PublishedPhysicsSnapshotFrame publishedFrame() {
         return publishedFrame;
+    }
+
+    @Nullable
+    public PhysicsEventFrame eventFrame() {
+        return eventFrame;
     }
 
     @Nonnull
@@ -115,6 +137,7 @@ public final class PhysicsOwnerStepCommand implements PhysicsOwnerCommand {
         float safeDt = Float.isFinite(dt) ? Math.max(dt, 0.0f) : 0.0f;
         PhysicsWorldSettings settings = runtime.getWorldSettings();
         PhysicsStepMode stepMode = settings.getStepMode();
+        PhysicsEventCollectionMode eventCollectionMode = settings.getEventCollectionMode();
         int simulationSteps = settings.getSimulationSteps();
         float configuredMaxStepDt = settings.getMaxStepDt();
         float maxStepDt = configuredMaxStepDt > 0f
@@ -129,6 +152,7 @@ public final class PhysicsOwnerStepCommand implements PhysicsOwnerCommand {
 
         long startNanos = profilingEnabled ? System.nanoTime() : 0L;
         StepCounters counters = new StepCounters();
+        StepBackendEvents backendEvents = new StepBackendEvents();
         RuntimeException stepFailure = null;
         try {
             if (profilingEnabled) {
@@ -137,7 +161,13 @@ public final class PhysicsOwnerStepCommand implements PhysicsOwnerCommand {
             if (stepMode != PhysicsStepMode.CCD) {
                 restoreForcedContinuousCollision(runtime);
             }
-            executeSteps(runtime, safeDt, stepMode, steps, counters);
+            executeSteps(runtime,
+                safeDt,
+                stepMode,
+                steps,
+                counters,
+                backendEvents,
+                eventCollectionMode.collectsBackendEvents());
         } catch (RuntimeException exception) {
             stepFailure = exception;
         }
@@ -151,7 +181,9 @@ public final class PhysicsOwnerStepCommand implements PhysicsOwnerCommand {
                     ? PublishedPhysicsSnapshotFrame.Status.COMPLETE
                     : PublishedPhysicsSnapshotFrame.Status.PARTIAL,
                 stepNanos,
-                profilingEnabled);
+                profilingEnabled,
+                backendEvents.physicsEvents,
+                backendEvents.droppedBackendEventCount);
         } catch (RuntimeException exception) {
             if (stepFailure != null) {
                 stepFailure.addSuppressed(exception);
@@ -159,6 +191,7 @@ public final class PhysicsOwnerStepCommand implements PhysicsOwnerCommand {
             }
             throw exception;
         }
+        PhysicsEventFrame eventFrame = runtime.getLatestEventFrame();
 
         PhysicsStepPhaseStats nativePhaseStats = profilingEnabled
             ? collectStepPhaseStats(runtime)
@@ -169,7 +202,7 @@ public final class PhysicsOwnerStepCommand implements PhysicsOwnerCommand {
             frame.spatialIndexCellCount(),
             stepNanos,
             frame.snapshotNanos(),
-            nativePhaseStats), stepFailure, frame);
+            nativePhaseStats), stepFailure, frame, eventFrame);
     }
 
     private static void resetStepPhaseStats(@Nonnull PhysicsWorldRuntimeResource resource) {
@@ -211,18 +244,104 @@ public final class PhysicsOwnerStepCommand implements PhysicsOwnerCommand {
         float safeDt,
         @Nonnull PhysicsStepMode stepMode,
         int steps,
-        @Nonnull StepCounters counters) {
+        @Nonnull StepCounters counters,
+        @Nonnull StepBackendEvents backendEvents,
+        boolean collectBackendEvents) {
         float stepDt = safeDt / steps;
+        PhysicsBackendEventBuffer eventBuffer = collectBackendEvents
+            ? new PhysicsBackendEventBuffer()
+            : null;
         for (PhysicsSpace space : resource.iterateSpaces()) {
             counters.spaceCount++;
             if (stepMode == PhysicsStepMode.CCD && supportsContinuousCollision(space)) {
                 forceContinuousCollision(resource, space);
             }
             for (int step = 0; step < steps; step++) {
-                space.step(stepDt);
+                if (eventBuffer == null) {
+                    space.step(stepDt);
+                } else {
+                    space.step(stepDt, eventBuffer);
+                    drainBackendEvents(resource, space, eventBuffer, backendEvents);
+                }
                 counters.substeps++;
             }
         }
+    }
+
+    private static void drainBackendEvents(@Nonnull PhysicsWorldRuntimeResource resource,
+        @Nonnull PhysicsSpace space,
+        @Nonnull PhysicsBackendEventBuffer eventBuffer,
+        @Nonnull StepBackendEvents backendEvents) {
+        PhysicsBackendEventBatch batch = eventBuffer.drain();
+        if (batch.isEmpty()) {
+            return;
+        }
+        backendEvents.droppedBackendEventCount += batch.droppedEventCount();
+        for (PhysicsBackendEvent event : batch.events()) {
+            translateBackendEvent(resource, space, event, backendEvents);
+        }
+    }
+
+    private static void translateBackendEvent(@Nonnull PhysicsWorldRuntimeResource resource,
+        @Nonnull PhysicsSpace space,
+        @Nonnull PhysicsBackendEvent event,
+        @Nonnull StepBackendEvents backendEvents) {
+        if (event instanceof PhysicsBackendContactEvent contactEvent) {
+            translateContactEvent(resource, space, contactEvent, backendEvents);
+        } else if (event instanceof PhysicsBackendBodyActivationEvent activationEvent) {
+            translateBodyActivationEvent(resource, space, activationEvent, backendEvents);
+        } else if (event instanceof PhysicsBackendJointBreakEvent jointBreakEvent) {
+            translateJointBreakEvent(resource, space, jointBreakEvent, backendEvents);
+        }
+    }
+
+    private static void translateContactEvent(@Nonnull PhysicsWorldRuntimeResource resource,
+        @Nonnull PhysicsSpace space,
+        @Nonnull PhysicsBackendContactEvent event,
+        @Nonnull StepBackendEvents backendEvents) {
+        RigidBodyKey bodyAKey = resource.getBodyKey(event.bodyA());
+        RigidBodyKey bodyBKey = resource.getBodyKey(event.bodyB());
+        if (bodyAKey == null || bodyBKey == null) {
+            return;
+        }
+        backendEvents.physicsEvents.add(new PhysicsContactEvent(space.id(),
+            event.phase(),
+            bodyAKey,
+            bodyBKey,
+            event.pointOnA(),
+            event.pointOnB(),
+            event.normalOnB(),
+            event.distance(),
+            event.impulse()));
+    }
+
+    private static void translateBodyActivationEvent(@Nonnull PhysicsWorldRuntimeResource resource,
+        @Nonnull PhysicsSpace space,
+        @Nonnull PhysicsBackendBodyActivationEvent event,
+        @Nonnull StepBackendEvents backendEvents) {
+        RigidBodyKey bodyKey = resource.getBodyKey(event.body());
+        if (bodyKey == null) {
+            return;
+        }
+        backendEvents.physicsEvents.add(new PhysicsBodyActivationEvent(space.id(),
+            event.phase(),
+            bodyKey));
+    }
+
+    private static void translateJointBreakEvent(@Nonnull PhysicsWorldRuntimeResource resource,
+        @Nonnull PhysicsSpace space,
+        @Nonnull PhysicsBackendJointBreakEvent event,
+        @Nonnull StepBackendEvents backendEvents) {
+        JointKey jointKey = resource.getJointKey(event.joint());
+        if (jointKey == null) {
+            return;
+        }
+        RigidBodyKey bodyAKey = resource.getBodyKey(event.joint().getBodyA());
+        RigidBodyKey bodyBKey = resource.getBodyKey(event.joint().getBodyB());
+        backendEvents.physicsEvents.add(new PhysicsJointBreakEvent(space.id(),
+            jointKey,
+            bodyAKey,
+            bodyBKey));
     }
 
     private static boolean supportsContinuousCollision(@Nonnull PhysicsSpace space) {
@@ -368,7 +487,15 @@ public final class PhysicsOwnerStepCommand implements PhysicsOwnerCommand {
 
     record StepExecution(@Nonnull PhysicsOwnerSnapshot snapshot,
                          @Nullable RuntimeException failure,
-                         @Nonnull PublishedPhysicsSnapshotFrame frame) {
+                         @Nonnull PublishedPhysicsSnapshotFrame frame,
+                         @Nonnull PhysicsEventFrame eventFrame) {
+    }
+
+    private static final class StepBackendEvents {
+
+        @Nonnull
+        private final ArrayList<PhysicsFrameEvent> physicsEvents = new ArrayList<>();
+        private int droppedBackendEventCount;
     }
 
     private static final class StepCounters {

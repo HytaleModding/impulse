@@ -4,6 +4,7 @@ import com.hypixel.hytale.component.ComponentRegistryProxy;
 import com.hypixel.hytale.component.ComponentType;
 import com.hypixel.hytale.component.ResourceType;
 import com.hypixel.hytale.component.SystemGroup;
+import com.hypixel.hytale.component.event.WorldEventType;
 import com.hypixel.hytale.common.plugin.PluginIdentifier;
 import com.hypixel.hytale.logger.HytaleLogger;
 import com.hypixel.hytale.server.core.HytaleServer;
@@ -47,6 +48,7 @@ import dev.hytalemodding.impulse.core.internal.systems.owner.PhysicsOwnerLifecyc
 import dev.hytalemodding.impulse.core.internal.components.PhysicsControlSessionComponent;
 import dev.hytalemodding.impulse.core.plugin.components.ImpulseControllableComponent;
 import dev.hytalemodding.impulse.core.plugin.components.PhysicsBodyAttachmentComponent;
+import dev.hytalemodding.impulse.core.plugin.events.PhysicsEventFramePublishedEvent;
 import dev.hytalemodding.impulse.core.plugin.persistence.PhysicsPersistenceResource;
 import dev.hytalemodding.impulse.core.plugin.resources.PhysicsWorldResource;
 import java.nio.file.Path;
@@ -90,6 +92,9 @@ public final class ImpulsePlugin extends JavaPlugin {
 
     @Getter
     private ResourceType<EntityStore, ? extends PhysicsPersistenceResource> persistentPhysicsWorldResourceType;
+
+    @Getter
+    private WorldEventType<EntityStore, PhysicsEventFramePublishedEvent> physicsEventFramePublishedEventType;
 
     @Getter
     private SystemGroup<EntityStore> persistenceRestoreGroup;
@@ -282,6 +287,8 @@ public final class ImpulsePlugin extends JavaPlugin {
             PersistentPhysicsWorldResource.class,
             "PersistentPhysicsWorld",
             PersistentPhysicsWorldResource.CODEC);
+        physicsEventFramePublishedEventType =
+            entityRegistry.registerWorldEventType(PhysicsEventFramePublishedEvent.class);
     }
 
     private void registerSystems() {

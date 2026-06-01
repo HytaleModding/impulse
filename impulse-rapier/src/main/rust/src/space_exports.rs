@@ -2,6 +2,12 @@ use super::*;
 
 const RUNTIME_STATS_INTS: usize = 10;
 const STEP_PHASE_STATS_LONGS: usize = 6;
+const CONTACT_EVENT_FLOATS: usize = 16;
+const MAX_CONTACT_EVENTS: usize = 16_384;
+const MAX_CONTACT_EVENT_FLOATS: usize = CONTACT_EVENT_FLOATS * MAX_CONTACT_EVENTS;
+const CONTACT_PHASE_STARTED: jfloat = 0.0;
+const CONTACT_PHASE_ENDED: jfloat = 2.0;
+const CONTACT_PHASE_FORCE: jfloat = 4.0;
 const TERRAIN_COLLISION_GROUP: u32 = 0b0000_0001;
 const DYNAMIC_BODY_COLLISION_GROUP: u32 = 0b0000_0010;
 
@@ -66,6 +72,218 @@ pub extern "system" fn Java_dev_hytalemodding_impulse_rapier_RapierNative_stepNa
             0
         }
     }
+}
+
+#[no_mangle]
+pub extern "system" fn Java_dev_hytalemodding_impulse_rapier_RapierNative_stepContactEventsNative(
+    mut env: JNIEnv,
+    _class: JClass,
+    space_handle: jlong,
+    dt: jfloat,
+) -> jfloatArray {
+    match with_space_checked(space_handle, |space| space.step_contact_events(dt)) {
+        Ok(values) => float_array_or_null(&env, &values),
+        Err(failure) => {
+            throw_native_space_failure(&mut env, "step contact events", failure);
+            std::ptr::null_mut()
+        }
+    }
+}
+
+impl NativeSpace {
+    fn step_contact_events(&mut self, dt: f32) -> Vec<jfloat> {
+        let dt = finite_or(dt, 0.0);
+        if dt <= 0.0 {
+            return Vec::new();
+        }
+
+        let values = {
+            let NativeSpace {
+                pipeline,
+                gravity,
+                integration_parameters,
+                islands,
+                broad_phase,
+                narrow_phase,
+                bodies,
+                colliders,
+                impulse_joints,
+                multibody_joints,
+                ccd_solver,
+                collider_to_body_id,
+                ..
+            } = self;
+            integration_parameters.dt = dt;
+            let event_collector = NativeContactEventCollector::new(collider_to_body_id);
+            pipeline.step(
+                *gravity,
+                integration_parameters,
+                islands,
+                broad_phase,
+                narrow_phase,
+                bodies,
+                colliders,
+                impulse_joints,
+                multibody_joints,
+                ccd_solver,
+                &(),
+                &event_collector,
+            );
+            event_collector.into_values()
+        };
+
+        self.record_pipeline_phase_stats();
+        values
+    }
+}
+
+struct NativeContactEventCollector<'a> {
+    collider_to_body_id: &'a HashMap<ColliderHandle, i64>,
+    values: Mutex<Vec<jfloat>>,
+}
+
+impl<'a> NativeContactEventCollector<'a> {
+    fn new(collider_to_body_id: &'a HashMap<ColliderHandle, i64>) -> Self {
+        Self {
+            collider_to_body_id,
+            values: Mutex::new(Vec::new()),
+        }
+    }
+
+    fn into_values(self) -> Vec<jfloat> {
+        self.values
+            .into_inner()
+            .unwrap_or_else(|poisoned| poisoned.into_inner())
+    }
+
+    fn push_contact_event(
+        &self,
+        phase: jfloat,
+        collider_a: ColliderHandle,
+        collider_b: ColliderHandle,
+        contact_pair: Option<&ContactPair>,
+        impulse: jfloat,
+    ) {
+        let Some(body_a_id) = self.collider_to_body_id.get(&collider_a) else {
+            return;
+        };
+        let Some(body_b_id) = self.collider_to_body_id.get(&collider_b) else {
+            return;
+        };
+
+        let (upper_a_bits, lower_a_bits) =
+            crate::query_exports::i32_to_raw_bit_f32_pair(*body_a_id);
+        let (upper_b_bits, lower_b_bits) =
+            crate::query_exports::i32_to_raw_bit_f32_pair(*body_b_id);
+        let contact = contact_pair
+            .and_then(first_solver_contact)
+            .unwrap_or_default();
+        let event_impulse = if phase == CONTACT_PHASE_FORCE {
+            impulse
+        } else {
+            contact.impulse
+        };
+        let record = [
+            phase,
+            upper_a_bits,
+            lower_a_bits,
+            upper_b_bits,
+            lower_b_bits,
+            contact.point.x,
+            contact.point.y,
+            contact.point.z,
+            contact.point.x,
+            contact.point.y,
+            contact.point.z,
+            contact.normal.x,
+            contact.normal.y,
+            contact.normal.z,
+            contact.distance,
+            event_impulse,
+        ];
+
+        let mut values = self
+            .values
+            .lock()
+            .unwrap_or_else(|poisoned| poisoned.into_inner());
+        if record.len() > MAX_CONTACT_EVENT_FLOATS.saturating_sub(values.len())
+            || values.try_reserve(record.len()).is_err()
+        {
+            return;
+        }
+        values.extend_from_slice(&record);
+    }
+}
+
+impl EventHandler for NativeContactEventCollector<'_> {
+    fn handle_collision_event(
+        &self,
+        _bodies: &RigidBodySet,
+        _colliders: &ColliderSet,
+        event: CollisionEvent,
+        contact_pair: Option<&ContactPair>,
+    ) {
+        match event {
+            CollisionEvent::Started(collider_a, collider_b, _) => {
+                self.push_contact_event(
+                    CONTACT_PHASE_STARTED,
+                    collider_a,
+                    collider_b,
+                    contact_pair,
+                    0.0,
+                );
+            }
+            CollisionEvent::Stopped(collider_a, collider_b, _) => {
+                self.push_contact_event(
+                    CONTACT_PHASE_ENDED,
+                    collider_a,
+                    collider_b,
+                    contact_pair,
+                    0.0,
+                );
+            }
+        }
+    }
+
+    fn handle_contact_force_event(
+        &self,
+        _dt: Real,
+        _bodies: &RigidBodySet,
+        _colliders: &ColliderSet,
+        contact_pair: &ContactPair,
+        total_force_magnitude: Real,
+    ) {
+        self.push_contact_event(
+            CONTACT_PHASE_FORCE,
+            contact_pair.collider1,
+            contact_pair.collider2,
+            Some(contact_pair),
+            total_force_magnitude,
+        );
+    }
+}
+
+#[derive(Clone, Copy, Default)]
+struct NativeContactRecord {
+    point: Vector,
+    normal: Vector,
+    distance: jfloat,
+    impulse: jfloat,
+}
+
+fn first_solver_contact(contact_pair: &ContactPair) -> Option<NativeContactRecord> {
+    for manifold in &contact_pair.manifolds {
+        let normal = manifold.data.normal;
+        if let Some(contact) = manifold.data.solver_contacts.first() {
+            return Some(NativeContactRecord {
+                point: contact.point,
+                normal,
+                distance: contact.dist,
+                impulse: contact.warmstart_impulse,
+            });
+        }
+    }
+    None
 }
 
 #[no_mangle]
