@@ -6,6 +6,8 @@ import dev.hytalemodding.impulse.api.PhysicsBackend;
 import dev.hytalemodding.impulse.api.PhysicsBody;
 import dev.hytalemodding.impulse.api.PhysicsBodyType;
 import dev.hytalemodding.impulse.api.PhysicsContact;
+import dev.hytalemodding.impulse.api.PhysicsBackendEventSink;
+import dev.hytalemodding.impulse.api.PhysicsContactPhase;
 import dev.hytalemodding.impulse.api.PhysicsJoint;
 import dev.hytalemodding.impulse.api.PhysicsJointType;
 import dev.hytalemodding.impulse.api.PhysicsRayHit;
@@ -109,6 +111,20 @@ public final class FakePhysicsBackend implements PhysicsBackend {
 
         @Override
         public void step(float dt) {
+        }
+
+        @Override
+        public void step(float dt, @Nonnull PhysicsBackendEventSink events) {
+            for (PhysicsContact contact : contacts) {
+                events.contact(PhysicsContactPhase.OBSERVED,
+                    contact.bodyA(),
+                    contact.bodyB(),
+                    contact.pointOnA(),
+                    contact.pointOnB(),
+                    contact.normalOnB(),
+                    contact.distance(),
+                    contact.impulse());
+            }
         }
 
         @Override
