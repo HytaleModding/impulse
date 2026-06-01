@@ -22,6 +22,7 @@ import dev.hytalemodding.impulse.api.PhysicsSpace;
 import dev.hytalemodding.impulse.api.ShapeType;
 import dev.hytalemodding.impulse.api.capability.PhysicsActivationTuning;
 import dev.hytalemodding.impulse.api.capability.PhysicsActivationTuningCapability;
+import dev.hytalemodding.impulse.api.capability.PhysicsBackendEventsCapability;
 import dev.hytalemodding.impulse.api.capability.PhysicsCapability;
 import dev.hytalemodding.impulse.api.capability.PhysicsContinuousCollisionCapability;
 import dev.hytalemodding.impulse.api.capability.PhysicsSolverTuning;
@@ -42,6 +43,20 @@ class RapierBackendContractTest extends PhysicsBackendContractTest {
     @Override
     protected PhysicsBackend createBackend() {
         return new RapierBackend();
+    }
+
+    @Test
+    void exposesRapierBackendEventCapability() {
+        PhysicsSpace space = createHeadlessSpace();
+
+        PhysicsBackendEventsCapability capability = space.getCapability(PhysicsBackendEventsCapability.class)
+            .orElseThrow();
+
+        assertTrue(capability.supportsContactPhase(PhysicsContactPhase.STARTED));
+        assertTrue(capability.supportsContactPhase(PhysicsContactPhase.ENDED));
+        assertTrue(capability.supportsContactPhase(PhysicsContactPhase.FORCE));
+        assertFalse(capability.supportsContactPhase(PhysicsContactPhase.PERSISTED));
+        assertFalse(capability.supportsContactPhase(PhysicsContactPhase.OBSERVED));
     }
 
     @Test
@@ -156,7 +171,7 @@ class RapierBackendContractTest extends PhysicsBackendContractTest {
     }
 
     @Test
-    void stepCopiesObservedContactsIntoBackendEventBatch() {
+    void stepCopiesNativeContactStartEventsIntoBackendEventBatch() {
         PhysicsSpace space = createHeadlessSpace();
         PhysicsBody plane = space.createStaticPlane(0.0f);
         PhysicsBody body = space.createSphere(0.5f, 1.0f);
@@ -166,23 +181,58 @@ class RapierBackendContractTest extends PhysicsBackendContractTest {
         space.addBody(body);
 
         PhysicsBackendEventBuffer buffer = new PhysicsBackendEventBuffer();
-        PhysicsBackendContactEvent observed = null;
-        for (int i = 0; i < MAX_SETTLE_STEPS && observed == null; i++) {
+        PhysicsBackendContactEvent started = null;
+        for (int i = 0; i < MAX_SETTLE_STEPS && started == null; i++) {
             space.step(STEP_DT, buffer);
             PhysicsBackendEventBatch batch = buffer.drain();
             for (PhysicsBackendEvent event : batch.events()) {
                 if (event instanceof PhysicsBackendContactEvent contactEvent
-                    && contactEvent.phase() == PhysicsContactPhase.OBSERVED) {
-                    observed = contactEvent;
+                    && contactEvent.phase() == PhysicsContactPhase.STARTED) {
+                    started = contactEvent;
                     break;
                 }
             }
         }
 
-        assertTrue(observed != null, "Expected Rapier to copy an observed contact into the event batch");
-        assertTrue((observed.bodyA() == plane && observed.bodyB() == body)
-                || (observed.bodyA() == body && observed.bodyB() == plane),
-            "Observed contact should reference the colliding bodies");
+        assertTrue(started != null, "Expected Rapier native events to emit a contact start event");
+        assertTrue((started.bodyA() == plane && started.bodyB() == body)
+                || (started.bodyA() == body && started.bodyB() == plane),
+            "Started contact should reference the colliding bodies");
+    }
+
+    @Test
+    void stepCopiesNativeContactForceAndEndEventsIntoBackendEventBatch() {
+        PhysicsSpace space = createHeadlessSpace();
+        PhysicsBody plane = space.createStaticPlane(0.0f);
+        PhysicsBody body = space.createSphere(0.5f, 1.0f);
+        body.setPosition(0.0f, 3.0f, 0.0f);
+
+        space.addBody(plane);
+        space.addBody(body);
+
+        PhysicsBackendEventBuffer buffer = new PhysicsBackendEventBuffer();
+        PhysicsBackendContactEvent force = stepUntilContactEvent(space,
+            buffer,
+            PhysicsContactPhase.FORCE,
+            plane,
+            body,
+            MAX_SETTLE_STEPS);
+
+        assertTrue(force != null, "Expected Rapier native events to emit contact force");
+        assertTrue(force.impulse() > 0.0f, "Force event should carry a positive force magnitude");
+
+        body.setPosition(0.0f, 5.0f, 0.0f);
+        body.setLinearVelocity(0.0f, 0.0f, 0.0f);
+        body.activate();
+
+        PhysicsBackendContactEvent ended = stepUntilContactEvent(space,
+            buffer,
+            PhysicsContactPhase.ENDED,
+            plane,
+            body,
+            MAX_SETTLE_STEPS);
+
+        assertTrue(ended != null, "Expected Rapier native events to emit contact end");
     }
 
     @Test
@@ -521,6 +571,33 @@ class RapierBackendContractTest extends PhysicsBackendContractTest {
 
     private static boolean isFinite(@Nonnull Vector3f vector) {
         return Float.isFinite(vector.x) && Float.isFinite(vector.y) && Float.isFinite(vector.z);
+    }
+
+    private PhysicsBackendContactEvent stepUntilContactEvent(@Nonnull PhysicsSpace space,
+        @Nonnull PhysicsBackendEventBuffer buffer,
+        @Nonnull PhysicsContactPhase phase,
+        @Nonnull PhysicsBody expectedA,
+        @Nonnull PhysicsBody expectedB,
+        int maxSteps) {
+        for (int i = 0; i < maxSteps; i++) {
+            space.step(STEP_DT, buffer);
+            PhysicsBackendEventBatch batch = buffer.drain();
+            for (PhysicsBackendEvent event : batch.events()) {
+                if (event instanceof PhysicsBackendContactEvent contactEvent
+                    && contactEvent.phase() == phase
+                    && referencesBodies(contactEvent, expectedA, expectedB)) {
+                    return contactEvent;
+                }
+            }
+        }
+        return null;
+    }
+
+    private static boolean referencesBodies(@Nonnull PhysicsBackendContactEvent event,
+        @Nonnull PhysicsBody expectedA,
+        @Nonnull PhysicsBody expectedB) {
+        return (event.bodyA() == expectedA && event.bodyB() == expectedB)
+            || (event.bodyA() == expectedB && event.bodyB() == expectedA);
     }
 
     @Nonnull

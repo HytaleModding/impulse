@@ -68,11 +68,15 @@ public final class PhysicsPublicationPipeline {
             return null;
         }
 
+        boolean currentFrame = true;
         PublishedPhysicsSnapshotFrame frame = completion.frame();
         if (frame != null) {
             // Reader-side apply happens here; command handles may have completed earlier.
-            PhysicsWorldRuntimeResource.require(resource)
-                .applyPublishedSnapshotFrame(frame, publicationServerTick);
+            PhysicsWorldRuntimeResource runtime = PhysicsWorldRuntimeResource.require(resource);
+            runtime.applyPublishedSnapshotFrame(frame, publicationServerTick);
+            if (frame.worldEpoch() != runtime.worldEpoch()) {
+                currentFrame = false;
+            }
         }
 
         PhysicsOwnerSnapshot snapshot = completion.snapshotOrEmpty();
@@ -98,6 +102,6 @@ public final class PhysicsPublicationPipeline {
                 frame != null ? frame.status() : "<missing>",
                 stepFailure.getMessage());
         }
-        return completion.eventFrame();
+        return currentFrame ? completion.eventFrame() : null;
     }
 }

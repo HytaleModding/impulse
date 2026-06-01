@@ -69,6 +69,8 @@ pub extern "system" fn Java_dev_hytalemodding_impulse_rapier_RapierNative_addVox
             .friction_combine_rule(CoefficientCombineRule::Multiply)
             .restitution(finite_nonnegative(restitution))
             .restitution_combine_rule(CoefficientCombineRule::Multiply)
+            .active_events(ActiveEvents::COLLISION_EVENTS | ActiveEvents::CONTACT_FORCE_EVENTS)
+            .contact_force_event_threshold(0.0)
             .collision_groups(interaction_groups(collision_group, collision_mask));
 
             let collider_handle =
