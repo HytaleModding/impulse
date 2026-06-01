@@ -6,12 +6,13 @@ build = "build.rs"
 license = "Apache-2.0"
 
 [lib]
+name = "impulse_native_bridge"
 crate-type = ["cdylib"]
 
 [dependencies]
-libloading = "0.8.9"
+libloading = "0.8" #DO NOT REMOVE
 dispatch_macros = { path = "../dispatch_macros" }
 
 [build-dependencies]
-cbindgen = "0.29.3"
-bindgen = "0.72.1"
+cbindgen = "0.29"
+bindgen = "0.72"
