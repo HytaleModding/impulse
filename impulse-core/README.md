@@ -16,6 +16,13 @@ Impulse core is divided in two categories:
 Backend jars are Java service-provider jars. Impulse discovers `PhysicsBackend` providers from jars 
 anywhere under the configured Hytale `mods` directories.
 
+## Event frames
+
+`PhysicsWorldResource.getLatestEventFrame()` exposes the latest value-only physics event frame for
+diagnostics. Backends emit bounded post-step `PhysicsBackendEvent` batches; core translates them to
+stable `PhysicsFrameEvent` values keyed by `RigidBodyKey` and `JointKey`, then publishes one
+`PhysicsEventFramePublishedEvent` Hytale world event for the completed frame.
+
 ## Cleanup commands
 
 - `/impulse clean --confirm` - remove Impulse attachment entities, visual proxies, runtime bodies, joints, and control sessions from the current world while keeping explicit spaces.
