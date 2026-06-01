@@ -58,7 +58,7 @@ fn main() {
         .expect("Unable to generate engine signature stubs");
 
     signatures
-        .write_to_file(format!("{GENERATED_DIR}/engine_ffi_sigs.rs"))
+        .write_to_file(format!("{GENERATED_DIR}/engine_ffi_signs.rs"))
         .expect("Couldn't write engine signature stubs!");
 
     // --- PART 2: PRODUCE (Generate your headers for Java) ---
