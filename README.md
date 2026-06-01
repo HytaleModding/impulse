@@ -1,14 +1,20 @@
 # Impulse
 
-Physics framework for Hytale. 
+Impulse is a physics framework for Hytale that connects Hytale ECS worlds to pluggable physics engines.
 
 ## Modules
 
+Impulse codebase is divided as follows:
+
+- **impulse-core** - Hytale ECS integration and backend communication.
 - **impulse-api** - backend-agnostic API layer and contracts.
+- **impulse-examples** - example plugins to understand the framework usage.
+
+Official physics backend implementations:
 - **impulse-bullet** - Libbulletjme backend implementation.
 - **impulse-rapier** - Rapier backend with a small Rust/JNI native shim.
-- **impulse-core** - Hytale ECS integration.
-- **impulse-examples** - example plugins to understand library usage.
+
+For detailed explainations read each module's README.md
 
 ## Getting started
 
