@@ -7,11 +7,11 @@ import com.hypixel.hytale.server.core.universe.world.World;
 import com.hypixel.hytale.server.core.universe.world.chunk.BlockChunk;
 import com.hypixel.hytale.server.core.universe.world.chunk.section.BlockSection;
 import com.hypixel.hytale.server.core.universe.world.storage.ChunkStore;
-import dev.hytalemodding.impulse.api.PhysicsBody;
+import dev.hytalemodding.impulse.api.PhysicsBodyType;
 import dev.hytalemodding.impulse.api.PhysicsCollisionFilters;
-import dev.hytalemodding.impulse.api.PhysicsSpace;
 import dev.hytalemodding.impulse.api.SpaceId;
-import dev.hytalemodding.impulse.api.capability.PhysicsVoxelTerrainCapability;
+import dev.hytalemodding.impulse.api.runtime.BackendBodySpec;
+import dev.hytalemodding.impulse.core.internal.resources.PhysicsSpaceBinding;
 import dev.hytalemodding.impulse.core.internal.resources.profiling.WorldCollisionProfilingResource.MissingSectionReason;
 import dev.hytalemodding.impulse.core.internal.resources.profiling.WorldCollisionProfilingResource.Snapshot;
 import dev.hytalemodding.impulse.core.internal.resources.profiling.WorldCollisionProfilingResource.StreamingTargetDiagnostic;
@@ -176,7 +176,7 @@ public final class WorldVoxelCollisionCache {
      */
     @Nonnull
     public BuildStats rebuildAround(@Nonnull World world,
-        @Nonnull PhysicsSpace space,
+        @Nonnull PhysicsSpaceBinding space,
         @Nonnull Vector3d center,
         int radius) {
         int removed = clear(space);
@@ -189,7 +189,7 @@ public final class WorldVoxelCollisionCache {
      */
     @Nonnull
     public BuildStats ensureAround(@Nonnull World world,
-        @Nonnull PhysicsSpace space,
+        @Nonnull PhysicsSpaceBinding space,
         @Nonnull Vector3d center,
         int radius,
         long tick) {
@@ -201,7 +201,7 @@ public final class WorldVoxelCollisionCache {
      */
     @Nonnull
     public BuildStats ensureAround(@Nonnull World world,
-        @Nonnull PhysicsSpace space,
+        @Nonnull PhysicsSpaceBinding space,
         @Nonnull Vector3d center,
         int radius,
         long tick,
@@ -214,7 +214,7 @@ public final class WorldVoxelCollisionCache {
      */
     @Nonnull
     public BuildStats ensureAround(@Nonnull World world,
-        @Nonnull PhysicsSpace space,
+        @Nonnull PhysicsSpaceBinding space,
         @Nonnull Vector3d center,
         int radius,
         long tick,
@@ -228,7 +228,7 @@ public final class WorldVoxelCollisionCache {
      */
     @Nonnull
     public BuildStats ensureAround(@Nonnull World world,
-        @Nonnull PhysicsSpace space,
+        @Nonnull PhysicsSpaceBinding space,
         @Nonnull Vector3d center,
         int radius,
         long tick,
@@ -251,7 +251,7 @@ public final class WorldVoxelCollisionCache {
      */
     @Nonnull
     public BuildStats ensureAround(@Nonnull World world,
-        @Nonnull PhysicsSpace space,
+        @Nonnull PhysicsSpaceBinding space,
         @Nonnull Vector3d center,
         int radius,
         long tick,
@@ -357,7 +357,7 @@ public final class WorldVoxelCollisionCache {
      * Removes sections whose last use is older than the configured TTL.
      */
     public int pruneUnused(@Nonnull SpaceId spaceId,
-        @Nonnull PhysicsSpace space,
+        @Nonnull PhysicsSpaceBinding space,
         long currentTick,
         int ttlTicks) {
         return pruneUnused(spaceId, space, currentTick, ttlTicks, null);
@@ -367,7 +367,7 @@ public final class WorldVoxelCollisionCache {
      * Removes sections whose last use is older than the configured TTL.
      */
     public int pruneUnused(@Nonnull SpaceId spaceId,
-        @Nonnull PhysicsSpace space,
+        @Nonnull PhysicsSpaceBinding space,
         long currentTick,
         int ttlTicks,
         @Nullable Snapshot profiling) {
@@ -407,7 +407,7 @@ public final class WorldVoxelCollisionCache {
      */
     public int pruneUnloaded(@Nonnull World world,
         @Nonnull SpaceId spaceId,
-        @Nonnull PhysicsSpace space) {
+        @Nonnull PhysicsSpaceBinding space) {
         return pruneUnloaded(world, spaceId, space, null);
     }
 
@@ -416,7 +416,7 @@ public final class WorldVoxelCollisionCache {
      */
     public int pruneUnloaded(@Nonnull World world,
         @Nonnull SpaceId spaceId,
-        @Nonnull PhysicsSpace space,
+        @Nonnull PhysicsSpaceBinding space,
         @Nullable Snapshot profiling) {
         return pruneUnloaded(world, spaceId, space, profiling, null);
     }
@@ -426,7 +426,7 @@ public final class WorldVoxelCollisionCache {
      */
     public int pruneUnloaded(@Nonnull World world,
         @Nonnull SpaceId spaceId,
-        @Nonnull PhysicsSpace space,
+        @Nonnull PhysicsSpaceBinding space,
         @Nullable Snapshot profiling,
         @Nullable SectionAccessCache accessCache) {
         long start = profiling != null ? System.nanoTime() : 0L;
@@ -461,7 +461,7 @@ public final class WorldVoxelCollisionCache {
     /**
      * Removes all cached sections for the given space.
      */
-    public int clear(@Nonnull SpaceId spaceId, @Nullable PhysicsSpace space) {
+    public int clear(@Nonnull SpaceId spaceId, @Nullable PhysicsSpaceBinding space) {
         SpaceCollisionCache cache = spaces.remove(spaceId.value());
         if (cache == null || space == null) {
             return 0;
@@ -477,15 +477,15 @@ public final class WorldVoxelCollisionCache {
     /**
      * Removes all cached sections for the given space.
      */
-    public int clear(@Nonnull PhysicsSpace space) {
-        return clear(space.id(), space);
+    public int clear(@Nonnull PhysicsSpaceBinding space) {
+        return clear(space.spaceId(), space);
     }
 
     /**
      * Removes cached sections for one chunk from a single physics space.
      */
     public int clearChunk(@Nonnull SpaceId spaceId,
-        @Nullable PhysicsSpace space,
+        @Nullable PhysicsSpaceBinding space,
         int chunkX,
         int chunkZ) {
         SpaceCollisionCache cache = spaces.get(spaceId.value());
@@ -539,14 +539,14 @@ public final class WorldVoxelCollisionCache {
         return shapeTemplates.size();
     }
 
-    public boolean containsBody(@Nonnull SpaceId spaceId, @Nonnull PhysicsBody body) {
+    public boolean containsBody(@Nonnull SpaceId spaceId, long backendBodyId) {
         SpaceCollisionCache cache = spaces.get(spaceId.value());
         if (cache == null) {
             return false;
         }
 
         for (CachedSection section : cache.sections.values()) {
-            if (section.bodies.contains(body)) {
+            if (section.bodies.contains(backendBodyId)) {
                 return true;
             }
         }
@@ -630,7 +630,7 @@ public final class WorldVoxelCollisionCache {
 
     @Nonnull
     private BuildStats ensureSection(@Nonnull World world,
-        @Nonnull PhysicsSpace space,
+        @Nonnull PhysicsSpaceBinding space,
         int chunkX,
         int sectionY,
         int chunkZ,
@@ -643,7 +643,8 @@ public final class WorldVoxelCollisionCache {
             profiling.incrementSectionRequests();
         }
 
-        SpaceCollisionCache cache = spaces.computeIfAbsent(space.id().value(), ignored -> new SpaceCollisionCache());
+        SpaceCollisionCache cache =
+            spaces.computeIfAbsent(space.spaceId().value(), ignored -> new SpaceCollisionCache());
         long chunkKey = ChunkUtil.indexChunk(chunkX, chunkZ);
         long sectionKey = packSectionKey(chunkX, sectionY, chunkZ);
         if (isBackedOff(cache.missingBlockChunkBackoffs, chunkKey, tick)) {
@@ -725,12 +726,10 @@ public final class WorldVoxelCollisionCache {
             sectionY,
             chunkZ,
             accessCache);
-        PhysicsVoxelTerrainCapability voxelTerrainCapability =
-            space.getCapability(PhysicsVoxelTerrainCapability.class).orElse(null);
         CachedSection built = new CachedSection(chunkX, sectionY, chunkZ, tick,
             neighborhoodSignature);
         try {
-            addGeometryBodies(space, built, geometry, voxelTerrainCapability, chunkX, sectionY, chunkZ);
+            addGeometryBodies(space, built, geometry);
         } catch (RuntimeException exception) {
             removeBuiltSectionAfterFailure(space, built, exception);
             throw exception;
@@ -753,7 +752,7 @@ public final class WorldVoxelCollisionCache {
             removed,
             rebuilt ? 0 : 1,
             rebuilt ? 1 : 0,
-            voxelTerrainCapability != null && geometry.hasFullCubeVoxels() ? 1 : 0);
+            0);
         if (profiling != null) {
             profiling.addBuildStats(stats);
             profiling.addEnsureSectionNanos(System.nanoTime() - start);
@@ -761,7 +760,7 @@ public final class WorldVoxelCollisionCache {
         return stats;
     }
 
-    private static void removeBuiltSectionAfterFailure(@Nonnull PhysicsSpace space,
+    private static void removeBuiltSectionAfterFailure(@Nonnull PhysicsSpaceBinding space,
         @Nonnull CachedSection built,
         @Nonnull RuntimeException failure) {
         try {
@@ -771,35 +770,13 @@ public final class WorldVoxelCollisionCache {
         }
     }
 
-    private static void addGeometryBodies(@Nonnull PhysicsSpace space,
+    private static void addGeometryBodies(@Nonnull PhysicsSpaceBinding space,
         @Nonnull CachedSection target,
-        @Nonnull SectionCollisionGeometry geometry,
-        @Nullable PhysicsVoxelTerrainCapability voxelTerrainCapability,
-        int chunkX,
-        int sectionY,
-        int chunkZ) {
+        @Nonnull SectionCollisionGeometry geometry) {
         target.fullCubeBoxes.addAll(geometry.mergedFullCubeBoxes());
         target.detailBoxes.addAll(geometry.detailBoxes());
-        if (voxelTerrainCapability != null && geometry.hasFullCubeVoxels()) {
-            target.voxelTerrain = true;
-            // TODO: Wire adjacent voxel terrain bodies through combineVoxelTerrains
-            // so Rapier can use native adjacency hints across streamed section boundaries.
-            PhysicsBody voxelBody = voxelTerrainCapability.createVoxelTerrain(1.0f,
-                1.0f,
-                1.0f,
-                geometry.fullCubeVoxels());
-            voxelBody.setPosition(chunkX << ChunkUtil.BITS,
-                sectionY << ChunkUtil.BITS,
-                chunkZ << ChunkUtil.BITS);
-            voxelBody.setFriction(0.75f);
-            voxelBody.setCollisionFilter(PhysicsCollisionFilters.TERRAIN, PhysicsCollisionFilters.ALL);
-            space.addBody(voxelBody);
-            target.voxelBody = voxelBody;
-            target.bodies.add(voxelBody);
-        } else {
-            for (BoxCollider box : geometry.mergedFullCubeBoxes()) {
-                addStaticBox(space, target, box);
-            }
+        for (BoxCollider box : geometry.mergedFullCubeBoxes()) {
+            addStaticBox(space, target, box);
         }
 
         for (BoxCollider box : geometry.detailBoxes()) {
@@ -807,22 +784,29 @@ public final class WorldVoxelCollisionCache {
         }
     }
 
-    private static void addStaticBox(@Nonnull PhysicsSpace space,
+    private static void addStaticBox(@Nonnull PhysicsSpaceBinding space,
         @Nonnull CachedSection section,
         @Nonnull BoxCollider box) {
         if (box.halfX() <= 0.0 || box.halfY() <= 0.0 || box.halfZ() <= 0.0) {
             return;
         }
 
-        PhysicsBody body = space.createBox((float) box.halfX(),
+        long bodyId = space.runtime().createBody(space.backendSpaceId(),
+            BackendBodySpec.box((float) box.halfX(),
             (float) box.halfY(),
             (float) box.halfZ(),
-            0.0f);
-        body.setPosition((float) box.centerX(), (float) box.centerY(), (float) box.centerZ());
-        body.setFriction(0.75f);
-        body.setCollisionFilter(PhysicsCollisionFilters.TERRAIN, PhysicsCollisionFilters.ALL);
-        space.addBody(body);
-        section.bodies.add(body);
+            0.0f,
+            PhysicsBodyType.STATIC,
+            (float) box.centerX(),
+            (float) box.centerY(),
+            (float) box.centerZ()));
+        space.runtime().setBodyFriction(space.backendSpaceId(), bodyId, 0.75f);
+        space.runtime()
+            .setBodyCollisionFilter(space.backendSpaceId(),
+                bodyId,
+                PhysicsCollisionFilters.TERRAIN,
+                PhysicsCollisionFilters.ALL);
+        section.bodies.add(bodyId);
     }
 
     @Nullable
@@ -976,12 +960,11 @@ public final class WorldVoxelCollisionCache {
         private final int chunkX;
         private final int sectionY;
         private final int chunkZ;
-        private final List<PhysicsBody> bodies = new ArrayList<>();
+        private final List<Long> bodies = new ArrayList<>();
         private final List<BoxCollider> fullCubeBoxes = new ArrayList<>();
         private final List<BoxCollider> detailBoxes = new ArrayList<>();
         private final long neighborhoodSignature;
         @Nullable
-        private PhysicsBody voxelBody;
         private boolean voxelTerrain;
         private long lastUsedTick;
 
@@ -997,10 +980,10 @@ public final class WorldVoxelCollisionCache {
             this.neighborhoodSignature = neighborhoodSignature;
         }
 
-        private int removeFrom(@Nonnull PhysicsSpace space) {
+        private int removeFrom(@Nonnull PhysicsSpaceBinding space) {
             int removed = bodies.size();
-            for (PhysicsBody body : bodies) {
-                space.removeBody(body);
+            for (long bodyId : bodies) {
+                space.runtime().removeBody(space.backendSpaceId(), bodyId);
             }
             bodies.clear();
             return removed;

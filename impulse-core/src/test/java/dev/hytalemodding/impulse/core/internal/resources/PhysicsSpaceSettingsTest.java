@@ -8,9 +8,11 @@ import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.hypixel.hytale.codec.ExtraInfo;
+import dev.hytalemodding.impulse.api.Impulse;
 import dev.hytalemodding.impulse.api.PhysicsSpace;
 import dev.hytalemodding.impulse.api.testsupport.FakePhysicsBackend;
 import dev.hytalemodding.impulse.core.internal.persistence.PersistentPhysicsSpaceState;
+import dev.hytalemodding.impulse.core.internal.testsupport.LegacyLiveHandleTestResource;
 import dev.hytalemodding.impulse.core.plugin.collision.WorldCollisionMode;
 import dev.hytalemodding.impulse.core.plugin.settings.PhysicsBackendExtensionId;
 import dev.hytalemodding.impulse.core.plugin.settings.PhysicsCollisionLodSettings;
@@ -312,9 +314,13 @@ class PhysicsSpaceSettingsTest {
         original.getVisualMaterializationSettings().setDetachedVisualCandidateRefreshIntervalTicks(9);
         original.getVisualMaterializationSettings().setDetachedVisualVisibilityCheckIntervalTicks(11);
 
-        PhysicsSpace space = new FakePhysicsBackend("test:settings-persistence-"
-            + BACKEND_COUNTER.incrementAndGet()).createSpace();
-        PersistentPhysicsSpaceState state = PersistentPhysicsSpaceState.from(space, original);
+        FakePhysicsBackend backend =
+            new FakePhysicsBackend("test:settings-persistence-" + BACKEND_COUNTER.incrementAndGet());
+        Impulse.registerBackend(backend);
+        LegacyLiveHandleTestResource resource = new LegacyLiveHandleTestResource();
+        PhysicsSpace space = resource.createLiveSpace(backend.getId(), "test-world", original);
+        PersistentPhysicsSpaceState state =
+            PersistentPhysicsSpaceState.from(resource.requireSpaceBinding(space.id()), original);
 
         BsonDocument encoded = PersistentPhysicsSpaceState.CODEC.encode(state, new ExtraInfo()).asDocument();
 

@@ -1,9 +1,10 @@
 package dev.hytalemodding.impulse.core.internal.persistence;
 
-import dev.hytalemodding.impulse.api.PhysicsSpace;
 import dev.hytalemodding.impulse.core.plugin.body.RigidBodyKey;
 import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyPersistenceMode;
+import dev.hytalemodding.impulse.core.internal.resources.PhysicsSpaceBinding;
 import dev.hytalemodding.impulse.core.internal.resources.body.PhysicsBodyRegistration;
+import dev.hytalemodding.impulse.core.internal.resources.joint.PhysicsJointRegistration;
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsWorldRuntimeResource;
 import dev.hytalemodding.impulse.core.plugin.settings.PhysicsSpaceSettings;
 import dev.hytalemodding.impulse.core.plugin.settings.PhysicsWorldSettings;
@@ -53,11 +54,12 @@ public final class PersistentPhysicsRuntimeSnapshot {
         List<PersistentPhysicsJointState> joints = new ArrayList<>();
         for (PhysicsBodyRegistration registration : runtime.getBodyRegistrations()) {
             if (registration.persistenceMode() == PhysicsBodyPersistenceMode.PERSISTENT) {
-                bodies.add(PersistentPhysicsBodyState.from(registration));
+                bodies.add(PersistentPhysicsBodyState.from(registration,
+                    runtime.getBodySnapshot(registration.id())));
             }
         }
-        for (PhysicsSpace space : runtime.iterateSpaces()) {
-            PhysicsSpaceSettings settings = runtime.getLiveSpaceSettings(space.id());
+        for (PhysicsSpaceBinding space : runtime.iterateSpaceBindings()) {
+            PhysicsSpaceSettings settings = runtime.getLiveSpaceSettings(space.spaceId());
             spaces.add(PersistentPhysicsSpaceState.from(space, settings));
             capturePersistentJoints(runtime, space, joints);
         }
@@ -102,50 +104,43 @@ public final class PersistentPhysicsRuntimeSnapshot {
     }
 
     private static int countPersistentJoints(@Nonnull PhysicsWorldRuntimeResource runtime) {
-        int[] count = new int[1];
-        for (PhysicsSpace space : runtime.iterateSpaces()) {
-            space.forEachJoint(joint -> {
-                RigidBodyKey bodyAKey = runtime.getBodyKey(joint.getBodyA());
-                RigidBodyKey bodyBKey = runtime.getBodyKey(joint.getBodyB());
-                if (bodyAKey == null || bodyBKey == null) {
-                    return;
-                }
-                PhysicsBodyRegistration bodyA = runtime.getRegistration(bodyAKey);
-                PhysicsBodyRegistration bodyB = runtime.getRegistration(bodyBKey);
-                if (bodyA == null
-                    || bodyB == null
-                    || bodyA.persistenceMode() != PhysicsBodyPersistenceMode.PERSISTENT
-                    || bodyB.persistenceMode() != PhysicsBodyPersistenceMode.PERSISTENT) {
-                    return;
-                }
-                count[0]++;
-            });
+        int count = 0;
+        for (PhysicsJointRegistration joint : runtime.getJointRegistrations()) {
+            PhysicsBodyRegistration bodyA = runtime.getRegistration(joint.bodyA());
+            PhysicsBodyRegistration bodyB = runtime.getRegistration(joint.bodyB());
+            if (bodyA == null
+                || bodyB == null
+                || bodyA.persistenceMode() != PhysicsBodyPersistenceMode.PERSISTENT
+                || bodyB.persistenceMode() != PhysicsBodyPersistenceMode.PERSISTENT) {
+                continue;
+            }
+            count++;
         }
-        return count[0];
+        return count;
     }
 
     private static void capturePersistentJoints(@Nonnull PhysicsWorldRuntimeResource runtime,
-        @Nonnull PhysicsSpace space,
+        @Nonnull PhysicsSpaceBinding space,
         @Nonnull List<PersistentPhysicsJointState> joints) {
-        space.forEachJoint(joint -> {
-            RigidBodyKey bodyAKey = runtime.getBodyKey(joint.getBodyA());
-            RigidBodyKey bodyBKey = runtime.getBodyKey(joint.getBodyB());
-            if (bodyAKey == null || bodyBKey == null) {
-                return;
+        for (PhysicsJointRegistration joint : runtime.getJointRegistrations()) {
+            if (!joint.spaceId().equals(space.spaceId())) {
+                continue;
             }
+            RigidBodyKey bodyAKey = joint.bodyA();
+            RigidBodyKey bodyBKey = joint.bodyB();
             PhysicsBodyRegistration bodyA = runtime.getRegistration(bodyAKey);
             PhysicsBodyRegistration bodyB = runtime.getRegistration(bodyBKey);
             if (bodyA == null
                 || bodyB == null
                 || bodyA.persistenceMode() != PhysicsBodyPersistenceMode.PERSISTENT
                 || bodyB.persistenceMode() != PhysicsBodyPersistenceMode.PERSISTENT) {
-                return;
+                continue;
             }
-            joints.add(PersistentPhysicsJointState.from(space.id().value(),
+            joints.add(PersistentPhysicsJointState.from(space.spaceId().value(),
                 bodyAKey,
                 bodyBKey,
                 joint));
-        });
+        }
     }
 
     @Nonnull

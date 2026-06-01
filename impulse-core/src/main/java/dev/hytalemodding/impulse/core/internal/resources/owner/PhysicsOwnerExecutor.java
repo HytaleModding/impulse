@@ -1,8 +1,5 @@
 package dev.hytalemodding.impulse.core.internal.resources.owner;
 
-import dev.hytalemodding.impulse.api.PhysicsBody;
-import dev.hytalemodding.impulse.api.PhysicsJoint;
-import dev.hytalemodding.impulse.api.PhysicsSpace;
 import dev.hytalemodding.impulse.core.plugin.resources.PhysicsMutationHandle;
 import java.util.concurrent.CompletableFuture;
 import javax.annotation.Nonnull;
@@ -11,10 +8,9 @@ import javax.annotation.Nullable;
 /**
  * Internal serialized owner lane for one world physics resource.
  *
- * <p>Callbacks routed through this executor may touch live {@link PhysicsSpace},
- * {@link PhysicsBody}, and {@link PhysicsJoint} instances. Implementations define owner-context
- * membership with their own lane token; callers must not assume a stable Java thread owns a
- * world.</p>
+ * <p>Callbacks routed through this executor may touch backend runtime state. Implementations define
+ * owner-context membership with their own lane token; callers must not assume a stable Java thread
+ * owns a world.</p>
  */
 public interface PhysicsOwnerExecutor {
 

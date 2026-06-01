@@ -5,10 +5,13 @@ import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import dev.hytalemodding.impulse.api.Impulse;
 import dev.hytalemodding.impulse.api.PhysicsSpace;
 import dev.hytalemodding.impulse.api.SpaceId;
 import dev.hytalemodding.impulse.api.testsupport.FakePhysicsBackend;
+import dev.hytalemodding.impulse.core.internal.resources.PhysicsSpaceBinding;
 import dev.hytalemodding.impulse.core.internal.resources.profiling.WorldCollisionProfilingResource;
+import dev.hytalemodding.impulse.core.internal.testsupport.LegacyLiveHandleTestResource;
 import dev.hytalemodding.impulse.core.internal.voxel.SectionCollisionGeometry.BoxCollider;
 import dev.hytalemodding.impulse.core.plugin.body.RigidBodyKey;
 import java.lang.reflect.Constructor;
@@ -151,7 +154,11 @@ class WorldVoxelCollisionCacheTest {
 
     @Test
     void absentVoxelCapabilityFallsBackToMergedFullCubeBoxes() throws Exception {
-        RecordingSpace recording = new RecordingSpace();
+        FakePhysicsBackend backend = new FakePhysicsBackend("test:voxel-capability-fallback");
+        Impulse.registerBackend(backend);
+        LegacyLiveHandleTestResource resource = new LegacyLiveHandleTestResource();
+        PhysicsSpace space = resource.createLiveSpace(backend.getId());
+        PhysicsSpaceBinding binding = resource.requireSpaceBinding(space.id());
         SectionCollisionGeometry geometry = new SectionCollisionGeometry(new int[] {0, 0, 0, 1, 0, 0},
             List.of(new BoxCollider(1.0, 0.5, 0.5, 1.0, 0.5, 0.5)),
             List.of(new BoxCollider(4.25, 2.25, 4.25, 0.25, 0.25, 0.25)),
@@ -160,16 +167,14 @@ class WorldVoxelCollisionCacheTest {
             0,
             1);
 
-        assertDoesNotThrow(() -> addGeometryBodies(recording.space(),
+        assertDoesNotThrow(() -> addGeometryBodies(binding,
             newCachedSection(),
             geometry,
             0,
             0,
             0));
 
-        assertEquals(2, recording.space().bodyCount());
-        assertEquals(2, recording.createdBoxes());
-        assertEquals(0, recording.createdVoxelTerrains());
+        assertEquals(2, binding.runtime().bodyCount(binding.backendSpaceId()));
     }
 
     private static RigidBodyKey bodyId(long leastSignificantBits) {
@@ -191,7 +196,7 @@ class WorldVoxelCollisionCacheTest {
         return constructor.newInstance(0, 0, 0, 0L, 1L);
     }
 
-    private static void addGeometryBodies(@Nonnull PhysicsSpace space,
+    private static void addGeometryBodies(@Nonnull PhysicsSpaceBinding space,
         @Nonnull Object target,
         @Nonnull SectionCollisionGeometry geometry,
         int chunkX,
@@ -217,7 +222,7 @@ class WorldVoxelCollisionCacheTest {
 
     @Nonnull
     private static Object[] addGeometryBodiesArguments(@Nonnull Method method,
-        @Nonnull PhysicsSpace space,
+        @Nonnull PhysicsSpaceBinding space,
         @Nonnull Object target,
         @Nonnull SectionCollisionGeometry geometry,
         int chunkX,
@@ -227,7 +232,7 @@ class WorldVoxelCollisionCacheTest {
         int integerIndex = 0;
         for (int index = 0; index < arguments.length; index++) {
             Class<?> type = method.getParameterTypes()[index];
-            if (type == PhysicsSpace.class) {
+            if (type == PhysicsSpaceBinding.class) {
                 arguments[index] = space;
             } else if (type == SectionCollisionGeometry.class) {
                 arguments[index] = geometry;

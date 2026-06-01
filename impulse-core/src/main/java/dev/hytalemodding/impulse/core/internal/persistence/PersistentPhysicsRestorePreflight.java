@@ -2,9 +2,8 @@ package dev.hytalemodding.impulse.core.internal.persistence;
 
 import dev.hytalemodding.impulse.api.BackendId;
 import dev.hytalemodding.impulse.api.Impulse;
-import dev.hytalemodding.impulse.api.PhysicsSpace;
 import dev.hytalemodding.impulse.api.SpaceId;
-import dev.hytalemodding.impulse.api.capability.PhysicsContinuousCollisionCapability;
+import dev.hytalemodding.impulse.api.runtime.PhysicsBackendRuntime;
 import dev.hytalemodding.impulse.core.plugin.body.RigidBodyKey;
 import dev.hytalemodding.impulse.core.plugin.settings.PhysicsStepMode;
 import dev.hytalemodding.impulse.core.plugin.settings.PhysicsWorldSettings;
@@ -120,15 +119,16 @@ public final class PersistentPhysicsRestorePreflight {
             return;
         }
 
-        // CCD capability is exposed by spaces, so preflight uses a throwaway space probe.
-        PhysicsSpace probe = Impulse.createSpace(backendId, SpaceId.next());
+        PhysicsBackendRuntime probe = Impulse.createRuntime(backendId);
+        SpaceId probeSpaceId = SpaceId.next();
+        int backendSpaceId = probe.createSpace(probeSpaceId);
         try {
-            if (probe.getCapability(PhysicsContinuousCollisionCapability.class).isEmpty()) {
+            if (!probe.supportsContinuousCollision(backendSpaceId)) {
                 throw new IllegalArgumentException("CCD mode is not available for backend "
                     + backendId);
             }
         } finally {
-            probe.close();
+            probe.destroySpace(backendSpaceId);
         }
     }
 

@@ -2,11 +2,14 @@ package dev.hytalemodding.impulse.core.internal.crucible;
 
 import dev.hytalemodding.impulse.api.BackendId;
 import dev.hytalemodding.impulse.api.Impulse;
+import dev.hytalemodding.impulse.api.PhysicsAxis;
 import dev.hytalemodding.impulse.api.PhysicsBackend;
-import dev.hytalemodding.impulse.api.PhysicsBody;
+import dev.hytalemodding.impulse.api.PhysicsBodySnapshot;
 import dev.hytalemodding.impulse.api.PhysicsBodyType;
-import dev.hytalemodding.impulse.api.PhysicsSpace;
+import dev.hytalemodding.impulse.api.ShapeType;
 import dev.hytalemodding.impulse.api.SpaceId;
+import dev.hytalemodding.impulse.api.runtime.BackendBodySpec;
+import dev.hytalemodding.impulse.api.runtime.PhysicsBackendRuntime;
 import dev.hytalemodding.impulse.core.ImpulsePlugin;
 import dev.hytalemodding.impulse.core.plugin.body.RigidBodyKey;
 import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyKind;
@@ -132,15 +135,14 @@ final class ImpulseApiCrucibleTests {
     }
 
     private static boolean createSpaceAndBody() {
-        BackendId backendId = CrucibleBackends.requireBackendId();
-        PhysicsSpace space = Impulse.createSpace(backendId);
+        PhysicsBackendRuntime runtime = Impulse.createRuntime(CrucibleBackends.requireBackendId());
+        int spaceId = runtime.createSpace(SpaceId.next());
         try {
-            PhysicsBody body = space.createBox(0.5f, 0.5f, 0.5f, 1.0f);
-            body.setPosition(0f, 10f, 0f);
-            space.addBody(body);
-            return space.bodyCount() == 1;
+            long bodyId = runtime.createBody(spaceId,
+                BackendBodySpec.box(0.5f, 0.5f, 0.5f, 1.0f, PhysicsBodyType.DYNAMIC, 0f, 10f, 0f));
+            return runtime.bodyCount(spaceId) == 1 && runtime.containsBody(spaceId, bodyId);
         } finally {
-            space.close();
+            runtime.destroySpace(spaceId);
         }
     }
 
@@ -290,125 +292,148 @@ final class ImpulseApiCrucibleTests {
     }
 
     private static boolean stepSpaceDoesNotThrow() {
-        BackendId backendId = CrucibleBackends.requireBackendId();
-        PhysicsSpace space = Impulse.createSpace(backendId);
+        PhysicsBackendRuntime runtime = Impulse.createRuntime(CrucibleBackends.requireBackendId());
+        int spaceId = runtime.createSpace(SpaceId.next());
         try {
-            space.setGravity(0f, -9.81f, 0f);
-            PhysicsBody body = space.createBox(0.5f, 0.5f, 0.5f, 1.0f);
-            body.setPosition(0f, 10f, 0f);
-            space.addBody(body);
-            space.step(1f / 60f);
+            runtime.setGravity(spaceId, 0f, -9.81f, 0f);
+            runtime.createBody(spaceId,
+                BackendBodySpec.box(0.5f, 0.5f, 0.5f, 1.0f, PhysicsBodyType.DYNAMIC, 0f, 10f, 0f));
+            runtime.step(spaceId, 1f / 60f);
             return true;
         } finally {
-            space.close();
+            runtime.destroySpace(spaceId);
         }
     }
 
     private static boolean dynamicBodyFalls() {
-        BackendId backendId = CrucibleBackends.requireBackendId();
-        PhysicsSpace space = Impulse.createSpace(backendId);
+        PhysicsBackendRuntime runtime = Impulse.createRuntime(CrucibleBackends.requireBackendId());
+        int spaceId = runtime.createSpace(SpaceId.next());
         try {
-            space.setGravity(0f, -9.81f, 0f);
-            PhysicsBody body = space.createBox(0.5f, 0.5f, 0.5f, 1.0f);
-            body.setPosition(0f, 20f, 0f);
-            space.addBody(body);
+            runtime.setGravity(spaceId, 0f, -9.81f, 0f);
+            long bodyId = runtime.createBody(spaceId,
+                BackendBodySpec.box(0.5f, 0.5f, 0.5f, 1.0f, PhysicsBodyType.DYNAMIC, 0f, 20f, 0f));
 
             float dt = 1f / 60f;
             for (int i = 0; i < 60; i++) {
-                space.step(dt);
+                runtime.step(spaceId, dt);
             }
 
-            float yAfter = body.getPosition().y;
-            float vy = body.getLinearVelocity().y;
+            PhysicsBodySnapshot snapshot = requireSnapshot(runtime, spaceId, bodyId);
+            float yAfter = snapshot.positionY();
+            float vy = snapshot.linearVelocityY();
             return yAfter < 20f && vy < 0f;
         } finally {
-            space.close();
+            runtime.destroySpace(spaceId);
         }
     }
 
     private static boolean staticBodyDoesNotMove() {
-        BackendId backendId = CrucibleBackends.requireBackendId();
-        PhysicsSpace space = Impulse.createSpace(backendId);
+        PhysicsBackendRuntime runtime = Impulse.createRuntime(CrucibleBackends.requireBackendId());
+        int spaceId = runtime.createSpace(SpaceId.next());
         try {
-            space.setGravity(0f, -9.81f, 0f);
-            PhysicsBody body = space.createBox(0.5f, 0.5f, 0.5f, 0f);
-            body.setPosition(0f, 10f, 0f);
-            space.addBody(body);
+            runtime.setGravity(spaceId, 0f, -9.81f, 0f);
+            long bodyId = runtime.createBody(spaceId,
+                BackendBodySpec.box(0.5f, 0.5f, 0.5f, 0.0f, PhysicsBodyType.STATIC, 0f, 10f, 0f));
 
             float dt = 1f / 60f;
             for (int i = 0; i < 60; i++) {
-                space.step(dt);
+                runtime.step(spaceId, dt);
             }
 
-            float yAfter = body.getPosition().y;
+            float yAfter = requireSnapshot(runtime, spaceId, bodyId).positionY();
             return Math.abs(yAfter - 10f) < 0.01f;
         } finally {
-            space.close();
+            runtime.destroySpace(spaceId);
         }
     }
 
     private static boolean bodyLandsOnGroundPlane() {
-        BackendId backendId = CrucibleBackends.requireBackendId();
-        PhysicsSpace space = Impulse.createSpace(backendId);
+        PhysicsBackendRuntime runtime = Impulse.createRuntime(CrucibleBackends.requireBackendId());
+        int spaceId = runtime.createSpace(SpaceId.next());
         try {
-            space.setGravity(0f, -9.81f, 0f);
-            PhysicsBody ground = space.createStaticPlane(0f);
-            space.addBody(ground);
+            runtime.setGravity(spaceId, 0f, -9.81f, 0f);
+            runtime.createBody(spaceId, planeSpec(0f));
 
-            PhysicsBody body = space.createBox(0.5f, 0.5f, 0.5f, 1.0f);
-            body.setPosition(0f, 5f, 0f);
-            space.addBody(body);
+            long bodyId = runtime.createBody(spaceId,
+                BackendBodySpec.box(0.5f, 0.5f, 0.5f, 1.0f, PhysicsBodyType.DYNAMIC, 0f, 5f, 0f));
 
             float dt = 1f / 60f;
             for (int i = 0; i < 300; i++) {
-                space.step(dt);
+                runtime.step(spaceId, dt);
             }
 
-            float yAfter = body.getPosition().y;
+            float yAfter = requireSnapshot(runtime, spaceId, bodyId).positionY();
             return yAfter < 3f && yAfter > -0.5f;
         } finally {
-            space.close();
+            runtime.destroySpace(spaceId);
         }
     }
 
     private static boolean bodySettlesWithinTolerance() {
-        BackendId backendId = CrucibleBackends.requireBackendId();
-        PhysicsSpace space = Impulse.createSpace(backendId);
+        PhysicsBackendRuntime runtime = Impulse.createRuntime(CrucibleBackends.requireBackendId());
+        int spaceId = runtime.createSpace(SpaceId.next());
         try {
-            space.setGravity(0f, -9.81f, 0f);
-            PhysicsBody ground = space.createStaticPlane(0f);
-            space.addBody(ground);
+            runtime.setGravity(spaceId, 0f, -9.81f, 0f);
+            runtime.createBody(spaceId, planeSpec(0f));
 
-            PhysicsBody body = space.createBox(0.5f, 0.5f, 0.5f, 1.0f);
-            body.setPosition(0f, 2f, 0f);
-            space.addBody(body);
+            long bodyId = runtime.createBody(spaceId,
+                BackendBodySpec.box(0.5f, 0.5f, 0.5f, 1.0f, PhysicsBodyType.DYNAMIC, 0f, 2f, 0f));
 
             float dt = 1f / 60f;
             for (int i = 0; i < 300; i++) {
-                space.step(dt);
+                runtime.step(spaceId, dt);
             }
 
-            float speed = body.getLinearVelocity().length();
+            float speed = requireSnapshot(runtime, spaceId, bodyId).linearVelocity().length();
             return speed < 0.5f;
         } finally {
-            space.close();
+            runtime.destroySpace(spaceId);
         }
     }
 
     private static boolean raycastHitsGroundPlane() {
-        BackendId backendId = CrucibleBackends.requireBackendId();
-        PhysicsSpace space = Impulse.createSpace(backendId);
+        PhysicsBackendRuntime runtime = Impulse.createRuntime(CrucibleBackends.requireBackendId());
+        int spaceId = runtime.createSpace(SpaceId.next());
         try {
-            PhysicsBody ground = space.createStaticPlane(0f);
-            space.addBody(ground);
+            runtime.createBody(spaceId, planeSpec(0f));
 
-            var hits = space.raycastAll(
+            var hits = runtime.raycastAll(spaceId,
                 new Vector3f(0f, 10f, 0f),
                 new Vector3f(0f, -10f, 0f));
 
             return !hits.isEmpty();
         } finally {
-            space.close();
+            runtime.destroySpace(spaceId);
         }
+    }
+
+    @Nonnull
+    private static PhysicsBodySnapshot requireSnapshot(@Nonnull PhysicsBackendRuntime runtime,
+        int spaceId,
+        long bodyId) {
+        return runtime.bodySnapshot(spaceId, bodyId)
+            .orElseThrow(() -> new IllegalStateException("Missing backend snapshot for body " + bodyId))
+            .snapshot();
+    }
+
+    @Nonnull
+    private static BackendBodySpec planeSpec(float groundY) {
+        return new BackendBodySpec(ShapeType.PLANE,
+            0.0f,
+            0.0f,
+            0.0f,
+            0.0f,
+            0.0f,
+            PhysicsAxis.Y,
+            groundY,
+            0.0f,
+            PhysicsBodyType.STATIC,
+            0.0f,
+            groundY,
+            0.0f,
+            0.0f,
+            0.0f,
+            0.0f,
+            1.0f);
     }
 }

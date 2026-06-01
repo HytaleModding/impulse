@@ -8,14 +8,15 @@ import com.hypixel.hytale.component.dependency.SystemDependency;
 import com.hypixel.hytale.component.system.tick.TickingSystem;
 import com.hypixel.hytale.logger.HytaleLogger;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
-import dev.hytalemodding.impulse.api.PhysicsBody;
-import dev.hytalemodding.impulse.api.PhysicsSpace;
 import dev.hytalemodding.impulse.api.SpaceId;
 import dev.hytalemodding.impulse.core.ImpulsePlugin;
 import dev.hytalemodding.impulse.core.internal.persistence.PersistentPhysicsJointState;
 import dev.hytalemodding.impulse.core.internal.persistence.PersistentPhysicsRuntimeSupport;
 import dev.hytalemodding.impulse.core.internal.persistence.PersistentPhysicsWorldResource;
+import dev.hytalemodding.impulse.core.internal.resources.PhysicsSpaceBinding;
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsWorldRuntimeResource;
+import dev.hytalemodding.impulse.core.internal.resources.body.PhysicsBodyRegistration;
+import dev.hytalemodding.impulse.core.internal.resources.joint.PhysicsJointRegistration;
 import dev.hytalemodding.impulse.core.internal.resources.owner.PhysicsOwnerBridge;
 import dev.hytalemodding.impulse.core.plugin.body.RigidBodyKey;
 import it.unimi.dsi.fastutil.objects.ObjectOpenHashSet;
@@ -73,18 +74,11 @@ public class PersistentPhysicsJointHydrationSystem extends TickingSystem<EntityS
         @Nonnull PersistentPhysicsWorldResource persistent) {
         PhysicsWorldRuntimeResource runtime = PhysicsWorldRuntimeResource.require(store);
         Set<String> existing = new ObjectOpenHashSet<>();
-        for (PhysicsSpace space : runtime.getSpaces()) {
-            space.forEachJoint(joint -> {
-                RigidBodyKey bodyAKey = runtime.getBodyKey(joint.getBodyA());
-                RigidBodyKey bodyBKey = runtime.getBodyKey(joint.getBodyB());
-                if (bodyAKey == null || bodyBKey == null) {
-                    return;
-                }
-                existing.add(PersistentPhysicsRuntimeSupport.jointKey(space.id().value(),
-                    bodyAKey,
-                    bodyBKey,
-                    joint));
-            });
+        for (PhysicsJointRegistration joint : runtime.getJointRegistrations()) {
+            existing.add(PersistentPhysicsRuntimeSupport.jointKey(joint.spaceId().value(),
+                joint.bodyA(),
+                joint.bodyB(),
+                joint));
         }
 
         for (PersistentPhysicsJointState state : persistent.getJoints()) {
@@ -100,9 +94,9 @@ public class PersistentPhysicsJointHydrationSystem extends TickingSystem<EntityS
                 continue;
             }
 
-            PhysicsSpace space = runtime.getSpace(new SpaceId(state.getSpaceId()));
-            PhysicsBody bodyA = runtime.getBody(bodyAId);
-            PhysicsBody bodyB = runtime.getBody(bodyBId);
+            PhysicsSpaceBinding space = runtime.getSpaceBinding(new SpaceId(state.getSpaceId()));
+            PhysicsBodyRegistration bodyA = runtime.getRegistration(bodyAId);
+            PhysicsBodyRegistration bodyB = runtime.getRegistration(bodyBId);
             if (space == null) {
                 persistent.recordRuntimeJointSkipped(key, "missing target space");
                 continue;
@@ -119,7 +113,7 @@ public class PersistentPhysicsJointHydrationSystem extends TickingSystem<EntityS
             }
 
             try {
-                PersistentPhysicsRuntimeSupport.createJoint(space, state, bodyA, bodyB);
+                PersistentPhysicsRuntimeSupport.createJoint(runtime, space, state, bodyAId, bodyA, bodyBId, bodyB);
             } catch (RuntimeException exception) {
                 persistent.recordRuntimeJointSkipped(key, "joint creation failed");
                 LOGGER.at(Level.WARNING).log(

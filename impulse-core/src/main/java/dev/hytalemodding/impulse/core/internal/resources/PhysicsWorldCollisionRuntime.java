@@ -1,7 +1,6 @@
 package dev.hytalemodding.impulse.core.internal.resources;
 
 import com.hypixel.hytale.server.core.universe.world.World;
-import dev.hytalemodding.impulse.api.PhysicsSpace;
 import dev.hytalemodding.impulse.api.SpaceId;
 import dev.hytalemodding.impulse.core.internal.voxel.WorldVoxelCollisionCache;
 import dev.hytalemodding.impulse.core.plugin.collision.WorldCollisionBuildStats;
@@ -28,7 +27,7 @@ public final class PhysicsWorldCollisionRuntime {
 
     @Nonnull
     public WorldCollisionBuildStats rebuildAround(@Nonnull World world,
-        @Nonnull PhysicsSpace space,
+        @Nonnull PhysicsSpaceBinding space,
         @Nonnull Vector3d center,
         int radius) {
         return worldCollisionStats(worldVoxelCollisionCache.rebuildAround(world,
@@ -39,7 +38,7 @@ public final class PhysicsWorldCollisionRuntime {
 
     @Nonnull
     public WorldCollisionPrewarmStats ensureAround(@Nonnull World world,
-        @Nonnull PhysicsSpace space,
+        @Nonnull PhysicsSpaceBinding space,
         @Nonnull Iterable<Vector3d> centers,
         int radius,
         long tick) {
@@ -59,11 +58,11 @@ public final class PhysicsWorldCollisionRuntime {
             worldCollisionStats(total));
     }
 
-    public int clear(@Nonnull PhysicsSpace space) {
+    public int clear(@Nonnull PhysicsSpaceBinding space) {
         return worldVoxelCollisionCache.clear(space);
     }
 
-    public void clear(@Nonnull SpaceId spaceId, @Nullable PhysicsSpace space) {
+    public void clear(@Nonnull SpaceId spaceId, @Nullable PhysicsSpaceBinding space) {
         worldVoxelCollisionCache.clear(spaceId, space);
     }
 

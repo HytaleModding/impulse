@@ -10,8 +10,8 @@ import com.hypixel.hytale.codec.validation.ValidationResults;
 import com.hypixel.hytale.codec.validation.Validators;
 import com.hypixel.hytale.math.vector.Vector3fUtil;
 import dev.hytalemodding.impulse.api.BackendId;
-import dev.hytalemodding.impulse.api.PhysicsSpace;
 import dev.hytalemodding.impulse.api.SpaceId;
+import dev.hytalemodding.impulse.core.internal.resources.PhysicsSpaceBinding;
 import dev.hytalemodding.impulse.core.internal.systems.persistence.PersistentPhysicsSpaceBootstrapSystem;
 import dev.hytalemodding.impulse.core.plugin.collision.WorldCollisionMode;
 import dev.hytalemodding.impulse.core.plugin.settings.EntityChunkBoundaryMode;
@@ -32,7 +32,7 @@ import org.joml.Vector3f;
  *
  * <p>Captures the space identity, backend choice, gravity, and world-collision
  * settings so that {@link PersistentPhysicsSpaceBootstrapSystem} can recreate
- * the runtime {@link dev.hytalemodding.impulse.api.PhysicsSpace} after a
+ * the runtime physics space after a
  * world load or manual snapshot restore.</p>
  */
 @Getter
@@ -405,12 +405,12 @@ public class PersistentPhysicsSpaceState {
     }
 
     @Nonnull
-    public static PersistentPhysicsSpaceState from(@Nonnull PhysicsSpace space,
+    public static PersistentPhysicsSpaceState from(@Nonnull PhysicsSpaceBinding space,
         @Nonnull PhysicsSpaceSettings settings) {
         PersistentPhysicsSpaceState state = new PersistentPhysicsSpaceState();
-        state.spaceId = space.id().value();
+        state.spaceId = space.spaceId().value();
         state.backendId = space.backendId().value();
-        state.gravity.set(space.getGravity());
+        state.gravity.set(space.runtime().getGravity(space.backendSpaceId()));
         state.worldCollisionMode = settings.getWorldCollisionSettings().getWorldCollisionMode();
         state.entityChunkBoundaryMode = settings.getWorldCollisionSettings().getEntityChunkBoundaryMode();
         state.worldCollisionRadius = settings.getWorldCollisionSettings().getWorldCollisionRadius();

@@ -1,12 +1,14 @@
 package dev.hytalemodding.impulse.core.internal.resources.joint;
 
-import dev.hytalemodding.impulse.api.PhysicsBody;
-import dev.hytalemodding.impulse.api.PhysicsJoint;
 import dev.hytalemodding.impulse.api.SpaceId;
+import dev.hytalemodding.impulse.core.plugin.body.RigidBodyKey;
 import dev.hytalemodding.impulse.core.plugin.joint.JointKey;
+import dev.hytalemodding.impulse.core.plugin.simulation.JointType;
+import it.unimi.dsi.fastutil.ints.Int2ObjectOpenHashMap;
+import it.unimi.dsi.fastutil.longs.Long2ObjectOpenHashMap;
 import it.unimi.dsi.fastutil.objects.Object2ObjectLinkedOpenHashMap;
-import it.unimi.dsi.fastutil.objects.Reference2ObjectOpenHashMap;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.Map;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
@@ -18,24 +20,71 @@ public final class PhysicsJointRegistry {
 
     private final Map<JointKey, PhysicsJointRegistration> registrationsByKey =
         new Object2ObjectLinkedOpenHashMap<>();
-    private final Map<PhysicsJoint, JointKey> jointKeysByJoint = new Reference2ObjectOpenHashMap<>();
+    private final Int2ObjectOpenHashMap<Long2ObjectOpenHashMap<JointKey>> jointKeysByBackendId =
+        new Int2ObjectOpenHashMap<>();
 
     @Nonnull
     public PhysicsJointRegistration registerJoint(@Nonnull JointKey jointKey,
         @Nonnull SpaceId spaceId,
-        @Nonnull PhysicsJoint joint) {
-        JointKey existingKey = jointKeysByJoint.get(joint);
+        long backendJointId,
+        @Nonnull RigidBodyKey bodyA,
+        @Nonnull RigidBodyKey bodyB,
+        @Nonnull JointType type,
+        float anchorAX,
+        float anchorAY,
+        float anchorAZ,
+        float anchorBX,
+        float anchorBY,
+        float anchorBZ,
+        float axisX,
+        float axisY,
+        float axisZ,
+        float restLength,
+        float stiffness,
+        float damping,
+        float lowerLimit,
+        float upperLimit,
+        boolean motorEnabled,
+        float motorTargetVelocity,
+        float motorMaxForce) {
+        JointKey existingKey = getJointKey(spaceId, backendJointId);
         if (existingKey != null && !existingKey.equals(jointKey)) {
             throw new IllegalArgumentException("Physics joint is already registered as " + existingKey);
         }
         PhysicsJointRegistration existingRegistration = registrationsByKey.get(jointKey);
-        if (existingRegistration != null && existingRegistration.joint() != joint) {
+        if (existingRegistration != null
+            && (existingRegistration.backendJointId() != backendJointId
+                || !existingRegistration.spaceId().equals(spaceId))) {
             throw new IllegalArgumentException("Physics joint key=" + jointKey
                 + " is already registered to another backend joint");
         }
-        PhysicsJointRegistration registration = new PhysicsJointRegistration(jointKey, joint, spaceId);
+        PhysicsJointRegistration registration = new PhysicsJointRegistration(jointKey,
+            backendJointId,
+            spaceId,
+            bodyA,
+            bodyB,
+            type,
+            anchorAX,
+            anchorAY,
+            anchorAZ,
+            anchorBX,
+            anchorBY,
+            anchorBZ,
+            axisX,
+            axisY,
+            axisZ,
+            restLength,
+            stiffness,
+            damping,
+            lowerLimit,
+            upperLimit,
+            motorEnabled,
+            motorTargetVelocity,
+            motorMaxForce);
         registrationsByKey.put(jointKey, registration);
-        jointKeysByJoint.put(joint, jointKey);
+        jointKeysByBackendId
+            .computeIfAbsent(spaceId.value(), ignored -> new Long2ObjectOpenHashMap<>())
+            .put(backendJointId, jointKey);
         return registration;
     }
 
@@ -46,27 +95,32 @@ public final class PhysicsJointRegistry {
             return null;
         }
 
-        jointKeysByJoint.remove(registration.joint());
+        removeBackendIndex(registration);
         return registration;
     }
 
     @Nullable
-    public PhysicsJointRegistration unregisterJoint(@Nonnull PhysicsJoint joint) {
-        JointKey jointKey = jointKeysByJoint.get(joint);
+    public PhysicsJointRegistration unregisterJoint(@Nonnull SpaceId spaceId, long backendJointId) {
+        JointKey jointKey = getJointKey(spaceId, backendJointId);
         return jointKey != null ? unregisterJoint(jointKey) : null;
     }
 
-    public void unregisterJointsForBody(@Nonnull PhysicsBody body) {
+    @Nonnull
+    public Collection<PhysicsJointRegistration> unregisterJointsForBody(@Nonnull RigidBodyKey bodyKey) {
         ArrayList<JointKey> removed = new ArrayList<>();
         for (PhysicsJointRegistration registration : registrationsByKey.values()) {
-            PhysicsJoint joint = registration.joint();
-            if (joint.getBodyA() == body || joint.getBodyB() == body) {
+            if (registration.bodyA().equals(bodyKey) || registration.bodyB().equals(bodyKey)) {
                 removed.add(registration.id());
             }
         }
+        ArrayList<PhysicsJointRegistration> registrations = new ArrayList<>(removed.size());
         for (JointKey jointKey : removed) {
-            unregisterJoint(jointKey);
+            PhysicsJointRegistration registration = unregisterJoint(jointKey);
+            if (registration != null) {
+                registrations.add(registration);
+            }
         }
+        return registrations;
     }
 
     public void unregisterSpace(@Nonnull SpaceId spaceId) {
@@ -87,12 +141,54 @@ public final class PhysicsJointRegistry {
     }
 
     @Nullable
-    public JointKey getJointKey(@Nonnull PhysicsJoint joint) {
-        return jointKeysByJoint.get(joint);
+    public JointKey getJointKey(@Nonnull SpaceId spaceId, long backendJointId) {
+        Long2ObjectOpenHashMap<JointKey> jointKeys =
+            jointKeysByBackendId.get(spaceId.value());
+        return jointKeys != null ? jointKeys.get(backendJointId) : null;
+    }
+
+    @Nullable
+    public PhysicsJointRegistration findJointBetween(@Nonnull SpaceId spaceId,
+        @Nonnull RigidBodyKey bodyA,
+        @Nonnull RigidBodyKey bodyB) {
+        for (PhysicsJointRegistration registration : registrationsByKey.values()) {
+            if (!registration.spaceId().equals(spaceId)) {
+                continue;
+            }
+            if (connects(bodyA, bodyB, registration.bodyA(), registration.bodyB())) {
+                return registration;
+            }
+        }
+        return null;
+    }
+
+    @Nonnull
+    public Collection<PhysicsJointRegistration> getRegistrations() {
+        return new ArrayList<>(registrationsByKey.values());
     }
 
     public void clear() {
         registrationsByKey.clear();
-        jointKeysByJoint.clear();
+        jointKeysByBackendId.clear();
+    }
+
+    private void removeBackendIndex(@Nonnull PhysicsJointRegistration registration) {
+        Long2ObjectOpenHashMap<JointKey> jointKeys =
+            jointKeysByBackendId.get(registration.spaceId().value());
+        if (jointKeys == null) {
+            return;
+        }
+        jointKeys.remove(registration.backendJointId());
+        if (jointKeys.isEmpty()) {
+            jointKeysByBackendId.remove(registration.spaceId().value());
+        }
+    }
+
+    private static boolean connects(@Nonnull RigidBodyKey expectedA,
+        @Nonnull RigidBodyKey expectedB,
+        @Nonnull RigidBodyKey actualA,
+        @Nonnull RigidBodyKey actualB) {
+        return (expectedA.equals(actualA) && expectedB.equals(actualB))
+            || (expectedA.equals(actualB) && expectedB.equals(actualA));
     }
 }

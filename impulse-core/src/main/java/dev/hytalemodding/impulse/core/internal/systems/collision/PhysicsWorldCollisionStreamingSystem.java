@@ -11,8 +11,8 @@ import com.hypixel.hytale.server.core.entity.entities.Player;
 import com.hypixel.hytale.server.core.modules.entity.component.TransformComponent;
 import com.hypixel.hytale.server.core.universe.world.World;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
-import dev.hytalemodding.impulse.api.PhysicsSpace;
 import dev.hytalemodding.impulse.api.SpaceId;
+import dev.hytalemodding.impulse.core.internal.resources.PhysicsSpaceBinding;
 import dev.hytalemodding.impulse.core.internal.resources.profiling.WorldCollisionProfilingResource;
 import dev.hytalemodding.impulse.core.internal.resources.profiling.WorldCollisionProfilingResource.Snapshot;
 import dev.hytalemodding.impulse.core.internal.resources.profiling.WorldCollisionProfilingResource.StreamingTargetDiagnostic;
@@ -112,12 +112,12 @@ public class PhysicsWorldCollisionStreamingSystem extends TickingSystem<EntitySt
             if (applySnapshot != null) {
                 applySnapshot.incrementTerrainApplyQueued();
             }
-            resource.enqueueOwnerMutation("stream world collision terrain apply", access -> {
+            resource.enqueueOwnerMutation("stream world collision terrain apply", () -> {
                 long applyStart = applySnapshot != null ? System.nanoTime() : 0L;
                 try {
                     SectionAccessCache sectionAccessCache = cache.newSectionAccessCache();
                     for (SpaceStreamingPlan plan : plans) {
-                        PhysicsSpace space = access.getSpace(plan.spaceId());
+                        PhysicsSpaceBinding space = resource.getSpaceBinding(plan.spaceId());
                         if (space == null) {
                             continue;
                         }
@@ -202,7 +202,7 @@ public class PhysicsWorldCollisionStreamingSystem extends TickingSystem<EntitySt
     private void applySpaceCollision(@Nonnull World world,
         @Nonnull WorldVoxelCollisionCache cache,
         @Nonnull SectionAccessCache sectionAccessCache,
-        @Nonnull PhysicsSpace space,
+        @Nonnull PhysicsSpaceBinding space,
         @Nonnull SpaceStreamingPlan plan,
         long currentTick,
         @Nullable Snapshot snapshot) {
@@ -237,8 +237,8 @@ public class PhysicsWorldCollisionStreamingSystem extends TickingSystem<EntitySt
                 snapshot.addBodySectionTargets(visitedSections.size() - sectionsBefore);
             }
         }
-        cache.pruneUnloaded(world, space.id(), space, snapshot, sectionAccessCache);
-        cache.pruneUnused(space.id(),
+        cache.pruneUnloaded(world, space.spaceId(), space, snapshot, sectionAccessCache);
+        cache.pruneUnused(space.spaceId(),
             space,
             currentTick,
             plan.ttlTicks(),

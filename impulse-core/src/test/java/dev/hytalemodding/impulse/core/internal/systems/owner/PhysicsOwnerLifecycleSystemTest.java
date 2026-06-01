@@ -11,7 +11,7 @@ import com.hypixel.hytale.component.Store;
 import com.hypixel.hytale.server.core.universe.world.World;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import dev.hytalemodding.impulse.core.internal.resources.owner.TestPhysicsOwnerLane;
-import dev.hytalemodding.impulse.core.internal.resources.PhysicsWorldRuntimeResource;
+import dev.hytalemodding.impulse.core.internal.testsupport.LegacyLiveHandleTestResource;
 import dev.hytalemodding.impulse.core.internal.resources.owner.PhysicsOwnerHandle;
 import dev.hytalemodding.impulse.core.internal.resources.owner.PhysicsOwnerLaneResource;
 import dev.hytalemodding.impulse.core.internal.resources.owner.PhysicsOwnerLaneScheduler;
@@ -212,7 +212,7 @@ class PhysicsOwnerLifecycleSystemTest {
         registry.shutdown();
     }
 
-    private static final class CountingPhysicsWorldResource extends PhysicsWorldRuntimeResource {
+    private static final class CountingPhysicsWorldResource extends LegacyLiveHandleTestResource {
 
         private int clearCalls;
         private boolean detachedOwnerPublication;
@@ -238,7 +238,7 @@ class PhysicsOwnerLifecycleSystemTest {
         }
     }
 
-    private static final class FailingOncePhysicsWorldResource extends PhysicsWorldRuntimeResource {
+    private static final class FailingOncePhysicsWorldResource extends LegacyLiveHandleTestResource {
 
         private int clearCalls;
 

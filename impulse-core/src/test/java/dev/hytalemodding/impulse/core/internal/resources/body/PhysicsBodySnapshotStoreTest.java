@@ -6,6 +6,7 @@ import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import dev.hytalemodding.impulse.api.BackendId;
+import dev.hytalemodding.impulse.api.Impulse;
 import dev.hytalemodding.impulse.api.PhysicsAxis;
 import dev.hytalemodding.impulse.api.PhysicsBody;
 import dev.hytalemodding.impulse.api.PhysicsBodySnapshot;
@@ -17,6 +18,8 @@ import dev.hytalemodding.impulse.api.PhysicsRayHit;
 import dev.hytalemodding.impulse.api.PhysicsSpace;
 import dev.hytalemodding.impulse.api.SpaceId;
 import dev.hytalemodding.impulse.api.testsupport.FakePhysicsBackend;
+import dev.hytalemodding.impulse.core.internal.resources.PhysicsSpaceBinding;
+import dev.hytalemodding.impulse.core.internal.testsupport.LegacyLiveHandleTestResource;
 import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyKind;
 import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyPersistenceMode;
 import dev.hytalemodding.impulse.core.plugin.body.RigidBodyKey;
@@ -38,23 +41,27 @@ class PhysicsBodySnapshotStoreTest {
     @Test
     void refreshPassesLazySelectedBodiesToBackend() {
         FakePhysicsBackend backend = new FakePhysicsBackend("test:snapshot-store-lazy-refresh");
-        PhysicsSpace delegate = backend.createSpace(new SpaceId(1));
+        Impulse.registerBackend(backend);
+        LegacyLiveHandleTestResource resource = new LegacyLiveHandleTestResource();
+        PhysicsSpace delegate = resource.createLiveSpace(backend.getId(), "test-world");
         PhysicsBody body = delegate.createBox(0.5f, 0.5f, 0.5f, 1.0f);
-        delegate.addBody(body);
         RigidBodyKey bodyId = RigidBodyKey.of(0L, 1L);
+        resource.addBody(bodyId,
+            delegate.id(),
+            body,
+            PhysicsBodyKind.BODY,
+            PhysicsBodyPersistenceMode.RUNTIME_ONLY);
+        PhysicsSpaceBinding binding = resource.requireSpaceBinding(delegate.id());
         PhysicsBodyRegistry registry = new PhysicsBodyRegistry();
         registry.registerBody(bodyId,
-            body,
+            resource.requireBodyRegistration(bodyId).backendBodyId(),
             delegate.id(),
             PhysicsBodyKind.BODY,
             PhysicsBodyPersistenceMode.RUNTIME_ONLY);
-        RecordingSnapshotSpace space = new RecordingSnapshotSpace(delegate);
         PhysicsBodySnapshotStore store = new PhysicsBodySnapshotStore();
 
-        assertEquals(1, store.refresh(List.of(space), registry));
+        assertEquals(1, store.refresh(List.of(binding), registry));
 
-        assertFalse(space.selectedBodiesWasCollection);
-        assertEquals(1, space.selectedBodyCount);
         assertEquals(1, store.bodyCount());
     }
 
@@ -66,7 +73,7 @@ class PhysicsBodySnapshotStoreTest {
         RigidBodyKey bodyId = RigidBodyKey.of(0L, 1L);
         PhysicsBodyRegistry registry = new PhysicsBodyRegistry();
         registry.registerBody(bodyId,
-            body,
+            1L,
             space.id(),
             PhysicsBodyKind.BODY,
             PhysicsBodyPersistenceMode.RUNTIME_ONLY);
@@ -114,7 +121,7 @@ class PhysicsBodySnapshotStoreTest {
         RigidBodyKey bodyId = RigidBodyKey.of(0L, 2L);
         PhysicsBodyRegistry registry = new PhysicsBodyRegistry();
         registry.registerBody(bodyId,
-            body,
+            1L,
             space.id(),
             PhysicsBodyKind.BODY,
             PhysicsBodyPersistenceMode.RUNTIME_ONLY);

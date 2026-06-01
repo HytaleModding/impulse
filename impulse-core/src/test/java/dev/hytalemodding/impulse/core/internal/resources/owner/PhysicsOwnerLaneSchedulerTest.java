@@ -6,7 +6,7 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-import dev.hytalemodding.impulse.core.internal.resources.PhysicsWorldRuntimeResource;
+import dev.hytalemodding.impulse.core.internal.testsupport.LegacyLiveHandleTestResource;
 import dev.hytalemodding.impulse.core.plugin.resources.PhysicsMutationHandle;
 import java.time.Duration;
 import java.util.ArrayList;
@@ -164,7 +164,7 @@ class PhysicsOwnerLaneSchedulerTest {
             });
 
             PhysicsOwnerStepCommand step = new PhysicsOwnerStepCommand(
-                new PhysicsWorldRuntimeResource(),
+                new LegacyLiveHandleTestResource(),
                 0.05f,
                 false,
                 1L,

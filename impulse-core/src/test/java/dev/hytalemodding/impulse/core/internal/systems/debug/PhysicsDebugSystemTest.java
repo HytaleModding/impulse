@@ -11,7 +11,7 @@ import dev.hytalemodding.impulse.api.PhysicsSpace;
 import dev.hytalemodding.impulse.api.SpaceId;
 import dev.hytalemodding.impulse.api.testsupport.FakePhysicsBackend;
 import dev.hytalemodding.impulse.api.testsupport.FakePhysicsBackend.InMemoryPhysicsSpace;
-import dev.hytalemodding.impulse.core.internal.resources.PhysicsWorldRuntimeResource;
+import dev.hytalemodding.impulse.core.internal.testsupport.LegacyLiveHandleTestResource;
 import dev.hytalemodding.impulse.core.internal.simulation.PhysicsDebugContactView;
 import dev.hytalemodding.impulse.core.internal.simulation.PhysicsDebugJointView;
 import java.util.concurrent.CompletableFuture;
@@ -134,7 +134,7 @@ class PhysicsDebugSystemTest {
     void collectVisibleJointPrimitivesUsesAnchorsForDistanceAndRendering() {
         PhysicsSpace space = new FakePhysicsBackend(new BackendId("test:debug-joints"))
             .createSpace(new SpaceId(1));
-        PhysicsWorldRuntimeResource resource = new PhysicsWorldRuntimeResource();
+        LegacyLiveHandleTestResource resource = new LegacyLiveHandleTestResource();
         PhysicsBody bodyA = space.createBox(0.5f, 0.5f, 0.5f, 1.0f);
         PhysicsBody bodyB = space.createBox(0.5f, 0.5f, 0.5f, 1.0f);
         bodyA.setPosition(1.0f, 0.0f, 0.0f);
@@ -176,7 +176,7 @@ class PhysicsDebugSystemTest {
     void collectVisibleContactPrimitivesCapturesPointsAndNormals() {
         InMemoryPhysicsSpace space = (InMemoryPhysicsSpace) new FakePhysicsBackend(
             new BackendId("test:debug-contacts")).createSpace(new SpaceId(2));
-        PhysicsWorldRuntimeResource resource = new PhysicsWorldRuntimeResource();
+        LegacyLiveHandleTestResource resource = new LegacyLiveHandleTestResource();
         PhysicsBody bodyA = space.createBox(0.5f, 0.5f, 0.5f, 1.0f);
         PhysicsBody bodyB = space.createBox(0.5f, 0.5f, 0.5f, 1.0f);
         space.addContact(new PhysicsContact(bodyA,

@@ -7,11 +7,12 @@ import com.hypixel.hytale.codec.codecs.EnumCodec;
 import com.hypixel.hytale.codec.validation.Validators;
 import com.hypixel.hytale.math.vector.Vector3fUtil;
 import dev.hytalemodding.impulse.api.PhysicsAxis;
-import dev.hytalemodding.impulse.api.PhysicsBody;
+import dev.hytalemodding.impulse.api.PhysicsBodySnapshot;
 import dev.hytalemodding.impulse.api.PhysicsBodyType;
-import dev.hytalemodding.impulse.api.PhysicsSpace;
 import dev.hytalemodding.impulse.api.ShapeType;
 import dev.hytalemodding.impulse.api.SpaceId;
+import dev.hytalemodding.impulse.api.runtime.BackendBodySpec;
+import dev.hytalemodding.impulse.core.internal.resources.PhysicsSpaceBinding;
 import dev.hytalemodding.impulse.core.plugin.body.RigidBodyKey;
 import dev.hytalemodding.impulse.core.internal.resources.body.PhysicsBodyRegistration;
 import dev.hytalemodding.impulse.core.plugin.codec.ImpulseCodecs;
@@ -210,10 +211,11 @@ public class PersistentPhysicsBodyState {
     }
 
     @Nonnull
-    public static PersistentPhysicsBodyState from(@Nonnull PhysicsBodyRegistration registration) {
+    public static PersistentPhysicsBodyState from(@Nonnull PhysicsBodyRegistration registration,
+        @Nonnull PhysicsBodySnapshot snapshot) {
         PersistentPhysicsBodyState state = new PersistentPhysicsBodyState();
         state.bodyId = registration.id().value();
-        state.updateFromBody(registration.body(), registration.spaceId());
+        state.updateFromSnapshot(snapshot, registration.spaceId());
         return state;
     }
 
@@ -327,74 +329,89 @@ public class PersistentPhysicsBodyState {
         return null;
     }
 
-    public void updateFromBody(@Nonnull PhysicsBody body, @Nonnull SpaceId spaceId) {
+    public void updateFromSnapshot(@Nonnull PhysicsBodySnapshot snapshot, @Nonnull SpaceId spaceId) {
         Objects.requireNonNull(spaceId, "spaceId");
         if (spaceId.value() <= 0) {
             throw new IllegalArgumentException(
                 "Persistent body state requires a positive explicit space id");
         }
         this.spaceId = spaceId.value();
-        shapeType = body.getShapeType();
-        shapeAxis = body.getShapeAxis();
-        Vector3f halfExtents = body.getBoxHalfExtents();
+        shapeType = snapshot.shapeType();
+        shapeAxis = snapshot.shapeAxis();
+        Vector3f halfExtents = snapshot.boxHalfExtents();
         if (isFiniteVector(halfExtents)) {
             boxHalfExtents.set(halfExtents);
         } else {
             boxHalfExtents.zero();
         }
-        sphereRadius = positiveFiniteOrZeroForRestore(body.getSphereRadius());
-        halfHeight = positiveFiniteOrZeroForRestore(body.getHalfHeight());
-        bodyType = body.getBodyType();
-        mass = nonNegativeFiniteOrDefaultForSnapshot(body.getMass(), 1.0f);
-        copyFiniteVectorOrZero(position, body.getPosition());
-        var bodyRotation = body.getRotation();
-        rotation.set(bodyRotation);
-        copyFiniteVectorOrZero(linearVelocity, body.getLinearVelocity());
-        copyFiniteVectorOrZero(angularVelocity, body.getAngularVelocity());
-        friction = nonNegativeFiniteOrZeroForRestore(body.getFriction());
-        restitution = nonNegativeFiniteOrZeroForRestore(body.getRestitution());
-        linearDamping = nonNegativeFiniteOrZeroForRestore(body.getLinearDamping());
-        angularDamping = nonNegativeFiniteOrZeroForRestore(body.getAngularDamping());
-        sensor = body.isSensor();
-        collisionGroup = body.getCollisionGroup();
-        collisionMask = body.getCollisionMask();
-        continuousCollisionEnabled = body.isContinuousCollisionEnabled();
-        sleeping = body.isSleeping();
+        sphereRadius = positiveFiniteOrZeroForRestore(snapshot.sphereRadius());
+        halfHeight = positiveFiniteOrZeroForRestore(snapshot.halfHeight());
+        bodyType = snapshot.bodyType();
+        copyFiniteVectorOrZero(position, snapshot.position());
+        rotation.set(snapshot.rotation());
+        copyFiniteVectorOrZero(linearVelocity, snapshot.linearVelocity());
+        copyFiniteVectorOrZero(angularVelocity, snapshot.angularVelocity());
+        sensor = snapshot.sensor();
+        sleeping = snapshot.sleeping();
     }
 
     @Nonnull
-    public PhysicsBody createBody(@Nonnull PhysicsSpace space) {
+    public BackendBodySpec toBackendBodySpec() {
         float dynamicMass = bodyType == PhysicsBodyType.DYNAMIC ? mass : 0.0f;
         return switch (shapeType) {
-            case BOX -> space.createBox(boxHalfExtents, dynamicMass);
-            case SPHERE -> space.createSphere(sphereRadius, dynamicMass);
-            case CAPSULE -> space.createCapsule(sphereRadius, halfHeight, shapeAxis, dynamicMass);
-            case CYLINDER -> space.createCylinder(sphereRadius, halfHeight, shapeAxis, dynamicMass);
-            case CONE -> space.createCone(sphereRadius, halfHeight, shapeAxis, dynamicMass);
-            case PLANE -> space.createStaticPlane(finiteOrZero(position.y));
+            case BOX, SPHERE, CAPSULE, CYLINDER, CONE, PLANE -> new BackendBodySpec(shapeType,
+                boxHalfExtents.x,
+                boxHalfExtents.y,
+                boxHalfExtents.z,
+                sphereRadius,
+                halfHeight,
+                shapeAxis,
+                finiteOrZero(position.y),
+                dynamicMass,
+                bodyType,
+                position.x,
+                position.y,
+                position.z,
+                rotation.x,
+                rotation.y,
+                rotation.z,
+                rotation.w);
             case VOXELS -> throw new IllegalStateException(
                 "PersistentPhysicsBodyState cannot rebuild streamed voxel terrain bodies");
             case UNKNOWN -> throw new IllegalStateException("Persistent body shape is unknown");
         };
     }
 
-    public void applyToBody(@Nonnull PhysicsBody body) {
-        body.setBodyType(bodyType);
-        body.setMass(mass);
-        body.setPosition(position);
-        body.setRotation(rotation);
-        body.setLinearVelocity(linearVelocity);
-        body.setAngularVelocity(angularVelocity);
-        body.setFriction(friction);
-        body.setRestitution(restitution);
-        body.setDamping(linearDamping, angularDamping);
-        body.setSensor(sensor);
-        body.setCollisionFilter(collisionGroup, collisionMask);
-        body.setContinuousCollisionEnabled(continuousCollisionEnabled);
+    public void applyToBody(@Nonnull PhysicsSpaceBinding space, long backendBodyId) {
+        space.runtime().setBodyType(space.backendSpaceId(), backendBodyId, bodyType);
+        space.runtime().setBodyTransform(space.backendSpaceId(),
+            backendBodyId,
+            position.x,
+            position.y,
+            position.z,
+            rotation.x,
+            rotation.y,
+            rotation.z,
+            rotation.w);
+        space.runtime().setBodyVelocity(space.backendSpaceId(),
+            backendBodyId,
+            linearVelocity.x,
+            linearVelocity.y,
+            linearVelocity.z,
+            angularVelocity.x,
+            angularVelocity.y,
+            angularVelocity.z);
+        space.runtime().setBodyFriction(space.backendSpaceId(), backendBodyId, friction);
+        space.runtime().setBodyRestitution(space.backendSpaceId(), backendBodyId, restitution);
+        space.runtime().setBodyDamping(space.backendSpaceId(), backendBodyId, linearDamping, angularDamping);
+        space.runtime().setBodySensor(space.backendSpaceId(), backendBodyId, sensor);
+        space.runtime().setBodyCollisionFilter(space.backendSpaceId(), backendBodyId, collisionGroup, collisionMask);
+        space.runtime()
+            .setBodyContinuousCollision(space.backendSpaceId(), backendBodyId, continuousCollisionEnabled);
         if (sleeping && bodyType == PhysicsBodyType.DYNAMIC) {
-            body.sleep();
+            space.runtime().sleepBody(space.backendSpaceId(), backendBodyId);
         } else {
-            body.activate();
+            space.runtime().activateBody(space.backendSpaceId(), backendBodyId);
         }
     }
 
