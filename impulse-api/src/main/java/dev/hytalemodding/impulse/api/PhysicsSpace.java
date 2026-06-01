@@ -39,6 +39,10 @@ public interface PhysicsSpace {
 
     void step(float dt);
 
+    default void step(float dt, @Nonnull PhysicsBackendEventSink events) {
+        step(dt);
+    }
+
     void setGravity(float x, float y, float z);
 
     @Nonnull
