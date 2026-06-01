@@ -235,8 +235,10 @@ class PhysicsSnapshotPublicationSystemTest {
             assertEquals(0, resource.getBodySnapshotCount());
             assertNull(resource.getBodyRegistrationView(bodyId));
 
-            PhysicsSnapshotPublicationSystem.publishCompletedStep(owner, resource, profiling);
+            PhysicsEventFrame eventFrame =
+                PhysicsSnapshotPublicationSystem.publishCompletedStep(owner, resource, profiling);
 
+            assertNull(eventFrame);
             assertFalse(owner.hasPendingStep());
             assertEquals(0, resource.getBodySnapshotCount());
             assertNull(resource.getBodyRegistrationView(bodyId));

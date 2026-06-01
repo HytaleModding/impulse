@@ -20,6 +20,8 @@ import com.jme3.bullet.objects.PhysicsRigidBody;
 import com.jme3.math.Plane;
 import dev.hytalemodding.impulse.api.BackendId;
 import dev.hytalemodding.impulse.api.PhysicsAxis;
+import dev.hytalemodding.impulse.api.PhysicsBackendEventKind;
+import dev.hytalemodding.impulse.api.PhysicsBackendEventSink;
 import dev.hytalemodding.impulse.api.PhysicsBody;
 import dev.hytalemodding.impulse.api.PhysicsBodySnapshot;
 import dev.hytalemodding.impulse.api.PhysicsContact;
@@ -28,6 +30,7 @@ import dev.hytalemodding.impulse.api.PhysicsJointType;
 import dev.hytalemodding.impulse.api.PhysicsRayHit;
 import dev.hytalemodding.impulse.api.PhysicsSpace;
 import dev.hytalemodding.impulse.api.SpaceId;
+import dev.hytalemodding.impulse.api.capability.PhysicsBackendEventsCapability;
 import dev.hytalemodding.impulse.api.capability.PhysicsCapability;
 import dev.hytalemodding.impulse.api.capability.PhysicsCapabilityDescriptor;
 import dev.hytalemodding.impulse.api.capability.PhysicsContinuousCollisionCapability;
@@ -38,6 +41,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.Set;
 import java.util.function.BiConsumer;
 import java.util.function.Consumer;
 import java.util.function.Function;
@@ -49,10 +53,17 @@ public final class BulletSpace implements PhysicsSpace {
     private static final PhysicsContinuousCollisionCapability CONTINUOUS_COLLISION_CAPABILITY =
         new PhysicsContinuousCollisionCapability() {
         };
+    private static final PhysicsBackendEventsCapability BACKEND_EVENTS_CAPABILITY =
+        () -> Set.of(PhysicsBackendEventKind.CONTACT_STARTED,
+            PhysicsBackendEventKind.CONTACT_PERSISTED,
+            PhysicsBackendEventKind.CONTACT_ENDED);
+    private static final List<PhysicsCapabilityDescriptor> CAPABILITY_DESCRIPTORS = List.of(
+        PhysicsContinuousCollisionCapability.DESCRIPTOR,
+        PhysicsBackendEventsCapability.DESCRIPTOR);
 
     private final SpaceId id;
     private final BulletBackend backend;
-    private final com.jme3.bullet.PhysicsSpace space;
+    private final BulletNativeSpace space;
     private final Map<PhysicsRigidBody, BulletBody> bodiesByRigidBody = new IdentityHashMap<>();
     private final Map<Long, BulletBody> bodiesByNativeId = new HashMap<>();
     private final List<BulletBody> bodies = new ArrayList<>();
@@ -61,7 +72,7 @@ public final class BulletSpace implements PhysicsSpace {
 
     BulletSpace(@Nonnull SpaceId id,
         @Nonnull BulletBackend backend,
-        @Nonnull com.jme3.bullet.PhysicsSpace space) {
+        @Nonnull BulletNativeSpace space) {
         this.id = id;
         this.backend = backend;
         this.space = space;
@@ -83,6 +94,28 @@ public final class BulletSpace implements PhysicsSpace {
     public void step(float dt) {
         requireOpen();
         space.update(dt, 0);
+    }
+
+    @Override
+    public void step(float dt, @Nonnull PhysicsBackendEventSink events) {
+        Objects.requireNonNull(events, "events");
+        requireOpen();
+        space.updateWithContactEvents(dt, 0);
+        for (BulletNativeContactEvent event : space.drainContactEvents()) {
+            BulletBody bodyA = bodiesByNativeId.get(event.bodyAId());
+            BulletBody bodyB = bodiesByNativeId.get(event.bodyBId());
+            if (bodyA == null || bodyB == null) {
+                continue;
+            }
+            events.contact(event.phase(),
+                bodyA,
+                bodyB,
+                event.pointOnA(),
+                event.pointOnB(),
+                event.normalOnB(),
+                event.distance(),
+                event.impulse());
+        }
     }
 
     @Override
@@ -124,6 +157,7 @@ public final class BulletSpace implements PhysicsSpace {
         if (bulletBody.isAttachedToSpace()) {
             space.removeCollisionObject(bulletBody.getRigidBody());
         }
+        space.forgetBody(bulletBody.getNativeId());
         untrackBody(bulletBody);
     }
 
@@ -193,13 +227,16 @@ public final class BulletSpace implements PhysicsSpace {
         if (type == PhysicsContinuousCollisionCapability.class) {
             return Optional.of(type.cast(CONTINUOUS_COLLISION_CAPABILITY));
         }
+        if (type == PhysicsBackendEventsCapability.class) {
+            return Optional.of(type.cast(BACKEND_EVENTS_CAPABILITY));
+        }
         return Optional.empty();
     }
 
     @Nonnull
     @Override
     public List<PhysicsCapabilityDescriptor> getCapabilityDescriptors() {
-        return List.of(PhysicsContinuousCollisionCapability.DESCRIPTOR);
+        return CAPABILITY_DESCRIPTORS;
     }
 
     @Nonnull
@@ -467,6 +504,7 @@ public final class BulletSpace implements PhysicsSpace {
                 if (body.isAttachedToSpace()) {
                     space.removeCollisionObject(body.getRigidBody());
                 }
+                space.forgetBody(body.getNativeId());
                 body.invalidateFrom(this);
             }
             bodies.clear();

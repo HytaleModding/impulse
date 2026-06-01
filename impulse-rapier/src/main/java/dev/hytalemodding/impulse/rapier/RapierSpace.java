@@ -2,6 +2,7 @@ package dev.hytalemodding.impulse.rapier;
 
 import dev.hytalemodding.impulse.api.BackendId;
 import dev.hytalemodding.impulse.api.PhysicsAxis;
+import dev.hytalemodding.impulse.api.PhysicsBackendEventKind;
 import dev.hytalemodding.impulse.api.PhysicsBackendEventSink;
 import dev.hytalemodding.impulse.api.PhysicsBody;
 import dev.hytalemodding.impulse.api.PhysicsBodySnapshot;
@@ -17,6 +18,7 @@ import dev.hytalemodding.impulse.api.ShapeType;
 import dev.hytalemodding.impulse.api.SpaceId;
 import dev.hytalemodding.impulse.api.capability.PhysicsActivationTuning;
 import dev.hytalemodding.impulse.api.capability.PhysicsActivationTuningCapability;
+import dev.hytalemodding.impulse.api.capability.PhysicsBackendEventsCapability;
 import dev.hytalemodding.impulse.api.capability.PhysicsCapability;
 import dev.hytalemodding.impulse.api.capability.PhysicsCapabilityDescriptor;
 import dev.hytalemodding.impulse.api.capability.PhysicsCapabilityId;
@@ -33,6 +35,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.Set;
 import java.util.function.BiConsumer;
 import java.util.function.Consumer;
 import java.util.function.Function;
@@ -55,6 +58,7 @@ public final class RapierSpace implements PhysicsSpace {
         PhysicsSolverTuningCapability.DESCRIPTOR,
         PhysicsActivationTuningCapability.DESCRIPTOR,
         PhysicsContinuousCollisionCapability.DESCRIPTOR,
+        PhysicsBackendEventsCapability.DESCRIPTOR,
         PhysicsVoxelTerrainCapability.DESCRIPTOR,
         PhysicsExtensionSettingsCapability.DESCRIPTOR,
         RAPIER_SOLVER_EXTENSION_DESCRIPTOR);
@@ -64,6 +68,7 @@ public final class RapierSpace implements PhysicsSpace {
     private static final int DEFAULT_MIN_ISLAND_SIZE = 128;
     private static final int RAY_HIT_FLOATS = 10;
     private static final int CONTACT_FLOATS = 15;
+    private static final int CONTACT_EVENT_FLOATS = 16;
     private static final int BODY_SNAPSHOT_FLOATS = 16;
     private static final int RUNTIME_STATS_VALUES = 10;
     private static final int STEP_PHASE_STATS_VALUES = 6;
@@ -79,6 +84,10 @@ public final class RapierSpace implements PhysicsSpace {
     private final PhysicsContinuousCollisionCapability continuousCollisionCapability =
         new PhysicsContinuousCollisionCapability() {
         };
+    private final PhysicsBackendEventsCapability backendEventsCapability =
+        () -> Set.of(PhysicsBackendEventKind.CONTACT_STARTED,
+            PhysicsBackendEventKind.CONTACT_ENDED,
+            PhysicsBackendEventKind.CONTACT_FORCE);
     private final PhysicsVoxelTerrainCapability voxelTerrainCapability =
         new RapierVoxelTerrainCapability();
     private final PhysicsExtensionSettingsCapability extensionSettingsCapability =
@@ -130,20 +139,42 @@ public final class RapierSpace implements PhysicsSpace {
 
     @Override
     public void step(float dt, @Nonnull PhysicsBackendEventSink events) {
-        step(dt);
         if (dt <= 0f) {
             return;
         }
-        for (PhysicsContact contact : getContacts()) {
-            events.contact(PhysicsContactPhase.OBSERVED,
-                contact.bodyA(),
-                contact.bodyB(),
-                contact.pointOnA(),
-                contact.pointOnB(),
-                contact.normalOnB(),
-                contact.distance(),
-                contact.impulse());
+        ensureOpen();
+        float[] raw = RapierNative.stepContactEventsNative(nativeSpaceHandle, dt);
+        if (raw == null) {
+            throw new IllegalStateException("Rapier native contact event step failed");
         }
+        for (int i = 0; i + CONTACT_EVENT_FLOATS <= raw.length; i += CONTACT_EVENT_FLOATS) {
+            PhysicsContactPhase phase = contactPhase(raw[i]);
+            if (phase == null) {
+                continue;
+            }
+            RapierBody bodyA = bodiesByHandle.get(rawBitFloatPairToLong(raw[i + 1], raw[i + 2]));
+            RapierBody bodyB = bodiesByHandle.get(rawBitFloatPairToLong(raw[i + 3], raw[i + 4]));
+            if (bodyA == null || bodyB == null) {
+                continue;
+            }
+            events.contact(phase,
+                bodyA,
+                bodyB,
+                new Vector3f(raw[i + 5], raw[i + 6], raw[i + 7]),
+                new Vector3f(raw[i + 8], raw[i + 9], raw[i + 10]),
+                new Vector3f(raw[i + 11], raw[i + 12], raw[i + 13]),
+                raw[i + 14],
+                raw[i + 15]);
+        }
+    }
+
+    private static PhysicsContactPhase contactPhase(float rawPhase) {
+        return switch ((int) rawPhase) {
+            case 0 -> PhysicsContactPhase.STARTED;
+            case 2 -> PhysicsContactPhase.ENDED;
+            case 4 -> PhysicsContactPhase.FORCE;
+            default -> null;
+        };
     }
 
     private void setSolverTuning(int solverIterations,
@@ -272,6 +303,9 @@ public final class RapierSpace implements PhysicsSpace {
         }
         if (type == PhysicsContinuousCollisionCapability.class) {
             return Optional.of(type.cast(continuousCollisionCapability));
+        }
+        if (type == PhysicsBackendEventsCapability.class) {
+            return Optional.of(type.cast(backendEventsCapability));
         }
         if (type == PhysicsVoxelTerrainCapability.class) {
             return Optional.of(type.cast(voxelTerrainCapability));

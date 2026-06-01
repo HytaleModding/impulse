@@ -13,6 +13,7 @@ public class ImpulseCommand extends AbstractCommandCollection {
         addSubCommand(new ForcesCommand());
         addSubCommand(new JointsCommand());
         addSubCommand(new RaycastCommand());
+        addSubCommand(new EventsCommand());
         addSubCommand(new GrabCommand());
         addSubCommand(new ReleaseCommand());
         addSubCommand(new PersistenceCommand());

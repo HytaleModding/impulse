@@ -629,9 +629,9 @@ mod voxel_exports;
 
 #[cfg(test)]
 mod tests {
-  use super::*;
+    use super::*;
 
-  #[test]
+    #[test]
     fn registry_does_not_resolve_destroyed_handles() {
         let handle = register_space(NativeSpace::new());
         assert!(handle > 0);

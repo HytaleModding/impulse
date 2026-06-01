@@ -6,6 +6,7 @@ import com.hypixel.hytale.server.core.plugin.JavaPlugin;
 import com.hypixel.hytale.server.core.plugin.JavaPluginInit;
 import dev.hytalemodding.impulse.examples.commands.ImpulseCommand;
 import dev.hytalemodding.impulse.examples.systems.BenchmarkEntityRemovalDiagnosticsSystem;
+import dev.hytalemodding.impulse.examples.systems.PhysicsEventTrackingSystem;
 import javax.annotation.Nonnull;
 
 public final class ImpulseExamplesPlugin extends JavaPlugin {
@@ -28,6 +29,8 @@ public final class ImpulseExamplesPlugin extends JavaPlugin {
     private void registerSystems() {
         this.getEntityStoreRegistry()
             .registerSystem(new BenchmarkEntityRemovalDiagnosticsSystem());
+        this.getEntityStoreRegistry()
+            .registerSystem(new PhysicsEventTrackingSystem());
     }
 
     private void registerCommands() {
