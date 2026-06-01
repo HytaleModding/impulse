@@ -3,6 +3,7 @@ package dev.hytalemodding.impulse.rapier;
 import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -194,7 +195,7 @@ class RapierBackendContractTest extends PhysicsBackendContractTest {
             }
         }
 
-        assertTrue(started != null, "Expected Rapier native events to emit a contact start event");
+        assertNotNull(started, "Expected Rapier native events to emit a contact start event");
         assertTrue((started.bodyA() == plane && started.bodyB() == body)
                 || (started.bodyA() == body && started.bodyB() == plane),
             "Started contact should reference the colliding bodies");
@@ -218,7 +219,7 @@ class RapierBackendContractTest extends PhysicsBackendContractTest {
             body,
             MAX_SETTLE_STEPS);
 
-        assertTrue(force != null, "Expected Rapier native events to emit contact force");
+        assertNotNull(force, "Expected Rapier native events to emit contact force");
         assertTrue(force.impulse() > 0.0f, "Force event should carry a positive force magnitude");
 
         body.setPosition(0.0f, 5.0f, 0.0f);
@@ -232,7 +233,7 @@ class RapierBackendContractTest extends PhysicsBackendContractTest {
             body,
             MAX_SETTLE_STEPS);
 
-        assertTrue(ended != null, "Expected Rapier native events to emit contact end");
+        assertNotNull(ended, "Expected Rapier native events to emit contact end");
     }
 
     @Test
@@ -300,7 +301,7 @@ class RapierBackendContractTest extends PhysicsBackendContractTest {
 
     @Test
     void nativeStepRejectsStaleSpaceHandle() {
-        RapierNative.load(null);
+        RapierNative.load();
         long handle = RapierNative.createSpaceNative();
         assertTrue(handle > 0L);
 
@@ -311,7 +312,7 @@ class RapierBackendContractTest extends PhysicsBackendContractTest {
 
     @Test
     void nativeSnapshotRejectsStaleBodyHandleWithoutWritingZeros() {
-        RapierNative.load(null);
+        RapierNative.load();
         long handle = RapierNative.createSpaceNative();
         assertTrue(handle > 0L);
         float[] out = new float[16];
@@ -330,7 +331,7 @@ class RapierBackendContractTest extends PhysicsBackendContractTest {
 
     @Test
     void nativeAttachedBodyMutatorsRejectStaleBodyHandle() {
-        RapierNative.load(null);
+        RapierNative.load();
         long handle = RapierNative.createSpaceNative();
         assertTrue(handle > 0L);
 

@@ -2,8 +2,6 @@ package dev.hytalemodding.impulse.rapier;
 
 import dev.hytalemodding.impulse.internal.nativelib.NativeLibraryLoader;
 import dev.hytalemodding.impulse.internal.nativelib.NativeLibraryResource;
-import java.nio.file.Path;
-import javax.annotation.Nullable;
 
 /**
  * JNI bridge for the Rapier backend.
@@ -19,7 +17,7 @@ final class RapierNative {
     private RapierNative() {
     }
 
-    static synchronized void load(@Nullable Path dataDirectory) {
+    static synchronized void load() {
         if (loaded) {
             return;
         }

@@ -7,12 +7,10 @@ import dev.hytalemodding.impulse.api.PhysicsSpace;
 import dev.hytalemodding.impulse.api.SpaceId;
 import dev.hytalemodding.impulse.internal.nativelib.NativeLibraryLoader;
 import dev.hytalemodding.impulse.internal.nativelib.NativeLibraryResource;
-import java.nio.file.Path;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import javax.annotation.Nonnull;
-import javax.annotation.Nullable;
 
 /**
  * TODO: right now the BulletBackend has an additional bulletjme layer on top of Bullet natives
@@ -28,11 +26,6 @@ public final class BulletBackend implements PhysicsBackend {
     private volatile Level internalLoggingLevel = Level.WARNING;
 
     private volatile boolean initialized;
-
-    @Override
-    public void setDataDirectory(@Nullable Path dataDirectory) {
-        // Hytale dev data directories can point at asset resources; native extraction is runtime cache.
-    }
 
     @Nonnull
     @Override

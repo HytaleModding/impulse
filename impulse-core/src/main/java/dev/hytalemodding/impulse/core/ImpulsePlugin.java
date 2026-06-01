@@ -184,7 +184,6 @@ public final class ImpulsePlugin extends JavaPlugin {
         }
 
         for (PhysicsBackend backend : Impulse.getBackends()) {
-            backend.setDataDirectory(getDataDirectory());
             LOGGER.at(Level.INFO).log("Registered physics backend %s", backend.getId());
         }
 

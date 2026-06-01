@@ -18,7 +18,6 @@ import dev.hytalemodding.impulse.api.PhysicsSpace;
 import dev.hytalemodding.impulse.api.ShapeType;
 import dev.hytalemodding.impulse.api.SpaceId;
 import dev.hytalemodding.impulse.api.capability.PhysicsContinuousCollisionCapability;
-import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
@@ -35,7 +34,6 @@ import javax.annotation.Nonnull;
 import org.joml.Vector3f;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.io.TempDir;
 
 /**
  * Shared backend-level headless contract tests for Bullet and Rapier.
@@ -51,9 +49,6 @@ public abstract class PhysicsBackendContractTest {
     protected static final int MAX_SETTLE_STEPS = 900;
     protected static final float POSITION_EPSILON = 0.05f;
     protected static final int CONCURRENT_SPACE_CREATIONS = 4;
-
-    @TempDir
-    Path tempDir;
 
     private final List<PhysicsSpace> spaces = new ArrayList<>();
 
@@ -81,7 +76,6 @@ public abstract class PhysicsBackendContractTest {
     @Test
     void createsDistinctLogicalSpacesConcurrently() throws Exception {
         PhysicsBackend backend = createBackend();
-        backend.setDataDirectory(tempDir);
         backend.setInternalLoggingLevel(Level.OFF);
         backend.init();
 
@@ -121,7 +115,6 @@ public abstract class PhysicsBackendContractTest {
     @Test
     void createsGeneratedSpacesConcurrently() throws Exception {
         PhysicsBackend backend = createBackend();
-        backend.setDataDirectory(tempDir);
         backend.setInternalLoggingLevel(Level.OFF);
         backend.init();
 
@@ -392,7 +385,6 @@ public abstract class PhysicsBackendContractTest {
     @Nonnull
     protected PhysicsSpace createHeadlessSpace() {
         PhysicsBackend backend = createBackend();
-        backend.setDataDirectory(tempDir);
         backend.setInternalLoggingLevel(Level.OFF);
         Impulse.registerBackend(backend);
 
