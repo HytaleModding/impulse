@@ -40,7 +40,7 @@ val platformClassifier = when {
 
 val downloadDir = layout.buildDirectory.dir("jextract-download")
 val extractedToolDir = layout.buildDirectory.dir("jextract-tool")
-val generatedSourcesDir = layout.buildDirectory.dir("generated/sources/jextract")
+val generatedSourcesDir = layout.buildDirectory.dir("impulse-ffi/generated/sources/jextract")
 
 val jextractVer = project.property("jextractVersion") as String
 val jextractFull = project.property("jextractFullVersion") as String

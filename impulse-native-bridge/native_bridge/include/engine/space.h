@@ -313,29 +313,6 @@ extern "C"
    */
   API void eng_space_destroy(uint32_t space_id);
 
-  /**
-   * Signature for the joint iteration callback.
-   *
-   * @param joint_id  The ID of the joint currently being visited.
-   * @param user_data Pointer to user-provided state or context,
-   * passed through from the iteration call.
-   */
-  typedef void (*JointCallback)(uint64_t joint_id, void *user_data);
-
-  /**
-   * Iterates over all joints in the specified space, invoking the
-   * provided callback for each.
-   *
-   * @note This iteration is read-only. Modifying the joint list
-   * (e.g., calling eng_space_remove_joint) during this
-   * call is undefined behavior.
-   *
-   * @param space_id The ID of the target space.
-   * @param callback Pointer to the function to execute for each joint.
-   * @param user_data Pointer to arbitrary user data to pass to the callback.
-   */
-  API void eng_space_iterate_joints(uint32_t space_id, JointCallback callback, void *user_data);
-
 #ifdef __cplusplus
 }
 #endif

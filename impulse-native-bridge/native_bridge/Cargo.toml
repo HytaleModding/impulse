@@ -1,5 +1,5 @@
 [package]
-name = "impulse-ffi"
+name = "native_bridge"
 version = "0.1.0"
 edition = "2024"
 build = "build.rs"
@@ -9,7 +9,8 @@ license = "Apache-2.0"
 crate-type = ["cdylib"]
 
 [dependencies]
-ffi-dispatch-macros = { path = "../ffi-dispatch-macros" }
+libloading = "0.8.9"
+dispatch_macros = { path = "../dispatch_macros" }
 
 [build-dependencies]
 cbindgen = "0.29.3"

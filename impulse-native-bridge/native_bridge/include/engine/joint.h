@@ -16,15 +16,15 @@ extern "C"
     eng_JOINT_HINGE = 2,
     eng_JOINT_SLIDER = 3,
     eng_JOINT_SPRING = 4
-  } eng_JointType;
+  } JointType;
 
   /**
    * Retrieves the type of the joint.
    *
    * @param joint_id The ID of the target joint.
-   * @return The eng_JointType enum value.
+   * @return The JointType enum value.
    */
-  API eng_JointType eng_joint_get_type(uint32_t space_id, uint64_t joint_id);
+  API JointType eng_joint_get_type(uint32_t space_id, uint64_t joint_id);
 
   /**
    * Retrieves the ID of the first body (bodyA).

@@ -91,8 +91,13 @@ pub fn auto_dispatch_from_enum(attr: TokenStream, item: TokenStream) -> TokenStr
     let input_enum = parse_macro_input!(item as ItemEnum);
     let enum_ident = &input_enum.ident;
 
-    // Keep the original enum unchanged in the expanded code.
-    let enum_tokens = quote! { #input_enum };
+    // Keep the original enum in the expanded code.  The enum itself is never
+    // referenced by name in the generated dispatcher (match arms use integer
+    // literals), so suppress the dead_code lint that would otherwise fire.
+    let enum_tokens = quote! {
+        #[allow(dead_code)]
+        #input_enum
+    };
 
     // Store each variant name together with its explicit discriminant value.
     // The generated dispatcher matches on those numeric values directly.
@@ -249,9 +254,10 @@ pub fn auto_dispatch_from_enum(attr: TokenStream, item: TokenStream) -> TokenStr
 
         // Generate a fully qualified path to the bound foreign function.
         let ffi_ident = syn::Ident::new(&fn_name, proc_macro2::Span::call_site());
-        let ffi_call = quote! { #ffi_ident };
 
         // Generate the dispatch arm for this discriminant.
+        // Calls are routed through the global engine singleton so that the
+        // DLL has no static link dependency on the backend engine library.
         let arm = match &fn_sign.output {
             // If the foreign function returns nothing, just call it and report
             // how many 64-bit slots the packed payload consumed.
@@ -262,7 +268,7 @@ pub fn auto_dispatch_from_enum(attr: TokenStream, item: TokenStream) -> TokenStr
                             // Start at the beginning of the packed argument block.
                             let mut byte_offset = 0usize;
                             #(#read_stmts)*
-                            #ffi_call( #(#args_idents),* );
+                            engine.#ffi_ident( #(#args_idents),* );
 
                             // Convert bytes consumed into the caller's slot-based
                             // unit so the outer loop can keep advancing correctly.
@@ -281,7 +287,7 @@ pub fn auto_dispatch_from_enum(attr: TokenStream, item: TokenStream) -> TokenStr
                             let mut byte_offset = 0usize;
                             #(#read_stmts)*
 
-                            let _result: #ty = #ffi_call( #(#args_idents),* );
+                            let _result: #ty = engine.#ffi_ident( #(#args_idents),* );
 
                             // Store the return value at the start of the payload.
                             write_ret(data_ptr as *mut u8, 0, _result);
@@ -299,8 +305,6 @@ pub fn auto_dispatch_from_enum(attr: TokenStream, item: TokenStream) -> TokenStr
     // Assemble the final output: original enum plus generated helper functions
     // and the dispatcher entry point.
     let expanded = quote! {
-        use crate::ffi_engine::*;
-
         #enum_tokens
 
         // Size helper used to advance through the raw buffer in bytes.
@@ -329,7 +333,7 @@ pub fn auto_dispatch_from_enum(attr: TokenStream, item: TokenStream) -> TokenStr
 
         // Generated dispatcher that routes each enum discriminant to its FFI call.
         #[allow(dead_code)]
-        pub fn execute_subcommand(subcommand_type: u32, buffer_ptr: *mut u64, offset: usize) -> usize {
+        pub fn execute_subcommand(engine: &Engine, subcommand_type: u32, buffer_ptr: *mut u64, offset: usize) -> usize {
             // The outer command buffer uses slot-based offsets; convert the slot
             // index into a byte pointer before reading the packed payload.
             let data_ptr = unsafe { (buffer_ptr as *mut u8).add(offset * 8) as *const u8 };

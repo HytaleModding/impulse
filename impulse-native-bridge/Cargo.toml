@@ -1,5 +1,5 @@
 [workspace]
 members = [
-  "ffi-dispatch-macros",
-  "impulse-ffi",
+  "dispatch_macros",
+  "native_bridge",
 ]

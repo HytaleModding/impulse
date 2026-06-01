@@ -1,8 +1,8 @@
-use ffi_dispatch_macros::auto_dispatch_from_enum;
-
+use crate::dispatch::engine_state::engine::*;
+use dispatch_macros::auto_dispatch_from_enum;
 #[repr(u32)]
 #[derive(Debug, PartialEq, Copy, Clone)]
-#[auto_dispatch_from_enum("src/ffi_engine.rs", "eng_space_")]
+#[auto_dispatch_from_enum("generated/engine_ffi_signs.rs", "eng_space_")]
 enum SpaceCommand {
     Step = 0,
     GetGravity = 1,
@@ -27,5 +27,4 @@ enum SpaceCommand {
     RemoveJoint = 20,
     GetJointCount = 21,
     Destroy = 22,
-    IterateJoints = 23,
 }
