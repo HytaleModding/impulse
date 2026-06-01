@@ -8,7 +8,7 @@ import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyPersistenceMode;
 import javax.annotation.Nonnull;
 
 /**
- * Owner-lane registration for a backend body id.
+ * Owner-lane registration for a stable body key and backend-local body handle.
  */
 public record PhysicsBodyRegistration(@Nonnull RigidBodyKey bodyKey,
     @Nonnull BackendBodyHandle backendBodyHandle,
