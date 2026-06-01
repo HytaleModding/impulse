@@ -1,5 +1,6 @@
 package dev.hytalemodding.impulse.core.internal.resources.owner;
 
+import dev.hytalemodding.impulse.core.plugin.events.PhysicsEventFrame;
 import dev.hytalemodding.impulse.core.plugin.snapshot.PublishedPhysicsSnapshotFrame;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
@@ -10,6 +11,7 @@ import javax.annotation.Nullable;
  */
 public record PhysicsOwnerStepCompletion(@Nullable PhysicsOwnerResult result,
                                          @Nullable PublishedPhysicsSnapshotFrame frame,
+                                         @Nullable PhysicsEventFrame eventFrame,
                                          @Nullable RuntimeException stepFailure,
                                          @Nullable Throwable executionFailure) {
 

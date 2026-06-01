@@ -43,6 +43,7 @@ import dev.hytalemodding.impulse.core.plugin.collision.WorldCollisionBuildStats;
 import dev.hytalemodding.impulse.core.plugin.collision.WorldCollisionPrewarmStats;
 import dev.hytalemodding.impulse.core.plugin.collision.WorldCollisionStats;
 import dev.hytalemodding.impulse.core.plugin.events.PhysicsEventFrame;
+import dev.hytalemodding.impulse.core.plugin.events.PhysicsFrameEvent;
 import dev.hytalemodding.impulse.core.plugin.resources.PhysicsMutationHandle;
 import dev.hytalemodding.impulse.core.plugin.simulation.PhysicsOwnerAccess;
 import dev.hytalemodding.impulse.core.plugin.simulation.PhysicsOwnerTransaction;
@@ -524,12 +525,31 @@ public class PhysicsWorldRuntimeResource extends PhysicsWorldResource {
         @Nonnull PublishedPhysicsSnapshotFrame.Status status,
         long stepNanos,
         boolean profilingEnabled) {
+        return capturePublishedSnapshotFrame(stepSequence,
+            serverTick,
+            status,
+            stepNanos,
+            profilingEnabled,
+            List.of(),
+            0);
+    }
+
+    @Nonnull
+    public PublishedPhysicsSnapshotFrame capturePublishedSnapshotFrame(long stepSequence,
+        long serverTick,
+        @Nonnull PublishedPhysicsSnapshotFrame.Status status,
+        long stepNanos,
+        boolean profilingEnabled,
+        @Nonnull List<PhysicsFrameEvent> physicsEvents,
+        int droppedBackendEventCount) {
         return callOwner("capture published physics snapshot frame",
             () -> capturePublishedSnapshotFrameDirect(stepSequence,
                 serverTick,
                 status,
                 stepNanos,
-                profilingEnabled));
+                profilingEnabled,
+                physicsEvents,
+                droppedBackendEventCount));
     }
 
     @Nonnull
@@ -538,6 +558,23 @@ public class PhysicsWorldRuntimeResource extends PhysicsWorldResource {
         @Nonnull PublishedPhysicsSnapshotFrame.Status status,
         long stepNanos,
         boolean profilingEnabled) {
+        return capturePublishedSnapshotFrameDirect(stepSequence,
+            serverTick,
+            status,
+            stepNanos,
+            profilingEnabled,
+            List.of(),
+            0);
+    }
+
+    @Nonnull
+    private PublishedPhysicsSnapshotFrame capturePublishedSnapshotFrameDirect(long stepSequence,
+        long serverTick,
+        @Nonnull PublishedPhysicsSnapshotFrame.Status status,
+        long stepNanos,
+        boolean profilingEnabled,
+        @Nonnull List<PhysicsFrameEvent> physicsEvents,
+        int droppedBackendEventCount) {
 
         assertCanAccessLiveBackendDirectly("capture published physics snapshot frame");
         return lifecycleState.capturePublishedSnapshotFrame(spaceRuntime.liveSpaces(),
@@ -546,7 +583,9 @@ public class PhysicsWorldRuntimeResource extends PhysicsWorldResource {
             serverTick,
             status,
             stepNanos,
-            profilingEnabled);
+            profilingEnabled,
+            physicsEvents,
+            droppedBackendEventCount);
     }
 
     public int applyPublishedSnapshotFrame(@Nonnull PublishedPhysicsSnapshotFrame frame) {

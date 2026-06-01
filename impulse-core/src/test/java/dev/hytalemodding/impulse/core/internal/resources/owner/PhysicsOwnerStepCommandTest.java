@@ -2,6 +2,7 @@ package dev.hytalemodding.impulse.core.internal.resources.owner;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -9,10 +10,12 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import dev.hytalemodding.impulse.api.BackendId;
 import dev.hytalemodding.impulse.api.Impulse;
 import dev.hytalemodding.impulse.api.PhysicsAxis;
+import dev.hytalemodding.impulse.api.PhysicsBackendEventSink;
 import dev.hytalemodding.impulse.api.PhysicsBackend;
 import dev.hytalemodding.impulse.api.PhysicsBody;
 import dev.hytalemodding.impulse.api.PhysicsBodyType;
 import dev.hytalemodding.impulse.api.PhysicsContact;
+import dev.hytalemodding.impulse.api.PhysicsContactPhase;
 import dev.hytalemodding.impulse.api.PhysicsJoint;
 import dev.hytalemodding.impulse.api.PhysicsRayHit;
 import dev.hytalemodding.impulse.api.PhysicsSpace;
@@ -23,6 +26,10 @@ import dev.hytalemodding.impulse.api.capability.PhysicsContinuousCollisionCapabi
 import dev.hytalemodding.impulse.core.plugin.snapshot.PublishedPhysicsSnapshotFrame;
 import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyKind;
 import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyPersistenceMode;
+import dev.hytalemodding.impulse.core.plugin.body.RigidBodyKey;
+import dev.hytalemodding.impulse.core.plugin.events.PhysicsContactEvent;
+import dev.hytalemodding.impulse.core.plugin.events.PhysicsEventFrame;
+import dev.hytalemodding.impulse.core.plugin.events.PhysicsFrameEvent;
 import dev.hytalemodding.impulse.core.plugin.settings.PhysicsStepMode;
 import dev.hytalemodding.impulse.core.plugin.settings.PhysicsSpaceSettings;
 import dev.hytalemodding.impulse.core.plugin.settings.PhysicsWorldSettings;
@@ -160,6 +167,52 @@ class PhysicsOwnerStepCommandTest {
         assertEquals(3, snapshot.substeps());
         assertEquals(3, space.stepDts.size());
         assertEquals(1, snapshot.bodySnapshots());
+    }
+
+    @Test
+    void translatesBackendContactEventsToStableBodyKeysInStepFrame() {
+        CountingBackend backend = registerBackend(false);
+        PhysicsWorldRuntimeResource resource = new PhysicsWorldRuntimeResource();
+        CountingSpace space = (CountingSpace) resource.createLiveSpace(backend.getId(),
+            "owner-test",
+            PhysicsSpaceSettings.defaults());
+        configureWorldSettings(resource, settings -> {
+            settings.setStepMode(PhysicsStepMode.FIXED);
+            settings.setSimulationSteps(1);
+        });
+        PhysicsBody first = space.createBox(0.5f, 0.5f, 0.5f, 1.0f);
+        PhysicsBody second = space.createBox(0.5f, 0.5f, 0.5f, 1.0f);
+        RigidBodyKey firstKey = resource.addBody(space.id(),
+            first,
+            PhysicsBodyKind.BODY,
+            PhysicsBodyPersistenceMode.PERSISTENT);
+        RigidBodyKey secondKey = resource.addBody(space.id(),
+            second,
+            PhysicsBodyKind.BODY,
+            PhysicsBodyPersistenceMode.PERSISTENT);
+        space.contactToEmit = new PhysicsContact(first,
+            second,
+            new Vector3f(1.0f, 2.0f, 3.0f),
+            new Vector3f(4.0f, 5.0f, 6.0f),
+            new Vector3f(0.0f, 1.0f, 0.0f),
+            -0.125f,
+            2.5f);
+
+        PhysicsOwnerStepCommand.runStep(resource, 0.05f, false);
+
+        PhysicsEventFrame frame = resource.getLatestEventFrame();
+        assertEquals(1, frame.physicsEventCount());
+        PhysicsContactEvent event =
+            assertInstanceOf(PhysicsContactEvent.class, frame.physicsEvents().getFirst());
+        assertEquals(space.id(), event.spaceId());
+        assertEquals(PhysicsContactPhase.OBSERVED, event.phase());
+        assertEquals(firstKey, event.bodyAKey());
+        assertEquals(secondKey, event.bodyBKey());
+        assertEquals(new Vector3f(1.0f, 2.0f, 3.0f), event.pointOnA());
+        assertEquals(new Vector3f(4.0f, 5.0f, 6.0f), event.pointOnB());
+        assertEquals(new Vector3f(0.0f, 1.0f, 0.0f), event.normalOnB());
+        assertEquals(-0.125f, event.distance());
+        assertEquals(2.5f, event.impulse());
     }
 
     @Test
@@ -307,7 +360,9 @@ class PhysicsOwnerStepCommandTest {
             long serverTick,
             @NonNullDecl PublishedPhysicsSnapshotFrame.Status status,
             long stepNanos,
-            boolean profilingEnabled) {
+            boolean profilingEnabled,
+            @NonNullDecl List<PhysicsFrameEvent> physicsEvents,
+            int droppedBackendEventCount) {
             if (snapshotFailure != null) {
                 throw snapshotFailure;
             }
@@ -315,7 +370,9 @@ class PhysicsOwnerStepCommandTest {
                 serverTick,
                 status,
                 stepNanos,
-                profilingEnabled);
+                profilingEnabled,
+                physicsEvents,
+                droppedBackendEventCount);
         }
     }
 
@@ -336,6 +393,8 @@ class PhysicsOwnerStepCommandTest {
         private final List<String> stepThreadNames = new ArrayList<>();
         @Nullable
         private RuntimeException stepFailure;
+        @Nullable
+        private PhysicsContact contactToEmit;
 
         private CountingSpace(@Nonnull SpaceId id,
             @Nonnull BackendId backendId,
@@ -364,6 +423,21 @@ class PhysicsOwnerStepCommandTest {
             }
             stepDts.add(dt);
             stepThreadNames.add(Thread.currentThread().getName());
+        }
+
+        @Override
+        public void step(float dt, @Nonnull PhysicsBackendEventSink events) {
+            step(dt);
+            if (contactToEmit != null) {
+                events.contact(PhysicsContactPhase.OBSERVED,
+                    contactToEmit.bodyA(),
+                    contactToEmit.bodyB(),
+                    contactToEmit.pointOnA(),
+                    contactToEmit.pointOnB(),
+                    contactToEmit.normalOnB(),
+                    contactToEmit.distance(),
+                    contactToEmit.impulse());
+            }
         }
 
         @Override

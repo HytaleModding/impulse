@@ -13,10 +13,12 @@ import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyKind;
 import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyPersistenceMode;
 import dev.hytalemodding.impulse.core.plugin.body.RigidBodyKey;
 import dev.hytalemodding.impulse.core.plugin.events.PhysicsEventFrame;
+import dev.hytalemodding.impulse.core.plugin.events.PhysicsFrameEvent;
 import dev.hytalemodding.impulse.core.plugin.simulation.PhysicsCommandCompletion;
 import dev.hytalemodding.impulse.core.plugin.snapshot.PhysicsBodySnapshotEntry;
 import dev.hytalemodding.impulse.core.plugin.snapshot.PublishedPhysicsSnapshotFrame;
 import java.util.Collection;
+import java.util.List;
 import java.util.Objects;
 import java.util.function.Consumer;
 import java.util.function.Function;
@@ -77,6 +79,28 @@ public final class PhysicsWorldLifecycleState {
         @Nonnull PublishedPhysicsSnapshotFrame.Status status,
         long stepNanos,
         boolean profilingEnabled) {
+        return capturePublishedSnapshotFrame(spaces,
+            bodyRegistry,
+            stepSequence,
+            serverTick,
+            status,
+            stepNanos,
+            profilingEnabled,
+            List.of(),
+            0);
+    }
+
+    @Nonnull
+    public PublishedPhysicsSnapshotFrame capturePublishedSnapshotFrame(
+        @Nonnull Collection<PhysicsSpace> spaces,
+        @Nonnull PhysicsBodyRegistry bodyRegistry,
+        long stepSequence,
+        long serverTick,
+        @Nonnull PublishedPhysicsSnapshotFrame.Status status,
+        long stepNanos,
+        boolean profilingEnabled,
+        @Nonnull List<PhysicsFrameEvent> physicsEvents,
+        int droppedBackendEventCount) {
         PublishedPhysicsSnapshotFrame frame = snapshotState.capturePublishedSnapshotFrame(spaces,
             bodyRegistry,
             stepSequence,
@@ -85,7 +109,10 @@ public final class PhysicsWorldLifecycleState {
             status,
             stepNanos,
             profilingEnabled);
-        eventState.publishStepCaptured(frame.worldEpoch(), frame);
+        eventState.publishStepCaptured(frame.worldEpoch(),
+            frame,
+            physicsEvents,
+            droppedBackendEventCount);
         return frame;
     }
 
