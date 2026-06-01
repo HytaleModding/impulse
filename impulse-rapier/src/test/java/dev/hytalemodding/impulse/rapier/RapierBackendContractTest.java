@@ -8,10 +8,15 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import dev.hytalemodding.impulse.api.PhysicsBackend;
+import dev.hytalemodding.impulse.api.PhysicsBackendContactEvent;
+import dev.hytalemodding.impulse.api.PhysicsBackendEvent;
+import dev.hytalemodding.impulse.api.PhysicsBackendEventBatch;
+import dev.hytalemodding.impulse.api.PhysicsBackendEventBuffer;
 import dev.hytalemodding.impulse.api.PhysicsBody;
 import dev.hytalemodding.impulse.api.PhysicsBodySnapshot;
 import dev.hytalemodding.impulse.api.PhysicsBodyType;
 import dev.hytalemodding.impulse.api.PhysicsCollisionFilters;
+import dev.hytalemodding.impulse.api.PhysicsContactPhase;
 import dev.hytalemodding.impulse.api.PhysicsRuntimeStats;
 import dev.hytalemodding.impulse.api.PhysicsSpace;
 import dev.hytalemodding.impulse.api.ShapeType;
@@ -148,6 +153,36 @@ class RapierBackendContractTest extends PhysicsBackendContractTest {
         assertTrue(stats.dynamicDynamicContactPairCount() >= 1);
         assertTrue(stats.terrainContactPairCount() >= 1);
         assertTrue(stats.activeIslandCount() >= 1);
+    }
+
+    @Test
+    void stepCopiesObservedContactsIntoBackendEventBatch() {
+        PhysicsSpace space = createHeadlessSpace();
+        PhysicsBody plane = space.createStaticPlane(0.0f);
+        PhysicsBody body = space.createSphere(0.5f, 1.0f);
+        body.setPosition(0.0f, 3.0f, 0.0f);
+
+        space.addBody(plane);
+        space.addBody(body);
+
+        PhysicsBackendEventBuffer buffer = new PhysicsBackendEventBuffer();
+        PhysicsBackendContactEvent observed = null;
+        for (int i = 0; i < MAX_SETTLE_STEPS && observed == null; i++) {
+            space.step(STEP_DT, buffer);
+            PhysicsBackendEventBatch batch = buffer.drain();
+            for (PhysicsBackendEvent event : batch.events()) {
+                if (event instanceof PhysicsBackendContactEvent contactEvent
+                    && contactEvent.phase() == PhysicsContactPhase.OBSERVED) {
+                    observed = contactEvent;
+                    break;
+                }
+            }
+        }
+
+        assertTrue(observed != null, "Expected Rapier to copy an observed contact into the event batch");
+        assertTrue((observed.bodyA() == plane && observed.bodyB() == body)
+                || (observed.bodyA() == body && observed.bodyB() == plane),
+            "Observed contact should reference the colliding bodies");
     }
 
     @Test
