@@ -107,6 +107,6 @@ public final class BulletBackend implements PhysicsBackend {
                 + Thread.currentThread().getName());
 
         return new BulletSpace(spaceId, this,
-            new com.jme3.bullet.PhysicsSpace(com.jme3.bullet.PhysicsSpace.BroadphaseType.DBVT));
+            new BulletNativeSpace(com.jme3.bullet.PhysicsSpace.BroadphaseType.DBVT));
     }
 }

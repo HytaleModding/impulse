@@ -13,9 +13,12 @@ import dev.hytalemodding.impulse.core.internal.systems.collision.PhysicsCollisio
 import dev.hytalemodding.impulse.core.internal.systems.collision.PhysicsWorldCollisionStreamingSystem;
 import dev.hytalemodding.impulse.core.internal.systems.sync.PhysicsSyncSystem;
 import dev.hytalemodding.impulse.core.internal.systems.visual.PhysicsDetachedVisualMaterializationSystem;
+import dev.hytalemodding.impulse.core.plugin.events.PhysicsEventFrame;
+import dev.hytalemodding.impulse.core.plugin.events.PhysicsEventFramePublishedEvent;
 import dev.hytalemodding.impulse.core.plugin.resources.PhysicsWorldResource;
 import java.util.Set;
 import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
 
 /**
  * Entity-tick publication stage for completed physics owner-lane output.
@@ -48,24 +51,30 @@ public final class PhysicsSnapshotPublicationSystem extends TickingSystem<Entity
         // determined by the next captured and applied PublishedPhysicsSnapshotFrame.
         PhysicsPublicationPipeline.publishCompletedMutations(owner);
         long publicationServerTick = Math.max(0L, store.getExternalData().getWorld().getTick());
-        PhysicsPublicationPipeline.publishCompletedStep(owner, resource, profiling, publicationServerTick);
+        PhysicsEventFrame frame =
+            PhysicsPublicationPipeline.publishCompletedStep(owner, resource, profiling, publicationServerTick);
+        if (frame != null) {
+            store.invoke(new PhysicsEventFramePublishedEvent(frame));
+        }
     }
 
     static int publishCompletedMutations(@Nonnull PhysicsOwnerResource owner) {
         return PhysicsPublicationPipeline.publishCompletedMutations(owner);
     }
 
-    static void publishCompletedStep(@Nonnull PhysicsOwnerResource owner,
+    @Nullable
+    static PhysicsEventFrame publishCompletedStep(@Nonnull PhysicsOwnerResource owner,
         @Nonnull PhysicsWorldResource resource,
         @Nonnull PhysicsRuntimeProfilingResource profiling) {
-        PhysicsPublicationPipeline.publishCompletedStep(owner, resource, profiling);
+        return PhysicsPublicationPipeline.publishCompletedStep(owner, resource, profiling);
     }
 
-    static void publishCompletedStep(@Nonnull PhysicsOwnerResource owner,
+    @Nullable
+    static PhysicsEventFrame publishCompletedStep(@Nonnull PhysicsOwnerResource owner,
         @Nonnull PhysicsWorldResource resource,
         @Nonnull PhysicsRuntimeProfilingResource profiling,
         long publicationServerTick) {
-        PhysicsPublicationPipeline.publishCompletedStep(owner, resource, profiling, publicationServerTick);
+        return PhysicsPublicationPipeline.publishCompletedStep(owner, resource, profiling, publicationServerTick);
     }
 
     @Nonnull

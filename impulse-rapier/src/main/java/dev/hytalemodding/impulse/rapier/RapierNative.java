@@ -45,6 +45,8 @@ final class RapierNative {
 
     static native boolean stepNative(long spaceHandle, float dt);
 
+    static native float[] stepContactEventsNative(long spaceHandle, float dt);
+
     static native int[] getRuntimeStatsNative(long spaceHandle);
 
     static native void resetStepPhaseStatsNative(long spaceHandle);

@@ -19,6 +19,9 @@ public class PhysicsWorldSettings {
     @Nonnull
     public static final PhysicsStepSchedulingMode DEFAULT_STEP_SCHEDULING_MODE =
         PhysicsStepSchedulingMode.DROP_PENDING_DT;
+    @Nonnull
+    public static final PhysicsEventCollectionMode DEFAULT_EVENT_COLLECTION_MODE =
+        PhysicsEventCollectionMode.DISABLED;
 
     @Getter
     private int simulationSteps = MIN_SIMULATION_STEPS;
@@ -26,6 +29,8 @@ public class PhysicsWorldSettings {
     private PhysicsStepMode stepMode = PhysicsStepMode.PROGRESSIVE_REFINEMENT;
     @Nonnull
     private PhysicsStepSchedulingMode stepSchedulingMode = DEFAULT_STEP_SCHEDULING_MODE;
+    @Nonnull
+    private PhysicsEventCollectionMode eventCollectionMode = DEFAULT_EVENT_COLLECTION_MODE;
     @Getter
     private float maxStepDt = DEFAULT_MAX_STEP_DT;
 
@@ -41,6 +46,7 @@ public class PhysicsWorldSettings {
         simulationSteps = settings.simulationSteps;
         stepMode = settings.stepMode;
         stepSchedulingMode = settings.stepSchedulingMode;
+        eventCollectionMode = settings.eventCollectionMode;
         maxStepDt = settings.maxStepDt;
     }
 
@@ -74,6 +80,16 @@ public class PhysicsWorldSettings {
     public void setStepSchedulingMode(@Nonnull PhysicsStepSchedulingMode stepSchedulingMode) {
         this.stepSchedulingMode = Objects.requireNonNull(stepSchedulingMode,
             "stepSchedulingMode");
+    }
+
+    @Nonnull
+    public PhysicsEventCollectionMode getEventCollectionMode() {
+        return eventCollectionMode;
+    }
+
+    public void setEventCollectionMode(@Nonnull PhysicsEventCollectionMode eventCollectionMode) {
+        this.eventCollectionMode = Objects.requireNonNull(eventCollectionMode,
+            "eventCollectionMode");
     }
 
     public void setMaxStepDt(float maxStepDt) {

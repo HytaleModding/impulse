@@ -10,5 +10,6 @@ public class SimulationSettingsCommand extends AbstractCommandCollection {
         addSubCommand(new SimulationStepsSettingCommand());
         addSubCommand(new MaxStepDtSettingCommand());
         addSubCommand(new StepSchedulingSettingCommand());
+        addSubCommand(new EventCollectionSettingCommand());
     }
 }
