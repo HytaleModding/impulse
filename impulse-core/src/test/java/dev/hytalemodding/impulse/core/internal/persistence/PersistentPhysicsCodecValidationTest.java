@@ -19,6 +19,7 @@ import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyKind;
 import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyPersistenceMode;
 import dev.hytalemodding.impulse.core.internal.resources.body.PhysicsBodyRegistration;
 import dev.hytalemodding.impulse.core.plugin.settings.PhysicsBackendExtensionId;
+import dev.hytalemodding.impulse.core.plugin.settings.PhysicsEventCollectionMode;
 import dev.hytalemodding.impulse.core.plugin.settings.PhysicsSpaceSettings;
 import dev.hytalemodding.impulse.core.plugin.settings.PhysicsStepSchedulingMode;
 import dev.hytalemodding.impulse.core.plugin.settings.PhysicsWorldSettings;
@@ -104,6 +105,16 @@ class PersistentPhysicsCodecValidationTest {
     }
 
     @Test
+    void worldResourceFieldValidatorsRejectUnknownEventCollectionMode() {
+        BsonDocument encoded = encodeWorld(new PersistentPhysicsWorldResource());
+        encoded.put("EventCollectionMode", new BsonString("bogus"));
+
+        assertValidationFails(
+            () -> PersistentPhysicsWorldResource.CODEC.decode(encoded, new ExtraInfo()),
+            "Persistent physics event collection mode is unknown: bogus");
+    }
+
+    @Test
     void worldResourceCodecPreservesStepSchedulingMode() {
         PersistentPhysicsWorldResource resource = new PersistentPhysicsWorldResource();
         PhysicsWorldSettings settings = resource.getWorldSettings();
@@ -119,6 +130,23 @@ class PersistentPhysicsCodecValidationTest {
         Assertions.assertNotNull(decoded);
         assertEquals(PhysicsStepSchedulingMode.ACCUMULATE_PENDING_DT,
             decoded.getWorldSettings().getStepSchedulingMode());
+    }
+
+    @Test
+    void worldResourceCodecPreservesEventCollectionMode() {
+        PersistentPhysicsWorldResource resource = new PersistentPhysicsWorldResource();
+        PhysicsWorldSettings settings = resource.getWorldSettings();
+        settings.setEventCollectionMode(PhysicsEventCollectionMode.CONTACTS);
+        resource.setWorldSettings(settings);
+
+        BsonDocument encoded = encodeWorld(resource);
+        PersistentPhysicsWorldResource decoded = PersistentPhysicsWorldResource.CODEC
+            .decode(encoded, new ExtraInfo());
+
+        assertEquals("contacts", encoded.getString("EventCollectionMode").getValue());
+        Assertions.assertNotNull(decoded);
+        assertEquals(PhysicsEventCollectionMode.CONTACTS,
+            decoded.getWorldSettings().getEventCollectionMode());
     }
 
     @Test

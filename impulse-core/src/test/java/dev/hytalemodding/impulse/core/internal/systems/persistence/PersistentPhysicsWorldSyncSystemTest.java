@@ -16,6 +16,7 @@ import dev.hytalemodding.impulse.core.plugin.body.RigidBodyKey;
 import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyKind;
 import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyPersistenceMode;
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsWorldRuntimeResource;
+import dev.hytalemodding.impulse.core.plugin.settings.PhysicsEventCollectionMode;
 import dev.hytalemodding.impulse.core.plugin.settings.PhysicsSpaceSettings;
 import dev.hytalemodding.impulse.core.plugin.settings.PhysicsStepSchedulingMode;
 import dev.hytalemodding.impulse.core.plugin.settings.PhysicsWorldSettings;
@@ -103,6 +104,7 @@ class PersistentPhysicsWorldSyncSystemTest {
         RuntimeFixture fixture = createRuntimeFixture();
         PhysicsWorldSettings settings = fixture.runtime.getWorldSettings();
         settings.setStepSchedulingMode(PhysicsStepSchedulingMode.ACCUMULATE_PENDING_DT);
+        settings.setEventCollectionMode(PhysicsEventCollectionMode.CONTACTS);
         fixture.runtime.setWorldSettings(settings);
         PhysicsBody body = fixture.space.createBox(0.5f, 0.5f, 0.5f, 1.0f);
         fixture.runtime.addBody(fixture.space.id(),
@@ -123,6 +125,8 @@ class PersistentPhysicsWorldSyncSystemTest {
         assertEquals(0, fixture.persistent.getJointCount());
         assertEquals(PhysicsStepSchedulingMode.ACCUMULATE_PENDING_DT,
             fixture.persistent.getWorldSettings().getStepSchedulingMode());
+        assertEquals(PhysicsEventCollectionMode.CONTACTS,
+            fixture.persistent.getWorldSettings().getEventCollectionMode());
     }
 
     @Test

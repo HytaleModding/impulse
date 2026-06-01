@@ -19,9 +19,16 @@ anywhere under the configured Hytale `mods` directories.
 ## Event frames
 
 `PhysicsWorldResource.getLatestEventFrame()` exposes the latest value-only physics event frame for
-diagnostics. Backends emit bounded post-step `PhysicsBackendEvent` batches; core translates them to
-stable `PhysicsFrameEvent` values keyed by `RigidBodyKey` and `JointKey`, then publishes one
-`PhysicsEventFramePublishedEvent` Hytale world event for the completed frame.
+diagnostics. When collection is enabled, backends emit bounded post-step `PhysicsBackendEvent`
+batches; core translates them to stable `PhysicsFrameEvent` values keyed by `RigidBodyKey` and
+`JointKey`, then publishes one `PhysicsEventFramePublishedEvent` Hytale world event for the
+completed frame.
+
+Backend event collection is opt-in through `PhysicsWorldSettings.setEventCollectionMode(...)`.
+Worlds default to `PhysicsEventCollectionMode.DISABLED`; use
+`PhysicsEventCollectionMode.CONTACTS` when a plugin intentionally consumes backend contact events.
+At runtime, use `/impulse settings simulation events contacts` to enable collection for the current
+world and `/impulse settings simulation events disabled` to return to the default hot path.
 
 ## Cleanup commands
 
