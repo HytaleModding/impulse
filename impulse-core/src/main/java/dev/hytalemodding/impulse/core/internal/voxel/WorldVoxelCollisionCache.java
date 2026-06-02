@@ -48,6 +48,9 @@ public final class WorldVoxelCollisionCache {
     private static final int SLEEPING_BODY_STREAMING_INTERVAL_TICKS = 20;
     private static final int MISSING_BLOCK_CHUNK_RETRY_TICKS = 10;
     private static final int MISSING_BLOCK_SECTION_RETRY_TICKS = 5;
+    private static final float TERRAIN_FRICTION = 0.75f;
+    private static final float TERRAIN_RESTITUTION = 0.0f;
+    private static final int ADJACENT_SECTION_VOXEL_SHIFT = 16;
 
     private final Int2ObjectMap<SpaceCollisionCache> spaces = new Int2ObjectOpenHashMap<>();
     private final ShapeTemplateCache shapeTemplates = new ShapeTemplateCache();
@@ -729,7 +732,7 @@ public final class WorldVoxelCollisionCache {
         CachedSection built = new CachedSection(chunkX, sectionY, chunkZ, tick,
             neighborhoodSignature);
         try {
-            addGeometryBodies(space, built, geometry);
+            addGeometryBodies(space, built, geometry, chunkX, sectionY, chunkZ);
         } catch (RuntimeException exception) {
             removeBuiltSectionAfterFailure(space, built, exception);
             throw exception;
@@ -752,7 +755,7 @@ public final class WorldVoxelCollisionCache {
             removed,
             rebuilt ? 0 : 1,
             rebuilt ? 1 : 0,
-            0);
+            built.voxelTerrain ? 1 : 0);
         if (profiling != null) {
             profiling.addBuildStats(stats);
             profiling.addEnsureSectionNanos(System.nanoTime() - start);
@@ -772,16 +775,47 @@ public final class WorldVoxelCollisionCache {
 
     private static void addGeometryBodies(@Nonnull PhysicsSpaceBinding space,
         @Nonnull CachedSection target,
-        @Nonnull SectionCollisionGeometry geometry) {
+        @Nonnull SectionCollisionGeometry geometry,
+        int chunkX,
+        int sectionY,
+        int chunkZ) {
         target.fullCubeBoxes.addAll(geometry.mergedFullCubeBoxes());
         target.detailBoxes.addAll(geometry.detailBoxes());
-        for (BoxCollider box : geometry.mergedFullCubeBoxes()) {
-            addStaticBox(space, target, box);
+        if (geometry.hasFullCubeVoxels()
+            && space.runtime().supportsVoxelTerrain(space.backendSpaceHandle().value())) {
+            addVoxelTerrain(space, target, geometry, chunkX, sectionY, chunkZ);
+        } else {
+            for (BoxCollider box : geometry.mergedFullCubeBoxes()) {
+                addStaticBox(space, target, box);
+            }
         }
 
         for (BoxCollider box : geometry.detailBoxes()) {
             addStaticBox(space, target, box);
         }
+    }
+
+    private static void addVoxelTerrain(@Nonnull PhysicsSpaceBinding space,
+        @Nonnull CachedSection section,
+        @Nonnull SectionCollisionGeometry geometry,
+        int chunkX,
+        int sectionY,
+        int chunkZ) {
+        long backendBodyId = space.runtime().createVoxelTerrain(space.backendSpaceHandle().value(),
+            1.0f,
+            1.0f,
+            1.0f,
+            geometry.fullCubeVoxels(),
+            chunkX << ChunkUtil.BITS,
+            sectionY << ChunkUtil.BITS,
+            chunkZ << ChunkUtil.BITS,
+            TERRAIN_FRICTION,
+            TERRAIN_RESTITUTION,
+            PhysicsCollisionFilters.TERRAIN,
+            PhysicsCollisionFilters.ALL);
+        section.backendBodyIds.add(backendBodyId);
+        section.voxelTerrainBodyId = backendBodyId;
+        section.voxelTerrain = true;
     }
 
     private static void addStaticBox(@Nonnull PhysicsSpaceBinding space,
@@ -809,7 +843,8 @@ public final class WorldVoxelCollisionCache {
             0.0f,
             0.0f,
             1.0f);
-        space.runtime().setBodyFriction(space.backendSpaceHandle().value(), backendBodyId, 0.75f);
+        space.runtime().setBodyFriction(space.backendSpaceHandle().value(), backendBodyId, TERRAIN_FRICTION);
+        space.runtime().setBodyRestitution(space.backendSpaceHandle().value(), backendBodyId, TERRAIN_RESTITUTION);
         space.runtime()
             .setBodyCollisionFilter(space.backendSpaceHandle().value(),
                 backendBodyId,
@@ -973,8 +1008,8 @@ public final class WorldVoxelCollisionCache {
         private final List<BoxCollider> fullCubeBoxes = new ArrayList<>();
         private final List<BoxCollider> detailBoxes = new ArrayList<>();
         private final long neighborhoodSignature;
-        @Nullable
         private boolean voxelTerrain;
+        private long voxelTerrainBodyId;
         private long lastUsedTick;
 
         private CachedSection(int chunkX,
@@ -995,7 +1030,13 @@ public final class WorldVoxelCollisionCache {
                 space.runtime().removeBody(space.backendSpaceHandle().value(), backendBodyId);
             }
             backendBodyIds.clear();
+            voxelTerrainBodyId = 0L;
+            voxelTerrain = false;
             return removed;
+        }
+
+        private boolean hasVoxelTerrainBody() {
+            return voxelTerrain && voxelTerrainBodyId != 0L;
         }
 
         @Nonnull
