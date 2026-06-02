@@ -2,12 +2,12 @@ package dev.hytalemodding.impulse.core;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
-import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import dev.hytalemodding.impulse.api.BackendId;
 import dev.hytalemodding.impulse.api.PhysicsBackend;
 import dev.hytalemodding.impulse.api.PhysicsSpace;
+import dev.hytalemodding.impulse.api.testsupport.FakePhysicsBackendRuntimeProvider;
 import java.io.IOException;
 import java.net.URL;
 import java.net.URLClassLoader;
@@ -35,11 +35,11 @@ class ImpulsePluginBackendSelectionTest {
     private Path tempDir;
 
     @Test
-    void singleDiscoveredBackendIsDefaultBackend() {
+    void singleRuntimeProviderIsDefaultBackend() {
         BackendId backendId = new BackendId("impulse:rapier");
 
-        assertEquals(backendId, ImpulsePlugin.selectDefaultBackendId(List.of(
-            new TestBackend(backendId))));
+        assertEquals(backendId, ImpulsePlugin.selectDefaultRuntimeProviderId(List.of(
+            new FakePhysicsBackendRuntimeProvider(backendId, false, false))));
     }
 
     @Test
@@ -141,22 +141,4 @@ class ImpulsePluginBackendSelectionTest {
         return classFile;
     }
 
-    private record TestBackend(@Nonnull BackendId id) implements PhysicsBackend {
-
-        @Nonnull
-        @Override
-        public BackendId getId() {
-            return id;
-        }
-
-        @Override
-        public void init() {
-        }
-
-        @Nonnull
-        @Override
-        public PhysicsSpace createSpace() {
-            throw new UnsupportedOperationException("not used");
-        }
-    }
 }

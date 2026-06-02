@@ -8,6 +8,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import dev.hytalemodding.impulse.api.Impulse;
 import dev.hytalemodding.impulse.api.PhysicsBody;
 import dev.hytalemodding.impulse.api.PhysicsSpace;
+import dev.hytalemodding.impulse.api.testsupport.FakePhysicsBackendRuntimeProvider;
 import dev.hytalemodding.impulse.api.testsupport.FakePhysicsBackend;
 import dev.hytalemodding.impulse.core.internal.testsupport.LegacyLiveHandleTestResource;
 import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyKind;
@@ -112,6 +113,20 @@ class PersistentPhysicsRestorePreflightTest {
 
         assertNotNull(failure);
         assertTrue(failure.contains("CCD mode"));
+    }
+
+    @Test
+    void acceptsRuntimeProviderWithoutLegacyBackendRegistration() {
+        String backendId = "test:persistence-preflight-runtime-" + BACKEND_COUNTER.incrementAndGet();
+        Impulse.registerRuntimeProvider(new FakePhysicsBackendRuntimeProvider(backendId));
+        PersistentPhysicsWorldResource persistent = new PersistentPhysicsWorldResource();
+        PersistentPhysicsSpaceState state = new PersistentPhysicsSpaceState();
+        state.setSpaceId(50_001);
+        state.setBackendId(backendId);
+        persistent.setWorldSettings(PhysicsWorldSettings.defaults());
+        persistent.setSpaces(new PersistentPhysicsSpaceState[] { state });
+
+        assertNull(PersistentPhysicsRestorePreflight.validate(persistent));
     }
 
     private static RuntimeFixture createRuntimeFixture() {
