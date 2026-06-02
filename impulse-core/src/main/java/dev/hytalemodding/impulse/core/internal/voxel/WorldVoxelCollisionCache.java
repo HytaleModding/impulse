@@ -51,6 +51,7 @@ public final class WorldVoxelCollisionCache {
     private static final float TERRAIN_FRICTION = 0.75f;
     private static final float TERRAIN_RESTITUTION = 0.0f;
     private static final int ADJACENT_SECTION_VOXEL_SHIFT = 16;
+    private static final long BODY_TARGET_REFRESH_PENDING = Long.MIN_VALUE;
 
     private final Int2ObjectMap<SpaceCollisionCache> spaces = new Int2ObjectOpenHashMap<>();
     private final ShapeTemplateCache shapeTemplates = new ShapeTemplateCache();
@@ -82,6 +83,11 @@ public final class WorldVoxelCollisionCache {
         return new SectionAccessCache();
     }
 
+    /**
+     * Returns whether a body target needs terrain work. Call
+     * {@link #recordBodyTargetRefresh(SpaceId, RigidBodyKey, WorldCollisionStreamingBounds, boolean, long)}
+     * only after the terrain apply path has actually attempted that work.
+     */
     @Nonnull
     public TargetRefreshDecision shouldRefreshBodyTarget(@Nonnull SpaceId spaceId,
         @Nonnull RigidBodyKey bodyKey,
@@ -96,7 +102,7 @@ public final class WorldVoxelCollisionCache {
             cache.bodyTargets.put(bodyKey, new CachedBodyStreamingTarget(bounds,
                 sleeping,
                 currentTick,
-                currentTick));
+                BODY_TARGET_REFRESH_PENDING));
             if (profiling != null) {
                 profiling.incrementBodyTargetFirstSeen();
             }
@@ -111,16 +117,18 @@ public final class WorldVoxelCollisionCache {
 
         if (!target.bounds.equals(bounds)) {
             target.bounds = bounds;
-            target.lastRefreshTick = currentTick;
             if (profiling != null) {
                 profiling.incrementBodyTargetBoundsChanged();
             }
             return TargetRefreshDecision.refresh(TargetRefreshReason.BOUNDS_CHANGED);
         }
 
+        if (target.lastRefreshTick == BODY_TARGET_REFRESH_PENDING) {
+            return TargetRefreshDecision.refresh(TargetRefreshReason.PENDING_APPLY);
+        }
+
         int interval = sleeping ? sleepingBodyStreamingInterval(ttlTicks) : ACTIVE_BODY_STREAMING_INTERVAL_TICKS;
         if (currentTick == 1L || currentTick - target.lastRefreshTick >= interval) {
-            target.lastRefreshTick = currentTick;
             if (profiling != null) {
                 if (sleeping) {
                     profiling.incrementBodyTargetSleepingRefreshes();
@@ -141,6 +149,29 @@ public final class WorldVoxelCollisionCache {
             }
         }
         return TargetRefreshDecision.skip();
+    }
+
+    /**
+     * Records that a body target's terrain refresh was attempted by the apply loop.
+     */
+    public void recordBodyTargetRefresh(@Nonnull SpaceId spaceId,
+        @Nonnull RigidBodyKey bodyKey,
+        @Nonnull WorldCollisionStreamingBounds bounds,
+        boolean sleeping,
+        long currentTick) {
+        SpaceCollisionCache cache = spaces.computeIfAbsent(spaceId.value(), ignored -> new SpaceCollisionCache());
+        CachedBodyStreamingTarget target = cache.bodyTargets.get(bodyKey);
+        if (target == null) {
+            cache.bodyTargets.put(bodyKey, new CachedBodyStreamingTarget(bounds,
+                sleeping,
+                currentTick,
+                currentTick));
+            return;
+        }
+        target.bounds = bounds;
+        target.sleeping = sleeping;
+        target.lastSeenTick = currentTick;
+        target.lastRefreshTick = currentTick;
     }
 
     public int pruneBodyStreamingTargets(@Nonnull SpaceId spaceId,
@@ -1183,6 +1214,7 @@ public final class WorldVoxelCollisionCache {
     public enum TargetRefreshReason {
         FIRST_SEEN,
         BOUNDS_CHANGED,
+        PENDING_APPLY,
         ACTIVE_INTERVAL,
         SLEEPING_INTERVAL,
         STABLE_SKIP
