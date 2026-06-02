@@ -1,7 +1,7 @@
 [versions]
 libbulletjme = "23.0.0"
 crucible = "1.0.0"
-hytale-gradle = "1.0.22"
+hytale-gradle = "1.0.37"
 lombok = "1.18.38"
 joml = "1.10.5"
 jsr305 = "3.0.2"
