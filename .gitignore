@@ -8,6 +8,8 @@ replay_pid*
 .gradle
 .kotlin
 **/build/
+**/target/
+**/generated/
 !src/**/build/
 gradle-app.setting
 !gradle-wrapper.jar
