@@ -77,6 +77,7 @@ class WorldVoxelCollisionCacheTest {
 
         assertTrue(cache.shouldRefreshBodyTarget(spaceId, bodyId, bounds, false, 1L, 100, snapshot)
             .refresh());
+        cache.recordBodyTargetRefresh(spaceId, bodyId, bounds, false, 1L);
         assertFalse(cache.shouldRefreshBodyTarget(spaceId, bodyId, bounds, false, 2L, 100, snapshot)
             .refresh());
         assertFalse(cache.shouldRefreshBodyTarget(spaceId, bodyId, bounds, false, 3L, 100, snapshot)
@@ -85,6 +86,7 @@ class WorldVoxelCollisionCacheTest {
             .refresh());
         assertTrue(cache.shouldRefreshBodyTarget(spaceId, bodyId, bounds, false, 5L, 100, snapshot)
             .refresh());
+        cache.recordBodyTargetRefresh(spaceId, bodyId, bounds, false, 5L);
 
         assertEquals(1, snapshot.getBodyTargetFirstSeen());
         assertEquals(4, snapshot.getBodyTargetCacheHits());
@@ -103,10 +105,12 @@ class WorldVoxelCollisionCacheTest {
 
         assertTrue(cache.shouldRefreshBodyTarget(spaceId, bodyId, bounds, true, 1L, 100, snapshot)
             .refresh());
+        cache.recordBodyTargetRefresh(spaceId, bodyId, bounds, true, 1L);
         assertFalse(cache.shouldRefreshBodyTarget(spaceId, bodyId, bounds, true, 2L, 100, snapshot)
             .refresh());
         assertTrue(cache.shouldRefreshBodyTarget(spaceId, bodyId, bounds, true, 21L, 100, snapshot)
             .refresh());
+        cache.recordBodyTargetRefresh(spaceId, bodyId, bounds, true, 21L);
 
         assertEquals(1, snapshot.getBodyTargetFirstSeen());
         assertEquals(2, snapshot.getBodyTargetCacheHits());
@@ -129,6 +133,11 @@ class WorldVoxelCollisionCacheTest {
             1L,
             100,
             snapshot).refresh());
+        cache.recordBodyTargetRefresh(spaceId,
+            bodyId,
+            boundsAt(10.0f, 65.0f, 10.0f),
+            false,
+            1L);
         assertTrue(cache.shouldRefreshBodyTarget(spaceId,
             bodyId,
             boundsAt(40.0f, 65.0f, 10.0f),
@@ -136,10 +145,33 @@ class WorldVoxelCollisionCacheTest {
             2L,
             100,
             snapshot).refresh());
+        cache.recordBodyTargetRefresh(spaceId,
+            bodyId,
+            boundsAt(40.0f, 65.0f, 10.0f),
+            false,
+            2L);
 
         assertEquals(1, snapshot.getBodyTargetFirstSeen());
         assertEquals(1, snapshot.getBodyTargetCacheHits());
         assertEquals(1, snapshot.getBodyTargetBoundsChanged());
+    }
+
+    @Test
+    void bodyTargetRefreshIsNotConsumedUntilTerrainApplyRecordsIt() {
+        WorldVoxelCollisionCache cache = new WorldVoxelCollisionCache();
+        SpaceId spaceId = new SpaceId(1005);
+        RigidBodyKey bodyId = bodyId(5);
+        WorldCollisionStreamingBounds bounds = boundsAt(10.0f, 65.0f, 10.0f);
+
+        assertTrue(cache.shouldRefreshBodyTarget(spaceId, bodyId, bounds, false, 1L, 100, null)
+            .refresh());
+        assertTrue(cache.shouldRefreshBodyTarget(spaceId, bodyId, bounds, false, 2L, 100, null)
+            .refresh());
+
+        cache.recordBodyTargetRefresh(spaceId, bodyId, bounds, false, 2L);
+
+        assertFalse(cache.shouldRefreshBodyTarget(spaceId, bodyId, bounds, false, 3L, 100, null)
+            .refresh());
     }
 
     @Test
@@ -153,9 +185,11 @@ class WorldVoxelCollisionCacheTest {
 
         assertTrue(cache.shouldRefreshBodyTarget(spaceId, bodyId, bounds, false, 1L, 100, snapshot)
             .refresh());
+        cache.recordBodyTargetRefresh(spaceId, bodyId, bounds, false, 1L);
         assertEquals(1, cache.pruneBodyStreamingTargets(spaceId, 202L, 100, snapshot));
         assertTrue(cache.shouldRefreshBodyTarget(spaceId, bodyId, bounds, false, 203L, 100, snapshot)
             .refresh());
+        cache.recordBodyTargetRefresh(spaceId, bodyId, bounds, false, 203L);
 
         assertEquals(2, snapshot.getBodyTargetFirstSeen());
         assertEquals(1, snapshot.getBodyTargetsPruned());
