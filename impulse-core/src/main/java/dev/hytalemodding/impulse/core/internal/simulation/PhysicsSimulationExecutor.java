@@ -1031,6 +1031,9 @@ public final class PhysicsSimulationExecutor implements PhysicsCommandDispatcher
         @Nonnull WorldCollisionPrewarmEnvelopeQuery query) {
         PhysicsSpaceBinding space = requireSpace(query.spaceId());
         WorldVoxelCollisionCache cache = runtime.worldCollisionCache();
+        boolean nativeVoxelTerrainEnabled = runtime.getLiveSpaceSettings(query.spaceId())
+            .getWorldCollisionSettings()
+            .isNativeVoxelTerrainEnabled();
         LongSet visitedSections = new LongOpenHashSet();
         Set<StreamingPrewarmTarget> visitedTargets = new ObjectOpenHashSet<>();
         BuildStats total = BuildStats.empty();
@@ -1045,7 +1048,8 @@ public final class PhysicsSimulationExecutor implements PhysicsCommandDispatcher
                 positionY,
                 positionZ,
                 visitedSections,
-                visitedTargets));
+                visitedTargets,
+                nativeVoxelTerrainEnabled));
         }
         return new WorldCollisionPrewarmStats(visitedSections.size(), worldCollisionStats(total));
     }
@@ -1059,7 +1063,8 @@ public final class PhysicsSimulationExecutor implements PhysicsCommandDispatcher
         double positionY,
         double positionZ,
         @Nonnull LongSet visitedSections,
-        @Nonnull Set<StreamingPrewarmTarget> visitedTargets) {
+        @Nonnull Set<StreamingPrewarmTarget> visitedTargets,
+        boolean nativeVoxelTerrainEnabled) {
         BuildStats total = BuildStats.empty();
         double halo = query.horizontalDriftHaloBlocks();
         for (int offsetX = -1; offsetX <= 1; offsetX++) {
@@ -1071,7 +1076,8 @@ public final class PhysicsSimulationExecutor implements PhysicsCommandDispatcher
                     positionY,
                     positionZ + offsetZ * halo,
                     visitedSections,
-                    visitedTargets));
+                    visitedTargets,
+                    nativeVoxelTerrainEnabled));
             }
         }
         return total;
@@ -1086,7 +1092,8 @@ public final class PhysicsSimulationExecutor implements PhysicsCommandDispatcher
         double positionY,
         double positionZ,
         @Nonnull LongSet visitedSections,
-        @Nonnull Set<StreamingPrewarmTarget> visitedTargets) {
+        @Nonnull Set<StreamingPrewarmTarget> visitedTargets,
+        boolean nativeVoxelTerrainEnabled) {
         double step = Math.max(1.0, query.radius() * 2.0);
         double minCenterY = Math.min(positionY, query.fallEnvelopeMinY() + query.radius());
         BuildStats total = BuildStats.empty();
@@ -1099,7 +1106,8 @@ public final class PhysicsSimulationExecutor implements PhysicsCommandDispatcher
                 y,
                 positionZ,
                 visitedSections,
-                visitedTargets));
+                visitedTargets,
+                nativeVoxelTerrainEnabled));
             lastY = y;
         }
         if (Double.isNaN(lastY) || lastY > minCenterY) {
@@ -1110,7 +1118,8 @@ public final class PhysicsSimulationExecutor implements PhysicsCommandDispatcher
                 minCenterY,
                 positionZ,
                 visitedSections,
-                visitedTargets));
+                visitedTargets,
+                nativeVoxelTerrainEnabled));
         }
         return total;
     }
@@ -1124,7 +1133,8 @@ public final class PhysicsSimulationExecutor implements PhysicsCommandDispatcher
         double centerY,
         double centerZ,
         @Nonnull LongSet visitedSections,
-        @Nonnull Set<StreamingPrewarmTarget> visitedTargets) {
+        @Nonnull Set<StreamingPrewarmTarget> visitedTargets,
+        boolean nativeVoxelTerrainEnabled) {
         StreamingPrewarmTarget target = streamingPrewarmTarget(centerX,
             centerY,
             centerZ,
@@ -1138,7 +1148,10 @@ public final class PhysicsSimulationExecutor implements PhysicsCommandDispatcher
             query.radius(),
             query.tick(),
             null,
-            visitedSections);
+            visitedSections,
+            null,
+            null,
+            nativeVoxelTerrainEnabled);
     }
 
     @Nonnull

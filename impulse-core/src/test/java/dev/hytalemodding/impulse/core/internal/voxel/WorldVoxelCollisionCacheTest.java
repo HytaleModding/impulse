@@ -254,6 +254,27 @@ class WorldVoxelCollisionCacheTest {
     }
 
     @Test
+    void disabledNativeVoxelTerrainFallsBackToMergedFullCubeBoxes() throws Throwable {
+        RuntimeFixture fixture = runtimeFixture("test:voxel-runtime-disabled", true);
+        SectionCollisionGeometry geometry = new SectionCollisionGeometry(new int[] {0, 0, 0, 1, 0, 0},
+            List.of(new BoxCollider(1.0, 0.5, 0.5, 1.0, 0.5, 0.5)),
+            List.of(),
+            4096,
+            2,
+            0,
+            0);
+        Object cachedSection = newCachedSection();
+
+        addGeometryBodies(fixture.binding(), cachedSection, geometry, 0, 0, 0, false);
+
+        WorldVoxelCollisionCache.DebugSection debugSection = debugSection(cachedSection);
+        assertEquals(1, fixture.runtime().bodyCount(fixture.backendSpaceId()));
+        assertEquals(0, fixture.runtime().voxelTerrainCalls(fixture.backendSpaceId()).size());
+        assertFalse(debugSection.voxelTerrain());
+        assertEquals(1, debugSection.fullCubeBoxes().size());
+    }
+
+    @Test
     void stitchesVoxelTerrainToSixAdjacentSections() throws Throwable {
         RuntimeFixture fixture = runtimeFixture("test:voxel-runtime-stitch", true);
         Object cache = newSpaceCollisionCache();
@@ -309,6 +330,16 @@ class WorldVoxelCollisionCacheTest {
         int chunkX,
         int sectionY,
         int chunkZ) throws Throwable {
+        addGeometryBodies(space, target, geometry, chunkX, sectionY, chunkZ, true);
+    }
+
+    private static void addGeometryBodies(@Nonnull PhysicsSpaceBinding space,
+        @Nonnull Object target,
+        @Nonnull SectionCollisionGeometry geometry,
+        int chunkX,
+        int sectionY,
+        int chunkZ,
+        boolean nativeVoxelTerrainEnabled) throws Throwable {
         Method method = Arrays.stream(WorldVoxelCollisionCache.class.getDeclaredMethods())
             .filter(candidate -> candidate.getName().equals("addGeometryBodies"))
             .findFirst()
@@ -321,7 +352,8 @@ class WorldVoxelCollisionCacheTest {
                 geometry,
                 chunkX,
                 sectionY,
-                chunkZ));
+                chunkZ,
+                nativeVoxelTerrainEnabled));
         } catch (InvocationTargetException exception) {
             throw exception.getCause();
         }
@@ -334,7 +366,8 @@ class WorldVoxelCollisionCacheTest {
         @Nonnull SectionCollisionGeometry geometry,
         int chunkX,
         int sectionY,
-        int chunkZ) {
+        int chunkZ,
+        boolean nativeVoxelTerrainEnabled) {
         Object[] arguments = new Object[method.getParameterCount()];
         int integerIndex = 0;
         for (int index = 0; index < arguments.length; index++) {
@@ -352,6 +385,8 @@ class WorldVoxelCollisionCacheTest {
                     case 2 -> chunkZ;
                     default -> throw new IllegalStateException("Unexpected integer parameter");
                 };
+            } else if (type == boolean.class) {
+                arguments[index] = nativeVoxelTerrainEnabled;
             } else {
                 arguments[index] = null;
             }
