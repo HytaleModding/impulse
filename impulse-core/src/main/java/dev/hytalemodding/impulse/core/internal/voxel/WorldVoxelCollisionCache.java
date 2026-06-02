@@ -749,6 +749,13 @@ public final class WorldVoxelCollisionCache {
             throw exception;
         }
         cache.sections.put(sectionKey, built);
+        try {
+            stitchAdjacentVoxelTerrains(space, cache, built);
+        } catch (RuntimeException exception) {
+            cache.sections.remove(sectionKey);
+            removeBuiltSectionAfterFailure(space, built, exception);
+            throw exception;
+        }
 
         BuildStats stats = BuildStats.from(geometry,
             built.backendBodyIds.size(),
@@ -851,6 +858,68 @@ public final class WorldVoxelCollisionCache {
                 PhysicsCollisionFilters.TERRAIN,
                 PhysicsCollisionFilters.ALL);
         section.backendBodyIds.add(backendBodyId);
+    }
+
+    private static void stitchAdjacentVoxelTerrains(@Nonnull PhysicsSpaceBinding space,
+        @Nonnull SpaceCollisionCache cache,
+        @Nonnull CachedSection built) {
+        if (!built.hasVoxelTerrainBody()) {
+            return;
+        }
+
+        stitchVoxelTerrain(space,
+            built,
+            cache.section(built.chunkX - 1, built.sectionY, built.chunkZ),
+            -ADJACENT_SECTION_VOXEL_SHIFT,
+            0,
+            0);
+        stitchVoxelTerrain(space,
+            built,
+            cache.section(built.chunkX + 1, built.sectionY, built.chunkZ),
+            ADJACENT_SECTION_VOXEL_SHIFT,
+            0,
+            0);
+        stitchVoxelTerrain(space,
+            built,
+            cache.section(built.chunkX, built.sectionY - 1, built.chunkZ),
+            0,
+            -ADJACENT_SECTION_VOXEL_SHIFT,
+            0);
+        stitchVoxelTerrain(space,
+            built,
+            cache.section(built.chunkX, built.sectionY + 1, built.chunkZ),
+            0,
+            ADJACENT_SECTION_VOXEL_SHIFT,
+            0);
+        stitchVoxelTerrain(space,
+            built,
+            cache.section(built.chunkX, built.sectionY, built.chunkZ - 1),
+            0,
+            0,
+            -ADJACENT_SECTION_VOXEL_SHIFT);
+        stitchVoxelTerrain(space,
+            built,
+            cache.section(built.chunkX, built.sectionY, built.chunkZ + 1),
+            0,
+            0,
+            ADJACENT_SECTION_VOXEL_SHIFT);
+    }
+
+    private static void stitchVoxelTerrain(@Nonnull PhysicsSpaceBinding space,
+        @Nonnull CachedSection built,
+        @Nullable CachedSection neighbor,
+        int shiftX,
+        int shiftY,
+        int shiftZ) {
+        if (neighbor == null || !neighbor.hasVoxelTerrainBody()) {
+            return;
+        }
+        space.runtime().combineVoxelTerrains(space.backendSpaceHandle().value(),
+            built.voxelTerrainBodyId,
+            neighbor.voxelTerrainBodyId,
+            shiftX,
+            shiftY,
+            shiftZ);
     }
 
     @Nullable
