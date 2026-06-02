@@ -123,14 +123,14 @@ final class ImpulseRapierBodyBenchmarkCrucibleTests {
     }
 
     private static boolean rapierBackendAvailable() {
-        return Impulse.getBackends().stream()
-            .anyMatch(backend -> RAPIER_BACKEND_ID.equals(backend.getId()));
+        return Impulse.getRuntimeProviders().stream()
+            .anyMatch(provider -> RAPIER_BACKEND_ID.equals(provider.getId()));
     }
 
     @Nonnull
     private static List<String> availableBackendIds() {
-        return Impulse.getBackends().stream()
-            .map(backend -> backend.getId().value())
+        return Impulse.getRuntimeProviders().stream()
+            .map(provider -> provider.getId().value())
             .sorted()
             .toList();
     }

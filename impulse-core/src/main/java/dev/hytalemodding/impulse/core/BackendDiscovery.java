@@ -23,6 +23,7 @@ import java.util.logging.Level;
 import java.util.stream.Stream;
 import javax.annotation.Nonnull;
 
+@SuppressWarnings("removal")
 final class BackendDiscovery {
 
     private static final HytaleLogger LOGGER = HytaleLogger.get("Impulse");

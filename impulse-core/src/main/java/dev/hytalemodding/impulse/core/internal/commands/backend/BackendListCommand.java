@@ -9,7 +9,7 @@ import com.hypixel.hytale.server.core.universe.PlayerRef;
 import com.hypixel.hytale.server.core.universe.world.World;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import dev.hytalemodding.impulse.api.Impulse;
-import dev.hytalemodding.impulse.api.PhysicsBackend;
+import dev.hytalemodding.impulse.api.runtime.PhysicsBackendRuntimeProvider;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
@@ -29,12 +29,12 @@ public class BackendListCommand extends AbstractAsyncPlayerCommand {
         @Nonnull PlayerRef playerRef,
         @Nonnull World world) {
         List<String> backendIds = new ArrayList<>();
-        for (PhysicsBackend backend : Impulse.getBackends()) {
-            backendIds.add(backend.getId().value());
+        for (PhysicsBackendRuntimeProvider provider : Impulse.getRuntimeProviders()) {
+            backendIds.add(provider.getId().value());
         }
         backendIds.sort(String::compareTo);
 
-        ctx.sender().sendMessage(Message.raw("Impulse backends: "
+        ctx.sender().sendMessage(Message.raw("Impulse backend runtimes: "
             + (backendIds.isEmpty() ? "<none>" : String.join(", ", backendIds))));
 
         return CompletableFuture.completedFuture(null);
