@@ -16,3 +16,10 @@ dispatch_macros = { path = "../dispatch_macros" }
 [build-dependencies]
 cbindgen = "0.29"
 bindgen = "0.72"
+
+[profile.release]
+opt-level = 3
+lto = "fat"
+codegen-units = 1
+panic = "abort"
+strip = true

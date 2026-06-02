@@ -40,7 +40,7 @@ val platformClassifier = when {
 
 val downloadDir = layout.buildDirectory.dir("jextract-download")
 val extractedToolDir = layout.buildDirectory.dir("jextract-tool")
-val generatedSourcesDir = layout.buildDirectory.dir("impulse-ffi/generated/sources/jextract")
+val generatedSourcesDir = layout.buildDirectory.dir("native_bridge/generated/sources/jextract")
 
 val jextractVer = project.property("jextractVersion") as String
 val jextractFull = project.property("jextractFullVersion") as String
@@ -81,19 +81,28 @@ val extractJextract by tasks.registering(Copy::class) {
     into(extractedToolDir)
 }
 
+val cargoBuild by tasks.registering(Exec::class) {
+    group = "build"
+    description = "Cargo build"
+
+    workingDir = layout.projectDirectory.asFile
+
+    commandLine("cargo", "build", "--release")
+}
+
 val generateBridgeBindings by tasks.registering(Exec::class) {
     group = "build"
     description = "Generates Panama Java bindings using the platform-specific extracted tool"
-    dependsOn(extractJextract)
+    dependsOn(extractJextract, cargoBuild)
 
-    val headerFile = file("src/main/include/pch.h")
+    val headerFile = file("include/java_bridge.h")
 
     inputs.file(headerFile)
     outputs.dir(generatedSourcesDir)
 
-    val targetPackage = "dev.impulse.nativebridge.bindings"
+    val targetPackage = "dev.hytalemodding.impulse.nativebridge.bindings"
     val className = "NativeBridge"
-    val libraryLinkName = "impulse_bridge"
+    val libraryLinkName = "native_bridge"
 
     workingDir = extractedToolDir.get().asFile.resolve("$jextractFolderName/bin")
 

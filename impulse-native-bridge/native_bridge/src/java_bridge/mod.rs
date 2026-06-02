@@ -19,7 +19,7 @@ pub extern "C" fn init_backend(path: *const c_char) {
 }
 
 #[unsafe(no_mangle)]
-pub extern "C" fn flush_buffer(buffer_ptr: *mut u64) {
+pub extern "C" fn process_buffer(buffer_ptr: *mut u64) {
     let command_count = unsafe { *buffer_ptr };
     let mut offset = 1;
 
