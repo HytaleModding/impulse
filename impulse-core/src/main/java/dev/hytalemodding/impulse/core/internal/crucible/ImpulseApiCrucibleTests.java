@@ -2,12 +2,12 @@ package dev.hytalemodding.impulse.core.internal.crucible;
 
 import dev.hytalemodding.impulse.api.BackendId;
 import dev.hytalemodding.impulse.api.Impulse;
-import dev.hytalemodding.impulse.api.PhysicsBackend;
 import dev.hytalemodding.impulse.api.PhysicsBodySnapshot;
 import dev.hytalemodding.impulse.api.PhysicsBodyType;
 import dev.hytalemodding.impulse.api.SpaceId;
 import dev.hytalemodding.impulse.api.runtime.BackendRuntimeCodes;
 import dev.hytalemodding.impulse.api.runtime.PhysicsBackendRuntime;
+import dev.hytalemodding.impulse.api.runtime.PhysicsBackendRuntimeProvider;
 import dev.hytalemodding.impulse.core.ImpulsePlugin;
 import dev.hytalemodding.impulse.core.internal.resources.body.PhysicsBodySnapshots;
 import dev.hytalemodding.impulse.core.plugin.body.RigidBodyKey;
@@ -59,9 +59,9 @@ final class ImpulseApiCrucibleTests {
                 CrucibleTestCase.sync("plugin loaded", () -> ImpulsePlugin.get() != null,
                     "ImpulsePlugin singleton is null"),
                 CrucibleTestCase.sync("backends registered", () -> {
-                    Collection<PhysicsBackend> backends = Impulse.getBackends();
-                    return !backends.isEmpty();
-                }, "No physics backends registered"),
+                    Collection<PhysicsBackendRuntimeProvider> providers = Impulse.getRuntimeProviders();
+                    return !providers.isEmpty();
+                }, "No physics backend runtimes registered"),
                 CrucibleTestCase.sync("test backend selectable", () ->
                     {
                         CrucibleBackends.requireBackendId();

@@ -178,6 +178,7 @@ public final class ImpulsePlugin extends JavaPlugin {
         }
     }
 
+    @SuppressWarnings("removal")
     private void discoverBackends() {
         for (PhysicsBackendRuntimeProvider provider : BackendDiscovery.discoverRuntimeProviders(
             backendSearchRoots(),
@@ -214,15 +215,6 @@ public final class ImpulsePlugin extends JavaPlugin {
         paths.add(PluginManager.MODS_PATH);
         paths.addAll(Options.getOptionSet().valuesOf(Options.MODS_DIRECTORIES));
         return paths;
-    }
-
-    @Nullable
-    static BackendId selectDefaultBackendId(@Nonnull Collection<PhysicsBackend> backends) {
-        if (backends.size() != 1) {
-            return null;
-        }
-
-        return backends.iterator().next().getId();
     }
 
     @Nullable

@@ -98,7 +98,7 @@ public final class PersistentPhysicsRestorePreflight {
         }
 
         try {
-            Impulse.getBackend(backendId);
+            Impulse.getRuntimeProvider(backendId);
         } catch (IllegalStateException exception) {
             return "Saved backend " + backendId + " is not available for restore";
         }
