@@ -188,6 +188,7 @@ public class PhysicsWorldCollisionStreamingSystem extends TickingSystem<EntitySt
                 settings.getWorldCollisionSettings().getWorldCollisionRadius(),
                 bodyRadius,
                 settings.getWorldCollisionSettings().getWorldCollisionTtlTicks(),
+                settings.getWorldCollisionSettings().isNativeVoxelTerrainEnabled(),
                 playerPositions,
                 collectDynamicBodyTargets(resource,
                     cache,
@@ -218,7 +219,8 @@ public class PhysicsWorldCollisionStreamingSystem extends TickingSystem<EntitySt
                 snapshot,
                 visitedSections,
                 snapshot != null ? StreamingTargetDiagnostic.player(position) : null,
-                sectionAccessCache);
+                sectionAccessCache,
+                plan.nativeVoxelTerrainEnabled());
             if (snapshot != null) {
                 snapshot.addPlayerSectionTargets(visitedSections.size() - sectionsBefore);
             }
@@ -233,7 +235,8 @@ public class PhysicsWorldCollisionStreamingSystem extends TickingSystem<EntitySt
                 snapshot,
                 visitedSections,
                 target.diagnostic(),
-                sectionAccessCache);
+                sectionAccessCache,
+                plan.nativeVoxelTerrainEnabled());
             for (BodyStreamingRefresh refresh : target.refreshes()) {
                 cache.recordBodyTargetRefresh(space.spaceId(),
                     refresh.bodyKey(),
@@ -372,6 +375,7 @@ public class PhysicsWorldCollisionStreamingSystem extends TickingSystem<EntitySt
                                       int playerRadius,
                                       int bodyRadius,
                                       int ttlTicks,
+                                      boolean nativeVoxelTerrainEnabled,
                                       @Nonnull List<Vector3d> playerPositions,
                                       @Nonnull List<BodyStreamingTarget> bodyTargets) {
     }

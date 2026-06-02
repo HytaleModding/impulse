@@ -17,6 +17,7 @@ import dev.hytalemodding.impulse.core.internal.resources.profiling.WorldCollisio
 import dev.hytalemodding.impulse.core.internal.resources.profiling.WorldCollisionProfilingResource.StreamingTargetDiagnostic;
 import dev.hytalemodding.impulse.core.internal.voxel.SectionCollisionGeometry.BoxCollider;
 import dev.hytalemodding.impulse.core.plugin.body.RigidBodyKey;
+import dev.hytalemodding.impulse.core.plugin.settings.PhysicsWorldCollisionSettings;
 import it.unimi.dsi.fastutil.ints.Int2ObjectMap;
 import it.unimi.dsi.fastutil.ints.Int2ObjectOpenHashMap;
 import it.unimi.dsi.fastutil.longs.Long2LongMap;
@@ -213,8 +214,33 @@ public final class WorldVoxelCollisionCache {
         @Nonnull PhysicsSpaceBinding space,
         @Nonnull Vector3d center,
         int radius) {
+        return rebuildAround(world,
+            space,
+            center,
+            radius,
+            PhysicsWorldCollisionSettings.DEFAULT_NATIVE_VOXEL_TERRAIN_ENABLED);
+    }
+
+    /**
+     * Wipes cached sections for the space, then rebuilds everything in the given radius.
+     */
+    @Nonnull
+    public BuildStats rebuildAround(@Nonnull World world,
+        @Nonnull PhysicsSpaceBinding space,
+        @Nonnull Vector3d center,
+        int radius,
+        boolean nativeVoxelTerrainEnabled) {
         int removed = clear(space);
-        BuildStats stats = ensureAround(world, space, center, radius, 0L);
+        BuildStats stats = ensureAround(world,
+            space,
+            center,
+            radius,
+            0L,
+            null,
+            null,
+            null,
+            null,
+            nativeVoxelTerrainEnabled);
         return stats.withRemovedBodies(stats.removedBodies() + removed);
     }
 
@@ -293,6 +319,32 @@ public final class WorldVoxelCollisionCache {
         @Nullable LongSet visitedSections,
         @Nullable StreamingTargetDiagnostic targetDiagnostic,
         @Nullable SectionAccessCache accessCache) {
+        return ensureAround(world,
+            space,
+            center,
+            radius,
+            tick,
+            profiling,
+            visitedSections,
+            targetDiagnostic,
+            accessCache,
+            PhysicsWorldCollisionSettings.DEFAULT_NATIVE_VOXEL_TERRAIN_ENABLED);
+    }
+
+    /**
+     * Ensures all chunk sections within the block radius around {@code center} are cached.
+     */
+    @Nonnull
+    public BuildStats ensureAround(@Nonnull World world,
+        @Nonnull PhysicsSpaceBinding space,
+        @Nonnull Vector3d center,
+        int radius,
+        long tick,
+        @Nullable Snapshot profiling,
+        @Nullable LongSet visitedSections,
+        @Nullable StreamingTargetDiagnostic targetDiagnostic,
+        @Nullable SectionAccessCache accessCache,
+        boolean nativeVoxelTerrainEnabled) {
         long start = profiling != null ? System.nanoTime() : 0L;
         if (profiling != null) {
             profiling.incrementEnsureCalls();
@@ -334,7 +386,8 @@ public final class WorldVoxelCollisionCache {
                         tick,
                         profiling,
                         targetDiagnostic,
-                        accessCache));
+                        accessCache,
+                        nativeVoxelTerrainEnabled));
                 }
             }
         }
@@ -671,7 +724,8 @@ public final class WorldVoxelCollisionCache {
         long tick,
         @Nullable Snapshot profiling,
         @Nullable StreamingTargetDiagnostic targetDiagnostic,
-        @Nullable SectionAccessCache accessCache) {
+        @Nullable SectionAccessCache accessCache,
+        boolean nativeVoxelTerrainEnabled) {
         long start = profiling != null ? System.nanoTime() : 0L;
         if (profiling != null) {
             profiling.incrementSectionRequests();
@@ -745,7 +799,9 @@ public final class WorldVoxelCollisionCache {
             sectionY,
             chunkZ,
             accessCache);
-        if (cached != null && cached.neighborhoodSignature == neighborhoodSignature) {
+        if (cached != null
+            && cached.neighborhoodSignature == neighborhoodSignature
+            && cached.nativeVoxelTerrainEnabled == nativeVoxelTerrainEnabled) {
             cached.lastUsedTick = tick;
             if (profiling != null) {
                 profiling.incrementSectionCacheHits();
@@ -762,8 +818,15 @@ public final class WorldVoxelCollisionCache {
             accessCache);
         CachedSection built = new CachedSection(chunkX, sectionY, chunkZ, tick,
             neighborhoodSignature);
+        built.nativeVoxelTerrainEnabled = nativeVoxelTerrainEnabled;
         try {
-            addGeometryBodies(space, built, geometry, chunkX, sectionY, chunkZ);
+            addGeometryBodies(space,
+                built,
+                geometry,
+                chunkX,
+                sectionY,
+                chunkZ,
+                nativeVoxelTerrainEnabled);
         } catch (RuntimeException exception) {
             removeBuiltSectionAfterFailure(space, built, exception);
             throw exception;
@@ -816,10 +879,12 @@ public final class WorldVoxelCollisionCache {
         @Nonnull SectionCollisionGeometry geometry,
         int chunkX,
         int sectionY,
-        int chunkZ) {
+        int chunkZ,
+        boolean nativeVoxelTerrainEnabled) {
         target.fullCubeBoxes.addAll(geometry.mergedFullCubeBoxes());
         target.detailBoxes.addAll(geometry.detailBoxes());
-        if (geometry.hasFullCubeVoxels()
+        if (nativeVoxelTerrainEnabled
+            && geometry.hasFullCubeVoxels()
             && space.runtime().supportsVoxelTerrain(space.backendSpaceHandle().value())) {
             addVoxelTerrain(space, target, geometry, chunkX, sectionY, chunkZ);
         } else {
@@ -1108,6 +1173,8 @@ public final class WorldVoxelCollisionCache {
         private final List<BoxCollider> fullCubeBoxes = new ArrayList<>();
         private final List<BoxCollider> detailBoxes = new ArrayList<>();
         private final long neighborhoodSignature;
+        private boolean nativeVoxelTerrainEnabled =
+            PhysicsWorldCollisionSettings.DEFAULT_NATIVE_VOXEL_TERRAIN_ENABLED;
         private boolean voxelTerrain;
         private long voxelTerrainBodyId;
         private long lastUsedTick;

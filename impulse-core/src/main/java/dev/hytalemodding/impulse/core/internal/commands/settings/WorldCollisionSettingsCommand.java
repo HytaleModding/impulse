@@ -50,6 +50,10 @@ public class WorldCollisionSettingsCommand extends AbstractAsyncPlayerCommand {
         "chunkBoundary",
         "Entity body chunk-boundary mode: pause or load",
         ArgTypes.STRING);
+    private final OptionalArg<String> terrainArg = this.withOptionalArg(
+        "terrain",
+        "World collision terrain collider: boxes or native_voxels",
+        ArgTypes.STRING);
     private final OptionalArg<Integer> spaceArg = this.withOptionalArg(
         "space",
         "Physics space id to target",
@@ -96,6 +100,16 @@ public class WorldCollisionSettingsCommand extends AbstractAsyncPlayerCommand {
             }
         }
 
+        boolean nativeVoxelTerrainEnabled = settings.getWorldCollisionSettings().isNativeVoxelTerrainEnabled();
+        if (terrainArg.provided(ctx)) {
+            Boolean parsedTerrain = parseTerrain(terrainArg.get(ctx));
+            if (parsedTerrain == null) {
+                ctx.sender().sendMessage(Message.raw("terrain must be boxes or native_voxels."));
+                return CompletableFuture.completedFuture(null);
+            }
+            nativeVoxelTerrainEnabled = parsedTerrain;
+        }
+
         int playerRadius = playerRadiusArg.provided(ctx)
             ? playerRadiusArg.get(ctx)
             : settings.getWorldCollisionSettings().getWorldCollisionRadius();
@@ -118,6 +132,7 @@ public class WorldCollisionSettingsCommand extends AbstractAsyncPlayerCommand {
 
         settings.getWorldCollisionSettings().setWorldCollisionMode(mode);
         settings.getWorldCollisionSettings().setEntityChunkBoundaryMode(chunkBoundaryMode);
+        settings.getWorldCollisionSettings().setNativeVoxelTerrainEnabled(nativeVoxelTerrainEnabled);
         settings.getWorldCollisionSettings().setWorldCollisionRadius(playerRadius);
         settings.getWorldCollisionSettings().setWorldCollisionBodyRadius(bodyRadius);
         settings.getWorldCollisionSettings().setWorldCollisionTtlTicks(ttl);
@@ -131,7 +146,8 @@ public class WorldCollisionSettingsCommand extends AbstractAsyncPlayerCommand {
             || playerRadiusArg.provided(ctx)
             || bodyRadiusArg.provided(ctx)
             || ttlArg.provided(ctx)
-            || chunkBoundaryArg.provided(ctx);
+            || chunkBoundaryArg.provided(ctx)
+            || terrainArg.provided(ctx);
     }
 
     private static boolean outOfRange(int value, int maxValue) {
@@ -148,7 +164,11 @@ public class WorldCollisionSettingsCommand extends AbstractAsyncPlayerCommand {
             + " bodyRadius=" + settings.getWorldCollisionSettings().getWorldCollisionBodyRadius()
             + " ttl=" + settings.getWorldCollisionSettings().getWorldCollisionTtlTicks()
             + " chunkBoundary="
-            + settings.getWorldCollisionSettings().getEntityChunkBoundaryMode().name().toLowerCase(Locale.ROOT)));
+            + settings.getWorldCollisionSettings().getEntityChunkBoundaryMode().name().toLowerCase(Locale.ROOT)
+            + " terrain="
+            + (settings.getWorldCollisionSettings().isNativeVoxelTerrainEnabled()
+                ? "native_voxels"
+                : "boxes")));
     }
 
     @Nullable
@@ -166,6 +186,15 @@ public class WorldCollisionSettingsCommand extends AbstractAsyncPlayerCommand {
         return switch (value.toLowerCase(Locale.ROOT)) {
             case "pause", "freeze", "pause_until_loaded" -> EntityChunkBoundaryMode.PAUSE_UNTIL_LOADED;
             case "load", "load_ticking_chunk", "tick" -> EntityChunkBoundaryMode.LOAD_TICKING_CHUNK;
+            default -> null;
+        };
+    }
+
+    @Nullable
+    private static Boolean parseTerrain(@Nonnull String value) {
+        return switch (value.toLowerCase(Locale.ROOT)) {
+            case "boxes", "box", "merged", "merged_boxes" -> Boolean.FALSE;
+            case "native", "native_voxels", "voxels", "voxel" -> Boolean.TRUE;
             default -> null;
         };
     }

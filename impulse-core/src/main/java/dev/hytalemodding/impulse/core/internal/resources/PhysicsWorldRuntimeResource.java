@@ -525,7 +525,14 @@ public class PhysicsWorldRuntimeResource extends PhysicsWorldResource {
         int radius) {
         return callOwner("rebuild world collision", () -> {
             PhysicsSpaceBinding space = requireSpaceBinding(spaceId);
-            return collisionRuntime.rebuildAround(world, space, center, radius);
+            boolean nativeVoxelTerrainEnabled = getLiveSpaceSettings(spaceId)
+                .getWorldCollisionSettings()
+                .isNativeVoxelTerrainEnabled();
+            return collisionRuntime.rebuildAround(world,
+                space,
+                center,
+                radius,
+                nativeVoxelTerrainEnabled);
         });
     }
 
@@ -538,7 +545,15 @@ public class PhysicsWorldRuntimeResource extends PhysicsWorldResource {
         Objects.requireNonNull(centers, "centers");
         return callOwner("ensure world collision", () -> {
             PhysicsSpaceBinding space = requireSpaceBinding(spaceId);
-            return collisionRuntime.ensureAround(world, space, centers, radius, tick);
+            boolean nativeVoxelTerrainEnabled = getLiveSpaceSettings(spaceId)
+                .getWorldCollisionSettings()
+                .isNativeVoxelTerrainEnabled();
+            return collisionRuntime.ensureAround(world,
+                space,
+                centers,
+                radius,
+                tick,
+                nativeVoxelTerrainEnabled);
         });
     }
 
@@ -676,7 +691,14 @@ public class PhysicsWorldRuntimeResource extends PhysicsWorldResource {
 
     private void setSpaceSettingsDirect(@Nonnull SpaceId spaceId,
         @Nonnull PhysicsSpaceSettings settings) {
+        boolean terrainRepresentationChanged = spaceRuntime.getLiveSpaceSettings(spaceId)
+            .getWorldCollisionSettings()
+            .isNativeVoxelTerrainEnabled()
+            != settings.getWorldCollisionSettings().isNativeVoxelTerrainEnabled();
         spaceRuntime.setSpaceSettings(spaceId, settings);
+        if (terrainRepresentationChanged) {
+            collisionRuntime.clear(requireSpaceBinding(spaceId));
+        }
     }
 
     private void validateStepModeSupported(@Nonnull PhysicsStepMode stepMode) {

@@ -6,6 +6,7 @@ import dev.hytalemodding.impulse.core.internal.voxel.WorldVoxelCollisionCache;
 import dev.hytalemodding.impulse.core.plugin.collision.WorldCollisionBuildStats;
 import dev.hytalemodding.impulse.core.plugin.collision.WorldCollisionPrewarmStats;
 import dev.hytalemodding.impulse.core.plugin.collision.WorldCollisionStats;
+import dev.hytalemodding.impulse.core.plugin.settings.PhysicsWorldCollisionSettings;
 import it.unimi.dsi.fastutil.longs.LongOpenHashSet;
 import it.unimi.dsi.fastutil.longs.LongSet;
 import java.util.Objects;
@@ -30,10 +31,24 @@ public final class PhysicsWorldCollisionRuntime {
         @Nonnull PhysicsSpaceBinding space,
         @Nonnull Vector3d center,
         int radius) {
+        return rebuildAround(world,
+            space,
+            center,
+            radius,
+            PhysicsWorldCollisionSettings.DEFAULT_NATIVE_VOXEL_TERRAIN_ENABLED);
+    }
+
+    @Nonnull
+    public WorldCollisionBuildStats rebuildAround(@Nonnull World world,
+        @Nonnull PhysicsSpaceBinding space,
+        @Nonnull Vector3d center,
+        int radius,
+        boolean nativeVoxelTerrainEnabled) {
         return worldCollisionStats(worldVoxelCollisionCache.rebuildAround(world,
             space,
             center,
-            radius));
+            radius,
+            nativeVoxelTerrainEnabled));
     }
 
     @Nonnull
@@ -42,6 +57,21 @@ public final class PhysicsWorldCollisionRuntime {
         @Nonnull Iterable<Vector3d> centers,
         int radius,
         long tick) {
+        return ensureAround(world,
+            space,
+            centers,
+            radius,
+            tick,
+            PhysicsWorldCollisionSettings.DEFAULT_NATIVE_VOXEL_TERRAIN_ENABLED);
+    }
+
+    @Nonnull
+    public WorldCollisionPrewarmStats ensureAround(@Nonnull World world,
+        @Nonnull PhysicsSpaceBinding space,
+        @Nonnull Iterable<Vector3d> centers,
+        int radius,
+        long tick,
+        boolean nativeVoxelTerrainEnabled) {
         Objects.requireNonNull(centers, "centers");
         LongSet visitedSections = new LongOpenHashSet();
         WorldVoxelCollisionCache.BuildStats total = WorldVoxelCollisionCache.BuildStats.empty();
@@ -52,7 +82,10 @@ public final class PhysicsWorldCollisionRuntime {
                 radius,
                 tick,
                 null,
-                visitedSections));
+                visitedSections,
+                null,
+                null,
+                nativeVoxelTerrainEnabled));
         }
         return new WorldCollisionPrewarmStats(visitedSections.size(),
             worldCollisionStats(total));
