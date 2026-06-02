@@ -11,6 +11,7 @@ import javax.annotation.Nonnull;
 /**
  * Runtime-provider adapter for legacy object-based backends.
  */
+@Deprecated(forRemoval = true)
 public final class LegacyPhysicsBackendRuntimeProvider implements PhysicsBackendRuntimeProvider {
 
     @Nonnull

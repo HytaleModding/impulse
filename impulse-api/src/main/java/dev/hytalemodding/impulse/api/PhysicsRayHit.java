@@ -3,6 +3,7 @@ package dev.hytalemodding.impulse.api;
 import javax.annotation.Nonnull;
 import org.joml.Vector3f;
 
+@Deprecated(forRemoval = true)
 public record PhysicsRayHit(@Nonnull PhysicsBody body,
                             @Nonnull Vector3f point,
                             @Nonnull Vector3f normal,

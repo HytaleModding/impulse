@@ -40,6 +40,7 @@ public final class Impulse {
      * <p>
      * This method is thread-safe.
      */
+    @Deprecated(forRemoval = true)
     public static void registerBackend(@Nonnull PhysicsBackend backend) {
         synchronized (REGISTRY_LOCK) {
             BACKENDS.put(backend.getId(), backend);
@@ -62,6 +63,7 @@ public final class Impulse {
     }
 
     @Nonnull
+    @Deprecated(forRemoval = true)
     public static Collection<PhysicsBackend> getBackends() {
         synchronized (REGISTRY_LOCK) {
             return Collections.unmodifiableCollection(new ArrayList<>(BACKENDS.values()));
@@ -76,6 +78,7 @@ public final class Impulse {
     }
 
     @Nonnull
+    @Deprecated(forRemoval = true)
     public static PhysicsBackend getBackend(@Nonnull BackendId backendId) {
         synchronized (REGISTRY_LOCK) {
             PhysicsBackend backend = BACKENDS.get(backendId);
@@ -111,6 +114,7 @@ public final class Impulse {
      * space is live backend state and must still be owned by one serialized physics owner lane.</p>
      */
     @Nonnull
+    @Deprecated(forRemoval = true)
     public static PhysicsSpace createSpace(@Nonnull BackendId backendId) {
         return createSpace(backendId, SpaceId.next());
     }
@@ -122,6 +126,7 @@ public final class Impulse {
      * space is live backend state and must still be owned by one serialized physics owner lane.</p>
      */
     @Nonnull
+    @Deprecated(forRemoval = true)
     public static PhysicsSpace createSpace(@Nonnull BackendId backendId,
         @Nonnull SpaceId spaceId) {
         PhysicsBackend backend = getBackend(backendId);

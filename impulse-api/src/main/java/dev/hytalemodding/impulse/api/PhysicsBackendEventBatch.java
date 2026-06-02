@@ -7,6 +7,7 @@ import javax.annotation.Nonnull;
 /**
  * Immutable post-step backend event batch drained by core after a backend step completes.
  */
+@Deprecated(forRemoval = true)
 public record PhysicsBackendEventBatch(@Nonnull List<PhysicsBackendEvent> events,
                                        int droppedEventCount) {
 

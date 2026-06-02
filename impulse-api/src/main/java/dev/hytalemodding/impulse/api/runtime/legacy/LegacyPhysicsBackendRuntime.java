@@ -42,6 +42,7 @@ import org.joml.Vector3f;
 /**
  * Id-only runtime facade over the legacy live-object backend API.
  */
+@Deprecated(forRemoval = true)
 public final class LegacyPhysicsBackendRuntime implements PhysicsBackendRuntime {
 
     @Nonnull
