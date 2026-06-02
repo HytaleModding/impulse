@@ -29,6 +29,7 @@ import dev.hytalemodding.impulse.core.internal.simulation.MutablePhysicsCommandC
 import dev.hytalemodding.impulse.core.internal.simulation.PhysicsInternalQuery;
 import dev.hytalemodding.impulse.core.internal.simulation.PhysicsSimulationExecutor;
 import dev.hytalemodding.impulse.core.internal.simulation.RecordedPhysicsCommandBatch;
+import dev.hytalemodding.impulse.core.internal.voxel.WorldCollisionBuildOptions;
 import dev.hytalemodding.impulse.core.internal.voxel.WorldVoxelCollisionCache;
 import dev.hytalemodding.impulse.core.plugin.body.RigidBodyKey;
 import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyKind;
@@ -45,6 +46,7 @@ import dev.hytalemodding.impulse.core.plugin.joint.JointKey;
 import dev.hytalemodding.impulse.core.plugin.resources.PhysicsWorldResource;
 import dev.hytalemodding.impulse.core.plugin.settings.PhysicsSpaceSettings;
 import dev.hytalemodding.impulse.core.plugin.settings.PhysicsStepMode;
+import dev.hytalemodding.impulse.core.plugin.settings.PhysicsWorldCollisionSettings;
 import dev.hytalemodding.impulse.core.plugin.settings.PhysicsWorldSettings;
 import dev.hytalemodding.impulse.core.plugin.simulation.JointType;
 import dev.hytalemodding.impulse.core.plugin.simulation.PhysicsCommandCompletion;
@@ -335,6 +337,7 @@ public class PhysicsWorldRuntimeResource extends PhysicsWorldResource {
             worldName,
             settings,
             simulationRuntime.getWorldSettings().getStepMode());
+        collisionRuntime.registerSpace(spaceId);
         markWorldChanged();
         return binding;
     }
@@ -525,14 +528,14 @@ public class PhysicsWorldRuntimeResource extends PhysicsWorldResource {
         int radius) {
         return callOwner("rebuild world collision", () -> {
             PhysicsSpaceBinding space = requireSpaceBinding(spaceId);
-            boolean nativeVoxelTerrainEnabled = getLiveSpaceSettings(spaceId)
-                .getWorldCollisionSettings()
-                .isNativeVoxelTerrainEnabled();
+            WorldCollisionBuildOptions buildOptions =
+                WorldCollisionBuildOptions.fromSettings(getLiveSpaceSettings(spaceId)
+                    .getWorldCollisionSettings());
             return collisionRuntime.rebuildAround(world,
                 space,
                 center,
                 radius,
-                nativeVoxelTerrainEnabled);
+                buildOptions);
         });
     }
 
@@ -545,15 +548,15 @@ public class PhysicsWorldRuntimeResource extends PhysicsWorldResource {
         Objects.requireNonNull(centers, "centers");
         return callOwner("ensure world collision", () -> {
             PhysicsSpaceBinding space = requireSpaceBinding(spaceId);
-            boolean nativeVoxelTerrainEnabled = getLiveSpaceSettings(spaceId)
-                .getWorldCollisionSettings()
-                .isNativeVoxelTerrainEnabled();
+            WorldCollisionBuildOptions buildOptions =
+                WorldCollisionBuildOptions.fromSettings(getLiveSpaceSettings(spaceId)
+                    .getWorldCollisionSettings());
             return collisionRuntime.ensureAround(world,
                 space,
                 centers,
                 radius,
                 tick,
-                nativeVoxelTerrainEnabled);
+                buildOptions);
         });
     }
 
@@ -562,6 +565,10 @@ public class PhysicsWorldRuntimeResource extends PhysicsWorldResource {
             PhysicsSpaceBinding space = requireSpaceBinding(spaceId);
             return collisionRuntime.clear(space);
         });
+    }
+
+    public long worldCollisionStreamingRevision(@Nonnull SpaceId spaceId) {
+        return collisionRuntime.streamingRevision(spaceId);
     }
 
     @Nonnull
@@ -624,7 +631,7 @@ public class PhysicsWorldRuntimeResource extends PhysicsWorldResource {
                 worldName,
                 removed.spaceId(),
                 removed.backendId());
-            PhysicsSpaceRuntime.closeBindingQuietly(removed, worldName, "removed physics space");
+            PhysicsSpaceRuntime.closeBindingSilently(removed, worldName, "removed physics space");
             markWorldChanged();
         }
     }
@@ -691,14 +698,30 @@ public class PhysicsWorldRuntimeResource extends PhysicsWorldResource {
 
     private void setSpaceSettingsDirect(@Nonnull SpaceId spaceId,
         @Nonnull PhysicsSpaceSettings settings) {
-        boolean terrainRepresentationChanged = spaceRuntime.getLiveSpaceSettings(spaceId)
-            .getWorldCollisionSettings()
-            .isNativeVoxelTerrainEnabled()
-            != settings.getWorldCollisionSettings().isNativeVoxelTerrainEnabled();
+        PhysicsWorldCollisionSettings previousCollisionSettings =
+            spaceRuntime.getLiveSpaceSettings(spaceId).getWorldCollisionSettings();
+        boolean worldCollisionSettingsChanged =
+            worldCollisionStreamingSettingsChanged(previousCollisionSettings,
+                settings.getWorldCollisionSettings());
+        boolean terrainRepresentationChanged =
+            previousCollisionSettings.isNativeVoxelTerrainEnabled()
+                != settings.getWorldCollisionSettings().isNativeVoxelTerrainEnabled();
         spaceRuntime.setSpaceSettings(spaceId, settings);
         if (terrainRepresentationChanged) {
             collisionRuntime.clear(requireSpaceBinding(spaceId));
+        } else if (worldCollisionSettingsChanged) {
+            collisionRuntime.incrementStreamingRevision(spaceId);
         }
+    }
+
+    private static boolean worldCollisionStreamingSettingsChanged(
+        @Nonnull PhysicsWorldCollisionSettings previous,
+        @Nonnull PhysicsWorldCollisionSettings next) {
+        return previous.getWorldCollisionMode() != next.getWorldCollisionMode()
+            || previous.getWorldCollisionRadius() != next.getWorldCollisionRadius()
+            || previous.getWorldCollisionBodyRadius() != next.getWorldCollisionBodyRadius()
+            || previous.getWorldCollisionTtlTicks() != next.getWorldCollisionTtlTicks()
+            || previous.isNativeVoxelTerrainEnabled() != next.isNativeVoxelTerrainEnabled();
     }
 
     private void validateStepModeSupported(@Nonnull PhysicsStepMode stepMode) {
@@ -1200,7 +1223,7 @@ public class PhysicsWorldRuntimeResource extends PhysicsWorldResource {
     private void clearRuntimeTopologyDirect(boolean clearCollision) {
         bodyRuntime.clearBodyStateWithoutMarkingWorldChanged();
         if (clearCollision) {
-            collisionRuntime.clearAll();
+            collisionRuntime.clearAllAndUnregisterSpaces();
         }
     }
 

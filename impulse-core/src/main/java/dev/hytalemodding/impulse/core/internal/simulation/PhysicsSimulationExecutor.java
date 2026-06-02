@@ -13,6 +13,7 @@ import dev.hytalemodding.impulse.core.internal.resources.PhysicsWorldRuntimeReso
 import dev.hytalemodding.impulse.core.internal.resources.body.PhysicsBodyRegistration;
 import dev.hytalemodding.impulse.core.internal.resources.body.PhysicsBodySnapshots;
 import dev.hytalemodding.impulse.core.internal.resources.joint.PhysicsJointRegistration;
+import dev.hytalemodding.impulse.core.internal.voxel.WorldCollisionBuildOptions;
 import dev.hytalemodding.impulse.core.internal.voxel.WorldVoxelCollisionCache;
 import dev.hytalemodding.impulse.core.internal.voxel.WorldVoxelCollisionCache.BuildStats;
 import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyKind;
@@ -1031,9 +1032,9 @@ public final class PhysicsSimulationExecutor implements PhysicsCommandDispatcher
         @Nonnull WorldCollisionPrewarmEnvelopeQuery query) {
         PhysicsSpaceBinding space = requireSpace(query.spaceId());
         WorldVoxelCollisionCache cache = runtime.worldCollisionCache();
-        boolean nativeVoxelTerrainEnabled = runtime.getLiveSpaceSettings(query.spaceId())
-            .getWorldCollisionSettings()
-            .isNativeVoxelTerrainEnabled();
+        WorldCollisionBuildOptions buildOptions =
+            WorldCollisionBuildOptions.fromSettings(runtime.getLiveSpaceSettings(query.spaceId())
+                .getWorldCollisionSettings());
         LongSet visitedSections = new LongOpenHashSet();
         Set<StreamingPrewarmTarget> visitedTargets = new ObjectOpenHashSet<>();
         BuildStats total = BuildStats.empty();
@@ -1049,7 +1050,7 @@ public final class PhysicsSimulationExecutor implements PhysicsCommandDispatcher
                 positionZ,
                 visitedSections,
                 visitedTargets,
-                nativeVoxelTerrainEnabled));
+                buildOptions));
         }
         return new WorldCollisionPrewarmStats(visitedSections.size(), worldCollisionStats(total));
     }
@@ -1064,7 +1065,7 @@ public final class PhysicsSimulationExecutor implements PhysicsCommandDispatcher
         double positionZ,
         @Nonnull LongSet visitedSections,
         @Nonnull Set<StreamingPrewarmTarget> visitedTargets,
-        boolean nativeVoxelTerrainEnabled) {
+        @Nonnull WorldCollisionBuildOptions buildOptions) {
         BuildStats total = BuildStats.empty();
         double halo = query.horizontalDriftHaloBlocks();
         for (int offsetX = -1; offsetX <= 1; offsetX++) {
@@ -1077,7 +1078,7 @@ public final class PhysicsSimulationExecutor implements PhysicsCommandDispatcher
                     positionZ + offsetZ * halo,
                     visitedSections,
                     visitedTargets,
-                    nativeVoxelTerrainEnabled));
+                    buildOptions));
             }
         }
         return total;
@@ -1093,7 +1094,7 @@ public final class PhysicsSimulationExecutor implements PhysicsCommandDispatcher
         double positionZ,
         @Nonnull LongSet visitedSections,
         @Nonnull Set<StreamingPrewarmTarget> visitedTargets,
-        boolean nativeVoxelTerrainEnabled) {
+        @Nonnull WorldCollisionBuildOptions buildOptions) {
         double step = Math.max(1.0, query.radius() * 2.0);
         double minCenterY = Math.min(positionY, query.fallEnvelopeMinY() + query.radius());
         BuildStats total = BuildStats.empty();
@@ -1107,7 +1108,7 @@ public final class PhysicsSimulationExecutor implements PhysicsCommandDispatcher
                 positionZ,
                 visitedSections,
                 visitedTargets,
-                nativeVoxelTerrainEnabled));
+                buildOptions));
             lastY = y;
         }
         if (Double.isNaN(lastY) || lastY > minCenterY) {
@@ -1119,7 +1120,7 @@ public final class PhysicsSimulationExecutor implements PhysicsCommandDispatcher
                 positionZ,
                 visitedSections,
                 visitedTargets,
-                nativeVoxelTerrainEnabled));
+                buildOptions));
         }
         return total;
     }
@@ -1134,7 +1135,7 @@ public final class PhysicsSimulationExecutor implements PhysicsCommandDispatcher
         double centerZ,
         @Nonnull LongSet visitedSections,
         @Nonnull Set<StreamingPrewarmTarget> visitedTargets,
-        boolean nativeVoxelTerrainEnabled) {
+        @Nonnull WorldCollisionBuildOptions buildOptions) {
         StreamingPrewarmTarget target = streamingPrewarmTarget(centerX,
             centerY,
             centerZ,
@@ -1151,7 +1152,7 @@ public final class PhysicsSimulationExecutor implements PhysicsCommandDispatcher
             visitedSections,
             null,
             null,
-            nativeVoxelTerrainEnabled);
+            buildOptions);
     }
 
     @Nonnull

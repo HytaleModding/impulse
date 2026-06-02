@@ -34,6 +34,8 @@ public final class FakePhysicsBackendRuntimeProvider implements PhysicsBackendRu
     private final boolean continuousCollision;
     private final boolean voxelTerrain;
     private final List<FakePhysicsBackendRuntime> runtimes = new ArrayList<>();
+    private final FailureController failures = new FailureController();
+    private boolean solverTuning;
 
     public FakePhysicsBackendRuntimeProvider(@Nonnull String id) {
         this(new BackendId(id), false, false);
@@ -67,7 +69,7 @@ public final class FakePhysicsBackendRuntimeProvider implements PhysicsBackendRu
     @Override
     public PhysicsBackendRuntime createRuntime() {
         FakePhysicsBackendRuntime runtime =
-            new FakePhysicsBackendRuntime(continuousCollision, voxelTerrain);
+            new FakePhysicsBackendRuntime(continuousCollision, voxelTerrain, solverTuning, failures);
         runtimes.add(runtime);
         return runtime;
     }
@@ -77,17 +79,34 @@ public final class FakePhysicsBackendRuntimeProvider implements PhysicsBackendRu
         return List.copyOf(runtimes);
     }
 
+    @Nonnull
+    public FakePhysicsBackendRuntimeProvider withSolverTuning() {
+        solverTuning = true;
+        return this;
+    }
+
+    public void failNextSolverTuning(@Nonnull RuntimeException failure) {
+        failures.failNextSolverTuning(failure);
+    }
+
     public static final class FakePhysicsBackendRuntime implements PhysicsBackendRuntime {
 
         private final Map<Integer, SpaceState> spaces = new HashMap<>();
         private final boolean continuousCollision;
         private final boolean voxelTerrain;
+        private final boolean solverTuning;
+        private final FailureController failures;
         private long nextBodyId = 1L;
         private long nextJointId = 1L;
 
-        private FakePhysicsBackendRuntime(boolean continuousCollision, boolean voxelTerrain) {
+        private FakePhysicsBackendRuntime(boolean continuousCollision,
+            boolean voxelTerrain,
+            boolean solverTuning,
+            @Nonnull FailureController failures) {
             this.continuousCollision = continuousCollision;
             this.voxelTerrain = voxelTerrain;
+            this.solverTuning = solverTuning;
+            this.failures = failures;
         }
 
         @Override
@@ -503,7 +522,7 @@ public final class FakePhysicsBackendRuntimeProvider implements PhysicsBackendRu
         @Override
         public boolean supportsSolverTuning(int spaceId) {
             requireSpace(spaceId);
-            return false;
+            return solverTuning;
         }
 
         @Override
@@ -515,6 +534,7 @@ public final class FakePhysicsBackendRuntimeProvider implements PhysicsBackendRu
         @Override
         public void applySolverTuning(int spaceId, @Nonnull PhysicsSolverTuning tuning) {
             requireSpace(spaceId);
+            failures.maybeFailSolverTuning();
         }
 
         @Override
@@ -537,6 +557,10 @@ public final class FakePhysicsBackendRuntimeProvider implements PhysicsBackendRu
         @Nonnull
         public List<CombineCall> combineCalls(int spaceId) {
             return List.copyOf(requireSpace(spaceId).combineCalls);
+        }
+
+        public boolean hasSpace(int spaceId) {
+            return spaces.containsKey(spaceId);
         }
 
         private static void emitSnapshot(long bodyId,
@@ -718,5 +742,23 @@ public final class FakePhysicsBackendRuntimeProvider implements PhysicsBackendRu
     }
 
     public record CombineCall(long bodyAId, long bodyBId, int shiftX, int shiftY, int shiftZ) {
+    }
+
+    private static final class FailureController {
+
+        private RuntimeException solverTuningFailure;
+
+        private synchronized void failNextSolverTuning(@Nonnull RuntimeException failure) {
+            solverTuningFailure = Objects.requireNonNull(failure, "failure");
+        }
+
+        private synchronized void maybeFailSolverTuning() {
+            RuntimeException failure = solverTuningFailure;
+            if (failure == null) {
+                return;
+            }
+            solverTuningFailure = null;
+            throw failure;
+        }
     }
 }
