@@ -3,15 +3,11 @@ package dev.hytalemodding.impulse.core.internal.resources;
 import com.hypixel.hytale.logger.HytaleLogger;
 import dev.hytalemodding.impulse.api.BackendId;
 import dev.hytalemodding.impulse.api.Impulse;
-import dev.hytalemodding.impulse.api.PhysicsSpace;
 import dev.hytalemodding.impulse.api.SpaceId;
 import dev.hytalemodding.impulse.api.capability.PhysicsActivationTuning;
-import dev.hytalemodding.impulse.api.capability.PhysicsActivationTuningCapability;
 import dev.hytalemodding.impulse.api.capability.PhysicsCapabilityId;
-import dev.hytalemodding.impulse.api.capability.PhysicsContinuousCollisionCapability;
-import dev.hytalemodding.impulse.api.capability.PhysicsExtensionSettingsCapability;
 import dev.hytalemodding.impulse.api.capability.PhysicsSolverTuning;
-import dev.hytalemodding.impulse.api.capability.PhysicsSolverTuningCapability;
+import dev.hytalemodding.impulse.api.runtime.PhysicsBackendRuntime;
 import dev.hytalemodding.impulse.core.plugin.settings.PhysicsBackendExtensionId;
 import dev.hytalemodding.impulse.core.plugin.settings.PhysicsSpaceSettings;
 import dev.hytalemodding.impulse.core.plugin.settings.PhysicsStepMode;
@@ -20,20 +16,19 @@ import it.unimi.dsi.fastutil.ints.Int2ObjectOpenHashMap;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
-import java.util.function.BiConsumer;
 import java.util.logging.Level;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 import org.joml.Vector3f;
 
 /**
- * Live space topology and per-space settings for one physics world.
+ * Id-only space topology and per-space settings for one physics world.
  */
 public final class PhysicsSpaceRuntime {
 
     private static final HytaleLogger LOGGER = HytaleLogger.get("Impulse");
 
-    private final Int2ObjectMap<PhysicsSpace> spaces = new Int2ObjectOpenHashMap<>();
+    private final Int2ObjectMap<PhysicsSpaceBinding> spaces = new Int2ObjectOpenHashMap<>();
 
     /**
      * Per-space settings (world collision mode, radius, TTL, etc.). Keyed by space id value.
@@ -42,7 +37,7 @@ public final class PhysicsSpaceRuntime {
         new Int2ObjectOpenHashMap<>();
 
     @Nonnull
-    public PhysicsSpace createSpace(@Nonnull BackendId backendId,
+    public PhysicsSpaceBinding createSpace(@Nonnull BackendId backendId,
         @Nonnull SpaceId spaceId,
         @Nonnull String worldName,
         @Nonnull PhysicsSpaceSettings settings,
@@ -58,75 +53,69 @@ public final class PhysicsSpaceRuntime {
             backendId,
             settings.getWorldCollisionSettings().getWorldCollisionMode());
 
-        PhysicsSpace space = Impulse.createSpace(backendId, spaceId);
+        PhysicsBackendRuntime runtime = Impulse.createRuntime(backendId);
+        BackendSpaceHandle backendSpaceHandle = new BackendSpaceHandle(runtime.createSpace(spaceId));
+        PhysicsSpaceBinding binding =
+            new PhysicsSpaceBinding(backendId, spaceId, backendSpaceHandle, runtime);
         try {
-            validateSpaceCompatibleWithStepMode(space, stepMode);
-            applySolverTuning(space, settings);
+            validateSpaceCompatibleWithStepMode(binding, stepMode);
+            applySolverTuning(binding, settings);
         } catch (RuntimeException exception) {
-            closeSpaceQuietly(space, worldName, "discarding failed physics space");
+            closeBindingSilently(binding, worldName, "discarding failed physics space");
             throw exception;
         }
-        spaces.put(space.id().value(), space);
-        spaceSettings.put(space.id().value(), new PhysicsSpaceSettings(settings));
+        spaces.put(spaceId.value(), binding);
+        spaceSettings.put(spaceId.value(), new PhysicsSpaceSettings(settings));
 
         LOGGER.at(Level.FINE).log(
             "World %s created physics space id=%s backend=%s collision=%s",
             worldName,
-            space.id(),
-            space.backendId(),
+            spaceId,
+            backendId,
             settings.getWorldCollisionSettings().getWorldCollisionMode());
-        return space;
+        return binding;
     }
 
     @Nullable
-    public PhysicsSpace getSpace(@Nonnull SpaceId spaceId) {
+    public PhysicsSpaceBinding getBinding(@Nonnull SpaceId spaceId) {
         return spaces.get(spaceId.value());
     }
 
     @Nonnull
-    public PhysicsSpace requireSpace(@Nonnull SpaceId spaceId) {
-        PhysicsSpace space = getSpace(spaceId);
-        if (space == null) {
+    public PhysicsSpaceBinding requireBinding(@Nonnull SpaceId spaceId) {
+        PhysicsSpaceBinding binding = getBinding(spaceId);
+        if (binding == null) {
             throw new IllegalArgumentException("Physics space id=" + spaceId + " is not registered");
         }
-        return space;
-    }
-
-    @Nonnull
-    public Collection<PhysicsSpace> getSpaces() {
-        return new ArrayList<>(spaces.values());
-    }
-
-    @Nonnull
-    public Collection<PhysicsSpace> liveSpaces() {
-        return spaces.values();
+        return binding;
     }
 
     public int getSpaceCount() {
         return spaces.size();
     }
 
-    /**
-     * Iterate spaces without allocating a snapshot collection.
-     * Use this from tick systems that do not mutate the space map while iterating.
-     */
     @Nonnull
-    public Iterable<PhysicsSpace> iterateSpaces() {
+    public Collection<PhysicsSpaceBinding> getBindings() {
+        return new ArrayList<>(spaces.values());
+    }
+
+    @Nonnull
+    public Iterable<PhysicsSpaceBinding> iterateBindings() {
         return spaces.values();
     }
 
     @Nonnull
     public List<SpaceId> getSpaceIds() {
         List<SpaceId> ids = new ArrayList<>(spaces.size());
-        for (PhysicsSpace space : spaces.values()) {
-            ids.add(space.id());
+        for (PhysicsSpaceBinding binding : spaces.values()) {
+            ids.add(binding.spaceId());
         }
         return ids;
     }
 
     @Nullable
-    public PhysicsSpace removeSpace(@Nonnull SpaceId spaceId) {
-        PhysicsSpace removed = spaces.remove(spaceId.value());
+    public PhysicsSpaceBinding removeSpace(@Nonnull SpaceId spaceId) {
+        PhysicsSpaceBinding removed = spaces.remove(spaceId.value());
         spaceSettings.remove(spaceId.value());
         return removed;
     }
@@ -134,40 +123,60 @@ public final class PhysicsSpaceRuntime {
     @Nonnull
     public PhysicsRuntimeResetResult resetKeepingSpaces(
         @Nonnull String worldName,
-        @Nonnull PhysicsStepMode stepMode,
-        @Nonnull BiConsumer<SpaceId, PhysicsSpace> collisionClearer,
-        @Nonnull Runnable worldChangedMarker) {
-        List<SpaceReset> replacements = new ArrayList<>();
-        for (PhysicsSpace previous : spaces.values()) {
-            Vector3f gravity = previous.getGravity();
-            PhysicsSpace replacement = Impulse.createSpace(previous.backendId(), previous.id());
+        @Nonnull PhysicsStepMode stepMode) {
+        List<PhysicsSpaceBinding> previousBindings = new ArrayList<>(spaces.values());
+        List<PhysicsSpaceBinding> replacements = new ArrayList<>(previousBindings.size());
+        for (PhysicsSpaceBinding previous : previousBindings) {
+            PhysicsSpaceBinding replacement = null;
+            Vector3f gravity = new Vector3f();
             try {
+                PhysicsSpaceSettings settings = spaceSettings.get(previous.spaceId().value());
+                if (settings == null) {
+                    throw new IllegalStateException("Physics space settings are missing for id=" + previous.spaceId());
+                }
+                previous.runtime().getGravity(previous.backendSpaceHandle().value(), gravity::set);
+                PhysicsBackendRuntime runtime = Impulse.createRuntime(previous.backendId());
+                BackendSpaceHandle backendSpaceHandle =
+                    new BackendSpaceHandle(runtime.createSpace(previous.spaceId()));
+                replacement = new PhysicsSpaceBinding(previous.backendId(),
+                    previous.spaceId(),
+                    backendSpaceHandle,
+                    runtime);
                 validateSpaceCompatibleWithStepMode(replacement, stepMode);
-                replacement.setGravity(gravity.x, gravity.y, gravity.z);
-                replacements.add(new SpaceReset(previous.id(), previous, replacement));
+                replacement.runtime().setGravity(backendSpaceHandle.value(), gravity.x, gravity.y, gravity.z);
+                applySolverTuning(replacement, settings);
+                replacements.add(replacement);
             } catch (RuntimeException exception) {
-                closeSpaceQuietly(replacement, worldName, "discarding failed clean replacement");
+                if (replacement != null) {
+                    closeBindingSilently(replacement, worldName, "discarding failed clean replacement");
+                }
+                closeBindingsSilently(replacements, worldName, "discarding clean replacements");
                 throw exception;
             }
         }
 
         int removedBodies = 0;
         int removedJoints = 0;
-        int keptSpaces = 0;
-        for (SpaceReset reset : replacements) {
-            removedBodies += reset.previous().bodyCount();
-            removedJoints += reset.previous().jointCount();
-            collisionClearer.accept(reset.spaceId(), null);
-            PhysicsSpace previous = replaceSpace(reset.spaceId(),
-                reset.replacement(),
-                worldName,
-                stepMode,
-                collisionClearer,
-                worldChangedMarker);
-            closeSpaceQuietly(previous, worldName, "cleaned physics space");
-            keptSpaces++;
+        for (PhysicsSpaceBinding previous : previousBindings) {
+            removedBodies += previous.runtime().bodyCount(previous.backendSpaceHandle().value());
+            removedJoints += previous.runtime().jointCount(previous.backendSpaceHandle().value());
         }
-        return new PhysicsRuntimeResetResult(removedBodies, removedJoints, keptSpaces);
+        spaces.clear();
+        for (PhysicsSpaceBinding replacement : replacements) {
+            spaces.put(replacement.spaceId().value(), replacement);
+        }
+        for (PhysicsSpaceBinding previous : previousBindings) {
+            closeBindingSilently(previous, worldName, "cleaned physics space");
+        }
+        return new PhysicsRuntimeResetResult(removedBodies, removedJoints, replacements.size());
+    }
+
+    private static void closeBindingsSilently(@Nonnull Iterable<PhysicsSpaceBinding> bindings,
+        @Nonnull String worldName,
+        @Nonnull String reason) {
+        for (PhysicsSpaceBinding binding : bindings) {
+            closeBindingSilently(binding, worldName, reason);
+        }
     }
 
     @Nonnull
@@ -186,12 +195,12 @@ public final class PhysicsSpaceRuntime {
 
     public void setSpaceSettings(@Nonnull SpaceId spaceId,
         @Nonnull PhysicsSpaceSettings settings) {
-        PhysicsSpace space = spaces.get(spaceId.value());
-        if (space == null) {
+        PhysicsSpaceBinding binding = spaces.get(spaceId.value());
+        if (binding == null) {
             throw new IllegalArgumentException("Physics space id=" + spaceId
                 + " is not registered");
         }
-        applySolverTuning(space, settings);
+        applySolverTuning(binding, settings);
         spaceSettings.put(spaceId.value(), new PhysicsSpaceSettings(settings));
     }
 
@@ -201,9 +210,9 @@ public final class PhysicsSpaceRuntime {
         }
 
         List<String> unsupportedSpaces = new ArrayList<>();
-        for (PhysicsSpace space : spaces.values()) {
-            if (!supportsContinuousCollision(space)) {
-                unsupportedSpaces.add(formatSpace(space));
+        for (PhysicsSpaceBinding binding : spaces.values()) {
+            if (!supportsContinuousCollision(binding)) {
+                unsupportedSpaces.add(formatSpace(binding));
             }
         }
         if (!unsupportedSpaces.isEmpty()) {
@@ -212,115 +221,66 @@ public final class PhysicsSpaceRuntime {
         }
     }
 
-    @Nonnull
-    public PhysicsSpace replaceSpace(@Nonnull SpaceId spaceId,
-        @Nonnull PhysicsSpace replacement,
-        @Nonnull String worldName,
-        @Nonnull PhysicsStepMode stepMode,
-        @Nonnull BiConsumer<SpaceId, PhysicsSpace> collisionClearer,
-        @Nonnull Runnable worldChangedMarker) {
-        if (!spaceId.equals(replacement.id())) {
-            throw new IllegalArgumentException("Replacement space id " + replacement.id()
-                + " does not match target id " + spaceId);
-        }
-
-        PhysicsSpace previous = spaces.get(spaceId.value());
-        if (previous == null) {
-            throw new IllegalStateException("Cannot replace missing physics space id=" + spaceId);
-        }
-        validateSpaceCompatibleWithStepMode(replacement, stepMode);
-        collisionClearer.accept(spaceId, previous);
-
-        PhysicsSpaceSettings settings = spaceSettings.get(spaceId.value());
-        if (settings == null) {
-            settings = PhysicsSpaceSettings.defaults();
-        }
-        applySolverTuning(replacement, settings);
-        spaces.put(spaceId.value(), replacement);
-        spaceSettings.put(spaceId.value(), new PhysicsSpaceSettings(settings));
-        worldChangedMarker.run();
-        LOGGER.at(Level.INFO).log(
-            "World %s replaced physics space id=%s backend=%s -> backend=%s",
-            worldName,
-            spaceId,
-            previous.backendId(),
-            replacement.backendId());
-        return previous;
-    }
-
     public void clearLiveTopology(@Nonnull String worldName) {
-        for (PhysicsSpace space : new ArrayList<>(spaces.values())) {
-            closeSpaceQuietly(space, worldName, "discarded copied physics space");
+        for (PhysicsSpaceBinding binding : new ArrayList<>(spaces.values())) {
+            closeBindingSilently(binding, worldName, "discarded copied physics space");
         }
         spaces.clear();
         spaceSettings.clear();
     }
 
-    private static void validateSpaceCompatibleWithStepMode(@Nonnull PhysicsSpace space,
+    private static void validateSpaceCompatibleWithStepMode(@Nonnull PhysicsSpaceBinding binding,
         @Nonnull PhysicsStepMode stepMode) {
-        if (stepMode == PhysicsStepMode.CCD && !supportsContinuousCollision(space)) {
+        if (stepMode == PhysicsStepMode.CCD && !supportsContinuousCollision(binding)) {
             throw new IllegalArgumentException("CCD mode is not available for "
-                + formatSpace(space));
+                + formatSpace(binding));
         }
     }
 
     @Nonnull
-    private static String formatSpace(@Nonnull PhysicsSpace space) {
-        return "space " + space.id().value() + " (" + space.backendId().value() + ")";
+    private static String formatSpace(@Nonnull PhysicsSpaceBinding binding) {
+        return "space " + binding.spaceId().value() + " (" + binding.backendId().value() + ")";
     }
 
-    private static void applySolverTuning(@Nonnull PhysicsSpace space,
+    private static void applySolverTuning(@Nonnull PhysicsSpaceBinding binding,
         @Nonnull PhysicsSpaceSettings settings) {
-        space.getCapability(PhysicsSolverTuningCapability.class)
-            .ifPresent(tuning -> tuning.setSolverTuning(new PhysicsSolverTuning(
-                settings.getSolverSettings().getSolverIterations(),
-                settings.getSolverSettings().getStabilizationIterations())));
-        applyActivationTuning(space, settings);
-        applyExtensionSettings(space, settings);
+        if (binding.runtime().supportsSolverTuning(binding.backendSpaceHandle().value())) {
+            binding.runtime().applySolverTuning(binding.backendSpaceHandle().value(),
+                new PhysicsSolverTuning(
+                    settings.getSolverSettings().getSolverIterations(),
+                    settings.getSolverSettings().getStabilizationIterations()));
+        }
+        if (binding.runtime().supportsActivationTuning(binding.backendSpaceHandle().value())) {
+            binding.runtime().applyActivationTuning(binding.backendSpaceHandle().value(),
+                new PhysicsActivationTuning(
+                    settings.getSolverSettings().getDynamicSleepLinearThreshold(),
+                    settings.getSolverSettings().getDynamicSleepAngularThreshold(),
+                    settings.getSolverSettings().getDynamicSleepTimeUntilSleep()));
+        }
+        for (PhysicsBackendExtensionId extensionId : settings.getExtensionSettings().asMap().keySet()) {
+            binding.runtime().applyExtensionSettings(binding.backendSpaceHandle().value(),
+                new PhysicsCapabilityId(extensionId.value()),
+                consumer -> settings.getExtensionSettings().asStringMap(extensionId).forEach(consumer));
+        }
     }
 
-    private static void applyActivationTuning(@Nonnull PhysicsSpace space,
-        @Nonnull PhysicsSpaceSettings settings) {
-        space.getCapability(PhysicsActivationTuningCapability.class)
-            .ifPresent(tuning -> tuning.setActivationTuning(new PhysicsActivationTuning(
-                settings.getSolverSettings().getDynamicSleepLinearThreshold(),
-                settings.getSolverSettings().getDynamicSleepAngularThreshold(),
-                settings.getSolverSettings().getDynamicSleepTimeUntilSleep())));
+    private static boolean supportsContinuousCollision(@Nonnull PhysicsSpaceBinding binding) {
+        return binding.runtime().supportsContinuousCollision(binding.backendSpaceHandle().value());
     }
 
-    private static void applyExtensionSettings(@Nonnull PhysicsSpace space,
-        @Nonnull PhysicsSpaceSettings settings) {
-        space.getCapability(PhysicsExtensionSettingsCapability.class)
-            .ifPresent(capability -> {
-                for (PhysicsBackendExtensionId extensionId : settings.getExtensionSettings().asMap().keySet()) {
-                    capability.applyExtensionSettings(new PhysicsCapabilityId(extensionId.value()),
-                        settings.getExtensionSettings().asStringMap(extensionId));
-                }
-            });
-    }
-
-    private static boolean supportsContinuousCollision(@Nonnull PhysicsSpace space) {
-        return space.getCapability(PhysicsContinuousCollisionCapability.class).isPresent();
-    }
-
-    private static void closeSpaceQuietly(@Nonnull PhysicsSpace space,
+    static void closeBindingSilently(@Nonnull PhysicsSpaceBinding binding,
         @Nonnull String worldName,
         @Nonnull String action) {
         try {
-            space.close();
+            binding.runtime().destroySpace(binding.backendSpaceHandle().value());
         } catch (RuntimeException exception) {
             LOGGER.at(Level.WARNING).log(
                 "World %s failed to close %s id=%s backend=%s: %s",
                 worldName,
                 action,
-                space.id(),
-                space.backendId(),
+                binding.spaceId(),
+                binding.backendId(),
                 exception.getMessage());
         }
-    }
-
-    private record SpaceReset(@Nonnull SpaceId spaceId,
-        @Nonnull PhysicsSpace previous,
-        @Nonnull PhysicsSpace replacement) {
     }
 }

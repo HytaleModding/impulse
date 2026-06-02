@@ -5,6 +5,7 @@ import javax.annotation.Nonnull;
 /**
  * Optional backend capability for tuning dynamic body sleep behavior.
  */
+@Deprecated(forRemoval = true)
 public interface PhysicsActivationTuningCapability extends PhysicsCapability {
 
     PhysicsCapabilityDescriptor DESCRIPTOR = new PhysicsCapabilityDescriptor(

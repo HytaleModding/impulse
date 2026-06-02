@@ -8,6 +8,7 @@ import javax.annotation.Nonnull;
 /**
  * Optional backend capability indicating which post-step backend events may be emitted.
  */
+@Deprecated(forRemoval = true)
 public interface PhysicsBackendEventsCapability extends PhysicsCapability {
 
     PhysicsCapabilityDescriptor DESCRIPTOR = new PhysicsCapabilityDescriptor(

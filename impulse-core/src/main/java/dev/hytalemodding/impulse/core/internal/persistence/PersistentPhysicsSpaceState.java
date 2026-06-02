@@ -10,8 +10,8 @@ import com.hypixel.hytale.codec.validation.ValidationResults;
 import com.hypixel.hytale.codec.validation.Validators;
 import com.hypixel.hytale.math.vector.Vector3fUtil;
 import dev.hytalemodding.impulse.api.BackendId;
-import dev.hytalemodding.impulse.api.PhysicsSpace;
 import dev.hytalemodding.impulse.api.SpaceId;
+import dev.hytalemodding.impulse.core.internal.resources.PhysicsSpaceBinding;
 import dev.hytalemodding.impulse.core.internal.systems.persistence.PersistentPhysicsSpaceBootstrapSystem;
 import dev.hytalemodding.impulse.core.plugin.collision.WorldCollisionMode;
 import dev.hytalemodding.impulse.core.plugin.settings.EntityChunkBoundaryMode;
@@ -32,7 +32,7 @@ import org.joml.Vector3f;
  *
  * <p>Captures the space identity, backend choice, gravity, and world-collision
  * settings so that {@link PersistentPhysicsSpaceBootstrapSystem} can recreate
- * the runtime {@link dev.hytalemodding.impulse.api.PhysicsSpace} after a
+ * the runtime physics space after a
  * world load or manual snapshot restore.</p>
  */
 @Getter
@@ -90,6 +90,11 @@ public class PersistentPhysicsSpaceState {
             PersistentPhysicsSpaceState::getWorldCollisionTtlTicks)
         .addValidator(Validators.nonNull())
         .addValidator(Validators.range(1, PhysicsWorldCollisionSettings.MAX_WORLD_COLLISION_TTL_TICKS))
+        .add()
+        .append(new KeyedCodec<>("NativeVoxelTerrainEnabled", Codec.BOOLEAN, false),
+            (state, value) -> state.nativeVoxelTerrainEnabled = value,
+            PersistentPhysicsSpaceState::isNativeVoxelTerrainEnabled)
+        .addValidator(Validators.nonNull())
         .add()
         .append(new KeyedCodec<>("VisualFullSyncRadius", Codec.INTEGER, false),
             (state, value) -> state.visualFullSyncRadius = value,
@@ -317,6 +322,9 @@ public class PersistentPhysicsSpaceState {
     private int worldCollisionRadius = PhysicsWorldCollisionSettings.DEFAULT_WORLD_COLLISION_RADIUS;
     private int worldCollisionBodyRadius = PhysicsWorldCollisionSettings.DEFAULT_WORLD_COLLISION_BODY_RADIUS;
     private int worldCollisionTtlTicks = PhysicsWorldCollisionSettings.DEFAULT_WORLD_COLLISION_TTL_TICKS;
+    @Setter
+    private boolean nativeVoxelTerrainEnabled =
+        PhysicsWorldCollisionSettings.DEFAULT_NATIVE_VOXEL_TERRAIN_ENABLED;
     private int visualFullSyncRadius = PhysicsVisualSyncSettings.DEFAULT_VISUAL_FULL_SYNC_RADIUS;
     private int visualMaxSyncRadius = PhysicsVisualSyncSettings.DEFAULT_VISUAL_MAX_SYNC_RADIUS;
     @Setter
@@ -405,17 +413,18 @@ public class PersistentPhysicsSpaceState {
     }
 
     @Nonnull
-    public static PersistentPhysicsSpaceState from(@Nonnull PhysicsSpace space,
+    public static PersistentPhysicsSpaceState from(@Nonnull PhysicsSpaceBinding space,
         @Nonnull PhysicsSpaceSettings settings) {
         PersistentPhysicsSpaceState state = new PersistentPhysicsSpaceState();
-        state.spaceId = space.id().value();
+        state.spaceId = space.spaceId().value();
         state.backendId = space.backendId().value();
-        state.gravity.set(space.getGravity());
+        space.runtime().getGravity(space.backendSpaceHandle().value(), state.gravity::set);
         state.worldCollisionMode = settings.getWorldCollisionSettings().getWorldCollisionMode();
         state.entityChunkBoundaryMode = settings.getWorldCollisionSettings().getEntityChunkBoundaryMode();
         state.worldCollisionRadius = settings.getWorldCollisionSettings().getWorldCollisionRadius();
         state.worldCollisionBodyRadius = settings.getWorldCollisionSettings().getWorldCollisionBodyRadius();
         state.worldCollisionTtlTicks = settings.getWorldCollisionSettings().getWorldCollisionTtlTicks();
+        state.nativeVoxelTerrainEnabled = settings.getWorldCollisionSettings().isNativeVoxelTerrainEnabled();
         state.visualFullSyncRadius = settings.getVisualSyncSettings().getVisualFullSyncRadius();
         state.visualMaxSyncRadius = settings.getVisualSyncSettings().getVisualMaxSyncRadius();
         state.visualFarSyncCutoffEnabled = settings.getVisualSyncSettings().isVisualFarSyncCutoffEnabled();
@@ -475,6 +484,7 @@ public class PersistentPhysicsSpaceState {
         settings.getWorldCollisionSettings().setWorldCollisionRadius(worldCollisionRadius);
         settings.getWorldCollisionSettings().setWorldCollisionBodyRadius(worldCollisionBodyRadius);
         settings.getWorldCollisionSettings().setWorldCollisionTtlTicks(worldCollisionTtlTicks);
+        settings.getWorldCollisionSettings().setNativeVoxelTerrainEnabled(nativeVoxelTerrainEnabled);
         settings.getVisualSyncSettings().setVisualSyncRadii(visualFullSyncRadius, visualMaxSyncRadius);
         settings.getVisualSyncSettings().setVisualFarSyncCutoffEnabled(visualFarSyncCutoffEnabled);
         settings.getVisualSyncSettings().setVisualMidSyncIntervalTicks(visualMidSyncIntervalTicks);
@@ -542,6 +552,7 @@ public class PersistentPhysicsSpaceState {
         copy.worldCollisionRadius = worldCollisionRadius;
         copy.worldCollisionBodyRadius = worldCollisionBodyRadius;
         copy.worldCollisionTtlTicks = worldCollisionTtlTicks;
+        copy.nativeVoxelTerrainEnabled = nativeVoxelTerrainEnabled;
         copy.visualFullSyncRadius = visualFullSyncRadius;
         copy.visualMaxSyncRadius = visualMaxSyncRadius;
         copy.visualFarSyncCutoffEnabled = visualFarSyncCutoffEnabled;

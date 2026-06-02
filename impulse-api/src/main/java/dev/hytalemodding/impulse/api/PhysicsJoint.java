@@ -10,6 +10,7 @@ import org.joml.Vector3f;
  * Axis is only meaningful for hinge and slider joints.
  * Limits and motor controls are mainly for hinge and slider joints.
  */
+@Deprecated(forRemoval = true)
 public interface PhysicsJoint {
 
     @Nonnull

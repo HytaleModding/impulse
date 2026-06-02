@@ -6,6 +6,7 @@ import org.joml.Vector3f;
 /**
  * Sink for copied backend events emitted into a bounded post-step batch.
  */
+@Deprecated(forRemoval = true)
 public interface PhysicsBackendEventSink {
 
     int capacity();

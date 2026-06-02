@@ -11,8 +11,8 @@ import com.hypixel.hytale.server.core.universe.world.World;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import dev.hytalemodding.impulse.api.BackendId;
 import dev.hytalemodding.impulse.api.Impulse;
-import dev.hytalemodding.impulse.api.PhysicsBackend;
 import dev.hytalemodding.impulse.api.SpaceId;
+import dev.hytalemodding.impulse.api.runtime.PhysicsBackendRuntimeProvider;
 import dev.hytalemodding.impulse.core.ImpulsePlugin;
 import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyRegistrationView;
 import dev.hytalemodding.impulse.core.plugin.resources.PhysicsWorldResource;
@@ -261,8 +261,8 @@ public class SpaceCommand extends AbstractCommandCollection {
     @Nonnull
     private static String availableBackendIds() {
         List<String> backendIds = new ArrayList<>();
-        for (PhysicsBackend backend : Impulse.getBackends()) {
-            backendIds.add(backend.getId().value());
+        for (PhysicsBackendRuntimeProvider provider : Impulse.getRuntimeProviders()) {
+            backendIds.add(provider.getId().value());
         }
         backendIds.sort(String::compareTo);
         return backendIds.isEmpty() ? "<none>" : String.join(", ", backendIds);

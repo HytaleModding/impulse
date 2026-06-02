@@ -5,11 +5,8 @@ import com.hypixel.hytale.math.util.ChunkUtil;
 import com.hypixel.hytale.server.core.modules.debug.DebugUtils;
 import com.hypixel.hytale.server.core.universe.PlayerRef;
 import dev.hytalemodding.impulse.api.PhysicsAxis;
-import dev.hytalemodding.impulse.api.PhysicsBody;
 import dev.hytalemodding.impulse.api.PhysicsBodySnapshot;
 import dev.hytalemodding.impulse.api.PhysicsBodyType;
-import dev.hytalemodding.impulse.api.PhysicsContact;
-import dev.hytalemodding.impulse.api.PhysicsJoint;
 import dev.hytalemodding.impulse.core.internal.simulation.PhysicsDebugContactView;
 import dev.hytalemodding.impulse.core.internal.simulation.PhysicsDebugJointView;
 import dev.hytalemodding.impulse.core.internal.voxel.SectionCollisionGeometry.BoxCollider;
@@ -92,12 +89,6 @@ final class PhysicsDebugRenderer {
     }
 
     static void renderContact(@Nonnull Collection<PlayerRef> viewers,
-        @Nonnull PhysicsContact contact,
-        float time) {
-        renderContact(viewers, captureContact(contact), time);
-    }
-
-    static void renderContact(@Nonnull Collection<PlayerRef> viewers,
         @Nonnull ContactDebugPrimitive primitive,
         float time) {
         Vector3d point = primitive.point();
@@ -145,25 +136,6 @@ final class PhysicsDebugRenderer {
                     VECTOR_FLAGS);
             }
         }
-    }
-
-    @Nonnull
-    static ContactDebugPrimitive captureContact(@Nonnull PhysicsContact contact) {
-        Vector3d point = toVector3d(contact.pointOnB());
-        Vector3d normal = toVector3d(contact.normalOnB());
-        if (normal.lengthSquared() > 0.0) {
-            double magnitude = Math.max(CONTACT_NORMAL_SCALE, Math.abs(contact.impulse()) * 0.05);
-            normal.normalize().mul(magnitude);
-        } else {
-            normal = null;
-        }
-        return new ContactDebugPrimitive(point, normal);
-    }
-
-    static void renderJoint(@Nonnull Collection<PlayerRef> viewers,
-        @Nonnull PhysicsJoint joint,
-        float time) {
-        renderJoint(viewers, captureJoint(joint), time);
     }
 
     static void renderJoint(@Nonnull Collection<PlayerRef> viewers,
@@ -246,20 +218,6 @@ final class PhysicsDebugRenderer {
                     VECTOR_FLAGS);
             }
         }
-    }
-
-    @Nonnull
-    static JointDebugPrimitive captureJoint(@Nonnull PhysicsJoint joint) {
-        Vector3d anchorA = worldAnchor(joint.getBodyA(), joint.getAnchorA());
-        Vector3d anchorB = worldAnchor(joint.getBodyB(), joint.getAnchorB());
-        Vector3d worldAxis = null;
-        Vector3f axis = joint.getAxis();
-        if (axis != null && axis.lengthSquared() > 0f) {
-            worldAxis = toVector3d(axis).normalize().mul(0.9);
-            Quaterniond bodyRotation = toQuaterniond(joint.getBodyA().getRotation());
-            bodyRotation.transform(worldAxis);
-        }
-        return new JointDebugPrimitive(anchorA, anchorB, worldAxis);
     }
 
     static void renderRay(@Nonnull Collection<PlayerRef> viewers,
@@ -529,25 +487,6 @@ final class PhysicsDebugRenderer {
             direction.mul(MAX_ARROW_LENGTH / length);
         }
         return direction;
-    }
-
-    @Nonnull
-    private static Vector3d worldAnchor(@Nonnull PhysicsBody body, @Nonnull Vector3f localAnchor) {
-        Vector3d anchor = new Vector3d(localAnchor.x, localAnchor.y, localAnchor.z);
-        Quaterniond rotation = toQuaterniond(body.getRotation());
-        rotation.transform(anchor);
-        Vector3f position = body.getPosition();
-        return anchor.add(position.x, position.y, position.z);
-    }
-
-    @Nonnull
-    private static Vector3d toVector3d(@Nonnull Vector3f vector) {
-        return new Vector3d(vector.x, vector.y, vector.z);
-    }
-
-    @Nonnull
-    private static Quaterniond toQuaterniond(@Nonnull org.joml.Quaternionf quaternion) {
-        return new Quaterniond(quaternion.x, quaternion.y, quaternion.z, quaternion.w);
     }
 
     @Nonnull

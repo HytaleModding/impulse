@@ -20,15 +20,4 @@ public interface PhysicsCommandContext extends PhysicsCommandRecorder {
      */
     @Nonnull
     PhysicsCommandContext compose(@Nonnull PhysicsCommandRecipe recipe);
-
-    /**
-     * Records a scoped live-owner callback for operations not yet expressible as copied commands.
-     *
-     * <p>This is an escape hatch. The callback runs on the physics owner lane, is opaque to
-     * replay and compact event summaries, and must not retain the supplied owner access object
-     * after it returns.</p>
-     */
-    @Nonnull
-    PhysicsCommandContext liveOwnerTransaction(@Nonnull String operation,
-        @Nonnull PhysicsOwnerTransaction transaction);
 }

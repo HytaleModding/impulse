@@ -468,12 +468,6 @@ final class PublishedPhysicsBodyFrameStorage {
 
         @Nonnull
         @Override
-        public RigidBodyKey bodyId() {
-            return bodyKey();
-        }
-
-        @Nonnull
-        @Override
         public RigidBodyKey bodyKey() {
             return PublishedPhysicsBodyFrameStorage.this.bodyKey(index);
         }

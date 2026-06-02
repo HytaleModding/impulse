@@ -48,6 +48,11 @@ public class PhysicsWorldCollisionSettings {
         EntityChunkBoundaryMode.PAUSE_UNTIL_LOADED;
 
     /**
+     * Whether full-cube world sections should use native backend voxel terrain when available.
+     */
+    public static final boolean DEFAULT_NATIVE_VOXEL_TERRAIN_ENABLED = false;
+
+    /**
      * World collision mode for this space. Defaults to NONE so Impulse
      * is fully opt-in: no terrain collision is created unless explicitly requested.
      */
@@ -59,6 +64,11 @@ public class PhysicsWorldCollisionSettings {
      */
     @Nonnull
     private EntityChunkBoundaryMode entityChunkBoundaryMode = DEFAULT_ENTITY_CHUNK_BOUNDARY_MODE;
+
+    /**
+     * Enables native backend voxel terrain for full-cube world collision.
+     */
+    private boolean nativeVoxelTerrainEnabled = DEFAULT_NATIVE_VOXEL_TERRAIN_ENABLED;
 
     /**
      * Block radius around tracked player positions for streaming or manual build.
@@ -81,6 +91,7 @@ public class PhysicsWorldCollisionSettings {
     public PhysicsWorldCollisionSettings(@Nonnull PhysicsWorldCollisionSettings settings) {
         worldCollisionMode = settings.worldCollisionMode;
         entityChunkBoundaryMode = settings.entityChunkBoundaryMode;
+        nativeVoxelTerrainEnabled = settings.nativeVoxelTerrainEnabled;
         worldCollisionRadius = settings.worldCollisionRadius;
         worldCollisionBodyRadius = settings.worldCollisionBodyRadius;
         worldCollisionTtlTicks = settings.worldCollisionTtlTicks;
@@ -103,6 +114,14 @@ public class PhysicsWorldCollisionSettings {
     public void setEntityChunkBoundaryMode(
         @Nonnull EntityChunkBoundaryMode entityChunkBoundaryMode) {
         this.entityChunkBoundaryMode = entityChunkBoundaryMode;
+    }
+
+    public boolean isNativeVoxelTerrainEnabled() {
+        return nativeVoxelTerrainEnabled;
+    }
+
+    public void setNativeVoxelTerrainEnabled(boolean nativeVoxelTerrainEnabled) {
+        this.nativeVoxelTerrainEnabled = nativeVoxelTerrainEnabled;
     }
 
     public int getWorldCollisionRadius() {

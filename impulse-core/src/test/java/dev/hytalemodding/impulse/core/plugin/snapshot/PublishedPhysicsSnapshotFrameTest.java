@@ -257,7 +257,7 @@ class PublishedPhysicsSnapshotFrameTest {
                 List.of(firstBody, secondBody))));
         List<RigidBodyKey> visited = new ArrayList<>();
 
-        frame.forEachBody(body -> visited.add(body.bodyId()));
+        frame.forEachBody(body -> visited.add(body.bodyKey()));
         return visited;
     }
 

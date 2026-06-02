@@ -14,9 +14,9 @@ public record PhysicsBodyActivationEvent(@Nonnull SpaceId spaceId,
                                          @Nonnull RigidBodyKey bodyKey) implements PhysicsFrameEvent {
 
     public PhysicsBodyActivationEvent {
-        spaceId = Objects.requireNonNull(spaceId, "spaceId");
-        phase = Objects.requireNonNull(phase, "phase");
-        bodyKey = Objects.requireNonNull(bodyKey, "bodyKey");
+        Objects.requireNonNull(spaceId, "spaceId");
+        Objects.requireNonNull(phase, "phase");
+        Objects.requireNonNull(bodyKey, "bodyKey");
     }
 
     @Nonnull

@@ -1,5 +1,8 @@
 package dev.hytalemodding.impulse.api;
 
+import dev.hytalemodding.impulse.api.runtime.PhysicsBackendRuntime;
+import dev.hytalemodding.impulse.api.runtime.PhysicsBackendRuntimeProvider;
+import dev.hytalemodding.impulse.api.runtime.legacy.LegacyPhysicsBackendRuntimeProvider;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
@@ -22,6 +25,9 @@ public final class Impulse {
 
     private static final Map<BackendId, PhysicsBackend> BACKENDS = new HashMap<>();
 
+    private static final Map<BackendId, PhysicsBackendRuntimeProvider> RUNTIME_PROVIDERS =
+        new HashMap<>();
+
     private static final Map<BackendId, Object> BACKEND_INIT_LOCKS = new HashMap<>();
 
     private static final Set<BackendId> INITIALIZED_BACKENDS = new HashSet<>();
@@ -34,15 +40,30 @@ public final class Impulse {
      * <p>
      * This method is thread-safe.
      */
+    @Deprecated(forRemoval = true)
     public static void registerBackend(@Nonnull PhysicsBackend backend) {
         synchronized (REGISTRY_LOCK) {
             BACKENDS.put(backend.getId(), backend);
+            RUNTIME_PROVIDERS.putIfAbsent(backend.getId(),
+                new LegacyPhysicsBackendRuntimeProvider(backend));
             BACKEND_INIT_LOCKS.computeIfAbsent(backend.getId(), ignored -> new Object());
             INITIALIZED_BACKENDS.remove(backend.getId());
         }
     }
 
+    /**
+     * Register or replace an id-only backend runtime provider.
+     */
+    public static void registerRuntimeProvider(@Nonnull PhysicsBackendRuntimeProvider provider) {
+        synchronized (REGISTRY_LOCK) {
+            RUNTIME_PROVIDERS.put(provider.getId(), provider);
+            BACKEND_INIT_LOCKS.computeIfAbsent(provider.getId(), ignored -> new Object());
+            INITIALIZED_BACKENDS.remove(provider.getId());
+        }
+    }
+
     @Nonnull
+    @Deprecated(forRemoval = true)
     public static Collection<PhysicsBackend> getBackends() {
         synchronized (REGISTRY_LOCK) {
             return Collections.unmodifiableCollection(new ArrayList<>(BACKENDS.values()));
@@ -50,6 +71,14 @@ public final class Impulse {
     }
 
     @Nonnull
+    public static Collection<PhysicsBackendRuntimeProvider> getRuntimeProviders() {
+        synchronized (REGISTRY_LOCK) {
+            return Collections.unmodifiableCollection(new ArrayList<>(RUNTIME_PROVIDERS.values()));
+        }
+    }
+
+    @Nonnull
+    @Deprecated(forRemoval = true)
     public static PhysicsBackend getBackend(@Nonnull BackendId backendId) {
         synchronized (REGISTRY_LOCK) {
             PhysicsBackend backend = BACKENDS.get(backendId);
@@ -60,6 +89,24 @@ public final class Impulse {
         }
     }
 
+    @Nonnull
+    public static PhysicsBackendRuntimeProvider getRuntimeProvider(@Nonnull BackendId backendId) {
+        synchronized (REGISTRY_LOCK) {
+            PhysicsBackendRuntimeProvider provider = RUNTIME_PROVIDERS.get(backendId);
+            if (provider == null) {
+                throw new IllegalStateException("No backend runtime provider registered with id: " + backendId);
+            }
+            return provider;
+        }
+    }
+
+    @Nonnull
+    public static PhysicsBackendRuntime createRuntime(@Nonnull BackendId backendId) {
+        PhysicsBackendRuntimeProvider provider = getRuntimeProvider(backendId);
+        ensureRuntimeProviderInitialized(backendId, provider);
+        return provider.createRuntime();
+    }
+
     /**
      * Create a space for the given backend id.
      *
@@ -67,6 +114,7 @@ public final class Impulse {
      * space is live backend state and must still be owned by one serialized physics owner lane.</p>
      */
     @Nonnull
+    @Deprecated(forRemoval = true)
     public static PhysicsSpace createSpace(@Nonnull BackendId backendId) {
         return createSpace(backendId, SpaceId.next());
     }
@@ -78,6 +126,7 @@ public final class Impulse {
      * space is live backend state and must still be owned by one serialized physics owner lane.</p>
      */
     @Nonnull
+    @Deprecated(forRemoval = true)
     public static PhysicsSpace createSpace(@Nonnull BackendId backendId,
         @Nonnull SpaceId spaceId) {
         PhysicsBackend backend = getBackend(backendId);
@@ -120,6 +169,39 @@ public final class Impulse {
                 INITIALIZED_BACKENDS.add(backendId);
             }
             LOGGER.log(Level.INFO, "Initialized physics backend " + backendId);
+        }
+    }
+
+    private static void ensureRuntimeProviderInitialized(@Nonnull BackendId backendId,
+        @Nonnull PhysicsBackendRuntimeProvider provider) {
+        Object initLock;
+        synchronized (REGISTRY_LOCK) {
+            if (INITIALIZED_BACKENDS.contains(backendId)) {
+                LOGGER.log(Level.FINEST,
+                    "Physics backend runtime " + backendId + " already initialized");
+                return;
+            }
+            initLock = BACKEND_INIT_LOCKS.computeIfAbsent(backendId, ignored -> new Object());
+        }
+
+        synchronized (initLock) {
+            synchronized (REGISTRY_LOCK) {
+                if (INITIALIZED_BACKENDS.contains(backendId)) {
+                    LOGGER.log(Level.FINEST,
+                        "Physics backend runtime " + backendId + " already initialized");
+                    return;
+                }
+            }
+
+            LOGGER.log(Level.FINE,
+                "Initializing physics backend runtime " + backendId + " on thread "
+                    + Thread.currentThread().getName());
+            provider.init();
+
+            synchronized (REGISTRY_LOCK) {
+                INITIALIZED_BACKENDS.add(backendId);
+            }
+            LOGGER.log(Level.INFO, "Initialized physics backend runtime " + backendId);
         }
     }
 }

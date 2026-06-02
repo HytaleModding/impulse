@@ -28,7 +28,6 @@ public final class RecordedPhysicsCommandBatch {
     private final int jointKeyReferenceCount;
     @Nullable
     private final JointKey firstJointKey;
-    private final int liveOwnerTransactionCount;
 
     RecordedPhysicsCommandBatch(@Nonnull PhysicsCommandMetadata metadata,
         long commandWorldEpoch,
@@ -43,7 +42,6 @@ public final class RecordedPhysicsCommandBatch {
         this.firstBodyKey = references.firstBodyKey();
         this.jointKeyReferenceCount = references.jointKeyReferenceCount();
         this.firstJointKey = references.firstJointKey();
-        this.liveOwnerTransactionCount = references.liveOwnerTransactionCount();
     }
 
     @Nonnull
@@ -111,7 +109,4 @@ public final class RecordedPhysicsCommandBatch {
         return firstJointKey;
     }
 
-    public int liveOwnerTransactionCount() {
-        return liveOwnerTransactionCount;
-    }
 }

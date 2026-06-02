@@ -19,6 +19,7 @@ import javax.annotation.Nonnull;
  *     {@link PhysicsSpace} remains serialized by its own owner lane.</li>
  * </ul>
  */
+@Deprecated(forRemoval = true)
 public interface PhysicsBackend {
 
     @Nonnull

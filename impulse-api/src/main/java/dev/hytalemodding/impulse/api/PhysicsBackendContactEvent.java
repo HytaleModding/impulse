@@ -7,6 +7,7 @@ import org.joml.Vector3f;
 /**
  * Copied contact event emitted by a backend after a completed step.
  */
+@Deprecated(forRemoval = true)
 public record PhysicsBackendContactEvent(@Nonnull PhysicsContactPhase phase,
                                          @Nonnull PhysicsBody bodyA,
                                          @Nonnull PhysicsBody bodyB,

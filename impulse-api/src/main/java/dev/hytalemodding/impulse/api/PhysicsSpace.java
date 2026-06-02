@@ -29,6 +29,7 @@ import org.joml.Vector3f;
  *     <li>If other threads need to interact, queue commands onto the owner lane.</li>
  * </ul>
  */
+@Deprecated(forRemoval = true)
 public interface PhysicsSpace {
 
     @Nonnull

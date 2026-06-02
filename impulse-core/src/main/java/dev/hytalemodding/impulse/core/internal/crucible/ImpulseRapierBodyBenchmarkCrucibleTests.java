@@ -10,7 +10,7 @@ import dev.hytalemodding.impulse.api.BackendId;
 import dev.hytalemodding.impulse.api.Impulse;
 import dev.hytalemodding.impulse.api.PhysicsBodyType;
 import dev.hytalemodding.impulse.api.PhysicsCollisionFilters;
-import dev.hytalemodding.impulse.api.PhysicsSpace;
+import dev.hytalemodding.impulse.api.SpaceId;
 import dev.hytalemodding.impulse.core.internal.components.PhysicsControlSessionComponent;
 import dev.hytalemodding.impulse.core.internal.resources.profiling.PhysicsRuntimeProfilingResource;
 import dev.hytalemodding.impulse.core.internal.resources.profiling.PhysicsRuntimeProfilingResource.StepSnapshot;
@@ -123,14 +123,14 @@ final class ImpulseRapierBodyBenchmarkCrucibleTests {
     }
 
     private static boolean rapierBackendAvailable() {
-        return Impulse.getBackends().stream()
-            .anyMatch(backend -> RAPIER_BACKEND_ID.equals(backend.getId()));
+        return Impulse.getRuntimeProviders().stream()
+            .anyMatch(provider -> RAPIER_BACKEND_ID.equals(provider.getId()));
     }
 
     @Nonnull
     private static List<String> availableBackendIds() {
-        return Impulse.getBackends().stream()
-            .map(backend -> backend.getId().value())
+        return Impulse.getRuntimeProviders().stream()
+            .map(provider -> provider.getId().value())
             .sorted()
             .toList();
     }
@@ -229,17 +229,17 @@ final class ImpulseRapierBodyBenchmarkCrucibleTests {
                 RAPIER_MIN_ISLAND_SIZE,
                 128);
             try {
-                PhysicsSpace space = physics.createLiveSpace(RAPIER_BACKEND_ID,
+                SpaceId spaceId = physics.createSpace(RAPIER_BACKEND_ID,
                     world.getName(),
                     settings);
-                return populateBenchmarkSpace(space, matrixCase);
+                return populateBenchmarkSpace(spaceId, matrixCase);
             } catch (RuntimeException exception) {
                 return CompletableFuture.completedFuture(
                     StartedCase.failed(exception.getMessage()));
             }
         }
 
-        private CompletionStage<StartedCase> populateBenchmarkSpace(@Nonnull PhysicsSpace space,
+        private CompletionStage<StartedCase> populateBenchmarkSpace(@Nonnull SpaceId spaceId,
             @Nonnull MatrixCase matrixCase) {
             BenchmarkLayout layout = BenchmarkLayout.flatGrid(matrixCase.count());
             RigidBodySpawnSettings groundSettings = RigidBodySpawnSettings.defaults()
@@ -255,14 +255,14 @@ final class ImpulseRapierBodyBenchmarkCrucibleTests {
                     2,
                     commands -> {
                         commands.spawnBody(RigidBodyKey.random(),
-                            body -> body.space(space.id())
+                            body -> body.space(spaceId)
                                 .plane(GROUND_Y)
                                 .type(PhysicsBodyType.STATIC)
                                 .settings(groundSettings)
                                 .temporary()
                                 .runtimeOnly());
                         commands.spawnBodies(matrixCase.count(),
-                            space.id(),
+                            spaceId,
                             PhysicsShapeSpec.box(0.48f, 0.48f, 0.48f),
                             1.0f,
                             PhysicsBodyType.DYNAMIC,
@@ -289,7 +289,7 @@ final class ImpulseRapierBodyBenchmarkCrucibleTests {
                                 + result.commandSequence()
                                 + " rejected: "
                                 + result.message()))
-                        .orElseGet(() -> StartedCase.started(space));
+                        .orElseGet(() -> StartedCase.started(spaceId));
                 });
         }
 
@@ -299,8 +299,8 @@ final class ImpulseRapierBodyBenchmarkCrucibleTests {
             if (!started.started()) {
                 return MatrixReport.failedPreflight(matrixCase, started.failureMessage());
             }
-            PhysicsSpace space = started.space();
-            if (space == null || physics.getSpace(space.id()) == null) {
+            SpaceId spaceId = started.spaceId();
+            if (spaceId == null || !physics.hasSpace(spaceId)) {
                 return MatrixReport.failedPreflight(matrixCase,
                     "space disappeared during benchmark");
             }
@@ -308,7 +308,7 @@ final class ImpulseRapierBodyBenchmarkCrucibleTests {
             StepSnapshot step = runtimeProfiling.getCumulativeStep();
             SyncSnapshot sync = runtimeProfiling.getCumulativeSync();
             Snapshot worldCollision = worldCollisionProfiling.getCumulativeSnapshot();
-            SpaceStats stats = SpaceStats.collect(physics, space);
+            SpaceStats stats = SpaceStats.collect(physics, spaceId);
             double elapsedSeconds = Math.max(0.001,
                 (System.nanoTime() - startedNanos) / 1_000_000_000.0);
             double observedTickRate = step.getTickSamples() / elapsedSeconds;
@@ -582,11 +582,11 @@ final class ImpulseRapierBodyBenchmarkCrucibleTests {
     }
 
     private record StartedCase(boolean started,
-                               @Nullable PhysicsSpace space,
+                               @Nullable SpaceId spaceId,
                                @Nonnull String failureMessage) {
 
-        private static StartedCase started(@Nonnull PhysicsSpace space) {
-            return new StartedCase(true, space, "");
+        private static StartedCase started(@Nonnull SpaceId spaceId) {
+            return new StartedCase(true, spaceId, "");
         }
 
         private static StartedCase failed(@Nullable String failureMessage) {
@@ -765,10 +765,10 @@ final class ImpulseRapierBodyBenchmarkCrucibleTests {
         private double maxDynamicBodyY = Double.NEGATIVE_INFINITY;
 
         private static SpaceStats collect(@Nonnull PhysicsWorldRuntimeResource physics,
-            @Nonnull PhysicsSpace space) {
-            BenchmarkSpaceStatsView view = physics.queryInternal(new BenchmarkSpaceStatsQuery(space.id(),
-                    GROUND_Y,
-                    BELOW_PLANE_TOLERANCE,
+            @Nonnull SpaceId spaceId) {
+            BenchmarkSpaceStatsView view = physics.queryInternal(new BenchmarkSpaceStatsQuery(spaceId,
+                GROUND_Y,
+                BELOW_PLANE_TOLERANCE,
                     BODY_WORLD_MIN_Y,
                     BODY_VOID_Y,
                     false))

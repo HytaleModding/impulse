@@ -5,6 +5,7 @@ import javax.annotation.Nonnull;
 /**
  * Optional backend capability for tuning solver cost versus stability.
  */
+@Deprecated(forRemoval = true)
 public interface PhysicsSolverTuningCapability extends PhysicsCapability {
 
     PhysicsCapabilityDescriptor DESCRIPTOR = new PhysicsCapabilityDescriptor(

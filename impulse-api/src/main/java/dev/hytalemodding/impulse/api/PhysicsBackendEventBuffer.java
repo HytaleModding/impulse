@@ -8,6 +8,7 @@ import javax.annotation.Nonnull;
 /**
  * Bounded in-memory backend event buffer for one or more completed backend steps.
  */
+@Deprecated(forRemoval = true)
 public final class PhysicsBackendEventBuffer implements PhysicsBackendEventSink {
 
     public static final int DEFAULT_CAPACITY = 1024;
