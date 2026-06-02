@@ -21,6 +21,7 @@ import dev.hytalemodding.impulse.api.capability.PhysicsContinuousCollisionCapabi
 import dev.hytalemodding.impulse.api.capability.PhysicsExtensionSettingsCapability;
 import dev.hytalemodding.impulse.api.capability.PhysicsSolverTuning;
 import dev.hytalemodding.impulse.api.capability.PhysicsSolverTuningCapability;
+import dev.hytalemodding.impulse.api.capability.PhysicsVoxelTerrainCapability;
 import dev.hytalemodding.impulse.api.runtime.BackendBodyIdSource;
 import dev.hytalemodding.impulse.api.runtime.BackendBodySnapshotSink;
 import dev.hytalemodding.impulse.api.runtime.BackendContactSink;
@@ -132,8 +133,7 @@ public final class LegacyPhysicsBackendRuntime implements PhysicsBackendRuntime 
 
     @Override
     public boolean supportsVoxelTerrain(int spaceId) {
-        requireSpace(spaceId);
-        return false;
+        return requireSpace(spaceId).space.getCapability(PhysicsVoxelTerrainCapability.class).isPresent();
     }
 
     @Override
@@ -149,8 +149,24 @@ public final class LegacyPhysicsBackendRuntime implements PhysicsBackendRuntime 
         float restitution,
         int collisionGroup,
         int collisionMask) {
-        requireSpace(spaceId);
-        throw new UnsupportedOperationException("Legacy backend runtime does not support voxel terrain");
+        Objects.requireNonNull(voxelCoordinates, "voxelCoordinates");
+        SpaceState state = requireSpace(spaceId);
+        PhysicsVoxelTerrainCapability capability = requireVoxelTerrainCapability(state);
+        PhysicsBody body = capability.createVoxelTerrain(voxelSizeX,
+            voxelSizeY,
+            voxelSizeZ,
+            voxelCoordinates);
+        body.setBodyType(PhysicsBodyType.STATIC);
+        body.setPosition(positionX, positionY, positionZ);
+        body.setFriction(friction);
+        body.setRestitution(restitution);
+        body.setCollisionFilter(collisionGroup, collisionMask);
+
+        long bodyId = nextBodyId++;
+        state.space.addBody(body);
+        state.bodiesById.put(bodyId, body);
+        state.bodyIdsByBody.put(body, bodyId);
+        return bodyId;
     }
 
     @Override
@@ -160,8 +176,13 @@ public final class LegacyPhysicsBackendRuntime implements PhysicsBackendRuntime 
         int shiftX,
         int shiftY,
         int shiftZ) {
-        requireSpace(spaceId);
-        throw new UnsupportedOperationException("Legacy backend runtime does not support voxel terrain stitching");
+        SpaceState state = requireSpace(spaceId);
+        PhysicsVoxelTerrainCapability capability = requireVoxelTerrainCapability(state);
+        capability.combineVoxelTerrains(requireBody(spaceId, bodyAId),
+            requireBody(spaceId, bodyBId),
+            shiftX,
+            shiftY,
+            shiftZ);
     }
 
     @Override
@@ -586,6 +607,12 @@ public final class LegacyPhysicsBackendRuntime implements PhysicsBackendRuntime 
             throw new IllegalArgumentException("Physics body id=" + bodyId + " is not registered in space " + spaceId);
         }
         return body;
+    }
+
+    @Nonnull
+    private static PhysicsVoxelTerrainCapability requireVoxelTerrainCapability(@Nonnull SpaceState state) {
+        return state.space.getCapability(PhysicsVoxelTerrainCapability.class)
+            .orElseThrow(() -> new UnsupportedOperationException("Legacy backend runtime does not support voxel terrain"));
     }
 
     @Nonnull

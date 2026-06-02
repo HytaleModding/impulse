@@ -21,6 +21,7 @@ import dev.hytalemodding.impulse.api.PhysicsContactPhase;
 import dev.hytalemodding.impulse.api.PhysicsRuntimeStats;
 import dev.hytalemodding.impulse.api.PhysicsSpace;
 import dev.hytalemodding.impulse.api.ShapeType;
+import dev.hytalemodding.impulse.api.SpaceId;
 import dev.hytalemodding.impulse.api.capability.PhysicsActivationTuning;
 import dev.hytalemodding.impulse.api.capability.PhysicsActivationTuningCapability;
 import dev.hytalemodding.impulse.api.capability.PhysicsBackendEventsCapability;
@@ -29,6 +30,7 @@ import dev.hytalemodding.impulse.api.capability.PhysicsContinuousCollisionCapabi
 import dev.hytalemodding.impulse.api.capability.PhysicsSolverTuning;
 import dev.hytalemodding.impulse.api.capability.PhysicsSolverTuningCapability;
 import dev.hytalemodding.impulse.api.capability.PhysicsVoxelTerrainCapability;
+import dev.hytalemodding.impulse.api.runtime.legacy.LegacyPhysicsBackendRuntime;
 import dev.hytalemodding.impulse.api.testsupport.PhysicsBackendContractTest;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -85,6 +87,50 @@ class RapierBackendContractTest extends PhysicsBackendContractTest {
         assertEquals(PhysicsBodyType.KINEMATIC, body.getBodyType());
         body.setKinematic(false);
         assertEquals(PhysicsBodyType.DYNAMIC, body.getBodyType());
+    }
+
+    @Test
+    void legacyRuntimeExposesRapierVoxelTerrainCapability() {
+        RapierBackend backend = new RapierBackend();
+        backend.init();
+        LegacyPhysicsBackendRuntime runtime = new LegacyPhysicsBackendRuntime(backend);
+        int spaceId = runtime.createSpace(new SpaceId(9101));
+        try {
+            assertTrue(runtime.supportsVoxelTerrain(spaceId));
+            long first = runtime.createVoxelTerrain(spaceId,
+                1.0f,
+                1.0f,
+                1.0f,
+                fullSectionVoxels(),
+                0.0f,
+                0.0f,
+                0.0f,
+                0.75f,
+                0.0f,
+                PhysicsCollisionFilters.TERRAIN,
+                PhysicsCollisionFilters.ALL);
+            long second = runtime.createVoxelTerrain(spaceId,
+                1.0f,
+                1.0f,
+                1.0f,
+                fullSectionVoxels(),
+                16.0f,
+                0.0f,
+                0.0f,
+                0.75f,
+                0.0f,
+                PhysicsCollisionFilters.TERRAIN,
+                PhysicsCollisionFilters.ALL);
+
+            assertTrue(runtime.containsBody(spaceId, first));
+            assertTrue(runtime.containsBody(spaceId, second));
+            assertEquals(2, runtime.bodyCount(spaceId));
+
+            runtime.combineVoxelTerrains(spaceId, first, second, 16, 0, 0);
+            runtime.step(spaceId, 1.0f / 60.0f);
+        } finally {
+            runtime.destroySpace(spaceId);
+        }
     }
 
     @Test
