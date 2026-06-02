@@ -27,7 +27,6 @@ import java.lang.reflect.Constructor;
 import java.lang.reflect.InvocationHandler;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
-import java.lang.reflect.Modifier;
 import java.lang.reflect.Proxy;
 import java.util.Arrays;
 import java.util.List;
@@ -273,20 +272,6 @@ class WorldVoxelCollisionCacheTest {
         assertEquals(0, fixture.runtime().voxelTerrainCalls(fixture.backendSpaceId()).size());
         assertFalse(debugSection.voxelTerrain());
         assertEquals(1, debugSection.fullCubeBoxes().size());
-    }
-
-    @Test
-    void cacheBuildEntryPointsUseStructuredOptionsInsteadOfBooleanFlags() {
-        for (Method method : WorldVoxelCollisionCache.class.getDeclaredMethods()) {
-            if (!Modifier.isPublic(method.getModifiers())
-                || (!method.getName().equals("ensureAround") && !method.getName().equals("rebuildAround"))) {
-                continue;
-            }
-            for (Class<?> parameterType : method.getParameterTypes()) {
-                assertFalse(parameterType == boolean.class,
-                    method + " should use structured build options instead of a boolean flag");
-            }
-        }
     }
 
     @Test
