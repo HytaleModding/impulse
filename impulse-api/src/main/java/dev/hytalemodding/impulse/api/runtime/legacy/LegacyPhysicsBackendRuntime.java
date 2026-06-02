@@ -131,6 +131,40 @@ public final class LegacyPhysicsBackendRuntime implements PhysicsBackendRuntime 
     }
 
     @Override
+    public boolean supportsVoxelTerrain(int spaceId) {
+        requireSpace(spaceId);
+        return false;
+    }
+
+    @Override
+    public long createVoxelTerrain(int spaceId,
+        float voxelSizeX,
+        float voxelSizeY,
+        float voxelSizeZ,
+        @Nonnull int[] voxelCoordinates,
+        float positionX,
+        float positionY,
+        float positionZ,
+        float friction,
+        float restitution,
+        int collisionGroup,
+        int collisionMask) {
+        requireSpace(spaceId);
+        throw new UnsupportedOperationException("Legacy backend runtime does not support voxel terrain");
+    }
+
+    @Override
+    public void combineVoxelTerrains(int spaceId,
+        long bodyAId,
+        long bodyBId,
+        int shiftX,
+        int shiftY,
+        int shiftZ) {
+        requireSpace(spaceId);
+        throw new UnsupportedOperationException("Legacy backend runtime does not support voxel terrain stitching");
+    }
+
+    @Override
     public void removeBody(int spaceId, long bodyId) {
         SpaceState state = requireSpace(spaceId);
         PhysicsBody body = state.bodiesById.remove(bodyId);
