@@ -8,12 +8,20 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import com.hypixel.hytale.codec.ExtraInfo;
 import com.hypixel.hytale.codec.util.RawJsonReader;
 import com.hypixel.hytale.server.core.util.BsonUtil;
+import dev.hytalemodding.impulse.api.Impulse;
+import dev.hytalemodding.impulse.api.PhysicsAxis;
 import dev.hytalemodding.impulse.api.PhysicsBody;
+import dev.hytalemodding.impulse.api.PhysicsBodySnapshot;
+import dev.hytalemodding.impulse.api.PhysicsBodyType;
 import dev.hytalemodding.impulse.api.PhysicsJointType;
 import dev.hytalemodding.impulse.api.PhysicsSpace;
 import dev.hytalemodding.impulse.api.ShapeType;
 import dev.hytalemodding.impulse.api.SpaceId;
 import dev.hytalemodding.impulse.api.testsupport.FakePhysicsBackend;
+import dev.hytalemodding.impulse.core.internal.resources.BackendBodyHandle;
+import dev.hytalemodding.impulse.core.internal.resources.PhysicsSpaceBinding;
+import dev.hytalemodding.impulse.core.internal.resources.body.PhysicsBodySnapshots;
+import dev.hytalemodding.impulse.core.internal.testsupport.LegacyLiveHandleTestResource;
 import dev.hytalemodding.impulse.core.plugin.body.RigidBodyKey;
 import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyKind;
 import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyPersistenceMode;
@@ -25,12 +33,15 @@ import dev.hytalemodding.impulse.core.plugin.settings.PhysicsStepSchedulingMode;
 import dev.hytalemodding.impulse.core.plugin.settings.PhysicsWorldSettings;
 import java.util.UUID;
 import java.util.concurrent.atomic.AtomicInteger;
+import javax.annotation.Nonnull;
 import org.bson.BsonBinary;
 import org.bson.BsonDocument;
 import org.bson.BsonDouble;
 import org.bson.BsonInt32;
 import org.bson.BsonNull;
 import org.bson.BsonString;
+import org.joml.Quaternionf;
+import org.joml.Vector3f;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.function.Executable;
@@ -43,9 +54,8 @@ class PersistentPhysicsCodecValidationTest {
     void spaceStateCodecValidatorChecksCrossFieldSettingsAfterDecode() {
         PhysicsSpaceSettings settings = PhysicsSpaceSettings.defaults();
         settings.getVisualSyncSettings().setVisualSyncRadii(64, 128);
-        PhysicsSpace space = new FakePhysicsBackend("test:space-codec-validation-"
-            + BACKEND_COUNTER.incrementAndGet()).createSpace();
-        BsonDocument encoded = encodeSpace(PersistentPhysicsSpaceState.from(space, settings));
+        SpaceFixture fixture = spaceFixture("test:space-codec-validation-", settings);
+        BsonDocument encoded = encodeSpace(PersistentPhysicsSpaceState.from(fixture.binding(), settings));
         encoded.put("VisualFullSyncRadius", new BsonInt32(128));
         encoded.put("VisualMaxSyncRadius", new BsonInt32(64));
 
@@ -202,25 +212,17 @@ class PersistentPhysicsCodecValidationTest {
 
     @Test
     void bodyStateCaptureRejectsMissingSpaceId() {
-        PhysicsBody body = new FakePhysicsBackend("test:missing-body-space-"
-            + BACKEND_COUNTER.incrementAndGet())
-            .createSpace()
-            .createBox(0.5f, 0.75f, 1.0f, 1.0f);
         PersistentPhysicsBodyState state = new PersistentPhysicsBodyState();
 
-        assertThrows(NullPointerException.class, () -> state.updateFromBody(body, null));
+        assertThrows(NullPointerException.class, () -> state.updateFromSnapshot(boxSnapshot(0.0f), null));
     }
 
     @Test
     void bodyStateCaptureRejectsInvalidSpaceId() {
-        PhysicsBody body = new FakePhysicsBackend("test:invalid-body-space-"
-            + BACKEND_COUNTER.incrementAndGet())
-            .createSpace()
-            .createBox(0.5f, 0.75f, 1.0f, 1.0f);
         PersistentPhysicsBodyState state = new PersistentPhysicsBodyState();
 
         IllegalArgumentException exception = assertThrows(IllegalArgumentException.class,
-            () -> state.updateFromBody(body, new SpaceId(0)));
+            () -> state.updateFromSnapshot(boxSnapshot(0.0f), new SpaceId(0)));
 
         assertEquals("Persistent body state requires a positive explicit space id",
             exception.getMessage());
@@ -277,18 +279,19 @@ class PersistentPhysicsCodecValidationTest {
 
         PersistentPhysicsWorldResource decoded = PersistentPhysicsWorldResource.CODEC
             .decode(encodeWorld(resource), new ExtraInfo());
-        PhysicsSpace restoreSpace = new FakePhysicsBackend("test:plane-restore-"
-            + BACKEND_COUNTER.incrementAndGet()).createSpace();
+        SpaceFixture restore = spaceFixture("test:plane-restore-", PhysicsSpaceSettings.defaults());
 
         Assertions.assertNotNull(decoded);
         assertEquals(1, decoded.getBodyCount());
         PersistentPhysicsBodyState decodedBody = decoded.getBodies()[0];
         assertEquals(12.0f, decodedBody.getPosition().y, 0.0001f);
-        PhysicsBody restored = decodedBody.createBody(restoreSpace);
-        decodedBody.applyToBody(restored);
+        BackendBodyHandle restoredBodyHandle = decodedBody.createBackendBody(restore.binding());
+        decodedBody.applyToBody(restore.binding(), restoredBodyHandle);
+        PhysicsBodySnapshot restored = PhysicsBodySnapshots.read(restore.binding(), restoredBodyHandle.value());
 
-        assertEquals(ShapeType.PLANE, restored.getShapeType());
-        assertEquals(12.0f, restored.getPosition().y, 0.0001f);
+        Assertions.assertNotNull(restored);
+        assertEquals(ShapeType.PLANE, restored.shapeType());
+        assertEquals(12.0f, restored.positionY(), 0.0001f);
     }
 
     @Test
@@ -386,9 +389,9 @@ class PersistentPhysicsCodecValidationTest {
     }
 
     private static BsonDocument encodedSpaceState() {
-        PhysicsSpace space = new FakePhysicsBackend("test:space-codec-validation-"
-            + BACKEND_COUNTER.incrementAndGet()).createSpace();
-        return encodeSpace(PersistentPhysicsSpaceState.from(space, PhysicsSpaceSettings.defaults()));
+        PhysicsSpaceSettings settings = PhysicsSpaceSettings.defaults();
+        SpaceFixture fixture = spaceFixture("test:space-codec-validation-", settings);
+        return encodeSpace(PersistentPhysicsSpaceState.from(fixture.binding(), settings));
     }
 
     private static BsonDocument encodeSpace(PersistentPhysicsSpaceState state) {
@@ -418,38 +421,85 @@ class PersistentPhysicsCodecValidationTest {
     }
 
     private static PersistentPhysicsBodyState persistentBodyState() {
-        PhysicsSpace space = new FakePhysicsBackend("test:body-state-block-"
-            + BACKEND_COUNTER.incrementAndGet()).createSpace();
-        PhysicsBody body = space.createBox(0.5f, 0.75f, 1.0f, 1.0f);
         RigidBodyKey bodyId = RigidBodyKey.of(UUID.fromString("00000000-0000-0000-0000-000000000001"));
         PhysicsBodyRegistration registration = new PhysicsBodyRegistration(
             bodyId,
-            body,
-            space.id(),
+            new BackendBodyHandle(1L),
+            new SpaceId(1),
             PhysicsBodyKind.BODY,
             PhysicsBodyPersistenceMode.PERSISTENT);
-        return PersistentPhysicsBodyState.from(registration);
+        return PersistentPhysicsBodyState.from(registration, boxSnapshot(0.0f));
     }
 
     private static PersistentPhysicsBodyState persistentPlaneBodyState(float groundY) {
-        PhysicsSpace space = new FakePhysicsBackend("test:plane-body-state-block-"
-            + BACKEND_COUNTER.incrementAndGet()).createSpace();
-        PhysicsBody body = space.createStaticPlane(groundY);
         RigidBodyKey bodyId = RigidBodyKey.of(UUID.fromString("00000000-0000-0000-0000-000000000003"));
         PhysicsBodyRegistration registration = new PhysicsBodyRegistration(
             bodyId,
-            body,
-            space.id(),
+            new BackendBodyHandle(1L),
+            new SpaceId(1),
             PhysicsBodyKind.BODY,
             PhysicsBodyPersistenceMode.PERSISTENT);
-        return PersistentPhysicsBodyState.from(registration);
+        return PersistentPhysicsBodyState.from(registration, planeSnapshot(groundY));
+    }
+
+    @Nonnull
+    private static SpaceFixture spaceFixture(@Nonnull String backendPrefix,
+        @Nonnull PhysicsSpaceSettings settings) {
+        FakePhysicsBackend backend = new FakePhysicsBackend(backendPrefix + BACKEND_COUNTER.incrementAndGet());
+        Impulse.registerBackend(backend);
+        LegacyLiveHandleTestResource resource = new LegacyLiveHandleTestResource();
+        PhysicsSpace space = resource.createLiveSpace(backend.getId(), "test-world", settings);
+        return new SpaceFixture(resource, space);
+    }
+
+    @Nonnull
+    private static PhysicsBodySnapshot boxSnapshot(float y) {
+        return new PhysicsBodySnapshot(new Vector3f(0.0f, y, 0.0f),
+            new Quaternionf(),
+            new Vector3f(),
+            new Vector3f(),
+            PhysicsBodyType.DYNAMIC,
+            false,
+            false,
+            0.0f,
+            ShapeType.BOX,
+            new Vector3f(0.5f, 0.75f, 1.0f),
+            0.0f,
+            0.0f,
+            PhysicsAxis.Y);
+    }
+
+    @Nonnull
+    private static PhysicsBodySnapshot planeSnapshot(float groundY) {
+        return new PhysicsBodySnapshot(new Vector3f(0.0f, groundY, 0.0f),
+            new Quaternionf(),
+            new Vector3f(),
+            new Vector3f(),
+            PhysicsBodyType.STATIC,
+            false,
+            false,
+            0.0f,
+            ShapeType.PLANE,
+            null,
+            0.0f,
+            0.0f,
+            PhysicsAxis.Y);
+    }
+
+    private record SpaceFixture(@Nonnull LegacyLiveHandleTestResource resource,
+                                @Nonnull PhysicsSpace space) {
+
+        @Nonnull
+        private PhysicsSpaceBinding binding() {
+            return resource.requireSpaceBinding(space.id());
+        }
     }
 
     private static PersistentPhysicsJointState persistentJointState(int spaceId) {
         PersistentPhysicsJointState joint = new PersistentPhysicsJointState();
         joint.setSpaceId(spaceId);
-        joint.setBodyAId(RigidBodyKey.of(UUID.fromString("00000000-0000-0000-0000-000000000001")));
-        joint.setBodyBId(RigidBodyKey.of(UUID.fromString("00000000-0000-0000-0000-000000000002")));
+        joint.setBodyAKey(RigidBodyKey.of(UUID.fromString("00000000-0000-0000-0000-000000000001")));
+        joint.setBodyBKey(RigidBodyKey.of(UUID.fromString("00000000-0000-0000-0000-000000000002")));
         joint.setType(PhysicsJointType.FIXED);
         return joint;
     }

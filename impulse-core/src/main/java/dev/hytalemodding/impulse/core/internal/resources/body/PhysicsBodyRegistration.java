@@ -1,17 +1,17 @@
 package dev.hytalemodding.impulse.core.internal.resources.body;
 
-import dev.hytalemodding.impulse.api.PhysicsBody;
 import dev.hytalemodding.impulse.api.SpaceId;
+import dev.hytalemodding.impulse.core.internal.resources.BackendBodyHandle;
 import dev.hytalemodding.impulse.core.plugin.body.RigidBodyKey;
 import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyKind;
 import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyPersistenceMode;
 import javax.annotation.Nonnull;
 
 /**
- * Owner-lane registration for a live backend body.
+ * Owner-lane registration for a stable body key and backend-local body handle.
  */
-public record PhysicsBodyRegistration(@Nonnull RigidBodyKey id,
-    @Nonnull PhysicsBody body,
+public record PhysicsBodyRegistration(@Nonnull RigidBodyKey bodyKey,
+    @Nonnull BackendBodyHandle backendBodyHandle,
     @Nonnull SpaceId spaceId,
     @Nonnull PhysicsBodyKind kind,
     @Nonnull PhysicsBodyPersistenceMode persistenceMode) {

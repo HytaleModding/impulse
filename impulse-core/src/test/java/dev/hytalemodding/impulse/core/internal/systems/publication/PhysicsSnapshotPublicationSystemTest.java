@@ -35,7 +35,7 @@ import dev.hytalemodding.impulse.core.plugin.events.PhysicsEventFrame;
 import dev.hytalemodding.impulse.core.plugin.settings.PhysicsEventCollectionMode;
 import dev.hytalemodding.impulse.core.plugin.settings.PhysicsSpaceSettings;
 import dev.hytalemodding.impulse.core.plugin.settings.PhysicsStepMode;
-import dev.hytalemodding.impulse.core.internal.resources.PhysicsWorldRuntimeResource;
+import dev.hytalemodding.impulse.core.internal.testsupport.LegacyLiveHandleTestResource;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -66,7 +66,7 @@ class PhysicsSnapshotPublicationSystemTest {
     void completedOwnerStepPublishesSnapshotWithoutDrain() throws Exception {
         BackendId backendId = new BackendId("test:async-publication");
         Impulse.registerBackend(new FakePhysicsBackend(backendId));
-        PhysicsWorldRuntimeResource resource = new PhysicsWorldRuntimeResource();
+        LegacyLiveHandleTestResource resource = new LegacyLiveHandleTestResource();
         var settings = resource.getWorldSettings();
         settings.setStepMode(PhysicsStepMode.FIXED);
         settings.setSimulationSteps(1);
@@ -204,7 +204,7 @@ class PhysicsSnapshotPublicationSystemTest {
     void completedOwnerStepDoesNotRepublishAfterWorldMutation() throws Exception {
         BackendId backendId = new BackendId("test:stale-owner-publication");
         Impulse.registerBackend(new FakePhysicsBackend(backendId));
-        PhysicsWorldRuntimeResource resource = new PhysicsWorldRuntimeResource();
+        LegacyLiveHandleTestResource resource = new LegacyLiveHandleTestResource();
         PhysicsRuntimeProfilingResource profiling = new PhysicsRuntimeProfilingResource();
 
         try (TestPhysicsOwnerLane owner = new TestPhysicsOwnerLane()) {
@@ -249,7 +249,7 @@ class PhysicsSnapshotPublicationSystemTest {
     }
 
     private static PhysicsEventFrame publishWhenReady(PhysicsOwnerResource owner,
-        PhysicsWorldRuntimeResource resource,
+        LegacyLiveHandleTestResource resource,
         PhysicsRuntimeProfilingResource profiling) throws InterruptedException {
         long deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(2L);
         PhysicsEventFrame eventFrame = null;

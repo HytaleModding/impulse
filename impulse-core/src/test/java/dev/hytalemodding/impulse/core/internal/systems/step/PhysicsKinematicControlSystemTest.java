@@ -11,8 +11,7 @@ import dev.hytalemodding.impulse.api.PhysicsBody;
 import dev.hytalemodding.impulse.api.PhysicsJoint;
 import dev.hytalemodding.impulse.api.PhysicsSpace;
 import dev.hytalemodding.impulse.api.testsupport.FakePhysicsBackend;
-import dev.hytalemodding.impulse.core.internal.control.PhysicsControlJointResolver;
-import dev.hytalemodding.impulse.core.internal.resources.PhysicsWorldRuntimeResource;
+import dev.hytalemodding.impulse.core.internal.testsupport.LegacyLiveHandleTestResource;
 import dev.hytalemodding.impulse.core.internal.resources.owner.TestPhysicsOwnerLane;
 import dev.hytalemodding.impulse.core.internal.resources.owner.PhysicsOwnerSnapshot;
 import dev.hytalemodding.impulse.core.internal.systems.step.PhysicsKinematicControlSystem.ControlAnchorUpdate;
@@ -122,7 +121,7 @@ class PhysicsKinematicControlSystemTest {
         FakePhysicsBackend backend =
             new FakePhysicsBackend("test:control-pending-anchor-" + BACKEND_COUNTER.incrementAndGet());
         Impulse.registerBackend(backend);
-        PhysicsWorldRuntimeResource resource = new PhysicsWorldRuntimeResource();
+        LegacyLiveHandleTestResource resource = new LegacyLiveHandleTestResource();
         try (TestPhysicsOwnerLane owner = new TestPhysicsOwnerLane(4,
             Duration.ofSeconds(2L))) {
             owner.start("control-pending-anchor");
@@ -153,7 +152,7 @@ class PhysicsKinematicControlSystemTest {
         FakePhysicsBackend backend =
             new FakePhysicsBackend("test:control-joint-" + BACKEND_COUNTER.incrementAndGet());
         Impulse.registerBackend(backend);
-        PhysicsWorldRuntimeResource resource = new PhysicsWorldRuntimeResource();
+        LegacyLiveHandleTestResource resource = new LegacyLiveHandleTestResource();
         PhysicsSpace space = resource.createLiveSpace(backend.getId());
         PhysicsBody body = space.createBox(0.5f, 0.5f, 0.5f, 1.0f);
         PhysicsBody anchorBody = space.createSphere(0.1f, 1.0f);
@@ -169,11 +168,13 @@ class PhysicsKinematicControlSystemTest {
 
         assertEquals(1, space.jointCount());
 
-        boolean removed = resource.callOwner("remove control joint",
-            access -> PhysicsControlJointResolver.removeControlJoint(access,
-                space,
-                bodyId,
-                anchorBodyId));
+        boolean removed = resource.callOwner("remove control joint", () -> {
+            if (space.getJoints().isEmpty()) {
+                return false;
+            }
+            space.removeJoint(space.getJoints().getFirst());
+            return true;
+        });
         assertTrue(removed);
 
         assertEquals(0, space.jointCount());
@@ -184,7 +185,7 @@ class PhysicsKinematicControlSystemTest {
         FakePhysicsBackend backend =
             new FakePhysicsBackend("test:control-cleanup-" + BACKEND_COUNTER.incrementAndGet());
         Impulse.registerBackend(backend);
-        PhysicsWorldRuntimeResource resource = new PhysicsWorldRuntimeResource();
+        LegacyLiveHandleTestResource resource = new LegacyLiveHandleTestResource();
         PhysicsSpace space = resource.createLiveSpace(backend.getId());
         PhysicsBody body = space.createBox(0.5f, 0.5f, 0.5f, 1.0f);
         PhysicsBody anchorBody = space.createSphere(0.1f, 1.0f);
@@ -231,7 +232,7 @@ class PhysicsKinematicControlSystemTest {
         FakePhysicsBackend backend =
             new FakePhysicsBackend("test:control-cleanup-owner-" + BACKEND_COUNTER.incrementAndGet());
         Impulse.registerBackend(backend);
-        PhysicsWorldRuntimeResource resource = new PhysicsWorldRuntimeResource();
+        LegacyLiveHandleTestResource resource = new LegacyLiveHandleTestResource();
         PhysicsSpace space = resource.createLiveSpace(backend.getId());
         PhysicsBody body = space.createBox(0.5f, 0.5f, 0.5f, 1.0f);
         PhysicsBody anchorBody = space.createSphere(0.1f, 1.0f);

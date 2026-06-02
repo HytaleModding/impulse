@@ -34,7 +34,7 @@ import dev.hytalemodding.impulse.core.plugin.settings.PhysicsEventCollectionMode
 import dev.hytalemodding.impulse.core.plugin.settings.PhysicsStepMode;
 import dev.hytalemodding.impulse.core.plugin.settings.PhysicsSpaceSettings;
 import dev.hytalemodding.impulse.core.plugin.settings.PhysicsWorldSettings;
-import dev.hytalemodding.impulse.core.internal.resources.PhysicsWorldRuntimeResource;
+import dev.hytalemodding.impulse.core.internal.testsupport.LegacyLiveHandleTestResource;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
@@ -57,7 +57,7 @@ class PhysicsOwnerStepCommandTest {
     @Test
     void runsStepOnOwnerLaneAndPublishesProfiledSnapshot() throws Exception {
         CountingBackend backend = registerBackend(true);
-        PhysicsWorldRuntimeResource resource = new PhysicsWorldRuntimeResource();
+        LegacyLiveHandleTestResource resource = new LegacyLiveHandleTestResource();
         CountingSpace space = (CountingSpace) resource.createLiveSpace(backend.getId(),
             "owner-test",
             PhysicsSpaceSettings.defaults());
@@ -109,7 +109,7 @@ class PhysicsOwnerStepCommandTest {
     @Test
     void progressiveRefinementUsesMaxStepDtBudget() {
         CountingBackend backend = registerBackend(false);
-        PhysicsWorldRuntimeResource resource = new PhysicsWorldRuntimeResource();
+        LegacyLiveHandleTestResource resource = new LegacyLiveHandleTestResource();
         CountingSpace space = (CountingSpace) resource.createLiveSpace(backend.getId(),
             "owner-test",
             PhysicsSpaceSettings.defaults());
@@ -131,7 +131,7 @@ class PhysicsOwnerStepCommandTest {
     @Test
     void nonFiniteDtDoesNotReachBackendStep() {
         CountingBackend backend = registerBackend(false);
-        PhysicsWorldRuntimeResource resource = new PhysicsWorldRuntimeResource();
+        LegacyLiveHandleTestResource resource = new LegacyLiveHandleTestResource();
         CountingSpace space = (CountingSpace) resource.createLiveSpace(backend.getId(),
             "owner-test",
             PhysicsSpaceSettings.defaults());
@@ -147,7 +147,7 @@ class PhysicsOwnerStepCommandTest {
     @Test
     void adaptiveRefinementRaisesStepsForFastBodies() {
         CountingBackend backend = registerBackend(false);
-        PhysicsWorldRuntimeResource resource = new PhysicsWorldRuntimeResource();
+        LegacyLiveHandleTestResource resource = new LegacyLiveHandleTestResource();
         CountingSpace space = (CountingSpace) resource.createLiveSpace(backend.getId(),
             "owner-test",
             PhysicsSpaceSettings.defaults());
@@ -173,7 +173,7 @@ class PhysicsOwnerStepCommandTest {
     @Test
     void disabledEventCollectionStepsWithoutBackendEventSink() {
         CountingBackend backend = registerBackend(false);
-        PhysicsWorldRuntimeResource resource = new PhysicsWorldRuntimeResource();
+        LegacyLiveHandleTestResource resource = new LegacyLiveHandleTestResource();
         CountingSpace space = (CountingSpace) resource.createLiveSpace(backend.getId(),
             "owner-test",
             PhysicsSpaceSettings.defaults());
@@ -209,7 +209,7 @@ class PhysicsOwnerStepCommandTest {
     @Test
     void translatesBackendContactEventsToStableBodyKeysInStepFrame() {
         CountingBackend backend = registerBackend(false);
-        PhysicsWorldRuntimeResource resource = new PhysicsWorldRuntimeResource();
+        LegacyLiveHandleTestResource resource = new LegacyLiveHandleTestResource();
         CountingSpace space = (CountingSpace) resource.createLiveSpace(backend.getId(),
             "owner-test",
             PhysicsSpaceSettings.defaults());
@@ -256,7 +256,7 @@ class PhysicsOwnerStepCommandTest {
     @Test
     void ccdModeForcesAndRestoresOnlyOwnerAppliedOverrides() {
         CountingBackend backend = registerBackend(true);
-        PhysicsWorldRuntimeResource resource = new PhysicsWorldRuntimeResource();
+        LegacyLiveHandleTestResource resource = new LegacyLiveHandleTestResource();
         CountingSpace space = (CountingSpace) resource.createLiveSpace(backend.getId(),
             "owner-test",
             PhysicsSpaceSettings.defaults());
@@ -292,7 +292,7 @@ class PhysicsOwnerStepCommandTest {
     @Test
     void stepFailuresPublishSnapshotsAndRemainInspectable() throws Exception {
         CountingBackend backend = registerBackend(false);
-        PhysicsWorldRuntimeResource resource = new PhysicsWorldRuntimeResource();
+        LegacyLiveHandleTestResource resource = new LegacyLiveHandleTestResource();
         CountingSpace space = (CountingSpace) resource.createLiveSpace(backend.getId(),
             "owner-test",
             PhysicsSpaceSettings.defaults());
@@ -346,7 +346,7 @@ class PhysicsOwnerStepCommandTest {
         return backend;
     }
 
-    private static void configureWorldSettings(@Nonnull PhysicsWorldRuntimeResource resource,
+    private static void configureWorldSettings(@Nonnull LegacyLiveHandleTestResource resource,
         @Nonnull Consumer<PhysicsWorldSettings> configurator) {
         PhysicsWorldSettings settings = resource.getWorldSettings();
         configurator.accept(settings);
@@ -387,7 +387,7 @@ class PhysicsOwnerStepCommandTest {
         }
     }
 
-    private static final class FailingSnapshotWorldResource extends PhysicsWorldRuntimeResource {
+    private static final class FailingSnapshotWorldResource extends LegacyLiveHandleTestResource {
 
         @Nullable
         private RuntimeException snapshotFailure;
@@ -602,7 +602,7 @@ class PhysicsOwnerStepCommandTest {
         @Nonnull
         @Override
         public List<PhysicsContact> getContacts() {
-            return List.of();
+            return contactToEmit != null ? List.of(contactToEmit) : List.of();
         }
 
         @Nonnull

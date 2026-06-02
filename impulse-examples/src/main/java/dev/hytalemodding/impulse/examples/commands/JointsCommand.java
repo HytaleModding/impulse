@@ -81,12 +81,12 @@ public class JointsCommand extends AbstractAsyncPlayerCommand {
         @Nonnull PhysicsCommandRecorder commands,
         @Nonnull SpaceId spaceId,
         @Nonnull Vector3d origin) {
-        RigidBodyKey anchorId = spawnBox(pendingBodies, commands, spaceId, origin, 0.0f);
-        RigidBodyKey childId = spawnBox(pendingBodies, commands, spaceId,
+        RigidBodyKey anchorKey = spawnBox(pendingBodies, commands, spaceId, origin, 0.0f);
+        RigidBodyKey childKey = spawnBox(pendingBodies, commands, spaceId,
             new Vector3d(origin).add(0.0, -TOUCHING_SPACING, 0.0), 1.0f);
         commands.joint(JointKey.random(), joint -> joint
             .space(spaceId)
-            .bodies(anchorId, childId)
+            .bodies(anchorKey, childKey)
             .fixed(new Vector3f(0.0f, -HALF_SIZE, 0.0f),
                 new Vector3f(0.0f, HALF_SIZE, 0.0f)));
     }
@@ -95,13 +95,13 @@ public class JointsCommand extends AbstractAsyncPlayerCommand {
         @Nonnull PhysicsCommandRecorder commands,
         @Nonnull SpaceId spaceId,
         @Nonnull Vector3d origin) {
-        RigidBodyKey anchorId = spawnBox(pendingBodies, commands, spaceId, origin, 0.0f);
-        RigidBodyKey bobId = spawnBox(pendingBodies, commands, spaceId,
+        RigidBodyKey anchorKey = spawnBox(pendingBodies, commands, spaceId, origin, 0.0f);
+        RigidBodyKey bobKey = spawnBox(pendingBodies, commands, spaceId,
             new Vector3d(origin).add(0.0, -TOUCHING_SPACING, 0.0), 1.0f);
-        commands.setBodyVelocity(bobId, 1.5f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, true);
+        commands.setBodyVelocity(bobKey, 1.5f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, true);
         commands.joint(JointKey.random(), joint -> joint
             .space(spaceId)
-            .bodies(anchorId, bobId)
+            .bodies(anchorKey, bobKey)
             .point(new Vector3f(0.0f, -HALF_SIZE, 0.0f),
                 new Vector3f(0.0f, HALF_SIZE, 0.0f)));
     }
@@ -110,12 +110,12 @@ public class JointsCommand extends AbstractAsyncPlayerCommand {
         @Nonnull PhysicsCommandRecorder commands,
         @Nonnull SpaceId spaceId,
         @Nonnull Vector3d origin) {
-        RigidBodyKey anchorId = spawnBox(pendingBodies, commands, spaceId, origin, 0.0f);
-        RigidBodyKey armId = spawnBox(pendingBodies, commands, spaceId,
+        RigidBodyKey anchorKey = spawnBox(pendingBodies, commands, spaceId, origin, 0.0f);
+        RigidBodyKey armKey = spawnBox(pendingBodies, commands, spaceId,
             new Vector3d(origin).add(0.0, -TOUCHING_SPACING, 0.0), 1.0f);
         commands.joint(JointKey.random(), joint -> joint
             .space(spaceId)
-            .bodies(anchorId, armId)
+            .bodies(anchorKey, armKey)
             .hinge(new Vector3f(0.0f, -HALF_SIZE, 0.0f),
                 new Vector3f(0.0f, HALF_SIZE, 0.0f),
                 new Vector3f(0.0f, 0.0f, 1.0f))
@@ -127,12 +127,12 @@ public class JointsCommand extends AbstractAsyncPlayerCommand {
         @Nonnull PhysicsCommandRecorder commands,
         @Nonnull SpaceId spaceId,
         @Nonnull Vector3d origin) {
-        RigidBodyKey anchorId = spawnBox(pendingBodies, commands, spaceId, origin, 0.0f);
-        RigidBodyKey blockId = spawnBox(pendingBodies, commands, spaceId,
+        RigidBodyKey anchorKey = spawnBox(pendingBodies, commands, spaceId, origin, 0.0f);
+        RigidBodyKey blockKey = spawnBox(pendingBodies, commands, spaceId,
             new Vector3d(origin).add(TOUCHING_SPACING, 0.0, 0.0), 1.0f);
         commands.joint(JointKey.random(), joint -> joint
             .space(spaceId)
-            .bodies(anchorId, blockId)
+            .bodies(anchorKey, blockKey)
             .slider(new Vector3f(HALF_SIZE, 0.0f, 0.0f),
                 new Vector3f(-HALF_SIZE, 0.0f, 0.0f),
                 new Vector3f(1.0f, 0.0f, 0.0f))
@@ -144,14 +144,14 @@ public class JointsCommand extends AbstractAsyncPlayerCommand {
         @Nonnull PhysicsCommandRecorder commands,
         @Nonnull SpaceId spaceId,
         @Nonnull Vector3d origin) {
-        RigidBodyKey anchorId = spawnBox(pendingBodies, commands, spaceId, origin, 0.0f);
-        RigidBodyKey bobId = spawnBox(pendingBodies, commands, spaceId,
+        RigidBodyKey anchorKey = spawnBox(pendingBodies, commands, spaceId, origin, 0.0f);
+        RigidBodyKey bobKey = spawnBox(pendingBodies, commands, spaceId,
             new Vector3d(origin).add(0.0, -(TOUCHING_SPACING + SPRING_REST_LENGTH), 0.0),
             1.0f);
-        commands.setBodyVelocity(bobId, 1.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, true);
+        commands.setBodyVelocity(bobKey, 1.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, true);
         commands.joint(JointKey.random(), joint -> joint
             .space(spaceId)
-            .bodies(anchorId, bobId)
+            .bodies(anchorKey, bobKey)
             .spring(new Vector3f(0.0f, -HALF_SIZE, 0.0f),
                 new Vector3f(0.0f, HALF_SIZE, 0.0f),
                 SPRING_REST_LENGTH,

@@ -1,9 +1,8 @@
 package dev.hytalemodding.impulse.core.internal.resources.body;
 
-import dev.hytalemodding.impulse.api.PhysicsBody;
 import dev.hytalemodding.impulse.api.PhysicsBodySnapshot;
-import dev.hytalemodding.impulse.api.PhysicsSpace;
 import dev.hytalemodding.impulse.api.SpaceId;
+import dev.hytalemodding.impulse.core.internal.resources.PhysicsSpaceBinding;
 import dev.hytalemodding.impulse.core.plugin.body.RigidBodyKey;
 import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyKind;
 import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyPersistenceMode;
@@ -14,7 +13,6 @@ import it.unimi.dsi.fastutil.objects.Object2LongOpenHashMap;
 import it.unimi.dsi.fastutil.objects.Object2ObjectLinkedOpenHashMap;
 import java.util.Iterator;
 import java.util.Map;
-import java.util.NoSuchElementException;
 import java.util.function.Consumer;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
@@ -35,25 +33,23 @@ public final class PhysicsBodySnapshotStore {
     public record ApplyStats(int applied, int inserted, int removed) {
     }
 
-    public int refresh(@Nonnull Iterable<PhysicsSpace> spaces, @Nonnull PhysicsBodyRegistry bodyRegistry) {
+    public int refresh(@Nonnull Iterable<PhysicsSpaceBinding> spaces, @Nonnull PhysicsBodyRegistry bodyRegistry) {
         long generation = nextLivenessGeneration();
         MutableInt liveBodies = new MutableInt();
-        for (PhysicsSpace space : spaces) {
-            SpaceId spaceId = space.id();
+        for (PhysicsSpaceBinding space : spaces) {
+            SpaceId spaceId = space.spaceId();
             if (bodyRegistry.getRegistrationCount(spaceId) == 0) {
                 continue;
             }
 
-            space.snapshotBodies(new RegisteredSpaceBodies(space, bodyRegistry), body -> {
-                PhysicsBodyRegistration registration = bodyRegistry.getRegistration(body);
-                return registration != null ? snapshots.get(registration.id()) : null;
-            }, (body, snapshot) -> {
-                PhysicsBodyRegistration registration = bodyRegistry.getRegistration(body);
-                if (registration == null || !registration.spaceId().equals(spaceId)) {
-                    return;
+            Iterator<PhysicsBodyRegistration> registrations = bodyRegistry.registrationIterator(spaceId);
+            while (registrations.hasNext()) {
+                PhysicsBodyRegistration registration = registrations.next();
+                PhysicsBodySnapshot snapshot = PhysicsBodySnapshots.read(space, registration.backendBodyHandle().value());
+                if (snapshot == null) {
+                    continue;
                 }
-
-                RigidBodyKey bodyKey = registration.id();
+                RigidBodyKey bodyKey = registration.bodyKey();
                 markLive(bodyKey, generation, liveBodies);
                 PhysicsBodySnapshot previous = snapshots.get(bodyKey);
                 if (snapshot != previous) {
@@ -64,7 +60,7 @@ public final class PhysicsBodySnapshotStore {
                     spaceId,
                     registration.kind(),
                     registration.persistenceMode());
-            });
+            }
         }
 
         retainMarked(generation);
@@ -219,58 +215,6 @@ public final class PhysicsBodySnapshotStore {
 
         private long generation() {
             return generation;
-        }
-    }
-
-    private static final class RegisteredSpaceBodies implements Iterable<PhysicsBody> {
-
-        private final PhysicsSpace space;
-        private final PhysicsBodyRegistry bodyRegistry;
-
-        private RegisteredSpaceBodies(@Nonnull PhysicsSpace space,
-            @Nonnull PhysicsBodyRegistry bodyRegistry) {
-            this.space = space;
-            this.bodyRegistry = bodyRegistry;
-        }
-
-        @Nonnull
-        @Override
-        public Iterator<PhysicsBody> iterator() {
-            Iterator<PhysicsBodyRegistration> registrations =
-                bodyRegistry.registrationIterator(space.id());
-            return new Iterator<>() {
-
-                @Nullable
-                private PhysicsBody next;
-                private boolean nextReady;
-
-                @Override
-                public boolean hasNext() {
-                    advance();
-                    return nextReady;
-                }
-
-                @Override
-                public PhysicsBody next() {
-                    if (!hasNext()) {
-                        throw new NoSuchElementException();
-                    }
-                    PhysicsBody body = next;
-                    next = null;
-                    nextReady = false;
-                    return body;
-                }
-
-                private void advance() {
-                    while (!nextReady && registrations.hasNext()) {
-                        PhysicsBody candidate = registrations.next().body();
-                        if (space.containsBody(candidate)) {
-                            next = candidate;
-                            nextReady = true;
-                        }
-                    }
-                }
-            };
         }
     }
 

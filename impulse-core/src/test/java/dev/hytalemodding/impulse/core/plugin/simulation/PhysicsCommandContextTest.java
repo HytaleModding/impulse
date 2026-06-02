@@ -333,15 +333,4 @@ class PhysicsCommandContextTest {
         assertEquals(1, buffer.freezeInternal(15L).publicBatch().commandCount());
     }
 
-    @Test
-    void liveOwnerTransactionRecordsOpaqueAdvancedEscapeHatch() {
-        MutablePhysicsCommandContext buffer = new MutablePhysicsCommandContext(46L, 11L);
-
-        buffer.liveOwnerTransaction("diagnostic transaction", access -> {
-        });
-
-        PhysicsCommandBatch batch = buffer.freezeInternal(15L).publicBatch();
-
-        assertEquals(1, batch.commandCount());
-    }
 }

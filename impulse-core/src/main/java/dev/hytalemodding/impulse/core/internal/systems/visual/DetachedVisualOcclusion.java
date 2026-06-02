@@ -1,7 +1,7 @@
 package dev.hytalemodding.impulse.core.internal.systems.visual;
 
 import dev.hytalemodding.impulse.api.PhysicsBodySnapshot;
-import dev.hytalemodding.impulse.api.PhysicsSpace;
+import dev.hytalemodding.impulse.core.internal.resources.PhysicsSpaceBinding;
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsWorldRuntimeResource;
 import dev.hytalemodding.impulse.core.internal.resources.profiling.PhysicsRuntimeProfilingResource;
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsVisualRuntime;
@@ -29,7 +29,7 @@ final class DetachedVisualOcclusion {
     @Nonnull
     static Result resolve(@Nonnull PhysicsWorldRuntimeResource resource,
         @Nonnull RigidBodyKey bodyKey,
-        @Nullable PhysicsSpace space,
+        @Nullable PhysicsSpaceBinding space,
         @Nonnull PhysicsBodySnapshot snapshot,
         @Nonnull PhysicsSpaceSettings settings,
         @Nonnull List<VisualInterest> interests,
@@ -107,14 +107,14 @@ final class DetachedVisualOcclusion {
     }
 
     private static void submitRaycast(@Nonnull PhysicsWorldRuntimeResource resource,
-        @Nonnull PhysicsSpace space,
+        @Nonnull PhysicsSpaceBinding space,
         @Nonnull PhysicsVisualRuntime.BodyVisualInterestState state,
         @Nonnull InterestProbe probe,
         @Nonnull PhysicsBodySnapshot snapshot) {
         VisualInterest interest = Objects.requireNonNull(probe.interest(), "interest");
         Vector3f target = RAYCAST_TARGET.get()
             .set(snapshot.positionX(), snapshot.positionY(), snapshot.positionZ());
-        state.startPendingRaycast(resource.query(new RaycastClosestQuery(space.id(),
+        state.startPendingRaycast(resource.query(new RaycastClosestQuery(space.spaceId(),
             interest.position(),
             target)).completion());
     }

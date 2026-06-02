@@ -9,6 +9,7 @@ import javax.annotation.Nonnull;
  * <p>The setting values are strings so core can persist and forward unknown backend
  * settings without depending on backend-owned Java types.</p>
  */
+@Deprecated(forRemoval = true)
 public interface PhysicsExtensionSettingsCapability extends PhysicsCapability {
 
     PhysicsCapabilityDescriptor DESCRIPTOR = new PhysicsCapabilityDescriptor(

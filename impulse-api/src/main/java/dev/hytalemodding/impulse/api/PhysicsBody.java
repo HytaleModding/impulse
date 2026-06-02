@@ -12,6 +12,7 @@ import org.joml.Vector3f;
  * The API defines shared behavior for different backends, but backends may still differ in
  * solver details, contact reporting, and exact motion response.
  */
+@Deprecated(forRemoval = true)
 public interface PhysicsBody {
 
     void setPosition(float x, float y, float z);

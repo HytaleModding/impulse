@@ -1,26 +1,19 @@
 package dev.hytalemodding.impulse.core.internal.resources.owner;
 
-import dev.hytalemodding.impulse.api.PhysicsBody;
-import dev.hytalemodding.impulse.api.PhysicsBackendBodyActivationEvent;
-import dev.hytalemodding.impulse.api.PhysicsBackendContactEvent;
-import dev.hytalemodding.impulse.api.PhysicsBackendEvent;
-import dev.hytalemodding.impulse.api.PhysicsBackendEventBatch;
-import dev.hytalemodding.impulse.api.PhysicsBackendEventBuffer;
-import dev.hytalemodding.impulse.api.PhysicsBackendJointBreakEvent;
-import dev.hytalemodding.impulse.api.PhysicsSpace;
+import dev.hytalemodding.impulse.api.PhysicsBodySnapshot;
+import dev.hytalemodding.impulse.api.PhysicsContactPhase;
 import dev.hytalemodding.impulse.api.PhysicsStepPhaseStats;
 import dev.hytalemodding.impulse.api.ShapeType;
-import dev.hytalemodding.impulse.api.capability.PhysicsContinuousCollisionCapability;
+import dev.hytalemodding.impulse.core.internal.resources.PhysicsSpaceBinding;
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsWorldRuntimeResource;
+import dev.hytalemodding.impulse.core.internal.resources.body.PhysicsBodyRegistration;
+import dev.hytalemodding.impulse.core.internal.resources.body.PhysicsBodySnapshots;
 import dev.hytalemodding.impulse.core.internal.systems.step.PhysicsStepCountPolicy;
 import dev.hytalemodding.impulse.core.plugin.resources.PhysicsWorldResource;
 import dev.hytalemodding.impulse.core.plugin.body.RigidBodyKey;
-import dev.hytalemodding.impulse.core.plugin.events.PhysicsBodyActivationEvent;
 import dev.hytalemodding.impulse.core.plugin.events.PhysicsContactEvent;
 import dev.hytalemodding.impulse.core.plugin.events.PhysicsEventFrame;
 import dev.hytalemodding.impulse.core.plugin.events.PhysicsFrameEvent;
-import dev.hytalemodding.impulse.core.plugin.events.PhysicsJointBreakEvent;
-import dev.hytalemodding.impulse.core.plugin.joint.JointKey;
 import dev.hytalemodding.impulse.core.plugin.settings.PhysicsEventCollectionMode;
 import dev.hytalemodding.impulse.core.plugin.settings.PhysicsStepMode;
 import dev.hytalemodding.impulse.core.plugin.settings.PhysicsWorldSettings;
@@ -34,7 +27,7 @@ import org.joml.Vector3f;
 /**
  * Owner-lane execution of the world physics step.
  *
- * <p>{@link PhysicsSpace} mutations are owner-lane operations. Callers must
+ * <p>Runtime mutations are owner-lane operations. Callers must
  * only submit this command when the lane is the exclusive owner of backend
  * spaces and the resource until the result has been consumed.</p>
  *
@@ -206,8 +199,8 @@ public final class PhysicsOwnerStepCommand implements PhysicsOwnerCommand {
     }
 
     private static void resetStepPhaseStats(@Nonnull PhysicsWorldRuntimeResource resource) {
-        for (PhysicsSpace space : resource.iterateSpaces()) {
-            space.resetStepPhaseStats();
+        for (PhysicsSpaceBinding space : resource.iterateSpaceBindings()) {
+            space.runtime().resetStepPhaseStats(space.backendSpaceHandle().value());
         }
     }
 
@@ -215,8 +208,24 @@ public final class PhysicsOwnerStepCommand implements PhysicsOwnerCommand {
     private static PhysicsStepPhaseStats collectStepPhaseStats(
         @Nonnull PhysicsWorldRuntimeResource resource) {
         PhysicsStepPhaseStats stats = PhysicsStepPhaseStats.unavailable();
-        for (PhysicsSpace space : resource.iterateSpaces()) {
-            stats = stats.add(space.getStepPhaseStats());
+        for (PhysicsSpaceBinding space : resource.iterateSpaceBindings()) {
+            PhysicsStepPhaseStats[] spaceStats = { PhysicsStepPhaseStats.unavailable() };
+            space.runtime().stepPhaseStats(space.backendSpaceHandle().value(),
+                (stepNanos,
+                    broadPhaseNanos,
+                    narrowPhaseNanos,
+                    solverNanos,
+                    continuousCollisionNanos,
+                    snapshotNanos,
+                    available) -> spaceStats[0] = available
+                    ? PhysicsStepPhaseStats.available(stepNanos,
+                        broadPhaseNanos,
+                        narrowPhaseNanos,
+                        solverNanos,
+                        continuousCollisionNanos,
+                        snapshotNanos)
+                    : PhysicsStepPhaseStats.unavailable());
+            stats = stats.add(spaceStats[0]);
         }
         return stats;
     }
@@ -234,8 +243,15 @@ public final class PhysicsOwnerStepCommand implements PhysicsOwnerCommand {
             simulationSteps,
             maxStepDt);
         StepRisk risk = new StepRisk(sampledDt, minimumSteps);
-        for (PhysicsSpace space : resource.iterateSpaces()) {
-            space.forEachBody(risk::inspect);
+        for (PhysicsBodyRegistration registration : resource.getBodyRegistrations()) {
+            PhysicsSpaceBinding space = resource.getSpaceBinding(registration.spaceId());
+            if (space == null) {
+                continue;
+            }
+            PhysicsBodySnapshot snapshot = PhysicsBodySnapshots.read(space, registration.backendBodyHandle().value());
+            if (snapshot != null) {
+                risk.inspect(snapshot);
+            }
         }
         return risk.steps();
     }
@@ -248,104 +264,57 @@ public final class PhysicsOwnerStepCommand implements PhysicsOwnerCommand {
         @Nonnull StepBackendEvents backendEvents,
         boolean collectBackendEvents) {
         float stepDt = safeDt / steps;
-        PhysicsBackendEventBuffer eventBuffer = collectBackendEvents
-            ? new PhysicsBackendEventBuffer()
-            : null;
-        for (PhysicsSpace space : resource.iterateSpaces()) {
+        for (PhysicsSpaceBinding space : resource.iterateSpaceBindings()) {
             counters.spaceCount++;
             if (stepMode == PhysicsStepMode.CCD && supportsContinuousCollision(space)) {
                 forceContinuousCollision(resource, space);
             }
             for (int step = 0; step < steps; step++) {
-                if (eventBuffer == null) {
-                    space.step(stepDt);
-                } else {
-                    space.step(stepDt, eventBuffer);
-                    drainBackendEvents(resource, space, eventBuffer, backendEvents);
-                }
+                space.runtime().step(space.backendSpaceHandle().value(), stepDt);
                 counters.substeps++;
+                if (collectBackendEvents) {
+                    collectContactEvents(resource, space, backendEvents);
+                }
             }
         }
     }
 
-    private static void drainBackendEvents(@Nonnull PhysicsWorldRuntimeResource resource,
-        @Nonnull PhysicsSpace space,
-        @Nonnull PhysicsBackendEventBuffer eventBuffer,
+    private static void collectContactEvents(@Nonnull PhysicsWorldRuntimeResource resource,
+        @Nonnull PhysicsSpaceBinding space,
         @Nonnull StepBackendEvents backendEvents) {
-        PhysicsBackendEventBatch batch = eventBuffer.drain();
-        if (batch.isEmpty()) {
-            return;
-        }
-        backendEvents.droppedBackendEventCount += batch.droppedEventCount();
-        for (PhysicsBackendEvent event : batch.events()) {
-            translateBackendEvent(resource, space, event, backendEvents);
-        }
+        space.runtime().contacts(space.backendSpaceHandle().value(), (bodyAId,
+            bodyBId,
+            pointAX,
+            pointAY,
+            pointAZ,
+            pointBX,
+            pointBY,
+            pointBZ,
+            normalBX,
+            normalBY,
+            normalBZ,
+            distance,
+            impulse) -> {
+            RigidBodyKey bodyAKey = resource.getBodyKey(space.spaceId(), bodyAId);
+            RigidBodyKey bodyBKey = resource.getBodyKey(space.spaceId(), bodyBId);
+            if (bodyAKey == null || bodyBKey == null) {
+                backendEvents.droppedBackendEventCount++;
+                return;
+            }
+            backendEvents.physicsEvents.add(new PhysicsContactEvent(space.spaceId(),
+                PhysicsContactPhase.OBSERVED,
+                bodyAKey,
+                bodyBKey,
+                new Vector3f(pointAX, pointAY, pointAZ),
+                new Vector3f(pointBX, pointBY, pointBZ),
+                new Vector3f(normalBX, normalBY, normalBZ),
+                distance,
+                impulse));
+        });
     }
 
-    private static void translateBackendEvent(@Nonnull PhysicsWorldRuntimeResource resource,
-        @Nonnull PhysicsSpace space,
-        @Nonnull PhysicsBackendEvent event,
-        @Nonnull StepBackendEvents backendEvents) {
-        if (event instanceof PhysicsBackendContactEvent contactEvent) {
-            translateContactEvent(resource, space, contactEvent, backendEvents);
-        } else if (event instanceof PhysicsBackendBodyActivationEvent activationEvent) {
-            translateBodyActivationEvent(resource, space, activationEvent, backendEvents);
-        } else if (event instanceof PhysicsBackendJointBreakEvent jointBreakEvent) {
-            translateJointBreakEvent(resource, space, jointBreakEvent, backendEvents);
-        }
-    }
-
-    private static void translateContactEvent(@Nonnull PhysicsWorldRuntimeResource resource,
-        @Nonnull PhysicsSpace space,
-        @Nonnull PhysicsBackendContactEvent event,
-        @Nonnull StepBackendEvents backendEvents) {
-        RigidBodyKey bodyAKey = resource.getBodyKey(event.bodyA());
-        RigidBodyKey bodyBKey = resource.getBodyKey(event.bodyB());
-        if (bodyAKey == null || bodyBKey == null) {
-            return;
-        }
-        backendEvents.physicsEvents.add(new PhysicsContactEvent(space.id(),
-            event.phase(),
-            bodyAKey,
-            bodyBKey,
-            event.pointOnA(),
-            event.pointOnB(),
-            event.normalOnB(),
-            event.distance(),
-            event.impulse()));
-    }
-
-    private static void translateBodyActivationEvent(@Nonnull PhysicsWorldRuntimeResource resource,
-        @Nonnull PhysicsSpace space,
-        @Nonnull PhysicsBackendBodyActivationEvent event,
-        @Nonnull StepBackendEvents backendEvents) {
-        RigidBodyKey bodyKey = resource.getBodyKey(event.body());
-        if (bodyKey == null) {
-            return;
-        }
-        backendEvents.physicsEvents.add(new PhysicsBodyActivationEvent(space.id(),
-            event.phase(),
-            bodyKey));
-    }
-
-    private static void translateJointBreakEvent(@Nonnull PhysicsWorldRuntimeResource resource,
-        @Nonnull PhysicsSpace space,
-        @Nonnull PhysicsBackendJointBreakEvent event,
-        @Nonnull StepBackendEvents backendEvents) {
-        JointKey jointKey = resource.getJointKey(event.joint());
-        if (jointKey == null) {
-            return;
-        }
-        RigidBodyKey bodyAKey = resource.getBodyKey(event.joint().getBodyA());
-        RigidBodyKey bodyBKey = resource.getBodyKey(event.joint().getBodyB());
-        backendEvents.physicsEvents.add(new PhysicsJointBreakEvent(space.id(),
-            jointKey,
-            bodyAKey,
-            bodyBKey));
-    }
-
-    private static boolean supportsContinuousCollision(@Nonnull PhysicsSpace space) {
-        return space.getCapability(PhysicsContinuousCollisionCapability.class).isPresent();
+    private static boolean supportsContinuousCollision(@Nonnull PhysicsSpaceBinding space) {
+        return space.runtime().supportsContinuousCollision(space.backendSpaceHandle().value());
     }
 
     private static int requiredSteps(float travel, float safeTravel) {
@@ -355,44 +324,44 @@ public final class PhysicsOwnerStepCommand implements PhysicsOwnerCommand {
         return (int) Math.ceil(travel / safeTravel);
     }
 
-    private static float safeLinearTravel(@Nonnull PhysicsBody body) {
+    private static float safeLinearTravel(@Nonnull PhysicsBodySnapshot body) {
         return Math.clamp(
             approximateMinimumExtent(body) * SHAPE_TRAVEL_FRACTION,
             MIN_LINEAR_TRAVEL_PER_SUBSTEP,
             DEFAULT_LINEAR_TRAVEL_PER_SUBSTEP);
     }
 
-    private static float safeAngularTravel(@Nonnull PhysicsBody body) {
+    private static float safeAngularTravel(@Nonnull PhysicsBodySnapshot body) {
         return Math.clamp(
             approximateShapeRadius(body) * MAX_ANGULAR_RADIANS_PER_SUBSTEP,
             MIN_LINEAR_TRAVEL_PER_SUBSTEP,
             DEFAULT_LINEAR_TRAVEL_PER_SUBSTEP);
     }
 
-    private static float approximateMinimumExtent(@Nonnull PhysicsBody body) {
-        ShapeType shapeType = body.getShapeType();
+    private static float approximateMinimumExtent(@Nonnull PhysicsBodySnapshot body) {
+        ShapeType shapeType = body.shapeType();
         if (shapeType == ShapeType.BOX) {
-            Vector3f halfExtents = body.getBoxHalfExtents();
+            Vector3f halfExtents = body.boxHalfExtents();
             if (halfExtents != null) {
                 return Math.max(MIN_LINEAR_TRAVEL_PER_SUBSTEP,
                     Math.min(halfExtents.x, Math.min(halfExtents.y, halfExtents.z)));
             }
         }
         if (shapeType == ShapeType.SPHERE) {
-            return Math.max(MIN_LINEAR_TRAVEL_PER_SUBSTEP, body.getSphereRadius());
+            return Math.max(MIN_LINEAR_TRAVEL_PER_SUBSTEP, body.sphereRadius());
         }
         if (shapeType == ShapeType.CAPSULE
             || shapeType == ShapeType.CYLINDER
             || shapeType == ShapeType.CONE) {
-            return Math.max(MIN_LINEAR_TRAVEL_PER_SUBSTEP, body.getSphereRadius());
+            return Math.max(MIN_LINEAR_TRAVEL_PER_SUBSTEP, body.sphereRadius());
         }
         return DEFAULT_LINEAR_TRAVEL_PER_SUBSTEP;
     }
 
-    private static float approximateShapeRadius(@Nonnull PhysicsBody body) {
-        ShapeType shapeType = body.getShapeType();
+    private static float approximateShapeRadius(@Nonnull PhysicsBodySnapshot body) {
+        ShapeType shapeType = body.shapeType();
         if (shapeType == ShapeType.BOX) {
-            Vector3f halfExtents = body.getBoxHalfExtents();
+            Vector3f halfExtents = body.boxHalfExtents();
             if (halfExtents != null) {
                 return Math.max(MIN_LINEAR_TRAVEL_PER_SUBSTEP,
                     (float) Math.sqrt(halfExtents.x * halfExtents.x
@@ -401,31 +370,33 @@ public final class PhysicsOwnerStepCommand implements PhysicsOwnerCommand {
             }
         }
         if (shapeType == ShapeType.SPHERE) {
-            return Math.max(MIN_LINEAR_TRAVEL_PER_SUBSTEP, body.getSphereRadius());
+            return Math.max(MIN_LINEAR_TRAVEL_PER_SUBSTEP, body.sphereRadius());
         }
         if (shapeType == ShapeType.CAPSULE
             || shapeType == ShapeType.CYLINDER
             || shapeType == ShapeType.CONE) {
             return Math.max(MIN_LINEAR_TRAVEL_PER_SUBSTEP,
-                body.getSphereRadius() + body.getHalfHeight());
+                body.sphereRadius() + body.halfHeight());
         }
         return DEFAULT_LINEAR_TRAVEL_PER_SUBSTEP;
     }
 
     private static void forceContinuousCollision(@Nonnull PhysicsWorldRuntimeResource resource,
-        @Nonnull PhysicsSpace space) {
-        space.forEachBody(body -> {
-            if (!body.isDynamic() || body.isContinuousCollisionEnabled()) {
-                return;
+        @Nonnull PhysicsSpaceBinding space) {
+        for (PhysicsBodyRegistration registration : resource.getBodyRegistrations()) {
+            if (!registration.spaceId().equals(space.spaceId())) {
+                continue;
             }
-
-            RigidBodyKey bodyKey = resource.getBodyKey(body);
-            if (bodyKey == null) {
-                return;
+            PhysicsBodySnapshot snapshot = PhysicsBodySnapshots.read(space, registration.backendBodyHandle().value());
+            if (snapshot == null
+                || !snapshot.isDynamic()
+                || space.runtime().isBodyContinuousCollisionEnabled(space.backendSpaceHandle().value(),
+                    registration.backendBodyHandle().value())) {
+                continue;
             }
-            body.setContinuousCollisionEnabled(true);
-            resource.markContinuousCollisionForced(bodyKey);
-        });
+            space.runtime().setBodyContinuousCollision(space.backendSpaceHandle().value(), registration.backendBodyHandle().value(), true);
+            resource.markContinuousCollisionForced(registration.bodyKey());
+        }
     }
 
     private static void restoreForcedContinuousCollision(@Nonnull PhysicsWorldRuntimeResource resource) {
@@ -434,9 +405,13 @@ public final class PhysicsOwnerStepCommand implements PhysicsOwnerCommand {
         }
 
         resource.forEachForcedContinuousCollisionBody(bodyKey -> {
-            PhysicsBody body = resource.getBody(bodyKey);
-            if (body != null) {
-                body.setContinuousCollisionEnabled(false);
+            PhysicsBodyRegistration registration = resource.getRegistration(bodyKey);
+            if (registration != null) {
+                PhysicsSpaceBinding space = resource.getSpaceBinding(registration.spaceId());
+                if (space != null) {
+                    space.runtime()
+                        .setBodyContinuousCollision(space.backendSpaceHandle().value(), registration.backendBodyHandle().value(), false);
+                }
             }
         });
         resource.clearForcedContinuousCollisionBodies();
@@ -456,17 +431,17 @@ public final class PhysicsOwnerStepCommand implements PhysicsOwnerCommand {
             steps = minimumSteps;
         }
 
-        private void inspect(@Nonnull PhysicsBody body) {
+        private void inspect(@Nonnull PhysicsBodySnapshot body) {
             if (steps >= PhysicsWorldSettings.MAX_SIMULATION_STEPS
                 || body.isStatic()
-                || body.isSleeping()
-                || body.isSensor()
+                || body.sleeping()
+                || body.sensor()
                 || (!body.isDynamic() && !body.isKinematic())) {
                 return;
             }
 
-            body.getLinearVelocity(linearVelocity);
-            body.getAngularVelocity(angularVelocity);
+            body.copyLinearVelocityTo(linearVelocity);
+            body.copyAngularVelocityTo(angularVelocity);
             float linearTravel = linearVelocity.length() * dt;
             float angularSurfaceTravel = angularVelocity.length()
                 * approximateShapeRadius(body)

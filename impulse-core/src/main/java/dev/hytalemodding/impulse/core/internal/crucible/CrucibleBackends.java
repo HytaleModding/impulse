@@ -2,7 +2,7 @@ package dev.hytalemodding.impulse.core.internal.crucible;
 
 import dev.hytalemodding.impulse.api.BackendId;
 import dev.hytalemodding.impulse.api.Impulse;
-import dev.hytalemodding.impulse.api.PhysicsBackend;
+import dev.hytalemodding.impulse.api.runtime.PhysicsBackendRuntimeProvider;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
@@ -19,20 +19,20 @@ final class CrucibleBackends {
 
     @Nonnull
     static BackendId requireBackendId() {
-        return selectBackendId(Impulse.getBackends(), System.getProperty(BACKEND_PROPERTY));
+        return selectBackendId(Impulse.getRuntimeProviders(), System.getProperty(BACKEND_PROPERTY));
     }
 
     @Nonnull
-    static BackendId selectBackendId(@Nonnull Collection<PhysicsBackend> backends,
+    static BackendId selectBackendId(@Nonnull Collection<PhysicsBackendRuntimeProvider> providers,
         @Nullable String configuredBackendId) {
         List<BackendId> backendIds = new ArrayList<>();
-        for (PhysicsBackend backend : backends) {
-            backendIds.add(backend.getId());
+        for (PhysicsBackendRuntimeProvider provider : providers) {
+            backendIds.add(provider.getId());
         }
         backendIds.sort((left, right) -> left.value().compareTo(right.value()));
 
         if (backendIds.isEmpty()) {
-            throw new IllegalStateException("No physics backends registered");
+            throw new IllegalStateException("No physics backend runtimes registered");
         }
 
         String configured = configuredBackendId == null ? "" : configuredBackendId.trim();
@@ -42,7 +42,7 @@ final class CrucibleBackends {
                 return requestedBackendId;
             }
             throw new IllegalStateException("Configured Crucible physics backend "
-                + requestedBackendId + " is not registered. Available backends: "
+                + requestedBackendId + " is not registered. Available backend runtimes: "
                 + formatBackendIds(backendIds));
         }
 

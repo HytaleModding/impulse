@@ -6,6 +6,7 @@ import javax.annotation.Nonnull;
 /**
  * Copied body activation event emitted by a backend after a completed step.
  */
+@Deprecated(forRemoval = true)
 public record PhysicsBackendBodyActivationEvent(@Nonnull PhysicsBodyActivationPhase phase,
                                                 @Nonnull PhysicsBody body) implements PhysicsBackendEvent {
 

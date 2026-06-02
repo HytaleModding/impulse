@@ -52,7 +52,6 @@ public final class PhysicsWorldEventState {
             null,
             0,
             null,
-            0,
             completion);
     }
 
@@ -70,7 +69,6 @@ public final class PhysicsWorldEventState {
             batch.firstBodyKey(),
             batch.jointKeyReferenceCount(),
             batch.firstJointKey(),
-            batch.liveOwnerTransactionCount(),
             completion);
     }
 
@@ -83,7 +81,6 @@ public final class PhysicsWorldEventState {
         @Nullable RigidBodyKey firstBodyKey,
         int jointKeyReferenceCount,
         @Nullable JointKey firstJointKey,
-        int liveOwnerTransactionCount,
         @Nonnull PhysicsCommandCompletion completion) {
         Objects.requireNonNull(latestCapturedSnapshotFrame, "latestCapturedSnapshotFrame");
         Objects.requireNonNull(metadata, "metadata");
@@ -97,7 +94,6 @@ public final class PhysicsWorldEventState {
             firstBodyKey,
             jointKeyReferenceCount,
             firstJointKey,
-            liveOwnerTransactionCount,
             completion.allApplied(),
             firstRejected != null ? firstRejected.commandSequence() : 0L,
             firstRejected != null ? firstRejected.message() : null);

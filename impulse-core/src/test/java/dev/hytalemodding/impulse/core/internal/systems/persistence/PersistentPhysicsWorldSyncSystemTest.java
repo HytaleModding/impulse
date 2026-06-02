@@ -6,6 +6,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import dev.hytalemodding.impulse.api.Impulse;
 import dev.hytalemodding.impulse.api.PhysicsBody;
+import dev.hytalemodding.impulse.api.PhysicsJoint;
 import dev.hytalemodding.impulse.api.PhysicsSpace;
 import dev.hytalemodding.impulse.api.testsupport.FakePhysicsBackend;
 import dev.hytalemodding.impulse.core.internal.persistence.PersistentPhysicsBodyState;
@@ -15,7 +16,7 @@ import dev.hytalemodding.impulse.core.internal.persistence.PersistentPhysicsWorl
 import dev.hytalemodding.impulse.core.plugin.body.RigidBodyKey;
 import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyKind;
 import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyPersistenceMode;
-import dev.hytalemodding.impulse.core.internal.resources.PhysicsWorldRuntimeResource;
+import dev.hytalemodding.impulse.core.internal.testsupport.LegacyLiveHandleTestResource;
 import dev.hytalemodding.impulse.core.plugin.settings.PhysicsEventCollectionMode;
 import dev.hytalemodding.impulse.core.plugin.settings.PhysicsSpaceSettings;
 import dev.hytalemodding.impulse.core.plugin.settings.PhysicsStepSchedulingMode;
@@ -82,8 +83,8 @@ class PersistentPhysicsWorldSyncSystemTest {
             PhysicsBodyPersistenceMode.PERSISTENT);
         fixture.syncPersistentSpaces();
         fixture.persistent.setBodies(new PersistentPhysicsBodyState[] {
-            PersistentPhysicsBodyState.from(fixture.runtime.requireBodyRegistration(firstId)),
-            PersistentPhysicsBodyState.from(fixture.runtime.requireBodyRegistration(secondId))
+            fixture.bodyState(firstId),
+            fixture.bodyState(secondId)
         });
         fixture.persistent.markRuntimeSnapshotSynced();
 
@@ -92,7 +93,8 @@ class PersistentPhysicsWorldSyncSystemTest {
             fixture.persistent,
             PersistentPhysicsRuntimeSnapshot.captureFootprint(fixture.runtime)));
 
-        fixture.space.createFixedJoint(first, second, new Vector3f(), new Vector3f());
+        PhysicsJoint joint = fixture.space.createFixedJoint(first, second, new Vector3f(), new Vector3f());
+        fixture.runtime.addJoint(fixture.space.id(), joint);
 
         assertTrue(PersistentPhysicsWorldSyncSystem.hasRuntimePersistenceFootprintChanged(
             fixture.persistent,
@@ -163,8 +165,7 @@ class PersistentPhysicsWorldSyncSystemTest {
             body,
             PhysicsBodyKind.BODY,
             PhysicsBodyPersistenceMode.PERSISTENT);
-        PersistentPhysicsBodyState state =
-            PersistentPhysicsBodyState.from(fixture.runtime.requireBodyRegistration(bodyKey));
+        PersistentPhysicsBodyState state = fixture.bodyState(bodyKey);
 
         PersistentPhysicsBodyHydrationSystem.RestoreBodyResult result =
             PersistentPhysicsBodyHydrationSystem.restoreBodyOnOwner(fixture.runtime, state, bodyKey);
@@ -178,7 +179,7 @@ class PersistentPhysicsWorldSyncSystemTest {
             new FakePhysicsBackend("test:persistence-sync-" + BACKEND_COUNTER.incrementAndGet());
         Impulse.registerBackend(backend);
 
-        PhysicsWorldRuntimeResource runtime = new PhysicsWorldRuntimeResource();
+        LegacyLiveHandleTestResource runtime = new LegacyLiveHandleTestResource();
         PhysicsSpaceSettings settings = PhysicsSpaceSettings.defaults();
         PhysicsSpace space = runtime.createLiveSpace(backend.getId(),
             "test-world",
@@ -187,14 +188,20 @@ class PersistentPhysicsWorldSyncSystemTest {
         return new RuntimeFixture(runtime, persistent, space);
     }
 
-    private record RuntimeFixture(PhysicsWorldRuntimeResource runtime,
+    private record RuntimeFixture(LegacyLiveHandleTestResource runtime,
         PersistentPhysicsWorldResource persistent,
         PhysicsSpace space) {
 
         private void syncPersistentSpaces() {
             persistent.setSpaces(new PersistentPhysicsSpaceState[] {
-                PersistentPhysicsSpaceState.from(space, runtime.getSpaceSettings(space.id()))
+                PersistentPhysicsSpaceState.from(runtime.requireSpaceBinding(space.id()),
+                    runtime.getSpaceSettings(space.id()))
             });
+        }
+
+        private PersistentPhysicsBodyState bodyState(RigidBodyKey bodyKey) {
+            return PersistentPhysicsBodyState.from(runtime.requireBodyRegistration(bodyKey),
+                runtime.getBodySnapshot(bodyKey));
         }
     }
 }

@@ -3,6 +3,7 @@ package dev.hytalemodding.impulse.core;
 import com.hypixel.hytale.logger.HytaleLogger;
 import dev.hytalemodding.impulse.api.BackendId;
 import dev.hytalemodding.impulse.api.PhysicsBackend;
+import dev.hytalemodding.impulse.api.runtime.PhysicsBackendRuntimeProvider;
 import java.io.IOException;
 import java.net.MalformedURLException;
 import java.net.URL;
@@ -22,11 +23,14 @@ import java.util.logging.Level;
 import java.util.stream.Stream;
 import javax.annotation.Nonnull;
 
+@SuppressWarnings("removal")
 final class BackendDiscovery {
 
     private static final HytaleLogger LOGGER = HytaleLogger.get("Impulse");
     private static final String BACKEND_SERVICE_RESOURCE =
         "META-INF/services/" + PhysicsBackend.class.getName();
+    private static final String RUNTIME_PROVIDER_SERVICE_RESOURCE =
+        "META-INF/services/" + PhysicsBackendRuntimeProvider.class.getName();
 
     private BackendDiscovery() {
     }
@@ -48,6 +52,30 @@ final class BackendDiscovery {
             } catch (MalformedURLException e) {
                 LOGGER.at(Level.WARNING)
                     .log("Skipping backend provider jar %s: %s", backendJar, e.getMessage());
+            }
+        }
+
+        return List.copyOf(discovered.values());
+    }
+
+    @Nonnull
+    static List<PhysicsBackendRuntimeProvider> discoverRuntimeProviders(
+        @Nonnull Collection<Path> backendSearchRoots,
+        @Nonnull ClassLoader parentClassLoader) {
+        Map<BackendId, PhysicsBackendRuntimeProvider> discovered = new LinkedHashMap<>();
+        loadRuntimeProvidersFrom(parentClassLoader, "plugin classpath", discovered);
+
+        for (Path backendJar : findBackendProviderJars(backendSearchRoots)) {
+            try {
+                URL[] urls = {backendJar.toUri().toURL()};
+                URLClassLoader backendLoader = new URLClassLoader(
+                    "ImpulseBackendRuntimeProvider(" + backendJar.getFileName() + ")",
+                    urls,
+                    parentClassLoader);
+                loadRuntimeProvidersFrom(backendLoader, backendJar.toString(), discovered);
+            } catch (MalformedURLException e) {
+                LOGGER.at(Level.WARNING)
+                    .log("Skipping backend runtime provider jar %s: %s", backendJar, e.getMessage());
             }
         }
 
@@ -85,7 +113,8 @@ final class BackendDiscovery {
 
     private static boolean containsBackendService(@Nonnull Path jarPath) {
         try (JarFile jar = new JarFile(jarPath.toFile())) {
-            return jar.getEntry(BACKEND_SERVICE_RESOURCE) != null;
+            return jar.getEntry(BACKEND_SERVICE_RESOURCE) != null
+                || jar.getEntry(RUNTIME_PROVIDER_SERVICE_RESOURCE) != null;
         } catch (IOException e) {
             LOGGER.at(Level.WARNING)
                 .log("Skipping unreadable backend provider jar %s: %s",
@@ -107,6 +136,23 @@ final class BackendDiscovery {
         } catch (ServiceConfigurationError e) {
             LOGGER.at(Level.WARNING)
                 .log("Failed to load physics backend provider from %s: %s",
+                    source,
+                    e.getMessage());
+        }
+    }
+
+    private static void loadRuntimeProvidersFrom(@Nonnull ClassLoader classLoader,
+        @Nonnull String source,
+        @Nonnull Map<BackendId, PhysicsBackendRuntimeProvider> discovered) {
+        ServiceLoader<PhysicsBackendRuntimeProvider> loader =
+            ServiceLoader.load(PhysicsBackendRuntimeProvider.class, classLoader);
+        try {
+            for (PhysicsBackendRuntimeProvider provider : loader) {
+                discovered.put(provider.getId(), provider);
+            }
+        } catch (ServiceConfigurationError e) {
+            LOGGER.at(Level.WARNING)
+                .log("Failed to load physics backend runtime provider from %s: %s",
                     source,
                     e.getMessage());
         }

@@ -19,6 +19,7 @@ import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import dev.hytalemodding.impulse.api.BackendId;
 import dev.hytalemodding.impulse.api.Impulse;
 import dev.hytalemodding.impulse.api.PhysicsBackend;
+import dev.hytalemodding.impulse.api.runtime.PhysicsBackendRuntimeProvider;
 import dev.hytalemodding.impulse.core.internal.commands.ImpulseCommand;
 import dev.hytalemodding.impulse.core.internal.components.GeneratedVisualProxyComponent;
 import dev.hytalemodding.impulse.core.internal.persistence.PersistentPhysicsWorldResource;
@@ -177,21 +178,27 @@ public final class ImpulsePlugin extends JavaPlugin {
         }
     }
 
+    @SuppressWarnings("removal")
     private void discoverBackends() {
+        for (PhysicsBackendRuntimeProvider provider : BackendDiscovery.discoverRuntimeProviders(
+            backendSearchRoots(),
+            getClassLoader())) {
+            Impulse.registerRuntimeProvider(provider);
+        }
         for (PhysicsBackend backend : BackendDiscovery.discover(backendSearchRoots(),
             getClassLoader())) {
             Impulse.registerBackend(backend);
         }
 
-        for (PhysicsBackend backend : Impulse.getBackends()) {
-            LOGGER.at(Level.INFO).log("Registered physics backend %s", backend.getId());
+        for (PhysicsBackendRuntimeProvider provider : Impulse.getRuntimeProviders()) {
+            LOGGER.at(Level.INFO).log("Registered physics backend runtime %s", provider.getId());
         }
 
-        if (Impulse.getBackends().isEmpty()) {
+        if (Impulse.getRuntimeProviders().isEmpty()) {
             throw new IllegalStateException("No physics backends discovered");
         }
 
-        defaultBackendId = selectDefaultBackendId(Impulse.getBackends());
+        defaultBackendId = selectDefaultRuntimeProviderId(Impulse.getRuntimeProviders());
         if (defaultBackendId != null) {
             LOGGER.at(Level.INFO).log("Using default physics backend %s", defaultBackendId);
             return;
@@ -211,12 +218,13 @@ public final class ImpulsePlugin extends JavaPlugin {
     }
 
     @Nullable
-    static BackendId selectDefaultBackendId(@Nonnull Collection<PhysicsBackend> backends) {
-        if (backends.size() != 1) {
+    static BackendId selectDefaultRuntimeProviderId(
+        @Nonnull Collection<PhysicsBackendRuntimeProvider> providers) {
+        if (providers.size() != 1) {
             return null;
         }
 
-        return backends.iterator().next().getId();
+        return providers.iterator().next().getId();
     }
 
     static int configuredPositiveInt(@Nonnull String property,
@@ -239,7 +247,7 @@ public final class ImpulsePlugin extends JavaPlugin {
     @Nonnull
     private String getAvailableBackendIds() {
         StringBuilder ids = new StringBuilder();
-        for (PhysicsBackend backend : Impulse.getBackends()) {
+        for (PhysicsBackendRuntimeProvider backend : Impulse.getRuntimeProviders()) {
             if (!ids.isEmpty()) {
                 ids.append(", ");
             }

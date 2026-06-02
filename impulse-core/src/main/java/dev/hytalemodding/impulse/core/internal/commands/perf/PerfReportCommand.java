@@ -439,10 +439,6 @@ public class PerfReportCommand extends AbstractWorldCommand {
                 builder.append(" firstJoint=")
                     .append(latestCommand.firstJointKey());
             }
-            if (latestCommand.hasLiveOwnerTransactions()) {
-                builder.append(" liveOwnerTransactions=")
-                    .append(latestCommand.liveOwnerTransactionCount());
-            }
             if (capturedSnapshotIncluded) {
                 builder.append(" capturedSnapshotTickLatency=")
                     .append(frame.capturedSnapshotServerTickLatency(latestCommand));
@@ -592,11 +588,11 @@ public class PerfReportCommand extends AbstractWorldCommand {
             int detachedVisualProxies = 0;
             for (PhysicsBodyRegistrationView registration : resource.getBodyRegistrationViews()) {
                 if (registration.kind() != PhysicsBodyKind.BODY
-                    || resource.hasBodyAttachments(registration.id())) {
+                    || resource.hasBodyAttachments(registration.bodyKey())) {
                     continue;
                 }
                 detachedBodies++;
-                if (runtime.getGeneratedVisualProxy(registration.id()) != null) {
+                if (runtime.getGeneratedVisualProxy(registration.bodyKey()) != null) {
                     detachedVisualProxies++;
                 }
             }

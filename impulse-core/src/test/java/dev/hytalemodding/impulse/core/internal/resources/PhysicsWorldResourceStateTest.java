@@ -10,24 +10,28 @@ import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import dev.hytalemodding.impulse.api.BackendId;
 import dev.hytalemodding.impulse.api.Impulse;
 import dev.hytalemodding.impulse.api.PhysicsBody;
 import dev.hytalemodding.impulse.api.PhysicsBodyType;
+import dev.hytalemodding.impulse.api.PhysicsJoint;
 import dev.hytalemodding.impulse.api.PhysicsSpace;
 import dev.hytalemodding.impulse.api.SpaceId;
 import dev.hytalemodding.impulse.api.testsupport.FakePhysicsBackend;
 import dev.hytalemodding.impulse.api.testsupport.FakePhysicsBackend.InMemoryPhysicsSpace;
+import dev.hytalemodding.impulse.api.testsupport.FakePhysicsBackendRuntimeProvider;
+import dev.hytalemodding.impulse.api.testsupport.FakePhysicsBackendRuntimeProvider.FakePhysicsBackendRuntime;
 import dev.hytalemodding.impulse.core.internal.resources.body.PhysicsBodyRuntimeState.BodySyncState;
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsChunkBoundaryRuntime.ChunkBoundaryPauseState;
 import dev.hytalemodding.impulse.core.internal.resources.owner.TestPhysicsOwnerLane;
 import dev.hytalemodding.impulse.core.internal.simulation.MutablePhysicsCommandContext;
 import dev.hytalemodding.impulse.core.internal.resources.owner.PhysicsOwnerSnapshot;
 import dev.hytalemodding.impulse.core.internal.resources.owner.PhysicsOwnerStepCommand;
+import dev.hytalemodding.impulse.core.internal.testsupport.LegacyLiveHandleTestResource;
 import dev.hytalemodding.impulse.core.plugin.body.RigidBodyKey;
 import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyKind;
 import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyPersistenceMode;
 import dev.hytalemodding.impulse.core.plugin.collision.WorldCollisionMode;
-import dev.hytalemodding.impulse.core.plugin.simulation.PhysicsOwnerAccess;
 import dev.hytalemodding.impulse.core.plugin.resources.PhysicsMutationHandle;
 import dev.hytalemodding.impulse.core.plugin.events.PhysicsCommandBatchEvent;
 import dev.hytalemodding.impulse.core.plugin.events.PhysicsEventFrame;
@@ -68,7 +72,7 @@ class PhysicsWorldResourceStateTest {
 
     @Test
     void worldSettingsAreCopiedAcrossResourceBoundary() {
-        PhysicsWorldRuntimeResource resource = new PhysicsWorldRuntimeResource();
+        LegacyLiveHandleTestResource resource = new LegacyLiveHandleTestResource();
 
         PhysicsWorldSettings copy = resource.getWorldSettings();
         copy.setSimulationSteps(4);
@@ -89,7 +93,7 @@ class PhysicsWorldResourceStateTest {
             new FakePhysicsBackend("test:space-settings-copy-" + BACKEND_COUNTER.incrementAndGet());
         Impulse.registerBackend(backend);
 
-        PhysicsWorldRuntimeResource resource = new PhysicsWorldRuntimeResource();
+        LegacyLiveHandleTestResource resource = new LegacyLiveHandleTestResource();
         PhysicsSpaceSettings initial = PhysicsSpaceSettings.streamingWorldCollision();
         initial.getSolverSettings().setSolverIterations(7);
         PhysicsSpace space = resource.createLiveSpace(backend.getId(),
@@ -121,7 +125,7 @@ class PhysicsWorldResourceStateTest {
             new FakePhysicsBackend("test:copy-topology-" + BACKEND_COUNTER.incrementAndGet());
         Impulse.registerBackend(backend);
 
-        PhysicsWorldRuntimeResource source = new PhysicsWorldRuntimeResource();
+        LegacyLiveHandleTestResource source = new LegacyLiveHandleTestResource();
         PhysicsWorldSettings sourceSettings = source.getWorldSettings();
         sourceSettings.setSimulationSteps(4);
         source.setWorldSettings(sourceSettings);
@@ -130,7 +134,7 @@ class PhysicsWorldResourceStateTest {
             "source-world",
             sourceSpaceSettings);
 
-        PhysicsWorldRuntimeResource target = new PhysicsWorldRuntimeResource();
+        LegacyLiveHandleTestResource target = new LegacyLiveHandleTestResource();
         PhysicsSpace targetSpace = target.createLiveSpace(backend.getId(),
             "target-world",
             PhysicsSpaceSettings.defaults());
@@ -141,6 +145,7 @@ class PhysicsWorldResourceStateTest {
         assertEquals(0, target.getSpaceCount());
         assertTrue(target.getSpaceIds().isEmpty());
         assertFalse(target.hasSpace(sourceSpace.id()));
+        assertEquals(0L, target.worldCollisionStreamingRevision(targetSpace.id()));
         assertThrows(IllegalStateException.class, () -> target.getSpaceSettings(sourceSpace.id()));
         assertTrue(((InMemoryPhysicsSpace) targetSpace).isClosed());
         assertFalse(((InMemoryPhysicsSpace) sourceSpace).isClosed());
@@ -186,7 +191,7 @@ class PhysicsWorldResourceStateTest {
             new FakePhysicsBackend("test:simulation-command-buffer-" + BACKEND_COUNTER.incrementAndGet());
         Impulse.registerBackend(backend);
 
-        PhysicsWorldRuntimeResource resource = new PhysicsWorldRuntimeResource();
+        LegacyLiveHandleTestResource resource = new LegacyLiveHandleTestResource();
         PhysicsSpace space = resource.createLiveSpace(backend.getId(),
             "test-world",
             PhysicsSpaceSettings.defaults());
@@ -221,7 +226,7 @@ class PhysicsWorldResourceStateTest {
             new FakePhysicsBackend("test:simulation-stale-command-" + BACKEND_COUNTER.incrementAndGet());
         Impulse.registerBackend(backend);
 
-        PhysicsWorldRuntimeResource resource = new PhysicsWorldRuntimeResource();
+        LegacyLiveHandleTestResource resource = new LegacyLiveHandleTestResource();
         PhysicsSpace space = resource.createLiveSpace(backend.getId(),
             "test-world",
             PhysicsSpaceSettings.defaults());
@@ -258,7 +263,7 @@ class PhysicsWorldResourceStateTest {
             new FakePhysicsBackend("test:simulation-fifo-command-" + BACKEND_COUNTER.incrementAndGet());
         Impulse.registerBackend(backend);
 
-        PhysicsWorldRuntimeResource resource = new PhysicsWorldRuntimeResource();
+        LegacyLiveHandleTestResource resource = new LegacyLiveHandleTestResource();
         PhysicsSpace space = resource.createLiveSpace(backend.getId(),
             "test-world",
             PhysicsSpaceSettings.defaults());
@@ -300,7 +305,7 @@ class PhysicsWorldResourceStateTest {
             new FakePhysicsBackend("test:simulation-space-gravity-" + BACKEND_COUNTER.incrementAndGet());
         Impulse.registerBackend(backend);
 
-        PhysicsWorldRuntimeResource resource = new PhysicsWorldRuntimeResource();
+        LegacyLiveHandleTestResource resource = new LegacyLiveHandleTestResource();
         PhysicsSpace space = resource.createLiveSpace(backend.getId(),
             "test-world",
             PhysicsSpaceSettings.defaults());
@@ -322,7 +327,7 @@ class PhysicsWorldResourceStateTest {
             new FakePhysicsBackend("test:simulation-dsl-submit-" + BACKEND_COUNTER.incrementAndGet());
         Impulse.registerBackend(backend);
 
-        PhysicsWorldRuntimeResource resource = new PhysicsWorldRuntimeResource();
+        LegacyLiveHandleTestResource resource = new LegacyLiveHandleTestResource();
         PhysicsSpace space = resource.createLiveSpace(backend.getId(),
             "test-world",
             PhysicsSpaceSettings.defaults());
@@ -353,7 +358,7 @@ class PhysicsWorldResourceStateTest {
             new FakePhysicsBackend("test:simulation-command-latency-" + BACKEND_COUNTER.incrementAndGet());
         Impulse.registerBackend(backend);
 
-        PhysicsWorldRuntimeResource resource = new PhysicsWorldRuntimeResource();
+        LegacyLiveHandleTestResource resource = new LegacyLiveHandleTestResource();
         PhysicsSpace space = resource.createLiveSpace(backend.getId(),
             "test-world",
             PhysicsSpaceSettings.defaults());
@@ -395,7 +400,7 @@ class PhysicsWorldResourceStateTest {
             new FakePhysicsBackend("test:simulation-command-event-" + BACKEND_COUNTER.incrementAndGet());
         Impulse.registerBackend(backend);
 
-        PhysicsWorldRuntimeResource resource = new PhysicsWorldRuntimeResource();
+        LegacyLiveHandleTestResource resource = new LegacyLiveHandleTestResource();
         PhysicsSpace space = resource.createLiveSpace(backend.getId(),
             "test-world",
             PhysicsSpaceSettings.defaults());
@@ -448,7 +453,7 @@ class PhysicsWorldResourceStateTest {
             new FakePhysicsBackend("test:simulation-snapshot-event-" + BACKEND_COUNTER.incrementAndGet());
         Impulse.registerBackend(backend);
 
-        PhysicsWorldRuntimeResource resource = new PhysicsWorldRuntimeResource();
+        LegacyLiveHandleTestResource resource = new LegacyLiveHandleTestResource();
         PhysicsSpace space = resource.createLiveSpace(backend.getId(),
             "test-world",
             PhysicsSpaceSettings.defaults());
@@ -503,7 +508,7 @@ class PhysicsWorldResourceStateTest {
             new FakePhysicsBackend("test:simulation-event-latency-" + BACKEND_COUNTER.incrementAndGet());
         Impulse.registerBackend(backend);
 
-        PhysicsWorldRuntimeResource resource = new PhysicsWorldRuntimeResource();
+        LegacyLiveHandleTestResource resource = new LegacyLiveHandleTestResource();
         PhysicsSpace space = resource.createLiveSpace(backend.getId(),
             "test-world",
             PhysicsSpaceSettings.defaults());
@@ -550,7 +555,7 @@ class PhysicsWorldResourceStateTest {
             new FakePhysicsBackend("test:compact-published-frame-" + BACKEND_COUNTER.incrementAndGet());
         Impulse.registerBackend(backend);
 
-        PhysicsWorldRuntimeResource resource = new PhysicsWorldRuntimeResource();
+        LegacyLiveHandleTestResource resource = new LegacyLiveHandleTestResource();
         PhysicsSpace space = resource.createLiveSpace(backend.getId(),
             "test-world",
             PhysicsSpaceSettings.defaults());
@@ -571,91 +576,11 @@ class PhysicsWorldResourceStateTest {
             false);
         List<RigidBodyKey> visitedBodies = new ArrayList<>();
 
-        published.forEachBodyCursor(body -> visitedBodies.add(body.bodyId()));
+        published.forEachBodyCursor(body -> visitedBodies.add(body.bodyKey()));
 
         assertEquals(1, published.bodyCount());
         assertEquals(List.of(bodyKey), visitedBodies);
         assertNotNull(published.spaces());
-    }
-
-    @Test
-    void liveOwnerTransactionExecutesAsOpaqueAdvancedEscapeHatch() {
-        FakePhysicsBackend backend =
-            new FakePhysicsBackend("test:simulation-owner-transaction-" + BACKEND_COUNTER.incrementAndGet());
-        Impulse.registerBackend(backend);
-
-        PhysicsWorldRuntimeResource resource = new PhysicsWorldRuntimeResource();
-        PhysicsSpace space = resource.createLiveSpace(backend.getId(),
-            "test-world",
-            PhysicsSpaceSettings.defaults());
-        RigidBodyKey bodyKey = RigidBodyKey.random();
-
-        var results = resource.submitCommands(105L, commands -> commands.liveOwnerTransaction(
-                "register diagnostic body",
-                access -> {
-                    PhysicsBody body = access.requireSpace(space.id())
-                        .createSphere(0.25f, 1.0f);
-                    access.addBody(space.id(),
-                        body,
-                        PhysicsBodyKind.TEMPORARY,
-                        PhysicsBodyPersistenceMode.RUNTIME_ONLY);
-                }))
-            .completion()
-            .toCompletableFuture()
-            .join();
-
-        assertEquals(1, results.size());
-        assertEquals(PhysicsCommandResult.Status.APPLIED, results.getFirst().status());
-        assertEquals(1L, results.getFirst().commandSequence());
-        assertEquals(1, space.bodyCount());
-    }
-
-    @Test
-    void liveOwnerTransactionAccessCannotBeRetainedAfterCallback() {
-        FakePhysicsBackend backend =
-            new FakePhysicsBackend("test:simulation-owner-access-scope-" + BACKEND_COUNTER.incrementAndGet());
-        Impulse.registerBackend(backend);
-
-        PhysicsWorldRuntimeResource resource = new PhysicsWorldRuntimeResource();
-        PhysicsSpace space = resource.createLiveSpace(backend.getId(),
-            "test-world",
-            PhysicsSpaceSettings.defaults());
-        AtomicReference<PhysicsOwnerAccess> captured = new AtomicReference<>();
-
-        var results = resource.submitCommands(106L, commands -> commands.liveOwnerTransaction(
-                "capture owner access",
-                access -> {
-                    captured.set(access);
-                    assertSame(space, access.requireSpace(space.id()));
-                }))
-            .completion()
-            .toCompletableFuture()
-            .join();
-
-        assertEquals(PhysicsCommandResult.Status.APPLIED, results.getFirst().status());
-        assertThrows(IllegalStateException.class, () -> captured.get().getSpaces());
-    }
-
-    @Test
-    void liveOwnerTransactionFailureIsReportedAsRejectedOpaqueCommand() {
-        PhysicsWorldRuntimeResource resource = new PhysicsWorldRuntimeResource();
-
-        var results = resource.submitCommands(107L, commands -> commands.liveOwnerTransaction(
-                "failing diagnostic body mutation",
-                access -> {
-                    throw new IllegalStateException("diagnostic failure");
-                }))
-            .completion()
-            .toCompletableFuture()
-            .join();
-
-        assertEquals(1, results.size());
-        assertEquals(PhysicsCommandResult.Status.REJECTED, results.getFirst().status());
-        assertEquals(1L, results.getFirst().commandSequence());
-        assertTrue(results.getFirst().commandBatchSequence() > 0L);
-        assertEquals(107L, results.getFirst().submittedServerTick());
-        assertEquals(0L, results.getFirst().includedSnapshotFrameEpoch());
-        assertTrue(results.getFirst().message().contains("failing diagnostic body mutation"));
     }
 
     @Test
@@ -664,7 +589,7 @@ class PhysicsWorldResourceStateTest {
             new FakePhysicsBackend("test:simulation-query-" + BACKEND_COUNTER.incrementAndGet());
         Impulse.registerBackend(backend);
 
-        PhysicsWorldRuntimeResource resource = new PhysicsWorldRuntimeResource();
+        LegacyLiveHandleTestResource resource = new LegacyLiveHandleTestResource();
         PhysicsSpace space = resource.createLiveSpace(backend.getId(),
             "test-world",
             PhysicsSpaceSettings.defaults());
@@ -691,7 +616,7 @@ class PhysicsWorldResourceStateTest {
             new FakePhysicsBackend("test:duplicate-body-key-no-leak-" + BACKEND_COUNTER.incrementAndGet());
         Impulse.registerBackend(backend);
 
-        PhysicsWorldRuntimeResource resource = new PhysicsWorldRuntimeResource();
+        LegacyLiveHandleTestResource resource = new LegacyLiveHandleTestResource();
         PhysicsSpace space = resource.createLiveSpace(backend.getId(),
             "test-world",
             PhysicsSpaceSettings.defaults());
@@ -722,7 +647,7 @@ class PhysicsWorldResourceStateTest {
             new FakePhysicsBackend("test:simulation-spawn-settings-" + BACKEND_COUNTER.incrementAndGet());
         Impulse.registerBackend(backend);
 
-        PhysicsWorldRuntimeResource resource = new PhysicsWorldRuntimeResource();
+        LegacyLiveHandleTestResource resource = new LegacyLiveHandleTestResource();
         PhysicsSpace space = resource.createLiveSpace(backend.getId(),
             "test-world",
             PhysicsSpaceSettings.defaults());
@@ -769,7 +694,7 @@ class PhysicsWorldResourceStateTest {
             new FakePhysicsBackend("test:simulation-template-spawn-" + BACKEND_COUNTER.incrementAndGet());
         Impulse.registerBackend(backend);
 
-        PhysicsWorldRuntimeResource resource = new PhysicsWorldRuntimeResource();
+        LegacyLiveHandleTestResource resource = new LegacyLiveHandleTestResource();
         PhysicsSpace space = resource.createLiveSpace(backend.getId(),
             "test-world",
             PhysicsSpaceSettings.defaults());
@@ -807,7 +732,7 @@ class PhysicsWorldResourceStateTest {
             new FakePhysicsBackend("test:simulation-destroy-joint-between-" + BACKEND_COUNTER.incrementAndGet());
         Impulse.registerBackend(backend);
 
-        PhysicsWorldRuntimeResource resource = new PhysicsWorldRuntimeResource();
+        LegacyLiveHandleTestResource resource = new LegacyLiveHandleTestResource();
         PhysicsSpace space = resource.createLiveSpace(backend.getId(),
             "test-world",
             PhysicsSpaceSettings.defaults());
@@ -825,7 +750,8 @@ class PhysicsWorldResourceStateTest {
             bodyB,
             PhysicsBodyKind.BODY,
             PhysicsBodyPersistenceMode.RUNTIME_ONLY);
-        space.createPointJoint(bodyA, bodyB, new Vector3f(), new Vector3f());
+        PhysicsJoint pointJoint = space.createPointJoint(bodyA, bodyB, new Vector3f(), new Vector3f());
+        resource.addJoint(space.id(), pointJoint);
 
         resource.submitCommands(102L,
                 commands -> commands.destroyJointBetween(null, space.id(), bodyAKey, bodyBKey))
@@ -855,7 +781,7 @@ class PhysicsWorldResourceStateTest {
             new FakePhysicsBackend("test:reset-" + BACKEND_COUNTER.incrementAndGet());
         Impulse.registerBackend(backend);
 
-        PhysicsWorldRuntimeResource resource = new PhysicsWorldRuntimeResource();
+        LegacyLiveHandleTestResource resource = new LegacyLiveHandleTestResource();
         PhysicsSpaceSettings settings = PhysicsSpaceSettings.streamingWorldCollision();
         settings.getSolverSettings().setSolverIterations(7);
         settings.getVisualMaterializationSettings().setDetachedVisualMaxMaterialized(64);
@@ -873,7 +799,8 @@ class PhysicsWorldResourceStateTest {
             second,
             PhysicsBodyKind.BODY,
             PhysicsBodyPersistenceMode.RUNTIME_ONLY);
-        space.createFixedJoint(first, second, new Vector3f(), new Vector3f());
+        PhysicsJoint fixedJoint = space.createFixedJoint(first, second, new Vector3f(), new Vector3f());
+        resource.addJoint(space.id(), fixedJoint);
         resource.markContinuousCollisionForced(firstId);
         resource.markBodyControlled(firstId);
         resource.updateChunkBoundarySafeState(firstId, new Vector3f(1.0f), new Quaternionf());
@@ -889,7 +816,7 @@ class PhysicsWorldResourceStateTest {
         assertTrue(original.isClosed());
         assertFalse(replacement.isClosed());
         PhysicsSpace restoredSpace = resource.callOwner("resolve reset replacement space",
-            access -> access.requireSpace(space.id()));
+            () -> resource.getLiveSpace(space.id()));
         assertSame(replacement, restoredSpace);
         assertNotSame(original, restoredSpace);
         assertEquals(new Vector3f(0.0f, -3.0f, 0.0f), replacement.getGravity());
@@ -909,12 +836,70 @@ class PhysicsWorldResourceStateTest {
     }
 
     @Test
+    void failedRuntimeResetKeepsOriginalSpacesAndDiscardsReplacements() {
+        BackendId backendId =
+            new BackendId("test:reset-failure-" + BACKEND_COUNTER.incrementAndGet());
+        FakePhysicsBackendRuntimeProvider provider =
+            new FakePhysicsBackendRuntimeProvider(backendId, false, false).withSolverTuning();
+        Impulse.registerRuntimeProvider(provider);
+
+        PhysicsWorldRuntimeResource resource = new PhysicsWorldRuntimeResource();
+        PhysicsSpaceSettings settings = PhysicsSpaceSettings.defaults();
+        settings.getSolverSettings().setSolverIterations(7);
+        SpaceId spaceId = resource.createSpace(backendId, "test-world", settings);
+        PhysicsSpaceBinding original = resource.requireSpaceBinding(spaceId);
+        FakePhysicsBackendRuntime originalRuntime =
+            (FakePhysicsBackendRuntime) original.runtime();
+
+        provider.failNextSolverTuning(new IllegalStateException("replacement tuning failed"));
+
+        IllegalStateException failure = assertThrows(IllegalStateException.class,
+            () -> resource.resetRuntimeStateKeepingSpaces("test-world"));
+
+        assertEquals("replacement tuning failed", failure.getMessage());
+        assertSame(original, resource.requireSpaceBinding(spaceId));
+        assertTrue(originalRuntime.hasSpace(original.backendSpaceHandle().value()));
+        assertEquals(2, provider.createdRuntimes().size());
+        FakePhysicsBackendRuntime failedReplacement = provider.createdRuntimes().get(1);
+        assertFalse(failedReplacement.hasSpace(spaceId.value()));
+    }
+
+    @Test
+    void worldCollisionStreamingRevisionTracksSettingsChangesAndClears() {
+        BackendId backendId =
+            new BackendId("test:world-collision-revision-" + BACKEND_COUNTER.incrementAndGet());
+        Impulse.registerRuntimeProvider(new FakePhysicsBackendRuntimeProvider(backendId, false, false));
+
+        PhysicsWorldRuntimeResource resource = new PhysicsWorldRuntimeResource();
+        SpaceId spaceId = resource.createSpace(backendId,
+            "test-world",
+            PhysicsSpaceSettings.streamingWorldCollision());
+        long initialRevision = resource.worldCollisionStreamingRevision(spaceId);
+
+        PhysicsSpaceSettings visualOnly = resource.getSpaceSettings(spaceId);
+        visualOnly.getVisualMaterializationSettings().setDetachedVisualMaxMaterialized(32);
+        resource.setSpaceSettings(spaceId, visualOnly);
+        assertEquals(initialRevision, resource.worldCollisionStreamingRevision(spaceId));
+
+        PhysicsSpaceSettings radiusChanged = resource.getSpaceSettings(spaceId);
+        radiusChanged.getWorldCollisionSettings().setWorldCollisionRadius(
+            radiusChanged.getWorldCollisionSettings().getWorldCollisionRadius() + 1);
+        resource.setSpaceSettings(spaceId, radiusChanged);
+        long radiusRevision = resource.worldCollisionStreamingRevision(spaceId);
+        assertTrue(radiusRevision > initialRevision);
+
+        resource.clearWorldCollision(spaceId);
+        long clearRevision = resource.worldCollisionStreamingRevision(spaceId);
+        assertTrue(clearRevision > radiusRevision);
+    }
+
+    @Test
     void destroyBodyClearsRuntimeStateAndSnapshotIndexes() {
         FakePhysicsBackend backend =
             new FakePhysicsBackend("test:destroy-cleanup-" + BACKEND_COUNTER.incrementAndGet());
         Impulse.registerBackend(backend);
 
-        PhysicsWorldRuntimeResource resource = new PhysicsWorldRuntimeResource();
+        LegacyLiveHandleTestResource resource = new LegacyLiveHandleTestResource();
         PhysicsSpace space = resource.createLiveSpace(backend.getId(),
             "test-world",
             PhysicsSpaceSettings.defaults());
@@ -954,7 +939,7 @@ class PhysicsWorldResourceStateTest {
             new FakePhysicsBackend("test:clear-bodies-" + BACKEND_COUNTER.incrementAndGet());
         Impulse.registerBackend(backend);
 
-        PhysicsWorldRuntimeResource resource = new PhysicsWorldRuntimeResource();
+        LegacyLiveHandleTestResource resource = new LegacyLiveHandleTestResource();
         PhysicsSpace space = resource.createLiveSpace(backend.getId(),
             "test-world",
             PhysicsSpaceSettings.defaults());
@@ -968,7 +953,8 @@ class PhysicsWorldResourceStateTest {
             second,
             PhysicsBodyKind.BODY,
             PhysicsBodyPersistenceMode.PERSISTENT);
-        space.createFixedJoint(first, second, new Vector3f(), new Vector3f());
+        PhysicsJoint fixedJoint = space.createFixedJoint(first, second, new Vector3f(), new Vector3f());
+        resource.addJoint(space.id(), fixedJoint);
         resource.markContinuousCollisionForced(firstId);
         resource.markBodyControlled(firstId);
         resource.updateChunkBoundarySafeState(firstId, new Vector3f(1.0f), new Quaternionf());
@@ -986,7 +972,7 @@ class PhysicsWorldResourceStateTest {
         resource.clearBodies();
 
         PhysicsSpace retainedSpace = resource.callOwner("resolve clear bodies space",
-            access -> access.requireSpace(space.id()));
+            () -> resource.getLiveSpace(space.id()));
         assertSame(space, retainedSpace);
         assertEquals(0, space.bodyCount());
         assertEquals(0, space.jointCount());
@@ -1008,7 +994,7 @@ class PhysicsWorldResourceStateTest {
             new FakePhysicsBackend("test:snapshot-store-" + BACKEND_COUNTER.incrementAndGet());
         Impulse.registerBackend(backend);
 
-        PhysicsWorldRuntimeResource resource = new PhysicsWorldRuntimeResource();
+        LegacyLiveHandleTestResource resource = new LegacyLiveHandleTestResource();
         PhysicsSpace space = resource.createLiveSpace(backend.getId(),
             "test-world",
             PhysicsSpaceSettings.defaults());
@@ -1032,7 +1018,7 @@ class PhysicsWorldResourceStateTest {
             new Vector3f(),
             8.0f,
             entry -> {
-                assertEquals(nearId, entry.bodyId());
+                assertEquals(nearId, entry.bodyKey());
                 nearMatches.incrementAndGet();
             });
         assertEquals(1, candidates);
@@ -1045,7 +1031,7 @@ class PhysicsWorldResourceStateTest {
         assertEquals(1, resource.getBodySnapshotCount(space.id()));
         AtomicInteger remainingSnapshots = new AtomicInteger();
         resource.forEachBodySnapshot(space.id(), entry -> {
-            assertEquals(nearId, entry.bodyId());
+            assertEquals(nearId, entry.bodyKey());
             remainingSnapshots.incrementAndGet();
         });
         assertEquals(1, remainingSnapshots.get());
@@ -1060,7 +1046,7 @@ class PhysicsWorldResourceStateTest {
             new FakePhysicsBackend("test:snapshot-store-unregistered-" + BACKEND_COUNTER.incrementAndGet());
         Impulse.registerBackend(backend);
 
-        PhysicsWorldRuntimeResource resource = new PhysicsWorldRuntimeResource();
+        LegacyLiveHandleTestResource resource = new LegacyLiveHandleTestResource();
         PhysicsSpace space = resource.createLiveSpace(backend.getId(),
             "test-world",
             PhysicsSpaceSettings.defaults());
@@ -1079,7 +1065,7 @@ class PhysicsWorldResourceStateTest {
 
         AtomicInteger snapshots = new AtomicInteger();
         resource.forEachBodySnapshot(space.id(), entry -> {
-            assertEquals(registeredId, entry.bodyId());
+            assertEquals(registeredId, entry.bodyKey());
             assertEquals(PhysicsBodyKind.BODY, entry.kind());
             assertEquals(PhysicsBodyPersistenceMode.PERSISTENT, entry.persistenceMode());
             snapshots.incrementAndGet();
@@ -1093,7 +1079,7 @@ class PhysicsWorldResourceStateTest {
             new FakePhysicsBackend("test:async-body-add-" + BACKEND_COUNTER.incrementAndGet());
         Impulse.registerBackend(backend);
 
-        PhysicsWorldRuntimeResource resource = new PhysicsWorldRuntimeResource();
+        LegacyLiveHandleTestResource resource = new LegacyLiveHandleTestResource();
         try (TestPhysicsOwnerLane owner = new TestPhysicsOwnerLane(4,
             Duration.ofSeconds(2L))) {
             owner.start("async-body-add");
@@ -1128,7 +1114,7 @@ class PhysicsWorldResourceStateTest {
             assertEquals(bodyId, handle.value());
             assertFalse(handle.isDone());
             assertNull(resource.getBodyRegistrationView(bodyId));
-            assertTrue(resource.isBodyCreationPending(bodyId));
+            assertFalse(resource.isBodyCreationPending(bodyId));
 
             releaseBlocker.countDown();
             pollMutations(owner, 2);
@@ -1138,7 +1124,7 @@ class PhysicsWorldResourceStateTest {
             assertFalse(resource.isBodyCreationPending(bodyId));
             assertEquals(bodyId, handle.join());
             PhysicsBody registeredBody = resource.callOwner("read registered test body",
-                () -> resource.requireBodyRegistration(bodyId).body());
+                () -> resource.getBody(bodyId));
             assertSame(bodyRef.get(), registeredBody);
             assertEquals(new Vector3f(1.0f, 2.0f, 3.0f),
                 resource.getBodySnapshot(bodyId).position());
@@ -1152,7 +1138,7 @@ class PhysicsWorldResourceStateTest {
             new FakePhysicsBackend("test:async-body-add-failure-" + BACKEND_COUNTER.incrementAndGet());
         Impulse.registerBackend(backend);
 
-        PhysicsWorldRuntimeResource resource = new PhysicsWorldRuntimeResource();
+        LegacyLiveHandleTestResource resource = new LegacyLiveHandleTestResource();
         try (TestPhysicsOwnerLane owner = new TestPhysicsOwnerLane(4,
             Duration.ofSeconds(2L))) {
             owner.start("async-body-add-failure");
@@ -1197,7 +1183,7 @@ class PhysicsWorldResourceStateTest {
             new FakePhysicsBackend("test:owner-command-registration-view-" + BACKEND_COUNTER.incrementAndGet());
         Impulse.registerBackend(backend);
 
-        PhysicsWorldRuntimeResource resource = new PhysicsWorldRuntimeResource();
+        LegacyLiveHandleTestResource resource = new LegacyLiveHandleTestResource();
         try (TestPhysicsOwnerLane owner = new TestPhysicsOwnerLane(4,
             Duration.ofSeconds(2L))) {
             owner.start("owner-command-registration-view");
@@ -1262,7 +1248,7 @@ class PhysicsWorldResourceStateTest {
             new FakePhysicsBackend("test:owner-command-registration-multi-single-" + BACKEND_COUNTER.incrementAndGet());
         Impulse.registerBackend(backend);
 
-        PhysicsWorldRuntimeResource resource = new PhysicsWorldRuntimeResource();
+        LegacyLiveHandleTestResource resource = new LegacyLiveHandleTestResource();
         try (TestPhysicsOwnerLane owner = new TestPhysicsOwnerLane(4,
             Duration.ofSeconds(2L))) {
             owner.start("owner-command-registration-multi-single");
@@ -1312,7 +1298,7 @@ class PhysicsWorldResourceStateTest {
             new FakePhysicsBackend("test:owner-command-registration-bulk-" + BACKEND_COUNTER.incrementAndGet());
         Impulse.registerBackend(backend);
 
-        PhysicsWorldRuntimeResource resource = new PhysicsWorldRuntimeResource();
+        LegacyLiveHandleTestResource resource = new LegacyLiveHandleTestResource();
         try (TestPhysicsOwnerLane owner = new TestPhysicsOwnerLane(4,
             Duration.ofSeconds(2L))) {
             owner.start("owner-command-registration-bulk");
@@ -1364,7 +1350,7 @@ class PhysicsWorldResourceStateTest {
             new FakePhysicsBackend("test:owner-command-registration-template-" + BACKEND_COUNTER.incrementAndGet());
         Impulse.registerBackend(backend);
 
-        PhysicsWorldRuntimeResource resource = new PhysicsWorldRuntimeResource();
+        LegacyLiveHandleTestResource resource = new LegacyLiveHandleTestResource();
         try (TestPhysicsOwnerLane owner = new TestPhysicsOwnerLane(4,
             Duration.ofSeconds(2L))) {
             owner.start("owner-command-registration-template");
@@ -1417,7 +1403,7 @@ class PhysicsWorldResourceStateTest {
             new FakePhysicsBackend("test:owner-command-registration-rejected-" + BACKEND_COUNTER.incrementAndGet());
         Impulse.registerBackend(backend);
 
-        PhysicsWorldRuntimeResource resource = new PhysicsWorldRuntimeResource();
+        LegacyLiveHandleTestResource resource = new LegacyLiveHandleTestResource();
         try (TestPhysicsOwnerLane owner = new TestPhysicsOwnerLane(4,
             Duration.ofSeconds(2L))) {
             owner.start("owner-command-registration-rejected");
@@ -1455,7 +1441,7 @@ class PhysicsWorldResourceStateTest {
             new FakePhysicsBackend("test:owner-command-registration-partial-" + BACKEND_COUNTER.incrementAndGet());
         Impulse.registerBackend(backend);
 
-        PhysicsWorldRuntimeResource resource = new PhysicsWorldRuntimeResource();
+        LegacyLiveHandleTestResource resource = new LegacyLiveHandleTestResource();
         PhysicsSpace space = resource.createLiveSpace(backend.getId(),
             "test-world",
             PhysicsSpaceSettings.defaults());
@@ -1511,7 +1497,7 @@ class PhysicsWorldResourceStateTest {
             new FakePhysicsBackend("test:owner-command-registration-detach-" + BACKEND_COUNTER.incrementAndGet());
         Impulse.registerBackend(backend);
 
-        PhysicsWorldRuntimeResource resource = new PhysicsWorldRuntimeResource();
+        LegacyLiveHandleTestResource resource = new LegacyLiveHandleTestResource();
         try (TestPhysicsOwnerLane owner = new TestPhysicsOwnerLane(4,
             Duration.ofSeconds(2L))) {
             owner.start("owner-command-registration-detach");
@@ -1541,7 +1527,7 @@ class PhysicsWorldResourceStateTest {
 
     @Test
     void runtimePhysicsOwnerRoutingRunsOnAttachedOwner() throws Exception {
-        PhysicsWorldRuntimeResource resource = new PhysicsWorldRuntimeResource();
+        LegacyLiveHandleTestResource resource = new LegacyLiveHandleTestResource();
         Thread testThread = Thread.currentThread();
         try (TestPhysicsOwnerLane owner = new TestPhysicsOwnerLane(4,
             Duration.ofSeconds(2L))) {
@@ -1579,7 +1565,7 @@ class PhysicsWorldResourceStateTest {
 
     @Test
     void ownerRoutingRunsInlineWithoutOwnerAndAfterDetach() throws Exception {
-        PhysicsWorldRuntimeResource resource = new PhysicsWorldRuntimeResource();
+        LegacyLiveHandleTestResource resource = new LegacyLiveHandleTestResource();
         Thread testThread = Thread.currentThread();
 
         AtomicReference<Thread> inlineMutationThread = new AtomicReference<>();
@@ -1620,7 +1606,7 @@ class PhysicsWorldResourceStateTest {
             new FakePhysicsBackend("test:owner-guard-" + BACKEND_COUNTER.incrementAndGet());
         Impulse.registerBackend(backend);
 
-        PhysicsWorldRuntimeResource resource = new PhysicsWorldRuntimeResource();
+        LegacyLiveHandleTestResource resource = new LegacyLiveHandleTestResource();
         try (TestPhysicsOwnerLane owner = new TestPhysicsOwnerLane(4,
             Duration.ofSeconds(2L))) {
             owner.start("owner-guard");
@@ -1646,7 +1632,7 @@ class PhysicsWorldResourceStateTest {
                 body.setPosition(1.0f, 2.0f, 3.0f);
             });
             assertEquals(new Vector3f(1.0f, 2.0f, 3.0f),
-                resource.callOwner("read test body position", access -> body.getPosition()));
+                resource.callOwner("read test body position", body::getPosition));
 
             resource.detachOwnerExecutor(owner);
         }
@@ -1658,7 +1644,7 @@ class PhysicsWorldResourceStateTest {
             new FakePhysicsBackend("test:reset-snapshot-frame-" + BACKEND_COUNTER.incrementAndGet());
         Impulse.registerBackend(backend);
 
-        PhysicsWorldRuntimeResource resource = new PhysicsWorldRuntimeResource();
+        LegacyLiveHandleTestResource resource = new LegacyLiveHandleTestResource();
         PhysicsSpace space = resource.createLiveSpace(backend.getId(),
             "test-world",
             PhysicsSpaceSettings.defaults());
@@ -1697,12 +1683,12 @@ class PhysicsWorldResourceStateTest {
         int iterations = 500;
         int expectedUpdates = threads * iterations;
 
-        PhysicsWorldRuntimeResource epochResource = new PhysicsWorldRuntimeResource();
+        LegacyLiveHandleTestResource epochResource = new LegacyLiveHandleTestResource();
         runConcurrently(threads, iterations, epochResource::clearBodies);
 
         assertEquals(expectedUpdates, epochResource.getLatestPublishedFrame().worldEpoch());
 
-        PhysicsWorldRuntimeResource visualInterestResource = new PhysicsWorldRuntimeResource();
+        LegacyLiveHandleTestResource visualInterestResource = new LegacyLiveHandleTestResource();
         Set<Long> ticks = ConcurrentHashMap.newKeySet();
         runConcurrently(threads, iterations,
             () -> ticks.add(visualInterestResource.advanceVisualInterestTick()));
@@ -1738,7 +1724,7 @@ class PhysicsWorldResourceStateTest {
     }
 
     private static void assertForcedCcdRestoreDoesNotAffectReusedBodyId(
-        @Nonnull PhysicsWorldRuntimeResource resource,
+        @Nonnull LegacyLiveHandleTestResource resource,
         @Nonnull PhysicsSpace space,
         @Nonnull RigidBodyKey bodyId) {
         PhysicsBody replacement = space.createBox(0.5f, 0.5f, 0.5f, 1.0f);

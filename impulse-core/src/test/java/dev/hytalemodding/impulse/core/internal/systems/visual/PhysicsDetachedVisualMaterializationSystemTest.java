@@ -12,7 +12,7 @@ import dev.hytalemodding.impulse.api.PhysicsBodyType;
 import dev.hytalemodding.impulse.api.PhysicsSpace;
 import dev.hytalemodding.impulse.api.ShapeType;
 import dev.hytalemodding.impulse.api.testsupport.FakePhysicsBackend;
-import dev.hytalemodding.impulse.core.internal.resources.PhysicsWorldRuntimeResource;
+import dev.hytalemodding.impulse.core.internal.testsupport.LegacyLiveHandleTestResource;
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsVisualRuntime;
 import dev.hytalemodding.impulse.core.plugin.body.RigidBodyKey;
 import dev.hytalemodding.impulse.core.plugin.settings.PhysicsSpaceSettings;
@@ -67,7 +67,7 @@ class PhysicsDetachedVisualMaterializationSystemTest {
     void firstOcclusionFrameKeepsCandidateVisibleWhileRaycastIsPending() {
         BackendId backendId = new BackendId("test:visual-occlusion-" + BACKEND_COUNTER.incrementAndGet());
         Impulse.registerBackend(new FakePhysicsBackend(backendId));
-        PhysicsWorldRuntimeResource resource = new PhysicsWorldRuntimeResource();
+        LegacyLiveHandleTestResource resource = new LegacyLiveHandleTestResource();
         PhysicsSpaceSettings settings = PhysicsSpaceSettings.defaults();
         settings.getVisualSyncSettings().setVisualOcclusionMode(VisualOcclusionMode.CULL);
         settings.getVisualSyncSettings().setVisualOcclusionRaycastsPerTick(1);
@@ -103,7 +103,7 @@ class PhysicsDetachedVisualMaterializationSystemTest {
 
         DetachedVisualOcclusion.Result result = assertDoesNotThrow(() -> DetachedVisualOcclusion.resolve(resource,
             bodyKey,
-            space,
+            resource.requireSpaceBinding(space.id()),
             snapshot,
             settings,
             interests,
