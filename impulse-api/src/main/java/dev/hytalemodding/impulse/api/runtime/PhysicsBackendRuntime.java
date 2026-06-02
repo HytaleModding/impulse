@@ -40,6 +40,28 @@ public interface PhysicsBackendRuntime {
         float rotationZ,
         float rotationW);
 
+    boolean supportsVoxelTerrain(int spaceId);
+
+    long createVoxelTerrain(int spaceId,
+        float voxelSizeX,
+        float voxelSizeY,
+        float voxelSizeZ,
+        @Nonnull int[] voxelCoordinates,
+        float positionX,
+        float positionY,
+        float positionZ,
+        float friction,
+        float restitution,
+        int collisionGroup,
+        int collisionMask);
+
+    void combineVoxelTerrains(int spaceId,
+        long bodyAId,
+        long bodyBId,
+        int shiftX,
+        int shiftY,
+        int shiftZ);
+
     void removeBody(int spaceId, long bodyId);
 
     int bodyCount(int spaceId);

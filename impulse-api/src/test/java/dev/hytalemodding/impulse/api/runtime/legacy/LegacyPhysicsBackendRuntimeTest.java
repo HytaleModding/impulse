@@ -1,7 +1,9 @@
 package dev.hytalemodding.impulse.api.runtime.legacy;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import dev.hytalemodding.impulse.api.PhysicsBodyType;
@@ -126,5 +128,29 @@ class LegacyPhysicsBackendRuntimeTest {
         assertEquals(BackendRuntimeCodes.jointTypeCode(BackendJointType.POINT), runtime.jointType(spaceId, joint));
         assertEquals(bodyA, runtime.jointBodyA(spaceId, joint));
         assertEquals(bodyB, runtime.jointBodyB(spaceId, joint));
+    }
+
+    @Test
+    void legacyRuntimeDoesNotExposeVoxelTerrainHooks() {
+        LegacyPhysicsBackendRuntime runtime =
+            new LegacyPhysicsBackendRuntime(new FakePhysicsBackend("impulse:test-voxel"));
+        int spaceId = runtime.createSpace(new SpaceId(9002));
+
+        assertFalse(runtime.supportsVoxelTerrain(spaceId));
+        assertThrows(UnsupportedOperationException.class,
+            () -> runtime.createVoxelTerrain(spaceId,
+                1.0f,
+                1.0f,
+                1.0f,
+                new int[] { 0, 0, 0 },
+                0.0f,
+                0.0f,
+                0.0f,
+                0.75f,
+                0.0f,
+                1,
+                -1));
+        assertThrows(UnsupportedOperationException.class,
+            () -> runtime.combineVoxelTerrains(spaceId, 1L, 2L, 16, 0, 0));
     }
 }
