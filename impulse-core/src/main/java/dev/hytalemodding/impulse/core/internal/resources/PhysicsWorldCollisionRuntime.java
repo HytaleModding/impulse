@@ -2,11 +2,14 @@ package dev.hytalemodding.impulse.core.internal.resources;
 
 import com.hypixel.hytale.server.core.universe.world.World;
 import dev.hytalemodding.impulse.api.SpaceId;
+import dev.hytalemodding.impulse.core.internal.voxel.WorldCollisionBuildOptions;
 import dev.hytalemodding.impulse.core.internal.voxel.WorldVoxelCollisionCache;
 import dev.hytalemodding.impulse.core.plugin.collision.WorldCollisionBuildStats;
 import dev.hytalemodding.impulse.core.plugin.collision.WorldCollisionPrewarmStats;
 import dev.hytalemodding.impulse.core.plugin.collision.WorldCollisionStats;
 import dev.hytalemodding.impulse.core.plugin.settings.PhysicsWorldCollisionSettings;
+import it.unimi.dsi.fastutil.ints.Int2LongMap;
+import it.unimi.dsi.fastutil.ints.Int2LongOpenHashMap;
 import it.unimi.dsi.fastutil.longs.LongOpenHashSet;
 import it.unimi.dsi.fastutil.longs.LongSet;
 import java.util.Objects;
@@ -20,10 +23,29 @@ import org.joml.Vector3d;
 public final class PhysicsWorldCollisionRuntime {
 
     private final WorldVoxelCollisionCache worldVoxelCollisionCache = new WorldVoxelCollisionCache();
+    private final Int2LongMap streamingRevisions = new Int2LongOpenHashMap();
 
     @Nonnull
     public WorldVoxelCollisionCache worldVoxelCollisionCache() {
         return worldVoxelCollisionCache;
+    }
+
+    public void registerSpace(@Nonnull SpaceId spaceId) {
+        streamingRevisions.putIfAbsent(spaceId.value(), 1L);
+    }
+
+    public void unregisterSpace(@Nonnull SpaceId spaceId) {
+        streamingRevisions.remove(spaceId.value());
+    }
+
+    public long streamingRevision(@Nonnull SpaceId spaceId) {
+        return streamingRevisions.getOrDefault(spaceId.value(), 0L);
+    }
+
+    public long incrementStreamingRevision(@Nonnull SpaceId spaceId) {
+        long revision = streamingRevision(spaceId) + 1L;
+        streamingRevisions.put(spaceId.value(), revision);
+        return revision;
     }
 
     @Nonnull
@@ -35,7 +57,8 @@ public final class PhysicsWorldCollisionRuntime {
             space,
             center,
             radius,
-            PhysicsWorldCollisionSettings.DEFAULT_NATIVE_VOXEL_TERRAIN_ENABLED);
+            WorldCollisionBuildOptions.fromNativeVoxelTerrainEnabled(
+                PhysicsWorldCollisionSettings.DEFAULT_NATIVE_VOXEL_TERRAIN_ENABLED));
     }
 
     @Nonnull
@@ -43,12 +66,12 @@ public final class PhysicsWorldCollisionRuntime {
         @Nonnull PhysicsSpaceBinding space,
         @Nonnull Vector3d center,
         int radius,
-        boolean nativeVoxelTerrainEnabled) {
+        @Nonnull WorldCollisionBuildOptions buildOptions) {
         return worldCollisionStats(worldVoxelCollisionCache.rebuildAround(world,
             space,
             center,
             radius,
-            nativeVoxelTerrainEnabled));
+            buildOptions));
     }
 
     @Nonnull
@@ -62,7 +85,8 @@ public final class PhysicsWorldCollisionRuntime {
             centers,
             radius,
             tick,
-            PhysicsWorldCollisionSettings.DEFAULT_NATIVE_VOXEL_TERRAIN_ENABLED);
+            WorldCollisionBuildOptions.fromNativeVoxelTerrainEnabled(
+                PhysicsWorldCollisionSettings.DEFAULT_NATIVE_VOXEL_TERRAIN_ENABLED));
     }
 
     @Nonnull
@@ -71,7 +95,7 @@ public final class PhysicsWorldCollisionRuntime {
         @Nonnull Iterable<Vector3d> centers,
         int radius,
         long tick,
-        boolean nativeVoxelTerrainEnabled) {
+        @Nonnull WorldCollisionBuildOptions buildOptions) {
         Objects.requireNonNull(centers, "centers");
         LongSet visitedSections = new LongOpenHashSet();
         WorldVoxelCollisionCache.BuildStats total = WorldVoxelCollisionCache.BuildStats.empty();
@@ -85,22 +109,32 @@ public final class PhysicsWorldCollisionRuntime {
                 visitedSections,
                 null,
                 null,
-                nativeVoxelTerrainEnabled));
+                buildOptions));
         }
         return new WorldCollisionPrewarmStats(visitedSections.size(),
             worldCollisionStats(total));
     }
 
     public int clear(@Nonnull PhysicsSpaceBinding space) {
+        incrementStreamingRevision(space.spaceId());
         return worldVoxelCollisionCache.clear(space);
     }
 
     public void clear(@Nonnull SpaceId spaceId, @Nullable PhysicsSpaceBinding space) {
         worldVoxelCollisionCache.clear(spaceId, space);
+        unregisterSpace(spaceId);
     }
 
     public void clearAll() {
         worldVoxelCollisionCache.copyFrom(new WorldVoxelCollisionCache());
+        for (int spaceId : streamingRevisions.keySet().toIntArray()) {
+            streamingRevisions.put(spaceId, streamingRevisions.get(spaceId) + 1L);
+        }
+    }
+
+    public void clearAllAndUnregisterSpaces() {
+        worldVoxelCollisionCache.copyFrom(new WorldVoxelCollisionCache());
+        streamingRevisions.clear();
     }
 
     @Nonnull

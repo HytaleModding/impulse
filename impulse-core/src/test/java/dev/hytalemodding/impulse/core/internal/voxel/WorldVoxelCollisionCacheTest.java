@@ -27,6 +27,7 @@ import java.lang.reflect.Constructor;
 import java.lang.reflect.InvocationHandler;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
+import java.lang.reflect.Modifier;
 import java.lang.reflect.Proxy;
 import java.util.Arrays;
 import java.util.List;
@@ -275,6 +276,20 @@ class WorldVoxelCollisionCacheTest {
     }
 
     @Test
+    void cacheBuildEntryPointsUseStructuredOptionsInsteadOfBooleanFlags() {
+        for (Method method : WorldVoxelCollisionCache.class.getDeclaredMethods()) {
+            if (!Modifier.isPublic(method.getModifiers())
+                || (!method.getName().equals("ensureAround") && !method.getName().equals("rebuildAround"))) {
+                continue;
+            }
+            for (Class<?> parameterType : method.getParameterTypes()) {
+                assertFalse(parameterType == boolean.class,
+                    method + " should use structured build options instead of a boolean flag");
+            }
+        }
+    }
+
+    @Test
     void stitchesVoxelTerrainToSixAdjacentSections() throws Throwable {
         RuntimeFixture fixture = runtimeFixture("test:voxel-runtime-stitch", true);
         Object cache = newSpaceCollisionCache();
@@ -387,6 +402,9 @@ class WorldVoxelCollisionCacheTest {
                 };
             } else if (type == boolean.class) {
                 arguments[index] = nativeVoxelTerrainEnabled;
+            } else if (type == WorldCollisionBuildOptions.class) {
+                arguments[index] =
+                    WorldCollisionBuildOptions.fromNativeVoxelTerrainEnabled(nativeVoxelTerrainEnabled);
             } else {
                 arguments[index] = null;
             }

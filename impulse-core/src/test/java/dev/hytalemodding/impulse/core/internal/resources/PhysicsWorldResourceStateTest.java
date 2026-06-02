@@ -10,6 +10,7 @@ import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import dev.hytalemodding.impulse.api.BackendId;
 import dev.hytalemodding.impulse.api.Impulse;
 import dev.hytalemodding.impulse.api.PhysicsBody;
 import dev.hytalemodding.impulse.api.PhysicsBodyType;
@@ -18,6 +19,8 @@ import dev.hytalemodding.impulse.api.PhysicsSpace;
 import dev.hytalemodding.impulse.api.SpaceId;
 import dev.hytalemodding.impulse.api.testsupport.FakePhysicsBackend;
 import dev.hytalemodding.impulse.api.testsupport.FakePhysicsBackend.InMemoryPhysicsSpace;
+import dev.hytalemodding.impulse.api.testsupport.FakePhysicsBackendRuntimeProvider;
+import dev.hytalemodding.impulse.api.testsupport.FakePhysicsBackendRuntimeProvider.FakePhysicsBackendRuntime;
 import dev.hytalemodding.impulse.core.internal.resources.body.PhysicsBodyRuntimeState.BodySyncState;
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsChunkBoundaryRuntime.ChunkBoundaryPauseState;
 import dev.hytalemodding.impulse.core.internal.resources.owner.TestPhysicsOwnerLane;
@@ -142,6 +145,7 @@ class PhysicsWorldResourceStateTest {
         assertEquals(0, target.getSpaceCount());
         assertTrue(target.getSpaceIds().isEmpty());
         assertFalse(target.hasSpace(sourceSpace.id()));
+        assertEquals(0L, target.worldCollisionStreamingRevision(targetSpace.id()));
         assertThrows(IllegalStateException.class, () -> target.getSpaceSettings(sourceSpace.id()));
         assertTrue(((InMemoryPhysicsSpace) targetSpace).isClosed());
         assertFalse(((InMemoryPhysicsSpace) sourceSpace).isClosed());
@@ -829,6 +833,64 @@ class PhysicsWorldResourceStateTest {
         assertFalse(resource.isBodyControlled(firstId));
         assertNull(resource.getChunkBoundarySafeState(firstId));
         assertForcedCcdRestoreDoesNotAffectReusedBodyId(resource, replacement, firstId);
+    }
+
+    @Test
+    void failedRuntimeResetKeepsOriginalSpacesAndDiscardsReplacements() {
+        BackendId backendId =
+            new BackendId("test:reset-failure-" + BACKEND_COUNTER.incrementAndGet());
+        FakePhysicsBackendRuntimeProvider provider =
+            new FakePhysicsBackendRuntimeProvider(backendId, false, false).withSolverTuning();
+        Impulse.registerRuntimeProvider(provider);
+
+        PhysicsWorldRuntimeResource resource = new PhysicsWorldRuntimeResource();
+        PhysicsSpaceSettings settings = PhysicsSpaceSettings.defaults();
+        settings.getSolverSettings().setSolverIterations(7);
+        SpaceId spaceId = resource.createSpace(backendId, "test-world", settings);
+        PhysicsSpaceBinding original = resource.requireSpaceBinding(spaceId);
+        FakePhysicsBackendRuntime originalRuntime =
+            (FakePhysicsBackendRuntime) original.runtime();
+
+        provider.failNextSolverTuning(new IllegalStateException("replacement tuning failed"));
+
+        IllegalStateException failure = assertThrows(IllegalStateException.class,
+            () -> resource.resetRuntimeStateKeepingSpaces("test-world"));
+
+        assertEquals("replacement tuning failed", failure.getMessage());
+        assertSame(original, resource.requireSpaceBinding(spaceId));
+        assertTrue(originalRuntime.hasSpace(original.backendSpaceHandle().value()));
+        assertEquals(2, provider.createdRuntimes().size());
+        FakePhysicsBackendRuntime failedReplacement = provider.createdRuntimes().get(1);
+        assertFalse(failedReplacement.hasSpace(spaceId.value()));
+    }
+
+    @Test
+    void worldCollisionStreamingRevisionTracksSettingsChangesAndClears() {
+        BackendId backendId =
+            new BackendId("test:world-collision-revision-" + BACKEND_COUNTER.incrementAndGet());
+        Impulse.registerRuntimeProvider(new FakePhysicsBackendRuntimeProvider(backendId, false, false));
+
+        PhysicsWorldRuntimeResource resource = new PhysicsWorldRuntimeResource();
+        SpaceId spaceId = resource.createSpace(backendId,
+            "test-world",
+            PhysicsSpaceSettings.streamingWorldCollision());
+        long initialRevision = resource.worldCollisionStreamingRevision(spaceId);
+
+        PhysicsSpaceSettings visualOnly = resource.getSpaceSettings(spaceId);
+        visualOnly.getVisualMaterializationSettings().setDetachedVisualMaxMaterialized(32);
+        resource.setSpaceSettings(spaceId, visualOnly);
+        assertEquals(initialRevision, resource.worldCollisionStreamingRevision(spaceId));
+
+        PhysicsSpaceSettings radiusChanged = resource.getSpaceSettings(spaceId);
+        radiusChanged.getWorldCollisionSettings().setWorldCollisionRadius(
+            radiusChanged.getWorldCollisionSettings().getWorldCollisionRadius() + 1);
+        resource.setSpaceSettings(spaceId, radiusChanged);
+        long radiusRevision = resource.worldCollisionStreamingRevision(spaceId);
+        assertTrue(radiusRevision > initialRevision);
+
+        resource.clearWorldCollision(spaceId);
+        long clearRevision = resource.worldCollisionStreamingRevision(spaceId);
+        assertTrue(clearRevision > radiusRevision);
     }
 
     @Test

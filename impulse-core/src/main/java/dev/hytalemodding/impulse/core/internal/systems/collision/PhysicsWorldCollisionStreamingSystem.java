@@ -17,6 +17,7 @@ import dev.hytalemodding.impulse.core.internal.resources.profiling.WorldCollisio
 import dev.hytalemodding.impulse.core.internal.resources.profiling.WorldCollisionProfilingResource.Snapshot;
 import dev.hytalemodding.impulse.core.internal.resources.profiling.WorldCollisionProfilingResource.StreamingTargetDiagnostic;
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsWorldRuntimeResource;
+import dev.hytalemodding.impulse.core.internal.voxel.WorldCollisionBuildOptions;
 import dev.hytalemodding.impulse.core.internal.voxel.WorldCollisionStreamingBounds;
 import dev.hytalemodding.impulse.core.internal.voxel.WorldVoxelCollisionCache;
 import dev.hytalemodding.impulse.core.internal.voxel.WorldVoxelCollisionCache.SectionAccessCache;
@@ -24,6 +25,7 @@ import dev.hytalemodding.impulse.core.internal.voxel.WorldVoxelCollisionCache.Ta
 import dev.hytalemodding.impulse.core.plugin.body.RigidBodyKey;
 import dev.hytalemodding.impulse.core.plugin.collision.WorldCollisionMode;
 import dev.hytalemodding.impulse.core.plugin.settings.PhysicsSpaceSettings;
+import dev.hytalemodding.impulse.core.plugin.settings.PhysicsWorldCollisionSettings;
 import it.unimi.dsi.fastutil.longs.LongOpenHashSet;
 import it.unimi.dsi.fastutil.longs.LongSet;
 import it.unimi.dsi.fastutil.objects.Object2ObjectLinkedOpenHashMap;
@@ -123,7 +125,10 @@ public class PhysicsWorldCollisionStreamingSystem extends TickingSystem<EntitySt
                             continue;
                         }
                         PhysicsSpaceSettings settings = resource.getLiveSpaceSettings(plan.spaceId());
-                        if (settings.getWorldCollisionSettings().getWorldCollisionMode() != WorldCollisionMode.STREAMING) {
+                        PhysicsWorldCollisionSettings collisionSettings =
+                            settings.getWorldCollisionSettings();
+                        if (collisionSettings.getWorldCollisionMode() != WorldCollisionMode.STREAMING
+                            || resource.worldCollisionStreamingRevision(plan.spaceId()) != plan.settingsRevision()) {
                             continue;
                         }
                         applySpaceCollision(world,
@@ -131,6 +136,7 @@ public class PhysicsWorldCollisionStreamingSystem extends TickingSystem<EntitySt
                             sectionAccessCache,
                             space,
                             plan,
+                            collisionSettings,
                             currentTick,
                             applySnapshot);
                     }
@@ -185,10 +191,7 @@ public class PhysicsWorldCollisionStreamingSystem extends TickingSystem<EntitySt
 
             int bodyRadius = settings.getWorldCollisionSettings().getWorldCollisionBodyRadius();
             plans.add(new SpaceStreamingPlan(spaceId,
-                settings.getWorldCollisionSettings().getWorldCollisionRadius(),
-                bodyRadius,
-                settings.getWorldCollisionSettings().getWorldCollisionTtlTicks(),
-                settings.getWorldCollisionSettings().isNativeVoxelTerrainEnabled(),
+                resource.worldCollisionStreamingRevision(spaceId),
                 playerPositions,
                 collectDynamicBodyTargets(resource,
                     cache,
@@ -206,21 +209,23 @@ public class PhysicsWorldCollisionStreamingSystem extends TickingSystem<EntitySt
         @Nonnull SectionAccessCache sectionAccessCache,
         @Nonnull PhysicsSpaceBinding space,
         @Nonnull SpaceStreamingPlan plan,
+        @Nonnull PhysicsWorldCollisionSettings settings,
         long currentTick,
         @Nullable Snapshot snapshot) {
         LongSet visitedSections = new LongOpenHashSet();
+        WorldCollisionBuildOptions buildOptions = WorldCollisionBuildOptions.fromSettings(settings);
         for (Vector3d position : plan.playerPositions()) {
             int sectionsBefore = visitedSections.size();
             cache.ensureAround(world,
                 space,
                 position,
-                plan.playerRadius(),
+                settings.getWorldCollisionRadius(),
                 currentTick,
                 snapshot,
                 visitedSections,
                 snapshot != null ? StreamingTargetDiagnostic.player(position) : null,
                 sectionAccessCache,
-                plan.nativeVoxelTerrainEnabled());
+                buildOptions);
             if (snapshot != null) {
                 snapshot.addPlayerSectionTargets(visitedSections.size() - sectionsBefore);
             }
@@ -230,13 +235,13 @@ public class PhysicsWorldCollisionStreamingSystem extends TickingSystem<EntitySt
             cache.ensureAround(world,
                 space,
                 target.position(),
-                plan.bodyRadius(),
+                settings.getWorldCollisionBodyRadius(),
                 currentTick,
                 snapshot,
                 visitedSections,
                 target.diagnostic(),
                 sectionAccessCache,
-                plan.nativeVoxelTerrainEnabled());
+                buildOptions);
             for (BodyStreamingRefresh refresh : target.refreshes()) {
                 cache.recordBodyTargetRefresh(space.spaceId(),
                     refresh.bodyKey(),
@@ -252,7 +257,7 @@ public class PhysicsWorldCollisionStreamingSystem extends TickingSystem<EntitySt
         cache.pruneUnused(space.spaceId(),
             space,
             currentTick,
-            plan.ttlTicks(),
+            settings.getWorldCollisionTtlTicks(),
             snapshot);
     }
 
@@ -372,10 +377,7 @@ public class PhysicsWorldCollisionStreamingSystem extends TickingSystem<EntitySt
     }
 
     private record SpaceStreamingPlan(@Nonnull SpaceId spaceId,
-                                      int playerRadius,
-                                      int bodyRadius,
-                                      int ttlTicks,
-                                      boolean nativeVoxelTerrainEnabled,
+                                      long settingsRevision,
                                       @Nonnull List<Vector3d> playerPositions,
                                       @Nonnull List<BodyStreamingTarget> bodyTargets) {
     }
