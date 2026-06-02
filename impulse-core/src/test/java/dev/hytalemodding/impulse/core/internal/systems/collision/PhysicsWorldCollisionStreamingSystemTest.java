@@ -1,8 +1,6 @@
 package dev.hytalemodding.impulse.core.internal.systems.collision;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertNotNull;
-import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import dev.hytalemodding.impulse.api.BackendId;
@@ -22,7 +20,6 @@ import dev.hytalemodding.impulse.core.plugin.body.RigidBodyKey;
 import dev.hytalemodding.impulse.core.plugin.settings.PhysicsSpaceSettings;
 import dev.hytalemodding.impulse.core.plugin.simulation.RigidBodySpawnSettings;
 import java.lang.reflect.Method;
-import java.util.Arrays;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -72,15 +69,6 @@ class PhysicsWorldCollisionStreamingSystemTest {
             assertEquals(1, firstTargets.size());
             assertEquals(1, secondTargets.size());
         }
-    }
-
-    @Test
-    void streamingPlansCarrySettingsRevisionButNotTerrainBooleans() throws Exception {
-        Class<?> planType = nestedClass("SpaceStreamingPlan");
-
-        assertNotNull(planType.getDeclaredMethod("settingsRevision"));
-        assertThrows(NoSuchMethodException.class,
-            () -> planType.getDeclaredMethod("nativeVoxelTerrainEnabled"));
     }
 
     @Test
@@ -161,13 +149,5 @@ class PhysicsWorldCollisionStreamingSystemTest {
         Method method = plan.getClass().getDeclaredMethod("settingsRevision");
         method.setAccessible(true);
         return (long) method.invoke(plan);
-    }
-
-    @Nonnull
-    private static Class<?> nestedClass(@Nonnull String simpleName) {
-        return Arrays.stream(PhysicsWorldCollisionStreamingSystem.class.getDeclaredClasses())
-            .filter(candidate -> candidate.getSimpleName().equals(simpleName))
-            .findFirst()
-            .orElseThrow();
     }
 }

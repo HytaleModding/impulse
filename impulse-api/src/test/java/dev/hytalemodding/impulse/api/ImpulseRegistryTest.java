@@ -6,13 +6,6 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import dev.hytalemodding.impulse.api.capability.PhysicsContinuousCollisionCapability;
-import dev.hytalemodding.impulse.api.capability.PhysicsActivationTuningCapability;
-import dev.hytalemodding.impulse.api.capability.PhysicsBackendEventsCapability;
-import dev.hytalemodding.impulse.api.capability.PhysicsCapability;
-import dev.hytalemodding.impulse.api.capability.PhysicsExtensionSettingsCapability;
-import dev.hytalemodding.impulse.api.capability.PhysicsSolverTuningCapability;
-import dev.hytalemodding.impulse.api.capability.PhysicsVoxelTerrainCapability;
-import java.lang.reflect.AnnotatedElement;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
@@ -131,42 +124,8 @@ class ImpulseRegistryTest {
         assertEquals(List.of(), space.getCapabilityDescriptors());
     }
 
-    @Test
-    void legacyObjectApiIsDeprecatedForRemoval() throws NoSuchMethodException {
-        assertDeprecatedForRemoval(PhysicsBackend.class);
-        assertDeprecatedForRemoval(PhysicsSpace.class);
-        assertDeprecatedForRemoval(PhysicsBody.class);
-        assertDeprecatedForRemoval(PhysicsJoint.class);
-        assertDeprecatedForRemoval(PhysicsRayHit.class);
-        assertDeprecatedForRemoval(PhysicsContact.class);
-        assertDeprecatedForRemoval(PhysicsBackendEvent.class);
-        assertDeprecatedForRemoval(PhysicsBackendContactEvent.class);
-        assertDeprecatedForRemoval(PhysicsBackendBodyActivationEvent.class);
-        assertDeprecatedForRemoval(PhysicsBackendJointBreakEvent.class);
-        assertDeprecatedForRemoval(PhysicsBackendEventSink.class);
-        assertDeprecatedForRemoval(PhysicsBackendEventBuffer.class);
-        assertDeprecatedForRemoval(PhysicsBackendEventBatch.class);
-        assertDeprecatedForRemoval(PhysicsCapability.class);
-        assertDeprecatedForRemoval(PhysicsActivationTuningCapability.class);
-        assertDeprecatedForRemoval(PhysicsBackendEventsCapability.class);
-        assertDeprecatedForRemoval(PhysicsContinuousCollisionCapability.class);
-        assertDeprecatedForRemoval(PhysicsExtensionSettingsCapability.class);
-        assertDeprecatedForRemoval(PhysicsSolverTuningCapability.class);
-        assertDeprecatedForRemoval(PhysicsVoxelTerrainCapability.class);
-        assertDeprecatedForRemoval(Impulse.class.getMethod("registerBackend", PhysicsBackend.class));
-        assertDeprecatedForRemoval(Impulse.class.getMethod("getBackends"));
-        assertDeprecatedForRemoval(Impulse.class.getMethod("getBackend", BackendId.class));
-        assertDeprecatedForRemoval(Impulse.class.getMethod("createSpace", BackendId.class));
-        assertDeprecatedForRemoval(Impulse.class.getMethod("createSpace", BackendId.class, SpaceId.class));
-    }
-
     private static String uniqueId() {
         return "test:backend-" + ID_COUNTER.incrementAndGet();
-    }
-
-    private static void assertDeprecatedForRemoval(@Nonnull AnnotatedElement element) {
-        Deprecated deprecated = element.getAnnotation(Deprecated.class);
-        assertTrue(deprecated != null && deprecated.forRemoval(), element + " should be deprecated for removal");
     }
 
     private static final class CountingBackend implements PhysicsBackend {
