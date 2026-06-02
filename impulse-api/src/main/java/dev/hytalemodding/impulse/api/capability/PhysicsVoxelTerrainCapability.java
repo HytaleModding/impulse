@@ -6,6 +6,7 @@ import javax.annotation.Nonnull;
 /**
  * Optional backend capability for native voxel terrain collision.
  */
+@Deprecated(forRemoval = true)
 public interface PhysicsVoxelTerrainCapability extends PhysicsCapability {
 
     PhysicsCapabilityDescriptor DESCRIPTOR = new PhysicsCapabilityDescriptor(

@@ -3,6 +3,7 @@ package dev.hytalemodding.impulse.api.capability;
 /**
  * Optional backend capability indicating support for continuous collision detection.
  */
+@Deprecated(forRemoval = true)
 public interface PhysicsContinuousCollisionCapability extends PhysicsCapability {
 
     PhysicsCapabilityDescriptor DESCRIPTOR = new PhysicsCapabilityDescriptor(
