@@ -22,16 +22,17 @@ import dev.hytalemodding.impulse.api.PhysicsBackend;
 import dev.hytalemodding.impulse.api.runtime.PhysicsBackendRuntimeProvider;
 import dev.hytalemodding.impulse.core.internal.commands.ImpulseCommand;
 import dev.hytalemodding.impulse.core.internal.components.GeneratedVisualProxyComponent;
+import dev.hytalemodding.impulse.core.internal.modules.ImpulseSubPluginRegistration;
 import dev.hytalemodding.impulse.core.internal.persistence.PersistentPhysicsWorldResource;
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsDebugResource;
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsWorldRuntimeResource;
 import dev.hytalemodding.impulse.core.internal.resources.owner.PhysicsOwnerLaneScheduler;
 import dev.hytalemodding.impulse.core.internal.resources.owner.PhysicsOwnerResource;
 import dev.hytalemodding.impulse.core.internal.resources.profiling.PhysicsRuntimeProfilingResource;
-import dev.hytalemodding.impulse.core.internal.resources.profiling.WorldCollisionProfilingResource;
-import dev.hytalemodding.impulse.core.internal.systems.collision.PhysicsChunkBoundarySystem;
-import dev.hytalemodding.impulse.core.internal.systems.collision.PhysicsCollisionLodSystem;
-import dev.hytalemodding.impulse.core.internal.systems.collision.PhysicsWorldCollisionStreamingSystem;
+import dev.hytalemodding.impulse.core.internal.modules.worldcollision.profiling.WorldCollisionProfilingResource;
+import dev.hytalemodding.impulse.core.internal.modules.worldcollision.systems.PhysicsChunkBoundarySystem;
+import dev.hytalemodding.impulse.core.internal.modules.worldcollision.systems.PhysicsCollisionLodSystem;
+import dev.hytalemodding.impulse.core.internal.modules.worldcollision.systems.PhysicsWorldCollisionStreamingSystem;
 import dev.hytalemodding.impulse.core.internal.systems.debug.PhysicsDebugSystem;
 import dev.hytalemodding.impulse.core.internal.systems.persistence.PersistentPhysicsBodyHydrationSystem;
 import dev.hytalemodding.impulse.core.internal.systems.persistence.PersistentPhysicsJointHydrationSystem;
@@ -39,15 +40,15 @@ import dev.hytalemodding.impulse.core.internal.systems.persistence.PersistentPhy
 import dev.hytalemodding.impulse.core.internal.systems.persistence.PersistentPhysicsWorldSyncSystem;
 import dev.hytalemodding.impulse.core.internal.systems.persistence.PhysicsRuntimeHolderSystem;
 import dev.hytalemodding.impulse.core.internal.systems.publication.PhysicsSnapshotPublicationSystem;
-import dev.hytalemodding.impulse.core.internal.systems.step.PhysicsControlSessionCleanupSystem;
-import dev.hytalemodding.impulse.core.internal.systems.step.PhysicsKinematicControlSystem;
+import dev.hytalemodding.impulse.core.internal.modules.control.systems.PhysicsControlSessionCleanupSystem;
+import dev.hytalemodding.impulse.core.internal.modules.control.systems.PhysicsKinematicControlSystem;
 import dev.hytalemodding.impulse.core.internal.systems.step.PhysicsStepSystem;
 import dev.hytalemodding.impulse.core.internal.systems.sync.PhysicsBodyAttachmentIndexSystem;
 import dev.hytalemodding.impulse.core.internal.systems.sync.PhysicsSyncSystem;
 import dev.hytalemodding.impulse.core.internal.systems.visual.PhysicsDetachedVisualMaterializationSystem;
 import dev.hytalemodding.impulse.core.internal.systems.owner.PhysicsOwnerLifecycleSystem;
-import dev.hytalemodding.impulse.core.internal.components.PhysicsControlSessionComponent;
-import dev.hytalemodding.impulse.core.plugin.components.ImpulseControllableComponent;
+import dev.hytalemodding.impulse.core.internal.modules.control.components.PhysicsControlSessionComponent;
+import dev.hytalemodding.impulse.core.plugin.modules.control.ImpulseControllableComponent;
 import dev.hytalemodding.impulse.core.plugin.components.PhysicsBodyAttachmentComponent;
 import dev.hytalemodding.impulse.core.plugin.events.PhysicsEventFramePublishedEvent;
 import dev.hytalemodding.impulse.core.plugin.persistence.PhysicsPersistenceResource;
@@ -123,6 +124,7 @@ public final class ImpulsePlugin extends JavaPlugin {
 
     @Override
     protected void setup() {
+        ImpulseSubPluginRegistration.register(this);
         discoverBackends();
 
         registerComponents();

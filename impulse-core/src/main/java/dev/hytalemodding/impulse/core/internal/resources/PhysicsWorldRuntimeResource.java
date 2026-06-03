@@ -8,15 +8,19 @@ import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import dev.hytalemodding.impulse.api.BackendId;
 import dev.hytalemodding.impulse.api.PhysicsBodySnapshot;
 import dev.hytalemodding.impulse.api.PhysicsBodyType;
+import dev.hytalemodding.impulse.api.PhysicsCollisionFilters;
 import dev.hytalemodding.impulse.api.SpaceId;
-import dev.hytalemodding.impulse.core.internal.control.PhysicsControlRuntimeState;
+import dev.hytalemodding.impulse.api.runtime.BackendRuntimeCodes;
+import dev.hytalemodding.impulse.core.internal.modules.control.ControlLifecycle;
+import dev.hytalemodding.impulse.core.internal.modules.control.PhysicsControlRuntimeState;
 import dev.hytalemodding.impulse.core.internal.resources.body.PhysicsBodyRegistry;
 import dev.hytalemodding.impulse.core.internal.resources.body.PhysicsBodyRuntimeState.BodySyncState;
 import dev.hytalemodding.impulse.core.internal.resources.body.PhysicsBodyRuntime;
 import dev.hytalemodding.impulse.core.internal.resources.body.PhysicsBodyRuntimeState;
 import dev.hytalemodding.impulse.core.internal.resources.body.PhysicsBodySnapshotVisitor;
-import dev.hytalemodding.impulse.core.internal.resources.PhysicsChunkBoundaryRuntime.ChunkBoundaryPauseState;
-import dev.hytalemodding.impulse.core.internal.resources.PhysicsChunkBoundaryRuntime.ChunkBoundarySafeState;
+import dev.hytalemodding.impulse.core.internal.modules.worldcollision.PhysicsChunkBoundaryRuntime;
+import dev.hytalemodding.impulse.core.internal.modules.worldcollision.PhysicsChunkBoundaryRuntime.ChunkBoundaryPauseState;
+import dev.hytalemodding.impulse.core.internal.modules.worldcollision.PhysicsChunkBoundaryRuntime.ChunkBoundarySafeState;
 import dev.hytalemodding.impulse.core.internal.resources.joint.PhysicsJointRegistration;
 import dev.hytalemodding.impulse.core.internal.resources.joint.PhysicsJointRegistry;
 import dev.hytalemodding.impulse.core.internal.resources.owner.PhysicsOwnerCallable;
@@ -29,16 +33,19 @@ import dev.hytalemodding.impulse.core.internal.simulation.MutablePhysicsCommandC
 import dev.hytalemodding.impulse.core.internal.simulation.PhysicsInternalQuery;
 import dev.hytalemodding.impulse.core.internal.simulation.PhysicsSimulationExecutor;
 import dev.hytalemodding.impulse.core.internal.simulation.RecordedPhysicsCommandBatch;
-import dev.hytalemodding.impulse.core.internal.voxel.WorldCollisionBuildOptions;
-import dev.hytalemodding.impulse.core.internal.voxel.WorldVoxelCollisionCache;
+import dev.hytalemodding.impulse.core.internal.modules.worldcollision.WorldCollisionBuildOptions;
+import dev.hytalemodding.impulse.core.internal.modules.worldcollision.PhysicsWorldCollisionRuntime;
+import dev.hytalemodding.impulse.core.internal.modules.worldcollision.WorldCollisionLifecycle;
+import dev.hytalemodding.impulse.core.internal.modules.worldcollision.WorldVoxelCollisionCache;
 import dev.hytalemodding.impulse.core.plugin.body.RigidBodyKey;
 import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyKind;
 import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyPersistenceMode;
 import dev.hytalemodding.impulse.core.internal.resources.body.PhysicsBodyRegistration;
 import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyRegistrationView;
-import dev.hytalemodding.impulse.core.plugin.collision.WorldCollisionBuildStats;
-import dev.hytalemodding.impulse.core.plugin.collision.WorldCollisionPrewarmStats;
-import dev.hytalemodding.impulse.core.plugin.collision.WorldCollisionStats;
+import dev.hytalemodding.impulse.core.plugin.modules.worldcollision.WorldCollisionBuildStats;
+import dev.hytalemodding.impulse.core.plugin.modules.worldcollision.WorldCollisionMode;
+import dev.hytalemodding.impulse.core.plugin.modules.worldcollision.WorldCollisionPrewarmStats;
+import dev.hytalemodding.impulse.core.plugin.modules.worldcollision.WorldCollisionStats;
 import dev.hytalemodding.impulse.core.plugin.events.PhysicsEventFrame;
 import dev.hytalemodding.impulse.core.plugin.events.PhysicsFrameEvent;
 import dev.hytalemodding.impulse.core.plugin.resources.PhysicsMutationHandle;
@@ -61,6 +68,7 @@ import java.util.List;
 import java.util.Objects;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
+import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.Consumer;
 import java.util.logging.Level;
@@ -108,6 +116,8 @@ public class PhysicsWorldRuntimeResource extends PhysicsWorldResource {
     private final PhysicsSimulationExecutor simulationExecutor = new PhysicsSimulationExecutor(this);
 
     public PhysicsWorldRuntimeResource() {
+        ControlLifecycle.registerResource(this);
+        WorldCollisionLifecycle.registerResource(this);
     }
 
     @Nonnull
@@ -526,8 +536,10 @@ public class PhysicsWorldRuntimeResource extends PhysicsWorldResource {
         @Nonnull SpaceId spaceId,
         @Nonnull Vector3d center,
         int radius) {
+        requireWorldCollisionLifecycleEnabled();
         return callOwner("rebuild world collision", () -> {
             PhysicsSpaceBinding space = requireSpaceBinding(spaceId);
+            requireWorldCollisionSpaceEnabled(spaceId);
             WorldCollisionBuildOptions buildOptions =
                 WorldCollisionBuildOptions.fromSettings(getLiveSpaceSettings(spaceId)
                     .getWorldCollisionSettings());
@@ -546,8 +558,10 @@ public class PhysicsWorldRuntimeResource extends PhysicsWorldResource {
         int radius,
         long tick) {
         Objects.requireNonNull(centers, "centers");
+        requireWorldCollisionLifecycleEnabled();
         return callOwner("ensure world collision", () -> {
             PhysicsSpaceBinding space = requireSpaceBinding(spaceId);
+            requireWorldCollisionSpaceEnabled(spaceId);
             WorldCollisionBuildOptions buildOptions =
                 WorldCollisionBuildOptions.fromSettings(getLiveSpaceSettings(spaceId)
                     .getWorldCollisionSettings());
@@ -574,6 +588,84 @@ public class PhysicsWorldRuntimeResource extends PhysicsWorldResource {
     @Nonnull
     public WorldCollisionStats getWorldCollisionStats() {
         return callOwner("read world collision stats", collisionRuntime::getStats);
+    }
+
+    public void disableWorldCollisionLifecycle() {
+        try {
+            runOwnerMutation("disable world collision lifecycle", this::disableWorldCollisionLifecycleDirect);
+        } catch (RejectedExecutionException ignored) {
+            // The server can unload the subplugin after a world owner lane has already closed.
+        } catch (RuntimeException exception) {
+            LOGGER.at(Level.WARNING).log("Failed to disable world collision lifecycle: %s",
+                exception.getMessage());
+        }
+    }
+
+    private void disableWorldCollisionLifecycleDirect() {
+        collisionRuntime.clearRetainedTerrain(spaceRuntime.getBindings());
+        restoreCollisionLodFiltersDirect();
+        restoreChunkBoundaryPausedBodiesDirect();
+        chunkRuntime.clearChunkBoundaryStates();
+    }
+
+    private void restoreCollisionLodFiltersDirect() {
+        int fullDynamicMask = PhysicsCollisionFilters.TERRAIN
+            | PhysicsCollisionFilters.DYNAMIC_BODY;
+        for (PhysicsBodyRegistration registration : bodyRegistry.getRegistrations(PhysicsBodyKind.BODY)) {
+            PhysicsSpaceBinding space = getSpaceBinding(registration.spaceId());
+            if (space == null) {
+                continue;
+            }
+            space.runtime().setBodyCollisionFilter(space.backendSpaceHandle().value(),
+                registration.backendBodyHandle().value(),
+                PhysicsCollisionFilters.DYNAMIC_BODY,
+                fullDynamicMask);
+            space.runtime().activateBody(space.backendSpaceHandle().value(),
+                registration.backendBodyHandle().value());
+        }
+    }
+
+    private void restoreChunkBoundaryPausedBodiesDirect() {
+        for (RigidBodyKey bodyKey : chunkRuntime.getChunkBoundaryPausedBodyKeys()) {
+            ChunkBoundaryPauseState pauseState = chunkRuntime.getChunkBoundaryPauseState(bodyKey);
+            PhysicsBodyRegistration registration = getRegistration(bodyKey);
+            if (pauseState == null || registration == null) {
+                chunkRuntime.clearChunkBoundaryPauseState(bodyKey);
+                continue;
+            }
+            PhysicsSpaceBinding space = getSpaceBinding(registration.spaceId());
+            if (space == null) {
+                chunkRuntime.clearChunkBoundaryPauseState(bodyKey);
+                continue;
+            }
+            space.runtime().setBodyType(space.backendSpaceHandle().value(),
+                registration.backendBodyHandle().value(),
+                BackendRuntimeCodes.bodyTypeCode(pauseState.getOriginalBodyType()));
+            space.runtime().setBodyVelocity(space.backendSpaceHandle().value(),
+                registration.backendBodyHandle().value(),
+                pauseState.getLinearVelocity().x,
+                pauseState.getLinearVelocity().y,
+                pauseState.getLinearVelocity().z,
+                pauseState.getAngularVelocity().x,
+                pauseState.getAngularVelocity().y,
+                pauseState.getAngularVelocity().z);
+            space.runtime().activateBody(space.backendSpaceHandle().value(),
+                registration.backendBodyHandle().value());
+            chunkRuntime.clearChunkBoundaryPauseState(bodyKey);
+        }
+    }
+
+    private static void requireWorldCollisionLifecycleEnabled() {
+        if (!WorldCollisionLifecycle.isEnabled()) {
+            throw new IllegalStateException("Impulse world collision subplugin is disabled");
+        }
+    }
+
+    private void requireWorldCollisionSpaceEnabled(@Nonnull SpaceId spaceId) {
+        if (getLiveSpaceSettings(spaceId).getWorldCollisionSettings().getWorldCollisionMode()
+            == WorldCollisionMode.NONE) {
+            throw new IllegalStateException("World collision is disabled for space " + spaceId);
+        }
     }
 
     public void forEachBodySnapshot(@Nonnull SpaceId spaceId,
@@ -706,8 +798,11 @@ public class PhysicsWorldRuntimeResource extends PhysicsWorldResource {
         boolean terrainRepresentationChanged =
             previousCollisionSettings.isNativeVoxelTerrainEnabled()
                 != settings.getWorldCollisionSettings().isNativeVoxelTerrainEnabled();
+        boolean worldCollisionDisabled =
+            settings.getWorldCollisionSettings().getWorldCollisionMode() == WorldCollisionMode.NONE
+                && previousCollisionSettings.getWorldCollisionMode() != WorldCollisionMode.NONE;
         spaceRuntime.setSpaceSettings(spaceId, settings);
-        if (terrainRepresentationChanged) {
+        if (worldCollisionDisabled || terrainRepresentationChanged) {
             collisionRuntime.clear(requireSpaceBinding(spaceId));
         } else if (worldCollisionSettingsChanged) {
             collisionRuntime.incrementStreamingRevision(spaceId);
@@ -1118,6 +1213,10 @@ public class PhysicsWorldRuntimeResource extends PhysicsWorldResource {
 
     public boolean isBodyControlled(@Nonnull RigidBodyKey bodyKey) {
         return controlRuntime.isBodyControlled(bodyKey);
+    }
+
+    public void disableControlLifecycle() {
+        controlRuntime.clear();
     }
 
     public void updateChunkBoundarySafeState(@Nonnull RigidBodyKey bodyKey,

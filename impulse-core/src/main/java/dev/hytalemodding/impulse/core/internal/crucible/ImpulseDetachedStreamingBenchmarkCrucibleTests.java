@@ -17,8 +17,8 @@ import dev.hytalemodding.impulse.api.SpaceId;
 import dev.hytalemodding.impulse.core.internal.resources.profiling.PhysicsRuntimeProfilingResource;
 import dev.hytalemodding.impulse.core.internal.resources.profiling.PhysicsRuntimeProfilingResource.StepSnapshot;
 import dev.hytalemodding.impulse.core.internal.resources.profiling.PhysicsRuntimeProfilingResource.SyncSnapshot;
-import dev.hytalemodding.impulse.core.internal.resources.profiling.WorldCollisionProfilingResource;
-import dev.hytalemodding.impulse.core.internal.resources.profiling.WorldCollisionProfilingResource.Snapshot;
+import dev.hytalemodding.impulse.core.internal.modules.worldcollision.profiling.WorldCollisionProfilingResource;
+import dev.hytalemodding.impulse.core.internal.modules.worldcollision.profiling.WorldCollisionProfilingResource.Snapshot;
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsWorldRuntimeResource;
 import dev.hytalemodding.impulse.core.internal.simulation.BenchmarkSpaceStatsQuery;
 import dev.hytalemodding.impulse.core.internal.simulation.BenchmarkSpaceStatsView;
@@ -26,13 +26,13 @@ import dev.hytalemodding.impulse.core.internal.simulation.WorldCollisionPrewarmE
 import dev.hytalemodding.impulse.core.plugin.body.RigidBodyKey;
 import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyKind;
 import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyPersistenceMode;
-import dev.hytalemodding.impulse.core.plugin.collision.WorldCollisionPrewarmStats;
+import dev.hytalemodding.impulse.core.plugin.modules.worldcollision.WorldCollisionPrewarmStats;
 import dev.hytalemodding.impulse.core.plugin.settings.PhysicsBackendExtensionId;
 import dev.hytalemodding.impulse.core.plugin.settings.PhysicsSpaceSettings;
 import dev.hytalemodding.impulse.core.plugin.settings.PhysicsStepMode;
 import dev.hytalemodding.impulse.core.plugin.settings.PhysicsStepSchedulingMode;
 import dev.hytalemodding.impulse.core.plugin.settings.PhysicsWorldSettings;
-import dev.hytalemodding.impulse.core.plugin.collision.WorldCollisionMode;
+import dev.hytalemodding.impulse.core.plugin.modules.worldcollision.WorldCollisionMode;
 import dev.hytalemodding.impulse.core.plugin.simulation.PhysicsShapeSpec;
 import dev.hytalemodding.impulse.core.plugin.simulation.RigidBodySpawnSettings;
 import it.unimi.dsi.fastutil.longs.LongOpenHashSet;
@@ -200,6 +200,11 @@ final class ImpulseDetachedStreamingBenchmarkCrucibleTests {
 
         private CompletionStage<StartedStage> startStageWhenReady(int count, int attempt) {
             clearStageState();
+            if (!WorldCollisionSubPluginCrucibleSupport.ensureLoaded()) {
+                return CompletableFuture.completedFuture(StartedStage.failed(count,
+                    "world collision subplugin did not load"));
+            }
+
             PhysicsWorldSettings worldSettings = physics.getWorldSettings();
             worldSettings.setStepMode(PhysicsStepMode.PROGRESSIVE_REFINEMENT);
             worldSettings.setStepSchedulingMode(PhysicsStepSchedulingMode.DROP_PENDING_DT);

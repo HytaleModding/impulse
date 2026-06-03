@@ -328,6 +328,10 @@ public final class FakePhysicsBackendRuntimeProvider implements PhysicsBackendRu
             requireBody(requireSpace(spaceId), bodyId).bodyTypeCode = bodyTypeCode;
         }
 
+        public int bodyTypeCode(int spaceId, long bodyId) {
+            return requireBody(requireSpace(spaceId), bodyId).bodyTypeCode;
+        }
+
         @Override
         public void setBodyDamping(int spaceId, long bodyId, float linearDamping, float angularDamping) {
             requireBody(requireSpace(spaceId), bodyId);
@@ -348,6 +352,14 @@ public final class FakePhysicsBackendRuntimeProvider implements PhysicsBackendRu
             BodyState body = requireBody(requireSpace(spaceId), bodyId);
             body.collisionGroup = group;
             body.collisionMask = mask;
+        }
+
+        public int bodyCollisionGroup(int spaceId, long bodyId) {
+            return requireBody(requireSpace(spaceId), bodyId).collisionGroup;
+        }
+
+        public int bodyCollisionMask(int spaceId, long bodyId) {
+            return requireBody(requireSpace(spaceId), bodyId).collisionMask;
         }
 
         @Override
