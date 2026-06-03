@@ -31,5 +31,19 @@ hytaleTools {
     modCredits = property("mod_credits") as String
     modUrl = property("mod_website") as String
     modDescription = property("mod_description") as String
+    manifestServerVersion = property("hytale_version") as String
     manifestOptionalDependencies = "com.ionforgelabs:crucible=*"
+
+    subPlugin (
+        "ImpulseWorldCollision",
+        "dev.hytalemodding.impulse.core.plugin.modules.worldcollision.ImpulseWorldCollisionPlugin",
+        false, /* disabledByDefault */
+        false  /* includeAssetPack */
+    )
+    subPlugin (
+        "ImpulseControl",
+        "dev.hytalemodding.impulse.core.plugin.modules.control.ImpulseControlPlugin",
+        false, /* disabledByDefault */
+        false  /* includeAssetPack */
+    )
 }
