@@ -8,7 +8,7 @@ import com.hypixel.hytale.server.core.command.system.basecommands.AbstractAsyncP
 import com.hypixel.hytale.server.core.universe.PlayerRef;
 import com.hypixel.hytale.server.core.universe.world.World;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
-import dev.hytalemodding.impulse.core.plugin.control.PhysicsControlSessions;
+import dev.hytalemodding.impulse.core.plugin.modules.control.PhysicsControlSessions;
 import java.util.concurrent.CompletableFuture;
 import javax.annotation.Nonnull;
 

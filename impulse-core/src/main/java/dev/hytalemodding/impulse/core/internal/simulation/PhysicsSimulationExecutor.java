@@ -13,14 +13,14 @@ import dev.hytalemodding.impulse.core.internal.resources.PhysicsWorldRuntimeReso
 import dev.hytalemodding.impulse.core.internal.resources.body.PhysicsBodyRegistration;
 import dev.hytalemodding.impulse.core.internal.resources.body.PhysicsBodySnapshots;
 import dev.hytalemodding.impulse.core.internal.resources.joint.PhysicsJointRegistration;
-import dev.hytalemodding.impulse.core.internal.voxel.WorldCollisionBuildOptions;
-import dev.hytalemodding.impulse.core.internal.voxel.WorldVoxelCollisionCache;
-import dev.hytalemodding.impulse.core.internal.voxel.WorldVoxelCollisionCache.BuildStats;
+import dev.hytalemodding.impulse.core.internal.modules.worldcollision.WorldCollisionBuildOptions;
+import dev.hytalemodding.impulse.core.internal.modules.worldcollision.WorldVoxelCollisionCache;
+import dev.hytalemodding.impulse.core.internal.modules.worldcollision.WorldVoxelCollisionCache.BuildStats;
 import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyKind;
 import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyPersistenceMode;
 import dev.hytalemodding.impulse.core.plugin.body.RigidBodyKey;
-import dev.hytalemodding.impulse.core.plugin.collision.WorldCollisionBuildStats;
-import dev.hytalemodding.impulse.core.plugin.collision.WorldCollisionPrewarmStats;
+import dev.hytalemodding.impulse.core.plugin.modules.worldcollision.WorldCollisionBuildStats;
+import dev.hytalemodding.impulse.core.plugin.modules.worldcollision.WorldCollisionPrewarmStats;
 import dev.hytalemodding.impulse.core.plugin.joint.JointKey;
 import dev.hytalemodding.impulse.core.plugin.simulation.CcdSupportQuery;
 import dev.hytalemodding.impulse.core.plugin.simulation.JointType;
@@ -55,7 +55,6 @@ import java.util.Optional;
 import java.util.Set;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
-import org.joml.Quaternionf;
 import org.joml.Vector3f;
 
 /**

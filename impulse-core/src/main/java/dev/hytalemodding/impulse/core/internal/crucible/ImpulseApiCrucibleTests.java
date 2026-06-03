@@ -1,6 +1,5 @@
 package dev.hytalemodding.impulse.core.internal.crucible;
 
-import dev.hytalemodding.impulse.api.BackendId;
 import dev.hytalemodding.impulse.api.Impulse;
 import dev.hytalemodding.impulse.api.PhysicsBodySnapshot;
 import dev.hytalemodding.impulse.api.PhysicsBodyType;
@@ -21,7 +20,7 @@ import dev.hytalemodding.impulse.core.plugin.settings.PhysicsSpaceSettings;
 import dev.hytalemodding.impulse.core.plugin.resources.PhysicsWorldResource;
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsWorldRuntimeResource;
 import dev.hytalemodding.impulse.core.plugin.settings.VisualOcclusionMode;
-import dev.hytalemodding.impulse.core.plugin.collision.WorldCollisionMode;
+import dev.hytalemodding.impulse.core.plugin.modules.worldcollision.WorldCollisionMode;
 import java.util.Collection;
 import java.util.List;
 import java.util.Set;
@@ -68,6 +67,9 @@ final class ImpulseApiCrucibleTests {
                         return true;
                     },
                     "No backend id is available for Crucible tests"),
+                CrucibleTestCase.asyncResult("world collision subplugin load/unload/reload",
+                    ignored -> WorldCollisionSubPluginCrucibleSupport.loadUnloadReloadSmokeAsync(),
+                    "World collision subplugin lifecycle smoke failed"),
                 CrucibleTestCase.sync("create space and body",
                     ImpulseApiCrucibleTests::createSpaceAndBody,
                     "Expected a body to be added to the physics space"),

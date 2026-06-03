@@ -22,7 +22,7 @@ import dev.hytalemodding.impulse.api.testsupport.FakePhysicsBackend.InMemoryPhys
 import dev.hytalemodding.impulse.api.testsupport.FakePhysicsBackendRuntimeProvider;
 import dev.hytalemodding.impulse.api.testsupport.FakePhysicsBackendRuntimeProvider.FakePhysicsBackendRuntime;
 import dev.hytalemodding.impulse.core.internal.resources.body.PhysicsBodyRuntimeState.BodySyncState;
-import dev.hytalemodding.impulse.core.internal.resources.PhysicsChunkBoundaryRuntime.ChunkBoundaryPauseState;
+import dev.hytalemodding.impulse.core.internal.modules.worldcollision.PhysicsChunkBoundaryRuntime.ChunkBoundaryPauseState;
 import dev.hytalemodding.impulse.core.internal.resources.owner.TestPhysicsOwnerLane;
 import dev.hytalemodding.impulse.core.internal.simulation.MutablePhysicsCommandContext;
 import dev.hytalemodding.impulse.core.internal.resources.owner.PhysicsOwnerSnapshot;
@@ -31,7 +31,7 @@ import dev.hytalemodding.impulse.core.internal.testsupport.LegacyLiveHandleTestR
 import dev.hytalemodding.impulse.core.plugin.body.RigidBodyKey;
 import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyKind;
 import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyPersistenceMode;
-import dev.hytalemodding.impulse.core.plugin.collision.WorldCollisionMode;
+import dev.hytalemodding.impulse.core.plugin.modules.worldcollision.WorldCollisionMode;
 import dev.hytalemodding.impulse.core.plugin.resources.PhysicsMutationHandle;
 import dev.hytalemodding.impulse.core.plugin.events.PhysicsCommandBatchEvent;
 import dev.hytalemodding.impulse.core.plugin.events.PhysicsEventFrame;

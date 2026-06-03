@@ -2,7 +2,7 @@ package dev.hytalemodding.impulse.core.internal.simulation;
 
 import com.hypixel.hytale.server.core.universe.world.World;
 import dev.hytalemodding.impulse.api.SpaceId;
-import dev.hytalemodding.impulse.core.plugin.collision.WorldCollisionPrewarmStats;
+import dev.hytalemodding.impulse.core.plugin.modules.worldcollision.WorldCollisionPrewarmStats;
 import java.util.Objects;
 import javax.annotation.Nonnull;
 
