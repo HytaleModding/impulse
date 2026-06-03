@@ -1,5 +1,6 @@
 import org.gradle.api.tasks.Copy
 import org.gradle.api.tasks.Delete
+import org.gradle.api.tasks.SourceSetContainer
 import org.gradle.api.tasks.compile.JavaCompile
 import org.gradle.api.tasks.testing.Test
 import org.gradle.api.tasks.testing.logging.TestExceptionFormat
@@ -135,6 +136,16 @@ gradle.projectsEvaluated {
 
         val runTask = this as JavaExec
         runTask.standardInput = System.`in`
+
+        // hytale-gradle 1.0.37 can omit project resources from run task classpaths.
+        runTask.classpath = files(
+            hytaleToolProjectPaths.map { path ->
+                val sourceSets = project(path).extensions.getByType<SourceSetContainer>()
+                sourceSets.named("main").get().runtimeClasspath
+            },
+            project(if (coreOnlyWorkspace.get()) ":impulse-core" else ":impulse-examples")
+                .configurations.named("vineServerJar")
+        )
 
         providers.gradleProperty("impulse.runAllModsJvmArgs")
             .orElse(providers.systemProperty("impulse.runAllModsJvmArgs"))
