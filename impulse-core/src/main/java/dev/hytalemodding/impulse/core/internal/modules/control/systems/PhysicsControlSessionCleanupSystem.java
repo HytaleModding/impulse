@@ -11,6 +11,7 @@ import dev.hytalemodding.impulse.core.internal.modules.control.ControlLifecycle;
 import dev.hytalemodding.impulse.core.internal.modules.control.components.PhysicsControlSessionComponent;
 import java.util.Objects;
 import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
 
 public final class PhysicsControlSessionCleanupSystem
     extends RefChangeSystem<EntityStore, PhysicsControlSessionComponent> {
@@ -34,17 +35,19 @@ public final class PhysicsControlSessionCleanupSystem
 
     @Override
     public void onComponentSet(@Nonnull Ref<EntityStore> ref,
-        @Nonnull PhysicsControlSessionComponent oldComponent,
+        @Nullable PhysicsControlSessionComponent oldComponent,
         @Nonnull PhysicsControlSessionComponent newComponent,
         @Nonnull Store<EntityStore> store,
         @Nonnull CommandBuffer<EntityStore> commandBuffer) {
         if (!ControlLifecycle.isEnabled()) {
+            assert oldComponent != null;
             PhysicsControlSessionCleanup.cleanup(store, oldComponent);
             PhysicsControlSessionCleanup.cleanup(store, newComponent);
             commandBuffer.removeComponent(ref, SESSION_TYPE);
             return;
         }
         ControlLifecycle.registerStore(store);
+        assert oldComponent != null;
         if (!sameSessionOwner(oldComponent, newComponent)) {
             PhysicsControlSessionCleanup.cleanup(store, oldComponent);
         }
@@ -58,6 +61,7 @@ public final class PhysicsControlSessionCleanupSystem
         PhysicsControlSessionCleanup.cleanup(store, component);
     }
 
+    @Nonnull
     @Override
     public ComponentType<EntityStore, PhysicsControlSessionComponent> componentType() {
         return SESSION_TYPE;

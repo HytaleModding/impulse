@@ -132,9 +132,6 @@ public final class PhysicsBodyRuntime {
             throw failure;
         }
         clearBodyState();
-        if (failure != null) {
-            throw failure;
-        }
     }
 
     public void clearBodyState() {
