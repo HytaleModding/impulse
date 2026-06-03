@@ -8,6 +8,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import dev.hytalemodding.impulse.api.Impulse;
 import dev.hytalemodding.impulse.api.PhysicsBody;
+import dev.hytalemodding.impulse.api.PhysicsBodyType;
 import dev.hytalemodding.impulse.api.PhysicsJoint;
 import dev.hytalemodding.impulse.api.PhysicsSpace;
 import dev.hytalemodding.impulse.api.testsupport.FakePhysicsBackend;
@@ -228,6 +229,45 @@ class PhysicsKinematicControlSystemTest {
     }
 
     @Test
+    void sessionCleanupRestoresOriginalBodyState() {
+        FakePhysicsBackend backend =
+            new FakePhysicsBackend("test:control-cleanup-state-" + BACKEND_COUNTER.incrementAndGet());
+        Impulse.registerBackend(backend);
+        LegacyLiveHandleTestResource resource = new LegacyLiveHandleTestResource();
+        PhysicsSpace space = resource.createLiveSpace(backend.getId());
+        PhysicsBody body = space.createBox(0.5f, 0.5f, 0.5f, 1.0f);
+        PhysicsBody anchorBody = space.createSphere(0.1f, 1.0f);
+        RigidBodyKey bodyId = resource.addBody(space.id(),
+            body,
+            PhysicsBodyKind.BODY,
+            PhysicsBodyPersistenceMode.PERSISTENT);
+        RigidBodyKey anchorBodyId = resource.addBody(space.id(),
+            anchorBody,
+            PhysicsBodyKind.TEMPORARY,
+            PhysicsBodyPersistenceMode.RUNTIME_ONLY);
+        PhysicsJoint controlJoint =
+            space.createPointJoint(anchorBody, body, new Vector3f(), new Vector3f());
+        JointKey controlJointId = resource.addJoint(space.id(), controlJoint);
+        body.setBodyType(PhysicsBodyType.KINEMATIC);
+        body.setLinearVelocity(0.0f, 0.0f, 0.0f);
+        PhysicsControlSessionComponent session = new PhysicsControlSessionComponent(bodyId,
+            anchorBodyId,
+            controlJointId,
+            null,
+            space.id(),
+            PhysicsBodyType.DYNAMIC,
+            4.0f,
+            new Vector3f(),
+            new Vector3f());
+        session.getReleaseVelocity().set(3.0f, 4.0f, 5.0f);
+
+        PhysicsControlSessionCleanup.cleanup(resource, session);
+
+        assertEquals(PhysicsBodyType.DYNAMIC, body.getBodyType());
+        assertEquals(new Vector3f(3.0f, 4.0f, 5.0f), body.getLinearVelocity());
+    }
+
+    @Test
     void sessionCleanupQueuesOwnerReleaseWithoutBlocking() throws Exception {
         FakePhysicsBackend backend =
             new FakePhysicsBackend("test:control-cleanup-owner-" + BACKEND_COUNTER.incrementAndGet());
@@ -280,6 +320,67 @@ class PhysicsKinematicControlSystemTest {
 
             releaseMutation.countDown();
             pollMutationCompletions(owner, 2);
+            resource.detachOwnerExecutor(owner);
+        } finally {
+            releaseMutation.countDown();
+        }
+    }
+
+    @Test
+    void lifecycleSessionCleanupWaitsForOwnerRelease() throws Exception {
+        FakePhysicsBackend backend =
+            new FakePhysicsBackend("test:control-cleanup-lifecycle-" + BACKEND_COUNTER.incrementAndGet());
+        Impulse.registerBackend(backend);
+        LegacyLiveHandleTestResource resource = new LegacyLiveHandleTestResource();
+        PhysicsSpace space = resource.createLiveSpace(backend.getId());
+        PhysicsBody body = space.createBox(0.5f, 0.5f, 0.5f, 1.0f);
+        PhysicsBody anchorBody = space.createSphere(0.1f, 1.0f);
+        RigidBodyKey bodyId = resource.addBody(space.id(),
+            body,
+            PhysicsBodyKind.BODY,
+            PhysicsBodyPersistenceMode.PERSISTENT);
+        RigidBodyKey anchorBodyId = resource.addBody(space.id(),
+            anchorBody,
+            PhysicsBodyKind.TEMPORARY,
+            PhysicsBodyPersistenceMode.RUNTIME_ONLY);
+        PhysicsJoint controlJoint =
+            space.createPointJoint(anchorBody, body, new Vector3f(), new Vector3f());
+        JointKey controlJointId = resource.addJoint(space.id(), controlJoint);
+        PhysicsControlSessionComponent session = new PhysicsControlSessionComponent(bodyId,
+            anchorBodyId,
+            controlJointId,
+            null,
+            space.id(),
+            body.getBodyType(),
+            4.0f,
+            new Vector3f(),
+            new Vector3f());
+
+        CountDownLatch mutationStarted = new CountDownLatch(1);
+        CountDownLatch releaseMutation = new CountDownLatch(1);
+        try (TestPhysicsOwnerLane owner = new TestPhysicsOwnerLane(4,
+            Duration.ofSeconds(2L))) {
+            owner.start("control-cleanup-lifecycle");
+            resource.attachOwnerExecutor(owner);
+            owner.submitMutation("blocking mutation", () -> {
+                mutationStarted.countDown();
+                assertTrue(releaseMutation.await(2L, TimeUnit.SECONDS));
+                return PhysicsOwnerSnapshot.empty();
+            });
+            assertTrue(mutationStarted.await(2L, TimeUnit.SECONDS));
+
+            CompletableFuture<Void> cleanup = CompletableFuture.runAsync(
+                () -> PhysicsControlSessionCleanup.cleanupAndWait(resource, session));
+
+            Thread.sleep(100L);
+            assertFalse(cleanup.isDone());
+
+            releaseMutation.countDown();
+            cleanup.get(2L, TimeUnit.SECONDS);
+
+            assertTrue(resource.callOwner("verify lifecycle control cleanup",
+                () -> resource.getJoint(controlJointId) == null
+                    && !space.containsBody(anchorBody)));
             resource.detachOwnerExecutor(owner);
         } finally {
             releaseMutation.countDown();
