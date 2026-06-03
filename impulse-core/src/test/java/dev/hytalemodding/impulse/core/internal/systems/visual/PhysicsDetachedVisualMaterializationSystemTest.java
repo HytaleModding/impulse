@@ -2,6 +2,7 @@ package dev.hytalemodding.impulse.core.internal.systems.visual;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import dev.hytalemodding.impulse.api.BackendId;
@@ -18,6 +19,8 @@ import dev.hytalemodding.impulse.core.plugin.body.RigidBodyKey;
 import dev.hytalemodding.impulse.core.plugin.settings.PhysicsSpaceSettings;
 import dev.hytalemodding.impulse.core.plugin.settings.VisualOcclusionMode;
 import java.util.List;
+import java.util.Set;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import org.joml.Vector3f;
 import org.junit.jupiter.api.Test;
@@ -25,6 +28,27 @@ import org.junit.jupiter.api.Test;
 class PhysicsDetachedVisualMaterializationSystemTest {
 
     private static final AtomicInteger BACKEND_COUNTER = new AtomicInteger();
+
+    @Test
+    void materializationTreatsEcsGameplayAttachmentSnapshotAsAttachmentWhenRuntimeIndexIsStale() {
+        RigidBodyKey bodyKey = RigidBodyKey.random();
+        RigidBodyKey otherBodyKey = RigidBodyKey.random();
+        AtomicBoolean queriedSnapshot = new AtomicBoolean();
+
+        GameplayAttachmentSnapshot snapshot = GameplayAttachmentSnapshot.fromSource(() -> Set.of(bodyKey));
+        assertTrue(snapshot.hasKnownGameplayAttachment(false, bodyKey));
+
+        GameplayAttachmentSnapshot currentRuntimeIndex = GameplayAttachmentSnapshot.fromSource(
+            () -> {
+                queriedSnapshot.set(true);
+                return Set.of();
+            });
+        assertTrue(currentRuntimeIndex.hasKnownGameplayAttachment(true, bodyKey));
+        assertFalse(queriedSnapshot.get());
+
+        GameplayAttachmentSnapshot otherSnapshot = GameplayAttachmentSnapshot.fromSource(() -> Set.of(otherBodyKey));
+        assertFalse(otherSnapshot.hasKnownGameplayAttachment(false, bodyKey));
+    }
 
     @Test
     void scalarVisibleDistanceRespectsRadiusAndViewCone() {
