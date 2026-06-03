@@ -1,4 +1,4 @@
-package dev.hytalemodding.impulse.core.internal.modules.worldcollision.systems;
+package dev.hytalemodding.impulse.core.internal.modules.worldcollision;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
