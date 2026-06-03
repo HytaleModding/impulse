@@ -32,7 +32,6 @@ dependencies {
     compileOnly(libs.lombok)
     annotationProcessor(libs.lombok)
 
-    testImplementation(testFixtures(project(":impulse-api")))
 }
 
 val bulletNativeConfigurations = bulletBackendPlatforms.associateWith { platform ->
