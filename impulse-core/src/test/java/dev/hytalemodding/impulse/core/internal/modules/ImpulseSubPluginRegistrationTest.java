@@ -29,12 +29,7 @@ class ImpulseSubPluginRegistrationTest {
                     "ImpulseControl",
                     "dev.hytalemodding.impulse.core.plugin.modules.control.ImpulseControlPlugin",
                     List.of(),
-                    false),
-                manifest(null,
-                    "ImpulsePersistence",
-                    "dev.hytalemodding.impulse.core.modules.persistence.ImpulsePersistencePlugin",
-                    List.of(),
-                    true)),
+                    false)),
             false);
 
         List<PluginManifest> prepared =
