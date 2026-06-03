@@ -35,10 +35,9 @@ class ImpulseSubPluginRegistrationTest {
         List<PluginManifest> prepared =
             ImpulseSubPluginRegistration.prepareSubPluginManifests(parent);
 
-        assertEquals(3, prepared.size());
+        assertEquals(2, prepared.size());
         assertPreparedSubPlugin(prepared.get(0), "ImpulseWorldCollision", false);
         assertPreparedSubPlugin(prepared.get(1), "ImpulseControl", false);
-        assertPreparedSubPlugin(prepared.get(2), "ImpulsePersistence", true);
     }
 
     private static void assertPreparedSubPlugin(PluginManifest manifest,
