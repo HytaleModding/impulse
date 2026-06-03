@@ -15,8 +15,10 @@ import java.util.Collections;
 import java.util.Map;
 import java.util.WeakHashMap;
 import java.util.concurrent.RejectedExecutionException;
+import java.util.function.BooleanSupplier;
 import java.util.logging.Level;
 import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
 
 /**
  * Chunk-tick scheduler for physics steps.
@@ -84,9 +86,7 @@ public class PhysicsStepSystem extends TickingSystem<ChunkStore> implements Auto
              * Restore replaces runtime topology. Dropping catch-up dt avoids replaying stale
              * backlog against newly restored spaces after restore completes.
              */
-            synchronized (state) {
-                state.clearAccumulatedStepDt();
-            }
+            state.clearAccumulatedStepDt();
             return false;
         }
         submitStepIfIdle(state, owner, resource, dt, profiling, serverTick);
@@ -116,9 +116,7 @@ public class PhysicsStepSystem extends TickingSystem<ChunkStore> implements Auto
         @Nonnull PhysicsRuntimeProfilingResource profiling,
         long serverTick) {
         boolean profilingEnabled = profiling.isEnabled();
-        synchronized (state) {
-            state.clearAccumulatedStepDt();
-        }
+        state.clearAccumulatedStepDt();
         if (owner.hasPendingStep()) {
             if (profilingEnabled) {
                 profiling.recordStepSkippedPending(owner.pendingStepAgeNanos());
@@ -126,19 +124,13 @@ public class PhysicsStepSystem extends TickingSystem<ChunkStore> implements Auto
             return;
         }
 
-        PhysicsOwnerStepCommand command;
-        synchronized (state) {
-            command = new PhysicsOwnerStepCommand(resource,
-                dt,
-                profilingEnabled,
-                state.nextStepSequence(),
-                serverTick);
-        }
+        PhysicsOwnerStepCommand command = state.currentTickStepCommand(resource,
+            dt,
+            profilingEnabled,
+            serverTick);
         try {
             if (owner.submitStepIfIdle(command)) {
-                synchronized (state) {
-                    state.consumeStepSequence();
-                }
+                state.consumeStepSequence();
                 return;
             }
             if (profilingEnabled) {
@@ -162,35 +154,30 @@ public class PhysicsStepSystem extends TickingSystem<ChunkStore> implements Auto
         boolean profilingEnabled = profiling.isEnabled();
         float safeDt = safeStepDt(dt);
         float maxAccumulatedDt = maxAccumulatedStepDt(resource);
-        StepSchedulerSample sample;
-        PhysicsOwnerStepCommand command;
-        synchronized (state) {
-            sample = state.accumulate(safeDt, maxAccumulatedDt);
-            if (owner.hasPendingStep()) {
-                recordSchedulerSample(profiling,
-                    profilingEnabled,
-                    safeDt,
-                    0.0f,
-                    state.accumulatedStepDt(),
-                    sample.droppedDt(),
-                    sample.capHit());
-                if (profilingEnabled) {
-                    profiling.recordStepSkippedPending(owner.pendingStepAgeNanos());
-                }
-                return;
-            }
-            command = new PhysicsOwnerStepCommand(resource,
-                state.submittedStepDt(),
+        AccumulatedStepPreparation preparation = state.prepareAccumulatedStepCommand(safeDt,
+            maxAccumulatedDt,
+            owner::hasPendingStep,
+            resource,
+            profilingEnabled,
+            serverTick);
+        StepSchedulerSample sample = preparation.sample();
+        if (preparation.hasPendingStep()) {
+            recordSchedulerSample(profiling,
                 profilingEnabled,
-                state.nextStepSequence(),
-                serverTick);
+                safeDt,
+                0.0f,
+                preparation.backlogDt(),
+                sample.droppedDt(),
+                sample.capHit());
+            if (profilingEnabled) {
+                profiling.recordStepSkippedPending(owner.pendingStepAgeNanos());
+            }
+            return;
         }
+        PhysicsOwnerStepCommand command = preparation.commandOrThrow();
         try {
             if (owner.submitStepIfIdle(command)) {
-                float submittedDt;
-                synchronized (state) {
-                    submittedDt = state.consumeSubmittedStepDt();
-                }
+                float submittedDt = state.consumeSubmittedStepDt();
                 recordSchedulerSample(profiling,
                     profilingEnabled,
                     safeDt,
@@ -200,28 +187,24 @@ public class PhysicsStepSystem extends TickingSystem<ChunkStore> implements Auto
                     sample.capHit());
                 return;
             }
-            synchronized (state) {
-                recordSchedulerSample(profiling,
-                    profilingEnabled,
-                    safeDt,
-                    0.0f,
-                    state.accumulatedStepDt(),
-                    sample.droppedDt(),
-                    sample.capHit());
-            }
+            recordSchedulerSample(profiling,
+                profilingEnabled,
+                safeDt,
+                0.0f,
+                state.accumulatedStepDt(),
+                sample.droppedDt(),
+                sample.capHit());
             if (profilingEnabled) {
                 profiling.recordStepSkippedPending(owner.pendingStepAgeNanos());
             }
         } catch (RejectedExecutionException exception) {
-            synchronized (state) {
-                recordSchedulerSample(profiling,
-                    profilingEnabled,
-                    safeDt,
-                    0.0f,
-                    state.accumulatedStepDt(),
-                    sample.droppedDt(),
-                    sample.capHit());
-            }
+            recordSchedulerSample(profiling,
+                profilingEnabled,
+                safeDt,
+                0.0f,
+                state.accumulatedStepDt(),
+                sample.droppedDt(),
+                sample.capHit());
             if (!owner.isClosed()) {
                 LOGGER.at(Level.WARNING).log(
                     "Skipping async physics step because the owner lane is unavailable: %s",
@@ -276,6 +259,8 @@ public class PhysicsStepSystem extends TickingSystem<ChunkStore> implements Auto
 
     static final class StepSchedulerState {
 
+        private final Object lock = new Object();
+
         /**
          * Impulse-local sequence for correlating owner step commands with published
          * snapshot frames. This is not the Hytale world tick.
@@ -288,7 +273,44 @@ public class PhysicsStepSystem extends TickingSystem<ChunkStore> implements Auto
         private double accumulatedStepDt;
 
         @Nonnull
-        private StepSchedulerSample accumulate(float dt, float maxAccumulatedDt) {
+        private AccumulatedStepPreparation prepareAccumulatedStepCommand(float dt,
+            float maxAccumulatedDt,
+            @Nonnull BooleanSupplier hasPendingStep,
+            @Nonnull PhysicsWorldResource resource,
+            boolean profilingEnabled,
+            long serverTick) {
+            synchronized (lock) {
+                StepSchedulerSample sample = accumulateLocked(dt, maxAccumulatedDt);
+                if (hasPendingStep.getAsBoolean()) {
+                    return new AccumulatedStepPreparation(sample,
+                        (float) accumulatedStepDt,
+                        null);
+                }
+                PhysicsOwnerStepCommand command = new PhysicsOwnerStepCommand(resource,
+                    (float) accumulatedStepDt,
+                    profilingEnabled,
+                    nextStepSequence,
+                    serverTick);
+                return new AccumulatedStepPreparation(sample, 0.0f, command);
+            }
+        }
+
+        @Nonnull
+        PhysicsOwnerStepCommand currentTickStepCommand(@Nonnull PhysicsWorldResource resource,
+            float dt,
+            boolean profilingEnabled,
+            long serverTick) {
+            synchronized (lock) {
+                return new PhysicsOwnerStepCommand(resource,
+                    dt,
+                    profilingEnabled,
+                    nextStepSequence,
+                    serverTick);
+            }
+        }
+
+        @Nonnull
+        private StepSchedulerSample accumulateLocked(float dt, float maxAccumulatedDt) {
             double candidate = accumulatedStepDt + Math.max(0.0f, dt);
             double capped = Math.clamp(maxAccumulatedDt, 0.0f, candidate);
             accumulatedStepDt = capped;
@@ -296,31 +318,48 @@ public class PhysicsStepSystem extends TickingSystem<ChunkStore> implements Auto
             return new StepSchedulerSample((float) dropped, dropped > 0.0);
         }
 
-        private float submittedStepDt() {
-            return (float) accumulatedStepDt;
-        }
-
         private float consumeSubmittedStepDt() {
-            float submittedDt = submittedStepDt();
-            clearAccumulatedStepDt();
-            consumeStepSequence();
-            return submittedDt;
+            synchronized (lock) {
+                float submittedDt = (float) accumulatedStepDt;
+                accumulatedStepDt = 0.0;
+                nextStepSequence++;
+                return submittedDt;
+            }
         }
 
         private void clearAccumulatedStepDt() {
-            accumulatedStepDt = 0.0;
+            synchronized (lock) {
+                accumulatedStepDt = 0.0;
+            }
         }
 
         private void consumeStepSequence() {
-            nextStepSequence++;
+            synchronized (lock) {
+                nextStepSequence++;
+            }
         }
 
         private float accumulatedStepDt() {
-            return (float) accumulatedStepDt;
+            synchronized (lock) {
+                return (float) accumulatedStepDt;
+            }
+        }
+    }
+
+    private record AccumulatedStepPreparation(@Nonnull StepSchedulerSample sample,
+        float backlogDt,
+        @Nullable PhysicsOwnerStepCommand command) {
+
+        private boolean hasPendingStep() {
+            return command == null;
         }
 
-        private long nextStepSequence() {
-            return nextStepSequence;
+        @Nonnull
+        private PhysicsOwnerStepCommand commandOrThrow() {
+            if (command == null) {
+                throw new IllegalStateException("No accumulated step command was prepared");
+            }
+            return command;
         }
     }
 
