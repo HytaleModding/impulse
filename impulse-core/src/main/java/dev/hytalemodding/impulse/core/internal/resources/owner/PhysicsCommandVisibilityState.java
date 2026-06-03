@@ -1,6 +1,6 @@
 package dev.hytalemodding.impulse.core.internal.resources.owner;
 
-import dev.hytalemodding.impulse.core.internal.simulation.RecordedPhysicsCommandBatch;
+import dev.hytalemodding.impulse.core.internal.simulation.batch.RecordedPhysicsCommandBatch;
 import dev.hytalemodding.impulse.core.plugin.body.RigidBodyKey;
 import it.unimi.dsi.fastutil.objects.Object2LongOpenHashMap;
 import java.util.concurrent.atomic.AtomicLong;

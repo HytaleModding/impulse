@@ -12,7 +12,7 @@ import com.hypixel.hytale.server.core.universe.world.World;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import dev.hytalemodding.impulse.api.SpaceId;
 import dev.hytalemodding.impulse.core.plugin.resources.PhysicsWorldResource;
-import dev.hytalemodding.impulse.core.plugin.simulation.RaycastClosestBatchQuery;
+import dev.hytalemodding.impulse.core.plugin.simulation.query.RaycastClosestBatchQuery;
 import dev.hytalemodding.impulse.core.plugin.simulation.RaycastSegment;
 import dev.hytalemodding.impulse.examples.commands.ExamplePhysicsUtils;
 import java.util.ArrayList;

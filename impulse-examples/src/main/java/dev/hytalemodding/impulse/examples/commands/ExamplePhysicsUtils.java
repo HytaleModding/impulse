@@ -28,7 +28,7 @@ import dev.hytalemodding.impulse.core.plugin.components.PhysicsBodyAttachmentCom
 import dev.hytalemodding.impulse.core.plugin.resources.PhysicsWorldResource;
 import dev.hytalemodding.impulse.core.plugin.settings.PhysicsVisualMaterializationSettings;
 import dev.hytalemodding.impulse.core.plugin.simulation.PhysicsCommandHandle;
-import dev.hytalemodding.impulse.core.plugin.simulation.PhysicsCommandRecorder;
+import dev.hytalemodding.impulse.core.plugin.simulation.recorder.PhysicsCommandRecorder;
 import dev.hytalemodding.impulse.core.plugin.simulation.PhysicsShapeSpec;
 import dev.hytalemodding.impulse.core.plugin.simulation.RigidBodySpawnSettings;
 import java.util.Arrays;
@@ -254,6 +254,7 @@ public final class ExamplePhysicsUtils {
             pending.blockType(),
             new Vector3d(pending.positionX(), pending.positionY(), pending.positionZ()),
             pending.controllable());
+        assert entity != null;
         return new SpawnedBlockBody(pending.bodyKey(), pending.spaceId(), entity);
     }
 
@@ -365,6 +366,7 @@ public final class ExamplePhysicsUtils {
                 new Vector3d(batch.positionX(i), batch.positionY(i), batch.positionZ(i)),
                 mass > 0.0f);
             if (spawned != null) {
+                assert entity != null;
                 spawned[i] = new SpawnedBlockBody(bodyKey, spaceId, entity);
             }
         }
@@ -386,7 +388,7 @@ public final class ExamplePhysicsUtils {
             });
     }
 
-    @Nonnull
+    @Nullable
     public static Ref<EntityStore> spawnAttachedBlockEntity(@Nonnull Store<EntityStore> store,
         @Nonnull TimeResource time,
         @Nonnull RigidBodyKey bodyKey,

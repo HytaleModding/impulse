@@ -6,8 +6,8 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import dev.hytalemodding.impulse.api.PhysicsBodyType;
 import dev.hytalemodding.impulse.api.SpaceId;
-import dev.hytalemodding.impulse.core.internal.simulation.MutablePhysicsCommandContext;
-import dev.hytalemodding.impulse.core.internal.simulation.RecordedPhysicsCommandBatch;
+import dev.hytalemodding.impulse.core.internal.simulation.recorder.MutablePhysicsCommandContext;
+import dev.hytalemodding.impulse.core.internal.simulation.batch.RecordedPhysicsCommandBatch;
 import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyKind;
 import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyPersistenceMode;
 import dev.hytalemodding.impulse.core.plugin.body.RigidBodyKey;

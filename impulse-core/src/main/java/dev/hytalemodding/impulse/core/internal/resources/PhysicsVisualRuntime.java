@@ -3,7 +3,7 @@ package dev.hytalemodding.impulse.core.internal.resources;
 import com.hypixel.hytale.component.Ref;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import dev.hytalemodding.impulse.core.plugin.body.RigidBodyKey;
-import dev.hytalemodding.impulse.core.plugin.simulation.RaycastHitView;
+import dev.hytalemodding.impulse.core.plugin.simulation.view.RaycastHitView;
 import it.unimi.dsi.fastutil.objects.Object2ObjectLinkedOpenHashMap;
 import it.unimi.dsi.fastutil.objects.ObjectOpenHashSet;
 import java.util.ArrayList;

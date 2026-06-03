@@ -9,8 +9,8 @@ import dev.hytalemodding.impulse.core.internal.resources.PhysicsVisualRuntime.Vi
 import dev.hytalemodding.impulse.core.plugin.body.RigidBodyKey;
 import dev.hytalemodding.impulse.core.plugin.settings.PhysicsSpaceSettings;
 import dev.hytalemodding.impulse.core.plugin.settings.VisualOcclusionMode;
-import dev.hytalemodding.impulse.core.plugin.simulation.RaycastClosestQuery;
-import dev.hytalemodding.impulse.core.plugin.simulation.RaycastHitView;
+import dev.hytalemodding.impulse.core.plugin.simulation.query.RaycastClosestQuery;
+import dev.hytalemodding.impulse.core.plugin.simulation.view.RaycastHitView;
 import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
@@ -64,6 +64,7 @@ final class DetachedVisualOcclusion {
         }
 
         Optional<RaycastHitView> completedRaycast = state.pollCompletedRaycast();
+
         if (completedRaycast != null) {
             raycastVisible = completedRaycast
                 .map(view -> bodyKey.equals(view.bodyKey()))

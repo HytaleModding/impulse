@@ -14,7 +14,7 @@ import dev.hytalemodding.impulse.core.plugin.settings.PhysicsStepMode;
 import dev.hytalemodding.impulse.core.plugin.resources.PhysicsWorldResource;
 import dev.hytalemodding.impulse.core.plugin.settings.PhysicsWorldSettings;
 import dev.hytalemodding.impulse.core.plugin.simulation.SpaceSummary;
-import dev.hytalemodding.impulse.core.plugin.simulation.UnsupportedCcdSpacesQuery;
+import dev.hytalemodding.impulse.core.plugin.simulation.query.UnsupportedCcdSpacesQuery;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import javax.annotation.Nonnull;

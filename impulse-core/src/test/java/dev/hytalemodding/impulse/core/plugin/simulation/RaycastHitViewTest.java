@@ -6,6 +6,7 @@ import static org.junit.jupiter.api.Assertions.assertSame;
 
 import dev.hytalemodding.impulse.api.PhysicsBodyType;
 import dev.hytalemodding.impulse.api.ShapeType;
+import dev.hytalemodding.impulse.core.plugin.simulation.view.RaycastHitView;
 import org.joml.Vector3f;
 import org.junit.jupiter.api.Test;
 

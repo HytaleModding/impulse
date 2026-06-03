@@ -8,7 +8,7 @@ import javax.annotation.Nullable;
 /**
  * Frozen created-body key metadata for one recorded command batch.
  */
-final class RecordedBodyCreationKeys {
+public final class RecordedBodyCreationKeys {
 
     private static final RecordedBodyCreationKeys EMPTY =
         new RecordedBodyCreationKeys(new long[0], new long[0], 0);
@@ -28,31 +28,31 @@ final class RecordedBodyCreationKeys {
     }
 
     @Nonnull
-    static RecordedBodyCreationKeys empty() {
+    public static RecordedBodyCreationKeys empty() {
         return EMPTY;
     }
 
     @Nonnull
-    static Builder builder() {
+    public static Builder builder() {
         return new Builder();
     }
 
-    boolean isEmpty() {
+    public boolean isEmpty() {
         return size == 0;
     }
 
-    int size() {
+    public int size() {
         return size;
     }
 
     @Nonnull
-    RigidBodyKey bodyKey(int index) {
+    public RigidBodyKey bodyKey(int index) {
         checkIndex(index);
         return RigidBodyKey.of(mostSignificantBits[index], leastSignificantBits[index]);
     }
 
     @Nullable
-    RigidBodyKey singleBodyKey() {
+    public RigidBodyKey singleBodyKey() {
         return size == 1 ? bodyKey(0) : null;
     }
 
@@ -62,13 +62,13 @@ final class RecordedBodyCreationKeys {
         }
     }
 
-    static final class Builder {
+    public static final class Builder {
 
         private long[] mostSignificantBits = new long[4];
         private long[] leastSignificantBits = new long[4];
         private int size;
 
-        void add(@Nonnull RigidBodyKey bodyKey) {
+        public void add(@Nonnull RigidBodyKey bodyKey) {
             add(bodyKey.mostSignificantBits(), bodyKey.leastSignificantBits());
         }
 
@@ -80,7 +80,7 @@ final class RecordedBodyCreationKeys {
             size++;
         }
 
-        void addAll(@Nonnull long[] bodyKeyMostSignificantBits,
+        public void addAll(@Nonnull long[] bodyKeyMostSignificantBits,
             @Nonnull long[] bodyKeyLeastSignificantBits,
             int count) {
             if (count <= 0) {
@@ -93,7 +93,7 @@ final class RecordedBodyCreationKeys {
         }
 
         @Nonnull
-        RecordedBodyCreationKeys build() {
+        public RecordedBodyCreationKeys build() {
             if (size == 0) {
                 return empty();
             }

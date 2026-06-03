@@ -1,0 +1,114 @@
+package dev.hytalemodding.impulse.core.internal.simulation.batch;
+
+import dev.hytalemodding.impulse.core.internal.simulation.PhysicsCommandOperations;
+import dev.hytalemodding.impulse.core.internal.simulation.RecordedBodyCreationKeys;
+import dev.hytalemodding.impulse.core.plugin.body.RigidBodyKey;
+import dev.hytalemodding.impulse.core.plugin.joint.JointKey;
+import dev.hytalemodding.impulse.core.plugin.simulation.PhysicsCommandBatch;
+import dev.hytalemodding.impulse.core.plugin.simulation.PhysicsCommandMetadata;
+import java.util.Objects;
+import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
+
+/**
+ * Internal frozen command payload plus the public metadata view returned to plugins.
+ */
+public final class RecordedPhysicsCommandBatch {
+
+    @Nonnull
+    private final PhysicsCommandMetadata metadata;
+    private final long commandWorldEpoch;
+    @Nonnull
+    private final PhysicsCommandOperations operations;
+    @Nonnull
+    private final PhysicsCommandBatch publicBatch;
+    @Nonnull
+    private final RecordedBodyCreationKeys bodyCreationKeys;
+    private final int bodyKeyReferenceCount;
+    @Nullable
+    private final RigidBodyKey firstBodyKey;
+    private final int jointKeyReferenceCount;
+    @Nullable
+    private final JointKey firstJointKey;
+
+    public RecordedPhysicsCommandBatch(@Nonnull PhysicsCommandMetadata metadata,
+        long commandWorldEpoch,
+        @Nonnull PhysicsCommandOperations operations) {
+        this.metadata = Objects.requireNonNull(metadata, "metadata");
+        this.commandWorldEpoch = Math.max(0L, commandWorldEpoch);
+        this.operations = Objects.requireNonNull(operations, "operations");
+        this.publicBatch = new PhysicsCommandBatch(metadata, operations.size());
+        this.bodyCreationKeys = operations.bodyCreationKeys();
+        PhysicsCommandOperations.EntityReferences references = operations.entityReferences();
+        this.bodyKeyReferenceCount = references.bodyKeyReferenceCount();
+        this.firstBodyKey = references.firstBodyKey();
+        this.jointKeyReferenceCount = references.jointKeyReferenceCount();
+        this.firstJointKey = references.firstJointKey();
+    }
+
+    @Nonnull
+    public PhysicsCommandMetadata metadata() {
+        return metadata;
+    }
+
+    public long commandWorldEpoch() {
+        return commandWorldEpoch;
+    }
+
+    public int commandCount() {
+        return operations.size();
+    }
+
+    @Nonnull
+    public PhysicsCommandOperations operations() {
+        return operations;
+    }
+
+    @Nonnull
+    public PhysicsCommandBatch publicBatch() {
+        return publicBatch;
+    }
+
+    /**
+     * Returns whether the frozen batch can create rigid bodies.
+     */
+    public boolean hasBodyCreationCommands() {
+        return !bodyCreationKeys.isEmpty();
+    }
+
+    /**
+     * Returns the exact created body key when this batch creates exactly one rigid body.
+     */
+    @Nullable
+    public RigidBodyKey singleSpawnBodyKey() {
+        return bodyCreationKeys.singleBodyKey();
+    }
+
+    public int bodyCreationKeyCount() {
+        return bodyCreationKeys.size();
+    }
+
+    @Nonnull
+    public RigidBodyKey bodyCreationKey(int index) {
+        return bodyCreationKeys.bodyKey(index);
+    }
+
+    public int bodyKeyReferenceCount() {
+        return bodyKeyReferenceCount;
+    }
+
+    @Nullable
+    public RigidBodyKey firstBodyKey() {
+        return firstBodyKey;
+    }
+
+    public int jointKeyReferenceCount() {
+        return jointKeyReferenceCount;
+    }
+
+    @Nullable
+    public JointKey firstJointKey() {
+        return firstJointKey;
+    }
+
+}

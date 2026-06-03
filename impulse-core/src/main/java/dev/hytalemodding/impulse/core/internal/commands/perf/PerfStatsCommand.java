@@ -7,11 +7,11 @@ import com.hypixel.hytale.server.core.command.system.basecommands.AbstractWorldC
 import com.hypixel.hytale.server.core.universe.world.World;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsWorldRuntimeResource;
-import dev.hytalemodding.impulse.core.internal.simulation.PhysicsSpaceRuntimeStatsQuery;
-import dev.hytalemodding.impulse.core.internal.simulation.PhysicsSpaceRuntimeStatsView;
+import dev.hytalemodding.impulse.core.internal.simulation.query.PhysicsSpaceRuntimeStatsQuery;
+import dev.hytalemodding.impulse.core.internal.simulation.view.PhysicsSpaceRuntimeStatsView;
 import dev.hytalemodding.impulse.core.plugin.resources.PhysicsWorldResource;
 import dev.hytalemodding.impulse.core.plugin.simulation.SpaceSummary;
-import dev.hytalemodding.impulse.core.plugin.simulation.SpaceSummaryQuery;
+import dev.hytalemodding.impulse.core.plugin.simulation.query.SpaceSummaryQuery;
 import java.util.List;
 import javax.annotation.Nonnull;
 

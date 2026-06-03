@@ -5,13 +5,18 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 
 import dev.hytalemodding.impulse.api.PhysicsBodyType;
 import dev.hytalemodding.impulse.api.SpaceId;
-import dev.hytalemodding.impulse.core.internal.simulation.MutablePhysicsCommandContext;
+import dev.hytalemodding.impulse.core.internal.simulation.recorder.MutablePhysicsCommandContext;
 import dev.hytalemodding.impulse.core.plugin.body.RigidBodyKey;
 import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyKind;
 import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyPersistenceMode;
 import dev.hytalemodding.impulse.core.plugin.joint.JointKey;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.UUID;
+import dev.hytalemodding.impulse.core.plugin.simulation.recorder.JointCommandRecorder;
+import dev.hytalemodding.impulse.core.plugin.simulation.recorder.RigidBodyCommandRecorder;
+import dev.hytalemodding.impulse.core.plugin.simulation.recorder.RigidBodySpawnBatchRecorder;
+import dev.hytalemodding.impulse.core.plugin.simulation.recorder.RigidBodySpawnRecorder;
+import dev.hytalemodding.impulse.core.plugin.simulation.recorder.RigidBodySpawnTemplateRecorder;
 import org.joml.Vector3f;
 import org.junit.jupiter.api.Test;
 
