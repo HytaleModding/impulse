@@ -11,7 +11,7 @@ Impulse codebase is divided as follows:
 - **impulse-native-loader** - legacy loader for PhysicsBackend
 - **impulse-examples** - example plugins to understand the framework usage.
   
-- Official physics backend implementations:
+Official physics backend implementations:
 - **impulse-bullet** - Libbulletjme backend implementation.
 - **impulse-rapier** - Rapier backend with a small Rust/JNI native shim.
 
