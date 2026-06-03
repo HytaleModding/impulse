@@ -9,7 +9,7 @@ import dev.hytalemodding.impulse.api.PhysicsBodyType;
 import dev.hytalemodding.impulse.api.ShapeType;
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsVisualRuntime.BodyVisualInterestState;
 import dev.hytalemodding.impulse.core.plugin.body.RigidBodyKey;
-import dev.hytalemodding.impulse.core.plugin.simulation.RaycastHitView;
+import dev.hytalemodding.impulse.core.plugin.simulation.view.RaycastHitView;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import org.joml.Vector3f;

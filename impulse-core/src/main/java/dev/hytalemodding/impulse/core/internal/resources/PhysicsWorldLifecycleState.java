@@ -7,7 +7,7 @@ import dev.hytalemodding.impulse.core.internal.resources.body.PhysicsBodyRegistr
 import dev.hytalemodding.impulse.core.internal.resources.body.PhysicsBodySnapshotVisitor;
 import dev.hytalemodding.impulse.core.internal.resources.owner.PhysicsCommandVisibilityState;
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsWorldSnapshotState.ApplyResult;
-import dev.hytalemodding.impulse.core.internal.simulation.RecordedPhysicsCommandBatch;
+import dev.hytalemodding.impulse.core.internal.simulation.batch.RecordedPhysicsCommandBatch;
 import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyKind;
 import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyPersistenceMode;
 import dev.hytalemodding.impulse.core.plugin.body.RigidBodyKey;

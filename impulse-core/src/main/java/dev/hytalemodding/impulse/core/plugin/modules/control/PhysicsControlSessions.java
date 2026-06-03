@@ -10,7 +10,7 @@ import dev.hytalemodding.impulse.core.internal.modules.control.components.Physic
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsWorldRuntimeResource;
 import dev.hytalemodding.impulse.core.plugin.body.RigidBodyKey;
 import dev.hytalemodding.impulse.core.plugin.joint.JointKey;
-import dev.hytalemodding.impulse.core.plugin.simulation.PhysicsCommandRecorder;
+import dev.hytalemodding.impulse.core.plugin.simulation.recorder.PhysicsCommandRecorder;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 import org.joml.Vector3f;

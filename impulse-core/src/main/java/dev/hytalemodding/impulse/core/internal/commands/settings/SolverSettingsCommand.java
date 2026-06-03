@@ -12,7 +12,7 @@ import dev.hytalemodding.impulse.api.SpaceId;
 import dev.hytalemodding.impulse.core.internal.commands.SpaceSelection;
 import dev.hytalemodding.impulse.core.plugin.settings.PhysicsSpaceSettings;
 import dev.hytalemodding.impulse.core.plugin.resources.PhysicsWorldResource;
-import dev.hytalemodding.impulse.core.plugin.simulation.SolverCapabilityQuery;
+import dev.hytalemodding.impulse.core.plugin.simulation.query.SolverCapabilityQuery;
 import dev.hytalemodding.impulse.core.plugin.simulation.SolverCapabilitySummary;
 import javax.annotation.Nonnull;
 

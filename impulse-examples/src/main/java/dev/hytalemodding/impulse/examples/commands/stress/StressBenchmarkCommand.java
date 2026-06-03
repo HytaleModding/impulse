@@ -19,7 +19,7 @@ import dev.hytalemodding.impulse.core.plugin.body.RigidBodyKey;
 import dev.hytalemodding.impulse.core.plugin.resources.PhysicsWorldResource;
 import dev.hytalemodding.impulse.core.plugin.simulation.PhysicsShapeSpec;
 import dev.hytalemodding.impulse.core.plugin.simulation.RigidBodySpawnSettings;
-import dev.hytalemodding.impulse.core.plugin.simulation.SpaceBodyCountQuery;
+import dev.hytalemodding.impulse.core.plugin.simulation.query.SpaceBodyCountQuery;
 import dev.hytalemodding.impulse.examples.commands.ExamplePhysicsUtils;
 import java.util.Locale;
 import java.util.concurrent.CompletableFuture;

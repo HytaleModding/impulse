@@ -19,7 +19,7 @@ import dev.hytalemodding.impulse.core.plugin.resources.PhysicsWorldResource;
 import dev.hytalemodding.impulse.core.plugin.modules.worldcollision.WorldCollisionMode;
 import dev.hytalemodding.impulse.core.plugin.settings.PhysicsSpaceSettings;
 import dev.hytalemodding.impulse.core.plugin.simulation.SpaceSummary;
-import dev.hytalemodding.impulse.core.plugin.simulation.SpaceSummaryQuery;
+import dev.hytalemodding.impulse.core.plugin.simulation.query.SpaceSummaryQuery;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;

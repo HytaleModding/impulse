@@ -20,9 +20,9 @@ import dev.hytalemodding.impulse.core.internal.resources.profiling.PhysicsRuntim
 import dev.hytalemodding.impulse.core.internal.modules.worldcollision.profiling.WorldCollisionProfilingResource;
 import dev.hytalemodding.impulse.core.internal.modules.worldcollision.profiling.WorldCollisionProfilingResource.Snapshot;
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsWorldRuntimeResource;
-import dev.hytalemodding.impulse.core.internal.simulation.BenchmarkSpaceStatsQuery;
-import dev.hytalemodding.impulse.core.internal.simulation.BenchmarkSpaceStatsView;
-import dev.hytalemodding.impulse.core.internal.simulation.WorldCollisionPrewarmEnvelopeQuery;
+import dev.hytalemodding.impulse.core.internal.simulation.query.BenchmarkSpaceStatsQuery;
+import dev.hytalemodding.impulse.core.internal.simulation.view.BenchmarkSpaceStatsView;
+import dev.hytalemodding.impulse.core.internal.simulation.query.WorldCollisionPrewarmEnvelopeQuery;
 import dev.hytalemodding.impulse.core.plugin.body.RigidBodyKey;
 import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyKind;
 import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyPersistenceMode;

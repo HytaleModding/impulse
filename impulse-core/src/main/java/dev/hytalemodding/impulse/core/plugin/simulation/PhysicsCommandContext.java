@@ -1,5 +1,7 @@
 package dev.hytalemodding.impulse.core.plugin.simulation;
 
+import dev.hytalemodding.impulse.core.plugin.simulation.recorder.PhysicsCommandRecorder;
+
 import javax.annotation.Nonnull;
 
 /**

@@ -5,6 +5,8 @@ import dev.hytalemodding.impulse.api.SpaceId;
 import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyKind;
 import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyPersistenceMode;
 import dev.hytalemodding.impulse.core.plugin.body.RigidBodyKey;
+import dev.hytalemodding.impulse.core.internal.simulation.batch.RigidBodySpawnBatch;
+import dev.hytalemodding.impulse.core.internal.simulation.batch.RigidBodySpawnTemplateBatch;
 import dev.hytalemodding.impulse.core.plugin.joint.JointKey;
 import dev.hytalemodding.impulse.core.plugin.simulation.JointType;
 import dev.hytalemodding.impulse.core.plugin.simulation.PhysicsCommandContext;
@@ -25,7 +27,7 @@ import javax.annotation.Nullable;
  * does not allocate a wrapper object for every operation. Preserve that property on hot paths such
  * as template spawns and batch ray setup.</p>
  */
-final class PhysicsCommandOperations {
+public final class PhysicsCommandOperations {
 
     public static final byte SPAWN_RIGID_BODY = 1;
     public static final byte SPAWN_RIGID_BODY_BATCH = 2;
@@ -58,7 +60,7 @@ final class PhysicsCommandOperations {
     private int objectSize;
     private int floatSize;
 
-    PhysicsCommandOperations(int expectedOps) {
+    public PhysicsCommandOperations(int expectedOps) {
         int capacity = Math.max(1, expectedOps);
         opcodes = new byte[capacity];
         objectOffsets = new int[capacity];
@@ -89,7 +91,7 @@ final class PhysicsCommandOperations {
     }
 
     @Nonnull
-    PhysicsCommandOperations freeze() {
+    public PhysicsCommandOperations freeze() {
         return new PhysicsCommandOperations(
             freeze(opcodes, size),
             freeze(objectOffsets, size),
@@ -102,7 +104,7 @@ final class PhysicsCommandOperations {
             floatSize);
     }
 
-    void addSpawn(@Nonnull RigidBodyKey bodyKey,
+    public void addSpawn(@Nonnull RigidBodyKey bodyKey,
         @Nonnull SpaceId spaceId,
         @Nonnull PhysicsShapeSpec shape,
         float mass,
@@ -127,7 +129,7 @@ final class PhysicsCommandOperations {
         floatAt(index, 3, positionZ);
     }
 
-    void addSpawnBatch(@Nonnull RigidBodySpawnBatch batch) {
+    public void addSpawnBatch(@Nonnull RigidBodySpawnBatch batch) {
         if (batch.size() <= 0) {
             return;
         }
@@ -135,7 +137,7 @@ final class PhysicsCommandOperations {
         object(index, 0, batch.freeze());
     }
 
-    void addSpawnTemplateBatch(@Nonnull RigidBodySpawnTemplateBatch batch) {
+    public void addSpawnTemplateBatch(@Nonnull RigidBodySpawnTemplateBatch batch) {
         if (batch.size() <= 0) {
             return;
         }
@@ -143,12 +145,12 @@ final class PhysicsCommandOperations {
         object(index, 0, batch.freeze());
     }
 
-    void addDestroyBody(@Nonnull RigidBodyKey bodyKey) {
+    public void addDestroyBody(@Nonnull RigidBodyKey bodyKey) {
         int index = add(DESTROY_RIGID_BODY, 0, 1, 0);
         object(index, 0, bodyKey);
     }
 
-    void addSetSpaceGravity(@Nonnull SpaceId spaceId,
+    public void addSetSpaceGravity(@Nonnull SpaceId spaceId,
         float x,
         float y,
         float z) {
@@ -159,7 +161,7 @@ final class PhysicsCommandOperations {
         floatAt(index, 2, z);
     }
 
-    void addSetTransform(@Nonnull RigidBodyKey bodyKey,
+    public void addSetTransform(@Nonnull RigidBodyKey bodyKey,
         float positionX,
         float positionY,
         float positionZ,
@@ -179,7 +181,7 @@ final class PhysicsCommandOperations {
         floatAt(index, 6, rotationW);
     }
 
-    void addSetPosition(@Nonnull RigidBodyKey bodyKey,
+    public void addSetPosition(@Nonnull RigidBodyKey bodyKey,
         float positionX,
         float positionY,
         float positionZ,
@@ -191,7 +193,7 @@ final class PhysicsCommandOperations {
         floatAt(index, 2, positionZ);
     }
 
-    void addSetVelocity(@Nonnull RigidBodyKey bodyKey,
+    public void addSetVelocity(@Nonnull RigidBodyKey bodyKey,
         float linearX,
         float linearY,
         float linearZ,
@@ -209,7 +211,7 @@ final class PhysicsCommandOperations {
         floatAt(index, 5, angularZ);
     }
 
-    void addSetType(@Nonnull RigidBodyKey bodyKey,
+    public void addSetType(@Nonnull RigidBodyKey bodyKey,
         @Nonnull PhysicsBodyType bodyType,
         boolean activate) {
         int index = add(SET_RIGID_BODY_TYPE, activate ? FLAG_ACTIVATE : 0, 2, 0);
@@ -217,12 +219,12 @@ final class PhysicsCommandOperations {
         object(index, 1, bodyType);
     }
 
-    void addActivate(@Nonnull RigidBodyKey bodyKey) {
+    public void addActivate(@Nonnull RigidBodyKey bodyKey) {
         int index = add(ACTIVATE_RIGID_BODY, 0, 1, 0);
         object(index, 0, bodyKey);
     }
 
-    void addImpulse(@Nonnull RigidBodyKey bodyKey,
+    public void addImpulse(@Nonnull RigidBodyKey bodyKey,
         float x,
         float y,
         float z,
@@ -250,7 +252,7 @@ final class PhysicsCommandOperations {
         }
     }
 
-    void addForce(@Nonnull RigidBodyKey bodyKey,
+    public void addForce(@Nonnull RigidBodyKey bodyKey,
         float x,
         float y,
         float z,
@@ -278,7 +280,7 @@ final class PhysicsCommandOperations {
         }
     }
 
-    void addJoint(@Nonnull JointKey jointKey,
+    public void addJoint(@Nonnull JointKey jointKey,
         @Nonnull SpaceId spaceId,
         @Nonnull RigidBodyKey bodyA,
         @Nonnull RigidBodyKey bodyB,
@@ -324,12 +326,12 @@ final class PhysicsCommandOperations {
         floatAt(index, 15, motorMaxForce);
     }
 
-    void addDestroyJoint(@Nonnull JointKey jointKey) {
+    public void addDestroyJoint(@Nonnull JointKey jointKey) {
         int index = add(DESTROY_JOINT, 0, 1, 0);
         object(index, 0, jointKey);
     }
 
-    void addDestroyJointBetween(@Nullable JointKey preferredJointKey,
+    public void addDestroyJointBetween(@Nullable JointKey preferredJointKey,
         @Nonnull SpaceId spaceId,
         @Nonnull RigidBodyKey bodyA,
         @Nonnull RigidBodyKey bodyB) {
@@ -345,7 +347,7 @@ final class PhysicsCommandOperations {
     }
 
     @Nonnull
-    RecordedBodyCreationKeys bodyCreationKeys() {
+    public RecordedBodyCreationKeys bodyCreationKeys() {
         RecordedBodyCreationKeys.Builder keys = RecordedBodyCreationKeys.builder();
         for (int index = 0; index < size; index++) {
             switch (opcode(index)) {
@@ -374,7 +376,7 @@ final class PhysicsCommandOperations {
     }
 
     @Nonnull
-    EntityReferences entityReferences() {
+    public EntityReferences entityReferences() {
         EntityReferenceAccumulator accumulator = new EntityReferenceAccumulator();
         for (int index = 0; index < size; index++) {
             switch (opcode(index)) {
@@ -536,7 +538,7 @@ final class PhysicsCommandOperations {
         return values.length == size ? values : Arrays.copyOf(values, size);
     }
 
-    static final class EntityReferences {
+    public static final class EntityReferences {
 
         private final int bodyKeyReferenceCount;
         @Nullable
@@ -555,21 +557,21 @@ final class PhysicsCommandOperations {
             this.firstJointKey = this.jointKeyReferenceCount > 0 ? firstJointKey : null;
         }
 
-        int bodyKeyReferenceCount() {
+        public int bodyKeyReferenceCount() {
             return bodyKeyReferenceCount;
         }
 
         @Nullable
-        RigidBodyKey firstBodyKey() {
+        public RigidBodyKey firstBodyKey() {
             return firstBodyKey;
         }
 
-        int jointKeyReferenceCount() {
+        public int jointKeyReferenceCount() {
             return jointKeyReferenceCount;
         }
 
         @Nullable
-        JointKey firstJointKey() {
+        public JointKey firstJointKey() {
             return firstJointKey;
         }
     }

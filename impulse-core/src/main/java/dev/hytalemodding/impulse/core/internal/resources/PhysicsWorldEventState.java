@@ -5,7 +5,7 @@ import dev.hytalemodding.impulse.core.plugin.events.PhysicsEventFrame;
 import dev.hytalemodding.impulse.core.plugin.events.PhysicsFrameEvent;
 import dev.hytalemodding.impulse.core.plugin.events.PhysicsSnapshotPublicationEvent;
 import dev.hytalemodding.impulse.core.plugin.events.PhysicsStepEvent;
-import dev.hytalemodding.impulse.core.internal.simulation.RecordedPhysicsCommandBatch;
+import dev.hytalemodding.impulse.core.internal.simulation.batch.RecordedPhysicsCommandBatch;
 import dev.hytalemodding.impulse.core.plugin.body.RigidBodyKey;
 import dev.hytalemodding.impulse.core.plugin.joint.JointKey;
 import dev.hytalemodding.impulse.core.plugin.simulation.PhysicsCommandCompletion;

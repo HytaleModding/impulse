@@ -1,5 +1,8 @@
 package dev.hytalemodding.impulse.core.plugin.simulation;
 
+import dev.hytalemodding.impulse.core.plugin.simulation.query.RaycastClosestBatchQuery;
+import dev.hytalemodding.impulse.core.plugin.simulation.view.RaycastHitView;
+
 import java.util.Arrays;
 import java.util.Objects;
 import javax.annotation.Nonnull;

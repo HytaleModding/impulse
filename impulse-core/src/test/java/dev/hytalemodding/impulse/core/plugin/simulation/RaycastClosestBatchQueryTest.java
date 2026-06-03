@@ -7,6 +7,8 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import dev.hytalemodding.impulse.api.SpaceId;
 import java.util.ArrayList;
 import java.util.List;
+
+import dev.hytalemodding.impulse.core.plugin.simulation.query.RaycastClosestBatchQuery;
 import org.junit.jupiter.api.Test;
 
 class RaycastClosestBatchQueryTest {
