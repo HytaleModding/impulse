@@ -10,6 +10,13 @@ repositories {
     }
 }
 
+val coreModuleName = "dev.hytalemodding.impulse.core"
+
+val moduleInfoModulePath by configurations.creating {
+    isCanBeConsumed = false
+    isCanBeResolved = true
+}
+
 dependencies {
     implementation(project(":impulse-api"))
     testImplementation(testFixtures(project(":impulse-api")))
@@ -17,8 +24,57 @@ dependencies {
     testRuntimeOnly("com.hypixel.hytale:Server:${property("hytale_version") as String}")
     compileOnly(libs.crucible)
 
+    moduleInfoModulePath(libs.joml)
+    moduleInfoModulePath(libs.jsr305)
+    moduleInfoModulePath(libs.crucible)
+
     compileOnly(libs.lombok)
     annotationProcessor(libs.lombok)
+}
+
+val impulseApiJar = project(":impulse-api").tasks.named<org.gradle.jvm.tasks.Jar>("jar")
+
+tasks.named<org.gradle.api.tasks.compile.JavaCompile>("compileJava") {
+    doFirst {
+        destinationDirectory.file("module-info.class").get().asFile.delete()
+    }
+}
+
+val compileCoreModuleInfo by tasks.registering(org.gradle.api.tasks.compile.JavaCompile::class) {
+    description = "Compiles the impulse-core Java module descriptor."
+
+    dependsOn(tasks.named("compileJava"))
+    dependsOn(impulseApiJar)
+
+    source = fileTree("src/module-info") {
+        include("module-info.java")
+    }
+    classpath = files()
+    destinationDirectory.set(layout.buildDirectory.dir("classes/java/module-info"))
+    options.release.set((project.property("java_version") as String).toInt())
+    inputs.files(moduleInfoModulePath)
+    inputs.file(impulseApiJar.flatMap { it.archiveFile })
+
+    doFirst {
+        options.compilerArgs = listOf(
+            "-Xlint:-requires-transitive-automatic",
+            "--module-path",
+            files(impulseApiJar.get().archiveFile.get().asFile, moduleInfoModulePath).asPath,
+            "--patch-module",
+            "$coreModuleName=${sourceSets.main.get().output.classesDirs.asPath}"
+        )
+    }
+}
+
+tasks.named("classes") {
+    dependsOn(compileCoreModuleInfo)
+}
+
+tasks.named<org.gradle.jvm.tasks.Jar>("jar") {
+    dependsOn(compileCoreModuleInfo)
+    from(compileCoreModuleInfo.flatMap { it.destinationDirectory }) {
+        include("module-info.class")
+    }
 }
 
 tasks.withType<Test>().configureEach {
