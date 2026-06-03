@@ -745,7 +745,7 @@ final class ImpulseRapierBodyBenchmarkCrucibleTests {
         }
 
         private double positionZ(int index) {
-            return origin.z + (index / side) * spacing;
+            return origin.z + ((double) index / side) * spacing;
         }
     }
 

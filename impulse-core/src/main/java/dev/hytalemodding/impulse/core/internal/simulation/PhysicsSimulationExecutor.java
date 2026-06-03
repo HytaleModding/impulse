@@ -1346,7 +1346,7 @@ public final class PhysicsSimulationExecutor implements PhysicsCommandDispatcher
         Vector3f anchorA = worldAnchor(bodyA, joint.anchorAX(), joint.anchorAY(), joint.anchorAZ());
         Vector3f anchorB = worldAnchor(bodyB, joint.anchorBX(), joint.anchorBY(), joint.anchorBZ());
         Vector3f axis = new Vector3f(joint.axisX(), joint.axisY(), joint.axisZ());
-        if (axis == null || axis.lengthSquared() <= 0.0f) {
+        if (axis.lengthSquared() <= 0.0f) {
             return new PhysicsDebugJointView(anchorA.x,
                 anchorA.y,
                 anchorA.z,

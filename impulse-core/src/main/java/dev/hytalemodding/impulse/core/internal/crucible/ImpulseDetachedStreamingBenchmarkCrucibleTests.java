@@ -135,7 +135,6 @@ final class ImpulseDetachedStreamingBenchmarkCrucibleTests {
         private final CrucibleContext context;
         private final StagePlan plan;
         private final World world;
-        private final Store<EntityStore> store;
         private final PhysicsWorldRuntimeResource physics;
         private final PhysicsRuntimeProfilingResource runtimeProfiling;
         private final WorldCollisionProfilingResource worldCollisionProfiling;
@@ -147,7 +146,7 @@ final class ImpulseDetachedStreamingBenchmarkCrucibleTests {
             this.context = context;
             this.plan = plan;
             this.world = context.world();
-            this.store = world.getEntityStore().getStore();
+            Store<EntityStore> store = world.getEntityStore().getStore();
             this.physics = PhysicsWorldRuntimeResource.require(store);
             this.runtimeProfiling = store.getResource(PhysicsRuntimeProfilingResource.getResourceType());
             this.worldCollisionProfiling = store.getResource(

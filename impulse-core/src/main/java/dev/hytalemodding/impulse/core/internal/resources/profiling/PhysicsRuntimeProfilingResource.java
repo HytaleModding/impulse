@@ -775,8 +775,11 @@ public class PhysicsRuntimeProfilingResource implements Resource<EntityStore> {
 
     public static final class VisualCollector {
 
+        @Setter
         private int interests;
+        @Setter
         private int materialized;
+        @Setter
         private int candidates;
         private int spawned;
         private int dematerialized;
@@ -788,18 +791,6 @@ public class PhysicsRuntimeProfilingResource implements Resource<EntityStore> {
         private int candidateCacheUses;
         private int visibilityChecks;
         private int visibilityCheckSkips;
-
-        public void setInterests(int count) {
-            interests = count;
-        }
-
-        public void setMaterialized(int count) {
-            materialized = count;
-        }
-
-        public void setCandidates(int count) {
-            candidates = count;
-        }
 
         public void incrementSpawned() {
             spawned++;

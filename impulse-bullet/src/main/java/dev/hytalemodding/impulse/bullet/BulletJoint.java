@@ -24,9 +24,9 @@ final class BulletJoint implements PhysicsJoint {
     private boolean motorEnabled;
     private float motorTargetVelocity;
     private float motorMaxForce;
-    private float springRestLength = Float.NaN;
-    private float springStiffness = Float.NaN;
-    private float springDamping = Float.NaN;
+    private final float springRestLength;
+    private final float springStiffness;
+    private final float springDamping;
 
     BulletJoint(@Nonnull PhysicsJointType type,
         @Nonnull BulletBody bodyA,

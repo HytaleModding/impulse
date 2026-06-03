@@ -51,7 +51,7 @@ final class CrucibleBackends {
         }
 
         if (backendIds.size() == 1) {
-            return backendIds.get(0);
+            return backendIds.getFirst();
         }
 
         throw new IllegalStateException("Multiple physics backends are registered and Rapier is "
