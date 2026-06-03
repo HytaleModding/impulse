@@ -86,7 +86,7 @@ public final class ControlLifecycle {
                         PhysicsControlSessionComponent session =
                             archetypeChunk.getComponent(index, sessionType);
                         if (session != null) {
-                            PhysicsControlSessionCleanup.cleanup(resource, session);
+                            PhysicsControlSessionCleanup.cleanupAndWait(resource, session);
                         }
                         commandBuffer.removeComponent(archetypeChunk.getReferenceTo(index), sessionType);
                     });
