@@ -250,7 +250,6 @@ dependencies {
 
     implementation(project(":impulse-native-loader"))
 
-    testImplementation(testFixtures(project(":impulse-api")))
 }
 
 fun runtimeClasspathWithoutBundledApi(): FileCollection {
