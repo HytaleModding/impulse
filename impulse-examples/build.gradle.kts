@@ -1,3 +1,5 @@
+import org.gradle.api.tasks.testing.Test
+
 plugins {
     id("com.azuredoom.hytale-tools")
 }
@@ -8,12 +10,18 @@ dependencies {
     implementation(project(":impulse-api"))
     compileOnly(project(":impulse-core"))
     testImplementation(project(":impulse-core"))
+    testCompileOnly("com.hypixel.hytale:Server:${property("hytale_version") as String}")
+    testRuntimeOnly("com.hypixel.hytale:Server:${property("hytale_version") as String}")
     compileOnly(libs.lombok)
     annotationProcessor(libs.lombok)
 }
 
 tasks.compileJava {
     dependsOn(tasks.named("downloadAssetsZip"))
+}
+
+tasks.withType<Test>().configureEach {
+    jvmArgs("-Djava.util.logging.manager=com.hypixel.hytale.logger.backend.HytaleLogManager")
 }
 
 val downloadAssetsZip = tasks.named("downloadAssetsZip")
