@@ -1,8 +1,12 @@
 package dev.hytalemodding.impulse.examples.commands;
 
+import com.hypixel.hytale.component.AddReason;
+import com.hypixel.hytale.component.Holder;
 import com.hypixel.hytale.component.Ref;
 import com.hypixel.hytale.component.Store;
 import com.hypixel.hytale.server.core.Message;
+import com.hypixel.hytale.server.core.asset.type.blocktype.config.BlockType;
+import com.hypixel.hytale.server.core.asset.type.blocktype.config.RotationTuple;
 import com.hypixel.hytale.server.core.command.system.CommandContext;
 import com.hypixel.hytale.server.core.command.system.arguments.system.OptionalArg;
 import com.hypixel.hytale.server.core.command.system.arguments.types.ArgTypes;
@@ -13,6 +17,8 @@ import com.hypixel.hytale.server.core.modules.time.TimeResource;
 import com.hypixel.hytale.server.core.universe.PlayerRef;
 import com.hypixel.hytale.server.core.universe.world.World;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
+import com.hypixel.hytale.server.core.util.TargetUtil;
+import com.hypixel.hytale.builtin.fallingblocks.FallingBlock;
 import dev.hytalemodding.impulse.api.PhysicsBodyType;
 import dev.hytalemodding.impulse.api.SpaceId;
 import dev.hytalemodding.impulse.core.plugin.body.RigidBodyKey;
@@ -20,14 +26,20 @@ import dev.hytalemodding.impulse.core.plugin.components.RigidBodyComponent;
 import dev.hytalemodding.impulse.core.plugin.components.RigidBodyKinematicTargetComponent;
 import dev.hytalemodding.impulse.core.plugin.modules.worldcollision.WorldCollisionPrewarmStats;
 import dev.hytalemodding.impulse.core.plugin.resources.PhysicsWorldResource;
+import dev.hytalemodding.impulse.core.plugin.settings.PhysicsEventCollectionMode;
+import dev.hytalemodding.impulse.core.plugin.settings.PhysicsWorldSettings;
 import dev.hytalemodding.impulse.core.plugin.simulation.PhysicsCommandBuffer;
 import dev.hytalemodding.impulse.core.plugin.simulation.view.RaycastHitView;
+import dev.hytalemodding.impulse.examples.explosive.ExplosiveBlockComponent;
+import dev.hytalemodding.impulse.examples.explosive.ExplosiveBlockPolicy;
+import dev.hytalemodding.impulse.examples.explosive.ImpulseExplosiveFallingBlockImpact;
 import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 import org.joml.Vector3d;
+import org.joml.Vector3i;
 
 /**
  * ECS-first examples for durable rigid body definitions.
@@ -43,6 +55,7 @@ public class EcsCommand extends AbstractCommandCollection {
         addSubCommand(new PlatformCommand());
         addSubCommand(new PickupCommand());
         addSubCommand(new WorldCollisionCommand());
+        addSubCommand(new ExplosiveCommand());
     }
 
     private abstract static class EcsPlayerCommand extends AbstractAsyncPlayerCommand {
@@ -293,6 +306,161 @@ public class EcsCommand extends AbstractCommandCollection {
                 + stats.buildStats().removedBodies()
                 + "."));
             return CompletableFuture.completedFuture(null);
+        }
+    }
+
+    private static final class ExplosiveCommand extends EcsPlayerCommand {
+
+        private static final double FALLBACK_SPAWN_DISTANCE = 5.0;
+
+        private final OptionalArg<String> blockTypeArg = withOptionalArg(
+            "blockType",
+            "Hytale block type used for the primed explosive block",
+            ArgTypes.STRING);
+        private final OptionalArg<Integer> radiusArg = withOptionalArg(
+            "radius",
+            "Block radius fragmented when the explosive block hits world collision",
+            ArgTypes.INTEGER);
+        private final OptionalArg<Integer> maxFragmentsArg = withOptionalArg(
+            "maxFragments",
+            "Maximum blocks converted to physics fragments per explosion",
+            ArgTypes.INTEGER);
+        private final OptionalArg<Integer> generationsArg = withOptionalArg(
+            "generations",
+            "Maximum chained fragment explosion generations",
+            ArgTypes.INTEGER);
+        private final OptionalArg<Float> strengthArg = withOptionalArg(
+            "strength",
+            "Impulse strength applied to spawned fragments",
+            ArgTypes.FLOAT);
+        private final OptionalArg<Float> verticalLiftArg = withOptionalArg(
+            "verticalLift",
+            "Upward lift fraction applied to spawned fragments",
+            ArgTypes.FLOAT);
+
+        private ExplosiveCommand() {
+            super("explosive", "Drop an ECS explosive block that fragments terrain on impact");
+        }
+
+        @Nonnull
+        @Override
+        protected CompletableFuture<Void> executeAsync(@Nonnull CommandContext ctx,
+            @Nonnull Store<EntityStore> store,
+            @Nonnull Ref<EntityStore> ref,
+            @Nonnull PlayerRef playerRef,
+            @Nonnull World world) {
+            TransformComponent transform = store.getComponent(ref, TransformComponent.getComponentType());
+            if (transform == null) {
+                ctx.sender().sendMessage(Message.raw("Cannot determine player position."));
+                return CompletableFuture.completedFuture(null);
+            }
+            SpaceId spaceId = resolveSpace(ctx, store);
+            if (spaceId == null) {
+                return CompletableFuture.completedFuture(null);
+            }
+
+            String blockType = blockTypeArg.provided(ctx)
+                ? ExamplePhysicsUtils.resolveBlockType(blockTypeArg.get(ctx))
+                : ExamplePhysicsUtils.DEFAULT_BLOCK_TYPE;
+            int radius = ExamplePhysicsUtils.optionalInt(ctx, radiusArg, 3, 1, 8);
+            int maxFragments = ExamplePhysicsUtils.optionalInt(ctx, maxFragmentsArg, 48, 1, 256);
+            int generations = ExamplePhysicsUtils.optionalInt(ctx, generationsArg, 2, 0, 5);
+            float strength = optionalFloat(ctx, strengthArg, 12.0f, 0.0f, 128.0f);
+            float verticalLift = optionalFloat(ctx, verticalLiftArg, 0.35f, 0.0f, 2.0f);
+
+            PhysicsWorldResource resource = ExamplePhysicsUtils.resource(store);
+            boolean enabledContacts = ensureContactEvents(resource);
+            Vector3d spawn = spawnPosition(store, ref, transform, world);
+            BlockType blockTypeAsset = blockType(blockType);
+            if (blockTypeAsset == null) {
+                ctx.sender().sendMessage(Message.raw("No valid explosive block type is available."));
+                return CompletableFuture.completedFuture(null);
+            }
+
+            ExplosiveBlockComponent settings = new ExplosiveBlockComponent(blockType,
+                0,
+                generations,
+                radius,
+                maxFragments,
+                strength,
+                verticalLift);
+            Holder<EntityStore> holder = FallingBlock.generateFallingBlock(blockTypeAsset,
+                spawn,
+                RotationTuple.NONE,
+                ImpulseExplosiveFallingBlockImpact.fallingBlockSettings(spaceId, settings));
+            if (holder == null) {
+                ctx.sender().sendMessage(Message.raw("Unable to spawn explosive falling block."));
+                return CompletableFuture.completedFuture(null);
+            }
+            holder.addComponent(ExplosiveBlockComponent.getComponentType(), settings);
+            store.addEntity(holder, AddReason.SPAWN);
+
+            ctx.sender().sendMessage(Message.raw("Queued ECS explosive falling block"
+                + " in space " + spaceId.value()
+                + " radius=" + radius
+                + " maxFragments=" + maxFragments
+                + " generations=" + generations
+                + (enabledContacts ? " contacts=enabled" : "")
+                + "."));
+            return CompletableFuture.completedFuture(null);
+        }
+
+        @Nullable
+        private static BlockType blockType(@Nonnull String blockTypeId) {
+            BlockType blockType = BlockType.getAssetMap().getAsset(blockTypeId);
+            if (blockType != null) {
+                return blockType;
+            }
+            return BlockType.getAssetMap().getAsset(ExamplePhysicsUtils.DEFAULT_BLOCK_TYPE);
+        }
+
+        @Nonnull
+        private static Vector3d spawnPosition(@Nonnull Store<EntityStore> store,
+            @Nonnull Ref<EntityStore> ref,
+            @Nonnull TransformComponent transform,
+            @Nonnull World world) {
+            Vector3d eye = ExamplePhysicsUtils.eyePosition(store, ref, transform);
+            Vector3d direction = ExamplePhysicsUtils.lookDirection(store, ref, transform);
+            Vector3i target = TargetUtil.getTargetBlock(world,
+                (blockId, fluidId) -> ExplosiveBlockPolicy.isFragmentCandidate(blockId),
+                eye.x,
+                eye.y,
+                eye.z,
+                direction.x,
+                direction.y,
+                direction.z,
+                RAY_LENGTH);
+            if (target != null) {
+                return new Vector3d(target.x + 0.5, target.y + 3.5, target.z + 0.5);
+            }
+            return new Vector3d(eye)
+                .add(new Vector3d(direction).mul(FALLBACK_SPAWN_DISTANCE))
+                .add(0.0, 1.0, 0.0);
+        }
+
+        private static boolean ensureContactEvents(@Nonnull PhysicsWorldResource resource) {
+            PhysicsWorldSettings settings = resource.getWorldSettings();
+            if (settings.getEventCollectionMode() == PhysicsEventCollectionMode.CONTACTS) {
+                return false;
+            }
+            settings.setEventCollectionMode(PhysicsEventCollectionMode.CONTACTS);
+            resource.setWorldSettings(settings);
+            return true;
+        }
+
+        private static float optionalFloat(@Nonnull CommandContext ctx,
+            @Nonnull OptionalArg<Float> arg,
+            float defaultValue,
+            float min,
+            float max) {
+            float value = arg.provided(ctx) ? arg.get(ctx) : defaultValue;
+            if (!Float.isFinite(value)) {
+                return defaultValue;
+            }
+            if (value < min) {
+                return min;
+            }
+            return Math.min(value, max);
         }
     }
 
