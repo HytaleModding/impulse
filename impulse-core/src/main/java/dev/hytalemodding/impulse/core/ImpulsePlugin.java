@@ -34,6 +34,8 @@ import dev.hytalemodding.impulse.core.internal.modules.worldcollision.systems.Ph
 import dev.hytalemodding.impulse.core.internal.modules.worldcollision.systems.PhysicsCollisionLodSystem;
 import dev.hytalemodding.impulse.core.internal.modules.worldcollision.systems.PhysicsWorldCollisionStreamingSystem;
 import dev.hytalemodding.impulse.core.internal.systems.debug.PhysicsDebugSystem;
+import dev.hytalemodding.impulse.core.internal.systems.body.RigidBodyLifecycleCleanupSystem;
+import dev.hytalemodding.impulse.core.internal.systems.body.RigidBodyReconciliationSystem;
 import dev.hytalemodding.impulse.core.internal.systems.persistence.PersistentPhysicsBodyHydrationSystem;
 import dev.hytalemodding.impulse.core.internal.systems.persistence.PersistentPhysicsJointHydrationSystem;
 import dev.hytalemodding.impulse.core.internal.systems.persistence.PersistentPhysicsSpaceBootstrapSystem;
@@ -50,6 +52,17 @@ import dev.hytalemodding.impulse.core.internal.systems.owner.PhysicsOwnerLifecyc
 import dev.hytalemodding.impulse.core.internal.modules.control.components.PhysicsControlSessionComponent;
 import dev.hytalemodding.impulse.core.plugin.modules.control.ImpulseControllableComponent;
 import dev.hytalemodding.impulse.core.plugin.components.PhysicsBodyAttachmentComponent;
+import dev.hytalemodding.impulse.core.plugin.components.RigidBodyCollisionComponent;
+import dev.hytalemodding.impulse.core.plugin.components.RigidBodyKeyComponent;
+import dev.hytalemodding.impulse.core.plugin.components.RigidBodyKinematicTargetComponent;
+import dev.hytalemodding.impulse.core.plugin.components.RigidBodyLifecycleComponent;
+import dev.hytalemodding.impulse.core.plugin.components.RigidBodyMassComponent;
+import dev.hytalemodding.impulse.core.plugin.components.RigidBodyMaterialComponent;
+import dev.hytalemodding.impulse.core.plugin.components.RigidBodyOwnershipComponent;
+import dev.hytalemodding.impulse.core.plugin.components.RigidBodyPersistenceComponent;
+import dev.hytalemodding.impulse.core.plugin.components.RigidBodyShapeComponent;
+import dev.hytalemodding.impulse.core.plugin.components.RigidBodySpaceComponent;
+import dev.hytalemodding.impulse.core.plugin.components.RigidBodyTypeComponent;
 import dev.hytalemodding.impulse.core.plugin.events.PhysicsEventFramePublishedEvent;
 import dev.hytalemodding.impulse.core.plugin.persistence.PhysicsPersistenceResource;
 import dev.hytalemodding.impulse.core.plugin.resources.PhysicsWorldResource;
@@ -70,6 +83,39 @@ public final class ImpulsePlugin extends JavaPlugin {
 
     @Getter
     private ComponentType<EntityStore, PhysicsBodyAttachmentComponent> physicsBodyAttachmentComponentType;
+
+    @Getter
+    private ComponentType<EntityStore, RigidBodyKeyComponent> rigidBodyKeyComponentType;
+
+    @Getter
+    private ComponentType<EntityStore, RigidBodySpaceComponent> rigidBodySpaceComponentType;
+
+    @Getter
+    private ComponentType<EntityStore, RigidBodyShapeComponent> rigidBodyShapeComponentType;
+
+    @Getter
+    private ComponentType<EntityStore, RigidBodyTypeComponent> rigidBodyTypeComponentType;
+
+    @Getter
+    private ComponentType<EntityStore, RigidBodyMassComponent> rigidBodyMassComponentType;
+
+    @Getter
+    private ComponentType<EntityStore, RigidBodyMaterialComponent> rigidBodyMaterialComponentType;
+
+    @Getter
+    private ComponentType<EntityStore, RigidBodyCollisionComponent> rigidBodyCollisionComponentType;
+
+    @Getter
+    private ComponentType<EntityStore, RigidBodyPersistenceComponent> rigidBodyPersistenceComponentType;
+
+    @Getter
+    private ComponentType<EntityStore, RigidBodyOwnershipComponent> rigidBodyOwnershipComponentType;
+
+    @Getter
+    private ComponentType<EntityStore, RigidBodyKinematicTargetComponent> rigidBodyKinematicTargetComponentType;
+
+    @Getter
+    private ComponentType<EntityStore, RigidBodyLifecycleComponent> rigidBodyLifecycleComponentType;
 
     @Getter
     private ComponentType<EntityStore, ImpulseControllableComponent> impulseControllableComponentType;
@@ -264,6 +310,50 @@ public final class ImpulsePlugin extends JavaPlugin {
             PhysicsBodyAttachmentComponent.class,
             "PhysicsBodyAttachment",
             PhysicsBodyAttachmentComponent.CODEC);
+        rigidBodyKeyComponentType = entityRegistry.registerComponent(
+            RigidBodyKeyComponent.class,
+            "RigidBodyKey",
+            RigidBodyKeyComponent.CODEC);
+        rigidBodySpaceComponentType = entityRegistry.registerComponent(
+            RigidBodySpaceComponent.class,
+            "RigidBodySpace",
+            RigidBodySpaceComponent.CODEC);
+        rigidBodyShapeComponentType = entityRegistry.registerComponent(
+            RigidBodyShapeComponent.class,
+            "RigidBodyShape",
+            RigidBodyShapeComponent.CODEC);
+        rigidBodyTypeComponentType = entityRegistry.registerComponent(
+            RigidBodyTypeComponent.class,
+            "RigidBodyType",
+            RigidBodyTypeComponent.CODEC);
+        rigidBodyMassComponentType = entityRegistry.registerComponent(
+            RigidBodyMassComponent.class,
+            "RigidBodyMass",
+            RigidBodyMassComponent.CODEC);
+        rigidBodyMaterialComponentType = entityRegistry.registerComponent(
+            RigidBodyMaterialComponent.class,
+            "RigidBodyMaterial",
+            RigidBodyMaterialComponent.CODEC);
+        rigidBodyCollisionComponentType = entityRegistry.registerComponent(
+            RigidBodyCollisionComponent.class,
+            "RigidBodyCollision",
+            RigidBodyCollisionComponent.CODEC);
+        rigidBodyPersistenceComponentType = entityRegistry.registerComponent(
+            RigidBodyPersistenceComponent.class,
+            "RigidBodyPersistence",
+            RigidBodyPersistenceComponent.CODEC);
+        rigidBodyOwnershipComponentType = entityRegistry.registerComponent(
+            RigidBodyOwnershipComponent.class,
+            "RigidBodyOwnership",
+            RigidBodyOwnershipComponent.CODEC);
+        rigidBodyKinematicTargetComponentType = entityRegistry.registerComponent(
+            RigidBodyKinematicTargetComponent.class,
+            "RigidBodyKinematicTarget",
+            RigidBodyKinematicTargetComponent.CODEC);
+        rigidBodyLifecycleComponentType = entityRegistry.registerComponent(
+            RigidBodyLifecycleComponent.class,
+            "RigidBodyLifecycle",
+            RigidBodyLifecycleComponent.CODEC);
         impulseControllableComponentType = entityRegistry.registerComponent(
             ImpulseControllableComponent.class,
             "ImpulseControllable",
@@ -314,6 +404,8 @@ public final class ImpulsePlugin extends JavaPlugin {
         entityRegistry.registerSystem(new PersistentPhysicsBodyHydrationSystem());
         entityRegistry.registerSystem(new PersistentPhysicsJointHydrationSystem());
         entityRegistry.registerSystem(new PhysicsRuntimeHolderSystem());
+        entityRegistry.registerSystem(new RigidBodyLifecycleCleanupSystem());
+        entityRegistry.registerSystem(new RigidBodyReconciliationSystem());
         entityRegistry.registerSystem(new PhysicsBodyAttachmentIndexSystem());
         entityRegistry.registerSystem(new PhysicsControlSessionCleanupSystem());
         entityRegistry.registerSystem(new PhysicsWorldCollisionStreamingSystem());

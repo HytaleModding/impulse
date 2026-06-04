@@ -25,6 +25,16 @@ import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyPersistenceMode;
 import dev.hytalemodding.impulse.core.plugin.body.RigidBodyKey;
 import dev.hytalemodding.impulse.core.plugin.modules.control.ImpulseControllableComponent;
 import dev.hytalemodding.impulse.core.plugin.components.PhysicsBodyAttachmentComponent;
+import dev.hytalemodding.impulse.core.plugin.components.RigidBodyCollisionComponent;
+import dev.hytalemodding.impulse.core.plugin.components.RigidBodyKeyComponent;
+import dev.hytalemodding.impulse.core.plugin.components.RigidBodyKinematicTargetComponent;
+import dev.hytalemodding.impulse.core.plugin.components.RigidBodyMassComponent;
+import dev.hytalemodding.impulse.core.plugin.components.RigidBodyMaterialComponent;
+import dev.hytalemodding.impulse.core.plugin.components.RigidBodyOwnershipComponent;
+import dev.hytalemodding.impulse.core.plugin.components.RigidBodyPersistenceComponent;
+import dev.hytalemodding.impulse.core.plugin.components.RigidBodyShapeComponent;
+import dev.hytalemodding.impulse.core.plugin.components.RigidBodySpaceComponent;
+import dev.hytalemodding.impulse.core.plugin.components.RigidBodyTypeComponent;
 import dev.hytalemodding.impulse.core.plugin.resources.PhysicsWorldResource;
 import dev.hytalemodding.impulse.core.plugin.settings.PhysicsVisualMaterializationSettings;
 import dev.hytalemodding.impulse.core.plugin.simulation.PhysicsCommandHandle;
@@ -38,6 +48,7 @@ import java.util.function.Consumer;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 import org.joml.Quaterniond;
+import org.joml.Quaternionf;
 import org.joml.Vector3d;
 import org.joml.Vector3f;
 
@@ -53,6 +64,26 @@ public final class ExamplePhysicsUtils {
         PhysicsBodyAttachmentComponent.getComponentType();
     private static final ComponentType<EntityStore, ImpulseControllableComponent> IMPULSE_CONTROLLABLE_TYPE =
         ImpulseControllableComponent.getComponentType();
+    private static final ComponentType<EntityStore, RigidBodyKeyComponent> RIGID_BODY_KEY_TYPE =
+        RigidBodyKeyComponent.getComponentType();
+    private static final ComponentType<EntityStore, RigidBodySpaceComponent> RIGID_BODY_SPACE_TYPE =
+        RigidBodySpaceComponent.getComponentType();
+    private static final ComponentType<EntityStore, RigidBodyShapeComponent> RIGID_BODY_SHAPE_TYPE =
+        RigidBodyShapeComponent.getComponentType();
+    private static final ComponentType<EntityStore, RigidBodyTypeComponent> RIGID_BODY_TYPE_TYPE =
+        RigidBodyTypeComponent.getComponentType();
+    private static final ComponentType<EntityStore, RigidBodyMassComponent> RIGID_BODY_MASS_TYPE =
+        RigidBodyMassComponent.getComponentType();
+    private static final ComponentType<EntityStore, RigidBodyMaterialComponent> RIGID_BODY_MATERIAL_TYPE =
+        RigidBodyMaterialComponent.getComponentType();
+    private static final ComponentType<EntityStore, RigidBodyCollisionComponent> RIGID_BODY_COLLISION_TYPE =
+        RigidBodyCollisionComponent.getComponentType();
+    private static final ComponentType<EntityStore, RigidBodyPersistenceComponent> RIGID_BODY_PERSISTENCE_TYPE =
+        RigidBodyPersistenceComponent.getComponentType();
+    private static final ComponentType<EntityStore, RigidBodyOwnershipComponent> RIGID_BODY_OWNERSHIP_TYPE =
+        RigidBodyOwnershipComponent.getComponentType();
+    private static final ComponentType<EntityStore, RigidBodyKinematicTargetComponent>
+        RIGID_BODY_KINEMATIC_TARGET_TYPE = RigidBodyKinematicTargetComponent.getComponentType();
     private static final ComponentType<EntityStore, ModelComponent> MODEL_TYPE = ModelComponent.getComponentType();
     private static final ComponentType<EntityStore, HeadRotation> HEAD_ROTATION_TYPE = HeadRotation.getComponentType();
 
@@ -386,6 +417,56 @@ public final class ExamplePhysicsUtils {
                 throw new IllegalStateException(operation + " command "
                     + result.commandSequence() + " rejected: " + result.message());
             });
+    }
+
+    @Nullable
+    public static Ref<EntityStore> spawnRigidBodyComponentBlockEntity(@Nonnull Store<EntityStore> store,
+        @Nonnull TimeResource time,
+        @Nonnull RigidBodyKey bodyKey,
+        @Nonnull SpaceId spaceId,
+        @Nonnull Vector3d visualPosition,
+        @Nullable String blockType,
+        @Nonnull PhysicsBodyType bodyType,
+        float mass,
+        @Nonnull RigidBodyOwnershipComponent.Ownership ownership,
+        @Nullable RigidBodyKinematicTargetComponent kinematicTarget) {
+        Holder<EntityStore> holder = blockEntityHolder(time, blockType, visualPosition);
+        holder.addComponent(RIGID_BODY_KEY_TYPE, new RigidBodyKeyComponent(bodyKey));
+        holder.addComponent(RIGID_BODY_SPACE_TYPE, new RigidBodySpaceComponent(spaceId));
+        holder.addComponent(RIGID_BODY_SHAPE_TYPE,
+            new RigidBodyShapeComponent(dev.hytalemodding.impulse.api.ShapeType.BOX,
+                0.5f,
+                0.5f,
+                0.5f,
+                0.0f,
+                0.0f,
+                dev.hytalemodding.impulse.api.PhysicsAxis.Y,
+                0.0f));
+        holder.addComponent(RIGID_BODY_TYPE_TYPE, new RigidBodyTypeComponent(bodyType));
+        holder.addComponent(RIGID_BODY_MASS_TYPE, new RigidBodyMassComponent(mass));
+        holder.addComponent(RIGID_BODY_MATERIAL_TYPE, new RigidBodyMaterialComponent(0.5f, 0.2f, 0.0f, 0.0f));
+        holder.addComponent(RIGID_BODY_COLLISION_TYPE, new RigidBodyCollisionComponent(false,
+            dev.hytalemodding.impulse.api.PhysicsCollisionFilters.DYNAMIC_BODY,
+            dev.hytalemodding.impulse.api.PhysicsCollisionFilters.TERRAIN
+                | dev.hytalemodding.impulse.api.PhysicsCollisionFilters.DYNAMIC_BODY));
+        holder.addComponent(RIGID_BODY_PERSISTENCE_TYPE,
+            new RigidBodyPersistenceComponent(PhysicsBodyPersistenceMode.PERSISTENT));
+        holder.addComponent(RIGID_BODY_OWNERSHIP_TYPE, new RigidBodyOwnershipComponent(ownership));
+        if (kinematicTarget != null) {
+            holder.addComponent(RIGID_BODY_KINEMATIC_TARGET_TYPE, kinematicTarget);
+        }
+        return store.addEntity(holder, AddReason.SPAWN);
+    }
+
+    @Nonnull
+    public static RigidBodyKinematicTargetComponent kinematicTargetAt(@Nonnull Vector3d position) {
+        return new RigidBodyKinematicTargetComponent(toVector3f(position),
+            new Quaternionf(),
+            new Vector3f(),
+            new Vector3f(),
+            true,
+            false,
+            true);
     }
 
     @Nullable

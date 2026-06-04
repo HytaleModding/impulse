@@ -7,6 +7,7 @@ public class ImpulseCommand extends AbstractCommandCollection {
 
     public ImpulseCommand() {
         super("impulse-examples", "Impulse example and stress test commands");
+        addSubCommand(new EcsCommand());
         addSubCommand(new DropCommand());
         addSubCommand(new ShapesCommand());
         addSubCommand(new MaterialsCommand());
