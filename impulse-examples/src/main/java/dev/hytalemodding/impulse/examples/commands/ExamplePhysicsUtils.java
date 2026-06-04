@@ -457,13 +457,29 @@ public final class ExamplePhysicsUtils {
         @Nullable String blockType,
         @Nonnull Vector3d visualPosition,
         boolean controllable) {
+        Holder<EntityStore> holder = attachedBlockEntityHolder(time,
+            bodyKey,
+            spaceId,
+            blockType,
+            visualPosition,
+            controllable);
+        return store.addEntity(holder, AddReason.SPAWN);
+    }
+
+    @Nonnull
+    public static Holder<EntityStore> attachedBlockEntityHolder(@Nonnull TimeResource time,
+        @Nonnull RigidBodyKey bodyKey,
+        @Nonnull SpaceId spaceId,
+        @Nullable String blockType,
+        @Nonnull Vector3d visualPosition,
+        boolean controllable) {
         Holder<EntityStore> holder = blockEntityHolder(time, blockType, visualPosition);
         holder.addComponent(ATTACHMENT_TYPE,
             PhysicsBodyAttachmentComponent.externalEntity(bodyKey, spaceId));
         if (controllable) {
             holder.addComponent(IMPULSE_CONTROLLABLE_TYPE, new ImpulseControllableComponent());
         }
-        return store.addEntity(holder, AddReason.SPAWN);
+        return holder;
     }
 
     @Nonnull

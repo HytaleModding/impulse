@@ -5,6 +5,7 @@ import com.hypixel.hytale.component.ComponentType;
 import com.hypixel.hytale.component.ResourceType;
 import com.hypixel.hytale.component.SystemGroup;
 import com.hypixel.hytale.component.event.WorldEventType;
+import com.hypixel.hytale.component.system.ISystem;
 import com.hypixel.hytale.common.plugin.PluginIdentifier;
 import com.hypixel.hytale.logger.HytaleLogger;
 import com.hypixel.hytale.server.core.HytaleServer;
@@ -62,6 +63,7 @@ import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
+import java.util.function.Function;
 import java.util.logging.Level;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
@@ -72,6 +74,38 @@ public final class ImpulsePlugin extends JavaPlugin {
     private static ImpulsePlugin instance;
     private static final HytaleLogger LOGGER = HytaleLogger.get("Impulse");
     static final String OWNER_POOL_SIZE_PROPERTY = "impulse.ownerPool.size";
+    private static final List<EntitySystemRegistration> ENTITY_SYSTEM_REGISTRATIONS = List.of(
+        registration(PhysicsOwnerLifecycleSystem.class,
+            ImpulsePlugin::createPhysicsOwnerLifecycleSystem),
+        registration(PersistentPhysicsSpaceBootstrapSystem.class,
+            ignored -> new PersistentPhysicsSpaceBootstrapSystem()),
+        registration(PersistentPhysicsBodyHydrationSystem.class,
+            ignored -> new PersistentPhysicsBodyHydrationSystem()),
+        registration(PersistentPhysicsJointHydrationSystem.class,
+            ignored -> new PersistentPhysicsJointHydrationSystem()),
+        registration(PhysicsRuntimeHolderSystem.class, ignored -> new PhysicsRuntimeHolderSystem()),
+        registration(RigidBodyLifecycleCleanupSystem.class,
+            ignored -> new RigidBodyLifecycleCleanupSystem()),
+        registration(PhysicsBodyAttachmentIndexSystem.class,
+            ignored -> new PhysicsBodyAttachmentIndexSystem()),
+        registration(PhysicsControlSessionCleanupSystem.class,
+            ignored -> new PhysicsControlSessionCleanupSystem()),
+        registration(PhysicsWorldCollisionStreamingSystem.class,
+            ignored -> new PhysicsWorldCollisionStreamingSystem()),
+        registration(PhysicsCollisionLodSystem.class, ignored -> new PhysicsCollisionLodSystem()),
+        registration(PhysicsSyncSystem.class, ignored -> new PhysicsSyncSystem()),
+        registration(PhysicsDetachedVisualMaterializationSystem.class,
+            ignored -> new PhysicsDetachedVisualMaterializationSystem()),
+        registration(PhysicsChunkBoundarySystem.class, ignored -> new PhysicsChunkBoundarySystem()),
+        registration(PhysicsSnapshotPublicationSystem.class,
+            ignored -> new PhysicsSnapshotPublicationSystem()),
+        registration(PersistentPhysicsWorldSyncSystem.class,
+            ignored -> new PersistentPhysicsWorldSyncSystem()),
+        registration(PhysicsKinematicControlSystem.class,
+            ignored -> new PhysicsKinematicControlSystem()),
+        registration(RigidBodyReconciliationSystem.class,
+            ignored -> new RigidBodyReconciliationSystem())
+    );
 
     @Getter
     private ComponentType<EntityStore, PhysicsBodyAttachmentComponent> physicsBodyAttachmentComponentType;
@@ -134,6 +168,13 @@ public final class ImpulsePlugin extends JavaPlugin {
     @Nullable
     public BackendId getDefaultBackendId() {
         return defaultBackendId;
+    }
+
+    @Nonnull
+    static List<Class<? extends ISystem<EntityStore>>> entitySystemRegistrationTypesForTesting() {
+        return ENTITY_SYSTEM_REGISTRATIONS.stream()
+            .map(EntitySystemRegistration::systemClass)
+            .toList();
     }
 
     @Override
@@ -333,29 +374,37 @@ public final class ImpulsePlugin extends JavaPlugin {
         chunkRegistry.registerSystem(new PhysicsDebugSystem());
 
         ComponentRegistryProxy<EntityStore> entityRegistry = getEntityStoreRegistry();
-        physicsOwnerLifecycleSystem = new PhysicsOwnerLifecycleSystem();
-        entityRegistry.registerSystem(physicsOwnerLifecycleSystem);
         persistenceRestoreGroup = entityRegistry.registerSystemGroup();
-        entityRegistry.registerSystem(new PersistentPhysicsSpaceBootstrapSystem());
-        entityRegistry.registerSystem(new PersistentPhysicsBodyHydrationSystem());
-        entityRegistry.registerSystem(new PersistentPhysicsJointHydrationSystem());
-        entityRegistry.registerSystem(new PhysicsRuntimeHolderSystem());
-        entityRegistry.registerSystem(new RigidBodyLifecycleCleanupSystem());
-        entityRegistry.registerSystem(new RigidBodyReconciliationSystem());
-        entityRegistry.registerSystem(new PhysicsBodyAttachmentIndexSystem());
-        entityRegistry.registerSystem(new PhysicsControlSessionCleanupSystem());
-        entityRegistry.registerSystem(new PhysicsWorldCollisionStreamingSystem());
-        entityRegistry.registerSystem(new PhysicsCollisionLodSystem());
-        entityRegistry.registerSystem(new PhysicsSyncSystem());
-        entityRegistry.registerSystem(new PhysicsDetachedVisualMaterializationSystem());
-        entityRegistry.registerSystem(new PhysicsChunkBoundarySystem());
-        entityRegistry.registerSystem(new PhysicsSnapshotPublicationSystem());
-        entityRegistry.registerSystem(new PersistentPhysicsWorldSyncSystem());
-        entityRegistry.registerSystem(new PhysicsKinematicControlSystem());
+        for (EntitySystemRegistration registration : ENTITY_SYSTEM_REGISTRATIONS) {
+            entityRegistry.registerSystem(registration.create(this));
+        }
     }
 
     private void registerCommands() {
         CommandRegistry commandRegistry = getCommandRegistry();
         commandRegistry.registerCommand(new ImpulseCommand());
+    }
+
+    @Nonnull
+    private PhysicsOwnerLifecycleSystem createPhysicsOwnerLifecycleSystem() {
+        physicsOwnerLifecycleSystem = new PhysicsOwnerLifecycleSystem();
+        return physicsOwnerLifecycleSystem;
+    }
+
+    @Nonnull
+    private static <T extends ISystem<EntityStore>> EntitySystemRegistration registration(
+        @Nonnull Class<T> systemClass,
+        @Nonnull Function<ImpulsePlugin, T> factory) {
+        return new EntitySystemRegistration(systemClass, factory);
+    }
+
+    private record EntitySystemRegistration(
+        @Nonnull Class<? extends ISystem<EntityStore>> systemClass,
+        @Nonnull Function<ImpulsePlugin, ? extends ISystem<EntityStore>> factory) {
+
+        @Nonnull
+        private ISystem<EntityStore> create(@Nonnull ImpulsePlugin plugin) {
+            return factory.apply(plugin);
+        }
     }
 }
