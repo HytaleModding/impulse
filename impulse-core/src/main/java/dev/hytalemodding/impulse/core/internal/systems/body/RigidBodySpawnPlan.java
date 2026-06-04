@@ -5,16 +5,8 @@ import dev.hytalemodding.impulse.api.SpaceId;
 import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyKind;
 import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyPersistenceMode;
 import dev.hytalemodding.impulse.core.plugin.body.RigidBodyKey;
-import dev.hytalemodding.impulse.core.plugin.components.RigidBodyCollisionComponent;
+import dev.hytalemodding.impulse.core.plugin.components.RigidBodyComponent;
 import dev.hytalemodding.impulse.core.plugin.components.RigidBodyComponentValues;
-import dev.hytalemodding.impulse.core.plugin.components.RigidBodyKeyComponent;
-import dev.hytalemodding.impulse.core.plugin.components.RigidBodyMassComponent;
-import dev.hytalemodding.impulse.core.plugin.components.RigidBodyMaterialComponent;
-import dev.hytalemodding.impulse.core.plugin.components.RigidBodyOwnershipComponent;
-import dev.hytalemodding.impulse.core.plugin.components.RigidBodyPersistenceComponent;
-import dev.hytalemodding.impulse.core.plugin.components.RigidBodyShapeComponent;
-import dev.hytalemodding.impulse.core.plugin.components.RigidBodySpaceComponent;
-import dev.hytalemodding.impulse.core.plugin.components.RigidBodyTypeComponent;
 import dev.hytalemodding.impulse.core.plugin.simulation.PhysicsShapeSpec;
 import dev.hytalemodding.impulse.core.plugin.simulation.RigidBodySpawnSettings;
 import java.util.Objects;
@@ -28,10 +20,10 @@ record RigidBodySpawnPlan(@Nonnull RigidBodyKey bodyKey,
                            float mass,
                            @Nonnull RigidBodySpawnSettings settings,
                            @Nonnull PhysicsBodyPersistenceMode persistenceMode,
-                           @Nonnull RigidBodyOwnershipComponent.Ownership ownership) {
+                           @Nonnull RigidBodyComponent.Ownership ownership) {
 
     private static final String MISSING_SPACE =
-        "RigidBodySpaceComponent must hold a positive explicit SpaceId";
+        "RigidBodyComponent must hold a positive explicit SpaceId";
 
     RigidBodySpawnPlan {
         Objects.requireNonNull(bodyKey, "bodyKey");
@@ -43,36 +35,22 @@ record RigidBodySpawnPlan(@Nonnull RigidBodyKey bodyKey,
     }
 
     @Nonnull
-    static RigidBodySpawnPlan create(@Nonnull RigidBodyKeyComponent key,
-        @Nullable RigidBodySpaceComponent space,
-        @Nullable RigidBodyShapeComponent shape,
-        @Nullable RigidBodyTypeComponent type,
-        @Nullable RigidBodyMassComponent mass,
-        @Nullable RigidBodyMaterialComponent material,
-        @Nullable RigidBodyCollisionComponent collision,
-        @Nullable RigidBodyPersistenceComponent persistence,
-        @Nullable RigidBodyOwnershipComponent ownership) {
-        Objects.requireNonNull(key, "key");
-        if (!RigidBodyComponentValues.hasExplicitSpace(space)) {
+    static RigidBodySpawnPlan create(@Nonnull RigidBodyComponent component) {
+        Objects.requireNonNull(component, "component");
+        if (!RigidBodyComponentValues.hasExplicitSpace(component)) {
             throw new IllegalArgumentException(MISSING_SPACE);
         }
-        assert space != null;
-        RigidBodyOwnershipComponent.Ownership ownershipValue = ownership != null
-            ? ownership.getOwnership()
-            : RigidBodyOwnershipComponent.Ownership.ENTITY_OWNED;
-        PhysicsShapeSpec shapeSpec = shouldSpawnBody(ownershipValue)
-            ? RigidBodyComponentValues.toShapeSpec(requireShape(shape))
-            : shape != null ? RigidBodyComponentValues.toShapeSpec(shape) : null;
+        assert component.getSpaceId() != null;
+        RigidBodyComponent.Ownership ownershipValue = component.getOwnership();
+        PhysicsShapeSpec shapeSpec = RigidBodyComponentValues.toShapeSpec(component);
         return new RigidBodySpawnPlan(
-            key.getBodyKey(),
-            space.getSpaceId(),
+            component.getBodyKey(),
+            component.getSpaceId(),
             shapeSpec,
-            type != null ? type.getBodyType() : PhysicsBodyType.DYNAMIC,
-            mass != null ? mass.getMass() : 1.0f,
-            RigidBodyComponentValues.toSpawnSettings(material, collision),
-            persistence != null
-                ? persistence.getPersistenceMode()
-                : PhysicsBodyPersistenceMode.RUNTIME_ONLY,
+            component.getBodyType(),
+            component.getMass(),
+            RigidBodyComponentValues.toSpawnSettings(component),
+            component.getPersistenceMode(),
             ownershipValue);
     }
 
@@ -81,11 +59,11 @@ record RigidBodySpawnPlan(@Nonnull RigidBodyKey bodyKey,
     }
 
     boolean shouldAttachEntity() {
-        return ownership != RigidBodyOwnershipComponent.Ownership.FULL_DETACHED;
+        return ownership != RigidBodyComponent.Ownership.FULL_DETACHED;
     }
 
     boolean shouldDestroyOnLifecycleRemoval() {
-        return ownership == RigidBodyOwnershipComponent.Ownership.ENTITY_OWNED;
+        return ownership == RigidBodyComponent.Ownership.ENTITY_OWNED;
     }
 
     @Nonnull
@@ -96,15 +74,7 @@ record RigidBodySpawnPlan(@Nonnull RigidBodyKey bodyKey,
         return shape;
     }
 
-    private static boolean shouldSpawnBody(@Nonnull RigidBodyOwnershipComponent.Ownership ownership) {
-        return ownership != RigidBodyOwnershipComponent.Ownership.DETACHED_VIEW;
-    }
-
-    @Nonnull
-    private static RigidBodyShapeComponent requireShape(@Nullable RigidBodyShapeComponent shape) {
-        if (shape == null) {
-            throw new IllegalArgumentException("RigidBodyShapeComponent is required for owned rigid bodies");
-        }
-        return shape;
+    private static boolean shouldSpawnBody(@Nonnull RigidBodyComponent.Ownership ownership) {
+        return ownership != RigidBodyComponent.Ownership.DETACHED_VIEW;
     }
 }

@@ -9,8 +9,8 @@ import com.hypixel.hytale.component.system.RefChangeSystem;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsWorldRuntimeResource;
 import dev.hytalemodding.impulse.core.plugin.body.RigidBodyKey;
+import dev.hytalemodding.impulse.core.plugin.components.RigidBodyComponent;
 import dev.hytalemodding.impulse.core.plugin.components.RigidBodyLifecycleComponent;
-import dev.hytalemodding.impulse.core.plugin.components.RigidBodyOwnershipComponent;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
@@ -69,7 +69,7 @@ public class RigidBodyLifecycleCleanupSystem
 
     private static boolean shouldDestroy(@Nonnull RigidBodyLifecycleComponent component) {
         return component.getBodyKey() != null
-            && component.getOwnership() == RigidBodyOwnershipComponent.Ownership.ENTITY_OWNED
+            && component.getOwnership() == RigidBodyComponent.Ownership.ENTITY_OWNED
             && component.getState() != RigidBodyLifecycleComponent.State.FAILED
             && component.getState() != RigidBodyLifecycleComponent.State.DESTROYED;
     }

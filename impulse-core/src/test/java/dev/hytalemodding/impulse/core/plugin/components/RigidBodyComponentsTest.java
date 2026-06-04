@@ -19,46 +19,42 @@ import org.junit.jupiter.api.Test;
 class RigidBodyComponentsTest {
 
     @Test
-    void keySpaceAndLifecycleComponentsCloneValueState() {
+    void rigidBodyAndLifecycleComponentsCloneValueState() {
         RigidBodyKey bodyKey = RigidBodyKey.of(0L, 42L);
-        RigidBodyKeyComponent key = new RigidBodyKeyComponent(bodyKey);
-        RigidBodySpaceComponent space = new RigidBodySpaceComponent(new SpaceId(7));
+        RigidBodyComponent body = new RigidBodyComponent();
+        body.setBodyKey(bodyKey);
+        body.setSpaceId(new SpaceId(7));
         RigidBodyLifecycleComponent lifecycle = RigidBodyLifecycleComponent.pending(
             bodyKey,
-            RigidBodyOwnershipComponent.Ownership.ENTITY_OWNED);
+            RigidBodyComponent.Ownership.ENTITY_OWNED);
 
-        RigidBodyKeyComponent keyCopy = key.clone();
-        RigidBodySpaceComponent spaceCopy = space.clone();
+        RigidBodyComponent bodyCopy = body.clone();
         RigidBodyLifecycleComponent lifecycleCopy = lifecycle.clone();
 
-        assertNotSame(key, keyCopy);
-        assertEquals(bodyKey, keyCopy.getBodyKey());
-        assertEquals(new SpaceId(7), spaceCopy.getSpaceId());
+        assertNotSame(body, bodyCopy);
+        assertEquals(bodyKey, bodyCopy.getBodyKey());
+        assertEquals(new SpaceId(7), bodyCopy.getSpaceId());
         assertEquals(RigidBodyLifecycleComponent.State.PENDING, lifecycleCopy.getState());
-        assertEquals(RigidBodyOwnershipComponent.Ownership.ENTITY_OWNED, lifecycleCopy.getOwnership());
+        assertEquals(RigidBodyComponent.Ownership.ENTITY_OWNED, lifecycleCopy.getOwnership());
     }
 
     @Test
     void spawnIntentCopiesComponentValuesIntoExistingCommandTypes() {
-        RigidBodyShapeComponent shape = new RigidBodyShapeComponent(
-            ShapeType.CAPSULE,
-            0.0f,
-            0.0f,
-            0.0f,
-            0.35f,
-            0.8f,
-            PhysicsAxis.Y,
-            0.0f);
-        RigidBodyMaterialComponent material = new RigidBodyMaterialComponent(0.4f,
-            0.2f,
-            0.05f,
-            0.1f);
-        RigidBodyCollisionComponent collision = new RigidBodyCollisionComponent(false,
-            PhysicsCollisionFilters.DYNAMIC_BODY,
-            PhysicsCollisionFilters.TERRAIN | PhysicsCollisionFilters.DYNAMIC_BODY);
+        RigidBodyComponent body = new RigidBodyComponent();
+        body.setShapeType(ShapeType.CAPSULE);
+        body.setRadius(0.35f);
+        body.setHalfHeight(0.8f);
+        body.setAxis(PhysicsAxis.Y);
+        body.setFriction(0.4f);
+        body.setRestitution(0.2f);
+        body.setLinearDamping(0.05f);
+        body.setAngularDamping(0.1f);
+        body.setSensor(false);
+        body.setCollisionGroup(PhysicsCollisionFilters.DYNAMIC_BODY);
+        body.setCollisionMask(PhysicsCollisionFilters.TERRAIN | PhysicsCollisionFilters.DYNAMIC_BODY);
 
-        PhysicsShapeSpec shapeSpec = RigidBodyComponentValues.toShapeSpec(shape);
-        RigidBodySpawnSettings settings = RigidBodyComponentValues.toSpawnSettings(material, collision);
+        PhysicsShapeSpec shapeSpec = RigidBodyComponentValues.toShapeSpec(body);
+        RigidBodySpawnSettings settings = RigidBodyComponentValues.toSpawnSettings(body);
 
         assertEquals(ShapeType.CAPSULE, shapeSpec.type());
         assertEquals(0.35f, shapeSpec.radius(), 0.0001f);
@@ -73,16 +69,12 @@ class RigidBodyComponentsTest {
 
     @Test
     void defaultIntentValuesStayFriendlyButExplicitSpaceIsRequired() {
-        RigidBodyTypeComponent type = new RigidBodyTypeComponent();
-        RigidBodyMassComponent mass = new RigidBodyMassComponent();
-        RigidBodyPersistenceComponent persistence = new RigidBodyPersistenceComponent();
-        RigidBodyOwnershipComponent ownership = new RigidBodyOwnershipComponent();
-        RigidBodySpaceComponent space = new RigidBodySpaceComponent();
+        RigidBodyComponent body = new RigidBodyComponent();
 
-        assertEquals(PhysicsBodyType.DYNAMIC, type.getBodyType());
-        assertEquals(1.0f, mass.getMass(), 0.0001f);
-        assertEquals(PhysicsBodyPersistenceMode.RUNTIME_ONLY, persistence.getPersistenceMode());
-        assertEquals(RigidBodyOwnershipComponent.Ownership.ENTITY_OWNED, ownership.getOwnership());
-        assertFalse(RigidBodyComponentValues.hasExplicitSpace(space));
+        assertEquals(PhysicsBodyType.DYNAMIC, body.getBodyType());
+        assertEquals(1.0f, body.getMass(), 0.0001f);
+        assertEquals(PhysicsBodyPersistenceMode.RUNTIME_ONLY, body.getPersistenceMode());
+        assertEquals(RigidBodyComponent.Ownership.ENTITY_OWNED, body.getOwnership());
+        assertFalse(RigidBodyComponentValues.hasExplicitSpace(body));
     }
 }
