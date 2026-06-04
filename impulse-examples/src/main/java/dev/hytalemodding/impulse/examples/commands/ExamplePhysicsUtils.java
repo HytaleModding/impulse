@@ -18,23 +18,18 @@ import com.hypixel.hytale.server.core.modules.entity.component.ModelComponent;
 import com.hypixel.hytale.server.core.modules.entity.component.TransformComponent;
 import com.hypixel.hytale.server.core.modules.time.TimeResource;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
+import dev.hytalemodding.impulse.api.PhysicsAxis;
 import dev.hytalemodding.impulse.api.PhysicsBodyType;
+import dev.hytalemodding.impulse.api.PhysicsCollisionFilters;
+import dev.hytalemodding.impulse.api.ShapeType;
 import dev.hytalemodding.impulse.api.SpaceId;
 import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyKind;
 import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyPersistenceMode;
 import dev.hytalemodding.impulse.core.plugin.body.RigidBodyKey;
 import dev.hytalemodding.impulse.core.plugin.modules.control.ImpulseControllableComponent;
 import dev.hytalemodding.impulse.core.plugin.components.PhysicsBodyAttachmentComponent;
-import dev.hytalemodding.impulse.core.plugin.components.RigidBodyCollisionComponent;
-import dev.hytalemodding.impulse.core.plugin.components.RigidBodyKeyComponent;
+import dev.hytalemodding.impulse.core.plugin.components.RigidBodyComponent;
 import dev.hytalemodding.impulse.core.plugin.components.RigidBodyKinematicTargetComponent;
-import dev.hytalemodding.impulse.core.plugin.components.RigidBodyMassComponent;
-import dev.hytalemodding.impulse.core.plugin.components.RigidBodyMaterialComponent;
-import dev.hytalemodding.impulse.core.plugin.components.RigidBodyOwnershipComponent;
-import dev.hytalemodding.impulse.core.plugin.components.RigidBodyPersistenceComponent;
-import dev.hytalemodding.impulse.core.plugin.components.RigidBodyShapeComponent;
-import dev.hytalemodding.impulse.core.plugin.components.RigidBodySpaceComponent;
-import dev.hytalemodding.impulse.core.plugin.components.RigidBodyTypeComponent;
 import dev.hytalemodding.impulse.core.plugin.resources.PhysicsWorldResource;
 import dev.hytalemodding.impulse.core.plugin.settings.PhysicsVisualMaterializationSettings;
 import dev.hytalemodding.impulse.core.plugin.simulation.PhysicsCommandHandle;
@@ -64,24 +59,8 @@ public final class ExamplePhysicsUtils {
         PhysicsBodyAttachmentComponent.getComponentType();
     private static final ComponentType<EntityStore, ImpulseControllableComponent> IMPULSE_CONTROLLABLE_TYPE =
         ImpulseControllableComponent.getComponentType();
-    private static final ComponentType<EntityStore, RigidBodyKeyComponent> RIGID_BODY_KEY_TYPE =
-        RigidBodyKeyComponent.getComponentType();
-    private static final ComponentType<EntityStore, RigidBodySpaceComponent> RIGID_BODY_SPACE_TYPE =
-        RigidBodySpaceComponent.getComponentType();
-    private static final ComponentType<EntityStore, RigidBodyShapeComponent> RIGID_BODY_SHAPE_TYPE =
-        RigidBodyShapeComponent.getComponentType();
-    private static final ComponentType<EntityStore, RigidBodyTypeComponent> RIGID_BODY_TYPE_TYPE =
-        RigidBodyTypeComponent.getComponentType();
-    private static final ComponentType<EntityStore, RigidBodyMassComponent> RIGID_BODY_MASS_TYPE =
-        RigidBodyMassComponent.getComponentType();
-    private static final ComponentType<EntityStore, RigidBodyMaterialComponent> RIGID_BODY_MATERIAL_TYPE =
-        RigidBodyMaterialComponent.getComponentType();
-    private static final ComponentType<EntityStore, RigidBodyCollisionComponent> RIGID_BODY_COLLISION_TYPE =
-        RigidBodyCollisionComponent.getComponentType();
-    private static final ComponentType<EntityStore, RigidBodyPersistenceComponent> RIGID_BODY_PERSISTENCE_TYPE =
-        RigidBodyPersistenceComponent.getComponentType();
-    private static final ComponentType<EntityStore, RigidBodyOwnershipComponent> RIGID_BODY_OWNERSHIP_TYPE =
-        RigidBodyOwnershipComponent.getComponentType();
+    private static final ComponentType<EntityStore, RigidBodyComponent> RIGID_BODY_TYPE =
+        RigidBodyComponent.getComponentType();
     private static final ComponentType<EntityStore, RigidBodyKinematicTargetComponent>
         RIGID_BODY_KINEMATIC_TARGET_TYPE = RigidBodyKinematicTargetComponent.getComponentType();
     private static final ComponentType<EntityStore, ModelComponent> MODEL_TYPE = ModelComponent.getComponentType();
@@ -428,30 +407,31 @@ public final class ExamplePhysicsUtils {
         @Nullable String blockType,
         @Nonnull PhysicsBodyType bodyType,
         float mass,
-        @Nonnull RigidBodyOwnershipComponent.Ownership ownership,
+        @Nonnull RigidBodyComponent.Ownership ownership,
         @Nullable RigidBodyKinematicTargetComponent kinematicTarget) {
         Holder<EntityStore> holder = blockEntityHolder(time, blockType, visualPosition);
-        holder.addComponent(RIGID_BODY_KEY_TYPE, new RigidBodyKeyComponent(bodyKey));
-        holder.addComponent(RIGID_BODY_SPACE_TYPE, new RigidBodySpaceComponent(spaceId));
-        holder.addComponent(RIGID_BODY_SHAPE_TYPE,
-            new RigidBodyShapeComponent(dev.hytalemodding.impulse.api.ShapeType.BOX,
+        holder.addComponent(RIGID_BODY_TYPE,
+            new RigidBodyComponent(bodyKey,
+                spaceId,
+                ShapeType.BOX,
                 0.5f,
                 0.5f,
                 0.5f,
                 0.0f,
                 0.0f,
-                dev.hytalemodding.impulse.api.PhysicsAxis.Y,
-                0.0f));
-        holder.addComponent(RIGID_BODY_TYPE_TYPE, new RigidBodyTypeComponent(bodyType));
-        holder.addComponent(RIGID_BODY_MASS_TYPE, new RigidBodyMassComponent(mass));
-        holder.addComponent(RIGID_BODY_MATERIAL_TYPE, new RigidBodyMaterialComponent(0.5f, 0.2f, 0.0f, 0.0f));
-        holder.addComponent(RIGID_BODY_COLLISION_TYPE, new RigidBodyCollisionComponent(false,
-            dev.hytalemodding.impulse.api.PhysicsCollisionFilters.DYNAMIC_BODY,
-            dev.hytalemodding.impulse.api.PhysicsCollisionFilters.TERRAIN
-                | dev.hytalemodding.impulse.api.PhysicsCollisionFilters.DYNAMIC_BODY));
-        holder.addComponent(RIGID_BODY_PERSISTENCE_TYPE,
-            new RigidBodyPersistenceComponent(PhysicsBodyPersistenceMode.PERSISTENT));
-        holder.addComponent(RIGID_BODY_OWNERSHIP_TYPE, new RigidBodyOwnershipComponent(ownership));
+                PhysicsAxis.Y,
+                0.0f,
+                bodyType,
+                mass,
+                0.5f,
+                0.2f,
+                0.0f,
+                0.0f,
+                false,
+                PhysicsCollisionFilters.DYNAMIC_BODY,
+                PhysicsCollisionFilters.TERRAIN | PhysicsCollisionFilters.DYNAMIC_BODY,
+                PhysicsBodyPersistenceMode.PERSISTENT,
+                ownership));
         if (kinematicTarget != null) {
             holder.addComponent(RIGID_BODY_KINEMATIC_TARGET_TYPE, kinematicTarget);
         }

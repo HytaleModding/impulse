@@ -30,10 +30,10 @@ public class RigidBodyLifecycleComponent implements Component<EntityStore> {
             (component, value) -> component.bodyKey = value != null ? RigidBodyKey.of(value) : null,
             RigidBodyLifecycleComponent::getBodyKeyValue)
         .add()
-        .append(new KeyedCodec<>("Ownership", new EnumCodec<>(RigidBodyOwnershipComponent.Ownership.class), false),
+        .append(new KeyedCodec<>("Ownership", new EnumCodec<>(RigidBodyComponent.Ownership.class), false),
             (component, value) -> component.ownership = value != null
                 ? value
-                : RigidBodyOwnershipComponent.Ownership.ENTITY_OWNED,
+                : RigidBodyComponent.Ownership.ENTITY_OWNED,
             RigidBodyLifecycleComponent::getOwnership)
         .add()
         .append(new KeyedCodec<>("Message", Codec.STRING, false),
@@ -47,8 +47,8 @@ public class RigidBodyLifecycleComponent implements Component<EntityStore> {
     @Nullable
     private RigidBodyKey bodyKey;
     @Nonnull
-    private RigidBodyOwnershipComponent.Ownership ownership =
-        RigidBodyOwnershipComponent.Ownership.ENTITY_OWNED;
+    private RigidBodyComponent.Ownership ownership =
+        RigidBodyComponent.Ownership.ENTITY_OWNED;
     @Nullable
     private String message;
 
@@ -57,7 +57,7 @@ public class RigidBodyLifecycleComponent implements Component<EntityStore> {
 
     public RigidBodyLifecycleComponent(@Nonnull State state,
         @Nullable RigidBodyKey bodyKey,
-        @Nonnull RigidBodyOwnershipComponent.Ownership ownership,
+        @Nonnull RigidBodyComponent.Ownership ownership,
         @Nullable String message) {
         this.state = state;
         this.bodyKey = bodyKey;
@@ -67,25 +67,25 @@ public class RigidBodyLifecycleComponent implements Component<EntityStore> {
 
     @Nonnull
     public static RigidBodyLifecycleComponent pending(@Nonnull RigidBodyKey bodyKey,
-        @Nonnull RigidBodyOwnershipComponent.Ownership ownership) {
+        @Nonnull RigidBodyComponent.Ownership ownership) {
         return new RigidBodyLifecycleComponent(State.PENDING, bodyKey, ownership, null);
     }
 
     @Nonnull
     public static RigidBodyLifecycleComponent created(@Nonnull RigidBodyKey bodyKey,
-        @Nonnull RigidBodyOwnershipComponent.Ownership ownership) {
+        @Nonnull RigidBodyComponent.Ownership ownership) {
         return new RigidBodyLifecycleComponent(State.CREATED, bodyKey, ownership, null);
     }
 
     @Nonnull
     public static RigidBodyLifecycleComponent destroyed(@Nonnull RigidBodyKey bodyKey,
-        @Nonnull RigidBodyOwnershipComponent.Ownership ownership) {
+        @Nonnull RigidBodyComponent.Ownership ownership) {
         return new RigidBodyLifecycleComponent(State.DESTROYED, bodyKey, ownership, null);
     }
 
     @Nonnull
     public static RigidBodyLifecycleComponent failed(@Nullable RigidBodyKey bodyKey,
-        @Nonnull RigidBodyOwnershipComponent.Ownership ownership,
+        @Nonnull RigidBodyComponent.Ownership ownership,
         @Nonnull String message) {
         return new RigidBodyLifecycleComponent(State.FAILED, bodyKey, ownership, message);
     }
@@ -109,11 +109,11 @@ public class RigidBodyLifecycleComponent implements Component<EntityStore> {
     }
 
     @Nonnull
-    public RigidBodyOwnershipComponent.Ownership getOwnership() {
+    public RigidBodyComponent.Ownership getOwnership() {
         return ownership;
     }
 
-    public void setOwnership(@Nonnull RigidBodyOwnershipComponent.Ownership ownership) {
+    public void setOwnership(@Nonnull RigidBodyComponent.Ownership ownership) {
         this.ownership = ownership;
     }
 

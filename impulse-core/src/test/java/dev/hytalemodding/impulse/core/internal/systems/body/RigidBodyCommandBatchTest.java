@@ -10,10 +10,8 @@ import dev.hytalemodding.impulse.api.ShapeType;
 import dev.hytalemodding.impulse.api.SpaceId;
 import dev.hytalemodding.impulse.core.internal.simulation.recorder.MutablePhysicsCommandContext;
 import dev.hytalemodding.impulse.core.plugin.body.RigidBodyKey;
-import dev.hytalemodding.impulse.core.plugin.components.RigidBodyKeyComponent;
+import dev.hytalemodding.impulse.core.plugin.components.RigidBodyComponent;
 import dev.hytalemodding.impulse.core.plugin.components.RigidBodyKinematicTargetComponent;
-import dev.hytalemodding.impulse.core.plugin.components.RigidBodyShapeComponent;
-import dev.hytalemodding.impulse.core.plugin.components.RigidBodySpaceComponent;
 import org.joml.Quaternionf;
 import org.joml.Vector3f;
 import org.junit.jupiter.api.Test;
@@ -73,23 +71,15 @@ class RigidBodyCommandBatchTest {
     }
 
     private static RigidBodySpawnPlan spawnPlan(RigidBodyKey bodyKey) {
-        return RigidBodySpawnPlan.create(
-            new RigidBodyKeyComponent(bodyKey),
-            new RigidBodySpaceComponent(new SpaceId(7)),
-            new RigidBodyShapeComponent(ShapeType.BOX,
-                0.5f,
-                0.5f,
-                0.5f,
-                0.0f,
-                0.0f,
-                PhysicsAxis.Y,
-                0.0f),
-            null,
-            null,
-            null,
-            null,
-            null,
-            null);
+        RigidBodyComponent body = new RigidBodyComponent();
+        body.setBodyKey(bodyKey);
+        body.setSpaceId(new SpaceId(7));
+        body.setShapeType(ShapeType.BOX);
+        body.setHalfExtentX(0.5f);
+        body.setHalfExtentY(0.5f);
+        body.setHalfExtentZ(0.5f);
+        body.setAxis(PhysicsAxis.Y);
+        return RigidBodySpawnPlan.create(body);
     }
 
     private static RigidBodyKinematicTargetComponent target(float positionX,

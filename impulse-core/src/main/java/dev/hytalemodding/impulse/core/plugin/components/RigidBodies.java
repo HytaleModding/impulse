@@ -4,7 +4,9 @@ import com.hypixel.hytale.component.Holder;
 import com.hypixel.hytale.component.Ref;
 import com.hypixel.hytale.component.Store;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
+import dev.hytalemodding.impulse.api.PhysicsAxis;
 import dev.hytalemodding.impulse.api.PhysicsBodyType;
+import dev.hytalemodding.impulse.api.PhysicsCollisionFilters;
 import dev.hytalemodding.impulse.api.ShapeType;
 import dev.hytalemodding.impulse.api.SpaceId;
 import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyPersistenceMode;
@@ -38,29 +40,38 @@ public final class RigidBodies {
         float halfY,
         float halfZ,
         float mass) {
-        holder.addComponent(RigidBodyKeyComponent.getComponentType(), new RigidBodyKeyComponent(bodyKey));
-        holder.addComponent(RigidBodySpaceComponent.getComponentType(), new RigidBodySpaceComponent(spaceId));
-        holder.addComponent(RigidBodyShapeComponent.getComponentType(),
-            new RigidBodyShapeComponent(ShapeType.BOX, halfX, halfY, halfZ, 0.0f, 0.0f,
-                dev.hytalemodding.impulse.api.PhysicsAxis.Y, 0.0f));
-        holder.addComponent(RigidBodyTypeComponent.getComponentType(),
-            new RigidBodyTypeComponent(PhysicsBodyType.DYNAMIC));
-        holder.addComponent(RigidBodyMassComponent.getComponentType(), new RigidBodyMassComponent(mass));
-        holder.addComponent(RigidBodyOwnershipComponent.getComponentType(), new RigidBodyOwnershipComponent(
-            RigidBodyOwnershipComponent.Ownership.ENTITY_OWNED));
-        holder.addComponent(RigidBodyPersistenceComponent.getComponentType(),
-            new RigidBodyPersistenceComponent(PhysicsBodyPersistenceMode.RUNTIME_ONLY));
+        holder.addComponent(RigidBodyComponent.getComponentType(),
+            new RigidBodyComponent(bodyKey,
+                spaceId,
+                ShapeType.BOX,
+                halfX,
+                halfY,
+                halfZ,
+                0.0f,
+                0.0f,
+                PhysicsAxis.Y,
+                0.0f,
+                PhysicsBodyType.DYNAMIC,
+                mass,
+                0.5f,
+                0.0f,
+                0.0f,
+                0.0f,
+                false,
+                PhysicsCollisionFilters.DYNAMIC_BODY,
+                PhysicsCollisionFilters.ALL,
+                PhysicsBodyPersistenceMode.RUNTIME_ONLY,
+                RigidBodyComponent.Ownership.ENTITY_OWNED));
     }
 
     public static void putDetachedView(@Nonnull Store<EntityStore> store,
         @Nonnull Ref<EntityStore> ref,
         @Nonnull RigidBodyKey bodyKey,
         @Nonnull SpaceId spaceId) {
-        store.putComponent(ref, RigidBodyKeyComponent.getComponentType(),
-            new RigidBodyKeyComponent(bodyKey));
-        store.putComponent(ref, RigidBodySpaceComponent.getComponentType(),
-            new RigidBodySpaceComponent(spaceId));
-        store.putComponent(ref, RigidBodyOwnershipComponent.getComponentType(),
-            new RigidBodyOwnershipComponent(RigidBodyOwnershipComponent.Ownership.DETACHED_VIEW));
+        RigidBodyComponent body = new RigidBodyComponent();
+        body.setBodyKey(bodyKey);
+        body.setSpaceId(spaceId);
+        body.setOwnership(RigidBodyComponent.Ownership.DETACHED_VIEW);
+        store.putComponent(ref, RigidBodyComponent.getComponentType(), body);
     }
 }

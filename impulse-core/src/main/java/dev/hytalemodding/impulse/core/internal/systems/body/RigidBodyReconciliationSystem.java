@@ -19,17 +19,9 @@ import dev.hytalemodding.impulse.core.internal.resources.PhysicsWorldRuntimeReso
 import dev.hytalemodding.impulse.core.internal.systems.sync.PhysicsSyncSystem;
 import dev.hytalemodding.impulse.core.plugin.body.RigidBodyKey;
 import dev.hytalemodding.impulse.core.plugin.components.PhysicsBodyAttachmentComponent;
-import dev.hytalemodding.impulse.core.plugin.components.RigidBodyCollisionComponent;
-import dev.hytalemodding.impulse.core.plugin.components.RigidBodyKeyComponent;
+import dev.hytalemodding.impulse.core.plugin.components.RigidBodyComponent;
 import dev.hytalemodding.impulse.core.plugin.components.RigidBodyKinematicTargetComponent;
 import dev.hytalemodding.impulse.core.plugin.components.RigidBodyLifecycleComponent;
-import dev.hytalemodding.impulse.core.plugin.components.RigidBodyMassComponent;
-import dev.hytalemodding.impulse.core.plugin.components.RigidBodyMaterialComponent;
-import dev.hytalemodding.impulse.core.plugin.components.RigidBodyOwnershipComponent;
-import dev.hytalemodding.impulse.core.plugin.components.RigidBodyPersistenceComponent;
-import dev.hytalemodding.impulse.core.plugin.components.RigidBodyShapeComponent;
-import dev.hytalemodding.impulse.core.plugin.components.RigidBodySpaceComponent;
-import dev.hytalemodding.impulse.core.plugin.components.RigidBodyTypeComponent;
 import dev.hytalemodding.impulse.core.plugin.simulation.PhysicsCommandHandle;
 import java.util.Collections;
 import java.util.List;
@@ -48,24 +40,8 @@ import org.joml.Vector3f;
 public class RigidBodyReconciliationSystem extends TickingSystem<EntityStore>
     implements QuerySystem<EntityStore> {
 
-    private static final ComponentType<EntityStore, RigidBodyKeyComponent> KEY_TYPE =
-        RigidBodyKeyComponent.getComponentType();
-    private static final ComponentType<EntityStore, RigidBodySpaceComponent> SPACE_TYPE =
-        RigidBodySpaceComponent.getComponentType();
-    private static final ComponentType<EntityStore, RigidBodyShapeComponent> SHAPE_TYPE =
-        RigidBodyShapeComponent.getComponentType();
-    private static final ComponentType<EntityStore, RigidBodyTypeComponent> BODY_TYPE =
-        RigidBodyTypeComponent.getComponentType();
-    private static final ComponentType<EntityStore, RigidBodyMassComponent> MASS_TYPE =
-        RigidBodyMassComponent.getComponentType();
-    private static final ComponentType<EntityStore, RigidBodyMaterialComponent> MATERIAL_TYPE =
-        RigidBodyMaterialComponent.getComponentType();
-    private static final ComponentType<EntityStore, RigidBodyCollisionComponent> COLLISION_TYPE =
-        RigidBodyCollisionComponent.getComponentType();
-    private static final ComponentType<EntityStore, RigidBodyPersistenceComponent> PERSISTENCE_TYPE =
-        RigidBodyPersistenceComponent.getComponentType();
-    private static final ComponentType<EntityStore, RigidBodyOwnershipComponent> OWNERSHIP_TYPE =
-        RigidBodyOwnershipComponent.getComponentType();
+    private static final ComponentType<EntityStore, RigidBodyComponent> BODY_TYPE =
+        RigidBodyComponent.getComponentType();
     private static final ComponentType<EntityStore, RigidBodyKinematicTargetComponent> KINEMATIC_TARGET_TYPE =
         RigidBodyKinematicTargetComponent.getComponentType();
     private static final ComponentType<EntityStore, RigidBodyLifecycleComponent> LIFECYCLE_TYPE =
@@ -75,7 +51,7 @@ public class RigidBodyReconciliationSystem extends TickingSystem<EntityStore>
     private static final ComponentType<EntityStore, TransformComponent> TRANSFORM_TYPE =
         TransformComponent.getComponentType();
 
-    private static final Query<EntityStore> QUERY = KEY_TYPE;
+    private static final Query<EntityStore> QUERY = BODY_TYPE;
 
     private final Set<Dependency<EntityStore>> dependencies = Set.of(
         new SystemGroupDependency<>(Order.AFTER, ImpulsePlugin.get().getPersistenceRestoreGroup()),
@@ -129,18 +105,15 @@ public class RigidBodyReconciliationSystem extends TickingSystem<EntityStore>
         @Nonnull PhysicsWorldRuntimeResource resource,
         @Nonnull RigidBodyCommandBatch physicsBatch,
         @Nonnull RigidBodyKinematicTargetState kinematicState) {
-        RigidBodyKeyComponent key = chunk.getComponent(index, KEY_TYPE);
-        if (key == null) {
+        RigidBodyComponent body = chunk.getComponent(index, BODY_TYPE);
+        if (body == null) {
             return;
         }
 
         Ref<EntityStore> ref = chunk.getReferenceTo(index);
         RigidBodyLifecycleComponent lifecycle = chunk.getComponent(index, LIFECYCLE_TYPE);
-        RigidBodyOwnershipComponent ownership = chunk.getComponent(index, OWNERSHIP_TYPE);
-        RigidBodyOwnershipComponent.Ownership ownershipValue = ownership != null
-            ? ownership.getOwnership()
-            : RigidBodyOwnershipComponent.Ownership.ENTITY_OWNED;
-        RigidBodyKey bodyKey = key.getBodyKey();
+        RigidBodyComponent.Ownership ownershipValue = body.getOwnership();
+        RigidBodyKey bodyKey = body.getBodyKey();
         boolean registeredOrPending = resource.hasPublishedOrPendingBodyRegistration(bodyKey)
             || physicsBatch.hasPendingBody(bodyKey);
 
@@ -152,6 +125,7 @@ public class RigidBodyReconciliationSystem extends TickingSystem<EntityStore>
                 resource,
                 physicsBatch,
                 kinematicState,
+                body,
                 bodyKey,
                 ownershipValue,
                 lifecycle);
@@ -160,15 +134,7 @@ public class RigidBodyReconciliationSystem extends TickingSystem<EntityStore>
 
         RigidBodySpawnPlan plan;
         try {
-            plan = RigidBodySpawnPlan.create(key,
-                chunk.getComponent(index, SPACE_TYPE),
-                chunk.getComponent(index, SHAPE_TYPE),
-                chunk.getComponent(index, BODY_TYPE),
-                chunk.getComponent(index, MASS_TYPE),
-                chunk.getComponent(index, MATERIAL_TYPE),
-                chunk.getComponent(index, COLLISION_TYPE),
-                chunk.getComponent(index, PERSISTENCE_TYPE),
-                ownership);
+            plan = RigidBodySpawnPlan.create(body);
         } catch (IllegalArgumentException exception) {
             kinematicState.clear(bodyKey);
             commandBuffer.putComponent(ref,
@@ -206,31 +172,13 @@ public class RigidBodyReconciliationSystem extends TickingSystem<EntityStore>
         @Nonnull PhysicsWorldRuntimeResource resource,
         @Nonnull RigidBodyCommandBatch physicsBatch,
         @Nonnull RigidBodyKinematicTargetState kinematicState,
+        @Nonnull RigidBodyComponent body,
         @Nonnull RigidBodyKey bodyKey,
-        @Nonnull RigidBodyOwnershipComponent.Ownership ownership,
+        @Nonnull RigidBodyComponent.Ownership ownership,
         @Nullable RigidBodyLifecycleComponent lifecycle) {
-        RigidBodySpaceComponent space = chunk.getComponent(index, SPACE_TYPE);
-        if (space == null || space.getSpaceId() == null) {
-            commandBuffer.putComponent(ref,
-                LIFECYCLE_TYPE,
-                RigidBodyLifecycleComponent.failed(bodyKey,
-                    ownership,
-                    "RigidBodySpaceComponent must hold a positive explicit SpaceId"));
-            kinematicState.clear(bodyKey);
-            return;
-        }
         RigidBodySpawnPlan plan;
         try {
-            plan = RigidBodySpawnPlan.create(
-                new RigidBodyKeyComponent(bodyKey),
-                space,
-                chunk.getComponent(index, SHAPE_TYPE),
-                chunk.getComponent(index, BODY_TYPE),
-                chunk.getComponent(index, MASS_TYPE),
-                chunk.getComponent(index, MATERIAL_TYPE),
-                chunk.getComponent(index, COLLISION_TYPE),
-                chunk.getComponent(index, PERSISTENCE_TYPE),
-                new RigidBodyOwnershipComponent(ownership));
+            plan = RigidBodySpawnPlan.create(body);
         } catch (IllegalArgumentException exception) {
             commandBuffer.putComponent(ref,
                 LIFECYCLE_TYPE,
