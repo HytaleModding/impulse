@@ -11,13 +11,7 @@ import dev.hytalemodding.impulse.api.ShapeType;
 import dev.hytalemodding.impulse.api.SpaceId;
 import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyPersistenceMode;
 import dev.hytalemodding.impulse.core.plugin.body.RigidBodyKey;
-import dev.hytalemodding.impulse.core.plugin.components.RigidBodyKeyComponent;
-import dev.hytalemodding.impulse.core.plugin.components.RigidBodyMassComponent;
-import dev.hytalemodding.impulse.core.plugin.components.RigidBodyOwnershipComponent;
-import dev.hytalemodding.impulse.core.plugin.components.RigidBodyPersistenceComponent;
-import dev.hytalemodding.impulse.core.plugin.components.RigidBodyShapeComponent;
-import dev.hytalemodding.impulse.core.plugin.components.RigidBodySpaceComponent;
-import dev.hytalemodding.impulse.core.plugin.components.RigidBodyTypeComponent;
+import dev.hytalemodding.impulse.core.plugin.components.RigidBodyComponent;
 import org.junit.jupiter.api.Test;
 
 class RigidBodySpawnPlanTest {
@@ -26,23 +20,9 @@ class RigidBodySpawnPlanTest {
     void entityOwnedBodiesProduceSpawnPlansWithExplicitSpace() {
         RigidBodyKey bodyKey = RigidBodyKey.of(0L, 81L);
 
-        RigidBodySpawnPlan plan = RigidBodySpawnPlan.create(
-            new RigidBodyKeyComponent(bodyKey),
-            new RigidBodySpaceComponent(new SpaceId(3)),
-            new RigidBodyShapeComponent(ShapeType.SPHERE,
-                0.0f,
-                0.0f,
-                0.0f,
-                0.75f,
-                0.0f,
-                PhysicsAxis.Y,
-                0.0f),
-            new RigidBodyTypeComponent(PhysicsBodyType.DYNAMIC),
-            new RigidBodyMassComponent(2.0f),
-            null,
-            null,
-            new RigidBodyPersistenceComponent(PhysicsBodyPersistenceMode.PERSISTENT),
-            new RigidBodyOwnershipComponent(RigidBodyOwnershipComponent.Ownership.ENTITY_OWNED));
+        RigidBodySpawnPlan plan = RigidBodySpawnPlan.create(sphere(bodyKey,
+            new SpaceId(3),
+            RigidBodyComponent.Ownership.ENTITY_OWNED));
 
         assertTrue(plan.shouldSpawnBody());
         assertTrue(plan.shouldAttachEntity());
@@ -56,16 +36,9 @@ class RigidBodySpawnPlanTest {
 
     @Test
     void detachedViewsAttachWithoutSpawningOrDestroying() {
-        RigidBodySpawnPlan plan = RigidBodySpawnPlan.create(
-            new RigidBodyKeyComponent(RigidBodyKey.of(0L, 82L)),
-            new RigidBodySpaceComponent(new SpaceId(4)),
-            new RigidBodyShapeComponent(),
-            null,
-            null,
-            null,
-            null,
-            null,
-            new RigidBodyOwnershipComponent(RigidBodyOwnershipComponent.Ownership.DETACHED_VIEW));
+        RigidBodySpawnPlan plan = RigidBodySpawnPlan.create(sphere(RigidBodyKey.of(0L, 82L),
+            new SpaceId(4),
+            RigidBodyComponent.Ownership.DETACHED_VIEW));
 
         assertFalse(plan.shouldSpawnBody());
         assertTrue(plan.shouldAttachEntity());
@@ -74,16 +47,9 @@ class RigidBodySpawnPlanTest {
 
     @Test
     void fullDetachedBodiesSpawnWithoutEntityAttachmentOrDestroyOnRemoval() {
-        RigidBodySpawnPlan plan = RigidBodySpawnPlan.create(
-            new RigidBodyKeyComponent(RigidBodyKey.of(0L, 83L)),
-            new RigidBodySpaceComponent(new SpaceId(5)),
-            new RigidBodyShapeComponent(),
-            null,
-            null,
-            null,
-            null,
-            null,
-            new RigidBodyOwnershipComponent(RigidBodyOwnershipComponent.Ownership.FULL_DETACHED));
+        RigidBodySpawnPlan plan = RigidBodySpawnPlan.create(sphere(RigidBodyKey.of(0L, 83L),
+            new SpaceId(5),
+            RigidBodyComponent.Ownership.FULL_DETACHED));
 
         assertTrue(plan.shouldSpawnBody());
         assertFalse(plan.shouldAttachEntity());
@@ -92,20 +58,30 @@ class RigidBodySpawnPlanTest {
 
     @Test
     void missingExplicitSpaceFailsInsteadOfChoosingDefault() {
-        RigidBodyKeyComponent key = new RigidBodyKeyComponent(RigidBodyKey.of(0L, 84L));
+        RigidBodyComponent body = sphere(RigidBodyKey.of(0L, 84L),
+            null,
+            RigidBodyComponent.Ownership.ENTITY_OWNED);
 
         IllegalArgumentException failure = assertThrows(IllegalArgumentException.class,
-            () -> RigidBodySpawnPlan.create(key,
-                new RigidBodySpaceComponent(),
-                new RigidBodyShapeComponent(),
-                null,
-                null,
-                null,
-                null,
-                null,
-                new RigidBodyOwnershipComponent()));
+            () -> RigidBodySpawnPlan.create(body));
 
-        assertEquals("RigidBodySpaceComponent must hold a positive explicit SpaceId",
+        assertEquals("RigidBodyComponent must hold a positive explicit SpaceId",
             failure.getMessage());
+    }
+
+    private static RigidBodyComponent sphere(RigidBodyKey bodyKey,
+        SpaceId spaceId,
+        RigidBodyComponent.Ownership ownership) {
+        RigidBodyComponent body = new RigidBodyComponent();
+        body.setBodyKey(bodyKey);
+        body.setSpaceId(spaceId);
+        body.setShapeType(ShapeType.SPHERE);
+        body.setRadius(0.75f);
+        body.setAxis(PhysicsAxis.Y);
+        body.setBodyType(PhysicsBodyType.DYNAMIC);
+        body.setMass(2.0f);
+        body.setPersistenceMode(PhysicsBodyPersistenceMode.PERSISTENT);
+        body.setOwnership(ownership);
+        return body;
     }
 }

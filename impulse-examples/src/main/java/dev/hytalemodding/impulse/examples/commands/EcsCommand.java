@@ -16,8 +16,8 @@ import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import dev.hytalemodding.impulse.api.PhysicsBodyType;
 import dev.hytalemodding.impulse.api.SpaceId;
 import dev.hytalemodding.impulse.core.plugin.body.RigidBodyKey;
+import dev.hytalemodding.impulse.core.plugin.components.RigidBodyComponent;
 import dev.hytalemodding.impulse.core.plugin.components.RigidBodyKinematicTargetComponent;
-import dev.hytalemodding.impulse.core.plugin.components.RigidBodyOwnershipComponent;
 import dev.hytalemodding.impulse.core.plugin.modules.worldcollision.WorldCollisionPrewarmStats;
 import dev.hytalemodding.impulse.core.plugin.resources.PhysicsWorldResource;
 import dev.hytalemodding.impulse.core.plugin.simulation.PhysicsCommandBuffer;
@@ -103,7 +103,7 @@ public class EcsCommand extends AbstractCommandCollection {
                 blockType(ctx),
                 PhysicsBodyType.DYNAMIC,
                 1.0f,
-                RigidBodyOwnershipComponent.Ownership.ENTITY_OWNED,
+                RigidBodyComponent.Ownership.ENTITY_OWNED,
                 null);
 
             ctx.sender().sendMessage(Message.raw("Queued ECS rigid body " + bodyKey
@@ -199,7 +199,7 @@ public class EcsCommand extends AbstractCommandCollection {
                 ExamplePhysicsUtils.DEFAULT_BLOCK_TYPE,
                 PhysicsBodyType.KINEMATIC,
                 0.0f,
-                RigidBodyOwnershipComponent.Ownership.ENTITY_OWNED,
+                RigidBodyComponent.Ownership.ENTITY_OWNED,
                 target);
 
             ctx.sender().sendMessage(Message.raw("Queued ECS kinematic platform " + bodyKey
@@ -241,7 +241,7 @@ public class EcsCommand extends AbstractCommandCollection {
                 ExamplePhysicsUtils.DEFAULT_BLOCK_TYPE,
                 PhysicsBodyType.DYNAMIC,
                 1.0f,
-                RigidBodyOwnershipComponent.Ownership.DETACHED_VIEW,
+                RigidBodyComponent.Ownership.DETACHED_VIEW,
                 null);
 
             ctx.sender().sendMessage(Message.raw("Attached detached-view ECS entity to "
