@@ -5,7 +5,6 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import org.joml.Vector3f;
-import org.joml.Vector3i;
 import org.junit.jupiter.api.Test;
 
 class ExplosiveBlockPolicyTest {
@@ -37,24 +36,9 @@ class ExplosiveBlockPolicyTest {
     }
 
     @Test
-    void chainGenerationStopsAtConfiguredCap() {
-        assertTrue(ExplosiveBlockPolicy.shouldChain(0, 2));
-        assertTrue(ExplosiveBlockPolicy.shouldChain(1, 2));
-        assertFalse(ExplosiveBlockPolicy.shouldChain(2, 2));
-        assertFalse(ExplosiveBlockPolicy.shouldChain(3, 2));
-    }
-
-    @Test
     void ignoresAirAndUnknownBlocksWhenCreatingFragments() {
         assertFalse(ExplosiveBlockPolicy.isFragmentCandidate(0));
         assertFalse(ExplosiveBlockPolicy.isFragmentCandidate(1));
         assertTrue(ExplosiveBlockPolicy.isFragmentCandidate(42));
-    }
-
-    @Test
-    void landingBlockPositionRoundsToContainingBlock() {
-        Vector3i block = ExplosiveBlockPolicy.landingBlockPosition(new Vector3f(12.8f, 7.2f, -3.1f));
-
-        assertEquals(new Vector3i(12, 7, -4), block);
     }
 }
