@@ -410,6 +410,16 @@ public class PhysicsWorldRuntimeResource extends PhysicsWorldResource {
             () -> getBodySnapshotDirect(bodyKey));
     }
 
+    @Nullable
+    public PhysicsBodySnapshot getBodySnapshotIfRegistered(@Nonnull RigidBodyKey bodyKey) {
+        PhysicsBodySnapshot snapshot = lifecycleState.getBodySnapshot(bodyKey);
+        if (snapshot != null) {
+            return snapshot;
+        }
+        return callOwner("refresh optional physics body snapshot",
+            () -> getBodySnapshotIfRegisteredDirect(bodyKey));
+    }
+
     @Nonnull
     private PhysicsBodySnapshot getBodySnapshotDirect(@Nonnull RigidBodyKey bodyKey) {
         PhysicsBodySnapshot snapshot = lifecycleState.getBodySnapshot(bodyKey);
@@ -418,6 +428,16 @@ public class PhysicsWorldRuntimeResource extends PhysicsWorldResource {
         }
         PhysicsBodyRegistration registration = requireBodyRegistration(bodyKey);
         return lifecycleState.captureBodySnapshot(registration);
+    }
+
+    @Nullable
+    private PhysicsBodySnapshot getBodySnapshotIfRegisteredDirect(@Nonnull RigidBodyKey bodyKey) {
+        PhysicsBodySnapshot snapshot = lifecycleState.getBodySnapshot(bodyKey);
+        if (snapshot != null) {
+            return snapshot;
+        }
+        PhysicsBodyRegistration registration = bodyRegistry.getRegistration(bodyKey);
+        return registration != null ? lifecycleState.captureBodySnapshot(registration) : null;
     }
 
     /**
@@ -544,6 +564,26 @@ public class PhysicsWorldRuntimeResource extends PhysicsWorldResource {
                 WorldCollisionBuildOptions.fromSettings(getLiveSpaceSettings(spaceId)
                     .getWorldCollisionSettings());
             return collisionRuntime.rebuildAround(world,
+                space,
+                center,
+                radius,
+                buildOptions);
+        });
+    }
+
+    @Nonnull
+    public WorldCollisionBuildStats refreshWorldCollisionAround(@Nonnull World world,
+        @Nonnull SpaceId spaceId,
+        @Nonnull Vector3d center,
+        int radius) {
+        requireWorldCollisionLifecycleEnabled();
+        return callOwner("refresh world collision", () -> {
+            PhysicsSpaceBinding space = requireSpaceBinding(spaceId);
+            requireWorldCollisionSpaceEnabled(spaceId);
+            WorldCollisionBuildOptions buildOptions =
+                WorldCollisionBuildOptions.fromSettings(getLiveSpaceSettings(spaceId)
+                    .getWorldCollisionSettings());
+            return collisionRuntime.refreshAround(world,
                 space,
                 center,
                 radius,

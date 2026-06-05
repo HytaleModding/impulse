@@ -297,6 +297,33 @@ class WorldVoxelCollisionCacheTest {
             fixture.runtime().combineCalls(fixture.backendSpaceId()));
     }
 
+    @Test
+    void clearSectionsAroundKeepsDistantCachedTerrain() throws Exception {
+        RuntimeFixture fixture = runtimeFixture("test:section-radius-clear", true);
+        WorldVoxelCollisionCache worldCache = new WorldVoxelCollisionCache();
+        Object spaceCache = newSpaceCollisionCache();
+        Object near = newCachedSection(0, 2, 0);
+        long nearBody = createVoxelTerrain(fixture);
+        markVoxelTerrain(near, nearBody);
+        putCachedSection(spaceCache, near);
+        Object far = newCachedSection(8, 2, 8);
+        long farBody = createVoxelTerrain(fixture);
+        markVoxelTerrain(far, farBody);
+        putCachedSection(spaceCache, far);
+        putSpaceCache(worldCache, fixture.binding().spaceId(), spaceCache);
+
+        int removed = worldCache.clearSectionsAround(fixture.binding().spaceId(),
+            fixture.binding(),
+            new org.joml.Vector3d(8.0, 65.0, 8.0),
+            8);
+
+        assertEquals(1, removed);
+        assertEquals(1, worldCache.sectionCount());
+        assertFalse(worldCache.containsBody(fixture.binding().spaceId(), nearBody));
+        assertTrue(worldCache.containsBody(fixture.binding().spaceId(), farBody));
+        assertEquals(1, fixture.runtime().bodyCount(fixture.backendSpaceId()));
+    }
+
     private static RigidBodyKey bodyId(long leastSignificantBits) {
         return RigidBodyKey.of(new UUID(0L, leastSignificantBits));
     }
@@ -429,6 +456,15 @@ class WorldVoxelCollisionCacheTest {
         java.lang.reflect.Field sectionsField = cache.getClass().getDeclaredField("sections");
         sectionsField.setAccessible(true);
         ((java.util.Map<Long, Object>) sectionsField.get(cache)).put(key, section);
+    }
+
+    @SuppressWarnings("unchecked")
+    private static void putSpaceCache(@Nonnull WorldVoxelCollisionCache worldCache,
+        @Nonnull SpaceId spaceId,
+        @Nonnull Object cache) throws Exception {
+        java.lang.reflect.Field spacesField = WorldVoxelCollisionCache.class.getDeclaredField("spaces");
+        spacesField.setAccessible(true);
+        ((java.util.Map<Integer, Object>) spacesField.get(worldCache)).put(spaceId.value(), cache);
     }
 
     private static Object cachedVoxelNeighbor(@Nonnull RuntimeFixture fixture,

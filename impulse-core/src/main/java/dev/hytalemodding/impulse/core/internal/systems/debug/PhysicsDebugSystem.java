@@ -224,7 +224,10 @@ public class PhysicsDebugSystem extends TickingSystem<ChunkStore> {
                     continue;
                 }
 
-                PhysicsBodySnapshot snapshot = resource.getBodySnapshot(registration.bodyKey());
+                PhysicsBodySnapshot snapshot = resource.getBodySnapshotIfRegistered(registration.bodyKey());
+                if (snapshot == null) {
+                    continue;
+                }
                 Vector3d center = PhysicsDebugRenderer.centerFromSyncedTransform(snapshot,
                     transform.getPosition());
                 if (viewerPosition.distanceSquared(center) > maxDistanceSquared) {

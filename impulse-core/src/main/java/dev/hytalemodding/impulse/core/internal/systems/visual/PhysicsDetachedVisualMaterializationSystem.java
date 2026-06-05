@@ -313,7 +313,10 @@ public class PhysicsDetachedVisualMaterializationSystem extends TickingSystem<En
             return null;
         }
 
-        PhysicsBodySnapshot snapshot = resource.getBodySnapshot(target.bodyKey());
+        PhysicsBodySnapshot snapshot = resource.getBodySnapshotIfRegistered(target.bodyKey());
+        if (snapshot == null) {
+            return null;
+        }
         if (!isBodyChunkLoaded(store, snapshot)) {
             return null;
         }
@@ -413,7 +416,14 @@ public class PhysicsDetachedVisualMaterializationSystem extends TickingSystem<En
                 continue;
             }
 
-            PhysicsBodySnapshot snapshot = resource.getBodySnapshot(bodyKey);
+            PhysicsBodySnapshot snapshot = resource.getBodySnapshotIfRegistered(bodyKey);
+            if (snapshot == null) {
+                GeneratedProxyLifecycle.removeProxy(store, resource, bodyKey);
+                if (collector != null) {
+                    collector.incrementDematerialized();
+                }
+                continue;
+            }
             if (!isBodyChunkLoaded(store, snapshot)
                 || shouldDematerialize(snapshot, settings, interests)) {
                 GeneratedProxyLifecycle.removeProxy(store, resource, bodyKey);

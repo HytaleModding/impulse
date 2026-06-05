@@ -237,6 +237,16 @@ public abstract class PhysicsWorldResource implements Resource<EntityStore> {
         int radius);
 
     /**
+     * Rebuilds cached world-collision sections around a center for the requested space without
+     * clearing retained terrain outside that radius.
+     */
+    @Nonnull
+    public abstract WorldCollisionBuildStats refreshWorldCollisionAround(@Nonnull World world,
+        @Nonnull SpaceId spaceId,
+        @Nonnull Vector3d center,
+        int radius);
+
+    /**
      * Ensures world collision exists around one or more centers for the requested space.
      */
     @Nonnull

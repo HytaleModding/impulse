@@ -244,6 +244,29 @@ public final class WorldVoxelCollisionCache {
     }
 
     /**
+     * Wipes cached sections in the given radius, then rebuilds that same radius.
+     */
+    @Nonnull
+    public BuildStats refreshAround(@Nonnull World world,
+        @Nonnull PhysicsSpaceBinding space,
+        @Nonnull Vector3d center,
+        int radius,
+        @Nonnull WorldCollisionBuildOptions buildOptions) {
+        int removed = clearSectionsAround(space.spaceId(), space, center, radius);
+        BuildStats stats = ensureAround(world,
+            space,
+            center,
+            radius,
+            0L,
+            null,
+            null,
+            null,
+            null,
+            buildOptions);
+        return stats.withRemovedBodies(stats.removedBodies() + removed);
+    }
+
+    /**
      * Ensures all chunk sections within the block radius around {@code center} are cached.
      */
     @Nonnull
@@ -565,6 +588,59 @@ public final class WorldVoxelCollisionCache {
      */
     public int clear(@Nonnull PhysicsSpaceBinding space) {
         return clear(space.spaceId(), space);
+    }
+
+    /**
+     * Removes cached sections within the block radius around {@code center}.
+     */
+    public int clearSectionsAround(@Nonnull SpaceId spaceId,
+        @Nullable PhysicsSpaceBinding space,
+        @Nonnull Vector3d center,
+        int radius) {
+        SpaceCollisionCache cache = spaces.get(spaceId.value());
+        if (cache == null) {
+            return 0;
+        }
+
+        int clampedRadius = Math.max(0, radius);
+        int minX = (int) Math.floor(center.x) - clampedRadius;
+        int maxX = (int) Math.floor(center.x) + clampedRadius;
+        int minY = Math.max(0, (int) Math.floor(center.y) - clampedRadius);
+        int maxY = Math.min(ChunkUtil.HEIGHT_MINUS_1, (int) Math.floor(center.y) + clampedRadius);
+        int minZ = (int) Math.floor(center.z) - clampedRadius;
+        int maxZ = (int) Math.floor(center.z) + clampedRadius;
+
+        int minChunkX = ChunkUtil.chunkCoordinate(minX);
+        int maxChunkX = ChunkUtil.chunkCoordinate(maxX);
+        int minSectionY = ChunkUtil.indexSection(minY);
+        int maxSectionY = ChunkUtil.indexSection(maxY);
+        int minChunkZ = ChunkUtil.chunkCoordinate(minZ);
+        int maxChunkZ = ChunkUtil.chunkCoordinate(maxZ);
+
+        int removed = 0;
+        Iterator<Long2ObjectMap.Entry<CachedSection>> iterator = cache.sections.long2ObjectEntrySet().iterator();
+        while (iterator.hasNext()) {
+            CachedSection section = iterator.next().getValue();
+            if (section.chunkX < minChunkX || section.chunkX > maxChunkX
+                || section.sectionY < minSectionY || section.sectionY > maxSectionY
+                || section.chunkZ < minChunkZ || section.chunkZ > maxChunkZ) {
+                continue;
+            }
+            if (space != null) {
+                removed += section.removeFrom(space);
+            }
+            iterator.remove();
+        }
+        for (int chunkX = minChunkX; chunkX <= maxChunkX; chunkX++) {
+            for (int chunkZ = minChunkZ; chunkZ <= maxChunkZ; chunkZ++) {
+                cache.missingBlockChunkBackoffs.remove(ChunkUtil.indexChunk(chunkX, chunkZ));
+                removeSectionBackoffsForChunk(cache, chunkX, chunkZ);
+            }
+        }
+        if (cache.isEmpty()) {
+            spaces.remove(spaceId.value());
+        }
+        return removed;
     }
 
     /**
