@@ -29,7 +29,7 @@ import dev.hytalemodding.impulse.core.plugin.settings.PhysicsSpaceSettings;
 import dev.hytalemodding.impulse.core.plugin.settings.PhysicsWorldCollisionSettings;
 import it.unimi.dsi.fastutil.longs.LongOpenHashSet;
 import it.unimi.dsi.fastutil.longs.LongSet;
-import it.unimi.dsi.fastutil.objects.Object2ObjectLinkedOpenHashMap;
+import it.unimi.dsi.fastutil.objects.Object2ObjectOpenHashMap;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -298,7 +298,7 @@ public class PhysicsWorldCollisionStreamingSystem extends TickingSystem<EntitySt
         int ttlTicks,
         @Nullable Snapshot snapshot) {
         Map<WorldCollisionStreamingBounds, BodyStreamingTarget> uniqueTargets =
-            new Object2ObjectLinkedOpenHashMap<>();
+            new Object2ObjectOpenHashMap<>();
         int[] spatialIndexCandidateCount = {0};
         int[] candidateCount = {0};
         resource.forEachIndexedBodySnapshot(spaceId, (bodyKey, bodySnapshot, bodySpaceId, kind, persistenceMode) -> {

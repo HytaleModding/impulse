@@ -10,7 +10,7 @@ import dev.hytalemodding.impulse.core.plugin.snapshot.PhysicsBodySnapshotEntry;
 import dev.hytalemodding.impulse.core.plugin.snapshot.PublishedPhysicsBodySnapshotCursor;
 import dev.hytalemodding.impulse.core.plugin.snapshot.PublishedPhysicsSnapshotFrame;
 import it.unimi.dsi.fastutil.objects.Object2LongOpenHashMap;
-import it.unimi.dsi.fastutil.objects.Object2ObjectLinkedOpenHashMap;
+import it.unimi.dsi.fastutil.objects.Object2ObjectOpenHashMap;
 import java.util.Iterator;
 import java.util.Map;
 import java.util.function.Consumer;
@@ -24,7 +24,7 @@ import org.joml.Vector3f;
 public final class PhysicsBodySnapshotStore {
 
     private final Map<RigidBodyKey, PhysicsBodySnapshot> snapshots =
-        new Object2ObjectLinkedOpenHashMap<>();
+        new Object2ObjectOpenHashMap<>();
     private final Object2LongOpenHashMap<RigidBodyKey> livenessMarks =
         new Object2LongOpenHashMap<>();
     private final PhysicsBodySpatialIndex spatialIndex = new PhysicsBodySpatialIndex();

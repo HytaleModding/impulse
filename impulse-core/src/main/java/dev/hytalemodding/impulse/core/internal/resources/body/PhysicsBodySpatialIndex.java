@@ -10,7 +10,7 @@ import dev.hytalemodding.impulse.core.plugin.snapshot.PhysicsBodySnapshotEntry;
 import it.unimi.dsi.fastutil.ints.Int2IntOpenHashMap;
 import it.unimi.dsi.fastutil.longs.Long2ObjectMap;
 import it.unimi.dsi.fastutil.longs.Long2ObjectOpenHashMap;
-import it.unimi.dsi.fastutil.objects.Object2ObjectLinkedOpenHashMap;
+import it.unimi.dsi.fastutil.objects.Object2ObjectOpenHashMap;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -36,7 +36,7 @@ final class PhysicsBodySpatialIndex {
     private static final float CELL_SIZE = 16.0f;
     private static final int AXIS_MASK = 0x1F_FFFF;
 
-    private final Map<RigidBodyKey, IndexedBody> entries = new Object2ObjectLinkedOpenHashMap<>();
+    private final Map<RigidBodyKey, IndexedBody> entries = new Object2ObjectOpenHashMap<>();
     private final Long2ObjectMap<List<IndexedBody>> cells = new Long2ObjectOpenHashMap<>();
     private final Int2IntOpenHashMap spaceBodyCounts = new Int2IntOpenHashMap();
 
