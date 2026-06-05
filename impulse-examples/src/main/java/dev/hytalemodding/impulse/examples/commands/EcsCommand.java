@@ -6,7 +6,6 @@ import com.hypixel.hytale.component.Ref;
 import com.hypixel.hytale.component.Store;
 import com.hypixel.hytale.server.core.Message;
 import com.hypixel.hytale.server.core.asset.type.blocktype.config.BlockType;
-import com.hypixel.hytale.server.core.asset.type.blocktype.config.RotationTuple;
 import com.hypixel.hytale.server.core.command.system.CommandContext;
 import com.hypixel.hytale.server.core.command.system.arguments.system.OptionalArg;
 import com.hypixel.hytale.server.core.command.system.arguments.types.ArgTypes;
@@ -18,7 +17,6 @@ import com.hypixel.hytale.server.core.universe.PlayerRef;
 import com.hypixel.hytale.server.core.universe.world.World;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import com.hypixel.hytale.server.core.util.TargetUtil;
-import com.hypixel.hytale.builtin.fallingblocks.FallingBlock;
 import dev.hytalemodding.impulse.api.PhysicsBodyType;
 import dev.hytalemodding.impulse.api.SpaceId;
 import dev.hytalemodding.impulse.core.plugin.body.RigidBodyKey;
@@ -32,7 +30,7 @@ import dev.hytalemodding.impulse.core.plugin.simulation.PhysicsCommandBuffer;
 import dev.hytalemodding.impulse.core.plugin.simulation.view.RaycastHitView;
 import dev.hytalemodding.impulse.examples.explosive.ExplosiveBlockComponent;
 import dev.hytalemodding.impulse.examples.explosive.ExplosiveBlockPolicy;
-import dev.hytalemodding.impulse.examples.explosive.ImpulseExplosiveFallingBlockImpact;
+import dev.hytalemodding.impulse.examples.explosive.ExplosiveFuseComponent;
 import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
@@ -312,6 +310,12 @@ public class EcsCommand extends AbstractCommandCollection {
     private static final class ExplosiveCommand extends EcsPlayerCommand {
 
         private static final double FALLBACK_SPAWN_DISTANCE = 5.0;
+        private static final int DEFAULT_EXPLOSION_RADIUS = 8;
+        private static final int MAX_EXPLOSION_RADIUS = 24;
+        private static final int DEFAULT_EXPLOSION_FRAGMENTS = 256;
+        private static final int MAX_EXPLOSION_FRAGMENTS = 1024;
+        private static final float SOURCE_FRICTION = 0.35f;
+        private static final float SOURCE_RESTITUTION = 0.7f;
 
         private final OptionalArg<String> blockTypeArg = withOptionalArg(
             "blockType",
@@ -324,10 +328,6 @@ public class EcsCommand extends AbstractCommandCollection {
         private final OptionalArg<Integer> maxFragmentsArg = withOptionalArg(
             "maxFragments",
             "Maximum blocks converted to physics fragments per explosion",
-            ArgTypes.INTEGER);
-        private final OptionalArg<Integer> generationsArg = withOptionalArg(
-            "generations",
-            "Maximum chained fragment explosion generations",
             ArgTypes.INTEGER);
         private final OptionalArg<Float> strengthArg = withOptionalArg(
             "strength",
@@ -362,45 +362,61 @@ public class EcsCommand extends AbstractCommandCollection {
             String blockType = blockTypeArg.provided(ctx)
                 ? ExamplePhysicsUtils.resolveBlockType(blockTypeArg.get(ctx))
                 : ExamplePhysicsUtils.DEFAULT_BLOCK_TYPE;
-            int radius = ExamplePhysicsUtils.optionalInt(ctx, radiusArg, 3, 1, 8);
-            int maxFragments = ExamplePhysicsUtils.optionalInt(ctx, maxFragmentsArg, 48, 1, 256);
-            int generations = ExamplePhysicsUtils.optionalInt(ctx, generationsArg, 2, 0, 5);
+            int radius = ExamplePhysicsUtils.optionalInt(ctx,
+                radiusArg,
+                DEFAULT_EXPLOSION_RADIUS,
+                1,
+                MAX_EXPLOSION_RADIUS);
+            int maxFragments = ExamplePhysicsUtils.optionalInt(ctx,
+                maxFragmentsArg,
+                DEFAULT_EXPLOSION_FRAGMENTS,
+                1,
+                MAX_EXPLOSION_FRAGMENTS);
             float strength = optionalFloat(ctx, strengthArg, 12.0f, 0.0f, 128.0f);
             float verticalLift = optionalFloat(ctx, verticalLiftArg, 0.35f, 0.0f, 2.0f);
 
-            PhysicsWorldResource resource = ExamplePhysicsUtils.resource(store);
-            boolean enabledContacts = ensureContactEvents(resource);
             Vector3d spawn = spawnPosition(store, ref, transform, world);
-            BlockType blockTypeAsset = blockType(blockType);
-            if (blockTypeAsset == null) {
+            if (blockType(blockType) == null) {
                 ctx.sender().sendMessage(Message.raw("No valid explosive block type is available."));
                 return CompletableFuture.completedFuture(null);
             }
+            PhysicsWorldResource resource = ExamplePhysicsUtils.resource(store);
+            ensureContactEvents(resource);
+            WorldCollisionPrewarmStats stats = resource.ensureWorldCollisionAround(world,
+                spaceId,
+                List.of(spawn),
+                Math.max(8, radius + 6),
+                Math.max(0L, world.getTick()));
 
+            RigidBodyKey bodyKey = RigidBodyKey.random();
+            TimeResource time = store.getResource(TimeResource.getResourceType());
             ExplosiveBlockComponent settings = new ExplosiveBlockComponent(blockType,
                 0,
-                generations,
+                0,
                 radius,
                 maxFragments,
                 strength,
                 verticalLift);
-            Holder<EntityStore> holder = FallingBlock.generateFallingBlock(blockTypeAsset,
+            Holder<EntityStore> holder = ExamplePhysicsUtils.rigidBodyComponentBlockEntityHolder(time,
+                bodyKey,
+                spaceId,
                 spawn,
-                RotationTuple.NONE,
-                ImpulseExplosiveFallingBlockImpact.fallingBlockSettings(spaceId, settings));
-            if (holder == null) {
-                ctx.sender().sendMessage(Message.raw("Unable to spawn explosive falling block."));
-                return CompletableFuture.completedFuture(null);
-            }
+                blockType,
+                PhysicsBodyType.DYNAMIC,
+                1.0f,
+                SOURCE_FRICTION,
+                SOURCE_RESTITUTION,
+                RigidBodyComponent.Ownership.ENTITY_OWNED,
+                null);
             holder.addComponent(ExplosiveBlockComponent.getComponentType(), settings);
+            holder.addComponent(ExplosiveFuseComponent.getComponentType(), new ExplosiveFuseComponent());
             store.addEntity(holder, AddReason.SPAWN);
 
-            ctx.sender().sendMessage(Message.raw("Queued ECS explosive falling block"
+            ctx.sender().sendMessage(Message.raw("Queued Impulse explosive body " + bodyKey
                 + " in space " + spaceId.value()
                 + " radius=" + radius
                 + " maxFragments=" + maxFragments
-                + " generations=" + generations
-                + (enabledContacts ? " contacts=enabled" : "")
+                + " collisionBodies=" + stats.buildStats().colliderBodies()
                 + "."));
             return CompletableFuture.completedFuture(null);
         }
@@ -412,6 +428,15 @@ public class EcsCommand extends AbstractCommandCollection {
                 return blockType;
             }
             return BlockType.getAssetMap().getAsset(ExamplePhysicsUtils.DEFAULT_BLOCK_TYPE);
+        }
+
+        private static void ensureContactEvents(@Nonnull PhysicsWorldResource resource) {
+            PhysicsWorldSettings settings = resource.getWorldSettings();
+            if (settings.getEventCollectionMode() == PhysicsEventCollectionMode.CONTACTS) {
+                return;
+            }
+            settings.setEventCollectionMode(PhysicsEventCollectionMode.CONTACTS);
+            resource.setWorldSettings(settings);
         }
 
         @Nonnull
@@ -436,16 +461,6 @@ public class EcsCommand extends AbstractCommandCollection {
             return new Vector3d(eye)
                 .add(new Vector3d(direction).mul(FALLBACK_SPAWN_DISTANCE))
                 .add(0.0, 1.0, 0.0);
-        }
-
-        private static boolean ensureContactEvents(@Nonnull PhysicsWorldResource resource) {
-            PhysicsWorldSettings settings = resource.getWorldSettings();
-            if (settings.getEventCollectionMode() == PhysicsEventCollectionMode.CONTACTS) {
-                return false;
-            }
-            settings.setEventCollectionMode(PhysicsEventCollectionMode.CONTACTS);
-            resource.setWorldSettings(settings);
-            return true;
         }
 
         private static float optionalFloat(@Nonnull CommandContext ctx,
