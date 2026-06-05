@@ -409,6 +409,32 @@ public final class ExamplePhysicsUtils {
         float mass,
         @Nonnull RigidBodyComponent.Ownership ownership,
         @Nullable RigidBodyKinematicTargetComponent kinematicTarget) {
+        Holder<EntityStore> holder = rigidBodyComponentBlockEntityHolder(time,
+            bodyKey,
+            spaceId,
+            visualPosition,
+            blockType,
+            bodyType,
+            mass,
+            0.5f,
+            0.2f,
+            ownership,
+            kinematicTarget);
+        return store.addEntity(holder, AddReason.SPAWN);
+    }
+
+    @Nonnull
+    public static Holder<EntityStore> rigidBodyComponentBlockEntityHolder(@Nonnull TimeResource time,
+        @Nonnull RigidBodyKey bodyKey,
+        @Nonnull SpaceId spaceId,
+        @Nonnull Vector3d visualPosition,
+        @Nullable String blockType,
+        @Nonnull PhysicsBodyType bodyType,
+        float mass,
+        float friction,
+        float restitution,
+        @Nonnull RigidBodyComponent.Ownership ownership,
+        @Nullable RigidBodyKinematicTargetComponent kinematicTarget) {
         Holder<EntityStore> holder = blockEntityHolder(time, blockType, visualPosition);
         holder.addComponent(RIGID_BODY_TYPE,
             new RigidBodyComponent(bodyKey,
@@ -423,8 +449,8 @@ public final class ExamplePhysicsUtils {
                 0.0f,
                 bodyType,
                 mass,
-                0.5f,
-                0.2f,
+                friction,
+                restitution,
                 0.0f,
                 0.0f,
                 false,
@@ -435,7 +461,7 @@ public final class ExamplePhysicsUtils {
         if (kinematicTarget != null) {
             holder.addComponent(RIGID_BODY_KINEMATIC_TARGET_TYPE, kinematicTarget);
         }
-        return store.addEntity(holder, AddReason.SPAWN);
+        return holder;
     }
 
     @Nonnull
@@ -473,9 +499,48 @@ public final class ExamplePhysicsUtils {
         @Nullable String blockType,
         @Nonnull Vector3d visualPosition,
         boolean controllable) {
+        return attachedBlockEntityHolder(time,
+            bodyKey,
+            spaceId,
+            blockType,
+            visualPosition,
+            new Vector3f(),
+            controllable);
+    }
+
+    @Nonnull
+    public static Holder<EntityStore> attachedBlockEntityHolder(@Nonnull TimeResource time,
+        @Nonnull RigidBodyKey bodyKey,
+        @Nonnull SpaceId spaceId,
+        @Nullable String blockType,
+        @Nonnull Vector3d visualPosition,
+        @Nonnull Vector3f localPositionOffset,
+        boolean controllable) {
+        return attachedBlockEntityHolder(time,
+            bodyKey,
+            spaceId,
+            blockType,
+            visualPosition,
+            localPositionOffset,
+            new Quaternionf(),
+            controllable);
+    }
+
+    @Nonnull
+    public static Holder<EntityStore> attachedBlockEntityHolder(@Nonnull TimeResource time,
+        @Nonnull RigidBodyKey bodyKey,
+        @Nonnull SpaceId spaceId,
+        @Nullable String blockType,
+        @Nonnull Vector3d visualPosition,
+        @Nonnull Vector3f localPositionOffset,
+        @Nonnull Quaternionf localRotationOffset,
+        boolean controllable) {
         Holder<EntityStore> holder = blockEntityHolder(time, blockType, visualPosition);
         holder.addComponent(ATTACHMENT_TYPE,
-            PhysicsBodyAttachmentComponent.externalEntity(bodyKey, spaceId));
+            PhysicsBodyAttachmentComponent.externalEntity(bodyKey,
+                spaceId,
+                localPositionOffset,
+                localRotationOffset));
         if (controllable) {
             holder.addComponent(IMPULSE_CONTROLLABLE_TYPE, new ImpulseControllableComponent());
         }

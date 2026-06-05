@@ -2,12 +2,16 @@ package dev.hytalemodding.impulse.examples.explosive;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.hypixel.hytale.server.core.entity.ExplosionConfig;
 import java.lang.reflect.Field;
+import java.util.ArrayList;
+import java.util.List;
+import javax.annotation.Nonnull;
 import org.joml.Vector3d;
-import org.joml.Vector3i;
+import org.joml.Vector3f;
 import org.junit.jupiter.api.Test;
 
 class ExplosiveBlockRuntimeTest {
@@ -31,10 +35,171 @@ class ExplosiveBlockRuntimeTest {
     }
 
     @Test
-    void supportBlockPositionChecksBlockBelowBodyCenter() {
-        Vector3i block = ExplosiveBlockRuntime.supportBlockPosition(new Vector3d(12.25, 8.5, -2.25));
+    void sourceExplosionCenterBiasesAbovePhysicsBodyCenter() {
+        Vector3d center = ExplosiveBlockRuntime.sourceExplosionCenter(
+            new Vector3d(12.5, 40.5, -3.5));
 
-        assertEquals(new Vector3i(12, 7, -3), block);
+        assertEquals(new Vector3d(12.5, 41.5, -3.5), center);
+    }
+
+    @Test
+    void contactExplosionCenterStartsAboveTerrainContactPoint() {
+        Vector3d center = ExplosiveBlockRuntime.contactExplosionCenter(
+            new Vector3d(12.5, 41.0, -3.5));
+
+        assertEquals(new Vector3d(12.5, 41.5, -3.5), center);
+    }
+
+    @Test
+    void fragmentOffsetsAreNearestFirstSphereInsteadOfBottomFirstScan() {
+        List<ExplosiveBlockRuntime.FragmentOffset> offsets =
+            ExplosiveBlockRuntime.sphericalFragmentOffsets(2);
+
+        assertEquals(new ExplosiveBlockRuntime.FragmentOffset(0, 0, 0, 0), offsets.getFirst());
+        for (int i = 1; i < offsets.size(); i++) {
+            assertTrue(offsets.get(i - 1).distanceSquared() <= offsets.get(i).distanceSquared());
+        }
+
+        List<ExplosiveBlockRuntime.FragmentOffset> firstSeven = offsets.subList(0, 7);
+        assertTrue(firstSeven.stream().anyMatch(offset -> offset.dy() > 0));
+        assertTrue(firstSeven.stream().anyMatch(offset -> offset.dy() < 0));
+        assertTrue(firstSeven.stream().noneMatch(offset -> offset.dy() < -1));
+    }
+
+    @Test
+    void largeSphereHasEnoughOffsetsForBigExplosionFragmentCap() {
+        List<ExplosiveBlockRuntime.FragmentOffset> offsets =
+            ExplosiveBlockRuntime.sphericalFragmentOffsets(8);
+
+        assertTrue(offsets.size() >= 1024);
+    }
+
+    @Test
+    void faceConnectedFragmentsBecomeOneAabbGroup() {
+        List<ExplosiveBlockRuntime.FragmentGroup> groups = ExplosiveBlockRuntime.groupFragments(
+            List.of(
+                new ExplosiveBlockRuntime.FragmentBlock("Hytale:block/stone", 0, 10, 0),
+                new ExplosiveBlockRuntime.FragmentBlock("Hytale:block/stone", 1, 10, 0),
+                new ExplosiveBlockRuntime.FragmentBlock("Hytale:block/stone", 2, 10, 0)
+            ),
+            new Vector3d(1.5, 10.5, 0.5),
+            8);
+
+        assertEquals(1, groups.size());
+        ExplosiveBlockRuntime.FragmentGroup group = groups.getFirst();
+        assertEquals("Hytale:block/stone", group.blockType());
+        assertEquals(3, group.blockCount());
+        assertEquals(new Vector3d(1.5, 10.5, 0.5), group.center());
+        assertEquals(1.48f, group.halfExtentX(), 0.0001f);
+        assertEquals(0.48f, group.halfExtentY(), 0.0001f);
+        assertEquals(0.48f, group.halfExtentZ(), 0.0001f);
+        assertEquals(3.0f, group.mass(), 0.0001f);
+    }
+
+    @Test
+    void groupedFragmentsExposeEveryBlockAsLocalVisualOffset() {
+        List<ExplosiveBlockRuntime.FragmentGroup> groups = ExplosiveBlockRuntime.groupFragments(
+            List.of(
+                new ExplosiveBlockRuntime.FragmentBlock("Hytale:block/stone", 0, 10, 0),
+                new ExplosiveBlockRuntime.FragmentBlock("Hytale:block/stone", 1, 10, 0),
+                new ExplosiveBlockRuntime.FragmentBlock("Hytale:block/stone", 2, 10, 0)
+            ),
+            new Vector3d(1.5, 10.5, 0.5),
+            8);
+
+        List<ExplosiveBlockRuntime.FragmentVisual> visuals = groups.getFirst().visualBlocks();
+
+        assertEquals(3, visuals.size());
+        assertVectorEquals(new Vector3d(1.5, 10.0, 0.5), visuals.get(0).position());
+        assertVectorEquals(new Vector3f(0.0f, -0.02f, 0.0f), visuals.get(0).localPositionOffset());
+        assertVectorEquals(new Vector3d(0.5, 10.0, 0.5), visuals.get(1).position());
+        assertVectorEquals(new Vector3f(-1.0f, -0.02f, 0.0f), visuals.get(1).localPositionOffset());
+        assertVectorEquals(new Vector3d(2.5, 10.0, 0.5), visuals.get(2).position());
+        assertVectorEquals(new Vector3f(1.0f, -0.02f, 0.0f), visuals.get(2).localPositionOffset());
+    }
+
+    @Test
+    void verticalGroupedFragmentsKeepBlockHeightVisualSpacing() {
+        List<ExplosiveBlockRuntime.FragmentGroup> groups = ExplosiveBlockRuntime.groupFragments(
+            List.of(
+                new ExplosiveBlockRuntime.FragmentBlock("Hytale:block/stone", 0, 10, 0),
+                new ExplosiveBlockRuntime.FragmentBlock("Hytale:block/stone", 0, 11, 0)
+            ),
+            new Vector3d(0.5, 10.5, 0.5),
+            8);
+
+        List<ExplosiveBlockRuntime.FragmentVisual> visuals = groups.getFirst().visualBlocks();
+
+        assertEquals(2, visuals.size());
+        assertVectorEquals(new Vector3d(0.5, 10.0, 0.5), visuals.get(0).position());
+        assertVectorEquals(new Vector3f(0.0f, -0.02f, 0.0f), visuals.get(0).localPositionOffset());
+        assertVectorEquals(new Vector3d(0.5, 11.0, 0.5), visuals.get(1).position());
+        assertVectorEquals(new Vector3f(0.0f, 0.98f, 0.0f), visuals.get(1).localPositionOffset());
+    }
+
+    @Test
+    void disconnectedFragmentsRemainSeparateGroups() {
+        List<ExplosiveBlockRuntime.FragmentGroup> groups = ExplosiveBlockRuntime.groupFragments(
+            List.of(
+                new ExplosiveBlockRuntime.FragmentBlock("Hytale:block/stone", 0, 10, 0),
+                new ExplosiveBlockRuntime.FragmentBlock("Hytale:block/dirt", 4, 10, 0)
+            ),
+            new Vector3d(0.5, 10.5, 0.5),
+            8);
+
+        assertEquals(2, groups.size());
+        assertEquals(new Vector3d(0.5, 10.5, 0.5), groups.get(0).center());
+        assertEquals(new Vector3d(4.5, 10.5, 0.5), groups.get(1).center());
+    }
+
+    @Test
+    void largeConnectedComponentsSplitIntoBoundedGroups() {
+        List<ExplosiveBlockRuntime.FragmentBlock> fragments = new ArrayList<>();
+        for (int x = 0; x < 40; x++) {
+            fragments.add(new ExplosiveBlockRuntime.FragmentBlock("Hytale:block/stone", x, 10, 0));
+        }
+
+        List<ExplosiveBlockRuntime.FragmentGroup> groups = ExplosiveBlockRuntime.groupFragments(
+            fragments,
+            new Vector3d(0.5, 10.5, 0.5),
+            8);
+
+        assertTrue(groups.size() > 1);
+        assertEquals(40, groups.stream().mapToInt(ExplosiveBlockRuntime.FragmentGroup::blockCount).sum());
+        assertTrue(groups.stream()
+            .allMatch(group -> group.blockCount() <= ExplosiveBlockRuntime.MAX_BLOCKS_PER_FRAGMENT_GROUP));
+    }
+
+    @Test
+    void irregularComponentsSplitIntoSolidAabbGroups() {
+        List<ExplosiveBlockRuntime.FragmentGroup> groups = ExplosiveBlockRuntime.groupFragments(
+            List.of(
+                new ExplosiveBlockRuntime.FragmentBlock("Hytale:block/stone", 0, 10, 0),
+                new ExplosiveBlockRuntime.FragmentBlock("Hytale:block/stone", 1, 10, 0),
+                new ExplosiveBlockRuntime.FragmentBlock("Hytale:block/stone", 0, 10, 1)
+            ),
+            new Vector3d(0.5, 10.5, 0.5),
+            8);
+
+        assertEquals(3, groups.stream().mapToInt(ExplosiveBlockRuntime.FragmentGroup::blockCount).sum());
+        assertTrue(groups.size() > 1);
+        assertTrue(groups.stream()
+            .allMatch(group -> group.aabbBlockVolume() == group.blockCount()));
+    }
+
+    @Test
+    void terrainFragmentsDoNotCarryLandingExplosionState() {
+        ExplosiveBlockComponent settings = new ExplosiveBlockComponent(
+            "Hytale:block/stone",
+            0,
+            2,
+            3,
+            48,
+            12.0f,
+            0.35f);
+
+        assertNull(ExplosiveBlockRuntime.fragmentLandingExplosionState(settings,
+            "Hytale:block/dirt"));
     }
 
     private static boolean booleanField(ExplosionConfig config, String fieldName)
@@ -59,5 +224,17 @@ class ExplosiveBlockRuntimeTest {
         Field field = ExplosionConfig.class.getDeclaredField(fieldName);
         field.setAccessible(true);
         return field;
+    }
+
+    private static void assertVectorEquals(@Nonnull Vector3d expected, @Nonnull Vector3d actual) {
+        assertEquals(expected.x, actual.x, 0.0001);
+        assertEquals(expected.y, actual.y, 0.0001);
+        assertEquals(expected.z, actual.z, 0.0001);
+    }
+
+    private static void assertVectorEquals(@Nonnull Vector3f expected, @Nonnull Vector3f actual) {
+        assertEquals(expected.x, actual.x, 0.0001f);
+        assertEquals(expected.y, actual.y, 0.0001f);
+        assertEquals(expected.z, actual.z, 0.0001f);
     }
 }

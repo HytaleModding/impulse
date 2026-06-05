@@ -3,7 +3,6 @@ package dev.hytalemodding.impulse.examples.explosive;
 import dev.hytalemodding.impulse.examples.commands.ExamplePhysicsUtils;
 import javax.annotation.Nonnull;
 import org.joml.Vector3f;
-import org.joml.Vector3i;
 
 public final class ExplosiveBlockPolicy {
 
@@ -30,19 +29,7 @@ public final class ExplosiveBlockPolicy {
         return direction;
     }
 
-    public static boolean shouldChain(int generation, int maxGeneration) {
-        return generation >= 0 && generation < Math.max(0, maxGeneration);
-    }
-
     public static boolean isFragmentCandidate(int blockId) {
         return blockId != EMPTY_BLOCK_ID && blockId != UNKNOWN_BLOCK_ID;
-    }
-
-    @Nonnull
-    public static Vector3i landingBlockPosition(@Nonnull Vector3f position) {
-        return new Vector3i(
-            (int) Math.floor(position.x),
-            (int) Math.floor(position.y),
-            (int) Math.floor(position.z));
     }
 }
