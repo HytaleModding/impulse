@@ -70,7 +70,24 @@ public final class PhysicsWorldCollisionRuntime {
             space,
             center,
             radius,
-            buildOptions));
+                buildOptions));
+    }
+
+    @Nonnull
+    public WorldCollisionBuildStats refreshAround(@Nonnull World world,
+        @Nonnull PhysicsSpaceBinding space,
+        @Nonnull Vector3d center,
+        int radius,
+        @Nonnull WorldCollisionBuildOptions buildOptions) {
+        WorldVoxelCollisionCache.BuildStats stats = worldVoxelCollisionCache.refreshAround(world,
+            space,
+            center,
+            radius,
+            buildOptions);
+        if (stats.removedBodies() > 0) {
+            incrementStreamingRevision(space.spaceId());
+        }
+        return worldCollisionStats(stats);
     }
 
     @Nonnull

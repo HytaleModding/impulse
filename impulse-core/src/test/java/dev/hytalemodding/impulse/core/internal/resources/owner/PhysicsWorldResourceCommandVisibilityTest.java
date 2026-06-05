@@ -23,6 +23,7 @@ import dev.hytalemodding.impulse.core.plugin.snapshot.PublishedPhysicsSnapshotFr
 import java.time.Duration;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import javax.annotation.Nonnull;
 import org.junit.jupiter.api.Test;
@@ -132,6 +133,53 @@ class PhysicsWorldResourceCommandVisibilityTest {
 
             assertFalse(resource.isBodyCreationPending(firstBodyId));
             assertFalse(resource.isBodyCreationPending(secondBodyId));
+            resource.detachOwnerExecutor(owner);
+        }
+    }
+
+    @Test
+    void commandSpawnedBodyIsIndexedForInternalReadersBeforePublishedRegistration() throws Exception {
+        RuntimeFixture fixture = createRuntimeFixture("owner-command-indexed-snapshot");
+        PhysicsWorldRuntimeResource resource = fixture.resource();
+
+        try (TestPhysicsOwnerLane owner = new TestPhysicsOwnerLane(4,
+            Duration.ofSeconds(2L))) {
+            owner.start("owner-command-indexed-snapshot");
+            resource.attachOwnerExecutor(owner);
+
+            RigidBodyKey bodyId = RigidBodyKey.random();
+            var handle = resource.submitCommands(306L, commands -> commands
+                .spawnBody(bodyId, spawn -> spawn
+                    .space(fixture.spaceId())
+                    .box(0.5f, 0.5f, 0.5f)
+                    .dynamic()
+                    .kind(PhysicsBodyKind.BODY)
+                    .runtimeOnly()));
+
+            handle.completion().toCompletableFuture().get(2, TimeUnit.SECONDS);
+
+            assertNull(resource.getBodyRegistrationView(bodyId));
+            assertTrue(resource.isBodyCreationPending(bodyId));
+
+            AtomicInteger indexedSnapshots = new AtomicInteger();
+            AtomicBoolean foundBody = new AtomicBoolean();
+            resource.callOwner("inspect command-spawned indexed body snapshot", () -> {
+                resource.forEachIndexedBodySnapshot(fixture.spaceId(),
+                    (snapshotBodyId, snapshot, snapshotSpaceId, kind, persistenceMode) -> {
+                        indexedSnapshots.incrementAndGet();
+                        if (bodyId.equals(snapshotBodyId)) {
+                            foundBody.set(true);
+                            assertEquals(fixture.spaceId(), snapshotSpaceId);
+                            assertTrue(snapshot.isDynamic());
+                            assertEquals(PhysicsBodyKind.BODY, kind);
+                            assertEquals(PhysicsBodyPersistenceMode.RUNTIME_ONLY, persistenceMode);
+                        }
+                    });
+                return null;
+            });
+
+            assertEquals(1, indexedSnapshots.get());
+            assertTrue(foundBody.get());
             resource.detachOwnerExecutor(owner);
         }
     }
@@ -310,6 +358,29 @@ class PhysicsWorldResourceCommandVisibilityTest {
             assertNotNull(resource.getBodyRegistrationView(duplicateBodyId));
             assertFalse(resource.isBodyCreationPending(createdBodyId));
             assertFalse(resource.isBodyCreationPending(duplicateBodyId));
+            resource.detachOwnerExecutor(owner);
+        }
+    }
+
+    @Test
+    void nullableSnapshotLookupToleratesStalePublishedRegistrationAfterDestroy() throws Exception {
+        RuntimeFixture fixture = createRuntimeFixture("owner-command-stale-registration-snapshot");
+        PhysicsWorldRuntimeResource resource = fixture.resource();
+
+        try (TestPhysicsOwnerLane owner = new TestPhysicsOwnerLane(4,
+            Duration.ofSeconds(2L))) {
+            owner.start("owner-command-stale-registration-snapshot");
+            resource.attachOwnerExecutor(owner);
+
+            RigidBodyKey bodyId = RigidBodyKey.random();
+            spawnPublishedBody(resource, fixture.spaceId(), bodyId);
+
+            resource.destroyBodyAsync(bodyId).completion()
+                .toCompletableFuture()
+                .get(2, TimeUnit.SECONDS);
+
+            assertNotNull(resource.getBodyRegistrationView(bodyId));
+            assertNull(resource.getBodySnapshotIfRegistered(bodyId));
             resource.detachOwnerExecutor(owner);
         }
     }

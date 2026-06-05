@@ -150,7 +150,11 @@ public class PhysicsSyncSystem extends EntityTickingSystem<EntityStore> {
             return;
         }
 
-        PhysicsBodySnapshot snapshot = resource.getBodySnapshot(registration.bodyKey());
+        PhysicsBodySnapshot snapshot = resource.getBodySnapshotIfRegistered(registration.bodyKey());
+        if (snapshot == null) {
+            GeneratedProxyLifecycle.clearMissingAttachment(entityRef, attachment, resource, commandBuffer);
+            return;
+        }
         if (snapshot.isStatic()) {
             if (collector != null) {
                 collector.incrementSkippedStatic();

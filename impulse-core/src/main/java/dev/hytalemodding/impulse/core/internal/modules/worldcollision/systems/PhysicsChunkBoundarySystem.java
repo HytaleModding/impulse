@@ -80,7 +80,10 @@ public class PhysicsChunkBoundarySystem extends TickingSystem<EntityStore> {
         }
 
         RigidBodyKey bodyKey = registration.bodyKey();
-        PhysicsBodySnapshot snapshot = resource.getBodySnapshot(bodyKey);
+        PhysicsBodySnapshot snapshot = resource.getBodySnapshotIfRegistered(bodyKey);
+        if (snapshot == null) {
+            return;
+        }
         if (snapshot.isStatic()) {
             return;
         }
