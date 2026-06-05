@@ -3,7 +3,7 @@ package dev.hytalemodding.impulse.core.internal.modules.worldcollision;
 import dev.hytalemodding.impulse.api.PhysicsBodyType;
 import dev.hytalemodding.impulse.api.PhysicsBodySnapshot;
 import dev.hytalemodding.impulse.core.plugin.body.RigidBodyKey;
-import it.unimi.dsi.fastutil.objects.Object2ObjectLinkedOpenHashMap;
+import it.unimi.dsi.fastutil.objects.Object2ObjectOpenHashMap;
 import it.unimi.dsi.fastutil.objects.ObjectOpenHashSet;
 import java.util.ArrayList;
 import java.util.Collection;
@@ -23,9 +23,9 @@ public final class PhysicsChunkBoundaryRuntime {
 
     private final Set<RigidBodyKey> forcedContinuousCollisionBodyKeys = new ObjectOpenHashSet<>();
     private final Map<RigidBodyKey, ChunkBoundarySafeState> chunkBoundarySafeStates =
-        new Object2ObjectLinkedOpenHashMap<>();
+        new Object2ObjectOpenHashMap<>();
     private final Map<RigidBodyKey, ChunkBoundaryPauseState> chunkBoundaryPauseStates =
-        new Object2ObjectLinkedOpenHashMap<>();
+        new Object2ObjectOpenHashMap<>();
 
     public void updateChunkBoundarySafeState(@Nonnull RigidBodyKey bodyKey,
         @Nonnull Vector3f position,

@@ -4,7 +4,7 @@ import com.hypixel.hytale.component.Ref;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import dev.hytalemodding.impulse.core.plugin.body.RigidBodyKey;
 import dev.hytalemodding.impulse.core.plugin.simulation.view.RaycastHitView;
-import it.unimi.dsi.fastutil.objects.Object2ObjectLinkedOpenHashMap;
+import it.unimi.dsi.fastutil.objects.Object2ObjectOpenHashMap;
 import it.unimi.dsi.fastutil.objects.ObjectOpenHashSet;
 import java.util.ArrayList;
 import java.util.Collection;
@@ -29,12 +29,12 @@ public final class PhysicsVisualRuntime {
     @Nonnull
     private final Consumer<Ref<EntityStore>> syncStateCleaner;
     private final Map<RigidBodyKey, Set<Ref<EntityStore>>> bodyAttachments =
-        new Object2ObjectLinkedOpenHashMap<>();
+        new Object2ObjectOpenHashMap<>();
     private final Map<RigidBodyKey, Ref<EntityStore>> generatedVisualProxies =
-        new Object2ObjectLinkedOpenHashMap<>();
+        new Object2ObjectOpenHashMap<>();
     private final List<VisualInterest> syntheticVisualInterests = new ArrayList<>();
     private final Map<RigidBodyKey, BodyVisualInterestState> bodyVisualInterestStates =
-        new Object2ObjectLinkedOpenHashMap<>();
+        new Object2ObjectOpenHashMap<>();
 
     public PhysicsVisualRuntime(@Nonnull Consumer<Ref<EntityStore>> syncStateCleaner) {
         this.syncStateCleaner = syncStateCleaner;
