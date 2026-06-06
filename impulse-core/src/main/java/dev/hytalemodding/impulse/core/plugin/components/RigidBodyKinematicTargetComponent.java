@@ -10,6 +10,8 @@ import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import dev.hytalemodding.impulse.core.ImpulsePlugin;
 import dev.hytalemodding.impulse.core.plugin.codec.ImpulseCodecs;
 import javax.annotation.Nonnull;
+import lombok.Getter;
+import lombok.Setter;
 import org.joml.Quaternionf;
 import org.joml.Vector3f;
 
@@ -60,8 +62,14 @@ public class RigidBodyKinematicTargetComponent implements Component<EntityStore>
     private final Vector3f linearVelocity = new Vector3f();
     @Nonnull
     private final Vector3f angularVelocity = new Vector3f();
+    @Setter
+    @Getter
     private boolean transformEnabled = true;
+    @Setter
+    @Getter
     private boolean velocityEnabled;
+    @Setter
+    @Getter
     private boolean activate = true;
 
     public RigidBodyKinematicTargetComponent() {
@@ -101,30 +109,6 @@ public class RigidBodyKinematicTargetComponent implements Component<EntityStore>
     @Nonnull
     public Vector3f getAngularVelocity() {
         return angularVelocity;
-    }
-
-    public boolean isTransformEnabled() {
-        return transformEnabled;
-    }
-
-    public void setTransformEnabled(boolean transformEnabled) {
-        this.transformEnabled = transformEnabled;
-    }
-
-    public boolean isVelocityEnabled() {
-        return velocityEnabled;
-    }
-
-    public void setVelocityEnabled(boolean velocityEnabled) {
-        this.velocityEnabled = velocityEnabled;
-    }
-
-    public boolean isActivate() {
-        return activate;
-    }
-
-    public void setActivate(boolean activate) {
-        this.activate = activate;
     }
 
     public static ComponentType<EntityStore, RigidBodyKinematicTargetComponent> getComponentType() {

@@ -21,10 +21,10 @@ public record PhysicsContactEvent(@Nonnull SpaceId spaceId,
                                   float impulse) implements PhysicsFrameEvent {
 
     public PhysicsContactEvent {
-        spaceId = Objects.requireNonNull(spaceId, "spaceId");
-        phase = Objects.requireNonNull(phase, "phase");
-        bodyAKey = Objects.requireNonNull(bodyAKey, "bodyAKey");
-        bodyBKey = Objects.requireNonNull(bodyBKey, "bodyBKey");
+        Objects.requireNonNull(spaceId, "spaceId");
+        Objects.requireNonNull(phase, "phase");
+        Objects.requireNonNull(bodyAKey, "bodyAKey");
+        Objects.requireNonNull(bodyBKey, "bodyBKey");
         pointOnA = new Vector3f(Objects.requireNonNull(pointOnA, "pointOnA"));
         pointOnB = new Vector3f(Objects.requireNonNull(pointOnB, "pointOnB"));
         normalOnB = new Vector3f(Objects.requireNonNull(normalOnB, "normalOnB"));

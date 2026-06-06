@@ -1,5 +1,7 @@
 package dev.hytalemodding.impulse.core.plugin.settings;
 
+import lombok.Getter;
+import lombok.Setter;
 import javax.annotation.Nonnull;
 
 /**
@@ -127,27 +129,33 @@ public class PhysicsVisualSyncSettings {
     /**
      * Full-rate visual sync radius for follower entities.
      */
+    @Getter
     private int visualFullSyncRadius = DEFAULT_VISUAL_FULL_SYNC_RADIUS;
 
     /**
      * Maximum visual sync radius for follower entities.
      */
+    @Getter
     private int visualMaxSyncRadius = DEFAULT_VISUAL_MAX_SYNC_RADIUS;
 
     /**
      * If enabled, visuals outside {@link #visualMaxSyncRadius} do not receive transform sync.
      * If disabled, far visuals stay alive but sync at {@link #visualFarSyncIntervalTicks}.
      */
+    @Setter
+    @Getter
     private boolean visualFarSyncCutoffEnabled = DEFAULT_VISUAL_FAR_SYNC_CUTOFF_ENABLED;
 
     /**
      * Minimum ticks between mid-range visual transform writes.
      */
+    @Getter
     private int visualMidSyncIntervalTicks = DEFAULT_VISUAL_MID_SYNC_INTERVAL_TICKS;
 
     /**
      * Minimum ticks between far-range visual transform writes when hard cutoff is disabled.
      */
+    @Getter
     private int visualFarSyncIntervalTicks = DEFAULT_VISUAL_FAR_SYNC_INTERVAL_TICKS;
 
     /**
@@ -159,35 +167,43 @@ public class PhysicsVisualSyncSettings {
     /**
      * Backend raycast budget for visual occlusion checks.
      */
+    @Getter
     private int visualOcclusionRaycastsPerTick =
         DEFAULT_VISUAL_OCCLUSION_RAYCASTS_PER_TICK;
 
     /**
      * Reuse window for visual occlusion raycast results.
      */
+    @Getter
     private int visualOcclusionCacheTicks = DEFAULT_VISUAL_OCCLUSION_CACHE_TICKS;
 
     /**
      * If enabled, near dynamic visuals can dead-reckon briefly between snapshots.
      */
+    @Setter
+    @Getter
     private boolean visualSnapshotPredictionEnabled =
         DEFAULT_VISUAL_SNAPSHOT_PREDICTION_ENABLED;
 
     /**
      * Maximum dead-reckoning window for visual snapshot prediction.
      */
+    @Getter
     private float visualSnapshotPredictionMaxSeconds =
         DEFAULT_VISUAL_SNAPSHOT_PREDICTION_MAX_SECONDS;
 
     /**
      * If enabled, near dynamic visuals ease toward the latest snapshot target.
      */
+    @Getter
+    @Setter
     private boolean visualSnapshotSmoothingEnabled =
         DEFAULT_VISUAL_SNAPSHOT_SMOOTHING_ENABLED;
 
     /**
      * Per-second convergence rate for visual snapshot smoothing.
      */
+    @Getter
     private float visualSnapshotSmoothingRate =
         DEFAULT_VISUAL_SNAPSHOT_SMOOTHING_RATE;
 
@@ -195,12 +211,16 @@ public class PhysicsVisualSyncSettings {
      * If enabled, entity-backed physics body transforms use the same player-interest culling
      * as follower visuals. Controlled bodies are always synced.
      */
+    @Setter
+    @Getter
     private boolean entityVisualSyncCullingEnabled = DEFAULT_ENTITY_VISUAL_SYNC_CULLING_ENABLED;
 
     /**
      * If enabled, near-range visual sync also requires an approximate player view-cone hit.
      * Keep disabled for custom cameras unless the server view direction matches the camera.
      */
+    @Setter
+    @Getter
     private boolean visualVisibilityCullingEnabled = DEFAULT_VISUAL_VISIBILITY_CULLING_ENABLED;
 
     public PhysicsVisualSyncSettings() {
@@ -223,10 +243,6 @@ public class PhysicsVisualSyncSettings {
         visualVisibilityCullingEnabled = settings.visualVisibilityCullingEnabled;
     }
 
-    public int getVisualFullSyncRadius() {
-        return visualFullSyncRadius;
-    }
-
     public void setVisualFullSyncRadius(int visualFullSyncRadius) {
         int boundedVisualFullSyncRadius = PhysicsSettingsValidation.requirePositiveAtMost(
             "Visual full sync radius",
@@ -237,10 +253,6 @@ public class PhysicsVisualSyncSettings {
                 "Visual full sync radius cannot exceed visual max sync radius");
         }
         this.visualFullSyncRadius = boundedVisualFullSyncRadius;
-    }
-
-    public int getVisualMaxSyncRadius() {
-        return visualMaxSyncRadius;
     }
 
     public void setVisualMaxSyncRadius(int visualMaxSyncRadius) {
@@ -272,27 +284,11 @@ public class PhysicsVisualSyncSettings {
         this.visualMaxSyncRadius = boundedVisualMaxSyncRadius;
     }
 
-    public boolean isVisualFarSyncCutoffEnabled() {
-        return visualFarSyncCutoffEnabled;
-    }
-
-    public void setVisualFarSyncCutoffEnabled(boolean visualFarSyncCutoffEnabled) {
-        this.visualFarSyncCutoffEnabled = visualFarSyncCutoffEnabled;
-    }
-
-    public int getVisualMidSyncIntervalTicks() {
-        return visualMidSyncIntervalTicks;
-    }
-
     public void setVisualMidSyncIntervalTicks(int visualMidSyncIntervalTicks) {
         this.visualMidSyncIntervalTicks = PhysicsSettingsValidation.requirePositiveAtMost(
             "Visual mid sync interval",
             visualMidSyncIntervalTicks,
             MAX_VISUAL_MID_SYNC_INTERVAL_TICKS);
-    }
-
-    public int getVisualFarSyncIntervalTicks() {
-        return visualFarSyncIntervalTicks;
     }
 
     public void setVisualFarSyncIntervalTicks(int visualFarSyncIntervalTicks) {
@@ -311,10 +307,6 @@ public class PhysicsVisualSyncSettings {
         this.visualOcclusionMode = visualOcclusionMode;
     }
 
-    public int getVisualOcclusionRaycastsPerTick() {
-        return visualOcclusionRaycastsPerTick;
-    }
-
     public void setVisualOcclusionRaycastsPerTick(int visualOcclusionRaycastsPerTick) {
         this.visualOcclusionRaycastsPerTick = PhysicsSettingsValidation.requirePositiveAtMost(
             "Visual occlusion raycasts per tick",
@@ -322,27 +314,11 @@ public class PhysicsVisualSyncSettings {
             MAX_VISUAL_OCCLUSION_RAYCASTS_PER_TICK);
     }
 
-    public int getVisualOcclusionCacheTicks() {
-        return visualOcclusionCacheTicks;
-    }
-
     public void setVisualOcclusionCacheTicks(int visualOcclusionCacheTicks) {
         this.visualOcclusionCacheTicks = PhysicsSettingsValidation.requirePositiveAtMost(
             "Visual occlusion cache ticks",
             visualOcclusionCacheTicks,
             MAX_VISUAL_OCCLUSION_CACHE_TICKS);
-    }
-
-    public boolean isVisualSnapshotPredictionEnabled() {
-        return visualSnapshotPredictionEnabled;
-    }
-
-    public void setVisualSnapshotPredictionEnabled(boolean visualSnapshotPredictionEnabled) {
-        this.visualSnapshotPredictionEnabled = visualSnapshotPredictionEnabled;
-    }
-
-    public float getVisualSnapshotPredictionMaxSeconds() {
-        return visualSnapshotPredictionMaxSeconds;
     }
 
     public void setVisualSnapshotPredictionMaxSeconds(float visualSnapshotPredictionMaxSeconds) {
@@ -355,18 +331,6 @@ public class PhysicsVisualSyncSettings {
         this.visualSnapshotPredictionMaxSeconds = visualSnapshotPredictionMaxSeconds;
     }
 
-    public boolean isVisualSnapshotSmoothingEnabled() {
-        return visualSnapshotSmoothingEnabled;
-    }
-
-    public void setVisualSnapshotSmoothingEnabled(boolean visualSnapshotSmoothingEnabled) {
-        this.visualSnapshotSmoothingEnabled = visualSnapshotSmoothingEnabled;
-    }
-
-    public float getVisualSnapshotSmoothingRate() {
-        return visualSnapshotSmoothingRate;
-    }
-
     public void setVisualSnapshotSmoothingRate(float visualSnapshotSmoothingRate) {
         if (!Float.isFinite(visualSnapshotSmoothingRate)
             || visualSnapshotSmoothingRate <= 0.0f
@@ -377,19 +341,4 @@ public class PhysicsVisualSyncSettings {
         this.visualSnapshotSmoothingRate = visualSnapshotSmoothingRate;
     }
 
-    public boolean isEntityVisualSyncCullingEnabled() {
-        return entityVisualSyncCullingEnabled;
-    }
-
-    public void setEntityVisualSyncCullingEnabled(boolean entityVisualSyncCullingEnabled) {
-        this.entityVisualSyncCullingEnabled = entityVisualSyncCullingEnabled;
-    }
-
-    public boolean isVisualVisibilityCullingEnabled() {
-        return visualVisibilityCullingEnabled;
-    }
-
-    public void setVisualVisibilityCullingEnabled(boolean visualVisibilityCullingEnabled) {
-        this.visualVisibilityCullingEnabled = visualVisibilityCullingEnabled;
-    }
 }
