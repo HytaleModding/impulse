@@ -8,6 +8,7 @@ import com.hypixel.hytale.math.util.ChunkUtil;
 import com.hypixel.hytale.math.vector.Rotation3f;
 import com.hypixel.hytale.protocol.EntityPart;
 import com.hypixel.hytale.server.core.asset.type.blocktype.config.BlockType;
+import com.hypixel.hytale.server.core.asset.type.blocktype.config.RotationTuple;
 import com.hypixel.hytale.server.core.asset.type.model.config.ModelParticle;
 import com.hypixel.hytale.server.core.asset.type.soundevent.config.SoundEvent;
 import com.hypixel.hytale.server.core.entity.ExplosionConfig;
@@ -32,6 +33,8 @@ import java.util.Map;
 import java.util.function.Consumer;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
+import org.joml.Quaterniond;
+import org.joml.Quaternionf;
 import org.joml.Vector3d;
 import org.joml.Vector3f;
 
@@ -175,6 +178,7 @@ public final class ExplosiveBlockRuntime {
                 visual.blockType(),
                 visual.position(),
                 visual.localPositionOffset(),
+                visual.localRotationOffset(),
                 visual.visualOriginOffsetY(),
                 controllable);
             if (controllable) {
@@ -242,7 +246,12 @@ public final class ExplosiveBlockRuntime {
             return null;
         }
         assert blockType != null;
-        return new FragmentBlock(blockType.getId(), x, y, z, blockTypeCenter(blockType, rotation));
+        return new FragmentBlock(blockType.getId(),
+            x,
+            y,
+            z,
+            blockTypeCenter(blockType, rotation),
+            blockRotation(rotation));
     }
 
     @Nonnull
@@ -253,6 +262,17 @@ public final class ExplosiveBlockRuntime {
             return new Vector3d(0.5, 0.5, 0.5);
         }
         return center;
+    }
+
+    @Nonnull
+    static Quaternionf blockRotation(int rotationIndex) {
+        Rotation3f rotation = new Rotation3f();
+        RotationTuple.get(rotationIndex).applyRotationTo(rotation);
+        Quaterniond quaternion = rotation.getQuaternion(new Quaterniond());
+        return new Quaternionf((float) quaternion.x,
+            (float) quaternion.y,
+            (float) quaternion.z,
+            (float) quaternion.w);
     }
 
     @Nonnull
@@ -494,20 +514,36 @@ public final class ExplosiveBlockRuntime {
                          int x,
                          int y,
                          int z,
-                         @Nonnull Vector3d visualCenter) {
+                         @Nonnull Vector3d visualCenter,
+                         @Nonnull Quaternionf localRotation) {
 
         FragmentBlock(@Nonnull String blockType, int x, int y, int z) {
             this(blockType, x, y, z, new Vector3d(0.5, 0.5, 0.5));
         }
 
+        FragmentBlock(@Nonnull String blockType,
+            int x,
+            int y,
+            int z,
+            @Nonnull Vector3d visualCenter) {
+            this(blockType, x, y, z, visualCenter, new Quaternionf());
+        }
+
         FragmentBlock {
             visualCenter = new Vector3d(visualCenter);
+            localRotation = new Quaternionf(localRotation);
         }
 
         @Nonnull
         @Override
         public Vector3d visualCenter() {
             return new Vector3d(visualCenter);
+        }
+
+        @Nonnull
+        @Override
+        public Quaternionf localRotation() {
+            return new Quaternionf(localRotation);
         }
 
         @Nonnull
@@ -582,6 +618,7 @@ public final class ExplosiveBlockRuntime {
                     new Vector3f((float) (visualCenter.x - center.x),
                         (float) (visualCenter.y - center.y),
                         (float) (visualCenter.z - center.z)),
+                    block.localRotation(),
                     FRAGMENT_VISUAL_ORIGIN_OFFSET_Y));
             }
             return List.copyOf(visuals);
@@ -607,11 +644,13 @@ public final class ExplosiveBlockRuntime {
     record FragmentVisual(@Nonnull String blockType,
                           @Nonnull Vector3d position,
                           @Nonnull Vector3f localPositionOffset,
+                          @Nonnull Quaternionf localRotationOffset,
                           float visualOriginOffsetY) {
 
         FragmentVisual {
             position = new Vector3d(position);
             localPositionOffset = new Vector3f(localPositionOffset);
+            localRotationOffset = new Quaternionf(localRotationOffset);
             visualOriginOffsetY = Math.max(0.0f, visualOriginOffsetY);
         }
 
@@ -625,6 +664,12 @@ public final class ExplosiveBlockRuntime {
         @Override
         public Vector3f localPositionOffset() {
             return new Vector3f(localPositionOffset);
+        }
+
+        @Nonnull
+        @Override
+        public Quaternionf localRotationOffset() {
+            return new Quaternionf(localRotationOffset);
         }
     }
 

@@ -5,13 +5,18 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import com.hypixel.hytale.math.vector.Rotation3f;
 import com.hypixel.hytale.protocol.EntityPart;
+import com.hypixel.hytale.server.core.asset.type.blocktype.config.Rotation;
+import com.hypixel.hytale.server.core.asset.type.blocktype.config.RotationTuple;
 import com.hypixel.hytale.server.core.asset.type.model.config.ModelParticle;
 import com.hypixel.hytale.server.core.entity.ExplosionConfig;
 import java.lang.reflect.Field;
 import java.util.ArrayList;
 import java.util.List;
 import javax.annotation.Nonnull;
+import org.joml.Quaterniond;
+import org.joml.Quaternionf;
 import org.joml.Vector3d;
 import org.joml.Vector3f;
 import org.junit.jupiter.api.Test;
@@ -146,6 +151,38 @@ class ExplosiveBlockRuntimeTest {
         assertVectorEquals(new Vector3d(4.25, 10.0, -1.25), visuals.getFirst().position());
         assertVectorEquals(new Vector3f(-0.25f, 0.0f, 0.25f),
             visuals.getFirst().localPositionOffset());
+    }
+
+    @Test
+    void blockRotationUsesHytaleRotationTupleIndex() {
+        RotationTuple rotationTuple = RotationTuple.of(Rotation.Ninety,
+            Rotation.OneEighty,
+            Rotation.TwoSeventy);
+        Rotation3f hytaleRotation = new Rotation3f();
+        rotationTuple.applyRotationTo(hytaleRotation);
+        Quaterniond expected = hytaleRotation.getQuaternion(new Quaterniond());
+
+        assertQuaternionEquals(expected, ExplosiveBlockRuntime.blockRotation(rotationTuple.index()));
+    }
+
+    @Test
+    void groupedFragmentVisualsPreserveBlockLocalRotation() {
+        Quaternionf localRotation = new Quaternionf().rotateXYZ(0.25f, 0.5f, 0.75f);
+        List<ExplosiveBlockRuntime.FragmentGroup> groups = ExplosiveBlockRuntime.groupFragments(
+            List.of(new ExplosiveBlockRuntime.FragmentBlock("Hytale:block/stone",
+                0,
+                10,
+                0,
+                new Vector3d(0.5, 0.5, 0.5),
+                localRotation)),
+            new Vector3d(0.5, 10.5, 0.5),
+            8);
+
+        ExplosiveBlockRuntime.FragmentVisual visual = groups.getFirst().visualBlocks().getFirst();
+
+        assertQuaternionEquals(localRotation, visual.localRotationOffset());
+        visual.localRotationOffset().identity();
+        assertQuaternionEquals(localRotation, visual.localRotationOffset());
     }
 
     @Test
@@ -296,6 +333,22 @@ class ExplosiveBlockRuntimeTest {
         assertEquals(expected.x, actual.x, 0.0001f);
         assertEquals(expected.y, actual.y, 0.0001f);
         assertEquals(expected.z, actual.z, 0.0001f);
+    }
+
+    private static void assertQuaternionEquals(@Nonnull Quaterniond expected,
+        @Nonnull Quaternionf actual) {
+        assertEquals(expected.x, actual.x, 0.0001f);
+        assertEquals(expected.y, actual.y, 0.0001f);
+        assertEquals(expected.z, actual.z, 0.0001f);
+        assertEquals(expected.w, actual.w, 0.0001f);
+    }
+
+    private static void assertQuaternionEquals(@Nonnull Quaternionf expected,
+        @Nonnull Quaternionf actual) {
+        assertEquals(expected.x, actual.x, 0.0001f);
+        assertEquals(expected.y, actual.y, 0.0001f);
+        assertEquals(expected.z, actual.z, 0.0001f);
+        assertEquals(expected.w, actual.w, 0.0001f);
     }
 
     private static void assertVisualSyncsToSpawnPosition(
