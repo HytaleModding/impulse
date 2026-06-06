@@ -13,7 +13,6 @@ import dev.hytalemodding.impulse.core.plugin.simulation.PhysicsCommandContext;
 import dev.hytalemodding.impulse.core.plugin.simulation.PhysicsShapeSpec;
 import dev.hytalemodding.impulse.core.plugin.simulation.RigidBodySpawnSettings;
 import java.util.Arrays;
-import java.util.Objects;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
@@ -26,6 +25,19 @@ import javax.annotation.Nullable;
  * <p>The representation keeps opcode, object, and float storage flat so bulk command recording
  * does not allocate a wrapper object for every operation. Preserve that property on hot paths such
  * as template spawns and batch ray setup.</p>
+ *
+ * <p>Each operation occupies one row in {@code opcodes}, {@code flags}, {@code objectOffsets},
+ * and {@code floatOffsets}. The row stores only the operation kind, flag bits, and the starting
+ * offsets into two dense payload pools: {@code objects} for reference values and {@code floats}
+ * for scalar values. When a recorder appends an operation, {@link #add(byte, int, int, int)}
+ * reserves the opcode row plus the exact object/float slot counts for that opcode, then advances
+ * the payload sizes. A field read later resolves as {@code objects[objectOffsets[index] + slot]}
+ * or {@code floats[floatOffsets[index] + slot]}.</p>
+ *
+ * <p>The {@code *_SLOT} and {@code *_SLOTS} constants below define that per-opcode layout.
+ * Required object fields are decoded through {@link #requiredObjectAt(int, int, Class)}, while
+ * intentionally optional fields, such as the preferred joint key in
+ * {@link #DESTROY_JOINT_BETWEEN_BODIES}, stay nullable through {@link #objectAt(int, int)}.</p>
  */
 public final class PhysicsCommandOperations {
 
@@ -49,6 +61,102 @@ public final class PhysicsCommandOperations {
     public static final int FLAG_OFFSET = 1 << 1;
     public static final int FLAG_TORQUE = 1 << 2;
     public static final int FLAG_MOTOR_ENABLED = 1 << 3;
+
+    static final int SPAWN_OBJECT_SLOTS = 7;
+    static final int SPAWN_BODY_KEY_OBJECT_SLOT = 0;
+    static final int SPAWN_SPACE_ID_OBJECT_SLOT = 1;
+    static final int SPAWN_SHAPE_OBJECT_SLOT = 2;
+    static final int SPAWN_BODY_TYPE_OBJECT_SLOT = 3;
+    static final int SPAWN_SETTINGS_OBJECT_SLOT = 4;
+    static final int SPAWN_KIND_OBJECT_SLOT = 5;
+    static final int SPAWN_PERSISTENCE_MODE_OBJECT_SLOT = 6;
+    static final int SPAWN_FLOAT_SLOTS = 4;
+    static final int SPAWN_MASS_FLOAT_SLOT = 0;
+    static final int SPAWN_POSITION_X_FLOAT_SLOT = 1;
+    static final int SPAWN_POSITION_Y_FLOAT_SLOT = 2;
+    static final int SPAWN_POSITION_Z_FLOAT_SLOT = 3;
+
+    static final int SPAWN_BATCH_OBJECT_SLOTS = 1;
+    static final int SPAWN_BATCH_OBJECT_SLOT = 0;
+    static final int SPAWN_TEMPLATE_BATCH_OBJECT_SLOTS = 1;
+    static final int SPAWN_TEMPLATE_BATCH_OBJECT_SLOT = 0;
+
+    static final int BODY_COMMAND_OBJECT_SLOTS = 1;
+    static final int BODY_COMMAND_BODY_KEY_OBJECT_SLOT = 0;
+
+    static final int SET_SPACE_GRAVITY_OBJECT_SLOTS = 1;
+    static final int SET_SPACE_GRAVITY_SPACE_ID_OBJECT_SLOT = 0;
+    static final int SET_SPACE_GRAVITY_FLOAT_SLOTS = 3;
+    static final int SET_SPACE_GRAVITY_X_FLOAT_SLOT = 0;
+    static final int SET_SPACE_GRAVITY_Y_FLOAT_SLOT = 1;
+    static final int SET_SPACE_GRAVITY_Z_FLOAT_SLOT = 2;
+
+    static final int SET_TRANSFORM_FLOAT_SLOTS = 7;
+    static final int SET_TRANSFORM_POSITION_X_FLOAT_SLOT = 0;
+    static final int SET_TRANSFORM_POSITION_Y_FLOAT_SLOT = 1;
+    static final int SET_TRANSFORM_POSITION_Z_FLOAT_SLOT = 2;
+    static final int SET_TRANSFORM_ROTATION_X_FLOAT_SLOT = 3;
+    static final int SET_TRANSFORM_ROTATION_Y_FLOAT_SLOT = 4;
+    static final int SET_TRANSFORM_ROTATION_Z_FLOAT_SLOT = 5;
+    static final int SET_TRANSFORM_ROTATION_W_FLOAT_SLOT = 6;
+
+    static final int SET_POSITION_FLOAT_SLOTS = 3;
+    static final int SET_POSITION_X_FLOAT_SLOT = 0;
+    static final int SET_POSITION_Y_FLOAT_SLOT = 1;
+    static final int SET_POSITION_Z_FLOAT_SLOT = 2;
+
+    static final int SET_VELOCITY_FLOAT_SLOTS = 6;
+    static final int SET_VELOCITY_LINEAR_X_FLOAT_SLOT = 0;
+    static final int SET_VELOCITY_LINEAR_Y_FLOAT_SLOT = 1;
+    static final int SET_VELOCITY_LINEAR_Z_FLOAT_SLOT = 2;
+    static final int SET_VELOCITY_ANGULAR_X_FLOAT_SLOT = 3;
+    static final int SET_VELOCITY_ANGULAR_Y_FLOAT_SLOT = 4;
+    static final int SET_VELOCITY_ANGULAR_Z_FLOAT_SLOT = 5;
+
+    static final int SET_TYPE_OBJECT_SLOTS = 2;
+    static final int SET_TYPE_BODY_KEY_OBJECT_SLOT = 0;
+    static final int SET_TYPE_BODY_TYPE_OBJECT_SLOT = 1;
+
+    static final int VECTOR_COMMAND_FLOAT_SLOTS = 3;
+    static final int OFFSET_VECTOR_COMMAND_FLOAT_SLOTS = 6;
+    static final int VECTOR_COMMAND_X_FLOAT_SLOT = 0;
+    static final int VECTOR_COMMAND_Y_FLOAT_SLOT = 1;
+    static final int VECTOR_COMMAND_Z_FLOAT_SLOT = 2;
+    static final int VECTOR_COMMAND_OFFSET_X_FLOAT_SLOT = 3;
+    static final int VECTOR_COMMAND_OFFSET_Y_FLOAT_SLOT = 4;
+    static final int VECTOR_COMMAND_OFFSET_Z_FLOAT_SLOT = 5;
+
+    static final int CREATE_JOINT_OBJECT_SLOTS = 5;
+    static final int CREATE_JOINT_JOINT_KEY_OBJECT_SLOT = 0;
+    static final int CREATE_JOINT_SPACE_ID_OBJECT_SLOT = 1;
+    static final int CREATE_JOINT_BODY_A_OBJECT_SLOT = 2;
+    static final int CREATE_JOINT_BODY_B_OBJECT_SLOT = 3;
+    static final int CREATE_JOINT_TYPE_OBJECT_SLOT = 4;
+    static final int CREATE_JOINT_FLOAT_SLOTS = 16;
+    static final int CREATE_JOINT_ANCHOR_A_X_FLOAT_SLOT = 0;
+    static final int CREATE_JOINT_ANCHOR_A_Y_FLOAT_SLOT = 1;
+    static final int CREATE_JOINT_ANCHOR_A_Z_FLOAT_SLOT = 2;
+    static final int CREATE_JOINT_ANCHOR_B_X_FLOAT_SLOT = 3;
+    static final int CREATE_JOINT_ANCHOR_B_Y_FLOAT_SLOT = 4;
+    static final int CREATE_JOINT_ANCHOR_B_Z_FLOAT_SLOT = 5;
+    static final int CREATE_JOINT_AXIS_X_FLOAT_SLOT = 6;
+    static final int CREATE_JOINT_AXIS_Y_FLOAT_SLOT = 7;
+    static final int CREATE_JOINT_AXIS_Z_FLOAT_SLOT = 8;
+    static final int CREATE_JOINT_REST_LENGTH_FLOAT_SLOT = 9;
+    static final int CREATE_JOINT_STIFFNESS_FLOAT_SLOT = 10;
+    static final int CREATE_JOINT_DAMPING_FLOAT_SLOT = 11;
+    static final int CREATE_JOINT_LOWER_LIMIT_FLOAT_SLOT = 12;
+    static final int CREATE_JOINT_UPPER_LIMIT_FLOAT_SLOT = 13;
+    static final int CREATE_JOINT_MOTOR_TARGET_VELOCITY_FLOAT_SLOT = 14;
+    static final int CREATE_JOINT_MOTOR_MAX_FORCE_FLOAT_SLOT = 15;
+
+    static final int DESTROY_JOINT_OBJECT_SLOTS = 1;
+    static final int DESTROY_JOINT_KEY_OBJECT_SLOT = 0;
+    static final int DESTROY_JOINT_BETWEEN_OBJECT_SLOTS = 4;
+    static final int DESTROY_JOINT_BETWEEN_PREFERRED_KEY_OBJECT_SLOT = 0;
+    static final int DESTROY_JOINT_BETWEEN_SPACE_ID_OBJECT_SLOT = 1;
+    static final int DESTROY_JOINT_BETWEEN_BODY_A_OBJECT_SLOT = 2;
+    static final int DESTROY_JOINT_BETWEEN_BODY_B_OBJECT_SLOT = 3;
 
     private byte[] opcodes;
     private int[] objectOffsets;
@@ -115,50 +223,50 @@ public final class PhysicsCommandOperations {
         @Nonnull RigidBodySpawnSettings settings,
         @Nonnull PhysicsBodyKind kind,
         @Nonnull PhysicsBodyPersistenceMode persistenceMode) {
-        int index = add(SPAWN_RIGID_BODY, 0, 7, 4);
-        object(index, 0, bodyKey);
-        object(index, 1, spaceId);
-        object(index, 2, shape);
-        object(index, 3, bodyType);
-        object(index, 4, settings);
-        object(index, 5, kind);
-        object(index, 6, persistenceMode);
-        floatAt(index, 0, mass);
-        floatAt(index, 1, positionX);
-        floatAt(index, 2, positionY);
-        floatAt(index, 3, positionZ);
+        int index = add(SPAWN_RIGID_BODY, 0, SPAWN_OBJECT_SLOTS, SPAWN_FLOAT_SLOTS);
+        object(index, SPAWN_BODY_KEY_OBJECT_SLOT, bodyKey);
+        object(index, SPAWN_SPACE_ID_OBJECT_SLOT, spaceId);
+        object(index, SPAWN_SHAPE_OBJECT_SLOT, shape);
+        object(index, SPAWN_BODY_TYPE_OBJECT_SLOT, bodyType);
+        object(index, SPAWN_SETTINGS_OBJECT_SLOT, settings);
+        object(index, SPAWN_KIND_OBJECT_SLOT, kind);
+        object(index, SPAWN_PERSISTENCE_MODE_OBJECT_SLOT, persistenceMode);
+        floatAt(index, SPAWN_MASS_FLOAT_SLOT, mass);
+        floatAt(index, SPAWN_POSITION_X_FLOAT_SLOT, positionX);
+        floatAt(index, SPAWN_POSITION_Y_FLOAT_SLOT, positionY);
+        floatAt(index, SPAWN_POSITION_Z_FLOAT_SLOT, positionZ);
     }
 
     public void addSpawnBatch(@Nonnull RigidBodySpawnBatch batch) {
         if (batch.size() <= 0) {
             return;
         }
-        int index = add(SPAWN_RIGID_BODY_BATCH, 0, 1, 0);
-        object(index, 0, batch.freeze());
+        int index = add(SPAWN_RIGID_BODY_BATCH, 0, SPAWN_BATCH_OBJECT_SLOTS, 0);
+        object(index, SPAWN_BATCH_OBJECT_SLOT, batch.freeze());
     }
 
     public void addSpawnTemplateBatch(@Nonnull RigidBodySpawnTemplateBatch batch) {
         if (batch.size() <= 0) {
             return;
         }
-        int index = add(SPAWN_RIGID_BODY_TEMPLATE_BATCH, 0, 1, 0);
-        object(index, 0, batch.freeze());
+        int index = add(SPAWN_RIGID_BODY_TEMPLATE_BATCH, 0, SPAWN_TEMPLATE_BATCH_OBJECT_SLOTS, 0);
+        object(index, SPAWN_TEMPLATE_BATCH_OBJECT_SLOT, batch.freeze());
     }
 
     public void addDestroyBody(@Nonnull RigidBodyKey bodyKey) {
-        int index = add(DESTROY_RIGID_BODY, 0, 1, 0);
-        object(index, 0, bodyKey);
+        int index = add(DESTROY_RIGID_BODY, 0, BODY_COMMAND_OBJECT_SLOTS, 0);
+        object(index, BODY_COMMAND_BODY_KEY_OBJECT_SLOT, bodyKey);
     }
 
     public void addSetSpaceGravity(@Nonnull SpaceId spaceId,
         float x,
         float y,
         float z) {
-        int index = add(SET_SPACE_GRAVITY, 0, 1, 3);
-        object(index, 0, spaceId);
-        floatAt(index, 0, x);
-        floatAt(index, 1, y);
-        floatAt(index, 2, z);
+        int index = add(SET_SPACE_GRAVITY, 0, SET_SPACE_GRAVITY_OBJECT_SLOTS, SET_SPACE_GRAVITY_FLOAT_SLOTS);
+        object(index, SET_SPACE_GRAVITY_SPACE_ID_OBJECT_SLOT, spaceId);
+        floatAt(index, SET_SPACE_GRAVITY_X_FLOAT_SLOT, x);
+        floatAt(index, SET_SPACE_GRAVITY_Y_FLOAT_SLOT, y);
+        floatAt(index, SET_SPACE_GRAVITY_Z_FLOAT_SLOT, z);
     }
 
     public void addSetTransform(@Nonnull RigidBodyKey bodyKey,
@@ -170,15 +278,18 @@ public final class PhysicsCommandOperations {
         float rotationZ,
         float rotationW,
         boolean activate) {
-        int index = add(SET_RIGID_BODY_TRANSFORM, activate ? FLAG_ACTIVATE : 0, 1, 7);
-        object(index, 0, bodyKey);
-        floatAt(index, 0, positionX);
-        floatAt(index, 1, positionY);
-        floatAt(index, 2, positionZ);
-        floatAt(index, 3, rotationX);
-        floatAt(index, 4, rotationY);
-        floatAt(index, 5, rotationZ);
-        floatAt(index, 6, rotationW);
+        int index = add(SET_RIGID_BODY_TRANSFORM,
+            activate ? FLAG_ACTIVATE : 0,
+            BODY_COMMAND_OBJECT_SLOTS,
+            SET_TRANSFORM_FLOAT_SLOTS);
+        object(index, BODY_COMMAND_BODY_KEY_OBJECT_SLOT, bodyKey);
+        floatAt(index, SET_TRANSFORM_POSITION_X_FLOAT_SLOT, positionX);
+        floatAt(index, SET_TRANSFORM_POSITION_Y_FLOAT_SLOT, positionY);
+        floatAt(index, SET_TRANSFORM_POSITION_Z_FLOAT_SLOT, positionZ);
+        floatAt(index, SET_TRANSFORM_ROTATION_X_FLOAT_SLOT, rotationX);
+        floatAt(index, SET_TRANSFORM_ROTATION_Y_FLOAT_SLOT, rotationY);
+        floatAt(index, SET_TRANSFORM_ROTATION_Z_FLOAT_SLOT, rotationZ);
+        floatAt(index, SET_TRANSFORM_ROTATION_W_FLOAT_SLOT, rotationW);
     }
 
     public void addSetPosition(@Nonnull RigidBodyKey bodyKey,
@@ -186,11 +297,14 @@ public final class PhysicsCommandOperations {
         float positionY,
         float positionZ,
         boolean activate) {
-        int index = add(SET_RIGID_BODY_POSITION, activate ? FLAG_ACTIVATE : 0, 1, 3);
-        object(index, 0, bodyKey);
-        floatAt(index, 0, positionX);
-        floatAt(index, 1, positionY);
-        floatAt(index, 2, positionZ);
+        int index = add(SET_RIGID_BODY_POSITION,
+            activate ? FLAG_ACTIVATE : 0,
+            BODY_COMMAND_OBJECT_SLOTS,
+            SET_POSITION_FLOAT_SLOTS);
+        object(index, BODY_COMMAND_BODY_KEY_OBJECT_SLOT, bodyKey);
+        floatAt(index, SET_POSITION_X_FLOAT_SLOT, positionX);
+        floatAt(index, SET_POSITION_Y_FLOAT_SLOT, positionY);
+        floatAt(index, SET_POSITION_Z_FLOAT_SLOT, positionZ);
     }
 
     public void addSetVelocity(@Nonnull RigidBodyKey bodyKey,
@@ -201,27 +315,30 @@ public final class PhysicsCommandOperations {
         float angularY,
         float angularZ,
         boolean activate) {
-        int index = add(SET_RIGID_BODY_VELOCITY, activate ? FLAG_ACTIVATE : 0, 1, 6);
-        object(index, 0, bodyKey);
-        floatAt(index, 0, linearX);
-        floatAt(index, 1, linearY);
-        floatAt(index, 2, linearZ);
-        floatAt(index, 3, angularX);
-        floatAt(index, 4, angularY);
-        floatAt(index, 5, angularZ);
+        int index = add(SET_RIGID_BODY_VELOCITY,
+            activate ? FLAG_ACTIVATE : 0,
+            BODY_COMMAND_OBJECT_SLOTS,
+            SET_VELOCITY_FLOAT_SLOTS);
+        object(index, BODY_COMMAND_BODY_KEY_OBJECT_SLOT, bodyKey);
+        floatAt(index, SET_VELOCITY_LINEAR_X_FLOAT_SLOT, linearX);
+        floatAt(index, SET_VELOCITY_LINEAR_Y_FLOAT_SLOT, linearY);
+        floatAt(index, SET_VELOCITY_LINEAR_Z_FLOAT_SLOT, linearZ);
+        floatAt(index, SET_VELOCITY_ANGULAR_X_FLOAT_SLOT, angularX);
+        floatAt(index, SET_VELOCITY_ANGULAR_Y_FLOAT_SLOT, angularY);
+        floatAt(index, SET_VELOCITY_ANGULAR_Z_FLOAT_SLOT, angularZ);
     }
 
     public void addSetType(@Nonnull RigidBodyKey bodyKey,
         @Nonnull PhysicsBodyType bodyType,
         boolean activate) {
-        int index = add(SET_RIGID_BODY_TYPE, activate ? FLAG_ACTIVATE : 0, 2, 0);
-        object(index, 0, bodyKey);
-        object(index, 1, bodyType);
+        int index = add(SET_RIGID_BODY_TYPE, activate ? FLAG_ACTIVATE : 0, SET_TYPE_OBJECT_SLOTS, 0);
+        object(index, SET_TYPE_BODY_KEY_OBJECT_SLOT, bodyKey);
+        object(index, SET_TYPE_BODY_TYPE_OBJECT_SLOT, bodyType);
     }
 
     public void addActivate(@Nonnull RigidBodyKey bodyKey) {
-        int index = add(ACTIVATE_RIGID_BODY, 0, 1, 0);
-        object(index, 0, bodyKey);
+        int index = add(ACTIVATE_RIGID_BODY, 0, BODY_COMMAND_OBJECT_SLOTS, 0);
+        object(index, BODY_COMMAND_BODY_KEY_OBJECT_SLOT, bodyKey);
     }
 
     public void addImpulse(@Nonnull RigidBodyKey bodyKey,
@@ -239,16 +356,16 @@ public final class PhysicsCommandOperations {
         }
         int index = add(APPLY_RIGID_BODY_IMPULSE,
             operationFlags,
-            1,
-            (operationFlags & FLAG_OFFSET) != 0 ? 6 : 3);
-        object(index, 0, bodyKey);
-        floatAt(index, 0, x);
-        floatAt(index, 1, y);
-        floatAt(index, 2, z);
+            BODY_COMMAND_OBJECT_SLOTS,
+            (operationFlags & FLAG_OFFSET) != 0 ? OFFSET_VECTOR_COMMAND_FLOAT_SLOTS : VECTOR_COMMAND_FLOAT_SLOTS);
+        object(index, BODY_COMMAND_BODY_KEY_OBJECT_SLOT, bodyKey);
+        floatAt(index, VECTOR_COMMAND_X_FLOAT_SLOT, x);
+        floatAt(index, VECTOR_COMMAND_Y_FLOAT_SLOT, y);
+        floatAt(index, VECTOR_COMMAND_Z_FLOAT_SLOT, z);
         if ((operationFlags & FLAG_OFFSET) != 0) {
-            floatAt(index, 3, offsetX);
-            floatAt(index, 4, offsetY);
-            floatAt(index, 5, offsetZ);
+            floatAt(index, VECTOR_COMMAND_OFFSET_X_FLOAT_SLOT, offsetX);
+            floatAt(index, VECTOR_COMMAND_OFFSET_Y_FLOAT_SLOT, offsetY);
+            floatAt(index, VECTOR_COMMAND_OFFSET_Z_FLOAT_SLOT, offsetZ);
         }
     }
 
@@ -267,16 +384,16 @@ public final class PhysicsCommandOperations {
         }
         int index = add(APPLY_RIGID_BODY_FORCE,
             operationFlags,
-            1,
-            (operationFlags & FLAG_OFFSET) != 0 ? 6 : 3);
-        object(index, 0, bodyKey);
-        floatAt(index, 0, x);
-        floatAt(index, 1, y);
-        floatAt(index, 2, z);
+            BODY_COMMAND_OBJECT_SLOTS,
+            (operationFlags & FLAG_OFFSET) != 0 ? OFFSET_VECTOR_COMMAND_FLOAT_SLOTS : VECTOR_COMMAND_FLOAT_SLOTS);
+        object(index, BODY_COMMAND_BODY_KEY_OBJECT_SLOT, bodyKey);
+        floatAt(index, VECTOR_COMMAND_X_FLOAT_SLOT, x);
+        floatAt(index, VECTOR_COMMAND_Y_FLOAT_SLOT, y);
+        floatAt(index, VECTOR_COMMAND_Z_FLOAT_SLOT, z);
         if ((operationFlags & FLAG_OFFSET) != 0) {
-            floatAt(index, 3, offsetX);
-            floatAt(index, 4, offsetY);
-            floatAt(index, 5, offsetZ);
+            floatAt(index, VECTOR_COMMAND_OFFSET_X_FLOAT_SLOT, offsetX);
+            floatAt(index, VECTOR_COMMAND_OFFSET_Y_FLOAT_SLOT, offsetY);
+            floatAt(index, VECTOR_COMMAND_OFFSET_Z_FLOAT_SLOT, offsetZ);
         }
     }
 
@@ -302,44 +419,47 @@ public final class PhysicsCommandOperations {
         boolean motorEnabled,
         float motorTargetVelocity,
         float motorMaxForce) {
-        int index = add(CREATE_JOINT, motorEnabled ? FLAG_MOTOR_ENABLED : 0, 5, 16);
-        object(index, 0, jointKey);
-        object(index, 1, spaceId);
-        object(index, 2, bodyA);
-        object(index, 3, bodyB);
-        object(index, 4, type);
-        floatAt(index, 0, anchorAX);
-        floatAt(index, 1, anchorAY);
-        floatAt(index, 2, anchorAZ);
-        floatAt(index, 3, anchorBX);
-        floatAt(index, 4, anchorBY);
-        floatAt(index, 5, anchorBZ);
-        floatAt(index, 6, axisX);
-        floatAt(index, 7, axisY);
-        floatAt(index, 8, axisZ);
-        floatAt(index, 9, restLength);
-        floatAt(index, 10, stiffness);
-        floatAt(index, 11, damping);
-        floatAt(index, 12, lowerLimit);
-        floatAt(index, 13, upperLimit);
-        floatAt(index, 14, motorTargetVelocity);
-        floatAt(index, 15, motorMaxForce);
+        int index = add(CREATE_JOINT,
+            motorEnabled ? FLAG_MOTOR_ENABLED : 0,
+            CREATE_JOINT_OBJECT_SLOTS,
+            CREATE_JOINT_FLOAT_SLOTS);
+        object(index, CREATE_JOINT_JOINT_KEY_OBJECT_SLOT, jointKey);
+        object(index, CREATE_JOINT_SPACE_ID_OBJECT_SLOT, spaceId);
+        object(index, CREATE_JOINT_BODY_A_OBJECT_SLOT, bodyA);
+        object(index, CREATE_JOINT_BODY_B_OBJECT_SLOT, bodyB);
+        object(index, CREATE_JOINT_TYPE_OBJECT_SLOT, type);
+        floatAt(index, CREATE_JOINT_ANCHOR_A_X_FLOAT_SLOT, anchorAX);
+        floatAt(index, CREATE_JOINT_ANCHOR_A_Y_FLOAT_SLOT, anchorAY);
+        floatAt(index, CREATE_JOINT_ANCHOR_A_Z_FLOAT_SLOT, anchorAZ);
+        floatAt(index, CREATE_JOINT_ANCHOR_B_X_FLOAT_SLOT, anchorBX);
+        floatAt(index, CREATE_JOINT_ANCHOR_B_Y_FLOAT_SLOT, anchorBY);
+        floatAt(index, CREATE_JOINT_ANCHOR_B_Z_FLOAT_SLOT, anchorBZ);
+        floatAt(index, CREATE_JOINT_AXIS_X_FLOAT_SLOT, axisX);
+        floatAt(index, CREATE_JOINT_AXIS_Y_FLOAT_SLOT, axisY);
+        floatAt(index, CREATE_JOINT_AXIS_Z_FLOAT_SLOT, axisZ);
+        floatAt(index, CREATE_JOINT_REST_LENGTH_FLOAT_SLOT, restLength);
+        floatAt(index, CREATE_JOINT_STIFFNESS_FLOAT_SLOT, stiffness);
+        floatAt(index, CREATE_JOINT_DAMPING_FLOAT_SLOT, damping);
+        floatAt(index, CREATE_JOINT_LOWER_LIMIT_FLOAT_SLOT, lowerLimit);
+        floatAt(index, CREATE_JOINT_UPPER_LIMIT_FLOAT_SLOT, upperLimit);
+        floatAt(index, CREATE_JOINT_MOTOR_TARGET_VELOCITY_FLOAT_SLOT, motorTargetVelocity);
+        floatAt(index, CREATE_JOINT_MOTOR_MAX_FORCE_FLOAT_SLOT, motorMaxForce);
     }
 
     public void addDestroyJoint(@Nonnull JointKey jointKey) {
-        int index = add(DESTROY_JOINT, 0, 1, 0);
-        object(index, 0, jointKey);
+        int index = add(DESTROY_JOINT, 0, DESTROY_JOINT_OBJECT_SLOTS, 0);
+        object(index, DESTROY_JOINT_KEY_OBJECT_SLOT, jointKey);
     }
 
     public void addDestroyJointBetween(@Nullable JointKey preferredJointKey,
         @Nonnull SpaceId spaceId,
         @Nonnull RigidBodyKey bodyA,
         @Nonnull RigidBodyKey bodyB) {
-        int index = add(DESTROY_JOINT_BETWEEN_BODIES, 0, 4, 0);
-        object(index, 0, preferredJointKey);
-        object(index, 1, spaceId);
-        object(index, 2, bodyA);
-        object(index, 3, bodyB);
+        int index = add(DESTROY_JOINT_BETWEEN_BODIES, 0, DESTROY_JOINT_BETWEEN_OBJECT_SLOTS, 0);
+        object(index, DESTROY_JOINT_BETWEEN_PREFERRED_KEY_OBJECT_SLOT, preferredJointKey);
+        object(index, DESTROY_JOINT_BETWEEN_SPACE_ID_OBJECT_SLOT, spaceId);
+        object(index, DESTROY_JOINT_BETWEEN_BODY_A_OBJECT_SLOT, bodyA);
+        object(index, DESTROY_JOINT_BETWEEN_BODY_B_OBJECT_SLOT, bodyB);
     }
 
     public int size() {
@@ -352,18 +472,19 @@ public final class PhysicsCommandOperations {
         for (int index = 0; index < size; index++) {
             switch (opcode(index)) {
                 case SPAWN_RIGID_BODY -> keys.add(
-                    Objects.requireNonNull(objectAt(index, 0, RigidBodyKey.class)));
+                    requiredObjectAt(index, SPAWN_BODY_KEY_OBJECT_SLOT, RigidBodyKey.class));
                 case SPAWN_RIGID_BODY_BATCH -> {
-                    RigidBodySpawnBatch batch = objectAt(index, 0, RigidBodySpawnBatch.class);
-                    assert batch != null;
+                    RigidBodySpawnBatch batch =
+                        requiredObjectAt(index, SPAWN_BATCH_OBJECT_SLOT, RigidBodySpawnBatch.class);
                     keys.addAll(batch.bodyKeyMostSignificantBits(),
                         batch.bodyKeyLeastSignificantBits(),
                         batch.size());
                 }
                 case SPAWN_RIGID_BODY_TEMPLATE_BATCH -> {
                     RigidBodySpawnTemplateBatch batch =
-                        objectAt(index, 0, RigidBodySpawnTemplateBatch.class);
-                    assert batch != null;
+                        requiredObjectAt(index,
+                            SPAWN_TEMPLATE_BATCH_OBJECT_SLOT,
+                            RigidBodySpawnTemplateBatch.class);
                     keys.addAll(batch.bodyKeyMostSignificantBits(),
                         batch.bodyKeyLeastSignificantBits(),
                         batch.size());
@@ -389,31 +510,40 @@ public final class PhysicsCommandOperations {
                      ACTIVATE_RIGID_BODY,
                      APPLY_RIGID_BODY_IMPULSE,
                      APPLY_RIGID_BODY_FORCE -> accumulator.addBody(
-                    Objects.requireNonNull(objectAt(index, 0, RigidBodyKey.class)));
+                    requiredObjectAt(index, BODY_COMMAND_BODY_KEY_OBJECT_SLOT, RigidBodyKey.class));
                 case SPAWN_RIGID_BODY_BATCH ->
                     accumulator.addSpawnBatch(
-                        Objects.requireNonNull(objectAt(index, 0, RigidBodySpawnBatch.class)));
+                        requiredObjectAt(index, SPAWN_BATCH_OBJECT_SLOT, RigidBodySpawnBatch.class));
                 case SPAWN_RIGID_BODY_TEMPLATE_BATCH ->
-                    accumulator.addSpawnTemplateBatch(Objects.requireNonNull(
-                        objectAt(index, 0, RigidBodySpawnTemplateBatch.class)));
+                    accumulator.addSpawnTemplateBatch(
+                        requiredObjectAt(index,
+                            SPAWN_TEMPLATE_BATCH_OBJECT_SLOT,
+                            RigidBodySpawnTemplateBatch.class));
                 case CREATE_JOINT -> {
-                    accumulator.addJoint(Objects.requireNonNull(objectAt(index, 0, JointKey.class)));
-                    accumulator.addBody(
-                        Objects.requireNonNull(objectAt(index, 2, RigidBodyKey.class)));
-                    accumulator.addBody(
-                        Objects.requireNonNull(objectAt(index, 3, RigidBodyKey.class)));
+                    accumulator.addJoint(requiredObjectAt(index,
+                        CREATE_JOINT_JOINT_KEY_OBJECT_SLOT,
+                        JointKey.class));
+                    accumulator.addBody(requiredObjectAt(index,
+                        CREATE_JOINT_BODY_A_OBJECT_SLOT,
+                        RigidBodyKey.class));
+                    accumulator.addBody(requiredObjectAt(index,
+                        CREATE_JOINT_BODY_B_OBJECT_SLOT,
+                        RigidBodyKey.class));
                 }
                 case DESTROY_JOINT -> accumulator.addJoint(
-                    Objects.requireNonNull(objectAt(index, 0, JointKey.class)));
+                    requiredObjectAt(index, DESTROY_JOINT_KEY_OBJECT_SLOT, JointKey.class));
                 case DESTROY_JOINT_BETWEEN_BODIES -> {
-                    JointKey jointKey = (JointKey) objectAt(index, 0);
+                    JointKey jointKey = (JointKey) objectAt(index,
+                        DESTROY_JOINT_BETWEEN_PREFERRED_KEY_OBJECT_SLOT);
                     if (jointKey != null) {
                         accumulator.addJoint(jointKey);
                     }
-                    accumulator.addBody(
-                        Objects.requireNonNull(objectAt(index, 2, RigidBodyKey.class)));
-                    accumulator.addBody(
-                        Objects.requireNonNull(objectAt(index, 3, RigidBodyKey.class)));
+                    accumulator.addBody(requiredObjectAt(index,
+                        DESTROY_JOINT_BETWEEN_BODY_A_OBJECT_SLOT,
+                        RigidBodyKey.class));
+                    accumulator.addBody(requiredObjectAt(index,
+                        DESTROY_JOINT_BETWEEN_BODY_B_OBJECT_SLOT,
+                        RigidBodyKey.class));
                 }
                 default -> {
                 }
@@ -450,6 +580,22 @@ public final class PhysicsCommandOperations {
         int slot,
         @Nonnull Class<T> type) {
         return type.cast(objectAt(index, slot));
+    }
+
+    @Nonnull
+    public <T> T requiredObjectAt(int index,
+        int slot,
+        @Nonnull Class<T> type) {
+        T value = objectAt(index, slot, type);
+        if (value == null) {
+            throw new IllegalArgumentException("Missing physics command object at index="
+                + index
+                + " slot="
+                + slot
+                + " type="
+                + type.getSimpleName());
+        }
+        return value;
     }
 
     private int add(byte opcode,
