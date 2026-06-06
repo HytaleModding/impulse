@@ -17,7 +17,6 @@ import dev.hytalemodding.impulse.core.internal.resources.PhysicsSpaceBinding;
 import dev.hytalemodding.impulse.core.plugin.body.RigidBodyKey;
 import dev.hytalemodding.impulse.core.internal.resources.body.PhysicsBodyRegistration;
 import dev.hytalemodding.impulse.core.plugin.codec.ImpulseCodecs;
-import dev.hytalemodding.impulse.core.plugin.resources.PhysicsWorldResource;
 import java.util.Objects;
 import java.util.UUID;
 import javax.annotation.Nonnull;
