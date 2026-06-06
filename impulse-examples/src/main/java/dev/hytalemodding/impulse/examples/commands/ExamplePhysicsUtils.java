@@ -647,7 +647,7 @@ public final class ExamplePhysicsUtils {
         boolean controllable) {
         Holder<EntityStore> holder = blockEntityHolder(time, blockType, visualPosition);
         holder.addComponent(ATTACHMENT_TYPE,
-            PhysicsBodyAttachmentComponent.externalEntity(bodyKey,
+            PhysicsBodyAttachmentComponent.impulseOwnedVisual(bodyKey,
                 spaceId,
                 localPositionOffset,
                 localRotationOffset,

@@ -53,6 +53,8 @@ public final class GeneratedProxyLifecycle {
         resource.clearBodySyncState(entityRef);
         if (attachment.getLifecycle() == AttachmentLifecycle.GENERATED_PROXY) {
             removeProxy(commandBuffer, resource, attachment.getBodyKey(), entityRef);
+        } else if (attachment.shouldRemoveEntityWhenBodyMissing()) {
+            removeEntity(commandBuffer, entityRef);
         } else {
             commandBuffer.removeComponent(entityRef, ATTACHMENT_TYPE);
         }
