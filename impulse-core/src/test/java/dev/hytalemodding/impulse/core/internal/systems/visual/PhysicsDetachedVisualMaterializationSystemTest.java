@@ -16,12 +16,14 @@ import dev.hytalemodding.impulse.api.testsupport.FakePhysicsBackend;
 import dev.hytalemodding.impulse.core.internal.testsupport.LegacyLiveHandleTestResource;
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsVisualRuntime;
 import dev.hytalemodding.impulse.core.plugin.body.RigidBodyKey;
+import dev.hytalemodding.impulse.core.plugin.components.PhysicsBodyAttachmentComponent;
 import dev.hytalemodding.impulse.core.plugin.settings.PhysicsSpaceSettings;
 import dev.hytalemodding.impulse.core.plugin.settings.VisualOcclusionMode;
 import java.util.List;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
+import org.joml.Quaternionf;
 import org.joml.Vector3f;
 import org.junit.jupiter.api.Test;
 
@@ -48,6 +50,22 @@ class PhysicsDetachedVisualMaterializationSystemTest {
 
         GameplayAttachmentSnapshot otherSnapshot = GameplayAttachmentSnapshot.fromSource(() -> Set.of(otherBodyKey));
         assertFalse(otherSnapshot.hasKnownGameplayAttachment(false, bodyKey));
+    }
+
+    @Test
+    void impulseOwnedVisualAttachmentIsDisposableWhenBodyMissing() {
+        PhysicsBodyAttachmentComponent ownedVisual = PhysicsBodyAttachmentComponent.impulseOwnedVisual(
+            RigidBodyKey.random(),
+            null,
+            new Vector3f(),
+            new Quaternionf(),
+            0.5f);
+        PhysicsBodyAttachmentComponent gameplayEntity = PhysicsBodyAttachmentComponent.externalEntity(
+            RigidBodyKey.random(),
+            null);
+
+        assertTrue(ownedVisual.shouldRemoveEntityWhenBodyMissing());
+        assertFalse(gameplayEntity.shouldRemoveEntityWhenBodyMissing());
     }
 
     @Test

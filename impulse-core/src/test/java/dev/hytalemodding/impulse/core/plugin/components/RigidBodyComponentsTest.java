@@ -14,6 +14,8 @@ import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyPersistenceMode;
 import dev.hytalemodding.impulse.core.plugin.body.RigidBodyKey;
 import dev.hytalemodding.impulse.core.plugin.simulation.PhysicsShapeSpec;
 import dev.hytalemodding.impulse.core.plugin.simulation.RigidBodySpawnSettings;
+import org.joml.Quaternionf;
+import org.joml.Vector3f;
 import org.junit.jupiter.api.Test;
 
 class RigidBodyComponentsTest {
@@ -76,5 +78,23 @@ class RigidBodyComponentsTest {
         assertEquals(PhysicsBodyPersistenceMode.RUNTIME_ONLY, body.getPersistenceMode());
         assertEquals(RigidBodyComponent.Ownership.ENTITY_OWNED, body.getOwnership());
         assertFalse(RigidBodyComponentValues.hasExplicitSpace(body));
+    }
+
+    @Test
+    void impulseOwnedVisualAttachmentCopiesDisposableLifecycle() {
+        RigidBodyKey bodyKey = RigidBodyKey.of(0L, 43L);
+        PhysicsBodyAttachmentComponent attachment = PhysicsBodyAttachmentComponent.impulseOwnedVisual(
+            bodyKey,
+            new SpaceId(7),
+            new Vector3f(1.0f, 0.0f, 0.0f),
+            new Quaternionf(),
+            0.5f);
+
+        PhysicsBodyAttachmentComponent copy = attachment.clone();
+
+        assertEquals(bodyKey, copy.getBodyKey());
+        assertEquals(PhysicsBodyAttachmentComponent.AttachmentLifecycle.IMPULSE_OWNED_VISUAL,
+            copy.getLifecycle());
+        assertEquals(0.5f, copy.getVisualOriginOffsetY(), 0.0001f);
     }
 }
