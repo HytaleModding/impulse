@@ -25,12 +25,12 @@ class PhysicsCommandVisibilityStateTest {
 
         assertTrue(state.trackBodyCreationPublication(batch, true));
 
-        assertTrue(state.isBodyCreationPending(bodyKey, false, true));
-        assertFalse(state.isBodyCreationPending(RigidBodyKey.random(), false, true));
+        assertTrue(state.isBodyCreationPending(bodyKey, false));
+        assertFalse(state.isBodyCreationPending(RigidBodyKey.random(), false));
 
         state.applyLastIncludedCommandBatchSequence(7L);
 
-        assertFalse(state.isBodyCreationPending(bodyKey, false, true));
+        assertFalse(state.isBodyCreationPending(bodyKey, false));
     }
 
     @Test
@@ -44,16 +44,16 @@ class PhysicsCommandVisibilityStateTest {
         state.markCommandBatchCompleted(8L);
 
         assertEquals(8L, state.completedCommandBatchSequence());
-        assertTrue(state.isBodyCreationPending(bodyKey, false, true));
-        assertFalse(state.isBodyCreationPending(RigidBodyKey.random(), false, true));
+        assertTrue(state.isBodyCreationPending(bodyKey, false));
+        assertFalse(state.isBodyCreationPending(RigidBodyKey.random(), false));
 
         state.applyLastIncludedCommandBatchSequence(7L);
 
-        assertTrue(state.isBodyCreationPending(bodyKey, false, true));
+        assertTrue(state.isBodyCreationPending(bodyKey, false));
 
         state.applyLastIncludedCommandBatchSequence(8L);
 
-        assertFalse(state.isBodyCreationPending(bodyKey, false, true));
+        assertFalse(state.isBodyCreationPending(bodyKey, false));
     }
 
     @Test
@@ -65,18 +65,18 @@ class PhysicsCommandVisibilityStateTest {
 
         assertTrue(state.trackBodyCreationPublication(batch, true));
 
-        assertTrue(state.isBodyCreationPending(firstBodyKey, false, true));
-        assertTrue(state.isBodyCreationPending(secondBodyKey, false, true));
-        assertFalse(state.isBodyCreationPending(RigidBodyKey.random(), false, true));
+        assertTrue(state.isBodyCreationPending(firstBodyKey, false));
+        assertTrue(state.isBodyCreationPending(secondBodyKey, false));
+        assertFalse(state.isBodyCreationPending(RigidBodyKey.random(), false));
 
         state.applyLastIncludedCommandBatchSequence(10L);
-        assertTrue(state.isBodyCreationPending(firstBodyKey, false, true));
-        assertTrue(state.isBodyCreationPending(secondBodyKey, false, true));
-        assertFalse(state.isBodyCreationPending(RigidBodyKey.random(), false, true));
+        assertTrue(state.isBodyCreationPending(firstBodyKey, false));
+        assertTrue(state.isBodyCreationPending(secondBodyKey, false));
+        assertFalse(state.isBodyCreationPending(RigidBodyKey.random(), false));
 
         state.applyLastIncludedCommandBatchSequence(11L);
-        assertFalse(state.isBodyCreationPending(firstBodyKey, false, true));
-        assertFalse(state.isBodyCreationPending(secondBodyKey, false, true));
+        assertFalse(state.isBodyCreationPending(firstBodyKey, false));
+        assertFalse(state.isBodyCreationPending(secondBodyKey, false));
     }
 
     @Test
@@ -88,14 +88,14 @@ class PhysicsCommandVisibilityStateTest {
 
         assertTrue(state.trackBodyCreationPublication(batch, true));
 
-        assertTrue(state.isBodyCreationPending(firstBodyKey, false, true));
-        assertTrue(state.isBodyCreationPending(secondBodyKey, false, true));
-        assertFalse(state.isBodyCreationPending(RigidBodyKey.random(), false, true));
+        assertTrue(state.isBodyCreationPending(firstBodyKey, false));
+        assertTrue(state.isBodyCreationPending(secondBodyKey, false));
+        assertFalse(state.isBodyCreationPending(RigidBodyKey.random(), false));
 
         state.applyLastIncludedCommandBatchSequence(12L);
 
-        assertFalse(state.isBodyCreationPending(firstBodyKey, false, true));
-        assertFalse(state.isBodyCreationPending(secondBodyKey, false, true));
+        assertFalse(state.isBodyCreationPending(firstBodyKey, false));
+        assertFalse(state.isBodyCreationPending(secondBodyKey, false));
     }
 
     @Test
@@ -107,14 +107,14 @@ class PhysicsCommandVisibilityStateTest {
 
         assertTrue(state.trackBodyCreationPublication(batch, true));
 
-        assertTrue(state.isBodyCreationPending(firstBodyKey, false, true));
-        assertTrue(state.isBodyCreationPending(secondBodyKey, false, true));
-        assertFalse(state.isBodyCreationPending(RigidBodyKey.random(), false, true));
+        assertTrue(state.isBodyCreationPending(firstBodyKey, false));
+        assertTrue(state.isBodyCreationPending(secondBodyKey, false));
+        assertFalse(state.isBodyCreationPending(RigidBodyKey.random(), false));
 
         state.applyLastIncludedCommandBatchSequence(13L);
 
-        assertFalse(state.isBodyCreationPending(firstBodyKey, false, true));
-        assertFalse(state.isBodyCreationPending(secondBodyKey, false, true));
+        assertFalse(state.isBodyCreationPending(firstBodyKey, false));
+        assertFalse(state.isBodyCreationPending(secondBodyKey, false));
     }
 
     @Test

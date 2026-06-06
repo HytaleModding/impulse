@@ -187,9 +187,7 @@ public final class PhysicsWorldLifecycleState {
     public boolean isBodyCreationPending(@Nonnull RigidBodyKey bodyKey,
         boolean directBodyCreationPending,
         boolean ownerExecutorAttached) {
-        return commandVisibility.isBodyCreationPending(bodyKey,
-            directBodyCreationPending,
-            ownerExecutorAttached);
+        return commandVisibility.isBodyCreationPending(bodyKey, directBodyCreationPending);
     }
 
     public boolean trackBodyCreationPublication(@Nonnull RecordedPhysicsCommandBatch batch,
