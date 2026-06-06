@@ -11,8 +11,6 @@ import com.hypixel.hytale.server.core.Message;
 import com.hypixel.hytale.server.core.asset.type.model.config.Model;
 import com.hypixel.hytale.server.core.command.system.CommandContext;
 import com.hypixel.hytale.server.core.command.system.arguments.system.OptionalArg;
-import com.hypixel.hytale.server.core.entity.entities.BlockEntity;
-import com.hypixel.hytale.server.core.modules.entity.DespawnComponent;
 import com.hypixel.hytale.server.core.modules.entity.component.HeadRotation;
 import com.hypixel.hytale.server.core.modules.entity.component.ModelComponent;
 import com.hypixel.hytale.server.core.modules.entity.component.TransformComponent;
@@ -53,8 +51,6 @@ public final class ExamplePhysicsUtils {
         PhysicsVisualMaterializationSettings.DEFAULT_DETACHED_VISUAL_BLOCK_TYPE;
     private static final ComponentType<EntityStore, TransformComponent> TRANSFORM_TYPE =
         TransformComponent.getComponentType();
-    private static final ComponentType<EntityStore, DespawnComponent> DESPAWN_TYPE =
-        DespawnComponent.getComponentType();
     private static final ComponentType<EntityStore, PhysicsBodyAttachmentComponent> ATTACHMENT_TYPE =
         PhysicsBodyAttachmentComponent.getComponentType();
     private static final ComponentType<EntityStore, ImpulseControllableComponent> IMPULSE_CONTROLLABLE_TYPE =
@@ -223,15 +219,82 @@ public final class ExamplePhysicsUtils {
         Objects.requireNonNull(visualPosition, "visualPosition");
         Objects.requireNonNull(shape, "shape");
         Objects.requireNonNull(settings, "settings");
+        return recordBlockBodySpawnAtResolvedPose(commands,
+            spaceId,
+            toVector3f(visualPosition),
+            visualPosition,
+            blockType,
+            shape,
+            mass,
+            settings,
+            linearVelocity);
+    }
+
+    @Nonnull
+    public static PendingBlockBody recordBlockBodySpawnAtBodyCenter(@Nonnull PhysicsCommandRecorder commands,
+        @Nonnull SpaceId spaceId,
+        @Nonnull Vector3d bodyCenter,
+        @Nullable String blockType,
+        @Nonnull PhysicsShapeSpec shape,
+        float mass,
+        @Nonnull RigidBodySpawnSettings settings) {
+        return recordBlockBodySpawnAtBodyCenter(commands,
+            spaceId,
+            bodyCenter,
+            blockType,
+            shape,
+            mass,
+            settings,
+            null);
+    }
+
+    @Nonnull
+    public static PendingBlockBody recordBlockBodySpawnAtBodyCenter(@Nonnull PhysicsCommandRecorder commands,
+        @Nonnull SpaceId spaceId,
+        @Nonnull Vector3d bodyCenter,
+        @Nullable String blockType,
+        @Nonnull PhysicsShapeSpec shape,
+        float mass,
+        @Nonnull RigidBodySpawnSettings settings,
+        @Nullable Vector3f linearVelocity) {
+        Objects.requireNonNull(bodyCenter, "bodyCenter");
+        Objects.requireNonNull(shape, "shape");
+        return recordBlockBodySpawnAtResolvedPose(commands,
+            spaceId,
+            new Vector3f((float) bodyCenter.x, (float) bodyCenter.y, (float) bodyCenter.z),
+            visualPositionFromBodyCenter(bodyCenter, shape),
+            blockType,
+            shape,
+            mass,
+            settings,
+            linearVelocity);
+    }
+
+    @Nonnull
+    private static PendingBlockBody recordBlockBodySpawnAtResolvedPose(@Nonnull PhysicsCommandRecorder commands,
+        @Nonnull SpaceId spaceId,
+        @Nonnull Vector3f bodyCenter,
+        @Nonnull Vector3d visualPosition,
+        @Nullable String blockType,
+        @Nonnull PhysicsShapeSpec shape,
+        float mass,
+        @Nonnull RigidBodySpawnSettings settings,
+        @Nullable Vector3f linearVelocity) {
+        Objects.requireNonNull(commands, "commands");
+        Objects.requireNonNull(spaceId, "spaceId");
+        Objects.requireNonNull(bodyCenter, "bodyCenter");
+        Objects.requireNonNull(visualPosition, "visualPosition");
+        Objects.requireNonNull(shape, "shape");
+        Objects.requireNonNull(settings, "settings");
         RigidBodyKey bodyKey = RigidBodyKey.random();
         commands.spawnBody(bodyKey, spawn -> spawn
             .space(spaceId)
             .shape(shape)
             .mass(mass)
             .dynamic()
-            .position((float) visualPosition.x,
-                (float) visualPosition.y,
-                (float) visualPosition.z)
+            .position(bodyCenter.x,
+                bodyCenter.y,
+                bodyCenter.z)
             .settings(settings)
             .persistent());
         if (linearVelocity != null) {
@@ -475,6 +538,12 @@ public final class ExamplePhysicsUtils {
             true);
     }
 
+    @Nonnull
+    static Vector3d visualPositionFromBodyCenter(@Nonnull Vector3d bodyCenter,
+        @Nonnull PhysicsShapeSpec shape) {
+        return ExamplePhysicsOriginMath.visualPositionFromBodyCenter(bodyCenter, shape);
+    }
+
     @Nullable
     public static Ref<EntityStore> spawnAttachedBlockEntity(@Nonnull Store<EntityStore> store,
         @Nonnull TimeResource time,
@@ -533,14 +602,56 @@ public final class ExamplePhysicsUtils {
         @Nullable String blockType,
         @Nonnull Vector3d visualPosition,
         @Nonnull Vector3f localPositionOffset,
+        float visualOriginOffsetY,
+        boolean controllable) {
+        return attachedBlockEntityHolder(time,
+            bodyKey,
+            spaceId,
+            blockType,
+            visualPosition,
+            localPositionOffset,
+            new Quaternionf(),
+            visualOriginOffsetY,
+            controllable);
+    }
+
+    @Nonnull
+    public static Holder<EntityStore> attachedBlockEntityHolder(@Nonnull TimeResource time,
+        @Nonnull RigidBodyKey bodyKey,
+        @Nonnull SpaceId spaceId,
+        @Nullable String blockType,
+        @Nonnull Vector3d visualPosition,
+        @Nonnull Vector3f localPositionOffset,
         @Nonnull Quaternionf localRotationOffset,
+        boolean controllable) {
+        return attachedBlockEntityHolder(time,
+            bodyKey,
+            spaceId,
+            blockType,
+            visualPosition,
+            localPositionOffset,
+            localRotationOffset,
+            Float.NaN,
+            controllable);
+    }
+
+    @Nonnull
+    public static Holder<EntityStore> attachedBlockEntityHolder(@Nonnull TimeResource time,
+        @Nonnull RigidBodyKey bodyKey,
+        @Nonnull SpaceId spaceId,
+        @Nullable String blockType,
+        @Nonnull Vector3d visualPosition,
+        @Nonnull Vector3f localPositionOffset,
+        @Nonnull Quaternionf localRotationOffset,
+        float visualOriginOffsetY,
         boolean controllable) {
         Holder<EntityStore> holder = blockEntityHolder(time, blockType, visualPosition);
         holder.addComponent(ATTACHMENT_TYPE,
             PhysicsBodyAttachmentComponent.externalEntity(bodyKey,
                 spaceId,
                 localPositionOffset,
-                localRotationOffset));
+                localRotationOffset,
+                visualOriginOffsetY));
         if (controllable) {
             holder.addComponent(IMPULSE_CONTROLLABLE_TYPE, new ImpulseControllableComponent());
         }
@@ -551,20 +662,12 @@ public final class ExamplePhysicsUtils {
     private static Holder<EntityStore> blockEntityHolder(@Nonnull TimeResource time,
         @Nullable String blockType,
         @Nonnull Vector3d visualPosition) {
-        Holder<EntityStore> holder = BlockEntity.assembleDefaultBlockEntity(
-            time,
-            resolveBlockType(blockType),
-            new Vector3d(visualPosition)
-        );
-        holder.removeComponent(DESPAWN_TYPE);
-        return holder;
+        return ExampleBlockEntityVisuals.impulseOwnedBlockVisual(time, blockType, visualPosition);
     }
 
     @Nonnull
     public static String resolveBlockType(@Nullable String blockType) {
-        return blockType == null || blockType.isBlank()
-            ? DEFAULT_BLOCK_TYPE
-            : blockType.trim();
+        return ExampleBlockEntityVisuals.resolveBlockType(blockType);
     }
 
     @Nonnull
