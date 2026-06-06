@@ -175,6 +175,16 @@ public final class PhysicsShapeSpec {
         return groundY;
     }
 
+    public float centerOfMassOffsetY() {
+        return switch (type) {
+            case BOX -> halfExtentY;
+            case SPHERE -> radius;
+            case CAPSULE -> axis == PhysicsAxis.Y ? halfHeight + radius : radius;
+            case CYLINDER, CONE -> axis == PhysicsAxis.Y ? halfHeight : radius;
+            case PLANE, VOXELS, UNKNOWN -> 0.0f;
+        };
+    }
+
     @Override
     public boolean equals(Object other) {
         return this == other

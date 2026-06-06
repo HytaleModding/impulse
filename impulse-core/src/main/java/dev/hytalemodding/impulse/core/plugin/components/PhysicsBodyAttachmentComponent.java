@@ -29,6 +29,8 @@ import org.joml.Vector3f;
  */
 public class PhysicsBodyAttachmentComponent implements Component<EntityStore> {
 
+    private static final float USE_BODY_VISUAL_ORIGIN_OFFSET_Y = -1.0f;
+
     @Nonnull
     public static final BuilderCodec<PhysicsBodyAttachmentComponent> CODEC = BuilderCodec.builder(
             PhysicsBodyAttachmentComponent.class,
@@ -69,6 +71,10 @@ public class PhysicsBodyAttachmentComponent implements Component<EntityStore> {
                 : new Quaternionf()),
             component -> new Quaternionf(component.localRotationOffset))
         .add()
+        .append(new KeyedCodec<>("VisualOriginOffsetY", Codec.FLOAT, false),
+            (component, value) -> component.visualOriginOffsetY = normalizeVisualOriginOffsetY(value),
+            PhysicsBodyAttachmentComponent::getVisualOriginOffsetY)
+        .add()
         .build();
 
     private RigidBodyKey bodyKey = RigidBodyKey.random();
@@ -91,6 +97,8 @@ public class PhysicsBodyAttachmentComponent implements Component<EntityStore> {
     @Nonnull
     @Getter
     private final Quaternionf localRotationOffset = new Quaternionf();
+
+    private float visualOriginOffsetY = USE_BODY_VISUAL_ORIGIN_OFFSET_Y;
 
     public PhysicsBodyAttachmentComponent() {
     }
@@ -118,12 +126,29 @@ public class PhysicsBodyAttachmentComponent implements Component<EntityStore> {
         @Nonnull AttachmentLifecycle lifecycle,
         @Nonnull Vector3f localPositionOffset,
         @Nonnull Quaternionf localRotationOffset) {
+        this(bodyKey,
+            spaceId,
+            transformAuthority,
+            lifecycle,
+            localPositionOffset,
+            localRotationOffset,
+            USE_BODY_VISUAL_ORIGIN_OFFSET_Y);
+    }
+
+    public PhysicsBodyAttachmentComponent(@Nonnull RigidBodyKey bodyKey,
+        @Nullable SpaceId spaceId,
+        @Nonnull TransformAuthority transformAuthority,
+        @Nonnull AttachmentLifecycle lifecycle,
+        @Nonnull Vector3f localPositionOffset,
+        @Nonnull Quaternionf localRotationOffset,
+        float visualOriginOffsetY) {
         this.bodyKey = bodyKey;
         this.spaceId = spaceId;
         this.transformAuthority = transformAuthority;
         this.lifecycle = lifecycle;
         this.localPositionOffset.set(localPositionOffset);
         this.localRotationOffset.set(localRotationOffset);
+        this.visualOriginOffsetY = normalizeVisualOriginOffsetY(visualOriginOffsetY);
     }
 
     /**
@@ -156,6 +181,25 @@ public class PhysicsBodyAttachmentComponent implements Component<EntityStore> {
             localRotationOffset);
     }
 
+    /**
+     * Creates an external-entity attachment whose visual transform origin differs from the owning
+     * body's support/base offset.
+     */
+    @Nonnull
+    public static PhysicsBodyAttachmentComponent externalEntity(@Nonnull RigidBodyKey bodyKey,
+        @Nullable SpaceId spaceId,
+        @Nonnull Vector3f localPositionOffset,
+        @Nonnull Quaternionf localRotationOffset,
+        float visualOriginOffsetY) {
+        return new PhysicsBodyAttachmentComponent(bodyKey,
+            spaceId,
+            TransformAuthority.BODY,
+            AttachmentLifecycle.EXTERNAL_ENTITY,
+            localPositionOffset,
+            localRotationOffset,
+            visualOriginOffsetY);
+    }
+
     @Nonnull
     public RigidBodyKey getBodyKey() {
         return bodyKey;
@@ -173,6 +217,18 @@ public class PhysicsBodyAttachmentComponent implements Component<EntityStore> {
     @Nonnull
     public AttachmentLifecycle getLifecycle() {
         return lifecycle;
+    }
+
+    public float getVisualOriginOffsetY() {
+        return visualOriginOffsetY;
+    }
+
+    public void setVisualOriginOffsetY(float visualOriginOffsetY) {
+        this.visualOriginOffsetY = normalizeVisualOriginOffsetY(visualOriginOffsetY);
+    }
+
+    public float resolveVisualOriginOffsetY(float bodyVisualOriginOffsetY) {
+        return visualOriginOffsetY >= 0.0f ? visualOriginOffsetY : bodyVisualOriginOffsetY;
     }
 
     public static ComponentType<EntityStore, PhysicsBodyAttachmentComponent> getComponentType() {
@@ -197,7 +253,19 @@ public class PhysicsBodyAttachmentComponent implements Component<EntityStore> {
             transformAuthority,
             lifecycle,
             localPositionOffset,
-            localRotationOffset);
+            localRotationOffset,
+            visualOriginOffsetY);
+    }
+
+    private static float normalizeVisualOriginOffsetY(@Nullable Float value) {
+        if (value == null || !Float.isFinite(value) || value < 0.0f) {
+            return USE_BODY_VISUAL_ORIGIN_OFFSET_Y;
+        }
+        return value;
+    }
+
+    private static float normalizeVisualOriginOffsetY(float value) {
+        return normalizeVisualOriginOffsetY(Float.valueOf(value));
     }
 
     public enum TransformAuthority {
