@@ -14,6 +14,7 @@ import com.hypixel.hytale.component.Store;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import dev.hytalemodding.impulse.core.ImpulsePlugin;
 import dev.hytalemodding.impulse.core.internal.systems.persistence.PersistentPhysicsWorldSyncSystem;
+import dev.hytalemodding.impulse.core.plugin.body.RigidBodyKey;
 import dev.hytalemodding.impulse.core.plugin.persistence.PhysicsPersistenceResource;
 import dev.hytalemodding.impulse.core.plugin.persistence.PhysicsPersistenceSyncResult;
 import dev.hytalemodding.impulse.core.plugin.resources.PhysicsWorldResource;
@@ -149,6 +150,8 @@ public class PersistentPhysicsWorldResource extends PhysicsPersistenceResource {
     @Nonnull
     private final transient Object2IntMap<String> runtimeSkippedBodiesByReason = new Object2IntLinkedOpenHashMap<>();
     @Nonnull
+    private final transient Set<RigidBodyKey> runtimeSkippedBodyKeys = new ObjectOpenHashSet<>();
+    @Nonnull
     private final transient Object2IntMap<String> runtimeSkippedJointsByReason = new Object2IntLinkedOpenHashMap<>();
     @Nonnull
     private final transient Set<String> runtimeSkippedJointKeys = new ObjectOpenHashSet<>();
@@ -256,6 +259,7 @@ public class PersistentPhysicsWorldResource extends PhysicsPersistenceResource {
         runtimeSnapshotSynced = false;
         runtimeSnapshotSyncSkipTicks = 0;
         runtimeSkippedBodiesByReason.clear();
+        runtimeSkippedBodyKeys.clear();
         runtimeSkippedJointsByReason.clear();
         runtimeSkippedJointKeys.clear();
     }
@@ -308,6 +312,15 @@ public class PersistentPhysicsWorldResource extends PhysicsPersistenceResource {
 
     public void recordRuntimeBodySkipped(@Nonnull String reason) {
         runtimeSkippedBodiesByReason.put(reason, runtimeSkippedBodiesByReason.getInt(reason) + 1);
+    }
+
+    public void recordRuntimeBodySkipped(@Nonnull RigidBodyKey bodyKey, @Nonnull String reason) {
+        runtimeSkippedBodyKeys.add(bodyKey);
+        recordRuntimeBodySkipped(reason);
+    }
+
+    public boolean isRuntimeBodySkipped(@Nonnull RigidBodyKey bodyKey) {
+        return runtimeSkippedBodyKeys.contains(bodyKey);
     }
 
     public void recordRuntimeJointRestored() {
@@ -369,6 +382,7 @@ public class PersistentPhysicsWorldResource extends PhysicsPersistenceResource {
         runtimeSnapshotSynced = false;
         runtimeSnapshotSyncSkipTicks = 0;
         runtimeSkippedBodiesByReason.clear();
+        runtimeSkippedBodyKeys.clear();
         runtimeSkippedJointsByReason.clear();
         runtimeSkippedJointKeys.clear();
     }

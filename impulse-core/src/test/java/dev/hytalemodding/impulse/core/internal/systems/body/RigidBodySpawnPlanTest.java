@@ -9,9 +9,11 @@ import dev.hytalemodding.impulse.api.PhysicsAxis;
 import dev.hytalemodding.impulse.api.PhysicsBodyType;
 import dev.hytalemodding.impulse.api.ShapeType;
 import dev.hytalemodding.impulse.api.SpaceId;
+import dev.hytalemodding.impulse.core.internal.persistence.PersistentPhysicsWorldResource;
 import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyPersistenceMode;
 import dev.hytalemodding.impulse.core.plugin.body.RigidBodyKey;
 import dev.hytalemodding.impulse.core.plugin.components.RigidBodyComponent;
+import dev.hytalemodding.impulse.core.plugin.components.RigidBodyLifecycleComponent;
 import org.junit.jupiter.api.Test;
 
 class RigidBodySpawnPlanTest {
@@ -67,6 +69,31 @@ class RigidBodySpawnPlanTest {
 
         assertEquals("RigidBodyComponent must hold a positive explicit SpaceId",
             failure.getMessage());
+    }
+
+    @Test
+    void destroyedLifecycleSuppressesEntityAuthoredRespawn() {
+        RigidBodyKey bodyKey = RigidBodyKey.of(0L, 85L);
+        RigidBodyLifecycleComponent lifecycle = RigidBodyLifecycleComponent.destroyed(bodyKey,
+            RigidBodyComponent.Ownership.ENTITY_OWNED);
+
+        assertTrue(RigidBodyReconciliationPolicy.shouldSuppressBodyReconciliation(lifecycle,
+            null,
+            bodyKey));
+    }
+
+    @Test
+    void skippedRestoreKeySuppressesEntityAuthoredRespawn() {
+        RigidBodyKey bodyKey = RigidBodyKey.of(0L, 86L);
+        PersistentPhysicsWorldResource persistent = new PersistentPhysicsWorldResource();
+        persistent.recordRuntimeBodySkipped(bodyKey, "invalid position");
+
+        assertTrue(RigidBodyReconciliationPolicy.shouldSuppressBodyReconciliation(null,
+            persistent,
+            bodyKey));
+        assertFalse(RigidBodyReconciliationPolicy.shouldSuppressBodyReconciliation(null,
+            persistent,
+            RigidBodyKey.of(0L, 87L)));
     }
 
     private static RigidBodyComponent sphere(RigidBodyKey bodyKey,
