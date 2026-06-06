@@ -447,7 +447,7 @@ public class EcsCommand extends AbstractCommandCollection {
             Vector3d eye = ExamplePhysicsUtils.eyePosition(store, ref, transform);
             Vector3d direction = ExamplePhysicsUtils.lookDirection(store, ref, transform);
             Vector3i target = TargetUtil.getTargetBlock(world,
-                (blockId, fluidId) -> ExplosiveBlockPolicy.isFragmentCandidate(blockId),
+                (blockId, _) -> ExplosiveBlockPolicy.isSimpleFullCubeFragmentBlock(blockId),
                 eye.x,
                 eye.y,
                 eye.z,

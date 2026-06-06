@@ -4,6 +4,8 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import com.hypixel.hytale.math.shape.Box;
+import com.hypixel.hytale.protocol.BlockMaterial;
 import org.joml.Vector3f;
 import org.junit.jupiter.api.Test;
 
@@ -40,5 +42,35 @@ class ExplosiveBlockPolicyTest {
         assertFalse(ExplosiveBlockPolicy.isFragmentCandidate(0));
         assertFalse(ExplosiveBlockPolicy.isFragmentCandidate(1));
         assertTrue(ExplosiveBlockPolicy.isFragmentCandidate(42));
+    }
+
+    @Test
+    void simpleFragmentsRequireSolidFullUnitCollisionBox() {
+        Box unitBox = new Box(0.0, 0.0, 0.0, 1.0, 1.0, 1.0);
+
+        assertTrue(ExplosiveBlockPolicy.isSimpleFullCubeFragmentBlock(42,
+            false,
+            BlockMaterial.Solid,
+            new Box[] { unitBox }));
+        assertFalse(ExplosiveBlockPolicy.isSimpleFullCubeFragmentBlock(0,
+            false,
+            BlockMaterial.Solid,
+            new Box[] { unitBox }));
+        assertFalse(ExplosiveBlockPolicy.isSimpleFullCubeFragmentBlock(42,
+            true,
+            BlockMaterial.Solid,
+            new Box[] { unitBox }));
+        assertFalse(ExplosiveBlockPolicy.isSimpleFullCubeFragmentBlock(42,
+            false,
+            BlockMaterial.Empty,
+            new Box[] { unitBox }));
+        assertFalse(ExplosiveBlockPolicy.isSimpleFullCubeFragmentBlock(42,
+            false,
+            BlockMaterial.Solid,
+            new Box[] { new Box(0.0, 0.0, 0.0, 1.0, 0.5, 1.0) }));
+        assertFalse(ExplosiveBlockPolicy.isSimpleFullCubeFragmentBlock(42,
+            false,
+            BlockMaterial.Solid,
+            new Box[] { unitBox, unitBox }));
     }
 }

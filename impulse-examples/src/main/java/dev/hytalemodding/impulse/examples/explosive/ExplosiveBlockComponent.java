@@ -6,6 +6,7 @@ import com.hypixel.hytale.codec.builder.BuilderCodec;
 import com.hypixel.hytale.component.Component;
 import com.hypixel.hytale.component.ComponentType;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
+import lombok.Getter;
 import java.util.Objects;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
@@ -51,11 +52,17 @@ public class ExplosiveBlockComponent implements Component<EntityStore> {
 
     @Nonnull
     private String blockType = ExplosiveBlockPolicy.DEFAULT_BLOCK_TYPE;
+    @Getter
     private int generation;
+    @Getter
     private int maxGeneration;
+    @Getter
     private int radius = 3;
+    @Getter
     private int maxFragments = 32;
+    @Getter
     private float impulseStrength = 12.0f;
+    @Getter
     private float verticalLift = 0.35f;
 
     public ExplosiveBlockComponent() {
@@ -82,37 +89,9 @@ public class ExplosiveBlockComponent implements Component<EntityStore> {
         return blockType;
     }
 
-    public int getGeneration() {
-        return generation;
-    }
-
-    public int getMaxGeneration() {
-        return maxGeneration;
-    }
-
-    public int getRadius() {
-        return radius;
-    }
-
-    public int getMaxFragments() {
-        return maxFragments;
-    }
-
-    public float getImpulseStrength() {
-        return impulseStrength;
-    }
-
-    public float getVerticalLift() {
-        return verticalLift;
-    }
-
     public static void setComponentType(
         @Nonnull ComponentType<EntityStore, ExplosiveBlockComponent> type) {
         componentType = Objects.requireNonNull(type, "type");
-    }
-
-    public static boolean isComponentTypeRegistered() {
-        return componentType != null;
     }
 
     @Nonnull
