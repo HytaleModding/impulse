@@ -18,7 +18,6 @@ import dev.hytalemodding.impulse.core.internal.crucible.CrucibleTestCase.TestOut
  */
 final class CrucibleBridge {
 
-    private final Class<?> testSuiteClass;
     private final Class<?> asyncTestSuiteClass;
     private final Method registerSuite;
     private final Method pass;
@@ -26,14 +25,12 @@ final class CrucibleBridge {
     private final Method error;
 
     private CrucibleBridge(
-        Class<?> testSuiteClass,
         Class<?> asyncTestSuiteClass,
         Method registerSuite,
         Method pass,
         Method fail,
         Method error) {
 
-        this.testSuiteClass = testSuiteClass;
         this.asyncTestSuiteClass = asyncTestSuiteClass;
         this.registerSuite = registerSuite;
         this.pass = pass;
@@ -52,7 +49,6 @@ final class CrucibleBridge {
             "ionforgelabs.crucible.api.TestResult", true, loader);
 
         return new CrucibleBridge(
-            testSuiteClass,
             asyncTestSuiteClass,
             apiClass.getMethod("registerSuite", testSuiteClass),
             resultClass.getMethod("pass", String.class, String.class),
@@ -91,13 +87,12 @@ final class CrucibleBridge {
         @Override
             public Object invoke(Object proxy, Method method, Object[] args) throws Throwable {
                 return switch (method.getName()) {
-                    case "id" -> suite.id();
+                    case "id", "toString" -> suite.id();
                     case "name" -> suite.name();
                     case "description" -> suite.description();
                     case "tags" -> suite.tags();
                     case "run" -> runTests(context(args));
                     case "runAsync" -> runTestsAsync(context(args));
-                    case "toString" -> suite.id();
                     case "hashCode" -> suite.id().hashCode();
                     case "equals" -> args != null && args.length > 0 && proxy == args[0];
                     default -> throw new UnsupportedOperationException(

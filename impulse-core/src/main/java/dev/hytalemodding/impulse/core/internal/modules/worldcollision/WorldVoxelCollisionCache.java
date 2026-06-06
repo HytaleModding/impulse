@@ -48,8 +48,11 @@ public final class WorldVoxelCollisionCache {
     private static final int SLEEPING_BODY_STREAMING_INTERVAL_TICKS = 20;
     private static final int MISSING_BLOCK_CHUNK_RETRY_TICKS = 10;
     private static final int MISSING_BLOCK_SECTION_RETRY_TICKS = 5;
+
+    // TODO: Replace placeholder terrain material constants with real material lookup.
     private static final float TERRAIN_FRICTION = 0.75f;
     private static final float TERRAIN_RESTITUTION = 0.0f;
+
     private static final int ADJACENT_SECTION_VOXEL_SHIFT = 16;
     private static final long BODY_TARGET_REFRESH_PENDING = Long.MIN_VALUE;
 

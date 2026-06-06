@@ -27,11 +27,7 @@ import org.bson.codecs.EncoderContext;
 import org.bson.io.BasicOutputBuffer;
 
 /**
- * Schema-v5 compressed block for high-cardinality persistent physics state.
- *
- * <p>The outer resource remains a small typed manifest. Bodies and joints move into
- * per-space BSON payloads compressed at the block boundary so restore can validate
- * and inflate one logical partition at a time.</p>
+ * Compressed block for high-cardinality persistent physics state.
  */
 public class PersistentPhysicsStateBlock {
 

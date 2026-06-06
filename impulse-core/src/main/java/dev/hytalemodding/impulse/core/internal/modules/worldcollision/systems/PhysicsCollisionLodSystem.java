@@ -107,7 +107,7 @@ public class PhysicsCollisionLodSystem extends TickingSystem<EntityStore> {
         @Nonnull CollisionLodState state,
         @Nonnull List<CollisionLodUpdate> updates) {
         ObjectOpenHashSet<RigidBodyKey> seenBodies = new ObjectOpenHashSet<>();
-        resource.forEachIndexedBodySnapshot(spaceId, (bodyKey, snapshot, bodySpaceId, kind, persistenceMode) -> {
+        resource.forEachIndexedBodySnapshot(spaceId, (bodyKey, snapshot, _, kind, persistenceMode) -> {
             seenBodies.add(bodyKey);
             if (persistenceMode == PhysicsBodyPersistenceMode.PERSISTENT) {
                 state.recordRestore(spaceId, bodyKey, updates);
