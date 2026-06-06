@@ -6,7 +6,10 @@ import com.hypixel.hytale.component.Holder;
 import com.hypixel.hytale.component.Store;
 import com.hypixel.hytale.math.util.ChunkUtil;
 import com.hypixel.hytale.math.vector.Rotation3f;
+import com.hypixel.hytale.protocol.EntityPart;
 import com.hypixel.hytale.server.core.asset.type.blocktype.config.BlockType;
+import com.hypixel.hytale.server.core.asset.type.model.config.ModelParticle;
+import com.hypixel.hytale.server.core.asset.type.soundevent.config.SoundEvent;
 import com.hypixel.hytale.server.core.entity.ExplosionConfig;
 import com.hypixel.hytale.server.core.entity.ExplosionUtils;
 import com.hypixel.hytale.server.core.modules.entity.damage.Damage;
@@ -39,8 +42,13 @@ public final class ExplosiveBlockRuntime {
     static final int MAX_BLOCKS_PER_FRAGMENT_GROUP = 32;
     private static final int MID_BLOCKS_PER_FRAGMENT_GROUP = 16;
     private static final int INNER_BLOCKS_PER_FRAGMENT_GROUP = 8;
-    private static final float FRAGMENT_BLOCK_HALF_EXTENT = 0.48f;
+    // Explosion fragments represent removed terrain blocks, so their body bounds
+    // should match Hytale's full-block block-entity visuals exactly.
+    private static final float FRAGMENT_BLOCK_HALF_EXTENT = 0.5f;
+    private static final float FRAGMENT_VISUAL_ORIGIN_OFFSET_Y = 0.5f;
     private static final double SOURCE_EXPLOSION_VERTICAL_BIAS = 1.0;
+    private static final String EXPLOSION_PARTICLE_SYSTEM_ID = "Explosion_Medium";
+    private static final String EXPLOSION_SOUND_EVENT_ID = "SFX_Goblin_Lobber_Bomb_Death";
     private static final RigidBodySpawnSettings FRAGMENT_SETTINGS =
         RigidBodySpawnSettings.material(0.65f, 0.15f);
     private static final Damage.EnvironmentSource DAMAGE_SOURCE =
@@ -131,7 +139,7 @@ public final class ExplosiveBlockRuntime {
             commands -> {
                 for (int i = 0; i < groups.size(); i++) {
                     FragmentGroup group = groups.get(i);
-                    pending[i] = ExamplePhysicsUtils.recordBlockBodySpawn(commands,
+                    pending[i] = ExamplePhysicsUtils.recordBlockBodySpawnAtBodyCenter(commands,
                         spaceId,
                         group.center(),
                         group.blockType(),
@@ -167,6 +175,7 @@ public final class ExplosiveBlockRuntime {
                 visual.blockType(),
                 visual.position(),
                 visual.localPositionOffset(),
+                visual.visualOriginOffsetY(),
                 controllable);
             if (controllable) {
                 controllableAssigned = true;
@@ -208,6 +217,7 @@ public final class ExplosiveBlockRuntime {
     }
 
     @Nullable
+    @SuppressWarnings({"deprecation", "removal"})
     private static FragmentBlock removeFragmentCandidate(@Nonnull World world,
         int x,
         int y,
@@ -219,17 +229,30 @@ public final class ExplosiveBlockRuntime {
         int localX = chunkBlockCoordinate(x);
         int localZ = chunkBlockCoordinate(z);
         int blockId = chunk.getBlock(localX, y, localZ);
-        if (!ExplosiveBlockPolicy.isFragmentCandidate(blockId)) {
+        int rotation = chunk.getRotation(localX, y, localZ).index();
+        var blockTypeStore = BlockType.getAssetStore();
+        if (blockTypeStore == null) {
             return null;
         }
-        BlockType blockType = BlockType.getAssetMap().getAsset(blockId);
-        if (blockType == null) {
+        BlockType blockType = blockTypeStore.getAssetMap().getAsset(blockId);
+        if (!ExplosiveBlockPolicy.isSimpleFullCubeFragmentBlock(blockId, blockType, rotation)) {
             return null;
         }
         if (!chunk.setBlock(localX, y, localZ, 0, BlockType.EMPTY, 0, 0, SET_BLOCK_SETTINGS)) {
             return null;
         }
-        return new FragmentBlock(blockType.getId(), x, y, z);
+        assert blockType != null;
+        return new FragmentBlock(blockType.getId(), x, y, z, blockTypeCenter(blockType, rotation));
+    }
+
+    @Nonnull
+    private static Vector3d blockTypeCenter(@Nonnull BlockType blockType, int rotation) {
+        Vector3d center = new Vector3d();
+        blockType.getBlockCenter(rotation, center);
+        if (center.lengthSquared() < 1.0e-6) {
+            return new Vector3d(0.5, 0.5, 0.5);
+        }
+        return center;
     }
 
     @Nonnull
@@ -459,10 +482,33 @@ public final class ExplosiveBlockRuntime {
         return ChunkUtil.localCoordinate(worldCoordinate);
     }
 
+    private static int soundEventIndex(@Nonnull String soundEventId) {
+        var assetStore = SoundEvent.getAssetStore();
+        if (assetStore == null) {
+            return SoundEvent.EMPTY_ID;
+        }
+        return assetStore.getAssetMap().getIndexOrDefault(soundEventId, SoundEvent.EMPTY_ID);
+    }
+
     record FragmentBlock(@Nonnull String blockType,
                          int x,
                          int y,
-                         int z) {
+                         int z,
+                         @Nonnull Vector3d visualCenter) {
+
+        FragmentBlock(@Nonnull String blockType, int x, int y, int z) {
+            this(blockType, x, y, z, new Vector3d(0.5, 0.5, 0.5));
+        }
+
+        FragmentBlock {
+            visualCenter = new Vector3d(visualCenter);
+        }
+
+        @Nonnull
+        @Override
+        public Vector3d visualCenter() {
+            return new Vector3d(visualCenter);
+        }
 
         @Nonnull
         Vector3d center() {
@@ -471,7 +517,7 @@ public final class ExplosiveBlockRuntime {
 
         @Nonnull
         Vector3d visualBasePosition() {
-            return new Vector3d(x + 0.5, y, z + 0.5);
+            return new Vector3d(x + visualCenter.x, y, z + visualCenter.z);
         }
 
         @Nonnull
@@ -527,14 +573,16 @@ public final class ExplosiveBlockRuntime {
                 .thenComparingInt(FragmentBlock::z));
 
             List<FragmentVisual> visuals = new ArrayList<>(sorted.size());
-            Vector3d groupVisualBase = new Vector3d(center.x, center.y - halfExtentY, center.z);
             for (FragmentBlock block : sorted) {
                 Vector3d position = block.visualBasePosition();
+                Vector3d visualCenter = new Vector3d(position)
+                    .add(0.0, FRAGMENT_VISUAL_ORIGIN_OFFSET_Y, 0.0);
                 visuals.add(new FragmentVisual(block.blockType(),
                     position,
-                    new Vector3f((float) (position.x - groupVisualBase.x),
-                        (float) (position.y - groupVisualBase.y),
-                        (float) (position.z - groupVisualBase.z))));
+                    new Vector3f((float) (visualCenter.x - center.x),
+                        (float) (visualCenter.y - center.y),
+                        (float) (visualCenter.z - center.z)),
+                    FRAGMENT_VISUAL_ORIGIN_OFFSET_Y));
             }
             return List.copyOf(visuals);
         }
@@ -558,11 +606,13 @@ public final class ExplosiveBlockRuntime {
 
     record FragmentVisual(@Nonnull String blockType,
                           @Nonnull Vector3d position,
-                          @Nonnull Vector3f localPositionOffset) {
+                          @Nonnull Vector3f localPositionOffset,
+                          float visualOriginOffsetY) {
 
         FragmentVisual {
             position = new Vector3d(position);
             localPositionOffset = new Vector3f(localPositionOffset);
+            visualOriginOffsetY = Math.max(0.0f, visualOriginOffsetY);
         }
 
         @Nonnull
@@ -665,6 +715,18 @@ public final class ExplosiveBlockRuntime {
             entityDamage = 12.0f;
             entityDamageFalloff = 1.0f;
             blockDropChance = 0.0f;
+            particles = new ModelParticle[] {
+                new ModelParticle(EXPLOSION_PARTICLE_SYSTEM_ID,
+                    EntityPart.Entity,
+                    null,
+                    null,
+                    1.0f,
+                    null,
+                    null,
+                    false)
+            };
+            soundEventId = EXPLOSION_SOUND_EVENT_ID;
+            soundEventIndex = soundEventIndex(soundEventId);
         }
     }
 }
