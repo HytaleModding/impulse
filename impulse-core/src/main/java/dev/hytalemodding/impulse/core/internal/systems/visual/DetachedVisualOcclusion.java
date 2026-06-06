@@ -65,6 +65,7 @@ final class DetachedVisualOcclusion {
 
         Optional<RaycastHitView> completedRaycast = state.pollCompletedRaycast();
 
+        //noinspection OptionalAssignedToNull
         if (completedRaycast != null) {
             raycastVisible = completedRaycast
                 .map(view -> bodyKey.equals(view.bodyKey()))

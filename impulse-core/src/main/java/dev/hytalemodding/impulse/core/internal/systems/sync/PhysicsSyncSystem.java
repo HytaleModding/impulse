@@ -317,8 +317,8 @@ public class PhysicsSyncSystem extends EntityTickingSystem<EntityStore> {
         if (!Float.isFinite(dt) || dt <= 0.0f) {
             return 1.0f;
         }
-        return Math.min(1.0f,
-            Math.max(MIN_SMOOTHING_ALPHA, dt * settings.getVisualSyncSettings().getVisualSnapshotSmoothingRate()));
+        return Math.clamp(dt * settings.getVisualSyncSettings().getVisualSnapshotSmoothingRate(),
+            MIN_SMOOTHING_ALPHA, 1.0f);
     }
 
     private static void applySnapshotPrediction(@Nonnull PhysicsBodySnapshot snapshot,
