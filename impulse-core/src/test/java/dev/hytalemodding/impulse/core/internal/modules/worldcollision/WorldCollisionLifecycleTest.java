@@ -16,8 +16,6 @@ import dev.hytalemodding.impulse.api.SpaceId;
 import dev.hytalemodding.impulse.api.runtime.BackendRuntimeCodes;
 import dev.hytalemodding.impulse.api.testsupport.FakePhysicsBackendRuntimeProvider;
 import dev.hytalemodding.impulse.api.testsupport.FakePhysicsBackendRuntimeProvider.FakePhysicsBackendRuntime;
-import dev.hytalemodding.impulse.core.internal.modules.worldcollision.WorldCollisionLifecycle;
-import dev.hytalemodding.impulse.core.internal.modules.worldcollision.WorldVoxelCollisionCache;
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsSpaceBinding;
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsWorldRuntimeResource;
 import dev.hytalemodding.impulse.core.internal.resources.body.PhysicsBodyRegistration;
@@ -38,6 +36,7 @@ import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
+@SuppressWarnings("DataFlowIssue")
 class WorldCollisionLifecycleTest {
 
     private static final AtomicInteger BACKEND_COUNTER = new AtomicInteger();
