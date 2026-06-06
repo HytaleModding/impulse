@@ -15,6 +15,7 @@ import com.hypixel.hytale.component.system.tick.TickingSystem;
 import com.hypixel.hytale.server.core.modules.entity.component.TransformComponent;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import dev.hytalemodding.impulse.core.ImpulsePlugin;
+import dev.hytalemodding.impulse.core.internal.persistence.PersistentPhysicsWorldResource;
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsWorldRuntimeResource;
 import dev.hytalemodding.impulse.core.internal.systems.sync.PhysicsSyncSystem;
 import dev.hytalemodding.impulse.core.plugin.body.RigidBodyKey;
@@ -66,6 +67,8 @@ public class RigidBodyReconciliationSystem extends TickingSystem<EntityStore>
         PhysicsWorldRuntimeResource resource = PhysicsWorldRuntimeResource.require(store);
         RigidBodyCommandBatch physicsBatch = new RigidBodyCommandBatch();
         RigidBodyKinematicTargetState kinematicState = kinematicStateFor(store);
+        PersistentPhysicsWorldResource persistent = store.getResource(
+            PersistentPhysicsWorldResource.getResourceType());
 
         kinematicState.beginTick();
         try {
@@ -73,6 +76,7 @@ public class RigidBodyReconciliationSystem extends TickingSystem<EntityStore>
                 (chunk, commandBuffer) -> reconcileChunk(chunk,
                     commandBuffer,
                     resource,
+                    persistent,
                     physicsBatch,
                     kinematicState);
             store.forEachChunk(systemIndex, collector);
@@ -86,6 +90,7 @@ public class RigidBodyReconciliationSystem extends TickingSystem<EntityStore>
     private static void reconcileChunk(@Nonnull ArchetypeChunk<EntityStore> chunk,
         @Nonnull CommandBuffer<EntityStore> commandBuffer,
         @Nonnull PhysicsWorldRuntimeResource resource,
+        @Nullable PersistentPhysicsWorldResource persistent,
         @Nonnull RigidBodyCommandBatch physicsBatch,
         @Nonnull RigidBodyKinematicTargetState kinematicState) {
         for (int index = 0; index < chunk.size(); index++) {
@@ -93,6 +98,7 @@ public class RigidBodyReconciliationSystem extends TickingSystem<EntityStore>
                 chunk,
                 commandBuffer,
                 resource,
+                persistent,
                 physicsBatch,
                 kinematicState);
         }
@@ -103,6 +109,7 @@ public class RigidBodyReconciliationSystem extends TickingSystem<EntityStore>
         @Nonnull ArchetypeChunk<EntityStore> chunk,
         @Nonnull CommandBuffer<EntityStore> commandBuffer,
         @Nonnull PhysicsWorldRuntimeResource resource,
+        @Nullable PersistentPhysicsWorldResource persistent,
         @Nonnull RigidBodyCommandBatch physicsBatch,
         @Nonnull RigidBodyKinematicTargetState kinematicState) {
         RigidBodyComponent body = chunk.getComponent(index, BODY_TYPE);
@@ -114,6 +121,19 @@ public class RigidBodyReconciliationSystem extends TickingSystem<EntityStore>
         RigidBodyLifecycleComponent lifecycle = chunk.getComponent(index, LIFECYCLE_TYPE);
         RigidBodyComponent.Ownership ownershipValue = body.getOwnership();
         RigidBodyKey bodyKey = body.getBodyKey();
+        if (RigidBodyReconciliationPolicy.shouldSuppressBodyReconciliation(lifecycle, persistent, bodyKey)) {
+            kinematicState.clear(bodyKey);
+            clearAttachment(ref, chunk.getComponent(index, ATTACHMENT_TYPE), commandBuffer);
+            if (lifecycle == null || lifecycle.getState() != RigidBodyLifecycleComponent.State.DESTROYED) {
+                commandBuffer.putComponent(ref,
+                    LIFECYCLE_TYPE,
+                    RigidBodyLifecycleComponent.failed(bodyKey,
+                        ownershipValue,
+                        "Persisted body restore skipped"));
+            }
+            return;
+        }
+
         boolean registeredOrPending = resource.hasPublishedOrPendingBodyRegistration(bodyKey)
             || physicsBatch.hasPendingBody(bodyKey);
 
