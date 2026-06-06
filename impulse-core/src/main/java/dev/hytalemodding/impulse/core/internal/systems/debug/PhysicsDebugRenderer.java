@@ -6,13 +6,16 @@ import com.hypixel.hytale.server.core.modules.debug.DebugUtils;
 import com.hypixel.hytale.server.core.universe.PlayerRef;
 import dev.hytalemodding.impulse.api.PhysicsAxis;
 import dev.hytalemodding.impulse.api.PhysicsBodySnapshot;
+import dev.hytalemodding.impulse.core.internal.math.PhysicsVisualPoseMath;
+import dev.hytalemodding.impulse.core.internal.modules.worldcollision.SectionCollisionGeometry.BoxCollider;
 import dev.hytalemodding.impulse.core.internal.simulation.view.PhysicsDebugContactView;
 import dev.hytalemodding.impulse.core.internal.simulation.view.PhysicsDebugJointView;
-import dev.hytalemodding.impulse.core.internal.modules.worldcollision.SectionCollisionGeometry.BoxCollider;
+import dev.hytalemodding.impulse.core.plugin.components.PhysicsBodyAttachmentComponent;
 import java.util.Collection;
 import javax.annotation.Nonnull;
 import org.joml.Matrix4d;
 import org.joml.Quaterniond;
+import org.joml.Quaternionf;
 import org.joml.Vector3d;
 import org.joml.Vector3f;
 
@@ -258,8 +261,36 @@ final class PhysicsDebugRenderer {
     }
 
     static Vector3d centerFromSyncedTransform(@Nonnull PhysicsBodySnapshot snapshot,
-        @Nonnull Vector3d transformPosition) {
-        return new Vector3d(transformPosition).add(0.0, snapshot.centerOfMassOffsetY(), 0.0);
+        @Nonnull Vector3d transformPosition,
+        @Nonnull PhysicsBodyAttachmentComponent attachment,
+        @Nonnull Quaterniond bodyRotation) {
+        return PhysicsVisualPoseMath.bodyCenterFromVisualPose(transformPosition,
+            bodyRotation,
+            attachment.resolveVisualOriginOffsetY(snapshot.centerOfMassOffsetY()),
+            attachment.getLocalPositionOffset(),
+            new Vector3d());
+    }
+
+    @Nonnull
+    static BodyDebugPose bodyPoseFromSyncedTransform(@Nonnull PhysicsBodySnapshot snapshot,
+        @Nonnull Vector3d transformPosition,
+        @Nonnull Quaterniond transformRotation,
+        @Nonnull PhysicsBodyAttachmentComponent attachment) {
+        Quaterniond bodyRotation = new Quaterniond(transformRotation);
+        if (!isIdentity(attachment.getLocalRotationOffset())) {
+            bodyRotation.mul(new Quaterniond(attachment.getLocalRotationOffset()).invert()).normalize();
+        }
+        return new BodyDebugPose(centerFromSyncedTransform(snapshot,
+            transformPosition,
+            attachment,
+            bodyRotation), bodyRotation);
+    }
+
+    private static boolean isIdentity(@Nonnull Quaternionf rotation) {
+        return rotation.x == 0.0f
+            && rotation.y == 0.0f
+            && rotation.z == 0.0f
+            && rotation.w == 1.0f;
     }
 
     private static void renderBox(@Nonnull Collection<PlayerRef> viewers,
@@ -535,6 +566,15 @@ final class PhysicsDebugRenderer {
         ContactDebugPrimitive {
             point = new Vector3d(point);
             normal = normal != null ? new Vector3d(normal) : null;
+        }
+    }
+
+    record BodyDebugPose(@Nonnull Vector3d center,
+                         @Nonnull Quaterniond rotation) {
+
+        BodyDebugPose {
+            center = new Vector3d(center);
+            rotation = new Quaterniond(rotation);
         }
     }
 }

@@ -3,13 +3,16 @@ package dev.hytalemodding.impulse.core.internal.systems.debug;
 import com.hypixel.hytale.component.ComponentType;
 import com.hypixel.hytale.component.Ref;
 import com.hypixel.hytale.component.Store;
+import com.hypixel.hytale.component.dependency.Dependency;
+import com.hypixel.hytale.component.dependency.Order;
+import com.hypixel.hytale.component.dependency.SystemDependency;
 import com.hypixel.hytale.component.system.tick.TickingSystem;
 import com.hypixel.hytale.math.util.ChunkUtil;
 import com.hypixel.hytale.server.core.modules.debug.DebugUtils;
 import com.hypixel.hytale.server.core.modules.entity.component.TransformComponent;
+import com.hypixel.hytale.server.core.modules.entity.system.UpdateLocationSystems;
 import com.hypixel.hytale.server.core.universe.PlayerRef;
 import com.hypixel.hytale.server.core.universe.world.World;
-import com.hypixel.hytale.server.core.universe.world.storage.ChunkStore;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import dev.hytalemodding.impulse.api.PhysicsBodySnapshot;
 import dev.hytalemodding.impulse.api.ShapeType;
@@ -27,6 +30,7 @@ import dev.hytalemodding.impulse.core.internal.simulation.query.PhysicsDebugCont
 import dev.hytalemodding.impulse.core.internal.simulation.view.PhysicsDebugJointView;
 import dev.hytalemodding.impulse.core.internal.simulation.query.PhysicsDebugJointsQuery;
 import dev.hytalemodding.impulse.core.internal.modules.worldcollision.WorldVoxelCollisionCache.DebugSection;
+import dev.hytalemodding.impulse.core.internal.systems.sync.PhysicsSyncSystem;
 import it.unimi.dsi.fastutil.objects.Object2ObjectOpenHashMap;
 import it.unimi.dsi.fastutil.objects.ObjectOpenHashSet;
 import java.util.ArrayList;
@@ -54,7 +58,7 @@ import org.joml.Vector3f;
  * which sends every primitive to every player and can cause packet spikes and
  * visible flicker when overlays are redrawn every tick.</p>
  */
-public class PhysicsDebugSystem extends TickingSystem<ChunkStore> {
+public class PhysicsDebugSystem extends TickingSystem<EntityStore> {
 
     private static final ComponentType<EntityStore, PhysicsBodyAttachmentComponent> ATTACHMENT_TYPE =
         PhysicsBodyAttachmentComponent.getComponentType();
@@ -62,15 +66,23 @@ public class PhysicsDebugSystem extends TickingSystem<ChunkStore> {
         TransformComponent.getComponentType();
 
     @Nonnull
-    private final Map<Store<ChunkStore>, DebugQueryCache> queryCachesByStore =
+    private final Map<Store<EntityStore>, DebugQueryCache> queryCachesByStore =
         Collections.synchronizedMap(new WeakHashMap<>());
+    private final Set<Dependency<EntityStore>> dependencies = Set.of(
+        new SystemDependency<>(Order.AFTER, PhysicsSyncSystem.class),
+        new SystemDependency<>(Order.AFTER, UpdateLocationSystems.TickingSystem.class)
+    );
 
     @Override
-    public void tick(float dt, int index, @Nonnull Store<ChunkStore> store) {
+    public Set<Dependency<EntityStore>> getDependencies() {
+        return dependencies;
+    }
+
+    @Override
+    public void tick(float dt, int index, @Nonnull Store<EntityStore> store) {
         World world = store.getExternalData().getWorld();
-        Store<EntityStore> entityStore = world.getEntityStore().getStore();
-        PhysicsWorldRuntimeResource resource = PhysicsWorldRuntimeResource.require(entityStore);
-        PhysicsDebugResource debug = entityStore.getResource(PhysicsDebugResource.getResourceType());
+        PhysicsWorldRuntimeResource resource = PhysicsWorldRuntimeResource.require(store);
+        PhysicsDebugResource debug = store.getResource(PhysicsDebugResource.getResourceType());
 
         if (!debug.hasSubscribers()) {
             return;
@@ -110,7 +122,7 @@ public class PhysicsDebugSystem extends TickingSystem<ChunkStore> {
 
             if (overlayDue && (debugShapes || debugMotion)) {
                 int renderedBodies = renderEntityBodies(target,
-                    entityStore,
+                    store,
                     resource,
                     viewerPosition,
                     debug.getViewRadius(),
@@ -169,7 +181,7 @@ public class PhysicsDebugSystem extends TickingSystem<ChunkStore> {
     }
 
     @Nonnull
-    private DebugQueryCache queryCacheFor(@Nonnull Store<ChunkStore> store) {
+    private DebugQueryCache queryCacheFor(@Nonnull Store<EntityStore> store) {
         synchronized (queryCachesByStore) {
             return queryCachesByStore.computeIfAbsent(store, ignored -> new DebugQueryCache());
         }
@@ -228,15 +240,17 @@ public class PhysicsDebugSystem extends TickingSystem<ChunkStore> {
                 if (snapshot == null) {
                     continue;
                 }
-                Vector3d center = PhysicsDebugRenderer.centerFromSyncedTransform(snapshot,
-                    transform.getPosition());
+                PhysicsDebugRenderer.BodyDebugPose pose = PhysicsDebugRenderer.bodyPoseFromSyncedTransform(snapshot,
+                    transform.getPosition(),
+                    transform.getRotation().getQuaternion(new Quaterniond()),
+                    attachment);
+                Vector3d center = pose.center();
                 if (viewerPosition.distanceSquared(center) > maxDistanceSquared) {
                     continue;
                 }
 
-                Quaterniond rotation = transform.getRotation().getQuaternion(new Quaterniond());
                 if (debugShapes) {
-                    PhysicsDebugRenderer.renderBodyShape(viewers, snapshot, center, rotation, time);
+                    PhysicsDebugRenderer.renderBodyShape(viewers, snapshot, center, pose.rotation(), time);
                 }
                 if (debugMotion) {
                     PhysicsDebugRenderer.renderBodyMotion(viewers, center, snapshot, time);
