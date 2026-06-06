@@ -38,4 +38,17 @@ class ExplosiveFuseComponentTest {
         assertEquals(bounceCenter, fuse.explosionCenterOr(new Vector3d()));
         assertFalse(fuse.observeVerticalVelocity(0.2f, 13L));
     }
+
+    @Test
+    void verticalVelocityObservationArmsWhenFallingBodySettlesWithoutBounce() {
+        ExplosiveFuseComponent fuse = new ExplosiveFuseComponent();
+
+        assertTrue(fuse.observeVerticalVelocity(-0.4f, 11L));
+
+        Vector3d settledCenter = new Vector3d(4.5, 8.5, -2.5);
+        assertTrue(fuse.observeVerticalVelocity(0.0f, 12L, settledCenter));
+        assertFalse(fuse.isDue(31L));
+        assertTrue(fuse.isDue(32L));
+        assertEquals(settledCenter, fuse.explosionCenterOr(new Vector3d()));
+    }
 }

@@ -15,7 +15,9 @@ public class ExplosiveFuseComponent implements Component<EntityStore> {
 
     public static final long DEFAULT_FUSE_TICKS = 20L;
     private static final float FALLING_VELOCITY_THRESHOLD = -0.25f;
-    private static final float BOUNCE_VELOCITY_THRESHOLD = 0.05f;
+    // Contact events are the primary impact signal. This velocity fallback covers
+    // impacts that settle without a visible bounce or without a published contact.
+    private static final float SETTLED_VELOCITY_THRESHOLD = -0.05f;
 
     @Nonnull
     public static final BuilderCodec<ExplosiveFuseComponent> CODEC = BuilderCodec.builder(
@@ -130,7 +132,7 @@ public class ExplosiveFuseComponent implements Component<EntityStore> {
             observedDownwardMotion = true;
             return true;
         }
-        if (observedDownwardMotion && velocityY >= BOUNCE_VELOCITY_THRESHOLD) {
+        if (observedDownwardMotion && velocityY >= SETTLED_VELOCITY_THRESHOLD) {
             return arm(currentTick, explosionCenter);
         }
         return false;
