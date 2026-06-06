@@ -16,11 +16,13 @@ public final class PhysicsCommandVisibilityState {
      * sequence and Hytale world ticks because commands can complete between published snapshots.
      */
     private final AtomicLong commandBatchSequence = new AtomicLong();
+
     /*
      * Highest command batch that has finished owner-lane execution. Snapshot capture copies this
      * value as the frame's last-included command-batch sequence.
      */
     private final AtomicLong completedCommandBatchSequence = new AtomicLong();
+
     /*
      * Reader-side body materialization can observe command completion before the next published
      * registration frame has applied. Track exact command-created body keys so missing unrelated
@@ -28,11 +30,13 @@ public final class PhysicsCommandVisibilityState {
      */
     private final Object2LongOpenHashMap<RigidBodyKey> pendingCommandBodyCreationSequences =
         new Object2LongOpenHashMap<>();
+
     /*
      * Command contexts capture this epoch. Runtime resets and topology replacement increment it so
      * stale pre-reset command batches reject before dispatching against the new world state.
      */
     private final AtomicLong commandWorldEpoch = new AtomicLong();
+
     /*
      * Topology changes inside a command batch should update snapshot world epoch, but should not
      * make the next same-epoch FIFO command batch stale. This depth suppresses command epoch bumps
@@ -116,8 +120,7 @@ public final class PhysicsCommandVisibilityState {
     }
 
     public boolean isBodyCreationPending(@Nonnull RigidBodyKey bodyKey,
-        boolean directBodyCreationPending,
-        boolean ownerExecutorAttached) {
+        boolean directBodyCreationPending) {
         return directBodyCreationPending
             || isCommandBodyCreationPending(bodyKey);
     }
