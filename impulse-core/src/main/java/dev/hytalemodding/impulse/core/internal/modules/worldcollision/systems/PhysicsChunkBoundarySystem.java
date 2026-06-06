@@ -33,6 +33,7 @@ import it.unimi.dsi.fastutil.longs.LongOpenHashSet;
 import it.unimi.dsi.fastutil.longs.LongSet;
 import java.util.Set;
 import javax.annotation.Nonnull;
+import org.joml.Vector2d;
 
 /**
  * Keeps registered dynamic physics bodies from drifting into unloaded chunks.
@@ -104,19 +105,19 @@ public class PhysicsChunkBoundarySystem extends TickingSystem<EntityStore> {
             return;
         }
 
-        long targetChunkIndex = chunkIndex(snapshot.positionX(), snapshot.positionZ());
-        if (isChunkTicking(targetChunkIndex, chunkStore, chunkComponentStore)) {
+        long[] targetChunkIndices = chunkIndices(snapshot);
+        if (areChunksTicking(targetChunkIndices, chunkStore, chunkComponentStore)) {
             recordSafePose(bodyKey, snapshot, resource);
             return;
         }
 
         if (mode == EntityChunkBoundaryMode.LOAD_TICKING_CHUNK) {
-            requestTickingChunk(chunkStore, targetChunkIndex);
+            requestTickingChunks(chunkStore, targetChunkIndices);
             return;
         }
 
         PhysicsOwnerBridge.run(store, "pause chunk-boundary physics body",
-            () -> pauseBody(bodyKey, snapshot, targetChunkIndex, resource));
+            () -> pauseBody(bodyKey, snapshot, targetChunkIndices, resource));
     }
 
     private void handlePausedBody(@Nonnull RigidBodyKey bodyKey,
@@ -127,12 +128,12 @@ public class PhysicsChunkBoundarySystem extends TickingSystem<EntityStore> {
         @Nonnull Store<EntityStore> entityStore,
         @Nonnull ChunkStore chunkStore,
         @Nonnull Store<ChunkStore> chunkComponentStore) {
-        long targetChunkIndex = pauseState.getTargetChunkIndex();
+        long[] targetChunkIndices = pauseState.getTargetChunkIndices();
         if (mode == EntityChunkBoundaryMode.LOAD_TICKING_CHUNK) {
-            requestTickingChunk(chunkStore, targetChunkIndex);
+            requestTickingChunks(chunkStore, targetChunkIndices);
         }
 
-        if (!isChunkTicking(targetChunkIndex, chunkStore, chunkComponentStore)) {
+        if (!areChunksTicking(targetChunkIndices, chunkStore, chunkComponentStore)) {
             return;
         }
 
@@ -168,6 +169,13 @@ public class PhysicsChunkBoundarySystem extends TickingSystem<EntityStore> {
         @Nonnull PhysicsBodySnapshot snapshot,
         long targetChunkIndex,
         @Nonnull PhysicsWorldRuntimeResource resource) {
+        pauseBody(bodyKey, snapshot, new long[] {targetChunkIndex}, resource);
+    }
+
+    static void pauseBody(@Nonnull RigidBodyKey bodyKey,
+        @Nonnull PhysicsBodySnapshot snapshot,
+        @Nonnull long[] targetChunkIndices,
+        @Nonnull PhysicsWorldRuntimeResource resource) {
         var registration = resource.getRegistration(bodyKey);
         if (registration == null) {
             return;
@@ -179,7 +187,8 @@ public class PhysicsChunkBoundarySystem extends TickingSystem<EntityStore> {
         ChunkBoundarySafeState safeState =
             resource.getChunkBoundarySafeState(bodyKey);
         resource.pauseChunkBoundaryBody(bodyKey,
-            targetChunkIndex,
+            primaryChunkIndex(targetChunkIndices, snapshot),
+            targetChunkIndices,
             snapshot);
 
         if (safeState != null) {
@@ -222,6 +231,24 @@ public class PhysicsChunkBoundarySystem extends TickingSystem<EntityStore> {
         chunkStore.getChunkReferenceAsync(chunkIndex, TICKING_CHUNK_REQUEST_FLAGS);
     }
 
+    private void requestTickingChunks(@Nonnull ChunkStore chunkStore,
+        @Nonnull long[] chunkIndices) {
+        for (long chunkIndex : chunkIndices) {
+            requestTickingChunk(chunkStore, chunkIndex);
+        }
+    }
+
+    private boolean areChunksTicking(@Nonnull long[] chunkIndices,
+        @Nonnull ChunkStore chunkStore,
+        @Nonnull Store<ChunkStore> chunkComponentStore) {
+        for (long chunkIndex : chunkIndices) {
+            if (!isChunkTicking(chunkIndex, chunkStore, chunkComponentStore)) {
+                return false;
+            }
+        }
+        return true;
+    }
+
     private boolean isChunkTicking(long chunkIndex,
         @Nonnull ChunkStore chunkStore,
         @Nonnull Store<ChunkStore> chunkComponentStore) {
@@ -235,7 +262,123 @@ public class PhysicsChunkBoundarySystem extends TickingSystem<EntityStore> {
         return worldChunk != null && worldChunk.is(ChunkFlag.TICKING);
     }
 
-    private long chunkIndex(double x, double z) {
+    private static long primaryChunkIndex(@Nonnull long[] chunkIndices,
+        @Nonnull PhysicsBodySnapshot snapshot) {
+        return chunkIndices.length > 0
+            ? chunkIndices[0]
+            : chunkIndex(snapshot.positionX(), snapshot.positionZ());
+    }
+
+    static long[] chunkIndices(@Nonnull PhysicsBodySnapshot snapshot) {
+        Vector2d extents = horizontalHalfExtents(snapshot);
+        int minChunkX = chunkCoordinate(snapshot.positionX() - extents.x);
+        int maxChunkX = chunkCoordinate(snapshot.positionX() + extents.x);
+        int minChunkZ = chunkCoordinate(snapshot.positionZ() - extents.y);
+        int maxChunkZ = chunkCoordinate(snapshot.positionZ() + extents.y);
+        int count = (maxChunkX - minChunkX + 1) * (maxChunkZ - minChunkZ + 1);
+        long[] chunks = new long[count];
+        int index = 0;
+        for (int chunkX = minChunkX; chunkX <= maxChunkX; chunkX++) {
+            for (int chunkZ = minChunkZ; chunkZ <= maxChunkZ; chunkZ++) {
+                chunks[index++] = ChunkUtil.indexChunk(chunkX, chunkZ);
+            }
+        }
+        return chunks;
+    }
+
+    @Nonnull
+    private static Vector2d horizontalHalfExtents(@Nonnull PhysicsBodySnapshot snapshot) {
+        return switch (snapshot.shapeType()) {
+            case BOX -> boxHorizontalHalfExtents(snapshot);
+            case SPHERE -> roundHorizontalHalfExtents(snapshot.sphereRadius());
+            case CAPSULE -> roundHeightHorizontalHalfExtents(snapshot,
+                finitePositive(snapshot.sphereRadius()),
+                finitePositive(snapshot.halfHeight()) + finitePositive(snapshot.sphereRadius()));
+            case CYLINDER, CONE -> roundHeightHorizontalHalfExtents(snapshot,
+                finitePositive(snapshot.sphereRadius()),
+                finitePositive(snapshot.halfHeight()));
+            case PLANE, VOXELS, UNKNOWN -> new Vector2d();
+        };
+    }
+
+    @Nonnull
+    private static Vector2d boxHorizontalHalfExtents(@Nonnull PhysicsBodySnapshot snapshot) {
+        if (!snapshot.hasBoxHalfExtents()) {
+            return new Vector2d();
+        }
+        return rotatedHorizontalHalfExtents(snapshot,
+            finitePositive(snapshot.boxHalfExtentX()),
+            finitePositive(snapshot.boxHalfExtentY()),
+            finitePositive(snapshot.boxHalfExtentZ()));
+    }
+
+    @Nonnull
+    private static Vector2d roundHorizontalHalfExtents(float radius) {
+        double halfExtent = finitePositive(radius);
+        return new Vector2d(halfExtent, halfExtent);
+    }
+
+    @Nonnull
+    private static Vector2d roundHeightHorizontalHalfExtents(@Nonnull PhysicsBodySnapshot snapshot,
+        double radius,
+        double axisHalfExtent) {
+        double halfX = radius;
+        double halfY = radius;
+        double halfZ = radius;
+        switch (snapshot.shapeAxis()) {
+            case X -> halfX = axisHalfExtent;
+            case Y -> halfY = axisHalfExtent;
+            case Z -> halfZ = axisHalfExtent;
+        }
+        return rotatedHorizontalHalfExtents(snapshot, halfX, halfY, halfZ);
+    }
+
+    @Nonnull
+    private static Vector2d rotatedHorizontalHalfExtents(@Nonnull PhysicsBodySnapshot snapshot,
+        double halfX,
+        double halfY,
+        double halfZ) {
+        double x = snapshot.rotationX();
+        double y = snapshot.rotationY();
+        double z = snapshot.rotationZ();
+        double w = snapshot.rotationW();
+        double lengthSquared = x * x + y * y + z * z + w * w;
+        if (!Double.isFinite(lengthSquared) || lengthSquared <= 0.0) {
+            return new Vector2d(halfX, halfZ);
+        }
+
+        double scale = 2.0 / lengthSquared;
+        double xs = x * scale;
+        double ys = y * scale;
+        double zs = z * scale;
+        double wx = w * xs;
+        double wy = w * ys;
+        double wz = w * zs;
+        double xx = x * xs;
+        double xy = x * ys;
+        double xz = x * zs;
+        double yy = y * ys;
+        double yz = y * zs;
+        double zz = z * zs;
+        double m00 = 1.0 - (yy + zz);
+        double m01 = xy - wz;
+        double m02 = xz + wy;
+        double m20 = xz - wy;
+        double m21 = yz + wx;
+        double m22 = 1.0 - (xx + yy);
+        return new Vector2d(Math.abs(m00) * halfX + Math.abs(m01) * halfY + Math.abs(m02) * halfZ,
+            Math.abs(m20) * halfX + Math.abs(m21) * halfY + Math.abs(m22) * halfZ);
+    }
+
+    private static double finitePositive(float value) {
+        return Float.isFinite(value) && value > 0.0f ? value : 0.0;
+    }
+
+    private static int chunkCoordinate(double coordinate) {
+        return MathUtil.floor(coordinate) >> ChunkUtil.BITS;
+    }
+
+    private static long chunkIndex(double x, double z) {
         int chunkX = MathUtil.floor(x) >> ChunkUtil.BITS;
         int chunkZ = MathUtil.floor(z) >> ChunkUtil.BITS;
         return ChunkUtil.indexChunk(chunkX, chunkZ);

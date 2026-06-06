@@ -1,5 +1,6 @@
 package dev.hytalemodding.impulse.core.internal.resources;
 
+import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;
@@ -12,10 +13,13 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import dev.hytalemodding.impulse.api.BackendId;
 import dev.hytalemodding.impulse.api.Impulse;
+import dev.hytalemodding.impulse.api.PhysicsAxis;
 import dev.hytalemodding.impulse.api.PhysicsBody;
+import dev.hytalemodding.impulse.api.PhysicsBodySnapshot;
 import dev.hytalemodding.impulse.api.PhysicsBodyType;
 import dev.hytalemodding.impulse.api.PhysicsJoint;
 import dev.hytalemodding.impulse.api.PhysicsSpace;
+import dev.hytalemodding.impulse.api.ShapeType;
 import dev.hytalemodding.impulse.api.SpaceId;
 import dev.hytalemodding.impulse.api.testsupport.FakePhysicsBackend;
 import dev.hytalemodding.impulse.api.testsupport.FakePhysicsBackend.InMemoryPhysicsSpace;
@@ -180,9 +184,22 @@ class PhysicsWorldResourceStateTest {
         angular.zero();
 
         assertEquals(42L, state.getTargetChunkIndex());
+        assertArrayEquals(new long[] {42L}, state.getTargetChunkIndices());
         assertEquals(PhysicsBodyType.KINEMATIC, state.getOriginalBodyType());
         assertEquals(new Vector3f(1.0f, 2.0f, 3.0f), state.getLinearVelocity());
         assertEquals(new Vector3f(4.0f, 5.0f, 6.0f), state.getAngularVelocity());
+    }
+
+    @Test
+    void chunkBoundaryPauseStateCopiesTargetChunkFootprint() {
+        ChunkBoundaryPauseState state = new ChunkBoundaryPauseState();
+        long[] targetChunks = {10L, 11L};
+
+        state.set(10L, targetChunks, physicsSnapshot(PhysicsBodyType.DYNAMIC));
+        targetChunks[0] = 99L;
+
+        assertEquals(10L, state.getTargetChunkIndex());
+        assertArrayEquals(new long[] {10L, 11L}, state.getTargetChunkIndices());
     }
 
     @Test
@@ -1373,6 +1390,23 @@ class PhysicsWorldResourceStateTest {
             executor.shutdownNow();
         }
         assertTrue(executor.awaitTermination(5, TimeUnit.SECONDS));
+    }
+
+    @Nonnull
+    private static PhysicsBodySnapshot physicsSnapshot(@Nonnull PhysicsBodyType bodyType) {
+        return new PhysicsBodySnapshot(new Vector3f(),
+            new Quaternionf(),
+            new Vector3f(),
+            new Vector3f(),
+            bodyType,
+            false,
+            false,
+            0.0f,
+            ShapeType.BOX,
+            new Vector3f(0.5f),
+            0.0f,
+            0.0f,
+            PhysicsAxis.Y);
     }
 
     private static void assertForcedCcdRestoreDoesNotAffectReusedBodyId(

@@ -1,9 +1,11 @@
 package dev.hytalemodding.impulse.core.internal.modules.worldcollision.systems;
 
+import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import com.hypixel.hytale.math.util.ChunkUtil;
 import dev.hytalemodding.impulse.api.PhysicsAxis;
 import dev.hytalemodding.impulse.api.PhysicsBody;
 import dev.hytalemodding.impulse.api.PhysicsBodySnapshot;
@@ -51,6 +53,40 @@ class PhysicsChunkBoundarySystemTest {
     }
 
     @Test
+    void chunkFootprintUsesBoxExtentsWhenCenterRemainsInLoadedChunk() {
+        PhysicsBodySnapshot snapshot = snapshot(new CountingBody(),
+            new Vector3f(31.75f, 0.0f, 8.0f),
+            new Quaternionf(),
+            new Vector3f(),
+            new Vector3f(),
+            PhysicsBodyType.DYNAMIC,
+            new Vector3f(0.5f, 0.5f, 0.5f));
+
+        assertArrayEquals(new long[] {
+                ChunkUtil.indexChunk(0, 0),
+                ChunkUtil.indexChunk(1, 0)
+            },
+            PhysicsChunkBoundarySystem.chunkIndices(snapshot));
+    }
+
+    @Test
+    void chunkFootprintUsesRotatedBoxExtents() {
+        PhysicsBodySnapshot snapshot = snapshot(new CountingBody(),
+            new Vector3f(30.25f, 0.0f, 8.0f),
+            new Quaternionf().rotateY((float) (Math.PI / 2.0)),
+            new Vector3f(),
+            new Vector3f(),
+            PhysicsBodyType.DYNAMIC,
+            new Vector3f(0.25f, 0.5f, 2.0f));
+
+        assertArrayEquals(new long[] {
+                ChunkUtil.indexChunk(0, 0),
+                ChunkUtil.indexChunk(1, 0)
+            },
+            PhysicsChunkBoundarySystem.chunkIndices(snapshot));
+    }
+
+    @Test
     void pauseBodyUsesSnapshotVelocityAndTypeWithoutReadingBody() {
         LegacyLiveHandleTestResource resource = new LegacyLiveHandleTestResource();
         RigidBodyKey bodyId = RigidBodyKey.random();
@@ -87,6 +123,23 @@ class PhysicsChunkBoundarySystemTest {
         @Nonnull Vector3f linearVelocity,
         @Nonnull Vector3f angularVelocity,
         @Nonnull PhysicsBodyType bodyType) {
+        return snapshot(body,
+            position,
+            rotation,
+            linearVelocity,
+            angularVelocity,
+            bodyType,
+            new Vector3f(0.5f));
+    }
+
+    @Nonnull
+    private static PhysicsBodySnapshot snapshot(@Nonnull PhysicsBody body,
+        @Nonnull Vector3f position,
+        @Nonnull Quaternionf rotation,
+        @Nonnull Vector3f linearVelocity,
+        @Nonnull Vector3f angularVelocity,
+        @Nonnull PhysicsBodyType bodyType,
+        @Nonnull Vector3f boxHalfExtents) {
         return new PhysicsBodySnapshot(position,
             rotation,
             linearVelocity,
@@ -96,7 +149,7 @@ class PhysicsChunkBoundarySystemTest {
             false,
             0.0f,
             ShapeType.BOX,
-            new Vector3f(0.5f),
+            boxHalfExtents,
             -1.0f,
             -1.0f,
             PhysicsAxis.Y);
