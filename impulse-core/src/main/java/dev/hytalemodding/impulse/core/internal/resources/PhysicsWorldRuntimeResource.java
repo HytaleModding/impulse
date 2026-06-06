@@ -1293,6 +1293,13 @@ public class PhysicsWorldRuntimeResource extends PhysicsWorldResource {
         chunkRuntime.pauseChunkBoundaryBody(bodyKey, targetChunkIndex, snapshot);
     }
 
+    public void pauseChunkBoundaryBody(@Nonnull RigidBodyKey bodyKey,
+        long targetChunkIndex,
+        @Nonnull long[] targetChunkIndices,
+        @Nonnull PhysicsBodySnapshot snapshot) {
+        chunkRuntime.pauseChunkBoundaryBody(bodyKey, targetChunkIndex, targetChunkIndices, snapshot);
+    }
+
     @Nullable
     public ChunkBoundaryPauseState getChunkBoundaryPauseState(@Nonnull RigidBodyKey bodyKey) {
         return chunkRuntime.getChunkBoundaryPauseState(bodyKey);

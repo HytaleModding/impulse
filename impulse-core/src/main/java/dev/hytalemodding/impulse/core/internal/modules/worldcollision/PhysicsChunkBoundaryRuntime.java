@@ -60,6 +60,15 @@ public final class PhysicsChunkBoundaryRuntime {
 
     public void pauseChunkBoundaryBody(@Nonnull RigidBodyKey bodyKey,
         long targetChunkIndex,
+        @Nonnull long[] targetChunkIndices,
+        @Nonnull PhysicsBodySnapshot snapshot) {
+        ChunkBoundaryPauseState state = chunkBoundaryPauseStates.computeIfAbsent(bodyKey,
+            ignored -> new ChunkBoundaryPauseState());
+        state.set(targetChunkIndex, targetChunkIndices, snapshot);
+    }
+
+    public void pauseChunkBoundaryBody(@Nonnull RigidBodyKey bodyKey,
+        long targetChunkIndex,
         @Nonnull PhysicsBodySnapshot snapshot) {
         ChunkBoundaryPauseState state = chunkBoundaryPauseStates.computeIfAbsent(bodyKey,
             ignored -> new ChunkBoundaryPauseState());
@@ -124,6 +133,8 @@ public final class PhysicsChunkBoundaryRuntime {
         @Getter
         private long targetChunkIndex;
         @Nonnull
+        private long[] targetChunkIndices = new long[0];
+        @Nonnull
         private PhysicsBodyType originalBodyType = PhysicsBodyType.DYNAMIC;
         @Nonnull
         private final Vector3f linearVelocity = new Vector3f();
@@ -135,13 +146,25 @@ public final class PhysicsChunkBoundaryRuntime {
             @Nonnull Vector3f linearVelocity,
             @Nonnull Vector3f angularVelocity) {
             this.targetChunkIndex = targetChunkIndex;
+            this.targetChunkIndices = new long[] {targetChunkIndex};
             this.originalBodyType = originalBodyType;
             this.linearVelocity.set(linearVelocity);
             this.angularVelocity.set(angularVelocity);
         }
 
+        public void set(long targetChunkIndex,
+            @Nonnull long[] targetChunkIndices,
+            @Nonnull PhysicsBodySnapshot snapshot) {
+            this.targetChunkIndex = targetChunkIndex;
+            this.targetChunkIndices = copyTargetChunkIndices(targetChunkIndex, targetChunkIndices);
+            this.originalBodyType = snapshot.bodyType();
+            snapshot.copyLinearVelocityTo(this.linearVelocity);
+            snapshot.copyAngularVelocityTo(this.angularVelocity);
+        }
+
         public void set(long targetChunkIndex, @Nonnull PhysicsBodySnapshot snapshot) {
             this.targetChunkIndex = targetChunkIndex;
+            this.targetChunkIndices = new long[] {targetChunkIndex};
             this.originalBodyType = snapshot.bodyType();
             snapshot.copyLinearVelocityTo(this.linearVelocity);
             snapshot.copyAngularVelocityTo(this.angularVelocity);
@@ -160,6 +183,34 @@ public final class PhysicsChunkBoundaryRuntime {
         @Nonnull
         public Vector3f getAngularVelocity() {
             return angularVelocity;
+        }
+
+        @Nonnull
+        public long[] getTargetChunkIndices() {
+            return targetChunkIndices.clone();
+        }
+
+        @Nonnull
+        private static long[] copyTargetChunkIndices(long targetChunkIndex,
+            @Nonnull long[] targetChunkIndices) {
+            if (targetChunkIndices.length == 0) {
+                return new long[] {targetChunkIndex};
+            }
+            long[] copy = targetChunkIndices.clone();
+            if (copy[0] != targetChunkIndex) {
+                int targetIndex = -1;
+                for (int index = 1; index < copy.length; index++) {
+                    if (copy[index] == targetChunkIndex) {
+                        targetIndex = index;
+                        break;
+                    }
+                }
+                if (targetIndex >= 0) {
+                    copy[targetIndex] = copy[0];
+                }
+                copy[0] = targetChunkIndex;
+            }
+            return copy;
         }
     }
 
