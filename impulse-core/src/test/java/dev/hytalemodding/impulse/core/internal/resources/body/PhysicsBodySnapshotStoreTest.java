@@ -232,7 +232,6 @@ class PhysicsBodySnapshotStoreTest {
     private static final class RecordingSnapshotSpace implements PhysicsSpace {
 
         private final PhysicsSpace delegate;
-        private boolean selectedBodiesWasCollection;
         private int selectedBodyCount;
 
         private RecordingSnapshotSpace(@Nonnull PhysicsSpace delegate) {
@@ -292,7 +291,6 @@ class PhysicsBodySnapshotStoreTest {
         public void snapshotBodies(@Nonnull Iterable<? extends PhysicsBody> selectedBodies,
             @Nonnull Function<PhysicsBody, PhysicsBodySnapshot> previousSnapshots,
             @Nonnull BiConsumer<PhysicsBody, PhysicsBodySnapshot> consumer) {
-            selectedBodiesWasCollection = selectedBodies instanceof Collection<?>;
             for (PhysicsBody body : selectedBodies) {
                 selectedBodyCount++;
                 consumer.accept(body, PhysicsBodySnapshot.from(body, previousSnapshots.apply(body)));

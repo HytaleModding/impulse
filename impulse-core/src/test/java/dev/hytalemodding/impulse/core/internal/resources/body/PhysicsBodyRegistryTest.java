@@ -13,6 +13,7 @@ import dev.hytalemodding.impulse.core.plugin.body.RigidBodyKey;
 import java.util.ArrayList;
 import java.util.List;
 import javax.annotation.Nonnull;
+import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
 
 class PhysicsBodyRegistryTest {
@@ -91,6 +92,7 @@ class PhysicsBodyRegistryTest {
 
         assertSame(first, second);
         assertSame(first, fromCollection);
+        Assertions.assertNotNull(first);
         assertEquals(bodyId, first.bodyKey());
     }
 
