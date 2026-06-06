@@ -9,6 +9,7 @@ import dev.hytalemodding.impulse.core.internal.modules.worldcollision.systems.Ph
 import dev.hytalemodding.impulse.core.internal.modules.worldcollision.systems.PhysicsCollisionLodSystem;
 import dev.hytalemodding.impulse.core.internal.modules.worldcollision.systems.PhysicsWorldCollisionStreamingSystem;
 import dev.hytalemodding.impulse.core.internal.systems.body.RigidBodyReconciliationSystem;
+import dev.hytalemodding.impulse.core.internal.systems.debug.PhysicsDebugSystem;
 import dev.hytalemodding.impulse.core.internal.systems.persistence.PersistentPhysicsBodyHydrationSystem;
 import dev.hytalemodding.impulse.core.internal.systems.persistence.PersistentPhysicsJointHydrationSystem;
 import dev.hytalemodding.impulse.core.internal.systems.persistence.PersistentPhysicsSpaceBootstrapSystem;
@@ -48,6 +49,8 @@ class ImpulsePluginSystemRegistrationOrderTest {
                 PersistentPhysicsWorldSyncSystem.class,
                 List.of(PersistentPhysicsJointHydrationSystem.class,
                     PhysicsSnapshotPublicationSystem.class),
+                PhysicsDebugSystem.class,
+                List.of(PhysicsSyncSystem.class),
                 PhysicsKinematicControlSystem.class,
                 List.of(PhysicsSyncSystem.class));
 

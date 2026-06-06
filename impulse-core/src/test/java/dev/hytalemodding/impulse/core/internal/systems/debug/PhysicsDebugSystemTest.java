@@ -5,9 +5,15 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import dev.hytalemodding.impulse.api.BackendId;
+import dev.hytalemodding.impulse.api.PhysicsAxis;
 import dev.hytalemodding.impulse.api.PhysicsBody;
+import dev.hytalemodding.impulse.api.PhysicsBodySnapshot;
+import dev.hytalemodding.impulse.api.PhysicsBodyType;
 import dev.hytalemodding.impulse.api.PhysicsContact;
 import dev.hytalemodding.impulse.api.PhysicsSpace;
+import dev.hytalemodding.impulse.api.ShapeType;
+import dev.hytalemodding.impulse.core.plugin.body.RigidBodyKey;
+import dev.hytalemodding.impulse.core.plugin.components.PhysicsBodyAttachmentComponent;
 import dev.hytalemodding.impulse.api.SpaceId;
 import dev.hytalemodding.impulse.api.testsupport.FakePhysicsBackend;
 import dev.hytalemodding.impulse.api.testsupport.FakePhysicsBackend.InMemoryPhysicsSpace;
@@ -18,11 +24,160 @@ import java.util.concurrent.CompletableFuture;
 import java.util.List;
 import java.util.UUID;
 import java.util.concurrent.atomic.AtomicInteger;
+import org.joml.Quaterniond;
+import org.joml.Quaternionf;
 import org.joml.Vector3d;
 import org.joml.Vector3f;
 import org.junit.jupiter.api.Test;
 
 class PhysicsDebugSystemTest {
+
+    @Test
+    void debugCenterInvertsSyncedAttachmentLocalPositionOffset() {
+        PhysicsBodySnapshot snapshot = PhysicsBodySnapshot.of(10.0f,
+            20.0f,
+            30.0f,
+            0.0f,
+            0.0f,
+            0.0f,
+            1.0f,
+            0.0f,
+            0.0f,
+            0.0f,
+            0.0f,
+            0.0f,
+            0.0f,
+            PhysicsBodyType.DYNAMIC,
+            false,
+            false,
+            0.5f,
+            ShapeType.BOX,
+            true,
+            1.5f,
+            0.5f,
+            0.5f,
+            0.0f,
+            0.0f,
+            PhysicsAxis.Y);
+        Vector3f localOffset = new Vector3f(-1.0f, 0.0f, 0.0f);
+        Vector3d syncedVisualPosition = new Vector3d(snapshot.positionX(),
+            snapshot.positionY() - snapshot.centerOfMassOffsetY(),
+            snapshot.positionZ()).add(localOffset.x, localOffset.y, localOffset.z);
+        PhysicsBodyAttachmentComponent attachment = PhysicsBodyAttachmentComponent.externalEntity(RigidBodyKey.random(),
+            null,
+            localOffset,
+            new Quaternionf());
+
+        Vector3d debugCenter = PhysicsDebugRenderer.centerFromSyncedTransform(snapshot,
+            syncedVisualPosition,
+            attachment,
+            new Quaterniond());
+
+        assertEquals(snapshot.positionX(), debugCenter.x, 0.00001);
+        assertEquals(snapshot.positionY(), debugCenter.y, 0.00001);
+        assertEquals(snapshot.positionZ(), debugCenter.z, 0.00001);
+    }
+
+    @Test
+    void debugPoseUsesSyncedTransformRotationWhenSnapshotRotationIsStale() {
+        PhysicsBodySnapshot snapshot = PhysicsBodySnapshot.of(10.0f,
+            20.0f,
+            30.0f,
+            0.0f,
+            0.0f,
+            0.0f,
+            1.0f,
+            0.0f,
+            0.0f,
+            0.0f,
+            0.0f,
+            0.0f,
+            0.0f,
+            PhysicsBodyType.DYNAMIC,
+            false,
+            false,
+            0.5f,
+            ShapeType.BOX,
+            true,
+            1.5f,
+            0.5f,
+            0.5f,
+            0.0f,
+            0.0f,
+            PhysicsAxis.Y);
+        Vector3f localOffset = new Vector3f(1.0f, 0.0f, 0.0f);
+        Quaterniond syncedBodyRotation = new Quaterniond().rotateZ(Math.PI / 2.0);
+        Vector3d syncedVisualPosition = new Vector3d(snapshot.positionX(),
+            snapshot.positionY() - snapshot.centerOfMassOffsetY(),
+            snapshot.positionZ());
+        syncedVisualPosition.add(syncedBodyRotation.transform(new Vector3d(localOffset.x,
+            localOffset.y,
+            localOffset.z)));
+        PhysicsBodyAttachmentComponent attachment = PhysicsBodyAttachmentComponent.externalEntity(RigidBodyKey.random(),
+            null,
+            localOffset,
+            new Quaternionf());
+
+        PhysicsDebugRenderer.BodyDebugPose debugPose = PhysicsDebugRenderer.bodyPoseFromSyncedTransform(snapshot,
+            syncedVisualPosition,
+            syncedBodyRotation,
+            attachment);
+
+        assertEquals(snapshot.positionX(), debugPose.center().x, 0.00001);
+        assertEquals(snapshot.positionY(), debugPose.center().y, 0.00001);
+        assertEquals(snapshot.positionZ(), debugPose.center().z, 0.00001);
+        assertEquals(syncedBodyRotation.x, debugPose.rotation().x, 0.00001);
+        assertEquals(syncedBodyRotation.y, debugPose.rotation().y, 0.00001);
+        assertEquals(syncedBodyRotation.z, debugPose.rotation().z, 0.00001);
+        assertEquals(syncedBodyRotation.w, debugPose.rotation().w, 0.00001);
+    }
+
+    @Test
+    void debugCenterUsesAttachmentVisualOriginOffset() {
+        PhysicsBodySnapshot snapshot = PhysicsBodySnapshot.of(10.0f,
+            20.0f,
+            30.0f,
+            0.0f,
+            0.0f,
+            0.0f,
+            1.0f,
+            0.0f,
+            0.0f,
+            0.0f,
+            0.0f,
+            0.0f,
+            0.0f,
+            PhysicsBodyType.DYNAMIC,
+            false,
+            false,
+            1.0f,
+            ShapeType.BOX,
+            true,
+            0.5f,
+            1.0f,
+            0.5f,
+            0.0f,
+            0.0f,
+            PhysicsAxis.Y);
+        Vector3f localOffset = new Vector3f(0.0f, -0.5f, 0.0f);
+        PhysicsBodyAttachmentComponent attachment = PhysicsBodyAttachmentComponent.externalEntity(RigidBodyKey.random(),
+            null,
+            localOffset,
+            new Quaternionf(),
+            0.5f);
+        Vector3d syncedVisualPosition = new Vector3d(snapshot.positionX(),
+            snapshot.positionY() + localOffset.y - 0.5f,
+            snapshot.positionZ());
+
+        Vector3d debugCenter = PhysicsDebugRenderer.centerFromSyncedTransform(snapshot,
+            syncedVisualPosition,
+            attachment,
+            new Quaterniond());
+
+        assertEquals(snapshot.positionX(), debugCenter.x, 0.00001);
+        assertEquals(snapshot.positionY(), debugCenter.y, 0.00001);
+        assertEquals(snapshot.positionZ(), debugCenter.z, 0.00001);
+    }
 
     @Test
     void debugQueryCachePollsCompletedResultsWithoutBlocking() {

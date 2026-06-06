@@ -12,11 +12,13 @@ import com.hypixel.hytale.component.dependency.SystemGroupDependency;
 import com.hypixel.hytale.component.query.Query;
 import com.hypixel.hytale.component.system.tick.EntityTickingSystem;
 import com.hypixel.hytale.server.core.modules.entity.component.TransformComponent;
+import com.hypixel.hytale.server.core.modules.entity.system.TransformSystems;
 import com.hypixel.hytale.server.core.modules.entity.system.UpdateLocationSystems;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import dev.hytalemodding.impulse.api.PhysicsBodySnapshot;
 import dev.hytalemodding.impulse.api.SpaceId;
 import dev.hytalemodding.impulse.core.ImpulsePlugin;
+import dev.hytalemodding.impulse.core.internal.math.PhysicsVisualPoseMath;
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsWorldRuntimeResource;
 import dev.hytalemodding.impulse.core.internal.resources.body.PhysicsBodyRuntimeState;
 import dev.hytalemodding.impulse.core.internal.resources.profiling.PhysicsRuntimeProfilingResource;
@@ -55,6 +57,7 @@ public class PhysicsSyncSystem extends EntityTickingSystem<EntityStore> {
     private static final Query<EntityStore> QUERY = Query.and(ATTACHMENT_TYPE, TRANSFORM_TYPE);
     private final Set<Dependency<EntityStore>> dependencies = Set.of(
         new SystemGroupDependency<>(Order.AFTER, ImpulsePlugin.get().getPersistenceRestoreGroup()),
+        new SystemDependency<>(Order.BEFORE, TransformSystems.EntityTrackerUpdate.class),
         new SystemDependency<>(Order.BEFORE, UpdateLocationSystems.TickingSystem.class)
     );
 
@@ -266,14 +269,14 @@ public class PhysicsSyncSystem extends EntityTickingSystem<EntityStore> {
     private void applyVisualPose(@Nonnull PhysicsBodySnapshot snapshot,
         @Nonnull PhysicsBodyAttachmentComponent attachment,
         @Nonnull Scratch scratch) {
-        float offsetY = snapshot.centerOfMassOffsetY();
-        scratch.visualPosition.set(scratch.position.x,
-            scratch.position.y - offsetY,
-            scratch.position.z);
+        PhysicsVisualPoseMath.visualPositionFromBodyPose(scratch.position,
+            scratch.rotation,
+            attachment.resolveVisualOriginOffsetY(snapshot.centerOfMassOffsetY()),
+            attachment.getLocalPositionOffset(),
+            scratch.visualPosition,
+            scratch.worldOffset);
         scratch.visualRotation.set(scratch.rotation);
 
-        scratch.rotation.transform(attachment.getLocalPositionOffset(), scratch.worldOffset);
-        scratch.visualPosition.add(scratch.worldOffset);
         scratch.visualRotation.mul(attachment.getLocalRotationOffset());
     }
 

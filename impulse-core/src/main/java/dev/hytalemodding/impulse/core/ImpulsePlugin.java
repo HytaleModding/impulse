@@ -94,6 +94,7 @@ public final class ImpulsePlugin extends JavaPlugin {
             ignored -> new PhysicsWorldCollisionStreamingSystem()),
         registration(PhysicsCollisionLodSystem.class, ignored -> new PhysicsCollisionLodSystem()),
         registration(PhysicsSyncSystem.class, ignored -> new PhysicsSyncSystem()),
+        registration(PhysicsDebugSystem.class, ignored -> new PhysicsDebugSystem()),
         registration(PhysicsDetachedVisualMaterializationSystem.class,
             ignored -> new PhysicsDetachedVisualMaterializationSystem()),
         registration(PhysicsChunkBoundarySystem.class, ignored -> new PhysicsChunkBoundarySystem()),
@@ -371,7 +372,6 @@ public final class ImpulsePlugin extends JavaPlugin {
         ComponentRegistryProxy<ChunkStore> chunkRegistry = getChunkStoreRegistry();
         physicsStepSystem = new PhysicsStepSystem();
         chunkRegistry.registerSystem(physicsStepSystem);
-        chunkRegistry.registerSystem(new PhysicsDebugSystem());
 
         ComponentRegistryProxy<EntityStore> entityRegistry = getEntityStoreRegistry();
         persistenceRestoreGroup = entityRegistry.registerSystemGroup();

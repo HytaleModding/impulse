@@ -13,6 +13,7 @@ import com.hypixel.hytale.component.system.tick.TickingSystem;
 import com.hypixel.hytale.math.util.ChunkUtil;
 import com.hypixel.hytale.server.core.entity.entities.BlockEntity;
 import com.hypixel.hytale.server.core.modules.entity.DespawnComponent;
+import com.hypixel.hytale.server.core.modules.entity.component.TransformComponent;
 import com.hypixel.hytale.server.core.modules.physics.component.Velocity;
 import com.hypixel.hytale.server.core.modules.time.TimeResource;
 import com.hypixel.hytale.server.core.universe.world.chunk.WorldChunk;
@@ -21,6 +22,7 @@ import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import dev.hytalemodding.impulse.api.PhysicsBodySnapshot;
 import dev.hytalemodding.impulse.api.SpaceId;
 import dev.hytalemodding.impulse.core.internal.components.GeneratedVisualProxyComponent;
+import dev.hytalemodding.impulse.core.internal.math.PhysicsVisualPoseMath;
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsSpaceBinding;
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsWorldRuntimeResource;
 import dev.hytalemodding.impulse.core.internal.resources.profiling.PhysicsRuntimeProfilingResource;
@@ -48,7 +50,9 @@ import java.util.function.ToIntFunction;
 import java.util.WeakHashMap;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
+import org.joml.Quaternionf;
 import org.joml.Vector3d;
+import org.joml.Vector3f;
 
 /**
  * Materializes disposable Hytale visual followers for detached physics bodies near players.
@@ -660,12 +664,26 @@ public class PhysicsDetachedVisualMaterializationSystem extends TickingSystem<En
         @Nonnull PhysicsBodyRegistrationView registration,
         @Nonnull PhysicsSpaceSettings settings) {
         TimeResource time = store.getResource(TimeResource.getResourceType());
+        Quaternionf rotation = new Quaternionf(snapshot.rotationX(),
+            snapshot.rotationY(),
+            snapshot.rotationZ(),
+            snapshot.rotationW());
+        Vector3f visualPosition = PhysicsVisualPoseMath.visualPositionFromBodyPose(new Vector3f(snapshot.positionX(),
+                snapshot.positionY(),
+                snapshot.positionZ()),
+            rotation,
+            snapshot.centerOfMassOffsetY(),
+            new Vector3f(),
+            new Vector3f());
         Holder<EntityStore> holder = BlockEntity.assembleDefaultBlockEntity(
             time,
             settings.getVisualMaterializationSettings().getDetachedVisualBlockType(),
-            new Vector3d(snapshot.positionX(),
-                snapshot.positionY() - snapshot.centerOfMassOffsetY(),
-                snapshot.positionZ()));
+            new Vector3d(visualPosition.x, visualPosition.y, visualPosition.z));
+        TransformComponent transform = holder.getComponent(TransformComponent.getComponentType());
+        if (transform != null) {
+            Vector3f euler = rotation.getEulerAnglesYXZ(new Vector3f());
+            transform.getRotation().set(euler.x, euler.y, euler.z);
+        }
         holder.removeComponent(DESPAWN_TYPE);
         holder.removeComponent(VELOCITY_TYPE);
         holder.addComponent(store.getRegistry().getNonSerializedComponentType(), NonSerialized.get());
