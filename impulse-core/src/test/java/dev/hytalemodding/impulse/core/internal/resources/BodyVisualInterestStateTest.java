@@ -2,7 +2,6 @@ package dev.hytalemodding.impulse.core.internal.resources;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
-import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import dev.hytalemodding.impulse.api.PhysicsBodyType;
@@ -71,12 +70,18 @@ class BodyVisualInterestStateTest {
 
         assertTrue(state.startPendingRaycast(pending));
         assertFalse(state.startPendingRaycast(CompletableFuture.completedFuture(Optional.empty())));
-        assertNull(state.pollCompletedRaycast());
+        assertFalse(state.hasCompletedRaycast());
+        assertEquals(Optional.empty(), state.pollCompletedRaycast());
 
         pending.complete(Optional.of(hit));
 
+        assertTrue(state.hasCompletedRaycast());
         assertEquals(Optional.of(hit), state.pollCompletedRaycast());
-        assertNull(state.pollCompletedRaycast());
+        assertFalse(state.hasCompletedRaycast());
+        assertEquals(Optional.empty(), state.pollCompletedRaycast());
+
         assertTrue(state.startPendingRaycast(CompletableFuture.completedFuture(Optional.empty())));
+        assertTrue(state.hasCompletedRaycast());
+        assertEquals(Optional.empty(), state.pollCompletedRaycast());
     }
 }

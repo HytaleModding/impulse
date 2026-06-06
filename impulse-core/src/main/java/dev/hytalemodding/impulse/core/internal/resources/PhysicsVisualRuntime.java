@@ -326,6 +326,11 @@ public final class PhysicsVisualRuntime {
             return current != null && !current.isDone();
         }
 
+        public synchronized boolean hasCompletedRaycast() {
+            CompletableFuture<Optional<RaycastHitView>> current = pendingRaycast;
+            return current != null && current.isDone();
+        }
+
         public synchronized boolean startPendingRaycast(
             @Nonnull CompletionStage<Optional<RaycastHitView>> completion) {
             if (pendingRaycast != null) {
@@ -339,11 +344,11 @@ public final class PhysicsVisualRuntime {
             pendingRaycast = null;
         }
 
-        @Nullable
+        @Nonnull
         public synchronized Optional<RaycastHitView> pollCompletedRaycast() {
             CompletableFuture<Optional<RaycastHitView>> current = pendingRaycast;
             if (current == null || !current.isDone()) {
-                return null;
+                return Optional.empty();
             }
             pendingRaycast = null;
             try {
