@@ -25,7 +25,7 @@ import org.joml.Vector3f;
  *
  * <p>The entity is a gameplay or visual representation. It does not own backend
  * body destruction; removing the entity only removes this attachment unless the
- * lifecycle says the entity is an Impulse-generated visual proxy.</p>
+ * lifecycle marks it as a disposable Impulse visual.</p>
  */
 public class PhysicsBodyAttachmentComponent implements Component<EntityStore> {
 
@@ -200,6 +200,27 @@ public class PhysicsBodyAttachmentComponent implements Component<EntityStore> {
             visualOriginOffsetY);
     }
 
+    /**
+     * Creates a disposable Impulse-owned visual attachment.
+     *
+     * <p>Unlike {@link #externalEntity(RigidBodyKey, SpaceId)}, this entity should be removed when
+     * the attached body is no longer available.</p>
+     */
+    @Nonnull
+    public static PhysicsBodyAttachmentComponent impulseOwnedVisual(@Nonnull RigidBodyKey bodyKey,
+        @Nullable SpaceId spaceId,
+        @Nonnull Vector3f localPositionOffset,
+        @Nonnull Quaternionf localRotationOffset,
+        float visualOriginOffsetY) {
+        return new PhysicsBodyAttachmentComponent(bodyKey,
+            spaceId,
+            TransformAuthority.BODY,
+            AttachmentLifecycle.IMPULSE_OWNED_VISUAL,
+            localPositionOffset,
+            localRotationOffset,
+            visualOriginOffsetY);
+    }
+
     @Nonnull
     public RigidBodyKey getBodyKey() {
         return bodyKey;
@@ -229,6 +250,11 @@ public class PhysicsBodyAttachmentComponent implements Component<EntityStore> {
 
     public float resolveVisualOriginOffsetY(float bodyVisualOriginOffsetY) {
         return visualOriginOffsetY >= 0.0f ? visualOriginOffsetY : bodyVisualOriginOffsetY;
+    }
+
+    public boolean shouldRemoveEntityWhenBodyMissing() {
+        return lifecycle == AttachmentLifecycle.IMPULSE_OWNED_VISUAL
+            || lifecycle == AttachmentLifecycle.GENERATED_PROXY;
     }
 
     public static ComponentType<EntityStore, PhysicsBodyAttachmentComponent> getComponentType() {
@@ -281,6 +307,7 @@ public class PhysicsBodyAttachmentComponent implements Component<EntityStore> {
 
     public enum AttachmentLifecycle {
         EXTERNAL_ENTITY,
+        IMPULSE_OWNED_VISUAL,
         GENERATED_PROXY
     }
 }
