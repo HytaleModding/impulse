@@ -133,81 +133,120 @@ public final class PhysicsSimulationExecutor implements PhysicsCommandDispatcher
         switch (operations.opcode(index)) {
             case PhysicsCommandOperations.SPAWN_RIGID_BODY -> dispatchSpawn(index, operations);
             case PhysicsCommandOperations.SPAWN_RIGID_BODY_BATCH ->
-                dispatchSpawnBatch(operations.objectAt(index, 0, RigidBodySpawnBatch.class));
+                dispatchSpawnBatch(operations.requiredObjectAt(index,
+                    PhysicsCommandOperations.SPAWN_BATCH_OBJECT_SLOT,
+                    RigidBodySpawnBatch.class));
             case PhysicsCommandOperations.SPAWN_RIGID_BODY_TEMPLATE_BATCH ->
-                dispatchSpawnTemplateBatch(operations.objectAt(index, 0, RigidBodySpawnTemplateBatch.class));
+                dispatchSpawnTemplateBatch(operations.requiredObjectAt(index,
+                    PhysicsCommandOperations.SPAWN_TEMPLATE_BATCH_OBJECT_SLOT,
+                    RigidBodySpawnTemplateBatch.class));
             case PhysicsCommandOperations.DESTROY_RIGID_BODY -> destroyRigidBody(
-                operations.objectAt(index, 0, RigidBodyKey.class));
+                operations.requiredObjectAt(index,
+                    PhysicsCommandOperations.BODY_COMMAND_BODY_KEY_OBJECT_SLOT,
+                    RigidBodyKey.class));
             case PhysicsCommandOperations.SET_SPACE_GRAVITY -> setSpaceGravity(
-                operations.objectAt(index, 0, SpaceId.class),
-                operations.floatAt(index, 0),
-                operations.floatAt(index, 1),
-                operations.floatAt(index, 2));
+                operations.requiredObjectAt(index,
+                    PhysicsCommandOperations.SET_SPACE_GRAVITY_SPACE_ID_OBJECT_SLOT,
+                    SpaceId.class),
+                operations.floatAt(index, PhysicsCommandOperations.SET_SPACE_GRAVITY_X_FLOAT_SLOT),
+                operations.floatAt(index, PhysicsCommandOperations.SET_SPACE_GRAVITY_Y_FLOAT_SLOT),
+                operations.floatAt(index, PhysicsCommandOperations.SET_SPACE_GRAVITY_Z_FLOAT_SLOT));
             case PhysicsCommandOperations.SET_RIGID_BODY_TRANSFORM -> setRigidBodyTransform(
-                operations.objectAt(index, 0, RigidBodyKey.class),
-                operations.floatAt(index, 0),
-                operations.floatAt(index, 1),
-                operations.floatAt(index, 2),
-                operations.floatAt(index, 3),
-                operations.floatAt(index, 4),
-                operations.floatAt(index, 5),
-                operations.floatAt(index, 6),
+                operations.requiredObjectAt(index,
+                    PhysicsCommandOperations.BODY_COMMAND_BODY_KEY_OBJECT_SLOT,
+                    RigidBodyKey.class),
+                operations.floatAt(index, PhysicsCommandOperations.SET_TRANSFORM_POSITION_X_FLOAT_SLOT),
+                operations.floatAt(index, PhysicsCommandOperations.SET_TRANSFORM_POSITION_Y_FLOAT_SLOT),
+                operations.floatAt(index, PhysicsCommandOperations.SET_TRANSFORM_POSITION_Z_FLOAT_SLOT),
+                operations.floatAt(index, PhysicsCommandOperations.SET_TRANSFORM_ROTATION_X_FLOAT_SLOT),
+                operations.floatAt(index, PhysicsCommandOperations.SET_TRANSFORM_ROTATION_Y_FLOAT_SLOT),
+                operations.floatAt(index, PhysicsCommandOperations.SET_TRANSFORM_ROTATION_Z_FLOAT_SLOT),
+                operations.floatAt(index, PhysicsCommandOperations.SET_TRANSFORM_ROTATION_W_FLOAT_SLOT),
                 (operations.flags(index) & PhysicsCommandOperations.FLAG_ACTIVATE) != 0);
             case PhysicsCommandOperations.SET_RIGID_BODY_POSITION -> setRigidBodyPosition(
-                operations.objectAt(index, 0, RigidBodyKey.class),
-                operations.floatAt(index, 0),
-                operations.floatAt(index, 1),
-                operations.floatAt(index, 2),
+                operations.requiredObjectAt(index,
+                    PhysicsCommandOperations.BODY_COMMAND_BODY_KEY_OBJECT_SLOT,
+                    RigidBodyKey.class),
+                operations.floatAt(index, PhysicsCommandOperations.SET_POSITION_X_FLOAT_SLOT),
+                operations.floatAt(index, PhysicsCommandOperations.SET_POSITION_Y_FLOAT_SLOT),
+                operations.floatAt(index, PhysicsCommandOperations.SET_POSITION_Z_FLOAT_SLOT),
                 (operations.flags(index) & PhysicsCommandOperations.FLAG_ACTIVATE) != 0);
             case PhysicsCommandOperations.SET_RIGID_BODY_VELOCITY -> setRigidBodyVelocity(
-                operations.objectAt(index, 0, RigidBodyKey.class),
-                operations.floatAt(index, 0),
-                operations.floatAt(index, 1),
-                operations.floatAt(index, 2),
-                operations.floatAt(index, 3),
-                operations.floatAt(index, 4),
-                operations.floatAt(index, 5),
+                operations.requiredObjectAt(index,
+                    PhysicsCommandOperations.BODY_COMMAND_BODY_KEY_OBJECT_SLOT,
+                    RigidBodyKey.class),
+                operations.floatAt(index, PhysicsCommandOperations.SET_VELOCITY_LINEAR_X_FLOAT_SLOT),
+                operations.floatAt(index, PhysicsCommandOperations.SET_VELOCITY_LINEAR_Y_FLOAT_SLOT),
+                operations.floatAt(index, PhysicsCommandOperations.SET_VELOCITY_LINEAR_Z_FLOAT_SLOT),
+                operations.floatAt(index, PhysicsCommandOperations.SET_VELOCITY_ANGULAR_X_FLOAT_SLOT),
+                operations.floatAt(index, PhysicsCommandOperations.SET_VELOCITY_ANGULAR_Y_FLOAT_SLOT),
+                operations.floatAt(index, PhysicsCommandOperations.SET_VELOCITY_ANGULAR_Z_FLOAT_SLOT),
                 (operations.flags(index) & PhysicsCommandOperations.FLAG_ACTIVATE) != 0);
             case PhysicsCommandOperations.SET_RIGID_BODY_TYPE -> setRigidBodyType(
-                operations.objectAt(index, 0, RigidBodyKey.class),
-                operations.objectAt(index, 1, PhysicsBodyType.class),
+                operations.requiredObjectAt(index,
+                    PhysicsCommandOperations.SET_TYPE_BODY_KEY_OBJECT_SLOT,
+                    RigidBodyKey.class),
+                operations.requiredObjectAt(index,
+                    PhysicsCommandOperations.SET_TYPE_BODY_TYPE_OBJECT_SLOT,
+                    PhysicsBodyType.class),
                 (operations.flags(index) & PhysicsCommandOperations.FLAG_ACTIVATE) != 0);
             case PhysicsCommandOperations.ACTIVATE_RIGID_BODY -> activateRigidBody(
-                operations.objectAt(index, 0, RigidBodyKey.class));
+                operations.requiredObjectAt(index,
+                    PhysicsCommandOperations.BODY_COMMAND_BODY_KEY_OBJECT_SLOT,
+                    RigidBodyKey.class));
             case PhysicsCommandOperations.APPLY_RIGID_BODY_IMPULSE -> applyRigidBodyImpulse(
-                operations.objectAt(index, 0, RigidBodyKey.class),
-                operations.floatAt(index, 0),
-                operations.floatAt(index, 1),
-                operations.floatAt(index, 2),
+                operations.requiredObjectAt(index,
+                    PhysicsCommandOperations.BODY_COMMAND_BODY_KEY_OBJECT_SLOT,
+                    RigidBodyKey.class),
+                operations.floatAt(index, PhysicsCommandOperations.VECTOR_COMMAND_X_FLOAT_SLOT),
+                operations.floatAt(index, PhysicsCommandOperations.VECTOR_COMMAND_Y_FLOAT_SLOT),
+                operations.floatAt(index, PhysicsCommandOperations.VECTOR_COMMAND_Z_FLOAT_SLOT),
                 (operations.flags(index) & PhysicsCommandOperations.FLAG_OFFSET) != 0,
                 (operations.flags(index) & PhysicsCommandOperations.FLAG_OFFSET) != 0
-                    ? operations.floatAt(index, 3) : 0.0f,
+                    ? operations.floatAt(index, PhysicsCommandOperations.VECTOR_COMMAND_OFFSET_X_FLOAT_SLOT)
+                    : 0.0f,
                 (operations.flags(index) & PhysicsCommandOperations.FLAG_OFFSET) != 0
-                    ? operations.floatAt(index, 4) : 0.0f,
+                    ? operations.floatAt(index, PhysicsCommandOperations.VECTOR_COMMAND_OFFSET_Y_FLOAT_SLOT)
+                    : 0.0f,
                 (operations.flags(index) & PhysicsCommandOperations.FLAG_OFFSET) != 0
-                    ? operations.floatAt(index, 5) : 0.0f,
+                    ? operations.floatAt(index, PhysicsCommandOperations.VECTOR_COMMAND_OFFSET_Z_FLOAT_SLOT)
+                    : 0.0f,
                 (operations.flags(index) & PhysicsCommandOperations.FLAG_TORQUE) != 0);
             case PhysicsCommandOperations.APPLY_RIGID_BODY_FORCE -> applyRigidBodyForce(
-                operations.objectAt(index, 0, RigidBodyKey.class),
-                operations.floatAt(index, 0),
-                operations.floatAt(index, 1),
-                operations.floatAt(index, 2),
+                operations.requiredObjectAt(index,
+                    PhysicsCommandOperations.BODY_COMMAND_BODY_KEY_OBJECT_SLOT,
+                    RigidBodyKey.class),
+                operations.floatAt(index, PhysicsCommandOperations.VECTOR_COMMAND_X_FLOAT_SLOT),
+                operations.floatAt(index, PhysicsCommandOperations.VECTOR_COMMAND_Y_FLOAT_SLOT),
+                operations.floatAt(index, PhysicsCommandOperations.VECTOR_COMMAND_Z_FLOAT_SLOT),
                 (operations.flags(index) & PhysicsCommandOperations.FLAG_OFFSET) != 0,
                 (operations.flags(index) & PhysicsCommandOperations.FLAG_OFFSET) != 0
-                    ? operations.floatAt(index, 3) : 0.0f,
+                    ? operations.floatAt(index, PhysicsCommandOperations.VECTOR_COMMAND_OFFSET_X_FLOAT_SLOT)
+                    : 0.0f,
                 (operations.flags(index) & PhysicsCommandOperations.FLAG_OFFSET) != 0
-                    ? operations.floatAt(index, 4) : 0.0f,
+                    ? operations.floatAt(index, PhysicsCommandOperations.VECTOR_COMMAND_OFFSET_Y_FLOAT_SLOT)
+                    : 0.0f,
                 (operations.flags(index) & PhysicsCommandOperations.FLAG_OFFSET) != 0
-                    ? operations.floatAt(index, 5) : 0.0f,
+                    ? operations.floatAt(index, PhysicsCommandOperations.VECTOR_COMMAND_OFFSET_Z_FLOAT_SLOT)
+                    : 0.0f,
                 (operations.flags(index) & PhysicsCommandOperations.FLAG_TORQUE) != 0);
             case PhysicsCommandOperations.CREATE_JOINT -> dispatchJoint(index, operations);
             case PhysicsCommandOperations.DESTROY_JOINT -> destroyJoint(
-                operations.objectAt(index, 0, JointKey.class));
+                operations.requiredObjectAt(index,
+                    PhysicsCommandOperations.DESTROY_JOINT_KEY_OBJECT_SLOT,
+                    JointKey.class));
             case PhysicsCommandOperations.DESTROY_JOINT_BETWEEN_BODIES -> destroyJointBetween(
-                (JointKey) operations.objectAt(index, 0),
-                operations.objectAt(index, 1, SpaceId.class),
-                operations.objectAt(index, 2, RigidBodyKey.class),
-                operations.objectAt(index, 3, RigidBodyKey.class));
+                (JointKey) operations.objectAt(index,
+                    PhysicsCommandOperations.DESTROY_JOINT_BETWEEN_PREFERRED_KEY_OBJECT_SLOT),
+                operations.requiredObjectAt(index,
+                    PhysicsCommandOperations.DESTROY_JOINT_BETWEEN_SPACE_ID_OBJECT_SLOT,
+                    SpaceId.class),
+                operations.requiredObjectAt(index,
+                    PhysicsCommandOperations.DESTROY_JOINT_BETWEEN_BODY_A_OBJECT_SLOT,
+                    RigidBodyKey.class),
+                operations.requiredObjectAt(index,
+                    PhysicsCommandOperations.DESTROY_JOINT_BETWEEN_BODY_B_OBJECT_SLOT,
+                    RigidBodyKey.class));
             default -> throw new IllegalArgumentException("Unsupported physics command opcode "
                 + operations.opcode(index));
         }
@@ -215,17 +254,31 @@ public final class PhysicsSimulationExecutor implements PhysicsCommandDispatcher
 
     private void dispatchSpawn(int index,
         @Nonnull PhysicsCommandOperations operations) {
-        spawnRigidBody(operations.objectAt(index, 0, RigidBodyKey.class),
-            operations.objectAt(index, 1, SpaceId.class),
-            operations.objectAt(index, 2, PhysicsShapeSpec.class),
-            operations.floatAt(index, 0),
-            operations.objectAt(index, 3, PhysicsBodyType.class),
-            operations.floatAt(index, 1),
-            operations.floatAt(index, 2),
-            operations.floatAt(index, 3),
-            operations.objectAt(index, 4, RigidBodySpawnSettings.class),
-            operations.objectAt(index, 5, PhysicsBodyKind.class),
-            operations.objectAt(index, 6, PhysicsBodyPersistenceMode.class));
+        spawnRigidBody(operations.requiredObjectAt(index,
+                PhysicsCommandOperations.SPAWN_BODY_KEY_OBJECT_SLOT,
+                RigidBodyKey.class),
+            operations.requiredObjectAt(index,
+                PhysicsCommandOperations.SPAWN_SPACE_ID_OBJECT_SLOT,
+                SpaceId.class),
+            operations.requiredObjectAt(index,
+                PhysicsCommandOperations.SPAWN_SHAPE_OBJECT_SLOT,
+                PhysicsShapeSpec.class),
+            operations.floatAt(index, PhysicsCommandOperations.SPAWN_MASS_FLOAT_SLOT),
+            operations.requiredObjectAt(index,
+                PhysicsCommandOperations.SPAWN_BODY_TYPE_OBJECT_SLOT,
+                PhysicsBodyType.class),
+            operations.floatAt(index, PhysicsCommandOperations.SPAWN_POSITION_X_FLOAT_SLOT),
+            operations.floatAt(index, PhysicsCommandOperations.SPAWN_POSITION_Y_FLOAT_SLOT),
+            operations.floatAt(index, PhysicsCommandOperations.SPAWN_POSITION_Z_FLOAT_SLOT),
+            operations.requiredObjectAt(index,
+                PhysicsCommandOperations.SPAWN_SETTINGS_OBJECT_SLOT,
+                RigidBodySpawnSettings.class),
+            operations.requiredObjectAt(index,
+                PhysicsCommandOperations.SPAWN_KIND_OBJECT_SLOT,
+                PhysicsBodyKind.class),
+            operations.requiredObjectAt(index,
+                PhysicsCommandOperations.SPAWN_PERSISTENCE_MODE_OBJECT_SLOT,
+                PhysicsBodyPersistenceMode.class));
     }
 
     private void dispatchSpawnBatch(@Nonnull RigidBodySpawnBatch batch) {
@@ -260,28 +313,38 @@ public final class PhysicsSimulationExecutor implements PhysicsCommandDispatcher
 
     private void dispatchJoint(int index,
         @Nonnull PhysicsCommandOperations operations) {
-        createJoint(operations.objectAt(index, 0, JointKey.class),
-            operations.objectAt(index, 1, SpaceId.class),
-            operations.objectAt(index, 2, RigidBodyKey.class),
-            operations.objectAt(index, 3, RigidBodyKey.class),
-            operations.objectAt(index, 4, JointType.class),
-            operations.floatAt(index, 0),
-            operations.floatAt(index, 1),
-            operations.floatAt(index, 2),
-            operations.floatAt(index, 3),
-            operations.floatAt(index, 4),
-            operations.floatAt(index, 5),
-            operations.floatAt(index, 6),
-            operations.floatAt(index, 7),
-            operations.floatAt(index, 8),
-            operations.floatAt(index, 9),
-            operations.floatAt(index, 10),
-            operations.floatAt(index, 11),
-            operations.floatAt(index, 12),
-            operations.floatAt(index, 13),
+        createJoint(operations.requiredObjectAt(index,
+                PhysicsCommandOperations.CREATE_JOINT_JOINT_KEY_OBJECT_SLOT,
+                JointKey.class),
+            operations.requiredObjectAt(index,
+                PhysicsCommandOperations.CREATE_JOINT_SPACE_ID_OBJECT_SLOT,
+                SpaceId.class),
+            operations.requiredObjectAt(index,
+                PhysicsCommandOperations.CREATE_JOINT_BODY_A_OBJECT_SLOT,
+                RigidBodyKey.class),
+            operations.requiredObjectAt(index,
+                PhysicsCommandOperations.CREATE_JOINT_BODY_B_OBJECT_SLOT,
+                RigidBodyKey.class),
+            operations.requiredObjectAt(index,
+                PhysicsCommandOperations.CREATE_JOINT_TYPE_OBJECT_SLOT,
+                JointType.class),
+            operations.floatAt(index, PhysicsCommandOperations.CREATE_JOINT_ANCHOR_A_X_FLOAT_SLOT),
+            operations.floatAt(index, PhysicsCommandOperations.CREATE_JOINT_ANCHOR_A_Y_FLOAT_SLOT),
+            operations.floatAt(index, PhysicsCommandOperations.CREATE_JOINT_ANCHOR_A_Z_FLOAT_SLOT),
+            operations.floatAt(index, PhysicsCommandOperations.CREATE_JOINT_ANCHOR_B_X_FLOAT_SLOT),
+            operations.floatAt(index, PhysicsCommandOperations.CREATE_JOINT_ANCHOR_B_Y_FLOAT_SLOT),
+            operations.floatAt(index, PhysicsCommandOperations.CREATE_JOINT_ANCHOR_B_Z_FLOAT_SLOT),
+            operations.floatAt(index, PhysicsCommandOperations.CREATE_JOINT_AXIS_X_FLOAT_SLOT),
+            operations.floatAt(index, PhysicsCommandOperations.CREATE_JOINT_AXIS_Y_FLOAT_SLOT),
+            operations.floatAt(index, PhysicsCommandOperations.CREATE_JOINT_AXIS_Z_FLOAT_SLOT),
+            operations.floatAt(index, PhysicsCommandOperations.CREATE_JOINT_REST_LENGTH_FLOAT_SLOT),
+            operations.floatAt(index, PhysicsCommandOperations.CREATE_JOINT_STIFFNESS_FLOAT_SLOT),
+            operations.floatAt(index, PhysicsCommandOperations.CREATE_JOINT_DAMPING_FLOAT_SLOT),
+            operations.floatAt(index, PhysicsCommandOperations.CREATE_JOINT_LOWER_LIMIT_FLOAT_SLOT),
+            operations.floatAt(index, PhysicsCommandOperations.CREATE_JOINT_UPPER_LIMIT_FLOAT_SLOT),
             (operations.flags(index) & PhysicsCommandOperations.FLAG_MOTOR_ENABLED) != 0,
-            operations.floatAt(index, 14),
-            operations.floatAt(index, 15));
+            operations.floatAt(index, PhysicsCommandOperations.CREATE_JOINT_MOTOR_TARGET_VELOCITY_FLOAT_SLOT),
+            operations.floatAt(index, PhysicsCommandOperations.CREATE_JOINT_MOTOR_MAX_FORCE_FLOAT_SLOT));
     }
 
     @Nonnull
