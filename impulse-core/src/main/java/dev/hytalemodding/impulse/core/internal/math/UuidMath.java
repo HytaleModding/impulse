@@ -2,6 +2,10 @@ package dev.hytalemodding.impulse.core.internal.math;
 
 /**
  * Bit helpers for UUID-compatible identifiers.
+ *
+ * <p>Impulse random physics keys use {@code ThreadLocalRandom} longs because they are non-secret
+ * identifiers. This keeps UUID-shaped v4 values without paying for {@code UUID.randomUUID()}'s
+ * cryptographically strong generator on runtime allocation paths.</p>
  */
 public final class UuidMath {
 
