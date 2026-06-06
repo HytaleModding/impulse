@@ -20,14 +20,17 @@ public final class PhysicsSyncPolicy {
     private static final float POSITION_SYNC_THRESHOLD = 1.0f / 32.0f;
     private static final float POSITION_SYNC_THRESHOLD_SQUARED =
         POSITION_SYNC_THRESHOLD * POSITION_SYNC_THRESHOLD;
+
     // Low-speed visuals use a wider deadzone for tiny awake-body solver jitter.
     private static final float LOW_SPEED_POSITION_SYNC_THRESHOLD = 1.0f / 8.0f;
     private static final float LOW_SPEED_POSITION_SYNC_THRESHOLD_SQUARED =
         LOW_SPEED_POSITION_SYNC_THRESHOLD * LOW_SPEED_POSITION_SYNC_THRESHOLD;
+
     // Mid-range visuals are outside the full-sync radius but still within visual range.
     private static final float MID_RANGE_POSITION_SYNC_THRESHOLD = 0.5f;
     private static final float MID_RANGE_POSITION_SYNC_THRESHOLD_SQUARED =
         MID_RANGE_POSITION_SYNC_THRESHOLD * MID_RANGE_POSITION_SYNC_THRESHOLD;
+
     /*
      * Quaternion dot thresholds avoid per-tick angle conversion. Since unit
      * quaternion dot is cos(delta / 2), these cos(1/3/8 degree) values trigger
@@ -39,12 +42,15 @@ public final class PhysicsSyncPolicy {
         (float) Math.cos(Math.toRadians(3.0));
     private static final float MID_RANGE_ROTATION_SYNC_DOT_THRESHOLD =
         (float) Math.cos(Math.toRadians(8.0));
+
     // Optional visibility culling uses a broad forward cone and always keeps close visuals.
     private static final float VISUAL_CONE_DOT_THRESHOLD =
         (float) Math.cos(Math.toRadians(70.0));
+
     private static final float CLOSE_VISUAL_RADIUS = 8.0f;
     private static final float CLOSE_VISUAL_RADIUS_SQUARED =
         CLOSE_VISUAL_RADIUS * CLOSE_VISUAL_RADIUS;
+
     // Keepalive updates bound how long an awake visual can stay below sync thresholds.
     private static final float ACTIVE_KEEPALIVE_SECONDS = 0.25f;
     private static final float LOW_SPEED_KEEPALIVE_SECONDS = 1.25f;
