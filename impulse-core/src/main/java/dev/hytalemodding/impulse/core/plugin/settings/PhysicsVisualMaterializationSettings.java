@@ -1,5 +1,7 @@
 package dev.hytalemodding.impulse.core.plugin.settings;
 
+import lombok.Getter;
+import lombok.Setter;
 import javax.annotation.Nonnull;
 
 /**
@@ -82,54 +84,63 @@ public class PhysicsVisualMaterializationSettings {
     /**
      * If enabled, detached physics bodies create disposable visual followers near players.
      */
+    @Setter
+    @Getter
     private boolean detachedVisualMaterializationEnabled =
         DEFAULT_DETACHED_VISUAL_MATERIALIZATION_ENABLED;
 
     /**
      * Radius where detached bodies become visual followers.
      */
+    @Getter
     private int detachedVisualMaterializationRadius =
         DEFAULT_DETACHED_VISUAL_MATERIALIZATION_RADIUS;
 
     /**
      * Radius where detached visual followers are removed again.
      */
+    @Getter
     private int detachedVisualDematerializationRadius =
         DEFAULT_DETACHED_VISUAL_DEMATERIALIZATION_RADIUS;
 
     /**
      * Per-tick cap for spawning detached visual followers.
      */
+    @Getter
     private int detachedVisualMaxSpawnsPerTick =
         DEFAULT_DETACHED_VISUAL_MAX_SPAWNS_PER_TICK;
 
     /**
      * Total cap for detached visual followers in this space.
      */
+    @Getter
     private int detachedVisualMaxMaterialized =
         DEFAULT_DETACHED_VISUAL_MAX_MATERIALIZED;
 
     /**
      * Refresh cadence for player/synthetic interests used by detached visual materialization.
      */
+    @Getter
     private int detachedVisualInterestRefreshIntervalTicks =
         DEFAULT_DETACHED_VISUAL_INTEREST_REFRESH_INTERVAL_TICKS;
 
     /**
      * Refresh cadence for detached visual materialization near-query/raycast candidates.
      */
+    @Getter
     private int detachedVisualCandidateRefreshIntervalTicks =
         DEFAULT_DETACHED_VISUAL_CANDIDATE_REFRESH_INTERVAL_TICKS;
 
     /**
      * Refresh cadence for existing generated-proxy visibility/dematerialization checks.
      */
+    @Getter
     private int detachedVisualVisibilityCheckIntervalTicks =
         DEFAULT_DETACHED_VISUAL_VISIBILITY_CHECK_INTERVAL_TICKS;
 
     /**
      * Hytale block type used for default detached visual proxies.
-     *
+     * <p>
      * FIXME: this is temporary we cannot assume a specific blocktype since a physics body could be
      * composed by any general mix of blocks and entities
      */
@@ -155,19 +166,6 @@ public class PhysicsVisualMaterializationSettings {
         detachedVisualBlockType = settings.detachedVisualBlockType;
     }
 
-    public boolean isDetachedVisualMaterializationEnabled() {
-        return detachedVisualMaterializationEnabled;
-    }
-
-    public void setDetachedVisualMaterializationEnabled(
-        boolean detachedVisualMaterializationEnabled) {
-        this.detachedVisualMaterializationEnabled = detachedVisualMaterializationEnabled;
-    }
-
-    public int getDetachedVisualMaterializationRadius() {
-        return detachedVisualMaterializationRadius;
-    }
-
     public void setDetachedVisualMaterializationRadius(
         int detachedVisualMaterializationRadius) {
         int boundedDetachedVisualMaterializationRadius =
@@ -180,10 +178,6 @@ public class PhysicsVisualMaterializationSettings {
                 "Detached visual materialization radius cannot exceed dematerialization radius");
         }
         this.detachedVisualMaterializationRadius = boundedDetachedVisualMaterializationRadius;
-    }
-
-    public int getDetachedVisualDematerializationRadius() {
-        return detachedVisualDematerializationRadius;
     }
 
     public void setDetachedVisualDematerializationRadius(
@@ -221,10 +215,6 @@ public class PhysicsVisualMaterializationSettings {
         this.detachedVisualDematerializationRadius = boundedDetachedVisualDematerializationRadius;
     }
 
-    public int getDetachedVisualMaxSpawnsPerTick() {
-        return detachedVisualMaxSpawnsPerTick;
-    }
-
     public void setDetachedVisualMaxSpawnsPerTick(int detachedVisualMaxSpawnsPerTick) {
         this.detachedVisualMaxSpawnsPerTick =
             PhysicsSettingsValidation.requirePositiveAtMost(
@@ -233,20 +223,12 @@ public class PhysicsVisualMaterializationSettings {
                 MAX_DETACHED_VISUAL_MAX_SPAWNS_PER_TICK);
     }
 
-    public int getDetachedVisualMaxMaterialized() {
-        return detachedVisualMaxMaterialized;
-    }
-
     public void setDetachedVisualMaxMaterialized(int detachedVisualMaxMaterialized) {
         this.detachedVisualMaxMaterialized =
             PhysicsSettingsValidation.requirePositiveAtMost(
                 "Detached visual max materialized",
                 detachedVisualMaxMaterialized,
                 MAX_DETACHED_VISUAL_MAX_MATERIALIZED);
-    }
-
-    public int getDetachedVisualInterestRefreshIntervalTicks() {
-        return detachedVisualInterestRefreshIntervalTicks;
     }
 
     public void setDetachedVisualInterestRefreshIntervalTicks(
@@ -258,10 +240,6 @@ public class PhysicsVisualMaterializationSettings {
                 MAX_DETACHED_VISUAL_CACHE_INTERVAL_TICKS);
     }
 
-    public int getDetachedVisualCandidateRefreshIntervalTicks() {
-        return detachedVisualCandidateRefreshIntervalTicks;
-    }
-
     public void setDetachedVisualCandidateRefreshIntervalTicks(
         int detachedVisualCandidateRefreshIntervalTicks) {
         this.detachedVisualCandidateRefreshIntervalTicks =
@@ -269,10 +247,6 @@ public class PhysicsVisualMaterializationSettings {
                 "Detached visual candidate refresh interval",
                 detachedVisualCandidateRefreshIntervalTicks,
                 MAX_DETACHED_VISUAL_CACHE_INTERVAL_TICKS);
-    }
-
-    public int getDetachedVisualVisibilityCheckIntervalTicks() {
-        return detachedVisualVisibilityCheckIntervalTicks;
     }
 
     public void setDetachedVisualVisibilityCheckIntervalTicks(

@@ -1,10 +1,13 @@
 package dev.hytalemodding.impulse.core.plugin.settings;
 
+import lombok.Getter;
+import lombok.Setter;
 import javax.annotation.Nonnull;
 
 /**
  * Distance-based dynamic-body collision LOD settings for a physics space.
  */
+@Getter
 public class PhysicsCollisionLodSettings {
 
     /**
@@ -55,6 +58,7 @@ public class PhysicsCollisionLodSettings {
     /**
      * If enabled, default dynamic bodies can reduce dynamic-body collision away from players.
      */
+    @Setter
     private boolean collisionLodEnabled = DEFAULT_COLLISION_LOD_ENABLED;
 
     /**
@@ -81,6 +85,7 @@ public class PhysicsCollisionLodSettings {
     /**
      * If enabled, far collision LOD bodies are put to sleep after collision is reduced.
      */
+    @Setter
     private boolean collisionLodFarSleepEnabled = DEFAULT_COLLISION_LOD_FAR_SLEEP_ENABLED;
 
     public PhysicsCollisionLodSettings() {
@@ -95,18 +100,6 @@ public class PhysicsCollisionLodSettings {
         collisionLodFarSleepEnabled = settings.collisionLodFarSleepEnabled;
     }
 
-    public boolean isCollisionLodEnabled() {
-        return collisionLodEnabled;
-    }
-
-    public void setCollisionLodEnabled(boolean collisionLodEnabled) {
-        this.collisionLodEnabled = collisionLodEnabled;
-    }
-
-    public int getCollisionLodNearRadius() {
-        return collisionLodNearRadius;
-    }
-
     public void setCollisionLodNearRadius(int collisionLodNearRadius) {
         int boundedNearRadius = PhysicsSettingsValidation.requirePositiveAtMost(
             "Collision LOD near radius",
@@ -117,10 +110,6 @@ public class PhysicsCollisionLodSettings {
                 "Collision LOD near radius cannot exceed mid radius");
         }
         this.collisionLodNearRadius = boundedNearRadius;
-    }
-
-    public int getCollisionLodMidRadius() {
-        return collisionLodMidRadius;
     }
 
     public void setCollisionLodMidRadius(int collisionLodMidRadius) {
@@ -153,10 +142,6 @@ public class PhysicsCollisionLodSettings {
         this.collisionLodMidRadius = boundedMidRadius;
     }
 
-    public int getCollisionLodHysteresis() {
-        return collisionLodHysteresis;
-    }
-
     public void setCollisionLodHysteresis(int collisionLodHysteresis) {
         if (collisionLodHysteresis < 0
             || collisionLodHysteresis > MAX_COLLISION_LOD_HYSTERESIS) {
@@ -164,10 +149,6 @@ public class PhysicsCollisionLodSettings {
                 + MAX_COLLISION_LOD_HYSTERESIS);
         }
         this.collisionLodHysteresis = collisionLodHysteresis;
-    }
-
-    public int getCollisionLodRefreshIntervalTicks() {
-        return collisionLodRefreshIntervalTicks;
     }
 
     public void setCollisionLodRefreshIntervalTicks(int collisionLodRefreshIntervalTicks) {
@@ -178,11 +159,4 @@ public class PhysicsCollisionLodSettings {
                 MAX_COLLISION_LOD_REFRESH_INTERVAL_TICKS);
     }
 
-    public boolean isCollisionLodFarSleepEnabled() {
-        return collisionLodFarSleepEnabled;
-    }
-
-    public void setCollisionLodFarSleepEnabled(boolean collisionLodFarSleepEnabled) {
-        this.collisionLodFarSleepEnabled = collisionLodFarSleepEnabled;
-    }
 }

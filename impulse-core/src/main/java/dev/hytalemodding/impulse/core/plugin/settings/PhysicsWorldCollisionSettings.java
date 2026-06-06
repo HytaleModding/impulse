@@ -1,6 +1,8 @@
 package dev.hytalemodding.impulse.core.plugin.settings;
 
 import dev.hytalemodding.impulse.core.plugin.modules.worldcollision.WorldCollisionMode;
+import lombok.Getter;
+import lombok.Setter;
 import javax.annotation.Nonnull;
 
 /**
@@ -68,21 +70,26 @@ public class PhysicsWorldCollisionSettings {
     /**
      * Enables native backend voxel terrain for full-cube world collision.
      */
+    @Setter
+    @Getter
     private boolean nativeVoxelTerrainEnabled = DEFAULT_NATIVE_VOXEL_TERRAIN_ENABLED;
 
     /**
      * Block radius around tracked player positions for streaming or manual build.
      */
+    @Getter
     private int worldCollisionRadius = DEFAULT_WORLD_COLLISION_RADIUS;
 
     /**
      * Block radius around active dynamic physics bodies for streaming collision.
      */
+    @Getter
     private int worldCollisionBodyRadius = DEFAULT_WORLD_COLLISION_BODY_RADIUS;
 
     /**
      * How long a section stays loaded after its last use, in server ticks.
      */
+    @Getter
     private int worldCollisionTtlTicks = DEFAULT_WORLD_COLLISION_TTL_TICKS;
 
     public PhysicsWorldCollisionSettings() {
@@ -116,18 +123,6 @@ public class PhysicsWorldCollisionSettings {
         this.entityChunkBoundaryMode = entityChunkBoundaryMode;
     }
 
-    public boolean isNativeVoxelTerrainEnabled() {
-        return nativeVoxelTerrainEnabled;
-    }
-
-    public void setNativeVoxelTerrainEnabled(boolean nativeVoxelTerrainEnabled) {
-        this.nativeVoxelTerrainEnabled = nativeVoxelTerrainEnabled;
-    }
-
-    public int getWorldCollisionRadius() {
-        return worldCollisionRadius;
-    }
-
     public void setWorldCollisionRadius(int worldCollisionRadius) {
         this.worldCollisionRadius = PhysicsSettingsValidation.requirePositiveAtMost(
             "World collision radius",
@@ -135,19 +130,11 @@ public class PhysicsWorldCollisionSettings {
             MAX_WORLD_COLLISION_RADIUS);
     }
 
-    public int getWorldCollisionBodyRadius() {
-        return worldCollisionBodyRadius;
-    }
-
     public void setWorldCollisionBodyRadius(int worldCollisionBodyRadius) {
         this.worldCollisionBodyRadius = PhysicsSettingsValidation.requirePositiveAtMost(
             "World collision body radius",
             worldCollisionBodyRadius,
             MAX_WORLD_COLLISION_BODY_RADIUS);
-    }
-
-    public int getWorldCollisionTtlTicks() {
-        return worldCollisionTtlTicks;
     }
 
     public void setWorldCollisionTtlTicks(int worldCollisionTtlTicks) {
