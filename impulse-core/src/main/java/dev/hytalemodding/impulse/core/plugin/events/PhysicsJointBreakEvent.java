@@ -16,8 +16,8 @@ public record PhysicsJointBreakEvent(@Nonnull SpaceId spaceId,
                                      @Nullable RigidBodyKey bodyBKey) implements PhysicsFrameEvent {
 
     public PhysicsJointBreakEvent {
-        spaceId = Objects.requireNonNull(spaceId, "spaceId");
-        jointKey = Objects.requireNonNull(jointKey, "jointKey");
+        Objects.requireNonNull(spaceId, "spaceId");
+        Objects.requireNonNull(jointKey, "jointKey");
     }
 
     @Nonnull

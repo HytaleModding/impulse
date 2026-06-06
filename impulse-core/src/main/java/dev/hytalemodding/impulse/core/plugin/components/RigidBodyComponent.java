@@ -15,6 +15,8 @@ import dev.hytalemodding.impulse.api.SpaceId;
 import dev.hytalemodding.impulse.core.ImpulsePlugin;
 import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyPersistenceMode;
 import dev.hytalemodding.impulse.core.plugin.body.RigidBodyKey;
+import lombok.Getter;
+import lombok.Setter;
 import java.util.UUID;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
@@ -134,23 +136,51 @@ public class RigidBodyComponent implements Component<EntityStore> {
     private SpaceId spaceId;
     @Nonnull
     private ShapeType shapeType = ShapeType.BOX;
+    @Setter
+    @Getter
     private float halfExtentX = 0.5f;
+    @Setter
+    @Getter
     private float halfExtentY = 0.5f;
+    @Setter
+    @Getter
     private float halfExtentZ = 0.5f;
+    @Setter
+    @Getter
     private float radius = 0.5f;
+    @Setter
+    @Getter
     private float halfHeight = 0.5f;
     @Nonnull
     private PhysicsAxis axis = PhysicsAxis.Y;
+    @Setter
+    @Getter
     private float groundY;
     @Nonnull
     private PhysicsBodyType bodyType = PhysicsBodyType.DYNAMIC;
+    @Setter
+    @Getter
     private float mass = 1.0f;
+    @Setter
+    @Getter
     private float friction = 0.5f;
+    @Setter
+    @Getter
     private float restitution;
+    @Setter
+    @Getter
     private float linearDamping;
+    @Setter
+    @Getter
     private float angularDamping;
+    @Setter
+    @Getter
     private boolean sensor;
+    @Setter
+    @Getter
     private int collisionGroup = PhysicsCollisionFilters.DYNAMIC_BODY;
+    @Setter
+    @Getter
     private int collisionMask = PhysicsCollisionFilters.ALL;
     @Nonnull
     private PhysicsBodyPersistenceMode persistenceMode = PhysicsBodyPersistenceMode.RUNTIME_ONLY;
@@ -231,46 +261,6 @@ public class RigidBodyComponent implements Component<EntityStore> {
         this.shapeType = shapeType;
     }
 
-    public float getHalfExtentX() {
-        return halfExtentX;
-    }
-
-    public void setHalfExtentX(float halfExtentX) {
-        this.halfExtentX = halfExtentX;
-    }
-
-    public float getHalfExtentY() {
-        return halfExtentY;
-    }
-
-    public void setHalfExtentY(float halfExtentY) {
-        this.halfExtentY = halfExtentY;
-    }
-
-    public float getHalfExtentZ() {
-        return halfExtentZ;
-    }
-
-    public void setHalfExtentZ(float halfExtentZ) {
-        this.halfExtentZ = halfExtentZ;
-    }
-
-    public float getRadius() {
-        return radius;
-    }
-
-    public void setRadius(float radius) {
-        this.radius = radius;
-    }
-
-    public float getHalfHeight() {
-        return halfHeight;
-    }
-
-    public void setHalfHeight(float halfHeight) {
-        this.halfHeight = halfHeight;
-    }
-
     @Nonnull
     public PhysicsAxis getAxis() {
         return axis;
@@ -280,14 +270,6 @@ public class RigidBodyComponent implements Component<EntityStore> {
         this.axis = axis;
     }
 
-    public float getGroundY() {
-        return groundY;
-    }
-
-    public void setGroundY(float groundY) {
-        this.groundY = groundY;
-    }
-
     @Nonnull
     public PhysicsBodyType getBodyType() {
         return bodyType;
@@ -295,70 +277,6 @@ public class RigidBodyComponent implements Component<EntityStore> {
 
     public void setBodyType(@Nonnull PhysicsBodyType bodyType) {
         this.bodyType = bodyType;
-    }
-
-    public float getMass() {
-        return mass;
-    }
-
-    public void setMass(float mass) {
-        this.mass = mass;
-    }
-
-    public float getFriction() {
-        return friction;
-    }
-
-    public void setFriction(float friction) {
-        this.friction = friction;
-    }
-
-    public float getRestitution() {
-        return restitution;
-    }
-
-    public void setRestitution(float restitution) {
-        this.restitution = restitution;
-    }
-
-    public float getLinearDamping() {
-        return linearDamping;
-    }
-
-    public void setLinearDamping(float linearDamping) {
-        this.linearDamping = linearDamping;
-    }
-
-    public float getAngularDamping() {
-        return angularDamping;
-    }
-
-    public void setAngularDamping(float angularDamping) {
-        this.angularDamping = angularDamping;
-    }
-
-    public boolean isSensor() {
-        return sensor;
-    }
-
-    public void setSensor(boolean sensor) {
-        this.sensor = sensor;
-    }
-
-    public int getCollisionGroup() {
-        return collisionGroup;
-    }
-
-    public void setCollisionGroup(int collisionGroup) {
-        this.collisionGroup = collisionGroup;
-    }
-
-    public int getCollisionMask() {
-        return collisionMask;
-    }
-
-    public void setCollisionMask(int collisionMask) {
-        this.collisionMask = collisionMask;
     }
 
     @Nonnull
