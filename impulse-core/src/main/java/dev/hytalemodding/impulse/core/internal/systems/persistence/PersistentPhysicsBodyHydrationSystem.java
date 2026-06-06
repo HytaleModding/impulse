@@ -53,13 +53,13 @@ public class PersistentPhysicsBodyHydrationSystem extends TickingSystem<EntitySt
 
             String validationFailure = state.restoreValidationFailureReason();
             if (validationFailure != null) {
-                persistent.recordRuntimeBodySkipped(validationFailure);
+                persistent.recordRuntimeBodySkipped(bodyKey, validationFailure);
                 continue;
             }
 
             int resolvedSpaceId = state.resolveSpaceId();
             if (resolvedSpaceId <= 0) {
-                persistent.recordRuntimeBodySkipped("no resolved space id");
+                persistent.recordRuntimeBodySkipped(bodyKey, "no resolved space id");
                 continue;
             }
 
@@ -70,10 +70,10 @@ public class PersistentPhysicsBodyHydrationSystem extends TickingSystem<EntitySt
                 if (result == RestoreBodyResult.RESTORED) {
                     persistent.recordRuntimeBodyRestored();
                 } else if (result == RestoreBodyResult.MISSING_SPACE) {
-                    persistent.recordRuntimeBodySkipped("missing target space");
+                    persistent.recordRuntimeBodySkipped(bodyKey, "missing target space");
                 }
             } catch (RuntimeException exception) {
-                persistent.recordRuntimeBodySkipped("body restore failed: "
+                persistent.recordRuntimeBodySkipped(bodyKey, "body restore failed: "
                     + exception.getClass().getSimpleName());
             }
         }
