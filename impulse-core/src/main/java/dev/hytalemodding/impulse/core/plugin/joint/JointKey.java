@@ -1,5 +1,6 @@
 package dev.hytalemodding.impulse.core.plugin.joint;
 
+import dev.hytalemodding.impulse.core.internal.math.UuidMath;
 import java.util.Objects;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.UUID;
@@ -30,8 +31,8 @@ public final class JointKey {
     @Nonnull
     public static JointKey random() {
         ThreadLocalRandom random = ThreadLocalRandom.current();
-        long mostSignificantBits = (random.nextLong() & 0xffffffffffff0fffL) | 0x0000000000004000L;
-        long leastSignificantBits = (random.nextLong() & 0x3fffffffffffffffL) | 0x8000000000000000L;
+        long mostSignificantBits = UuidMath.version4MostSignificantBits(random.nextLong());
+        long leastSignificantBits = UuidMath.ietfVariantLeastSignificantBits(random.nextLong());
         return new JointKey(mostSignificantBits, leastSignificantBits);
     }
 
