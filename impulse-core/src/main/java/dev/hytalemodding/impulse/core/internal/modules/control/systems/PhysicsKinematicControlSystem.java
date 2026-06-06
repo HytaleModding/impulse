@@ -242,6 +242,8 @@ public class PhysicsKinematicControlSystem extends EntityTickingSystem<EntitySto
          * Coalescing happens on the tick thread: completion callbacks only clear the in-flight
          * marker. The next tick decides whether the latest queued target still belongs to an active
          * session and is different enough to submit.
+         *
+         * FIXME: Replace this coalescing workaround when strict control scheduling lands.
          */
         @Nonnull
         private final Object2ObjectMap<RigidBodyKey, PhysicsMutationHandle<Void>> pendingMutations =

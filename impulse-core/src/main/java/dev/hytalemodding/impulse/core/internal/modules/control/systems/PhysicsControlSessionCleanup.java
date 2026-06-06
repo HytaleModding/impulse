@@ -59,7 +59,8 @@ public final class PhysicsControlSessionCleanup {
             || restoreBody
             || anchorBodyKey != null) {
             // Tick cleanup queues this work; subplugin shutdown waits for it.
-            PhysicsCommandHandle handle = resource.submitCommands(0L, 5, commands -> {
+            PhysicsCommandHandle handle =
+                resource.submitCommands(0L, 5, commands -> {
                 if (session.getSpaceId() != null && bodyKey != null && anchorBodyKey != null) {
                     commands.destroyJointBetween(controlJointKey, session.getSpaceId(), anchorBodyKey, bodyKey);
                 } else if (controlJointKey != null) {

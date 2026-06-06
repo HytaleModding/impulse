@@ -21,7 +21,7 @@ import org.joml.Vector3f;
 
 /**
  * Codec-backed definition of one physics joint for the persistence layer.
- *
+ * <p>
  * This class uses stable physics body keys to identify the two endpoint bodies.
  *
  * <p>The {@link #key()} method produces a deterministic string from all fields
