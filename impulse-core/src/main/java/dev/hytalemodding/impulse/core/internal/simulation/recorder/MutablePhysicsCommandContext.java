@@ -22,6 +22,8 @@ import dev.hytalemodding.impulse.core.plugin.simulation.recorder.RigidBodySpawnB
 import dev.hytalemodding.impulse.core.plugin.simulation.recorder.RigidBodySpawnRecorder;
 import dev.hytalemodding.impulse.core.plugin.simulation.RigidBodySpawnSettings;
 import dev.hytalemodding.impulse.core.plugin.simulation.recorder.RigidBodySpawnTemplateRecorder;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Objects;
 import java.util.function.Consumer;
 import javax.annotation.Nonnull;
@@ -40,6 +42,8 @@ public final class MutablePhysicsCommandContext implements PhysicsCommandContext
     private final long submittedServerTick;
     private final long worldEpoch;
     private final PhysicsCommandOperations operations;
+    private final List<MutableRigidBodySpawnRecorder> pendingSpawns = new ArrayList<>();
+    private final List<MutableJointCommandRecorder> pendingJoints = new ArrayList<>();
     private boolean frozen;
 
     public MutablePhysicsCommandContext(long submittedServerTick, long worldEpoch) {
@@ -230,7 +234,10 @@ public final class MutablePhysicsCommandContext implements PhysicsCommandContext
     @Nonnull
     @Override
     public RigidBodySpawnRecorder spawnBody(@Nonnull RigidBodyKey bodyKey) {
-        return new MutableRigidBodySpawnRecorder(this::recordSpawn, bodyKey);
+        assertMutable();
+        MutableRigidBodySpawnRecorder spawn = new MutableRigidBodySpawnRecorder(this::recordSpawn, bodyKey);
+        pendingSpawns.add(spawn);
+        return spawn;
     }
 
     @Nonnull
@@ -304,7 +311,10 @@ public final class MutablePhysicsCommandContext implements PhysicsCommandContext
     @Nonnull
     @Override
     public JointCommandRecorder joint(@Nonnull JointKey jointKey) {
-        return new MutableJointCommandRecorder(this, jointKey);
+        assertMutable();
+        MutableJointCommandRecorder joint = new MutableJointCommandRecorder(this, jointKey);
+        pendingJoints.add(joint);
+        return joint;
     }
 
     @Nonnull
@@ -343,6 +353,7 @@ public final class MutablePhysicsCommandContext implements PhysicsCommandContext
         if (frozen) {
             throw new IllegalStateException("Physics command context is already frozen");
         }
+        recordPendingRecorders();
         frozen = true;
         return new RecordedPhysicsCommandBatch(
             new PhysicsCommandMetadata(submittedServerTick, commandBatchSequence),
@@ -351,7 +362,33 @@ public final class MutablePhysicsCommandContext implements PhysicsCommandContext
     }
 
     public boolean isEmpty() {
-        return operations.size() == 0;
+        return operations.size() == 0 && pendingSpawns.isEmpty() && pendingJoints.isEmpty();
+    }
+
+    private void recordPendingRecorders() {
+        try {
+            for (MutableRigidBodySpawnRecorder spawn : pendingSpawns) {
+                spawn.validate();
+            }
+            for (MutableJointCommandRecorder joint : pendingJoints) {
+                joint.validate();
+            }
+            for (MutableRigidBodySpawnRecorder spawn : pendingSpawns) {
+                spawn.record();
+            }
+            for (MutableJointCommandRecorder joint : pendingJoints) {
+                joint.record();
+            }
+        } finally {
+            for (MutableRigidBodySpawnRecorder spawn : pendingSpawns) {
+                spawn.seal();
+            }
+            for (MutableJointCommandRecorder joint : pendingJoints) {
+                joint.seal();
+            }
+            pendingSpawns.clear();
+            pendingJoints.clear();
+        }
     }
 
     void recordSpawn(@Nonnull RigidBodyKey bodyKey,

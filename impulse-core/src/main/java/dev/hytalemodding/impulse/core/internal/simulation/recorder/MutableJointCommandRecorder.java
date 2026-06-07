@@ -278,15 +278,7 @@ public final class MutableJointCommandRecorder implements JointCommandRecorder {
 
     void record() {
         assertOpen();
-        if (spaceId == null) {
-            throw new IllegalStateException("Joint command requires a physics space");
-        }
-        if (bodyA == null || bodyB == null) {
-            throw new IllegalStateException("Joint command requires both rigid bodies");
-        }
-        if (type == null) {
-            throw new IllegalStateException("Joint command requires a joint type");
-        }
+        validate();
         recorder.recordJoint(jointKey,
             spaceId,
             bodyA,
@@ -309,6 +301,18 @@ public final class MutableJointCommandRecorder implements JointCommandRecorder {
             motorEnabled,
             motorTargetVelocity,
             motorMaxForce);
+    }
+
+    void validate() {
+        if (spaceId == null) {
+            throw new IllegalStateException("Joint command requires a physics space");
+        }
+        if (bodyA == null || bodyB == null) {
+            throw new IllegalStateException("Joint command requires both rigid bodies");
+        }
+        if (type == null) {
+            throw new IllegalStateException("Joint command requires a joint type");
+        }
     }
 
     @Nonnull
