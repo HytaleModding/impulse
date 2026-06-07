@@ -16,7 +16,9 @@ import dev.hytalemodding.impulse.core.internal.resources.owner.PhysicsOwnerHandl
 import dev.hytalemodding.impulse.core.internal.resources.owner.PhysicsOwnerLaneResource;
 import dev.hytalemodding.impulse.core.internal.resources.owner.PhysicsOwnerLaneScheduler;
 import dev.hytalemodding.impulse.core.internal.resources.owner.PhysicsOwnerResource;
+import dev.hytalemodding.impulse.core.internal.resources.owner.PhysicsOwnerCallable;
 import dev.hytalemodding.impulse.core.internal.resources.owner.PhysicsOwnerCommand;
+import dev.hytalemodding.impulse.core.internal.resources.owner.PhysicsOwnerMutation;
 import dev.hytalemodding.impulse.core.internal.resources.owner.PhysicsOwnerMutationCompletion;
 import dev.hytalemodding.impulse.core.internal.resources.owner.PhysicsOwnerResult;
 import dev.hytalemodding.impulse.core.internal.resources.owner.PhysicsOwnerStepCompletion;
@@ -352,7 +354,7 @@ class PhysicsOwnerLifecycleSystemTest {
 
         @Override
         public void run(@Nonnull String operation,
-            @Nonnull dev.hytalemodding.impulse.core.internal.resources.owner.PhysicsOwnerMutation mutation) {
+            @Nonnull PhysicsOwnerMutation mutation) {
             throw new UnsupportedOperationException("not started");
         }
 
@@ -360,21 +362,21 @@ class PhysicsOwnerLifecycleSystemTest {
         @Override
         public <T> PhysicsMutationHandle<T> enqueue(@Nonnull String operation,
             @Nullable T value,
-            @Nonnull dev.hytalemodding.impulse.core.internal.resources.owner.PhysicsOwnerMutation mutation) {
+            @Nonnull PhysicsOwnerMutation mutation) {
             throw new UnsupportedOperationException("not started");
         }
 
         @Nonnull
         @Override
         public <T> CompletableFuture<T> enqueueCall(@Nonnull String operation,
-            @Nonnull dev.hytalemodding.impulse.core.internal.resources.owner.PhysicsOwnerCallable<T> callable) {
+            @Nonnull PhysicsOwnerCallable<T> callable) {
             throw new UnsupportedOperationException("not started");
         }
 
         @Nonnull
         @Override
         public <T> T call(@Nonnull String operation,
-            @Nonnull dev.hytalemodding.impulse.core.internal.resources.owner.PhysicsOwnerCallable<T> callable) {
+            @Nonnull PhysicsOwnerCallable<T> callable) {
             throw new UnsupportedOperationException("not started");
         }
 

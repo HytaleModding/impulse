@@ -15,6 +15,7 @@ import dev.hytalemodding.impulse.core.internal.commands.SpaceSelection;
 import dev.hytalemodding.impulse.core.plugin.settings.PhysicsSpaceSettings;
 import dev.hytalemodding.impulse.core.plugin.resources.PhysicsWorldResource;
 import dev.hytalemodding.impulse.core.plugin.settings.PhysicsCollisionLodSettings;
+import java.util.Locale;
 import java.util.concurrent.CompletableFuture;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
@@ -167,7 +168,7 @@ public class CollisionLodSettingsCommand extends AbstractAsyncPlayerCommand {
 
     @Nullable
     private static Boolean parseBoolean(@Nonnull String value) {
-        return switch (value.toLowerCase(java.util.Locale.ROOT)) {
+        return switch (value.toLowerCase(Locale.ROOT)) {
             case "true", "yes", "on", "enabled" -> true;
             case "false", "no", "off", "disabled" -> false;
             default -> null;

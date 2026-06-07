@@ -24,12 +24,15 @@ import dev.hytalemodding.impulse.core.internal.modules.worldcollision.profiling.
 import dev.hytalemodding.impulse.core.internal.modules.worldcollision.SectionCollisionGeometry.BoxCollider;
 import dev.hytalemodding.impulse.core.plugin.body.RigidBodyKey;
 import java.lang.reflect.Constructor;
+import java.lang.reflect.Field;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 import javax.annotation.Nonnull;
+import org.joml.Vector3d;
 import org.joml.Vector3f;
 import org.junit.jupiter.api.Test;
 
@@ -314,7 +317,7 @@ class WorldVoxelCollisionCacheTest {
 
         int removed = worldCache.clearSectionsAround(fixture.binding().spaceId(),
             fixture.binding(),
-            new org.joml.Vector3d(8.0, 65.0, 8.0),
+            new Vector3d(8.0, 65.0, 8.0),
             8);
 
         assertEquals(1, removed);
@@ -453,18 +456,18 @@ class WorldVoxelCollisionCacheTest {
             intField(section, "chunkX"),
             intField(section, "sectionY"),
             intField(section, "chunkZ"));
-        java.lang.reflect.Field sectionsField = cache.getClass().getDeclaredField("sections");
+        Field sectionsField = cache.getClass().getDeclaredField("sections");
         sectionsField.setAccessible(true);
-        ((java.util.Map<Long, Object>) sectionsField.get(cache)).put(key, section);
+        ((Map<Long, Object>) sectionsField.get(cache)).put(key, section);
     }
 
     @SuppressWarnings("unchecked")
     private static void putSpaceCache(@Nonnull WorldVoxelCollisionCache worldCache,
         @Nonnull SpaceId spaceId,
         @Nonnull Object cache) throws Exception {
-        java.lang.reflect.Field spacesField = WorldVoxelCollisionCache.class.getDeclaredField("spaces");
+        Field spacesField = WorldVoxelCollisionCache.class.getDeclaredField("spaces");
         spacesField.setAccessible(true);
-        ((java.util.Map<Integer, Object>) spacesField.get(worldCache)).put(spaceId.value(), cache);
+        ((Map<Integer, Object>) spacesField.get(worldCache)).put(spaceId.value(), cache);
     }
 
     private static Object cachedVoxelNeighbor(@Nonnull RuntimeFixture fixture,
@@ -495,7 +498,7 @@ class WorldVoxelCollisionCacheTest {
 
     @SuppressWarnings("unchecked")
     private static void markVoxelTerrain(@Nonnull Object section, long backendBodyId) throws Exception {
-        java.lang.reflect.Field backendBodyIds = section.getClass().getDeclaredField("backendBodyIds");
+        Field backendBodyIds = section.getClass().getDeclaredField("backendBodyIds");
         backendBodyIds.setAccessible(true);
         ((List<Long>) backendBodyIds.get(section)).add(backendBodyId);
         setBooleanField(section, "voxelTerrain", true);
@@ -503,7 +506,7 @@ class WorldVoxelCollisionCacheTest {
     }
 
     private static long voxelTerrainBodyId(@Nonnull Object section) throws Exception {
-        java.lang.reflect.Field field = section.getClass().getDeclaredField("voxelTerrainBodyId");
+        Field field = section.getClass().getDeclaredField("voxelTerrainBodyId");
         field.setAccessible(true);
         return field.getLong(section);
     }
@@ -515,7 +518,7 @@ class WorldVoxelCollisionCacheTest {
     }
 
     private static int intField(@Nonnull Object target, @Nonnull String name) throws Exception {
-        java.lang.reflect.Field field = target.getClass().getDeclaredField(name);
+        Field field = target.getClass().getDeclaredField(name);
         field.setAccessible(true);
         return field.getInt(target);
     }
@@ -523,7 +526,7 @@ class WorldVoxelCollisionCacheTest {
     private static void setBooleanField(@Nonnull Object target,
         @Nonnull String name,
         boolean value) throws Exception {
-        java.lang.reflect.Field field = target.getClass().getDeclaredField(name);
+        Field field = target.getClass().getDeclaredField(name);
         field.setAccessible(true);
         field.setBoolean(target, value);
     }
@@ -531,7 +534,7 @@ class WorldVoxelCollisionCacheTest {
     private static void setLongField(@Nonnull Object target,
         @Nonnull String name,
         long value) throws Exception {
-        java.lang.reflect.Field field = target.getClass().getDeclaredField(name);
+        Field field = target.getClass().getDeclaredField(name);
         field.setAccessible(true);
         field.setLong(target, value);
     }

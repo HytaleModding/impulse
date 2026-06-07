@@ -216,7 +216,7 @@ class ExplosiveBlockRuntimeTest {
             new Vector3d(0.5, 10.5, 0.5),
             8).getFirst();
         List<ExplosiveBlockRuntime.FragmentVisual> visuals = group.visualBlocks();
-        org.joml.Quaternionf rotation = new org.joml.Quaternionf().rotateZ((float) (Math.PI / 2.0));
+        Quaternionf rotation = new Quaternionf().rotateZ((float) (Math.PI / 2.0));
 
         assertVisualCenterAfterSyncEqualsRotatedLocalCenter(group,
             visuals.get(0),
@@ -365,7 +365,7 @@ class ExplosiveBlockRuntimeTest {
     private static void assertVisualCenterAfterSyncEqualsRotatedLocalCenter(
         ExplosiveBlockRuntime.FragmentGroup group,
         ExplosiveBlockRuntime.FragmentVisual visual,
-        org.joml.Quaternionf rotation,
+        Quaternionf rotation,
         Vector3d expectedCenter) {
         Vector3f rotatedOffset = rotation.transform(visual.localPositionOffset(), new Vector3f());
         Vector3d syncedBasePosition = new Vector3d(group.center())

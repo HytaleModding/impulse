@@ -17,6 +17,7 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.stream.IntStream;
 import javax.annotation.Nonnull;
 import org.junit.jupiter.api.Test;
 
@@ -76,7 +77,7 @@ class ImpulseRegistryTest {
         CountDownLatch start = new CountDownLatch(1);
         Set<PhysicsBackendRuntime> runtimes = new HashSet<>();
         try {
-            List<Future<PhysicsBackendRuntime>> futures = java.util.stream.IntStream
+            List<Future<PhysicsBackendRuntime>> futures = IntStream
                 .range(0, CONCURRENT_RUNTIME_CREATIONS)
                 .mapToObj(ignored -> executor.submit(() -> {
                     ready.countDown();

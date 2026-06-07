@@ -358,13 +358,13 @@ public final class MutablePhysicsCommandContext implements PhysicsCommandContext
         @Nonnull SpaceId spaceId,
         @Nonnull PhysicsShapeSpec shape,
         float mass,
-        @Nonnull dev.hytalemodding.impulse.api.PhysicsBodyType bodyType,
+        @Nonnull PhysicsBodyType bodyType,
         float positionX,
         float positionY,
         float positionZ,
         @Nonnull RigidBodySpawnSettings settings,
-        @Nonnull dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyKind kind,
-        @Nonnull dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyPersistenceMode persistenceMode) {
+        @Nonnull PhysicsBodyKind kind,
+        @Nonnull PhysicsBodyPersistenceMode persistenceMode) {
         assertMutable();
         operations.addSpawn(bodyKey,
             spaceId,
@@ -445,7 +445,7 @@ public final class MutablePhysicsCommandContext implements PhysicsCommandContext
     }
 
     void recordSetType(@Nonnull RigidBodyKey bodyKey,
-        @Nonnull dev.hytalemodding.impulse.api.PhysicsBodyType bodyType,
+        @Nonnull PhysicsBodyType bodyType,
         boolean activate) {
         assertMutable();
         operations.addSetType(bodyKey, bodyType, activate);
