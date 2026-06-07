@@ -278,11 +278,11 @@ public class PhysicsDebugSystem extends TickingSystem<EntityStore> {
             return 0;
         }
 
-        int[] rendered = {0};
+        RenderedBodyCount rendered = new RenderedBodyCount();
         double maxDistanceSquared = viewRadius * viewRadius;
         for (PhysicsSpaceBinding space : resource.getSpaceBindings()) {
             resource.forEachIndexedBodySnapshot(space.spaceId(), (bodyKey, snapshot, spaceId, kind, persistenceMode) -> {
-                if (rendered[0] >= maxBodies) {
+                if (rendered.hasReached(maxBodies)) {
                     return;
                 }
 
@@ -308,13 +308,30 @@ public class PhysicsDebugSystem extends TickingSystem<EntityStore> {
                 if (debugMotion) {
                     PhysicsDebugRenderer.renderBodyMotion(viewers, center, snapshot, time);
                 }
-                rendered[0]++;
+                rendered.increment();
             });
-            if (rendered[0] >= maxBodies) {
+            if (rendered.hasReached(maxBodies)) {
                 break;
             }
         }
-        return rendered[0];
+        return rendered.value();
+    }
+
+    private static final class RenderedBodyCount {
+
+        private int value;
+
+        private void increment() {
+            value++;
+        }
+
+        private boolean hasReached(int limit) {
+            return value >= limit;
+        }
+
+        private int value() {
+            return value;
+        }
     }
 
     private static void renderSpaceOnlyShapes(@Nonnull Collection<PlayerRef> viewers,

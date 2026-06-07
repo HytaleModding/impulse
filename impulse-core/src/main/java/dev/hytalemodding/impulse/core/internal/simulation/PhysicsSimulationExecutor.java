@@ -5,6 +5,7 @@ import dev.hytalemodding.impulse.api.PhysicsBodySnapshot;
 import dev.hytalemodding.impulse.api.PhysicsBodyType;
 import dev.hytalemodding.impulse.api.ShapeType;
 import dev.hytalemodding.impulse.api.SpaceId;
+import dev.hytalemodding.impulse.api.runtime.BackendRayHitSink;
 import dev.hytalemodding.impulse.api.runtime.BackendRuntimeCodes;
 import dev.hytalemodding.impulse.core.internal.resources.BackendBodyHandle;
 import dev.hytalemodding.impulse.core.internal.resources.BackendJointHandle;
@@ -787,34 +788,18 @@ public final class PhysicsSimulationExecutor implements PhysicsCommandDispatcher
     @Nonnull
     private Optional<RaycastHitView> raycastClosest(@Nonnull RaycastClosestQuery query) {
         PhysicsSpaceBinding space = requireSpace(query.spaceId());
-        RaycastHitView[] hit = new RaycastHitView[1];
+        RayHitCapture hit = new RayHitCapture();
         Vector3f from = query.from();
         Vector3f to = query.to();
-        space.runtime().raycastClosest(space.backendSpaceHandle().value(),
+        boolean hitFound = space.runtime().raycastClosest(space.backendSpaceHandle().value(),
             from.x,
             from.y,
             from.z,
             to.x,
             to.y,
             to.z,
-            (bodyId,
-                pointX,
-                pointY,
-                pointZ,
-                normalX,
-                normalY,
-                normalZ,
-                fraction,
-                distance) -> hit[0] = toView(bodyId,
-                pointX,
-                pointY,
-                pointZ,
-                normalX,
-                normalY,
-                normalZ,
-                fraction,
-                distance));
-        return Optional.ofNullable(hit[0]);
+            hit);
+        return hitFound && hit.captured ? Optional.of(toView(hit)) : Optional.empty();
     }
 
     @Nonnull
@@ -1610,6 +1595,19 @@ public final class PhysicsSimulationExecutor implements PhysicsCommandDispatcher
     }
 
     @Nonnull
+    private RaycastHitView toView(@Nonnull RayHitCapture hit) {
+        return toView(hit.bodyId,
+            hit.pointX,
+            hit.pointY,
+            hit.pointZ,
+            hit.normalX,
+            hit.normalY,
+            hit.normalZ,
+            hit.fraction,
+            hit.distance);
+    }
+
+    @Nonnull
     private RaycastHitView toView(long bodyId,
         float pointX,
         float pointY,
@@ -1631,6 +1629,42 @@ public final class PhysicsSimulationExecutor implements PhysicsCommandDispatcher
             snapshot != null ? snapshot.shapeType() : ShapeType.BOX,
             fraction,
             distance);
+    }
+
+    private static final class RayHitCapture implements BackendRayHitSink {
+
+        private long bodyId;
+        private float pointX;
+        private float pointY;
+        private float pointZ;
+        private float normalX;
+        private float normalY;
+        private float normalZ;
+        private float fraction;
+        private float distance;
+        private boolean captured;
+
+        @Override
+        public void accept(long bodyId,
+            float pointX,
+            float pointY,
+            float pointZ,
+            float normalX,
+            float normalY,
+            float normalZ,
+            float fraction,
+            float distance) {
+            this.bodyId = bodyId;
+            this.pointX = pointX;
+            this.pointY = pointY;
+            this.pointZ = pointZ;
+            this.normalX = normalX;
+            this.normalY = normalY;
+            this.normalZ = normalZ;
+            this.fraction = fraction;
+            this.distance = distance;
+            captured = true;
+        }
     }
 
     @Nonnull

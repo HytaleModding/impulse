@@ -4,6 +4,7 @@ import dev.hytalemodding.impulse.api.PhysicsBodySnapshot;
 import dev.hytalemodding.impulse.api.PhysicsContactPhase;
 import dev.hytalemodding.impulse.api.PhysicsStepPhaseStats;
 import dev.hytalemodding.impulse.api.ShapeType;
+import dev.hytalemodding.impulse.api.runtime.BackendStepPhaseStatsSink;
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsSpaceBinding;
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsWorldRuntimeResource;
 import dev.hytalemodding.impulse.core.internal.resources.body.PhysicsBodyRegistration;
@@ -209,25 +210,41 @@ public final class PhysicsOwnerStepCommand implements PhysicsOwnerCommand {
         @Nonnull PhysicsWorldRuntimeResource resource) {
         PhysicsStepPhaseStats stats = PhysicsStepPhaseStats.unavailable();
         for (PhysicsSpaceBinding space : resource.iterateSpaceBindings()) {
-            PhysicsStepPhaseStats[] spaceStats = { PhysicsStepPhaseStats.unavailable() };
+            StepPhaseStatsCapture spaceStats = new StepPhaseStatsCapture();
             space.runtime().stepPhaseStats(space.backendSpaceHandle().value(),
-                (stepNanos,
+                spaceStats);
+            stats = stats.add(spaceStats.value());
+        }
+        return stats;
+    }
+
+    private static final class StepPhaseStatsCapture implements BackendStepPhaseStatsSink {
+
+        @Nonnull
+        private PhysicsStepPhaseStats value = PhysicsStepPhaseStats.unavailable();
+
+        @Override
+        public void accept(long stepNanos,
+            long broadPhaseNanos,
+            long narrowPhaseNanos,
+            long solverNanos,
+            long continuousCollisionNanos,
+            long snapshotNanos,
+            boolean available) {
+            value = available
+                ? PhysicsStepPhaseStats.available(stepNanos,
                     broadPhaseNanos,
                     narrowPhaseNanos,
                     solverNanos,
                     continuousCollisionNanos,
-                    snapshotNanos,
-                    available) -> spaceStats[0] = available
-                    ? PhysicsStepPhaseStats.available(stepNanos,
-                        broadPhaseNanos,
-                        narrowPhaseNanos,
-                        solverNanos,
-                        continuousCollisionNanos,
-                        snapshotNanos)
-                    : PhysicsStepPhaseStats.unavailable());
-            stats = stats.add(spaceStats[0]);
+                    snapshotNanos)
+                : PhysicsStepPhaseStats.unavailable();
         }
-        return stats;
+
+        @Nonnull
+        private PhysicsStepPhaseStats value() {
+            return value;
+        }
     }
 
     private static int resolveAdaptiveStepCount(float dt,

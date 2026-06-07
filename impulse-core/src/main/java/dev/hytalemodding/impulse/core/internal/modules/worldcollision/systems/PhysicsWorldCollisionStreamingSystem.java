@@ -307,15 +307,14 @@ public class PhysicsWorldCollisionStreamingSystem extends TickingSystem<EntitySt
         @Nullable Snapshot snapshot) {
         Map<WorldCollisionStreamingBounds, BodyStreamingTarget> uniqueTargets =
             new Object2ObjectOpenHashMap<>();
-        int[] spatialIndexCandidateCount = {0};
-        int[] candidateCount = {0};
+        BodyStreamingCollectionStats stats = new BodyStreamingCollectionStats();
         resource.forEachIndexedBodySnapshot(spaceId, (bodyKey, bodySnapshot, bodySpaceId, kind, persistenceMode) -> {
-            spatialIndexCandidateCount[0]++;
+            stats.spatialIndexCandidateCount++;
             if (!bodySnapshot.isDynamic()) {
                 return;
             }
 
-            candidateCount[0]++;
+            stats.candidateCount++;
             float positionX = bodySnapshot.positionX();
             float positionY = bodySnapshot.positionY();
             float positionZ = bodySnapshot.positionZ();
@@ -352,11 +351,17 @@ public class PhysicsWorldCollisionStreamingSystem extends TickingSystem<EntitySt
         });
         cache.pruneBodyStreamingTargets(spaceId, currentTick, ttlTicks, snapshot);
         if (snapshot != null) {
-            snapshot.addBodyStreamingCandidates(candidateCount[0]);
-            snapshot.addBodySpatialIndexCandidates(spatialIndexCandidateCount[0]);
+            snapshot.addBodyStreamingCandidates(stats.candidateCount);
+            snapshot.addBodySpatialIndexCandidates(stats.spatialIndexCandidateCount);
             snapshot.addBodyStreamingTargets(uniqueTargets.size());
         }
         return new ArrayList<>(uniqueTargets.values());
+    }
+
+    private static final class BodyStreamingCollectionStats {
+
+        private int spatialIndexCandidateCount;
+        private int candidateCount;
     }
 
     @Nullable
