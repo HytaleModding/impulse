@@ -21,6 +21,7 @@ import dev.hytalemodding.impulse.examples.explosive.ExplosiveBlockComponent;
 import dev.hytalemodding.impulse.examples.explosive.ExplosiveBlockRuntime;
 import dev.hytalemodding.impulse.examples.explosive.ExplosiveFuseComponent;
 import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
 import org.joml.Vector3d;
 
 public final class ExplosiveFuseTickSystem extends EntityTickingSystem<EntityStore>
@@ -99,7 +100,7 @@ public final class ExplosiveFuseTickSystem extends EntityTickingSystem<EntitySto
     }
 
     @Nonnull
-    private static Vector3d explosionCenter(@javax.annotation.Nullable PhysicsBodySnapshot snapshot,
+    private static Vector3d explosionCenter(@Nullable PhysicsBodySnapshot snapshot,
         @Nonnull TransformComponent transform) {
         if (snapshot != null) {
             return ExplosiveBlockRuntime.sourceExplosionCenter(new Vector3d(snapshot.positionX(),
@@ -109,7 +110,7 @@ public final class ExplosiveFuseTickSystem extends EntityTickingSystem<EntitySto
         return ExplosiveBlockRuntime.sourceExplosionCenter(new Vector3d(transform.getPosition()));
     }
 
-    @javax.annotation.Nullable
+    @Nullable
     private static PhysicsBodySnapshot bodySnapshot(@Nonnull PhysicsWorldResource resource,
         @Nonnull RigidBodyKey bodyKey) {
         if (resource.getBodyRegistrationView(bodyKey) != null) {

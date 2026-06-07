@@ -16,6 +16,7 @@ import com.hypixel.hytale.server.core.universe.world.storage.ChunkStore;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import dev.hytalemodding.impulse.api.PhysicsBodySnapshot;
 import dev.hytalemodding.impulse.api.PhysicsBodyType;
+import dev.hytalemodding.impulse.api.runtime.BackendRuntimeCodes;
 import dev.hytalemodding.impulse.core.ImpulsePlugin;
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsSpaceBinding;
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsWorldRuntimeResource;
@@ -149,7 +150,7 @@ public class PhysicsChunkBoundarySystem extends TickingSystem<EntityStore> {
             space.runtime()
                 .setBodyType(space.backendSpaceHandle().value(),
                     registration.backendBodyHandle().value(),
-                    dev.hytalemodding.impulse.api.runtime.BackendRuntimeCodes.bodyTypeCode(
+                    BackendRuntimeCodes.bodyTypeCode(
                         pauseState.getOriginalBodyType()));
             space.runtime().setBodyVelocity(space.backendSpaceHandle().value(),
                 registration.backendBodyHandle().value(),
@@ -206,7 +207,7 @@ public class PhysicsChunkBoundarySystem extends TickingSystem<EntityStore> {
         if (snapshot.bodyType() != PhysicsBodyType.KINEMATIC) {
             space.runtime().setBodyType(space.backendSpaceHandle().value(),
                 registration.backendBodyHandle().value(),
-                dev.hytalemodding.impulse.api.runtime.BackendRuntimeCodes.bodyTypeCode(PhysicsBodyType.KINEMATIC));
+                BackendRuntimeCodes.bodyTypeCode(PhysicsBodyType.KINEMATIC));
         }
         space.runtime().setBodyVelocity(space.backendSpaceHandle().value(),
             registration.backendBodyHandle().value(),

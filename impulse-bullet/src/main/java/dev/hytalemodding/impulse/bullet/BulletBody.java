@@ -8,6 +8,7 @@ import com.jme3.bullet.collision.shapes.CylinderCollisionShape;
 import com.jme3.bullet.collision.shapes.PlaneCollisionShape;
 import com.jme3.bullet.collision.shapes.SphereCollisionShape;
 import com.jme3.bullet.objects.PhysicsRigidBody;
+import com.jme3.math.Quaternion;
 import dev.hytalemodding.impulse.api.PhysicsAxis;
 import dev.hytalemodding.impulse.api.PhysicsBody;
 import dev.hytalemodding.impulse.api.PhysicsBodyType;
@@ -21,7 +22,7 @@ public final class BulletBody implements PhysicsBody {
 
     private final PhysicsRigidBody body;
     private final com.jme3.math.Vector3f jmeVectorScratch = new com.jme3.math.Vector3f();
-    private final com.jme3.math.Quaternion jmeQuaternionScratch = new com.jme3.math.Quaternion();
+    private final Quaternion jmeQuaternionScratch = new Quaternion();
     private BulletSpace owner;
     private boolean attachedToSpace;
     private boolean invalidated;
@@ -56,7 +57,7 @@ public final class BulletBody implements PhysicsBody {
 
     @Override
     public void setRotation(float x, float y, float z, float w) {
-        body.setPhysicsRotation(new com.jme3.math.Quaternion(x, y, z, w));
+        body.setPhysicsRotation(new Quaternion(x, y, z, w));
     }
 
     @Override
@@ -74,7 +75,7 @@ public final class BulletBody implements PhysicsBody {
 
     @Override
     public void getRotation(@Nonnull Quaternionf out) {
-        com.jme3.math.Quaternion rotation = body.getPhysicsRotation(jmeQuaternionScratch);
+        Quaternion rotation = body.getPhysicsRotation(jmeQuaternionScratch);
         out.set(rotation.getX(), rotation.getY(), rotation.getZ(), rotation.getW());
     }
 

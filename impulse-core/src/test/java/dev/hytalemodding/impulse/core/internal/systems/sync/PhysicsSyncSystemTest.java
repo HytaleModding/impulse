@@ -11,7 +11,9 @@ import dev.hytalemodding.impulse.core.plugin.components.PhysicsBodyAttachmentCom
 import dev.hytalemodding.impulse.core.plugin.components.PhysicsBodyAttachmentComponent.AttachmentLifecycle;
 import dev.hytalemodding.impulse.core.plugin.components.PhysicsBodyAttachmentComponent.TransformAuthority;
 import dev.hytalemodding.impulse.core.plugin.settings.PhysicsSpaceSettings;
+import org.joml.Quaterniond;
 import org.joml.Quaternionf;
+import org.joml.Vector3d;
 import org.joml.Vector3f;
 import org.junit.jupiter.api.Test;
 
@@ -106,12 +108,12 @@ class PhysicsSyncSystemTest {
             new Vector3f(1.0f, 0.0f, 0.0f),
             new Vector3f());
 
-        org.joml.Vector3d invertedCenter = PhysicsVisualPoseMath.bodyCenterFromVisualPose(
-            new org.joml.Vector3d(visualPosition.x, visualPosition.y, visualPosition.z),
-            new org.joml.Quaterniond(bodyRotation),
+        Vector3d invertedCenter = PhysicsVisualPoseMath.bodyCenterFromVisualPose(
+            new Vector3d(visualPosition.x, visualPosition.y, visualPosition.z),
+            new Quaterniond(bodyRotation),
             centerOfMassOffsetY,
             new Vector3f(1.0f, 0.0f, 0.0f),
-            new org.joml.Vector3d());
+            new Vector3d());
 
         assertEquals(bodyCenter.x, invertedCenter.x, 0.0001f);
         assertEquals(bodyCenter.y, invertedCenter.y, 0.0001f);

@@ -25,6 +25,7 @@ import dev.hytalemodding.impulse.core.plugin.settings.PhysicsSpaceSettings;
 import it.unimi.dsi.fastutil.ints.Int2ObjectMap;
 import it.unimi.dsi.fastutil.longs.Long2ObjectMap;
 import java.lang.reflect.Constructor;
+import java.lang.reflect.Field;
 import java.lang.reflect.Method;
 import java.util.Arrays;
 import java.util.List;
@@ -217,7 +218,7 @@ class WorldCollisionLifecycleTest {
     @SuppressWarnings("unchecked")
     private static void markBackendBody(@Nonnull Object section, long backendBodyId)
         throws Exception {
-        java.lang.reflect.Field backendBodyIds =
+        Field backendBodyIds =
             section.getClass().getDeclaredField("backendBodyIds");
         backendBodyIds.setAccessible(true);
         ((List<Long>) backendBodyIds.get(section)).add(backendBodyId);
@@ -235,7 +236,7 @@ class WorldCollisionLifecycleTest {
             intField(section, "chunkX"),
             intField(section, "sectionY"),
             intField(section, "chunkZ"));
-        java.lang.reflect.Field sectionsField = cache.getClass().getDeclaredField("sections");
+        Field sectionsField = cache.getClass().getDeclaredField("sections");
         sectionsField.setAccessible(true);
         ((Long2ObjectMap<Object>) sectionsField.get(cache)).put(key, section);
     }
@@ -244,13 +245,13 @@ class WorldCollisionLifecycleTest {
     private static void putSpaceCache(@Nonnull WorldVoxelCollisionCache cache,
         @Nonnull SpaceId spaceId,
         @Nonnull Object spaceCache) throws Exception {
-        java.lang.reflect.Field spaces = WorldVoxelCollisionCache.class.getDeclaredField("spaces");
+        Field spaces = WorldVoxelCollisionCache.class.getDeclaredField("spaces");
         spaces.setAccessible(true);
         ((Int2ObjectMap<Object>) spaces.get(cache)).put(spaceId.value(), spaceCache);
     }
 
     private static int intField(@Nonnull Object target, @Nonnull String name) throws Exception {
-        java.lang.reflect.Field field = target.getClass().getDeclaredField(name);
+        Field field = target.getClass().getDeclaredField(name);
         field.setAccessible(true);
         return field.getInt(target);
     }

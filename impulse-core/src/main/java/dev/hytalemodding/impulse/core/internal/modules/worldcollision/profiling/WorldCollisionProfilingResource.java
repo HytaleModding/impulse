@@ -10,6 +10,7 @@ import it.unimi.dsi.fastutil.longs.LongOpenHashSet;
 import it.unimi.dsi.fastutil.longs.LongSet;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Locale;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 import lombok.AccessLevel;
@@ -608,7 +609,7 @@ public class WorldCollisionProfilingResource implements Resource<EntityStore> {
 
         @Nonnull
         public String compact() {
-            return String.format(java.util.Locale.ROOT, "%.3f,%.3f,%.3f", x, y, z);
+            return String.format(Locale.ROOT, "%.3f,%.3f,%.3f", x, y, z);
         }
     }
 
