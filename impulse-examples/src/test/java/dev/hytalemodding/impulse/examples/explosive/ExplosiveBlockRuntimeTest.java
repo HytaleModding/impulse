@@ -280,17 +280,7 @@ class ExplosiveBlockRuntimeTest {
 
     @Test
     void terrainFragmentsDoNotCarryLandingExplosionState() {
-        ExplosiveBlockComponent settings = new ExplosiveBlockComponent(
-            "Hytale:block/stone",
-            0,
-            2,
-            3,
-            48,
-            12.0f,
-            0.35f);
-
-        assertNull(ExplosiveBlockRuntime.fragmentLandingExplosionState(settings,
-            "Hytale:block/dirt"));
+        assertNull(ExplosiveBlockRuntime.fragmentLandingExplosionState());
     }
 
     private static boolean booleanField(ExplosionConfig config, String fieldName)

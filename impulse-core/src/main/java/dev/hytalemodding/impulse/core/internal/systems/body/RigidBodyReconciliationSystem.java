@@ -304,8 +304,12 @@ public class RigidBodyReconciliationSystem extends TickingSystem<EntityStore>
     @Nonnull
     private RigidBodyKinematicTargetState kinematicStateFor(@Nonnull Store<EntityStore> store) {
         synchronized (kinematicStatesByStore) {
-            return kinematicStatesByStore.computeIfAbsent(store,
-                ignored -> new RigidBodyKinematicTargetState());
+            RigidBodyKinematicTargetState state = kinematicStatesByStore.get(store);
+            if (state == null) {
+                state = new RigidBodyKinematicTargetState();
+                kinematicStatesByStore.put(store, state);
+            }
+            return state;
         }
     }
 

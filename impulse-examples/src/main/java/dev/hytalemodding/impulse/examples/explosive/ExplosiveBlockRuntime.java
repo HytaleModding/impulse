@@ -185,8 +185,7 @@ public final class ExplosiveBlockRuntime {
                 controllable);
             if (controllable) {
                 controllableAssigned = true;
-                ExplosiveBlockComponent fragmentState = fragmentLandingExplosionState(settings,
-                    visual.blockType());
+                ExplosiveBlockComponent fragmentState = fragmentLandingExplosionState();
                 if (fragmentState != null) {
                     holder.addComponent(ExplosiveBlockComponent.getComponentType(), fragmentState);
                 }
@@ -247,7 +246,6 @@ public final class ExplosiveBlockRuntime {
         if (!chunk.setBlock(localX, y, localZ, 0, BlockType.EMPTY, 0, 0, SET_BLOCK_SETTINGS)) {
             return null;
         }
-        assert blockType != null;
         return new FragmentBlock(blockType.getId(),
             x,
             y,
@@ -448,8 +446,7 @@ public final class ExplosiveBlockRuntime {
     }
 
     @Nullable
-    static ExplosiveBlockComponent fragmentLandingExplosionState(@Nonnull ExplosiveBlockComponent settings,
-        @Nullable String blockType) {
+    static ExplosiveBlockComponent fragmentLandingExplosionState() {
         return null;
     }
 

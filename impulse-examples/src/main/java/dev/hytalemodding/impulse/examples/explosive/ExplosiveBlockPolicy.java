@@ -39,12 +39,16 @@ public final class ExplosiveBlockPolicy {
     }
 
     public static boolean isSimpleFullCubeFragmentBlock(int blockId) {
+        return isSimpleFullCubeFragmentBlock(blockId, 0);
+    }
+
+    public static boolean isSimpleFullCubeFragmentBlock(int blockId, int rotation) {
         var assetStore = BlockType.getAssetStore();
         if (assetStore == null) {
             return false;
         }
         BlockType blockType = assetStore.getAssetMap().getAsset(blockId);
-        return isSimpleFullCubeFragmentBlock(blockId, blockType, 0);
+        return isSimpleFullCubeFragmentBlock(blockId, blockType, rotation);
     }
 
     public static boolean isSimpleFullCubeFragmentBlock(int blockId,
