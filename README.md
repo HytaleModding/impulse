@@ -217,12 +217,6 @@ backend at runtime. These artifacts are convenience packages for Impulse plugins
 the official upstream distribution channel for those native libraries. Download standalone
 Bullet/Libbulletjme or Rapier binaries from their upstream projects instead.
 
-## Code of Conduct
-This project and everyone participating in it is governed by HytaleModding's 
-[Code of Conduct](https://github.com/HytaleModding/site/blob/main/CODE_OF_CONDUCT.md). 
-By participating, you are expected to uphold this code. 
-Please report unacceptable behavior to the project maintainers.
-
 ## Code style
 
 The project uses Google Java Style with K&R braces and 4 spaces indentation. 
