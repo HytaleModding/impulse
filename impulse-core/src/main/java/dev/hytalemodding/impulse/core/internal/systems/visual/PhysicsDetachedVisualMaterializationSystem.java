@@ -9,6 +9,7 @@ import com.hypixel.hytale.component.Store;
 import com.hypixel.hytale.component.dependency.Dependency;
 import com.hypixel.hytale.component.dependency.Order;
 import com.hypixel.hytale.component.dependency.SystemDependency;
+import com.hypixel.hytale.component.dependency.SystemGroupDependency;
 import com.hypixel.hytale.component.system.tick.TickingSystem;
 import com.hypixel.hytale.math.util.ChunkUtil;
 import com.hypixel.hytale.server.core.entity.entities.BlockEntity;
@@ -21,8 +22,10 @@ import com.hypixel.hytale.server.core.universe.world.storage.ChunkStore;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import dev.hytalemodding.impulse.api.PhysicsBodySnapshot;
 import dev.hytalemodding.impulse.api.SpaceId;
+import dev.hytalemodding.impulse.core.ImpulsePlugin;
 import dev.hytalemodding.impulse.core.internal.components.GeneratedVisualProxyComponent;
 import dev.hytalemodding.impulse.core.internal.math.PhysicsVisualPoseMath;
+import dev.hytalemodding.impulse.core.internal.persistence.PersistentPhysicsWorldResource;
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsSpaceBinding;
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsWorldRuntimeResource;
 import dev.hytalemodding.impulse.core.internal.resources.profiling.PhysicsRuntimeProfilingResource;
@@ -63,16 +66,8 @@ import org.joml.Vector3f;
  */
 public class PhysicsDetachedVisualMaterializationSystem extends TickingSystem<EntityStore> {
 
-    private static final ComponentType<EntityStore, PhysicsBodyAttachmentComponent> ATTACHMENT_TYPE =
-        PhysicsBodyAttachmentComponent.getComponentType();
-    private static final ComponentType<EntityStore, DespawnComponent> DESPAWN_TYPE =
-        DespawnComponent.getComponentType();
-    private static final ComponentType<EntityStore, Velocity> VELOCITY_TYPE =
-        Velocity.getComponentType();
-    private static final ComponentType<ChunkStore, WorldChunk> WORLD_CHUNK_TYPE =
-        WorldChunk.getComponentType();
-
-    private static final Set<Dependency<EntityStore>> DEPENDENCIES = Set.of(
+    private final Set<Dependency<EntityStore>> dependencies = Set.of(
+        new SystemGroupDependency<>(Order.AFTER, ImpulsePlugin.get().getPersistenceRestoreGroup()),
         new SystemDependency<>(Order.BEFORE, PhysicsSyncSystem.class)
     );
 
@@ -105,6 +100,11 @@ public class PhysicsDetachedVisualMaterializationSystem extends TickingSystem<En
     private void tickMaterialization(@Nonnull Store<EntityStore> store,
         @Nullable PhysicsRuntimeProfilingResource.VisualCollector collector) {
         MaterializationState state = stateFor(store);
+        PersistentPhysicsWorldResource persistent = store.getResource(
+            PersistentPhysicsWorldResource.getResourceType());
+        if (shouldPauseForRestore(state, persistent)) {
+            return;
+        }
         PhysicsWorldRuntimeResource resource = PhysicsWorldRuntimeResource.require(store);
         if (state.orphanVisualCleanupCooldown <= 0) {
             removeOrphanVisualFollowers(store, resource);
@@ -140,6 +140,25 @@ public class PhysicsDetachedVisualMaterializationSystem extends TickingSystem<En
         if (collector != null) {
             collector.setMaterialized(materialized);
         }
+    }
+
+    private static boolean shouldPauseForRestore(@Nonnull MaterializationState state,
+        @Nonnull PersistentPhysicsWorldResource persistent) {
+        long restoreGeneration = persistent.runtimeRestoreGeneration();
+        if (state.observedRestoreGeneration != restoreGeneration) {
+            state.observedRestoreGeneration = restoreGeneration;
+            state.cachedMaterializationTargets.clear();
+            state.materializationCandidateRefreshCooldown = 0;
+            state.materializedVisibilityCheckCooldown = 0;
+            return true;
+        }
+        if (!persistent.isRuntimeRestorePending()) {
+            return false;
+        }
+        state.cachedMaterializationTargets.clear();
+        state.materializationCandidateRefreshCooldown = 0;
+        state.materializedVisibilityCheckCooldown = 0;
+        return true;
     }
 
     @Nonnull
@@ -509,10 +528,11 @@ public class PhysicsDetachedVisualMaterializationSystem extends TickingSystem<En
     private static void removeOrphanVisualFollowers(@Nonnull Store<EntityStore> store,
         @Nonnull PhysicsWorldRuntimeResource resource) {
         Queue<OrphanVisualProxy> orphanProxies = new ConcurrentLinkedQueue<>();
-        store.forEachEntityParallel(ATTACHMENT_TYPE,
+        ComponentType<EntityStore, PhysicsBodyAttachmentComponent> attachmentType = attachmentType();
+        store.forEachEntityParallel(attachmentType,
             (index, archetypeChunk, commandBuffer) -> {
                 PhysicsBodyAttachmentComponent attachment = archetypeChunk.getComponent(index,
-                    ATTACHMENT_TYPE);
+                    attachmentType);
                 if (attachment == null
                     || attachment.getLifecycle() != AttachmentLifecycle.GENERATED_PROXY) {
                     return;
@@ -559,12 +579,13 @@ public class PhysicsDetachedVisualMaterializationSystem extends TickingSystem<En
         @Nonnull RigidBodyKey bodyKey,
         @Nonnull Ref<EntityStore> proxy,
         @Nonnull GameplayAttachmentSnapshot gameplayAttachments) {
+        ComponentType<EntityStore, PhysicsBodyAttachmentComponent> attachmentType = attachmentType();
         for (Ref<EntityStore> attachmentRef : resource.getBodyAttachments(bodyKey)) {
             if (attachmentRef == proxy || attachmentRef.equals(proxy)) {
                 continue;
             }
             PhysicsBodyAttachmentComponent attachment = store.getComponent(attachmentRef,
-                ATTACHMENT_TYPE);
+                attachmentType);
             if (attachment != null && attachment.getLifecycle() != AttachmentLifecycle.GENERATED_PROXY) {
                 return true;
             }
@@ -635,7 +656,7 @@ public class PhysicsDetachedVisualMaterializationSystem extends TickingSystem<En
         }
 
         WorldChunk worldChunk = chunkComponentStore.getComponentConcurrent(chunkRef,
-            WORLD_CHUNK_TYPE);
+            worldChunkType());
         return worldChunk != null;
     }
 
@@ -646,7 +667,7 @@ public class PhysicsDetachedVisualMaterializationSystem extends TickingSystem<En
         if (!proxy.isValid()) {
             return false;
         }
-        PhysicsBodyAttachmentComponent attachment = store.getComponent(proxy, ATTACHMENT_TYPE);
+        PhysicsBodyAttachmentComponent attachment = store.getComponent(proxy, attachmentType());
         return attachment != null
             && attachment.getLifecycle() == AttachmentLifecycle.GENERATED_PROXY
             && attachment.getBodyKey().equals(bodyKey)
@@ -684,16 +705,36 @@ public class PhysicsDetachedVisualMaterializationSystem extends TickingSystem<En
             Vector3f euler = rotation.getEulerAnglesYXZ(new Vector3f());
             transform.getRotation().set(euler.x, euler.y, euler.z);
         }
-        holder.removeComponent(DESPAWN_TYPE);
-        holder.removeComponent(VELOCITY_TYPE);
+        holder.removeComponent(despawnType());
+        holder.removeComponent(velocityType());
         holder.addComponent(store.getRegistry().getNonSerializedComponentType(), NonSerialized.get());
         holder.addComponent(GeneratedVisualProxyComponent.getComponentType(), new GeneratedVisualProxyComponent());
-        holder.addComponent(ATTACHMENT_TYPE,
+        holder.addComponent(attachmentType(),
             new PhysicsBodyAttachmentComponent(bodyKey,
                 registration.spaceId(),
                 TransformAuthority.BODY,
                 AttachmentLifecycle.GENERATED_PROXY));
         return store.addEntity(holder, AddReason.SPAWN);
+    }
+
+    @Nonnull
+    private static ComponentType<EntityStore, PhysicsBodyAttachmentComponent> attachmentType() {
+        return PhysicsBodyAttachmentComponent.getComponentType();
+    }
+
+    @Nonnull
+    private static ComponentType<EntityStore, DespawnComponent> despawnType() {
+        return DespawnComponent.getComponentType();
+    }
+
+    @Nonnull
+    private static ComponentType<EntityStore, Velocity> velocityType() {
+        return Velocity.getComponentType();
+    }
+
+    @Nonnull
+    private static ComponentType<ChunkStore, WorldChunk> worldChunkType() {
+        return WorldChunk.getComponentType();
     }
 
     private record MaterializationCandidate(@Nonnull RigidBodyKey bodyKey,
@@ -714,6 +755,7 @@ public class PhysicsDetachedVisualMaterializationSystem extends TickingSystem<En
         private int visualInterestRefreshCooldown;
         private int materializationCandidateRefreshCooldown;
         private int materializedVisibilityCheckCooldown;
+        private long observedRestoreGeneration;
         @Nonnull
         private List<VisualInterest> cachedInterests = List.of();
         @Nonnull
@@ -724,6 +766,6 @@ public class PhysicsDetachedVisualMaterializationSystem extends TickingSystem<En
     @Nonnull
     @Override
     public Set<Dependency<EntityStore>> getDependencies() {
-        return DEPENDENCIES;
+        return dependencies;
     }
 }
