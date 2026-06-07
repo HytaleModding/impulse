@@ -15,7 +15,7 @@ import java.util.Objects;
 import javax.annotation.Nonnull;
 
 /**
- * Strips runtime-only control components from holders across entity load/unload.
+ * Strips runtime-only control sessions from holders across entity load/unload.
  */
 public final class PhysicsControlRuntimeHolderSystem extends HolderSystem<EntityStore> {
 
@@ -62,7 +62,6 @@ public final class PhysicsControlRuntimeHolderSystem extends HolderSystem<Entity
         if (session != null) {
             PhysicsControlSessionCleanup.cleanup(store, session);
         }
-        holder.tryRemoveComponent(controllableType);
         holder.tryRemoveComponent(sessionType);
     }
 
