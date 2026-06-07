@@ -30,7 +30,7 @@ class PhysicsChunkBoundarySystemTest {
         RigidBodyKey bodyId = RigidBodyKey.random();
         CountingBody body = new CountingBody();
         Quaternionf rotation = new Quaternionf().rotateY(0.5f);
-        PhysicsBodySnapshot snapshot = snapshot(body,
+        PhysicsBodySnapshot snapshot = snapshot(
             new Vector3f(3.0f, 4.0f, 5.0f),
             rotation,
             new Vector3f(),
@@ -54,7 +54,7 @@ class PhysicsChunkBoundarySystemTest {
 
     @Test
     void chunkFootprintUsesBoxExtentsWhenCenterRemainsInLoadedChunk() {
-        PhysicsBodySnapshot snapshot = snapshot(new CountingBody(),
+        PhysicsBodySnapshot snapshot = snapshot(
             new Vector3f(31.75f, 0.0f, 8.0f),
             new Quaternionf(),
             new Vector3f(),
@@ -71,7 +71,7 @@ class PhysicsChunkBoundarySystemTest {
 
     @Test
     void chunkFootprintUsesRotatedBoxExtents() {
-        PhysicsBodySnapshot snapshot = snapshot(new CountingBody(),
+        PhysicsBodySnapshot snapshot = snapshot(
             new Vector3f(30.25f, 0.0f, 8.0f),
             new Quaternionf().rotateY((float) (Math.PI / 2.0)),
             new Vector3f(),
@@ -97,7 +97,7 @@ class PhysicsChunkBoundarySystemTest {
             safeRotation);
         Vector3f linearVelocity = new Vector3f(1.0f, 2.0f, 3.0f);
         Vector3f angularVelocity = new Vector3f(4.0f, 5.0f, 6.0f);
-        PhysicsBodySnapshot snapshot = snapshot(body,
+        PhysicsBodySnapshot snapshot = snapshot(
             new Vector3f(24.0f, 0.0f, 24.0f),
             new Quaternionf(),
             linearVelocity,
@@ -117,14 +117,12 @@ class PhysicsChunkBoundarySystemTest {
     }
 
     @Nonnull
-    private static PhysicsBodySnapshot snapshot(@Nonnull PhysicsBody body,
-        @Nonnull Vector3f position,
+    private static PhysicsBodySnapshot snapshot(@Nonnull Vector3f position,
         @Nonnull Quaternionf rotation,
         @Nonnull Vector3f linearVelocity,
         @Nonnull Vector3f angularVelocity,
         @Nonnull PhysicsBodyType bodyType) {
-        return snapshot(body,
-            position,
+        return snapshot(position,
             rotation,
             linearVelocity,
             angularVelocity,
@@ -133,8 +131,7 @@ class PhysicsChunkBoundarySystemTest {
     }
 
     @Nonnull
-    private static PhysicsBodySnapshot snapshot(@Nonnull PhysicsBody body,
-        @Nonnull Vector3f position,
+    private static PhysicsBodySnapshot snapshot(@Nonnull Vector3f position,
         @Nonnull Quaternionf rotation,
         @Nonnull Vector3f linearVelocity,
         @Nonnull Vector3f angularVelocity,
