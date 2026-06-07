@@ -7,6 +7,7 @@ import com.hypixel.hytale.component.dependency.Order;
 import com.hypixel.hytale.component.dependency.SystemDependency;
 import com.hypixel.hytale.component.system.tick.TickingSystem;
 import com.hypixel.hytale.logger.HytaleLogger;
+import com.hypixel.hytale.server.core.universe.world.World;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import dev.hytalemodding.impulse.api.SpaceId;
 import dev.hytalemodding.impulse.core.ImpulsePlugin;
@@ -62,6 +63,11 @@ public class PersistentPhysicsJointHydrationSystem extends TickingSystem<EntityS
         PhysicsOwnerBridge.run(store, "hydrate persisted physics joints", () -> hydrateJoints(store,
             persistent));
 
+        World world = store.getExternalData().getWorld();
+        PersistentPhysicsRestoreTerrainPrewarm.prewarmRestoredDynamicBodyTerrain(world,
+            PhysicsWorldRuntimeResource.require(store),
+            persistent,
+            Math.max(0L, world.getTick()));
         persistent.clearRuntimeRestorePending();
         if (persistent.hasRuntimeRestoreSkips()) {
             LOGGER.at(Level.WARNING).log(persistent.runtimeRestoreSummary());
