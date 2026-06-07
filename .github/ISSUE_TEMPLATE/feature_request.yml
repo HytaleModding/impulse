@@ -1,0 +1,35 @@
+name: Feature request
+description: Propose a focused Impulse improvement
+title: "feat: "
+labels: ["enhancement"]
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem
+      description: What are you trying to do, and why is the current API or behavior insufficient?
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposed solution
+    validations:
+      required: true
+  - type: dropdown
+    id: area
+    attributes:
+      label: Area
+      options:
+        - plugin API
+        - backend provider
+        - world collision
+        - control module
+        - persistence
+        - examples
+        - documentation
+        - other
+  - type: textarea
+    id: validation
+    attributes:
+      label: Suggested validation
