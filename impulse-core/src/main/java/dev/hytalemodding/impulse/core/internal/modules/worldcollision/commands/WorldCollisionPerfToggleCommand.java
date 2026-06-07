@@ -1,4 +1,4 @@
-package dev.hytalemodding.impulse.core.internal.commands.perf;
+package dev.hytalemodding.impulse.core.internal.modules.worldcollision.commands;
 
 import com.hypixel.hytale.component.Store;
 import com.hypixel.hytale.server.core.Message;
@@ -10,9 +10,9 @@ import dev.hytalemodding.impulse.core.internal.resources.profiling.PhysicsRuntim
 import dev.hytalemodding.impulse.core.internal.modules.worldcollision.profiling.WorldCollisionProfilingResource;
 import javax.annotation.Nonnull;
 
-public class PerfToggleCommand extends AbstractWorldCommand {
+public class WorldCollisionPerfToggleCommand extends AbstractWorldCommand {
 
-    public PerfToggleCommand() {
+    public WorldCollisionPerfToggleCommand() {
         super("toggle", "Toggle Impulse runtime profiling");
     }
 

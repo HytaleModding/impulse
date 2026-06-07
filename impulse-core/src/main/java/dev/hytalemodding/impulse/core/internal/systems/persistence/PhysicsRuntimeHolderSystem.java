@@ -8,29 +8,19 @@ import com.hypixel.hytale.component.Store;
 import com.hypixel.hytale.component.query.Query;
 import com.hypixel.hytale.component.system.HolderSystem;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
-import dev.hytalemodding.impulse.core.internal.modules.control.systems.PhysicsControlSessionCleanup;
-import dev.hytalemodding.impulse.core.plugin.modules.control.ImpulseControllableComponent;
 import dev.hytalemodding.impulse.core.plugin.components.PhysicsBodyAttachmentComponent;
 import dev.hytalemodding.impulse.core.plugin.components.PhysicsBodyAttachmentComponent.AttachmentLifecycle;
-import dev.hytalemodding.impulse.core.internal.modules.control.components.PhysicsControlSessionComponent;
 import javax.annotation.Nonnull;
 
 /**
- * Strips runtime-only physics control/proxy components from holders when
- * entities cross unload/load boundaries.
+ * Strips runtime-only core physics components from holders when entities cross unload/load
+ * boundaries.
  */
 public class PhysicsRuntimeHolderSystem extends HolderSystem<EntityStore> {
 
     private static final ComponentType<EntityStore, PhysicsBodyAttachmentComponent> ATTACHMENT_TYPE =
         PhysicsBodyAttachmentComponent.getComponentType();
-    private static final ComponentType<EntityStore, ImpulseControllableComponent>
-        IMPULSE_CONTROLLABLE_TYPE = ImpulseControllableComponent.getComponentType();
-    private static final ComponentType<EntityStore, PhysicsControlSessionComponent>
-        PHYSICS_CONTROL_SESSION_TYPE = PhysicsControlSessionComponent.getComponentType();
-    private static final Query<EntityStore> QUERY = Query.or(
-        ATTACHMENT_TYPE,
-        IMPULSE_CONTROLLABLE_TYPE,
-        PHYSICS_CONTROL_SESSION_TYPE);
+    private static final Query<EntityStore> QUERY = ATTACHMENT_TYPE;
 
     @Override
     public void onEntityAdd(@Nonnull Holder<EntityStore> holder,
@@ -54,13 +44,7 @@ public class PhysicsRuntimeHolderSystem extends HolderSystem<EntityStore> {
         if (attachment == null
             || attachment.getLifecycle() == AttachmentLifecycle.GENERATED_PROXY) {
             holder.tryRemoveComponent(ATTACHMENT_TYPE);
-            holder.tryRemoveComponent(IMPULSE_CONTROLLABLE_TYPE);
         }
-        PhysicsControlSessionComponent session = holder.getComponent(PHYSICS_CONTROL_SESSION_TYPE);
-        if (session != null) {
-            PhysicsControlSessionCleanup.cleanup(store, session);
-        }
-        holder.tryRemoveComponent(PHYSICS_CONTROL_SESSION_TYPE);
     }
 
     @Nonnull

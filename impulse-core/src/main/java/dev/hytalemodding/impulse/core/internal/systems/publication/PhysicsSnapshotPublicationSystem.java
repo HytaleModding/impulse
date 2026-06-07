@@ -8,9 +8,6 @@ import com.hypixel.hytale.component.system.tick.TickingSystem;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import dev.hytalemodding.impulse.core.internal.resources.profiling.PhysicsRuntimeProfilingResource;
 import dev.hytalemodding.impulse.core.internal.resources.owner.PhysicsOwnerResource;
-import dev.hytalemodding.impulse.core.internal.modules.worldcollision.systems.PhysicsChunkBoundarySystem;
-import dev.hytalemodding.impulse.core.internal.modules.worldcollision.systems.PhysicsCollisionLodSystem;
-import dev.hytalemodding.impulse.core.internal.modules.worldcollision.systems.PhysicsWorldCollisionStreamingSystem;
 import dev.hytalemodding.impulse.core.internal.systems.sync.PhysicsSyncSystem;
 import dev.hytalemodding.impulse.core.internal.systems.visual.PhysicsDetachedVisualMaterializationSystem;
 import dev.hytalemodding.impulse.core.plugin.events.PhysicsEventFrame;
@@ -30,9 +27,6 @@ import javax.annotation.Nullable;
 public final class PhysicsSnapshotPublicationSystem extends TickingSystem<EntityStore> {
 
     private static final Set<Dependency<EntityStore>> DEPENDENCIES = Set.of(
-        new SystemDependency<>(Order.BEFORE, PhysicsCollisionLodSystem.class),
-        new SystemDependency<>(Order.BEFORE, PhysicsChunkBoundarySystem.class),
-        new SystemDependency<>(Order.BEFORE, PhysicsWorldCollisionStreamingSystem.class),
         new SystemDependency<>(Order.BEFORE, PhysicsDetachedVisualMaterializationSystem.class),
         new SystemDependency<>(Order.BEFORE, PhysicsSyncSystem.class)
     );

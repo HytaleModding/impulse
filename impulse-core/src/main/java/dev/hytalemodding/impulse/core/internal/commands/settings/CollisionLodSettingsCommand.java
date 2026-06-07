@@ -60,7 +60,7 @@ public class CollisionLodSettingsCommand extends AbstractAsyncPlayerCommand {
         ArgTypes.INTEGER);
 
     public CollisionLodSettingsCommand() {
-        super("lod", "Get or set collision LOD settings for a physics space");
+        super("collision-lod", "Get or set collision LOD settings for a physics space");
     }
 
     @Nonnull

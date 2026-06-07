@@ -23,6 +23,7 @@ import dev.hytalemodding.impulse.core.internal.resources.PhysicsWorldRuntimeReso
 import dev.hytalemodding.impulse.core.internal.modules.worldcollision.PhysicsChunkBoundaryRuntime;
 import dev.hytalemodding.impulse.core.internal.modules.worldcollision.PhysicsChunkBoundaryRuntime.ChunkBoundarySafeState;
 import dev.hytalemodding.impulse.core.internal.modules.worldcollision.WorldCollisionLifecycle;
+import dev.hytalemodding.impulse.core.internal.systems.publication.PhysicsSnapshotPublicationSystem;
 import dev.hytalemodding.impulse.core.internal.systems.sync.PhysicsSyncSystem;
 import dev.hytalemodding.impulse.core.internal.resources.owner.PhysicsOwnerBridge;
 import dev.hytalemodding.impulse.core.plugin.settings.EntityChunkBoundaryMode;
@@ -47,6 +48,7 @@ public class PhysicsChunkBoundarySystem extends TickingSystem<EntityStore> {
 
     private final Set<Dependency<EntityStore>> dependencies = Set.of(
         new SystemGroupDependency<>(Order.AFTER, ImpulsePlugin.get().getPersistenceRestoreGroup()),
+        new SystemDependency<>(Order.AFTER, PhysicsSnapshotPublicationSystem.class),
         new SystemDependency<>(Order.BEFORE, PhysicsWorldCollisionStreamingSystem.class),
         new SystemDependency<>(Order.BEFORE, PhysicsSyncSystem.class),
         new SystemDependency<>(Order.BEFORE, UpdateLocationSystems.TickingSystem.class)

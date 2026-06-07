@@ -3,17 +3,22 @@ package dev.hytalemodding.impulse.core.internal.modules.control;
 import com.hypixel.hytale.component.ComponentType;
 import com.hypixel.hytale.component.Store;
 import com.hypixel.hytale.logger.HytaleLogger;
+import com.hypixel.hytale.server.core.universe.world.World;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import dev.hytalemodding.impulse.core.internal.modules.SubPluginLifecycleGate;
 import dev.hytalemodding.impulse.core.internal.modules.control.components.PhysicsControlSessionComponent;
 import dev.hytalemodding.impulse.core.internal.modules.control.systems.PhysicsControlSessionCleanup;
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsWorldRuntimeResource;
+import dev.hytalemodding.impulse.core.plugin.modules.control.ImpulseControllableComponent;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Set;
 import java.util.WeakHashMap;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.TimeUnit;
 import java.util.logging.Level;
 import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
 
 /**
  * Server-level lifecycle controlled by the Impulse control subplugin.
@@ -27,6 +32,7 @@ public final class ControlLifecycle {
         Collections.newSetFromMap(new WeakHashMap<>());
     private static final Set<Store<EntityStore>> STORES =
         Collections.newSetFromMap(new WeakHashMap<>());
+    private static final long CLEANUP_TIMEOUT_SECONDS = 5L;
 
     static {
         GATE.onDisable(ControlLifecycle::cleanupStores);
@@ -69,31 +75,93 @@ public final class ControlLifecycle {
     }
 
     private static void cleanupStores() {
-        if (!PhysicsControlSessionComponent.isComponentTypeRegistered()) {
+        ComponentType<EntityStore, ImpulseControllableComponent> controllableType =
+            ImpulseControllableComponent.isComponentTypeRegistered()
+                ? ImpulseControllableComponent.getComponentType()
+                : null;
+        ComponentType<EntityStore, PhysicsControlSessionComponent> sessionType =
+            PhysicsControlSessionComponent.isComponentTypeRegistered()
+                ? PhysicsControlSessionComponent.getComponentType()
+                : null;
+        if (controllableType == null && sessionType == null) {
             return;
         }
         ArrayList<Store<EntityStore>> stores;
         synchronized (STORES) {
             stores = new ArrayList<>(STORES);
         }
-        ComponentType<EntityStore, PhysicsControlSessionComponent> sessionType =
-            PhysicsControlSessionComponent.getComponentType();
         for (Store<EntityStore> store : stores) {
             try {
-                PhysicsWorldRuntimeResource resource = PhysicsWorldRuntimeResource.require(store);
-                store.forEachEntityParallel(sessionType,
-                    (index, archetypeChunk, commandBuffer) -> {
-                        PhysicsControlSessionComponent session =
-                            archetypeChunk.getComponent(index, sessionType);
-                        if (session != null) {
-                            PhysicsControlSessionCleanup.cleanupAndWait(resource, session);
-                        }
-                        commandBuffer.removeComponent(archetypeChunk.getReferenceTo(index), sessionType);
-                    });
+                cleanupStore(store, controllableType, sessionType);
             } catch (RuntimeException exception) {
-                LOGGER.at(Level.WARNING).log("Failed to clean Impulse control sessions: %s",
+                LOGGER.at(Level.WARNING).log("Failed to clean Impulse control components: %s",
                     exception.getMessage());
             }
+        }
+    }
+
+    private static void cleanupStore(@Nonnull Store<EntityStore> store,
+        @Nullable ComponentType<EntityStore, ImpulseControllableComponent> controllableType,
+        @Nullable ComponentType<EntityStore, PhysicsControlSessionComponent> sessionType) {
+        World world = store.getExternalData().getWorld();
+        if (world.isInThread()) {
+            cleanupStoreOnOwnerThread(store, controllableType, sessionType);
+            return;
+        }
+        if (!world.isStarted()) {
+            return;
+        }
+
+        CompletableFuture<Void> cleanup = new CompletableFuture<>();
+        try {
+            world.execute(() -> {
+                try {
+                    cleanupStoreOnOwnerThread(store, controllableType, sessionType);
+                    cleanup.complete(null);
+                } catch (Throwable throwable) {
+                    cleanup.completeExceptionally(throwable);
+                }
+            });
+        } catch (RuntimeException exception) {
+            if (isWorldTaskRejection(exception)) {
+                return;
+            }
+            throw exception;
+        }
+        cleanup.orTimeout(CLEANUP_TIMEOUT_SECONDS, TimeUnit.SECONDS).join();
+    }
+
+    private static boolean isWorldTaskRejection(@Nonnull RuntimeException exception) {
+        Throwable current = exception;
+        while (current != null) {
+            if (current instanceof IllegalThreadStateException) {
+                return true;
+            }
+            current = current.getCause();
+        }
+        return false;
+    }
+
+    private static void cleanupStoreOnOwnerThread(@Nonnull Store<EntityStore> store,
+        @Nullable ComponentType<EntityStore, ImpulseControllableComponent> controllableType,
+        @Nullable ComponentType<EntityStore, PhysicsControlSessionComponent> sessionType) {
+        if (sessionType != null) {
+            PhysicsWorldRuntimeResource resource = PhysicsWorldRuntimeResource.require(store);
+            store.forEachEntityParallel(sessionType,
+                (index, archetypeChunk, commandBuffer) -> {
+                    PhysicsControlSessionComponent session =
+                        archetypeChunk.getComponent(index, sessionType);
+                    if (session != null) {
+                        PhysicsControlSessionCleanup.cleanupAndWait(resource, session);
+                    }
+                    commandBuffer.removeComponent(archetypeChunk.getReferenceTo(index), sessionType);
+                });
+        }
+        if (controllableType != null) {
+            store.forEachEntityParallel(controllableType,
+                (index, archetypeChunk, commandBuffer) ->
+                    commandBuffer.removeComponent(archetypeChunk.getReferenceTo(index),
+                        controllableType));
         }
     }
 

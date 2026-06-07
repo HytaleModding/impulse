@@ -16,9 +16,20 @@ import javax.annotation.Nullable;
 public final class PhysicsControlSessionCleanupSystem
     extends RefChangeSystem<EntityStore, PhysicsControlSessionComponent> {
 
-    private static final ComponentType<EntityStore, PhysicsControlSessionComponent> SESSION_TYPE =
-        PhysicsControlSessionComponent.getComponentType();
-    private static final Query<EntityStore> QUERY = SESSION_TYPE;
+    @Nonnull
+    private final ComponentType<EntityStore, PhysicsControlSessionComponent> sessionType;
+    @Nonnull
+    private final Query<EntityStore> query;
+
+    public PhysicsControlSessionCleanupSystem() {
+        this(PhysicsControlSessionComponent.getComponentType());
+    }
+
+    PhysicsControlSessionCleanupSystem(
+        @Nonnull ComponentType<EntityStore, PhysicsControlSessionComponent> sessionType) {
+        this.sessionType = Objects.requireNonNull(sessionType, "sessionType");
+        this.query = sessionType;
+    }
 
     @Override
     public void onComponentAdded(@Nonnull Ref<EntityStore> ref,
@@ -27,7 +38,7 @@ public final class PhysicsControlSessionCleanupSystem
         @Nonnull CommandBuffer<EntityStore> commandBuffer) {
         if (!ControlLifecycle.isEnabled()) {
             PhysicsControlSessionCleanup.cleanup(store, component);
-            commandBuffer.removeComponent(ref, SESSION_TYPE);
+            commandBuffer.removeComponent(ref, sessionType);
             return;
         }
         ControlLifecycle.registerStore(store);
@@ -43,7 +54,7 @@ public final class PhysicsControlSessionCleanupSystem
             assert oldComponent != null;
             PhysicsControlSessionCleanup.cleanup(store, oldComponent);
             PhysicsControlSessionCleanup.cleanup(store, newComponent);
-            commandBuffer.removeComponent(ref, SESSION_TYPE);
+            commandBuffer.removeComponent(ref, sessionType);
             return;
         }
         ControlLifecycle.registerStore(store);
@@ -64,13 +75,13 @@ public final class PhysicsControlSessionCleanupSystem
     @Nonnull
     @Override
     public ComponentType<EntityStore, PhysicsControlSessionComponent> componentType() {
-        return SESSION_TYPE;
+        return sessionType;
     }
 
     @Nonnull
     @Override
     public Query<EntityStore> getQuery() {
-        return QUERY;
+        return query;
     }
 
     private static boolean sameSessionOwner(@Nonnull PhysicsControlSessionComponent first,

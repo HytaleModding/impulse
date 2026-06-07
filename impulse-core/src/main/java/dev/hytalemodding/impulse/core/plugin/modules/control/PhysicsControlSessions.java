@@ -1,5 +1,6 @@
 package dev.hytalemodding.impulse.core.plugin.modules.control;
 
+import com.hypixel.hytale.component.ComponentType;
 import com.hypixel.hytale.component.Ref;
 import com.hypixel.hytale.component.Store;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
@@ -24,10 +25,22 @@ public final class PhysicsControlSessions {
     }
 
     /**
+     * Returns whether the control subplugin is loaded and its component types are registered.
+     */
+    public static boolean isAvailable() {
+        return ControlLifecycle.isEnabled()
+            && ImpulseControllableComponent.isComponentTypeRegistered()
+            && PhysicsControlSessionComponent.isComponentTypeRegistered();
+    }
+
+    /**
      * Returns whether the controller entity currently has an active Impulse control session.
      */
     public static boolean hasSession(@Nonnull Store<EntityStore> store,
         @Nonnull Ref<EntityStore> controllerRef) {
+        if (!isAvailable()) {
+            return false;
+        }
         PhysicsControlSessionComponent session =
             store.getComponent(controllerRef, PhysicsControlSessionComponent.getComponentType());
         return session != null && session.isActive();
@@ -75,12 +88,14 @@ public final class PhysicsControlSessions {
         float grabDistance,
         @Nonnull Vector3f viewOffset,
         @Nonnull Vector3f previousTarget) {
-        ControlLifecycle.requireEnabled();
+        requireAvailable();
         ControlLifecycle.registerStore(store);
         PhysicsWorldRuntimeResource resource = PhysicsWorldRuntimeResource.require(store);
-        releaseSession(resource, store, controllerRef);
+        ComponentType<EntityStore, PhysicsControlSessionComponent> sessionType =
+            PhysicsControlSessionComponent.getComponentType();
+        releaseSession(resource, store, controllerRef, sessionType);
         store.putComponent(controllerRef,
-            PhysicsControlSessionComponent.getComponentType(),
+            sessionType,
             new PhysicsControlSessionComponent(bodyKey,
                 anchorBodyKey,
                 controlJointKey,
@@ -100,25 +115,33 @@ public final class PhysicsControlSessions {
      */
     public static boolean releaseSession(@Nonnull Store<EntityStore> store,
         @Nonnull Ref<EntityStore> controllerRef) {
-        return releaseSession(PhysicsWorldRuntimeResource.require(store), store, controllerRef);
+        if (!isAvailable()) {
+            return false;
+        }
+        return releaseSession(PhysicsWorldRuntimeResource.require(store),
+            store,
+            controllerRef,
+            PhysicsControlSessionComponent.getComponentType());
     }
 
     private static boolean releaseSession(@Nonnull PhysicsWorldRuntimeResource resource,
         @Nonnull Store<EntityStore> store,
-        @Nonnull Ref<EntityStore> controllerRef) {
+        @Nonnull Ref<EntityStore> controllerRef,
+        @Nonnull ComponentType<EntityStore, PhysicsControlSessionComponent> sessionType) {
         PhysicsControlSessionComponent session =
-            store.getComponent(controllerRef, PhysicsControlSessionComponent.getComponentType());
+            store.getComponent(controllerRef, sessionType);
         if (session == null) {
             return false;
         }
 
-        releaseSession(resource, store, controllerRef, session);
+        releaseSession(resource, store, controllerRef, sessionType, session);
         return true;
     }
 
     private static void releaseSession(@Nonnull PhysicsWorldRuntimeResource resource,
         @Nonnull Store<EntityStore> store,
         @Nonnull Ref<EntityStore> controllerRef,
+        @Nonnull ComponentType<EntityStore, PhysicsControlSessionComponent> sessionType,
         @Nonnull PhysicsControlSessionComponent session) {
         RigidBodyKey bodyKey = session.getBodyKey();
         RigidBodyKey anchorBodyKey = session.getAnchorBodyKey();
@@ -162,7 +185,16 @@ public final class PhysicsControlSessions {
         }
 
         session.deactivate();
-        store.removeComponent(controllerRef, PhysicsControlSessionComponent.getComponentType());
+        store.removeComponent(controllerRef, sessionType);
+    }
+
+    private static void requireAvailable() {
+        ControlLifecycle.requireEnabled();
+        if (!ImpulseControllableComponent.isComponentTypeRegistered()
+            || !PhysicsControlSessionComponent.isComponentTypeRegistered()) {
+            throw new IllegalStateException(
+                "Impulse control is disabled. Enable HytaleModding:ImpulseControl to start control sessions.");
+        }
     }
 
     private static void addJointReleaseCommand(@Nonnull PhysicsCommandRecorder commands,

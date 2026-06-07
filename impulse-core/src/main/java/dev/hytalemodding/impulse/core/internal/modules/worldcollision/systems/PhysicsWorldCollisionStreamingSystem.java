@@ -4,6 +4,9 @@ import com.hypixel.hytale.component.ArchetypeChunk;
 import com.hypixel.hytale.component.CommandBuffer;
 import com.hypixel.hytale.component.ComponentType;
 import com.hypixel.hytale.component.Store;
+import com.hypixel.hytale.component.dependency.Dependency;
+import com.hypixel.hytale.component.dependency.Order;
+import com.hypixel.hytale.component.dependency.SystemDependency;
 import com.hypixel.hytale.component.query.Query;
 import com.hypixel.hytale.component.system.QuerySystem;
 import com.hypixel.hytale.component.system.tick.TickingSystem;
@@ -23,6 +26,7 @@ import dev.hytalemodding.impulse.core.internal.modules.worldcollision.WorldColli
 import dev.hytalemodding.impulse.core.internal.modules.worldcollision.WorldVoxelCollisionCache;
 import dev.hytalemodding.impulse.core.internal.modules.worldcollision.WorldVoxelCollisionCache.SectionAccessCache;
 import dev.hytalemodding.impulse.core.internal.modules.worldcollision.WorldVoxelCollisionCache.TargetRefreshDecision;
+import dev.hytalemodding.impulse.core.internal.systems.publication.PhysicsSnapshotPublicationSystem;
 import dev.hytalemodding.impulse.core.plugin.body.RigidBodyKey;
 import dev.hytalemodding.impulse.core.plugin.modules.worldcollision.WorldCollisionMode;
 import dev.hytalemodding.impulse.core.plugin.settings.PhysicsSpaceSettings;
@@ -34,6 +38,7 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.WeakHashMap;
 import java.util.function.BiConsumer;
 import javax.annotation.Nonnull;
@@ -58,6 +63,9 @@ public class PhysicsWorldCollisionStreamingSystem extends TickingSystem<EntitySt
     private static volatile ComponentType<EntityStore, TransformComponent> transformType;
     @Nullable
     private static volatile Query<EntityStore> query;
+    private static final Set<Dependency<EntityStore>> DEPENDENCIES = Set.of(
+        new SystemDependency<>(Order.AFTER, PhysicsSnapshotPublicationSystem.class)
+    );
 
     /**
      * Radius (in blocks) used for streaming around dynamic physics bodies.
@@ -407,6 +415,12 @@ public class PhysicsWorldCollisionStreamingSystem extends TickingSystem<EntitySt
     @Override
     public Query<EntityStore> getQuery() {
         return query();
+    }
+
+    @Nonnull
+    @Override
+    public Set<Dependency<EntityStore>> getDependencies() {
+        return DEPENDENCIES;
     }
 
     @Nonnull

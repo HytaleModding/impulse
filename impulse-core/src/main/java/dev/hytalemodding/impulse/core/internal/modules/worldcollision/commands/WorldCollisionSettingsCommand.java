@@ -1,4 +1,4 @@
-package dev.hytalemodding.impulse.core.internal.commands.settings;
+package dev.hytalemodding.impulse.core.internal.modules.worldcollision.commands;
 
 import com.hypixel.hytale.component.Ref;
 import com.hypixel.hytale.component.Store;

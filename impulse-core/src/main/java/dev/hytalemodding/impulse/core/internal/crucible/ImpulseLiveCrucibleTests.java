@@ -46,8 +46,6 @@ final class ImpulseLiveCrucibleTests {
         DespawnComponent.getComponentType();
     private static final ComponentType<EntityStore, PhysicsBodyAttachmentComponent> ATTACHMENT_TYPE =
         PhysicsBodyAttachmentComponent.getComponentType();
-    private static final ComponentType<EntityStore, ImpulseControllableComponent> IMPULSE_CONTROLLABLE_TYPE =
-        ImpulseControllableComponent.getComponentType();
 
     private ImpulseLiveCrucibleTests() {
     }
@@ -182,7 +180,8 @@ final class ImpulseLiveCrucibleTests {
                 spaceId,
                 TransformAuthority.BODY,
                 AttachmentLifecycle.EXTERNAL_ENTITY));
-        holder.addComponent(IMPULSE_CONTROLLABLE_TYPE, new ImpulseControllableComponent());
+        holder.addComponent(ImpulseControllableComponent.getComponentType(),
+            new ImpulseControllableComponent());
 
         return store.addEntity(holder, AddReason.SPAWN);
     }
