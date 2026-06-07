@@ -83,8 +83,6 @@ final class ImpulseRapierBodyBenchmarkCrucibleTests {
     private static final Vector3d ORIGIN = new Vector3d(0.0, 128.0, 0.0);
     private static final ComponentType<EntityStore, PhysicsBodyAttachmentComponent> ATTACHMENT_TYPE =
         PhysicsBodyAttachmentComponent.getComponentType();
-    private static final ComponentType<EntityStore, PhysicsControlSessionComponent> CONTROL_SESSION_TYPE =
-        PhysicsControlSessionComponent.getComponentType();
 
     private ImpulseRapierBodyBenchmarkCrucibleTests() {
     }
@@ -388,10 +386,12 @@ final class ImpulseRapierBodyBenchmarkCrucibleTests {
                 (index, archetypeChunk, commandBuffer) -> commandBuffer.removeEntity(
                     archetypeChunk.getReferenceTo(index),
                     RemoveReason.REMOVE));
-            store.forEachEntityParallel(CONTROL_SESSION_TYPE,
+            ComponentType<EntityStore, PhysicsControlSessionComponent> controlSessionType =
+                PhysicsControlSessionComponent.getComponentType();
+            store.forEachEntityParallel(controlSessionType,
                 (index, archetypeChunk, commandBuffer) -> commandBuffer.removeComponent(
                     archetypeChunk.getReferenceTo(index),
-                    CONTROL_SESSION_TYPE));
+                    controlSessionType));
         }
 
     }

@@ -25,6 +25,7 @@ import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyKind;
 import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyPersistenceMode;
 import dev.hytalemodding.impulse.core.plugin.body.RigidBodyKey;
 import dev.hytalemodding.impulse.core.plugin.modules.control.ImpulseControllableComponent;
+import dev.hytalemodding.impulse.core.plugin.modules.control.PhysicsControlSessions;
 import dev.hytalemodding.impulse.core.plugin.components.PhysicsBodyAttachmentComponent;
 import dev.hytalemodding.impulse.core.plugin.components.RigidBodyComponent;
 import dev.hytalemodding.impulse.core.plugin.components.RigidBodyKinematicTargetComponent;
@@ -53,8 +54,6 @@ public final class ExamplePhysicsUtils {
         TransformComponent.getComponentType();
     private static final ComponentType<EntityStore, PhysicsBodyAttachmentComponent> ATTACHMENT_TYPE =
         PhysicsBodyAttachmentComponent.getComponentType();
-    private static final ComponentType<EntityStore, ImpulseControllableComponent> IMPULSE_CONTROLLABLE_TYPE =
-        ImpulseControllableComponent.getComponentType();
     private static final ComponentType<EntityStore, RigidBodyComponent> RIGID_BODY_TYPE =
         RigidBodyComponent.getComponentType();
     private static final ComponentType<EntityStore, RigidBodyKinematicTargetComponent>
@@ -652,8 +651,9 @@ public final class ExamplePhysicsUtils {
                 localPositionOffset,
                 localRotationOffset,
                 visualOriginOffsetY));
-        if (controllable) {
-            holder.addComponent(IMPULSE_CONTROLLABLE_TYPE, new ImpulseControllableComponent());
+        if (controllable && PhysicsControlSessions.isAvailable()) {
+            holder.addComponent(ImpulseControllableComponent.getComponentType(),
+                new ImpulseControllableComponent());
         }
         return holder;
     }

@@ -25,6 +25,11 @@ public class ReleaseCommand extends AbstractAsyncPlayerCommand {
         @Nonnull Ref<EntityStore> ref,
         @Nonnull PlayerRef playerRef,
         @Nonnull World world) {
+        if (!PhysicsControlSessions.isAvailable()) {
+            ctx.sender().sendMessage(Message.raw(
+                "Impulse control is disabled. Enable HytaleModding:ImpulseControl to use release."));
+            return CompletableFuture.completedFuture(null);
+        }
         if (!PhysicsControlSessions.releaseSession(store, ref)) {
             ctx.sender().sendMessage(Message.raw("No grabbed physics body."));
             return CompletableFuture.completedFuture(null);

@@ -13,6 +13,7 @@ import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.logging.Level;
 import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
 
 /**
  * Starts and stops the per-world physics owner lane with the EntityStore lifecycle.
@@ -55,13 +56,18 @@ public final class PhysicsOwnerLifecycleSystem extends StoreSystem<EntityStore>
         PhysicsOwnerResource owner = store.getResource(ownerResourceType);
         PhysicsWorldResource physics = store.getResource(physicsWorldResourceType);
         PhysicsWorldRuntimeResource runtime = PhysicsWorldRuntimeResource.require(physics);
-        boolean clearedSpaces = clearSpaces(physics, worldName);
+        RuntimeException clearFailure = tryClearSpaces(physics, worldName);
         boolean closedOwner = closeOwner(owner);
         runtime.detachOwnerExecutor(owner);
 
         // Retry if it failed before, this could happen.
-        if (!clearedSpaces && closedOwner) {
-            clearSpaces(physics, worldName);
+        if (clearFailure != null && closedOwner) {
+            clearFailure = tryClearSpaces(physics, worldName);
+        }
+        if (clearFailure != null) {
+            LOGGER.at(Level.WARNING).log("Failed to clear physics spaces for world %s: %s",
+                worldName,
+                clearFailure.getMessage());
         }
     }
 
@@ -108,16 +114,14 @@ public final class PhysicsOwnerLifecycleSystem extends StoreSystem<EntityStore>
         return store.getExternalData().getWorld().getName();
     }
 
-    private static boolean clearSpaces(@Nonnull PhysicsWorldResource physics,
+    @Nullable
+    private static RuntimeException tryClearSpaces(@Nonnull PhysicsWorldResource physics,
         @Nonnull String worldName) {
         try {
             physics.clearAllSpaces(worldName);
-            return true;
+            return null;
         } catch (RuntimeException exception) {
-            LOGGER.at(Level.WARNING).log("Failed to clear physics spaces for world %s: %s",
-                worldName,
-                exception.getMessage());
-            return false;
+            return exception;
         }
     }
 }

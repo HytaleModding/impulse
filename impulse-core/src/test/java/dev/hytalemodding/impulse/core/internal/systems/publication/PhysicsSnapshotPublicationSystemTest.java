@@ -56,20 +56,31 @@ class PhysicsSnapshotPublicationSystemTest {
         Set<Dependency<EntityStore>> dependencies =
             new PhysicsSnapshotPublicationSystem().getDependencies();
 
-        assertSystemDependency(dependencies, Order.BEFORE, PhysicsCollisionLodSystem.class);
-        assertSystemDependency(dependencies, Order.BEFORE, PhysicsChunkBoundarySystem.class);
-        assertSystemDependency(dependencies, Order.BEFORE, PhysicsWorldCollisionStreamingSystem.class);
+        assertNoSystemDependency(dependencies, PhysicsCollisionLodSystem.class);
+        assertNoSystemDependency(dependencies, PhysicsChunkBoundarySystem.class);
+        assertNoSystemDependency(dependencies, PhysicsWorldCollisionStreamingSystem.class);
         assertSystemDependency(dependencies,
             Order.BEFORE,
             PhysicsDetachedVisualMaterializationSystem.class);
         assertSystemDependency(dependencies, Order.BEFORE, PhysicsSyncSystem.class);
+        assertSystemDependency(new PhysicsCollisionLodSystem().getDependencies(),
+            Order.AFTER,
+            PhysicsSnapshotPublicationSystem.class);
+        assertSystemDependency(new PhysicsWorldCollisionStreamingSystem().getDependencies(),
+            Order.AFTER,
+            PhysicsSnapshotPublicationSystem.class);
         assertSystemDependency(new PersistentPhysicsWorldSyncSystem().getDependencies(),
             Order.AFTER,
             PhysicsSnapshotPublicationSystem.class);
-        withTestImpulsePlugin(() -> assertSystemGroupDependency(
-            new PhysicsDetachedVisualMaterializationSystem().getDependencies(),
-            Order.AFTER,
-            ImpulsePlugin.get().getPersistenceRestoreGroup()));
+        withTestImpulsePlugin(() -> {
+            assertSystemDependency(new PhysicsChunkBoundarySystem().getDependencies(),
+                Order.AFTER,
+                PhysicsSnapshotPublicationSystem.class);
+            assertSystemGroupDependency(
+                new PhysicsDetachedVisualMaterializationSystem().getDependencies(),
+                Order.AFTER,
+                ImpulsePlugin.get().getPersistenceRestoreGroup());
+        });
     }
 
     @Test
@@ -290,6 +301,13 @@ class PhysicsSnapshotPublicationSystemTest {
         assertTrue(dependencies.stream().anyMatch(dependency ->
             dependency.getOrder() == order
                 && dependency instanceof SystemDependency<?, ?> systemDependency
+                && systemDependency.getSystemClass().equals(systemClass)));
+    }
+
+    private static void assertNoSystemDependency(Set<Dependency<EntityStore>> dependencies,
+        Class<?> systemClass) {
+        assertFalse(dependencies.stream().anyMatch(dependency ->
+            dependency instanceof SystemDependency<?, ?> systemDependency
                 && systemDependency.getSystemClass().equals(systemClass)));
     }
 

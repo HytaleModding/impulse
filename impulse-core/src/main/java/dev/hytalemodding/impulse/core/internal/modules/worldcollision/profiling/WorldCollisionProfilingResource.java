@@ -3,7 +3,6 @@ package dev.hytalemodding.impulse.core.internal.modules.worldcollision.profiling
 import com.hypixel.hytale.component.Resource;
 import com.hypixel.hytale.component.ResourceType;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
-import dev.hytalemodding.impulse.core.ImpulsePlugin;
 import dev.hytalemodding.impulse.core.internal.modules.worldcollision.WorldVoxelCollisionCache.BuildStats;
 import dev.hytalemodding.impulse.core.plugin.body.RigidBodyKey;
 import it.unimi.dsi.fastutil.longs.LongOpenHashSet;
@@ -11,6 +10,7 @@ import it.unimi.dsi.fastutil.longs.LongSet;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
+import java.util.Objects;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 import lombok.AccessLevel;
@@ -41,7 +41,23 @@ public class WorldCollisionProfilingResource implements Resource<EntityStore> {
     @Nullable
     private RetainedSectionEnvelope diagnosticRetainedEnvelope;
 
+    @Nullable
+    private static ResourceType<EntityStore, WorldCollisionProfilingResource> resourceType;
+
     public WorldCollisionProfilingResource() {
+    }
+
+    public static void setResourceType(
+        @Nonnull ResourceType<EntityStore, WorldCollisionProfilingResource> type) {
+        resourceType = Objects.requireNonNull(type, "type");
+    }
+
+    public static void clearResourceType() {
+        resourceType = null;
+    }
+
+    public static boolean isResourceTypeRegistered() {
+        return resourceType != null;
     }
 
     @Nonnull
@@ -107,8 +123,12 @@ public class WorldCollisionProfilingResource implements Resource<EntityStore> {
         return copy;
     }
 
+    @Nonnull
     public static ResourceType<EntityStore, WorldCollisionProfilingResource> getResourceType() {
-        return ImpulsePlugin.get().getWorldCollisionProfilingResourceType();
+        if (resourceType == null) {
+            throw new IllegalStateException("World collision profiling resource is not registered");
+        }
+        return resourceType;
     }
 
     /**

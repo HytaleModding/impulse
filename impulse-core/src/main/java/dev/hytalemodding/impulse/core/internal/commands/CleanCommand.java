@@ -48,8 +48,6 @@ public class CleanCommand extends AbstractWorldCommand {
         PhysicsBodyAttachmentComponent.getComponentType();
     private static final ComponentType<EntityStore, GeneratedVisualProxyComponent> GENERATED_PROXY_TYPE =
         GeneratedVisualProxyComponent.getComponentType();
-    private static final ComponentType<EntityStore, PhysicsControlSessionComponent> CONTROL_SESSION_TYPE =
-        PhysicsControlSessionComponent.getComponentType();
     private static final ComponentType<EntityStore, TransformComponent> TRANSFORM_TYPE =
         TransformComponent.getComponentType();
     private static final int REMOVED_BODY_ENTITIES = 0;
@@ -98,11 +96,16 @@ public class CleanCommand extends AbstractWorldCommand {
                 commandBuffer.removeEntity(archetypeChunk.getReferenceTo(index), RemoveReason.REMOVE);
             });
 
-        store.forEachEntityParallel(CONTROL_SESSION_TYPE,
-            (index, archetypeChunk, commandBuffer) -> {
-                removedEntities.incrementAndGet(REMOVED_SESSIONS);
-                commandBuffer.removeComponent(archetypeChunk.getReferenceTo(index), CONTROL_SESSION_TYPE);
-            });
+        ComponentType<EntityStore, PhysicsControlSessionComponent> controlSessionType =
+            controlSessionTypeOrNull();
+        if (controlSessionType != null) {
+            store.forEachEntityParallel(controlSessionType,
+                (index, archetypeChunk, commandBuffer) -> {
+                    removedEntities.incrementAndGet(REMOVED_SESSIONS);
+                    commandBuffer.removeComponent(archetypeChunk.getReferenceTo(index),
+                        controlSessionType);
+                });
+        }
 
         PhysicsWorldRuntimeResource resource = PhysicsWorldRuntimeResource.require(store);
         PhysicsRuntimeResetResult reset =
@@ -165,25 +168,30 @@ public class CleanCommand extends AbstractWorldCommand {
                 commandBuffer.removeEntity(archetypeChunk.getReferenceTo(index), RemoveReason.REMOVE);
             });
 
-        store.forEachEntityParallel(CONTROL_SESSION_TYPE,
-            (index, archetypeChunk, commandBuffer) -> {
-                PhysicsControlSessionComponent session =
-                    archetypeChunk.getComponent(index, CONTROL_SESSION_TYPE);
-                assert session != null;
-                if (!controlSessionSelected(commandBuffer,
-                    archetypeChunk,
-                    index,
-                    session,
-                    selectedBodyKeys,
-                    center,
-                    radiusSquared)) {
-                    return;
-                }
+        ComponentType<EntityStore, PhysicsControlSessionComponent> controlSessionType =
+            controlSessionTypeOrNull();
+        if (controlSessionType != null) {
+            store.forEachEntityParallel(controlSessionType,
+                (index, archetypeChunk, commandBuffer) -> {
+                    PhysicsControlSessionComponent session =
+                        archetypeChunk.getComponent(index, controlSessionType);
+                    assert session != null;
+                    if (!controlSessionSelected(commandBuffer,
+                        archetypeChunk,
+                        index,
+                        session,
+                        selectedBodyKeys,
+                        center,
+                        radiusSquared)) {
+                        return;
+                    }
 
-                removedEntities.incrementAndGet(REMOVED_SESSIONS);
-                PhysicsControlSessionCleanup.cleanup(resource, session);
-                commandBuffer.removeComponent(archetypeChunk.getReferenceTo(index), CONTROL_SESSION_TYPE);
-            });
+                    removedEntities.incrementAndGet(REMOVED_SESSIONS);
+                    PhysicsControlSessionCleanup.cleanup(resource, session);
+                    commandBuffer.removeComponent(archetypeChunk.getReferenceTo(index),
+                        controlSessionType);
+                });
+        }
 
         int removedBodies = 0;
         for (RigidBodyKey bodyKey : selectedBodyKeys) {
@@ -246,6 +254,13 @@ public class CleanCommand extends AbstractWorldCommand {
         return targetTransform != null && positionWithinRadius(targetTransform.getPosition(),
             center,
             radiusSquared);
+    }
+
+    @Nullable
+    private static ComponentType<EntityStore, PhysicsControlSessionComponent> controlSessionTypeOrNull() {
+        return PhysicsControlSessionComponent.isComponentTypeRegistered()
+            ? PhysicsControlSessionComponent.getComponentType()
+            : null;
     }
 
     private static boolean containsBody(@Nonnull Set<RigidBodyKey> bodyKeys,
