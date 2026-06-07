@@ -17,6 +17,7 @@ import com.jme3.bullet.joints.SixDofJoint;
 import com.jme3.bullet.joints.SixDofSpringJoint;
 import com.jme3.bullet.joints.SliderJoint;
 import com.jme3.bullet.objects.PhysicsRigidBody;
+import com.jme3.math.Matrix3f;
 import com.jme3.math.Plane;
 import dev.hytalemodding.impulse.api.BackendId;
 import dev.hytalemodding.impulse.api.PhysicsAxis;
@@ -426,7 +427,7 @@ public final class BulletSpace implements PhysicsSpace {
         BulletBody bulletA = requireBody(bodyA);
         BulletBody bulletB = requireBody(bodyB);
         Vector3f normalizedAxis = normalizedOrDefault(axis);
-        com.jme3.math.Matrix3f basis = basisForAxis(normalizedAxis);
+        Matrix3f basis = basisForAxis(normalizedAxis);
         SliderJoint joint = new SliderJoint(bulletA.getRigidBody(), bulletB.getRigidBody(),
             toJme(anchorA), toJme(anchorB), basis, basis, true);
         return addJoint(new BulletJoint(PhysicsJointType.SLIDER, bulletA, bulletB, joint,
@@ -446,8 +447,8 @@ public final class BulletSpace implements PhysicsSpace {
         BulletBody bulletA = requireBody(bodyA);
         BulletBody bulletB = requireBody(bodyB);
         SixDofSpringJoint joint = new SixDofSpringJoint(bulletA.getRigidBody(), bulletB.getRigidBody(),
-            toJme(anchorA), toJme(anchorB), com.jme3.math.Matrix3f.IDENTITY,
-            com.jme3.math.Matrix3f.IDENTITY, true);
+            toJme(anchorA), toJme(anchorB), Matrix3f.IDENTITY,
+            Matrix3f.IDENTITY, true);
         joint.enableSpring(0, true);
         joint.setStiffness(0, stiffness);
         joint.setDamping(0, damping);
@@ -605,14 +606,14 @@ public final class BulletSpace implements PhysicsSpace {
         return normalized.normalize();
     }
 
-    private static com.jme3.math.Matrix3f basisForAxis(@Nonnull Vector3f axis) {
+    private static Matrix3f basisForAxis(@Nonnull Vector3f axis) {
         Vector3f x = normalizedOrDefault(axis);
         Vector3f up = Math.abs(x.y) < 0.9f
             ? new Vector3f(0f, 1f, 0f)
             : new Vector3f(1f, 0f, 0f);
         Vector3f z = new Vector3f(x).cross(up).normalize();
         Vector3f y = new Vector3f(z).cross(x).normalize();
-        com.jme3.math.Matrix3f basis = new com.jme3.math.Matrix3f();
+        Matrix3f basis = new Matrix3f();
         basis.fromAxes(toJme(x), toJme(y), toJme(z));
         return basis;
     }

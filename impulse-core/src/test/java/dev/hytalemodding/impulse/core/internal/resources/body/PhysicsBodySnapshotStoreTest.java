@@ -27,6 +27,7 @@ import dev.hytalemodding.impulse.core.plugin.body.RigidBodyKey;
 import dev.hytalemodding.impulse.core.plugin.snapshot.PublishedPhysicsBodySnapshot;
 import dev.hytalemodding.impulse.core.plugin.snapshot.PublishedPhysicsSnapshotFrame;
 import dev.hytalemodding.impulse.core.plugin.snapshot.PublishedPhysicsSpaceFrame;
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
@@ -156,7 +157,7 @@ class PhysicsBodySnapshotStoreTest {
             PhysicsBodyKind.TEMPORARY,
             PhysicsBodyPersistenceMode.PERSISTENT);
 
-        List<RigidBodyKey> visited = new java.util.ArrayList<>();
+        List<RigidBodyKey> visited = new ArrayList<>();
         int candidates = store.forEachIndexedNear(spaceId,
             new Vector3f(0.0f, 2.0f, 3.0f),
             4.0f,

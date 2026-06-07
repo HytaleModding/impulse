@@ -7,6 +7,7 @@ import com.hypixel.hytale.component.Component;
 import com.hypixel.hytale.component.ComponentType;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import lombok.Getter;
+import org.joml.Vector3d;
 import java.util.Objects;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
@@ -97,7 +98,7 @@ public class ExplosiveFuseComponent implements Component<EntityStore> {
         return arm(currentTick, null);
     }
 
-    public boolean arm(long currentTick, @Nullable org.joml.Vector3d explosionCenter) {
+    public boolean arm(long currentTick, @Nullable Vector3d explosionCenter) {
         if (armed) {
             return false;
         }
@@ -121,7 +122,7 @@ public class ExplosiveFuseComponent implements Component<EntityStore> {
 
     public boolean observeVerticalVelocity(float velocityY,
         long currentTick,
-        @Nullable org.joml.Vector3d explosionCenter) {
+        @Nullable Vector3d explosionCenter) {
         if (armed || !Float.isFinite(velocityY)) {
             return false;
         }
@@ -143,11 +144,11 @@ public class ExplosiveFuseComponent implements Component<EntityStore> {
     }
 
     @Nonnull
-    public org.joml.Vector3d explosionCenterOr(@Nonnull org.joml.Vector3d fallback) {
+    public Vector3d explosionCenterOr(@Nonnull Vector3d fallback) {
         if (!hasExplosionCenter) {
-            return new org.joml.Vector3d(fallback);
+            return new Vector3d(fallback);
         }
-        return new org.joml.Vector3d(explosionCenterX, explosionCenterY, explosionCenterZ);
+        return new Vector3d(explosionCenterX, explosionCenterY, explosionCenterZ);
     }
 
     public static void setComponentType(
@@ -187,7 +188,7 @@ public class ExplosiveFuseComponent implements Component<EntityStore> {
         return value != null && Float.isFinite(value) ? value : 0.0f;
     }
 
-    private void storeExplosionCenter(@Nullable org.joml.Vector3d explosionCenter) {
+    private void storeExplosionCenter(@Nullable Vector3d explosionCenter) {
         if (explosionCenter == null
             || !Double.isFinite(explosionCenter.x)
             || !Double.isFinite(explosionCenter.y)

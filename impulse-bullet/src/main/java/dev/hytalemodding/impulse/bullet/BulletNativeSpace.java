@@ -1,5 +1,6 @@
 package dev.hytalemodding.impulse.bullet;
 
+import com.jme3.bullet.PhysicsSpace;
 import com.jme3.bullet.StepFlag;
 import com.jme3.bullet.collision.ManifoldPoints;
 import com.jme3.bullet.collision.PersistentManifolds;
@@ -15,7 +16,7 @@ import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 import org.joml.Vector3f;
 
-final class BulletNativeSpace extends com.jme3.bullet.PhysicsSpace {
+final class BulletNativeSpace extends PhysicsSpace {
 
     private static final int CONTACT_EVENT_FLAGS = StepFlag.contactConceived
         | StepFlag.contactStarted

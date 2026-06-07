@@ -68,6 +68,7 @@ import java.util.Optional;
 import java.util.Set;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
+import org.joml.Vector3d;
 import org.joml.Vector3f;
 
 /**
@@ -1220,7 +1221,7 @@ public final class PhysicsSimulationExecutor implements PhysicsCommandDispatcher
         }
         return cache.ensureAround(query.world(),
             space,
-            new org.joml.Vector3d(centerX, centerY, centerZ),
+            new Vector3d(centerX, centerY, centerZ),
             query.radius(),
             query.tick(),
             null,
@@ -1633,7 +1634,7 @@ public final class PhysicsSimulationExecutor implements PhysicsCommandDispatcher
     }
 
     @Nonnull
-    private PhysicsSpaceBinding requireSpace(@Nonnull dev.hytalemodding.impulse.api.SpaceId spaceId) {
+    private PhysicsSpaceBinding requireSpace(@Nonnull SpaceId spaceId) {
         PhysicsSpaceBinding space = runtime.getSpaceBinding(spaceId);
         if (space == null) {
             throw new IllegalArgumentException("Physics space id=" + spaceId + " is not registered");

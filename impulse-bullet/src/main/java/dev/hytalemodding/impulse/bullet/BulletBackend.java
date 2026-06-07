@@ -1,6 +1,7 @@
 package dev.hytalemodding.impulse.bullet;
 
 import com.jme3.bullet.util.NativeLibrary;
+import com.jme3.bullet.PhysicsSpace.BroadphaseType;
 import dev.hytalemodding.impulse.api.BackendId;
 import dev.hytalemodding.impulse.api.PhysicsBackend;
 import dev.hytalemodding.impulse.api.PhysicsSpace;
@@ -100,6 +101,6 @@ public final class BulletBackend implements PhysicsBackend {
                 + Thread.currentThread().getName());
 
         return new BulletSpace(spaceId, this,
-            new BulletNativeSpace(com.jme3.bullet.PhysicsSpace.BroadphaseType.DBVT));
+            new BulletNativeSpace(BroadphaseType.DBVT));
     }
 }

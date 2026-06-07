@@ -5,6 +5,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import dev.hytalemodding.impulse.core.internal.resources.body.PhysicsBodyRuntimeState;
 import dev.hytalemodding.impulse.core.plugin.settings.PhysicsSpaceSettings;
+import java.util.Arrays;
 import java.util.List;
 import org.joml.Quaternionf;
 import org.joml.Vector3f;
@@ -318,7 +319,7 @@ class PhysicsSyncPolicyTest {
     }
 
     private static List<PhysicsSyncPolicy.PlayerInterest> interests(Vector3f... positions) {
-        return java.util.Arrays.stream(positions)
+        return Arrays.stream(positions)
             .map(position -> new PhysicsSyncPolicy.PlayerInterest(position, new Vector3f(1.0f, 0.0f, 0.0f)))
             .toList();
     }
