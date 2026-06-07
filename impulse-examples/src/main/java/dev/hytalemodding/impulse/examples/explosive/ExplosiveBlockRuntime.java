@@ -161,14 +161,13 @@ public final class ExplosiveBlockRuntime {
             }), "spawn explosive block fragments");
 
         for (int i = 0; i < groups.size(); i++) {
-            spawnGroupVisuals(time, fragmentSpawner, settings, groups.get(i), pending.get(i));
+            spawnGroupVisuals(time, fragmentSpawner, groups.get(i), pending.get(i));
         }
         return new ExplosionResult(groups.size());
     }
 
     private static void spawnGroupVisuals(@Nonnull TimeResource time,
         @Nonnull Consumer<Holder<EntityStore>> fragmentSpawner,
-        @Nonnull ExplosiveBlockComponent settings,
         @Nonnull FragmentGroup group,
         @Nonnull PendingBlockBody body) {
         boolean controllableAssigned = false;
