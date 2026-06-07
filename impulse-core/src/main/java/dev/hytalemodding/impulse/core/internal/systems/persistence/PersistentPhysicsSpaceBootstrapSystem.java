@@ -48,8 +48,6 @@ public class PersistentPhysicsSpaceBootstrapSystem extends TickingSystem<EntityS
         PhysicsBodyAttachmentComponent.getComponentType();
     private static final ComponentType<EntityStore, GeneratedVisualProxyComponent> GENERATED_PROXY_TYPE =
         GeneratedVisualProxyComponent.getComponentType();
-    private static final ComponentType<EntityStore, PhysicsControlSessionComponent> CONTROL_SESSION_TYPE =
-        PhysicsControlSessionComponent.getComponentType();
 
     private static final HytaleLogger LOGGER = HytaleLogger.get("Impulse");
 
@@ -157,10 +155,14 @@ public class PersistentPhysicsSpaceBootstrapSystem extends TickingSystem<EntityS
                 commandBuffer.removeEntity(archetypeChunk.getReferenceTo(index), RemoveReason.REMOVE);
             });
 
-        store.forEachEntityParallel(CONTROL_SESSION_TYPE,
-            (index, archetypeChunk, commandBuffer) -> commandBuffer.removeComponent(
-                archetypeChunk.getReferenceTo(index),
-                CONTROL_SESSION_TYPE));
+        if (PhysicsControlSessionComponent.isComponentTypeRegistered()) {
+            ComponentType<EntityStore, PhysicsControlSessionComponent> controlSessionType =
+                PhysicsControlSessionComponent.getComponentType();
+            store.forEachEntityParallel(controlSessionType,
+                (index, archetypeChunk, commandBuffer) -> commandBuffer.removeComponent(
+                    archetypeChunk.getReferenceTo(index),
+                    controlSessionType));
+        }
     }
 
     @Nonnull

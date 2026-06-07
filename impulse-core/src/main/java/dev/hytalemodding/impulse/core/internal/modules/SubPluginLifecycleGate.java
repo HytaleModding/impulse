@@ -27,9 +27,10 @@ public final class SubPluginLifecycleGate {
     }
 
     public void disable() {
-        if (enabled.compareAndSet(true, false)) {
-            generation.incrementAndGet();
+        if (!enabled.compareAndSet(true, false)) {
+            return;
         }
+        generation.incrementAndGet();
         for (Runnable callback : disableCallbacks) {
             callback.run();
         }

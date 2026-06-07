@@ -45,8 +45,6 @@ public class GrabCommand extends AbstractAsyncPlayerCommand {
         TransformComponent.getComponentType();
     private static final ComponentType<EntityStore, PhysicsBodyAttachmentComponent> ATTACHMENT_TYPE =
         PhysicsBodyAttachmentComponent.getComponentType();
-    private static final ComponentType<EntityStore, ImpulseControllableComponent> IMPULSE_CONTROLLABLE_TYPE =
-        ImpulseControllableComponent.getComponentType();
     private final OptionalArg<Integer> spaceArg = this.withOptionalArg(
         "space",
         "Physics space id to target",
@@ -69,6 +67,14 @@ public class GrabCommand extends AbstractAsyncPlayerCommand {
             return CompletableFuture.completedFuture(null);
         }
 
+        if (!PhysicsControlSessions.isAvailable()) {
+            ctx.sender().sendMessage(Message.raw(
+                "Impulse control is disabled. Enable HytaleModding:ImpulseControl to use grab."));
+            return CompletableFuture.completedFuture(null);
+        }
+        ComponentType<EntityStore, ImpulseControllableComponent> controllableType =
+            ImpulseControllableComponent.getComponentType();
+
         PhysicsWorldResource resource = ExamplePhysicsUtils.resource(store);
         SpaceId targetSpaceId = ExamplePhysicsUtils.spaceId(ctx, resource, spaceArg);
         if (targetSpaceId == null) {
@@ -79,7 +85,12 @@ public class GrabCommand extends AbstractAsyncPlayerCommand {
         Vector3d direction = ExamplePhysicsUtils.lookDirection(store, ref, transform).mul(RAY_LENGTH);
         Vector3d end = new Vector3d(start).add(direction);
 
-        HitSelection selection = findControllableHit(resource, store, targetSpaceId, start, end);
+        HitSelection selection = findControllableHit(resource,
+            store,
+            targetSpaceId,
+            controllableType,
+            start,
+            end);
         if (selection == null) {
             ctx.sender().sendMessage(Message.raw("No controllable physics body in sight."));
             return CompletableFuture.completedFuture(null);
@@ -170,6 +181,7 @@ public class GrabCommand extends AbstractAsyncPlayerCommand {
     private static HitSelection findControllableHit(@Nonnull PhysicsWorldResource resource,
         @Nonnull Store<EntityStore> store,
         @Nonnull SpaceId spaceId,
+        @Nonnull ComponentType<EntityStore, ImpulseControllableComponent> controllableType,
         @Nonnull Vector3d start,
         @Nonnull Vector3d end) {
         List<RaycastHitView> hits = resource.query(new RaycastAllQuery(spaceId,
@@ -197,7 +209,7 @@ public class GrabCommand extends AbstractAsyncPlayerCommand {
         HitSelection best = null;
         for (HitCandidate candidate : candidates) {
             AttachmentSelection attachments =
-                inspectGameplayAttachments(resource, store, candidate.bodyKey());
+                inspectGameplayAttachments(resource, store, controllableType, candidate.bodyKey());
             if (attachments.controllableAttachment() == null && attachments.hasGameplayAttachment()) {
                 continue;
             }
@@ -217,6 +229,7 @@ public class GrabCommand extends AbstractAsyncPlayerCommand {
     @Nonnull
     private static AttachmentSelection inspectGameplayAttachments(@Nonnull PhysicsWorldResource resource,
         @Nonnull Store<EntityStore> store,
+        @Nonnull ComponentType<EntityStore, ImpulseControllableComponent> controllableType,
         @Nonnull RigidBodyKey bodyKey) {
         boolean hasGameplayAttachment = false;
         for (Ref<EntityStore> attachmentRef : resource.getBodyAttachments(bodyKey)) {
@@ -226,7 +239,8 @@ public class GrabCommand extends AbstractAsyncPlayerCommand {
                 continue;
             }
             hasGameplayAttachment = true;
-            ImpulseControllableComponent controllable = store.getComponent(attachmentRef, IMPULSE_CONTROLLABLE_TYPE);
+            ImpulseControllableComponent controllable = store.getComponent(attachmentRef,
+                controllableType);
             if (controllable != null) {
                 return new AttachmentSelection(attachmentRef, true);
             }

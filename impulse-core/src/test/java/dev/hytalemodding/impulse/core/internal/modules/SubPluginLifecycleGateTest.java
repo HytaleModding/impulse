@@ -42,15 +42,18 @@ class SubPluginLifecycleGateTest {
     }
 
     @Test
-    void disableRunsCleanupCallbacksEvenWhenAlreadyDisabled() {
+    void disableRunsCleanupCallbacksOnlyWhenTransitioningFromEnabled() {
         SubPluginLifecycleGate gate = new SubPluginLifecycleGate("test module disabled");
         AtomicInteger cleanupCount = new AtomicInteger();
         gate.onDisable(cleanupCount::incrementAndGet);
 
         gate.disable();
+        assertEquals(0, cleanupCount.get());
+
         gate.enable();
         gate.disable();
+        gate.disable();
 
-        assertEquals(2, cleanupCount.get());
+        assertEquals(1, cleanupCount.get());
     }
 }

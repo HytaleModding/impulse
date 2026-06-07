@@ -72,6 +72,10 @@ public class PhysicsControlSessionComponent implements Component<EntityStore> {
         componentType = Objects.requireNonNull(type, "type");
     }
 
+    public static void clearComponentType() {
+        componentType = null;
+    }
+
     public static boolean isComponentTypeRegistered() {
         return componentType != null;
     }

@@ -1,4 +1,4 @@
-package dev.hytalemodding.impulse.core.internal.commands.perf;
+package dev.hytalemodding.impulse.core.internal.modules.worldcollision.commands;
 
 import com.hypixel.hytale.component.Store;
 import com.hypixel.hytale.server.core.Message;
@@ -27,9 +27,9 @@ import java.util.List;
 import java.util.Locale;
 import javax.annotation.Nonnull;
 
-public class PerfReportCommand extends AbstractWorldCommand {
+public class WorldCollisionPerfReportCommand extends AbstractWorldCommand {
 
-    public PerfReportCommand() {
+    public WorldCollisionPerfReportCommand() {
         super("report", "Report Impulse world collision profiling metrics");
     }
 

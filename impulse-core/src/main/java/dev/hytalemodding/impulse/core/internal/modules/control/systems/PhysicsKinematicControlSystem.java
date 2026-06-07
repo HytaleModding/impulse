@@ -29,6 +29,7 @@ import it.unimi.dsi.fastutil.objects.Object2ObjectMap;
 import it.unimi.dsi.fastutil.objects.Object2ObjectOpenHashMap;
 import java.util.Collections;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Set;
 import java.util.WeakHashMap;
 import java.util.logging.Level;
@@ -42,8 +43,6 @@ public class PhysicsKinematicControlSystem extends EntityTickingSystem<EntitySto
 
     private static final HytaleLogger LOGGER = HytaleLogger.get("Impulse");
 
-    private static final ComponentType<EntityStore, PhysicsControlSessionComponent> SESSION_TYPE =
-        PhysicsControlSessionComponent.getComponentType();
     private static final ComponentType<EntityStore, TransformComponent> TRANSFORM_TYPE =
         TransformComponent.getComponentType();
     private static final ComponentType<EntityStore, HeadRotation> HEAD_ROTATION_TYPE =
@@ -51,18 +50,30 @@ public class PhysicsKinematicControlSystem extends EntityTickingSystem<EntitySto
     private static final ComponentType<EntityStore, ModelComponent> MODEL_TYPE =
         ModelComponent.getComponentType();
 
-    private static final Query<EntityStore> QUERY = Query.and(SESSION_TYPE, TRANSFORM_TYPE);
-
     private static final Set<Dependency<EntityStore>> DEPENDENCIES = Set.of(
         new SystemDependency<>(Order.BEFORE, PhysicsSyncSystem.class)
     );
 
+    @Nonnull
+    private final ComponentType<EntityStore, PhysicsControlSessionComponent> sessionType;
+    @Nonnull
+    private final Query<EntityStore> query;
     private final ThreadLocal<Scratch> scratch = ThreadLocal.withInitial(Scratch::new);
     // Anchor updates are copied commands; keep one owner command in flight and at most one latest
     // queued target per session anchor.
     @Nonnull
     private final Map<Store<EntityStore>, ControlMutationState> statesByStore =
         Collections.synchronizedMap(new WeakHashMap<>());
+
+    public PhysicsKinematicControlSystem() {
+        this(PhysicsControlSessionComponent.getComponentType());
+    }
+
+    PhysicsKinematicControlSystem(
+        @Nonnull ComponentType<EntityStore, PhysicsControlSessionComponent> sessionType) {
+        this.sessionType = Objects.requireNonNull(sessionType, "sessionType");
+        this.query = Query.and(sessionType, TRANSFORM_TYPE);
+    }
 
     @Override
     public boolean isParallel(int archetypeChunkSize, int taskCount) {
@@ -79,7 +90,7 @@ public class PhysicsKinematicControlSystem extends EntityTickingSystem<EntitySto
             return;
         }
         ControlLifecycle.registerStore(store);
-        PhysicsControlSessionComponent session = chunk.getComponent(index, SESSION_TYPE);
+        PhysicsControlSessionComponent session = chunk.getComponent(index, sessionType);
         TransformComponent transform = chunk.getComponent(index, TRANSFORM_TYPE);
         if (session == null || transform == null || !session.isActive()) {
             return;
@@ -96,14 +107,14 @@ public class PhysicsKinematicControlSystem extends EntityTickingSystem<EntitySto
             || (targetRef != null && !targetRef.isValid())) {
             stateFor(store).clear(anchorBodyKey);
             PhysicsControlSessionCleanup.cleanup(resource, session);
-            commandBuffer.removeComponent(chunk.getReferenceTo(index), SESSION_TYPE);
+            commandBuffer.removeComponent(chunk.getReferenceTo(index), sessionType);
             return;
         }
 
         if (session.getSpaceId() != null && !resource.hasSpace(session.getSpaceId())) {
             stateFor(store).clear(anchorBodyKey);
             PhysicsControlSessionCleanup.cleanup(resource, session);
-            commandBuffer.removeComponent(chunk.getReferenceTo(index), SESSION_TYPE);
+            commandBuffer.removeComponent(chunk.getReferenceTo(index), sessionType);
             return;
         }
 
@@ -351,7 +362,7 @@ public class PhysicsKinematicControlSystem extends EntityTickingSystem<EntitySto
     @Nonnull
     @Override
     public Query<EntityStore> getQuery() {
-        return QUERY;
+        return query;
     }
 
     @Nonnull

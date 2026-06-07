@@ -1,6 +1,9 @@
 package dev.hytalemodding.impulse.core.internal.modules.worldcollision.systems;
 
 import com.hypixel.hytale.component.Store;
+import com.hypixel.hytale.component.dependency.Dependency;
+import com.hypixel.hytale.component.dependency.Order;
+import com.hypixel.hytale.component.dependency.SystemDependency;
 import com.hypixel.hytale.component.system.tick.TickingSystem;
 import com.hypixel.hytale.logger.HytaleLogger;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
@@ -14,6 +17,7 @@ import dev.hytalemodding.impulse.core.internal.resources.PhysicsVisualRuntime;
 import dev.hytalemodding.impulse.core.internal.systems.visual.VisualInterestCollector;
 import dev.hytalemodding.impulse.core.internal.resources.owner.PhysicsOwnerBridge;
 import dev.hytalemodding.impulse.core.internal.modules.worldcollision.WorldCollisionLifecycle;
+import dev.hytalemodding.impulse.core.internal.systems.publication.PhysicsSnapshotPublicationSystem;
 import dev.hytalemodding.impulse.core.plugin.body.RigidBodyKey;
 import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyKind;
 import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyPersistenceMode;
@@ -31,6 +35,7 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.Queue;
+import java.util.Set;
 import java.util.WeakHashMap;
 import java.util.logging.Level;
 import javax.annotation.Nonnull;
@@ -43,6 +48,9 @@ import org.joml.Vector3f;
 public class PhysicsCollisionLodSystem extends TickingSystem<EntityStore> {
 
     private static final HytaleLogger LOGGER = HytaleLogger.get("Impulse");
+    private static final Set<Dependency<EntityStore>> DEPENDENCIES = Set.of(
+        new SystemDependency<>(Order.AFTER, PhysicsSnapshotPublicationSystem.class)
+    );
 
     @Nonnull
     private final Map<Store<EntityStore>, CollisionLodState> statesByStore =
@@ -422,5 +430,11 @@ public class PhysicsCollisionLodSystem extends TickingSystem<EntityStore> {
                 .removeIf(entry -> !activeSpaces.contains(entry.getValue().spaceId().value()));
             nextRefreshTicks.keySet().removeIf(spaceValue -> !activeSpaces.contains(spaceValue));
         }
+    }
+
+    @Nonnull
+    @Override
+    public Set<Dependency<EntityStore>> getDependencies() {
+        return DEPENDENCIES;
     }
 }

@@ -1,15 +1,47 @@
 package dev.hytalemodding.impulse.core.internal.modules.worldcollision.profiling;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertSame;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import com.hypixel.hytale.component.ComponentRegistry;
+import com.hypixel.hytale.component.ResourceType;
+import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import dev.hytalemodding.impulse.core.internal.modules.worldcollision.WorldVoxelCollisionCache.BuildStats;
 import dev.hytalemodding.impulse.core.internal.modules.worldcollision.profiling.WorldCollisionProfilingResource;
 import dev.hytalemodding.impulse.core.internal.modules.worldcollision.profiling.WorldCollisionProfilingResource.MissingSectionReason;
 import it.unimi.dsi.fastutil.longs.LongOpenHashSet;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 
 class WorldCollisionProfilingResourceTest {
+
+    @AfterEach
+    void clearRegistration() {
+        WorldCollisionProfilingResource.clearResourceType();
+    }
+
+    @Test
+    void resourceTypeIsOwnedByWorldCollisionModuleRegistration() {
+        assertFalse(WorldCollisionProfilingResource.isResourceTypeRegistered());
+        assertThrows(IllegalStateException.class, WorldCollisionProfilingResource::getResourceType);
+
+        ComponentRegistry<EntityStore> registry = new ComponentRegistry<>();
+        ResourceType<EntityStore, WorldCollisionProfilingResource> type =
+            registry.registerResource(WorldCollisionProfilingResource.class,
+                WorldCollisionProfilingResource::new);
+
+        WorldCollisionProfilingResource.setResourceType(type);
+
+        assertTrue(WorldCollisionProfilingResource.isResourceTypeRegistered());
+        assertSame(type, WorldCollisionProfilingResource.getResourceType());
+
+        WorldCollisionProfilingResource.clearResourceType();
+
+        assertFalse(WorldCollisionProfilingResource.isResourceTypeRegistered());
+    }
 
     @Test
     void finishTickTracksLatestCumulativeAndWorstSnapshots() {
