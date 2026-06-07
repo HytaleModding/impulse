@@ -39,6 +39,7 @@ import dev.hytalemodding.impulse.core.plugin.settings.PhysicsEventCollectionMode
 import dev.hytalemodding.impulse.core.plugin.settings.PhysicsSpaceSettings;
 import dev.hytalemodding.impulse.core.plugin.settings.PhysicsStepMode;
 import dev.hytalemodding.impulse.core.internal.testsupport.LegacyLiveHandleTestResource;
+import dev.hytalemodding.impulse.core.internal.testsupport.TestInstanceFactory;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.Field;
 import java.util.Set;
@@ -47,7 +48,6 @@ import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 import org.joml.Vector3f;
 import org.junit.jupiter.api.Test;
-import sun.misc.Unsafe;
 
 class PhysicsSnapshotPublicationSystemTest {
 
@@ -322,7 +322,7 @@ class PhysicsSnapshotPublicationSystemTest {
 
     private static void withTestImpulsePlugin(ThrowingRunnable assertion) throws Exception {
         SystemGroup<EntityStore> restoreGroup = testSystemGroup();
-        ImpulsePlugin plugin = allocateImpulsePlugin();
+        ImpulsePlugin plugin = TestInstanceFactory.impulsePlugin();
         Field groupField = ImpulsePlugin.class.getDeclaredField("persistenceRestoreGroup");
         groupField.setAccessible(true);
         groupField.set(plugin, restoreGroup);
@@ -336,14 +336,6 @@ class PhysicsSnapshotPublicationSystemTest {
         } finally {
             instanceField.set(null, previous);
         }
-    }
-
-    @SuppressWarnings("unchecked")
-    private static ImpulsePlugin allocateImpulsePlugin() throws Exception {
-        Field unsafeField = Unsafe.class.getDeclaredField("theUnsafe");
-        unsafeField.setAccessible(true);
-        Unsafe unsafe = (Unsafe) unsafeField.get(null);
-        return (ImpulsePlugin) unsafe.allocateInstance(ImpulsePlugin.class);
     }
 
     @SuppressWarnings("unchecked")

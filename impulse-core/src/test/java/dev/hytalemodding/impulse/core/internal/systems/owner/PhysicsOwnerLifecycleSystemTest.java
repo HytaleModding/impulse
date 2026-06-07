@@ -8,10 +8,10 @@ import com.hypixel.hytale.component.ComponentRegistry;
 import com.hypixel.hytale.component.EmptyResourceStorage;
 import com.hypixel.hytale.component.ResourceType;
 import com.hypixel.hytale.component.Store;
-import com.hypixel.hytale.server.core.universe.world.World;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import dev.hytalemodding.impulse.core.internal.resources.owner.TestPhysicsOwnerLane;
 import dev.hytalemodding.impulse.core.internal.testsupport.LegacyLiveHandleTestResource;
+import dev.hytalemodding.impulse.core.internal.testsupport.TestInstanceFactory;
 import dev.hytalemodding.impulse.core.internal.resources.owner.PhysicsOwnerHandle;
 import dev.hytalemodding.impulse.core.internal.resources.owner.PhysicsOwnerLaneResource;
 import dev.hytalemodding.impulse.core.internal.resources.owner.PhysicsOwnerLaneScheduler;
@@ -23,7 +23,6 @@ import dev.hytalemodding.impulse.core.internal.resources.owner.PhysicsOwnerMutat
 import dev.hytalemodding.impulse.core.internal.resources.owner.PhysicsOwnerResult;
 import dev.hytalemodding.impulse.core.internal.resources.owner.PhysicsOwnerStepCompletion;
 import dev.hytalemodding.impulse.core.plugin.resources.PhysicsMutationHandle;
-import java.lang.reflect.Field;
 import java.time.Duration;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
@@ -31,7 +30,6 @@ import java.util.concurrent.ExecutionException;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 import org.junit.jupiter.api.Test;
-import sun.misc.Unsafe;
 
 class PhysicsOwnerLifecycleSystemTest {
 
@@ -389,22 +387,6 @@ class PhysicsOwnerLifecycleSystemTest {
 
     @Nonnull
     private static EntityStore testEntityStore(@Nonnull String worldName) {
-        return new EntityStore(testWorld(worldName));
-    }
-
-    @Nonnull
-    private static World testWorld(@Nonnull String worldName) {
-        try {
-            Field unsafeField = Unsafe.class.getDeclaredField("theUnsafe");
-            unsafeField.setAccessible(true);
-            Unsafe unsafe = (Unsafe) unsafeField.get(null);
-            World world = (World) unsafe.allocateInstance(World.class);
-            Field nameField = World.class.getDeclaredField("name");
-            nameField.setAccessible(true);
-            nameField.set(world, worldName);
-            return world;
-        } catch (ReflectiveOperationException exception) {
-            throw new AssertionError("Failed to create test world", exception);
-        }
+        return new EntityStore(TestInstanceFactory.world(worldName));
     }
 }
