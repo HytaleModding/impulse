@@ -74,7 +74,24 @@ public interface PublishedPhysicsBodySnapshotCursor {
 
     boolean sensor();
 
+    float mass();
+
+    float friction();
+
+    float restitution();
+
+    float linearDamping();
+
+    float angularDamping();
+
+    int collisionGroup();
+
+    int collisionMask();
+
+    boolean continuousCollisionEnabled();
+
     float centerOfMassOffsetY();
+
 
     @Nonnull
     ShapeType shapeType();
@@ -140,6 +157,14 @@ public interface PublishedPhysicsBodySnapshotCursor {
             bodyType(),
             sleeping(),
             sensor(),
+            mass(),
+            friction(),
+            restitution(),
+            linearDamping(),
+            angularDamping(),
+            collisionGroup(),
+            collisionMask(),
+            continuousCollisionEnabled(),
             centerOfMassOffsetY(),
             shapeType(),
             hasBoxHalfExtents(),
@@ -155,6 +180,14 @@ public interface PublishedPhysicsBodySnapshotCursor {
         if (bodyType() != snapshot.bodyType()
             || sleeping() != snapshot.sleeping()
             || sensor() != snapshot.sensor()
+            || Float.compare(mass(), snapshot.mass()) != 0
+            || Float.compare(friction(), snapshot.friction()) != 0
+            || Float.compare(restitution(), snapshot.restitution()) != 0
+            || Float.compare(linearDamping(), snapshot.linearDamping()) != 0
+            || Float.compare(angularDamping(), snapshot.angularDamping()) != 0
+            || collisionGroup() != snapshot.collisionGroup()
+            || collisionMask() != snapshot.collisionMask()
+            || continuousCollisionEnabled() != snapshot.continuousCollisionEnabled()
             || Float.compare(centerOfMassOffsetY(), snapshot.centerOfMassOffsetY()) != 0
             || shapeType() != snapshot.shapeType()
             || Float.compare(sphereRadius(), snapshot.sphereRadius()) != 0

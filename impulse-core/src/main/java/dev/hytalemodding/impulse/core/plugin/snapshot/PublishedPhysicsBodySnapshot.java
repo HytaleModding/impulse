@@ -51,6 +51,14 @@ public final class PublishedPhysicsBodySnapshot implements PublishedPhysicsBodyS
     private final PhysicsBodyType bodyType;
     private final boolean sleeping;
     private final boolean sensor;
+    private final float mass;
+    private final float friction;
+    private final float restitution;
+    private final float linearDamping;
+    private final float angularDamping;
+    private final int collisionGroup;
+    private final int collisionMask;
+    private final boolean continuousCollisionEnabled;
     private final float centerOfMassOffsetY;
     @Nonnull
     private final ShapeType shapeType;
@@ -116,6 +124,14 @@ public final class PublishedPhysicsBodySnapshot implements PublishedPhysicsBodyS
         this.bodyType = Objects.requireNonNull(bodyType, "bodyType");
         this.sleeping = sleeping;
         this.sensor = sensor;
+        this.mass = defaultMass(this.bodyType);
+        this.friction = 0.0f;
+        this.restitution = 0.0f;
+        this.linearDamping = 0.0f;
+        this.angularDamping = 0.0f;
+        this.collisionGroup = 0;
+        this.collisionMask = 0;
+        this.continuousCollisionEnabled = false;
         this.centerOfMassOffsetY = centerOfMassOffsetY;
         this.shapeType = Objects.requireNonNull(shapeType, "shapeType");
         if (boxHalfExtents != null) {
@@ -169,6 +185,14 @@ public final class PublishedPhysicsBodySnapshot implements PublishedPhysicsBodyS
             snapshot.bodyType(),
             snapshot.sleeping(),
             snapshot.sensor(),
+            snapshot.mass(),
+            snapshot.friction(),
+            snapshot.restitution(),
+            snapshot.linearDamping(),
+            snapshot.angularDamping(),
+            snapshot.collisionGroup(),
+            snapshot.collisionMask(),
+            snapshot.continuousCollisionEnabled(),
             snapshot.centerOfMassOffsetY(),
             snapshot.shapeType(),
             snapshot.hasBoxHalfExtents(),
@@ -204,6 +228,14 @@ public final class PublishedPhysicsBodySnapshot implements PublishedPhysicsBodyS
         @Nonnull PhysicsBodyType bodyType,
         boolean sleeping,
         boolean sensor,
+        float mass,
+        float friction,
+        float restitution,
+        float linearDamping,
+        float angularDamping,
+        int collisionGroup,
+        int collisionMask,
+        boolean continuousCollisionEnabled,
         float centerOfMassOffsetY,
         @Nonnull ShapeType shapeType,
         boolean hasBoxHalfExtents,
@@ -241,6 +273,14 @@ public final class PublishedPhysicsBodySnapshot implements PublishedPhysicsBodyS
         this.bodyType = Objects.requireNonNull(bodyType, "bodyType");
         this.sleeping = sleeping;
         this.sensor = sensor;
+        this.mass = mass;
+        this.friction = friction;
+        this.restitution = restitution;
+        this.linearDamping = linearDamping;
+        this.angularDamping = angularDamping;
+        this.collisionGroup = collisionGroup;
+        this.collisionMask = collisionMask;
+        this.continuousCollisionEnabled = continuousCollisionEnabled;
         this.centerOfMassOffsetY = centerOfMassOffsetY;
         this.shapeType = Objects.requireNonNull(shapeType, "shapeType");
         this.hasBoxHalfExtents = hasBoxHalfExtents;
@@ -270,6 +310,14 @@ public final class PublishedPhysicsBodySnapshot implements PublishedPhysicsBodyS
             bodyType,
             sleeping,
             sensor,
+            mass,
+            friction,
+            restitution,
+            linearDamping,
+            angularDamping,
+            collisionGroup,
+            collisionMask,
+            continuousCollisionEnabled,
             centerOfMassOffsetY,
             shapeType,
             hasBoxHalfExtents,
@@ -286,6 +334,14 @@ public final class PublishedPhysicsBodySnapshot implements PublishedPhysicsBodyS
         if (bodyType != snapshot.bodyType()
             || sleeping != snapshot.sleeping()
             || sensor != snapshot.sensor()
+            || Float.compare(mass, snapshot.mass()) != 0
+            || Float.compare(friction, snapshot.friction()) != 0
+            || Float.compare(restitution, snapshot.restitution()) != 0
+            || Float.compare(linearDamping, snapshot.linearDamping()) != 0
+            || Float.compare(angularDamping, snapshot.angularDamping()) != 0
+            || collisionGroup != snapshot.collisionGroup()
+            || collisionMask != snapshot.collisionMask()
+            || continuousCollisionEnabled != snapshot.continuousCollisionEnabled()
             || Float.compare(centerOfMassOffsetY, snapshot.centerOfMassOffsetY()) != 0
             || shapeType != snapshot.shapeType()
             || Float.compare(sphereRadius, snapshot.sphereRadius()) != 0
@@ -386,6 +442,38 @@ public final class PublishedPhysicsBodySnapshot implements PublishedPhysicsBodyS
 
     public boolean sensor() {
         return sensor;
+    }
+
+    public float mass() {
+        return mass;
+    }
+
+    public float friction() {
+        return friction;
+    }
+
+    public float restitution() {
+        return restitution;
+    }
+
+    public float linearDamping() {
+        return linearDamping;
+    }
+
+    public float angularDamping() {
+        return angularDamping;
+    }
+
+    public int collisionGroup() {
+        return collisionGroup;
+    }
+
+    public int collisionMask() {
+        return collisionMask;
+    }
+
+    public boolean continuousCollisionEnabled() {
+        return continuousCollisionEnabled;
     }
 
     public float centerOfMassOffsetY() {
@@ -553,6 +641,14 @@ public final class PublishedPhysicsBodySnapshot implements PublishedPhysicsBodyS
             && Float.compare(angularVelocityZ, that.angularVelocityZ) == 0
             && sleeping == that.sleeping
             && sensor == that.sensor
+            && Float.compare(mass, that.mass) == 0
+            && Float.compare(friction, that.friction) == 0
+            && Float.compare(restitution, that.restitution) == 0
+            && Float.compare(linearDamping, that.linearDamping) == 0
+            && Float.compare(angularDamping, that.angularDamping) == 0
+            && collisionGroup == that.collisionGroup
+            && collisionMask == that.collisionMask
+            && continuousCollisionEnabled == that.continuousCollisionEnabled
             && Float.compare(centerOfMassOffsetY, that.centerOfMassOffsetY) == 0
             && hasBoxHalfExtents == that.hasBoxHalfExtents
             && Float.compare(boxHalfExtentX, that.boxHalfExtentX) == 0
@@ -595,6 +691,14 @@ public final class PublishedPhysicsBodySnapshot implements PublishedPhysicsBodyS
         result = 31 * result + bodyType.hashCode();
         result = 31 * result + Boolean.hashCode(sleeping);
         result = 31 * result + Boolean.hashCode(sensor);
+        result = 31 * result + Float.hashCode(mass);
+        result = 31 * result + Float.hashCode(friction);
+        result = 31 * result + Float.hashCode(restitution);
+        result = 31 * result + Float.hashCode(linearDamping);
+        result = 31 * result + Float.hashCode(angularDamping);
+        result = 31 * result + Integer.hashCode(collisionGroup);
+        result = 31 * result + Integer.hashCode(collisionMask);
+        result = 31 * result + Boolean.hashCode(continuousCollisionEnabled);
         result = 31 * result + Float.hashCode(centerOfMassOffsetY);
         result = 31 * result + shapeType.hashCode();
         result = 31 * result + Boolean.hashCode(hasBoxHalfExtents);
@@ -626,6 +730,14 @@ public final class PublishedPhysicsBodySnapshot implements PublishedPhysicsBodyS
             + ", bodyType=" + bodyType
             + ", sleeping=" + sleeping
             + ", sensor=" + sensor
+            + ", mass=" + mass
+            + ", friction=" + friction
+            + ", restitution=" + restitution
+            + ", linearDamping=" + linearDamping
+            + ", angularDamping=" + angularDamping
+            + ", collisionGroup=" + collisionGroup
+            + ", collisionMask=" + collisionMask
+            + ", continuousCollisionEnabled=" + continuousCollisionEnabled
             + ", centerOfMassOffsetY=" + centerOfMassOffsetY
             + ", shapeType=" + shapeType
             + ", hasBoxHalfExtents=" + hasBoxHalfExtents
@@ -642,4 +754,7 @@ public final class PublishedPhysicsBodySnapshot implements PublishedPhysicsBodyS
         }
     }
 
+    private static float defaultMass(@Nonnull PhysicsBodyType bodyType) {
+        return bodyType == PhysicsBodyType.DYNAMIC ? 1.0f : 0.0f;
+    }
 }

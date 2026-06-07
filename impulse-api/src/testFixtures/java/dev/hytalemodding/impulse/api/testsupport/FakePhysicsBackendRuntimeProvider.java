@@ -178,6 +178,7 @@ public final class FakePhysicsBackendRuntimeProvider implements PhysicsBackendRu
                     radius,
                     halfHeight,
                     axisCode,
+                    mass,
                     false));
             return bodyId;
         }
@@ -222,7 +223,13 @@ public final class FakePhysicsBackendRuntimeProvider implements PhysicsBackendRu
                     0.0f,
                     0.0f,
                     BackendRuntimeCodes.AXIS_Y,
+                    0.0f,
                     true));
+            BodyState body = space.bodies.get(bodyId);
+            body.friction = friction;
+            body.restitution = restitution;
+            body.collisionGroup = collisionGroup;
+            body.collisionMask = collisionMask;
             space.voxelTerrainCalls.add(new VoxelTerrainCall(bodyId,
                 voxelSizeX,
                 voxelSizeY,
@@ -334,7 +341,9 @@ public final class FakePhysicsBackendRuntimeProvider implements PhysicsBackendRu
 
         @Override
         public void setBodyDamping(int spaceId, long bodyId, float linearDamping, float angularDamping) {
-            requireBody(requireSpace(spaceId), bodyId);
+            BodyState body = requireBody(requireSpace(spaceId), bodyId);
+            body.linearDamping = linearDamping;
+            body.angularDamping = angularDamping;
         }
 
         @Override
@@ -596,6 +605,14 @@ public final class FakePhysicsBackendRuntimeProvider implements PhysicsBackendRu
                 0.0f,
                 body.sleeping,
                 body.sensor,
+                body.mass,
+                body.friction,
+                body.restitution,
+                body.linearDamping,
+                body.angularDamping,
+                body.collisionGroup,
+                body.collisionMask,
+                body.continuousCollision,
                 0.0f,
                 body.halfExtentX > 0.0f && body.halfExtentY > 0.0f && body.halfExtentZ > 0.0f,
                 body.halfExtentX,
@@ -663,8 +680,11 @@ public final class FakePhysicsBackendRuntimeProvider implements PhysicsBackendRu
         private float rotationY;
         private float rotationZ;
         private float rotationW;
+        private final float mass;
         private float friction;
         private float restitution;
+        private float linearDamping;
+        private float angularDamping;
         private int collisionGroup;
         private int collisionMask;
         private boolean sensor;
@@ -686,6 +706,7 @@ public final class FakePhysicsBackendRuntimeProvider implements PhysicsBackendRu
             float radius,
             float halfHeight,
             int axisCode,
+            float mass,
             boolean voxelTerrain) {
             this.shapeTypeCode = shapeTypeCode;
             this.bodyTypeCode = bodyTypeCode;
@@ -702,6 +723,7 @@ public final class FakePhysicsBackendRuntimeProvider implements PhysicsBackendRu
             this.radius = radius;
             this.halfHeight = halfHeight;
             this.axisCode = axisCode;
+            this.mass = mass;
             this.voxelTerrain = voxelTerrain;
         }
 
