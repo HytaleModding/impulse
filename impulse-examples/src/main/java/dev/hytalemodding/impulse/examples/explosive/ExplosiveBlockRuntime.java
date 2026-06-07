@@ -33,6 +33,7 @@ import java.util.Map;
 import java.util.function.Consumer;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
+import org.checkerframework.checker.nullness.compatqual.NonNullDecl;
 import org.joml.Quaterniond;
 import org.joml.Quaternionf;
 import org.joml.Vector3d;
@@ -464,6 +465,18 @@ public final class ExplosiveBlockRuntime {
     @Nonnull
     static List<FragmentOffset> sphericalFragmentOffsets(int radius) {
         int clampedRadius = Math.max(1, radius);
+        List<FragmentOffset> offsets = getFragmentOffsets(clampedRadius);
+        offsets.sort(Comparator
+            .comparingInt(FragmentOffset::distanceSquared)
+            .thenComparingInt(offset -> Math.abs(offset.dy()))
+            .thenComparingInt(FragmentOffset::dx)
+            .thenComparingInt(FragmentOffset::dz)
+            .thenComparingInt(FragmentOffset::dy));
+        return List.copyOf(offsets);
+    }
+
+    @NonNullDecl
+    private static List<FragmentOffset> getFragmentOffsets(int clampedRadius) {
         int radiusSquared = clampedRadius * clampedRadius;
         List<FragmentOffset> offsets = new ArrayList<>();
         for (int dy = -clampedRadius; dy <= clampedRadius; dy++) {
@@ -476,13 +489,7 @@ public final class ExplosiveBlockRuntime {
                 }
             }
         }
-        offsets.sort(Comparator
-            .comparingInt(FragmentOffset::distanceSquared)
-            .thenComparingInt(offset -> Math.abs(offset.dy()))
-            .thenComparingInt(FragmentOffset::dx)
-            .thenComparingInt(FragmentOffset::dz)
-            .thenComparingInt(FragmentOffset::dy));
-        return List.copyOf(offsets);
+        return offsets;
     }
 
     public record ExplosionResult(int spawnedFragments) {
