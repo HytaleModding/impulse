@@ -1,0 +1,46 @@
+name: Bug report
+description: Report a reproducible Impulse bug
+title: "bug: "
+labels: ["bug"]
+body:
+  - type: input
+    id: impulse-version
+    attributes:
+      label: Impulse version or commit
+    validations:
+      required: true
+  - type: input
+    id: hytale-version
+    attributes:
+      label: Hytale server version
+      placeholder: "0.6.0-pre.2"
+    validations:
+      required: true
+  - type: input
+    id: backend
+    attributes:
+      label: Backend
+      placeholder: "impulse:bullet or impulse:rapier"
+  - type: textarea
+    id: steps
+    attributes:
+      label: Reproduction steps
+      description: Include commands, world setup, and expected behavior.
+    validations:
+      required: true
+  - type: textarea
+    id: validation
+    attributes:
+      label: Validation already run
+      placeholder: "./gradlew headlessTest"
+  - type: textarea
+    id: crucible-test
+    attributes:
+      label: Crucible reproduction
+      description: If this is a runtime/server bug, include the failing Crucible test or describe the test case that should be added.
+      placeholder: "Example: add a focused Crucible smoke that unloads/reloads the affected plugin after spawning the failing entity state."
+  - type: textarea
+    id: logs
+    attributes:
+      label: Logs or stack traces
+      render: text
