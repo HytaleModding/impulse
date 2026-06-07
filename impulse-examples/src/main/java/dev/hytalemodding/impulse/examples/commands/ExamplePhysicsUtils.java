@@ -156,17 +156,17 @@ public final class ExamplePhysicsUtils {
         float mass,
         @Nonnull RigidBodySpawnSettings settings,
         @Nullable Vector3f linearVelocity) {
-        PendingBlockBody[] pending = new PendingBlockBody[1];
+        PendingBlockBodyCapture pending = new PendingBlockBodyCapture();
         requireApplied(resource.submitCommands(0L, linearVelocity != null ? 2 : 1, commands ->
-            pending[0] = recordBlockBodySpawn(commands,
+            pending.set(recordBlockBodySpawn(commands,
                 spaceId,
                 visualPosition,
                 blockType,
                 shape,
                 mass,
                 settings,
-                linearVelocity)), "spawn attached block body");
-        return attachRecordedBlockBody(store, time, pending[0]);
+                linearVelocity))), "spawn attached block body");
+        return attachRecordedBlockBody(store, time, pending.require());
     }
 
     @Nonnull
@@ -748,6 +748,24 @@ public final class ExamplePhysicsUtils {
         public PendingBlockBody {
             Objects.requireNonNull(bodyKey, "bodyKey");
             Objects.requireNonNull(spaceId, "spaceId");
+        }
+    }
+
+    private static final class PendingBlockBodyCapture {
+
+        @Nullable
+        private PendingBlockBody body;
+
+        private void set(@Nonnull PendingBlockBody body) {
+            this.body = Objects.requireNonNull(body, "body");
+        }
+
+        @Nonnull
+        private PendingBlockBody require() {
+            if (body == null) {
+                throw new IllegalStateException("Pending block body was not recorded");
+            }
+            return body;
         }
     }
 

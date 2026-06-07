@@ -14,6 +14,7 @@ import dev.hytalemodding.impulse.api.PhysicsSpace;
 import dev.hytalemodding.impulse.api.ShapeType;
 import dev.hytalemodding.impulse.api.SpaceId;
 import dev.hytalemodding.impulse.api.capability.PhysicsVoxelTerrainCapability;
+import dev.hytalemodding.impulse.api.runtime.BackendBodySnapshotSink;
 import dev.hytalemodding.impulse.api.runtime.BackendJointType;
 import dev.hytalemodding.impulse.api.runtime.BackendRuntimeCodes;
 import dev.hytalemodding.impulse.api.testsupport.FakePhysicsBackend;
@@ -107,75 +108,22 @@ class LegacyPhysicsBackendRuntimeTest {
         runtime.setBodyCollisionFilter(spaceId, bodyA, 2, 3);
         runtime.setBodyContinuousCollision(spaceId, bodyA, true);
 
-        int[] snapshotShape = { BackendRuntimeCodes.SHAPE_UNKNOWN };
-        int[] snapshotAxis = { -1 };
-        float[] snapshotMass = { 0.0f };
-        float[] snapshotFriction = { 0.0f };
-        float[] snapshotRestitution = { 0.0f };
-        float[] snapshotLinearDamping = { 0.0f };
-        float[] snapshotAngularDamping = { 0.0f };
-        int[] snapshotCollisionGroup = { 0 };
-        int[] snapshotCollisionMask = { 0 };
-        boolean[] snapshotContinuousCollision = { false };
+        CapturedBodySnapshot snapshot = new CapturedBodySnapshot();
         boolean snapshotPresent = runtime.bodySnapshot(spaceId,
             bodyA,
-            (bodyId,
-                shapeTypeCode,
-                bodyTypeCode,
-                positionX,
-                positionY,
-                positionZ,
-                rotationX,
-                rotationY,
-                rotationZ,
-                rotationW,
-                linearVelocityX,
-                linearVelocityY,
-                linearVelocityZ,
-                angularVelocityX,
-                angularVelocityY,
-                angularVelocityZ,
-                sleeping,
-                sensor,
-                mass,
-                friction,
-                restitution,
-                linearDamping,
-                angularDamping,
-                collisionGroup,
-                collisionMask,
-                continuousCollisionEnabled,
-                centerOfMassOffsetY,
-                hasBoxHalfExtents,
-                halfExtentX,
-                halfExtentY,
-                halfExtentZ,
-                radius,
-                halfHeight,
-                axisCode) -> {
-                snapshotShape[0] = shapeTypeCode;
-                snapshotAxis[0] = axisCode;
-                snapshotMass[0] = mass;
-                snapshotFriction[0] = friction;
-                snapshotRestitution[0] = restitution;
-                snapshotLinearDamping[0] = linearDamping;
-                snapshotAngularDamping[0] = angularDamping;
-                snapshotCollisionGroup[0] = collisionGroup;
-                snapshotCollisionMask[0] = collisionMask;
-                snapshotContinuousCollision[0] = continuousCollisionEnabled;
-            });
+            snapshot);
 
         assertTrue(snapshotPresent);
-        assertEquals(ShapeType.SPHERE, BackendRuntimeCodes.shapeType(snapshotShape[0]));
-        assertEquals(BackendRuntimeCodes.AXIS_Y, snapshotAxis[0]);
-        assertEquals(1.0f, snapshotMass[0], 0.0001f);
-        assertEquals(0.65f, snapshotFriction[0], 0.0001f);
-        assertEquals(0.15f, snapshotRestitution[0], 0.0001f);
-        assertEquals(0.2f, snapshotLinearDamping[0], 0.0001f);
-        assertEquals(0.3f, snapshotAngularDamping[0], 0.0001f);
-        assertEquals(2, snapshotCollisionGroup[0]);
-        assertEquals(3, snapshotCollisionMask[0]);
-        assertTrue(snapshotContinuousCollision[0]);
+        assertEquals(ShapeType.SPHERE, BackendRuntimeCodes.shapeType(snapshot.shapeTypeCode));
+        assertEquals(BackendRuntimeCodes.AXIS_Y, snapshot.axisCode);
+        assertEquals(1.0f, snapshot.mass, 0.0001f);
+        assertEquals(0.65f, snapshot.friction, 0.0001f);
+        assertEquals(0.15f, snapshot.restitution, 0.0001f);
+        assertEquals(0.2f, snapshot.linearDamping, 0.0001f);
+        assertEquals(0.3f, snapshot.angularDamping, 0.0001f);
+        assertEquals(2, snapshot.collisionGroup);
+        assertEquals(3, snapshot.collisionMask);
+        assertTrue(snapshot.continuousCollisionEnabled);
         assertEquals(BackendRuntimeCodes.jointTypeCode(BackendJointType.POINT), runtime.jointType(spaceId, joint));
         assertEquals(bodyA, runtime.jointBodyA(spaceId, joint));
         assertEquals(bodyB, runtime.jointBodyB(spaceId, joint));
@@ -259,6 +207,67 @@ class LegacyPhysicsBackendRuntimeTest {
                                int shiftX,
                                int shiftY,
                                int shiftZ) {
+    }
+
+    private static final class CapturedBodySnapshot implements BackendBodySnapshotSink {
+
+        private int shapeTypeCode = BackendRuntimeCodes.SHAPE_UNKNOWN;
+        private int axisCode = -1;
+        private float mass;
+        private float friction;
+        private float restitution;
+        private float linearDamping;
+        private float angularDamping;
+        private int collisionGroup;
+        private int collisionMask;
+        private boolean continuousCollisionEnabled;
+
+        @Override
+        public void accept(long bodyId,
+            int shapeTypeCode,
+            int bodyTypeCode,
+            float positionX,
+            float positionY,
+            float positionZ,
+            float rotationX,
+            float rotationY,
+            float rotationZ,
+            float rotationW,
+            float linearVelocityX,
+            float linearVelocityY,
+            float linearVelocityZ,
+            float angularVelocityX,
+            float angularVelocityY,
+            float angularVelocityZ,
+            boolean sleeping,
+            boolean sensor,
+            float mass,
+            float friction,
+            float restitution,
+            float linearDamping,
+            float angularDamping,
+            int collisionGroup,
+            int collisionMask,
+            boolean continuousCollisionEnabled,
+            float centerOfMassOffsetY,
+            boolean hasBoxHalfExtents,
+            float halfExtentX,
+            float halfExtentY,
+            float halfExtentZ,
+            float radius,
+            float halfHeight,
+            int axisCode) {
+            this.shapeTypeCode = shapeTypeCode;
+            this.axisCode = axisCode;
+            this.mass = mass;
+            this.friction = friction;
+            this.restitution = restitution;
+            this.linearDamping = linearDamping;
+            this.angularDamping = angularDamping;
+            this.collisionGroup = collisionGroup;
+            this.collisionMask = collisionMask;
+            this.continuousCollisionEnabled = continuousCollisionEnabled;
+        }
     }
 
     private static final class RecordingVoxelBackend implements PhysicsBackend {

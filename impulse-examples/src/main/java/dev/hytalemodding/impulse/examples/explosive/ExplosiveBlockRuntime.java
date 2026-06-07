@@ -135,7 +135,7 @@ public final class ExplosiveBlockRuntime {
             Math.max(8, maxGroupCollisionRadius(groups) + 4),
             Math.max(0L, world.getTick()));
 
-        PendingBlockBody[] pending = new PendingBlockBody[groups.size()];
+        List<PendingBlockBody> pending = new ArrayList<>(groups.size());
         Vector3f centerF = toVector3f(center);
         ExamplePhysicsUtils.requireApplied(resource.submitCommands(
             Math.max(0L, world.getTick()),
@@ -143,24 +143,25 @@ public final class ExplosiveBlockRuntime {
             commands -> {
                 for (int i = 0; i < groups.size(); i++) {
                     FragmentGroup group = groups.get(i);
-                    pending[i] = ExamplePhysicsUtils.recordBlockBodySpawnAtBodyCenter(commands,
+                    PendingBlockBody body = ExamplePhysicsUtils.recordBlockBodySpawnAtBodyCenter(commands,
                         spaceId,
                         group.center(),
                         group.blockType(),
                         group.shape(),
                         group.mass(),
                         FRAGMENT_SETTINGS);
+                    pending.add(body);
                     Vector3f impulse = ExplosiveBlockPolicy.outwardImpulse(centerF,
                         toVector3f(group.center()),
                         settings.getImpulseStrength(),
                         settings.getVerticalLift())
                         .mul(group.mass());
-                    commands.applyBodyImpulse(pending[i].bodyKey(), impulse.x, impulse.y, impulse.z);
+                    commands.applyBodyImpulse(body.bodyKey(), impulse.x, impulse.y, impulse.z);
                 }
             }), "spawn explosive block fragments");
 
         for (int i = 0; i < groups.size(); i++) {
-            spawnGroupVisuals(time, fragmentSpawner, settings, groups.get(i), pending[i]);
+            spawnGroupVisuals(time, fragmentSpawner, settings, groups.get(i), pending.get(i));
         }
         return new ExplosionResult(groups.size());
     }

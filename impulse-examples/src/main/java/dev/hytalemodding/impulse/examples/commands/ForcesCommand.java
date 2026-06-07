@@ -58,21 +58,21 @@ public class ForcesCommand extends AbstractAsyncPlayerCommand {
         Vector3d offCenterPosition = new Vector3d(origin).add(2.0, 0.0, 0.0);
         Vector3d torquePosition = new Vector3d(origin).add(4.0, 0.0, 0.0);
         Vector3d forcePosition = new Vector3d(origin).add(6.0, 0.0, 0.0);
-        PendingBlockBody[] pending = new PendingBlockBody[4];
+        ForceDemoBodies bodies = new ForceDemoBodies();
         ExamplePhysicsUtils.requireApplied(resource.submitCommands(Math.max(0L, world.getTick()), 8, commands -> {
-            pending[0] = spawnBox(commands, spaceId, centralPosition);
-            commands.applyBodyImpulse(pending[0].bodyKey(), 4.0f, 2.0f, 0.0f);
-            pending[1] = spawnBox(commands, spaceId, offCenterPosition);
-            commands.applyBodyImpulse(pending[1].bodyKey(), 3.5f, 0.0f, 0.0f, 0.0f, 0.5f, 0.5f);
-            pending[2] = spawnBox(commands, spaceId, torquePosition);
-            commands.applyBodyTorqueImpulse(pending[2].bodyKey(), 0.0f, 0.0f, 8.0f);
-            pending[3] = spawnBox(commands, spaceId, forcePosition);
-            commands.applyBodyForce(pending[3].bodyKey(), 30.0f, 0.0f, 0.0f);
+            bodies.central = spawnBox(commands, spaceId, centralPosition);
+            commands.applyBodyImpulse(bodies.central.bodyKey(), 4.0f, 2.0f, 0.0f);
+            bodies.offCenter = spawnBox(commands, spaceId, offCenterPosition);
+            commands.applyBodyImpulse(bodies.offCenter.bodyKey(), 3.5f, 0.0f, 0.0f, 0.0f, 0.5f, 0.5f);
+            bodies.torque = spawnBox(commands, spaceId, torquePosition);
+            commands.applyBodyTorqueImpulse(bodies.torque.bodyKey(), 0.0f, 0.0f, 8.0f);
+            bodies.force = spawnBox(commands, spaceId, forcePosition);
+            commands.applyBodyForce(bodies.force.bodyKey(), 30.0f, 0.0f, 0.0f);
         }), "apply force demo");
-        PendingBlockBody central = pending[0];
-        PendingBlockBody offCenter = pending[1];
-        PendingBlockBody torque = pending[2];
-        PendingBlockBody force = pending[3];
+        PendingBlockBody central = bodies.requireCentral();
+        PendingBlockBody offCenter = bodies.requireOffCenter();
+        PendingBlockBody torque = bodies.requireTorque();
+        PendingBlockBody force = bodies.requireForce();
         drawArrow(world, centralPosition, new Vector3d(2.0, 1.0, 0.0), DebugUtils.COLOR_GREEN);
         drawArrow(world, offCenterPosition, new Vector3d(2.0, 0.0, 0.0), DebugUtils.COLOR_YELLOW);
         drawArrow(world, torquePosition, new Vector3d(0.0, 0.0, 2.0), DebugUtils.COLOR_MAGENTA);
@@ -96,6 +96,42 @@ public class ForcesCommand extends AbstractAsyncPlayerCommand {
             PhysicsShapeSpec.box(0.5f, 0.5f, 0.5f),
             1.0f,
             RigidBodySpawnSettings.material(0.5f, 0.25f));
+    }
+
+    private static final class ForceDemoBodies {
+
+        private PendingBlockBody central;
+        private PendingBlockBody offCenter;
+        private PendingBlockBody torque;
+        private PendingBlockBody force;
+
+        @Nonnull
+        private PendingBlockBody requireCentral() {
+            return require(central, "central");
+        }
+
+        @Nonnull
+        private PendingBlockBody requireOffCenter() {
+            return require(offCenter, "off-center");
+        }
+
+        @Nonnull
+        private PendingBlockBody requireTorque() {
+            return require(torque, "torque");
+        }
+
+        @Nonnull
+        private PendingBlockBody requireForce() {
+            return require(force, "force");
+        }
+
+        @Nonnull
+        private static PendingBlockBody require(PendingBlockBody body, @Nonnull String name) {
+            if (body == null) {
+                throw new IllegalStateException("Missing " + name + " force demo body");
+            }
+            return body;
+        }
     }
 
     private static void drawArrow(@Nonnull World world,
