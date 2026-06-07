@@ -38,6 +38,9 @@ public class PersistentPhysicsStateBlock {
     private static final String PAYLOAD_ITEMS_KEY = "Items";
     private static final Set<String> SUPPORTED_KINDS = Set.of(KIND_BODIES, KIND_JOINTS);
     private static final int ZSTD_COMPRESSION_LEVEL = 3;
+    private static final int MAX_UNCOMPRESSED_BYTES = 64 * 1024 * 1024;
+    private static final String UNCOMPRESSED_BYTES_LIMIT_MESSAGE =
+        "Persistent physics state block uncompressed size exceeds limit";
     private static final byte[] EMPTY_PAYLOAD = new byte[0];
     private static final Codec<byte[]> BINARY_PAYLOAD_CODEC = new PersistentPhysicsBinaryPayloadCodec();
     private static final BsonDocumentCodec BSON_DOCUMENT_CODEC = new BsonDocumentCodec();
@@ -101,6 +104,8 @@ public class PersistentPhysicsStateBlock {
             PersistentPhysicsStateBlock::getUncompressedBytes)
         .addValidator(Validators.nonNull())
         .addValidator(Validators.range(1, Integer.MAX_VALUE))
+        .addValidator(PersistentPhysicsValidation.intAtMost(MAX_UNCOMPRESSED_BYTES,
+            UNCOMPRESSED_BYTES_LIMIT_MESSAGE))
         .add()
         .append(new KeyedCodec<>("CompressedBytes", Codec.INTEGER, false),
             (block, value) -> block.compressedBytes = value,
@@ -259,6 +264,7 @@ public class PersistentPhysicsStateBlock {
         int itemCount,
         @Nonnull BsonDocument payloadDocument) {
         byte[] uncompressed = writeBson(payloadDocument);
+        requireUncompressedByteLimit(uncompressed.length);
         byte[] compressed = Zstd.compress(uncompressed, ZSTD_COMPRESSION_LEVEL);
 
         PersistentPhysicsStateBlock block = new PersistentPhysicsStateBlock();
@@ -306,9 +312,17 @@ public class PersistentPhysicsStateBlock {
         if (schemaVersion != PersistentPhysicsWorldResource.CURRENT_SCHEMA_VERSION) {
             throw new IllegalStateException("Persistent physics state block schema is unsupported: " + schemaVersion);
         }
+        requireUncompressedByteLimit(uncompressedBytes);
         if (payload.length != compressedBytes) {
             throw new IllegalStateException("Persistent physics state block compressed size mismatch for "
                 + kind + " block " + blockIndex);
+        }
+    }
+
+    private static void requireUncompressedByteLimit(int byteCount) {
+        if (byteCount > MAX_UNCOMPRESSED_BYTES) {
+            throw new IllegalStateException(UNCOMPRESSED_BYTES_LIMIT_MESSAGE
+                + ": " + byteCount + " > " + MAX_UNCOMPRESSED_BYTES);
         }
     }
 
