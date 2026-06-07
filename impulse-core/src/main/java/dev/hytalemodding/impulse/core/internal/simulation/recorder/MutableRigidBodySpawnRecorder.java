@@ -223,12 +223,7 @@ public final class MutableRigidBodySpawnRecorder implements RigidBodySpawnRecord
 
     public void record() {
         assertMutable();
-        if (spaceId == null) {
-            throw new IllegalStateException("Spawn command requires a physics space");
-        }
-        if (shape == null) {
-            throw new IllegalStateException("Spawn command requires a shape");
-        }
+        validate();
         sink.accept(bodyKey,
             spaceId,
             shape,
@@ -240,6 +235,15 @@ public final class MutableRigidBodySpawnRecorder implements RigidBodySpawnRecord
             settingsOrDefaults(),
             kind,
             persistenceMode);
+    }
+
+    void validate() {
+        if (spaceId == null) {
+            throw new IllegalStateException("Spawn command requires a physics space");
+        }
+        if (shape == null) {
+            throw new IllegalStateException("Spawn command requires a shape");
+        }
     }
 
     public void seal() {

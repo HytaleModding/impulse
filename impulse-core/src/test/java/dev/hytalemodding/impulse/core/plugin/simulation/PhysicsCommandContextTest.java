@@ -121,6 +121,22 @@ class PhysicsCommandContextTest {
     }
 
     @Test
+    void bareSpawnRecorderRecordsWhenContextFreezes() {
+        RigidBodyKey bodyKey = RigidBodyKey.of(UUID.fromString("00000000-0000-0000-0000-000000000023"));
+        SpaceId spaceId = new SpaceId(4);
+        MutablePhysicsCommandContext buffer = new MutablePhysicsCommandContext(44L, 9L);
+
+        buffer.spawnBody(bodyKey)
+            .space(spaceId)
+            .box(0.5f, 0.5f, 0.5f)
+            .position(1.0f, 2.0f, 3.0f);
+
+        PhysicsCommandBatch batch = buffer.freezeInternal(13L).publicBatch();
+
+        assertEquals(1, batch.commandCount());
+    }
+
+    @Test
     void singleSpawnRecipeScopesRecorderToCallback() {
         RigidBodyKey bodyKey = RigidBodyKey.of(UUID.fromString("00000000-0000-0000-0000-000000000021"));
         SpaceId spaceId = new SpaceId(4);
@@ -312,6 +328,24 @@ class PhysicsCommandContextTest {
         anchorA.set(9.0f, 9.0f, 9.0f);
         anchorB.set(8.0f, 8.0f, 8.0f);
         axis.set(7.0f, 7.0f, 7.0f);
+
+        PhysicsCommandBatch batch = buffer.freezeInternal(15L).publicBatch();
+
+        assertEquals(1, batch.commandCount());
+    }
+
+    @Test
+    void bareJointRecorderRecordsWhenContextFreezes() {
+        SpaceId spaceId = new SpaceId(6);
+        JointKey jointKey = JointKey.of(UUID.fromString("00000000-0000-0000-0000-000000000024"));
+        RigidBodyKey bodyA = RigidBodyKey.of(UUID.fromString("00000000-0000-0000-0000-000000000025"));
+        RigidBodyKey bodyB = RigidBodyKey.of(UUID.fromString("00000000-0000-0000-0000-000000000026"));
+        MutablePhysicsCommandContext buffer = new MutablePhysicsCommandContext(46L, 11L);
+
+        buffer.joint(jointKey)
+            .space(spaceId)
+            .bodies(bodyA, bodyB)
+            .fixed(0.0f, 0.0f, 0.0f, 0.0f, 1.0f, 0.0f);
 
         PhysicsCommandBatch batch = buffer.freezeInternal(15L).publicBatch();
 
