@@ -1,7 +1,6 @@
 # Contributing To Impulse
 
-Impulse is an alpha Hytale physics framework. Contributions are welcome, but the public API,
-Hytale server API, and backend runtime contracts could go through breaking changes.
+Impulse is still in its early phase and contributions are always welcomed!
 
 ## Prerequisites
 
@@ -14,11 +13,18 @@ Hytale server API, and backend runtime contracts could go through breaking chang
 Good first contributions are documentation fixes, focused bug fixes, examples and small tests.
 
 Open an issue or design discussion before changing architecture, persistence, lifecycle behavior,
-backend runtime contracts, public API packages, or native artifact packaging.
+backend runtime contracts, public API packages or native artifact packaging.
 
 For bug reports, include a clear reproduction path and logs. When the bug depends on Hytale server
-runtime behavior, also try to add or propose a failing Crucible test so the issue can be reproduced
-inside the live server test lane.
+runtime behavior, also try to add or propose a failing Crucible test so that it can be reproduced in-game. 
+
+## AI-Assisted Contributions
+
+AI-assisted contributions are allowed when a human contributor reviews, understands, tests, and takes
+responsibility for the work. Meaningful AI assistance must be disclosed in the pull request or commit
+message.
+
+See [AI Coding Assistants](doc/ai-coding-assistants.md) for the full policy.
 
 ## Code Style
 
@@ -66,8 +72,3 @@ server behavior.
 
 Backend-specific changes should name the backend used for validation, such as `impulse:bullet` or
 `impulse:rapier`.
-
-## Native Artifacts
-
-Backend jars may bundle native binaries for developer convenience. Native artifacts must keep
-upstream license notices and must not be presented as official upstream distributions.
