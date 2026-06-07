@@ -94,13 +94,13 @@ pub extern "system" fn Java_dev_hytalemodding_impulse_rapier_RapierNative_combin
     shift_x: jint,
     shift_y: jint,
     shift_z: jint,
-) {
-    with_space(space_handle, (), |space| {
+) -> jboolean {
+    let combined = with_space(space_handle, false, |space| {
         let Some(entry_a) = space.entry(body_id_a) else {
-            return;
+            return false;
         };
         let Some(entry_b) = space.entry(body_id_b) else {
-            return;
+            return false;
         };
 
         {
@@ -108,19 +108,21 @@ pub extern "system" fn Java_dev_hytalemodding_impulse_rapier_RapierNative_combin
                 .colliders
                 .get_pair_mut(entry_a.collider, entry_b.collider);
             let (Some(collider_a), Some(collider_b)) = (collider_a, collider_b) else {
-                return;
+                return false;
             };
 
             let Some(voxels_a) = collider_a.shape_mut().as_voxels_mut() else {
-                return;
+                return false;
             };
             let Some(voxels_b) = collider_b.shape_mut().as_voxels_mut() else {
-                return;
+                return false;
             };
 
             voxels_a.combine_voxel_states(voxels_b, IVector::new(shift_x, shift_y, shift_z));
         }
 
         space.refresh_query_aabb(entry_a.collider);
+        true
     });
+    jboolean_from_bool(combined)
 }

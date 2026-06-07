@@ -109,7 +109,7 @@ final class RapierNative {
         int collisionGroup,
         int collisionMask);
 
-    static native void combineVoxelTerrainNative(long spaceHandle,
+    static native boolean combineVoxelTerrainNative(long spaceHandle,
         long bodyHandleA,
         long bodyHandleB,
         int shiftX,
