@@ -147,6 +147,7 @@ public class PersistentPhysicsWorldResource extends PhysicsPersistenceResource {
     private transient int runtimeRestoredSpaceCount;
     private transient int runtimeRestoredBodyCount;
     private transient int runtimeRestoredJointCount;
+    private transient long runtimeRestoreGeneration;
     @Nonnull
     private final transient Object2IntMap<String> runtimeSkippedBodiesByReason = new Object2IntLinkedOpenHashMap<>();
     @Nonnull
@@ -249,6 +250,7 @@ public class PersistentPhysicsWorldResource extends PhysicsPersistenceResource {
 
     @Override
     public void markRuntimeRestorePending() {
+        runtimeRestoreGeneration++;
         runtimeRestorePending = true;
         runtimeSpaceBootstrapComplete = false;
         runtimeRestoreFailed = false;
@@ -270,9 +272,14 @@ public class PersistentPhysicsWorldResource extends PhysicsPersistenceResource {
     }
 
     public void clearRuntimeRestorePending() {
+        runtimeRestoreGeneration++;
         runtimeRestorePending = false;
         runtimeSnapshotSynced = false;
         runtimeSnapshotSyncSkipTicks = 0;
+    }
+
+    public long runtimeRestoreGeneration() {
+        return runtimeRestoreGeneration;
     }
 
     public boolean shouldSyncRuntimeSnapshot(int intervalTicks) {
@@ -379,6 +386,7 @@ public class PersistentPhysicsWorldResource extends PhysicsPersistenceResource {
         runtimeRestoredSpaceCount = 0;
         runtimeRestoredBodyCount = 0;
         runtimeRestoredJointCount = 0;
+        runtimeRestoreGeneration = 0L;
         runtimeSnapshotSynced = false;
         runtimeSnapshotSyncSkipTicks = 0;
         runtimeSkippedBodiesByReason.clear();

@@ -51,6 +51,19 @@ class PersistentPhysicsCodecValidationTest {
     private static final AtomicInteger BACKEND_COUNTER = new AtomicInteger();
 
     @Test
+    void runtimeRestoreGenerationChangesAcrossRestoreTransitions() {
+        PersistentPhysicsWorldResource resource = new PersistentPhysicsWorldResource();
+
+        long initialGeneration = resource.runtimeRestoreGeneration();
+        resource.markRuntimeRestorePending();
+        long pendingGeneration = resource.runtimeRestoreGeneration();
+        resource.clearRuntimeRestorePending();
+
+        assertTrue(pendingGeneration > initialGeneration);
+        assertTrue(resource.runtimeRestoreGeneration() > pendingGeneration);
+    }
+
+    @Test
     void spaceStateCodecValidatorChecksCrossFieldSettingsAfterDecode() {
         PhysicsSpaceSettings settings = PhysicsSpaceSettings.defaults();
         settings.getVisualSyncSettings().setVisualSyncRadii(64, 128);

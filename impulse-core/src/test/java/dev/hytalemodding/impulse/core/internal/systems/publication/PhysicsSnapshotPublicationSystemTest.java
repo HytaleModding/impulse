@@ -5,8 +5,10 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import com.hypixel.hytale.component.SystemGroup;
 import com.hypixel.hytale.component.dependency.Dependency;
 import com.hypixel.hytale.component.dependency.Order;
+import com.hypixel.hytale.component.dependency.SystemGroupDependency;
 import com.hypixel.hytale.component.dependency.SystemDependency;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import dev.hytalemodding.impulse.api.BackendId;
@@ -16,6 +18,7 @@ import dev.hytalemodding.impulse.api.PhysicsContact;
 import dev.hytalemodding.impulse.api.PhysicsBodySnapshot;
 import dev.hytalemodding.impulse.api.PhysicsSpace;
 import dev.hytalemodding.impulse.api.testsupport.FakePhysicsBackend;
+import dev.hytalemodding.impulse.core.ImpulsePlugin;
 import dev.hytalemodding.impulse.core.internal.resources.profiling.PhysicsRuntimeProfilingResource;
 import dev.hytalemodding.impulse.core.internal.resources.owner.TestPhysicsOwnerLane;
 import dev.hytalemodding.impulse.core.internal.resources.owner.PhysicsOwnerResource;
@@ -36,17 +39,20 @@ import dev.hytalemodding.impulse.core.plugin.settings.PhysicsEventCollectionMode
 import dev.hytalemodding.impulse.core.plugin.settings.PhysicsSpaceSettings;
 import dev.hytalemodding.impulse.core.plugin.settings.PhysicsStepMode;
 import dev.hytalemodding.impulse.core.internal.testsupport.LegacyLiveHandleTestResource;
+import java.lang.reflect.Constructor;
+import java.lang.reflect.Field;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 import org.joml.Vector3f;
 import org.junit.jupiter.api.Test;
+import sun.misc.Unsafe;
 
 class PhysicsSnapshotPublicationSystemTest {
 
     @Test
-    void publicationDependenciesKeepReadersBehindSnapshotApply() {
+    void publicationDependenciesKeepReadersBehindSnapshotApply() throws Exception {
         Set<Dependency<EntityStore>> dependencies =
             new PhysicsSnapshotPublicationSystem().getDependencies();
 
@@ -60,6 +66,10 @@ class PhysicsSnapshotPublicationSystemTest {
         assertSystemDependency(new PersistentPhysicsWorldSyncSystem().getDependencies(),
             Order.AFTER,
             PhysicsSnapshotPublicationSystem.class);
+        withTestImpulsePlugin(() -> assertSystemGroupDependency(
+            new PhysicsDetachedVisualMaterializationSystem().getDependencies(),
+            Order.AFTER,
+            ImpulsePlugin.get().getPersistenceRestoreGroup()));
     }
 
     @Test
@@ -281,5 +291,55 @@ class PhysicsSnapshotPublicationSystemTest {
             dependency.getOrder() == order
                 && dependency instanceof SystemDependency<?, ?> systemDependency
                 && systemDependency.getSystemClass().equals(systemClass)));
+    }
+
+    private static void assertSystemGroupDependency(Set<Dependency<EntityStore>> dependencies,
+        Order order,
+        Object group) {
+        assertTrue(dependencies.stream().anyMatch(dependency ->
+            dependency.getOrder() == order
+                && dependency instanceof SystemGroupDependency<?> groupDependency
+                && groupDependency.getGroup().equals(group)));
+    }
+
+    private static void withTestImpulsePlugin(ThrowingRunnable assertion) throws Exception {
+        SystemGroup<EntityStore> restoreGroup = testSystemGroup();
+        ImpulsePlugin plugin = allocateImpulsePlugin();
+        Field groupField = ImpulsePlugin.class.getDeclaredField("persistenceRestoreGroup");
+        groupField.setAccessible(true);
+        groupField.set(plugin, restoreGroup);
+
+        Field instanceField = ImpulsePlugin.class.getDeclaredField("instance");
+        instanceField.setAccessible(true);
+        Object previous = instanceField.get(null);
+        instanceField.set(null, plugin);
+        try {
+            assertion.run();
+        } finally {
+            instanceField.set(null, previous);
+        }
+    }
+
+    @SuppressWarnings("unchecked")
+    private static ImpulsePlugin allocateImpulsePlugin() throws Exception {
+        Field unsafeField = Unsafe.class.getDeclaredField("theUnsafe");
+        unsafeField.setAccessible(true);
+        Unsafe unsafe = (Unsafe) unsafeField.get(null);
+        return (ImpulsePlugin) unsafe.allocateInstance(ImpulsePlugin.class);
+    }
+
+    @SuppressWarnings("unchecked")
+    private static SystemGroup<EntityStore> testSystemGroup() throws Exception {
+        Class<?> componentRegistry = Class.forName("com.hypixel.hytale.component.ComponentRegistry");
+        Constructor<SystemGroup> constructor =
+            SystemGroup.class.getDeclaredConstructor(componentRegistry, int.class, Set.class);
+        constructor.setAccessible(true);
+        return (SystemGroup<EntityStore>) constructor.newInstance(null, 1, Set.of());
+    }
+
+    @FunctionalInterface
+    private interface ThrowingRunnable {
+
+        void run() throws Exception;
     }
 }
