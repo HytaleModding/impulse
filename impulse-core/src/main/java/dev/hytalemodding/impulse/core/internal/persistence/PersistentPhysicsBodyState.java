@@ -342,11 +342,19 @@ public class PersistentPhysicsBodyState {
         sphereRadius = positiveFiniteOrZeroForRestore(snapshot.sphereRadius());
         halfHeight = positiveFiniteOrZeroForRestore(snapshot.halfHeight());
         bodyType = snapshot.bodyType();
+        mass = nonNegativeFiniteOrDefaultForSnapshot(snapshot.mass(), bodyType == PhysicsBodyType.DYNAMIC ? 1.0f : 0.0f);
         copyFiniteVectorOrZero(position, snapshot.position());
         rotation.set(snapshot.rotation());
         copyFiniteVectorOrZero(linearVelocity, snapshot.linearVelocity());
         copyFiniteVectorOrZero(angularVelocity, snapshot.angularVelocity());
+        friction = nonNegativeFiniteOrZeroForRestore(snapshot.friction());
+        restitution = nonNegativeFiniteOrZeroForRestore(snapshot.restitution());
+        linearDamping = nonNegativeFiniteOrZeroForRestore(snapshot.linearDamping());
+        angularDamping = nonNegativeFiniteOrZeroForRestore(snapshot.angularDamping());
         sensor = snapshot.sensor();
+        collisionGroup = snapshot.collisionGroup();
+        collisionMask = snapshot.collisionMask();
+        continuousCollisionEnabled = snapshot.continuousCollisionEnabled();
         sleeping = snapshot.sleeping();
     }
 
@@ -384,7 +392,7 @@ public class PersistentPhysicsBodyState {
         long backendBodyId = backendBodyHandle.value();
         space.runtime().setBodyType(space.backendSpaceHandle().value(),
             backendBodyId,
-            dev.hytalemodding.impulse.api.runtime.BackendRuntimeCodes.bodyTypeCode(bodyType));
+            BackendRuntimeCodes.bodyTypeCode(bodyType));
         space.runtime().setBodyTransform(space.backendSpaceHandle().value(),
             backendBodyId,
             position.x,

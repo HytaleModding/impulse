@@ -33,11 +33,17 @@ final class PublishedPhysicsBodyFrameStorage {
     private static final int BOX_HALF_EXTENT_Z = 16;
     private static final int SPHERE_RADIUS = 17;
     private static final int HALF_HEIGHT = 18;
-    private static final int FLOAT_STRIDE = 19;
+    private static final int MASS = 19;
+    private static final int FRICTION = 20;
+    private static final int RESTITUTION = 21;
+    private static final int LINEAR_DAMPING = 22;
+    private static final int ANGULAR_DAMPING = 23;
+    private static final int FLOAT_STRIDE = 24;
 
     private static final byte SLEEPING = 1;
     private static final byte SENSOR = 1 << 1;
     private static final byte HAS_BOX_HALF_EXTENTS = 1 << 2;
+    private static final byte CONTINUOUS_COLLISION = 1 << 3;
 
     private final long frameEpoch;
     private final long worldEpoch;
@@ -54,6 +60,8 @@ final class PublishedPhysicsBodyFrameStorage {
     private final PhysicsBodyType[] bodyTypes;
     private final ShapeType[] shapeTypes;
     private final PhysicsAxis[] shapeAxes;
+    private final int[] collisionGroups;
+    private final int[] collisionMasks;
     private final byte[] flags;
     private final float[] values;
 
@@ -72,6 +80,8 @@ final class PublishedPhysicsBodyFrameStorage {
         PhysicsBodyType[] bodyTypes,
         ShapeType[] shapeTypes,
         PhysicsAxis[] shapeAxes,
+        int[] collisionGroups,
+        int[] collisionMasks,
         byte[] flags,
         float[] values) {
         this.frameEpoch = frameEpoch;
@@ -89,6 +99,8 @@ final class PublishedPhysicsBodyFrameStorage {
         this.bodyTypes = bodyTypes;
         this.shapeTypes = shapeTypes;
         this.shapeAxes = shapeAxes;
+        this.collisionGroups = collisionGroups;
+        this.collisionMasks = collisionMasks;
         this.flags = flags;
         this.values = values;
     }
@@ -146,6 +158,14 @@ final class PublishedPhysicsBodyFrameStorage {
             bodyType(bodyIndex),
             sleeping(bodyIndex),
             sensor(bodyIndex),
+            mass(bodyIndex),
+            friction(bodyIndex),
+            restitution(bodyIndex),
+            linearDamping(bodyIndex),
+            angularDamping(bodyIndex),
+            collisionGroup(bodyIndex),
+            collisionMask(bodyIndex),
+            continuousCollisionEnabled(bodyIndex),
             centerOfMassOffsetY(bodyIndex),
             shapeType(bodyIndex),
             hasBoxHalfExtents(bodyIndex),
@@ -212,6 +232,10 @@ final class PublishedPhysicsBodyFrameStorage {
 
     private boolean hasBoxHalfExtents(int bodyIndex) {
         return (flags[bodyIndex] & HAS_BOX_HALF_EXTENTS) != 0;
+    }
+
+    private boolean continuousCollisionEnabled(int bodyIndex) {
+        return (flags[bodyIndex] & CONTINUOUS_COLLISION) != 0;
     }
 
     private float positionX(int bodyIndex) {
@@ -290,6 +314,34 @@ final class PublishedPhysicsBodyFrameStorage {
         return value(bodyIndex, HALF_HEIGHT);
     }
 
+    private float mass(int bodyIndex) {
+        return value(bodyIndex, MASS);
+    }
+
+    private float friction(int bodyIndex) {
+        return value(bodyIndex, FRICTION);
+    }
+
+    private float restitution(int bodyIndex) {
+        return value(bodyIndex, RESTITUTION);
+    }
+
+    private float linearDamping(int bodyIndex) {
+        return value(bodyIndex, LINEAR_DAMPING);
+    }
+
+    private float angularDamping(int bodyIndex) {
+        return value(bodyIndex, ANGULAR_DAMPING);
+    }
+
+    private int collisionGroup(int bodyIndex) {
+        return collisionGroups[bodyIndex];
+    }
+
+    private int collisionMask(int bodyIndex) {
+        return collisionMasks[bodyIndex];
+    }
+
     private float value(int bodyIndex, int offset) {
         return values[bodyIndex * FLOAT_STRIDE + offset];
     }
@@ -311,6 +363,8 @@ final class PublishedPhysicsBodyFrameStorage {
         private final PhysicsBodyType[] bodyTypes;
         private final ShapeType[] shapeTypes;
         private final PhysicsAxis[] shapeAxes;
+        private final int[] collisionGroups;
+        private final int[] collisionMasks;
         private final byte[] flags;
         private final float[] values;
         private int nextSpace;
@@ -340,6 +394,8 @@ final class PublishedPhysicsBodyFrameStorage {
             this.bodyTypes = new PhysicsBodyType[expectedBodies];
             this.shapeTypes = new ShapeType[expectedBodies];
             this.shapeAxes = new PhysicsAxis[expectedBodies];
+            this.collisionGroups = new int[expectedBodies];
+            this.collisionMasks = new int[expectedBodies];
             this.flags = new byte[expectedBodies];
             this.values = new float[expectedBodies * FLOAT_STRIDE];
         }
@@ -400,7 +456,12 @@ final class PublishedPhysicsBodyFrameStorage {
             if (snapshot.hasBoxHalfExtents()) {
                 bodyFlags |= HAS_BOX_HALF_EXTENTS;
             }
+            if (snapshot.continuousCollisionEnabled()) {
+                bodyFlags |= CONTINUOUS_COLLISION;
+            }
             flags[nextBody] = bodyFlags;
+            collisionGroups[nextBody] = snapshot.collisionGroup();
+            collisionMasks[nextBody] = snapshot.collisionMask();
             put(nextBody, POSITION_X, snapshot.positionX());
             put(nextBody, POSITION_Y, snapshot.positionY());
             put(nextBody, POSITION_Z, snapshot.positionZ());
@@ -420,6 +481,11 @@ final class PublishedPhysicsBodyFrameStorage {
             put(nextBody, BOX_HALF_EXTENT_Z, snapshot.boxHalfExtentZ());
             put(nextBody, SPHERE_RADIUS, snapshot.sphereRadius());
             put(nextBody, HALF_HEIGHT, snapshot.halfHeight());
+            put(nextBody, MASS, snapshot.mass());
+            put(nextBody, FRICTION, snapshot.friction());
+            put(nextBody, RESTITUTION, snapshot.restitution());
+            put(nextBody, LINEAR_DAMPING, snapshot.linearDamping());
+            put(nextBody, ANGULAR_DAMPING, snapshot.angularDamping());
             nextBody++;
             currentSpaceBodyCount++;
         }
@@ -447,6 +513,8 @@ final class PublishedPhysicsBodyFrameStorage {
                 bodyTypes,
                 shapeTypes,
                 shapeAxes,
+                collisionGroups,
+                collisionMasks,
                 flags,
                 values);
         }
@@ -589,6 +657,46 @@ final class PublishedPhysicsBodyFrameStorage {
         @Override
         public boolean sensor() {
             return PublishedPhysicsBodyFrameStorage.this.sensor(index);
+        }
+
+        @Override
+        public float mass() {
+            return PublishedPhysicsBodyFrameStorage.this.mass(index);
+        }
+
+        @Override
+        public float friction() {
+            return PublishedPhysicsBodyFrameStorage.this.friction(index);
+        }
+
+        @Override
+        public float restitution() {
+            return PublishedPhysicsBodyFrameStorage.this.restitution(index);
+        }
+
+        @Override
+        public float linearDamping() {
+            return PublishedPhysicsBodyFrameStorage.this.linearDamping(index);
+        }
+
+        @Override
+        public float angularDamping() {
+            return PublishedPhysicsBodyFrameStorage.this.angularDamping(index);
+        }
+
+        @Override
+        public int collisionGroup() {
+            return PublishedPhysicsBodyFrameStorage.this.collisionGroup(index);
+        }
+
+        @Override
+        public int collisionMask() {
+            return PublishedPhysicsBodyFrameStorage.this.collisionMask(index);
+        }
+
+        @Override
+        public boolean continuousCollisionEnabled() {
+            return PublishedPhysicsBodyFrameStorage.this.continuousCollisionEnabled(index);
         }
 
         @Override
