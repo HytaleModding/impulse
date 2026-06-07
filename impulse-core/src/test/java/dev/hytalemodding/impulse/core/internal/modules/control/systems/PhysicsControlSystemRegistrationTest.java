@@ -1,20 +1,30 @@
 package dev.hytalemodding.impulse.core.internal.modules.control.systems;
 
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertSame;
 
+import com.hypixel.hytale.component.AddReason;
 import com.hypixel.hytale.component.ComponentRegistry;
 import com.hypixel.hytale.component.ComponentType;
+import com.hypixel.hytale.component.EmptyResourceStorage;
+import com.hypixel.hytale.component.Holder;
+import com.hypixel.hytale.component.Store;
+import com.hypixel.hytale.server.core.universe.world.World;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
+import dev.hytalemodding.impulse.core.internal.modules.control.ControlLifecycle;
 import dev.hytalemodding.impulse.core.internal.modules.control.components.PhysicsControlSessionComponent;
 import dev.hytalemodding.impulse.core.plugin.modules.control.ImpulseControllableComponent;
 import java.lang.reflect.Field;
+import javax.annotation.Nonnull;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
+import sun.misc.Unsafe;
 
 class PhysicsControlSystemRegistrationTest {
 
     @AfterEach
     void clearRegistrations() {
+        ControlLifecycle.disable();
         ImpulseControllableComponent.clearComponentType();
         PhysicsControlSessionComponent.clearComponentType();
     }
@@ -73,6 +83,30 @@ class PhysicsControlSystemRegistrationTest {
         assertSame(secondSession, field(secondSystem, "sessionType"));
     }
 
+    @Test
+    void holderLoadKeepsControllableMarker() {
+        ComponentRegistry<EntityStore> registry = new ComponentRegistry<>();
+        ComponentType<EntityStore, ImpulseControllableComponent> controllableType =
+            registry.registerComponent(ImpulseControllableComponent.class,
+                "ImpulseControllable",
+                ImpulseControllableComponent.CODEC);
+        ComponentType<EntityStore, PhysicsControlSessionComponent> sessionType =
+            registry.registerComponent(PhysicsControlSessionComponent.class,
+                PhysicsControlSessionComponent::new);
+        PhysicsControlRuntimeHolderSystem system = new PhysicsControlRuntimeHolderSystem(
+            controllableType,
+            sessionType);
+        Store<EntityStore> store = registry.addStore(testEntityStore("control-marker-load-test"),
+            EmptyResourceStorage.get());
+        Holder<EntityStore> holder = registry.newHolder();
+        holder.addComponent(controllableType, new ImpulseControllableComponent());
+
+        system.onEntityAdd(holder, AddReason.LOAD, store);
+
+        assertNotNull(holder.getComponent(controllableType));
+        registry.shutdown();
+    }
+
     private static ComponentType<EntityStore, ImpulseControllableComponent> registerControllableType() {
         ComponentRegistry<EntityStore> registry = new ComponentRegistry<>();
         return registry.registerComponent(ImpulseControllableComponent.class,
@@ -90,5 +124,26 @@ class PhysicsControlSystemRegistrationTest {
         Field field = target.getClass().getDeclaredField(name);
         field.setAccessible(true);
         return field.get(target);
+    }
+
+    @Nonnull
+    private static EntityStore testEntityStore(@Nonnull String worldName) {
+        return new EntityStore(testWorld(worldName));
+    }
+
+    @Nonnull
+    private static World testWorld(@Nonnull String worldName) {
+        try {
+            Field unsafeField = Unsafe.class.getDeclaredField("theUnsafe");
+            unsafeField.setAccessible(true);
+            Unsafe unsafe = (Unsafe) unsafeField.get(null);
+            World world = (World) unsafe.allocateInstance(World.class);
+            Field nameField = World.class.getDeclaredField("name");
+            nameField.setAccessible(true);
+            nameField.set(world, worldName);
+            return world;
+        } catch (ReflectiveOperationException exception) {
+            throw new AssertionError("Failed to create test world", exception);
+        }
     }
 }
