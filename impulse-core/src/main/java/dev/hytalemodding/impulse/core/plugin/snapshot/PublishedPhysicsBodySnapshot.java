@@ -464,14 +464,17 @@ public final class PublishedPhysicsBodySnapshot implements PublishedPhysicsBodyS
         return angularDamping;
     }
 
+    @Override
     public int collisionGroup() {
         return collisionGroup;
     }
 
+    @Override
     public int collisionMask() {
         return collisionMask;
     }
 
+    @Override
     public boolean continuousCollisionEnabled() {
         return continuousCollisionEnabled;
     }
