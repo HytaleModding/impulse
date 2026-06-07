@@ -1,6 +1,6 @@
 # Security Policy
 
-Impulse is alpha software for a pre-release Hytale server API.
+Impulse is still an alpha, expect vulnerabilities.
 
 ## Supported Versions
 
@@ -15,6 +15,9 @@ project owner's preferred private channel. Include:
 - reproduction steps;
 - expected impact;
 - whether native backend artifacts are involved.
+
+If an AI tool helped find or analyze the issue, disclose that and explain how you verified the
+finding. Do not paste large AI-generated vulnerability text.
 
 ## Scope
 
