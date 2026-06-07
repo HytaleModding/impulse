@@ -524,9 +524,27 @@ public final class RapierSpace implements PhysicsSpace {
         int shiftY,
         int shiftZ) {
         ensureOpen();
-        requireAttachedBody(bodyA);
-        requireAttachedBody(bodyB);
-        // Rapier's native combine copies voxels into bodyA; both section bodies remain live here.
+        RapierBody rapierBodyA = requireAttachedBody(bodyA);
+        RapierBody rapierBodyB = requireAttachedBody(bodyB);
+        if (rapierBodyA == rapierBodyB) {
+            throw new IllegalArgumentException("Cannot combine a voxel terrain body with itself");
+        }
+        requireVoxelTerrain(rapierBodyA);
+        requireVoxelTerrain(rapierBodyB);
+        if (!RapierNative.combineVoxelTerrainNative(nativeSpaceHandle,
+            rapierBodyA.getBodyHandle(),
+            rapierBodyB.getBodyHandle(),
+            shiftX,
+            shiftY,
+            shiftZ)) {
+            throw new IllegalStateException("Rapier native voxel terrain combine failed");
+        }
+    }
+
+    private static void requireVoxelTerrain(@Nonnull RapierBody body) {
+        if (body.getShapeType() != ShapeType.VOXELS) {
+            throw new IllegalArgumentException("Body must be a voxel terrain");
+        }
     }
 
     @Nonnull
