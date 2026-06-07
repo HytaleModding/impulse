@@ -92,13 +92,28 @@ public class PersistentPhysicsBodyHydrationSystem extends TickingSystem<EntitySt
         }
 
         BackendBodyHandle backendBodyHandle = state.createBackendBody(space);
-        state.applyToBody(space, backendBodyHandle);
-        runtime.addBodyOnOwner(bodyKey,
-            space.spaceId(),
-            backendBodyHandle,
-            PhysicsBodyKind.BODY,
-            PhysicsBodyPersistenceMode.PERSISTENT);
+        try {
+            state.applyToBody(space, backendBodyHandle);
+            runtime.addBodyOnOwner(bodyKey,
+                space.spaceId(),
+                backendBodyHandle,
+                PhysicsBodyKind.BODY,
+                PhysicsBodyPersistenceMode.PERSISTENT);
+        } catch (RuntimeException exception) {
+            removeBackendBody(space, backendBodyHandle, exception);
+            throw exception;
+        }
         return RestoreBodyResult.RESTORED;
+    }
+
+    private static void removeBackendBody(@Nonnull PhysicsSpaceBinding space,
+        @Nonnull BackendBodyHandle backendBodyHandle,
+        @Nonnull RuntimeException restoreFailure) {
+        try {
+            space.runtime().removeBody(space.backendSpaceHandle().value(), backendBodyHandle.value());
+        } catch (RuntimeException cleanupFailure) {
+            restoreFailure.addSuppressed(cleanupFailure);
+        }
     }
 
     enum RestoreBodyResult {

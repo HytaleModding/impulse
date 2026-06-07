@@ -2,30 +2,52 @@ package dev.hytalemodding.impulse.core.internal.systems.persistence;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import dev.hytalemodding.impulse.api.BackendId;
 import dev.hytalemodding.impulse.api.Impulse;
+import dev.hytalemodding.impulse.api.PhysicsAxis;
 import dev.hytalemodding.impulse.api.PhysicsBody;
+import dev.hytalemodding.impulse.api.PhysicsBodySnapshot;
 import dev.hytalemodding.impulse.api.PhysicsBodyType;
 import dev.hytalemodding.impulse.api.PhysicsCollisionFilters;
 import dev.hytalemodding.impulse.api.PhysicsJoint;
+import dev.hytalemodding.impulse.api.PhysicsJointType;
 import dev.hytalemodding.impulse.api.PhysicsSpace;
+import dev.hytalemodding.impulse.api.ShapeType;
+import dev.hytalemodding.impulse.api.SpaceId;
+import dev.hytalemodding.impulse.api.runtime.BackendRuntimeCodes;
 import dev.hytalemodding.impulse.api.testsupport.FakePhysicsBackend;
+import dev.hytalemodding.impulse.api.testsupport.FakePhysicsBackendRuntimeProvider;
+import dev.hytalemodding.impulse.api.testsupport.FakePhysicsBackendRuntimeProvider.FakePhysicsBackendRuntime;
 import dev.hytalemodding.impulse.core.internal.persistence.PersistentPhysicsBodyState;
+import dev.hytalemodding.impulse.core.internal.persistence.PersistentPhysicsJointState;
 import dev.hytalemodding.impulse.core.internal.persistence.PersistentPhysicsRuntimeSnapshot;
+import dev.hytalemodding.impulse.core.internal.persistence.PersistentPhysicsRuntimeSupport;
 import dev.hytalemodding.impulse.core.internal.persistence.PersistentPhysicsSpaceState;
 import dev.hytalemodding.impulse.core.internal.persistence.PersistentPhysicsWorldResource;
+import dev.hytalemodding.impulse.core.internal.resources.BackendBodyHandle;
+import dev.hytalemodding.impulse.core.internal.resources.BackendJointHandle;
+import dev.hytalemodding.impulse.core.internal.resources.PhysicsSpaceBinding;
+import dev.hytalemodding.impulse.core.internal.resources.PhysicsWorldRuntimeResource;
+import dev.hytalemodding.impulse.core.internal.resources.body.PhysicsBodyRegistration;
 import dev.hytalemodding.impulse.core.plugin.body.RigidBodyKey;
 import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyKind;
 import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyPersistenceMode;
 import dev.hytalemodding.impulse.core.internal.testsupport.LegacyLiveHandleTestResource;
+import dev.hytalemodding.impulse.core.plugin.joint.JointKey;
+import dev.hytalemodding.impulse.core.plugin.simulation.JointType;
 import dev.hytalemodding.impulse.core.plugin.settings.PhysicsEventCollectionMode;
 import dev.hytalemodding.impulse.core.plugin.settings.PhysicsSpaceSettings;
 import dev.hytalemodding.impulse.core.plugin.settings.PhysicsStepSchedulingMode;
 import dev.hytalemodding.impulse.core.plugin.settings.PhysicsWorldSettings;
 import java.util.List;
 import java.util.Map;
+import java.util.UUID;
 import java.util.concurrent.atomic.AtomicInteger;
+import javax.annotation.Nonnull;
+import org.joml.Quaternionf;
 import org.joml.Vector3d;
 import org.joml.Vector3f;
 import org.junit.jupiter.api.Test;
@@ -180,6 +202,58 @@ class PersistentPhysicsWorldSyncSystemTest {
     }
 
     @Test
+    void bodyHydrationRemovesBackendBodyWhenRegistrationFails() {
+        BackendRuntimeFixture fixture = createBackendRuntimeFixture("body-cleanup");
+        FailingRegistrationResource runtime = fixture.runtime();
+        RigidBodyKey bodyKey = RigidBodyKey.of(UUID.fromString("00000000-0000-0000-0000-000000000101"));
+        PersistentPhysicsBodyState state = persistentBodyState(fixture.spaceId(), bodyKey);
+        runtime.failBodyRegistration = true;
+
+        assertThrows(IllegalStateException.class,
+            () -> PersistentPhysicsBodyHydrationSystem.restoreBodyOnOwner(runtime, state, bodyKey));
+
+        assertEquals(0, fixture.backendRuntime().bodyCount(fixture.spaceId().value()));
+    }
+
+    @Test
+    void jointHydrationRemovesBackendJointWhenRegistrationFails() {
+        BackendRuntimeFixture fixture = createBackendRuntimeFixture("joint-cleanup");
+        FailingRegistrationResource runtime = fixture.runtime();
+        RigidBodyKey bodyAKey = RigidBodyKey.of(UUID.fromString("00000000-0000-0000-0000-000000000102"));
+        RigidBodyKey bodyBKey = RigidBodyKey.of(UUID.fromString("00000000-0000-0000-0000-000000000103"));
+        PhysicsSpaceBinding binding = runtime.requireSpaceBinding(fixture.spaceId());
+        BackendBodyHandle bodyAHandle = createBackendBox(binding);
+        BackendBodyHandle bodyBHandle = createBackendBox(binding);
+        runtime.addBodyOnOwner(bodyAKey,
+            fixture.spaceId(),
+            bodyAHandle,
+            PhysicsBodyKind.BODY,
+            PhysicsBodyPersistenceMode.PERSISTENT);
+        runtime.addBodyOnOwner(bodyBKey,
+            fixture.spaceId(),
+            bodyBHandle,
+            PhysicsBodyKind.BODY,
+            PhysicsBodyPersistenceMode.PERSISTENT);
+        PersistentPhysicsJointState state = new PersistentPhysicsJointState();
+        state.setSpaceId(fixture.spaceId().value());
+        state.setBodyAKey(bodyAKey);
+        state.setBodyBKey(bodyBKey);
+        state.setType(PhysicsJointType.FIXED);
+        runtime.failJointRegistration = true;
+
+        assertThrows(IllegalStateException.class,
+            () -> PersistentPhysicsRuntimeSupport.createJoint(runtime,
+                binding,
+                state,
+                bodyAKey,
+                runtime.requireBodyRegistration(bodyAKey),
+                bodyBKey,
+                runtime.requireBodyRegistration(bodyBKey)));
+
+        assertEquals(0, fixture.backendRuntime().jointCount(fixture.spaceId().value()));
+    }
+
+    @Test
     void persistentBodyStateCapturesRuntimeMaterialAndCollisionSettings() {
         RuntimeFixture fixture = createRuntimeFixture();
         PhysicsBody body = fixture.space.createBox(1.0f, 2.0f, 3.0f, 7.0f);
@@ -277,6 +351,65 @@ class PersistentPhysicsWorldSyncSystemTest {
         return new RuntimeFixture(runtime, persistent, space);
     }
 
+    private static BackendRuntimeFixture createBackendRuntimeFixture(@Nonnull String name) {
+        BackendId backendId =
+            new BackendId("test:persistence-" + name + "-" + BACKEND_COUNTER.incrementAndGet());
+        FakePhysicsBackendRuntimeProvider provider =
+            new FakePhysicsBackendRuntimeProvider(backendId, false, false);
+        Impulse.registerRuntimeProvider(provider);
+        FailingRegistrationResource runtime = new FailingRegistrationResource();
+        SpaceId spaceId = runtime.createSpace(backendId,
+            "test-world",
+            PhysicsSpaceSettings.defaults());
+        return new BackendRuntimeFixture(runtime, provider.createdRuntimes().getFirst(), spaceId);
+    }
+
+    @Nonnull
+    private static PersistentPhysicsBodyState persistentBodyState(@Nonnull SpaceId spaceId,
+        @Nonnull RigidBodyKey bodyKey) {
+        PhysicsBodyRegistration registration = new PhysicsBodyRegistration(bodyKey,
+            new BackendBodyHandle(1L),
+            spaceId,
+            PhysicsBodyKind.BODY,
+            PhysicsBodyPersistenceMode.PERSISTENT);
+        return PersistentPhysicsBodyState.from(registration,
+            new PhysicsBodySnapshot(new Vector3f(),
+                new Quaternionf(),
+                new Vector3f(),
+                new Vector3f(),
+                PhysicsBodyType.DYNAMIC,
+                false,
+                false,
+                1.0f,
+                ShapeType.BOX,
+                new Vector3f(0.5f, 0.5f, 0.5f),
+                0.0f,
+                0.0f,
+                PhysicsAxis.Y));
+    }
+
+    @Nonnull
+    private static BackendBodyHandle createBackendBox(@Nonnull PhysicsSpaceBinding binding) {
+        return new BackendBodyHandle(binding.runtime().createBody(binding.backendSpaceHandle().value(),
+            BackendRuntimeCodes.SHAPE_BOX,
+            0.5f,
+            0.5f,
+            0.5f,
+            0.0f,
+            0.0f,
+            BackendRuntimeCodes.AXIS_Y,
+            0.0f,
+            1.0f,
+            BackendRuntimeCodes.BODY_DYNAMIC,
+            0.0f,
+            0.0f,
+            0.0f,
+            0.0f,
+            0.0f,
+            0.0f,
+            1.0f));
+    }
+
     private record RuntimeFixture(LegacyLiveHandleTestResource runtime,
         PersistentPhysicsWorldResource persistent,
         PhysicsSpace space) {
@@ -291,6 +424,83 @@ class PersistentPhysicsWorldSyncSystemTest {
         private PersistentPhysicsBodyState bodyState(RigidBodyKey bodyKey) {
             return PersistentPhysicsBodyState.from(runtime.requireBodyRegistration(bodyKey),
                 runtime.getBodySnapshot(bodyKey));
+        }
+    }
+
+    private record BackendRuntimeFixture(@Nonnull FailingRegistrationResource runtime,
+                                         @Nonnull FakePhysicsBackendRuntime backendRuntime,
+                                         @Nonnull SpaceId spaceId) {
+    }
+
+    private static final class FailingRegistrationResource extends PhysicsWorldRuntimeResource {
+
+        private boolean failBodyRegistration;
+        private boolean failJointRegistration;
+
+        @Nonnull
+        @Override
+        public RigidBodyKey addBodyOnOwner(@Nonnull RigidBodyKey bodyKey,
+            @Nonnull SpaceId spaceId,
+            @Nonnull BackendBodyHandle backendBodyHandle,
+            @Nonnull PhysicsBodyKind kind,
+            @Nonnull PhysicsBodyPersistenceMode persistenceMode) {
+            if (failBodyRegistration) {
+                throw new IllegalStateException("forced body registration failure");
+            }
+            return super.addBodyOnOwner(bodyKey, spaceId, backendBodyHandle, kind, persistenceMode);
+        }
+
+        @Nonnull
+        @Override
+        public JointKey addJointOnOwner(@Nonnull JointKey jointKey,
+            @Nonnull SpaceId spaceId,
+            @Nonnull BackendJointHandle backendJointHandle,
+            @Nonnull RigidBodyKey bodyA,
+            @Nonnull RigidBodyKey bodyB,
+            @Nonnull JointType type,
+            float anchorAX,
+            float anchorAY,
+            float anchorAZ,
+            float anchorBX,
+            float anchorBY,
+            float anchorBZ,
+            float axisX,
+            float axisY,
+            float axisZ,
+            float restLength,
+            float stiffness,
+            float damping,
+            float lowerLimit,
+            float upperLimit,
+            boolean motorEnabled,
+            float motorTargetVelocity,
+            float motorMaxForce) {
+            if (failJointRegistration) {
+                throw new IllegalStateException("forced joint registration failure");
+            }
+            return super.addJointOnOwner(jointKey,
+                spaceId,
+                backendJointHandle,
+                bodyA,
+                bodyB,
+                type,
+                anchorAX,
+                anchorAY,
+                anchorAZ,
+                anchorBX,
+                anchorBY,
+                anchorBZ,
+                axisX,
+                axisY,
+                axisZ,
+                restLength,
+                stiffness,
+                damping,
+                lowerLimit,
+                upperLimit,
+                motorEnabled,
+                motorTargetVelocity,
+                motorMaxForce);
         }
     }
 }

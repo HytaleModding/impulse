@@ -53,6 +53,25 @@ final class PersistentPhysicsValidation {
     }
 
     @Nonnull
+    static Validator<Integer> intAtMost(int max, @Nonnull String message) {
+        return new Validator<>() {
+            @Override
+            public void accept(Integer value, ValidationResults results) {
+                if (value == null) {
+                    return;
+                }
+                if (value > max) {
+                    results.fail(message + ": " + value + " > " + max);
+                }
+            }
+
+            @Override
+            public void updateSchema(SchemaContext context, Schema schema) {
+            }
+        };
+    }
+
+    @Nonnull
     static Validator<Vector3f> finiteVector(@Nonnull String message) {
         return new Validator<>() {
             @Override

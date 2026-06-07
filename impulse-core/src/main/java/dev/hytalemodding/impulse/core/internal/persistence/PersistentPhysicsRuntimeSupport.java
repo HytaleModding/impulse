@@ -70,30 +70,45 @@ public final class PersistentPhysicsRuntimeSupport {
             state.getMotorTargetVelocity(),
             state.getMotorMaxForce()));
         JointKey jointKey = JointKey.random();
-        runtime.addJointOnOwner(jointKey,
-            space.spaceId(),
-            backendJointHandle,
-            bodyAKey,
-            bodyBKey,
-            type,
-            anchorA.x,
-            anchorA.y,
-            anchorA.z,
-            anchorB.x,
-            anchorB.y,
-            anchorB.z,
-            axis.x,
-            axis.y,
-            axis.z,
-            state.getSpringRestLength(),
-            state.getSpringStiffness(),
-            state.getSpringDamping(),
-            state.getLowerLimit(),
-            state.getUpperLimit(),
-            state.isMotorEnabled(),
-            state.getMotorTargetVelocity(),
-            state.getMotorMaxForce());
+        try {
+            runtime.addJointOnOwner(jointKey,
+                space.spaceId(),
+                backendJointHandle,
+                bodyAKey,
+                bodyBKey,
+                type,
+                anchorA.x,
+                anchorA.y,
+                anchorA.z,
+                anchorB.x,
+                anchorB.y,
+                anchorB.z,
+                axis.x,
+                axis.y,
+                axis.z,
+                state.getSpringRestLength(),
+                state.getSpringStiffness(),
+                state.getSpringDamping(),
+                state.getLowerLimit(),
+                state.getUpperLimit(),
+                state.isMotorEnabled(),
+                state.getMotorTargetVelocity(),
+                state.getMotorMaxForce());
+        } catch (RuntimeException exception) {
+            removeBackendJoint(space, backendJointHandle, exception);
+            throw exception;
+        }
         return jointKey;
+    }
+
+    private static void removeBackendJoint(@Nonnull PhysicsSpaceBinding space,
+        @Nonnull BackendJointHandle backendJointHandle,
+        @Nonnull RuntimeException restoreFailure) {
+        try {
+            space.runtime().removeJoint(space.backendSpaceHandle().value(), backendJointHandle.value());
+        } catch (RuntimeException cleanupFailure) {
+            restoreFailure.addSuppressed(cleanupFailure);
+        }
     }
 
     @Nonnull

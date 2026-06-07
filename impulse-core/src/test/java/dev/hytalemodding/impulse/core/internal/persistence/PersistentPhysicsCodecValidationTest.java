@@ -214,6 +214,19 @@ class PersistentPhysicsCodecValidationTest {
     }
 
     @Test
+    void worldResourceCodecRejectsOversizedStateBlockBeforeInflating() {
+        PersistentPhysicsWorldResource resource = new PersistentPhysicsWorldResource();
+        resource.setBodies(new PersistentPhysicsBodyState[] { persistentBodyState() });
+        BsonDocument encoded = encodeWorld(resource);
+        BsonDocument block = encoded.getArray("BodyBlocks").getFirst().asDocument();
+        block.put("UncompressedBytes", new BsonInt32(Integer.MAX_VALUE));
+
+        assertValidationFails(
+            () -> PersistentPhysicsStateBlock.CODEC.decode(block, new ExtraInfo()),
+            "Persistent physics state block uncompressed size exceeds");
+    }
+
+    @Test
     void bodyStateCodecRejectsInvalidSpaceIdWithoutRuntimeFallback() {
         BsonDocument encoded = encodeBody(persistentBodyState());
         encoded.put("SpaceId", new BsonInt32(0));
