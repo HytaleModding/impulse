@@ -26,7 +26,7 @@ import dev.hytalemodding.impulse.core.plugin.modules.worldcollision.WorldCollisi
 import dev.hytalemodding.impulse.core.plugin.resources.PhysicsWorldResource;
 import dev.hytalemodding.impulse.core.plugin.settings.PhysicsEventCollectionMode;
 import dev.hytalemodding.impulse.core.plugin.settings.PhysicsWorldSettings;
-import dev.hytalemodding.impulse.core.plugin.simulation.PhysicsCommandBuffer;
+import dev.hytalemodding.impulse.core.plugin.simulation.query.RaycastClosestQuery;
 import dev.hytalemodding.impulse.core.plugin.simulation.view.RaycastHitView;
 import dev.hytalemodding.impulse.examples.explosive.ExplosiveBlockComponent;
 import dev.hytalemodding.impulse.examples.explosive.ExplosiveBlockPolicy;
@@ -37,6 +37,7 @@ import java.util.concurrent.CompletableFuture;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 import org.joml.Vector3d;
+import org.joml.Vector3f;
 import org.joml.Vector3i;
 
 /**
@@ -166,11 +167,14 @@ public class EcsCommand extends AbstractCommandCollection {
             int strength = ExamplePhysicsUtils.optionalInt(ctx, strengthArg, 8, 1, 64);
             Vector3d impulse = ExamplePhysicsUtils.lookDirection(store, ref, transform).mul(strength);
             PhysicsWorldResource resource = ExamplePhysicsUtils.resource(store);
-            ExamplePhysicsUtils.requireApplied(PhysicsCommandBuffer.begin(resource, 0L, 1)
-                .applyImpulse(hit.bodyKey(), impulse)
-                .submit(), "ecs bumper impulse");
+            ExamplePhysicsUtils.requireApplied(resource.submitCommands(0L,
+                1,
+                commands -> commands.applyBodyImpulse(hit.bodyKey(),
+                    (float) impulse.x,
+                    (float) impulse.y,
+                    (float) impulse.z)), "ecs recorder impulse");
 
-            ctx.sender().sendMessage(Message.raw("Applied ECS command-buffer impulse to "
+            ctx.sender().sendMessage(Message.raw("Applied ECS recorder impulse to "
                 + hit.bodyKey() + "."));
             return CompletableFuture.completedFuture(null);
         }
@@ -493,11 +497,16 @@ public class EcsCommand extends AbstractCommandCollection {
         Vector3d start = ExamplePhysicsUtils.eyePosition(store, ref, transform);
         Vector3d end = new Vector3d(start)
             .add(ExamplePhysicsUtils.lookDirection(store, ref, transform).mul(RAY_LENGTH));
-        Optional<RaycastHitView> hit = PhysicsCommandBuffer.begin(ExamplePhysicsUtils.resource(store), 0L, 0)
-            .raycastClosest(spaceId, start, end)
+        Optional<RaycastHitView> hit = ExamplePhysicsUtils.resource(store)
+            .query(new RaycastClosestQuery(spaceId, vector(start), vector(end)))
             .completion()
             .toCompletableFuture()
             .join();
         return hit.orElse(null);
+    }
+
+    @Nonnull
+    private static Vector3f vector(@Nonnull Vector3d value) {
+        return new Vector3f((float) value.x, (float) value.y, (float) value.z);
     }
 }
