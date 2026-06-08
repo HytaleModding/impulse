@@ -972,6 +972,7 @@ class PhysicsWorldResourceStateTest {
         assertEquals(0, resource.getBodySnapshotCount());
         assertEquals(0, resource.getBodySnapshotCount(space.id()));
         assertEquals(0, resource.getBodySnapshotCellCount());
+        assertNull(resource.getBodySnapshotIfRegistered(bodyId));
         assertThrows(IllegalArgumentException.class, () -> resource.getBodySnapshot(bodyId));
         assertForcedCcdRestoreDoesNotAffectReusedBodyId(resource, space, bodyId);
     }

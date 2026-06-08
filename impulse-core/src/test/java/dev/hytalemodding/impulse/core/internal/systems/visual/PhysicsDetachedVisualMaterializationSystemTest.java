@@ -13,6 +13,7 @@ import dev.hytalemodding.impulse.api.PhysicsBodyType;
 import dev.hytalemodding.impulse.api.PhysicsSpace;
 import dev.hytalemodding.impulse.api.ShapeType;
 import dev.hytalemodding.impulse.api.testsupport.FakePhysicsBackend;
+import dev.hytalemodding.impulse.core.internal.persistence.PersistentPhysicsWorldResource;
 import dev.hytalemodding.impulse.core.internal.testsupport.LegacyLiveHandleTestResource;
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsVisualRuntime;
 import dev.hytalemodding.impulse.core.plugin.body.RigidBodyKey;
@@ -102,7 +103,45 @@ class PhysicsDetachedVisualMaterializationSystemTest {
                 0.0f,
                 settings,
                 interests,
-                10.0f));
+            10.0f));
+    }
+
+    @Test
+    void cachedMaterializationPolicyRejectsCurrentPoseOutsideRadius() {
+        BackendId backendId = new BackendId("test:visual-policy-" + BACKEND_COUNTER.incrementAndGet());
+        Impulse.registerBackend(new FakePhysicsBackend(backendId));
+        LegacyLiveHandleTestResource resource = new LegacyLiveHandleTestResource();
+        PhysicsSpaceSettings settings = PhysicsSpaceSettings.defaults();
+        settings.getVisualMaterializationSettings().setDetachedVisualMaterializationEnabled(true);
+        settings.getVisualMaterializationSettings().setDetachedVisualRadii(4, 8);
+        PhysicsSpace space = resource.createLiveSpace(backendId, "test-world", settings);
+        List<PhysicsVisualRuntime.VisualInterest> interests = List.of(
+            new PhysicsVisualRuntime.VisualInterest(new Vector3f(), null));
+
+        DetachedVisualOcclusion.Result result =
+            PhysicsDetachedVisualMaterializationSystem.resolveCurrentMaterializationPolicy(resource,
+                RigidBodyKey.random(),
+                resource.requireSpaceBinding(space.id()),
+                snapshotAt(9.0f, 0.0f, 0.0f),
+                settings,
+                interests,
+                1L,
+                new DetachedVisualOcclusion.RaycastBudget(),
+                null);
+
+        assertFalse(result.shouldMaterialize());
+        assertEquals(Float.POSITIVE_INFINITY, result.distanceSquared());
+    }
+
+    @Test
+    void failedRestoreBlocksDetachedVisualMaterialization() {
+        PersistentPhysicsWorldResource persistent = new PersistentPhysicsWorldResource();
+
+        assertFalse(PhysicsDetachedVisualMaterializationSystem.isRestoreBlockingVisuals(persistent));
+
+        persistent.failRuntimeRestore("bad saved backend");
+
+        assertTrue(PhysicsDetachedVisualMaterializationSystem.isRestoreBlockingVisuals(persistent));
     }
 
     @Test
@@ -155,5 +194,33 @@ class PhysicsDetachedVisualMaterializationSystemTest {
             null));
 
         assertTrue(result.shouldMaterialize());
+    }
+
+    private static PhysicsBodySnapshot snapshotAt(float x, float y, float z) {
+        return PhysicsBodySnapshot.of(x,
+            y,
+            z,
+            0.0f,
+            0.0f,
+            0.0f,
+            1.0f,
+            0.0f,
+            0.0f,
+            0.0f,
+            0.0f,
+            0.0f,
+            0.0f,
+            PhysicsBodyType.DYNAMIC,
+            false,
+            false,
+            0.0f,
+            ShapeType.BOX,
+            true,
+            0.5f,
+            0.5f,
+            0.5f,
+            0.0f,
+            0.0f,
+            PhysicsAxis.Y);
     }
 }

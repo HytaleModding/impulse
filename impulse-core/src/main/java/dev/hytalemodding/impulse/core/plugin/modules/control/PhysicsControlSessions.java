@@ -156,6 +156,7 @@ public final class PhysicsControlSessions {
             || controlJointKey != null;
         boolean restoreBody = bodyKey != null && resource.getBodyRegistrationView(bodyKey) != null;
         if (releaseJoint || restoreBody || anchorBodyKey != null) {
+            resource.rejectSynchronousCompletionCallbackWait("release control session");
             /*
              * Explicit release/start helpers keep synchronous semantics so command handlers can
              * report replacement state immediately. Tick-driven cleanup uses

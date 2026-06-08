@@ -19,20 +19,20 @@ public final class PhysicsBodyRuntimeState {
         new Reference2ObjectOpenHashMap<>();
 
     @Nonnull
-    public BodySyncState getOrCreateBodySyncState(@Nonnull Ref<EntityStore> entityRef) {
+    public synchronized BodySyncState getOrCreateBodySyncState(@Nonnull Ref<EntityStore> entityRef) {
         return bodySyncStates.computeIfAbsent(entityRef, _ -> new BodySyncState());
     }
 
     @Nullable
-    public BodySyncState getBodySyncState(@Nonnull Ref<EntityStore> entityRef) {
+    public synchronized BodySyncState getBodySyncState(@Nonnull Ref<EntityStore> entityRef) {
         return bodySyncStates.get(entityRef);
     }
 
-    public void clearBodySyncState(@Nonnull Ref<EntityStore> entityRef) {
+    public synchronized void clearBodySyncState(@Nonnull Ref<EntityStore> entityRef) {
         bodySyncStates.remove(entityRef);
     }
 
-    public void clear() {
+    public synchronized void clear() {
         bodySyncStates.clear();
     }
 

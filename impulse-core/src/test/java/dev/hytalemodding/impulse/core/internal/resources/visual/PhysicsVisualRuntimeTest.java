@@ -10,6 +10,7 @@ import dev.hytalemodding.impulse.core.internal.resources.PhysicsVisualRuntime;
 import dev.hytalemodding.impulse.core.plugin.body.RigidBodyKey;
 import java.util.UUID;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicReference;
 import org.junit.jupiter.api.Test;
 
 class PhysicsVisualRuntimeTest {
@@ -49,6 +50,24 @@ class PhysicsVisualRuntimeTest {
         assertEquals(1, runtime.generatedVisualProxyCount());
         assertEquals(1, cleaned.get());
         assertEquals(1, runtime.getGeneratedVisualProxyBodyKeys().size());
+    }
+
+    @Test
+    void staleReferenceCleanerRunsOutsideVisualRuntimeLock() {
+        AtomicInteger cleaned = new AtomicInteger();
+        AtomicReference<PhysicsVisualRuntime> runtimeRef = new AtomicReference<>();
+        PhysicsVisualRuntime runtime = new PhysicsVisualRuntime(_ -> {
+            assertFalse(Thread.holdsLock(runtimeRef.get()));
+            cleaned.incrementAndGet();
+        });
+        runtimeRef.set(runtime);
+
+        runtime.registerAttachment(FIRST_BODY, new TestRef(false));
+        runtime.setGeneratedVisualProxy(SECOND_BODY, new TestRef(false));
+
+        assertFalse(runtime.hasAttachments(FIRST_BODY));
+        assertEquals(0, runtime.generatedVisualProxyCount());
+        assertEquals(2, cleaned.get());
     }
 
     private static final class TestRef extends Ref<EntityStore> {
