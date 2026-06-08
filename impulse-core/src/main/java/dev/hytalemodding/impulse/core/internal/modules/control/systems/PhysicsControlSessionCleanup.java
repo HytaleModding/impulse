@@ -21,7 +21,7 @@ public final class PhysicsControlSessionCleanup {
 
     public static void cleanup(@Nonnull Store<EntityStore> store,
         @Nonnull PhysicsControlSessionComponent session) {
-        cleanup(PhysicsWorldRuntimeResource.require(store), session);
+        cleanup(store, PhysicsWorldRuntimeResource.require(store), session, false);
     }
 
     public static void cleanup(@Nonnull PhysicsWorldResource resource,
@@ -31,17 +31,27 @@ public final class PhysicsControlSessionCleanup {
 
     public static void cleanup(@Nonnull PhysicsWorldRuntimeResource resource,
         @Nonnull PhysicsControlSessionComponent session) {
-        cleanup(resource, session, false);
+        cleanup(null, resource, session, false);
     }
 
     public static void cleanupAndWait(@Nonnull PhysicsWorldRuntimeResource resource,
         @Nonnull PhysicsControlSessionComponent session) {
-        cleanup(resource, session, true);
+        cleanup(null, resource, session, true);
     }
 
-    private static void cleanup(@Nonnull PhysicsWorldRuntimeResource resource,
+    public static void cleanupAndWait(@Nonnull Store<EntityStore> store,
+        @Nonnull PhysicsWorldRuntimeResource resource,
+        @Nonnull PhysicsControlSessionComponent session) {
+        cleanup(store, resource, session, true);
+    }
+
+    private static void cleanup(@Nullable Store<EntityStore> store,
+        @Nonnull PhysicsWorldRuntimeResource resource,
         @Nonnull PhysicsControlSessionComponent session,
         boolean waitForCompletion) {
+        if (store != null) {
+            PhysicsKinematicControlSystem.clearMutationState(store, session.getAnchorBodyKey());
+        }
         if (!session.isActive()) {
             return;
         }

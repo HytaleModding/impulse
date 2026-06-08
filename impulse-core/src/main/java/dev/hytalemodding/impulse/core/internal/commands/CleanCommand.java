@@ -187,7 +187,7 @@ public class CleanCommand extends AbstractWorldCommand {
                     }
 
                     removedEntities.incrementAndGet(REMOVED_SESSIONS);
-                    PhysicsControlSessionCleanup.cleanup(resource, session);
+                    PhysicsControlSessionCleanup.cleanup(store, session);
                     commandBuffer.removeComponent(archetypeChunk.getReferenceTo(index),
                         controlSessionType);
                 });
