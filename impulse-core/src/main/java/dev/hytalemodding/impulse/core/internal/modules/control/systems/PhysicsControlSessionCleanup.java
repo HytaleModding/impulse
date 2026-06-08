@@ -68,6 +68,9 @@ public final class PhysicsControlSessionCleanup {
         if (shouldReleaseJoint(controlJointKey, session.getSpaceId(), anchorBodyKey, bodyKey)
             || restoreBody
             || anchorBodyKey != null) {
+            if (waitForCompletion) {
+                resource.rejectSynchronousCompletionCallbackWait("cleanup control session");
+            }
             // Tick cleanup queues this work; subplugin shutdown waits for it.
             PhysicsCommandHandle handle =
                 resource.submitCommands(0L, 5, commands -> {

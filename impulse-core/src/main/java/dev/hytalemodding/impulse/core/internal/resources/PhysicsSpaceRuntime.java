@@ -37,7 +37,7 @@ public final class PhysicsSpaceRuntime {
         new Int2ObjectOpenHashMap<>();
 
     @Nonnull
-    public PhysicsSpaceBinding createSpace(@Nonnull BackendId backendId,
+    public synchronized PhysicsSpaceBinding createSpace(@Nonnull BackendId backendId,
         @Nonnull SpaceId spaceId,
         @Nonnull String worldName,
         @Nonnull PhysicsSpaceSettings settings,
@@ -77,7 +77,7 @@ public final class PhysicsSpaceRuntime {
     }
 
     @Nullable
-    public PhysicsSpaceBinding getBinding(@Nonnull SpaceId spaceId) {
+    public synchronized PhysicsSpaceBinding getBinding(@Nonnull SpaceId spaceId) {
         return spaces.get(spaceId.value());
     }
 
@@ -90,22 +90,22 @@ public final class PhysicsSpaceRuntime {
         return binding;
     }
 
-    public int getSpaceCount() {
+    public synchronized int getSpaceCount() {
         return spaces.size();
     }
 
     @Nonnull
-    public Collection<PhysicsSpaceBinding> getBindings() {
+    public synchronized Collection<PhysicsSpaceBinding> getBindings() {
         return new ArrayList<>(spaces.values());
     }
 
     @Nonnull
-    public Iterable<PhysicsSpaceBinding> iterateBindings() {
-        return spaces.values();
+    public synchronized Iterable<PhysicsSpaceBinding> iterateBindings() {
+        return new ArrayList<>(spaces.values());
     }
 
     @Nonnull
-    public List<SpaceId> getSpaceIds() {
+    public synchronized List<SpaceId> getSpaceIds() {
         List<SpaceId> ids = new ArrayList<>(spaces.size());
         for (PhysicsSpaceBinding binding : spaces.values()) {
             ids.add(binding.spaceId());
@@ -114,14 +114,14 @@ public final class PhysicsSpaceRuntime {
     }
 
     @Nullable
-    public PhysicsSpaceBinding removeSpace(@Nonnull SpaceId spaceId) {
+    public synchronized PhysicsSpaceBinding removeSpace(@Nonnull SpaceId spaceId) {
         PhysicsSpaceBinding removed = spaces.remove(spaceId.value());
         spaceSettings.remove(spaceId.value());
         return removed;
     }
 
     @Nonnull
-    public PhysicsRuntimeResetResult resetKeepingSpaces(
+    public synchronized PhysicsRuntimeResetResult resetKeepingSpaces(
         @Nonnull String worldName,
         @Nonnull PhysicsStepMode stepMode) {
         List<PhysicsSpaceBinding> previousBindings = new ArrayList<>(spaces.values());
@@ -180,12 +180,12 @@ public final class PhysicsSpaceRuntime {
     }
 
     @Nonnull
-    public PhysicsSpaceSettings getSpaceSettings(@Nonnull SpaceId spaceId) {
+    public synchronized PhysicsSpaceSettings getSpaceSettings(@Nonnull SpaceId spaceId) {
         return new PhysicsSpaceSettings(getLiveSpaceSettings(spaceId));
     }
 
     @Nonnull
-    public PhysicsSpaceSettings getLiveSpaceSettings(@Nonnull SpaceId spaceId) {
+    public synchronized PhysicsSpaceSettings getLiveSpaceSettings(@Nonnull SpaceId spaceId) {
         PhysicsSpaceSettings settings = spaceSettings.get(spaceId.value());
         if (settings == null) {
             throw new IllegalStateException("Physics space settings are missing for id=" + spaceId);
@@ -193,7 +193,7 @@ public final class PhysicsSpaceRuntime {
         return settings;
     }
 
-    public void setSpaceSettings(@Nonnull SpaceId spaceId,
+    public synchronized void setSpaceSettings(@Nonnull SpaceId spaceId,
         @Nonnull PhysicsSpaceSettings settings) {
         PhysicsSpaceBinding binding = spaces.get(spaceId.value());
         if (binding == null) {
@@ -204,7 +204,7 @@ public final class PhysicsSpaceRuntime {
         spaceSettings.put(spaceId.value(), new PhysicsSpaceSettings(settings));
     }
 
-    public void validateStepModeSupported(@Nonnull PhysicsStepMode stepMode) {
+    public synchronized void validateStepModeSupported(@Nonnull PhysicsStepMode stepMode) {
         if (stepMode != PhysicsStepMode.CCD) {
             return;
         }
@@ -221,7 +221,7 @@ public final class PhysicsSpaceRuntime {
         }
     }
 
-    public void clearLiveTopology(@Nonnull String worldName) {
+    public synchronized void clearLiveTopology(@Nonnull String worldName) {
         for (PhysicsSpaceBinding binding : new ArrayList<>(spaces.values())) {
             closeBindingSilently(binding, worldName, "discarded copied physics space");
         }

@@ -1,6 +1,7 @@
 package dev.hytalemodding.impulse.core.internal.modules.control;
 
 import com.hypixel.hytale.component.ComponentType;
+import com.hypixel.hytale.component.Ref;
 import com.hypixel.hytale.component.Store;
 import com.hypixel.hytale.logger.HytaleLogger;
 import com.hypixel.hytale.server.core.universe.world.World;
@@ -147,15 +148,24 @@ public final class ControlLifecycle {
         @Nullable ComponentType<EntityStore, PhysicsControlSessionComponent> sessionType) {
         if (sessionType != null) {
             PhysicsWorldRuntimeResource resource = PhysicsWorldRuntimeResource.require(store);
+            ArrayList<SessionCleanupTarget> sessions = new ArrayList<>();
             store.forEachEntityParallel(sessionType,
-                (index, archetypeChunk, commandBuffer) -> {
+                (index, archetypeChunk, _) -> {
                     PhysicsControlSessionComponent session =
                         archetypeChunk.getComponent(index, sessionType);
                     if (session != null) {
-                        PhysicsControlSessionCleanup.cleanupAndWait(store, resource, session);
+                        SessionCleanupTarget target = new SessionCleanupTarget(
+                            archetypeChunk.getReferenceTo(index),
+                            session);
+                        synchronized (sessions) {
+                            sessions.add(target);
+                        }
                     }
-                    commandBuffer.removeComponent(archetypeChunk.getReferenceTo(index), sessionType);
                 });
+            for (SessionCleanupTarget target : sessions) {
+                PhysicsControlSessionCleanup.cleanupAndWait(store, resource, target.session());
+                store.removeComponent(target.ref(), sessionType);
+            }
         }
         if (controllableType != null) {
             store.forEachEntityParallel(controllableType,
@@ -173,5 +183,10 @@ public final class ControlLifecycle {
         for (PhysicsWorldRuntimeResource resource : resources) {
             resource.disableControlLifecycle();
         }
+    }
+
+    private record SessionCleanupTarget(
+        @Nonnull Ref<EntityStore> ref,
+        @Nonnull PhysicsControlSessionComponent session) {
     }
 }
