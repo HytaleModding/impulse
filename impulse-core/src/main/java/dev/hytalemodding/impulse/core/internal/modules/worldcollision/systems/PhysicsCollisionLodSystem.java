@@ -282,7 +282,7 @@ public class PhysicsCollisionLodSystem extends TickingSystem<EntityStore> {
     @Nonnull
     private CollisionLodState stateFor(@Nonnull Store<EntityStore> store) {
         synchronized (statesByStore) {
-            return statesByStore.computeIfAbsent(store, ignored -> new CollisionLodState());
+            return statesByStore.computeIfAbsent(store, _ -> new CollisionLodState());
         }
     }
 

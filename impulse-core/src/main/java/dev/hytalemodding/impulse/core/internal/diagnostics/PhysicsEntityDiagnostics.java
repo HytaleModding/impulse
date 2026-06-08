@@ -73,7 +73,7 @@ public final class PhysicsEntityDiagnostics {
         @Nonnull ComponentType<EntityStore, NetworkId> networkIdType,
         @Nonnull ComponentType<EntityStore, Visible> visibleType) {
         AtomicIntegerArray counters = new AtomicIntegerArray(BODY_COUNTERS);
-        store.forEachEntityParallel(attachmentType, (index, chunk, commandBuffer) -> {
+        store.forEachEntityParallel(attachmentType, (index, chunk, _) -> {
             counters.incrementAndGet(BODY_PHYSICS_BODIES);
             boolean transform = chunk.getComponent(index, transformType) != null;
             boolean networkId = chunk.getComponent(index, networkIdType) != null;
@@ -102,7 +102,7 @@ public final class PhysicsEntityDiagnostics {
         @Nonnull ComponentType<EntityStore, TransformComponent> transformType,
         @Nonnull ComponentType<EntityStore, NetworkId> networkIdType) {
         AtomicIntegerArray counters = new AtomicIntegerArray(VISUAL_COUNTERS);
-        store.forEachEntityParallel(attachmentType, (index, chunk, commandBuffer) -> {
+        store.forEachEntityParallel(attachmentType, (index, chunk, _) -> {
             PhysicsBodyAttachmentComponent attachment = chunk.getComponent(index, attachmentType);
             if (attachment == null || attachment.getLifecycle() != AttachmentLifecycle.GENERATED_PROXY) {
                 return;
@@ -121,7 +121,7 @@ public final class PhysicsEntityDiagnostics {
         @Nonnull ComponentType<EntityStore, ?> componentType) {
         AtomicInteger entities = new AtomicInteger();
         store.forEachEntityParallel(componentType,
-            (index, chunk, commandBuffer) -> entities.incrementAndGet());
+            (_, _, _) -> entities.incrementAndGet());
         return entities.get();
     }
 

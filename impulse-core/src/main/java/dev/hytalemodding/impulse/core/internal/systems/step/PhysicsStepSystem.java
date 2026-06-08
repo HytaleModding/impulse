@@ -216,7 +216,7 @@ public class PhysicsStepSystem extends TickingSystem<ChunkStore> implements Auto
     @Nonnull
     private StepSchedulerState stateFor(@Nonnull Store<ChunkStore> store) {
         synchronized (statesByStore) {
-            return statesByStore.computeIfAbsent(store, ignored -> new StepSchedulerState());
+            return statesByStore.computeIfAbsent(store, _ -> new StepSchedulerState());
         }
     }
 

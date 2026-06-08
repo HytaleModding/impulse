@@ -184,14 +184,14 @@ final class ImpulseRapierBodyBenchmarkCrucibleTests {
 
             MatrixCase matrixCase = new MatrixCase(plan.count(), plan.substeps().get(index));
             return startCase(matrixCase)
-                .thenCompose(started -> contextWait(plan.warmupTicks()).thenCompose(ignored -> {
+                .thenCompose(started -> contextWait(plan.warmupTicks()).thenCompose(_ -> {
                     runtimeProfiling.reset();
                     worldCollisionProfiling.reset();
                     runtimeProfiling.setEnabled(true);
                     worldCollisionProfiling.setEnabled(true);
                     long startedNanos = System.nanoTime();
                     return contextWait(plan.sampleTicks()).thenApply(
-                        unused -> finishCase(matrixCase, started, startedNanos));
+                        _ -> finishCase(matrixCase, started, startedNanos));
                 }))
                 .thenCompose(report -> {
                     reports.add(report);
@@ -272,7 +272,7 @@ final class ImpulseRapierBodyBenchmarkCrucibleTests {
                                     spawns.body(bodyKeyRunId,
                                         i + 1L,
                                         (float) layout.positionX(i),
-                                        (float) layout.positionY(i),
+                                        (float) layout.positionY(),
                                         (float) layout.positionZ(i));
                                 }
                             });
@@ -740,7 +740,7 @@ final class ImpulseRapierBodyBenchmarkCrucibleTests {
             return origin.x + (index % side) * spacing;
         }
 
-        private double positionY(int index) {
+        private double positionY() {
             return origin.y;
         }
 

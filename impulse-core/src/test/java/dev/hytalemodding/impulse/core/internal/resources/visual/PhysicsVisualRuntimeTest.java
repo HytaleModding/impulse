@@ -22,7 +22,7 @@ class PhysicsVisualRuntimeTest {
     @Test
     void hasAttachmentsPrunesStaleReferencesWithoutCopyingLiveAttachments() {
         AtomicInteger cleaned = new AtomicInteger();
-        PhysicsVisualRuntime runtime = new PhysicsVisualRuntime(ref -> cleaned.incrementAndGet());
+        PhysicsVisualRuntime runtime = new PhysicsVisualRuntime(_ -> cleaned.incrementAndGet());
         TestRef liveRef = new TestRef(true);
         TestRef staleRef = new TestRef(false);
 
@@ -42,7 +42,7 @@ class PhysicsVisualRuntimeTest {
     @Test
     void generatedVisualProxyCountPrunesStaleReferencesWithoutBodyIdCopy() {
         AtomicInteger cleaned = new AtomicInteger();
-        PhysicsVisualRuntime runtime = new PhysicsVisualRuntime(ref -> cleaned.incrementAndGet());
+        PhysicsVisualRuntime runtime = new PhysicsVisualRuntime(_ -> cleaned.incrementAndGet());
         runtime.setGeneratedVisualProxy(FIRST_BODY, new TestRef(true));
         runtime.setGeneratedVisualProxy(SECOND_BODY, new TestRef(false));
 
