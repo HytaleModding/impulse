@@ -6,23 +6,28 @@ import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import com.hypixel.hytale.component.ComponentRegistry;
+import com.hypixel.hytale.component.EmptyResourceStorage;
+import com.hypixel.hytale.component.Store;
+import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import dev.hytalemodding.impulse.api.Impulse;
 import dev.hytalemodding.impulse.api.PhysicsBody;
 import dev.hytalemodding.impulse.api.PhysicsBodyType;
 import dev.hytalemodding.impulse.api.PhysicsJoint;
 import dev.hytalemodding.impulse.api.PhysicsSpace;
 import dev.hytalemodding.impulse.api.testsupport.FakePhysicsBackend;
-import dev.hytalemodding.impulse.core.internal.testsupport.LegacyLiveHandleTestResource;
-import dev.hytalemodding.impulse.core.internal.resources.owner.TestPhysicsOwnerLane;
+import dev.hytalemodding.impulse.core.internal.modules.control.components.PhysicsControlSessionComponent;
 import dev.hytalemodding.impulse.core.internal.resources.owner.PhysicsOwnerSnapshot;
+import dev.hytalemodding.impulse.core.internal.resources.owner.TestPhysicsOwnerLane;
 import dev.hytalemodding.impulse.core.internal.modules.control.systems.PhysicsKinematicControlSystem.ControlAnchorUpdate;
 import dev.hytalemodding.impulse.core.internal.modules.control.systems.PhysicsKinematicControlSystem.ControlMutationState;
-import dev.hytalemodding.impulse.core.plugin.body.RigidBodyKey;
+import dev.hytalemodding.impulse.core.internal.testsupport.LegacyLiveHandleTestResource;
+import dev.hytalemodding.impulse.core.internal.testsupport.TestInstanceFactory;
 import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyKind;
 import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyPersistenceMode;
-import dev.hytalemodding.impulse.core.internal.modules.control.components.PhysicsControlSessionComponent;
-import dev.hytalemodding.impulse.core.plugin.resources.PhysicsMutationHandle;
+import dev.hytalemodding.impulse.core.plugin.body.RigidBodyKey;
 import dev.hytalemodding.impulse.core.plugin.joint.JointKey;
+import dev.hytalemodding.impulse.core.plugin.resources.PhysicsMutationHandle;
 import java.time.Duration;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CountDownLatch;
@@ -115,6 +120,37 @@ class PhysicsKinematicControlSystemTest {
         ControlAnchorUpdate ready = state.selectReadyUpdate(anchorBodyId, current);
 
         assertSame(third, ready);
+    }
+
+    @Test
+    void clearingSystemMutationStateAfterReleaseAllowsIdenticalTargetRetry() {
+        ComponentRegistry<EntityStore> registry = new ComponentRegistry<>();
+        Store<EntityStore> store = registry.addStore(
+            new EntityStore(TestInstanceFactory.world("control-release-mutation-state-test")),
+            EmptyResourceStorage.get());
+        try {
+            ControlMutationState state = PhysicsKinematicControlSystem.stateFor(store);
+            RigidBodyKey bodyId = RigidBodyKey.random();
+            RigidBodyKey anchorBodyId = RigidBodyKey.random();
+            CompletableFuture<Void> completion = new CompletableFuture<>();
+            PhysicsMutationHandle<Void> handle = PhysicsMutationHandle.fromCompletion("test",
+                null,
+                completion);
+            ControlAnchorUpdate first = update(bodyId, anchorBodyId, 1.0f);
+            ControlAnchorUpdate queued = update(bodyId, anchorBodyId, 1.0f);
+            ControlAnchorUpdate afterRelease = update(bodyId, anchorBodyId, 1.0f);
+
+            state.trackPendingMutation(anchorBodyId, handle, first);
+            assertNull(state.selectReadyUpdate(anchorBodyId, queued));
+            completion.complete(null);
+
+            PhysicsKinematicControlSystem.clearMutationState(store, anchorBodyId);
+
+            assertSame(afterRelease, state.selectReadyUpdate(anchorBodyId, afterRelease));
+        } finally {
+            registry.removeStore(store);
+            registry.shutdown();
+        }
     }
 
     @Test

@@ -43,13 +43,6 @@ public class PhysicsKinematicControlSystem extends EntityTickingSystem<EntitySto
 
     private static final HytaleLogger LOGGER = HytaleLogger.get("Impulse");
 
-    private static final ComponentType<EntityStore, TransformComponent> TRANSFORM_TYPE =
-        TransformComponent.getComponentType();
-    private static final ComponentType<EntityStore, HeadRotation> HEAD_ROTATION_TYPE =
-        HeadRotation.getComponentType();
-    private static final ComponentType<EntityStore, ModelComponent> MODEL_TYPE =
-        ModelComponent.getComponentType();
-
     private static final Set<Dependency<EntityStore>> DEPENDENCIES = Set.of(
         new SystemDependency<>(Order.BEFORE, PhysicsSyncSystem.class)
     );
@@ -62,7 +55,7 @@ public class PhysicsKinematicControlSystem extends EntityTickingSystem<EntitySto
     // Anchor updates are copied commands; keep one owner command in flight and at most one latest
     // queued target per session anchor.
     @Nonnull
-    private final Map<Store<EntityStore>, ControlMutationState> statesByStore =
+    private static final Map<Store<EntityStore>, ControlMutationState> STATES_BY_STORE =
         Collections.synchronizedMap(new WeakHashMap<>());
 
     public PhysicsKinematicControlSystem() {
@@ -72,7 +65,7 @@ public class PhysicsKinematicControlSystem extends EntityTickingSystem<EntitySto
     PhysicsKinematicControlSystem(
         @Nonnull ComponentType<EntityStore, PhysicsControlSessionComponent> sessionType) {
         this.sessionType = Objects.requireNonNull(sessionType, "sessionType");
-        this.query = Query.and(sessionType, TRANSFORM_TYPE);
+        this.query = Query.and(sessionType, TransformComponent.getComponentType());
     }
 
     @Override
@@ -91,7 +84,8 @@ public class PhysicsKinematicControlSystem extends EntityTickingSystem<EntitySto
         }
         ControlLifecycle.registerStore(store);
         PhysicsControlSessionComponent session = chunk.getComponent(index, sessionType);
-        TransformComponent transform = chunk.getComponent(index, TRANSFORM_TYPE);
+        TransformComponent transform = chunk.getComponent(index,
+            TransformComponent.getComponentType());
         if (session == null || transform == null || !session.isActive()) {
             return;
         }
@@ -188,11 +182,12 @@ public class PhysicsKinematicControlSystem extends EntityTickingSystem<EntitySto
         state.trackPendingMutation(anchorBodyKey, handle, readyUpdate);
     }
 
-    private static float eyeHeight(@Nonnull ArchetypeChunk<EntityStore> chunk,
+    private float eyeHeight(@Nonnull ArchetypeChunk<EntityStore> chunk,
         int index,
         @Nonnull Ref<EntityStore> ref,
         @Nonnull Store<EntityStore> store) {
-        ModelComponent modelComponent = chunk.getComponent(index, MODEL_TYPE);
+        ModelComponent modelComponent = chunk.getComponent(index,
+            ModelComponent.getComponentType());
         if (modelComponent == null) {
             return 1.6f;
         }
@@ -205,7 +200,7 @@ public class PhysicsKinematicControlSystem extends EntityTickingSystem<EntitySto
     }
 
     @Nonnull
-    private static Vector3d lookDirection(@Nonnull ArchetypeChunk<EntityStore> chunk,
+    private Vector3d lookDirection(@Nonnull ArchetypeChunk<EntityStore> chunk,
         int index,
         @Nonnull TransformComponent transform,
         @Nonnull Vector3d out) {
@@ -222,17 +217,24 @@ public class PhysicsKinematicControlSystem extends EntityTickingSystem<EntitySto
     }
 
     @Nonnull
-    private static Rotation3f rotation(@Nonnull ArchetypeChunk<EntityStore> chunk,
+    private Rotation3f rotation(@Nonnull ArchetypeChunk<EntityStore> chunk,
         int index,
         @Nonnull TransformComponent transform) {
-        HeadRotation headRotation = chunk.getComponent(index, HEAD_ROTATION_TYPE);
+        HeadRotation headRotation = chunk.getComponent(index, HeadRotation.getComponentType());
         return headRotation != null ? headRotation.getRotation() : transform.getRotation();
     }
 
     @Nonnull
-    private ControlMutationState stateFor(@Nonnull Store<EntityStore> store) {
-        synchronized (statesByStore) {
-            return statesByStore.computeIfAbsent(store, _ -> new ControlMutationState());
+    static ControlMutationState stateFor(@Nonnull Store<EntityStore> store) {
+        synchronized (STATES_BY_STORE) {
+            return STATES_BY_STORE.computeIfAbsent(store, _ -> new ControlMutationState());
+        }
+    }
+
+    public static void clearMutationState(@Nonnull Store<EntityStore> store,
+        @Nullable RigidBodyKey anchorBodyKey) {
+        if (anchorBodyKey != null) {
+            stateFor(store).clear(anchorBodyKey);
         }
     }
 

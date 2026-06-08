@@ -8,6 +8,7 @@ import dev.hytalemodding.impulse.api.PhysicsBodyType;
 import dev.hytalemodding.impulse.api.SpaceId;
 import dev.hytalemodding.impulse.core.internal.modules.control.ControlLifecycle;
 import dev.hytalemodding.impulse.core.internal.modules.control.components.PhysicsControlSessionComponent;
+import dev.hytalemodding.impulse.core.internal.modules.control.systems.PhysicsKinematicControlSystem;
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsWorldRuntimeResource;
 import dev.hytalemodding.impulse.core.plugin.body.RigidBodyKey;
 import dev.hytalemodding.impulse.core.plugin.joint.JointKey;
@@ -147,6 +148,7 @@ public final class PhysicsControlSessions {
         RigidBodyKey anchorBodyKey = session.getAnchorBodyKey();
         JointKey controlJointKey = session.getControlJointKey();
         SpaceId spaceId = session.getSpaceId();
+        PhysicsKinematicControlSystem.clearMutationState(store, anchorBodyKey);
         if (bodyKey != null) {
             resource.clearControlledBody(bodyKey);
         }
