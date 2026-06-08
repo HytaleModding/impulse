@@ -14,6 +14,7 @@ import dev.hytalemodding.impulse.api.ShapeType;
 import dev.hytalemodding.impulse.api.SpaceId;
 import dev.hytalemodding.impulse.api.testsupport.FakePhysicsBackend;
 import dev.hytalemodding.impulse.api.testsupport.FakePhysicsBackend.InMemoryPhysicsSpace;
+import dev.hytalemodding.impulse.core.internal.modules.worldcollision.WorldVoxelCollisionCache;
 import dev.hytalemodding.impulse.core.internal.simulation.query.BenchmarkSpaceStatsQuery;
 import dev.hytalemodding.impulse.core.internal.simulation.query.PhysicsDebugContactsQuery;
 import dev.hytalemodding.impulse.core.internal.simulation.query.PhysicsDebugJointsQuery;
@@ -31,7 +32,12 @@ import dev.hytalemodding.impulse.core.plugin.simulation.query.RaycastClosestBatc
 import dev.hytalemodding.impulse.core.plugin.simulation.RaycastSegment;
 import dev.hytalemodding.impulse.core.plugin.simulation.RigidBodySpawnSettings;
 import dev.hytalemodding.impulse.core.plugin.settings.PhysicsSpaceSettings;
+import java.lang.reflect.Constructor;
+import java.lang.reflect.Field;
+import java.lang.reflect.Method;
+import java.util.Arrays;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.atomic.AtomicInteger;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
@@ -393,6 +399,90 @@ class PhysicsSimulationExecutorTest {
         assertEquals(0, stats.belowVoidBodies());
         assertEquals(-40.0, stats.minDynamicBodyY(), 0.00001);
         assertEquals(124.0, stats.maxDynamicBodyY(), 0.00001);
+    }
+
+    @Test
+    void benchmarkSpaceStatsQueryCountsCacheOwnedWorldCollisionBodies() throws Exception {
+        FakePhysicsBackend backend =
+            new FakePhysicsBackend("test:benchmark-space-stats-cache-" + BACKEND_COUNTER.incrementAndGet());
+        Impulse.registerBackend(backend);
+        LegacyLiveHandleTestResource resource = new LegacyLiveHandleTestResource();
+        InMemoryPhysicsSpace space = (InMemoryPhysicsSpace) resource.createLiveSpace(backend.getId(),
+            "test-world",
+            PhysicsSpaceSettings.defaults());
+        putCachedWorldCollisionBody(resource.worldCollisionCache(), space.id(), 42L);
+
+        BenchmarkSpaceStatsView stats = resource.queryInternal(new BenchmarkSpaceStatsQuery(space.id(),
+                122.0f,
+                1.0f,
+                -32.0f,
+                -128.0f,
+                false))
+            .toCompletableFuture()
+            .join();
+
+        assertEquals(1, stats.bodies());
+        assertEquals(1, stats.worldCollisionBodies());
+        assertEquals(0, stats.rawBodies());
+    }
+
+    @SuppressWarnings("unchecked")
+    private static void putCachedWorldCollisionBody(@Nonnull WorldVoxelCollisionCache worldCache,
+        @Nonnull SpaceId spaceId,
+        long backendBodyId) throws Exception {
+        Object spaceCache = newSpaceCollisionCache();
+        Object section = newCachedSection();
+        Field backendBodyIds = section.getClass().getDeclaredField("backendBodyIds");
+        backendBodyIds.setAccessible(true);
+        ((List<Long>) backendBodyIds.get(section)).add(backendBodyId);
+        putCachedSection(spaceCache, section);
+
+        Field spaces = WorldVoxelCollisionCache.class.getDeclaredField("spaces");
+        spaces.setAccessible(true);
+        ((Map<Integer, Object>) spaces.get(worldCache)).put(spaceId.value(), spaceCache);
+    }
+
+    private static Object newSpaceCollisionCache() throws Exception {
+        Constructor<?> constructor = nestedCacheClass("SpaceCollisionCache").getDeclaredConstructor();
+        constructor.setAccessible(true);
+        return constructor.newInstance();
+    }
+
+    private static Object newCachedSection() throws Exception {
+        Constructor<?> constructor = nestedCacheClass("CachedSection")
+            .getDeclaredConstructor(int.class, int.class, int.class, long.class, long.class);
+        constructor.setAccessible(true);
+        return constructor.newInstance(0, 0, 0, 0L, 1L);
+    }
+
+    @SuppressWarnings("unchecked")
+    private static void putCachedSection(@Nonnull Object cache, @Nonnull Object section) throws Exception {
+        Method keyMethod = WorldVoxelCollisionCache.class.getDeclaredMethod("packSectionKey",
+            int.class,
+            int.class,
+            int.class);
+        keyMethod.setAccessible(true);
+        long key = (long) keyMethod.invoke(null,
+            intField(section, "chunkX"),
+            intField(section, "sectionY"),
+            intField(section, "chunkZ"));
+        Field sections = cache.getClass().getDeclaredField("sections");
+        sections.setAccessible(true);
+        ((Map<Long, Object>) sections.get(cache)).put(key, section);
+    }
+
+    private static int intField(@Nonnull Object target, @Nonnull String fieldName) throws Exception {
+        Field field = target.getClass().getDeclaredField(fieldName);
+        field.setAccessible(true);
+        return field.getInt(target);
+    }
+
+    @Nonnull
+    private static Class<?> nestedCacheClass(@Nonnull String simpleName) {
+        return Arrays.stream(WorldVoxelCollisionCache.class.getDeclaredClasses())
+            .filter(candidate -> candidate.getSimpleName().equals(simpleName))
+            .findFirst()
+            .orElseThrow();
     }
 
     private static final class ScalarRecordingBody implements PhysicsBody {

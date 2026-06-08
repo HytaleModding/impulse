@@ -5,6 +5,7 @@ import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 
 import com.hypixel.hytale.math.util.ChunkUtil;
 import dev.hytalemodding.impulse.api.BackendId;
@@ -63,6 +64,28 @@ class WorldVoxelCollisionCacheTest {
         target.copyFrom(source);
 
         assertFalse(target.isStreamingApplyPending());
+    }
+
+    @Test
+    void copyFromDeepCopiesCachedSectionBodyIds() throws Exception {
+        RuntimeFixture fixture = runtimeFixture("test:copy-section-isolation", true);
+        WorldVoxelCollisionCache source = new WorldVoxelCollisionCache();
+        WorldVoxelCollisionCache target = new WorldVoxelCollisionCache();
+        Object spaceCache = newSpaceCollisionCache();
+        Object sourceSection = newCachedSection(1, 2, 3);
+        long copiedBodyId = createVoxelTerrain(fixture);
+        markVoxelTerrain(sourceSection, copiedBodyId);
+        putCachedSection(spaceCache, sourceSection);
+        putSpaceCache(source, fixture.binding().spaceId(), spaceCache);
+
+        target.copyFrom(source);
+        long sourceOnlyBodyId = createVoxelTerrain(fixture);
+        addBackendBodyId(sourceSection, sourceOnlyBodyId);
+
+        assertEquals(2, source.bodyCount(fixture.binding().spaceId()));
+        assertEquals(1, target.bodyCount(fixture.binding().spaceId()));
+        assertTrue(target.containsBody(fixture.binding().spaceId(), copiedBodyId));
+        assertFalse(target.containsBody(fixture.binding().spaceId(), sourceOnlyBodyId));
     }
 
     @Test
@@ -274,6 +297,27 @@ class WorldVoxelCollisionCacheTest {
     }
 
     @Test
+    void boxFallbackConfigurationFailureRemovesCreatedBackendBody() throws Throwable {
+        RuntimeFixture fixture = runtimeFixture("test:box-runtime-cleanup", false);
+        fixture.provider().failNextBodyFriction(new IllegalStateException("forced friction failure"));
+        SectionCollisionGeometry geometry = new SectionCollisionGeometry(new int[] {0, 0, 0},
+            List.of(new BoxCollider(1.0, 0.5, 0.5, 1.0, 0.5, 0.5)),
+            List.of(),
+            4096,
+            1,
+            0,
+            0);
+        Object cachedSection = newCachedSection();
+
+        IllegalStateException failure = assertThrows(IllegalStateException.class,
+            () -> addGeometryBodies(fixture.binding(), cachedSection, geometry, 0, 0, 0));
+        removeBuiltSectionAfterFailure(fixture.binding(), cachedSection, failure);
+
+        assertEquals(0, fixture.runtime().bodyCount(fixture.backendSpaceId()));
+        assertEquals(0, debugSection(cachedSection).bodyCount());
+    }
+
+    @Test
     void stitchesVoxelTerrainToSixAdjacentSections() throws Throwable {
         RuntimeFixture fixture = runtimeFixture("test:voxel-runtime-stitch", true);
         Object cache = newSpaceCollisionCache();
@@ -438,6 +482,21 @@ class WorldVoxelCollisionCacheTest {
         }
     }
 
+    private static void removeBuiltSectionAfterFailure(@Nonnull PhysicsSpaceBinding space,
+        @Nonnull Object built,
+        @Nonnull RuntimeException failure) throws Throwable {
+        Method method = WorldVoxelCollisionCache.class.getDeclaredMethod("removeBuiltSectionAfterFailure",
+            PhysicsSpaceBinding.class,
+            nestedClass("CachedSection"),
+            RuntimeException.class);
+        method.setAccessible(true);
+        try {
+            method.invoke(null, space, built, failure);
+        } catch (InvocationTargetException exception) {
+            throw exception.getCause();
+        }
+    }
+
     private static Object newSpaceCollisionCache() throws Exception {
         Class<?> cacheType = nestedClass("SpaceCollisionCache");
         Constructor<?> constructor = cacheType.getDeclaredConstructor();
@@ -498,11 +557,16 @@ class WorldVoxelCollisionCacheTest {
 
     @SuppressWarnings("unchecked")
     private static void markVoxelTerrain(@Nonnull Object section, long backendBodyId) throws Exception {
+        addBackendBodyId(section, backendBodyId);
+        setBooleanField(section, "voxelTerrain", true);
+        setLongField(section, "voxelTerrainBodyId", backendBodyId);
+    }
+
+    @SuppressWarnings("unchecked")
+    private static void addBackendBodyId(@Nonnull Object section, long backendBodyId) throws Exception {
         Field backendBodyIds = section.getClass().getDeclaredField("backendBodyIds");
         backendBodyIds.setAccessible(true);
         ((List<Long>) backendBodyIds.get(section)).add(backendBodyId);
-        setBooleanField(section, "voxelTerrain", true);
-        setLongField(section, "voxelTerrainBodyId", backendBodyId);
     }
 
     private static long voxelTerrainBodyId(@Nonnull Object section) throws Exception {
@@ -554,13 +618,17 @@ class WorldVoxelCollisionCacheTest {
         FakePhysicsBackendRuntime runtime = (FakePhysicsBackendRuntime) provider.createRuntime();
         SpaceId spaceId = new SpaceId(42);
         int backendSpaceId = runtime.createSpace(spaceId);
-        return new RuntimeFixture(new PhysicsSpaceBinding(id,
-            spaceId,
-            new BackendSpaceHandle(backendSpaceId),
-            runtime), runtime, backendSpaceId);
+        return new RuntimeFixture(provider,
+            new PhysicsSpaceBinding(id,
+                spaceId,
+                new BackendSpaceHandle(backendSpaceId),
+                runtime),
+            runtime,
+            backendSpaceId);
     }
 
-    private record RuntimeFixture(@Nonnull PhysicsSpaceBinding binding,
+    private record RuntimeFixture(@Nonnull FakePhysicsBackendRuntimeProvider provider,
+                                  @Nonnull PhysicsSpaceBinding binding,
                                   @Nonnull FakePhysicsBackendRuntime runtime,
                                   int backendSpaceId) {
     }
