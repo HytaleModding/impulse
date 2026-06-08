@@ -1025,6 +1025,9 @@ public final class PhysicsSimulationExecutor implements PhysicsCommandDispatcher
                     query);
             }
         }
+        int cachedWorldCollisionBodies = cache.bodyCount(space.spaceId());
+        stats.bodies += cachedWorldCollisionBodies;
+        stats.worldCollisionBodies += cachedWorldCollisionBodies;
         return stats.toView();
     }
 
