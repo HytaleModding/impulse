@@ -89,6 +89,17 @@ pub extern "system" fn Java_dev_hytalemodding_impulse_rapier_RapierNative_addJoi
 }
 
 #[no_mangle]
+pub extern "system" fn Java_dev_hytalemodding_impulse_rapier_RapierNative_jointHandleCountNative(
+    _env: JNIEnv,
+    _class: JClass,
+    space_handle: jlong,
+) -> jint {
+    with_space(space_handle, 0, |space| {
+        space.joints.len().min(i32::MAX as usize) as jint
+    })
+}
+
+#[no_mangle]
 pub extern "system" fn Java_dev_hytalemodding_impulse_rapier_RapierNative_removeJointNative(
     _env: JNIEnv,
     _class: JClass,

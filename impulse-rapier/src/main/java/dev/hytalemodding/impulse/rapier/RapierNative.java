@@ -116,6 +116,8 @@ final class RapierNative {
         int shiftY,
         int shiftZ);
 
+    static native int jointHandleCountNative(long spaceHandle);
+
     static native void removeBodyNative(long spaceHandle, long bodyHandle);
 
     static native void getBodyPositionNative(long spaceHandle, long bodyHandle, float[] out);
