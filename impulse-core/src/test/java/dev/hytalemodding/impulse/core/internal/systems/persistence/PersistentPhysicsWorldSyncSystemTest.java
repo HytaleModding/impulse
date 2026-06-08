@@ -159,6 +159,33 @@ class PersistentPhysicsWorldSyncSystemTest {
     }
 
     @Test
+    void runtimeSnapshotCaptureUsesLiveBodyPoseWhenReaderSnapshotIsStale() {
+        RuntimeFixture fixture = createRuntimeFixture();
+        PhysicsBody body = fixture.space.createBox(0.5f, 0.5f, 0.5f, 1.0f);
+        body.setPosition(1.0f, 2.0f, 3.0f);
+        RigidBodyKey bodyKey = fixture.runtime.addBody(fixture.space.id(),
+            body,
+            PhysicsBodyKind.BODY,
+            PhysicsBodyPersistenceMode.PERSISTENT);
+        fixture.runtime.refreshBodySnapshots();
+
+        body.setPosition(9.0f, 8.0f, 7.0f);
+
+        PhysicsBodySnapshot readerSnapshot = fixture.runtime.getBodySnapshot(bodyKey);
+        assertEquals(1.0f, readerSnapshot.positionX(), 0.0001f);
+        assertEquals(2.0f, readerSnapshot.positionY(), 0.0001f);
+        assertEquals(3.0f, readerSnapshot.positionZ(), 0.0001f);
+
+        PersistentPhysicsRuntimeSnapshot snapshot =
+            PersistentPhysicsRuntimeSnapshot.capture(fixture.runtime);
+        PersistentPhysicsBodyState state = snapshot.getBodies()[0];
+
+        assertEquals(9.0f, state.getPosition().x, 0.0001f);
+        assertEquals(8.0f, state.getPosition().y, 0.0001f);
+        assertEquals(7.0f, state.getPosition().z, 0.0001f);
+    }
+
+    @Test
     void explicitRuntimeSnapshotSyncSkipsPendingRestore() {
         RuntimeFixture fixture = createRuntimeFixture();
         fixture.persistent.markRuntimeRestorePending();
@@ -182,6 +209,44 @@ class PersistentPhysicsWorldSyncSystemTest {
 
         assertFalse(result.synced());
         assertEquals("restore failed", result.skippedReason());
+    }
+
+    @Test
+    void softRestoreSkipsDoNotBlockRuntimeSnapshotTickPolicy() {
+        RuntimeFixture fixture = createRuntimeFixture();
+
+        fixture.persistent.recordRuntimeBodySkipped("missing entity");
+
+        assertFalse(PersistentPhysicsWorldSyncSystem.shouldSkipRuntimeSnapshotTick(fixture.persistent));
+
+        fixture.persistent.markRuntimeRestorePending();
+
+        assertTrue(PersistentPhysicsWorldSyncSystem.shouldSkipRuntimeSnapshotTick(fixture.persistent));
+    }
+
+    @Test
+    void runtimeSnapshotSyncSkipsChangedRestoreGeneration() {
+        RuntimeFixture fixture = createRuntimeFixture();
+        PhysicsBody body = fixture.space.createBox(0.5f, 0.5f, 0.5f, 1.0f);
+        fixture.runtime.addBody(fixture.space.id(),
+            body,
+            PhysicsBodyKind.BODY,
+            PhysicsBodyPersistenceMode.PERSISTENT);
+        PersistentPhysicsRuntimeSnapshot snapshot =
+            PersistentPhysicsRuntimeSnapshot.capture(fixture.runtime);
+        long capturedGeneration = fixture.persistent.runtimeRestoreGeneration();
+
+        fixture.persistent.markRuntimeRestorePending();
+        fixture.persistent.clearRuntimeRestorePending();
+
+        PersistentPhysicsWorldSyncSystem.SyncResult result =
+            PersistentPhysicsWorldSyncSystem.syncRuntimeSnapshot(fixture.persistent,
+                snapshot,
+                capturedGeneration);
+
+        assertFalse(result.synced());
+        assertEquals("restore generation changed", result.skippedReason());
+        assertEquals(0, fixture.persistent.getBodyCount());
     }
 
     @Test
