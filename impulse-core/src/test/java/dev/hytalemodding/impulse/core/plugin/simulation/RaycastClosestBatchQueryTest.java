@@ -22,9 +22,9 @@ class RaycastClosestBatchQueryTest {
         RaycastClosestBatchQuery query = new RaycastClosestBatchQuery(new SpaceId(3), source);
         source.clear();
 
-        assertEquals(2, query.rays().size());
-        assertSame(first, query.rays().get(0));
-        assertSame(second, query.rays().get(1));
+        assertEquals(2, query.rayCount());
+        assertSame(first, query.ray(0));
+        assertSame(second, query.ray(1));
         assertThrows(UnsupportedOperationException.class,
             () -> query.rays().add(new RaycastSegment(0.0f, 0.0f, 0.0f, 1.0f, 1.0f, 1.0f)));
     }

@@ -805,11 +805,12 @@ public final class PhysicsSimulationExecutor implements PhysicsCommandDispatcher
     @Nonnull
     private RaycastClosestBatchResult raycastClosestBatch(@Nonnull RaycastClosestBatchQuery query) {
         PhysicsSpaceBinding space = requireSpace(query.spaceId());
-        RaycastHitView[] hits = new RaycastHitView[query.rays().size()];
+        int rayCount = query.rayCount();
+        RaycastHitView[] hits = new RaycastHitView[rayCount];
         Vector3f from = new Vector3f();
         Vector3f to = new Vector3f();
-        for (int index = 0; index < query.rays().size(); index++) {
-            RaycastSegment ray = query.rays().get(index);
+        for (int index = 0; index < rayCount; index++) {
+            RaycastSegment ray = query.ray(index);
             ray.copyFrom(from);
             ray.copyTo(to);
             int rayIndex = index;

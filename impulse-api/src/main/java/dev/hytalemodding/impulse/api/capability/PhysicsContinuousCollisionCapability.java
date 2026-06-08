@@ -10,4 +10,8 @@ public interface PhysicsContinuousCollisionCapability extends PhysicsCapability 
         new PhysicsCapabilityId("impulse:continuous_collision"),
         "Continuous collision",
         "Supports continuous collision detection on bodies");
+
+    default boolean supportsContinuousCollision() {
+        return true;
+    }
 }

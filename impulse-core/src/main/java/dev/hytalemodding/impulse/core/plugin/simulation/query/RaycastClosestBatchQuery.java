@@ -22,4 +22,18 @@ public record RaycastClosestBatchQuery(@Nonnull SpaceId spaceId,
         this.spaceId = Objects.requireNonNull(spaceId, "spaceId");
         this.rays = List.copyOf(Objects.requireNonNull(rays, "rays"));
     }
+
+    public int rayCount() {
+        return rays.size();
+    }
+
+    @Nonnull
+    public RaycastSegment ray(int index) {
+        return rays.get(index);
+    }
+
+    @Nonnull
+    public List<RaycastSegment> rays() {
+        return List.copyOf(rays);
+    }
 }

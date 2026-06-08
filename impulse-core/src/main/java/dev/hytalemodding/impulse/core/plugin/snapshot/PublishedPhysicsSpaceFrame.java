@@ -40,6 +40,11 @@ public record PublishedPhysicsSpaceFrame(@Nonnull SpaceId spaceId,
         return bodies.size();
     }
 
+    @Nonnull
+    public List<PublishedPhysicsBodySnapshot> bodies() {
+        return List.copyOf(bodies);
+    }
+
     public void forEachBody(@Nonnull Consumer<? super PublishedPhysicsBodySnapshot> consumer) {
         Objects.requireNonNull(consumer, "consumer");
         for (PublishedPhysicsBodySnapshot body : bodies) {
