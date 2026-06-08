@@ -129,8 +129,9 @@ public final class PhysicsOwnerBridge {
         }
 
         CompletableFuture<T> completion = new CompletableFuture<>();
+        AtomicReference<T> value = new AtomicReference<>();
         PhysicsOwnerCommand command = () -> {
-            completion.complete(callable.call());
+            value.set(callable.call());
             return PhysicsOwnerSnapshot.empty();
         };
         try {
@@ -138,6 +139,8 @@ public final class PhysicsOwnerBridge {
                 .whenComplete((ignored, failure) -> {
                     if (failure != null) {
                         completion.completeExceptionally(failure);
+                    } else {
+                        completion.complete(value.get());
                     }
                 });
         } catch (RejectedExecutionException exception) {

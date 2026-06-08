@@ -32,7 +32,7 @@ public final class PhysicsOwnerLaneResource implements PhysicsOwnerResource {
     @Nonnull
     private final Duration closeTimeout;
     private final ArrayDeque<QueuedCommand> mutationQueue = new ArrayDeque<>();
-    private final ArrayDeque<QueuedCommand> stepQueue = new ArrayDeque<>();
+    private final ArrayDeque<QueuedStep> stepQueue = new ArrayDeque<>();
     private final ArrayDeque<PendingMutation> pendingMutations = new ArrayDeque<>();
     private long nextSequence = 1L;
     private boolean started;
@@ -40,6 +40,8 @@ public final class PhysicsOwnerLaneResource implements PhysicsOwnerResource {
     private boolean closing;
     private boolean closed;
     private boolean active;
+    private boolean activePreStepDrain;
+    private int activeCompletions;
     @Nullable
     private QueuedCommand activeCommand;
     @Nullable
@@ -90,6 +92,7 @@ public final class PhysicsOwnerLaneResource implements PhysicsOwnerResource {
         if (isOwnerContext()) {
             return runInline(command);
         }
+        rejectSynchronousCompletionCallbackWait();
         rejectSynchronousCrossLaneWait();
 
         CompletableFuture<PhysicsOwnerResult> future;
@@ -143,6 +146,9 @@ public final class PhysicsOwnerLaneResource implements PhysicsOwnerResource {
         Objects.requireNonNull(operation, "operation");
         Objects.requireNonNull(command, "command");
         synchronized (lock) {
+            if (pendingMutations.size() >= queueCapacity) {
+                throw new RejectedExecutionException("physics owner lane mutation completion backlog is full");
+            }
             CompletableFuture<PhysicsOwnerResult> future =
                 enqueueLocked(CommandKind.MUTATION, command).future();
             pendingMutations.add(new PendingMutation(operation, future));
@@ -195,12 +201,29 @@ public final class PhysicsOwnerLaneResource implements PhysicsOwnerResource {
                 completed.command().publishedFrame(),
                 completed.command().eventFrame(),
                 completed.command().failure(),
+                completed.preStepDrainedMutations(),
+                completed.preStepDrainRunNanos(),
+                completed.lateMutationBacklogAtStep(),
                 null);
         } catch (InterruptedException exception) {
             Thread.currentThread().interrupt();
-            return new PhysicsOwnerStepCompletion(null, null, null, null, exception);
+            return new PhysicsOwnerStepCompletion(null,
+                null,
+                null,
+                null,
+                completed.preStepDrainedMutations(),
+                completed.preStepDrainRunNanos(),
+                completed.lateMutationBacklogAtStep(),
+                exception);
         } catch (ExecutionException exception) {
-            return new PhysicsOwnerStepCompletion(null, null, null, null, exception.getCause());
+            return new PhysicsOwnerStepCompletion(null,
+                null,
+                null,
+                null,
+                completed.preStepDrainedMutations(),
+                completed.preStepDrainRunNanos(),
+                completed.lateMutationBacklogAtStep(),
+                exception.getCause());
         }
     }
 
@@ -239,6 +262,11 @@ public final class PhysicsOwnerLaneResource implements PhysicsOwnerResource {
     }
 
     @Override
+    public boolean isCompletionCallbackContext() {
+        return scheduler.isCompletingAnyLane();
+    }
+
+    @Override
     public void run(@Nonnull String operation,
         @Nonnull PhysicsOwnerMutation mutation) {
         Objects.requireNonNull(operation, "operation");
@@ -247,6 +275,7 @@ public final class PhysicsOwnerLaneResource implements PhysicsOwnerResource {
             runDirect(operation, mutation);
             return;
         }
+        rejectSynchronousCompletionCallbackWait();
         rejectSynchronousCrossLaneWait();
         try {
             submitAndDrain(() -> {
@@ -289,13 +318,16 @@ public final class PhysicsOwnerLaneResource implements PhysicsOwnerResource {
         }
 
         CompletableFuture<T> completion = new CompletableFuture<>();
+        AtomicReference<T> value = new AtomicReference<>();
         try {
             submitMutationFuture(operation, () -> {
-                completion.complete(callable.call());
+                value.set(callable.call());
                 return PhysicsOwnerSnapshot.empty();
             }).whenComplete((ignored, failure) -> {
                 if (failure != null) {
                     completion.completeExceptionally(failure);
+                } else {
+                    completion.complete(value.get());
                 }
             });
         } catch (RejectedExecutionException exception) {
@@ -313,6 +345,7 @@ public final class PhysicsOwnerLaneResource implements PhysicsOwnerResource {
         if (isOwnerContext()) {
             return callDirect(operation, callable);
         }
+        rejectSynchronousCompletionCallbackWait();
         rejectSynchronousCrossLaneWait();
 
         AtomicReference<T> value = new AtomicReference<>();
@@ -333,6 +366,12 @@ public final class PhysicsOwnerLaneResource implements PhysicsOwnerResource {
 
     @Override
     public void close() {
+        if (!isClosed()) {
+            rejectSynchronousCompletionCallbackWait();
+            rejectSynchronousCrossLaneWait();
+            rejectSynchronousOwnerContextWait();
+        }
+
         synchronized (lock) {
             if (closed) {
                 return;
@@ -349,7 +388,10 @@ public final class PhysicsOwnerLaneResource implements PhysicsOwnerResource {
             : System.nanoTime() + timeoutNanos;
         boolean interrupted = false;
         synchronized (lock) {
-            while (!closed && (active || !mutationQueue.isEmpty() || !stepQueue.isEmpty())) {
+            while (!closed && (active
+                || activeCompletions > 0
+                || !mutationQueue.isEmpty()
+                || !stepQueue.isEmpty())) {
                 long remainingNanos = deadline - System.nanoTime();
                 if (remainingNanos <= 0L) {
                     timeout = new IllegalStateException(
@@ -365,9 +407,12 @@ public final class PhysicsOwnerLaneResource implements PhysicsOwnerResource {
                 }
             }
             if (timeout == null && !closed) {
-                closed = true;
-                scheduler.unregister(this);
-                lock.notifyAll();
+                closeIfReadyLocked();
+                if (!closed) {
+                    closed = true;
+                    scheduler.unregister(this);
+                    lock.notifyAll();
+                }
             }
         }
         if (interrupted) {
@@ -388,6 +433,7 @@ public final class PhysicsOwnerLaneResource implements PhysicsOwnerResource {
         long startNanos = System.nanoTime();
         PhysicsOwnerResult result = null;
         Throwable failure = null;
+        long commandRunNanos;
         try {
             PhysicsOwnerSnapshot snapshot = command.command().run();
             long completedNanos = System.nanoTime();
@@ -396,26 +442,42 @@ public final class PhysicsOwnerLaneResource implements PhysicsOwnerResource {
                 startNanos - command.submittedNanos(),
                 completedNanos - startNanos,
                 completedNanos);
+            commandRunNanos = result.runNanos();
         } catch (Throwable throwable) {
             failure = throwable;
+            commandRunNanos = Math.max(0L, System.nanoTime() - startNanos);
         }
 
-        if (failure == null) {
-            command.future().complete(result);
-        } else {
-            command.future().completeExceptionally(failure);
-        }
+        completeCommandFuture(command, result, failure);
 
         synchronized (lock) {
-            active = false;
-            activeCommand = null;
-            if (closing && mutationQueue.isEmpty() && stepQueue.isEmpty()) {
-                closed = true;
-                scheduler.unregister(this);
+            if (activePreStepDrain && pendingStep != null) {
+                pendingStep.recordPreStepDrain(commandRunNanos);
             }
+            active = false;
+            activePreStepDrain = false;
+            activeCommand = null;
+            closeIfReadyLocked();
             dispatchIfIdleLocked();
             lock.notifyAll();
         }
+    }
+
+    private void completeCommandFuture(@Nonnull QueuedCommand command,
+        @Nullable PhysicsOwnerResult result,
+        @Nullable Throwable failure) {
+        recordCompletionScheduled();
+        scheduler.completeOutsideOwnerContext(this, () -> {
+            try {
+                if (failure == null) {
+                    command.future().complete(result);
+                } else {
+                    command.future().completeExceptionally(failure);
+                }
+            } finally {
+                recordCompletionFinished();
+            }
+        });
     }
 
     @Nonnull
@@ -453,24 +515,40 @@ public final class PhysicsOwnerLaneResource implements PhysicsOwnerResource {
             System.nanoTime(),
             future);
         if (kind == CommandKind.STEP) {
-            stepQueue.addLast(queuedCommand);
+            stepQueue.addLast(new QueuedStep(queuedCommand, queuedCommand.sequence() - 1L));
         } else {
             mutationQueue.addLast(queuedCommand);
         }
         return queuedCommand;
     }
 
+    @Nullable
+    private QueuedCommand nextCommandLocked() {
+        activePreStepDrain = false;
+        QueuedStep queuedStep = stepQueue.peekFirst();
+        if (queuedStep == null) {
+            return mutationQueue.pollFirst();
+        }
+        QueuedCommand mutation = mutationQueue.peekFirst();
+        if (mutation != null && mutation.sequence() <= queuedStep.drainBeforeSequence()) {
+            activePreStepDrain = true;
+            return mutationQueue.pollFirst();
+        }
+        PendingStep currentStep = pendingStep;
+        if (currentStep != null) {
+            currentStep.recordLateMutationBacklog(mutationQueue.size());
+        }
+        return stepQueue.pollFirst().command();
+    }
+
     private void dispatchIfIdleLocked() {
         if (!started || closed || active) {
             return;
         }
-        QueuedCommand next = !stepQueue.isEmpty()
-            ? stepQueue.pollFirst()
-            : mutationQueue.pollFirst();
+        QueuedCommand next = nextCommandLocked();
         if (next == null) {
             if (closing) {
-                closed = true;
-                scheduler.unregister(this);
+                closeIfReadyLocked();
                 lock.notifyAll();
             }
             return;
@@ -481,16 +559,42 @@ public final class PhysicsOwnerLaneResource implements PhysicsOwnerResource {
             scheduler.execute(this, () -> runQueuedCommand(next));
         } catch (RejectedExecutionException exception) {
             active = false;
+            activePreStepDrain = false;
             activeCommand = null;
-            next.future().completeExceptionally(exception);
-            if (closing && mutationQueue.isEmpty() && stepQueue.isEmpty()) {
-                closed = true;
-                scheduler.unregister(this);
+            completeCommandFuture(next, null, exception);
+            closeIfReadyLocked();
+            if (closed) {
                 lock.notifyAll();
                 return;
             }
             dispatchIfIdleLocked();
         }
+    }
+
+    private void recordCompletionScheduled() {
+        synchronized (lock) {
+            activeCompletions++;
+        }
+    }
+
+    private void recordCompletionFinished() {
+        synchronized (lock) {
+            if (activeCompletions <= 0) {
+                throw new IllegalStateException("physics owner lane completion count underflow");
+            }
+            activeCompletions--;
+            closeIfReadyLocked();
+            lock.notifyAll();
+        }
+    }
+
+    private void closeIfReadyLocked() {
+        if (!closing || closed || active || activeCompletions > 0
+            || !mutationQueue.isEmpty() || !stepQueue.isEmpty()) {
+            return;
+        }
+        closed = true;
+        scheduler.unregister(this);
     }
 
     private int queuedCommandCountLocked() {
@@ -518,6 +622,20 @@ public final class PhysicsOwnerLaneResource implements PhysicsOwnerResource {
         if (currentLane != null && currentLane != this) {
             throw new RejectedExecutionException(
                 "cannot synchronously wait for a different physics owner lane");
+        }
+    }
+
+    private void rejectSynchronousCompletionCallbackWait() {
+        if (scheduler.isCompletingAnyLane()) {
+            throw new RejectedExecutionException(
+                "cannot synchronously wait for a physics owner lane from a completion callback");
+        }
+    }
+
+    private void rejectSynchronousOwnerContextWait() {
+        if (isOwnerContext()) {
+            throw new RejectedExecutionException(
+                "cannot synchronously wait for a physics owner lane from its owner context");
         }
     }
 
@@ -620,9 +738,63 @@ public final class PhysicsOwnerLaneResource implements PhysicsOwnerResource {
                                  @Nonnull CompletableFuture<PhysicsOwnerResult> future) {
     }
 
-    private record PendingStep(@Nonnull PhysicsOwnerStepCommand command,
-                               @Nonnull CompletableFuture<PhysicsOwnerResult> future,
-                               long submittedNanos) {
+    private record QueuedStep(@Nonnull QueuedCommand command,
+                              long drainBeforeSequence) {
+    }
+
+    private static final class PendingStep {
+
+        @Nonnull
+        private final PhysicsOwnerStepCommand command;
+        @Nonnull
+        private final CompletableFuture<PhysicsOwnerResult> future;
+        private final long submittedNanos;
+        private int preStepDrainedMutations;
+        private long preStepDrainRunNanos;
+        private int lateMutationBacklogAtStep;
+
+        private PendingStep(@Nonnull PhysicsOwnerStepCommand command,
+            @Nonnull CompletableFuture<PhysicsOwnerResult> future,
+            long submittedNanos) {
+            this.command = command;
+            this.future = future;
+            this.submittedNanos = submittedNanos;
+        }
+
+        @Nonnull
+        private PhysicsOwnerStepCommand command() {
+            return command;
+        }
+
+        @Nonnull
+        private CompletableFuture<PhysicsOwnerResult> future() {
+            return future;
+        }
+
+        private long submittedNanos() {
+            return submittedNanos;
+        }
+
+        private int preStepDrainedMutations() {
+            return preStepDrainedMutations;
+        }
+
+        private long preStepDrainRunNanos() {
+            return preStepDrainRunNanos;
+        }
+
+        private int lateMutationBacklogAtStep() {
+            return lateMutationBacklogAtStep;
+        }
+
+        private void recordPreStepDrain(long runNanos) {
+            preStepDrainedMutations++;
+            preStepDrainRunNanos += Math.max(0L, runNanos);
+        }
+
+        private void recordLateMutationBacklog(int backlog) {
+            lateMutationBacklogAtStep = Math.max(0, backlog);
+        }
     }
 
     private record PendingMutation(@Nonnull String operation,

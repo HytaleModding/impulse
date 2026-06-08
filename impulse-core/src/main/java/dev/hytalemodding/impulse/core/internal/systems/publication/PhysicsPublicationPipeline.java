@@ -91,7 +91,10 @@ public final class PhysicsPublicationPipeline {
                 result != null ? result.queuedNanos() : 0L,
                 result != null ? result.runNanos() : 0L,
                 result != null ? result.completedNanos() : 0L,
-                snapshot.nativePhaseStats());
+                snapshot.nativePhaseStats(),
+                completion.preStepDrainedMutations(),
+                completion.preStepDrainRunNanos(),
+                completion.lateMutationBacklogAtStep());
         }
 
         RuntimeException stepFailure = completion.stepFailure();

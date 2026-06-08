@@ -19,6 +19,13 @@ public interface PhysicsOwnerExecutor {
      */
     boolean isOwnerContext();
 
+    /**
+     * Returns whether the current thread is running a user-visible owner completion callback.
+     */
+    default boolean isCompletionCallbackContext() {
+        return false;
+    }
+
     void run(@Nonnull String operation,
         @Nonnull PhysicsOwnerMutation mutation);
 

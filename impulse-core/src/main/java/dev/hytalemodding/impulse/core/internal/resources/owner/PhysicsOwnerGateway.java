@@ -3,6 +3,7 @@ package dev.hytalemodding.impulse.core.internal.resources.owner;
 import dev.hytalemodding.impulse.core.plugin.resources.PhysicsMutationHandle;
 import java.util.Objects;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.atomic.AtomicReference;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
@@ -47,6 +48,16 @@ public final class PhysicsOwnerGateway {
         }
     }
 
+    public void rejectSynchronousCompletionCallbackWait(@Nonnull String operation) {
+        Objects.requireNonNull(operation, "operation");
+        PhysicsOwnerExecutor executor = ownerExecutor.get();
+        if (executor != null && executor.isCompletionCallbackContext()) {
+            throw new RejectedExecutionException(
+                "cannot synchronously wait for physics owner operation " + operation
+                    + " from a completion callback");
+        }
+    }
+
     public void run(@Nonnull String operation,
         @Nonnull PhysicsOwnerMutation mutation) {
         Objects.requireNonNull(operation, "operation");
@@ -75,7 +86,11 @@ public final class PhysicsOwnerGateway {
         if (executor == null || executor.isOwnerContext()) {
             return runDirectAsync(operation, value, mutation);
         }
-        return executor.enqueue(operation, value, mutation);
+        try {
+            return executor.enqueue(operation, value, mutation);
+        } catch (RejectedExecutionException exception) {
+            return PhysicsMutationHandle.failed(operation, value, exception);
+        }
     }
 
     @Nonnull
@@ -87,7 +102,13 @@ public final class PhysicsOwnerGateway {
         if (executor == null || executor.isOwnerContext()) {
             return callDirectAsync(callable);
         }
-        return executor.enqueueCall(operation, callable);
+        try {
+            return executor.enqueueCall(operation, callable);
+        } catch (RejectedExecutionException exception) {
+            CompletableFuture<T> completion = new CompletableFuture<>();
+            completion.completeExceptionally(exception);
+            return completion;
+        }
     }
 
     @Nonnull
