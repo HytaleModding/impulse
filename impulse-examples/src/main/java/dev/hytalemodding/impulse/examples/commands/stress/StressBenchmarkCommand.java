@@ -113,8 +113,10 @@ public class StressBenchmarkCommand extends AbstractAsyncPlayerCommand {
                 + " (" + microsPerBody(timing.setupWallNanos(), timing.spawned())
                 + " us/body). Space bodies: " + beforeBodies + " -> " + afterBodies
                 + (request.mode() == BenchmarkMode.ENTITY ? ". blockType=" + request.blockType() : "")
-                + ". For clean comparisons run /impulse clean, /impulse perf reset,"
-                + " /impulse perf toggle before spawning, then /impulse perf report."));
+                + ". This command measures raw setup/entity attachment; use /impulse-examples stress bodies"
+                + " for detached/detached-view scalability scenarios"
+                + ". For clean comparisons run /impulse clean, /impulse-world-collision perf reset,"
+                + " /impulse-world-collision perf toggle before spawning, then /impulse-world-collision perf report."));
         }
         return CompletableFuture.completedFuture(null);
     }

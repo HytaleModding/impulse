@@ -29,20 +29,20 @@ public final class PhysicsWorldCollisionRuntime {
         return worldVoxelCollisionCache;
     }
 
-    public void registerSpace(@Nonnull SpaceId spaceId) {
+    public synchronized void registerSpace(@Nonnull SpaceId spaceId) {
         streamingRevisions.putIfAbsent(spaceId.value(), 1L);
     }
 
-    public void unregisterSpace(@Nonnull SpaceId spaceId) {
+    public synchronized void unregisterSpace(@Nonnull SpaceId spaceId) {
         streamingRevisions.remove(spaceId.value());
     }
 
-    public long streamingRevision(@Nonnull SpaceId spaceId) {
+    public synchronized long streamingRevision(@Nonnull SpaceId spaceId) {
         return streamingRevisions.getOrDefault(spaceId.value(), 0L);
     }
 
-    public long incrementStreamingRevision(@Nonnull SpaceId spaceId) {
-        long revision = streamingRevision(spaceId) + 1L;
+    public synchronized long incrementStreamingRevision(@Nonnull SpaceId spaceId) {
+        long revision = streamingRevisions.getOrDefault(spaceId.value(), 0L) + 1L;
         streamingRevisions.put(spaceId.value(), revision);
         return revision;
     }
@@ -141,7 +141,7 @@ public final class PhysicsWorldCollisionRuntime {
         unregisterSpace(spaceId);
     }
 
-    public void clearAll() {
+    public synchronized void clearAll() {
         worldVoxelCollisionCache.copyFrom(new WorldVoxelCollisionCache());
         for (int spaceId : streamingRevisions.keySet().toIntArray()) {
             streamingRevisions.put(spaceId, streamingRevisions.get(spaceId) + 1L);
@@ -155,7 +155,7 @@ public final class PhysicsWorldCollisionRuntime {
         worldVoxelCollisionCache.finishStreamingApply();
     }
 
-    public void clearAllAndUnregisterSpaces() {
+    public synchronized void clearAllAndUnregisterSpaces() {
         worldVoxelCollisionCache.copyFrom(new WorldVoxelCollisionCache());
         streamingRevisions.clear();
     }

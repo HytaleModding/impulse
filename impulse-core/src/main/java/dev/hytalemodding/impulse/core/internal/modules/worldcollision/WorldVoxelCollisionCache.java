@@ -61,10 +61,16 @@ public final class WorldVoxelCollisionCache {
     private final SectionColliderBuilder sectionBuilder = new SectionColliderBuilder(shapeTemplates);
     private final AtomicBoolean streamingApplyPending = new AtomicBoolean();
 
-    public void copyFrom(@Nonnull WorldVoxelCollisionCache other) {
+    public synchronized void copyFrom(@Nonnull WorldVoxelCollisionCache other) {
+        if (other == this) {
+            streamingApplyPending.set(false);
+            return;
+        }
         spaces.clear();
-        for (Int2ObjectMap.Entry<SpaceCollisionCache> entry : other.spaces.int2ObjectEntrySet()) {
-            spaces.put(entry.getIntKey(), new SpaceCollisionCache(entry.getValue()));
+        synchronized (other) {
+            for (Int2ObjectMap.Entry<SpaceCollisionCache> entry : other.spaces.int2ObjectEntrySet()) {
+                spaces.put(entry.getIntKey(), new SpaceCollisionCache(entry.getValue()));
+            }
         }
         streamingApplyPending.set(false);
     }
@@ -92,7 +98,7 @@ public final class WorldVoxelCollisionCache {
      * only after the terrain apply path has actually attempted that work.
      */
     @Nonnull
-    public TargetRefreshDecision shouldRefreshBodyTarget(@Nonnull SpaceId spaceId,
+    public synchronized TargetRefreshDecision shouldRefreshBodyTarget(@Nonnull SpaceId spaceId,
         @Nonnull RigidBodyKey bodyKey,
         @Nonnull WorldCollisionStreamingBounds bounds,
         boolean sleeping,
@@ -157,7 +163,7 @@ public final class WorldVoxelCollisionCache {
     /**
      * Records that a body target's terrain refresh was attempted by the apply loop.
      */
-    public void recordBodyTargetRefresh(@Nonnull SpaceId spaceId,
+    public synchronized void recordBodyTargetRefresh(@Nonnull SpaceId spaceId,
         @Nonnull RigidBodyKey bodyKey,
         @Nonnull WorldCollisionStreamingBounds bounds,
         boolean sleeping,
@@ -177,7 +183,7 @@ public final class WorldVoxelCollisionCache {
         target.lastRefreshTick = currentTick;
     }
 
-    public int pruneBodyStreamingTargets(@Nonnull SpaceId spaceId,
+    public synchronized int pruneBodyStreamingTargets(@Nonnull SpaceId spaceId,
         long currentTick,
         int ttlTicks,
         @Nullable Snapshot profiling) {
@@ -212,7 +218,7 @@ public final class WorldVoxelCollisionCache {
      * Wipes cached sections for the space, then rebuilds everything in the given radius.
      */
     @Nonnull
-    public BuildStats rebuildAround(@Nonnull World world,
+    public synchronized BuildStats rebuildAround(@Nonnull World world,
         @Nonnull PhysicsSpaceBinding space,
         @Nonnull Vector3d center,
         int radius) {
@@ -227,7 +233,7 @@ public final class WorldVoxelCollisionCache {
      * Wipes cached sections for the space, then rebuilds everything in the given radius.
      */
     @Nonnull
-    public BuildStats rebuildAround(@Nonnull World world,
+    public synchronized BuildStats rebuildAround(@Nonnull World world,
         @Nonnull PhysicsSpaceBinding space,
         @Nonnull Vector3d center,
         int radius,
@@ -250,7 +256,7 @@ public final class WorldVoxelCollisionCache {
      * Wipes cached sections in the given radius, then rebuilds that same radius.
      */
     @Nonnull
-    public BuildStats refreshAround(@Nonnull World world,
+    public synchronized BuildStats refreshAround(@Nonnull World world,
         @Nonnull PhysicsSpaceBinding space,
         @Nonnull Vector3d center,
         int radius,
@@ -273,7 +279,7 @@ public final class WorldVoxelCollisionCache {
      * Ensures all chunk sections within the block radius around {@code center} are cached.
      */
     @Nonnull
-    public BuildStats ensureAround(@Nonnull World world,
+    public synchronized BuildStats ensureAround(@Nonnull World world,
         @Nonnull PhysicsSpaceBinding space,
         @Nonnull Vector3d center,
         int radius,
@@ -285,7 +291,7 @@ public final class WorldVoxelCollisionCache {
      * Ensures all chunk sections within the block radius around {@code center} are cached.
      */
     @Nonnull
-    public BuildStats ensureAround(@Nonnull World world,
+    public synchronized BuildStats ensureAround(@Nonnull World world,
         @Nonnull PhysicsSpaceBinding space,
         @Nonnull Vector3d center,
         int radius,
@@ -298,7 +304,7 @@ public final class WorldVoxelCollisionCache {
      * Ensures all chunk sections within the block radius around {@code center} are cached.
      */
     @Nonnull
-    public BuildStats ensureAround(@Nonnull World world,
+    public synchronized BuildStats ensureAround(@Nonnull World world,
         @Nonnull PhysicsSpaceBinding space,
         @Nonnull Vector3d center,
         int radius,
@@ -312,7 +318,7 @@ public final class WorldVoxelCollisionCache {
      * Ensures all chunk sections within the block radius around {@code center} are cached.
      */
     @Nonnull
-    public BuildStats ensureAround(@Nonnull World world,
+    public synchronized BuildStats ensureAround(@Nonnull World world,
         @Nonnull PhysicsSpaceBinding space,
         @Nonnull Vector3d center,
         int radius,
@@ -335,7 +341,7 @@ public final class WorldVoxelCollisionCache {
      * Ensures all chunk sections within the block radius around {@code center} are cached.
      */
     @Nonnull
-    public BuildStats ensureAround(@Nonnull World world,
+    public synchronized BuildStats ensureAround(@Nonnull World world,
         @Nonnull PhysicsSpaceBinding space,
         @Nonnull Vector3d center,
         int radius,
@@ -360,7 +366,7 @@ public final class WorldVoxelCollisionCache {
      * Ensures all chunk sections within the block radius around {@code center} are cached.
      */
     @Nonnull
-    public BuildStats ensureAround(@Nonnull World world,
+    public synchronized BuildStats ensureAround(@Nonnull World world,
         @Nonnull PhysicsSpaceBinding space,
         @Nonnull Vector3d center,
         int radius,
@@ -426,7 +432,7 @@ public final class WorldVoxelCollisionCache {
      * Refreshes the TTL of already-cached sections around a sleeping body without building
      * missing collision or touching chunk storage.
      */
-    public int touchAround(@Nonnull SpaceId spaceId,
+    public synchronized int touchAround(@Nonnull SpaceId spaceId,
         @Nonnull Vector3d center,
         int radius,
         long tick) {
@@ -468,7 +474,7 @@ public final class WorldVoxelCollisionCache {
     /**
      * Removes sections whose last use is older than the configured TTL.
      */
-    public int pruneUnused(@Nonnull SpaceId spaceId,
+    public synchronized int pruneUnused(@Nonnull SpaceId spaceId,
         @Nonnull PhysicsSpaceBinding space,
         long currentTick,
         int ttlTicks) {
@@ -478,7 +484,7 @@ public final class WorldVoxelCollisionCache {
     /**
      * Removes sections whose last use is older than the configured TTL.
      */
-    public int pruneUnused(@Nonnull SpaceId spaceId,
+    public synchronized int pruneUnused(@Nonnull SpaceId spaceId,
         @Nonnull PhysicsSpaceBinding space,
         long currentTick,
         int ttlTicks,
@@ -517,7 +523,7 @@ public final class WorldVoxelCollisionCache {
     /**
      * Removes cached sections whose source chunk is no longer loaded.
      */
-    public int pruneUnloaded(@Nonnull World world,
+    public synchronized int pruneUnloaded(@Nonnull World world,
         @Nonnull SpaceId spaceId,
         @Nonnull PhysicsSpaceBinding space) {
         return pruneUnloaded(world, spaceId, space, null);
@@ -526,7 +532,7 @@ public final class WorldVoxelCollisionCache {
     /**
      * Removes cached sections whose source chunk is no longer loaded.
      */
-    public int pruneUnloaded(@Nonnull World world,
+    public synchronized int pruneUnloaded(@Nonnull World world,
         @Nonnull SpaceId spaceId,
         @Nonnull PhysicsSpaceBinding space,
         @Nullable Snapshot profiling) {
@@ -536,7 +542,7 @@ public final class WorldVoxelCollisionCache {
     /**
      * Removes cached sections whose source chunk is no longer loaded.
      */
-    public int pruneUnloaded(@Nonnull World world,
+    public synchronized int pruneUnloaded(@Nonnull World world,
         @Nonnull SpaceId spaceId,
         @Nonnull PhysicsSpaceBinding space,
         @Nullable Snapshot profiling,
@@ -573,7 +579,7 @@ public final class WorldVoxelCollisionCache {
     /**
      * Removes all cached sections for the given space.
      */
-    public int clear(@Nonnull SpaceId spaceId, @Nullable PhysicsSpaceBinding space) {
+    public synchronized int clear(@Nonnull SpaceId spaceId, @Nullable PhysicsSpaceBinding space) {
         SpaceCollisionCache cache = spaces.remove(spaceId.value());
         if (cache == null || space == null) {
             return 0;
@@ -589,14 +595,14 @@ public final class WorldVoxelCollisionCache {
     /**
      * Removes all cached sections for the given space.
      */
-    public int clear(@Nonnull PhysicsSpaceBinding space) {
+    public synchronized int clear(@Nonnull PhysicsSpaceBinding space) {
         return clear(space.spaceId(), space);
     }
 
     /**
      * Removes cached sections within the block radius around {@code center}.
      */
-    public int clearSectionsAround(@Nonnull SpaceId spaceId,
+    public synchronized int clearSectionsAround(@Nonnull SpaceId spaceId,
         @Nullable PhysicsSpaceBinding space,
         @Nonnull Vector3d center,
         int radius) {
@@ -649,7 +655,7 @@ public final class WorldVoxelCollisionCache {
     /**
      * Removes cached sections for one chunk from a single physics space.
      */
-    public int clearChunk(@Nonnull SpaceId spaceId,
+    public synchronized int clearChunk(@Nonnull SpaceId spaceId,
         @Nullable PhysicsSpaceBinding space,
         int chunkX,
         int chunkZ) {
@@ -678,7 +684,7 @@ public final class WorldVoxelCollisionCache {
         return removed;
     }
 
-    public int bodyCount() {
+    public synchronized int bodyCount() {
         int count = 0;
         for (SpaceCollisionCache cache : spaces.values()) {
             for (CachedSection section : cache.sections.values()) {
@@ -688,7 +694,20 @@ public final class WorldVoxelCollisionCache {
         return count;
     }
 
-    public int sectionCount() {
+    public synchronized int bodyCount(@Nonnull SpaceId spaceId) {
+        SpaceCollisionCache cache = spaces.get(spaceId.value());
+        if (cache == null) {
+            return 0;
+        }
+
+        int count = 0;
+        for (CachedSection section : cache.sections.values()) {
+            count += section.backendBodyIds.size();
+        }
+        return count;
+    }
+
+    public synchronized int sectionCount() {
         int count = 0;
         for (SpaceCollisionCache cache : spaces.values()) {
             count += cache.sections.size();
@@ -696,15 +715,15 @@ public final class WorldVoxelCollisionCache {
         return count;
     }
 
-    public int spaceCount() {
+    public synchronized int spaceCount() {
         return spaces.size();
     }
 
-    public int shapeTemplateCount() {
+    public synchronized int shapeTemplateCount() {
         return shapeTemplates.size();
     }
 
-    public boolean containsBody(@Nonnull SpaceId spaceId, long backendBodyId) {
+    public synchronized boolean containsBody(@Nonnull SpaceId spaceId, long backendBodyId) {
         SpaceCollisionCache cache = spaces.get(spaceId.value());
         if (cache == null) {
             return false;
@@ -726,7 +745,7 @@ public final class WorldVoxelCollisionCache {
      * the streamed terrain actually present in the backend instead of a fixed Y plane.</p>
      */
     @Nonnull
-    public GroundProbe probeGround(@Nonnull SpaceId spaceId,
+    public synchronized GroundProbe probeGround(@Nonnull SpaceId spaceId,
         double x,
         double z,
         double horizontalHalfExtent) {
@@ -781,7 +800,7 @@ public final class WorldVoxelCollisionCache {
         return maxA >= minB && maxB >= minA;
     }
 
-    public void forEachDebugSection(@Nonnull SpaceId spaceId,
+    public synchronized void forEachDebugSection(@Nonnull SpaceId spaceId,
         @Nonnull Consumer<DebugSection> consumer) {
         SpaceCollisionCache cache = spaces.get(spaceId.value());
         if (cache == null) {
@@ -1024,6 +1043,7 @@ public final class WorldVoxelCollisionCache {
             0.0f,
             0.0f,
             1.0f);
+        section.backendBodyIds.add(backendBodyId);
         space.runtime().setBodyFriction(space.backendSpaceHandle().value(), backendBodyId, TERRAIN_FRICTION);
         space.runtime().setBodyRestitution(space.backendSpaceHandle().value(), backendBodyId, TERRAIN_RESTITUTION);
         space.runtime()
@@ -1031,7 +1051,6 @@ public final class WorldVoxelCollisionCache {
                 backendBodyId,
                 PhysicsCollisionFilters.TERRAIN,
                 PhysicsCollisionFilters.ALL);
-        section.backendBodyIds.add(backendBodyId);
     }
 
     private static void stitchAdjacentVoxelTerrains(@Nonnull PhysicsSpaceBinding space,
@@ -1195,7 +1214,9 @@ public final class WorldVoxelCollisionCache {
         }
 
         private SpaceCollisionCache(@Nonnull SpaceCollisionCache other) {
-            sections.putAll(other.sections);
+            for (Long2ObjectMap.Entry<CachedSection> entry : other.sections.long2ObjectEntrySet()) {
+                sections.put(entry.getLongKey(), new CachedSection(entry.getValue()));
+            }
             for (Object2ObjectMap.Entry<RigidBodyKey, CachedBodyStreamingTarget> entry
                 : other.bodyTargets.object2ObjectEntrySet()) {
                 bodyTargets.put(entry.getKey(), new CachedBodyStreamingTarget(entry.getValue()));
@@ -1267,6 +1288,20 @@ public final class WorldVoxelCollisionCache {
             this.chunkZ = chunkZ;
             this.lastUsedTick = lastUsedTick;
             this.neighborhoodSignature = neighborhoodSignature;
+        }
+
+        private CachedSection(@Nonnull CachedSection other) {
+            this(other.chunkX,
+                other.sectionY,
+                other.chunkZ,
+                other.lastUsedTick,
+                other.neighborhoodSignature);
+            backendBodyIds.addAll(other.backendBodyIds);
+            fullCubeBoxes.addAll(other.fullCubeBoxes);
+            detailBoxes.addAll(other.detailBoxes);
+            buildOptions = other.buildOptions;
+            voxelTerrain = other.voxelTerrain;
+            voxelTerrainBodyId = other.voxelTerrainBodyId;
         }
 
         private int removeFrom(@Nonnull PhysicsSpaceBinding space) {

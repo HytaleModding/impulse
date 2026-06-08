@@ -89,6 +89,10 @@ public final class FakePhysicsBackendRuntimeProvider implements PhysicsBackendRu
         failures.failNextSolverTuning(failure);
     }
 
+    public void failNextBodyFriction(@Nonnull RuntimeException failure) {
+        failures.failNextBodyFriction(failure);
+    }
+
     public static final class FakePhysicsBackendRuntime implements PhysicsBackendRuntime {
 
         private final Map<Integer, SpaceState> spaces = new HashMap<>();
@@ -348,6 +352,7 @@ public final class FakePhysicsBackendRuntimeProvider implements PhysicsBackendRu
 
         @Override
         public void setBodyFriction(int spaceId, long bodyId, float friction) {
+            failures.maybeFailBodyFriction();
             requireBody(requireSpace(spaceId), bodyId).friction = friction;
         }
 
@@ -671,7 +676,6 @@ public final class FakePhysicsBackendRuntimeProvider implements PhysicsBackendRu
         private final float radius;
         private final float halfHeight;
         private final int axisCode;
-        private final boolean voxelTerrain;
         private int bodyTypeCode;
         private float positionX;
         private float positionY;
@@ -724,7 +728,6 @@ public final class FakePhysicsBackendRuntimeProvider implements PhysicsBackendRu
             this.halfHeight = halfHeight;
             this.axisCode = axisCode;
             this.mass = mass;
-            this.voxelTerrain = voxelTerrain;
         }
 
         private void setTransform(float positionX,
@@ -781,6 +784,7 @@ public final class FakePhysicsBackendRuntimeProvider implements PhysicsBackendRu
     private static final class FailureController {
 
         private RuntimeException solverTuningFailure;
+        private RuntimeException bodyFrictionFailure;
 
         private synchronized void failNextSolverTuning(@Nonnull RuntimeException failure) {
             solverTuningFailure = Objects.requireNonNull(failure, "failure");
@@ -792,6 +796,19 @@ public final class FakePhysicsBackendRuntimeProvider implements PhysicsBackendRu
                 return;
             }
             solverTuningFailure = null;
+            throw failure;
+        }
+
+        private synchronized void failNextBodyFriction(@Nonnull RuntimeException failure) {
+            bodyFrictionFailure = Objects.requireNonNull(failure, "failure");
+        }
+
+        private synchronized void maybeFailBodyFriction() {
+            RuntimeException failure = bodyFrictionFailure;
+            if (failure == null) {
+                return;
+            }
+            bodyFrictionFailure = null;
             throw failure;
         }
     }

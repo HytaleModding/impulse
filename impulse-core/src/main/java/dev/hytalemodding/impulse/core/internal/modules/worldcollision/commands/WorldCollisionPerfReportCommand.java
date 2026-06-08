@@ -41,6 +41,7 @@ public class WorldCollisionPerfReportCommand extends AbstractWorldCommand {
             PhysicsRuntimeProfilingResource.getResourceType());
         StepSnapshot cumulativeStep = runtimeProfiling.getCumulativeStep();
         StepSnapshot latestStep = runtimeProfiling.getLatestStep();
+        StepSnapshot latestCompletedStep = runtimeProfiling.getLatestCompletedStep();
         StepSnapshot worstStep = runtimeProfiling.getWorstStep();
         SyncSnapshot cumulativeSync = runtimeProfiling.getCumulativeSync();
         SyncSnapshot latestSync = runtimeProfiling.getLatestSync();
@@ -76,15 +77,15 @@ public class WorldCollisionPerfReportCommand extends AbstractWorldCommand {
             || cumulativeStep.getSchedulerSamples() > 0
             || cumulativeSync.getTickSamples() > 0
             || cumulativeVisual.getTickSamples() > 0) {
-            ctx.sender().sendMessage(Message.raw("Physics step avg ms/tick="
+            ctx.sender().sendMessage(Message.raw("Physics step avg ms/completedStep="
                 + formatAverageMillis(cumulativeStep.getTickNanos(), cumulativeStep.getTickSamples())
                 + " spaces=" + formatAverage(cumulativeStep.getSpaces(), cumulativeStep.getTickSamples())
                 + " substeps=" + formatAverage(cumulativeStep.getSubsteps(), cumulativeStep.getTickSamples())
                 + " snapshots=" + formatAverage(cumulativeStep.getBodySnapshots(), cumulativeStep.getTickSamples())
                 + " indexCells=" + formatAverage(cumulativeStep.getSpatialIndexCells(), cumulativeStep.getTickSamples())));
-            ctx.sender().sendMessage(Message.raw("Physics snapshot avg ms/tick="
+            ctx.sender().sendMessage(Message.raw("Physics snapshot avg ms/completedStep="
                 + formatAverageMillis(cumulativeStep.getSnapshotNanos(), cumulativeStep.getTickSamples())));
-            ctx.sender().sendMessage(Message.raw("Physics owner lane avg queued/run/latency ms="
+            ctx.sender().sendMessage(Message.raw("Physics owner step avg queued/run/latency ms="
                 + formatAverageMillis(cumulativeStep.getOwnerQueuedNanos(), cumulativeStep.getTickSamples())
                 + "/" + formatAverageMillis(cumulativeStep.getOwnerRunNanos(), cumulativeStep.getTickSamples())
                 + "/" + formatAverageMillis(
@@ -99,6 +100,10 @@ public class WorldCollisionPerfReportCommand extends AbstractWorldCommand {
                 + formatAverageMillis(cumulativeStep.getPendingStepAgeNanos(),
                 cumulativeStep.getSkippedPendingSteps())
                 + "/" + formatMillis(cumulativeStep.getMaxPendingStepAgeNanos())));
+            if (hasCompletedStepSamples(cumulativeStep)) {
+                ctx.sender().sendMessage(Message.raw(formatPreStepDrainSummary(cumulativeStep,
+                    latestCompletedStep)));
+            }
             if (cumulativeStep.getSchedulerSamples() > 0) {
                 ctx.sender().sendMessage(Message.raw("Physics scheduler dt avg input/submitted/backlog/dropped s="
                     + formatAverageSeconds(cumulativeStep.getSchedulerInputDtNanos(),
@@ -218,14 +223,14 @@ public class WorldCollisionPerfReportCommand extends AbstractWorldCommand {
             ctx.sender().sendMessage(Message.raw("No profiled physics step/sync/visual ticks recorded yet."
                 + (runtimeProfiling.isEnabled()
                 ? ""
-                : " Run /impulse perf enable, wait a few seconds, then run /impulse perf report.")));
+                : " Run /impulse-world-collision perf toggle, wait a few seconds, then run /impulse-world-collision perf report.")));
         }
 
         if (cumulative.getTickSamples() <= 0) {
             ctx.sender().sendMessage(Message.raw("No profiled world collision ticks recorded yet."
                 + (profiling.isEnabled()
                 ? ""
-                : " Run /impulse perf enable, wait a few seconds, then run /impulse perf report.")));
+                : " Run /impulse-world-collision perf toggle, wait a few seconds, then run /impulse-world-collision perf report.")));
             return;
         }
 
@@ -456,6 +461,28 @@ public class WorldCollisionPerfReportCommand extends AbstractWorldCommand {
                 .append(latestPublication.frameToPublicationServerTickLatency());
         }
         return builder.toString();
+    }
+
+    @Nonnull
+    static String formatPreStepDrainSummary(@Nonnull StepSnapshot cumulativeStep,
+        @Nonnull StepSnapshot latestStep) {
+        return "Physics pre-step drain avg completedStep drained/runMs/lateBacklog="
+            + formatAverage(cumulativeStep.getPreStepDrainedMutations(),
+            cumulativeStep.getTickSamples())
+            + "/" + formatAverageMillis(cumulativeStep.getPreStepDrainRunNanos(),
+            cumulativeStep.getTickSamples())
+            + "/" + formatAverage(cumulativeStep.getLateMutationBacklogAtStep(),
+            cumulativeStep.getTickSamples())
+            + " latest drained/lateBacklog="
+            + latestStep.getPreStepDrainedMutations()
+            + "/" + latestStep.getLateMutationBacklogAtStep()
+            + " max drained/lateBacklog="
+            + cumulativeStep.getMaxPreStepDrainedMutations()
+            + "/" + cumulativeStep.getMaxLateMutationBacklogAtStep();
+    }
+
+    static boolean hasCompletedStepSamples(@Nonnull StepSnapshot cumulativeStep) {
+        return cumulativeStep.getTickSamples() > 0;
     }
 
     @Nonnull
