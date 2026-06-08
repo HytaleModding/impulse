@@ -12,23 +12,23 @@ public final class PhysicsControlRuntimeState {
 
     private final Set<RigidBodyKey> controlledBodies = new ObjectOpenHashSet<>();
 
-    public void markBodyControlled(@Nonnull RigidBodyKey bodyKey) {
+    public synchronized void markBodyControlled(@Nonnull RigidBodyKey bodyKey) {
         controlledBodies.add(bodyKey);
     }
 
-    public void clearControlledBody(@Nonnull RigidBodyKey bodyKey) {
+    public synchronized void clearControlledBody(@Nonnull RigidBodyKey bodyKey) {
         controlledBodies.remove(bodyKey);
     }
 
-    public boolean isBodyControlled(@Nonnull RigidBodyKey bodyKey) {
+    public synchronized boolean isBodyControlled(@Nonnull RigidBodyKey bodyKey) {
         return controlledBodies.contains(bodyKey);
     }
 
-    public void clearBody(@Nonnull RigidBodyKey bodyKey) {
+    public synchronized void clearBody(@Nonnull RigidBodyKey bodyKey) {
         controlledBodies.remove(bodyKey);
     }
 
-    public void clear() {
+    public synchronized void clear() {
         controlledBodies.clear();
     }
 }

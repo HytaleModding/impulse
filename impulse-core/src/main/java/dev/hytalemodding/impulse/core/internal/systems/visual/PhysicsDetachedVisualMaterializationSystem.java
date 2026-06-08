@@ -118,6 +118,8 @@ public class PhysicsDetachedVisualMaterializationSystem extends TickingSystem<En
             store,
             resource,
             collector);
+        DetachedVisualOcclusion.RaycastBudget raycastBudget =
+            new DetachedVisualOcclusion.RaycastBudget();
         int materialized = currentMaterializedProxyCount(state,
             store,
             resource,
@@ -129,12 +131,16 @@ public class PhysicsDetachedVisualMaterializationSystem extends TickingSystem<En
             resource,
             interests,
             visualInterestTick,
+            raycastBudget,
             gameplayAttachments,
             collector);
         materialized += spawnCachedMaterializationTargets(state,
             store,
             resource,
             materialized,
+            interests,
+            visualInterestTick,
+            raycastBudget,
             gameplayAttachments,
             collector);
         if (collector != null) {
@@ -152,13 +158,17 @@ public class PhysicsDetachedVisualMaterializationSystem extends TickingSystem<En
             state.materializedVisibilityCheckCooldown = 0;
             return true;
         }
-        if (!persistent.isRuntimeRestorePending()) {
+        if (!isRestoreBlockingVisuals(persistent)) {
             return false;
         }
         state.cachedMaterializationTargets.clear();
         state.materializationCandidateRefreshCooldown = 0;
         state.materializedVisibilityCheckCooldown = 0;
         return true;
+    }
+
+    static boolean isRestoreBlockingVisuals(@Nonnull PersistentPhysicsWorldResource persistent) {
+        return persistent.isRuntimeRestorePending() || persistent.hasRuntimeRestoreFailed();
     }
 
     @Nonnull
@@ -217,6 +227,7 @@ public class PhysicsDetachedVisualMaterializationSystem extends TickingSystem<En
         @Nonnull PhysicsWorldRuntimeResource resource,
         @Nonnull List<VisualInterest> interests,
         long visualInterestTick,
+        @Nonnull DetachedVisualOcclusion.RaycastBudget raycastBudget,
         @Nonnull GameplayAttachmentSnapshot gameplayAttachments,
         @Nullable PhysicsRuntimeProfilingResource.VisualCollector collector) {
         if (interests.isEmpty()) {
@@ -234,8 +245,6 @@ public class PhysicsDetachedVisualMaterializationSystem extends TickingSystem<En
             refreshCooldown(refreshInterval));
         if (state.materializationCandidateRefreshCooldown <= 0) {
             List<CachedMaterializationTarget> refreshedTargets = new ArrayList<>();
-            DetachedVisualOcclusion.RaycastBudget raycastBudget =
-                new DetachedVisualOcclusion.RaycastBudget();
             if (collector != null) {
                 collector.incrementCandidateRefreshes();
             }
@@ -269,6 +278,9 @@ public class PhysicsDetachedVisualMaterializationSystem extends TickingSystem<En
         @Nonnull Store<EntityStore> store,
         @Nonnull PhysicsWorldRuntimeResource resource,
         int materialized,
+        @Nonnull List<VisualInterest> interests,
+        long visualInterestTick,
+        @Nonnull DetachedVisualOcclusion.RaycastBudget raycastBudget,
         @Nonnull GameplayAttachmentSnapshot gameplayAttachments,
         @Nullable PhysicsRuntimeProfilingResource.VisualCollector collector) {
         int spawned = 0;
@@ -282,7 +294,11 @@ public class PhysicsDetachedVisualMaterializationSystem extends TickingSystem<En
             MaterializationCandidate candidate = resolveCachedMaterializationCandidate(store,
                 resource,
                 target,
-                gameplayAttachments);
+                interests,
+                visualInterestTick,
+                raycastBudget,
+                gameplayAttachments,
+                collector);
             if (candidate == null) {
                 state.cachedMaterializationTargets.remove(index);
                 continue;
@@ -316,7 +332,11 @@ public class PhysicsDetachedVisualMaterializationSystem extends TickingSystem<En
         @Nonnull Store<EntityStore> store,
         @Nonnull PhysicsWorldRuntimeResource resource,
         @Nonnull CachedMaterializationTarget target,
-        @Nonnull GameplayAttachmentSnapshot gameplayAttachments) {
+        @Nonnull List<VisualInterest> interests,
+        long visualInterestTick,
+        @Nonnull DetachedVisualOcclusion.RaycastBudget raycastBudget,
+        @Nonnull GameplayAttachmentSnapshot gameplayAttachments,
+        @Nullable PhysicsRuntimeProfilingResource.VisualCollector collector) {
         if (resource.getGeneratedVisualProxy(target.bodyKey()) != null) {
             return null;
         }
@@ -335,6 +355,10 @@ public class PhysicsDetachedVisualMaterializationSystem extends TickingSystem<En
         if (settings == null || !settings.getVisualMaterializationSettings().isDetachedVisualMaterializationEnabled()) {
             return null;
         }
+        PhysicsSpaceBinding space = resolveSpace(resource, registration);
+        if (space == null) {
+            return null;
+        }
 
         PhysicsBodySnapshot snapshot = resource.getBodySnapshotIfRegistered(target.bodyKey());
         if (snapshot == null) {
@@ -343,11 +367,24 @@ public class PhysicsDetachedVisualMaterializationSystem extends TickingSystem<En
         if (!isBodyChunkLoaded(store, snapshot)) {
             return null;
         }
+        DetachedVisualOcclusion.Result currentPolicy =
+            resolveCurrentMaterializationPolicy(resource,
+                target.bodyKey(),
+                space,
+                snapshot,
+                settings,
+                interests,
+                visualInterestTick,
+                raycastBudget,
+                collector);
+        if (!currentPolicy.shouldMaterialize()) {
+            return null;
+        }
         return new MaterializationCandidate(target.bodyKey(),
             snapshot,
             registration,
             settings,
-            target.distanceSquared());
+            currentPolicy.priorityDistanceSquared());
     }
 
     private static int refreshCooldown(int intervalTicks) {
@@ -618,6 +655,29 @@ public class PhysicsDetachedVisualMaterializationSystem extends TickingSystem<En
             settings,
             interests,
             settings.getVisualMaterializationSettings().getDetachedVisualMaterializationRadius()) != Float.POSITIVE_INFINITY;
+    }
+
+    @Nonnull
+    static DetachedVisualOcclusion.Result resolveCurrentMaterializationPolicy(
+        @Nonnull PhysicsWorldRuntimeResource resource,
+        @Nonnull RigidBodyKey bodyKey,
+        @Nonnull PhysicsSpaceBinding space,
+        @Nonnull PhysicsBodySnapshot snapshot,
+        @Nonnull PhysicsSpaceSettings settings,
+        @Nonnull List<VisualInterest> interests,
+        long visualInterestTick,
+        @Nonnull DetachedVisualOcclusion.RaycastBudget raycastBudget,
+        @Nullable PhysicsRuntimeProfilingResource.VisualCollector collector) {
+        return DetachedVisualOcclusion.resolve(resource,
+            bodyKey,
+            space,
+            snapshot,
+            settings,
+            interests,
+            settings.getVisualMaterializationSettings().getDetachedVisualMaterializationRadius(),
+            visualInterestTick,
+            raycastBudget,
+            collector);
     }
 
     private static boolean shouldDematerialize(@Nonnull PhysicsBodySnapshot snapshot,
