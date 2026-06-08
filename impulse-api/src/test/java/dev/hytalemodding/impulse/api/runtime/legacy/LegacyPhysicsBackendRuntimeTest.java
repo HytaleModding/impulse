@@ -130,6 +130,18 @@ class LegacyPhysicsBackendRuntimeTest {
     }
 
     @Test
+    void createSpaceRejectsLegacyBackendThatReturnsDifferentExplicitId() {
+        LegacyPhysicsBackendRuntime runtime =
+            new LegacyPhysicsBackendRuntime(new MismatchedExplicitSpaceBackend("impulse:test-mismatch"));
+
+        IllegalStateException failure = assertThrows(IllegalStateException.class,
+            () -> runtime.createSpace(new SpaceId(9004)));
+
+        assertTrue(failure.getMessage().contains("created space id"));
+        assertTrue(failure.getMessage().contains("9004"));
+    }
+
+    @Test
     void legacyRuntimeRejectsVoxelTerrainWhenCapabilityMissing() {
         LegacyPhysicsBackendRuntime runtime =
             new LegacyPhysicsBackendRuntime(new FakePhysicsBackend("impulse:test-voxel"));
@@ -267,6 +279,41 @@ class LegacyPhysicsBackendRuntimeTest {
             this.collisionGroup = collisionGroup;
             this.collisionMask = collisionMask;
             this.continuousCollisionEnabled = continuousCollisionEnabled;
+        }
+    }
+
+    private static final class MismatchedExplicitSpaceBackend implements PhysicsBackend {
+
+        @Nonnull
+        private final BackendId id;
+        @Nonnull
+        private final FakePhysicsBackend delegate;
+
+        private MismatchedExplicitSpaceBackend(@Nonnull String id) {
+            this.id = new BackendId(id);
+            this.delegate = new FakePhysicsBackend(this.id);
+        }
+
+        @Nonnull
+        @Override
+        public BackendId getId() {
+            return id;
+        }
+
+        @Override
+        public void init() {
+        }
+
+        @Nonnull
+        @Override
+        public PhysicsSpace createSpace() {
+            return delegate.createSpace();
+        }
+
+        @Nonnull
+        @Override
+        public PhysicsSpace createSpace(@Nonnull SpaceId spaceId) {
+            return delegate.createSpace(new SpaceId(spaceId.value() + 1));
         }
     }
 

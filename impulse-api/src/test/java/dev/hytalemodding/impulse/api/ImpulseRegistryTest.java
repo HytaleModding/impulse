@@ -7,6 +7,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import dev.hytalemodding.impulse.api.runtime.PhysicsBackendRuntime;
 import dev.hytalemodding.impulse.api.runtime.PhysicsBackendRuntimeProvider;
+import dev.hytalemodding.impulse.api.testsupport.FakePhysicsBackend;
 import dev.hytalemodding.impulse.api.testsupport.FakePhysicsBackendRuntimeProvider;
 import java.util.HashSet;
 import java.util.List;
@@ -99,6 +100,32 @@ class ImpulseRegistryTest {
         } finally {
             executor.shutdownNow();
         }
+    }
+
+    @Test
+    void defaultExplicitSpaceCreationDoesNotSilentlyDropRequestedId() {
+        PhysicsBackend backend = new PhysicsBackend() {
+            @Nonnull
+            @Override
+            public BackendId getId() {
+                return new BackendId(uniqueId());
+            }
+
+            @Override
+            public void init() {
+            }
+
+            @Nonnull
+            @Override
+            public PhysicsSpace createSpace() {
+                return new FakePhysicsBackend(getId()).createSpace();
+            }
+        };
+
+        UnsupportedOperationException failure = assertThrows(UnsupportedOperationException.class,
+            () -> backend.createSpace(new SpaceId(Integer.MAX_VALUE)));
+
+        assertTrue(failure.getMessage().contains("must override createSpace(SpaceId)"));
     }
 
     private static String uniqueId() {
