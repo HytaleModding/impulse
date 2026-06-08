@@ -408,7 +408,6 @@ public final class LegacyPhysicsBackendRuntime implements PhysicsBackendRuntime 
             motorMaxForce);
         long jointId = nextJointId++;
         state.jointsById.put(jointId, joint);
-        state.jointIdsByJoint.put(joint, jointId);
         return jointId;
     }
 
@@ -419,7 +418,6 @@ public final class LegacyPhysicsBackendRuntime implements PhysicsBackendRuntime 
         if (joint == null) {
             return;
         }
-        state.jointIdsByJoint.remove(joint);
         state.space.removeJoint(joint);
     }
 
@@ -813,7 +811,6 @@ public final class LegacyPhysicsBackendRuntime implements PhysicsBackendRuntime 
         private final Map<Long, PhysicsBody> bodiesById = new HashMap<>();
         private final Map<PhysicsBody, Long> bodyIdsByBody = new IdentityHashMap<>();
         private final Map<Long, PhysicsJoint> jointsById = new HashMap<>();
-        private final Map<PhysicsJoint, Long> jointIdsByJoint = new IdentityHashMap<>();
 
         private SpaceState(@Nonnull PhysicsSpace space) {
             this.space = Objects.requireNonNull(space, "space");

@@ -17,8 +17,9 @@ public record RaycastClosestBatchQuery(@Nonnull SpaceId spaceId,
                                        @Nonnull List<RaycastSegment> rays)
     implements PhysicsQuery<RaycastClosestBatchResult> {
 
-    public RaycastClosestBatchQuery {
-        Objects.requireNonNull(spaceId, "spaceId");
-        rays = List.copyOf(Objects.requireNonNull(rays, "rays"));
+    public RaycastClosestBatchQuery(@Nonnull SpaceId spaceId,
+        @Nonnull List<RaycastSegment> rays) {
+        this.spaceId = Objects.requireNonNull(spaceId, "spaceId");
+        this.rays = List.copyOf(Objects.requireNonNull(rays, "rays"));
     }
 }

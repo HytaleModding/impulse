@@ -6,16 +6,14 @@ import java.lang.reflect.Constructor;
 import java.lang.reflect.Field;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
-import sun.reflect.ReflectionFactory;
+import org.objenesis.ObjenesisStd;
 
 /**
  * Allocates Hytale server classes whose public constructors bind to global server or plugin state.
  */
 public final class TestInstanceFactory {
 
-    private static final ReflectionFactory REFLECTION_FACTORY =
-        ReflectionFactory.getReflectionFactory();
-    private static final Constructor<Object> OBJECT_CONSTRUCTOR = objectConstructor();
+    private static final ObjenesisStd OBJENESIS = new ObjenesisStd();
 
     private TestInstanceFactory() {
     }
@@ -38,7 +36,7 @@ public final class TestInstanceFactory {
         if (constructed != null) {
             return constructed;
         }
-        return constructForSerialization(type);
+        return constructWithoutInvokingConstructor(type);
     }
 
     @Nullable
@@ -55,15 +53,10 @@ public final class TestInstanceFactory {
     }
 
     @Nonnull
-    private static <T> T constructForSerialization(@Nonnull Class<T> type) {
+    private static <T> T constructWithoutInvokingConstructor(@Nonnull Class<T> type) {
         try {
-            @SuppressWarnings("unchecked")
-            Constructor<T> constructor =
-                (Constructor<T>) REFLECTION_FACTORY.newConstructorForSerialization(type,
-                    OBJECT_CONSTRUCTOR);
-            constructor.setAccessible(true);
-            return constructor.newInstance();
-        } catch (ReflectiveOperationException exception) {
+            return OBJENESIS.newInstance(type);
+        } catch (RuntimeException exception) {
             throw new AssertionError("Failed to allocate test instance of " + type.getName(), exception);
         }
     }
@@ -81,13 +74,4 @@ public final class TestInstanceFactory {
         }
     }
 
-    @Nonnull
-    private static Constructor<Object> objectConstructor() {
-        try {
-            return Object.class.getDeclaredConstructor();
-        } catch (ReflectiveOperationException exception) {
-            throw new AssertionError("Failed to access Object constructor for test instance allocation",
-                exception);
-        }
-    }
 }

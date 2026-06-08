@@ -101,13 +101,13 @@ public final class RigidBodySpawnSettings {
     }
 
     @Nonnull
-    public static RigidBodySpawnSettings of(@Nullable Float friction,
+    public static RigidBodySpawnSettings fromOptionalValues(@Nullable Float friction,
         @Nullable Float restitution,
         @Nullable Float linearDamping,
         @Nullable Float angularDamping,
         @Nullable Integer collisionGroup,
         @Nullable Integer collisionMask) {
-        return of(friction,
+        return fromOptionalValues(friction,
             restitution,
             linearDamping,
             angularDamping,
@@ -117,7 +117,7 @@ public final class RigidBodySpawnSettings {
     }
 
     @Nonnull
-    public static RigidBodySpawnSettings of(@Nullable Float friction,
+    public static RigidBodySpawnSettings fromOptionalValues(@Nullable Float friction,
         @Nullable Float restitution,
         @Nullable Float linearDamping,
         @Nullable Float angularDamping,
@@ -156,7 +156,7 @@ public final class RigidBodySpawnSettings {
         if ((collisionGroup == null) != (collisionMask == null)) {
             throw new IllegalArgumentException("collisionGroup and collisionMask must be set together");
         }
-        if (collisionGroup != null) {
+        if (collisionGroup != null && collisionMask != null) {
             flags |= COLLISION_FILTER;
             collisionGroupValue = collisionGroup;
             collisionMaskValue = collisionMask;

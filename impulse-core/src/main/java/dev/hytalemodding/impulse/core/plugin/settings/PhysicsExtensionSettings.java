@@ -84,7 +84,7 @@ public class PhysicsExtensionSettings {
         @Nonnull String key) {
         return get(extensionId, key)
             .filter(value -> value.kind() == PhysicsExtensionSettingValue.Kind.INTEGER)
-            .map(value -> Integer.parseInt(value.value()));
+            .flatMap(PhysicsExtensionSettings::parseIntSetting);
     }
 
     @Nonnull
@@ -92,7 +92,7 @@ public class PhysicsExtensionSettings {
         @Nonnull String key) {
         return get(extensionId, key)
             .filter(value -> value.kind() == PhysicsExtensionSettingValue.Kind.FLOAT)
-            .map(value -> Float.parseFloat(value.value()));
+            .flatMap(PhysicsExtensionSettings::parseFloatSetting);
     }
 
     @Nonnull
@@ -136,6 +136,28 @@ public class PhysicsExtensionSettings {
         Objects.requireNonNull(key, "key");
         if (key.isBlank()) {
             throw new IllegalArgumentException("Extension setting key cannot be blank");
+        }
+    }
+
+    @Nonnull
+    private static Optional<Integer> parseIntSetting(@Nonnull PhysicsExtensionSettingValue value) {
+        try {
+            return Optional.of(Integer.parseInt(value.value()));
+        } catch (NumberFormatException exception) {
+            return Optional.empty();
+        }
+    }
+
+    @Nonnull
+    private static Optional<Float> parseFloatSetting(@Nonnull PhysicsExtensionSettingValue value) {
+        try {
+            float parsed = Float.parseFloat(value.value());
+            if (!Float.isFinite(parsed)) {
+                return Optional.empty();
+            }
+            return Optional.of(parsed);
+        } catch (NumberFormatException exception) {
+            return Optional.empty();
         }
     }
 }

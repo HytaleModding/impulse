@@ -48,7 +48,7 @@ public final class RigidBodyComponentValues {
     @Nonnull
     public static RigidBodySpawnSettings toSpawnSettings(@Nonnull RigidBodyComponent component) {
         Objects.requireNonNull(component, "component");
-        return RigidBodySpawnSettings.of(
+        return RigidBodySpawnSettings.fromOptionalValues(
             component.getFriction(),
             component.getRestitution(),
             component.getLinearDamping(),
