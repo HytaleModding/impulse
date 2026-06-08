@@ -232,7 +232,7 @@ public class PhysicsKinematicControlSystem extends EntityTickingSystem<EntitySto
     @Nonnull
     private ControlMutationState stateFor(@Nonnull Store<EntityStore> store) {
         synchronized (statesByStore) {
-            return statesByStore.computeIfAbsent(store, ignored -> new ControlMutationState());
+            return statesByStore.computeIfAbsent(store, _ -> new ControlMutationState());
         }
     }
 

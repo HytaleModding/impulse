@@ -176,14 +176,14 @@ final class ImpulseDetachedStreamingBenchmarkCrucibleTests {
 
             int count = plan.counts().get(stageIndex);
             return startStageWhenReady(count, 1)
-                .thenCompose(started -> contextWait(plan.warmupTicks()).thenCompose(ignored -> {
+                .thenCompose(started -> contextWait(plan.warmupTicks()).thenCompose(_ -> {
                     runtimeProfiling.reset();
                     worldCollisionProfiling.reset();
                     runtimeProfiling.setEnabled(true);
                     worldCollisionProfiling.setEnabled(true);
                     long startedNanos = System.nanoTime();
                     return contextWait(plan.sampleTicks()).thenApply(
-                        unused -> finishStage(count, started, startedNanos));
+                        _ -> finishStage(count, started, startedNanos));
                 }))
                 .thenCompose(report -> {
                     reports.add(report);
@@ -223,7 +223,7 @@ final class ImpulseDetachedStreamingBenchmarkCrucibleTests {
                         StartedStage.failed(count, message));
                 }
                 return contextWait(CHUNK_PREFLIGHT_WAIT_TICKS)
-                    .thenCompose(ignored -> startStageWhenReady(count, attempt + 1));
+                    .thenCompose(_ -> startStageWhenReady(count, attempt + 1));
             }
 
             int retained = retainChunks(chunks);
@@ -397,7 +397,7 @@ final class ImpulseDetachedStreamingBenchmarkCrucibleTests {
                                 spawns.body(bodyKeyRunId,
                                     i + 1L,
                                     (float) layout.positionX(i),
-                                    (float) layout.positionY(i),
+                                    (float) layout.positionY(),
                                     (float) layout.positionZ(i));
                             }
                         }))
@@ -418,7 +418,7 @@ final class ImpulseDetachedStreamingBenchmarkCrucibleTests {
                 addStreamingCollisionChunks(columns,
                     sections,
                     layout.positionX(i),
-                    layout.positionY(i),
+                    layout.positionY(),
                     layout.positionZ(i));
             }
             return new BenchmarkChunks(columns, sections);
@@ -866,7 +866,7 @@ final class ImpulseDetachedStreamingBenchmarkCrucibleTests {
             return origin.x + x * spacing;
         }
 
-        private double positionY(int index) {
+        private double positionY() {
             return origin.y;
         }
 

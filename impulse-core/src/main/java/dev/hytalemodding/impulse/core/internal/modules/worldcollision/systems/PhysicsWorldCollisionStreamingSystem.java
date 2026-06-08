@@ -100,7 +100,7 @@ public class PhysicsWorldCollisionStreamingSystem extends TickingSystem<EntitySt
             tickStart = snapshot != null ? System.nanoTime() : 0L;
             List<Vector3d> playerPositions = new ArrayList<>();
             BiConsumer<ArchetypeChunk<EntityStore>, CommandBuffer<EntityStore>> collector =
-                (chunk, commandBuffer) -> collectPlayerPositions(chunk, playerPositions);
+                (chunk, _) -> collectPlayerPositions(chunk, playerPositions);
             store.forEachChunk(systemIndex, collector);
             List<Vector3d> streamingPlayerPositions = List.copyOf(playerPositions);
 
@@ -386,7 +386,7 @@ public class PhysicsWorldCollisionStreamingSystem extends TickingSystem<EntitySt
     @Nonnull
     private StreamingState stateFor(@Nonnull Store<EntityStore> store) {
         synchronized (statesByStore) {
-            return statesByStore.computeIfAbsent(store, ignored -> new StreamingState());
+            return statesByStore.computeIfAbsent(store, _ -> new StreamingState());
         }
     }
 

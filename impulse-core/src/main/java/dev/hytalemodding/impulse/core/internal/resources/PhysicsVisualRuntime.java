@@ -41,7 +41,7 @@ public final class PhysicsVisualRuntime {
     }
 
     public void registerAttachment(@Nonnull RigidBodyKey bodyKey, @Nonnull Ref<EntityStore> attachment) {
-        bodyAttachments.computeIfAbsent(bodyKey, ignored -> new ObjectOpenHashSet<>())
+        bodyAttachments.computeIfAbsent(bodyKey, _ -> new ObjectOpenHashSet<>())
             .add(attachment);
     }
 
@@ -211,7 +211,7 @@ public final class PhysicsVisualRuntime {
     public BodyVisualInterestState getOrCreateBodyVisualInterestState(
         @Nonnull RigidBodyKey bodyKey) {
         return bodyVisualInterestStates.computeIfAbsent(bodyKey,
-            ignored -> new BodyVisualInterestState());
+            _ -> new BodyVisualInterestState());
     }
 
     @Nullable

@@ -61,7 +61,7 @@ final class GameplayAttachmentSnapshot {
             PhysicsBodyAttachmentComponent.getComponentType();
         Queue<RigidBodyKey> bodyKeys = new ConcurrentLinkedQueue<>();
         store.forEachEntityParallel(attachmentType,
-            (index, archetypeChunk, commandBuffer) -> {
+            (index, archetypeChunk, _) -> {
                 PhysicsBodyAttachmentComponent attachment = archetypeChunk.getComponent(index,
                     attachmentType);
                 if (attachment != null && attachment.getLifecycle() != AttachmentLifecycle.GENERATED_PROXY) {

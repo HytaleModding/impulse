@@ -50,7 +50,7 @@ public final class PhysicsMutationHandle<T> {
         @Nullable T value,
         @Nonnull CompletionStage<?> source) {
         CompletableFuture<T> completion = Objects.requireNonNull(source, "source")
-            .thenApply(ignored -> value)
+            .thenApply(_ -> value)
             .toCompletableFuture();
         return new PhysicsMutationHandle<>(operation, value, completion);
     }

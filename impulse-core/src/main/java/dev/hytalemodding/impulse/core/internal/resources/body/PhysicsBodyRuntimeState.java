@@ -20,7 +20,7 @@ public final class PhysicsBodyRuntimeState {
 
     @Nonnull
     public BodySyncState getOrCreateBodySyncState(@Nonnull Ref<EntityStore> entityRef) {
-        return bodySyncStates.computeIfAbsent(entityRef, ignored -> new BodySyncState());
+        return bodySyncStates.computeIfAbsent(entityRef, _ -> new BodySyncState());
     }
 
     @Nullable
