@@ -279,6 +279,45 @@ class PersistentPhysicsCodecValidationTest {
     }
 
     @Test
+    void bodyStateCodecNormalizesNonUnitQuaternion() {
+        BsonDocument encoded = encodeBody(persistentBodyState());
+        BsonDocument rotation = encoded.getDocument("Rotation");
+        rotation.put("X", new BsonDouble(0.0));
+        rotation.put("Y", new BsonDouble(0.0));
+        rotation.put("Z", new BsonDouble(0.0));
+        rotation.put("W", new BsonDouble(2.0));
+
+        PersistentPhysicsBodyState decoded =
+            PersistentPhysicsBodyState.CODEC.decode(encoded, new ExtraInfo());
+
+        Assertions.assertNotNull(decoded);
+        assertEquals(1.0f, decoded.getRotation().lengthSquared(), 0.0001f);
+        assertEquals(1.0f, decoded.getRotation().w, 0.0001f);
+    }
+
+    @Test
+    void bodyStateRestoreNormalizesQuaternionBeforeBackendHandoff() {
+        BsonDocument encoded = encodeBody(persistentBodyState());
+        BsonDocument rotation = encoded.getDocument("Rotation");
+        rotation.put("X", new BsonDouble(0.0));
+        rotation.put("Y", new BsonDouble(0.0));
+        rotation.put("Z", new BsonDouble(0.0));
+        rotation.put("W", new BsonDouble(2.0));
+        PersistentPhysicsBodyState decoded =
+            PersistentPhysicsBodyState.CODEC.decode(encoded, new ExtraInfo());
+        SpaceFixture restore = spaceFixture("test:quaternion-restore-", PhysicsSpaceSettings.defaults());
+
+        Assertions.assertNotNull(decoded);
+        BackendBodyHandle restoredBodyHandle = decoded.createBackendBody(restore.binding());
+        decoded.applyToBody(restore.binding(), restoredBodyHandle);
+        PhysicsBodySnapshot restored = PhysicsBodySnapshots.read(restore.binding(), restoredBodyHandle.value());
+
+        Assertions.assertNotNull(restored);
+        assertEquals(1.0f, restored.rotation().lengthSquared(), 0.0001f);
+        assertEquals(1.0f, restored.rotationW(), 0.0001f);
+    }
+
+    @Test
     void bodyStateCodecRejectsUnsupportedPersistentShape() {
         BsonDocument encoded = encodeBody(persistentBodyState());
         encoded.put("ShapeType", new BsonString("Voxels"));
