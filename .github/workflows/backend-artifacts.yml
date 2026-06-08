@@ -3,6 +3,9 @@ name: Backend Artifacts
 on:
   workflow_dispatch:
 
+permissions:
+  contents: read
+
 jobs:
   rapier-native:
     name: Rapier native ${{ matrix.platform }}
