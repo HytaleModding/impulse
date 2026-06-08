@@ -1,6 +1,7 @@
 package dev.hytalemodding.impulse.core;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -33,6 +34,37 @@ class ImpulsePluginBackendSelectionTest {
 
     @TempDir
     private Path tempDir;
+
+    @Test
+    void ownerPoolSizeConfigReportsDefaultAcceptedAndFallbackValues() {
+        String property = ImpulsePlugin.OWNER_POOL_SIZE_PROPERTY;
+        String previous = System.getProperty(property);
+        try {
+            System.clearProperty(property);
+            ImpulsePlugin.ConfiguredPositiveInt defaultValue =
+                ImpulsePlugin.configuredPositiveIntDetails(property, 1);
+            assertEquals(1, defaultValue.value());
+            assertFalse(defaultValue.usedFallback());
+
+            System.setProperty(property, "2");
+            ImpulsePlugin.ConfiguredPositiveInt configuredValue =
+                ImpulsePlugin.configuredPositiveIntDetails(property, 1);
+            assertEquals(2, configuredValue.value());
+            assertFalse(configuredValue.usedFallback());
+
+            System.setProperty(property, "0");
+            ImpulsePlugin.ConfiguredPositiveInt invalidValue =
+                ImpulsePlugin.configuredPositiveIntDetails(property, 1);
+            assertEquals(1, invalidValue.value());
+            assertTrue(invalidValue.usedFallback());
+        } finally {
+            if (previous == null) {
+                System.clearProperty(property);
+            } else {
+                System.setProperty(property, previous);
+            }
+        }
+    }
 
     @Test
     void singleRuntimeProviderIsDefaultBackend() {
