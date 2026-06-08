@@ -121,12 +121,11 @@ public class PersistentPhysicsJointHydrationSystem extends TickingSystem<EntityS
             try {
                 PersistentPhysicsRuntimeSupport.createJoint(runtime, space, state, bodyAKey, bodyA, bodyBKey, bodyB);
             } catch (RuntimeException exception) {
-                persistent.recordRuntimeJointSkipped(key, "joint creation failed");
-                LOGGER.at(Level.WARNING).log(
-                    "Skipping persisted joint in space %s because creation failed: %s",
-                    state.getSpaceId(),
-                    exception.getMessage());
-                continue;
+                persistent.failRuntimeRestore("Failed to hydrate persisted joint in space "
+                    + state.getSpaceId()
+                    + ": "
+                    + exception.getClass().getSimpleName());
+                return;
             }
             persistent.recordRuntimeJointRestored();
             existing.add(key);
