@@ -26,7 +26,7 @@ public final class PhysicsBodySnapshots {
     public static PhysicsBodySnapshot read(@Nonnull PhysicsBackendRuntime runtime,
         int spaceId,
         long backendBodyId) {
-        SnapshotCapture capture = new SnapshotCapture();
+        SnapshotCapture capture = new SnapshotCapture(backendBodyId);
         boolean present = runtime.bodySnapshot(spaceId,
             backendBodyId,
             capture);
@@ -104,8 +104,13 @@ public final class PhysicsBodySnapshots {
 
     private static final class SnapshotCapture implements BackendBodySnapshotSink {
 
+        private final long expectedBodyId;
         @Nullable
         private PhysicsBodySnapshot snapshot;
+
+        private SnapshotCapture(long expectedBodyId) {
+            this.expectedBodyId = expectedBodyId;
+        }
 
         @Override
         public void accept(long bodyId,
@@ -142,6 +147,10 @@ public final class PhysicsBodySnapshots {
             float radius,
             float halfHeight,
             int axisCode) {
+            if (bodyId != expectedBodyId) {
+                throw new IllegalStateException("Backend emitted snapshot for unexpected body id "
+                    + bodyId + " while reading " + expectedBodyId);
+            }
             snapshot = fromRuntimeFields(shapeTypeCode,
                 bodyTypeCode,
                 positionX,
