@@ -68,8 +68,7 @@ public final class PhysicsBodySnapshotStore {
     }
 
     @Nonnull
-    public ApplyStats applyPublishedFrame(@Nonnull PublishedPhysicsSnapshotFrame frame,
-        @Nonnull PhysicsBodyRegistry bodyRegistry) {
+    public ApplyStats applyPublishedFrame(@Nonnull PublishedPhysicsSnapshotFrame frame) {
         PublishedFrameApplier applier = new PublishedFrameApplier(nextLivenessGeneration());
         frame.forEachBodyCursor(applier);
         return new ApplyStats(applier.applied(), applier.inserted(), retainMarked(applier.generation()));

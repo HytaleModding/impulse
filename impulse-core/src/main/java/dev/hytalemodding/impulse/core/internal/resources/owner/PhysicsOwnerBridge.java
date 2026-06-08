@@ -125,7 +125,7 @@ public final class PhysicsOwnerBridge {
         Objects.requireNonNull(operation, "operation");
         Objects.requireNonNull(callable, "callable");
         if (owner.isOwnerContext()) {
-            return callInlineAsync(operation, callable);
+            return callInlineAsync(callable);
         }
 
         CompletableFuture<T> completion = new CompletableFuture<>();
@@ -176,8 +176,7 @@ public final class PhysicsOwnerBridge {
     }
 
     @Nonnull
-    private static <T> CompletableFuture<T> callInlineAsync(@Nonnull String operation,
-        @Nonnull OwnerCallable<T> callable) {
+    private static <T> CompletableFuture<T> callInlineAsync(@Nonnull OwnerCallable<T> callable) {
         try {
             return CompletableFuture.completedFuture(callable.call());
         } catch (Throwable throwable) {

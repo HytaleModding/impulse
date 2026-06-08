@@ -69,24 +69,14 @@ class PhysicsBodySnapshotStoreTest {
 
     @Test
     void appliesPublishedFramesIncrementallyWithoutReinsertingUnchangedBodies() {
-        FakePhysicsBackend backend = new FakePhysicsBackend("test:snapshot-store-incremental");
-        var space = backend.createSpace(new SpaceId(1));
-        PhysicsBody body = space.createBox(0.5f, 0.5f, 0.5f, 1.0f);
+        SpaceId spaceId = new SpaceId(1);
         RigidBodyKey bodyId = RigidBodyKey.of(0L, 1L);
-        PhysicsBodyRegistry registry = new PhysicsBodyRegistry();
-        registry.registerBody(bodyId,
-            handle(1L),
-            space.id(),
-            PhysicsBodyKind.BODY,
-            PhysicsBodyPersistenceMode.RUNTIME_ONLY);
         PhysicsBodySnapshotStore store = new PhysicsBodySnapshotStore();
 
         PhysicsBodySnapshotStore.ApplyStats firstApply = store.applyPublishedFrame(
-            frame(space.id(), bodyId, 1L, new Vector3f(1.0f, 2.0f, 3.0f)),
-            registry);
+            frame(spaceId, bodyId, 1L, new Vector3f(1.0f, 2.0f, 3.0f)));
         PhysicsBodySnapshotStore.ApplyStats secondApply = store.applyPublishedFrame(
-            frame(space.id(), bodyId, 2L, new Vector3f(2.0f, 2.0f, 3.0f)),
-            registry);
+            frame(spaceId, bodyId, 2L, new Vector3f(2.0f, 2.0f, 3.0f)));
 
         assertEquals(1, firstApply.applied());
         assertEquals(1, firstApply.inserted());
@@ -95,7 +85,7 @@ class PhysicsBodySnapshotStoreTest {
         assertEquals(0, secondApply.inserted());
         assertEquals(0, secondApply.removed());
         assertEquals(1, store.bodyCount());
-        assertEquals(1, store.bodyCount(space.id()));
+        assertEquals(1, store.bodyCount(spaceId));
         assertEquals(1, store.cellCount());
     }
 
@@ -106,8 +96,7 @@ class PhysicsBodySnapshotStoreTest {
         PhysicsBodySnapshotStore store = new PhysicsBodySnapshotStore();
 
         PhysicsBodySnapshotStore.ApplyStats apply = store.applyPublishedFrame(
-            frame(spaceId, bodyId, 1L, new Vector3f(1.0f, 2.0f, 3.0f)),
-            new PhysicsBodyRegistry());
+            frame(spaceId, bodyId, 1L, new Vector3f(1.0f, 2.0f, 3.0f)));
 
         assertEquals(1, apply.applied());
         assertEquals(1, apply.inserted());
@@ -117,23 +106,13 @@ class PhysicsBodySnapshotStoreTest {
 
     @Test
     void applyPublishedFrameReusesSnapshotWhenBodyStateIsUnchanged() {
-        FakePhysicsBackend backend = new FakePhysicsBackend("test:snapshot-store-unchanged-apply");
-        var space = backend.createSpace(new SpaceId(1));
-        PhysicsBody body = space.createBox(0.5f, 0.5f, 0.5f, 1.0f);
+        SpaceId spaceId = new SpaceId(1);
         RigidBodyKey bodyId = RigidBodyKey.of(0L, 2L);
-        PhysicsBodyRegistry registry = new PhysicsBodyRegistry();
-        registry.registerBody(bodyId,
-            handle(1L),
-            space.id(),
-            PhysicsBodyKind.BODY,
-            PhysicsBodyPersistenceMode.RUNTIME_ONLY);
         PhysicsBodySnapshotStore store = new PhysicsBodySnapshotStore();
 
-        store.applyPublishedFrame(frame(space.id(), bodyId, 1L, new Vector3f(1.0f, 2.0f, 3.0f)),
-            registry);
+        store.applyPublishedFrame(frame(spaceId, bodyId, 1L, new Vector3f(1.0f, 2.0f, 3.0f)));
         var firstSnapshot = store.get(bodyId);
-        store.applyPublishedFrame(frame(space.id(), bodyId, 2L, new Vector3f(1.0f, 2.0f, 3.0f)),
-            registry);
+        store.applyPublishedFrame(frame(spaceId, bodyId, 2L, new Vector3f(1.0f, 2.0f, 3.0f)));
 
         assertSame(firstSnapshot, store.get(bodyId));
     }
