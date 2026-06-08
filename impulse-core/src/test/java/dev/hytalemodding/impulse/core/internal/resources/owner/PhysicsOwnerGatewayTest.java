@@ -3,11 +3,14 @@ package dev.hytalemodding.impulse.core.internal.resources.owner;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import dev.hytalemodding.impulse.core.plugin.resources.PhysicsMutationHandle;
+import java.util.Objects;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
+import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.atomic.AtomicInteger;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
@@ -110,14 +113,52 @@ class PhysicsOwnerGatewayTest {
         assertInstanceOf(IllegalArgumentException.class, thrown.getCause());
     }
 
+    @Test
+    void routedAsyncRejectionsReturnFailedHandlesAndFutures() {
+        PhysicsOwnerGateway gateway = new PhysicsOwnerGateway();
+        RecordingOwnerExecutor executor = new RecordingOwnerExecutor();
+        gateway.attachOwnerExecutor(executor);
+        executor.rejectAsync = true;
+
+        PhysicsMutationHandle<String> mutation = gateway.enqueue("rejected mutation",
+            "value",
+            () -> {
+            });
+        CompletableFuture<String> asyncCall = gateway.enqueueCall("rejected call", () -> "ignored");
+
+        assertTrue(mutation.failed());
+        assertInstanceOf(RejectedExecutionException.class, mutation.failure());
+        ExecutionException thrown = assertThrowsExecution(asyncCall);
+        assertInstanceOf(RejectedExecutionException.class, thrown.getCause());
+    }
+
+    @Test
+    void synchronousWaitGuardRejectsCompletionCallbackContext() {
+        PhysicsOwnerGateway gateway = new PhysicsOwnerGateway();
+        RecordingOwnerExecutor executor = new RecordingOwnerExecutor();
+        gateway.attachOwnerExecutor(executor);
+
+        executor.completionCallbackContext = true;
+
+        assertThrows(RejectedExecutionException.class,
+            () -> gateway.rejectSynchronousCompletionCallbackWait("release control session"));
+    }
+
     private static final class RecordingOwnerExecutor implements PhysicsOwnerExecutor {
 
         private final ThreadLocal<Boolean> ownerContext = ThreadLocal.withInitial(() -> false);
         private final AtomicInteger routedOperations = new AtomicInteger();
+        private boolean completionCallbackContext;
+        private boolean rejectAsync;
 
         @Override
         public boolean isOwnerContext() {
             return ownerContext.get();
+        }
+
+        @Override
+        public boolean isCompletionCallbackContext() {
+            return completionCallbackContext;
         }
 
         @Override
@@ -135,6 +176,9 @@ class PhysicsOwnerGatewayTest {
         public <T> PhysicsMutationHandle<T> enqueue(@Nonnull String operation,
             @Nullable T value,
             @Nonnull PhysicsOwnerMutation mutation) {
+            if (rejectAsync) {
+                throw new RejectedExecutionException("forced async rejection");
+            }
             try {
                 run(operation, mutation);
                 return PhysicsMutationHandle.completed(operation, value);
@@ -147,6 +191,9 @@ class PhysicsOwnerGatewayTest {
         @Override
         public <T> CompletableFuture<T> enqueueCall(@Nonnull String operation,
             @Nonnull PhysicsOwnerCallable<T> callable) {
+            if (rejectAsync) {
+                throw new RejectedExecutionException("forced async call rejection");
+            }
             try {
                 return CompletableFuture.completedFuture(call(operation, callable));
             } catch (Throwable throwable) {
@@ -161,7 +208,7 @@ class PhysicsOwnerGatewayTest {
         public <T> T call(@Nonnull String operation,
             @Nonnull PhysicsOwnerCallable<T> callable) {
             routedOperations.incrementAndGet();
-            return runInOwnerContext(callable);
+            return Objects.requireNonNull(runInOwnerContext(callable));
         }
 
         int routedOperations() {

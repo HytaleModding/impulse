@@ -25,10 +25,13 @@ public final class PhysicsOwnerLaneScheduler implements AutoCloseable {
 
     private static final ThreadLocal<PhysicsOwnerLaneResource> CURRENT_LANE =
         new ThreadLocal<>();
+    private static final ThreadLocal<PhysicsOwnerLaneResource> COMPLETING_LANE =
+        new ThreadLocal<>();
 
     private final Object lifecycleLock = new Object();
     private final Set<PhysicsOwnerLaneResource> lanes = ConcurrentHashMap.newKeySet();
     private final ExecutorService executor;
+    private final ExecutorService completionExecutor;
     private final int queueCapacity;
     @Nonnull
     private final Duration closeTimeout;
@@ -47,6 +50,8 @@ public final class PhysicsOwnerLaneScheduler implements AutoCloseable {
         this.queueCapacity = queueCapacity;
         this.closeTimeout = Objects.requireNonNull(closeTimeout, "closeTimeout");
         executor = Executors.newFixedThreadPool(poolSize, new OwnerLaneThreadFactory());
+        completionExecutor = Executors.newThreadPerTaskExecutor(
+            Thread.ofVirtual().name("Impulse physics owner completion ", 1).factory());
     }
 
     @Nonnull
@@ -67,6 +72,10 @@ public final class PhysicsOwnerLaneScheduler implements AutoCloseable {
         return CURRENT_LANE.get() == lane;
     }
 
+    boolean isCompletingAnyLane() {
+        return COMPLETING_LANE.get() != null;
+    }
+
     @Nullable
     PhysicsOwnerLaneResource currentLane() {
         return CURRENT_LANE.get();
@@ -84,12 +93,32 @@ public final class PhysicsOwnerLaneScheduler implements AutoCloseable {
         }
     }
 
+    void completeOutsideOwnerContext(@Nonnull PhysicsOwnerLaneResource lane,
+        @Nonnull Runnable completion) {
+        Objects.requireNonNull(lane, "lane");
+        Objects.requireNonNull(completion, "completion");
+        try {
+            completionExecutor.execute(() -> runCompletion(lane, completion));
+        } catch (RejectedExecutionException exception) {
+            try {
+                runCompletion(lane, completion);
+            } catch (RuntimeException | Error completionFailure) {
+                exception.addSuppressed(completionFailure);
+            }
+        }
+    }
+
     void unregister(@Nonnull PhysicsOwnerLaneResource lane) {
         lanes.remove(Objects.requireNonNull(lane, "lane"));
     }
 
     @Override
     public void close() {
+        if (CURRENT_LANE.get() != null || COMPLETING_LANE.get() != null) {
+            throw new RejectedExecutionException(
+                "cannot synchronously close the physics owner lane scheduler from owner context");
+        }
+
         ArrayList<PhysicsOwnerLaneResource> lanesToClose;
         synchronized (lifecycleLock) {
             if (closed) {
@@ -113,11 +142,13 @@ public final class PhysicsOwnerLaneScheduler implements AutoCloseable {
         }
 
         executor.shutdown();
-        boolean stopped = awaitExecutorStop();
+        boolean ownerStopped = awaitExecutorStop(executor);
+        completionExecutor.shutdown();
+        boolean completionStopped = awaitExecutorStop(completionExecutor);
         synchronized (lifecycleLock) {
             closed = true;
         }
-        if (!stopped) {
+        if (!ownerStopped || !completionStopped) {
             IllegalStateException timeout = new IllegalStateException(
                 "Physics owner lane scheduler did not stop within " + closeTimeout);
             if (closeFailure != null) {
@@ -145,20 +176,42 @@ public final class PhysicsOwnerLaneScheduler implements AutoCloseable {
         }
     }
 
-    private boolean awaitExecutorStop() {
+    private void runCompletion(@Nonnull PhysicsOwnerLaneResource lane,
+        @Nonnull Runnable completion) {
+        PhysicsOwnerLaneResource previousCurrent = CURRENT_LANE.get();
+        PhysicsOwnerLaneResource previousCompleting = COMPLETING_LANE.get();
+        CURRENT_LANE.remove();
+        COMPLETING_LANE.set(lane);
+        try {
+            completion.run();
+        } finally {
+            if (previousCompleting == null) {
+                COMPLETING_LANE.remove();
+            } else {
+                COMPLETING_LANE.set(previousCompleting);
+            }
+            if (previousCurrent == null) {
+                CURRENT_LANE.remove();
+            } else {
+                CURRENT_LANE.set(previousCurrent);
+            }
+        }
+    }
+
+    private boolean awaitExecutorStop(@Nonnull ExecutorService target) {
         long timeoutNanos = Math.max(0L, closeTimeout.toNanos());
         long deadline = timeoutNanos == 0L
             ? Long.MAX_VALUE
             : System.nanoTime() + timeoutNanos;
         boolean interrupted = false;
         try {
-            while (!executor.isTerminated()) {
+            while (!target.isTerminated()) {
                 long remainingNanos = deadline - System.nanoTime();
                 if (remainingNanos <= 0L) {
                     return false;
                 }
                 try {
-                    if (executor.awaitTermination(remainingNanos, TimeUnit.NANOSECONDS)) {
+                    if (target.awaitTermination(remainingNanos, TimeUnit.NANOSECONDS)) {
                         return true;
                     }
                 } catch (InterruptedException exception) {
@@ -185,4 +238,5 @@ public final class PhysicsOwnerLaneScheduler implements AutoCloseable {
             return thread;
         }
     }
+
 }

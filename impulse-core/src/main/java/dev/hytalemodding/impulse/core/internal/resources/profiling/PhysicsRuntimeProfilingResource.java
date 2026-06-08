@@ -17,14 +17,13 @@ import lombok.Setter;
  * world step and entity sync phases. It is intentionally operational only and
  * is not part of persisted world physics state.</p>
  */
-@Getter
 public class PhysicsRuntimeProfilingResource implements Resource<EntityStore> {
 
-    @Setter
     private boolean enabled;
 
     private final StepSnapshot cumulativeStep = new StepSnapshot();
     private final StepSnapshot latestStep = new StepSnapshot();
+    private final StepSnapshot latestCompletedStep = new StepSnapshot();
     private final StepSnapshot worstStep = new StepSnapshot();
     private final SyncSnapshot cumulativeSync = new SyncSnapshot();
     private final SyncSnapshot latestSync = new SyncSnapshot();
@@ -40,11 +39,74 @@ public class PhysicsRuntimeProfilingResource implements Resource<EntityStore> {
     public PhysicsRuntimeProfilingResource() {
     }
 
-    public void recordStep(int spaces, int substeps, long nanos) {
+    public synchronized boolean isEnabled() {
+        return enabled;
+    }
+
+    public synchronized void setEnabled(boolean enabled) {
+        this.enabled = enabled;
+    }
+
+    @Nonnull
+    public synchronized StepSnapshot getCumulativeStep() {
+        return copy(cumulativeStep);
+    }
+
+    @Nonnull
+    public synchronized StepSnapshot getLatestStep() {
+        return copy(latestStep);
+    }
+
+    @Nonnull
+    public synchronized StepSnapshot getLatestCompletedStep() {
+        return copy(latestCompletedStep);
+    }
+
+    @Nonnull
+    public synchronized StepSnapshot getWorstStep() {
+        return copy(worstStep);
+    }
+
+    @Nonnull
+    public synchronized SyncSnapshot getCumulativeSync() {
+        return copy(cumulativeSync);
+    }
+
+    @Nonnull
+    public synchronized SyncSnapshot getLatestSync() {
+        return copy(latestSync);
+    }
+
+    @Nonnull
+    public synchronized SyncSnapshot getWorstSync() {
+        return copy(worstSync);
+    }
+
+    @Nonnull
+    public synchronized VisualSnapshot getCumulativeVisual() {
+        return copy(cumulativeVisual);
+    }
+
+    @Nonnull
+    public synchronized VisualSnapshot getLatestVisual() {
+        return copy(latestVisual);
+    }
+
+    @Nonnull
+    public synchronized VisualSnapshot getWorstVisual() {
+        return copy(worstVisual);
+    }
+
+    @Nullable
+    public synchronized SyncCollector getActiveSyncCollector() {
+        return activeSyncCollector;
+    }
+
+    public synchronized void recordStep(int spaces, int substeps, long nanos) {
         recordStep(spaces, substeps, nanos, 0, 0, 0, 0, 0);
     }
 
-    public void recordStep(int spaces,
+    public synchronized void recordStep(int spaces,
         int substeps,
         long nanos,
         int bodySnapshots,
@@ -60,7 +122,7 @@ public class PhysicsRuntimeProfilingResource implements Resource<EntityStore> {
             0L);
     }
 
-    public void recordStep(int spaces,
+    public synchronized void recordStep(int spaces,
         int substeps,
         long nanos,
         int bodySnapshots,
@@ -80,7 +142,7 @@ public class PhysicsRuntimeProfilingResource implements Resource<EntityStore> {
             PhysicsStepPhaseStats.unavailable());
     }
 
-    public void recordStep(int spaces,
+    public synchronized void recordStep(int spaces,
         int substeps,
         long nanos,
         int bodySnapshots,
@@ -101,7 +163,7 @@ public class PhysicsRuntimeProfilingResource implements Resource<EntityStore> {
             nativePhaseStats);
     }
 
-    public void recordStep(int spaces,
+    public synchronized void recordStep(int spaces,
         int substeps,
         long nanos,
         int bodySnapshots,
@@ -111,6 +173,34 @@ public class PhysicsRuntimeProfilingResource implements Resource<EntityStore> {
         long ownerRunNanos,
         long ownerCompletedNanos,
         @Nonnull PhysicsStepPhaseStats nativePhaseStats) {
+        recordStep(spaces,
+            substeps,
+            nanos,
+            bodySnapshots,
+            spatialIndexCells,
+            snapshotNanos,
+            ownerQueuedNanos,
+            ownerRunNanos,
+            ownerCompletedNanos,
+            nativePhaseStats,
+            0,
+            0L,
+            0);
+    }
+
+    public synchronized void recordStep(int spaces,
+        int substeps,
+        long nanos,
+        int bodySnapshots,
+        int spatialIndexCells,
+        long snapshotNanos,
+        long ownerQueuedNanos,
+        long ownerRunNanos,
+        long ownerCompletedNanos,
+        @Nonnull PhysicsStepPhaseStats nativePhaseStats,
+        int preStepDrainedMutations,
+        long preStepDrainRunNanos,
+        int lateMutationBacklogAtStep) {
         StepSnapshot snapshot = new StepSnapshot();
         snapshot.recordTickSample();
         snapshot.setSpaces(spaces);
@@ -123,30 +213,37 @@ public class PhysicsRuntimeProfilingResource implements Resource<EntityStore> {
         snapshot.setOwnerRunNanos(ownerRunNanos);
         snapshot.recordOwnerStepInterval(recordOwnerStepInterval(ownerCompletedNanos));
         snapshot.setNativePhaseStats(nativePhaseStats);
+        snapshot.recordPreStepDrain(Math.max(0, preStepDrainedMutations),
+            Math.max(0L, preStepDrainRunNanos),
+            Math.max(0, lateMutationBacklogAtStep));
 
         latestStep.copyFrom(snapshot);
+        latestCompletedStep.copyFrom(snapshot);
         cumulativeStep.add(snapshot);
+        int previousMaxPreStepDrainedMutations = worstStep.getMaxPreStepDrainedMutations();
+        int previousMaxLateMutationBacklogAtStep = worstStep.getMaxLateMutationBacklogAtStep();
         if (snapshot.getTickNanos() >= worstStep.getTickNanos()) {
             worstStep.copyFrom(snapshot);
         }
+        worstStep.retainPreStepDrainMaxima(previousMaxPreStepDrainedMutations,
+            previousMaxLateMutationBacklogAtStep);
+        worstStep.retainPreStepDrainMaxima(snapshot);
     }
 
-    public void recordStepSkippedPending(long pendingStepAgeNanos) {
+    public synchronized void recordStepSkippedPending(long pendingStepAgeNanos) {
         long safePendingStepAgeNanos = Math.max(0L, pendingStepAgeNanos);
         StepSnapshot snapshot = new StepSnapshot();
         snapshot.setSkippedPendingSteps(1);
         snapshot.setPendingStepAgeNanos(safePendingStepAgeNanos);
         snapshot.setMaxPendingStepAgeNanos(safePendingStepAgeNanos);
-        latestStep.setSkippedPendingSteps(1);
-        latestStep.setPendingStepAgeNanos(safePendingStepAgeNanos);
-        latestStep.setMaxPendingStepAgeNanos(safePendingStepAgeNanos);
+        latestStep.copyFrom(snapshot);
         cumulativeStep.add(snapshot);
         if (safePendingStepAgeNanos >= worstStep.getMaxPendingStepAgeNanos()) {
             worstStep.setMaxPendingStepAgeNanos(safePendingStepAgeNanos);
         }
     }
 
-    public void recordStepScheduling(float inputDtSeconds,
+    public synchronized void recordStepScheduling(float inputDtSeconds,
         float submittedDtSeconds,
         float backlogDtSeconds,
         float droppedBacklogDtSeconds,
@@ -170,13 +267,13 @@ public class PhysicsRuntimeProfilingResource implements Resource<EntityStore> {
     }
 
     @Nonnull
-    public SyncCollector beginSyncSample() {
+    public synchronized SyncCollector beginSyncSample() {
         SyncCollector collector = new SyncCollector();
         activeSyncCollector = collector;
         return collector;
     }
 
-    public void finishSyncSample(@Nonnull SyncCollector collector, long nanos) {
+    public synchronized void finishSyncSample(@Nonnull SyncCollector collector, long nanos) {
         SyncSnapshot snapshot = new SyncSnapshot();
         snapshot.copyFrom(collector.snapshot(nanos));
         snapshot.recordTickSample();
@@ -192,11 +289,11 @@ public class PhysicsRuntimeProfilingResource implements Resource<EntityStore> {
     }
 
     @Nonnull
-    public VisualCollector beginVisualSample() {
+    public synchronized VisualCollector beginVisualSample() {
         return new VisualCollector();
     }
 
-    public void finishVisualSample(@Nonnull VisualCollector collector, long nanos) {
+    public synchronized void finishVisualSample(@Nonnull VisualCollector collector, long nanos) {
         VisualSnapshot snapshot = new VisualSnapshot();
         snapshot.copyFrom(collector.snapshot(nanos));
         snapshot.recordTickSample();
@@ -208,9 +305,10 @@ public class PhysicsRuntimeProfilingResource implements Resource<EntityStore> {
         }
     }
 
-    public void reset() {
+    public synchronized void reset() {
         cumulativeStep.reset();
         latestStep.reset();
+        latestCompletedStep.reset();
         worstStep.reset();
         cumulativeSync.reset();
         latestSync.reset();
@@ -224,11 +322,12 @@ public class PhysicsRuntimeProfilingResource implements Resource<EntityStore> {
 
     @Nonnull
     @Override
-    public PhysicsRuntimeProfilingResource clone() {
+    public synchronized PhysicsRuntimeProfilingResource clone() {
         PhysicsRuntimeProfilingResource copy = new PhysicsRuntimeProfilingResource();
         copy.enabled = enabled;
         copy.cumulativeStep.copyFrom(cumulativeStep);
         copy.latestStep.copyFrom(latestStep);
+        copy.latestCompletedStep.copyFrom(latestCompletedStep);
         copy.worstStep.copyFrom(worstStep);
         copy.cumulativeSync.copyFrom(cumulativeSync);
         copy.latestSync.copyFrom(latestSync);
@@ -271,6 +370,27 @@ public class PhysicsRuntimeProfilingResource implements Resource<EntityStore> {
         return ImpulsePlugin.get().getPhysicsRuntimeProfilingResourceType();
     }
 
+    @Nonnull
+    private static StepSnapshot copy(@Nonnull StepSnapshot source) {
+        StepSnapshot copy = new StepSnapshot();
+        copy.copyFrom(source);
+        return copy;
+    }
+
+    @Nonnull
+    private static SyncSnapshot copy(@Nonnull SyncSnapshot source) {
+        SyncSnapshot copy = new SyncSnapshot();
+        copy.copyFrom(source);
+        return copy;
+    }
+
+    @Nonnull
+    private static VisualSnapshot copy(@Nonnull VisualSnapshot source) {
+        VisualSnapshot copy = new VisualSnapshot();
+        copy.copyFrom(source);
+        return copy;
+    }
+
     @Getter
     public static final class StepSnapshot {
 
@@ -291,6 +411,11 @@ public class PhysicsRuntimeProfilingResource implements Resource<EntityStore> {
         private long ownerQueuedNanos;
         @Setter
         private long ownerRunNanos;
+        private int preStepDrainedMutations;
+        private int maxPreStepDrainedMutations;
+        private long preStepDrainRunNanos;
+        private int lateMutationBacklogAtStep;
+        private int maxLateMutationBacklogAtStep;
         private int ownerStepRateSamples;
         private long ownerStepIntervalNanos;
         private long maxOwnerStepIntervalNanos;
@@ -331,6 +456,11 @@ public class PhysicsRuntimeProfilingResource implements Resource<EntityStore> {
             snapshotNanos = other.snapshotNanos;
             ownerQueuedNanos = other.ownerQueuedNanos;
             ownerRunNanos = other.ownerRunNanos;
+            preStepDrainedMutations = other.preStepDrainedMutations;
+            maxPreStepDrainedMutations = other.maxPreStepDrainedMutations;
+            preStepDrainRunNanos = other.preStepDrainRunNanos;
+            lateMutationBacklogAtStep = other.lateMutationBacklogAtStep;
+            maxLateMutationBacklogAtStep = other.maxLateMutationBacklogAtStep;
             ownerStepRateSamples = other.ownerStepRateSamples;
             ownerStepIntervalNanos = other.ownerStepIntervalNanos;
             maxOwnerStepIntervalNanos = other.maxOwnerStepIntervalNanos;
@@ -364,6 +494,13 @@ public class PhysicsRuntimeProfilingResource implements Resource<EntityStore> {
             snapshotNanos += other.snapshotNanos;
             ownerQueuedNanos += other.ownerQueuedNanos;
             ownerRunNanos += other.ownerRunNanos;
+            preStepDrainedMutations += other.preStepDrainedMutations;
+            maxPreStepDrainedMutations = Math.max(maxPreStepDrainedMutations,
+                other.maxPreStepDrainedMutations);
+            preStepDrainRunNanos += other.preStepDrainRunNanos;
+            lateMutationBacklogAtStep += other.lateMutationBacklogAtStep;
+            maxLateMutationBacklogAtStep = Math.max(maxLateMutationBacklogAtStep,
+                other.maxLateMutationBacklogAtStep);
             ownerStepRateSamples += other.ownerStepRateSamples;
             ownerStepIntervalNanos += other.ownerStepIntervalNanos;
             maxOwnerStepIntervalNanos = Math.max(maxOwnerStepIntervalNanos,
@@ -400,6 +537,11 @@ public class PhysicsRuntimeProfilingResource implements Resource<EntityStore> {
             snapshotNanos = 0L;
             ownerQueuedNanos = 0L;
             ownerRunNanos = 0L;
+            preStepDrainedMutations = 0;
+            maxPreStepDrainedMutations = 0;
+            preStepDrainRunNanos = 0L;
+            lateMutationBacklogAtStep = 0;
+            maxLateMutationBacklogAtStep = 0;
             ownerStepRateSamples = 0;
             ownerStepIntervalNanos = 0L;
             maxOwnerStepIntervalNanos = 0L;
@@ -433,6 +575,29 @@ public class PhysicsRuntimeProfilingResource implements Resource<EntityStore> {
             ownerStepRateSamples = 1;
             ownerStepIntervalNanos = intervalNanos;
             maxOwnerStepIntervalNanos = intervalNanos;
+        }
+
+        public void recordPreStepDrain(int drainedMutations,
+            long drainRunNanos,
+            int lateBacklog) {
+            preStepDrainedMutations = Math.max(0, drainedMutations);
+            maxPreStepDrainedMutations = preStepDrainedMutations;
+            preStepDrainRunNanos = Math.max(0L, drainRunNanos);
+            lateMutationBacklogAtStep = Math.max(0, lateBacklog);
+            maxLateMutationBacklogAtStep = lateMutationBacklogAtStep;
+        }
+
+        private void retainPreStepDrainMaxima(@Nonnull StepSnapshot snapshot) {
+            retainPreStepDrainMaxima(snapshot.maxPreStepDrainedMutations,
+                snapshot.maxLateMutationBacklogAtStep);
+        }
+
+        private void retainPreStepDrainMaxima(int preStepDrainedMutationMax,
+            int lateMutationBacklogMax) {
+            maxPreStepDrainedMutations = Math.max(maxPreStepDrainedMutations,
+                preStepDrainedMutationMax);
+            maxLateMutationBacklogAtStep = Math.max(maxLateMutationBacklogAtStep,
+                lateMutationBacklogMax);
         }
 
         public void recordSchedulerSample(long inputDtNanos,

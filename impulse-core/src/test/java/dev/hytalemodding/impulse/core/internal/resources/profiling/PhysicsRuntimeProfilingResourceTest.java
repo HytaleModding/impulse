@@ -24,13 +24,18 @@ class PhysicsRuntimeProfilingResourceTest {
         resource.recordStep(1, 3, 40L);
         resource.recordStepSkippedPending(75L);
 
-        assertEquals(1, resource.getLatestStep().getTickSamples());
-        assertEquals(1, resource.getLatestStep().getSpaces());
-        assertEquals(3, resource.getLatestStep().getSubsteps());
-        assertEquals(40L, resource.getLatestStep().getTickNanos());
+        assertEquals(0, resource.getLatestStep().getTickSamples());
+        assertEquals(0, resource.getLatestStep().getSpaces());
+        assertEquals(0, resource.getLatestStep().getSubsteps());
+        assertEquals(0L, resource.getLatestStep().getTickNanos());
         assertEquals(1, resource.getLatestStep().getSkippedPendingSteps());
         assertEquals(75L, resource.getLatestStep().getPendingStepAgeNanos());
         assertEquals(0, resource.getLatestStep().getNativePhaseSamples());
+        assertEquals(0, resource.getLatestStep().getPreStepDrainedMutations());
+        assertEquals(0, resource.getLatestStep().getLateMutationBacklogAtStep());
+        assertEquals(40L, resource.getLatestCompletedStep().getTickNanos());
+        assertEquals(1, resource.getLatestCompletedStep().getSpaces());
+        assertEquals(0, resource.getLatestCompletedStep().getPreStepDrainedMutations());
 
         assertEquals(2, resource.getCumulativeStep().getTickSamples());
         assertEquals(3, resource.getCumulativeStep().getSpaces());
@@ -80,6 +85,49 @@ class PhysicsRuntimeProfilingResourceTest {
         assertEquals(1, resource.getCumulativeStep().getDroppedBacklogTicks());
         assertEquals(1, resource.getCumulativeStep().getDtCapHits());
         assertEquals(125_000_000L, resource.getWorstStep().getMaxSchedulerBacklogDtNanos());
+    }
+
+    @Test
+    void recordStepTracksPreStepDrainBackpressure() {
+        PhysicsRuntimeProfilingResource resource = new PhysicsRuntimeProfilingResource();
+
+        resource.recordStep(1,
+            2,
+            100L,
+            3,
+            4,
+            5L,
+            6L,
+            7L,
+            1_000_000_000L,
+            PhysicsStepPhaseStats.unavailable(),
+            2,
+            30L,
+            1);
+        resource.recordStep(1,
+            2,
+            80L,
+            3,
+            4,
+            5L,
+            6L,
+            7L,
+            1_010_000_000L,
+            PhysicsStepPhaseStats.unavailable(),
+            4,
+            50L,
+            3);
+
+        assertEquals(4, resource.getLatestStep().getPreStepDrainedMutations());
+        assertEquals(50L, resource.getLatestStep().getPreStepDrainRunNanos());
+        assertEquals(3, resource.getLatestStep().getLateMutationBacklogAtStep());
+        assertEquals(6, resource.getCumulativeStep().getPreStepDrainedMutations());
+        assertEquals(4, resource.getCumulativeStep().getMaxPreStepDrainedMutations());
+        assertEquals(80L, resource.getCumulativeStep().getPreStepDrainRunNanos());
+        assertEquals(4, resource.getCumulativeStep().getLateMutationBacklogAtStep());
+        assertEquals(3, resource.getCumulativeStep().getMaxLateMutationBacklogAtStep());
+        assertEquals(4, resource.getWorstStep().getMaxPreStepDrainedMutations());
+        assertEquals(3, resource.getWorstStep().getMaxLateMutationBacklogAtStep());
     }
 
     @Test
@@ -236,6 +284,19 @@ class PhysicsRuntimeProfilingResourceTest {
         PhysicsRuntimeProfilingResource resource = new PhysicsRuntimeProfilingResource();
         resource.setEnabled(true);
         resource.recordStep(1, 2, 30L);
+        resource.recordStep(1,
+            2,
+            30L,
+            3,
+            4,
+            5L,
+            6L,
+            7L,
+            1_000_000_000L,
+            PhysicsStepPhaseStats.unavailable(),
+            2,
+            11L,
+            1);
         resource.recordStepScheduling(0.125f, 0.125f, 0.0f, 0.0f, false);
         PhysicsRuntimeProfilingResource.SyncCollector collector = resource.beginSyncSample();
         collector.incrementBodiesSynced();
@@ -245,8 +306,14 @@ class PhysicsRuntimeProfilingResourceTest {
 
         PhysicsRuntimeProfilingResource copy = resource.clone();
         assertEquals(resource.getLatestStep().getTickNanos(), copy.getLatestStep().getTickNanos());
+        assertEquals(resource.getLatestCompletedStep().getTickNanos(),
+            copy.getLatestCompletedStep().getTickNanos());
         assertEquals(resource.getLatestStep().getSchedulerSubmittedDtNanos(),
             copy.getLatestStep().getSchedulerSubmittedDtNanos());
+        assertEquals(resource.getLatestStep().getPreStepDrainedMutations(),
+            copy.getLatestStep().getPreStepDrainedMutations());
+        assertEquals(resource.getLatestStep().getLateMutationBacklogAtStep(),
+            copy.getLatestStep().getLateMutationBacklogAtStep());
         assertEquals(resource.getLatestSync().getBodiesSynced(), copy.getLatestSync().getBodiesSynced());
         assertEquals(resource.getLatestSync().getBodySnapshotMotionDistance(),
             copy.getLatestSync().getBodySnapshotMotionDistance(), 0.0001);
@@ -258,7 +325,10 @@ class PhysicsRuntimeProfilingResourceTest {
         assertEquals(0, resource.getCumulativeStep().getTickSamples());
         assertEquals(0, resource.getCumulativeStep().getSchedulerSamples());
         assertEquals(0, resource.getLatestStep().getTickNanos());
+        assertEquals(0, resource.getLatestCompletedStep().getTickNanos());
         assertEquals(0L, resource.getLatestStep().getSchedulerSubmittedDtNanos());
+        assertEquals(0, resource.getLatestStep().getPreStepDrainedMutations());
+        assertEquals(0, resource.getLatestStep().getLateMutationBacklogAtStep());
         assertEquals(0, resource.getWorstSync().getTickNanos());
         assertEquals(0, resource.getCumulativeSync().getBodySnapshotMotionSamples());
         assertEquals(0.0, resource.getCumulativeSync().getVisualCorrectionDistance(), 0.0001);
