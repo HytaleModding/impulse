@@ -15,7 +15,9 @@ import javax.annotation.Nonnull;
  * <p>The completion stage reports owner-lane execution of the batch. It does not mean the
  * latest published snapshot, ECS attachments, or debug readers have observed the resulting body
  * state yet. Use the snapshot-frame inclusion helpers when callers need to correlate a completion
- * to a captured physics snapshot frame.</p>
+ * to a captured physics snapshot frame. Completion callbacks run outside the physics owner lane;
+ * they may queue follow-up async physics mutations, but synchronous physics owner waits from
+ * completion callbacks are rejected to avoid callback/owner-lane deadlocks.</p>
  */
 public final class PhysicsCommandHandle {
 
