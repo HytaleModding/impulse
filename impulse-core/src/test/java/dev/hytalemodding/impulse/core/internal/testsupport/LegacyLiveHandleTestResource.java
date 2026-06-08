@@ -168,7 +168,7 @@ public class LegacyLiveHandleTestResource extends PhysicsWorldRuntimeResource {
     @Nonnull
     private PhysicsSpace liveSpace(@Nonnull SpaceId spaceId) {
         Object state = legacySpaceState(requireSpaceBinding(spaceId));
-        return liveSpace(state);
+        return liveSpaceFromState(state);
     }
 
     @Nonnull
@@ -180,7 +180,7 @@ public class LegacyLiveHandleTestResource extends PhysicsWorldRuntimeResource {
             return new RegisteredBody(new BackendBodyHandle(existing), false);
         }
 
-        PhysicsSpace space = liveSpace(state);
+        PhysicsSpace space = liveSpaceFromState(state);
         if (!space.getBodies().contains(body)) {
             space.addBody(body);
         }
@@ -198,21 +198,19 @@ public class LegacyLiveHandleTestResource extends PhysicsWorldRuntimeResource {
         Object state = legacySpaceState(requireSpaceBinding(spaceId));
         bodiesById(state).remove(backendBodyId);
         bodyIdsByBody(state).remove(body);
-        liveSpace(state).removeBody(body);
+        liveSpaceFromState(state).removeBody(body);
     }
 
     @Nonnull
     private BackendJointHandle registerLiveJoint(@Nonnull SpaceId spaceId, @Nonnull PhysicsJoint joint) {
         Object state = legacySpaceState(requireSpaceBinding(spaceId));
-        Map<PhysicsJoint, Long> jointIdsByJoint = jointIdsByJoint(state);
-        Long existing = jointIdsByJoint.get(joint);
+        Long existing = liveJointId(state, joint);
         if (existing != null) {
             return new BackendJointHandle(existing);
         }
         LegacyPhysicsBackendRuntime runtime = legacyRuntime(requireSpaceBinding(spaceId));
         long jointId = nextId(runtime, NEXT_JOINT_ID);
         jointsById(state).put(jointId, joint);
-        jointIdsByJoint.put(joint, jointId);
         return new BackendJointHandle(jointId);
     }
 
@@ -264,7 +262,7 @@ public class LegacyLiveHandleTestResource extends PhysicsWorldRuntimeResource {
     }
 
     @Nonnull
-    private static PhysicsSpace liveSpace(@Nonnull Object state) {
+    private static PhysicsSpace liveSpaceFromState(@Nonnull Object state) {
         return (PhysicsSpace) get(field(state.getClass(), "space"), state);
     }
 
@@ -286,12 +284,6 @@ public class LegacyLiveHandleTestResource extends PhysicsWorldRuntimeResource {
         return (Map<Long, PhysicsJoint>) get(field(state.getClass(), "jointsById"), state);
     }
 
-    @Nonnull
-    @SuppressWarnings("unchecked")
-    private static Map<PhysicsJoint, Long> jointIdsByJoint(@Nonnull Object state) {
-        return (Map<PhysicsJoint, Long>) get(field(state.getClass(), "jointIdsByJoint"), state);
-    }
-
     private static long nextId(@Nonnull LegacyPhysicsBackendRuntime runtime, @Nonnull Field field) {
         try {
             long id = field.getLong(runtime);
@@ -300,6 +292,16 @@ public class LegacyLiveHandleTestResource extends PhysicsWorldRuntimeResource {
         } catch (IllegalAccessException exception) {
             throw new IllegalStateException("Cannot update legacy runtime id counter", exception);
         }
+    }
+
+    @Nullable
+    private static Long liveJointId(@Nonnull Object state, @Nonnull PhysicsJoint joint) {
+        for (Map.Entry<Long, PhysicsJoint> entry : jointsById(state).entrySet()) {
+            if (entry.getValue() == joint) {
+                return entry.getKey();
+            }
+        }
+        return null;
     }
 
     private record RegisteredBody(@Nonnull BackendBodyHandle backendBodyHandle, boolean created) {

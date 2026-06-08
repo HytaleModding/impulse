@@ -15,15 +15,25 @@ public record PublishedPhysicsSpaceFrame(@Nonnull SpaceId spaceId,
                                          long spaceEpoch,
                                          @Nonnull List<PublishedPhysicsBodySnapshot> bodies) {
 
-    public PublishedPhysicsSpaceFrame {
-        Objects.requireNonNull(spaceId, "spaceId");
+    public PublishedPhysicsSpaceFrame(@Nonnull SpaceId spaceId,
+        long frameEpoch,
+        long worldEpoch,
+        long spaceEpoch,
+        @Nonnull List<PublishedPhysicsBodySnapshot> bodies) {
+        SpaceId copiedSpaceId = Objects.requireNonNull(spaceId, "spaceId");
         requireNonNegativeEpoch(frameEpoch, "frameEpoch");
         requireNonNegativeEpoch(worldEpoch, "worldEpoch");
         requireNonNegativeEpoch(spaceEpoch, "spaceEpoch");
-        bodies = List.copyOf(Objects.requireNonNull(bodies, "bodies"));
-        for (PublishedPhysicsBodySnapshot body : bodies) {
-            requireBodyInFrame(spaceId, frameEpoch, worldEpoch, spaceEpoch, body);
+        List<PublishedPhysicsBodySnapshot> copiedBodies =
+            List.copyOf(Objects.requireNonNull(bodies, "bodies"));
+        for (PublishedPhysicsBodySnapshot body : copiedBodies) {
+            requireBodyInFrame(copiedSpaceId, frameEpoch, worldEpoch, spaceEpoch, body);
         }
+        this.spaceId = copiedSpaceId;
+        this.frameEpoch = frameEpoch;
+        this.worldEpoch = worldEpoch;
+        this.spaceEpoch = spaceEpoch;
+        this.bodies = copiedBodies;
     }
 
     public int bodyCount() {

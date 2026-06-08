@@ -20,6 +20,7 @@ val moduleInfoModulePath by configurations.creating {
 dependencies {
     implementation(project(":impulse-api"))
     testImplementation(testFixtures(project(":impulse-api")))
+    testImplementation(libs.objenesis)
     testCompileOnly("com.hypixel.hytale:Server:${property("hytale_version") as String}")
     testRuntimeOnly("com.hypixel.hytale:Server:${property("hytale_version") as String}")
     compileOnly(libs.crucible)
