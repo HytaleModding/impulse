@@ -209,6 +209,7 @@ public class PersistentPhysicsWorldResource extends PhysicsPersistenceResource {
         return copySpaces(spaces);
     }
 
+    @Override
     public int getSpaceCount() {
         return spaces.length;
     }
@@ -222,6 +223,7 @@ public class PersistentPhysicsWorldResource extends PhysicsPersistenceResource {
         return copyBodies(bodies);
     }
 
+    @Override
     public int getBodyCount() {
         return bodies.length;
     }
@@ -235,6 +237,7 @@ public class PersistentPhysicsWorldResource extends PhysicsPersistenceResource {
         return copyJoints(joints);
     }
 
+    @Override
     public int getJointCount() {
         return joints.length;
     }
@@ -303,6 +306,7 @@ public class PersistentPhysicsWorldResource extends PhysicsPersistenceResource {
         runtimeRestoredSpaceCount = restoredSpaceCount;
     }
 
+    @Override
     public boolean hasRuntimeRestoreFailed() {
         return runtimeRestoreFailed;
     }
@@ -341,11 +345,13 @@ public class PersistentPhysicsWorldResource extends PhysicsPersistenceResource {
         runtimeSkippedJointsByReason.put(reason, runtimeSkippedJointsByReason.getInt(reason) + 1);
     }
 
+    @Override
     public boolean hasRuntimeRestoreSkips() {
         return !runtimeSkippedBodiesByReason.isEmpty() || !runtimeSkippedJointsByReason.isEmpty();
     }
 
     @Nonnull
+    @Override
     public String runtimeRestoreSummary() {
         return "Impulse persistence restore completed: "
             + runtimeRestoredSpaceCount + " spaces, "
@@ -358,6 +364,7 @@ public class PersistentPhysicsWorldResource extends PhysicsPersistenceResource {
     }
 
     @Nonnull
+    @Override
     public String runtimeRestoreFailureSummary() {
         return "Impulse persistence restore failed: " + runtimeRestoreFailureMessage + " "
             + "Partial progress before failure: "

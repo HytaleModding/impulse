@@ -263,6 +263,7 @@ public final class MutablePhysicsCommandContext implements PhysicsCommandContext
     }
 
     @Nonnull
+    @Override
     public PhysicsCommandContext spawnBodies(int expectedBodies,
         @Nonnull Consumer<RigidBodySpawnBatchRecorder> recipe) {
         MutableRigidBodySpawnBatchRecorder spawns =

@@ -270,16 +270,19 @@ public class PhysicsWorldRuntimeResource extends PhysicsWorldResource {
 
 
     @Nonnull
+    @Override
     public PhysicsWorldSettings getWorldSettings() {
         return simulationRuntime.getWorldSettings();
     }
 
+    @Override
     public void setWorldSettings(@Nonnull PhysicsWorldSettings settings) {
         PhysicsWorldSettings requested = new PhysicsWorldSettings(settings);
         runOwnerMutation("set physics world settings", () -> setWorldSettingsDirect(requested));
     }
 
     @Nonnull
+    @Override
     public PhysicsMutationHandle<Void> setWorldSettingsAsync(
         @Nonnull PhysicsWorldSettings settings) {
         PhysicsWorldSettings requested = new PhysicsWorldSettings(settings);
@@ -293,16 +296,19 @@ public class PhysicsWorldRuntimeResource extends PhysicsWorldResource {
     }
 
     @Nonnull
+    @Override
     public SpaceId createSpace(@Nonnull BackendId backendId) {
         return createSpace(backendId, "<unknown>", PhysicsSpaceSettings.defaults());
     }
 
     @Nonnull
+    @Override
     public SpaceId createSpace(@Nonnull BackendId backendId, @Nonnull String worldName) {
         return createSpace(backendId, worldName, PhysicsSpaceSettings.defaults());
     }
 
     @Nonnull
+    @Override
     public SpaceId createSpace(@Nonnull BackendId backendId,
         @Nonnull String worldName,
         @Nonnull PhysicsSpaceSettings settings) {
@@ -310,6 +316,7 @@ public class PhysicsWorldRuntimeResource extends PhysicsWorldResource {
     }
 
     @Nonnull
+    @Override
     public SpaceId createSpace(@Nonnull BackendId backendId,
         @Nonnull SpaceId spaceId,
         @Nonnull String worldName,
@@ -320,6 +327,7 @@ public class PhysicsWorldRuntimeResource extends PhysicsWorldResource {
     }
 
     @Nonnull
+    @Override
     public PhysicsMutationHandle<SpaceId> createSpaceAsync(@Nonnull BackendId backendId,
         @Nonnull String worldName,
         @Nonnull PhysicsSpaceSettings settings) {
@@ -328,6 +336,7 @@ public class PhysicsWorldRuntimeResource extends PhysicsWorldResource {
     }
 
     @Nonnull
+    @Override
     public PhysicsMutationHandle<SpaceId> createSpaceAsync(@Nonnull BackendId backendId,
         @Nonnull SpaceId spaceId,
         @Nonnull String worldName,
@@ -357,6 +366,7 @@ public class PhysicsWorldRuntimeResource extends PhysicsWorldResource {
         return spaceRuntime.getBinding(spaceId);
     }
 
+    @Override
     public boolean hasSpace(@Nonnull SpaceId spaceId) {
         return spaceRuntime.getBinding(spaceId) != null;
     }
@@ -372,10 +382,12 @@ public class PhysicsWorldRuntimeResource extends PhysicsWorldResource {
     }
 
     @Nonnull
+    @Override
     public Collection<SpaceId> getSpaceIds() {
         return spaceRuntime.getSpaceIds();
     }
 
+    @Override
     public int getSpaceCount() {
         return spaceRuntime.getSpaceCount();
     }
@@ -389,6 +401,7 @@ public class PhysicsWorldRuntimeResource extends PhysicsWorldResource {
         return spaceRuntime.iterateBindings();
     }
 
+    @Override
     public int refreshBodySnapshots() {
         return callOwner("refresh physics body snapshots", () -> {
             PublishedPhysicsSnapshotFrame frame = capturePublishedSnapshotFrameDirect(0L,
@@ -401,6 +414,7 @@ public class PhysicsWorldRuntimeResource extends PhysicsWorldResource {
     }
 
     @Nonnull
+    @Override
     public PhysicsBodySnapshot getBodySnapshot(@Nonnull RigidBodyKey bodyKey) {
         PhysicsBodySnapshot snapshot = lifecycleState.getBodySnapshot(bodyKey);
         if (snapshot != null) {
@@ -534,14 +548,17 @@ public class PhysicsWorldRuntimeResource extends PhysicsWorldResource {
         return lifecycleState.latestSnapshotAppliedNanos();
     }
 
+    @Override
     public int getBodySnapshotCount() {
         return lifecycleState.bodySnapshotCount();
     }
 
+    @Override
     public int getBodySnapshotCount(@Nonnull SpaceId spaceId) {
         return lifecycleState.bodySnapshotCount(spaceId);
     }
 
+    @Override
     public int getBodySnapshotCellCount() {
         return lifecycleState.bodySnapshotCellCount();
     }
@@ -552,6 +569,7 @@ public class PhysicsWorldRuntimeResource extends PhysicsWorldResource {
     }
 
     @Nonnull
+    @Override
     public WorldCollisionBuildStats rebuildWorldCollisionAround(@Nonnull World world,
         @Nonnull SpaceId spaceId,
         @Nonnull Vector3d center,
@@ -572,6 +590,7 @@ public class PhysicsWorldRuntimeResource extends PhysicsWorldResource {
     }
 
     @Nonnull
+    @Override
     public WorldCollisionBuildStats refreshWorldCollisionAround(@Nonnull World world,
         @Nonnull SpaceId spaceId,
         @Nonnull Vector3d center,
@@ -592,6 +611,7 @@ public class PhysicsWorldRuntimeResource extends PhysicsWorldResource {
     }
 
     @Nonnull
+    @Override
     public WorldCollisionPrewarmStats ensureWorldCollisionAround(@Nonnull World world,
         @Nonnull SpaceId spaceId,
         @Nonnull Iterable<Vector3d> centers,
@@ -614,6 +634,7 @@ public class PhysicsWorldRuntimeResource extends PhysicsWorldResource {
         });
     }
 
+    @Override
     public int clearWorldCollision(@Nonnull SpaceId spaceId) {
         return callOwner("clear world collision", () -> {
             PhysicsSpaceBinding space = requireSpaceBinding(spaceId);
@@ -626,6 +647,7 @@ public class PhysicsWorldRuntimeResource extends PhysicsWorldResource {
     }
 
     @Nonnull
+    @Override
     public WorldCollisionStats getWorldCollisionStats() {
         return callOwner("read world collision stats", collisionRuntime::getStats);
     }
@@ -708,6 +730,7 @@ public class PhysicsWorldRuntimeResource extends PhysicsWorldResource {
         }
     }
 
+    @Override
     public void forEachBodySnapshot(@Nonnull SpaceId spaceId,
         @Nonnull Consumer<PhysicsBodySnapshotEntry> consumer) {
         lifecycleState.forEachBodySnapshot(spaceId, consumer);
@@ -718,6 +741,7 @@ public class PhysicsWorldRuntimeResource extends PhysicsWorldResource {
         lifecycleState.forEachIndexedBodySnapshot(spaceId, visitor);
     }
 
+    @Override
     public int forEachBodySnapshotNear(@Nonnull SpaceId spaceId,
         @Nonnull Vector3f center,
         float radius,
@@ -732,15 +756,18 @@ public class PhysicsWorldRuntimeResource extends PhysicsWorldResource {
         return lifecycleState.forEachIndexedBodySnapshotNear(spaceId, center, radius, visitor);
     }
 
+    @Override
     public void removeSpace(@Nonnull SpaceId spaceId) {
         removeSpace(spaceId, "<unknown>");
     }
 
+    @Override
     public void removeSpace(@Nonnull SpaceId spaceId, @Nonnull String worldName) {
         runOwnerMutation("remove physics space", () -> removeSpaceDirect(spaceId, worldName));
     }
 
     @Nonnull
+    @Override
     public PhysicsMutationHandle<SpaceId> removeSpaceAsync(@Nonnull SpaceId spaceId,
         @Nonnull String worldName) {
         return enqueueOwnerMutation("remove physics space",
@@ -768,11 +795,13 @@ public class PhysicsWorldRuntimeResource extends PhysicsWorldResource {
         }
     }
 
+    @Override
     public void clearAllSpaces(@Nonnull String worldName) {
         runOwnerMutation("clear physics spaces", () -> clearAllSpacesDirect(worldName));
     }
 
     @Nonnull
+    @Override
     public PhysicsMutationHandle<Void> clearAllSpacesAsync(@Nonnull String worldName) {
         return enqueueOwnerMutation("clear physics spaces",
             () -> clearAllSpacesDirect(worldName));
@@ -805,6 +834,7 @@ public class PhysicsWorldRuntimeResource extends PhysicsWorldResource {
     }
 
     @Nonnull
+    @Override
     public PhysicsSpaceSettings getSpaceSettings(@Nonnull SpaceId spaceId) {
         return spaceRuntime.getSpaceSettings(spaceId);
     }
@@ -814,12 +844,14 @@ public class PhysicsWorldRuntimeResource extends PhysicsWorldResource {
         return spaceRuntime.getLiveSpaceSettings(spaceId);
     }
 
+    @Override
     public void setSpaceSettings(@Nonnull SpaceId spaceId, @Nonnull PhysicsSpaceSettings settings) {
         PhysicsSpaceSettings requested = new PhysicsSpaceSettings(settings);
         runOwnerMutation("set physics space settings", () -> setSpaceSettingsDirect(spaceId, requested));
     }
 
     @Nonnull
+    @Override
     public PhysicsMutationHandle<SpaceId> setSpaceSettingsAsync(@Nonnull SpaceId spaceId,
         @Nonnull PhysicsSpaceSettings settings) {
         PhysicsSpaceSettings requested = new PhysicsSpaceSettings(settings);
@@ -882,11 +914,13 @@ public class PhysicsWorldRuntimeResource extends PhysicsWorldResource {
         return bodyRuntime.addBody(bodyKey, spaceId, backendBodyHandle, kind, persistenceMode);
     }
 
+    @Override
     public void destroyBody(@Nonnull RigidBodyKey bodyKey) {
         destroyBody(bodyKey, true);
     }
 
     @Nonnull
+    @Override
     public PhysicsMutationHandle<RigidBodyKey> destroyBodyAsync(@Nonnull RigidBodyKey bodyKey) {
         return destroyBodyAsync(bodyKey, true);
     }
@@ -926,6 +960,7 @@ public class PhysicsWorldRuntimeResource extends PhysicsWorldResource {
     }
 
     @Nullable
+    @Override
     public PhysicsBodyRegistrationView getBodyRegistrationView(@Nonnull RigidBodyKey bodyKey) {
         return bodyRegistry.getPublishedRegistrationView(bodyKey);
     }
@@ -1106,14 +1141,17 @@ public class PhysicsWorldRuntimeResource extends PhysicsWorldResource {
     }
 
     @Nonnull
+    @Override
     public Collection<PhysicsBodyRegistrationView> getBodyRegistrationViews() {
         return bodyRegistry.getPublishedRegistrationViews();
     }
 
+    @Override
     public int getBodyRegistrationCount() {
         return bodyRegistry.getPublishedRegistrationCount();
     }
 
+    @Override
     public int getBodyRegistrationCount(@Nonnull PhysicsBodyPersistenceMode persistenceMode) {
         return bodyRegistry.getPublishedRegistrationCount(persistenceMode);
     }
@@ -1125,15 +1163,18 @@ public class PhysicsWorldRuntimeResource extends PhysicsWorldResource {
     }
 
     @Nonnull
+    @Override
     public Collection<PhysicsBodyRegistrationView> getBodyRegistrationViews(@Nonnull PhysicsBodyKind kind) {
         return bodyRegistry.getPublishedRegistrationViews(kind);
     }
 
     @Nonnull
+    @Override
     public Collection<Ref<EntityStore>> getBodyAttachments(@Nonnull RigidBodyKey bodyKey) {
         return visualRuntime.getAttachments(bodyKey);
     }
 
+    @Override
     public boolean hasBodyAttachments(@Nonnull RigidBodyKey bodyKey) {
         return visualRuntime.hasAttachments(bodyKey);
     }
@@ -1191,11 +1232,13 @@ public class PhysicsWorldRuntimeResource extends PhysicsWorldResource {
         visualRuntime.clearSyntheticVisualInterests();
     }
 
+    @Override
     public void clearBodies() {
         runOwnerMutation("clear physics bodies", this::destroyRegisteredBodiesDirect);
     }
 
     @Nonnull
+    @Override
     public PhysicsMutationHandle<Void> clearBodiesAsync() {
         return enqueueOwnerMutation("clear physics bodies", this::destroyRegisteredBodiesDirect);
     }

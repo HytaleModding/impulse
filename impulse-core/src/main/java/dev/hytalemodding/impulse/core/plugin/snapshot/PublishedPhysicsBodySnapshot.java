@@ -293,6 +293,7 @@ public final class PublishedPhysicsBodySnapshot implements PublishedPhysicsBodyS
     }
 
     @Nonnull
+    @Override
     public PhysicsBodySnapshot toBodySnapshot() {
         return PhysicsBodySnapshot.of(positionX,
             positionY,
@@ -329,6 +330,7 @@ public final class PublishedPhysicsBodySnapshot implements PublishedPhysicsBodyS
             shapeAxis);
     }
 
+    @Override
     public boolean matchesSnapshot(@Nonnull PhysicsBodySnapshot snapshot) {
         Objects.requireNonNull(snapshot, "snapshot");
         if (bodyType != snapshot.bodyType()
@@ -376,37 +378,45 @@ public final class PublishedPhysicsBodySnapshot implements PublishedPhysicsBodyS
     }
 
     @Nonnull
+    @Override
     public RigidBodyKey bodyKey() {
         return bodyKey;
     }
 
     @Nonnull
+    @Override
     public SpaceId spaceId() {
         return spaceId;
     }
 
+    @Override
     public long frameEpoch() {
         return frameEpoch;
     }
 
+    @Override
     public long worldEpoch() {
         return worldEpoch;
     }
 
+    @Override
     public long spaceEpoch() {
         return spaceEpoch;
     }
 
+    @Override
     public long registrationGeneration() {
         return registrationGeneration;
     }
 
     @Nonnull
+    @Override
     public PhysicsBodyKind kind() {
         return kind;
     }
 
     @Nonnull
+    @Override
     public PhysicsBodyPersistenceMode persistenceMode() {
         return persistenceMode;
     }
@@ -432,34 +442,42 @@ public final class PublishedPhysicsBodySnapshot implements PublishedPhysicsBodyS
     }
 
     @Nonnull
+    @Override
     public PhysicsBodyType bodyType() {
         return bodyType;
     }
 
+    @Override
     public boolean sleeping() {
         return sleeping;
     }
 
+    @Override
     public boolean sensor() {
         return sensor;
     }
 
+    @Override
     public float mass() {
         return mass;
     }
 
+    @Override
     public float friction() {
         return friction;
     }
 
+    @Override
     public float restitution() {
         return restitution;
     }
 
+    @Override
     public float linearDamping() {
         return linearDamping;
     }
 
+    @Override
     public float angularDamping() {
         return angularDamping;
     }
@@ -479,11 +497,13 @@ public final class PublishedPhysicsBodySnapshot implements PublishedPhysicsBodyS
         return continuousCollisionEnabled;
     }
 
+    @Override
     public float centerOfMassOffsetY() {
         return centerOfMassOffsetY;
     }
 
     @Nonnull
+    @Override
     public ShapeType shapeType() {
         return shapeType;
     }
@@ -493,110 +513,135 @@ public final class PublishedPhysicsBodySnapshot implements PublishedPhysicsBodyS
         return hasBoxHalfExtents ? new Vector3f(boxHalfExtentX, boxHalfExtentY, boxHalfExtentZ) : null;
     }
 
+    @Override
     public float sphereRadius() {
         return sphereRadius;
     }
 
+    @Override
     public float halfHeight() {
         return halfHeight;
     }
 
     @Nonnull
+    @Override
     public PhysicsAxis shapeAxis() {
         return shapeAxis;
     }
 
+    @Override
     public float positionX() {
         return positionX;
     }
 
+    @Override
     public float positionY() {
         return positionY;
     }
 
+    @Override
     public float positionZ() {
         return positionZ;
     }
 
+    @Override
     public float rotationX() {
         return rotationX;
     }
 
+    @Override
     public float rotationY() {
         return rotationY;
     }
 
+    @Override
     public float rotationZ() {
         return rotationZ;
     }
 
+    @Override
     public float rotationW() {
         return rotationW;
     }
 
+    @Override
     public float linearVelocityX() {
         return linearVelocityX;
     }
 
+    @Override
     public float linearVelocityY() {
         return linearVelocityY;
     }
 
+    @Override
     public float linearVelocityZ() {
         return linearVelocityZ;
     }
 
+    @Override
     public float angularVelocityX() {
         return angularVelocityX;
     }
 
+    @Override
     public float angularVelocityY() {
         return angularVelocityY;
     }
 
+    @Override
     public float angularVelocityZ() {
         return angularVelocityZ;
     }
 
+    @Override
     public boolean hasBoxHalfExtents() {
         return hasBoxHalfExtents;
     }
 
+    @Override
     public float boxHalfExtentX() {
         return boxHalfExtentX;
     }
 
+    @Override
     public float boxHalfExtentY() {
         return boxHalfExtentY;
     }
 
+    @Override
     public float boxHalfExtentZ() {
         return boxHalfExtentZ;
     }
 
     @Nonnull
+    @Override
     public Vector3f copyPositionTo(@Nonnull Vector3f target) {
         return Objects.requireNonNull(target, "target").set(positionX, positionY, positionZ);
     }
 
     @Nonnull
+    @Override
     public Quaternionf copyRotationTo(@Nonnull Quaternionf target) {
         return Objects.requireNonNull(target, "target").set(rotationX, rotationY, rotationZ, rotationW);
     }
 
     @Nonnull
+    @Override
     public Vector3f copyLinearVelocityTo(@Nonnull Vector3f target) {
         return Objects.requireNonNull(target, "target")
             .set(linearVelocityX, linearVelocityY, linearVelocityZ);
     }
 
     @Nonnull
+    @Override
     public Vector3f copyAngularVelocityTo(@Nonnull Vector3f target) {
         return Objects.requireNonNull(target, "target")
             .set(angularVelocityX, angularVelocityY, angularVelocityZ);
     }
 
     @Nonnull
+    @Override
     public Vector3f copyBoxHalfExtentsTo(@Nonnull Vector3f target) {
         Objects.requireNonNull(target, "target");
         if (!hasBoxHalfExtents) {
