@@ -29,6 +29,7 @@ import dev.hytalemodding.impulse.core.internal.modules.worldcollision.WorldVoxel
 import dev.hytalemodding.impulse.core.internal.systems.publication.PhysicsSnapshotPublicationSystem;
 import dev.hytalemodding.impulse.core.plugin.body.RigidBodyKey;
 import dev.hytalemodding.impulse.core.plugin.modules.worldcollision.WorldCollisionMode;
+import dev.hytalemodding.impulse.core.plugin.resources.PhysicsMutationHandle;
 import dev.hytalemodding.impulse.core.plugin.settings.PhysicsSpaceSettings;
 import dev.hytalemodding.impulse.core.plugin.settings.PhysicsWorldCollisionSettings;
 import it.unimi.dsi.fastutil.longs.LongOpenHashSet;
@@ -40,6 +41,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.WeakHashMap;
+import java.util.concurrent.RejectedExecutionException;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.BiConsumer;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
@@ -124,55 +127,123 @@ public class PhysicsWorldCollisionStreamingSystem extends TickingSystem<EntitySt
                 return;
             }
             Snapshot applySnapshot = snapshot;
-            if (applySnapshot != null) {
-                applySnapshot.incrementTerrainApplyQueued();
+            long queuedStart = tickStart;
+            if (tryQueueStreamingApply(cache, profiling, applySnapshot, queuedStart, applyFinished ->
+                resource.enqueueOwnerMutation("stream world collision terrain apply", () -> {
+                    long applyStart = applySnapshot != null ? System.nanoTime() : 0L;
+                    try {
+                        SectionAccessCache sectionAccessCache = cache.newSectionAccessCache();
+                        for (SpaceStreamingPlan plan : plans) {
+                            PhysicsSpaceBinding space = resource.getSpaceBinding(plan.spaceId());
+                            if (space == null) {
+                                continue;
+                            }
+                            PhysicsSpaceSettings settings = resource.getLiveSpaceSettings(plan.spaceId());
+                            PhysicsWorldCollisionSettings collisionSettings =
+                                settings.getWorldCollisionSettings();
+                            if (!WorldCollisionLifecycle.isEnabled()
+                                || WorldCollisionLifecycle.generation() != plan.lifecycleGeneration()
+                                || collisionSettings.getWorldCollisionMode() != WorldCollisionMode.STREAMING
+                                || resource.worldCollisionStreamingRevision(plan.spaceId()) != plan.settingsRevision()) {
+                                continue;
+                            }
+                            applySpaceCollision(world,
+                                cache,
+                                sectionAccessCache,
+                                space,
+                                plan,
+                                collisionSettings,
+                                currentTick,
+                                applySnapshot);
+                        }
+                    } finally {
+                        finishQueuedStreamingApply(cache,
+                            profiling,
+                            applySnapshot,
+                            applyStart,
+                            applyFinished);
+                    }
+                }))) {
+                snapshot = null;
             }
-            resource.enqueueOwnerMutation("stream world collision terrain apply", () -> {
-                long applyStart = applySnapshot != null ? System.nanoTime() : 0L;
-                try {
-                    SectionAccessCache sectionAccessCache = cache.newSectionAccessCache();
-                    for (SpaceStreamingPlan plan : plans) {
-                        PhysicsSpaceBinding space = resource.getSpaceBinding(plan.spaceId());
-                        if (space == null) {
-                            continue;
-                        }
-                        PhysicsSpaceSettings settings = resource.getLiveSpaceSettings(plan.spaceId());
-                        PhysicsWorldCollisionSettings collisionSettings =
-                            settings.getWorldCollisionSettings();
-                        if (!WorldCollisionLifecycle.isEnabled()
-                            || WorldCollisionLifecycle.generation() != plan.lifecycleGeneration()
-                            || collisionSettings.getWorldCollisionMode() != WorldCollisionMode.STREAMING
-                            || resource.worldCollisionStreamingRevision(plan.spaceId()) != plan.settingsRevision()) {
-                            continue;
-                        }
-                        applySpaceCollision(world,
-                            cache,
-                            sectionAccessCache,
-                            space,
-                            plan,
-                            collisionSettings,
-                            currentTick,
-                            applySnapshot);
-                    }
-                } finally {
-                    if (applySnapshot != null) {
-                        applySnapshot.setTickNanos(System.nanoTime() - applyStart);
-                        profiling.finishTick(applySnapshot);
-                    }
-                    cache.finishStreamingApply();
-                }
-            }).completion().whenComplete((ignored, failure) -> {
-                if (failure != null) {
-                    cache.finishStreamingApply();
-                }
-            });
-            snapshot = null;
         } finally {
             if (snapshot != null) {
                 snapshot.setTickNanos(System.nanoTime() - tickStart);
                 profiling.finishTick(snapshot);
             }
         }
+    }
+
+    static boolean tryQueueStreamingApply(@Nonnull WorldVoxelCollisionCache cache,
+        @Nonnull WorldCollisionProfilingResource profiling,
+        @Nullable Snapshot snapshot,
+        long queuedStartNanos,
+        @Nonnull StreamingApplySubmission submission) {
+        AtomicBoolean applyFinished = new AtomicBoolean();
+        try {
+            PhysicsMutationHandle<?> handle = submission.submit(applyFinished);
+            if (isRejectedExecutionFailure(handle.failure())) {
+                finishRejectedStreamingApply(cache, snapshot);
+                return false;
+            }
+            if (snapshot != null) {
+                snapshot.incrementTerrainApplyQueued();
+            }
+            handle.completion().whenComplete((ignored, failure) -> {
+                if (failure != null) {
+                    finishQueuedStreamingApply(cache,
+                        profiling,
+                        snapshot,
+                        queuedStartNanos,
+                        applyFinished);
+                }
+            });
+            return true;
+        } catch (RejectedExecutionException exception) {
+            finishRejectedStreamingApply(cache, snapshot);
+            return false;
+        }
+    }
+
+    static void finishQueuedStreamingApply(@Nonnull WorldVoxelCollisionCache cache,
+        @Nonnull WorldCollisionProfilingResource profiling,
+        @Nullable Snapshot snapshot,
+        long startNanos,
+        @Nonnull AtomicBoolean finished) {
+        if (!finished.compareAndSet(false, true)) {
+            return;
+        }
+        if (snapshot != null) {
+            snapshot.setTickNanos(System.nanoTime() - startNanos);
+            profiling.finishTick(snapshot);
+        }
+        cache.finishStreamingApply();
+    }
+
+    static void finishRejectedStreamingApply(@Nonnull WorldVoxelCollisionCache cache,
+        @Nullable Snapshot snapshot) {
+        cache.finishStreamingApply();
+        if (snapshot != null) {
+            snapshot.incrementTerrainApplySkippedPending();
+        }
+    }
+
+    @FunctionalInterface
+    interface StreamingApplySubmission {
+
+        @Nonnull
+        PhysicsMutationHandle<?> submit(@Nonnull AtomicBoolean applyFinished);
+    }
+
+    private static boolean isRejectedExecutionFailure(@Nullable Throwable failure) {
+        Throwable current = failure;
+        while (current != null) {
+            if (current instanceof RejectedExecutionException) {
+                return true;
+            }
+            current = current.getCause();
+        }
+        return false;
     }
 
     private static void recordSkippedTerrainApply(

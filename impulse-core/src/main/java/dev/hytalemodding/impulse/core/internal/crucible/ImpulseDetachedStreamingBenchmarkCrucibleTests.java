@@ -267,10 +267,10 @@ final class ImpulseDetachedStreamingBenchmarkCrucibleTests {
             StepSnapshot step = runtimeProfiling.getCumulativeStep();
             SyncSnapshot sync = runtimeProfiling.getCumulativeSync();
             Snapshot worldCollision = worldCollisionProfiling.getCumulativeSnapshot();
-            SpaceStats stats = SpaceStats.collect(physics, spaceId);
             double elapsedSeconds = Math.max(0.001,
                 (System.nanoTime() - startedNanos) / 1_000_000_000.0);
             double observedTickRate = step.getTickSamples() / elapsedSeconds;
+            SpaceStats stats = SpaceStats.collect(physics, spaceId);
             double avgStepMs = averageMillis(step.getTickNanos(), step.getTickSamples());
             double avgSnapshotMs = averageMillis(step.getSnapshotNanos(), step.getTickSamples());
             double avgSyncMs = averageMillis(sync.getTickNanos(), sync.getTickSamples());
