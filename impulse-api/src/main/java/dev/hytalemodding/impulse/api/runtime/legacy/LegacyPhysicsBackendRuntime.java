@@ -63,6 +63,14 @@ public final class LegacyPhysicsBackendRuntime implements PhysicsBackendRuntime 
             throw new IllegalArgumentException("Physics space id=" + requestedId + " is already registered");
         }
         PhysicsSpace space = backend.createSpace(requestedId);
+        if (!requestedId.equals(space.id())) {
+            try {
+                space.close();
+            } catch (RuntimeException ignored) {
+            }
+            throw new IllegalStateException("Backend " + backend.getId()
+                + " created space id " + space.id() + " but expected " + requestedId);
+        }
         spaces.put(requestedId.value(), new SpaceState(space));
         return requestedId.value();
     }

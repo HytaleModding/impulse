@@ -56,6 +56,8 @@ public interface PhysicsBackend {
      */
     @Nonnull
     default PhysicsSpace createSpace(@Nonnull SpaceId spaceId) {
-        return createSpace();
+        throw new UnsupportedOperationException(
+            "Legacy physics backend " + getId() + " must override createSpace(SpaceId) "
+                + "to support explicit space ids");
     }
 }
