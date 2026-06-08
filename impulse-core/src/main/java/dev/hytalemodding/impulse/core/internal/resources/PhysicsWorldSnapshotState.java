@@ -121,17 +121,14 @@ public final class PhysicsWorldSnapshotState {
     }
 
     @Nonnull
-    public ApplyResult applyPublishedSnapshotFrame(
-        @Nonnull PublishedPhysicsSnapshotFrame frame,
-        @Nonnull PhysicsBodyRegistry bodyRegistry) {
+    public ApplyResult applyPublishedSnapshotFrame(@Nonnull PublishedPhysicsSnapshotFrame frame) {
         Objects.requireNonNull(frame, "frame");
-        Objects.requireNonNull(bodyRegistry, "bodyRegistry");
         if (frame.worldEpoch() != worldEpoch.get()) {
             return new ApplyResult(0, false);
         }
 
         PhysicsBodySnapshotStore.ApplyStats stats =
-            bodySnapshots.applyPublishedFrame(frame, bodyRegistry);
+            bodySnapshots.applyPublishedFrame(frame);
         latestSnapshotAppliedNanos = System.nanoTime();
         return new ApplyResult(stats.applied(), true);
     }

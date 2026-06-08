@@ -85,7 +85,7 @@ public final class PhysicsOwnerGateway {
         Objects.requireNonNull(callable, "callable");
         PhysicsOwnerExecutor executor = ownerExecutor.get();
         if (executor == null || executor.isOwnerContext()) {
-            return callDirectAsync(operation, callable);
+            return callDirectAsync(callable);
         }
         return executor.enqueueCall(operation, callable);
     }
@@ -134,8 +134,7 @@ public final class PhysicsOwnerGateway {
     }
 
     @Nonnull
-    private static <T> CompletableFuture<T> callDirectAsync(@Nonnull String operation,
-        @Nonnull PhysicsOwnerCallable<T> callable) {
+    private static <T> CompletableFuture<T> callDirectAsync(@Nonnull PhysicsOwnerCallable<T> callable) {
         try {
             return CompletableFuture.completedFuture(callable.call());
         } catch (Throwable throwable) {

@@ -155,7 +155,6 @@ public class StressBodiesCommand extends AbstractAsyncPlayerCommand {
             spaceId,
             mode,
             visibility,
-            count,
             visualSettings,
             collisionLod);
         TimeResource time = store.getResource(TimeResource.getResourceType());
@@ -281,7 +280,6 @@ public class StressBodiesCommand extends AbstractAsyncPlayerCommand {
         @Nonnull SpaceId spaceId,
         @Nonnull StressMode mode,
         @Nonnull StressVisibility visibility,
-        int count,
         @Nonnull StressVisualSettings visualSettings,
         @Nullable Boolean collisionLod) {
         PhysicsSpaceSettings settings = new PhysicsSpaceSettings(resource.getSpaceSettings(spaceId));

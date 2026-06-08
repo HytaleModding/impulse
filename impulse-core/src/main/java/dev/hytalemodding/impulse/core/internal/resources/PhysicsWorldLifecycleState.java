@@ -118,7 +118,7 @@ public final class PhysicsWorldLifecycleState {
     public int applyPublishedSnapshotFrame(@Nonnull PublishedPhysicsSnapshotFrame frame,
         @Nonnull PhysicsBodyRegistry bodyRegistry,
         long publicationServerTick) {
-        ApplyResult result = snapshotState.applyPublishedSnapshotFrame(frame, bodyRegistry);
+        ApplyResult result = snapshotState.applyPublishedSnapshotFrame(frame);
         if (result.currentWorldEpoch()) {
             bodyRegistry.applyPublishedRegistrationFrame(frame);
             commandVisibility.applyLastIncludedCommandBatchSequence(

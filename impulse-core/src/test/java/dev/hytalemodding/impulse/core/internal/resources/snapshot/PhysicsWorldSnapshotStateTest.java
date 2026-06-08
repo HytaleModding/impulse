@@ -5,7 +5,6 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsWorldSnapshotState;
-import dev.hytalemodding.impulse.core.internal.resources.body.PhysicsBodyRegistry;
 import dev.hytalemodding.impulse.core.plugin.snapshot.PublishedPhysicsSnapshotFrame;
 import org.junit.jupiter.api.Test;
 
@@ -17,7 +16,7 @@ class PhysicsWorldSnapshotStateTest {
         PublishedPhysicsSnapshotFrame currentFrame = PublishedPhysicsSnapshotFrame.empty(1L, 0L);
 
         PhysicsWorldSnapshotState.ApplyResult current =
-            state.applyPublishedSnapshotFrame(currentFrame, new PhysicsBodyRegistry());
+            state.applyPublishedSnapshotFrame(currentFrame);
 
         assertTrue(current.currentWorldEpoch());
         assertEquals(0, current.appliedCount());
@@ -25,7 +24,7 @@ class PhysicsWorldSnapshotStateTest {
         state.markWorldChanged();
 
         PhysicsWorldSnapshotState.ApplyResult stale =
-            state.applyPublishedSnapshotFrame(currentFrame, new PhysicsBodyRegistry());
+            state.applyPublishedSnapshotFrame(currentFrame);
 
         assertFalse(stale.currentWorldEpoch());
         assertEquals(0, stale.appliedCount());

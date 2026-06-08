@@ -2,7 +2,6 @@ package dev.hytalemodding.impulse.core.internal.systems.debug;
 
 import dev.hytalemodding.impulse.api.PhysicsContact;
 import dev.hytalemodding.impulse.api.PhysicsSpace;
-import dev.hytalemodding.impulse.core.internal.resources.PhysicsWorldRuntimeResource;
 import java.util.ArrayList;
 import java.util.List;
 import javax.annotation.Nonnull;
@@ -16,7 +15,6 @@ final class PhysicsContactDebugCapture {
 
     @Nonnull
     static List<PhysicsDebugRenderer.ContactDebugPrimitive> collectVisibleContactPrimitives(
-        @Nonnull PhysicsWorldRuntimeResource resource,
         @Nonnull PhysicsSpace space,
         @Nonnull Vector3d center,
         double radius,

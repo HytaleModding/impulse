@@ -285,7 +285,7 @@ public final class PhysicsOwnerLaneResource implements PhysicsOwnerResource {
         Objects.requireNonNull(operation, "operation");
         Objects.requireNonNull(callable, "callable");
         if (isOwnerContext()) {
-            return callDirectAsync(operation, callable);
+            return callDirectAsync(callable);
         }
 
         CompletableFuture<T> completion = new CompletableFuture<>();
@@ -563,8 +563,7 @@ public final class PhysicsOwnerLaneResource implements PhysicsOwnerResource {
     }
 
     @Nonnull
-    private static <T> CompletableFuture<T> callDirectAsync(@Nonnull String operation,
-        @Nonnull PhysicsOwnerCallable<T> callable) {
+    private static <T> CompletableFuture<T> callDirectAsync(@Nonnull PhysicsOwnerCallable<T> callable) {
         try {
             return CompletableFuture.completedFuture(callable.call());
         } catch (Throwable throwable) {

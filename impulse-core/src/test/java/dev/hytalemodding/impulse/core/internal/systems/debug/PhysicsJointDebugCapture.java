@@ -2,7 +2,6 @@ package dev.hytalemodding.impulse.core.internal.systems.debug;
 
 import dev.hytalemodding.impulse.api.PhysicsJoint;
 import dev.hytalemodding.impulse.api.PhysicsSpace;
-import dev.hytalemodding.impulse.core.internal.resources.PhysicsWorldRuntimeResource;
 import java.util.ArrayList;
 import java.util.List;
 import javax.annotation.Nonnull;
@@ -16,7 +15,6 @@ final class PhysicsJointDebugCapture {
 
     @Nonnull
     static List<PhysicsDebugRenderer.JointDebugPrimitive> collectVisibleJointPrimitives(
-        @Nonnull PhysicsWorldRuntimeResource resource,
         @Nonnull PhysicsSpace space,
         @Nonnull Vector3d center,
         double radius,
