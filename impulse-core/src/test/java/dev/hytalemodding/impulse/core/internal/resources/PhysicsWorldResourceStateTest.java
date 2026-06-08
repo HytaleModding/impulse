@@ -11,6 +11,8 @@ import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import com.hypixel.hytale.component.Ref;
+import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import dev.hytalemodding.impulse.api.BackendId;
 import dev.hytalemodding.impulse.api.Impulse;
 import dev.hytalemodding.impulse.api.PhysicsAxis;
@@ -882,6 +884,30 @@ class PhysicsWorldResourceStateTest {
     }
 
     @Test
+    void removeSpaceClosesBackendSpaceWhenRuntimeCleanupThrows() {
+        FakePhysicsBackend backend =
+            new FakePhysicsBackend("test:remove-space-close-failure-" + BACKEND_COUNTER.incrementAndGet());
+        Impulse.registerBackend(backend);
+
+        ThrowingSyncCleanupResource resource = new ThrowingSyncCleanupResource();
+        PhysicsSpace space = resource.createLiveSpace(backend.getId(),
+            "test-world",
+            PhysicsSpaceSettings.defaults());
+        PhysicsBody body = space.createBox(0.5f, 0.5f, 0.5f, 1.0f);
+        RigidBodyKey bodyId = resource.addBody(space.id(),
+            body,
+            PhysicsBodyKind.BODY,
+            PhysicsBodyPersistenceMode.PERSISTENT);
+        resource.registerBodyAttachment(bodyId, new TestRef(true));
+
+        IllegalStateException failure = assertThrows(IllegalStateException.class,
+            () -> resource.removeSpace(space.id(), "test-world"));
+
+        assertEquals("sync cleanup failed", failure.getMessage());
+        assertTrue(((InMemoryPhysicsSpace) space).isClosed());
+    }
+
+    @Test
     void worldCollisionStreamingRevisionTracksSettingsChangesAndClears() {
         BackendId backendId =
             new BackendId("test:world-collision-revision-" + BACKEND_COUNTER.incrementAndGet());
@@ -1442,6 +1468,29 @@ class PhysicsWorldResourceStateTest {
             Thread.sleep(10L);
         }
         assertEquals(expected, completed);
+    }
+
+    private static final class ThrowingSyncCleanupResource extends LegacyLiveHandleTestResource {
+
+        @Override
+        public void clearBodySyncState(@Nonnull Ref<EntityStore> entityRef) {
+            throw new IllegalStateException("sync cleanup failed");
+        }
+    }
+
+    private static final class TestRef extends Ref<EntityStore> {
+
+        private final boolean valid;
+
+        private TestRef(boolean valid) {
+            super(null);
+            this.valid = valid;
+        }
+
+        @Override
+        public boolean isValid() {
+            return valid;
+        }
     }
 
 }

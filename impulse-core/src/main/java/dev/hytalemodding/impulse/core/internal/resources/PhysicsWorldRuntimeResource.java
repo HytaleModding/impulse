@@ -63,6 +63,7 @@ import dev.hytalemodding.impulse.core.plugin.simulation.query.PhysicsQuery;
 import dev.hytalemodding.impulse.core.plugin.simulation.query.PhysicsQueryHandle;
 import dev.hytalemodding.impulse.core.plugin.snapshot.PhysicsBodySnapshotEntry;
 import dev.hytalemodding.impulse.core.plugin.snapshot.PublishedPhysicsSnapshotFrame;
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
 import java.util.Objects;
@@ -777,10 +778,15 @@ public class PhysicsWorldRuntimeResource extends PhysicsWorldResource {
 
     private void removeSpaceDirect(@Nonnull SpaceId spaceId, @Nonnull String worldName) {
         PhysicsSpaceBinding removed = spaceRuntime.removeSpace(spaceId);
-        collisionRuntime.clear(spaceId, removed);
-        if (removed != null) {
+        if (removed == null) {
+            collisionRuntime.clear(spaceId, null);
+            return;
+        }
+
+        try {
+            collisionRuntime.clear(spaceId, removed);
             jointRegistry.unregisterSpace(spaceId);
-            for (PhysicsBodyRegistration registration : bodyRegistry.getRegistrations()) {
+            for (PhysicsBodyRegistration registration : new ArrayList<>(bodyRegistry.getRegistrations())) {
                 if (registration.spaceId().equals(spaceId)) {
                     destroyBody(registration.bodyKey(), false);
                 }
@@ -790,8 +796,9 @@ public class PhysicsWorldRuntimeResource extends PhysicsWorldResource {
                 worldName,
                 removed.spaceId(),
                 removed.backendId());
-            PhysicsSpaceRuntime.closeBindingSilently(removed, worldName, "removed physics space");
             markWorldChanged();
+        } finally {
+            PhysicsSpaceRuntime.closeBindingSilently(removed, worldName, "removed physics space");
         }
     }
 
@@ -808,9 +815,27 @@ public class PhysicsWorldRuntimeResource extends PhysicsWorldResource {
     }
 
     private void clearAllSpacesDirect(@Nonnull String worldName) {
+        RuntimeException failure = null;
         for (SpaceId spaceId : spaceRuntime.getSpaceIds()) {
-            removeSpaceDirect(spaceId, worldName);
+            try {
+                removeSpaceDirect(spaceId, worldName);
+            } catch (RuntimeException exception) {
+                failure = collectFailure(failure, exception);
+            }
         }
+        if (failure != null) {
+            throw failure;
+        }
+    }
+
+    @Nonnull
+    private static RuntimeException collectFailure(@Nullable RuntimeException failure,
+        @Nonnull RuntimeException exception) {
+        if (failure == null) {
+            return exception;
+        }
+        failure.addSuppressed(exception);
+        return failure;
     }
 
     /**
