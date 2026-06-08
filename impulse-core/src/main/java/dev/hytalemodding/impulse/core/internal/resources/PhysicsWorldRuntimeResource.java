@@ -17,6 +17,7 @@ import dev.hytalemodding.impulse.core.internal.resources.body.PhysicsBodyRegistr
 import dev.hytalemodding.impulse.core.internal.resources.body.PhysicsBodyRuntimeState.BodySyncState;
 import dev.hytalemodding.impulse.core.internal.resources.body.PhysicsBodyRuntime;
 import dev.hytalemodding.impulse.core.internal.resources.body.PhysicsBodyRuntimeState;
+import dev.hytalemodding.impulse.core.internal.resources.body.PhysicsBodySnapshots;
 import dev.hytalemodding.impulse.core.internal.resources.body.PhysicsBodySnapshotVisitor;
 import dev.hytalemodding.impulse.core.internal.modules.worldcollision.PhysicsChunkBoundaryRuntime;
 import dev.hytalemodding.impulse.core.internal.modules.worldcollision.PhysicsChunkBoundaryRuntime.ChunkBoundaryPauseState;
@@ -148,6 +149,10 @@ public class PhysicsWorldRuntimeResource extends PhysicsWorldResource {
 
     public boolean canAccessLiveBackendDirectly() {
         return ownerGateway.canAccessLiveBackendDirectly();
+    }
+
+    public void rejectSynchronousCompletionCallbackWait(@Nonnull String operation) {
+        ownerGateway.rejectSynchronousCompletionCallbackWait(operation);
     }
 
     public long worldEpoch() {
@@ -453,6 +458,20 @@ public class PhysicsWorldRuntimeResource extends PhysicsWorldResource {
         }
         PhysicsBodyRegistration registration = bodyRegistry.getRegistration(bodyKey);
         return registration != null ? lifecycleState.captureBodySnapshot(registration) : null;
+    }
+
+    @Nonnull
+    public PhysicsBodySnapshot captureLiveBodySnapshot(@Nonnull PhysicsBodyRegistration registration) {
+        Objects.requireNonNull(registration, "registration");
+        assertCanAccessLiveBackendDirectly("capture live physics body snapshot");
+        PhysicsSpaceBinding space = requireSpaceBinding(registration.spaceId());
+        PhysicsBodySnapshot snapshot = PhysicsBodySnapshots.read(space,
+            registration.backendBodyHandle().value());
+        if (snapshot == null) {
+            throw new IllegalStateException(
+                "No live physics body snapshot is available for " + registration.bodyKey());
+        }
+        return snapshot;
     }
 
     /**

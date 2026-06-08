@@ -73,8 +73,9 @@ public class PersistentPhysicsBodyHydrationSystem extends TickingSystem<EntitySt
                     persistent.recordRuntimeBodySkipped(bodyKey, "missing target space");
                 }
             } catch (RuntimeException exception) {
-                persistent.recordRuntimeBodySkipped(bodyKey, "body restore failed: "
-                    + exception.getClass().getSimpleName());
+                persistent.failRuntimeRestore("Failed to hydrate persisted body " + bodyKey
+                    + ": " + exception.getClass().getSimpleName());
+                return;
             }
         }
     }

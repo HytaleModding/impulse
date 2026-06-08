@@ -53,7 +53,7 @@ public class PersistentPhysicsWorldSyncSystem extends TickingSystem<EntityStore>
     public void tick(float dt, int systemIndex, @Nonnull Store<EntityStore> store) {
         PersistentPhysicsWorldResource persistent = store.getResource(
             PersistentPhysicsWorldResource.getResourceType());
-        if (persistent.isRuntimeRestorePending() || persistent.hasRuntimeRestoreFailed()) {
+        if (shouldSkipRuntimeSnapshotTick(persistent)) {
             pendingRuntimeReads.remove(persistent);
             return;
         }
@@ -66,7 +66,12 @@ public class PersistentPhysicsWorldSyncSystem extends TickingSystem<EntityStore>
             }
             pendingRuntimeReads.remove(persistent);
             if (pending.kind() == RuntimeReadKind.SNAPSHOT) {
-                syncRuntimeSnapshot(persistent, pending.joinSnapshot());
+                syncRuntimeSnapshot(persistent,
+                    pending.joinSnapshot(),
+                    pending.restoreGeneration());
+                return;
+            }
+            if (!pending.matchesGeneration(persistent)) {
                 return;
             }
             if (hasRuntimePersistenceFootprintChanged(persistent, pending.joinFootprint())) {
@@ -106,6 +111,18 @@ public class PersistentPhysicsWorldSyncSystem extends TickingSystem<EntityStore>
     @Nonnull
     public static SyncResult syncRuntimeSnapshot(@Nonnull PersistentPhysicsWorldResource persistent,
         @Nonnull PersistentPhysicsRuntimeSnapshot snapshot) {
+        return syncRuntimeSnapshot(persistent,
+            snapshot,
+            persistent.runtimeRestoreGeneration());
+    }
+
+    @Nonnull
+    static SyncResult syncRuntimeSnapshot(@Nonnull PersistentPhysicsWorldResource persistent,
+        @Nonnull PersistentPhysicsRuntimeSnapshot snapshot,
+        long restoreGeneration) {
+        if (persistent.runtimeRestoreGeneration() != restoreGeneration) {
+            return SyncResult.skipped("restore generation changed");
+        }
         if (persistent.isRuntimeRestorePending()) {
             return SyncResult.skipped("restore pending");
         }
@@ -122,6 +139,11 @@ public class PersistentPhysicsWorldSyncSystem extends TickingSystem<EntityStore>
 
         PersistentPhysicsRuntimeSnapshot.Footprint footprint = snapshot.getFootprint();
         return SyncResult.synced(footprint.spaces(), footprint.bodies(), footprint.joints());
+    }
+
+    static boolean shouldSkipRuntimeSnapshotTick(
+        @Nonnull PersistentPhysicsWorldResource persistent) {
+        return persistent.isRuntimeRestorePending() || persistent.hasRuntimeRestoreFailed();
     }
 
     private static boolean hasScalarWorldStateChanged(@Nonnull PersistentPhysicsWorldResource persistent,
@@ -160,7 +182,7 @@ public class PersistentPhysicsWorldSyncSystem extends TickingSystem<EntityStore>
         }
         submitOwnerRead(store,
             persistent,
-            PendingRuntimeRead.snapshot(),
+            PendingRuntimeRead.snapshot(persistent),
             future -> future.complete(PersistentPhysicsRuntimeSnapshot.capture(runtime)));
     }
 
@@ -177,7 +199,7 @@ public class PersistentPhysicsWorldSyncSystem extends TickingSystem<EntityStore>
         }
         submitOwnerRead(store,
             persistent,
-            PendingRuntimeRead.footprint(),
+            PendingRuntimeRead.footprint(persistent),
             future -> future.complete(PersistentPhysicsRuntimeSnapshot.captureFootprint(runtime)));
     }
 
@@ -228,21 +250,30 @@ public class PersistentPhysicsWorldSyncSystem extends TickingSystem<EntityStore>
         FOOTPRINT
     }
 
-    private record PendingRuntimeRead(@Nonnull RuntimeReadKind kind,
+    private record PendingRuntimeRead(long restoreGeneration,
+                                      @Nonnull RuntimeReadKind kind,
                                       @Nonnull CompletableFuture<Object> future) {
 
         @Nonnull
-        private static PendingRuntimeRead snapshot() {
-            return new PendingRuntimeRead(RuntimeReadKind.SNAPSHOT, new CompletableFuture<>());
+        private static PendingRuntimeRead snapshot(@Nonnull PersistentPhysicsWorldResource persistent) {
+            return new PendingRuntimeRead(persistent.runtimeRestoreGeneration(),
+                RuntimeReadKind.SNAPSHOT,
+                new CompletableFuture<>());
         }
 
         @Nonnull
-        private static PendingRuntimeRead footprint() {
-            return new PendingRuntimeRead(RuntimeReadKind.FOOTPRINT, new CompletableFuture<>());
+        private static PendingRuntimeRead footprint(@Nonnull PersistentPhysicsWorldResource persistent) {
+            return new PendingRuntimeRead(persistent.runtimeRestoreGeneration(),
+                RuntimeReadKind.FOOTPRINT,
+                new CompletableFuture<>());
         }
 
         private boolean isDone() {
             return future.isDone();
+        }
+
+        private boolean matchesGeneration(@Nonnull PersistentPhysicsWorldResource persistent) {
+            return restoreGeneration == persistent.runtimeRestoreGeneration();
         }
 
         @Nonnull
