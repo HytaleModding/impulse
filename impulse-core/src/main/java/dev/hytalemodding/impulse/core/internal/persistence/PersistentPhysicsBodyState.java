@@ -96,7 +96,7 @@ public class PersistentPhysicsBodyState {
         .append(new KeyedCodec<>("Rotation", ImpulseCodecs.QUATERNIONF),
             (state, value) -> {
                 if (value != null) {
-                    state.rotation.set(value);
+                    copyNormalizedQuaternionIfValid(state.rotation, value);
                 }
             },
             PersistentPhysicsBodyState::getRotation)
@@ -344,7 +344,7 @@ public class PersistentPhysicsBodyState {
         bodyType = snapshot.bodyType();
         mass = nonNegativeFiniteOrDefaultForSnapshot(snapshot.mass(), bodyType == PhysicsBodyType.DYNAMIC ? 1.0f : 0.0f);
         copyFiniteVectorOrZero(position, snapshot.position());
-        rotation.set(snapshot.rotation());
+        copyNormalizedQuaternionIfValid(rotation, snapshot.rotation());
         copyFiniteVectorOrZero(linearVelocity, snapshot.linearVelocity());
         copyFiniteVectorOrZero(angularVelocity, snapshot.angularVelocity());
         friction = nonNegativeFiniteOrZeroForRestore(snapshot.friction());
@@ -361,6 +361,7 @@ public class PersistentPhysicsBodyState {
     @Nonnull
     public BackendBodyHandle createBackendBody(@Nonnull PhysicsSpaceBinding space) {
         float dynamicMass = bodyType == PhysicsBodyType.DYNAMIC ? mass : 0.0f;
+        Quaternionf restoreRotation = normalizedRotationForRestore();
         long backendBodyId = switch (shapeType) {
             case BOX, SPHERE, CAPSULE, CYLINDER, CONE, PLANE -> space.runtime().createBody(
                 space.backendSpaceHandle().value(),
@@ -377,10 +378,10 @@ public class PersistentPhysicsBodyState {
                 position.x,
                 position.y,
                 position.z,
-                rotation.x,
-                rotation.y,
-                rotation.z,
-                rotation.w);
+                restoreRotation.x,
+                restoreRotation.y,
+                restoreRotation.z,
+                restoreRotation.w);
             case VOXELS -> throw new IllegalStateException(
                 "PersistentPhysicsBodyState cannot rebuild streamed voxel terrain bodies");
             case UNKNOWN -> throw new IllegalStateException("Persistent body shape is unknown");
@@ -390,6 +391,7 @@ public class PersistentPhysicsBodyState {
 
     public void applyToBody(@Nonnull PhysicsSpaceBinding space, @Nonnull BackendBodyHandle backendBodyHandle) {
         long backendBodyId = backendBodyHandle.value();
+        Quaternionf restoreRotation = normalizedRotationForRestore();
         space.runtime().setBodyType(space.backendSpaceHandle().value(),
             backendBodyId,
             BackendRuntimeCodes.bodyTypeCode(bodyType));
@@ -398,10 +400,10 @@ public class PersistentPhysicsBodyState {
             position.x,
             position.y,
             position.z,
-            rotation.x,
-            rotation.y,
-            rotation.z,
-            rotation.w);
+            restoreRotation.x,
+            restoreRotation.y,
+            restoreRotation.z,
+            restoreRotation.w);
         space.runtime().setBodyVelocity(space.backendSpaceHandle().value(),
             backendBodyId,
             linearVelocity.x,
@@ -458,6 +460,23 @@ public class PersistentPhysicsBodyState {
         } else {
             target.zero();
         }
+    }
+
+    private static void copyNormalizedQuaternionIfValid(@Nonnull Quaternionf target,
+        @Nonnull Quaternionf value) {
+        target.set(value);
+        if (ImpulseCodecs.isFiniteAndNonZero(target)) {
+            target.normalize();
+        }
+    }
+
+    @Nonnull
+    private Quaternionf normalizedRotationForRestore() {
+        Quaternionf restoreRotation = new Quaternionf(rotation);
+        if (ImpulseCodecs.isFiniteAndNonZero(restoreRotation)) {
+            restoreRotation.normalize();
+        }
+        return restoreRotation;
     }
 
     private static boolean isFiniteVector(@Nullable Vector3f value) {
