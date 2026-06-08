@@ -354,6 +354,10 @@ pub extern "system" fn Java_dev_hytalemodding_impulse_rapier_RapierNative_remove
                 &mut space.multibody_joints,
                 true,
             );
+            let impulse_joints = &space.impulse_joints;
+            space
+                .joints
+                .retain(|_, joint| impulse_joints.get(joint.joint).is_some());
             Ok(())
         },
     );
