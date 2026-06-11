@@ -17,6 +17,7 @@ import dev.hytalemodding.impulse.core.internal.modules.control.ControlLifecycle;
 import dev.hytalemodding.impulse.core.internal.modules.control.components.PhysicsControlSessionComponent;
 import dev.hytalemodding.impulse.core.plugin.modules.control.ImpulseControllableComponent;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionException;
 import java.util.concurrent.CompletionStage;
 import java.util.concurrent.TimeUnit;
 import javax.annotation.Nonnull;
@@ -30,6 +31,7 @@ final class ControlSubPluginCrucibleSupport {
     private static final PluginIdentifier PLUGIN_ID =
         new PluginIdentifier("HytaleModding", "ImpulseControl");
     private static final String DEFAULT_BLOCK_TYPE = "Rock_Stone";
+    private static final long SMOKE_TIMEOUT_SECONDS = 30L;
     private static final ComponentType<EntityStore, DespawnComponent> DESPAWN_TYPE =
         DespawnComponent.getComponentType();
 
@@ -40,7 +42,7 @@ final class ControlSubPluginCrucibleSupport {
     static CompletionStage<CrucibleTestCase.TestOutcome> loadUnloadReloadSmokeAsync(
         @Nonnull CrucibleContext context) {
         return CompletableFuture.supplyAsync(() -> loadUnloadReloadSmoke(context))
-            .orTimeout(30L, TimeUnit.SECONDS)
+            .orTimeout(SMOKE_TIMEOUT_SECONDS, TimeUnit.SECONDS)
             .exceptionally(failure -> CrucibleTestCase.TestOutcome.fail(
                 "Control subplugin lifecycle smoke failed: " + failure.getMessage()));
     }
@@ -110,6 +112,38 @@ final class ControlSubPluginCrucibleSupport {
     private static Ref<EntityStore> addControllableEntity(@Nonnull CrucibleContext context)
         throws ReflectiveOperationException {
         World world = context.world();
+        if (world.isInThread()) {
+            return addControllableEntityOnWorldThread(context, world);
+        }
+
+        CompletableFuture<Ref<EntityStore>> entity = new CompletableFuture<>();
+        try {
+            world.execute(() -> {
+                try {
+                    entity.complete(addControllableEntityOnWorldThread(context, world));
+                } catch (Throwable throwable) {
+                    entity.completeExceptionally(throwable);
+                }
+            });
+        } catch (RuntimeException exception) {
+            entity.completeExceptionally(exception);
+        }
+
+        try {
+            return entity.orTimeout(SMOKE_TIMEOUT_SECONDS, TimeUnit.SECONDS).join();
+        } catch (CompletionException exception) {
+            Throwable cause = exception.getCause();
+            if (cause instanceof ReflectiveOperationException reflectiveOperationException) {
+                throw reflectiveOperationException;
+            }
+            throw exception;
+        }
+    }
+
+    @Nonnull
+    private static Ref<EntityStore> addControllableEntityOnWorldThread(
+        @Nonnull CrucibleContext context,
+        @Nonnull World world) throws ReflectiveOperationException {
         Store<EntityStore> store = world.getEntityStore().getStore();
         TimeResource time = store.getResource(TimeResource.getResourceType());
         Holder<EntityStore> holder = BlockEntity.assembleDefaultBlockEntity(
