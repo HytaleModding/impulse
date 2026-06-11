@@ -189,14 +189,13 @@ public class PhysicsWorldCollisionStreamingSystem extends TickingSystem<EntitySt
             if (snapshot != null) {
                 snapshot.incrementTerrainApplyQueued();
             }
-            handle.completion().whenComplete((ignored, failure) -> {
-                if (failure != null) {
-                    finishQueuedStreamingApply(cache,
-                        profiling,
-                        snapshot,
-                        queuedStartNanos,
-                        applyFinished);
-                }
+            handle.completion().exceptionally(failure -> {
+                finishQueuedStreamingApply(cache,
+                    profiling,
+                    snapshot,
+                    queuedStartNanos,
+                    applyFinished);
+                return null;
             });
             return true;
         } catch (RejectedExecutionException exception) {
