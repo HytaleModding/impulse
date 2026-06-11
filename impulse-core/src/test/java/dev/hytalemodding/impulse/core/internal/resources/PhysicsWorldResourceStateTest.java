@@ -1085,6 +1085,38 @@ class PhysicsWorldResourceStateTest {
     }
 
     @Test
+    void getBodySnapshotFallsBackToLiveBackendWhenReaderSnapshotIsMissing() {
+        FakePhysicsBackend backend =
+            new FakePhysicsBackend("test:snapshot-live-fallback-" + BACKEND_COUNTER.incrementAndGet());
+        Impulse.registerBackend(backend);
+
+        LegacyLiveHandleTestResource resource = new LegacyLiveHandleTestResource();
+        PhysicsSpace space = resource.createLiveSpace(backend.getId(),
+            "test-world",
+            PhysicsSpaceSettings.defaults());
+        PhysicsBody body = space.createBox(0.5f, 0.5f, 0.5f, 1.0f);
+        body.setPosition(7.0f, 8.0f, 9.0f);
+        RigidBodyKey bodyId = resource.addBody(space.id(),
+            body,
+            PhysicsBodyKind.BODY,
+            PhysicsBodyPersistenceMode.PERSISTENT);
+        PublishedPhysicsSnapshotFrame latestFrame = resource.getLatestPublishedFrame();
+        resource.applyPublishedSnapshotFrame(PublishedPhysicsSnapshotFrame.empty(
+            latestFrame.frameEpoch() + 1L,
+            latestFrame.worldEpoch()));
+
+        assertEquals(0, resource.getBodySnapshotCount());
+
+        PhysicsBodySnapshot requiredSnapshot = resource.getBodySnapshot(bodyId);
+        PhysicsBodySnapshot optionalSnapshot = resource.getBodySnapshotIfRegistered(bodyId);
+
+        assertEquals(new Vector3f(7.0f, 8.0f, 9.0f), requiredSnapshot.position());
+        assertNotNull(optionalSnapshot);
+        assertEquals(new Vector3f(7.0f, 8.0f, 9.0f), optionalSnapshot.position());
+        assertEquals(0, resource.getBodySnapshotCount());
+    }
+
+    @Test
     void bodySnapshotStoreIgnoresUnregisteredSpaceBodies() {
         FakePhysicsBackend backend =
             new FakePhysicsBackend("test:snapshot-store-unregistered-" + BACKEND_COUNTER.incrementAndGet());
