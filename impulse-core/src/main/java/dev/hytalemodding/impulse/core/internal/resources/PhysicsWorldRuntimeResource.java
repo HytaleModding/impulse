@@ -447,7 +447,7 @@ public class PhysicsWorldRuntimeResource extends PhysicsWorldResource {
             return snapshot;
         }
         PhysicsBodyRegistration registration = requireBodyRegistration(bodyKey);
-        return lifecycleState.captureBodySnapshot(registration);
+        return captureLiveBodySnapshot(registration);
     }
 
     @Nullable
@@ -457,7 +457,7 @@ public class PhysicsWorldRuntimeResource extends PhysicsWorldResource {
             return snapshot;
         }
         PhysicsBodyRegistration registration = bodyRegistry.getRegistration(bodyKey);
-        return registration != null ? lifecycleState.captureBodySnapshot(registration) : null;
+        return registration != null ? captureLiveBodySnapshot(registration) : null;
     }
 
     @Nonnull
