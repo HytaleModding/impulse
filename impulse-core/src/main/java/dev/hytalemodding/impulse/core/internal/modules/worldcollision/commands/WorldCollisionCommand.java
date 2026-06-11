@@ -5,7 +5,7 @@ import com.hypixel.hytale.server.core.command.system.basecommands.AbstractComman
 public final class WorldCollisionCommand extends AbstractCommandCollection {
 
     public WorldCollisionCommand() {
-        super("impulse-world-collision", "Impulse world-collision module commands");
+        super("worldcollision", "Impulse world-collision module commands");
         addSubCommand(new WorldCollisionSettingsCommand());
         addSubCommand(new WorldCollisionPerfCommand());
     }
