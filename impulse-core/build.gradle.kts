@@ -1,7 +1,3 @@
-import groovy.json.JsonOutput
-import groovy.json.JsonSlurper
-import org.gradle.api.GradleException
-
 plugins {
     id("com.azuredoom.hytale-tools")
 }
@@ -18,13 +14,10 @@ val coreModuleName = "dev.hytalemodding.impulse.core"
 // These parent dependencies are shared by the core plugin and inherited by bundled subplugins.
 val impulseManifestDependencies = listOf(
     "Hytale:AssetModule=*",
+    "Hytale:BlockTypeModule=*",
     "Hytale:EntityModule=*",
     "Hytale:LegacyModule=*"
 ).joinToString(",")
-// hytale-tools does not expose subplugin dependency maps, so child-only deps are patched below.
-val impulseWorldCollisionDependencies = linkedMapOf(
-    "Hytale:BlockTypeModule" to "*"
-)
 
 val moduleInfoModulePath by configurations.creating {
     isCanBeConsumed = false
@@ -118,31 +111,4 @@ hytaleTools {
         false, /* disabledByDefault */
         false  /* includeAssetPack */
     )
-}
-
-tasks.named("updatePluginManifest").configure {
-    // Keep Gradle's up-to-date checks sensitive to the post-generation child dependency patch.
-    inputs.property(
-        "impulseWorldCollisionDependencies",
-        impulseWorldCollisionDependencies.entries.joinToString(",") { "${it.key}=${it.value}" }
-    )
-
-    doLast {
-        val manifestFile = layout.projectDirectory.file("src/main/resources/manifest.json").asFile
-        @Suppress("UNCHECKED_CAST")
-        val manifestJson = JsonSlurper().parseText(manifestFile.readText()) as MutableMap<String, Any?>
-        val subPlugins = manifestJson["SubPlugins"] as? List<*>
-            ?: throw GradleException("Generated manifest is missing SubPlugins; cannot patch ImpulseWorldCollision dependencies.")
-
-        // Fail fast if the hytale-tools generated subplugin list no longer matches this patch.
-        @Suppress("UNCHECKED_CAST")
-        val worldCollision = subPlugins
-            .filterIsInstance<MutableMap<String, Any?>>()
-            .firstOrNull { it["Name"] == "ImpulseWorldCollision" }
-            ?: throw GradleException("Generated manifest is missing ImpulseWorldCollision; cannot patch its dependencies.")
-
-        worldCollision["Dependencies"] = impulseWorldCollisionDependencies
-
-        manifestFile.writeText(JsonOutput.prettyPrint(JsonOutput.toJson(manifestJson)))
-    }
 }
