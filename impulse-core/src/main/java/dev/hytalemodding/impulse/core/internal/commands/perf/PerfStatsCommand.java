@@ -57,7 +57,6 @@ public class PerfStatsCommand extends AbstractWorldCommand {
                 + " kinematic=" + stats.kinematicBodies
                 + " owned=" + stats.entityOwnedBodies
                 + " detached=" + stats.detachedBodies
-                + " worldCollision=" + stats.worldCollisionBodies
                 + " planes=" + stats.planeBodies
                 + " raw=" + stats.rawBodies
                 + " joints=" + stats.joints
@@ -71,7 +70,6 @@ public class PerfStatsCommand extends AbstractWorldCommand {
             + " kinematic=" + totals.kinematicBodies
             + " owned=" + totals.entityOwnedBodies
             + " detached=" + totals.detachedBodies
-            + " worldCollision=" + totals.worldCollisionBodies
             + " planes=" + totals.planeBodies
             + " raw=" + totals.rawBodies
             + " joints=" + totals.joints
@@ -88,7 +86,6 @@ public class PerfStatsCommand extends AbstractWorldCommand {
         private int kinematicBodies;
         private int entityOwnedBodies;
         private int detachedBodies;
-        private int worldCollisionBodies;
         private int planeBodies;
         private int rawBodies;
         private int joints;
@@ -105,7 +102,6 @@ public class PerfStatsCommand extends AbstractWorldCommand {
             stats.kinematicBodies = view.kinematicBodies();
             stats.entityOwnedBodies = view.entityOwnedBodies();
             stats.detachedBodies = view.detachedBodies();
-            stats.worldCollisionBodies = view.worldCollisionBodies();
             stats.planeBodies = view.planeBodies();
             stats.rawBodies = view.rawBodies();
             stats.joints = view.joints();
@@ -122,7 +118,6 @@ public class PerfStatsCommand extends AbstractWorldCommand {
             kinematicBodies += stats.kinematicBodies;
             entityOwnedBodies += stats.entityOwnedBodies;
             detachedBodies += stats.detachedBodies;
-            worldCollisionBodies += stats.worldCollisionBodies;
             planeBodies += stats.planeBodies;
             rawBodies += stats.rawBodies;
             joints += stats.joints;

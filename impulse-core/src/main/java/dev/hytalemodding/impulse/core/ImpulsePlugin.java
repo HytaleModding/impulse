@@ -20,7 +20,7 @@ import dev.hytalemodding.impulse.api.BackendId;
 import dev.hytalemodding.impulse.api.Impulse;
 import dev.hytalemodding.impulse.api.PhysicsBackend;
 import dev.hytalemodding.impulse.api.runtime.PhysicsBackendRuntimeProvider;
-import dev.hytalemodding.impulse.core.internal.commands.ImpulseCommand;
+import dev.hytalemodding.impulse.core.internal.commands.ImpulseCommandContributionRegistry;
 import dev.hytalemodding.impulse.core.internal.components.GeneratedVisualProxyComponent;
 import dev.hytalemodding.impulse.core.internal.modules.ImpulseSubPluginRegistration;
 import dev.hytalemodding.impulse.core.internal.persistence.PersistentPhysicsWorldResource;
@@ -139,6 +139,7 @@ public final class ImpulsePlugin extends JavaPlugin {
 
     @Override
     protected void shutdown() {
+        ImpulseCommandContributionRegistry.unregister();
         if (physicsStepSystem != null) {
             physicsStepSystem.close();
             physicsStepSystem = null;
@@ -362,7 +363,7 @@ public final class ImpulsePlugin extends JavaPlugin {
 
     private void registerCommands() {
         CommandRegistry commandRegistry = getCommandRegistry();
-        commandRegistry.registerCommand(new ImpulseCommand());
+        ImpulseCommandContributionRegistry.register(commandRegistry);
     }
 
     @Nonnull
