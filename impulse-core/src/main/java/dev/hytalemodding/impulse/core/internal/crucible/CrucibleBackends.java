@@ -5,6 +5,7 @@ import dev.hytalemodding.impulse.api.Impulse;
 import dev.hytalemodding.impulse.api.runtime.PhysicsBackendRuntimeProvider;
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Comparator;
 import java.util.List;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
@@ -29,7 +30,7 @@ final class CrucibleBackends {
         for (PhysicsBackendRuntimeProvider provider : providers) {
             backendIds.add(provider.getId());
         }
-        backendIds.sort((left, right) -> left.value().compareTo(right.value()));
+        backendIds.sort(Comparator.comparing(BackendId::value));
 
         if (backendIds.isEmpty()) {
             throw new IllegalStateException("No physics backend runtimes registered");
