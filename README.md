@@ -27,10 +27,10 @@ flowchart TB
     subgraph Examples["impulse-examples / plugin usage"]
         direction TB
 
-        Intents["Physics Intent Components\n(WIP)"]
-        ECSSystem["IntentToCommandRecorderSystem\n(WIP)"]
+        Intents["Split ECS body components\nidentity / shape / dynamics / material / collision"]
+        ECSSystem["Body reconciliation systems"]
         Direct["Direct command calls"]
-        Commands["commands / queries"]
+        Commands["command recipes / copied queries"]
 
         Intents --> ECSSystem --> Commands
         Direct --> Commands
@@ -43,7 +43,7 @@ flowchart TB
 
         Modules["Internal modules\n- Hytale modules substitution (WIP)\n- World collision module\n- Control session module"]
 
-        Requests["physics requests"]
+        Requests["physics command batches + query requests"]
         Ordering["mutations + step request ordering"]
         LaneBuild["owner-lane work units\ncomputed per world"]
 
@@ -164,7 +164,7 @@ flowchart LR
 
 </details>
 
-For detailed explainations read each module's README.md and code documentation
+For detailed explanations read each module's README.md and code documentation.
 
 ## Getting started
 
