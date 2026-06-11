@@ -60,7 +60,7 @@ public class WorldCollisionSettingsCommand extends AbstractAsyncPlayerCommand {
         ArgTypes.INTEGER);
 
     public WorldCollisionSettingsCommand() {
-        super("world", "Get or set world collision streaming settings for a physics space");
+        super("settings", "Get or set world collision streaming settings for a physics space");
     }
 
     @Nonnull

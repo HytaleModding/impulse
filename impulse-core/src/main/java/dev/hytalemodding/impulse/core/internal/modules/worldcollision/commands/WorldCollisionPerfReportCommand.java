@@ -223,14 +223,14 @@ public class WorldCollisionPerfReportCommand extends AbstractWorldCommand {
             ctx.sender().sendMessage(Message.raw("No profiled physics step/sync/visual ticks recorded yet."
                 + (runtimeProfiling.isEnabled()
                 ? ""
-                : " Run /impulse-world-collision perf toggle, wait a few seconds, then run /impulse-world-collision perf report.")));
+                : " Run /impulse worldcollision perf toggle, wait a few seconds, then run /impulse worldcollision perf report.")));
         }
 
         if (cumulative.getTickSamples() <= 0) {
             ctx.sender().sendMessage(Message.raw("No profiled world collision ticks recorded yet."
                 + (profiling.isEnabled()
                 ? ""
-                : " Run /impulse-world-collision perf toggle, wait a few seconds, then run /impulse-world-collision perf report.")));
+                : " Run /impulse worldcollision perf toggle, wait a few seconds, then run /impulse worldcollision perf report.")));
             return;
         }
 
