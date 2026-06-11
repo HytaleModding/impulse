@@ -1,18 +1,37 @@
 package dev.hytalemodding.impulse.core.internal.modules;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import com.hypixel.hytale.codec.ExtraInfo;
+import com.hypixel.hytale.codec.util.RawJsonReader;
 import com.hypixel.hytale.common.plugin.PluginIdentifier;
 import com.hypixel.hytale.common.plugin.PluginManifest;
 import com.hypixel.hytale.common.semver.Semver;
 import com.hypixel.hytale.common.semver.SemverRange;
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.InputStreamReader;
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import org.junit.jupiter.api.Test;
 
 class ImpulseSubPluginRegistrationTest {
+
+    @Test
+    void generatedManifestSubPluginsSupportHytalePendingLoadInheritance() throws IOException {
+        PluginManifest parent = decodeGeneratedManifest();
+        PluginIdentifier parentId = new PluginIdentifier(parent);
+
+        for (PluginManifest subPlugin : parent.getSubPlugins()) {
+            assertDoesNotThrow(() -> subPlugin.inherit(parent), subPlugin.getName());
+            assertTrue(subPlugin.getDependencies().containsKey(parentId));
+        }
+    }
 
     @Test
     void preparesEverySubPluginManifestForDynamicLoad() {
@@ -69,5 +88,16 @@ class ImpulseSubPluginRegistrationTest {
             new LinkedHashMap<>(),
             new ArrayList<>(subPlugins),
             disabledByDefault);
+    }
+
+    private static PluginManifest decodeGeneratedManifest() throws IOException {
+        InputStream stream = ImpulseSubPluginRegistrationTest.class
+            .getClassLoader()
+            .getResourceAsStream("manifest.json");
+        assertNotNull(stream);
+        try (InputStreamReader input = new InputStreamReader(stream, StandardCharsets.UTF_8);
+             RawJsonReader reader = new RawJsonReader(input, RawJsonReader.READ_BUFFER.get())) {
+            return PluginManifest.CODEC.decodeJson(reader, new ExtraInfo());
+        }
     }
 }
