@@ -14,6 +14,7 @@ import com.hypixel.hytale.server.core.universe.world.World;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import dev.hytalemodding.impulse.api.SpaceId;
 import dev.hytalemodding.impulse.core.plugin.resources.PhysicsWorldResource;
+import dev.hytalemodding.impulse.core.plugin.simulation.PhysicsRecipes;
 import dev.hytalemodding.impulse.core.plugin.simulation.recorder.PhysicsCommandRecorder;
 import dev.hytalemodding.impulse.core.plugin.simulation.PhysicsShapeSpec;
 import dev.hytalemodding.impulse.core.plugin.simulation.RigidBodySpawnSettings;
@@ -61,13 +62,15 @@ public class ForcesCommand extends AbstractAsyncPlayerCommand {
         ForceDemoBodies bodies = new ForceDemoBodies();
         ExamplePhysicsUtils.requireApplied(resource.submitCommands(Math.max(0L, world.getTick()), 8, commands -> {
             bodies.central = spawnBox(commands, spaceId, centralPosition);
-            commands.applyBodyImpulse(bodies.central.bodyKey(), 4.0f, 2.0f, 0.0f);
+            commands.compose(PhysicsRecipes.applyImpulse(bodies.central.bodyKey(),
+                new Vector3f(4.0f, 2.0f, 0.0f)));
             bodies.offCenter = spawnBox(commands, spaceId, offCenterPosition);
             commands.applyBodyImpulse(bodies.offCenter.bodyKey(), 3.5f, 0.0f, 0.0f, 0.0f, 0.5f, 0.5f);
             bodies.torque = spawnBox(commands, spaceId, torquePosition);
             commands.applyBodyTorqueImpulse(bodies.torque.bodyKey(), 0.0f, 0.0f, 8.0f);
             bodies.force = spawnBox(commands, spaceId, forcePosition);
-            commands.applyBodyForce(bodies.force.bodyKey(), 30.0f, 0.0f, 0.0f);
+            commands.compose(PhysicsRecipes.applyForce(bodies.force.bodyKey(),
+                new Vector3f(30.0f, 0.0f, 0.0f)));
         }), "apply force demo");
         PendingBlockBody central = bodies.requireCentral();
         PendingBlockBody offCenter = bodies.requireOffCenter();

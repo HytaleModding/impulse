@@ -96,6 +96,18 @@ public class PersistentPhysicsSpaceState {
             PersistentPhysicsSpaceState::isNativeVoxelTerrainEnabled)
         .addValidator(Validators.nonNull())
         .add()
+        .append(new KeyedCodec<>("TerrainFriction", Codec.FLOAT, false),
+            (state, value) -> state.terrainFriction = value,
+            PersistentPhysicsSpaceState::getTerrainFriction)
+        .addValidator(Validators.nonNull())
+        .addValidator(Validators.range(0.0f, Float.MAX_VALUE))
+        .add()
+        .append(new KeyedCodec<>("TerrainRestitution", Codec.FLOAT, false),
+            (state, value) -> state.terrainRestitution = value,
+            PersistentPhysicsSpaceState::getTerrainRestitution)
+        .addValidator(Validators.nonNull())
+        .addValidator(Validators.range(0.0f, Float.MAX_VALUE))
+        .add()
         .append(new KeyedCodec<>("VisualFullSyncRadius", Codec.INTEGER, false),
             (state, value) -> state.visualFullSyncRadius = value,
             PersistentPhysicsSpaceState::getVisualFullSyncRadius)
@@ -325,6 +337,8 @@ public class PersistentPhysicsSpaceState {
     @Setter
     private boolean nativeVoxelTerrainEnabled =
         PhysicsWorldCollisionSettings.DEFAULT_NATIVE_VOXEL_TERRAIN_ENABLED;
+    private float terrainFriction = PhysicsWorldCollisionSettings.DEFAULT_TERRAIN_FRICTION;
+    private float terrainRestitution = PhysicsWorldCollisionSettings.DEFAULT_TERRAIN_RESTITUTION;
     private int visualFullSyncRadius = PhysicsVisualSyncSettings.DEFAULT_VISUAL_FULL_SYNC_RADIUS;
     private int visualMaxSyncRadius = PhysicsVisualSyncSettings.DEFAULT_VISUAL_MAX_SYNC_RADIUS;
     @Setter
@@ -425,6 +439,8 @@ public class PersistentPhysicsSpaceState {
         state.worldCollisionBodyRadius = settings.getWorldCollisionSettings().getWorldCollisionBodyRadius();
         state.worldCollisionTtlTicks = settings.getWorldCollisionSettings().getWorldCollisionTtlTicks();
         state.nativeVoxelTerrainEnabled = settings.getWorldCollisionSettings().isNativeVoxelTerrainEnabled();
+        state.terrainFriction = settings.getWorldCollisionSettings().getTerrainFriction();
+        state.terrainRestitution = settings.getWorldCollisionSettings().getTerrainRestitution();
         state.visualFullSyncRadius = settings.getVisualSyncSettings().getVisualFullSyncRadius();
         state.visualMaxSyncRadius = settings.getVisualSyncSettings().getVisualMaxSyncRadius();
         state.visualFarSyncCutoffEnabled = settings.getVisualSyncSettings().isVisualFarSyncCutoffEnabled();
@@ -485,6 +501,7 @@ public class PersistentPhysicsSpaceState {
         settings.getWorldCollisionSettings().setWorldCollisionBodyRadius(worldCollisionBodyRadius);
         settings.getWorldCollisionSettings().setWorldCollisionTtlTicks(worldCollisionTtlTicks);
         settings.getWorldCollisionSettings().setNativeVoxelTerrainEnabled(nativeVoxelTerrainEnabled);
+        settings.getWorldCollisionSettings().setTerrainMaterial(terrainFriction, terrainRestitution);
         settings.getVisualSyncSettings().setVisualSyncRadii(visualFullSyncRadius, visualMaxSyncRadius);
         settings.getVisualSyncSettings().setVisualFarSyncCutoffEnabled(visualFarSyncCutoffEnabled);
         settings.getVisualSyncSettings().setVisualMidSyncIntervalTicks(visualMidSyncIntervalTicks);
@@ -553,6 +570,8 @@ public class PersistentPhysicsSpaceState {
         copy.worldCollisionBodyRadius = worldCollisionBodyRadius;
         copy.worldCollisionTtlTicks = worldCollisionTtlTicks;
         copy.nativeVoxelTerrainEnabled = nativeVoxelTerrainEnabled;
+        copy.terrainFriction = terrainFriction;
+        copy.terrainRestitution = terrainRestitution;
         copy.visualFullSyncRadius = visualFullSyncRadius;
         copy.visualMaxSyncRadius = visualMaxSyncRadius;
         copy.visualFarSyncCutoffEnabled = visualFarSyncCutoffEnabled;

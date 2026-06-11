@@ -20,8 +20,7 @@ import com.hypixel.hytale.server.core.util.TargetUtil;
 import dev.hytalemodding.impulse.api.PhysicsBodyType;
 import dev.hytalemodding.impulse.api.SpaceId;
 import dev.hytalemodding.impulse.core.plugin.body.RigidBodyKey;
-import dev.hytalemodding.impulse.core.plugin.components.RigidBodyComponent;
-import dev.hytalemodding.impulse.core.plugin.components.RigidBodyKinematicTargetComponent;
+import dev.hytalemodding.impulse.core.plugin.components.PhysicsBodyKinematicTargetComponent;
 import dev.hytalemodding.impulse.core.plugin.modules.worldcollision.WorldCollisionPrewarmStats;
 import dev.hytalemodding.impulse.core.plugin.resources.PhysicsWorldResource;
 import dev.hytalemodding.impulse.core.plugin.settings.PhysicsEventCollectionMode;
@@ -85,7 +84,7 @@ public class EcsCommand extends AbstractCommandCollection {
             ArgTypes.STRING);
 
         private DropCommand() {
-            super("drop", "Spawn an entity-owned dynamic rigid body from ECS components");
+            super("drop", "Spawn a dynamic physics body from split ECS components");
         }
 
         @Nonnull
@@ -107,7 +106,7 @@ public class EcsCommand extends AbstractCommandCollection {
             RigidBodyKey bodyKey = RigidBodyKey.random();
             Vector3d spawn = new Vector3d(playerPos).add(0.0, 5.0, 0.0);
             TimeResource time = store.getResource(TimeResource.getResourceType());
-            ExamplePhysicsUtils.spawnRigidBodyComponentBlockEntity(store,
+            ExamplePhysicsUtils.spawnPhysicsBodyBlockEntity(store,
                 time,
                 bodyKey,
                 spaceId,
@@ -115,10 +114,9 @@ public class EcsCommand extends AbstractCommandCollection {
                 blockType(ctx),
                 PhysicsBodyType.DYNAMIC,
                 1.0f,
-                RigidBodyComponent.Ownership.ENTITY_OWNED,
                 null);
 
-            ctx.sender().sendMessage(Message.raw("Queued ECS rigid body " + bodyKey
+            ctx.sender().sendMessage(Message.raw("Queued ECS-authored physics body " + bodyKey
                 + " in space " + spaceId.value() + "."));
             return CompletableFuture.completedFuture(null);
         }
@@ -204,9 +202,9 @@ public class EcsCommand extends AbstractCommandCollection {
 
             RigidBodyKey bodyKey = RigidBodyKey.random();
             Vector3d spawn = new Vector3d(playerPos).add(0.0, 2.0, 0.0);
-            RigidBodyKinematicTargetComponent target = ExamplePhysicsUtils.kinematicTargetAt(spawn);
+            PhysicsBodyKinematicTargetComponent target = ExamplePhysicsUtils.kinematicTargetAt(spawn);
             TimeResource time = store.getResource(TimeResource.getResourceType());
-            ExamplePhysicsUtils.spawnRigidBodyComponentBlockEntity(store,
+            ExamplePhysicsUtils.spawnPhysicsBodyBlockEntity(store,
                 time,
                 bodyKey,
                 spaceId,
@@ -214,7 +212,6 @@ public class EcsCommand extends AbstractCommandCollection {
                 ExamplePhysicsUtils.DEFAULT_BLOCK_TYPE,
                 PhysicsBodyType.KINEMATIC,
                 0.0f,
-                RigidBodyComponent.Ownership.ENTITY_OWNED,
                 target);
 
             ctx.sender().sendMessage(Message.raw("Queued ECS kinematic platform " + bodyKey
@@ -226,7 +223,7 @@ public class EcsCommand extends AbstractCommandCollection {
     private static final class PickupCommand extends EcsPlayerCommand {
 
         private PickupCommand() {
-            super("pickup", "Attach a detached-view entity to the rigid body in view");
+            super("pickup", "Attach a view entity to the physics body in view");
         }
 
         @Nonnull
@@ -248,18 +245,14 @@ public class EcsCommand extends AbstractCommandCollection {
 
             Vector3d point = new Vector3d(hit.point().x, hit.point().y, hit.point().z);
             TimeResource time = store.getResource(TimeResource.getResourceType());
-            ExamplePhysicsUtils.spawnRigidBodyComponentBlockEntity(store,
+            ExamplePhysicsUtils.spawnExternalBodyViewBlockEntity(store,
                 time,
                 hit.bodyKey(),
                 spaceId,
                 point,
-                ExamplePhysicsUtils.DEFAULT_BLOCK_TYPE,
-                PhysicsBodyType.DYNAMIC,
-                1.0f,
-                RigidBodyComponent.Ownership.DETACHED_VIEW,
-                null);
+                ExamplePhysicsUtils.DEFAULT_BLOCK_TYPE);
 
-            ctx.sender().sendMessage(Message.raw("Attached detached-view ECS entity to "
+            ctx.sender().sendMessage(Message.raw("Attached view-only ECS entity to "
                 + hit.bodyKey() + "."));
             return CompletableFuture.completedFuture(null);
         }
@@ -401,7 +394,7 @@ public class EcsCommand extends AbstractCommandCollection {
                 maxFragments,
                 strength,
                 verticalLift);
-            Holder<EntityStore> holder = ExamplePhysicsUtils.rigidBodyComponentBlockEntityHolder(time,
+            Holder<EntityStore> holder = ExamplePhysicsUtils.physicsBodyBlockEntityHolder(time,
                 bodyKey,
                 spaceId,
                 spawn,
@@ -410,7 +403,6 @@ public class EcsCommand extends AbstractCommandCollection {
                 1.0f,
                 SOURCE_FRICTION,
                 SOURCE_RESTITUTION,
-                RigidBodyComponent.Ownership.ENTITY_OWNED,
                 null);
             holder.addComponent(ExplosiveBlockComponent.getComponentType(), settings);
             holder.addComponent(ExplosiveFuseComponent.getComponentType(), new ExplosiveFuseComponent());

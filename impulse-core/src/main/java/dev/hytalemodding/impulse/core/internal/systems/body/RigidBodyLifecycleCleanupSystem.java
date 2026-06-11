@@ -9,8 +9,7 @@ import com.hypixel.hytale.component.system.RefChangeSystem;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsWorldRuntimeResource;
 import dev.hytalemodding.impulse.core.plugin.body.RigidBodyKey;
-import dev.hytalemodding.impulse.core.plugin.components.RigidBodyComponent;
-import dev.hytalemodding.impulse.core.plugin.components.RigidBodyLifecycleComponent;
+import dev.hytalemodding.impulse.core.plugin.components.PhysicsBodyLifecycleComponent;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
@@ -18,36 +17,35 @@ import javax.annotation.Nullable;
  * Applies explicit backend destruction when ECS ownership is removed.
  */
 public class RigidBodyLifecycleCleanupSystem
-    extends RefChangeSystem<EntityStore, RigidBodyLifecycleComponent> {
+    extends RefChangeSystem<EntityStore, PhysicsBodyLifecycleComponent> {
 
-    private static final ComponentType<EntityStore, RigidBodyLifecycleComponent> LIFECYCLE_TYPE =
-        RigidBodyLifecycleComponent.getComponentType();
+    private static final ComponentType<EntityStore, PhysicsBodyLifecycleComponent> LIFECYCLE_TYPE =
+        PhysicsBodyLifecycleComponent.getComponentType();
     private static final Query<EntityStore> QUERY = LIFECYCLE_TYPE;
 
     @Override
     public void onComponentAdded(@Nonnull Ref<EntityStore> ref,
-        @Nonnull RigidBodyLifecycleComponent component,
+        @Nonnull PhysicsBodyLifecycleComponent component,
         @Nonnull Store<EntityStore> store,
         @Nonnull CommandBuffer<EntityStore> commandBuffer) {
     }
 
     @Override
     public void onComponentSet(@Nonnull Ref<EntityStore> ref,
-        @Nullable RigidBodyLifecycleComponent oldComponent,
-        @Nonnull RigidBodyLifecycleComponent newComponent,
+        @Nullable PhysicsBodyLifecycleComponent oldComponent,
+        @Nonnull PhysicsBodyLifecycleComponent newComponent,
         @Nonnull Store<EntityStore> store,
         @Nonnull CommandBuffer<EntityStore> commandBuffer) {
         if (oldComponent != null
             && shouldDestroy(oldComponent)
-            && (!sameBody(oldComponent, newComponent)
-                || oldComponent.getOwnership() != newComponent.getOwnership())) {
+            && !sameBody(oldComponent, newComponent)) {
             destroy(store, oldComponent);
         }
     }
 
     @Override
     public void onComponentRemoved(@Nonnull Ref<EntityStore> ref,
-        @Nonnull RigidBodyLifecycleComponent component,
+        @Nonnull PhysicsBodyLifecycleComponent component,
         @Nonnull Store<EntityStore> store,
         @Nonnull CommandBuffer<EntityStore> commandBuffer) {
         if (shouldDestroy(component)) {
@@ -57,7 +55,7 @@ public class RigidBodyLifecycleCleanupSystem
 
     @Nonnull
     @Override
-    public ComponentType<EntityStore, RigidBodyLifecycleComponent> componentType() {
+    public ComponentType<EntityStore, PhysicsBodyLifecycleComponent> componentType() {
         return LIFECYCLE_TYPE;
     }
 
@@ -67,21 +65,20 @@ public class RigidBodyLifecycleCleanupSystem
         return QUERY;
     }
 
-    private static boolean shouldDestroy(@Nonnull RigidBodyLifecycleComponent component) {
+    private static boolean shouldDestroy(@Nonnull PhysicsBodyLifecycleComponent component) {
         return component.getBodyKey() != null
-            && component.getOwnership() == RigidBodyComponent.Ownership.ENTITY_OWNED
-            && component.getState() != RigidBodyLifecycleComponent.State.FAILED
-            && component.getState() != RigidBodyLifecycleComponent.State.DESTROYED;
+            && component.getState() != PhysicsBodyLifecycleComponent.State.FAILED
+            && component.getState() != PhysicsBodyLifecycleComponent.State.DESTROYED;
     }
 
-    private static boolean sameBody(@Nonnull RigidBodyLifecycleComponent first,
-        @Nonnull RigidBodyLifecycleComponent second) {
+    private static boolean sameBody(@Nonnull PhysicsBodyLifecycleComponent first,
+        @Nonnull PhysicsBodyLifecycleComponent second) {
         RigidBodyKey firstKey = first.getBodyKey();
         return firstKey != null && firstKey.equals(second.getBodyKey());
     }
 
     private static void destroy(@Nonnull Store<EntityStore> store,
-        @Nonnull RigidBodyLifecycleComponent component) {
+        @Nonnull PhysicsBodyLifecycleComponent component) {
         RigidBodyKey bodyKey = component.getBodyKey();
         if (bodyKey != null) {
             PhysicsWorldRuntimeResource.require(store).destroyBody(bodyKey);

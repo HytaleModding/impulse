@@ -3,7 +3,7 @@ package dev.hytalemodding.impulse.core.internal.systems.body;
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsWorldRuntimeResource;
 import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyKind;
 import dev.hytalemodding.impulse.core.plugin.body.RigidBodyKey;
-import dev.hytalemodding.impulse.core.plugin.components.RigidBodyKinematicTargetComponent;
+import dev.hytalemodding.impulse.core.plugin.components.PhysicsBodyKinematicTargetComponent;
 import dev.hytalemodding.impulse.core.plugin.simulation.PhysicsCommandHandle;
 import dev.hytalemodding.impulse.core.plugin.simulation.recorder.PhysicsCommandRecorder;
 import it.unimi.dsi.fastutil.objects.ObjectOpenHashSet;
@@ -33,7 +33,7 @@ final class RigidBodyCommandBatch {
     }
 
     void addKinematicTarget(@Nonnull RigidBodyKey bodyKey,
-        @Nonnull RigidBodyKinematicTargetComponent target) {
+        @Nonnull PhysicsBodyKinematicTargetComponent target) {
         kinematicTargets.add(new KinematicTargetCommand(bodyKey, target));
     }
 
@@ -107,7 +107,7 @@ final class RigidBodyCommandBatch {
                                           boolean activate) {
 
         private KinematicTargetCommand(@Nonnull RigidBodyKey bodyKey,
-            @Nonnull RigidBodyKinematicTargetComponent target) {
+            @Nonnull PhysicsBodyKinematicTargetComponent target) {
             this(bodyKey,
                 target.getPosition(),
                 target.getRotation(),

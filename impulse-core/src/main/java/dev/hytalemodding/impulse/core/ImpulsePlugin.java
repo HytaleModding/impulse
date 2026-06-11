@@ -30,6 +30,7 @@ import dev.hytalemodding.impulse.core.internal.resources.owner.PhysicsOwnerLaneS
 import dev.hytalemodding.impulse.core.internal.resources.owner.PhysicsOwnerResource;
 import dev.hytalemodding.impulse.core.internal.resources.profiling.PhysicsRuntimeProfilingResource;
 import dev.hytalemodding.impulse.core.internal.systems.debug.PhysicsDebugSystem;
+import dev.hytalemodding.impulse.core.internal.systems.body.PhysicsBodyIdentityCleanupSystem;
 import dev.hytalemodding.impulse.core.internal.systems.body.RigidBodyLifecycleCleanupSystem;
 import dev.hytalemodding.impulse.core.internal.systems.body.RigidBodyReconciliationSystem;
 import dev.hytalemodding.impulse.core.internal.systems.persistence.PersistentPhysicsBodyHydrationSystem;
@@ -44,9 +45,13 @@ import dev.hytalemodding.impulse.core.internal.systems.sync.PhysicsSyncSystem;
 import dev.hytalemodding.impulse.core.internal.systems.visual.PhysicsDetachedVisualMaterializationSystem;
 import dev.hytalemodding.impulse.core.internal.systems.owner.PhysicsOwnerLifecycleSystem;
 import dev.hytalemodding.impulse.core.plugin.components.PhysicsBodyAttachmentComponent;
-import dev.hytalemodding.impulse.core.plugin.components.RigidBodyComponent;
-import dev.hytalemodding.impulse.core.plugin.components.RigidBodyKinematicTargetComponent;
-import dev.hytalemodding.impulse.core.plugin.components.RigidBodyLifecycleComponent;
+import dev.hytalemodding.impulse.core.plugin.components.PhysicsBodyCollisionComponent;
+import dev.hytalemodding.impulse.core.plugin.components.PhysicsBodyDynamicsComponent;
+import dev.hytalemodding.impulse.core.plugin.components.PhysicsBodyIdentityComponent;
+import dev.hytalemodding.impulse.core.plugin.components.PhysicsBodyKinematicTargetComponent;
+import dev.hytalemodding.impulse.core.plugin.components.PhysicsBodyLifecycleComponent;
+import dev.hytalemodding.impulse.core.plugin.components.PhysicsBodyMaterialComponent;
+import dev.hytalemodding.impulse.core.plugin.components.PhysicsBodyShapeComponent;
 import dev.hytalemodding.impulse.core.plugin.events.PhysicsEventFramePublishedEvent;
 import dev.hytalemodding.impulse.core.plugin.persistence.PhysicsPersistenceResource;
 import dev.hytalemodding.impulse.core.plugin.resources.PhysicsWorldResource;
@@ -69,13 +74,25 @@ public final class ImpulsePlugin extends JavaPlugin {
     private ComponentType<EntityStore, PhysicsBodyAttachmentComponent> physicsBodyAttachmentComponentType;
 
     @Getter
-    private ComponentType<EntityStore, RigidBodyComponent> rigidBodyComponentType;
+    private ComponentType<EntityStore, PhysicsBodyIdentityComponent> physicsBodyIdentityComponentType;
 
     @Getter
-    private ComponentType<EntityStore, RigidBodyKinematicTargetComponent> rigidBodyKinematicTargetComponentType;
+    private ComponentType<EntityStore, PhysicsBodyShapeComponent> physicsBodyShapeComponentType;
 
     @Getter
-    private ComponentType<EntityStore, RigidBodyLifecycleComponent> rigidBodyLifecycleComponentType;
+    private ComponentType<EntityStore, PhysicsBodyDynamicsComponent> physicsBodyDynamicsComponentType;
+
+    @Getter
+    private ComponentType<EntityStore, PhysicsBodyMaterialComponent> physicsBodyMaterialComponentType;
+
+    @Getter
+    private ComponentType<EntityStore, PhysicsBodyCollisionComponent> physicsBodyCollisionComponentType;
+
+    @Getter
+    private ComponentType<EntityStore, PhysicsBodyKinematicTargetComponent> physicsBodyKinematicTargetComponentType;
+
+    @Getter
+    private ComponentType<EntityStore, PhysicsBodyLifecycleComponent> physicsBodyLifecycleComponentType;
 
     @Getter
     private ComponentType<EntityStore, GeneratedVisualProxyComponent> generatedVisualProxyComponentType;
@@ -273,18 +290,34 @@ public final class ImpulsePlugin extends JavaPlugin {
             PhysicsBodyAttachmentComponent.class,
             "PhysicsBodyAttachment",
             PhysicsBodyAttachmentComponent.CODEC);
-        rigidBodyComponentType = entityRegistry.registerComponent(
-            RigidBodyComponent.class,
-            "RigidBody",
-            RigidBodyComponent.CODEC);
-        rigidBodyKinematicTargetComponentType = entityRegistry.registerComponent(
-            RigidBodyKinematicTargetComponent.class,
-            "RigidBodyKinematicTarget",
-            RigidBodyKinematicTargetComponent.CODEC);
-        rigidBodyLifecycleComponentType = entityRegistry.registerComponent(
-            RigidBodyLifecycleComponent.class,
-            "RigidBodyLifecycle",
-            RigidBodyLifecycleComponent.CODEC);
+        physicsBodyIdentityComponentType = entityRegistry.registerComponent(
+            PhysicsBodyIdentityComponent.class,
+            "PhysicsBodyIdentity",
+            PhysicsBodyIdentityComponent.CODEC);
+        physicsBodyShapeComponentType = entityRegistry.registerComponent(
+            PhysicsBodyShapeComponent.class,
+            "PhysicsBodyShape",
+            PhysicsBodyShapeComponent.CODEC);
+        physicsBodyDynamicsComponentType = entityRegistry.registerComponent(
+            PhysicsBodyDynamicsComponent.class,
+            "PhysicsBodyDynamics",
+            PhysicsBodyDynamicsComponent.CODEC);
+        physicsBodyMaterialComponentType = entityRegistry.registerComponent(
+            PhysicsBodyMaterialComponent.class,
+            "PhysicsBodyMaterial",
+            PhysicsBodyMaterialComponent.CODEC);
+        physicsBodyCollisionComponentType = entityRegistry.registerComponent(
+            PhysicsBodyCollisionComponent.class,
+            "PhysicsBodyCollision",
+            PhysicsBodyCollisionComponent.CODEC);
+        physicsBodyKinematicTargetComponentType = entityRegistry.registerComponent(
+            PhysicsBodyKinematicTargetComponent.class,
+            "PhysicsBodyKinematicTarget",
+            PhysicsBodyKinematicTargetComponent.CODEC);
+        physicsBodyLifecycleComponentType = entityRegistry.registerComponent(
+            PhysicsBodyLifecycleComponent.class,
+            "PhysicsBodyLifecycle",
+            PhysicsBodyLifecycleComponent.CODEC);
         generatedVisualProxyComponentType = entityRegistry.registerComponent(
             GeneratedVisualProxyComponent.class,
             "GeneratedVisualProxy",
@@ -351,6 +384,7 @@ public final class ImpulsePlugin extends JavaPlugin {
         entityRegistry.registerSystem(new PersistentPhysicsBodyHydrationSystem());
         entityRegistry.registerSystem(new PersistentPhysicsJointHydrationSystem());
         entityRegistry.registerSystem(new PhysicsRuntimeHolderSystem());
+        entityRegistry.registerSystem(new PhysicsBodyIdentityCleanupSystem());
         entityRegistry.registerSystem(new RigidBodyLifecycleCleanupSystem());
         entityRegistry.registerSystem(new PhysicsBodyAttachmentIndexSystem());
         entityRegistry.registerSystem(new PhysicsSyncSystem());
