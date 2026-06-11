@@ -17,10 +17,12 @@ import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyPersistenceMode;
 import dev.hytalemodding.impulse.core.plugin.body.RigidBodyKey;
 import dev.hytalemodding.impulse.core.plugin.settings.PhysicsSpaceSettings;
 import dev.hytalemodding.impulse.core.plugin.simulation.PhysicsCommandResult;
+import dev.hytalemodding.impulse.core.plugin.simulation.query.SpaceBodyCountQuery;
 import dev.hytalemodding.impulse.core.plugin.simulation.PhysicsShapeSpec;
 import dev.hytalemodding.impulse.core.plugin.simulation.RigidBodySpawnSettings;
 import dev.hytalemodding.impulse.core.plugin.snapshot.PublishedPhysicsSnapshotFrame;
 import java.time.Duration;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -381,6 +383,66 @@ class PhysicsWorldResourceCommandVisibilityTest {
 
             assertNotNull(resource.getBodyRegistrationView(bodyId));
             assertNull(resource.getBodySnapshotIfRegistered(bodyId));
+            resource.detachOwnerExecutor(owner);
+        }
+    }
+
+    @Test
+    void queuedDestroyAfterCommandSpawnRemovesBodyBeforePublication() throws Exception {
+        RuntimeFixture fixture = createRuntimeFixture("owner-command-spawn-destroy-before-publication");
+        PhysicsWorldRuntimeResource resource = fixture.resource();
+
+        try (TestPhysicsOwnerLane owner = new TestPhysicsOwnerLane(4,
+            Duration.ofSeconds(2L))) {
+            owner.start("owner-command-spawn-destroy-before-publication");
+            resource.attachOwnerExecutor(owner);
+
+            CountDownLatch blockerStarted = new CountDownLatch(1);
+            CountDownLatch releaseBlocker = new CountDownLatch(1);
+            owner.submitMutation("block command-buffer spawn before destroy", () -> {
+                blockerStarted.countDown();
+                assertTrue(releaseBlocker.await(2, TimeUnit.SECONDS));
+                return PhysicsOwnerSnapshot.empty();
+            });
+            assertTrue(blockerStarted.await(2, TimeUnit.SECONDS));
+
+            RigidBodyKey bodyId = RigidBodyKey.random();
+            var spawnHandle = resource.submitCommands(361L, commands -> commands
+                .spawnBody(bodyId, spawn -> spawn
+                    .space(fixture.spaceId())
+                    .box(0.5f, 0.5f, 0.5f)
+                    .dynamic()));
+            CompletableFuture<Void> destroyFuture =
+                CompletableFuture.runAsync(() -> resource.destroyBody(bodyId));
+
+            assertTrue(resource.isBodyCreationPending(bodyId));
+            assertFalse(spawnHandle.completion().toCompletableFuture().isDone());
+            assertFalse(destroyFuture.isDone());
+
+            releaseBlocker.countDown();
+
+            var spawnResults = spawnHandle.completion()
+                .toCompletableFuture()
+                .get(2, TimeUnit.SECONDS);
+            destroyFuture.get(2, TimeUnit.SECONDS);
+
+            assertEquals(PhysicsCommandResult.Status.APPLIED, spawnResults.getFirst().status());
+            assertFalse(resource.isBodyCreationPending(bodyId));
+            assertNull(resource.getBodyRegistrationView(bodyId));
+            assertEquals(0, resource.query(new SpaceBodyCountQuery(fixture.spaceId()))
+                .completion()
+                .toCompletableFuture()
+                .get(2, TimeUnit.SECONDS));
+
+            PublishedPhysicsSnapshotFrame frame = resource.capturePublishedSnapshotFrame(1L,
+                362L,
+                PublishedPhysicsSnapshotFrame.Status.COMPLETE,
+                0L,
+                false);
+            assertEquals(0, frame.bodyCount());
+            resource.applyPublishedSnapshotFrame(frame);
+            assertFalse(resource.isBodyCreationPending(bodyId));
+            assertNull(resource.getBodyRegistrationView(bodyId));
             resource.detachOwnerExecutor(owner);
         }
     }

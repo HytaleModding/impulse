@@ -112,6 +112,12 @@ public final class PhysicsCommandVisibilityState {
         }
     }
 
+    public void clearBodyCreationPending(@Nonnull RigidBodyKey bodyKey) {
+        synchronized (pendingCommandBodyCreationSequences) {
+            pendingCommandBodyCreationSequences.removeLong(bodyKey);
+        }
+    }
+
     public void applyLastIncludedCommandBatchSequence(long lastIncludedCommandBatchSequence) {
         synchronized (pendingCommandBodyCreationSequences) {
             pendingCommandBodyCreationSequences.object2LongEntrySet()

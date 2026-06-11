@@ -49,10 +49,6 @@ public final class WorldVoxelCollisionCache {
     private static final int MISSING_BLOCK_CHUNK_RETRY_TICKS = 10;
     private static final int MISSING_BLOCK_SECTION_RETRY_TICKS = 5;
 
-    // TODO: Replace placeholder terrain material constants with real material lookup.
-    private static final float TERRAIN_FRICTION = 0.75f;
-    private static final float TERRAIN_RESTITUTION = 0.0f;
-
     private static final int ADJACENT_SECTION_VOXEL_SHIFT = 16;
     private static final long BODY_TARGET_REFRESH_PENDING = Long.MIN_VALUE;
 
@@ -983,15 +979,15 @@ public final class WorldVoxelCollisionCache {
         if (buildOptions.nativeVoxelTerrainEnabled()
             && geometry.hasFullCubeVoxels()
             && space.runtime().supportsVoxelTerrain(space.backendSpaceHandle().value())) {
-            addVoxelTerrain(space, target, geometry, chunkX, sectionY, chunkZ);
+            addVoxelTerrain(space, target, geometry, chunkX, sectionY, chunkZ, buildOptions);
         } else {
             for (BoxCollider box : geometry.mergedFullCubeBoxes()) {
-                addStaticBox(space, target, box);
+                addStaticBox(space, target, box, buildOptions);
             }
         }
 
         for (BoxCollider box : geometry.detailBoxes()) {
-            addStaticBox(space, target, box);
+            addStaticBox(space, target, box, buildOptions);
         }
     }
 
@@ -1000,7 +996,8 @@ public final class WorldVoxelCollisionCache {
         @Nonnull SectionCollisionGeometry geometry,
         int chunkX,
         int sectionY,
-        int chunkZ) {
+        int chunkZ,
+        @Nonnull WorldCollisionBuildOptions buildOptions) {
         long backendBodyId = space.runtime().createVoxelTerrain(space.backendSpaceHandle().value(),
             1.0f,
             1.0f,
@@ -1009,8 +1006,8 @@ public final class WorldVoxelCollisionCache {
             chunkX << ChunkUtil.BITS,
             sectionY << ChunkUtil.BITS,
             chunkZ << ChunkUtil.BITS,
-            TERRAIN_FRICTION,
-            TERRAIN_RESTITUTION,
+            buildOptions.terrainFriction(),
+            buildOptions.terrainRestitution(),
             PhysicsCollisionFilters.TERRAIN,
             PhysicsCollisionFilters.ALL);
         section.backendBodyIds.add(backendBodyId);
@@ -1020,7 +1017,8 @@ public final class WorldVoxelCollisionCache {
 
     private static void addStaticBox(@Nonnull PhysicsSpaceBinding space,
         @Nonnull CachedSection section,
-        @Nonnull BoxCollider box) {
+        @Nonnull BoxCollider box,
+        @Nonnull WorldCollisionBuildOptions buildOptions) {
         if (box.halfX() <= 0.0 || box.halfY() <= 0.0 || box.halfZ() <= 0.0) {
             return;
         }
@@ -1044,13 +1042,24 @@ public final class WorldVoxelCollisionCache {
             0.0f,
             1.0f);
         section.backendBodyIds.add(backendBodyId);
-        space.runtime().setBodyFriction(space.backendSpaceHandle().value(), backendBodyId, TERRAIN_FRICTION);
-        space.runtime().setBodyRestitution(space.backendSpaceHandle().value(), backendBodyId, TERRAIN_RESTITUTION);
+        applyTerrainMaterial(space, backendBodyId, buildOptions);
         space.runtime()
             .setBodyCollisionFilter(space.backendSpaceHandle().value(),
                 backendBodyId,
                 PhysicsCollisionFilters.TERRAIN,
                 PhysicsCollisionFilters.ALL);
+    }
+
+    private static void applyTerrainMaterial(@Nonnull PhysicsSpaceBinding space,
+        long backendBodyId,
+        @Nonnull WorldCollisionBuildOptions buildOptions) {
+        // TODO: Replace coarse terrain settings with real per-block material lookup.
+        space.runtime().setBodyFriction(space.backendSpaceHandle().value(),
+            backendBodyId,
+            buildOptions.terrainFriction());
+        space.runtime().setBodyRestitution(space.backendSpaceHandle().value(),
+            backendBodyId,
+            buildOptions.terrainRestitution());
     }
 
     private static void stitchAdjacentVoxelTerrains(@Nonnull PhysicsSpaceBinding space,

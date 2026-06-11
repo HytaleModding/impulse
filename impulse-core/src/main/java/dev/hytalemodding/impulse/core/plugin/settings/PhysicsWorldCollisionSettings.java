@@ -55,6 +55,16 @@ public class PhysicsWorldCollisionSettings {
     public static final boolean DEFAULT_NATIVE_VOXEL_TERRAIN_ENABLED = false;
 
     /**
+     * Default friction applied to generated terrain collision bodies.
+     */
+    public static final float DEFAULT_TERRAIN_FRICTION = 0.75f;
+
+    /**
+     * Default restitution applied to generated terrain collision bodies.
+     */
+    public static final float DEFAULT_TERRAIN_RESTITUTION = 0.0f;
+
+    /**
      * World collision mode for this space. Defaults to NONE so Impulse
      * is fully opt-in: no terrain collision is created unless explicitly requested.
      */
@@ -92,6 +102,18 @@ public class PhysicsWorldCollisionSettings {
     @Getter
     private int worldCollisionTtlTicks = DEFAULT_WORLD_COLLISION_TTL_TICKS;
 
+    /**
+     * Friction applied to generated terrain bodies for this space.
+     */
+    @Getter
+    private float terrainFriction = DEFAULT_TERRAIN_FRICTION;
+
+    /**
+     * Restitution applied to generated terrain bodies for this space.
+     */
+    @Getter
+    private float terrainRestitution = DEFAULT_TERRAIN_RESTITUTION;
+
     public PhysicsWorldCollisionSettings() {
     }
 
@@ -102,6 +124,8 @@ public class PhysicsWorldCollisionSettings {
         worldCollisionRadius = settings.worldCollisionRadius;
         worldCollisionBodyRadius = settings.worldCollisionBodyRadius;
         worldCollisionTtlTicks = settings.worldCollisionTtlTicks;
+        terrainFriction = settings.terrainFriction;
+        terrainRestitution = settings.terrainRestitution;
     }
 
     @Nonnull
@@ -142,5 +166,32 @@ public class PhysicsWorldCollisionSettings {
             "World collision TTL",
             worldCollisionTtlTicks,
             MAX_WORLD_COLLISION_TTL_TICKS);
+    }
+
+    public void setTerrainFriction(float terrainFriction) {
+        this.terrainFriction = PhysicsSettingsValidation.requireFiniteAtLeast(
+            "Terrain friction",
+            terrainFriction,
+            0.0f);
+    }
+
+    public void setTerrainRestitution(float terrainRestitution) {
+        this.terrainRestitution = PhysicsSettingsValidation.requireFiniteAtLeast(
+            "Terrain restitution",
+            terrainRestitution,
+            0.0f);
+    }
+
+    public void setTerrainMaterial(float terrainFriction, float terrainRestitution) {
+        float validatedFriction = PhysicsSettingsValidation.requireFiniteAtLeast(
+            "Terrain friction",
+            terrainFriction,
+            0.0f);
+        float validatedRestitution = PhysicsSettingsValidation.requireFiniteAtLeast(
+            "Terrain restitution",
+            terrainRestitution,
+            0.0f);
+        this.terrainFriction = validatedFriction;
+        this.terrainRestitution = validatedRestitution;
     }
 }

@@ -9,6 +9,7 @@ import com.hypixel.hytale.math.vector.Vector3fUtil;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import dev.hytalemodding.impulse.core.ImpulsePlugin;
 import dev.hytalemodding.impulse.core.plugin.codec.ImpulseCodecs;
+import java.util.Objects;
 import javax.annotation.Nonnull;
 import lombok.Getter;
 import lombok.Setter;
@@ -16,17 +17,17 @@ import org.joml.Quaternionf;
 import org.joml.Vector3f;
 
 /**
- * Data-only kinematic target for an ECS rigid body.
+ * Data-only kinematic target for an entity-authored physics body.
  */
-public class RigidBodyKinematicTargetComponent implements Component<EntityStore> {
+public class PhysicsBodyKinematicTargetComponent implements Component<EntityStore> {
 
     @Nonnull
-    public static final BuilderCodec<RigidBodyKinematicTargetComponent> CODEC = BuilderCodec.builder(
-            RigidBodyKinematicTargetComponent.class,
-            RigidBodyKinematicTargetComponent::new)
+    public static final BuilderCodec<PhysicsBodyKinematicTargetComponent> CODEC = BuilderCodec.builder(
+            PhysicsBodyKinematicTargetComponent.class,
+            PhysicsBodyKinematicTargetComponent::new)
         .append(new KeyedCodec<>("Position", Vector3fUtil.CODEC, false),
             (component, value) -> component.position.set(value != null ? value : new Vector3f()),
-            RigidBodyKinematicTargetComponent::getPosition)
+            PhysicsBodyKinematicTargetComponent::getPosition)
         .add()
         .append(new KeyedCodec<>("Rotation", ImpulseCodecs.QUATERNIONF, false),
             (component, value) -> component.rotation.set(value != null ? value : new Quaternionf()),
@@ -34,23 +35,23 @@ public class RigidBodyKinematicTargetComponent implements Component<EntityStore>
         .add()
         .append(new KeyedCodec<>("LinearVelocity", Vector3fUtil.CODEC, false),
             (component, value) -> component.linearVelocity.set(value != null ? value : new Vector3f()),
-            RigidBodyKinematicTargetComponent::getLinearVelocity)
+            PhysicsBodyKinematicTargetComponent::getLinearVelocity)
         .add()
         .append(new KeyedCodec<>("AngularVelocity", Vector3fUtil.CODEC, false),
             (component, value) -> component.angularVelocity.set(value != null ? value : new Vector3f()),
-            RigidBodyKinematicTargetComponent::getAngularVelocity)
+            PhysicsBodyKinematicTargetComponent::getAngularVelocity)
         .add()
         .append(new KeyedCodec<>("TransformEnabled", Codec.BOOLEAN, false),
             (component, value) -> component.transformEnabled = value == null || value,
-            RigidBodyKinematicTargetComponent::isTransformEnabled)
+            PhysicsBodyKinematicTargetComponent::isTransformEnabled)
         .add()
         .append(new KeyedCodec<>("VelocityEnabled", Codec.BOOLEAN, false),
             (component, value) -> component.velocityEnabled = value != null && value,
-            RigidBodyKinematicTargetComponent::isVelocityEnabled)
+            PhysicsBodyKinematicTargetComponent::isVelocityEnabled)
         .add()
         .append(new KeyedCodec<>("Activate", Codec.BOOLEAN, false),
             (component, value) -> component.activate = value == null || value,
-            RigidBodyKinematicTargetComponent::isActivate)
+            PhysicsBodyKinematicTargetComponent::isActivate)
         .add()
         .build();
 
@@ -72,20 +73,20 @@ public class RigidBodyKinematicTargetComponent implements Component<EntityStore>
     @Getter
     private boolean activate = true;
 
-    public RigidBodyKinematicTargetComponent() {
+    public PhysicsBodyKinematicTargetComponent() {
     }
 
-    public RigidBodyKinematicTargetComponent(@Nonnull Vector3f position,
+    public PhysicsBodyKinematicTargetComponent(@Nonnull Vector3f position,
         @Nonnull Quaternionf rotation,
         @Nonnull Vector3f linearVelocity,
         @Nonnull Vector3f angularVelocity,
         boolean transformEnabled,
         boolean velocityEnabled,
         boolean activate) {
-        this.position.set(position);
-        this.rotation.set(rotation);
-        this.linearVelocity.set(linearVelocity);
-        this.angularVelocity.set(angularVelocity);
+        this.position.set(Objects.requireNonNull(position, "position"));
+        this.rotation.set(Objects.requireNonNull(rotation, "rotation"));
+        this.linearVelocity.set(Objects.requireNonNull(linearVelocity, "linearVelocity"));
+        this.angularVelocity.set(Objects.requireNonNull(angularVelocity, "angularVelocity"));
         this.transformEnabled = transformEnabled;
         this.velocityEnabled = velocityEnabled;
         this.activate = activate;
@@ -111,14 +112,14 @@ public class RigidBodyKinematicTargetComponent implements Component<EntityStore>
         return angularVelocity;
     }
 
-    public static ComponentType<EntityStore, RigidBodyKinematicTargetComponent> getComponentType() {
-        return ImpulsePlugin.get().getRigidBodyKinematicTargetComponentType();
+    public static ComponentType<EntityStore, PhysicsBodyKinematicTargetComponent> getComponentType() {
+        return ImpulsePlugin.get().getPhysicsBodyKinematicTargetComponentType();
     }
 
     @Nonnull
     @Override
-    public RigidBodyKinematicTargetComponent clone() {
-        return new RigidBodyKinematicTargetComponent(position,
+    public PhysicsBodyKinematicTargetComponent clone() {
+        return new PhysicsBodyKinematicTargetComponent(position,
             rotation,
             linearVelocity,
             angularVelocity,
