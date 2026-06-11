@@ -565,7 +565,8 @@ public class PhysicsDetachedVisualMaterializationSystem extends TickingSystem<En
     private static void removeOrphanVisualFollowers(@Nonnull Store<EntityStore> store,
         @Nonnull PhysicsWorldRuntimeResource resource) {
         Queue<OrphanVisualProxy> orphanProxies = new ConcurrentLinkedQueue<>();
-        ComponentType<EntityStore, PhysicsBodyAttachmentComponent> attachmentType = attachmentType();
+        ComponentType<EntityStore, PhysicsBodyAttachmentComponent> attachmentType =
+            PhysicsBodyAttachmentComponent.getComponentType();
         store.forEachEntityParallel(attachmentType,
             (index, archetypeChunk, commandBuffer) -> {
                 PhysicsBodyAttachmentComponent attachment = archetypeChunk.getComponent(index,
@@ -616,7 +617,8 @@ public class PhysicsDetachedVisualMaterializationSystem extends TickingSystem<En
         @Nonnull RigidBodyKey bodyKey,
         @Nonnull Ref<EntityStore> proxy,
         @Nonnull GameplayAttachmentSnapshot gameplayAttachments) {
-        ComponentType<EntityStore, PhysicsBodyAttachmentComponent> attachmentType = attachmentType();
+        ComponentType<EntityStore, PhysicsBodyAttachmentComponent> attachmentType =
+            PhysicsBodyAttachmentComponent.getComponentType();
         for (Ref<EntityStore> attachmentRef : resource.getBodyAttachments(bodyKey)) {
             if (attachmentRef == proxy || attachmentRef.equals(proxy)) {
                 continue;
@@ -716,7 +718,7 @@ public class PhysicsDetachedVisualMaterializationSystem extends TickingSystem<En
         }
 
         WorldChunk worldChunk = chunkComponentStore.getComponentConcurrent(chunkRef,
-            worldChunkType());
+            WorldChunk.getComponentType());
         return worldChunk != null;
     }
 
@@ -727,7 +729,8 @@ public class PhysicsDetachedVisualMaterializationSystem extends TickingSystem<En
         if (!proxy.isValid()) {
             return false;
         }
-        PhysicsBodyAttachmentComponent attachment = store.getComponent(proxy, attachmentType());
+        PhysicsBodyAttachmentComponent attachment =
+            store.getComponent(proxy, PhysicsBodyAttachmentComponent.getComponentType());
         return attachment != null
             && attachment.getLifecycle() == AttachmentLifecycle.GENERATED_PROXY
             && attachment.getBodyKey().equals(bodyKey)
@@ -765,36 +768,16 @@ public class PhysicsDetachedVisualMaterializationSystem extends TickingSystem<En
             Vector3f euler = rotation.getEulerAnglesYXZ(new Vector3f());
             transform.getRotation().set(euler.x, euler.y, euler.z);
         }
-        holder.removeComponent(despawnType());
-        holder.removeComponent(velocityType());
+        holder.removeComponent(DespawnComponent.getComponentType());
+        holder.removeComponent(Velocity.getComponentType());
         holder.addComponent(store.getRegistry().getNonSerializedComponentType(), NonSerialized.get());
         holder.addComponent(GeneratedVisualProxyComponent.getComponentType(), new GeneratedVisualProxyComponent());
-        holder.addComponent(attachmentType(),
+        holder.addComponent(PhysicsBodyAttachmentComponent.getComponentType(),
             new PhysicsBodyAttachmentComponent(bodyKey,
                 registration.spaceId(),
                 TransformAuthority.BODY,
                 AttachmentLifecycle.GENERATED_PROXY));
         return store.addEntity(holder, AddReason.SPAWN);
-    }
-
-    @Nonnull
-    private static ComponentType<EntityStore, PhysicsBodyAttachmentComponent> attachmentType() {
-        return PhysicsBodyAttachmentComponent.getComponentType();
-    }
-
-    @Nonnull
-    private static ComponentType<EntityStore, DespawnComponent> despawnType() {
-        return DespawnComponent.getComponentType();
-    }
-
-    @Nonnull
-    private static ComponentType<EntityStore, Velocity> velocityType() {
-        return Velocity.getComponentType();
-    }
-
-    @Nonnull
-    private static ComponentType<ChunkStore, WorldChunk> worldChunkType() {
-        return WorldChunk.getComponentType();
     }
 
     private record MaterializationCandidate(@Nonnull RigidBodyKey bodyKey,
