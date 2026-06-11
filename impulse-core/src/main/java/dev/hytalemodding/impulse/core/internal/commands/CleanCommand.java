@@ -44,12 +44,6 @@ import org.joml.Vector3f;
  */
 public class CleanCommand extends AbstractWorldCommand {
 
-    private static final ComponentType<EntityStore, PhysicsBodyAttachmentComponent> ATTACHMENT_TYPE =
-        PhysicsBodyAttachmentComponent.getComponentType();
-    private static final ComponentType<EntityStore, GeneratedVisualProxyComponent> GENERATED_PROXY_TYPE =
-        GeneratedVisualProxyComponent.getComponentType();
-    private static final ComponentType<EntityStore, TransformComponent> TRANSFORM_TYPE =
-        TransformComponent.getComponentType();
     private static final int REMOVED_BODY_ENTITIES = 0;
     private static final int REMOVED_ORPHAN_VISUAL_ENTITIES = 1;
     private static final int REMOVED_SESSIONS = 2;
@@ -79,16 +73,20 @@ public class CleanCommand extends AbstractWorldCommand {
     private static void cleanAll(@Nonnull CommandContext context,
         @Nonnull World world,
         @Nonnull Store<EntityStore> store) {
+        ComponentType<EntityStore, PhysicsBodyAttachmentComponent> attachmentType =
+            PhysicsBodyAttachmentComponent.getComponentType();
+        ComponentType<EntityStore, GeneratedVisualProxyComponent> generatedProxyType =
+            GeneratedVisualProxyComponent.getComponentType();
         AtomicIntegerArray removedEntities = new AtomicIntegerArray(REMOVED_ENTITY_COUNTERS);
-        store.forEachEntityParallel(ATTACHMENT_TYPE,
+        store.forEachEntityParallel(attachmentType,
             (index, archetypeChunk, commandBuffer) -> {
                 removedEntities.incrementAndGet(REMOVED_BODY_ENTITIES);
                 commandBuffer.removeEntity(archetypeChunk.getReferenceTo(index), RemoveReason.REMOVE);
             });
 
-        store.forEachEntityParallel(GENERATED_PROXY_TYPE,
+        store.forEachEntityParallel(generatedProxyType,
             (index, archetypeChunk, commandBuffer) -> {
-                if (archetypeChunk.getComponent(index, ATTACHMENT_TYPE) != null) {
+                if (archetypeChunk.getComponent(index, attachmentType) != null) {
                     return;
                 }
 
@@ -142,12 +140,16 @@ public class CleanCommand extends AbstractWorldCommand {
         resource.refreshBodySnapshots();
         Set<RigidBodyKey> selectedBodyKeys = selectBodyKeysNear(resource, center, radius);
         double radiusSquared = (double) radius * radius;
+        ComponentType<EntityStore, PhysicsBodyAttachmentComponent> attachmentType =
+            PhysicsBodyAttachmentComponent.getComponentType();
+        ComponentType<EntityStore, GeneratedVisualProxyComponent> generatedProxyType =
+            GeneratedVisualProxyComponent.getComponentType();
 
         AtomicIntegerArray removedEntities = new AtomicIntegerArray(REMOVED_ENTITY_COUNTERS);
-        store.forEachEntityParallel(ATTACHMENT_TYPE,
+        store.forEachEntityParallel(attachmentType,
             (index, archetypeChunk, commandBuffer) -> {
                 PhysicsBodyAttachmentComponent attachment =
-                    archetypeChunk.getComponent(index, ATTACHMENT_TYPE);
+                    archetypeChunk.getComponent(index, attachmentType);
                 assert attachment != null;
                 if (!selectedBodyKeys.contains(attachment.getBodyKey())) {
                     return;
@@ -157,9 +159,9 @@ public class CleanCommand extends AbstractWorldCommand {
                 commandBuffer.removeEntity(archetypeChunk.getReferenceTo(index), RemoveReason.REMOVE);
             });
 
-        store.forEachEntityParallel(GENERATED_PROXY_TYPE,
+        store.forEachEntityParallel(generatedProxyType,
             (index, archetypeChunk, commandBuffer) -> {
-                if (archetypeChunk.getComponent(index, ATTACHMENT_TYPE) != null
+                if (archetypeChunk.getComponent(index, attachmentType) != null
                     || !entityWithinRadius(archetypeChunk, index, center, radiusSquared)) {
                     return;
                 }
@@ -212,7 +214,8 @@ public class CleanCommand extends AbstractWorldCommand {
         @Nonnull Store<EntityStore> store) {
         Ref<EntityStore> playerRef = context.senderAsPlayerRef();
         assert playerRef != null;
-        TransformComponent transform = store.getComponent(playerRef, TRANSFORM_TYPE);
+        TransformComponent transform =
+            store.getComponent(playerRef, TransformComponent.getComponentType());
         return transform != null ? new Vector3d(transform.getPosition()) : null;
     }
 
@@ -250,7 +253,8 @@ public class CleanCommand extends AbstractWorldCommand {
             return false;
         }
 
-        TransformComponent targetTransform = commandBuffer.getComponent(targetRef, TRANSFORM_TYPE);
+        TransformComponent targetTransform =
+            commandBuffer.getComponent(targetRef, TransformComponent.getComponentType());
         return targetTransform != null && positionWithinRadius(targetTransform.getPosition(),
             center,
             radiusSquared);
@@ -272,7 +276,8 @@ public class CleanCommand extends AbstractWorldCommand {
         int index,
         @Nonnull Vector3d center,
         double radiusSquared) {
-        TransformComponent transform = archetypeChunk.getComponent(index, TRANSFORM_TYPE);
+        TransformComponent transform =
+            archetypeChunk.getComponent(index, TransformComponent.getComponentType());
         return transform != null && positionWithinRadius(transform.getPosition(), center, radiusSquared);
     }
 
