@@ -63,6 +63,13 @@ public class PersistentPhysicsJointHydrationSystem extends TickingSystem<EntityS
         PhysicsOwnerBridge.run(store, "hydrate persisted physics joints", () -> hydrateJoints(store,
             persistent));
 
+        if (!shouldFinalizeRuntimeRestore(persistent)) {
+            if (persistent.hasRuntimeRestoreFailed()) {
+                LOGGER.at(Level.SEVERE).log(persistent.runtimeRestoreFailureSummary());
+            }
+            return;
+        }
+
         World world = store.getExternalData().getWorld();
         PersistentPhysicsRestoreTerrainPrewarm.prewarmRestoredDynamicBodyTerrain(world,
             PhysicsWorldRuntimeResource.require(store),
@@ -74,6 +81,10 @@ public class PersistentPhysicsJointHydrationSystem extends TickingSystem<EntityS
         } else {
             LOGGER.at(Level.INFO).log(persistent.runtimeRestoreSummary());
         }
+    }
+
+    static boolean shouldFinalizeRuntimeRestore(@Nonnull PersistentPhysicsWorldResource persistent) {
+        return persistent.isRuntimeRestorePending() && !persistent.hasRuntimeRestoreFailed();
     }
 
     private static void hydrateJoints(@Nonnull Store<EntityStore> store,
