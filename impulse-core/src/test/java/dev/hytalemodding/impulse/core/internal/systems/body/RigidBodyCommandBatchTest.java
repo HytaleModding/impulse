@@ -6,12 +6,16 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import dev.hytalemodding.impulse.api.PhysicsAxis;
 import dev.hytalemodding.impulse.api.PhysicsBodyType;
-import dev.hytalemodding.impulse.api.ShapeType;
 import dev.hytalemodding.impulse.api.SpaceId;
 import dev.hytalemodding.impulse.core.internal.simulation.recorder.MutablePhysicsCommandContext;
+import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyPersistenceMode;
 import dev.hytalemodding.impulse.core.plugin.body.RigidBodyKey;
-import dev.hytalemodding.impulse.core.plugin.components.RigidBodyComponent;
-import dev.hytalemodding.impulse.core.plugin.components.RigidBodyKinematicTargetComponent;
+import dev.hytalemodding.impulse.core.plugin.components.PhysicsBodyCollisionComponent;
+import dev.hytalemodding.impulse.core.plugin.components.PhysicsBodyDynamicsComponent;
+import dev.hytalemodding.impulse.core.plugin.components.PhysicsBodyIdentityComponent;
+import dev.hytalemodding.impulse.core.plugin.components.PhysicsBodyKinematicTargetComponent;
+import dev.hytalemodding.impulse.core.plugin.components.PhysicsBodyMaterialComponent;
+import dev.hytalemodding.impulse.core.plugin.components.PhysicsBodyShapeComponent;
 import org.joml.Quaternionf;
 import org.joml.Vector3f;
 import org.junit.jupiter.api.Test;
@@ -44,7 +48,7 @@ class RigidBodyCommandBatchTest {
     void kinematicTargetStateAcceptsOnlyChangedTargets() {
         RigidBodyKey bodyKey = RigidBodyKey.of(0L, 103L);
         RigidBodyKinematicTargetState state = new RigidBodyKinematicTargetState();
-        RigidBodyKinematicTargetComponent target = target(1.0f, true, false);
+        PhysicsBodyKinematicTargetComponent target = target(1.0f, true, false);
 
         state.beginTick();
         assertTrue(state.shouldSubmit(bodyKey, target));
@@ -71,21 +75,20 @@ class RigidBodyCommandBatchTest {
     }
 
     private static RigidBodySpawnPlan spawnPlan(RigidBodyKey bodyKey) {
-        RigidBodyComponent body = new RigidBodyComponent();
-        body.setBodyKey(bodyKey);
-        body.setSpaceId(new SpaceId(7));
-        body.setShapeType(ShapeType.BOX);
-        body.setHalfExtentX(0.5f);
-        body.setHalfExtentY(0.5f);
-        body.setHalfExtentZ(0.5f);
-        body.setAxis(PhysicsAxis.Y);
-        return RigidBodySpawnPlan.create(body);
+        return RigidBodySpawnPlan.create(
+            new PhysicsBodyIdentityComponent(bodyKey,
+                new SpaceId(7),
+                PhysicsBodyPersistenceMode.RUNTIME_ONLY),
+            PhysicsBodyShapeComponent.box(0.5f, 0.5f, 0.5f),
+            new PhysicsBodyDynamicsComponent(PhysicsBodyType.DYNAMIC, 1.0f, 0.0f, 0.0f),
+            new PhysicsBodyMaterialComponent(),
+            new PhysicsBodyCollisionComponent());
     }
 
-    private static RigidBodyKinematicTargetComponent target(float positionX,
+    private static PhysicsBodyKinematicTargetComponent target(float positionX,
         boolean transformEnabled,
         boolean velocityEnabled) {
-        return new RigidBodyKinematicTargetComponent(
+        return new PhysicsBodyKinematicTargetComponent(
             new Vector3f(positionX, 2.0f, 3.0f),
             new Quaternionf(),
             new Vector3f(0.1f, 0.2f, 0.3f),

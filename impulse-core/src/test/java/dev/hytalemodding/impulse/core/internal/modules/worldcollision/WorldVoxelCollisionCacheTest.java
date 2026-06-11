@@ -23,7 +23,9 @@ import dev.hytalemodding.impulse.core.internal.resources.BackendSpaceHandle;
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsSpaceBinding;
 import dev.hytalemodding.impulse.core.internal.modules.worldcollision.profiling.WorldCollisionProfilingResource;
 import dev.hytalemodding.impulse.core.internal.modules.worldcollision.SectionCollisionGeometry.BoxCollider;
+import dev.hytalemodding.impulse.core.internal.resources.body.PhysicsBodySnapshots;
 import dev.hytalemodding.impulse.core.plugin.body.RigidBodyKey;
+import dev.hytalemodding.impulse.core.plugin.settings.PhysicsWorldCollisionSettings;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.Field;
 import java.lang.reflect.InvocationTargetException;
@@ -276,6 +278,54 @@ class WorldVoxelCollisionCacheTest {
     }
 
     @Test
+    void terrainMaterialSettingsApplyToNativeVoxelAndFallbackBoxes() throws Throwable {
+        PhysicsWorldCollisionSettings nativeSettings = new PhysicsWorldCollisionSettings();
+        nativeSettings.setNativeVoxelTerrainEnabled(true);
+        nativeSettings.setTerrainMaterial(0.9f, 0.25f);
+        RuntimeFixture nativeFixture = runtimeFixture("test:voxel-runtime-custom-material", true);
+        SectionCollisionGeometry nativeGeometry = new SectionCollisionGeometry(new int[] {0, 0, 0},
+            List.of(new BoxCollider(1.0, 0.5, 0.5, 1.0, 0.5, 0.5)),
+            List.of(),
+            4096,
+            1,
+            0,
+            0);
+        Object nativeSection = newCachedSection();
+
+        addGeometryBodies(nativeFixture.binding(),
+            nativeSection,
+            nativeGeometry,
+            0,
+            0,
+            0,
+            WorldCollisionBuildOptions.fromSettings(nativeSettings));
+
+        List<VoxelTerrainCall> calls =
+            nativeFixture.runtime().voxelTerrainCalls(nativeFixture.backendSpaceId());
+        assertEquals(1, calls.size());
+        assertEquals(0.9f, calls.getFirst().friction(), 0.0001f);
+        assertEquals(0.25f, calls.getFirst().restitution(), 0.0001f);
+
+        PhysicsWorldCollisionSettings fallbackSettings = new PhysicsWorldCollisionSettings();
+        fallbackSettings.setTerrainMaterial(0.8f, 0.1f);
+        RuntimeFixture fallbackFixture = runtimeFixture("test:box-runtime-custom-material", false);
+        Object fallbackSection = newCachedSection();
+
+        addGeometryBodies(fallbackFixture.binding(),
+            fallbackSection,
+            nativeGeometry,
+            0,
+            0,
+            0,
+            WorldCollisionBuildOptions.fromSettings(fallbackSettings));
+
+        long fallbackBodyId = firstBackendBodyId(fallbackSection);
+        var snapshot = PhysicsBodySnapshots.read(fallbackFixture.binding(), fallbackBodyId);
+        assertEquals(0.8f, snapshot.friction(), 0.0001f);
+        assertEquals(0.1f, snapshot.restitution(), 0.0001f);
+    }
+
+    @Test
     void disabledNativeVoxelTerrainFallsBackToMergedFullCubeBoxes() throws Throwable {
         RuntimeFixture fixture = runtimeFixture("test:voxel-runtime-disabled", true);
         SectionCollisionGeometry geometry = new SectionCollisionGeometry(new int[] {0, 0, 0, 1, 0, 0},
@@ -410,6 +460,22 @@ class WorldVoxelCollisionCacheTest {
         int sectionY,
         int chunkZ,
         boolean nativeVoxelTerrainEnabled) throws Throwable {
+        addGeometryBodies(space,
+            target,
+            geometry,
+            chunkX,
+            sectionY,
+            chunkZ,
+            WorldCollisionBuildOptions.fromNativeVoxelTerrainEnabled(nativeVoxelTerrainEnabled));
+    }
+
+    private static void addGeometryBodies(@Nonnull PhysicsSpaceBinding space,
+        @Nonnull Object target,
+        @Nonnull SectionCollisionGeometry geometry,
+        int chunkX,
+        int sectionY,
+        int chunkZ,
+        @Nonnull WorldCollisionBuildOptions buildOptions) throws Throwable {
         Method method = Arrays.stream(WorldVoxelCollisionCache.class.getDeclaredMethods())
             .filter(candidate -> candidate.getName().equals("addGeometryBodies"))
             .findFirst()
@@ -423,7 +489,7 @@ class WorldVoxelCollisionCacheTest {
                 chunkX,
                 sectionY,
                 chunkZ,
-                nativeVoxelTerrainEnabled));
+                buildOptions));
         } catch (InvocationTargetException exception) {
             throw exception.getCause();
         }
@@ -437,7 +503,7 @@ class WorldVoxelCollisionCacheTest {
         int chunkX,
         int sectionY,
         int chunkZ,
-        boolean nativeVoxelTerrainEnabled) {
+        @Nonnull WorldCollisionBuildOptions buildOptions) {
         Object[] arguments = new Object[method.getParameterCount()];
         int integerIndex = 0;
         for (int index = 0; index < arguments.length; index++) {
@@ -456,10 +522,9 @@ class WorldVoxelCollisionCacheTest {
                     default -> throw new IllegalStateException("Unexpected integer parameter");
                 };
             } else if (type == boolean.class) {
-                arguments[index] = nativeVoxelTerrainEnabled;
+                arguments[index] = buildOptions.nativeVoxelTerrainEnabled();
             } else if (type == WorldCollisionBuildOptions.class) {
-                arguments[index] =
-                    WorldCollisionBuildOptions.fromNativeVoxelTerrainEnabled(nativeVoxelTerrainEnabled);
+                arguments[index] = buildOptions;
             } else {
                 arguments[index] = null;
             }
@@ -567,6 +632,13 @@ class WorldVoxelCollisionCacheTest {
         Field backendBodyIds = section.getClass().getDeclaredField("backendBodyIds");
         backendBodyIds.setAccessible(true);
         ((List<Long>) backendBodyIds.get(section)).add(backendBodyId);
+    }
+
+    @SuppressWarnings("unchecked")
+    private static long firstBackendBodyId(@Nonnull Object section) throws Exception {
+        Field backendBodyIds = section.getClass().getDeclaredField("backendBodyIds");
+        backendBodyIds.setAccessible(true);
+        return ((List<Long>) backendBodyIds.get(section)).getFirst();
     }
 
     private static long voxelTerrainBodyId(@Nonnull Object section) throws Exception {

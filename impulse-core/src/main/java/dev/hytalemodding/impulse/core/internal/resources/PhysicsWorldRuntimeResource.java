@@ -914,11 +914,16 @@ public class PhysicsWorldRuntimeResource extends PhysicsWorldResource {
         boolean terrainRepresentationChanged =
             previousCollisionSettings.isNativeVoxelTerrainEnabled()
                 != settings.getWorldCollisionSettings().isNativeVoxelTerrainEnabled();
+        boolean terrainMaterialChanged =
+            Float.compare(previousCollisionSettings.getTerrainFriction(),
+                settings.getWorldCollisionSettings().getTerrainFriction()) != 0
+                || Float.compare(previousCollisionSettings.getTerrainRestitution(),
+                    settings.getWorldCollisionSettings().getTerrainRestitution()) != 0;
         boolean worldCollisionDisabled =
             settings.getWorldCollisionSettings().getWorldCollisionMode() == WorldCollisionMode.NONE
                 && previousCollisionSettings.getWorldCollisionMode() != WorldCollisionMode.NONE;
         spaceRuntime.setSpaceSettings(spaceId, settings);
-        if (worldCollisionDisabled || terrainRepresentationChanged) {
+        if (worldCollisionDisabled || terrainRepresentationChanged || terrainMaterialChanged) {
             collisionRuntime.clear(requireSpaceBinding(spaceId));
         } else if (worldCollisionSettingsChanged) {
             collisionRuntime.incrementStreamingRevision(spaceId);
@@ -982,6 +987,7 @@ public class PhysicsWorldRuntimeResource extends PhysicsWorldResource {
     }
 
     private void destroyBodyDirect(@Nonnull RigidBodyKey bodyKey, boolean removeFromSpace) {
+        lifecycleState.clearBodyCreationPending(bodyKey);
         bodyRuntime.destroyBody(bodyKey, removeFromSpace);
     }
 

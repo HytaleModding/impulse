@@ -1,7 +1,7 @@
 package dev.hytalemodding.impulse.core.internal.systems.body;
 
 import dev.hytalemodding.impulse.core.plugin.body.RigidBodyKey;
-import dev.hytalemodding.impulse.core.plugin.components.RigidBodyKinematicTargetComponent;
+import dev.hytalemodding.impulse.core.plugin.components.PhysicsBodyKinematicTargetComponent;
 import it.unimi.dsi.fastutil.objects.Object2ObjectMap;
 import it.unimi.dsi.fastutil.objects.Object2ObjectOpenHashMap;
 import java.util.Collection;
@@ -24,7 +24,7 @@ final class RigidBodyKinematicTargetState {
     }
 
     synchronized boolean shouldSubmit(@Nonnull RigidBodyKey bodyKey,
-        @Nonnull RigidBodyKinematicTargetComponent target) {
+        @Nonnull PhysicsBodyKinematicTargetComponent target) {
         TargetSnapshot snapshot = TargetSnapshot.copyOf(target);
         if (!snapshot.hasOperations()) {
             submittedTargets.remove(bodyKey);
@@ -78,7 +78,7 @@ final class RigidBodyKinematicTargetState {
                                   boolean activate) {
 
         @Nonnull
-        static TargetSnapshot copyOf(@Nonnull RigidBodyKinematicTargetComponent target) {
+        static TargetSnapshot copyOf(@Nonnull PhysicsBodyKinematicTargetComponent target) {
             Vector3f position = target.getPosition();
             Quaternionf rotation = target.getRotation();
             Vector3f linearVelocity = target.getLinearVelocity();

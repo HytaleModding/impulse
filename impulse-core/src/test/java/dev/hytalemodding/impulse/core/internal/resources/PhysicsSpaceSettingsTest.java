@@ -110,6 +110,12 @@ class PhysicsSpaceSettingsTest {
                 + PhysicsWorldCollisionSettings.MAX_WORLD_COLLISION_TTL_TICKS,
             assertThrows(IllegalArgumentException.class,
                 () -> settings.getWorldCollisionSettings().setWorldCollisionTtlTicks(0)).getMessage());
+        assertEquals("Terrain friction must be finite and >= 0.0",
+            assertThrows(IllegalArgumentException.class,
+                () -> settings.getWorldCollisionSettings().setTerrainFriction(-0.1f)).getMessage());
+        assertEquals("Terrain restitution must be finite and >= 0.0",
+            assertThrows(IllegalArgumentException.class,
+                () -> settings.getWorldCollisionSettings().setTerrainRestitution(Float.NaN)).getMessage());
         assertEquals("Visual full sync radius must be between 1 and "
                 + PhysicsVisualSyncSettings.MAX_VISUAL_FULL_SYNC_RADIUS,
             assertThrows(IllegalArgumentException.class,
@@ -181,6 +187,12 @@ class PhysicsSpaceSettingsTest {
         assertSame(PhysicsWorldCollisionSettings.DEFAULT_ENTITY_CHUNK_BOUNDARY_MODE,
             first.getWorldCollisionSettings().getEntityChunkBoundaryMode());
         assertFalse(first.getWorldCollisionSettings().isNativeVoxelTerrainEnabled());
+        assertEquals(PhysicsWorldCollisionSettings.DEFAULT_TERRAIN_FRICTION,
+            first.getWorldCollisionSettings().getTerrainFriction(),
+            0.0001f);
+        assertEquals(PhysicsWorldCollisionSettings.DEFAULT_TERRAIN_RESTITUTION,
+            first.getWorldCollisionSettings().getTerrainRestitution(),
+            0.0001f);
     }
 
     @Test
@@ -261,6 +273,7 @@ class PhysicsSpaceSettingsTest {
         original.getWorldCollisionSettings().setWorldCollisionBodyRadius(6);
         original.getWorldCollisionSettings().setWorldCollisionTtlTicks(180);
         original.getWorldCollisionSettings().setNativeVoxelTerrainEnabled(true);
+        original.getWorldCollisionSettings().setTerrainMaterial(0.9f, 0.15f);
         original.getVisualSyncSettings().setVisualMaxSyncRadius(160);
         original.getVisualSyncSettings().setVisualFullSyncRadius(80);
         original.getVisualMaterializationSettings().setDetachedVisualInterestRefreshIntervalTicks(2);
@@ -293,6 +306,8 @@ class PhysicsSpaceSettingsTest {
         assertEquals(6, copy.getWorldCollisionSettings().getWorldCollisionBodyRadius());
         assertEquals(180, copy.getWorldCollisionSettings().getWorldCollisionTtlTicks());
         assertTrue(copy.getWorldCollisionSettings().isNativeVoxelTerrainEnabled());
+        assertEquals(0.9f, copy.getWorldCollisionSettings().getTerrainFriction(), 0.0001f);
+        assertEquals(0.15f, copy.getWorldCollisionSettings().getTerrainRestitution(), 0.0001f);
         assertEquals(160, copy.getVisualSyncSettings().getVisualMaxSyncRadius());
         assertEquals(80, copy.getVisualSyncSettings().getVisualFullSyncRadius());
         assertEquals(2, copy.getVisualMaterializationSettings().getDetachedVisualInterestRefreshIntervalTicks());
@@ -314,6 +329,7 @@ class PhysicsSpaceSettingsTest {
     void persistentSpaceStateRoundTripPreservesDetachedVisualCadenceSettings() {
         PhysicsSpaceSettings original = PhysicsSpaceSettings.defaults();
         original.getWorldCollisionSettings().setNativeVoxelTerrainEnabled(true);
+        original.getWorldCollisionSettings().setTerrainMaterial(0.85f, 0.2f);
         original.getVisualMaterializationSettings().setDetachedVisualInterestRefreshIntervalTicks(7);
         original.getVisualMaterializationSettings().setDetachedVisualCandidateRefreshIntervalTicks(9);
         original.getVisualMaterializationSettings().setDetachedVisualVisibilityCheckIntervalTicks(11);
@@ -329,18 +345,24 @@ class PhysicsSpaceSettingsTest {
         BsonDocument encoded = PersistentPhysicsSpaceState.CODEC.encode(state, new ExtraInfo()).asDocument();
 
         assertTrue(encoded.containsKey("NativeVoxelTerrainEnabled"));
+        assertTrue(encoded.containsKey("TerrainFriction"));
+        assertTrue(encoded.containsKey("TerrainRestitution"));
         assertTrue(encoded.containsKey("DetachedVisualInterestRefreshIntervalTicks"));
         assertTrue(encoded.containsKey("DetachedVisualCandidateRefreshIntervalTicks"));
         assertTrue(encoded.containsKey("DetachedVisualVisibilityCheckIntervalTicks"));
         PhysicsSpaceSettings decoded = Objects.requireNonNull(
             PersistentPhysicsSpaceState.CODEC.decode(encoded, new ExtraInfo())).toSettings();
         assertTrue(decoded.getWorldCollisionSettings().isNativeVoxelTerrainEnabled());
+        assertEquals(0.85f, decoded.getWorldCollisionSettings().getTerrainFriction(), 0.0001f);
+        assertEquals(0.2f, decoded.getWorldCollisionSettings().getTerrainRestitution(), 0.0001f);
         assertDetachedVisualCadence(decoded,
             7,
             9,
             11);
         PhysicsSpaceSettings copied = state.copy().toSettings();
         assertTrue(copied.getWorldCollisionSettings().isNativeVoxelTerrainEnabled());
+        assertEquals(0.85f, copied.getWorldCollisionSettings().getTerrainFriction(), 0.0001f);
+        assertEquals(0.2f, copied.getWorldCollisionSettings().getTerrainRestitution(), 0.0001f);
         assertDetachedVisualCadence(copied, 7, 9, 11);
     }
 

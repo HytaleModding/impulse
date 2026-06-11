@@ -199,6 +199,10 @@ public final class PhysicsWorldLifecycleState {
         commandVisibility.clearBodyCreationPublication(batch);
     }
 
+    public void clearBodyCreationPending(@Nonnull RigidBodyKey bodyKey) {
+        commandVisibility.clearBodyCreationPending(bodyKey);
+    }
+
     public void publishDetachedOwnerRegistrationViews(@Nonnull PhysicsBodyRegistry bodyRegistry) {
         bodyRegistry.publishLiveRegistrationViews();
         commandVisibility.applyLastIncludedCommandBatchSequence(

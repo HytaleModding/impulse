@@ -931,9 +931,15 @@ class PhysicsWorldResourceStateTest {
         long radiusRevision = resource.worldCollisionStreamingRevision(spaceId);
         assertTrue(radiusRevision > initialRevision);
 
+        PhysicsSpaceSettings materialChanged = resource.getSpaceSettings(spaceId);
+        materialChanged.getWorldCollisionSettings().setTerrainMaterial(0.8f, 0.1f);
+        resource.setSpaceSettings(spaceId, materialChanged);
+        long materialRevision = resource.worldCollisionStreamingRevision(spaceId);
+        assertTrue(materialRevision > radiusRevision);
+
         resource.clearWorldCollision(spaceId);
         long clearRevision = resource.worldCollisionStreamingRevision(spaceId);
-        assertTrue(clearRevision > radiusRevision);
+        assertTrue(clearRevision > materialRevision);
     }
 
     @Test
