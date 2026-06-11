@@ -43,9 +43,9 @@ import org.joml.Vector3f;
  * target for each operation.</p>
  *
  * <p>This facade does not directly return live backend spaces or bodies. Gameplay code should use
- * physics simulation commands and queries. The explicit live-owner escape hatch is available inside
- * the command recipe for advanced diagnostics that cannot yet be expressed as copied recorder
- * operations.</p>
+ * physics simulation commands, copied queries, and published snapshots. Advanced diagnostics should
+ * be modeled as backend-neutral commands or copied queries instead of retaining live backend
+ * handles.</p>
  */
 public abstract class PhysicsWorldResource implements Resource<EntityStore> {
 
@@ -206,8 +206,9 @@ public abstract class PhysicsWorldResource implements Resource<EntityStore> {
     public abstract int refreshBodySnapshots();
 
     /**
-     * Returns the latest published snapshot for a body, capturing a fresh snapshot on the physics
-     * owner if the body is registered but missing from the published frame.
+     * Returns the latest published snapshot for a body, capturing a copied live snapshot on the
+     * physics owner if the body is registered but missing from the published frame. The fallback
+     * snapshot is not published into the reader-side frame.
      */
     @Nonnull
     public abstract PhysicsBodySnapshot getBodySnapshot(@Nonnull RigidBodyKey bodyKey);
