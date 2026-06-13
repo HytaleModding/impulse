@@ -15,6 +15,7 @@ public final class PhysicsRestoreStatusResource implements Resource<PhysicsStore
 
     private boolean pending;
     private boolean failed;
+    private boolean hydrated;
     @Nonnull
     private String failureMessage = "";
     @Nonnull
@@ -30,6 +31,7 @@ public final class PhysicsRestoreStatusResource implements Resource<PhysicsStore
     public void markPending() {
         pending = true;
         failed = false;
+        hydrated = false;
         failureMessage = "";
         softSkipsByReason.clear();
     }
@@ -46,6 +48,7 @@ public final class PhysicsRestoreStatusResource implements Resource<PhysicsStore
     public void markFailed(@Nonnull String failureMessage) {
         pending = false;
         failed = true;
+        hydrated = false;
         this.failureMessage = failureMessage;
     }
 
@@ -53,6 +56,14 @@ public final class PhysicsRestoreStatusResource implements Resource<PhysicsStore
         pending = false;
         failed = false;
         failureMessage = "";
+    }
+
+    public boolean isHydrated() {
+        return hydrated;
+    }
+
+    public void markHydrated() {
+        hydrated = true;
     }
 
     public void recordSoftSkip(@Nonnull String reason) {
@@ -70,6 +81,7 @@ public final class PhysicsRestoreStatusResource implements Resource<PhysicsStore
         PhysicsRestoreStatusResource copy = new PhysicsRestoreStatusResource();
         copy.pending = pending;
         copy.failed = failed;
+        copy.hydrated = hydrated;
         copy.failureMessage = failureMessage;
         copy.softSkipsByReason.putAll(softSkipsByReason);
         return copy;
