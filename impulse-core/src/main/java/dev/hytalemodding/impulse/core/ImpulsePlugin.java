@@ -24,6 +24,7 @@ import dev.hytalemodding.impulse.core.internal.components.GeneratedVisualProxyCo
 import dev.hytalemodding.impulse.core.internal.modules.ImpulseSubPluginRegistration;
 import dev.hytalemodding.impulse.core.internal.persistence.PersistentPhysicsWorldResource;
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsDebugResource;
+import dev.hytalemodding.impulse.core.internal.resources.PhysicsProjectionIndexResource;
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsWorldRuntimeResource;
 import dev.hytalemodding.impulse.core.internal.resources.owner.PhysicsOwnerLaneScheduler;
 import dev.hytalemodding.impulse.core.internal.resources.owner.PhysicsOwnerResource;
@@ -96,6 +97,9 @@ public final class ImpulsePlugin extends JavaPlugin {
 
     @Getter
     private ResourceType<EntityStore, PhysicsRuntimeProfilingResource> physicsRuntimeProfilingResourceType;
+
+    @Getter
+    private ResourceType<EntityStore, PhysicsProjectionIndexResource> physicsProjectionIndexResourceType;
 
     @Getter
     private ResourceType<EntityStore, PhysicsOwnerResource> physicsOwnerResourceType;
@@ -312,6 +316,9 @@ public final class ImpulsePlugin extends JavaPlugin {
         physicsRuntimeProfilingResourceType = entityRegistry.registerResource(
             PhysicsRuntimeProfilingResource.class,
             PhysicsRuntimeProfilingResource::new);
+        physicsProjectionIndexResourceType = entityRegistry.registerResource(
+            PhysicsProjectionIndexResource.class,
+            PhysicsProjectionIndexResource::new);
         ConfiguredPositiveInt ownerPoolSize = configuredPositiveIntDetails(OWNER_POOL_SIZE_PROPERTY,
             PhysicsOwnerLaneScheduler.DEFAULT_POOL_SIZE);
         logOwnerPoolSize(ownerPoolSize);

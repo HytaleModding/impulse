@@ -3,9 +3,7 @@ package dev.hytalemodding.impulse.core.internal.systems.sync;
 import com.hypixel.hytale.component.ArchetypeChunk;
 import com.hypixel.hytale.component.CommandBuffer;
 import com.hypixel.hytale.component.ComponentType;
-import com.hypixel.hytale.component.Holder;
 import com.hypixel.hytale.component.Ref;
-import com.hypixel.hytale.component.RemoveReason;
 import com.hypixel.hytale.component.Store;
 import com.hypixel.hytale.component.dependency.Dependency;
 import com.hypixel.hytale.component.dependency.Order;
@@ -317,17 +315,8 @@ public class PhysicsSyncSystem extends EntityTickingSystem<EntityStore> {
     private static void clearMissingPhysicsStoreAttachment(@Nonnull Ref<EntityStore> entityRef,
         @Nonnull PhysicsBodyAttachmentComponent attachment,
         @Nonnull CommandBuffer<EntityStore> commandBuffer) {
-        if (!attachment.shouldRemoveEntityWhenBodyMissing()) {
-            return;
-        }
-        commandBuffer.removeEntity(entityRef,
-            newHolder(commandBuffer.getStore()),
-            RemoveReason.REMOVE);
-    }
-
-    @Nonnull
-    private static Holder<EntityStore> newHolder(@Nonnull Store<EntityStore> store) {
-        return store.getRegistry().newHolder();
+        // PhysicsStore snapshot publication is intentionally one completed frame behind request
+        // ingestion. Absence from the latest frame is not enough evidence that the body row is gone.
     }
 
     private static float distance(@Nonnull Vector3d from, @Nonnull Vector3f to) {
