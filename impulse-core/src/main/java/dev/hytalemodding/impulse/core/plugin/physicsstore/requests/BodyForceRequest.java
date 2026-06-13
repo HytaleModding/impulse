@@ -5,7 +5,7 @@ import java.util.UUID;
 import javax.annotation.Nonnull;
 
 /**
- * Copied transient force or impulse request for an already bound PhysicsStore body.
+ * Copied transient force or impulse request for a PhysicsStore body after backend binding.
  */
 public record BodyForceRequest(@Nonnull UUID requestUuid,
                                @Nonnull UUID bodyUuid,

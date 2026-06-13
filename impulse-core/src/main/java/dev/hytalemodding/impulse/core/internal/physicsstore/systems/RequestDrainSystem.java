@@ -420,6 +420,11 @@ public final class RequestDrainSystem extends TickingSystem<PhysicsStore> {
             "Body type request",
             false);
         if (binding == null) {
+            if (request.activate()) {
+                runtime.enqueuePendingBodyOperation(PendingBodyOperation.wake(request.bodyUuid(),
+                    null,
+                    null));
+            }
             return;
         }
         binding.backendRuntime().setBodyType(binding.spaceHandle().value(),
@@ -427,7 +432,8 @@ public final class RequestDrainSystem extends TickingSystem<PhysicsStore> {
             BackendRuntimeCodes.bodyTypeCode(request.bodyType()));
         updateBodyHitMetadata(runtime, binding.bodyHandle(), request.bodyType());
         if (request.activate()) {
-            runtime.enqueuePendingBodyOperation(PendingBodyOperation.wake(binding.spaceHandle(),
+            runtime.enqueuePendingBodyOperation(PendingBodyOperation.wake(request.bodyUuid(),
+                binding.spaceHandle(),
                 binding.bodyHandle()));
         }
     }
@@ -446,16 +452,15 @@ public final class RequestDrainSystem extends TickingSystem<PhysicsStore> {
             request.bodyUuid(),
             restore,
             "Activation request",
-            true);
-        if (binding == null) {
-            return;
-        }
+            false);
         if (request.action() == BodyActivationRequest.Action.WAKE) {
-            runtime.enqueuePendingBodyOperation(PendingBodyOperation.wake(binding.spaceHandle(),
-                binding.bodyHandle()));
+            runtime.enqueuePendingBodyOperation(PendingBodyOperation.wake(request.bodyUuid(),
+                binding != null ? binding.spaceHandle() : null,
+                binding != null ? binding.bodyHandle() : null));
         } else {
-            runtime.enqueuePendingBodyOperation(PendingBodyOperation.sleep(binding.spaceHandle(),
-                binding.bodyHandle()));
+            runtime.enqueuePendingBodyOperation(PendingBodyOperation.sleep(request.bodyUuid(),
+                binding != null ? binding.spaceHandle() : null,
+                binding != null ? binding.bodyHandle() : null));
         }
     }
 
@@ -485,13 +490,11 @@ public final class RequestDrainSystem extends TickingSystem<PhysicsStore> {
             request.bodyUuid(),
             restore,
             "Force request",
-            true);
-        if (binding == null) {
-            return;
-        }
+            false);
         runtime.enqueuePendingBodyOperation(PendingBodyOperation.vector(pendingKind(request),
-            binding.spaceHandle(),
-            binding.bodyHandle(),
+            request.bodyUuid(),
+            binding != null ? binding.spaceHandle() : null,
+            binding != null ? binding.bodyHandle() : null,
             request.x(),
             request.y(),
             request.z(),
