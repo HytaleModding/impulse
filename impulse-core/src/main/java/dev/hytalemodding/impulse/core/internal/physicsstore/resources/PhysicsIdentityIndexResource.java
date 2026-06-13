@@ -49,6 +49,10 @@ public final class PhysicsIdentityIndexResource implements Resource<PhysicsStore
         refsByUuid.remove(uuid, ref);
     }
 
+    public void clearUuidRefs() {
+        refsByUuid.clear();
+    }
+
     public void putSpaceHandle(@Nonnull BackendSpaceHandle handle, @Nonnull Ref<PhysicsStore> ref) {
         spaceRefsByHandle.put(handle.value(), ref);
     }
