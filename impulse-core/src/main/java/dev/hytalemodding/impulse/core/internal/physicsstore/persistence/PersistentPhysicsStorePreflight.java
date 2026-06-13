@@ -1,5 +1,6 @@
 package dev.hytalemodding.impulse.core.internal.physicsstore.persistence;
 
+import dev.hytalemodding.impulse.core.plugin.settings.PhysicsWorldCollisionSettings;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
@@ -54,6 +55,34 @@ public final class PersistentPhysicsStorePreflight {
             }
             if (!PhysicsStorePersistenceValidation.isFinite(space.getGravity())) {
                 errors.add("PhysicsStore space " + uuid + " has non-finite gravity");
+            }
+            if (space.getWorldCollisionRadius() < 1
+                || space.getWorldCollisionRadius()
+                > PhysicsWorldCollisionSettings.MAX_WORLD_COLLISION_RADIUS) {
+                errors.add("PhysicsStore space " + uuid
+                    + " has invalid world collision radius");
+            }
+            if (space.getWorldCollisionBodyRadius() < 1
+                || space.getWorldCollisionBodyRadius()
+                > PhysicsWorldCollisionSettings.MAX_WORLD_COLLISION_BODY_RADIUS) {
+                errors.add("PhysicsStore space " + uuid
+                    + " has invalid world collision body radius");
+            }
+            if (space.getWorldCollisionTtlTicks() < 1
+                || space.getWorldCollisionTtlTicks()
+                > PhysicsWorldCollisionSettings.MAX_WORLD_COLLISION_TTL_TICKS) {
+                errors.add("PhysicsStore space " + uuid
+                    + " has invalid world collision TTL");
+            }
+            if (!Float.isFinite(space.getTerrainFriction())
+                || space.getTerrainFriction() < 0.0f) {
+                errors.add("PhysicsStore space " + uuid
+                    + " has invalid terrain friction");
+            }
+            if (!Float.isFinite(space.getTerrainRestitution())
+                || space.getTerrainRestitution() < 0.0f) {
+                errors.add("PhysicsStore space " + uuid
+                    + " has invalid terrain restitution");
             }
         }
         return seen;
