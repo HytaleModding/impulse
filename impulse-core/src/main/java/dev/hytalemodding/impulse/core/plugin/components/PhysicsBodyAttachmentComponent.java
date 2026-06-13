@@ -21,10 +21,12 @@ import org.joml.Quaternionf;
 import org.joml.Vector3f;
 
 /**
- * Runtime attachment from a Hytale entity to an Impulse body key.
+ * Runtime attachment from a Hytale entity to an Impulse body.
  *
- * <p>The entity is a gameplay or visual representation. It does not own backend
- * body destruction; removing the entity only removes this attachment unless the
+ * <p>Authoritative PhysicsStore rows use {@code PhysicsBodyUuid}; {@code BodyId}
+ * and {@code SpaceId} remain compatibility metadata for legacy rows. The entity
+ * is a gameplay or visual representation. It does not own backend body
+ * destruction; removing the entity only removes this attachment unless the
  * lifecycle marks it as a disposable Impulse visual.</p>
  */
 public class PhysicsBodyAttachmentComponent implements Component<EntityStore> {

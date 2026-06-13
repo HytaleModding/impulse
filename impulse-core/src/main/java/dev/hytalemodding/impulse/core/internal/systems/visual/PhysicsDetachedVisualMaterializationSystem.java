@@ -5,6 +5,7 @@ import com.hypixel.hytale.component.ComponentType;
 import com.hypixel.hytale.component.Holder;
 import com.hypixel.hytale.component.NonSerialized;
 import com.hypixel.hytale.component.Ref;
+import com.hypixel.hytale.component.RemoveReason;
 import com.hypixel.hytale.component.Store;
 import com.hypixel.hytale.component.dependency.Dependency;
 import com.hypixel.hytale.component.dependency.Order;
@@ -67,6 +68,9 @@ import org.joml.Vector3f;
  */
 public class PhysicsDetachedVisualMaterializationSystem extends TickingSystem<EntityStore> {
 
+    private static final ComponentType<EntityStore, GeneratedVisualProxyComponent> GENERATED_PROXY_TYPE =
+        GeneratedVisualProxyComponent.getComponentType();
+
     private final Set<Dependency<EntityStore>> dependencies = Set.of(
         new SystemGroupDependency<>(Order.AFTER, ImpulsePlugin.get().getPersistenceRestoreGroup()),
         new SystemDependency<>(Order.BEFORE, PhysicsSyncSystem.class)
@@ -101,6 +105,9 @@ public class PhysicsDetachedVisualMaterializationSystem extends TickingSystem<En
     private void tickMaterialization(@Nonnull Store<EntityStore> store,
         @Nullable PhysicsRuntimeProfilingResource.VisualCollector collector) {
         if (hasAuthoritativePhysicsStore(store)) {
+            MaterializationState state = stateFor(store);
+            clearCachedMaterializationState(state);
+            removeLegacyGeneratedVisualProxies(store);
             return;
         }
         MaterializationState state = stateFor(store);
@@ -159,6 +166,37 @@ public class PhysicsDetachedVisualMaterializationSystem extends TickingSystem<En
         } catch (IllegalStateException exception) {
             return false;
         }
+    }
+
+    private static void clearCachedMaterializationState(@Nonnull MaterializationState state) {
+        state.cachedInterests = List.of();
+        state.cachedMaterializationTargets.clear();
+        state.visualInterestRefreshCooldown = 0;
+        state.materializationCandidateRefreshCooldown = 0;
+        state.materializedVisibilityCheckCooldown = 0;
+    }
+
+    private static void removeLegacyGeneratedVisualProxies(@Nonnull Store<EntityStore> store) {
+        ComponentType<EntityStore, PhysicsBodyAttachmentComponent> attachmentType =
+            PhysicsBodyAttachmentComponent.getComponentType();
+        store.forEachEntityParallel(attachmentType,
+            (index, archetypeChunk, commandBuffer) -> {
+                PhysicsBodyAttachmentComponent attachment = archetypeChunk.getComponent(index,
+                    attachmentType);
+                if (attachment == null
+                    || attachment.getLifecycle() != AttachmentLifecycle.GENERATED_PROXY
+                    || !attachment.usesLegacyBodyKey()) {
+                    return;
+                }
+                commandBuffer.removeEntity(archetypeChunk.getReferenceTo(index), RemoveReason.REMOVE);
+            });
+        store.forEachEntityParallel(GENERATED_PROXY_TYPE,
+            (index, archetypeChunk, commandBuffer) -> {
+                if (archetypeChunk.getComponent(index, attachmentType) != null) {
+                    return;
+                }
+                commandBuffer.removeEntity(archetypeChunk.getReferenceTo(index), RemoveReason.REMOVE);
+            });
     }
 
     private static boolean shouldPauseForRestore(@Nonnull MaterializationState state,
