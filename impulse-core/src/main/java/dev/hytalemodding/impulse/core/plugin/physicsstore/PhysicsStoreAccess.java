@@ -9,6 +9,7 @@ import dev.hytalemodding.impulse.api.Impulse;
 import dev.hytalemodding.impulse.api.SpaceId;
 import dev.hytalemodding.impulse.core.internal.physicsstore.resources.PhysicsIdentityIndexResource;
 import dev.hytalemodding.impulse.core.internal.physicsstore.resources.PhysicsRequestQueueResource;
+import dev.hytalemodding.impulse.core.internal.physicsstore.resources.PhysicsSnapshotResource;
 import dev.hytalemodding.impulse.core.internal.physicsstore.resources.PhysicsSpaceCompatibilityIndexResource;
 import dev.hytalemodding.impulse.core.plugin.physicsstore.components.CollisionLodSettingsComponent;
 import dev.hytalemodding.impulse.core.plugin.physicsstore.components.ExtensionSettingsComponent;
@@ -22,6 +23,7 @@ import dev.hytalemodding.impulse.core.plugin.physicsstore.requests.PhysicsStoreR
 import dev.hytalemodding.impulse.core.plugin.physicsstore.requests.SpaceRemoveRequest;
 import dev.hytalemodding.impulse.core.plugin.physicsstore.requests.SpaceSettingsRequest;
 import dev.hytalemodding.impulse.core.plugin.physicsstore.requests.SpaceUpsertRequest;
+import dev.hytalemodding.impulse.core.plugin.physicsstore.snapshots.PhysicsStoreBodySnapshot;
 import dev.hytalemodding.impulse.core.plugin.settings.PhysicsSpaceSettings;
 import java.lang.invoke.MethodHandle;
 import java.lang.invoke.MethodHandles;
@@ -84,6 +86,14 @@ public final class PhysicsStoreAccess {
     public static int spaceCount(@Nonnull World world) {
         Store<PhysicsStore> store = require(world).getStore();
         return store.getResource(PhysicsSpaceCompatibilityIndexResource.getResourceType()).size();
+    }
+
+    @Nullable
+    public static PhysicsStoreBodySnapshot getBodySnapshot(@Nonnull World world,
+        @Nonnull UUID bodyUuid) {
+        Objects.requireNonNull(bodyUuid, "bodyUuid");
+        Store<PhysicsStore> store = require(world).getStore();
+        return store.getResource(PhysicsSnapshotResource.getResourceType()).getBody(bodyUuid);
     }
 
     @Nullable
