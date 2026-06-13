@@ -1,5 +1,7 @@
 package dev.hytalemodding.impulse.core.internal.physicsstore.persistence;
 
+import dev.hytalemodding.impulse.api.BackendId;
+import dev.hytalemodding.impulse.api.Impulse;
 import dev.hytalemodding.impulse.core.plugin.settings.PhysicsWorldCollisionSettings;
 import java.util.ArrayList;
 import java.util.HashSet;
@@ -52,6 +54,13 @@ public final class PersistentPhysicsStorePreflight {
             }
             if (space.getBackendId().isBlank()) {
                 errors.add("PhysicsStore space " + uuid + " has blank backend id");
+            } else {
+                try {
+                    Impulse.getRuntimeProvider(new BackendId(space.getBackendId()));
+                } catch (RuntimeException exception) {
+                    errors.add("PhysicsStore space " + uuid
+                        + " references unavailable backend id " + space.getBackendId());
+                }
             }
             if (!PhysicsStorePersistenceValidation.isFinite(space.getGravity())) {
                 errors.add("PhysicsStore space " + uuid + " has non-finite gravity");

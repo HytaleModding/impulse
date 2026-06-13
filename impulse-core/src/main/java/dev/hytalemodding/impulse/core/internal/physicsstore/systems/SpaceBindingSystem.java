@@ -54,13 +54,14 @@ public final class SpaceBindingSystem extends TickingSystem<PhysicsStore>
         PhysicsIdentityIndexResource identity = store.getResource(
             PhysicsIdentityIndexResource.getResourceType());
         BiConsumer<ArchetypeChunk<PhysicsStore>, CommandBuffer<PhysicsStore>> collector =
-            (chunk, _) -> bindChunk(runtime, compatibility, identity, chunk);
+            (chunk, _) -> bindChunk(runtime, compatibility, identity, restore, chunk);
         store.forEachChunk(systemIndex, collector);
     }
 
     private static void bindChunk(@Nonnull PhysicsRuntimeResource runtime,
         @Nonnull PhysicsSpaceCompatibilityIndexResource compatibility,
         @Nonnull PhysicsIdentityIndexResource identity,
+        @Nonnull PhysicsRestoreStatusResource restore,
         @Nonnull ArchetypeChunk<PhysicsStore> chunk) {
         for (int index = 0; index < chunk.size(); index++) {
             SpaceComponent space = chunk.getComponent(index, SpaceComponent.getComponentType());
@@ -75,6 +76,7 @@ public final class SpaceBindingSystem extends TickingSystem<PhysicsStore>
             bindSpace(runtime,
                 compatibility,
                 identity,
+                restore,
                 chunk.getReferenceTo(index),
                 spaceUuid,
                 space,
@@ -86,6 +88,7 @@ public final class SpaceBindingSystem extends TickingSystem<PhysicsStore>
     private static void bindSpace(@Nonnull PhysicsRuntimeResource runtime,
         @Nonnull PhysicsSpaceCompatibilityIndexResource compatibility,
         @Nonnull PhysicsIdentityIndexResource identity,
+        @Nonnull PhysicsRestoreStatusResource restore,
         @Nonnull Ref<PhysicsStore> ref,
         @Nonnull UUID spaceUuid,
         @Nonnull SpaceComponent space,
@@ -97,7 +100,13 @@ public final class SpaceBindingSystem extends TickingSystem<PhysicsStore>
         }
         PhysicsBackendRuntime backendRuntime = runtime.getRuntime(backendId);
         if (backendRuntime == null) {
-            backendRuntime = Impulse.createRuntime(backendId);
+            try {
+                backendRuntime = Impulse.createRuntime(backendId);
+            } catch (RuntimeException exception) {
+                restore.markFailed("PhysicsStore space " + spaceUuid
+                    + " references unavailable backend id " + backendId.value());
+                return;
+            }
             runtime.putRuntime(backendId, backendRuntime);
         }
         SpaceId compatibilitySpaceId = compatibility.getSpaceId(spaceUuid);
