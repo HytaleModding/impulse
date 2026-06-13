@@ -5,6 +5,7 @@ import com.hypixel.hytale.component.Store;
 import com.hypixel.hytale.logger.HytaleLogger;
 import com.hypixel.hytale.server.core.universe.world.World;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
+import com.hypixel.hytale.server.core.universe.world.storage.PhysicsStore;
 import dev.hytalemodding.impulse.api.BackendId;
 import dev.hytalemodding.impulse.api.PhysicsBodySnapshot;
 import dev.hytalemodding.impulse.api.PhysicsBodyType;
@@ -38,6 +39,7 @@ import dev.hytalemodding.impulse.core.internal.modules.worldcollision.WorldColli
 import dev.hytalemodding.impulse.core.internal.modules.worldcollision.PhysicsWorldCollisionRuntime;
 import dev.hytalemodding.impulse.core.internal.modules.worldcollision.WorldCollisionLifecycle;
 import dev.hytalemodding.impulse.core.internal.modules.worldcollision.WorldVoxelCollisionCache;
+import dev.hytalemodding.impulse.core.internal.physicsstore.queries.PhysicsStoreQueryBridge;
 import dev.hytalemodding.impulse.core.plugin.body.RigidBodyKey;
 import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyKind;
 import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyPersistenceMode;
@@ -49,8 +51,9 @@ import dev.hytalemodding.impulse.core.plugin.modules.worldcollision.WorldCollisi
 import dev.hytalemodding.impulse.core.plugin.modules.worldcollision.WorldCollisionStats;
 import dev.hytalemodding.impulse.core.plugin.events.PhysicsEventFrame;
 import dev.hytalemodding.impulse.core.plugin.events.PhysicsFrameEvent;
-import dev.hytalemodding.impulse.core.plugin.resources.PhysicsMutationHandle;
 import dev.hytalemodding.impulse.core.plugin.joint.JointKey;
+import dev.hytalemodding.impulse.core.plugin.physicsstore.PhysicsStoreAccess;
+import dev.hytalemodding.impulse.core.plugin.resources.PhysicsMutationHandle;
 import dev.hytalemodding.impulse.core.plugin.resources.PhysicsWorldResource;
 import dev.hytalemodding.impulse.core.plugin.settings.PhysicsSpaceSettings;
 import dev.hytalemodding.impulse.core.plugin.settings.PhysicsStepMode;
@@ -68,6 +71,7 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
 import java.util.concurrent.RejectedExecutionException;
@@ -116,6 +120,8 @@ public class PhysicsWorldRuntimeResource extends PhysicsWorldResource {
     private final AtomicLong visualInterestTick = new AtomicLong();
     private final PhysicsOwnerGateway ownerGateway = new PhysicsOwnerGateway();
     private final PhysicsSimulationExecutor simulationExecutor = new PhysicsSimulationExecutor(this);
+    @Nullable
+    private Store<EntityStore> owningStore;
 
     public PhysicsWorldRuntimeResource() {
         ControlLifecycle.registerResource(this);
@@ -140,10 +146,20 @@ public class PhysicsWorldRuntimeResource extends PhysicsWorldResource {
         ownerGateway.attachOwnerExecutor(ownerExecutor);
     }
 
+    public void attachEntityStore(@Nonnull Store<EntityStore> store) {
+        owningStore = Objects.requireNonNull(store, "store");
+    }
+
     public void detachOwnerExecutor(@Nonnull PhysicsOwnerHandle ownerExecutor) {
         ownerGateway.detachOwnerExecutor(ownerExecutor);
         if (!ownerGateway.hasOwnerExecutor()) {
             lifecycleState.publishDetachedOwnerRegistrationViews(bodyRegistry);
+        }
+    }
+
+    public void detachEntityStore(@Nonnull Store<EntityStore> store) {
+        if (owningStore == store) {
+            owningStore = null;
         }
     }
 
@@ -224,9 +240,27 @@ public class PhysicsWorldRuntimeResource extends PhysicsWorldResource {
     @Override
     public <R> PhysicsQueryHandle<R> query(@Nonnull PhysicsQuery<R> query) {
         Objects.requireNonNull(query, "query");
+        Optional<PhysicsQueryHandle<R>> physicsStoreQuery = tryPhysicsStoreQuery(query);
+        if (physicsStoreQuery.isPresent()) {
+            return physicsStoreQuery.get();
+        }
         CompletableFuture<R> completion =
             ownerGateway.enqueueCall("execute physics query", () -> simulationExecutor.query(query));
         return PhysicsQueryHandle.fromCompletion(query, completion);
+    }
+
+    @Nonnull
+    private <R> Optional<PhysicsQueryHandle<R>> tryPhysicsStoreQuery(@Nonnull PhysicsQuery<R> query) {
+        Store<EntityStore> entityStore = owningStore;
+        if (entityStore == null) {
+            return Optional.empty();
+        }
+        try {
+            PhysicsStore physicsStore = PhysicsStoreAccess.require(entityStore.getExternalData().getWorld());
+            return PhysicsStoreQueryBridge.tryQuery(physicsStore.getStore(), query);
+        } catch (IllegalStateException exception) {
+            return Optional.empty();
+        }
     }
 
     @Nonnull
