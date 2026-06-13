@@ -21,6 +21,7 @@ import dev.hytalemodding.impulse.api.runtime.BackendRuntimeCodes;
 import dev.hytalemodding.impulse.api.runtime.PhysicsBackendRuntime;
 import dev.hytalemodding.impulse.core.internal.physicsstore.resources.PhysicsIdentityIndexResource;
 import dev.hytalemodding.impulse.core.internal.physicsstore.resources.PhysicsRequestQueueResource;
+import dev.hytalemodding.impulse.core.internal.physicsstore.resources.PhysicsRequestQueueResource.QueuedRequest;
 import dev.hytalemodding.impulse.core.internal.physicsstore.resources.PhysicsRestoreStatusResource;
 import dev.hytalemodding.impulse.core.internal.physicsstore.resources.PhysicsRuntimeResource;
 import dev.hytalemodding.impulse.core.internal.physicsstore.resources.PhysicsRuntimeResource.PendingBodyOperation;
@@ -55,6 +56,7 @@ import dev.hytalemodding.impulse.core.plugin.physicsstore.requests.BodyUpsertReq
 import dev.hytalemodding.impulse.core.plugin.physicsstore.requests.JointRemoveRequest;
 import dev.hytalemodding.impulse.core.plugin.physicsstore.requests.JointUpsertRequest;
 import dev.hytalemodding.impulse.core.plugin.physicsstore.requests.PhysicsStoreRequest;
+import dev.hytalemodding.impulse.core.plugin.physicsstore.requests.PhysicsStoreRequestFenceResult;
 import dev.hytalemodding.impulse.core.plugin.physicsstore.requests.SpaceRemoveRequest;
 import dev.hytalemodding.impulse.core.plugin.physicsstore.requests.SpaceSettingsRequest;
 import dev.hytalemodding.impulse.core.plugin.physicsstore.requests.SpaceUpsertRequest;
@@ -62,7 +64,11 @@ import dev.hytalemodding.impulse.core.plugin.physicsstore.requests.TerrainCollid
 import dev.hytalemodding.impulse.core.plugin.physicsstore.requests.TerrainColliderRequest;
 import it.unimi.dsi.fastutil.objects.Object2ObjectOpenHashMap;
 import it.unimi.dsi.fastutil.objects.ObjectOpenHashSet;
+import java.util.ArrayDeque;
 import java.util.ArrayList;
+import java.util.Collection;
+import java.util.Deque;
+import java.util.IdentityHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -85,10 +91,12 @@ public final class RequestDrainSystem extends TickingSystem<PhysicsStore> {
     public void tick(float dt, int systemIndex, @Nonnull Store<PhysicsStore> store) {
         PhysicsRequestQueueResource queue = store.getResource(
             PhysicsRequestQueueResource.getResourceType());
-        List<PhysicsStoreRequest> requests = queue.drain();
-        if (requests.isEmpty()) {
+        List<QueuedRequest> queuedRequests = queue.drain();
+        if (queuedRequests.isEmpty()) {
             return;
         }
+        List<PhysicsStoreRequest> requests = requests(queuedRequests);
+        RequestFenceTracker fences = new RequestFenceTracker(queuedRequests);
         PhysicsIdentityIndexResource identity = store.getResource(
             PhysicsIdentityIndexResource.getResourceType());
         PhysicsRestoreStatusResource restore = store.getResource(
@@ -101,51 +109,63 @@ public final class RequestDrainSystem extends TickingSystem<PhysicsStore> {
         Set<UUID> structuralConflicts = structuralConflicts(requests, restore);
         Map<UUID, Ref<PhysicsStore>> refsThisDrain = new Object2ObjectOpenHashMap<>();
 
-        applyRemovals(store,
-            systemIndex,
-            identity,
-            runtime,
-            terrainPayloads,
-            refsThisDrain,
-            restore,
-            structuralConflicts,
-            requests);
-        applySpaceRemovals(store,
-            identity,
-            runtime,
-            compatibility,
-            refsThisDrain,
-            restore,
-            structuralConflicts,
-            requests);
-        applySpaceUpserts(store,
-            identity,
-            runtime,
-            compatibility,
-            refsThisDrain,
-            restore,
-            structuralConflicts,
-            requests);
-        applySpaceSettings(store,
-            runtime,
-            identity,
-            refsThisDrain,
-            restore,
-            structuralConflicts,
-            requests);
-        applyUpserts(store,
-            systemIndex,
-            identity,
-            runtime,
-            terrainPayloads,
-            refsThisDrain,
-            restore,
-            structuralConflicts,
-            requests);
-        applyBodyTypeRequests(store, identity, runtime, refsThisDrain, restore, requests);
-        applyTargetRequests(store, identity, refsThisDrain, restore, requests);
-        enqueueRuntimeBodyRequests(store, identity, runtime, refsThisDrain, restore, requests);
-        recordUnsupported(restore, requests);
+        try {
+            applyRemovals(store,
+                systemIndex,
+                identity,
+                runtime,
+                terrainPayloads,
+                refsThisDrain,
+                restore,
+                fences,
+                structuralConflicts,
+                requests);
+            applySpaceRemovals(store,
+                identity,
+                runtime,
+                compatibility,
+                refsThisDrain,
+                restore,
+                fences,
+                structuralConflicts,
+                requests);
+            applySpaceUpserts(store,
+                identity,
+                runtime,
+                compatibility,
+                refsThisDrain,
+                restore,
+                fences,
+                structuralConflicts,
+                requests);
+            applySpaceSettings(store,
+                runtime,
+                identity,
+                refsThisDrain,
+                restore,
+                fences,
+                structuralConflicts,
+                requests);
+            applyUpserts(store,
+                systemIndex,
+                identity,
+                runtime,
+                terrainPayloads,
+                refsThisDrain,
+                restore,
+                fences,
+                structuralConflicts,
+                requests);
+            applyBodyTypeRequests(store, identity, runtime, refsThisDrain, restore, fences, requests);
+            applyTargetRequests(store, identity, refsThisDrain, restore, fences, requests);
+            enqueueRuntimeBodyRequests(store, identity, runtime, refsThisDrain, restore, fences, requests);
+            recordUnsupported(restore, fences, requests);
+        } catch (RuntimeException | Error exception) {
+            fences.failUnfinished();
+            queue.completeFences(fences.results(currentServerTick(store)));
+            throw exception;
+        }
+        queue.completeFences(fences.results(currentServerTick(store)));
     }
 
     private static void applySpaceRemovals(@Nonnull Store<PhysicsStore> store,
@@ -154,18 +174,24 @@ public final class RequestDrainSystem extends TickingSystem<PhysicsStore> {
         @Nonnull PhysicsSpaceCompatibilityIndexResource compatibility,
         @Nonnull Map<UUID, Ref<PhysicsStore>> refsThisDrain,
         @Nonnull PhysicsRestoreStatusResource restore,
+        @Nonnull RequestFenceTracker fences,
         @Nonnull Set<UUID> structuralConflicts,
         @Nonnull List<PhysicsStoreRequest> requests) {
         for (PhysicsStoreRequest request : requests) {
-            if (request instanceof SpaceRemoveRequest spaceRequest
-                && !structuralConflicts.contains(spaceRequest.spaceUuid())) {
-                applySpaceRemove(store,
-                    identity,
-                    runtime,
-                    compatibility,
-                    refsThisDrain,
-                    restore,
-                    spaceRequest);
+            if (request instanceof SpaceRemoveRequest spaceRequest) {
+                if (structuralConflicts.contains(spaceRequest.spaceUuid())) {
+                    fences.rejected(request);
+                    continue;
+                }
+                trackRequest(fences,
+                    request,
+                    applySpaceRemove(store,
+                        identity,
+                        runtime,
+                        compatibility,
+                        refsThisDrain,
+                        restore,
+                        spaceRequest));
             }
         }
     }
@@ -176,18 +202,24 @@ public final class RequestDrainSystem extends TickingSystem<PhysicsStore> {
         @Nonnull PhysicsSpaceCompatibilityIndexResource compatibility,
         @Nonnull Map<UUID, Ref<PhysicsStore>> refsThisDrain,
         @Nonnull PhysicsRestoreStatusResource restore,
+        @Nonnull RequestFenceTracker fences,
         @Nonnull Set<UUID> structuralConflicts,
         @Nonnull List<PhysicsStoreRequest> requests) {
         for (PhysicsStoreRequest request : requests) {
-            if (request instanceof SpaceUpsertRequest spaceRequest
-                && !structuralConflicts.contains(spaceRequest.spaceUuid())) {
-                applySpaceUpsert(store,
-                    identity,
-                    runtime,
-                    compatibility,
-                    refsThisDrain,
-                    restore,
-                    spaceRequest);
+            if (request instanceof SpaceUpsertRequest spaceRequest) {
+                if (structuralConflicts.contains(spaceRequest.spaceUuid())) {
+                    fences.rejected(request);
+                    continue;
+                }
+                trackRequest(fences,
+                    request,
+                    applySpaceUpsert(store,
+                        identity,
+                        runtime,
+                        compatibility,
+                        refsThisDrain,
+                        restore,
+                        spaceRequest));
             }
         }
     }
@@ -197,17 +229,23 @@ public final class RequestDrainSystem extends TickingSystem<PhysicsStore> {
         @Nonnull PhysicsIdentityIndexResource identity,
         @Nonnull Map<UUID, Ref<PhysicsStore>> refsThisDrain,
         @Nonnull PhysicsRestoreStatusResource restore,
+        @Nonnull RequestFenceTracker fences,
         @Nonnull Set<UUID> structuralConflicts,
         @Nonnull List<PhysicsStoreRequest> requests) {
         for (PhysicsStoreRequest request : requests) {
-            if (request instanceof SpaceSettingsRequest settingsRequest
-                && !structuralConflicts.contains(settingsRequest.spaceUuid())) {
-                applySpaceSettings(store,
-                    runtime,
-                    identity,
-                    refsThisDrain,
-                    restore,
-                    settingsRequest);
+            if (request instanceof SpaceSettingsRequest settingsRequest) {
+                if (structuralConflicts.contains(settingsRequest.spaceUuid())) {
+                    fences.rejected(request);
+                    continue;
+                }
+                trackRequest(fences,
+                    request,
+                    applySpaceSettings(store,
+                        runtime,
+                        identity,
+                        refsThisDrain,
+                        restore,
+                        settingsRequest));
             }
         }
     }
@@ -219,35 +257,49 @@ public final class RequestDrainSystem extends TickingSystem<PhysicsStore> {
         @Nonnull PhysicsTerrainPayloadResource terrainPayloads,
         @Nonnull Map<UUID, Ref<PhysicsStore>> refsThisDrain,
         @Nonnull PhysicsRestoreStatusResource restore,
+        @Nonnull RequestFenceTracker fences,
         @Nonnull Set<UUID> structuralConflicts,
         @Nonnull List<PhysicsStoreRequest> requests) {
         for (PhysicsStoreRequest request : requests) {
             if (request instanceof BodyRemoveRequest bodyRequest) {
-                if (!structuralConflicts.contains(bodyRequest.bodyUuid())) {
-                    applyBodyRemove(store,
-                        systemIndex,
-                        identity,
-                        runtime,
-                        refsThisDrain,
-                        bodyRequest);
+                if (structuralConflicts.contains(bodyRequest.bodyUuid())) {
+                    fences.rejected(request);
+                } else {
+                    trackRequest(fences,
+                        request,
+                        applyBodyRemove(store,
+                            systemIndex,
+                            identity,
+                            runtime,
+                            refsThisDrain,
+                            bodyRequest));
                 }
                 continue;
             }
             if (request instanceof JointRemoveRequest jointRequest) {
-                if (!structuralConflicts.contains(jointRequest.jointUuid())) {
-                    applyJointRemove(store, identity, runtime, refsThisDrain, jointRequest);
+                if (structuralConflicts.contains(jointRequest.jointUuid())) {
+                    fences.rejected(request);
+                } else {
+                    trackRequest(fences,
+                        request,
+                        applyJointRemove(store, identity, runtime, refsThisDrain, jointRequest));
                 }
                 continue;
             }
             if (request instanceof TerrainColliderRequest terrainRequest
-                && terrainRequest.remove()
-                && !structuralConflicts.contains(terrainRequest.terrainColliderUuid())) {
-                applyTerrainRequest(store,
-                    identity,
-                    terrainPayloads,
-                    refsThisDrain,
-                    restore,
-                    terrainRequest);
+                && terrainRequest.remove()) {
+                if (structuralConflicts.contains(terrainRequest.terrainColliderUuid())) {
+                    fences.rejected(request);
+                } else {
+                    trackRequest(fences,
+                        request,
+                        applyTerrainRequest(store,
+                            identity,
+                            terrainPayloads,
+                            refsThisDrain,
+                            restore,
+                            terrainRequest));
+                }
             }
         }
     }
@@ -259,41 +311,55 @@ public final class RequestDrainSystem extends TickingSystem<PhysicsStore> {
         @Nonnull PhysicsTerrainPayloadResource terrainPayloads,
         @Nonnull Map<UUID, Ref<PhysicsStore>> refsThisDrain,
         @Nonnull PhysicsRestoreStatusResource restore,
+        @Nonnull RequestFenceTracker fences,
         @Nonnull Set<UUID> structuralConflicts,
         @Nonnull List<PhysicsStoreRequest> requests) {
         for (PhysicsStoreRequest request : requests) {
             if (request instanceof BodyUpsertRequest bodyRequest) {
-                if (!structuralConflicts.contains(bodyRequest.bodyUuid())) {
-                    applyBodyUpsert(store,
-                        systemIndex,
-                        identity,
-                        runtime,
-                        refsThisDrain,
-                        restore,
-                        bodyRequest);
+                if (structuralConflicts.contains(bodyRequest.bodyUuid())) {
+                    fences.rejected(request);
+                } else {
+                    trackRequest(fences,
+                        request,
+                        applyBodyUpsert(store,
+                            systemIndex,
+                            identity,
+                            runtime,
+                            refsThisDrain,
+                            restore,
+                            bodyRequest));
                 }
                 continue;
             }
             if (request instanceof JointUpsertRequest jointRequest) {
-                if (!structuralConflicts.contains(jointRequest.jointUuid())) {
-                    applyJointUpsert(store,
-                        identity,
-                        runtime,
-                        refsThisDrain,
-                        restore,
-                        jointRequest);
+                if (structuralConflicts.contains(jointRequest.jointUuid())) {
+                    fences.rejected(request);
+                } else {
+                    trackRequest(fences,
+                        request,
+                        applyJointUpsert(store,
+                            identity,
+                            runtime,
+                            refsThisDrain,
+                            restore,
+                            jointRequest));
                 }
                 continue;
             }
             if (request instanceof TerrainColliderRequest terrainRequest
-                && !terrainRequest.remove()
-                && !structuralConflicts.contains(terrainRequest.terrainColliderUuid())) {
-                applyTerrainRequest(store,
-                    identity,
-                    terrainPayloads,
-                    refsThisDrain,
-                    restore,
-                    terrainRequest);
+                && !terrainRequest.remove()) {
+                if (structuralConflicts.contains(terrainRequest.terrainColliderUuid())) {
+                    fences.rejected(request);
+                } else {
+                    trackRequest(fences,
+                        request,
+                        applyTerrainRequest(store,
+                            identity,
+                            terrainPayloads,
+                            refsThisDrain,
+                            restore,
+                            terrainRequest));
+                }
             }
         }
     }
@@ -302,25 +368,31 @@ public final class RequestDrainSystem extends TickingSystem<PhysicsStore> {
         @Nonnull PhysicsIdentityIndexResource identity,
         @Nonnull Map<UUID, Ref<PhysicsStore>> refsThisDrain,
         @Nonnull PhysicsRestoreStatusResource restore,
+        @Nonnull RequestFenceTracker fences,
         @Nonnull List<PhysicsStoreRequest> requests) {
         for (PhysicsStoreRequest request : requests) {
             if (request instanceof BodyTargetRequest targetRequest) {
-                applyTargetRequest(store, identity, refsThisDrain, restore, targetRequest);
+                trackRequest(fences,
+                    request,
+                    applyTargetRequest(store, identity, refsThisDrain, restore, targetRequest));
             }
         }
     }
 
     private static void recordUnsupported(@Nonnull PhysicsRestoreStatusResource restore,
+        @Nonnull RequestFenceTracker fences,
         @Nonnull List<PhysicsStoreRequest> requests) {
         for (PhysicsStoreRequest request : requests) {
             if (!isSupportedRequest(request)) {
                 restore.recordSoftSkip("Unsupported PhysicsStore request "
                     + request.getClass().getName());
+                fences.rejected(request);
             }
         }
     }
 
-    private static void applySpaceRemove(@Nonnull Store<PhysicsStore> store,
+    @Nonnull
+    private static RequestApplicationStatus applySpaceRemove(@Nonnull Store<PhysicsStore> store,
         @Nonnull PhysicsIdentityIndexResource identity,
         @Nonnull PhysicsRuntimeResource runtime,
         @Nonnull PhysicsSpaceCompatibilityIndexResource compatibility,
@@ -330,7 +402,7 @@ public final class RequestDrainSystem extends TickingSystem<PhysicsStore> {
         UUID spaceUuid = request.spaceUuid();
         BackendSpaceHandle handle = runtime.getSpaceHandle(spaceUuid);
         if (handle != null && !removeSpaceBackend(runtime, identity, restore, spaceUuid, handle)) {
-            return;
+            return RequestApplicationStatus.SOFT_SKIPPED;
         }
         compatibility.removeBySpaceUuid(spaceUuid);
         removeRow(store,
@@ -339,9 +411,11 @@ public final class RequestDrainSystem extends TickingSystem<PhysicsStore> {
             new ObjectOpenHashSet<>(),
             spaceUuid,
             refForUuid(identity, refsThisDrain, spaceUuid));
+        return RequestApplicationStatus.APPLIED;
     }
 
-    private static void applySpaceUpsert(@Nonnull Store<PhysicsStore> store,
+    @Nonnull
+    private static RequestApplicationStatus applySpaceUpsert(@Nonnull Store<PhysicsStore> store,
         @Nonnull PhysicsIdentityIndexResource identity,
         @Nonnull PhysicsRuntimeResource runtime,
         @Nonnull PhysicsSpaceCompatibilityIndexResource compatibility,
@@ -350,15 +424,15 @@ public final class RequestDrainSystem extends TickingSystem<PhysicsStore> {
         @Nonnull SpaceUpsertRequest request) {
         if (isNil(request.spaceUuid())) {
             restore.recordSoftSkip("Space upsert contains nil UUID: " + request.spaceUuid());
-            return;
+            return RequestApplicationStatus.SOFT_SKIPPED;
         }
         if (request.space().getBackendIdValue().isBlank()) {
             restore.recordSoftSkip("Space upsert backend id is blank: " + request.spaceUuid());
-            return;
+            return RequestApplicationStatus.SOFT_SKIPPED;
         }
         if (runtime.getSpaceHandle(request.spaceUuid()) != null) {
             restore.recordSoftSkip("Space upsert target is already bound: " + request.spaceUuid());
-            return;
+            return RequestApplicationStatus.SOFT_SKIPPED;
         }
         Ref<PhysicsStore> ref = ensureRow(store, identity, refsThisDrain, request.spaceUuid());
         store.putComponent(ref, SpaceComponent.getComponentType(), request.space().clone());
@@ -369,9 +443,11 @@ public final class RequestDrainSystem extends TickingSystem<PhysicsStore> {
         compatibility.putSpace(request.compatibilitySpaceId(), request.spaceUuid());
         SpaceId.reserveAtLeast(request.compatibilitySpaceId().value());
         runtime.markSpaceSettingsPending(request.spaceUuid());
+        return RequestApplicationStatus.APPLIED;
     }
 
-    private static void applySpaceSettings(@Nonnull Store<PhysicsStore> store,
+    @Nonnull
+    private static RequestApplicationStatus applySpaceSettings(@Nonnull Store<PhysicsStore> store,
         @Nonnull PhysicsRuntimeResource runtime,
         @Nonnull PhysicsIdentityIndexResource identity,
         @Nonnull Map<UUID, Ref<PhysicsStore>> refsThisDrain,
@@ -381,13 +457,14 @@ public final class RequestDrainSystem extends TickingSystem<PhysicsStore> {
         if (ref == null) {
             restore.recordSoftSkip("Space settings request target is missing: "
                 + request.spaceUuid());
-            return;
+            return RequestApplicationStatus.SOFT_SKIPPED;
         }
         store.putComponent(ref,
             WorldCollisionComponent.getComponentType(),
             request.worldCollision().clone());
         putSpaceSettingsComponents(store, ref, request);
         runtime.markSpaceSettingsPending(request.spaceUuid());
+        return RequestApplicationStatus.APPLIED;
     }
 
     private static void putSpaceSettingsComponents(@Nonnull Store<PhysicsStore> store,
@@ -430,7 +507,8 @@ public final class RequestDrainSystem extends TickingSystem<PhysicsStore> {
             request.extensionSettings().clone());
     }
 
-    private static void applyBodyRemove(@Nonnull Store<PhysicsStore> store,
+    @Nonnull
+    private static RequestApplicationStatus applyBodyRemove(@Nonnull Store<PhysicsStore> store,
         int systemIndex,
         @Nonnull PhysicsIdentityIndexResource identity,
         @Nonnull PhysicsRuntimeResource runtime,
@@ -463,9 +541,11 @@ public final class RequestDrainSystem extends TickingSystem<PhysicsStore> {
                 ownedRowUuid,
                 refForUuid(identity, refsThisDrain, ownedRowUuid));
         }
+        return RequestApplicationStatus.APPLIED;
     }
 
-    private static void applyBodyUpsert(@Nonnull Store<PhysicsStore> store,
+    @Nonnull
+    private static RequestApplicationStatus applyBodyUpsert(@Nonnull Store<PhysicsStore> store,
         int systemIndex,
         @Nonnull PhysicsIdentityIndexResource identity,
         @Nonnull PhysicsRuntimeResource runtime,
@@ -473,7 +553,7 @@ public final class RequestDrainSystem extends TickingSystem<PhysicsStore> {
         @Nonnull PhysicsRestoreStatusResource restore,
         @Nonnull BodyUpsertRequest request) {
         if (!isValidBodyUpsert(request, restore)) {
-            return;
+            return RequestApplicationStatus.SOFT_SKIPPED;
         }
         if (runtime.getBodyHandle(request.bodyUuid()) != null) {
             for (JointRow joint : collectAttachedJoints(store, systemIndex, request.bodyUuid())) {
@@ -514,9 +594,11 @@ public final class RequestDrainSystem extends TickingSystem<PhysicsStore> {
         } else {
             store.removeComponent(bodyRef, TargetComponent.getComponentType());
         }
+        return RequestApplicationStatus.APPLIED;
     }
 
-    private static void applyJointRemove(@Nonnull Store<PhysicsStore> store,
+    @Nonnull
+    private static RequestApplicationStatus applyJointRemove(@Nonnull Store<PhysicsStore> store,
         @Nonnull PhysicsIdentityIndexResource identity,
         @Nonnull PhysicsRuntimeResource runtime,
         @Nonnull Map<UUID, Ref<PhysicsStore>> refsThisDrain,
@@ -532,16 +614,18 @@ public final class RequestDrainSystem extends TickingSystem<PhysicsStore> {
             new ObjectOpenHashSet<>(),
             request.jointUuid(),
             ref);
+        return RequestApplicationStatus.APPLIED;
     }
 
-    private static void applyJointUpsert(@Nonnull Store<PhysicsStore> store,
+    @Nonnull
+    private static RequestApplicationStatus applyJointUpsert(@Nonnull Store<PhysicsStore> store,
         @Nonnull PhysicsIdentityIndexResource identity,
         @Nonnull PhysicsRuntimeResource runtime,
         @Nonnull Map<UUID, Ref<PhysicsStore>> refsThisDrain,
         @Nonnull PhysicsRestoreStatusResource restore,
         @Nonnull JointUpsertRequest request) {
         if (!isValidJointUpsert(request, restore)) {
-            return;
+            return RequestApplicationStatus.SOFT_SKIPPED;
         }
         Ref<PhysicsStore> ref = refForUuid(identity, refsThisDrain, request.jointUuid());
         JointComponent existing = PhysicsStoreSystemSupport.component(store,
@@ -554,9 +638,11 @@ public final class RequestDrainSystem extends TickingSystem<PhysicsStore> {
             request.jointUuid(),
             JointComponent.getComponentType(),
             request.joint().clone());
+        return RequestApplicationStatus.APPLIED;
     }
 
-    private static void applyTargetRequest(@Nonnull Store<PhysicsStore> store,
+    @Nonnull
+    private static RequestApplicationStatus applyTargetRequest(@Nonnull Store<PhysicsStore> store,
         @Nonnull PhysicsIdentityIndexResource identity,
         @Nonnull Map<UUID, Ref<PhysicsStore>> refsThisDrain,
         @Nonnull PhysicsRestoreStatusResource restore,
@@ -564,7 +650,7 @@ public final class RequestDrainSystem extends TickingSystem<PhysicsStore> {
         Ref<PhysicsStore> bodyRef = refForUuid(identity, refsThisDrain, request.bodyUuid());
         if (bodyRef == null) {
             restore.recordSoftSkip("Target request body is missing: " + request.bodyUuid());
-            return;
+            return RequestApplicationStatus.SOFT_SKIPPED;
         }
         TargetComponent target = new TargetComponent();
         target.setActive(true);
@@ -576,6 +662,7 @@ public final class RequestDrainSystem extends TickingSystem<PhysicsStore> {
         target.setVelocityEnabled(request.velocityEnabled());
         target.setActivate(request.activate());
         store.putComponent(bodyRef, TargetComponent.getComponentType(), target);
+        return RequestApplicationStatus.APPLIED;
     }
 
     private static void applyBodyTypeRequests(@Nonnull Store<PhysicsStore> store,
@@ -583,10 +670,18 @@ public final class RequestDrainSystem extends TickingSystem<PhysicsStore> {
         @Nonnull PhysicsRuntimeResource runtime,
         @Nonnull Map<UUID, Ref<PhysicsStore>> refsThisDrain,
         @Nonnull PhysicsRestoreStatusResource restore,
+        @Nonnull RequestFenceTracker fences,
         @Nonnull List<PhysicsStoreRequest> requests) {
         for (PhysicsStoreRequest request : requests) {
             if (request instanceof BodyTypeRequest typeRequest) {
-                applyBodyTypeRequest(store, identity, runtime, refsThisDrain, restore, typeRequest);
+                trackRequest(fences,
+                    request,
+                    applyBodyTypeRequest(store,
+                        identity,
+                        runtime,
+                        refsThisDrain,
+                        restore,
+                        typeRequest));
             }
         }
     }
@@ -596,19 +691,34 @@ public final class RequestDrainSystem extends TickingSystem<PhysicsStore> {
         @Nonnull PhysicsRuntimeResource runtime,
         @Nonnull Map<UUID, Ref<PhysicsStore>> refsThisDrain,
         @Nonnull PhysicsRestoreStatusResource restore,
+        @Nonnull RequestFenceTracker fences,
         @Nonnull List<PhysicsStoreRequest> requests) {
         for (PhysicsStoreRequest request : requests) {
             if (request instanceof BodyActivationRequest activationRequest) {
-                enqueueBodyActivationRequest(identity, runtime, refsThisDrain, restore, activationRequest);
+                trackRequest(fences,
+                    request,
+                    enqueueBodyActivationRequest(identity,
+                        runtime,
+                        refsThisDrain,
+                        restore,
+                        activationRequest));
                 continue;
             }
             if (request instanceof BodyForceRequest forceRequest) {
-                enqueueBodyForceRequest(store, identity, runtime, refsThisDrain, restore, forceRequest);
+                trackRequest(fences,
+                    request,
+                    enqueueBodyForceRequest(store,
+                        identity,
+                        runtime,
+                        refsThisDrain,
+                        restore,
+                        forceRequest));
             }
         }
     }
 
-    private static void applyBodyTypeRequest(@Nonnull Store<PhysicsStore> store,
+    @Nonnull
+    private static RequestApplicationStatus applyBodyTypeRequest(@Nonnull Store<PhysicsStore> store,
         @Nonnull PhysicsIdentityIndexResource identity,
         @Nonnull PhysicsRuntimeResource runtime,
         @Nonnull Map<UUID, Ref<PhysicsStore>> refsThisDrain,
@@ -617,7 +727,7 @@ public final class RequestDrainSystem extends TickingSystem<PhysicsStore> {
         Ref<PhysicsStore> bodyRef = refForUuid(identity, refsThisDrain, request.bodyUuid());
         if (bodyRef == null) {
             restore.recordSoftSkip("Body type request body is missing: " + request.bodyUuid());
-            return;
+            return RequestApplicationStatus.SOFT_SKIPPED;
         }
         DynamicsComponent dynamics = PhysicsStoreSystemSupport.component(store,
             bodyRef,
@@ -637,7 +747,7 @@ public final class RequestDrainSystem extends TickingSystem<PhysicsStore> {
                     null,
                     null));
             }
-            return;
+            return RequestApplicationStatus.APPLIED;
         }
         binding.backendRuntime().setBodyType(binding.spaceHandle().value(),
             binding.bodyHandle().value(),
@@ -648,9 +758,11 @@ public final class RequestDrainSystem extends TickingSystem<PhysicsStore> {
                 binding.spaceHandle(),
                 binding.bodyHandle()));
         }
+        return RequestApplicationStatus.APPLIED;
     }
 
-    private static void enqueueBodyActivationRequest(
+    @Nonnull
+    private static RequestApplicationStatus enqueueBodyActivationRequest(
         @Nonnull PhysicsIdentityIndexResource identity,
         @Nonnull PhysicsRuntimeResource runtime,
         @Nonnull Map<UUID, Ref<PhysicsStore>> refsThisDrain,
@@ -658,7 +770,7 @@ public final class RequestDrainSystem extends TickingSystem<PhysicsStore> {
         @Nonnull BodyActivationRequest request) {
         if (refForUuid(identity, refsThisDrain, request.bodyUuid()) == null) {
             restore.recordSoftSkip("Activation request body is missing: " + request.bodyUuid());
-            return;
+            return RequestApplicationStatus.SOFT_SKIPPED;
         }
         RuntimeBodyBinding binding = runtimeBodyBinding(runtime,
             request.bodyUuid(),
@@ -674,9 +786,11 @@ public final class RequestDrainSystem extends TickingSystem<PhysicsStore> {
                 binding != null ? binding.spaceHandle() : null,
                 binding != null ? binding.bodyHandle() : null));
         }
+        return RequestApplicationStatus.APPLIED;
     }
 
-    private static void enqueueBodyForceRequest(@Nonnull Store<PhysicsStore> store,
+    @Nonnull
+    private static RequestApplicationStatus enqueueBodyForceRequest(@Nonnull Store<PhysicsStore> store,
         @Nonnull PhysicsIdentityIndexResource identity,
         @Nonnull PhysicsRuntimeResource runtime,
         @Nonnull Map<UUID, Ref<PhysicsStore>> refsThisDrain,
@@ -685,18 +799,18 @@ public final class RequestDrainSystem extends TickingSystem<PhysicsStore> {
         Ref<PhysicsStore> bodyRef = refForUuid(identity, refsThisDrain, request.bodyUuid());
         if (bodyRef == null) {
             restore.recordSoftSkip("Force request body is missing: " + request.bodyUuid());
-            return;
+            return RequestApplicationStatus.SOFT_SKIPPED;
         }
         DynamicsComponent dynamics = PhysicsStoreSystemSupport.component(store,
             bodyRef,
             DynamicsComponent.getComponentType());
         if (dynamics == null || dynamics.getBodyType() != PhysicsBodyType.DYNAMIC) {
             restore.recordSoftSkip("Force request target is not dynamic: " + request.bodyUuid());
-            return;
+            return RequestApplicationStatus.SOFT_SKIPPED;
         }
         if (!hasFiniteVector(request)) {
             restore.recordSoftSkip("Force request contains non-finite values: " + request.bodyUuid());
-            return;
+            return RequestApplicationStatus.SOFT_SKIPPED;
         }
         RuntimeBodyBinding binding = runtimeBodyBinding(runtime,
             request.bodyUuid(),
@@ -714,9 +828,11 @@ public final class RequestDrainSystem extends TickingSystem<PhysicsStore> {
             request.offsetX(),
             request.offsetY(),
             request.offsetZ()));
+        return RequestApplicationStatus.APPLIED;
     }
 
-    private static void applyTerrainRequest(@Nonnull Store<PhysicsStore> store,
+    @Nonnull
+    private static RequestApplicationStatus applyTerrainRequest(@Nonnull Store<PhysicsStore> store,
         @Nonnull PhysicsIdentityIndexResource identity,
         @Nonnull PhysicsTerrainPayloadResource terrainPayloads,
         @Nonnull Map<UUID, Ref<PhysicsStore>> refsThisDrain,
@@ -736,12 +852,12 @@ public final class RequestDrainSystem extends TickingSystem<PhysicsStore> {
                     removedTerrainComponent(request));
             }
             removePayload(terrainPayloads, request.payloadResourceKey());
-            return;
+            return RequestApplicationStatus.APPLIED;
         }
         TerrainColliderPayload payload = request.payload();
         if (payload == null || payload.isEmpty()) {
             restore.recordSoftSkip("Terrain upsert payload is missing: " + request.sourceKey());
-            return;
+            return RequestApplicationStatus.SOFT_SKIPPED;
         }
         terrainPayloads.put(request.payloadResourceKey(), payload);
         TerrainColliderComponent component = activeTerrainComponent(request);
@@ -754,12 +870,13 @@ public final class RequestDrainSystem extends TickingSystem<PhysicsStore> {
             }
             store.putComponent(ref, TerrainColliderComponent.getComponentType(), component);
             refsThisDrain.put(terrainUuid, ref);
-            return;
+            return RequestApplicationStatus.APPLIED;
         }
         Holder<PhysicsStore> holder = store.getRegistry().newHolder();
         holder.addComponent(UuidComponent.getComponentType(), new UuidComponent(terrainUuid));
         holder.addComponent(TerrainColliderComponent.getComponentType(), component);
         refsThisDrain.put(terrainUuid, store.addEntity(holder, AddReason.SPAWN));
+        return RequestApplicationStatus.APPLIED;
     }
 
     @Nonnull
@@ -1108,6 +1225,29 @@ public final class RequestDrainSystem extends TickingSystem<PhysicsStore> {
             || request instanceof JointRemoveRequest;
     }
 
+    @Nonnull
+    private static List<PhysicsStoreRequest> requests(@Nonnull List<QueuedRequest> queuedRequests) {
+        List<PhysicsStoreRequest> requests = new ArrayList<>(queuedRequests.size());
+        for (QueuedRequest queuedRequest : queuedRequests) {
+            requests.add(queuedRequest.request());
+        }
+        return requests;
+    }
+
+    private static void trackRequest(@Nonnull RequestFenceTracker fences,
+        @Nonnull PhysicsStoreRequest request,
+        @Nonnull RequestApplicationStatus status) {
+        if (status == RequestApplicationStatus.APPLIED) {
+            fences.applied(request);
+        } else {
+            fences.softSkipped(request);
+        }
+    }
+
+    private static long currentServerTick(@Nonnull Store<PhysicsStore> store) {
+        return Math.max(0L, store.getExternalData().getWorld().getTick());
+    }
+
     @Nullable
     private static Ref<PhysicsStore> refForUuid(@Nonnull PhysicsIdentityIndexResource identity,
         @Nonnull Map<UUID, Ref<PhysicsStore>> refsThisDrain,
@@ -1174,5 +1314,110 @@ public final class RequestDrainSystem extends TickingSystem<PhysicsStore> {
     private record RuntimeBodyBinding(@Nonnull BackendSpaceHandle spaceHandle,
                                       @Nonnull BackendBodyHandle bodyHandle,
                                       @Nonnull PhysicsBackendRuntime backendRuntime) {
+    }
+
+    private enum RequestApplicationStatus {
+        APPLIED,
+        SOFT_SKIPPED
+    }
+
+    private static final class RequestFenceTracker {
+
+        @Nonnull
+        private final Map<UUID, FenceCounts> countsByFenceUuid = new Object2ObjectOpenHashMap<>();
+        @Nonnull
+        private final Map<PhysicsStoreRequest, Deque<FenceCounts>> countsByRequest =
+            new IdentityHashMap<>();
+
+        private RequestFenceTracker(@Nonnull List<QueuedRequest> queuedRequests) {
+            for (QueuedRequest queuedRequest : queuedRequests) {
+                UUID fenceUuid = queuedRequest.fenceUuid();
+                if (fenceUuid == null) {
+                    continue;
+                }
+                FenceCounts counts = countsByFenceUuid.computeIfAbsent(fenceUuid,
+                    uuid -> new FenceCounts(uuid, queuedRequest.submittedServerTick()));
+                counts.accepted++;
+                countsByRequest.computeIfAbsent(queuedRequest.request(),
+                    _ -> new ArrayDeque<>()).addLast(counts);
+            }
+        }
+
+        private void applied(@Nonnull PhysicsStoreRequest request) {
+            FenceCounts counts = countsFor(request);
+            if (counts != null) {
+                counts.applied++;
+            }
+        }
+
+        private void softSkipped(@Nonnull PhysicsStoreRequest request) {
+            FenceCounts counts = countsFor(request);
+            if (counts != null) {
+                counts.softSkipped++;
+            }
+        }
+
+        private void rejected(@Nonnull PhysicsStoreRequest request) {
+            FenceCounts counts = countsFor(request);
+            if (counts != null) {
+                counts.rejected++;
+            }
+        }
+
+        @Nullable
+        private FenceCounts countsFor(@Nonnull PhysicsStoreRequest request) {
+            Deque<FenceCounts> counts = countsByRequest.get(request);
+            if (counts == null) {
+                return null;
+            }
+            FenceCounts next = counts.pollFirst();
+            if (counts.isEmpty()) {
+                countsByRequest.remove(request);
+            }
+            return next;
+        }
+
+        private void failUnfinished() {
+            for (FenceCounts counts : countsByFenceUuid.values()) {
+                int finished = counts.applied + counts.softSkipped + counts.rejected + counts.failed;
+                if (finished < counts.accepted) {
+                    counts.failed += counts.accepted - finished;
+                }
+            }
+        }
+
+        @Nonnull
+        private Collection<PhysicsStoreRequestFenceResult> results(long consumedServerTick) {
+            List<PhysicsStoreRequestFenceResult> results =
+                new ArrayList<>(countsByFenceUuid.size());
+            for (FenceCounts counts : countsByFenceUuid.values()) {
+                results.add(new PhysicsStoreRequestFenceResult(counts.fenceUuid,
+                    counts.submittedServerTick,
+                    consumedServerTick,
+                    counts.accepted,
+                    counts.applied,
+                    counts.softSkipped,
+                    counts.rejected,
+                    counts.failed));
+            }
+            return results;
+        }
+    }
+
+    private static final class FenceCounts {
+
+        @Nonnull
+        private final UUID fenceUuid;
+        private final long submittedServerTick;
+        private int accepted;
+        private int applied;
+        private int softSkipped;
+        private int rejected;
+        private int failed;
+
+        private FenceCounts(@Nonnull UUID fenceUuid, long submittedServerTick) {
+            this.fenceUuid = fenceUuid;
+            this.submittedServerTick = Math.max(0L, submittedServerTick);
+        }
     }
 }
