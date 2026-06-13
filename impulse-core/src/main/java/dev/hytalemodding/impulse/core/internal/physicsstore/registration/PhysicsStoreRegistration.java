@@ -11,6 +11,18 @@ import dev.hytalemodding.impulse.core.internal.physicsstore.resources.PhysicsReq
 import dev.hytalemodding.impulse.core.internal.physicsstore.resources.PhysicsRestoreStatusResource;
 import dev.hytalemodding.impulse.core.internal.physicsstore.resources.PhysicsRuntimeResource;
 import dev.hytalemodding.impulse.core.internal.physicsstore.resources.PhysicsSnapshotResource;
+import dev.hytalemodding.impulse.core.internal.physicsstore.systems.BodyBindingSystem;
+import dev.hytalemodding.impulse.core.internal.physicsstore.systems.ColliderBindingSystem;
+import dev.hytalemodding.impulse.core.internal.physicsstore.systems.CompletedStepPublicationSystem;
+import dev.hytalemodding.impulse.core.internal.physicsstore.systems.IdentityIndexSystem;
+import dev.hytalemodding.impulse.core.internal.physicsstore.systems.JointBindingSystem;
+import dev.hytalemodding.impulse.core.internal.physicsstore.systems.PersistenceCaptureSystem;
+import dev.hytalemodding.impulse.core.internal.physicsstore.systems.PersistenceHydrationSystem;
+import dev.hytalemodding.impulse.core.internal.physicsstore.systems.RequestDrainSystem;
+import dev.hytalemodding.impulse.core.internal.physicsstore.systems.SpaceBindingSystem;
+import dev.hytalemodding.impulse.core.internal.physicsstore.systems.StepSubmissionSystem;
+import dev.hytalemodding.impulse.core.internal.physicsstore.systems.TargetBindingSystem;
+import dev.hytalemodding.impulse.core.internal.physicsstore.systems.TerrainColliderBindingSystem;
 import dev.hytalemodding.impulse.core.plugin.physicsstore.PhysicsStoreTypes;
 import dev.hytalemodding.impulse.core.plugin.physicsstore.components.BodyComponent;
 import dev.hytalemodding.impulse.core.plugin.physicsstore.components.ColliderComponent;
@@ -101,6 +113,19 @@ public final class PhysicsStoreRegistration {
         PhysicsStoreTypes.setDebugResourceType(registry.registerResource(
             PhysicsDebugResource.class,
             PhysicsDebugResource::new));
+
+        registry.registerSystem(new RequestDrainSystem());
+        registry.registerSystem(new PersistenceHydrationSystem());
+        registry.registerSystem(new IdentityIndexSystem());
+        registry.registerSystem(new SpaceBindingSystem());
+        registry.registerSystem(new BodyBindingSystem());
+        registry.registerSystem(new ColliderBindingSystem());
+        registry.registerSystem(new JointBindingSystem());
+        registry.registerSystem(new TerrainColliderBindingSystem());
+        registry.registerSystem(new TargetBindingSystem());
+        registry.registerSystem(new CompletedStepPublicationSystem());
+        registry.registerSystem(new PersistenceCaptureSystem());
+        registry.registerSystem(new StepSubmissionSystem());
     }
 
     @Nonnull
