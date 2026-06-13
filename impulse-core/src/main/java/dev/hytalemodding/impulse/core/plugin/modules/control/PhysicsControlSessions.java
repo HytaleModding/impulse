@@ -9,10 +9,10 @@ import dev.hytalemodding.impulse.api.SpaceId;
 import dev.hytalemodding.impulse.core.internal.modules.control.ControlLifecycle;
 import dev.hytalemodding.impulse.core.internal.modules.control.components.PhysicsControlSessionComponent;
 import dev.hytalemodding.impulse.core.internal.modules.control.systems.PhysicsKinematicControlSystem;
+import dev.hytalemodding.impulse.core.internal.modules.control.systems.PhysicsStoreControlSessionRequests;
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsWorldRuntimeResource;
 import dev.hytalemodding.impulse.core.plugin.body.RigidBodyKey;
 import dev.hytalemodding.impulse.core.plugin.joint.JointKey;
-import dev.hytalemodding.impulse.core.plugin.simulation.recorder.PhysicsCommandRecorder;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 import org.joml.Vector3f;
@@ -146,46 +146,11 @@ public final class PhysicsControlSessions {
         @Nonnull PhysicsControlSessionComponent session) {
         RigidBodyKey bodyKey = session.getBodyKey();
         RigidBodyKey anchorBodyKey = session.getAnchorBodyKey();
-        JointKey controlJointKey = session.getControlJointKey();
-        SpaceId spaceId = session.getSpaceId();
         PhysicsKinematicControlSystem.clearMutationState(store, anchorBodyKey);
         if (bodyKey != null) {
             resource.clearControlledBody(bodyKey);
         }
-        boolean releaseJoint = (spaceId != null && anchorBodyKey != null && bodyKey != null)
-            || controlJointKey != null;
-        boolean restoreBody = bodyKey != null && resource.getBodyRegistrationView(bodyKey) != null;
-        if (releaseJoint || restoreBody || anchorBodyKey != null) {
-            resource.rejectSynchronousCompletionCallbackWait("release control session");
-            /*
-             * Explicit release/start helpers keep synchronous semantics so command handlers can
-             * report replacement state immediately. Tick-driven cleanup uses
-             * PhysicsControlSessionCleanup and does not join the owner lane.
-             */
-            resource.submitCommands(0L, 4, commands -> {
-                addJointReleaseCommand(commands, controlJointKey, spaceId, anchorBodyKey, bodyKey);
-                if (restoreBody) {
-                    PhysicsBodyType originalBodyType = session.getOriginalBodyType();
-                    commands.setBodyType(bodyKey, originalBodyType);
-                    if (originalBodyType == PhysicsBodyType.DYNAMIC) {
-                        Vector3f releaseVelocity = session.getReleaseVelocity();
-                        commands.setBodyVelocity(bodyKey,
-                            releaseVelocity.x,
-                            releaseVelocity.y,
-                            releaseVelocity.z,
-                            0.0f,
-                            0.0f,
-                            0.0f,
-                            true);
-                    } else {
-                        commands.setBodyVelocity(bodyKey, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, true);
-                    }
-                }
-                if (anchorBodyKey != null) {
-                    commands.destroyBody(anchorBodyKey);
-                }
-            }).completionSummary().toCompletableFuture().join();
-        }
+        PhysicsStoreControlSessionRequests.enqueueRelease(store, session);
 
         session.deactivate();
         store.removeComponent(controllerRef, sessionType);
@@ -200,15 +165,4 @@ public final class PhysicsControlSessions {
         }
     }
 
-    private static void addJointReleaseCommand(@Nonnull PhysicsCommandRecorder commands,
-        @Nullable JointKey controlJointKey,
-        @Nullable SpaceId spaceId,
-        @Nullable RigidBodyKey anchorBodyKey,
-        @Nullable RigidBodyKey bodyKey) {
-        if (spaceId != null && anchorBodyKey != null && bodyKey != null) {
-            commands.destroyJointBetween(controlJointKey, spaceId, anchorBodyKey, bodyKey);
-        } else if (controlJointKey != null) {
-            commands.destroyJoint(controlJointKey);
-        }
-    }
 }

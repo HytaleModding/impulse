@@ -163,7 +163,7 @@ public final class ControlLifecycle {
                     }
                 });
             for (SessionCleanupTarget target : sessions) {
-                PhysicsControlSessionCleanup.cleanupAndWait(store, resource, target.session());
+                PhysicsControlSessionCleanup.cleanup(store, resource, target.session());
                 store.removeComponent(target.ref(), sessionType);
             }
         }

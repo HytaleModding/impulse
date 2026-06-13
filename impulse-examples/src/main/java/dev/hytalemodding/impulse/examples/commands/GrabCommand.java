@@ -12,23 +12,42 @@ import com.hypixel.hytale.server.core.modules.entity.component.TransformComponen
 import com.hypixel.hytale.server.core.universe.PlayerRef;
 import com.hypixel.hytale.server.core.universe.world.World;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
+import dev.hytalemodding.impulse.api.PhysicsAxis;
 import dev.hytalemodding.impulse.api.PhysicsBodyType;
+import dev.hytalemodding.impulse.api.PhysicsCollisionFilters;
+import dev.hytalemodding.impulse.api.ShapeType;
 import dev.hytalemodding.impulse.api.SpaceId;
 import dev.hytalemodding.impulse.core.plugin.modules.control.ImpulseControllableComponent;
 import dev.hytalemodding.impulse.core.plugin.components.PhysicsBodyAttachmentComponent;
 import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyKind;
+import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyPersistenceMode;
 import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyRegistrationView;
 import dev.hytalemodding.impulse.core.plugin.body.RigidBodyKey;
 import dev.hytalemodding.impulse.core.plugin.modules.control.PhysicsControlSessions;
 import dev.hytalemodding.impulse.core.plugin.joint.JointKey;
+import dev.hytalemodding.impulse.core.plugin.physicsstore.BodyGraphUuids;
+import dev.hytalemodding.impulse.core.plugin.physicsstore.PhysicsStoreAccess;
+import dev.hytalemodding.impulse.core.plugin.physicsstore.components.BodyComponent;
+import dev.hytalemodding.impulse.core.plugin.physicsstore.components.ColliderComponent;
+import dev.hytalemodding.impulse.core.plugin.physicsstore.components.CollisionFilterComponent;
+import dev.hytalemodding.impulse.core.plugin.physicsstore.components.DynamicsComponent;
+import dev.hytalemodding.impulse.core.plugin.physicsstore.components.JointComponent;
+import dev.hytalemodding.impulse.core.plugin.physicsstore.components.MaterialComponent;
+import dev.hytalemodding.impulse.core.plugin.physicsstore.components.ShapeComponent;
+import dev.hytalemodding.impulse.core.plugin.physicsstore.components.TargetComponent;
+import dev.hytalemodding.impulse.core.plugin.physicsstore.requests.BodyActivationRequest;
+import dev.hytalemodding.impulse.core.plugin.physicsstore.requests.BodyUpsertRequest;
+import dev.hytalemodding.impulse.core.plugin.physicsstore.requests.JointUpsertRequest;
+import dev.hytalemodding.impulse.core.plugin.physicsstore.requests.PhysicsStoreRequest;
 import dev.hytalemodding.impulse.core.plugin.resources.PhysicsWorldResource;
+import dev.hytalemodding.impulse.core.plugin.simulation.JointType;
 import dev.hytalemodding.impulse.core.plugin.simulation.query.RaycastAllQuery;
 import dev.hytalemodding.impulse.core.plugin.simulation.view.RaycastHitView;
-import dev.hytalemodding.impulse.core.plugin.simulation.RigidBodySpawnSettings;
 import dev.hytalemodding.impulse.core.plugin.simulation.query.RigidBodyStateQuery;
 import dev.hytalemodding.impulse.core.plugin.simulation.view.RigidBodyStateView;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
@@ -104,10 +123,10 @@ public class GrabCommand extends AbstractAsyncPlayerCommand {
             return CompletableFuture.completedFuture(null);
         }
 
-        GrabPhysicsState physicsState = createGrabControl(resource,
+        GrabPhysicsState physicsState = createGrabControl(world,
+            resource,
             selectedSpaceId,
-            selection,
-            Math.max(0L, world.getTick()));
+            selection);
         if (physicsState == null) {
             ctx.sender().sendMessage(Message.raw("Selected physics body no longer exists."));
             return CompletableFuture.completedFuture(null);
@@ -131,16 +150,25 @@ public class GrabCommand extends AbstractAsyncPlayerCommand {
     }
 
     @Nullable
-    private static GrabPhysicsState createGrabControl(@Nonnull PhysicsWorldResource resource,
+    private static GrabPhysicsState createGrabControl(@Nonnull World world,
+        @Nonnull PhysicsWorldResource resource,
         @Nonnull SpaceId selectedSpaceId,
-        @Nonnull HitSelection selection,
-        long serverTick) {
+        @Nonnull HitSelection selection) {
         RigidBodyStateView selectedState = resource.query(new RigidBodyStateQuery(selection.bodyKey()))
             .completion()
             .toCompletableFuture()
             .join()
             .orElse(null);
         if (selectedState == null) {
+            return null;
+        }
+        UUID spaceUuid;
+        try {
+            spaceUuid = PhysicsStoreAccess.resolveSpaceUuid(world, selectedSpaceId);
+        } catch (IllegalStateException exception) {
+            return null;
+        }
+        if (spaceUuid == null) {
             return null;
         }
 
@@ -151,30 +179,90 @@ public class GrabCommand extends AbstractAsyncPlayerCommand {
 
         RigidBodyKey anchorBodyKey = RigidBodyKey.random();
         JointKey controlJointKey = JointKey.random();
-        boolean rejected = resource.submitCommands(serverTick, commands -> {
-            commands.spawnBody(anchorBodyKey, spawn -> spawn
-                .space(selectedSpaceId)
-                .sphere(0.08f)
-                .mass(1.0f)
-                .kinematic()
-                .position(hitPoint)
-                .settings(RigidBodySpawnSettings.defaults().withSensor(true).withCollisionFilter(1, 0))
-                .temporary()
-                .runtimeOnly());
-            commands.joint(controlJointKey, joint -> joint
-                .space(selectedSpaceId)
-                .bodies(anchorBodyKey, selection.bodyKey())
-                .point(new Vector3f(), bodyLocalHit));
-            commands.activateBody(selection.bodyKey());
-        })
-            .firstRejected()
-            .toCompletableFuture()
-            .join()
-            .isPresent();
-        if (rejected) {
+        List<PhysicsStoreRequest> requests = new ArrayList<>(3);
+        requests.add(anchorBodyUpsertRequest(spaceUuid, anchorBodyKey.value(), hitPoint));
+        requests.add(JointUpsertRequest.of(controlJointKey.value(),
+            controlJoint(spaceUuid, anchorBodyKey, selection.bodyKey(), bodyLocalHit)));
+        requests.add(BodyActivationRequest.wake(selection.bodyKey().value()));
+        try {
+            PhysicsStoreAccess.enqueueAll(world, requests);
+        } catch (IllegalStateException exception) {
             return null;
         }
         return new GrabPhysicsState(selectedState.bodyType(), anchorBodyKey, controlJointKey, hitPoint);
+    }
+
+    @Nonnull
+    private static BodyUpsertRequest anchorBodyUpsertRequest(@Nonnull UUID spaceUuid,
+        @Nonnull UUID bodyUuid,
+        @Nonnull Vector3f hitPoint) {
+        UUID colliderUuid = BodyGraphUuids.collider(bodyUuid);
+        UUID shapeUuid = BodyGraphUuids.shape(bodyUuid);
+        UUID materialUuid = BodyGraphUuids.material(bodyUuid);
+        UUID filterUuid = BodyGraphUuids.filter(bodyUuid);
+        return BodyUpsertRequest.of(bodyUuid,
+            new BodyComponent(spaceUuid,
+                PhysicsBodyKind.TEMPORARY,
+                PhysicsBodyPersistenceMode.RUNTIME_ONLY),
+            new DynamicsComponent(PhysicsBodyType.KINEMATIC,
+                1.0f,
+                0.0f,
+                0.0f,
+                false),
+            initialAnchorTarget(hitPoint),
+            colliderUuid,
+            new ColliderComponent(bodyUuid,
+                shapeUuid,
+                materialUuid,
+                filterUuid,
+                new Vector3f(),
+                new Quaternionf(),
+                true),
+            shapeUuid,
+            new ShapeComponent(ShapeType.SPHERE,
+                0.0f,
+                0.0f,
+                0.0f,
+                0.08f,
+                0.0f,
+                PhysicsAxis.Y,
+                0.0f,
+                ""),
+            materialUuid,
+            new MaterialComponent(0.5f, 0.0f),
+            filterUuid,
+            new CollisionFilterComponent(PhysicsCollisionFilters.TERRAIN, 0));
+    }
+
+    @Nonnull
+    private static TargetComponent initialAnchorTarget(@Nonnull Vector3f hitPoint) {
+        TargetComponent target = new TargetComponent();
+        target.setActive(false);
+        target.setPosition(hitPoint);
+        target.setRotation(new Quaternionf());
+        target.setLinearVelocity(new Vector3f());
+        target.setAngularVelocity(new Vector3f());
+        target.setTransformEnabled(true);
+        target.setVelocityEnabled(false);
+        target.setActivate(true);
+        return target;
+    }
+
+    @Nonnull
+    private static JointComponent controlJoint(@Nonnull UUID spaceUuid,
+        @Nonnull RigidBodyKey anchorBodyKey,
+        @Nonnull RigidBodyKey bodyKey,
+        @Nonnull Vector3f bodyLocalHit) {
+        JointComponent joint = new JointComponent();
+        joint.setSpaceUuid(spaceUuid);
+        joint.setBodyAUuid(anchorBodyKey.value());
+        joint.setBodyBUuid(bodyKey.value());
+        joint.setType(JointType.POINT);
+        joint.setAnchorA(new Vector3f());
+        joint.setAnchorB(bodyLocalHit);
+        joint.setAxis(new Vector3f());
+        joint.setEnabled(true);
+        return joint;
     }
 
     @Nullable
