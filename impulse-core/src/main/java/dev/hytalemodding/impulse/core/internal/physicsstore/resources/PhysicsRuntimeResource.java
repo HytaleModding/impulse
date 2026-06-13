@@ -73,6 +73,9 @@ public final class PhysicsRuntimeResource implements Resource<PhysicsStore> {
     private final Long2ObjectOpenHashMap<BodyHitMetadata> bodyHitMetadataByHandle =
         new Long2ObjectOpenHashMap<>();
     @Nonnull
+    private final Long2ObjectOpenHashMap<BodySnapshotMetadata> bodySnapshotMetadataByHandle =
+        new Long2ObjectOpenHashMap<>();
+    @Nonnull
     private final List<PendingBodyOperation> pendingBodyOperations = new ArrayList<>();
     @Nonnull
     private final ObjectOpenHashSet<UUID> pendingSpaceSettings = new ObjectOpenHashSet<>();
@@ -122,19 +125,24 @@ public final class PhysicsRuntimeResource implements Resource<PhysicsStore> {
         if (removed != null) {
             LongList bodyHandles = bodyHandlesBySpaceHandle.remove(removed.value());
             if (bodyHandles != null) {
-                bodyHandles.forEach((long bodyHandle) -> bodyHitMetadataByHandle.remove(bodyHandle));
+                bodyHandles.forEach((long bodyHandle) -> {
+                    bodyHitMetadataByHandle.remove(bodyHandle);
+                    bodySnapshotMetadataByHandle.remove(bodyHandle);
+                });
             }
             removeTerrainHandlesForSpace(removed);
         }
     }
 
     public void putBodyHandle(@Nonnull UUID bodyUuid,
+        @Nonnull UUID spaceUuid,
         @Nonnull BackendSpaceHandle spaceHandle,
         @Nonnull BackendBodyHandle handle) {
         bodyHandlesByUuid.put(bodyUuid, handle);
         bodySpaceHandlesByUuid.put(bodyUuid, spaceHandle);
         bodyHandlesBySpaceHandle.computeIfAbsent(spaceHandle.value(), _ -> new LongArrayList())
             .add(handle.value());
+        bodySnapshotMetadataByHandle.put(handle.value(), new BodySnapshotMetadata(bodyUuid, spaceUuid));
     }
 
     @Nullable
@@ -159,6 +167,7 @@ public final class PhysicsRuntimeResource implements Resource<PhysicsStore> {
                 }
             }
             bodyHitMetadataByHandle.remove(removed.value());
+            bodySnapshotMetadataByHandle.remove(removed.value());
         }
     }
 
@@ -172,11 +181,21 @@ public final class PhysicsRuntimeResource implements Resource<PhysicsStore> {
 
     @Nullable
     public BodyHitMetadata getBodyHitMetadata(@Nonnull BackendBodyHandle handle) {
-        return bodyHitMetadataByHandle.get(handle.value());
+        return getBodyHitMetadata(handle.value());
+    }
+
+    @Nullable
+    public BodyHitMetadata getBodyHitMetadata(long bodyHandle) {
+        return bodyHitMetadataByHandle.get(bodyHandle);
     }
 
     public void removeBodyHitMetadata(@Nonnull BackendBodyHandle handle) {
         bodyHitMetadataByHandle.remove(handle.value());
+    }
+
+    @Nullable
+    public BodySnapshotMetadata getBodySnapshotMetadata(long bodyHandle) {
+        return bodySnapshotMetadataByHandle.get(bodyHandle);
     }
 
     public void enqueuePendingBodyOperation(@Nonnull PendingBodyOperation operation) {
@@ -321,6 +340,7 @@ public final class PhysicsRuntimeResource implements Resource<PhysicsStore> {
         terrainPayloadKeysByUuid.clear();
         bodyHandlesBySpaceHandle.clear();
         bodyHitMetadataByHandle.clear();
+        bodySnapshotMetadataByHandle.clear();
         pendingBodyOperations.clear();
         started = false;
     }
@@ -344,6 +364,7 @@ public final class PhysicsRuntimeResource implements Resource<PhysicsStore> {
         bodyHandlesBySpaceHandle.forEach((spaceHandle, bodyHandles) ->
             copy.bodyHandlesBySpaceHandle.put((int) spaceHandle, new LongArrayList(bodyHandles)));
         copy.bodyHitMetadataByHandle.putAll(bodyHitMetadataByHandle);
+        copy.bodySnapshotMetadataByHandle.putAll(bodySnapshotMetadataByHandle);
         copy.pendingBodyOperations.addAll(pendingBodyOperations);
         copy.started = started;
         return copy;
@@ -370,6 +391,15 @@ public final class PhysicsRuntimeResource implements Resource<PhysicsStore> {
         public BodyHitMetadata {
             Objects.requireNonNull(bodyType, "bodyType");
             Objects.requireNonNull(shapeType, "shapeType");
+        }
+    }
+
+    public record BodySnapshotMetadata(@Nonnull UUID bodyUuid,
+                                       @Nonnull UUID spaceUuid) {
+
+        public BodySnapshotMetadata {
+            Objects.requireNonNull(bodyUuid, "bodyUuid");
+            Objects.requireNonNull(spaceUuid, "spaceUuid");
         }
     }
 
