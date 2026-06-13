@@ -40,6 +40,7 @@ import dev.hytalemodding.impulse.core.internal.modules.worldcollision.PhysicsWor
 import dev.hytalemodding.impulse.core.internal.modules.worldcollision.WorldCollisionLifecycle;
 import dev.hytalemodding.impulse.core.internal.modules.worldcollision.WorldVoxelCollisionCache;
 import dev.hytalemodding.impulse.core.internal.physicsstore.queries.PhysicsStoreQueryBridge;
+import dev.hytalemodding.impulse.core.internal.store.integration.PhysicsStoreEarlyPluginProbe;
 import dev.hytalemodding.impulse.core.plugin.body.RigidBodyKey;
 import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyKind;
 import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyPersistenceMode;
@@ -215,6 +216,7 @@ public class PhysicsWorldRuntimeResource extends PhysicsWorldResource {
 
     @Nonnull
     public PhysicsCommandHandle submitRecordedCommands(@Nonnull MutablePhysicsCommandContext context) {
+        requireLegacyMutationAllowed("submit recorded physics commands");
         Objects.requireNonNull(context, "context");
         RecordedPhysicsCommandBatch batch =
             context.freezeInternal(lifecycleState.nextCommandBatchSequence());
@@ -282,6 +284,20 @@ public class PhysicsWorldRuntimeResource extends PhysicsWorldResource {
         ownerGateway.assertCanAccessLiveBackendDirectly(operation);
     }
 
+    private void requireLegacyMutationAllowed(@Nonnull String operation) {
+        if (!isAuthoritativePhysicsStoreActive()) {
+            return;
+        }
+        throw new IllegalStateException("Legacy PhysicsWorldResource mutation is disabled while "
+            + "authoritative PhysicsStore is active: " + operation
+            + ". Route this operation through PhysicsStore requests or a PhysicsStore-backed "
+            + "compatibility bridge.");
+    }
+
+    private boolean isAuthoritativePhysicsStoreActive() {
+        return PhysicsStoreEarlyPluginProbe.isAvailable();
+    }
+
     public void runOwnerMutation(@Nonnull String operation,
         @Nonnull PhysicsOwnerMutation mutation) {
         ownerGateway.run(operation, mutation);
@@ -317,6 +333,7 @@ public class PhysicsWorldRuntimeResource extends PhysicsWorldResource {
 
     @Override
     public void setWorldSettings(@Nonnull PhysicsWorldSettings settings) {
+        requireLegacyMutationAllowed("set physics world settings");
         PhysicsWorldSettings requested = new PhysicsWorldSettings(settings);
         runOwnerMutation("set physics world settings", () -> setWorldSettingsDirect(requested));
     }
@@ -325,6 +342,7 @@ public class PhysicsWorldRuntimeResource extends PhysicsWorldResource {
     @Override
     public PhysicsMutationHandle<Void> setWorldSettingsAsync(
         @Nonnull PhysicsWorldSettings settings) {
+        requireLegacyMutationAllowed("set physics world settings");
         PhysicsWorldSettings requested = new PhysicsWorldSettings(settings);
         return enqueueOwnerMutation("set physics world settings",
             () -> setWorldSettingsDirect(requested));
@@ -361,6 +379,7 @@ public class PhysicsWorldRuntimeResource extends PhysicsWorldResource {
         @Nonnull SpaceId spaceId,
         @Nonnull String worldName,
         @Nonnull PhysicsSpaceSettings settings) {
+        requireLegacyMutationAllowed("create physics space");
         callOwner("create physics space",
             () -> createSpaceDirect(backendId, spaceId, worldName, settings));
         return spaceId;
@@ -381,6 +400,7 @@ public class PhysicsWorldRuntimeResource extends PhysicsWorldResource {
         @Nonnull SpaceId spaceId,
         @Nonnull String worldName,
         @Nonnull PhysicsSpaceSettings settings) {
+        requireLegacyMutationAllowed("create physics space");
         return enqueueOwnerMutation("create physics space",
             spaceId,
             () -> createSpaceDirect(backendId, spaceId, worldName, settings));
@@ -628,6 +648,7 @@ public class PhysicsWorldRuntimeResource extends PhysicsWorldResource {
         @Nonnull SpaceId spaceId,
         @Nonnull Vector3d center,
         int radius) {
+        requireLegacyMutationAllowed("rebuild world collision");
         requireWorldCollisionLifecycleEnabled();
         return callOwner("rebuild world collision", () -> {
             PhysicsSpaceBinding space = requireSpaceBinding(spaceId);
@@ -649,6 +670,7 @@ public class PhysicsWorldRuntimeResource extends PhysicsWorldResource {
         @Nonnull SpaceId spaceId,
         @Nonnull Vector3d center,
         int radius) {
+        requireLegacyMutationAllowed("refresh world collision");
         requireWorldCollisionLifecycleEnabled();
         return callOwner("refresh world collision", () -> {
             PhysicsSpaceBinding space = requireSpaceBinding(spaceId);
@@ -671,6 +693,7 @@ public class PhysicsWorldRuntimeResource extends PhysicsWorldResource {
         @Nonnull Iterable<Vector3d> centers,
         int radius,
         long tick) {
+        requireLegacyMutationAllowed("ensure world collision");
         Objects.requireNonNull(centers, "centers");
         requireWorldCollisionLifecycleEnabled();
         return callOwner("ensure world collision", () -> {
@@ -690,6 +713,7 @@ public class PhysicsWorldRuntimeResource extends PhysicsWorldResource {
 
     @Override
     public int clearWorldCollision(@Nonnull SpaceId spaceId) {
+        requireLegacyMutationAllowed("clear world collision");
         return callOwner("clear world collision", () -> {
             PhysicsSpaceBinding space = requireSpaceBinding(spaceId);
             return collisionRuntime.clear(space);
@@ -707,6 +731,9 @@ public class PhysicsWorldRuntimeResource extends PhysicsWorldResource {
     }
 
     public void disableWorldCollisionLifecycle() {
+        if (isAuthoritativePhysicsStoreActive()) {
+            return;
+        }
         try {
             runOwnerMutation("disable world collision lifecycle", this::disableWorldCollisionLifecycleDirect);
         } catch (RejectedExecutionException ignored) {
@@ -817,6 +844,7 @@ public class PhysicsWorldRuntimeResource extends PhysicsWorldResource {
 
     @Override
     public void removeSpace(@Nonnull SpaceId spaceId, @Nonnull String worldName) {
+        requireLegacyMutationAllowed("remove physics space");
         runOwnerMutation("remove physics space", () -> removeSpaceDirect(spaceId, worldName));
     }
 
@@ -824,6 +852,7 @@ public class PhysicsWorldRuntimeResource extends PhysicsWorldResource {
     @Override
     public PhysicsMutationHandle<SpaceId> removeSpaceAsync(@Nonnull SpaceId spaceId,
         @Nonnull String worldName) {
+        requireLegacyMutationAllowed("remove physics space");
         return enqueueOwnerMutation("remove physics space",
             spaceId,
             () -> removeSpaceDirect(spaceId, worldName));
@@ -857,12 +886,14 @@ public class PhysicsWorldRuntimeResource extends PhysicsWorldResource {
 
     @Override
     public void clearAllSpaces(@Nonnull String worldName) {
+        requireLegacyMutationAllowed("clear physics spaces");
         runOwnerMutation("clear physics spaces", () -> clearAllSpacesDirect(worldName));
     }
 
     @Nonnull
     @Override
     public PhysicsMutationHandle<Void> clearAllSpacesAsync(@Nonnull String worldName) {
+        requireLegacyMutationAllowed("clear physics spaces");
         return enqueueOwnerMutation("clear physics spaces",
             () -> clearAllSpacesDirect(worldName));
     }
@@ -897,6 +928,7 @@ public class PhysicsWorldRuntimeResource extends PhysicsWorldResource {
      */
     @Nonnull
     public PhysicsRuntimeResetResult resetRuntimeStateKeepingSpaces(@Nonnull String worldName) {
+        requireLegacyMutationAllowed("reset physics runtime state");
         return callOwner("reset physics runtime state",
             () -> resetRuntimeStateKeepingSpacesDirect(worldName));
     }
@@ -924,6 +956,7 @@ public class PhysicsWorldRuntimeResource extends PhysicsWorldResource {
 
     @Override
     public void setSpaceSettings(@Nonnull SpaceId spaceId, @Nonnull PhysicsSpaceSettings settings) {
+        requireLegacyMutationAllowed("set physics space settings");
         PhysicsSpaceSettings requested = new PhysicsSpaceSettings(settings);
         runOwnerMutation("set physics space settings", () -> setSpaceSettingsDirect(spaceId, requested));
     }
@@ -932,6 +965,7 @@ public class PhysicsWorldRuntimeResource extends PhysicsWorldResource {
     @Override
     public PhysicsMutationHandle<SpaceId> setSpaceSettingsAsync(@Nonnull SpaceId spaceId,
         @Nonnull PhysicsSpaceSettings settings) {
+        requireLegacyMutationAllowed("set physics space settings");
         PhysicsSpaceSettings requested = new PhysicsSpaceSettings(settings);
         return enqueueOwnerMutation("set physics space settings",
             spaceId,
@@ -999,22 +1033,26 @@ public class PhysicsWorldRuntimeResource extends PhysicsWorldResource {
 
     @Override
     public void destroyBody(@Nonnull RigidBodyKey bodyKey) {
+        requireLegacyMutationAllowed("destroy physics body");
         destroyBody(bodyKey, true);
     }
 
     @Nonnull
     @Override
     public PhysicsMutationHandle<RigidBodyKey> destroyBodyAsync(@Nonnull RigidBodyKey bodyKey) {
+        requireLegacyMutationAllowed("destroy physics body");
         return destroyBodyAsync(bodyKey, true);
     }
 
     public void destroyBody(@Nonnull RigidBodyKey bodyKey, boolean removeFromSpace) {
+        requireLegacyMutationAllowed("destroy physics body");
         runOwnerMutation("destroy physics body", () -> destroyBodyDirect(bodyKey, removeFromSpace));
     }
 
     @Nonnull
     public PhysicsMutationHandle<RigidBodyKey> destroyBodyAsync(@Nonnull RigidBodyKey bodyKey,
         boolean removeFromSpace) {
+        requireLegacyMutationAllowed("destroy physics body");
         return enqueueOwnerMutation("destroy physics body",
             bodyKey,
             () -> destroyBodyDirect(bodyKey, removeFromSpace));
@@ -1154,6 +1192,7 @@ public class PhysicsWorldRuntimeResource extends PhysicsWorldResource {
     }
 
     public boolean removeJoint(@Nonnull JointKey jointKey) {
+        requireLegacyMutationAllowed("remove physics joint");
         return callOwner("remove physics joint", () -> removeJointDirect(jointKey));
     }
 
@@ -1318,12 +1357,14 @@ public class PhysicsWorldRuntimeResource extends PhysicsWorldResource {
 
     @Override
     public void clearBodies() {
+        requireLegacyMutationAllowed("clear physics bodies");
         runOwnerMutation("clear physics bodies", this::destroyRegisteredBodiesDirect);
     }
 
     @Nonnull
     @Override
     public PhysicsMutationHandle<Void> clearBodiesAsync() {
+        requireLegacyMutationAllowed("clear physics bodies");
         return enqueueOwnerMutation("clear physics bodies", this::destroyRegisteredBodiesDirect);
     }
 
@@ -1437,12 +1478,14 @@ public class PhysicsWorldRuntimeResource extends PhysicsWorldResource {
     }
 
     public void clearBodyRuntimeState(@Nonnull RigidBodyKey bodyKey) {
+        requireLegacyMutationAllowed("clear physics body runtime state");
         runOwnerMutation("clear physics body runtime state", () -> clearBodyRuntimeStateDirect(bodyKey));
     }
 
     @Nonnull
     public PhysicsMutationHandle<RigidBodyKey> clearBodyRuntimeStateAsync(
         @Nonnull RigidBodyKey bodyKey) {
+        requireLegacyMutationAllowed("clear physics body runtime state");
         return enqueueOwnerMutation("clear physics body runtime state",
             bodyKey,
             () -> clearBodyRuntimeStateDirect(bodyKey));
