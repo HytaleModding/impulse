@@ -32,6 +32,7 @@ import dev.hytalemodding.impulse.core.plugin.physicsstore.components.ShapeCompon
 import dev.hytalemodding.impulse.core.plugin.physicsstore.components.SpaceComponent;
 import dev.hytalemodding.impulse.core.plugin.physicsstore.components.TargetComponent;
 import dev.hytalemodding.impulse.core.plugin.physicsstore.components.TerrainColliderComponent;
+import dev.hytalemodding.impulse.core.plugin.physicsstore.components.WorldCollisionComponent;
 import dev.hytalemodding.impulse.core.plugin.physicsstore.snapshots.PhysicsStoreBodySnapshot;
 import it.unimi.dsi.fastutil.objects.Object2ObjectOpenHashMap;
 import it.unimi.dsi.fastutil.objects.ObjectOpenHashSet;
@@ -136,7 +137,9 @@ public final class PersistenceCaptureSystem extends TickingSystem<PhysicsStore>
             int index) {
             SpaceComponent space = chunk.getComponent(index, SpaceComponent.getComponentType());
             if (space != null) {
-                spaceRows.add(new SpaceRow(uuid, space));
+                spaceRows.add(new SpaceRow(uuid,
+                    space,
+                    chunk.getComponent(index, WorldCollisionComponent.getComponentType())));
             }
             BodyComponent body = chunk.getComponent(index, BodyComponent.getComponentType());
             if (body != null) {
@@ -214,11 +217,26 @@ public final class PersistenceCaptureSystem extends TickingSystem<PhysicsStore>
         @Nonnull
         private PersistentSpaceDto[] spaceDtos() {
             return spaceRows.stream()
-                .map(row -> new PersistentSpaceDto(row.uuid(),
-                    row.space().getBackendIdValue(),
-                    row.space().getGravity()))
+                .map(this::spaceDto)
                 .sorted(Comparator.comparing(PersistentSpaceDto::getSpaceUuid))
                 .toArray(PersistentSpaceDto[]::new);
+        }
+
+        @Nonnull
+        private PersistentSpaceDto spaceDto(@Nonnull SpaceRow row) {
+            WorldCollisionComponent worldCollision = row.worldCollision() != null
+                ? row.worldCollision()
+                : new WorldCollisionComponent();
+            return new PersistentSpaceDto(row.uuid(),
+                row.space().getBackendIdValue(),
+                row.space().getGravity(),
+                worldCollision.getMode(),
+                worldCollision.isNativeVoxelTerrainEnabled(),
+                worldCollision.getRadius(),
+                worldCollision.getBodyRadius(),
+                worldCollision.getTtlTicks(),
+                worldCollision.getTerrainFriction(),
+                worldCollision.getTerrainRestitution());
         }
 
         @Nonnull
@@ -374,7 +392,9 @@ public final class PersistenceCaptureSystem extends TickingSystem<PhysicsStore>
         }
     }
 
-    private record SpaceRow(@Nonnull UUID uuid, @Nonnull SpaceComponent space) {
+    private record SpaceRow(@Nonnull UUID uuid,
+                            @Nonnull SpaceComponent space,
+                            @Nullable WorldCollisionComponent worldCollision) {
     }
 
     private record BodyRow(@Nonnull UUID uuid,

@@ -36,6 +36,7 @@ import dev.hytalemodding.impulse.core.plugin.physicsstore.components.SpaceCompon
 import dev.hytalemodding.impulse.core.plugin.physicsstore.components.TargetComponent;
 import dev.hytalemodding.impulse.core.plugin.physicsstore.components.TerrainColliderComponent;
 import dev.hytalemodding.impulse.core.plugin.physicsstore.components.UuidComponent;
+import dev.hytalemodding.impulse.core.plugin.physicsstore.components.WorldCollisionComponent;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import javax.annotation.Nonnull;
@@ -88,6 +89,10 @@ public final class PhysicsStoreRegistration {
             TerrainColliderComponent.class,
             "TerrainCollider",
             TerrainColliderComponent.CODEC));
+        PhysicsStoreTypes.setWorldCollisionComponentType(registry.registerComponent(
+            WorldCollisionComponent.class,
+            "WorldCollision",
+            WorldCollisionComponent.CODEC));
 
         PhysicsStoreTypes.setRuntimeResourceType(registry.registerResource(
             PhysicsRuntimeResource.class,

@@ -23,6 +23,7 @@ import dev.hytalemodding.impulse.core.plugin.physicsstore.components.SpaceCompon
 import dev.hytalemodding.impulse.core.plugin.physicsstore.components.TargetComponent;
 import dev.hytalemodding.impulse.core.plugin.physicsstore.components.TerrainColliderComponent;
 import dev.hytalemodding.impulse.core.plugin.physicsstore.components.UuidComponent;
+import dev.hytalemodding.impulse.core.plugin.physicsstore.components.WorldCollisionComponent;
 import java.util.Objects;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
@@ -54,6 +55,8 @@ public final class PhysicsStoreTypes {
     private static ComponentType<PhysicsStore, TargetComponent> targetComponentType;
     @Nullable
     private static ComponentType<PhysicsStore, TerrainColliderComponent> terrainColliderComponentType;
+    @Nullable
+    private static ComponentType<PhysicsStore, WorldCollisionComponent> worldCollisionComponentType;
 
     @Nullable
     private static ResourceType<PhysicsStore, PhysicsRuntimeResource> runtimeResourceType;
@@ -130,6 +133,11 @@ public final class PhysicsStoreTypes {
     public static void setTerrainColliderComponentType(
         @Nonnull ComponentType<PhysicsStore, TerrainColliderComponent> type) {
         terrainColliderComponentType = Objects.requireNonNull(type, "type");
+    }
+
+    public static void setWorldCollisionComponentType(
+        @Nonnull ComponentType<PhysicsStore, WorldCollisionComponent> type) {
+        worldCollisionComponentType = Objects.requireNonNull(type, "type");
     }
 
     public static void setRuntimeResourceType(
@@ -230,6 +238,11 @@ public final class PhysicsStoreTypes {
     @Nonnull
     public static ComponentType<PhysicsStore, TerrainColliderComponent> terrainColliderComponentType() {
         return require(terrainColliderComponentType, "TerrainColliderComponent");
+    }
+
+    @Nonnull
+    public static ComponentType<PhysicsStore, WorldCollisionComponent> worldCollisionComponentType() {
+        return require(worldCollisionComponentType, "WorldCollisionComponent");
     }
 
     @Nonnull
