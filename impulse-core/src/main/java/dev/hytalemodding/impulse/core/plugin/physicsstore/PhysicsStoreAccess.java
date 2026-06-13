@@ -10,6 +10,8 @@ import dev.hytalemodding.impulse.core.plugin.physicsstore.requests.PhysicsStoreR
 import java.lang.invoke.MethodHandle;
 import java.lang.invoke.MethodHandles;
 import java.lang.invoke.MethodType;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Objects;
 import java.util.UUID;
 import javax.annotation.Nonnull;
@@ -20,8 +22,8 @@ import javax.annotation.Nullable;
  */
 public final class PhysicsStoreAccess {
 
-    @Nonnull
-    private static final MethodHandle WORLD_GET_PHYSICS_STORE = findWorldAccessor();
+    @Nullable
+    private static volatile MethodHandle worldGetPhysicsStore;
 
     private PhysicsStoreAccess() {
     }
@@ -30,7 +32,7 @@ public final class PhysicsStoreAccess {
     public static PhysicsStore require(@Nonnull World world) {
         Objects.requireNonNull(world, "world");
         try {
-            return (PhysicsStore) WORLD_GET_PHYSICS_STORE.invoke(world);
+            return (PhysicsStore) worldAccessor().invoke(world);
         } catch (RuntimeException | Error exception) {
             throw exception;
         } catch (Throwable throwable) {
@@ -54,6 +56,35 @@ public final class PhysicsStoreAccess {
         Store<PhysicsStore> store = require(world).getStore();
         store.getResource(PhysicsRequestQueueResource.getResourceType())
             .enqueue(request);
+    }
+
+    public static void enqueueAll(@Nonnull World world,
+        @Nonnull Iterable<? extends PhysicsStoreRequest> requests) {
+        Objects.requireNonNull(requests, "requests");
+        List<PhysicsStoreRequest> copied = new ArrayList<>();
+        for (PhysicsStoreRequest request : requests) {
+            copied.add(Objects.requireNonNull(request, "request"));
+        }
+        Store<PhysicsStore> store = require(world).getStore();
+        PhysicsRequestQueueResource queue = store.getResource(
+            PhysicsRequestQueueResource.getResourceType());
+        queue.enqueueAll(copied);
+    }
+
+    @Nonnull
+    private static MethodHandle worldAccessor() {
+        MethodHandle accessor = worldGetPhysicsStore;
+        if (accessor != null) {
+            return accessor;
+        }
+        synchronized (PhysicsStoreAccess.class) {
+            accessor = worldGetPhysicsStore;
+            if (accessor == null) {
+                accessor = findWorldAccessor();
+                worldGetPhysicsStore = accessor;
+            }
+            return accessor;
+        }
     }
 
     @Nonnull
