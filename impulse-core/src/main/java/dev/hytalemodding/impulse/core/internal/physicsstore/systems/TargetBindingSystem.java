@@ -58,27 +58,34 @@ public final class TargetBindingSystem extends TickingSystem<PhysicsStore>
             if (backendRuntime == null) {
                 continue;
             }
-            Vector3f position = target.getPosition();
-            Quaternionf rotation = target.getRotation();
-            Vector3f linearVelocity = target.getLinearVelocity();
-            Vector3f angularVelocity = target.getAngularVelocity();
-            backendRuntime.setBodyTransform(spaceHandle.value(),
-                bodyHandle.value(),
-                position.x,
-                position.y,
-                position.z,
-                rotation.x,
-                rotation.y,
-                rotation.z,
-                rotation.w);
-            backendRuntime.setBodyVelocity(spaceHandle.value(),
-                bodyHandle.value(),
-                linearVelocity.x,
-                linearVelocity.y,
-                linearVelocity.z,
-                angularVelocity.x,
-                angularVelocity.y,
-                angularVelocity.z);
+            if (target.isTransformEnabled()) {
+                Vector3f position = target.getPosition();
+                Quaternionf rotation = target.getRotation();
+                backendRuntime.setBodyTransform(spaceHandle.value(),
+                    bodyHandle.value(),
+                    position.x,
+                    position.y,
+                    position.z,
+                    rotation.x,
+                    rotation.y,
+                    rotation.z,
+                    rotation.w);
+            }
+            if (target.isVelocityEnabled()) {
+                Vector3f linearVelocity = target.getLinearVelocity();
+                Vector3f angularVelocity = target.getAngularVelocity();
+                backendRuntime.setBodyVelocity(spaceHandle.value(),
+                    bodyHandle.value(),
+                    linearVelocity.x,
+                    linearVelocity.y,
+                    linearVelocity.z,
+                    angularVelocity.x,
+                    angularVelocity.y,
+                    angularVelocity.z);
+            }
+            if (target.isActivate()) {
+                backendRuntime.activateBody(spaceHandle.value(), bodyHandle.value());
+            }
         }
     }
 
