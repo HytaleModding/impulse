@@ -7,6 +7,8 @@ import dev.hytalemodding.impulse.api.SpaceId;
 import dev.hytalemodding.impulse.core.plugin.physicsstore.PhysicsStoreTypes;
 import it.unimi.dsi.fastutil.ints.Int2ObjectOpenHashMap;
 import it.unimi.dsi.fastutil.objects.Object2IntOpenHashMap;
+import java.util.ArrayList;
+import java.util.Collection;
 import java.util.Objects;
 import java.util.UUID;
 import javax.annotation.Nonnull;
@@ -41,6 +43,10 @@ public final class PhysicsSpaceCompatibilityIndexResource implements Resource<Ph
         }
     }
 
+    public boolean hasSpace(@Nonnull SpaceId spaceId) {
+        return spaceUuidsByCompatId.containsKey(spaceId.value());
+    }
+
     @Nullable
     public UUID getSpaceUuid(@Nonnull SpaceId spaceId) {
         return spaceUuidsByCompatId.get(spaceId.value());
@@ -57,6 +63,17 @@ public final class PhysicsSpaceCompatibilityIndexResource implements Resource<Ph
         if (value != Integer.MIN_VALUE) {
             spaceUuidsByCompatId.remove(value);
         }
+    }
+
+    @Nonnull
+    public Collection<SpaceId> spaceIds() {
+        ArrayList<SpaceId> ids = new ArrayList<>(spaceUuidsByCompatId.size());
+        spaceUuidsByCompatId.keySet().forEach((int value) -> ids.add(new SpaceId(value)));
+        return ids;
+    }
+
+    public int size() {
+        return spaceUuidsByCompatId.size();
     }
 
     public void clear() {
