@@ -5,6 +5,7 @@ import org.gradle.api.tasks.compile.JavaCompile
 import org.gradle.api.tasks.testing.Test
 import org.gradle.api.tasks.testing.logging.TestExceptionFormat
 import org.gradle.api.tasks.testing.logging.TestLogEvent
+import org.gradle.process.CommandLineArgumentProvider
 
 plugins {
     alias(libs.plugins.hytale.workspace)
@@ -66,6 +67,10 @@ subprojects {
 
 val backendProjectPaths = setOf(":impulse-bullet", ":impulse-rapier")
 val stagedBackendJarDirectory = layout.projectDirectory.dir("run/mods/impulse-backends")
+val stagedEarlyPluginJarDirectory = layout.projectDirectory.dir("run/earlyplugins")
+val physicsStoreEarlyPluginEnabled = providers.gradleProperty("impulse.physicsStoreEarlyPlugin")
+    .map(String::toBoolean)
+    .orElse(false)
 val hytaleToolProjectPaths = listOf(
     ":impulse-core",
     ":impulse-examples")
@@ -95,6 +100,12 @@ val cleanStagedBackendJars by tasks.registering(Delete::class) {
     delete(stagedBackendJarDirectory)
 }
 
+val cleanStagedPhysicsStoreEarlyPluginJar by tasks.registering(Delete::class) {
+    delete(fileTree(stagedEarlyPluginJarDirectory) {
+        include("impulse-early-plugin-*.jar")
+    })
+}
+
 val stageBackendJarsForRunAllMods by tasks.registering(Copy::class) {
     group = "hytale"
     description = "Stages backend provider jars beside Hytale mods for runAllMods"
@@ -106,6 +117,20 @@ val stageBackendJarsForRunAllMods by tasks.registering(Copy::class) {
         from(backendJar)
     }
     into(stagedBackendJarDirectory)
+}
+
+val stagePhysicsStoreEarlyPluginJar by tasks.registering(Copy::class) {
+    group = "hytale"
+    description = "Stages the PhysicsStore early plugin for runAllMods"
+
+    onlyIf("PhysicsStore early plugin opt-in is enabled") {
+        physicsStoreEarlyPluginEnabled.get()
+    }
+    dependsOn(cleanStagedPhysicsStoreEarlyPluginJar)
+    val earlyJar = project(":impulse-early-plugin").tasks.named("jar")
+    dependsOn(earlyJar)
+    from(earlyJar)
+    into(stagedEarlyPluginJarDirectory)
 }
 
 tasks.register("packageBackendPlatformJars") {
@@ -125,7 +150,8 @@ tasks.register("headlessTest") {
         ":impulse-native-loader:test",
         ":impulse-bullet:test",
         ":impulse-rapier:test",
-        ":impulse-core:test"
+        ":impulse-core:test",
+        ":impulse-early-plugin:test"
     )
 }
 
@@ -133,16 +159,27 @@ tasks.register("headlessTest") {
 gradle.projectsEvaluated {
     tasks.named("runAllMods").configure {
         dependsOn(stageBackendJarsForRunAllMods)
+        if (physicsStoreEarlyPluginEnabled.get()) {
+            dependsOn(stagePhysicsStoreEarlyPluginJar)
+        } else {
+            dependsOn(cleanStagedPhysicsStoreEarlyPluginJar)
+        }
 
         val runTask = this as JavaExec
         runTask.standardInput = System.`in`
 
         // hytale-gradle 1.0.37 can omit project resources from run task classpaths.
+        val toolRuntimeClasspaths = hytaleToolProjectPaths.map { path ->
+            val sourceSets = project(path).extensions.getByType<SourceSetContainer>()
+            sourceSets.named("main").get().runtimeClasspath
+        }.toMutableList()
+        if (physicsStoreEarlyPluginEnabled.get()) {
+            val sourceSets = project(":impulse-early-plugin")
+                .extensions.getByType<SourceSetContainer>()
+            toolRuntimeClasspaths.add(sourceSets.named("main").get().runtimeClasspath)
+        }
         runTask.classpath = files(
-            hytaleToolProjectPaths.map { path ->
-                val sourceSets = project(path).extensions.getByType<SourceSetContainer>()
-                sourceSets.named("main").get().runtimeClasspath
-            },
+            toolRuntimeClasspaths,
             project(if (coreOnlyWorkspace.get()) ":impulse-core" else ":impulse-examples")
                 .configurations.named("vineServerJar")
         )
@@ -152,5 +189,11 @@ gradle.projectsEvaluated {
             .map { args -> args.split(Regex("\\s+")).filter { it.isNotBlank() } }
             .orNull
             ?.let { runTask.jvmArgs(it) }
+
+        if (physicsStoreEarlyPluginEnabled.get()) {
+            runTask.argumentProviders.add(CommandLineArgumentProvider {
+                listOf("--accept-early-plugins")
+            })
+        }
     }
 }
