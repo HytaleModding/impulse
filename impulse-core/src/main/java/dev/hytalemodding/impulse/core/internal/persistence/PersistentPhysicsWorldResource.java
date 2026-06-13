@@ -13,7 +13,6 @@ import com.hypixel.hytale.component.ResourceType;
 import com.hypixel.hytale.component.Store;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import dev.hytalemodding.impulse.core.ImpulsePlugin;
-import dev.hytalemodding.impulse.core.internal.systems.persistence.PersistentPhysicsWorldSyncSystem;
 import dev.hytalemodding.impulse.core.plugin.body.RigidBodyKey;
 import dev.hytalemodding.impulse.core.plugin.persistence.PhysicsPersistenceResource;
 import dev.hytalemodding.impulse.core.plugin.persistence.PhysicsPersistenceSyncResult;
@@ -186,13 +185,11 @@ public class PersistentPhysicsWorldResource extends PhysicsPersistenceResource {
     @Override
     public PhysicsPersistenceSyncResult saveRuntimeSnapshot(@Nonnull Store<EntityStore> store,
         @Nonnull PhysicsWorldResource runtime) {
-        PersistentPhysicsWorldSyncSystem.SyncResult result =
-            PersistentPhysicsWorldSyncSystem.syncRuntimeSnapshot(store, this, runtime);
-        return new PhysicsPersistenceSyncResult(result.synced(),
-            result.spaces(),
-            result.bodies(),
-            result.joints(),
-            result.skippedReason());
+        return new PhysicsPersistenceSyncResult(false,
+            getSpaceCount(),
+            getBodyCount(),
+            getJointCount(),
+            "legacy-persistence-import-only");
     }
 
     @Nonnull

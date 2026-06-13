@@ -3,8 +3,6 @@ package dev.hytalemodding.impulse.examples.commands;
 import com.hypixel.hytale.component.Store;
 import com.hypixel.hytale.server.core.Message;
 import com.hypixel.hytale.server.core.command.system.CommandContext;
-import com.hypixel.hytale.server.core.command.system.arguments.system.OptionalArg;
-import com.hypixel.hytale.server.core.command.system.arguments.types.ArgTypes;
 import com.hypixel.hytale.server.core.command.system.basecommands.AbstractCommandCollection;
 import com.hypixel.hytale.server.core.command.system.basecommands.AbstractWorldCommand;
 import com.hypixel.hytale.server.core.universe.world.World;
@@ -30,7 +28,7 @@ public class PersistenceCommand extends AbstractCommandCollection {
     private static final class SaveCommand extends AbstractWorldCommand {
 
         private SaveCommand() {
-            super("save", "Synchronize current runtime physics into Hytale world persistence", false);
+            super("save", "Report authoritative PhysicsStore persistence capture status", false);
         }
 
         @Override
@@ -39,8 +37,14 @@ public class PersistenceCommand extends AbstractCommandCollection {
             @Nonnull Store<EntityStore> store) {
             SaveResult result = PhysicsPersistence.saveRuntimeSnapshot(store);
             if (!result.synced()) {
-                ctx.sendMessage(Message.raw("Cannot save Impulse world persistence while "
-                    + result.skippedReason() + "."));
+                ctx.sendMessage(Message.raw("Manual Impulse persistence save is disabled in "
+                    + "authoritative PhysicsStore mode; PhysicsStore captures canonical state "
+                    + "automatically. reason=" + result.skippedReason()
+                    + ", stored schema=" + result.schemaVersion()
+                    + ", spaces=" + result.spaces()
+                    + ", persistentBodies=" + result.bodies()
+                    + ", joints=" + result.joints()
+                    + "."));
                 return;
             }
 
@@ -55,13 +59,8 @@ public class PersistenceCommand extends AbstractCommandCollection {
 
     private static final class LoadCommand extends AbstractWorldCommand {
 
-        private final OptionalArg<String> confirmArg = withOptionalArg(
-            "confirm",
-            "Required: true, because restore resets runtime physics before hydration rebuilds it",
-            ArgTypes.STRING);
-
         private LoadCommand() {
-            super("load", "Restore runtime physics from Hytale world persistence", false);
+            super("load", "Report authoritative PhysicsStore persistence restore status", false);
         }
 
         @Override
@@ -75,20 +74,17 @@ public class PersistenceCommand extends AbstractCommandCollection {
                 return;
             }
 
-            if (!confirmRestore(ctx, world, status)) {
-                return;
-            }
-
             RestoreRequestResult result = PhysicsPersistence.requestRuntimeRestore(store);
             if (!result.queued()) {
-                if ("schema-mismatch".equals(result.skippedReason())) {
-                    ctx.sendMessage(Message.raw("Cannot load Impulse world persistence schema "
-                        + status.schemaVersion() + "; expected schema "
-                        + PhysicsPersistence.CURRENT_SCHEMA_VERSION + "."));
-                } else {
-                    ctx.sendMessage(Message.raw("Cannot queue Impulse persistence restore: "
-                        + result.skippedReason() + "."));
-                }
+                ctx.sendMessage(Message.raw("Manual Impulse persistence restore is disabled in "
+                    + "authoritative PhysicsStore mode; PhysicsStore restores automatically from "
+                    + "PersistentPhysicsStore during world startup. reason="
+                    + result.skippedReason()
+                    + ", stored schema=" + status.schemaVersion()
+                    + ", spaces=" + status.storedSpaces()
+                    + ", persistentBodies=" + status.storedBodies()
+                    + ", joints=" + status.storedJoints()
+                    + "."));
                 return;
             }
 
@@ -99,23 +95,6 @@ public class PersistenceCommand extends AbstractCommandCollection {
                 + ", persistentBodies=" + status.storedBodies()
                 + ", joints=" + status.storedJoints()
                 + ". Runtime physics will reset and hydrate on the next tick."));
-        }
-
-        private boolean confirmRestore(@Nonnull CommandContext ctx,
-            @Nonnull World world,
-            @Nonnull Status status) {
-            if (confirmArg.provided(ctx) && "true".equalsIgnoreCase(confirmArg.get(ctx).trim())) {
-                return true;
-            }
-
-            ctx.sendMessage(Message.raw("Loading Impulse world persistence for " + world.getName()
-                + " resets runtime spaces, bodies, joints, generated visual proxies, and control sessions, "
-                + "then rebuilds from the stored world resource (schema=" + status.schemaVersion()
-                + ", spaces=" + status.storedSpaces()
-                + ", persistentBodies=" + status.storedBodies()
-                + ", joints=" + status.storedJoints()
-                + "). Re-run with --confirm=true to continue."));
-            return false;
         }
     }
 
@@ -133,12 +112,10 @@ public class PersistenceCommand extends AbstractCommandCollection {
 
             ctx.sendMessage(Message.raw("Impulse persistence status for " + world.getName()
                 + ": runtime spaces=" + status.runtimeSpaces()
-                + ", persistentBodies="
+                + ", runtimeBodies="
                 + status.runtimePersistentBodies()
-                + ", runtimeOnlyBodies="
-                + status.runtimeOnlyBodies()
                 + ", joints=" + status.runtimeJoints()
-                + "; stored schema=" + status.schemaVersion()
+                + "; PhysicsStore schema=" + status.schemaVersion()
                 + ", spaces=" + status.storedSpaces()
                 + ", bodies=" + status.storedBodies()
                 + ", joints=" + status.storedJoints()
