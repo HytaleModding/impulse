@@ -93,7 +93,11 @@ public final class SpaceBindingSystem extends TickingSystem<PhysicsStore>
             backendRuntime = Impulse.createRuntime(backendId);
             runtime.putRuntime(backendId, backendRuntime);
         }
-        SpaceId compatibilitySpaceId = SpaceId.next();
+        SpaceId compatibilitySpaceId = compatibility.getSpaceId(spaceUuid);
+        if (compatibilitySpaceId == null) {
+            compatibilitySpaceId = SpaceId.next();
+        }
+        SpaceId.reserveAtLeast(compatibilitySpaceId.value());
         BackendSpaceHandle handle = new BackendSpaceHandle(
             backendRuntime.createSpace(compatibilitySpaceId));
         Vector3f gravity = space.getGravity();

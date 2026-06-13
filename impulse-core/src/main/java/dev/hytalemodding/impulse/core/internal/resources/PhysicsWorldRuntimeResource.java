@@ -298,6 +298,24 @@ public class PhysicsWorldRuntimeResource extends PhysicsWorldResource {
         return PhysicsStoreEarlyPluginProbe.isAvailable();
     }
 
+    @Nonnull
+    private World requireAuthoritativeWorld(@Nonnull String operation) {
+        Store<EntityStore> entityStore = owningStore;
+        if (entityStore == null) {
+            throw new IllegalStateException("Cannot " + operation
+                + " through authoritative PhysicsStore before this resource is attached to an "
+                + "EntityStore");
+        }
+        return entityStore.getExternalData().getWorld();
+    }
+
+    @Nonnull
+    private IllegalStateException authoritativeFenceUnavailable(@Nonnull String operation) {
+        return new IllegalStateException("Cannot " + operation
+            + " through authoritative PhysicsStore yet because request completion fences are not "
+            + "implemented. Use the synchronous enqueueing facade or add Worker F request fences.");
+    }
+
     public void runOwnerMutation(@Nonnull String operation,
         @Nonnull PhysicsOwnerMutation mutation) {
         ownerGateway.run(operation, mutation);
@@ -379,6 +397,13 @@ public class PhysicsWorldRuntimeResource extends PhysicsWorldResource {
         @Nonnull SpaceId spaceId,
         @Nonnull String worldName,
         @Nonnull PhysicsSpaceSettings settings) {
+        if (isAuthoritativePhysicsStoreActive()) {
+            PhysicsStoreAccess.enqueueSpaceUpsert(requireAuthoritativeWorld("create physics space"),
+                spaceId,
+                backendId,
+                settings);
+            return spaceId;
+        }
         requireLegacyMutationAllowed("create physics space");
         callOwner("create physics space",
             () -> createSpaceDirect(backendId, spaceId, worldName, settings));
@@ -400,6 +425,11 @@ public class PhysicsWorldRuntimeResource extends PhysicsWorldResource {
         @Nonnull SpaceId spaceId,
         @Nonnull String worldName,
         @Nonnull PhysicsSpaceSettings settings) {
+        if (isAuthoritativePhysicsStoreActive()) {
+            return PhysicsMutationHandle.failed("create physics space",
+                spaceId,
+                authoritativeFenceUnavailable("create physics space asynchronously"));
+        }
         requireLegacyMutationAllowed("create physics space");
         return enqueueOwnerMutation("create physics space",
             spaceId,
@@ -428,6 +458,10 @@ public class PhysicsWorldRuntimeResource extends PhysicsWorldResource {
 
     @Override
     public boolean hasSpace(@Nonnull SpaceId spaceId) {
+        if (isAuthoritativePhysicsStoreActive()) {
+            return PhysicsStoreAccess.hasSpace(requireAuthoritativeWorld("check physics space"),
+                spaceId);
+        }
         return spaceRuntime.getBinding(spaceId) != null;
     }
 
@@ -444,11 +478,17 @@ public class PhysicsWorldRuntimeResource extends PhysicsWorldResource {
     @Nonnull
     @Override
     public Collection<SpaceId> getSpaceIds() {
+        if (isAuthoritativePhysicsStoreActive()) {
+            return PhysicsStoreAccess.spaceIds(requireAuthoritativeWorld("list physics spaces"));
+        }
         return spaceRuntime.getSpaceIds();
     }
 
     @Override
     public int getSpaceCount() {
+        if (isAuthoritativePhysicsStoreActive()) {
+            return PhysicsStoreAccess.spaceCount(requireAuthoritativeWorld("count physics spaces"));
+        }
         return spaceRuntime.getSpaceCount();
     }
 
@@ -844,6 +884,11 @@ public class PhysicsWorldRuntimeResource extends PhysicsWorldResource {
 
     @Override
     public void removeSpace(@Nonnull SpaceId spaceId, @Nonnull String worldName) {
+        if (isAuthoritativePhysicsStoreActive()) {
+            PhysicsStoreAccess.enqueueSpaceRemove(requireAuthoritativeWorld("remove physics space"),
+                spaceId);
+            return;
+        }
         requireLegacyMutationAllowed("remove physics space");
         runOwnerMutation("remove physics space", () -> removeSpaceDirect(spaceId, worldName));
     }
@@ -852,6 +897,11 @@ public class PhysicsWorldRuntimeResource extends PhysicsWorldResource {
     @Override
     public PhysicsMutationHandle<SpaceId> removeSpaceAsync(@Nonnull SpaceId spaceId,
         @Nonnull String worldName) {
+        if (isAuthoritativePhysicsStoreActive()) {
+            return PhysicsMutationHandle.failed("remove physics space",
+                spaceId,
+                authoritativeFenceUnavailable("remove physics space asynchronously"));
+        }
         requireLegacyMutationAllowed("remove physics space");
         return enqueueOwnerMutation("remove physics space",
             spaceId,
@@ -946,6 +996,16 @@ public class PhysicsWorldRuntimeResource extends PhysicsWorldResource {
     @Nonnull
     @Override
     public PhysicsSpaceSettings getSpaceSettings(@Nonnull SpaceId spaceId) {
+        if (isAuthoritativePhysicsStoreActive()) {
+            PhysicsSpaceSettings settings = PhysicsStoreAccess.getSpaceSettings(
+                requireAuthoritativeWorld("read physics space settings"),
+                spaceId);
+            if (settings == null) {
+                throw new IllegalArgumentException("PhysicsStore space id=" + spaceId.value()
+                    + " is not registered");
+            }
+            return settings;
+        }
         return spaceRuntime.getSpaceSettings(spaceId);
     }
 
@@ -956,6 +1016,13 @@ public class PhysicsWorldRuntimeResource extends PhysicsWorldResource {
 
     @Override
     public void setSpaceSettings(@Nonnull SpaceId spaceId, @Nonnull PhysicsSpaceSettings settings) {
+        if (isAuthoritativePhysicsStoreActive()) {
+            PhysicsStoreAccess.enqueueSpaceSettings(
+                requireAuthoritativeWorld("set physics space settings"),
+                spaceId,
+                settings);
+            return;
+        }
         requireLegacyMutationAllowed("set physics space settings");
         PhysicsSpaceSettings requested = new PhysicsSpaceSettings(settings);
         runOwnerMutation("set physics space settings", () -> setSpaceSettingsDirect(spaceId, requested));
@@ -965,6 +1032,11 @@ public class PhysicsWorldRuntimeResource extends PhysicsWorldResource {
     @Override
     public PhysicsMutationHandle<SpaceId> setSpaceSettingsAsync(@Nonnull SpaceId spaceId,
         @Nonnull PhysicsSpaceSettings settings) {
+        if (isAuthoritativePhysicsStoreActive()) {
+            return PhysicsMutationHandle.failed("set physics space settings",
+                spaceId,
+                authoritativeFenceUnavailable("set physics space settings asynchronously"));
+        }
         requireLegacyMutationAllowed("set physics space settings");
         PhysicsSpaceSettings requested = new PhysicsSpaceSettings(settings);
         return enqueueOwnerMutation("set physics space settings",
