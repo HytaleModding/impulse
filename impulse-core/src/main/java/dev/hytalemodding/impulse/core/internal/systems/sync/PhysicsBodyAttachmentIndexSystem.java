@@ -28,6 +28,9 @@ public class PhysicsBodyAttachmentIndexSystem
         @Nonnull PhysicsBodyAttachmentComponent component,
         @Nonnull Store<EntityStore> store,
         @Nonnull CommandBuffer<EntityStore> commandBuffer) {
+        if (!component.usesLegacyBodyKey()) {
+            return;
+        }
         PhysicsWorldRuntimeResource.require(
                 commandBuffer.getResource(PhysicsWorldResource.getResourceType()))
             .registerBodyAttachment(component.getBodyKey(), ref);
@@ -39,11 +42,18 @@ public class PhysicsBodyAttachmentIndexSystem
         @Nonnull PhysicsBodyAttachmentComponent newComponent,
         @Nonnull Store<EntityStore> store,
         @Nonnull CommandBuffer<EntityStore> commandBuffer) {
+        assert oldComponent != null;
+        boolean oldLegacy = oldComponent.usesLegacyBodyKey();
+        boolean newLegacy = newComponent.usesLegacyBodyKey();
+        if (!oldLegacy && !newLegacy) {
+            return;
+        }
         PhysicsWorldRuntimeResource resource = PhysicsWorldRuntimeResource.require(
             commandBuffer.getResource(PhysicsWorldResource.getResourceType()));
-        assert oldComponent != null;
-        if (!oldComponent.getBodyKey().equals(newComponent.getBodyKey())) {
+        if (oldLegacy && (!newLegacy || !oldComponent.getBodyKey().equals(newComponent.getBodyKey()))) {
             resource.unregisterBodyAttachment(oldComponent.getBodyKey(), ref);
+        }
+        if (newLegacy && (!oldLegacy || !oldComponent.getBodyKey().equals(newComponent.getBodyKey()))) {
             resource.registerBodyAttachment(newComponent.getBodyKey(), ref);
         }
         resource.clearBodySyncState(ref);
@@ -54,6 +64,9 @@ public class PhysicsBodyAttachmentIndexSystem
         @Nonnull PhysicsBodyAttachmentComponent component,
         @Nonnull Store<EntityStore> store,
         @Nonnull CommandBuffer<EntityStore> commandBuffer) {
+        if (!component.usesLegacyBodyKey()) {
+            return;
+        }
         PhysicsWorldRuntimeResource resource = PhysicsWorldRuntimeResource.require(
             commandBuffer.getResource(PhysicsWorldResource.getResourceType()));
         resource.unregisterBodyAttachment(component.getBodyKey(), ref);

@@ -37,6 +37,7 @@ import dev.hytalemodding.impulse.core.plugin.body.RigidBodyKey;
 import dev.hytalemodding.impulse.core.plugin.components.PhysicsBodyAttachmentComponent;
 import dev.hytalemodding.impulse.core.plugin.components.PhysicsBodyAttachmentComponent.AttachmentLifecycle;
 import dev.hytalemodding.impulse.core.plugin.components.PhysicsBodyAttachmentComponent.TransformAuthority;
+import dev.hytalemodding.impulse.core.plugin.physicsstore.PhysicsStoreAccess;
 import dev.hytalemodding.impulse.core.plugin.settings.PhysicsSpaceSettings;
 import dev.hytalemodding.impulse.core.plugin.settings.PhysicsVisualMaterializationSettings;
 import it.unimi.dsi.fastutil.objects.ObjectOpenHashSet;
@@ -99,6 +100,9 @@ public class PhysicsDetachedVisualMaterializationSystem extends TickingSystem<En
 
     private void tickMaterialization(@Nonnull Store<EntityStore> store,
         @Nullable PhysicsRuntimeProfilingResource.VisualCollector collector) {
+        if (hasAuthoritativePhysicsStore(store)) {
+            return;
+        }
         MaterializationState state = stateFor(store);
         PersistentPhysicsWorldResource persistent = store.getResource(
             PersistentPhysicsWorldResource.getResourceType());
@@ -145,6 +149,15 @@ public class PhysicsDetachedVisualMaterializationSystem extends TickingSystem<En
             collector);
         if (collector != null) {
             collector.setMaterialized(materialized);
+        }
+    }
+
+    private static boolean hasAuthoritativePhysicsStore(@Nonnull Store<EntityStore> store) {
+        try {
+            PhysicsStoreAccess.require(store.getExternalData().getWorld());
+            return true;
+        } catch (IllegalStateException exception) {
+            return false;
         }
     }
 

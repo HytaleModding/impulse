@@ -17,6 +17,7 @@ public record PhysicsStoreBodySnapshot(@Nonnull UUID bodyUuid,
                                        @Nonnull Quaternionf rotation,
                                        @Nonnull Vector3f linearVelocity,
                                        @Nonnull Vector3f angularVelocity,
+                                       float centerOfMassOffsetY,
                                        boolean sleeping) {
 
     public PhysicsStoreBodySnapshot {
