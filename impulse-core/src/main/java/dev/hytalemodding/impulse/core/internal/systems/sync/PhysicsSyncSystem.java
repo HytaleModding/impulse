@@ -51,9 +51,9 @@ import org.joml.Vector3f;
  * hydrated bodies, and hydrated joints are all settled before this system reads
  * body transforms.</p>
  *
- * <p>Entities attach to body keys. Backend body destruction is explicit at the
- * world resource boundary; missing generated visual proxies are removed, while
- * gameplay entities merely lose the attachment.</p>
+ * <p>Entities attach to PhysicsStore body UUIDs or legacy body keys. Backend body destruction is
+ * explicit at the world resource boundary; missing generated visual proxies are removed from the
+ * legacy path, while gameplay entities merely lose the attachment.</p>
  */
 public class PhysicsSyncSystem extends EntityTickingSystem<EntityStore> {
 
@@ -138,7 +138,6 @@ public class PhysicsSyncSystem extends EntityTickingSystem<EntityStore> {
         }
 
         Scratch local = scratch.get();
-        PhysicsWorldRuntimeResource resource = local.getResource(store);
         PhysicsRuntimeProfilingResource.SyncCollector collector = local.getSyncCollector(store);
         if (collector != null) {
             collector.incrementBodiesInspected();
@@ -155,6 +154,10 @@ public class PhysicsSyncSystem extends EntityTickingSystem<EntityStore> {
             }
             return;
         }
+        if (attachment.getPhysicsBodyUuid() != null) {
+            return;
+        }
+        PhysicsWorldRuntimeResource resource = local.getResource(store);
         PhysicsBodyRegistrationView registration =
             resource.getBodyRegistrationView(attachment.getBodyKey());
         if (registration == null) {
