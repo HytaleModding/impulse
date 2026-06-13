@@ -29,6 +29,7 @@ import dev.hytalemodding.impulse.core.internal.resources.PhysicsWorldRuntimeReso
 import dev.hytalemodding.impulse.core.internal.resources.owner.PhysicsOwnerLaneScheduler;
 import dev.hytalemodding.impulse.core.internal.resources.owner.PhysicsOwnerResource;
 import dev.hytalemodding.impulse.core.internal.resources.profiling.PhysicsRuntimeProfilingResource;
+import dev.hytalemodding.impulse.core.internal.physicsstore.registration.PhysicsStoreRegistration;
 import dev.hytalemodding.impulse.core.internal.store.integration.PhysicsStoreEarlyPluginProbe;
 import dev.hytalemodding.impulse.core.internal.systems.debug.PhysicsDebugSystem;
 import dev.hytalemodding.impulse.core.internal.systems.body.PhysicsBodyIdentityCleanupSystem;
@@ -143,6 +144,7 @@ public final class ImpulsePlugin extends JavaPlugin {
     @Override
     protected void setup() {
         PhysicsStoreEarlyPluginProbe.requireAvailable();
+        PhysicsStoreRegistration.register(this);
         ImpulseSubPluginRegistration.register(this);
         discoverBackends();
 
