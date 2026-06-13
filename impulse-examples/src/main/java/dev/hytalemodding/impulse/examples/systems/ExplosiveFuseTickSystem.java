@@ -16,13 +16,17 @@ import dev.hytalemodding.impulse.api.PhysicsBodySnapshot;
 import dev.hytalemodding.impulse.api.SpaceId;
 import dev.hytalemodding.impulse.core.plugin.body.RigidBodyKey;
 import dev.hytalemodding.impulse.core.plugin.components.PhysicsBodyAttachmentComponent;
+import dev.hytalemodding.impulse.core.plugin.physicsstore.PhysicsStoreAccess;
+import dev.hytalemodding.impulse.core.plugin.physicsstore.snapshots.PhysicsStoreBodySnapshot;
 import dev.hytalemodding.impulse.core.plugin.resources.PhysicsWorldResource;
 import dev.hytalemodding.impulse.examples.explosive.ExplosiveBlockComponent;
 import dev.hytalemodding.impulse.examples.explosive.ExplosiveBlockRuntime;
 import dev.hytalemodding.impulse.examples.explosive.ExplosiveFuseComponent;
+import java.util.UUID;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 import org.joml.Vector3d;
+import org.joml.Vector3f;
 
 public final class ExplosiveFuseTickSystem extends EntityTickingSystem<EntityStore>
     implements QuerySystem<EntityStore> {
@@ -64,7 +68,7 @@ public final class ExplosiveFuseTickSystem extends EntityTickingSystem<EntitySto
 
         Ref<EntityStore> ref = chunk.getReferenceTo(index);
         PhysicsWorldResource resource = store.getResource(PhysicsWorldResource.getResourceType());
-        PhysicsBodySnapshot snapshot = bodySnapshot(resource, attachment.getBodyKey());
+        BodyMotionSnapshot snapshot = bodySnapshot(store, resource, attachment);
         Vector3d currentCenter = explosionCenter(snapshot, transform);
         if (!fuse.isArmed()) {
             ExplosiveFuseComponent updated = fuse.clone();
@@ -100,7 +104,7 @@ public final class ExplosiveFuseTickSystem extends EntityTickingSystem<EntitySto
     }
 
     @Nonnull
-    private static Vector3d explosionCenter(@Nullable PhysicsBodySnapshot snapshot,
+    private static Vector3d explosionCenter(@Nullable BodyMotionSnapshot snapshot,
         @Nonnull TransformComponent transform) {
         if (snapshot != null) {
             return ExplosiveBlockRuntime.sourceExplosionCenter(new Vector3d(snapshot.positionX(),
@@ -111,15 +115,44 @@ public final class ExplosiveFuseTickSystem extends EntityTickingSystem<EntitySto
     }
 
     @Nullable
-    private static PhysicsBodySnapshot bodySnapshot(@Nonnull PhysicsWorldResource resource,
-        @Nonnull RigidBodyKey bodyKey) {
+    private static BodyMotionSnapshot bodySnapshot(@Nonnull Store<EntityStore> store,
+        @Nonnull PhysicsWorldResource resource,
+        @Nonnull PhysicsBodyAttachmentComponent attachment) {
+        UUID physicsBodyUuid = attachment.getPhysicsBodyUuid();
+        if (physicsBodyUuid != null) {
+            PhysicsStoreBodySnapshot snapshot =
+                PhysicsStoreAccess.getBodySnapshot(store.getExternalData().getWorld(), physicsBodyUuid);
+            return snapshot != null ? BodyMotionSnapshot.from(snapshot) : null;
+        }
+        RigidBodyKey bodyKey = attachment.getBodyKey();
         if (resource.getBodyRegistrationView(bodyKey) != null) {
             try {
-                return resource.getBodySnapshot(bodyKey);
+                return BodyMotionSnapshot.from(resource.getBodySnapshot(bodyKey));
             } catch (IllegalArgumentException ignored) {
                 // Fall back to the last synced entity transform if the source body was destroyed.
             }
         }
         return null;
+    }
+
+    private record BodyMotionSnapshot(float positionX,
+                                      float positionY,
+                                      float positionZ,
+                                      float linearVelocityY) {
+
+        @Nonnull
+        private static BodyMotionSnapshot from(@Nonnull PhysicsStoreBodySnapshot snapshot) {
+            Vector3f position = snapshot.position();
+            Vector3f velocity = snapshot.linearVelocity();
+            return new BodyMotionSnapshot(position.x, position.y, position.z, velocity.y);
+        }
+
+        @Nonnull
+        private static BodyMotionSnapshot from(@Nonnull PhysicsBodySnapshot snapshot) {
+            return new BodyMotionSnapshot(snapshot.positionX(),
+                snapshot.positionY(),
+                snapshot.positionZ(),
+                snapshot.linearVelocityY());
+        }
     }
 }
