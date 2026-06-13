@@ -178,19 +178,41 @@ public final class ExamplePhysicsUtils {
         float mass,
         @Nonnull RigidBodySpawnSettings settings,
         @Nullable Vector3f linearVelocity) {
-        PendingBlockBody physicsStoreBody = linearVelocity == null
-            ? tryRecordPhysicsStoreBlockBody(store,
-                spaceId,
-                visualPosition,
-                blockType,
-                shape,
-                mass,
-                settings)
-            : null;
+        PendingBlockBody physicsStoreBody = tryRecordPhysicsStoreBlockBody(store,
+            spaceId,
+            visualPosition,
+            blockType,
+            shape,
+            mass,
+            settings,
+            linearVelocity);
         if (physicsStoreBody != null) {
             return attachPhysicsStoreBlockBody(store, time, physicsStoreBody);
         }
 
+        return spawnBlockBodyLegacy(store,
+            time,
+            resource,
+            spaceId,
+            visualPosition,
+            blockType,
+            shape,
+            mass,
+            settings,
+            linearVelocity);
+    }
+
+    @Nonnull
+    public static SpawnedBlockBody spawnBlockBodyLegacy(@Nonnull Store<EntityStore> store,
+        @Nonnull TimeResource time,
+        @Nonnull PhysicsWorldResource resource,
+        @Nonnull SpaceId spaceId,
+        @Nonnull Vector3d visualPosition,
+        @Nullable String blockType,
+        @Nonnull PhysicsShapeSpec shape,
+        float mass,
+        @Nonnull RigidBodySpawnSettings settings,
+        @Nullable Vector3f linearVelocity) {
         PendingBlockBodyCapture pending = new PendingBlockBodyCapture();
         requireApplied(resource.submitCommands(0L, linearVelocity != null ? 2 : 1, commands ->
             pending.set(recordBlockBodySpawn(commands,
@@ -211,7 +233,8 @@ public final class ExamplePhysicsUtils {
         @Nullable String blockType,
         @Nonnull PhysicsShapeSpec shape,
         float mass,
-        @Nonnull RigidBodySpawnSettings settings) {
+        @Nonnull RigidBodySpawnSettings settings,
+        @Nullable Vector3f linearVelocity) {
         Objects.requireNonNull(store, "store");
         Objects.requireNonNull(spaceId, "spaceId");
         Objects.requireNonNull(visualPosition, "visualPosition");
@@ -239,7 +262,8 @@ public final class ExamplePhysicsUtils {
                     bodyCenter,
                     shape,
                     mass,
-                    settings));
+                    settings,
+                    linearVelocity));
         } catch (IllegalStateException exception) {
             return null;
         }
@@ -259,7 +283,8 @@ public final class ExamplePhysicsUtils {
         @Nonnull Vector3f bodyCenter,
         @Nonnull PhysicsShapeSpec shape,
         float mass,
-        @Nonnull RigidBodySpawnSettings settings) {
+        @Nonnull RigidBodySpawnSettings settings,
+        @Nullable Vector3f linearVelocity) {
         UUID colliderUuid = bodyGraphUuid(bodyUuid, "collider");
         UUID shapeUuid = bodyGraphUuid(bodyUuid, "shape");
         UUID materialUuid = bodyGraphUuid(bodyUuid, "material");
@@ -273,7 +298,7 @@ public final class ExamplePhysicsUtils {
                 settings.hasLinearDamping() ? settings.linearDamping() : 0.0f,
                 settings.hasAngularDamping() ? settings.angularDamping() : 0.0f,
                 false),
-            initialTarget(bodyCenter),
+            initialTarget(bodyCenter, linearVelocity),
             colliderUuid,
             new ColliderComponent(bodyUuid,
                 shapeUuid,
@@ -300,16 +325,17 @@ public final class ExamplePhysicsUtils {
     }
 
     @Nonnull
-    private static TargetComponent initialTarget(@Nonnull Vector3f bodyCenter) {
+    private static TargetComponent initialTarget(@Nonnull Vector3f bodyCenter,
+        @Nullable Vector3f linearVelocity) {
         TargetComponent target = new TargetComponent();
-        // BodyBindingSystem reads this pose once; keeping it inactive avoids pinning dynamic bodies.
+        // BodyBindingSystem reads this once; keeping it inactive avoids pinning dynamic bodies.
         target.setActive(false);
         target.setPosition(bodyCenter);
         target.setRotation(new Quaternionf());
-        target.setLinearVelocity(new Vector3f());
+        target.setLinearVelocity(linearVelocity != null ? linearVelocity : new Vector3f());
         target.setAngularVelocity(new Vector3f());
         target.setTransformEnabled(true);
-        target.setVelocityEnabled(false);
+        target.setVelocityEnabled(linearVelocity != null);
         target.setActivate(true);
         return target;
     }
