@@ -12,7 +12,6 @@ import dev.hytalemodding.impulse.core.internal.physicsstore.resources.PhysicsRun
 import dev.hytalemodding.impulse.core.internal.physicsstore.resources.PhysicsRuntimeResource.BodyHitMetadata;
 import dev.hytalemodding.impulse.core.internal.physicsstore.resources.PhysicsSnapshotResource;
 import dev.hytalemodding.impulse.core.internal.physicsstore.resources.PhysicsSpaceCompatibilityIndexResource;
-import dev.hytalemodding.impulse.core.internal.resources.BackendBodyHandle;
 import dev.hytalemodding.impulse.core.internal.resources.BackendSpaceHandle;
 import dev.hytalemodding.impulse.core.plugin.physicsstore.snapshots.PhysicsStoreBodySnapshot;
 import dev.hytalemodding.impulse.core.plugin.simulation.RaycastClosestBatchResult;
@@ -346,7 +345,7 @@ public final class PhysicsStoreQueryBridge {
         float normalZ,
         float fraction,
         float distance) {
-        BodyHitMetadata metadata = runtime.getBodyHitMetadata(new BackendBodyHandle(bodyId));
+        BodyHitMetadata metadata = runtime.getBodyHitMetadata(bodyId);
         return new RaycastHitView(metadata != null ? metadata.bodyKey() : null,
             metadata != null ? metadata.bodyType() : PhysicsBodyType.STATIC,
             pointX,

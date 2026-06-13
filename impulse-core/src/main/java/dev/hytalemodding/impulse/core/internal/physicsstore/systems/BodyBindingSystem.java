@@ -199,7 +199,7 @@ public final class BodyBindingSystem extends TickingSystem<PhysicsStore>
             backendRuntime.setBodyContinuousCollision(spaceHandle.value(), bodyId, true);
         }
         applyInitialTargetState(backendRuntime, spaceHandle, bodyHandle, bodyType, target);
-        runtime.putBodyHandle(bodyUuid, spaceHandle, bodyHandle);
+        runtime.putBodyHandle(bodyUuid, body.getSpaceUuid(), spaceHandle, bodyHandle);
         runtime.putBodyHitMetadata(bodyHandle,
             RigidBodyKey.of(bodyUuid),
             bodyType,

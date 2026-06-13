@@ -1,6 +1,5 @@
 package dev.hytalemodding.impulse.core.internal.physicsstore.systems;
 
-import com.hypixel.hytale.component.Ref;
 import com.hypixel.hytale.component.Store;
 import com.hypixel.hytale.component.dependency.Dependency;
 import com.hypixel.hytale.component.dependency.Order;
@@ -8,12 +7,9 @@ import com.hypixel.hytale.component.dependency.SystemDependency;
 import com.hypixel.hytale.component.system.tick.TickingSystem;
 import com.hypixel.hytale.server.core.universe.world.storage.PhysicsStore;
 import dev.hytalemodding.impulse.api.runtime.BackendRuntimeCodes;
-import dev.hytalemodding.impulse.core.internal.physicsstore.resources.PhysicsIdentityIndexResource;
 import dev.hytalemodding.impulse.core.internal.physicsstore.resources.PhysicsRuntimeResource;
+import dev.hytalemodding.impulse.core.internal.physicsstore.resources.PhysicsRuntimeResource.BodySnapshotMetadata;
 import dev.hytalemodding.impulse.core.internal.physicsstore.resources.PhysicsSnapshotResource;
-import dev.hytalemodding.impulse.core.internal.resources.BackendBodyHandle;
-import dev.hytalemodding.impulse.core.plugin.physicsstore.components.BodyComponent;
-import dev.hytalemodding.impulse.core.plugin.physicsstore.components.UuidComponent;
 import dev.hytalemodding.impulse.core.plugin.physicsstore.snapshots.PhysicsStoreBodySnapshot;
 import dev.hytalemodding.impulse.core.plugin.physicsstore.snapshots.PhysicsStoreSnapshotFrame;
 import java.util.ArrayList;
@@ -36,8 +32,6 @@ public final class CompletedStepPublicationSystem extends TickingSystem<PhysicsS
     @Override
     public void tick(float dt, int systemIndex, @Nonnull Store<PhysicsStore> store) {
         PhysicsRuntimeResource runtime = store.getResource(PhysicsRuntimeResource.getResourceType());
-        PhysicsIdentityIndexResource identity = store.getResource(
-            PhysicsIdentityIndexResource.getResourceType());
         PhysicsSnapshotResource snapshot = store.getResource(PhysicsSnapshotResource.getResourceType());
         List<PhysicsStoreBodySnapshot> bodies = new ArrayList<>();
         runtime.forEachSpaceBinding((_, _, spaceHandle, backendRuntime) ->
@@ -76,8 +70,7 @@ public final class CompletedStepPublicationSystem extends TickingSystem<PhysicsS
                     _,
                     _,
                     _,
-                    _) -> collectBodySnapshot(store,
-                        identity,
+                    _) -> collectBodySnapshot(runtime,
                         bodies,
                         bodyId,
                         bodyTypeCode,
@@ -100,8 +93,7 @@ public final class CompletedStepPublicationSystem extends TickingSystem<PhysicsS
         snapshot.publish(new PhysicsStoreSnapshotFrame(nextSequence, dt, bodies));
     }
 
-    private static void collectBodySnapshot(@Nonnull Store<PhysicsStore> store,
-        @Nonnull PhysicsIdentityIndexResource identity,
+    private static void collectBodySnapshot(@Nonnull PhysicsRuntimeResource runtime,
         @Nonnull List<PhysicsStoreBodySnapshot> bodies,
         long bodyId,
         int bodyTypeCode,
@@ -120,17 +112,12 @@ public final class CompletedStepPublicationSystem extends TickingSystem<PhysicsS
         float angularVelocityZ,
         float centerOfMassOffsetY,
         boolean sleeping) {
-        Ref<PhysicsStore> ref = identity.getByBodyHandle(new BackendBodyHandle(bodyId));
-        if (ref == null || !ref.isValid()) {
+        BodySnapshotMetadata metadata = runtime.getBodySnapshotMetadata(bodyId);
+        if (metadata == null) {
             return;
         }
-        UuidComponent uuid = store.getComponent(ref, UuidComponent.getComponentType());
-        BodyComponent body = store.getComponent(ref, BodyComponent.getComponentType());
-        if (uuid == null || body == null) {
-            return;
-        }
-        bodies.add(new PhysicsStoreBodySnapshot(uuid.getUuid(),
-            body.getSpaceUuid(),
+        bodies.add(new PhysicsStoreBodySnapshot(metadata.bodyUuid(),
+            metadata.spaceUuid(),
             BackendRuntimeCodes.bodyType(bodyTypeCode),
             new Vector3f(positionX, positionY, positionZ),
             new Quaternionf(rotationX, rotationY, rotationZ, rotationW),
