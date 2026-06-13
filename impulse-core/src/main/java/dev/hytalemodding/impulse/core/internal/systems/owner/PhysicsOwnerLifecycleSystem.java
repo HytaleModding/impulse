@@ -45,8 +45,10 @@ public final class PhysicsOwnerLifecycleSystem extends StoreSystem<EntityStore>
     public void onSystemAddedToStore(@Nonnull Store<EntityStore> store) {
         PhysicsOwnerResource owner = store.getResource(ownerResourceType);
         if (startOwner(owner, worldName(store))) {
-            PhysicsWorldRuntimeResource.require(store.getResource(physicsWorldResourceType))
-                .attachOwnerExecutor(owner);
+            PhysicsWorldRuntimeResource runtime =
+                PhysicsWorldRuntimeResource.require(store.getResource(physicsWorldResourceType));
+            runtime.attachEntityStore(store);
+            runtime.attachOwnerExecutor(owner);
         }
     }
 
@@ -59,6 +61,7 @@ public final class PhysicsOwnerLifecycleSystem extends StoreSystem<EntityStore>
         RuntimeException clearFailure = tryClearSpaces(physics, worldName);
         boolean closedOwner = closeOwner(owner);
         runtime.detachOwnerExecutor(owner);
+        runtime.detachEntityStore(store);
 
         // Retry if it failed before, this could happen.
         if (clearFailure != null && closedOwner) {
