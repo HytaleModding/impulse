@@ -67,7 +67,7 @@ public final class PhysicsRestoreStatusResource implements Resource<PhysicsStore
     }
 
     public void recordSoftSkip(@Nonnull String reason) {
-        softSkipsByReason.putIfAbsent(reason, 1);
+        softSkipsByReason.put(reason, softSkipsByReason.getInt(reason) + 1);
     }
 
     @Nonnull

@@ -3,6 +3,7 @@ package dev.hytalemodding.impulse.core.plugin.persistence;
 import com.hypixel.hytale.component.Store;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import com.hypixel.hytale.server.core.universe.world.storage.PhysicsStore;
+import dev.hytalemodding.impulse.core.internal.persistence.PersistentPhysicsWorldResource;
 import dev.hytalemodding.impulse.core.internal.physicsstore.persistence.PersistentPhysicsStoreResource;
 import dev.hytalemodding.impulse.core.internal.physicsstore.resources.PhysicsRestoreStatusResource;
 import dev.hytalemodding.impulse.core.plugin.physicsstore.PhysicsStoreAccess;
@@ -47,6 +48,8 @@ public final class PhysicsPersistence {
             .getStore();
         PersistentPhysicsStoreResource persistent = physicsStore.getResource(
             PersistentPhysicsStoreResource.getResourceType());
+        PersistentPhysicsWorldResource legacy = store.getResource(
+            PersistentPhysicsWorldResource.getResourceType());
         PhysicsRestoreStatusResource restore = physicsStore.getResource(
             PhysicsRestoreStatusResource.getResourceType());
         List<SpaceSummary> summaries = spaceSummaries(runtime);
@@ -62,7 +65,7 @@ public final class PhysicsPersistence {
             persistent.getBodies().length,
             persistent.getJoints().length,
             restoreState(restore),
-            restoreMessage(restore));
+            restoreMessage(restore, persistent, legacy));
     }
 
     @Nonnull
@@ -85,14 +88,37 @@ public final class PhysicsPersistence {
     }
 
     @Nonnull
-    private static String restoreMessage(@Nonnull PhysicsRestoreStatusResource restore) {
+    private static String restoreMessage(@Nonnull PhysicsRestoreStatusResource restore,
+        @Nonnull PersistentPhysicsStoreResource persistent,
+        @Nonnull PersistentPhysicsWorldResource legacy) {
         if (restore.isFailed()) {
             return restore.getFailureMessage();
         }
         if (!restore.getSoftSkipsByReason().isEmpty()) {
             return "PhysicsStore restore soft skips: " + restore.getSoftSkipsByReason();
         }
+        if (hasLegacyData(legacy)) {
+            String legacyCounts = "legacy PersistentPhysicsWorld spaces=" + legacy.getSpaceCount()
+                + ", bodies=" + legacy.getBodyCount()
+                + ", joints=" + legacy.getJointCount();
+            if (hasAuthoritativeData(persistent)) {
+                return legacyCounts
+                    + " ignored because PersistentPhysicsStore contains authoritative state.";
+            }
+            return legacyCounts
+                + " present, but legacy import into PersistentPhysicsStore is deferred.";
+        }
         return "";
+    }
+
+    private static boolean hasAuthoritativeData(@Nonnull PersistentPhysicsStoreResource persistent) {
+        return persistent.getSpaces().length > 0
+            || persistent.getBodies().length > 0
+            || persistent.getJoints().length > 0;
+    }
+
+    private static boolean hasLegacyData(@Nonnull PersistentPhysicsWorldResource legacy) {
+        return legacy.getSpaceCount() > 0 || legacy.getBodyCount() > 0 || legacy.getJointCount() > 0;
     }
 
     @Nonnull

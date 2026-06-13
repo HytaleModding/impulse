@@ -48,6 +48,9 @@ public final class TerrainColliderBindingSystem extends TickingSystem<PhysicsSto
             PhysicsTerrainPayloadResource.getResourceType());
         PhysicsRestoreStatusResource restore = store.getResource(
             PhysicsRestoreStatusResource.getResourceType());
+        if (restore.isFailed()) {
+            return;
+        }
         BiConsumer<ArchetypeChunk<PhysicsStore>, CommandBuffer<PhysicsStore>> collector =
             (chunk, _) -> bindChunk(runtime, payloads, restore, chunk);
         store.forEachChunk(systemIndex, collector);
@@ -125,7 +128,8 @@ public final class TerrainColliderBindingSystem extends TickingSystem<PhysicsSto
             stitchNeighbors(runtime, backendRuntime, spaceHandle, terrainUuid, terrain, payload);
         } catch (RuntimeException exception) {
             removeTerrain(runtime, terrainUuid);
-            throw exception;
+            restore.markFailed("PhysicsStore terrain " + terrain.getSourceKey()
+                + " failed backend binding: " + exception.getMessage());
         }
     }
 
