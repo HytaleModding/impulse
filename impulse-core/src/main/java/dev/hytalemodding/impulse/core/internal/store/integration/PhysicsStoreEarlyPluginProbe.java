@@ -34,6 +34,15 @@ public final class PhysicsStoreEarlyPluginProbe {
         requireField(WorldConfigSaveSystem.class, WORLD_RESOURCE_SAVE_MARKER);
     }
 
+    public static boolean isAvailable() {
+        try {
+            requireAvailable();
+            return true;
+        } catch (IllegalStateException exception) {
+            return false;
+        }
+    }
+
     @Nonnull
     private static Class<?> requireClass(@Nonnull String className) {
         try {
