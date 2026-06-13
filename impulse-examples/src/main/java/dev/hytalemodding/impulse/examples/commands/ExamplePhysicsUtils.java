@@ -32,6 +32,7 @@ import dev.hytalemodding.impulse.core.plugin.components.PhysicsBodyIdentityCompo
 import dev.hytalemodding.impulse.core.plugin.components.PhysicsBodyKinematicTargetComponent;
 import dev.hytalemodding.impulse.core.plugin.components.PhysicsBodyMaterialComponent;
 import dev.hytalemodding.impulse.core.plugin.components.PhysicsBodyShapeComponent;
+import dev.hytalemodding.impulse.core.plugin.physicsstore.BodyGraphUuids;
 import dev.hytalemodding.impulse.core.plugin.physicsstore.PhysicsStoreAccess;
 import dev.hytalemodding.impulse.core.plugin.physicsstore.components.BodyComponent;
 import dev.hytalemodding.impulse.core.plugin.physicsstore.components.ColliderComponent;
@@ -47,7 +48,6 @@ import dev.hytalemodding.impulse.core.plugin.simulation.PhysicsCommandHandle;
 import dev.hytalemodding.impulse.core.plugin.simulation.recorder.PhysicsCommandRecorder;
 import dev.hytalemodding.impulse.core.plugin.simulation.PhysicsShapeSpec;
 import dev.hytalemodding.impulse.core.plugin.simulation.RigidBodySpawnSettings;
-import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
 import java.util.Comparator;
 import java.util.Objects;
@@ -277,10 +277,10 @@ public final class ExamplePhysicsUtils {
         float mass,
         @Nonnull RigidBodySpawnSettings settings,
         @Nullable Vector3f linearVelocity) {
-        UUID colliderUuid = bodyGraphUuid(bodyUuid, "collider");
-        UUID shapeUuid = bodyGraphUuid(bodyUuid, "shape");
-        UUID materialUuid = bodyGraphUuid(bodyUuid, "material");
-        UUID filterUuid = bodyGraphUuid(bodyUuid, "filter");
+        UUID colliderUuid = BodyGraphUuids.collider(bodyUuid);
+        UUID shapeUuid = BodyGraphUuids.shape(bodyUuid);
+        UUID materialUuid = BodyGraphUuids.material(bodyUuid);
+        UUID filterUuid = BodyGraphUuids.filter(bodyUuid);
         return BodyUpsertRequest.of(bodyUuid,
             new BodyComponent(spaceUuid,
                 PhysicsBodyKind.BODY,
@@ -341,13 +341,6 @@ public final class ExamplePhysicsUtils {
             settings.hasCollisionFilter()
                 ? settings.collisionMask()
                 : PhysicsCollisionFilters.TERRAIN | PhysicsCollisionFilters.DYNAMIC_BODY);
-    }
-
-    @Nonnull
-    private static UUID bodyGraphUuid(@Nonnull UUID bodyUuid,
-        @Nonnull String rowKind) {
-        return UUID.nameUUIDFromBytes(("impulse:physics-body:" + bodyUuid + ':' + rowKind)
-            .getBytes(StandardCharsets.UTF_8));
     }
 
     @Nonnull
