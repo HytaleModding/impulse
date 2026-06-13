@@ -22,12 +22,12 @@ public final class PhysicsRequestQueueResource implements Resource<PhysicsStore>
     public PhysicsRequestQueueResource() {
     }
 
-    public void enqueue(@Nonnull PhysicsStoreRequest request) {
+    public synchronized void enqueue(@Nonnull PhysicsStoreRequest request) {
         requests.add(request);
     }
 
     @Nonnull
-    public List<PhysicsStoreRequest> drain() {
+    public synchronized List<PhysicsStoreRequest> drain() {
         List<PhysicsStoreRequest> drained = new ArrayList<>(requests.size());
         PhysicsStoreRequest request;
         while ((request = requests.poll()) != null) {
@@ -36,17 +36,17 @@ public final class PhysicsRequestQueueResource implements Resource<PhysicsStore>
         return drained;
     }
 
-    public int size() {
+    public synchronized int size() {
         return requests.size();
     }
 
-    public void clear() {
+    public synchronized void clear() {
         requests.clear();
     }
 
     @Nonnull
     @Override
-    public PhysicsRequestQueueResource clone() {
+    public synchronized PhysicsRequestQueueResource clone() {
         PhysicsRequestQueueResource copy = new PhysicsRequestQueueResource();
         copy.requests.addAll(requests);
         return copy;

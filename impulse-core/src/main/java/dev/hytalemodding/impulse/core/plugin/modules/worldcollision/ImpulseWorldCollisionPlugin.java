@@ -1,9 +1,12 @@
 package dev.hytalemodding.impulse.core.plugin.modules.worldcollision;
 
+import com.hypixel.hytale.component.ComponentRegistryProxy;
 import com.hypixel.hytale.logger.HytaleLogger;
 import com.hypixel.hytale.server.core.plugin.JavaPlugin;
 import com.hypixel.hytale.server.core.plugin.JavaPluginInit;
+import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import dev.hytalemodding.impulse.core.internal.modules.worldcollision.WorldCollisionLifecycle;
+import dev.hytalemodding.impulse.core.internal.modules.worldcollision.systems.PhysicsStoreWorldCollisionProducerSystem;
 import dev.hytalemodding.impulse.core.internal.modules.worldcollision.profiling.WorldCollisionProfilingResource;
 import java.util.logging.Level;
 import javax.annotation.Nonnull;
@@ -21,8 +24,13 @@ public final class ImpulseWorldCollisionPlugin extends JavaPlugin {
 
     @Override
     protected void setup() {
-        LOGGER.at(Level.INFO).log("Impulse world-collision legacy EntityStore systems are "
-            + "disabled while authoritative PhysicsStore terrain binding is being migrated.");
+        ComponentRegistryProxy<EntityStore> entityRegistry = getEntityStoreRegistry();
+        WorldCollisionProfilingResource.setResourceType(entityRegistry.registerResource(
+            WorldCollisionProfilingResource.class,
+            WorldCollisionProfilingResource::new));
+        entityRegistry.registerSystem(new PhysicsStoreWorldCollisionProducerSystem());
+        WorldCollisionLifecycle.enable();
+        LOGGER.at(Level.INFO).log("Impulse world-collision PhysicsStore request producer enabled.");
     }
 
     @Override
