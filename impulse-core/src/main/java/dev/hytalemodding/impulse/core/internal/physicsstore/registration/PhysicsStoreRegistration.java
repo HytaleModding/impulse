@@ -52,6 +52,7 @@ import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.util.function.Consumer;
 import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
 
 /**
  * Registers authoritative PhysicsStore ECS types after the early plugin has patched Hytale.
@@ -186,7 +187,39 @@ public final class PhysicsStoreRegistration {
         if (store.isShutdown()) {
             return;
         }
-        store.getResource(PhysicsRequestQueueResource.getResourceType()).clear();
+        RuntimeException failure = null;
+        failure = runShutdownCleanup(failure,
+            () -> store.getResource(PhysicsRequestQueueResource.getResourceType()).clear());
+        failure = runShutdownCleanup(failure,
+            () -> store.getResource(PhysicsRuntimeResource.getResourceType()).destroyBackendBindings());
+        failure = runShutdownCleanup(failure,
+            () -> store.getResource(PhysicsIdentityIndexResource.getResourceType()).clear());
+        failure = runShutdownCleanup(failure,
+            () -> store.getResource(PhysicsSpaceCompatibilityIndexResource.getResourceType()).clear());
+        failure = runShutdownCleanup(failure,
+            () -> store.getResource(PhysicsSnapshotResource.getResourceType()).clear());
+        failure = runShutdownCleanup(failure,
+            () -> store.getResource(PhysicsTerrainPayloadResource.getResourceType()).clear());
+        failure = runShutdownCleanup(failure,
+            () -> store.getResource(PhysicsWorldCollisionIndexResource.getResourceType()).clear());
+        if (failure != null) {
+            throw failure;
+        }
+    }
+
+    @Nullable
+    private static RuntimeException runShutdownCleanup(@Nullable RuntimeException failure,
+        @Nonnull Runnable cleanup) {
+        try {
+            cleanup.run();
+            return failure;
+        } catch (RuntimeException exception) {
+            if (failure == null) {
+                return exception;
+            }
+            failure.addSuppressed(exception);
+            return failure;
+        }
     }
 
     @Nonnull
