@@ -15,10 +15,12 @@ import com.hypixel.hytale.server.core.modules.entity.component.TransformComponen
 import com.hypixel.hytale.server.core.modules.entity.system.TransformSystems;
 import com.hypixel.hytale.server.core.modules.entity.system.UpdateLocationSystems;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
+import com.hypixel.hytale.server.core.universe.world.storage.PhysicsStore;
 import dev.hytalemodding.impulse.api.PhysicsBodySnapshot;
 import dev.hytalemodding.impulse.api.SpaceId;
 import dev.hytalemodding.impulse.core.ImpulsePlugin;
 import dev.hytalemodding.impulse.core.internal.math.PhysicsVisualPoseMath;
+import dev.hytalemodding.impulse.core.internal.physicsstore.resources.PhysicsSnapshotResource;
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsWorldRuntimeResource;
 import dev.hytalemodding.impulse.core.internal.resources.body.PhysicsBodyRuntimeState;
 import dev.hytalemodding.impulse.core.internal.resources.profiling.PhysicsRuntimeProfilingResource;
@@ -27,9 +29,15 @@ import dev.hytalemodding.impulse.core.internal.systems.visual.VisualInterestColl
 import dev.hytalemodding.impulse.core.plugin.components.PhysicsBodyAttachmentComponent;
 import dev.hytalemodding.impulse.core.plugin.components.PhysicsBodyAttachmentComponent.AttachmentLifecycle;
 import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyRegistrationView;
+import dev.hytalemodding.impulse.core.plugin.physicsstore.PhysicsStoreAccess;
+import dev.hytalemodding.impulse.core.plugin.physicsstore.snapshots.PhysicsStoreBodySnapshot;
+import dev.hytalemodding.impulse.core.plugin.physicsstore.snapshots.PhysicsStoreSnapshotFrame;
 import dev.hytalemodding.impulse.core.plugin.settings.PhysicsSpaceSettings;
+import it.unimi.dsi.fastutil.objects.Object2ObjectOpenHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
+import java.util.UUID;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 import org.joml.Quaternionf;
@@ -77,6 +85,9 @@ public class PhysicsSyncSystem extends EntityTickingSystem<EntityStore> {
         ThreadLocal.withInitial(List::of);
     @Nonnull
     private final ThreadLocal<Long> syncNanos = ThreadLocal.withInitial(() -> 0L);
+    @Nonnull
+    private final ThreadLocal<Map<UUID, PhysicsStoreBodySnapshot>> physicsStoreSnapshots =
+        ThreadLocal.withInitial(Map::of);
 
     /**
      * Hytale may run entity ticks in parallel. Each tick task needs independent temporary objects
@@ -101,6 +112,7 @@ public class PhysicsSyncSystem extends EntityTickingSystem<EntityStore> {
             ? profiling.beginSyncSample() : null;
         long startNanos = collector != null ? System.nanoTime() : 0L;
         try {
+            physicsStoreSnapshots.set(collectPhysicsStoreSnapshots(store));
             super.tick(dt, systemIndex, store);
         } finally {
             if (collector != null) {
@@ -108,6 +120,7 @@ public class PhysicsSyncSystem extends EntityTickingSystem<EntityStore> {
             }
             playerInterests.remove();
             syncNanos.remove();
+            physicsStoreSnapshots.remove();
         }
     }
 
@@ -129,6 +142,18 @@ public class PhysicsSyncSystem extends EntityTickingSystem<EntityStore> {
         PhysicsRuntimeProfilingResource.SyncCollector collector = local.getSyncCollector(store);
         if (collector != null) {
             collector.incrementBodiesInspected();
+        }
+        PhysicsStoreBodySnapshot physicsStoreSnapshot =
+            physicsStoreSnapshots.get().get(attachment.getPhysicsBodyUuidOrLegacy());
+        if (physicsStoreSnapshot != null) {
+            if (!PhysicsTransformAuthority.shouldApplyBodyTransform(attachment)) {
+                return;
+            }
+            applyPhysicsStoreSnapshot(transform, attachment, physicsStoreSnapshot, local);
+            if (collector != null) {
+                collector.incrementBodiesSynced();
+            }
+            return;
         }
         PhysicsBodyRegistrationView registration =
             resource.getBodyRegistrationView(attachment.getBodyKey());
@@ -253,6 +278,44 @@ public class PhysicsSyncSystem extends EntityTickingSystem<EntityStore> {
                 collector.incrementKeepaliveSyncs();
             }
         }
+    }
+
+    @Nonnull
+    private static Map<UUID, PhysicsStoreBodySnapshot> collectPhysicsStoreSnapshots(
+        @Nonnull Store<EntityStore> store) {
+        PhysicsStore physicsStore = PhysicsStoreAccess.require(store.getExternalData().getWorld());
+        PhysicsSnapshotResource snapshotResource = physicsStore.getStore().getResource(
+            PhysicsSnapshotResource.getResourceType());
+        PhysicsStoreSnapshotFrame frame = snapshotResource.getLatestFrame();
+        if (frame.bodies().isEmpty()) {
+            return Map.of();
+        }
+        Map<UUID, PhysicsStoreBodySnapshot> snapshots = new Object2ObjectOpenHashMap<>();
+        for (PhysicsStoreBodySnapshot body : frame.bodies()) {
+            snapshots.put(body.bodyUuid(), body);
+        }
+        return snapshots;
+    }
+
+    private static void applyPhysicsStoreSnapshot(@Nonnull TransformComponent transform,
+        @Nonnull PhysicsBodyAttachmentComponent attachment,
+        @Nonnull PhysicsStoreBodySnapshot snapshot,
+        @Nonnull Scratch scratch) {
+        scratch.position.set(snapshot.position());
+        scratch.rotation.set(snapshot.rotation());
+        PhysicsVisualPoseMath.visualPositionFromBodyPose(scratch.position,
+            scratch.rotation,
+            attachment.resolveVisualOriginOffsetY(0.0f),
+            attachment.getLocalPositionOffset(),
+            scratch.visualPosition,
+            scratch.worldOffset);
+        scratch.visualRotation.set(scratch.rotation);
+        scratch.visualRotation.mul(attachment.getLocalRotationOffset());
+        transform.getPosition().set(scratch.visualPosition.x,
+            scratch.visualPosition.y,
+            scratch.visualPosition.z);
+        scratch.visualRotation.getEulerAnglesYXZ(scratch.euler);
+        transform.getRotation().set(scratch.euler.x, scratch.euler.y, scratch.euler.z);
     }
 
     private static float distance(@Nonnull Vector3d from, @Nonnull Vector3f to) {

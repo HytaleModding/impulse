@@ -41,6 +41,10 @@ public class PhysicsBodyAttachmentComponent implements Component<EntityStore> {
                 : RigidBodyKey.random(),
             PhysicsBodyAttachmentComponent::getBodyKeyValue)
         .add()
+        .append(new KeyedCodec<>("PhysicsBodyUuid", Codec.UUID_BINARY, false),
+            (component, value) -> component.physicsBodyUuid = value,
+            PhysicsBodyAttachmentComponent::getPhysicsBodyUuid)
+        .add()
         .append(new KeyedCodec<>("SpaceId", Codec.INTEGER, false),
             (component, value) -> component.spaceId = value != null && value > 0
                 ? new SpaceId(value)
@@ -78,6 +82,9 @@ public class PhysicsBodyAttachmentComponent implements Component<EntityStore> {
         .build();
 
     private RigidBodyKey bodyKey = RigidBodyKey.random();
+
+    @Nullable
+    private UUID physicsBodyUuid;
 
     @Setter
     @Getter
@@ -149,6 +156,13 @@ public class PhysicsBodyAttachmentComponent implements Component<EntityStore> {
         this.localPositionOffset.set(localPositionOffset);
         this.localRotationOffset.set(localRotationOffset);
         this.visualOriginOffsetY = normalizeVisualOriginOffsetY(visualOriginOffsetY);
+    }
+
+    @Nonnull
+    public static PhysicsBodyAttachmentComponent physicsStoreEntity(@Nonnull UUID physicsBodyUuid) {
+        PhysicsBodyAttachmentComponent component = externalEntity(RigidBodyKey.of(physicsBodyUuid), null);
+        component.setPhysicsBodyUuid(physicsBodyUuid);
+        return component;
     }
 
     /**
@@ -230,6 +244,20 @@ public class PhysicsBodyAttachmentComponent implements Component<EntityStore> {
         this.bodyKey = bodyKey;
     }
 
+    @Nullable
+    public UUID getPhysicsBodyUuid() {
+        return physicsBodyUuid;
+    }
+
+    public void setPhysicsBodyUuid(@Nullable UUID physicsBodyUuid) {
+        this.physicsBodyUuid = physicsBodyUuid;
+    }
+
+    @Nonnull
+    public UUID getPhysicsBodyUuidOrLegacy() {
+        return physicsBodyUuid != null ? physicsBodyUuid : bodyKey.value();
+    }
+
     @Nonnull
     public TransformAuthority getTransformAuthority() {
         return transformAuthority;
@@ -274,13 +302,15 @@ public class PhysicsBodyAttachmentComponent implements Component<EntityStore> {
     @Nonnull
     @Override
     public PhysicsBodyAttachmentComponent clone() {
-        return new PhysicsBodyAttachmentComponent(bodyKey,
+        PhysicsBodyAttachmentComponent copy = new PhysicsBodyAttachmentComponent(bodyKey,
             spaceId,
             transformAuthority,
             lifecycle,
             localPositionOffset,
             localRotationOffset,
             visualOriginOffsetY);
+        copy.physicsBodyUuid = physicsBodyUuid;
+        return copy;
     }
 
     private static float normalizeVisualOriginOffsetY(@Nullable Float value) {
