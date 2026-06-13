@@ -13,14 +13,20 @@ import com.hypixel.hytale.server.core.universe.PlayerRef;
 import com.hypixel.hytale.server.core.universe.world.World;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import dev.hytalemodding.impulse.api.SpaceId;
+import dev.hytalemodding.impulse.core.plugin.body.RigidBodyKey;
+import dev.hytalemodding.impulse.core.plugin.physicsstore.PhysicsStoreAccess;
+import dev.hytalemodding.impulse.core.plugin.physicsstore.requests.BodyForceRequest;
+import dev.hytalemodding.impulse.core.plugin.physicsstore.requests.PhysicsStoreRequest;
 import dev.hytalemodding.impulse.core.plugin.resources.PhysicsWorldResource;
-import dev.hytalemodding.impulse.core.plugin.simulation.PhysicsRecipes;
-import dev.hytalemodding.impulse.core.plugin.simulation.recorder.PhysicsCommandRecorder;
 import dev.hytalemodding.impulse.core.plugin.simulation.PhysicsShapeSpec;
 import dev.hytalemodding.impulse.core.plugin.simulation.RigidBodySpawnSettings;
 import dev.hytalemodding.impulse.examples.commands.ExamplePhysicsUtils.PendingBlockBody;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
 import org.joml.Vector3d;
 import org.joml.Vector3f;
 
@@ -59,82 +65,100 @@ public class ForcesCommand extends AbstractAsyncPlayerCommand {
         Vector3d offCenterPosition = new Vector3d(origin).add(2.0, 0.0, 0.0);
         Vector3d torquePosition = new Vector3d(origin).add(4.0, 0.0, 0.0);
         Vector3d forcePosition = new Vector3d(origin).add(6.0, 0.0, 0.0);
-        ForceDemoBodies bodies = new ForceDemoBodies();
-        ExamplePhysicsUtils.requireApplied(resource.submitCommands(Math.max(0L, world.getTick()), 8, commands -> {
-            bodies.central = spawnBox(commands, spaceId, centralPosition);
-            commands.compose(PhysicsRecipes.applyImpulse(bodies.central.bodyKey(),
-                new Vector3f(4.0f, 2.0f, 0.0f)));
-            bodies.offCenter = spawnBox(commands, spaceId, offCenterPosition);
-            commands.applyBodyImpulse(bodies.offCenter.bodyKey(), 3.5f, 0.0f, 0.0f, 0.0f, 0.5f, 0.5f);
-            bodies.torque = spawnBox(commands, spaceId, torquePosition);
-            commands.applyBodyTorqueImpulse(bodies.torque.bodyKey(), 0.0f, 0.0f, 8.0f);
-            bodies.force = spawnBox(commands, spaceId, forcePosition);
-            commands.compose(PhysicsRecipes.applyForce(bodies.force.bodyKey(),
-                new Vector3f(30.0f, 0.0f, 0.0f)));
-        }), "apply force demo");
-        PendingBlockBody central = bodies.requireCentral();
-        PendingBlockBody offCenter = bodies.requireOffCenter();
-        PendingBlockBody torque = bodies.requireTorque();
-        PendingBlockBody force = bodies.requireForce();
+        ForceDemoBodies bodies = tryCreatePhysicsStoreDemo(world,
+            spaceId,
+            centralPosition,
+            offCenterPosition,
+            torquePosition,
+            forcePosition);
+        if (bodies == null) {
+            ctx.sender().sendMessage(Message.raw(
+                "Cannot spawn force demo because the target space is not bound in PhysicsStore."));
+            return CompletableFuture.completedFuture(null);
+        }
+        PendingBlockBody central = bodies.central();
+        PendingBlockBody offCenter = bodies.offCenter();
+        PendingBlockBody torque = bodies.torque();
+        PendingBlockBody force = bodies.force();
         drawArrow(world, centralPosition, new Vector3d(2.0, 1.0, 0.0), DebugUtils.COLOR_GREEN);
         drawArrow(world, offCenterPosition, new Vector3d(2.0, 0.0, 0.0), DebugUtils.COLOR_YELLOW);
         drawArrow(world, torquePosition, new Vector3d(0.0, 0.0, 2.0), DebugUtils.COLOR_MAGENTA);
         drawArrow(world, forcePosition, new Vector3d(2.0, 0.0, 0.0), DebugUtils.COLOR_CYAN);
-        ExamplePhysicsUtils.attachRecordedBlockBody(store, time, central);
-        ExamplePhysicsUtils.attachRecordedBlockBody(store, time, offCenter);
-        ExamplePhysicsUtils.attachRecordedBlockBody(store, time, torque);
-        ExamplePhysicsUtils.attachRecordedBlockBody(store, time, force);
+        ExamplePhysicsUtils.attachPhysicsStoreBlockBody(store, time, central);
+        ExamplePhysicsUtils.attachPhysicsStoreBlockBody(store, time, offCenter);
+        ExamplePhysicsUtils.attachPhysicsStoreBlockBody(store, time, torque);
+        ExamplePhysicsUtils.attachPhysicsStoreBlockBody(store, time, force);
 
         ctx.sender().sendMessage(Message.raw(
             "Spawned force demo: central impulse, off-center impulse, torque, and force."));
         return CompletableFuture.completedFuture(null);
     }
 
-    private static PendingBlockBody spawnBox(@Nonnull PhysicsCommandRecorder commandBuffer,
+    @Nullable
+    private static ForceDemoBodies tryCreatePhysicsStoreDemo(@Nonnull World world,
         @Nonnull SpaceId spaceId,
-        @Nonnull Vector3d position) {
-        return ExamplePhysicsUtils.recordBlockBodySpawn(commandBuffer,
-            spaceId,
-            position,
-            PhysicsShapeSpec.box(0.5f, 0.5f, 0.5f),
-            1.0f,
-            RigidBodySpawnSettings.material(0.5f, 0.25f));
+        @Nonnull Vector3d centralPosition,
+        @Nonnull Vector3d offCenterPosition,
+        @Nonnull Vector3d torquePosition,
+        @Nonnull Vector3d forcePosition) {
+        UUID spaceUuid;
+        try {
+            spaceUuid = PhysicsStoreAccess.resolveSpaceUuid(world, spaceId);
+        } catch (IllegalStateException exception) {
+            return null;
+        }
+        if (spaceUuid == null) {
+            return null;
+        }
+
+        List<PhysicsStoreRequest> requests = new ArrayList<>(8);
+        PendingBlockBody central = spawnBox(requests, spaceUuid, spaceId, centralPosition);
+        requests.add(BodyForceRequest.impulse(central.bodyKey().value(), 4.0f, 2.0f, 0.0f));
+        PendingBlockBody offCenter = spawnBox(requests, spaceUuid, spaceId, offCenterPosition);
+        requests.add(BodyForceRequest.impulseAt(offCenter.bodyKey().value(),
+            3.5f,
+            0.0f,
+            0.0f,
+            0.0f,
+            0.5f,
+            0.5f));
+        PendingBlockBody torque = spawnBox(requests, spaceUuid, spaceId, torquePosition);
+        requests.add(BodyForceRequest.torqueImpulse(torque.bodyKey().value(), 0.0f, 0.0f, 8.0f));
+        PendingBlockBody force = spawnBox(requests, spaceUuid, spaceId, forcePosition);
+        requests.add(BodyForceRequest.force(force.bodyKey().value(), 30.0f, 0.0f, 0.0f));
+        try {
+            PhysicsStoreAccess.enqueueAll(world, requests);
+        } catch (IllegalStateException exception) {
+            return null;
+        }
+        return new ForceDemoBodies(central, offCenter, torque, force);
     }
 
-    private static final class ForceDemoBodies {
+    private static PendingBlockBody spawnBox(@Nonnull List<PhysicsStoreRequest> requests,
+        @Nonnull UUID spaceUuid,
+        @Nonnull SpaceId spaceId,
+        @Nonnull Vector3d position) {
+        RigidBodyKey bodyKey = RigidBodyKey.random();
+        requests.add(ExamplePhysicsUtils.bodyUpsertRequest(spaceUuid,
+            bodyKey.value(),
+            ExamplePhysicsUtils.toVector3f(position),
+            PhysicsShapeSpec.box(0.5f, 0.5f, 0.5f),
+            1.0f,
+            RigidBodySpawnSettings.material(0.5f, 0.25f),
+            null));
+        return new PendingBlockBody(bodyKey,
+            spaceId,
+            ExamplePhysicsUtils.DEFAULT_BLOCK_TYPE,
+            (float) position.x,
+            (float) position.y,
+            (float) position.z,
+            true);
+    }
 
-        private PendingBlockBody central;
-        private PendingBlockBody offCenter;
-        private PendingBlockBody torque;
-        private PendingBlockBody force;
-
-        @Nonnull
-        private PendingBlockBody requireCentral() {
-            return require(central, "central");
-        }
-
-        @Nonnull
-        private PendingBlockBody requireOffCenter() {
-            return require(offCenter, "off-center");
-        }
-
-        @Nonnull
-        private PendingBlockBody requireTorque() {
-            return require(torque, "torque");
-        }
-
-        @Nonnull
-        private PendingBlockBody requireForce() {
-            return require(force, "force");
-        }
-
-        @Nonnull
-        private static PendingBlockBody require(PendingBlockBody body, @Nonnull String name) {
-            if (body == null) {
-                throw new IllegalStateException("Missing " + name + " force demo body");
-            }
-            return body;
-        }
+    private record ForceDemoBodies(@Nonnull PendingBlockBody central,
+                                   @Nonnull PendingBlockBody offCenter,
+                                   @Nonnull PendingBlockBody torque,
+                                   @Nonnull PendingBlockBody force) {
     }
 
     private static void drawArrow(@Nonnull World world,

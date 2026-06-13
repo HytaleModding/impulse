@@ -11,6 +11,7 @@ import com.hypixel.hytale.component.system.QuerySystem;
 import com.hypixel.hytale.component.system.tick.TickingSystem;
 import com.hypixel.hytale.server.core.universe.world.storage.PhysicsStore;
 import dev.hytalemodding.impulse.api.runtime.PhysicsBackendRuntime;
+import dev.hytalemodding.impulse.core.internal.physicsstore.resources.PhysicsRestoreStatusResource;
 import dev.hytalemodding.impulse.core.internal.physicsstore.resources.PhysicsRuntimeResource;
 import dev.hytalemodding.impulse.core.internal.physicsstore.resources.PhysicsRuntimeResource.PendingBodyOperation;
 import dev.hytalemodding.impulse.core.internal.resources.BackendBodyHandle;
@@ -37,10 +38,12 @@ public final class TargetBindingSystem extends TickingSystem<PhysicsStore>
     @Override
     public void tick(float dt, int systemIndex, @Nonnull Store<PhysicsStore> store) {
         PhysicsRuntimeResource runtime = store.getResource(PhysicsRuntimeResource.getResourceType());
+        PhysicsRestoreStatusResource restore = store.getResource(
+            PhysicsRestoreStatusResource.getResourceType());
         BiConsumer<ArchetypeChunk<PhysicsStore>, CommandBuffer<PhysicsStore>> collector =
             (chunk, _) -> applyTargets(runtime, chunk);
         store.forEachChunk(systemIndex, collector);
-        applyPendingBodyOperations(runtime);
+        applyPendingBodyOperations(runtime, restore);
     }
 
     private static void applyTargets(@Nonnull PhysicsRuntimeResource runtime,
@@ -91,14 +94,28 @@ public final class TargetBindingSystem extends TickingSystem<PhysicsStore>
         }
     }
 
-    private static void applyPendingBodyOperations(@Nonnull PhysicsRuntimeResource runtime) {
+    private static void applyPendingBodyOperations(@Nonnull PhysicsRuntimeResource runtime,
+        @Nonnull PhysicsRestoreStatusResource restore) {
         for (PendingBodyOperation operation : runtime.drainPendingBodyOperations()) {
-            PhysicsBackendRuntime backendRuntime = runtimeForSpace(runtime, operation.spaceHandle());
-            if (backendRuntime == null) {
+            BackendSpaceHandle spaceHandle = operation.spaceHandle();
+            BackendBodyHandle bodyHandle = operation.bodyHandle();
+            if (spaceHandle == null || bodyHandle == null) {
+                spaceHandle = runtime.getBodySpaceHandle(operation.bodyUuid());
+                bodyHandle = runtime.getBodyHandle(operation.bodyUuid());
+            }
+            if (spaceHandle == null || bodyHandle == null) {
+                restore.recordSoftSkip("Pending body operation body is unbound: "
+                    + operation.bodyUuid());
                 continue;
             }
-            int spaceId = operation.spaceHandle().value();
-            long bodyId = operation.bodyHandle().value();
+            PhysicsBackendRuntime backendRuntime = runtimeForSpace(runtime, spaceHandle);
+            if (backendRuntime == null) {
+                restore.recordSoftSkip("Pending body operation backend runtime is missing: "
+                    + operation.bodyUuid());
+                continue;
+            }
+            int spaceId = spaceHandle.value();
+            long bodyId = bodyHandle.value();
             switch (operation.kind()) {
                 case WAKE -> backendRuntime.activateBody(spaceId, bodyId);
                 case SLEEP -> backendRuntime.sleepBody(spaceId, bodyId);

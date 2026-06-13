@@ -5,7 +5,7 @@ import java.util.UUID;
 import javax.annotation.Nonnull;
 
 /**
- * Copied request that explicitly wakes or sleeps a bound PhysicsStore body.
+ * Copied request that explicitly wakes or sleeps a PhysicsStore body after backend binding.
  */
 public record BodyActivationRequest(@Nonnull UUID requestUuid,
                                     @Nonnull UUID bodyUuid,

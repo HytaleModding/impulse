@@ -351,8 +351,9 @@ public final class PhysicsRuntimeResource implements Resource<PhysicsStore> {
     }
 
     public record PendingBodyOperation(@Nonnull Kind kind,
-                                       @Nonnull BackendSpaceHandle spaceHandle,
-                                       @Nonnull BackendBodyHandle bodyHandle,
+                                       @Nonnull UUID bodyUuid,
+                                       @Nullable BackendSpaceHandle spaceHandle,
+                                       @Nullable BackendBodyHandle bodyHandle,
                                        float x,
                                        float y,
                                        float z,
@@ -363,26 +364,28 @@ public final class PhysicsRuntimeResource implements Resource<PhysicsStore> {
 
         public PendingBodyOperation {
             Objects.requireNonNull(kind, "kind");
-            Objects.requireNonNull(spaceHandle, "spaceHandle");
-            Objects.requireNonNull(bodyHandle, "bodyHandle");
+            Objects.requireNonNull(bodyUuid, "bodyUuid");
         }
 
         @Nonnull
-        public static PendingBodyOperation wake(@Nonnull BackendSpaceHandle spaceHandle,
-            @Nonnull BackendBodyHandle bodyHandle) {
-            return empty(Kind.WAKE, spaceHandle, bodyHandle);
+        public static PendingBodyOperation wake(@Nonnull UUID bodyUuid,
+            @Nullable BackendSpaceHandle spaceHandle,
+            @Nullable BackendBodyHandle bodyHandle) {
+            return empty(Kind.WAKE, bodyUuid, spaceHandle, bodyHandle);
         }
 
         @Nonnull
-        public static PendingBodyOperation sleep(@Nonnull BackendSpaceHandle spaceHandle,
-            @Nonnull BackendBodyHandle bodyHandle) {
-            return empty(Kind.SLEEP, spaceHandle, bodyHandle);
+        public static PendingBodyOperation sleep(@Nonnull UUID bodyUuid,
+            @Nullable BackendSpaceHandle spaceHandle,
+            @Nullable BackendBodyHandle bodyHandle) {
+            return empty(Kind.SLEEP, bodyUuid, spaceHandle, bodyHandle);
         }
 
         @Nonnull
         public static PendingBodyOperation vector(@Nonnull Kind kind,
-            @Nonnull BackendSpaceHandle spaceHandle,
-            @Nonnull BackendBodyHandle bodyHandle,
+            @Nonnull UUID bodyUuid,
+            @Nullable BackendSpaceHandle spaceHandle,
+            @Nullable BackendBodyHandle bodyHandle,
             float x,
             float y,
             float z,
@@ -391,6 +394,7 @@ public final class PhysicsRuntimeResource implements Resource<PhysicsStore> {
             float offsetY,
             float offsetZ) {
             return new PendingBodyOperation(kind,
+                bodyUuid,
                 spaceHandle,
                 bodyHandle,
                 x,
@@ -404,9 +408,11 @@ public final class PhysicsRuntimeResource implements Resource<PhysicsStore> {
 
         @Nonnull
         private static PendingBodyOperation empty(@Nonnull Kind kind,
-            @Nonnull BackendSpaceHandle spaceHandle,
-            @Nonnull BackendBodyHandle bodyHandle) {
+            @Nonnull UUID bodyUuid,
+            @Nullable BackendSpaceHandle spaceHandle,
+            @Nullable BackendBodyHandle bodyHandle) {
             return new PendingBodyOperation(kind,
+                bodyUuid,
                 spaceHandle,
                 bodyHandle,
                 0.0f,
