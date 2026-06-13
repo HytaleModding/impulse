@@ -66,9 +66,6 @@ import org.joml.Vector3f;
  */
 public class PhysicsDetachedVisualMaterializationSystem extends TickingSystem<EntityStore> {
 
-    private static final ComponentType<EntityStore, GeneratedVisualProxyComponent> GENERATED_PROXY_TYPE =
-        GeneratedVisualProxyComponent.getComponentType();
-
     private final Set<Dependency<EntityStore>> dependencies = Set.of(
         new SystemGroupDependency<>(Order.AFTER, ImpulsePlugin.get().getPersistenceRestoreGroup())
     );
@@ -186,7 +183,9 @@ public class PhysicsDetachedVisualMaterializationSystem extends TickingSystem<En
                 }
                 commandBuffer.removeEntity(archetypeChunk.getReferenceTo(index), RemoveReason.REMOVE);
             });
-        store.forEachEntityParallel(GENERATED_PROXY_TYPE,
+        ComponentType<EntityStore, GeneratedVisualProxyComponent> generatedProxyType =
+            GeneratedVisualProxyComponent.getComponentType();
+        store.forEachEntityParallel(generatedProxyType,
             (index, archetypeChunk, commandBuffer) -> {
                 if (archetypeChunk.getComponent(index, attachmentType) != null) {
                     return;
