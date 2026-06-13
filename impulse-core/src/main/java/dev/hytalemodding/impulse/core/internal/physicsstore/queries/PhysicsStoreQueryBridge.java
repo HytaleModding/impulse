@@ -18,15 +18,20 @@ import dev.hytalemodding.impulse.core.plugin.physicsstore.snapshots.PhysicsStore
 import dev.hytalemodding.impulse.core.plugin.simulation.RaycastClosestBatchResult;
 import dev.hytalemodding.impulse.core.plugin.simulation.RaycastSegment;
 import dev.hytalemodding.impulse.core.plugin.simulation.RigidBodyPose;
+import dev.hytalemodding.impulse.core.plugin.simulation.SolverCapabilitySummary;
 import dev.hytalemodding.impulse.core.plugin.simulation.SpaceSummary;
+import dev.hytalemodding.impulse.core.plugin.simulation.query.CcdSupportQuery;
 import dev.hytalemodding.impulse.core.plugin.simulation.query.PhysicsQuery;
 import dev.hytalemodding.impulse.core.plugin.simulation.query.PhysicsQueryHandle;
 import dev.hytalemodding.impulse.core.plugin.simulation.query.RaycastAllQuery;
 import dev.hytalemodding.impulse.core.plugin.simulation.query.RaycastClosestBatchQuery;
 import dev.hytalemodding.impulse.core.plugin.simulation.query.RaycastClosestQuery;
 import dev.hytalemodding.impulse.core.plugin.simulation.query.RigidBodyStateQuery;
+import dev.hytalemodding.impulse.core.plugin.simulation.query.RuntimeJointCountQuery;
+import dev.hytalemodding.impulse.core.plugin.simulation.query.SolverCapabilityQuery;
 import dev.hytalemodding.impulse.core.plugin.simulation.query.SpaceBodyCountQuery;
 import dev.hytalemodding.impulse.core.plugin.simulation.query.SpaceSummaryQuery;
+import dev.hytalemodding.impulse.core.plugin.simulation.query.UnsupportedCcdSpacesQuery;
 import dev.hytalemodding.impulse.core.plugin.simulation.view.RaycastHitView;
 import dev.hytalemodding.impulse.core.plugin.simulation.view.RigidBodyStateView;
 import java.util.ArrayList;
@@ -64,10 +69,15 @@ public final class PhysicsStoreQueryBridge {
             result = spaceBodyCount(store, count);
         } else if (query instanceof SpaceSummaryQuery summary) {
             result = spaceSummary(store, summary);
+        } else if (query instanceof CcdSupportQuery ccd) {
+            result = ccdSupported(store, ccd);
+        } else if (query instanceof UnsupportedCcdSpacesQuery unsupportedCcd) {
+            result = unsupportedCcdSpaces(store, unsupportedCcd);
+        } else if (query instanceof SolverCapabilityQuery solver) {
+            result = solverCapability(store, solver);
+        } else if (query instanceof RuntimeJointCountQuery jointCount) {
+            result = runtimeJointCount(store, jointCount);
         } else {
-            return Optional.empty();
-        }
-        if (result == null) {
             return Optional.empty();
         }
         @SuppressWarnings("unchecked")
@@ -75,25 +85,25 @@ public final class PhysicsStoreQueryBridge {
         return Optional.of(PhysicsQueryHandle.completed(query, typed));
     }
 
-    @Nullable
+    @Nonnull
     private static Optional<RigidBodyStateView> rigidBodyState(@Nonnull Store<PhysicsStore> store,
         @Nonnull RigidBodyStateQuery query) {
         PhysicsSnapshotResource snapshots = store.getResource(PhysicsSnapshotResource.getResourceType());
         PhysicsStoreBodySnapshot body = snapshots.getBody(query.bodyKey().value());
         if (body == null) {
-            return null;
+            return Optional.empty();
         }
         return Optional.of(new RigidBodyStateView(query.bodyKey(),
             body.bodyType(),
             RigidBodyPose.of(body.position(), body.rotation())));
     }
 
-    @Nullable
+    @Nonnull
     private static Optional<RaycastHitView> raycastClosest(@Nonnull Store<PhysicsStore> store,
         @Nonnull RaycastClosestQuery query) {
         SpaceQueryContext space = space(store, query.spaceId());
         if (space == null) {
-            return null;
+            return Optional.empty();
         }
         PhysicsRuntimeResource runtime = store.getResource(PhysicsRuntimeResource.getResourceType());
         RayHitCapture hit = new RayHitCapture(runtime);
@@ -110,12 +120,12 @@ public final class PhysicsStoreQueryBridge {
         return hitFound && hit.captured ? Optional.of(hit.view()) : Optional.empty();
     }
 
-    @Nullable
+    @Nonnull
     private static RaycastClosestBatchResult raycastClosestBatch(@Nonnull Store<PhysicsStore> store,
         @Nonnull RaycastClosestBatchQuery query) {
         SpaceQueryContext space = space(store, query.spaceId());
         if (space == null) {
-            return null;
+            return new RaycastClosestBatchResult(new RaycastHitView[query.rayCount()]);
         }
         PhysicsRuntimeResource runtime = store.getResource(PhysicsRuntimeResource.getResourceType());
         int rayCount = query.rayCount();
@@ -156,12 +166,12 @@ public final class PhysicsStoreQueryBridge {
         return new RaycastClosestBatchResult(hits);
     }
 
-    @Nullable
+    @Nonnull
     private static List<RaycastHitView> raycastAll(@Nonnull Store<PhysicsStore> store,
         @Nonnull RaycastAllQuery query) {
         SpaceQueryContext space = space(store, query.spaceId());
         if (space == null) {
-            return null;
+            return List.of();
         }
         PhysicsRuntimeResource runtime = store.getResource(PhysicsRuntimeResource.getResourceType());
         Vector3f from = query.from();
@@ -195,14 +205,13 @@ public final class PhysicsStoreQueryBridge {
         return hits.isEmpty() ? List.of() : List.copyOf(hits);
     }
 
-    @Nullable
-    private static Integer spaceBodyCount(@Nonnull Store<PhysicsStore> store,
+    private static int spaceBodyCount(@Nonnull Store<PhysicsStore> store,
         @Nonnull SpaceBodyCountQuery query) {
         SpaceQueryContext space = space(store, query.spaceId());
-        return space != null ? space.backendRuntime().bodyCount(space.spaceHandle().value()) : null;
+        return space != null ? space.backendRuntime().bodyCount(space.spaceHandle().value()) : 0;
     }
 
-    @Nullable
+    @Nonnull
     private static List<SpaceSummary> spaceSummary(@Nonnull Store<PhysicsStore> store,
         @Nonnull SpaceSummaryQuery query) {
         PhysicsRuntimeResource runtime = store.getResource(PhysicsRuntimeResource.getResourceType());
@@ -214,7 +223,7 @@ public final class PhysicsStoreQueryBridge {
             if (space != null) {
                 summaries.add(summary(compatibility, space));
             }
-            return summaries.isEmpty() ? null : List.copyOf(summaries);
+            return summaries.isEmpty() ? List.of() : List.copyOf(summaries);
         }
         runtime.forEachSpaceBinding((spaceUuid, backendId, spaceHandle, backendRuntime) -> {
             SpaceId spaceId = compatibility.getSpaceId(spaceUuid);
@@ -225,7 +234,65 @@ public final class PhysicsStoreQueryBridge {
                     backendRuntime.jointCount(spaceHandle.value())));
             }
         });
-        return summaries.isEmpty() ? null : List.copyOf(summaries);
+        return summaries.isEmpty() ? List.of() : List.copyOf(summaries);
+    }
+
+    private static boolean ccdSupported(@Nonnull Store<PhysicsStore> store,
+        @Nonnull CcdSupportQuery query) {
+        PhysicsRuntimeResource runtime = store.getResource(PhysicsRuntimeResource.getResourceType());
+        boolean[] supported = {false};
+        runtime.forEachSpaceBinding((spaceUuid, backendId, spaceHandle, backendRuntime) -> {
+            if (backendRuntime.supportsContinuousCollision(spaceHandle.value())) {
+                supported[0] = true;
+            }
+        });
+        return supported[0];
+    }
+
+    @Nonnull
+    private static List<SpaceSummary> unsupportedCcdSpaces(@Nonnull Store<PhysicsStore> store,
+        @Nonnull UnsupportedCcdSpacesQuery query) {
+        PhysicsRuntimeResource runtime = store.getResource(PhysicsRuntimeResource.getResourceType());
+        PhysicsSpaceCompatibilityIndexResource compatibility = store.getResource(
+            PhysicsSpaceCompatibilityIndexResource.getResourceType());
+        List<SpaceSummary> spaces = new ArrayList<>();
+        runtime.forEachSpaceBinding((spaceUuid, backendId, spaceHandle, backendRuntime) -> {
+            if (backendRuntime.supportsContinuousCollision(spaceHandle.value())) {
+                return;
+            }
+            spaces.add(summary(compatibility,
+                new SpaceQueryContext(spaceUuid, backendId, spaceHandle, backendRuntime)));
+        });
+        return spaces.isEmpty() ? List.of() : List.copyOf(spaces);
+    }
+
+    @Nonnull
+    private static SolverCapabilitySummary solverCapability(@Nonnull Store<PhysicsStore> store,
+        @Nonnull SolverCapabilityQuery query) {
+        SpaceQueryContext space = requireSpace(store, query.spaceId());
+        return new SolverCapabilitySummary(query.spaceId(),
+            space.backendId().value(),
+            space.backendRuntime().supportsSolverTuning(space.spaceHandle().value()),
+            space.backendRuntime().supportsActivationTuning(space.spaceHandle().value()));
+    }
+
+    private static int runtimeJointCount(@Nonnull Store<PhysicsStore> store,
+        @Nonnull RuntimeJointCountQuery query) {
+        PhysicsRuntimeResource runtime = store.getResource(PhysicsRuntimeResource.getResourceType());
+        int[] count = {0};
+        runtime.forEachSpaceBinding((spaceUuid, backendId, spaceHandle, backendRuntime) ->
+            count[0] += backendRuntime.jointCount(spaceHandle.value()));
+        return count[0];
+    }
+
+    @Nonnull
+    private static SpaceQueryContext requireSpace(@Nonnull Store<PhysicsStore> store,
+        @Nonnull SpaceId spaceId) {
+        SpaceQueryContext space = space(store, spaceId);
+        if (space == null) {
+            throw new IllegalArgumentException("Physics space id=" + spaceId + " is not registered");
+        }
+        return space;
     }
 
     @Nonnull
