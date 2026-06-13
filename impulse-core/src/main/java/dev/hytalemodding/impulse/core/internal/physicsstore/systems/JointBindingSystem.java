@@ -103,30 +103,43 @@ public final class JointBindingSystem extends TickingSystem<PhysicsStore>
         Vector3f anchorA = joint.getAnchorA();
         Vector3f anchorB = joint.getAnchorB();
         Vector3f axis = joint.getAxis();
-        long jointId = backendRuntime.createJoint(spaceHandle.value(),
-            BackendRuntimeCodes.jointTypeCode(BackendJointType.valueOf(joint.getType().name())),
-            bodyA.value(),
-            bodyB.value(),
-            anchorA.x,
-            anchorA.y,
-            anchorA.z,
-            anchorB.x,
-            anchorB.y,
-            anchorB.z,
-            axis.x,
-            axis.y,
-            axis.z,
-            joint.getSpringRestLength(),
-            joint.getSpringStiffness(),
-            joint.getSpringDamping(),
-            joint.getLowerLimit(),
-            joint.getUpperLimit(),
-            joint.isMotorEnabled(),
-            joint.getMotorTargetVelocity(),
-            joint.getMotorMaxForce());
-        BackendJointHandle handle = new BackendJointHandle(jointId);
-        runtime.putJointHandle(jointUuid, spaceHandle, handle);
-        identity.putJointHandle(handle, jointRef);
+        long jointId = Long.MIN_VALUE;
+        try {
+            jointId = backendRuntime.createJoint(spaceHandle.value(),
+                BackendRuntimeCodes.jointTypeCode(BackendJointType.valueOf(joint.getType().name())),
+                bodyA.value(),
+                bodyB.value(),
+                anchorA.x,
+                anchorA.y,
+                anchorA.z,
+                anchorB.x,
+                anchorB.y,
+                anchorB.z,
+                axis.x,
+                axis.y,
+                axis.z,
+                joint.getSpringRestLength(),
+                joint.getSpringStiffness(),
+                joint.getSpringDamping(),
+                joint.getLowerLimit(),
+                joint.getUpperLimit(),
+                joint.isMotorEnabled(),
+                joint.getMotorTargetVelocity(),
+                joint.getMotorMaxForce());
+            BackendJointHandle handle = new BackendJointHandle(jointId);
+            runtime.putJointHandle(jointUuid, spaceHandle, handle);
+            identity.putJointHandle(handle, jointRef);
+        } catch (RuntimeException exception) {
+            if (jointId != Long.MIN_VALUE) {
+                try {
+                    backendRuntime.removeJoint(spaceHandle.value(), jointId);
+                } catch (RuntimeException ignored) {
+                    // Preserve the original backend failure as the restore status.
+                }
+            }
+            restore.markFailed("PhysicsStore joint " + jointUuid
+                + " failed backend binding: " + exception.getMessage());
+        }
     }
 
     private static void removeJoint(@Nonnull PhysicsRuntimeResource runtime,

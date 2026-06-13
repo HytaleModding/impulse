@@ -231,14 +231,6 @@ public final class PersistentPhysicsStorePreflight {
                 errors.add("Joint " + uuid + " references missing space "
                     + joint.getSpaceUuid());
             }
-            if (!bodies.contains(joint.getBodyAUuid())) {
-                errors.add("Joint " + uuid + " references missing body A "
-                    + joint.getBodyAUuid());
-            }
-            if (!bodies.contains(joint.getBodyBUuid())) {
-                errors.add("Joint " + uuid + " references missing body B "
-                    + joint.getBodyBUuid());
-            }
         }
     }
 

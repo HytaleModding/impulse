@@ -114,18 +114,30 @@ public final class SpaceBindingSystem extends TickingSystem<PhysicsStore>
             compatibilitySpaceId = SpaceId.next();
         }
         SpaceId.reserveAtLeast(compatibilitySpaceId.value());
-        BackendSpaceHandle handle = new BackendSpaceHandle(
-            backendRuntime.createSpace(compatibilitySpaceId));
-        Vector3f gravity = space.getGravity();
-        backendRuntime.setGravity(handle.value(), gravity.x, gravity.y, gravity.z);
-        runtime.putSpaceBinding(spaceUuid, backendId, handle);
-        SpaceSettingsApplicationSystem.applyBackendSettings(backendRuntime,
-            handle,
-            solverSettings != null ? solverSettings : new SolverSettingsComponent(),
-            extensionSettings);
-        runtime.clearPendingSpaceSettings(spaceUuid);
-        compatibility.putSpace(compatibilitySpaceId, spaceUuid);
-        identity.putSpaceHandle(handle, ref);
+        BackendSpaceHandle handle = null;
+        try {
+            handle = new BackendSpaceHandle(backendRuntime.createSpace(compatibilitySpaceId));
+            Vector3f gravity = space.getGravity();
+            backendRuntime.setGravity(handle.value(), gravity.x, gravity.y, gravity.z);
+            SpaceSettingsApplicationSystem.applyBackendSettings(backendRuntime,
+                handle,
+                solverSettings != null ? solverSettings : new SolverSettingsComponent(),
+                extensionSettings);
+            runtime.putSpaceBinding(spaceUuid, backendId, handle);
+            runtime.clearPendingSpaceSettings(spaceUuid);
+            compatibility.putSpace(compatibilitySpaceId, spaceUuid);
+            identity.putSpaceHandle(handle, ref);
+        } catch (RuntimeException exception) {
+            if (handle != null) {
+                try {
+                    backendRuntime.destroySpace(handle.value());
+                } catch (RuntimeException ignored) {
+                    // Preserve the original backend failure as the restore status.
+                }
+            }
+            restore.markFailed("PhysicsStore space " + spaceUuid
+                + " failed backend binding: " + exception.getMessage());
+        }
     }
 
     @Nonnull

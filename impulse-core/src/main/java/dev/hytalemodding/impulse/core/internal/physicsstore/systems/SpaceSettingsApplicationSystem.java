@@ -54,7 +54,13 @@ public final class SpaceSettingsApplicationSystem extends TickingSystem<PhysicsS
             if (ref == null || !ref.isValid()) {
                 continue;
             }
-            applyIfBound(store, runtime, ref, spaceUuid);
+            try {
+                applyIfBound(store, runtime, ref, spaceUuid);
+            } catch (RuntimeException exception) {
+                restore.markFailed("PhysicsStore space " + spaceUuid
+                    + " failed backend settings application: " + exception.getMessage());
+                return;
+            }
         }
     }
 
