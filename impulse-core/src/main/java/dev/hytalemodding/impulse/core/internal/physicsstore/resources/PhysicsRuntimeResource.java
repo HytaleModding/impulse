@@ -17,6 +17,8 @@ import it.unimi.dsi.fastutil.longs.Long2ObjectOpenHashMap;
 import it.unimi.dsi.fastutil.longs.LongArrayList;
 import it.unimi.dsi.fastutil.longs.LongList;
 import it.unimi.dsi.fastutil.objects.Object2ObjectOpenHashMap;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.UUID;
@@ -68,6 +70,8 @@ public final class PhysicsRuntimeResource implements Resource<PhysicsStore> {
     @Nonnull
     private final Long2ObjectOpenHashMap<BodyHitMetadata> bodyHitMetadataByHandle =
         new Long2ObjectOpenHashMap<>();
+    @Nonnull
+    private final List<PendingBodyOperation> pendingBodyOperations = new ArrayList<>();
     private boolean started;
 
     public PhysicsRuntimeResource() {
@@ -168,6 +172,20 @@ public final class PhysicsRuntimeResource implements Resource<PhysicsStore> {
 
     public void removeBodyHitMetadata(@Nonnull BackendBodyHandle handle) {
         bodyHitMetadataByHandle.remove(handle.value());
+    }
+
+    public void enqueuePendingBodyOperation(@Nonnull PendingBodyOperation operation) {
+        pendingBodyOperations.add(Objects.requireNonNull(operation, "operation"));
+    }
+
+    @Nonnull
+    public List<PendingBodyOperation> drainPendingBodyOperations() {
+        if (pendingBodyOperations.isEmpty()) {
+            return List.of();
+        }
+        List<PendingBodyOperation> drained = new ArrayList<>(pendingBodyOperations);
+        pendingBodyOperations.clear();
+        return drained;
     }
 
     public void putJointHandle(@Nonnull UUID jointUuid,
@@ -280,6 +298,7 @@ public final class PhysicsRuntimeResource implements Resource<PhysicsStore> {
         terrainPayloadKeysByUuid.clear();
         bodyHandlesBySpaceHandle.clear();
         bodyHitMetadataByHandle.clear();
+        pendingBodyOperations.clear();
         started = false;
     }
 
@@ -302,6 +321,7 @@ public final class PhysicsRuntimeResource implements Resource<PhysicsStore> {
         bodyHandlesBySpaceHandle.forEach((spaceHandle, bodyHandles) ->
             copy.bodyHandlesBySpaceHandle.put((int) spaceHandle, new LongArrayList(bodyHandles)));
         copy.bodyHitMetadataByHandle.putAll(bodyHitMetadataByHandle);
+        copy.pendingBodyOperations.addAll(pendingBodyOperations);
         copy.started = started;
         return copy;
     }
@@ -327,6 +347,84 @@ public final class PhysicsRuntimeResource implements Resource<PhysicsStore> {
         public BodyHitMetadata {
             Objects.requireNonNull(bodyType, "bodyType");
             Objects.requireNonNull(shapeType, "shapeType");
+        }
+    }
+
+    public record PendingBodyOperation(@Nonnull Kind kind,
+                                       @Nonnull BackendSpaceHandle spaceHandle,
+                                       @Nonnull BackendBodyHandle bodyHandle,
+                                       float x,
+                                       float y,
+                                       float z,
+                                       boolean hasOffset,
+                                       float offsetX,
+                                       float offsetY,
+                                       float offsetZ) {
+
+        public PendingBodyOperation {
+            Objects.requireNonNull(kind, "kind");
+            Objects.requireNonNull(spaceHandle, "spaceHandle");
+            Objects.requireNonNull(bodyHandle, "bodyHandle");
+        }
+
+        @Nonnull
+        public static PendingBodyOperation wake(@Nonnull BackendSpaceHandle spaceHandle,
+            @Nonnull BackendBodyHandle bodyHandle) {
+            return empty(Kind.WAKE, spaceHandle, bodyHandle);
+        }
+
+        @Nonnull
+        public static PendingBodyOperation sleep(@Nonnull BackendSpaceHandle spaceHandle,
+            @Nonnull BackendBodyHandle bodyHandle) {
+            return empty(Kind.SLEEP, spaceHandle, bodyHandle);
+        }
+
+        @Nonnull
+        public static PendingBodyOperation vector(@Nonnull Kind kind,
+            @Nonnull BackendSpaceHandle spaceHandle,
+            @Nonnull BackendBodyHandle bodyHandle,
+            float x,
+            float y,
+            float z,
+            boolean hasOffset,
+            float offsetX,
+            float offsetY,
+            float offsetZ) {
+            return new PendingBodyOperation(kind,
+                spaceHandle,
+                bodyHandle,
+                x,
+                y,
+                z,
+                hasOffset,
+                offsetX,
+                offsetY,
+                offsetZ);
+        }
+
+        @Nonnull
+        private static PendingBodyOperation empty(@Nonnull Kind kind,
+            @Nonnull BackendSpaceHandle spaceHandle,
+            @Nonnull BackendBodyHandle bodyHandle) {
+            return new PendingBodyOperation(kind,
+                spaceHandle,
+                bodyHandle,
+                0.0f,
+                0.0f,
+                0.0f,
+                false,
+                0.0f,
+                0.0f,
+                0.0f);
+        }
+
+        public enum Kind {
+            WAKE,
+            SLEEP,
+            IMPULSE,
+            TORQUE_IMPULSE,
+            FORCE,
+            TORQUE
         }
     }
 

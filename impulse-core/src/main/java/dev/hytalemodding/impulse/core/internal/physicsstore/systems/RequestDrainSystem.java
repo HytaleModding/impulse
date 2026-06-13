@@ -14,11 +14,14 @@ import com.hypixel.hytale.component.dependency.Order;
 import com.hypixel.hytale.component.dependency.SystemDependency;
 import com.hypixel.hytale.component.system.tick.TickingSystem;
 import com.hypixel.hytale.server.core.universe.world.storage.PhysicsStore;
+import dev.hytalemodding.impulse.api.PhysicsBodyType;
+import dev.hytalemodding.impulse.api.runtime.BackendRuntimeCodes;
 import dev.hytalemodding.impulse.api.runtime.PhysicsBackendRuntime;
 import dev.hytalemodding.impulse.core.internal.physicsstore.resources.PhysicsIdentityIndexResource;
 import dev.hytalemodding.impulse.core.internal.physicsstore.resources.PhysicsRequestQueueResource;
 import dev.hytalemodding.impulse.core.internal.physicsstore.resources.PhysicsRestoreStatusResource;
 import dev.hytalemodding.impulse.core.internal.physicsstore.resources.PhysicsRuntimeResource;
+import dev.hytalemodding.impulse.core.internal.physicsstore.resources.PhysicsRuntimeResource.PendingBodyOperation;
 import dev.hytalemodding.impulse.core.internal.physicsstore.resources.PhysicsTerrainPayloadResource;
 import dev.hytalemodding.impulse.core.internal.resources.BackendBodyHandle;
 import dev.hytalemodding.impulse.core.internal.resources.BackendJointHandle;
@@ -33,8 +36,11 @@ import dev.hytalemodding.impulse.core.plugin.physicsstore.components.ShapeCompon
 import dev.hytalemodding.impulse.core.plugin.physicsstore.components.TargetComponent;
 import dev.hytalemodding.impulse.core.plugin.physicsstore.components.TerrainColliderComponent;
 import dev.hytalemodding.impulse.core.plugin.physicsstore.components.UuidComponent;
+import dev.hytalemodding.impulse.core.plugin.physicsstore.requests.BodyActivationRequest;
+import dev.hytalemodding.impulse.core.plugin.physicsstore.requests.BodyForceRequest;
 import dev.hytalemodding.impulse.core.plugin.physicsstore.requests.BodyRemoveRequest;
 import dev.hytalemodding.impulse.core.plugin.physicsstore.requests.BodyTargetRequest;
+import dev.hytalemodding.impulse.core.plugin.physicsstore.requests.BodyTypeRequest;
 import dev.hytalemodding.impulse.core.plugin.physicsstore.requests.BodyUpsertRequest;
 import dev.hytalemodding.impulse.core.plugin.physicsstore.requests.JointRemoveRequest;
 import dev.hytalemodding.impulse.core.plugin.physicsstore.requests.JointUpsertRequest;
@@ -98,7 +104,9 @@ public final class RequestDrainSystem extends TickingSystem<PhysicsStore> {
             restore,
             structuralConflicts,
             requests);
+        applyBodyTypeRequests(store, identity, runtime, refsThisDrain, restore, requests);
         applyTargetRequests(store, identity, refsThisDrain, restore, requests);
+        enqueueRuntimeBodyRequests(store, identity, runtime, refsThisDrain, restore, requests);
         recordUnsupported(restore, requests);
     }
 
@@ -358,6 +366,141 @@ public final class RequestDrainSystem extends TickingSystem<PhysicsStore> {
         store.putComponent(bodyRef, TargetComponent.getComponentType(), target);
     }
 
+    private static void applyBodyTypeRequests(@Nonnull Store<PhysicsStore> store,
+        @Nonnull PhysicsIdentityIndexResource identity,
+        @Nonnull PhysicsRuntimeResource runtime,
+        @Nonnull Map<UUID, Ref<PhysicsStore>> refsThisDrain,
+        @Nonnull PhysicsRestoreStatusResource restore,
+        @Nonnull List<PhysicsStoreRequest> requests) {
+        for (PhysicsStoreRequest request : requests) {
+            if (request instanceof BodyTypeRequest typeRequest) {
+                applyBodyTypeRequest(store, identity, runtime, refsThisDrain, restore, typeRequest);
+            }
+        }
+    }
+
+    private static void enqueueRuntimeBodyRequests(@Nonnull Store<PhysicsStore> store,
+        @Nonnull PhysicsIdentityIndexResource identity,
+        @Nonnull PhysicsRuntimeResource runtime,
+        @Nonnull Map<UUID, Ref<PhysicsStore>> refsThisDrain,
+        @Nonnull PhysicsRestoreStatusResource restore,
+        @Nonnull List<PhysicsStoreRequest> requests) {
+        for (PhysicsStoreRequest request : requests) {
+            if (request instanceof BodyActivationRequest activationRequest) {
+                enqueueBodyActivationRequest(identity, runtime, refsThisDrain, restore, activationRequest);
+                continue;
+            }
+            if (request instanceof BodyForceRequest forceRequest) {
+                enqueueBodyForceRequest(store, identity, runtime, refsThisDrain, restore, forceRequest);
+            }
+        }
+    }
+
+    private static void applyBodyTypeRequest(@Nonnull Store<PhysicsStore> store,
+        @Nonnull PhysicsIdentityIndexResource identity,
+        @Nonnull PhysicsRuntimeResource runtime,
+        @Nonnull Map<UUID, Ref<PhysicsStore>> refsThisDrain,
+        @Nonnull PhysicsRestoreStatusResource restore,
+        @Nonnull BodyTypeRequest request) {
+        Ref<PhysicsStore> bodyRef = refForUuid(identity, refsThisDrain, request.bodyUuid());
+        if (bodyRef == null) {
+            restore.recordSoftSkip("Body type request body is missing: " + request.bodyUuid());
+            return;
+        }
+        DynamicsComponent dynamics = PhysicsStoreSystemSupport.component(store,
+            bodyRef,
+            DynamicsComponent.getComponentType());
+        DynamicsComponent updated = dynamics != null ? dynamics.clone() : new DynamicsComponent();
+        updated.setBodyType(request.bodyType());
+        store.putComponent(bodyRef, DynamicsComponent.getComponentType(), updated);
+
+        RuntimeBodyBinding binding = runtimeBodyBinding(runtime,
+            request.bodyUuid(),
+            restore,
+            "Body type request",
+            false);
+        if (binding == null) {
+            return;
+        }
+        binding.backendRuntime().setBodyType(binding.spaceHandle().value(),
+            binding.bodyHandle().value(),
+            BackendRuntimeCodes.bodyTypeCode(request.bodyType()));
+        updateBodyHitMetadata(runtime, binding.bodyHandle(), request.bodyType());
+        if (request.activate()) {
+            runtime.enqueuePendingBodyOperation(PendingBodyOperation.wake(binding.spaceHandle(),
+                binding.bodyHandle()));
+        }
+    }
+
+    private static void enqueueBodyActivationRequest(
+        @Nonnull PhysicsIdentityIndexResource identity,
+        @Nonnull PhysicsRuntimeResource runtime,
+        @Nonnull Map<UUID, Ref<PhysicsStore>> refsThisDrain,
+        @Nonnull PhysicsRestoreStatusResource restore,
+        @Nonnull BodyActivationRequest request) {
+        if (refForUuid(identity, refsThisDrain, request.bodyUuid()) == null) {
+            restore.recordSoftSkip("Activation request body is missing: " + request.bodyUuid());
+            return;
+        }
+        RuntimeBodyBinding binding = runtimeBodyBinding(runtime,
+            request.bodyUuid(),
+            restore,
+            "Activation request",
+            true);
+        if (binding == null) {
+            return;
+        }
+        if (request.action() == BodyActivationRequest.Action.WAKE) {
+            runtime.enqueuePendingBodyOperation(PendingBodyOperation.wake(binding.spaceHandle(),
+                binding.bodyHandle()));
+        } else {
+            runtime.enqueuePendingBodyOperation(PendingBodyOperation.sleep(binding.spaceHandle(),
+                binding.bodyHandle()));
+        }
+    }
+
+    private static void enqueueBodyForceRequest(@Nonnull Store<PhysicsStore> store,
+        @Nonnull PhysicsIdentityIndexResource identity,
+        @Nonnull PhysicsRuntimeResource runtime,
+        @Nonnull Map<UUID, Ref<PhysicsStore>> refsThisDrain,
+        @Nonnull PhysicsRestoreStatusResource restore,
+        @Nonnull BodyForceRequest request) {
+        Ref<PhysicsStore> bodyRef = refForUuid(identity, refsThisDrain, request.bodyUuid());
+        if (bodyRef == null) {
+            restore.recordSoftSkip("Force request body is missing: " + request.bodyUuid());
+            return;
+        }
+        DynamicsComponent dynamics = PhysicsStoreSystemSupport.component(store,
+            bodyRef,
+            DynamicsComponent.getComponentType());
+        if (dynamics == null || dynamics.getBodyType() != PhysicsBodyType.DYNAMIC) {
+            restore.recordSoftSkip("Force request target is not dynamic: " + request.bodyUuid());
+            return;
+        }
+        if (!hasFiniteVector(request)) {
+            restore.recordSoftSkip("Force request contains non-finite values: " + request.bodyUuid());
+            return;
+        }
+        RuntimeBodyBinding binding = runtimeBodyBinding(runtime,
+            request.bodyUuid(),
+            restore,
+            "Force request",
+            true);
+        if (binding == null) {
+            return;
+        }
+        runtime.enqueuePendingBodyOperation(PendingBodyOperation.vector(pendingKind(request),
+            binding.spaceHandle(),
+            binding.bodyHandle(),
+            request.x(),
+            request.y(),
+            request.z(),
+            request.hasOffset(),
+            request.offsetX(),
+            request.offsetY(),
+            request.offsetZ()));
+    }
+
     private static void applyTerrainRequest(@Nonnull Store<PhysicsStore> store,
         @Nonnull PhysicsIdentityIndexResource identity,
         @Nonnull PhysicsTerrainPayloadResource terrainPayloads,
@@ -604,6 +747,60 @@ public final class RequestDrainSystem extends TickingSystem<PhysicsStore> {
         return request.getClass().getName();
     }
 
+    @Nullable
+    private static RuntimeBodyBinding runtimeBodyBinding(@Nonnull PhysicsRuntimeResource runtime,
+        @Nonnull UUID bodyUuid,
+        @Nonnull PhysicsRestoreStatusResource restore,
+        @Nonnull String requestName,
+        boolean requireBound) {
+        BackendBodyHandle bodyHandle = runtime.getBodyHandle(bodyUuid);
+        BackendSpaceHandle spaceHandle = runtime.getBodySpaceHandle(bodyUuid);
+        if (bodyHandle == null || spaceHandle == null) {
+            if (requireBound) {
+                restore.recordSoftSkip(requestName + " body is unbound: " + bodyUuid);
+            }
+            return null;
+        }
+        PhysicsBackendRuntime backendRuntime = runtimeForSpace(runtime, spaceHandle);
+        if (backendRuntime == null) {
+            restore.recordSoftSkip(requestName + " backend runtime is missing: " + bodyUuid);
+            return null;
+        }
+        return new RuntimeBodyBinding(spaceHandle, bodyHandle, backendRuntime);
+    }
+
+    private static void updateBodyHitMetadata(@Nonnull PhysicsRuntimeResource runtime,
+        @Nonnull BackendBodyHandle bodyHandle,
+        @Nonnull PhysicsBodyType bodyType) {
+        PhysicsRuntimeResource.BodyHitMetadata metadata = runtime.getBodyHitMetadata(bodyHandle);
+        if (metadata != null) {
+            runtime.putBodyHitMetadata(bodyHandle,
+                metadata.bodyKey(),
+                bodyType,
+                metadata.shapeType());
+        }
+    }
+
+    private static boolean hasFiniteVector(@Nonnull BodyForceRequest request) {
+        return Float.isFinite(request.x())
+            && Float.isFinite(request.y())
+            && Float.isFinite(request.z())
+            && (!request.hasOffset()
+                || (Float.isFinite(request.offsetX())
+                    && Float.isFinite(request.offsetY())
+                    && Float.isFinite(request.offsetZ())));
+    }
+
+    @Nonnull
+    private static PendingBodyOperation.Kind pendingKind(@Nonnull BodyForceRequest request) {
+        return switch (request.kind()) {
+            case IMPULSE -> PendingBodyOperation.Kind.IMPULSE;
+            case TORQUE_IMPULSE -> PendingBodyOperation.Kind.TORQUE_IMPULSE;
+            case FORCE -> PendingBodyOperation.Kind.FORCE;
+            case TORQUE -> PendingBodyOperation.Kind.TORQUE;
+        };
+    }
+
     private static boolean isValidBodyUpsert(@Nonnull BodyUpsertRequest request,
         @Nonnull PhysicsRestoreStatusResource restore) {
         if (isNil(request.bodyUuid())
@@ -640,6 +837,9 @@ public final class RequestDrainSystem extends TickingSystem<PhysicsStore> {
 
     private static boolean isSupportedRequest(@Nonnull PhysicsStoreRequest request) {
         return request instanceof BodyTargetRequest
+            || request instanceof BodyActivationRequest
+            || request instanceof BodyForceRequest
+            || request instanceof BodyTypeRequest
             || request instanceof TerrainColliderRequest
             || request instanceof BodyUpsertRequest
             || request instanceof BodyRemoveRequest
@@ -708,5 +908,10 @@ public final class RequestDrainSystem extends TickingSystem<PhysicsStore> {
     private record ColliderRow(@Nonnull UUID uuid,
                                @Nonnull Ref<PhysicsStore> ref,
                                @Nonnull ColliderComponent collider) {
+    }
+
+    private record RuntimeBodyBinding(@Nonnull BackendSpaceHandle spaceHandle,
+                                      @Nonnull BackendBodyHandle bodyHandle,
+                                      @Nonnull PhysicsBackendRuntime backendRuntime) {
     }
 }

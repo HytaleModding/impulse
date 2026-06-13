@@ -12,6 +12,7 @@ import com.hypixel.hytale.component.system.tick.TickingSystem;
 import com.hypixel.hytale.server.core.universe.world.storage.PhysicsStore;
 import dev.hytalemodding.impulse.api.runtime.PhysicsBackendRuntime;
 import dev.hytalemodding.impulse.core.internal.physicsstore.resources.PhysicsRuntimeResource;
+import dev.hytalemodding.impulse.core.internal.physicsstore.resources.PhysicsRuntimeResource.PendingBodyOperation;
 import dev.hytalemodding.impulse.core.internal.resources.BackendBodyHandle;
 import dev.hytalemodding.impulse.core.internal.resources.BackendSpaceHandle;
 import dev.hytalemodding.impulse.core.plugin.physicsstore.components.TargetComponent;
@@ -39,6 +40,7 @@ public final class TargetBindingSystem extends TickingSystem<PhysicsStore>
         BiConsumer<ArchetypeChunk<PhysicsStore>, CommandBuffer<PhysicsStore>> collector =
             (chunk, _) -> applyTargets(runtime, chunk);
         store.forEachChunk(systemIndex, collector);
+        applyPendingBodyOperations(runtime);
     }
 
     private static void applyTargets(@Nonnull PhysicsRuntimeResource runtime,
@@ -87,6 +89,61 @@ public final class TargetBindingSystem extends TickingSystem<PhysicsStore>
                 backendRuntime.activateBody(spaceHandle.value(), bodyHandle.value());
             }
         }
+    }
+
+    private static void applyPendingBodyOperations(@Nonnull PhysicsRuntimeResource runtime) {
+        for (PendingBodyOperation operation : runtime.drainPendingBodyOperations()) {
+            PhysicsBackendRuntime backendRuntime = runtimeForSpace(runtime, operation.spaceHandle());
+            if (backendRuntime == null) {
+                continue;
+            }
+            int spaceId = operation.spaceHandle().value();
+            long bodyId = operation.bodyHandle().value();
+            switch (operation.kind()) {
+                case WAKE -> backendRuntime.activateBody(spaceId, bodyId);
+                case SLEEP -> backendRuntime.sleepBody(spaceId, bodyId);
+                case IMPULSE -> applyImpulse(backendRuntime, spaceId, bodyId, operation, false);
+                case TORQUE_IMPULSE -> applyImpulse(backendRuntime, spaceId, bodyId, operation, true);
+                case FORCE -> applyForce(backendRuntime, spaceId, bodyId, operation, false);
+                case TORQUE -> applyForce(backendRuntime, spaceId, bodyId, operation, true);
+            }
+        }
+    }
+
+    private static void applyImpulse(@Nonnull PhysicsBackendRuntime backendRuntime,
+        int spaceId,
+        long bodyId,
+        @Nonnull PendingBodyOperation operation,
+        boolean torque) {
+        backendRuntime.applyBodyImpulse(spaceId,
+            bodyId,
+            operation.x(),
+            operation.y(),
+            operation.z(),
+            operation.hasOffset(),
+            operation.offsetX(),
+            operation.offsetY(),
+            operation.offsetZ(),
+            torque);
+        backendRuntime.activateBody(spaceId, bodyId);
+    }
+
+    private static void applyForce(@Nonnull PhysicsBackendRuntime backendRuntime,
+        int spaceId,
+        long bodyId,
+        @Nonnull PendingBodyOperation operation,
+        boolean torque) {
+        backendRuntime.applyBodyForce(spaceId,
+            bodyId,
+            operation.x(),
+            operation.y(),
+            operation.z(),
+            operation.hasOffset(),
+            operation.offsetX(),
+            operation.offsetY(),
+            operation.offsetZ(),
+            torque);
+        backendRuntime.activateBody(spaceId, bodyId);
     }
 
     private static PhysicsBackendRuntime runtimeForSpace(@Nonnull PhysicsRuntimeResource runtime,
