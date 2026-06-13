@@ -8,6 +8,7 @@ import dev.hytalemodding.impulse.core.plugin.physicsstore.requests.PhysicsStoreR
 import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Objects;
 import java.util.Queue;
 import javax.annotation.Nonnull;
 
@@ -23,7 +24,14 @@ public final class PhysicsRequestQueueResource implements Resource<PhysicsStore>
     }
 
     public synchronized void enqueue(@Nonnull PhysicsStoreRequest request) {
-        requests.add(request);
+        requests.add(Objects.requireNonNull(request, "request"));
+    }
+
+    public synchronized void enqueueAll(@Nonnull Iterable<? extends PhysicsStoreRequest> batch) {
+        Objects.requireNonNull(batch, "batch");
+        for (PhysicsStoreRequest request : batch) {
+            requests.add(Objects.requireNonNull(request, "request"));
+        }
     }
 
     @Nonnull
