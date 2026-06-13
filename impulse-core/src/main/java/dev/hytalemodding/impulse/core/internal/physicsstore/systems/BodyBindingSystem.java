@@ -159,10 +159,8 @@ public final class BodyBindingSystem extends TickingSystem<PhysicsStore>
         }
         DynamicsComponent bodyDynamics = dynamics != null ? dynamics : new DynamicsComponent();
         TargetComponent initialTarget = target != null ? target : new TargetComponent();
-        Vector3f position = initialTarget.isActive() ? initialTarget.getPosition() : new Vector3f();
-        Quaternionf rotation = initialTarget.isActive()
-            ? initialTarget.getRotation()
-            : new Quaternionf();
+        Vector3f position = target != null ? initialTarget.getPosition() : new Vector3f();
+        Quaternionf rotation = target != null ? initialTarget.getRotation() : new Quaternionf();
         PhysicsBodyType bodyType = bodyDynamics.getBodyType();
         float mass = bodyType == PhysicsBodyType.DYNAMIC ? bodyDynamics.getMass() : 0.0f;
         long bodyId = backendRuntime.createBody(spaceHandle.value(),
