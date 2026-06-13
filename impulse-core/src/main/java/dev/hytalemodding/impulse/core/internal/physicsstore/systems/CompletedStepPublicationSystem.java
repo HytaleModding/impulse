@@ -25,8 +25,7 @@ import org.joml.Vector3f;
 public final class CompletedStepPublicationSystem extends TickingSystem<PhysicsStore> {
 
     private static final Set<Dependency<PhysicsStore>> DEPENDENCIES = Set.of(
-        new SystemDependency<>(Order.AFTER, TargetBindingSystem.class),
-        new SystemDependency<>(Order.BEFORE, PersistenceCaptureSystem.class)
+        new SystemDependency<>(Order.AFTER, TargetBindingSystem.class)
     );
 
     @Override

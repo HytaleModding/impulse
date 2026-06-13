@@ -4,8 +4,6 @@ import com.hypixel.hytale.component.AddReason;
 import com.hypixel.hytale.component.Holder;
 import com.hypixel.hytale.component.Store;
 import com.hypixel.hytale.component.dependency.Dependency;
-import com.hypixel.hytale.component.dependency.Order;
-import com.hypixel.hytale.component.dependency.SystemDependency;
 import com.hypixel.hytale.component.system.tick.TickingSystem;
 import com.hypixel.hytale.server.core.universe.world.storage.PhysicsStore;
 import dev.hytalemodding.impulse.api.BackendId;
@@ -46,9 +44,7 @@ import javax.annotation.Nonnull;
  */
 public final class PersistenceHydrationSystem extends TickingSystem<PhysicsStore> {
 
-    private static final Set<Dependency<PhysicsStore>> DEPENDENCIES = Set.of(
-        new SystemDependency<>(Order.BEFORE, RequestDrainSystem.class)
-    );
+    private static final Set<Dependency<PhysicsStore>> DEPENDENCIES = Set.of();
 
     @Override
     public void tick(float dt, int systemIndex, @Nonnull Store<PhysicsStore> store) {

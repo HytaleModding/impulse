@@ -32,8 +32,7 @@ import javax.annotation.Nullable;
 public final class SpaceSettingsApplicationSystem extends TickingSystem<PhysicsStore> {
 
     private static final Set<Dependency<PhysicsStore>> DEPENDENCIES = Set.of(
-        new SystemDependency<>(Order.AFTER, SpaceBindingSystem.class),
-        new SystemDependency<>(Order.BEFORE, BodyBindingSystem.class)
+        new SystemDependency<>(Order.AFTER, SpaceBindingSystem.class)
     );
 
     @Override

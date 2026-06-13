@@ -34,8 +34,7 @@ public final class JointBindingSystem extends TickingSystem<PhysicsStore>
     implements QuerySystem<PhysicsStore> {
 
     private static final Set<Dependency<PhysicsStore>> DEPENDENCIES = Set.of(
-        new SystemDependency<>(Order.AFTER, ColliderBindingSystem.class),
-        new SystemDependency<>(Order.BEFORE, TerrainColliderBindingSystem.class)
+        new SystemDependency<>(Order.AFTER, ColliderBindingSystem.class)
     );
 
     @Override

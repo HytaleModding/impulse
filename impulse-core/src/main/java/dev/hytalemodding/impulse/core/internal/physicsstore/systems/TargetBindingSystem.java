@@ -31,8 +31,7 @@ public final class TargetBindingSystem extends TickingSystem<PhysicsStore>
     implements QuerySystem<PhysicsStore> {
 
     private static final Set<Dependency<PhysicsStore>> DEPENDENCIES = Set.of(
-        new SystemDependency<>(Order.AFTER, TerrainColliderBindingSystem.class),
-        new SystemDependency<>(Order.BEFORE, CompletedStepPublicationSystem.class)
+        new SystemDependency<>(Order.AFTER, TerrainColliderBindingSystem.class)
     );
 
     @Override
