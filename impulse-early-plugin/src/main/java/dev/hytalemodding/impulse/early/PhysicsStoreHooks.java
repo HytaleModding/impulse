@@ -4,12 +4,27 @@ import com.hypixel.hytale.component.IResourceStorage;
 import com.hypixel.hytale.component.Store;
 import com.hypixel.hytale.server.core.universe.world.storage.PhysicsStore;
 import java.util.Objects;
+import java.util.Set;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CopyOnWriteArraySet;
+import java.util.function.Consumer;
 import javax.annotation.Nonnull;
 
 public final class PhysicsStoreHooks {
 
+    @Nonnull
+    private static final Set<Consumer<PhysicsStore>> SHUTDOWN_HOOKS =
+        new CopyOnWriteArraySet<>();
+
     private PhysicsStoreHooks() {
+    }
+
+    public static void registerShutdownHook(@Nonnull Consumer<PhysicsStore> hook) {
+        SHUTDOWN_HOOKS.add(Objects.requireNonNull(hook, "hook"));
+    }
+
+    public static void unregisterShutdownHook(@Nonnull Consumer<PhysicsStore> hook) {
+        SHUTDOWN_HOOKS.remove(Objects.requireNonNull(hook, "hook"));
     }
 
     public static void start(@Nonnull PhysicsStore physicsStore,
@@ -37,6 +52,29 @@ public final class PhysicsStoreHooks {
     }
 
     public static void shutdown(@Nonnull PhysicsStore physicsStore) {
-        Objects.requireNonNull(physicsStore, "physicsStore").shutdown();
+        PhysicsStore checked = Objects.requireNonNull(physicsStore, "physicsStore");
+        RuntimeException hookFailure = null;
+        for (Consumer<PhysicsStore> hook : SHUTDOWN_HOOKS) {
+            try {
+                hook.accept(checked);
+            } catch (RuntimeException exception) {
+                if (hookFailure == null) {
+                    hookFailure = exception;
+                } else {
+                    hookFailure.addSuppressed(exception);
+                }
+            }
+        }
+        try {
+            checked.shutdown();
+        } catch (RuntimeException exception) {
+            if (hookFailure != null) {
+                exception.addSuppressed(hookFailure);
+            }
+            throw exception;
+        }
+        if (hookFailure != null) {
+            throw hookFailure;
+        }
     }
 }

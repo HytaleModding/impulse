@@ -1,8 +1,10 @@
 package dev.hytalemodding.impulse.core.internal.physicsstore.registration;
 
 import com.hypixel.hytale.component.ComponentRegistryProxy;
+import com.hypixel.hytale.component.Store;
 import com.hypixel.hytale.server.core.plugin.PluginBase;
 import com.hypixel.hytale.server.core.universe.world.storage.PhysicsStore;
+import dev.hytalemodding.impulse.early.PhysicsStoreHooks;
 import dev.hytalemodding.impulse.core.internal.physicsstore.persistence.PersistentPhysicsStoreResource;
 import dev.hytalemodding.impulse.core.internal.physicsstore.resources.PhysicsDebugResource;
 import dev.hytalemodding.impulse.core.internal.physicsstore.resources.PhysicsIdentityIndexResource;
@@ -48,6 +50,7 @@ import dev.hytalemodding.impulse.core.plugin.physicsstore.components.VisualSyncS
 import dev.hytalemodding.impulse.core.plugin.physicsstore.components.WorldCollisionComponent;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
+import java.util.function.Consumer;
 import javax.annotation.Nonnull;
 
 /**
@@ -56,12 +59,16 @@ import javax.annotation.Nonnull;
 public final class PhysicsStoreRegistration {
 
     private static final String REGISTRY_METHOD = "getPhysicsStoreRegistry";
+    @Nonnull
+    private static final Consumer<PhysicsStore> SHUTDOWN_CLEANUP =
+        PhysicsStoreRegistration::clearRuntimeStateBeforeShutdown;
 
     private PhysicsStoreRegistration() {
     }
 
     public static void register(@Nonnull PluginBase plugin) {
         ComponentRegistryProxy<PhysicsStore> registry = physicsStoreRegistry(plugin);
+        PhysicsStoreHooks.registerShutdownHook(SHUTDOWN_CLEANUP);
 
         PhysicsStoreTypes.setUuidComponentType(registry.registerComponent(UuidComponent.class,
             "Uuid",
@@ -172,6 +179,14 @@ public final class PhysicsStoreRegistration {
         registry.registerSystem(new CompletedStepPublicationSystem());
         registry.registerSystem(new PersistenceCaptureSystem());
         registry.registerSystem(new StepSubmissionSystem());
+    }
+
+    private static void clearRuntimeStateBeforeShutdown(@Nonnull PhysicsStore physicsStore) {
+        Store<PhysicsStore> store = physicsStore.getStore();
+        if (store.isShutdown()) {
+            return;
+        }
+        store.getResource(PhysicsRequestQueueResource.getResourceType()).clear();
     }
 
     @Nonnull

@@ -18,6 +18,7 @@ import dev.hytalemodding.impulse.core.plugin.physicsstore.components.VisualMater
 import dev.hytalemodding.impulse.core.plugin.physicsstore.components.VisualSyncSettingsComponent;
 import dev.hytalemodding.impulse.core.plugin.physicsstore.components.WorldCollisionComponent;
 import dev.hytalemodding.impulse.core.plugin.physicsstore.requests.PhysicsStoreRequest;
+import dev.hytalemodding.impulse.core.plugin.physicsstore.requests.PhysicsStoreRequestFenceHandle;
 import dev.hytalemodding.impulse.core.plugin.physicsstore.requests.SpaceRemoveRequest;
 import dev.hytalemodding.impulse.core.plugin.physicsstore.requests.SpaceSettingsRequest;
 import dev.hytalemodding.impulse.core.plugin.physicsstore.requests.SpaceUpsertRequest;
@@ -170,6 +171,21 @@ public final class PhysicsStoreAccess {
         PhysicsRequestQueueResource queue = store.getResource(
             PhysicsRequestQueueResource.getResourceType());
         queue.enqueueAll(copied);
+    }
+
+    @Nonnull
+    public static PhysicsStoreRequestFenceHandle enqueueAllFenced(@Nonnull World world,
+        @Nonnull Iterable<? extends PhysicsStoreRequest> requests,
+        long submittedServerTick) {
+        Objects.requireNonNull(requests, "requests");
+        List<PhysicsStoreRequest> copied = new ArrayList<>();
+        for (PhysicsStoreRequest request : requests) {
+            copied.add(Objects.requireNonNull(request, "request"));
+        }
+        Store<PhysicsStore> store = require(world).getStore();
+        PhysicsRequestQueueResource queue = store.getResource(
+            PhysicsRequestQueueResource.getResourceType());
+        return queue.enqueueAllFenced(copied, submittedServerTick);
     }
 
     @Nonnull
