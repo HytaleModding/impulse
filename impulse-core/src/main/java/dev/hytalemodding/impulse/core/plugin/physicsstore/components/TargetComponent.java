@@ -45,9 +45,24 @@ public final class TargetComponent implements Component<PhysicsStore> {
             (component, value) -> component.angularVelocity.set(value != null ? value : ZERO),
             TargetComponent::getAngularVelocity)
         .add()
+        .append(new KeyedCodec<>("TransformEnabled", Codec.BOOLEAN, false),
+            (component, value) -> component.transformEnabled = value == null || value,
+            TargetComponent::isTransformEnabled)
+        .add()
+        .append(new KeyedCodec<>("VelocityEnabled", Codec.BOOLEAN, false),
+            (component, value) -> component.velocityEnabled = value == null || value,
+            TargetComponent::isVelocityEnabled)
+        .add()
+        .append(new KeyedCodec<>("Activate", Codec.BOOLEAN, false),
+            (component, value) -> component.activate = value == null || value,
+            TargetComponent::isActivate)
+        .add()
         .build();
 
     private boolean active;
+    private boolean transformEnabled = true;
+    private boolean velocityEnabled = true;
+    private boolean activate = true;
     @Nonnull
     private final Vector3f position = new Vector3f();
     @Nonnull
@@ -66,6 +81,30 @@ public final class TargetComponent implements Component<PhysicsStore> {
 
     public void setActive(boolean active) {
         this.active = active;
+    }
+
+    public boolean isTransformEnabled() {
+        return transformEnabled;
+    }
+
+    public void setTransformEnabled(boolean transformEnabled) {
+        this.transformEnabled = transformEnabled;
+    }
+
+    public boolean isVelocityEnabled() {
+        return velocityEnabled;
+    }
+
+    public void setVelocityEnabled(boolean velocityEnabled) {
+        this.velocityEnabled = velocityEnabled;
+    }
+
+    public boolean isActivate() {
+        return activate;
+    }
+
+    public void setActivate(boolean activate) {
+        this.activate = activate;
     }
 
     @Nonnull
@@ -114,6 +153,9 @@ public final class TargetComponent implements Component<PhysicsStore> {
     public TargetComponent clone() {
         TargetComponent copy = new TargetComponent();
         copy.active = active;
+        copy.transformEnabled = transformEnabled;
+        copy.velocityEnabled = velocityEnabled;
+        copy.activate = activate;
         copy.position.set(position);
         copy.rotation.set(rotation);
         copy.linearVelocity.set(linearVelocity);

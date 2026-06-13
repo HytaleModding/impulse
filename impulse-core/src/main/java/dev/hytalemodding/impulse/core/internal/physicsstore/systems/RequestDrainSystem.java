@@ -88,6 +88,9 @@ public final class RequestDrainSystem extends TickingSystem<PhysicsStore> {
         target.setRotation(request.rotation());
         target.setLinearVelocity(request.linearVelocity());
         target.setAngularVelocity(request.angularVelocity());
+        target.setTransformEnabled(request.transformEnabled());
+        target.setVelocityEnabled(request.velocityEnabled());
+        target.setActivate(request.activate());
         store.putComponent(bodyRef, TargetComponent.getComponentType(), target);
     }
 

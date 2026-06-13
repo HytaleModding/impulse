@@ -14,7 +14,10 @@ public record BodyTargetRequest(@Nonnull UUID requestUuid,
                                 @Nonnull Vector3f position,
                                 @Nonnull Quaternionf rotation,
                                 @Nonnull Vector3f linearVelocity,
-                                @Nonnull Vector3f angularVelocity) implements PhysicsStoreRequest {
+                                @Nonnull Vector3f angularVelocity,
+                                boolean transformEnabled,
+                                boolean velocityEnabled,
+                                boolean activate) implements PhysicsStoreRequest {
 
     public BodyTargetRequest {
         Objects.requireNonNull(requestUuid, "requestUuid");
@@ -36,7 +39,30 @@ public record BodyTargetRequest(@Nonnull UUID requestUuid,
             position,
             rotation,
             linearVelocity,
-            angularVelocity);
+            angularVelocity,
+            true,
+            true,
+            true);
+    }
+
+    @Nonnull
+    public static BodyTargetRequest of(@Nonnull UUID bodyUuid,
+        @Nonnull Vector3f position,
+        @Nonnull Quaternionf rotation,
+        @Nonnull Vector3f linearVelocity,
+        @Nonnull Vector3f angularVelocity,
+        boolean transformEnabled,
+        boolean velocityEnabled,
+        boolean activate) {
+        return new BodyTargetRequest(UUID.randomUUID(),
+            bodyUuid,
+            position,
+            rotation,
+            linearVelocity,
+            angularVelocity,
+            transformEnabled,
+            velocityEnabled,
+            activate);
     }
 
     @Nonnull
