@@ -14,7 +14,6 @@ import com.hypixel.hytale.server.core.plugin.JavaPlugin;
 import com.hypixel.hytale.server.core.plugin.JavaPluginInit;
 import com.hypixel.hytale.server.core.plugin.PluginBase;
 import com.hypixel.hytale.server.core.plugin.PluginManager;
-import com.hypixel.hytale.server.core.universe.world.storage.ChunkStore;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import dev.hytalemodding.impulse.api.BackendId;
 import dev.hytalemodding.impulse.api.Impulse;
@@ -32,20 +31,9 @@ import dev.hytalemodding.impulse.core.internal.resources.profiling.PhysicsRuntim
 import dev.hytalemodding.impulse.core.internal.physicsstore.registration.PhysicsStoreRegistration;
 import dev.hytalemodding.impulse.core.internal.store.integration.PhysicsStoreEarlyPluginProbe;
 import dev.hytalemodding.impulse.core.internal.systems.debug.PhysicsDebugSystem;
-import dev.hytalemodding.impulse.core.internal.systems.body.PhysicsBodyIdentityCleanupSystem;
-import dev.hytalemodding.impulse.core.internal.systems.body.RigidBodyLifecycleCleanupSystem;
-import dev.hytalemodding.impulse.core.internal.systems.body.RigidBodyReconciliationSystem;
-import dev.hytalemodding.impulse.core.internal.systems.persistence.PersistentPhysicsBodyHydrationSystem;
-import dev.hytalemodding.impulse.core.internal.systems.persistence.PersistentPhysicsJointHydrationSystem;
-import dev.hytalemodding.impulse.core.internal.systems.persistence.PersistentPhysicsSpaceBootstrapSystem;
-import dev.hytalemodding.impulse.core.internal.systems.persistence.PersistentPhysicsWorldSyncSystem;
-import dev.hytalemodding.impulse.core.internal.systems.persistence.PhysicsRuntimeHolderSystem;
-import dev.hytalemodding.impulse.core.internal.systems.publication.PhysicsSnapshotPublicationSystem;
-import dev.hytalemodding.impulse.core.internal.systems.step.PhysicsStepSystem;
 import dev.hytalemodding.impulse.core.internal.systems.sync.PhysicsBodyAttachmentIndexSystem;
 import dev.hytalemodding.impulse.core.internal.systems.sync.PhysicsSyncSystem;
 import dev.hytalemodding.impulse.core.internal.systems.visual.PhysicsDetachedVisualMaterializationSystem;
-import dev.hytalemodding.impulse.core.internal.systems.owner.PhysicsOwnerLifecycleSystem;
 import dev.hytalemodding.impulse.core.plugin.components.PhysicsBodyAttachmentComponent;
 import dev.hytalemodding.impulse.core.plugin.components.PhysicsBodyCollisionComponent;
 import dev.hytalemodding.impulse.core.plugin.components.PhysicsBodyDynamicsComponent;
@@ -124,8 +112,6 @@ public final class ImpulsePlugin extends JavaPlugin {
     private BackendId defaultBackendId;
 
     private PhysicsOwnerLaneScheduler physicsOwnerLaneScheduler;
-    private PhysicsStepSystem physicsStepSystem;
-    private PhysicsOwnerLifecycleSystem physicsOwnerLifecycleSystem;
 
     public ImpulsePlugin(@Nonnull JavaPluginInit init) {
         super(init);
@@ -161,14 +147,6 @@ public final class ImpulsePlugin extends JavaPlugin {
     @Override
     protected void shutdown() {
         ImpulseCommandContributionRegistry.unregister();
-        if (physicsStepSystem != null) {
-            physicsStepSystem.close();
-            physicsStepSystem = null;
-        }
-        if (physicsOwnerLifecycleSystem != null) {
-            physicsOwnerLifecycleSystem.close();
-            physicsOwnerLifecycleSystem = null;
-        }
         if (physicsOwnerLaneScheduler != null) {
             physicsOwnerLaneScheduler.close();
             physicsOwnerLaneScheduler = null;
@@ -377,26 +355,12 @@ public final class ImpulsePlugin extends JavaPlugin {
     }
 
     private void registerSystems() {
-        ComponentRegistryProxy<ChunkStore> chunkRegistry = getChunkStoreRegistry();
-        physicsStepSystem = new PhysicsStepSystem();
-        chunkRegistry.registerSystem(physicsStepSystem);
-
         ComponentRegistryProxy<EntityStore> entityRegistry = getEntityStoreRegistry();
         persistenceRestoreGroup = entityRegistry.registerSystemGroup();
-        entityRegistry.registerSystem(createPhysicsOwnerLifecycleSystem());
-        entityRegistry.registerSystem(new PersistentPhysicsSpaceBootstrapSystem());
-        entityRegistry.registerSystem(new PersistentPhysicsBodyHydrationSystem());
-        entityRegistry.registerSystem(new PersistentPhysicsJointHydrationSystem());
-        entityRegistry.registerSystem(new PhysicsRuntimeHolderSystem());
-        entityRegistry.registerSystem(new PhysicsBodyIdentityCleanupSystem());
-        entityRegistry.registerSystem(new RigidBodyLifecycleCleanupSystem());
         entityRegistry.registerSystem(new PhysicsBodyAttachmentIndexSystem());
         entityRegistry.registerSystem(new PhysicsSyncSystem());
         entityRegistry.registerSystem(new PhysicsDebugSystem());
         entityRegistry.registerSystem(new PhysicsDetachedVisualMaterializationSystem());
-        entityRegistry.registerSystem(new PhysicsSnapshotPublicationSystem());
-        entityRegistry.registerSystem(new PersistentPhysicsWorldSyncSystem());
-        entityRegistry.registerSystem(new RigidBodyReconciliationSystem());
     }
 
     private void registerCommands() {
@@ -404,9 +368,4 @@ public final class ImpulsePlugin extends JavaPlugin {
         ImpulseCommandContributionRegistry.register(commandRegistry);
     }
 
-    @Nonnull
-    private PhysicsOwnerLifecycleSystem createPhysicsOwnerLifecycleSystem() {
-        physicsOwnerLifecycleSystem = new PhysicsOwnerLifecycleSystem();
-        return physicsOwnerLifecycleSystem;
-    }
 }
