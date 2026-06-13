@@ -9,6 +9,8 @@ import com.hypixel.hytale.component.ComponentType;
 import com.hypixel.hytale.server.core.universe.world.storage.PhysicsStore;
 import dev.hytalemodding.impulse.core.plugin.modules.worldcollision.WorldCollisionMode;
 import dev.hytalemodding.impulse.core.plugin.physicsstore.PhysicsStoreTypes;
+import dev.hytalemodding.impulse.core.plugin.settings.EntityChunkBoundaryMode;
+import dev.hytalemodding.impulse.core.plugin.settings.PhysicsSpaceSettings;
 import dev.hytalemodding.impulse.core.plugin.settings.PhysicsWorldCollisionSettings;
 import java.util.Objects;
 import javax.annotation.Nonnull;
@@ -29,6 +31,14 @@ public final class WorldCollisionComponent implements Component<PhysicsStore> {
         .append(new KeyedCodec<>("NativeVoxelTerrain", Codec.BOOLEAN, false),
             (component, value) -> component.nativeVoxelTerrainEnabled = value != null && value,
             WorldCollisionComponent::isNativeVoxelTerrainEnabled)
+        .add()
+        .append(new KeyedCodec<>("EntityChunkBoundaryMode",
+                new EnumCodec<>(EntityChunkBoundaryMode.class),
+                false),
+            (component, value) -> component.entityChunkBoundaryMode = value != null
+                ? value
+                : PhysicsWorldCollisionSettings.DEFAULT_ENTITY_CHUNK_BOUNDARY_MODE,
+            WorldCollisionComponent::getEntityChunkBoundaryMode)
         .add()
         .append(new KeyedCodec<>("Radius", Codec.INTEGER, false),
             (component, value) -> component.radius = value != null
@@ -64,6 +74,9 @@ public final class WorldCollisionComponent implements Component<PhysicsStore> {
 
     @Nonnull
     private WorldCollisionMode mode = WorldCollisionMode.NONE;
+    @Nonnull
+    private EntityChunkBoundaryMode entityChunkBoundaryMode =
+        PhysicsWorldCollisionSettings.DEFAULT_ENTITY_CHUNK_BOUNDARY_MODE;
     private boolean nativeVoxelTerrainEnabled =
         PhysicsWorldCollisionSettings.DEFAULT_NATIVE_VOXEL_TERRAIN_ENABLED;
     private int radius = PhysicsWorldCollisionSettings.DEFAULT_WORLD_COLLISION_RADIUS;
@@ -75,6 +88,17 @@ public final class WorldCollisionComponent implements Component<PhysicsStore> {
     public WorldCollisionComponent() {
     }
 
+    public WorldCollisionComponent(@Nonnull PhysicsWorldCollisionSettings settings) {
+        this(settings.getWorldCollisionMode(),
+            settings.getEntityChunkBoundaryMode(),
+            settings.isNativeVoxelTerrainEnabled(),
+            settings.getWorldCollisionRadius(),
+            settings.getWorldCollisionBodyRadius(),
+            settings.getWorldCollisionTtlTicks(),
+            settings.getTerrainFriction(),
+            settings.getTerrainRestitution());
+    }
+
     public WorldCollisionComponent(@Nonnull WorldCollisionMode mode,
         boolean nativeVoxelTerrainEnabled,
         int radius,
@@ -82,7 +106,27 @@ public final class WorldCollisionComponent implements Component<PhysicsStore> {
         int ttlTicks,
         float terrainFriction,
         float terrainRestitution) {
+        this(mode,
+            PhysicsWorldCollisionSettings.DEFAULT_ENTITY_CHUNK_BOUNDARY_MODE,
+            nativeVoxelTerrainEnabled,
+            radius,
+            bodyRadius,
+            ttlTicks,
+            terrainFriction,
+            terrainRestitution);
+    }
+
+    public WorldCollisionComponent(@Nonnull WorldCollisionMode mode,
+        @Nonnull EntityChunkBoundaryMode entityChunkBoundaryMode,
+        boolean nativeVoxelTerrainEnabled,
+        int radius,
+        int bodyRadius,
+        int ttlTicks,
+        float terrainFriction,
+        float terrainRestitution) {
         this.mode = Objects.requireNonNull(mode, "mode");
+        this.entityChunkBoundaryMode = Objects.requireNonNull(entityChunkBoundaryMode,
+            "entityChunkBoundaryMode");
         this.nativeVoxelTerrainEnabled = nativeVoxelTerrainEnabled;
         this.radius = radius;
         this.bodyRadius = bodyRadius;
@@ -98,6 +142,17 @@ public final class WorldCollisionComponent implements Component<PhysicsStore> {
 
     public void setMode(@Nonnull WorldCollisionMode mode) {
         this.mode = Objects.requireNonNull(mode, "mode");
+    }
+
+    @Nonnull
+    public EntityChunkBoundaryMode getEntityChunkBoundaryMode() {
+        return entityChunkBoundaryMode;
+    }
+
+    public void setEntityChunkBoundaryMode(
+        @Nonnull EntityChunkBoundaryMode entityChunkBoundaryMode) {
+        this.entityChunkBoundaryMode = Objects.requireNonNull(entityChunkBoundaryMode,
+            "entityChunkBoundaryMode");
     }
 
     public boolean isNativeVoxelTerrainEnabled() {
@@ -148,6 +203,20 @@ public final class WorldCollisionComponent implements Component<PhysicsStore> {
         this.terrainRestitution = terrainRestitution;
     }
 
+    public void copyTo(@Nonnull PhysicsSpaceSettings settings) {
+        copyTo(settings.getWorldCollisionSettings());
+    }
+
+    public void copyTo(@Nonnull PhysicsWorldCollisionSettings settings) {
+        settings.setWorldCollisionMode(mode);
+        settings.setEntityChunkBoundaryMode(entityChunkBoundaryMode);
+        settings.setNativeVoxelTerrainEnabled(nativeVoxelTerrainEnabled);
+        settings.setWorldCollisionRadius(radius);
+        settings.setWorldCollisionBodyRadius(bodyRadius);
+        settings.setWorldCollisionTtlTicks(ttlTicks);
+        settings.setTerrainMaterial(terrainFriction, terrainRestitution);
+    }
+
     @Nonnull
     public static ComponentType<PhysicsStore, WorldCollisionComponent> getComponentType() {
         return PhysicsStoreTypes.worldCollisionComponentType();
@@ -157,6 +226,7 @@ public final class WorldCollisionComponent implements Component<PhysicsStore> {
     @Override
     public WorldCollisionComponent clone() {
         return new WorldCollisionComponent(mode,
+            entityChunkBoundaryMode,
             nativeVoxelTerrainEnabled,
             radius,
             bodyRadius,

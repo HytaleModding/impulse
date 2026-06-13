@@ -10,18 +10,18 @@ import dev.hytalemodding.impulse.api.SpaceId;
 import dev.hytalemodding.impulse.core.internal.physicsstore.resources.PhysicsIdentityIndexResource;
 import dev.hytalemodding.impulse.core.internal.physicsstore.resources.PhysicsRequestQueueResource;
 import dev.hytalemodding.impulse.core.internal.physicsstore.resources.PhysicsSpaceCompatibilityIndexResource;
+import dev.hytalemodding.impulse.core.plugin.physicsstore.components.CollisionLodSettingsComponent;
+import dev.hytalemodding.impulse.core.plugin.physicsstore.components.ExtensionSettingsComponent;
+import dev.hytalemodding.impulse.core.plugin.physicsstore.components.SolverSettingsComponent;
 import dev.hytalemodding.impulse.core.plugin.physicsstore.components.SpaceComponent;
+import dev.hytalemodding.impulse.core.plugin.physicsstore.components.VisualMaterializationSettingsComponent;
+import dev.hytalemodding.impulse.core.plugin.physicsstore.components.VisualSyncSettingsComponent;
 import dev.hytalemodding.impulse.core.plugin.physicsstore.components.WorldCollisionComponent;
 import dev.hytalemodding.impulse.core.plugin.physicsstore.requests.PhysicsStoreRequest;
 import dev.hytalemodding.impulse.core.plugin.physicsstore.requests.SpaceRemoveRequest;
 import dev.hytalemodding.impulse.core.plugin.physicsstore.requests.SpaceSettingsRequest;
 import dev.hytalemodding.impulse.core.plugin.physicsstore.requests.SpaceUpsertRequest;
-import dev.hytalemodding.impulse.core.plugin.settings.PhysicsCollisionLodSettings;
-import dev.hytalemodding.impulse.core.plugin.settings.PhysicsSolverSettings;
 import dev.hytalemodding.impulse.core.plugin.settings.PhysicsSpaceSettings;
-import dev.hytalemodding.impulse.core.plugin.settings.PhysicsVisualMaterializationSettings;
-import dev.hytalemodding.impulse.core.plugin.settings.PhysicsVisualSyncSettings;
-import dev.hytalemodding.impulse.core.plugin.settings.PhysicsWorldCollisionSettings;
 import java.lang.invoke.MethodHandle;
 import java.lang.invoke.MethodHandles;
 import java.lang.invoke.MethodType;
@@ -106,7 +106,22 @@ public final class PhysicsStoreAccess {
         }
         WorldCollisionComponent worldCollision = store.getComponent(ref,
             WorldCollisionComponent.getComponentType());
-        return toSpaceSettings(worldCollision);
+        SolverSettingsComponent solverSettings = store.getComponent(ref,
+            SolverSettingsComponent.getComponentType());
+        VisualSyncSettingsComponent visualSyncSettings = store.getComponent(ref,
+            VisualSyncSettingsComponent.getComponentType());
+        VisualMaterializationSettingsComponent visualMaterializationSettings =
+            store.getComponent(ref, VisualMaterializationSettingsComponent.getComponentType());
+        CollisionLodSettingsComponent collisionLodSettings = store.getComponent(ref,
+            CollisionLodSettingsComponent.getComponentType());
+        ExtensionSettingsComponent extensionSettings = store.getComponent(ref,
+            ExtensionSettingsComponent.getComponentType());
+        return toSpaceSettings(worldCollision,
+            solverSettings,
+            visualSyncSettings,
+            visualMaterializationSettings,
+            collisionLodSettings,
+            extensionSettings);
     }
 
     @Nonnull
@@ -116,7 +131,7 @@ public final class PhysicsStoreAccess {
         @Nonnull PhysicsSpaceSettings settings) {
         Objects.requireNonNull(compatibilitySpaceId, "compatibilitySpaceId");
         Objects.requireNonNull(backendId, "backendId");
-        requireRepresentedSpaceSettings(settings);
+        Objects.requireNonNull(settings, "settings");
         Impulse.getRuntimeProvider(backendId);
         UUID spaceUuid = UUID.randomUUID();
         enqueue(world, SpaceUpsertRequest.of(spaceUuid, compatibilitySpaceId, backendId, settings));
@@ -131,7 +146,7 @@ public final class PhysicsStoreAccess {
     public static void enqueueSpaceSettings(@Nonnull World world,
         @Nonnull SpaceId spaceId,
         @Nonnull PhysicsSpaceSettings settings) {
-        requireRepresentedSpaceSettings(settings);
+        Objects.requireNonNull(settings, "settings");
         UUID spaceUuid = requireSpaceUuid(world, spaceId);
         enqueue(world, SpaceSettingsRequest.of(spaceUuid, settings));
     }
@@ -185,107 +200,32 @@ public final class PhysicsStoreAccess {
 
     @Nonnull
     private static PhysicsSpaceSettings toSpaceSettings(
-        @Nullable WorldCollisionComponent worldCollision) {
+        @Nullable WorldCollisionComponent worldCollision,
+        @Nullable SolverSettingsComponent solverSettings,
+        @Nullable VisualSyncSettingsComponent visualSyncSettings,
+        @Nullable VisualMaterializationSettingsComponent visualMaterializationSettings,
+        @Nullable CollisionLodSettingsComponent collisionLodSettings,
+        @Nullable ExtensionSettingsComponent extensionSettings) {
         PhysicsSpaceSettings settings = PhysicsSpaceSettings.defaults();
-        if (worldCollision == null) {
-            return settings;
+        if (worldCollision != null) {
+            worldCollision.copyTo(settings);
         }
-        PhysicsWorldCollisionSettings target = settings.getWorldCollisionSettings();
-        target.setWorldCollisionMode(worldCollision.getMode());
-        target.setNativeVoxelTerrainEnabled(worldCollision.isNativeVoxelTerrainEnabled());
-        target.setWorldCollisionRadius(worldCollision.getRadius());
-        target.setWorldCollisionBodyRadius(worldCollision.getBodyRadius());
-        target.setWorldCollisionTtlTicks(worldCollision.getTtlTicks());
-        target.setTerrainMaterial(worldCollision.getTerrainFriction(),
-            worldCollision.getTerrainRestitution());
+        if (solverSettings != null) {
+            solverSettings.copyTo(settings);
+        }
+        if (visualSyncSettings != null) {
+            visualSyncSettings.copyTo(settings);
+        }
+        if (visualMaterializationSettings != null) {
+            visualMaterializationSettings.copyTo(settings);
+        }
+        if (collisionLodSettings != null) {
+            collisionLodSettings.copyTo(settings);
+        }
+        if (extensionSettings != null) {
+            extensionSettings.copyTo(settings);
+        }
         return settings;
-    }
-
-    private static void requireRepresentedSpaceSettings(@Nonnull PhysicsSpaceSettings settings) {
-        Objects.requireNonNull(settings, "settings");
-        PhysicsSpaceSettings defaults = PhysicsSpaceSettings.defaults();
-        if (!solverSettingsEqual(settings.getSolverSettings(), defaults.getSolverSettings())
-            || !visualSyncSettingsEqual(settings.getVisualSyncSettings(),
-                defaults.getVisualSyncSettings())
-            || !visualMaterializationSettingsEqual(settings.getVisualMaterializationSettings(),
-                defaults.getVisualMaterializationSettings())
-            || !collisionLodSettingsEqual(settings.getCollisionLodSettings(),
-                defaults.getCollisionLodSettings())
-            || !settings.getExtensionSettings().isEmpty()) {
-            throw new IllegalArgumentException("Authoritative PhysicsStore space requests currently "
-                + "support world-collision settings only; solver, visual sync, visual "
-                + "materialization, collision LOD, and extension settings need a dedicated "
-                + "PhysicsStore space-settings model before they can be applied.");
-        }
-    }
-
-    private static boolean solverSettingsEqual(@Nonnull PhysicsSolverSettings left,
-        @Nonnull PhysicsSolverSettings right) {
-        return left.getSolverIterations() == right.getSolverIterations()
-            && left.getStabilizationIterations() == right.getStabilizationIterations()
-            && Float.compare(left.getDynamicSleepLinearThreshold(),
-                right.getDynamicSleepLinearThreshold()) == 0
-            && Float.compare(left.getDynamicSleepAngularThreshold(),
-                right.getDynamicSleepAngularThreshold()) == 0
-            && Float.compare(left.getDynamicSleepTimeUntilSleep(),
-                right.getDynamicSleepTimeUntilSleep()) == 0;
-    }
-
-    private static boolean visualSyncSettingsEqual(@Nonnull PhysicsVisualSyncSettings left,
-        @Nonnull PhysicsVisualSyncSettings right) {
-        return left.getVisualFullSyncRadius() == right.getVisualFullSyncRadius()
-            && left.getVisualMaxSyncRadius() == right.getVisualMaxSyncRadius()
-            && left.isVisualFarSyncCutoffEnabled() == right.isVisualFarSyncCutoffEnabled()
-            && left.getVisualMidSyncIntervalTicks() == right.getVisualMidSyncIntervalTicks()
-            && left.getVisualFarSyncIntervalTicks() == right.getVisualFarSyncIntervalTicks()
-            && left.getVisualOcclusionMode() == right.getVisualOcclusionMode()
-            && left.getVisualOcclusionRaycastsPerTick()
-                == right.getVisualOcclusionRaycastsPerTick()
-            && left.getVisualOcclusionCacheTicks() == right.getVisualOcclusionCacheTicks()
-            && left.isVisualSnapshotPredictionEnabled()
-                == right.isVisualSnapshotPredictionEnabled()
-            && Float.compare(left.getVisualSnapshotPredictionMaxSeconds(),
-                right.getVisualSnapshotPredictionMaxSeconds()) == 0
-            && left.isVisualSnapshotSmoothingEnabled()
-                == right.isVisualSnapshotSmoothingEnabled()
-            && Float.compare(left.getVisualSnapshotSmoothingRate(),
-                right.getVisualSnapshotSmoothingRate()) == 0
-            && left.isEntityVisualSyncCullingEnabled()
-                == right.isEntityVisualSyncCullingEnabled()
-            && left.isVisualVisibilityCullingEnabled() == right.isVisualVisibilityCullingEnabled();
-    }
-
-    private static boolean visualMaterializationSettingsEqual(
-        @Nonnull PhysicsVisualMaterializationSettings left,
-        @Nonnull PhysicsVisualMaterializationSettings right) {
-        return left.isDetachedVisualMaterializationEnabled()
-            == right.isDetachedVisualMaterializationEnabled()
-            && left.getDetachedVisualMaterializationRadius()
-                == right.getDetachedVisualMaterializationRadius()
-            && left.getDetachedVisualDematerializationRadius()
-                == right.getDetachedVisualDematerializationRadius()
-            && left.getDetachedVisualMaxSpawnsPerTick()
-                == right.getDetachedVisualMaxSpawnsPerTick()
-            && left.getDetachedVisualMaxMaterialized()
-                == right.getDetachedVisualMaxMaterialized()
-            && left.getDetachedVisualInterestRefreshIntervalTicks()
-                == right.getDetachedVisualInterestRefreshIntervalTicks()
-            && left.getDetachedVisualCandidateRefreshIntervalTicks()
-                == right.getDetachedVisualCandidateRefreshIntervalTicks()
-            && left.getDetachedVisualVisibilityCheckIntervalTicks()
-                == right.getDetachedVisualVisibilityCheckIntervalTicks()
-            && left.getDetachedVisualBlockType().equals(right.getDetachedVisualBlockType());
-    }
-
-    private static boolean collisionLodSettingsEqual(@Nonnull PhysicsCollisionLodSettings left,
-        @Nonnull PhysicsCollisionLodSettings right) {
-        return left.isCollisionLodEnabled() == right.isCollisionLodEnabled()
-            && left.getCollisionLodNearRadius() == right.getCollisionLodNearRadius()
-            && left.getCollisionLodMidRadius() == right.getCollisionLodMidRadius()
-            && left.getCollisionLodHysteresis() == right.getCollisionLodHysteresis()
-            && left.getCollisionLodRefreshIntervalTicks()
-                == right.getCollisionLodRefreshIntervalTicks()
-            && left.isCollisionLodFarSleepEnabled() == right.isCollisionLodFarSleepEnabled();
     }
 
     @Nonnull

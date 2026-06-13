@@ -62,6 +62,7 @@ public final class WorldCollisionIndexSystem extends TickingSystem<PhysicsStore>
                 : new WorldCollisionComponent();
             settingsBySpaceUuid.put(spaceUuid, new SpaceWorldCollisionSettings(spaceUuid,
                 settings.getMode(),
+                settings.getEntityChunkBoundaryMode(),
                 settings.isNativeVoxelTerrainEnabled(),
                 settings.getRadius(),
                 settings.getBodyRadius(),

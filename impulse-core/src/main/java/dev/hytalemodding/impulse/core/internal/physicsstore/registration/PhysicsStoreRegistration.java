@@ -23,6 +23,7 @@ import dev.hytalemodding.impulse.core.internal.physicsstore.systems.PersistenceC
 import dev.hytalemodding.impulse.core.internal.physicsstore.systems.PersistenceHydrationSystem;
 import dev.hytalemodding.impulse.core.internal.physicsstore.systems.RequestDrainSystem;
 import dev.hytalemodding.impulse.core.internal.physicsstore.systems.SpaceBindingSystem;
+import dev.hytalemodding.impulse.core.internal.physicsstore.systems.SpaceSettingsApplicationSystem;
 import dev.hytalemodding.impulse.core.internal.physicsstore.systems.StepSubmissionSystem;
 import dev.hytalemodding.impulse.core.internal.physicsstore.systems.TargetBindingSystem;
 import dev.hytalemodding.impulse.core.internal.physicsstore.systems.TerrainColliderBindingSystem;
@@ -30,15 +31,20 @@ import dev.hytalemodding.impulse.core.internal.physicsstore.systems.WorldCollisi
 import dev.hytalemodding.impulse.core.plugin.physicsstore.PhysicsStoreTypes;
 import dev.hytalemodding.impulse.core.plugin.physicsstore.components.BodyComponent;
 import dev.hytalemodding.impulse.core.plugin.physicsstore.components.ColliderComponent;
+import dev.hytalemodding.impulse.core.plugin.physicsstore.components.CollisionLodSettingsComponent;
 import dev.hytalemodding.impulse.core.plugin.physicsstore.components.CollisionFilterComponent;
 import dev.hytalemodding.impulse.core.plugin.physicsstore.components.DynamicsComponent;
+import dev.hytalemodding.impulse.core.plugin.physicsstore.components.ExtensionSettingsComponent;
 import dev.hytalemodding.impulse.core.plugin.physicsstore.components.JointComponent;
 import dev.hytalemodding.impulse.core.plugin.physicsstore.components.MaterialComponent;
 import dev.hytalemodding.impulse.core.plugin.physicsstore.components.ShapeComponent;
+import dev.hytalemodding.impulse.core.plugin.physicsstore.components.SolverSettingsComponent;
 import dev.hytalemodding.impulse.core.plugin.physicsstore.components.SpaceComponent;
 import dev.hytalemodding.impulse.core.plugin.physicsstore.components.TargetComponent;
 import dev.hytalemodding.impulse.core.plugin.physicsstore.components.TerrainColliderComponent;
 import dev.hytalemodding.impulse.core.plugin.physicsstore.components.UuidComponent;
+import dev.hytalemodding.impulse.core.plugin.physicsstore.components.VisualMaterializationSettingsComponent;
+import dev.hytalemodding.impulse.core.plugin.physicsstore.components.VisualSyncSettingsComponent;
 import dev.hytalemodding.impulse.core.plugin.physicsstore.components.WorldCollisionComponent;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
@@ -96,6 +102,26 @@ public final class PhysicsStoreRegistration {
             WorldCollisionComponent.class,
             "WorldCollision",
             WorldCollisionComponent.CODEC));
+        PhysicsStoreTypes.setSolverSettingsComponentType(registry.registerComponent(
+            SolverSettingsComponent.class,
+            "SolverSettings",
+            SolverSettingsComponent.CODEC));
+        PhysicsStoreTypes.setVisualSyncSettingsComponentType(registry.registerComponent(
+            VisualSyncSettingsComponent.class,
+            "VisualSyncSettings",
+            VisualSyncSettingsComponent.CODEC));
+        PhysicsStoreTypes.setVisualMaterializationSettingsComponentType(registry.registerComponent(
+            VisualMaterializationSettingsComponent.class,
+            "VisualMaterializationSettings",
+            VisualMaterializationSettingsComponent.CODEC));
+        PhysicsStoreTypes.setCollisionLodSettingsComponentType(registry.registerComponent(
+            CollisionLodSettingsComponent.class,
+            "CollisionLodSettings",
+            CollisionLodSettingsComponent.CODEC));
+        PhysicsStoreTypes.setExtensionSettingsComponentType(registry.registerComponent(
+            ExtensionSettingsComponent.class,
+            "ExtensionSettings",
+            ExtensionSettingsComponent.CODEC));
 
         PhysicsStoreTypes.setRuntimeResourceType(registry.registerResource(
             PhysicsRuntimeResource.class,
@@ -137,6 +163,7 @@ public final class PhysicsStoreRegistration {
         registry.registerSystem(new IdentityIndexSystem());
         registry.registerSystem(new WorldCollisionIndexSystem());
         registry.registerSystem(new SpaceBindingSystem());
+        registry.registerSystem(new SpaceSettingsApplicationSystem());
         registry.registerSystem(new BodyBindingSystem());
         registry.registerSystem(new ColliderBindingSystem());
         registry.registerSystem(new JointBindingSystem());
