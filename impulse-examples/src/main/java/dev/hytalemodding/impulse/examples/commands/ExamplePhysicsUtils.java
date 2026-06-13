@@ -1022,7 +1022,7 @@ public final class ExamplePhysicsUtils {
     }
 
     @Nonnull
-    private static Holder<EntityStore> attachedPhysicsStoreBlockEntityHolder(@Nonnull TimeResource time,
+    public static Holder<EntityStore> attachedPhysicsStoreBlockEntityHolder(@Nonnull TimeResource time,
         @Nonnull RigidBodyKey bodyKey,
         @Nonnull UUID physicsBodyUuid,
         @Nonnull SpaceId spaceId,

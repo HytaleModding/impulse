@@ -20,11 +20,17 @@ import com.hypixel.hytale.server.core.util.TargetUtil;
 import dev.hytalemodding.impulse.api.PhysicsBodyType;
 import dev.hytalemodding.impulse.api.SpaceId;
 import dev.hytalemodding.impulse.core.plugin.body.RigidBodyKey;
-import dev.hytalemodding.impulse.core.plugin.components.PhysicsBodyKinematicTargetComponent;
 import dev.hytalemodding.impulse.core.plugin.modules.worldcollision.WorldCollisionPrewarmStats;
+import dev.hytalemodding.impulse.core.plugin.physicsstore.PhysicsStoreAccess;
+import dev.hytalemodding.impulse.core.plugin.physicsstore.requests.BodyForceRequest;
+import dev.hytalemodding.impulse.core.plugin.physicsstore.requests.BodyTargetRequest;
+import dev.hytalemodding.impulse.core.plugin.physicsstore.requests.BodyTypeRequest;
+import dev.hytalemodding.impulse.core.plugin.physicsstore.requests.BodyUpsertRequest;
+import dev.hytalemodding.impulse.core.plugin.physicsstore.requests.PhysicsStoreRequest;
 import dev.hytalemodding.impulse.core.plugin.resources.PhysicsWorldResource;
 import dev.hytalemodding.impulse.core.plugin.settings.PhysicsEventCollectionMode;
-import dev.hytalemodding.impulse.core.plugin.settings.PhysicsWorldSettings;
+import dev.hytalemodding.impulse.core.plugin.simulation.PhysicsShapeSpec;
+import dev.hytalemodding.impulse.core.plugin.simulation.RigidBodySpawnSettings;
 import dev.hytalemodding.impulse.core.plugin.simulation.query.RaycastClosestQuery;
 import dev.hytalemodding.impulse.core.plugin.simulation.view.RaycastHitView;
 import dev.hytalemodding.impulse.examples.explosive.ExplosiveBlockComponent;
@@ -32,9 +38,11 @@ import dev.hytalemodding.impulse.examples.explosive.ExplosiveBlockPolicy;
 import dev.hytalemodding.impulse.examples.explosive.ExplosiveFuseComponent;
 import java.util.List;
 import java.util.Optional;
+import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
+import org.joml.Quaternionf;
 import org.joml.Vector3d;
 import org.joml.Vector3f;
 import org.joml.Vector3i;
@@ -103,20 +111,19 @@ public class EcsCommand extends AbstractCommandCollection {
                 return CompletableFuture.completedFuture(null);
             }
 
-            RigidBodyKey bodyKey = RigidBodyKey.random();
             Vector3d spawn = new Vector3d(playerPos).add(0.0, 5.0, 0.0);
             TimeResource time = store.getResource(TimeResource.getResourceType());
-            ExamplePhysicsUtils.spawnPhysicsBodyBlockEntity(store,
+            ExamplePhysicsUtils.SpawnedBlockBody body = ExamplePhysicsUtils.spawnBlockBody(store,
                 time,
-                bodyKey,
+                ExamplePhysicsUtils.resource(store),
                 spaceId,
                 spawn,
                 blockType(ctx),
-                PhysicsBodyType.DYNAMIC,
+                PhysicsShapeSpec.box(0.5f, 0.5f, 0.5f),
                 1.0f,
-                null);
+                RigidBodySpawnSettings.material(0.5f, 0.2f));
 
-            ctx.sender().sendMessage(Message.raw("Queued ECS-authored physics body " + bodyKey
+            ctx.sender().sendMessage(Message.raw("Queued ECS-authored physics body " + body.bodyKey()
                 + " in space " + spaceId.value() + "."));
             return CompletableFuture.completedFuture(null);
         }
@@ -164,15 +171,13 @@ public class EcsCommand extends AbstractCommandCollection {
             }
             int strength = ExamplePhysicsUtils.optionalInt(ctx, strengthArg, 8, 1, 64);
             Vector3d impulse = ExamplePhysicsUtils.lookDirection(store, ref, transform).mul(strength);
-            PhysicsWorldResource resource = ExamplePhysicsUtils.resource(store);
-            ExamplePhysicsUtils.requireApplied(resource.submitCommands(0L,
-                1,
-                commands -> commands.applyBodyImpulse(hit.bodyKey(),
+            PhysicsStoreAccess.enqueue(world,
+                BodyForceRequest.impulse(hit.bodyKey().value(),
                     (float) impulse.x,
                     (float) impulse.y,
-                    (float) impulse.z)), "ecs recorder impulse");
+                    (float) impulse.z));
 
-            ctx.sender().sendMessage(Message.raw("Applied ECS recorder impulse to "
+            ctx.sender().sendMessage(Message.raw("Queued ECS impulse request for "
                 + hit.bodyKey() + "."));
             return CompletableFuture.completedFuture(null);
         }
@@ -201,18 +206,44 @@ public class EcsCommand extends AbstractCommandCollection {
             }
 
             RigidBodyKey bodyKey = RigidBodyKey.random();
+            UUID bodyUuid = bodyKey.value();
             Vector3d spawn = new Vector3d(playerPos).add(0.0, 2.0, 0.0);
-            PhysicsBodyKinematicTargetComponent target = ExamplePhysicsUtils.kinematicTargetAt(spawn);
-            TimeResource time = store.getResource(TimeResource.getResourceType());
-            ExamplePhysicsUtils.spawnPhysicsBodyBlockEntity(store,
-                time,
-                bodyKey,
-                spaceId,
-                spawn,
-                ExamplePhysicsUtils.DEFAULT_BLOCK_TYPE,
-                PhysicsBodyType.KINEMATIC,
+            UUID spaceUuid = PhysicsStoreAccess.resolveSpaceUuid(world, spaceId);
+            if (spaceUuid == null) {
+                ctx.sender().sendMessage(Message.raw("PhysicsStore space id=" + spaceId.value()
+                    + " is not bound yet."));
+                return CompletableFuture.completedFuture(null);
+            }
+            Vector3f targetPosition = vector(spawn);
+            BodyUpsertRequest bodyRequest = ExamplePhysicsUtils.bodyUpsertRequest(spaceUuid,
+                bodyUuid,
+                targetPosition,
+                PhysicsShapeSpec.box(0.5f, 0.5f, 0.5f),
                 0.0f,
-                target);
+                RigidBodySpawnSettings.material(0.5f, 0.2f),
+                null);
+            List<PhysicsStoreRequest> requests = List.of(bodyRequest,
+                BodyTypeRequest.of(bodyUuid, PhysicsBodyType.KINEMATIC, true),
+                BodyTargetRequest.of(bodyUuid,
+                    targetPosition,
+                    new Quaternionf(),
+                    new Vector3f(),
+                    new Vector3f(),
+                    true,
+                    false,
+                    true));
+            PhysicsStoreAccess.enqueueAll(world, requests);
+
+            TimeResource time = store.getResource(TimeResource.getResourceType());
+            ExamplePhysicsUtils.attachPhysicsStoreBlockBody(store,
+                time,
+                new ExamplePhysicsUtils.PendingBlockBody(bodyKey,
+                    spaceId,
+                    ExamplePhysicsUtils.DEFAULT_BLOCK_TYPE,
+                    (float) spawn.x,
+                    (float) spawn.y,
+                    (float) spawn.z,
+                    false));
 
             ctx.sender().sendMessage(Message.raw("Queued ECS kinematic platform " + bodyKey
                 + " in space " + spaceId.value() + "."));
@@ -378,7 +409,13 @@ public class EcsCommand extends AbstractCommandCollection {
                 return CompletableFuture.completedFuture(null);
             }
             PhysicsWorldResource resource = ExamplePhysicsUtils.resource(store);
-            ensureContactEvents(resource);
+            boolean contactEventsEnabled = contactEventsEnabled(resource);
+            UUID spaceUuid = PhysicsStoreAccess.resolveSpaceUuid(world, spaceId);
+            if (spaceUuid == null) {
+                ctx.sender().sendMessage(Message.raw("PhysicsStore space id=" + spaceId.value()
+                    + " is not bound yet."));
+                return CompletableFuture.completedFuture(null);
+            }
             WorldCollisionPrewarmStats stats = resource.ensureWorldCollisionAround(world,
                 spaceId,
                 List.of(spawn),
@@ -386,6 +423,15 @@ public class EcsCommand extends AbstractCommandCollection {
                 Math.max(0L, world.getTick()));
 
             RigidBodyKey bodyKey = RigidBodyKey.random();
+            UUID bodyUuid = bodyKey.value();
+            PhysicsStoreAccess.enqueue(world,
+                ExamplePhysicsUtils.bodyUpsertRequest(spaceUuid,
+                    bodyUuid,
+                    vector(spawn),
+                    PhysicsShapeSpec.box(0.5f, 0.5f, 0.5f),
+                    1.0f,
+                    RigidBodySpawnSettings.material(SOURCE_FRICTION, SOURCE_RESTITUTION),
+                    null));
             TimeResource time = store.getResource(TimeResource.getResourceType());
             ExplosiveBlockComponent settings = new ExplosiveBlockComponent(blockType,
                 0,
@@ -394,16 +440,16 @@ public class EcsCommand extends AbstractCommandCollection {
                 maxFragments,
                 strength,
                 verticalLift);
-            Holder<EntityStore> holder = ExamplePhysicsUtils.physicsBodyBlockEntityHolder(time,
+            Holder<EntityStore> holder = ExamplePhysicsUtils.attachedPhysicsStoreBlockEntityHolder(time,
                 bodyKey,
+                bodyUuid,
                 spaceId,
-                spawn,
                 blockType,
-                PhysicsBodyType.DYNAMIC,
-                1.0f,
-                SOURCE_FRICTION,
-                SOURCE_RESTITUTION,
-                null);
+                spawn,
+                new Vector3f(),
+                new Quaternionf(),
+                Float.NaN,
+                true);
             holder.addComponent(ExplosiveBlockComponent.getComponentType(), settings);
             holder.addComponent(ExplosiveFuseComponent.getComponentType(), new ExplosiveFuseComponent());
             store.addEntity(holder, AddReason.SPAWN);
@@ -413,6 +459,7 @@ public class EcsCommand extends AbstractCommandCollection {
                 + " radius=" + radius
                 + " maxFragments=" + maxFragments
                 + " collisionBodies=" + stats.buildStats().colliderBodies()
+                + " contactEvents=" + contactEventsEnabled
                 + "."));
             return CompletableFuture.completedFuture(null);
         }
@@ -426,13 +473,8 @@ public class EcsCommand extends AbstractCommandCollection {
             return BlockType.getAssetMap().getAsset(ExamplePhysicsUtils.DEFAULT_BLOCK_TYPE);
         }
 
-        private static void ensureContactEvents(@Nonnull PhysicsWorldResource resource) {
-            PhysicsWorldSettings settings = resource.getWorldSettings();
-            if (settings.getEventCollectionMode() == PhysicsEventCollectionMode.CONTACTS) {
-                return;
-            }
-            settings.setEventCollectionMode(PhysicsEventCollectionMode.CONTACTS);
-            resource.setWorldSettings(settings);
+        private static boolean contactEventsEnabled(@Nonnull PhysicsWorldResource resource) {
+            return resource.getWorldSettings().getEventCollectionMode() == PhysicsEventCollectionMode.CONTACTS;
         }
 
         @Nonnull
