@@ -10,6 +10,7 @@ import dev.hytalemodding.impulse.core.internal.physicsstore.resources.PhysicsPro
 import dev.hytalemodding.impulse.core.internal.physicsstore.resources.PhysicsRequestQueueResource;
 import dev.hytalemodding.impulse.core.internal.physicsstore.resources.PhysicsRestoreStatusResource;
 import dev.hytalemodding.impulse.core.internal.physicsstore.resources.PhysicsRuntimeResource;
+import dev.hytalemodding.impulse.core.internal.physicsstore.resources.PhysicsSpaceCompatibilityIndexResource;
 import dev.hytalemodding.impulse.core.internal.physicsstore.resources.PhysicsSnapshotResource;
 import dev.hytalemodding.impulse.core.internal.physicsstore.resources.PhysicsTerrainPayloadResource;
 import dev.hytalemodding.impulse.core.internal.physicsstore.resources.PhysicsWorldCollisionIndexResource;
@@ -99,6 +100,9 @@ public final class PhysicsStoreRegistration {
         PhysicsStoreTypes.setRuntimeResourceType(registry.registerResource(
             PhysicsRuntimeResource.class,
             PhysicsRuntimeResource::new));
+        PhysicsStoreTypes.setSpaceCompatibilityIndexResourceType(registry.registerResource(
+            PhysicsSpaceCompatibilityIndexResource.class,
+            PhysicsSpaceCompatibilityIndexResource::new));
         PhysicsStoreTypes.setRequestQueueResourceType(registry.registerResource(
             PhysicsRequestQueueResource.class,
             PhysicsRequestQueueResource::new));

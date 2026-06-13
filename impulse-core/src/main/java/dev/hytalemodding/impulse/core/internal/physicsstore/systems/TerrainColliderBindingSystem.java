@@ -12,6 +12,7 @@ import com.hypixel.hytale.component.system.tick.TickingSystem;
 import com.hypixel.hytale.math.util.ChunkUtil;
 import com.hypixel.hytale.server.core.universe.world.storage.PhysicsStore;
 import dev.hytalemodding.impulse.api.PhysicsBodyType;
+import dev.hytalemodding.impulse.api.ShapeType;
 import dev.hytalemodding.impulse.api.runtime.BackendRuntimeCodes;
 import dev.hytalemodding.impulse.api.runtime.PhysicsBackendRuntime;
 import dev.hytalemodding.impulse.core.internal.physicsstore.resources.PhysicsRestoreStatusResource;
@@ -147,7 +148,9 @@ public final class TerrainColliderBindingSystem extends TickingSystem<PhysicsSto
             payload.restitution(),
             payload.collisionGroup(),
             payload.collisionMask());
-        runtime.putTerrainBodyHandle(terrainUuid, spaceHandle, new BackendBodyHandle(bodyId), true);
+        BackendBodyHandle bodyHandle = new BackendBodyHandle(bodyId);
+        runtime.putTerrainBodyHandle(terrainUuid, spaceHandle, bodyHandle, true);
+        runtime.putBodyHitMetadata(bodyHandle, null, PhysicsBodyType.STATIC, ShapeType.VOXELS);
     }
 
     private static void addStaticBox(@Nonnull PhysicsRuntimeResource runtime,
@@ -183,10 +186,12 @@ public final class TerrainColliderBindingSystem extends TickingSystem<PhysicsSto
             bodyId,
             payload.collisionGroup(),
             payload.collisionMask());
+        BackendBodyHandle bodyHandle = new BackendBodyHandle(bodyId);
         runtime.putTerrainBodyHandle(terrainUuid,
             spaceHandle,
-            new BackendBodyHandle(bodyId),
+            bodyHandle,
             false);
+        runtime.putBodyHitMetadata(bodyHandle, null, PhysicsBodyType.STATIC, ShapeType.BOX);
     }
 
     private static void stitchNeighbors(@Nonnull PhysicsRuntimeResource runtime,

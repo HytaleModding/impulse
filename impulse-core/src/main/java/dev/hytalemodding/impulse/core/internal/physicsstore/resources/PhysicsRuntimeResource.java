@@ -4,16 +4,21 @@ import com.hypixel.hytale.component.Resource;
 import com.hypixel.hytale.component.ResourceType;
 import com.hypixel.hytale.server.core.universe.world.storage.PhysicsStore;
 import dev.hytalemodding.impulse.api.BackendId;
+import dev.hytalemodding.impulse.api.PhysicsBodyType;
+import dev.hytalemodding.impulse.api.ShapeType;
 import dev.hytalemodding.impulse.api.runtime.PhysicsBackendRuntime;
 import dev.hytalemodding.impulse.core.internal.resources.BackendBodyHandle;
 import dev.hytalemodding.impulse.core.internal.resources.BackendJointHandle;
 import dev.hytalemodding.impulse.core.internal.resources.BackendSpaceHandle;
+import dev.hytalemodding.impulse.core.plugin.body.RigidBodyKey;
 import dev.hytalemodding.impulse.core.plugin.physicsstore.PhysicsStoreTypes;
 import it.unimi.dsi.fastutil.ints.Int2ObjectOpenHashMap;
+import it.unimi.dsi.fastutil.longs.Long2ObjectOpenHashMap;
 import it.unimi.dsi.fastutil.longs.LongArrayList;
 import it.unimi.dsi.fastutil.longs.LongList;
 import it.unimi.dsi.fastutil.objects.Object2ObjectOpenHashMap;
 import java.util.Map;
+import java.util.Objects;
 import java.util.UUID;
 import java.util.function.LongConsumer;
 import javax.annotation.Nonnull;
@@ -60,6 +65,9 @@ public final class PhysicsRuntimeResource implements Resource<PhysicsStore> {
     @Nonnull
     private final Int2ObjectOpenHashMap<LongList> bodyHandlesBySpaceHandle =
         new Int2ObjectOpenHashMap<>();
+    @Nonnull
+    private final Long2ObjectOpenHashMap<BodyHitMetadata> bodyHitMetadataByHandle =
+        new Long2ObjectOpenHashMap<>();
     private boolean started;
 
     public PhysicsRuntimeResource() {
@@ -103,7 +111,10 @@ public final class PhysicsRuntimeResource implements Resource<PhysicsStore> {
         BackendSpaceHandle removed = spaceHandlesByUuid.remove(spaceUuid);
         backendIdsBySpaceUuid.remove(spaceUuid);
         if (removed != null) {
-            bodyHandlesBySpaceHandle.remove(removed.value());
+            LongList bodyHandles = bodyHandlesBySpaceHandle.remove(removed.value());
+            if (bodyHandles != null) {
+                bodyHandles.forEach((long bodyHandle) -> bodyHitMetadataByHandle.remove(bodyHandle));
+            }
             removeTerrainHandlesForSpace(removed);
         }
     }
@@ -138,7 +149,25 @@ public final class PhysicsRuntimeResource implements Resource<PhysicsStore> {
                     bodyHandlesBySpaceHandle.remove(spaceHandle.value());
                 }
             }
+            bodyHitMetadataByHandle.remove(removed.value());
         }
+    }
+
+    public void putBodyHitMetadata(@Nonnull BackendBodyHandle handle,
+        @Nullable RigidBodyKey bodyKey,
+        @Nonnull PhysicsBodyType bodyType,
+        @Nonnull ShapeType shapeType) {
+        bodyHitMetadataByHandle.put(handle.value(),
+            new BodyHitMetadata(bodyKey, bodyType, shapeType));
+    }
+
+    @Nullable
+    public BodyHitMetadata getBodyHitMetadata(@Nonnull BackendBodyHandle handle) {
+        return bodyHitMetadataByHandle.get(handle.value());
+    }
+
+    public void removeBodyHitMetadata(@Nonnull BackendBodyHandle handle) {
+        bodyHitMetadataByHandle.remove(handle.value());
     }
 
     public void putJointHandle(@Nonnull UUID jointUuid,
@@ -208,6 +237,10 @@ public final class PhysicsRuntimeResource implements Resource<PhysicsStore> {
     }
 
     public void removeTerrainHandles(@Nonnull UUID terrainUuid) {
+        LongList bodyHandles = terrainBodyHandlesByUuid.get(terrainUuid);
+        if (bodyHandles != null) {
+            bodyHandles.forEach((long bodyHandle) -> bodyHitMetadataByHandle.remove(bodyHandle));
+        }
         terrainBodyHandlesByUuid.remove(terrainUuid);
         terrainVoxelBodyHandlesByUuid.remove(terrainUuid);
         terrainSpaceHandlesByUuid.remove(terrainUuid);
@@ -246,6 +279,7 @@ public final class PhysicsRuntimeResource implements Resource<PhysicsStore> {
         terrainSpaceHandlesByUuid.clear();
         terrainPayloadKeysByUuid.clear();
         bodyHandlesBySpaceHandle.clear();
+        bodyHitMetadataByHandle.clear();
         started = false;
     }
 
@@ -259,6 +293,7 @@ public final class PhysicsRuntimeResource implements Resource<PhysicsStore> {
         copy.bodyHandlesByUuid.putAll(bodyHandlesByUuid);
         copy.bodySpaceHandlesByUuid.putAll(bodySpaceHandlesByUuid);
         copy.jointHandlesByUuid.putAll(jointHandlesByUuid);
+        copy.jointSpaceHandlesByUuid.putAll(jointSpaceHandlesByUuid);
         terrainBodyHandlesByUuid.forEach((terrainUuid, bodyHandles) ->
             copy.terrainBodyHandlesByUuid.put(terrainUuid, new LongArrayList(bodyHandles)));
         copy.terrainVoxelBodyHandlesByUuid.putAll(terrainVoxelBodyHandlesByUuid);
@@ -266,6 +301,7 @@ public final class PhysicsRuntimeResource implements Resource<PhysicsStore> {
         copy.terrainPayloadKeysByUuid.putAll(terrainPayloadKeysByUuid);
         bodyHandlesBySpaceHandle.forEach((spaceHandle, bodyHandles) ->
             copy.bodyHandlesBySpaceHandle.put((int) spaceHandle, new LongArrayList(bodyHandles)));
+        copy.bodyHitMetadataByHandle.putAll(bodyHitMetadataByHandle);
         copy.started = started;
         return copy;
     }
@@ -284,12 +320,26 @@ public final class PhysicsRuntimeResource implements Resource<PhysicsStore> {
             @Nonnull PhysicsBackendRuntime runtime);
     }
 
+    public record BodyHitMetadata(@Nullable RigidBodyKey bodyKey,
+                                  @Nonnull PhysicsBodyType bodyType,
+                                  @Nonnull ShapeType shapeType) {
+
+        public BodyHitMetadata {
+            Objects.requireNonNull(bodyType, "bodyType");
+            Objects.requireNonNull(shapeType, "shapeType");
+        }
+    }
+
     private void removeTerrainHandlesForSpace(@Nonnull BackendSpaceHandle spaceHandle) {
         terrainSpaceHandlesByUuid.entrySet().removeIf(entry -> {
             if (entry.getValue().value() != spaceHandle.value()) {
                 return false;
             }
             UUID terrainUuid = entry.getKey();
+            LongList bodyHandles = terrainBodyHandlesByUuid.get(terrainUuid);
+            if (bodyHandles != null) {
+                bodyHandles.forEach((long bodyHandle) -> bodyHitMetadataByHandle.remove(bodyHandle));
+            }
             terrainBodyHandlesByUuid.remove(terrainUuid);
             terrainVoxelBodyHandlesByUuid.remove(terrainUuid);
             terrainPayloadKeysByUuid.remove(terrainUuid);

@@ -20,6 +20,7 @@ import dev.hytalemodding.impulse.core.internal.physicsstore.resources.PhysicsRes
 import dev.hytalemodding.impulse.core.internal.physicsstore.resources.PhysicsRuntimeResource;
 import dev.hytalemodding.impulse.core.internal.resources.BackendBodyHandle;
 import dev.hytalemodding.impulse.core.internal.resources.BackendSpaceHandle;
+import dev.hytalemodding.impulse.core.plugin.body.RigidBodyKey;
 import dev.hytalemodding.impulse.core.plugin.physicsstore.components.BodyComponent;
 import dev.hytalemodding.impulse.core.plugin.physicsstore.components.ColliderComponent;
 import dev.hytalemodding.impulse.core.plugin.physicsstore.components.CollisionFilterComponent;
@@ -198,6 +199,10 @@ public final class BodyBindingSystem extends TickingSystem<PhysicsStore>
             backendRuntime.setBodyContinuousCollision(spaceHandle.value(), bodyId, true);
         }
         runtime.putBodyHandle(bodyUuid, spaceHandle, bodyHandle);
+        runtime.putBodyHitMetadata(bodyHandle,
+            RigidBodyKey.of(bodyUuid),
+            bodyType,
+            shape.getShapeType());
         identity.putBodyHandle(bodyHandle, bodyRef);
     }
 
