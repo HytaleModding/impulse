@@ -83,7 +83,7 @@ public class StressShapesCommand extends AbstractAsyncPlayerCommand {
                 base, 4.8);
         }
 
-        ctx.sender().sendMessage(Message.raw("Spawned " + sets + " mixed shape sets ("
+        ctx.sender().sendMessage(Message.raw("Queued " + sets + " mixed shape sets ("
             + (sets * 5) + " bodies)."));
         return CompletableFuture.completedFuture(null);
     }
@@ -96,7 +96,7 @@ public class StressShapesCommand extends AbstractAsyncPlayerCommand {
         @Nonnull PhysicsAxis axis,
         @Nonnull Vector3d base,
         double xOffset) {
-        ExamplePhysicsUtils.spawnBlockBodyLegacy(store,
+        ExamplePhysicsUtils.spawnBlockBody(store,
             time,
             resource,
             spaceId,
