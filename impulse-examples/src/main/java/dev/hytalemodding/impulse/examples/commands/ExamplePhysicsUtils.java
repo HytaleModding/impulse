@@ -190,16 +190,8 @@ public final class ExamplePhysicsUtils {
             return attachPhysicsStoreBlockBody(store, time, physicsStoreBody);
         }
 
-        return spawnBlockBodyLegacy(store,
-            time,
-            resource,
-            spaceId,
-            visualPosition,
-            blockType,
-            shape,
-            mass,
-            settings,
-            linearVelocity);
+        throw new IllegalStateException("Cannot spawn block body because the target space is not "
+            + "bound in PhysicsStore: " + spaceId.value());
     }
 
     @Nonnull
@@ -278,7 +270,7 @@ public final class ExamplePhysicsUtils {
     }
 
     @Nonnull
-    private static BodyUpsertRequest bodyUpsertRequest(@Nonnull UUID spaceUuid,
+    static BodyUpsertRequest bodyUpsertRequest(@Nonnull UUID spaceUuid,
         @Nonnull UUID bodyUuid,
         @Nonnull Vector3f bodyCenter,
         @Nonnull PhysicsShapeSpec shape,
@@ -520,7 +512,7 @@ public final class ExamplePhysicsUtils {
     }
 
     @Nonnull
-    private static SpawnedBlockBody attachPhysicsStoreBlockBody(@Nonnull Store<EntityStore> store,
+    static SpawnedBlockBody attachPhysicsStoreBlockBody(@Nonnull Store<EntityStore> store,
         @Nonnull TimeResource time,
         @Nonnull PendingBlockBody pending) {
         Ref<EntityStore> entity = spawnAttachedPhysicsStoreBlockEntity(store,
