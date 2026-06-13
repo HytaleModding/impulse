@@ -7,15 +7,10 @@ import com.hypixel.hytale.server.core.command.system.basecommands.AbstractWorldC
 import com.hypixel.hytale.server.core.universe.world.World;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import dev.hytalemodding.impulse.core.internal.diagnostics.PhysicsEntityDiagnostics;
-import dev.hytalemodding.impulse.core.internal.resources.PhysicsWorldRuntimeResource;
 import dev.hytalemodding.impulse.core.internal.resources.profiling.PhysicsRuntimeProfilingResource;
 import dev.hytalemodding.impulse.core.internal.resources.profiling.PhysicsRuntimeProfilingResource.StepSnapshot;
 import dev.hytalemodding.impulse.core.internal.resources.profiling.PhysicsRuntimeProfilingResource.SyncSnapshot;
 import dev.hytalemodding.impulse.core.internal.resources.profiling.PhysicsRuntimeProfilingResource.VisualSnapshot;
-import dev.hytalemodding.impulse.core.internal.simulation.query.PhysicsSpaceRuntimeStatsQuery;
-import dev.hytalemodding.impulse.core.internal.simulation.view.PhysicsSpaceRuntimeStatsView;
-import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyKind;
-import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyRegistrationView;
 import dev.hytalemodding.impulse.core.plugin.events.PhysicsCommandBatchEvent;
 import dev.hytalemodding.impulse.core.plugin.events.PhysicsEventFrame;
 import dev.hytalemodding.impulse.core.plugin.resources.PhysicsWorldResource;
@@ -569,7 +564,6 @@ public class WorldCollisionPerfReportCommand extends AbstractWorldCommand {
 
         @Nonnull
         private static RuntimeFootprint collect(@Nonnull PhysicsWorldResource resource) {
-            PhysicsWorldRuntimeResource runtime = PhysicsWorldRuntimeResource.require(resource);
             int spaces = 0;
             int backendBodies = 0;
             int backendJoints = 0;
@@ -589,46 +583,16 @@ public class WorldCollisionPerfReportCommand extends AbstractWorldCommand {
                 .toCompletableFuture()
                 .join();
             for (SpaceSummary summary : summaries) {
-                PhysicsSpaceRuntimeStatsView stats = runtime.queryInternal(
-                        new PhysicsSpaceRuntimeStatsQuery(summary.spaceId()))
-                    .toCompletableFuture()
-                    .join();
                 spaces++;
-                backendBodies += stats.bodies();
-                backendJoints += stats.joints();
-                if (stats.runtimeStatsAvailable()) {
-                    runtimeStatsSpaces++;
-                    runtimeBodies += stats.runtimeBodyCount();
-                    runtimeColliders += stats.runtimeColliderCount();
-                    runtimeActiveBodies += stats.runtimeActiveBodyCount();
-                    runtimeContactPairs += stats.runtimeContactPairCount();
-                    runtimeContactManifolds += stats.runtimeContactManifoldCount();
-                    runtimeContactPoints += stats.runtimeContactPointCount();
-                    runtimeDynamicDynamicContactPairs += stats.runtimeDynamicDynamicContactPairCount();
-                    runtimeTerrainContactPairs += stats.runtimeTerrainContactPairCount();
-                    runtimeActiveIslands += stats.runtimeActiveIslandCount();
-                    runtimeJoints += stats.runtimeJointCount();
-                }
-            }
-
-            int detachedBodies = 0;
-            int detachedVisualProxies = 0;
-            for (PhysicsBodyRegistrationView registration : resource.getBodyRegistrationViews()) {
-                if (registration.kind() != PhysicsBodyKind.BODY
-                    || resource.hasBodyAttachments(registration.bodyKey())) {
-                    continue;
-                }
-                detachedBodies++;
-                if (runtime.getGeneratedVisualProxy(registration.bodyKey()) != null) {
-                    detachedVisualProxies++;
-                }
+                backendBodies += summary.bodyCount();
+                backendJoints += summary.jointCount();
             }
 
             return new RuntimeFootprint(spaces,
                 backendBodies,
                 backendJoints,
-                detachedBodies,
-                detachedVisualProxies,
+                0,
+                0,
                 runtimeStatsSpaces,
                 runtimeBodies,
                 runtimeColliders,
@@ -647,8 +611,8 @@ public class WorldCollisionPerfReportCommand extends AbstractWorldCommand {
             return "spaces=" + spaces
                 + " backendBodies=" + backendBodies
                 + " backendJoints=" + backendJoints
-                + " detachedBodies=" + detachedBodies
-                + " detachedVisualProxies=" + detachedVisualProxies;
+                + " detachedBodies=unavailable"
+                + " detachedVisualProxies=unavailable";
         }
 
         private boolean hasRuntimeStats() {
