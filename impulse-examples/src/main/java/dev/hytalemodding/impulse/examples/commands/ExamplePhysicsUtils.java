@@ -273,7 +273,7 @@ public final class ExamplePhysicsUtils {
     }
 
     @Nonnull
-    static BodyUpsertRequest bodyUpsertRequest(@Nonnull UUID spaceUuid,
+    public static BodyUpsertRequest bodyUpsertRequest(@Nonnull UUID spaceUuid,
         @Nonnull UUID bodyUuid,
         @Nonnull Vector3f bodyCenter,
         @Nonnull PhysicsShapeSpec shape,
@@ -640,7 +640,7 @@ public final class ExamplePhysicsUtils {
     }
 
     @Nonnull
-    static SpawnedBlockBody attachPhysicsStoreBlockBody(@Nonnull Store<EntityStore> store,
+    public static SpawnedBlockBody attachPhysicsStoreBlockBody(@Nonnull Store<EntityStore> store,
         @Nonnull TimeResource time,
         @Nonnull PendingBlockBody pending) {
         Ref<EntityStore> entity = spawnAttachedPhysicsStoreBlockEntity(store,
