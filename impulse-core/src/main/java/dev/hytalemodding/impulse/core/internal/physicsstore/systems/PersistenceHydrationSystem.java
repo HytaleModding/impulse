@@ -41,8 +41,7 @@ import javax.annotation.Nonnull;
 public final class PersistenceHydrationSystem extends TickingSystem<PhysicsStore> {
 
     private static final Set<Dependency<PhysicsStore>> DEPENDENCIES = Set.of(
-        new SystemDependency<>(Order.AFTER, RequestDrainSystem.class),
-        new SystemDependency<>(Order.BEFORE, IdentityIndexSystem.class)
+        new SystemDependency<>(Order.BEFORE, RequestDrainSystem.class)
     );
 
     @Override

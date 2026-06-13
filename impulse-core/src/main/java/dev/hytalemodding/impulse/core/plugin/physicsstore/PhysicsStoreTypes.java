@@ -10,6 +10,7 @@ import dev.hytalemodding.impulse.core.internal.physicsstore.resources.PhysicsReq
 import dev.hytalemodding.impulse.core.internal.physicsstore.resources.PhysicsRestoreStatusResource;
 import dev.hytalemodding.impulse.core.internal.physicsstore.resources.PhysicsRuntimeResource;
 import dev.hytalemodding.impulse.core.internal.physicsstore.resources.PhysicsSnapshotResource;
+import dev.hytalemodding.impulse.core.internal.physicsstore.resources.PhysicsTerrainPayloadResource;
 import dev.hytalemodding.impulse.core.internal.physicsstore.persistence.PersistentPhysicsStoreResource;
 import dev.hytalemodding.impulse.core.plugin.physicsstore.components.BodyComponent;
 import dev.hytalemodding.impulse.core.plugin.physicsstore.components.ColliderComponent;
@@ -62,6 +63,8 @@ public final class PhysicsStoreTypes {
     private static ResourceType<PhysicsStore, PhysicsIdentityIndexResource> identityIndexResourceType;
     @Nullable
     private static ResourceType<PhysicsStore, PhysicsSnapshotResource> snapshotResourceType;
+    @Nullable
+    private static ResourceType<PhysicsStore, PhysicsTerrainPayloadResource> terrainPayloadResourceType;
     @Nullable
     private static ResourceType<PhysicsStore, PersistentPhysicsStoreResource> persistentStoreResourceType;
     @Nullable
@@ -147,6 +150,11 @@ public final class PhysicsStoreTypes {
     public static void setSnapshotResourceType(
         @Nonnull ResourceType<PhysicsStore, PhysicsSnapshotResource> type) {
         snapshotResourceType = Objects.requireNonNull(type, "type");
+    }
+
+    public static void setTerrainPayloadResourceType(
+        @Nonnull ResourceType<PhysicsStore, PhysicsTerrainPayloadResource> type) {
+        terrainPayloadResourceType = Objects.requireNonNull(type, "type");
     }
 
     public static void setPersistentStoreResourceType(
@@ -242,6 +250,11 @@ public final class PhysicsStoreTypes {
     @Nonnull
     public static ResourceType<PhysicsStore, PhysicsSnapshotResource> snapshotResourceType() {
         return require(snapshotResourceType, "PhysicsSnapshotResource");
+    }
+
+    @Nonnull
+    public static ResourceType<PhysicsStore, PhysicsTerrainPayloadResource> terrainPayloadResourceType() {
+        return require(terrainPayloadResourceType, "PhysicsTerrainPayloadResource");
     }
 
     @Nonnull
