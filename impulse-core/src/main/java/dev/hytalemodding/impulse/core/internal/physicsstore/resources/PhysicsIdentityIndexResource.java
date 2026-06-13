@@ -62,6 +62,10 @@ public final class PhysicsIdentityIndexResource implements Resource<PhysicsStore
         return spaceRefsByHandle.get(handle.value());
     }
 
+    public void removeSpaceHandle(@Nonnull BackendSpaceHandle handle) {
+        spaceRefsByHandle.remove(handle.value());
+    }
+
     public void putBodyHandle(@Nonnull BackendBodyHandle handle, @Nonnull Ref<PhysicsStore> ref) {
         bodyRefsByHandle.put(handle.value(), ref);
     }
@@ -71,6 +75,10 @@ public final class PhysicsIdentityIndexResource implements Resource<PhysicsStore
         return bodyRefsByHandle.get(handle.value());
     }
 
+    public void removeBodyHandle(@Nonnull BackendBodyHandle handle) {
+        bodyRefsByHandle.remove(handle.value());
+    }
+
     public void putJointHandle(@Nonnull BackendJointHandle handle, @Nonnull Ref<PhysicsStore> ref) {
         jointRefsByHandle.put(handle.value(), ref);
     }
@@ -78,6 +86,10 @@ public final class PhysicsIdentityIndexResource implements Resource<PhysicsStore
     @Nullable
     public Ref<PhysicsStore> getByJointHandle(@Nonnull BackendJointHandle handle) {
         return jointRefsByHandle.get(handle.value());
+    }
+
+    public void removeJointHandle(@Nonnull BackendJointHandle handle) {
+        jointRefsByHandle.remove(handle.value());
     }
 
     public void clear() {

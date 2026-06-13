@@ -43,6 +43,9 @@ public final class PhysicsRuntimeResource implements Resource<PhysicsStore> {
     private final Map<UUID, BackendJointHandle> jointHandlesByUuid =
         new Object2ObjectOpenHashMap<>();
     @Nonnull
+    private final Map<UUID, BackendSpaceHandle> jointSpaceHandlesByUuid =
+        new Object2ObjectOpenHashMap<>();
+    @Nonnull
     private final Map<UUID, LongList> terrainBodyHandlesByUuid =
         new Object2ObjectOpenHashMap<>();
     @Nonnull
@@ -138,8 +141,11 @@ public final class PhysicsRuntimeResource implements Resource<PhysicsStore> {
         }
     }
 
-    public void putJointHandle(@Nonnull UUID jointUuid, @Nonnull BackendJointHandle handle) {
+    public void putJointHandle(@Nonnull UUID jointUuid,
+        @Nonnull BackendSpaceHandle spaceHandle,
+        @Nonnull BackendJointHandle handle) {
         jointHandlesByUuid.put(jointUuid, handle);
+        jointSpaceHandlesByUuid.put(jointUuid, spaceHandle);
     }
 
     @Nullable
@@ -147,8 +153,14 @@ public final class PhysicsRuntimeResource implements Resource<PhysicsStore> {
         return jointHandlesByUuid.get(jointUuid);
     }
 
+    @Nullable
+    public BackendSpaceHandle getJointSpaceHandle(@Nonnull UUID jointUuid) {
+        return jointSpaceHandlesByUuid.get(jointUuid);
+    }
+
     public void removeJointHandle(@Nonnull UUID jointUuid) {
         jointHandlesByUuid.remove(jointUuid);
+        jointSpaceHandlesByUuid.remove(jointUuid);
     }
 
     public void putTerrainBodyHandle(@Nonnull UUID terrainUuid,
@@ -228,6 +240,7 @@ public final class PhysicsRuntimeResource implements Resource<PhysicsStore> {
         bodyHandlesByUuid.clear();
         bodySpaceHandlesByUuid.clear();
         jointHandlesByUuid.clear();
+        jointSpaceHandlesByUuid.clear();
         terrainBodyHandlesByUuid.clear();
         terrainVoxelBodyHandlesByUuid.clear();
         terrainSpaceHandlesByUuid.clear();
