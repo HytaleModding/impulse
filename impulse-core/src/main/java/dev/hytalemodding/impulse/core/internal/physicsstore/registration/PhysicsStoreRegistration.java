@@ -11,6 +11,7 @@ import dev.hytalemodding.impulse.core.internal.physicsstore.resources.PhysicsReq
 import dev.hytalemodding.impulse.core.internal.physicsstore.resources.PhysicsRestoreStatusResource;
 import dev.hytalemodding.impulse.core.internal.physicsstore.resources.PhysicsRuntimeResource;
 import dev.hytalemodding.impulse.core.internal.physicsstore.resources.PhysicsSnapshotResource;
+import dev.hytalemodding.impulse.core.internal.physicsstore.resources.PhysicsTerrainPayloadResource;
 import dev.hytalemodding.impulse.core.internal.physicsstore.systems.BodyBindingSystem;
 import dev.hytalemodding.impulse.core.internal.physicsstore.systems.ColliderBindingSystem;
 import dev.hytalemodding.impulse.core.internal.physicsstore.systems.CompletedStepPublicationSystem;
@@ -100,6 +101,9 @@ public final class PhysicsStoreRegistration {
         PhysicsStoreTypes.setSnapshotResourceType(registry.registerResource(
             PhysicsSnapshotResource.class,
             PhysicsSnapshotResource::new));
+        PhysicsStoreTypes.setTerrainPayloadResourceType(registry.registerResource(
+            PhysicsTerrainPayloadResource.class,
+            PhysicsTerrainPayloadResource::new));
         PhysicsStoreTypes.setPersistentStoreResourceType(registry.registerResource(
             PersistentPhysicsStoreResource.class,
             "PersistentPhysicsStore",
@@ -114,8 +118,8 @@ public final class PhysicsStoreRegistration {
             PhysicsDebugResource.class,
             PhysicsDebugResource::new));
 
-        registry.registerSystem(new RequestDrainSystem());
         registry.registerSystem(new PersistenceHydrationSystem());
+        registry.registerSystem(new RequestDrainSystem());
         registry.registerSystem(new IdentityIndexSystem());
         registry.registerSystem(new SpaceBindingSystem());
         registry.registerSystem(new BodyBindingSystem());
