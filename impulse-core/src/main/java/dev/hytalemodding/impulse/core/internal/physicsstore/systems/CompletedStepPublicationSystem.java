@@ -69,7 +69,7 @@ public final class CompletedStepPublicationSystem extends TickingSystem<PhysicsS
                     _,
                     _,
                     _,
-                    _,
+                    centerOfMassOffsetY,
                     _,
                     _,
                     _,
@@ -94,6 +94,7 @@ public final class CompletedStepPublicationSystem extends TickingSystem<PhysicsS
                         angularVelocityX,
                         angularVelocityY,
                         angularVelocityZ,
+                        centerOfMassOffsetY,
                         sleeping)));
         long nextSequence = snapshot.getLatestFrame().sequence() + 1L;
         snapshot.publish(new PhysicsStoreSnapshotFrame(nextSequence, dt, bodies));
@@ -117,6 +118,7 @@ public final class CompletedStepPublicationSystem extends TickingSystem<PhysicsS
         float angularVelocityX,
         float angularVelocityY,
         float angularVelocityZ,
+        float centerOfMassOffsetY,
         boolean sleeping) {
         Ref<PhysicsStore> ref = identity.getByBodyHandle(new BackendBodyHandle(bodyId));
         if (ref == null || !ref.isValid()) {
@@ -134,6 +136,7 @@ public final class CompletedStepPublicationSystem extends TickingSystem<PhysicsS
             new Quaternionf(rotationX, rotationY, rotationZ, rotationW),
             new Vector3f(linearVelocityX, linearVelocityY, linearVelocityZ),
             new Vector3f(angularVelocityX, angularVelocityY, angularVelocityZ),
+            centerOfMassOffsetY,
             sleeping));
     }
 

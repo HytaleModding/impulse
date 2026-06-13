@@ -64,7 +64,9 @@ final class GameplayAttachmentSnapshot {
             (index, archetypeChunk, _) -> {
                 PhysicsBodyAttachmentComponent attachment = archetypeChunk.getComponent(index,
                     attachmentType);
-                if (attachment != null && attachment.getLifecycle() != AttachmentLifecycle.GENERATED_PROXY) {
+                if (attachment != null
+                    && attachment.usesLegacyBodyKey()
+                    && attachment.getLifecycle() != AttachmentLifecycle.GENERATED_PROXY) {
                     bodyKeys.add(attachment.getBodyKey());
                 }
             });

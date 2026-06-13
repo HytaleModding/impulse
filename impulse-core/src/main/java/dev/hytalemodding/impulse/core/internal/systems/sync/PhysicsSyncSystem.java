@@ -3,7 +3,9 @@ package dev.hytalemodding.impulse.core.internal.systems.sync;
 import com.hypixel.hytale.component.ArchetypeChunk;
 import com.hypixel.hytale.component.CommandBuffer;
 import com.hypixel.hytale.component.ComponentType;
+import com.hypixel.hytale.component.Holder;
 import com.hypixel.hytale.component.Ref;
+import com.hypixel.hytale.component.RemoveReason;
 import com.hypixel.hytale.component.Store;
 import com.hypixel.hytale.component.dependency.Dependency;
 import com.hypixel.hytale.component.dependency.Order;
@@ -31,11 +33,8 @@ import dev.hytalemodding.impulse.core.plugin.components.PhysicsBodyAttachmentCom
 import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyRegistrationView;
 import dev.hytalemodding.impulse.core.plugin.physicsstore.PhysicsStoreAccess;
 import dev.hytalemodding.impulse.core.plugin.physicsstore.snapshots.PhysicsStoreBodySnapshot;
-import dev.hytalemodding.impulse.core.plugin.physicsstore.snapshots.PhysicsStoreSnapshotFrame;
 import dev.hytalemodding.impulse.core.plugin.settings.PhysicsSpaceSettings;
-import it.unimi.dsi.fastutil.objects.Object2ObjectOpenHashMap;
 import java.util.List;
-import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
 import javax.annotation.Nonnull;
@@ -86,8 +85,7 @@ public class PhysicsSyncSystem extends EntityTickingSystem<EntityStore> {
     @Nonnull
     private final ThreadLocal<Long> syncNanos = ThreadLocal.withInitial(() -> 0L);
     @Nonnull
-    private final ThreadLocal<Map<UUID, PhysicsStoreBodySnapshot>> physicsStoreSnapshots =
-        ThreadLocal.withInitial(Map::of);
+    private final ThreadLocal<PhysicsSnapshotResource> physicsStoreSnapshots = new ThreadLocal<>();
 
     /**
      * Hytale may run entity ticks in parallel. Each tick task needs independent temporary objects
@@ -112,7 +110,7 @@ public class PhysicsSyncSystem extends EntityTickingSystem<EntityStore> {
             ? profiling.beginSyncSample() : null;
         long startNanos = collector != null ? System.nanoTime() : 0L;
         try {
-            physicsStoreSnapshots.set(collectPhysicsStoreSnapshots(store));
+            physicsStoreSnapshots.set(collectPhysicsStoreSnapshotResource(store));
             super.tick(dt, systemIndex, store);
         } finally {
             if (collector != null) {
@@ -142,8 +140,11 @@ public class PhysicsSyncSystem extends EntityTickingSystem<EntityStore> {
         if (collector != null) {
             collector.incrementBodiesInspected();
         }
-        PhysicsStoreBodySnapshot physicsStoreSnapshot =
-            physicsStoreSnapshots.get().get(attachment.getPhysicsBodyUuidOrLegacy());
+        UUID physicsBodyUuid = attachment.getPhysicsBodyUuid();
+        PhysicsSnapshotResource snapshotResource = physicsStoreSnapshots.get();
+        PhysicsStoreBodySnapshot physicsStoreSnapshot = physicsBodyUuid != null
+            ? snapshotResource.getBody(physicsBodyUuid)
+            : null;
         if (physicsStoreSnapshot != null) {
             if (!PhysicsTransformAuthority.shouldApplyBodyTransform(attachment)) {
                 return;
@@ -155,6 +156,7 @@ public class PhysicsSyncSystem extends EntityTickingSystem<EntityStore> {
             return;
         }
         if (attachment.getPhysicsBodyUuid() != null) {
+            clearMissingPhysicsStoreAttachment(entityRef, attachment, commandBuffer);
             return;
         }
         PhysicsWorldRuntimeResource resource = local.getResource(store);
@@ -284,20 +286,11 @@ public class PhysicsSyncSystem extends EntityTickingSystem<EntityStore> {
     }
 
     @Nonnull
-    private static Map<UUID, PhysicsStoreBodySnapshot> collectPhysicsStoreSnapshots(
+    private static PhysicsSnapshotResource collectPhysicsStoreSnapshotResource(
         @Nonnull Store<EntityStore> store) {
         PhysicsStore physicsStore = PhysicsStoreAccess.require(store.getExternalData().getWorld());
-        PhysicsSnapshotResource snapshotResource = physicsStore.getStore().getResource(
+        return physicsStore.getStore().getResource(
             PhysicsSnapshotResource.getResourceType());
-        PhysicsStoreSnapshotFrame frame = snapshotResource.getLatestFrame();
-        if (frame.bodies().isEmpty()) {
-            return Map.of();
-        }
-        Map<UUID, PhysicsStoreBodySnapshot> snapshots = new Object2ObjectOpenHashMap<>();
-        for (PhysicsStoreBodySnapshot body : frame.bodies()) {
-            snapshots.put(body.bodyUuid(), body);
-        }
-        return snapshots;
     }
 
     private static void applyPhysicsStoreSnapshot(@Nonnull TransformComponent transform,
@@ -308,7 +301,7 @@ public class PhysicsSyncSystem extends EntityTickingSystem<EntityStore> {
         scratch.rotation.set(snapshot.rotation());
         PhysicsVisualPoseMath.visualPositionFromBodyPose(scratch.position,
             scratch.rotation,
-            attachment.resolveVisualOriginOffsetY(0.0f),
+            attachment.resolveVisualOriginOffsetY(snapshot.centerOfMassOffsetY()),
             attachment.getLocalPositionOffset(),
             scratch.visualPosition,
             scratch.worldOffset);
@@ -319,6 +312,22 @@ public class PhysicsSyncSystem extends EntityTickingSystem<EntityStore> {
             scratch.visualPosition.z);
         scratch.visualRotation.getEulerAnglesYXZ(scratch.euler);
         transform.getRotation().set(scratch.euler.x, scratch.euler.y, scratch.euler.z);
+    }
+
+    private static void clearMissingPhysicsStoreAttachment(@Nonnull Ref<EntityStore> entityRef,
+        @Nonnull PhysicsBodyAttachmentComponent attachment,
+        @Nonnull CommandBuffer<EntityStore> commandBuffer) {
+        if (!attachment.shouldRemoveEntityWhenBodyMissing()) {
+            return;
+        }
+        commandBuffer.removeEntity(entityRef,
+            newHolder(commandBuffer.getStore()),
+            RemoveReason.REMOVE);
+    }
+
+    @Nonnull
+    private static Holder<EntityStore> newHolder(@Nonnull Store<EntityStore> store) {
+        return store.getRegistry().newHolder();
     }
 
     private static float distance(@Nonnull Vector3d from, @Nonnull Vector3f to) {

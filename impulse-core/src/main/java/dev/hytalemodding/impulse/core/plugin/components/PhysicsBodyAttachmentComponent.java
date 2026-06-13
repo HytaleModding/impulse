@@ -253,6 +253,10 @@ public class PhysicsBodyAttachmentComponent implements Component<EntityStore> {
         this.physicsBodyUuid = physicsBodyUuid;
     }
 
+    public boolean usesLegacyBodyKey() {
+        return physicsBodyUuid == null;
+    }
+
     @Nonnull
     public UUID getPhysicsBodyUuidOrLegacy() {
         return physicsBodyUuid != null ? physicsBodyUuid : bodyKey.value();
