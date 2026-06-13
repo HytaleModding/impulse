@@ -18,7 +18,7 @@ import dev.hytalemodding.impulse.api.PhysicsCollisionFilters;
 import dev.hytalemodding.impulse.api.ShapeType;
 import dev.hytalemodding.impulse.api.SpaceId;
 import dev.hytalemodding.impulse.core.plugin.modules.control.ImpulseControllableComponent;
-import dev.hytalemodding.impulse.core.plugin.components.PhysicsBodyAttachmentComponent;
+import dev.hytalemodding.impulse.core.plugin.physicsstore.projection.BodyAttachmentComponent;
 import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyKind;
 import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyPersistenceMode;
 import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyRegistrationView;
@@ -62,8 +62,8 @@ public class GrabCommand extends AbstractAsyncPlayerCommand {
     private static final Vector3f VIEW_OFFSET = new Vector3f(0.85f, -0.35f, 0.0f);
     private static final ComponentType<EntityStore, TransformComponent> TRANSFORM_TYPE =
         TransformComponent.getComponentType();
-    private static final ComponentType<EntityStore, PhysicsBodyAttachmentComponent> ATTACHMENT_TYPE =
-        PhysicsBodyAttachmentComponent.getComponentType();
+    private static final ComponentType<EntityStore, BodyAttachmentComponent> ATTACHMENT_TYPE =
+        BodyAttachmentComponent.getComponentType();
     private final OptionalArg<Integer> spaceArg = this.withOptionalArg(
         "space",
         "Physics space id to target",
@@ -321,9 +321,9 @@ public class GrabCommand extends AbstractAsyncPlayerCommand {
         @Nonnull RigidBodyKey bodyKey) {
         boolean hasGameplayAttachment = false;
         for (Ref<EntityStore> attachmentRef : resource.getBodyAttachments(bodyKey)) {
-            PhysicsBodyAttachmentComponent attachment = store.getComponent(attachmentRef, ATTACHMENT_TYPE);
+            BodyAttachmentComponent attachment = store.getComponent(attachmentRef, ATTACHMENT_TYPE);
             if (attachment == null
-                || attachment.getLifecycle() == PhysicsBodyAttachmentComponent.AttachmentLifecycle.GENERATED_PROXY) {
+                || attachment.getLifecycle() == BodyAttachmentComponent.AttachmentLifecycle.GENERATED_PROXY) {
                 continue;
             }
             hasGameplayAttachment = true;

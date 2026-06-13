@@ -14,9 +14,9 @@ import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import dev.hytalemodding.impulse.api.PhysicsBodyType;
 import dev.hytalemodding.impulse.api.SpaceId;
 import dev.hytalemodding.impulse.core.plugin.modules.control.ImpulseControllableComponent;
-import dev.hytalemodding.impulse.core.plugin.components.PhysicsBodyAttachmentComponent;
-import dev.hytalemodding.impulse.core.plugin.components.PhysicsBodyAttachmentComponent.AttachmentLifecycle;
-import dev.hytalemodding.impulse.core.plugin.components.PhysicsBodyAttachmentComponent.TransformAuthority;
+import dev.hytalemodding.impulse.core.plugin.physicsstore.projection.BodyAttachmentComponent;
+import dev.hytalemodding.impulse.core.plugin.physicsstore.projection.BodyAttachmentComponent.AttachmentLifecycle;
+import dev.hytalemodding.impulse.core.plugin.physicsstore.projection.BodyAttachmentComponent.TransformAuthority;
 import dev.hytalemodding.impulse.core.plugin.body.RigidBodyKey;
 import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyKind;
 import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyPersistenceMode;
@@ -44,8 +44,8 @@ final class ImpulseLiveCrucibleTests {
         TransformComponent.getComponentType();
     private static final ComponentType<EntityStore, DespawnComponent> DESPAWN_TYPE =
         DespawnComponent.getComponentType();
-    private static final ComponentType<EntityStore, PhysicsBodyAttachmentComponent> ATTACHMENT_TYPE =
-        PhysicsBodyAttachmentComponent.getComponentType();
+    private static final ComponentType<EntityStore, BodyAttachmentComponent> ATTACHMENT_TYPE =
+        BodyAttachmentComponent.getComponentType();
 
     private ImpulseLiveCrucibleTests() {
     }
@@ -176,7 +176,7 @@ final class ImpulseLiveCrucibleTests {
             new Vector3d(visualPosition));
         holder.removeComponent(DESPAWN_TYPE);
         holder.addComponent(ATTACHMENT_TYPE,
-            new PhysicsBodyAttachmentComponent(bodyKey,
+            new BodyAttachmentComponent(bodyKey.value(),
                 spaceId,
                 TransformAuthority.BODY,
                 AttachmentLifecycle.EXTERNAL_ENTITY));

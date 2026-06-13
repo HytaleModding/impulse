@@ -1,4 +1,4 @@
-package dev.hytalemodding.impulse.core.plugin.components;
+package dev.hytalemodding.impulse.core.plugin.physicsstore.projection;
 
 import com.hypixel.hytale.codec.Codec;
 import com.hypixel.hytale.codec.KeyedCodec;
@@ -10,8 +10,8 @@ import com.hypixel.hytale.math.vector.Vector3fUtil;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import dev.hytalemodding.impulse.api.SpaceId;
 import dev.hytalemodding.impulse.core.ImpulsePlugin;
-import dev.hytalemodding.impulse.core.plugin.body.RigidBodyKey;
 import dev.hytalemodding.impulse.core.plugin.codec.ImpulseCodecs;
+import java.util.Objects;
 import java.util.UUID;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
@@ -21,55 +21,43 @@ import org.joml.Quaternionf;
 import org.joml.Vector3f;
 
 /**
- * Runtime attachment from a Hytale entity to an Impulse body.
- *
- * <p>Authoritative PhysicsStore rows use {@code PhysicsBodyUuid}; {@code BodyId}
- * and {@code SpaceId} remain compatibility metadata for legacy rows. The entity
- * is a gameplay or visual representation. It does not own backend body
- * destruction; removing the entity only removes this attachment unless the
- * lifecycle marks it as a disposable Impulse visual.</p>
+ * EntityStore projection relationship to an authoritative PhysicsStore body.
  */
-public class PhysicsBodyAttachmentComponent implements Component<EntityStore> {
+public class BodyAttachmentComponent implements Component<EntityStore> {
 
     private static final float USE_BODY_VISUAL_ORIGIN_OFFSET_Y = -1.0f;
 
     @Nonnull
-    public static final BuilderCodec<PhysicsBodyAttachmentComponent> CODEC = BuilderCodec.builder(
-            PhysicsBodyAttachmentComponent.class,
-            PhysicsBodyAttachmentComponent::new)
-        .append(new KeyedCodec<>("BodyId", Codec.UUID_BINARY, false),
-            (component, value) -> component.bodyKey = value != null
-                ? RigidBodyKey.of(value)
-                : RigidBodyKey.random(),
-            PhysicsBodyAttachmentComponent::getBodyKeyValue)
-        .add()
-        .append(new KeyedCodec<>("PhysicsBodyUuid", Codec.UUID_BINARY, false),
-            (component, value) -> component.physicsBodyUuid = value,
-            PhysicsBodyAttachmentComponent::getPhysicsBodyUuid)
+    public static final BuilderCodec<BodyAttachmentComponent> CODEC = BuilderCodec.builder(
+            BodyAttachmentComponent.class,
+            BodyAttachmentComponent::new)
+        .append(new KeyedCodec<>("BodyUuid", Codec.UUID_BINARY, false),
+            (component, value) -> component.bodyUuid = value != null ? value : UUID.randomUUID(),
+            BodyAttachmentComponent::getBodyUuid)
         .add()
         .append(new KeyedCodec<>("SpaceId", Codec.INTEGER, false),
             (component, value) -> component.spaceId = value != null && value > 0
                 ? new SpaceId(value)
                 : null,
-            PhysicsBodyAttachmentComponent::getSpaceIdValue)
+            BodyAttachmentComponent::getSpaceIdValue)
         .add()
         .append(new KeyedCodec<>("TransformAuthority", new EnumCodec<>(TransformAuthority.class), false),
             (component, value) -> component.transformAuthority = value != null
                 ? value
                 : TransformAuthority.BODY,
-            PhysicsBodyAttachmentComponent::getTransformAuthority)
+            BodyAttachmentComponent::getTransformAuthority)
         .add()
         .append(new KeyedCodec<>("Lifecycle", new EnumCodec<>(AttachmentLifecycle.class), false),
             (component, value) -> component.lifecycle = value != null
                 ? value
                 : AttachmentLifecycle.EXTERNAL_ENTITY,
-            PhysicsBodyAttachmentComponent::getLifecycle)
+            BodyAttachmentComponent::getLifecycle)
         .add()
         .append(new KeyedCodec<>("LocalPositionOffset", Vector3fUtil.CODEC, false),
             (component, value) -> component.localPositionOffset.set(value != null
                 ? value
                 : new Vector3f()),
-            PhysicsBodyAttachmentComponent::getLocalPositionOffset)
+            BodyAttachmentComponent::getLocalPositionOffset)
         .add()
         .append(new KeyedCodec<>("LocalRotationOffset", ImpulseCodecs.QUATERNIONF, false),
             (component, value) -> component.localRotationOffset.set(value != null
@@ -79,14 +67,12 @@ public class PhysicsBodyAttachmentComponent implements Component<EntityStore> {
         .add()
         .append(new KeyedCodec<>("VisualOriginOffsetY", Codec.FLOAT, false),
             (component, value) -> component.visualOriginOffsetY = normalizeVisualOriginOffsetY(value),
-            PhysicsBodyAttachmentComponent::getVisualOriginOffsetY)
+            BodyAttachmentComponent::getVisualOriginOffsetY)
         .add()
         .build();
 
-    private RigidBodyKey bodyKey = RigidBodyKey.random();
-
-    @Nullable
-    private UUID physicsBodyUuid;
+    @Nonnull
+    private UUID bodyUuid = UUID.randomUUID();
 
     @Setter
     @Getter
@@ -109,12 +95,12 @@ public class PhysicsBodyAttachmentComponent implements Component<EntityStore> {
 
     private float visualOriginOffsetY = USE_BODY_VISUAL_ORIGIN_OFFSET_Y;
 
-    public PhysicsBodyAttachmentComponent() {
+    public BodyAttachmentComponent() {
     }
 
-    public PhysicsBodyAttachmentComponent(@Nonnull RigidBodyKey bodyKey,
+    public BodyAttachmentComponent(@Nonnull UUID bodyUuid,
         @Nullable SpaceId spaceId) {
-        this(bodyKey,
+        this(bodyUuid,
             spaceId,
             TransformAuthority.BODY,
             AttachmentLifecycle.EXTERNAL_ENTITY,
@@ -122,20 +108,20 @@ public class PhysicsBodyAttachmentComponent implements Component<EntityStore> {
             new Quaternionf());
     }
 
-    public PhysicsBodyAttachmentComponent(@Nonnull RigidBodyKey bodyKey,
+    public BodyAttachmentComponent(@Nonnull UUID bodyUuid,
         @Nullable SpaceId spaceId,
         @Nonnull TransformAuthority transformAuthority,
         @Nonnull AttachmentLifecycle lifecycle) {
-        this(bodyKey, spaceId, transformAuthority, lifecycle, new Vector3f(), new Quaternionf());
+        this(bodyUuid, spaceId, transformAuthority, lifecycle, new Vector3f(), new Quaternionf());
     }
 
-    public PhysicsBodyAttachmentComponent(@Nonnull RigidBodyKey bodyKey,
+    public BodyAttachmentComponent(@Nonnull UUID bodyUuid,
         @Nullable SpaceId spaceId,
         @Nonnull TransformAuthority transformAuthority,
         @Nonnull AttachmentLifecycle lifecycle,
         @Nonnull Vector3f localPositionOffset,
         @Nonnull Quaternionf localRotationOffset) {
-        this(bodyKey,
+        this(bodyUuid,
             spaceId,
             transformAuthority,
             lifecycle,
@@ -144,52 +130,39 @@ public class PhysicsBodyAttachmentComponent implements Component<EntityStore> {
             USE_BODY_VISUAL_ORIGIN_OFFSET_Y);
     }
 
-    public PhysicsBodyAttachmentComponent(@Nonnull RigidBodyKey bodyKey,
+    public BodyAttachmentComponent(@Nonnull UUID bodyUuid,
         @Nullable SpaceId spaceId,
         @Nonnull TransformAuthority transformAuthority,
         @Nonnull AttachmentLifecycle lifecycle,
         @Nonnull Vector3f localPositionOffset,
         @Nonnull Quaternionf localRotationOffset,
         float visualOriginOffsetY) {
-        this.bodyKey = bodyKey;
+        this.bodyUuid = Objects.requireNonNull(bodyUuid, "bodyUuid");
         this.spaceId = spaceId;
-        this.transformAuthority = transformAuthority;
-        this.lifecycle = lifecycle;
-        this.localPositionOffset.set(localPositionOffset);
-        this.localRotationOffset.set(localRotationOffset);
+        this.transformAuthority = Objects.requireNonNull(transformAuthority, "transformAuthority");
+        this.lifecycle = Objects.requireNonNull(lifecycle, "lifecycle");
+        this.localPositionOffset.set(Objects.requireNonNull(localPositionOffset,
+            "localPositionOffset"));
+        this.localRotationOffset.set(Objects.requireNonNull(localRotationOffset,
+            "localRotationOffset"));
         this.visualOriginOffsetY = normalizeVisualOriginOffsetY(visualOriginOffsetY);
     }
 
     @Nonnull
-    public static PhysicsBodyAttachmentComponent physicsStoreEntity(@Nonnull UUID physicsBodyUuid) {
-        PhysicsBodyAttachmentComponent component = externalEntity(RigidBodyKey.of(physicsBodyUuid), null);
-        component.setPhysicsBodyUuid(physicsBodyUuid);
-        return component;
-    }
-
-    /**
-     * Creates the normal attachment for a plugin-owned gameplay or visual entity.
-     *
-     * <p>The entity follows the body but does not own backend body destruction.</p>
-     */
-    @Nonnull
-    public static PhysicsBodyAttachmentComponent externalEntity(@Nonnull RigidBodyKey bodyKey,
+    public static BodyAttachmentComponent externalEntity(@Nonnull UUID bodyUuid,
         @Nullable SpaceId spaceId) {
-        return new PhysicsBodyAttachmentComponent(bodyKey,
+        return new BodyAttachmentComponent(bodyUuid,
             spaceId,
             TransformAuthority.BODY,
             AttachmentLifecycle.EXTERNAL_ENTITY);
     }
 
-    /**
-     * Creates the normal external-entity attachment with a local transform offset.
-     */
     @Nonnull
-    public static PhysicsBodyAttachmentComponent externalEntity(@Nonnull RigidBodyKey bodyKey,
+    public static BodyAttachmentComponent externalEntity(@Nonnull UUID bodyUuid,
         @Nullable SpaceId spaceId,
         @Nonnull Vector3f localPositionOffset,
         @Nonnull Quaternionf localRotationOffset) {
-        return new PhysicsBodyAttachmentComponent(bodyKey,
+        return new BodyAttachmentComponent(bodyUuid,
             spaceId,
             TransformAuthority.BODY,
             AttachmentLifecycle.EXTERNAL_ENTITY,
@@ -197,17 +170,13 @@ public class PhysicsBodyAttachmentComponent implements Component<EntityStore> {
             localRotationOffset);
     }
 
-    /**
-     * Creates an external-entity attachment whose visual transform origin differs from the owning
-     * body's support/base offset.
-     */
     @Nonnull
-    public static PhysicsBodyAttachmentComponent externalEntity(@Nonnull RigidBodyKey bodyKey,
+    public static BodyAttachmentComponent externalEntity(@Nonnull UUID bodyUuid,
         @Nullable SpaceId spaceId,
         @Nonnull Vector3f localPositionOffset,
         @Nonnull Quaternionf localRotationOffset,
         float visualOriginOffsetY) {
-        return new PhysicsBodyAttachmentComponent(bodyKey,
+        return new BodyAttachmentComponent(bodyUuid,
             spaceId,
             TransformAuthority.BODY,
             AttachmentLifecycle.EXTERNAL_ENTITY,
@@ -216,19 +185,13 @@ public class PhysicsBodyAttachmentComponent implements Component<EntityStore> {
             visualOriginOffsetY);
     }
 
-    /**
-     * Creates a disposable Impulse-owned visual attachment.
-     *
-     * <p>Unlike {@link #externalEntity(RigidBodyKey, SpaceId)}, this entity should be removed when
-     * the attached body is no longer available.</p>
-     */
     @Nonnull
-    public static PhysicsBodyAttachmentComponent impulseOwnedVisual(@Nonnull RigidBodyKey bodyKey,
+    public static BodyAttachmentComponent impulseOwnedVisual(@Nonnull UUID bodyUuid,
         @Nullable SpaceId spaceId,
         @Nonnull Vector3f localPositionOffset,
         @Nonnull Quaternionf localRotationOffset,
         float visualOriginOffsetY) {
-        return new PhysicsBodyAttachmentComponent(bodyKey,
+        return new BodyAttachmentComponent(bodyUuid,
             spaceId,
             TransformAuthority.BODY,
             AttachmentLifecycle.IMPULSE_OWNED_VISUAL,
@@ -238,30 +201,27 @@ public class PhysicsBodyAttachmentComponent implements Component<EntityStore> {
     }
 
     @Nonnull
-    public RigidBodyKey getBodyKey() {
-        return bodyKey;
-    }
-
-    public void setBodyKey(@Nonnull RigidBodyKey bodyKey) {
-        this.bodyKey = bodyKey;
-    }
-
-    @Nullable
-    public UUID getPhysicsBodyUuid() {
-        return physicsBodyUuid;
-    }
-
-    public void setPhysicsBodyUuid(@Nullable UUID physicsBodyUuid) {
-        this.physicsBodyUuid = physicsBodyUuid;
-    }
-
-    public boolean usesLegacyBodyKey() {
-        return physicsBodyUuid == null;
+    public static BodyAttachmentComponent generatedProxy(@Nonnull UUID bodyUuid,
+        @Nullable SpaceId spaceId,
+        @Nonnull Vector3f localPositionOffset,
+        @Nonnull Quaternionf localRotationOffset,
+        float visualOriginOffsetY) {
+        return new BodyAttachmentComponent(bodyUuid,
+            spaceId,
+            TransformAuthority.BODY,
+            AttachmentLifecycle.GENERATED_PROXY,
+            localPositionOffset,
+            localRotationOffset,
+            visualOriginOffsetY);
     }
 
     @Nonnull
-    public UUID getPhysicsBodyUuidOrLegacy() {
-        return physicsBodyUuid != null ? physicsBodyUuid : bodyKey.value();
+    public UUID getBodyUuid() {
+        return bodyUuid;
+    }
+
+    public void setBodyUuid(@Nonnull UUID bodyUuid) {
+        this.bodyUuid = Objects.requireNonNull(bodyUuid, "bodyUuid");
     }
 
     @Nonnull
@@ -291,13 +251,8 @@ public class PhysicsBodyAttachmentComponent implements Component<EntityStore> {
             || lifecycle == AttachmentLifecycle.GENERATED_PROXY;
     }
 
-    public static ComponentType<EntityStore, PhysicsBodyAttachmentComponent> getComponentType() {
-        return ImpulsePlugin.get().getPhysicsBodyAttachmentComponentType();
-    }
-
-    @Nonnull
-    private UUID getBodyKeyValue() {
-        return bodyKey.value();
+    public static ComponentType<EntityStore, BodyAttachmentComponent> getComponentType() {
+        return ImpulsePlugin.get().getBodyAttachmentComponentType();
     }
 
     @Nullable
@@ -307,16 +262,14 @@ public class PhysicsBodyAttachmentComponent implements Component<EntityStore> {
 
     @Nonnull
     @Override
-    public PhysicsBodyAttachmentComponent clone() {
-        PhysicsBodyAttachmentComponent copy = new PhysicsBodyAttachmentComponent(bodyKey,
+    public BodyAttachmentComponent clone() {
+        return new BodyAttachmentComponent(bodyUuid,
             spaceId,
             transformAuthority,
             lifecycle,
             localPositionOffset,
             localRotationOffset,
             visualOriginOffsetY);
-        copy.physicsBodyUuid = physicsBodyUuid;
-        return copy;
     }
 
     private static float normalizeVisualOriginOffsetY(@Nullable Float value) {
@@ -331,11 +284,6 @@ public class PhysicsBodyAttachmentComponent implements Component<EntityStore> {
     }
 
     public enum TransformAuthority {
-        /*
-         * TODO: Revisit transform ownership when multi-body actor wrappers land.
-         * A root actor may need to own gameplay transforms while individual
-         * bodies still publish resolved physics poses.
-         */
         BODY,
         CONTROLLER,
         ENTITY_KINEMATIC

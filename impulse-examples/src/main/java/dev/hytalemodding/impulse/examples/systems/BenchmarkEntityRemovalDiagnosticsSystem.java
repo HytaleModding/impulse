@@ -9,7 +9,7 @@ import com.hypixel.hytale.component.Store;
 import com.hypixel.hytale.component.query.Query;
 import com.hypixel.hytale.component.system.RefSystem;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
-import dev.hytalemodding.impulse.core.plugin.components.PhysicsBodyAttachmentComponent;
+import dev.hytalemodding.impulse.core.plugin.physicsstore.projection.BodyAttachmentComponent;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -20,8 +20,8 @@ import javax.annotation.Nonnull;
 
 public final class BenchmarkEntityRemovalDiagnosticsSystem extends RefSystem<EntityStore> {
 
-    private static final ComponentType<EntityStore, PhysicsBodyAttachmentComponent> ATTACHMENT_TYPE =
-        PhysicsBodyAttachmentComponent.getComponentType();
+    private static final ComponentType<EntityStore, BodyAttachmentComponent> ATTACHMENT_TYPE =
+        BodyAttachmentComponent.getComponentType();
     private static final Query<EntityStore> QUERY = ATTACHMENT_TYPE;
 
     private static final AtomicInteger PHYSICS_ENTITY_REMOVALS = new AtomicInteger();
@@ -55,7 +55,7 @@ public final class BenchmarkEntityRemovalDiagnosticsSystem extends RefSystem<Ent
         @Nonnull RemoveReason reason,
         @Nonnull Store<EntityStore> store,
         @Nonnull CommandBuffer<EntityStore> commandBuffer) {
-        PhysicsBodyAttachmentComponent component = store.getComponent(ref, ATTACHMENT_TYPE);
+        BodyAttachmentComponent component = store.getComponent(ref, ATTACHMENT_TYPE);
         if (component == null) {
             return;
         }

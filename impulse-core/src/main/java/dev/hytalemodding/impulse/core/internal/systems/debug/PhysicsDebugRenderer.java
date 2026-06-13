@@ -10,7 +10,7 @@ import dev.hytalemodding.impulse.core.internal.math.PhysicsVisualPoseMath;
 import dev.hytalemodding.impulse.core.internal.modules.worldcollision.SectionCollisionGeometry.BoxCollider;
 import dev.hytalemodding.impulse.core.internal.simulation.view.PhysicsDebugContactView;
 import dev.hytalemodding.impulse.core.internal.simulation.view.PhysicsDebugJointView;
-import dev.hytalemodding.impulse.core.plugin.components.PhysicsBodyAttachmentComponent;
+import dev.hytalemodding.impulse.core.plugin.physicsstore.projection.BodyAttachmentComponent;
 import java.util.Collection;
 import javax.annotation.Nonnull;
 import org.joml.Matrix4d;
@@ -262,7 +262,7 @@ final class PhysicsDebugRenderer {
 
     static Vector3d centerFromSyncedTransform(@Nonnull PhysicsBodySnapshot snapshot,
         @Nonnull Vector3d transformPosition,
-        @Nonnull PhysicsBodyAttachmentComponent attachment,
+        @Nonnull BodyAttachmentComponent attachment,
         @Nonnull Quaterniond bodyRotation) {
         return PhysicsVisualPoseMath.bodyCenterFromVisualPose(transformPosition,
             bodyRotation,
@@ -275,7 +275,7 @@ final class PhysicsDebugRenderer {
     static BodyDebugPose bodyPoseFromSyncedTransform(@Nonnull PhysicsBodySnapshot snapshot,
         @Nonnull Vector3d transformPosition,
         @Nonnull Quaterniond transformRotation,
-        @Nonnull PhysicsBodyAttachmentComponent attachment) {
+        @Nonnull BodyAttachmentComponent attachment) {
         Quaterniond bodyRotation = new Quaterniond(transformRotation);
         if (!isIdentity(attachment.getLocalRotationOffset())) {
             bodyRotation.mul(new Quaterniond(attachment.getLocalRotationOffset()).invert()).normalize();

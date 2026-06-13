@@ -1,7 +1,7 @@
 package dev.hytalemodding.impulse.core.internal.systems.sync;
 
-import dev.hytalemodding.impulse.core.plugin.components.PhysicsBodyAttachmentComponent;
-import dev.hytalemodding.impulse.core.plugin.components.PhysicsBodyAttachmentComponent.TransformAuthority;
+import dev.hytalemodding.impulse.core.plugin.physicsstore.projection.BodyAttachmentComponent;
+import dev.hytalemodding.impulse.core.plugin.physicsstore.projection.BodyAttachmentComponent.TransformAuthority;
 import javax.annotation.Nonnull;
 
 final class PhysicsTransformAuthority {
@@ -9,7 +9,7 @@ final class PhysicsTransformAuthority {
     private PhysicsTransformAuthority() {
     }
 
-    static boolean shouldApplyBodyTransform(@Nonnull PhysicsBodyAttachmentComponent attachment) {
+    static boolean shouldApplyBodyTransform(@Nonnull BodyAttachmentComponent attachment) {
         return attachment.getTransformAuthority() == TransformAuthority.BODY;
     }
 }

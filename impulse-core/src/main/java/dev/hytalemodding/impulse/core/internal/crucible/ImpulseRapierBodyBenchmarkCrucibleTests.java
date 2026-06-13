@@ -18,7 +18,7 @@ import dev.hytalemodding.impulse.core.internal.resources.profiling.PhysicsRuntim
 import dev.hytalemodding.impulse.core.internal.modules.worldcollision.profiling.WorldCollisionProfilingResource;
 import dev.hytalemodding.impulse.core.internal.modules.worldcollision.profiling.WorldCollisionProfilingResource.Snapshot;
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsWorldRuntimeResource;
-import dev.hytalemodding.impulse.core.plugin.components.PhysicsBodyAttachmentComponent;
+import dev.hytalemodding.impulse.core.plugin.physicsstore.projection.BodyAttachmentComponent;
 import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyKind;
 import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyPersistenceMode;
 import dev.hytalemodding.impulse.core.plugin.body.RigidBodyKey;
@@ -81,8 +81,8 @@ final class ImpulseRapierBodyBenchmarkCrucibleTests {
     private static final float BODY_VOID_Y = -128.0f;
     private static final double DETACHED_SPACING = 1.5;
     private static final Vector3d ORIGIN = new Vector3d(0.0, 128.0, 0.0);
-    private static final ComponentType<EntityStore, PhysicsBodyAttachmentComponent> ATTACHMENT_TYPE =
-        PhysicsBodyAttachmentComponent.getComponentType();
+    private static final ComponentType<EntityStore, BodyAttachmentComponent> ATTACHMENT_TYPE =
+        BodyAttachmentComponent.getComponentType();
 
     private ImpulseRapierBodyBenchmarkCrucibleTests() {
     }

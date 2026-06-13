@@ -31,21 +31,13 @@ import dev.hytalemodding.impulse.core.internal.resources.owner.PhysicsOwnerResou
 import dev.hytalemodding.impulse.core.internal.resources.profiling.PhysicsRuntimeProfilingResource;
 import dev.hytalemodding.impulse.core.internal.physicsstore.registration.PhysicsStoreRegistration;
 import dev.hytalemodding.impulse.core.internal.store.integration.PhysicsStoreEarlyPluginProbe;
-import dev.hytalemodding.impulse.core.internal.systems.body.PhysicsStoreKinematicTargetProducerSystem;
 import dev.hytalemodding.impulse.core.internal.systems.debug.PhysicsDebugSystem;
 import dev.hytalemodding.impulse.core.internal.systems.sync.PhysicsBodyAttachmentIndexSystem;
 import dev.hytalemodding.impulse.core.internal.systems.sync.PhysicsSyncSystem;
 import dev.hytalemodding.impulse.core.internal.systems.visual.PhysicsDetachedVisualMaterializationSystem;
-import dev.hytalemodding.impulse.core.plugin.components.PhysicsBodyAttachmentComponent;
-import dev.hytalemodding.impulse.core.plugin.components.PhysicsBodyCollisionComponent;
-import dev.hytalemodding.impulse.core.plugin.components.PhysicsBodyDynamicsComponent;
-import dev.hytalemodding.impulse.core.plugin.components.PhysicsBodyIdentityComponent;
-import dev.hytalemodding.impulse.core.plugin.components.PhysicsBodyKinematicTargetComponent;
-import dev.hytalemodding.impulse.core.plugin.components.PhysicsBodyLifecycleComponent;
-import dev.hytalemodding.impulse.core.plugin.components.PhysicsBodyMaterialComponent;
-import dev.hytalemodding.impulse.core.plugin.components.PhysicsBodyShapeComponent;
 import dev.hytalemodding.impulse.core.plugin.events.PhysicsEventFramePublishedEvent;
 import dev.hytalemodding.impulse.core.plugin.persistence.PhysicsPersistenceResource;
+import dev.hytalemodding.impulse.core.plugin.physicsstore.projection.BodyAttachmentComponent;
 import dev.hytalemodding.impulse.core.plugin.resources.PhysicsWorldResource;
 import java.nio.file.Path;
 import java.util.ArrayList;
@@ -63,28 +55,7 @@ public final class ImpulsePlugin extends JavaPlugin {
     static final String OWNER_POOL_SIZE_PROPERTY = "impulse.ownerPool.size";
 
     @Getter
-    private ComponentType<EntityStore, PhysicsBodyAttachmentComponent> physicsBodyAttachmentComponentType;
-
-    @Getter
-    private ComponentType<EntityStore, PhysicsBodyIdentityComponent> physicsBodyIdentityComponentType;
-
-    @Getter
-    private ComponentType<EntityStore, PhysicsBodyShapeComponent> physicsBodyShapeComponentType;
-
-    @Getter
-    private ComponentType<EntityStore, PhysicsBodyDynamicsComponent> physicsBodyDynamicsComponentType;
-
-    @Getter
-    private ComponentType<EntityStore, PhysicsBodyMaterialComponent> physicsBodyMaterialComponentType;
-
-    @Getter
-    private ComponentType<EntityStore, PhysicsBodyCollisionComponent> physicsBodyCollisionComponentType;
-
-    @Getter
-    private ComponentType<EntityStore, PhysicsBodyKinematicTargetComponent> physicsBodyKinematicTargetComponentType;
-
-    @Getter
-    private ComponentType<EntityStore, PhysicsBodyLifecycleComponent> physicsBodyLifecycleComponentType;
+    private ComponentType<EntityStore, BodyAttachmentComponent> bodyAttachmentComponentType;
 
     @Getter
     private ComponentType<EntityStore, GeneratedVisualProxyComponent> generatedVisualProxyComponentType;
@@ -273,38 +244,10 @@ public final class ImpulsePlugin extends JavaPlugin {
 
     private void registerComponents() {
         ComponentRegistryProxy<EntityStore> entityRegistry = getEntityStoreRegistry();
-        physicsBodyAttachmentComponentType = entityRegistry.registerComponent(
-            PhysicsBodyAttachmentComponent.class,
-            "PhysicsBodyAttachment",
-            PhysicsBodyAttachmentComponent.CODEC);
-        physicsBodyIdentityComponentType = entityRegistry.registerComponent(
-            PhysicsBodyIdentityComponent.class,
-            "PhysicsBodyIdentity",
-            PhysicsBodyIdentityComponent.CODEC);
-        physicsBodyShapeComponentType = entityRegistry.registerComponent(
-            PhysicsBodyShapeComponent.class,
-            "PhysicsBodyShape",
-            PhysicsBodyShapeComponent.CODEC);
-        physicsBodyDynamicsComponentType = entityRegistry.registerComponent(
-            PhysicsBodyDynamicsComponent.class,
-            "PhysicsBodyDynamics",
-            PhysicsBodyDynamicsComponent.CODEC);
-        physicsBodyMaterialComponentType = entityRegistry.registerComponent(
-            PhysicsBodyMaterialComponent.class,
-            "PhysicsBodyMaterial",
-            PhysicsBodyMaterialComponent.CODEC);
-        physicsBodyCollisionComponentType = entityRegistry.registerComponent(
-            PhysicsBodyCollisionComponent.class,
-            "PhysicsBodyCollision",
-            PhysicsBodyCollisionComponent.CODEC);
-        physicsBodyKinematicTargetComponentType = entityRegistry.registerComponent(
-            PhysicsBodyKinematicTargetComponent.class,
-            "PhysicsBodyKinematicTarget",
-            PhysicsBodyKinematicTargetComponent.CODEC);
-        physicsBodyLifecycleComponentType = entityRegistry.registerComponent(
-            PhysicsBodyLifecycleComponent.class,
-            "PhysicsBodyLifecycle",
-            PhysicsBodyLifecycleComponent.CODEC);
+        bodyAttachmentComponentType = entityRegistry.registerComponent(
+            BodyAttachmentComponent.class,
+            "BodyAttachment",
+            BodyAttachmentComponent.CODEC);
         generatedVisualProxyComponentType = entityRegistry.registerComponent(
             GeneratedVisualProxyComponent.class,
             "GeneratedVisualProxy",
@@ -366,7 +309,6 @@ public final class ImpulsePlugin extends JavaPlugin {
         ComponentRegistryProxy<EntityStore> entityRegistry = getEntityStoreRegistry();
         persistenceRestoreGroup = entityRegistry.registerSystemGroup();
         entityRegistry.registerSystem(new PhysicsBodyAttachmentIndexSystem());
-        entityRegistry.registerSystem(new PhysicsStoreKinematicTargetProducerSystem());
         entityRegistry.registerSystem(new PhysicsDetachedVisualMaterializationSystem());
         entityRegistry.registerSystem(new PhysicsSyncSystem());
         entityRegistry.registerSystem(new PhysicsDebugSystem());

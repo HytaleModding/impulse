@@ -7,8 +7,8 @@ import com.hypixel.hytale.server.core.modules.entity.tracker.EntityTrackerSystem
 import com.hypixel.hytale.server.core.modules.entity.tracker.EntityTrackerSystems.Visible;
 import com.hypixel.hytale.server.core.modules.entity.tracker.NetworkId;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
-import dev.hytalemodding.impulse.core.plugin.components.PhysicsBodyAttachmentComponent;
-import dev.hytalemodding.impulse.core.plugin.components.PhysicsBodyAttachmentComponent.AttachmentLifecycle;
+import dev.hytalemodding.impulse.core.plugin.physicsstore.projection.BodyAttachmentComponent;
+import dev.hytalemodding.impulse.core.plugin.physicsstore.projection.BodyAttachmentComponent.AttachmentLifecycle;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicIntegerArray;
 import javax.annotation.Nonnull;
@@ -18,8 +18,8 @@ import javax.annotation.Nonnull;
  */
 public final class PhysicsEntityDiagnostics {
 
-    private static final ComponentType<EntityStore, PhysicsBodyAttachmentComponent> ATTACHMENT_TYPE =
-        PhysicsBodyAttachmentComponent.getComponentType();
+    private static final ComponentType<EntityStore, BodyAttachmentComponent> ATTACHMENT_TYPE =
+        BodyAttachmentComponent.getComponentType();
     private static final ComponentType<EntityStore, TransformComponent> TRANSFORM_TYPE =
         TransformComponent.getComponentType();
     private static final ComponentType<EntityStore, NetworkId> NETWORK_ID_TYPE =
@@ -68,7 +68,7 @@ public final class PhysicsEntityDiagnostics {
     }
 
     private static EntityFootprint collectBodyFootprint(@Nonnull Store<EntityStore> store,
-        @Nonnull ComponentType<EntityStore, PhysicsBodyAttachmentComponent> attachmentType,
+        @Nonnull ComponentType<EntityStore, BodyAttachmentComponent> attachmentType,
         @Nonnull ComponentType<EntityStore, TransformComponent> transformType,
         @Nonnull ComponentType<EntityStore, NetworkId> networkIdType,
         @Nonnull ComponentType<EntityStore, Visible> visibleType) {
@@ -98,12 +98,12 @@ public final class PhysicsEntityDiagnostics {
     }
 
     private static VisualFootprint collectVisualFootprint(@Nonnull Store<EntityStore> store,
-        @Nonnull ComponentType<EntityStore, PhysicsBodyAttachmentComponent> attachmentType,
+        @Nonnull ComponentType<EntityStore, BodyAttachmentComponent> attachmentType,
         @Nonnull ComponentType<EntityStore, TransformComponent> transformType,
         @Nonnull ComponentType<EntityStore, NetworkId> networkIdType) {
         AtomicIntegerArray counters = new AtomicIntegerArray(VISUAL_COUNTERS);
         store.forEachEntityParallel(attachmentType, (index, chunk, _) -> {
-            PhysicsBodyAttachmentComponent attachment = chunk.getComponent(index, attachmentType);
+            BodyAttachmentComponent attachment = chunk.getComponent(index, attachmentType);
             if (attachment == null || attachment.getLifecycle() != AttachmentLifecycle.GENERATED_PROXY) {
                 return;
             }

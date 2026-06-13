@@ -441,7 +441,6 @@ public class EcsCommand extends AbstractCommandCollection {
                 strength,
                 verticalLift);
             Holder<EntityStore> holder = ExamplePhysicsUtils.attachedPhysicsStoreBlockEntityHolder(time,
-                bodyKey,
                 bodyUuid,
                 spaceId,
                 blockType,

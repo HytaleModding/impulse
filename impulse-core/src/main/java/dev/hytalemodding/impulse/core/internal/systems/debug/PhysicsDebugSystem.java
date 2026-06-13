@@ -17,8 +17,8 @@ import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import dev.hytalemodding.impulse.api.PhysicsBodySnapshot;
 import dev.hytalemodding.impulse.api.ShapeType;
 import dev.hytalemodding.impulse.api.SpaceId;
-import dev.hytalemodding.impulse.core.plugin.components.PhysicsBodyAttachmentComponent;
-import dev.hytalemodding.impulse.core.plugin.components.PhysicsBodyAttachmentComponent.AttachmentLifecycle;
+import dev.hytalemodding.impulse.core.plugin.physicsstore.projection.BodyAttachmentComponent;
+import dev.hytalemodding.impulse.core.plugin.physicsstore.projection.BodyAttachmentComponent.AttachmentLifecycle;
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsDebugResource;
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsSpaceBinding;
 import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyKind;
@@ -60,8 +60,8 @@ import org.joml.Vector3f;
  */
 public class PhysicsDebugSystem extends TickingSystem<EntityStore> {
 
-    private static final ComponentType<EntityStore, PhysicsBodyAttachmentComponent> ATTACHMENT_TYPE =
-        PhysicsBodyAttachmentComponent.getComponentType();
+    private static final ComponentType<EntityStore, BodyAttachmentComponent> ATTACHMENT_TYPE =
+        BodyAttachmentComponent.getComponentType();
     private static final ComponentType<EntityStore, TransformComponent> TRANSFORM_TYPE =
         TransformComponent.getComponentType();
 
@@ -227,7 +227,7 @@ public class PhysicsDebugSystem extends TickingSystem<EntityStore> {
                 if (!attachmentRef.isValid()) {
                     continue;
                 }
-                PhysicsBodyAttachmentComponent attachment = store.getComponent(attachmentRef,
+                BodyAttachmentComponent attachment = store.getComponent(attachmentRef,
                     ATTACHMENT_TYPE);
                 TransformComponent transform = store.getComponent(attachmentRef, TRANSFORM_TYPE);
                 if (attachment == null

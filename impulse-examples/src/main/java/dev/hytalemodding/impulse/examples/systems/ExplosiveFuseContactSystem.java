@@ -10,7 +10,7 @@ import dev.hytalemodding.impulse.api.PhysicsContactPhase;
 import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyKind;
 import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyRegistrationView;
 import dev.hytalemodding.impulse.core.plugin.body.RigidBodyKey;
-import dev.hytalemodding.impulse.core.plugin.components.PhysicsBodyAttachmentComponent;
+import dev.hytalemodding.impulse.core.plugin.physicsstore.projection.BodyAttachmentComponent;
 import dev.hytalemodding.impulse.core.plugin.events.PhysicsContactEvent;
 import dev.hytalemodding.impulse.core.plugin.events.PhysicsEventFramePublishedEvent;
 import dev.hytalemodding.impulse.core.plugin.events.PhysicsFrameEvent;
@@ -29,8 +29,8 @@ public final class ExplosiveFuseContactSystem
         ExplosiveBlockComponent.getComponentType();
     private static final ComponentType<EntityStore, ExplosiveFuseComponent> FUSE_TYPE =
         ExplosiveFuseComponent.getComponentType();
-    private static final ComponentType<EntityStore, PhysicsBodyAttachmentComponent> ATTACHMENT_TYPE =
-        PhysicsBodyAttachmentComponent.getComponentType();
+    private static final ComponentType<EntityStore, BodyAttachmentComponent> ATTACHMENT_TYPE =
+        BodyAttachmentComponent.getComponentType();
 
     public ExplosiveFuseContactSystem() {
         super(PhysicsEventFramePublishedEvent.class);
@@ -71,13 +71,13 @@ public final class ExplosiveFuseContactSystem
             return;
         }
         for (Ref<EntityStore> ref : resource.getBodyAttachments(explosiveBodyKey)) {
-            PhysicsBodyAttachmentComponent attachment = commandBuffer.getComponent(ref, ATTACHMENT_TYPE);
+            BodyAttachmentComponent attachment = commandBuffer.getComponent(ref, ATTACHMENT_TYPE);
             ExplosiveBlockComponent explosive = commandBuffer.getComponent(ref, EXPLOSIVE_TYPE);
             ExplosiveFuseComponent fuse = commandBuffer.getComponent(ref, FUSE_TYPE);
             if (attachment == null
                 || explosive == null
                 || fuse == null
-                || !explosiveBodyKey.equals(attachment.getBodyKey())) {
+                || !explosiveBodyKey.value().equals(attachment.getBodyUuid())) {
                 continue;
             }
             ExplosiveFuseComponent updated = fuse.clone();

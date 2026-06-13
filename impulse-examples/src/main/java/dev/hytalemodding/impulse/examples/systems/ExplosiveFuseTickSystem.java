@@ -12,13 +12,10 @@ import com.hypixel.hytale.component.system.tick.EntityTickingSystem;
 import com.hypixel.hytale.server.core.modules.entity.component.TransformComponent;
 import com.hypixel.hytale.server.core.universe.world.World;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
-import dev.hytalemodding.impulse.api.PhysicsBodySnapshot;
 import dev.hytalemodding.impulse.api.SpaceId;
-import dev.hytalemodding.impulse.core.plugin.body.RigidBodyKey;
-import dev.hytalemodding.impulse.core.plugin.components.PhysicsBodyAttachmentComponent;
+import dev.hytalemodding.impulse.core.plugin.physicsstore.projection.BodyAttachmentComponent;
 import dev.hytalemodding.impulse.core.plugin.physicsstore.PhysicsStoreAccess;
 import dev.hytalemodding.impulse.core.plugin.physicsstore.snapshots.PhysicsStoreBodySnapshot;
-import dev.hytalemodding.impulse.core.plugin.resources.PhysicsWorldResource;
 import dev.hytalemodding.impulse.examples.explosive.ExplosiveBlockComponent;
 import dev.hytalemodding.impulse.examples.explosive.ExplosiveBlockRuntime;
 import dev.hytalemodding.impulse.examples.explosive.ExplosiveFuseComponent;
@@ -35,8 +32,8 @@ public final class ExplosiveFuseTickSystem extends EntityTickingSystem<EntitySto
         ExplosiveBlockComponent.getComponentType();
     private static final ComponentType<EntityStore, ExplosiveFuseComponent> FUSE_TYPE =
         ExplosiveFuseComponent.getComponentType();
-    private static final ComponentType<EntityStore, PhysicsBodyAttachmentComponent> ATTACHMENT_TYPE =
-        PhysicsBodyAttachmentComponent.getComponentType();
+    private static final ComponentType<EntityStore, BodyAttachmentComponent> ATTACHMENT_TYPE =
+        BodyAttachmentComponent.getComponentType();
     private static final ComponentType<EntityStore, TransformComponent> TRANSFORM_TYPE =
         TransformComponent.getComponentType();
     private static final Query<EntityStore> QUERY =
@@ -59,7 +56,7 @@ public final class ExplosiveFuseTickSystem extends EntityTickingSystem<EntitySto
             return;
         }
         ExplosiveBlockComponent explosive = chunk.getComponent(index, EXPLOSIVE_TYPE);
-        PhysicsBodyAttachmentComponent attachment = chunk.getComponent(index, ATTACHMENT_TYPE);
+        BodyAttachmentComponent attachment = chunk.getComponent(index, ATTACHMENT_TYPE);
         TransformComponent transform = chunk.getComponent(index, TRANSFORM_TYPE);
         SpaceId spaceId = attachment != null ? attachment.getSpaceId() : null;
         if (explosive == null || attachment == null || transform == null || spaceId == null) {
@@ -67,8 +64,7 @@ public final class ExplosiveFuseTickSystem extends EntityTickingSystem<EntitySto
         }
 
         Ref<EntityStore> ref = chunk.getReferenceTo(index);
-        PhysicsWorldResource resource = store.getResource(PhysicsWorldResource.getResourceType());
-        BodyMotionSnapshot snapshot = bodySnapshot(store, resource, attachment);
+        BodyMotionSnapshot snapshot = bodySnapshot(store, attachment);
         Vector3d currentCenter = explosionCenter(snapshot, transform);
         if (!fuse.isArmed()) {
             ExplosiveFuseComponent updated = fuse.clone();
@@ -116,23 +112,11 @@ public final class ExplosiveFuseTickSystem extends EntityTickingSystem<EntitySto
 
     @Nullable
     private static BodyMotionSnapshot bodySnapshot(@Nonnull Store<EntityStore> store,
-        @Nonnull PhysicsWorldResource resource,
-        @Nonnull PhysicsBodyAttachmentComponent attachment) {
-        UUID physicsBodyUuid = attachment.getPhysicsBodyUuid();
-        if (physicsBodyUuid != null) {
-            PhysicsStoreBodySnapshot snapshot =
-                PhysicsStoreAccess.getBodySnapshot(store.getExternalData().getWorld(), physicsBodyUuid);
-            return snapshot != null ? BodyMotionSnapshot.from(snapshot) : null;
-        }
-        RigidBodyKey bodyKey = attachment.getBodyKey();
-        if (resource.getBodyRegistrationView(bodyKey) != null) {
-            try {
-                return BodyMotionSnapshot.from(resource.getBodySnapshot(bodyKey));
-            } catch (IllegalArgumentException ignored) {
-                // Fall back to the last synced entity transform if the source body was destroyed.
-            }
-        }
-        return null;
+        @Nonnull BodyAttachmentComponent attachment) {
+        UUID bodyUuid = attachment.getBodyUuid();
+        PhysicsStoreBodySnapshot snapshot =
+            PhysicsStoreAccess.getBodySnapshot(store.getExternalData().getWorld(), bodyUuid);
+        return snapshot != null ? BodyMotionSnapshot.from(snapshot) : null;
     }
 
     private record BodyMotionSnapshot(float positionX,
@@ -147,12 +131,5 @@ public final class ExplosiveFuseTickSystem extends EntityTickingSystem<EntitySto
             return new BodyMotionSnapshot(position.x, position.y, position.z, velocity.y);
         }
 
-        @Nonnull
-        private static BodyMotionSnapshot from(@Nonnull PhysicsBodySnapshot snapshot) {
-            return new BodyMotionSnapshot(snapshot.positionX(),
-                snapshot.positionY(),
-                snapshot.positionZ(),
-                snapshot.linearVelocityY());
-        }
     }
 }
