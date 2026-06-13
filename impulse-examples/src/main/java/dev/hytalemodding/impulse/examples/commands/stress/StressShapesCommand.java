@@ -96,14 +96,16 @@ public class StressShapesCommand extends AbstractAsyncPlayerCommand {
         @Nonnull PhysicsAxis axis,
         @Nonnull Vector3d base,
         double xOffset) {
-        ExamplePhysicsUtils.spawnBlockBody(store,
+        ExamplePhysicsUtils.spawnBlockBodyLegacy(store,
             time,
             resource,
             spaceId,
             new Vector3d(base).add(xOffset, 0.0, 0.0),
+            ExamplePhysicsUtils.DEFAULT_BLOCK_TYPE,
             shape(type, axis),
             1.0f,
-            RigidBodySpawnSettings.material(0.6f, 0.25f));
+            RigidBodySpawnSettings.material(0.6f, 0.25f),
+            null);
     }
 
     @Nonnull

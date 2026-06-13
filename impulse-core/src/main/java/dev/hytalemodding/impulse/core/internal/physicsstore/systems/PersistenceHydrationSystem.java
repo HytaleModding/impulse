@@ -209,6 +209,9 @@ public final class PersistenceHydrationSystem extends TickingSystem<PhysicsStore
         target.setRotation(dto.getRotation());
         target.setLinearVelocity(dto.getLinearVelocity());
         target.setAngularVelocity(dto.getAngularVelocity());
+        target.setTransformEnabled(true);
+        target.setVelocityEnabled(true);
+        target.setActivate(!dto.isSleeping());
         return target;
     }
 

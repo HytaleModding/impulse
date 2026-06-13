@@ -198,12 +198,40 @@ public final class BodyBindingSystem extends TickingSystem<PhysicsStore>
             && backendRuntime.supportsContinuousCollision(spaceHandle.value())) {
             backendRuntime.setBodyContinuousCollision(spaceHandle.value(), bodyId, true);
         }
+        applyInitialTargetState(backendRuntime, spaceHandle, bodyHandle, bodyType, target);
         runtime.putBodyHandle(bodyUuid, spaceHandle, bodyHandle);
         runtime.putBodyHitMetadata(bodyHandle,
             RigidBodyKey.of(bodyUuid),
             bodyType,
             shape.getShapeType());
         identity.putBodyHandle(bodyHandle, bodyRef);
+    }
+
+    private static void applyInitialTargetState(@Nonnull PhysicsBackendRuntime backendRuntime,
+        @Nonnull BackendSpaceHandle spaceHandle,
+        @Nonnull BackendBodyHandle bodyHandle,
+        @Nonnull PhysicsBodyType bodyType,
+        @Nullable TargetComponent target) {
+        if (target == null) {
+            return;
+        }
+        if (target.isVelocityEnabled()) {
+            Vector3f linearVelocity = target.getLinearVelocity();
+            Vector3f angularVelocity = target.getAngularVelocity();
+            backendRuntime.setBodyVelocity(spaceHandle.value(),
+                bodyHandle.value(),
+                linearVelocity.x,
+                linearVelocity.y,
+                linearVelocity.z,
+                angularVelocity.x,
+                angularVelocity.y,
+                angularVelocity.z);
+        }
+        if (target.isActivate()) {
+            backendRuntime.activateBody(spaceHandle.value(), bodyHandle.value());
+        } else if (bodyType == PhysicsBodyType.DYNAMIC) {
+            backendRuntime.sleepBody(spaceHandle.value(), bodyHandle.value());
+        }
     }
 
     @Nullable

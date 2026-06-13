@@ -280,12 +280,12 @@ public final class PersistenceCaptureSystem extends TickingSystem<PhysicsStore>
                     snapshot.angularVelocity(),
                     snapshot.sleeping());
             }
-            if (target != null && target.isActive()) {
+            if (target != null) {
                 return new PersistentBodyRuntimeStateDto(target.getPosition(),
                     target.getRotation(),
                     target.getLinearVelocity(),
                     target.getAngularVelocity(),
-                    false);
+                    !target.isActive() && !target.isActivate());
             }
             return new PersistentBodyRuntimeStateDto(new Vector3f(),
                 new Quaternionf(),
