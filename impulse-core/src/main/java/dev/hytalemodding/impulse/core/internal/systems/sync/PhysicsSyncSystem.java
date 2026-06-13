@@ -24,12 +24,11 @@ import dev.hytalemodding.impulse.core.internal.physicsstore.resources.PhysicsSna
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsWorldRuntimeResource;
 import dev.hytalemodding.impulse.core.internal.resources.body.PhysicsBodyRuntimeState;
 import dev.hytalemodding.impulse.core.internal.resources.profiling.PhysicsRuntimeProfilingResource;
-import dev.hytalemodding.impulse.core.internal.systems.body.PhysicsStoreKinematicTargetProducerSystem;
 import dev.hytalemodding.impulse.core.internal.systems.visual.GeneratedProxyLifecycle;
 import dev.hytalemodding.impulse.core.internal.systems.visual.PhysicsDetachedVisualMaterializationSystem;
 import dev.hytalemodding.impulse.core.internal.systems.visual.VisualInterestCollector;
-import dev.hytalemodding.impulse.core.plugin.components.PhysicsBodyAttachmentComponent;
-import dev.hytalemodding.impulse.core.plugin.components.PhysicsBodyAttachmentComponent.AttachmentLifecycle;
+import dev.hytalemodding.impulse.core.plugin.physicsstore.projection.BodyAttachmentComponent;
+import dev.hytalemodding.impulse.core.plugin.physicsstore.projection.BodyAttachmentComponent.AttachmentLifecycle;
 import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyRegistrationView;
 import dev.hytalemodding.impulse.core.plugin.physicsstore.PhysicsStoreAccess;
 import dev.hytalemodding.impulse.core.plugin.physicsstore.snapshots.PhysicsStoreBodySnapshot;
@@ -50,21 +49,19 @@ import org.joml.Vector3f;
  * hydrated bodies, and hydrated joints are all settled before this system reads
  * body transforms.</p>
  *
- * <p>Entities attach to PhysicsStore body UUIDs or legacy body keys. Backend body destruction is
- * explicit at the world resource boundary; missing generated visual proxies are removed from the
- * legacy path, while gameplay entities merely lose the attachment.</p>
+ * <p>Entities attach to authoritative PhysicsStore body UUIDs. Backend body destruction is explicit
+ * through PhysicsStore requests; removing an EntityStore attachment only removes the projection.</p>
  */
 public class PhysicsSyncSystem extends EntityTickingSystem<EntityStore> {
 
-    private static final ComponentType<EntityStore, PhysicsBodyAttachmentComponent> ATTACHMENT_TYPE =
-        PhysicsBodyAttachmentComponent.getComponentType();
+    private static final ComponentType<EntityStore, BodyAttachmentComponent> ATTACHMENT_TYPE =
+        BodyAttachmentComponent.getComponentType();
     private static final ComponentType<EntityStore, TransformComponent> TRANSFORM_TYPE =
         TransformComponent.getComponentType();
 
     private static final Query<EntityStore> QUERY = Query.and(ATTACHMENT_TYPE, TRANSFORM_TYPE);
     private final Set<Dependency<EntityStore>> dependencies = Set.of(
         new SystemGroupDependency<>(Order.AFTER, ImpulsePlugin.get().getPersistenceRestoreGroup()),
-        new SystemDependency<>(Order.AFTER, PhysicsStoreKinematicTargetProducerSystem.class),
         new SystemDependency<>(Order.AFTER, PhysicsDetachedVisualMaterializationSystem.class),
         new SystemDependency<>(Order.BEFORE, TransformSystems.EntityTrackerUpdate.class),
         new SystemDependency<>(Order.BEFORE, UpdateLocationSystems.TickingSystem.class)
@@ -131,7 +128,7 @@ public class PhysicsSyncSystem extends EntityTickingSystem<EntityStore> {
         @Nonnull Store<EntityStore> store,
         @Nonnull CommandBuffer<EntityStore> commandBuffer) {
         Ref<EntityStore> entityRef = chunk.getReferenceTo(index);
-        PhysicsBodyAttachmentComponent attachment = chunk.getComponent(index, ATTACHMENT_TYPE);
+        BodyAttachmentComponent attachment = chunk.getComponent(index, ATTACHMENT_TYPE);
         TransformComponent transform = chunk.getComponent(index, TRANSFORM_TYPE);
         if (attachment == null || transform == null) {
             return;
@@ -142,11 +139,9 @@ public class PhysicsSyncSystem extends EntityTickingSystem<EntityStore> {
         if (collector != null) {
             collector.incrementBodiesInspected();
         }
-        UUID physicsBodyUuid = attachment.getPhysicsBodyUuid();
+        UUID bodyUuid = attachment.getBodyUuid();
         PhysicsSnapshotResource snapshotResource = physicsStoreSnapshots.get();
-        PhysicsStoreBodySnapshot physicsStoreSnapshot = physicsBodyUuid != null
-            ? snapshotResource.getBody(physicsBodyUuid)
-            : null;
+        PhysicsStoreBodySnapshot physicsStoreSnapshot = snapshotResource.getBody(bodyUuid);
         if (physicsStoreSnapshot != null) {
             if (!PhysicsTransformAuthority.shouldApplyBodyTransform(attachment)) {
                 return;
@@ -157,134 +152,7 @@ public class PhysicsSyncSystem extends EntityTickingSystem<EntityStore> {
             }
             return;
         }
-        if (attachment.getPhysicsBodyUuid() != null) {
-            clearMissingPhysicsStoreAttachment(entityRef, attachment, commandBuffer);
-            return;
-        }
-        PhysicsWorldRuntimeResource resource = local.getResource(store);
-        PhysicsBodyRegistrationView registration =
-            resource.getBodyRegistrationView(attachment.getBodyKey());
-        if (registration == null) {
-            if (resource.isBodyCreationPending(attachment.getBodyKey())) {
-                return;
-            }
-            GeneratedProxyLifecycle.clearMissingAttachment(entityRef, attachment, resource, commandBuffer);
-            return;
-        }
-
-        SpaceId spaceId = registration.spaceId();
-        if (resource.getSpaceBinding(spaceId) == null) {
-            if (collector != null) {
-                collector.incrementSkippedMissingSpace();
-            }
-            GeneratedProxyLifecycle.clearMissingAttachment(entityRef, attachment, resource, commandBuffer);
-            return;
-        }
-
-        if (!PhysicsTransformAuthority.shouldApplyBodyTransform(attachment)) {
-            return;
-        }
-
-        PhysicsBodySnapshot snapshot = resource.getBodySnapshotIfRegistered(registration.bodyKey());
-        if (snapshot == null) {
-            GeneratedProxyLifecycle.clearMissingAttachment(entityRef, attachment, resource, commandBuffer);
-            return;
-        }
-        if (snapshot.isStatic()) {
-            if (collector != null) {
-                collector.incrementSkippedStatic();
-            }
-            return;
-        }
-
-        PhysicsSpaceSettings settings = resolveSpaceSettings(resource, spaceId);
-        snapshot.copyPositionTo(local.position);
-        snapshot.copyRotationTo(local.rotation);
-        applyVisualPose(snapshot, attachment, local);
-        PhysicsBodyRuntimeState.BodySyncState syncState = resource.getOrCreateBodySyncState(entityRef);
-        if (collector != null) {
-            collector.recordBodySnapshotMotion(syncState.recordSnapshotObservation(local.visualPosition));
-        } else {
-            syncState.recordSnapshotObservation(local.visualPosition);
-        }
-
-        boolean sleeping = snapshot.sleeping();
-        boolean controlled = resource.isBodyControlled(registration.bodyKey());
-        boolean lowSpeed = false;
-        if (!sleeping && snapshot.isDynamic() && !controlled) {
-            snapshot.copyLinearVelocityTo(local.linearVelocity);
-            snapshot.copyAngularVelocityTo(local.angularVelocity);
-            lowSpeed = local.linearVelocity.lengthSquared() <= LOW_SPEED_LINEAR_THRESHOLD_SQUARED
-                && local.angularVelocity.lengthSquared() <= LOW_SPEED_ANGULAR_THRESHOLD_SQUARED;
-        }
-
-        boolean rangeLimitedVisual = shouldCullVisualSync(settings, attachment, controlled);
-        PhysicsSyncPolicy.SyncRangeTier rangeTier = PhysicsSyncPolicy.resolveRangeTier(
-            settings,
-            resource.getBodyVisualInterestState(registration.bodyKey()),
-            rangeLimitedVisual,
-            controlled,
-            playerInterests.get(),
-            local.visualPosition);
-        if (rangeTier == PhysicsSyncPolicy.SyncRangeTier.NEAR) {
-            snapshot.copyPositionTo(local.position);
-            snapshot.copyRotationTo(local.rotation);
-            applySnapshotPrediction(snapshot,
-                PhysicsSyncPolicy.visualPredictionSeconds(settings,
-                    syncNanos.get(),
-                    resource.getLatestSnapshotAppliedNanos()),
-                local);
-            applyVisualPose(snapshot, attachment, local);
-        }
-
-        PhysicsSyncPolicy.SyncDecision decision = PhysicsSyncPolicy.resolveSyncDecision(syncState,
-            settings,
-            local.visualPosition,
-            local.visualRotation,
-            sleeping,
-            lowSpeed,
-            controlled,
-            rangeTier);
-        if (decision == PhysicsSyncPolicy.SyncDecision.SKIP_SLEEPING
-            || decision == PhysicsSyncPolicy.SyncDecision.SKIP_THRESHOLD
-            || decision == PhysicsSyncPolicy.SyncDecision.SKIP_VISUAL_DEADZONE
-            || decision == PhysicsSyncPolicy.SyncDecision.SKIP_VISUAL_RANGE) {
-            syncState.recordSkip(dt);
-            if (collector != null) {
-                if (decision == PhysicsSyncPolicy.SyncDecision.SKIP_SLEEPING) {
-                    collector.incrementSkippedSleeping();
-                } else if (decision == PhysicsSyncPolicy.SyncDecision.SKIP_VISUAL_DEADZONE) {
-                    collector.incrementSkippedVisualDeadzone();
-                } else if (decision == PhysicsSyncPolicy.SyncDecision.SKIP_VISUAL_RANGE) {
-                    collector.incrementSkippedVisualRange();
-                } else {
-                    collector.incrementSkippedThreshold();
-                }
-            }
-            return;
-        }
-
-        if (shouldSmoothVisual(settings, snapshot, controlled, rangeTier, syncState, decision)) {
-            applyVisualSmoothing(settings, dt, syncState, local);
-        }
-
-        if (collector != null) {
-            collector.recordVisualCorrection(distance(transform.getPosition(), local.visualPosition));
-        }
-        transform.getPosition().set(local.visualPosition.x,
-            local.visualPosition.y,
-            local.visualPosition.z);
-        local.visualRotation.getEulerAnglesYXZ(local.euler);
-        transform.getRotation().set(local.euler.x, local.euler.y, local.euler.z);
-        syncState.recordSync(local.visualPosition, local.visualRotation, sleeping);
-        if (collector != null) {
-            collector.incrementBodiesSynced();
-            if (decision == PhysicsSyncPolicy.SyncDecision.TRANSITION) {
-                collector.incrementTransitionSyncs();
-            } else if (decision == PhysicsSyncPolicy.SyncDecision.KEEPALIVE) {
-                collector.incrementKeepaliveSyncs();
-            }
-        }
+        clearMissingPhysicsStoreAttachment(entityRef, attachment, commandBuffer);
     }
 
     @Nonnull
@@ -296,7 +164,7 @@ public class PhysicsSyncSystem extends EntityTickingSystem<EntityStore> {
     }
 
     private static void applyPhysicsStoreSnapshot(@Nonnull TransformComponent transform,
-        @Nonnull PhysicsBodyAttachmentComponent attachment,
+        @Nonnull BodyAttachmentComponent attachment,
         @Nonnull PhysicsStoreBodySnapshot snapshot,
         @Nonnull Scratch scratch) {
         scratch.position.set(snapshot.position());
@@ -317,7 +185,7 @@ public class PhysicsSyncSystem extends EntityTickingSystem<EntityStore> {
     }
 
     private static void clearMissingPhysicsStoreAttachment(@Nonnull Ref<EntityStore> entityRef,
-        @Nonnull PhysicsBodyAttachmentComponent attachment,
+        @Nonnull BodyAttachmentComponent attachment,
         @Nonnull CommandBuffer<EntityStore> commandBuffer) {
         // PhysicsStore snapshot publication is intentionally one completed frame behind request
         // ingestion. Absence from the latest frame is not enough evidence that the body row is gone.
@@ -335,7 +203,7 @@ public class PhysicsSyncSystem extends EntityTickingSystem<EntityStore> {
     }
 
     private void applyVisualPose(@Nonnull PhysicsBodySnapshot snapshot,
-        @Nonnull PhysicsBodyAttachmentComponent attachment,
+        @Nonnull BodyAttachmentComponent attachment,
         @Nonnull Scratch scratch) {
         PhysicsVisualPoseMath.visualPositionFromBodyPose(scratch.position,
             scratch.rotation,
@@ -436,7 +304,7 @@ public class PhysicsSyncSystem extends EntityTickingSystem<EntityStore> {
     }
 
     private static boolean shouldCullVisualSync(@Nullable PhysicsSpaceSettings settings,
-        @Nonnull PhysicsBodyAttachmentComponent attachment,
+        @Nonnull BodyAttachmentComponent attachment,
         boolean controlled) {
         if (controlled) {
             return false;

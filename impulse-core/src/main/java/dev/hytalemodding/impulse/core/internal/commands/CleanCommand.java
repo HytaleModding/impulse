@@ -21,7 +21,7 @@ import dev.hytalemodding.impulse.core.internal.resources.PhysicsRuntimeResetResu
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsWorldRuntimeResource;
 import dev.hytalemodding.impulse.core.internal.modules.control.systems.PhysicsControlSessionCleanup;
 import dev.hytalemodding.impulse.core.plugin.body.RigidBodyKey;
-import dev.hytalemodding.impulse.core.plugin.components.PhysicsBodyAttachmentComponent;
+import dev.hytalemodding.impulse.core.plugin.physicsstore.projection.BodyAttachmentComponent;
 import it.unimi.dsi.fastutil.objects.ObjectOpenHashSet;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicIntegerArray;
@@ -73,8 +73,8 @@ public class CleanCommand extends AbstractWorldCommand {
     private static void cleanAll(@Nonnull CommandContext context,
         @Nonnull World world,
         @Nonnull Store<EntityStore> store) {
-        ComponentType<EntityStore, PhysicsBodyAttachmentComponent> attachmentType =
-            PhysicsBodyAttachmentComponent.getComponentType();
+        ComponentType<EntityStore, BodyAttachmentComponent> attachmentType =
+            BodyAttachmentComponent.getComponentType();
         ComponentType<EntityStore, GeneratedVisualProxyComponent> generatedProxyType =
             GeneratedVisualProxyComponent.getComponentType();
         AtomicIntegerArray removedEntities = new AtomicIntegerArray(REMOVED_ENTITY_COUNTERS);
@@ -140,18 +140,18 @@ public class CleanCommand extends AbstractWorldCommand {
         resource.refreshBodySnapshots();
         Set<RigidBodyKey> selectedBodyKeys = selectBodyKeysNear(resource, center, radius);
         double radiusSquared = (double) radius * radius;
-        ComponentType<EntityStore, PhysicsBodyAttachmentComponent> attachmentType =
-            PhysicsBodyAttachmentComponent.getComponentType();
+        ComponentType<EntityStore, BodyAttachmentComponent> attachmentType =
+            BodyAttachmentComponent.getComponentType();
         ComponentType<EntityStore, GeneratedVisualProxyComponent> generatedProxyType =
             GeneratedVisualProxyComponent.getComponentType();
 
         AtomicIntegerArray removedEntities = new AtomicIntegerArray(REMOVED_ENTITY_COUNTERS);
         store.forEachEntityParallel(attachmentType,
             (index, archetypeChunk, commandBuffer) -> {
-                PhysicsBodyAttachmentComponent attachment =
+                BodyAttachmentComponent attachment =
                     archetypeChunk.getComponent(index, attachmentType);
                 assert attachment != null;
-                if (!selectedBodyKeys.contains(attachment.getBodyKey())) {
+                if (!selectedBodyKeys.contains(RigidBodyKey.of(attachment.getBodyUuid()))) {
                     return;
                 }
 

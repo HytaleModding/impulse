@@ -33,9 +33,9 @@ import dev.hytalemodding.impulse.core.internal.resources.PhysicsVisualRuntime.Vi
 import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyKind;
 import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyRegistrationView;
 import dev.hytalemodding.impulse.core.plugin.body.RigidBodyKey;
-import dev.hytalemodding.impulse.core.plugin.components.PhysicsBodyAttachmentComponent;
-import dev.hytalemodding.impulse.core.plugin.components.PhysicsBodyAttachmentComponent.AttachmentLifecycle;
-import dev.hytalemodding.impulse.core.plugin.components.PhysicsBodyAttachmentComponent.TransformAuthority;
+import dev.hytalemodding.impulse.core.plugin.physicsstore.projection.BodyAttachmentComponent;
+import dev.hytalemodding.impulse.core.plugin.physicsstore.projection.BodyAttachmentComponent.AttachmentLifecycle;
+import dev.hytalemodding.impulse.core.plugin.physicsstore.projection.BodyAttachmentComponent.TransformAuthority;
 import dev.hytalemodding.impulse.core.plugin.physicsstore.PhysicsStoreAccess;
 import dev.hytalemodding.impulse.core.plugin.settings.PhysicsSpaceSettings;
 import dev.hytalemodding.impulse.core.plugin.settings.PhysicsVisualMaterializationSettings;
@@ -62,7 +62,7 @@ import org.joml.Vector3f;
  *
  * <p>Detached bodies stay physics-authoritative and are not persisted through these visual
  * proxies. Proxies are ordinary Hytale block entities with a generated
- * {@link PhysicsBodyAttachmentComponent}, so removing a proxy never removes the backend body.</p>
+ * {@link BodyAttachmentComponent}, so removing a proxy never removes the backend body.</p>
  */
 public class PhysicsDetachedVisualMaterializationSystem extends TickingSystem<EntityStore> {
 
@@ -174,15 +174,14 @@ public class PhysicsDetachedVisualMaterializationSystem extends TickingSystem<En
     }
 
     private static void removeLegacyGeneratedVisualProxies(@Nonnull Store<EntityStore> store) {
-        ComponentType<EntityStore, PhysicsBodyAttachmentComponent> attachmentType =
-            PhysicsBodyAttachmentComponent.getComponentType();
+        ComponentType<EntityStore, BodyAttachmentComponent> attachmentType =
+            BodyAttachmentComponent.getComponentType();
         store.forEachEntityParallel(attachmentType,
             (index, archetypeChunk, commandBuffer) -> {
-                PhysicsBodyAttachmentComponent attachment = archetypeChunk.getComponent(index,
+                BodyAttachmentComponent attachment = archetypeChunk.getComponent(index,
                     attachmentType);
                 if (attachment == null
-                    || attachment.getLifecycle() != AttachmentLifecycle.GENERATED_PROXY
-                    || !attachment.usesLegacyBodyKey()) {
+                    || attachment.getLifecycle() != AttachmentLifecycle.GENERATED_PROXY) {
                     return;
                 }
                 commandBuffer.removeEntity(archetypeChunk.getReferenceTo(index), RemoveReason.REMOVE);
@@ -613,11 +612,11 @@ public class PhysicsDetachedVisualMaterializationSystem extends TickingSystem<En
     private static void removeOrphanVisualFollowers(@Nonnull Store<EntityStore> store,
         @Nonnull PhysicsWorldRuntimeResource resource) {
         Queue<OrphanVisualProxy> orphanProxies = new ConcurrentLinkedQueue<>();
-        ComponentType<EntityStore, PhysicsBodyAttachmentComponent> attachmentType =
-            PhysicsBodyAttachmentComponent.getComponentType();
+        ComponentType<EntityStore, BodyAttachmentComponent> attachmentType =
+            BodyAttachmentComponent.getComponentType();
         store.forEachEntityParallel(attachmentType,
             (index, archetypeChunk, commandBuffer) -> {
-                PhysicsBodyAttachmentComponent attachment = archetypeChunk.getComponent(index,
+                BodyAttachmentComponent attachment = archetypeChunk.getComponent(index,
                     attachmentType);
                 if (attachment == null
                     || attachment.getLifecycle() != AttachmentLifecycle.GENERATED_PROXY) {
@@ -625,7 +624,7 @@ public class PhysicsDetachedVisualMaterializationSystem extends TickingSystem<En
                 }
 
                 var ref = archetypeChunk.getReferenceTo(index);
-                orphanProxies.add(new OrphanVisualProxy(attachment.getBodyKey(),
+                orphanProxies.add(new OrphanVisualProxy(RigidBodyKey.of(attachment.getBodyUuid()),
                     attachment.getSpaceId(),
                     ref));
             });
@@ -665,13 +664,13 @@ public class PhysicsDetachedVisualMaterializationSystem extends TickingSystem<En
         @Nonnull RigidBodyKey bodyKey,
         @Nonnull Ref<EntityStore> proxy,
         @Nonnull GameplayAttachmentSnapshot gameplayAttachments) {
-        ComponentType<EntityStore, PhysicsBodyAttachmentComponent> attachmentType =
-            PhysicsBodyAttachmentComponent.getComponentType();
+        ComponentType<EntityStore, BodyAttachmentComponent> attachmentType =
+            BodyAttachmentComponent.getComponentType();
         for (Ref<EntityStore> attachmentRef : resource.getBodyAttachments(bodyKey)) {
             if (attachmentRef == proxy || attachmentRef.equals(proxy)) {
                 continue;
             }
-            PhysicsBodyAttachmentComponent attachment = store.getComponent(attachmentRef,
+            BodyAttachmentComponent attachment = store.getComponent(attachmentRef,
                 attachmentType);
             if (attachment != null && attachment.getLifecycle() != AttachmentLifecycle.GENERATED_PROXY) {
                 return true;
@@ -777,11 +776,11 @@ public class PhysicsDetachedVisualMaterializationSystem extends TickingSystem<En
         if (!proxy.isValid()) {
             return false;
         }
-        PhysicsBodyAttachmentComponent attachment =
-            store.getComponent(proxy, PhysicsBodyAttachmentComponent.getComponentType());
+        BodyAttachmentComponent attachment =
+            store.getComponent(proxy, BodyAttachmentComponent.getComponentType());
         return attachment != null
             && attachment.getLifecycle() == AttachmentLifecycle.GENERATED_PROXY
-            && attachment.getBodyKey().equals(bodyKey)
+            && attachment.getBodyUuid().equals(bodyKey.value())
             && sameSpaceId(attachment.getSpaceId(), spaceId);
     }
 
@@ -820,8 +819,8 @@ public class PhysicsDetachedVisualMaterializationSystem extends TickingSystem<En
         holder.removeComponent(Velocity.getComponentType());
         holder.addComponent(store.getRegistry().getNonSerializedComponentType(), NonSerialized.get());
         holder.addComponent(GeneratedVisualProxyComponent.getComponentType(), new GeneratedVisualProxyComponent());
-        holder.addComponent(PhysicsBodyAttachmentComponent.getComponentType(),
-            new PhysicsBodyAttachmentComponent(bodyKey,
+        holder.addComponent(BodyAttachmentComponent.getComponentType(),
+            new BodyAttachmentComponent(bodyKey.value(),
                 registration.spaceId(),
                 TransformAuthority.BODY,
                 AttachmentLifecycle.GENERATED_PROXY));

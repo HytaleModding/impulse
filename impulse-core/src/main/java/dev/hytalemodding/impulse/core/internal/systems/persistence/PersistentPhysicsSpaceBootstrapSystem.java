@@ -18,8 +18,8 @@ import dev.hytalemodding.impulse.core.internal.persistence.PersistentPhysicsWorl
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsSpaceBinding;
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsWorldRuntimeResource;
 import dev.hytalemodding.impulse.core.internal.resources.owner.PhysicsOwnerBridge;
-import dev.hytalemodding.impulse.core.plugin.components.PhysicsBodyAttachmentComponent;
-import dev.hytalemodding.impulse.core.plugin.components.PhysicsBodyAttachmentComponent.AttachmentLifecycle;
+import dev.hytalemodding.impulse.core.plugin.physicsstore.projection.BodyAttachmentComponent;
+import dev.hytalemodding.impulse.core.plugin.physicsstore.projection.BodyAttachmentComponent.AttachmentLifecycle;
 import dev.hytalemodding.impulse.core.plugin.resources.PhysicsWorldResource;
 import java.util.logging.Level;
 import javax.annotation.Nonnull;
@@ -44,8 +44,8 @@ import javax.annotation.Nonnull;
  */
 public class PersistentPhysicsSpaceBootstrapSystem extends TickingSystem<EntityStore> {
 
-    private static final ComponentType<EntityStore, PhysicsBodyAttachmentComponent> ATTACHMENT_TYPE =
-        PhysicsBodyAttachmentComponent.getComponentType();
+    private static final ComponentType<EntityStore, BodyAttachmentComponent> ATTACHMENT_TYPE =
+        BodyAttachmentComponent.getComponentType();
     private static final ComponentType<EntityStore, GeneratedVisualProxyComponent> GENERATED_PROXY_TYPE =
         GeneratedVisualProxyComponent.getComponentType();
 
@@ -135,7 +135,7 @@ public class PersistentPhysicsSpaceBootstrapSystem extends TickingSystem<EntityS
 
         store.forEachEntityParallel(ATTACHMENT_TYPE,
             (index, archetypeChunk, commandBuffer) -> {
-                PhysicsBodyAttachmentComponent attachment = archetypeChunk.getComponent(index,
+                BodyAttachmentComponent attachment = archetypeChunk.getComponent(index,
                     ATTACHMENT_TYPE);
                 if (attachment == null
                     || attachment.getLifecycle() != AttachmentLifecycle.GENERATED_PROXY) {

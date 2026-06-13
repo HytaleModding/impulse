@@ -18,29 +18,15 @@ import com.hypixel.hytale.server.core.modules.time.TimeResource;
 import com.hypixel.hytale.server.core.universe.world.World;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import dev.hytalemodding.impulse.api.PhysicsBodyType;
-import dev.hytalemodding.impulse.api.PhysicsCollisionFilters;
 import dev.hytalemodding.impulse.api.SpaceId;
 import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyKind;
 import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyPersistenceMode;
 import dev.hytalemodding.impulse.core.plugin.body.RigidBodyKey;
 import dev.hytalemodding.impulse.core.plugin.modules.control.ImpulseControllableComponent;
 import dev.hytalemodding.impulse.core.plugin.modules.control.PhysicsControlSessions;
-import dev.hytalemodding.impulse.core.plugin.components.PhysicsBodyAttachmentComponent;
-import dev.hytalemodding.impulse.core.plugin.components.PhysicsBodyCollisionComponent;
-import dev.hytalemodding.impulse.core.plugin.components.PhysicsBodyDynamicsComponent;
-import dev.hytalemodding.impulse.core.plugin.components.PhysicsBodyIdentityComponent;
-import dev.hytalemodding.impulse.core.plugin.components.PhysicsBodyKinematicTargetComponent;
-import dev.hytalemodding.impulse.core.plugin.components.PhysicsBodyMaterialComponent;
-import dev.hytalemodding.impulse.core.plugin.components.PhysicsBodyShapeComponent;
-import dev.hytalemodding.impulse.core.plugin.physicsstore.BodyGraphUuids;
+import dev.hytalemodding.impulse.core.plugin.physicsstore.PhysicsBodySpawnRequests;
+import dev.hytalemodding.impulse.core.plugin.physicsstore.projection.BodyAttachmentComponent;
 import dev.hytalemodding.impulse.core.plugin.physicsstore.PhysicsStoreAccess;
-import dev.hytalemodding.impulse.core.plugin.physicsstore.components.BodyComponent;
-import dev.hytalemodding.impulse.core.plugin.physicsstore.components.ColliderComponent;
-import dev.hytalemodding.impulse.core.plugin.physicsstore.components.CollisionFilterComponent;
-import dev.hytalemodding.impulse.core.plugin.physicsstore.components.DynamicsComponent;
-import dev.hytalemodding.impulse.core.plugin.physicsstore.components.MaterialComponent;
-import dev.hytalemodding.impulse.core.plugin.physicsstore.components.ShapeComponent;
-import dev.hytalemodding.impulse.core.plugin.physicsstore.components.TargetComponent;
 import dev.hytalemodding.impulse.core.plugin.physicsstore.requests.BodyUpsertRequest;
 import dev.hytalemodding.impulse.core.plugin.physicsstore.requests.PhysicsStoreRequestFenceHandle;
 import dev.hytalemodding.impulse.core.plugin.resources.PhysicsWorldResource;
@@ -69,20 +55,8 @@ public final class ExamplePhysicsUtils {
         PhysicsVisualMaterializationSettings.DEFAULT_DETACHED_VISUAL_BLOCK_TYPE;
     private static final ComponentType<EntityStore, TransformComponent> TRANSFORM_TYPE =
         TransformComponent.getComponentType();
-    private static final ComponentType<EntityStore, PhysicsBodyAttachmentComponent> ATTACHMENT_TYPE =
-        PhysicsBodyAttachmentComponent.getComponentType();
-    private static final ComponentType<EntityStore, PhysicsBodyIdentityComponent> BODY_IDENTITY_TYPE =
-        PhysicsBodyIdentityComponent.getComponentType();
-    private static final ComponentType<EntityStore, PhysicsBodyShapeComponent> BODY_SHAPE_TYPE =
-        PhysicsBodyShapeComponent.getComponentType();
-    private static final ComponentType<EntityStore, PhysicsBodyDynamicsComponent> BODY_DYNAMICS_TYPE =
-        PhysicsBodyDynamicsComponent.getComponentType();
-    private static final ComponentType<EntityStore, PhysicsBodyMaterialComponent> BODY_MATERIAL_TYPE =
-        PhysicsBodyMaterialComponent.getComponentType();
-    private static final ComponentType<EntityStore, PhysicsBodyCollisionComponent> BODY_COLLISION_TYPE =
-        PhysicsBodyCollisionComponent.getComponentType();
-    private static final ComponentType<EntityStore, PhysicsBodyKinematicTargetComponent>
-        BODY_KINEMATIC_TARGET_TYPE = PhysicsBodyKinematicTargetComponent.getComponentType();
+    private static final ComponentType<EntityStore, BodyAttachmentComponent> ATTACHMENT_TYPE =
+        BodyAttachmentComponent.getComponentType();
     private static final ComponentType<EntityStore, ModelComponent> MODEL_TYPE = ModelComponent.getComponentType();
     private static final ComponentType<EntityStore, HeadRotation> HEAD_ROTATION_TYPE = HeadRotation.getComponentType();
 
@@ -280,14 +254,13 @@ public final class ExamplePhysicsUtils {
         float mass,
         @Nonnull RigidBodySpawnSettings settings,
         @Nullable Vector3f linearVelocity) {
-        return bodyUpsertRequest(spaceUuid,
+        return PhysicsBodySpawnRequests.dynamicBody(spaceUuid,
             bodyUuid,
             bodyCenter,
             shape,
             mass,
             settings,
             linearVelocity,
-            PhysicsBodyKind.BODY,
             PhysicsBodyPersistenceMode.PERSISTENT);
     }
 
@@ -301,43 +274,16 @@ public final class ExamplePhysicsUtils {
         @Nullable Vector3f linearVelocity,
         @Nonnull PhysicsBodyKind kind,
         @Nonnull PhysicsBodyPersistenceMode persistenceMode) {
-        UUID colliderUuid = BodyGraphUuids.collider(bodyUuid);
-        UUID shapeUuid = BodyGraphUuids.shape(bodyUuid);
-        UUID materialUuid = BodyGraphUuids.material(bodyUuid);
-        UUID filterUuid = BodyGraphUuids.filter(bodyUuid);
-        return BodyUpsertRequest.of(bodyUuid,
-            new BodyComponent(spaceUuid,
-                kind,
-                persistenceMode),
-            new DynamicsComponent(PhysicsBodyType.DYNAMIC,
-                mass,
-                settings.hasLinearDamping() ? settings.linearDamping() : 0.0f,
-                settings.hasAngularDamping() ? settings.angularDamping() : 0.0f,
-                false),
-            initialTarget(bodyCenter, linearVelocity),
-            colliderUuid,
-            new ColliderComponent(bodyUuid,
-                shapeUuid,
-                materialUuid,
-                filterUuid,
-                new Vector3f(),
-                new Quaternionf(),
-                settings.hasSensor() && settings.sensor()),
-            shapeUuid,
-            new ShapeComponent(shape.type(),
-                shape.halfExtentX(),
-                shape.halfExtentY(),
-                shape.halfExtentZ(),
-                shape.radius(),
-                shape.halfHeight(),
-                shape.axis(),
-                shape.groundY(),
-                ""),
-            materialUuid,
-            new MaterialComponent(settings.hasFriction() ? settings.friction() : 0.5f,
-                settings.hasRestitution() ? settings.restitution() : 0.0f),
-            filterUuid,
-            collisionFilter(settings));
+        return PhysicsBodySpawnRequests.body(spaceUuid,
+            bodyUuid,
+            bodyCenter,
+            shape,
+            PhysicsBodyType.DYNAMIC,
+            mass,
+            settings,
+            linearVelocity,
+            kind,
+            persistenceMode);
     }
 
     @Nonnull
@@ -449,33 +395,6 @@ public final class ExamplePhysicsUtils {
         }
 
         return new DynamicBodyBatchPlan(requests, System.nanoTime() - setupStartNanos);
-    }
-
-    @Nonnull
-    private static TargetComponent initialTarget(@Nonnull Vector3f bodyCenter,
-        @Nullable Vector3f linearVelocity) {
-        TargetComponent target = new TargetComponent();
-        // BodyBindingSystem reads this once; keeping it inactive avoids pinning dynamic bodies.
-        target.setActive(false);
-        target.setPosition(bodyCenter);
-        target.setRotation(new Quaternionf());
-        target.setLinearVelocity(linearVelocity != null ? linearVelocity : new Vector3f());
-        target.setAngularVelocity(new Vector3f());
-        target.setTransformEnabled(true);
-        target.setVelocityEnabled(linearVelocity != null);
-        target.setActivate(true);
-        return target;
-    }
-
-    @Nonnull
-    private static CollisionFilterComponent collisionFilter(@Nonnull RigidBodySpawnSettings settings) {
-        return new CollisionFilterComponent(
-            settings.hasCollisionFilter()
-                ? settings.collisionGroup()
-                : PhysicsCollisionFilters.DYNAMIC_BODY,
-            settings.hasCollisionFilter()
-                ? settings.collisionMask()
-                : PhysicsCollisionFilters.TERRAIN | PhysicsCollisionFilters.DYNAMIC_BODY);
     }
 
     @Nonnull
@@ -645,7 +564,6 @@ public final class ExamplePhysicsUtils {
         @Nonnull PendingBlockBody pending) {
         Ref<EntityStore> entity = spawnAttachedPhysicsStoreBlockEntity(store,
             time,
-            pending.bodyKey(),
             pending.bodyKey().value(),
             pending.spaceId(),
             pending.blockType(),
@@ -759,7 +677,6 @@ public final class ExamplePhysicsUtils {
             RigidBodyKey bodyKey = batch.bodyKey(i);
             Ref<EntityStore> entity = spawnAttachedPhysicsStoreBlockEntity(store,
                 time,
-                bodyKey,
                 bodyKey.value(),
                 spaceId,
                 blockType,
@@ -788,62 +705,6 @@ public final class ExamplePhysicsUtils {
             });
     }
 
-    @Nullable
-    public static Ref<EntityStore> spawnPhysicsBodyBlockEntity(@Nonnull Store<EntityStore> store,
-        @Nonnull TimeResource time,
-        @Nonnull RigidBodyKey bodyKey,
-        @Nonnull SpaceId spaceId,
-        @Nonnull Vector3d visualPosition,
-        @Nullable String blockType,
-        @Nonnull PhysicsBodyType bodyType,
-        float mass,
-        @Nullable PhysicsBodyKinematicTargetComponent kinematicTarget) {
-        Holder<EntityStore> holder = physicsBodyBlockEntityHolder(time,
-            bodyKey,
-            spaceId,
-            visualPosition,
-            blockType,
-            bodyType,
-            mass,
-            0.5f,
-            0.2f,
-            kinematicTarget);
-        return store.addEntity(holder, AddReason.SPAWN);
-    }
-
-    @Nonnull
-    public static Holder<EntityStore> physicsBodyBlockEntityHolder(@Nonnull TimeResource time,
-        @Nonnull RigidBodyKey bodyKey,
-        @Nonnull SpaceId spaceId,
-        @Nonnull Vector3d visualPosition,
-        @Nullable String blockType,
-        @Nonnull PhysicsBodyType bodyType,
-        float mass,
-        float friction,
-        float restitution,
-        @Nullable PhysicsBodyKinematicTargetComponent kinematicTarget) {
-        Holder<EntityStore> holder = blockEntityHolder(time, blockType, visualPosition);
-        holder.addComponent(BODY_IDENTITY_TYPE,
-            new PhysicsBodyIdentityComponent(bodyKey,
-                spaceId,
-                PhysicsBodyPersistenceMode.PERSISTENT));
-        holder.addComponent(BODY_SHAPE_TYPE,
-            PhysicsBodyShapeComponent.box(0.5f, 0.5f, 0.5f));
-        holder.addComponent(BODY_DYNAMICS_TYPE,
-            new PhysicsBodyDynamicsComponent(bodyType, mass, 0.0f, 0.0f));
-        holder.addComponent(BODY_MATERIAL_TYPE,
-            new PhysicsBodyMaterialComponent(friction, restitution));
-        holder.addComponent(BODY_COLLISION_TYPE,
-            new PhysicsBodyCollisionComponent(false,
-                PhysicsCollisionFilters.DYNAMIC_BODY,
-                PhysicsCollisionFilters.TERRAIN | PhysicsCollisionFilters.DYNAMIC_BODY));
-        addControllableMarkerIfAvailable(holder, bodyType);
-        if (kinematicTarget != null) {
-            holder.addComponent(BODY_KINEMATIC_TARGET_TYPE, kinematicTarget);
-        }
-        return holder;
-    }
-
     static void addControllableMarkerIfAvailable(@Nonnull Holder<EntityStore> holder,
         @Nonnull PhysicsBodyType bodyType) {
         Objects.requireNonNull(holder, "holder");
@@ -852,17 +713,6 @@ public final class ExamplePhysicsUtils {
             holder.addComponent(ImpulseControllableComponent.getComponentType(),
                 new ImpulseControllableComponent());
         }
-    }
-
-    @Nonnull
-    public static PhysicsBodyKinematicTargetComponent kinematicTargetAt(@Nonnull Vector3d position) {
-        return new PhysicsBodyKinematicTargetComponent(toVector3f(position),
-            new Quaternionf(),
-            new Vector3f(),
-            new Vector3f(),
-            true,
-            false,
-            true);
     }
 
     @Nullable
@@ -874,7 +724,7 @@ public final class ExamplePhysicsUtils {
         @Nullable String blockType) {
         Holder<EntityStore> holder = blockEntityHolder(time, blockType, visualPosition);
         holder.addComponent(ATTACHMENT_TYPE,
-            PhysicsBodyAttachmentComponent.externalEntity(bodyKey, spaceId));
+            BodyAttachmentComponent.externalEntity(bodyKey.value(), spaceId));
         return store.addEntity(holder, AddReason.SPAWN);
     }
 
@@ -987,7 +837,7 @@ public final class ExamplePhysicsUtils {
         boolean controllable) {
         Holder<EntityStore> holder = blockEntityHolder(time, blockType, visualPosition);
         holder.addComponent(ATTACHMENT_TYPE,
-            PhysicsBodyAttachmentComponent.impulseOwnedVisual(bodyKey,
+            BodyAttachmentComponent.impulseOwnedVisual(bodyKey.value(),
                 spaceId,
                 localPositionOffset,
                 localRotationOffset,
@@ -1002,14 +852,12 @@ public final class ExamplePhysicsUtils {
     @Nullable
     private static Ref<EntityStore> spawnAttachedPhysicsStoreBlockEntity(@Nonnull Store<EntityStore> store,
         @Nonnull TimeResource time,
-        @Nonnull RigidBodyKey bodyKey,
         @Nonnull UUID physicsBodyUuid,
         @Nonnull SpaceId spaceId,
         @Nullable String blockType,
         @Nonnull Vector3d visualPosition,
         boolean controllable) {
         Holder<EntityStore> holder = attachedPhysicsStoreBlockEntityHolder(time,
-            bodyKey,
             physicsBodyUuid,
             spaceId,
             blockType,
@@ -1023,7 +871,6 @@ public final class ExamplePhysicsUtils {
 
     @Nonnull
     public static Holder<EntityStore> attachedPhysicsStoreBlockEntityHolder(@Nonnull TimeResource time,
-        @Nonnull RigidBodyKey bodyKey,
         @Nonnull UUID physicsBodyUuid,
         @Nonnull SpaceId spaceId,
         @Nullable String blockType,
@@ -1033,14 +880,12 @@ public final class ExamplePhysicsUtils {
         float visualOriginOffsetY,
         boolean controllable) {
         Holder<EntityStore> holder = blockEntityHolder(time, blockType, visualPosition);
-        PhysicsBodyAttachmentComponent attachment = PhysicsBodyAttachmentComponent.impulseOwnedVisual(
-            bodyKey,
+        holder.addComponent(ATTACHMENT_TYPE,
+            BodyAttachmentComponent.impulseOwnedVisual(physicsBodyUuid,
             spaceId,
             localPositionOffset,
             localRotationOffset,
-            visualOriginOffsetY);
-        attachment.setPhysicsBodyUuid(physicsBodyUuid);
-        holder.addComponent(ATTACHMENT_TYPE, attachment);
+            visualOriginOffsetY));
         if (controllable && PhysicsControlSessions.isAvailable()) {
             holder.addComponent(ImpulseControllableComponent.getComponentType(),
                 new ImpulseControllableComponent());

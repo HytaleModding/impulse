@@ -8,10 +8,8 @@ import com.hypixel.hytale.component.query.Query;
 import com.hypixel.hytale.component.system.RefChangeSystem;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsProjectionIndexResource;
-import dev.hytalemodding.impulse.core.internal.resources.PhysicsWorldRuntimeResource;
-import dev.hytalemodding.impulse.core.plugin.components.PhysicsBodyAttachmentComponent;
-import dev.hytalemodding.impulse.core.plugin.components.PhysicsBodyAttachmentComponent.AttachmentLifecycle;
-import dev.hytalemodding.impulse.core.plugin.resources.PhysicsWorldResource;
+import dev.hytalemodding.impulse.core.plugin.physicsstore.projection.BodyAttachmentComponent;
+import dev.hytalemodding.impulse.core.plugin.physicsstore.projection.BodyAttachmentComponent.AttachmentLifecycle;
 import java.util.UUID;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
@@ -20,80 +18,44 @@ import javax.annotation.Nullable;
  * Keeps the body-key to entity-ref attachment index in sync with ECS component changes.
  */
 public class PhysicsBodyAttachmentIndexSystem
-    extends RefChangeSystem<EntityStore, PhysicsBodyAttachmentComponent> {
+    extends RefChangeSystem<EntityStore, BodyAttachmentComponent> {
 
-    private static final ComponentType<EntityStore, PhysicsBodyAttachmentComponent> ATTACHMENT_TYPE =
-        PhysicsBodyAttachmentComponent.getComponentType();
+    private static final ComponentType<EntityStore, BodyAttachmentComponent> ATTACHMENT_TYPE =
+        BodyAttachmentComponent.getComponentType();
     private static final Query<EntityStore> QUERY = ATTACHMENT_TYPE;
 
     @Override
     public void onComponentAdded(@Nonnull Ref<EntityStore> ref,
-        @Nonnull PhysicsBodyAttachmentComponent component,
+        @Nonnull BodyAttachmentComponent component,
         @Nonnull Store<EntityStore> store,
         @Nonnull CommandBuffer<EntityStore> commandBuffer) {
-        if (!component.usesLegacyBodyKey()) {
-            registerPhysicsStoreAttachment(ref, component, commandBuffer);
-            return;
-        }
-        PhysicsWorldRuntimeResource.require(
-                commandBuffer.getResource(PhysicsWorldResource.getResourceType()))
-            .registerBodyAttachment(component.getBodyKey(), ref);
+        registerAttachment(ref, component, commandBuffer);
     }
 
     @Override
     public void onComponentSet(@Nonnull Ref<EntityStore> ref,
-        @Nullable PhysicsBodyAttachmentComponent oldComponent,
-        @Nonnull PhysicsBodyAttachmentComponent newComponent,
+        @Nullable BodyAttachmentComponent oldComponent,
+        @Nonnull BodyAttachmentComponent newComponent,
         @Nonnull Store<EntityStore> store,
         @Nonnull CommandBuffer<EntityStore> commandBuffer) {
         assert oldComponent != null;
-        boolean oldLegacy = oldComponent.usesLegacyBodyKey();
-        boolean newLegacy = newComponent.usesLegacyBodyKey();
-        if (!oldLegacy && !newLegacy) {
-            updatePhysicsStoreAttachment(ref, oldComponent, newComponent, commandBuffer);
-            return;
-        }
-        if (!oldLegacy) {
-            unregisterPhysicsStoreAttachment(ref, oldComponent, commandBuffer);
-        }
-        PhysicsWorldRuntimeResource resource = PhysicsWorldRuntimeResource.require(
-            commandBuffer.getResource(PhysicsWorldResource.getResourceType()));
-        if (oldLegacy && (!newLegacy || !oldComponent.getBodyKey().equals(newComponent.getBodyKey()))) {
-            resource.unregisterBodyAttachment(oldComponent.getBodyKey(), ref);
-        }
-        if (newLegacy && (!oldLegacy || !oldComponent.getBodyKey().equals(newComponent.getBodyKey()))) {
-            resource.registerBodyAttachment(newComponent.getBodyKey(), ref);
-        }
-        if (!newLegacy) {
-            registerPhysicsStoreAttachment(ref, newComponent, commandBuffer);
-        }
-        resource.clearBodySyncState(ref);
+        updateAttachment(ref, oldComponent, newComponent, commandBuffer);
     }
 
     @Override
     public void onComponentRemoved(@Nonnull Ref<EntityStore> ref,
-        @Nonnull PhysicsBodyAttachmentComponent component,
+        @Nonnull BodyAttachmentComponent component,
         @Nonnull Store<EntityStore> store,
         @Nonnull CommandBuffer<EntityStore> commandBuffer) {
-        if (!component.usesLegacyBodyKey()) {
-            unregisterPhysicsStoreAttachment(ref, component, commandBuffer);
-            return;
-        }
-        PhysicsWorldRuntimeResource resource = PhysicsWorldRuntimeResource.require(
-            commandBuffer.getResource(PhysicsWorldResource.getResourceType()));
-        resource.unregisterBodyAttachment(component.getBodyKey(), ref);
-        resource.clearBodySyncState(ref);
+        unregisterAttachment(ref, component, commandBuffer);
     }
 
-    private static void updatePhysicsStoreAttachment(@Nonnull Ref<EntityStore> ref,
-        @Nonnull PhysicsBodyAttachmentComponent oldComponent,
-        @Nonnull PhysicsBodyAttachmentComponent newComponent,
+    private static void updateAttachment(@Nonnull Ref<EntityStore> ref,
+        @Nonnull BodyAttachmentComponent oldComponent,
+        @Nonnull BodyAttachmentComponent newComponent,
         @Nonnull CommandBuffer<EntityStore> commandBuffer) {
-        UUID oldUuid = oldComponent.getPhysicsBodyUuid();
-        UUID newUuid = newComponent.getPhysicsBodyUuid();
-        if (oldUuid == null || newUuid == null) {
-            return;
-        }
+        UUID oldUuid = oldComponent.getBodyUuid();
+        UUID newUuid = newComponent.getBodyUuid();
         boolean sameUuid = oldUuid.equals(newUuid);
         boolean oldGeneratedProxy = oldComponent.getLifecycle() == AttachmentLifecycle.GENERATED_PROXY;
         boolean newGeneratedProxy = newComponent.getLifecycle() == AttachmentLifecycle.GENERATED_PROXY;
@@ -116,13 +78,10 @@ public class PhysicsBodyAttachmentIndexSystem
         }
     }
 
-    private static void registerPhysicsStoreAttachment(@Nonnull Ref<EntityStore> ref,
-        @Nonnull PhysicsBodyAttachmentComponent component,
+    private static void registerAttachment(@Nonnull Ref<EntityStore> ref,
+        @Nonnull BodyAttachmentComponent component,
         @Nonnull CommandBuffer<EntityStore> commandBuffer) {
-        UUID bodyUuid = component.getPhysicsBodyUuid();
-        if (bodyUuid == null) {
-            return;
-        }
+        UUID bodyUuid = component.getBodyUuid();
         PhysicsProjectionIndexResource resource = commandBuffer.getResource(
             PhysicsProjectionIndexResource.getResourceType());
         resource.registerAttachment(bodyUuid, ref);
@@ -131,13 +90,10 @@ public class PhysicsBodyAttachmentIndexSystem
         }
     }
 
-    private static void unregisterPhysicsStoreAttachment(@Nonnull Ref<EntityStore> ref,
-        @Nonnull PhysicsBodyAttachmentComponent component,
+    private static void unregisterAttachment(@Nonnull Ref<EntityStore> ref,
+        @Nonnull BodyAttachmentComponent component,
         @Nonnull CommandBuffer<EntityStore> commandBuffer) {
-        UUID bodyUuid = component.getPhysicsBodyUuid();
-        if (bodyUuid == null) {
-            return;
-        }
+        UUID bodyUuid = component.getBodyUuid();
         PhysicsProjectionIndexResource resource = commandBuffer.getResource(
             PhysicsProjectionIndexResource.getResourceType());
         resource.unregisterAttachment(bodyUuid, ref);
@@ -148,7 +104,7 @@ public class PhysicsBodyAttachmentIndexSystem
 
     @Nonnull
     @Override
-    public ComponentType<EntityStore, PhysicsBodyAttachmentComponent> componentType() {
+    public ComponentType<EntityStore, BodyAttachmentComponent> componentType() {
         return ATTACHMENT_TYPE;
     }
 

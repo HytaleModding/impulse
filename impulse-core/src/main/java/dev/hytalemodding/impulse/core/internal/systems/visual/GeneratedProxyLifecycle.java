@@ -8,8 +8,8 @@ import com.hypixel.hytale.component.Ref;
 import com.hypixel.hytale.component.RemoveReason;
 import com.hypixel.hytale.component.Store;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
-import dev.hytalemodding.impulse.core.plugin.components.PhysicsBodyAttachmentComponent;
-import dev.hytalemodding.impulse.core.plugin.components.PhysicsBodyAttachmentComponent.AttachmentLifecycle;
+import dev.hytalemodding.impulse.core.plugin.physicsstore.projection.BodyAttachmentComponent;
+import dev.hytalemodding.impulse.core.plugin.physicsstore.projection.BodyAttachmentComponent.AttachmentLifecycle;
 import dev.hytalemodding.impulse.core.plugin.body.RigidBodyKey;
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsWorldRuntimeResource;
 import javax.annotation.Nonnull;
@@ -20,8 +20,8 @@ import javax.annotation.Nullable;
  */
 public final class GeneratedProxyLifecycle {
 
-    private static final ComponentType<EntityStore, PhysicsBodyAttachmentComponent> ATTACHMENT_TYPE =
-        PhysicsBodyAttachmentComponent.getComponentType();
+    private static final ComponentType<EntityStore, BodyAttachmentComponent> ATTACHMENT_TYPE =
+        BodyAttachmentComponent.getComponentType();
 
     private GeneratedProxyLifecycle() {
     }
@@ -46,13 +46,14 @@ public final class GeneratedProxyLifecycle {
     }
 
     public static void clearMissingAttachment(@Nonnull Ref<EntityStore> entityRef,
-        @Nonnull PhysicsBodyAttachmentComponent attachment,
+        @Nonnull BodyAttachmentComponent attachment,
         @Nonnull PhysicsWorldRuntimeResource resource,
         @Nonnull CommandBuffer<EntityStore> commandBuffer) {
-        resource.unregisterBodyAttachment(attachment.getBodyKey(), entityRef);
+        RigidBodyKey bodyKey = RigidBodyKey.of(attachment.getBodyUuid());
+        resource.unregisterBodyAttachment(bodyKey, entityRef);
         resource.clearBodySyncState(entityRef);
         if (attachment.getLifecycle() == AttachmentLifecycle.GENERATED_PROXY) {
-            removeProxy(commandBuffer, resource, attachment.getBodyKey(), entityRef);
+            removeProxy(commandBuffer, resource, bodyKey, entityRef);
         } else if (attachment.shouldRemoveEntityWhenBodyMissing()) {
             removeEntity(commandBuffer, entityRef);
         } else {

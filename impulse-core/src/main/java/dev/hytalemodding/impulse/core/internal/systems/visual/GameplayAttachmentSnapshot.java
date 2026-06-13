@@ -4,8 +4,8 @@ import com.hypixel.hytale.component.ComponentType;
 import com.hypixel.hytale.component.Store;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import dev.hytalemodding.impulse.core.plugin.body.RigidBodyKey;
-import dev.hytalemodding.impulse.core.plugin.components.PhysicsBodyAttachmentComponent;
-import dev.hytalemodding.impulse.core.plugin.components.PhysicsBodyAttachmentComponent.AttachmentLifecycle;
+import dev.hytalemodding.impulse.core.plugin.physicsstore.projection.BodyAttachmentComponent;
+import dev.hytalemodding.impulse.core.plugin.physicsstore.projection.BodyAttachmentComponent.AttachmentLifecycle;
 import it.unimi.dsi.fastutil.objects.ObjectOpenHashSet;
 import java.util.Queue;
 import java.util.Set;
@@ -57,17 +57,16 @@ final class GameplayAttachmentSnapshot {
     @Nonnull
     private static Set<RigidBodyKey> collectGameplayAttachmentBodyKeys(
         @Nonnull Store<EntityStore> store) {
-        ComponentType<EntityStore, PhysicsBodyAttachmentComponent> attachmentType =
-            PhysicsBodyAttachmentComponent.getComponentType();
+        ComponentType<EntityStore, BodyAttachmentComponent> attachmentType =
+            BodyAttachmentComponent.getComponentType();
         Queue<RigidBodyKey> bodyKeys = new ConcurrentLinkedQueue<>();
         store.forEachEntityParallel(attachmentType,
             (index, archetypeChunk, _) -> {
-                PhysicsBodyAttachmentComponent attachment = archetypeChunk.getComponent(index,
+                BodyAttachmentComponent attachment = archetypeChunk.getComponent(index,
                     attachmentType);
                 if (attachment != null
-                    && attachment.usesLegacyBodyKey()
                     && attachment.getLifecycle() != AttachmentLifecycle.GENERATED_PROXY) {
-                    bodyKeys.add(attachment.getBodyKey());
+                    bodyKeys.add(RigidBodyKey.of(attachment.getBodyUuid()));
                 }
             });
         Set<RigidBodyKey> uniqueBodyKeys = new ObjectOpenHashSet<>();
