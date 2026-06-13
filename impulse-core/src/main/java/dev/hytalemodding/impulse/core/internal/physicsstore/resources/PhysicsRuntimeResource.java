@@ -342,7 +342,96 @@ public final class PhysicsRuntimeResource implements Resource<PhysicsStore> {
         bodyHitMetadataByHandle.clear();
         bodySnapshotMetadataByHandle.clear();
         pendingBodyOperations.clear();
+        pendingSpaceSettings.clear();
         started = false;
+    }
+
+    public void destroyBackendBindings() {
+        RuntimeException failure = null;
+        for (Map.Entry<UUID, BackendJointHandle> entry
+            : new ArrayList<>(jointHandlesByUuid.entrySet())) {
+            BackendSpaceHandle spaceHandle = jointSpaceHandlesByUuid.get(entry.getKey());
+            PhysicsBackendRuntime runtime = runtimeForSpaceHandle(spaceHandle);
+            if (spaceHandle == null || runtime == null) {
+                continue;
+            }
+            try {
+                runtime.removeJoint(spaceHandle.value(), entry.getValue().value());
+            } catch (RuntimeException exception) {
+                failure = appendShutdownFailure(failure, exception);
+            }
+        }
+        for (Map.Entry<UUID, LongList> entry
+            : new ArrayList<>(terrainBodyHandlesByUuid.entrySet())) {
+            BackendSpaceHandle spaceHandle = terrainSpaceHandlesByUuid.get(entry.getKey());
+            PhysicsBackendRuntime runtime = runtimeForSpaceHandle(spaceHandle);
+            if (spaceHandle == null || runtime == null) {
+                continue;
+            }
+            LongList bodyHandles = new LongArrayList(entry.getValue());
+            for (int index = 0; index < bodyHandles.size(); index++) {
+                try {
+                    runtime.removeBody(spaceHandle.value(), bodyHandles.getLong(index));
+                } catch (RuntimeException exception) {
+                    failure = appendShutdownFailure(failure, exception);
+                }
+            }
+        }
+        for (Map.Entry<UUID, BackendBodyHandle> entry
+            : new ArrayList<>(bodyHandlesByUuid.entrySet())) {
+            BackendSpaceHandle spaceHandle = bodySpaceHandlesByUuid.get(entry.getKey());
+            PhysicsBackendRuntime runtime = runtimeForSpaceHandle(spaceHandle);
+            if (spaceHandle == null || runtime == null) {
+                continue;
+            }
+            try {
+                runtime.removeBody(spaceHandle.value(), entry.getValue().value());
+            } catch (RuntimeException exception) {
+                failure = appendShutdownFailure(failure, exception);
+            }
+        }
+        for (Map.Entry<UUID, BackendSpaceHandle> entry
+            : new ArrayList<>(spaceHandlesByUuid.entrySet())) {
+            BackendId backendId = backendIdsBySpaceUuid.get(entry.getKey());
+            PhysicsBackendRuntime runtime = backendId != null ? runtimesByBackend.get(backendId) : null;
+            if (runtime == null) {
+                continue;
+            }
+            try {
+                runtime.destroySpace(entry.getValue().value());
+            } catch (RuntimeException exception) {
+                failure = appendShutdownFailure(failure, exception);
+            }
+        }
+        clear();
+        if (failure != null) {
+            throw failure;
+        }
+    }
+
+    @Nullable
+    private PhysicsBackendRuntime runtimeForSpaceHandle(@Nullable BackendSpaceHandle target) {
+        if (target == null) {
+            return null;
+        }
+        for (Map.Entry<UUID, BackendSpaceHandle> entry : spaceHandlesByUuid.entrySet()) {
+            if (entry.getValue().value() != target.value()) {
+                continue;
+            }
+            BackendId backendId = backendIdsBySpaceUuid.get(entry.getKey());
+            return backendId != null ? runtimesByBackend.get(backendId) : null;
+        }
+        return null;
+    }
+
+    @Nonnull
+    private static RuntimeException appendShutdownFailure(@Nullable RuntimeException failure,
+        @Nonnull RuntimeException exception) {
+        if (failure == null) {
+            return exception;
+        }
+        failure.addSuppressed(exception);
+        return failure;
     }
 
     @Nonnull
