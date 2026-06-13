@@ -143,6 +143,42 @@ public final class PersistentJointDto {
     public PersistentJointDto() {
     }
 
+    public PersistentJointDto(@Nonnull UUID jointUuid,
+        @Nonnull UUID spaceUuid,
+        @Nonnull UUID bodyAUuid,
+        @Nonnull UUID bodyBUuid,
+        @Nonnull JointType type,
+        @Nonnull Vector3f anchorA,
+        @Nonnull Vector3f anchorB,
+        @Nonnull Vector3f axis,
+        float lowerLimit,
+        float upperLimit,
+        boolean enabled,
+        boolean motorEnabled,
+        float motorTargetVelocity,
+        float motorMaxForce,
+        float springRestLength,
+        float springStiffness,
+        float springDamping) {
+        this.jointUuid = Objects.requireNonNull(jointUuid, "jointUuid");
+        this.spaceUuid = Objects.requireNonNull(spaceUuid, "spaceUuid");
+        this.bodyAUuid = Objects.requireNonNull(bodyAUuid, "bodyAUuid");
+        this.bodyBUuid = Objects.requireNonNull(bodyBUuid, "bodyBUuid");
+        this.type = Objects.requireNonNull(type, "type");
+        this.anchorA.set(Objects.requireNonNull(anchorA, "anchorA"));
+        this.anchorB.set(Objects.requireNonNull(anchorB, "anchorB"));
+        this.axis.set(Objects.requireNonNull(axis, "axis"));
+        this.lowerLimit = lowerLimit;
+        this.upperLimit = upperLimit;
+        this.enabled = enabled;
+        this.motorEnabled = motorEnabled;
+        this.motorTargetVelocity = motorTargetVelocity;
+        this.motorMaxForce = motorMaxForce;
+        this.springRestLength = springRestLength;
+        this.springStiffness = springStiffness;
+        this.springDamping = springDamping;
+    }
+
     @Nonnull
     public UUID getJointUuid() {
         return jointUuid;
