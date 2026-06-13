@@ -19,6 +19,10 @@ import com.hypixel.hytale.server.core.universe.world.World;
 import com.hypixel.hytale.server.core.universe.world.chunk.WorldChunk;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import dev.hytalemodding.impulse.api.SpaceId;
+import dev.hytalemodding.impulse.core.plugin.body.RigidBodyKey;
+import dev.hytalemodding.impulse.core.plugin.physicsstore.PhysicsStoreAccess;
+import dev.hytalemodding.impulse.core.plugin.physicsstore.requests.BodyForceRequest;
+import dev.hytalemodding.impulse.core.plugin.physicsstore.requests.PhysicsStoreRequest;
 import dev.hytalemodding.impulse.core.plugin.resources.PhysicsWorldResource;
 import dev.hytalemodding.impulse.core.plugin.simulation.PhysicsShapeSpec;
 import dev.hytalemodding.impulse.core.plugin.simulation.RigidBodySpawnSettings;
@@ -30,6 +34,7 @@ import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.UUID;
 import java.util.function.Consumer;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
@@ -108,6 +113,12 @@ public final class ExplosiveBlockRuntime {
         @Nonnull SpaceId spaceId,
         @Nonnull Vector3d center,
         @Nonnull ExplosiveBlockComponent settings) {
+        UUID spaceUuid = PhysicsStoreAccess.resolveSpaceUuid(world, spaceId);
+        if (spaceUuid == null) {
+            throw new IllegalStateException("Cannot spawn explosive fragments because PhysicsStore "
+                + "space id=" + spaceId.value() + " is not bound");
+        }
+
         ExplosionUtils.performExplosion(DAMAGE_SOURCE,
             new Vector3d(center),
             new Rotation3f(),
@@ -135,30 +146,35 @@ public final class ExplosiveBlockRuntime {
             Math.max(8, maxGroupCollisionRadius(groups) + 4),
             Math.max(0L, world.getTick()));
 
-        List<PendingBlockBody> pending = new ArrayList<>(groups.size());
         Vector3f centerF = toVector3f(center);
-        ExamplePhysicsUtils.requireApplied(resource.submitCommands(
-            Math.max(0L, world.getTick()),
-            groups.size() * 2,
-            commands -> {
-                for (int i = 0; i < groups.size(); i++) {
-                    FragmentGroup group = groups.get(i);
-                    PendingBlockBody body = ExamplePhysicsUtils.recordBlockBodySpawnAtBodyCenter(commands,
-                        spaceId,
-                        group.center(),
-                        group.blockType(),
-                        group.shape(),
-                        group.mass(),
-                        FRAGMENT_SETTINGS);
-                    pending.add(body);
-                    Vector3f impulse = ExplosiveBlockPolicy.outwardImpulse(centerF,
-                        toVector3f(group.center()),
-                        settings.getImpulseStrength(),
-                        settings.getVerticalLift())
-                        .mul(group.mass());
-                    commands.applyBodyImpulse(body.bodyKey(), impulse.x, impulse.y, impulse.z);
-                }
-            }), "spawn explosive block fragments");
+        List<PendingBlockBody> pending = new ArrayList<>(groups.size());
+        List<PhysicsStoreRequest> requests = new ArrayList<>(groups.size() * 2);
+        for (FragmentGroup group : groups) {
+            RigidBodyKey bodyKey = RigidBodyKey.random();
+            UUID bodyUuid = bodyKey.value();
+            Vector3d groupCenter = group.center();
+            requests.add(ExamplePhysicsUtils.bodyUpsertRequest(spaceUuid,
+                bodyUuid,
+                toVector3f(groupCenter),
+                group.shape(),
+                group.mass(),
+                FRAGMENT_SETTINGS,
+                null));
+            Vector3f impulse = ExplosiveBlockPolicy.outwardImpulse(centerF,
+                toVector3f(groupCenter),
+                settings.getImpulseStrength(),
+                settings.getVerticalLift())
+                .mul(group.mass());
+            requests.add(BodyForceRequest.impulse(bodyUuid, impulse.x, impulse.y, impulse.z));
+            pending.add(new PendingBlockBody(bodyKey,
+                spaceId,
+                group.blockType(),
+                (float) groupCenter.x,
+                (float) groupCenter.y,
+                (float) groupCenter.z,
+                group.mass() > 0.0f));
+        }
+        PhysicsStoreAccess.enqueueAll(world, requests);
 
         for (int i = 0; i < groups.size(); i++) {
             spawnGroupVisuals(time, fragmentSpawner, groups.get(i), pending.get(i));
@@ -173,8 +189,9 @@ public final class ExplosiveBlockRuntime {
         boolean controllableAssigned = false;
         for (FragmentVisual visual : group.visualBlocks()) {
             boolean controllable = body.controllable() && !controllableAssigned;
-            Holder<EntityStore> holder = ExamplePhysicsUtils.attachedBlockEntityHolder(time,
+            Holder<EntityStore> holder = ExamplePhysicsUtils.attachedPhysicsStoreBlockEntityHolder(time,
                 body.bodyKey(),
+                body.bodyKey().value(),
                 body.spaceId(),
                 visual.blockType(),
                 visual.position(),
