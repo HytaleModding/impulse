@@ -12,6 +12,7 @@ import dev.hytalemodding.impulse.core.internal.physicsstore.resources.PhysicsRes
 import dev.hytalemodding.impulse.core.internal.physicsstore.resources.PhysicsRuntimeResource;
 import dev.hytalemodding.impulse.core.internal.physicsstore.resources.PhysicsSnapshotResource;
 import dev.hytalemodding.impulse.core.internal.physicsstore.resources.PhysicsTerrainPayloadResource;
+import dev.hytalemodding.impulse.core.internal.physicsstore.resources.PhysicsWorldCollisionIndexResource;
 import dev.hytalemodding.impulse.core.internal.physicsstore.systems.BodyBindingSystem;
 import dev.hytalemodding.impulse.core.internal.physicsstore.systems.ColliderBindingSystem;
 import dev.hytalemodding.impulse.core.internal.physicsstore.systems.CompletedStepPublicationSystem;
@@ -24,6 +25,7 @@ import dev.hytalemodding.impulse.core.internal.physicsstore.systems.SpaceBinding
 import dev.hytalemodding.impulse.core.internal.physicsstore.systems.StepSubmissionSystem;
 import dev.hytalemodding.impulse.core.internal.physicsstore.systems.TargetBindingSystem;
 import dev.hytalemodding.impulse.core.internal.physicsstore.systems.TerrainColliderBindingSystem;
+import dev.hytalemodding.impulse.core.internal.physicsstore.systems.WorldCollisionIndexSystem;
 import dev.hytalemodding.impulse.core.plugin.physicsstore.PhysicsStoreTypes;
 import dev.hytalemodding.impulse.core.plugin.physicsstore.components.BodyComponent;
 import dev.hytalemodding.impulse.core.plugin.physicsstore.components.ColliderComponent;
@@ -109,6 +111,9 @@ public final class PhysicsStoreRegistration {
         PhysicsStoreTypes.setTerrainPayloadResourceType(registry.registerResource(
             PhysicsTerrainPayloadResource.class,
             PhysicsTerrainPayloadResource::new));
+        PhysicsStoreTypes.setWorldCollisionIndexResourceType(registry.registerResource(
+            PhysicsWorldCollisionIndexResource.class,
+            PhysicsWorldCollisionIndexResource::new));
         PhysicsStoreTypes.setPersistentStoreResourceType(registry.registerResource(
             PersistentPhysicsStoreResource.class,
             "PersistentPhysicsStore",
@@ -126,6 +131,7 @@ public final class PhysicsStoreRegistration {
         registry.registerSystem(new PersistenceHydrationSystem());
         registry.registerSystem(new RequestDrainSystem());
         registry.registerSystem(new IdentityIndexSystem());
+        registry.registerSystem(new WorldCollisionIndexSystem());
         registry.registerSystem(new SpaceBindingSystem());
         registry.registerSystem(new BodyBindingSystem());
         registry.registerSystem(new ColliderBindingSystem());
