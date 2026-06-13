@@ -279,14 +279,35 @@ public final class ExamplePhysicsUtils {
         float mass,
         @Nonnull RigidBodySpawnSettings settings,
         @Nullable Vector3f linearVelocity) {
+        return bodyUpsertRequest(spaceUuid,
+            bodyUuid,
+            bodyCenter,
+            shape,
+            mass,
+            settings,
+            linearVelocity,
+            PhysicsBodyKind.BODY,
+            PhysicsBodyPersistenceMode.PERSISTENT);
+    }
+
+    @Nonnull
+    private static BodyUpsertRequest bodyUpsertRequest(@Nonnull UUID spaceUuid,
+        @Nonnull UUID bodyUuid,
+        @Nonnull Vector3f bodyCenter,
+        @Nonnull PhysicsShapeSpec shape,
+        float mass,
+        @Nonnull RigidBodySpawnSettings settings,
+        @Nullable Vector3f linearVelocity,
+        @Nonnull PhysicsBodyKind kind,
+        @Nonnull PhysicsBodyPersistenceMode persistenceMode) {
         UUID colliderUuid = BodyGraphUuids.collider(bodyUuid);
         UUID shapeUuid = BodyGraphUuids.shape(bodyUuid);
         UUID materialUuid = BodyGraphUuids.material(bodyUuid);
         UUID filterUuid = BodyGraphUuids.filter(bodyUuid);
         return BodyUpsertRequest.of(bodyUuid,
             new BodyComponent(spaceUuid,
-                PhysicsBodyKind.BODY,
-                PhysicsBodyPersistenceMode.PERSISTENT),
+                kind,
+                persistenceMode),
             new DynamicsComponent(PhysicsBodyType.DYNAMIC,
                 mass,
                 settings.hasLinearDamping() ? settings.linearDamping() : 0.0f,
@@ -316,6 +337,59 @@ public final class ExamplePhysicsUtils {
                 settings.hasRestitution() ? settings.restitution() : 0.0f),
             filterUuid,
             collisionFilter(settings));
+    }
+
+    @Nonnull
+    public static BodyRequestBatchTiming enqueueDynamicBodyBatchMeasured(@Nonnull World world,
+        @Nonnull SpaceId spaceId,
+        int expectedBodies,
+        @Nonnull PhysicsShapeSpec shape,
+        float mass,
+        @Nonnull RigidBodySpawnSettings settings,
+        @Nonnull PhysicsBodyKind kind,
+        @Nonnull PhysicsBodyPersistenceMode persistenceMode,
+        @Nonnull Consumer<BlockBodyBatchRecorder> recipe) {
+        Objects.requireNonNull(world, "world");
+        Objects.requireNonNull(spaceId, "spaceId");
+        Objects.requireNonNull(shape, "shape");
+        Objects.requireNonNull(settings, "settings");
+        Objects.requireNonNull(kind, "kind");
+        Objects.requireNonNull(persistenceMode, "persistenceMode");
+
+        long setupStartNanos = System.nanoTime();
+        BlockBodyBatchRecorder batch = new BlockBodyBatchRecorder(expectedBodies);
+        Objects.requireNonNull(recipe, "recipe").accept(batch);
+        batch.seal();
+        if (batch.isEmpty()) {
+            return new BodyRequestBatchTiming(0, 0L, 0L);
+        }
+
+        UUID spaceUuid = PhysicsStoreAccess.resolveSpaceUuid(world, spaceId);
+        if (spaceUuid == null) {
+            throw new IllegalStateException("Cannot enqueue dynamic body batch because the target space is not "
+                + "bound in PhysicsStore: " + spaceId.value());
+        }
+
+        List<BodyUpsertRequest> requests = new ArrayList<>(batch.size());
+        for (int i = 0; i < batch.size(); i++) {
+            RigidBodyKey bodyKey = batch.bodyKey(i);
+            requests.add(bodyUpsertRequest(spaceUuid,
+                bodyKey.value(),
+                new Vector3f(batch.positionX(i), batch.positionY(i), batch.positionZ(i)),
+                shape,
+                mass,
+                settings,
+                null,
+                kind,
+                persistenceMode));
+        }
+
+        long requestStartNanos = System.nanoTime();
+        PhysicsStoreAccess.enqueueAll(world, requests);
+        long requestEnqueueNanos = System.nanoTime() - requestStartNanos;
+        return new BodyRequestBatchTiming(batch.size(),
+            System.nanoTime() - setupStartNanos,
+            requestEnqueueNanos);
     }
 
     @Nonnull
@@ -991,6 +1065,17 @@ public final class ExamplePhysicsUtils {
             count = Math.max(0, count);
             commandApplyNanos = Math.max(0L, commandApplyNanos);
             entityAttachNanos = Math.max(0L, entityAttachNanos);
+        }
+    }
+
+    public record BodyRequestBatchTiming(int count,
+                                         long setupWallNanos,
+                                         long requestEnqueueNanos) {
+
+        public BodyRequestBatchTiming {
+            count = Math.max(0, count);
+            setupWallNanos = Math.max(0L, setupWallNanos);
+            requestEnqueueNanos = Math.max(0L, requestEnqueueNanos);
         }
     }
 

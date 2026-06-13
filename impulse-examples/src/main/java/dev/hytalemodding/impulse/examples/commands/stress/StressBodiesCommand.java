@@ -11,12 +11,10 @@ import com.hypixel.hytale.server.core.modules.time.TimeResource;
 import com.hypixel.hytale.server.core.universe.PlayerRef;
 import com.hypixel.hytale.server.core.universe.world.World;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
-import dev.hytalemodding.impulse.api.PhysicsBodyType;
 import dev.hytalemodding.impulse.api.PhysicsCollisionFilters;
 import dev.hytalemodding.impulse.api.SpaceId;
 import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyKind;
 import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyPersistenceMode;
-import dev.hytalemodding.impulse.core.plugin.body.RigidBodyKey;
 import dev.hytalemodding.impulse.core.plugin.modules.worldcollision.WorldCollisionPrewarmStats;
 import dev.hytalemodding.impulse.core.plugin.modules.worldcollision.WorldCollisionMode;
 import dev.hytalemodding.impulse.core.plugin.resources.PhysicsWorldResource;
@@ -192,38 +190,31 @@ public class StressBodiesCommand extends AbstractAsyncPlayerCommand {
                             layout.positionZ(i));
                     }
                 });
-            timing = new StressSpawnTiming(batchTiming.commandApplyNanos(),
-                batchTiming.entityAttachNanos(),
-                0L);
+            timing = new StressSpawnTiming(batchTiming.commandApplyNanos() + batchTiming.entityAttachNanos(),
+                batchTiming.commandApplyNanos(),
+                batchTiming.entityAttachNanos());
         } else {
             PhysicsShapeSpec box = PhysicsShapeSpec.box(0.48f, 0.48f, 0.48f);
             RigidBodySpawnSettings spawnSettings = detachedSpawnSettings(collisionPolicy);
-            long bodyKeyRunId = RigidBodyKey.random().mostSignificantBits();
-            long commandStartNanos = System.nanoTime();
-            ExamplePhysicsUtils.requireApplied(resource.submitCommands(serverTick, 1, commands ->
-                commands.spawnBodies(count,
+            ExamplePhysicsUtils.BodyRequestBatchTiming batchTiming =
+                ExamplePhysicsUtils.enqueueDynamicBodyBatchMeasured(world,
                     spaceId,
+                    count,
                     box,
                     1.0f,
-                    PhysicsBodyType.DYNAMIC,
                     spawnSettings,
                     PhysicsBodyKind.BODY,
                     PhysicsBodyPersistenceMode.RUNTIME_ONLY,
-                    spawns -> {
+                    bodies -> {
                         for (int i = 0; i < count; i++) {
-                            spawns.body(bodyKeyRunId,
-                                i + 1L,
-                                layout.positionX(i),
+                            bodies.addBody(layout.positionX(i),
                                 layout.positionY(i),
                                 layout.positionZ(i));
                         }
-                    })), "spawn detached stress bodies");
-            timing = new StressSpawnTiming(System.nanoTime() - commandStartNanos, 0L, 0L);
-        }
-        if (mode.usesDetachedBodies()) {
-            long snapshotStartNanos = System.nanoTime();
-            resource.refreshBodySnapshots();
-            timing = timing.withSnapshotRefreshNanos(System.nanoTime() - snapshotStartNanos);
+                    });
+            timing = new StressSpawnTiming(batchTiming.setupWallNanos(),
+                batchTiming.requestEnqueueNanos(),
+                0L);
         }
         PhysicsWorldCollisionSettings worldCollisionSettings =
             settings.getWorldCollisionSettings();
@@ -233,14 +224,11 @@ public class StressBodiesCommand extends AbstractAsyncPlayerCommand {
         PhysicsCollisionLodSettings collisionLodSettings = settings.getCollisionLodSettings();
         PhysicsWorldSettings worldSettings = resource.getWorldSettings();
 
-        ctx.sender().sendMessage(Message.raw("Spawned " + count
+        ctx.sender().sendMessage(Message.raw("Queued " + count
             + " stress bodies: setupWallMs="
             + millis(prewarmNanos + timing.setupWallNanos())
             + " prewarmMs=" + millis(prewarmNanos)
-            + " commandApplyMs=" + millis(timing.commandApplyNanos())
-            + (timing.snapshotRefreshNanos() > 0L
-                ? " snapshotRefreshMs=" + millis(timing.snapshotRefreshNanos())
-                : "")
+            + " requestEnqueueMs=" + millis(timing.requestEnqueueNanos())
             + (timing.entityAttachNanos() > 0L
                 ? " entityAttachMs=" + millis(timing.entityAttachNanos())
                 : "")
@@ -254,6 +242,9 @@ public class StressBodiesCommand extends AbstractAsyncPlayerCommand {
             + " maxStepDt=" + String.format(Locale.ROOT, "%.3f", worldSettings.getMaxStepDt())
             + " visuals=" + mode.visualDescription()
             + (mode == StressMode.ENTITY ? " blockType=" + visualSettings.blockType() : "")
+            + (mode.usesDetachedBodies()
+                ? " body-count and detached-view snapshots update after PhysicsStore drains queued requests"
+                : "")
             + (mode == StressMode.DETACHED_VIEW
                 ? " visualProxyCap="
                 + visualMaterializationSettings.getDetachedVisualMaxMaterialized()
@@ -600,25 +591,14 @@ public class StressBodiesCommand extends AbstractAsyncPlayerCommand {
                                         boolean smoothingEnabled) {
     }
 
-    private record StressSpawnTiming(long commandApplyNanos,
-                                     long entityAttachNanos,
-                                     long snapshotRefreshNanos) {
+    private record StressSpawnTiming(long setupWallNanos,
+                                     long requestEnqueueNanos,
+                                     long entityAttachNanos) {
 
         private StressSpawnTiming {
-            commandApplyNanos = Math.max(0L, commandApplyNanos);
+            setupWallNanos = Math.max(0L, setupWallNanos);
+            requestEnqueueNanos = Math.max(0L, requestEnqueueNanos);
             entityAttachNanos = Math.max(0L, entityAttachNanos);
-            snapshotRefreshNanos = Math.max(0L, snapshotRefreshNanos);
-        }
-
-        @Nonnull
-        private StressSpawnTiming withSnapshotRefreshNanos(long snapshotRefreshNanos) {
-            return new StressSpawnTiming(commandApplyNanos,
-                entityAttachNanos,
-                snapshotRefreshNanos);
-        }
-
-        private long setupWallNanos() {
-            return commandApplyNanos + entityAttachNanos + snapshotRefreshNanos;
         }
     }
 
