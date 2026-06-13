@@ -10,19 +10,18 @@ import com.hypixel.hytale.server.core.command.system.basecommands.AbstractAsyncP
 import com.hypixel.hytale.server.core.universe.PlayerRef;
 import com.hypixel.hytale.server.core.universe.world.World;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
-import dev.hytalemodding.impulse.api.PhysicsBodyType;
 import dev.hytalemodding.impulse.api.SpaceId;
 import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyKind;
 import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyPersistenceMode;
-import dev.hytalemodding.impulse.core.plugin.body.RigidBodyKey;
-import dev.hytalemodding.impulse.core.plugin.events.PhysicsEventFrame;
+import dev.hytalemodding.impulse.core.plugin.physicsstore.requests.PhysicsStoreRequestFenceResult;
 import dev.hytalemodding.impulse.core.plugin.resources.PhysicsWorldResource;
-import dev.hytalemodding.impulse.core.plugin.simulation.PhysicsCommandHandle;
 import dev.hytalemodding.impulse.core.plugin.simulation.PhysicsShapeSpec;
 import dev.hytalemodding.impulse.core.plugin.simulation.RigidBodySpawnSettings;
 import dev.hytalemodding.impulse.examples.commands.ExamplePhysicsUtils;
+import dev.hytalemodding.impulse.examples.commands.ExamplePhysicsUtils.FencedBodyRequestBatchTiming;
 import java.util.Locale;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionException;
 import javax.annotation.Nonnull;
 import org.joml.Vector3d;
 
@@ -77,51 +76,80 @@ public class StressRawBodiesCommand extends AbstractAsyncPlayerCommand {
 
         PhysicsShapeSpec box = PhysicsShapeSpec.box(0.48f, 0.48f, 0.48f);
         RigidBodySpawnSettings spawnSettings = RigidBodySpawnSettings.material(0.65f, 0.15f);
-        long bodyKeyRunId = RigidBodyKey.random().mostSignificantBits();
+        long submittedServerTick = Math.max(0L, world.getTick());
         long commandStartNanos = System.nanoTime();
-        PhysicsCommandHandle handle =
-            resource.submitCommands(Math.max(0L, world.getTick()), 1, commands ->
-                commands.spawnBodies(count,
-                    spaceId,
-                    box,
-                    1.0f,
-                    PhysicsBodyType.DYNAMIC,
-                    spawnSettings,
-                    PhysicsBodyKind.TEMPORARY,
-                    PhysicsBodyPersistenceMode.RUNTIME_ONLY,
-                    spawns -> {
-                        for (int i = 0; i < count; i++) {
-                            int x = i % side;
-                            int z = (i / side) % side;
-                            int y = i / (side * side);
+        FencedBodyRequestBatchTiming timing = ExamplePhysicsUtils.enqueueDynamicBodyBatchFencedMeasured(world,
+            spaceId,
+            count,
+            box,
+            1.0f,
+            spawnSettings,
+            PhysicsBodyKind.TEMPORARY,
+            PhysicsBodyPersistenceMode.RUNTIME_ONLY,
+            submittedServerTick,
+            spawns -> {
+                for (int i = 0; i < count; i++) {
+                    int x = i % side;
+                    int z = (i / side) % side;
+                    int y = i / (side * side);
 
-                            spawns.body(bodyKeyRunId,
-                                i + 1L,
-                                (float) (originX + x * SPACING),
-                                (float) (originY + y * SPACING),
-                                (float) (originZ + z * SPACING));
-                        }
-                    }));
-        ExamplePhysicsUtils.requireApplied(handle, "spawn raw stress physics bodies");
-        PhysicsEventFrame eventFrame = resource.getLatestEventFrame();
-        boolean capturedSnapshotIncluded = handle.isIncludedInLatestCapturedSnapshot(eventFrame);
-        long capturedSnapshotTickLatency = handle.capturedSnapshotServerTickLatency(eventFrame);
-        long commandApplyNanos = System.nanoTime() - commandStartNanos;
+                    spawns.addBody((float) (originX + x * SPACING),
+                        (float) (originY + y * SPACING),
+                        (float) (originZ + z * SPACING));
+                }
+            });
+        long fenceStartNanos = System.nanoTime();
 
-        ctx.sender().sendMessage(Message.raw("Spawned " + count
-            + " raw physics bodies without entities: commandApplyMs="
-            + millis(commandApplyNanos)
-            + " latestCapturedSnapshotIncluded=" + capturedSnapshotIncluded
-            + " latestCapturedSnapshotFrame=" + eventFrame.latestCapturedSnapshotFrameEpoch()
-            + " latestCapturedSnapshotTick=" + eventFrame.latestCapturedSnapshotServerTick()
-            + " capturedSnapshotTickLatency="
-            + (capturedSnapshotIncluded ? Long.toString(capturedSnapshotTickLatency) : "pending")
-            + ". Use this to separate backend cost from entity/render cost."));
-        return CompletableFuture.completedFuture(null);
+        return timing.fence()
+            .completion()
+            .thenAccept(result -> ctx.sender().sendMessage(Message.raw(successMessage(timing,
+                result,
+                System.nanoTime() - fenceStartNanos,
+                System.nanoTime() - commandStartNanos))))
+            .exceptionally(failure -> {
+                ctx.sender().sendMessage(Message.raw("Failed to drain raw physics body requests: "
+                    + failureMessage(failure)));
+                return null;
+            })
+            .toCompletableFuture();
     }
 
     private static String millis(long nanos) {
         return String.format(Locale.ROOT, "%.3f", nanos / 1_000_000.0);
+    }
+
+    @Nonnull
+    private static String successMessage(@Nonnull FencedBodyRequestBatchTiming timing,
+        @Nonnull PhysicsStoreRequestFenceResult result,
+        long fenceWaitNanos,
+        long totalWallNanos) {
+        return "PhysicsStore drained raw body requests for " + timing.count()
+            + " physics-only bodies: setupWallMs=" + millis(timing.setupWallNanos())
+            + " requestEnqueueMs=" + millis(timing.requestEnqueueNanos())
+            + " fenceWaitMs=" + millis(fenceWaitNanos)
+            + " totalWallMs=" + millis(totalWallNanos)
+            + " accepted=" + result.acceptedCount()
+            + " applied=" + result.appliedCount()
+            + " softSkipped=" + result.softSkippedCount()
+            + " rejected=" + result.rejectedCount()
+            + " failed=" + result.failedCount()
+            + " submittedTick=" + result.submittedServerTick()
+            + " consumedTick=" + result.consumedServerTick()
+            + " consumedTickLatency=" + result.consumedServerTickLatency()
+            + " allApplied=" + result.allApplied()
+            + " hasProblems=" + result.hasProblems()
+            + " fence=" + result.fenceUuid()
+            + ". This reports request drain/application only.";
+    }
+
+    @Nonnull
+    private static String failureMessage(@Nonnull Throwable failure) {
+        Throwable unwrapped = failure instanceof CompletionException && failure.getCause() != null
+            ? failure.getCause()
+            : failure;
+        return unwrapped.getMessage() != null
+            ? unwrapped.getMessage()
+            : unwrapped.getClass().getSimpleName();
     }
 
 }

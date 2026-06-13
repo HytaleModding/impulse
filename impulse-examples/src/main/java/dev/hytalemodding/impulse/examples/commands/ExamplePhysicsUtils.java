@@ -42,6 +42,7 @@ import dev.hytalemodding.impulse.core.plugin.physicsstore.components.MaterialCom
 import dev.hytalemodding.impulse.core.plugin.physicsstore.components.ShapeComponent;
 import dev.hytalemodding.impulse.core.plugin.physicsstore.components.TargetComponent;
 import dev.hytalemodding.impulse.core.plugin.physicsstore.requests.BodyUpsertRequest;
+import dev.hytalemodding.impulse.core.plugin.physicsstore.requests.PhysicsStoreRequestFenceHandle;
 import dev.hytalemodding.impulse.core.plugin.resources.PhysicsWorldResource;
 import dev.hytalemodding.impulse.core.plugin.settings.PhysicsVisualMaterializationSettings;
 import dev.hytalemodding.impulse.core.plugin.simulation.PhysicsCommandHandle;
@@ -349,6 +350,69 @@ public final class ExamplePhysicsUtils {
         @Nonnull PhysicsBodyKind kind,
         @Nonnull PhysicsBodyPersistenceMode persistenceMode,
         @Nonnull Consumer<BlockBodyBatchRecorder> recipe) {
+        DynamicBodyBatchPlan plan = dynamicBodyBatchPlan(world,
+            spaceId,
+            expectedBodies,
+            shape,
+            mass,
+            settings,
+            kind,
+            persistenceMode,
+            recipe);
+        if (plan.isEmpty()) {
+            return new BodyRequestBatchTiming(0, plan.setupWallNanos(), 0L);
+        }
+
+        long requestStartNanos = System.nanoTime();
+        PhysicsStoreAccess.enqueueAll(world, plan.requests());
+        long requestEnqueueNanos = System.nanoTime() - requestStartNanos;
+        return new BodyRequestBatchTiming(plan.count(),
+            plan.setupWallNanos(),
+            requestEnqueueNanos);
+    }
+
+    @Nonnull
+    public static FencedBodyRequestBatchTiming enqueueDynamicBodyBatchFencedMeasured(@Nonnull World world,
+        @Nonnull SpaceId spaceId,
+        int expectedBodies,
+        @Nonnull PhysicsShapeSpec shape,
+        float mass,
+        @Nonnull RigidBodySpawnSettings settings,
+        @Nonnull PhysicsBodyKind kind,
+        @Nonnull PhysicsBodyPersistenceMode persistenceMode,
+        long submittedServerTick,
+        @Nonnull Consumer<BlockBodyBatchRecorder> recipe) {
+        DynamicBodyBatchPlan plan = dynamicBodyBatchPlan(world,
+            spaceId,
+            expectedBodies,
+            shape,
+            mass,
+            settings,
+            kind,
+            persistenceMode,
+            recipe);
+
+        long requestStartNanos = System.nanoTime();
+        PhysicsStoreRequestFenceHandle fence = PhysicsStoreAccess.enqueueAllFenced(world,
+            plan.requests(),
+            Math.max(0L, submittedServerTick));
+        long requestEnqueueNanos = System.nanoTime() - requestStartNanos;
+        return new FencedBodyRequestBatchTiming(plan.count(),
+            plan.setupWallNanos(),
+            requestEnqueueNanos,
+            fence);
+    }
+
+    @Nonnull
+    private static DynamicBodyBatchPlan dynamicBodyBatchPlan(@Nonnull World world,
+        @Nonnull SpaceId spaceId,
+        int expectedBodies,
+        @Nonnull PhysicsShapeSpec shape,
+        float mass,
+        @Nonnull RigidBodySpawnSettings settings,
+        @Nonnull PhysicsBodyKind kind,
+        @Nonnull PhysicsBodyPersistenceMode persistenceMode,
+        @Nonnull Consumer<BlockBodyBatchRecorder> recipe) {
         Objects.requireNonNull(world, "world");
         Objects.requireNonNull(spaceId, "spaceId");
         Objects.requireNonNull(shape, "shape");
@@ -361,7 +425,7 @@ public final class ExamplePhysicsUtils {
         Objects.requireNonNull(recipe, "recipe").accept(batch);
         batch.seal();
         if (batch.isEmpty()) {
-            return new BodyRequestBatchTiming(0, 0L, 0L);
+            return new DynamicBodyBatchPlan(List.of(), 0L);
         }
 
         UUID spaceUuid = PhysicsStoreAccess.resolveSpaceUuid(world, spaceId);
@@ -384,12 +448,7 @@ public final class ExamplePhysicsUtils {
                 persistenceMode));
         }
 
-        long requestStartNanos = System.nanoTime();
-        PhysicsStoreAccess.enqueueAll(world, requests);
-        long requestEnqueueNanos = System.nanoTime() - requestStartNanos;
-        return new BodyRequestBatchTiming(batch.size(),
-            System.nanoTime() - setupStartNanos,
-            requestEnqueueNanos);
+        return new DynamicBodyBatchPlan(requests, System.nanoTime() - setupStartNanos);
     }
 
     @Nonnull
@@ -1076,6 +1135,36 @@ public final class ExamplePhysicsUtils {
             count = Math.max(0, count);
             setupWallNanos = Math.max(0L, setupWallNanos);
             requestEnqueueNanos = Math.max(0L, requestEnqueueNanos);
+        }
+    }
+
+    public record FencedBodyRequestBatchTiming(int count,
+                                               long setupWallNanos,
+                                               long requestEnqueueNanos,
+                                               @Nonnull PhysicsStoreRequestFenceHandle fence) {
+
+        public FencedBodyRequestBatchTiming {
+            count = Math.max(0, count);
+            setupWallNanos = Math.max(0L, setupWallNanos);
+            requestEnqueueNanos = Math.max(0L, requestEnqueueNanos);
+            Objects.requireNonNull(fence, "fence");
+        }
+    }
+
+    private record DynamicBodyBatchPlan(@Nonnull List<BodyUpsertRequest> requests,
+                                        long setupWallNanos) {
+
+        DynamicBodyBatchPlan {
+            requests = List.copyOf(Objects.requireNonNull(requests, "requests"));
+            setupWallNanos = Math.max(0L, setupWallNanos);
+        }
+
+        private int count() {
+            return requests.size();
+        }
+
+        private boolean isEmpty() {
+            return requests.isEmpty();
         }
     }
 
