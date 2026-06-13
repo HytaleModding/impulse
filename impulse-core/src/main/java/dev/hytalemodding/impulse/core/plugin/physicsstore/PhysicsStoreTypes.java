@@ -9,6 +9,7 @@ import dev.hytalemodding.impulse.core.internal.physicsstore.resources.PhysicsPro
 import dev.hytalemodding.impulse.core.internal.physicsstore.resources.PhysicsRequestQueueResource;
 import dev.hytalemodding.impulse.core.internal.physicsstore.resources.PhysicsRestoreStatusResource;
 import dev.hytalemodding.impulse.core.internal.physicsstore.resources.PhysicsRuntimeResource;
+import dev.hytalemodding.impulse.core.internal.physicsstore.resources.PhysicsSpaceCompatibilityIndexResource;
 import dev.hytalemodding.impulse.core.internal.physicsstore.resources.PhysicsSnapshotResource;
 import dev.hytalemodding.impulse.core.internal.physicsstore.resources.PhysicsTerrainPayloadResource;
 import dev.hytalemodding.impulse.core.internal.physicsstore.resources.PhysicsWorldCollisionIndexResource;
@@ -61,6 +62,9 @@ public final class PhysicsStoreTypes {
 
     @Nullable
     private static ResourceType<PhysicsStore, PhysicsRuntimeResource> runtimeResourceType;
+    @Nullable
+    private static ResourceType<PhysicsStore, PhysicsSpaceCompatibilityIndexResource>
+        spaceCompatibilityIndexResourceType;
     @Nullable
     private static ResourceType<PhysicsStore, PhysicsRequestQueueResource> requestQueueResourceType;
     @Nullable
@@ -146,6 +150,11 @@ public final class PhysicsStoreTypes {
     public static void setRuntimeResourceType(
         @Nonnull ResourceType<PhysicsStore, PhysicsRuntimeResource> type) {
         runtimeResourceType = Objects.requireNonNull(type, "type");
+    }
+
+    public static void setSpaceCompatibilityIndexResourceType(
+        @Nonnull ResourceType<PhysicsStore, PhysicsSpaceCompatibilityIndexResource> type) {
+        spaceCompatibilityIndexResourceType = Objects.requireNonNull(type, "type");
     }
 
     public static void setRequestQueueResourceType(
@@ -256,6 +265,12 @@ public final class PhysicsStoreTypes {
     @Nonnull
     public static ResourceType<PhysicsStore, PhysicsRuntimeResource> runtimeResourceType() {
         return require(runtimeResourceType, "PhysicsRuntimeResource");
+    }
+
+    @Nonnull
+    public static ResourceType<PhysicsStore, PhysicsSpaceCompatibilityIndexResource>
+        spaceCompatibilityIndexResourceType() {
+        return require(spaceCompatibilityIndexResourceType, "PhysicsSpaceCompatibilityIndexResource");
     }
 
     @Nonnull

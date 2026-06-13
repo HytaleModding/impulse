@@ -18,6 +18,7 @@ import dev.hytalemodding.impulse.api.runtime.PhysicsBackendRuntime;
 import dev.hytalemodding.impulse.core.internal.physicsstore.resources.PhysicsIdentityIndexResource;
 import dev.hytalemodding.impulse.core.internal.physicsstore.resources.PhysicsRestoreStatusResource;
 import dev.hytalemodding.impulse.core.internal.physicsstore.resources.PhysicsRuntimeResource;
+import dev.hytalemodding.impulse.core.internal.physicsstore.resources.PhysicsSpaceCompatibilityIndexResource;
 import dev.hytalemodding.impulse.core.internal.resources.BackendSpaceHandle;
 import dev.hytalemodding.impulse.core.plugin.physicsstore.components.SpaceComponent;
 import java.util.Set;
@@ -45,14 +46,17 @@ public final class SpaceBindingSystem extends TickingSystem<PhysicsStore>
             return;
         }
         PhysicsRuntimeResource runtime = store.getResource(PhysicsRuntimeResource.getResourceType());
+        PhysicsSpaceCompatibilityIndexResource compatibility = store.getResource(
+            PhysicsSpaceCompatibilityIndexResource.getResourceType());
         PhysicsIdentityIndexResource identity = store.getResource(
             PhysicsIdentityIndexResource.getResourceType());
         BiConsumer<ArchetypeChunk<PhysicsStore>, CommandBuffer<PhysicsStore>> collector =
-            (chunk, _) -> bindChunk(runtime, identity, chunk);
+            (chunk, _) -> bindChunk(runtime, compatibility, identity, chunk);
         store.forEachChunk(systemIndex, collector);
     }
 
     private static void bindChunk(@Nonnull PhysicsRuntimeResource runtime,
+        @Nonnull PhysicsSpaceCompatibilityIndexResource compatibility,
         @Nonnull PhysicsIdentityIndexResource identity,
         @Nonnull ArchetypeChunk<PhysicsStore> chunk) {
         for (int index = 0; index < chunk.size(); index++) {
@@ -65,11 +69,17 @@ public final class SpaceBindingSystem extends TickingSystem<PhysicsStore>
                 || runtime.getSpaceHandle(spaceUuid) != null) {
                 continue;
             }
-            bindSpace(runtime, identity, chunk.getReferenceTo(index), spaceUuid, space);
+            bindSpace(runtime,
+                compatibility,
+                identity,
+                chunk.getReferenceTo(index),
+                spaceUuid,
+                space);
         }
     }
 
     private static void bindSpace(@Nonnull PhysicsRuntimeResource runtime,
+        @Nonnull PhysicsSpaceCompatibilityIndexResource compatibility,
         @Nonnull PhysicsIdentityIndexResource identity,
         @Nonnull Ref<PhysicsStore> ref,
         @Nonnull UUID spaceUuid,
@@ -83,10 +93,13 @@ public final class SpaceBindingSystem extends TickingSystem<PhysicsStore>
             backendRuntime = Impulse.createRuntime(backendId);
             runtime.putRuntime(backendId, backendRuntime);
         }
-        BackendSpaceHandle handle = new BackendSpaceHandle(backendRuntime.createSpace(SpaceId.next()));
+        SpaceId compatibilitySpaceId = SpaceId.next();
+        BackendSpaceHandle handle = new BackendSpaceHandle(
+            backendRuntime.createSpace(compatibilitySpaceId));
         Vector3f gravity = space.getGravity();
         backendRuntime.setGravity(handle.value(), gravity.x, gravity.y, gravity.z);
         runtime.putSpaceBinding(spaceUuid, backendId, handle);
+        compatibility.putSpace(compatibilitySpaceId, spaceUuid);
         identity.putSpaceHandle(handle, ref);
     }
 
