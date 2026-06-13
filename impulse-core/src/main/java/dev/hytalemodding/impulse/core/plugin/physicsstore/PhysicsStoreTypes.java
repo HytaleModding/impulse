@@ -16,15 +16,20 @@ import dev.hytalemodding.impulse.core.internal.physicsstore.resources.PhysicsWor
 import dev.hytalemodding.impulse.core.internal.physicsstore.persistence.PersistentPhysicsStoreResource;
 import dev.hytalemodding.impulse.core.plugin.physicsstore.components.BodyComponent;
 import dev.hytalemodding.impulse.core.plugin.physicsstore.components.ColliderComponent;
+import dev.hytalemodding.impulse.core.plugin.physicsstore.components.CollisionLodSettingsComponent;
 import dev.hytalemodding.impulse.core.plugin.physicsstore.components.CollisionFilterComponent;
 import dev.hytalemodding.impulse.core.plugin.physicsstore.components.DynamicsComponent;
+import dev.hytalemodding.impulse.core.plugin.physicsstore.components.ExtensionSettingsComponent;
 import dev.hytalemodding.impulse.core.plugin.physicsstore.components.JointComponent;
 import dev.hytalemodding.impulse.core.plugin.physicsstore.components.MaterialComponent;
 import dev.hytalemodding.impulse.core.plugin.physicsstore.components.ShapeComponent;
+import dev.hytalemodding.impulse.core.plugin.physicsstore.components.SolverSettingsComponent;
 import dev.hytalemodding.impulse.core.plugin.physicsstore.components.SpaceComponent;
 import dev.hytalemodding.impulse.core.plugin.physicsstore.components.TargetComponent;
 import dev.hytalemodding.impulse.core.plugin.physicsstore.components.TerrainColliderComponent;
 import dev.hytalemodding.impulse.core.plugin.physicsstore.components.UuidComponent;
+import dev.hytalemodding.impulse.core.plugin.physicsstore.components.VisualMaterializationSettingsComponent;
+import dev.hytalemodding.impulse.core.plugin.physicsstore.components.VisualSyncSettingsComponent;
 import dev.hytalemodding.impulse.core.plugin.physicsstore.components.WorldCollisionComponent;
 import java.util.Objects;
 import javax.annotation.Nonnull;
@@ -59,6 +64,17 @@ public final class PhysicsStoreTypes {
     private static ComponentType<PhysicsStore, TerrainColliderComponent> terrainColliderComponentType;
     @Nullable
     private static ComponentType<PhysicsStore, WorldCollisionComponent> worldCollisionComponentType;
+    @Nullable
+    private static ComponentType<PhysicsStore, SolverSettingsComponent> solverSettingsComponentType;
+    @Nullable
+    private static ComponentType<PhysicsStore, VisualSyncSettingsComponent> visualSyncSettingsComponentType;
+    @Nullable
+    private static ComponentType<PhysicsStore, VisualMaterializationSettingsComponent>
+        visualMaterializationSettingsComponentType;
+    @Nullable
+    private static ComponentType<PhysicsStore, CollisionLodSettingsComponent> collisionLodSettingsComponentType;
+    @Nullable
+    private static ComponentType<PhysicsStore, ExtensionSettingsComponent> extensionSettingsComponentType;
 
     @Nullable
     private static ResourceType<PhysicsStore, PhysicsRuntimeResource> runtimeResourceType;
@@ -145,6 +161,31 @@ public final class PhysicsStoreTypes {
     public static void setWorldCollisionComponentType(
         @Nonnull ComponentType<PhysicsStore, WorldCollisionComponent> type) {
         worldCollisionComponentType = Objects.requireNonNull(type, "type");
+    }
+
+    public static void setSolverSettingsComponentType(
+        @Nonnull ComponentType<PhysicsStore, SolverSettingsComponent> type) {
+        solverSettingsComponentType = Objects.requireNonNull(type, "type");
+    }
+
+    public static void setVisualSyncSettingsComponentType(
+        @Nonnull ComponentType<PhysicsStore, VisualSyncSettingsComponent> type) {
+        visualSyncSettingsComponentType = Objects.requireNonNull(type, "type");
+    }
+
+    public static void setVisualMaterializationSettingsComponentType(
+        @Nonnull ComponentType<PhysicsStore, VisualMaterializationSettingsComponent> type) {
+        visualMaterializationSettingsComponentType = Objects.requireNonNull(type, "type");
+    }
+
+    public static void setCollisionLodSettingsComponentType(
+        @Nonnull ComponentType<PhysicsStore, CollisionLodSettingsComponent> type) {
+        collisionLodSettingsComponentType = Objects.requireNonNull(type, "type");
+    }
+
+    public static void setExtensionSettingsComponentType(
+        @Nonnull ComponentType<PhysicsStore, ExtensionSettingsComponent> type) {
+        extensionSettingsComponentType = Objects.requireNonNull(type, "type");
     }
 
     public static void setRuntimeResourceType(
@@ -260,6 +301,36 @@ public final class PhysicsStoreTypes {
     @Nonnull
     public static ComponentType<PhysicsStore, WorldCollisionComponent> worldCollisionComponentType() {
         return require(worldCollisionComponentType, "WorldCollisionComponent");
+    }
+
+    @Nonnull
+    public static ComponentType<PhysicsStore, SolverSettingsComponent> solverSettingsComponentType() {
+        return require(solverSettingsComponentType, "SolverSettingsComponent");
+    }
+
+    @Nonnull
+    public static ComponentType<PhysicsStore, VisualSyncSettingsComponent>
+    visualSyncSettingsComponentType() {
+        return require(visualSyncSettingsComponentType, "VisualSyncSettingsComponent");
+    }
+
+    @Nonnull
+    public static ComponentType<PhysicsStore, VisualMaterializationSettingsComponent>
+    visualMaterializationSettingsComponentType() {
+        return require(visualMaterializationSettingsComponentType,
+            "VisualMaterializationSettingsComponent");
+    }
+
+    @Nonnull
+    public static ComponentType<PhysicsStore, CollisionLodSettingsComponent>
+    collisionLodSettingsComponentType() {
+        return require(collisionLodSettingsComponentType, "CollisionLodSettingsComponent");
+    }
+
+    @Nonnull
+    public static ComponentType<PhysicsStore, ExtensionSettingsComponent>
+    extensionSettingsComponentType() {
+        return require(extensionSettingsComponentType, "ExtensionSettingsComponent");
     }
 
     @Nonnull

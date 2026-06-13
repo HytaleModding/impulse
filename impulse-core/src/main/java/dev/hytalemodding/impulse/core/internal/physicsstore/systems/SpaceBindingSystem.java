@@ -20,11 +20,14 @@ import dev.hytalemodding.impulse.core.internal.physicsstore.resources.PhysicsRes
 import dev.hytalemodding.impulse.core.internal.physicsstore.resources.PhysicsRuntimeResource;
 import dev.hytalemodding.impulse.core.internal.physicsstore.resources.PhysicsSpaceCompatibilityIndexResource;
 import dev.hytalemodding.impulse.core.internal.resources.BackendSpaceHandle;
+import dev.hytalemodding.impulse.core.plugin.physicsstore.components.ExtensionSettingsComponent;
+import dev.hytalemodding.impulse.core.plugin.physicsstore.components.SolverSettingsComponent;
 import dev.hytalemodding.impulse.core.plugin.physicsstore.components.SpaceComponent;
 import java.util.Set;
 import java.util.UUID;
 import java.util.function.BiConsumer;
 import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
 import org.joml.Vector3f;
 
 /**
@@ -74,7 +77,9 @@ public final class SpaceBindingSystem extends TickingSystem<PhysicsStore>
                 identity,
                 chunk.getReferenceTo(index),
                 spaceUuid,
-                space);
+                space,
+                chunk.getComponent(index, SolverSettingsComponent.getComponentType()),
+                chunk.getComponent(index, ExtensionSettingsComponent.getComponentType()));
         }
     }
 
@@ -83,7 +88,9 @@ public final class SpaceBindingSystem extends TickingSystem<PhysicsStore>
         @Nonnull PhysicsIdentityIndexResource identity,
         @Nonnull Ref<PhysicsStore> ref,
         @Nonnull UUID spaceUuid,
-        @Nonnull SpaceComponent space) {
+        @Nonnull SpaceComponent space,
+        @Nullable SolverSettingsComponent solverSettings,
+        @Nullable ExtensionSettingsComponent extensionSettings) {
         BackendId backendId = space.getBackendId();
         if (backendId.value().isBlank()) {
             return;
@@ -103,6 +110,11 @@ public final class SpaceBindingSystem extends TickingSystem<PhysicsStore>
         Vector3f gravity = space.getGravity();
         backendRuntime.setGravity(handle.value(), gravity.x, gravity.y, gravity.z);
         runtime.putSpaceBinding(spaceUuid, backendId, handle);
+        SpaceSettingsApplicationSystem.applyBackendSettings(backendRuntime,
+            handle,
+            solverSettings != null ? solverSettings : new SolverSettingsComponent(),
+            extensionSettings);
+        runtime.clearPendingSpaceSettings(spaceUuid);
         compatibility.putSpace(compatibilitySpaceId, spaceUuid);
         identity.putSpaceHandle(handle, ref);
     }

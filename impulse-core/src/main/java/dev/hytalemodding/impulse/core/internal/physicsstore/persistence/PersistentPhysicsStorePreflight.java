@@ -84,6 +84,12 @@ public final class PersistentPhysicsStorePreflight {
                 errors.add("PhysicsStore space " + uuid
                     + " has invalid terrain restitution");
             }
+            try {
+                space.toSettings();
+            } catch (RuntimeException exception) {
+                errors.add("PhysicsStore space " + uuid + " has invalid space settings: "
+                    + exception.getMessage());
+            }
         }
         return seen;
     }

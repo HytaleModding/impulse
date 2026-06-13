@@ -7,6 +7,7 @@ import dev.hytalemodding.impulse.core.internal.modules.worldcollision.WorldColli
 import dev.hytalemodding.impulse.core.internal.modules.worldcollision.TerrainColliderMode;
 import dev.hytalemodding.impulse.core.plugin.modules.worldcollision.WorldCollisionMode;
 import dev.hytalemodding.impulse.core.plugin.physicsstore.PhysicsStoreTypes;
+import dev.hytalemodding.impulse.core.plugin.settings.EntityChunkBoundaryMode;
 import it.unimi.dsi.fastutil.objects.Object2ObjectOpenHashMap;
 import java.util.List;
 import java.util.Map;
@@ -56,6 +57,7 @@ public final class PhysicsWorldCollisionIndexResource implements Resource<Physic
 
     public record SpaceWorldCollisionSettings(@Nonnull UUID spaceUuid,
                                               @Nonnull WorldCollisionMode mode,
+                                              @Nonnull EntityChunkBoundaryMode entityChunkBoundaryMode,
                                               boolean nativeVoxelTerrainEnabled,
                                               int radius,
                                               int bodyRadius,

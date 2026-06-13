@@ -24,14 +24,19 @@ import dev.hytalemodding.impulse.core.internal.physicsstore.resources.PhysicsSna
 import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyPersistenceMode;
 import dev.hytalemodding.impulse.core.plugin.physicsstore.components.BodyComponent;
 import dev.hytalemodding.impulse.core.plugin.physicsstore.components.ColliderComponent;
+import dev.hytalemodding.impulse.core.plugin.physicsstore.components.CollisionLodSettingsComponent;
 import dev.hytalemodding.impulse.core.plugin.physicsstore.components.CollisionFilterComponent;
 import dev.hytalemodding.impulse.core.plugin.physicsstore.components.DynamicsComponent;
+import dev.hytalemodding.impulse.core.plugin.physicsstore.components.ExtensionSettingsComponent;
 import dev.hytalemodding.impulse.core.plugin.physicsstore.components.JointComponent;
 import dev.hytalemodding.impulse.core.plugin.physicsstore.components.MaterialComponent;
 import dev.hytalemodding.impulse.core.plugin.physicsstore.components.ShapeComponent;
+import dev.hytalemodding.impulse.core.plugin.physicsstore.components.SolverSettingsComponent;
 import dev.hytalemodding.impulse.core.plugin.physicsstore.components.SpaceComponent;
 import dev.hytalemodding.impulse.core.plugin.physicsstore.components.TargetComponent;
 import dev.hytalemodding.impulse.core.plugin.physicsstore.components.TerrainColliderComponent;
+import dev.hytalemodding.impulse.core.plugin.physicsstore.components.VisualMaterializationSettingsComponent;
+import dev.hytalemodding.impulse.core.plugin.physicsstore.components.VisualSyncSettingsComponent;
 import dev.hytalemodding.impulse.core.plugin.physicsstore.components.WorldCollisionComponent;
 import dev.hytalemodding.impulse.core.plugin.physicsstore.snapshots.PhysicsStoreBodySnapshot;
 import it.unimi.dsi.fastutil.objects.Object2ObjectOpenHashMap;
@@ -139,7 +144,13 @@ public final class PersistenceCaptureSystem extends TickingSystem<PhysicsStore>
             if (space != null) {
                 spaceRows.add(new SpaceRow(uuid,
                     space,
-                    chunk.getComponent(index, WorldCollisionComponent.getComponentType())));
+                    chunk.getComponent(index, WorldCollisionComponent.getComponentType()),
+                    chunk.getComponent(index, SolverSettingsComponent.getComponentType()),
+                    chunk.getComponent(index, VisualSyncSettingsComponent.getComponentType()),
+                    chunk.getComponent(index,
+                        VisualMaterializationSettingsComponent.getComponentType()),
+                    chunk.getComponent(index, CollisionLodSettingsComponent.getComponentType()),
+                    chunk.getComponent(index, ExtensionSettingsComponent.getComponentType())));
             }
             BodyComponent body = chunk.getComponent(index, BodyComponent.getComponentType());
             if (body != null) {
@@ -231,12 +242,28 @@ public final class PersistenceCaptureSystem extends TickingSystem<PhysicsStore>
                 row.space().getBackendIdValue(),
                 row.space().getGravity(),
                 worldCollision.getMode(),
+                worldCollision.getEntityChunkBoundaryMode(),
                 worldCollision.isNativeVoxelTerrainEnabled(),
                 worldCollision.getRadius(),
                 worldCollision.getBodyRadius(),
                 worldCollision.getTtlTicks(),
                 worldCollision.getTerrainFriction(),
-                worldCollision.getTerrainRestitution());
+                worldCollision.getTerrainRestitution(),
+                row.solverSettings() != null
+                    ? row.solverSettings()
+                    : new SolverSettingsComponent(),
+                row.visualSyncSettings() != null
+                    ? row.visualSyncSettings()
+                    : new VisualSyncSettingsComponent(),
+                row.visualMaterializationSettings() != null
+                    ? row.visualMaterializationSettings()
+                    : new VisualMaterializationSettingsComponent(),
+                row.collisionLodSettings() != null
+                    ? row.collisionLodSettings()
+                    : new CollisionLodSettingsComponent(),
+                row.extensionSettings() != null
+                    ? row.extensionSettings()
+                    : new ExtensionSettingsComponent());
         }
 
         @Nonnull
@@ -394,7 +421,12 @@ public final class PersistenceCaptureSystem extends TickingSystem<PhysicsStore>
 
     private record SpaceRow(@Nonnull UUID uuid,
                             @Nonnull SpaceComponent space,
-                            @Nullable WorldCollisionComponent worldCollision) {
+                            @Nullable WorldCollisionComponent worldCollision,
+                            @Nullable SolverSettingsComponent solverSettings,
+                            @Nullable VisualSyncSettingsComponent visualSyncSettings,
+                            @Nullable VisualMaterializationSettingsComponent visualMaterializationSettings,
+                            @Nullable CollisionLodSettingsComponent collisionLodSettings,
+                            @Nullable ExtensionSettingsComponent extensionSettings) {
     }
 
     private record BodyRow(@Nonnull UUID uuid,

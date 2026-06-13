@@ -22,15 +22,20 @@ import dev.hytalemodding.impulse.core.internal.physicsstore.persistence.Persiste
 import dev.hytalemodding.impulse.core.internal.physicsstore.resources.PhysicsRestoreStatusResource;
 import dev.hytalemodding.impulse.core.plugin.physicsstore.components.BodyComponent;
 import dev.hytalemodding.impulse.core.plugin.physicsstore.components.ColliderComponent;
+import dev.hytalemodding.impulse.core.plugin.physicsstore.components.CollisionLodSettingsComponent;
 import dev.hytalemodding.impulse.core.plugin.physicsstore.components.CollisionFilterComponent;
 import dev.hytalemodding.impulse.core.plugin.physicsstore.components.DynamicsComponent;
+import dev.hytalemodding.impulse.core.plugin.physicsstore.components.ExtensionSettingsComponent;
 import dev.hytalemodding.impulse.core.plugin.physicsstore.components.JointComponent;
 import dev.hytalemodding.impulse.core.plugin.physicsstore.components.MaterialComponent;
 import dev.hytalemodding.impulse.core.plugin.physicsstore.components.ShapeComponent;
+import dev.hytalemodding.impulse.core.plugin.physicsstore.components.SolverSettingsComponent;
 import dev.hytalemodding.impulse.core.plugin.physicsstore.components.SpaceComponent;
 import dev.hytalemodding.impulse.core.plugin.physicsstore.components.TargetComponent;
 import dev.hytalemodding.impulse.core.plugin.physicsstore.components.TerrainColliderComponent;
 import dev.hytalemodding.impulse.core.plugin.physicsstore.components.UuidComponent;
+import dev.hytalemodding.impulse.core.plugin.physicsstore.components.VisualMaterializationSettingsComponent;
+import dev.hytalemodding.impulse.core.plugin.physicsstore.components.VisualSyncSettingsComponent;
 import dev.hytalemodding.impulse.core.plugin.physicsstore.components.WorldCollisionComponent;
 import java.util.Set;
 import java.util.UUID;
@@ -95,13 +100,17 @@ public final class PersistenceHydrationSystem extends TickingSystem<PhysicsStore
         holder.addComponent(SpaceComponent.getComponentType(),
             new SpaceComponent(new BackendId(dto.getBackendId()), dto.getGravity()));
         holder.addComponent(WorldCollisionComponent.getComponentType(),
-            new WorldCollisionComponent(dto.getWorldCollisionMode(),
-                dto.isNativeVoxelTerrainEnabled(),
-                dto.getWorldCollisionRadius(),
-                dto.getWorldCollisionBodyRadius(),
-                dto.getWorldCollisionTtlTicks(),
-                dto.getTerrainFriction(),
-                dto.getTerrainRestitution()));
+            dto.getWorldCollision());
+        holder.addComponent(SolverSettingsComponent.getComponentType(),
+            dto.getSolverSettings());
+        holder.addComponent(VisualSyncSettingsComponent.getComponentType(),
+            dto.getVisualSyncSettings());
+        holder.addComponent(VisualMaterializationSettingsComponent.getComponentType(),
+            dto.getVisualMaterializationSettings());
+        holder.addComponent(CollisionLodSettingsComponent.getComponentType(),
+            dto.getCollisionLodSettings());
+        holder.addComponent(ExtensionSettingsComponent.getComponentType(),
+            dto.getExtensionSettings());
         add(store, holder);
     }
 

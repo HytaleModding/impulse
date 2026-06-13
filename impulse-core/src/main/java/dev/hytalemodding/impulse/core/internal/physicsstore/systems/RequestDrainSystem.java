@@ -31,15 +31,20 @@ import dev.hytalemodding.impulse.core.internal.resources.BackendJointHandle;
 import dev.hytalemodding.impulse.core.internal.resources.BackendSpaceHandle;
 import dev.hytalemodding.impulse.core.plugin.physicsstore.components.BodyComponent;
 import dev.hytalemodding.impulse.core.plugin.physicsstore.components.ColliderComponent;
+import dev.hytalemodding.impulse.core.plugin.physicsstore.components.CollisionLodSettingsComponent;
 import dev.hytalemodding.impulse.core.plugin.physicsstore.components.CollisionFilterComponent;
 import dev.hytalemodding.impulse.core.plugin.physicsstore.components.DynamicsComponent;
+import dev.hytalemodding.impulse.core.plugin.physicsstore.components.ExtensionSettingsComponent;
 import dev.hytalemodding.impulse.core.plugin.physicsstore.components.JointComponent;
 import dev.hytalemodding.impulse.core.plugin.physicsstore.components.MaterialComponent;
 import dev.hytalemodding.impulse.core.plugin.physicsstore.components.ShapeComponent;
+import dev.hytalemodding.impulse.core.plugin.physicsstore.components.SolverSettingsComponent;
 import dev.hytalemodding.impulse.core.plugin.physicsstore.components.SpaceComponent;
 import dev.hytalemodding.impulse.core.plugin.physicsstore.components.TargetComponent;
 import dev.hytalemodding.impulse.core.plugin.physicsstore.components.TerrainColliderComponent;
 import dev.hytalemodding.impulse.core.plugin.physicsstore.components.UuidComponent;
+import dev.hytalemodding.impulse.core.plugin.physicsstore.components.VisualMaterializationSettingsComponent;
+import dev.hytalemodding.impulse.core.plugin.physicsstore.components.VisualSyncSettingsComponent;
 import dev.hytalemodding.impulse.core.plugin.physicsstore.components.WorldCollisionComponent;
 import dev.hytalemodding.impulse.core.plugin.physicsstore.requests.BodyActivationRequest;
 import dev.hytalemodding.impulse.core.plugin.physicsstore.requests.BodyForceRequest;
@@ -122,6 +127,7 @@ public final class RequestDrainSystem extends TickingSystem<PhysicsStore> {
             structuralConflicts,
             requests);
         applySpaceSettings(store,
+            runtime,
             identity,
             refsThisDrain,
             restore,
@@ -187,6 +193,7 @@ public final class RequestDrainSystem extends TickingSystem<PhysicsStore> {
     }
 
     private static void applySpaceSettings(@Nonnull Store<PhysicsStore> store,
+        @Nonnull PhysicsRuntimeResource runtime,
         @Nonnull PhysicsIdentityIndexResource identity,
         @Nonnull Map<UUID, Ref<PhysicsStore>> refsThisDrain,
         @Nonnull PhysicsRestoreStatusResource restore,
@@ -195,7 +202,12 @@ public final class RequestDrainSystem extends TickingSystem<PhysicsStore> {
         for (PhysicsStoreRequest request : requests) {
             if (request instanceof SpaceSettingsRequest settingsRequest
                 && !structuralConflicts.contains(settingsRequest.spaceUuid())) {
-                applySpaceSettings(store, identity, refsThisDrain, restore, settingsRequest);
+                applySpaceSettings(store,
+                    runtime,
+                    identity,
+                    refsThisDrain,
+                    restore,
+                    settingsRequest);
             }
         }
     }
@@ -353,11 +365,14 @@ public final class RequestDrainSystem extends TickingSystem<PhysicsStore> {
         store.putComponent(ref,
             WorldCollisionComponent.getComponentType(),
             request.worldCollision().clone());
+        putSpaceSettingsComponents(store, ref, request);
         compatibility.putSpace(request.compatibilitySpaceId(), request.spaceUuid());
         SpaceId.reserveAtLeast(request.compatibilitySpaceId().value());
+        runtime.markSpaceSettingsPending(request.spaceUuid());
     }
 
     private static void applySpaceSettings(@Nonnull Store<PhysicsStore> store,
+        @Nonnull PhysicsRuntimeResource runtime,
         @Nonnull PhysicsIdentityIndexResource identity,
         @Nonnull Map<UUID, Ref<PhysicsStore>> refsThisDrain,
         @Nonnull PhysicsRestoreStatusResource restore,
@@ -371,6 +386,48 @@ public final class RequestDrainSystem extends TickingSystem<PhysicsStore> {
         store.putComponent(ref,
             WorldCollisionComponent.getComponentType(),
             request.worldCollision().clone());
+        putSpaceSettingsComponents(store, ref, request);
+        runtime.markSpaceSettingsPending(request.spaceUuid());
+    }
+
+    private static void putSpaceSettingsComponents(@Nonnull Store<PhysicsStore> store,
+        @Nonnull Ref<PhysicsStore> ref,
+        @Nonnull SpaceUpsertRequest request) {
+        store.putComponent(ref,
+            SolverSettingsComponent.getComponentType(),
+            request.solverSettings().clone());
+        store.putComponent(ref,
+            VisualSyncSettingsComponent.getComponentType(),
+            request.visualSyncSettings().clone());
+        store.putComponent(ref,
+            VisualMaterializationSettingsComponent.getComponentType(),
+            request.visualMaterializationSettings().clone());
+        store.putComponent(ref,
+            CollisionLodSettingsComponent.getComponentType(),
+            request.collisionLodSettings().clone());
+        store.putComponent(ref,
+            ExtensionSettingsComponent.getComponentType(),
+            request.extensionSettings().clone());
+    }
+
+    private static void putSpaceSettingsComponents(@Nonnull Store<PhysicsStore> store,
+        @Nonnull Ref<PhysicsStore> ref,
+        @Nonnull SpaceSettingsRequest request) {
+        store.putComponent(ref,
+            SolverSettingsComponent.getComponentType(),
+            request.solverSettings().clone());
+        store.putComponent(ref,
+            VisualSyncSettingsComponent.getComponentType(),
+            request.visualSyncSettings().clone());
+        store.putComponent(ref,
+            VisualMaterializationSettingsComponent.getComponentType(),
+            request.visualMaterializationSettings().clone());
+        store.putComponent(ref,
+            CollisionLodSettingsComponent.getComponentType(),
+            request.collisionLodSettings().clone());
+        store.putComponent(ref,
+            ExtensionSettingsComponent.getComponentType(),
+            request.extensionSettings().clone());
     }
 
     private static void applyBodyRemove(@Nonnull Store<PhysicsStore> store,

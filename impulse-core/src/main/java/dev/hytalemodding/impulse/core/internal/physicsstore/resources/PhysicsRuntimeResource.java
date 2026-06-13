@@ -17,10 +17,12 @@ import it.unimi.dsi.fastutil.longs.Long2ObjectOpenHashMap;
 import it.unimi.dsi.fastutil.longs.LongArrayList;
 import it.unimi.dsi.fastutil.longs.LongList;
 import it.unimi.dsi.fastutil.objects.Object2ObjectOpenHashMap;
+import it.unimi.dsi.fastutil.objects.ObjectOpenHashSet;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Set;
 import java.util.UUID;
 import java.util.function.LongConsumer;
 import javax.annotation.Nonnull;
@@ -72,6 +74,8 @@ public final class PhysicsRuntimeResource implements Resource<PhysicsStore> {
         new Long2ObjectOpenHashMap<>();
     @Nonnull
     private final List<PendingBodyOperation> pendingBodyOperations = new ArrayList<>();
+    @Nonnull
+    private final ObjectOpenHashSet<UUID> pendingSpaceSettings = new ObjectOpenHashSet<>();
     private boolean started;
 
     public PhysicsRuntimeResource() {
@@ -114,6 +118,7 @@ public final class PhysicsRuntimeResource implements Resource<PhysicsStore> {
     public void removeSpaceHandle(@Nonnull UUID spaceUuid) {
         BackendSpaceHandle removed = spaceHandlesByUuid.remove(spaceUuid);
         backendIdsBySpaceUuid.remove(spaceUuid);
+        pendingSpaceSettings.remove(spaceUuid);
         if (removed != null) {
             LongList bodyHandles = bodyHandlesBySpaceHandle.remove(removed.value());
             if (bodyHandles != null) {
@@ -176,6 +181,24 @@ public final class PhysicsRuntimeResource implements Resource<PhysicsStore> {
 
     public void enqueuePendingBodyOperation(@Nonnull PendingBodyOperation operation) {
         pendingBodyOperations.add(Objects.requireNonNull(operation, "operation"));
+    }
+
+    public void markSpaceSettingsPending(@Nonnull UUID spaceUuid) {
+        pendingSpaceSettings.add(Objects.requireNonNull(spaceUuid, "spaceUuid"));
+    }
+
+    public void clearPendingSpaceSettings(@Nonnull UUID spaceUuid) {
+        pendingSpaceSettings.remove(spaceUuid);
+    }
+
+    @Nonnull
+    public Set<UUID> drainPendingSpaceSettings() {
+        if (pendingSpaceSettings.isEmpty()) {
+            return Set.of();
+        }
+        Set<UUID> drained = new ObjectOpenHashSet<>(pendingSpaceSettings);
+        pendingSpaceSettings.clear();
+        return drained;
     }
 
     @Nonnull
