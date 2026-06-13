@@ -24,7 +24,9 @@ import dev.hytalemodding.impulse.core.internal.physicsstore.resources.PhysicsSna
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsWorldRuntimeResource;
 import dev.hytalemodding.impulse.core.internal.resources.body.PhysicsBodyRuntimeState;
 import dev.hytalemodding.impulse.core.internal.resources.profiling.PhysicsRuntimeProfilingResource;
+import dev.hytalemodding.impulse.core.internal.systems.body.PhysicsStoreKinematicTargetProducerSystem;
 import dev.hytalemodding.impulse.core.internal.systems.visual.GeneratedProxyLifecycle;
+import dev.hytalemodding.impulse.core.internal.systems.visual.PhysicsDetachedVisualMaterializationSystem;
 import dev.hytalemodding.impulse.core.internal.systems.visual.VisualInterestCollector;
 import dev.hytalemodding.impulse.core.plugin.components.PhysicsBodyAttachmentComponent;
 import dev.hytalemodding.impulse.core.plugin.components.PhysicsBodyAttachmentComponent.AttachmentLifecycle;
@@ -62,6 +64,8 @@ public class PhysicsSyncSystem extends EntityTickingSystem<EntityStore> {
     private static final Query<EntityStore> QUERY = Query.and(ATTACHMENT_TYPE, TRANSFORM_TYPE);
     private final Set<Dependency<EntityStore>> dependencies = Set.of(
         new SystemGroupDependency<>(Order.AFTER, ImpulsePlugin.get().getPersistenceRestoreGroup()),
+        new SystemDependency<>(Order.AFTER, PhysicsStoreKinematicTargetProducerSystem.class),
+        new SystemDependency<>(Order.AFTER, PhysicsDetachedVisualMaterializationSystem.class),
         new SystemDependency<>(Order.BEFORE, TransformSystems.EntityTrackerUpdate.class),
         new SystemDependency<>(Order.BEFORE, UpdateLocationSystems.TickingSystem.class)
     );

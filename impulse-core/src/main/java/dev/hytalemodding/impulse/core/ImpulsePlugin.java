@@ -367,9 +367,9 @@ public final class ImpulsePlugin extends JavaPlugin {
         persistenceRestoreGroup = entityRegistry.registerSystemGroup();
         entityRegistry.registerSystem(new PhysicsBodyAttachmentIndexSystem());
         entityRegistry.registerSystem(new PhysicsStoreKinematicTargetProducerSystem());
+        entityRegistry.registerSystem(new PhysicsDetachedVisualMaterializationSystem());
         entityRegistry.registerSystem(new PhysicsSyncSystem());
         entityRegistry.registerSystem(new PhysicsDebugSystem());
-        entityRegistry.registerSystem(new PhysicsDetachedVisualMaterializationSystem());
     }
 
     private void registerCommands() {

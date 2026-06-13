@@ -83,8 +83,7 @@ import javax.annotation.Nullable;
 public final class RequestDrainSystem extends TickingSystem<PhysicsStore> {
 
     private static final Set<Dependency<PhysicsStore>> DEPENDENCIES = Set.of(
-        new SystemDependency<>(Order.AFTER, PersistenceHydrationSystem.class),
-        new SystemDependency<>(Order.BEFORE, IdentityIndexSystem.class)
+        new SystemDependency<>(Order.AFTER, PersistenceHydrationSystem.class)
     );
 
     @Override

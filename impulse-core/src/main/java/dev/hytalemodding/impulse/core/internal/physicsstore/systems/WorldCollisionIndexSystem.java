@@ -28,8 +28,7 @@ public final class WorldCollisionIndexSystem extends TickingSystem<PhysicsStore>
     implements QuerySystem<PhysicsStore> {
 
     private static final Set<Dependency<PhysicsStore>> DEPENDENCIES = Set.of(
-        new SystemDependency<>(Order.AFTER, IdentityIndexSystem.class),
-        new SystemDependency<>(Order.BEFORE, SpaceBindingSystem.class)
+        new SystemDependency<>(Order.AFTER, IdentityIndexSystem.class)
     );
 
     @Override

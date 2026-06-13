@@ -60,8 +60,7 @@ public final class PersistenceCaptureSystem extends TickingSystem<PhysicsStore>
     implements QuerySystem<PhysicsStore> {
 
     private static final Set<Dependency<PhysicsStore>> DEPENDENCIES = Set.of(
-        new SystemDependency<>(Order.AFTER, CompletedStepPublicationSystem.class),
-        new SystemDependency<>(Order.BEFORE, StepSubmissionSystem.class)
+        new SystemDependency<>(Order.AFTER, CompletedStepPublicationSystem.class)
     );
 
     @Override

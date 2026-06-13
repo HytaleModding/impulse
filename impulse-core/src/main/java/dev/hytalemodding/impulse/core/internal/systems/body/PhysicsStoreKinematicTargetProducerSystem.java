@@ -7,7 +7,6 @@ import com.hypixel.hytale.component.Ref;
 import com.hypixel.hytale.component.Store;
 import com.hypixel.hytale.component.dependency.Dependency;
 import com.hypixel.hytale.component.dependency.Order;
-import com.hypixel.hytale.component.dependency.SystemDependency;
 import com.hypixel.hytale.component.dependency.SystemGroupDependency;
 import com.hypixel.hytale.component.query.Query;
 import com.hypixel.hytale.component.system.QuerySystem;
@@ -17,7 +16,6 @@ import com.hypixel.hytale.server.core.universe.world.storage.PhysicsStore;
 import dev.hytalemodding.impulse.core.ImpulsePlugin;
 import dev.hytalemodding.impulse.core.internal.physicsstore.resources.PhysicsIdentityIndexResource;
 import dev.hytalemodding.impulse.core.internal.physicsstore.resources.PhysicsRequestQueueResource;
-import dev.hytalemodding.impulse.core.internal.systems.sync.PhysicsSyncSystem;
 import dev.hytalemodding.impulse.core.plugin.body.RigidBodyKey;
 import dev.hytalemodding.impulse.core.plugin.components.PhysicsBodyIdentityComponent;
 import dev.hytalemodding.impulse.core.plugin.components.PhysicsBodyKinematicTargetComponent;
@@ -46,8 +44,7 @@ public final class PhysicsStoreKinematicTargetProducerSystem extends TickingSyst
         PhysicsBodyKinematicTargetComponent.getComponentType();
     private static final Query<EntityStore> QUERY = Query.and(IDENTITY_TYPE, TARGET_TYPE);
     private final Set<Dependency<EntityStore>> dependencies = Set.of(
-        new SystemGroupDependency<>(Order.AFTER, ImpulsePlugin.get().getPersistenceRestoreGroup()),
-        new SystemDependency<>(Order.BEFORE, PhysicsSyncSystem.class)
+        new SystemGroupDependency<>(Order.AFTER, ImpulsePlugin.get().getPersistenceRestoreGroup())
     );
     @Nonnull
     private final Map<Store<EntityStore>, RigidBodyKinematicTargetState> statesByStore =

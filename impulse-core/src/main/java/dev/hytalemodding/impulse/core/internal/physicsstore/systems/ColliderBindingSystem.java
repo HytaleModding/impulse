@@ -15,8 +15,7 @@ import javax.annotation.Nonnull;
 public final class ColliderBindingSystem extends TickingSystem<PhysicsStore> {
 
     private static final Set<Dependency<PhysicsStore>> DEPENDENCIES = Set.of(
-        new SystemDependency<>(Order.AFTER, BodyBindingSystem.class),
-        new SystemDependency<>(Order.BEFORE, JointBindingSystem.class)
+        new SystemDependency<>(Order.AFTER, BodyBindingSystem.class)
     );
 
     @Override
