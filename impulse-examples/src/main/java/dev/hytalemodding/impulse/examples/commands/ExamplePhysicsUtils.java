@@ -48,8 +48,10 @@ import dev.hytalemodding.impulse.core.plugin.simulation.PhysicsCommandHandle;
 import dev.hytalemodding.impulse.core.plugin.simulation.recorder.PhysicsCommandRecorder;
 import dev.hytalemodding.impulse.core.plugin.simulation.PhysicsShapeSpec;
 import dev.hytalemodding.impulse.core.plugin.simulation.RigidBodySpawnSettings;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Comparator;
+import java.util.List;
 import java.util.Objects;
 import java.util.UUID;
 import java.util.function.Consumer;
@@ -595,34 +597,37 @@ public final class ExamplePhysicsUtils {
                 0L);
         }
 
-        long commandStartNanos = System.nanoTime();
-        requireApplied(resource.submitCommands(serverTick, 1, commands ->
-            commands.spawnBodies(batch.size(),
-                spaceId,
+        World world = store.getExternalData().getWorld();
+        UUID spaceUuid = PhysicsStoreAccess.resolveSpaceUuid(world, spaceId);
+        if (spaceUuid == null) {
+            throw new IllegalStateException("Cannot spawn block body batch because the target space is not "
+                + "bound in PhysicsStore: " + spaceId.value());
+        }
+
+        List<BodyUpsertRequest> requests = new ArrayList<>(batch.size());
+        for (int i = 0; i < batch.size(); i++) {
+            RigidBodyKey bodyKey = batch.bodyKey(i);
+            requests.add(bodyUpsertRequest(spaceUuid,
+                bodyKey.value(),
+                new Vector3f(batch.positionX(i), batch.positionY(i), batch.positionZ(i)),
                 shape,
                 mass,
-                PhysicsBodyType.DYNAMIC,
                 settings,
-                PhysicsBodyKind.BODY,
-                PhysicsBodyPersistenceMode.PERSISTENT,
-                spawns -> {
-                    for (int i = 0; i < batch.size(); i++) {
-                        spawns.body(batch.bodyKeyMostSignificantBits(i),
-                            batch.bodyKeyLeastSignificantBits(i),
-                            batch.positionX(i),
-                            batch.positionY(i),
-                            batch.positionZ(i));
-                    }
-                })), "spawn attached block bodies");
+                null));
+        }
+
+        long commandStartNanos = System.nanoTime();
+        PhysicsStoreAccess.enqueueAll(world, requests);
         long commandApplyNanos = System.nanoTime() - commandStartNanos;
 
         long entityAttachStartNanos = System.nanoTime();
         SpawnedBlockBody[] spawned = collectBodies ? new SpawnedBlockBody[batch.size()] : null;
         for (int i = 0; i < batch.size(); i++) {
             RigidBodyKey bodyKey = batch.bodyKey(i);
-            Ref<EntityStore> entity = spawnAttachedBlockEntity(store,
+            Ref<EntityStore> entity = spawnAttachedPhysicsStoreBlockEntity(store,
                 time,
                 bodyKey,
+                bodyKey.value(),
                 spaceId,
                 blockType,
                 new Vector3d(batch.positionX(i), batch.positionY(i), batch.positionZ(i)),
