@@ -3,7 +3,9 @@ package dev.hytalemodding.impulse.core.internal.physicsstore.resources;
 import com.hypixel.hytale.component.Resource;
 import com.hypixel.hytale.component.ResourceType;
 import com.hypixel.hytale.server.core.universe.world.storage.PhysicsStore;
+import dev.hytalemodding.impulse.api.PhysicsStepPhaseStats;
 import dev.hytalemodding.impulse.core.plugin.physicsstore.PhysicsStoreTypes;
+import java.util.Objects;
 import javax.annotation.Nonnull;
 
 /**
@@ -17,8 +19,12 @@ public final class PhysicsProfilingResource implements Resource<PhysicsStore> {
     private long snapshotNanos;
     private long persistenceCaptureNanos;
     private long stepSubmitNanos;
+    private int spaces;
+    private int substeps;
     private int queuedRequests;
     private int publishedBodies;
+    @Nonnull
+    private PhysicsStepPhaseStats nativePhaseStats = PhysicsStepPhaseStats.unavailable();
 
     public PhysicsProfilingResource() {
     }
@@ -31,20 +37,42 @@ public final class PhysicsProfilingResource implements Resource<PhysicsStore> {
         this.enabled = enabled;
     }
 
-    public void recordLatest(long requestDrainNanos,
-        long bindingNanos,
-        long snapshotNanos,
-        long persistenceCaptureNanos,
-        long stepSubmitNanos,
-        int queuedRequests,
-        int publishedBodies) {
-        this.requestDrainNanos = requestDrainNanos;
-        this.bindingNanos = bindingNanos;
-        this.snapshotNanos = snapshotNanos;
-        this.persistenceCaptureNanos = persistenceCaptureNanos;
-        this.stepSubmitNanos = stepSubmitNanos;
-        this.queuedRequests = queuedRequests;
-        this.publishedBodies = publishedBodies;
+    public void recordStep(long stepSubmitNanos,
+        int spaces,
+        int substeps,
+        @Nonnull PhysicsStepPhaseStats nativePhaseStats) {
+        this.stepSubmitNanos = Math.max(0L, stepSubmitNanos);
+        this.spaces = Math.max(0, spaces);
+        this.substeps = Math.max(0, substeps);
+        this.nativePhaseStats = Objects.requireNonNull(nativePhaseStats, "nativePhaseStats");
+    }
+
+    public void recordSnapshot(long snapshotNanos, int publishedBodies) {
+        this.snapshotNanos = Math.max(0L, snapshotNanos);
+        this.publishedBodies = Math.max(0, publishedBodies);
+    }
+
+    public void reset() {
+        requestDrainNanos = 0L;
+        bindingNanos = 0L;
+        snapshotNanos = 0L;
+        persistenceCaptureNanos = 0L;
+        stepSubmitNanos = 0L;
+        spaces = 0;
+        substeps = 0;
+        queuedRequests = 0;
+        publishedBodies = 0;
+        nativePhaseStats = PhysicsStepPhaseStats.unavailable();
+    }
+
+    @Nonnull
+    public StepSample latestStepSample() {
+        return new StepSample(spaces,
+            substeps,
+            stepSubmitNanos,
+            snapshotNanos,
+            publishedBodies,
+            nativePhaseStats);
     }
 
     public long getRequestDrainNanos() {
@@ -67,6 +95,14 @@ public final class PhysicsProfilingResource implements Resource<PhysicsStore> {
         return stepSubmitNanos;
     }
 
+    public int getSpaces() {
+        return spaces;
+    }
+
+    public int getSubsteps() {
+        return substeps;
+    }
+
     public int getQueuedRequests() {
         return queuedRequests;
     }
@@ -76,22 +112,47 @@ public final class PhysicsProfilingResource implements Resource<PhysicsStore> {
     }
 
     @Nonnull
+    public PhysicsStepPhaseStats getNativePhaseStats() {
+        return nativePhaseStats;
+    }
+
+    @Nonnull
     @Override
     public PhysicsProfilingResource clone() {
         PhysicsProfilingResource copy = new PhysicsProfilingResource();
         copy.enabled = enabled;
-        copy.recordLatest(requestDrainNanos,
-            bindingNanos,
-            snapshotNanos,
-            persistenceCaptureNanos,
-            stepSubmitNanos,
-            queuedRequests,
-            publishedBodies);
+        copy.requestDrainNanos = requestDrainNanos;
+        copy.bindingNanos = bindingNanos;
+        copy.snapshotNanos = snapshotNanos;
+        copy.persistenceCaptureNanos = persistenceCaptureNanos;
+        copy.stepSubmitNanos = stepSubmitNanos;
+        copy.spaces = spaces;
+        copy.substeps = substeps;
+        copy.queuedRequests = queuedRequests;
+        copy.publishedBodies = publishedBodies;
+        copy.nativePhaseStats = nativePhaseStats;
         return copy;
     }
 
     @Nonnull
     public static ResourceType<PhysicsStore, PhysicsProfilingResource> getResourceType() {
         return PhysicsStoreTypes.profilingResourceType();
+    }
+
+    public record StepSample(int spaces,
+                             int substeps,
+                             long stepSubmitNanos,
+                             long snapshotNanos,
+                             int publishedBodies,
+                             @Nonnull PhysicsStepPhaseStats nativePhaseStats) {
+
+        public StepSample {
+            spaces = Math.max(0, spaces);
+            substeps = Math.max(0, substeps);
+            stepSubmitNanos = Math.max(0L, stepSubmitNanos);
+            snapshotNanos = Math.max(0L, snapshotNanos);
+            publishedBodies = Math.max(0, publishedBodies);
+            Objects.requireNonNull(nativePhaseStats, "nativePhaseStats");
+        }
     }
 }

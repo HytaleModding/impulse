@@ -17,6 +17,7 @@ import dev.hytalemodding.impulse.early.PhysicsStoreWorld;
 import dev.hytalemodding.impulse.core.internal.modules.control.ControlLifecycle;
 import dev.hytalemodding.impulse.core.internal.modules.control.PhysicsControlRuntimeState;
 import dev.hytalemodding.impulse.core.internal.physicsstore.PhysicsStoreSpaceMutations;
+import dev.hytalemodding.impulse.core.internal.physicsstore.resources.PhysicsEventResource;
 import dev.hytalemodding.impulse.core.internal.physicsstore.resources.PhysicsIdentityIndexResource;
 import dev.hytalemodding.impulse.core.internal.physicsstore.resources.PhysicsRuntimeResource;
 import dev.hytalemodding.impulse.core.internal.physicsstore.resources.PhysicsSpaceCompatibilityIndexResource;
@@ -273,6 +274,11 @@ public class PhysicsWorldRuntimeResource extends PhysicsWorldResource {
     @Nonnull
     @Override
     public PhysicsEventFrame getLatestEventFrame() {
+        if (hasAttachedAuthoritativePhysicsStore()) {
+            return authoritativePhysicsStore("read latest physics event frame")
+                .getResource(PhysicsEventResource.getResourceType())
+                .getLatestFrame();
+        }
         return lifecycleState.latestEventFrame();
     }
 

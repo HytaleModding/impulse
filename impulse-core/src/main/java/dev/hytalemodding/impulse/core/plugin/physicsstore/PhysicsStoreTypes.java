@@ -4,6 +4,7 @@ import com.hypixel.hytale.component.ComponentType;
 import com.hypixel.hytale.component.ResourceType;
 import com.hypixel.hytale.server.core.universe.world.storage.PhysicsStore;
 import dev.hytalemodding.impulse.core.internal.physicsstore.resources.PhysicsDebugResource;
+import dev.hytalemodding.impulse.core.internal.physicsstore.resources.PhysicsEventResource;
 import dev.hytalemodding.impulse.core.internal.physicsstore.resources.PhysicsIdentityIndexResource;
 import dev.hytalemodding.impulse.core.internal.physicsstore.resources.PhysicsProfilingResource;
 import dev.hytalemodding.impulse.core.internal.physicsstore.resources.PhysicsTerrainMutationQueueResource;
@@ -94,6 +95,8 @@ public final class PhysicsStoreTypes {
     private static ResourceType<PhysicsStore, PhysicsIdentityIndexResource> identityIndexResourceType;
     @Nullable
     private static ResourceType<PhysicsStore, PhysicsSnapshotResource> snapshotResourceType;
+    @Nullable
+    private static ResourceType<PhysicsStore, PhysicsEventResource> eventResourceType;
     @Nullable
     private static ResourceType<PhysicsStore, PhysicsStoreReadQueueResource> readQueueResourceType;
     @Nullable
@@ -230,6 +233,11 @@ public final class PhysicsStoreTypes {
     public static void setSnapshotResourceType(
         @Nonnull ResourceType<PhysicsStore, PhysicsSnapshotResource> type) {
         snapshotResourceType = Objects.requireNonNull(type, "type");
+    }
+
+    public static void setEventResourceType(
+        @Nonnull ResourceType<PhysicsStore, PhysicsEventResource> type) {
+        eventResourceType = Objects.requireNonNull(type, "type");
     }
 
     public static void setReadQueueResourceType(
@@ -391,6 +399,11 @@ public final class PhysicsStoreTypes {
     @Nonnull
     public static ResourceType<PhysicsStore, PhysicsSnapshotResource> snapshotResourceType() {
         return require(snapshotResourceType, "PhysicsSnapshotResource");
+    }
+
+    @Nonnull
+    public static ResourceType<PhysicsStore, PhysicsEventResource> eventResourceType() {
+        return require(eventResourceType, "PhysicsEventResource");
     }
 
     @Nonnull
