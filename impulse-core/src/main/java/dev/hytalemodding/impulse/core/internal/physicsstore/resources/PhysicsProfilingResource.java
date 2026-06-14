@@ -14,14 +14,10 @@ import javax.annotation.Nonnull;
 public final class PhysicsProfilingResource implements Resource<PhysicsStore> {
 
     private boolean enabled;
-    private long requestDrainNanos;
-    private long bindingNanos;
     private long snapshotNanos;
-    private long persistenceCaptureNanos;
     private long stepSubmitNanos;
     private int spaces;
     private int substeps;
-    private int queuedRequests;
     private int publishedBodies;
     @Nonnull
     private PhysicsStepPhaseStats nativePhaseStats = PhysicsStepPhaseStats.unavailable();
@@ -53,14 +49,10 @@ public final class PhysicsProfilingResource implements Resource<PhysicsStore> {
     }
 
     public void reset() {
-        requestDrainNanos = 0L;
-        bindingNanos = 0L;
         snapshotNanos = 0L;
-        persistenceCaptureNanos = 0L;
         stepSubmitNanos = 0L;
         spaces = 0;
         substeps = 0;
-        queuedRequests = 0;
         publishedBodies = 0;
         nativePhaseStats = PhysicsStepPhaseStats.unavailable();
     }
@@ -75,20 +67,8 @@ public final class PhysicsProfilingResource implements Resource<PhysicsStore> {
             nativePhaseStats);
     }
 
-    public long getRequestDrainNanos() {
-        return requestDrainNanos;
-    }
-
-    public long getBindingNanos() {
-        return bindingNanos;
-    }
-
     public long getSnapshotNanos() {
         return snapshotNanos;
-    }
-
-    public long getPersistenceCaptureNanos() {
-        return persistenceCaptureNanos;
     }
 
     public long getStepSubmitNanos() {
@@ -101,10 +81,6 @@ public final class PhysicsProfilingResource implements Resource<PhysicsStore> {
 
     public int getSubsteps() {
         return substeps;
-    }
-
-    public int getQueuedRequests() {
-        return queuedRequests;
     }
 
     public int getPublishedBodies() {
@@ -121,14 +97,10 @@ public final class PhysicsProfilingResource implements Resource<PhysicsStore> {
     public PhysicsProfilingResource clone() {
         PhysicsProfilingResource copy = new PhysicsProfilingResource();
         copy.enabled = enabled;
-        copy.requestDrainNanos = requestDrainNanos;
-        copy.bindingNanos = bindingNanos;
         copy.snapshotNanos = snapshotNanos;
-        copy.persistenceCaptureNanos = persistenceCaptureNanos;
         copy.stepSubmitNanos = stepSubmitNanos;
         copy.spaces = spaces;
         copy.substeps = substeps;
-        copy.queuedRequests = queuedRequests;
         copy.publishedBodies = publishedBodies;
         copy.nativePhaseStats = nativePhaseStats;
         return copy;
