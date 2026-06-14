@@ -10,7 +10,6 @@ import dev.hytalemodding.impulse.api.runtime.PhysicsBackendRuntime;
 import dev.hytalemodding.impulse.core.internal.physicsstore.resources.PhysicsRuntimeResource;
 import dev.hytalemodding.impulse.core.internal.physicsstore.resources.PhysicsSnapshotResource;
 import dev.hytalemodding.impulse.core.internal.physicsstore.resources.PhysicsSpaceCompatibilityIndexResource;
-import dev.hytalemodding.impulse.core.internal.physicsstore.resources.PhysicsStoreReadQueueResource;
 import dev.hytalemodding.impulse.core.internal.resources.BackendSpaceHandle;
 import dev.hytalemodding.impulse.core.internal.simulation.view.PhysicsDebugContactView;
 import dev.hytalemodding.impulse.core.internal.simulation.view.PhysicsDebugJointView;
@@ -49,13 +48,15 @@ final class PhysicsStoreDebugQueries {
         double viewerX = viewerPosition.x;
         double viewerY = viewerPosition.y;
         double viewerZ = viewerPosition.z;
-        return queue(store).enqueue(physics -> contacts(physics,
-            spaceId,
-            viewerX,
-            viewerY,
-            viewerZ,
-            viewRadius,
-            maxContacts));
+        return PhysicsStoreThreading.enqueueReadOnWorldThread(store,
+            "queue PhysicsStore debug contact read",
+            physics -> contacts(physics,
+                spaceId,
+                viewerX,
+                viewerY,
+                viewerZ,
+                viewRadius,
+                maxContacts));
     }
 
     @Nonnull
@@ -68,13 +69,15 @@ final class PhysicsStoreDebugQueries {
         double viewerX = viewerPosition.x;
         double viewerY = viewerPosition.y;
         double viewerZ = viewerPosition.z;
-        return queue(store).enqueue(physics -> joints(physics,
-            spaceId,
-            viewerX,
-            viewerY,
-            viewerZ,
-            viewRadius,
-            maxJoints));
+        return PhysicsStoreThreading.enqueueReadOnWorldThread(store,
+            "queue PhysicsStore debug joint read",
+            physics -> joints(physics,
+                spaceId,
+                viewerX,
+                viewerY,
+                viewerZ,
+                viewRadius,
+                maxJoints));
     }
 
     @Nonnull
@@ -294,11 +297,6 @@ final class PhysicsStoreDebugQueries {
             return null;
         }
         return new SpaceContext(spaceHandle, backendRuntime);
-    }
-
-    @Nonnull
-    private static PhysicsStoreReadQueueResource queue(@Nonnull Store<PhysicsStore> store) {
-        return store.getResource(PhysicsStoreReadQueueResource.getResourceType());
     }
 
     private static double distanceSquared(double x,
