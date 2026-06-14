@@ -88,7 +88,6 @@ public final class PhysicsControlSessionCleanupSystem
         @Nonnull PhysicsControlSessionComponent second) {
         return Objects.equals(first.getBodyUuid(), second.getBodyUuid())
             && Objects.equals(first.getAnchorBodyUuid(), second.getAnchorBodyUuid())
-            && Objects.equals(first.getControlJointKey(), second.getControlJointKey())
-            && Objects.equals(first.getSpaceId(), second.getSpaceId());
+            && Objects.equals(first.getControlJointKey(), second.getControlJointKey());
     }
 }

@@ -5,7 +5,6 @@ import com.hypixel.hytale.component.ComponentType;
 import com.hypixel.hytale.component.Ref;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import dev.hytalemodding.impulse.api.PhysicsBodyType;
-import dev.hytalemodding.impulse.api.SpaceId;
 import dev.hytalemodding.impulse.core.plugin.body.RigidBodyKey;
 import dev.hytalemodding.impulse.core.plugin.joint.JointKey;
 import java.util.Objects;
@@ -29,8 +28,6 @@ public class PhysicsControlSessionComponent implements Component<EntityStore> {
     private JointKey controlJointKey;
     @Nullable
     private Ref<EntityStore> targetRef;
-    @Nullable
-    private SpaceId spaceId;
     @Nonnull
     private PhysicsBodyType originalBodyType = PhysicsBodyType.DYNAMIC;
     @Getter
@@ -51,7 +48,6 @@ public class PhysicsControlSessionComponent implements Component<EntityStore> {
         @Nonnull RigidBodyKey anchorBodyKey,
         @Nullable JointKey controlJointKey,
         @Nullable Ref<EntityStore> targetRef,
-        @Nullable SpaceId spaceId,
         @Nonnull PhysicsBodyType originalBodyType,
         float grabDistance,
         @Nonnull Vector3f viewOffset,
@@ -60,7 +56,6 @@ public class PhysicsControlSessionComponent implements Component<EntityStore> {
             anchorBodyKey.value(),
             controlJointKey,
             targetRef,
-            spaceId,
             originalBodyType,
             grabDistance,
             viewOffset,
@@ -71,7 +66,6 @@ public class PhysicsControlSessionComponent implements Component<EntityStore> {
         @Nonnull UUID anchorBodyUuid,
         @Nullable JointKey controlJointKey,
         @Nullable Ref<EntityStore> targetRef,
-        @Nullable SpaceId spaceId,
         @Nonnull PhysicsBodyType originalBodyType,
         float grabDistance,
         @Nonnull Vector3f viewOffset,
@@ -80,7 +74,6 @@ public class PhysicsControlSessionComponent implements Component<EntityStore> {
         this.anchorBodyUuid = Objects.requireNonNull(anchorBodyUuid, "anchorBodyUuid");
         this.controlJointKey = controlJointKey;
         this.targetRef = targetRef;
-        this.spaceId = spaceId;
         this.originalBodyType = originalBodyType;
         this.grabDistance = grabDistance;
         this.viewOffset.set(viewOffset);
@@ -131,7 +124,6 @@ public class PhysicsControlSessionComponent implements Component<EntityStore> {
         copy.anchorBodyUuid = anchorBodyUuid;
         copy.controlJointKey = controlJointKey;
         copy.targetRef = targetRef;
-        copy.spaceId = spaceId;
         copy.originalBodyType = originalBodyType;
         copy.grabDistance = grabDistance;
         copy.viewOffset.set(viewOffset);

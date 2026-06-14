@@ -5,7 +5,6 @@ import com.hypixel.hytale.component.Ref;
 import com.hypixel.hytale.component.Store;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import dev.hytalemodding.impulse.api.PhysicsBodyType;
-import dev.hytalemodding.impulse.api.SpaceId;
 import dev.hytalemodding.impulse.core.internal.modules.control.ControlLifecycle;
 import dev.hytalemodding.impulse.core.internal.modules.control.components.PhysicsControlSessionComponent;
 import dev.hytalemodding.impulse.core.internal.modules.control.systems.PhysicsKinematicControlSystem;
@@ -57,7 +56,6 @@ public final class PhysicsControlSessions {
         @Nonnull RigidBodyKey bodyKey,
         @Nonnull RigidBodyKey anchorBodyKey,
         @Nullable Ref<EntityStore> targetRef,
-        @Nullable SpaceId spaceId,
         @Nonnull PhysicsBodyType originalBodyType,
         float grabDistance,
         @Nonnull Vector3f viewOffset,
@@ -68,7 +66,6 @@ public final class PhysicsControlSessions {
             anchorBodyKey.value(),
             null,
             targetRef,
-            spaceId,
             originalBodyType,
             grabDistance,
             viewOffset,
@@ -85,7 +82,6 @@ public final class PhysicsControlSessions {
         @Nonnull RigidBodyKey anchorBodyKey,
         @Nullable JointKey controlJointKey,
         @Nullable Ref<EntityStore> targetRef,
-        @Nullable SpaceId spaceId,
         @Nonnull PhysicsBodyType originalBodyType,
         float grabDistance,
         @Nonnull Vector3f viewOffset,
@@ -96,7 +92,6 @@ public final class PhysicsControlSessions {
             anchorBodyKey.value(),
             controlJointKey,
             targetRef,
-            spaceId,
             originalBodyType,
             grabDistance,
             viewOffset,
@@ -113,7 +108,6 @@ public final class PhysicsControlSessions {
         @Nonnull UUID anchorBodyUuid,
         @Nullable JointKey controlJointKey,
         @Nullable Ref<EntityStore> targetRef,
-        @Nullable SpaceId spaceId,
         @Nonnull PhysicsBodyType originalBodyType,
         float grabDistance,
         @Nonnull Vector3f viewOffset,
@@ -130,7 +124,6 @@ public final class PhysicsControlSessions {
                 anchorBodyUuid,
                 controlJointKey,
                 targetRef,
-                spaceId,
                 originalBodyType,
                 grabDistance,
                 viewOffset,
