@@ -27,7 +27,6 @@ import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyRegistrationView;
 import dev.hytalemodding.impulse.core.plugin.body.RigidBodyKey;
 import dev.hytalemodding.impulse.core.plugin.modules.control.PhysicsControlSessions;
 import dev.hytalemodding.impulse.core.plugin.joint.JointKey;
-import dev.hytalemodding.impulse.core.plugin.physicsstore.PhysicsStoreAccess;
 import dev.hytalemodding.impulse.core.plugin.physicsstore.PhysicsStoreRaycasts;
 import dev.hytalemodding.impulse.core.plugin.physicsstore.components.BodyComponent;
 import dev.hytalemodding.impulse.core.plugin.physicsstore.components.ColliderComponent;
@@ -161,7 +160,7 @@ public class GrabCommand extends AbstractAsyncPlayerCommand {
         }
         UUID spaceUuid;
         try {
-            spaceUuid = PhysicsStoreAccess.resolveSpaceUuid(world, selectedSpaceId);
+            spaceUuid = ExamplePhysicsUtils.resolvePhysicsStoreSpaceUuid(world, selectedSpaceId);
         } catch (IllegalStateException exception) {
             return null;
         }
@@ -182,7 +181,7 @@ public class GrabCommand extends AbstractAsyncPlayerCommand {
             controlJoint(spaceUuid, anchorBodyKey, selection.bodyKey(), bodyLocalHit)));
         requests.add(BodyActivationRequest.wake(selection.bodyKey().value()));
         try {
-            PhysicsStoreAccess.enqueueAll(world, requests);
+            ExamplePhysicsUtils.enqueuePhysicsStoreRequests(world, requests);
         } catch (IllegalStateException exception) {
             return null;
         }

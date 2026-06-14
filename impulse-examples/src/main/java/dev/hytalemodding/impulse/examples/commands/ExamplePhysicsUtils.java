@@ -17,8 +17,12 @@ import com.hypixel.hytale.server.core.modules.entity.component.TransformComponen
 import com.hypixel.hytale.server.core.modules.time.TimeResource;
 import com.hypixel.hytale.server.core.universe.world.World;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
+import com.hypixel.hytale.server.core.universe.world.storage.PhysicsStore;
 import dev.hytalemodding.impulse.api.PhysicsBodyType;
 import dev.hytalemodding.impulse.api.SpaceId;
+import dev.hytalemodding.impulse.early.PhysicsStoreWorld;
+import dev.hytalemodding.impulse.core.internal.physicsstore.resources.PhysicsRequestQueueResource;
+import dev.hytalemodding.impulse.core.internal.physicsstore.resources.PhysicsSpaceCompatibilityIndexResource;
 import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyKind;
 import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyPersistenceMode;
 import dev.hytalemodding.impulse.core.plugin.body.RigidBodyKey;
@@ -26,8 +30,8 @@ import dev.hytalemodding.impulse.core.plugin.modules.control.ImpulseControllable
 import dev.hytalemodding.impulse.core.plugin.modules.control.PhysicsControlSessions;
 import dev.hytalemodding.impulse.core.plugin.physicsstore.PhysicsBodySpawnRequests;
 import dev.hytalemodding.impulse.core.plugin.physicsstore.projection.BodyAttachmentComponent;
-import dev.hytalemodding.impulse.core.plugin.physicsstore.PhysicsStoreAccess;
 import dev.hytalemodding.impulse.core.plugin.physicsstore.requests.BodyUpsertRequest;
+import dev.hytalemodding.impulse.core.plugin.physicsstore.requests.PhysicsStoreRequest;
 import dev.hytalemodding.impulse.core.plugin.physicsstore.requests.PhysicsStoreRequestFenceHandle;
 import dev.hytalemodding.impulse.core.plugin.resources.PhysicsWorldResource;
 import dev.hytalemodding.impulse.core.plugin.settings.PhysicsVisualMaterializationSettings;
@@ -78,6 +82,45 @@ public final class ExamplePhysicsUtils {
     @Nonnull
     public static PhysicsWorldResource resource(@Nonnull Store<EntityStore> store) {
         return store.getResource(PhysicsWorldResource.getResourceType());
+    }
+
+    @Nonnull
+    public static Store<PhysicsStore> physicsStore(@Nonnull World world) {
+        return ((PhysicsStoreWorld) Objects.requireNonNull(world, "world")).getPhysicsStore()
+            .getStore();
+    }
+
+    @Nullable
+    public static UUID resolvePhysicsStoreSpaceUuid(@Nonnull World world,
+        @Nonnull SpaceId spaceId) {
+        return physicsStore(world)
+            .getResource(PhysicsSpaceCompatibilityIndexResource.getResourceType())
+            .getSpaceUuid(Objects.requireNonNull(spaceId, "spaceId"));
+    }
+
+    public static void enqueuePhysicsStoreRequest(@Nonnull World world,
+        @Nonnull PhysicsStoreRequest request) {
+        physicsStore(world)
+            .getResource(PhysicsRequestQueueResource.getResourceType())
+            .enqueue(Objects.requireNonNull(request, "request"));
+    }
+
+    public static void enqueuePhysicsStoreRequests(@Nonnull World world,
+        @Nonnull Iterable<? extends PhysicsStoreRequest> requests) {
+        physicsStore(world)
+            .getResource(PhysicsRequestQueueResource.getResourceType())
+            .enqueueAll(Objects.requireNonNull(requests, "requests"));
+    }
+
+    @Nonnull
+    public static PhysicsStoreRequestFenceHandle enqueuePhysicsStoreRequestsFenced(
+        @Nonnull World world,
+        @Nonnull Iterable<? extends PhysicsStoreRequest> requests,
+        long submittedServerTick) {
+        return physicsStore(world)
+            .getResource(PhysicsRequestQueueResource.getResourceType())
+            .enqueueAllFenced(Objects.requireNonNull(requests, "requests"),
+                Math.max(0L, submittedServerTick));
     }
 
     @Nullable
@@ -213,7 +256,7 @@ public final class ExamplePhysicsUtils {
         World world = store.getExternalData().getWorld();
         UUID spaceUuid;
         try {
-            spaceUuid = PhysicsStoreAccess.resolveSpaceUuid(world, spaceId);
+            spaceUuid = resolvePhysicsStoreSpaceUuid(world, spaceId);
         } catch (IllegalStateException exception) {
             return null;
         }
@@ -225,7 +268,7 @@ public final class ExamplePhysicsUtils {
         UUID bodyUuid = bodyKey.value();
         Vector3f bodyCenter = toVector3f(visualPosition);
         try {
-            PhysicsStoreAccess.enqueue(world,
+            enqueuePhysicsStoreRequest(world,
                 bodyUpsertRequest(spaceUuid,
                     bodyUuid,
                     bodyCenter,
@@ -310,7 +353,7 @@ public final class ExamplePhysicsUtils {
         }
 
         long requestStartNanos = System.nanoTime();
-        PhysicsStoreAccess.enqueueAll(world, plan.requests());
+        enqueuePhysicsStoreRequests(world, plan.requests());
         long requestEnqueueNanos = System.nanoTime() - requestStartNanos;
         return new BodyRequestBatchTiming(plan.count(),
             plan.setupWallNanos(),
@@ -339,9 +382,9 @@ public final class ExamplePhysicsUtils {
             recipe);
 
         long requestStartNanos = System.nanoTime();
-        PhysicsStoreRequestFenceHandle fence = PhysicsStoreAccess.enqueueAllFenced(world,
+        PhysicsStoreRequestFenceHandle fence = enqueuePhysicsStoreRequestsFenced(world,
             plan.requests(),
-            Math.max(0L, submittedServerTick));
+            submittedServerTick);
         long requestEnqueueNanos = System.nanoTime() - requestStartNanos;
         return new FencedBodyRequestBatchTiming(plan.count(),
             plan.setupWallNanos(),
@@ -374,7 +417,7 @@ public final class ExamplePhysicsUtils {
             return new DynamicBodyBatchPlan(List.of(), 0L);
         }
 
-        UUID spaceUuid = PhysicsStoreAccess.resolveSpaceUuid(world, spaceId);
+        UUID spaceUuid = resolvePhysicsStoreSpaceUuid(world, spaceId);
         if (spaceUuid == null) {
             throw new IllegalStateException("Cannot enqueue dynamic body batch because the target space is not "
                 + "bound in PhysicsStore: " + spaceId.value());
@@ -649,7 +692,7 @@ public final class ExamplePhysicsUtils {
         }
 
         World world = store.getExternalData().getWorld();
-        UUID spaceUuid = PhysicsStoreAccess.resolveSpaceUuid(world, spaceId);
+        UUID spaceUuid = resolvePhysicsStoreSpaceUuid(world, spaceId);
         if (spaceUuid == null) {
             throw new IllegalStateException("Cannot spawn block body batch because the target space is not "
                 + "bound in PhysicsStore: " + spaceId.value());
@@ -668,7 +711,7 @@ public final class ExamplePhysicsUtils {
         }
 
         long commandStartNanos = System.nanoTime();
-        PhysicsStoreAccess.enqueueAll(world, requests);
+        enqueuePhysicsStoreRequests(world, requests);
         long commandApplyNanos = System.nanoTime() - commandStartNanos;
 
         long entityAttachStartNanos = System.nanoTime();

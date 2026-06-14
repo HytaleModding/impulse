@@ -14,7 +14,6 @@ import com.hypixel.hytale.server.core.universe.world.World;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import dev.hytalemodding.impulse.api.SpaceId;
 import dev.hytalemodding.impulse.core.plugin.body.RigidBodyKey;
-import dev.hytalemodding.impulse.core.plugin.physicsstore.PhysicsStoreAccess;
 import dev.hytalemodding.impulse.core.plugin.physicsstore.requests.BodyForceRequest;
 import dev.hytalemodding.impulse.core.plugin.physicsstore.requests.PhysicsStoreRequest;
 import dev.hytalemodding.impulse.core.plugin.resources.PhysicsWorldResource;
@@ -103,7 +102,7 @@ public class ForcesCommand extends AbstractAsyncPlayerCommand {
         @Nonnull Vector3d forcePosition) {
         UUID spaceUuid;
         try {
-            spaceUuid = PhysicsStoreAccess.resolveSpaceUuid(world, spaceId);
+            spaceUuid = ExamplePhysicsUtils.resolvePhysicsStoreSpaceUuid(world, spaceId);
         } catch (IllegalStateException exception) {
             return null;
         }
@@ -127,7 +126,7 @@ public class ForcesCommand extends AbstractAsyncPlayerCommand {
         PendingBlockBody force = spawnBox(requests, spaceUuid, spaceId, forcePosition);
         requests.add(BodyForceRequest.force(force.bodyKey().value(), 30.0f, 0.0f, 0.0f));
         try {
-            PhysicsStoreAccess.enqueueAll(world, requests);
+            ExamplePhysicsUtils.enqueuePhysicsStoreRequests(world, requests);
         } catch (IllegalStateException exception) {
             return null;
         }

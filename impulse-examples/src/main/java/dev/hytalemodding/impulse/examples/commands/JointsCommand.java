@@ -14,7 +14,6 @@ import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import dev.hytalemodding.impulse.api.SpaceId;
 import dev.hytalemodding.impulse.core.plugin.body.RigidBodyKey;
 import dev.hytalemodding.impulse.core.plugin.joint.JointKey;
-import dev.hytalemodding.impulse.core.plugin.physicsstore.PhysicsStoreAccess;
 import dev.hytalemodding.impulse.core.plugin.physicsstore.components.JointComponent;
 import dev.hytalemodding.impulse.core.plugin.physicsstore.requests.JointUpsertRequest;
 import dev.hytalemodding.impulse.core.plugin.physicsstore.requests.PhysicsStoreRequest;
@@ -89,7 +88,7 @@ public class JointsCommand extends AbstractAsyncPlayerCommand {
         @Nonnull Vector3d origin) {
         UUID spaceUuid;
         try {
-            spaceUuid = PhysicsStoreAccess.resolveSpaceUuid(world, spaceId);
+            spaceUuid = ExamplePhysicsUtils.resolvePhysicsStoreSpaceUuid(world, spaceId);
         } catch (IllegalStateException exception) {
             return null;
         }
@@ -105,7 +104,7 @@ public class JointsCommand extends AbstractAsyncPlayerCommand {
         createSlider(pendingBodies, requests, spaceUuid, spaceId, new Vector3d(origin).add(7.5, 0.0, 0.0));
         createSpring(pendingBodies, requests, spaceUuid, spaceId, new Vector3d(origin).add(10.0, 0.0, 0.0));
         try {
-            PhysicsStoreAccess.enqueueAll(world, requests);
+            ExamplePhysicsUtils.enqueuePhysicsStoreRequests(world, requests);
         } catch (IllegalStateException exception) {
             return null;
         }
