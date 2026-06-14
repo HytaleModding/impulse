@@ -13,6 +13,7 @@ import dev.hytalemodding.impulse.core.internal.physicsstore.resources.PhysicsRun
 import dev.hytalemodding.impulse.core.internal.physicsstore.resources.PhysicsSpaceCompatibilityIndexResource;
 import dev.hytalemodding.impulse.core.internal.resources.BackendSpaceHandle;
 import dev.hytalemodding.impulse.core.plugin.physicsstore.PhysicsStoreEntities;
+import dev.hytalemodding.impulse.core.plugin.physicsstore.PhysicsStoreThreading;
 import dev.hytalemodding.impulse.core.plugin.physicsstore.components.CollisionLodSettingsComponent;
 import dev.hytalemodding.impulse.core.plugin.physicsstore.components.ExtensionSettingsComponent;
 import dev.hytalemodding.impulse.core.plugin.physicsstore.components.SolverSettingsComponent;
@@ -45,6 +46,7 @@ public final class PhysicsStoreSpaceMutations {
         Objects.requireNonNull(compatibilitySpaceId, "compatibilitySpaceId");
         Objects.requireNonNull(backendId, "backendId");
         Objects.requireNonNull(settings, "settings");
+        PhysicsStoreThreading.requireWorldThread(store, "add a PhysicsStore space row");
         if (backendId.value().isBlank()) {
             throw new IllegalArgumentException("PhysicsStore space backend id is blank: "
                 + spaceUuid);
@@ -91,7 +93,11 @@ public final class PhysicsStoreSpaceMutations {
         @Nonnull Ref<PhysicsStore> ref,
         @Nonnull UUID spaceUuid,
         @Nonnull PhysicsSpaceSettings settings) {
+        Objects.requireNonNull(store, "store");
+        Objects.requireNonNull(ref, "ref");
+        Objects.requireNonNull(spaceUuid, "spaceUuid");
         Objects.requireNonNull(settings, "settings");
+        PhysicsStoreThreading.requireWorldThread(store, "update a PhysicsStore space row");
         store.putComponent(ref,
             WorldCollisionComponent.getComponentType(),
             new WorldCollisionComponent(settings.getWorldCollisionSettings()));
@@ -116,6 +122,7 @@ public final class PhysicsStoreSpaceMutations {
         @Nonnull UUID spaceUuid) {
         Objects.requireNonNull(store, "store");
         Objects.requireNonNull(spaceUuid, "spaceUuid");
+        PhysicsStoreThreading.requireWorldThread(store, "remove a PhysicsStore space row");
         PhysicsRuntimeResource runtime = store.getResource(PhysicsRuntimeResource.getResourceType());
         PhysicsIdentityIndexResource identity =
             store.getResource(PhysicsIdentityIndexResource.getResourceType());

@@ -16,6 +16,7 @@ import dev.hytalemodding.impulse.core.internal.resources.BackendJointHandle;
 import dev.hytalemodding.impulse.core.internal.resources.BackendSpaceHandle;
 import dev.hytalemodding.impulse.core.plugin.body.RigidBodyKey;
 import dev.hytalemodding.impulse.core.plugin.joint.JointKey;
+import dev.hytalemodding.impulse.core.plugin.physicsstore.PhysicsStoreThreading;
 import dev.hytalemodding.impulse.core.plugin.physicsstore.components.BodyCommandComponent;
 import dev.hytalemodding.impulse.core.plugin.physicsstore.components.BodyComponent;
 import dev.hytalemodding.impulse.core.plugin.physicsstore.components.JointComponent;
@@ -42,6 +43,8 @@ public final class PhysicsStoreControlSessionMutations {
         Store<PhysicsStore> physicsStore =
             ((PhysicsStoreWorld) store.getExternalData().getWorld()).getPhysicsStore()
                 .getStore();
+        PhysicsStoreThreading.requireWorldThread(physicsStore,
+            "apply PhysicsStore control-session release mutations");
         PhysicsIdentityIndexResource identity = physicsStore.getResource(
             PhysicsIdentityIndexResource.getResourceType());
         PhysicsRuntimeResource runtime = physicsStore.getResource(PhysicsRuntimeResource.getResourceType());
