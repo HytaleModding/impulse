@@ -9,6 +9,7 @@ version = rootProject.version
 dependencies {
     implementation(project(":impulse-api"))
     compileOnly(project(":impulse-core"))
+    compileOnly(project(":impulse-early-plugin"))
     testImplementation(project(":impulse-core"))
     testCompileOnly("com.hypixel.hytale:Server:${property("hytale_version") as String}")
     testRuntimeOnly("com.hypixel.hytale:Server:${property("hytale_version") as String}")

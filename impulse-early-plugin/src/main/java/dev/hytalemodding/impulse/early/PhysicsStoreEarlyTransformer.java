@@ -62,6 +62,8 @@ public final class PhysicsStoreEarlyTransformer implements ClassTransformer {
         ClassDesc.of("com.hypixel.hytale.server.core.universe.world.storage.PhysicsStore");
     private static final ClassDesc CD_PHYSICS_STORE_HOOKS =
         ClassDesc.of("dev.hytalemodding.impulse.early.PhysicsStoreHooks");
+    private static final ClassDesc CD_PHYSICS_STORE_WORLD =
+        ClassDesc.of("dev.hytalemodding.impulse.early.PhysicsStoreWorld");
     private static final ClassDesc CD_PLUGIN_BASE =
         ClassDesc.of("com.hypixel.hytale.server.core.plugin.PluginBase");
     private static final ClassDesc CD_STORE = ClassDesc.of("com.hypixel.hytale.component.Store");
@@ -149,8 +151,17 @@ public final class PhysicsStoreEarlyTransformer implements ClassTransformer {
     @Nonnull
     private static byte[] transformWorld(@Nonnull byte[] bytes) {
         ClassModel model = CLASS_FILE.parse(bytes);
-        if (hasField(model.fields(), WORLD_PATCH_MARKER_FIELD, ConstantDescs.CD_boolean)) {
-            return bytes;
+        boolean patchMarkerPresent = hasField(model.fields(),
+            WORLD_PATCH_MARKER_FIELD,
+            ConstantDescs.CD_boolean);
+        boolean interfacePresent = hasInterface(model, CD_PHYSICS_STORE_WORLD);
+        if (patchMarkerPresent) {
+            if (interfacePresent) {
+                return bytes;
+            }
+            return CLASS_FILE.transformClass(model,
+                ClassTransform.ACCEPT_ALL.andThen(ClassTransform.endHandler(builder ->
+                    builder.withInterfaceSymbols(CD_PHYSICS_STORE_WORLD))));
         }
         boolean fieldPresent = hasField(model.fields(), WORLD_STORE_FIELD, CD_PHYSICS_STORE);
         boolean methodPresent = hasMethod(model.methods(), WORLD_STORE_METHOD, MTD_PHYSICS_STORE);
@@ -177,6 +188,9 @@ public final class PhysicsStoreEarlyTransformer implements ClassTransformer {
                 }
                 if (!methodPresent) {
                     addWorldStoreAccessor(builder);
+                }
+                if (!interfacePresent) {
+                    builder.withInterfaceSymbols(CD_PHYSICS_STORE_WORLD);
                 }
                 builder.withField(WORLD_PATCH_MARKER_FIELD,
                     ConstantDescs.CD_boolean,
@@ -554,6 +568,15 @@ public final class PhysicsStoreEarlyTransformer implements ClassTransformer {
         for (MethodModel method : methods) {
             if (method.methodName().equalsString(name)
                 && method.methodType().equalsString(descriptor.descriptorString())) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private static boolean hasInterface(@Nonnull ClassModel model, @Nonnull ClassDesc descriptor) {
+        for (var classEntry : model.interfaces()) {
+            if (classEntry.matches(descriptor)) {
                 return true;
             }
         }

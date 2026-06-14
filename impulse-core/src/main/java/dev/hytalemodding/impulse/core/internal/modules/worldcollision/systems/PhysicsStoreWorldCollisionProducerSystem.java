@@ -16,6 +16,7 @@ import com.hypixel.hytale.server.core.universe.world.World;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import com.hypixel.hytale.server.core.universe.world.storage.PhysicsStore;
 import dev.hytalemodding.impulse.api.PhysicsBodyType;
+import dev.hytalemodding.impulse.early.PhysicsStoreWorld;
 import dev.hytalemodding.impulse.core.internal.modules.worldcollision.PhysicsStoreTerrainRequestCache;
 import dev.hytalemodding.impulse.core.internal.modules.worldcollision.PhysicsStoreTerrainRequestCache.TargetRefreshDecision;
 import dev.hytalemodding.impulse.core.internal.modules.worldcollision.WorldCollisionLifecycle;
@@ -28,7 +29,6 @@ import dev.hytalemodding.impulse.core.internal.physicsstore.resources.PhysicsSna
 import dev.hytalemodding.impulse.core.internal.physicsstore.resources.PhysicsWorldCollisionIndexResource;
 import dev.hytalemodding.impulse.core.internal.physicsstore.resources.PhysicsWorldCollisionIndexResource.SpaceWorldCollisionSettings;
 import dev.hytalemodding.impulse.core.internal.systems.sync.PhysicsSyncSystem;
-import dev.hytalemodding.impulse.core.plugin.physicsstore.PhysicsStoreAccess;
 import dev.hytalemodding.impulse.core.plugin.physicsstore.snapshots.PhysicsStoreBodySnapshot;
 import dev.hytalemodding.impulse.core.plugin.physicsstore.snapshots.PhysicsStoreSnapshotFrame;
 import it.unimi.dsi.fastutil.longs.LongOpenHashSet;
@@ -81,7 +81,7 @@ public final class PhysicsStoreWorldCollisionProducerSystem extends TickingSyste
         long tickStart = snapshot != null ? System.nanoTime() : 0L;
         try {
             World world = store.getExternalData().getWorld();
-            PhysicsStore physicsStore = PhysicsStoreAccess.require(world);
+            PhysicsStore physicsStore = ((PhysicsStoreWorld) world).getPhysicsStore();
             Store<PhysicsStore> physics = physicsStore.getStore();
             PhysicsRequestQueueResource queue = physics.getResource(
                 PhysicsRequestQueueResource.getResourceType());

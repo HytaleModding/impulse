@@ -22,6 +22,7 @@ import com.hypixel.hytale.server.core.universe.world.storage.ChunkStore;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import dev.hytalemodding.impulse.api.PhysicsBodySnapshot;
 import dev.hytalemodding.impulse.api.SpaceId;
+import dev.hytalemodding.impulse.early.PhysicsStoreWorld;
 import dev.hytalemodding.impulse.core.ImpulsePlugin;
 import dev.hytalemodding.impulse.core.internal.components.GeneratedVisualProxyComponent;
 import dev.hytalemodding.impulse.core.internal.math.PhysicsVisualPoseMath;
@@ -36,7 +37,6 @@ import dev.hytalemodding.impulse.core.plugin.body.RigidBodyKey;
 import dev.hytalemodding.impulse.core.plugin.physicsstore.projection.BodyAttachmentComponent;
 import dev.hytalemodding.impulse.core.plugin.physicsstore.projection.BodyAttachmentComponent.AttachmentLifecycle;
 import dev.hytalemodding.impulse.core.plugin.physicsstore.projection.BodyAttachmentComponent.TransformAuthority;
-import dev.hytalemodding.impulse.core.plugin.physicsstore.PhysicsStoreAccess;
 import dev.hytalemodding.impulse.core.plugin.settings.PhysicsSpaceSettings;
 import dev.hytalemodding.impulse.core.plugin.settings.PhysicsVisualMaterializationSettings;
 import it.unimi.dsi.fastutil.objects.ObjectOpenHashSet;
@@ -155,9 +155,9 @@ public class PhysicsDetachedVisualMaterializationSystem extends TickingSystem<En
 
     private static boolean hasAuthoritativePhysicsStore(@Nonnull Store<EntityStore> store) {
         try {
-            PhysicsStoreAccess.require(store.getExternalData().getWorld());
+            ((PhysicsStoreWorld) store.getExternalData().getWorld()).getPhysicsStore();
             return true;
-        } catch (IllegalStateException exception) {
+        } catch (ClassCastException | IllegalStateException exception) {
             return false;
         }
     }

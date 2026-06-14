@@ -18,6 +18,7 @@ import com.hypixel.hytale.server.core.modules.entity.component.ModelComponent;
 import com.hypixel.hytale.server.core.modules.entity.component.TransformComponent;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import com.hypixel.hytale.server.core.universe.world.storage.PhysicsStore;
+import dev.hytalemodding.impulse.early.PhysicsStoreWorld;
 import dev.hytalemodding.impulse.core.internal.modules.control.ControlLifecycle;
 import dev.hytalemodding.impulse.core.internal.modules.control.components.PhysicsControlSessionComponent;
 import dev.hytalemodding.impulse.core.internal.physicsstore.resources.PhysicsIdentityIndexResource;
@@ -25,7 +26,6 @@ import dev.hytalemodding.impulse.core.internal.physicsstore.resources.PhysicsReq
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsWorldRuntimeResource;
 import dev.hytalemodding.impulse.core.internal.systems.sync.PhysicsSyncSystem;
 import dev.hytalemodding.impulse.core.plugin.body.RigidBodyKey;
-import dev.hytalemodding.impulse.core.plugin.physicsstore.PhysicsStoreAccess;
 import dev.hytalemodding.impulse.core.plugin.physicsstore.components.BodyComponent;
 import dev.hytalemodding.impulse.core.plugin.physicsstore.requests.BodyTargetRequest;
 import it.unimi.dsi.fastutil.objects.Object2ObjectMap;
@@ -168,7 +168,8 @@ public class PhysicsKinematicControlSystem extends EntityTickingSystem<EntitySto
         @Nonnull Store<EntityStore> store,
         @Nonnull RigidBodyKey bodyKey,
         @Nonnull RigidBodyKey anchorBodyKey) {
-        PhysicsStore physicsStore = PhysicsStoreAccess.require(store.getExternalData().getWorld());
+        PhysicsStore physicsStore =
+            ((PhysicsStoreWorld) store.getExternalData().getWorld()).getPhysicsStore();
         Store<PhysicsStore> physics = physicsStore.getStore();
         PhysicsIdentityIndexResource identity = physics.getResource(
             PhysicsIdentityIndexResource.getResourceType());

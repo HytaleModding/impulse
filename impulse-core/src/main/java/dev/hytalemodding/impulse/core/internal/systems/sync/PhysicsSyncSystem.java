@@ -18,6 +18,7 @@ import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import com.hypixel.hytale.server.core.universe.world.storage.PhysicsStore;
 import dev.hytalemodding.impulse.api.PhysicsBodySnapshot;
 import dev.hytalemodding.impulse.api.SpaceId;
+import dev.hytalemodding.impulse.early.PhysicsStoreWorld;
 import dev.hytalemodding.impulse.core.ImpulsePlugin;
 import dev.hytalemodding.impulse.core.internal.math.PhysicsVisualPoseMath;
 import dev.hytalemodding.impulse.core.internal.physicsstore.resources.PhysicsSnapshotResource;
@@ -30,7 +31,6 @@ import dev.hytalemodding.impulse.core.internal.systems.visual.VisualInterestColl
 import dev.hytalemodding.impulse.core.plugin.physicsstore.projection.BodyAttachmentComponent;
 import dev.hytalemodding.impulse.core.plugin.physicsstore.projection.BodyAttachmentComponent.AttachmentLifecycle;
 import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyRegistrationView;
-import dev.hytalemodding.impulse.core.plugin.physicsstore.PhysicsStoreAccess;
 import dev.hytalemodding.impulse.core.plugin.physicsstore.snapshots.PhysicsStoreBodySnapshot;
 import dev.hytalemodding.impulse.core.plugin.settings.PhysicsSpaceSettings;
 import java.util.List;
@@ -158,7 +158,8 @@ public class PhysicsSyncSystem extends EntityTickingSystem<EntityStore> {
     @Nonnull
     private static PhysicsSnapshotResource collectPhysicsStoreSnapshotResource(
         @Nonnull Store<EntityStore> store) {
-        PhysicsStore physicsStore = PhysicsStoreAccess.require(store.getExternalData().getWorld());
+        PhysicsStore physicsStore =
+            ((PhysicsStoreWorld) store.getExternalData().getWorld()).getPhysicsStore();
         return physicsStore.getStore().getResource(
             PhysicsSnapshotResource.getResourceType());
     }

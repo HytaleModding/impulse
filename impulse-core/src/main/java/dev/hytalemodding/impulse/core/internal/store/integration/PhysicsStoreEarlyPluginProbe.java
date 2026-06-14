@@ -3,6 +3,7 @@ package dev.hytalemodding.impulse.core.internal.store.integration;
 import com.hypixel.hytale.server.core.plugin.PluginBase;
 import com.hypixel.hytale.server.core.universe.system.WorldConfigSaveSystem;
 import com.hypixel.hytale.server.core.universe.world.World;
+import dev.hytalemodding.impulse.early.PhysicsStoreWorld;
 import java.lang.reflect.Method;
 import javax.annotation.Nonnull;
 
@@ -29,6 +30,10 @@ public final class PhysicsStoreEarlyPluginProbe {
             throw new IllegalStateException("Impulse PhysicsStore early plugin installed an "
                 + "unexpected World.getPhysicsStore() return type: "
                 + worldAccessor.getReturnType().getName());
+        }
+        if (!PhysicsStoreWorld.class.isAssignableFrom(World.class)) {
+            throw new IllegalStateException("Impulse PhysicsStore early plugin did not make World "
+                + "implement " + PhysicsStoreWorld.class.getName());
         }
         requireField(World.class, WORLD_LIFECYCLE_MARKER);
         requireField(WorldConfigSaveSystem.class, WORLD_RESOURCE_SAVE_MARKER);
