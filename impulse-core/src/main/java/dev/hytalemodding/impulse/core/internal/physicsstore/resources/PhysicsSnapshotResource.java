@@ -18,48 +18,51 @@ import javax.annotation.Nullable;
 public final class PhysicsSnapshotResource implements Resource<PhysicsStore> {
 
     @Nonnull
-    private PhysicsStoreSnapshotFrame latestFrame = PhysicsStoreSnapshotFrame.EMPTY;
-    @Nonnull
-    private final Map<UUID, PhysicsStoreBodySnapshot> bodiesByUuid =
-        new Object2ObjectOpenHashMap<>();
+    private volatile PublishedSnapshot snapshot = PublishedSnapshot.EMPTY;
 
     public PhysicsSnapshotResource() {
     }
 
     @Nonnull
     public PhysicsStoreSnapshotFrame getLatestFrame() {
-        return latestFrame;
+        return snapshot.frame();
     }
 
     @Nullable
     public PhysicsStoreBodySnapshot getBody(@Nonnull UUID bodyUuid) {
-        return bodiesByUuid.get(bodyUuid);
+        return snapshot.bodiesByUuid().get(bodyUuid);
     }
 
     public void publish(@Nonnull PhysicsStoreSnapshotFrame frame) {
-        latestFrame = frame;
-        bodiesByUuid.clear();
+        Map<UUID, PhysicsStoreBodySnapshot> bodiesByUuid = new Object2ObjectOpenHashMap<>();
         for (PhysicsStoreBodySnapshot body : frame.bodies()) {
             bodiesByUuid.put(body.bodyUuid(), body);
         }
+        snapshot = new PublishedSnapshot(frame, Map.copyOf(bodiesByUuid));
     }
 
     public void clear() {
-        latestFrame = PhysicsStoreSnapshotFrame.EMPTY;
-        bodiesByUuid.clear();
+        snapshot = PublishedSnapshot.EMPTY;
     }
 
     @Nonnull
     @Override
     public PhysicsSnapshotResource clone() {
         PhysicsSnapshotResource copy = new PhysicsSnapshotResource();
-        copy.latestFrame = latestFrame;
-        copy.bodiesByUuid.putAll(bodiesByUuid);
+        copy.snapshot = snapshot;
         return copy;
     }
 
     @Nonnull
     public static ResourceType<PhysicsStore, PhysicsSnapshotResource> getResourceType() {
         return PhysicsStoreTypes.snapshotResourceType();
+    }
+
+    private record PublishedSnapshot(
+        @Nonnull PhysicsStoreSnapshotFrame frame,
+        @Nonnull Map<UUID, PhysicsStoreBodySnapshot> bodiesByUuid) {
+
+        private static final PublishedSnapshot EMPTY =
+            new PublishedSnapshot(PhysicsStoreSnapshotFrame.EMPTY, Map.of());
     }
 }
