@@ -25,7 +25,6 @@ import dev.hytalemodding.impulse.core.internal.modules.worldcollision.profiling.
 import dev.hytalemodding.impulse.core.internal.physicsstore.PhysicsStoreSpaceMutations;
 import dev.hytalemodding.impulse.core.internal.physicsstore.resources.PhysicsTerrainMutationQueueResource;
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsWorldRuntimeResource;
-import dev.hytalemodding.impulse.core.internal.simulation.query.BenchmarkSpaceStatsQuery;
 import dev.hytalemodding.impulse.core.internal.simulation.view.BenchmarkSpaceStatsView;
 import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyKind;
 import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyPersistenceMode;
@@ -935,7 +934,7 @@ final class ImpulseDetachedStreamingBenchmarkCrucibleTests {
             BenchmarkSpaceStatsView view = PhysicsStoreBenchmarkQueries.benchmarkSpaceStats(
                 physicsStore,
                 worldCollisionStreaming,
-                new BenchmarkSpaceStatsQuery(spaceId,
+                new PhysicsStoreBenchmarkQueries.BenchmarkSpaceStatsRequest(spaceId,
                     GROUND_Y,
                     BELOW_PLANE_TOLERANCE,
                     BODY_WORLD_MIN_Y,

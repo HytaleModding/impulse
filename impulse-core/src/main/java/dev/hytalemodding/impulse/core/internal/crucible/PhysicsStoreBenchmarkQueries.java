@@ -6,10 +6,10 @@ import com.hypixel.hytale.component.Store;
 import com.hypixel.hytale.server.core.universe.world.storage.PhysicsStore;
 import dev.hytalemodding.impulse.api.PhysicsBodyType;
 import dev.hytalemodding.impulse.api.ShapeType;
+import dev.hytalemodding.impulse.api.SpaceId;
 import dev.hytalemodding.impulse.core.internal.modules.worldcollision.PhysicsStoreWorldCollisionStreamingResource;
 import dev.hytalemodding.impulse.core.internal.physicsstore.PhysicsStoreSpaceMutations;
 import dev.hytalemodding.impulse.core.internal.physicsstore.resources.PhysicsSnapshotResource;
-import dev.hytalemodding.impulse.core.internal.simulation.query.BenchmarkSpaceStatsQuery;
 import dev.hytalemodding.impulse.core.internal.simulation.view.BenchmarkSpaceStatsView;
 import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyKind;
 import dev.hytalemodding.impulse.core.plugin.physicsstore.PhysicsStoreThreading;
@@ -34,7 +34,7 @@ final class PhysicsStoreBenchmarkQueries {
     @Nonnull
     static BenchmarkSpaceStatsView benchmarkSpaceStats(@Nonnull Store<PhysicsStore> store,
         @Nullable PhysicsStoreWorldCollisionStreamingResource streaming,
-        @Nonnull BenchmarkSpaceStatsQuery query) {
+        @Nonnull BenchmarkSpaceStatsRequest query) {
         PhysicsStoreThreading.requireWorldThread(store, "read Crucible PhysicsStore benchmark stats");
         UUID spaceUuid = PhysicsStoreSpaceMutations.requireSpaceUuid(store, query.spaceId());
         PhysicsSnapshotResource snapshots = store.getResource(PhysicsSnapshotResource.getResourceType());
@@ -51,7 +51,7 @@ final class PhysicsStoreBenchmarkQueries {
     private static void collectBodyRows(@Nonnull ArchetypeChunk<PhysicsStore> chunk,
         @Nonnull PhysicsSnapshotResource snapshots,
         @Nonnull UUID spaceUuid,
-        @Nonnull BenchmarkSpaceStatsQuery query,
+        @Nonnull BenchmarkSpaceStatsRequest query,
         @Nonnull BenchmarkSpaceStatsAccumulator stats) {
         for (int index = 0; index < chunk.size(); index++) {
             BodyComponent body = chunk.getComponent(index, BodyComponent.getComponentType());
@@ -75,7 +75,7 @@ final class PhysicsStoreBenchmarkQueries {
         @Nonnull BodyComponent body,
         @Nullable ShapeComponent shape,
         @Nonnull PhysicsStoreBodySnapshot snapshot,
-        @Nonnull BenchmarkSpaceStatsQuery query) {
+        @Nonnull BenchmarkSpaceStatsRequest query) {
         stats.bodies++;
         if (snapshot.bodyType() == PhysicsBodyType.DYNAMIC) {
             stats.dynamicBodies++;
@@ -153,5 +153,13 @@ final class PhysicsStoreBenchmarkQueries {
                 Double.isFinite(minDynamicBodyY) ? (float) minDynamicBodyY : Float.NaN,
                 Double.isFinite(maxDynamicBodyY) ? (float) maxDynamicBodyY : Float.NaN);
         }
+    }
+
+    record BenchmarkSpaceStatsRequest(@Nonnull SpaceId spaceId,
+                                      float groundY,
+                                      float belowPlaneTolerance,
+                                      float bodyWorldMinY,
+                                      float bodyVoidY,
+                                      boolean includeTerrainProbe) {
     }
 }
