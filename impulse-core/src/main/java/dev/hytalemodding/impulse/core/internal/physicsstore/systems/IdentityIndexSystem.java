@@ -24,7 +24,7 @@ public final class IdentityIndexSystem extends TickingSystem<PhysicsStore>
     implements QuerySystem<PhysicsStore> {
 
     private static final Set<Dependency<PhysicsStore>> DEPENDENCIES = Set.of(
-        new SystemDependency<>(Order.AFTER, RequestDrainSystem.class)
+        new SystemDependency<>(Order.AFTER, TerrainMutationDrainSystem.class)
     );
 
     @Override

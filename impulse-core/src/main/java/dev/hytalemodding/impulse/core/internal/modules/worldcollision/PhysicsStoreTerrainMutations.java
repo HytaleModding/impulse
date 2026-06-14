@@ -2,26 +2,26 @@ package dev.hytalemodding.impulse.core.internal.modules.worldcollision;
 
 import dev.hytalemodding.impulse.api.PhysicsCollisionFilters;
 import dev.hytalemodding.impulse.core.internal.modules.worldcollision.SectionCollisionGeometry.BoxCollider;
-import dev.hytalemodding.impulse.core.plugin.physicsstore.requests.TerrainColliderPayload;
-import dev.hytalemodding.impulse.core.plugin.physicsstore.requests.TerrainColliderPayload.BoxPayload;
-import dev.hytalemodding.impulse.core.plugin.physicsstore.requests.TerrainColliderPayload.TerrainNeighbor;
-import dev.hytalemodding.impulse.core.plugin.physicsstore.requests.TerrainColliderRequest;
+import dev.hytalemodding.impulse.core.internal.physicsstore.terrain.TerrainColliderMutation;
+import dev.hytalemodding.impulse.core.internal.physicsstore.terrain.TerrainColliderPayload;
+import dev.hytalemodding.impulse.core.internal.physicsstore.terrain.TerrainColliderPayload.BoxPayload;
+import dev.hytalemodding.impulse.core.internal.physicsstore.terrain.TerrainColliderPayload.TerrainNeighbor;
 import java.util.List;
 import java.util.UUID;
 import javax.annotation.Nonnull;
 
 /**
- * Converts generated world-collision sections into copied PhysicsStore terrain requests.
+ * Converts generated world-collision sections into copied PhysicsStore terrain mutations.
  */
-public final class PhysicsStoreTerrainRequests {
+public final class PhysicsStoreTerrainMutations {
 
     private static final int ADJACENT_SECTION_VOXEL_SHIFT = 16;
 
-    private PhysicsStoreTerrainRequests() {
+    private PhysicsStoreTerrainMutations() {
     }
 
     @Nonnull
-    public static TerrainColliderRequest upsert(@Nonnull UUID spaceUuid,
+    public static TerrainColliderMutation upsert(@Nonnull UUID spaceUuid,
         int chunkX,
         int sectionY,
         int chunkZ,
@@ -29,7 +29,7 @@ public final class PhysicsStoreTerrainRequests {
         @Nonnull SectionCollisionGeometry geometry,
         @Nonnull WorldCollisionBuildOptions buildOptions) {
         String sourceKey = sourceKey(chunkX, sectionY, chunkZ);
-        return TerrainColliderRequest.upsert(spaceUuid,
+        return TerrainColliderMutation.upsert(spaceUuid,
             sourceKey,
             chunkX,
             sectionY,
@@ -39,11 +39,11 @@ public final class PhysicsStoreTerrainRequests {
     }
 
     @Nonnull
-    public static TerrainColliderRequest remove(@Nonnull UUID spaceUuid,
+    public static TerrainColliderMutation remove(@Nonnull UUID spaceUuid,
         int chunkX,
         int sectionY,
         int chunkZ) {
-        return TerrainColliderRequest.remove(spaceUuid,
+        return TerrainColliderMutation.remove(spaceUuid,
             sourceKey(chunkX, sectionY, chunkZ),
             chunkX,
             sectionY,

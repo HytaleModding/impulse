@@ -9,7 +9,7 @@ import dev.hytalemodding.impulse.core.internal.physicsstore.persistence.Persiste
 import dev.hytalemodding.impulse.core.internal.physicsstore.resources.PhysicsDebugResource;
 import dev.hytalemodding.impulse.core.internal.physicsstore.resources.PhysicsIdentityIndexResource;
 import dev.hytalemodding.impulse.core.internal.physicsstore.resources.PhysicsProfilingResource;
-import dev.hytalemodding.impulse.core.internal.physicsstore.resources.PhysicsRequestQueueResource;
+import dev.hytalemodding.impulse.core.internal.physicsstore.resources.PhysicsTerrainMutationQueueResource;
 import dev.hytalemodding.impulse.core.internal.physicsstore.resources.PhysicsRestoreStatusResource;
 import dev.hytalemodding.impulse.core.internal.physicsstore.resources.PhysicsRuntimeResource;
 import dev.hytalemodding.impulse.core.internal.physicsstore.resources.PhysicsSpaceCompatibilityIndexResource;
@@ -26,7 +26,7 @@ import dev.hytalemodding.impulse.core.internal.physicsstore.systems.JointBinding
 import dev.hytalemodding.impulse.core.internal.physicsstore.systems.PersistenceCaptureSystem;
 import dev.hytalemodding.impulse.core.internal.physicsstore.systems.PersistenceHydrationSystem;
 import dev.hytalemodding.impulse.core.internal.physicsstore.systems.PhysicsStoreReadRequestSystem;
-import dev.hytalemodding.impulse.core.internal.physicsstore.systems.RequestDrainSystem;
+import dev.hytalemodding.impulse.core.internal.physicsstore.systems.TerrainMutationDrainSystem;
 import dev.hytalemodding.impulse.core.internal.physicsstore.systems.SpaceBindingSystem;
 import dev.hytalemodding.impulse.core.internal.physicsstore.systems.SpaceSettingsApplicationSystem;
 import dev.hytalemodding.impulse.core.internal.physicsstore.systems.StepSubmissionSystem;
@@ -145,9 +145,9 @@ public final class PhysicsStoreRegistration {
         PhysicsStoreTypes.setSpaceCompatibilityIndexResourceType(registry.registerResource(
             PhysicsSpaceCompatibilityIndexResource.class,
             PhysicsSpaceCompatibilityIndexResource::new));
-        PhysicsStoreTypes.setRequestQueueResourceType(registry.registerResource(
-            PhysicsRequestQueueResource.class,
-            PhysicsRequestQueueResource::new));
+        PhysicsStoreTypes.setTerrainMutationQueueResourceType(registry.registerResource(
+            PhysicsTerrainMutationQueueResource.class,
+            PhysicsTerrainMutationQueueResource::new));
         PhysicsStoreTypes.setIdentityIndexResourceType(registry.registerResource(
             PhysicsIdentityIndexResource.class,
             PhysicsIdentityIndexResource::new));
@@ -178,7 +178,7 @@ public final class PhysicsStoreRegistration {
             PhysicsDebugResource::new));
 
         registry.registerSystem(new PersistenceHydrationSystem());
-        registry.registerSystem(new RequestDrainSystem());
+        registry.registerSystem(new TerrainMutationDrainSystem());
         registry.registerSystem(new IdentityIndexSystem());
         registry.registerSystem(new WorldCollisionIndexSystem());
         registry.registerSystem(new SpaceBindingSystem());
@@ -202,7 +202,7 @@ public final class PhysicsStoreRegistration {
         }
         RuntimeException failure = null;
         failure = runShutdownCleanup(failure,
-            () -> store.getResource(PhysicsRequestQueueResource.getResourceType()).clear());
+            () -> store.getResource(PhysicsTerrainMutationQueueResource.getResourceType()).clear());
         failure = runShutdownCleanup(failure,
             () -> store.getResource(PhysicsRuntimeResource.getResourceType()).destroyBackendBindings());
         failure = runShutdownCleanup(failure,

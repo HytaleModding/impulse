@@ -17,14 +17,14 @@ import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import com.hypixel.hytale.server.core.universe.world.storage.PhysicsStore;
 import dev.hytalemodding.impulse.api.PhysicsBodyType;
 import dev.hytalemodding.impulse.early.PhysicsStoreWorld;
-import dev.hytalemodding.impulse.core.internal.modules.worldcollision.PhysicsStoreTerrainRequestCache;
-import dev.hytalemodding.impulse.core.internal.modules.worldcollision.PhysicsStoreTerrainRequestCache.TargetRefreshDecision;
+import dev.hytalemodding.impulse.core.internal.modules.worldcollision.PhysicsStoreTerrainMutationCache;
+import dev.hytalemodding.impulse.core.internal.modules.worldcollision.PhysicsStoreTerrainMutationCache.TargetRefreshDecision;
 import dev.hytalemodding.impulse.core.internal.modules.worldcollision.WorldCollisionLifecycle;
 import dev.hytalemodding.impulse.core.internal.modules.worldcollision.WorldCollisionStreamingBounds;
 import dev.hytalemodding.impulse.core.internal.modules.worldcollision.profiling.WorldCollisionProfilingResource;
 import dev.hytalemodding.impulse.core.internal.modules.worldcollision.profiling.WorldCollisionProfilingResource.Snapshot;
 import dev.hytalemodding.impulse.core.internal.modules.worldcollision.profiling.WorldCollisionProfilingResource.StreamingTargetDiagnostic;
-import dev.hytalemodding.impulse.core.internal.physicsstore.resources.PhysicsRequestQueueResource;
+import dev.hytalemodding.impulse.core.internal.physicsstore.resources.PhysicsTerrainMutationQueueResource;
 import dev.hytalemodding.impulse.core.internal.physicsstore.resources.PhysicsSnapshotResource;
 import dev.hytalemodding.impulse.core.internal.physicsstore.resources.PhysicsWorldCollisionIndexResource;
 import dev.hytalemodding.impulse.core.internal.physicsstore.resources.PhysicsWorldCollisionIndexResource.SpaceWorldCollisionSettings;
@@ -83,8 +83,8 @@ public final class PhysicsStoreWorldCollisionProducerSystem extends TickingSyste
             World world = store.getExternalData().getWorld();
             PhysicsStore physicsStore = ((PhysicsStoreWorld) world).getPhysicsStore();
             Store<PhysicsStore> physics = physicsStore.getStore();
-            PhysicsRequestQueueResource queue = physics.getResource(
-                PhysicsRequestQueueResource.getResourceType());
+            PhysicsTerrainMutationQueueResource queue = physics.getResource(
+                PhysicsTerrainMutationQueueResource.getResourceType());
             PhysicsWorldCollisionIndexResource worldCollisionIndex = physics.getResource(
                 PhysicsWorldCollisionIndexResource.getResourceType());
             PhysicsSnapshotResource snapshotResource = physics.getResource(
@@ -102,7 +102,7 @@ public final class PhysicsStoreWorldCollisionProducerSystem extends TickingSyste
                 snapshot.setPlayerStreamingTargets(playerPositions.size());
             }
             long currentTick = state.nextTick();
-            PhysicsStoreTerrainRequestCache cache = state.cache();
+            PhysicsStoreTerrainMutationCache cache = state.cache();
             Set<UUID> retainedSpaces = new ObjectOpenHashSet<>();
             for (SpaceWorldCollisionSettings settings : spaces) {
                 retainedSpaces.add(settings.spaceUuid());
@@ -132,8 +132,8 @@ public final class PhysicsStoreWorldCollisionProducerSystem extends TickingSyste
     }
 
     private static void processSpace(@Nonnull World world,
-        @Nonnull PhysicsStoreTerrainRequestCache cache,
-        @Nonnull PhysicsRequestQueueResource queue,
+        @Nonnull PhysicsStoreTerrainMutationCache cache,
+        @Nonnull PhysicsTerrainMutationQueueResource queue,
         @Nonnull SpaceWorldCollisionSettings settings,
         @Nonnull List<Vector3d> playerPositions,
         @Nonnull PhysicsStoreSnapshotFrame physicsFrame,
@@ -195,7 +195,7 @@ public final class PhysicsStoreWorldCollisionProducerSystem extends TickingSyste
 
     @Nonnull
     private static List<BodyStreamingTarget> collectDynamicBodyTargets(
-        @Nonnull PhysicsStoreTerrainRequestCache cache,
+        @Nonnull PhysicsStoreTerrainMutationCache cache,
         @Nonnull SpaceWorldCollisionSettings settings,
         @Nonnull PhysicsStoreSnapshotFrame physicsFrame,
         long currentTick,
@@ -348,11 +348,11 @@ public final class PhysicsStoreWorldCollisionProducerSystem extends TickingSyste
     private static final class StreamingState {
 
         @Nonnull
-        private final PhysicsStoreTerrainRequestCache cache = new PhysicsStoreTerrainRequestCache();
+        private final PhysicsStoreTerrainMutationCache cache = new PhysicsStoreTerrainMutationCache();
         private long tick;
 
         @Nonnull
-        private PhysicsStoreTerrainRequestCache cache() {
+        private PhysicsStoreTerrainMutationCache cache() {
             return cache;
         }
 
