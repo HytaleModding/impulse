@@ -115,6 +115,33 @@ public final class PhysicsStoreRaycasts {
     }
 
     @Nonnull
+    public static CompletionStage<Optional<RaycastHitView>> closestAsync(@Nonnull World world,
+        @Nonnull UUID spaceUuid,
+        @Nonnull Vector3f from,
+        @Nonnull Vector3f to) {
+        Vector3f copiedFrom = new Vector3f(Objects.requireNonNull(from, "from"));
+        Vector3f copiedTo = new Vector3f(Objects.requireNonNull(to, "to"));
+        Objects.requireNonNull(spaceUuid, "spaceUuid");
+        return PhysicsStoreThreading.enqueueReadOnWorldThread(world,
+            "queue PhysicsStore closest raycast read",
+            physics -> closest(physics, spaceUuid, copiedFrom, copiedTo));
+    }
+
+    @Nonnull
+    public static CompletionStage<Optional<RaycastHitView>> closestAsync(
+        @Nonnull Store<PhysicsStore> store,
+        @Nonnull UUID spaceUuid,
+        @Nonnull Vector3f from,
+        @Nonnull Vector3f to) {
+        Vector3f copiedFrom = new Vector3f(Objects.requireNonNull(from, "from"));
+        Vector3f copiedTo = new Vector3f(Objects.requireNonNull(to, "to"));
+        Objects.requireNonNull(spaceUuid, "spaceUuid");
+        return PhysicsStoreThreading.enqueueReadOnWorldThread(store,
+            "queue PhysicsStore closest raycast read",
+            physics -> closest(physics, spaceUuid, copiedFrom, copiedTo));
+    }
+
+    @Nonnull
     public static CompletionStage<List<RaycastHitView>> allAsync(@Nonnull World world,
         @Nonnull SpaceId spaceId,
         @Nonnull Vector3f from,
@@ -139,6 +166,33 @@ public final class PhysicsStoreRaycasts {
     }
 
     @Nonnull
+    public static CompletionStage<List<RaycastHitView>> allAsync(@Nonnull World world,
+        @Nonnull UUID spaceUuid,
+        @Nonnull Vector3f from,
+        @Nonnull Vector3f to) {
+        Vector3f copiedFrom = new Vector3f(Objects.requireNonNull(from, "from"));
+        Vector3f copiedTo = new Vector3f(Objects.requireNonNull(to, "to"));
+        Objects.requireNonNull(spaceUuid, "spaceUuid");
+        return PhysicsStoreThreading.enqueueReadOnWorldThread(world,
+            "queue PhysicsStore all raycast read",
+            physics -> all(physics, spaceUuid, copiedFrom, copiedTo));
+    }
+
+    @Nonnull
+    public static CompletionStage<List<RaycastHitView>> allAsync(
+        @Nonnull Store<PhysicsStore> store,
+        @Nonnull UUID spaceUuid,
+        @Nonnull Vector3f from,
+        @Nonnull Vector3f to) {
+        Vector3f copiedFrom = new Vector3f(Objects.requireNonNull(from, "from"));
+        Vector3f copiedTo = new Vector3f(Objects.requireNonNull(to, "to"));
+        Objects.requireNonNull(spaceUuid, "spaceUuid");
+        return PhysicsStoreThreading.enqueueReadOnWorldThread(store,
+            "queue PhysicsStore all raycast read",
+            physics -> all(physics, spaceUuid, copiedFrom, copiedTo));
+    }
+
+    @Nonnull
     public static CompletionStage<RaycastClosestBatchResult> closestBatchAsync(
         @Nonnull World world,
         @Nonnull SpaceId spaceId,
@@ -158,6 +212,30 @@ public final class PhysicsStoreRaycasts {
         return PhysicsStoreThreading.enqueueReadOnWorldThread(store,
             "queue PhysicsStore batch raycast read",
             physics -> closestBatch(physics, spaceId, copied));
+    }
+
+    @Nonnull
+    public static CompletionStage<RaycastClosestBatchResult> closestBatchAsync(
+        @Nonnull World world,
+        @Nonnull UUID spaceUuid,
+        @Nonnull List<RaycastSegment> rays) {
+        List<RaycastSegment> copied = List.copyOf(Objects.requireNonNull(rays, "rays"));
+        Objects.requireNonNull(spaceUuid, "spaceUuid");
+        return PhysicsStoreThreading.enqueueReadOnWorldThread(world,
+            "queue PhysicsStore batch raycast read",
+            physics -> closestBatch(physics, spaceUuid, copied));
+    }
+
+    @Nonnull
+    public static CompletionStage<RaycastClosestBatchResult> closestBatchAsync(
+        @Nonnull Store<PhysicsStore> store,
+        @Nonnull UUID spaceUuid,
+        @Nonnull List<RaycastSegment> rays) {
+        List<RaycastSegment> copied = List.copyOf(Objects.requireNonNull(rays, "rays"));
+        Objects.requireNonNull(spaceUuid, "spaceUuid");
+        return PhysicsStoreThreading.enqueueReadOnWorldThread(store,
+            "queue PhysicsStore batch raycast read",
+            physics -> closestBatch(physics, spaceUuid, copied));
     }
 
     @Nonnull

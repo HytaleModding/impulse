@@ -57,6 +57,24 @@ public final class PhysicsStoreDiagnostics {
             physics -> bodyCount(physics, spaceId));
     }
 
+    @Nonnull
+    public static CompletionStage<Integer> bodyCountAsync(@Nonnull World world,
+        @Nonnull UUID spaceUuid) {
+        Objects.requireNonNull(spaceUuid, "spaceUuid");
+        return PhysicsStoreThreading.enqueueReadOnWorldThread(world,
+            "queue PhysicsStore body count read",
+            physics -> bodyCount(physics, spaceUuid));
+    }
+
+    @Nonnull
+    public static CompletionStage<Integer> bodyCountAsync(@Nonnull Store<PhysicsStore> store,
+        @Nonnull UUID spaceUuid) {
+        Objects.requireNonNull(spaceUuid, "spaceUuid");
+        return PhysicsStoreThreading.enqueueReadOnWorldThread(store,
+            "queue PhysicsStore body count read",
+            physics -> bodyCount(physics, spaceUuid));
+    }
+
     public static int runtimeJointCount(@Nonnull Store<PhysicsStore> store) {
         PhysicsStoreThreading.requireWorldThread(store, "read live PhysicsStore backend state");
         PhysicsRuntimeResource runtime = store.getResource(PhysicsRuntimeResource.getResourceType());
@@ -135,6 +153,26 @@ public final class PhysicsStoreDiagnostics {
     }
 
     @Nonnull
+    public static CompletionStage<SolverCapabilitySummary> solverCapabilityAsync(
+        @Nonnull World world,
+        @Nonnull UUID spaceUuid) {
+        Objects.requireNonNull(spaceUuid, "spaceUuid");
+        return PhysicsStoreThreading.enqueueReadOnWorldThread(world,
+            "queue PhysicsStore solver capability read",
+            physics -> solverCapability(physics, spaceUuid));
+    }
+
+    @Nonnull
+    public static CompletionStage<SolverCapabilitySummary> solverCapabilityAsync(
+        @Nonnull Store<PhysicsStore> store,
+        @Nonnull UUID spaceUuid) {
+        Objects.requireNonNull(spaceUuid, "spaceUuid");
+        return PhysicsStoreThreading.enqueueReadOnWorldThread(store,
+            "queue PhysicsStore solver capability read",
+            physics -> solverCapability(physics, spaceUuid));
+    }
+
+    @Nonnull
     public static SolverCapabilitySummary solverCapability(@Nonnull Store<PhysicsStore> store,
         @Nonnull UUID spaceUuid) {
         PhysicsStoreThreading.requireWorldThread(store, "read live PhysicsStore backend state");
@@ -198,6 +236,58 @@ public final class PhysicsStoreDiagnostics {
         return space != null
             ? List.of(PhysicsStoreBackendAccess.summary(compatibility, space))
             : List.of();
+    }
+
+    @Nonnull
+    public static CompletionStage<List<SpaceSummary>> spaceSummariesAsync(@Nonnull World world,
+        @Nonnull SpaceId spaceId) {
+        Objects.requireNonNull(spaceId, "spaceId");
+        return PhysicsStoreThreading.enqueueReadOnWorldThread(world,
+            "queue PhysicsStore space summary read",
+            physics -> spaceSummaries(physics, spaceId));
+    }
+
+    @Nonnull
+    public static CompletionStage<List<SpaceSummary>> spaceSummariesAsync(
+        @Nonnull Store<PhysicsStore> store,
+        @Nonnull SpaceId spaceId) {
+        Objects.requireNonNull(spaceId, "spaceId");
+        return PhysicsStoreThreading.enqueueReadOnWorldThread(store,
+            "queue PhysicsStore space summary read",
+            physics -> spaceSummaries(physics, spaceId));
+    }
+
+    @Nonnull
+    public static List<SpaceSummary> spaceSummaries(@Nonnull Store<PhysicsStore> store,
+        @Nonnull UUID spaceUuid) {
+        PhysicsStoreThreading.requireWorldThread(store, "read live PhysicsStore backend state");
+        PhysicsRuntimeResource runtime = store.getResource(PhysicsRuntimeResource.getResourceType());
+        PhysicsSpaceCompatibilityIndexResource compatibility = store.getResource(
+            PhysicsSpaceCompatibilityIndexResource.getResourceType());
+        PhysicsStoreBackendAccess.SpaceContext space =
+            PhysicsStoreBackendAccess.space(runtime, Objects.requireNonNull(spaceUuid, "spaceUuid"));
+        return space != null && compatibility.getSpaceId(space.spaceUuid()) != null
+            ? List.of(PhysicsStoreBackendAccess.summary(compatibility, space))
+            : List.of();
+    }
+
+    @Nonnull
+    public static CompletionStage<List<SpaceSummary>> spaceSummariesAsync(@Nonnull World world,
+        @Nonnull UUID spaceUuid) {
+        Objects.requireNonNull(spaceUuid, "spaceUuid");
+        return PhysicsStoreThreading.enqueueReadOnWorldThread(world,
+            "queue PhysicsStore space summary read",
+            physics -> spaceSummaries(physics, spaceUuid));
+    }
+
+    @Nonnull
+    public static CompletionStage<List<SpaceSummary>> spaceSummariesAsync(
+        @Nonnull Store<PhysicsStore> store,
+        @Nonnull UUID spaceUuid) {
+        Objects.requireNonNull(spaceUuid, "spaceUuid");
+        return PhysicsStoreThreading.enqueueReadOnWorldThread(store,
+            "queue PhysicsStore space summary read",
+            physics -> spaceSummaries(physics, spaceUuid));
     }
 
     @Nonnull
