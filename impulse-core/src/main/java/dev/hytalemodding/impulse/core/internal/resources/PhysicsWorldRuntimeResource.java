@@ -19,12 +19,16 @@ import dev.hytalemodding.impulse.early.PhysicsStoreWorld;
 import dev.hytalemodding.impulse.core.internal.modules.control.ControlLifecycle;
 import dev.hytalemodding.impulse.core.internal.modules.control.PhysicsControlRuntimeState;
 import dev.hytalemodding.impulse.core.internal.physicsstore.PhysicsStoreSpaceMutations;
+import dev.hytalemodding.impulse.core.internal.physicsstore.PhysicsStoreRuntimeCleaner;
+import dev.hytalemodding.impulse.core.internal.physicsstore.PhysicsStoreTopologyMutations;
 import dev.hytalemodding.impulse.core.internal.physicsstore.resources.PhysicsBodyRegistrationResource;
 import dev.hytalemodding.impulse.core.internal.physicsstore.resources.PhysicsEventResource;
 import dev.hytalemodding.impulse.core.internal.physicsstore.resources.PhysicsIdentityIndexResource;
 import dev.hytalemodding.impulse.core.internal.physicsstore.resources.PhysicsRuntimeResource;
 import dev.hytalemodding.impulse.core.internal.physicsstore.resources.PhysicsSnapshotResource;
 import dev.hytalemodding.impulse.core.internal.physicsstore.resources.PhysicsSpaceCompatibilityIndexResource;
+import dev.hytalemodding.impulse.core.internal.physicsstore.resources.PhysicsTerrainMutationQueueResource;
+import dev.hytalemodding.impulse.core.internal.physicsstore.resources.PhysicsWorldCollisionIndexResource.SpaceWorldCollisionSettings;
 import dev.hytalemodding.impulse.core.internal.physicsstore.resources.PhysicsWorldSettingsResource;
 import dev.hytalemodding.impulse.core.internal.resources.body.PhysicsBodyRegistry;
 import dev.hytalemodding.impulse.core.internal.resources.body.PhysicsBodyRuntimeState.BodySyncState;
@@ -35,6 +39,7 @@ import dev.hytalemodding.impulse.core.internal.resources.body.PhysicsBodySnapsho
 import dev.hytalemodding.impulse.core.internal.modules.worldcollision.PhysicsChunkBoundaryRuntime;
 import dev.hytalemodding.impulse.core.internal.modules.worldcollision.PhysicsChunkBoundaryRuntime.ChunkBoundaryPauseState;
 import dev.hytalemodding.impulse.core.internal.modules.worldcollision.PhysicsChunkBoundaryRuntime.ChunkBoundarySafeState;
+import dev.hytalemodding.impulse.core.internal.modules.worldcollision.PhysicsStoreWorldCollisionStreamingResource;
 import dev.hytalemodding.impulse.core.internal.resources.joint.PhysicsJointRegistration;
 import dev.hytalemodding.impulse.core.internal.resources.joint.PhysicsJointRegistry;
 import dev.hytalemodding.impulse.core.internal.resources.owner.PhysicsOwnerCallable;
@@ -88,6 +93,7 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
 import java.util.Objects;
+import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.atomic.AtomicLong;
@@ -1041,6 +1047,26 @@ public class PhysicsWorldRuntimeResource extends PhysicsWorldResource {
         @Nonnull SpaceId spaceId,
         @Nonnull Vector3d center,
         int radius) {
+        if (isAuthoritativePhysicsStoreActive()) {
+            requireWorldCollisionLifecycleEnabled();
+            Store<PhysicsStore> store = authoritativePhysicsStore("rebuild world collision");
+            SpaceWorldCollisionSettings settings =
+                requireAuthoritativeWorldCollisionSettings(store, spaceId);
+            PhysicsTerrainMutationQueueResource queue =
+                store.getResource(PhysicsTerrainMutationQueueResource.getResourceType());
+            int removed = authoritativeWorldCollisionStreaming()
+                .clearSpace(settings.spaceUuid(), queue);
+            WorldCollisionPrewarmStats stats = authoritativeWorldCollisionStreaming()
+                .ensureAround(world,
+                    settings.spaceUuid(),
+                    queue,
+                    List.of(center),
+                    radius,
+                    Math.max(0L, world.getTick()),
+                    null,
+                    settings.buildOptions());
+            return withRemovedBodies(stats.buildStats(), stats.buildStats().removedBodies() + removed);
+        }
         requireLegacyMutationAllowed("rebuild world collision");
         requireWorldCollisionLifecycleEnabled();
         return callOwner("rebuild world collision", () -> {
@@ -1063,6 +1089,20 @@ public class PhysicsWorldRuntimeResource extends PhysicsWorldResource {
         @Nonnull SpaceId spaceId,
         @Nonnull Vector3d center,
         int radius) {
+        if (isAuthoritativePhysicsStoreActive()) {
+            requireWorldCollisionLifecycleEnabled();
+            Store<PhysicsStore> store = authoritativePhysicsStore("refresh world collision");
+            SpaceWorldCollisionSettings settings =
+                requireAuthoritativeWorldCollisionSettings(store, spaceId);
+            return authoritativeWorldCollisionStreaming().refreshAround(world,
+                settings.spaceUuid(),
+                store.getResource(PhysicsTerrainMutationQueueResource.getResourceType()),
+                center,
+                radius,
+                Math.max(0L, world.getTick()),
+                null,
+                settings.buildOptions());
+        }
         requireLegacyMutationAllowed("refresh world collision");
         requireWorldCollisionLifecycleEnabled();
         return callOwner("refresh world collision", () -> {
@@ -1086,6 +1126,21 @@ public class PhysicsWorldRuntimeResource extends PhysicsWorldResource {
         @Nonnull Iterable<Vector3d> centers,
         int radius,
         long tick) {
+        if (isAuthoritativePhysicsStoreActive()) {
+            requireWorldCollisionLifecycleEnabled();
+            Objects.requireNonNull(centers, "centers");
+            Store<PhysicsStore> store = authoritativePhysicsStore("ensure world collision");
+            SpaceWorldCollisionSettings settings =
+                requireAuthoritativeWorldCollisionSettings(store, spaceId);
+            return authoritativeWorldCollisionStreaming().ensureAround(world,
+                settings.spaceUuid(),
+                store.getResource(PhysicsTerrainMutationQueueResource.getResourceType()),
+                centers,
+                radius,
+                tick,
+                null,
+                settings.buildOptions());
+        }
         requireLegacyMutationAllowed("ensure world collision");
         Objects.requireNonNull(centers, "centers");
         requireWorldCollisionLifecycleEnabled();
@@ -1106,6 +1161,11 @@ public class PhysicsWorldRuntimeResource extends PhysicsWorldResource {
 
     @Override
     public int clearWorldCollision(@Nonnull SpaceId spaceId) {
+        if (isAuthoritativePhysicsStoreActive()) {
+            Store<PhysicsStore> store = authoritativePhysicsStore("clear world collision");
+            UUID spaceUuid = requireSpaceUuid(store, spaceId);
+            return clearAuthoritativeWorldCollisionSpace(store, spaceUuid);
+        }
         requireLegacyMutationAllowed("clear world collision");
         return callOwner("clear world collision", () -> {
             PhysicsSpaceBinding space = requireSpaceBinding(spaceId);
@@ -1120,7 +1180,88 @@ public class PhysicsWorldRuntimeResource extends PhysicsWorldResource {
     @Nonnull
     @Override
     public WorldCollisionStats getWorldCollisionStats() {
+        if (isAuthoritativePhysicsStoreActive()) {
+            return WorldCollisionLifecycle.isEnabled()
+                ? authoritativeWorldCollisionStreaming().stats()
+                : new WorldCollisionStats(0, 0, 0, 0);
+        }
         return callOwner("read world collision stats", collisionRuntime::getStats);
+    }
+
+    @Nonnull
+    private PhysicsStoreWorldCollisionStreamingResource authoritativeWorldCollisionStreaming() {
+        Store<EntityStore> entityStore = owningStore;
+        if (entityStore == null) {
+            throw new IllegalStateException("Cannot access PhysicsStore world-collision streaming "
+                + "before this resource is attached to an EntityStore");
+        }
+        return entityStore.getResource(PhysicsStoreWorldCollisionStreamingResource.getResourceType());
+    }
+
+    @Nonnull
+    private SpaceWorldCollisionSettings requireAuthoritativeWorldCollisionSettings(
+        @Nonnull Store<PhysicsStore> store,
+        @Nonnull SpaceId spaceId) {
+        UUID spaceUuid = requireSpaceUuid(store, spaceId);
+        Ref<PhysicsStore> spaceRef = store.getResource(PhysicsIdentityIndexResource.getResourceType())
+            .getByUuid(spaceUuid);
+        if (spaceRef == null || !spaceRef.isValid()) {
+            throw new IllegalStateException("PhysicsStore space id=" + spaceId.value()
+                + " is not bound yet");
+        }
+        WorldCollisionComponent component =
+            store.getComponent(spaceRef, WorldCollisionComponent.getComponentType());
+        WorldCollisionComponent settings = component != null ? component : new WorldCollisionComponent();
+        if (settings.getMode() == WorldCollisionMode.NONE) {
+            throw new IllegalStateException("World collision is disabled for space " + spaceId);
+        }
+        return new SpaceWorldCollisionSettings(spaceUuid,
+            settings.getMode(),
+            settings.getEntityChunkBoundaryMode(),
+            settings.isNativeVoxelTerrainEnabled(),
+            settings.getRadius(),
+            settings.getBodyRadius(),
+            settings.getTtlTicks(),
+            settings.getTerrainFriction(),
+            settings.getTerrainRestitution());
+    }
+
+    private void clearAuthoritativeWorldCollisionStreaming(@Nonnull Store<PhysicsStore> store) {
+        if (!WorldCollisionLifecycle.isEnabled() || owningStore == null) {
+            return;
+        }
+        PhysicsTerrainMutationQueueResource queue =
+            store.getResource(PhysicsTerrainMutationQueueResource.getResourceType());
+        authoritativeWorldCollisionStreaming().retainSpaces(Set.of(), queue);
+        queue.clear();
+    }
+
+    private int clearAuthoritativeWorldCollisionSpace(@Nonnull Store<PhysicsStore> store,
+        @Nonnull UUID spaceUuid) {
+        if (!WorldCollisionLifecycle.isEnabled() || owningStore == null) {
+            return 0;
+        }
+        PhysicsTerrainMutationQueueResource queue =
+            store.getResource(PhysicsTerrainMutationQueueResource.getResourceType());
+        int removed = authoritativeWorldCollisionStreaming().clearSpace(spaceUuid, queue);
+        queue.removeIf(mutation -> spaceUuid.equals(mutation.spaceUuid()));
+        return removed;
+    }
+
+    @Nonnull
+    private static WorldCollisionBuildStats withRemovedBodies(
+        @Nonnull WorldCollisionBuildStats stats,
+        int removedBodies) {
+        return new WorldCollisionBuildStats(stats.scannedBlocks(),
+            stats.solidBlocks(),
+            stats.culledInteriorBlocks(),
+            stats.fullCubeRuns(),
+            stats.detailBoxes(),
+            stats.colliderBodies(),
+            removedBodies,
+            stats.sectionsBuilt(),
+            stats.sectionsRebuilt(),
+            stats.voxelBodies());
     }
 
     public void disableWorldCollisionLifecycle() {
@@ -1268,9 +1409,10 @@ public class PhysicsWorldRuntimeResource extends PhysicsWorldResource {
     @Override
     public void removeSpace(@Nonnull SpaceId spaceId, @Nonnull String worldName) {
         if (isAuthoritativePhysicsStoreActive()) {
-            PhysicsStoreSpaceMutations.removeEmptySpace(
-                authoritativePhysicsStore("remove physics space"),
-                spaceId);
+            Store<PhysicsStore> store = authoritativePhysicsStore("remove physics space");
+            UUID spaceUuid = requireSpaceUuid(store, spaceId);
+            clearAuthoritativeWorldCollisionSpace(store, spaceUuid);
+            PhysicsStoreTopologyMutations.removeSpaceWithContents(store, spaceUuid);
             return;
         }
         requireLegacyMutationAllowed("remove physics space");
@@ -1284,7 +1426,11 @@ public class PhysicsWorldRuntimeResource extends PhysicsWorldResource {
         if (isAuthoritativePhysicsStoreActive()) {
             return enqueueAuthoritativePhysicsStoreMutation("remove physics space",
                 spaceId,
-                store -> PhysicsStoreSpaceMutations.removeEmptySpace(store, spaceId));
+                store -> {
+                    UUID spaceUuid = requireSpaceUuid(store, spaceId);
+                    clearAuthoritativeWorldCollisionSpace(store, spaceUuid);
+                    PhysicsStoreTopologyMutations.removeSpaceWithContents(store, spaceUuid);
+                });
         }
         requireLegacyMutationAllowed("remove physics space");
         return enqueueOwnerMutation("remove physics space",
@@ -1320,6 +1466,12 @@ public class PhysicsWorldRuntimeResource extends PhysicsWorldResource {
 
     @Override
     public void clearAllSpaces(@Nonnull String worldName) {
+        if (isAuthoritativePhysicsStoreActive()) {
+            Store<PhysicsStore> store = authoritativePhysicsStore("clear physics spaces");
+            clearAuthoritativeWorldCollisionStreaming(store);
+            PhysicsStoreRuntimeCleaner.clearAll(store);
+            return;
+        }
         requireLegacyMutationAllowed("clear physics spaces");
         runOwnerMutation("clear physics spaces", () -> clearAllSpacesDirect(worldName));
     }
@@ -1327,6 +1479,14 @@ public class PhysicsWorldRuntimeResource extends PhysicsWorldResource {
     @Nonnull
     @Override
     public PhysicsMutationHandle<Void> clearAllSpacesAsync(@Nonnull String worldName) {
+        if (isAuthoritativePhysicsStoreActive()) {
+            return enqueueAuthoritativePhysicsStoreMutation("clear physics spaces",
+                null,
+                store -> {
+                    clearAuthoritativeWorldCollisionStreaming(store);
+                    PhysicsStoreRuntimeCleaner.clearAll(store);
+                });
+        }
         requireLegacyMutationAllowed("clear physics spaces");
         return enqueueOwnerMutation("clear physics spaces",
             () -> clearAllSpacesDirect(worldName));
@@ -1362,6 +1522,11 @@ public class PhysicsWorldRuntimeResource extends PhysicsWorldResource {
      */
     @Nonnull
     public PhysicsRuntimeResetResult resetRuntimeStateKeepingSpaces(@Nonnull String worldName) {
+        if (isAuthoritativePhysicsStoreActive()) {
+            Store<PhysicsStore> store = authoritativePhysicsStore("reset physics runtime state");
+            clearAuthoritativeWorldCollisionStreaming(store);
+            return PhysicsStoreTopologyMutations.clearBodiesKeepingSpaces(store);
+        }
         requireLegacyMutationAllowed("reset physics runtime state");
         return callOwner("reset physics runtime state",
             () -> resetRuntimeStateKeepingSpacesDirect(worldName));
@@ -1490,6 +1655,12 @@ public class PhysicsWorldRuntimeResource extends PhysicsWorldResource {
 
     @Override
     public void destroyBody(@Nonnull RigidBodyKey bodyKey) {
+        if (isAuthoritativePhysicsStoreActive()) {
+            PhysicsStoreTopologyMutations.destroyBody(
+                authoritativePhysicsStore("destroy physics body"),
+                bodyKey);
+            return;
+        }
         requireLegacyMutationAllowed("destroy physics body");
         destroyBody(bodyKey, true);
     }
@@ -1497,11 +1668,22 @@ public class PhysicsWorldRuntimeResource extends PhysicsWorldResource {
     @Nonnull
     @Override
     public PhysicsMutationHandle<RigidBodyKey> destroyBodyAsync(@Nonnull RigidBodyKey bodyKey) {
+        if (isAuthoritativePhysicsStoreActive()) {
+            return enqueueAuthoritativePhysicsStoreMutation("destroy physics body",
+                bodyKey,
+                store -> PhysicsStoreTopologyMutations.destroyBody(store, bodyKey));
+        }
         requireLegacyMutationAllowed("destroy physics body");
         return destroyBodyAsync(bodyKey, true);
     }
 
     public void destroyBody(@Nonnull RigidBodyKey bodyKey, boolean removeFromSpace) {
+        if (isAuthoritativePhysicsStoreActive()) {
+            PhysicsStoreTopologyMutations.destroyBody(
+                authoritativePhysicsStore("destroy physics body"),
+                bodyKey);
+            return;
+        }
         requireLegacyMutationAllowed("destroy physics body");
         runOwnerMutation("destroy physics body", () -> destroyBodyDirect(bodyKey, removeFromSpace));
     }
@@ -1509,6 +1691,11 @@ public class PhysicsWorldRuntimeResource extends PhysicsWorldResource {
     @Nonnull
     public PhysicsMutationHandle<RigidBodyKey> destroyBodyAsync(@Nonnull RigidBodyKey bodyKey,
         boolean removeFromSpace) {
+        if (isAuthoritativePhysicsStoreActive()) {
+            return enqueueAuthoritativePhysicsStoreMutation("destroy physics body",
+                bodyKey,
+                store -> PhysicsStoreTopologyMutations.destroyBody(store, bodyKey));
+        }
         requireLegacyMutationAllowed("destroy physics body");
         return enqueueOwnerMutation("destroy physics body",
             bodyKey,
@@ -1836,6 +2023,12 @@ public class PhysicsWorldRuntimeResource extends PhysicsWorldResource {
 
     @Override
     public void clearBodies() {
+        if (isAuthoritativePhysicsStoreActive()) {
+            Store<PhysicsStore> store = authoritativePhysicsStore("clear physics bodies");
+            clearAuthoritativeWorldCollisionStreaming(store);
+            PhysicsStoreTopologyMutations.clearBodiesKeepingSpaces(store);
+            return;
+        }
         requireLegacyMutationAllowed("clear physics bodies");
         runOwnerMutation("clear physics bodies", this::destroyRegisteredBodiesDirect);
     }
@@ -1843,6 +2036,14 @@ public class PhysicsWorldRuntimeResource extends PhysicsWorldResource {
     @Nonnull
     @Override
     public PhysicsMutationHandle<Void> clearBodiesAsync() {
+        if (isAuthoritativePhysicsStoreActive()) {
+            return enqueueAuthoritativePhysicsStoreMutation("clear physics bodies",
+                null,
+                store -> {
+                    clearAuthoritativeWorldCollisionStreaming(store);
+                    PhysicsStoreTopologyMutations.clearBodiesKeepingSpaces(store);
+                });
+        }
         requireLegacyMutationAllowed("clear physics bodies");
         return enqueueOwnerMutation("clear physics bodies", this::destroyRegisteredBodiesDirect);
     }

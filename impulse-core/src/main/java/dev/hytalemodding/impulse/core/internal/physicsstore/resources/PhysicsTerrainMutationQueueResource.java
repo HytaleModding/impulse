@@ -10,6 +10,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
 import java.util.Queue;
+import java.util.function.Predicate;
 import javax.annotation.Nonnull;
 
 /**
@@ -39,6 +40,13 @@ public final class PhysicsTerrainMutationQueueResource implements Resource<Physi
 
     public synchronized int size() {
         return mutations.size();
+    }
+
+    public synchronized int removeIf(@Nonnull Predicate<TerrainColliderMutation> predicate) {
+        Objects.requireNonNull(predicate, "predicate");
+        int before = mutations.size();
+        mutations.removeIf(predicate);
+        return before - mutations.size();
     }
 
     public synchronized void clear() {

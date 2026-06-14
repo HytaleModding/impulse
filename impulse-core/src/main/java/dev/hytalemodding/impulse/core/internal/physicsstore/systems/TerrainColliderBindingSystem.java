@@ -258,13 +258,7 @@ public final class TerrainColliderBindingSystem extends TickingSystem<PhysicsSto
     @Nullable
     private static PhysicsBackendRuntime runtimeForSpace(@Nonnull PhysicsRuntimeResource runtime,
         @Nonnull BackendSpaceHandle spaceHandle) {
-        final PhysicsBackendRuntime[] resolved = new PhysicsBackendRuntime[1];
-        runtime.forEachSpaceBinding((_, _, handle, backendRuntime) -> {
-            if (handle.value() == spaceHandle.value()) {
-                resolved[0] = backendRuntime;
-            }
-        });
-        return resolved[0];
+        return runtime.runtimeForSpaceHandle(spaceHandle);
     }
 
     @Nonnull

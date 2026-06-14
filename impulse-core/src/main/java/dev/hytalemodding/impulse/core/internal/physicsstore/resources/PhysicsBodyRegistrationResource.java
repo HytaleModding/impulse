@@ -78,6 +78,18 @@ public final class PhysicsBodyRegistrationResource implements Resource<PhysicsSt
             Map.copyOf(viewsByKey));
     }
 
+    public void removeBody(@Nonnull RigidBodyKey bodyKey) {
+        PublishedRegistrations current = registrations;
+        if (!current.viewsByKey().containsKey(bodyKey)) {
+            return;
+        }
+        Object2ObjectLinkedOpenHashMap<RigidBodyKey, PhysicsBodyRegistrationView> viewsByKey =
+            new Object2ObjectLinkedOpenHashMap<>(current.viewsByKey());
+        viewsByKey.remove(bodyKey);
+        registrations = new PublishedRegistrations(List.copyOf(viewsByKey.values()),
+            Map.copyOf(viewsByKey));
+    }
+
     public void clear() {
         registrations = PublishedRegistrations.EMPTY;
     }
