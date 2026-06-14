@@ -6,9 +6,8 @@ import com.hypixel.hytale.server.core.command.system.CommandContext;
 import com.hypixel.hytale.server.core.command.system.basecommands.AbstractWorldCommand;
 import com.hypixel.hytale.server.core.universe.world.World;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
-import dev.hytalemodding.impulse.core.plugin.resources.PhysicsWorldResource;
+import dev.hytalemodding.impulse.core.plugin.physicsstore.PhysicsStoreDiagnostics;
 import dev.hytalemodding.impulse.core.plugin.simulation.SpaceSummary;
-import dev.hytalemodding.impulse.core.plugin.simulation.query.SpaceSummaryQuery;
 import java.util.List;
 import javax.annotation.Nonnull;
 
@@ -22,9 +21,7 @@ public class PerfStatsCommand extends AbstractWorldCommand {
     protected void execute(@Nonnull CommandContext ctx,
         @Nonnull World world,
         @Nonnull Store<EntityStore> store) {
-        PhysicsWorldResource resource = store.getResource(PhysicsWorldResource.getResourceType());
-        List<SpaceSummary> spaces = resource.query(new SpaceSummaryQuery(null))
-            .completion()
+        List<SpaceSummary> spaces = PhysicsStoreDiagnostics.spaceSummariesAsync(world)
             .toCompletableFuture()
             .join();
 

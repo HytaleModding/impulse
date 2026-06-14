@@ -15,11 +15,11 @@ import dev.hytalemodding.impulse.api.SpaceId;
 import dev.hytalemodding.impulse.api.runtime.PhysicsBackendRuntimeProvider;
 import dev.hytalemodding.impulse.core.ImpulsePlugin;
 import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyRegistrationView;
+import dev.hytalemodding.impulse.core.plugin.physicsstore.PhysicsStoreDiagnostics;
 import dev.hytalemodding.impulse.core.plugin.resources.PhysicsWorldResource;
 import dev.hytalemodding.impulse.core.plugin.modules.worldcollision.WorldCollisionMode;
 import dev.hytalemodding.impulse.core.plugin.settings.PhysicsSpaceSettings;
 import dev.hytalemodding.impulse.core.plugin.simulation.SpaceSummary;
-import dev.hytalemodding.impulse.core.plugin.simulation.query.SpaceSummaryQuery;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
@@ -100,7 +100,7 @@ public class SpaceCommand extends AbstractCommandCollection {
             @Nonnull World world,
             @Nonnull Store<EntityStore> store) {
             PhysicsWorldResource resource = store.getResource(PhysicsWorldResource.getResourceType());
-            List<SpaceListEntry> spaces = spaceSummaries(resource, null).stream()
+            List<SpaceListEntry> spaces = spaceSummaries(world, null).stream()
                 .map(summary -> {
                     PhysicsSpaceSettings settings = resource.getSpaceSettings(summary.spaceId());
                     return new SpaceListEntry(summary.spaceId(),
@@ -171,7 +171,7 @@ public class SpaceCommand extends AbstractCommandCollection {
              * so they still require an explicit clean/destroy before deleting the space.
              */
             int registeredBodies = countRegisteredBodies(resource, spaceId);
-            SpaceCounts counts = countSpaceContents(resource, spaceId);
+            SpaceCounts counts = countSpaceContents(world, spaceId);
             int backendBodies = counts.bodies();
             int joints = counts.joints();
             if (registeredBodies > 0 || joints > 0) {
@@ -189,9 +189,9 @@ public class SpaceCommand extends AbstractCommandCollection {
     }
 
     @Nonnull
-    private static SpaceCounts countSpaceContents(@Nonnull PhysicsWorldResource resource,
+    private static SpaceCounts countSpaceContents(@Nonnull World world,
         @Nonnull SpaceId spaceId) {
-        List<SpaceSummary> summaries = spaceSummaries(resource, spaceId);
+        List<SpaceSummary> summaries = spaceSummaries(world, spaceId);
         if (summaries.isEmpty()) {
             return new SpaceCounts(0, 0);
         }
@@ -201,12 +201,19 @@ public class SpaceCommand extends AbstractCommandCollection {
     }
 
     @Nonnull
-    private static List<SpaceSummary> spaceSummaries(@Nonnull PhysicsWorldResource resource,
+    private static List<SpaceSummary> spaceSummaries(@Nonnull World world,
         @Nullable SpaceId spaceId) {
-        return resource.query(new SpaceSummaryQuery(spaceId))
-            .completion()
+        if (spaceId == null) {
+            return PhysicsStoreDiagnostics.spaceSummariesAsync(world)
+                .toCompletableFuture()
+                .join();
+        }
+        return PhysicsStoreDiagnostics.spaceSummariesAsync(world)
             .toCompletableFuture()
-            .join();
+            .join()
+            .stream()
+            .filter(summary -> summary.spaceId().equals(spaceId))
+            .toList();
     }
 
     private static int countRegisteredBodies(@Nonnull PhysicsWorldResource resource,

@@ -22,6 +22,7 @@ import dev.hytalemodding.impulse.api.SpaceId;
 import dev.hytalemodding.impulse.core.plugin.body.RigidBodyKey;
 import dev.hytalemodding.impulse.core.plugin.modules.worldcollision.WorldCollisionPrewarmStats;
 import dev.hytalemodding.impulse.core.plugin.physicsstore.PhysicsStoreAccess;
+import dev.hytalemodding.impulse.core.plugin.physicsstore.PhysicsStoreRaycasts;
 import dev.hytalemodding.impulse.core.plugin.physicsstore.requests.BodyForceRequest;
 import dev.hytalemodding.impulse.core.plugin.physicsstore.requests.BodyTargetRequest;
 import dev.hytalemodding.impulse.core.plugin.physicsstore.requests.BodyTypeRequest;
@@ -31,7 +32,6 @@ import dev.hytalemodding.impulse.core.plugin.resources.PhysicsWorldResource;
 import dev.hytalemodding.impulse.core.plugin.settings.PhysicsEventCollectionMode;
 import dev.hytalemodding.impulse.core.plugin.simulation.PhysicsShapeSpec;
 import dev.hytalemodding.impulse.core.plugin.simulation.RigidBodySpawnSettings;
-import dev.hytalemodding.impulse.core.plugin.simulation.query.RaycastClosestQuery;
 import dev.hytalemodding.impulse.core.plugin.simulation.view.RaycastHitView;
 import dev.hytalemodding.impulse.examples.explosive.ExplosiveBlockComponent;
 import dev.hytalemodding.impulse.examples.explosive.ExplosiveBlockPolicy;
@@ -530,9 +530,11 @@ public class EcsCommand extends AbstractCommandCollection {
         Vector3d start = ExamplePhysicsUtils.eyePosition(store, ref, transform);
         Vector3d end = new Vector3d(start)
             .add(ExamplePhysicsUtils.lookDirection(store, ref, transform).mul(RAY_LENGTH));
-        Optional<RaycastHitView> hit = ExamplePhysicsUtils.resource(store)
-            .query(new RaycastClosestQuery(spaceId, vector(start), vector(end)))
-            .completion()
+        Optional<RaycastHitView> hit = PhysicsStoreRaycasts.closestAsync(
+                store.getExternalData().getWorld(),
+                spaceId,
+                vector(start),
+                vector(end))
             .toCompletableFuture()
             .join();
         return hit.orElse(null);

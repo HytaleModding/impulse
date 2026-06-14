@@ -7,9 +7,9 @@ import dev.hytalemodding.impulse.core.internal.resources.profiling.PhysicsRuntim
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsVisualRuntime;
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsVisualRuntime.VisualInterest;
 import dev.hytalemodding.impulse.core.plugin.body.RigidBodyKey;
+import dev.hytalemodding.impulse.core.plugin.physicsstore.PhysicsStoreRaycasts;
 import dev.hytalemodding.impulse.core.plugin.settings.PhysicsSpaceSettings;
 import dev.hytalemodding.impulse.core.plugin.settings.VisualOcclusionMode;
-import dev.hytalemodding.impulse.core.plugin.simulation.query.RaycastClosestQuery;
 import dev.hytalemodding.impulse.core.plugin.simulation.view.RaycastHitView;
 import java.util.List;
 import java.util.Objects;
@@ -114,9 +114,11 @@ final class DetachedVisualOcclusion {
         VisualInterest interest = Objects.requireNonNull(probe.interest(), "interest");
         Vector3f target = RAYCAST_TARGET.get()
             .set(snapshot.positionX(), snapshot.positionY(), snapshot.positionZ());
-        state.startPendingRaycast(resource.query(new RaycastClosestQuery(space.spaceId(),
+        state.startPendingRaycast(PhysicsStoreRaycasts.closestAsync(
+            resource.requireAuthoritativeWorldForPhysicsStore("submit visual occlusion raycast"),
+            space.spaceId(),
             interest.position(),
-            target)).completion());
+            target));
     }
 
     @Nonnull

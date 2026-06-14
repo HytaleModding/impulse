@@ -11,8 +11,8 @@ import com.hypixel.hytale.server.core.universe.PlayerRef;
 import com.hypixel.hytale.server.core.universe.world.World;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import dev.hytalemodding.impulse.api.SpaceId;
+import dev.hytalemodding.impulse.core.plugin.physicsstore.PhysicsStoreRaycasts;
 import dev.hytalemodding.impulse.core.plugin.resources.PhysicsWorldResource;
-import dev.hytalemodding.impulse.core.plugin.simulation.query.RaycastClosestBatchQuery;
 import dev.hytalemodding.impulse.core.plugin.simulation.RaycastSegment;
 import dev.hytalemodding.impulse.examples.commands.ExamplePhysicsUtils;
 import java.util.ArrayList;
@@ -65,8 +65,7 @@ public class StressRaycastCommand extends AbstractAsyncPlayerCommand {
         List<RaycastSegment> segments = getRaycastSegments(side, rays, playerPos);
 
         long startNanos = System.nanoTime();
-        long hits = resource.query(new RaycastClosestBatchQuery(spaceId, segments))
-            .completion()
+        long hits = PhysicsStoreRaycasts.closestBatchAsync(world, spaceId, segments)
             .toCompletableFuture()
             .join()
             .hitCount();

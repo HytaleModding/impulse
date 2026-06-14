@@ -14,8 +14,8 @@ import com.hypixel.hytale.server.core.universe.PlayerRef;
 import com.hypixel.hytale.server.core.universe.world.World;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import dev.hytalemodding.impulse.api.SpaceId;
+import dev.hytalemodding.impulse.core.plugin.physicsstore.PhysicsStoreRaycasts;
 import dev.hytalemodding.impulse.core.plugin.resources.PhysicsWorldResource;
-import dev.hytalemodding.impulse.core.plugin.simulation.query.RaycastClosestQuery;
 import dev.hytalemodding.impulse.core.plugin.simulation.view.RaycastHitView;
 import java.util.concurrent.CompletableFuture;
 import javax.annotation.Nonnull;
@@ -60,10 +60,10 @@ public class RaycastCommand extends AbstractAsyncPlayerCommand {
 
         DebugUtils.addArrow(world, start, direction, DebugUtils.COLOR_WHITE, 0.8f, 4.0f,
             DebugUtils.FLAG_FADE);
-        RaycastResult hit = resource.query(new RaycastClosestQuery(spaceId,
+        RaycastResult hit = PhysicsStoreRaycasts.closestAsync(world,
+                spaceId,
                 ExamplePhysicsUtils.toVector3f(start),
-                ExamplePhysicsUtils.toVector3f(end)))
-            .completion()
+                ExamplePhysicsUtils.toVector3f(end))
             .toCompletableFuture()
             .join()
             .map(RaycastCommand::toResult)
