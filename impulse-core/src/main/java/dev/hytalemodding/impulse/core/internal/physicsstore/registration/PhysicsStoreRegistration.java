@@ -7,6 +7,7 @@ import com.hypixel.hytale.server.core.universe.world.storage.PhysicsStore;
 import dev.hytalemodding.impulse.early.PhysicsStoreHooks;
 import dev.hytalemodding.impulse.core.internal.physicsstore.persistence.PersistentPhysicsStoreResource;
 import dev.hytalemodding.impulse.core.internal.physicsstore.resources.PhysicsDebugResource;
+import dev.hytalemodding.impulse.core.internal.physicsstore.resources.PhysicsEventResource;
 import dev.hytalemodding.impulse.core.internal.physicsstore.resources.PhysicsIdentityIndexResource;
 import dev.hytalemodding.impulse.core.internal.physicsstore.resources.PhysicsProfilingResource;
 import dev.hytalemodding.impulse.core.internal.physicsstore.resources.PhysicsTerrainMutationQueueResource;
@@ -159,6 +160,9 @@ public final class PhysicsStoreRegistration {
         PhysicsStoreTypes.setSnapshotResourceType(registry.registerResource(
             PhysicsSnapshotResource.class,
             PhysicsSnapshotResource::new));
+        PhysicsStoreTypes.setEventResourceType(registry.registerResource(
+            PhysicsEventResource.class,
+            PhysicsEventResource::new));
         PhysicsStoreTypes.setReadQueueResourceType(registry.registerResource(
             PhysicsStoreReadQueueResource.class,
             PhysicsStoreReadQueueResource::new));
@@ -217,6 +221,10 @@ public final class PhysicsStoreRegistration {
             () -> store.getResource(PhysicsSpaceCompatibilityIndexResource.getResourceType()).clear());
         failure = runShutdownCleanup(failure,
             () -> store.getResource(PhysicsSnapshotResource.getResourceType()).clear());
+        failure = runShutdownCleanup(failure,
+            () -> store.getResource(PhysicsEventResource.getResourceType()).clear());
+        failure = runShutdownCleanup(failure,
+            () -> store.getResource(PhysicsProfilingResource.getResourceType()).reset());
         failure = runShutdownCleanup(failure,
             () -> store.getResource(PhysicsStoreReadQueueResource.getResourceType()).clear());
         failure = runShutdownCleanup(failure,

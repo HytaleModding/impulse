@@ -8,11 +8,14 @@ import com.hypixel.hytale.component.dependency.SystemDependency;
 import com.hypixel.hytale.component.system.tick.TickingSystem;
 import com.hypixel.hytale.server.core.universe.world.storage.PhysicsStore;
 import dev.hytalemodding.impulse.api.PhysicsBodyType;
+import dev.hytalemodding.impulse.api.PhysicsStepPhaseStats;
 import dev.hytalemodding.impulse.api.ShapeType;
 import dev.hytalemodding.impulse.api.runtime.BackendBodySnapshotSink;
 import dev.hytalemodding.impulse.api.runtime.BackendRuntimeCodes;
+import dev.hytalemodding.impulse.api.runtime.BackendStepPhaseStatsSink;
 import dev.hytalemodding.impulse.api.runtime.PhysicsBackendRuntime;
 import dev.hytalemodding.impulse.core.internal.physicsstore.resources.PhysicsIdentityIndexResource;
+import dev.hytalemodding.impulse.core.internal.physicsstore.resources.PhysicsProfilingResource;
 import dev.hytalemodding.impulse.core.internal.physicsstore.resources.PhysicsRestoreStatusResource;
 import dev.hytalemodding.impulse.core.internal.physicsstore.resources.PhysicsRuntimeResource;
 import dev.hytalemodding.impulse.core.internal.physicsstore.resources.PhysicsRuntimeResource.BodySnapshotMetadata;
@@ -73,11 +76,28 @@ public final class StepSubmissionSystem extends TickingSystem<PhysicsStore> {
                 ccdMode);
         }
         settingsResource.setCcdStepModeActive(ccdMode);
+        PhysicsProfilingResource profiling = store.getResource(PhysicsProfilingResource.getResourceType());
+        boolean profilingEnabled = profiling.isEnabled();
+        if (profilingEnabled) {
+            resetStepPhaseStats(runtime);
+        }
+        long stepStartNanos = profilingEnabled ? System.nanoTime() : 0L;
+        StepCounters counters = new StepCounters();
         runtime.forEachSpaceBinding((_, _, spaceHandle, backendRuntime) -> {
+            counters.spaceCount++;
             for (int step = 0; step < steps; step++) {
                 backendRuntime.step(spaceHandle.value(), stepDt);
+                counters.substeps++;
             }
         });
+        long stepNanos = profilingEnabled ? System.nanoTime() - stepStartNanos : 0L;
+        PhysicsStepPhaseStats nativePhaseStats = profilingEnabled
+            ? collectStepPhaseStats(runtime)
+            : PhysicsStepPhaseStats.unavailable();
+        profiling.recordStep(stepNanos,
+            counters.spaceCount,
+            counters.substeps,
+            nativePhaseStats);
     }
 
     private static int resolveAdaptiveStepCount(@Nonnull PhysicsRuntimeResource runtime,
@@ -125,6 +145,23 @@ public final class StepSubmissionSystem extends TickingSystem<PhysicsStore> {
             ref,
             DynamicsComponent.getComponentType());
         return dynamics != null && dynamics.isContinuousCollisionEnabled();
+    }
+
+    private static void resetStepPhaseStats(@Nonnull PhysicsRuntimeResource runtime) {
+        runtime.forEachSpaceBinding((_, _, spaceHandle, backendRuntime) ->
+            backendRuntime.resetStepPhaseStats(spaceHandle.value()));
+    }
+
+    @Nonnull
+    private static PhysicsStepPhaseStats collectStepPhaseStats(@Nonnull PhysicsRuntimeResource runtime) {
+        PhysicsStepPhaseStats[] stats = {PhysicsStepPhaseStats.unavailable()};
+        StepPhaseStatsCapture capture = new StepPhaseStatsCapture();
+        runtime.forEachSpaceBinding((_, _, spaceHandle, backendRuntime) -> {
+            capture.reset();
+            backendRuntime.stepPhaseStats(spaceHandle.value(), capture);
+            stats[0] = stats[0].add(capture.value());
+        });
+        return stats[0];
     }
 
     @Nonnull
@@ -283,6 +320,45 @@ public final class StepSubmissionSystem extends TickingSystem<PhysicsStore> {
         private int steps() {
             return steps;
         }
+    }
+
+    private static final class StepPhaseStatsCapture implements BackendStepPhaseStatsSink {
+
+        @Nonnull
+        private PhysicsStepPhaseStats value = PhysicsStepPhaseStats.unavailable();
+
+        @Override
+        public void accept(long stepNanos,
+            long broadPhaseNanos,
+            long narrowPhaseNanos,
+            long solverNanos,
+            long continuousCollisionNanos,
+            long snapshotNanos,
+            boolean available) {
+            value = available
+                ? PhysicsStepPhaseStats.available(stepNanos,
+                    broadPhaseNanos,
+                    narrowPhaseNanos,
+                    solverNanos,
+                    continuousCollisionNanos,
+                    snapshotNanos)
+                : PhysicsStepPhaseStats.unavailable();
+        }
+
+        private void reset() {
+            value = PhysicsStepPhaseStats.unavailable();
+        }
+
+        @Nonnull
+        private PhysicsStepPhaseStats value() {
+            return value;
+        }
+    }
+
+    private static final class StepCounters {
+
+        private int spaceCount;
+        private int substeps;
     }
 
     private static int requiredSteps(float travel, float safeTravel) {

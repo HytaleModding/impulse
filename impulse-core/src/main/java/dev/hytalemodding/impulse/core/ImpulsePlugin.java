@@ -32,6 +32,7 @@ import dev.hytalemodding.impulse.core.internal.resources.profiling.PhysicsRuntim
 import dev.hytalemodding.impulse.core.internal.physicsstore.registration.PhysicsStoreRegistration;
 import dev.hytalemodding.impulse.core.internal.store.integration.PhysicsStoreEarlyPluginProbe;
 import dev.hytalemodding.impulse.core.internal.systems.debug.PhysicsDebugSystem;
+import dev.hytalemodding.impulse.core.internal.systems.publication.PhysicsStoreEventPublicationSystem;
 import dev.hytalemodding.impulse.core.internal.systems.sync.PhysicsBodyAttachmentIndexSystem;
 import dev.hytalemodding.impulse.core.internal.systems.sync.PhysicsSyncSystem;
 import dev.hytalemodding.impulse.core.internal.systems.visual.PhysicsDetachedVisualMaterializationSystem;
@@ -309,6 +310,7 @@ public final class ImpulsePlugin extends JavaPlugin {
         ComponentRegistryProxy<EntityStore> entityRegistry = getEntityStoreRegistry();
         persistenceRestoreGroup = entityRegistry.registerSystemGroup();
         entityRegistry.registerSystem(new PhysicsBodyAttachmentIndexSystem());
+        entityRegistry.registerSystem(new PhysicsStoreEventPublicationSystem());
         entityRegistry.registerSystem(new PhysicsDetachedVisualMaterializationSystem());
         entityRegistry.registerSystem(new PhysicsSyncSystem());
         entityRegistry.registerSystem(new PhysicsDebugSystem());
