@@ -9,7 +9,7 @@ import dev.hytalemodding.impulse.api.SpaceId;
 import dev.hytalemodding.impulse.core.internal.modules.control.ControlLifecycle;
 import dev.hytalemodding.impulse.core.internal.modules.control.components.PhysicsControlSessionComponent;
 import dev.hytalemodding.impulse.core.internal.modules.control.systems.PhysicsKinematicControlSystem;
-import dev.hytalemodding.impulse.core.internal.modules.control.systems.PhysicsStoreControlSessionRequests;
+import dev.hytalemodding.impulse.core.internal.modules.control.systems.PhysicsStoreControlSessionMutations;
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsWorldRuntimeResource;
 import dev.hytalemodding.impulse.core.plugin.body.RigidBodyKey;
 import dev.hytalemodding.impulse.core.plugin.joint.JointKey;
@@ -150,7 +150,7 @@ public final class PhysicsControlSessions {
         if (bodyKey != null) {
             resource.clearControlledBody(bodyKey);
         }
-        PhysicsStoreControlSessionRequests.enqueueRelease(store, session);
+        PhysicsStoreControlSessionMutations.applyRelease(store, session);
 
         session.deactivate();
         store.removeComponent(controllerRef, sessionType);
