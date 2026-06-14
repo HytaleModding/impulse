@@ -8,7 +8,6 @@ import com.hypixel.hytale.component.Component;
 import com.hypixel.hytale.component.ComponentType;
 import com.hypixel.hytale.math.vector.Vector3fUtil;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
-import dev.hytalemodding.impulse.api.SpaceId;
 import dev.hytalemodding.impulse.core.ImpulsePlugin;
 import dev.hytalemodding.impulse.core.plugin.codec.ImpulseCodecs;
 import java.util.Objects;
@@ -34,11 +33,6 @@ public class BodyAttachmentComponent implements Component<EntityStore> {
         .append(new KeyedCodec<>("BodyUuid", Codec.UUID_BINARY, false),
             (component, value) -> component.bodyUuid = value != null ? value : UUID.randomUUID(),
             BodyAttachmentComponent::getBodyUuid)
-        .add()
-        .append(new KeyedCodec<>("SpaceId", Codec.INTEGER, false),
-            (component, _) -> {
-            },
-            _ -> null)
         .add()
         .append(new KeyedCodec<>("TransformAuthority", new EnumCodec<>(TransformAuthority.class), false),
             (component, value) -> component.transformAuthority = value != null
@@ -93,13 +87,7 @@ public class BodyAttachmentComponent implements Component<EntityStore> {
     }
 
     public BodyAttachmentComponent(@Nonnull UUID bodyUuid) {
-        this(bodyUuid, null);
-    }
-
-    public BodyAttachmentComponent(@Nonnull UUID bodyUuid,
-        @Nullable SpaceId spaceId) {
         this(bodyUuid,
-            spaceId,
             TransformAuthority.BODY,
             AttachmentLifecycle.EXTERNAL_ENTITY,
             new Vector3f(),
@@ -109,32 +97,15 @@ public class BodyAttachmentComponent implements Component<EntityStore> {
     public BodyAttachmentComponent(@Nonnull UUID bodyUuid,
         @Nonnull TransformAuthority transformAuthority,
         @Nonnull AttachmentLifecycle lifecycle) {
-        this(bodyUuid, null, transformAuthority, lifecycle);
+        this(bodyUuid, transformAuthority, lifecycle, new Vector3f(), new Quaternionf());
     }
 
     public BodyAttachmentComponent(@Nonnull UUID bodyUuid,
-        @Nullable SpaceId spaceId,
-        @Nonnull TransformAuthority transformAuthority,
-        @Nonnull AttachmentLifecycle lifecycle) {
-        this(bodyUuid, spaceId, transformAuthority, lifecycle, new Vector3f(), new Quaternionf());
-    }
-
-    public BodyAttachmentComponent(@Nonnull UUID bodyUuid,
-        @Nonnull TransformAuthority transformAuthority,
-        @Nonnull AttachmentLifecycle lifecycle,
-        @Nonnull Vector3f localPositionOffset,
-        @Nonnull Quaternionf localRotationOffset) {
-        this(bodyUuid, null, transformAuthority, lifecycle, localPositionOffset, localRotationOffset);
-    }
-
-    public BodyAttachmentComponent(@Nonnull UUID bodyUuid,
-        @Nullable SpaceId spaceId,
         @Nonnull TransformAuthority transformAuthority,
         @Nonnull AttachmentLifecycle lifecycle,
         @Nonnull Vector3f localPositionOffset,
         @Nonnull Quaternionf localRotationOffset) {
         this(bodyUuid,
-            spaceId,
             transformAuthority,
             lifecycle,
             localPositionOffset,
@@ -143,22 +114,6 @@ public class BodyAttachmentComponent implements Component<EntityStore> {
     }
 
     public BodyAttachmentComponent(@Nonnull UUID bodyUuid,
-        @Nonnull TransformAuthority transformAuthority,
-        @Nonnull AttachmentLifecycle lifecycle,
-        @Nonnull Vector3f localPositionOffset,
-        @Nonnull Quaternionf localRotationOffset,
-        float visualOriginOffsetY) {
-        this(bodyUuid,
-            null,
-            transformAuthority,
-            lifecycle,
-            localPositionOffset,
-            localRotationOffset,
-            visualOriginOffsetY);
-    }
-
-    public BodyAttachmentComponent(@Nonnull UUID bodyUuid,
-        @Nullable SpaceId spaceId,
         @Nonnull TransformAuthority transformAuthority,
         @Nonnull AttachmentLifecycle lifecycle,
         @Nonnull Vector3f localPositionOffset,
@@ -176,14 +131,7 @@ public class BodyAttachmentComponent implements Component<EntityStore> {
 
     @Nonnull
     public static BodyAttachmentComponent externalEntity(@Nonnull UUID bodyUuid) {
-        return externalEntity(bodyUuid, null);
-    }
-
-    @Nonnull
-    public static BodyAttachmentComponent externalEntity(@Nonnull UUID bodyUuid,
-        @Nullable SpaceId spaceId) {
         return new BodyAttachmentComponent(bodyUuid,
-            spaceId,
             TransformAuthority.BODY,
             AttachmentLifecycle.EXTERNAL_ENTITY);
     }
@@ -192,16 +140,7 @@ public class BodyAttachmentComponent implements Component<EntityStore> {
     public static BodyAttachmentComponent externalEntity(@Nonnull UUID bodyUuid,
         @Nonnull Vector3f localPositionOffset,
         @Nonnull Quaternionf localRotationOffset) {
-        return externalEntity(bodyUuid, null, localPositionOffset, localRotationOffset);
-    }
-
-    @Nonnull
-    public static BodyAttachmentComponent externalEntity(@Nonnull UUID bodyUuid,
-        @Nullable SpaceId spaceId,
-        @Nonnull Vector3f localPositionOffset,
-        @Nonnull Quaternionf localRotationOffset) {
         return new BodyAttachmentComponent(bodyUuid,
-            spaceId,
             TransformAuthority.BODY,
             AttachmentLifecycle.EXTERNAL_ENTITY,
             localPositionOffset,
@@ -213,21 +152,7 @@ public class BodyAttachmentComponent implements Component<EntityStore> {
         @Nonnull Vector3f localPositionOffset,
         @Nonnull Quaternionf localRotationOffset,
         float visualOriginOffsetY) {
-        return externalEntity(bodyUuid,
-            null,
-            localPositionOffset,
-            localRotationOffset,
-            visualOriginOffsetY);
-    }
-
-    @Nonnull
-    public static BodyAttachmentComponent externalEntity(@Nonnull UUID bodyUuid,
-        @Nullable SpaceId spaceId,
-        @Nonnull Vector3f localPositionOffset,
-        @Nonnull Quaternionf localRotationOffset,
-        float visualOriginOffsetY) {
         return new BodyAttachmentComponent(bodyUuid,
-            spaceId,
             TransformAuthority.BODY,
             AttachmentLifecycle.EXTERNAL_ENTITY,
             localPositionOffset,
@@ -240,21 +165,7 @@ public class BodyAttachmentComponent implements Component<EntityStore> {
         @Nonnull Vector3f localPositionOffset,
         @Nonnull Quaternionf localRotationOffset,
         float visualOriginOffsetY) {
-        return impulseOwnedVisual(bodyUuid,
-            null,
-            localPositionOffset,
-            localRotationOffset,
-            visualOriginOffsetY);
-    }
-
-    @Nonnull
-    public static BodyAttachmentComponent impulseOwnedVisual(@Nonnull UUID bodyUuid,
-        @Nullable SpaceId spaceId,
-        @Nonnull Vector3f localPositionOffset,
-        @Nonnull Quaternionf localRotationOffset,
-        float visualOriginOffsetY) {
         return new BodyAttachmentComponent(bodyUuid,
-            spaceId,
             TransformAuthority.BODY,
             AttachmentLifecycle.IMPULSE_OWNED_VISUAL,
             localPositionOffset,
@@ -267,21 +178,7 @@ public class BodyAttachmentComponent implements Component<EntityStore> {
         @Nonnull Vector3f localPositionOffset,
         @Nonnull Quaternionf localRotationOffset,
         float visualOriginOffsetY) {
-        return generatedProxy(bodyUuid,
-            null,
-            localPositionOffset,
-            localRotationOffset,
-            visualOriginOffsetY);
-    }
-
-    @Nonnull
-    public static BodyAttachmentComponent generatedProxy(@Nonnull UUID bodyUuid,
-        @Nullable SpaceId spaceId,
-        @Nonnull Vector3f localPositionOffset,
-        @Nonnull Quaternionf localRotationOffset,
-        float visualOriginOffsetY) {
         return new BodyAttachmentComponent(bodyUuid,
-            spaceId,
             TransformAuthority.BODY,
             AttachmentLifecycle.GENERATED_PROXY,
             localPositionOffset,
@@ -296,22 +193,6 @@ public class BodyAttachmentComponent implements Component<EntityStore> {
 
     public void setBodyUuid(@Nonnull UUID bodyUuid) {
         this.bodyUuid = Objects.requireNonNull(bodyUuid, "bodyUuid");
-    }
-
-    /**
-     * Legacy compatibility hook. Space ownership lives in the PhysicsStore body row.
-     */
-    @Deprecated(forRemoval = true)
-    @Nullable
-    public SpaceId getSpaceId() {
-        return null;
-    }
-
-    /**
-     * Legacy compatibility hook. Space ownership lives in the PhysicsStore body row.
-     */
-    @Deprecated(forRemoval = true)
-    public void setSpaceId(@Nullable SpaceId spaceId) {
     }
 
     @Nonnull
@@ -349,7 +230,6 @@ public class BodyAttachmentComponent implements Component<EntityStore> {
     @Override
     public BodyAttachmentComponent clone() {
         return new BodyAttachmentComponent(bodyUuid,
-            null,
             transformAuthority,
             lifecycle,
             localPositionOffset,
