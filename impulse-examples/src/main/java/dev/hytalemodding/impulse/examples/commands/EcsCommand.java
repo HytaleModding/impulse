@@ -21,7 +21,6 @@ import dev.hytalemodding.impulse.api.PhysicsBodyType;
 import dev.hytalemodding.impulse.api.SpaceId;
 import dev.hytalemodding.impulse.core.plugin.body.RigidBodyKey;
 import dev.hytalemodding.impulse.core.plugin.modules.worldcollision.WorldCollisionPrewarmStats;
-import dev.hytalemodding.impulse.core.plugin.physicsstore.PhysicsStoreAccess;
 import dev.hytalemodding.impulse.core.plugin.physicsstore.PhysicsStoreRaycasts;
 import dev.hytalemodding.impulse.core.plugin.physicsstore.requests.BodyForceRequest;
 import dev.hytalemodding.impulse.core.plugin.physicsstore.requests.BodyTargetRequest;
@@ -171,7 +170,7 @@ public class EcsCommand extends AbstractCommandCollection {
             }
             int strength = ExamplePhysicsUtils.optionalInt(ctx, strengthArg, 8, 1, 64);
             Vector3d impulse = ExamplePhysicsUtils.lookDirection(store, ref, transform).mul(strength);
-            PhysicsStoreAccess.enqueue(world,
+            ExamplePhysicsUtils.enqueuePhysicsStoreRequest(world,
                 BodyForceRequest.impulse(hit.bodyKey().value(),
                     (float) impulse.x,
                     (float) impulse.y,
@@ -208,7 +207,7 @@ public class EcsCommand extends AbstractCommandCollection {
             RigidBodyKey bodyKey = RigidBodyKey.random();
             UUID bodyUuid = bodyKey.value();
             Vector3d spawn = new Vector3d(playerPos).add(0.0, 2.0, 0.0);
-            UUID spaceUuid = PhysicsStoreAccess.resolveSpaceUuid(world, spaceId);
+            UUID spaceUuid = ExamplePhysicsUtils.resolvePhysicsStoreSpaceUuid(world, spaceId);
             if (spaceUuid == null) {
                 ctx.sender().sendMessage(Message.raw("PhysicsStore space id=" + spaceId.value()
                     + " is not bound yet."));
@@ -232,7 +231,7 @@ public class EcsCommand extends AbstractCommandCollection {
                     true,
                     false,
                     true));
-            PhysicsStoreAccess.enqueueAll(world, requests);
+            ExamplePhysicsUtils.enqueuePhysicsStoreRequests(world, requests);
 
             TimeResource time = store.getResource(TimeResource.getResourceType());
             ExamplePhysicsUtils.attachPhysicsStoreBlockBody(store,
@@ -410,7 +409,7 @@ public class EcsCommand extends AbstractCommandCollection {
             }
             PhysicsWorldResource resource = ExamplePhysicsUtils.resource(store);
             boolean contactEventsEnabled = contactEventsEnabled(resource);
-            UUID spaceUuid = PhysicsStoreAccess.resolveSpaceUuid(world, spaceId);
+            UUID spaceUuid = ExamplePhysicsUtils.resolvePhysicsStoreSpaceUuid(world, spaceId);
             if (spaceUuid == null) {
                 ctx.sender().sendMessage(Message.raw("PhysicsStore space id=" + spaceId.value()
                     + " is not bound yet."));
@@ -424,7 +423,7 @@ public class EcsCommand extends AbstractCommandCollection {
 
             RigidBodyKey bodyKey = RigidBodyKey.random();
             UUID bodyUuid = bodyKey.value();
-            PhysicsStoreAccess.enqueue(world,
+            ExamplePhysicsUtils.enqueuePhysicsStoreRequest(world,
                 ExamplePhysicsUtils.bodyUpsertRequest(spaceUuid,
                     bodyUuid,
                     vector(spawn),

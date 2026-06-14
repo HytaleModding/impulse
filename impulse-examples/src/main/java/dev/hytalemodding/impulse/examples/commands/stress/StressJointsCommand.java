@@ -14,7 +14,6 @@ import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import dev.hytalemodding.impulse.api.SpaceId;
 import dev.hytalemodding.impulse.core.plugin.body.RigidBodyKey;
 import dev.hytalemodding.impulse.core.plugin.joint.JointKey;
-import dev.hytalemodding.impulse.core.plugin.physicsstore.PhysicsStoreAccess;
 import dev.hytalemodding.impulse.core.plugin.physicsstore.components.JointComponent;
 import dev.hytalemodding.impulse.core.plugin.physicsstore.requests.JointUpsertRequest;
 import dev.hytalemodding.impulse.core.plugin.physicsstore.requests.PhysicsStoreRequest;
@@ -88,7 +87,7 @@ public class StressJointsCommand extends AbstractAsyncPlayerCommand {
         TimeResource time = store.getResource(TimeResource.getResourceType());
         UUID spaceUuid;
         try {
-            spaceUuid = PhysicsStoreAccess.resolveSpaceUuid(world, spaceId);
+            spaceUuid = ExamplePhysicsUtils.resolvePhysicsStoreSpaceUuid(world, spaceId);
         } catch (IllegalStateException exception) {
             spaceUuid = null;
         }
@@ -123,7 +122,7 @@ public class StressJointsCommand extends AbstractAsyncPlayerCommand {
             createdJoints += rowJoints;
         }
         try {
-            PhysicsStoreAccess.enqueueAll(world, requests);
+            ExamplePhysicsUtils.enqueuePhysicsStoreRequests(world, requests);
         } catch (IllegalStateException exception) {
             ctx.sender().sendMessage(Message.raw("Cannot queue stress joint demo: " + exception.getMessage()));
             return CompletableFuture.completedFuture(null);

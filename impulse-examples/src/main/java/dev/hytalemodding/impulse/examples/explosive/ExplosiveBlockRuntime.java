@@ -20,7 +20,6 @@ import com.hypixel.hytale.server.core.universe.world.chunk.WorldChunk;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import dev.hytalemodding.impulse.api.SpaceId;
 import dev.hytalemodding.impulse.core.plugin.body.RigidBodyKey;
-import dev.hytalemodding.impulse.core.plugin.physicsstore.PhysicsStoreAccess;
 import dev.hytalemodding.impulse.core.plugin.physicsstore.requests.BodyForceRequest;
 import dev.hytalemodding.impulse.core.plugin.physicsstore.requests.PhysicsStoreRequest;
 import dev.hytalemodding.impulse.core.plugin.resources.PhysicsWorldResource;
@@ -113,7 +112,7 @@ public final class ExplosiveBlockRuntime {
         @Nonnull SpaceId spaceId,
         @Nonnull Vector3d center,
         @Nonnull ExplosiveBlockComponent settings) {
-        UUID spaceUuid = PhysicsStoreAccess.resolveSpaceUuid(world, spaceId);
+        UUID spaceUuid = ExamplePhysicsUtils.resolvePhysicsStoreSpaceUuid(world, spaceId);
         if (spaceUuid == null) {
             throw new IllegalStateException("Cannot spawn explosive fragments because PhysicsStore "
                 + "space id=" + spaceId.value() + " is not bound");
@@ -174,7 +173,7 @@ public final class ExplosiveBlockRuntime {
                 (float) groupCenter.z,
                 group.mass() > 0.0f));
         }
-        PhysicsStoreAccess.enqueueAll(world, requests);
+        ExamplePhysicsUtils.enqueuePhysicsStoreRequests(world, requests);
 
         for (int i = 0; i < groups.size(); i++) {
             spawnGroupVisuals(time, fragmentSpawner, groups.get(i), pending.get(i));
