@@ -1,11 +1,13 @@
 package dev.hytalemodding.impulse.core.internal.modules.worldcollision.systems;
 
+import com.hypixel.hytale.component.Ref;
 import com.hypixel.hytale.component.Store;
 import com.hypixel.hytale.component.dependency.Dependency;
 import com.hypixel.hytale.component.dependency.Order;
 import com.hypixel.hytale.component.dependency.SystemDependency;
 import com.hypixel.hytale.component.dependency.SystemGroupDependency;
 import com.hypixel.hytale.component.system.tick.TickingSystem;
+import com.hypixel.hytale.logger.HytaleLogger;
 import com.hypixel.hytale.math.util.ChunkUtil;
 import com.hypixel.hytale.math.util.MathUtil;
 import com.hypixel.hytale.server.core.modules.entity.system.UpdateLocationSystems;
@@ -14,28 +16,41 @@ import com.hypixel.hytale.server.core.universe.world.chunk.ChunkFlag;
 import com.hypixel.hytale.server.core.universe.world.chunk.WorldChunk;
 import com.hypixel.hytale.server.core.universe.world.storage.ChunkStore;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
+import com.hypixel.hytale.server.core.universe.world.storage.PhysicsStore;
 import dev.hytalemodding.impulse.api.PhysicsBodySnapshot;
 import dev.hytalemodding.impulse.api.PhysicsBodyType;
 import dev.hytalemodding.impulse.api.runtime.BackendRuntimeCodes;
 import dev.hytalemodding.impulse.core.ImpulsePlugin;
-import dev.hytalemodding.impulse.core.internal.resources.PhysicsSpaceBinding;
-import dev.hytalemodding.impulse.core.internal.resources.PhysicsWorldRuntimeResource;
 import dev.hytalemodding.impulse.core.internal.modules.worldcollision.PhysicsChunkBoundaryRuntime;
 import dev.hytalemodding.impulse.core.internal.modules.worldcollision.PhysicsChunkBoundaryRuntime.ChunkBoundarySafeState;
 import dev.hytalemodding.impulse.core.internal.modules.worldcollision.WorldCollisionLifecycle;
+import dev.hytalemodding.impulse.core.internal.physicsstore.resources.PhysicsIdentityIndexResource;
+import dev.hytalemodding.impulse.core.internal.resources.PhysicsSpaceBinding;
+import dev.hytalemodding.impulse.core.internal.resources.PhysicsWorldRuntimeResource;
+import dev.hytalemodding.impulse.core.internal.resources.owner.PhysicsOwnerBridge;
+import dev.hytalemodding.impulse.core.internal.store.integration.PhysicsStoreEarlyPluginProbe;
 import dev.hytalemodding.impulse.core.internal.systems.publication.PhysicsSnapshotPublicationSystem;
 import dev.hytalemodding.impulse.core.internal.systems.sync.PhysicsSyncSystem;
-import dev.hytalemodding.impulse.core.internal.resources.owner.PhysicsOwnerBridge;
-import dev.hytalemodding.impulse.core.plugin.settings.EntityChunkBoundaryMode;
-import dev.hytalemodding.impulse.core.plugin.body.RigidBodyKey;
 import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyKind;
 import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyRegistrationView;
+import dev.hytalemodding.impulse.core.plugin.body.RigidBodyKey;
+import dev.hytalemodding.impulse.core.plugin.physicsstore.PhysicsStoreThreading;
+import dev.hytalemodding.impulse.core.plugin.physicsstore.components.BodyCommandComponent;
+import dev.hytalemodding.impulse.core.plugin.physicsstore.components.BodyComponent;
+import dev.hytalemodding.impulse.core.plugin.physicsstore.components.TargetComponent;
+import dev.hytalemodding.impulse.core.plugin.settings.EntityChunkBoundaryMode;
 import dev.hytalemodding.impulse.core.plugin.settings.PhysicsSpaceSettings;
 import it.unimi.dsi.fastutil.longs.LongOpenHashSet;
 import it.unimi.dsi.fastutil.longs.LongSet;
 import java.util.Set;
+import java.util.UUID;
+import java.util.function.Consumer;
+import java.util.logging.Level;
 import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
+import org.joml.Quaternionf;
 import org.joml.Vector2d;
+import org.joml.Vector3f;
 
 /**
  * Keeps registered dynamic physics bodies from drifting into unloaded chunks.
@@ -46,6 +61,7 @@ import org.joml.Vector2d;
  */
 public class PhysicsChunkBoundarySystem extends TickingSystem<EntityStore> {
 
+    private static final HytaleLogger LOGGER = HytaleLogger.get("Impulse");
     private final Set<Dependency<EntityStore>> dependencies = Set.of(
         new SystemGroupDependency<>(Order.AFTER, ImpulsePlugin.get().getPersistenceRestoreGroup()),
         new SystemDependency<>(Order.AFTER, PhysicsSnapshotPublicationSystem.class),
@@ -79,7 +95,8 @@ public class PhysicsChunkBoundarySystem extends TickingSystem<EntityStore> {
         @Nonnull Store<EntityStore> store,
         @Nonnull ChunkStore chunkStore,
         @Nonnull Store<ChunkStore> chunkComponentStore) {
-        if (resource.getSpaceBinding(registration.spaceId()) == null) {
+        boolean authoritative = isAuthoritativePhysicsStoreActive();
+        if (!authoritative && resource.getSpaceBinding(registration.spaceId()) == null) {
             return;
         }
 
@@ -92,7 +109,9 @@ public class PhysicsChunkBoundarySystem extends TickingSystem<EntityStore> {
             return;
         }
 
-        PhysicsSpaceSettings settings = resource.getLiveSpaceSettings(registration.spaceId());
+        PhysicsSpaceSettings settings = authoritative
+            ? resource.getSpaceSettings(registration.spaceId())
+            : resource.getLiveSpaceSettings(registration.spaceId());
         EntityChunkBoundaryMode mode = settings.getWorldCollisionSettings().getEntityChunkBoundaryMode();
         PhysicsChunkBoundaryRuntime.ChunkBoundaryPauseState pauseState =
             resource.getChunkBoundaryPauseState(bodyKey);
@@ -104,7 +123,8 @@ public class PhysicsChunkBoundarySystem extends TickingSystem<EntityStore> {
                 resource,
                 store,
                 chunkStore,
-                chunkComponentStore);
+                chunkComponentStore,
+                authoritative);
             return;
         }
 
@@ -119,8 +139,12 @@ public class PhysicsChunkBoundarySystem extends TickingSystem<EntityStore> {
             return;
         }
 
-        PhysicsOwnerBridge.run(store, "pause chunk-boundary physics body",
-            () -> pauseBody(bodyKey, snapshot, targetChunkIndices, resource));
+        if (authoritative) {
+            pauseBodyAuthoritative(store, bodyKey, snapshot, targetChunkIndices, resource);
+        } else {
+            PhysicsOwnerBridge.run(store, "pause chunk-boundary physics body",
+                () -> pauseBody(bodyKey, snapshot, targetChunkIndices, resource));
+        }
     }
 
     private void handlePausedBody(@Nonnull RigidBodyKey bodyKey,
@@ -130,13 +154,19 @@ public class PhysicsChunkBoundarySystem extends TickingSystem<EntityStore> {
         @Nonnull PhysicsWorldRuntimeResource resource,
         @Nonnull Store<EntityStore> entityStore,
         @Nonnull ChunkStore chunkStore,
-        @Nonnull Store<ChunkStore> chunkComponentStore) {
+        @Nonnull Store<ChunkStore> chunkComponentStore,
+        boolean authoritative) {
         long[] targetChunkIndices = pauseState.getTargetChunkIndices();
         if (mode == EntityChunkBoundaryMode.LOAD_TICKING_CHUNK) {
             requestTickingChunks(chunkStore, targetChunkIndices);
         }
 
         if (!areChunksTicking(targetChunkIndices, chunkStore, chunkComponentStore)) {
+            return;
+        }
+
+        if (authoritative) {
+            resumeBodyAuthoritative(entityStore, bodyKey, snapshot, pauseState, resource);
             return;
         }
 
@@ -166,6 +196,139 @@ public class PhysicsChunkBoundarySystem extends TickingSystem<EntityStore> {
             resource.clearChunkBoundaryPauseState(bodyKey);
             recordSafePose(bodyKey, snapshot, resource);
         });
+    }
+
+    private static void pauseBodyAuthoritative(@Nonnull Store<EntityStore> entityStore,
+        @Nonnull RigidBodyKey bodyKey,
+        @Nonnull PhysicsBodySnapshot snapshot,
+        @Nonnull long[] targetChunkIndices,
+        @Nonnull PhysicsWorldRuntimeResource resource) {
+        ChunkBoundarySafeState safeState = resource.getChunkBoundarySafeState(bodyKey);
+        Vector3f safePosition = safeState != null ? new Vector3f(safeState.getPosition()) : null;
+        Quaternionf safeRotation = safeState != null
+            ? new Quaternionf(safeState.getRotation())
+            : null;
+        resource.pauseChunkBoundaryBody(bodyKey,
+            primaryChunkIndex(targetChunkIndices, snapshot),
+            targetChunkIndices,
+            snapshot);
+        scheduleAuthoritativeMutation(entityStore,
+            "pause chunk-boundary PhysicsStore body",
+            physics -> applyPauseBody(physics,
+                bodyKey.value(),
+                snapshot.bodyType(),
+                safePosition,
+                safeRotation));
+    }
+
+    private static void resumeBodyAuthoritative(@Nonnull Store<EntityStore> entityStore,
+        @Nonnull RigidBodyKey bodyKey,
+        @Nonnull PhysicsBodySnapshot snapshot,
+        @Nonnull PhysicsChunkBoundaryRuntime.ChunkBoundaryPauseState pauseState,
+        @Nonnull PhysicsWorldRuntimeResource resource) {
+        Vector3f linearVelocity = new Vector3f(pauseState.getLinearVelocity());
+        Vector3f angularVelocity = new Vector3f(pauseState.getAngularVelocity());
+        PhysicsBodyType originalBodyType = pauseState.getOriginalBodyType();
+        scheduleAuthoritativeMutation(entityStore,
+            "resume chunk-boundary PhysicsStore body",
+            physics -> applyResumeBody(physics,
+                bodyKey.value(),
+                originalBodyType,
+                linearVelocity,
+                angularVelocity));
+        resource.clearChunkBoundaryPauseState(bodyKey);
+        recordSafePose(bodyKey, snapshot, resource);
+    }
+
+    private static void applyPauseBody(@Nonnull Store<PhysicsStore> store,
+        @Nonnull UUID bodyUuid,
+        @Nonnull PhysicsBodyType originalBodyType,
+        @Nullable Vector3f safePosition,
+        @Nullable Quaternionf safeRotation) {
+        Ref<PhysicsStore> bodyRef = bodyRef(store, bodyUuid);
+        if (bodyRef == null) {
+            return;
+        }
+        if (originalBodyType != PhysicsBodyType.KINEMATIC) {
+            appendBodyCommand(store,
+                bodyRef,
+                BodyCommandComponent.setType(PhysicsBodyType.KINEMATIC, false));
+        }
+        store.putComponent(bodyRef,
+            TargetComponent.getComponentType(),
+            parkedTarget(safePosition, safeRotation));
+    }
+
+    private static void applyResumeBody(@Nonnull Store<PhysicsStore> store,
+        @Nonnull UUID bodyUuid,
+        @Nonnull PhysicsBodyType originalBodyType,
+        @Nonnull Vector3f linearVelocity,
+        @Nonnull Vector3f angularVelocity) {
+        Ref<PhysicsStore> bodyRef = bodyRef(store, bodyUuid);
+        if (bodyRef == null) {
+            return;
+        }
+        appendBodyCommand(store, bodyRef, BodyCommandComponent.setType(originalBodyType, true));
+        appendBodyCommand(store,
+            bodyRef,
+            BodyCommandComponent.setVelocity(linearVelocity, angularVelocity, true));
+        store.removeComponent(bodyRef, TargetComponent.getComponentType());
+    }
+
+    @Nonnull
+    private static TargetComponent parkedTarget(@Nullable Vector3f safePosition,
+        @Nullable Quaternionf safeRotation) {
+        TargetComponent target = new TargetComponent();
+        target.setActive(true);
+        target.setTransformEnabled(safePosition != null && safeRotation != null);
+        if (safePosition != null && safeRotation != null) {
+            target.setPosition(safePosition);
+            target.setRotation(safeRotation);
+        }
+        target.setLinearVelocity(new Vector3f());
+        target.setAngularVelocity(new Vector3f());
+        target.setVelocityEnabled(true);
+        target.setActivate(false);
+        return target;
+    }
+
+    private static void appendBodyCommand(@Nonnull Store<PhysicsStore> store,
+        @Nonnull Ref<PhysicsStore> bodyRef,
+        @Nonnull BodyCommandComponent command) {
+        BodyCommandComponent existing = store.getComponent(bodyRef,
+            BodyCommandComponent.getComponentType());
+        BodyCommandComponent merged = existing != null ? existing.append(command) : command;
+        store.putComponent(bodyRef, BodyCommandComponent.getComponentType(), merged);
+    }
+
+    @Nullable
+    private static Ref<PhysicsStore> bodyRef(@Nonnull Store<PhysicsStore> store,
+        @Nonnull UUID bodyUuid) {
+        PhysicsIdentityIndexResource identity = store.getResource(
+            PhysicsIdentityIndexResource.getResourceType());
+        Ref<PhysicsStore> bodyRef = identity.getByUuid(bodyUuid);
+        if (bodyRef == null || !bodyRef.isValid()) {
+            return null;
+        }
+        BodyComponent body = store.getComponent(bodyRef, BodyComponent.getComponentType());
+        return body != null && body.getKind() == PhysicsBodyKind.BODY ? bodyRef : null;
+    }
+
+    private static void scheduleAuthoritativeMutation(@Nonnull Store<EntityStore> entityStore,
+        @Nonnull String operation,
+        @Nonnull Consumer<Store<PhysicsStore>> mutation) {
+        World world = entityStore.getExternalData().getWorld();
+        PhysicsStoreThreading.executeOnWorldThread(world, operation, mutation)
+            .whenComplete((ignored, failure) -> {
+                if (failure != null) {
+                    LOGGER.at(Level.WARNING).log("PhysicsStore chunk-boundary mutation failed "
+                        + "(%s): %s", operation, failure.getMessage());
+                }
+            });
+    }
+
+    private static boolean isAuthoritativePhysicsStoreActive() {
+        return PhysicsStoreEarlyPluginProbe.isAvailable();
     }
 
     static void pauseBody(@Nonnull RigidBodyKey bodyKey,

@@ -14,6 +14,7 @@ import dev.hytalemodding.impulse.core.plugin.physicsstore.PhysicsStoreTypes;
 import java.util.Arrays;
 import java.util.Objects;
 import javax.annotation.Nonnull;
+import org.joml.Vector3f;
 
 /**
  * One-tick ordered body commands drained by PhysicsStore systems.
@@ -66,6 +67,15 @@ public final class BodyCommandComponent implements Component<PhysicsStore> {
         boolean activate) {
         return new BodyCommandComponent(new Entry[] {
             Entry.setCollisionFilter(collisionGroup, collisionMask, activate)
+        });
+    }
+
+    @Nonnull
+    public static BodyCommandComponent setVelocity(@Nonnull Vector3f linearVelocity,
+        @Nonnull Vector3f angularVelocity,
+        boolean activate) {
+        return new BodyCommandComponent(new Entry[] {
+            Entry.setVelocity(linearVelocity, angularVelocity, activate)
         });
     }
 
@@ -173,6 +183,18 @@ public final class BodyCommandComponent implements Component<PhysicsStore> {
                 (entry, value) -> entry.offsetZ = value != null ? value : 0.0f,
                 Entry::getOffsetZ)
             .add()
+            .append(new KeyedCodec<>("AngularX", Codec.FLOAT, false),
+                (entry, value) -> entry.angularX = value != null ? value : 0.0f,
+                Entry::getAngularX)
+            .add()
+            .append(new KeyedCodec<>("AngularY", Codec.FLOAT, false),
+                (entry, value) -> entry.angularY = value != null ? value : 0.0f,
+                Entry::getAngularY)
+            .add()
+            .append(new KeyedCodec<>("AngularZ", Codec.FLOAT, false),
+                (entry, value) -> entry.angularZ = value != null ? value : 0.0f,
+                Entry::getAngularZ)
+            .add()
             .append(new KeyedCodec<>("CollisionGroup", Codec.INTEGER, false),
                 (entry, value) -> entry.collisionGroup = value != null
                     ? value
@@ -199,6 +221,9 @@ public final class BodyCommandComponent implements Component<PhysicsStore> {
         private float offsetX;
         private float offsetY;
         private float offsetZ;
+        private float angularX;
+        private float angularY;
+        private float angularZ;
         private int collisionGroup = PhysicsCollisionFilters.DYNAMIC_BODY;
         private int collisionMask = PhysicsCollisionFilters.ALL;
 
@@ -215,6 +240,9 @@ public final class BodyCommandComponent implements Component<PhysicsStore> {
             float offsetX,
             float offsetY,
             float offsetZ,
+            float angularX,
+            float angularY,
+            float angularZ,
             int collisionGroup,
             int collisionMask) {
             this.kind = Objects.requireNonNull(kind, "kind");
@@ -227,6 +255,9 @@ public final class BodyCommandComponent implements Component<PhysicsStore> {
             this.offsetX = offsetX;
             this.offsetY = offsetY;
             this.offsetZ = offsetZ;
+            this.angularX = angularX;
+            this.angularY = angularY;
+            this.angularZ = angularZ;
             this.collisionGroup = collisionGroup;
             this.collisionMask = collisionMask;
         }
@@ -240,6 +271,9 @@ public final class BodyCommandComponent implements Component<PhysicsStore> {
                 0.0f,
                 0.0f,
                 false,
+                0.0f,
+                0.0f,
+                0.0f,
                 0.0f,
                 0.0f,
                 0.0f,
@@ -259,6 +293,9 @@ public final class BodyCommandComponent implements Component<PhysicsStore> {
                 0.0f,
                 0.0f,
                 0.0f,
+                0.0f,
+                0.0f,
+                0.0f,
                 PhysicsCollisionFilters.DYNAMIC_BODY,
                 PhysicsCollisionFilters.ALL);
         }
@@ -273,6 +310,9 @@ public final class BodyCommandComponent implements Component<PhysicsStore> {
                 0.0f,
                 0.0f,
                 false,
+                0.0f,
+                0.0f,
+                0.0f,
                 0.0f,
                 0.0f,
                 0.0f,
@@ -294,8 +334,34 @@ public final class BodyCommandComponent implements Component<PhysicsStore> {
                 0.0f,
                 0.0f,
                 0.0f,
+                0.0f,
+                0.0f,
+                0.0f,
                 collisionGroup,
                 collisionMask);
+        }
+
+        @Nonnull
+        private static Entry setVelocity(@Nonnull Vector3f linearVelocity,
+            @Nonnull Vector3f angularVelocity,
+            boolean activate) {
+            Objects.requireNonNull(linearVelocity, "linearVelocity");
+            Objects.requireNonNull(angularVelocity, "angularVelocity");
+            return new Entry(Kind.SET_VELOCITY,
+                PhysicsBodyType.DYNAMIC,
+                activate,
+                linearVelocity.x,
+                linearVelocity.y,
+                linearVelocity.z,
+                false,
+                0.0f,
+                0.0f,
+                0.0f,
+                angularVelocity.x,
+                angularVelocity.y,
+                angularVelocity.z,
+                PhysicsCollisionFilters.DYNAMIC_BODY,
+                PhysicsCollisionFilters.ALL);
         }
 
         @Nonnull
@@ -320,6 +386,9 @@ public final class BodyCommandComponent implements Component<PhysicsStore> {
                 offsetX,
                 offsetY,
                 offsetZ,
+                0.0f,
+                0.0f,
+                0.0f,
                 PhysicsCollisionFilters.DYNAMIC_BODY,
                 PhysicsCollisionFilters.ALL);
         }
@@ -366,6 +435,18 @@ public final class BodyCommandComponent implements Component<PhysicsStore> {
             return offsetZ;
         }
 
+        public float getAngularX() {
+            return angularX;
+        }
+
+        public float getAngularY() {
+            return angularY;
+        }
+
+        public float getAngularZ() {
+            return angularZ;
+        }
+
         public int getCollisionGroup() {
             return collisionGroup;
         }
@@ -387,6 +468,9 @@ public final class BodyCommandComponent implements Component<PhysicsStore> {
                 offsetX,
                 offsetY,
                 offsetZ,
+                angularX,
+                angularY,
+                angularZ,
                 collisionGroup,
                 collisionMask);
         }
@@ -400,6 +484,7 @@ public final class BodyCommandComponent implements Component<PhysicsStore> {
         FORCE,
         TORQUE,
         SET_TYPE,
+        SET_VELOCITY,
         SET_COLLISION_FILTER;
 
         public boolean isVector() {
