@@ -15,7 +15,7 @@ import javax.annotation.Nonnull;
 /**
  * Resolves queued live backend reads on the PhysicsStore owner lane.
  */
-public final class PhysicsStoreReadRequestSystem extends TickingSystem<PhysicsStore> {
+public final class PhysicsStoreQueuedReadSystem extends TickingSystem<PhysicsStore> {
 
     private static final Set<Dependency<PhysicsStore>> DEPENDENCIES = Set.of(
         new SystemDependency<>(Order.AFTER, CompletedStepPublicationSystem.class)

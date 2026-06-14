@@ -28,7 +28,7 @@ import dev.hytalemodding.impulse.core.internal.physicsstore.systems.IdentityInde
 import dev.hytalemodding.impulse.core.internal.physicsstore.systems.JointBindingSystem;
 import dev.hytalemodding.impulse.core.internal.physicsstore.systems.PersistenceCaptureSystem;
 import dev.hytalemodding.impulse.core.internal.physicsstore.systems.PersistenceHydrationSystem;
-import dev.hytalemodding.impulse.core.internal.physicsstore.systems.PhysicsStoreReadRequestSystem;
+import dev.hytalemodding.impulse.core.internal.physicsstore.systems.PhysicsStoreQueuedReadSystem;
 import dev.hytalemodding.impulse.core.internal.physicsstore.systems.TerrainMutationDrainSystem;
 import dev.hytalemodding.impulse.core.internal.physicsstore.systems.SpaceBindingSystem;
 import dev.hytalemodding.impulse.core.internal.physicsstore.systems.SpaceSettingsApplicationSystem;
@@ -203,7 +203,7 @@ public final class PhysicsStoreRegistration {
         registry.registerSystem(new TerrainColliderBindingSystem());
         registry.registerSystem(new BodyCommandApplicationSystem());
         registry.registerSystem(new TargetBindingSystem());
-        registry.registerSystem(new PhysicsStoreReadRequestSystem());
+        registry.registerSystem(new PhysicsStoreQueuedReadSystem());
         registry.registerSystem(new CompletedStepPublicationSystem());
         registry.registerSystem(new PersistenceCaptureSystem());
         registry.registerSystem(new StepSubmissionSystem());
