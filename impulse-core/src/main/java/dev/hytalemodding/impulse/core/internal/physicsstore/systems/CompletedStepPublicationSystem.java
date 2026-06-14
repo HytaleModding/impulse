@@ -50,7 +50,7 @@ public final class CompletedStepPublicationSystem extends TickingSystem<PhysicsS
 
     private static final Set<Dependency<PhysicsStore>> DEPENDENCIES = Set.of(
         new SystemDependency<>(Order.AFTER, TargetBindingSystem.class),
-        new SystemDependency<>(Order.AFTER, PhysicsStoreReadRequestSystem.class)
+        new SystemDependency<>(Order.AFTER, TerrainColliderBindingSystem.class)
     );
 
     @Override
