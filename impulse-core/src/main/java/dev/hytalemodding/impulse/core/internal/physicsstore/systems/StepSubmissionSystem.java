@@ -154,14 +154,14 @@ public final class StepSubmissionSystem extends TickingSystem<PhysicsStore> {
 
     @Nonnull
     private static PhysicsStepPhaseStats collectStepPhaseStats(@Nonnull PhysicsRuntimeResource runtime) {
-        PhysicsStepPhaseStats[] stats = {PhysicsStepPhaseStats.unavailable()};
+        StepPhaseStatsAccumulator stats = new StepPhaseStatsAccumulator();
         StepPhaseStatsCapture capture = new StepPhaseStatsCapture();
         runtime.forEachSpaceBinding((_, _, spaceHandle, backendRuntime) -> {
             capture.reset();
             backendRuntime.stepPhaseStats(spaceHandle.value(), capture);
-            stats[0] = stats[0].add(capture.value());
+            stats.add(capture.value());
         });
-        return stats[0];
+        return stats.value();
     }
 
     @Nonnull
@@ -347,6 +347,21 @@ public final class StepSubmissionSystem extends TickingSystem<PhysicsStore> {
 
         private void reset() {
             value = PhysicsStepPhaseStats.unavailable();
+        }
+
+        @Nonnull
+        private PhysicsStepPhaseStats value() {
+            return value;
+        }
+    }
+
+    private static final class StepPhaseStatsAccumulator {
+
+        @Nonnull
+        private PhysicsStepPhaseStats value = PhysicsStepPhaseStats.unavailable();
+
+        private void add(@Nonnull PhysicsStepPhaseStats stats) {
+            value = value.add(stats);
         }
 
         @Nonnull

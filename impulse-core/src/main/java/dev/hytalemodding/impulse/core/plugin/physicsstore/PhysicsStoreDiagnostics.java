@@ -78,10 +78,10 @@ public final class PhysicsStoreDiagnostics {
     public static int runtimeJointCount(@Nonnull Store<PhysicsStore> store) {
         PhysicsStoreThreading.requireWorldThread(store, "read live PhysicsStore backend state");
         PhysicsRuntimeResource runtime = store.getResource(PhysicsRuntimeResource.getResourceType());
-        int[] count = {0};
+        JointCountCapture count = new JointCountCapture();
         runtime.forEachSpaceBinding((_, _, spaceHandle, backendRuntime) ->
-            count[0] += backendRuntime.jointCount(spaceHandle.value()));
-        return count[0];
+            count.add(backendRuntime.jointCount(spaceHandle.value())));
+        return count.value();
     }
 
     @Nonnull
@@ -101,13 +101,13 @@ public final class PhysicsStoreDiagnostics {
     public static boolean ccdSupported(@Nonnull Store<PhysicsStore> store) {
         PhysicsStoreThreading.requireWorldThread(store, "read live PhysicsStore backend state");
         PhysicsRuntimeResource runtime = store.getResource(PhysicsRuntimeResource.getResourceType());
-        boolean[] supported = {false};
+        CcdSupportCapture supported = new CcdSupportCapture();
         runtime.forEachSpaceBinding((_, _, spaceHandle, backendRuntime) -> {
             if (backendRuntime.supportsContinuousCollision(spaceHandle.value())) {
-                supported[0] = true;
+                supported.markSupported();
             }
         });
-        return supported[0];
+        return supported.value();
     }
 
     @Nonnull
@@ -332,6 +332,32 @@ public final class PhysicsStoreDiagnostics {
             space.backendId().value(),
             space.backendRuntime().supportsSolverTuning(space.spaceHandle().value()),
             space.backendRuntime().supportsActivationTuning(space.spaceHandle().value()));
+    }
+
+    private static final class JointCountCapture {
+
+        private int value;
+
+        private void add(int count) {
+            value += count;
+        }
+
+        private int value() {
+            return value;
+        }
+    }
+
+    private static final class CcdSupportCapture {
+
+        private boolean value;
+
+        private void markSupported() {
+            value = true;
+        }
+
+        private boolean value() {
+            return value;
+        }
     }
 
 }
