@@ -18,8 +18,7 @@ import javax.annotation.Nonnull;
 public final class PhysicsStoreReadRequestSystem extends TickingSystem<PhysicsStore> {
 
     private static final Set<Dependency<PhysicsStore>> DEPENDENCIES = Set.of(
-        new SystemDependency<>(Order.AFTER, TargetBindingSystem.class),
-        new SystemDependency<>(Order.AFTER, TerrainColliderBindingSystem.class)
+        new SystemDependency<>(Order.AFTER, CompletedStepPublicationSystem.class)
     );
 
     @Override

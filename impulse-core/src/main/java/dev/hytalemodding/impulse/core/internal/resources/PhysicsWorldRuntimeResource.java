@@ -8,9 +8,11 @@ import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import com.hypixel.hytale.server.core.universe.world.storage.PhysicsStore;
 import dev.hytalemodding.impulse.api.BackendId;
 import dev.hytalemodding.impulse.api.Impulse;
+import dev.hytalemodding.impulse.api.PhysicsAxis;
 import dev.hytalemodding.impulse.api.PhysicsBodySnapshot;
 import dev.hytalemodding.impulse.api.PhysicsBodyType;
 import dev.hytalemodding.impulse.api.PhysicsCollisionFilters;
+import dev.hytalemodding.impulse.api.ShapeType;
 import dev.hytalemodding.impulse.api.SpaceId;
 import dev.hytalemodding.impulse.api.runtime.BackendRuntimeCodes;
 import dev.hytalemodding.impulse.early.PhysicsStoreWorld;
@@ -21,6 +23,7 @@ import dev.hytalemodding.impulse.core.internal.physicsstore.resources.PhysicsBod
 import dev.hytalemodding.impulse.core.internal.physicsstore.resources.PhysicsEventResource;
 import dev.hytalemodding.impulse.core.internal.physicsstore.resources.PhysicsIdentityIndexResource;
 import dev.hytalemodding.impulse.core.internal.physicsstore.resources.PhysicsRuntimeResource;
+import dev.hytalemodding.impulse.core.internal.physicsstore.resources.PhysicsSnapshotResource;
 import dev.hytalemodding.impulse.core.internal.physicsstore.resources.PhysicsSpaceCompatibilityIndexResource;
 import dev.hytalemodding.impulse.core.internal.physicsstore.resources.PhysicsWorldSettingsResource;
 import dev.hytalemodding.impulse.core.internal.resources.body.PhysicsBodyRegistry;
@@ -61,13 +64,20 @@ import dev.hytalemodding.impulse.core.plugin.events.PhysicsEventFrame;
 import dev.hytalemodding.impulse.core.plugin.events.PhysicsFrameEvent;
 import dev.hytalemodding.impulse.core.plugin.joint.JointKey;
 import dev.hytalemodding.impulse.core.plugin.physicsstore.PhysicsStoreThreading;
+import dev.hytalemodding.impulse.core.plugin.physicsstore.components.ColliderComponent;
+import dev.hytalemodding.impulse.core.plugin.physicsstore.components.CollisionFilterComponent;
 import dev.hytalemodding.impulse.core.plugin.physicsstore.components.CollisionLodSettingsComponent;
+import dev.hytalemodding.impulse.core.plugin.physicsstore.components.DynamicsComponent;
 import dev.hytalemodding.impulse.core.plugin.physicsstore.components.ExtensionSettingsComponent;
+import dev.hytalemodding.impulse.core.plugin.physicsstore.components.MaterialComponent;
+import dev.hytalemodding.impulse.core.plugin.physicsstore.components.ShapeComponent;
 import dev.hytalemodding.impulse.core.plugin.physicsstore.components.SolverSettingsComponent;
 import dev.hytalemodding.impulse.core.plugin.physicsstore.components.SpaceComponent;
 import dev.hytalemodding.impulse.core.plugin.physicsstore.components.VisualMaterializationSettingsComponent;
 import dev.hytalemodding.impulse.core.plugin.physicsstore.components.VisualSyncSettingsComponent;
 import dev.hytalemodding.impulse.core.plugin.physicsstore.components.WorldCollisionComponent;
+import dev.hytalemodding.impulse.core.plugin.physicsstore.snapshots.PhysicsStoreBodySnapshot;
+import dev.hytalemodding.impulse.core.plugin.physicsstore.snapshots.PhysicsStoreSnapshotFrame;
 import dev.hytalemodding.impulse.core.plugin.resources.PhysicsMutationHandle;
 import dev.hytalemodding.impulse.core.plugin.resources.PhysicsWorldResource;
 import dev.hytalemodding.impulse.core.plugin.settings.PhysicsSpaceSettings;
@@ -648,6 +658,13 @@ public class PhysicsWorldRuntimeResource extends PhysicsWorldResource {
 
     @Override
     public int refreshBodySnapshots() {
+        if (isAuthoritativePhysicsStoreActive()) {
+            return authoritativePhysicsStore("refresh copied physics body snapshots")
+                .getResource(PhysicsSnapshotResource.getResourceType())
+                .getLatestFrame()
+                .bodies()
+                .size();
+        }
         return callOwner("refresh physics body snapshots", () -> {
             PublishedPhysicsSnapshotFrame frame = capturePublishedSnapshotFrameDirect(0L,
                 0L,
@@ -661,6 +678,16 @@ public class PhysicsWorldRuntimeResource extends PhysicsWorldResource {
     @Nonnull
     @Override
     public PhysicsBodySnapshot getBodySnapshot(@Nonnull RigidBodyKey bodyKey) {
+        if (isAuthoritativePhysicsStoreActive()) {
+            Store<PhysicsStore> store =
+                authoritativePhysicsStore("read copied physics body snapshot");
+            PhysicsBodySnapshot snapshot = getAuthoritativeBodySnapshot(store, bodyKey);
+            if (snapshot == null) {
+                throw new IllegalStateException("No copied PhysicsStore body snapshot is available for "
+                    + bodyKey);
+            }
+            return snapshot;
+        }
         PhysicsBodySnapshot snapshot = lifecycleState.getBodySnapshot(bodyKey);
         if (snapshot != null) {
             return snapshot;
@@ -671,6 +698,11 @@ public class PhysicsWorldRuntimeResource extends PhysicsWorldResource {
 
     @Nullable
     public PhysicsBodySnapshot getBodySnapshotIfRegistered(@Nonnull RigidBodyKey bodyKey) {
+        if (isAuthoritativePhysicsStoreActive()) {
+            return getAuthoritativeBodySnapshot(
+                authoritativePhysicsStore("read optional copied physics body snapshot"),
+                bodyKey);
+        }
         PhysicsBodySnapshot snapshot = lifecycleState.getBodySnapshot(bodyKey);
         if (snapshot != null) {
             return snapshot;
@@ -697,6 +729,255 @@ public class PhysicsWorldRuntimeResource extends PhysicsWorldResource {
         }
         PhysicsBodyRegistration registration = bodyRegistry.getRegistration(bodyKey);
         return registration != null ? captureLiveBodySnapshot(registration) : null;
+    }
+
+    @Nullable
+    private static PhysicsBodySnapshot getAuthoritativeBodySnapshot(
+        @Nonnull Store<PhysicsStore> store,
+        @Nonnull RigidBodyKey bodyKey) {
+        PhysicsStoreBodySnapshot snapshot = store.getResource(PhysicsSnapshotResource.getResourceType())
+            .getBody(Objects.requireNonNull(bodyKey, "bodyKey").value());
+        return snapshot != null ? toPublicBodySnapshot(store, snapshot) : null;
+    }
+
+    private static int countAuthoritativeBodySnapshots(@Nonnull Store<PhysicsStore> store,
+        @Nonnull SpaceId spaceId) {
+        UUID spaceUuid = store.getResource(PhysicsSpaceCompatibilityIndexResource.getResourceType())
+            .getSpaceUuid(Objects.requireNonNull(spaceId, "spaceId"));
+        if (spaceUuid == null) {
+            return 0;
+        }
+        int count = 0;
+        for (PhysicsStoreBodySnapshot body : store.getResource(PhysicsSnapshotResource.getResourceType())
+            .getLatestFrame()
+            .bodies()) {
+            if (spaceUuid.equals(body.spaceUuid())) {
+                count++;
+            }
+        }
+        return count;
+    }
+
+    private static void forEachAuthoritativeBodySnapshot(@Nonnull Store<PhysicsStore> store,
+        @Nonnull SpaceId spaceId,
+        @Nonnull Consumer<PhysicsBodySnapshotEntry> consumer) {
+        UUID spaceUuid = authoritativeSpaceUuid(store, spaceId);
+        if (spaceUuid == null) {
+            return;
+        }
+        PhysicsBodyRegistrationResource registrations =
+            store.getResource(PhysicsBodyRegistrationResource.getResourceType());
+        for (PhysicsStoreBodySnapshot body : authoritativeSnapshotFrame(store).bodies()) {
+            if (!spaceUuid.equals(body.spaceUuid())) {
+                continue;
+            }
+            PhysicsBodySnapshotEntry entry =
+                authoritativeSnapshotEntry(store, registrations, body);
+            if (entry != null) {
+                consumer.accept(entry);
+            }
+        }
+    }
+
+    private static void forEachIndexedAuthoritativeBodySnapshot(
+        @Nonnull Store<PhysicsStore> store,
+        @Nonnull SpaceId spaceId,
+        @Nonnull PhysicsBodySnapshotVisitor visitor) {
+        UUID spaceUuid = authoritativeSpaceUuid(store, spaceId);
+        if (spaceUuid == null) {
+            return;
+        }
+        PhysicsBodyRegistrationResource registrations =
+            store.getResource(PhysicsBodyRegistrationResource.getResourceType());
+        for (PhysicsStoreBodySnapshot body : authoritativeSnapshotFrame(store).bodies()) {
+            if (!spaceUuid.equals(body.spaceUuid())) {
+                continue;
+            }
+            PhysicsBodySnapshotEntry entry =
+                authoritativeSnapshotEntry(store, registrations, body);
+            if (entry != null) {
+                visitor.accept(entry.bodyKey(),
+                    entry.snapshot(),
+                    entry.spaceId(),
+                    entry.kind(),
+                    entry.persistenceMode());
+            }
+        }
+    }
+
+    private static int forEachAuthoritativeBodySnapshotNear(
+        @Nonnull Store<PhysicsStore> store,
+        @Nonnull SpaceId spaceId,
+        @Nonnull Vector3f center,
+        float radius,
+        @Nonnull Consumer<PhysicsBodySnapshotEntry> consumer) {
+        UUID spaceUuid = authoritativeSpaceUuid(store, spaceId);
+        if (spaceUuid == null || radius < 0.0f || Float.isNaN(radius)) {
+            return 0;
+        }
+        float radiusSquared = radius * radius;
+        int candidates = 0;
+        PhysicsBodyRegistrationResource registrations =
+            store.getResource(PhysicsBodyRegistrationResource.getResourceType());
+        for (PhysicsStoreBodySnapshot body : authoritativeSnapshotFrame(store).bodies()) {
+            if (!spaceUuid.equals(body.spaceUuid())) {
+                continue;
+            }
+            PhysicsBodySnapshotEntry entry =
+                authoritativeSnapshotEntry(store, registrations, body);
+            if (entry == null) {
+                continue;
+            }
+            candidates++;
+            if (withinRadius(entry.snapshot(), center, radiusSquared)) {
+                consumer.accept(entry);
+            }
+        }
+        return candidates;
+    }
+
+    private static int forEachIndexedAuthoritativeBodySnapshotNear(
+        @Nonnull Store<PhysicsStore> store,
+        @Nonnull SpaceId spaceId,
+        @Nonnull Vector3f center,
+        float radius,
+        @Nonnull PhysicsBodySnapshotVisitor visitor) {
+        UUID spaceUuid = authoritativeSpaceUuid(store, spaceId);
+        if (spaceUuid == null || radius < 0.0f || Float.isNaN(radius)) {
+            return 0;
+        }
+        float radiusSquared = radius * radius;
+        int candidates = 0;
+        PhysicsBodyRegistrationResource registrations =
+            store.getResource(PhysicsBodyRegistrationResource.getResourceType());
+        for (PhysicsStoreBodySnapshot body : authoritativeSnapshotFrame(store).bodies()) {
+            if (!spaceUuid.equals(body.spaceUuid())) {
+                continue;
+            }
+            PhysicsBodySnapshotEntry entry =
+                authoritativeSnapshotEntry(store, registrations, body);
+            if (entry == null) {
+                continue;
+            }
+            candidates++;
+            if (withinRadius(entry.snapshot(), center, radiusSquared)) {
+                visitor.accept(entry.bodyKey(),
+                    entry.snapshot(),
+                    entry.spaceId(),
+                    entry.kind(),
+                    entry.persistenceMode());
+            }
+        }
+        return candidates;
+    }
+
+    @Nullable
+    private static UUID authoritativeSpaceUuid(@Nonnull Store<PhysicsStore> store,
+        @Nonnull SpaceId spaceId) {
+        return store.getResource(PhysicsSpaceCompatibilityIndexResource.getResourceType())
+            .getSpaceUuid(Objects.requireNonNull(spaceId, "spaceId"));
+    }
+
+    @Nonnull
+    private static PhysicsStoreSnapshotFrame authoritativeSnapshotFrame(
+        @Nonnull Store<PhysicsStore> store) {
+        return store.getResource(PhysicsSnapshotResource.getResourceType()).getLatestFrame();
+    }
+
+    @Nullable
+    private static PhysicsBodySnapshotEntry authoritativeSnapshotEntry(
+        @Nonnull Store<PhysicsStore> store,
+        @Nonnull PhysicsBodyRegistrationResource registrations,
+        @Nonnull PhysicsStoreBodySnapshot body) {
+        RigidBodyKey bodyKey = RigidBodyKey.of(body.bodyUuid());
+        PhysicsBodyRegistrationView registration = registrations.getBodyRegistrationView(bodyKey);
+        if (registration == null) {
+            return null;
+        }
+        return new PhysicsBodySnapshotEntry(bodyKey,
+            toPublicBodySnapshot(store, body),
+            registration.spaceId(),
+            registration.kind(),
+            registration.persistenceMode());
+    }
+
+    private static boolean withinRadius(@Nonnull PhysicsBodySnapshot snapshot,
+        @Nonnull Vector3f center,
+        float radiusSquared) {
+        Objects.requireNonNull(center, "center");
+        float dx = snapshot.positionX() - center.x;
+        float dy = snapshot.positionY() - center.y;
+        float dz = snapshot.positionZ() - center.z;
+        return dx * dx + dy * dy + dz * dz <= radiusSquared;
+    }
+
+    @Nonnull
+    private static PhysicsBodySnapshot toPublicBodySnapshot(@Nonnull Store<PhysicsStore> store,
+        @Nonnull PhysicsStoreBodySnapshot body) {
+        Ref<PhysicsStore> ref = store.getResource(PhysicsIdentityIndexResource.getResourceType())
+            .getByUuid(body.bodyUuid());
+        boolean validRef = ref != null && ref.isValid();
+        DynamicsComponent dynamics = validRef
+            ? store.getComponent(ref, DynamicsComponent.getComponentType())
+            : null;
+        ColliderComponent collider = validRef
+            ? store.getComponent(ref, ColliderComponent.getComponentType())
+            : null;
+        MaterialComponent material = validRef
+            ? store.getComponent(ref, MaterialComponent.getComponentType())
+            : null;
+        CollisionFilterComponent filter = validRef
+            ? store.getComponent(ref, CollisionFilterComponent.getComponentType())
+            : null;
+        ShapeComponent shape = validRef
+            ? store.getComponent(ref, ShapeComponent.getComponentType())
+            : null;
+
+        Vector3f position = body.position();
+        Quaternionf rotation = body.rotation();
+        Vector3f linearVelocity = body.linearVelocity();
+        Vector3f angularVelocity = body.angularVelocity();
+        PhysicsBodyType bodyType = body.bodyType();
+        ShapeType shapeType = shape != null ? shape.getShapeType() : ShapeType.UNKNOWN;
+        boolean hasBoxHalfExtents = shapeType == ShapeType.BOX && shape != null;
+
+        return PhysicsBodySnapshot.of(position.x,
+            position.y,
+            position.z,
+            rotation.x,
+            rotation.y,
+            rotation.z,
+            rotation.w,
+            linearVelocity.x,
+            linearVelocity.y,
+            linearVelocity.z,
+            angularVelocity.x,
+            angularVelocity.y,
+            angularVelocity.z,
+            bodyType,
+            body.sleeping(),
+            collider != null && collider.isSensor(),
+            bodyType == PhysicsBodyType.DYNAMIC ? authoredMass(dynamics) : 0.0f,
+            material != null ? material.getFriction() : 0.5f,
+            material != null ? material.getRestitution() : 0.0f,
+            dynamics != null ? dynamics.getLinearDamping() : 0.0f,
+            dynamics != null ? dynamics.getAngularDamping() : 0.0f,
+            filter != null ? filter.getCollisionGroup() : PhysicsCollisionFilters.DYNAMIC_BODY,
+            filter != null ? filter.getCollisionMask() : PhysicsCollisionFilters.ALL,
+            dynamics != null && dynamics.isContinuousCollisionEnabled(),
+            body.centerOfMassOffsetY(),
+            shapeType,
+            hasBoxHalfExtents,
+            hasBoxHalfExtents ? shape.getHalfExtentX() : 0.0f,
+            hasBoxHalfExtents ? shape.getHalfExtentY() : 0.0f,
+            hasBoxHalfExtents ? shape.getHalfExtentZ() : 0.0f,
+            shape != null ? shape.getRadius() : 0.0f,
+            shape != null ? shape.getHalfHeight() : 0.0f,
+            shape != null ? shape.getAxis() : PhysicsAxis.Y);
+    }
+
+    private static float authoredMass(@Nullable DynamicsComponent dynamics) {
+        return dynamics != null ? dynamics.getMass() : 1.0f;
     }
 
     @Nonnull
@@ -809,16 +1090,31 @@ public class PhysicsWorldRuntimeResource extends PhysicsWorldResource {
 
     @Override
     public int getBodySnapshotCount() {
+        if (isAuthoritativePhysicsStoreActive()) {
+            return authoritativePhysicsStore("count copied physics body snapshots")
+                .getResource(PhysicsSnapshotResource.getResourceType())
+                .getLatestFrame()
+                .bodies()
+                .size();
+        }
         return lifecycleState.bodySnapshotCount();
     }
 
     @Override
     public int getBodySnapshotCount(@Nonnull SpaceId spaceId) {
+        if (isAuthoritativePhysicsStoreActive()) {
+            return countAuthoritativeBodySnapshots(
+                authoritativePhysicsStore("count copied physics body snapshots"),
+                spaceId);
+        }
         return lifecycleState.bodySnapshotCount(spaceId);
     }
 
     @Override
     public int getBodySnapshotCellCount() {
+        if (isAuthoritativePhysicsStoreActive()) {
+            return 0;
+        }
         return lifecycleState.bodySnapshotCellCount();
     }
 
@@ -999,11 +1295,25 @@ public class PhysicsWorldRuntimeResource extends PhysicsWorldResource {
     @Override
     public void forEachBodySnapshot(@Nonnull SpaceId spaceId,
         @Nonnull Consumer<PhysicsBodySnapshotEntry> consumer) {
+        if (isAuthoritativePhysicsStoreActive()) {
+            forEachAuthoritativeBodySnapshot(
+                authoritativePhysicsStore("iterate copied physics body snapshots"),
+                spaceId,
+                consumer);
+            return;
+        }
         lifecycleState.forEachBodySnapshot(spaceId, consumer);
     }
 
     public void forEachIndexedBodySnapshot(@Nonnull SpaceId spaceId,
         @Nonnull PhysicsBodySnapshotVisitor visitor) {
+        if (isAuthoritativePhysicsStoreActive()) {
+            forEachIndexedAuthoritativeBodySnapshot(
+                authoritativePhysicsStore("iterate copied physics body snapshots"),
+                spaceId,
+                visitor);
+            return;
+        }
         lifecycleState.forEachIndexedBodySnapshot(spaceId, visitor);
     }
 
@@ -1012,6 +1322,14 @@ public class PhysicsWorldRuntimeResource extends PhysicsWorldResource {
         @Nonnull Vector3f center,
         float radius,
         @Nonnull Consumer<PhysicsBodySnapshotEntry> consumer) {
+        if (isAuthoritativePhysicsStoreActive()) {
+            return forEachAuthoritativeBodySnapshotNear(
+                authoritativePhysicsStore("iterate nearby copied physics body snapshots"),
+                spaceId,
+                center,
+                radius,
+                consumer);
+        }
         return lifecycleState.forEachBodySnapshotNear(spaceId, center, radius, consumer);
     }
 
@@ -1019,6 +1337,14 @@ public class PhysicsWorldRuntimeResource extends PhysicsWorldResource {
         @Nonnull Vector3f center,
         float radius,
         @Nonnull PhysicsBodySnapshotVisitor visitor) {
+        if (isAuthoritativePhysicsStoreActive()) {
+            return forEachIndexedAuthoritativeBodySnapshotNear(
+                authoritativePhysicsStore("iterate nearby copied physics body snapshots"),
+                spaceId,
+                center,
+                radius,
+                visitor);
+        }
         return lifecycleState.forEachIndexedBodySnapshotNear(spaceId, center, radius, visitor);
     }
 
