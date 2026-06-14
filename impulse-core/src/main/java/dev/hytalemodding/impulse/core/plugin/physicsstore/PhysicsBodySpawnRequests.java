@@ -70,10 +70,6 @@ public final class PhysicsBodySpawnRequests {
         Objects.requireNonNull(kind, "kind");
         Objects.requireNonNull(persistenceMode, "persistenceMode");
 
-        UUID colliderUuid = BodyGraphUuids.collider(bodyUuid);
-        UUID shapeUuid = BodyGraphUuids.shape(bodyUuid);
-        UUID materialUuid = BodyGraphUuids.material(bodyUuid);
-        UUID filterUuid = BodyGraphUuids.filter(bodyUuid);
         return BodyUpsertRequest.of(bodyUuid,
             new BodyComponent(spaceUuid,
                 kind,
@@ -84,15 +80,11 @@ public final class PhysicsBodySpawnRequests {
                 settings.hasAngularDamping() ? settings.angularDamping() : 0.0f,
                 false),
             initialTarget(bodyCenter, linearVelocity),
-            colliderUuid,
-            new ColliderComponent(bodyUuid,
-                shapeUuid,
-                materialUuid,
-                filterUuid,
-                new Vector3f(),
+            bodyUuid,
+            new ColliderComponent(new Vector3f(),
                 new Quaternionf(),
                 settings.hasSensor() && settings.sensor()),
-            shapeUuid,
+            bodyUuid,
             new ShapeComponent(shape.type(),
                 shape.halfExtentX(),
                 shape.halfExtentY(),
@@ -102,10 +94,10 @@ public final class PhysicsBodySpawnRequests {
                 shape.axis(),
                 shape.groundY(),
                 ""),
-            materialUuid,
+            bodyUuid,
             new MaterialComponent(settings.hasFriction() ? settings.friction() : 0.5f,
                 settings.hasRestitution() ? settings.restitution() : 0.0f),
-            filterUuid,
+            bodyUuid,
             collisionFilter(settings));
     }
 

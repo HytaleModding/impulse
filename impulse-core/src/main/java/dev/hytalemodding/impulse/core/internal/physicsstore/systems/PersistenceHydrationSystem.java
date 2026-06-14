@@ -18,6 +18,7 @@ import dev.hytalemodding.impulse.core.internal.physicsstore.persistence.Persiste
 import dev.hytalemodding.impulse.core.internal.physicsstore.persistence.PersistentSpaceDto;
 import dev.hytalemodding.impulse.core.internal.physicsstore.persistence.PersistentTerrainColliderDto;
 import dev.hytalemodding.impulse.core.internal.physicsstore.resources.PhysicsRestoreStatusResource;
+import dev.hytalemodding.impulse.core.plugin.physicsstore.PhysicsStoreEntities;
 import dev.hytalemodding.impulse.core.plugin.physicsstore.components.BodyComponent;
 import dev.hytalemodding.impulse.core.plugin.physicsstore.components.ColliderComponent;
 import dev.hytalemodding.impulse.core.plugin.physicsstore.components.CollisionLodSettingsComponent;
@@ -35,6 +36,8 @@ import dev.hytalemodding.impulse.core.plugin.physicsstore.components.UuidCompone
 import dev.hytalemodding.impulse.core.plugin.physicsstore.components.VisualMaterializationSettingsComponent;
 import dev.hytalemodding.impulse.core.plugin.physicsstore.components.VisualSyncSettingsComponent;
 import dev.hytalemodding.impulse.core.plugin.physicsstore.components.WorldCollisionComponent;
+import it.unimi.dsi.fastutil.objects.Object2ObjectOpenHashMap;
+import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
 import javax.annotation.Nonnull;
@@ -70,18 +73,7 @@ public final class PersistenceHydrationSystem extends TickingSystem<PhysicsStore
         for (PersistentSpaceDto dto : persistent.getSpaces()) {
             addSpace(store, dto);
         }
-        for (PersistentShapeDto dto : persistent.getShapes()) {
-            addShape(store, dto);
-        }
-        for (PersistentMaterialDto dto : persistent.getMaterials()) {
-            addMaterial(store, dto);
-        }
-        for (PersistentBodyDto dto : persistent.getBodies()) {
-            addBody(store, dto);
-        }
-        for (PersistentColliderDto dto : persistent.getColliders()) {
-            addCollider(store, dto);
-        }
+        addBodies(store, persistent);
         for (PersistentJointDto dto : persistent.getJoints()) {
             addJoint(store, dto);
         }
@@ -110,62 +102,92 @@ public final class PersistenceHydrationSystem extends TickingSystem<PhysicsStore
         add(store, holder);
     }
 
-    private static void addShape(@Nonnull Store<PhysicsStore> store,
-        @Nonnull PersistentShapeDto dto) {
-        Holder<PhysicsStore> holder = row(store, dto.getShapeUuid());
-        holder.addComponent(ShapeComponent.getComponentType(),
-            new ShapeComponent(dto.getShapeType(),
-                dto.getHalfExtentX(),
-                dto.getHalfExtentY(),
-                dto.getHalfExtentZ(),
-                dto.getRadius(),
-                dto.getHalfHeight(),
-                dto.getAxis(),
-                dto.getGroundY(),
-                dto.getResourceKey()));
-        add(store, holder);
-    }
-
-    private static void addMaterial(@Nonnull Store<PhysicsStore> store,
-        @Nonnull PersistentMaterialDto dto) {
-        Holder<PhysicsStore> holder = row(store, dto.getMaterialUuid());
-        holder.addComponent(MaterialComponent.getComponentType(),
-            new MaterialComponent(dto.getFriction(), dto.getRestitution()));
-        add(store, holder);
+    private static void addBodies(@Nonnull Store<PhysicsStore> store,
+        @Nonnull PersistentPhysicsStoreResource persistent) {
+        Map<UUID, PersistentColliderDto> collidersByUuid = new Object2ObjectOpenHashMap<>();
+        Map<UUID, PersistentColliderDto> collidersByBodyUuid = new Object2ObjectOpenHashMap<>();
+        for (PersistentColliderDto collider : persistent.getColliders()) {
+            collidersByUuid.put(collider.getColliderUuid(), collider);
+            collidersByBodyUuid.putIfAbsent(collider.getBodyUuid(), collider);
+        }
+        Map<UUID, PersistentShapeDto> shapesByUuid = new Object2ObjectOpenHashMap<>();
+        for (PersistentShapeDto shape : persistent.getShapes()) {
+            shapesByUuid.put(shape.getShapeUuid(), shape);
+        }
+        Map<UUID, PersistentMaterialDto> materialsByUuid = new Object2ObjectOpenHashMap<>();
+        for (PersistentMaterialDto material : persistent.getMaterials()) {
+            materialsByUuid.put(material.getMaterialUuid(), material);
+        }
+        for (PersistentBodyDto dto : persistent.getBodies()) {
+            addBody(store,
+                dto,
+                colliderFor(dto, collidersByUuid, collidersByBodyUuid),
+                shapesByUuid,
+                materialsByUuid);
+        }
     }
 
     private static void addBody(@Nonnull Store<PhysicsStore> store,
-        @Nonnull PersistentBodyDto dto) {
+        @Nonnull PersistentBodyDto dto,
+        PersistentColliderDto collider,
+        @Nonnull Map<UUID, PersistentShapeDto> shapesByUuid,
+        @Nonnull Map<UUID, PersistentMaterialDto> materialsByUuid) {
         Holder<PhysicsStore> holder = row(store, dto.getBodyUuid());
-        holder.addComponent(BodyComponent.getComponentType(),
-            new BodyComponent(dto.getSpaceUuid(),
-                dto.getKind(),
-                dto.getPersistenceMode()));
-        holder.addComponent(DynamicsComponent.getComponentType(),
-            new DynamicsComponent(dto.getBodyType(),
-                dto.getMass(),
-                dto.getLinearDamping(),
-                dto.getAngularDamping(),
-                dto.isContinuousCollisionEnabled()));
-        holder.addComponent(TargetComponent.getComponentType(),
-            inactiveTarget(dto.getRuntimeState()));
+        BodyComponent body = new BodyComponent(dto.getSpaceUuid(),
+            dto.getKind(),
+            dto.getPersistenceMode());
+        DynamicsComponent dynamics = new DynamicsComponent(dto.getBodyType(),
+            dto.getMass(),
+            dto.getLinearDamping(),
+            dto.getAngularDamping(),
+            dto.isContinuousCollisionEnabled());
+        TargetComponent target = inactiveTarget(dto.getRuntimeState());
+        if (collider != null) {
+            PersistentShapeDto shape = shapesByUuid.get(collider.getShapeUuid());
+            PersistentMaterialDto material = materialsByUuid.get(collider.getMaterialUuid());
+            if (shape != null && material != null) {
+                PhysicsStoreEntities.addBodyComponents(holder,
+                    body,
+                    dynamics,
+                    target,
+                    new ColliderComponent(collider.getLocalPosition(),
+                        collider.getLocalRotation(),
+                        collider.isSensor()),
+                    new ShapeComponent(shape.getShapeType(),
+                        shape.getHalfExtentX(),
+                        shape.getHalfExtentY(),
+                        shape.getHalfExtentZ(),
+                        shape.getRadius(),
+                        shape.getHalfHeight(),
+                        shape.getAxis(),
+                        shape.getGroundY(),
+                        shape.getResourceKey()),
+                    new MaterialComponent(material.getFriction(), material.getRestitution()),
+                    new CollisionFilterComponent(collider.getCollisionGroup(),
+                        collider.getCollisionMask()));
+            } else {
+                holder.addComponent(BodyComponent.getComponentType(), body);
+                holder.addComponent(DynamicsComponent.getComponentType(), dynamics);
+                holder.addComponent(TargetComponent.getComponentType(), target);
+            }
+        } else {
+            holder.addComponent(BodyComponent.getComponentType(), body);
+            holder.addComponent(DynamicsComponent.getComponentType(), dynamics);
+            holder.addComponent(TargetComponent.getComponentType(), target);
+        }
         add(store, holder);
     }
 
-    private static void addCollider(@Nonnull Store<PhysicsStore> store,
-        @Nonnull PersistentColliderDto dto) {
-        Holder<PhysicsStore> holder = row(store, dto.getColliderUuid());
-        holder.addComponent(ColliderComponent.getComponentType(),
-            new ColliderComponent(dto.getBodyUuid(),
-                dto.getShapeUuid(),
-                dto.getMaterialUuid(),
-                dto.getColliderUuid(),
-                dto.getLocalPosition(),
-                dto.getLocalRotation(),
-                dto.isSensor()));
-        holder.addComponent(CollisionFilterComponent.getComponentType(),
-            new CollisionFilterComponent(dto.getCollisionGroup(), dto.getCollisionMask()));
-        add(store, holder);
+    private static PersistentColliderDto colliderFor(@Nonnull PersistentBodyDto body,
+        @Nonnull Map<UUID, PersistentColliderDto> collidersByUuid,
+        @Nonnull Map<UUID, PersistentColliderDto> collidersByBodyUuid) {
+        for (UUID colliderUuid : body.getColliderUuids()) {
+            PersistentColliderDto collider = collidersByUuid.get(colliderUuid);
+            if (collider != null) {
+                return collider;
+            }
+        }
+        return collidersByBodyUuid.get(body.getBodyUuid());
     }
 
     private static void addJoint(@Nonnull Store<PhysicsStore> store,
