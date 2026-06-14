@@ -18,12 +18,15 @@ import dev.hytalemodding.impulse.api.SpaceId;
 import dev.hytalemodding.impulse.core.internal.resources.profiling.PhysicsRuntimeProfilingResource;
 import dev.hytalemodding.impulse.core.internal.resources.profiling.PhysicsRuntimeProfilingResource.StepSnapshot;
 import dev.hytalemodding.impulse.core.internal.resources.profiling.PhysicsRuntimeProfilingResource.SyncSnapshot;
+import dev.hytalemodding.impulse.core.internal.modules.worldcollision.PhysicsStoreWorldCollisionStreamingResource;
+import dev.hytalemodding.impulse.core.internal.modules.worldcollision.WorldCollisionBuildOptions;
 import dev.hytalemodding.impulse.core.internal.modules.worldcollision.profiling.WorldCollisionProfilingResource;
 import dev.hytalemodding.impulse.core.internal.modules.worldcollision.profiling.WorldCollisionProfilingResource.Snapshot;
+import dev.hytalemodding.impulse.core.internal.physicsstore.PhysicsStoreSpaceMutations;
+import dev.hytalemodding.impulse.core.internal.physicsstore.resources.PhysicsTerrainMutationQueueResource;
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsWorldRuntimeResource;
 import dev.hytalemodding.impulse.core.internal.simulation.query.BenchmarkSpaceStatsQuery;
 import dev.hytalemodding.impulse.core.internal.simulation.view.BenchmarkSpaceStatsView;
-import dev.hytalemodding.impulse.core.internal.simulation.query.WorldCollisionPrewarmEnvelopeQuery;
 import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyKind;
 import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyPersistenceMode;
 import dev.hytalemodding.impulse.core.plugin.modules.worldcollision.WorldCollisionPrewarmStats;
@@ -141,6 +144,7 @@ final class ImpulseDetachedStreamingBenchmarkCrucibleTests {
         private final Store<PhysicsStore> physicsStore;
         private final PhysicsRuntimeProfilingResource runtimeProfiling;
         private final WorldCollisionProfilingResource worldCollisionProfiling;
+        private final PhysicsStoreWorldCollisionStreamingResource worldCollisionStreaming;
         private final PhysicsWorldSettings previousWorldSettings;
         private final List<WorldChunk> retainedChunks = new ArrayList<>();
 
@@ -155,6 +159,8 @@ final class ImpulseDetachedStreamingBenchmarkCrucibleTests {
             this.runtimeProfiling = store.getResource(PhysicsRuntimeProfilingResource.getResourceType());
             this.worldCollisionProfiling = store.getResource(
                 WorldCollisionProfilingResource.getResourceType());
+            this.worldCollisionStreaming = store.getResource(
+                PhysicsStoreWorldCollisionStreamingResource.getResourceType());
             this.previousWorldSettings = physics.getWorldSettings();
         }
 
@@ -274,7 +280,7 @@ final class ImpulseDetachedStreamingBenchmarkCrucibleTests {
             double elapsedSeconds = Math.max(0.001,
                 (System.nanoTime() - startedNanos) / 1_000_000_000.0);
             double observedTickRate = step.getTickSamples() / elapsedSeconds;
-            SpaceStats stats = SpaceStats.collect(physics, spaceId);
+            SpaceStats stats = SpaceStats.collect(physicsStore, worldCollisionStreaming, spaceId);
             double avgStepMs = averageMillis(step.getTickNanos(), step.getTickSamples());
             double avgSnapshotMs = averageMillis(step.getSnapshotNanos(), step.getTickSamples());
             double avgSyncMs = averageMillis(sync.getTickNanos(), sync.getTickSamples());
@@ -345,23 +351,66 @@ final class ImpulseDetachedStreamingBenchmarkCrucibleTests {
 
         private PrewarmStats prewarmWorldCollision(@Nonnull SpaceId spaceId, int count) {
             BenchmarkLayout layout = BenchmarkLayout.flatGrid(count);
-            WorldCollisionPrewarmStats stats = physics.queryInternal(new WorldCollisionPrewarmEnvelopeQuery(world,
-                    spaceId,
-                    count,
-                    (float) layout.origin().x,
-                    (float) layout.origin().y,
-                    (float) layout.origin().z,
-                    layout.side(),
-                    (float) layout.spacing(),
-                    BODY_STREAMING_RADIUS,
-                    (float) STREAMING_FALL_ENVELOPE_MIN_Y,
-                    (float) STREAMING_HORIZONTAL_DRIFT_HALO_BLOCKS,
-                    0L))
-                .toCompletableFuture()
-                .join();
+            UUID spaceUuid = PhysicsStoreSpaceMutations.requireSpaceUuid(physicsStore, spaceId);
+            PhysicsTerrainMutationQueueResource queue = physicsStore.getResource(
+                PhysicsTerrainMutationQueueResource.getResourceType());
+            WorldCollisionBuildOptions buildOptions = WorldCollisionBuildOptions.fromSettings(
+                physics.getSpaceSettings(spaceId).getWorldCollisionSettings());
+            WorldCollisionPrewarmStats stats = worldCollisionStreaming.ensureAround(world,
+                spaceUuid,
+                queue,
+                prewarmCenters(layout, count),
+                BODY_STREAMING_RADIUS,
+                0L,
+                null,
+                buildOptions);
             return new PrewarmStats(stats.sectionTargets(),
                 stats.buildStats().sectionsBuilt(),
                 stats.buildStats().colliderBodies());
+        }
+
+        @Nonnull
+        private static List<Vector3d> prewarmCenters(@Nonnull BenchmarkLayout layout, int count) {
+            List<Vector3d> centers = new ArrayList<>();
+            for (int index = 0; index < Math.max(0, count); index++) {
+                double positionX = layout.positionX(index);
+                double positionY = layout.positionY();
+                double positionZ = layout.positionZ(index);
+                addPrewarmEnvelopeCenters(centers, positionX, positionY, positionZ);
+            }
+            return centers;
+        }
+
+        private static void addPrewarmEnvelopeCenters(@Nonnull List<Vector3d> centers,
+            double positionX,
+            double positionY,
+            double positionZ) {
+            double halo = STREAMING_HORIZONTAL_DRIFT_HALO_BLOCKS;
+            for (int offsetX = -1; offsetX <= 1; offsetX++) {
+                for (int offsetZ = -1; offsetZ <= 1; offsetZ++) {
+                    addPrewarmEnvelopeCentersAt(centers,
+                        positionX + offsetX * halo,
+                        positionY,
+                        positionZ + offsetZ * halo);
+                }
+            }
+        }
+
+        private static void addPrewarmEnvelopeCentersAt(@Nonnull List<Vector3d> centers,
+            double positionX,
+            double positionY,
+            double positionZ) {
+            double step = Math.max(1.0, BODY_STREAMING_RADIUS * 2.0);
+            double minCenterY = Math.min(positionY,
+                STREAMING_FALL_ENVELOPE_MIN_Y + BODY_STREAMING_RADIUS);
+            double lastY = Double.NaN;
+            for (double y = positionY; y >= minCenterY; y -= step) {
+                centers.add(new Vector3d(positionX, y, positionZ));
+                lastY = y;
+            }
+            if (Double.isNaN(lastY) || lastY > minCenterY) {
+                centers.add(new Vector3d(positionX, minCenterY, positionZ));
+            }
         }
 
         private void configureMissingSectionDiagnostics(@Nonnull BenchmarkChunks chunks) {
@@ -880,16 +929,18 @@ final class ImpulseDetachedStreamingBenchmarkCrucibleTests {
         private int missingTerrainBaselineBodies;
         private double minTerrainBottomClearance = Double.POSITIVE_INFINITY;
 
-        private static SpaceStats collect(@Nonnull PhysicsWorldRuntimeResource physics,
+        private static SpaceStats collect(@Nonnull Store<PhysicsStore> physicsStore,
+            @Nonnull PhysicsStoreWorldCollisionStreamingResource worldCollisionStreaming,
             @Nonnull SpaceId spaceId) {
-            BenchmarkSpaceStatsView view = physics.queryInternal(new BenchmarkSpaceStatsQuery(spaceId,
+            BenchmarkSpaceStatsView view = PhysicsStoreBenchmarkQueries.benchmarkSpaceStats(
+                physicsStore,
+                worldCollisionStreaming,
+                new BenchmarkSpaceStatsQuery(spaceId,
                     GROUND_Y,
                     BELOW_PLANE_TOLERANCE,
                     BODY_WORLD_MIN_Y,
                     BODY_VOID_Y,
-                    true))
-                .toCompletableFuture()
-                .join();
+                    true));
             SpaceStats stats = new SpaceStats();
             stats.bodies = view.bodies();
             stats.dynamicBodies = view.dynamicBodies();

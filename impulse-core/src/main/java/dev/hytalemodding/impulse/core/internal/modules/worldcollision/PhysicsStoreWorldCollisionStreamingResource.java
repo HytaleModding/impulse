@@ -194,6 +194,10 @@ public final class PhysicsStoreWorldCollisionStreamingResource implements Resour
             cache.shapeTemplateCount());
     }
 
+    public synchronized int bodyCount(@Nonnull UUID spaceUuid) {
+        return cache.bodyCount(spaceUuid);
+    }
+
     @Nonnull
     @Override
     public synchronized PhysicsStoreWorldCollisionStreamingResource clone() {
