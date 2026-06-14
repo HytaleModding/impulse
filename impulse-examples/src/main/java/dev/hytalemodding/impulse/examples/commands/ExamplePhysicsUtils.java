@@ -547,7 +547,7 @@ public final class ExamplePhysicsUtils {
         @Nonnull RigidBodySpawnSettings settings,
         @Nonnull PhysicsBodyKind kind,
         @Nonnull PhysicsBodyPersistenceMode persistenceMode,
-        @Nonnull Consumer<BlockBodyBatchRecorder> recipe) {
+        @Nonnull Consumer<BlockBodyBatchBuilder> builder) {
         DynamicBodyBatchPlan plan = dynamicBodyBatchPlan(world,
             spaceId,
             expectedBodies,
@@ -556,7 +556,7 @@ public final class ExamplePhysicsUtils {
             settings,
             kind,
             persistenceMode,
-            recipe);
+            builder);
         if (plan.isEmpty()) {
             return new BodyRowBatchTiming(0, plan.setupWallNanos(), 0L);
         }
@@ -578,7 +578,7 @@ public final class ExamplePhysicsUtils {
         @Nonnull RigidBodySpawnSettings settings,
         @Nonnull PhysicsBodyKind kind,
         @Nonnull PhysicsBodyPersistenceMode persistenceMode,
-        @Nonnull Consumer<BlockBodyBatchRecorder> recipe) {
+        @Nonnull Consumer<BlockBodyBatchBuilder> builder) {
         Objects.requireNonNull(world, "world");
         Objects.requireNonNull(spaceId, "spaceId");
         Objects.requireNonNull(shape, "shape");
@@ -587,8 +587,8 @@ public final class ExamplePhysicsUtils {
         Objects.requireNonNull(persistenceMode, "persistenceMode");
 
         long setupStartNanos = System.nanoTime();
-        BlockBodyBatchRecorder batch = new BlockBodyBatchRecorder(expectedBodies);
-        Objects.requireNonNull(recipe, "recipe").accept(batch);
+        BlockBodyBatchBuilder batch = new BlockBodyBatchBuilder(expectedBodies);
+        Objects.requireNonNull(builder, "builder").accept(batch);
         batch.seal();
         if (batch.isEmpty()) {
             return new DynamicBodyBatchPlan(List.of(), 0L);
@@ -642,7 +642,7 @@ public final class ExamplePhysicsUtils {
         @Nonnull PhysicsShapeSpec shape,
         float mass,
         @Nonnull RigidBodySpawnSettings settings,
-        @Nonnull Consumer<BlockBodyBatchRecorder> recipe) {
+        @Nonnull Consumer<BlockBodyBatchBuilder> builder) {
         return spawnBlockBodiesInternal(store,
             time,
             resource,
@@ -653,7 +653,7 @@ public final class ExamplePhysicsUtils {
             shape,
             mass,
             settings,
-            recipe,
+            builder,
             true).collectedBodies();
     }
 
@@ -668,7 +668,7 @@ public final class ExamplePhysicsUtils {
         @Nonnull PhysicsShapeSpec shape,
         float mass,
         @Nonnull RigidBodySpawnSettings settings,
-        @Nonnull Consumer<BlockBodyBatchRecorder> recipe) {
+        @Nonnull Consumer<BlockBodyBatchBuilder> builder) {
         return spawnBlockBodiesInternal(store,
             time,
             resource,
@@ -679,7 +679,7 @@ public final class ExamplePhysicsUtils {
             shape,
             mass,
             settings,
-            recipe,
+            builder,
             false).timing();
     }
 
@@ -694,10 +694,10 @@ public final class ExamplePhysicsUtils {
         @Nonnull PhysicsShapeSpec shape,
         float mass,
         @Nonnull RigidBodySpawnSettings settings,
-        @Nonnull Consumer<BlockBodyBatchRecorder> recipe,
+        @Nonnull Consumer<BlockBodyBatchBuilder> builder,
         boolean collectBodies) {
-        BlockBodyBatchRecorder batch = new BlockBodyBatchRecorder(expectedBodies);
-        Objects.requireNonNull(recipe, "recipe").accept(batch);
+        BlockBodyBatchBuilder batch = new BlockBodyBatchBuilder(expectedBodies);
+        Objects.requireNonNull(builder, "builder").accept(batch);
         batch.seal();
         if (batch.isEmpty()) {
             return new BlockBodyBatchResult(collectBodies ? new SpawnedBlockBody[0] : null,
@@ -940,7 +940,7 @@ public final class ExamplePhysicsUtils {
         }
     }
 
-    public static final class BlockBodyBatchRecorder {
+    public static final class BlockBodyBatchBuilder {
 
         private static final int POSITION_STRIDE = 3;
 
@@ -951,7 +951,7 @@ public final class ExamplePhysicsUtils {
         private int size;
         private boolean sealed;
 
-        private BlockBodyBatchRecorder(int expectedBodies) {
+        private BlockBodyBatchBuilder(int expectedBodies) {
             int capacity = Math.max(1, expectedBodies);
             bodyKeyMostSignificantBits = new long[capacity];
             bodyKeyLeastSignificantBits = new long[capacity];
@@ -959,7 +959,7 @@ public final class ExamplePhysicsUtils {
         }
 
         @Nonnull
-        public BlockBodyBatchRecorder addBody(float positionX,
+        public BlockBodyBatchBuilder addBody(float positionX,
             float positionY,
             float positionZ) {
             return addBody(bodyKeyRunId,
@@ -970,7 +970,7 @@ public final class ExamplePhysicsUtils {
         }
 
         @Nonnull
-        public BlockBodyBatchRecorder addBody(@Nonnull RigidBodyKey bodyKey,
+        public BlockBodyBatchBuilder addBody(@Nonnull RigidBodyKey bodyKey,
             float positionX,
             float positionY,
             float positionZ) {
@@ -1001,7 +1001,7 @@ public final class ExamplePhysicsUtils {
         }
 
         @Nonnull
-        private BlockBodyBatchRecorder addBody(long bodyKeyMostSignificantBits,
+        private BlockBodyBatchBuilder addBody(long bodyKeyMostSignificantBits,
             long bodyKeyLeastSignificantBits,
             float positionX,
             float positionY,
@@ -1083,7 +1083,7 @@ public final class ExamplePhysicsUtils {
 
         private void assertMutable() {
             if (sealed) {
-                throw new IllegalStateException("Block body batch recorder is already sealed");
+                throw new IllegalStateException("Block body batch builder is already sealed");
             }
         }
     }
