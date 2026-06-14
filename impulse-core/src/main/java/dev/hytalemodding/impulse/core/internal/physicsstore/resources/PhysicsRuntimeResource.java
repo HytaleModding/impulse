@@ -18,6 +18,8 @@ import it.unimi.dsi.fastutil.longs.LongArrayList;
 import it.unimi.dsi.fastutil.longs.LongList;
 import it.unimi.dsi.fastutil.objects.Object2ObjectOpenHashMap;
 import it.unimi.dsi.fastutil.objects.ObjectOpenHashSet;
+import lombok.Getter;
+import lombok.Setter;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -79,17 +81,11 @@ public final class PhysicsRuntimeResource implements Resource<PhysicsStore> {
     private final List<PendingBodyOperation> pendingBodyOperations = new ArrayList<>();
     @Nonnull
     private final ObjectOpenHashSet<UUID> pendingSpaceSettings = new ObjectOpenHashSet<>();
+    @Setter
+    @Getter
     private boolean started;
 
     public PhysicsRuntimeResource() {
-    }
-
-    public boolean isStarted() {
-        return started;
-    }
-
-    public void setStarted(boolean started) {
-        this.started = started;
     }
 
     public void putRuntime(@Nonnull BackendId backendId, @Nonnull PhysicsBackendRuntime runtime) {
@@ -299,7 +295,7 @@ public final class PhysicsRuntimeResource implements Resource<PhysicsStore> {
     public void removeTerrainHandles(@Nonnull UUID terrainUuid) {
         LongList bodyHandles = terrainBodyHandlesByUuid.get(terrainUuid);
         if (bodyHandles != null) {
-            bodyHandles.forEach((long bodyHandle) -> bodyHitMetadataByHandle.remove(bodyHandle));
+            bodyHandles.forEach(bodyHitMetadataByHandle::remove);
         }
         terrainBodyHandlesByUuid.remove(terrainUuid);
         terrainVoxelBodyHandlesByUuid.remove(terrainUuid);
@@ -584,7 +580,7 @@ public final class PhysicsRuntimeResource implements Resource<PhysicsStore> {
             UUID terrainUuid = entry.getKey();
             LongList bodyHandles = terrainBodyHandlesByUuid.get(terrainUuid);
             if (bodyHandles != null) {
-                bodyHandles.forEach((long bodyHandle) -> bodyHitMetadataByHandle.remove(bodyHandle));
+                bodyHandles.forEach(bodyHitMetadataByHandle::remove);
             }
             terrainBodyHandlesByUuid.remove(terrainUuid);
             terrainVoxelBodyHandlesByUuid.remove(terrainUuid);
