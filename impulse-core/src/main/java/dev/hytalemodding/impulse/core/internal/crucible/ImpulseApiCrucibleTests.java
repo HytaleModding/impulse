@@ -1,5 +1,13 @@
 package dev.hytalemodding.impulse.core.internal.crucible;
 
+import com.hypixel.hytale.component.AddReason;
+import com.hypixel.hytale.component.Ref;
+import com.hypixel.hytale.component.RemoveReason;
+import com.hypixel.hytale.component.Store;
+import com.hypixel.hytale.server.core.universe.world.World;
+import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
+import com.hypixel.hytale.server.core.universe.world.storage.PhysicsStore;
+import dev.hytalemodding.impulse.early.PhysicsStoreWorld;
 import dev.hytalemodding.impulse.api.Impulse;
 import dev.hytalemodding.impulse.api.PhysicsBodySnapshot;
 import dev.hytalemodding.impulse.api.PhysicsBodyType;
@@ -8,23 +16,28 @@ import dev.hytalemodding.impulse.api.runtime.BackendRuntimeCodes;
 import dev.hytalemodding.impulse.api.runtime.PhysicsBackendRuntime;
 import dev.hytalemodding.impulse.api.runtime.PhysicsBackendRuntimeProvider;
 import dev.hytalemodding.impulse.core.ImpulsePlugin;
+import dev.hytalemodding.impulse.core.internal.physicsstore.PhysicsStoreSpaceMutations;
 import dev.hytalemodding.impulse.core.internal.resources.body.PhysicsBodySnapshots;
-import dev.hytalemodding.impulse.core.plugin.body.RigidBodyKey;
-import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyKind;
 import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyPersistenceMode;
+import dev.hytalemodding.impulse.core.plugin.physicsstore.BodyRowDescriptor;
+import dev.hytalemodding.impulse.core.plugin.physicsstore.PhysicsBodyRows;
+import dev.hytalemodding.impulse.core.plugin.physicsstore.PhysicsStoreDiagnostics;
+import dev.hytalemodding.impulse.core.plugin.physicsstore.PhysicsStoreEntities;
 import dev.hytalemodding.impulse.core.plugin.simulation.PhysicsShapeSpec;
 import dev.hytalemodding.impulse.core.plugin.simulation.RigidBodySpawnSettings;
-import dev.hytalemodding.impulse.core.plugin.simulation.query.SpaceBodyCountQuery;
 import dev.hytalemodding.impulse.core.plugin.settings.PhysicsBackendExtensionId;
 import dev.hytalemodding.impulse.core.plugin.settings.PhysicsSpaceSettings;
 import dev.hytalemodding.impulse.core.plugin.resources.PhysicsWorldResource;
-import dev.hytalemodding.impulse.core.internal.resources.PhysicsWorldRuntimeResource;
 import dev.hytalemodding.impulse.core.plugin.settings.VisualOcclusionMode;
 import dev.hytalemodding.impulse.core.plugin.modules.worldcollision.WorldCollisionMode;
+import java.util.UUID;
 import java.util.Collection;
 import java.util.List;
 import java.util.Set;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionStage;
 import javax.annotation.Nonnull;
+import org.joml.Vector3f;
 
 /**
  * Crucible suites that exercise Impulse API behavior inside a live Hytale server.
@@ -88,19 +101,19 @@ final class ImpulseApiCrucibleTests {
             "Verifies explicit space lifecycle, detached cleanup, and settings retention",
             Set.of("smoke", "stability"),
             List.of(
-                CrucibleTestCase.sync("fresh world has no spaces",
-                    ImpulseApiCrucibleTests::freshWorldHasNoSpaces,
-                    "Fresh PhysicsWorldResource unexpectedly has spaces"),
-                CrucibleTestCase.sync("created explicit space lifecycle works",
+                CrucibleTestCase.async("space count round trip",
+                    ImpulseApiCrucibleTests::spaceCountRoundTrip,
+                    "PhysicsStore space count did not return to its previous value"),
+                CrucibleTestCase.async("created explicit space lifecycle works",
                     ImpulseApiCrucibleTests::createdExplicitSpaceLifecycleWorks,
                     "Explicit space was not registered correctly"),
-                CrucibleTestCase.sync("clear populated spaces",
+                CrucibleTestCase.async("clear populated spaces",
                     ImpulseApiCrucibleTests::clearPopulatedSpaces,
-                    "clearAllSpaces did not remove populated runtime spaces"),
-                CrucibleTestCase.sync("detached unregister removes body",
+                    "PhysicsStore row cleanup did not remove populated runtime spaces"),
+                CrucibleTestCase.async("detached unregister removes body",
                     ImpulseApiCrucibleTests::detachedUnregisterRemovesBackendBody,
                     "Detached unregister did not remove the backend body"),
-                CrucibleTestCase.sync("settings round trip",
+                CrucibleTestCase.async("settings round trip",
                     ImpulseApiCrucibleTests::settingsRoundTrip,
                     "PhysicsSpaceSettings did not retain runtime settings")));
     }
@@ -165,81 +178,126 @@ final class ImpulseApiCrucibleTests {
         }
     }
 
-    private static boolean freshWorldHasNoSpaces() {
-        PhysicsWorldResource resource = new PhysicsWorldRuntimeResource();
-        return resource.getSpaceIds().isEmpty();
+    private static CompletionStage<Boolean> spaceCountRoundTrip(@Nonnull CrucibleContext context) {
+        try {
+            World world = context.world();
+            PhysicsWorldResource resource = physicsResource(world);
+            Store<PhysicsStore> store = physicsStore(world);
+            int previousCount = resource.getSpaceCount();
+            SpaceId spaceId = resource.createSpace(CrucibleBackends.requireBackendId(),
+                "crucible",
+                PhysicsSpaceSettings.defaults());
+            PhysicsStoreSpaceMutations.removeEmptySpace(store, spaceId);
+            return CompletableFuture.completedFuture(resource.getSpaceCount() == previousCount
+                && !resource.hasSpace(spaceId));
+        } catch (ReflectiveOperationException e) {
+            return CompletableFuture.failedFuture(e);
+        }
     }
 
-    private static boolean createdExplicitSpaceLifecycleWorks() {
-        PhysicsWorldResource resource = new PhysicsWorldRuntimeResource();
-        SpaceId spaceId = resource.createSpace(CrucibleBackends.requireBackendId(),
-            "crucible",
-            PhysicsSpaceSettings.streamingWorldCollision());
+    private static CompletionStage<Boolean> createdExplicitSpaceLifecycleWorks(
+        @Nonnull CrucibleContext context) {
         try {
-            return resource.hasSpace(spaceId)
+            World world = context.world();
+            PhysicsWorldResource resource = physicsResource(world);
+            Store<PhysicsStore> store = physicsStore(world);
+            SpaceId spaceId = resource.createSpace(CrucibleBackends.requireBackendId(),
+                "crucible",
+                PhysicsSpaceSettings.streamingWorldCollision());
+            boolean registered = resource.hasSpace(spaceId)
                 && resource.getSpaceSettings(spaceId).getWorldCollisionSettings().getWorldCollisionMode()
                 == WorldCollisionMode.STREAMING;
-        } finally {
-            resource.clearAllSpaces("crucible");
+            PhysicsStoreSpaceMutations.removeEmptySpace(store, spaceId);
+            return CompletableFuture.completedFuture(registered && !resource.hasSpace(spaceId));
+        } catch (ReflectiveOperationException e) {
+            return CompletableFuture.failedFuture(e);
         }
     }
 
-    private static boolean clearPopulatedSpaces() {
-        PhysicsWorldResource resource = new PhysicsWorldRuntimeResource();
-        SpaceId spaceId = resource.createSpace(CrucibleBackends.requireBackendId(),
-            "crucible",
-            PhysicsSpaceSettings.defaults());
-        submitCrucibleBox(resource, spaceId, RigidBodyKey.random());
-
-        resource.clearAllSpaces("crucible");
-        return resource.getSpaceIds().isEmpty();
+    private static CompletionStage<Boolean> clearPopulatedSpaces(
+        @Nonnull CrucibleContext context) {
+        return populatedBodyCleanup(context, true);
     }
 
-    private static boolean detachedUnregisterRemovesBackendBody() {
-        PhysicsWorldResource resource = new PhysicsWorldRuntimeResource();
-        SpaceId spaceId = resource.createSpace(CrucibleBackends.requireBackendId(),
-            "crucible",
-            PhysicsSpaceSettings.defaults());
+    private static CompletionStage<Boolean> detachedUnregisterRemovesBackendBody(
+        @Nonnull CrucibleContext context) {
+        return populatedBodyCleanup(context, false);
+    }
+
+    private static CompletionStage<Boolean> populatedBodyCleanup(
+        @Nonnull CrucibleContext context,
+        boolean checkSpaceRemoval) {
         try {
-            RigidBodyKey bodyKey = RigidBodyKey.random();
-            submitCrucibleBox(resource, spaceId, bodyKey);
-
-            resource.destroyBody(bodyKey);
-            boolean spaceEmpty = resource.query(new SpaceBodyCountQuery(spaceId))
-                .completion()
-                .toCompletableFuture()
-                .join() == 0;
-            return spaceEmpty && resource.getBodyRegistrationViews().isEmpty();
-        } finally {
-            resource.clearAllSpaces("crucible");
+            World world = context.world();
+            PhysicsWorldResource resource = physicsResource(world);
+            Store<PhysicsStore> store = physicsStore(world);
+            SpaceId spaceId = resource.createSpace(CrucibleBackends.requireBackendId(),
+                "crucible",
+                PhysicsSpaceSettings.defaults());
+            Ref<PhysicsStore> bodyRef = addCrucibleBox(store, spaceId, UUID.randomUUID());
+            return context.waitApproxTicksOnWorld(4)
+                .thenCompose(_ -> removeBodyRowAndWait(context, store, bodyRef))
+                .thenApply(_ -> {
+                    boolean spaceEmpty = PhysicsStoreDiagnostics.bodyCount(store, spaceId) == 0;
+                    boolean noRegistrations = resource.getBodyRegistrationViews().isEmpty();
+                    boolean removedSpace = true;
+                    if (checkSpaceRemoval || spaceEmpty) {
+                        PhysicsStoreSpaceMutations.removeEmptySpace(store, spaceId);
+                        removedSpace = !resource.hasSpace(spaceId);
+                    }
+                    return spaceEmpty && noRegistrations && removedSpace;
+                });
+        } catch (ReflectiveOperationException e) {
+            return CompletableFuture.failedFuture(e);
         }
     }
 
-    private static void submitCrucibleBox(@Nonnull PhysicsWorldResource resource,
-        @Nonnull SpaceId spaceId,
-        @Nonnull RigidBodyKey bodyKey) {
-        resource.submitCommands(0L,
-                1,
-                commands -> commands.spawnBody(bodyKey, spawn -> spawn
-                    .space(spaceId)
-                    .shape(PhysicsShapeSpec.box(0.5f, 0.5f, 0.5f))
-                    .mass(1.0f)
-                    .type(PhysicsBodyType.DYNAMIC)
-                    .position(0f, 5f, 0f)
-                    .settings(RigidBodySpawnSettings.defaults())
-                    .kind(PhysicsBodyKind.BODY)
-                    .persistence(PhysicsBodyPersistenceMode.RUNTIME_ONLY)))
-            .firstRejected()
-            .toCompletableFuture()
-            .join()
-            .ifPresent(result -> {
-                throw new IllegalStateException("spawn crucible box command "
-                    + result.commandSequence() + " rejected: " + result.message());
-            });
+    private static CompletionStage<Void> removeBodyRowAndWait(@Nonnull CrucibleContext context,
+        @Nonnull Store<PhysicsStore> store,
+        @Nonnull Ref<PhysicsStore> bodyRef) {
+        if (bodyRef.isValid()) {
+            store.removeEntity(bodyRef, store.getRegistry().newHolder(), RemoveReason.REMOVE);
+        }
+        try {
+            return context.waitApproxTicksOnWorld(4);
+        } catch (ReflectiveOperationException e) {
+            return CompletableFuture.failedFuture(e);
+        }
     }
 
-    private static boolean settingsRoundTrip() {
-        PhysicsWorldResource resource = new PhysicsWorldRuntimeResource();
+    @Nonnull
+    private static Ref<PhysicsStore> addCrucibleBox(@Nonnull Store<PhysicsStore> store,
+        @Nonnull SpaceId spaceId,
+        @Nonnull UUID bodyUuid) {
+        UUID spaceUuid = PhysicsStoreSpaceMutations.requireSpaceUuid(store, spaceId);
+        BodyRowDescriptor row = PhysicsBodyRows.dynamicBody(spaceUuid,
+            bodyUuid,
+            new Vector3f(0.0f, 5.0f, 0.0f),
+            PhysicsShapeSpec.box(0.5f, 0.5f, 0.5f),
+            1.0f,
+            RigidBodySpawnSettings.defaults(),
+            null,
+            PhysicsBodyPersistenceMode.RUNTIME_ONLY);
+        return store.addEntity(PhysicsStoreEntities.bodyHolder(store,
+            row.bodyUuid(),
+            row.body(),
+            row.dynamics(),
+            row.target(),
+            row.collider(),
+            row.shape(),
+            row.material(),
+            row.filter()), AddReason.SPAWN);
+    }
+
+    private static CompletionStage<Boolean> settingsRoundTrip(@Nonnull CrucibleContext context) {
+        World world;
+        try {
+            world = context.world();
+        } catch (ReflectiveOperationException e) {
+            return CompletableFuture.failedFuture(e);
+        }
+        PhysicsWorldResource resource = physicsResource(world);
+        Store<PhysicsStore> store = physicsStore(world);
         PhysicsSpaceSettings settings = PhysicsSpaceSettings.defaults();
         settings.getWorldCollisionSettings().setWorldCollisionMode(WorldCollisionMode.STREAMING);
         settings.getWorldCollisionSettings().setWorldCollisionRadius(9);
@@ -275,7 +333,8 @@ final class ImpulseApiCrucibleTests {
             settings);
         try {
             PhysicsSpaceSettings copy = resource.getSpaceSettings(spaceId);
-            return copy.getWorldCollisionSettings().getWorldCollisionMode() == WorldCollisionMode.STREAMING
+            boolean roundTrip =
+                copy.getWorldCollisionSettings().getWorldCollisionMode() == WorldCollisionMode.STREAMING
                 && copy.getWorldCollisionSettings().getWorldCollisionRadius() == 9
                 && copy.getWorldCollisionSettings().getWorldCollisionBodyRadius() == 5
                 && copy.getWorldCollisionSettings().getWorldCollisionTtlTicks() == 77
@@ -305,9 +364,19 @@ final class ImpulseApiCrucibleTests {
                 && copy.getVisualMaterializationSettings().getDetachedVisualMaxSpawnsPerTick() == 33
                 && copy.getVisualMaterializationSettings().getDetachedVisualMaxMaterialized() == 444
                 && "Rock_Stone".equals(copy.getVisualMaterializationSettings().getDetachedVisualBlockType());
+            return CompletableFuture.completedFuture(roundTrip);
         } finally {
-            resource.clearAllSpaces("crucible");
+            PhysicsStoreSpaceMutations.removeEmptySpace(store, spaceId);
         }
+    }
+
+    private static PhysicsWorldResource physicsResource(@Nonnull World world) {
+        Store<EntityStore> store = world.getEntityStore().getStore();
+        return store.getResource(PhysicsWorldResource.getResourceType());
+    }
+
+    private static Store<PhysicsStore> physicsStore(@Nonnull World world) {
+        return ((PhysicsStoreWorld) world).getPhysicsStore().getStore();
     }
 
     private static boolean stepSpaceDoesNotThrow() {
