@@ -160,7 +160,7 @@ public class StressJointsCommand extends AbstractAsyncPlayerCommand {
             positions[positionOffset + 2] = (float) origin.z;
             float mass = i == 0 ? 0.0f : 1.0f;
             ExamplePhysicsUtils.addPhysicsStoreBody(world,
-                ExamplePhysicsUtils.bodyUpsertRequest(spaceUuid,
+                ExamplePhysicsUtils.bodyRow(spaceUuid,
                     bodyKey.value(),
                     new Vector3f(positions[positionOffset],
                         positions[positionOffset + 1],

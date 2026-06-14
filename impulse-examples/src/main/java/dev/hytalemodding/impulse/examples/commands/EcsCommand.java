@@ -223,7 +223,7 @@ public class EcsCommand extends AbstractCommandCollection {
             }
             Vector3f targetPosition = vector(spawn);
             ExamplePhysicsUtils.addPhysicsStoreBody(world,
-                ExamplePhysicsUtils.bodyUpsertRequest(spaceUuid,
+                ExamplePhysicsUtils.bodyRow(spaceUuid,
                     bodyUuid,
                     targetPosition,
                     PhysicsShapeSpec.box(0.5f, 0.5f, 0.5f),
@@ -428,7 +428,7 @@ public class EcsCommand extends AbstractCommandCollection {
             RigidBodyKey bodyKey = RigidBodyKey.random();
             UUID bodyUuid = bodyKey.value();
             ExamplePhysicsUtils.addPhysicsStoreBody(world,
-                ExamplePhysicsUtils.bodyUpsertRequest(spaceUuid,
+                ExamplePhysicsUtils.bodyRow(spaceUuid,
                     bodyUuid,
                     vector(spawn),
                     PhysicsShapeSpec.box(0.5f, 0.5f, 0.5f),

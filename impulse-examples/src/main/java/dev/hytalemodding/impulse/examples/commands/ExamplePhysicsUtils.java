@@ -28,14 +28,14 @@ import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyPersistenceMode;
 import dev.hytalemodding.impulse.core.plugin.body.RigidBodyKey;
 import dev.hytalemodding.impulse.core.plugin.modules.control.ImpulseControllableComponent;
 import dev.hytalemodding.impulse.core.plugin.modules.control.PhysicsControlSessions;
-import dev.hytalemodding.impulse.core.plugin.physicsstore.PhysicsBodySpawnRequests;
+import dev.hytalemodding.impulse.core.plugin.physicsstore.PhysicsBodyRows;
 import dev.hytalemodding.impulse.core.plugin.physicsstore.PhysicsStoreEntities;
 import dev.hytalemodding.impulse.core.plugin.physicsstore.components.BodyCommandComponent;
 import dev.hytalemodding.impulse.core.plugin.physicsstore.components.DynamicsComponent;
 import dev.hytalemodding.impulse.core.plugin.physicsstore.components.JointComponent;
 import dev.hytalemodding.impulse.core.plugin.physicsstore.components.TargetComponent;
 import dev.hytalemodding.impulse.core.plugin.physicsstore.projection.BodyAttachmentComponent;
-import dev.hytalemodding.impulse.core.plugin.physicsstore.requests.BodyUpsertRequest;
+import dev.hytalemodding.impulse.core.plugin.physicsstore.BodyRowDescriptor;
 import dev.hytalemodding.impulse.core.plugin.resources.PhysicsWorldResource;
 import dev.hytalemodding.impulse.core.plugin.settings.PhysicsVisualMaterializationSettings;
 import dev.hytalemodding.impulse.core.plugin.simulation.PhysicsCommandHandle;
@@ -103,58 +103,58 @@ public final class ExamplePhysicsUtils {
 
     @Nonnull
     public static Ref<PhysicsStore> addPhysicsStoreBody(@Nonnull World world,
-        @Nonnull BodyUpsertRequest request) {
-        return addPhysicsStoreBody(physicsStore(world), request);
+        @Nonnull BodyRowDescriptor row) {
+        return addPhysicsStoreBody(physicsStore(world), row);
     }
 
     @Nonnull
     public static Ref<PhysicsStore> addPhysicsStoreBody(@Nonnull World world,
-        @Nonnull BodyUpsertRequest request,
+        @Nonnull BodyRowDescriptor row,
         @Nonnull BodyCommandComponent command) {
         Store<PhysicsStore> store = physicsStore(world);
-        Ref<PhysicsStore> bodyRef = addPhysicsStoreBody(store, request);
+        Ref<PhysicsStore> bodyRef = addPhysicsStoreBody(store, row);
         appendPhysicsStoreBodyCommand(store, bodyRef, command);
         return bodyRef;
     }
 
     @Nonnull
     public static Ref<PhysicsStore> addPhysicsStoreBody(@Nonnull World world,
-        @Nonnull BodyUpsertRequest request,
+        @Nonnull BodyRowDescriptor row,
         @Nonnull DynamicsComponent dynamics,
         @Nullable TargetComponent target) {
-        return addPhysicsStoreBody(physicsStore(world), request, dynamics, target);
+        return addPhysicsStoreBody(physicsStore(world), row, dynamics, target);
     }
 
     public static void addPhysicsStoreBodies(@Nonnull World world,
-        @Nonnull Iterable<BodyUpsertRequest> requests) {
-        Objects.requireNonNull(requests, "requests");
-        for (BodyUpsertRequest request : requests) {
-            addPhysicsStoreBody(world, request);
+        @Nonnull Iterable<BodyRowDescriptor> rows) {
+        Objects.requireNonNull(rows, "rows");
+        for (BodyRowDescriptor row : rows) {
+            addPhysicsStoreBody(world, row);
         }
     }
 
     @Nonnull
     private static Ref<PhysicsStore> addPhysicsStoreBody(@Nonnull Store<PhysicsStore> store,
-        @Nonnull BodyUpsertRequest request) {
-        Objects.requireNonNull(request, "request");
-        return addPhysicsStoreBody(store, request, request.dynamics(), request.target());
+        @Nonnull BodyRowDescriptor row) {
+        Objects.requireNonNull(row, "row");
+        return addPhysicsStoreBody(store, row, row.dynamics(), row.target());
     }
 
     @Nonnull
     private static Ref<PhysicsStore> addPhysicsStoreBody(@Nonnull Store<PhysicsStore> store,
-        @Nonnull BodyUpsertRequest request,
+        @Nonnull BodyRowDescriptor row,
         @Nonnull DynamicsComponent dynamics,
         @Nullable TargetComponent target) {
-        Objects.requireNonNull(request, "request");
+        Objects.requireNonNull(row, "row");
         return store.addEntity(PhysicsStoreEntities.bodyHolder(store,
-            request.bodyUuid(),
-            request.body(),
+            row.bodyUuid(),
+            row.body(),
             Objects.requireNonNull(dynamics, "dynamics"),
             target,
-            request.collider(),
-            request.shape(),
-            request.material(),
-            request.filter()), AddReason.SPAWN);
+            row.collider(),
+            row.shape(),
+            row.material(),
+            row.filter()), AddReason.SPAWN);
     }
 
     public static boolean appendPhysicsStoreBodyCommand(@Nonnull World world,
@@ -340,7 +340,7 @@ public final class ExamplePhysicsUtils {
         Vector3f bodyCenter = toVector3f(visualPosition);
         try {
             addPhysicsStoreBody(world,
-                bodyUpsertRequest(spaceUuid,
+                bodyRow(spaceUuid,
                     bodyUuid,
                     bodyCenter,
                     shape,
@@ -361,14 +361,14 @@ public final class ExamplePhysicsUtils {
     }
 
     @Nonnull
-    public static BodyUpsertRequest bodyUpsertRequest(@Nonnull UUID spaceUuid,
+    public static BodyRowDescriptor bodyRow(@Nonnull UUID spaceUuid,
         @Nonnull UUID bodyUuid,
         @Nonnull Vector3f bodyCenter,
         @Nonnull PhysicsShapeSpec shape,
         float mass,
         @Nonnull RigidBodySpawnSettings settings,
         @Nullable Vector3f linearVelocity) {
-        return PhysicsBodySpawnRequests.dynamicBody(spaceUuid,
+        return PhysicsBodyRows.dynamicBody(spaceUuid,
             bodyUuid,
             bodyCenter,
             shape,
@@ -379,7 +379,7 @@ public final class ExamplePhysicsUtils {
     }
 
     @Nonnull
-    private static BodyUpsertRequest bodyUpsertRequest(@Nonnull UUID spaceUuid,
+    private static BodyRowDescriptor bodyRow(@Nonnull UUID spaceUuid,
         @Nonnull UUID bodyUuid,
         @Nonnull Vector3f bodyCenter,
         @Nonnull PhysicsShapeSpec shape,
@@ -388,7 +388,7 @@ public final class ExamplePhysicsUtils {
         @Nullable Vector3f linearVelocity,
         @Nonnull PhysicsBodyKind kind,
         @Nonnull PhysicsBodyPersistenceMode persistenceMode) {
-        return PhysicsBodySpawnRequests.body(spaceUuid,
+        return PhysicsBodyRows.body(spaceUuid,
             bodyUuid,
             bodyCenter,
             shape,
@@ -462,10 +462,10 @@ public final class ExamplePhysicsUtils {
                 + "bound in PhysicsStore: " + spaceId.value());
         }
 
-        List<BodyUpsertRequest> bodies = new ArrayList<>(batch.size());
+        List<BodyRowDescriptor> bodies = new ArrayList<>(batch.size());
         for (int i = 0; i < batch.size(); i++) {
             RigidBodyKey bodyKey = batch.bodyKey(i);
-            bodies.add(bodyUpsertRequest(spaceUuid,
+            bodies.add(bodyRow(spaceUuid,
                 bodyKey.value(),
                 new Vector3f(batch.positionX(i), batch.positionY(i), batch.positionZ(i)),
                 shape,
@@ -737,10 +737,10 @@ public final class ExamplePhysicsUtils {
                 + "bound in PhysicsStore: " + spaceId.value());
         }
 
-        List<BodyUpsertRequest> requests = new ArrayList<>(batch.size());
+        List<BodyRowDescriptor> rows = new ArrayList<>(batch.size());
         for (int i = 0; i < batch.size(); i++) {
             RigidBodyKey bodyKey = batch.bodyKey(i);
-            requests.add(bodyUpsertRequest(spaceUuid,
+            rows.add(bodyRow(spaceUuid,
                 bodyKey.value(),
                 new Vector3f(batch.positionX(i), batch.positionY(i), batch.positionZ(i)),
                 shape,
@@ -750,7 +750,7 @@ public final class ExamplePhysicsUtils {
         }
 
         long commandStartNanos = System.nanoTime();
-        addPhysicsStoreBodies(world, requests);
+        addPhysicsStoreBodies(world, rows);
         long commandApplyNanos = System.nanoTime() - commandStartNanos;
 
         long entityAttachStartNanos = System.nanoTime();
@@ -1065,7 +1065,7 @@ public final class ExamplePhysicsUtils {
         }
     }
 
-    private record DynamicBodyBatchPlan(@Nonnull List<BodyUpsertRequest> bodies,
+    private record DynamicBodyBatchPlan(@Nonnull List<BodyRowDescriptor> bodies,
                                         long setupWallNanos) {
 
         DynamicBodyBatchPlan {

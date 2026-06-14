@@ -156,7 +156,7 @@ public final class ExplosiveBlockRuntime {
                 settings.getVerticalLift())
                 .mul(group.mass());
             ExamplePhysicsUtils.addPhysicsStoreBody(world,
-                ExamplePhysicsUtils.bodyUpsertRequest(spaceUuid,
+                ExamplePhysicsUtils.bodyRow(spaceUuid,
                     bodyUuid,
                     toVector3f(groupCenter),
                     group.shape(),

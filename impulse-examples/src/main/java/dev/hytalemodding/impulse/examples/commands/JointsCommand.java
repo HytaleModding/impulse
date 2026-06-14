@@ -240,7 +240,7 @@ public class JointsCommand extends AbstractAsyncPlayerCommand {
         @Nullable Vector3f linearVelocity) {
         RigidBodyKey bodyKey = RigidBodyKey.random();
         ExamplePhysicsUtils.addPhysicsStoreBody(world,
-            ExamplePhysicsUtils.bodyUpsertRequest(spaceUuid,
+            ExamplePhysicsUtils.bodyRow(spaceUuid,
                 bodyKey.value(),
                 ExamplePhysicsUtils.toVector3f(position),
                 PhysicsShapeSpec.box(HALF_SIZE, HALF_SIZE, HALF_SIZE),
