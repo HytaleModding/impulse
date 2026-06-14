@@ -24,6 +24,7 @@ import dev.hytalemodding.impulse.core.internal.physicsstore.terrain.TerrainColli
 import dev.hytalemodding.impulse.core.internal.physicsstore.terrain.TerrainColliderPayload.TerrainNeighbor;
 import dev.hytalemodding.impulse.core.internal.resources.BackendBodyHandle;
 import dev.hytalemodding.impulse.core.internal.resources.BackendSpaceHandle;
+import dev.hytalemodding.impulse.core.plugin.body.RigidBodyKey;
 import dev.hytalemodding.impulse.core.plugin.physicsstore.components.TerrainColliderComponent;
 import java.util.Set;
 import java.util.UUID;
@@ -153,7 +154,10 @@ public final class TerrainColliderBindingSystem extends TickingSystem<PhysicsSto
             payload.collisionMask());
         BackendBodyHandle bodyHandle = new BackendBodyHandle(bodyId);
         runtime.putTerrainBodyHandle(terrainUuid, spaceHandle, bodyHandle, true);
-        runtime.putBodyHitMetadata(bodyHandle, null, PhysicsBodyType.STATIC, ShapeType.VOXELS);
+        runtime.putBodyHitMetadata(bodyHandle,
+            RigidBodyKey.of(terrainUuid),
+            PhysicsBodyType.STATIC,
+            ShapeType.VOXELS);
     }
 
     private static void addStaticBox(@Nonnull PhysicsRuntimeResource runtime,
@@ -194,7 +198,10 @@ public final class TerrainColliderBindingSystem extends TickingSystem<PhysicsSto
             spaceHandle,
             bodyHandle,
             false);
-        runtime.putBodyHitMetadata(bodyHandle, null, PhysicsBodyType.STATIC, ShapeType.BOX);
+        runtime.putBodyHitMetadata(bodyHandle,
+            RigidBodyKey.of(terrainUuid),
+            PhysicsBodyType.STATIC,
+            ShapeType.BOX);
     }
 
     private static void stitchNeighbors(@Nonnull PhysicsRuntimeResource runtime,

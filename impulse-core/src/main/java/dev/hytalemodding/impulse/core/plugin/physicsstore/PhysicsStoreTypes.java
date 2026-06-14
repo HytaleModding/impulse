@@ -4,6 +4,7 @@ import com.hypixel.hytale.component.ComponentType;
 import com.hypixel.hytale.component.ResourceType;
 import com.hypixel.hytale.server.core.universe.world.storage.PhysicsStore;
 import dev.hytalemodding.impulse.core.internal.physicsstore.resources.PhysicsDebugResource;
+import dev.hytalemodding.impulse.core.internal.physicsstore.resources.PhysicsBodyRegistrationResource;
 import dev.hytalemodding.impulse.core.internal.physicsstore.resources.PhysicsEventResource;
 import dev.hytalemodding.impulse.core.internal.physicsstore.resources.PhysicsIdentityIndexResource;
 import dev.hytalemodding.impulse.core.internal.physicsstore.resources.PhysicsProfilingResource;
@@ -95,6 +96,9 @@ public final class PhysicsStoreTypes {
     private static ResourceType<PhysicsStore, PhysicsIdentityIndexResource> identityIndexResourceType;
     @Nullable
     private static ResourceType<PhysicsStore, PhysicsSnapshotResource> snapshotResourceType;
+    @Nullable
+    private static ResourceType<PhysicsStore, PhysicsBodyRegistrationResource>
+        bodyRegistrationResourceType;
     @Nullable
     private static ResourceType<PhysicsStore, PhysicsEventResource> eventResourceType;
     @Nullable
@@ -233,6 +237,11 @@ public final class PhysicsStoreTypes {
     public static void setSnapshotResourceType(
         @Nonnull ResourceType<PhysicsStore, PhysicsSnapshotResource> type) {
         snapshotResourceType = Objects.requireNonNull(type, "type");
+    }
+
+    public static void setBodyRegistrationResourceType(
+        @Nonnull ResourceType<PhysicsStore, PhysicsBodyRegistrationResource> type) {
+        bodyRegistrationResourceType = Objects.requireNonNull(type, "type");
     }
 
     public static void setEventResourceType(
@@ -399,6 +408,12 @@ public final class PhysicsStoreTypes {
     @Nonnull
     public static ResourceType<PhysicsStore, PhysicsSnapshotResource> snapshotResourceType() {
         return require(snapshotResourceType, "PhysicsSnapshotResource");
+    }
+
+    @Nonnull
+    public static ResourceType<PhysicsStore, PhysicsBodyRegistrationResource>
+        bodyRegistrationResourceType() {
+        return require(bodyRegistrationResourceType, "PhysicsBodyRegistrationResource");
     }
 
     @Nonnull

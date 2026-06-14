@@ -6,6 +6,7 @@ import com.hypixel.hytale.server.core.plugin.PluginBase;
 import com.hypixel.hytale.server.core.universe.world.storage.PhysicsStore;
 import dev.hytalemodding.impulse.early.PhysicsStoreHooks;
 import dev.hytalemodding.impulse.core.internal.physicsstore.persistence.PersistentPhysicsStoreResource;
+import dev.hytalemodding.impulse.core.internal.physicsstore.resources.PhysicsBodyRegistrationResource;
 import dev.hytalemodding.impulse.core.internal.physicsstore.resources.PhysicsDebugResource;
 import dev.hytalemodding.impulse.core.internal.physicsstore.resources.PhysicsEventResource;
 import dev.hytalemodding.impulse.core.internal.physicsstore.resources.PhysicsIdentityIndexResource;
@@ -160,6 +161,9 @@ public final class PhysicsStoreRegistration {
         PhysicsStoreTypes.setSnapshotResourceType(registry.registerResource(
             PhysicsSnapshotResource.class,
             PhysicsSnapshotResource::new));
+        PhysicsStoreTypes.setBodyRegistrationResourceType(registry.registerResource(
+            PhysicsBodyRegistrationResource.class,
+            PhysicsBodyRegistrationResource::new));
         PhysicsStoreTypes.setEventResourceType(registry.registerResource(
             PhysicsEventResource.class,
             PhysicsEventResource::new));
@@ -221,6 +225,8 @@ public final class PhysicsStoreRegistration {
             () -> store.getResource(PhysicsSpaceCompatibilityIndexResource.getResourceType()).clear());
         failure = runShutdownCleanup(failure,
             () -> store.getResource(PhysicsSnapshotResource.getResourceType()).clear());
+        failure = runShutdownCleanup(failure,
+            () -> store.getResource(PhysicsBodyRegistrationResource.getResourceType()).clear());
         failure = runShutdownCleanup(failure,
             () -> store.getResource(PhysicsEventResource.getResourceType()).clear());
         failure = runShutdownCleanup(failure,

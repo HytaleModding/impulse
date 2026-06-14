@@ -17,6 +17,7 @@ import dev.hytalemodding.impulse.early.PhysicsStoreWorld;
 import dev.hytalemodding.impulse.core.internal.modules.control.ControlLifecycle;
 import dev.hytalemodding.impulse.core.internal.modules.control.PhysicsControlRuntimeState;
 import dev.hytalemodding.impulse.core.internal.physicsstore.PhysicsStoreSpaceMutations;
+import dev.hytalemodding.impulse.core.internal.physicsstore.resources.PhysicsBodyRegistrationResource;
 import dev.hytalemodding.impulse.core.internal.physicsstore.resources.PhysicsEventResource;
 import dev.hytalemodding.impulse.core.internal.physicsstore.resources.PhysicsIdentityIndexResource;
 import dev.hytalemodding.impulse.core.internal.physicsstore.resources.PhysicsRuntimeResource;
@@ -1302,6 +1303,11 @@ public class PhysicsWorldRuntimeResource extends PhysicsWorldResource {
     @Nullable
     @Override
     public PhysicsBodyRegistrationView getBodyRegistrationView(@Nonnull RigidBodyKey bodyKey) {
+        if (hasAttachedAuthoritativePhysicsStore()) {
+            return authoritativePhysicsStore("read physics body registration view")
+                .getResource(PhysicsBodyRegistrationResource.getResourceType())
+                .getBodyRegistrationView(bodyKey);
+        }
         return bodyRegistry.getPublishedRegistrationView(bodyKey);
     }
 
@@ -1484,16 +1490,31 @@ public class PhysicsWorldRuntimeResource extends PhysicsWorldResource {
     @Nonnull
     @Override
     public Collection<PhysicsBodyRegistrationView> getBodyRegistrationViews() {
+        if (hasAttachedAuthoritativePhysicsStore()) {
+            return authoritativePhysicsStore("read physics body registration views")
+                .getResource(PhysicsBodyRegistrationResource.getResourceType())
+                .getBodyRegistrationViews();
+        }
         return bodyRegistry.getPublishedRegistrationViews();
     }
 
     @Override
     public int getBodyRegistrationCount() {
+        if (hasAttachedAuthoritativePhysicsStore()) {
+            return authoritativePhysicsStore("read physics body registration count")
+                .getResource(PhysicsBodyRegistrationResource.getResourceType())
+                .getBodyRegistrationCount();
+        }
         return bodyRegistry.getPublishedRegistrationCount();
     }
 
     @Override
     public int getBodyRegistrationCount(@Nonnull PhysicsBodyPersistenceMode persistenceMode) {
+        if (hasAttachedAuthoritativePhysicsStore()) {
+            return authoritativePhysicsStore("read physics body registration count")
+                .getResource(PhysicsBodyRegistrationResource.getResourceType())
+                .getBodyRegistrationCount(persistenceMode);
+        }
         return bodyRegistry.getPublishedRegistrationCount(persistenceMode);
     }
 
@@ -1506,6 +1527,11 @@ public class PhysicsWorldRuntimeResource extends PhysicsWorldResource {
     @Nonnull
     @Override
     public Collection<PhysicsBodyRegistrationView> getBodyRegistrationViews(@Nonnull PhysicsBodyKind kind) {
+        if (hasAttachedAuthoritativePhysicsStore()) {
+            return authoritativePhysicsStore("read physics body registration views")
+                .getResource(PhysicsBodyRegistrationResource.getResourceType())
+                .getBodyRegistrationViews(kind);
+        }
         return bodyRegistry.getPublishedRegistrationViews(kind);
     }
 

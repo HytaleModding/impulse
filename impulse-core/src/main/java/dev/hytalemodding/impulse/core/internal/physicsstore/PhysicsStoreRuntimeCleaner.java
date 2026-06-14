@@ -3,6 +3,7 @@ package dev.hytalemodding.impulse.core.internal.physicsstore;
 import com.hypixel.hytale.component.RemoveReason;
 import com.hypixel.hytale.component.Store;
 import com.hypixel.hytale.server.core.universe.world.storage.PhysicsStore;
+import dev.hytalemodding.impulse.core.internal.physicsstore.resources.PhysicsBodyRegistrationResource;
 import dev.hytalemodding.impulse.core.internal.physicsstore.resources.PhysicsIdentityIndexResource;
 import dev.hytalemodding.impulse.core.internal.physicsstore.resources.PhysicsEventResource;
 import dev.hytalemodding.impulse.core.internal.physicsstore.resources.PhysicsProfilingResource;
@@ -36,6 +37,7 @@ public final class PhysicsStoreRuntimeCleaner {
         store.getResource(PhysicsIdentityIndexResource.getResourceType()).clear();
         store.getResource(PhysicsSpaceCompatibilityIndexResource.getResourceType()).clear();
         store.getResource(PhysicsSnapshotResource.getResourceType()).clear();
+        store.getResource(PhysicsBodyRegistrationResource.getResourceType()).clear();
         store.getResource(PhysicsEventResource.getResourceType()).clear();
         store.getResource(PhysicsProfilingResource.getResourceType()).reset();
         store.getResource(PhysicsStoreReadQueueResource.getResourceType()).clear();
