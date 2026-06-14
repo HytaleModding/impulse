@@ -43,9 +43,6 @@ import dev.hytalemodding.impulse.core.internal.resources.owner.PhysicsOwnerHandl
 import dev.hytalemodding.impulse.core.internal.resources.owner.PhysicsOwnerMutation;
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsVisualRuntime.BodyVisualInterestState;
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsVisualRuntime.VisualInterest;
-import dev.hytalemodding.impulse.core.internal.simulation.recorder.MutablePhysicsCommandContext;
-import dev.hytalemodding.impulse.core.internal.simulation.PhysicsSimulationExecutor;
-import dev.hytalemodding.impulse.core.internal.simulation.batch.RecordedPhysicsCommandBatch;
 import dev.hytalemodding.impulse.core.internal.modules.worldcollision.WorldCollisionBuildOptions;
 import dev.hytalemodding.impulse.core.internal.modules.worldcollision.PhysicsWorldCollisionRuntime;
 import dev.hytalemodding.impulse.core.internal.modules.worldcollision.WorldCollisionLifecycle;
@@ -85,11 +82,6 @@ import dev.hytalemodding.impulse.core.plugin.settings.PhysicsStepMode;
 import dev.hytalemodding.impulse.core.plugin.settings.PhysicsWorldCollisionSettings;
 import dev.hytalemodding.impulse.core.plugin.settings.PhysicsWorldSettings;
 import dev.hytalemodding.impulse.core.plugin.simulation.JointType;
-import dev.hytalemodding.impulse.core.plugin.simulation.PhysicsCommandCompletion;
-import dev.hytalemodding.impulse.core.plugin.simulation.PhysicsCommandHandle;
-import dev.hytalemodding.impulse.core.plugin.simulation.PhysicsCommandRecipe;
-import dev.hytalemodding.impulse.core.plugin.simulation.query.PhysicsQuery;
-import dev.hytalemodding.impulse.core.plugin.simulation.query.PhysicsQueryHandle;
 import dev.hytalemodding.impulse.core.plugin.snapshot.PhysicsBodySnapshotEntry;
 import dev.hytalemodding.impulse.core.plugin.snapshot.PublishedPhysicsSnapshotFrame;
 import java.util.ArrayList;
@@ -97,7 +89,6 @@ import java.util.Collection;
 import java.util.List;
 import java.util.Objects;
 import java.util.UUID;
-import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.Consumer;
@@ -143,7 +134,6 @@ public class PhysicsWorldRuntimeResource extends PhysicsWorldResource {
 
     private final AtomicLong visualInterestTick = new AtomicLong();
     private final PhysicsOwnerGateway ownerGateway = new PhysicsOwnerGateway();
-    private final PhysicsSimulationExecutor simulationExecutor = new PhysicsSimulationExecutor(this);
     @Nullable
     private Store<EntityStore> owningStore;
 
@@ -206,80 +196,6 @@ public class PhysicsWorldRuntimeResource extends PhysicsWorldResource {
 
     public long commandWorldEpoch() {
         return lifecycleState.commandWorldEpoch();
-    }
-
-    @Nonnull
-    public MutablePhysicsCommandContext createMutableCommandContext(long submittedServerTick) {
-        return new MutablePhysicsCommandContext(submittedServerTick,
-            lifecycleState.commandWorldEpoch());
-    }
-
-    @Nonnull
-    public MutablePhysicsCommandContext createMutableCommandContext(long submittedServerTick,
-        int expectedOperations) {
-        return new MutablePhysicsCommandContext(submittedServerTick,
-            lifecycleState.commandWorldEpoch(),
-            expectedOperations);
-    }
-
-    @Nonnull
-    @Override
-    public PhysicsCommandHandle submitCommands(long submittedServerTick,
-        @Nonnull PhysicsCommandRecipe recipe) {
-        MutablePhysicsCommandContext context = createMutableCommandContext(submittedServerTick);
-        context.compose(recipe);
-        return submitRecordedCommands(context);
-    }
-
-    @Nonnull
-    @Override
-    public PhysicsCommandHandle submitCommands(long submittedServerTick,
-        int expectedOperations,
-        @Nonnull PhysicsCommandRecipe recipe) {
-        MutablePhysicsCommandContext context =
-            createMutableCommandContext(submittedServerTick, expectedOperations);
-        context.compose(recipe);
-        return submitRecordedCommands(context);
-    }
-
-    @Nonnull
-    public PhysicsCommandHandle submitRecordedCommands(@Nonnull MutablePhysicsCommandContext context) {
-        requireLegacyMutationAllowed("submit recorded physics commands");
-        Objects.requireNonNull(context, "context");
-        RecordedPhysicsCommandBatch batch =
-            context.freezeInternal(lifecycleState.nextCommandBatchSequence());
-        /*
-         * Body creation through commands publishes registration views with the next snapshot frame.
-         * Until that frame is applied, sync/materialization must treat creation as pending even
-         * though the owner may already have completed the command batch.
-         */
-        boolean trackBodyCreationPublication = trackCommandBodyCreationPublication(batch);
-        CompletableFuture<PhysicsCommandCompletion> completion =
-            ownerGateway.enqueueCall("execute physics command batch", () -> executeCommandBatch(batch));
-        if (trackBodyCreationPublication) {
-            completion.whenComplete((ignored, failure) -> {
-                if (failure != null) {
-                    clearCommandBodyCreationPublication(batch);
-                }
-            });
-        }
-        return PhysicsCommandHandle.fromCompletionSummary(batch.publicBatch(), completion);
-    }
-
-    @Nonnull
-    @Override
-    public <R> PhysicsQueryHandle<R> query(@Nonnull PhysicsQuery<R> query) {
-        Objects.requireNonNull(query, "query");
-        if (isAuthoritativePhysicsStoreActive()) {
-            return PhysicsQueryHandle.failed(query,
-                new IllegalStateException("PhysicsWorldResource.query is a legacy runtime API while "
-                    + "authoritative PhysicsStore is active. Use PhysicsSnapshotResource for copied "
-                    + "body state, PhysicsStoreDiagnostics for owner-lane diagnostics, or "
-                    + "PhysicsStoreRaycasts for raycasts."));
-        }
-        CompletableFuture<R> completion =
-            ownerGateway.enqueueCall("execute physics query", () -> simulationExecutor.query(query));
-        return PhysicsQueryHandle.fromCompletion(query, completion);
     }
 
     @Nonnull
@@ -2113,29 +2029,8 @@ public class PhysicsWorldRuntimeResource extends PhysicsWorldResource {
         }
     }
 
-    private void markBodyCreationPending(@Nonnull RigidBodyKey bodyKey) {
-        bodyRuntime.markBodyCreationPending(bodyKey);
-    }
-
-    private void clearBodyCreationPending(@Nonnull RigidBodyKey bodyKey) {
-        bodyRuntime.clearBodyCreationPending(bodyKey);
-    }
-
-    private boolean trackCommandBodyCreationPublication(@Nonnull RecordedPhysicsCommandBatch batch) {
-        return lifecycleState.trackBodyCreationPublication(batch, ownerGateway.hasOwnerExecutor());
-    }
-
-    private void clearCommandBodyCreationPublication(@Nonnull RecordedPhysicsCommandBatch batch) {
-        lifecycleState.clearBodyCreationPublication(batch);
-    }
-
     private void markWorldChanged() {
         lifecycleState.markWorldChanged(bodyRegistry, ownerGateway.hasOwnerExecutor());
-    }
-
-    @Nonnull
-    private PhysicsCommandCompletion executeCommandBatch(@Nonnull RecordedPhysicsCommandBatch batch) {
-        return lifecycleState.executeCommandBatch(batch, simulationExecutor::execute);
     }
 
     @Nonnull
