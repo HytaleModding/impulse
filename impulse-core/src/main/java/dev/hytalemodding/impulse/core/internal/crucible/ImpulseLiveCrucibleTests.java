@@ -183,7 +183,6 @@ final class ImpulseLiveCrucibleTests {
         holder.removeComponent(DESPAWN_TYPE);
         holder.addComponent(ATTACHMENT_TYPE,
             new BodyAttachmentComponent(bodyKey.value(),
-                spaceId,
                 TransformAuthority.BODY,
                 AttachmentLifecycle.EXTERNAL_ENTITY));
         holder.addComponent(ImpulseControllableComponent.getComponentType(),

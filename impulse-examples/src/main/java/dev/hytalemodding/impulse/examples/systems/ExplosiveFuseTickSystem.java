@@ -16,9 +16,12 @@ import com.hypixel.hytale.server.core.universe.world.storage.PhysicsStore;
 import dev.hytalemodding.impulse.early.PhysicsStoreWorld;
 import dev.hytalemodding.impulse.api.SpaceId;
 import dev.hytalemodding.impulse.core.internal.physicsstore.resources.PhysicsSnapshotResource;
+import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyRegistrationView;
+import dev.hytalemodding.impulse.core.plugin.body.RigidBodyKey;
 import dev.hytalemodding.impulse.core.plugin.physicsstore.PhysicsStoreThreading;
 import dev.hytalemodding.impulse.core.plugin.physicsstore.projection.BodyAttachmentComponent;
 import dev.hytalemodding.impulse.core.plugin.physicsstore.snapshots.PhysicsStoreBodySnapshot;
+import dev.hytalemodding.impulse.core.plugin.resources.PhysicsWorldResource;
 import dev.hytalemodding.impulse.examples.explosive.ExplosiveBlockComponent;
 import dev.hytalemodding.impulse.examples.explosive.ExplosiveBlockRuntime;
 import dev.hytalemodding.impulse.examples.explosive.ExplosiveFuseComponent;
@@ -61,7 +64,7 @@ public final class ExplosiveFuseTickSystem extends EntityTickingSystem<EntitySto
         ExplosiveBlockComponent explosive = chunk.getComponent(index, EXPLOSIVE_TYPE);
         BodyAttachmentComponent attachment = chunk.getComponent(index, ATTACHMENT_TYPE);
         TransformComponent transform = chunk.getComponent(index, TRANSFORM_TYPE);
-        SpaceId spaceId = attachment != null ? attachment.getSpaceId() : null;
+        SpaceId spaceId = attachment != null ? attachmentSpaceId(store, attachment) : null;
         if (explosive == null || attachment == null || transform == null || spaceId == null) {
             return;
         }
@@ -111,6 +114,15 @@ public final class ExplosiveFuseTickSystem extends EntityTickingSystem<EntitySto
                 snapshot.positionZ()));
         }
         return ExplosiveBlockRuntime.sourceExplosionCenter(new Vector3d(transform.getPosition()));
+    }
+
+    @Nullable
+    private static SpaceId attachmentSpaceId(@Nonnull Store<EntityStore> store,
+        @Nonnull BodyAttachmentComponent attachment) {
+        PhysicsWorldResource resource = store.getResource(PhysicsWorldResource.getResourceType());
+        PhysicsBodyRegistrationView registration =
+            resource.getBodyRegistrationView(RigidBodyKey.of(attachment.getBodyUuid()));
+        return registration != null ? registration.spaceId() : null;
     }
 
     @Nullable

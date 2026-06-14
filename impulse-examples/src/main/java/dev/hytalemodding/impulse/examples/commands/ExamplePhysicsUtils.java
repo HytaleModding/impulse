@@ -624,7 +624,6 @@ public final class ExamplePhysicsUtils {
         Ref<EntityStore> entity = spawnAttachedPhysicsStoreBlockEntity(store,
             time,
             pending.bodyKey().value(),
-            pending.spaceId(),
             pending.blockType(),
             new Vector3d(pending.positionX(), pending.positionY(), pending.positionZ()),
             pending.controllable());
@@ -737,7 +736,6 @@ public final class ExamplePhysicsUtils {
             Ref<EntityStore> entity = spawnAttachedPhysicsStoreBlockEntity(store,
                 time,
                 bodyKey.value(),
-                spaceId,
                 blockType,
                 new Vector3d(batch.positionX(i), batch.positionY(i), batch.positionZ(i)),
                 mass > 0.0f);
@@ -767,12 +765,11 @@ public final class ExamplePhysicsUtils {
     public static Ref<EntityStore> spawnExternalBodyViewBlockEntity(@Nonnull Store<EntityStore> store,
         @Nonnull TimeResource time,
         @Nonnull RigidBodyKey bodyKey,
-        @Nonnull SpaceId spaceId,
         @Nonnull Vector3d visualPosition,
         @Nullable String blockType) {
         Holder<EntityStore> holder = blockEntityHolder(time, blockType, visualPosition);
         holder.addComponent(ATTACHMENT_TYPE,
-            BodyAttachmentComponent.externalEntity(bodyKey.value(), spaceId));
+            BodyAttachmentComponent.externalEntity(bodyKey.value()));
         return store.addEntity(holder, AddReason.SPAWN);
     }
 
@@ -786,13 +783,11 @@ public final class ExamplePhysicsUtils {
     private static Ref<EntityStore> spawnAttachedPhysicsStoreBlockEntity(@Nonnull Store<EntityStore> store,
         @Nonnull TimeResource time,
         @Nonnull UUID physicsBodyUuid,
-        @Nonnull SpaceId spaceId,
         @Nullable String blockType,
         @Nonnull Vector3d visualPosition,
         boolean controllable) {
         Holder<EntityStore> holder = attachedPhysicsStoreBlockEntityHolder(time,
             physicsBodyUuid,
-            spaceId,
             blockType,
             visualPosition,
             new Vector3f(),
@@ -805,7 +800,6 @@ public final class ExamplePhysicsUtils {
     @Nonnull
     public static Holder<EntityStore> attachedPhysicsStoreBlockEntityHolder(@Nonnull TimeResource time,
         @Nonnull UUID physicsBodyUuid,
-        @Nonnull SpaceId spaceId,
         @Nullable String blockType,
         @Nonnull Vector3d visualPosition,
         @Nonnull Vector3f localPositionOffset,
@@ -815,7 +809,6 @@ public final class ExamplePhysicsUtils {
         Holder<EntityStore> holder = blockEntityHolder(time, blockType, visualPosition);
         holder.addComponent(ATTACHMENT_TYPE,
             BodyAttachmentComponent.impulseOwnedVisual(physicsBodyUuid,
-            spaceId,
             localPositionOffset,
             localRotationOffset,
             visualOriginOffsetY));

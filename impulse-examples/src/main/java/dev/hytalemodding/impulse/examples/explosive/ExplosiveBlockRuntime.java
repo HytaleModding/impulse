@@ -193,7 +193,6 @@ public final class ExplosiveBlockRuntime {
             boolean controllable = body.controllable() && !controllableAssigned;
             Holder<EntityStore> holder = ExamplePhysicsUtils.attachedPhysicsStoreBlockEntityHolder(time,
                 body.bodyKey().value(),
-                body.spaceId(),
                 visual.blockType(),
                 visual.position(),
                 visual.localPositionOffset(),

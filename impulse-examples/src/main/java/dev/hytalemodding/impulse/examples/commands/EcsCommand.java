@@ -282,12 +282,11 @@ public class EcsCommand extends AbstractCommandCollection {
             }
             return PhysicsStoreAsync.acceptOnWorldThread(world,
                 raycastAsync(ctx, store, ref, spaceId),
-                hit -> attachView(ctx, store, spaceId, hit));
+                hit -> attachView(ctx, store, hit));
         }
 
         private static void attachView(@Nonnull CommandContext ctx,
             @Nonnull Store<EntityStore> store,
-            @Nonnull SpaceId spaceId,
             @Nullable RaycastHitView hit) {
             if (hit == null || hit.bodyKey() == null) {
                 ctx.sender().sendMessage(Message.raw("No rigid body in view."));
@@ -299,7 +298,6 @@ public class EcsCommand extends AbstractCommandCollection {
             ExamplePhysicsUtils.spawnExternalBodyViewBlockEntity(store,
                 time,
                 hit.bodyKey(),
-                spaceId,
                 point,
                 ExamplePhysicsUtils.DEFAULT_BLOCK_TYPE);
 
@@ -462,7 +460,6 @@ public class EcsCommand extends AbstractCommandCollection {
                 verticalLift);
             Holder<EntityStore> holder = ExamplePhysicsUtils.attachedPhysicsStoreBlockEntityHolder(time,
                 bodyUuid,
-                spaceId,
                 blockType,
                 spawn,
                 new Vector3f(),

@@ -498,7 +498,7 @@ public class PhysicsDetachedVisualMaterializationSystem extends TickingSystem<En
                 continue;
             }
             Ref<EntityStore> proxy = resource.getGeneratedVisualProxy(bodyKey);
-            if (proxy == null || !isExpectedProxy(store, proxy, bodyKey, registration.spaceId())) {
+            if (proxy == null || !isExpectedProxy(store, proxy, bodyKey)) {
                 GeneratedProxyLifecycle.removeProxy(store, resource, bodyKey);
                 if (collector != null) {
                     collector.incrementDematerialized();
@@ -624,12 +624,11 @@ public class PhysicsDetachedVisualMaterializationSystem extends TickingSystem<En
 
                 var ref = archetypeChunk.getReferenceTo(index);
                 orphanProxies.add(new OrphanVisualProxy(RigidBodyKey.of(attachment.getBodyUuid()),
-                    attachment.getSpaceId(),
                     ref));
             });
 
         for (OrphanVisualProxy proxy : orphanProxies) {
-            if (!hasLiveVisualTarget(resource, proxy.bodyKey(), proxy.spaceId(), proxy.ref())) {
+            if (!hasLiveVisualTarget(resource, proxy.bodyKey(), proxy.ref())) {
                 GeneratedProxyLifecycle.removeProxy(store, resource, proxy.bodyKey(), proxy.ref());
             }
         }
@@ -637,15 +636,11 @@ public class PhysicsDetachedVisualMaterializationSystem extends TickingSystem<En
 
     private static boolean hasLiveVisualTarget(@Nonnull PhysicsWorldRuntimeResource resource,
         @Nonnull RigidBodyKey bodyKey,
-        @Nullable SpaceId spaceId,
         @Nonnull Ref<EntityStore> proxyRef) {
         PhysicsBodyRegistrationView registration = resource.getBodyRegistrationView(bodyKey);
         if (registration == null) {
             return resource.isBodyCreationPending(bodyKey)
                 && resource.isGeneratedVisualProxy(bodyKey, proxyRef);
-        }
-        if (!sameSpaceId(registration.spaceId(), spaceId)) {
-            return false;
         }
         return resource.getSpaceBinding(registration.spaceId()) != null
             && resource.isGeneratedVisualProxy(bodyKey, proxyRef);
@@ -653,7 +648,6 @@ public class PhysicsDetachedVisualMaterializationSystem extends TickingSystem<En
 
     private record OrphanVisualProxy(
         @Nonnull RigidBodyKey bodyKey,
-        @Nullable SpaceId spaceId,
         @Nonnull Ref<EntityStore> ref
     ) {
     }
@@ -770,8 +764,7 @@ public class PhysicsDetachedVisualMaterializationSystem extends TickingSystem<En
 
     private static boolean isExpectedProxy(@Nonnull Store<EntityStore> store,
         @Nonnull Ref<EntityStore> proxy,
-        @Nonnull RigidBodyKey bodyKey,
-        @Nullable SpaceId spaceId) {
+        @Nonnull RigidBodyKey bodyKey) {
         if (!proxy.isValid()) {
             return false;
         }
@@ -779,8 +772,7 @@ public class PhysicsDetachedVisualMaterializationSystem extends TickingSystem<En
             store.getComponent(proxy, BodyAttachmentComponent.getComponentType());
         return attachment != null
             && attachment.getLifecycle() == AttachmentLifecycle.GENERATED_PROXY
-            && attachment.getBodyUuid().equals(bodyKey.value())
-            && sameSpaceId(attachment.getSpaceId(), spaceId);
+            && attachment.getBodyUuid().equals(bodyKey.value());
     }
 
     private static boolean sameSpaceId(@Nullable SpaceId first, @Nullable SpaceId second) {
@@ -819,10 +811,10 @@ public class PhysicsDetachedVisualMaterializationSystem extends TickingSystem<En
         holder.addComponent(store.getRegistry().getNonSerializedComponentType(), NonSerialized.get());
         holder.addComponent(GeneratedVisualProxyComponent.getComponentType(), new GeneratedVisualProxyComponent());
         holder.addComponent(BodyAttachmentComponent.getComponentType(),
-            new BodyAttachmentComponent(bodyKey.value(),
-                registration.spaceId(),
-                TransformAuthority.BODY,
-                AttachmentLifecycle.GENERATED_PROXY));
+            BodyAttachmentComponent.generatedProxy(bodyKey.value(),
+                new Vector3f(),
+                new Quaternionf(),
+                Float.NaN));
         return store.addEntity(holder, AddReason.SPAWN);
     }
 
