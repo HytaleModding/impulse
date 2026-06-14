@@ -109,7 +109,7 @@ public final class PhysicsStoreThreading {
             Store<PhysicsStore> store = store(world);
             requireWorldThread(store, operation);
             store.getResource(PhysicsStoreReadQueueResource.getResourceType())
-                .enqueue(read)
+                .enqueueCopiedRead(read)
                 .whenComplete((value, failure) -> {
                     if (failure != null) {
                         PhysicsStoreAsyncCompletions.fail(completion, failure);
