@@ -3,6 +3,7 @@ package dev.hytalemodding.impulse.core.internal.physicsstore.resources;
 import com.hypixel.hytale.component.Resource;
 import com.hypixel.hytale.component.ResourceType;
 import com.hypixel.hytale.server.core.universe.world.storage.PhysicsStore;
+import dev.hytalemodding.impulse.core.internal.physicsstore.PhysicsStoreAsyncCompletions;
 import dev.hytalemodding.impulse.core.plugin.physicsstore.PhysicsStoreTypes;
 import dev.hytalemodding.impulse.core.plugin.physicsstore.requests.PhysicsStoreRequest;
 import dev.hytalemodding.impulse.core.plugin.physicsstore.requests.PhysicsStoreRequestFenceHandle;
@@ -57,7 +58,8 @@ public final class PhysicsRequestQueueResource implements Resource<PhysicsStore>
             count++;
         }
         if (count == 0) {
-            completion.complete(new PhysicsStoreRequestFenceResult(fenceUuid,
+            PhysicsStoreAsyncCompletions.complete(completion,
+                new PhysicsStoreRequestFenceResult(fenceUuid,
                 submittedServerTick,
                 submittedServerTick,
                 0,
@@ -135,7 +137,7 @@ public final class PhysicsRequestQueueResource implements Resource<PhysicsStore>
 
     private static void complete(@Nonnull Iterable<FenceCompletion> completions) {
         for (FenceCompletion completion : completions) {
-            completion.completion().complete(completion.result());
+            PhysicsStoreAsyncCompletions.complete(completion.completion(), completion.result());
         }
     }
 

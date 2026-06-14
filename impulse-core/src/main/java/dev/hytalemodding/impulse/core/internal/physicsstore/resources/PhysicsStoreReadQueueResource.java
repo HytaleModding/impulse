@@ -4,6 +4,7 @@ import com.hypixel.hytale.component.Resource;
 import com.hypixel.hytale.component.ResourceType;
 import com.hypixel.hytale.component.Store;
 import com.hypixel.hytale.server.core.universe.world.storage.PhysicsStore;
+import dev.hytalemodding.impulse.core.internal.physicsstore.PhysicsStoreAsyncCompletions;
 import dev.hytalemodding.impulse.core.plugin.physicsstore.PhysicsStoreTypes;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
@@ -88,14 +89,14 @@ public final class PhysicsStoreReadQueueResource implements Resource<PhysicsStor
 
         public void complete(@Nonnull Store<PhysicsStore> store) {
             try {
-                completion.complete(read.apply(store));
+                PhysicsStoreAsyncCompletions.complete(completion, read.apply(store));
             } catch (RuntimeException | Error exception) {
                 fail(exception);
             }
         }
 
         public void fail(@Nonnull Throwable failure) {
-            completion.completeExceptionally(Objects.requireNonNull(failure, "failure"));
+            PhysicsStoreAsyncCompletions.fail(completion, Objects.requireNonNull(failure, "failure"));
         }
     }
 }
