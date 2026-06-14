@@ -7,11 +7,11 @@ import com.hypixel.hytale.logger.HytaleLogger;
 import com.hypixel.hytale.server.core.universe.world.World;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import com.hypixel.hytale.server.core.universe.world.storage.PhysicsStore;
-import dev.hytalemodding.impulse.early.PhysicsStoreWorld;
 import dev.hytalemodding.impulse.core.internal.physicsstore.PhysicsStoreRuntimeCleaner;
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsWorldRuntimeResource;
 import dev.hytalemodding.impulse.core.internal.resources.owner.PhysicsOwnerResource;
 import dev.hytalemodding.impulse.core.plugin.resources.PhysicsWorldResource;
+import java.lang.reflect.Method;
 import java.util.ArrayList;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
@@ -141,8 +141,17 @@ public final class PhysicsOwnerLifecycleSystem extends StoreSystem<EntityStore>
     @Nullable
     private static Store<PhysicsStore> physicsStoreOrNull(@Nonnull Store<EntityStore> store) {
         World world = store.getExternalData().getWorld();
-        return world instanceof PhysicsStoreWorld physicsWorld
-            ? physicsWorld.getPhysicsStore().getStore()
-            : null;
+        try {
+            Method accessor = world.getClass().getMethod("getPhysicsStore");
+            Object physicsStore = accessor.invoke(world);
+            return physicsStore instanceof PhysicsStore typedPhysicsStore
+                ? typedPhysicsStore.getStore()
+                : null;
+        } catch (NoSuchMethodException exception) {
+            return null;
+        } catch (ReflectiveOperationException exception) {
+            throw new IllegalStateException("Failed to access authoritative PhysicsStore for world "
+                + world.getName(), exception);
+        }
     }
 }
