@@ -28,6 +28,7 @@ import dev.hytalemodding.impulse.core.plugin.body.RigidBodyKey;
 import dev.hytalemodding.impulse.core.plugin.modules.control.PhysicsControlSessions;
 import dev.hytalemodding.impulse.core.plugin.joint.JointKey;
 import dev.hytalemodding.impulse.core.plugin.physicsstore.PhysicsStoreRaycasts;
+import dev.hytalemodding.impulse.core.plugin.physicsstore.components.BodyCommandComponent;
 import dev.hytalemodding.impulse.core.plugin.physicsstore.components.BodyComponent;
 import dev.hytalemodding.impulse.core.plugin.physicsstore.components.ColliderComponent;
 import dev.hytalemodding.impulse.core.plugin.physicsstore.components.CollisionFilterComponent;
@@ -36,10 +37,7 @@ import dev.hytalemodding.impulse.core.plugin.physicsstore.components.JointCompon
 import dev.hytalemodding.impulse.core.plugin.physicsstore.components.MaterialComponent;
 import dev.hytalemodding.impulse.core.plugin.physicsstore.components.ShapeComponent;
 import dev.hytalemodding.impulse.core.plugin.physicsstore.components.TargetComponent;
-import dev.hytalemodding.impulse.core.plugin.physicsstore.requests.BodyActivationRequest;
 import dev.hytalemodding.impulse.core.plugin.physicsstore.requests.BodyUpsertRequest;
-import dev.hytalemodding.impulse.core.plugin.physicsstore.requests.JointUpsertRequest;
-import dev.hytalemodding.impulse.core.plugin.physicsstore.requests.PhysicsStoreRequest;
 import dev.hytalemodding.impulse.core.plugin.physicsstore.snapshots.PhysicsStoreBodySnapshot;
 import dev.hytalemodding.impulse.core.plugin.resources.PhysicsWorldResource;
 import dev.hytalemodding.impulse.core.plugin.simulation.JointType;
@@ -175,13 +173,18 @@ public class GrabCommand extends AbstractAsyncPlayerCommand {
 
         RigidBodyKey anchorBodyKey = RigidBodyKey.random();
         JointKey controlJointKey = JointKey.random();
-        List<PhysicsStoreRequest> requests = new ArrayList<>(3);
-        requests.add(anchorBodyUpsertRequest(spaceUuid, anchorBodyKey.value(), hitPoint));
-        requests.add(JointUpsertRequest.of(controlJointKey.value(),
-            controlJoint(spaceUuid, anchorBodyKey, selection.bodyKey(), bodyLocalHit)));
-        requests.add(BodyActivationRequest.wake(selection.bodyKey().value()));
+        boolean selectedBound = ExamplePhysicsUtils.appendPhysicsStoreBodyCommand(world,
+            selection.bodyKey().value(),
+            BodyCommandComponent.wake());
+        if (!selectedBound) {
+            return null;
+        }
         try {
-            ExamplePhysicsUtils.enqueuePhysicsStoreRequests(world, requests);
+            ExamplePhysicsUtils.addPhysicsStoreBody(world,
+                anchorBodyUpsertRequest(spaceUuid, anchorBodyKey.value(), hitPoint));
+            ExamplePhysicsUtils.addPhysicsStoreJoint(world,
+                controlJointKey.value(),
+                controlJoint(spaceUuid, anchorBodyKey, selection.bodyKey(), bodyLocalHit));
         } catch (IllegalStateException exception) {
             return null;
         }
