@@ -22,9 +22,7 @@ import dev.hytalemodding.impulse.early.PhysicsStoreWorld;
 import dev.hytalemodding.impulse.core.internal.modules.control.ControlLifecycle;
 import dev.hytalemodding.impulse.core.internal.modules.control.components.PhysicsControlSessionComponent;
 import dev.hytalemodding.impulse.core.internal.physicsstore.resources.PhysicsIdentityIndexResource;
-import dev.hytalemodding.impulse.core.internal.resources.PhysicsWorldRuntimeResource;
 import dev.hytalemodding.impulse.core.internal.systems.sync.PhysicsSyncSystem;
-import dev.hytalemodding.impulse.core.plugin.body.RigidBodyKey;
 import dev.hytalemodding.impulse.core.plugin.physicsstore.PhysicsStoreThreading;
 import dev.hytalemodding.impulse.core.plugin.physicsstore.components.BodyComponent;
 import dev.hytalemodding.impulse.core.plugin.physicsstore.components.TargetComponent;
@@ -93,11 +91,11 @@ public class PhysicsKinematicControlSystem extends EntityTickingSystem<EntitySto
             return;
         }
 
-        RigidBodyKey bodyKey = session.getBodyKey();
-        RigidBodyKey anchorBodyKey = session.getAnchorBodyKey();
+        UUID bodyUuid = session.getBodyUuid();
+        UUID anchorBodyUuid = session.getAnchorBodyUuid();
         Ref<EntityStore> targetRef = session.getTargetRef();
-        if (bodyKey == null || anchorBodyKey == null || (targetRef != null && !targetRef.isValid())) {
-            stateFor(store).clear(anchorBodyKey);
+        if (bodyUuid == null || anchorBodyUuid == null || (targetRef != null && !targetRef.isValid())) {
+            stateFor(store).clear(anchorBodyUuid);
             PhysicsControlSessionCleanup.cleanup(store, session);
             commandBuffer.removeComponent(chunk.getReferenceTo(index), sessionType);
             return;
@@ -141,24 +139,24 @@ public class PhysicsKinematicControlSystem extends EntityTickingSystem<EntitySto
         previousTarget.set(local.target);
 
         ControlMutationState state = stateFor(store);
-        ControlAnchorUpdate update = new ControlAnchorUpdate(bodyKey,
-            anchorBodyKey,
+        ControlAnchorUpdate update = new ControlAnchorUpdate(bodyUuid,
+            anchorBodyUuid,
             local.target,
             releaseVelocity);
-        ControlAnchorUpdate readyUpdate = state.selectReadyUpdate(anchorBodyKey, update);
+        ControlAnchorUpdate readyUpdate = state.selectReadyUpdate(anchorBodyUuid, update);
         if (readyUpdate == null) {
             return;
         }
 
         PhysicsStoreControlTargets physicsStoreTargets =
-            resolvePhysicsStoreTargets(store, bodyKey, anchorBodyKey);
+            resolvePhysicsStoreTargets(store, bodyUuid, anchorBodyUuid);
         if (physicsStoreTargets != null) {
             physicsStoreTargets.apply(readyUpdate);
-            state.trackSubmittedMutation(anchorBodyKey, readyUpdate);
+            state.trackSubmittedMutation(anchorBodyUuid, readyUpdate);
             return;
         }
 
-        stateFor(store).clear(anchorBodyKey);
+        stateFor(store).clear(anchorBodyUuid);
         PhysicsControlSessionCleanup.cleanup(store, session);
         commandBuffer.removeComponent(chunk.getReferenceTo(index), sessionType);
     }
@@ -166,8 +164,8 @@ public class PhysicsKinematicControlSystem extends EntityTickingSystem<EntitySto
     @Nullable
     private static PhysicsStoreControlTargets resolvePhysicsStoreTargets(
         @Nonnull Store<EntityStore> store,
-        @Nonnull RigidBodyKey bodyKey,
-        @Nonnull RigidBodyKey anchorBodyKey) {
+        @Nonnull UUID bodyUuid,
+        @Nonnull UUID anchorBodyUuid) {
         PhysicsStore physicsStore =
             ((PhysicsStoreWorld) store.getExternalData().getWorld()).getPhysicsStore();
         Store<PhysicsStore> physics = physicsStore.getStore();
@@ -175,8 +173,6 @@ public class PhysicsKinematicControlSystem extends EntityTickingSystem<EntitySto
             "resolve PhysicsStore kinematic control targets");
         PhysicsIdentityIndexResource identity = physics.getResource(
             PhysicsIdentityIndexResource.getResourceType());
-        UUID bodyUuid = bodyKey.value();
-        UUID anchorBodyUuid = anchorBodyKey.value();
         Ref<PhysicsStore> bodyRef = bodyRef(physics, identity, bodyUuid);
         Ref<PhysicsStore> anchorBodyRef = bodyRef(physics, identity, anchorBodyUuid);
         if (bodyRef == null || anchorBodyRef == null) {
@@ -251,14 +247,14 @@ public class PhysicsKinematicControlSystem extends EntityTickingSystem<EntitySto
     }
 
     public static void clearMutationState(@Nonnull Store<EntityStore> store,
-        @Nullable RigidBodyKey anchorBodyKey) {
-        if (anchorBodyKey != null) {
-            stateFor(store).clear(anchorBodyKey);
+        @Nullable UUID anchorBodyUuid) {
+        if (anchorBodyUuid != null) {
+            stateFor(store).clear(anchorBodyUuid);
         }
     }
 
-    record ControlAnchorUpdate(@Nonnull RigidBodyKey bodyKey,
-                               @Nonnull RigidBodyKey anchorBodyKey,
+    record ControlAnchorUpdate(@Nonnull UUID bodyUuid,
+                               @Nonnull UUID anchorBodyUuid,
                                @Nonnull Vector3f target,
                                @Nonnull Vector3f releaseVelocity) {
 
@@ -308,27 +304,27 @@ public class PhysicsKinematicControlSystem extends EntityTickingSystem<EntitySto
     static final class ControlMutationState {
 
         @Nonnull
-        private final Object2ObjectMap<RigidBodyKey, ControlAnchorUpdate> submittedUpdates =
+        private final Object2ObjectMap<UUID, ControlAnchorUpdate> submittedUpdates =
             new Object2ObjectOpenHashMap<>();
 
         @Nullable
-        synchronized ControlAnchorUpdate selectReadyUpdate(@Nonnull RigidBodyKey bodyKey,
+        synchronized ControlAnchorUpdate selectReadyUpdate(@Nonnull UUID bodyUuid,
             @Nonnull ControlAnchorUpdate currentUpdate) {
-            ControlAnchorUpdate submittedUpdate = submittedUpdates.get(bodyKey);
+            ControlAnchorUpdate submittedUpdate = submittedUpdates.get(bodyUuid);
             if (sameTarget(currentUpdate, submittedUpdate)) {
                 return null;
             }
             return currentUpdate;
         }
 
-        synchronized void trackSubmittedMutation(@Nonnull RigidBodyKey bodyKey,
+        synchronized void trackSubmittedMutation(@Nonnull UUID bodyUuid,
             @Nonnull ControlAnchorUpdate submittedUpdate) {
-            submittedUpdates.put(bodyKey, submittedUpdate);
+            submittedUpdates.put(bodyUuid, submittedUpdate);
         }
 
-        synchronized void clear(@Nullable RigidBodyKey bodyKey) {
-            if (bodyKey != null) {
-                submittedUpdates.remove(bodyKey);
+        synchronized void clear(@Nullable UUID bodyUuid) {
+            if (bodyUuid != null) {
+                submittedUpdates.remove(bodyUuid);
             }
         }
 
