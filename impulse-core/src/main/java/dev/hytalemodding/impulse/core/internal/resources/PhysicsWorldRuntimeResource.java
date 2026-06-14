@@ -44,7 +44,6 @@ import dev.hytalemodding.impulse.core.internal.modules.worldcollision.WorldColli
 import dev.hytalemodding.impulse.core.internal.modules.worldcollision.PhysicsWorldCollisionRuntime;
 import dev.hytalemodding.impulse.core.internal.modules.worldcollision.WorldCollisionLifecycle;
 import dev.hytalemodding.impulse.core.internal.modules.worldcollision.WorldVoxelCollisionCache;
-import dev.hytalemodding.impulse.core.internal.physicsstore.queries.PhysicsStoreQueryBridge;
 import dev.hytalemodding.impulse.core.internal.store.integration.PhysicsStoreEarlyPluginProbe;
 import dev.hytalemodding.impulse.core.plugin.body.RigidBodyKey;
 import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyKind;
@@ -87,7 +86,6 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
 import java.util.Objects;
-import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
@@ -263,31 +261,16 @@ public class PhysicsWorldRuntimeResource extends PhysicsWorldResource {
     @Override
     public <R> PhysicsQueryHandle<R> query(@Nonnull PhysicsQuery<R> query) {
         Objects.requireNonNull(query, "query");
-        Optional<PhysicsQueryHandle<R>> physicsStoreQuery = tryPhysicsStoreQuery(query);
-        if (physicsStoreQuery.isPresent()) {
-            return physicsStoreQuery.get();
+        if (isAuthoritativePhysicsStoreActive()) {
+            return PhysicsQueryHandle.failed(query,
+                new IllegalStateException("PhysicsWorldResource.query is a legacy runtime API while "
+                    + "authoritative PhysicsStore is active. Use PhysicsSnapshotResource for copied "
+                    + "body state, PhysicsStoreDiagnostics for owner-lane diagnostics, or "
+                    + "PhysicsStoreRaycasts for raycasts."));
         }
         CompletableFuture<R> completion =
             ownerGateway.enqueueCall("execute physics query", () -> simulationExecutor.query(query));
         return PhysicsQueryHandle.fromCompletion(query, completion);
-    }
-
-    @Nonnull
-    private <R> Optional<PhysicsQueryHandle<R>> tryPhysicsStoreQuery(@Nonnull PhysicsQuery<R> query) {
-        Store<EntityStore> entityStore = owningStore;
-        if (entityStore == null) {
-            return Optional.empty();
-        }
-        if (!isAuthoritativePhysicsStoreActive()) {
-            return Optional.empty();
-        }
-        try {
-            return PhysicsStoreQueryBridge.tryQuery(
-                physicsStore(entityStore.getExternalData().getWorld()),
-                query);
-        } catch (ClassCastException | IllegalStateException exception) {
-            return Optional.empty();
-        }
     }
 
     @Nonnull
