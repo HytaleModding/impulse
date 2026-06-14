@@ -19,10 +19,12 @@ import dev.hytalemodding.impulse.core.internal.physicsstore.resources.PhysicsIde
 import dev.hytalemodding.impulse.core.internal.physicsstore.resources.PhysicsRestoreStatusResource;
 import dev.hytalemodding.impulse.core.internal.physicsstore.resources.PhysicsRuntimeResource;
 import dev.hytalemodding.impulse.core.internal.physicsstore.resources.PhysicsSpaceCompatibilityIndexResource;
+import dev.hytalemodding.impulse.core.internal.physicsstore.resources.PhysicsWorldSettingsResource;
 import dev.hytalemodding.impulse.core.internal.resources.BackendSpaceHandle;
 import dev.hytalemodding.impulse.core.plugin.physicsstore.components.ExtensionSettingsComponent;
 import dev.hytalemodding.impulse.core.plugin.physicsstore.components.SolverSettingsComponent;
 import dev.hytalemodding.impulse.core.plugin.physicsstore.components.SpaceComponent;
+import dev.hytalemodding.impulse.core.plugin.settings.PhysicsStepMode;
 import java.util.Set;
 import java.util.UUID;
 import java.util.function.BiConsumer;
@@ -53,8 +55,11 @@ public final class SpaceBindingSystem extends TickingSystem<PhysicsStore>
             PhysicsSpaceCompatibilityIndexResource.getResourceType());
         PhysicsIdentityIndexResource identity = store.getResource(
             PhysicsIdentityIndexResource.getResourceType());
+        PhysicsStepMode stepMode = store.getResource(PhysicsWorldSettingsResource.getResourceType())
+            .getSettings()
+            .getStepMode();
         BiConsumer<ArchetypeChunk<PhysicsStore>, CommandBuffer<PhysicsStore>> collector =
-            (chunk, _) -> bindChunk(runtime, compatibility, identity, restore, chunk);
+            (chunk, _) -> bindChunk(runtime, compatibility, identity, restore, stepMode, chunk);
         store.forEachChunk(systemIndex, collector);
     }
 
@@ -62,6 +67,7 @@ public final class SpaceBindingSystem extends TickingSystem<PhysicsStore>
         @Nonnull PhysicsSpaceCompatibilityIndexResource compatibility,
         @Nonnull PhysicsIdentityIndexResource identity,
         @Nonnull PhysicsRestoreStatusResource restore,
+        @Nonnull PhysicsStepMode stepMode,
         @Nonnull ArchetypeChunk<PhysicsStore> chunk) {
         for (int index = 0; index < chunk.size(); index++) {
             SpaceComponent space = chunk.getComponent(index, SpaceComponent.getComponentType());
@@ -77,6 +83,7 @@ public final class SpaceBindingSystem extends TickingSystem<PhysicsStore>
                 compatibility,
                 identity,
                 restore,
+                stepMode,
                 chunk.getReferenceTo(index),
                 spaceUuid,
                 space,
@@ -89,6 +96,7 @@ public final class SpaceBindingSystem extends TickingSystem<PhysicsStore>
         @Nonnull PhysicsSpaceCompatibilityIndexResource compatibility,
         @Nonnull PhysicsIdentityIndexResource identity,
         @Nonnull PhysicsRestoreStatusResource restore,
+        @Nonnull PhysicsStepMode stepMode,
         @Nonnull Ref<PhysicsStore> ref,
         @Nonnull UUID spaceUuid,
         @Nonnull SpaceComponent space,
@@ -117,6 +125,11 @@ public final class SpaceBindingSystem extends TickingSystem<PhysicsStore>
         BackendSpaceHandle handle = null;
         try {
             handle = new BackendSpaceHandle(backendRuntime.createSpace(compatibilitySpaceId));
+            if (stepMode == PhysicsStepMode.CCD
+                && !backendRuntime.supportsContinuousCollision(handle.value())) {
+                throw new IllegalStateException("backend " + backendId.value()
+                    + " does not support CCD step mode");
+            }
             Vector3f gravity = space.getGravity();
             backendRuntime.setGravity(handle.value(), gravity.x, gravity.y, gravity.z);
             SpaceSettingsApplicationSystem.applyBackendSettings(backendRuntime,

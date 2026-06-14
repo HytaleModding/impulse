@@ -13,6 +13,7 @@ import dev.hytalemodding.impulse.core.internal.physicsstore.resources.PhysicsSpa
 import dev.hytalemodding.impulse.core.internal.physicsstore.resources.PhysicsSnapshotResource;
 import dev.hytalemodding.impulse.core.internal.physicsstore.resources.PhysicsStoreReadQueueResource;
 import dev.hytalemodding.impulse.core.internal.physicsstore.resources.PhysicsTerrainPayloadResource;
+import dev.hytalemodding.impulse.core.internal.physicsstore.resources.PhysicsWorldSettingsResource;
 import dev.hytalemodding.impulse.core.internal.physicsstore.resources.PhysicsWorldCollisionIndexResource;
 import dev.hytalemodding.impulse.core.internal.physicsstore.persistence.PersistentPhysicsStoreResource;
 import dev.hytalemodding.impulse.core.plugin.physicsstore.components.BodyCommandComponent;
@@ -82,6 +83,8 @@ public final class PhysicsStoreTypes {
 
     @Nullable
     private static ResourceType<PhysicsStore, PhysicsRuntimeResource> runtimeResourceType;
+    @Nullable
+    private static ResourceType<PhysicsStore, PhysicsWorldSettingsResource> worldSettingsResourceType;
     @Nullable
     private static ResourceType<PhysicsStore, PhysicsSpaceCompatibilityIndexResource>
         spaceCompatibilityIndexResourceType;
@@ -202,6 +205,11 @@ public final class PhysicsStoreTypes {
     public static void setRuntimeResourceType(
         @Nonnull ResourceType<PhysicsStore, PhysicsRuntimeResource> type) {
         runtimeResourceType = Objects.requireNonNull(type, "type");
+    }
+
+    public static void setWorldSettingsResourceType(
+        @Nonnull ResourceType<PhysicsStore, PhysicsWorldSettingsResource> type) {
+        worldSettingsResourceType = Objects.requireNonNull(type, "type");
     }
 
     public static void setSpaceCompatibilityIndexResourceType(
@@ -357,6 +365,11 @@ public final class PhysicsStoreTypes {
     @Nonnull
     public static ResourceType<PhysicsStore, PhysicsRuntimeResource> runtimeResourceType() {
         return require(runtimeResourceType, "PhysicsRuntimeResource");
+    }
+
+    @Nonnull
+    public static ResourceType<PhysicsStore, PhysicsWorldSettingsResource> worldSettingsResourceType() {
+        return require(worldSettingsResourceType, "PhysicsWorldSettingsResource");
     }
 
     @Nonnull
