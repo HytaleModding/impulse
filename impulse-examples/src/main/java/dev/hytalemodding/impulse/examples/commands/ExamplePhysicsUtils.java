@@ -5,16 +5,13 @@ import com.hypixel.hytale.component.ComponentType;
 import com.hypixel.hytale.component.Holder;
 import com.hypixel.hytale.component.Ref;
 import com.hypixel.hytale.component.Store;
-import com.hypixel.hytale.math.vector.Transform;
 import com.hypixel.hytale.server.core.Message;
 import com.hypixel.hytale.server.core.command.system.CommandContext;
 import com.hypixel.hytale.server.core.command.system.arguments.system.OptionalArg;
-import com.hypixel.hytale.server.core.modules.entity.component.TransformComponent;
 import com.hypixel.hytale.server.core.modules.time.TimeResource;
 import com.hypixel.hytale.server.core.universe.world.World;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import com.hypixel.hytale.server.core.universe.world.storage.PhysicsStore;
-import com.hypixel.hytale.server.core.util.TargetUtil;
 import dev.hytalemodding.impulse.api.PhysicsBodyType;
 import dev.hytalemodding.impulse.api.SpaceId;
 import dev.hytalemodding.impulse.early.PhysicsStoreWorld;
@@ -23,9 +20,6 @@ import dev.hytalemodding.impulse.core.internal.physicsstore.resources.PhysicsSpa
 import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyKind;
 import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyPersistenceMode;
 import dev.hytalemodding.impulse.core.plugin.body.RigidBodyKey;
-import dev.hytalemodding.impulse.core.plugin.modules.worldcollision.WorldCollisionBuildStats;
-import dev.hytalemodding.impulse.core.plugin.modules.worldcollision.WorldCollisionPrewarmStats;
-import dev.hytalemodding.impulse.core.plugin.modules.worldcollision.WorldCollisionStats;
 import dev.hytalemodding.impulse.core.plugin.modules.control.ImpulseControllableComponent;
 import dev.hytalemodding.impulse.core.plugin.modules.control.PhysicsControlSessions;
 import dev.hytalemodding.impulse.core.plugin.physicsstore.PhysicsBodyRows;
@@ -58,29 +52,10 @@ public final class ExamplePhysicsUtils {
 
     public static final String DEFAULT_BLOCK_TYPE =
         PhysicsVisualMaterializationSettings.DEFAULT_DETACHED_VISUAL_BLOCK_TYPE;
-    private static final ComponentType<EntityStore, TransformComponent> TRANSFORM_TYPE =
-        TransformComponent.getComponentType();
     private static final ComponentType<EntityStore, BodyAttachmentComponent> ATTACHMENT_TYPE =
         BodyAttachmentComponent.getComponentType();
 
     private ExamplePhysicsUtils() {
-    }
-
-    @Nullable
-    public static Vector3d playerPosition(@Nonnull CommandContext ctx,
-        @Nonnull Store<EntityStore> store,
-        @Nonnull Ref<EntityStore> ref) {
-        TransformComponent playerTransform = store.getComponent(ref, TRANSFORM_TYPE);
-        if (playerTransform == null) {
-            ctx.sender().sendMessage(Message.raw("Cannot determine player position."));
-            return null;
-        }
-        return new Vector3d(playerTransform.getPosition());
-    }
-
-    @Nonnull
-    public static PhysicsWorldResource resource(@Nonnull Store<EntityStore> store) {
-        return store.getResource(PhysicsWorldResource.getResourceType());
     }
 
     @Nonnull
@@ -97,49 +72,6 @@ public final class ExamplePhysicsUtils {
         return store
             .getResource(PhysicsSpaceCompatibilityIndexResource.getResourceType())
             .getSpaceUuid(Objects.requireNonNull(spaceId, "spaceId"));
-    }
-
-    @Nonnull
-    public static WorldCollisionBuildStats rebuildPhysicsStoreWorldCollisionAround(
-        @Nonnull Store<EntityStore> store,
-        @Nonnull World world,
-        @Nonnull SpaceId spaceId,
-        @Nonnull Vector3d center,
-        int radius) {
-        return resource(store).rebuildWorldCollisionAround(world, spaceId, center, radius);
-    }
-
-    @Nonnull
-    public static WorldCollisionBuildStats refreshPhysicsStoreWorldCollisionAround(
-        @Nonnull Store<EntityStore> store,
-        @Nonnull World world,
-        @Nonnull SpaceId spaceId,
-        @Nonnull Vector3d center,
-        int radius) {
-        return resource(store).refreshWorldCollisionAround(world, spaceId, center, radius);
-    }
-
-    @Nonnull
-    public static WorldCollisionPrewarmStats ensurePhysicsStoreWorldCollisionAround(
-        @Nonnull Store<EntityStore> store,
-        @Nonnull World world,
-        @Nonnull SpaceId spaceId,
-        @Nonnull Iterable<Vector3d> centers,
-        int radius,
-        long tick) {
-        return resource(store).ensureWorldCollisionAround(world, spaceId, centers, radius, tick);
-    }
-
-    public static int clearPhysicsStoreWorldCollision(@Nonnull Store<EntityStore> store,
-        @Nonnull World world,
-        @Nonnull SpaceId spaceId) {
-        return resource(store).clearWorldCollision(spaceId);
-    }
-
-    @Nonnull
-    public static WorldCollisionStats physicsStoreWorldCollisionStats(
-        @Nonnull Store<EntityStore> store) {
-        return resource(store).getWorldCollisionStats();
     }
 
     @Nonnull
@@ -282,42 +214,6 @@ public final class ExamplePhysicsUtils {
     @Nonnull
     public static SpawnedBlockBody spawnBlockBody(@Nonnull Store<EntityStore> store,
         @Nonnull TimeResource time,
-        @Nonnull PhysicsWorldResource resource,
-        @Nonnull SpaceId spaceId,
-        @Nonnull Vector3d visualPosition,
-        @Nonnull PhysicsShapeSpec shape,
-        float mass,
-        @Nonnull RigidBodySpawnSettings settings) {
-        return spawnBlockBody(store, time, resource, spaceId, visualPosition, DEFAULT_BLOCK_TYPE,
-            shape, mass, settings);
-    }
-
-    @Nonnull
-    public static SpawnedBlockBody spawnBlockBody(@Nonnull Store<EntityStore> store,
-        @Nonnull TimeResource time,
-        @Nonnull PhysicsWorldResource resource,
-        @Nonnull SpaceId spaceId,
-        @Nonnull Vector3d visualPosition,
-        @Nullable String blockType,
-        @Nonnull PhysicsShapeSpec shape,
-        float mass,
-        @Nonnull RigidBodySpawnSettings settings) {
-        return spawnBlockBody(store,
-            time,
-            resource,
-            spaceId,
-            visualPosition,
-            blockType,
-            shape,
-            mass,
-            settings,
-            null);
-    }
-
-    @Nonnull
-    public static SpawnedBlockBody spawnBlockBody(@Nonnull Store<EntityStore> store,
-        @Nonnull TimeResource time,
-        @Nonnull PhysicsWorldResource resource,
         @Nonnull SpaceId spaceId,
         @Nonnull Vector3d visualPosition,
         @Nullable String blockType,
@@ -528,7 +424,6 @@ public final class ExamplePhysicsUtils {
     @Nonnull
     public static SpawnedBlockBody[] spawnBlockBodies(@Nonnull Store<EntityStore> store,
         @Nonnull TimeResource time,
-        @Nonnull PhysicsWorldResource resource,
         long serverTick,
         @Nonnull SpaceId spaceId,
         int expectedBodies,
@@ -539,7 +434,6 @@ public final class ExamplePhysicsUtils {
         @Nonnull Consumer<BlockBodyBatchBuilder> builder) {
         return spawnBlockBodiesInternal(store,
             time,
-            resource,
             serverTick,
             spaceId,
             expectedBodies,
@@ -554,7 +448,6 @@ public final class ExamplePhysicsUtils {
     @Nonnull
     public static BlockBodyBatchTiming spawnBlockBodiesMeasured(@Nonnull Store<EntityStore> store,
         @Nonnull TimeResource time,
-        @Nonnull PhysicsWorldResource resource,
         long serverTick,
         @Nonnull SpaceId spaceId,
         int expectedBodies,
@@ -565,7 +458,6 @@ public final class ExamplePhysicsUtils {
         @Nonnull Consumer<BlockBodyBatchBuilder> builder) {
         return spawnBlockBodiesInternal(store,
             time,
-            resource,
             serverTick,
             spaceId,
             expectedBodies,
@@ -580,7 +472,6 @@ public final class ExamplePhysicsUtils {
     @Nonnull
     private static BlockBodyBatchResult spawnBlockBodiesInternal(@Nonnull Store<EntityStore> store,
         @Nonnull TimeResource time,
-        @Nonnull PhysicsWorldResource resource,
         long serverTick,
         @Nonnull SpaceId spaceId,
         int expectedBodies,
@@ -667,12 +558,6 @@ public final class ExamplePhysicsUtils {
         return store.addEntity(holder, AddReason.SPAWN);
     }
 
-    @Nonnull
-    static Vector3d visualPositionFromBodyCenter(@Nonnull Vector3d bodyCenter,
-        @Nonnull PhysicsShapeSpec shape) {
-        return ExamplePhysicsOriginMath.visualPositionFromBodyCenter(bodyCenter, shape);
-    }
-
     @Nullable
     private static Ref<EntityStore> spawnAttachedPhysicsStoreBlockEntity(@Nonnull Store<EntityStore> store,
         @Nonnull TimeResource time,
@@ -718,17 +603,6 @@ public final class ExamplePhysicsUtils {
         @Nullable String blockType,
         @Nonnull Vector3d visualPosition) {
         return ExampleBlockEntityVisuals.impulseOwnedBlockVisual(time, blockType, visualPosition);
-    }
-
-    @Nonnull
-    public static String resolveBlockType(@Nullable String blockType) {
-        return ExampleBlockEntityVisuals.resolveBlockType(blockType);
-    }
-
-    @Nonnull
-    static Transform lookTransform(@Nonnull Store<EntityStore> store,
-        @Nonnull Ref<EntityStore> ref) {
-        return TargetUtil.getLook(ref, store);
     }
 
     public static int optionalInt(@Nonnull CommandContext ctx,

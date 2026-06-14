@@ -9,11 +9,11 @@ import com.hypixel.hytale.server.core.command.system.CommandContext;
 import com.hypixel.hytale.server.core.command.system.arguments.system.OptionalArg;
 import com.hypixel.hytale.server.core.command.system.arguments.types.ArgTypes;
 import com.hypixel.hytale.server.core.command.system.basecommands.AbstractAsyncPlayerCommand;
-import com.hypixel.hytale.server.core.modules.entity.component.TransformComponent;
 import com.hypixel.hytale.server.core.universe.PlayerRef;
 import com.hypixel.hytale.server.core.universe.world.World;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import com.hypixel.hytale.server.core.universe.world.storage.PhysicsStore;
+import com.hypixel.hytale.server.core.util.TargetUtil;
 import dev.hytalemodding.impulse.early.PhysicsStoreWorld;
 import dev.hytalemodding.impulse.api.PhysicsAxis;
 import dev.hytalemodding.impulse.api.PhysicsBodyType;
@@ -63,8 +63,6 @@ public class GrabCommand extends AbstractAsyncPlayerCommand {
     private static final double RAY_LENGTH = 24.0;
     private static final float MIN_HOLD_DISTANCE = 4.0f;
     private static final Vector3f VIEW_OFFSET = new Vector3f(0.85f, -0.35f, 0.0f);
-    private static final ComponentType<EntityStore, TransformComponent> TRANSFORM_TYPE =
-        TransformComponent.getComponentType();
     private static final ComponentType<EntityStore, BodyAttachmentComponent> ATTACHMENT_TYPE =
         BodyAttachmentComponent.getComponentType();
     private final OptionalArg<Integer> spaceArg = this.withOptionalArg(
@@ -83,12 +81,6 @@ public class GrabCommand extends AbstractAsyncPlayerCommand {
         @Nonnull Ref<EntityStore> ref,
         @Nonnull PlayerRef playerRef,
         @Nonnull World world) {
-        TransformComponent transform = store.getComponent(ref, TRANSFORM_TYPE);
-        if (transform == null) {
-            ctx.sender().sendMessage(Message.raw("Cannot determine player position."));
-            return CompletableFuture.completedFuture(null);
-        }
-
         if (!PhysicsControlSessions.isAvailable()) {
             ctx.sender().sendMessage(Message.raw(
                 "Impulse control is disabled. Enable HytaleModding:ImpulseControl to use grab."));
@@ -97,13 +89,13 @@ public class GrabCommand extends AbstractAsyncPlayerCommand {
         ComponentType<EntityStore, ImpulseControllableComponent> controllableType =
             ImpulseControllableComponent.getComponentType();
 
-        PhysicsWorldResource resource = ExamplePhysicsUtils.resource(store);
+        PhysicsWorldResource resource = store.getResource(PhysicsWorldResource.getResourceType());
         SpaceId targetSpaceId = ExamplePhysicsUtils.spaceId(ctx, resource, spaceArg);
         if (targetSpaceId == null) {
             return CompletableFuture.completedFuture(null);
         }
 
-        Transform look = ExamplePhysicsUtils.lookTransform(store, ref);
+        Transform look = TargetUtil.getLook(ref, store);
         Vector3d start = new Vector3d(look.getPosition());
         Vector3d direction = new Vector3d(look.getDirection()).mul(RAY_LENGTH);
         Vector3d end = new Vector3d(start).add(direction);

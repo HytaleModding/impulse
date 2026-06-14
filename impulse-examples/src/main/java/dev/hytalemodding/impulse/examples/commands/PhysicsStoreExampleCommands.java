@@ -11,8 +11,6 @@ import com.hypixel.hytale.server.core.command.system.CommandContext;
 import com.hypixel.hytale.server.core.command.system.arguments.system.OptionalArg;
 import com.hypixel.hytale.server.core.command.system.arguments.types.ArgTypes;
 import com.hypixel.hytale.server.core.command.system.basecommands.AbstractAsyncPlayerCommand;
-import com.hypixel.hytale.server.core.command.system.basecommands.AbstractCommandCollection;
-import com.hypixel.hytale.server.core.modules.entity.component.TransformComponent;
 import com.hypixel.hytale.server.core.modules.time.TimeResource;
 import com.hypixel.hytale.server.core.universe.PlayerRef;
 import com.hypixel.hytale.server.core.universe.world.World;
@@ -46,31 +44,21 @@ import org.joml.Vector3d;
 import org.joml.Vector3f;
 import org.joml.Vector3i;
 
-/**
- * ECS-first examples for durable rigid body definitions.
- */
-public class EcsCommand extends AbstractCommandCollection {
+final class PhysicsStoreExampleCommands {
 
     private static final double RAY_LENGTH = 24.0;
 
-    public EcsCommand() {
-        super("ecs", "ECS rigid-body examples");
-        addSubCommand(new DropCommand());
-        addSubCommand(new BumperCommand());
-        addSubCommand(new PlatformCommand());
-        addSubCommand(new PickupCommand());
-        addSubCommand(new WorldCollisionCommand());
-        addSubCommand(new ExplosiveCommand());
+    private PhysicsStoreExampleCommands() {
     }
 
-    private abstract static class EcsPlayerCommand extends AbstractAsyncPlayerCommand {
+    abstract static class PhysicsStorePlayerCommand extends AbstractAsyncPlayerCommand {
 
         protected final OptionalArg<Integer> spaceArg = withOptionalArg(
             "space",
             "Physics space id to target",
             ArgTypes.INTEGER);
 
-        protected EcsPlayerCommand(@Nonnull String name, @Nonnull String description) {
+        protected PhysicsStorePlayerCommand(@Nonnull String name, @Nonnull String description) {
             super(name, description);
         }
 
@@ -78,71 +66,19 @@ public class EcsCommand extends AbstractCommandCollection {
         protected SpaceId resolveSpace(@Nonnull CommandContext ctx,
             @Nonnull Store<EntityStore> store) {
             return ExamplePhysicsUtils.spaceId(ctx,
-                ExamplePhysicsUtils.resource(store),
+                store.getResource(PhysicsWorldResource.getResourceType()),
                 spaceArg);
         }
     }
 
-    private static final class DropCommand extends EcsPlayerCommand {
-
-        private final OptionalArg<String> blockTypeArg = withOptionalArg(
-            "blockType",
-            "Hytale block type used for the attached visual entity",
-            ArgTypes.STRING);
-
-        private DropCommand() {
-            super("drop", "Spawn a dynamic physics body from split ECS components");
-        }
-
-        @Nonnull
-        @Override
-        protected CompletableFuture<Void> executeAsync(@Nonnull CommandContext ctx,
-            @Nonnull Store<EntityStore> store,
-            @Nonnull Ref<EntityStore> ref,
-            @Nonnull PlayerRef playerRef,
-            @Nonnull World world) {
-            Vector3d playerPos = ExamplePhysicsUtils.playerPosition(ctx, store, ref);
-            if (playerPos == null) {
-                return CompletableFuture.completedFuture(null);
-            }
-            SpaceId spaceId = resolveSpace(ctx, store);
-            if (spaceId == null) {
-                return CompletableFuture.completedFuture(null);
-            }
-
-            Vector3d spawn = new Vector3d(playerPos).add(0.0, 5.0, 0.0);
-            TimeResource time = store.getResource(TimeResource.getResourceType());
-            ExamplePhysicsUtils.SpawnedBlockBody body = ExamplePhysicsUtils.spawnBlockBody(store,
-                time,
-                ExamplePhysicsUtils.resource(store),
-                spaceId,
-                spawn,
-                blockType(ctx),
-                PhysicsShapeSpec.box(0.5f, 0.5f, 0.5f),
-                1.0f,
-                RigidBodySpawnSettings.material(0.5f, 0.2f));
-
-            ctx.sender().sendMessage(Message.raw("Queued ECS-authored physics body " + body.bodyKey()
-                + " in space " + spaceId.value() + "."));
-            return CompletableFuture.completedFuture(null);
-        }
-
-        @Nonnull
-        private String blockType(@Nonnull CommandContext ctx) {
-            return blockTypeArg.provided(ctx)
-                ? ExamplePhysicsUtils.resolveBlockType(blockTypeArg.get(ctx))
-                : ExamplePhysicsUtils.DEFAULT_BLOCK_TYPE;
-        }
-    }
-
-    private static final class BumperCommand extends EcsPlayerCommand {
+    static final class BumperCommand extends PhysicsStorePlayerCommand {
 
         private final OptionalArg<Integer> strengthArg = withOptionalArg(
             "strength",
             "Impulse strength",
             ArgTypes.INTEGER);
 
-        private BumperCommand() {
+        BumperCommand() {
             super("bumper", "Apply an impulse to the rigid body in the player view");
         }
 
@@ -158,7 +94,7 @@ public class EcsCommand extends AbstractCommandCollection {
                 return CompletableFuture.completedFuture(null);
             }
             return PhysicsStoreAsync.acceptOnWorldThread(world,
-                raycastAsync(ctx, store, ref, spaceId),
+                raycastAsync(store, ref, spaceId),
                 hit -> applyImpulse(ctx, store, ref, world, hit));
         }
 
@@ -172,13 +108,8 @@ public class EcsCommand extends AbstractCommandCollection {
                 return;
             }
 
-            TransformComponent transform = store.getComponent(ref, TransformComponent.getComponentType());
-            if (transform == null) {
-                ctx.sender().sendMessage(Message.raw("Cannot determine player direction."));
-                return;
-            }
             int strength = ExamplePhysicsUtils.optionalInt(ctx, strengthArg, 8, 1, 64);
-            Vector3d impulse = new Vector3d(ExamplePhysicsUtils.lookTransform(store, ref)
+            Vector3d impulse = new Vector3d(TargetUtil.getLook(ref, store)
                 .getDirection()).mul(strength);
             boolean applied = ExamplePhysicsUtils.appendPhysicsStoreBodyCommand(world,
                 hit.bodyKey().value(),
@@ -196,15 +127,15 @@ public class EcsCommand extends AbstractCommandCollection {
                 return;
             }
 
-            ctx.sender().sendMessage(Message.raw("Queued ECS impulse command for "
+            ctx.sender().sendMessage(Message.raw("Queued PhysicsStore impulse command for "
                 + hit.bodyKey() + "."));
         }
     }
 
-    private static final class PlatformCommand extends EcsPlayerCommand {
+    static final class PlatformCommand extends PhysicsStorePlayerCommand {
 
-        private PlatformCommand() {
-            super("platform", "Spawn a kinematic rigid body target from ECS data");
+        PlatformCommand() {
+            super("platform", "Spawn a kinematic PhysicsStore body target");
         }
 
         @Nonnull
@@ -214,10 +145,7 @@ public class EcsCommand extends AbstractCommandCollection {
             @Nonnull Ref<EntityStore> ref,
             @Nonnull PlayerRef playerRef,
             @Nonnull World world) {
-            Vector3d playerPos = ExamplePhysicsUtils.playerPosition(ctx, store, ref);
-            if (playerPos == null) {
-                return CompletableFuture.completedFuture(null);
-            }
+            Vector3d playerPos = new Vector3d(playerRef.getTransform().getPosition());
             SpaceId spaceId = resolveSpace(ctx, store);
             if (spaceId == null) {
                 return CompletableFuture.completedFuture(null);
@@ -259,15 +187,15 @@ public class EcsCommand extends AbstractCommandCollection {
                     (float) spawn.z,
                     false));
 
-            ctx.sender().sendMessage(Message.raw("Queued ECS kinematic platform " + bodyKey
+            ctx.sender().sendMessage(Message.raw("Queued PhysicsStore kinematic platform " + bodyKey
                 + " in space " + spaceId.value() + "."));
             return CompletableFuture.completedFuture(null);
         }
     }
 
-    private static final class PickupCommand extends EcsPlayerCommand {
+    static final class PickupCommand extends PhysicsStorePlayerCommand {
 
-        private PickupCommand() {
+        PickupCommand() {
             super("pickup", "Attach a view entity to the physics body in view");
         }
 
@@ -283,7 +211,7 @@ public class EcsCommand extends AbstractCommandCollection {
                 return CompletableFuture.completedFuture(null);
             }
             return PhysicsStoreAsync.acceptOnWorldThread(world,
-                raycastAsync(ctx, store, ref, spaceId),
+                raycastAsync(store, ref, spaceId),
                 hit -> attachView(ctx, store, hit));
         }
 
@@ -303,58 +231,12 @@ public class EcsCommand extends AbstractCommandCollection {
                 point,
                 ExamplePhysicsUtils.DEFAULT_BLOCK_TYPE);
 
-            ctx.sender().sendMessage(Message.raw("Attached view-only ECS entity to "
+            ctx.sender().sendMessage(Message.raw("Attached view-only entity to "
                 + hit.bodyKey() + "."));
         }
     }
 
-    private static final class WorldCollisionCommand extends EcsPlayerCommand {
-
-        private final OptionalArg<Integer> radiusArg = withOptionalArg(
-            "radius",
-            "Block radius around the player to scan",
-            ArgTypes.INTEGER);
-
-        private WorldCollisionCommand() {
-            super("world-collision", "Ensure voxel collision around the player for an explicit space");
-        }
-
-        @Nonnull
-        @Override
-        protected CompletableFuture<Void> executeAsync(@Nonnull CommandContext ctx,
-            @Nonnull Store<EntityStore> store,
-            @Nonnull Ref<EntityStore> ref,
-            @Nonnull PlayerRef playerRef,
-            @Nonnull World world) {
-            Vector3d playerPos = ExamplePhysicsUtils.playerPosition(ctx, store, ref);
-            if (playerPos == null) {
-                return CompletableFuture.completedFuture(null);
-            }
-            SpaceId spaceId = resolveSpace(ctx, store);
-            if (spaceId == null) {
-                return CompletableFuture.completedFuture(null);
-            }
-
-            int radius = ExamplePhysicsUtils.optionalInt(ctx, radiusArg, 8, 1, 24);
-            WorldCollisionPrewarmStats stats = ExamplePhysicsUtils.ensurePhysicsStoreWorldCollisionAround(store,
-                world,
-                spaceId,
-                List.of(playerPos),
-                radius,
-                0L);
-
-            ctx.sender().sendMessage(Message.raw("Ensured ECS world collision: targets "
-                + stats.sectionTargets()
-                + ", bodies "
-                + stats.buildStats().colliderBodies()
-                + ", removed "
-                + stats.buildStats().removedBodies()
-                + "."));
-            return CompletableFuture.completedFuture(null);
-        }
-    }
-
-    private static final class ExplosiveCommand extends EcsPlayerCommand {
+    static final class ExplosiveCommand extends PhysicsStorePlayerCommand {
 
         private static final double FALLBACK_SPAWN_DISTANCE = 5.0;
         private static final int DEFAULT_EXPLOSION_RADIUS = 8;
@@ -385,8 +267,8 @@ public class EcsCommand extends AbstractCommandCollection {
             "Upward lift fraction applied to spawned fragments",
             ArgTypes.FLOAT);
 
-        private ExplosiveCommand() {
-            super("explosive", "Drop an ECS explosive block that fragments terrain on impact");
+        ExplosiveCommand() {
+            super("explosive", "Drop an explosive block that fragments terrain on impact");
         }
 
         @Nonnull
@@ -396,18 +278,13 @@ public class EcsCommand extends AbstractCommandCollection {
             @Nonnull Ref<EntityStore> ref,
             @Nonnull PlayerRef playerRef,
             @Nonnull World world) {
-            TransformComponent transform = store.getComponent(ref, TransformComponent.getComponentType());
-            if (transform == null) {
-                ctx.sender().sendMessage(Message.raw("Cannot determine player position."));
-                return CompletableFuture.completedFuture(null);
-            }
             SpaceId spaceId = resolveSpace(ctx, store);
             if (spaceId == null) {
                 return CompletableFuture.completedFuture(null);
             }
 
             String blockType = blockTypeArg.provided(ctx)
-                ? ExamplePhysicsUtils.resolveBlockType(blockTypeArg.get(ctx))
+                ? ExampleBlockEntityVisuals.resolveBlockType(blockTypeArg.get(ctx))
                 : ExamplePhysicsUtils.DEFAULT_BLOCK_TYPE;
             int radius = ExamplePhysicsUtils.optionalInt(ctx,
                 radiusArg,
@@ -422,12 +299,12 @@ public class EcsCommand extends AbstractCommandCollection {
             float strength = optionalFloat(ctx, strengthArg, 12.0f, 0.0f, 128.0f);
             float verticalLift = optionalFloat(ctx, verticalLiftArg, 0.35f, 0.0f, 2.0f);
 
-            Vector3d spawn = spawnPosition(store, ref, transform, world);
+            Vector3d spawn = spawnPosition(store, ref, world);
             if (blockType(blockType) == null) {
                 ctx.sender().sendMessage(Message.raw("No valid explosive block type is available."));
                 return CompletableFuture.completedFuture(null);
             }
-            PhysicsWorldResource resource = ExamplePhysicsUtils.resource(store);
+            PhysicsWorldResource resource = store.getResource(PhysicsWorldResource.getResourceType());
             boolean contactEventsEnabled = contactEventsEnabled(resource);
             UUID spaceUuid = ExamplePhysicsUtils.resolvePhysicsStoreSpaceUuid(world, spaceId);
             if (spaceUuid == null) {
@@ -435,8 +312,7 @@ public class EcsCommand extends AbstractCommandCollection {
                     + " is not bound yet."));
                 return CompletableFuture.completedFuture(null);
             }
-            WorldCollisionPrewarmStats stats = ExamplePhysicsUtils.ensurePhysicsStoreWorldCollisionAround(store,
-                world,
+            WorldCollisionPrewarmStats stats = resource.ensureWorldCollisionAround(world,
                 spaceId,
                 List.of(spawn),
                 Math.max(8, radius + 6),
@@ -498,9 +374,8 @@ public class EcsCommand extends AbstractCommandCollection {
         @Nonnull
         private static Vector3d spawnPosition(@Nonnull Store<EntityStore> store,
             @Nonnull Ref<EntityStore> ref,
-            @Nonnull TransformComponent transform,
             @Nonnull World world) {
-            Transform look = ExamplePhysicsUtils.lookTransform(store, ref);
+            Transform look = TargetUtil.getLook(ref, store);
             Vector3d eye = new Vector3d(look.getPosition());
             Vector3d direction = new Vector3d(look.getDirection());
             Vector3i target = TargetUtil.getTargetBlock(world,
@@ -537,17 +412,10 @@ public class EcsCommand extends AbstractCommandCollection {
     }
 
     @Nonnull
-    private static CompletionStage<RaycastHitView> raycastAsync(@Nonnull CommandContext ctx,
-        @Nonnull Store<EntityStore> store,
+    private static CompletionStage<RaycastHitView> raycastAsync(@Nonnull Store<EntityStore> store,
         @Nonnull Ref<EntityStore> ref,
         @Nonnull SpaceId spaceId) {
-        TransformComponent transform = store.getComponent(ref, TransformComponent.getComponentType());
-        if (transform == null) {
-            ctx.sender().sendMessage(Message.raw("Cannot determine player position."));
-            return CompletableFuture.completedFuture(null);
-        }
-
-        Transform look = ExamplePhysicsUtils.lookTransform(store, ref);
+        Transform look = TargetUtil.getLook(ref, store);
         Vector3d start = new Vector3d(look.getPosition());
         Vector3d end = new Vector3d(start)
             .add(new Vector3d(look.getDirection()).mul(RAY_LENGTH));
