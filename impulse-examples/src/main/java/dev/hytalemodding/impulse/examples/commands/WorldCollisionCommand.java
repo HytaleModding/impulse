@@ -67,7 +67,8 @@ public class WorldCollisionCommand extends AbstractCommandCollection {
             if (spaceId == null) {
                 return CompletableFuture.completedFuture(null);
             }
-            WorldCollisionBuildStats stats = resource.rebuildWorldCollisionAround(world,
+            WorldCollisionBuildStats stats = ExamplePhysicsUtils.rebuildPhysicsStoreWorldCollisionAround(store,
+                world,
                 spaceId,
                 playerPos,
                 radius);
@@ -111,7 +112,7 @@ public class WorldCollisionCommand extends AbstractCommandCollection {
             if (spaceId == null) {
                 return CompletableFuture.completedFuture(null);
             }
-            int removed = resource.clearWorldCollision(spaceId);
+            int removed = ExamplePhysicsUtils.clearPhysicsStoreWorldCollision(store, world, spaceId);
             ctx.sender().sendMessage(Message.raw("Removed " + removed
                 + " world voxel collision bodies."));
             return CompletableFuture.completedFuture(null);
@@ -131,8 +132,7 @@ public class WorldCollisionCommand extends AbstractCommandCollection {
             @Nonnull Ref<EntityStore> ref,
             @Nonnull PlayerRef playerRef,
             @Nonnull World world) {
-            PhysicsWorldResource resource = ExamplePhysicsUtils.resource(store);
-            WorldCollisionStats stats = resource.getWorldCollisionStats();
+            WorldCollisionStats stats = ExamplePhysicsUtils.physicsStoreWorldCollisionStats(store);
             ctx.sender().sendMessage(Message.raw("World voxel collision: "
                 + stats.spaces() + " spaces, "
                 + stats.sections() + " sections, "

@@ -17,7 +17,6 @@ import dev.hytalemodding.impulse.core.internal.physicsstore.terrain.TerrainColli
 import dev.hytalemodding.impulse.core.plugin.physicsstore.PhysicsStoreEntities;
 import dev.hytalemodding.impulse.core.plugin.physicsstore.components.TerrainColliderComponent;
 import it.unimi.dsi.fastutil.objects.Object2ObjectOpenHashMap;
-import it.unimi.dsi.fastutil.objects.ObjectOpenHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -48,7 +47,6 @@ public final class TerrainMutationDrainSystem extends TickingSystem<PhysicsStore
             PhysicsRestoreStatusResource.getResourceType());
         PhysicsTerrainPayloadResource terrainPayloads = store.getResource(
             PhysicsTerrainPayloadResource.getResourceType());
-        Set<UUID> structuralConflicts = structuralConflicts(mutations, restore);
         Map<UUID, Ref<PhysicsStore>> refsThisDrain = new Object2ObjectOpenHashMap<>();
 
         applyRemovals(store,
@@ -56,14 +54,12 @@ public final class TerrainMutationDrainSystem extends TickingSystem<PhysicsStore
             terrainPayloads,
             refsThisDrain,
             restore,
-            structuralConflicts,
             mutations);
         applyUpserts(store,
             identity,
             terrainPayloads,
             refsThisDrain,
             restore,
-            structuralConflicts,
             mutations);
     }
 
@@ -72,21 +68,15 @@ public final class TerrainMutationDrainSystem extends TickingSystem<PhysicsStore
         @Nonnull PhysicsTerrainPayloadResource terrainPayloads,
         @Nonnull Map<UUID, Ref<PhysicsStore>> refsThisDrain,
         @Nonnull PhysicsRestoreStatusResource restore,
-        @Nonnull Set<UUID> structuralConflicts,
         @Nonnull List<TerrainColliderMutation> mutations) {
         for (TerrainColliderMutation mutation : mutations) {
             if (mutation.remove()) {
-                if (structuralConflicts.contains(mutation.terrainColliderUuid())) {
-                    restore.recordSoftSkip("Conflicting terrain mutation for uuid: "
-                        + mutation.terrainColliderUuid());
-                } else {
-                    applyTerrainMutation(store,
-                        identity,
-                        terrainPayloads,
-                        refsThisDrain,
-                        restore,
-                        mutation);
-                }
+                applyTerrainMutation(store,
+                    identity,
+                    terrainPayloads,
+                    refsThisDrain,
+                    restore,
+                    mutation);
             }
         }
     }
@@ -96,21 +86,15 @@ public final class TerrainMutationDrainSystem extends TickingSystem<PhysicsStore
         @Nonnull PhysicsTerrainPayloadResource terrainPayloads,
         @Nonnull Map<UUID, Ref<PhysicsStore>> refsThisDrain,
         @Nonnull PhysicsRestoreStatusResource restore,
-        @Nonnull Set<UUID> structuralConflicts,
         @Nonnull List<TerrainColliderMutation> mutations) {
         for (TerrainColliderMutation mutation : mutations) {
             if (!mutation.remove()) {
-                if (structuralConflicts.contains(mutation.terrainColliderUuid())) {
-                    restore.recordSoftSkip("Conflicting terrain mutation for uuid: "
-                        + mutation.terrainColliderUuid());
-                } else {
-                    applyTerrainMutation(store,
-                        identity,
-                        terrainPayloads,
-                        refsThisDrain,
-                        restore,
-                        mutation);
-                }
+                applyTerrainMutation(store,
+                    identity,
+                    terrainPayloads,
+                    refsThisDrain,
+                    restore,
+                    mutation);
             }
         }
     }
@@ -160,24 +144,6 @@ public final class TerrainMutationDrainSystem extends TickingSystem<PhysicsStore
                 terrainUuid,
                 component),
                 AddReason.SPAWN));
-    }
-
-    @Nonnull
-    private static Set<UUID> structuralConflicts(
-        @Nonnull List<TerrainColliderMutation> mutations,
-        @Nonnull PhysicsRestoreStatusResource restore) {
-        Set<UUID> seen = new ObjectOpenHashSet<>();
-        Set<UUID> conflicts = new ObjectOpenHashSet<>();
-        for (TerrainColliderMutation mutation : mutations) {
-            UUID uuid = mutation.terrainColliderUuid();
-            if (!seen.add(uuid)) {
-                conflicts.add(uuid);
-            }
-        }
-        for (UUID conflict : conflicts) {
-            restore.recordSoftSkip("Conflicting terrain mutations for uuid: " + conflict);
-        }
-        return conflicts;
     }
 
     @Nullable

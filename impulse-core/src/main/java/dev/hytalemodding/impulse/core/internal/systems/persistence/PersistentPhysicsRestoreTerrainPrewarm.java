@@ -1,11 +1,19 @@
 package dev.hytalemodding.impulse.core.internal.systems.persistence;
 
+import com.hypixel.hytale.component.Store;
 import com.hypixel.hytale.server.core.universe.world.World;
+import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
+import com.hypixel.hytale.server.core.universe.world.storage.PhysicsStore;
 import dev.hytalemodding.impulse.api.PhysicsBodyType;
 import dev.hytalemodding.impulse.api.SpaceId;
+import dev.hytalemodding.impulse.early.PhysicsStoreWorld;
+import dev.hytalemodding.impulse.core.internal.modules.worldcollision.PhysicsStoreWorldCollisionStreamingResource;
+import dev.hytalemodding.impulse.core.internal.modules.worldcollision.WorldCollisionBuildOptions;
 import dev.hytalemodding.impulse.core.internal.modules.worldcollision.WorldCollisionLifecycle;
 import dev.hytalemodding.impulse.core.internal.persistence.PersistentPhysicsBodyState;
 import dev.hytalemodding.impulse.core.internal.persistence.PersistentPhysicsWorldResource;
+import dev.hytalemodding.impulse.core.internal.physicsstore.resources.PhysicsSpaceCompatibilityIndexResource;
+import dev.hytalemodding.impulse.core.internal.physicsstore.resources.PhysicsTerrainMutationQueueResource;
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsWorldRuntimeResource;
 import dev.hytalemodding.impulse.core.plugin.modules.worldcollision.WorldCollisionMode;
 import dev.hytalemodding.impulse.core.plugin.settings.PhysicsWorldCollisionSettings;
@@ -13,6 +21,7 @@ import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.UUID;
 import javax.annotation.Nonnull;
 import org.joml.Vector3d;
 import org.joml.Vector3f;
@@ -22,7 +31,8 @@ final class PersistentPhysicsRestoreTerrainPrewarm {
     private PersistentPhysicsRestoreTerrainPrewarm() {
     }
 
-    static void prewarmRestoredDynamicBodyTerrain(@Nonnull World world,
+    static void prewarmRestoredDynamicBodyTerrain(@Nonnull Store<EntityStore> store,
+        @Nonnull World world,
         @Nonnull PhysicsWorldRuntimeResource runtime,
         @Nonnull PersistentPhysicsWorldResource persistent,
         long tick) {
@@ -45,12 +55,32 @@ final class PersistentPhysicsRestoreTerrainPrewarm {
             if (targets.isEmpty()) {
                 continue;
             }
-            runtime.ensureWorldCollisionAround(world,
-                spaceId,
-                targets,
-                settings.getWorldCollisionBodyRadius(),
-                tick);
+            UUID spaceUuid = physicsStore(world)
+                .getResource(PhysicsSpaceCompatibilityIndexResource.getResourceType())
+                .getSpaceUuid(spaceId);
+            if (spaceUuid == null) {
+                continue;
+            }
+            store.getResource(PhysicsStoreWorldCollisionStreamingResource.getResourceType())
+                .ensureAround(world,
+                    spaceUuid,
+                    terrainMutationQueue(world),
+                    targets,
+                    settings.getWorldCollisionBodyRadius(),
+                    tick,
+                    null,
+                    WorldCollisionBuildOptions.fromSettings(settings));
         }
+    }
+
+    @Nonnull
+    private static Store<PhysicsStore> physicsStore(@Nonnull World world) {
+        return ((PhysicsStoreWorld) world).getPhysicsStore().getStore();
+    }
+
+    @Nonnull
+    private static PhysicsTerrainMutationQueueResource terrainMutationQueue(@Nonnull World world) {
+        return physicsStore(world).getResource(PhysicsTerrainMutationQueueResource.getResourceType());
     }
 
     @Nonnull

@@ -13,6 +13,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
 
 /**
  * Runtime-only copied world-collision settings indexed by PhysicsStore space UUID.
@@ -26,25 +27,30 @@ public final class PhysicsWorldCollisionIndexResource implements Resource<Physic
     public PhysicsWorldCollisionIndexResource() {
     }
 
-    public void replaceAll(@Nonnull Map<UUID, SpaceWorldCollisionSettings> settings) {
+    public synchronized void replaceAll(@Nonnull Map<UUID, SpaceWorldCollisionSettings> settings) {
         settingsBySpaceUuid.clear();
         settingsBySpaceUuid.putAll(settings);
     }
 
     @Nonnull
-    public List<SpaceWorldCollisionSettings> streamingSpaces() {
+    public synchronized List<SpaceWorldCollisionSettings> streamingSpaces() {
         return settingsBySpaceUuid.values().stream()
             .filter(settings -> settings.mode() == WorldCollisionMode.STREAMING)
             .toList();
     }
 
-    public void clear() {
+    @Nullable
+    public synchronized SpaceWorldCollisionSettings settings(@Nonnull UUID spaceUuid) {
+        return settingsBySpaceUuid.get(spaceUuid);
+    }
+
+    public synchronized void clear() {
         settingsBySpaceUuid.clear();
     }
 
     @Nonnull
     @Override
-    public PhysicsWorldCollisionIndexResource clone() {
+    public synchronized PhysicsWorldCollisionIndexResource clone() {
         PhysicsWorldCollisionIndexResource copy = new PhysicsWorldCollisionIndexResource();
         copy.settingsBySpaceUuid.putAll(settingsBySpaceUuid);
         return copy;
