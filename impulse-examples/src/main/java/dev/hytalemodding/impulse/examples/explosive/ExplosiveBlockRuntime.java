@@ -20,8 +20,7 @@ import com.hypixel.hytale.server.core.universe.world.chunk.WorldChunk;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import dev.hytalemodding.impulse.api.SpaceId;
 import dev.hytalemodding.impulse.core.plugin.body.RigidBodyKey;
-import dev.hytalemodding.impulse.core.plugin.physicsstore.requests.BodyForceRequest;
-import dev.hytalemodding.impulse.core.plugin.physicsstore.requests.PhysicsStoreRequest;
+import dev.hytalemodding.impulse.core.plugin.physicsstore.components.BodyCommandComponent;
 import dev.hytalemodding.impulse.core.plugin.resources.PhysicsWorldResource;
 import dev.hytalemodding.impulse.core.plugin.simulation.PhysicsShapeSpec;
 import dev.hytalemodding.impulse.core.plugin.simulation.RigidBodySpawnSettings;
@@ -147,24 +146,31 @@ public final class ExplosiveBlockRuntime {
 
         Vector3f centerF = toVector3f(center);
         List<PendingBlockBody> pending = new ArrayList<>(groups.size());
-        List<PhysicsStoreRequest> requests = new ArrayList<>(groups.size() * 2);
         for (FragmentGroup group : groups) {
             RigidBodyKey bodyKey = RigidBodyKey.random();
             UUID bodyUuid = bodyKey.value();
             Vector3d groupCenter = group.center();
-            requests.add(ExamplePhysicsUtils.bodyUpsertRequest(spaceUuid,
-                bodyUuid,
-                toVector3f(groupCenter),
-                group.shape(),
-                group.mass(),
-                FRAGMENT_SETTINGS,
-                null));
             Vector3f impulse = ExplosiveBlockPolicy.outwardImpulse(centerF,
                 toVector3f(groupCenter),
                 settings.getImpulseStrength(),
                 settings.getVerticalLift())
                 .mul(group.mass());
-            requests.add(BodyForceRequest.impulse(bodyUuid, impulse.x, impulse.y, impulse.z));
+            ExamplePhysicsUtils.addPhysicsStoreBody(world,
+                ExamplePhysicsUtils.bodyUpsertRequest(spaceUuid,
+                    bodyUuid,
+                    toVector3f(groupCenter),
+                    group.shape(),
+                    group.mass(),
+                    FRAGMENT_SETTINGS,
+                    null),
+                BodyCommandComponent.vector(BodyCommandComponent.Kind.IMPULSE,
+                    impulse.x,
+                    impulse.y,
+                    impulse.z,
+                    false,
+                    0.0f,
+                    0.0f,
+                    0.0f));
             pending.add(new PendingBlockBody(bodyKey,
                 spaceId,
                 group.blockType(),
@@ -173,7 +179,6 @@ public final class ExplosiveBlockRuntime {
                 (float) groupCenter.z,
                 group.mass() > 0.0f));
         }
-        ExamplePhysicsUtils.enqueuePhysicsStoreRequests(world, requests);
 
         for (int i = 0; i < groups.size(); i++) {
             spawnGroupVisuals(time, fragmentSpawner, groups.get(i), pending.get(i));
