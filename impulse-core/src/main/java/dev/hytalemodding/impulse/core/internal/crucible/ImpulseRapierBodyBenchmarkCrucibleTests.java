@@ -300,7 +300,7 @@ final class ImpulseRapierBodyBenchmarkCrucibleTests {
             double elapsedSeconds = Math.max(0.001,
                 (System.nanoTime() - startedNanos) / 1_000_000_000.0);
             double observedTickRate = step.getTickSamples() / elapsedSeconds;
-            SpaceStats stats = SpaceStats.collect(physics, spaceId);
+            SpaceStats stats = SpaceStats.collect(physicsStore, spaceId);
             double avgStepMs = averageMillis(step.getTickNanos(), step.getTickSamples());
             double avgSnapshotMs = averageMillis(step.getSnapshotNanos(), step.getTickSamples());
             double avgSyncMs = averageMillis(sync.getTickNanos(), sync.getTickSamples());
@@ -754,16 +754,17 @@ final class ImpulseRapierBodyBenchmarkCrucibleTests {
         private double minDynamicBodyY = Double.POSITIVE_INFINITY;
         private double maxDynamicBodyY = Double.NEGATIVE_INFINITY;
 
-        private static SpaceStats collect(@Nonnull PhysicsWorldRuntimeResource physics,
+        private static SpaceStats collect(@Nonnull Store<PhysicsStore> physicsStore,
             @Nonnull SpaceId spaceId) {
-            BenchmarkSpaceStatsView view = physics.queryInternal(new BenchmarkSpaceStatsQuery(spaceId,
+            BenchmarkSpaceStatsView view = PhysicsStoreBenchmarkQueries.benchmarkSpaceStats(
+                physicsStore,
+                null,
+                new BenchmarkSpaceStatsQuery(spaceId,
                 GROUND_Y,
                 BELOW_PLANE_TOLERANCE,
                     BODY_WORLD_MIN_Y,
                     BODY_VOID_Y,
-                    false))
-                .toCompletableFuture()
-                .join();
+                    false));
             SpaceStats stats = new SpaceStats();
             stats.bodies = view.bodies();
             stats.dynamicBodies = view.dynamicBodies();
