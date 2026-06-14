@@ -18,7 +18,9 @@ import dev.hytalemodding.impulse.core.internal.modules.control.ControlLifecycle;
 import dev.hytalemodding.impulse.core.internal.modules.control.PhysicsControlRuntimeState;
 import dev.hytalemodding.impulse.core.internal.physicsstore.PhysicsStoreSpaceMutations;
 import dev.hytalemodding.impulse.core.internal.physicsstore.resources.PhysicsIdentityIndexResource;
+import dev.hytalemodding.impulse.core.internal.physicsstore.resources.PhysicsRuntimeResource;
 import dev.hytalemodding.impulse.core.internal.physicsstore.resources.PhysicsSpaceCompatibilityIndexResource;
+import dev.hytalemodding.impulse.core.internal.physicsstore.resources.PhysicsWorldSettingsResource;
 import dev.hytalemodding.impulse.core.internal.resources.body.PhysicsBodyRegistry;
 import dev.hytalemodding.impulse.core.internal.resources.body.PhysicsBodyRuntimeState.BodySyncState;
 import dev.hytalemodding.impulse.core.internal.resources.body.PhysicsBodyRuntime;
@@ -303,6 +305,10 @@ public class PhysicsWorldRuntimeResource extends PhysicsWorldResource {
         return PhysicsStoreEarlyPluginProbe.isAvailable();
     }
 
+    private boolean hasAttachedAuthoritativePhysicsStore() {
+        return isAuthoritativePhysicsStoreActive() && owningStore != null;
+    }
+
     @Nonnull
     private World requireAuthoritativeWorld(@Nonnull String operation) {
         Store<EntityStore> entityStore = owningStore;
@@ -385,6 +391,25 @@ public class PhysicsWorldRuntimeResource extends PhysicsWorldResource {
         return settings;
     }
 
+    private static void validateAuthoritativeStepModeSupported(
+        @Nonnull Store<PhysicsStore> store,
+        @Nonnull PhysicsStepMode stepMode) {
+        if (stepMode != PhysicsStepMode.CCD) {
+            return;
+        }
+        List<String> unsupportedSpaces = new ArrayList<>();
+        store.getResource(PhysicsRuntimeResource.getResourceType())
+            .forEachSpaceBinding((spaceUuid, backendId, spaceHandle, backendRuntime) -> {
+                if (!backendRuntime.supportsContinuousCollision(spaceHandle.value())) {
+                    unsupportedSpaces.add(spaceUuid + " backend=" + backendId.value());
+                }
+            });
+        if (!unsupportedSpaces.isEmpty()) {
+            throw new IllegalArgumentException("CCD step mode is not supported by PhysicsStore "
+                + "spaces: " + unsupportedSpaces);
+        }
+    }
+
     @Nonnull
     private <T> PhysicsMutationHandle<T> enqueueAuthoritativePhysicsStoreMutation(
         @Nonnull String operation,
@@ -426,12 +451,23 @@ public class PhysicsWorldRuntimeResource extends PhysicsWorldResource {
     @Nonnull
     @Override
     public PhysicsWorldSettings getWorldSettings() {
+        if (hasAttachedAuthoritativePhysicsStore()) {
+            return authoritativePhysicsStore("read physics world settings")
+                .getResource(PhysicsWorldSettingsResource.getResourceType())
+                .getSettings();
+        }
         return simulationRuntime.getWorldSettings();
     }
 
     @Override
     public void setWorldSettings(@Nonnull PhysicsWorldSettings settings) {
         PhysicsWorldSettings requested = new PhysicsWorldSettings(settings);
+        if (hasAttachedAuthoritativePhysicsStore()) {
+            setAuthoritativeWorldSettings(
+                authoritativePhysicsStore("set physics world settings"),
+                requested);
+            return;
+        }
         if (isAuthoritativePhysicsStoreActive()) {
             setWorldSettingsDirect(requested);
             return;
@@ -445,10 +481,14 @@ public class PhysicsWorldRuntimeResource extends PhysicsWorldResource {
     public PhysicsMutationHandle<Void> setWorldSettingsAsync(
         @Nonnull PhysicsWorldSettings settings) {
         PhysicsWorldSettings requested = new PhysicsWorldSettings(settings);
-        if (isAuthoritativePhysicsStoreActive()) {
+        if (hasAttachedAuthoritativePhysicsStore()) {
             return enqueueAuthoritativePhysicsStoreMutation("set physics world settings",
                 null,
-                _ -> setWorldSettingsDirect(requested));
+                store -> setAuthoritativeWorldSettings(store, requested));
+        }
+        if (isAuthoritativePhysicsStoreActive()) {
+            setWorldSettingsDirect(requested);
+            return PhysicsMutationHandle.completed("set physics world settings", null);
         }
         requireLegacyMutationAllowed("set physics world settings");
         return enqueueOwnerMutation("set physics world settings",
@@ -457,6 +497,13 @@ public class PhysicsWorldRuntimeResource extends PhysicsWorldResource {
 
     private void setWorldSettingsDirect(@Nonnull PhysicsWorldSettings settings) {
         validateStepModeSupported(settings.getStepMode());
+        simulationRuntime.setWorldSettings(settings);
+    }
+
+    private void setAuthoritativeWorldSettings(@Nonnull Store<PhysicsStore> store,
+        @Nonnull PhysicsWorldSettings settings) {
+        validateAuthoritativeStepModeSupported(store, settings.getStepMode());
+        store.getResource(PhysicsWorldSettingsResource.getResourceType()).setSettings(settings);
         simulationRuntime.setWorldSettings(settings);
     }
 

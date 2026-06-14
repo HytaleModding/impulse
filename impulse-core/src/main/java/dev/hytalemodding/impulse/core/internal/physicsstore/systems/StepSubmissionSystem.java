@@ -8,6 +8,9 @@ import com.hypixel.hytale.component.system.tick.TickingSystem;
 import com.hypixel.hytale.server.core.universe.world.storage.PhysicsStore;
 import dev.hytalemodding.impulse.core.internal.physicsstore.resources.PhysicsRestoreStatusResource;
 import dev.hytalemodding.impulse.core.internal.physicsstore.resources.PhysicsRuntimeResource;
+import dev.hytalemodding.impulse.core.internal.physicsstore.resources.PhysicsWorldSettingsResource;
+import dev.hytalemodding.impulse.core.internal.systems.step.PhysicsStepCountPolicy;
+import dev.hytalemodding.impulse.core.plugin.settings.PhysicsWorldSettings;
 import java.util.Set;
 import javax.annotation.Nonnull;
 
@@ -31,9 +34,19 @@ public final class StepSubmissionSystem extends TickingSystem<PhysicsStore> {
         if (safeDt <= 0.0f) {
             return;
         }
+        PhysicsWorldSettings settings = store.getResource(PhysicsWorldSettingsResource.getResourceType())
+            .getSettings();
+        int steps = PhysicsStepCountPolicy.resolveStepCount(safeDt,
+            settings.getSimulationSteps(),
+            settings.getMaxStepDt(),
+            settings.getStepMode());
+        float stepDt = safeDt / steps;
         PhysicsRuntimeResource runtime = store.getResource(PhysicsRuntimeResource.getResourceType());
-        runtime.forEachSpaceBinding((_, _, spaceHandle, backendRuntime) ->
-            backendRuntime.step(spaceHandle.value(), safeDt));
+        runtime.forEachSpaceBinding((_, _, spaceHandle, backendRuntime) -> {
+            for (int step = 0; step < steps; step++) {
+                backendRuntime.step(spaceHandle.value(), stepDt);
+            }
+        });
     }
 
     @Nonnull
