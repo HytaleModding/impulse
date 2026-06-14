@@ -89,6 +89,35 @@ public final class PhysicsStoreSpaceMutations {
         putSpaceSettings(store, ref, spaceUuid, settings);
     }
 
+    public static void putSpaceGravity(@Nonnull Store<PhysicsStore> store,
+        @Nonnull SpaceId spaceId,
+        @Nonnull Vector3f gravity) {
+        UUID spaceUuid = requireSpaceUuid(store, spaceId);
+        Ref<PhysicsStore> ref = requireSpaceRef(store, spaceUuid);
+        putSpaceGravity(store, ref, spaceUuid, gravity);
+    }
+
+    public static void putSpaceGravity(@Nonnull Store<PhysicsStore> store,
+        @Nonnull Ref<PhysicsStore> ref,
+        @Nonnull UUID spaceUuid,
+        @Nonnull Vector3f gravity) {
+        Objects.requireNonNull(store, "store");
+        Objects.requireNonNull(ref, "ref");
+        Objects.requireNonNull(spaceUuid, "spaceUuid");
+        Objects.requireNonNull(gravity, "gravity");
+        PhysicsStoreThreading.requireWorldThread(store, "update PhysicsStore space gravity");
+        SpaceComponent space = store.getComponent(ref, SpaceComponent.getComponentType());
+        if (space == null) {
+            throw new IllegalArgumentException("PhysicsStore space uuid=" + spaceUuid
+                + " row has no SpaceComponent");
+        }
+        SpaceComponent updated = space.clone();
+        updated.setGravity(gravity);
+        store.putComponent(ref, SpaceComponent.getComponentType(), updated);
+        store.getResource(PhysicsRuntimeResource.getResourceType())
+            .markSpaceSettingsPending(spaceUuid);
+    }
+
     public static void putSpaceSettings(@Nonnull Store<PhysicsStore> store,
         @Nonnull Ref<PhysicsStore> ref,
         @Nonnull UUID spaceUuid,

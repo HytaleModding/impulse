@@ -11,28 +11,33 @@ import com.hypixel.hytale.server.core.modules.entity.component.TransformComponen
 import com.hypixel.hytale.server.core.modules.time.TimeResource;
 import com.hypixel.hytale.server.core.universe.world.World;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
-import dev.hytalemodding.impulse.api.PhysicsBodyType;
+import com.hypixel.hytale.server.core.universe.world.storage.PhysicsStore;
+import dev.hytalemodding.impulse.early.PhysicsStoreWorld;
 import dev.hytalemodding.impulse.api.SpaceId;
+import dev.hytalemodding.impulse.core.internal.physicsstore.PhysicsStoreSpaceMutations;
+import dev.hytalemodding.impulse.core.internal.physicsstore.resources.PhysicsSnapshotResource;
+import dev.hytalemodding.impulse.core.plugin.physicsstore.BodyRowDescriptor;
+import dev.hytalemodding.impulse.core.plugin.physicsstore.PhysicsBodyRows;
+import dev.hytalemodding.impulse.core.plugin.physicsstore.PhysicsStoreEntities;
+import dev.hytalemodding.impulse.core.plugin.physicsstore.PhysicsStoreThreading;
+import dev.hytalemodding.impulse.core.plugin.physicsstore.snapshots.PhysicsStoreBodySnapshot;
 import dev.hytalemodding.impulse.core.plugin.modules.control.ImpulseControllableComponent;
 import dev.hytalemodding.impulse.core.plugin.physicsstore.projection.BodyAttachmentComponent;
 import dev.hytalemodding.impulse.core.plugin.physicsstore.projection.BodyAttachmentComponent.AttachmentLifecycle;
 import dev.hytalemodding.impulse.core.plugin.physicsstore.projection.BodyAttachmentComponent.TransformAuthority;
 import dev.hytalemodding.impulse.core.plugin.body.RigidBodyKey;
-import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyKind;
 import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyPersistenceMode;
 import dev.hytalemodding.impulse.core.plugin.settings.PhysicsSpaceSettings;
 import dev.hytalemodding.impulse.core.plugin.resources.PhysicsWorldResource;
 import dev.hytalemodding.impulse.core.plugin.simulation.PhysicsShapeSpec;
 import dev.hytalemodding.impulse.core.plugin.simulation.RigidBodySpawnSettings;
-import dev.hytalemodding.impulse.core.plugin.simulation.query.RigidBodyStateQuery;
-import dev.hytalemodding.impulse.core.plugin.simulation.view.RigidBodyStateView;
 import java.util.Comparator;
 import java.util.List;
-import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
 import org.joml.Vector3d;
+import org.joml.Vector3f;
 
 /**
  * Crucible suites that exercise entity-backed bodies through Hytale's live ECS.
@@ -78,20 +83,18 @@ final class ImpulseLiveCrucibleTests {
                 context.wx(0),
                 context.wy(20),
                 context.wz(0));
-            resource.submitCommands(0L,
-                    commands -> commands.setSpaceGravity(spaceId, 0f, -9.81f, 0f))
-                .completionSummary()
-                .toCompletableFuture()
-                .join();
+            Store<PhysicsStore> physicsStore = physicsStore(world);
+            PhysicsStoreSpaceMutations.putSpaceGravity(physicsStore,
+                spaceId,
+                new Vector3f(0.0f, -9.81f, 0.0f));
             RigidBodyKey bodyKey = RigidBodyKey.random();
-            submitLiveBody(resource, spaceId, bodyKey, visualPosition);
+            submitLiveBody(physicsStore, spaceId, bodyKey, visualPosition);
 
             Ref<EntityStore> ref = spawnLiveBlockBody(store, spaceId, bodyKey, visualPosition);
             double startY = visualPosition.y;
 
             return context.waitApproxTicksOnWorld(40).thenApply(ignored -> bodyAndEntityMovedDown(
                 store,
-                resource,
                 ref,
                 bodyKey,
                 startY));
@@ -101,7 +104,6 @@ final class ImpulseLiveCrucibleTests {
     }
 
     private static boolean bodyAndEntityMovedDown(Store<EntityStore> store,
-        PhysicsWorldResource resource,
         Ref<EntityStore> ref,
         RigidBodyKey bodyKey,
         double startY) {
@@ -114,14 +116,13 @@ final class ImpulseLiveCrucibleTests {
             return false;
         }
         double transformY = transform.getPosition().y;
-        Optional<RigidBodyStateView> state = resource.query(new RigidBodyStateQuery(bodyKey))
-            .completion()
-            .toCompletableFuture()
-            .join();
-        if (state.isEmpty()) {
+        PhysicsStoreBodySnapshot snapshot = physicsStore(store.getExternalData().getWorld())
+            .getResource(PhysicsSnapshotResource.getResourceType())
+            .getBody(bodyKey.value());
+        if (snapshot == null) {
             return false;
         }
-        float bodyY = state.get().pose().position().y;
+        float bodyY = snapshot.position().y;
         return transformY < startY - 0.05 && bodyY < startY - 0.05f;
     }
 
@@ -138,30 +139,35 @@ final class ImpulseLiveCrucibleTests {
             PhysicsSpaceSettings.defaults());
     }
 
-    private static void submitLiveBody(PhysicsWorldResource resource,
+    private static void submitLiveBody(Store<PhysicsStore> store,
         SpaceId spaceId,
         RigidBodyKey bodyKey,
         Vector3d visualPosition) {
-        resource.submitCommands(0L,
-                1,
-                commands -> commands.spawnBody(bodyKey, spawn -> spawn
-                    .space(spaceId)
-                    .shape(PhysicsShapeSpec.box(0.5f, 0.5f, 0.5f))
-                    .mass(1.0f)
-                    .type(PhysicsBodyType.DYNAMIC)
-                    .position((float) visualPosition.x,
-                        (float) visualPosition.y,
-                        (float) visualPosition.z)
-                    .settings(RigidBodySpawnSettings.defaults())
-                    .kind(PhysicsBodyKind.BODY)
-                    .persistence(PhysicsBodyPersistenceMode.PERSISTENT)))
-            .firstRejected()
-            .toCompletableFuture()
-            .join()
-            .ifPresent(result -> {
-                throw new IllegalStateException("spawn live crucible body command "
-                    + result.commandSequence() + " rejected: " + result.message());
-            });
+        PhysicsStoreThreading.requireWorldThread(store, "add Crucible live PhysicsStore body row");
+        BodyRowDescriptor row = PhysicsBodyRows.dynamicBody(
+            PhysicsStoreSpaceMutations.requireSpaceUuid(store, spaceId),
+            bodyKey.value(),
+            new Vector3f((float) visualPosition.x,
+                (float) visualPosition.y,
+                (float) visualPosition.z),
+            PhysicsShapeSpec.box(0.5f, 0.5f, 0.5f),
+            1.0f,
+            RigidBodySpawnSettings.defaults(),
+            null,
+            PhysicsBodyPersistenceMode.PERSISTENT);
+        store.addEntity(PhysicsStoreEntities.bodyHolder(store,
+            row.bodyUuid(),
+            row.body(),
+            row.dynamics(),
+            row.target(),
+            row.collider(),
+            row.shape(),
+            row.material(),
+            row.filter()), AddReason.SPAWN);
+    }
+
+    private static Store<PhysicsStore> physicsStore(World world) {
+        return ((PhysicsStoreWorld) world).getPhysicsStore().getStore();
     }
 
     private static Ref<EntityStore> spawnLiveBlockBody(Store<EntityStore> store,

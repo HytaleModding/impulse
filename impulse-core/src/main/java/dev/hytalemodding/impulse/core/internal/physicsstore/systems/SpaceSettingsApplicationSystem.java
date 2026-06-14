@@ -17,6 +17,7 @@ import dev.hytalemodding.impulse.core.internal.physicsstore.resources.PhysicsRun
 import dev.hytalemodding.impulse.core.internal.resources.BackendSpaceHandle;
 import dev.hytalemodding.impulse.core.plugin.physicsstore.components.ExtensionSettingsComponent;
 import dev.hytalemodding.impulse.core.plugin.physicsstore.components.SolverSettingsComponent;
+import dev.hytalemodding.impulse.core.plugin.physicsstore.components.SpaceComponent;
 import dev.hytalemodding.impulse.core.plugin.settings.PhysicsExtensionSettingValue;
 import dev.hytalemodding.impulse.core.plugin.settings.PhysicsBackendExtensionId;
 import dev.hytalemodding.impulse.api.BackendId;
@@ -25,6 +26,7 @@ import java.util.Set;
 import java.util.UUID;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
+import org.joml.Vector3f;
 
 /**
  * Applies changed backend-facing space settings after space binding and before body binding.
@@ -76,10 +78,15 @@ public final class SpaceSettingsApplicationSystem extends TickingSystem<PhysicsS
         if (backendRuntime == null) {
             return false;
         }
+        SpaceComponent space = store.getComponent(ref, SpaceComponent.getComponentType());
         SolverSettingsComponent solverSettings = store.getComponent(ref,
             SolverSettingsComponent.getComponentType());
         ExtensionSettingsComponent extensionSettings = store.getComponent(ref,
             ExtensionSettingsComponent.getComponentType());
+        if (space != null) {
+            Vector3f gravity = space.getGravity();
+            backendRuntime.setGravity(handle.value(), gravity.x, gravity.y, gravity.z);
+        }
         applyBackendSettings(backendRuntime,
             handle,
             solverSettings != null ? solverSettings : new SolverSettingsComponent(),
