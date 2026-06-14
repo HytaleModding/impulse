@@ -431,8 +431,12 @@ public class PhysicsWorldRuntimeResource extends PhysicsWorldResource {
 
     @Override
     public void setWorldSettings(@Nonnull PhysicsWorldSettings settings) {
-        requireLegacyMutationAllowed("set physics world settings");
         PhysicsWorldSettings requested = new PhysicsWorldSettings(settings);
+        if (isAuthoritativePhysicsStoreActive()) {
+            setWorldSettingsDirect(requested);
+            return;
+        }
+        requireLegacyMutationAllowed("set physics world settings");
         runOwnerMutation("set physics world settings", () -> setWorldSettingsDirect(requested));
     }
 
@@ -440,8 +444,13 @@ public class PhysicsWorldRuntimeResource extends PhysicsWorldResource {
     @Override
     public PhysicsMutationHandle<Void> setWorldSettingsAsync(
         @Nonnull PhysicsWorldSettings settings) {
-        requireLegacyMutationAllowed("set physics world settings");
         PhysicsWorldSettings requested = new PhysicsWorldSettings(settings);
+        if (isAuthoritativePhysicsStoreActive()) {
+            return enqueueAuthoritativePhysicsStoreMutation("set physics world settings",
+                null,
+                _ -> setWorldSettingsDirect(requested));
+        }
+        requireLegacyMutationAllowed("set physics world settings");
         return enqueueOwnerMutation("set physics world settings",
             () -> setWorldSettingsDirect(requested));
     }
