@@ -56,6 +56,7 @@ public final class PhysicsStoreDiagnostics {
     }
 
     public static int runtimeJointCount(@Nonnull Store<PhysicsStore> store) {
+        PhysicsStoreThreading.requireWorldThread(store, "read live PhysicsStore backend state");
         PhysicsRuntimeResource runtime = store.getResource(PhysicsRuntimeResource.getResourceType());
         int[] count = {0};
         runtime.forEachSpaceBinding((_, _, spaceHandle, backendRuntime) ->
@@ -74,6 +75,7 @@ public final class PhysicsStoreDiagnostics {
     }
 
     public static boolean ccdSupported(@Nonnull Store<PhysicsStore> store) {
+        PhysicsStoreThreading.requireWorldThread(store, "read live PhysicsStore backend state");
         PhysicsRuntimeResource runtime = store.getResource(PhysicsRuntimeResource.getResourceType());
         boolean[] supported = {false};
         runtime.forEachSpaceBinding((_, _, spaceHandle, backendRuntime) -> {
@@ -120,6 +122,7 @@ public final class PhysicsStoreDiagnostics {
     @Nonnull
     public static SolverCapabilitySummary solverCapability(@Nonnull Store<PhysicsStore> store,
         @Nonnull UUID spaceUuid) {
+        PhysicsStoreThreading.requireWorldThread(store, "read live PhysicsStore backend state");
         PhysicsSpaceCompatibilityIndexResource compatibility = store.getResource(
             PhysicsSpaceCompatibilityIndexResource.getResourceType());
         SpaceId spaceId = compatibility.getSpaceId(Objects.requireNonNull(spaceUuid, "spaceUuid"));
@@ -132,6 +135,7 @@ public final class PhysicsStoreDiagnostics {
 
     @Nonnull
     public static List<SpaceSummary> spaceSummaries(@Nonnull Store<PhysicsStore> store) {
+        PhysicsStoreThreading.requireWorldThread(store, "read live PhysicsStore backend state");
         PhysicsRuntimeResource runtime = store.getResource(PhysicsRuntimeResource.getResourceType());
         PhysicsSpaceCompatibilityIndexResource compatibility = store.getResource(
             PhysicsSpaceCompatibilityIndexResource.getResourceType());
@@ -162,6 +166,7 @@ public final class PhysicsStoreDiagnostics {
     @Nonnull
     public static List<SpaceSummary> spaceSummaries(@Nonnull Store<PhysicsStore> store,
         @Nonnull SpaceId spaceId) {
+        PhysicsStoreThreading.requireWorldThread(store, "read live PhysicsStore backend state");
         PhysicsRuntimeResource runtime = store.getResource(PhysicsRuntimeResource.getResourceType());
         PhysicsSpaceCompatibilityIndexResource compatibility = store.getResource(
             PhysicsSpaceCompatibilityIndexResource.getResourceType());
@@ -178,6 +183,7 @@ public final class PhysicsStoreDiagnostics {
 
     @Nonnull
     public static List<SpaceSummary> unsupportedCcdSpaces(@Nonnull Store<PhysicsStore> store) {
+        PhysicsStoreThreading.requireWorldThread(store, "read live PhysicsStore backend state");
         PhysicsRuntimeResource runtime = store.getResource(PhysicsRuntimeResource.getResourceType());
         PhysicsSpaceCompatibilityIndexResource compatibility = store.getResource(
             PhysicsSpaceCompatibilityIndexResource.getResourceType());

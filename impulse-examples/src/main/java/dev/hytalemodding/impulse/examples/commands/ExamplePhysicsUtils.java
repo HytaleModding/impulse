@@ -37,6 +37,7 @@ import dev.hytalemodding.impulse.core.plugin.modules.control.ImpulseControllable
 import dev.hytalemodding.impulse.core.plugin.modules.control.PhysicsControlSessions;
 import dev.hytalemodding.impulse.core.plugin.physicsstore.PhysicsBodyRows;
 import dev.hytalemodding.impulse.core.plugin.physicsstore.PhysicsStoreEntities;
+import dev.hytalemodding.impulse.core.plugin.physicsstore.PhysicsStoreThreading;
 import dev.hytalemodding.impulse.core.plugin.physicsstore.components.BodyCommandComponent;
 import dev.hytalemodding.impulse.core.plugin.physicsstore.components.DynamicsComponent;
 import dev.hytalemodding.impulse.core.plugin.physicsstore.components.JointComponent;
@@ -267,8 +268,10 @@ public final class ExamplePhysicsUtils {
     public static void addPhysicsStoreBodies(@Nonnull World world,
         @Nonnull Iterable<BodyRowDescriptor> rows) {
         Objects.requireNonNull(rows, "rows");
+        Store<PhysicsStore> store = physicsStore(world);
+        PhysicsStoreThreading.requireWorldThread(store, "add PhysicsStore body rows");
         for (BodyRowDescriptor row : rows) {
-            addPhysicsStoreBody(world, row);
+            addPhysicsStoreBodyUnchecked(store, row, row.dynamics(), row.target());
         }
     }
 
@@ -281,6 +284,16 @@ public final class ExamplePhysicsUtils {
 
     @Nonnull
     private static Ref<PhysicsStore> addPhysicsStoreBody(@Nonnull Store<PhysicsStore> store,
+        @Nonnull BodyRowDescriptor row,
+        @Nonnull DynamicsComponent dynamics,
+        @Nullable TargetComponent target) {
+        Objects.requireNonNull(row, "row");
+        PhysicsStoreThreading.requireWorldThread(store, "add a PhysicsStore body row");
+        return addPhysicsStoreBodyUnchecked(store, row, dynamics, target);
+    }
+
+    @Nonnull
+    private static Ref<PhysicsStore> addPhysicsStoreBodyUnchecked(@Nonnull Store<PhysicsStore> store,
         @Nonnull BodyRowDescriptor row,
         @Nonnull DynamicsComponent dynamics,
         @Nullable TargetComponent target) {
@@ -316,6 +329,7 @@ public final class ExamplePhysicsUtils {
         @Nonnull UUID jointUuid,
         @Nonnull JointComponent joint) {
         Store<PhysicsStore> store = physicsStore(world);
+        PhysicsStoreThreading.requireWorldThread(store, "add a PhysicsStore joint row");
         return store.addEntity(PhysicsStoreEntities.jointHolder(store,
             Objects.requireNonNull(jointUuid, "jointUuid"),
             joint), AddReason.SPAWN);
@@ -327,6 +341,7 @@ public final class ExamplePhysicsUtils {
         Objects.requireNonNull(store, "store");
         Objects.requireNonNull(bodyRef, "bodyRef");
         Objects.requireNonNull(command, "command");
+        PhysicsStoreThreading.requireWorldThread(store, "append a PhysicsStore body command");
         BodyCommandComponent existing = store.getComponent(bodyRef,
             BodyCommandComponent.getComponentType());
         BodyCommandComponent merged = existing != null ? existing.append(command) : command;

@@ -24,6 +24,7 @@ final class PhysicsStoreBackendAccess {
 
     @Nullable
     static SpaceContext space(@Nonnull Store<PhysicsStore> store, @Nonnull SpaceId spaceId) {
+        PhysicsStoreThreading.requireWorldThread(store, "read live PhysicsStore backend state");
         PhysicsRuntimeResource runtime = store.getResource(PhysicsRuntimeResource.getResourceType());
         PhysicsSpaceCompatibilityIndexResource compatibility = store.getResource(
             PhysicsSpaceCompatibilityIndexResource.getResourceType());
@@ -33,6 +34,7 @@ final class PhysicsStoreBackendAccess {
 
     @Nullable
     static SpaceContext space(@Nonnull Store<PhysicsStore> store, @Nonnull UUID spaceUuid) {
+        PhysicsStoreThreading.requireWorldThread(store, "read live PhysicsStore backend state");
         PhysicsRuntimeResource runtime = store.getResource(PhysicsRuntimeResource.getResourceType());
         return space(runtime, spaceUuid);
     }
