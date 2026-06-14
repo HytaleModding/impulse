@@ -15,6 +15,7 @@ import dev.hytalemodding.impulse.core.internal.physicsstore.resources.PhysicsSto
 import dev.hytalemodding.impulse.core.internal.physicsstore.resources.PhysicsTerrainPayloadResource;
 import dev.hytalemodding.impulse.core.internal.physicsstore.resources.PhysicsWorldCollisionIndexResource;
 import dev.hytalemodding.impulse.core.internal.physicsstore.persistence.PersistentPhysicsStoreResource;
+import dev.hytalemodding.impulse.core.plugin.physicsstore.components.BodyCommandComponent;
 import dev.hytalemodding.impulse.core.plugin.physicsstore.components.BodyComponent;
 import dev.hytalemodding.impulse.core.plugin.physicsstore.components.ColliderComponent;
 import dev.hytalemodding.impulse.core.plugin.physicsstore.components.CollisionLodSettingsComponent;
@@ -47,6 +48,8 @@ public final class PhysicsStoreTypes {
     private static ComponentType<PhysicsStore, SpaceComponent> spaceComponentType;
     @Nullable
     private static ComponentType<PhysicsStore, BodyComponent> bodyComponentType;
+    @Nullable
+    private static ComponentType<PhysicsStore, BodyCommandComponent> bodyCommandComponentType;
     @Nullable
     private static ComponentType<PhysicsStore, DynamicsComponent> dynamicsComponentType;
     @Nullable
@@ -119,6 +122,11 @@ public final class PhysicsStoreTypes {
     public static void setBodyComponentType(
         @Nonnull ComponentType<PhysicsStore, BodyComponent> type) {
         bodyComponentType = Objects.requireNonNull(type, "type");
+    }
+
+    public static void setBodyCommandComponentType(
+        @Nonnull ComponentType<PhysicsStore, BodyCommandComponent> type) {
+        bodyCommandComponentType = Objects.requireNonNull(type, "type");
     }
 
     public static void setDynamicsComponentType(
@@ -264,6 +272,11 @@ public final class PhysicsStoreTypes {
     @Nonnull
     public static ComponentType<PhysicsStore, BodyComponent> bodyComponentType() {
         return require(bodyComponentType, "BodyComponent");
+    }
+
+    @Nonnull
+    public static ComponentType<PhysicsStore, BodyCommandComponent> bodyCommandComponentType() {
+        return require(bodyCommandComponentType, "BodyCommandComponent");
     }
 
     @Nonnull
