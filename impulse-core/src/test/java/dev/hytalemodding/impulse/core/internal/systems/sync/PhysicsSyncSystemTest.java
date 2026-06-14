@@ -4,12 +4,11 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-import dev.hytalemodding.impulse.api.SpaceId;
 import dev.hytalemodding.impulse.core.internal.math.PhysicsVisualPoseMath;
 import dev.hytalemodding.impulse.core.plugin.body.RigidBodyKey;
-import dev.hytalemodding.impulse.core.plugin.components.PhysicsBodyAttachmentComponent;
-import dev.hytalemodding.impulse.core.plugin.components.PhysicsBodyAttachmentComponent.AttachmentLifecycle;
-import dev.hytalemodding.impulse.core.plugin.components.PhysicsBodyAttachmentComponent.TransformAuthority;
+import dev.hytalemodding.impulse.core.plugin.physicsstore.projection.BodyAttachmentComponent;
+import dev.hytalemodding.impulse.core.plugin.physicsstore.projection.BodyAttachmentComponent.AttachmentLifecycle;
+import dev.hytalemodding.impulse.core.plugin.physicsstore.projection.BodyAttachmentComponent.TransformAuthority;
 import dev.hytalemodding.impulse.core.plugin.settings.PhysicsSpaceSettings;
 import org.joml.Quaterniond;
 import org.joml.Quaternionf;
@@ -51,18 +50,14 @@ class PhysicsSyncSystemTest {
     @Test
     void bodyTransformSyncOnlyAppliesToBodyAuthoritativeAttachments() {
         RigidBodyKey bodyKey = RigidBodyKey.random();
-        SpaceId spaceId = new SpaceId(1);
 
-        assertTrue(PhysicsTransformAuthority.shouldApplyBodyTransform(new PhysicsBodyAttachmentComponent(bodyKey,
-            spaceId,
+        assertTrue(PhysicsTransformAuthority.shouldApplyBodyTransform(new BodyAttachmentComponent(bodyKey.value(),
             TransformAuthority.BODY,
             AttachmentLifecycle.EXTERNAL_ENTITY)));
-        assertFalse(PhysicsTransformAuthority.shouldApplyBodyTransform(new PhysicsBodyAttachmentComponent(bodyKey,
-            spaceId,
+        assertFalse(PhysicsTransformAuthority.shouldApplyBodyTransform(new BodyAttachmentComponent(bodyKey.value(),
             TransformAuthority.CONTROLLER,
             AttachmentLifecycle.EXTERNAL_ENTITY)));
-        assertFalse(PhysicsTransformAuthority.shouldApplyBodyTransform(new PhysicsBodyAttachmentComponent(bodyKey,
-            spaceId,
+        assertFalse(PhysicsTransformAuthority.shouldApplyBodyTransform(new BodyAttachmentComponent(bodyKey.value(),
             TransformAuthority.ENTITY_KINEMATIC,
             AttachmentLifecycle.EXTERNAL_ENTITY)));
     }
@@ -122,9 +117,8 @@ class PhysicsSyncSystemTest {
 
     @Test
     void attachmentVisualOriginOffsetOverridesBodyShapeOffset() {
-        PhysicsBodyAttachmentComponent attachment = PhysicsBodyAttachmentComponent.externalEntity(
-            RigidBodyKey.random(),
-            null,
+        BodyAttachmentComponent attachment = BodyAttachmentComponent.externalEntity(
+            RigidBodyKey.random().value(),
             new Vector3f(0.0f, -0.5f, 0.0f),
             new Quaternionf(),
             0.5f);

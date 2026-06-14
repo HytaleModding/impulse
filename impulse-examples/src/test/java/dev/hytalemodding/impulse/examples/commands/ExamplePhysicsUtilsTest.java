@@ -14,13 +14,7 @@ import dev.hytalemodding.impulse.api.PhysicsBodyType;
 import dev.hytalemodding.impulse.core.ImpulsePlugin;
 import dev.hytalemodding.impulse.core.internal.modules.control.ControlLifecycle;
 import dev.hytalemodding.impulse.core.internal.modules.control.components.PhysicsControlSessionComponent;
-import dev.hytalemodding.impulse.core.plugin.components.PhysicsBodyAttachmentComponent;
-import dev.hytalemodding.impulse.core.plugin.components.PhysicsBodyCollisionComponent;
-import dev.hytalemodding.impulse.core.plugin.components.PhysicsBodyDynamicsComponent;
-import dev.hytalemodding.impulse.core.plugin.components.PhysicsBodyIdentityComponent;
-import dev.hytalemodding.impulse.core.plugin.components.PhysicsBodyKinematicTargetComponent;
-import dev.hytalemodding.impulse.core.plugin.components.PhysicsBodyMaterialComponent;
-import dev.hytalemodding.impulse.core.plugin.components.PhysicsBodyShapeComponent;
+import dev.hytalemodding.impulse.core.plugin.physicsstore.projection.BodyAttachmentComponent;
 import dev.hytalemodding.impulse.core.plugin.modules.control.ImpulseControllableComponent;
 import dev.hytalemodding.impulse.core.plugin.simulation.PhysicsShapeSpec;
 import java.lang.reflect.Field;
@@ -84,40 +78,10 @@ class ExamplePhysicsUtilsTest {
     private void registerImpulsePluginTypes() throws Exception {
         ImpulsePlugin plugin = allocate(ImpulsePlugin.class);
         setField(plugin,
-            "physicsBodyAttachmentComponentType",
-            registry.registerComponent(PhysicsBodyAttachmentComponent.class,
-                "PhysicsBodyAttachment",
-                PhysicsBodyAttachmentComponent.CODEC));
-        setField(plugin,
-            "physicsBodyIdentityComponentType",
-            registry.registerComponent(PhysicsBodyIdentityComponent.class,
-                "PhysicsBodyIdentity",
-                PhysicsBodyIdentityComponent.CODEC));
-        setField(plugin,
-            "physicsBodyShapeComponentType",
-            registry.registerComponent(PhysicsBodyShapeComponent.class,
-                "PhysicsBodyShape",
-                PhysicsBodyShapeComponent.CODEC));
-        setField(plugin,
-            "physicsBodyDynamicsComponentType",
-            registry.registerComponent(PhysicsBodyDynamicsComponent.class,
-                "PhysicsBodyDynamics",
-                PhysicsBodyDynamicsComponent.CODEC));
-        setField(plugin,
-            "physicsBodyMaterialComponentType",
-            registry.registerComponent(PhysicsBodyMaterialComponent.class,
-                "PhysicsBodyMaterial",
-                PhysicsBodyMaterialComponent.CODEC));
-        setField(plugin,
-            "physicsBodyCollisionComponentType",
-            registry.registerComponent(PhysicsBodyCollisionComponent.class,
-                "PhysicsBodyCollision",
-                PhysicsBodyCollisionComponent.CODEC));
-        setField(plugin,
-            "physicsBodyKinematicTargetComponentType",
-            registry.registerComponent(PhysicsBodyKinematicTargetComponent.class,
-                "PhysicsBodyKinematicTarget",
-                PhysicsBodyKinematicTargetComponent.CODEC));
+            "bodyAttachmentComponentType",
+            registry.registerComponent(BodyAttachmentComponent.class,
+                "BodyAttachment",
+                BodyAttachmentComponent.CODEC));
         staticField(ImpulsePlugin.class, "instance").set(null, plugin);
     }
 

@@ -23,8 +23,6 @@ class EventsCommandTest {
             56L,
             78L,
             90L,
-            11L,
-            List.of(),
             List.of(),
             List.of(),
             List.of(new PhysicsContactEvent(new SpaceId(5),

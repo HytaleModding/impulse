@@ -16,10 +16,12 @@ import dev.hytalemodding.impulse.api.SpaceId;
 import dev.hytalemodding.impulse.api.runtime.BackendRuntimeCodes;
 import dev.hytalemodding.impulse.api.testsupport.FakePhysicsBackendRuntimeProvider;
 import dev.hytalemodding.impulse.api.testsupport.FakePhysicsBackendRuntimeProvider.FakePhysicsBackendRuntime;
+import dev.hytalemodding.impulse.core.internal.resources.BackendBodyHandle;
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsSpaceBinding;
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsWorldRuntimeResource;
 import dev.hytalemodding.impulse.core.internal.resources.body.PhysicsBodyRegistration;
 import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyKind;
+import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyPersistenceMode;
 import dev.hytalemodding.impulse.core.plugin.body.RigidBodyKey;
 import dev.hytalemodding.impulse.core.plugin.settings.PhysicsSpaceSettings;
 import it.unimi.dsi.fastutil.ints.Int2ObjectMap;
@@ -267,17 +269,31 @@ class WorldCollisionLifecycleTest {
     private static RigidBodyKey spawnDynamicBody(PhysicsWorldRuntimeResource resource,
         SpaceId spaceId) {
         RigidBodyKey bodyKey = RigidBodyKey.random();
-        assertTrue(resource.submitCommands(1L, commands -> commands
-                .spawnBody(bodyKey, spawn -> spawn
-                    .space(spaceId)
-                    .box(0.5f, 0.5f, 0.5f)
-                    .mass(1.0f)
-                    .dynamic()
-                    .kind(PhysicsBodyKind.BODY)
-                    .runtimeOnly()))
-            .allApplied()
-            .toCompletableFuture()
-            .join());
+        PhysicsSpaceBinding space = resource.getSpaceBinding(spaceId);
+        assertNotNull(space);
+        long backendBodyId = space.runtime().createBody(space.backendSpaceHandle().value(),
+            BackendRuntimeCodes.SHAPE_BOX,
+            0.5f,
+            0.5f,
+            0.5f,
+            0.0f,
+            0.0f,
+            BackendRuntimeCodes.AXIS_Y,
+            1.0f,
+            0.0f,
+            BackendRuntimeCodes.bodyTypeCode(PhysicsBodyType.DYNAMIC),
+            0.0f,
+            0.0f,
+            0.0f,
+            0.0f,
+            0.0f,
+            0.0f,
+            1.0f);
+        resource.addBodyOnOwner(bodyKey,
+            spaceId,
+            new BackendBodyHandle(backendBodyId),
+            PhysicsBodyKind.BODY,
+            PhysicsBodyPersistenceMode.RUNTIME_ONLY);
         return bodyKey;
     }
 
