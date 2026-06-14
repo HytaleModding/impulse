@@ -11,6 +11,7 @@ import dev.hytalemodding.impulse.core.internal.physicsstore.resources.PhysicsSpa
 import dev.hytalemodding.impulse.core.internal.physicsstore.resources.PhysicsSnapshotResource;
 import dev.hytalemodding.impulse.core.internal.physicsstore.resources.PhysicsStoreReadQueueResource;
 import dev.hytalemodding.impulse.core.plugin.physicsstore.PhysicsStoreDiagnostics;
+import dev.hytalemodding.impulse.core.plugin.physicsstore.PhysicsStoreThreading;
 import dev.hytalemodding.impulse.core.plugin.simulation.SpaceSummary;
 import java.util.List;
 import java.util.concurrent.CompletionStage;
@@ -110,6 +111,8 @@ public final class PhysicsPersistence {
     @Nonnull
     private static Status copiedStatus(@Nonnull Store<PhysicsStore> physicsStore,
         @Nonnull LegacyStatus legacy) {
+        PhysicsStoreThreading.requireWorldThread(physicsStore,
+            "read copied PhysicsStore persistence status");
         PersistentPhysicsStoreResource persistent = physicsStore.getResource(
             PersistentPhysicsStoreResource.getResourceType());
         PhysicsRestoreStatusResource restore = physicsStore.getResource(

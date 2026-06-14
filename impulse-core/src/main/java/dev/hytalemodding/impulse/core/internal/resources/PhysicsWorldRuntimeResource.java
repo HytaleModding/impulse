@@ -57,6 +57,7 @@ import dev.hytalemodding.impulse.core.plugin.modules.worldcollision.WorldCollisi
 import dev.hytalemodding.impulse.core.plugin.events.PhysicsEventFrame;
 import dev.hytalemodding.impulse.core.plugin.events.PhysicsFrameEvent;
 import dev.hytalemodding.impulse.core.plugin.joint.JointKey;
+import dev.hytalemodding.impulse.core.plugin.physicsstore.PhysicsStoreThreading;
 import dev.hytalemodding.impulse.core.plugin.physicsstore.components.CollisionLodSettingsComponent;
 import dev.hytalemodding.impulse.core.plugin.physicsstore.components.ExtensionSettingsComponent;
 import dev.hytalemodding.impulse.core.plugin.physicsstore.components.SolverSettingsComponent;
@@ -315,7 +316,9 @@ public class PhysicsWorldRuntimeResource extends PhysicsWorldResource {
 
     @Nonnull
     private Store<PhysicsStore> authoritativePhysicsStore(@Nonnull String operation) {
-        return physicsStore(requireAuthoritativeWorld(operation));
+        Store<PhysicsStore> store = physicsStore(requireAuthoritativeWorld(operation));
+        PhysicsStoreThreading.requireWorldThread(store, operation);
+        return store;
     }
 
     @Nonnull
@@ -383,11 +386,14 @@ public class PhysicsWorldRuntimeResource extends PhysicsWorldResource {
     }
 
     @Nonnull
-    private IllegalStateException authoritativeFenceUnavailable(@Nonnull String operation) {
-        return new IllegalStateException("Cannot " + operation
-            + " through authoritative PhysicsStore yet because async store-lane mutation "
-            + "completion is not implemented. Use the synchronous store-lane facade or add an "
-            + "explicit PhysicsStore scheduling completion contract.");
+    private <T> PhysicsMutationHandle<T> enqueueAuthoritativePhysicsStoreMutation(
+        @Nonnull String operation,
+        @Nullable T value,
+        @Nonnull Consumer<Store<PhysicsStore>> mutation) {
+        World world = requireAuthoritativeWorld(operation);
+        return PhysicsMutationHandle.fromCompletion(operation,
+            value,
+            PhysicsStoreThreading.executeOnWorldThread(world, operation, mutation));
     }
 
     public void runOwnerMutation(@Nonnull String operation,
@@ -502,9 +508,15 @@ public class PhysicsWorldRuntimeResource extends PhysicsWorldResource {
         @Nonnull String worldName,
         @Nonnull PhysicsSpaceSettings settings) {
         if (isAuthoritativePhysicsStoreActive()) {
-            return PhysicsMutationHandle.failed("create physics space",
+            Impulse.getRuntimeProvider(backendId);
+            PhysicsSpaceSettings requested = new PhysicsSpaceSettings(settings);
+            return enqueueAuthoritativePhysicsStoreMutation("create physics space",
                 spaceId,
-                authoritativeFenceUnavailable("create physics space asynchronously"));
+                store -> PhysicsStoreSpaceMutations.addSpace(store,
+                    UUID.randomUUID(),
+                    spaceId,
+                    backendId,
+                    requested));
         }
         requireLegacyMutationAllowed("create physics space");
         return enqueueOwnerMutation("create physics space",
@@ -980,9 +992,9 @@ public class PhysicsWorldRuntimeResource extends PhysicsWorldResource {
     public PhysicsMutationHandle<SpaceId> removeSpaceAsync(@Nonnull SpaceId spaceId,
         @Nonnull String worldName) {
         if (isAuthoritativePhysicsStoreActive()) {
-            return PhysicsMutationHandle.failed("remove physics space",
+            return enqueueAuthoritativePhysicsStoreMutation("remove physics space",
                 spaceId,
-                authoritativeFenceUnavailable("remove physics space asynchronously"));
+                store -> PhysicsStoreSpaceMutations.removeEmptySpace(store, spaceId));
         }
         requireLegacyMutationAllowed("remove physics space");
         return enqueueOwnerMutation("remove physics space",
@@ -1115,9 +1127,10 @@ public class PhysicsWorldRuntimeResource extends PhysicsWorldResource {
     public PhysicsMutationHandle<SpaceId> setSpaceSettingsAsync(@Nonnull SpaceId spaceId,
         @Nonnull PhysicsSpaceSettings settings) {
         if (isAuthoritativePhysicsStoreActive()) {
-            return PhysicsMutationHandle.failed("set physics space settings",
+            PhysicsSpaceSettings requested = new PhysicsSpaceSettings(settings);
+            return enqueueAuthoritativePhysicsStoreMutation("set physics space settings",
                 spaceId,
-                authoritativeFenceUnavailable("set physics space settings asynchronously"));
+                store -> PhysicsStoreSpaceMutations.putSpaceSettings(store, spaceId, requested));
         }
         requireLegacyMutationAllowed("set physics space settings");
         PhysicsSpaceSettings requested = new PhysicsSpaceSettings(settings);
