@@ -4,6 +4,7 @@ import com.hypixel.hytale.component.AddReason;
 import com.hypixel.hytale.component.Holder;
 import com.hypixel.hytale.component.Ref;
 import com.hypixel.hytale.component.Store;
+import com.hypixel.hytale.math.vector.Transform;
 import com.hypixel.hytale.server.core.Message;
 import com.hypixel.hytale.server.core.asset.type.blocktype.config.BlockType;
 import com.hypixel.hytale.server.core.command.system.CommandContext;
@@ -177,7 +178,8 @@ public class EcsCommand extends AbstractCommandCollection {
                 return;
             }
             int strength = ExamplePhysicsUtils.optionalInt(ctx, strengthArg, 8, 1, 64);
-            Vector3d impulse = ExamplePhysicsUtils.lookDirection(store, ref, transform).mul(strength);
+            Vector3d impulse = new Vector3d(ExamplePhysicsUtils.lookTransform(store, ref)
+                .getDirection()).mul(strength);
             boolean applied = ExamplePhysicsUtils.appendPhysicsStoreBodyCommand(world,
                 hit.bodyKey().value(),
                 BodyCommandComponent.vector(BodyCommandComponent.Kind.IMPULSE,
@@ -498,8 +500,9 @@ public class EcsCommand extends AbstractCommandCollection {
             @Nonnull Ref<EntityStore> ref,
             @Nonnull TransformComponent transform,
             @Nonnull World world) {
-            Vector3d eye = ExamplePhysicsUtils.eyePosition(store, ref, transform);
-            Vector3d direction = ExamplePhysicsUtils.lookDirection(store, ref, transform);
+            Transform look = ExamplePhysicsUtils.lookTransform(store, ref);
+            Vector3d eye = new Vector3d(look.getPosition());
+            Vector3d direction = new Vector3d(look.getDirection());
             Vector3i target = TargetUtil.getTargetBlock(world,
                 ExplosiveBlockPolicy::isSimpleFullCubeFragmentBlock,
                 eye.x,
@@ -544,9 +547,10 @@ public class EcsCommand extends AbstractCommandCollection {
             return CompletableFuture.completedFuture(null);
         }
 
-        Vector3d start = ExamplePhysicsUtils.eyePosition(store, ref, transform);
+        Transform look = ExamplePhysicsUtils.lookTransform(store, ref);
+        Vector3d start = new Vector3d(look.getPosition());
         Vector3d end = new Vector3d(start)
-            .add(ExamplePhysicsUtils.lookDirection(store, ref, transform).mul(RAY_LENGTH));
+            .add(new Vector3d(look.getDirection()).mul(RAY_LENGTH));
         return PhysicsStoreRaycasts.closestAsync(store.getExternalData().getWorld(),
                 spaceId,
                 vector(start),

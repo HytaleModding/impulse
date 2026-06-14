@@ -36,7 +36,6 @@ import java.util.UUID;
 import java.util.WeakHashMap;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
-import org.joml.Quaterniond;
 import org.joml.Quaternionf;
 import org.joml.Vector3d;
 import org.joml.Vector3f;
@@ -106,14 +105,11 @@ public class PhysicsKinematicControlSystem extends EntityTickingSystem<EntitySto
         eye.set(transform.getPosition());
         eye.y += eyeHeight(chunk, index, chunk.getReferenceTo(index), store);
 
-        Vector3d direction = lookDirection(chunk, index, transform, local.direction);
+        Rotation3f viewRotation = rotation(chunk, index, transform);
+        Vector3d direction = lookDirection(viewRotation, local.direction);
         Vector3f viewOffset = session.getViewOffset();
-        local.right.set(Vector3dUtil.RIGHT);
-        local.up.set(Vector3dUtil.UP);
-        local.rotation.identity();
-        rotation(chunk, index, transform).getQuaternion(local.rotation);
-        local.rotation.transform(local.right);
-        local.rotation.transform(local.up);
+        viewRotation.transform(Vector3dUtil.RIGHT, local.right);
+        viewRotation.transform(Vector3dUtil.UP, local.up);
         local.target.set(
             (float) (eye.x
                 + direction.x * session.getGrabDistance()
@@ -215,14 +211,9 @@ public class PhysicsKinematicControlSystem extends EntityTickingSystem<EntitySto
     }
 
     @Nonnull
-    private Vector3d lookDirection(@Nonnull ArchetypeChunk<EntityStore> chunk,
-        int index,
-        @Nonnull TransformComponent transform,
+    private Vector3d lookDirection(@Nonnull Rotation3f rotation,
         @Nonnull Vector3d out) {
-        Rotation3f rotation = rotation(chunk, index, transform);
-        Quaterniond quaternion = rotation.getQuaternion(new Quaterniond());
-        out.set(Vector3dUtil.FORWARD);
-        quaternion.transform(out);
+        rotation.transform(Vector3dUtil.FORWARD, out);
         if (out.lengthSquared() == 0.0) {
             out.set(Vector3dUtil.FORWARD);
         } else {
@@ -343,7 +334,6 @@ public class PhysicsKinematicControlSystem extends EntityTickingSystem<EntitySto
         private final Vector3d direction = new Vector3d();
         private final Vector3d right = new Vector3d();
         private final Vector3d up = new Vector3d();
-        private final Quaterniond rotation = new Quaterniond();
         private final Vector3f target = new Vector3f();
     }
 

@@ -5,19 +5,16 @@ import com.hypixel.hytale.component.ComponentType;
 import com.hypixel.hytale.component.Holder;
 import com.hypixel.hytale.component.Ref;
 import com.hypixel.hytale.component.Store;
-import com.hypixel.hytale.math.vector.Rotation3f;
-import com.hypixel.hytale.math.vector.Vector3dUtil;
+import com.hypixel.hytale.math.vector.Transform;
 import com.hypixel.hytale.server.core.Message;
-import com.hypixel.hytale.server.core.asset.type.model.config.Model;
 import com.hypixel.hytale.server.core.command.system.CommandContext;
 import com.hypixel.hytale.server.core.command.system.arguments.system.OptionalArg;
-import com.hypixel.hytale.server.core.modules.entity.component.HeadRotation;
-import com.hypixel.hytale.server.core.modules.entity.component.ModelComponent;
 import com.hypixel.hytale.server.core.modules.entity.component.TransformComponent;
 import com.hypixel.hytale.server.core.modules.time.TimeResource;
 import com.hypixel.hytale.server.core.universe.world.World;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import com.hypixel.hytale.server.core.universe.world.storage.PhysicsStore;
+import com.hypixel.hytale.server.core.util.TargetUtil;
 import dev.hytalemodding.impulse.api.PhysicsBodyType;
 import dev.hytalemodding.impulse.api.SpaceId;
 import dev.hytalemodding.impulse.early.PhysicsStoreWorld;
@@ -53,7 +50,6 @@ import java.util.UUID;
 import java.util.function.Consumer;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
-import org.joml.Quaterniond;
 import org.joml.Quaternionf;
 import org.joml.Vector3d;
 import org.joml.Vector3f;
@@ -66,8 +62,6 @@ public final class ExamplePhysicsUtils {
         TransformComponent.getComponentType();
     private static final ComponentType<EntityStore, BodyAttachmentComponent> ATTACHMENT_TYPE =
         BodyAttachmentComponent.getComponentType();
-    private static final ComponentType<EntityStore, ModelComponent> MODEL_TYPE = ModelComponent.getComponentType();
-    private static final ComponentType<EntityStore, HeadRotation> HEAD_ROTATION_TYPE = HeadRotation.getComponentType();
 
     private ExamplePhysicsUtils() {
     }
@@ -732,38 +726,9 @@ public final class ExamplePhysicsUtils {
     }
 
     @Nonnull
-    static Vector3d eyePosition(@Nonnull Store<EntityStore> store,
-        @Nonnull Ref<EntityStore> ref,
-        @Nonnull TransformComponent transform) {
-        return new Vector3d(transform.getPosition()).add(0.0, eyeHeight(store, ref), 0.0);
-    }
-
-    static double eyeHeight(@Nonnull Store<EntityStore> store, @Nonnull Ref<EntityStore> ref) {
-        ModelComponent modelComponent = store.getComponent(ref, MODEL_TYPE);
-        if (modelComponent == null) {
-            return 1.6;
-        }
-
-        Model model = modelComponent.getModel();
-        if (model == null) {
-            return 1.6;
-        }
-        return model.getEyeHeight(ref, store);
-    }
-
-    @Nonnull
-    public static Vector3d lookDirection(@Nonnull Store<EntityStore> store,
-        @Nonnull Ref<EntityStore> ref,
-        @Nonnull TransformComponent transform) {
-        HeadRotation headRotation = store.getComponent(ref, HEAD_ROTATION_TYPE);
-        Rotation3f rotation = headRotation != null ? headRotation.getRotation() : transform.getRotation();
-        Quaterniond quaternion = rotation.getQuaternion(new Quaterniond());
-        Vector3d direction = new Vector3d(Vector3dUtil.FORWARD);
-        quaternion.transform(direction);
-        if (direction.lengthSquared() == 0.0) {
-            return new Vector3d(Vector3dUtil.FORWARD);
-        }
-        return direction.normalize();
+    static Transform lookTransform(@Nonnull Store<EntityStore> store,
+        @Nonnull Ref<EntityStore> ref) {
+        return TargetUtil.getLook(ref, store);
     }
 
     public static int optionalInt(@Nonnull CommandContext ctx,

@@ -3,6 +3,7 @@ package dev.hytalemodding.impulse.examples.commands;
 import com.hypixel.hytale.component.ComponentType;
 import com.hypixel.hytale.component.Ref;
 import com.hypixel.hytale.component.Store;
+import com.hypixel.hytale.math.vector.Transform;
 import com.hypixel.hytale.server.core.Message;
 import com.hypixel.hytale.server.core.command.system.CommandContext;
 import com.hypixel.hytale.server.core.command.system.arguments.system.OptionalArg;
@@ -55,8 +56,9 @@ public class RaycastCommand extends AbstractAsyncPlayerCommand {
             return CompletableFuture.completedFuture(null);
         }
 
-        Vector3d start = ExamplePhysicsUtils.eyePosition(store, ref, transform);
-        Vector3d direction = ExamplePhysicsUtils.lookDirection(store, ref, transform).mul(RAY_LENGTH);
+        Transform look = ExamplePhysicsUtils.lookTransform(store, ref);
+        Vector3d start = new Vector3d(look.getPosition());
+        Vector3d direction = new Vector3d(look.getDirection()).mul(RAY_LENGTH);
         Vector3d end = new Vector3d(start).add(direction);
 
         DebugUtils.addArrow(world, start, direction, DebugUtils.COLOR_WHITE, 0.8f, 4.0f,
