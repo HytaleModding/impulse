@@ -43,8 +43,8 @@ public final class PhysicsOwnerGateway {
         Objects.requireNonNull(operation, "operation");
         if (!canAccessLiveBackendDirectly()) {
             throw new IllegalStateException("Impulse live backend operation " + operation
-                + " must run in the physics owner lane. Use copied simulation commands, "
-                + "copied queries, or an internal owner-routed resource method.");
+                + " must run in the physics owner lane. Use PhysicsStore row mutation, "
+                + "queued reads, or an internal owner-routed resource method.");
         }
     }
 

@@ -167,6 +167,18 @@ public final class PhysicsRuntimeResource implements Resource<PhysicsStore> {
         }
     }
 
+    @Nonnull
+    public List<UUID> bodyUuidsForSpaceHandle(@Nonnull BackendSpaceHandle spaceHandle) {
+        List<UUID> bodyUuids = new ArrayList<>();
+        int targetSpaceHandle = spaceHandle.value();
+        bodySpaceHandlesByUuid.forEach((bodyUuid, handle) -> {
+            if (handle.value() == targetSpaceHandle) {
+                bodyUuids.add(bodyUuid);
+            }
+        });
+        return bodyUuids;
+    }
+
     public void putBodyHitMetadata(@Nonnull BackendBodyHandle handle,
         @Nullable RigidBodyKey bodyKey,
         @Nonnull PhysicsBodyType bodyType,
@@ -248,6 +260,18 @@ public final class PhysicsRuntimeResource implements Resource<PhysicsStore> {
         jointSpaceHandlesByUuid.remove(jointUuid);
     }
 
+    @Nonnull
+    public List<UUID> jointUuidsForSpaceHandle(@Nonnull BackendSpaceHandle spaceHandle) {
+        List<UUID> jointUuids = new ArrayList<>();
+        int targetSpaceHandle = spaceHandle.value();
+        jointSpaceHandlesByUuid.forEach((jointUuid, handle) -> {
+            if (handle.value() == targetSpaceHandle) {
+                jointUuids.add(jointUuid);
+            }
+        });
+        return jointUuids;
+    }
+
     public void putTerrainBodyHandle(@Nonnull UUID terrainUuid,
         @Nonnull BackendSpaceHandle spaceHandle,
         @Nonnull BackendBodyHandle handle,
@@ -303,6 +327,18 @@ public final class PhysicsRuntimeResource implements Resource<PhysicsStore> {
         terrainPayloadKeysByUuid.remove(terrainUuid);
     }
 
+    @Nonnull
+    public List<UUID> terrainUuidsForSpaceHandle(@Nonnull BackendSpaceHandle spaceHandle) {
+        List<UUID> terrainUuids = new ArrayList<>();
+        int targetSpaceHandle = spaceHandle.value();
+        terrainSpaceHandlesByUuid.forEach((terrainUuid, handle) -> {
+            if (handle.value() == targetSpaceHandle) {
+                terrainUuids.add(terrainUuid);
+            }
+        });
+        return terrainUuids;
+    }
+
     public void forEachSpaceBinding(@Nonnull SpaceBindingConsumer consumer) {
         spaceHandlesByUuid.forEach((spaceUuid, spaceHandle) -> {
             BackendId backendId = backendIdsBySpaceUuid.get(spaceUuid);
@@ -340,6 +376,10 @@ public final class PhysicsRuntimeResource implements Resource<PhysicsStore> {
         pendingBodyOperations.clear();
         pendingSpaceSettings.clear();
         started = false;
+    }
+
+    public void clearTransientBodyOperations() {
+        pendingBodyOperations.clear();
     }
 
     public void destroyBackendBindings() {
@@ -406,7 +446,7 @@ public final class PhysicsRuntimeResource implements Resource<PhysicsStore> {
     }
 
     @Nullable
-    private PhysicsBackendRuntime runtimeForSpaceHandle(@Nullable BackendSpaceHandle target) {
+    public PhysicsBackendRuntime runtimeForSpaceHandle(@Nullable BackendSpaceHandle target) {
         if (target == null) {
             return null;
         }
