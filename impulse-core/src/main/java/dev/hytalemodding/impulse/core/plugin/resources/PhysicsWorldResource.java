@@ -19,10 +19,6 @@ import dev.hytalemodding.impulse.core.plugin.modules.worldcollision.WorldCollisi
 import dev.hytalemodding.impulse.core.plugin.events.PhysicsEventFrame;
 import dev.hytalemodding.impulse.core.plugin.settings.PhysicsSpaceSettings;
 import dev.hytalemodding.impulse.core.plugin.settings.PhysicsWorldSettings;
-import dev.hytalemodding.impulse.core.plugin.simulation.PhysicsCommandHandle;
-import dev.hytalemodding.impulse.core.plugin.simulation.PhysicsCommandRecipe;
-import dev.hytalemodding.impulse.core.plugin.simulation.query.PhysicsQuery;
-import dev.hytalemodding.impulse.core.plugin.simulation.query.PhysicsQueryHandle;
 import dev.hytalemodding.impulse.core.plugin.snapshot.PhysicsBodySnapshotEntry;
 import java.util.Collection;
 import java.util.function.Consumer;
@@ -35,7 +31,7 @@ import org.joml.Vector3f;
  * Public alpha facade for a world's physics runtime resource.
  *
  * <p>The concrete Impulse runtime lives in the internal package. Plugin-facing code should depend on
- * this facade for explicit space lifecycle, world settings, command submission, body lifetime by key,
+ * this facade for explicit space lifecycle, world settings, body lifetime by key,
  * immutable snapshots, read-only registration views, public attachment/control hooks, and world
  * collision operations.</p>
  *
@@ -43,45 +39,13 @@ import org.joml.Vector3f;
  * target for each operation.</p>
  *
  * <p>This facade does not directly return live backend spaces or bodies. Gameplay code should use
- * physics simulation commands, copied queries, and published snapshots. Advanced diagnostics should
- * be modeled as backend-neutral commands or copied queries instead of retaining live backend
- * handles.</p>
+ * PhysicsStore rows for authoring, copied snapshots for body state, and explicit PhysicsStore
+ * diagnostics/raycast helpers for owner-lane backend reads.</p>
  */
 public abstract class PhysicsWorldResource implements Resource<EntityStore> {
 
     protected PhysicsWorldResource() {
     }
-
-    /**
-     * Records copied simulation intent through the fluent command DSL and submits it.
-     *
-     * <p>The returned handle completes when the physics owner executes the batch. Snapshot
-     * publication and ECS visual synchronization are separate phases and can lag behind command
-     * completion.</p>
-     */
-    @Nonnull
-    public abstract PhysicsCommandHandle submitCommands(long submittedServerTick,
-        @Nonnull PhysicsCommandRecipe recipe);
-
-    /**
-     * Records copied simulation intent through the fluent command DSL with a capacity hint.
-     *
-     * <p>{@code expectedOperations} sizes the internal recorder arrays. It is a performance hint,
-     * not a correctness requirement.</p>
-     */
-    @Nonnull
-    public abstract PhysicsCommandHandle submitCommands(long submittedServerTick,
-        int expectedOperations,
-        @Nonnull PhysicsCommandRecipe recipe);
-
-    /**
-     * Runs a copied owner-lane physics query without exposing live backend handles.
-     *
-     * <p>Queries should return immutable or defensively copied values. Use commands for mutations
-     * so all writes stay ordered through the physics owner.</p>
-     */
-    @Nonnull
-    public abstract <R> PhysicsQueryHandle<R> query(@Nonnull PhysicsQuery<R> query);
 
     /**
      * Returns the latest value-only physics owner event frame.
