@@ -15,7 +15,7 @@ import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
 /**
- * Runtime-only compatibility map for legacy SpaceId query and command boundaries.
+ * Runtime-only compatibility map between public SpaceId values and PhysicsStore space UUIDs.
  */
 public final class PhysicsSpaceCompatibilityIndexResource implements Resource<PhysicsStore> {
 
