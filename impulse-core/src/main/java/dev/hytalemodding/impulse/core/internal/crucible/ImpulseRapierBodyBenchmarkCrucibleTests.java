@@ -6,6 +6,7 @@ import com.hypixel.hytale.component.Store;
 import com.hypixel.hytale.logger.HytaleLogger;
 import com.hypixel.hytale.server.core.universe.world.World;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
+import com.hypixel.hytale.server.core.universe.world.storage.PhysicsStore;
 import dev.hytalemodding.impulse.api.BackendId;
 import dev.hytalemodding.impulse.api.Impulse;
 import dev.hytalemodding.impulse.api.PhysicsBodyType;
@@ -21,7 +22,6 @@ import dev.hytalemodding.impulse.core.internal.resources.PhysicsWorldRuntimeReso
 import dev.hytalemodding.impulse.core.plugin.physicsstore.projection.BodyAttachmentComponent;
 import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyKind;
 import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyPersistenceMode;
-import dev.hytalemodding.impulse.core.plugin.body.RigidBodyKey;
 import dev.hytalemodding.impulse.core.plugin.settings.PhysicsBackendExtensionId;
 import dev.hytalemodding.impulse.core.plugin.settings.PhysicsSpaceSettings;
 import dev.hytalemodding.impulse.core.plugin.settings.PhysicsSolverSettings;
@@ -37,6 +37,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
 import java.util.Set;
+import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
 import java.util.concurrent.CompletionStage;
@@ -44,6 +45,7 @@ import java.util.logging.Level;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 import org.joml.Vector3d;
+import org.joml.Vector3f;
 
 /**
  * Benchmark-oriented Crucible scenario for Rapier detached body-only fixed substeps.
@@ -140,6 +142,7 @@ final class ImpulseRapierBodyBenchmarkCrucibleTests {
         private final World world;
         private final Store<EntityStore> store;
         private final PhysicsWorldRuntimeResource physics;
+        private final Store<PhysicsStore> physicsStore;
         private final PhysicsRuntimeProfilingResource runtimeProfiling;
         private final WorldCollisionProfilingResource worldCollisionProfiling;
         private final PhysicsWorldSettings previousWorldSettings;
@@ -153,6 +156,7 @@ final class ImpulseRapierBodyBenchmarkCrucibleTests {
             this.world = context.world();
             this.store = world.getEntityStore().getStore();
             this.physics = PhysicsWorldRuntimeResource.require(store);
+            this.physicsStore = PhysicsStoreCrucibleSupport.physicsStore(world);
             this.runtimeProfiling = store.getResource(PhysicsRuntimeProfilingResource.getResourceType());
             this.worldCollisionProfiling = store.getResource(
                 WorldCollisionProfilingResource.getResourceType());
@@ -248,47 +252,34 @@ final class ImpulseRapierBodyBenchmarkCrucibleTests {
                 0.25f,
                 PhysicsCollisionFilters.DYNAMIC_BODY,
                 PhysicsCollisionFilters.TERRAIN | PhysicsCollisionFilters.DYNAMIC_BODY);
-            long bodyKeyRunId = RigidBodyKey.random().mostSignificantBits();
-            return physics.submitCommands(Math.max(0L, world.getTick()),
-                    2,
-                    commands -> {
-                        commands.spawnBody(RigidBodyKey.random(),
-                            body -> body.space(spaceId)
-                                .plane(GROUND_Y)
-                                .type(PhysicsBodyType.STATIC)
-                                .settings(groundSettings)
-                                .temporary()
-                                .runtimeOnly());
-                        commands.spawnBodies(matrixCase.count(),
-                            spaceId,
-                            PhysicsShapeSpec.box(0.48f, 0.48f, 0.48f),
-                            1.0f,
-                            PhysicsBodyType.DYNAMIC,
-                            bodySettings,
-                            PhysicsBodyKind.BODY,
-                            PhysicsBodyPersistenceMode.RUNTIME_ONLY,
-                            spawns -> {
-                                for (int i = 0; i < matrixCase.count(); i++) {
-                                    spawns.body(bodyKeyRunId,
-                                        i + 1L,
-                                        (float) layout.positionX(i),
-                                        (float) layout.positionY(),
-                                        (float) layout.positionZ(i));
-                                }
-                            });
-                    })
-                .completionSummary()
-                .handle((completion, failure) -> {
-                    if (failure != null) {
-                        return StartedCase.failed(failure.getMessage());
-                    }
-                    return completion.firstRejected()
-                        .map(result -> StartedCase.failed("prepare command "
-                                + result.commandSequence()
-                                + " rejected: "
-                                + result.message()))
-                        .orElseGet(() -> StartedCase.started(spaceId));
-                });
+            PhysicsStoreCrucibleSupport.addBody(physicsStore,
+                spaceId,
+                UUID.randomUUID(),
+                new Vector3f(0.0f, GROUND_Y, 0.0f),
+                PhysicsShapeSpec.plane(GROUND_Y),
+                PhysicsBodyType.STATIC,
+                0.0f,
+                groundSettings,
+                null,
+                PhysicsBodyKind.TEMPORARY,
+                PhysicsBodyPersistenceMode.RUNTIME_ONLY);
+            PhysicsShapeSpec box = PhysicsShapeSpec.box(0.48f, 0.48f, 0.48f);
+            for (int i = 0; i < matrixCase.count(); i++) {
+                PhysicsStoreCrucibleSupport.addBody(physicsStore,
+                    spaceId,
+                    UUID.randomUUID(),
+                    new Vector3f((float) layout.positionX(i),
+                        (float) layout.positionY(),
+                        (float) layout.positionZ(i)),
+                    box,
+                    PhysicsBodyType.DYNAMIC,
+                    1.0f,
+                    bodySettings,
+                    null,
+                    PhysicsBodyKind.BODY,
+                    PhysicsBodyPersistenceMode.RUNTIME_ONLY);
+            }
+            return CompletableFuture.completedFuture(StartedCase.started(spaceId));
         }
 
         private MatrixReport finishCase(@Nonnull MatrixCase matrixCase,
@@ -368,8 +359,7 @@ final class ImpulseRapierBodyBenchmarkCrucibleTests {
         private void clearCaseState() {
             removeBenchmarkEntities();
             physics.clearSyntheticVisualInterests();
-            physics.clearBodies();
-            physics.clearAllSpaces(world.getName());
+            PhysicsStoreCrucibleSupport.clearAll(physicsStore);
             runtimeProfiling.reset();
             worldCollisionProfiling.reset();
             worldCollisionProfiling.clearDiagnosticRetainedSections();
