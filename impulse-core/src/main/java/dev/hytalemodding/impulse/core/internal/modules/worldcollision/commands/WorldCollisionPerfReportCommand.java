@@ -13,9 +13,9 @@ import dev.hytalemodding.impulse.core.internal.resources.profiling.PhysicsRuntim
 import dev.hytalemodding.impulse.core.internal.resources.profiling.PhysicsRuntimeProfilingResource.VisualSnapshot;
 import dev.hytalemodding.impulse.core.plugin.events.PhysicsCommandBatchEvent;
 import dev.hytalemodding.impulse.core.plugin.events.PhysicsEventFrame;
+import dev.hytalemodding.impulse.core.plugin.physicsstore.PhysicsStoreDiagnostics;
 import dev.hytalemodding.impulse.core.plugin.resources.PhysicsWorldResource;
 import dev.hytalemodding.impulse.core.plugin.simulation.SpaceSummary;
-import dev.hytalemodding.impulse.core.plugin.simulation.query.SpaceSummaryQuery;
 import dev.hytalemodding.impulse.core.internal.modules.worldcollision.profiling.WorldCollisionProfilingResource;
 import dev.hytalemodding.impulse.core.internal.modules.worldcollision.profiling.WorldCollisionProfilingResource.Snapshot;
 import java.util.List;
@@ -51,7 +51,7 @@ public class WorldCollisionPerfReportCommand extends AbstractWorldCommand {
         Snapshot worst = profiling.getWorstTickSnapshot();
         PhysicsEntityDiagnostics.Snapshot entityDiagnostics = PhysicsEntityDiagnostics.collect(store);
         PhysicsWorldResource physicsWorld = store.getResource(PhysicsWorldResource.getResourceType());
-        RuntimeFootprint runtimeFootprint = RuntimeFootprint.collect(physicsWorld);
+        RuntimeFootprint runtimeFootprint = RuntimeFootprint.collect(world);
 
         ctx.sender().sendMessage(Message.raw("Impulse runtime profiling: "
             + ((runtimeProfiling.isEnabled() || profiling.isEnabled()) ? "enabled" : "disabled")));
@@ -563,7 +563,7 @@ public class WorldCollisionPerfReportCommand extends AbstractWorldCommand {
         int runtimeJoints) {
 
         @Nonnull
-        private static RuntimeFootprint collect(@Nonnull PhysicsWorldResource resource) {
+        private static RuntimeFootprint collect(@Nonnull World world) {
             int spaces = 0;
             int backendBodies = 0;
             int backendJoints = 0;
@@ -578,8 +578,7 @@ public class WorldCollisionPerfReportCommand extends AbstractWorldCommand {
             int runtimeTerrainContactPairs = 0;
             int runtimeActiveIslands = 0;
             int runtimeJoints = 0;
-            List<SpaceSummary> summaries = resource.query(new SpaceSummaryQuery(null))
-                .completion()
+            List<SpaceSummary> summaries = PhysicsStoreDiagnostics.spaceSummariesAsync(world)
                 .toCompletableFuture()
                 .join();
             for (SpaceSummary summary : summaries) {

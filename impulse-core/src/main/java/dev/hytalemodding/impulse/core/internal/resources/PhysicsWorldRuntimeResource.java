@@ -164,6 +164,11 @@ public class PhysicsWorldRuntimeResource extends PhysicsWorldResource {
         }
     }
 
+    @Nonnull
+    public World requireAuthoritativeWorldForPhysicsStore(@Nonnull String operation) {
+        return requireAuthoritativeWorld(operation);
+    }
+
     public boolean canAccessLiveBackendDirectly() {
         return ownerGateway.canAccessLiveBackendDirectly();
     }

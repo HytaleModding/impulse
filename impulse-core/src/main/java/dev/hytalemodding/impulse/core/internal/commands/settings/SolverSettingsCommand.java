@@ -10,9 +10,9 @@ import com.hypixel.hytale.server.core.universe.world.World;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import dev.hytalemodding.impulse.api.SpaceId;
 import dev.hytalemodding.impulse.core.internal.commands.SpaceSelection;
+import dev.hytalemodding.impulse.core.plugin.physicsstore.PhysicsStoreDiagnostics;
 import dev.hytalemodding.impulse.core.plugin.settings.PhysicsSpaceSettings;
 import dev.hytalemodding.impulse.core.plugin.resources.PhysicsWorldResource;
-import dev.hytalemodding.impulse.core.plugin.simulation.query.SolverCapabilityQuery;
 import dev.hytalemodding.impulse.core.plugin.simulation.SolverCapabilitySummary;
 import javax.annotation.Nonnull;
 
@@ -56,8 +56,7 @@ public class SolverSettingsCommand extends AbstractWorldCommand {
         if (spaceId == null) {
             return;
         }
-        SolverCapabilitySummary summary = resource.query(new SolverCapabilityQuery(spaceId))
-            .completion()
+        SolverCapabilitySummary summary = PhysicsStoreDiagnostics.solverCapabilityAsync(world, spaceId)
             .toCompletableFuture()
             .join();
 

@@ -14,6 +14,7 @@ import dev.hytalemodding.impulse.core.internal.physicsstore.resources.PhysicsRes
 import dev.hytalemodding.impulse.core.internal.physicsstore.resources.PhysicsRuntimeResource;
 import dev.hytalemodding.impulse.core.internal.physicsstore.resources.PhysicsSpaceCompatibilityIndexResource;
 import dev.hytalemodding.impulse.core.internal.physicsstore.resources.PhysicsSnapshotResource;
+import dev.hytalemodding.impulse.core.internal.physicsstore.resources.PhysicsStoreReadQueueResource;
 import dev.hytalemodding.impulse.core.internal.physicsstore.resources.PhysicsTerrainPayloadResource;
 import dev.hytalemodding.impulse.core.internal.physicsstore.resources.PhysicsWorldCollisionIndexResource;
 import dev.hytalemodding.impulse.core.internal.physicsstore.systems.BodyBindingSystem;
@@ -23,6 +24,7 @@ import dev.hytalemodding.impulse.core.internal.physicsstore.systems.IdentityInde
 import dev.hytalemodding.impulse.core.internal.physicsstore.systems.JointBindingSystem;
 import dev.hytalemodding.impulse.core.internal.physicsstore.systems.PersistenceCaptureSystem;
 import dev.hytalemodding.impulse.core.internal.physicsstore.systems.PersistenceHydrationSystem;
+import dev.hytalemodding.impulse.core.internal.physicsstore.systems.PhysicsStoreReadRequestSystem;
 import dev.hytalemodding.impulse.core.internal.physicsstore.systems.RequestDrainSystem;
 import dev.hytalemodding.impulse.core.internal.physicsstore.systems.SpaceBindingSystem;
 import dev.hytalemodding.impulse.core.internal.physicsstore.systems.SpaceSettingsApplicationSystem;
@@ -146,6 +148,9 @@ public final class PhysicsStoreRegistration {
         PhysicsStoreTypes.setSnapshotResourceType(registry.registerResource(
             PhysicsSnapshotResource.class,
             PhysicsSnapshotResource::new));
+        PhysicsStoreTypes.setReadQueueResourceType(registry.registerResource(
+            PhysicsStoreReadQueueResource.class,
+            PhysicsStoreReadQueueResource::new));
         PhysicsStoreTypes.setTerrainPayloadResourceType(registry.registerResource(
             PhysicsTerrainPayloadResource.class,
             PhysicsTerrainPayloadResource::new));
@@ -177,6 +182,7 @@ public final class PhysicsStoreRegistration {
         registry.registerSystem(new JointBindingSystem());
         registry.registerSystem(new TerrainColliderBindingSystem());
         registry.registerSystem(new TargetBindingSystem());
+        registry.registerSystem(new PhysicsStoreReadRequestSystem());
         registry.registerSystem(new CompletedStepPublicationSystem());
         registry.registerSystem(new PersistenceCaptureSystem());
         registry.registerSystem(new StepSubmissionSystem());
@@ -198,6 +204,8 @@ public final class PhysicsStoreRegistration {
             () -> store.getResource(PhysicsSpaceCompatibilityIndexResource.getResourceType()).clear());
         failure = runShutdownCleanup(failure,
             () -> store.getResource(PhysicsSnapshotResource.getResourceType()).clear());
+        failure = runShutdownCleanup(failure,
+            () -> store.getResource(PhysicsStoreReadQueueResource.getResourceType()).clear());
         failure = runShutdownCleanup(failure,
             () -> store.getResource(PhysicsTerrainPayloadResource.getResourceType()).clear());
         failure = runShutdownCleanup(failure,

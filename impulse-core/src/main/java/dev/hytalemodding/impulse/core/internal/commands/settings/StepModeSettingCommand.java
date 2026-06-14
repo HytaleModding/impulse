@@ -10,11 +10,11 @@ import com.hypixel.hytale.server.core.command.system.basecommands.AbstractAsyncP
 import com.hypixel.hytale.server.core.universe.PlayerRef;
 import com.hypixel.hytale.server.core.universe.world.World;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
+import dev.hytalemodding.impulse.core.plugin.physicsstore.PhysicsStoreDiagnostics;
 import dev.hytalemodding.impulse.core.plugin.settings.PhysicsStepMode;
 import dev.hytalemodding.impulse.core.plugin.resources.PhysicsWorldResource;
 import dev.hytalemodding.impulse.core.plugin.settings.PhysicsWorldSettings;
 import dev.hytalemodding.impulse.core.plugin.simulation.SpaceSummary;
-import dev.hytalemodding.impulse.core.plugin.simulation.query.UnsupportedCcdSpacesQuery;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import javax.annotation.Nonnull;
@@ -54,7 +54,7 @@ public class StepModeSettingCommand extends AbstractAsyncPlayerCommand {
         }
 
         if (stepMode == PhysicsStepMode.CCD) {
-            List<String> unsupportedSpaces = unsupportedCcdSpaces(resource);
+            List<String> unsupportedSpaces = unsupportedCcdSpaces(world);
             if (!unsupportedSpaces.isEmpty()) {
                 ctx.sender().sendMessage(Message.raw("CCD mode is not available for: "
                     + String.join(", ", unsupportedSpaces)));
@@ -71,9 +71,8 @@ public class StepModeSettingCommand extends AbstractAsyncPlayerCommand {
     }
 
     @Nonnull
-    private static List<String> unsupportedCcdSpaces(@Nonnull PhysicsWorldResource resource) {
-        return resource.query(new UnsupportedCcdSpacesQuery())
-            .completion()
+    private static List<String> unsupportedCcdSpaces(@Nonnull World world) {
+        return PhysicsStoreDiagnostics.unsupportedCcdSpacesAsync(world)
             .toCompletableFuture()
             .join()
             .stream()

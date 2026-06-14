@@ -12,11 +12,13 @@ import com.hypixel.hytale.server.core.modules.entity.component.TransformComponen
 import com.hypixel.hytale.server.core.universe.PlayerRef;
 import com.hypixel.hytale.server.core.universe.world.World;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
+import dev.hytalemodding.impulse.early.PhysicsStoreWorld;
 import dev.hytalemodding.impulse.api.PhysicsAxis;
 import dev.hytalemodding.impulse.api.PhysicsBodyType;
 import dev.hytalemodding.impulse.api.PhysicsCollisionFilters;
 import dev.hytalemodding.impulse.api.ShapeType;
 import dev.hytalemodding.impulse.api.SpaceId;
+import dev.hytalemodding.impulse.core.internal.physicsstore.resources.PhysicsSnapshotResource;
 import dev.hytalemodding.impulse.core.plugin.modules.control.ImpulseControllableComponent;
 import dev.hytalemodding.impulse.core.plugin.physicsstore.projection.BodyAttachmentComponent;
 import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyKind;
@@ -26,6 +28,7 @@ import dev.hytalemodding.impulse.core.plugin.body.RigidBodyKey;
 import dev.hytalemodding.impulse.core.plugin.modules.control.PhysicsControlSessions;
 import dev.hytalemodding.impulse.core.plugin.joint.JointKey;
 import dev.hytalemodding.impulse.core.plugin.physicsstore.PhysicsStoreAccess;
+import dev.hytalemodding.impulse.core.plugin.physicsstore.PhysicsStoreRaycasts;
 import dev.hytalemodding.impulse.core.plugin.physicsstore.components.BodyComponent;
 import dev.hytalemodding.impulse.core.plugin.physicsstore.components.ColliderComponent;
 import dev.hytalemodding.impulse.core.plugin.physicsstore.components.CollisionFilterComponent;
@@ -38,11 +41,11 @@ import dev.hytalemodding.impulse.core.plugin.physicsstore.requests.BodyActivatio
 import dev.hytalemodding.impulse.core.plugin.physicsstore.requests.BodyUpsertRequest;
 import dev.hytalemodding.impulse.core.plugin.physicsstore.requests.JointUpsertRequest;
 import dev.hytalemodding.impulse.core.plugin.physicsstore.requests.PhysicsStoreRequest;
+import dev.hytalemodding.impulse.core.plugin.physicsstore.snapshots.PhysicsStoreBodySnapshot;
 import dev.hytalemodding.impulse.core.plugin.resources.PhysicsWorldResource;
 import dev.hytalemodding.impulse.core.plugin.simulation.JointType;
-import dev.hytalemodding.impulse.core.plugin.simulation.query.RaycastAllQuery;
+import dev.hytalemodding.impulse.core.plugin.simulation.RigidBodyPose;
 import dev.hytalemodding.impulse.core.plugin.simulation.view.RaycastHitView;
-import dev.hytalemodding.impulse.core.plugin.simulation.query.RigidBodyStateQuery;
 import dev.hytalemodding.impulse.core.plugin.simulation.view.RigidBodyStateView;
 import java.util.ArrayList;
 import java.util.List;
@@ -103,7 +106,8 @@ public class GrabCommand extends AbstractAsyncPlayerCommand {
         Vector3d direction = ExamplePhysicsUtils.lookDirection(store, ref, transform).mul(RAY_LENGTH);
         Vector3d end = new Vector3d(start).add(direction);
 
-        HitSelection selection = findControllableHit(resource,
+        HitSelection selection = findControllableHit(world,
+            resource,
             store,
             targetSpaceId,
             controllableType,
@@ -123,7 +127,6 @@ public class GrabCommand extends AbstractAsyncPlayerCommand {
         }
 
         GrabPhysicsState physicsState = createGrabControl(world,
-            resource,
             selectedSpaceId,
             selection);
         if (physicsState == null) {
@@ -150,14 +153,9 @@ public class GrabCommand extends AbstractAsyncPlayerCommand {
 
     @Nullable
     private static GrabPhysicsState createGrabControl(@Nonnull World world,
-        @Nonnull PhysicsWorldResource resource,
         @Nonnull SpaceId selectedSpaceId,
         @Nonnull HitSelection selection) {
-        RigidBodyStateView selectedState = resource.query(new RigidBodyStateQuery(selection.bodyKey()))
-            .completion()
-            .toCompletableFuture()
-            .join()
-            .orElse(null);
+        RigidBodyStateView selectedState = bodyState(world, selection.bodyKey());
         if (selectedState == null) {
             return null;
         }
@@ -257,16 +255,17 @@ public class GrabCommand extends AbstractAsyncPlayerCommand {
     }
 
     @Nullable
-    private static HitSelection findControllableHit(@Nonnull PhysicsWorldResource resource,
+    private static HitSelection findControllableHit(@Nonnull World world,
+        @Nonnull PhysicsWorldResource resource,
         @Nonnull Store<EntityStore> store,
         @Nonnull SpaceId spaceId,
         @Nonnull ComponentType<EntityStore, ImpulseControllableComponent> controllableType,
         @Nonnull Vector3d start,
         @Nonnull Vector3d end) {
-        List<RaycastHitView> hits = resource.query(new RaycastAllQuery(spaceId,
+        List<RaycastHitView> hits = PhysicsStoreRaycasts.allAsync(world,
+                spaceId,
                 ExamplePhysicsUtils.toVector3f(start),
-                ExamplePhysicsUtils.toVector3f(end)))
-            .completion()
+                ExamplePhysicsUtils.toVector3f(end))
             .toCompletableFuture()
             .join();
         List<HitCandidate> candidates = new ArrayList<>(hits.size());
@@ -303,6 +302,20 @@ public class GrabCommand extends AbstractAsyncPlayerCommand {
             }
         }
         return best;
+    }
+
+    @Nullable
+    private static RigidBodyStateView bodyState(@Nonnull World world,
+        @Nonnull RigidBodyKey bodyKey) {
+        PhysicsStoreBodySnapshot body = ((PhysicsStoreWorld) world).getPhysicsStore()
+            .getStore()
+            .getResource(PhysicsSnapshotResource.getResourceType())
+            .getBody(bodyKey.value());
+        return body != null
+            ? new RigidBodyStateView(bodyKey,
+                body.bodyType(),
+                RigidBodyPose.of(body.position(), body.rotation()))
+            : null;
     }
 
     @Nonnull

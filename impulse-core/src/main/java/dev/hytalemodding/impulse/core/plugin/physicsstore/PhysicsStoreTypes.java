@@ -11,6 +11,7 @@ import dev.hytalemodding.impulse.core.internal.physicsstore.resources.PhysicsRes
 import dev.hytalemodding.impulse.core.internal.physicsstore.resources.PhysicsRuntimeResource;
 import dev.hytalemodding.impulse.core.internal.physicsstore.resources.PhysicsSpaceCompatibilityIndexResource;
 import dev.hytalemodding.impulse.core.internal.physicsstore.resources.PhysicsSnapshotResource;
+import dev.hytalemodding.impulse.core.internal.physicsstore.resources.PhysicsStoreReadQueueResource;
 import dev.hytalemodding.impulse.core.internal.physicsstore.resources.PhysicsTerrainPayloadResource;
 import dev.hytalemodding.impulse.core.internal.physicsstore.resources.PhysicsWorldCollisionIndexResource;
 import dev.hytalemodding.impulse.core.internal.physicsstore.persistence.PersistentPhysicsStoreResource;
@@ -87,6 +88,8 @@ public final class PhysicsStoreTypes {
     private static ResourceType<PhysicsStore, PhysicsIdentityIndexResource> identityIndexResourceType;
     @Nullable
     private static ResourceType<PhysicsStore, PhysicsSnapshotResource> snapshotResourceType;
+    @Nullable
+    private static ResourceType<PhysicsStore, PhysicsStoreReadQueueResource> readQueueResourceType;
     @Nullable
     private static ResourceType<PhysicsStore, PhysicsTerrainPayloadResource> terrainPayloadResourceType;
     @Nullable
@@ -211,6 +214,11 @@ public final class PhysicsStoreTypes {
     public static void setSnapshotResourceType(
         @Nonnull ResourceType<PhysicsStore, PhysicsSnapshotResource> type) {
         snapshotResourceType = Objects.requireNonNull(type, "type");
+    }
+
+    public static void setReadQueueResourceType(
+        @Nonnull ResourceType<PhysicsStore, PhysicsStoreReadQueueResource> type) {
+        readQueueResourceType = Objects.requireNonNull(type, "type");
     }
 
     public static void setTerrainPayloadResourceType(
@@ -357,6 +365,11 @@ public final class PhysicsStoreTypes {
     @Nonnull
     public static ResourceType<PhysicsStore, PhysicsSnapshotResource> snapshotResourceType() {
         return require(snapshotResourceType, "PhysicsSnapshotResource");
+    }
+
+    @Nonnull
+    public static ResourceType<PhysicsStore, PhysicsStoreReadQueueResource> readQueueResourceType() {
+        return require(readQueueResourceType, "PhysicsStoreReadQueueResource");
     }
 
     @Nonnull

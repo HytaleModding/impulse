@@ -8,9 +8,8 @@ import dev.hytalemodding.impulse.core.internal.persistence.PersistentPhysicsWorl
 import dev.hytalemodding.impulse.core.internal.physicsstore.persistence.PersistentPhysicsStoreResource;
 import dev.hytalemodding.impulse.core.internal.physicsstore.resources.PhysicsRestoreStatusResource;
 import dev.hytalemodding.impulse.core.internal.physicsstore.resources.PhysicsSpaceCompatibilityIndexResource;
-import dev.hytalemodding.impulse.core.plugin.resources.PhysicsWorldResource;
+import dev.hytalemodding.impulse.core.plugin.physicsstore.PhysicsStoreDiagnostics;
 import dev.hytalemodding.impulse.core.plugin.simulation.SpaceSummary;
-import dev.hytalemodding.impulse.core.plugin.simulation.query.SpaceSummaryQuery;
 import java.util.List;
 import javax.annotation.Nonnull;
 
@@ -44,7 +43,6 @@ public final class PhysicsPersistence {
 
     @Nonnull
     public static Status status(@Nonnull Store<EntityStore> store) {
-        PhysicsWorldResource runtime = runtime(store);
         Store<PhysicsStore> physicsStore = ((PhysicsStoreWorld) store.getExternalData().getWorld())
             .getPhysicsStore()
             .getStore();
@@ -54,7 +52,7 @@ public final class PhysicsPersistence {
             PersistentPhysicsWorldResource.getResourceType());
         PhysicsRestoreStatusResource restore = physicsStore.getResource(
             PhysicsRestoreStatusResource.getResourceType());
-        List<SpaceSummary> summaries = spaceSummaries(runtime);
+        List<SpaceSummary> summaries = PhysicsStoreDiagnostics.spaceSummaries(physicsStore);
         int runtimeBodies = summaries.stream().mapToInt(SpaceSummary::bodyCount).sum();
         int runtimeJoints = summaries.stream().mapToInt(SpaceSummary::jointCount).sum();
         int physicsStoreSpaces = physicsStore.getResource(
@@ -70,14 +68,6 @@ public final class PhysicsPersistence {
             persistent.getJoints().length,
             restoreState(restore),
             restoreMessage(restore, persistent, legacy));
-    }
-
-    @Nonnull
-    private static List<SpaceSummary> spaceSummaries(@Nonnull PhysicsWorldResource runtime) {
-        return runtime.query(new SpaceSummaryQuery(null))
-            .completion()
-            .toCompletableFuture()
-            .join();
     }
 
     @Nonnull
@@ -123,11 +113,6 @@ public final class PhysicsPersistence {
 
     private static boolean hasLegacyData(@Nonnull PersistentPhysicsWorldResource legacy) {
         return legacy.getSpaceCount() > 0 || legacy.getBodyCount() > 0 || legacy.getJointCount() > 0;
-    }
-
-    @Nonnull
-    private static PhysicsWorldResource runtime(@Nonnull Store<EntityStore> store) {
-        return store.getResource(PhysicsWorldResource.getResourceType());
     }
 
     public enum RestoreState {
