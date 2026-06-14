@@ -5,19 +5,12 @@ import dev.hytalemodding.impulse.core.plugin.events.PhysicsEventFrame;
 import dev.hytalemodding.impulse.core.plugin.events.PhysicsFrameEvent;
 import dev.hytalemodding.impulse.core.plugin.events.PhysicsSnapshotPublicationEvent;
 import dev.hytalemodding.impulse.core.plugin.events.PhysicsStepEvent;
-import dev.hytalemodding.impulse.core.internal.simulation.batch.RecordedPhysicsCommandBatch;
-import dev.hytalemodding.impulse.core.plugin.body.RigidBodyKey;
-import dev.hytalemodding.impulse.core.plugin.joint.JointKey;
-import dev.hytalemodding.impulse.core.plugin.simulation.PhysicsCommandCompletion;
-import dev.hytalemodding.impulse.core.plugin.simulation.PhysicsCommandMetadata;
-import dev.hytalemodding.impulse.core.plugin.simulation.PhysicsCommandResult;
 import dev.hytalemodding.impulse.core.plugin.snapshot.PublishedPhysicsSnapshotFrame;
 import java.util.List;
 import java.util.Objects;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
 import javax.annotation.Nonnull;
-import javax.annotation.Nullable;
 
 /**
  * Latest value-only event frame for physics-owner outcomes.
@@ -36,68 +29,6 @@ public final class PhysicsWorldEventState {
     @Nonnull
     public PhysicsEventFrame getLatestFrame() {
         return latestFrame.get();
-    }
-
-    @Nonnull
-    public PhysicsEventFrame publishCommandCompletion(long worldEpoch,
-        @Nonnull PublishedPhysicsSnapshotFrame latestCapturedSnapshotFrame,
-        @Nonnull PhysicsCommandMetadata metadata,
-        int commandCount,
-        @Nonnull PhysicsCommandCompletion completion) {
-        return publishCommandCompletion(worldEpoch,
-            latestCapturedSnapshotFrame,
-            metadata,
-            commandCount,
-            0,
-            null,
-            0,
-            null,
-            completion);
-    }
-
-    @Nonnull
-    public PhysicsEventFrame publishCommandCompletion(long worldEpoch,
-        @Nonnull PublishedPhysicsSnapshotFrame latestCapturedSnapshotFrame,
-        @Nonnull RecordedPhysicsCommandBatch batch,
-        @Nonnull PhysicsCommandCompletion completion) {
-        Objects.requireNonNull(batch, "batch");
-        return publishCommandCompletion(worldEpoch,
-            latestCapturedSnapshotFrame,
-            batch.metadata(),
-            batch.publicBatch().commandCount(),
-            batch.bodyKeyReferenceCount(),
-            batch.firstBodyKey(),
-            batch.jointKeyReferenceCount(),
-            batch.firstJointKey(),
-            completion);
-    }
-
-    @Nonnull
-    private PhysicsEventFrame publishCommandCompletion(long worldEpoch,
-        @Nonnull PublishedPhysicsSnapshotFrame latestCapturedSnapshotFrame,
-        @Nonnull PhysicsCommandMetadata metadata,
-        int commandCount,
-        int bodyKeyReferenceCount,
-        @Nullable RigidBodyKey firstBodyKey,
-        int jointKeyReferenceCount,
-        @Nullable JointKey firstJointKey,
-        @Nonnull PhysicsCommandCompletion completion) {
-        Objects.requireNonNull(latestCapturedSnapshotFrame, "latestCapturedSnapshotFrame");
-        Objects.requireNonNull(metadata, "metadata");
-        Objects.requireNonNull(completion, "completion");
-        PhysicsCommandResult firstRejected = completion.firstRejected().orElse(null);
-        PhysicsCommandBatchEvent commandEvent = new PhysicsCommandBatchEvent(metadata.commandBatchSequence(),
-            metadata.submittedServerTick(),
-            System.nanoTime(),
-            commandCount,
-            bodyKeyReferenceCount,
-            firstBodyKey,
-            jointKeyReferenceCount,
-            firstJointKey,
-            completion.allApplied(),
-            firstRejected != null ? firstRejected.commandSequence() : 0L,
-            firstRejected != null ? firstRejected.message() : null);
-        return publishFrame(worldEpoch, latestCapturedSnapshotFrame, List.of(commandEvent), List.of(), List.of());
     }
 
     @Nonnull
