@@ -33,6 +33,7 @@ import dev.hytalemodding.impulse.core.plugin.physicsstore.PhysicsBodySpawnReques
 import dev.hytalemodding.impulse.core.plugin.physicsstore.PhysicsStoreEntities;
 import dev.hytalemodding.impulse.core.plugin.physicsstore.components.BodyCommandComponent;
 import dev.hytalemodding.impulse.core.plugin.physicsstore.components.DynamicsComponent;
+import dev.hytalemodding.impulse.core.plugin.physicsstore.components.JointComponent;
 import dev.hytalemodding.impulse.core.plugin.physicsstore.components.TargetComponent;
 import dev.hytalemodding.impulse.core.plugin.physicsstore.projection.BodyAttachmentComponent;
 import dev.hytalemodding.impulse.core.plugin.physicsstore.requests.BodyUpsertRequest;
@@ -197,6 +198,16 @@ public final class ExamplePhysicsUtils {
         }
         appendPhysicsStoreBodyCommand(store, bodyRef, command);
         return true;
+    }
+
+    @Nonnull
+    public static Ref<PhysicsStore> addPhysicsStoreJoint(@Nonnull World world,
+        @Nonnull UUID jointUuid,
+        @Nonnull JointComponent joint) {
+        Store<PhysicsStore> store = physicsStore(world);
+        return store.addEntity(PhysicsStoreEntities.jointHolder(store,
+            Objects.requireNonNull(jointUuid, "jointUuid"),
+            joint), AddReason.SPAWN);
     }
 
     public static void appendPhysicsStoreBodyCommand(@Nonnull Store<PhysicsStore> store,

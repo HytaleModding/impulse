@@ -15,8 +15,6 @@ import dev.hytalemodding.impulse.api.SpaceId;
 import dev.hytalemodding.impulse.core.plugin.body.RigidBodyKey;
 import dev.hytalemodding.impulse.core.plugin.joint.JointKey;
 import dev.hytalemodding.impulse.core.plugin.physicsstore.components.JointComponent;
-import dev.hytalemodding.impulse.core.plugin.physicsstore.requests.JointUpsertRequest;
-import dev.hytalemodding.impulse.core.plugin.physicsstore.requests.PhysicsStoreRequest;
 import dev.hytalemodding.impulse.core.plugin.resources.PhysicsWorldResource;
 import dev.hytalemodding.impulse.core.plugin.simulation.JointType;
 import dev.hytalemodding.impulse.core.plugin.simulation.PhysicsShapeSpec;
@@ -97,14 +95,12 @@ public class JointsCommand extends AbstractAsyncPlayerCommand {
         }
 
         List<PendingBlockBody> pendingBodies = new ArrayList<>(10);
-        List<PhysicsStoreRequest> requests = new ArrayList<>(15);
-        createFixed(pendingBodies, requests, spaceUuid, spaceId, new Vector3d(origin));
-        createPoint(pendingBodies, requests, spaceUuid, spaceId, new Vector3d(origin).add(2.5, 0.0, 0.0));
-        createHinge(pendingBodies, requests, spaceUuid, spaceId, new Vector3d(origin).add(5.0, 0.0, 0.0));
-        createSlider(pendingBodies, requests, spaceUuid, spaceId, new Vector3d(origin).add(7.5, 0.0, 0.0));
-        createSpring(pendingBodies, requests, spaceUuid, spaceId, new Vector3d(origin).add(10.0, 0.0, 0.0));
         try {
-            ExamplePhysicsUtils.enqueuePhysicsStoreRequests(world, requests);
+            createFixed(pendingBodies, world, spaceUuid, spaceId, new Vector3d(origin));
+            createPoint(pendingBodies, world, spaceUuid, spaceId, new Vector3d(origin).add(2.5, 0.0, 0.0));
+            createHinge(pendingBodies, world, spaceUuid, spaceId, new Vector3d(origin).add(5.0, 0.0, 0.0));
+            createSlider(pendingBodies, world, spaceUuid, spaceId, new Vector3d(origin).add(7.5, 0.0, 0.0));
+            createSpring(pendingBodies, world, spaceUuid, spaceId, new Vector3d(origin).add(10.0, 0.0, 0.0));
         } catch (IllegalStateException exception) {
             return null;
         }
@@ -112,53 +108,55 @@ public class JointsCommand extends AbstractAsyncPlayerCommand {
     }
 
     private static void createFixed(@Nonnull List<PendingBlockBody> pendingBodies,
-        @Nonnull List<PhysicsStoreRequest> requests,
+        @Nonnull World world,
         @Nonnull UUID spaceUuid,
         @Nonnull SpaceId spaceId,
         @Nonnull Vector3d origin) {
-        RigidBodyKey anchorKey = spawnBox(pendingBodies, requests, spaceUuid, spaceId, origin, 0.0f);
-        RigidBodyKey childKey = spawnBox(pendingBodies, requests, spaceUuid, spaceId,
+        RigidBodyKey anchorKey = spawnBox(pendingBodies, world, spaceUuid, spaceId, origin, 0.0f);
+        RigidBodyKey childKey = spawnBox(pendingBodies, world, spaceUuid, spaceId,
             new Vector3d(origin).add(0.0, -TOUCHING_SPACING, 0.0), 1.0f);
-        requests.add(JointUpsertRequest.of(JointKey.random().value(),
+        ExamplePhysicsUtils.addPhysicsStoreJoint(world,
+            JointKey.random().value(),
             joint(spaceUuid,
                 anchorKey,
                 childKey,
                 JointType.FIXED,
                 new Vector3f(0.0f, -HALF_SIZE, 0.0f),
                 new Vector3f(0.0f, HALF_SIZE, 0.0f),
-                new Vector3f())));
+                new Vector3f()));
     }
 
     private static void createPoint(@Nonnull List<PendingBlockBody> pendingBodies,
-        @Nonnull List<PhysicsStoreRequest> requests,
+        @Nonnull World world,
         @Nonnull UUID spaceUuid,
         @Nonnull SpaceId spaceId,
         @Nonnull Vector3d origin) {
-        RigidBodyKey anchorKey = spawnBox(pendingBodies, requests, spaceUuid, spaceId, origin, 0.0f);
+        RigidBodyKey anchorKey = spawnBox(pendingBodies, world, spaceUuid, spaceId, origin, 0.0f);
         RigidBodyKey bobKey = spawnBox(pendingBodies,
-            requests,
+            world,
             spaceUuid,
             spaceId,
             new Vector3d(origin).add(0.0, -TOUCHING_SPACING, 0.0),
             1.0f,
             new Vector3f(1.5f, 0.0f, 0.0f));
-        requests.add(JointUpsertRequest.of(JointKey.random().value(),
+        ExamplePhysicsUtils.addPhysicsStoreJoint(world,
+            JointKey.random().value(),
             joint(spaceUuid,
                 anchorKey,
                 bobKey,
                 JointType.POINT,
                 new Vector3f(0.0f, -HALF_SIZE, 0.0f),
                 new Vector3f(0.0f, HALF_SIZE, 0.0f),
-                new Vector3f())));
+                new Vector3f()));
     }
 
     private static void createHinge(@Nonnull List<PendingBlockBody> pendingBodies,
-        @Nonnull List<PhysicsStoreRequest> requests,
+        @Nonnull World world,
         @Nonnull UUID spaceUuid,
         @Nonnull SpaceId spaceId,
         @Nonnull Vector3d origin) {
-        RigidBodyKey anchorKey = spawnBox(pendingBodies, requests, spaceUuid, spaceId, origin, 0.0f);
-        RigidBodyKey armKey = spawnBox(pendingBodies, requests, spaceUuid, spaceId,
+        RigidBodyKey anchorKey = spawnBox(pendingBodies, world, spaceUuid, spaceId, origin, 0.0f);
+        RigidBodyKey armKey = spawnBox(pendingBodies, world, spaceUuid, spaceId,
             new Vector3d(origin).add(0.0, -TOUCHING_SPACING, 0.0), 1.0f);
         JointComponent joint = joint(spaceUuid,
             anchorKey,
@@ -172,16 +170,16 @@ public class JointsCommand extends AbstractAsyncPlayerCommand {
         joint.setMotorEnabled(true);
         joint.setMotorTargetVelocity(1.5f);
         joint.setMotorMaxForce(3.0f);
-        requests.add(JointUpsertRequest.of(JointKey.random().value(), joint));
+        ExamplePhysicsUtils.addPhysicsStoreJoint(world, JointKey.random().value(), joint);
     }
 
     private static void createSlider(@Nonnull List<PendingBlockBody> pendingBodies,
-        @Nonnull List<PhysicsStoreRequest> requests,
+        @Nonnull World world,
         @Nonnull UUID spaceUuid,
         @Nonnull SpaceId spaceId,
         @Nonnull Vector3d origin) {
-        RigidBodyKey anchorKey = spawnBox(pendingBodies, requests, spaceUuid, spaceId, origin, 0.0f);
-        RigidBodyKey blockKey = spawnBox(pendingBodies, requests, spaceUuid, spaceId,
+        RigidBodyKey anchorKey = spawnBox(pendingBodies, world, spaceUuid, spaceId, origin, 0.0f);
+        RigidBodyKey blockKey = spawnBox(pendingBodies, world, spaceUuid, spaceId,
             new Vector3d(origin).add(TOUCHING_SPACING, 0.0, 0.0), 1.0f);
         JointComponent joint = joint(spaceUuid,
             anchorKey,
@@ -195,17 +193,17 @@ public class JointsCommand extends AbstractAsyncPlayerCommand {
         joint.setMotorEnabled(true);
         joint.setMotorTargetVelocity(1.0f);
         joint.setMotorMaxForce(4.0f);
-        requests.add(JointUpsertRequest.of(JointKey.random().value(), joint));
+        ExamplePhysicsUtils.addPhysicsStoreJoint(world, JointKey.random().value(), joint);
     }
 
     private static void createSpring(@Nonnull List<PendingBlockBody> pendingBodies,
-        @Nonnull List<PhysicsStoreRequest> requests,
+        @Nonnull World world,
         @Nonnull UUID spaceUuid,
         @Nonnull SpaceId spaceId,
         @Nonnull Vector3d origin) {
-        RigidBodyKey anchorKey = spawnBox(pendingBodies, requests, spaceUuid, spaceId, origin, 0.0f);
+        RigidBodyKey anchorKey = spawnBox(pendingBodies, world, spaceUuid, spaceId, origin, 0.0f);
         RigidBodyKey bobKey = spawnBox(pendingBodies,
-            requests,
+            world,
             spaceUuid,
             spaceId,
             new Vector3d(origin).add(0.0, -(TOUCHING_SPACING + SPRING_REST_LENGTH), 0.0),
@@ -221,33 +219,34 @@ public class JointsCommand extends AbstractAsyncPlayerCommand {
         joint.setSpringRestLength(SPRING_REST_LENGTH);
         joint.setSpringStiffness(20.0f);
         joint.setSpringDamping(2.0f);
-        requests.add(JointUpsertRequest.of(JointKey.random().value(), joint));
+        ExamplePhysicsUtils.addPhysicsStoreJoint(world, JointKey.random().value(), joint);
     }
 
     private static RigidBodyKey spawnBox(@Nonnull List<PendingBlockBody> pendingBodies,
-        @Nonnull List<PhysicsStoreRequest> requests,
+        @Nonnull World world,
         @Nonnull UUID spaceUuid,
         @Nonnull SpaceId spaceId,
         @Nonnull Vector3d position,
         float mass) {
-        return spawnBox(pendingBodies, requests, spaceUuid, spaceId, position, mass, null);
+        return spawnBox(pendingBodies, world, spaceUuid, spaceId, position, mass, null);
     }
 
     private static RigidBodyKey spawnBox(@Nonnull List<PendingBlockBody> pendingBodies,
-        @Nonnull List<PhysicsStoreRequest> requests,
+        @Nonnull World world,
         @Nonnull UUID spaceUuid,
         @Nonnull SpaceId spaceId,
         @Nonnull Vector3d position,
         float mass,
         @Nullable Vector3f linearVelocity) {
         RigidBodyKey bodyKey = RigidBodyKey.random();
-        requests.add(ExamplePhysicsUtils.bodyUpsertRequest(spaceUuid,
-            bodyKey.value(),
-            ExamplePhysicsUtils.toVector3f(position),
-            PhysicsShapeSpec.box(HALF_SIZE, HALF_SIZE, HALF_SIZE),
-            mass,
-            RigidBodySpawnSettings.material(0.6f, 0.15f),
-            linearVelocity));
+        ExamplePhysicsUtils.addPhysicsStoreBody(world,
+            ExamplePhysicsUtils.bodyUpsertRequest(spaceUuid,
+                bodyKey.value(),
+                ExamplePhysicsUtils.toVector3f(position),
+                PhysicsShapeSpec.box(HALF_SIZE, HALF_SIZE, HALF_SIZE),
+                mass,
+                RigidBodySpawnSettings.material(0.6f, 0.15f),
+                linearVelocity));
         pendingBodies.add(new PendingBlockBody(bodyKey,
             spaceId,
             ExamplePhysicsUtils.DEFAULT_BLOCK_TYPE,
