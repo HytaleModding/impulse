@@ -160,7 +160,6 @@ public class GrabCommand extends AbstractAsyncPlayerCommand {
             physicsState.anchorBodyKey(),
             physicsState.controlJointKey(),
             selection.attachment(),
-            selectedSpaceId,
             physicsState.originalBodyType(),
             Math.max(selection.distance(), MIN_HOLD_DISTANCE),
             VIEW_OFFSET,
