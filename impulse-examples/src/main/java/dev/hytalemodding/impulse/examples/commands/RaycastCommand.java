@@ -14,6 +14,7 @@ import com.hypixel.hytale.server.core.universe.PlayerRef;
 import com.hypixel.hytale.server.core.universe.world.World;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import dev.hytalemodding.impulse.api.SpaceId;
+import dev.hytalemodding.impulse.core.plugin.physicsstore.PhysicsStoreAsync;
 import dev.hytalemodding.impulse.core.plugin.physicsstore.PhysicsStoreRaycasts;
 import dev.hytalemodding.impulse.core.plugin.resources.PhysicsWorldResource;
 import dev.hytalemodding.impulse.core.plugin.simulation.view.RaycastHitView;
@@ -60,17 +61,20 @@ public class RaycastCommand extends AbstractAsyncPlayerCommand {
 
         DebugUtils.addArrow(world, start, direction, DebugUtils.COLOR_WHITE, 0.8f, 4.0f,
             DebugUtils.FLAG_FADE);
-        RaycastResult hit = PhysicsStoreRaycasts.closestAsync(world,
+        return PhysicsStoreAsync.acceptOnWorldThread(world,
+            PhysicsStoreRaycasts.closestAsync(world,
                 spaceId,
                 ExamplePhysicsUtils.toVector3f(start),
-                ExamplePhysicsUtils.toVector3f(end))
-            .toCompletableFuture()
-            .join()
-            .map(RaycastCommand::toResult)
-            .orElse(null);
+                ExamplePhysicsUtils.toVector3f(end)),
+            hit -> handleHit(ctx, world, hit.map(RaycastCommand::toResult).orElse(null)));
+    }
+
+    private static void handleHit(@Nonnull CommandContext ctx,
+        @Nonnull World world,
+        RaycastResult hit) {
         if (hit == null) {
             ctx.sender().sendMessage(Message.raw("Physics ray missed."));
-            return CompletableFuture.completedFuture(null);
+            return;
         }
 
         Vector3d hitPoint = hit.point();
@@ -83,7 +87,6 @@ public class RaycastCommand extends AbstractAsyncPlayerCommand {
 
         ctx.sender().sendMessage(Message.raw("Physics ray hit " + hit.shapeType()
             + " at distance " + hit.distance()));
-        return CompletableFuture.completedFuture(null);
     }
 
     private record RaycastResult(@Nonnull Vector3d point,

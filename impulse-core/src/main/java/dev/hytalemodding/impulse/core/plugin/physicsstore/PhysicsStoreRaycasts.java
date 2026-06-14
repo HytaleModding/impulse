@@ -22,6 +22,11 @@ import org.joml.Vector3f;
 
 /**
  * PhysicsStore live backend raycasts.
+ *
+ * <p>The synchronous methods read live backend state through {@link PhysicsRuntimeResource} and
+ * must only be called from the PhysicsStore tick lane or explicitly scheduled PhysicsStore owner
+ * work. Off-lane callers should use the {@code *Async} methods, which copy inputs, enqueue the
+ * read for {@link PhysicsStoreReadQueueResource}, and complete with copied hit views.</p>
  */
 public final class PhysicsStoreRaycasts {
 

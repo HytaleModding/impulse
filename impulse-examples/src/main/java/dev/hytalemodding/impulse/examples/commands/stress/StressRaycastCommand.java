@@ -11,6 +11,7 @@ import com.hypixel.hytale.server.core.universe.PlayerRef;
 import com.hypixel.hytale.server.core.universe.world.World;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import dev.hytalemodding.impulse.api.SpaceId;
+import dev.hytalemodding.impulse.core.plugin.physicsstore.PhysicsStoreAsync;
 import dev.hytalemodding.impulse.core.plugin.physicsstore.PhysicsStoreRaycasts;
 import dev.hytalemodding.impulse.core.plugin.resources.PhysicsWorldResource;
 import dev.hytalemodding.impulse.core.plugin.simulation.RaycastSegment;
@@ -65,15 +66,14 @@ public class StressRaycastCommand extends AbstractAsyncPlayerCommand {
         List<RaycastSegment> segments = getRaycastSegments(side, rays, playerPos);
 
         long startNanos = System.nanoTime();
-        long hits = PhysicsStoreRaycasts.closestBatchAsync(world, spaceId, segments)
-            .toCompletableFuture()
-            .join()
-            .hitCount();
-        long elapsedNanos = System.nanoTime() - startNanos;
-
-        ctx.sender().sendMessage(Message.raw("Ran " + rays + " raycasts: " + hits
-            + " hits in " + millis(elapsedNanos) + " ms."));
-        return CompletableFuture.completedFuture(null);
+        return PhysicsStoreAsync.acceptOnWorldThread(world,
+            PhysicsStoreRaycasts.closestBatchAsync(world, spaceId, segments),
+            result -> {
+                long elapsedNanos = System.nanoTime() - startNanos;
+                ctx.sender().sendMessage(Message.raw("Ran " + rays + " raycasts: "
+                    + result.hitCount()
+                    + " hits in " + millis(elapsedNanos) + " ms."));
+            });
     }
 
     @Nonnull

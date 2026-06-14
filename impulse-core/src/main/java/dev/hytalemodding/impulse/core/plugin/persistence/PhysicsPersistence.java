@@ -8,9 +8,12 @@ import dev.hytalemodding.impulse.core.internal.persistence.PersistentPhysicsWorl
 import dev.hytalemodding.impulse.core.internal.physicsstore.persistence.PersistentPhysicsStoreResource;
 import dev.hytalemodding.impulse.core.internal.physicsstore.resources.PhysicsRestoreStatusResource;
 import dev.hytalemodding.impulse.core.internal.physicsstore.resources.PhysicsSpaceCompatibilityIndexResource;
+import dev.hytalemodding.impulse.core.internal.physicsstore.resources.PhysicsSnapshotResource;
+import dev.hytalemodding.impulse.core.internal.physicsstore.resources.PhysicsStoreReadQueueResource;
 import dev.hytalemodding.impulse.core.plugin.physicsstore.PhysicsStoreDiagnostics;
 import dev.hytalemodding.impulse.core.plugin.simulation.SpaceSummary;
 import java.util.List;
+import java.util.concurrent.CompletionStage;
 import javax.annotation.Nonnull;
 
 /**
@@ -36,20 +39,54 @@ public final class PhysicsPersistence {
     }
 
     @Nonnull
+    public static CompletionStage<SaveResult> saveRuntimeSnapshotAsync(
+        @Nonnull Store<EntityStore> store) {
+        return statusAsync(store).thenApply(status -> new SaveResult(false,
+            status.schemaVersion(),
+            status.storedSpaces(),
+            status.storedBodies(),
+            status.storedJoints(),
+            "authoritative-physics-store-auto-capture"));
+    }
+
+    @Nonnull
     public static RestoreRequestResult requestRuntimeRestore(@Nonnull Store<EntityStore> store) {
         Status status = status(store);
         return new RestoreRequestResult(false, "authoritative-physics-store-auto-restore", status);
     }
 
     @Nonnull
+    public static CompletionStage<RestoreRequestResult> requestRuntimeRestoreAsync(
+        @Nonnull Store<EntityStore> store) {
+        return statusAsync(store).thenApply(status ->
+            new RestoreRequestResult(false, "authoritative-physics-store-auto-restore", status));
+    }
+
+    @Nonnull
     public static Status status(@Nonnull Store<EntityStore> store) {
-        Store<PhysicsStore> physicsStore = ((PhysicsStoreWorld) store.getExternalData().getWorld())
-            .getPhysicsStore()
+        Store<PhysicsStore> physicsStore = physicsStore(store);
+        return copiedStatus(physicsStore, legacyStatus(store));
+    }
+
+    @Nonnull
+    public static CompletionStage<Status> statusAsync(@Nonnull Store<EntityStore> store) {
+        Store<PhysicsStore> physicsStore = physicsStore(store);
+        LegacyStatus legacy = legacyStatus(store);
+        return physicsStore.getResource(PhysicsStoreReadQueueResource.getResourceType())
+            .enqueue(physics -> liveStatus(physics, legacy));
+    }
+
+    @Nonnull
+    private static Store<PhysicsStore> physicsStore(@Nonnull Store<EntityStore> store) {
+        return ((PhysicsStoreWorld) store.getExternalData().getWorld()).getPhysicsStore()
             .getStore();
+    }
+
+    @Nonnull
+    private static Status liveStatus(@Nonnull Store<PhysicsStore> physicsStore,
+        @Nonnull LegacyStatus legacy) {
         PersistentPhysicsStoreResource persistent = physicsStore.getResource(
             PersistentPhysicsStoreResource.getResourceType());
-        PersistentPhysicsWorldResource legacy = store.getResource(
-            PersistentPhysicsWorldResource.getResourceType());
         PhysicsRestoreStatusResource restore = physicsStore.getResource(
             PhysicsRestoreStatusResource.getResourceType());
         List<SpaceSummary> summaries = PhysicsStoreDiagnostics.spaceSummaries(physicsStore);
@@ -62,6 +99,31 @@ public final class PhysicsPersistence {
             runtimeBodies,
             0,
             runtimeJoints,
+            persistent.getSchemaVersion(),
+            persistent.getSpaces().length,
+            persistent.getBodies().length,
+            persistent.getJoints().length,
+            restoreState(restore),
+            restoreMessage(restore, persistent, legacy));
+    }
+
+    @Nonnull
+    private static Status copiedStatus(@Nonnull Store<PhysicsStore> physicsStore,
+        @Nonnull LegacyStatus legacy) {
+        PersistentPhysicsStoreResource persistent = physicsStore.getResource(
+            PersistentPhysicsStoreResource.getResourceType());
+        PhysicsRestoreStatusResource restore = physicsStore.getResource(
+            PhysicsRestoreStatusResource.getResourceType());
+        int runtimeBodies = physicsStore.getResource(PhysicsSnapshotResource.getResourceType())
+            .getLatestFrame()
+            .bodies()
+            .size();
+        int physicsStoreSpaces = physicsStore.getResource(
+            PhysicsSpaceCompatibilityIndexResource.getResourceType()).size();
+        return new Status(physicsStoreSpaces,
+            runtimeBodies,
+            0,
+            persistent.getJoints().length,
             persistent.getSchemaVersion(),
             persistent.getSpaces().length,
             persistent.getBodies().length,
@@ -84,7 +146,7 @@ public final class PhysicsPersistence {
     @Nonnull
     private static String restoreMessage(@Nonnull PhysicsRestoreStatusResource restore,
         @Nonnull PersistentPhysicsStoreResource persistent,
-        @Nonnull PersistentPhysicsWorldResource legacy) {
+        @Nonnull LegacyStatus legacy) {
         if (restore.isFailed()) {
             return restore.getFailureMessage();
         }
@@ -92,9 +154,9 @@ public final class PhysicsPersistence {
             return "PhysicsStore restore soft skips: " + restore.getSoftSkipsByReason();
         }
         if (hasLegacyData(legacy)) {
-            String legacyCounts = "legacy PersistentPhysicsWorld spaces=" + legacy.getSpaceCount()
-                + ", bodies=" + legacy.getBodyCount()
-                + ", joints=" + legacy.getJointCount();
+            String legacyCounts = "legacy PersistentPhysicsWorld spaces=" + legacy.spaceCount()
+                + ", bodies=" + legacy.bodyCount()
+                + ", joints=" + legacy.jointCount();
             if (hasAuthoritativeData(persistent)) {
                 return legacyCounts
                     + " ignored because PersistentPhysicsStore contains authoritative state.";
@@ -111,8 +173,17 @@ public final class PhysicsPersistence {
             || persistent.getJoints().length > 0;
     }
 
-    private static boolean hasLegacyData(@Nonnull PersistentPhysicsWorldResource legacy) {
-        return legacy.getSpaceCount() > 0 || legacy.getBodyCount() > 0 || legacy.getJointCount() > 0;
+    @Nonnull
+    private static LegacyStatus legacyStatus(@Nonnull Store<EntityStore> store) {
+        PersistentPhysicsWorldResource legacy = store.getResource(
+            PersistentPhysicsWorldResource.getResourceType());
+        return new LegacyStatus(legacy.getSpaceCount(),
+            legacy.getBodyCount(),
+            legacy.getJointCount());
+    }
+
+    private static boolean hasLegacyData(@Nonnull LegacyStatus legacy) {
+        return legacy.hasData();
     }
 
     public enum RestoreState {
@@ -160,6 +231,13 @@ public final class PhysicsPersistence {
 
         public boolean hasRestoreMessage() {
             return !restoreMessage.isEmpty();
+        }
+    }
+
+    private record LegacyStatus(int spaceCount, int bodyCount, int jointCount) {
+
+        private boolean hasData() {
+            return spaceCount > 0 || bodyCount > 0 || jointCount > 0;
         }
     }
 }

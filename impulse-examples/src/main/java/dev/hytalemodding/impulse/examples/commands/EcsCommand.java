@@ -21,6 +21,7 @@ import dev.hytalemodding.impulse.api.PhysicsBodyType;
 import dev.hytalemodding.impulse.api.SpaceId;
 import dev.hytalemodding.impulse.core.plugin.body.RigidBodyKey;
 import dev.hytalemodding.impulse.core.plugin.modules.worldcollision.WorldCollisionPrewarmStats;
+import dev.hytalemodding.impulse.core.plugin.physicsstore.PhysicsStoreAsync;
 import dev.hytalemodding.impulse.core.plugin.physicsstore.PhysicsStoreRaycasts;
 import dev.hytalemodding.impulse.core.plugin.physicsstore.components.BodyCommandComponent;
 import dev.hytalemodding.impulse.core.plugin.physicsstore.components.DynamicsComponent;
@@ -34,9 +35,9 @@ import dev.hytalemodding.impulse.examples.explosive.ExplosiveBlockComponent;
 import dev.hytalemodding.impulse.examples.explosive.ExplosiveBlockPolicy;
 import dev.hytalemodding.impulse.examples.explosive.ExplosiveFuseComponent;
 import java.util.List;
-import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionStage;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 import org.joml.Quaternionf;
@@ -155,16 +156,25 @@ public class EcsCommand extends AbstractCommandCollection {
             if (spaceId == null) {
                 return CompletableFuture.completedFuture(null);
             }
-            RaycastHitView hit = raycast(ctx, store, ref, spaceId);
+            return PhysicsStoreAsync.acceptOnWorldThread(world,
+                raycastAsync(ctx, store, ref, spaceId),
+                hit -> applyImpulse(ctx, store, ref, world, hit));
+        }
+
+        private void applyImpulse(@Nonnull CommandContext ctx,
+            @Nonnull Store<EntityStore> store,
+            @Nonnull Ref<EntityStore> ref,
+            @Nonnull World world,
+            @Nullable RaycastHitView hit) {
             if (hit == null || hit.bodyKey() == null) {
                 ctx.sender().sendMessage(Message.raw("No rigid body in view."));
-                return CompletableFuture.completedFuture(null);
+                return;
             }
 
             TransformComponent transform = store.getComponent(ref, TransformComponent.getComponentType());
             if (transform == null) {
                 ctx.sender().sendMessage(Message.raw("Cannot determine player direction."));
-                return CompletableFuture.completedFuture(null);
+                return;
             }
             int strength = ExamplePhysicsUtils.optionalInt(ctx, strengthArg, 8, 1, 64);
             Vector3d impulse = ExamplePhysicsUtils.lookDirection(store, ref, transform).mul(strength);
@@ -181,12 +191,11 @@ public class EcsCommand extends AbstractCommandCollection {
             if (!applied) {
                 ctx.sender().sendMessage(Message.raw("Rigid body " + hit.bodyKey()
                     + " is not bound in PhysicsStore."));
-                return CompletableFuture.completedFuture(null);
+                return;
             }
 
             ctx.sender().sendMessage(Message.raw("Queued ECS impulse command for "
                 + hit.bodyKey() + "."));
-            return CompletableFuture.completedFuture(null);
         }
     }
 
@@ -271,10 +280,18 @@ public class EcsCommand extends AbstractCommandCollection {
             if (spaceId == null) {
                 return CompletableFuture.completedFuture(null);
             }
-            RaycastHitView hit = raycast(ctx, store, ref, spaceId);
+            return PhysicsStoreAsync.acceptOnWorldThread(world,
+                raycastAsync(ctx, store, ref, spaceId),
+                hit -> attachView(ctx, store, spaceId, hit));
+        }
+
+        private static void attachView(@Nonnull CommandContext ctx,
+            @Nonnull Store<EntityStore> store,
+            @Nonnull SpaceId spaceId,
+            @Nullable RaycastHitView hit) {
             if (hit == null || hit.bodyKey() == null) {
                 ctx.sender().sendMessage(Message.raw("No rigid body in view."));
-                return CompletableFuture.completedFuture(null);
+                return;
             }
 
             Vector3d point = new Vector3d(hit.point().x, hit.point().y, hit.point().z);
@@ -288,7 +305,6 @@ public class EcsCommand extends AbstractCommandCollection {
 
             ctx.sender().sendMessage(Message.raw("Attached view-only ECS entity to "
                 + hit.bodyKey() + "."));
-            return CompletableFuture.completedFuture(null);
         }
     }
 
@@ -520,28 +536,25 @@ public class EcsCommand extends AbstractCommandCollection {
         }
     }
 
-    @Nullable
-    private static RaycastHitView raycast(@Nonnull CommandContext ctx,
+    @Nonnull
+    private static CompletionStage<RaycastHitView> raycastAsync(@Nonnull CommandContext ctx,
         @Nonnull Store<EntityStore> store,
         @Nonnull Ref<EntityStore> ref,
         @Nonnull SpaceId spaceId) {
         TransformComponent transform = store.getComponent(ref, TransformComponent.getComponentType());
         if (transform == null) {
             ctx.sender().sendMessage(Message.raw("Cannot determine player position."));
-            return null;
+            return CompletableFuture.completedFuture(null);
         }
 
         Vector3d start = ExamplePhysicsUtils.eyePosition(store, ref, transform);
         Vector3d end = new Vector3d(start)
             .add(ExamplePhysicsUtils.lookDirection(store, ref, transform).mul(RAY_LENGTH));
-        Optional<RaycastHitView> hit = PhysicsStoreRaycasts.closestAsync(
-                store.getExternalData().getWorld(),
+        return PhysicsStoreRaycasts.closestAsync(store.getExternalData().getWorld(),
                 spaceId,
                 vector(start),
                 vector(end))
-            .toCompletableFuture()
-            .join();
-        return hit.orElse(null);
+            .thenApply(hit -> hit.orElse(null));
     }
 
     @Nonnull

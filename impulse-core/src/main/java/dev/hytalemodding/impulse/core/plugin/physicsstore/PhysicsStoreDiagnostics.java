@@ -18,7 +18,12 @@ import java.util.concurrent.CompletionStage;
 import javax.annotation.Nonnull;
 
 /**
- * Synchronous owner-lane diagnostics for live PhysicsStore backend state.
+ * Diagnostics for live PhysicsStore backend state.
+ *
+ * <p>The synchronous methods read mutable runtime/backend state and must only run from the
+ * PhysicsStore tick lane or explicitly scheduled PhysicsStore owner work. Off-lane callers should
+ * use the {@code *Async} methods, which enqueue copied reads for
+ * {@link PhysicsStoreReadQueueResource}.</p>
  */
 public final class PhysicsStoreDiagnostics {
 

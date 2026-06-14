@@ -4,13 +4,15 @@ import com.hypixel.hytale.component.Store;
 import com.hypixel.hytale.server.core.Message;
 import com.hypixel.hytale.server.core.command.system.CommandContext;
 import com.hypixel.hytale.server.core.command.system.basecommands.AbstractCommandCollection;
-import com.hypixel.hytale.server.core.command.system.basecommands.AbstractWorldCommand;
+import com.hypixel.hytale.server.core.command.system.basecommands.AbstractAsyncWorldCommand;
 import com.hypixel.hytale.server.core.universe.world.World;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import dev.hytalemodding.impulse.core.plugin.persistence.PhysicsPersistence;
+import dev.hytalemodding.impulse.core.plugin.physicsstore.PhysicsStoreAsync;
 import dev.hytalemodding.impulse.core.plugin.persistence.PhysicsPersistence.RestoreRequestResult;
 import dev.hytalemodding.impulse.core.plugin.persistence.PhysicsPersistence.SaveResult;
 import dev.hytalemodding.impulse.core.plugin.persistence.PhysicsPersistence.Status;
+import java.util.concurrent.CompletableFuture;
 import javax.annotation.Nonnull;
 
 /**
@@ -25,17 +27,25 @@ public class PersistenceCommand extends AbstractCommandCollection {
         addSubCommand(new StatusCommand());
     }
 
-    private static final class SaveCommand extends AbstractWorldCommand {
+    private static final class SaveCommand extends AbstractAsyncWorldCommand {
 
         private SaveCommand() {
             super("save", "Report authoritative PhysicsStore persistence capture status", false);
         }
 
+        @Nonnull
         @Override
-        protected void execute(@Nonnull CommandContext ctx,
+        protected CompletableFuture<Void> executeAsync(@Nonnull CommandContext ctx,
+            @Nonnull World world) {
+            Store<EntityStore> store = world.getEntityStore().getStore();
+            return PhysicsStoreAsync.acceptOnWorldThread(world,
+                PhysicsPersistence.saveRuntimeSnapshotAsync(store),
+                result -> sendSaveResult(ctx, world, result));
+        }
+
+        private static void sendSaveResult(@Nonnull CommandContext ctx,
             @Nonnull World world,
-            @Nonnull Store<EntityStore> store) {
-            SaveResult result = PhysicsPersistence.saveRuntimeSnapshot(store);
+            @Nonnull SaveResult result) {
             if (!result.synced()) {
                 ctx.sendMessage(Message.raw("Manual Impulse persistence save is disabled in "
                     + "authoritative PhysicsStore mode; PhysicsStore captures canonical state "
@@ -57,24 +67,32 @@ public class PersistenceCommand extends AbstractCommandCollection {
         }
     }
 
-    private static final class LoadCommand extends AbstractWorldCommand {
+    private static final class LoadCommand extends AbstractAsyncWorldCommand {
 
         private LoadCommand() {
             super("load", "Report authoritative PhysicsStore persistence restore status", false);
         }
 
+        @Nonnull
         @Override
-        protected void execute(@Nonnull CommandContext ctx,
+        protected CompletableFuture<Void> executeAsync(@Nonnull CommandContext ctx,
+            @Nonnull World world) {
+            Store<EntityStore> store = world.getEntityStore().getStore();
+            return PhysicsStoreAsync.acceptOnWorldThread(world,
+                PhysicsPersistence.requestRuntimeRestoreAsync(store),
+                result -> sendLoadResult(ctx, world, result));
+        }
+
+        private static void sendLoadResult(@Nonnull CommandContext ctx,
             @Nonnull World world,
-            @Nonnull Store<EntityStore> store) {
-            Status status = PhysicsPersistence.status(store);
+            @Nonnull RestoreRequestResult result) {
+            Status status = result.status();
             if (status.restoreState() == PhysicsPersistence.RestoreState.PENDING_SPACES
                 || status.restoreState() == PhysicsPersistence.RestoreState.PENDING_BODIES_AND_JOINTS) {
                 ctx.sendMessage(Message.raw("Impulse persistence restore is already pending."));
                 return;
             }
 
-            RestoreRequestResult result = PhysicsPersistence.requestRuntimeRestore(store);
             if (!result.queued()) {
                 ctx.sendMessage(Message.raw("Manual Impulse persistence restore is disabled in "
                     + "authoritative PhysicsStore mode; PhysicsStore restores automatically from "
@@ -98,18 +116,25 @@ public class PersistenceCommand extends AbstractCommandCollection {
         }
     }
 
-    private static final class StatusCommand extends AbstractWorldCommand {
+    private static final class StatusCommand extends AbstractAsyncWorldCommand {
 
         private StatusCommand() {
             super("status", "Show runtime and stored Impulse persistence counts", false);
         }
 
+        @Nonnull
         @Override
-        protected void execute(@Nonnull CommandContext ctx,
-            @Nonnull World world,
-            @Nonnull Store<EntityStore> store) {
-            Status status = PhysicsPersistence.status(store);
+        protected CompletableFuture<Void> executeAsync(@Nonnull CommandContext ctx,
+            @Nonnull World world) {
+            Store<EntityStore> store = world.getEntityStore().getStore();
+            return PhysicsStoreAsync.acceptOnWorldThread(world,
+                PhysicsPersistence.statusAsync(store),
+                status -> sendStatus(ctx, world, status));
+        }
 
+        private static void sendStatus(@Nonnull CommandContext ctx,
+            @Nonnull World world,
+            @Nonnull Status status) {
             ctx.sendMessage(Message.raw("Impulse persistence status for " + world.getName()
                 + ": runtime spaces=" + status.runtimeSpaces()
                 + ", runtimeBodies="

@@ -3,7 +3,7 @@ package dev.hytalemodding.impulse.core.internal.modules.worldcollision.commands;
 import com.hypixel.hytale.component.Store;
 import com.hypixel.hytale.server.core.Message;
 import com.hypixel.hytale.server.core.command.system.CommandContext;
-import com.hypixel.hytale.server.core.command.system.basecommands.AbstractWorldCommand;
+import com.hypixel.hytale.server.core.command.system.basecommands.AbstractAsyncWorldCommand;
 import com.hypixel.hytale.server.core.universe.world.World;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import dev.hytalemodding.impulse.core.internal.diagnostics.PhysicsEntityDiagnostics;
@@ -14,24 +14,36 @@ import dev.hytalemodding.impulse.core.internal.resources.profiling.PhysicsRuntim
 import dev.hytalemodding.impulse.core.plugin.events.PhysicsCommandBatchEvent;
 import dev.hytalemodding.impulse.core.plugin.events.PhysicsEventFrame;
 import dev.hytalemodding.impulse.core.plugin.physicsstore.PhysicsStoreDiagnostics;
+import dev.hytalemodding.impulse.core.plugin.physicsstore.PhysicsStoreAsync;
 import dev.hytalemodding.impulse.core.plugin.resources.PhysicsWorldResource;
 import dev.hytalemodding.impulse.core.plugin.simulation.SpaceSummary;
 import dev.hytalemodding.impulse.core.internal.modules.worldcollision.profiling.WorldCollisionProfilingResource;
 import dev.hytalemodding.impulse.core.internal.modules.worldcollision.profiling.WorldCollisionProfilingResource.Snapshot;
 import java.util.List;
 import java.util.Locale;
+import java.util.concurrent.CompletableFuture;
 import javax.annotation.Nonnull;
 
-public class WorldCollisionPerfReportCommand extends AbstractWorldCommand {
+public class WorldCollisionPerfReportCommand extends AbstractAsyncWorldCommand {
 
     public WorldCollisionPerfReportCommand() {
         super("report", "Report Impulse world collision profiling metrics");
     }
 
+    @Nonnull
     @Override
-    protected void execute(@Nonnull CommandContext ctx,
+    protected CompletableFuture<Void> executeAsync(@Nonnull CommandContext ctx,
+        @Nonnull World world) {
+        Store<EntityStore> store = world.getEntityStore().getStore();
+        return PhysicsStoreAsync.acceptOnWorldThread(world,
+            PhysicsStoreDiagnostics.spaceSummariesAsync(world),
+            summaries -> sendReport(ctx, world, store, summaries));
+    }
+
+    private static void sendReport(@Nonnull CommandContext ctx,
         @Nonnull World world,
-        @Nonnull Store<EntityStore> store) {
+        @Nonnull Store<EntityStore> store,
+        @Nonnull List<SpaceSummary> summaries) {
         PhysicsRuntimeProfilingResource runtimeProfiling = store.getResource(
             PhysicsRuntimeProfilingResource.getResourceType());
         StepSnapshot cumulativeStep = runtimeProfiling.getCumulativeStep();
@@ -51,7 +63,7 @@ public class WorldCollisionPerfReportCommand extends AbstractWorldCommand {
         Snapshot worst = profiling.getWorstTickSnapshot();
         PhysicsEntityDiagnostics.Snapshot entityDiagnostics = PhysicsEntityDiagnostics.collect(store);
         PhysicsWorldResource physicsWorld = store.getResource(PhysicsWorldResource.getResourceType());
-        RuntimeFootprint runtimeFootprint = RuntimeFootprint.collect(world);
+        RuntimeFootprint runtimeFootprint = RuntimeFootprint.collect(summaries);
 
         ctx.sender().sendMessage(Message.raw("Impulse runtime profiling: "
             + ((runtimeProfiling.isEnabled() || profiling.isEnabled()) ? "enabled" : "disabled")));
@@ -563,7 +575,7 @@ public class WorldCollisionPerfReportCommand extends AbstractWorldCommand {
         int runtimeJoints) {
 
         @Nonnull
-        private static RuntimeFootprint collect(@Nonnull World world) {
+        private static RuntimeFootprint collect(@Nonnull List<SpaceSummary> summaries) {
             int spaces = 0;
             int backendBodies = 0;
             int backendJoints = 0;
@@ -578,9 +590,6 @@ public class WorldCollisionPerfReportCommand extends AbstractWorldCommand {
             int runtimeTerrainContactPairs = 0;
             int runtimeActiveIslands = 0;
             int runtimeJoints = 0;
-            List<SpaceSummary> summaries = PhysicsStoreDiagnostics.spaceSummariesAsync(world)
-                .toCompletableFuture()
-                .join();
             for (SpaceSummary summary : summaries) {
                 spaces++;
                 backendBodies += summary.bodyCount();
