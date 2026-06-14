@@ -18,12 +18,12 @@ import java.util.function.Function;
 import javax.annotation.Nonnull;
 
 /**
- * Owner-lane live backend read queue drained by PhysicsStore systems.
+ * Owner-lane backend read queue drained by PhysicsStore systems.
  *
- * <p>Enqueued reads must capture copied inputs only. They execute during PhysicsStore ticking and
- * must return copied values rather than live stores, refs, runtime resources, or backend
- * handles. This is an explicit boundary contract for callers; do not enforce it with generic
- * runtime object inspection in this hot path.</p>
+ * <p>Reads execute during PhysicsStore ticking. Callers must pass value-copied inputs and return
+ * immutable values rather than live stores, refs, runtime resources, or backend handles. This is a
+ * reviewable caller contract; do not enforce it with generic runtime object inspection in this hot
+ * path.</p>
  */
 public final class PhysicsStoreReadQueueResource implements Resource<PhysicsStore> {
 
@@ -34,7 +34,7 @@ public final class PhysicsStoreReadQueueResource implements Resource<PhysicsStor
     }
 
     @Nonnull
-    public synchronized <R> CompletionStage<R> enqueueCopiedRead(
+    public synchronized <R> CompletionStage<R> enqueueRead(
         @Nonnull Function<Store<PhysicsStore>, R> read) {
         CompletableFuture<R> completion = new CompletableFuture<>();
         reads.add(new QueuedRead<>(read, completion));
