@@ -199,16 +199,21 @@ public abstract class PhysicsWorldResource implements Resource<EntityStore> {
     public abstract int getSpaceCount();
 
     /**
-     * Captures and publishes body snapshots from the live backend state.
+     * Captures and publishes body snapshots from the live backend state in the legacy runtime, or
+     * returns the latest copied PhysicsStore snapshot count when authoritative PhysicsStore is
+     * active.
      *
-     * @return number of published body snapshots
+     * @return number of copied body snapshots
      */
     public abstract int refreshBodySnapshots();
 
     /**
-     * Returns the latest published snapshot for a body, capturing a copied live snapshot on the
-     * physics owner if the body is registered but missing from the published frame. The fallback
-     * snapshot is not published into the reader-side frame.
+     * Returns the latest published snapshot for a body.
+     *
+     * <p>The legacy runtime may capture a copied live snapshot on the physics owner when the body
+     * is registered but missing from the published frame. Authoritative PhysicsStore mode reads
+     * only the copied {@code PhysicsSnapshotResource} frame and does not synchronously touch the
+     * live backend.</p>
      */
     @Nonnull
     public abstract PhysicsBodySnapshot getBodySnapshot(@Nonnull RigidBodyKey bodyKey);
@@ -224,7 +229,8 @@ public abstract class PhysicsWorldResource implements Resource<EntityStore> {
     public abstract int getBodySnapshotCount(@Nonnull SpaceId spaceId);
 
     /**
-     * Returns the number of occupied snapshot broad-phase cells.
+     * Returns the number of occupied legacy snapshot broad-phase cells, or {@code 0} for the flat
+     * authoritative PhysicsStore snapshot frame.
      */
     public abstract int getBodySnapshotCellCount();
 
