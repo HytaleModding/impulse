@@ -18,6 +18,7 @@ import dev.hytalemodding.impulse.core.internal.physicsstore.resources.PhysicsSto
 import dev.hytalemodding.impulse.core.internal.physicsstore.resources.PhysicsTerrainPayloadResource;
 import dev.hytalemodding.impulse.core.internal.physicsstore.resources.PhysicsWorldCollisionIndexResource;
 import dev.hytalemodding.impulse.core.internal.physicsstore.systems.BodyBindingSystem;
+import dev.hytalemodding.impulse.core.internal.physicsstore.systems.BodyCommandApplicationSystem;
 import dev.hytalemodding.impulse.core.internal.physicsstore.systems.ColliderBindingSystem;
 import dev.hytalemodding.impulse.core.internal.physicsstore.systems.CompletedStepPublicationSystem;
 import dev.hytalemodding.impulse.core.internal.physicsstore.systems.IdentityIndexSystem;
@@ -33,6 +34,7 @@ import dev.hytalemodding.impulse.core.internal.physicsstore.systems.TargetBindin
 import dev.hytalemodding.impulse.core.internal.physicsstore.systems.TerrainColliderBindingSystem;
 import dev.hytalemodding.impulse.core.internal.physicsstore.systems.WorldCollisionIndexSystem;
 import dev.hytalemodding.impulse.core.plugin.physicsstore.PhysicsStoreTypes;
+import dev.hytalemodding.impulse.core.plugin.physicsstore.components.BodyCommandComponent;
 import dev.hytalemodding.impulse.core.plugin.physicsstore.components.BodyComponent;
 import dev.hytalemodding.impulse.core.plugin.physicsstore.components.ColliderComponent;
 import dev.hytalemodding.impulse.core.plugin.physicsstore.components.CollisionLodSettingsComponent;
@@ -82,6 +84,10 @@ public final class PhysicsStoreRegistration {
         PhysicsStoreTypes.setBodyComponentType(registry.registerComponent(BodyComponent.class,
             "Body",
             BodyComponent.CODEC));
+        PhysicsStoreTypes.setBodyCommandComponentType(registry.registerComponent(
+            BodyCommandComponent.class,
+            "BodyCommand",
+            BodyCommandComponent.CODEC));
         PhysicsStoreTypes.setDynamicsComponentType(registry.registerComponent(DynamicsComponent.class,
             "Dynamics",
             DynamicsComponent.CODEC));
@@ -181,6 +187,7 @@ public final class PhysicsStoreRegistration {
         registry.registerSystem(new ColliderBindingSystem());
         registry.registerSystem(new JointBindingSystem());
         registry.registerSystem(new TerrainColliderBindingSystem());
+        registry.registerSystem(new BodyCommandApplicationSystem());
         registry.registerSystem(new TargetBindingSystem());
         registry.registerSystem(new PhysicsStoreReadRequestSystem());
         registry.registerSystem(new CompletedStepPublicationSystem());
