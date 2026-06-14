@@ -29,6 +29,7 @@ import dev.hytalemodding.impulse.core.internal.physicsstore.resources.PhysicsSna
 import dev.hytalemodding.impulse.core.internal.physicsstore.resources.PhysicsWorldCollisionIndexResource;
 import dev.hytalemodding.impulse.core.internal.physicsstore.resources.PhysicsWorldCollisionIndexResource.SpaceWorldCollisionSettings;
 import dev.hytalemodding.impulse.core.internal.systems.sync.PhysicsSyncSystem;
+import dev.hytalemodding.impulse.core.plugin.physicsstore.PhysicsStoreThreading;
 import dev.hytalemodding.impulse.core.plugin.physicsstore.snapshots.PhysicsStoreBodySnapshot;
 import dev.hytalemodding.impulse.core.plugin.physicsstore.snapshots.PhysicsStoreSnapshotFrame;
 import it.unimi.dsi.fastutil.longs.LongOpenHashSet;
@@ -77,6 +78,8 @@ public final class PhysicsStoreWorldCollisionProducerSystem extends TickingSyste
             World world = store.getExternalData().getWorld();
             PhysicsStore physicsStore = ((PhysicsStoreWorld) world).getPhysicsStore();
             Store<PhysicsStore> physics = physicsStore.getStore();
+            PhysicsStoreThreading.requireWorldThread(physics,
+                "produce PhysicsStore world-collision terrain mutations");
             PhysicsTerrainMutationQueueResource queue = physics.getResource(
                 PhysicsTerrainMutationQueueResource.getResourceType());
             PhysicsWorldCollisionIndexResource worldCollisionIndex = physics.getResource(

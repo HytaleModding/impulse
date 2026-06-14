@@ -28,6 +28,7 @@ import dev.hytalemodding.impulse.core.internal.resources.profiling.PhysicsRuntim
 import dev.hytalemodding.impulse.core.internal.systems.visual.GeneratedProxyLifecycle;
 import dev.hytalemodding.impulse.core.internal.systems.visual.PhysicsDetachedVisualMaterializationSystem;
 import dev.hytalemodding.impulse.core.internal.systems.visual.VisualInterestCollector;
+import dev.hytalemodding.impulse.core.plugin.physicsstore.PhysicsStoreThreading;
 import dev.hytalemodding.impulse.core.plugin.physicsstore.projection.BodyAttachmentComponent;
 import dev.hytalemodding.impulse.core.plugin.physicsstore.projection.BodyAttachmentComponent.AttachmentLifecycle;
 import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyRegistrationView;
@@ -160,7 +161,10 @@ public class PhysicsSyncSystem extends EntityTickingSystem<EntityStore> {
         @Nonnull Store<EntityStore> store) {
         PhysicsStore physicsStore =
             ((PhysicsStoreWorld) store.getExternalData().getWorld()).getPhysicsStore();
-        return physicsStore.getStore().getResource(
+        Store<PhysicsStore> physics = physicsStore.getStore();
+        PhysicsStoreThreading.requireWorldThread(physics,
+            "read copied PhysicsStore sync snapshots");
+        return physics.getResource(
             PhysicsSnapshotResource.getResourceType());
     }
 

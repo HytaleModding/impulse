@@ -16,6 +16,7 @@ import dev.hytalemodding.impulse.core.internal.physicsstore.resources.PhysicsSpa
 import dev.hytalemodding.impulse.core.internal.physicsstore.resources.PhysicsTerrainMutationQueueResource;
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsWorldRuntimeResource;
 import dev.hytalemodding.impulse.core.plugin.modules.worldcollision.WorldCollisionMode;
+import dev.hytalemodding.impulse.core.plugin.physicsstore.PhysicsStoreThreading;
 import dev.hytalemodding.impulse.core.plugin.settings.PhysicsWorldCollisionSettings;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
@@ -75,7 +76,10 @@ final class PersistentPhysicsRestoreTerrainPrewarm {
 
     @Nonnull
     private static Store<PhysicsStore> physicsStore(@Nonnull World world) {
-        return ((PhysicsStoreWorld) world).getPhysicsStore().getStore();
+        Store<PhysicsStore> store = ((PhysicsStoreWorld) world).getPhysicsStore().getStore();
+        PhysicsStoreThreading.requireWorldThread(store,
+            "read PhysicsStore restore terrain prewarm state");
+        return store;
     }
 
     @Nonnull

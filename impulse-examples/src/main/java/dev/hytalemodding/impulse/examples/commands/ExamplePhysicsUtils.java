@@ -191,7 +191,10 @@ public final class ExamplePhysicsUtils {
 
     @Nonnull
     private static PhysicsTerrainMutationQueueResource terrainMutationQueue(@Nonnull World world) {
-        return physicsStore(world).getResource(PhysicsTerrainMutationQueueResource.getResourceType());
+        Store<PhysicsStore> store = physicsStore(world);
+        PhysicsStoreThreading.requireWorldThread(store,
+            "read PhysicsStore terrain mutation queue");
+        return store.getResource(PhysicsTerrainMutationQueueResource.getResourceType());
     }
 
     @Nonnull

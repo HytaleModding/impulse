@@ -12,6 +12,7 @@ import com.hypixel.hytale.server.core.modules.entity.component.TransformComponen
 import com.hypixel.hytale.server.core.universe.PlayerRef;
 import com.hypixel.hytale.server.core.universe.world.World;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
+import com.hypixel.hytale.server.core.universe.world.storage.PhysicsStore;
 import dev.hytalemodding.impulse.early.PhysicsStoreWorld;
 import dev.hytalemodding.impulse.api.PhysicsAxis;
 import dev.hytalemodding.impulse.api.PhysicsBodyType;
@@ -29,6 +30,7 @@ import dev.hytalemodding.impulse.core.plugin.modules.control.PhysicsControlSessi
 import dev.hytalemodding.impulse.core.plugin.joint.JointKey;
 import dev.hytalemodding.impulse.core.plugin.physicsstore.PhysicsStoreAsync;
 import dev.hytalemodding.impulse.core.plugin.physicsstore.PhysicsStoreRaycasts;
+import dev.hytalemodding.impulse.core.plugin.physicsstore.PhysicsStoreThreading;
 import dev.hytalemodding.impulse.core.plugin.physicsstore.components.BodyCommandComponent;
 import dev.hytalemodding.impulse.core.plugin.physicsstore.components.BodyComponent;
 import dev.hytalemodding.impulse.core.plugin.physicsstore.components.ColliderComponent;
@@ -320,8 +322,10 @@ public class GrabCommand extends AbstractAsyncPlayerCommand {
     @Nullable
     private static RigidBodyStateView bodyState(@Nonnull World world,
         @Nonnull RigidBodyKey bodyKey) {
-        PhysicsStoreBodySnapshot body = ((PhysicsStoreWorld) world).getPhysicsStore()
-            .getStore()
+        Store<PhysicsStore> store = ((PhysicsStoreWorld) world).getPhysicsStore().getStore();
+        PhysicsStoreThreading.requireWorldThread(store,
+            "read copied PhysicsStore grab body snapshot");
+        PhysicsStoreBodySnapshot body = store
             .getResource(PhysicsSnapshotResource.getResourceType())
             .getBody(bodyKey.value());
         return body != null
