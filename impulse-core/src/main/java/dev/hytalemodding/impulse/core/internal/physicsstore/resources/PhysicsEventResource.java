@@ -42,7 +42,6 @@ public final class PhysicsEventResource implements Resource<PhysicsStore> {
             serverTick,
             safeSnapshotSequence,
             PublishedPhysicsSnapshotFrame.Status.COMPLETE,
-            0L,
             bodyCount,
             stepNanos,
             snapshotNanos);
@@ -51,8 +50,6 @@ public final class PhysicsEventResource implements Resource<PhysicsStore> {
             safeSnapshotSequence,
             safeSnapshotSequence,
             serverTick,
-            0L,
-            List.of(),
             List.of(stepEvent),
             List.of(),
             Objects.requireNonNull(physicsEvents, "physicsEvents"),
