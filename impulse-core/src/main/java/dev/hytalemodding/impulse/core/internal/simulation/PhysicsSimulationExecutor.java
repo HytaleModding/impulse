@@ -1,17 +1,13 @@
 package dev.hytalemodding.impulse.core.internal.simulation;
 
-import dev.hytalemodding.impulse.api.PhysicsBodySnapshot;
 import dev.hytalemodding.impulse.api.PhysicsBodyType;
-import dev.hytalemodding.impulse.api.ShapeType;
 import dev.hytalemodding.impulse.api.SpaceId;
-import dev.hytalemodding.impulse.api.runtime.BackendRayHitSink;
 import dev.hytalemodding.impulse.api.runtime.BackendRuntimeCodes;
 import dev.hytalemodding.impulse.core.internal.resources.BackendBodyHandle;
 import dev.hytalemodding.impulse.core.internal.resources.BackendJointHandle;
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsSpaceBinding;
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsWorldRuntimeResource;
 import dev.hytalemodding.impulse.core.internal.resources.body.PhysicsBodyRegistration;
-import dev.hytalemodding.impulse.core.internal.resources.body.PhysicsBodySnapshots;
 import dev.hytalemodding.impulse.core.internal.resources.joint.PhysicsJointRegistration;
 import dev.hytalemodding.impulse.core.internal.simulation.batch.RecordedPhysicsCommandBatch;
 import dev.hytalemodding.impulse.core.internal.simulation.batch.RigidBodySpawnBatch;
@@ -20,36 +16,16 @@ import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyKind;
 import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyPersistenceMode;
 import dev.hytalemodding.impulse.core.plugin.body.RigidBodyKey;
 import dev.hytalemodding.impulse.core.plugin.joint.JointKey;
-import dev.hytalemodding.impulse.core.plugin.simulation.query.CcdSupportQuery;
 import dev.hytalemodding.impulse.core.plugin.simulation.JointType;
 import dev.hytalemodding.impulse.core.plugin.simulation.PhysicsCommandCompletion;
 import dev.hytalemodding.impulse.core.plugin.simulation.PhysicsCommandResult;
-import dev.hytalemodding.impulse.core.plugin.simulation.query.PhysicsQuery;
 import dev.hytalemodding.impulse.core.plugin.simulation.PhysicsShapeSpec;
-import dev.hytalemodding.impulse.core.plugin.simulation.query.RaycastAllQuery;
-import dev.hytalemodding.impulse.core.plugin.simulation.query.RaycastClosestBatchQuery;
-import dev.hytalemodding.impulse.core.plugin.simulation.RaycastClosestBatchResult;
-import dev.hytalemodding.impulse.core.plugin.simulation.query.RaycastClosestQuery;
-import dev.hytalemodding.impulse.core.plugin.simulation.view.RaycastHitView;
-import dev.hytalemodding.impulse.core.plugin.simulation.RaycastSegment;
-import dev.hytalemodding.impulse.core.plugin.simulation.query.RuntimeJointCountQuery;
 import dev.hytalemodding.impulse.core.plugin.simulation.RigidBodySpawnSettings;
-import dev.hytalemodding.impulse.core.plugin.simulation.RigidBodyPose;
-import dev.hytalemodding.impulse.core.plugin.simulation.query.RigidBodyStateQuery;
-import dev.hytalemodding.impulse.core.plugin.simulation.view.RigidBodyStateView;
-import dev.hytalemodding.impulse.core.plugin.simulation.query.SolverCapabilityQuery;
-import dev.hytalemodding.impulse.core.plugin.simulation.SolverCapabilitySummary;
-import dev.hytalemodding.impulse.core.plugin.simulation.query.SpaceBodyCountQuery;
-import dev.hytalemodding.impulse.core.plugin.simulation.SpaceSummary;
-import dev.hytalemodding.impulse.core.plugin.simulation.query.SpaceSummaryQuery;
-import dev.hytalemodding.impulse.core.plugin.simulation.query.UnsupportedCcdSpacesQuery;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
-import java.util.Optional;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
-import org.joml.Vector3f;
 
 /**
  * Owner-lane translator from public simulation commands to live backend calls.
@@ -323,26 +299,6 @@ public final class PhysicsSimulationExecutor implements PhysicsCommandDispatcher
             (operations.flags(index) & PhysicsCommandOperations.FLAG_MOTOR_ENABLED) != 0,
             operations.floatAt(index, PhysicsCommandOperations.CREATE_JOINT_MOTOR_TARGET_VELOCITY_FLOAT_SLOT),
             operations.floatAt(index, PhysicsCommandOperations.CREATE_JOINT_MOTOR_MAX_FORCE_FLOAT_SLOT));
-    }
-
-    @Nonnull
-    public <R> R query(@Nonnull PhysicsQuery<R> query) {
-        Objects.requireNonNull(query, "query");
-        Object result = switch (query) {
-            case RaycastClosestQuery raycast -> raycastClosest(raycast);
-            case RaycastClosestBatchQuery raycasts -> raycastClosestBatch(raycasts);
-            case RaycastAllQuery raycast -> raycastAll(raycast);
-            case SpaceBodyCountQuery count -> spaceBodyCount(count);
-            case SpaceSummaryQuery summary -> spaceSummary(summary);
-            case CcdSupportQuery ignored -> ccdSupported();
-            case UnsupportedCcdSpacesQuery ignored -> unsupportedCcdSpaces();
-            case SolverCapabilityQuery solver -> solverCapability(solver);
-            case RigidBodyStateQuery state -> rigidBodyState(state);
-            case RuntimeJointCountQuery ignored -> runtimeJointCount();
-        };
-        @SuppressWarnings("unchecked")
-        R typed = (R) result;
-        return typed;
     }
 
     @Override
@@ -747,255 +703,6 @@ public final class PhysicsSimulationExecutor implements PhysicsCommandDispatcher
     }
 
     @Nonnull
-    private Optional<RaycastHitView> raycastClosest(@Nonnull RaycastClosestQuery query) {
-        PhysicsSpaceBinding space = requireSpace(query.spaceId());
-        RayHitCapture hit = new RayHitCapture();
-        Vector3f from = query.from();
-        Vector3f to = query.to();
-        boolean hitFound = space.runtime().raycastClosest(space.backendSpaceHandle().value(),
-            from.x,
-            from.y,
-            from.z,
-            to.x,
-            to.y,
-            to.z,
-            hit);
-        return hitFound && hit.captured ? Optional.of(toView(hit)) : Optional.empty();
-    }
-
-    @Nonnull
-    private RaycastClosestBatchResult raycastClosestBatch(@Nonnull RaycastClosestBatchQuery query) {
-        PhysicsSpaceBinding space = requireSpace(query.spaceId());
-        int rayCount = query.rayCount();
-        RaycastHitView[] hits = new RaycastHitView[rayCount];
-        Vector3f from = new Vector3f();
-        Vector3f to = new Vector3f();
-        for (int index = 0; index < rayCount; index++) {
-            RaycastSegment ray = query.ray(index);
-            ray.copyFrom(from);
-            ray.copyTo(to);
-            int rayIndex = index;
-            space.runtime().raycastClosest(space.backendSpaceHandle().value(),
-                from.x,
-                from.y,
-                from.z,
-                to.x,
-                to.y,
-                to.z,
-                (bodyId,
-                    pointX,
-                    pointY,
-                    pointZ,
-                    normalX,
-                    normalY,
-                    normalZ,
-                    fraction,
-                    distance) -> hits[rayIndex] = toView(bodyId,
-                    pointX,
-                    pointY,
-                    pointZ,
-                    normalX,
-                    normalY,
-                    normalZ,
-                    fraction,
-                    distance));
-        }
-        return new RaycastClosestBatchResult(hits);
-    }
-
-    @Nonnull
-    private List<RaycastHitView> raycastAll(@Nonnull RaycastAllQuery query) {
-        PhysicsSpaceBinding space = requireSpace(query.spaceId());
-        Vector3f from = query.from();
-        Vector3f to = query.to();
-        List<RaycastHitView> views = new ArrayList<>();
-        space.runtime().raycastAll(space.backendSpaceHandle().value(),
-            from.x,
-            from.y,
-            from.z,
-            to.x,
-            to.y,
-            to.z,
-            (bodyId,
-                pointX,
-                pointY,
-                pointZ,
-                normalX,
-                normalY,
-                normalZ,
-                fraction,
-                distance) -> views.add(toView(bodyId,
-                pointX,
-                pointY,
-                pointZ,
-                normalX,
-                normalY,
-                normalZ,
-                fraction,
-                distance)));
-        if (views.isEmpty()) {
-            return List.of();
-        }
-        return List.copyOf(views);
-    }
-
-    private int spaceBodyCount(@Nonnull SpaceBodyCountQuery query) {
-        PhysicsSpaceBinding space = runtime.getSpaceBinding(query.spaceId());
-        return space != null ? space.runtime().bodyCount(space.backendSpaceHandle().value()) : 0;
-    }
-
-    @Nonnull
-    private List<SpaceSummary> spaceSummary(@Nonnull SpaceSummaryQuery query) {
-        List<SpaceSummary> summaries = new ArrayList<>();
-        if (query.spaceId() != null) {
-            PhysicsSpaceBinding space = runtime.getSpaceBinding(query.spaceId());
-            if (space != null) {
-                summaries.add(summary(space));
-            }
-            return List.copyOf(summaries);
-        }
-        for (PhysicsSpaceBinding space : runtime.getSpaceBindings()) {
-            summaries.add(summary(space));
-        }
-        return List.copyOf(summaries);
-    }
-
-    private boolean ccdSupported() {
-        for (PhysicsSpaceBinding space : runtime.getSpaceBindings()) {
-            if (space.runtime().supportsContinuousCollision(space.backendSpaceHandle().value())) {
-                return true;
-            }
-        }
-        return false;
-    }
-
-    private int runtimeJointCount() {
-        int count = 0;
-        for (PhysicsSpaceBinding space : runtime.getSpaceBindings()) {
-            count += space.runtime().jointCount(space.backendSpaceHandle().value());
-        }
-        return count;
-    }
-
-    @Nonnull
-    private Optional<RigidBodyStateView> rigidBodyState(@Nonnull RigidBodyStateQuery query) {
-        PhysicsBodyRegistration registration = runtime.getRegistration(query.bodyKey());
-        if (registration == null) {
-            return Optional.empty();
-        }
-        PhysicsSpaceBinding space = requireSpace(registration.spaceId());
-        PhysicsBodySnapshot snapshot = PhysicsBodySnapshots.read(space, registration.backendBodyHandle().value());
-        if (snapshot == null) {
-            return Optional.empty();
-        }
-        return Optional.of(new RigidBodyStateView(query.bodyKey(),
-            snapshot.bodyType(),
-            RigidBodyPose.of(snapshot.position(), snapshot.rotation())));
-    }
-
-    @Nonnull
-    private SolverCapabilitySummary solverCapability(@Nonnull SolverCapabilityQuery query) {
-        PhysicsSpaceBinding space = requireSpace(query.spaceId());
-        return new SolverCapabilitySummary(space.spaceId(),
-            space.backendId().value(),
-            space.runtime().supportsSolverTuning(space.backendSpaceHandle().value()),
-            space.runtime().supportsActivationTuning(space.backendSpaceHandle().value()));
-    }
-
-    @Nonnull
-    private List<SpaceSummary> unsupportedCcdSpaces() {
-        List<SpaceSummary> spaces = new ArrayList<>();
-        for (PhysicsSpaceBinding space : runtime.getSpaceBindings()) {
-            if (space.runtime().supportsContinuousCollision(space.backendSpaceHandle().value())) {
-                continue;
-            }
-            spaces.add(summary(space));
-        }
-        return List.copyOf(spaces);
-    }
-
-    @Nonnull
-    private SpaceSummary summary(@Nonnull PhysicsSpaceBinding space) {
-        return new SpaceSummary(space.spaceId(),
-            space.backendId(),
-            space.runtime().bodyCount(space.backendSpaceHandle().value()),
-            space.runtime().jointCount(space.backendSpaceHandle().value()));
-    }
-
-    @Nonnull
-    private RaycastHitView toView(@Nonnull RayHitCapture hit) {
-        return toView(hit.bodyId,
-            hit.pointX,
-            hit.pointY,
-            hit.pointZ,
-            hit.normalX,
-            hit.normalY,
-            hit.normalZ,
-            hit.fraction,
-            hit.distance);
-    }
-
-    @Nonnull
-    private RaycastHitView toView(long bodyId,
-        float pointX,
-        float pointY,
-        float pointZ,
-        float normalX,
-        float normalY,
-        float normalZ,
-        float fraction,
-        float distance) {
-        PhysicsBodyRegistration registration = findBodyRegistration(bodyId);
-        RigidBodyKey bodyKey = registration != null ? registration.bodyKey() : null;
-        PhysicsBodySnapshot snapshot = registration != null
-            ? runtime.getBodySnapshot(registration.bodyKey())
-            : null;
-        return new RaycastHitView(bodyKey,
-            snapshot != null ? snapshot.bodyType() : PhysicsBodyType.STATIC,
-            new Vector3f(pointX, pointY, pointZ),
-            new Vector3f(normalX, normalY, normalZ),
-            snapshot != null ? snapshot.shapeType() : ShapeType.BOX,
-            fraction,
-            distance);
-    }
-
-    private static final class RayHitCapture implements BackendRayHitSink {
-
-        private long bodyId;
-        private float pointX;
-        private float pointY;
-        private float pointZ;
-        private float normalX;
-        private float normalY;
-        private float normalZ;
-        private float fraction;
-        private float distance;
-        private boolean captured;
-
-        @Override
-        public void accept(long bodyId,
-            float pointX,
-            float pointY,
-            float pointZ,
-            float normalX,
-            float normalY,
-            float normalZ,
-            float fraction,
-            float distance) {
-            this.bodyId = bodyId;
-            this.pointX = pointX;
-            this.pointY = pointY;
-            this.pointZ = pointZ;
-            this.normalX = normalX;
-            this.normalY = normalY;
-            this.normalZ = normalZ;
-            this.fraction = fraction;
-            this.distance = distance;
-            captured = true;
-        }
-    }
-
-    @Nonnull
     private PhysicsSpaceBinding requireSpace(@Nonnull SpaceId spaceId) {
         PhysicsSpaceBinding space = runtime.getSpaceBinding(spaceId);
         if (space == null) {
@@ -1011,16 +718,6 @@ public final class PhysicsSimulationExecutor implements PhysicsCommandDispatcher
             throw new IllegalArgumentException("Rigid body key=" + bodyKey + " is not registered");
         }
         return registration;
-    }
-
-    @Nullable
-    private PhysicsBodyRegistration findBodyRegistration(long backendBodyId) {
-        for (PhysicsBodyRegistration registration : runtime.getBodyRegistrations()) {
-            if (registration.backendBodyHandle().value() == backendBodyId) {
-                return registration;
-            }
-        }
-        return null;
     }
 
     private static int toRuntimeJointTypeCode(@Nonnull JointType type) {
