@@ -21,6 +21,7 @@ import com.hypixel.hytale.server.core.universe.world.storage.PhysicsStore;
 import dev.hytalemodding.impulse.api.PhysicsBodyType;
 import dev.hytalemodding.impulse.api.SpaceId;
 import dev.hytalemodding.impulse.early.PhysicsStoreWorld;
+import dev.hytalemodding.impulse.core.internal.physicsstore.resources.PhysicsIdentityIndexResource;
 import dev.hytalemodding.impulse.core.internal.physicsstore.resources.PhysicsRequestQueueResource;
 import dev.hytalemodding.impulse.core.internal.physicsstore.resources.PhysicsSpaceCompatibilityIndexResource;
 import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyKind;
@@ -31,6 +32,8 @@ import dev.hytalemodding.impulse.core.plugin.modules.control.PhysicsControlSessi
 import dev.hytalemodding.impulse.core.plugin.physicsstore.PhysicsBodySpawnRequests;
 import dev.hytalemodding.impulse.core.plugin.physicsstore.PhysicsStoreEntities;
 import dev.hytalemodding.impulse.core.plugin.physicsstore.components.BodyCommandComponent;
+import dev.hytalemodding.impulse.core.plugin.physicsstore.components.DynamicsComponent;
+import dev.hytalemodding.impulse.core.plugin.physicsstore.components.TargetComponent;
 import dev.hytalemodding.impulse.core.plugin.physicsstore.projection.BodyAttachmentComponent;
 import dev.hytalemodding.impulse.core.plugin.physicsstore.requests.BodyUpsertRequest;
 import dev.hytalemodding.impulse.core.plugin.physicsstore.requests.PhysicsStoreRequest;
@@ -141,6 +144,14 @@ public final class ExamplePhysicsUtils {
         return bodyRef;
     }
 
+    @Nonnull
+    public static Ref<PhysicsStore> addPhysicsStoreBody(@Nonnull World world,
+        @Nonnull BodyUpsertRequest request,
+        @Nonnull DynamicsComponent dynamics,
+        @Nullable TargetComponent target) {
+        return addPhysicsStoreBody(physicsStore(world), request, dynamics, target);
+    }
+
     public static void addPhysicsStoreBodies(@Nonnull World world,
         @Nonnull Iterable<BodyUpsertRequest> requests) {
         Objects.requireNonNull(requests, "requests");
@@ -153,15 +164,39 @@ public final class ExamplePhysicsUtils {
     private static Ref<PhysicsStore> addPhysicsStoreBody(@Nonnull Store<PhysicsStore> store,
         @Nonnull BodyUpsertRequest request) {
         Objects.requireNonNull(request, "request");
+        return addPhysicsStoreBody(store, request, request.dynamics(), request.target());
+    }
+
+    @Nonnull
+    private static Ref<PhysicsStore> addPhysicsStoreBody(@Nonnull Store<PhysicsStore> store,
+        @Nonnull BodyUpsertRequest request,
+        @Nonnull DynamicsComponent dynamics,
+        @Nullable TargetComponent target) {
+        Objects.requireNonNull(request, "request");
         return store.addEntity(PhysicsStoreEntities.bodyHolder(store,
             request.bodyUuid(),
             request.body(),
-            request.dynamics(),
-            request.target(),
+            Objects.requireNonNull(dynamics, "dynamics"),
+            target,
             request.collider(),
             request.shape(),
             request.material(),
             request.filter()), AddReason.SPAWN);
+    }
+
+    public static boolean appendPhysicsStoreBodyCommand(@Nonnull World world,
+        @Nonnull UUID bodyUuid,
+        @Nonnull BodyCommandComponent command) {
+        Objects.requireNonNull(command, "command");
+        Store<PhysicsStore> store = physicsStore(world);
+        Ref<PhysicsStore> bodyRef = store
+            .getResource(PhysicsIdentityIndexResource.getResourceType())
+            .getByUuid(Objects.requireNonNull(bodyUuid, "bodyUuid"));
+        if (bodyRef == null || !bodyRef.isValid()) {
+            return false;
+        }
+        appendPhysicsStoreBodyCommand(store, bodyRef, command);
+        return true;
     }
 
     public static void appendPhysicsStoreBodyCommand(@Nonnull Store<PhysicsStore> store,

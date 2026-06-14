@@ -22,11 +22,9 @@ import dev.hytalemodding.impulse.api.SpaceId;
 import dev.hytalemodding.impulse.core.plugin.body.RigidBodyKey;
 import dev.hytalemodding.impulse.core.plugin.modules.worldcollision.WorldCollisionPrewarmStats;
 import dev.hytalemodding.impulse.core.plugin.physicsstore.PhysicsStoreRaycasts;
-import dev.hytalemodding.impulse.core.plugin.physicsstore.requests.BodyForceRequest;
-import dev.hytalemodding.impulse.core.plugin.physicsstore.requests.BodyTargetRequest;
-import dev.hytalemodding.impulse.core.plugin.physicsstore.requests.BodyTypeRequest;
-import dev.hytalemodding.impulse.core.plugin.physicsstore.requests.BodyUpsertRequest;
-import dev.hytalemodding.impulse.core.plugin.physicsstore.requests.PhysicsStoreRequest;
+import dev.hytalemodding.impulse.core.plugin.physicsstore.components.BodyCommandComponent;
+import dev.hytalemodding.impulse.core.plugin.physicsstore.components.DynamicsComponent;
+import dev.hytalemodding.impulse.core.plugin.physicsstore.components.TargetComponent;
 import dev.hytalemodding.impulse.core.plugin.resources.PhysicsWorldResource;
 import dev.hytalemodding.impulse.core.plugin.settings.PhysicsEventCollectionMode;
 import dev.hytalemodding.impulse.core.plugin.simulation.PhysicsShapeSpec;
@@ -170,13 +168,23 @@ public class EcsCommand extends AbstractCommandCollection {
             }
             int strength = ExamplePhysicsUtils.optionalInt(ctx, strengthArg, 8, 1, 64);
             Vector3d impulse = ExamplePhysicsUtils.lookDirection(store, ref, transform).mul(strength);
-            ExamplePhysicsUtils.enqueuePhysicsStoreRequest(world,
-                BodyForceRequest.impulse(hit.bodyKey().value(),
+            boolean applied = ExamplePhysicsUtils.appendPhysicsStoreBodyCommand(world,
+                hit.bodyKey().value(),
+                BodyCommandComponent.vector(BodyCommandComponent.Kind.IMPULSE,
                     (float) impulse.x,
                     (float) impulse.y,
-                    (float) impulse.z));
+                    (float) impulse.z,
+                    false,
+                    0.0f,
+                    0.0f,
+                    0.0f));
+            if (!applied) {
+                ctx.sender().sendMessage(Message.raw("Rigid body " + hit.bodyKey()
+                    + " is not bound in PhysicsStore."));
+                return CompletableFuture.completedFuture(null);
+            }
 
-            ctx.sender().sendMessage(Message.raw("Queued ECS impulse request for "
+            ctx.sender().sendMessage(Message.raw("Queued ECS impulse command for "
                 + hit.bodyKey() + "."));
             return CompletableFuture.completedFuture(null);
         }
@@ -214,24 +222,20 @@ public class EcsCommand extends AbstractCommandCollection {
                 return CompletableFuture.completedFuture(null);
             }
             Vector3f targetPosition = vector(spawn);
-            BodyUpsertRequest bodyRequest = ExamplePhysicsUtils.bodyUpsertRequest(spaceUuid,
-                bodyUuid,
-                targetPosition,
-                PhysicsShapeSpec.box(0.5f, 0.5f, 0.5f),
-                0.0f,
-                RigidBodySpawnSettings.material(0.5f, 0.2f),
-                null);
-            List<PhysicsStoreRequest> requests = List.of(bodyRequest,
-                BodyTypeRequest.of(bodyUuid, PhysicsBodyType.KINEMATIC, true),
-                BodyTargetRequest.of(bodyUuid,
+            ExamplePhysicsUtils.addPhysicsStoreBody(world,
+                ExamplePhysicsUtils.bodyUpsertRequest(spaceUuid,
+                    bodyUuid,
                     targetPosition,
-                    new Quaternionf(),
-                    new Vector3f(),
-                    new Vector3f(),
-                    true,
-                    false,
-                    true));
-            ExamplePhysicsUtils.enqueuePhysicsStoreRequests(world, requests);
+                    PhysicsShapeSpec.box(0.5f, 0.5f, 0.5f),
+                    0.0f,
+                    RigidBodySpawnSettings.material(0.5f, 0.2f),
+                    null),
+                new DynamicsComponent(PhysicsBodyType.KINEMATIC,
+                    0.0f,
+                    0.0f,
+                    0.0f,
+                    false),
+                target(targetPosition));
 
             TimeResource time = store.getResource(TimeResource.getResourceType());
             ExamplePhysicsUtils.attachPhysicsStoreBlockBody(store,
@@ -423,7 +427,7 @@ public class EcsCommand extends AbstractCommandCollection {
 
             RigidBodyKey bodyKey = RigidBodyKey.random();
             UUID bodyUuid = bodyKey.value();
-            ExamplePhysicsUtils.enqueuePhysicsStoreRequest(world,
+            ExamplePhysicsUtils.addPhysicsStoreBody(world,
                 ExamplePhysicsUtils.bodyUpsertRequest(spaceUuid,
                     bodyUuid,
                     vector(spawn),
@@ -537,6 +541,20 @@ public class EcsCommand extends AbstractCommandCollection {
             .toCompletableFuture()
             .join();
         return hit.orElse(null);
+    }
+
+    @Nonnull
+    private static TargetComponent target(@Nonnull Vector3f targetPosition) {
+        TargetComponent target = new TargetComponent();
+        target.setActive(true);
+        target.setPosition(targetPosition);
+        target.setRotation(new Quaternionf());
+        target.setLinearVelocity(new Vector3f());
+        target.setAngularVelocity(new Vector3f());
+        target.setTransformEnabled(true);
+        target.setVelocityEnabled(false);
+        target.setActivate(true);
+        return target;
     }
 
     @Nonnull
