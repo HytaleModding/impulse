@@ -16,8 +16,8 @@ import dev.hytalemodding.impulse.api.runtime.BackendRuntimeCodes;
 import dev.hytalemodding.impulse.early.PhysicsStoreWorld;
 import dev.hytalemodding.impulse.core.internal.modules.control.ControlLifecycle;
 import dev.hytalemodding.impulse.core.internal.modules.control.PhysicsControlRuntimeState;
+import dev.hytalemodding.impulse.core.internal.physicsstore.PhysicsStoreSpaceMutations;
 import dev.hytalemodding.impulse.core.internal.physicsstore.resources.PhysicsIdentityIndexResource;
-import dev.hytalemodding.impulse.core.internal.physicsstore.resources.PhysicsRequestQueueResource;
 import dev.hytalemodding.impulse.core.internal.physicsstore.resources.PhysicsSpaceCompatibilityIndexResource;
 import dev.hytalemodding.impulse.core.internal.resources.body.PhysicsBodyRegistry;
 import dev.hytalemodding.impulse.core.internal.resources.body.PhysicsBodyRuntimeState.BodySyncState;
@@ -64,10 +64,6 @@ import dev.hytalemodding.impulse.core.plugin.physicsstore.components.SpaceCompon
 import dev.hytalemodding.impulse.core.plugin.physicsstore.components.VisualMaterializationSettingsComponent;
 import dev.hytalemodding.impulse.core.plugin.physicsstore.components.VisualSyncSettingsComponent;
 import dev.hytalemodding.impulse.core.plugin.physicsstore.components.WorldCollisionComponent;
-import dev.hytalemodding.impulse.core.plugin.physicsstore.requests.PhysicsStoreRequest;
-import dev.hytalemodding.impulse.core.plugin.physicsstore.requests.SpaceRemoveRequest;
-import dev.hytalemodding.impulse.core.plugin.physicsstore.requests.SpaceSettingsRequest;
-import dev.hytalemodding.impulse.core.plugin.physicsstore.requests.SpaceUpsertRequest;
 import dev.hytalemodding.impulse.core.plugin.resources.PhysicsMutationHandle;
 import dev.hytalemodding.impulse.core.plugin.resources.PhysicsWorldResource;
 import dev.hytalemodding.impulse.core.plugin.settings.PhysicsSpaceSettings;
@@ -328,22 +324,10 @@ public class PhysicsWorldRuntimeResource extends PhysicsWorldResource {
             .getStore();
     }
 
-    private static void enqueuePhysicsStoreRequest(@Nonnull Store<PhysicsStore> store,
-        @Nonnull PhysicsStoreRequest request) {
-        store.getResource(PhysicsRequestQueueResource.getResourceType())
-            .enqueue(Objects.requireNonNull(request, "request"));
-    }
-
     @Nonnull
     private static UUID requireSpaceUuid(@Nonnull Store<PhysicsStore> store,
         @Nonnull SpaceId spaceId) {
-        UUID spaceUuid = store.getResource(PhysicsSpaceCompatibilityIndexResource.getResourceType())
-            .getSpaceUuid(Objects.requireNonNull(spaceId, "spaceId"));
-        if (spaceUuid == null) {
-            throw new IllegalArgumentException("PhysicsStore space id=" + spaceId.value()
-                + " is not registered");
-        }
-        return spaceUuid;
+        return PhysicsStoreSpaceMutations.requireSpaceUuid(store, spaceId);
     }
 
     @Nullable
@@ -401,8 +385,9 @@ public class PhysicsWorldRuntimeResource extends PhysicsWorldResource {
     @Nonnull
     private IllegalStateException authoritativeFenceUnavailable(@Nonnull String operation) {
         return new IllegalStateException("Cannot " + operation
-            + " through authoritative PhysicsStore yet because request completion fences are not "
-            + "implemented. Use the synchronous enqueueing facade or add Worker F request fences.");
+            + " through authoritative PhysicsStore yet because async store-lane mutation "
+            + "completion is not implemented. Use the synchronous store-lane facade or add an "
+            + "explicit PhysicsStore scheduling completion contract.");
     }
 
     public void runOwnerMutation(@Nonnull String operation,
@@ -488,8 +473,11 @@ public class PhysicsWorldRuntimeResource extends PhysicsWorldResource {
         @Nonnull PhysicsSpaceSettings settings) {
         if (isAuthoritativePhysicsStoreActive()) {
             Impulse.getRuntimeProvider(backendId);
-            enqueuePhysicsStoreRequest(authoritativePhysicsStore("create physics space"),
-                SpaceUpsertRequest.of(UUID.randomUUID(), spaceId, backendId, settings));
+            PhysicsStoreSpaceMutations.addSpace(authoritativePhysicsStore("create physics space"),
+                UUID.randomUUID(),
+                spaceId,
+                backendId,
+                settings);
             return spaceId;
         }
         requireLegacyMutationAllowed("create physics space");
@@ -978,9 +966,9 @@ public class PhysicsWorldRuntimeResource extends PhysicsWorldResource {
     @Override
     public void removeSpace(@Nonnull SpaceId spaceId, @Nonnull String worldName) {
         if (isAuthoritativePhysicsStoreActive()) {
-            Store<PhysicsStore> physicsStore = authoritativePhysicsStore("remove physics space");
-            enqueuePhysicsStoreRequest(physicsStore,
-                SpaceRemoveRequest.of(requireSpaceUuid(physicsStore, spaceId)));
+            PhysicsStoreSpaceMutations.removeEmptySpace(
+                authoritativePhysicsStore("remove physics space"),
+                spaceId);
             return;
         }
         requireLegacyMutationAllowed("remove physics space");
@@ -1111,9 +1099,10 @@ public class PhysicsWorldRuntimeResource extends PhysicsWorldResource {
     @Override
     public void setSpaceSettings(@Nonnull SpaceId spaceId, @Nonnull PhysicsSpaceSettings settings) {
         if (isAuthoritativePhysicsStoreActive()) {
-            Store<PhysicsStore> physicsStore = authoritativePhysicsStore("set physics space settings");
-            enqueuePhysicsStoreRequest(physicsStore,
-                SpaceSettingsRequest.of(requireSpaceUuid(physicsStore, spaceId), settings));
+            PhysicsStoreSpaceMutations.putSpaceSettings(
+                authoritativePhysicsStore("set physics space settings"),
+                spaceId,
+                settings);
             return;
         }
         requireLegacyMutationAllowed("set physics space settings");
