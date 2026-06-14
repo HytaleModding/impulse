@@ -6,14 +6,9 @@ import com.hypixel.hytale.component.Store;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import com.hypixel.hytale.server.core.universe.world.storage.PhysicsStore;
 import dev.hytalemodding.impulse.api.PhysicsBodyType;
-import dev.hytalemodding.impulse.api.runtime.PhysicsBackendRuntime;
 import dev.hytalemodding.impulse.early.PhysicsStoreWorld;
 import dev.hytalemodding.impulse.core.internal.modules.control.components.PhysicsControlSessionComponent;
 import dev.hytalemodding.impulse.core.internal.physicsstore.resources.PhysicsIdentityIndexResource;
-import dev.hytalemodding.impulse.core.internal.physicsstore.resources.PhysicsRuntimeResource;
-import dev.hytalemodding.impulse.core.internal.resources.BackendBodyHandle;
-import dev.hytalemodding.impulse.core.internal.resources.BackendJointHandle;
-import dev.hytalemodding.impulse.core.internal.resources.BackendSpaceHandle;
 import dev.hytalemodding.impulse.core.plugin.body.RigidBodyKey;
 import dev.hytalemodding.impulse.core.plugin.joint.JointKey;
 import dev.hytalemodding.impulse.core.plugin.physicsstore.PhysicsStoreThreading;
@@ -47,11 +42,10 @@ public final class PhysicsStoreControlSessionMutations {
             "apply PhysicsStore control-session release mutations");
         PhysicsIdentityIndexResource identity = physicsStore.getResource(
             PhysicsIdentityIndexResource.getResourceType());
-        PhysicsRuntimeResource runtime = physicsStore.getResource(PhysicsRuntimeResource.getResourceType());
 
         JointKey controlJointKey = session.getControlJointKey();
         if (controlJointKey != null) {
-            removeJoint(physicsStore, identity, runtime, controlJointKey.value());
+            disableJoint(physicsStore, identity, controlJointKey.value());
         }
 
         RigidBodyKey bodyKey = session.getBodyKey();
@@ -65,7 +59,7 @@ public final class PhysicsStoreControlSessionMutations {
 
         RigidBodyKey anchorBodyKey = session.getAnchorBodyKey();
         if (anchorBodyKey != null) {
-            removeBody(physicsStore, identity, runtime, anchorBodyKey.value());
+            removeRow(physicsStore, identity, anchorBodyKey.value(), refForUuid(identity, anchorBodyKey.value()));
         }
     }
 
@@ -112,25 +106,19 @@ public final class PhysicsStoreControlSessionMutations {
         return ref != null && ref.isValid() ? ref : null;
     }
 
-    private static void removeBody(@Nonnull Store<PhysicsStore> store,
+    private static void disableJoint(@Nonnull Store<PhysicsStore> store,
         @Nonnull PhysicsIdentityIndexResource identity,
-        @Nonnull PhysicsRuntimeResource runtime,
-        @Nonnull UUID bodyUuid) {
-        Ref<PhysicsStore> ref = refForUuid(identity, bodyUuid);
-        removeBodyBackend(identity, runtime, bodyUuid);
-        removeRow(store, identity, bodyUuid, ref);
-    }
-
-    private static void removeJoint(@Nonnull Store<PhysicsStore> store,
-        @Nonnull PhysicsIdentityIndexResource identity,
-        @Nonnull PhysicsRuntimeResource runtime,
         @Nonnull UUID jointUuid) {
         Ref<PhysicsStore> ref = refForUuid(identity, jointUuid);
         JointComponent joint = ref != null
             ? store.getComponent(ref, JointComponent.getComponentType())
             : null;
-        removeJointBackend(identity, runtime, jointUuid, joint);
-        removeRow(store, identity, jointUuid, ref);
+        if (ref == null || joint == null) {
+            return;
+        }
+        JointComponent disabled = joint.clone();
+        disabled.setEnabled(false);
+        store.putComponent(ref, JointComponent.getComponentType(), disabled);
     }
 
     private static void removeRow(@Nonnull Store<PhysicsStore> store,
@@ -142,57 +130,6 @@ public final class PhysicsStoreControlSessionMutations {
         }
         identity.removeUuid(uuid, ref);
         store.removeEntity(ref, store.getRegistry().newHolder(), RemoveReason.REMOVE);
-    }
-
-    private static void removeBodyBackend(@Nonnull PhysicsIdentityIndexResource identity,
-        @Nonnull PhysicsRuntimeResource runtime,
-        @Nonnull UUID bodyUuid) {
-        BackendBodyHandle bodyHandle = runtime.getBodyHandle(bodyUuid);
-        if (bodyHandle == null) {
-            return;
-        }
-        BackendSpaceHandle spaceHandle = runtime.getBodySpaceHandle(bodyUuid);
-        PhysicsBackendRuntime backendRuntime = runtimeForSpace(runtime, spaceHandle);
-        if (spaceHandle != null && backendRuntime != null) {
-            backendRuntime.removeBody(spaceHandle.value(), bodyHandle.value());
-        }
-        identity.removeBodyHandle(bodyHandle);
-        runtime.removeBodyHandle(bodyUuid);
-    }
-
-    private static void removeJointBackend(@Nonnull PhysicsIdentityIndexResource identity,
-        @Nonnull PhysicsRuntimeResource runtime,
-        @Nonnull UUID jointUuid,
-        @Nullable JointComponent joint) {
-        BackendJointHandle jointHandle = runtime.getJointHandle(jointUuid);
-        if (jointHandle == null) {
-            return;
-        }
-        BackendSpaceHandle spaceHandle = runtime.getJointSpaceHandle(jointUuid);
-        if (spaceHandle == null && joint != null) {
-            spaceHandle = runtime.getSpaceHandle(joint.getSpaceUuid());
-        }
-        PhysicsBackendRuntime backendRuntime = runtimeForSpace(runtime, spaceHandle);
-        if (spaceHandle != null && backendRuntime != null) {
-            backendRuntime.removeJoint(spaceHandle.value(), jointHandle.value());
-        }
-        identity.removeJointHandle(jointHandle);
-        runtime.removeJointHandle(jointUuid);
-    }
-
-    @Nullable
-    private static PhysicsBackendRuntime runtimeForSpace(@Nonnull PhysicsRuntimeResource runtime,
-        @Nullable BackendSpaceHandle spaceHandle) {
-        if (spaceHandle == null) {
-            return null;
-        }
-        final PhysicsBackendRuntime[] resolved = new PhysicsBackendRuntime[1];
-        runtime.forEachSpaceBinding((_, _, handle, backendRuntime) -> {
-            if (handle.value() == spaceHandle.value()) {
-                resolved[0] = backendRuntime;
-            }
-        });
-        return resolved[0];
     }
 
     @Nonnull

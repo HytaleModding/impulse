@@ -17,7 +17,6 @@ import dev.hytalemodding.impulse.api.runtime.PhysicsBackendRuntime;
 import dev.hytalemodding.impulse.core.internal.physicsstore.resources.PhysicsIdentityIndexResource;
 import dev.hytalemodding.impulse.core.internal.physicsstore.resources.PhysicsRestoreStatusResource;
 import dev.hytalemodding.impulse.core.internal.physicsstore.resources.PhysicsRuntimeResource;
-import dev.hytalemodding.impulse.core.internal.physicsstore.resources.PhysicsRuntimeResource.BodySnapshotMetadata;
 import dev.hytalemodding.impulse.core.internal.resources.BackendBodyHandle;
 import dev.hytalemodding.impulse.core.internal.resources.BackendSpaceHandle;
 import dev.hytalemodding.impulse.core.plugin.body.RigidBodyKey;
@@ -28,8 +27,6 @@ import dev.hytalemodding.impulse.core.plugin.physicsstore.components.DynamicsCom
 import dev.hytalemodding.impulse.core.plugin.physicsstore.components.MaterialComponent;
 import dev.hytalemodding.impulse.core.plugin.physicsstore.components.ShapeComponent;
 import dev.hytalemodding.impulse.core.plugin.physicsstore.components.TargetComponent;
-import java.util.ArrayList;
-import java.util.List;
 import java.util.Set;
 import java.util.UUID;
 import java.util.function.BiConsumer;
@@ -59,71 +56,9 @@ public final class BodyBindingSystem extends TickingSystem<PhysicsStore>
         PhysicsRuntimeResource runtime = store.getResource(PhysicsRuntimeResource.getResourceType());
         PhysicsIdentityIndexResource identity =
             store.getResource(PhysicsIdentityIndexResource.getResourceType());
-        if (!removeStaleBodies(store, runtime, identity, restore)) {
-            return;
-        }
         BiConsumer<ArchetypeChunk<PhysicsStore>, CommandBuffer<PhysicsStore>> collector =
             (chunk, _) -> bindBodies(runtime, identity, restore, chunk);
         store.forEachChunk(systemIndex, collector);
-    }
-
-    private static boolean removeStaleBodies(@Nonnull Store<PhysicsStore> store,
-        @Nonnull PhysicsRuntimeResource runtime,
-        @Nonnull PhysicsIdentityIndexResource identity,
-        @Nonnull PhysicsRestoreStatusResource restore) {
-        List<BoundBody> staleBodies = new ArrayList<>();
-        runtime.forEachSpaceBinding((_, _, spaceHandle, backendRuntime) ->
-            runtime.forEachBodyHandle(spaceHandle,
-                bodyId -> collectStaleBody(store,
-                    runtime,
-                    identity,
-                    restore,
-                    staleBodies,
-                    spaceHandle,
-                    backendRuntime,
-                    bodyId)));
-        if (restore.isFailed()) {
-            return false;
-        }
-        for (BoundBody body : staleBodies) {
-            try {
-                body.backendRuntime().removeBody(body.spaceHandle().value(), body.bodyHandle().value());
-            } catch (RuntimeException exception) {
-                restore.markFailed("PhysicsStore body " + body.bodyUuid()
-                    + " failed backend removal: " + exception.getMessage());
-                return false;
-            }
-            identity.removeBodyHandle(body.bodyHandle());
-            runtime.removeBodyHandle(body.bodyUuid());
-        }
-        return true;
-    }
-
-    private static void collectStaleBody(@Nonnull Store<PhysicsStore> store,
-        @Nonnull PhysicsRuntimeResource runtime,
-        @Nonnull PhysicsIdentityIndexResource identity,
-        @Nonnull PhysicsRestoreStatusResource restore,
-        @Nonnull List<BoundBody> staleBodies,
-        @Nonnull BackendSpaceHandle spaceHandle,
-        @Nonnull PhysicsBackendRuntime backendRuntime,
-        long bodyId) {
-        BodySnapshotMetadata metadata = runtime.getBodySnapshotMetadata(bodyId);
-        if (metadata == null) {
-            restore.markFailed("PhysicsStore backend body " + bodyId
-                + " has no runtime snapshot metadata");
-            return;
-        }
-        Ref<PhysicsStore> ref = PhysicsStoreSystemSupport.refForUuid(identity, metadata.bodyUuid());
-        BodyComponent body = PhysicsStoreSystemSupport.component(store,
-            ref,
-            BodyComponent.getComponentType());
-        if (body != null) {
-            return;
-        }
-        staleBodies.add(new BoundBody(metadata.bodyUuid(),
-            spaceHandle,
-            new BackendBodyHandle(bodyId),
-            backendRuntime));
     }
 
     private static void bindBodies(@Nonnull PhysicsRuntimeResource runtime,
@@ -287,12 +222,6 @@ public final class BodyBindingSystem extends TickingSystem<PhysicsStore>
     @Override
     public Set<Dependency<PhysicsStore>> getDependencies() {
         return DEPENDENCIES;
-    }
-
-    private record BoundBody(@Nonnull UUID bodyUuid,
-                             @Nonnull BackendSpaceHandle spaceHandle,
-                             @Nonnull BackendBodyHandle bodyHandle,
-                             @Nonnull PhysicsBackendRuntime backendRuntime) {
     }
 
 }
