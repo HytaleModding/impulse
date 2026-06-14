@@ -39,7 +39,6 @@ import dev.hytalemodding.impulse.core.internal.resources.owner.PhysicsOwnerMutat
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsVisualRuntime.BodyVisualInterestState;
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsVisualRuntime.VisualInterest;
 import dev.hytalemodding.impulse.core.internal.simulation.recorder.MutablePhysicsCommandContext;
-import dev.hytalemodding.impulse.core.internal.simulation.query.PhysicsInternalQuery;
 import dev.hytalemodding.impulse.core.internal.simulation.PhysicsSimulationExecutor;
 import dev.hytalemodding.impulse.core.internal.simulation.batch.RecordedPhysicsCommandBatch;
 import dev.hytalemodding.impulse.core.internal.modules.worldcollision.WorldCollisionBuildOptions;
@@ -87,7 +86,6 @@ import java.util.List;
 import java.util.Objects;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.CompletionStage;
 import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.Consumer;
@@ -270,15 +268,6 @@ public class PhysicsWorldRuntimeResource extends PhysicsWorldResource {
         CompletableFuture<R> completion =
             ownerGateway.enqueueCall("execute physics query", () -> simulationExecutor.query(query));
         return PhysicsQueryHandle.fromCompletion(query, completion);
-    }
-
-    @Nonnull
-    public <R> CompletionStage<R> queryInternal(@Nonnull PhysicsInternalQuery<R> query) {
-        Objects.requireNonNull(query, "query");
-        CompletableFuture<R> completion =
-            ownerGateway.enqueueCall("execute internal physics query",
-                () -> simulationExecutor.queryInternal(query));
-        return completion.minimalCompletionStage();
     }
 
     @Nonnull

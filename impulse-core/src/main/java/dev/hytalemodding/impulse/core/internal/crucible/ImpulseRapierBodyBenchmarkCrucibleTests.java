@@ -29,7 +29,6 @@ import dev.hytalemodding.impulse.core.plugin.settings.PhysicsStepMode;
 import dev.hytalemodding.impulse.core.plugin.settings.PhysicsStepSchedulingMode;
 import dev.hytalemodding.impulse.core.plugin.settings.PhysicsWorldSettings;
 import dev.hytalemodding.impulse.core.plugin.modules.worldcollision.WorldCollisionMode;
-import dev.hytalemodding.impulse.core.internal.simulation.query.BenchmarkSpaceStatsQuery;
 import dev.hytalemodding.impulse.core.internal.simulation.view.BenchmarkSpaceStatsView;
 import dev.hytalemodding.impulse.core.plugin.simulation.PhysicsShapeSpec;
 import dev.hytalemodding.impulse.core.plugin.simulation.RigidBodySpawnSettings;
@@ -759,9 +758,9 @@ final class ImpulseRapierBodyBenchmarkCrucibleTests {
             BenchmarkSpaceStatsView view = PhysicsStoreBenchmarkQueries.benchmarkSpaceStats(
                 physicsStore,
                 null,
-                new BenchmarkSpaceStatsQuery(spaceId,
-                GROUND_Y,
-                BELOW_PLANE_TOLERANCE,
+                new PhysicsStoreBenchmarkQueries.BenchmarkSpaceStatsRequest(spaceId,
+                    GROUND_Y,
+                    BELOW_PLANE_TOLERANCE,
                     BODY_WORLD_MIN_Y,
                     BODY_VOID_Y,
                     false));
