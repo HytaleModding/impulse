@@ -13,15 +13,13 @@ import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import dev.hytalemodding.impulse.api.SpaceId;
 import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyKind;
 import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyPersistenceMode;
-import dev.hytalemodding.impulse.core.plugin.physicsstore.requests.PhysicsStoreRequestFenceResult;
 import dev.hytalemodding.impulse.core.plugin.resources.PhysicsWorldResource;
 import dev.hytalemodding.impulse.core.plugin.simulation.PhysicsShapeSpec;
 import dev.hytalemodding.impulse.core.plugin.simulation.RigidBodySpawnSettings;
 import dev.hytalemodding.impulse.examples.commands.ExamplePhysicsUtils;
-import dev.hytalemodding.impulse.examples.commands.ExamplePhysicsUtils.FencedBodyRequestBatchTiming;
+import dev.hytalemodding.impulse.examples.commands.ExamplePhysicsUtils.BodyRowBatchTiming;
 import java.util.Locale;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.CompletionException;
 import javax.annotation.Nonnull;
 import org.joml.Vector3d;
 
@@ -76,9 +74,8 @@ public class StressRawBodiesCommand extends AbstractAsyncPlayerCommand {
 
         PhysicsShapeSpec box = PhysicsShapeSpec.box(0.48f, 0.48f, 0.48f);
         RigidBodySpawnSettings spawnSettings = RigidBodySpawnSettings.material(0.65f, 0.15f);
-        long submittedServerTick = Math.max(0L, world.getTick());
         long commandStartNanos = System.nanoTime();
-        FencedBodyRequestBatchTiming timing = ExamplePhysicsUtils.enqueueDynamicBodyBatchFencedMeasured(world,
+        BodyRowBatchTiming timing = ExamplePhysicsUtils.addDynamicBodyBatchMeasured(world,
             spaceId,
             count,
             box,
@@ -86,7 +83,6 @@ public class StressRawBodiesCommand extends AbstractAsyncPlayerCommand {
             spawnSettings,
             PhysicsBodyKind.TEMPORARY,
             PhysicsBodyPersistenceMode.RUNTIME_ONLY,
-            submittedServerTick,
             spawns -> {
                 for (int i = 0; i < count; i++) {
                     int x = i % side;
@@ -98,20 +94,9 @@ public class StressRawBodiesCommand extends AbstractAsyncPlayerCommand {
                         (float) (originZ + z * SPACING));
                 }
             });
-        long fenceStartNanos = System.nanoTime();
-
-        return timing.fence()
-            .completion()
-            .thenAccept(result -> ctx.sender().sendMessage(Message.raw(successMessage(timing,
-                result,
-                System.nanoTime() - fenceStartNanos,
-                System.nanoTime() - commandStartNanos))))
-            .exceptionally(failure -> {
-                ctx.sender().sendMessage(Message.raw("Failed to drain raw physics body requests: "
-                    + failureMessage(failure)));
-                return null;
-            })
-            .toCompletableFuture();
+        ctx.sender().sendMessage(Message.raw(successMessage(timing,
+            System.nanoTime() - commandStartNanos)));
+        return CompletableFuture.completedFuture(null);
     }
 
     private static String millis(long nanos) {
@@ -119,37 +104,13 @@ public class StressRawBodiesCommand extends AbstractAsyncPlayerCommand {
     }
 
     @Nonnull
-    private static String successMessage(@Nonnull FencedBodyRequestBatchTiming timing,
-        @Nonnull PhysicsStoreRequestFenceResult result,
-        long fenceWaitNanos,
+    private static String successMessage(@Nonnull BodyRowBatchTiming timing,
         long totalWallNanos) {
-        return "PhysicsStore drained raw body requests for " + timing.count()
+        return "PhysicsStore added raw body rows for " + timing.count()
             + " physics-only bodies: setupWallMs=" + millis(timing.setupWallNanos())
-            + " requestEnqueueMs=" + millis(timing.requestEnqueueNanos())
-            + " fenceWaitMs=" + millis(fenceWaitNanos)
+            + " rowApplyMs=" + millis(timing.rowApplyNanos())
             + " totalWallMs=" + millis(totalWallNanos)
-            + " accepted=" + result.acceptedCount()
-            + " applied=" + result.appliedCount()
-            + " softSkipped=" + result.softSkippedCount()
-            + " rejected=" + result.rejectedCount()
-            + " failed=" + result.failedCount()
-            + " submittedTick=" + result.submittedServerTick()
-            + " consumedTick=" + result.consumedServerTick()
-            + " consumedTickLatency=" + result.consumedServerTickLatency()
-            + " allApplied=" + result.allApplied()
-            + " hasProblems=" + result.hasProblems()
-            + " fence=" + result.fenceUuid()
-            + ". This reports request drain/application only.";
-    }
-
-    @Nonnull
-    private static String failureMessage(@Nonnull Throwable failure) {
-        Throwable unwrapped = failure instanceof CompletionException && failure.getCause() != null
-            ? failure.getCause()
-            : failure;
-        return unwrapped.getMessage() != null
-            ? unwrapped.getMessage()
-            : unwrapped.getClass().getSimpleName();
+            + ". Body-count updates are visible after PhysicsStore binds the new rows.";
     }
 
 }

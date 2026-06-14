@@ -96,17 +96,17 @@ public class StressBenchmarkCommand extends AbstractAsyncPlayerCommand {
         };
 
         if (timing.spawned() > 0) {
-            ctx.sender().sendMessage(Message.raw("Queued " + timing.spawned() + " "
+            ctx.sender().sendMessage(Message.raw("Added " + timing.spawned() + " "
                 + request.mode().label() + " benchmark bodies: setupWallMs="
                 + millis(timing.setupWallNanos())
-                + " requestEnqueueMs=" + millis(timing.requestEnqueueNanos())
+                + " rowApplyMs=" + millis(timing.rowApplyNanos())
                 + (timing.entityAttachNanos() > 0L
                     ? " entityAttachMs=" + millis(timing.entityAttachNanos())
                     : "")
                 + " (" + microsPerBody(timing.setupWallNanos(), timing.spawned())
-                + " us/body). Space bodies before enqueue: " + beforeBodies
+                + " us/body). Space bodies before add: " + beforeBodies
                 + (request.mode() == BenchmarkMode.ENTITY ? ". blockType=" + request.blockType() : "")
-                + ". Body-count updates are visible after PhysicsStore drains the queued requests"
+                + ". Body-count updates are visible after PhysicsStore binds the new rows"
                 + ". This command measures raw setup/entity attachment; use /impulse-examples stress bodies"
                 + " for detached/detached-view scalability scenarios"
                 + ". For clean comparisons run /impulse clean, /impulse-world-collision perf reset,"
@@ -145,8 +145,8 @@ public class StressBenchmarkCommand extends AbstractAsyncPlayerCommand {
         int count) {
         PhysicsShapeSpec box = PhysicsShapeSpec.box(0.48f, 0.48f, 0.48f);
         RigidBodySpawnSettings spawnSettings = RigidBodySpawnSettings.material(0.65f, 0.15f);
-        ExamplePhysicsUtils.BodyRequestBatchTiming timing =
-            ExamplePhysicsUtils.enqueueDynamicBodyBatchMeasured(world,
+        ExamplePhysicsUtils.BodyRowBatchTiming timing =
+            ExamplePhysicsUtils.addDynamicBodyBatchMeasured(world,
                 spaceId,
                 count,
                 box,
@@ -163,7 +163,7 @@ public class StressBenchmarkCommand extends AbstractAsyncPlayerCommand {
                 });
         return new BenchmarkSpawnTiming(timing.count(),
             timing.setupWallNanos(),
-            timing.requestEnqueueNanos(),
+            timing.rowApplyNanos(),
             0L);
     }
 
@@ -264,12 +264,12 @@ public class StressBenchmarkCommand extends AbstractAsyncPlayerCommand {
 
     private record BenchmarkSpawnTiming(int spawned,
                                         long setupWallNanos,
-                                        long requestEnqueueNanos,
+                                        long rowApplyNanos,
                                         long entityAttachNanos) {
 
         private BenchmarkSpawnTiming {
             setupWallNanos = Math.max(0L, setupWallNanos);
-            requestEnqueueNanos = Math.max(0L, requestEnqueueNanos);
+            rowApplyNanos = Math.max(0L, rowApplyNanos);
             entityAttachNanos = Math.max(0L, entityAttachNanos);
         }
     }
