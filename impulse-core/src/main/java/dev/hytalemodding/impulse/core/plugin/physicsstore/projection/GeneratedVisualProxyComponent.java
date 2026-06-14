@@ -1,4 +1,4 @@
-package dev.hytalemodding.impulse.core.internal.components;
+package dev.hytalemodding.impulse.core.plugin.physicsstore.projection;
 
 import com.hypixel.hytale.codec.builder.BuilderCodec;
 import com.hypixel.hytale.component.Component;
