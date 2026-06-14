@@ -11,7 +11,7 @@ import javax.annotation.Nonnull;
  *
  * <p>Backend {@code PhysicsBody} handles may change when spaces migrate between
  * backends. This id is the durable handle used by ECS attachments, persistence,
- * snapshots, and physics-owner command queues.</p>
+ * snapshots, compatibility lookups, and PhysicsStore row-local body commands.</p>
  */
 public final class RigidBodyKey {
 
