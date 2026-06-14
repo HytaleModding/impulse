@@ -2,11 +2,13 @@ package dev.hytalemodding.impulse.core.internal.modules.control.systems;
 
 import com.hypixel.hytale.component.Store;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
+import com.hypixel.hytale.server.core.universe.world.storage.PhysicsStore;
 import dev.hytalemodding.impulse.api.PhysicsBodyType;
+import dev.hytalemodding.impulse.early.PhysicsStoreWorld;
 import dev.hytalemodding.impulse.core.internal.modules.control.components.PhysicsControlSessionComponent;
+import dev.hytalemodding.impulse.core.internal.physicsstore.resources.PhysicsRequestQueueResource;
 import dev.hytalemodding.impulse.core.plugin.body.RigidBodyKey;
 import dev.hytalemodding.impulse.core.plugin.joint.JointKey;
-import dev.hytalemodding.impulse.core.plugin.physicsstore.PhysicsStoreAccess;
 import dev.hytalemodding.impulse.core.plugin.physicsstore.requests.BodyRemoveRequest;
 import dev.hytalemodding.impulse.core.plugin.physicsstore.requests.BodyTargetRequest;
 import dev.hytalemodding.impulse.core.plugin.physicsstore.requests.BodyTypeRequest;
@@ -34,7 +36,11 @@ public final class PhysicsStoreControlSessionRequests {
         @Nonnull PhysicsControlSessionComponent session) {
         List<PhysicsStoreRequest> requests = releaseRequests(session);
         if (!requests.isEmpty()) {
-            PhysicsStoreAccess.enqueueAll(store.getExternalData().getWorld(), requests);
+            Store<PhysicsStore> physicsStore =
+                ((PhysicsStoreWorld) store.getExternalData().getWorld()).getPhysicsStore()
+                    .getStore();
+            physicsStore.getResource(PhysicsRequestQueueResource.getResourceType())
+                .enqueueAll(requests);
         }
     }
 

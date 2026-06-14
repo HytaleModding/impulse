@@ -7,13 +7,18 @@ import com.hypixel.hytale.server.core.universe.world.World;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import com.hypixel.hytale.server.core.universe.world.storage.PhysicsStore;
 import dev.hytalemodding.impulse.api.BackendId;
+import dev.hytalemodding.impulse.api.Impulse;
 import dev.hytalemodding.impulse.api.PhysicsBodySnapshot;
 import dev.hytalemodding.impulse.api.PhysicsBodyType;
 import dev.hytalemodding.impulse.api.PhysicsCollisionFilters;
 import dev.hytalemodding.impulse.api.SpaceId;
 import dev.hytalemodding.impulse.api.runtime.BackendRuntimeCodes;
+import dev.hytalemodding.impulse.early.PhysicsStoreWorld;
 import dev.hytalemodding.impulse.core.internal.modules.control.ControlLifecycle;
 import dev.hytalemodding.impulse.core.internal.modules.control.PhysicsControlRuntimeState;
+import dev.hytalemodding.impulse.core.internal.physicsstore.resources.PhysicsIdentityIndexResource;
+import dev.hytalemodding.impulse.core.internal.physicsstore.resources.PhysicsRequestQueueResource;
+import dev.hytalemodding.impulse.core.internal.physicsstore.resources.PhysicsSpaceCompatibilityIndexResource;
 import dev.hytalemodding.impulse.core.internal.resources.body.PhysicsBodyRegistry;
 import dev.hytalemodding.impulse.core.internal.resources.body.PhysicsBodyRuntimeState.BodySyncState;
 import dev.hytalemodding.impulse.core.internal.resources.body.PhysicsBodyRuntime;
@@ -53,7 +58,17 @@ import dev.hytalemodding.impulse.core.plugin.modules.worldcollision.WorldCollisi
 import dev.hytalemodding.impulse.core.plugin.events.PhysicsEventFrame;
 import dev.hytalemodding.impulse.core.plugin.events.PhysicsFrameEvent;
 import dev.hytalemodding.impulse.core.plugin.joint.JointKey;
-import dev.hytalemodding.impulse.core.plugin.physicsstore.PhysicsStoreAccess;
+import dev.hytalemodding.impulse.core.plugin.physicsstore.components.CollisionLodSettingsComponent;
+import dev.hytalemodding.impulse.core.plugin.physicsstore.components.ExtensionSettingsComponent;
+import dev.hytalemodding.impulse.core.plugin.physicsstore.components.SolverSettingsComponent;
+import dev.hytalemodding.impulse.core.plugin.physicsstore.components.SpaceComponent;
+import dev.hytalemodding.impulse.core.plugin.physicsstore.components.VisualMaterializationSettingsComponent;
+import dev.hytalemodding.impulse.core.plugin.physicsstore.components.VisualSyncSettingsComponent;
+import dev.hytalemodding.impulse.core.plugin.physicsstore.components.WorldCollisionComponent;
+import dev.hytalemodding.impulse.core.plugin.physicsstore.requests.PhysicsStoreRequest;
+import dev.hytalemodding.impulse.core.plugin.physicsstore.requests.SpaceRemoveRequest;
+import dev.hytalemodding.impulse.core.plugin.physicsstore.requests.SpaceSettingsRequest;
+import dev.hytalemodding.impulse.core.plugin.physicsstore.requests.SpaceUpsertRequest;
 import dev.hytalemodding.impulse.core.plugin.resources.PhysicsMutationHandle;
 import dev.hytalemodding.impulse.core.plugin.resources.PhysicsWorldResource;
 import dev.hytalemodding.impulse.core.plugin.settings.PhysicsSpaceSettings;
@@ -73,6 +88,7 @@ import java.util.Collection;
 import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
 import java.util.concurrent.RejectedExecutionException;
@@ -262,10 +278,14 @@ public class PhysicsWorldRuntimeResource extends PhysicsWorldResource {
         if (entityStore == null) {
             return Optional.empty();
         }
+        if (!isAuthoritativePhysicsStoreActive()) {
+            return Optional.empty();
+        }
         try {
-            PhysicsStore physicsStore = PhysicsStoreAccess.require(entityStore.getExternalData().getWorld());
-            return PhysicsStoreQueryBridge.tryQuery(physicsStore.getStore(), query);
-        } catch (IllegalStateException exception) {
+            return PhysicsStoreQueryBridge.tryQuery(
+                physicsStore(entityStore.getExternalData().getWorld()),
+                query);
+        } catch (ClassCastException | IllegalStateException exception) {
             return Optional.empty();
         }
     }
@@ -312,6 +332,87 @@ public class PhysicsWorldRuntimeResource extends PhysicsWorldResource {
                 + "EntityStore");
         }
         return entityStore.getExternalData().getWorld();
+    }
+
+    @Nonnull
+    private Store<PhysicsStore> authoritativePhysicsStore(@Nonnull String operation) {
+        return physicsStore(requireAuthoritativeWorld(operation));
+    }
+
+    @Nonnull
+    private static Store<PhysicsStore> physicsStore(@Nonnull World world) {
+        return ((PhysicsStoreWorld) Objects.requireNonNull(world, "world")).getPhysicsStore()
+            .getStore();
+    }
+
+    private static void enqueuePhysicsStoreRequest(@Nonnull Store<PhysicsStore> store,
+        @Nonnull PhysicsStoreRequest request) {
+        store.getResource(PhysicsRequestQueueResource.getResourceType())
+            .enqueue(Objects.requireNonNull(request, "request"));
+    }
+
+    @Nonnull
+    private static UUID requireSpaceUuid(@Nonnull Store<PhysicsStore> store,
+        @Nonnull SpaceId spaceId) {
+        UUID spaceUuid = store.getResource(PhysicsSpaceCompatibilityIndexResource.getResourceType())
+            .getSpaceUuid(Objects.requireNonNull(spaceId, "spaceId"));
+        if (spaceUuid == null) {
+            throw new IllegalArgumentException("PhysicsStore space id=" + spaceId.value()
+                + " is not registered");
+        }
+        return spaceUuid;
+    }
+
+    @Nullable
+    private static PhysicsSpaceSettings getPhysicsStoreSpaceSettings(
+        @Nonnull Store<PhysicsStore> store,
+        @Nonnull SpaceId spaceId) {
+        UUID spaceUuid = store.getResource(PhysicsSpaceCompatibilityIndexResource.getResourceType())
+            .getSpaceUuid(Objects.requireNonNull(spaceId, "spaceId"));
+        if (spaceUuid == null) {
+            return null;
+        }
+        Ref<PhysicsStore> ref = store.getResource(PhysicsIdentityIndexResource.getResourceType())
+            .getByUuid(spaceUuid);
+        if (ref == null || !ref.isValid()) {
+            return null;
+        }
+        SpaceComponent space = store.getComponent(ref, SpaceComponent.getComponentType());
+        if (space == null) {
+            return null;
+        }
+        WorldCollisionComponent worldCollision = store.getComponent(ref,
+            WorldCollisionComponent.getComponentType());
+        SolverSettingsComponent solverSettings = store.getComponent(ref,
+            SolverSettingsComponent.getComponentType());
+        VisualSyncSettingsComponent visualSyncSettings = store.getComponent(ref,
+            VisualSyncSettingsComponent.getComponentType());
+        VisualMaterializationSettingsComponent visualMaterializationSettings =
+            store.getComponent(ref, VisualMaterializationSettingsComponent.getComponentType());
+        CollisionLodSettingsComponent collisionLodSettings = store.getComponent(ref,
+            CollisionLodSettingsComponent.getComponentType());
+        ExtensionSettingsComponent extensionSettings = store.getComponent(ref,
+            ExtensionSettingsComponent.getComponentType());
+        PhysicsSpaceSettings settings = PhysicsSpaceSettings.defaults();
+        if (worldCollision != null) {
+            worldCollision.copyTo(settings);
+        }
+        if (solverSettings != null) {
+            solverSettings.copyTo(settings);
+        }
+        if (visualSyncSettings != null) {
+            visualSyncSettings.copyTo(settings);
+        }
+        if (visualMaterializationSettings != null) {
+            visualMaterializationSettings.copyTo(settings);
+        }
+        if (collisionLodSettings != null) {
+            collisionLodSettings.copyTo(settings);
+        }
+        if (extensionSettings != null) {
+            extensionSettings.copyTo(settings);
+        }
+        return settings;
     }
 
     @Nonnull
@@ -403,10 +504,9 @@ public class PhysicsWorldRuntimeResource extends PhysicsWorldResource {
         @Nonnull String worldName,
         @Nonnull PhysicsSpaceSettings settings) {
         if (isAuthoritativePhysicsStoreActive()) {
-            PhysicsStoreAccess.enqueueSpaceUpsert(requireAuthoritativeWorld("create physics space"),
-                spaceId,
-                backendId,
-                settings);
+            Impulse.getRuntimeProvider(backendId);
+            enqueuePhysicsStoreRequest(authoritativePhysicsStore("create physics space"),
+                SpaceUpsertRequest.of(UUID.randomUUID(), spaceId, backendId, settings));
             return spaceId;
         }
         requireLegacyMutationAllowed("create physics space");
@@ -464,8 +564,9 @@ public class PhysicsWorldRuntimeResource extends PhysicsWorldResource {
     @Override
     public boolean hasSpace(@Nonnull SpaceId spaceId) {
         if (isAuthoritativePhysicsStoreActive()) {
-            return PhysicsStoreAccess.hasSpace(requireAuthoritativeWorld("check physics space"),
-                spaceId);
+            return authoritativePhysicsStore("check physics space")
+                .getResource(PhysicsSpaceCompatibilityIndexResource.getResourceType())
+                .hasSpace(spaceId);
         }
         return spaceRuntime.getBinding(spaceId) != null;
     }
@@ -484,7 +585,9 @@ public class PhysicsWorldRuntimeResource extends PhysicsWorldResource {
     @Override
     public Collection<SpaceId> getSpaceIds() {
         if (isAuthoritativePhysicsStoreActive()) {
-            return PhysicsStoreAccess.spaceIds(requireAuthoritativeWorld("list physics spaces"));
+            return List.copyOf(authoritativePhysicsStore("list physics spaces")
+                .getResource(PhysicsSpaceCompatibilityIndexResource.getResourceType())
+                .spaceIds());
         }
         return spaceRuntime.getSpaceIds();
     }
@@ -492,7 +595,9 @@ public class PhysicsWorldRuntimeResource extends PhysicsWorldResource {
     @Override
     public int getSpaceCount() {
         if (isAuthoritativePhysicsStoreActive()) {
-            return PhysicsStoreAccess.spaceCount(requireAuthoritativeWorld("count physics spaces"));
+            return authoritativePhysicsStore("count physics spaces")
+                .getResource(PhysicsSpaceCompatibilityIndexResource.getResourceType())
+                .size();
         }
         return spaceRuntime.getSpaceCount();
     }
@@ -890,8 +995,9 @@ public class PhysicsWorldRuntimeResource extends PhysicsWorldResource {
     @Override
     public void removeSpace(@Nonnull SpaceId spaceId, @Nonnull String worldName) {
         if (isAuthoritativePhysicsStoreActive()) {
-            PhysicsStoreAccess.enqueueSpaceRemove(requireAuthoritativeWorld("remove physics space"),
-                spaceId);
+            Store<PhysicsStore> physicsStore = authoritativePhysicsStore("remove physics space");
+            enqueuePhysicsStoreRequest(physicsStore,
+                SpaceRemoveRequest.of(requireSpaceUuid(physicsStore, spaceId)));
             return;
         }
         requireLegacyMutationAllowed("remove physics space");
@@ -1002,8 +1108,8 @@ public class PhysicsWorldRuntimeResource extends PhysicsWorldResource {
     @Override
     public PhysicsSpaceSettings getSpaceSettings(@Nonnull SpaceId spaceId) {
         if (isAuthoritativePhysicsStoreActive()) {
-            PhysicsSpaceSettings settings = PhysicsStoreAccess.getSpaceSettings(
-                requireAuthoritativeWorld("read physics space settings"),
+            PhysicsSpaceSettings settings = getPhysicsStoreSpaceSettings(
+                authoritativePhysicsStore("read physics space settings"),
                 spaceId);
             if (settings == null) {
                 throw new IllegalArgumentException("PhysicsStore space id=" + spaceId.value()
@@ -1022,10 +1128,9 @@ public class PhysicsWorldRuntimeResource extends PhysicsWorldResource {
     @Override
     public void setSpaceSettings(@Nonnull SpaceId spaceId, @Nonnull PhysicsSpaceSettings settings) {
         if (isAuthoritativePhysicsStoreActive()) {
-            PhysicsStoreAccess.enqueueSpaceSettings(
-                requireAuthoritativeWorld("set physics space settings"),
-                spaceId,
-                settings);
+            Store<PhysicsStore> physicsStore = authoritativePhysicsStore("set physics space settings");
+            enqueuePhysicsStoreRequest(physicsStore,
+                SpaceSettingsRequest.of(requireSpaceUuid(physicsStore, spaceId), settings));
             return;
         }
         requireLegacyMutationAllowed("set physics space settings");
