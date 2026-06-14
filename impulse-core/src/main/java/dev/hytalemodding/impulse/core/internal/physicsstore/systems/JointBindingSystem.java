@@ -69,7 +69,11 @@ public final class JointBindingSystem extends TickingSystem<PhysicsStore>
                 removeJoint(runtime, identity, jointUuid, joint);
                 continue;
             }
-            if (runtime.getJointHandle(jointUuid) != null) {
+            BackendJointHandle existing = runtime.getJointHandle(jointUuid);
+            if (existing != null) {
+                if (!endpointsBound(runtime, joint)) {
+                    removeJoint(runtime, identity, jointUuid, joint);
+                }
                 continue;
             }
             bindJoint(runtime, identity, restore, chunk.getReferenceTo(index), jointUuid, joint);
@@ -140,6 +144,20 @@ public final class JointBindingSystem extends TickingSystem<PhysicsStore>
             restore.markFailed("PhysicsStore joint " + jointUuid
                 + " failed backend binding: " + exception.getMessage());
         }
+    }
+
+    private static boolean endpointsBound(@Nonnull PhysicsRuntimeResource runtime,
+        @Nonnull JointComponent joint) {
+        BackendSpaceHandle spaceHandle = runtime.getSpaceHandle(joint.getSpaceUuid());
+        BackendSpaceHandle bodyASpace = runtime.getBodySpaceHandle(joint.getBodyAUuid());
+        BackendSpaceHandle bodyBSpace = runtime.getBodySpaceHandle(joint.getBodyBUuid());
+        return spaceHandle != null
+            && runtime.getBodyHandle(joint.getBodyAUuid()) != null
+            && runtime.getBodyHandle(joint.getBodyBUuid()) != null
+            && bodyASpace != null
+            && bodyBSpace != null
+            && bodyASpace.value() == spaceHandle.value()
+            && bodyBSpace.value() == spaceHandle.value();
     }
 
     private static void removeJoint(@Nonnull PhysicsRuntimeResource runtime,
