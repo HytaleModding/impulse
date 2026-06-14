@@ -1,4 +1,4 @@
-package dev.hytalemodding.impulse.core.plugin.physicsstore.requests;
+package dev.hytalemodding.impulse.core.plugin.physicsstore;
 
 import dev.hytalemodding.impulse.core.plugin.physicsstore.components.BodyComponent;
 import dev.hytalemodding.impulse.core.plugin.physicsstore.components.ColliderComponent;
@@ -13,10 +13,9 @@ import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
 /**
- * Copied request that authors a single-body graph in PhysicsStore.
+ * Copied component graph for one direct PhysicsStore body row.
  */
-public record BodyUpsertRequest(@Nonnull UUID requestUuid,
-                                @Nonnull UUID bodyUuid,
+public record BodyRowDescriptor(@Nonnull UUID bodyUuid,
                                 @Nonnull BodyComponent body,
                                 @Nonnull DynamicsComponent dynamics,
                                 @Nullable TargetComponent target,
@@ -27,11 +26,9 @@ public record BodyUpsertRequest(@Nonnull UUID requestUuid,
                                 @Nonnull UUID materialUuid,
                                 @Nonnull MaterialComponent material,
                                 @Nonnull UUID filterUuid,
-                                @Nonnull CollisionFilterComponent filter)
-    implements PhysicsStoreRequest {
+                                @Nonnull CollisionFilterComponent filter) {
 
-    public BodyUpsertRequest {
-        Objects.requireNonNull(requestUuid, "requestUuid");
+    public BodyRowDescriptor {
         Objects.requireNonNull(bodyUuid, "bodyUuid");
         body = Objects.requireNonNull(body, "body").clone();
         dynamics = Objects.requireNonNull(dynamics, "dynamics").clone();
@@ -47,7 +44,7 @@ public record BodyUpsertRequest(@Nonnull UUID requestUuid,
     }
 
     @Nonnull
-    public static BodyUpsertRequest of(@Nonnull UUID bodyUuid,
+    public static BodyRowDescriptor of(@Nonnull UUID bodyUuid,
         @Nonnull BodyComponent body,
         @Nonnull DynamicsComponent dynamics,
         @Nullable TargetComponent target,
@@ -59,8 +56,7 @@ public record BodyUpsertRequest(@Nonnull UUID requestUuid,
         @Nonnull MaterialComponent material,
         @Nonnull UUID filterUuid,
         @Nonnull CollisionFilterComponent filter) {
-        return new BodyUpsertRequest(UUID.randomUUID(),
-            bodyUuid,
+        return new BodyRowDescriptor(bodyUuid,
             body,
             dynamics,
             target,

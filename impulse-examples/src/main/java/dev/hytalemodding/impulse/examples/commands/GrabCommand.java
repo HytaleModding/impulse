@@ -37,7 +37,7 @@ import dev.hytalemodding.impulse.core.plugin.physicsstore.components.JointCompon
 import dev.hytalemodding.impulse.core.plugin.physicsstore.components.MaterialComponent;
 import dev.hytalemodding.impulse.core.plugin.physicsstore.components.ShapeComponent;
 import dev.hytalemodding.impulse.core.plugin.physicsstore.components.TargetComponent;
-import dev.hytalemodding.impulse.core.plugin.physicsstore.requests.BodyUpsertRequest;
+import dev.hytalemodding.impulse.core.plugin.physicsstore.BodyRowDescriptor;
 import dev.hytalemodding.impulse.core.plugin.physicsstore.snapshots.PhysicsStoreBodySnapshot;
 import dev.hytalemodding.impulse.core.plugin.resources.PhysicsWorldResource;
 import dev.hytalemodding.impulse.core.plugin.simulation.JointType;
@@ -181,7 +181,7 @@ public class GrabCommand extends AbstractAsyncPlayerCommand {
         }
         try {
             ExamplePhysicsUtils.addPhysicsStoreBody(world,
-                anchorBodyUpsertRequest(spaceUuid, anchorBodyKey.value(), hitPoint));
+                anchorBodyRow(spaceUuid, anchorBodyKey.value(), hitPoint));
             ExamplePhysicsUtils.addPhysicsStoreJoint(world,
                 controlJointKey.value(),
                 controlJoint(spaceUuid, anchorBodyKey, selection.bodyKey(), bodyLocalHit));
@@ -192,10 +192,10 @@ public class GrabCommand extends AbstractAsyncPlayerCommand {
     }
 
     @Nonnull
-    private static BodyUpsertRequest anchorBodyUpsertRequest(@Nonnull UUID spaceUuid,
+    private static BodyRowDescriptor anchorBodyRow(@Nonnull UUID spaceUuid,
         @Nonnull UUID bodyUuid,
         @Nonnull Vector3f hitPoint) {
-        return BodyUpsertRequest.of(bodyUuid,
+        return BodyRowDescriptor.of(bodyUuid,
             new BodyComponent(spaceUuid,
                 PhysicsBodyKind.TEMPORARY,
                 PhysicsBodyPersistenceMode.RUNTIME_ONLY),

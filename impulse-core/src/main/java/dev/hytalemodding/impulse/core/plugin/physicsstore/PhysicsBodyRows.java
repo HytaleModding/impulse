@@ -11,7 +11,6 @@ import dev.hytalemodding.impulse.core.plugin.physicsstore.components.DynamicsCom
 import dev.hytalemodding.impulse.core.plugin.physicsstore.components.MaterialComponent;
 import dev.hytalemodding.impulse.core.plugin.physicsstore.components.ShapeComponent;
 import dev.hytalemodding.impulse.core.plugin.physicsstore.components.TargetComponent;
-import dev.hytalemodding.impulse.core.plugin.physicsstore.requests.BodyUpsertRequest;
 import dev.hytalemodding.impulse.core.plugin.simulation.PhysicsShapeSpec;
 import dev.hytalemodding.impulse.core.plugin.simulation.RigidBodySpawnSettings;
 import java.util.Objects;
@@ -22,15 +21,15 @@ import org.joml.Quaternionf;
 import org.joml.Vector3f;
 
 /**
- * Factories for copied PhysicsStore body graph requests.
+ * Factories for direct PhysicsStore body row descriptors.
  */
-public final class PhysicsBodySpawnRequests {
+public final class PhysicsBodyRows {
 
-    private PhysicsBodySpawnRequests() {
+    private PhysicsBodyRows() {
     }
 
     @Nonnull
-    public static BodyUpsertRequest dynamicBody(@Nonnull UUID spaceUuid,
+    public static BodyRowDescriptor dynamicBody(@Nonnull UUID spaceUuid,
         @Nonnull UUID bodyUuid,
         @Nonnull Vector3f bodyCenter,
         @Nonnull PhysicsShapeSpec shape,
@@ -51,7 +50,7 @@ public final class PhysicsBodySpawnRequests {
     }
 
     @Nonnull
-    public static BodyUpsertRequest body(@Nonnull UUID spaceUuid,
+    public static BodyRowDescriptor body(@Nonnull UUID spaceUuid,
         @Nonnull UUID bodyUuid,
         @Nonnull Vector3f bodyCenter,
         @Nonnull PhysicsShapeSpec shape,
@@ -70,7 +69,7 @@ public final class PhysicsBodySpawnRequests {
         Objects.requireNonNull(kind, "kind");
         Objects.requireNonNull(persistenceMode, "persistenceMode");
 
-        return BodyUpsertRequest.of(bodyUuid,
+        return BodyRowDescriptor.of(bodyUuid,
             new BodyComponent(spaceUuid,
                 kind,
                 persistenceMode),

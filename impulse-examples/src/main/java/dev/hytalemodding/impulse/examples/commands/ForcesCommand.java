@@ -169,7 +169,7 @@ public class ForcesCommand extends AbstractAsyncPlayerCommand {
         @Nonnull BodyCommandComponent command) {
         RigidBodyKey bodyKey = RigidBodyKey.random();
         ExamplePhysicsUtils.addPhysicsStoreBody(world,
-            ExamplePhysicsUtils.bodyUpsertRequest(spaceUuid,
+            ExamplePhysicsUtils.bodyRow(spaceUuid,
                 bodyKey.value(),
                 ExamplePhysicsUtils.toVector3f(position),
                 PhysicsShapeSpec.box(0.5f, 0.5f, 0.5f),
