@@ -12,7 +12,6 @@ import com.hypixel.hytale.server.core.universe.world.storage.PhysicsStore;
 import dev.hytalemodding.impulse.early.PhysicsStoreWorld;
 import dev.hytalemodding.impulse.api.SpaceId;
 import dev.hytalemodding.impulse.core.ImpulsePlugin;
-import dev.hytalemodding.impulse.core.internal.components.GeneratedVisualProxyComponent;
 import dev.hytalemodding.impulse.core.internal.modules.control.components.PhysicsControlSessionComponent;
 import dev.hytalemodding.impulse.core.internal.persistence.PersistentPhysicsRestorePreflight;
 import dev.hytalemodding.impulse.core.internal.persistence.PersistentPhysicsSpaceState;
@@ -23,6 +22,7 @@ import dev.hytalemodding.impulse.core.internal.resources.PhysicsWorldRuntimeReso
 import dev.hytalemodding.impulse.core.internal.resources.owner.PhysicsOwnerBridge;
 import dev.hytalemodding.impulse.core.plugin.physicsstore.projection.BodyAttachmentComponent;
 import dev.hytalemodding.impulse.core.plugin.physicsstore.projection.BodyAttachmentComponent.AttachmentLifecycle;
+import dev.hytalemodding.impulse.core.plugin.physicsstore.projection.GeneratedVisualProxyComponent;
 import dev.hytalemodding.impulse.core.plugin.resources.PhysicsWorldResource;
 import java.util.logging.Level;
 import javax.annotation.Nonnull;
