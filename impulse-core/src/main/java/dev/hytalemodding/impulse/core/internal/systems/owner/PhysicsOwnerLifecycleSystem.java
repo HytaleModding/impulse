@@ -4,7 +4,11 @@ import com.hypixel.hytale.component.ResourceType;
 import com.hypixel.hytale.component.Store;
 import com.hypixel.hytale.component.system.StoreSystem;
 import com.hypixel.hytale.logger.HytaleLogger;
+import com.hypixel.hytale.server.core.universe.world.World;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
+import com.hypixel.hytale.server.core.universe.world.storage.PhysicsStore;
+import dev.hytalemodding.impulse.early.PhysicsStoreWorld;
+import dev.hytalemodding.impulse.core.internal.physicsstore.PhysicsStoreRuntimeCleaner;
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsWorldRuntimeResource;
 import dev.hytalemodding.impulse.core.internal.resources.owner.PhysicsOwnerResource;
 import dev.hytalemodding.impulse.core.plugin.resources.PhysicsWorldResource;
@@ -58,14 +62,14 @@ public final class PhysicsOwnerLifecycleSystem extends StoreSystem<EntityStore>
         PhysicsOwnerResource owner = store.getResource(ownerResourceType);
         PhysicsWorldResource physics = store.getResource(physicsWorldResourceType);
         PhysicsWorldRuntimeResource runtime = PhysicsWorldRuntimeResource.require(physics);
-        RuntimeException clearFailure = tryClearSpaces(physics, worldName);
+        RuntimeException clearFailure = tryClearSpaces(store, physics, worldName);
         boolean closedOwner = closeOwner(owner);
         runtime.detachOwnerExecutor(owner);
         runtime.detachEntityStore(store);
 
         // Retry if it failed before, this could happen.
         if (clearFailure != null && closedOwner) {
-            clearFailure = tryClearSpaces(physics, worldName);
+            clearFailure = tryClearSpaces(store, physics, worldName);
         }
         if (clearFailure != null) {
             LOGGER.at(Level.WARNING).log("Failed to clear physics spaces for world %s: %s",
@@ -118,13 +122,27 @@ public final class PhysicsOwnerLifecycleSystem extends StoreSystem<EntityStore>
     }
 
     @Nullable
-    private static RuntimeException tryClearSpaces(@Nonnull PhysicsWorldResource physics,
+    private static RuntimeException tryClearSpaces(@Nonnull Store<EntityStore> store,
+        @Nonnull PhysicsWorldResource physics,
         @Nonnull String worldName) {
         try {
-            physics.clearAllSpaces(worldName);
+            Store<PhysicsStore> physicsStore = physicsStoreOrNull(store);
+            if (physicsStore != null) {
+                PhysicsStoreRuntimeCleaner.clearAll(physicsStore);
+            } else {
+                physics.clearAllSpaces(worldName);
+            }
             return null;
         } catch (RuntimeException exception) {
             return exception;
         }
+    }
+
+    @Nullable
+    private static Store<PhysicsStore> physicsStoreOrNull(@Nonnull Store<EntityStore> store) {
+        World world = store.getExternalData().getWorld();
+        return world instanceof PhysicsStoreWorld physicsWorld
+            ? physicsWorld.getPhysicsStore().getStore()
+            : null;
     }
 }

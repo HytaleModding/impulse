@@ -8,6 +8,8 @@ import com.hypixel.hytale.component.system.tick.TickingSystem;
 import com.hypixel.hytale.logger.HytaleLogger;
 import com.hypixel.hytale.server.core.universe.world.World;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
+import com.hypixel.hytale.server.core.universe.world.storage.PhysicsStore;
+import dev.hytalemodding.impulse.early.PhysicsStoreWorld;
 import dev.hytalemodding.impulse.api.SpaceId;
 import dev.hytalemodding.impulse.core.ImpulsePlugin;
 import dev.hytalemodding.impulse.core.internal.components.GeneratedVisualProxyComponent;
@@ -15,6 +17,7 @@ import dev.hytalemodding.impulse.core.internal.modules.control.components.Physic
 import dev.hytalemodding.impulse.core.internal.persistence.PersistentPhysicsRestorePreflight;
 import dev.hytalemodding.impulse.core.internal.persistence.PersistentPhysicsSpaceState;
 import dev.hytalemodding.impulse.core.internal.persistence.PersistentPhysicsWorldResource;
+import dev.hytalemodding.impulse.core.internal.physicsstore.PhysicsStoreRuntimeCleaner;
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsSpaceBinding;
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsWorldRuntimeResource;
 import dev.hytalemodding.impulse.core.internal.resources.owner.PhysicsOwnerBridge;
@@ -66,6 +69,14 @@ public class PersistentPhysicsSpaceBootstrapSystem extends TickingSystem<EntityS
 
         World world = store.getExternalData().getWorld();
         PhysicsWorldRuntimeResource runtime = PhysicsWorldRuntimeResource.require(store);
+        if (physicsStoreOrNull(store) != null) {
+            stripRuntimePhysicsStateForRestore(store, runtime, world);
+            persistent.clearRuntimeRestorePending();
+            LOGGER.at(Level.INFO).log("Skipped legacy PersistentPhysicsWorldResource restore in "
+                + "world %s because authoritative PhysicsStore persistence is active",
+                world.getName());
+            return;
+        }
         PersistentPhysicsSpaceState[] spaces = persistent.getSpaces();
         String validationFailure = PersistentPhysicsRestorePreflight.validate(persistent);
         if (validationFailure != null) {
@@ -128,10 +139,15 @@ public class PersistentPhysicsSpaceBootstrapSystem extends TickingSystem<EntityS
     private static void stripRuntimePhysicsStateForRestore(@Nonnull Store<EntityStore> store,
         @Nonnull PhysicsWorldResource runtime,
         @Nonnull World world) {
-        PhysicsOwnerBridge.run(store, "strip runtime physics state for restore", () -> {
-            runtime.clearAllSpaces(world.getName());
-            runtime.clearBodies();
-        });
+        Store<PhysicsStore> physicsStore = physicsStoreOrNull(store);
+        if (physicsStore != null) {
+            PhysicsStoreRuntimeCleaner.clearAll(physicsStore);
+        } else {
+            PhysicsOwnerBridge.run(store, "strip runtime physics state for restore", () -> {
+                runtime.clearAllSpaces(world.getName());
+                runtime.clearBodies();
+            });
+        }
 
         store.forEachEntityParallel(ATTACHMENT_TYPE,
             (index, archetypeChunk, commandBuffer) -> {
@@ -163,6 +179,13 @@ public class PersistentPhysicsSpaceBootstrapSystem extends TickingSystem<EntityS
                     archetypeChunk.getReferenceTo(index),
                     controlSessionType));
         }
+    }
+
+    private static Store<PhysicsStore> physicsStoreOrNull(@Nonnull Store<EntityStore> store) {
+        World world = store.getExternalData().getWorld();
+        return world instanceof PhysicsStoreWorld physicsWorld
+            ? physicsWorld.getPhysicsStore().getStore()
+            : null;
     }
 
     @Nonnull
