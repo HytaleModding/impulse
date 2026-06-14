@@ -14,9 +14,11 @@ import com.hypixel.hytale.server.core.modules.entity.system.UpdateLocationSystem
 import com.hypixel.hytale.server.core.universe.PlayerRef;
 import com.hypixel.hytale.server.core.universe.world.World;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
+import com.hypixel.hytale.server.core.universe.world.storage.PhysicsStore;
 import dev.hytalemodding.impulse.api.PhysicsBodySnapshot;
 import dev.hytalemodding.impulse.api.ShapeType;
 import dev.hytalemodding.impulse.api.SpaceId;
+import dev.hytalemodding.impulse.early.PhysicsStoreWorld;
 import dev.hytalemodding.impulse.core.plugin.physicsstore.projection.BodyAttachmentComponent;
 import dev.hytalemodding.impulse.core.plugin.physicsstore.projection.BodyAttachmentComponent.AttachmentLifecycle;
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsDebugResource;
@@ -26,9 +28,7 @@ import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyRegistrationView;
 import dev.hytalemodding.impulse.core.internal.modules.worldcollision.SectionCollisionGeometry.BoxCollider;
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsWorldRuntimeResource;
 import dev.hytalemodding.impulse.core.internal.simulation.view.PhysicsDebugContactView;
-import dev.hytalemodding.impulse.core.internal.simulation.query.PhysicsDebugContactsQuery;
 import dev.hytalemodding.impulse.core.internal.simulation.view.PhysicsDebugJointView;
-import dev.hytalemodding.impulse.core.internal.simulation.query.PhysicsDebugJointsQuery;
 import dev.hytalemodding.impulse.core.internal.modules.worldcollision.WorldVoxelCollisionCache.DebugSection;
 import dev.hytalemodding.impulse.core.internal.systems.sync.PhysicsSyncSystem;
 import it.unimi.dsi.fastutil.objects.Object2ObjectOpenHashMap;
@@ -109,6 +109,8 @@ public class PhysicsDebugSystem extends TickingSystem<EntityStore> {
             return;
         }
 
+        Store<PhysicsStore> physicsStore =
+            ((PhysicsStoreWorld) world).getPhysicsStore().getStore();
         float overlayLifetime = PhysicsDebugRenderer.lifetimeForRefresh(
             debug.getOverlayRefreshSeconds(), dt);
         float worldCollisionLifetime = PhysicsDebugRenderer.lifetimeForRefresh(
@@ -146,7 +148,7 @@ public class PhysicsDebugSystem extends TickingSystem<EntityStore> {
                 }
                 if (overlayDue && debugContacts) {
                     renderContacts(target,
-                        resource,
+                        physicsStore,
                         space,
                         viewerUuid,
                         queryCache,
@@ -157,7 +159,7 @@ public class PhysicsDebugSystem extends TickingSystem<EntityStore> {
                 }
                 if (overlayDue && debugJoints) {
                     renderJoints(target,
-                        resource,
+                        physicsStore,
                         space,
                         viewerUuid,
                         queryCache,
@@ -356,7 +358,7 @@ public class PhysicsDebugSystem extends TickingSystem<EntityStore> {
     }
 
     private static void renderContacts(@Nonnull Collection<PlayerRef> viewers,
-        @Nonnull PhysicsWorldRuntimeResource resource,
+        @Nonnull Store<PhysicsStore> physicsStore,
         @Nonnull PhysicsSpaceBinding space,
         @Nonnull UUID viewerUuid,
         @Nonnull DebugQueryCache queryCache,
@@ -367,12 +369,11 @@ public class PhysicsDebugSystem extends TickingSystem<EntityStore> {
         DebugQueryKey key = DebugQueryKey.contacts(space.spaceId(), viewerUuid);
         try {
             queryCache.requestContactsIfIdle(key,
-                () -> resource.queryInternal(new PhysicsDebugContactsQuery(space.spaceId(),
-                    viewerPosition.x,
-                    viewerPosition.y,
-                    viewerPosition.z,
+                () -> PhysicsStoreDebugQueries.contactsAsync(physicsStore,
+                    space.spaceId(),
+                    viewerPosition,
                     viewRadius,
-                    maxContacts)));
+                    maxContacts));
         } catch (RuntimeException exception) {
             return;
         }
@@ -382,7 +383,7 @@ public class PhysicsDebugSystem extends TickingSystem<EntityStore> {
     }
 
     private static void renderJoints(@Nonnull Collection<PlayerRef> viewers,
-        @Nonnull PhysicsWorldRuntimeResource resource,
+        @Nonnull Store<PhysicsStore> physicsStore,
         @Nonnull PhysicsSpaceBinding space,
         @Nonnull UUID viewerUuid,
         @Nonnull DebugQueryCache queryCache,
@@ -393,12 +394,11 @@ public class PhysicsDebugSystem extends TickingSystem<EntityStore> {
         DebugQueryKey key = DebugQueryKey.joints(space.spaceId(), viewerUuid);
         try {
             queryCache.requestJointsIfIdle(key,
-                () -> resource.queryInternal(new PhysicsDebugJointsQuery(space.spaceId(),
-                    viewerPosition.x,
-                    viewerPosition.y,
-                    viewerPosition.z,
+                () -> PhysicsStoreDebugQueries.jointsAsync(physicsStore,
+                    space.spaceId(),
+                    viewerPosition,
                     viewRadius,
-                    maxJoints)));
+                    maxJoints));
         } catch (RuntimeException exception) {
             return;
         }
