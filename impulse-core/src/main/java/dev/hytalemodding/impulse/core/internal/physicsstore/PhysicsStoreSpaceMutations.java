@@ -156,6 +156,7 @@ public final class PhysicsStoreSpaceMutations {
     @Nonnull
     public static UUID requireSpaceUuid(@Nonnull Store<PhysicsStore> store,
         @Nonnull SpaceId spaceId) {
+        PhysicsStoreThreading.requireWorldThread(store, "resolve a PhysicsStore space UUID");
         UUID spaceUuid = store.getResource(PhysicsSpaceCompatibilityIndexResource.getResourceType())
             .getSpaceUuid(Objects.requireNonNull(spaceId, "spaceId"));
         if (spaceUuid == null) {
@@ -168,6 +169,7 @@ public final class PhysicsStoreSpaceMutations {
     @Nonnull
     private static Ref<PhysicsStore> requireSpaceRef(@Nonnull Store<PhysicsStore> store,
         @Nonnull UUID spaceUuid) {
+        PhysicsStoreThreading.requireWorldThread(store, "resolve a PhysicsStore space row");
         Ref<PhysicsStore> ref = store.getResource(PhysicsIdentityIndexResource.getResourceType())
             .getByUuid(Objects.requireNonNull(spaceUuid, "spaceUuid"));
         if (ref == null || !ref.isValid()) {

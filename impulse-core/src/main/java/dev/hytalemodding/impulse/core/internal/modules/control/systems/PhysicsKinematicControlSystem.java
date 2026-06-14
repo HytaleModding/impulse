@@ -25,6 +25,7 @@ import dev.hytalemodding.impulse.core.internal.physicsstore.resources.PhysicsIde
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsWorldRuntimeResource;
 import dev.hytalemodding.impulse.core.internal.systems.sync.PhysicsSyncSystem;
 import dev.hytalemodding.impulse.core.plugin.body.RigidBodyKey;
+import dev.hytalemodding.impulse.core.plugin.physicsstore.PhysicsStoreThreading;
 import dev.hytalemodding.impulse.core.plugin.physicsstore.components.BodyComponent;
 import dev.hytalemodding.impulse.core.plugin.physicsstore.components.TargetComponent;
 import it.unimi.dsi.fastutil.objects.Object2ObjectMap;
@@ -170,6 +171,8 @@ public class PhysicsKinematicControlSystem extends EntityTickingSystem<EntitySto
         PhysicsStore physicsStore =
             ((PhysicsStoreWorld) store.getExternalData().getWorld()).getPhysicsStore();
         Store<PhysicsStore> physics = physicsStore.getStore();
+        PhysicsStoreThreading.requireWorldThread(physics,
+            "resolve PhysicsStore kinematic control targets");
         PhysicsIdentityIndexResource identity = physics.getResource(
             PhysicsIdentityIndexResource.getResourceType());
         UUID bodyUuid = bodyKey.value();

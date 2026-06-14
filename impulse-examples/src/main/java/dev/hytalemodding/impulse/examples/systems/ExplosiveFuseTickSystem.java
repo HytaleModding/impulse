@@ -12,9 +12,11 @@ import com.hypixel.hytale.component.system.tick.EntityTickingSystem;
 import com.hypixel.hytale.server.core.modules.entity.component.TransformComponent;
 import com.hypixel.hytale.server.core.universe.world.World;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
+import com.hypixel.hytale.server.core.universe.world.storage.PhysicsStore;
 import dev.hytalemodding.impulse.early.PhysicsStoreWorld;
 import dev.hytalemodding.impulse.api.SpaceId;
 import dev.hytalemodding.impulse.core.internal.physicsstore.resources.PhysicsSnapshotResource;
+import dev.hytalemodding.impulse.core.plugin.physicsstore.PhysicsStoreThreading;
 import dev.hytalemodding.impulse.core.plugin.physicsstore.projection.BodyAttachmentComponent;
 import dev.hytalemodding.impulse.core.plugin.physicsstore.snapshots.PhysicsStoreBodySnapshot;
 import dev.hytalemodding.impulse.examples.explosive.ExplosiveBlockComponent;
@@ -115,9 +117,11 @@ public final class ExplosiveFuseTickSystem extends EntityTickingSystem<EntitySto
     private static BodyMotionSnapshot bodySnapshot(@Nonnull Store<EntityStore> store,
         @Nonnull BodyAttachmentComponent attachment) {
         UUID bodyUuid = attachment.getBodyUuid();
-        PhysicsStoreBodySnapshot snapshot = ((PhysicsStoreWorld) store.getExternalData().getWorld())
-            .getPhysicsStore()
-            .getStore()
+        Store<PhysicsStore> physics = ((PhysicsStoreWorld) store.getExternalData().getWorld())
+            .getPhysicsStore().getStore();
+        PhysicsStoreThreading.requireWorldThread(physics,
+            "read copied PhysicsStore explosive body snapshot");
+        PhysicsStoreBodySnapshot snapshot = physics
             .getResource(PhysicsSnapshotResource.getResourceType())
             .getBody(bodyUuid);
         return snapshot != null ? BodyMotionSnapshot.from(snapshot) : null;
