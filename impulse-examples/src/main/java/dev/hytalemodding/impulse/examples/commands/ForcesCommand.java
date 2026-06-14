@@ -14,14 +14,11 @@ import com.hypixel.hytale.server.core.universe.world.World;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import dev.hytalemodding.impulse.api.SpaceId;
 import dev.hytalemodding.impulse.core.plugin.body.RigidBodyKey;
-import dev.hytalemodding.impulse.core.plugin.physicsstore.requests.BodyForceRequest;
-import dev.hytalemodding.impulse.core.plugin.physicsstore.requests.PhysicsStoreRequest;
+import dev.hytalemodding.impulse.core.plugin.physicsstore.components.BodyCommandComponent;
 import dev.hytalemodding.impulse.core.plugin.resources.PhysicsWorldResource;
 import dev.hytalemodding.impulse.core.plugin.simulation.PhysicsShapeSpec;
 import dev.hytalemodding.impulse.core.plugin.simulation.RigidBodySpawnSettings;
 import dev.hytalemodding.impulse.examples.commands.ExamplePhysicsUtils.PendingBlockBody;
-import java.util.ArrayList;
-import java.util.List;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import javax.annotation.Nonnull;
@@ -110,41 +107,76 @@ public class ForcesCommand extends AbstractAsyncPlayerCommand {
             return null;
         }
 
-        List<PhysicsStoreRequest> requests = new ArrayList<>(8);
-        PendingBlockBody central = spawnBox(requests, spaceUuid, spaceId, centralPosition);
-        requests.add(BodyForceRequest.impulse(central.bodyKey().value(), 4.0f, 2.0f, 0.0f));
-        PendingBlockBody offCenter = spawnBox(requests, spaceUuid, spaceId, offCenterPosition);
-        requests.add(BodyForceRequest.impulseAt(offCenter.bodyKey().value(),
-            3.5f,
-            0.0f,
-            0.0f,
-            0.0f,
-            0.5f,
-            0.5f));
-        PendingBlockBody torque = spawnBox(requests, spaceUuid, spaceId, torquePosition);
-        requests.add(BodyForceRequest.torqueImpulse(torque.bodyKey().value(), 0.0f, 0.0f, 8.0f));
-        PendingBlockBody force = spawnBox(requests, spaceUuid, spaceId, forcePosition);
-        requests.add(BodyForceRequest.force(force.bodyKey().value(), 30.0f, 0.0f, 0.0f));
         try {
-            ExamplePhysicsUtils.enqueuePhysicsStoreRequests(world, requests);
+            PendingBlockBody central = spawnBox(world,
+                spaceUuid,
+                spaceId,
+                centralPosition,
+                BodyCommandComponent.vector(BodyCommandComponent.Kind.IMPULSE,
+                    4.0f,
+                    2.0f,
+                    0.0f,
+                    false,
+                    0.0f,
+                    0.0f,
+                    0.0f));
+            PendingBlockBody offCenter = spawnBox(world,
+                spaceUuid,
+                spaceId,
+                offCenterPosition,
+                BodyCommandComponent.vector(BodyCommandComponent.Kind.IMPULSE,
+                    3.5f,
+                    0.0f,
+                    0.0f,
+                    true,
+                    0.0f,
+                    0.5f,
+                    0.5f));
+            PendingBlockBody torque = spawnBox(world,
+                spaceUuid,
+                spaceId,
+                torquePosition,
+                BodyCommandComponent.vector(BodyCommandComponent.Kind.TORQUE_IMPULSE,
+                    0.0f,
+                    0.0f,
+                    8.0f,
+                    false,
+                    0.0f,
+                    0.0f,
+                    0.0f));
+            PendingBlockBody force = spawnBox(world,
+                spaceUuid,
+                spaceId,
+                forcePosition,
+                BodyCommandComponent.vector(BodyCommandComponent.Kind.FORCE,
+                    30.0f,
+                    0.0f,
+                    0.0f,
+                    false,
+                    0.0f,
+                    0.0f,
+                    0.0f));
+            return new ForceDemoBodies(central, offCenter, torque, force);
         } catch (IllegalStateException exception) {
             return null;
         }
-        return new ForceDemoBodies(central, offCenter, torque, force);
     }
 
-    private static PendingBlockBody spawnBox(@Nonnull List<PhysicsStoreRequest> requests,
+    private static PendingBlockBody spawnBox(@Nonnull World world,
         @Nonnull UUID spaceUuid,
         @Nonnull SpaceId spaceId,
-        @Nonnull Vector3d position) {
+        @Nonnull Vector3d position,
+        @Nonnull BodyCommandComponent command) {
         RigidBodyKey bodyKey = RigidBodyKey.random();
-        requests.add(ExamplePhysicsUtils.bodyUpsertRequest(spaceUuid,
-            bodyKey.value(),
-            ExamplePhysicsUtils.toVector3f(position),
-            PhysicsShapeSpec.box(0.5f, 0.5f, 0.5f),
-            1.0f,
-            RigidBodySpawnSettings.material(0.5f, 0.25f),
-            null));
+        ExamplePhysicsUtils.addPhysicsStoreBody(world,
+            ExamplePhysicsUtils.bodyUpsertRequest(spaceUuid,
+                bodyKey.value(),
+                ExamplePhysicsUtils.toVector3f(position),
+                PhysicsShapeSpec.box(0.5f, 0.5f, 0.5f),
+                1.0f,
+                RigidBodySpawnSettings.material(0.5f, 0.25f),
+                null),
+            command);
         return new PendingBlockBody(bodyKey,
             spaceId,
             ExamplePhysicsUtils.DEFAULT_BLOCK_TYPE,
