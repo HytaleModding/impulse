@@ -30,6 +30,7 @@ import dev.hytalemodding.impulse.core.plugin.modules.control.ImpulseControllable
 import dev.hytalemodding.impulse.core.plugin.modules.control.PhysicsControlSessions;
 import dev.hytalemodding.impulse.core.plugin.physicsstore.PhysicsBodySpawnRequests;
 import dev.hytalemodding.impulse.core.plugin.physicsstore.PhysicsStoreEntities;
+import dev.hytalemodding.impulse.core.plugin.physicsstore.components.BodyCommandComponent;
 import dev.hytalemodding.impulse.core.plugin.physicsstore.projection.BodyAttachmentComponent;
 import dev.hytalemodding.impulse.core.plugin.physicsstore.requests.BodyUpsertRequest;
 import dev.hytalemodding.impulse.core.plugin.physicsstore.requests.PhysicsStoreRequest;
@@ -127,8 +128,31 @@ public final class ExamplePhysicsUtils {
     @Nonnull
     public static Ref<PhysicsStore> addPhysicsStoreBody(@Nonnull World world,
         @Nonnull BodyUpsertRequest request) {
-        Objects.requireNonNull(request, "request");
+        return addPhysicsStoreBody(physicsStore(world), request);
+    }
+
+    @Nonnull
+    public static Ref<PhysicsStore> addPhysicsStoreBody(@Nonnull World world,
+        @Nonnull BodyUpsertRequest request,
+        @Nonnull BodyCommandComponent command) {
         Store<PhysicsStore> store = physicsStore(world);
+        Ref<PhysicsStore> bodyRef = addPhysicsStoreBody(store, request);
+        appendPhysicsStoreBodyCommand(store, bodyRef, command);
+        return bodyRef;
+    }
+
+    public static void addPhysicsStoreBodies(@Nonnull World world,
+        @Nonnull Iterable<BodyUpsertRequest> requests) {
+        Objects.requireNonNull(requests, "requests");
+        for (BodyUpsertRequest request : requests) {
+            addPhysicsStoreBody(world, request);
+        }
+    }
+
+    @Nonnull
+    private static Ref<PhysicsStore> addPhysicsStoreBody(@Nonnull Store<PhysicsStore> store,
+        @Nonnull BodyUpsertRequest request) {
+        Objects.requireNonNull(request, "request");
         return store.addEntity(PhysicsStoreEntities.bodyHolder(store,
             request.bodyUuid(),
             request.body(),
@@ -140,12 +164,16 @@ public final class ExamplePhysicsUtils {
             request.filter()), AddReason.SPAWN);
     }
 
-    public static void addPhysicsStoreBodies(@Nonnull World world,
-        @Nonnull Iterable<BodyUpsertRequest> requests) {
-        Objects.requireNonNull(requests, "requests");
-        for (BodyUpsertRequest request : requests) {
-            addPhysicsStoreBody(world, request);
-        }
+    public static void appendPhysicsStoreBodyCommand(@Nonnull Store<PhysicsStore> store,
+        @Nonnull Ref<PhysicsStore> bodyRef,
+        @Nonnull BodyCommandComponent command) {
+        Objects.requireNonNull(store, "store");
+        Objects.requireNonNull(bodyRef, "bodyRef");
+        Objects.requireNonNull(command, "command");
+        BodyCommandComponent existing = store.getComponent(bodyRef,
+            BodyCommandComponent.getComponentType());
+        BodyCommandComponent merged = existing != null ? existing.append(command) : command;
+        store.putComponent(bodyRef, BodyCommandComponent.getComponentType(), merged);
     }
 
     @Nullable
