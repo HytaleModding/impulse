@@ -14,6 +14,7 @@ public final class PhysicsWorldSettingsResource implements Resource<PhysicsStore
 
     @Nonnull
     private final PhysicsWorldSettings settings = new PhysicsWorldSettings();
+    private boolean ccdStepModeActive;
 
     public PhysicsWorldSettingsResource() {
     }
@@ -27,11 +28,20 @@ public final class PhysicsWorldSettingsResource implements Resource<PhysicsStore
         this.settings.copyFrom(settings);
     }
 
+    public boolean isCcdStepModeActive() {
+        return ccdStepModeActive;
+    }
+
+    public void setCcdStepModeActive(boolean ccdStepModeActive) {
+        this.ccdStepModeActive = ccdStepModeActive;
+    }
+
     @Nonnull
     @Override
     public PhysicsWorldSettingsResource clone() {
         PhysicsWorldSettingsResource copy = new PhysicsWorldSettingsResource();
         copy.setSettings(settings);
+        copy.ccdStepModeActive = ccdStepModeActive;
         return copy;
     }
 
