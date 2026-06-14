@@ -1,6 +1,5 @@
 package dev.hytalemodding.impulse.core.plugin.simulation;
 
-import dev.hytalemodding.impulse.core.plugin.simulation.query.RaycastClosestBatchQuery;
 import dev.hytalemodding.impulse.core.plugin.simulation.view.RaycastHitView;
 
 import java.util.Arrays;
@@ -11,8 +10,8 @@ import javax.annotation.Nullable;
 /**
  * Compact copied result for a batch of closest-raycast queries.
  *
- * <p>Each result slot corresponds to the same index in the submitted
- * {@link RaycastClosestBatchQuery#rays()} list. A {@code null} slot means that ray had no hit.</p>
+ * <p>Each result slot corresponds to the same submitted ray index. A {@code null} slot means that
+ * ray had no hit.</p>
  */
 public final class RaycastClosestBatchResult {
 
