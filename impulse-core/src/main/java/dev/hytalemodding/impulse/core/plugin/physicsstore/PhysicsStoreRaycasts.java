@@ -3,11 +3,9 @@ package dev.hytalemodding.impulse.core.plugin.physicsstore;
 import com.hypixel.hytale.component.Store;
 import com.hypixel.hytale.server.core.universe.world.World;
 import com.hypixel.hytale.server.core.universe.world.storage.PhysicsStore;
-import dev.hytalemodding.impulse.early.PhysicsStoreWorld;
 import dev.hytalemodding.impulse.api.SpaceId;
 import dev.hytalemodding.impulse.api.runtime.BackendRayHitSink;
 import dev.hytalemodding.impulse.core.internal.physicsstore.resources.PhysicsRuntimeResource;
-import dev.hytalemodding.impulse.core.internal.physicsstore.resources.PhysicsStoreReadQueueResource;
 import dev.hytalemodding.impulse.core.plugin.simulation.RaycastClosestBatchResult;
 import dev.hytalemodding.impulse.core.plugin.simulation.RaycastSegment;
 import dev.hytalemodding.impulse.core.plugin.simulation.view.RaycastHitView;
@@ -26,7 +24,7 @@ import org.joml.Vector3f;
  * <p>The synchronous methods read live backend state through {@link PhysicsRuntimeResource} and
  * must only be called from the PhysicsStore tick lane or explicitly scheduled PhysicsStore owner
  * work. Off-lane callers should use the {@code *Async} methods, which copy inputs, enqueue the
- * read for {@link PhysicsStoreReadQueueResource}, and complete with copied hit views.</p>
+ * read on the PhysicsStore owner thread, and complete with copied hit views.</p>
  */
 public final class PhysicsStoreRaycasts {
 
@@ -96,7 +94,11 @@ public final class PhysicsStoreRaycasts {
         @Nonnull SpaceId spaceId,
         @Nonnull Vector3f from,
         @Nonnull Vector3f to) {
-        return closestAsync(store(world), spaceId, from, to);
+        Vector3f copiedFrom = new Vector3f(Objects.requireNonNull(from, "from"));
+        Vector3f copiedTo = new Vector3f(Objects.requireNonNull(to, "to"));
+        return PhysicsStoreThreading.enqueueReadOnWorldThread(world,
+            "queue PhysicsStore closest raycast read",
+            physics -> closest(physics, spaceId, copiedFrom, copiedTo));
     }
 
     @Nonnull
@@ -107,8 +109,9 @@ public final class PhysicsStoreRaycasts {
         @Nonnull Vector3f to) {
         Vector3f copiedFrom = new Vector3f(Objects.requireNonNull(from, "from"));
         Vector3f copiedTo = new Vector3f(Objects.requireNonNull(to, "to"));
-        return queue(store).enqueue(physics ->
-            closest(physics, spaceId, copiedFrom, copiedTo));
+        return PhysicsStoreThreading.enqueueReadOnWorldThread(store,
+            "queue PhysicsStore closest raycast read",
+            physics -> closest(physics, spaceId, copiedFrom, copiedTo));
     }
 
     @Nonnull
@@ -116,7 +119,11 @@ public final class PhysicsStoreRaycasts {
         @Nonnull SpaceId spaceId,
         @Nonnull Vector3f from,
         @Nonnull Vector3f to) {
-        return allAsync(store(world), spaceId, from, to);
+        Vector3f copiedFrom = new Vector3f(Objects.requireNonNull(from, "from"));
+        Vector3f copiedTo = new Vector3f(Objects.requireNonNull(to, "to"));
+        return PhysicsStoreThreading.enqueueReadOnWorldThread(world,
+            "queue PhysicsStore all raycast read",
+            physics -> all(physics, spaceId, copiedFrom, copiedTo));
     }
 
     @Nonnull
@@ -126,7 +133,9 @@ public final class PhysicsStoreRaycasts {
         @Nonnull Vector3f to) {
         Vector3f copiedFrom = new Vector3f(Objects.requireNonNull(from, "from"));
         Vector3f copiedTo = new Vector3f(Objects.requireNonNull(to, "to"));
-        return queue(store).enqueue(physics -> all(physics, spaceId, copiedFrom, copiedTo));
+        return PhysicsStoreThreading.enqueueReadOnWorldThread(store,
+            "queue PhysicsStore all raycast read",
+            physics -> all(physics, spaceId, copiedFrom, copiedTo));
     }
 
     @Nonnull
@@ -134,7 +143,10 @@ public final class PhysicsStoreRaycasts {
         @Nonnull World world,
         @Nonnull SpaceId spaceId,
         @Nonnull List<RaycastSegment> rays) {
-        return closestBatchAsync(store(world), spaceId, rays);
+        List<RaycastSegment> copied = List.copyOf(Objects.requireNonNull(rays, "rays"));
+        return PhysicsStoreThreading.enqueueReadOnWorldThread(world,
+            "queue PhysicsStore batch raycast read",
+            physics -> closestBatch(physics, spaceId, copied));
     }
 
     @Nonnull
@@ -143,7 +155,9 @@ public final class PhysicsStoreRaycasts {
         @Nonnull SpaceId spaceId,
         @Nonnull List<RaycastSegment> rays) {
         List<RaycastSegment> copied = List.copyOf(Objects.requireNonNull(rays, "rays"));
-        return queue(store).enqueue(physics -> closestBatch(physics, spaceId, copied));
+        return PhysicsStoreThreading.enqueueReadOnWorldThread(store,
+            "queue PhysicsStore batch raycast read",
+            physics -> closestBatch(physics, spaceId, copied));
     }
 
     @Nonnull
@@ -248,18 +262,6 @@ public final class PhysicsStoreRaycasts {
                     distance));
         }
         return new RaycastClosestBatchResult(hits);
-    }
-
-    @Nonnull
-    private static Store<PhysicsStore> store(@Nonnull World world) {
-        return ((PhysicsStoreWorld) Objects.requireNonNull(world, "world")).getPhysicsStore()
-            .getStore();
-    }
-
-    @Nonnull
-    private static PhysicsStoreReadQueueResource queue(@Nonnull Store<PhysicsStore> store) {
-        return Objects.requireNonNull(store, "store")
-            .getResource(PhysicsStoreReadQueueResource.getResourceType());
     }
 
     private static final class RayHitCapture implements BackendRayHitSink {

@@ -9,7 +9,6 @@ import dev.hytalemodding.impulse.core.internal.physicsstore.persistence.Persiste
 import dev.hytalemodding.impulse.core.internal.physicsstore.resources.PhysicsRestoreStatusResource;
 import dev.hytalemodding.impulse.core.internal.physicsstore.resources.PhysicsSpaceCompatibilityIndexResource;
 import dev.hytalemodding.impulse.core.internal.physicsstore.resources.PhysicsSnapshotResource;
-import dev.hytalemodding.impulse.core.internal.physicsstore.resources.PhysicsStoreReadQueueResource;
 import dev.hytalemodding.impulse.core.plugin.physicsstore.PhysicsStoreDiagnostics;
 import dev.hytalemodding.impulse.core.plugin.physicsstore.PhysicsStoreThreading;
 import dev.hytalemodding.impulse.core.plugin.simulation.SpaceSummary;
@@ -71,10 +70,9 @@ public final class PhysicsPersistence {
 
     @Nonnull
     public static CompletionStage<Status> statusAsync(@Nonnull Store<EntityStore> store) {
-        Store<PhysicsStore> physicsStore = physicsStore(store);
-        LegacyStatus legacy = legacyStatus(store);
-        return physicsStore.getResource(PhysicsStoreReadQueueResource.getResourceType())
-            .enqueue(physics -> liveStatus(physics, legacy));
+        return PhysicsStoreThreading.enqueueReadOnWorldThread(store.getExternalData().getWorld(),
+            "queue PhysicsStore persistence status read",
+            physics -> liveStatus(physics, legacyStatus(store)));
     }
 
     @Nonnull

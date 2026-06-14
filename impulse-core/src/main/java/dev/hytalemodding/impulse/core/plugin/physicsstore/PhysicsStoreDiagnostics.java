@@ -3,11 +3,9 @@ package dev.hytalemodding.impulse.core.plugin.physicsstore;
 import com.hypixel.hytale.component.Store;
 import com.hypixel.hytale.server.core.universe.world.World;
 import com.hypixel.hytale.server.core.universe.world.storage.PhysicsStore;
-import dev.hytalemodding.impulse.early.PhysicsStoreWorld;
 import dev.hytalemodding.impulse.api.SpaceId;
 import dev.hytalemodding.impulse.core.internal.physicsstore.resources.PhysicsRuntimeResource;
 import dev.hytalemodding.impulse.core.internal.physicsstore.resources.PhysicsSpaceCompatibilityIndexResource;
-import dev.hytalemodding.impulse.core.internal.physicsstore.resources.PhysicsStoreReadQueueResource;
 import dev.hytalemodding.impulse.core.plugin.simulation.SolverCapabilitySummary;
 import dev.hytalemodding.impulse.core.plugin.simulation.SpaceSummary;
 import java.util.ArrayList;
@@ -22,8 +20,7 @@ import javax.annotation.Nonnull;
  *
  * <p>The synchronous methods read mutable runtime/backend state and must only run from the
  * PhysicsStore tick lane or explicitly scheduled PhysicsStore owner work. Off-lane callers should
- * use the {@code *Async} methods, which enqueue copied reads for
- * {@link PhysicsStoreReadQueueResource}.</p>
+ * use the {@code *Async} methods, which enqueue copied reads on the PhysicsStore owner thread.</p>
  */
 public final class PhysicsStoreDiagnostics {
 
@@ -45,14 +42,19 @@ public final class PhysicsStoreDiagnostics {
     @Nonnull
     public static CompletionStage<Integer> bodyCountAsync(@Nonnull World world,
         @Nonnull SpaceId spaceId) {
-        return bodyCountAsync(store(world), spaceId);
+        Objects.requireNonNull(spaceId, "spaceId");
+        return PhysicsStoreThreading.enqueueReadOnWorldThread(world,
+            "queue PhysicsStore body count read",
+            physics -> bodyCount(physics, spaceId));
     }
 
     @Nonnull
     public static CompletionStage<Integer> bodyCountAsync(@Nonnull Store<PhysicsStore> store,
         @Nonnull SpaceId spaceId) {
         Objects.requireNonNull(spaceId, "spaceId");
-        return queue(store).enqueue(physics -> bodyCount(physics, spaceId));
+        return PhysicsStoreThreading.enqueueReadOnWorldThread(store,
+            "queue PhysicsStore body count read",
+            physics -> bodyCount(physics, spaceId));
     }
 
     public static int runtimeJointCount(@Nonnull Store<PhysicsStore> store) {
@@ -66,12 +68,16 @@ public final class PhysicsStoreDiagnostics {
 
     @Nonnull
     public static CompletionStage<Integer> runtimeJointCountAsync(@Nonnull World world) {
-        return runtimeJointCountAsync(store(world));
+        return PhysicsStoreThreading.enqueueReadOnWorldThread(world,
+            "queue PhysicsStore joint count read",
+            PhysicsStoreDiagnostics::runtimeJointCount);
     }
 
     @Nonnull
     public static CompletionStage<Integer> runtimeJointCountAsync(@Nonnull Store<PhysicsStore> store) {
-        return queue(store).enqueue(PhysicsStoreDiagnostics::runtimeJointCount);
+        return PhysicsStoreThreading.enqueueReadOnWorldThread(store,
+            "queue PhysicsStore joint count read",
+            PhysicsStoreDiagnostics::runtimeJointCount);
     }
 
     public static boolean ccdSupported(@Nonnull Store<PhysicsStore> store) {
@@ -88,12 +94,16 @@ public final class PhysicsStoreDiagnostics {
 
     @Nonnull
     public static CompletionStage<Boolean> ccdSupportedAsync(@Nonnull World world) {
-        return ccdSupportedAsync(store(world));
+        return PhysicsStoreThreading.enqueueReadOnWorldThread(world,
+            "queue PhysicsStore CCD support read",
+            PhysicsStoreDiagnostics::ccdSupported);
     }
 
     @Nonnull
     public static CompletionStage<Boolean> ccdSupportedAsync(@Nonnull Store<PhysicsStore> store) {
-        return queue(store).enqueue(PhysicsStoreDiagnostics::ccdSupported);
+        return PhysicsStoreThreading.enqueueReadOnWorldThread(store,
+            "queue PhysicsStore CCD support read",
+            PhysicsStoreDiagnostics::ccdSupported);
     }
 
     @Nonnull
@@ -108,7 +118,10 @@ public final class PhysicsStoreDiagnostics {
     public static CompletionStage<SolverCapabilitySummary> solverCapabilityAsync(
         @Nonnull World world,
         @Nonnull SpaceId spaceId) {
-        return solverCapabilityAsync(store(world), spaceId);
+        Objects.requireNonNull(spaceId, "spaceId");
+        return PhysicsStoreThreading.enqueueReadOnWorldThread(world,
+            "queue PhysicsStore solver capability read",
+            physics -> solverCapability(physics, spaceId));
     }
 
     @Nonnull
@@ -116,7 +129,9 @@ public final class PhysicsStoreDiagnostics {
         @Nonnull Store<PhysicsStore> store,
         @Nonnull SpaceId spaceId) {
         Objects.requireNonNull(spaceId, "spaceId");
-        return queue(store).enqueue(physics -> solverCapability(physics, spaceId));
+        return PhysicsStoreThreading.enqueueReadOnWorldThread(store,
+            "queue PhysicsStore solver capability read",
+            physics -> solverCapability(physics, spaceId));
     }
 
     @Nonnull
@@ -154,13 +169,17 @@ public final class PhysicsStoreDiagnostics {
 
     @Nonnull
     public static CompletionStage<List<SpaceSummary>> spaceSummariesAsync(@Nonnull World world) {
-        return spaceSummariesAsync(store(world));
+        return PhysicsStoreThreading.enqueueReadOnWorldThread(world,
+            "queue PhysicsStore space summaries read",
+            PhysicsStoreDiagnostics::spaceSummaries);
     }
 
     @Nonnull
     public static CompletionStage<List<SpaceSummary>> spaceSummariesAsync(
         @Nonnull Store<PhysicsStore> store) {
-        return queue(store).enqueue(PhysicsStoreDiagnostics::spaceSummaries);
+        return PhysicsStoreThreading.enqueueReadOnWorldThread(store,
+            "queue PhysicsStore space summaries read",
+            PhysicsStoreDiagnostics::spaceSummaries);
     }
 
     @Nonnull
@@ -203,13 +222,17 @@ public final class PhysicsStoreDiagnostics {
     @Nonnull
     public static CompletionStage<List<SpaceSummary>> unsupportedCcdSpacesAsync(
         @Nonnull World world) {
-        return unsupportedCcdSpacesAsync(store(world));
+        return PhysicsStoreThreading.enqueueReadOnWorldThread(world,
+            "queue PhysicsStore unsupported CCD spaces read",
+            PhysicsStoreDiagnostics::unsupportedCcdSpaces);
     }
 
     @Nonnull
     public static CompletionStage<List<SpaceSummary>> unsupportedCcdSpacesAsync(
         @Nonnull Store<PhysicsStore> store) {
-        return queue(store).enqueue(PhysicsStoreDiagnostics::unsupportedCcdSpaces);
+        return PhysicsStoreThreading.enqueueReadOnWorldThread(store,
+            "queue PhysicsStore unsupported CCD spaces read",
+            PhysicsStoreDiagnostics::unsupportedCcdSpaces);
     }
 
     @Nonnull
@@ -221,15 +244,4 @@ public final class PhysicsStoreDiagnostics {
             space.backendRuntime().supportsActivationTuning(space.spaceHandle().value()));
     }
 
-    @Nonnull
-    private static Store<PhysicsStore> store(@Nonnull World world) {
-        return ((PhysicsStoreWorld) Objects.requireNonNull(world, "world")).getPhysicsStore()
-            .getStore();
-    }
-
-    @Nonnull
-    private static PhysicsStoreReadQueueResource queue(@Nonnull Store<PhysicsStore> store) {
-        return Objects.requireNonNull(store, "store")
-            .getResource(PhysicsStoreReadQueueResource.getResourceType());
-    }
 }
