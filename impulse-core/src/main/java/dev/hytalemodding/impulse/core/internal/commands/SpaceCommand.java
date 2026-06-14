@@ -5,6 +5,7 @@ import com.hypixel.hytale.server.core.Message;
 import com.hypixel.hytale.server.core.command.system.CommandContext;
 import com.hypixel.hytale.server.core.command.system.arguments.system.OptionalArg;
 import com.hypixel.hytale.server.core.command.system.arguments.types.ArgTypes;
+import com.hypixel.hytale.server.core.command.system.basecommands.AbstractAsyncWorldCommand;
 import com.hypixel.hytale.server.core.command.system.basecommands.AbstractCommandCollection;
 import com.hypixel.hytale.server.core.command.system.basecommands.AbstractWorldCommand;
 import com.hypixel.hytale.server.core.universe.world.World;
@@ -16,6 +17,7 @@ import dev.hytalemodding.impulse.api.runtime.PhysicsBackendRuntimeProvider;
 import dev.hytalemodding.impulse.core.ImpulsePlugin;
 import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyRegistrationView;
 import dev.hytalemodding.impulse.core.plugin.physicsstore.PhysicsStoreDiagnostics;
+import dev.hytalemodding.impulse.core.plugin.physicsstore.PhysicsStoreAsync;
 import dev.hytalemodding.impulse.core.plugin.resources.PhysicsWorldResource;
 import dev.hytalemodding.impulse.core.plugin.modules.worldcollision.WorldCollisionMode;
 import dev.hytalemodding.impulse.core.plugin.settings.PhysicsSpaceSettings;
@@ -24,6 +26,7 @@ import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Locale;
+import java.util.concurrent.CompletableFuture;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
@@ -89,18 +92,28 @@ public class SpaceCommand extends AbstractCommandCollection {
         }
     }
 
-    private static final class ListCommand extends AbstractWorldCommand {
+    private static final class ListCommand extends AbstractAsyncWorldCommand {
 
         private ListCommand() {
             super("list", "List physics spaces in the target world", false);
         }
 
+        @Nonnull
         @Override
-        protected void execute(@Nonnull CommandContext context,
-            @Nonnull World world,
-            @Nonnull Store<EntityStore> store) {
+        protected CompletableFuture<Void> executeAsync(@Nonnull CommandContext context,
+            @Nonnull World world) {
+            Store<EntityStore> store = world.getEntityStore().getStore();
             PhysicsWorldResource resource = store.getResource(PhysicsWorldResource.getResourceType());
-            List<SpaceListEntry> spaces = spaceSummaries(world, null).stream()
+            return PhysicsStoreAsync.acceptOnWorldThread(world,
+                PhysicsStoreDiagnostics.spaceSummariesAsync(world),
+                summaries -> sendSpaces(context, world, resource, summaries));
+        }
+
+        private static void sendSpaces(@Nonnull CommandContext context,
+            @Nonnull World world,
+            @Nonnull PhysicsWorldResource resource,
+            @Nonnull List<SpaceSummary> summaries) {
+            List<SpaceListEntry> spaces = summaries.stream()
                 .map(summary -> {
                     PhysicsSpaceSettings settings = resource.getSpaceSettings(summary.spaceId());
                     return new SpaceListEntry(summary.spaceId(),
@@ -129,7 +142,7 @@ public class SpaceCommand extends AbstractCommandCollection {
         }
     }
 
-    private static final class DeleteCommand extends AbstractWorldCommand {
+    private static final class DeleteCommand extends AbstractAsyncWorldCommand {
 
         private final OptionalArg<Integer> spaceArg = withOptionalArg(
             "space",
@@ -140,28 +153,29 @@ public class SpaceCommand extends AbstractCommandCollection {
             super("delete", "Delete a physics space and its runtime backend state", true);
         }
 
+        @Nonnull
         @Override
-        protected void execute(@Nonnull CommandContext context,
-            @Nonnull World world,
-            @Nonnull Store<EntityStore> store) {
+        protected CompletableFuture<Void> executeAsync(@Nonnull CommandContext context,
+            @Nonnull World world) {
             if (!spaceArg.provided(context)) {
                 context.sendMessage(Message.raw("Missing space id. Example:"
                     + " /impulse space delete --space=1 --confirm"));
-                return;
+                return CompletableFuture.completedFuture(null);
             }
 
             int rawSpaceId = spaceArg.get(context);
             if (rawSpaceId <= 0) {
                 context.sendMessage(Message.raw("Space id must be a positive integer."));
-                return;
+                return CompletableFuture.completedFuture(null);
             }
 
+            Store<EntityStore> store = world.getEntityStore().getStore();
             PhysicsWorldResource resource = store.getResource(PhysicsWorldResource.getResourceType());
             SpaceId spaceId = new SpaceId(rawSpaceId);
             if (!resource.hasSpace(spaceId)) {
                 context.sendMessage(Message.raw("No physics space id=" + rawSpaceId
                     + " exists in world " + world.getName() + "."));
-                return;
+                return CompletableFuture.completedFuture(null);
             }
 
             /*
@@ -171,7 +185,25 @@ public class SpaceCommand extends AbstractCommandCollection {
              * so they still require an explicit clean/destroy before deleting the space.
              */
             int registeredBodies = countRegisteredBodies(resource, spaceId);
-            SpaceCounts counts = countSpaceContents(world, spaceId);
+            return PhysicsStoreAsync.acceptOnWorldThread(world,
+                PhysicsStoreDiagnostics.spaceSummariesAsync(world),
+                summaries -> deleteIfEmpty(context,
+                    world,
+                    resource,
+                    spaceId,
+                    rawSpaceId,
+                    registeredBodies,
+                    summaries));
+        }
+
+        private static void deleteIfEmpty(@Nonnull CommandContext context,
+            @Nonnull World world,
+            @Nonnull PhysicsWorldResource resource,
+            @Nonnull SpaceId spaceId,
+            int rawSpaceId,
+            int registeredBodies,
+            @Nonnull List<SpaceSummary> summaries) {
+            SpaceCounts counts = countSpaceContents(summaries, spaceId);
             int backendBodies = counts.bodies();
             int joints = counts.joints();
             if (registeredBodies > 0 || joints > 0) {
@@ -189,31 +221,13 @@ public class SpaceCommand extends AbstractCommandCollection {
     }
 
     @Nonnull
-    private static SpaceCounts countSpaceContents(@Nonnull World world,
+    private static SpaceCounts countSpaceContents(@Nonnull List<SpaceSummary> summaries,
         @Nonnull SpaceId spaceId) {
-        List<SpaceSummary> summaries = spaceSummaries(world, spaceId);
-        if (summaries.isEmpty()) {
-            return new SpaceCounts(0, 0);
-        }
-
-        SpaceSummary summary = summaries.getFirst();
-        return new SpaceCounts(summary.bodyCount(), summary.jointCount());
-    }
-
-    @Nonnull
-    private static List<SpaceSummary> spaceSummaries(@Nonnull World world,
-        @Nullable SpaceId spaceId) {
-        if (spaceId == null) {
-            return PhysicsStoreDiagnostics.spaceSummariesAsync(world)
-                .toCompletableFuture()
-                .join();
-        }
-        return PhysicsStoreDiagnostics.spaceSummariesAsync(world)
-            .toCompletableFuture()
-            .join()
-            .stream()
+        return summaries.stream()
             .filter(summary -> summary.spaceId().equals(spaceId))
-            .toList();
+            .findFirst()
+            .map(summary -> new SpaceCounts(summary.bodyCount(), summary.jointCount()))
+            .orElseGet(() -> new SpaceCounts(0, 0));
     }
 
     private static int countRegisteredBodies(@Nonnull PhysicsWorldResource resource,

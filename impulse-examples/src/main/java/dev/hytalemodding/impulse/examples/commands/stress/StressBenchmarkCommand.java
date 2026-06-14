@@ -14,6 +14,7 @@ import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import dev.hytalemodding.impulse.api.SpaceId;
 import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyKind;
 import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyPersistenceMode;
+import dev.hytalemodding.impulse.core.plugin.physicsstore.PhysicsStoreAsync;
 import dev.hytalemodding.impulse.core.plugin.physicsstore.PhysicsStoreDiagnostics;
 import dev.hytalemodding.impulse.core.plugin.resources.PhysicsWorldResource;
 import dev.hytalemodding.impulse.core.plugin.simulation.PhysicsShapeSpec;
@@ -79,10 +80,26 @@ public class StressBenchmarkCommand extends AbstractAsyncPlayerCommand {
             return CompletableFuture.completedFuture(null);
         }
         BenchmarkLayout layout = BenchmarkLayout.around(playerPos, request.count());
-        int beforeBodies = PhysicsStoreDiagnostics.bodyCountAsync(world, spaceId)
-            .toCompletableFuture()
-            .join();
+        return PhysicsStoreAsync.acceptOnWorldThread(world,
+            PhysicsStoreDiagnostics.bodyCountAsync(world, spaceId),
+            beforeBodies -> spawnBenchmark(ctx,
+                store,
+                world,
+                resource,
+                spaceId,
+                request,
+                layout,
+                beforeBodies));
+    }
 
+    private static void spawnBenchmark(@Nonnull CommandContext ctx,
+        @Nonnull Store<EntityStore> store,
+        @Nonnull World world,
+        @Nonnull PhysicsWorldResource resource,
+        @Nonnull SpaceId spaceId,
+        @Nonnull BenchmarkRequest request,
+        @Nonnull BenchmarkLayout layout,
+        int beforeBodies) {
         long serverTick = Math.max(0L, world.getTick());
         BenchmarkSpawnTiming timing = switch (request.mode()) {
             case RAW -> spawnRaw(world, spaceId, layout, request.count());
@@ -112,7 +129,6 @@ public class StressBenchmarkCommand extends AbstractAsyncPlayerCommand {
                 + ". For clean comparisons run /impulse clean, /impulse-world-collision perf reset,"
                 + " /impulse-world-collision perf toggle before spawning, then /impulse-world-collision perf report."));
         }
-        return CompletableFuture.completedFuture(null);
     }
 
     @Nullable

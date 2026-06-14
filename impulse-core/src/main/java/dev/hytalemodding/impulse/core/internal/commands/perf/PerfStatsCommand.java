@@ -1,30 +1,34 @@
 package dev.hytalemodding.impulse.core.internal.commands.perf;
 
-import com.hypixel.hytale.component.Store;
 import com.hypixel.hytale.server.core.Message;
 import com.hypixel.hytale.server.core.command.system.CommandContext;
-import com.hypixel.hytale.server.core.command.system.basecommands.AbstractWorldCommand;
+import com.hypixel.hytale.server.core.command.system.basecommands.AbstractAsyncWorldCommand;
 import com.hypixel.hytale.server.core.universe.world.World;
-import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import dev.hytalemodding.impulse.core.plugin.physicsstore.PhysicsStoreDiagnostics;
+import dev.hytalemodding.impulse.core.plugin.physicsstore.PhysicsStoreAsync;
 import dev.hytalemodding.impulse.core.plugin.simulation.SpaceSummary;
 import java.util.List;
+import java.util.concurrent.CompletableFuture;
 import javax.annotation.Nonnull;
 
-public class PerfStatsCommand extends AbstractWorldCommand {
+public class PerfStatsCommand extends AbstractAsyncWorldCommand {
 
     public PerfStatsCommand() {
         super("stats", "Show Impulse per-space runtime body and contact counts");
     }
 
+    @Nonnull
     @Override
-    protected void execute(@Nonnull CommandContext ctx,
-        @Nonnull World world,
-        @Nonnull Store<EntityStore> store) {
-        List<SpaceSummary> spaces = PhysicsStoreDiagnostics.spaceSummariesAsync(world)
-            .toCompletableFuture()
-            .join();
+    protected CompletableFuture<Void> executeAsync(@Nonnull CommandContext ctx,
+        @Nonnull World world) {
+        return PhysicsStoreAsync.acceptOnWorldThread(world,
+            PhysicsStoreDiagnostics.spaceSummariesAsync(world),
+            spaces -> sendStats(ctx, world, spaces));
+    }
 
+    private static void sendStats(@Nonnull CommandContext ctx,
+        @Nonnull World world,
+        @Nonnull List<SpaceSummary> spaces) {
         if (spaces.isEmpty()) {
             ctx.sender().sendMessage(Message.raw("Impulse runtime stats: no physics spaces in world "
                 + world.getName() + "."));

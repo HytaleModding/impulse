@@ -27,6 +27,7 @@ import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyRegistrationView;
 import dev.hytalemodding.impulse.core.plugin.body.RigidBodyKey;
 import dev.hytalemodding.impulse.core.plugin.modules.control.PhysicsControlSessions;
 import dev.hytalemodding.impulse.core.plugin.joint.JointKey;
+import dev.hytalemodding.impulse.core.plugin.physicsstore.PhysicsStoreAsync;
 import dev.hytalemodding.impulse.core.plugin.physicsstore.PhysicsStoreRaycasts;
 import dev.hytalemodding.impulse.core.plugin.physicsstore.components.BodyCommandComponent;
 import dev.hytalemodding.impulse.core.plugin.physicsstore.components.BodyComponent;
@@ -103,16 +104,36 @@ public class GrabCommand extends AbstractAsyncPlayerCommand {
         Vector3d direction = ExamplePhysicsUtils.lookDirection(store, ref, transform).mul(RAY_LENGTH);
         Vector3d end = new Vector3d(start).add(direction);
 
-        HitSelection selection = findControllableHit(world,
-            resource,
+        return PhysicsStoreAsync.acceptOnWorldThread(world,
+            PhysicsStoreRaycasts.allAsync(world,
+                targetSpaceId,
+                ExamplePhysicsUtils.toVector3f(start),
+                ExamplePhysicsUtils.toVector3f(end)),
+            hits -> finishGrab(ctx,
+                world,
+                store,
+                ref,
+                resource,
+                targetSpaceId,
+                controllableType,
+                hits));
+    }
+
+    private static void finishGrab(@Nonnull CommandContext ctx,
+        @Nonnull World world,
+        @Nonnull Store<EntityStore> store,
+        @Nonnull Ref<EntityStore> ref,
+        @Nonnull PhysicsWorldResource resource,
+        @Nonnull SpaceId targetSpaceId,
+        @Nonnull ComponentType<EntityStore, ImpulseControllableComponent> controllableType,
+        @Nonnull List<RaycastHitView> hits) {
+        HitSelection selection = selectControllableHit(resource,
             store,
-            targetSpaceId,
             controllableType,
-            start,
-            end);
+            hits);
         if (selection == null) {
             ctx.sender().sendMessage(Message.raw("No controllable physics body in sight."));
-            return CompletableFuture.completedFuture(null);
+            return;
         }
 
         PhysicsControlSessions.releaseSession(store, ref);
@@ -120,7 +141,7 @@ public class GrabCommand extends AbstractAsyncPlayerCommand {
         SpaceId selectedSpaceId = selection.spaceId() != null ? selection.spaceId() : targetSpaceId;
         if (!resource.hasSpace(selectedSpaceId)) {
             ctx.sender().sendMessage(Message.raw("Selected physics space no longer exists."));
-            return CompletableFuture.completedFuture(null);
+            return;
         }
 
         GrabPhysicsState physicsState = createGrabControl(world,
@@ -128,7 +149,7 @@ public class GrabCommand extends AbstractAsyncPlayerCommand {
             selection);
         if (physicsState == null) {
             ctx.sender().sendMessage(Message.raw("Selected physics body no longer exists."));
-            return CompletableFuture.completedFuture(null);
+            return;
         }
 
         PhysicsControlSessions.startSession(store,
@@ -145,7 +166,6 @@ public class GrabCommand extends AbstractAsyncPlayerCommand {
 
         ctx.sender().sendMessage(Message.raw("Grabbed physics body at distance "
             + selection.distance()));
-        return CompletableFuture.completedFuture(null);
     }
 
     @Nullable
@@ -257,19 +277,10 @@ public class GrabCommand extends AbstractAsyncPlayerCommand {
     }
 
     @Nullable
-    private static HitSelection findControllableHit(@Nonnull World world,
-        @Nonnull PhysicsWorldResource resource,
+    private static HitSelection selectControllableHit(@Nonnull PhysicsWorldResource resource,
         @Nonnull Store<EntityStore> store,
-        @Nonnull SpaceId spaceId,
         @Nonnull ComponentType<EntityStore, ImpulseControllableComponent> controllableType,
-        @Nonnull Vector3d start,
-        @Nonnull Vector3d end) {
-        List<RaycastHitView> hits = PhysicsStoreRaycasts.allAsync(world,
-                spaceId,
-                ExamplePhysicsUtils.toVector3f(start),
-                ExamplePhysicsUtils.toVector3f(end))
-            .toCompletableFuture()
-            .join();
+        @Nonnull List<RaycastHitView> hits) {
         List<HitCandidate> candidates = new ArrayList<>(hits.size());
         for (RaycastHitView hit : hits) {
             if (hit.bodyType() != PhysicsBodyType.DYNAMIC || hit.bodyKey() == null) {

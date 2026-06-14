@@ -19,6 +19,10 @@ import javax.annotation.Nonnull;
 
 /**
  * Owner-lane live backend read queue drained by PhysicsStore systems.
+ *
+ * <p>Enqueued reads must capture copied inputs only. They execute during PhysicsStore ticking and
+ * must return copied values rather than live {@code Ref<PhysicsStore>}, runtime resources, or
+ * backend handles.</p>
  */
 public final class PhysicsStoreReadQueueResource implements Resource<PhysicsStore> {
 
