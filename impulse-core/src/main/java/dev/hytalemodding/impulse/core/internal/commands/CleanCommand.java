@@ -24,6 +24,7 @@ import dev.hytalemodding.impulse.core.plugin.physicsstore.projection.BodyAttachm
 import dev.hytalemodding.impulse.core.plugin.physicsstore.projection.GeneratedVisualProxyComponent;
 import it.unimi.dsi.fastutil.objects.ObjectOpenHashSet;
 import java.util.Set;
+import java.util.UUID;
 import java.util.concurrent.atomic.AtomicIntegerArray;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
@@ -242,8 +243,8 @@ public class CleanCommand extends AbstractWorldCommand {
         @Nonnull Set<RigidBodyKey> selectedBodyKeys,
         @Nonnull Vector3d center,
         double radiusSquared) {
-        if (containsBody(selectedBodyKeys, session.getBodyKey())
-            || containsBody(selectedBodyKeys, session.getAnchorBodyKey())
+        if (containsBody(selectedBodyKeys, session.getBodyUuid())
+            || containsBody(selectedBodyKeys, session.getAnchorBodyUuid())
             || entityWithinRadius(archetypeChunk, index, center, radiusSquared)) {
             return true;
         }
@@ -268,8 +269,8 @@ public class CleanCommand extends AbstractWorldCommand {
     }
 
     private static boolean containsBody(@Nonnull Set<RigidBodyKey> bodyKeys,
-        @Nullable RigidBodyKey bodyKey) {
-        return bodyKey != null && bodyKeys.contains(bodyKey);
+        @Nullable UUID bodyUuid) {
+        return bodyUuid != null && bodyKeys.contains(RigidBodyKey.of(bodyUuid));
     }
 
     private static boolean entityWithinRadius(@Nonnull ArchetypeChunk<EntityStore> archetypeChunk,

@@ -1890,12 +1890,24 @@ public class PhysicsWorldRuntimeResource extends PhysicsWorldResource {
         return visualInterestTick.incrementAndGet();
     }
 
+    public void markBodyControlled(@Nonnull UUID bodyUuid) {
+        controlRuntime.markBodyControlled(bodyUuid);
+    }
+
     public void markBodyControlled(@Nonnull RigidBodyKey bodyKey) {
         controlRuntime.markBodyControlled(bodyKey);
     }
 
+    public void clearControlledBody(@Nonnull UUID bodyUuid) {
+        controlRuntime.clearControlledBody(bodyUuid);
+    }
+
     public void clearControlledBody(@Nonnull RigidBodyKey bodyKey) {
         controlRuntime.clearControlledBody(bodyKey);
+    }
+
+    public boolean isBodyControlled(@Nonnull UUID bodyUuid) {
+        return controlRuntime.isBodyControlled(bodyUuid);
     }
 
     public boolean isBodyControlled(@Nonnull RigidBodyKey bodyKey) {

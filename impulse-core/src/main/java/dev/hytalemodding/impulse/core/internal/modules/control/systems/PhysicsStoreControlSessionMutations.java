@@ -9,7 +9,6 @@ import dev.hytalemodding.impulse.api.PhysicsBodyType;
 import dev.hytalemodding.impulse.early.PhysicsStoreWorld;
 import dev.hytalemodding.impulse.core.internal.modules.control.components.PhysicsControlSessionComponent;
 import dev.hytalemodding.impulse.core.internal.physicsstore.resources.PhysicsIdentityIndexResource;
-import dev.hytalemodding.impulse.core.plugin.body.RigidBodyKey;
 import dev.hytalemodding.impulse.core.plugin.joint.JointKey;
 import dev.hytalemodding.impulse.core.plugin.physicsstore.PhysicsStoreThreading;
 import dev.hytalemodding.impulse.core.plugin.physicsstore.components.BodyCommandComponent;
@@ -45,18 +44,18 @@ public final class PhysicsStoreControlSessionMutations {
             disableJoint(physicsStore, identity, controlJointKey.value());
         }
 
-        RigidBodyKey bodyKey = session.getBodyKey();
-        if (bodyKey != null) {
+        UUID bodyUuid = session.getBodyUuid();
+        if (bodyUuid != null) {
             restoreControlledBody(physicsStore,
                 identity,
-                bodyKey.value(),
+                bodyUuid,
                 session.getOriginalBodyType(),
                 releaseVelocity(session));
         }
 
-        RigidBodyKey anchorBodyKey = session.getAnchorBodyKey();
-        if (anchorBodyKey != null) {
-            removeRow(physicsStore, identity, anchorBodyKey.value(), refForUuid(identity, anchorBodyKey.value()));
+        UUID anchorBodyUuid = session.getAnchorBodyUuid();
+        if (anchorBodyUuid != null) {
+            removeRow(physicsStore, identity, anchorBodyUuid, refForUuid(identity, anchorBodyUuid));
         }
     }
 

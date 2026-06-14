@@ -13,6 +13,7 @@ import dev.hytalemodding.impulse.core.internal.modules.control.systems.PhysicsSt
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsWorldRuntimeResource;
 import dev.hytalemodding.impulse.core.plugin.body.RigidBodyKey;
 import dev.hytalemodding.impulse.core.plugin.joint.JointKey;
+import java.util.UUID;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 import org.joml.Vector3f;
@@ -63,8 +64,8 @@ public final class PhysicsControlSessions {
         @Nonnull Vector3f previousTarget) {
         startSession(store,
             controllerRef,
-            bodyKey,
-            anchorBodyKey,
+            bodyKey.value(),
+            anchorBodyKey.value(),
             null,
             targetRef,
             spaceId,
@@ -89,6 +90,34 @@ public final class PhysicsControlSessions {
         float grabDistance,
         @Nonnull Vector3f viewOffset,
         @Nonnull Vector3f previousTarget) {
+        startSession(store,
+            controllerRef,
+            bodyKey.value(),
+            anchorBodyKey.value(),
+            controlJointKey,
+            targetRef,
+            spaceId,
+            originalBodyType,
+            grabDistance,
+            viewOffset,
+            previousTarget);
+    }
+
+    /**
+     * Starts or replaces the controller entity's Impulse control session with the created control
+     * joint handle.
+     */
+    public static void startSession(@Nonnull Store<EntityStore> store,
+        @Nonnull Ref<EntityStore> controllerRef,
+        @Nonnull UUID bodyUuid,
+        @Nonnull UUID anchorBodyUuid,
+        @Nullable JointKey controlJointKey,
+        @Nullable Ref<EntityStore> targetRef,
+        @Nullable SpaceId spaceId,
+        @Nonnull PhysicsBodyType originalBodyType,
+        float grabDistance,
+        @Nonnull Vector3f viewOffset,
+        @Nonnull Vector3f previousTarget) {
         requireAvailable();
         ControlLifecycle.registerStore(store);
         PhysicsWorldRuntimeResource resource = PhysicsWorldRuntimeResource.require(store);
@@ -97,8 +126,8 @@ public final class PhysicsControlSessions {
         releaseSession(resource, store, controllerRef, sessionType);
         store.putComponent(controllerRef,
             sessionType,
-            new PhysicsControlSessionComponent(bodyKey,
-                anchorBodyKey,
+            new PhysicsControlSessionComponent(bodyUuid,
+                anchorBodyUuid,
                 controlJointKey,
                 targetRef,
                 spaceId,
@@ -106,7 +135,7 @@ public final class PhysicsControlSessions {
                 grabDistance,
                 viewOffset,
                 previousTarget));
-        resource.markBodyControlled(bodyKey);
+        resource.markBodyControlled(bodyUuid);
     }
 
     /**
@@ -144,11 +173,11 @@ public final class PhysicsControlSessions {
         @Nonnull Ref<EntityStore> controllerRef,
         @Nonnull ComponentType<EntityStore, PhysicsControlSessionComponent> sessionType,
         @Nonnull PhysicsControlSessionComponent session) {
-        RigidBodyKey bodyKey = session.getBodyKey();
-        RigidBodyKey anchorBodyKey = session.getAnchorBodyKey();
-        PhysicsKinematicControlSystem.clearMutationState(store, anchorBodyKey);
-        if (bodyKey != null) {
-            resource.clearControlledBody(bodyKey);
+        UUID bodyUuid = session.getBodyUuid();
+        UUID anchorBodyUuid = session.getAnchorBodyUuid();
+        PhysicsKinematicControlSystem.clearMutationState(store, anchorBodyUuid);
+        if (bodyUuid != null) {
+            resource.clearControlledBody(bodyUuid);
         }
         PhysicsStoreControlSessionMutations.applyRelease(store, session);
 

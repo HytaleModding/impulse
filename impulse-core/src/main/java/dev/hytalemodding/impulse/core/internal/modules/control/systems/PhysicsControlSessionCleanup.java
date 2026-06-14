@@ -4,7 +4,7 @@ import com.hypixel.hytale.component.Store;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import dev.hytalemodding.impulse.core.internal.modules.control.components.PhysicsControlSessionComponent;
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsWorldRuntimeResource;
-import dev.hytalemodding.impulse.core.plugin.body.RigidBodyKey;
+import java.util.UUID;
 import javax.annotation.Nonnull;
 
 public final class PhysicsControlSessionCleanup {
@@ -26,14 +26,14 @@ public final class PhysicsControlSessionCleanup {
     private static void cleanupInternal(@Nonnull Store<EntityStore> store,
         @Nonnull PhysicsWorldRuntimeResource resource,
         @Nonnull PhysicsControlSessionComponent session) {
-        PhysicsKinematicControlSystem.clearMutationState(store, session.getAnchorBodyKey());
+        PhysicsKinematicControlSystem.clearMutationState(store, session.getAnchorBodyUuid());
         if (!session.isActive()) {
             return;
         }
 
-        RigidBodyKey bodyKey = session.getBodyKey();
-        if (bodyKey != null) {
-            resource.clearControlledBody(bodyKey);
+        UUID bodyUuid = session.getBodyUuid();
+        if (bodyUuid != null) {
+            resource.clearControlledBody(bodyUuid);
         }
 
         PhysicsStoreControlSessionMutations.applyRelease(store, session);

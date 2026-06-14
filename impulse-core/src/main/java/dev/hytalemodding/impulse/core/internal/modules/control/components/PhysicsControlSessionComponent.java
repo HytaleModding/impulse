@@ -9,6 +9,7 @@ import dev.hytalemodding.impulse.api.SpaceId;
 import dev.hytalemodding.impulse.core.plugin.body.RigidBodyKey;
 import dev.hytalemodding.impulse.core.plugin.joint.JointKey;
 import java.util.Objects;
+import java.util.UUID;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 import lombok.Getter;
@@ -21,9 +22,9 @@ public class PhysicsControlSessionComponent implements Component<EntityStore> {
     private static ComponentType<EntityStore, PhysicsControlSessionComponent> componentType;
 
     @Nullable
-    private RigidBodyKey bodyKey;
+    private UUID bodyUuid;
     @Nullable
-    private RigidBodyKey anchorBodyKey;
+    private UUID anchorBodyUuid;
     @Nullable
     private JointKey controlJointKey;
     @Nullable
@@ -55,8 +56,28 @@ public class PhysicsControlSessionComponent implements Component<EntityStore> {
         float grabDistance,
         @Nonnull Vector3f viewOffset,
         @Nonnull Vector3f previousTarget) {
-        this.bodyKey = bodyKey;
-        this.anchorBodyKey = anchorBodyKey;
+        this(bodyKey.value(),
+            anchorBodyKey.value(),
+            controlJointKey,
+            targetRef,
+            spaceId,
+            originalBodyType,
+            grabDistance,
+            viewOffset,
+            previousTarget);
+    }
+
+    public PhysicsControlSessionComponent(@Nonnull UUID bodyUuid,
+        @Nonnull UUID anchorBodyUuid,
+        @Nullable JointKey controlJointKey,
+        @Nullable Ref<EntityStore> targetRef,
+        @Nullable SpaceId spaceId,
+        @Nonnull PhysicsBodyType originalBodyType,
+        float grabDistance,
+        @Nonnull Vector3f viewOffset,
+        @Nonnull Vector3f previousTarget) {
+        this.bodyUuid = Objects.requireNonNull(bodyUuid, "bodyUuid");
+        this.anchorBodyUuid = Objects.requireNonNull(anchorBodyUuid, "anchorBodyUuid");
         this.controlJointKey = controlJointKey;
         this.targetRef = targetRef;
         this.spaceId = spaceId;
@@ -65,6 +86,16 @@ public class PhysicsControlSessionComponent implements Component<EntityStore> {
         this.viewOffset.set(viewOffset);
         this.previousTarget.set(previousTarget);
         this.active = true;
+    }
+
+    @Nullable
+    public RigidBodyKey getBodyKey() {
+        return bodyUuid != null ? RigidBodyKey.of(bodyUuid) : null;
+    }
+
+    @Nullable
+    public RigidBodyKey getAnchorBodyKey() {
+        return anchorBodyUuid != null ? RigidBodyKey.of(anchorBodyUuid) : null;
     }
 
     public static void setComponentType(
@@ -96,8 +127,8 @@ public class PhysicsControlSessionComponent implements Component<EntityStore> {
     @Override
     public PhysicsControlSessionComponent clone() {
         PhysicsControlSessionComponent copy = new PhysicsControlSessionComponent();
-        copy.bodyKey = bodyKey;
-        copy.anchorBodyKey = anchorBodyKey;
+        copy.bodyUuid = bodyUuid;
+        copy.anchorBodyUuid = anchorBodyUuid;
         copy.controlJointKey = controlJointKey;
         copy.targetRef = targetRef;
         copy.spaceId = spaceId;
