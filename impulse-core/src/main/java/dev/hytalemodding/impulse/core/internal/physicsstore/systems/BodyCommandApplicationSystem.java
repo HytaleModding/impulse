@@ -96,6 +96,7 @@ public final class BodyCommandApplicationSystem extends TickingSystem<PhysicsSto
             case FORCE -> enqueueVector(runtime, bodyUuid, command, PendingBodyOperation.Kind.FORCE);
             case TORQUE -> enqueueVector(runtime, bodyUuid, command, PendingBodyOperation.Kind.TORQUE);
             case SET_TYPE -> applyBodyType(store, runtime, restore, ref, bodyUuid, command);
+            case SET_VELOCITY -> applyVelocity(runtime, restore, bodyUuid, command);
             case SET_COLLISION_FILTER -> applyCollisionFilter(runtime, restore, store, ref, bodyUuid, command);
         }
     }
@@ -151,6 +152,29 @@ public final class BodyCommandApplicationSystem extends TickingSystem<PhysicsSto
             binding.bodyHandle().value(),
             command.getCollisionGroup(),
             command.getCollisionMask());
+        if (command.isActivate()) {
+            runtime.enqueuePendingBodyOperation(PendingBodyOperation.wake(bodyUuid,
+                binding.spaceHandle(),
+                binding.bodyHandle()));
+        }
+    }
+
+    private static void applyVelocity(@Nonnull PhysicsRuntimeResource runtime,
+        @Nonnull PhysicsRestoreStatusResource restore,
+        @Nonnull UUID bodyUuid,
+        @Nonnull BodyCommandComponent.Entry command) {
+        RuntimeBodyBinding binding = runtimeBodyBinding(runtime, bodyUuid, restore, true);
+        if (binding == null) {
+            return;
+        }
+        binding.backendRuntime().setBodyVelocity(binding.spaceHandle().value(),
+            binding.bodyHandle().value(),
+            command.getX(),
+            command.getY(),
+            command.getZ(),
+            command.getAngularX(),
+            command.getAngularY(),
+            command.getAngularZ());
         if (command.isActivate()) {
             runtime.enqueuePendingBodyOperation(PendingBodyOperation.wake(bodyUuid,
                 binding.spaceHandle(),

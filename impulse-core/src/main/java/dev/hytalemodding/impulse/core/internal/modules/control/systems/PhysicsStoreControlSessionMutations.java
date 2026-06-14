@@ -15,11 +15,9 @@ import dev.hytalemodding.impulse.core.plugin.physicsstore.PhysicsStoreThreading;
 import dev.hytalemodding.impulse.core.plugin.physicsstore.components.BodyCommandComponent;
 import dev.hytalemodding.impulse.core.plugin.physicsstore.components.BodyComponent;
 import dev.hytalemodding.impulse.core.plugin.physicsstore.components.JointComponent;
-import dev.hytalemodding.impulse.core.plugin.physicsstore.components.TargetComponent;
 import java.util.UUID;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
-import org.joml.Quaternionf;
 import org.joml.Vector3f;
 
 /**
@@ -27,7 +25,6 @@ import org.joml.Vector3f;
  */
 public final class PhysicsStoreControlSessionMutations {
 
-    private static final Quaternionf IDENTITY_ROTATION = new Quaternionf();
     private static final Vector3f ZERO = new Vector3f();
 
     private PhysicsStoreControlSessionMutations() {
@@ -73,21 +70,9 @@ public final class PhysicsStoreControlSessionMutations {
             return;
         }
         appendBodyCommand(store, bodyRef, BodyCommandComponent.setType(originalBodyType, true));
-        store.putComponent(bodyRef, TargetComponent.getComponentType(), releaseTarget(releaseVelocity));
-    }
-
-    @Nonnull
-    private static TargetComponent releaseTarget(@Nonnull Vector3f releaseVelocity) {
-        TargetComponent target = new TargetComponent();
-        target.setActive(true);
-        target.setPosition(ZERO);
-        target.setRotation(IDENTITY_ROTATION);
-        target.setLinearVelocity(releaseVelocity);
-        target.setAngularVelocity(ZERO);
-        target.setTransformEnabled(false);
-        target.setVelocityEnabled(true);
-        target.setActivate(true);
-        return target;
+        appendBodyCommand(store,
+            bodyRef,
+            BodyCommandComponent.setVelocity(releaseVelocity, ZERO, true));
     }
 
     private static void appendBodyCommand(@Nonnull Store<PhysicsStore> store,
