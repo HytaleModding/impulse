@@ -108,6 +108,23 @@ public final class PhysicsStoreTopologyMutations {
         PhysicsStoreSpaceMutations.removeEmptySpace(store, spaceUuid);
     }
 
+    public static int clearTerrainForSpace(@Nonnull Store<PhysicsStore> store,
+        @Nonnull UUID spaceUuid) {
+        PhysicsStoreThreading.requireWorldThread(store, "clear PhysicsStore terrain rows");
+        PhysicsRuntimeResource runtime = store.getResource(PhysicsRuntimeResource.getResourceType());
+        int removedBodies = 0;
+        BackendSpaceHandle spaceHandle = runtime.getSpaceHandle(spaceUuid);
+        if (spaceHandle != null) {
+            for (UUID terrainUuid : runtime.terrainUuidsForSpaceHandle(spaceHandle)) {
+                removedBodies += removeRuntimeTerrain(runtime, terrainUuid);
+            }
+        }
+        store.getResource(PhysicsTerrainMutationQueueResource.getResourceType())
+            .removeIf(mutation -> spaceUuid.equals(mutation.spaceUuid()));
+        removeRows(store, collectTerrainRows(store, spaceUuid));
+        return removedBodies;
+    }
+
     private static void removeRuntimeContentsForSpace(@Nonnull PhysicsRuntimeResource runtime,
         @Nonnull PhysicsIdentityIndexResource identity,
         @Nonnull BackendSpaceHandle spaceHandle) {
@@ -223,6 +240,29 @@ public final class PhysicsStoreTopologyMutations {
             if (matchesBody(body, rowUuid, spaceUuid, bodyUuid)) {
                 removals.add(new RowRemoval(ref, rowUuid, RowKind.BODY, null));
             }
+        });
+        return new ArrayList<>(removals);
+    }
+
+    @Nonnull
+    private static List<RowRemoval> collectTerrainRows(@Nonnull Store<PhysicsStore> store,
+        @Nonnull UUID spaceUuid) {
+        ComponentType<PhysicsStore, UuidComponent> uuidType = UuidComponent.getComponentType();
+        ConcurrentLinkedQueue<RowRemoval> removals = new ConcurrentLinkedQueue<>();
+        store.forEachEntityParallel(uuidType, (index, chunk, _) -> {
+            TerrainColliderComponent terrain = chunk.getComponent(index,
+                TerrainColliderComponent.getComponentType());
+            if (terrain == null || !spaceUuid.equals(terrain.getSpaceUuid())) {
+                return;
+            }
+            UuidComponent uuid = chunk.getComponent(index, uuidType);
+            if (uuid == null) {
+                return;
+            }
+            removals.add(new RowRemoval(chunk.getReferenceTo(index),
+                uuid.getUuid(),
+                RowKind.TERRAIN,
+                terrain.getPayloadResourceKey()));
         });
         return new ArrayList<>(removals);
     }

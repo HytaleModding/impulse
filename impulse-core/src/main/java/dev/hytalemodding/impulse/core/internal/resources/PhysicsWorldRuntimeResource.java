@@ -1054,8 +1054,7 @@ public class PhysicsWorldRuntimeResource extends PhysicsWorldResource {
                 requireAuthoritativeWorldCollisionSettings(store, spaceId);
             PhysicsTerrainMutationQueueResource queue =
                 store.getResource(PhysicsTerrainMutationQueueResource.getResourceType());
-            int removed = authoritativeWorldCollisionStreaming()
-                .clearSpace(settings.spaceUuid(), queue);
+            int removed = clearAuthoritativeWorldCollisionSpace(store, settings.spaceUuid());
             WorldCollisionPrewarmStats stats = authoritativeWorldCollisionStreaming()
                 .ensureAround(world,
                     settings.spaceUuid(),
@@ -1238,14 +1237,15 @@ public class PhysicsWorldRuntimeResource extends PhysicsWorldResource {
 
     private int clearAuthoritativeWorldCollisionSpace(@Nonnull Store<PhysicsStore> store,
         @Nonnull UUID spaceUuid) {
-        if (!WorldCollisionLifecycle.isEnabled() || owningStore == null) {
-            return 0;
+        int removed = 0;
+        if (WorldCollisionLifecycle.isEnabled() && owningStore != null) {
+            PhysicsTerrainMutationQueueResource queue =
+                store.getResource(PhysicsTerrainMutationQueueResource.getResourceType());
+            removed = authoritativeWorldCollisionStreaming().clearSpace(spaceUuid, queue);
         }
-        PhysicsTerrainMutationQueueResource queue =
-            store.getResource(PhysicsTerrainMutationQueueResource.getResourceType());
-        int removed = authoritativeWorldCollisionStreaming().clearSpace(spaceUuid, queue);
-        queue.removeIf(mutation -> spaceUuid.equals(mutation.spaceUuid()));
-        return removed;
+        int directlyRemoved =
+            PhysicsStoreTopologyMutations.clearTerrainForSpace(store, spaceUuid);
+        return removed != 0 ? removed : directlyRemoved;
     }
 
     @Nonnull
