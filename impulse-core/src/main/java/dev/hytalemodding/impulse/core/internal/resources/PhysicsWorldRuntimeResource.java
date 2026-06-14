@@ -215,7 +215,7 @@ public class PhysicsWorldRuntimeResource extends PhysicsWorldResource {
         }
         throw new IllegalStateException("Legacy PhysicsWorldResource mutation is disabled while "
             + "authoritative PhysicsStore is active: " + operation
-            + ". Route this operation through PhysicsStore requests or a PhysicsStore-backed "
+            + ". Route this operation through PhysicsStore rows or a PhysicsStore-backed "
             + "compatibility bridge.");
     }
 

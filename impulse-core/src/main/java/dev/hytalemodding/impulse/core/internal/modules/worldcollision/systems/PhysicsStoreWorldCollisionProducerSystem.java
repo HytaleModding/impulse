@@ -48,7 +48,7 @@ import org.joml.Vector3d;
 import org.joml.Vector3f;
 
 /**
- * Produces copied PhysicsStore terrain requests from EntityStore and ChunkStore state.
+ * Produces copied PhysicsStore terrain mutations from EntityStore and ChunkStore state.
  */
 public final class PhysicsStoreWorldCollisionProducerSystem extends TickingSystem<EntityStore>
     implements QuerySystem<EntityStore> {

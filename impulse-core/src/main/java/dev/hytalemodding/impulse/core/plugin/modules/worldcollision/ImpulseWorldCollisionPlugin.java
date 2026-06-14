@@ -34,7 +34,7 @@ public final class ImpulseWorldCollisionPlugin extends JavaPlugin {
             PhysicsStoreWorldCollisionStreamingResource::new));
         entityRegistry.registerSystem(new PhysicsStoreWorldCollisionProducerSystem());
         WorldCollisionLifecycle.enable();
-        LOGGER.at(Level.INFO).log("Impulse world-collision PhysicsStore request producer enabled.");
+        LOGGER.at(Level.INFO).log("Impulse world-collision PhysicsStore terrain producer enabled.");
     }
 
     @Override
