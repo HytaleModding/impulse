@@ -36,7 +36,7 @@ public final class PhysicsControlSessionCleanup {
             resource.clearControlledBody(bodyKey);
         }
 
-        PhysicsStoreControlSessionRequests.enqueueRelease(store, session);
+        PhysicsStoreControlSessionMutations.applyRelease(store, session);
         session.deactivate();
     }
 }
