@@ -3,8 +3,6 @@ package dev.hytalemodding.impulse.core.internal.physicsstore.systems;
 import com.hypixel.hytale.component.AddReason;
 import com.hypixel.hytale.component.ArchetypeChunk;
 import com.hypixel.hytale.component.CommandBuffer;
-import com.hypixel.hytale.component.Component;
-import com.hypixel.hytale.component.ComponentType;
 import com.hypixel.hytale.component.Holder;
 import com.hypixel.hytale.component.Ref;
 import com.hypixel.hytale.component.RemoveReason;
@@ -32,20 +30,13 @@ import dev.hytalemodding.impulse.core.plugin.physicsstore.PhysicsStoreEntities;
 import dev.hytalemodding.impulse.core.plugin.physicsstore.components.BodyComponent;
 import dev.hytalemodding.impulse.core.plugin.physicsstore.components.BodyCommandComponent;
 import dev.hytalemodding.impulse.core.plugin.physicsstore.components.ColliderComponent;
-import dev.hytalemodding.impulse.core.plugin.physicsstore.components.CollisionLodSettingsComponent;
 import dev.hytalemodding.impulse.core.plugin.physicsstore.components.CollisionFilterComponent;
 import dev.hytalemodding.impulse.core.plugin.physicsstore.components.DynamicsComponent;
-import dev.hytalemodding.impulse.core.plugin.physicsstore.components.ExtensionSettingsComponent;
 import dev.hytalemodding.impulse.core.plugin.physicsstore.components.JointComponent;
 import dev.hytalemodding.impulse.core.plugin.physicsstore.components.MaterialComponent;
 import dev.hytalemodding.impulse.core.plugin.physicsstore.components.ShapeComponent;
-import dev.hytalemodding.impulse.core.plugin.physicsstore.components.SolverSettingsComponent;
-import dev.hytalemodding.impulse.core.plugin.physicsstore.components.SpaceComponent;
 import dev.hytalemodding.impulse.core.plugin.physicsstore.components.TargetComponent;
 import dev.hytalemodding.impulse.core.plugin.physicsstore.components.TerrainColliderComponent;
-import dev.hytalemodding.impulse.core.plugin.physicsstore.components.UuidComponent;
-import dev.hytalemodding.impulse.core.plugin.physicsstore.components.VisualMaterializationSettingsComponent;
-import dev.hytalemodding.impulse.core.plugin.physicsstore.components.VisualSyncSettingsComponent;
 import dev.hytalemodding.impulse.core.plugin.physicsstore.components.WorldCollisionComponent;
 import dev.hytalemodding.impulse.core.plugin.physicsstore.requests.BodyActivationRequest;
 import dev.hytalemodding.impulse.core.plugin.physicsstore.requests.BodyForceRequest;
@@ -434,11 +425,15 @@ public final class RequestDrainSystem extends TickingSystem<PhysicsStore> {
             return RequestApplicationStatus.SOFT_SKIPPED;
         }
         Ref<PhysicsStore> ref = ensureRow(store, identity, refsThisDrain, request.spaceUuid());
-        store.putComponent(ref, SpaceComponent.getComponentType(), request.space().clone());
-        store.putComponent(ref,
-            WorldCollisionComponent.getComponentType(),
-            request.worldCollision().clone());
-        putSpaceSettingsComponents(store, ref, request);
+        PhysicsStoreEntities.putSpaceComponents(store,
+            ref,
+            request.space(),
+            request.worldCollision(),
+            request.solverSettings(),
+            request.visualSyncSettings(),
+            request.visualMaterializationSettings(),
+            request.collisionLodSettings(),
+            request.extensionSettings());
         compatibility.putSpace(request.compatibilitySpaceId(), request.spaceUuid());
         SpaceId.reserveAtLeast(request.compatibilitySpaceId().value());
         runtime.markSpaceSettingsPending(request.spaceUuid());
@@ -461,49 +456,15 @@ public final class RequestDrainSystem extends TickingSystem<PhysicsStore> {
         store.putComponent(ref,
             WorldCollisionComponent.getComponentType(),
             request.worldCollision().clone());
-        putSpaceSettingsComponents(store, ref, request);
+        PhysicsStoreEntities.putSpaceSettingsComponents(store,
+            ref,
+            request.solverSettings(),
+            request.visualSyncSettings(),
+            request.visualMaterializationSettings(),
+            request.collisionLodSettings(),
+            request.extensionSettings());
         runtime.markSpaceSettingsPending(request.spaceUuid());
         return RequestApplicationStatus.APPLIED;
-    }
-
-    private static void putSpaceSettingsComponents(@Nonnull Store<PhysicsStore> store,
-        @Nonnull Ref<PhysicsStore> ref,
-        @Nonnull SpaceUpsertRequest request) {
-        store.putComponent(ref,
-            SolverSettingsComponent.getComponentType(),
-            request.solverSettings().clone());
-        store.putComponent(ref,
-            VisualSyncSettingsComponent.getComponentType(),
-            request.visualSyncSettings().clone());
-        store.putComponent(ref,
-            VisualMaterializationSettingsComponent.getComponentType(),
-            request.visualMaterializationSettings().clone());
-        store.putComponent(ref,
-            CollisionLodSettingsComponent.getComponentType(),
-            request.collisionLodSettings().clone());
-        store.putComponent(ref,
-            ExtensionSettingsComponent.getComponentType(),
-            request.extensionSettings().clone());
-    }
-
-    private static void putSpaceSettingsComponents(@Nonnull Store<PhysicsStore> store,
-        @Nonnull Ref<PhysicsStore> ref,
-        @Nonnull SpaceSettingsRequest request) {
-        store.putComponent(ref,
-            SolverSettingsComponent.getComponentType(),
-            request.solverSettings().clone());
-        store.putComponent(ref,
-            VisualSyncSettingsComponent.getComponentType(),
-            request.visualSyncSettings().clone());
-        store.putComponent(ref,
-            VisualMaterializationSettingsComponent.getComponentType(),
-            request.visualMaterializationSettings().clone());
-        store.putComponent(ref,
-            CollisionLodSettingsComponent.getComponentType(),
-            request.collisionLodSettings().clone());
-        store.putComponent(ref,
-            ExtensionSettingsComponent.getComponentType(),
-            request.extensionSettings().clone());
     }
 
     @Nonnull
@@ -604,12 +565,8 @@ public final class RequestDrainSystem extends TickingSystem<PhysicsStore> {
             ref,
             JointComponent.getComponentType());
         removeJointBackend(runtime, identity, request.jointUuid(), existing);
-        upsertComponentRow(store,
-            identity,
-            refsThisDrain,
-            request.jointUuid(),
-            JointComponent.getComponentType(),
-            request.joint().clone());
+        Ref<PhysicsStore> jointRef = ensureRow(store, identity, refsThisDrain, request.jointUuid());
+        PhysicsStoreEntities.putJointComponent(store, jointRef, request.joint());
         return RequestApplicationStatus.APPLIED;
     }
 
@@ -779,8 +736,8 @@ public final class RequestDrainSystem extends TickingSystem<PhysicsStore> {
                 if (existing != null) {
                     removePayload(terrainPayloads, existing.getPayloadResourceKey());
                 }
-                store.putComponent(ref,
-                    TerrainColliderComponent.getComponentType(),
+                PhysicsStoreEntities.putTerrainColliderComponent(store,
+                    ref,
                     removedTerrainComponent(request));
             }
             removePayload(terrainPayloads, request.payloadResourceKey());
@@ -800,14 +757,15 @@ public final class RequestDrainSystem extends TickingSystem<PhysicsStore> {
                 && !existing.getPayloadResourceKey().equals(component.getPayloadResourceKey())) {
                 removePayload(terrainPayloads, existing.getPayloadResourceKey());
             }
-            store.putComponent(ref, TerrainColliderComponent.getComponentType(), component);
+            PhysicsStoreEntities.putTerrainColliderComponent(store, ref, component);
             refsThisDrain.put(terrainUuid, ref);
             return RequestApplicationStatus.APPLIED;
         }
-        Holder<PhysicsStore> holder = store.getRegistry().newHolder();
-        holder.addComponent(UuidComponent.getComponentType(), new UuidComponent(terrainUuid));
-        holder.addComponent(TerrainColliderComponent.getComponentType(), component);
-        refsThisDrain.put(terrainUuid, store.addEntity(holder, AddReason.SPAWN));
+        refsThisDrain.put(terrainUuid,
+            store.addEntity(PhysicsStoreEntities.terrainColliderHolder(store,
+                terrainUuid,
+                component),
+                AddReason.SPAWN));
         return RequestApplicationStatus.APPLIED;
     }
 
@@ -820,8 +778,7 @@ public final class RequestDrainSystem extends TickingSystem<PhysicsStore> {
         if (ref != null) {
             return ref;
         }
-        Holder<PhysicsStore> holder = store.getRegistry().newHolder();
-        holder.addComponent(UuidComponent.getComponentType(), new UuidComponent(uuid));
+        Holder<PhysicsStore> holder = PhysicsStoreEntities.rowHolder(store, uuid);
         ref = store.addEntity(holder, AddReason.SPAWN);
         refsThisDrain.put(uuid, ref);
         return ref;
@@ -1150,19 +1107,6 @@ public final class RequestDrainSystem extends TickingSystem<PhysicsStore> {
         if (payloadResourceKey != null && !payloadResourceKey.isBlank()) {
             terrainPayloads.remove(payloadResourceKey);
         }
-    }
-
-    @Nonnull
-    private static <C extends Component<PhysicsStore>> Ref<PhysicsStore> upsertComponentRow(
-        @Nonnull Store<PhysicsStore> store,
-        @Nonnull PhysicsIdentityIndexResource identity,
-        @Nonnull Map<UUID, Ref<PhysicsStore>> refsThisDrain,
-        @Nonnull UUID uuid,
-        @Nonnull ComponentType<PhysicsStore, C> type,
-        @Nonnull C component) {
-        Ref<PhysicsStore> ref = ensureRow(store, identity, refsThisDrain, uuid);
-        store.putComponent(ref, type, component);
-        return ref;
     }
 
     @Nonnull
