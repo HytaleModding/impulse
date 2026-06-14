@@ -29,6 +29,7 @@ import dev.hytalemodding.impulse.core.plugin.settings.PhysicsWorldSettings;
 import dev.hytalemodding.impulse.core.plugin.settings.VisualOcclusionMode;
 import dev.hytalemodding.impulse.core.plugin.simulation.PhysicsShapeSpec;
 import dev.hytalemodding.impulse.core.plugin.simulation.RigidBodySpawnSettings;
+import dev.hytalemodding.impulse.examples.commands.ExampleBlockEntityVisuals;
 import dev.hytalemodding.impulse.examples.commands.ExamplePhysicsUtils;
 import java.util.Iterator;
 import java.util.Locale;
@@ -117,10 +118,7 @@ public class StressBodiesCommand extends AbstractAsyncPlayerCommand {
         @Nonnull Ref<EntityStore> ref,
         @Nonnull PlayerRef playerRef,
         @Nonnull World world) {
-        Vector3d playerPos = ExamplePhysicsUtils.playerPosition(ctx, store, ref);
-        if (playerPos == null) {
-            return CompletableFuture.completedFuture(null);
-        }
+        Vector3d playerPos = new Vector3d(playerRef.getTransform().getPosition());
 
         StressMode mode = parseMode(ctx);
         if (mode == null) {
@@ -144,7 +142,7 @@ public class StressBodiesCommand extends AbstractAsyncPlayerCommand {
         if (visualSettings == null) {
             return CompletableFuture.completedFuture(null);
         }
-        PhysicsWorldResource resource = ExamplePhysicsUtils.resource(store);
+        PhysicsWorldResource resource = store.getResource(PhysicsWorldResource.getResourceType());
         SpaceId spaceId = ExamplePhysicsUtils.spaceId(ctx, resource, spaceArg);
         if (spaceId == null) {
             return CompletableFuture.completedFuture(null);
@@ -175,7 +173,6 @@ public class StressBodiesCommand extends AbstractAsyncPlayerCommand {
             RigidBodySpawnSettings spawnSettings = RigidBodySpawnSettings.material(0.65f, 0.15f);
             ExamplePhysicsUtils.BlockBodyBatchTiming batchTiming = ExamplePhysicsUtils.spawnBlockBodiesMeasured(store,
                 time,
-                resource,
                 serverTick,
                 spaceId,
                 count,
@@ -329,8 +326,8 @@ public class StressBodiesCommand extends AbstractAsyncPlayerCommand {
             return 0;
         }
 
-        WorldCollisionPrewarmStats stats = ExamplePhysicsUtils.ensurePhysicsStoreWorldCollisionAround(store,
-            world,
+        PhysicsWorldResource resource = store.getResource(PhysicsWorldResource.getResourceType());
+        WorldCollisionPrewarmStats stats = resource.ensureWorldCollisionAround(world,
             spaceId,
             layout.positions(count),
             worldCollisionSettings.getWorldCollisionBodyRadius(),
@@ -467,7 +464,7 @@ public class StressBodiesCommand extends AbstractAsyncPlayerCommand {
     @Nonnull
     private String blockType(@Nonnull CommandContext ctx) {
         return blockTypeArg.provided(ctx)
-            ? ExamplePhysicsUtils.resolveBlockType(blockTypeArg.get(ctx))
+            ? ExampleBlockEntityVisuals.resolveBlockType(blockTypeArg.get(ctx))
             : ExamplePhysicsUtils.DEFAULT_BLOCK_TYPE;
     }
 

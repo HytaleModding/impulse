@@ -14,7 +14,9 @@ import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import dev.hytalemodding.impulse.api.SpaceId;
 import dev.hytalemodding.impulse.core.plugin.resources.PhysicsWorldResource;
 import dev.hytalemodding.impulse.core.plugin.modules.worldcollision.WorldCollisionBuildStats;
+import dev.hytalemodding.impulse.core.plugin.modules.worldcollision.WorldCollisionPrewarmStats;
 import dev.hytalemodding.impulse.core.plugin.modules.worldcollision.WorldCollisionStats;
+import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import javax.annotation.Nonnull;
 import org.joml.Vector3d;
@@ -27,6 +29,7 @@ public class WorldCollisionCommand extends AbstractCommandCollection {
     public WorldCollisionCommand() {
         super("world-collision", "Build static Impulse voxel collision from nearby world blocks");
         addSubCommand(new BuildCommand());
+        addSubCommand(new EnsureCommand());
         addSubCommand(new ClearCommand());
         addSubCommand(new StatsCommand());
     }
@@ -56,19 +59,15 @@ public class WorldCollisionCommand extends AbstractCommandCollection {
             @Nonnull Ref<EntityStore> ref,
             @Nonnull PlayerRef playerRef,
             @Nonnull World world) {
-            Vector3d playerPos = ExamplePhysicsUtils.playerPosition(ctx, store, ref);
-            if (playerPos == null) {
-                return CompletableFuture.completedFuture(null);
-            }
+            Vector3d playerPos = new Vector3d(playerRef.getTransform().getPosition());
 
             int radius = ExamplePhysicsUtils.optionalInt(ctx, radiusArg, DEFAULT_RADIUS, 1, MAX_RADIUS);
-            PhysicsWorldResource resource = ExamplePhysicsUtils.resource(store);
+            PhysicsWorldResource resource = store.getResource(PhysicsWorldResource.getResourceType());
             SpaceId spaceId = ExamplePhysicsUtils.spaceId(ctx, resource, spaceArg);
             if (spaceId == null) {
                 return CompletableFuture.completedFuture(null);
             }
-            WorldCollisionBuildStats stats = ExamplePhysicsUtils.rebuildPhysicsStoreWorldCollisionAround(store,
-                world,
+            WorldCollisionBuildStats stats = resource.rebuildWorldCollisionAround(world,
                 spaceId,
                 playerPos,
                 radius);
@@ -84,6 +83,56 @@ public class WorldCollisionCommand extends AbstractCommandCollection {
                 + ", voxel bodies " + stats.voxelBodies()
                 + ", bodies " + stats.colliderBodies()
                 + ", removed " + stats.removedBodies()
+                + "."));
+            return CompletableFuture.completedFuture(null);
+        }
+    }
+
+    private static final class EnsureCommand extends AbstractAsyncPlayerCommand {
+
+        private static final int DEFAULT_RADIUS = 8;
+        private static final int MAX_RADIUS = 24;
+
+        private final OptionalArg<Integer> radiusArg = withOptionalArg(
+            "radius",
+            "Block radius around the player to scan",
+            ArgTypes.INTEGER);
+        private final OptionalArg<Integer> spaceArg = withOptionalArg(
+            "space",
+            "Physics space id to target",
+            ArgTypes.INTEGER);
+
+        private EnsureCommand() {
+            super("ensure", "Ensure nearby static voxel collision is available");
+        }
+
+        @Nonnull
+        @Override
+        protected CompletableFuture<Void> executeAsync(@Nonnull CommandContext ctx,
+            @Nonnull Store<EntityStore> store,
+            @Nonnull Ref<EntityStore> ref,
+            @Nonnull PlayerRef playerRef,
+            @Nonnull World world) {
+            Vector3d playerPos = new Vector3d(playerRef.getTransform().getPosition());
+            int radius = ExamplePhysicsUtils.optionalInt(ctx, radiusArg, DEFAULT_RADIUS, 1, MAX_RADIUS);
+            PhysicsWorldResource resource = store.getResource(PhysicsWorldResource.getResourceType());
+            SpaceId spaceId = ExamplePhysicsUtils.spaceId(ctx, resource, spaceArg);
+            if (spaceId == null) {
+                return CompletableFuture.completedFuture(null);
+            }
+
+            WorldCollisionPrewarmStats stats = resource.ensureWorldCollisionAround(world,
+                spaceId,
+                List.of(playerPos),
+                radius,
+                Math.max(0L, world.getTick()));
+
+            ctx.sender().sendMessage(Message.raw("Ensured world voxel collision: targets "
+                + stats.sectionTargets()
+                + ", bodies "
+                + stats.buildStats().colliderBodies()
+                + ", removed "
+                + stats.buildStats().removedBodies()
                 + "."));
             return CompletableFuture.completedFuture(null);
         }
@@ -107,12 +156,12 @@ public class WorldCollisionCommand extends AbstractCommandCollection {
             @Nonnull Ref<EntityStore> ref,
             @Nonnull PlayerRef playerRef,
             @Nonnull World world) {
-            PhysicsWorldResource resource = ExamplePhysicsUtils.resource(store);
+            PhysicsWorldResource resource = store.getResource(PhysicsWorldResource.getResourceType());
             SpaceId spaceId = ExamplePhysicsUtils.spaceId(ctx, resource, spaceArg);
             if (spaceId == null) {
                 return CompletableFuture.completedFuture(null);
             }
-            int removed = ExamplePhysicsUtils.clearPhysicsStoreWorldCollision(store, world, spaceId);
+            int removed = resource.clearWorldCollision(spaceId);
             ctx.sender().sendMessage(Message.raw("Removed " + removed
                 + " world voxel collision bodies."));
             return CompletableFuture.completedFuture(null);
@@ -132,7 +181,8 @@ public class WorldCollisionCommand extends AbstractCommandCollection {
             @Nonnull Ref<EntityStore> ref,
             @Nonnull PlayerRef playerRef,
             @Nonnull World world) {
-            WorldCollisionStats stats = ExamplePhysicsUtils.physicsStoreWorldCollisionStats(store);
+            PhysicsWorldResource resource = store.getResource(PhysicsWorldResource.getResourceType());
+            WorldCollisionStats stats = resource.getWorldCollisionStats();
             ctx.sender().sendMessage(Message.raw("World voxel collision: "
                 + stats.spaces() + " spaces, "
                 + stats.sections() + " sections, "

@@ -38,12 +38,9 @@ public class MaterialsCommand extends AbstractAsyncPlayerCommand {
         @Nonnull Ref<EntityStore> ref,
         @Nonnull PlayerRef playerRef,
         @Nonnull World world) {
-        Vector3d playerPos = ExamplePhysicsUtils.playerPosition(ctx, store, ref);
-        if (playerPos == null) {
-            return CompletableFuture.completedFuture(null);
-        }
+        Vector3d playerPos = new Vector3d(playerRef.getTransform().getPosition());
 
-        PhysicsWorldResource resource = ExamplePhysicsUtils.resource(store);
+        PhysicsWorldResource resource = store.getResource(PhysicsWorldResource.getResourceType());
         SpaceId spaceId = ExamplePhysicsUtils.spaceId(ctx, resource, spaceArg);
         if (spaceId == null) {
             return CompletableFuture.completedFuture(null);
@@ -51,12 +48,12 @@ public class MaterialsCommand extends AbstractAsyncPlayerCommand {
         TimeResource time = store.getResource(TimeResource.getResourceType());
 
         Vector3d origin = new Vector3d(playerPos).add(-3.0, 5.0, 4.0);
-        spawnSphere(store, time, resource, spaceId, new Vector3d(origin), 0.05f, 0.9f, 3.0f);
-        spawnSphere(store, time, resource, spaceId, new Vector3d(origin).add(2.0, 0.0, 0.0),
+        spawnSphere(store, time, spaceId, new Vector3d(origin), 0.05f, 0.9f, 3.0f);
+        spawnSphere(store, time, spaceId, new Vector3d(origin).add(2.0, 0.0, 0.0),
             0.95f, 0.9f, 3.0f);
-        spawnSphere(store, time, resource, spaceId, new Vector3d(origin).add(4.0, 0.0, 0.0),
+        spawnSphere(store, time, spaceId, new Vector3d(origin).add(4.0, 0.0, 0.0),
             0.5f, 0.0f, 2.0f);
-        spawnSphere(store, time, resource, spaceId, new Vector3d(origin).add(6.0, 0.0, 0.0),
+        spawnSphere(store, time, spaceId, new Vector3d(origin).add(6.0, 0.0, 0.0),
             0.5f, 0.95f, 2.0f);
 
         ctx.sender().sendMessage(Message.raw(
@@ -66,7 +63,6 @@ public class MaterialsCommand extends AbstractAsyncPlayerCommand {
 
     private static void spawnSphere(@Nonnull Store<EntityStore> store,
         @Nonnull TimeResource time,
-        @Nonnull PhysicsWorldResource resource,
         @Nonnull SpaceId spaceId,
         @Nonnull Vector3d position,
         float restitution,
@@ -74,7 +70,6 @@ public class MaterialsCommand extends AbstractAsyncPlayerCommand {
         float speed) {
         ExamplePhysicsUtils.spawnBlockBody(store,
             time,
-            resource,
             spaceId,
             position,
             ExamplePhysicsUtils.DEFAULT_BLOCK_TYPE,

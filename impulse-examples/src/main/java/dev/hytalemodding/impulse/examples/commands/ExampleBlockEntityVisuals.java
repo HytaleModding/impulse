@@ -12,7 +12,7 @@ import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 import org.joml.Vector3d;
 
-final class ExampleBlockEntityVisuals {
+public final class ExampleBlockEntityVisuals {
 
     private ExampleBlockEntityVisuals() {
     }
@@ -38,7 +38,7 @@ final class ExampleBlockEntityVisuals {
     }
 
     @Nonnull
-    static String resolveBlockType(@Nullable String blockType) {
+    public static String resolveBlockType(@Nullable String blockType) {
         return blockType == null || blockType.isBlank()
             ? PhysicsVisualMaterializationSettings.DEFAULT_DETACHED_VISUAL_BLOCK_TYPE
             : blockType.trim();

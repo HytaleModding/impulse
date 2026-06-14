@@ -19,6 +19,7 @@ import dev.hytalemodding.impulse.core.plugin.resources.PhysicsWorldResource;
 import dev.hytalemodding.impulse.core.plugin.simulation.JointType;
 import dev.hytalemodding.impulse.core.plugin.simulation.PhysicsShapeSpec;
 import dev.hytalemodding.impulse.core.plugin.simulation.RigidBodySpawnSettings;
+import dev.hytalemodding.impulse.examples.commands.ExampleBlockEntityVisuals;
 import dev.hytalemodding.impulse.examples.commands.ExamplePhysicsUtils;
 import dev.hytalemodding.impulse.examples.commands.ExamplePhysicsUtils.PendingBlockBody;
 import java.util.ArrayList;
@@ -69,15 +70,12 @@ public class StressJointsCommand extends AbstractAsyncPlayerCommand {
         @Nonnull Ref<EntityStore> ref,
         @Nonnull PlayerRef playerRef,
         @Nonnull World world) {
-        Vector3d playerPos = ExamplePhysicsUtils.playerPosition(ctx, store, ref);
-        if (playerPos == null) {
-            return CompletableFuture.completedFuture(null);
-        }
+        Vector3d playerPos = new Vector3d(playerRef.getTransform().getPosition());
 
         int totalJoints = ExamplePhysicsUtils.optionalInt(ctx, countArg, DEFAULT_JOINTS, 1,
             MAX_JOINTS);
         String blockType = blockType(ctx);
-        PhysicsWorldResource resource = ExamplePhysicsUtils.resource(store);
+        PhysicsWorldResource resource = store.getResource(PhysicsWorldResource.getResourceType());
         SpaceId spaceId = ExamplePhysicsUtils.spaceId(ctx, resource, spaceArg);
         if (spaceId == null) {
             return CompletableFuture.completedFuture(null);
@@ -189,7 +187,7 @@ public class StressJointsCommand extends AbstractAsyncPlayerCommand {
     @Nonnull
     private String blockType(@Nonnull CommandContext ctx) {
         return blockTypeArg.provided(ctx)
-            ? ExamplePhysicsUtils.resolveBlockType(blockTypeArg.get(ctx))
+            ? ExampleBlockEntityVisuals.resolveBlockType(blockTypeArg.get(ctx))
             : ExamplePhysicsUtils.DEFAULT_BLOCK_TYPE;
     }
 

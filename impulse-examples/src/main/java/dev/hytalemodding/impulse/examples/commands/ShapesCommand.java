@@ -38,12 +38,9 @@ public class ShapesCommand extends AbstractAsyncPlayerCommand {
         @Nonnull Ref<EntityStore> ref,
         @Nonnull PlayerRef playerRef,
         @Nonnull World world) {
-        Vector3d playerPos = ExamplePhysicsUtils.playerPosition(ctx, store, ref);
-        if (playerPos == null) {
-            return CompletableFuture.completedFuture(null);
-        }
+        Vector3d playerPos = new Vector3d(playerRef.getTransform().getPosition());
 
-        PhysicsWorldResource resource = ExamplePhysicsUtils.resource(store);
+        PhysicsWorldResource resource = store.getResource(PhysicsWorldResource.getResourceType());
         SpaceId spaceId = ExamplePhysicsUtils.spaceId(ctx, resource, spaceArg);
         if (spaceId == null) {
             return CompletableFuture.completedFuture(null);
@@ -51,12 +48,12 @@ public class ShapesCommand extends AbstractAsyncPlayerCommand {
         TimeResource time = store.getResource(TimeResource.getResourceType());
 
         Vector3d origin = new Vector3d(playerPos).add(-4.0, 3.0, 3.0);
-        spawn(store, time, resource, spaceId, ShapeType.BOX, PhysicsAxis.Y,
+        spawn(store, time, spaceId, ShapeType.BOX, PhysicsAxis.Y,
             origin, 0);
-        spawn(store, time, resource, spaceId, ShapeType.SPHERE, PhysicsAxis.Y, origin, 2);
-        spawn(store, time, resource, spaceId, ShapeType.CAPSULE, PhysicsAxis.Y, origin, 4);
-        spawn(store, time, resource, spaceId, ShapeType.CYLINDER, PhysicsAxis.Y, origin, 6);
-        spawn(store, time, resource, spaceId, ShapeType.CONE, PhysicsAxis.Y, origin, 8);
+        spawn(store, time, spaceId, ShapeType.SPHERE, PhysicsAxis.Y, origin, 2);
+        spawn(store, time, spaceId, ShapeType.CAPSULE, PhysicsAxis.Y, origin, 4);
+        spawn(store, time, spaceId, ShapeType.CYLINDER, PhysicsAxis.Y, origin, 6);
+        spawn(store, time, spaceId, ShapeType.CONE, PhysicsAxis.Y, origin, 8);
 
         ctx.sender().sendMessage(Message.raw("Spawned shape demo."));
         return CompletableFuture.completedFuture(null);
@@ -64,7 +61,6 @@ public class ShapesCommand extends AbstractAsyncPlayerCommand {
 
     private static void spawn(@Nonnull Store<EntityStore> store,
         @Nonnull TimeResource time,
-        @Nonnull PhysicsWorldResource resource,
         @Nonnull SpaceId spaceId,
         @Nonnull ShapeType type,
         @Nonnull PhysicsAxis axis,
@@ -72,12 +68,13 @@ public class ShapesCommand extends AbstractAsyncPlayerCommand {
         int xOffset) {
         ExamplePhysicsUtils.spawnBlockBody(store,
             time,
-            resource,
             spaceId,
             new Vector3d(origin).add(xOffset, 0.0, 0.0),
+            ExamplePhysicsUtils.DEFAULT_BLOCK_TYPE,
             shape(type, axis),
             1.0f,
-            RigidBodySpawnSettings.material(0.7f, 0.35f));
+            RigidBodySpawnSettings.material(0.7f, 0.35f),
+            null);
     }
 
     @Nonnull

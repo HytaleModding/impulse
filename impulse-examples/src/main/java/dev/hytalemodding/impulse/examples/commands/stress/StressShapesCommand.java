@@ -51,13 +51,10 @@ public class StressShapesCommand extends AbstractAsyncPlayerCommand {
         @Nonnull Ref<EntityStore> ref,
         @Nonnull PlayerRef playerRef,
         @Nonnull World world) {
-        Vector3d playerPos = ExamplePhysicsUtils.playerPosition(ctx, store, ref);
-        if (playerPos == null) {
-            return CompletableFuture.completedFuture(null);
-        }
+        Vector3d playerPos = new Vector3d(playerRef.getTransform().getPosition());
 
         int sets = ExamplePhysicsUtils.optionalInt(ctx, setsArg, DEFAULT_SETS, 1, MAX_SETS);
-        PhysicsWorldResource resource = ExamplePhysicsUtils.resource(store);
+        PhysicsWorldResource resource = store.getResource(PhysicsWorldResource.getResourceType());
         SpaceId spaceId = ExamplePhysicsUtils.spaceId(ctx, resource, spaceArg);
         if (spaceId == null) {
             return CompletableFuture.completedFuture(null);
@@ -98,7 +95,6 @@ public class StressShapesCommand extends AbstractAsyncPlayerCommand {
         double xOffset) {
         ExamplePhysicsUtils.spawnBlockBody(store,
             time,
-            resource,
             spaceId,
             new Vector3d(base).add(xOffset, 0.0, 0.0),
             ExamplePhysicsUtils.DEFAULT_BLOCK_TYPE,
