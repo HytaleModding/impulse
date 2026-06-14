@@ -182,15 +182,16 @@ public final class PhysicsStoreEntities {
         @Nonnull VisualMaterializationSettingsComponent visualMaterializationSettings,
         @Nonnull CollisionLodSettingsComponent collisionLodSettings,
         @Nonnull ExtensionSettingsComponent extensionSettings) {
-        Objects.requireNonNull(store, "store");
+        Store<PhysicsStore> checkedStore = Objects.requireNonNull(store, "store");
+        PhysicsStoreThreading.requireWorldThread(checkedStore, "put PhysicsStore space components");
         Objects.requireNonNull(ref, "ref");
-        store.putComponent(ref,
+        checkedStore.putComponent(ref,
             SpaceComponent.getComponentType(),
             Objects.requireNonNull(space, "space").clone());
-        store.putComponent(ref,
+        checkedStore.putComponent(ref,
             WorldCollisionComponent.getComponentType(),
             Objects.requireNonNull(worldCollision, "worldCollision").clone());
-        putSpaceSettingsComponents(store,
+        putSpaceSettingsComponents(checkedStore,
             ref,
             solverSettings,
             visualSyncSettings,
@@ -206,22 +207,24 @@ public final class PhysicsStoreEntities {
         @Nonnull VisualMaterializationSettingsComponent visualMaterializationSettings,
         @Nonnull CollisionLodSettingsComponent collisionLodSettings,
         @Nonnull ExtensionSettingsComponent extensionSettings) {
-        Objects.requireNonNull(store, "store");
+        Store<PhysicsStore> checkedStore = Objects.requireNonNull(store, "store");
+        PhysicsStoreThreading.requireWorldThread(checkedStore,
+            "put PhysicsStore space settings components");
         Objects.requireNonNull(ref, "ref");
-        store.putComponent(ref,
+        checkedStore.putComponent(ref,
             SolverSettingsComponent.getComponentType(),
             Objects.requireNonNull(solverSettings, "solverSettings").clone());
-        store.putComponent(ref,
+        checkedStore.putComponent(ref,
             VisualSyncSettingsComponent.getComponentType(),
             Objects.requireNonNull(visualSyncSettings, "visualSyncSettings").clone());
-        store.putComponent(ref,
+        checkedStore.putComponent(ref,
             VisualMaterializationSettingsComponent.getComponentType(),
             Objects.requireNonNull(visualMaterializationSettings,
                 "visualMaterializationSettings").clone());
-        store.putComponent(ref,
+        checkedStore.putComponent(ref,
             CollisionLodSettingsComponent.getComponentType(),
             Objects.requireNonNull(collisionLodSettings, "collisionLodSettings").clone());
-        store.putComponent(ref,
+        checkedStore.putComponent(ref,
             ExtensionSettingsComponent.getComponentType(),
             Objects.requireNonNull(extensionSettings, "extensionSettings").clone());
     }
@@ -235,37 +238,40 @@ public final class PhysicsStoreEntities {
         @Nonnull ShapeComponent shape,
         @Nonnull MaterialComponent material,
         @Nonnull CollisionFilterComponent filter) {
-        Objects.requireNonNull(store, "store");
+        Store<PhysicsStore> checkedStore = Objects.requireNonNull(store, "store");
+        PhysicsStoreThreading.requireWorldThread(checkedStore, "put PhysicsStore body components");
         Objects.requireNonNull(ref, "ref");
-        store.putComponent(ref,
+        checkedStore.putComponent(ref,
             BodyComponent.getComponentType(),
             Objects.requireNonNull(body, "body").clone());
-        store.putComponent(ref,
+        checkedStore.putComponent(ref,
             DynamicsComponent.getComponentType(),
             Objects.requireNonNull(dynamics, "dynamics").clone());
-        store.putComponent(ref,
+        checkedStore.putComponent(ref,
             ColliderComponent.getComponentType(),
             Objects.requireNonNull(collider, "collider").clone());
-        store.putComponent(ref,
+        checkedStore.putComponent(ref,
             ShapeComponent.getComponentType(),
             Objects.requireNonNull(shape, "shape").clone());
-        store.putComponent(ref,
+        checkedStore.putComponent(ref,
             MaterialComponent.getComponentType(),
             Objects.requireNonNull(material, "material").clone());
-        store.putComponent(ref,
+        checkedStore.putComponent(ref,
             CollisionFilterComponent.getComponentType(),
             Objects.requireNonNull(filter, "filter").clone());
         if (target != null) {
-            store.putComponent(ref, TargetComponent.getComponentType(), target.clone());
+            checkedStore.putComponent(ref, TargetComponent.getComponentType(), target.clone());
         } else {
-            store.removeComponent(ref, TargetComponent.getComponentType());
+            checkedStore.removeComponent(ref, TargetComponent.getComponentType());
         }
     }
 
     public static void putJointComponent(@Nonnull Store<PhysicsStore> store,
         @Nonnull Ref<PhysicsStore> ref,
         @Nonnull JointComponent joint) {
-        Objects.requireNonNull(store, "store")
+        Store<PhysicsStore> checkedStore = Objects.requireNonNull(store, "store");
+        PhysicsStoreThreading.requireWorldThread(checkedStore, "put PhysicsStore joint component");
+        checkedStore
             .putComponent(Objects.requireNonNull(ref, "ref"),
                 JointComponent.getComponentType(),
                 Objects.requireNonNull(joint, "joint").clone());
@@ -274,7 +280,10 @@ public final class PhysicsStoreEntities {
     public static void putTerrainColliderComponent(@Nonnull Store<PhysicsStore> store,
         @Nonnull Ref<PhysicsStore> ref,
         @Nonnull TerrainColliderComponent terrainCollider) {
-        Objects.requireNonNull(store, "store")
+        Store<PhysicsStore> checkedStore = Objects.requireNonNull(store, "store");
+        PhysicsStoreThreading.requireWorldThread(checkedStore,
+            "put PhysicsStore terrain collider component");
+        checkedStore
             .putComponent(Objects.requireNonNull(ref, "ref"),
                 TerrainColliderComponent.getComponentType(),
                 Objects.requireNonNull(terrainCollider, "terrainCollider").clone());
