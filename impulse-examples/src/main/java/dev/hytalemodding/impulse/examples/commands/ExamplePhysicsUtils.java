@@ -38,8 +38,6 @@ import dev.hytalemodding.impulse.core.plugin.physicsstore.projection.BodyAttachm
 import dev.hytalemodding.impulse.core.plugin.physicsstore.BodyRowDescriptor;
 import dev.hytalemodding.impulse.core.plugin.resources.PhysicsWorldResource;
 import dev.hytalemodding.impulse.core.plugin.settings.PhysicsVisualMaterializationSettings;
-import dev.hytalemodding.impulse.core.plugin.simulation.PhysicsCommandHandle;
-import dev.hytalemodding.impulse.core.plugin.simulation.recorder.PhysicsCommandRecorder;
 import dev.hytalemodding.impulse.core.plugin.simulation.PhysicsShapeSpec;
 import dev.hytalemodding.impulse.core.plugin.simulation.RigidBodySpawnSettings;
 import java.util.ArrayList;
@@ -285,30 +283,6 @@ public final class ExamplePhysicsUtils {
             + "bound in PhysicsStore: " + spaceId.value());
     }
 
-    @Nonnull
-    public static SpawnedBlockBody spawnBlockBodyLegacy(@Nonnull Store<EntityStore> store,
-        @Nonnull TimeResource time,
-        @Nonnull PhysicsWorldResource resource,
-        @Nonnull SpaceId spaceId,
-        @Nonnull Vector3d visualPosition,
-        @Nullable String blockType,
-        @Nonnull PhysicsShapeSpec shape,
-        float mass,
-        @Nonnull RigidBodySpawnSettings settings,
-        @Nullable Vector3f linearVelocity) {
-        PendingBlockBodyCapture pending = new PendingBlockBodyCapture();
-        requireApplied(resource.submitCommands(0L, linearVelocity != null ? 2 : 1, commands ->
-            pending.set(recordBlockBodySpawn(commands,
-                spaceId,
-                visualPosition,
-                blockType,
-                shape,
-                mass,
-                settings,
-                linearVelocity))), "spawn attached block body");
-        return attachRecordedBlockBody(store, time, pending.require());
-    }
-
     @Nullable
     private static PendingBlockBody tryRecordPhysicsStoreBlockBody(@Nonnull Store<EntityStore> store,
         @Nonnull SpaceId spaceId,
@@ -458,7 +432,7 @@ public final class ExamplePhysicsUtils {
 
         UUID spaceUuid = resolvePhysicsStoreSpaceUuid(world, spaceId);
         if (spaceUuid == null) {
-            throw new IllegalStateException("Cannot enqueue dynamic body batch because the target space is not "
+            throw new IllegalStateException("Cannot add dynamic body rows because the target space is not "
                 + "bound in PhysicsStore: " + spaceId.value());
         }
 
@@ -477,167 +451,6 @@ public final class ExamplePhysicsUtils {
         }
 
         return new DynamicBodyBatchPlan(bodies, System.nanoTime() - setupStartNanos);
-    }
-
-    @Nonnull
-    public static PendingBlockBody recordBlockBodySpawn(@Nonnull PhysicsCommandRecorder commands,
-        @Nonnull SpaceId spaceId,
-        @Nonnull Vector3d visualPosition,
-        @Nonnull PhysicsShapeSpec shape,
-        float mass,
-        @Nonnull RigidBodySpawnSettings settings) {
-        return recordBlockBodySpawn(commands,
-            spaceId,
-            visualPosition,
-            DEFAULT_BLOCK_TYPE,
-            shape,
-            mass,
-            settings,
-            null);
-    }
-
-    @Nonnull
-    public static PendingBlockBody recordBlockBodySpawn(@Nonnull PhysicsCommandRecorder commands,
-        @Nonnull SpaceId spaceId,
-        @Nonnull Vector3d visualPosition,
-        @Nullable String blockType,
-        @Nonnull PhysicsShapeSpec shape,
-        float mass,
-        @Nonnull RigidBodySpawnSettings settings) {
-        return recordBlockBodySpawn(commands,
-            spaceId,
-            visualPosition,
-            blockType,
-            shape,
-            mass,
-            settings,
-            null);
-    }
-
-    @Nonnull
-    public static PendingBlockBody recordBlockBodySpawn(@Nonnull PhysicsCommandRecorder commands,
-        @Nonnull SpaceId spaceId,
-        @Nonnull Vector3d visualPosition,
-        @Nullable String blockType,
-        @Nonnull PhysicsShapeSpec shape,
-        float mass,
-        @Nonnull RigidBodySpawnSettings settings,
-        @Nullable Vector3f linearVelocity) {
-        Objects.requireNonNull(commands, "commands");
-        Objects.requireNonNull(spaceId, "spaceId");
-        Objects.requireNonNull(visualPosition, "visualPosition");
-        Objects.requireNonNull(shape, "shape");
-        Objects.requireNonNull(settings, "settings");
-        return recordBlockBodySpawnAtResolvedPose(commands,
-            spaceId,
-            toVector3f(visualPosition),
-            visualPosition,
-            blockType,
-            shape,
-            mass,
-            settings,
-            linearVelocity);
-    }
-
-    @Nonnull
-    public static PendingBlockBody recordBlockBodySpawnAtBodyCenter(@Nonnull PhysicsCommandRecorder commands,
-        @Nonnull SpaceId spaceId,
-        @Nonnull Vector3d bodyCenter,
-        @Nullable String blockType,
-        @Nonnull PhysicsShapeSpec shape,
-        float mass,
-        @Nonnull RigidBodySpawnSettings settings) {
-        return recordBlockBodySpawnAtBodyCenter(commands,
-            spaceId,
-            bodyCenter,
-            blockType,
-            shape,
-            mass,
-            settings,
-            null);
-    }
-
-    @Nonnull
-    public static PendingBlockBody recordBlockBodySpawnAtBodyCenter(@Nonnull PhysicsCommandRecorder commands,
-        @Nonnull SpaceId spaceId,
-        @Nonnull Vector3d bodyCenter,
-        @Nullable String blockType,
-        @Nonnull PhysicsShapeSpec shape,
-        float mass,
-        @Nonnull RigidBodySpawnSettings settings,
-        @Nullable Vector3f linearVelocity) {
-        Objects.requireNonNull(bodyCenter, "bodyCenter");
-        Objects.requireNonNull(shape, "shape");
-        return recordBlockBodySpawnAtResolvedPose(commands,
-            spaceId,
-            new Vector3f((float) bodyCenter.x, (float) bodyCenter.y, (float) bodyCenter.z),
-            visualPositionFromBodyCenter(bodyCenter, shape),
-            blockType,
-            shape,
-            mass,
-            settings,
-            linearVelocity);
-    }
-
-    @Nonnull
-    private static PendingBlockBody recordBlockBodySpawnAtResolvedPose(@Nonnull PhysicsCommandRecorder commands,
-        @Nonnull SpaceId spaceId,
-        @Nonnull Vector3f bodyCenter,
-        @Nonnull Vector3d visualPosition,
-        @Nullable String blockType,
-        @Nonnull PhysicsShapeSpec shape,
-        float mass,
-        @Nonnull RigidBodySpawnSettings settings,
-        @Nullable Vector3f linearVelocity) {
-        Objects.requireNonNull(commands, "commands");
-        Objects.requireNonNull(spaceId, "spaceId");
-        Objects.requireNonNull(bodyCenter, "bodyCenter");
-        Objects.requireNonNull(visualPosition, "visualPosition");
-        Objects.requireNonNull(shape, "shape");
-        Objects.requireNonNull(settings, "settings");
-        RigidBodyKey bodyKey = RigidBodyKey.random();
-        commands.spawnBody(bodyKey, spawn -> spawn
-            .space(spaceId)
-            .shape(shape)
-            .mass(mass)
-            .dynamic()
-            .position(bodyCenter.x,
-                bodyCenter.y,
-                bodyCenter.z)
-            .settings(settings)
-            .persistent());
-        if (linearVelocity != null) {
-            commands.setBodyVelocity(bodyKey,
-                linearVelocity.x,
-                linearVelocity.y,
-                linearVelocity.z,
-                0.0f,
-                0.0f,
-                0.0f,
-                true);
-        }
-        return new PendingBlockBody(bodyKey,
-            spaceId,
-            blockType,
-            (float) visualPosition.x,
-            (float) visualPosition.y,
-            (float) visualPosition.z,
-            mass > 0.0f);
-    }
-
-    @Nonnull
-    public static SpawnedBlockBody attachRecordedBlockBody(@Nonnull Store<EntityStore> store,
-        @Nonnull TimeResource time,
-        @Nonnull PendingBlockBody pending) {
-        Ref<EntityStore> entity = spawnAttachedBlockEntity(store,
-            time,
-            pending.bodyKey(),
-            pending.spaceId(),
-            pending.blockType(),
-            new Vector3d(pending.positionX(), pending.positionY(), pending.positionZ()),
-            pending.controllable());
-        assert entity != null;
-        return new SpawnedBlockBody(pending.bodyKey(), pending.spaceId(), entity);
     }
 
     @Nonnull
@@ -749,9 +562,9 @@ public final class ExamplePhysicsUtils {
                 null));
         }
 
-        long commandStartNanos = System.nanoTime();
+        long rowApplyStartNanos = System.nanoTime();
         addPhysicsStoreBodies(world, rows);
-        long commandApplyNanos = System.nanoTime() - commandStartNanos;
+        long rowApplyNanos = System.nanoTime() - rowApplyStartNanos;
 
         long entityAttachStartNanos = System.nanoTime();
         SpawnedBlockBody[] spawned = collectBodies ? new SpawnedBlockBody[batch.size()] : null;
@@ -772,19 +585,8 @@ public final class ExamplePhysicsUtils {
         long entityAttachNanos = System.nanoTime() - entityAttachStartNanos;
         return new BlockBodyBatchResult(spawned,
             batch.size(),
-            commandApplyNanos,
+            rowApplyNanos,
             entityAttachNanos);
-    }
-
-    public static void requireApplied(@Nonnull PhysicsCommandHandle handle,
-        @Nonnull String operation) {
-        handle.firstRejected()
-            .toCompletableFuture()
-            .join()
-            .ifPresent(result -> {
-                throw new IllegalStateException(operation + " command "
-                    + result.commandSequence() + " rejected: " + result.message());
-            });
     }
 
     static void addControllableMarkerIfAvailable(@Nonnull Holder<EntityStore> holder,
@@ -814,121 +616,6 @@ public final class ExamplePhysicsUtils {
     static Vector3d visualPositionFromBodyCenter(@Nonnull Vector3d bodyCenter,
         @Nonnull PhysicsShapeSpec shape) {
         return ExamplePhysicsOriginMath.visualPositionFromBodyCenter(bodyCenter, shape);
-    }
-
-    @Nullable
-    public static Ref<EntityStore> spawnAttachedBlockEntity(@Nonnull Store<EntityStore> store,
-        @Nonnull TimeResource time,
-        @Nonnull RigidBodyKey bodyKey,
-        @Nonnull SpaceId spaceId,
-        @Nullable String blockType,
-        @Nonnull Vector3d visualPosition,
-        boolean controllable) {
-        Holder<EntityStore> holder = attachedBlockEntityHolder(time,
-            bodyKey,
-            spaceId,
-            blockType,
-            visualPosition,
-            controllable);
-        return store.addEntity(holder, AddReason.SPAWN);
-    }
-
-    @Nonnull
-    public static Holder<EntityStore> attachedBlockEntityHolder(@Nonnull TimeResource time,
-        @Nonnull RigidBodyKey bodyKey,
-        @Nonnull SpaceId spaceId,
-        @Nullable String blockType,
-        @Nonnull Vector3d visualPosition,
-        boolean controllable) {
-        return attachedBlockEntityHolder(time,
-            bodyKey,
-            spaceId,
-            blockType,
-            visualPosition,
-            new Vector3f(),
-            controllable);
-    }
-
-    @Nonnull
-    public static Holder<EntityStore> attachedBlockEntityHolder(@Nonnull TimeResource time,
-        @Nonnull RigidBodyKey bodyKey,
-        @Nonnull SpaceId spaceId,
-        @Nullable String blockType,
-        @Nonnull Vector3d visualPosition,
-        @Nonnull Vector3f localPositionOffset,
-        boolean controllable) {
-        return attachedBlockEntityHolder(time,
-            bodyKey,
-            spaceId,
-            blockType,
-            visualPosition,
-            localPositionOffset,
-            new Quaternionf(),
-            controllable);
-    }
-
-    @Nonnull
-    public static Holder<EntityStore> attachedBlockEntityHolder(@Nonnull TimeResource time,
-        @Nonnull RigidBodyKey bodyKey,
-        @Nonnull SpaceId spaceId,
-        @Nullable String blockType,
-        @Nonnull Vector3d visualPosition,
-        @Nonnull Vector3f localPositionOffset,
-        float visualOriginOffsetY,
-        boolean controllable) {
-        return attachedBlockEntityHolder(time,
-            bodyKey,
-            spaceId,
-            blockType,
-            visualPosition,
-            localPositionOffset,
-            new Quaternionf(),
-            visualOriginOffsetY,
-            controllable);
-    }
-
-    @Nonnull
-    public static Holder<EntityStore> attachedBlockEntityHolder(@Nonnull TimeResource time,
-        @Nonnull RigidBodyKey bodyKey,
-        @Nonnull SpaceId spaceId,
-        @Nullable String blockType,
-        @Nonnull Vector3d visualPosition,
-        @Nonnull Vector3f localPositionOffset,
-        @Nonnull Quaternionf localRotationOffset,
-        boolean controllable) {
-        return attachedBlockEntityHolder(time,
-            bodyKey,
-            spaceId,
-            blockType,
-            visualPosition,
-            localPositionOffset,
-            localRotationOffset,
-            Float.NaN,
-            controllable);
-    }
-
-    @Nonnull
-    public static Holder<EntityStore> attachedBlockEntityHolder(@Nonnull TimeResource time,
-        @Nonnull RigidBodyKey bodyKey,
-        @Nonnull SpaceId spaceId,
-        @Nullable String blockType,
-        @Nonnull Vector3d visualPosition,
-        @Nonnull Vector3f localPositionOffset,
-        @Nonnull Quaternionf localRotationOffset,
-        float visualOriginOffsetY,
-        boolean controllable) {
-        Holder<EntityStore> holder = blockEntityHolder(time, blockType, visualPosition);
-        holder.addComponent(ATTACHMENT_TYPE,
-            BodyAttachmentComponent.impulseOwnedVisual(bodyKey.value(),
-                spaceId,
-                localPositionOffset,
-                localRotationOffset,
-                visualOriginOffsetY));
-        if (controllable && PhysicsControlSessions.isAvailable()) {
-            holder.addComponent(ImpulseControllableComponent.getComponentType(),
-                new ImpulseControllableComponent());
-        }
-        return holder;
     }
 
     @Nullable
@@ -1044,12 +731,12 @@ public final class ExamplePhysicsUtils {
     }
 
     public record BlockBodyBatchTiming(int count,
-                                       long commandApplyNanos,
+                                       long rowApplyNanos,
                                        long entityAttachNanos) {
 
         public BlockBodyBatchTiming {
             count = Math.max(0, count);
-            commandApplyNanos = Math.max(0L, commandApplyNanos);
+            rowApplyNanos = Math.max(0L, rowApplyNanos);
             entityAttachNanos = Math.max(0L, entityAttachNanos);
         }
     }
@@ -1093,24 +780,6 @@ public final class ExamplePhysicsUtils {
         public PendingBlockBody {
             Objects.requireNonNull(bodyKey, "bodyKey");
             Objects.requireNonNull(spaceId, "spaceId");
-        }
-    }
-
-    private static final class PendingBlockBodyCapture {
-
-        @Nullable
-        private PendingBlockBody body;
-
-        private void set(@Nonnull PendingBlockBody body) {
-            this.body = Objects.requireNonNull(body, "body");
-        }
-
-        @Nonnull
-        private PendingBlockBody require() {
-            if (body == null) {
-                throw new IllegalStateException("Pending block body was not recorded");
-            }
-            return body;
         }
     }
 
@@ -1264,7 +933,7 @@ public final class ExamplePhysicsUtils {
 
     private record BlockBodyBatchResult(@Nullable SpawnedBlockBody[] bodies,
                                         int count,
-                                        long commandApplyNanos,
+                                        long rowApplyNanos,
                                         long entityAttachNanos) {
 
         private BlockBodyBatchResult {
@@ -1272,7 +941,7 @@ public final class ExamplePhysicsUtils {
                 throw new IllegalArgumentException("Collected body count does not match batch count");
             }
             count = Math.max(0, count);
-            commandApplyNanos = Math.max(0L, commandApplyNanos);
+            rowApplyNanos = Math.max(0L, rowApplyNanos);
             entityAttachNanos = Math.max(0L, entityAttachNanos);
         }
 
@@ -1287,7 +956,7 @@ public final class ExamplePhysicsUtils {
         @Nonnull
         private BlockBodyBatchTiming timing() {
             return new BlockBodyBatchTiming(count,
-                commandApplyNanos,
+                rowApplyNanos,
                 entityAttachNanos);
         }
     }

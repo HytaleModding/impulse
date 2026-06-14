@@ -74,7 +74,7 @@ public class StressRawBodiesCommand extends AbstractAsyncPlayerCommand {
 
         PhysicsShapeSpec box = PhysicsShapeSpec.box(0.48f, 0.48f, 0.48f);
         RigidBodySpawnSettings spawnSettings = RigidBodySpawnSettings.material(0.65f, 0.15f);
-        long commandStartNanos = System.nanoTime();
+        long totalStartNanos = System.nanoTime();
         BodyRowBatchTiming timing = ExamplePhysicsUtils.addDynamicBodyBatchMeasured(world,
             spaceId,
             count,
@@ -95,7 +95,7 @@ public class StressRawBodiesCommand extends AbstractAsyncPlayerCommand {
                 }
             });
         ctx.sender().sendMessage(Message.raw(successMessage(timing,
-            System.nanoTime() - commandStartNanos)));
+            System.nanoTime() - totalStartNanos)));
         return CompletableFuture.completedFuture(null);
     }
 

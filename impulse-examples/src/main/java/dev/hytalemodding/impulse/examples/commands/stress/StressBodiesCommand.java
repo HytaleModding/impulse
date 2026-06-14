@@ -190,8 +190,8 @@ public class StressBodiesCommand extends AbstractAsyncPlayerCommand {
                             layout.positionZ(i));
                     }
                 });
-            timing = new StressSpawnTiming(batchTiming.commandApplyNanos() + batchTiming.entityAttachNanos(),
-                batchTiming.commandApplyNanos(),
+            timing = new StressSpawnTiming(batchTiming.rowApplyNanos() + batchTiming.entityAttachNanos(),
+                batchTiming.rowApplyNanos(),
                 batchTiming.entityAttachNanos());
         } else {
             PhysicsShapeSpec box = PhysicsShapeSpec.box(0.48f, 0.48f, 0.48f);

@@ -196,8 +196,8 @@ public class StressBenchmarkCommand extends AbstractAsyncPlayerCommand {
                 }
             });
         return new BenchmarkSpawnTiming(timing.count(),
-            timing.commandApplyNanos() + timing.entityAttachNanos(),
-            timing.commandApplyNanos(),
+            timing.rowApplyNanos() + timing.entityAttachNanos(),
+            timing.rowApplyNanos(),
             timing.entityAttachNanos());
     }
 
