@@ -194,10 +194,6 @@ public class PhysicsWorldRuntimeResource extends PhysicsWorldResource {
         return lifecycleState.worldEpoch();
     }
 
-    public long commandWorldEpoch() {
-        return lifecycleState.commandWorldEpoch();
-    }
-
     @Nonnull
     @Override
     public PhysicsEventFrame getLatestEventFrame() {
@@ -1520,7 +1516,6 @@ public class PhysicsWorldRuntimeResource extends PhysicsWorldResource {
     }
 
     private void destroyBodyDirect(@Nonnull RigidBodyKey bodyKey, boolean removeFromSpace) {
-        lifecycleState.clearBodyCreationPending(bodyKey);
         bodyRuntime.destroyBody(bodyKey, removeFromSpace);
     }
 
@@ -1704,9 +1699,7 @@ public class PhysicsWorldRuntimeResource extends PhysicsWorldResource {
     }
 
     public boolean isBodyCreationPending(@Nonnull RigidBodyKey bodyKey) {
-        return lifecycleState.isBodyCreationPending(bodyKey,
-            bodyRuntime.isBodyCreationPending(bodyKey),
-            ownerGateway.hasOwnerExecutor());
+        return bodyRuntime.isBodyCreationPending(bodyKey);
     }
 
     public boolean hasPublishedOrPendingBodyRegistration(@Nonnull RigidBodyKey bodyKey) {

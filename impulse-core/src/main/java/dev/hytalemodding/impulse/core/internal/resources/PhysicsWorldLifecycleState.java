@@ -5,22 +5,17 @@ import dev.hytalemodding.impulse.api.SpaceId;
 import dev.hytalemodding.impulse.core.internal.resources.body.PhysicsBodyRegistration;
 import dev.hytalemodding.impulse.core.internal.resources.body.PhysicsBodyRegistry;
 import dev.hytalemodding.impulse.core.internal.resources.body.PhysicsBodySnapshotVisitor;
-import dev.hytalemodding.impulse.core.internal.resources.owner.PhysicsCommandVisibilityState;
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsWorldSnapshotState.ApplyResult;
-import dev.hytalemodding.impulse.core.internal.simulation.batch.RecordedPhysicsCommandBatch;
 import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyKind;
 import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyPersistenceMode;
 import dev.hytalemodding.impulse.core.plugin.body.RigidBodyKey;
 import dev.hytalemodding.impulse.core.plugin.events.PhysicsEventFrame;
 import dev.hytalemodding.impulse.core.plugin.events.PhysicsFrameEvent;
-import dev.hytalemodding.impulse.core.plugin.simulation.PhysicsCommandCompletion;
 import dev.hytalemodding.impulse.core.plugin.snapshot.PhysicsBodySnapshotEntry;
 import dev.hytalemodding.impulse.core.plugin.snapshot.PublishedPhysicsSnapshotFrame;
 import java.util.Collection;
 import java.util.List;
-import java.util.Objects;
 import java.util.function.Consumer;
-import java.util.function.Function;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 import org.joml.Vector3f;
@@ -32,18 +27,9 @@ public final class PhysicsWorldLifecycleState {
 
     private final PhysicsWorldSnapshotState snapshotState = new PhysicsWorldSnapshotState();
     private final PhysicsWorldEventState eventState = new PhysicsWorldEventState();
-    private final PhysicsCommandVisibilityState commandVisibility = new PhysicsCommandVisibilityState();
 
     public long worldEpoch() {
         return snapshotState.worldEpoch();
-    }
-
-    public long commandWorldEpoch() {
-        return commandVisibility.commandWorldEpoch();
-    }
-
-    public long nextCommandBatchSequence() {
-        return commandVisibility.nextCommandBatchSequence();
     }
 
     @Nonnull
@@ -104,7 +90,7 @@ public final class PhysicsWorldLifecycleState {
             bodyRegistry,
             stepSequence,
             serverTick,
-            commandVisibility.completedCommandBatchSequence(),
+            0L,
             status,
             stepNanos,
             profilingEnabled);
@@ -121,8 +107,6 @@ public final class PhysicsWorldLifecycleState {
         ApplyResult result = snapshotState.applyPublishedSnapshotFrame(frame);
         if (result.currentWorldEpoch()) {
             bodyRegistry.applyPublishedRegistrationFrame(frame);
-            commandVisibility.applyLastIncludedCommandBatchSequence(
-                frame.lastIncludedCommandBatchSequence());
             eventState.publishSnapshotPublication(snapshotState.worldEpoch(),
                 frame,
                 result.appliedCount(),
@@ -184,29 +168,8 @@ public final class PhysicsWorldLifecycleState {
         snapshotState.clearBodySnapshots();
     }
 
-    public boolean isBodyCreationPending(@Nonnull RigidBodyKey bodyKey,
-        boolean directBodyCreationPending,
-        boolean ownerExecutorAttached) {
-        return commandVisibility.isBodyCreationPending(bodyKey, directBodyCreationPending);
-    }
-
-    public boolean trackBodyCreationPublication(@Nonnull RecordedPhysicsCommandBatch batch,
-        boolean ownerExecutorAttached) {
-        return commandVisibility.trackBodyCreationPublication(batch, ownerExecutorAttached);
-    }
-
-    public void clearBodyCreationPublication(@Nonnull RecordedPhysicsCommandBatch batch) {
-        commandVisibility.clearBodyCreationPublication(batch);
-    }
-
-    public void clearBodyCreationPending(@Nonnull RigidBodyKey bodyKey) {
-        commandVisibility.clearBodyCreationPending(bodyKey);
-    }
-
     public void publishDetachedOwnerRegistrationViews(@Nonnull PhysicsBodyRegistry bodyRegistry) {
         bodyRegistry.publishLiveRegistrationViews();
-        commandVisibility.applyLastIncludedCommandBatchSequence(
-            commandVisibility.completedCommandBatchSequence());
     }
 
     public void markWorldChanged(@Nonnull PhysicsBodyRegistry bodyRegistry,
@@ -215,27 +178,6 @@ public final class PhysicsWorldLifecycleState {
         if (!ownerExecutorAttached) {
             bodyRegistry.publishLiveRegistrationViews();
         }
-        if (commandVisibility.markWorldChanged()) {
-            eventState.publishEmpty(snapshotState.worldEpoch(), snapshotState.getLatestPublishedFrame());
-        }
-    }
-
-    @Nonnull
-    public PhysicsCommandCompletion executeCommandBatch(@Nonnull RecordedPhysicsCommandBatch batch,
-        @Nonnull Function<RecordedPhysicsCommandBatch, PhysicsCommandCompletion> executor) {
-        Objects.requireNonNull(batch, "batch");
-        Objects.requireNonNull(executor, "executor");
-        int depth = commandVisibility.enterCommandBatchExecution();
-        try {
-            PhysicsCommandCompletion completion = executor.apply(batch);
-            commandVisibility.markCommandBatchCompleted(batch.metadata().commandBatchSequence());
-            eventState.publishCommandCompletion(snapshotState.worldEpoch(),
-                snapshotState.getLatestPublishedFrame(),
-                batch,
-                completion);
-            return completion;
-        } finally {
-            commandVisibility.exitCommandBatchExecution(depth);
-        }
+        eventState.publishEmpty(snapshotState.worldEpoch(), snapshotState.getLatestPublishedFrame());
     }
 }
