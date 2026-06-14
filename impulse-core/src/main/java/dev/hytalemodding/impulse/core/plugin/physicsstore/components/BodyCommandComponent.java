@@ -9,6 +9,7 @@ import com.hypixel.hytale.component.Component;
 import com.hypixel.hytale.component.ComponentType;
 import com.hypixel.hytale.server.core.universe.world.storage.PhysicsStore;
 import dev.hytalemodding.impulse.api.PhysicsBodyType;
+import dev.hytalemodding.impulse.api.PhysicsCollisionFilters;
 import dev.hytalemodding.impulse.core.plugin.physicsstore.PhysicsStoreTypes;
 import java.util.Arrays;
 import java.util.Objects;
@@ -57,6 +58,15 @@ public final class BodyCommandComponent implements Component<PhysicsStore> {
     public static BodyCommandComponent setType(@Nonnull PhysicsBodyType bodyType,
         boolean activate) {
         return new BodyCommandComponent(new Entry[] {Entry.setType(bodyType, activate)});
+    }
+
+    @Nonnull
+    public static BodyCommandComponent setCollisionFilter(int collisionGroup,
+        int collisionMask,
+        boolean activate) {
+        return new BodyCommandComponent(new Entry[] {
+            Entry.setCollisionFilter(collisionGroup, collisionMask, activate)
+        });
     }
 
     @Nonnull
@@ -163,6 +173,18 @@ public final class BodyCommandComponent implements Component<PhysicsStore> {
                 (entry, value) -> entry.offsetZ = value != null ? value : 0.0f,
                 Entry::getOffsetZ)
             .add()
+            .append(new KeyedCodec<>("CollisionGroup", Codec.INTEGER, false),
+                (entry, value) -> entry.collisionGroup = value != null
+                    ? value
+                    : PhysicsCollisionFilters.DYNAMIC_BODY,
+                Entry::getCollisionGroup)
+            .add()
+            .append(new KeyedCodec<>("CollisionMask", Codec.INTEGER, false),
+                (entry, value) -> entry.collisionMask = value != null
+                    ? value
+                    : PhysicsCollisionFilters.ALL,
+                Entry::getCollisionMask)
+            .add()
             .build();
 
         @Nonnull
@@ -177,6 +199,8 @@ public final class BodyCommandComponent implements Component<PhysicsStore> {
         private float offsetX;
         private float offsetY;
         private float offsetZ;
+        private int collisionGroup = PhysicsCollisionFilters.DYNAMIC_BODY;
+        private int collisionMask = PhysicsCollisionFilters.ALL;
 
         public Entry() {
         }
@@ -190,7 +214,9 @@ public final class BodyCommandComponent implements Component<PhysicsStore> {
             boolean hasOffset,
             float offsetX,
             float offsetY,
-            float offsetZ) {
+            float offsetZ,
+            int collisionGroup,
+            int collisionMask) {
             this.kind = Objects.requireNonNull(kind, "kind");
             this.bodyType = Objects.requireNonNull(bodyType, "bodyType");
             this.activate = activate;
@@ -201,6 +227,8 @@ public final class BodyCommandComponent implements Component<PhysicsStore> {
             this.offsetX = offsetX;
             this.offsetY = offsetY;
             this.offsetZ = offsetZ;
+            this.collisionGroup = collisionGroup;
+            this.collisionMask = collisionMask;
         }
 
         @Nonnull
@@ -214,7 +242,9 @@ public final class BodyCommandComponent implements Component<PhysicsStore> {
                 false,
                 0.0f,
                 0.0f,
-                0.0f);
+                0.0f,
+                PhysicsCollisionFilters.DYNAMIC_BODY,
+                PhysicsCollisionFilters.ALL);
         }
 
         @Nonnull
@@ -228,7 +258,9 @@ public final class BodyCommandComponent implements Component<PhysicsStore> {
                 false,
                 0.0f,
                 0.0f,
-                0.0f);
+                0.0f,
+                PhysicsCollisionFilters.DYNAMIC_BODY,
+                PhysicsCollisionFilters.ALL);
         }
 
         @Nonnull
@@ -243,7 +275,27 @@ public final class BodyCommandComponent implements Component<PhysicsStore> {
                 false,
                 0.0f,
                 0.0f,
-                0.0f);
+                0.0f,
+                PhysicsCollisionFilters.DYNAMIC_BODY,
+                PhysicsCollisionFilters.ALL);
+        }
+
+        @Nonnull
+        private static Entry setCollisionFilter(int collisionGroup,
+            int collisionMask,
+            boolean activate) {
+            return new Entry(Kind.SET_COLLISION_FILTER,
+                PhysicsBodyType.DYNAMIC,
+                activate,
+                0.0f,
+                0.0f,
+                0.0f,
+                false,
+                0.0f,
+                0.0f,
+                0.0f,
+                collisionGroup,
+                collisionMask);
         }
 
         @Nonnull
@@ -267,7 +319,9 @@ public final class BodyCommandComponent implements Component<PhysicsStore> {
                 hasOffset,
                 offsetX,
                 offsetY,
-                offsetZ);
+                offsetZ,
+                PhysicsCollisionFilters.DYNAMIC_BODY,
+                PhysicsCollisionFilters.ALL);
         }
 
         @Nonnull
@@ -312,6 +366,14 @@ public final class BodyCommandComponent implements Component<PhysicsStore> {
             return offsetZ;
         }
 
+        public int getCollisionGroup() {
+            return collisionGroup;
+        }
+
+        public int getCollisionMask() {
+            return collisionMask;
+        }
+
         @Nonnull
         @Override
         public Entry clone() {
@@ -324,7 +386,9 @@ public final class BodyCommandComponent implements Component<PhysicsStore> {
                 hasOffset,
                 offsetX,
                 offsetY,
-                offsetZ);
+                offsetZ,
+                collisionGroup,
+                collisionMask);
         }
     }
 
@@ -335,7 +399,8 @@ public final class BodyCommandComponent implements Component<PhysicsStore> {
         TORQUE_IMPULSE,
         FORCE,
         TORQUE,
-        SET_TYPE;
+        SET_TYPE,
+        SET_COLLISION_FILTER;
 
         public boolean isVector() {
             return this == IMPULSE || this == TORQUE_IMPULSE || this == FORCE || this == TORQUE;

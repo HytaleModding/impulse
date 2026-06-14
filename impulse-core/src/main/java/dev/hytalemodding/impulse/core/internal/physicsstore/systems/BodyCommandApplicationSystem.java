@@ -20,6 +20,7 @@ import dev.hytalemodding.impulse.core.internal.physicsstore.resources.PhysicsRun
 import dev.hytalemodding.impulse.core.internal.resources.BackendBodyHandle;
 import dev.hytalemodding.impulse.core.internal.resources.BackendSpaceHandle;
 import dev.hytalemodding.impulse.core.plugin.physicsstore.components.BodyCommandComponent;
+import dev.hytalemodding.impulse.core.plugin.physicsstore.components.CollisionFilterComponent;
 import dev.hytalemodding.impulse.core.plugin.physicsstore.components.DynamicsComponent;
 import java.util.Set;
 import java.util.UUID;
@@ -95,6 +96,7 @@ public final class BodyCommandApplicationSystem extends TickingSystem<PhysicsSto
             case FORCE -> enqueueVector(runtime, bodyUuid, command, PendingBodyOperation.Kind.FORCE);
             case TORQUE -> enqueueVector(runtime, bodyUuid, command, PendingBodyOperation.Kind.TORQUE);
             case SET_TYPE -> applyBodyType(store, runtime, restore, ref, bodyUuid, command);
+            case SET_COLLISION_FILTER -> applyCollisionFilter(runtime, restore, store, ref, bodyUuid, command);
         }
     }
 
@@ -122,6 +124,33 @@ public final class BodyCommandApplicationSystem extends TickingSystem<PhysicsSto
             binding.bodyHandle().value(),
             BackendRuntimeCodes.bodyTypeCode(command.getBodyType()));
         updateBodyHitMetadata(runtime, binding.bodyHandle(), command.getBodyType());
+        if (command.isActivate()) {
+            runtime.enqueuePendingBodyOperation(PendingBodyOperation.wake(bodyUuid,
+                binding.spaceHandle(),
+                binding.bodyHandle()));
+        }
+    }
+
+    private static void applyCollisionFilter(@Nonnull PhysicsRuntimeResource runtime,
+        @Nonnull PhysicsRestoreStatusResource restore,
+        @Nonnull Store<PhysicsStore> store,
+        @Nonnull Ref<PhysicsStore> ref,
+        @Nonnull UUID bodyUuid,
+        @Nonnull BodyCommandComponent.Entry command) {
+        store.putComponent(ref,
+            CollisionFilterComponent.getComponentType(),
+            new CollisionFilterComponent(command.getCollisionGroup(), command.getCollisionMask()));
+        RuntimeBodyBinding binding = runtimeBodyBinding(runtime, bodyUuid, restore, false);
+        if (binding == null) {
+            if (command.isActivate()) {
+                runtime.enqueuePendingBodyOperation(PendingBodyOperation.wake(bodyUuid, null, null));
+            }
+            return;
+        }
+        binding.backendRuntime().setBodyCollisionFilter(binding.spaceHandle().value(),
+            binding.bodyHandle().value(),
+            command.getCollisionGroup(),
+            command.getCollisionMask());
         if (command.isActivate()) {
             runtime.enqueuePendingBodyOperation(PendingBodyOperation.wake(bodyUuid,
                 binding.spaceHandle(),
