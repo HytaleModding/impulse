@@ -11,6 +11,7 @@ import com.hypixel.hytale.server.core.universe.world.chunk.ChunkFlag;
 import com.hypixel.hytale.server.core.universe.world.chunk.WorldChunk;
 import com.hypixel.hytale.server.core.universe.world.storage.ChunkStore;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
+import com.hypixel.hytale.server.core.universe.world.storage.PhysicsStore;
 import dev.hytalemodding.impulse.api.PhysicsBodyType;
 import dev.hytalemodding.impulse.api.PhysicsCollisionFilters;
 import dev.hytalemodding.impulse.api.SpaceId;
@@ -23,7 +24,6 @@ import dev.hytalemodding.impulse.core.internal.resources.PhysicsWorldRuntimeReso
 import dev.hytalemodding.impulse.core.internal.simulation.query.BenchmarkSpaceStatsQuery;
 import dev.hytalemodding.impulse.core.internal.simulation.view.BenchmarkSpaceStatsView;
 import dev.hytalemodding.impulse.core.internal.simulation.query.WorldCollisionPrewarmEnvelopeQuery;
-import dev.hytalemodding.impulse.core.plugin.body.RigidBodyKey;
 import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyKind;
 import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyPersistenceMode;
 import dev.hytalemodding.impulse.core.plugin.modules.worldcollision.WorldCollisionPrewarmStats;
@@ -42,6 +42,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
 import java.util.Set;
+import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
 import java.util.concurrent.CompletionStage;
@@ -49,6 +50,7 @@ import java.util.logging.Level;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 import org.joml.Vector3d;
+import org.joml.Vector3f;
 
 /**
  * Benchmark-oriented Crucible scenario for detached bodies using streamed world collision.
@@ -136,6 +138,7 @@ final class ImpulseDetachedStreamingBenchmarkCrucibleTests {
         private final StagePlan plan;
         private final World world;
         private final PhysicsWorldRuntimeResource physics;
+        private final Store<PhysicsStore> physicsStore;
         private final PhysicsRuntimeProfilingResource runtimeProfiling;
         private final WorldCollisionProfilingResource worldCollisionProfiling;
         private final PhysicsWorldSettings previousWorldSettings;
@@ -148,6 +151,7 @@ final class ImpulseDetachedStreamingBenchmarkCrucibleTests {
             this.world = context.world();
             Store<EntityStore> store = world.getEntityStore().getStore();
             this.physics = PhysicsWorldRuntimeResource.require(store);
+            this.physicsStore = PhysicsStoreCrucibleSupport.physicsStore(world);
             this.runtimeProfiling = store.getResource(PhysicsRuntimeProfilingResource.getResourceType());
             this.worldCollisionProfiling = store.getResource(
                 WorldCollisionProfilingResource.getResourceType());
@@ -329,8 +333,7 @@ final class ImpulseDetachedStreamingBenchmarkCrucibleTests {
 
         private void clearStageState() {
             releaseRetainedChunks();
-            physics.clearBodies();
-            physics.clearAllSpaces(world.getName());
+            PhysicsStoreCrucibleSupport.clearAll(physicsStore);
             runtimeProfiling.reset();
             worldCollisionProfiling.reset();
             worldCollisionProfiling.clearDiagnosticRetainedSections();
@@ -381,33 +384,21 @@ final class ImpulseDetachedStreamingBenchmarkCrucibleTests {
                 0.25f,
                 PhysicsCollisionFilters.DYNAMIC_BODY,
                 PhysicsCollisionFilters.TERRAIN | PhysicsCollisionFilters.DYNAMIC_BODY);
-            long bodyKeyRunId = RigidBodyKey.random().mostSignificantBits();
-            physics.submitCommands(Math.max(0L, world.getTick()),
-                    1,
-                    commands -> commands.spawnBodies(count,
-                        spaceId,
-                        box,
-                        1.0f,
-                        PhysicsBodyType.DYNAMIC,
-                        settings,
-                        PhysicsBodyKind.BODY,
-                        PhysicsBodyPersistenceMode.RUNTIME_ONLY,
-                        spawns -> {
-                            for (int i = 0; i < count; i++) {
-                                spawns.body(bodyKeyRunId,
-                                    i + 1L,
-                                    (float) layout.positionX(i),
-                                    (float) layout.positionY(),
-                                    (float) layout.positionZ(i));
-                            }
-                        }))
-                .firstRejected()
-                .toCompletableFuture()
-                .join()
-                .ifPresent(result -> {
-                    throw new IllegalStateException("spawn detached streaming benchmark bodies command "
-                        + result.commandSequence() + " rejected: " + result.message());
-                });
+            for (int i = 0; i < count; i++) {
+                PhysicsStoreCrucibleSupport.addBody(physicsStore,
+                    spaceId,
+                    UUID.randomUUID(),
+                    new Vector3f((float) layout.positionX(i),
+                        (float) layout.positionY(),
+                        (float) layout.positionZ(i)),
+                    box,
+                    PhysicsBodyType.DYNAMIC,
+                    1.0f,
+                    settings,
+                    null,
+                    PhysicsBodyKind.BODY,
+                    PhysicsBodyPersistenceMode.RUNTIME_ONLY);
+            }
         }
 
         private BenchmarkChunks benchmarkChunks(int count) {
