@@ -1,4 +1,4 @@
-package dev.hytalemodding.impulse.core.plugin.physicsstore.requests;
+package dev.hytalemodding.impulse.core.internal.physicsstore.terrain;
 
 import java.nio.charset.StandardCharsets;
 import java.util.Objects;
@@ -7,20 +7,18 @@ import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
 /**
- * Copied terrain collider request emitted from chunk/world-collision code.
+ * Copied terrain collider mutation emitted from chunk/world-collision code.
  */
-public record TerrainColliderRequest(@Nonnull UUID requestUuid,
-                                     @Nonnull UUID spaceUuid,
-                                     @Nonnull String sourceKey,
-                                     int chunkX,
-                                     int sectionY,
-                                     int chunkZ,
-                                     @Nonnull String payloadResourceKey,
-                                     @Nullable TerrainColliderPayload payload,
-                                     boolean remove) implements PhysicsStoreRequest {
+public record TerrainColliderMutation(@Nonnull UUID spaceUuid,
+                                       @Nonnull String sourceKey,
+                                       int chunkX,
+                                       int sectionY,
+                                       int chunkZ,
+                                       @Nonnull String payloadResourceKey,
+                                       @Nullable TerrainColliderPayload payload,
+                                       boolean remove) {
 
-    public TerrainColliderRequest {
-        Objects.requireNonNull(requestUuid, "requestUuid");
+    public TerrainColliderMutation {
         Objects.requireNonNull(spaceUuid, "spaceUuid");
         Objects.requireNonNull(sourceKey, "sourceKey");
         Objects.requireNonNull(payloadResourceKey, "payloadResourceKey");
@@ -32,15 +30,14 @@ public record TerrainColliderRequest(@Nonnull UUID requestUuid,
     }
 
     @Nonnull
-    public static TerrainColliderRequest upsert(@Nonnull UUID spaceUuid,
+    public static TerrainColliderMutation upsert(@Nonnull UUID spaceUuid,
         @Nonnull String sourceKey,
         int chunkX,
         int sectionY,
         int chunkZ,
         @Nonnull String payloadResourceKey,
         @Nonnull TerrainColliderPayload payload) {
-        return new TerrainColliderRequest(UUID.randomUUID(),
-            spaceUuid,
+        return new TerrainColliderMutation(spaceUuid,
             sourceKey,
             chunkX,
             sectionY,
@@ -51,13 +48,12 @@ public record TerrainColliderRequest(@Nonnull UUID requestUuid,
     }
 
     @Nonnull
-    public static TerrainColliderRequest remove(@Nonnull UUID spaceUuid,
+    public static TerrainColliderMutation remove(@Nonnull UUID spaceUuid,
         @Nonnull String sourceKey,
         int chunkX,
         int sectionY,
         int chunkZ) {
-        return new TerrainColliderRequest(UUID.randomUUID(),
-            spaceUuid,
+        return new TerrainColliderMutation(spaceUuid,
             sourceKey,
             chunkX,
             sectionY,

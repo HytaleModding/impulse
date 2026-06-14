@@ -10,7 +10,7 @@ import com.hypixel.hytale.server.core.universe.world.storage.ChunkStore;
 import dev.hytalemodding.impulse.core.internal.modules.worldcollision.profiling.WorldCollisionProfilingResource.MissingSectionReason;
 import dev.hytalemodding.impulse.core.internal.modules.worldcollision.profiling.WorldCollisionProfilingResource.Snapshot;
 import dev.hytalemodding.impulse.core.internal.modules.worldcollision.profiling.WorldCollisionProfilingResource.StreamingTargetDiagnostic;
-import dev.hytalemodding.impulse.core.internal.physicsstore.resources.PhysicsRequestQueueResource;
+import dev.hytalemodding.impulse.core.internal.physicsstore.resources.PhysicsTerrainMutationQueueResource;
 import it.unimi.dsi.fastutil.longs.Long2LongMap;
 import it.unimi.dsi.fastutil.longs.Long2LongOpenHashMap;
 import it.unimi.dsi.fastutil.longs.Long2ObjectMap;
@@ -26,9 +26,9 @@ import javax.annotation.Nullable;
 import org.joml.Vector3d;
 
 /**
- * Section cache for PhysicsStore terrain request producers.
+ * Section cache for PhysicsStore terrain mutation producers.
  */
-public final class PhysicsStoreTerrainRequestCache {
+public final class PhysicsStoreTerrainMutationCache {
 
     private static final int ACTIVE_BODY_STREAMING_INTERVAL_TICKS = 4;
     private static final int SLEEPING_BODY_STREAMING_INTERVAL_TICKS = 20;
@@ -47,7 +47,7 @@ public final class PhysicsStoreTerrainRequestCache {
     @Nonnull
     public synchronized WorldVoxelCollisionCache.BuildStats ensureAround(@Nonnull World world,
         @Nonnull UUID spaceUuid,
-        @Nonnull PhysicsRequestQueueResource queue,
+        @Nonnull PhysicsTerrainMutationQueueResource queue,
         @Nonnull Vector3d center,
         int radius,
         long tick,
@@ -105,7 +105,7 @@ public final class PhysicsStoreTerrainRequestCache {
     }
 
     public synchronized int pruneUnused(@Nonnull UUID spaceUuid,
-        @Nonnull PhysicsRequestQueueResource queue,
+        @Nonnull PhysicsTerrainMutationQueueResource queue,
         long currentTick,
         int ttlTicks,
         @Nullable Snapshot profiling) {
@@ -141,7 +141,7 @@ public final class PhysicsStoreTerrainRequestCache {
 
     public synchronized int pruneUnloaded(@Nonnull World world,
         @Nonnull UUID spaceUuid,
-        @Nonnull PhysicsRequestQueueResource queue,
+        @Nonnull PhysicsTerrainMutationQueueResource queue,
         @Nullable Snapshot profiling) {
         long start = profiling != null ? System.nanoTime() : 0L;
         SpaceCollisionCache cache = spaces.get(spaceUuid);
@@ -173,7 +173,7 @@ public final class PhysicsStoreTerrainRequestCache {
     }
 
     public synchronized void retainSpaces(@Nonnull Set<UUID> retainedSpaces,
-        @Nonnull PhysicsRequestQueueResource queue) {
+        @Nonnull PhysicsTerrainMutationQueueResource queue) {
         Iterator<Object2ObjectMap.Entry<UUID, SpaceCollisionCache>> iterator =
             spaces.object2ObjectEntrySet().iterator();
         while (iterator.hasNext()) {
@@ -302,7 +302,7 @@ public final class PhysicsStoreTerrainRequestCache {
     @Nonnull
     private WorldVoxelCollisionCache.BuildStats ensureSection(@Nonnull World world,
         @Nonnull UUID spaceUuid,
-        @Nonnull PhysicsRequestQueueResource queue,
+        @Nonnull PhysicsTerrainMutationQueueResource queue,
         int chunkX,
         int sectionY,
         int chunkZ,
@@ -398,7 +398,7 @@ public final class PhysicsStoreTerrainRequestCache {
             buildOptions.nativeVoxelTerrainEnabled() && geometry.hasFullCubeVoxels());
         int removedBodies = cached != null ? removeSection(spaceUuid, queue, cached) : 0;
         if (built.bodyCount > 0) {
-            queue.enqueue(PhysicsStoreTerrainRequests.upsert(spaceUuid,
+            queue.enqueue(PhysicsStoreTerrainMutations.upsert(spaceUuid,
                 chunkX,
                 sectionY,
                 chunkZ,
@@ -435,12 +435,12 @@ public final class PhysicsStoreTerrainRequestCache {
     }
 
     private static int removeSection(@Nonnull UUID spaceUuid,
-        @Nonnull PhysicsRequestQueueResource queue,
+        @Nonnull PhysicsTerrainMutationQueueResource queue,
         @Nonnull CachedSection section) {
         if (section.bodyCount <= 0) {
             return 0;
         }
-        queue.enqueue(PhysicsStoreTerrainRequests.remove(spaceUuid,
+        queue.enqueue(PhysicsStoreTerrainMutations.remove(spaceUuid,
             section.chunkX,
             section.sectionY,
             section.chunkZ));
@@ -448,7 +448,7 @@ public final class PhysicsStoreTerrainRequestCache {
     }
 
     private static void removeAllSections(@Nonnull UUID spaceUuid,
-        @Nonnull PhysicsRequestQueueResource queue,
+        @Nonnull PhysicsTerrainMutationQueueResource queue,
         @Nonnull SpaceCollisionCache cache) {
         for (CachedSection section : cache.sections.values()) {
             removeSection(spaceUuid, queue, section);

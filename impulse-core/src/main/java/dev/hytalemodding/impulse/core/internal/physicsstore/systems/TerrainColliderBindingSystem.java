@@ -18,13 +18,13 @@ import dev.hytalemodding.impulse.api.runtime.PhysicsBackendRuntime;
 import dev.hytalemodding.impulse.core.internal.physicsstore.resources.PhysicsRestoreStatusResource;
 import dev.hytalemodding.impulse.core.internal.physicsstore.resources.PhysicsRuntimeResource;
 import dev.hytalemodding.impulse.core.internal.physicsstore.resources.PhysicsTerrainPayloadResource;
+import dev.hytalemodding.impulse.core.internal.physicsstore.terrain.TerrainColliderMutation;
+import dev.hytalemodding.impulse.core.internal.physicsstore.terrain.TerrainColliderPayload;
+import dev.hytalemodding.impulse.core.internal.physicsstore.terrain.TerrainColliderPayload.BoxPayload;
+import dev.hytalemodding.impulse.core.internal.physicsstore.terrain.TerrainColliderPayload.TerrainNeighbor;
 import dev.hytalemodding.impulse.core.internal.resources.BackendBodyHandle;
 import dev.hytalemodding.impulse.core.internal.resources.BackendSpaceHandle;
 import dev.hytalemodding.impulse.core.plugin.physicsstore.components.TerrainColliderComponent;
-import dev.hytalemodding.impulse.core.plugin.physicsstore.requests.TerrainColliderPayload;
-import dev.hytalemodding.impulse.core.plugin.physicsstore.requests.TerrainColliderPayload.BoxPayload;
-import dev.hytalemodding.impulse.core.plugin.physicsstore.requests.TerrainColliderPayload.TerrainNeighbor;
-import dev.hytalemodding.impulse.core.plugin.physicsstore.requests.TerrainColliderRequest;
 import java.util.Set;
 import java.util.UUID;
 import java.util.function.BiConsumer;
@@ -208,7 +208,7 @@ public final class TerrainColliderBindingSystem extends TickingSystem<PhysicsSto
             return;
         }
         for (TerrainNeighbor neighbor : payload.neighbors()) {
-            UUID neighborUuid = TerrainColliderRequest.terrainColliderUuid(terrain.getSpaceUuid(),
+            UUID neighborUuid = TerrainColliderMutation.terrainColliderUuid(terrain.getSpaceUuid(),
                 neighbor.sourceKey());
             BackendBodyHandle neighborBody = runtime.getTerrainVoxelBodyHandle(neighborUuid);
             BackendSpaceHandle neighborSpace = runtime.getTerrainSpaceHandle(neighborUuid);

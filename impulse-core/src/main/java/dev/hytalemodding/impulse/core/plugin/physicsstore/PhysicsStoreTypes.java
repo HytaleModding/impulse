@@ -6,7 +6,7 @@ import com.hypixel.hytale.server.core.universe.world.storage.PhysicsStore;
 import dev.hytalemodding.impulse.core.internal.physicsstore.resources.PhysicsDebugResource;
 import dev.hytalemodding.impulse.core.internal.physicsstore.resources.PhysicsIdentityIndexResource;
 import dev.hytalemodding.impulse.core.internal.physicsstore.resources.PhysicsProfilingResource;
-import dev.hytalemodding.impulse.core.internal.physicsstore.resources.PhysicsRequestQueueResource;
+import dev.hytalemodding.impulse.core.internal.physicsstore.resources.PhysicsTerrainMutationQueueResource;
 import dev.hytalemodding.impulse.core.internal.physicsstore.resources.PhysicsRestoreStatusResource;
 import dev.hytalemodding.impulse.core.internal.physicsstore.resources.PhysicsRuntimeResource;
 import dev.hytalemodding.impulse.core.internal.physicsstore.resources.PhysicsSpaceCompatibilityIndexResource;
@@ -86,7 +86,7 @@ public final class PhysicsStoreTypes {
     private static ResourceType<PhysicsStore, PhysicsSpaceCompatibilityIndexResource>
         spaceCompatibilityIndexResourceType;
     @Nullable
-    private static ResourceType<PhysicsStore, PhysicsRequestQueueResource> requestQueueResourceType;
+    private static ResourceType<PhysicsStore, PhysicsTerrainMutationQueueResource> terrainMutationQueueResourceType;
     @Nullable
     private static ResourceType<PhysicsStore, PhysicsIdentityIndexResource> identityIndexResourceType;
     @Nullable
@@ -209,9 +209,9 @@ public final class PhysicsStoreTypes {
         spaceCompatibilityIndexResourceType = Objects.requireNonNull(type, "type");
     }
 
-    public static void setRequestQueueResourceType(
-        @Nonnull ResourceType<PhysicsStore, PhysicsRequestQueueResource> type) {
-        requestQueueResourceType = Objects.requireNonNull(type, "type");
+    public static void setTerrainMutationQueueResourceType(
+        @Nonnull ResourceType<PhysicsStore, PhysicsTerrainMutationQueueResource> type) {
+        terrainMutationQueueResourceType = Objects.requireNonNull(type, "type");
     }
 
     public static void setIdentityIndexResourceType(
@@ -366,8 +366,8 @@ public final class PhysicsStoreTypes {
     }
 
     @Nonnull
-    public static ResourceType<PhysicsStore, PhysicsRequestQueueResource> requestQueueResourceType() {
-        return require(requestQueueResourceType, "PhysicsRequestQueueResource");
+    public static ResourceType<PhysicsStore, PhysicsTerrainMutationQueueResource> terrainMutationQueueResourceType() {
+        return require(terrainMutationQueueResourceType, "PhysicsTerrainMutationQueueResource");
     }
 
     @Nonnull

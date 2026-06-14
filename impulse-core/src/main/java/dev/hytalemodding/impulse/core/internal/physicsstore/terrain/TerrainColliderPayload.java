@@ -1,4 +1,4 @@
-package dev.hytalemodding.impulse.core.plugin.physicsstore.requests;
+package dev.hytalemodding.impulse.core.internal.physicsstore.terrain;
 
 import java.util.Arrays;
 import java.util.List;
