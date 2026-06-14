@@ -71,7 +71,6 @@ public final class PhysicsWorldSnapshotState {
         @Nonnull PhysicsBodyRegistry bodyRegistry,
         long stepSequence,
         long serverTick,
-        long lastIncludedCommandBatchSequence,
         @Nonnull PublishedPhysicsSnapshotFrame.Status status,
         long stepNanos,
         boolean profilingEnabled) {
@@ -95,7 +94,6 @@ public final class PhysicsWorldSnapshotState {
             frameWorldEpoch,
             stepSequence,
             serverTick,
-            lastIncludedCommandBatchSequence,
             status,
             spatialIndexCellCount,
             stepNanos,

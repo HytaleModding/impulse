@@ -11,7 +11,6 @@ import dev.hytalemodding.impulse.core.internal.resources.profiling.PhysicsRuntim
 import dev.hytalemodding.impulse.core.internal.resources.profiling.PhysicsRuntimeProfilingResource.StepSnapshot;
 import dev.hytalemodding.impulse.core.internal.resources.profiling.PhysicsRuntimeProfilingResource.SyncSnapshot;
 import dev.hytalemodding.impulse.core.internal.resources.profiling.PhysicsRuntimeProfilingResource.VisualSnapshot;
-import dev.hytalemodding.impulse.core.plugin.events.PhysicsCommandBatchEvent;
 import dev.hytalemodding.impulse.core.plugin.events.PhysicsEventFrame;
 import dev.hytalemodding.impulse.core.plugin.physicsstore.PhysicsStoreDiagnostics;
 import dev.hytalemodding.impulse.core.plugin.physicsstore.PhysicsStoreAsync;
@@ -416,12 +415,8 @@ public class WorldCollisionPerfReportCommand extends AbstractAsyncWorldCommand {
             .append(frame.latestCapturedSnapshotStepSequence())
             .append(" latestCapturedSnapshotTick=")
             .append(frame.latestCapturedSnapshotServerTick())
-            .append(" latestCapturedSnapshotLastIncludedCommandBatch=")
-            .append(frame.latestCapturedSnapshotLastIncludedCommandBatchSequence())
             .append(" events=")
             .append(frame.eventCount())
-            .append(" commandBatches=")
-            .append(frame.commandBatchCount())
             .append(" steps=")
             .append(frame.stepCount())
             .append(" publications=")
@@ -430,36 +425,6 @@ public class WorldCollisionPerfReportCommand extends AbstractAsyncWorldCommand {
             .append(frame.physicsEventCount())
             .append(" droppedBackendEvents=")
             .append(frame.droppedBackendEventCount());
-        PhysicsCommandBatchEvent latestCommand = frame.latestCommandBatch();
-        if (latestCommand != null) {
-            boolean capturedSnapshotIncluded = frame.latestCapturedSnapshotIncludes(latestCommand);
-            builder.append(" latestCommand=")
-                .append(latestCommand.commandBatchSequence())
-                .append(" submittedTick=")
-                .append(latestCommand.submittedServerTick())
-                .append(" bodyRefs=")
-                .append(latestCommand.bodyKeyReferenceCount())
-                .append(" jointRefs=")
-                .append(latestCommand.jointKeyReferenceCount())
-                .append(" capturedSnapshotIncluded=")
-                .append(capturedSnapshotIncluded);
-            if (latestCommand.firstBodyKey() != null) {
-                builder.append(" firstBody=")
-                    .append(latestCommand.firstBodyKey());
-            }
-            if (latestCommand.firstJointKey() != null) {
-                builder.append(" firstJoint=")
-                    .append(latestCommand.firstJointKey());
-            }
-            if (capturedSnapshotIncluded) {
-                builder.append(" capturedSnapshotTickLatency=")
-                    .append(frame.capturedSnapshotServerTickLatency(latestCommand));
-            }
-            if (!latestCommand.allApplied()) {
-                builder.append(" firstRejected=")
-                    .append(latestCommand.firstRejectedCommandSequence());
-            }
-        }
         var latestPublication = frame.latestSnapshotPublication();
         if (latestPublication != null) {
             builder.append(" publishedTick=")

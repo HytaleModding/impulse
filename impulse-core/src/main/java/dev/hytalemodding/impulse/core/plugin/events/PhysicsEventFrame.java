@@ -21,9 +21,6 @@ import javax.annotation.Nullable;
  * @param latestCapturedSnapshotStepSequence step-scheduler sequence carried by that latest captured snapshot
  *     frame
  * @param latestCapturedSnapshotServerTick server tick carried by that latest captured snapshot frame
- * @param latestCapturedSnapshotLastIncludedCommandBatchSequence latest command-batch sequence
- *     included by that captured snapshot frame
- * @param commandBatches copied command-batch outcome events in this frame
  * @param steps copied physics step snapshot-capture events in this frame
  * @param snapshotPublications copied reader-side snapshot-publication events in this frame
  * @param physicsEvents copied stable physics events in this frame
@@ -34,8 +31,6 @@ public record PhysicsEventFrame(long frameSequence,
                                 long latestCapturedSnapshotFrameEpoch,
                                 long latestCapturedSnapshotStepSequence,
                                 long latestCapturedSnapshotServerTick,
-                                long latestCapturedSnapshotLastIncludedCommandBatchSequence,
-                                @Nonnull List<PhysicsCommandBatchEvent> commandBatches,
                                 @Nonnull List<PhysicsStepEvent> steps,
                                 @Nonnull List<PhysicsSnapshotPublicationEvent> snapshotPublications,
                                 @Nonnull List<PhysicsFrameEvent> physicsEvents,
@@ -47,9 +42,6 @@ public record PhysicsEventFrame(long frameSequence,
         latestCapturedSnapshotFrameEpoch = Math.max(0L, latestCapturedSnapshotFrameEpoch);
         latestCapturedSnapshotStepSequence = Math.max(0L, latestCapturedSnapshotStepSequence);
         latestCapturedSnapshotServerTick = Math.max(0L, latestCapturedSnapshotServerTick);
-        latestCapturedSnapshotLastIncludedCommandBatchSequence =
-            Math.max(0L, latestCapturedSnapshotLastIncludedCommandBatchSequence);
-        commandBatches = List.copyOf(Objects.requireNonNull(commandBatches, "commandBatches"));
         steps = List.copyOf(Objects.requireNonNull(steps, "steps"));
         snapshotPublications =
             List.copyOf(Objects.requireNonNull(snapshotPublications, "snapshotPublications"));
@@ -60,8 +52,6 @@ public record PhysicsEventFrame(long frameSequence,
     public PhysicsEventFrame(long frameSequence,
         long worldEpoch,
         long latestCapturedSnapshotFrameEpoch,
-        long latestCapturedSnapshotLastIncludedCommandBatchSequence,
-        @Nonnull List<PhysicsCommandBatchEvent> commandBatches,
         @Nonnull List<PhysicsStepEvent> steps,
         @Nonnull List<PhysicsSnapshotPublicationEvent> snapshotPublications) {
         this(frameSequence,
@@ -69,28 +59,8 @@ public record PhysicsEventFrame(long frameSequence,
             latestCapturedSnapshotFrameEpoch,
             0L,
             0L,
-            latestCapturedSnapshotLastIncludedCommandBatchSequence,
-            commandBatches,
             steps,
             snapshotPublications,
-            List.of(),
-            0);
-    }
-
-    public PhysicsEventFrame(long frameSequence,
-        long worldEpoch,
-        long latestCapturedSnapshotFrameEpoch,
-        long latestCapturedSnapshotLastIncludedCommandBatchSequence,
-        @Nonnull List<PhysicsCommandBatchEvent> commandBatches) {
-        this(frameSequence,
-            worldEpoch,
-            latestCapturedSnapshotFrameEpoch,
-            0L,
-            0L,
-            latestCapturedSnapshotLastIncludedCommandBatchSequence,
-            commandBatches,
-            List.of(),
-            List.of(),
             List.of(),
             0);
     }
@@ -102,16 +72,10 @@ public record PhysicsEventFrame(long frameSequence,
             0L,
             0L,
             0L,
-            0L,
-            List.of(),
             List.of(),
             List.of(),
             List.of(),
             0);
-    }
-
-    public int commandBatchCount() {
-        return commandBatches.size();
     }
 
     public int stepCount() {
@@ -127,17 +91,11 @@ public record PhysicsEventFrame(long frameSequence,
     }
 
     public int eventCount() {
-        return commandBatchCount() + stepCount() + snapshotPublicationCount() + physicsEventCount();
+        return stepCount() + snapshotPublicationCount() + physicsEventCount();
     }
 
     public boolean isEmpty() {
         return eventCount() == 0;
-    }
-
-    @Nullable
-    public PhysicsCommandBatchEvent latestCommandBatch() {
-        int count = commandBatches.size();
-        return count == 0 ? null : commandBatches.get(count - 1);
     }
 
     @Nullable
@@ -150,23 +108,6 @@ public record PhysicsEventFrame(long frameSequence,
     public PhysicsSnapshotPublicationEvent latestSnapshotPublication() {
         int count = snapshotPublications.size();
         return count == 0 ? null : snapshotPublications.get(count - 1);
-    }
-
-    public boolean latestCapturedSnapshotIncludes(@Nonnull PhysicsCommandBatchEvent event) {
-        return latestCapturedSnapshotIncludesCommandBatch(
-            Objects.requireNonNull(event, "event").commandBatchSequence());
-    }
-
-    public boolean latestCapturedSnapshotIncludesCommandBatch(long commandBatchSequence) {
-        return commandBatchSequence > 0L
-            && latestCapturedSnapshotLastIncludedCommandBatchSequence >= commandBatchSequence;
-    }
-
-    public long capturedSnapshotServerTickLatency(@Nonnull PhysicsCommandBatchEvent event) {
-        if (!latestCapturedSnapshotIncludes(event)) {
-            return 0L;
-        }
-        return latestCapturedSnapshotServerTickLatencyFromSubmittedTick(event.submittedServerTick());
     }
 
     public long latestCapturedSnapshotServerTickLatencyFromSubmittedTick(long submittedServerTick) {

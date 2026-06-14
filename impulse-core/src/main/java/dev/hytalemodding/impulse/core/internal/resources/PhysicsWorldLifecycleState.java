@@ -90,7 +90,6 @@ public final class PhysicsWorldLifecycleState {
             bodyRegistry,
             stepSequence,
             serverTick,
-            0L,
             status,
             stepNanos,
             profilingEnabled);

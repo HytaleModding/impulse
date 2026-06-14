@@ -44,12 +44,6 @@ public final class PublishedPhysicsSnapshotFrame {
      */
     private final long serverTick;
 
-    /**
-     * Latest command-batch sequence whose owner-lane execution completed before this frame was
-     * captured.
-     * Command completion can precede inclusion in a later captured frame.
-     */
-    private final long lastIncludedCommandBatchSequence;
     @Nonnull
     private final Status status;
     private final int spatialIndexCellCount;
@@ -73,30 +67,6 @@ public final class PublishedPhysicsSnapshotFrame {
             worldEpoch,
             stepSequence,
             serverTick,
-            0L,
-            status,
-            spatialIndexCellCount,
-            stepNanos,
-            snapshotNanos,
-            null,
-            copyAndValidateSpaces(frameEpoch, worldEpoch, spaces));
-    }
-
-    public PublishedPhysicsSnapshotFrame(long frameEpoch,
-        long worldEpoch,
-        long stepSequence,
-        long serverTick,
-        long lastIncludedCommandBatchSequence,
-        @Nonnull Status status,
-        int spatialIndexCellCount,
-        long stepNanos,
-        long snapshotNanos,
-        @Nonnull List<PublishedPhysicsSpaceFrame> spaces) {
-        this(frameEpoch,
-            worldEpoch,
-            stepSequence,
-            serverTick,
-            lastIncludedCommandBatchSequence,
             status,
             spatialIndexCellCount,
             stepNanos,
@@ -109,7 +79,6 @@ public final class PublishedPhysicsSnapshotFrame {
         long worldEpoch,
         long stepSequence,
         long serverTick,
-        long lastIncludedCommandBatchSequence,
         @Nonnull Status status,
         int spatialIndexCellCount,
         long stepNanos,
@@ -119,7 +88,6 @@ public final class PublishedPhysicsSnapshotFrame {
             worldEpoch,
             stepSequence,
             serverTick,
-            lastIncludedCommandBatchSequence,
             status,
             spatialIndexCellCount,
             stepNanos,
@@ -132,7 +100,6 @@ public final class PublishedPhysicsSnapshotFrame {
         long worldEpoch,
         long stepSequence,
         long serverTick,
-        long lastIncludedCommandBatchSequence,
         @Nonnull Status status,
         int spatialIndexCellCount,
         long stepNanos,
@@ -143,7 +110,6 @@ public final class PublishedPhysicsSnapshotFrame {
             worldEpoch,
             stepSequence,
             serverTick,
-            lastIncludedCommandBatchSequence,
             status,
             spatialIndexCellCount,
             stepNanos,
@@ -152,7 +118,6 @@ public final class PublishedPhysicsSnapshotFrame {
         this.worldEpoch = worldEpoch;
         this.stepSequence = stepSequence;
         this.serverTick = serverTick;
-        this.lastIncludedCommandBatchSequence = lastIncludedCommandBatchSequence;
         this.status = status;
         this.spatialIndexCellCount = spatialIndexCellCount;
         this.stepNanos = stepNanos;
@@ -165,7 +130,6 @@ public final class PublishedPhysicsSnapshotFrame {
     public static PublishedPhysicsSnapshotFrame empty(long frameEpoch, long worldEpoch) {
         return new PublishedPhysicsSnapshotFrame(frameEpoch,
             worldEpoch,
-            0L,
             0L,
             0L,
             Status.EMPTY,
@@ -198,31 +162,6 @@ public final class PublishedPhysicsSnapshotFrame {
             expectedBodies);
     }
 
-    @Nonnull
-    public static Builder compactBuilder(long frameEpoch,
-        long worldEpoch,
-        long stepSequence,
-        long serverTick,
-        long lastIncludedCommandBatchSequence,
-        @Nonnull Status status,
-        int spatialIndexCellCount,
-        long stepNanos,
-        long snapshotNanos,
-        int expectedSpaces,
-        int expectedBodies) {
-        return new Builder(frameEpoch,
-            worldEpoch,
-            stepSequence,
-            serverTick,
-            lastIncludedCommandBatchSequence,
-            status,
-            spatialIndexCellCount,
-            stepNanos,
-            snapshotNanos,
-            expectedSpaces,
-            expectedBodies);
-    }
-
     public long frameEpoch() {
         return frameEpoch;
     }
@@ -239,25 +178,8 @@ public final class PublishedPhysicsSnapshotFrame {
         return serverTick;
     }
 
-    public long lastIncludedCommandBatchSequence() {
-        return lastIncludedCommandBatchSequence;
-    }
-
     /**
-     * Returns whether this snapshot frame is known to include owner-lane execution of the
-     * submitted command batch sequence.
-     *
-     * <p>This is the latest owner-executed command-batch sequence included by the captured
-     * snapshot. It does not mean a separate ECS visual sync pass has already consumed the frame.
-     * Batches at or below this sequence are included in this frame's copied body data.</p>
-     */
-    public boolean includesCommandBatch(long commandBatchSequence) {
-        return commandBatchSequence > 0L
-            && lastIncludedCommandBatchSequence >= commandBatchSequence;
-    }
-
-    /**
-     * Returns the server-tick distance from a submitted command to this snapshot frame, or
+     * Returns the server-tick distance from a submitted action to this snapshot frame, or
      * {@code 0} when this frame has no usable server-tick metadata.
      */
     public long serverTickLatencyFromSubmittedTick(long submittedServerTick) {
@@ -367,7 +289,6 @@ public final class PublishedPhysicsSnapshotFrame {
             && worldEpoch == that.worldEpoch
             && stepSequence == that.stepSequence
             && serverTick == that.serverTick
-            && lastIncludedCommandBatchSequence == that.lastIncludedCommandBatchSequence
             && spatialIndexCellCount == that.spatialIndexCellCount
             && stepNanos == that.stepNanos
             && snapshotNanos == that.snapshotNanos
@@ -381,7 +302,6 @@ public final class PublishedPhysicsSnapshotFrame {
         result = 31 * result + Long.hashCode(worldEpoch);
         result = 31 * result + Long.hashCode(stepSequence);
         result = 31 * result + Long.hashCode(serverTick);
-        result = 31 * result + Long.hashCode(lastIncludedCommandBatchSequence);
         result = 31 * result + status.hashCode();
         result = 31 * result + Integer.hashCode(spatialIndexCellCount);
         result = 31 * result + Long.hashCode(stepNanos);
@@ -397,7 +317,6 @@ public final class PublishedPhysicsSnapshotFrame {
             + ", worldEpoch=" + worldEpoch
             + ", stepSequence=" + stepSequence
             + ", serverTick=" + serverTick
-            + ", lastIncludedCommandBatchSequence=" + lastIncludedCommandBatchSequence
             + ", status=" + status
             + ", spatialIndexCellCount=" + spatialIndexCellCount
             + ", stepNanos=" + stepNanos
@@ -443,7 +362,6 @@ public final class PublishedPhysicsSnapshotFrame {
         long worldEpoch,
         long stepSequence,
         long serverTick,
-        long lastIncludedCommandBatchSequence,
         @Nonnull Status status,
         int spatialIndexCellCount,
         long stepNanos,
@@ -452,7 +370,6 @@ public final class PublishedPhysicsSnapshotFrame {
         requireNonNegativeEpoch(worldEpoch, "worldEpoch");
         requireNonNegativeEpoch(stepSequence, "stepSequence");
         requireNonNegativeEpoch(serverTick, "serverTick");
-        requireNonNegativeEpoch(lastIncludedCommandBatchSequence, "lastIncludedCommandBatchSequence");
         Objects.requireNonNull(status, "status");
         if (spatialIndexCellCount < 0) {
             throw new IllegalArgumentException("spatialIndexCellCount cannot be negative");
@@ -484,7 +401,6 @@ public final class PublishedPhysicsSnapshotFrame {
         private final long worldEpoch;
         private final long stepSequence;
         private final long serverTick;
-        private final long lastIncludedCommandBatchSequence;
         @Nonnull
         private final Status status;
         private final int spatialIndexCellCount;
@@ -502,35 +418,10 @@ public final class PublishedPhysicsSnapshotFrame {
             long snapshotNanos,
             int expectedSpaces,
             int expectedBodies) {
-            this(frameEpoch,
-                worldEpoch,
-                stepSequence,
-                serverTick,
-                0L,
-                status,
-                spatialIndexCellCount,
-                stepNanos,
-                snapshotNanos,
-                expectedSpaces,
-                expectedBodies);
-        }
-
-        private Builder(long frameEpoch,
-            long worldEpoch,
-            long stepSequence,
-            long serverTick,
-            long lastIncludedCommandBatchSequence,
-            @Nonnull Status status,
-            int spatialIndexCellCount,
-            long stepNanos,
-            long snapshotNanos,
-            int expectedSpaces,
-            int expectedBodies) {
             requireFrameValues(frameEpoch,
                 worldEpoch,
                 stepSequence,
                 serverTick,
-                lastIncludedCommandBatchSequence,
                 status,
                 spatialIndexCellCount,
                 stepNanos,
@@ -539,7 +430,6 @@ public final class PublishedPhysicsSnapshotFrame {
             this.worldEpoch = worldEpoch;
             this.stepSequence = stepSequence;
             this.serverTick = serverTick;
-            this.lastIncludedCommandBatchSequence = lastIncludedCommandBatchSequence;
             this.status = status;
             this.spatialIndexCellCount = spatialIndexCellCount;
             this.stepNanos = stepNanos;
@@ -580,7 +470,6 @@ public final class PublishedPhysicsSnapshotFrame {
                 worldEpoch,
                 stepSequence,
                 serverTick,
-                lastIncludedCommandBatchSequence,
                 status,
                 spatialIndexCellCount,
                 stepNanos,
