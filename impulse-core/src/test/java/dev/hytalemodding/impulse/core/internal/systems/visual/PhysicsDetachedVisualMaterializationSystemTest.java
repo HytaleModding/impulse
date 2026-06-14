@@ -17,11 +17,14 @@ import dev.hytalemodding.impulse.core.internal.persistence.PersistentPhysicsWorl
 import dev.hytalemodding.impulse.core.internal.testsupport.LegacyLiveHandleTestResource;
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsVisualRuntime;
 import dev.hytalemodding.impulse.core.plugin.body.RigidBodyKey;
-import dev.hytalemodding.impulse.core.plugin.components.PhysicsBodyAttachmentComponent;
+import dev.hytalemodding.impulse.core.plugin.physicsstore.projection.BodyAttachmentComponent;
 import dev.hytalemodding.impulse.core.plugin.settings.PhysicsSpaceSettings;
 import dev.hytalemodding.impulse.core.plugin.settings.VisualOcclusionMode;
+import dev.hytalemodding.impulse.core.plugin.simulation.view.RaycastHitView;
 import java.util.List;
 import java.util.Set;
+import java.util.Optional;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import org.joml.Quaternionf;
@@ -55,15 +58,13 @@ class PhysicsDetachedVisualMaterializationSystemTest {
 
     @Test
     void impulseOwnedVisualAttachmentIsDisposableWhenBodyMissing() {
-        PhysicsBodyAttachmentComponent ownedVisual = PhysicsBodyAttachmentComponent.impulseOwnedVisual(
-            RigidBodyKey.random(),
-            null,
+        BodyAttachmentComponent ownedVisual = BodyAttachmentComponent.impulseOwnedVisual(
+            RigidBodyKey.random().value(),
             new Vector3f(),
             new Quaternionf(),
             0.5f);
-        PhysicsBodyAttachmentComponent gameplayEntity = PhysicsBodyAttachmentComponent.externalEntity(
-            RigidBodyKey.random(),
-            null);
+        BodyAttachmentComponent gameplayEntity = BodyAttachmentComponent.externalEntity(
+            RigidBodyKey.random().value());
 
         assertTrue(ownedVisual.shouldRemoveEntityWhenBodyMissing());
         assertFalse(gameplayEntity.shouldRemoveEntityWhenBodyMissing());
@@ -181,6 +182,9 @@ class PhysicsDetachedVisualMaterializationSystemTest {
             PhysicsAxis.Y);
         List<PhysicsVisualRuntime.VisualInterest> interests = List.of(
             new PhysicsVisualRuntime.VisualInterest(new Vector3f(), null));
+        resource.getOrCreateBodyVisualInterestState(bodyKey)
+            .startPendingRaycast(new CompletableFuture<Optional<RaycastHitView>>()
+                .minimalCompletionStage());
 
         DetachedVisualOcclusion.Result result = assertDoesNotThrow(() -> DetachedVisualOcclusion.resolve(resource,
             bodyKey,

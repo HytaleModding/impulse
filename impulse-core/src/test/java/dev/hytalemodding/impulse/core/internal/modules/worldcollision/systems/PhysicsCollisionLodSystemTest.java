@@ -123,7 +123,7 @@ class PhysicsCollisionLodSystemTest {
         RigidBodyKey bodyId = RigidBodyKey.random();
         List<CollisionLodUpdate> updates = new ArrayList<>();
 
-        state.recordTier(spaceId, bodyId, CollisionLodTier.MID_TERRAIN, updates);
+        state.recordTier(spaceId, bodyId, CollisionLodTier.MID_TERRAIN, false, updates);
 
         assertNull(state.tier(bodyId));
         state.trackPendingMutation(PhysicsMutationHandle.completed("test", null), updates);
@@ -141,7 +141,7 @@ class PhysicsCollisionLodSystemTest {
         List<CollisionLodUpdate> updates = new ArrayList<>();
 
         assertTrue(state.shouldRefresh(spaceId, 20, 1L));
-        state.recordTier(spaceId, bodyId, CollisionLodTier.MID_TERRAIN, updates);
+        state.recordTier(spaceId, bodyId, CollisionLodTier.MID_TERRAIN, false, updates);
         state.trackPendingMutation(PhysicsMutationHandle.failed("test",
             null,
             new IllegalStateException("boom")),
@@ -159,7 +159,7 @@ class PhysicsCollisionLodSystemTest {
         RigidBodyKey bodyId = RigidBodyKey.random();
         List<CollisionLodUpdate> updates = new ArrayList<>();
 
-        state.recordTier(spaceId, bodyId, CollisionLodTier.MID_TERRAIN, updates);
+        state.recordTier(spaceId, bodyId, CollisionLodTier.MID_TERRAIN, false, updates);
         state.trackPendingMutation(PhysicsMutationHandle.completed("test", null), updates);
         state.refreshPendingMutation();
 

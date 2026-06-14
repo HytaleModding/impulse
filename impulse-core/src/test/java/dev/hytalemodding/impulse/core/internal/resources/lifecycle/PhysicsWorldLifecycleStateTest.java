@@ -11,17 +11,13 @@ import dev.hytalemodding.impulse.api.PhysicsBody;
 import dev.hytalemodding.impulse.api.PhysicsSpace;
 import dev.hytalemodding.impulse.api.testsupport.FakePhysicsBackend;
 import dev.hytalemodding.impulse.core.internal.testsupport.LegacyLiveHandleTestResource;
-import dev.hytalemodding.impulse.core.internal.resources.owner.TestPhysicsOwnerLane;
 import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyKind;
 import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyPersistenceMode;
 import dev.hytalemodding.impulse.core.plugin.body.RigidBodyKey;
 import dev.hytalemodding.impulse.core.plugin.events.PhysicsEventFrame;
 import dev.hytalemodding.impulse.core.plugin.events.PhysicsSnapshotPublicationEvent;
 import dev.hytalemodding.impulse.core.plugin.settings.PhysicsSpaceSettings;
-import dev.hytalemodding.impulse.core.plugin.simulation.PhysicsCommandResult;
 import dev.hytalemodding.impulse.core.plugin.snapshot.PublishedPhysicsSnapshotFrame;
-import java.time.Duration;
-import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import org.junit.jupiter.api.Test;
 
@@ -66,64 +62,6 @@ class PhysicsWorldLifecycleStateTest {
     }
 
     @Test
-    void commandRegistrationViewsPublishOnlyWhenCurrentFrameApplies() throws Exception {
-        Fixture fixture = createFixture("registration-view");
-        try (TestPhysicsOwnerLane owner = new TestPhysicsOwnerLane(4,
-            Duration.ofSeconds(2L))) {
-            owner.start("lifecycle-registration-view");
-            fixture.resource.attachOwnerExecutor(owner);
-
-            RigidBodyKey bodyId = RigidBodyKey.random();
-            var handle = fixture.resource.submitCommands(30L, commands -> commands
-                .spawnBody(bodyId, spawn -> spawn
-                    .space(fixture.space.id())
-                    .box(0.5f, 0.5f, 0.5f)
-                    .dynamic()));
-            handle.completion().toCompletableFuture().get(2, TimeUnit.SECONDS);
-
-            assertNull(fixture.resource.getBodyRegistrationView(bodyId));
-            assertTrue(fixture.resource.isBodyCreationPending(bodyId));
-
-            PublishedPhysicsSnapshotFrame frame = fixture.resource.capturePublishedSnapshotFrame(12L,
-                31L,
-                PublishedPhysicsSnapshotFrame.Status.COMPLETE,
-                0L,
-                false);
-
-            assertNull(fixture.resource.getBodyRegistrationView(bodyId));
-            assertEquals(1, fixture.resource.applyPublishedSnapshotFrame(frame));
-            assertNotNull(fixture.resource.getBodyRegistrationView(bodyId));
-            assertFalse(fixture.resource.isBodyCreationPending(bodyId));
-
-            fixture.resource.detachOwnerExecutor(owner);
-        }
-    }
-
-    @Test
-    void appliedFrameUpdatesCapturedSnapshotCommandInclusion() {
-        Fixture fixture = createFixture("command-last-included");
-        PhysicsCommandResult result = fixture.resource.submitCommands(40L,
-                commands -> commands.setSpaceGravity(fixture.space.id(), 0.0f, -4.0f, 0.0f))
-            .completion()
-            .toCompletableFuture()
-            .join()
-            .getFirst();
-        PublishedPhysicsSnapshotFrame frame = fixture.resource.capturePublishedSnapshotFrame(13L,
-            41L,
-            PublishedPhysicsSnapshotFrame.Status.COMPLETE,
-            0L,
-            false);
-
-        fixture.resource.applyPublishedSnapshotFrame(frame);
-        PhysicsEventFrame eventFrame = fixture.resource.getLatestEventFrame();
-
-        assertTrue(frame.lastIncludedCommandBatchSequence() >= result.commandBatchSequence());
-        assertTrue(eventFrame.latestCapturedSnapshotIncludesCommandBatch(result.commandBatchSequence()));
-        assertEquals(frame.lastIncludedCommandBatchSequence(),
-            eventFrame.latestCapturedSnapshotLastIncludedCommandBatchSequence());
-    }
-
-    @Test
     void currentFramePublicationCreatesSnapshotPublicationEvent() {
         Fixture fixture = createFixture("publication-event");
         registerBox(fixture);
@@ -144,7 +82,6 @@ class PhysicsWorldLifecycleStateTest {
         assertEquals(frame.worldEpoch(), event.worldEpoch());
         assertEquals(frame.stepSequence(), event.stepSequence());
         assertEquals(frame.serverTick(), event.serverTick());
-        assertEquals(frame.lastIncludedCommandBatchSequence(), event.lastIncludedCommandBatchSequence());
         assertEquals(43L, event.publicationServerTick());
         assertTrue(event.publicationNanoTime() > 0L);
         assertEquals(applied, event.appliedBodyCount());

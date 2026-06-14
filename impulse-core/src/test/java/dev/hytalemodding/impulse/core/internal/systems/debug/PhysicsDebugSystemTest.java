@@ -13,7 +13,7 @@ import dev.hytalemodding.impulse.api.PhysicsContact;
 import dev.hytalemodding.impulse.api.PhysicsSpace;
 import dev.hytalemodding.impulse.api.ShapeType;
 import dev.hytalemodding.impulse.core.plugin.body.RigidBodyKey;
-import dev.hytalemodding.impulse.core.plugin.components.PhysicsBodyAttachmentComponent;
+import dev.hytalemodding.impulse.core.plugin.physicsstore.projection.BodyAttachmentComponent;
 import dev.hytalemodding.impulse.api.SpaceId;
 import dev.hytalemodding.impulse.api.testsupport.FakePhysicsBackend;
 import dev.hytalemodding.impulse.api.testsupport.FakePhysicsBackend.InMemoryPhysicsSpace;
@@ -62,8 +62,7 @@ class PhysicsDebugSystemTest {
         Vector3d syncedVisualPosition = new Vector3d(snapshot.positionX(),
             snapshot.positionY() - snapshot.centerOfMassOffsetY(),
             snapshot.positionZ()).add(localOffset.x, localOffset.y, localOffset.z);
-        PhysicsBodyAttachmentComponent attachment = PhysicsBodyAttachmentComponent.externalEntity(RigidBodyKey.random(),
-            null,
+        BodyAttachmentComponent attachment = BodyAttachmentComponent.externalEntity(RigidBodyKey.random().value(),
             localOffset,
             new Quaternionf());
 
@@ -112,8 +111,7 @@ class PhysicsDebugSystemTest {
         syncedVisualPosition.add(syncedBodyRotation.transform(new Vector3d(localOffset.x,
             localOffset.y,
             localOffset.z)));
-        PhysicsBodyAttachmentComponent attachment = PhysicsBodyAttachmentComponent.externalEntity(RigidBodyKey.random(),
-            null,
+        BodyAttachmentComponent attachment = BodyAttachmentComponent.externalEntity(RigidBodyKey.random().value(),
             localOffset,
             new Quaternionf());
 
@@ -159,8 +157,7 @@ class PhysicsDebugSystemTest {
             0.0f,
             PhysicsAxis.Y);
         Vector3f localOffset = new Vector3f(0.0f, -0.5f, 0.0f);
-        PhysicsBodyAttachmentComponent attachment = PhysicsBodyAttachmentComponent.externalEntity(RigidBodyKey.random(),
-            null,
+        BodyAttachmentComponent attachment = BodyAttachmentComponent.externalEntity(RigidBodyKey.random().value(),
             localOffset,
             new Quaternionf(),
             0.5f);
