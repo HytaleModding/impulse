@@ -103,7 +103,9 @@ public final class ExamplePhysicsUtils {
     @Nullable
     public static UUID resolvePhysicsStoreSpaceUuid(@Nonnull World world,
         @Nonnull SpaceId spaceId) {
-        return physicsStore(world)
+        Store<PhysicsStore> store = physicsStore(world);
+        PhysicsStoreThreading.requireWorldThread(store, "resolve a PhysicsStore space UUID");
+        return store
             .getResource(PhysicsSpaceCompatibilityIndexResource.getResourceType())
             .getSpaceUuid(Objects.requireNonNull(spaceId, "spaceId"));
     }
@@ -196,6 +198,8 @@ public final class ExamplePhysicsUtils {
     private static SpaceWorldCollisionSettings requireWorldCollisionSettings(@Nonnull World world,
         @Nonnull SpaceId spaceId) {
         Store<PhysicsStore> physics = physicsStore(world);
+        PhysicsStoreThreading.requireWorldThread(physics,
+            "read PhysicsStore world-collision settings");
         UUID spaceUuid = resolvePhysicsStoreSpaceUuid(world, spaceId);
         if (spaceUuid == null) {
             throw new IllegalStateException("PhysicsStore space id=" + spaceId.value()
@@ -314,6 +318,7 @@ public final class ExamplePhysicsUtils {
         @Nonnull BodyCommandComponent command) {
         Objects.requireNonNull(command, "command");
         Store<PhysicsStore> store = physicsStore(world);
+        PhysicsStoreThreading.requireWorldThread(store, "append a PhysicsStore body command");
         Ref<PhysicsStore> bodyRef = store
             .getResource(PhysicsIdentityIndexResource.getResourceType())
             .getByUuid(Objects.requireNonNull(bodyUuid, "bodyUuid"));
