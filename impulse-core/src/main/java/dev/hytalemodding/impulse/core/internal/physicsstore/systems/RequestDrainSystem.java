@@ -30,6 +30,7 @@ import dev.hytalemodding.impulse.core.internal.physicsstore.resources.PhysicsTer
 import dev.hytalemodding.impulse.core.internal.resources.BackendBodyHandle;
 import dev.hytalemodding.impulse.core.internal.resources.BackendJointHandle;
 import dev.hytalemodding.impulse.core.internal.resources.BackendSpaceHandle;
+import dev.hytalemodding.impulse.core.plugin.physicsstore.PhysicsStoreEntities;
 import dev.hytalemodding.impulse.core.plugin.physicsstore.components.BodyComponent;
 import dev.hytalemodding.impulse.core.plugin.physicsstore.components.ColliderComponent;
 import dev.hytalemodding.impulse.core.plugin.physicsstore.components.CollisionLodSettingsComponent;
@@ -515,7 +516,6 @@ public final class RequestDrainSystem extends TickingSystem<PhysicsStore> {
         @Nonnull BodyRemoveRequest request) {
         UUID bodyUuid = request.bodyUuid();
         List<JointRow> attachedJoints = collectAttachedJoints(store, systemIndex, bodyUuid);
-        List<ColliderRow> colliders = collectColliders(store, systemIndex, bodyUuid);
         Set<UUID> removedRows = new ObjectOpenHashSet<>();
 
         for (JointRow joint : attachedJoints) {
@@ -529,9 +529,6 @@ public final class RequestDrainSystem extends TickingSystem<PhysicsStore> {
             removedRows,
             bodyUuid,
             refForUuid(identity, refsThisDrain, bodyUuid));
-        for (ColliderRow collider : colliders) {
-            removeRow(store, identity, refsThisDrain, removedRows, collider.uuid(), collider.ref());
-        }
         for (UUID ownedRowUuid : request.ownedRowUuids()) {
             removeRow(store,
                 identity,
@@ -560,39 +557,16 @@ public final class RequestDrainSystem extends TickingSystem<PhysicsStore> {
             }
             removeBodyBackend(runtime, identity, request.bodyUuid());
         }
-        upsertComponentRow(store,
-            identity,
-            refsThisDrain,
-            request.shapeUuid(),
-            ShapeComponent.getComponentType(),
-            request.shape().clone());
-        upsertComponentRow(store,
-            identity,
-            refsThisDrain,
-            request.materialUuid(),
-            MaterialComponent.getComponentType(),
-            request.material().clone());
-        upsertComponentRow(store,
-            identity,
-            refsThisDrain,
-            request.filterUuid(),
-            CollisionFilterComponent.getComponentType(),
-            request.filter().clone());
-        upsertComponentRow(store,
-            identity,
-            refsThisDrain,
-            request.colliderUuid(),
-            ColliderComponent.getComponentType(),
-            request.collider().clone());
-
         Ref<PhysicsStore> bodyRef = ensureRow(store, identity, refsThisDrain, request.bodyUuid());
-        store.putComponent(bodyRef, BodyComponent.getComponentType(), request.body().clone());
-        store.putComponent(bodyRef, DynamicsComponent.getComponentType(), request.dynamics().clone());
-        if (request.target() != null) {
-            store.putComponent(bodyRef, TargetComponent.getComponentType(), request.target().clone());
-        } else {
-            store.removeComponent(bodyRef, TargetComponent.getComponentType());
-        }
+        PhysicsStoreEntities.putBodyComponents(store,
+            bodyRef,
+            request.body(),
+            request.dynamics(),
+            request.target(),
+            request.collider(),
+            request.shape(),
+            request.material(),
+            request.filter());
         return RequestApplicationStatus.APPLIED;
     }
 
@@ -879,19 +853,6 @@ public final class RequestDrainSystem extends TickingSystem<PhysicsStore> {
     }
 
     @Nonnull
-    private static <C extends Component<PhysicsStore>> Ref<PhysicsStore> upsertComponentRow(
-        @Nonnull Store<PhysicsStore> store,
-        @Nonnull PhysicsIdentityIndexResource identity,
-        @Nonnull Map<UUID, Ref<PhysicsStore>> refsThisDrain,
-        @Nonnull UUID uuid,
-        @Nonnull ComponentType<PhysicsStore, C> type,
-        @Nonnull C component) {
-        Ref<PhysicsStore> ref = ensureRow(store, identity, refsThisDrain, uuid);
-        store.putComponent(ref, type, component);
-        return ref;
-    }
-
-    @Nonnull
     private static Ref<PhysicsStore> ensureRow(@Nonnull Store<PhysicsStore> store,
         @Nonnull PhysicsIdentityIndexResource identity,
         @Nonnull Map<UUID, Ref<PhysicsStore>> refsThisDrain,
@@ -1027,31 +988,6 @@ public final class RequestDrainSystem extends TickingSystem<PhysicsStore> {
     }
 
     @Nonnull
-    private static List<ColliderRow> collectColliders(@Nonnull Store<PhysicsStore> store,
-        int systemIndex,
-        @Nonnull UUID bodyUuid) {
-        List<ColliderRow> rows = new ArrayList<>();
-        BiConsumer<ArchetypeChunk<PhysicsStore>, CommandBuffer<PhysicsStore>> collector =
-            (chunk, _) -> {
-                for (int index = 0; index < chunk.size(); index++) {
-                    ColliderComponent collider = chunk.getComponent(index,
-                        ColliderComponent.getComponentType());
-                    if (collider == null || !bodyUuid.equals(collider.getBodyUuid())) {
-                        continue;
-                    }
-                    UUID colliderUuid = PhysicsStoreSystemSupport.rowUuid(chunk, index);
-                    if (!PhysicsStoreSystemSupport.isNil(colliderUuid)) {
-                        rows.add(new ColliderRow(colliderUuid,
-                            chunk.getReferenceTo(index),
-                            collider.clone()));
-                    }
-                }
-            };
-        store.forEachChunk(systemIndex, collector);
-        return rows;
-    }
-
-    @Nonnull
     private static Set<UUID> structuralConflicts(
         @Nonnull List<PhysicsStoreRequest> requests,
         @Nonnull PhysicsRestoreStatusResource restore) {
@@ -1178,20 +1114,8 @@ public final class RequestDrainSystem extends TickingSystem<PhysicsStore> {
     private static boolean isValidBodyUpsert(@Nonnull BodyUpsertRequest request,
         @Nonnull PhysicsRestoreStatusResource restore) {
         if (isNil(request.bodyUuid())
-            || isNil(request.body().getSpaceUuid())
-            || isNil(request.colliderUuid())
-            || isNil(request.shapeUuid())
-            || isNil(request.materialUuid())
-            || isNil(request.filterUuid())) {
+            || isNil(request.body().getSpaceUuid())) {
             restore.recordSoftSkip("Body upsert contains nil UUIDs: " + request.bodyUuid());
-            return false;
-        }
-        if (!request.bodyUuid().equals(request.collider().getBodyUuid())
-            || !request.shapeUuid().equals(request.collider().getShapeUuid())
-            || !request.materialUuid().equals(request.collider().getMaterialUuid())
-            || !request.filterUuid().equals(request.collider().getFilterUuid())) {
-            restore.recordSoftSkip("Body upsert collider refs do not match request UUIDs: "
-                + request.bodyUuid());
             return false;
         }
         return true;
@@ -1295,6 +1219,19 @@ public final class RequestDrainSystem extends TickingSystem<PhysicsStore> {
     }
 
     @Nonnull
+    private static <C extends Component<PhysicsStore>> Ref<PhysicsStore> upsertComponentRow(
+        @Nonnull Store<PhysicsStore> store,
+        @Nonnull PhysicsIdentityIndexResource identity,
+        @Nonnull Map<UUID, Ref<PhysicsStore>> refsThisDrain,
+        @Nonnull UUID uuid,
+        @Nonnull ComponentType<PhysicsStore, C> type,
+        @Nonnull C component) {
+        Ref<PhysicsStore> ref = ensureRow(store, identity, refsThisDrain, uuid);
+        store.putComponent(ref, type, component);
+        return ref;
+    }
+
+    @Nonnull
     @Override
     public Set<Dependency<PhysicsStore>> getDependencies() {
         return DEPENDENCIES;
@@ -1303,11 +1240,6 @@ public final class RequestDrainSystem extends TickingSystem<PhysicsStore> {
     private record JointRow(@Nonnull UUID uuid,
                             @Nonnull Ref<PhysicsStore> ref,
                             @Nonnull JointComponent joint) {
-    }
-
-    private record ColliderRow(@Nonnull UUID uuid,
-                               @Nonnull Ref<PhysicsStore> ref,
-                               @Nonnull ColliderComponent collider) {
     }
 
     private record RuntimeBodyBinding(@Nonnull BackendSpaceHandle spaceHandle,

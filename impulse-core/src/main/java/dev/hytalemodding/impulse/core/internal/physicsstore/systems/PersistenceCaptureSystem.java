@@ -109,18 +109,9 @@ public final class PersistenceCaptureSystem extends TickingSystem<PhysicsStore>
         @Nonnull
         private final List<BodyRow> bodyRows = new ArrayList<>();
         @Nonnull
-        private final List<ColliderRow> colliderRows = new ArrayList<>();
-        @Nonnull
-        private final List<ShapeRow> shapeRows = new ArrayList<>();
-        @Nonnull
-        private final List<MaterialRow> materialRows = new ArrayList<>();
-        @Nonnull
         private final List<JointRow> jointRows = new ArrayList<>();
         @Nonnull
         private final List<TerrainColliderRow> terrainRows = new ArrayList<>();
-        @Nonnull
-        private final Map<UUID, CollisionFilterComponent> filtersByUuid =
-            new Object2ObjectOpenHashMap<>();
 
         private Capture(@Nonnull Map<UUID, PhysicsStoreBodySnapshot> snapshotsByBodyUuid) {
             this.snapshotsByBodyUuid = snapshotsByBodyUuid;
@@ -156,24 +147,11 @@ public final class PersistenceCaptureSystem extends TickingSystem<PhysicsStore>
                 bodyRows.add(new BodyRow(uuid,
                     body,
                     chunk.getComponent(index, DynamicsComponent.getComponentType()),
-                    chunk.getComponent(index, TargetComponent.getComponentType())));
-            }
-            ColliderComponent collider = chunk.getComponent(index, ColliderComponent.getComponentType());
-            if (collider != null) {
-                colliderRows.add(new ColliderRow(uuid, collider));
-            }
-            ShapeComponent shape = chunk.getComponent(index, ShapeComponent.getComponentType());
-            if (shape != null) {
-                shapeRows.add(new ShapeRow(uuid, shape));
-            }
-            MaterialComponent material = chunk.getComponent(index, MaterialComponent.getComponentType());
-            if (material != null) {
-                materialRows.add(new MaterialRow(uuid, material));
-            }
-            CollisionFilterComponent filter = chunk.getComponent(index,
-                CollisionFilterComponent.getComponentType());
-            if (filter != null) {
-                filtersByUuid.put(uuid, filter);
+                    chunk.getComponent(index, TargetComponent.getComponentType()),
+                    chunk.getComponent(index, ColliderComponent.getComponentType()),
+                    chunk.getComponent(index, ShapeComponent.getComponentType()),
+                    chunk.getComponent(index, MaterialComponent.getComponentType()),
+                    chunk.getComponent(index, CollisionFilterComponent.getComponentType())));
             }
             JointComponent joint = chunk.getComponent(index, JointComponent.getComponentType());
             if (joint != null) {
@@ -188,27 +166,12 @@ public final class PersistenceCaptureSystem extends TickingSystem<PhysicsStore>
 
         private void writeTo(@Nonnull PersistentPhysicsStoreResource persistent) {
             ObjectOpenHashSet<UUID> bodyUuids = persistentBodyUuids();
-            ObjectOpenHashSet<UUID> shapeUuids = new ObjectOpenHashSet<>();
-            ObjectOpenHashSet<UUID> materialUuids = new ObjectOpenHashSet<>();
-            Map<UUID, List<UUID>> colliderUuidsByBodyUuid =
-                new Object2ObjectOpenHashMap<>();
-
-            for (ColliderRow row : colliderRows) {
-                if (!bodyUuids.contains(row.collider().getBodyUuid())) {
-                    continue;
-                }
-                colliderUuidsByBodyUuid
-                    .computeIfAbsent(row.collider().getBodyUuid(), _ -> new ArrayList<>())
-                    .add(row.uuid());
-                shapeUuids.add(row.collider().getShapeUuid());
-                materialUuids.add(row.collider().getMaterialUuid());
-            }
 
             persistent.setSpaces(spaceDtos());
-            persistent.setBodies(bodyDtos(colliderUuidsByBodyUuid));
+            persistent.setBodies(bodyDtos());
             persistent.setColliders(colliderDtos(bodyUuids));
-            persistent.setShapes(shapeDtos(shapeUuids));
-            persistent.setMaterials(materialDtos(materialUuids));
+            persistent.setShapes(shapeDtos(bodyUuids));
+            persistent.setMaterials(materialDtos(bodyUuids));
             persistent.setJoints(jointDtos(bodyUuids));
             persistent.setTerrainColliders(terrainDtos());
         }
@@ -217,7 +180,8 @@ public final class PersistenceCaptureSystem extends TickingSystem<PhysicsStore>
         private ObjectOpenHashSet<UUID> persistentBodyUuids() {
             ObjectOpenHashSet<UUID> bodyUuids = new ObjectOpenHashSet<>();
             for (BodyRow row : bodyRows) {
-                if (row.body().getPersistenceMode() == PhysicsBodyPersistenceMode.PERSISTENT) {
+                if (row.body().getPersistenceMode() == PhysicsBodyPersistenceMode.PERSISTENT
+                    && row.hasAggregateCollider()) {
                     bodyUuids.add(row.uuid());
                 }
             }
@@ -266,19 +230,17 @@ public final class PersistenceCaptureSystem extends TickingSystem<PhysicsStore>
         }
 
         @Nonnull
-        private PersistentBodyDto[] bodyDtos(
-            @Nonnull Map<UUID, List<UUID>> colliderUuidsByBodyUuid) {
+        private PersistentBodyDto[] bodyDtos() {
             return bodyRows.stream()
                 .filter(row -> row.body().getPersistenceMode() == PhysicsBodyPersistenceMode.PERSISTENT)
-                .map(row -> bodyDto(row,
-                    colliderUuidsByBodyUuid.getOrDefault(row.uuid(), List.of())))
+                .filter(BodyRow::hasAggregateCollider)
+                .map(this::bodyDto)
                 .sorted(Comparator.comparing(PersistentBodyDto::getBodyUuid))
                 .toArray(PersistentBodyDto[]::new);
         }
 
         @Nonnull
-        private PersistentBodyDto bodyDto(@Nonnull BodyRow row,
-            @Nonnull List<UUID> colliderUuids) {
+        private PersistentBodyDto bodyDto(@Nonnull BodyRow row) {
             DynamicsComponent dynamics = row.dynamics() != null
                 ? row.dynamics()
                 : new DynamicsComponent();
@@ -291,7 +253,7 @@ public final class PersistenceCaptureSystem extends TickingSystem<PhysicsStore>
                 dynamics.getLinearDamping(),
                 dynamics.getAngularDamping(),
                 dynamics.isContinuousCollisionEnabled(),
-                colliderUuids.stream().sorted().toArray(UUID[]::new),
+                new UUID[] {row.uuid()},
                 runtimeState(row.uuid(), row.target()));
         }
 
@@ -322,23 +284,23 @@ public final class PersistenceCaptureSystem extends TickingSystem<PhysicsStore>
 
         @Nonnull
         private PersistentColliderDto[] colliderDtos(@Nonnull Set<UUID> bodyUuids) {
-            return colliderRows.stream()
-                .filter(row -> bodyUuids.contains(row.collider().getBodyUuid()))
+            return bodyRows.stream()
+                .filter(row -> bodyUuids.contains(row.uuid()))
+                .filter(BodyRow::hasAggregateCollider)
                 .map(this::colliderDto)
                 .sorted(Comparator.comparing(PersistentColliderDto::getColliderUuid))
                 .toArray(PersistentColliderDto[]::new);
         }
 
         @Nonnull
-        private PersistentColliderDto colliderDto(@Nonnull ColliderRow row) {
-            CollisionFilterComponent filter = filtersByUuid.get(row.collider().getFilterUuid());
-            CollisionFilterComponent resolvedFilter = filter != null
-                ? filter
+        private PersistentColliderDto colliderDto(@Nonnull BodyRow row) {
+            CollisionFilterComponent resolvedFilter = row.filter() != null
+                ? row.filter()
                 : new CollisionFilterComponent();
             return new PersistentColliderDto(row.uuid(),
-                row.collider().getBodyUuid(),
-                row.collider().getShapeUuid(),
-                row.collider().getMaterialUuid(),
+                row.uuid(),
+                row.uuid(),
+                row.uuid(),
                 row.collider().getLocalPosition(),
                 row.collider().getLocalRotation(),
                 row.collider().isSensor(),
@@ -347,9 +309,10 @@ public final class PersistenceCaptureSystem extends TickingSystem<PhysicsStore>
         }
 
         @Nonnull
-        private PersistentShapeDto[] shapeDtos(@Nonnull Set<UUID> shapeUuids) {
-            return shapeRows.stream()
-                .filter(row -> shapeUuids.contains(row.uuid()))
+        private PersistentShapeDto[] shapeDtos(@Nonnull Set<UUID> bodyUuids) {
+            return bodyRows.stream()
+                .filter(row -> bodyUuids.contains(row.uuid()))
+                .filter(BodyRow::hasAggregateCollider)
                 .map(row -> new PersistentShapeDto(row.uuid(),
                     row.shape().getShapeType(),
                     row.shape().getHalfExtentX(),
@@ -365,9 +328,10 @@ public final class PersistenceCaptureSystem extends TickingSystem<PhysicsStore>
         }
 
         @Nonnull
-        private PersistentMaterialDto[] materialDtos(@Nonnull Set<UUID> materialUuids) {
-            return materialRows.stream()
-                .filter(row -> materialUuids.contains(row.uuid()))
+        private PersistentMaterialDto[] materialDtos(@Nonnull Set<UUID> bodyUuids) {
+            return bodyRows.stream()
+                .filter(row -> bodyUuids.contains(row.uuid()))
+                .filter(BodyRow::hasAggregateCollider)
                 .map(row -> new PersistentMaterialDto(row.uuid(),
                     row.material().getFriction(),
                     row.material().getRestitution()))
@@ -431,16 +395,15 @@ public final class PersistenceCaptureSystem extends TickingSystem<PhysicsStore>
     private record BodyRow(@Nonnull UUID uuid,
                            @Nonnull BodyComponent body,
                            @Nullable DynamicsComponent dynamics,
-                           @Nullable TargetComponent target) {
-    }
+                           @Nullable TargetComponent target,
+                           @Nullable ColliderComponent collider,
+                           @Nullable ShapeComponent shape,
+                           @Nullable MaterialComponent material,
+                           @Nullable CollisionFilterComponent filter) {
 
-    private record ColliderRow(@Nonnull UUID uuid, @Nonnull ColliderComponent collider) {
-    }
-
-    private record ShapeRow(@Nonnull UUID uuid, @Nonnull ShapeComponent shape) {
-    }
-
-    private record MaterialRow(@Nonnull UUID uuid, @Nonnull MaterialComponent material) {
+        private boolean hasAggregateCollider() {
+            return collider != null && shape != null && material != null && filter != null;
+        }
     }
 
     private record JointRow(@Nonnull UUID uuid, @Nonnull JointComponent joint) {

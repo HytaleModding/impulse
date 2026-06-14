@@ -6,7 +6,6 @@ import dev.hytalemodding.impulse.api.PhysicsBodyType;
 import dev.hytalemodding.impulse.core.internal.modules.control.components.PhysicsControlSessionComponent;
 import dev.hytalemodding.impulse.core.plugin.body.RigidBodyKey;
 import dev.hytalemodding.impulse.core.plugin.joint.JointKey;
-import dev.hytalemodding.impulse.core.plugin.physicsstore.BodyGraphUuids;
 import dev.hytalemodding.impulse.core.plugin.physicsstore.PhysicsStoreAccess;
 import dev.hytalemodding.impulse.core.plugin.physicsstore.requests.BodyRemoveRequest;
 import dev.hytalemodding.impulse.core.plugin.physicsstore.requests.BodyTargetRequest;
@@ -65,9 +64,7 @@ public final class PhysicsStoreControlSessionRequests {
 
         RigidBodyKey anchorBodyKey = session.getAnchorBodyKey();
         if (anchorBodyKey != null) {
-            UUID anchorBodyUuid = anchorBodyKey.value();
-            requests.add(BodyRemoveRequest.owned(anchorBodyUuid,
-                BodyGraphUuids.privateOwnedRows(anchorBodyUuid)));
+            requests.add(BodyRemoveRequest.of(anchorBodyKey.value()));
         }
         return requests;
     }

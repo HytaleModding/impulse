@@ -2,7 +2,6 @@ package dev.hytalemodding.impulse.core.internal.physicsstore.systems;
 
 import com.hypixel.hytale.component.ArchetypeChunk;
 import com.hypixel.hytale.component.CommandBuffer;
-import com.hypixel.hytale.component.Component;
 import com.hypixel.hytale.component.Ref;
 import com.hypixel.hytale.component.Store;
 import com.hypixel.hytale.component.dependency.Dependency;
@@ -28,8 +27,6 @@ import dev.hytalemodding.impulse.core.plugin.physicsstore.components.DynamicsCom
 import dev.hytalemodding.impulse.core.plugin.physicsstore.components.MaterialComponent;
 import dev.hytalemodding.impulse.core.plugin.physicsstore.components.ShapeComponent;
 import dev.hytalemodding.impulse.core.plugin.physicsstore.components.TargetComponent;
-import it.unimi.dsi.fastutil.objects.Object2ObjectOpenHashMap;
-import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
 import java.util.function.BiConsumer;
@@ -57,42 +54,16 @@ public final class BodyBindingSystem extends TickingSystem<PhysicsStore>
             return;
         }
         PhysicsRuntimeResource runtime = store.getResource(PhysicsRuntimeResource.getResourceType());
-        PhysicsIdentityIndexResource identity = store.getResource(
-            PhysicsIdentityIndexResource.getResourceType());
-        Map<UUID, ColliderRow> collidersByBodyUuid = collectColliders(store, systemIndex);
+        PhysicsIdentityIndexResource identity =
+            store.getResource(PhysicsIdentityIndexResource.getResourceType());
         BiConsumer<ArchetypeChunk<PhysicsStore>, CommandBuffer<PhysicsStore>> collector =
-            (chunk, _) -> bindBodies(store, runtime, identity, restore, collidersByBodyUuid, chunk);
+            (chunk, _) -> bindBodies(runtime, identity, restore, chunk);
         store.forEachChunk(systemIndex, collector);
     }
 
-    @Nonnull
-    private static Map<UUID, ColliderRow> collectColliders(@Nonnull Store<PhysicsStore> store,
-        int systemIndex) {
-        Map<UUID, ColliderRow> collidersByBodyUuid = new Object2ObjectOpenHashMap<>();
-        BiConsumer<ArchetypeChunk<PhysicsStore>, CommandBuffer<PhysicsStore>> collector =
-            (chunk, _) -> {
-                for (int index = 0; index < chunk.size(); index++) {
-                    ColliderComponent collider = chunk.getComponent(index,
-                        ColliderComponent.getComponentType());
-                    if (collider == null) {
-                        continue;
-                    }
-                    UUID colliderUuid = PhysicsStoreSystemSupport.rowUuid(chunk, index);
-                    if (!PhysicsStoreSystemSupport.isNil(colliderUuid)) {
-                        collidersByBodyUuid.putIfAbsent(collider.getBodyUuid(),
-                            new ColliderRow(colliderUuid, collider));
-                    }
-                }
-            };
-        store.forEachChunk(systemIndex, collector);
-        return collidersByBodyUuid;
-    }
-
-    private static void bindBodies(@Nonnull Store<PhysicsStore> store,
-        @Nonnull PhysicsRuntimeResource runtime,
+    private static void bindBodies(@Nonnull PhysicsRuntimeResource runtime,
         @Nonnull PhysicsIdentityIndexResource identity,
         @Nonnull PhysicsRestoreStatusResource restore,
-        @Nonnull Map<UUID, ColliderRow> collidersByBodyUuid,
         @Nonnull ArchetypeChunk<PhysicsStore> chunk) {
         for (int index = 0; index < chunk.size(); index++) {
             BodyComponent body = chunk.getComponent(index, BodyComponent.getComponentType());
@@ -104,13 +75,7 @@ public final class BodyBindingSystem extends TickingSystem<PhysicsStore>
                 || runtime.getBodyHandle(bodyUuid) != null) {
                 continue;
             }
-            ColliderRow collider = collidersByBodyUuid.get(bodyUuid);
-            if (collider == null) {
-                restore.recordSoftSkip("Body has no collider: " + bodyUuid);
-                continue;
-            }
-            bindBody(store,
-                runtime,
+            bindBody(runtime,
                 identity,
                 restore,
                 chunk.getReferenceTo(index),
@@ -118,12 +83,14 @@ public final class BodyBindingSystem extends TickingSystem<PhysicsStore>
                 body,
                 chunk.getComponent(index, DynamicsComponent.getComponentType()),
                 chunk.getComponent(index, TargetComponent.getComponentType()),
-                collider);
+                chunk.getComponent(index, ColliderComponent.getComponentType()),
+                chunk.getComponent(index, ShapeComponent.getComponentType()),
+                chunk.getComponent(index, MaterialComponent.getComponentType()),
+                chunk.getComponent(index, CollisionFilterComponent.getComponentType()));
         }
     }
 
-    private static void bindBody(@Nonnull Store<PhysicsStore> store,
-        @Nonnull PhysicsRuntimeResource runtime,
+    private static void bindBody(@Nonnull PhysicsRuntimeResource runtime,
         @Nonnull PhysicsIdentityIndexResource identity,
         @Nonnull PhysicsRestoreStatusResource restore,
         @Nonnull Ref<PhysicsStore> bodyRef,
@@ -131,7 +98,10 @@ public final class BodyBindingSystem extends TickingSystem<PhysicsStore>
         @Nonnull BodyComponent body,
         @Nullable DynamicsComponent dynamics,
         @Nullable TargetComponent target,
-        @Nonnull ColliderRow colliderRow) {
+        @Nullable ColliderComponent collider,
+        @Nullable ShapeComponent shape,
+        @Nullable MaterialComponent material,
+        @Nullable CollisionFilterComponent filter) {
         BackendSpaceHandle spaceHandle = runtime.getSpaceHandle(body.getSpaceUuid());
         if (spaceHandle == null) {
             restore.recordSoftSkip("Body references unbound space: " + bodyUuid);
@@ -142,20 +112,8 @@ public final class BodyBindingSystem extends TickingSystem<PhysicsStore>
             restore.recordSoftSkip("Body references missing backend runtime: " + bodyUuid);
             return;
         }
-        ShapeComponent shape = componentByUuid(store,
-            identity,
-            colliderRow.collider().getShapeUuid(),
-            ShapeComponent.getComponentType());
-        MaterialComponent material = componentByUuid(store,
-            identity,
-            colliderRow.collider().getMaterialUuid(),
-            MaterialComponent.getComponentType());
-        CollisionFilterComponent filter = componentByUuid(store,
-            identity,
-            colliderRow.collider().getFilterUuid(),
-            CollisionFilterComponent.getComponentType());
-        if (shape == null || material == null || filter == null) {
-            restore.recordSoftSkip("Body references incomplete collider rows: " + bodyUuid);
+        if (collider == null || shape == null || material == null || filter == null) {
+            restore.recordSoftSkip("Body aggregate is missing collider data: " + bodyUuid);
             return;
         }
         DynamicsComponent bodyDynamics = dynamics != null ? dynamics : new DynamicsComponent();
@@ -195,7 +153,7 @@ public final class BodyBindingSystem extends TickingSystem<PhysicsStore>
                 bodyId,
                 filter.getCollisionGroup(),
                 filter.getCollisionMask());
-            backendRuntime.setBodySensor(spaceHandle.value(), bodyId, colliderRow.collider().isSensor());
+            backendRuntime.setBodySensor(spaceHandle.value(), bodyId, collider.isSensor());
             if (bodyDynamics.isContinuousCollisionEnabled()
                 && backendRuntime.supportsContinuousCollision(spaceHandle.value())) {
                 backendRuntime.setBodyContinuousCollision(spaceHandle.value(), bodyId, true);
@@ -254,16 +212,6 @@ public final class BodyBindingSystem extends TickingSystem<PhysicsStore>
         return backendId != null ? runtime.getRuntime(backendId) : null;
     }
 
-    @Nullable
-    private static <C extends Component<PhysicsStore>> C componentByUuid(@Nonnull Store<PhysicsStore> store,
-        @Nonnull PhysicsIdentityIndexResource identity,
-        @Nonnull UUID uuid,
-        @Nonnull com.hypixel.hytale.component.ComponentType<PhysicsStore, C> type) {
-        return PhysicsStoreSystemSupport.component(store,
-            PhysicsStoreSystemSupport.refForUuid(identity, uuid),
-            type);
-    }
-
     @Nonnull
     @Override
     public Query<PhysicsStore> getQuery() {
@@ -276,6 +224,4 @@ public final class BodyBindingSystem extends TickingSystem<PhysicsStore>
         return DEPENDENCIES;
     }
 
-    private record ColliderRow(@Nonnull UUID uuid, @Nonnull ColliderComponent collider) {
-    }
 }

@@ -25,7 +25,6 @@ import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyRegistrationView;
 import dev.hytalemodding.impulse.core.plugin.body.RigidBodyKey;
 import dev.hytalemodding.impulse.core.plugin.modules.control.PhysicsControlSessions;
 import dev.hytalemodding.impulse.core.plugin.joint.JointKey;
-import dev.hytalemodding.impulse.core.plugin.physicsstore.BodyGraphUuids;
 import dev.hytalemodding.impulse.core.plugin.physicsstore.PhysicsStoreAccess;
 import dev.hytalemodding.impulse.core.plugin.physicsstore.components.BodyComponent;
 import dev.hytalemodding.impulse.core.plugin.physicsstore.components.ColliderComponent;
@@ -196,10 +195,6 @@ public class GrabCommand extends AbstractAsyncPlayerCommand {
     private static BodyUpsertRequest anchorBodyUpsertRequest(@Nonnull UUID spaceUuid,
         @Nonnull UUID bodyUuid,
         @Nonnull Vector3f hitPoint) {
-        UUID colliderUuid = BodyGraphUuids.collider(bodyUuid);
-        UUID shapeUuid = BodyGraphUuids.shape(bodyUuid);
-        UUID materialUuid = BodyGraphUuids.material(bodyUuid);
-        UUID filterUuid = BodyGraphUuids.filter(bodyUuid);
         return BodyUpsertRequest.of(bodyUuid,
             new BodyComponent(spaceUuid,
                 PhysicsBodyKind.TEMPORARY,
@@ -210,15 +205,11 @@ public class GrabCommand extends AbstractAsyncPlayerCommand {
                 0.0f,
                 false),
             initialAnchorTarget(hitPoint),
-            colliderUuid,
-            new ColliderComponent(bodyUuid,
-                shapeUuid,
-                materialUuid,
-                filterUuid,
-                new Vector3f(),
+            bodyUuid,
+            new ColliderComponent(new Vector3f(),
                 new Quaternionf(),
                 true),
-            shapeUuid,
+            bodyUuid,
             new ShapeComponent(ShapeType.SPHERE,
                 0.0f,
                 0.0f,
@@ -228,9 +219,9 @@ public class GrabCommand extends AbstractAsyncPlayerCommand {
                 PhysicsAxis.Y,
                 0.0f,
                 ""),
-            materialUuid,
+            bodyUuid,
             new MaterialComponent(0.5f, 0.0f),
-            filterUuid,
+            bodyUuid,
             new CollisionFilterComponent(PhysicsCollisionFilters.TERRAIN, 0));
     }
 
