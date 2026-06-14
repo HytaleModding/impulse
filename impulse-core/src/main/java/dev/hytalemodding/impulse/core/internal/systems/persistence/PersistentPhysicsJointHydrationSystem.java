@@ -71,7 +71,8 @@ public class PersistentPhysicsJointHydrationSystem extends TickingSystem<EntityS
         }
 
         World world = store.getExternalData().getWorld();
-        PersistentPhysicsRestoreTerrainPrewarm.prewarmRestoredDynamicBodyTerrain(world,
+        PersistentPhysicsRestoreTerrainPrewarm.prewarmRestoredDynamicBodyTerrain(store,
+            world,
             PhysicsWorldRuntimeResource.require(store),
             persistent,
             Math.max(0L, world.getTick()));

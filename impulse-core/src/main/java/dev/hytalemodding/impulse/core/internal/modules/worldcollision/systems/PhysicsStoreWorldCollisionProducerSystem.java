@@ -17,8 +17,8 @@ import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import com.hypixel.hytale.server.core.universe.world.storage.PhysicsStore;
 import dev.hytalemodding.impulse.api.PhysicsBodyType;
 import dev.hytalemodding.impulse.early.PhysicsStoreWorld;
-import dev.hytalemodding.impulse.core.internal.modules.worldcollision.PhysicsStoreTerrainMutationCache;
 import dev.hytalemodding.impulse.core.internal.modules.worldcollision.PhysicsStoreTerrainMutationCache.TargetRefreshDecision;
+import dev.hytalemodding.impulse.core.internal.modules.worldcollision.PhysicsStoreWorldCollisionStreamingResource;
 import dev.hytalemodding.impulse.core.internal.modules.worldcollision.WorldCollisionLifecycle;
 import dev.hytalemodding.impulse.core.internal.modules.worldcollision.WorldCollisionStreamingBounds;
 import dev.hytalemodding.impulse.core.internal.modules.worldcollision.profiling.WorldCollisionProfilingResource;
@@ -36,12 +36,10 @@ import it.unimi.dsi.fastutil.longs.LongSet;
 import it.unimi.dsi.fastutil.objects.Object2ObjectOpenHashMap;
 import it.unimi.dsi.fastutil.objects.ObjectOpenHashSet;
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
-import java.util.WeakHashMap;
 import java.util.function.BiConsumer;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
@@ -65,10 +63,6 @@ public final class PhysicsStoreWorldCollisionProducerSystem extends TickingSyste
         new SystemDependency<>(Order.AFTER, PhysicsSyncSystem.class)
     );
 
-    @Nonnull
-    private final Map<Store<EntityStore>, StreamingState> statesByStore =
-        Collections.synchronizedMap(new WeakHashMap<>());
-
     @Override
     public void tick(float dt, int systemIndex, @Nonnull Store<EntityStore> store) {
         if (!WorldCollisionLifecycle.isEnabled()) {
@@ -89,11 +83,12 @@ public final class PhysicsStoreWorldCollisionProducerSystem extends TickingSyste
                 PhysicsWorldCollisionIndexResource.getResourceType());
             PhysicsSnapshotResource snapshotResource = physics.getResource(
                 PhysicsSnapshotResource.getResourceType());
+            PhysicsStoreWorldCollisionStreamingResource streaming = store.getResource(
+                PhysicsStoreWorldCollisionStreamingResource.getResourceType());
 
             List<SpaceWorldCollisionSettings> spaces = worldCollisionIndex.streamingSpaces();
-            StreamingState state = stateFor(store);
             if (spaces.isEmpty()) {
-                state.cache().retainSpaces(Set.of(), queue);
+                streaming.retainSpaces(Set.of(), queue);
                 return;
             }
 
@@ -101,13 +96,12 @@ public final class PhysicsStoreWorldCollisionProducerSystem extends TickingSyste
             if (snapshot != null) {
                 snapshot.setPlayerStreamingTargets(playerPositions.size());
             }
-            long currentTick = state.nextTick();
-            PhysicsStoreTerrainMutationCache cache = state.cache();
+            long currentTick = streaming.nextTick();
             Set<UUID> retainedSpaces = new ObjectOpenHashSet<>();
             for (SpaceWorldCollisionSettings settings : spaces) {
                 retainedSpaces.add(settings.spaceUuid());
             }
-            cache.retainSpaces(retainedSpaces, queue);
+            streaming.retainSpaces(retainedSpaces, queue);
 
             PhysicsStoreSnapshotFrame physicsFrame = snapshotResource.getLatestFrame();
             for (SpaceWorldCollisionSettings settings : spaces) {
@@ -115,7 +109,7 @@ public final class PhysicsStoreWorldCollisionProducerSystem extends TickingSyste
                     snapshot.incrementStreamingSpaces();
                 }
                 processSpace(world,
-                    cache,
+                    streaming,
                     queue,
                     settings,
                     playerPositions,
@@ -132,7 +126,7 @@ public final class PhysicsStoreWorldCollisionProducerSystem extends TickingSyste
     }
 
     private static void processSpace(@Nonnull World world,
-        @Nonnull PhysicsStoreTerrainMutationCache cache,
+        @Nonnull PhysicsStoreWorldCollisionStreamingResource streaming,
         @Nonnull PhysicsTerrainMutationQueueResource queue,
         @Nonnull SpaceWorldCollisionSettings settings,
         @Nonnull List<Vector3d> playerPositions,
@@ -142,7 +136,7 @@ public final class PhysicsStoreWorldCollisionProducerSystem extends TickingSyste
         LongSet visitedSections = new LongOpenHashSet();
         for (Vector3d position : playerPositions) {
             int sectionsBefore = visitedSections.size();
-            cache.ensureAround(world,
+            streaming.ensureAround(world,
                 settings.spaceUuid(),
                 queue,
                 position,
@@ -157,13 +151,13 @@ public final class PhysicsStoreWorldCollisionProducerSystem extends TickingSyste
             }
         }
 
-        for (BodyStreamingTarget target : collectDynamicBodyTargets(cache,
+        for (BodyStreamingTarget target : collectDynamicBodyTargets(streaming,
             settings,
             physicsFrame,
             currentTick,
             snapshot)) {
             int sectionsBefore = visitedSections.size();
-            cache.ensureAround(world,
+            streaming.ensureAround(world,
                 settings.spaceUuid(),
                 queue,
                 target.position(),
@@ -174,7 +168,7 @@ public final class PhysicsStoreWorldCollisionProducerSystem extends TickingSyste
                 null,
                 settings.buildOptions());
             for (BodyStreamingRefresh refresh : target.refreshes()) {
-                cache.recordBodyTargetRefresh(settings.spaceUuid(),
+                streaming.recordBodyTargetRefresh(settings.spaceUuid(),
                     refresh.bodyUuid(),
                     target.bounds(),
                     refresh.sleeping(),
@@ -185,9 +179,9 @@ public final class PhysicsStoreWorldCollisionProducerSystem extends TickingSyste
             }
         }
 
-        cache.pruneUnloaded(world, settings.spaceUuid(), queue, snapshot);
-        cache.pruneUnused(settings.spaceUuid(), queue, currentTick, settings.ttlTicks(), snapshot);
-        cache.pruneBodyStreamingTargets(settings.spaceUuid(),
+        streaming.pruneUnloaded(world, settings.spaceUuid(), queue, snapshot);
+        streaming.pruneUnused(settings.spaceUuid(), queue, currentTick, settings.ttlTicks(), snapshot);
+        streaming.pruneBodyStreamingTargets(settings.spaceUuid(),
             currentTick,
             settings.ttlTicks(),
             snapshot);
@@ -195,7 +189,7 @@ public final class PhysicsStoreWorldCollisionProducerSystem extends TickingSyste
 
     @Nonnull
     private static List<BodyStreamingTarget> collectDynamicBodyTargets(
-        @Nonnull PhysicsStoreTerrainMutationCache cache,
+        @Nonnull PhysicsStoreWorldCollisionStreamingResource streaming,
         @Nonnull SpaceWorldCollisionSettings settings,
         @Nonnull PhysicsStoreSnapshotFrame physicsFrame,
         long currentTick,
@@ -218,7 +212,7 @@ public final class PhysicsStoreWorldCollisionProducerSystem extends TickingSyste
                 position.y,
                 position.z,
                 settings.bodyRadius());
-            TargetRefreshDecision decision = cache.shouldRefreshBodyTarget(settings.spaceUuid(),
+            TargetRefreshDecision decision = streaming.shouldRefreshBodyTarget(settings.spaceUuid(),
                 body.bodyUuid(),
                 bounds,
                 body.sleeping(),
@@ -266,13 +260,6 @@ public final class PhysicsStoreWorldCollisionProducerSystem extends TickingSyste
             if (transform != null) {
                 positions.add(new Vector3d(transform.getPosition()));
             }
-        }
-    }
-
-    @Nonnull
-    private StreamingState stateFor(@Nonnull Store<EntityStore> store) {
-        synchronized (statesByStore) {
-            return statesByStore.computeIfAbsent(store, _ -> new StreamingState());
         }
     }
 
@@ -345,19 +332,4 @@ public final class PhysicsStoreWorldCollisionProducerSystem extends TickingSyste
                                         boolean sleeping) {
     }
 
-    private static final class StreamingState {
-
-        @Nonnull
-        private final PhysicsStoreTerrainMutationCache cache = new PhysicsStoreTerrainMutationCache();
-        private long tick;
-
-        @Nonnull
-        private PhysicsStoreTerrainMutationCache cache() {
-            return cache;
-        }
-
-        private synchronized long nextTick() {
-            return ++tick;
-        }
-    }
 }

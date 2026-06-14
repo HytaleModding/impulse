@@ -320,8 +320,8 @@ public class EcsCommand extends AbstractCommandCollection {
             }
 
             int radius = ExamplePhysicsUtils.optionalInt(ctx, radiusArg, 8, 1, 24);
-            PhysicsWorldResource resource = ExamplePhysicsUtils.resource(store);
-            WorldCollisionPrewarmStats stats = resource.ensureWorldCollisionAround(world,
+            WorldCollisionPrewarmStats stats = ExamplePhysicsUtils.ensurePhysicsStoreWorldCollisionAround(store,
+                world,
                 spaceId,
                 List.of(playerPos),
                 radius,
@@ -419,7 +419,8 @@ public class EcsCommand extends AbstractCommandCollection {
                     + " is not bound yet."));
                 return CompletableFuture.completedFuture(null);
             }
-            WorldCollisionPrewarmStats stats = resource.ensureWorldCollisionAround(world,
+            WorldCollisionPrewarmStats stats = ExamplePhysicsUtils.ensurePhysicsStoreWorldCollisionAround(store,
+                world,
                 spaceId,
                 List.of(spawn),
                 Math.max(8, radius + 6),

@@ -6,6 +6,7 @@ import com.hypixel.hytale.server.core.plugin.JavaPlugin;
 import com.hypixel.hytale.server.core.plugin.JavaPluginInit;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import dev.hytalemodding.impulse.core.internal.modules.worldcollision.WorldCollisionLifecycle;
+import dev.hytalemodding.impulse.core.internal.modules.worldcollision.PhysicsStoreWorldCollisionStreamingResource;
 import dev.hytalemodding.impulse.core.internal.modules.worldcollision.systems.PhysicsStoreWorldCollisionProducerSystem;
 import dev.hytalemodding.impulse.core.internal.modules.worldcollision.profiling.WorldCollisionProfilingResource;
 import java.util.logging.Level;
@@ -28,6 +29,9 @@ public final class ImpulseWorldCollisionPlugin extends JavaPlugin {
         WorldCollisionProfilingResource.setResourceType(entityRegistry.registerResource(
             WorldCollisionProfilingResource.class,
             WorldCollisionProfilingResource::new));
+        PhysicsStoreWorldCollisionStreamingResource.setResourceType(entityRegistry.registerResource(
+            PhysicsStoreWorldCollisionStreamingResource.class,
+            PhysicsStoreWorldCollisionStreamingResource::new));
         entityRegistry.registerSystem(new PhysicsStoreWorldCollisionProducerSystem());
         WorldCollisionLifecycle.enable();
         LOGGER.at(Level.INFO).log("Impulse world-collision PhysicsStore request producer enabled.");
@@ -37,5 +41,6 @@ public final class ImpulseWorldCollisionPlugin extends JavaPlugin {
     protected void shutdown() {
         WorldCollisionLifecycle.disable();
         WorldCollisionProfilingResource.clearResourceType();
+        PhysicsStoreWorldCollisionStreamingResource.clearResourceType();
     }
 }

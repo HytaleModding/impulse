@@ -186,6 +186,72 @@ public final class PhysicsStoreTerrainMutationCache {
         }
     }
 
+    public synchronized int clearSpace(@Nonnull UUID spaceUuid,
+        @Nonnull PhysicsTerrainMutationQueueResource queue) {
+        SpaceCollisionCache cache = spaces.remove(spaceUuid);
+        if (cache == null) {
+            return 0;
+        }
+        return removeAllSections(spaceUuid, queue, cache);
+    }
+
+    public synchronized int clearSectionsAround(@Nonnull UUID spaceUuid,
+        @Nonnull PhysicsTerrainMutationQueueResource queue,
+        @Nonnull Vector3d center,
+        int radius) {
+        SpaceCollisionCache cache = spaces.get(spaceUuid);
+        if (cache == null) {
+            return 0;
+        }
+
+        int clampedRadius = Math.max(0, radius);
+        int minX = (int) Math.floor(center.x) - clampedRadius;
+        int maxX = (int) Math.floor(center.x) + clampedRadius;
+        int minY = Math.max(0, (int) Math.floor(center.y) - clampedRadius);
+        int maxY = Math.min(ChunkUtil.HEIGHT_MINUS_1, (int) Math.floor(center.y) + clampedRadius);
+        int minZ = (int) Math.floor(center.z) - clampedRadius;
+        int maxZ = (int) Math.floor(center.z) + clampedRadius;
+
+        int minChunkX = ChunkUtil.chunkCoordinate(minX);
+        int maxChunkX = ChunkUtil.chunkCoordinate(maxX);
+        int minSectionY = ChunkUtil.indexSection(minY);
+        int maxSectionY = ChunkUtil.indexSection(maxY);
+        int minChunkZ = ChunkUtil.chunkCoordinate(minZ);
+        int maxChunkZ = ChunkUtil.chunkCoordinate(maxZ);
+
+        int removed = 0;
+        Iterator<Long2ObjectMap.Entry<CachedSection>> iterator =
+            cache.sections.long2ObjectEntrySet().iterator();
+        while (iterator.hasNext()) {
+            CachedSection section = iterator.next().getValue();
+            if (section.chunkX < minChunkX
+                || section.chunkX > maxChunkX
+                || section.sectionY < minSectionY
+                || section.sectionY > maxSectionY
+                || section.chunkZ < minChunkZ
+                || section.chunkZ > maxChunkZ) {
+                continue;
+            }
+            removed += removeSection(spaceUuid, queue, section);
+            iterator.remove();
+        }
+
+        for (int chunkX = minChunkX; chunkX <= maxChunkX; chunkX++) {
+            for (int chunkZ = minChunkZ; chunkZ <= maxChunkZ; chunkZ++) {
+                cache.missingBlockChunkBackoffs.remove(ChunkUtil.indexChunk(chunkX, chunkZ));
+                for (int sectionY = minSectionY; sectionY <= maxSectionY; sectionY++) {
+                    cache.missingBlockSectionBackoffs.remove(packSectionKey(chunkX,
+                        sectionY,
+                        chunkZ));
+                }
+            }
+        }
+        if (cache.isEmpty()) {
+            spaces.remove(spaceUuid);
+        }
+        return removed;
+    }
+
     @Nonnull
     public synchronized TargetRefreshDecision shouldRefreshBodyTarget(@Nonnull UUID spaceUuid,
         @Nonnull UUID bodyUuid,
@@ -447,13 +513,53 @@ public final class PhysicsStoreTerrainMutationCache {
         return section.bodyCount;
     }
 
-    private static void removeAllSections(@Nonnull UUID spaceUuid,
+    private static int removeAllSections(@Nonnull UUID spaceUuid,
         @Nonnull PhysicsTerrainMutationQueueResource queue,
         @Nonnull SpaceCollisionCache cache) {
+        int removed = 0;
         for (CachedSection section : cache.sections.values()) {
-            removeSection(spaceUuid, queue, section);
+            removed += removeSection(spaceUuid, queue, section);
         }
         cache.sections.clear();
+        return removed;
+    }
+
+    public synchronized int bodyCount() {
+        int count = 0;
+        for (SpaceCollisionCache cache : spaces.values()) {
+            for (CachedSection section : cache.sections.values()) {
+                count += section.bodyCount;
+            }
+        }
+        return count;
+    }
+
+    public synchronized int bodyCount(@Nonnull UUID spaceUuid) {
+        SpaceCollisionCache cache = spaces.get(spaceUuid);
+        if (cache == null) {
+            return 0;
+        }
+        int count = 0;
+        for (CachedSection section : cache.sections.values()) {
+            count += section.bodyCount;
+        }
+        return count;
+    }
+
+    public synchronized int sectionCount() {
+        int count = 0;
+        for (SpaceCollisionCache cache : spaces.values()) {
+            count += cache.sections.size();
+        }
+        return count;
+    }
+
+    public synchronized int spaceCount() {
+        return spaces.size();
+    }
+
+    public synchronized int shapeTemplateCount() {
+        return shapeTemplates.size();
     }
 
     private static void recordMissingBackoff(@Nullable Snapshot profiling,

@@ -21,11 +21,18 @@ import com.hypixel.hytale.server.core.universe.world.storage.PhysicsStore;
 import dev.hytalemodding.impulse.api.PhysicsBodyType;
 import dev.hytalemodding.impulse.api.SpaceId;
 import dev.hytalemodding.impulse.early.PhysicsStoreWorld;
+import dev.hytalemodding.impulse.core.internal.modules.worldcollision.PhysicsStoreWorldCollisionStreamingResource;
 import dev.hytalemodding.impulse.core.internal.physicsstore.resources.PhysicsIdentityIndexResource;
 import dev.hytalemodding.impulse.core.internal.physicsstore.resources.PhysicsSpaceCompatibilityIndexResource;
+import dev.hytalemodding.impulse.core.internal.physicsstore.resources.PhysicsTerrainMutationQueueResource;
+import dev.hytalemodding.impulse.core.internal.physicsstore.resources.PhysicsWorldCollisionIndexResource.SpaceWorldCollisionSettings;
 import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyKind;
 import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyPersistenceMode;
 import dev.hytalemodding.impulse.core.plugin.body.RigidBodyKey;
+import dev.hytalemodding.impulse.core.plugin.modules.worldcollision.WorldCollisionBuildStats;
+import dev.hytalemodding.impulse.core.plugin.modules.worldcollision.WorldCollisionMode;
+import dev.hytalemodding.impulse.core.plugin.modules.worldcollision.WorldCollisionPrewarmStats;
+import dev.hytalemodding.impulse.core.plugin.modules.worldcollision.WorldCollisionStats;
 import dev.hytalemodding.impulse.core.plugin.modules.control.ImpulseControllableComponent;
 import dev.hytalemodding.impulse.core.plugin.modules.control.PhysicsControlSessions;
 import dev.hytalemodding.impulse.core.plugin.physicsstore.PhysicsBodyRows;
@@ -34,6 +41,7 @@ import dev.hytalemodding.impulse.core.plugin.physicsstore.components.BodyCommand
 import dev.hytalemodding.impulse.core.plugin.physicsstore.components.DynamicsComponent;
 import dev.hytalemodding.impulse.core.plugin.physicsstore.components.JointComponent;
 import dev.hytalemodding.impulse.core.plugin.physicsstore.components.TargetComponent;
+import dev.hytalemodding.impulse.core.plugin.physicsstore.components.WorldCollisionComponent;
 import dev.hytalemodding.impulse.core.plugin.physicsstore.projection.BodyAttachmentComponent;
 import dev.hytalemodding.impulse.core.plugin.physicsstore.BodyRowDescriptor;
 import dev.hytalemodding.impulse.core.plugin.resources.PhysicsWorldResource;
@@ -97,6 +105,139 @@ public final class ExamplePhysicsUtils {
         return physicsStore(world)
             .getResource(PhysicsSpaceCompatibilityIndexResource.getResourceType())
             .getSpaceUuid(Objects.requireNonNull(spaceId, "spaceId"));
+    }
+
+    @Nonnull
+    public static WorldCollisionBuildStats rebuildPhysicsStoreWorldCollisionAround(
+        @Nonnull Store<EntityStore> store,
+        @Nonnull World world,
+        @Nonnull SpaceId spaceId,
+        @Nonnull Vector3d center,
+        int radius) {
+        PhysicsStoreWorldCollisionStreamingResource streaming = worldCollisionStreaming(store);
+        SpaceWorldCollisionSettings settings = requireWorldCollisionSettings(world, spaceId);
+        PhysicsTerrainMutationQueueResource queue = terrainMutationQueue(world);
+        int removed = streaming.clearSpace(settings.spaceUuid(), queue);
+        WorldCollisionPrewarmStats stats = streaming.ensureAround(world,
+            settings.spaceUuid(),
+            queue,
+            List.of(center),
+            radius,
+            Math.max(0L, world.getTick()),
+            null,
+            settings.buildOptions());
+        return withRemovedBodies(stats.buildStats(), stats.buildStats().removedBodies() + removed);
+    }
+
+    @Nonnull
+    public static WorldCollisionBuildStats refreshPhysicsStoreWorldCollisionAround(
+        @Nonnull Store<EntityStore> store,
+        @Nonnull World world,
+        @Nonnull SpaceId spaceId,
+        @Nonnull Vector3d center,
+        int radius) {
+        SpaceWorldCollisionSettings settings = requireWorldCollisionSettings(world, spaceId);
+        return worldCollisionStreaming(store).refreshAround(world,
+            settings.spaceUuid(),
+            terrainMutationQueue(world),
+            center,
+            radius,
+            Math.max(0L, world.getTick()),
+            null,
+            settings.buildOptions());
+    }
+
+    @Nonnull
+    public static WorldCollisionPrewarmStats ensurePhysicsStoreWorldCollisionAround(
+        @Nonnull Store<EntityStore> store,
+        @Nonnull World world,
+        @Nonnull SpaceId spaceId,
+        @Nonnull Iterable<Vector3d> centers,
+        int radius,
+        long tick) {
+        SpaceWorldCollisionSettings settings = requireWorldCollisionSettings(world, spaceId);
+        return worldCollisionStreaming(store).ensureAround(world,
+            settings.spaceUuid(),
+            terrainMutationQueue(world),
+            centers,
+            radius,
+            tick,
+            null,
+            settings.buildOptions());
+    }
+
+    public static int clearPhysicsStoreWorldCollision(@Nonnull Store<EntityStore> store,
+        @Nonnull World world,
+        @Nonnull SpaceId spaceId) {
+        SpaceWorldCollisionSettings settings = requireWorldCollisionSettings(world, spaceId);
+        return worldCollisionStreaming(store).clearSpace(settings.spaceUuid(),
+            terrainMutationQueue(world));
+    }
+
+    @Nonnull
+    public static WorldCollisionStats physicsStoreWorldCollisionStats(
+        @Nonnull Store<EntityStore> store) {
+        return worldCollisionStreaming(store).stats();
+    }
+
+    @Nonnull
+    private static PhysicsStoreWorldCollisionStreamingResource worldCollisionStreaming(
+        @Nonnull Store<EntityStore> store) {
+        return store.getResource(PhysicsStoreWorldCollisionStreamingResource.getResourceType());
+    }
+
+    @Nonnull
+    private static PhysicsTerrainMutationQueueResource terrainMutationQueue(@Nonnull World world) {
+        return physicsStore(world).getResource(PhysicsTerrainMutationQueueResource.getResourceType());
+    }
+
+    @Nonnull
+    private static SpaceWorldCollisionSettings requireWorldCollisionSettings(@Nonnull World world,
+        @Nonnull SpaceId spaceId) {
+        Store<PhysicsStore> physics = physicsStore(world);
+        UUID spaceUuid = resolvePhysicsStoreSpaceUuid(world, spaceId);
+        if (spaceUuid == null) {
+            throw new IllegalStateException("PhysicsStore space id=" + spaceId.value()
+                + " is not bound yet");
+        }
+        Ref<PhysicsStore> spaceRef = physics
+            .getResource(PhysicsIdentityIndexResource.getResourceType())
+            .getByUuid(spaceUuid);
+        if (spaceRef == null || !spaceRef.isValid()) {
+            throw new IllegalStateException("PhysicsStore space id=" + spaceId.value()
+                + " is not bound yet");
+        }
+        WorldCollisionComponent component = physics.getComponent(spaceRef,
+            WorldCollisionComponent.getComponentType());
+        WorldCollisionComponent settings = component != null ? component : new WorldCollisionComponent();
+        if (settings.getMode() == WorldCollisionMode.NONE) {
+            throw new IllegalStateException("World collision is disabled for space " + spaceId);
+        }
+        return new SpaceWorldCollisionSettings(spaceUuid,
+            settings.getMode(),
+            settings.getEntityChunkBoundaryMode(),
+            settings.isNativeVoxelTerrainEnabled(),
+            settings.getRadius(),
+            settings.getBodyRadius(),
+            settings.getTtlTicks(),
+            settings.getTerrainFriction(),
+            settings.getTerrainRestitution());
+    }
+
+    @Nonnull
+    private static WorldCollisionBuildStats withRemovedBodies(
+        @Nonnull WorldCollisionBuildStats stats,
+        int removedBodies) {
+        return new WorldCollisionBuildStats(stats.scannedBlocks(),
+            stats.solidBlocks(),
+            stats.culledInteriorBlocks(),
+            stats.fullCubeRuns(),
+            stats.detailBoxes(),
+            stats.colliderBodies(),
+            removedBodies,
+            stats.sectionsBuilt(),
+            stats.sectionsRebuilt(),
+            stats.voxelBodies());
     }
 
     @Nonnull

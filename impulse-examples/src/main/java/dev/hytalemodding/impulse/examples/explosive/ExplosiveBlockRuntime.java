@@ -21,7 +21,6 @@ import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import dev.hytalemodding.impulse.api.SpaceId;
 import dev.hytalemodding.impulse.core.plugin.body.RigidBodyKey;
 import dev.hytalemodding.impulse.core.plugin.physicsstore.components.BodyCommandComponent;
-import dev.hytalemodding.impulse.core.plugin.resources.PhysicsWorldResource;
 import dev.hytalemodding.impulse.core.plugin.simulation.PhysicsShapeSpec;
 import dev.hytalemodding.impulse.core.plugin.simulation.RigidBodySpawnSettings;
 import dev.hytalemodding.impulse.examples.commands.ExamplePhysicsUtils;
@@ -73,11 +72,9 @@ public final class ExplosiveBlockRuntime {
         ExplosiveBlockComponent settingsCopy = settings.clone();
         world.execute(() -> {
             TimeResource time = store.getResource(TimeResource.getResourceType());
-            PhysicsWorldResource resource = store.getResource(PhysicsWorldResource.getResourceType());
             explode(store,
                 world,
                 time,
-                resource,
                 spaceId,
                 centerCopy,
                 settingsCopy);
@@ -88,15 +85,14 @@ public final class ExplosiveBlockRuntime {
     private static ExplosionResult explode(@Nonnull Store<EntityStore> store,
         @Nonnull World world,
         @Nonnull TimeResource time,
-        @Nonnull PhysicsWorldResource resource,
         @Nonnull SpaceId spaceId,
         @Nonnull Vector3d center,
         @Nonnull ExplosiveBlockComponent settings) {
         return explode(store,
+            store,
             holder -> store.addEntity(holder, AddReason.SPAWN),
             world,
             time,
-            resource,
             spaceId,
             center,
             settings);
@@ -104,10 +100,10 @@ public final class ExplosiveBlockRuntime {
 
     @Nonnull
     private static ExplosionResult explode(@Nonnull ComponentAccessor<EntityStore> entityAccessor,
+        @Nonnull Store<EntityStore> store,
         @Nonnull Consumer<Holder<EntityStore>> fragmentSpawner,
         @Nonnull World world,
         @Nonnull TimeResource time,
-        @Nonnull PhysicsWorldResource resource,
         @Nonnull SpaceId spaceId,
         @Nonnull Vector3d center,
         @Nonnull ExplosiveBlockComponent settings) {
@@ -134,11 +130,13 @@ public final class ExplosiveBlockRuntime {
         }
 
         List<FragmentGroup> groups = groupFragments(fragments, center, settings.getRadius());
-        resource.refreshWorldCollisionAround(world,
+        ExamplePhysicsUtils.refreshPhysicsStoreWorldCollisionAround(store,
+            world,
             spaceId,
             center,
             Math.max(8, settings.getRadius() + 4));
-        resource.ensureWorldCollisionAround(world,
+        ExamplePhysicsUtils.ensurePhysicsStoreWorldCollisionAround(store,
+            world,
             spaceId,
             groupCenters(groups),
             Math.max(8, maxGroupCollisionRadius(groups) + 4),
