@@ -29,6 +29,7 @@ import dev.hytalemodding.impulse.core.plugin.body.RigidBodyKey;
 import dev.hytalemodding.impulse.core.plugin.modules.control.ImpulseControllableComponent;
 import dev.hytalemodding.impulse.core.plugin.modules.control.PhysicsControlSessions;
 import dev.hytalemodding.impulse.core.plugin.physicsstore.PhysicsBodySpawnRequests;
+import dev.hytalemodding.impulse.core.plugin.physicsstore.PhysicsStoreEntities;
 import dev.hytalemodding.impulse.core.plugin.physicsstore.projection.BodyAttachmentComponent;
 import dev.hytalemodding.impulse.core.plugin.physicsstore.requests.BodyUpsertRequest;
 import dev.hytalemodding.impulse.core.plugin.physicsstore.requests.PhysicsStoreRequest;
@@ -121,6 +122,30 @@ public final class ExamplePhysicsUtils {
             .getResource(PhysicsRequestQueueResource.getResourceType())
             .enqueueAllFenced(Objects.requireNonNull(requests, "requests"),
                 Math.max(0L, submittedServerTick));
+    }
+
+    @Nonnull
+    public static Ref<PhysicsStore> addPhysicsStoreBody(@Nonnull World world,
+        @Nonnull BodyUpsertRequest request) {
+        Objects.requireNonNull(request, "request");
+        Store<PhysicsStore> store = physicsStore(world);
+        return store.addEntity(PhysicsStoreEntities.bodyHolder(store,
+            request.bodyUuid(),
+            request.body(),
+            request.dynamics(),
+            request.target(),
+            request.collider(),
+            request.shape(),
+            request.material(),
+            request.filter()), AddReason.SPAWN);
+    }
+
+    public static void addPhysicsStoreBodies(@Nonnull World world,
+        @Nonnull Iterable<BodyUpsertRequest> requests) {
+        Objects.requireNonNull(requests, "requests");
+        for (BodyUpsertRequest request : requests) {
+            addPhysicsStoreBody(world, request);
+        }
     }
 
     @Nullable
@@ -268,7 +293,7 @@ public final class ExamplePhysicsUtils {
         UUID bodyUuid = bodyKey.value();
         Vector3f bodyCenter = toVector3f(visualPosition);
         try {
-            enqueuePhysicsStoreRequest(world,
+            addPhysicsStoreBody(world,
                 bodyUpsertRequest(spaceUuid,
                     bodyUuid,
                     bodyCenter,
@@ -711,7 +736,7 @@ public final class ExamplePhysicsUtils {
         }
 
         long commandStartNanos = System.nanoTime();
-        enqueuePhysicsStoreRequests(world, requests);
+        addPhysicsStoreBodies(world, requests);
         long commandApplyNanos = System.nanoTime() - commandStartNanos;
 
         long entityAttachStartNanos = System.nanoTime();
