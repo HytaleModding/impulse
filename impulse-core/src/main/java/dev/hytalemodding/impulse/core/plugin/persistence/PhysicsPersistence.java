@@ -3,10 +3,11 @@ package dev.hytalemodding.impulse.core.plugin.persistence;
 import com.hypixel.hytale.component.Store;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import com.hypixel.hytale.server.core.universe.world.storage.PhysicsStore;
+import dev.hytalemodding.impulse.early.PhysicsStoreWorld;
 import dev.hytalemodding.impulse.core.internal.persistence.PersistentPhysicsWorldResource;
 import dev.hytalemodding.impulse.core.internal.physicsstore.persistence.PersistentPhysicsStoreResource;
 import dev.hytalemodding.impulse.core.internal.physicsstore.resources.PhysicsRestoreStatusResource;
-import dev.hytalemodding.impulse.core.plugin.physicsstore.PhysicsStoreAccess;
+import dev.hytalemodding.impulse.core.internal.physicsstore.resources.PhysicsSpaceCompatibilityIndexResource;
 import dev.hytalemodding.impulse.core.plugin.resources.PhysicsWorldResource;
 import dev.hytalemodding.impulse.core.plugin.simulation.SpaceSummary;
 import dev.hytalemodding.impulse.core.plugin.simulation.query.SpaceSummaryQuery;
@@ -44,7 +45,8 @@ public final class PhysicsPersistence {
     @Nonnull
     public static Status status(@Nonnull Store<EntityStore> store) {
         PhysicsWorldResource runtime = runtime(store);
-        Store<PhysicsStore> physicsStore = PhysicsStoreAccess.require(store.getExternalData().getWorld())
+        Store<PhysicsStore> physicsStore = ((PhysicsStoreWorld) store.getExternalData().getWorld())
+            .getPhysicsStore()
             .getStore();
         PersistentPhysicsStoreResource persistent = physicsStore.getResource(
             PersistentPhysicsStoreResource.getResourceType());
@@ -55,7 +57,9 @@ public final class PhysicsPersistence {
         List<SpaceSummary> summaries = spaceSummaries(runtime);
         int runtimeBodies = summaries.stream().mapToInt(SpaceSummary::bodyCount).sum();
         int runtimeJoints = summaries.stream().mapToInt(SpaceSummary::jointCount).sum();
-        return new Status(Math.max(PhysicsStoreAccess.spaceCount(store.getExternalData().getWorld()),
+        int physicsStoreSpaces = physicsStore.getResource(
+            PhysicsSpaceCompatibilityIndexResource.getResourceType()).size();
+        return new Status(Math.max(physicsStoreSpaces,
                 summaries.size()),
             runtimeBodies,
             0,
