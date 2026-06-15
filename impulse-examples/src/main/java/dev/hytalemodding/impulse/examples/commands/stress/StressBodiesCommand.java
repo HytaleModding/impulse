@@ -142,11 +142,11 @@ public class StressBodiesCommand extends AbstractAsyncPlayerCommand {
         if (visualSettings == null) {
             return CompletableFuture.completedFuture(null);
         }
-        PhysicsWorldResource resource = store.getResource(PhysicsWorldResource.getResourceType());
-        SpaceId spaceId = ExamplePhysicsUtils.spaceId(ctx, resource, spaceArg);
+        SpaceId spaceId = ExamplePhysicsUtils.spaceId(ctx, world, spaceArg);
         if (spaceId == null) {
             return CompletableFuture.completedFuture(null);
         }
+        PhysicsWorldResource resource = store.getResource(PhysicsWorldResource.getResourceType());
         PhysicsSpaceSettings settings = configureStressRuntime(resource,
             spaceId,
             mode,

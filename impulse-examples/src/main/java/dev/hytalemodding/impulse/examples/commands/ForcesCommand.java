@@ -15,7 +15,6 @@ import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import dev.hytalemodding.impulse.api.SpaceId;
 import dev.hytalemodding.impulse.core.plugin.body.RigidBodyKey;
 import dev.hytalemodding.impulse.core.plugin.physicsstore.components.BodyCommandComponent;
-import dev.hytalemodding.impulse.core.plugin.resources.PhysicsWorldResource;
 import dev.hytalemodding.impulse.core.plugin.simulation.PhysicsShapeSpec;
 import dev.hytalemodding.impulse.core.plugin.simulation.RigidBodySpawnSettings;
 import dev.hytalemodding.impulse.examples.commands.ExamplePhysicsUtils.PendingBlockBody;
@@ -46,8 +45,7 @@ public class ForcesCommand extends AbstractAsyncPlayerCommand {
         @Nonnull World world) {
         Vector3d playerPos = new Vector3d(playerRef.getTransform().getPosition());
 
-        PhysicsWorldResource resource = store.getResource(PhysicsWorldResource.getResourceType());
-        SpaceId spaceId = ExamplePhysicsUtils.spaceId(ctx, resource, spaceArg);
+        SpaceId spaceId = ExamplePhysicsUtils.spaceId(ctx, world, spaceArg);
         if (spaceId == null) {
             return CompletableFuture.completedFuture(null);
         }

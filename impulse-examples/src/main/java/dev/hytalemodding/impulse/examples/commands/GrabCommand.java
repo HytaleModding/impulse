@@ -89,11 +89,11 @@ public class GrabCommand extends AbstractAsyncPlayerCommand {
         ComponentType<EntityStore, ImpulseControllableComponent> controllableType =
             ImpulseControllableComponent.getComponentType();
 
-        PhysicsWorldResource resource = store.getResource(PhysicsWorldResource.getResourceType());
-        SpaceId targetSpaceId = ExamplePhysicsUtils.spaceId(ctx, resource, spaceArg);
+        SpaceId targetSpaceId = ExamplePhysicsUtils.spaceId(ctx, world, spaceArg);
         if (targetSpaceId == null) {
             return CompletableFuture.completedFuture(null);
         }
+        PhysicsWorldResource resource = store.getResource(PhysicsWorldResource.getResourceType());
 
         Transform look = TargetUtil.getLook(ref, store);
         Vector3d start = new Vector3d(look.getPosition());

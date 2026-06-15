@@ -13,7 +13,6 @@ import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import dev.hytalemodding.impulse.api.SpaceId;
 import dev.hytalemodding.impulse.core.plugin.physicsstore.PhysicsStoreAsync;
 import dev.hytalemodding.impulse.core.plugin.physicsstore.PhysicsStoreRaycasts;
-import dev.hytalemodding.impulse.core.plugin.resources.PhysicsWorldResource;
 import dev.hytalemodding.impulse.core.plugin.simulation.RaycastSegment;
 import dev.hytalemodding.impulse.examples.commands.ExamplePhysicsUtils;
 import java.util.ArrayList;
@@ -53,8 +52,7 @@ public class StressRaycastCommand extends AbstractAsyncPlayerCommand {
         Vector3d playerPos = new Vector3d(playerRef.getTransform().getPosition());
 
         int rays = ExamplePhysicsUtils.optionalInt(ctx, raysArg, DEFAULT_RAYS, 1, MAX_RAYS);
-        PhysicsWorldResource resource = store.getResource(PhysicsWorldResource.getResourceType());
-        SpaceId spaceId = ExamplePhysicsUtils.spaceId(ctx, resource, spaceArg);
+        SpaceId spaceId = ExamplePhysicsUtils.spaceId(ctx, world, spaceArg);
         if (spaceId == null) {
             return CompletableFuture.completedFuture(null);
         }

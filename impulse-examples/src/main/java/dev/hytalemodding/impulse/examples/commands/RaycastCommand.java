@@ -16,7 +16,6 @@ import com.hypixel.hytale.server.core.util.TargetUtil;
 import dev.hytalemodding.impulse.api.SpaceId;
 import dev.hytalemodding.impulse.core.plugin.physicsstore.PhysicsStoreAsync;
 import dev.hytalemodding.impulse.core.plugin.physicsstore.PhysicsStoreRaycasts;
-import dev.hytalemodding.impulse.core.plugin.resources.PhysicsWorldResource;
 import dev.hytalemodding.impulse.core.plugin.simulation.view.RaycastHitView;
 import java.util.concurrent.CompletableFuture;
 import javax.annotation.Nonnull;
@@ -41,8 +40,7 @@ public class RaycastCommand extends AbstractAsyncPlayerCommand {
         @Nonnull Ref<EntityStore> ref,
         @Nonnull PlayerRef playerRef,
         @Nonnull World world) {
-        PhysicsWorldResource resource = store.getResource(PhysicsWorldResource.getResourceType());
-        SpaceId spaceId = ExamplePhysicsUtils.spaceId(ctx, resource, spaceArg);
+        SpaceId spaceId = ExamplePhysicsUtils.spaceId(ctx, world, spaceArg);
         if (spaceId == null) {
             return CompletableFuture.completedFuture(null);
         }

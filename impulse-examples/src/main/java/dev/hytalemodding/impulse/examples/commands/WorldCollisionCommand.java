@@ -62,11 +62,11 @@ public class WorldCollisionCommand extends AbstractCommandCollection {
             Vector3d playerPos = new Vector3d(playerRef.getTransform().getPosition());
 
             int radius = ExamplePhysicsUtils.optionalInt(ctx, radiusArg, DEFAULT_RADIUS, 1, MAX_RADIUS);
-            PhysicsWorldResource resource = store.getResource(PhysicsWorldResource.getResourceType());
-            SpaceId spaceId = ExamplePhysicsUtils.spaceId(ctx, resource, spaceArg);
+            SpaceId spaceId = ExamplePhysicsUtils.spaceId(ctx, world, spaceArg);
             if (spaceId == null) {
                 return CompletableFuture.completedFuture(null);
             }
+            PhysicsWorldResource resource = store.getResource(PhysicsWorldResource.getResourceType());
             WorldCollisionBuildStats stats = resource.rebuildWorldCollisionAround(world,
                 spaceId,
                 playerPos,
@@ -115,12 +115,12 @@ public class WorldCollisionCommand extends AbstractCommandCollection {
             @Nonnull World world) {
             Vector3d playerPos = new Vector3d(playerRef.getTransform().getPosition());
             int radius = ExamplePhysicsUtils.optionalInt(ctx, radiusArg, DEFAULT_RADIUS, 1, MAX_RADIUS);
-            PhysicsWorldResource resource = store.getResource(PhysicsWorldResource.getResourceType());
-            SpaceId spaceId = ExamplePhysicsUtils.spaceId(ctx, resource, spaceArg);
+            SpaceId spaceId = ExamplePhysicsUtils.spaceId(ctx, world, spaceArg);
             if (spaceId == null) {
                 return CompletableFuture.completedFuture(null);
             }
 
+            PhysicsWorldResource resource = store.getResource(PhysicsWorldResource.getResourceType());
             WorldCollisionPrewarmStats stats = resource.ensureWorldCollisionAround(world,
                 spaceId,
                 List.of(playerPos),
@@ -156,11 +156,11 @@ public class WorldCollisionCommand extends AbstractCommandCollection {
             @Nonnull Ref<EntityStore> ref,
             @Nonnull PlayerRef playerRef,
             @Nonnull World world) {
-            PhysicsWorldResource resource = store.getResource(PhysicsWorldResource.getResourceType());
-            SpaceId spaceId = ExamplePhysicsUtils.spaceId(ctx, resource, spaceArg);
+            SpaceId spaceId = ExamplePhysicsUtils.spaceId(ctx, world, spaceArg);
             if (spaceId == null) {
                 return CompletableFuture.completedFuture(null);
             }
+            PhysicsWorldResource resource = store.getResource(PhysicsWorldResource.getResourceType());
             int removed = resource.clearWorldCollision(spaceId);
             ctx.sender().sendMessage(Message.raw("Removed " + removed
                 + " world voxel collision bodies."));

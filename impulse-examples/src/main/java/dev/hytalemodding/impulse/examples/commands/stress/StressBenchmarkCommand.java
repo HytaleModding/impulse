@@ -72,11 +72,11 @@ public class StressBenchmarkCommand extends AbstractAsyncPlayerCommand {
 
         Vector3d playerPos = new Vector3d(playerRef.getTransform().getPosition());
 
-        PhysicsWorldResource resource = store.getResource(PhysicsWorldResource.getResourceType());
-        SpaceId spaceId = ExamplePhysicsUtils.spaceId(ctx, resource, spaceArg);
+        SpaceId spaceId = ExamplePhysicsUtils.spaceId(ctx, world, spaceArg);
         if (spaceId == null) {
             return CompletableFuture.completedFuture(null);
         }
+        PhysicsWorldResource resource = store.getResource(PhysicsWorldResource.getResourceType());
         BenchmarkLayout layout = BenchmarkLayout.around(playerPos, request.count());
         return PhysicsStoreAsync.acceptOnWorldThread(world,
             PhysicsStoreDiagnostics.bodyCountAsync(world, spaceId),

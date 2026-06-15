@@ -64,10 +64,8 @@ final class PhysicsStoreExampleCommands {
 
         @Nullable
         protected SpaceId resolveSpace(@Nonnull CommandContext ctx,
-            @Nonnull Store<EntityStore> store) {
-            return ExamplePhysicsUtils.spaceId(ctx,
-                store.getResource(PhysicsWorldResource.getResourceType()),
-                spaceArg);
+            @Nonnull World world) {
+            return ExamplePhysicsUtils.spaceId(ctx, world, spaceArg);
         }
     }
 
@@ -89,7 +87,7 @@ final class PhysicsStoreExampleCommands {
             @Nonnull Ref<EntityStore> ref,
             @Nonnull PlayerRef playerRef,
             @Nonnull World world) {
-            SpaceId spaceId = resolveSpace(ctx, store);
+            SpaceId spaceId = resolveSpace(ctx, world);
             if (spaceId == null) {
                 return CompletableFuture.completedFuture(null);
             }
@@ -146,7 +144,7 @@ final class PhysicsStoreExampleCommands {
             @Nonnull PlayerRef playerRef,
             @Nonnull World world) {
             Vector3d playerPos = new Vector3d(playerRef.getTransform().getPosition());
-            SpaceId spaceId = resolveSpace(ctx, store);
+            SpaceId spaceId = resolveSpace(ctx, world);
             if (spaceId == null) {
                 return CompletableFuture.completedFuture(null);
             }
@@ -206,7 +204,7 @@ final class PhysicsStoreExampleCommands {
             @Nonnull Ref<EntityStore> ref,
             @Nonnull PlayerRef playerRef,
             @Nonnull World world) {
-            SpaceId spaceId = resolveSpace(ctx, store);
+            SpaceId spaceId = resolveSpace(ctx, world);
             if (spaceId == null) {
                 return CompletableFuture.completedFuture(null);
             }
@@ -278,7 +276,7 @@ final class PhysicsStoreExampleCommands {
             @Nonnull Ref<EntityStore> ref,
             @Nonnull PlayerRef playerRef,
             @Nonnull World world) {
-            SpaceId spaceId = resolveSpace(ctx, store);
+            SpaceId spaceId = resolveSpace(ctx, world);
             if (spaceId == null) {
                 return CompletableFuture.completedFuture(null);
             }

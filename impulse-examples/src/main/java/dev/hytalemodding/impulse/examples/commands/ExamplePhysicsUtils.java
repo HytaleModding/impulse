@@ -31,7 +31,6 @@ import dev.hytalemodding.impulse.core.plugin.physicsstore.components.JointCompon
 import dev.hytalemodding.impulse.core.plugin.physicsstore.components.TargetComponent;
 import dev.hytalemodding.impulse.core.plugin.physicsstore.projection.BodyAttachmentComponent;
 import dev.hytalemodding.impulse.core.plugin.physicsstore.BodyRowDescriptor;
-import dev.hytalemodding.impulse.core.plugin.resources.PhysicsWorldResource;
 import dev.hytalemodding.impulse.core.plugin.settings.PhysicsVisualMaterializationSettings;
 import dev.hytalemodding.impulse.core.plugin.simulation.PhysicsShapeSpec;
 import dev.hytalemodding.impulse.core.plugin.simulation.RigidBodySpawnSettings;
@@ -184,8 +183,12 @@ public final class ExamplePhysicsUtils {
 
     @Nullable
     public static SpaceId spaceId(@Nonnull CommandContext ctx,
-        @Nonnull PhysicsWorldResource resource,
+        @Nonnull World world,
         @Nonnull OptionalArg<Integer> spaceArg) {
+        Store<PhysicsStore> store = physicsStore(world);
+        PhysicsStoreThreading.requireWorldThread(store, "select a PhysicsStore space");
+        PhysicsSpaceCompatibilityIndexResource compatibility = store
+            .getResource(PhysicsSpaceCompatibilityIndexResource.getResourceType());
         if (spaceArg.provided(ctx)) {
             int rawSpaceId = spaceArg.get(ctx);
             if (rawSpaceId <= 0) {
@@ -193,14 +196,14 @@ public final class ExamplePhysicsUtils {
                 return null;
             }
             SpaceId spaceId = new SpaceId(rawSpaceId);
-            if (!resource.hasSpace(spaceId)) {
+            if (!compatibility.hasSpace(spaceId)) {
                 ctx.sender().sendMessage(Message.raw("No physics space id=" + rawSpaceId + " exists."));
                 return null;
             }
             return spaceId;
         }
 
-        SpaceId firstSpaceId = resource.getSpaceIds()
+        SpaceId firstSpaceId = compatibility.spaceIds()
             .stream()
             .min(Comparator.comparingInt(SpaceId::value))
             .orElse(null);
