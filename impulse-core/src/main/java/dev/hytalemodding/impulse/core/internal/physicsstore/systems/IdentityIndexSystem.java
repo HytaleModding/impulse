@@ -55,7 +55,7 @@ public final class IdentityIndexSystem extends TickingSystem<PhysicsStore>
     @Nonnull
     @Override
     public Query<PhysicsStore> getQuery() {
-        return PhysicsStoreSystemSupport.UUID_QUERY;
+        return PhysicsStoreSystemSupport.uuidQuery();
     }
 
     @Nonnull

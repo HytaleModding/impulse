@@ -57,11 +57,10 @@ public final class StaleBodyRemovalSystem extends TickingSystem<PhysicsStore> {
         @Nonnull PhysicsIdentityIndexResource identity,
         @Nonnull PhysicsRestoreStatusResource restore) {
         List<BoundBody> staleBodies = new ArrayList<>();
-        runtime.forEachSpaceBinding((_, _, spaceHandle, backendRuntime) ->
+        runtime.forEachRuntimeSpaceBinding((_, _, spaceHandle, backendRuntime) ->
             runtime.forEachBodyHandle(spaceHandle,
                 bodyId -> collectStaleBody(store,
                     runtime,
-                    identity,
                     restore,
                     staleBodies,
                     spaceHandle,
@@ -87,10 +86,7 @@ public final class StaleBodyRemovalSystem extends TickingSystem<PhysicsStore> {
                 return;
             }
             identity.removeBodyHandle(body.bodyHandle());
-            Ref<PhysicsStore> ref = identity.getByUuid(body.bodyUuid());
-            if (ref != null) {
-                identity.removeUuid(body.bodyUuid(), ref);
-            }
+            identity.removeUuid(body.bodyUuid(), body.bodyRef());
             snapshots.removeBody(body.bodyUuid());
             registrations.removeBody(RigidBodyKey.of(body.bodyUuid()));
             runtime.removeBodyHandle(body.bodyUuid());
@@ -105,7 +101,7 @@ public final class StaleBodyRemovalSystem extends TickingSystem<PhysicsStore> {
         if (staleBodyUuids.isEmpty()) {
             return true;
         }
-        for (BoundJoint joint : collectDependentJoints(store, staleBodyUuids)) {
+        for (BoundJoint joint : collectDependentJoints(store, identity, staleBodyUuids)) {
             BackendJointHandle jointHandle = runtime.getJointHandle(joint.jointUuid());
             if (jointHandle != null) {
                 BackendSpaceHandle spaceHandle = runtime.getJointSpaceHandle(joint.jointUuid());
@@ -125,7 +121,7 @@ public final class StaleBodyRemovalSystem extends TickingSystem<PhysicsStore> {
                 identity.removeJointHandle(jointHandle);
             }
             runtime.removeJointHandle(joint.jointUuid());
-            if (joint.ref().isValid()) {
+            if (joint.removeRow() && joint.ref().isValid()) {
                 identity.removeUuid(joint.jointUuid(), joint.ref());
                 store.removeEntity(joint.ref(),
                     store.getRegistry().newHolder(),
@@ -137,6 +133,7 @@ public final class StaleBodyRemovalSystem extends TickingSystem<PhysicsStore> {
 
     @Nonnull
     private static List<BoundJoint> collectDependentJoints(@Nonnull Store<PhysicsStore> store,
+        @Nonnull PhysicsIdentityIndexResource identity,
         @Nonnull Set<UUID> staleBodyUuids) {
         ConcurrentLinkedQueue<BoundJoint> joints = new ConcurrentLinkedQueue<>();
         store.forEachEntityParallel(UuidComponent.getComponentType(), (index, chunk, _) -> {
@@ -150,16 +147,34 @@ public final class StaleBodyRemovalSystem extends TickingSystem<PhysicsStore> {
             if (PhysicsStoreSystemSupport.isNil(jointUuid)) {
                 return;
             }
+            boolean removeRow = shouldRemoveJointRow(identity, joint, staleBodyUuids);
             joints.add(new BoundJoint(jointUuid,
                 chunk.getReferenceTo(index),
-                joint.getSpaceUuid()));
+                joint.getSpaceUuid(),
+                removeRow));
         });
         return new ArrayList<>(joints);
     }
 
+    private static boolean shouldRemoveJointRow(@Nonnull PhysicsIdentityIndexResource identity,
+        @Nonnull JointComponent joint,
+        @Nonnull Set<UUID> staleBodyUuids) {
+        return endpointRemoved(identity, joint.getBodyAUuid(), joint.getBodyARef(), staleBodyUuids)
+            || endpointRemoved(identity, joint.getBodyBUuid(), joint.getBodyBRef(), staleBodyUuids);
+    }
+
+    private static boolean endpointRemoved(@Nonnull PhysicsIdentityIndexResource identity,
+        @Nonnull UUID bodyUuid,
+        Ref<PhysicsStore> currentRef,
+        @Nonnull Set<UUID> staleBodyUuids) {
+        if (!staleBodyUuids.contains(bodyUuid)) {
+            return false;
+        }
+        return PhysicsStoreSystemSupport.resolvedRef(identity, bodyUuid, currentRef) == null;
+    }
+
     private static void collectStaleBody(@Nonnull Store<PhysicsStore> store,
         @Nonnull PhysicsRuntimeResource runtime,
-        @Nonnull PhysicsIdentityIndexResource identity,
         @Nonnull PhysicsRestoreStatusResource restore,
         @Nonnull List<BoundBody> staleBodies,
         @Nonnull BackendSpaceHandle spaceHandle,
@@ -171,14 +186,14 @@ public final class StaleBodyRemovalSystem extends TickingSystem<PhysicsStore> {
                 + " has no runtime snapshot metadata");
             return;
         }
-        Ref<PhysicsStore> ref = PhysicsStoreSystemSupport.refForUuid(identity, metadata.bodyUuid());
         BodyComponent body = PhysicsStoreSystemSupport.component(store,
-            ref,
+            metadata.bodyRef(),
             BodyComponent.getComponentType());
         if (body != null) {
             return;
         }
         staleBodies.add(new BoundBody(metadata.bodyUuid(),
+            metadata.bodyRef(),
             spaceHandle,
             new BackendBodyHandle(bodyId),
             backendRuntime));
@@ -191,6 +206,7 @@ public final class StaleBodyRemovalSystem extends TickingSystem<PhysicsStore> {
     }
 
     private record BoundBody(@Nonnull UUID bodyUuid,
+                             @Nonnull Ref<PhysicsStore> bodyRef,
                              @Nonnull BackendSpaceHandle spaceHandle,
                              @Nonnull BackendBodyHandle bodyHandle,
                              @Nonnull PhysicsBackendRuntime backendRuntime) {
@@ -198,6 +214,7 @@ public final class StaleBodyRemovalSystem extends TickingSystem<PhysicsStore> {
 
     private record BoundJoint(@Nonnull UUID jointUuid,
                               @Nonnull Ref<PhysicsStore> ref,
-                              @Nonnull UUID spaceUuid) {
+                              @Nonnull UUID spaceUuid,
+                              boolean removeRow) {
     }
 }

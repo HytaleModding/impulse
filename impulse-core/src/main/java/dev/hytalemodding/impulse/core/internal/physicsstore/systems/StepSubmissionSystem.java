@@ -78,7 +78,7 @@ public final class StepSubmissionSystem extends TickingSystem<PhysicsStore> {
         }
         long stepStartNanos = profilingEnabled ? System.nanoTime() : 0L;
         StepCounters counters = new StepCounters();
-        runtime.forEachSpaceBinding((_, _, spaceHandle, backendRuntime) -> {
+        runtime.forEachRuntimeSpaceBinding((_, _, spaceHandle, backendRuntime) -> {
             counters.spaceCount++;
             for (int step = 0; step < steps; step++) {
                 backendRuntime.step(spaceHandle.value(), stepDt);
@@ -103,7 +103,7 @@ public final class StepSubmissionSystem extends TickingSystem<PhysicsStore> {
             simulationSteps,
             maxStepDt);
         StepRisk risk = new StepRisk(dt, minimumSteps);
-        runtime.forEachSpaceBinding((_, _, spaceHandle, backendRuntime) ->
+        runtime.forEachRuntimeSpaceBinding((_, _, spaceHandle, backendRuntime) ->
             backendRuntime.snapshotBodies(spaceHandle.value(),
                 bodyIds -> runtime.forEachBodyHandle(spaceHandle, bodyIds::accept),
                 risk));
@@ -113,7 +113,7 @@ public final class StepSubmissionSystem extends TickingSystem<PhysicsStore> {
     private static void syncContinuousCollisionMode(@Nonnull Store<PhysicsStore> store,
         @Nonnull PhysicsRuntimeResource runtime,
         boolean forceDynamicBodies) {
-        runtime.forEachSpaceBinding((_, _, spaceHandle, backendRuntime) -> {
+        runtime.forEachRuntimeSpaceBinding((_, _, spaceHandle, backendRuntime) -> {
             if (!backendRuntime.supportsContinuousCollision(spaceHandle.value())) {
                 return;
             }
@@ -140,7 +140,7 @@ public final class StepSubmissionSystem extends TickingSystem<PhysicsStore> {
     }
 
     private static void resetStepPhaseStats(@Nonnull PhysicsRuntimeResource runtime) {
-        runtime.forEachSpaceBinding((_, _, spaceHandle, backendRuntime) ->
+        runtime.forEachRuntimeSpaceBinding((_, _, spaceHandle, backendRuntime) ->
             backendRuntime.resetStepPhaseStats(spaceHandle.value()));
     }
 
@@ -148,7 +148,7 @@ public final class StepSubmissionSystem extends TickingSystem<PhysicsStore> {
     private static PhysicsStepPhaseStats collectStepPhaseStats(@Nonnull PhysicsRuntimeResource runtime) {
         StepPhaseStatsAccumulator stats = new StepPhaseStatsAccumulator();
         StepPhaseStatsCapture capture = new StepPhaseStatsCapture();
-        runtime.forEachSpaceBinding((_, _, spaceHandle, backendRuntime) -> {
+        runtime.forEachRuntimeSpaceBinding((_, _, spaceHandle, backendRuntime) -> {
             capture.reset();
             backendRuntime.stepPhaseStats(spaceHandle.value(), capture);
             stats.add(capture.value());

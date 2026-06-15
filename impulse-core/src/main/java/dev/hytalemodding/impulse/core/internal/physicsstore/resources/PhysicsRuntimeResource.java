@@ -418,6 +418,16 @@ public final class PhysicsRuntimeResource implements Resource<PhysicsStore> {
         });
     }
 
+    public void forEachRuntimeSpaceBinding(@Nonnull RuntimeSpaceBindingConsumer consumer) {
+        spaceHandlesByRef.forEach((spaceRef, spaceHandle) -> {
+            BackendId backendId = backendIdsBySpaceRef.get(spaceRef);
+            PhysicsBackendRuntime runtime = backendId != null ? runtimesByBackend.get(backendId) : null;
+            if (backendId != null && runtime != null) {
+                consumer.accept(spaceRef, backendId, spaceHandle, runtime);
+            }
+        });
+    }
+
     public void forEachBodyHandle(@Nonnull BackendSpaceHandle spaceHandle,
         @Nonnull LongConsumer consumer) {
         LongList bodyHandles = bodyHandlesBySpaceHandle.get(spaceHandle.value());
@@ -584,6 +594,15 @@ public final class PhysicsRuntimeResource implements Resource<PhysicsStore> {
     public interface SpaceBindingConsumer {
 
         void accept(@Nonnull UUID spaceUuid,
+            @Nonnull BackendId backendId,
+            @Nonnull BackendSpaceHandle spaceHandle,
+            @Nonnull PhysicsBackendRuntime runtime);
+    }
+
+    @FunctionalInterface
+    public interface RuntimeSpaceBindingConsumer {
+
+        void accept(@Nonnull Ref<PhysicsStore> spaceRef,
             @Nonnull BackendId backendId,
             @Nonnull BackendSpaceHandle spaceHandle,
             @Nonnull PhysicsBackendRuntime runtime);

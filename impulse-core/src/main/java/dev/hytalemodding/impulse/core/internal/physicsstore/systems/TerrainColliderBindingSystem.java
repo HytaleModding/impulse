@@ -307,7 +307,7 @@ public final class TerrainColliderBindingSystem extends TickingSystem<PhysicsSto
     @Nonnull
     @Override
     public Query<PhysicsStore> getQuery() {
-        return PhysicsStoreSystemSupport.UUID_QUERY;
+        return PhysicsStoreSystemSupport.uuidQuery();
     }
 
     @Nonnull

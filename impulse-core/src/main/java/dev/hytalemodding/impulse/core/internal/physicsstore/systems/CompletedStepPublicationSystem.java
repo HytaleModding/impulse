@@ -332,7 +332,7 @@ public final class CompletedStepPublicationSystem extends TickingSystem<PhysicsS
     @Nonnull
     @Override
     public Query<PhysicsStore> getQuery() {
-        return PhysicsStoreSystemSupport.UUID_QUERY;
+        return PhysicsStoreSystemSupport.uuidQuery();
     }
 
     private static final class StepBackendEvents {

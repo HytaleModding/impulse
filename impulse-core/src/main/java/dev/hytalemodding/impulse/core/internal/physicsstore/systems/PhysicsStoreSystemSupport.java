@@ -16,22 +16,28 @@ import javax.annotation.Nullable;
 final class PhysicsStoreSystemSupport {
 
     static final UUID NIL_UUID = new UUID(0L, 0L);
-    static final ComponentType<PhysicsStore, UuidComponent> UUID_TYPE =
-        UuidComponent.getComponentType();
-    static final Query<PhysicsStore> UUID_QUERY = UUID_TYPE;
-
     private PhysicsStoreSystemSupport() {
     }
 
     @Nonnull
+    static ComponentType<PhysicsStore, UuidComponent> uuidType() {
+        return UuidComponent.getComponentType();
+    }
+
+    @Nonnull
+    static Query<PhysicsStore> uuidQuery() {
+        return uuidType();
+    }
+
+    @Nonnull
     static UUID rowUuid(@Nonnull ArchetypeChunk<PhysicsStore> chunk, int index) {
-        UuidComponent uuid = chunk.getComponent(index, UUID_TYPE);
+        UuidComponent uuid = chunk.getComponent(index, uuidType());
         return uuid != null ? uuid.getUuid() : NIL_UUID;
     }
 
     @Nonnull
     static UUID rowUuid(@Nonnull Ref<PhysicsStore> ref) {
-        UuidComponent uuid = component(ref.getStore(), ref, UUID_TYPE);
+        UuidComponent uuid = component(ref.getStore(), ref, uuidType());
         return uuid != null ? uuid.getUuid() : NIL_UUID;
     }
 
