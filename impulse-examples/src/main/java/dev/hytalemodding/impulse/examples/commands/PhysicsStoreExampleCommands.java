@@ -18,7 +18,6 @@ import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import com.hypixel.hytale.server.core.util.TargetUtil;
 import dev.hytalemodding.impulse.api.PhysicsBodyType;
 import dev.hytalemodding.impulse.api.SpaceId;
-import dev.hytalemodding.impulse.core.plugin.body.RigidBodyKey;
 import dev.hytalemodding.impulse.core.plugin.modules.worldcollision.WorldCollisionPrewarmStats;
 import dev.hytalemodding.impulse.core.plugin.physicsstore.PhysicsStoreAsync;
 import dev.hytalemodding.impulse.core.plugin.physicsstore.PhysicsStoreRaycasts;
@@ -149,8 +148,7 @@ final class PhysicsStoreExampleCommands {
                 return CompletableFuture.completedFuture(null);
             }
 
-            RigidBodyKey bodyKey = RigidBodyKey.random();
-            UUID bodyUuid = bodyKey.value();
+            UUID bodyUuid = UUID.randomUUID();
             Vector3d spawn = new Vector3d(playerPos).add(0.0, 2.0, 0.0);
             UUID spaceUuid = ExamplePhysicsUtils.resolvePhysicsStoreSpaceUuid(world, spaceId);
             if (spaceUuid == null) {
@@ -185,7 +183,7 @@ final class PhysicsStoreExampleCommands {
                     (float) spawn.z,
                     false));
 
-            ctx.sender().sendMessage(Message.raw("Queued PhysicsStore kinematic platform " + bodyKey
+            ctx.sender().sendMessage(Message.raw("Queued PhysicsStore kinematic platform " + bodyUuid
                 + " in space " + spaceId.value() + "."));
             return CompletableFuture.completedFuture(null);
         }
@@ -316,8 +314,7 @@ final class PhysicsStoreExampleCommands {
                 Math.max(8, radius + 6),
                 Math.max(0L, world.getTick()));
 
-            RigidBodyKey bodyKey = RigidBodyKey.random();
-            UUID bodyUuid = bodyKey.value();
+            UUID bodyUuid = UUID.randomUUID();
             ExamplePhysicsUtils.addPhysicsStoreBody(world,
                 ExamplePhysicsUtils.bodyRow(spaceUuid,
                     bodyUuid,
@@ -346,7 +343,7 @@ final class PhysicsStoreExampleCommands {
             holder.addComponent(ExplosiveFuseComponent.getComponentType(), new ExplosiveFuseComponent());
             store.addEntity(holder, AddReason.SPAWN);
 
-            ctx.sender().sendMessage(Message.raw("Queued Impulse explosive body " + bodyKey
+            ctx.sender().sendMessage(Message.raw("Queued Impulse explosive body " + bodyUuid
                 + " in space " + spaceId.value()
                 + " radius=" + radius
                 + " maxFragments=" + maxFragments
