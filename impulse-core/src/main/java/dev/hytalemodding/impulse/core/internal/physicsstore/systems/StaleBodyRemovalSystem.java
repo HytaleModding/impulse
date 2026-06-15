@@ -9,13 +9,16 @@ import com.hypixel.hytale.component.dependency.SystemDependency;
 import com.hypixel.hytale.component.system.tick.TickingSystem;
 import com.hypixel.hytale.server.core.universe.world.storage.PhysicsStore;
 import dev.hytalemodding.impulse.api.runtime.PhysicsBackendRuntime;
+import dev.hytalemodding.impulse.core.internal.physicsstore.resources.PhysicsBodyRegistrationResource;
 import dev.hytalemodding.impulse.core.internal.physicsstore.resources.PhysicsIdentityIndexResource;
 import dev.hytalemodding.impulse.core.internal.physicsstore.resources.PhysicsRestoreStatusResource;
 import dev.hytalemodding.impulse.core.internal.physicsstore.resources.PhysicsRuntimeResource;
 import dev.hytalemodding.impulse.core.internal.physicsstore.resources.PhysicsRuntimeResource.BodySnapshotMetadata;
+import dev.hytalemodding.impulse.core.internal.physicsstore.resources.PhysicsSnapshotResource;
 import dev.hytalemodding.impulse.core.internal.resources.BackendBodyHandle;
 import dev.hytalemodding.impulse.core.internal.resources.BackendJointHandle;
 import dev.hytalemodding.impulse.core.internal.resources.BackendSpaceHandle;
+import dev.hytalemodding.impulse.core.plugin.body.RigidBodyKey;
 import dev.hytalemodding.impulse.core.plugin.physicsstore.components.BodyComponent;
 import dev.hytalemodding.impulse.core.plugin.physicsstore.components.JointComponent;
 import dev.hytalemodding.impulse.core.plugin.physicsstore.components.UuidComponent;
@@ -72,6 +75,9 @@ public final class StaleBodyRemovalSystem extends TickingSystem<PhysicsStore> {
         if (!removeDependentJoints(store, runtime, identity, restore, staleBodyUuids)) {
             return;
         }
+        PhysicsSnapshotResource snapshots = store.getResource(PhysicsSnapshotResource.getResourceType());
+        PhysicsBodyRegistrationResource registrations =
+            store.getResource(PhysicsBodyRegistrationResource.getResourceType());
         for (BoundBody body : staleBodies) {
             try {
                 body.backendRuntime().removeBody(body.spaceHandle().value(), body.bodyHandle().value());
@@ -85,6 +91,8 @@ public final class StaleBodyRemovalSystem extends TickingSystem<PhysicsStore> {
             if (ref != null) {
                 identity.removeUuid(body.bodyUuid(), ref);
             }
+            snapshots.removeBody(body.bodyUuid());
+            registrations.removeBody(RigidBodyKey.of(body.bodyUuid()));
             runtime.removeBodyHandle(body.bodyUuid());
         }
     }
