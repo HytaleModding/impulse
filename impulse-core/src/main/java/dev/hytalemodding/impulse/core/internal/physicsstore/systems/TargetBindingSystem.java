@@ -100,8 +100,8 @@ public final class TargetBindingSystem extends TickingSystem<PhysicsStore>
             BackendSpaceHandle spaceHandle = operation.spaceHandle();
             BackendBodyHandle bodyHandle = operation.bodyHandle();
             if (spaceHandle == null || bodyHandle == null) {
-                spaceHandle = runtime.getBodySpaceHandle(operation.bodyUuid());
-                bodyHandle = runtime.getBodyHandle(operation.bodyUuid());
+                spaceHandle = runtime.getBodySpaceHandle(operation.bodyRef());
+                bodyHandle = runtime.getBodyHandle(operation.bodyRef());
             }
             if (spaceHandle == null || bodyHandle == null) {
                 restore.recordSoftSkip("Pending body operation body is unbound: "

@@ -52,6 +52,12 @@ public final class PhysicsRuntimeResource implements Resource<PhysicsStore> {
     private final Map<UUID, BackendSpaceHandle> bodySpaceHandlesByUuid =
         new Object2ObjectOpenHashMap<>();
     @Nonnull
+    private final Map<Ref<PhysicsStore>, BackendBodyHandle> bodyHandlesByRef =
+        new Object2ObjectOpenHashMap<>();
+    @Nonnull
+    private final Map<Ref<PhysicsStore>, BackendSpaceHandle> bodySpaceHandlesByRef =
+        new Object2ObjectOpenHashMap<>();
+    @Nonnull
     private final Map<UUID, BackendJointHandle> jointHandlesByUuid =
         new Object2ObjectOpenHashMap<>();
     @Nonnull
@@ -124,7 +130,11 @@ public final class PhysicsRuntimeResource implements Resource<PhysicsStore> {
             if (bodyHandles != null) {
                 bodyHandles.forEach((long bodyHandle) -> {
                     bodyHitMetadataByHandle.remove(bodyHandle);
-                    bodySnapshotMetadataByHandle.remove(bodyHandle);
+                    BodySnapshotMetadata metadata = bodySnapshotMetadataByHandle.remove(bodyHandle);
+                    if (metadata != null) {
+                        bodyHandlesByRef.remove(metadata.bodyRef());
+                        bodySpaceHandlesByRef.remove(metadata.bodyRef());
+                    }
                 });
             }
             removeTerrainHandlesForSpace(removed);
@@ -138,6 +148,8 @@ public final class PhysicsRuntimeResource implements Resource<PhysicsStore> {
         @Nonnull BackendBodyHandle handle) {
         bodyHandlesByUuid.put(bodyUuid, handle);
         bodySpaceHandlesByUuid.put(bodyUuid, spaceHandle);
+        bodyHandlesByRef.put(bodyRef, handle);
+        bodySpaceHandlesByRef.put(bodyRef, spaceHandle);
         bodyHandlesBySpaceHandle.computeIfAbsent(spaceHandle.value(), _ -> new LongArrayList())
             .add(handle.value());
         bodySnapshotMetadataByHandle.put(handle.value(),
@@ -150,8 +162,18 @@ public final class PhysicsRuntimeResource implements Resource<PhysicsStore> {
     }
 
     @Nullable
+    public BackendBodyHandle getBodyHandle(@Nonnull Ref<PhysicsStore> bodyRef) {
+        return bodyHandlesByRef.get(bodyRef);
+    }
+
+    @Nullable
     public BackendSpaceHandle getBodySpaceHandle(@Nonnull UUID bodyUuid) {
         return bodySpaceHandlesByUuid.get(bodyUuid);
+    }
+
+    @Nullable
+    public BackendSpaceHandle getBodySpaceHandle(@Nonnull Ref<PhysicsStore> bodyRef) {
+        return bodySpaceHandlesByRef.get(bodyRef);
     }
 
     public void removeBodyHandle(@Nonnull UUID bodyUuid) {
@@ -166,7 +188,11 @@ public final class PhysicsRuntimeResource implements Resource<PhysicsStore> {
                 }
             }
             bodyHitMetadataByHandle.remove(removed.value());
-            bodySnapshotMetadataByHandle.remove(removed.value());
+            BodySnapshotMetadata metadata = bodySnapshotMetadataByHandle.remove(removed.value());
+            if (metadata != null) {
+                bodyHandlesByRef.remove(metadata.bodyRef());
+                bodySpaceHandlesByRef.remove(metadata.bodyRef());
+            }
         }
     }
 
@@ -367,6 +393,8 @@ public final class PhysicsRuntimeResource implements Resource<PhysicsStore> {
         backendIdsBySpaceUuid.clear();
         bodyHandlesByUuid.clear();
         bodySpaceHandlesByUuid.clear();
+        bodyHandlesByRef.clear();
+        bodySpaceHandlesByRef.clear();
         jointHandlesByUuid.clear();
         jointSpaceHandlesByUuid.clear();
         terrainBodyHandlesByUuid.clear();
@@ -482,6 +510,8 @@ public final class PhysicsRuntimeResource implements Resource<PhysicsStore> {
         copy.backendIdsBySpaceUuid.putAll(backendIdsBySpaceUuid);
         copy.bodyHandlesByUuid.putAll(bodyHandlesByUuid);
         copy.bodySpaceHandlesByUuid.putAll(bodySpaceHandlesByUuid);
+        copy.bodyHandlesByRef.putAll(bodyHandlesByRef);
+        copy.bodySpaceHandlesByRef.putAll(bodySpaceHandlesByRef);
         copy.jointHandlesByUuid.putAll(jointHandlesByUuid);
         copy.jointSpaceHandlesByUuid.putAll(jointSpaceHandlesByUuid);
         terrainBodyHandlesByUuid.forEach((terrainUuid, bodyHandles) ->
@@ -535,6 +565,7 @@ public final class PhysicsRuntimeResource implements Resource<PhysicsStore> {
 
     public record PendingBodyOperation(@Nonnull Kind kind,
                                        @Nonnull UUID bodyUuid,
+                                       @Nonnull Ref<PhysicsStore> bodyRef,
                                        @Nullable BackendSpaceHandle spaceHandle,
                                        @Nullable BackendBodyHandle bodyHandle,
                                        float x,
@@ -548,25 +579,29 @@ public final class PhysicsRuntimeResource implements Resource<PhysicsStore> {
         public PendingBodyOperation {
             Objects.requireNonNull(kind, "kind");
             Objects.requireNonNull(bodyUuid, "bodyUuid");
+            Objects.requireNonNull(bodyRef, "bodyRef");
         }
 
         @Nonnull
         public static PendingBodyOperation wake(@Nonnull UUID bodyUuid,
+            @Nonnull Ref<PhysicsStore> bodyRef,
             @Nullable BackendSpaceHandle spaceHandle,
             @Nullable BackendBodyHandle bodyHandle) {
-            return empty(Kind.WAKE, bodyUuid, spaceHandle, bodyHandle);
+            return empty(Kind.WAKE, bodyUuid, bodyRef, spaceHandle, bodyHandle);
         }
 
         @Nonnull
         public static PendingBodyOperation sleep(@Nonnull UUID bodyUuid,
+            @Nonnull Ref<PhysicsStore> bodyRef,
             @Nullable BackendSpaceHandle spaceHandle,
             @Nullable BackendBodyHandle bodyHandle) {
-            return empty(Kind.SLEEP, bodyUuid, spaceHandle, bodyHandle);
+            return empty(Kind.SLEEP, bodyUuid, bodyRef, spaceHandle, bodyHandle);
         }
 
         @Nonnull
         public static PendingBodyOperation vector(@Nonnull Kind kind,
             @Nonnull UUID bodyUuid,
+            @Nonnull Ref<PhysicsStore> bodyRef,
             @Nullable BackendSpaceHandle spaceHandle,
             @Nullable BackendBodyHandle bodyHandle,
             float x,
@@ -578,6 +613,7 @@ public final class PhysicsRuntimeResource implements Resource<PhysicsStore> {
             float offsetZ) {
             return new PendingBodyOperation(kind,
                 bodyUuid,
+                bodyRef,
                 spaceHandle,
                 bodyHandle,
                 x,
@@ -592,10 +628,12 @@ public final class PhysicsRuntimeResource implements Resource<PhysicsStore> {
         @Nonnull
         private static PendingBodyOperation empty(@Nonnull Kind kind,
             @Nonnull UUID bodyUuid,
+            @Nonnull Ref<PhysicsStore> bodyRef,
             @Nullable BackendSpaceHandle spaceHandle,
             @Nullable BackendBodyHandle bodyHandle) {
             return new PendingBodyOperation(kind,
                 bodyUuid,
+                bodyRef,
                 spaceHandle,
                 bodyHandle,
                 0.0f,
