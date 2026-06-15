@@ -241,7 +241,7 @@ public final class BodyCommandApplicationSystem extends TickingSystem<PhysicsSto
         PhysicsRuntimeResource.BodyHitMetadata metadata = runtime.getBodyHitMetadata(bodyHandle);
         if (metadata != null) {
             runtime.putBodyHitMetadata(bodyHandle,
-                metadata.bodyKey(),
+                metadata.bodyRef(),
                 bodyType,
                 metadata.shapeType());
         }

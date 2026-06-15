@@ -278,11 +278,18 @@ public class GrabCommand extends AbstractAsyncPlayerCommand {
         @Nonnull List<RaycastHitView> hits) {
         List<HitCandidate> candidates = new ArrayList<>(hits.size());
         for (RaycastHitView hit : hits) {
-            if (hit.bodyType() != PhysicsBodyType.DYNAMIC || hit.bodyKey() == null) {
+            if (hit.bodyType() != PhysicsBodyType.DYNAMIC
+                || hit.bodyRef() == null
+                || !hit.bodyRef().isValid()) {
                 continue;
             }
+            UUID hitBodyUuid = ExamplePhysicsUtils.physicsStoreRowUuid(hit.bodyRef());
+            if (hitBodyUuid == null) {
+                continue;
+            }
+            RigidBodyKey hitBodyKey = RigidBodyKey.of(hitBodyUuid);
             PhysicsBodyRegistrationView registration =
-                resource.getBodyRegistrationView(hit.bodyKey());
+                resource.getBodyRegistrationView(hitBodyKey);
             if (registration == null || registration.kind() != PhysicsBodyKind.BODY) {
                 continue;
             }

@@ -96,7 +96,7 @@ final class PhysicsStoreBackendAccess {
         float fraction,
         float distance) {
         BodyHitMetadata metadata = runtime.getBodyHitMetadata(bodyId);
-        return new RaycastHitView(metadata != null ? metadata.bodyKey() : null,
+        return new RaycastHitView(metadata != null ? metadata.bodyRef() : null,
             metadata != null ? metadata.bodyType() : PhysicsBodyType.STATIC,
             pointX,
             pointY,

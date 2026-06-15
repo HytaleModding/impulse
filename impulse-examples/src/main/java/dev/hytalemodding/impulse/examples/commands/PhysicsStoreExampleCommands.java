@@ -15,6 +15,7 @@ import com.hypixel.hytale.server.core.modules.time.TimeResource;
 import com.hypixel.hytale.server.core.universe.PlayerRef;
 import com.hypixel.hytale.server.core.universe.world.World;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
+import com.hypixel.hytale.server.core.universe.world.storage.PhysicsStore;
 import com.hypixel.hytale.server.core.util.TargetUtil;
 import dev.hytalemodding.impulse.api.PhysicsBodyType;
 import dev.hytalemodding.impulse.api.SpaceId;
@@ -100,7 +101,7 @@ final class PhysicsStoreExampleCommands {
             @Nonnull Ref<EntityStore> ref,
             @Nonnull World world,
             @Nullable RaycastHitView hit) {
-            if (hit == null || hit.bodyKey() == null) {
+            if (hit == null || hit.bodyRef() == null || !hit.bodyRef().isValid()) {
                 ctx.sender().sendMessage(Message.raw("No rigid body in view."));
                 return;
             }
@@ -108,8 +109,10 @@ final class PhysicsStoreExampleCommands {
             int strength = ExamplePhysicsUtils.optionalInt(ctx, strengthArg, 8, 1, 64);
             Vector3d impulse = new Vector3d(TargetUtil.getLook(ref, store)
                 .getDirection()).mul(strength);
-            boolean applied = ExamplePhysicsUtils.appendPhysicsStoreBodyCommand(world,
-                hit.bodyKey().value(),
+            Ref<PhysicsStore> bodyRef = hit.bodyRef();
+            Store<PhysicsStore> physicsStore = bodyRef.getStore();
+            ExamplePhysicsUtils.appendPhysicsStoreBodyCommand(physicsStore,
+                bodyRef,
                 BodyCommandComponent.vector(BodyCommandComponent.Kind.IMPULSE,
                     (float) impulse.x,
                     (float) impulse.y,
@@ -118,14 +121,10 @@ final class PhysicsStoreExampleCommands {
                     0.0f,
                     0.0f,
                     0.0f));
-            if (!applied) {
-                ctx.sender().sendMessage(Message.raw("Rigid body " + hit.bodyKey()
-                    + " is not bound in PhysicsStore."));
-                return;
-            }
 
+            UUID bodyUuid = ExamplePhysicsUtils.physicsStoreRowUuid(bodyRef);
             ctx.sender().sendMessage(Message.raw("Queued PhysicsStore impulse command for "
-                + hit.bodyKey() + "."));
+                + (bodyUuid != null ? bodyUuid : bodyRef) + "."));
         }
     }
 
@@ -214,8 +213,13 @@ final class PhysicsStoreExampleCommands {
         private static void attachView(@Nonnull CommandContext ctx,
             @Nonnull Store<EntityStore> store,
             @Nullable RaycastHitView hit) {
-            if (hit == null || hit.bodyKey() == null) {
+            if (hit == null || hit.bodyRef() == null || !hit.bodyRef().isValid()) {
                 ctx.sender().sendMessage(Message.raw("No rigid body in view."));
+                return;
+            }
+            UUID bodyUuid = ExamplePhysicsUtils.physicsStoreRowUuid(hit.bodyRef());
+            if (bodyUuid == null) {
+                ctx.sender().sendMessage(Message.raw("PhysicsStore body has no persistent UUID."));
                 return;
             }
 
@@ -223,12 +227,12 @@ final class PhysicsStoreExampleCommands {
             TimeResource time = store.getResource(TimeResource.getResourceType());
             ExamplePhysicsUtils.spawnExternalBodyViewBlockEntity(store,
                 time,
-                hit.bodyKey().value(),
+                bodyUuid,
                 point,
                 ExamplePhysicsUtils.DEFAULT_BLOCK_TYPE);
 
             ctx.sender().sendMessage(Message.raw("Attached view-only entity to "
-                + hit.bodyKey() + "."));
+                + bodyUuid + "."));
         }
     }
 

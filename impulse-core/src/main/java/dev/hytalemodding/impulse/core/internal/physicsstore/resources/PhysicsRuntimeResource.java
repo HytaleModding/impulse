@@ -11,7 +11,6 @@ import dev.hytalemodding.impulse.api.runtime.PhysicsBackendRuntime;
 import dev.hytalemodding.impulse.core.internal.resources.BackendBodyHandle;
 import dev.hytalemodding.impulse.core.internal.resources.BackendJointHandle;
 import dev.hytalemodding.impulse.core.internal.resources.BackendSpaceHandle;
-import dev.hytalemodding.impulse.core.plugin.body.RigidBodyKey;
 import dev.hytalemodding.impulse.core.plugin.physicsstore.PhysicsStoreTypes;
 import it.unimi.dsi.fastutil.ints.Int2ObjectOpenHashMap;
 import it.unimi.dsi.fastutil.longs.Long2ObjectOpenHashMap;
@@ -209,11 +208,11 @@ public final class PhysicsRuntimeResource implements Resource<PhysicsStore> {
     }
 
     public void putBodyHitMetadata(@Nonnull BackendBodyHandle handle,
-        @Nullable RigidBodyKey bodyKey,
+        @Nullable Ref<PhysicsStore> bodyRef,
         @Nonnull PhysicsBodyType bodyType,
         @Nonnull ShapeType shapeType) {
         bodyHitMetadataByHandle.put(handle.value(),
-            new BodyHitMetadata(bodyKey, bodyType, shapeType));
+            new BodyHitMetadata(bodyRef, bodyType, shapeType));
     }
 
     @Nullable
@@ -543,7 +542,7 @@ public final class PhysicsRuntimeResource implements Resource<PhysicsStore> {
             @Nonnull PhysicsBackendRuntime runtime);
     }
 
-    public record BodyHitMetadata(@Nullable RigidBodyKey bodyKey,
+    public record BodyHitMetadata(@Nullable Ref<PhysicsStore> bodyRef,
                                   @Nonnull PhysicsBodyType bodyType,
                                   @Nonnull ShapeType shapeType) {
 

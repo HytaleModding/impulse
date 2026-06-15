@@ -1,5 +1,7 @@
 package dev.hytalemodding.impulse.core.internal.systems.visual;
 
+import com.hypixel.hytale.component.Ref;
+import com.hypixel.hytale.server.core.universe.world.storage.PhysicsStore;
 import dev.hytalemodding.impulse.api.PhysicsBodySnapshot;
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsSpaceBinding;
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsWorldRuntimeResource;
@@ -8,6 +10,7 @@ import dev.hytalemodding.impulse.core.internal.resources.PhysicsVisualRuntime;
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsVisualRuntime.VisualInterest;
 import dev.hytalemodding.impulse.core.plugin.body.RigidBodyKey;
 import dev.hytalemodding.impulse.core.plugin.physicsstore.PhysicsStoreRaycasts;
+import dev.hytalemodding.impulse.core.plugin.physicsstore.components.UuidComponent;
 import dev.hytalemodding.impulse.core.plugin.settings.PhysicsSpaceSettings;
 import dev.hytalemodding.impulse.core.plugin.settings.VisualOcclusionMode;
 import dev.hytalemodding.impulse.core.plugin.simulation.view.RaycastHitView;
@@ -66,7 +69,7 @@ final class DetachedVisualOcclusion {
         if (state.hasCompletedRaycast()) {
             Optional<RaycastHitView> completedRaycast = state.pollCompletedRaycast();
             raycastVisible = completedRaycast
-                .map(view -> bodyKey.equals(view.bodyKey()))
+                .map(view -> raycastHitMatchesBody(bodyKey, view))
                 .orElse(false);
             raycastDecisionKnown = true;
             raycastEvaluated = true;
@@ -104,6 +107,17 @@ final class DetachedVisualOcclusion {
                 : probe.distanceSquared() + radius * radius;
         }
         return Result.visible(probe.distanceSquared(), priorityDistanceSquared);
+    }
+
+    private static boolean raycastHitMatchesBody(@Nonnull RigidBodyKey bodyKey,
+        @Nonnull RaycastHitView view) {
+        Ref<PhysicsStore> bodyRef = view.bodyRef();
+        if (bodyRef == null || !bodyRef.isValid()) {
+            return false;
+        }
+        UuidComponent uuid = bodyRef.getStore().getComponent(bodyRef,
+            UuidComponent.getComponentType());
+        return uuid != null && bodyKey.value().equals(uuid.getUuid());
     }
 
     private static void submitRaycast(@Nonnull PhysicsWorldRuntimeResource resource,

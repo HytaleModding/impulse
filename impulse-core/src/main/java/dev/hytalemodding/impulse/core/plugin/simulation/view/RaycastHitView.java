@@ -1,17 +1,18 @@
 package dev.hytalemodding.impulse.core.plugin.simulation.view;
 
+import com.hypixel.hytale.component.Ref;
+import com.hypixel.hytale.server.core.universe.world.storage.PhysicsStore;
 import dev.hytalemodding.impulse.api.PhysicsBodyType;
 import dev.hytalemodding.impulse.api.ShapeType;
-import dev.hytalemodding.impulse.core.plugin.body.RigidBodyKey;
 import java.util.Objects;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 import org.joml.Vector3f;
 
 /**
- * Copied raycast result that does not expose a live backend body.
+ * Copied raycast geometry plus the PhysicsStore row ref hit by the backend.
  */
-public record RaycastHitView(@Nullable RigidBodyKey bodyKey,
+public record RaycastHitView(@Nullable Ref<PhysicsStore> bodyRef,
                              @Nonnull PhysicsBodyType bodyType,
                              float pointX,
                              float pointY,
@@ -23,14 +24,14 @@ public record RaycastHitView(@Nullable RigidBodyKey bodyKey,
                              float fraction,
                              float distance) {
 
-    public RaycastHitView(@Nullable RigidBodyKey bodyKey,
+    public RaycastHitView(@Nullable Ref<PhysicsStore> bodyRef,
         @Nonnull PhysicsBodyType bodyType,
         @Nonnull Vector3f point,
         @Nonnull Vector3f normal,
         @Nonnull ShapeType shapeType,
         float fraction,
         float distance) {
-        this(bodyKey,
+        this(bodyRef,
             bodyType,
             Objects.requireNonNull(point, "point").x,
             point.y,

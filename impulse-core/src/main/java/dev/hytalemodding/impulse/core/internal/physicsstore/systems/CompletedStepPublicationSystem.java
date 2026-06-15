@@ -299,16 +299,23 @@ public final class CompletedStepPublicationSystem extends TickingSystem<PhysicsS
         BodyHitMetadata bodyA = runtime.getBodyHitMetadata(bodyAId);
         BodyHitMetadata bodyB = runtime.getBodyHitMetadata(bodyBId);
         if (bodyA == null
-            || bodyA.bodyKey() == null
+            || bodyA.bodyRef() == null
             || bodyB == null
-            || bodyB.bodyKey() == null) {
+            || bodyB.bodyRef() == null) {
+            backendEvents.droppedBackendEventCount++;
+            return;
+        }
+        UUID bodyAUuid = PhysicsStoreSystemSupport.rowUuid(bodyA.bodyRef());
+        UUID bodyBUuid = PhysicsStoreSystemSupport.rowUuid(bodyB.bodyRef());
+        if (PhysicsStoreSystemSupport.isNil(bodyAUuid)
+            || PhysicsStoreSystemSupport.isNil(bodyBUuid)) {
             backendEvents.droppedBackendEventCount++;
             return;
         }
         backendEvents.physicsEvents.add(new PhysicsContactEvent(spaceId,
             PhysicsContactPhase.OBSERVED,
-            bodyA.bodyKey(),
-            bodyB.bodyKey(),
+            RigidBodyKey.of(bodyAUuid),
+            RigidBodyKey.of(bodyBUuid),
             new Vector3f(pointAX, pointAY, pointAZ),
             new Vector3f(pointBX, pointBY, pointBZ),
             new Vector3f(normalBX, normalBY, normalBZ),
