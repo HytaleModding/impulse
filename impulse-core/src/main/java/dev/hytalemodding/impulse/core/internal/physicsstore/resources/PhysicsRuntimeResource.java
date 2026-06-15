@@ -87,7 +87,8 @@ public final class PhysicsRuntimeResource implements Resource<PhysicsStore> {
     @Nonnull
     private final List<PendingBodyOperation> pendingBodyOperations = new ArrayList<>();
     @Nonnull
-    private final ObjectOpenHashSet<UUID> pendingSpaceSettings = new ObjectOpenHashSet<>();
+    private final ObjectOpenHashSet<Ref<PhysicsStore>> pendingSpaceSettings =
+        new ObjectOpenHashSet<>();
     @Setter
     @Getter
     private boolean started;
@@ -124,7 +125,6 @@ public final class PhysicsRuntimeResource implements Resource<PhysicsStore> {
     public void removeSpaceHandle(@Nonnull UUID spaceUuid) {
         BackendSpaceHandle removed = spaceHandlesByUuid.remove(spaceUuid);
         backendIdsBySpaceUuid.remove(spaceUuid);
-        pendingSpaceSettings.remove(spaceUuid);
         if (removed != null) {
             LongList bodyHandles = bodyHandlesBySpaceHandle.remove(removed.value());
             if (bodyHandles != null) {
@@ -239,20 +239,20 @@ public final class PhysicsRuntimeResource implements Resource<PhysicsStore> {
         pendingBodyOperations.add(Objects.requireNonNull(operation, "operation"));
     }
 
-    public void markSpaceSettingsPending(@Nonnull UUID spaceUuid) {
-        pendingSpaceSettings.add(Objects.requireNonNull(spaceUuid, "spaceUuid"));
+    public void markSpaceSettingsPending(@Nonnull Ref<PhysicsStore> spaceRef) {
+        pendingSpaceSettings.add(Objects.requireNonNull(spaceRef, "spaceRef"));
     }
 
-    public void clearPendingSpaceSettings(@Nonnull UUID spaceUuid) {
-        pendingSpaceSettings.remove(spaceUuid);
+    public void clearPendingSpaceSettings(@Nonnull Ref<PhysicsStore> spaceRef) {
+        pendingSpaceSettings.remove(spaceRef);
     }
 
     @Nonnull
-    public Set<UUID> drainPendingSpaceSettings() {
+    public Set<Ref<PhysicsStore>> drainPendingSpaceSettings() {
         if (pendingSpaceSettings.isEmpty()) {
             return Set.of();
         }
-        Set<UUID> drained = new ObjectOpenHashSet<>(pendingSpaceSettings);
+        Set<Ref<PhysicsStore>> drained = new ObjectOpenHashSet<>(pendingSpaceSettings);
         pendingSpaceSettings.clear();
         return drained;
     }
@@ -524,6 +524,7 @@ public final class PhysicsRuntimeResource implements Resource<PhysicsStore> {
         copy.bodyHitMetadataByHandle.putAll(bodyHitMetadataByHandle);
         copy.bodySnapshotMetadataByHandle.putAll(bodySnapshotMetadataByHandle);
         copy.pendingBodyOperations.addAll(pendingBodyOperations);
+        copy.pendingSpaceSettings.addAll(pendingSpaceSettings);
         copy.started = started;
         return copy;
     }

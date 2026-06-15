@@ -29,6 +29,12 @@ final class PhysicsStoreSystemSupport {
         return uuid != null ? uuid.getUuid() : NIL_UUID;
     }
 
+    @Nonnull
+    static UUID rowUuid(@Nonnull Ref<PhysicsStore> ref) {
+        UuidComponent uuid = component(ref.getStore(), ref, UUID_TYPE);
+        return uuid != null ? uuid.getUuid() : NIL_UUID;
+    }
+
     static boolean isNil(@Nonnull UUID uuid) {
         return NIL_UUID.equals(uuid);
     }

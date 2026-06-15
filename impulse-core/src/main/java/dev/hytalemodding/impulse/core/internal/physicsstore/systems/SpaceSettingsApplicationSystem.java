@@ -11,7 +11,6 @@ import dev.hytalemodding.impulse.api.capability.PhysicsActivationTuning;
 import dev.hytalemodding.impulse.api.capability.PhysicsCapabilityId;
 import dev.hytalemodding.impulse.api.capability.PhysicsSolverTuning;
 import dev.hytalemodding.impulse.api.runtime.PhysicsBackendRuntime;
-import dev.hytalemodding.impulse.core.internal.physicsstore.resources.PhysicsIdentityIndexResource;
 import dev.hytalemodding.impulse.core.internal.physicsstore.resources.PhysicsRestoreStatusResource;
 import dev.hytalemodding.impulse.core.internal.physicsstore.resources.PhysicsRuntimeResource;
 import dev.hytalemodding.impulse.core.internal.resources.BackendSpaceHandle;
@@ -45,15 +44,16 @@ public final class SpaceSettingsApplicationSystem extends TickingSystem<PhysicsS
             return;
         }
         PhysicsRuntimeResource runtime = store.getResource(PhysicsRuntimeResource.getResourceType());
-        Set<UUID> pending = runtime.drainPendingSpaceSettings();
+        Set<Ref<PhysicsStore>> pending = runtime.drainPendingSpaceSettings();
         if (pending.isEmpty()) {
             return;
         }
-        PhysicsIdentityIndexResource identity = store.getResource(
-            PhysicsIdentityIndexResource.getResourceType());
-        for (UUID spaceUuid : pending) {
-            Ref<PhysicsStore> ref = identity.getByUuid(spaceUuid);
+        for (Ref<PhysicsStore> ref : pending) {
             if (ref == null || !ref.isValid()) {
+                continue;
+            }
+            UUID spaceUuid = PhysicsStoreSystemSupport.rowUuid(ref);
+            if (PhysicsStoreSystemSupport.isNil(spaceUuid)) {
                 continue;
             }
             try {

@@ -77,7 +77,7 @@ public final class PhysicsStoreSpaceMutations {
         compatibility.putSpace(compatibilitySpaceId, spaceUuid);
         SpaceId.reserveAtLeast(compatibilitySpaceId.value());
         store.getResource(PhysicsRuntimeResource.getResourceType())
-            .markSpaceSettingsPending(spaceUuid);
+            .markSpaceSettingsPending(ref);
         return ref;
     }
 
@@ -115,7 +115,7 @@ public final class PhysicsStoreSpaceMutations {
         updated.setGravity(gravity);
         store.putComponent(ref, SpaceComponent.getComponentType(), updated);
         store.getResource(PhysicsRuntimeResource.getResourceType())
-            .markSpaceSettingsPending(spaceUuid);
+            .markSpaceSettingsPending(ref);
     }
 
     public static void putSpaceSettings(@Nonnull Store<PhysicsStore> store,
@@ -138,7 +138,7 @@ public final class PhysicsStoreSpaceMutations {
             new CollisionLodSettingsComponent(settings.getCollisionLodSettings()),
             new ExtensionSettingsComponent(settings.getExtensionSettings()));
         store.getResource(PhysicsRuntimeResource.getResourceType())
-            .markSpaceSettingsPending(spaceUuid);
+            .markSpaceSettingsPending(ref);
     }
 
     public static void removeEmptySpace(@Nonnull Store<PhysicsStore> store,
