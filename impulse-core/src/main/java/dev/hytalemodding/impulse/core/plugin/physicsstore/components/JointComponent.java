@@ -6,6 +6,7 @@ import com.hypixel.hytale.codec.builder.BuilderCodec;
 import com.hypixel.hytale.codec.codecs.EnumCodec;
 import com.hypixel.hytale.component.Component;
 import com.hypixel.hytale.component.ComponentType;
+import com.hypixel.hytale.component.Ref;
 import com.hypixel.hytale.math.vector.Vector3fUtil;
 import com.hypixel.hytale.server.core.universe.world.storage.PhysicsStore;
 import dev.hytalemodding.impulse.core.plugin.physicsstore.PhysicsStoreTypes;
@@ -13,6 +14,7 @@ import dev.hytalemodding.impulse.core.plugin.simulation.JointType;
 import java.util.Objects;
 import java.util.UUID;
 import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
 import org.joml.Vector3f;
 
 /**
@@ -98,6 +100,12 @@ public final class JointComponent implements Component<PhysicsStore> {
     private UUID bodyAUuid = new UUID(0L, 0L);
     @Nonnull
     private UUID bodyBUuid = new UUID(0L, 0L);
+    @Nullable
+    private transient Ref<PhysicsStore> spaceRef;
+    @Nullable
+    private transient Ref<PhysicsStore> bodyARef;
+    @Nullable
+    private transient Ref<PhysicsStore> bodyBRef;
     @Nonnull
     private JointType type = JointType.FIXED;
     @Nonnull
@@ -126,6 +134,16 @@ public final class JointComponent implements Component<PhysicsStore> {
 
     public void setSpaceUuid(@Nonnull UUID spaceUuid) {
         this.spaceUuid = Objects.requireNonNull(spaceUuid, "spaceUuid");
+        this.spaceRef = null;
+    }
+
+    @Nullable
+    public Ref<PhysicsStore> getSpaceRef() {
+        return spaceRef;
+    }
+
+    public void setSpaceRef(@Nullable Ref<PhysicsStore> spaceRef) {
+        this.spaceRef = spaceRef;
     }
 
     @Nonnull
@@ -135,6 +153,16 @@ public final class JointComponent implements Component<PhysicsStore> {
 
     public void setBodyAUuid(@Nonnull UUID bodyAUuid) {
         this.bodyAUuid = Objects.requireNonNull(bodyAUuid, "bodyAUuid");
+        this.bodyARef = null;
+    }
+
+    @Nullable
+    public Ref<PhysicsStore> getBodyARef() {
+        return bodyARef;
+    }
+
+    public void setBodyARef(@Nullable Ref<PhysicsStore> bodyARef) {
+        this.bodyARef = bodyARef;
     }
 
     @Nonnull
@@ -144,6 +172,16 @@ public final class JointComponent implements Component<PhysicsStore> {
 
     public void setBodyBUuid(@Nonnull UUID bodyBUuid) {
         this.bodyBUuid = Objects.requireNonNull(bodyBUuid, "bodyBUuid");
+        this.bodyBRef = null;
+    }
+
+    @Nullable
+    public Ref<PhysicsStore> getBodyBRef() {
+        return bodyBRef;
+    }
+
+    public void setBodyBRef(@Nullable Ref<PhysicsStore> bodyBRef) {
+        this.bodyBRef = bodyBRef;
     }
 
     @Nonnull
@@ -266,6 +304,9 @@ public final class JointComponent implements Component<PhysicsStore> {
         copy.spaceUuid = spaceUuid;
         copy.bodyAUuid = bodyAUuid;
         copy.bodyBUuid = bodyBUuid;
+        copy.spaceRef = spaceRef;
+        copy.bodyARef = bodyARef;
+        copy.bodyBRef = bodyBRef;
         copy.type = type;
         copy.anchorA.set(anchorA);
         copy.anchorB.set(anchorB);

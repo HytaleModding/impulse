@@ -5,11 +5,13 @@ import com.hypixel.hytale.codec.KeyedCodec;
 import com.hypixel.hytale.codec.builder.BuilderCodec;
 import com.hypixel.hytale.component.Component;
 import com.hypixel.hytale.component.ComponentType;
+import com.hypixel.hytale.component.Ref;
 import com.hypixel.hytale.server.core.universe.world.storage.PhysicsStore;
 import dev.hytalemodding.impulse.core.plugin.physicsstore.PhysicsStoreTypes;
 import java.util.Objects;
 import java.util.UUID;
 import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
 
 /**
  * Terrain collider row mirrored from ChunkStore terrain source data.
@@ -52,6 +54,8 @@ public final class TerrainColliderComponent implements Component<PhysicsStore> {
 
     @Nonnull
     private UUID spaceUuid = new UUID(0L, 0L);
+    @Nullable
+    private transient Ref<PhysicsStore> spaceRef;
     @Nonnull
     private String sourceKey = "";
     private int chunkX;
@@ -87,6 +91,16 @@ public final class TerrainColliderComponent implements Component<PhysicsStore> {
 
     public void setSpaceUuid(@Nonnull UUID spaceUuid) {
         this.spaceUuid = Objects.requireNonNull(spaceUuid, "spaceUuid");
+        this.spaceRef = null;
+    }
+
+    @Nullable
+    public Ref<PhysicsStore> getSpaceRef() {
+        return spaceRef;
+    }
+
+    public void setSpaceRef(@Nullable Ref<PhysicsStore> spaceRef) {
+        this.spaceRef = spaceRef;
     }
 
     @Nonnull
@@ -147,12 +161,14 @@ public final class TerrainColliderComponent implements Component<PhysicsStore> {
     @Nonnull
     @Override
     public TerrainColliderComponent clone() {
-        return new TerrainColliderComponent(spaceUuid,
+        TerrainColliderComponent copy = new TerrainColliderComponent(spaceUuid,
             sourceKey,
             chunkX,
             sectionY,
             chunkZ,
             payloadResourceKey,
             retained);
+        copy.spaceRef = spaceRef;
+        return copy;
     }
 }

@@ -16,6 +16,7 @@ import dev.hytalemodding.impulse.api.PhysicsBodyType;
 import dev.hytalemodding.impulse.api.ShapeType;
 import dev.hytalemodding.impulse.api.runtime.BackendRuntimeCodes;
 import dev.hytalemodding.impulse.api.runtime.PhysicsBackendRuntime;
+import dev.hytalemodding.impulse.core.internal.physicsstore.resources.PhysicsIdentityIndexResource;
 import dev.hytalemodding.impulse.core.internal.physicsstore.resources.PhysicsRestoreStatusResource;
 import dev.hytalemodding.impulse.core.internal.physicsstore.resources.PhysicsRuntimeResource;
 import dev.hytalemodding.impulse.core.internal.physicsstore.resources.PhysicsTerrainPayloadResource;
@@ -47,18 +48,21 @@ public final class TerrainColliderBindingSystem extends TickingSystem<PhysicsSto
         PhysicsRuntimeResource runtime = store.getResource(PhysicsRuntimeResource.getResourceType());
         PhysicsTerrainPayloadResource payloads = store.getResource(
             PhysicsTerrainPayloadResource.getResourceType());
+        PhysicsIdentityIndexResource identity = store.getResource(
+            PhysicsIdentityIndexResource.getResourceType());
         PhysicsRestoreStatusResource restore = store.getResource(
             PhysicsRestoreStatusResource.getResourceType());
         if (restore.isFailed()) {
             return;
         }
         BiConsumer<ArchetypeChunk<PhysicsStore>, CommandBuffer<PhysicsStore>> collector =
-            (chunk, _) -> bindChunk(runtime, payloads, restore, chunk);
+            (chunk, _) -> bindChunk(runtime, payloads, identity, restore, chunk);
         store.forEachChunk(systemIndex, collector);
     }
 
     private static void bindChunk(@Nonnull PhysicsRuntimeResource runtime,
         @Nonnull PhysicsTerrainPayloadResource payloads,
+        @Nonnull PhysicsIdentityIndexResource identity,
         @Nonnull PhysicsRestoreStatusResource restore,
         @Nonnull ArchetypeChunk<PhysicsStore> chunk) {
         for (int index = 0; index < chunk.size(); index++) {
@@ -83,22 +87,30 @@ public final class TerrainColliderBindingSystem extends TickingSystem<PhysicsSto
                 restore.recordSoftSkip("Terrain payload is missing: " + terrain.getSourceKey());
                 continue;
             }
-            bindTerrain(runtime, restore, terrainUuid, chunk.getReferenceTo(index), terrain, payload);
+            bindTerrain(runtime,
+                identity,
+                restore,
+                terrainUuid,
+                chunk.getReferenceTo(index),
+                terrain,
+                payload);
         }
     }
 
     private static void bindTerrain(@Nonnull PhysicsRuntimeResource runtime,
+        @Nonnull PhysicsIdentityIndexResource identity,
         @Nonnull PhysicsRestoreStatusResource restore,
         @Nonnull UUID terrainUuid,
         @Nonnull Ref<PhysicsStore> terrainRef,
         @Nonnull TerrainColliderComponent terrain,
         @Nonnull TerrainColliderPayload payload) {
-        BackendSpaceHandle spaceHandle = runtime.getSpaceHandle(terrain.getSpaceUuid());
+        Ref<PhysicsStore> spaceRef = resolveSpaceRef(identity, terrain);
+        BackendSpaceHandle spaceHandle = spaceRef != null ? runtime.getSpaceHandle(spaceRef) : null;
         if (spaceHandle == null) {
             restore.recordSoftSkip("Terrain references unbound space: " + terrain.getSourceKey());
             return;
         }
-        PhysicsBackendRuntime backendRuntime = runtimeForSpace(runtime, terrain.getSpaceUuid());
+        PhysicsBackendRuntime backendRuntime = runtimeForSpace(runtime, spaceRef);
         if (backendRuntime == null) {
             restore.recordSoftSkip("Terrain references missing backend runtime: "
                 + terrain.getSourceKey());
@@ -270,9 +282,19 @@ public final class TerrainColliderBindingSystem extends TickingSystem<PhysicsSto
     }
 
     @Nullable
+    private static Ref<PhysicsStore> resolveSpaceRef(@Nonnull PhysicsIdentityIndexResource identity,
+        @Nonnull TerrainColliderComponent terrain) {
+        Ref<PhysicsStore> spaceRef = PhysicsStoreSystemSupport.resolvedRef(identity,
+            terrain.getSpaceUuid(),
+            terrain.getSpaceRef());
+        terrain.setSpaceRef(spaceRef);
+        return spaceRef;
+    }
+
+    @Nullable
     private static PhysicsBackendRuntime runtimeForSpace(@Nonnull PhysicsRuntimeResource runtime,
-        @Nonnull UUID spaceUuid) {
-        var backendId = runtime.getSpaceBackendId(spaceUuid);
+        @Nonnull Ref<PhysicsStore> spaceRef) {
+        var backendId = runtime.getSpaceBackendId(spaceRef);
         return backendId != null ? runtime.getRuntime(backendId) : null;
     }
 

@@ -70,11 +70,11 @@ public final class SpaceSettingsApplicationSystem extends TickingSystem<PhysicsS
         @Nonnull PhysicsRuntimeResource runtime,
         @Nonnull Ref<PhysicsStore> ref,
         @Nonnull UUID spaceUuid) {
-        BackendSpaceHandle handle = runtime.getSpaceHandle(spaceUuid);
+        BackendSpaceHandle handle = runtime.getSpaceHandle(ref);
         if (handle == null) {
             return false;
         }
-        PhysicsBackendRuntime backendRuntime = backendRuntime(runtime, spaceUuid);
+        PhysicsBackendRuntime backendRuntime = backendRuntime(runtime, ref);
         if (backendRuntime == null) {
             return false;
         }
@@ -124,8 +124,8 @@ public final class SpaceSettingsApplicationSystem extends TickingSystem<PhysicsS
 
     @Nullable
     private static PhysicsBackendRuntime backendRuntime(@Nonnull PhysicsRuntimeResource runtime,
-        @Nonnull UUID spaceUuid) {
-        BackendId backendId = runtime.getSpaceBackendId(spaceUuid);
+        @Nonnull Ref<PhysicsStore> spaceRef) {
+        BackendId backendId = runtime.getSpaceBackendId(spaceRef);
         if (backendId == null) {
             return null;
         }

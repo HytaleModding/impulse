@@ -55,4 +55,17 @@ final class PhysicsStoreSystemSupport {
         Ref<PhysicsStore> ref = identity.getByUuid(uuid);
         return ref != null && ref.isValid() ? ref : null;
     }
+
+    @Nullable
+    static Ref<PhysicsStore> resolvedRef(@Nonnull PhysicsIdentityIndexResource identity,
+        @Nonnull UUID uuid,
+        @Nullable Ref<PhysicsStore> current) {
+        if (isNil(uuid)) {
+            return null;
+        }
+        if (current != null && current.isValid() && uuid.equals(rowUuid(current))) {
+            return current;
+        }
+        return refForUuid(identity, uuid);
+    }
 }

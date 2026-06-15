@@ -6,6 +6,7 @@ import com.hypixel.hytale.codec.builder.BuilderCodec;
 import com.hypixel.hytale.codec.codecs.EnumCodec;
 import com.hypixel.hytale.component.Component;
 import com.hypixel.hytale.component.ComponentType;
+import com.hypixel.hytale.component.Ref;
 import com.hypixel.hytale.server.core.universe.world.storage.PhysicsStore;
 import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyKind;
 import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyPersistenceMode;
@@ -13,6 +14,7 @@ import dev.hytalemodding.impulse.core.plugin.physicsstore.PhysicsStoreTypes;
 import java.util.Objects;
 import java.util.UUID;
 import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
 
 /**
  * Authored body identity, kind, and persistence policy.
@@ -41,6 +43,8 @@ public final class BodyComponent implements Component<PhysicsStore> {
 
     @Nonnull
     private UUID spaceUuid = new UUID(0L, 0L);
+    @Nullable
+    private transient Ref<PhysicsStore> spaceRef;
     @Nonnull
     private PhysicsBodyKind kind = PhysicsBodyKind.BODY;
     @Nonnull
@@ -64,6 +68,16 @@ public final class BodyComponent implements Component<PhysicsStore> {
 
     public void setSpaceUuid(@Nonnull UUID spaceUuid) {
         this.spaceUuid = Objects.requireNonNull(spaceUuid, "spaceUuid");
+        this.spaceRef = null;
+    }
+
+    @Nullable
+    public Ref<PhysicsStore> getSpaceRef() {
+        return spaceRef;
+    }
+
+    public void setSpaceRef(@Nullable Ref<PhysicsStore> spaceRef) {
+        this.spaceRef = spaceRef;
     }
 
     @Nonnull
@@ -92,6 +106,8 @@ public final class BodyComponent implements Component<PhysicsStore> {
     @Nonnull
     @Override
     public BodyComponent clone() {
-        return new BodyComponent(spaceUuid, kind, persistenceMode);
+        BodyComponent copy = new BodyComponent(spaceUuid, kind, persistenceMode);
+        copy.spaceRef = spaceRef;
+        return copy;
     }
 }

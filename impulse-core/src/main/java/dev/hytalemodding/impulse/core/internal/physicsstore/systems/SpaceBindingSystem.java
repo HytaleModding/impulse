@@ -136,7 +136,7 @@ public final class SpaceBindingSystem extends TickingSystem<PhysicsStore>
                 handle,
                 solverSettings != null ? solverSettings : new SolverSettingsComponent(),
                 extensionSettings);
-            runtime.putSpaceBinding(spaceUuid, backendId, handle);
+            runtime.putSpaceBinding(spaceUuid, ref, backendId, handle);
             runtime.clearPendingSpaceSettings(ref);
             compatibility.putSpace(compatibilitySpaceId, spaceUuid);
             identity.putSpaceHandle(handle, ref);

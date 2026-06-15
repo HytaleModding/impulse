@@ -101,12 +101,13 @@ public final class BodyBindingSystem extends TickingSystem<PhysicsStore>
         @Nullable ShapeComponent shape,
         @Nullable MaterialComponent material,
         @Nullable CollisionFilterComponent filter) {
-        BackendSpaceHandle spaceHandle = runtime.getSpaceHandle(body.getSpaceUuid());
+        Ref<PhysicsStore> spaceRef = resolveSpaceRef(identity, body);
+        BackendSpaceHandle spaceHandle = spaceRef != null ? runtime.getSpaceHandle(spaceRef) : null;
         if (spaceHandle == null) {
             restore.recordSoftSkip("Body references unbound space: " + bodyUuid);
             return;
         }
-        PhysicsBackendRuntime backendRuntime = runtimeForSpace(runtime, body.getSpaceUuid());
+        PhysicsBackendRuntime backendRuntime = runtimeForSpace(runtime, spaceRef);
         if (backendRuntime == null) {
             restore.recordSoftSkip("Body references missing backend runtime: " + bodyUuid);
             return;
@@ -205,9 +206,19 @@ public final class BodyBindingSystem extends TickingSystem<PhysicsStore>
     }
 
     @Nullable
+    private static Ref<PhysicsStore> resolveSpaceRef(@Nonnull PhysicsIdentityIndexResource identity,
+        @Nonnull BodyComponent body) {
+        Ref<PhysicsStore> spaceRef = PhysicsStoreSystemSupport.resolvedRef(identity,
+            body.getSpaceUuid(),
+            body.getSpaceRef());
+        body.setSpaceRef(spaceRef);
+        return spaceRef;
+    }
+
+    @Nullable
     private static PhysicsBackendRuntime runtimeForSpace(@Nonnull PhysicsRuntimeResource runtime,
-        @Nonnull UUID spaceUuid) {
-        var backendId = runtime.getSpaceBackendId(spaceUuid);
+        @Nonnull Ref<PhysicsStore> spaceRef) {
+        var backendId = runtime.getSpaceBackendId(spaceRef);
         return backendId != null ? runtime.getRuntime(backendId) : null;
     }
 
