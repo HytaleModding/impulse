@@ -75,8 +75,11 @@ public final class SpaceBindingSystem extends TickingSystem<PhysicsStore>
                 continue;
             }
             UUID spaceUuid = PhysicsStoreSystemSupport.rowUuid(chunk, index);
-            if (PhysicsStoreSystemSupport.isNil(spaceUuid)
-                || runtime.getSpaceHandle(spaceUuid) != null) {
+            if (PhysicsStoreSystemSupport.isNil(spaceUuid)) {
+                continue;
+            }
+            Ref<PhysicsStore> spaceRef = chunk.getReferenceTo(index);
+            if (runtime.getSpaceHandle(spaceRef) != null) {
                 continue;
             }
             bindSpace(runtime,
@@ -84,7 +87,7 @@ public final class SpaceBindingSystem extends TickingSystem<PhysicsStore>
                 identity,
                 restore,
                 stepMode,
-                chunk.getReferenceTo(index),
+                spaceRef,
                 spaceUuid,
                 space,
                 chunk.getComponent(index, SolverSettingsComponent.getComponentType()),
