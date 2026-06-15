@@ -88,7 +88,7 @@ public class VisualMaterializationSettingsCommand extends AbstractAsyncPlayerCom
         @Nonnull PlayerRef playerRef,
         @Nonnull World world) {
         PhysicsWorldResource resource = store.getResource(PhysicsWorldResource.getResourceType());
-        SpaceId spaceId = SpaceSelection.resolve(ctx, world, resource, spaceArg);
+        SpaceId spaceId = SpaceSelection.resolve(ctx, world, spaceArg);
         if (spaceId == null) {
             return CompletableFuture.completedFuture(null);
         }
