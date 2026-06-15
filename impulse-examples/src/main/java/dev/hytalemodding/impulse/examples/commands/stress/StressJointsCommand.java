@@ -12,8 +12,6 @@ import com.hypixel.hytale.server.core.universe.PlayerRef;
 import com.hypixel.hytale.server.core.universe.world.World;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import dev.hytalemodding.impulse.api.SpaceId;
-import dev.hytalemodding.impulse.core.plugin.body.RigidBodyKey;
-import dev.hytalemodding.impulse.core.plugin.joint.JointKey;
 import dev.hytalemodding.impulse.core.plugin.physicsstore.components.JointComponent;
 import dev.hytalemodding.impulse.core.plugin.simulation.JointType;
 import dev.hytalemodding.impulse.core.plugin.simulation.PhysicsShapeSpec;
@@ -140,16 +138,16 @@ public class StressJointsCommand extends AbstractAsyncPlayerCommand {
         double spacing = jointType == 4 ? TOUCHING_SPACING + SPRING_REST_LENGTH
             : TOUCHING_SPACING;
         int bodyCount = jointCount + 1;
-        RigidBodyKey[] bodyKeys = new RigidBodyKey[bodyCount];
+        UUID[] bodyUuids = new UUID[bodyCount];
         float[] positions = new float[bodyCount * 3];
-        long bodyKeyRunId = RigidBodyKey.random().mostSignificantBits();
-        long jointKeyRunId = JointKey.random().mostSignificantBits();
+        long bodyUuidRunId = UUID.randomUUID().getMostSignificantBits();
+        long jointUuidRunId = UUID.randomUUID().getMostSignificantBits();
         PhysicsShapeSpec box = PhysicsShapeSpec.box(HALF_SIZE, HALF_SIZE, HALF_SIZE);
         RigidBodySpawnSettings spawnSettings = RigidBodySpawnSettings.material(0.65f, 0.1f);
 
         for (int i = 0; i < bodyCount; i++) {
-            RigidBodyKey bodyKey = RigidBodyKey.of(bodyKeyRunId, i + 1L);
-            bodyKeys[i] = bodyKey;
+            UUID bodyUuid = new UUID(bodyUuidRunId, i + 1L);
+            bodyUuids[i] = bodyUuid;
             int positionOffset = i * 3;
             positions[positionOffset] = (float) (origin.x + i * spacing);
             positions[positionOffset + 1] = (float) origin.y;
@@ -157,7 +155,7 @@ public class StressJointsCommand extends AbstractAsyncPlayerCommand {
             float mass = i == 0 ? 0.0f : 1.0f;
             ExamplePhysicsUtils.addPhysicsStoreBody(world,
                 ExamplePhysicsUtils.bodyRow(spaceUuid,
-                    bodyKey.value(),
+                    bodyUuid,
                     new Vector3f(positions[positionOffset],
                         positions[positionOffset + 1],
                         positions[positionOffset + 2]),
@@ -166,7 +164,7 @@ public class StressJointsCommand extends AbstractAsyncPlayerCommand {
                     spawnSettings,
                     initialVelocity(jointType, i)));
             pendingBodies.add(new PendingBlockBody(
-                bodyKeys[i].value(),
+                bodyUuid,
                 spaceId,
                 blockType,
                 positions[positionOffset],
@@ -176,8 +174,8 @@ public class StressJointsCommand extends AbstractAsyncPlayerCommand {
         }
         for (int i = 0; i < jointCount; i++) {
             ExamplePhysicsUtils.addPhysicsStoreJoint(world,
-                JointKey.of(jointKeyRunId, i + 1L).value(),
-                joint(spaceUuid, bodyKeys[i], bodyKeys[i + 1], jointType));
+                new UUID(jointUuidRunId, i + 1L),
+                joint(spaceUuid, bodyUuids[i], bodyUuids[i + 1], jointType));
         }
         return bodyCount;
     }
@@ -191,8 +189,8 @@ public class StressJointsCommand extends AbstractAsyncPlayerCommand {
 
     @Nonnull
     private static JointComponent joint(@Nonnull UUID spaceUuid,
-        @Nonnull RigidBodyKey previousKey,
-        @Nonnull RigidBodyKey currentKey,
+        @Nonnull UUID previousUuid,
+        @Nonnull UUID currentUuid,
         int jointType) {
         JointType type = switch (jointType) {
             case 0 -> JointType.FIXED;
@@ -203,8 +201,8 @@ public class StressJointsCommand extends AbstractAsyncPlayerCommand {
         };
         JointComponent joint = new JointComponent();
         joint.setSpaceUuid(spaceUuid);
-        joint.setBodyAUuid(previousKey.value());
-        joint.setBodyBUuid(currentKey.value());
+        joint.setBodyAUuid(previousUuid);
+        joint.setBodyBUuid(currentUuid);
         joint.setType(type);
         joint.setAnchorA(new Vector3f(HALF_SIZE, 0.0f, 0.0f));
         joint.setAnchorB(new Vector3f(-HALF_SIZE, 0.0f, 0.0f));
