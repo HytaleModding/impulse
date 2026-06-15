@@ -66,18 +66,19 @@ public final class JointBindingSystem extends TickingSystem<PhysicsStore>
             if (PhysicsStoreSystemSupport.isNil(jointUuid)) {
                 continue;
             }
+            Ref<PhysicsStore> jointRef = chunk.getReferenceTo(index);
             if (!joint.isEnabled()) {
-                removeJoint(runtime, identity, jointUuid, joint);
+                removeJoint(runtime, identity, jointRef, jointUuid);
                 continue;
             }
-            BackendJointHandle existing = runtime.getJointHandle(jointUuid);
+            BackendJointHandle existing = runtime.getJointHandle(jointRef);
             if (existing != null) {
                 if (!endpointsBound(runtime, identity, joint)) {
-                    removeJoint(runtime, identity, jointUuid, joint);
+                    removeJoint(runtime, identity, jointRef, jointUuid);
                 }
                 continue;
             }
-            bindJoint(runtime, identity, restore, chunk.getReferenceTo(index), jointUuid, joint);
+            bindJoint(runtime, identity, restore, jointRef, jointUuid, joint);
         }
     }
 
@@ -135,7 +136,7 @@ public final class JointBindingSystem extends TickingSystem<PhysicsStore>
                 joint.getMotorTargetVelocity(),
                 joint.getMotorMaxForce());
             BackendJointHandle handle = new BackendJointHandle(jointId);
-            runtime.putJointHandle(jointUuid, spaceHandle, handle);
+            runtime.putJointHandle(jointRef, jointUuid, spaceHandle, handle);
             identity.putJointHandle(handle, jointRef);
         } catch (RuntimeException exception) {
             if (jointId != Long.MIN_VALUE) {
@@ -202,19 +203,19 @@ public final class JointBindingSystem extends TickingSystem<PhysicsStore>
 
     private static void removeJoint(@Nonnull PhysicsRuntimeResource runtime,
         @Nonnull PhysicsIdentityIndexResource identity,
-        @Nonnull UUID jointUuid,
-        @Nonnull JointComponent joint) {
-        BackendJointHandle handle = runtime.getJointHandle(jointUuid);
+        @Nonnull Ref<PhysicsStore> jointRef,
+        @Nonnull UUID jointUuid) {
+        BackendJointHandle handle = runtime.getJointHandle(jointRef);
         if (handle == null) {
             return;
         }
-        BackendSpaceHandle spaceHandle = runtime.getJointSpaceHandle(jointUuid);
+        BackendSpaceHandle spaceHandle = runtime.getJointSpaceHandle(jointRef);
         PhysicsBackendRuntime backendRuntime = runtime.runtimeForSpaceHandle(spaceHandle);
         if (spaceHandle != null && backendRuntime != null) {
             backendRuntime.removeJoint(spaceHandle.value(), handle.value());
         }
         identity.removeJointHandle(handle);
-        runtime.removeJointHandle(jointUuid);
+        runtime.removeJointHandle(jointUuid, jointRef);
     }
 
     @Nonnull

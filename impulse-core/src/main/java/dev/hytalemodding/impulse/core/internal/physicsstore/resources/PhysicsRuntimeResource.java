@@ -72,6 +72,15 @@ public final class PhysicsRuntimeResource implements Resource<PhysicsStore> {
     private final Map<UUID, BackendSpaceHandle> jointSpaceHandlesByUuid =
         new Object2ObjectOpenHashMap<>();
     @Nonnull
+    private final Map<UUID, Ref<PhysicsStore>> jointRefsByUuid =
+        new Object2ObjectOpenHashMap<>();
+    @Nonnull
+    private final Map<Ref<PhysicsStore>, BackendJointHandle> jointHandlesByRef =
+        new Object2ObjectOpenHashMap<>();
+    @Nonnull
+    private final Map<Ref<PhysicsStore>, BackendSpaceHandle> jointSpaceHandlesByRef =
+        new Object2ObjectOpenHashMap<>();
+    @Nonnull
     private final Map<UUID, LongList> terrainBodyHandlesByUuid =
         new Object2ObjectOpenHashMap<>();
     @Nonnull
@@ -310,8 +319,32 @@ public final class PhysicsRuntimeResource implements Resource<PhysicsStore> {
     public void putJointHandle(@Nonnull UUID jointUuid,
         @Nonnull BackendSpaceHandle spaceHandle,
         @Nonnull BackendJointHandle handle) {
+        putJointHandle(jointUuid, null, spaceHandle, handle);
+    }
+
+    public void putJointHandle(@Nonnull UUID jointUuid,
+        @Nullable Ref<PhysicsStore> jointRef,
+        @Nonnull BackendSpaceHandle spaceHandle,
+        @Nonnull BackendJointHandle handle) {
+        Ref<PhysicsStore> previousRef = jointRefsByUuid.remove(jointUuid);
+        if (previousRef != null) {
+            jointHandlesByRef.remove(previousRef);
+            jointSpaceHandlesByRef.remove(previousRef);
+        }
         jointHandlesByUuid.put(jointUuid, handle);
         jointSpaceHandlesByUuid.put(jointUuid, spaceHandle);
+        if (jointRef != null) {
+            jointRefsByUuid.put(jointUuid, jointRef);
+            jointHandlesByRef.put(jointRef, handle);
+            jointSpaceHandlesByRef.put(jointRef, spaceHandle);
+        }
+    }
+
+    public void putJointHandle(@Nonnull Ref<PhysicsStore> jointRef,
+        @Nonnull UUID jointUuid,
+        @Nonnull BackendSpaceHandle spaceHandle,
+        @Nonnull BackendJointHandle handle) {
+        putJointHandle(jointUuid, jointRef, spaceHandle, handle);
     }
 
     @Nullable
@@ -320,13 +353,35 @@ public final class PhysicsRuntimeResource implements Resource<PhysicsStore> {
     }
 
     @Nullable
+    public BackendJointHandle getJointHandle(@Nonnull Ref<PhysicsStore> jointRef) {
+        return jointHandlesByRef.get(jointRef);
+    }
+
+    @Nullable
     public BackendSpaceHandle getJointSpaceHandle(@Nonnull UUID jointUuid) {
         return jointSpaceHandlesByUuid.get(jointUuid);
+    }
+
+    @Nullable
+    public BackendSpaceHandle getJointSpaceHandle(@Nonnull Ref<PhysicsStore> jointRef) {
+        return jointSpaceHandlesByRef.get(jointRef);
     }
 
     public void removeJointHandle(@Nonnull UUID jointUuid) {
         jointHandlesByUuid.remove(jointUuid);
         jointSpaceHandlesByUuid.remove(jointUuid);
+        Ref<PhysicsStore> jointRef = jointRefsByUuid.remove(jointUuid);
+        if (jointRef != null) {
+            jointHandlesByRef.remove(jointRef);
+            jointSpaceHandlesByRef.remove(jointRef);
+        }
+    }
+
+    public void removeJointHandle(@Nonnull UUID jointUuid,
+        @Nonnull Ref<PhysicsStore> jointRef) {
+        removeJointHandle(jointUuid);
+        jointHandlesByRef.remove(jointRef);
+        jointSpaceHandlesByRef.remove(jointRef);
     }
 
     @Nonnull
@@ -450,6 +505,9 @@ public final class PhysicsRuntimeResource implements Resource<PhysicsStore> {
         bodySpaceHandlesByRef.clear();
         jointHandlesByUuid.clear();
         jointSpaceHandlesByUuid.clear();
+        jointRefsByUuid.clear();
+        jointHandlesByRef.clear();
+        jointSpaceHandlesByRef.clear();
         terrainBodyHandlesByUuid.clear();
         terrainVoxelBodyHandlesByUuid.clear();
         terrainSpaceHandlesByUuid.clear();
@@ -570,6 +628,9 @@ public final class PhysicsRuntimeResource implements Resource<PhysicsStore> {
         copy.bodySpaceHandlesByRef.putAll(bodySpaceHandlesByRef);
         copy.jointHandlesByUuid.putAll(jointHandlesByUuid);
         copy.jointSpaceHandlesByUuid.putAll(jointSpaceHandlesByUuid);
+        copy.jointRefsByUuid.putAll(jointRefsByUuid);
+        copy.jointHandlesByRef.putAll(jointHandlesByRef);
+        copy.jointSpaceHandlesByRef.putAll(jointSpaceHandlesByRef);
         terrainBodyHandlesByUuid.forEach((terrainUuid, bodyHandles) ->
             copy.terrainBodyHandlesByUuid.put(terrainUuid, new LongArrayList(bodyHandles)));
         copy.terrainVoxelBodyHandlesByUuid.putAll(terrainVoxelBodyHandlesByUuid);
