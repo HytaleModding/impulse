@@ -75,11 +75,12 @@ public final class TerrainColliderBindingSystem extends TickingSystem<PhysicsSto
             if (PhysicsStoreSystemSupport.isNil(terrainUuid)) {
                 continue;
             }
+            Ref<PhysicsStore> terrainRef = chunk.getReferenceTo(index);
             if (!terrain.isRetained()) {
-                removeTerrain(runtime, terrainUuid);
+                removeTerrain(runtime, terrainUuid, terrainRef);
                 continue;
             }
-            if (runtime.isTerrainPayloadBound(terrainUuid, terrain.getPayloadResourceKey())) {
+            if (runtime.isTerrainPayloadBound(terrainRef, terrain.getPayloadResourceKey())) {
                 continue;
             }
             TerrainColliderPayload payload = payloads.get(terrain.getPayloadResourceKey());
@@ -91,7 +92,7 @@ public final class TerrainColliderBindingSystem extends TickingSystem<PhysicsSto
                 identity,
                 restore,
                 terrainUuid,
-                chunk.getReferenceTo(index),
+                terrainRef,
                 terrain,
                 payload);
         }
@@ -116,8 +117,8 @@ public final class TerrainColliderBindingSystem extends TickingSystem<PhysicsSto
                 + terrain.getSourceKey());
             return;
         }
-        if (runtime.hasTerrainBodyHandles(terrainUuid)) {
-            removeTerrain(runtime, terrainUuid);
+        if (runtime.hasTerrainBodyHandles(terrainRef)) {
+            removeTerrain(runtime, terrainUuid, terrainRef);
         }
         try {
             boolean nativeVoxel = payload.nativeVoxelTerrainEnabled()
@@ -151,15 +152,17 @@ public final class TerrainColliderBindingSystem extends TickingSystem<PhysicsSto
                     box,
                     payload);
             }
-            if (!runtime.hasTerrainBodyHandles(terrainUuid)) {
+            if (!runtime.hasTerrainBodyHandles(terrainRef)) {
                 restore.recordSoftSkip("Terrain payload produced no backend bodies: "
                     + terrain.getSourceKey());
                 return;
             }
-            runtime.markTerrainPayloadBound(terrainUuid, terrain.getPayloadResourceKey());
-            stitchNeighbors(runtime, backendRuntime, spaceHandle, terrainUuid, terrain, payload);
+            runtime.markTerrainPayloadBound(terrainRef,
+                terrainUuid,
+                terrain.getPayloadResourceKey());
+            stitchNeighbors(runtime, backendRuntime, spaceHandle, terrainRef, terrain, payload);
         } catch (RuntimeException exception) {
-            removeTerrain(runtime, terrainUuid);
+            removeTerrain(runtime, terrainUuid, terrainRef);
             restore.markFailed("PhysicsStore terrain " + terrain.getSourceKey()
                 + " failed backend binding: " + exception.getMessage());
         }
@@ -185,7 +188,7 @@ public final class TerrainColliderBindingSystem extends TickingSystem<PhysicsSto
             payload.collisionGroup(),
             payload.collisionMask());
         BackendBodyHandle bodyHandle = new BackendBodyHandle(bodyId);
-        runtime.putTerrainBodyHandle(terrainUuid, spaceHandle, bodyHandle, true);
+        runtime.putTerrainBodyHandle(terrainRef, terrainUuid, spaceHandle, bodyHandle, true);
         runtime.putBodyHitMetadata(bodyHandle,
             terrainRef,
             PhysicsBodyType.STATIC,
@@ -227,7 +230,8 @@ public final class TerrainColliderBindingSystem extends TickingSystem<PhysicsSto
             payload.collisionGroup(),
             payload.collisionMask());
         BackendBodyHandle bodyHandle = new BackendBodyHandle(bodyId);
-        runtime.putTerrainBodyHandle(terrainUuid,
+        runtime.putTerrainBodyHandle(terrainRef,
+            terrainUuid,
             spaceHandle,
             bodyHandle,
             false);
@@ -240,10 +244,10 @@ public final class TerrainColliderBindingSystem extends TickingSystem<PhysicsSto
     private static void stitchNeighbors(@Nonnull PhysicsRuntimeResource runtime,
         @Nonnull PhysicsBackendRuntime backendRuntime,
         @Nonnull BackendSpaceHandle spaceHandle,
-        @Nonnull UUID terrainUuid,
+        @Nonnull Ref<PhysicsStore> terrainRef,
         @Nonnull TerrainColliderComponent terrain,
         @Nonnull TerrainColliderPayload payload) {
-        BackendBodyHandle voxelBody = runtime.getTerrainVoxelBodyHandle(terrainUuid);
+        BackendBodyHandle voxelBody = runtime.getTerrainVoxelBodyHandle(terrainRef);
         if (voxelBody == null) {
             return;
         }
@@ -267,18 +271,19 @@ public final class TerrainColliderBindingSystem extends TickingSystem<PhysicsSto
     }
 
     private static void removeTerrain(@Nonnull PhysicsRuntimeResource runtime,
-        @Nonnull UUID terrainUuid) {
-        BackendSpaceHandle spaceHandle = runtime.getTerrainSpaceHandle(terrainUuid);
+        @Nonnull UUID terrainUuid,
+        @Nonnull Ref<PhysicsStore> terrainRef) {
+        BackendSpaceHandle spaceHandle = runtime.getTerrainSpaceHandle(terrainRef);
         if (spaceHandle == null) {
-            runtime.removeTerrainHandles(terrainUuid);
+            runtime.removeTerrainHandles(terrainRef, terrainUuid);
             return;
         }
         PhysicsBackendRuntime backendRuntime = runtimeForSpace(runtime, spaceHandle);
         if (backendRuntime != null) {
-            runtime.forEachTerrainBodyHandle(terrainUuid,
+            runtime.forEachTerrainBodyHandle(terrainRef,
                 bodyId -> backendRuntime.removeBody(spaceHandle.value(), bodyId));
         }
-        runtime.removeTerrainHandles(terrainUuid);
+        runtime.removeTerrainHandles(terrainRef, terrainUuid);
     }
 
     @Nullable

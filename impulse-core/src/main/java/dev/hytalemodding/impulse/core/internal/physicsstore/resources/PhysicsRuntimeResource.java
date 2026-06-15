@@ -93,6 +93,21 @@ public final class PhysicsRuntimeResource implements Resource<PhysicsStore> {
     private final Map<UUID, String> terrainPayloadKeysByUuid =
         new Object2ObjectOpenHashMap<>();
     @Nonnull
+    private final Map<UUID, Ref<PhysicsStore>> terrainRefsByUuid =
+        new Object2ObjectOpenHashMap<>();
+    @Nonnull
+    private final Map<Ref<PhysicsStore>, LongList> terrainBodyHandlesByRef =
+        new Object2ObjectOpenHashMap<>();
+    @Nonnull
+    private final Map<Ref<PhysicsStore>, BackendBodyHandle> terrainVoxelBodyHandlesByRef =
+        new Object2ObjectOpenHashMap<>();
+    @Nonnull
+    private final Map<Ref<PhysicsStore>, BackendSpaceHandle> terrainSpaceHandlesByRef =
+        new Object2ObjectOpenHashMap<>();
+    @Nonnull
+    private final Map<Ref<PhysicsStore>, String> terrainPayloadKeysByRef =
+        new Object2ObjectOpenHashMap<>();
+    @Nonnull
     private final Int2ObjectOpenHashMap<LongList> bodyHandlesBySpaceHandle =
         new Int2ObjectOpenHashMap<>();
     @Nonnull
@@ -400,24 +415,67 @@ public final class PhysicsRuntimeResource implements Resource<PhysicsStore> {
         @Nonnull BackendSpaceHandle spaceHandle,
         @Nonnull BackendBodyHandle handle,
         boolean voxelTerrainBody) {
+        putTerrainBodyHandle(terrainUuid, null, spaceHandle, handle, voxelTerrainBody);
+    }
+
+    public void putTerrainBodyHandle(@Nonnull UUID terrainUuid,
+        @Nullable Ref<PhysicsStore> terrainRef,
+        @Nonnull BackendSpaceHandle spaceHandle,
+        @Nonnull BackendBodyHandle handle,
+        boolean voxelTerrainBody) {
+        bindTerrainRef(terrainUuid, terrainRef);
         terrainSpaceHandlesByUuid.put(terrainUuid, spaceHandle);
         terrainBodyHandlesByUuid.computeIfAbsent(terrainUuid, _ -> new LongArrayList())
             .add(handle.value());
         if (voxelTerrainBody) {
             terrainVoxelBodyHandlesByUuid.put(terrainUuid, handle);
         }
+        if (terrainRef != null) {
+            terrainSpaceHandlesByRef.put(terrainRef, spaceHandle);
+            terrainBodyHandlesByRef.computeIfAbsent(terrainRef, _ -> new LongArrayList())
+                .add(handle.value());
+            if (voxelTerrainBody) {
+                terrainVoxelBodyHandlesByRef.put(terrainRef, handle);
+            }
+        }
+    }
+
+    public void putTerrainBodyHandle(@Nonnull Ref<PhysicsStore> terrainRef,
+        @Nonnull UUID terrainUuid,
+        @Nonnull BackendSpaceHandle spaceHandle,
+        @Nonnull BackendBodyHandle handle,
+        boolean voxelTerrainBody) {
+        putTerrainBodyHandle(terrainUuid, terrainRef, spaceHandle, handle, voxelTerrainBody);
     }
 
     public void markTerrainPayloadBound(@Nonnull UUID terrainUuid, @Nonnull String payloadKey) {
         terrainPayloadKeysByUuid.put(terrainUuid, payloadKey);
     }
 
+    public void markTerrainPayloadBound(@Nonnull Ref<PhysicsStore> terrainRef,
+        @Nonnull UUID terrainUuid,
+        @Nonnull String payloadKey) {
+        bindTerrainRef(terrainUuid, terrainRef);
+        terrainPayloadKeysByUuid.put(terrainUuid, payloadKey);
+        terrainPayloadKeysByRef.put(terrainRef, payloadKey);
+    }
+
     public boolean isTerrainPayloadBound(@Nonnull UUID terrainUuid, @Nonnull String payloadKey) {
         return payloadKey.equals(terrainPayloadKeysByUuid.get(terrainUuid));
     }
 
+    public boolean isTerrainPayloadBound(@Nonnull Ref<PhysicsStore> terrainRef,
+        @Nonnull String payloadKey) {
+        return payloadKey.equals(terrainPayloadKeysByRef.get(terrainRef));
+    }
+
     public boolean hasTerrainBodyHandles(@Nonnull UUID terrainUuid) {
         LongList bodyHandles = terrainBodyHandlesByUuid.get(terrainUuid);
+        return bodyHandles != null && !bodyHandles.isEmpty();
+    }
+
+    public boolean hasTerrainBodyHandles(@Nonnull Ref<PhysicsStore> terrainRef) {
+        LongList bodyHandles = terrainBodyHandlesByRef.get(terrainRef);
         return bodyHandles != null && !bodyHandles.isEmpty();
     }
 
@@ -427,8 +485,18 @@ public final class PhysicsRuntimeResource implements Resource<PhysicsStore> {
     }
 
     @Nullable
+    public BackendSpaceHandle getTerrainSpaceHandle(@Nonnull Ref<PhysicsStore> terrainRef) {
+        return terrainSpaceHandlesByRef.get(terrainRef);
+    }
+
+    @Nullable
     public BackendBodyHandle getTerrainVoxelBodyHandle(@Nonnull UUID terrainUuid) {
         return terrainVoxelBodyHandlesByUuid.get(terrainUuid);
+    }
+
+    @Nullable
+    public BackendBodyHandle getTerrainVoxelBodyHandle(@Nonnull Ref<PhysicsStore> terrainRef) {
+        return terrainVoxelBodyHandlesByRef.get(terrainRef);
     }
 
     public void forEachTerrainBodyHandle(@Nonnull UUID terrainUuid,
@@ -440,15 +508,38 @@ public final class PhysicsRuntimeResource implements Resource<PhysicsStore> {
         bodyHandles.forEach(consumer);
     }
 
+    public void forEachTerrainBodyHandle(@Nonnull Ref<PhysicsStore> terrainRef,
+        @Nonnull LongConsumer consumer) {
+        LongList bodyHandles = terrainBodyHandlesByRef.get(terrainRef);
+        if (bodyHandles == null) {
+            return;
+        }
+        bodyHandles.forEach(consumer);
+    }
+
     public void removeTerrainHandles(@Nonnull UUID terrainUuid) {
-        LongList bodyHandles = terrainBodyHandlesByUuid.get(terrainUuid);
+        LongList bodyHandles = terrainBodyHandlesByUuid.remove(terrainUuid);
         if (bodyHandles != null) {
             bodyHandles.forEach(bodyHitMetadataByHandle::remove);
         }
-        terrainBodyHandlesByUuid.remove(terrainUuid);
         terrainVoxelBodyHandlesByUuid.remove(terrainUuid);
         terrainSpaceHandlesByUuid.remove(terrainUuid);
         terrainPayloadKeysByUuid.remove(terrainUuid);
+        Ref<PhysicsStore> terrainRef = terrainRefsByUuid.remove(terrainUuid);
+        if (terrainRef != null) {
+            removeTerrainRefMaps(terrainRef);
+        }
+    }
+
+    public void removeTerrainHandles(@Nonnull UUID terrainUuid,
+        @Nonnull Ref<PhysicsStore> terrainRef) {
+        removeTerrainHandles(terrainUuid);
+        removeTerrainRefMaps(terrainRef);
+    }
+
+    public void removeTerrainHandles(@Nonnull Ref<PhysicsStore> terrainRef,
+        @Nonnull UUID terrainUuid) {
+        removeTerrainHandles(terrainUuid, terrainRef);
     }
 
     @Nonnull
@@ -512,6 +603,11 @@ public final class PhysicsRuntimeResource implements Resource<PhysicsStore> {
         terrainVoxelBodyHandlesByUuid.clear();
         terrainSpaceHandlesByUuid.clear();
         terrainPayloadKeysByUuid.clear();
+        terrainRefsByUuid.clear();
+        terrainBodyHandlesByRef.clear();
+        terrainVoxelBodyHandlesByRef.clear();
+        terrainSpaceHandlesByRef.clear();
+        terrainPayloadKeysByRef.clear();
         bodyHandlesBySpaceHandle.clear();
         bodyHitMetadataByHandle.clear();
         bodySnapshotMetadataByHandle.clear();
@@ -636,6 +732,12 @@ public final class PhysicsRuntimeResource implements Resource<PhysicsStore> {
         copy.terrainVoxelBodyHandlesByUuid.putAll(terrainVoxelBodyHandlesByUuid);
         copy.terrainSpaceHandlesByUuid.putAll(terrainSpaceHandlesByUuid);
         copy.terrainPayloadKeysByUuid.putAll(terrainPayloadKeysByUuid);
+        copy.terrainRefsByUuid.putAll(terrainRefsByUuid);
+        terrainBodyHandlesByRef.forEach((terrainRef, bodyHandles) ->
+            copy.terrainBodyHandlesByRef.put(terrainRef, new LongArrayList(bodyHandles)));
+        copy.terrainVoxelBodyHandlesByRef.putAll(terrainVoxelBodyHandlesByRef);
+        copy.terrainSpaceHandlesByRef.putAll(terrainSpaceHandlesByRef);
+        copy.terrainPayloadKeysByRef.putAll(terrainPayloadKeysByRef);
         bodyHandlesBySpaceHandle.forEach((spaceHandle, bodyHandles) ->
             copy.bodyHandlesBySpaceHandle.put((int) spaceHandle, new LongArrayList(bodyHandles)));
         copy.bodyHitMetadataByHandle.putAll(bodyHitMetadataByHandle);
@@ -795,7 +897,34 @@ public final class PhysicsRuntimeResource implements Resource<PhysicsStore> {
             terrainBodyHandlesByUuid.remove(terrainUuid);
             terrainVoxelBodyHandlesByUuid.remove(terrainUuid);
             terrainPayloadKeysByUuid.remove(terrainUuid);
+            Ref<PhysicsStore> terrainRef = terrainRefsByUuid.remove(terrainUuid);
+            if (terrainRef != null) {
+                removeTerrainRefMaps(terrainRef);
+            }
             return true;
         });
+    }
+
+    private void bindTerrainRef(@Nonnull UUID terrainUuid,
+        @Nullable Ref<PhysicsStore> terrainRef) {
+        if (terrainRef == null) {
+            return;
+        }
+        Ref<PhysicsStore> previousRef = terrainRefsByUuid.put(terrainUuid, terrainRef);
+        if (previousRef != null && !sameRef(previousRef, terrainRef)) {
+            removeTerrainRefMaps(previousRef);
+        }
+    }
+
+    private void removeTerrainRefMaps(@Nonnull Ref<PhysicsStore> terrainRef) {
+        terrainBodyHandlesByRef.remove(terrainRef);
+        terrainVoxelBodyHandlesByRef.remove(terrainRef);
+        terrainSpaceHandlesByRef.remove(terrainRef);
+        terrainPayloadKeysByRef.remove(terrainRef);
+    }
+
+    private static boolean sameRef(@Nonnull Ref<PhysicsStore> first,
+        @Nonnull Ref<PhysicsStore> second) {
+        return first == second || first.equals(second);
     }
 }
