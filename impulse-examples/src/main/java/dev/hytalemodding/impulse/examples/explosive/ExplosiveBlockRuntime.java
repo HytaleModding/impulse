@@ -19,7 +19,6 @@ import com.hypixel.hytale.server.core.universe.world.World;
 import com.hypixel.hytale.server.core.universe.world.chunk.WorldChunk;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import dev.hytalemodding.impulse.api.SpaceId;
-import dev.hytalemodding.impulse.core.plugin.body.RigidBodyKey;
 import dev.hytalemodding.impulse.core.plugin.physicsstore.components.BodyCommandComponent;
 import dev.hytalemodding.impulse.core.plugin.resources.PhysicsWorldResource;
 import dev.hytalemodding.impulse.core.plugin.simulation.PhysicsShapeSpec;
@@ -145,8 +144,7 @@ public final class ExplosiveBlockRuntime {
         Vector3f centerF = toVector3f(center);
         List<PendingBlockBody> pending = new ArrayList<>(groups.size());
         for (FragmentGroup group : groups) {
-            RigidBodyKey bodyKey = RigidBodyKey.random();
-            UUID bodyUuid = bodyKey.value();
+            UUID bodyUuid = UUID.randomUUID();
             Vector3d groupCenter = group.center();
             Vector3f impulse = ExplosiveBlockPolicy.outwardImpulse(centerF,
                 toVector3f(groupCenter),
@@ -169,7 +167,7 @@ public final class ExplosiveBlockRuntime {
                     0.0f,
                     0.0f,
                     0.0f));
-            pending.add(new PendingBlockBody(bodyKey,
+            pending.add(new PendingBlockBody(bodyUuid,
                 spaceId,
                 group.blockType(),
                 (float) groupCenter.x,
@@ -192,7 +190,7 @@ public final class ExplosiveBlockRuntime {
         for (FragmentVisual visual : group.visualBlocks()) {
             boolean controllable = body.controllable() && !controllableAssigned;
             Holder<EntityStore> holder = ExamplePhysicsUtils.attachedPhysicsStoreBlockEntityHolder(time,
-                body.bodyKey().value(),
+                body.bodyUuid(),
                 visual.blockType(),
                 visual.position(),
                 visual.localPositionOffset(),

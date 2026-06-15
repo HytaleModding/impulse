@@ -177,7 +177,7 @@ final class PhysicsStoreExampleCommands {
             TimeResource time = store.getResource(TimeResource.getResourceType());
             ExamplePhysicsUtils.attachPhysicsStoreBlockBody(store,
                 time,
-                new ExamplePhysicsUtils.PendingBlockBody(bodyKey,
+                new ExamplePhysicsUtils.PendingBlockBody(bodyUuid,
                     spaceId,
                     ExamplePhysicsUtils.DEFAULT_BLOCK_TYPE,
                     (float) spawn.x,

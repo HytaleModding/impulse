@@ -13,7 +13,6 @@ import com.hypixel.hytale.server.core.universe.PlayerRef;
 import com.hypixel.hytale.server.core.universe.world.World;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import dev.hytalemodding.impulse.api.SpaceId;
-import dev.hytalemodding.impulse.core.plugin.body.RigidBodyKey;
 import dev.hytalemodding.impulse.core.plugin.physicsstore.components.BodyCommandComponent;
 import dev.hytalemodding.impulse.core.plugin.simulation.PhysicsShapeSpec;
 import dev.hytalemodding.impulse.core.plugin.simulation.RigidBodySpawnSettings;
@@ -162,17 +161,17 @@ public class ForcesCommand extends AbstractAsyncPlayerCommand {
         @Nonnull SpaceId spaceId,
         @Nonnull Vector3d position,
         @Nonnull BodyCommandComponent command) {
-        RigidBodyKey bodyKey = RigidBodyKey.random();
+        UUID bodyUuid = UUID.randomUUID();
         ExamplePhysicsUtils.addPhysicsStoreBody(world,
             ExamplePhysicsUtils.bodyRow(spaceUuid,
-                bodyKey.value(),
+                bodyUuid,
                 ExamplePhysicsUtils.toVector3f(position),
                 PhysicsShapeSpec.box(0.5f, 0.5f, 0.5f),
                 1.0f,
                 RigidBodySpawnSettings.material(0.5f, 0.25f),
                 null),
             command);
-        return new PendingBlockBody(bodyKey,
+        return new PendingBlockBody(bodyUuid,
             spaceId,
             ExamplePhysicsUtils.DEFAULT_BLOCK_TYPE,
             (float) position.x,

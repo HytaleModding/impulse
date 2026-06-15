@@ -166,7 +166,7 @@ public class StressJointsCommand extends AbstractAsyncPlayerCommand {
                     spawnSettings,
                     initialVelocity(jointType, i)));
             pendingBodies.add(new PendingBlockBody(
-                bodyKeys[i],
+                bodyKeys[i].value(),
                 spaceId,
                 blockType,
                 positions[positionOffset],

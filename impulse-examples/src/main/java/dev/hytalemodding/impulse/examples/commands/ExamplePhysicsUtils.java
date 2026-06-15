@@ -266,8 +266,7 @@ public final class ExamplePhysicsUtils {
             return null;
         }
 
-        RigidBodyKey bodyKey = RigidBodyKey.random();
-        UUID bodyUuid = bodyKey.value();
+        UUID bodyUuid = UUID.randomUUID();
         Vector3f bodyCenter = toVector3f(visualPosition);
         try {
             addPhysicsStoreBody(world,
@@ -282,7 +281,7 @@ public final class ExamplePhysicsUtils {
             return null;
         }
 
-        return new PendingBlockBody(bodyKey,
+        return new PendingBlockBody(bodyUuid,
             spaceId,
             blockType,
             (float) visualPosition.x,
@@ -416,12 +415,12 @@ public final class ExamplePhysicsUtils {
         @Nonnull PendingBlockBody pending) {
         Ref<EntityStore> entity = spawnAttachedPhysicsStoreBlockEntity(store,
             time,
-            pending.bodyKey().value(),
+            pending.bodyUuid(),
             pending.blockType(),
             new Vector3d(pending.positionX(), pending.positionY(), pending.positionZ()),
             pending.controllable());
         assert entity != null;
-        return new SpawnedBlockBody(pending.bodyKey(), pending.spaceId(), entity);
+        return new SpawnedBlockBody(pending.bodyUuid(), pending.spaceId(), entity);
     }
 
     @Nonnull
@@ -529,7 +528,7 @@ public final class ExamplePhysicsUtils {
                 mass > 0.0f);
             if (spawned != null) {
                 assert entity != null;
-                spawned[i] = new SpawnedBlockBody(bodyKey, spaceId, entity);
+                spawned[i] = new SpawnedBlockBody(bodyKey.value(), spaceId, entity);
             }
         }
         long entityAttachNanos = System.nanoTime() - entityAttachStartNanos;
@@ -624,7 +623,7 @@ public final class ExamplePhysicsUtils {
         return new Vector3f((float) vector.x, (float) vector.y, (float) vector.z);
     }
 
-    public record SpawnedBlockBody(@Nonnull RigidBodyKey bodyKey,
+    public record SpawnedBlockBody(@Nonnull UUID bodyUuid,
                                    @Nonnull SpaceId spaceId,
                                    @Nonnull Ref<EntityStore> entity) {
     }
@@ -668,7 +667,7 @@ public final class ExamplePhysicsUtils {
         }
     }
 
-    public record PendingBlockBody(@Nonnull RigidBodyKey bodyKey,
+    public record PendingBlockBody(@Nonnull UUID bodyUuid,
                                    @Nonnull SpaceId spaceId,
                                    @Nullable String blockType,
                                    float positionX,
@@ -677,7 +676,7 @@ public final class ExamplePhysicsUtils {
                                    boolean controllable) {
 
         public PendingBlockBody {
-            Objects.requireNonNull(bodyKey, "bodyKey");
+            Objects.requireNonNull(bodyUuid, "bodyUuid");
             Objects.requireNonNull(spaceId, "spaceId");
         }
     }
