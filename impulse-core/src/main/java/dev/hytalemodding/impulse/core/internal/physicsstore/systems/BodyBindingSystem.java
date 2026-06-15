@@ -70,14 +70,17 @@ public final class BodyBindingSystem extends TickingSystem<PhysicsStore>
                 continue;
             }
             UUID bodyUuid = PhysicsStoreSystemSupport.rowUuid(chunk, index);
-            if (PhysicsStoreSystemSupport.isNil(bodyUuid)
-                || runtime.getBodyHandle(bodyUuid) != null) {
+            if (PhysicsStoreSystemSupport.isNil(bodyUuid)) {
+                continue;
+            }
+            Ref<PhysicsStore> bodyRef = chunk.getReferenceTo(index);
+            if (runtime.getBodyHandle(bodyRef) != null) {
                 continue;
             }
             bindBody(runtime,
                 identity,
                 restore,
-                chunk.getReferenceTo(index),
+                bodyRef,
                 bodyUuid,
                 body,
                 chunk.getComponent(index, DynamicsComponent.getComponentType()),
