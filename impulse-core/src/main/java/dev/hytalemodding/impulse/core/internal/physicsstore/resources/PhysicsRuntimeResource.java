@@ -1,5 +1,6 @@
 package dev.hytalemodding.impulse.core.internal.physicsstore.resources;
 
+import com.hypixel.hytale.component.Ref;
 import com.hypixel.hytale.component.Resource;
 import com.hypixel.hytale.component.ResourceType;
 import com.hypixel.hytale.server.core.universe.world.storage.PhysicsStore;
@@ -131,6 +132,7 @@ public final class PhysicsRuntimeResource implements Resource<PhysicsStore> {
     }
 
     public void putBodyHandle(@Nonnull UUID bodyUuid,
+        @Nonnull Ref<PhysicsStore> bodyRef,
         @Nonnull UUID spaceUuid,
         @Nonnull BackendSpaceHandle spaceHandle,
         @Nonnull BackendBodyHandle handle) {
@@ -138,7 +140,8 @@ public final class PhysicsRuntimeResource implements Resource<PhysicsStore> {
         bodySpaceHandlesByUuid.put(bodyUuid, spaceHandle);
         bodyHandlesBySpaceHandle.computeIfAbsent(spaceHandle.value(), _ -> new LongArrayList())
             .add(handle.value());
-        bodySnapshotMetadataByHandle.put(handle.value(), new BodySnapshotMetadata(bodyUuid, spaceUuid));
+        bodySnapshotMetadataByHandle.put(handle.value(),
+            new BodySnapshotMetadata(bodyUuid, bodyRef, spaceUuid));
     }
 
     @Nullable
@@ -520,10 +523,12 @@ public final class PhysicsRuntimeResource implements Resource<PhysicsStore> {
     }
 
     public record BodySnapshotMetadata(@Nonnull UUID bodyUuid,
+                                       @Nonnull Ref<PhysicsStore> bodyRef,
                                        @Nonnull UUID spaceUuid) {
 
         public BodySnapshotMetadata {
             Objects.requireNonNull(bodyUuid, "bodyUuid");
+            Objects.requireNonNull(bodyRef, "bodyRef");
             Objects.requireNonNull(spaceUuid, "spaceUuid");
         }
     }

@@ -1,6 +1,5 @@
 package dev.hytalemodding.impulse.core.internal.physicsstore.systems;
 
-import com.hypixel.hytale.component.Ref;
 import com.hypixel.hytale.component.Store;
 import com.hypixel.hytale.component.dependency.Dependency;
 import com.hypixel.hytale.component.dependency.Order;
@@ -14,7 +13,6 @@ import dev.hytalemodding.impulse.api.runtime.BackendBodySnapshotSink;
 import dev.hytalemodding.impulse.api.runtime.BackendRuntimeCodes;
 import dev.hytalemodding.impulse.api.runtime.BackendStepPhaseStatsSink;
 import dev.hytalemodding.impulse.api.runtime.PhysicsBackendRuntime;
-import dev.hytalemodding.impulse.core.internal.physicsstore.resources.PhysicsIdentityIndexResource;
 import dev.hytalemodding.impulse.core.internal.physicsstore.resources.PhysicsProfilingResource;
 import dev.hytalemodding.impulse.core.internal.physicsstore.resources.PhysicsRestoreStatusResource;
 import dev.hytalemodding.impulse.core.internal.physicsstore.resources.PhysicsRuntimeResource;
@@ -70,10 +68,7 @@ public final class StepSubmissionSystem extends TickingSystem<PhysicsStore> {
         float stepDt = safeDt / steps;
         boolean ccdMode = stepMode == PhysicsStepMode.CCD;
         if (ccdMode || settingsResource.isCcdStepModeActive()) {
-            syncContinuousCollisionMode(store,
-                runtime,
-                store.getResource(PhysicsIdentityIndexResource.getResourceType()),
-                ccdMode);
+            syncContinuousCollisionMode(store, runtime, ccdMode);
         }
         settingsResource.setCcdStepModeActive(ccdMode);
         PhysicsProfilingResource profiling = store.getResource(PhysicsProfilingResource.getResourceType());
@@ -117,7 +112,6 @@ public final class StepSubmissionSystem extends TickingSystem<PhysicsStore> {
 
     private static void syncContinuousCollisionMode(@Nonnull Store<PhysicsStore> store,
         @Nonnull PhysicsRuntimeResource runtime,
-        @Nonnull PhysicsIdentityIndexResource identity,
         boolean forceDynamicBodies) {
         runtime.forEachSpaceBinding((_, _, spaceHandle, backendRuntime) -> {
             if (!backendRuntime.supportsContinuousCollision(spaceHandle.value())) {
@@ -126,7 +120,7 @@ public final class StepSubmissionSystem extends TickingSystem<PhysicsStore> {
             runtime.forEachBodyHandle(spaceHandle, bodyId -> {
                 BodySnapshotMetadata metadata = runtime.getBodySnapshotMetadata(bodyId);
                 boolean authoredCcd = metadata != null
-                    && authoredContinuousCollision(store, identity, metadata);
+                    && authoredContinuousCollision(store, metadata);
                 backendRuntime.bodySnapshot(spaceHandle.value(),
                     bodyId,
                     new ContinuousCollisionSync(backendRuntime,
@@ -138,11 +132,9 @@ public final class StepSubmissionSystem extends TickingSystem<PhysicsStore> {
     }
 
     private static boolean authoredContinuousCollision(@Nonnull Store<PhysicsStore> store,
-        @Nonnull PhysicsIdentityIndexResource identity,
         @Nonnull BodySnapshotMetadata metadata) {
-        Ref<PhysicsStore> ref = PhysicsStoreSystemSupport.refForUuid(identity, metadata.bodyUuid());
         DynamicsComponent dynamics = PhysicsStoreSystemSupport.component(store,
-            ref,
+            metadata.bodyRef(),
             DynamicsComponent.getComponentType());
         return dynamics != null && dynamics.isContinuousCollisionEnabled();
     }
