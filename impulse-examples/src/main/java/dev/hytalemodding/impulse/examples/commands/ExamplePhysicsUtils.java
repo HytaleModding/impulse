@@ -394,9 +394,9 @@ public final class ExamplePhysicsUtils {
 
         List<BodyRowDescriptor> bodies = new ArrayList<>(batch.size());
         for (int i = 0; i < batch.size(); i++) {
-            RigidBodyKey bodyKey = batch.bodyKey(i);
+            UUID bodyUuid = batch.bodyUuid(i);
             bodies.add(bodyRow(spaceUuid,
-                bodyKey.value(),
+                bodyUuid,
                 new Vector3f(batch.positionX(i), batch.positionY(i), batch.positionZ(i)),
                 shape,
                 mass,
@@ -502,9 +502,9 @@ public final class ExamplePhysicsUtils {
 
         List<BodyRowDescriptor> rows = new ArrayList<>(batch.size());
         for (int i = 0; i < batch.size(); i++) {
-            RigidBodyKey bodyKey = batch.bodyKey(i);
+            UUID bodyUuid = batch.bodyUuid(i);
             rows.add(bodyRow(spaceUuid,
-                bodyKey.value(),
+                bodyUuid,
                 new Vector3f(batch.positionX(i), batch.positionY(i), batch.positionZ(i)),
                 shape,
                 mass,
@@ -519,16 +519,16 @@ public final class ExamplePhysicsUtils {
         long entityAttachStartNanos = System.nanoTime();
         SpawnedBlockBody[] spawned = collectBodies ? new SpawnedBlockBody[batch.size()] : null;
         for (int i = 0; i < batch.size(); i++) {
-            RigidBodyKey bodyKey = batch.bodyKey(i);
+            UUID bodyUuid = batch.bodyUuid(i);
             Ref<EntityStore> entity = spawnAttachedPhysicsStoreBlockEntity(store,
                 time,
-                bodyKey.value(),
+                bodyUuid,
                 blockType,
                 new Vector3d(batch.positionX(i), batch.positionY(i), batch.positionZ(i)),
                 mass > 0.0f);
             if (spawned != null) {
                 assert entity != null;
-                spawned[i] = new SpawnedBlockBody(bodyKey.value(), spaceId, entity);
+                spawned[i] = new SpawnedBlockBody(bodyUuid, spaceId, entity);
             }
         }
         long entityAttachNanos = System.nanoTime() - entityAttachStartNanos;
@@ -685,17 +685,17 @@ public final class ExamplePhysicsUtils {
 
         private static final int POSITION_STRIDE = 3;
 
-        private final long bodyKeyRunId = RigidBodyKey.random().mostSignificantBits();
-        private long[] bodyKeyMostSignificantBits;
-        private long[] bodyKeyLeastSignificantBits;
+        private final long bodyUuidRunId = UUID.randomUUID().getMostSignificantBits();
+        private long[] bodyUuidMostSignificantBits;
+        private long[] bodyUuidLeastSignificantBits;
         private float[] positions;
         private int size;
         private boolean sealed;
 
         private BlockBodyBatchBuilder(int expectedBodies) {
             int capacity = Math.max(1, expectedBodies);
-            bodyKeyMostSignificantBits = new long[capacity];
-            bodyKeyLeastSignificantBits = new long[capacity];
+            bodyUuidMostSignificantBits = new long[capacity];
+            bodyUuidLeastSignificantBits = new long[capacity];
             positions = new float[capacity * POSITION_STRIDE];
         }
 
@@ -703,7 +703,7 @@ public final class ExamplePhysicsUtils {
         public BlockBodyBatchBuilder addBody(float positionX,
             float positionY,
             float positionZ) {
-            return addBody(bodyKeyRunId,
+            return addBody(bodyUuidRunId,
                 size + 1L,
                 positionX,
                 positionY,
@@ -711,46 +711,46 @@ public final class ExamplePhysicsUtils {
         }
 
         @Nonnull
-        public BlockBodyBatchBuilder addBody(@Nonnull RigidBodyKey bodyKey,
+        public BlockBodyBatchBuilder addBody(@Nonnull UUID bodyUuid,
             float positionX,
             float positionY,
             float positionZ) {
-            Objects.requireNonNull(bodyKey, "bodyKey");
-            return addBody(bodyKey.mostSignificantBits(),
-                bodyKey.leastSignificantBits(),
+            Objects.requireNonNull(bodyUuid, "bodyUuid");
+            return addBody(bodyUuid.getMostSignificantBits(),
+                bodyUuid.getLeastSignificantBits(),
                 positionX,
                 positionY,
                 positionZ);
         }
 
         @Nonnull
-        public RigidBodyKey body(float positionX,
+        public UUID body(float positionX,
             float positionY,
             float positionZ) {
             long leastSignificantBits = size + 1L;
-            addBody(bodyKeyRunId, leastSignificantBits, positionX, positionY, positionZ);
-            return RigidBodyKey.of(bodyKeyRunId, leastSignificantBits);
+            addBody(bodyUuidRunId, leastSignificantBits, positionX, positionY, positionZ);
+            return new UUID(bodyUuidRunId, leastSignificantBits);
         }
 
         @Nonnull
-        public RigidBodyKey body(@Nonnull RigidBodyKey bodyKey,
+        public UUID body(@Nonnull UUID bodyUuid,
             float positionX,
             float positionY,
             float positionZ) {
-            addBody(bodyKey, positionX, positionY, positionZ);
-            return bodyKey;
+            addBody(bodyUuid, positionX, positionY, positionZ);
+            return bodyUuid;
         }
 
         @Nonnull
-        private BlockBodyBatchBuilder addBody(long bodyKeyMostSignificantBits,
-            long bodyKeyLeastSignificantBits,
+        private BlockBodyBatchBuilder addBody(long bodyUuidMostSignificantBits,
+            long bodyUuidLeastSignificantBits,
             float positionX,
             float positionY,
             float positionZ) {
             assertMutable();
             ensureCapacity(size + 1);
-            this.bodyKeyMostSignificantBits[size] = bodyKeyMostSignificantBits;
-            this.bodyKeyLeastSignificantBits[size] = bodyKeyLeastSignificantBits;
+            this.bodyUuidMostSignificantBits[size] = bodyUuidMostSignificantBits;
+            this.bodyUuidLeastSignificantBits[size] = bodyUuidLeastSignificantBits;
             int positionOffset = size * POSITION_STRIDE;
             positions[positionOffset] = positionX;
             positions[positionOffset + 1] = positionY;
@@ -772,20 +772,10 @@ public final class ExamplePhysicsUtils {
         }
 
         @Nonnull
-        private RigidBodyKey bodyKey(int index) {
+        private UUID bodyUuid(int index) {
             checkIndex(index);
-            return RigidBodyKey.of(bodyKeyMostSignificantBits[index],
-                bodyKeyLeastSignificantBits[index]);
-        }
-
-        private long bodyKeyMostSignificantBits(int index) {
-            checkIndex(index);
-            return bodyKeyMostSignificantBits[index];
-        }
-
-        private long bodyKeyLeastSignificantBits(int index) {
-            checkIndex(index);
-            return bodyKeyLeastSignificantBits[index];
+            return new UUID(bodyUuidMostSignificantBits[index],
+                bodyUuidLeastSignificantBits[index]);
         }
 
         private float positionX(int index) {
@@ -806,13 +796,13 @@ public final class ExamplePhysicsUtils {
         }
 
         private void ensureCapacity(int required) {
-            if (required <= bodyKeyMostSignificantBits.length) {
+            if (required <= bodyUuidMostSignificantBits.length) {
                 return;
             }
             int nextCapacity = Math.max(required,
-                bodyKeyMostSignificantBits.length + (bodyKeyMostSignificantBits.length >> 1) + 1);
-            bodyKeyMostSignificantBits = Arrays.copyOf(bodyKeyMostSignificantBits, nextCapacity);
-            bodyKeyLeastSignificantBits = Arrays.copyOf(bodyKeyLeastSignificantBits, nextCapacity);
+                bodyUuidMostSignificantBits.length + (bodyUuidMostSignificantBits.length >> 1) + 1);
+            bodyUuidMostSignificantBits = Arrays.copyOf(bodyUuidMostSignificantBits, nextCapacity);
+            bodyUuidLeastSignificantBits = Arrays.copyOf(bodyUuidLeastSignificantBits, nextCapacity);
             positions = Arrays.copyOf(positions, nextCapacity * POSITION_STRIDE);
         }
 
