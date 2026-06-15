@@ -2,6 +2,7 @@ package dev.hytalemodding.impulse.core.internal.physicsstore.systems;
 
 import com.hypixel.hytale.component.ArchetypeChunk;
 import com.hypixel.hytale.component.CommandBuffer;
+import com.hypixel.hytale.component.Ref;
 import com.hypixel.hytale.component.Store;
 import com.hypixel.hytale.component.dependency.Dependency;
 import com.hypixel.hytale.component.dependency.Order;
@@ -18,7 +19,6 @@ import dev.hytalemodding.impulse.core.internal.resources.BackendBodyHandle;
 import dev.hytalemodding.impulse.core.internal.resources.BackendSpaceHandle;
 import dev.hytalemodding.impulse.core.plugin.physicsstore.components.TargetComponent;
 import java.util.Set;
-import java.util.UUID;
 import java.util.function.BiConsumer;
 import javax.annotation.Nonnull;
 import org.joml.Quaternionf;
@@ -53,9 +53,9 @@ public final class TargetBindingSystem extends TickingSystem<PhysicsStore>
             if (target == null || !target.isActive()) {
                 continue;
             }
-            UUID bodyUuid = PhysicsStoreSystemSupport.rowUuid(chunk, index);
-            BackendBodyHandle bodyHandle = runtime.getBodyHandle(bodyUuid);
-            BackendSpaceHandle spaceHandle = runtime.getBodySpaceHandle(bodyUuid);
+            Ref<PhysicsStore> ref = chunk.getReferenceTo(index);
+            BackendBodyHandle bodyHandle = runtime.getBodyHandle(ref);
+            BackendSpaceHandle spaceHandle = runtime.getBodySpaceHandle(ref);
             if (bodyHandle == null || spaceHandle == null) {
                 continue;
             }
