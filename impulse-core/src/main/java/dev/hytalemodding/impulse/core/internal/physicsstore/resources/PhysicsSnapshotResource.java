@@ -1,5 +1,6 @@
 package dev.hytalemodding.impulse.core.internal.physicsstore.resources;
 
+import com.hypixel.hytale.component.Ref;
 import com.hypixel.hytale.component.Resource;
 import com.hypixel.hytale.component.ResourceType;
 import com.hypixel.hytale.server.core.universe.world.storage.PhysicsStore;
@@ -35,12 +36,25 @@ public final class PhysicsSnapshotResource implements Resource<PhysicsStore> {
         return snapshot.bodiesByUuid().get(bodyUuid);
     }
 
+    @Nullable
+    public PhysicsStoreBodySnapshot getBody(@Nonnull Ref<PhysicsStore> bodyRef) {
+        return snapshot.bodiesByRef().get(bodyRef);
+    }
+
     public void publish(@Nonnull PhysicsStoreSnapshotFrame frame) {
         Map<UUID, PhysicsStoreBodySnapshot> bodiesByUuid = new Object2ObjectOpenHashMap<>();
+        Map<Ref<PhysicsStore>, PhysicsStoreBodySnapshot> bodiesByRef =
+            new Object2ObjectOpenHashMap<>();
         for (PhysicsStoreBodySnapshot body : frame.bodies()) {
             bodiesByUuid.put(body.bodyUuid(), body);
+            Ref<PhysicsStore> bodyRef = body.bodyRef();
+            if (bodyRef != null) {
+                bodiesByRef.put(bodyRef, body);
+            }
         }
-        snapshot = new PublishedSnapshot(frame, Map.copyOf(bodiesByUuid));
+        snapshot = new PublishedSnapshot(frame,
+            Map.copyOf(bodiesByUuid),
+            Map.copyOf(bodiesByRef));
     }
 
     public void removeBody(@Nonnull UUID bodyUuid) {
@@ -60,18 +74,25 @@ public final class PhysicsSnapshotResource implements Resource<PhysicsStore> {
         @Nonnull UUID bodyUuid) {
         List<PhysicsStoreBodySnapshot> bodies = new ArrayList<>();
         Map<UUID, PhysicsStoreBodySnapshot> bodiesByUuid = new Object2ObjectOpenHashMap<>();
+        Map<Ref<PhysicsStore>, PhysicsStoreBodySnapshot> bodiesByRef =
+            new Object2ObjectOpenHashMap<>();
         for (PhysicsStoreBodySnapshot body : current.frame().bodies()) {
             if (bodyUuid.equals(body.bodyUuid())) {
                 continue;
             }
             bodies.add(body);
             bodiesByUuid.put(body.bodyUuid(), body);
+            Ref<PhysicsStore> bodyRef = body.bodyRef();
+            if (bodyRef != null) {
+                bodiesByRef.put(bodyRef, body);
+            }
         }
         return new PublishedSnapshot(
             new PhysicsStoreSnapshotFrame(current.frame().sequence(),
                 current.frame().dt(),
                 bodies),
-            Map.copyOf(bodiesByUuid));
+            Map.copyOf(bodiesByUuid),
+            Map.copyOf(bodiesByRef));
     }
 
     @Nonnull
@@ -89,9 +110,10 @@ public final class PhysicsSnapshotResource implements Resource<PhysicsStore> {
 
     private record PublishedSnapshot(
         @Nonnull PhysicsStoreSnapshotFrame frame,
-        @Nonnull Map<UUID, PhysicsStoreBodySnapshot> bodiesByUuid) {
+        @Nonnull Map<UUID, PhysicsStoreBodySnapshot> bodiesByUuid,
+        @Nonnull Map<Ref<PhysicsStore>, PhysicsStoreBodySnapshot> bodiesByRef) {
 
         private static final PublishedSnapshot EMPTY =
-            new PublishedSnapshot(PhysicsStoreSnapshotFrame.EMPTY, Map.of());
+            new PublishedSnapshot(PhysicsStoreSnapshotFrame.EMPTY, Map.of(), Map.of());
     }
 }

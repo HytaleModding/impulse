@@ -6,8 +6,10 @@ import com.hypixel.hytale.codec.builder.BuilderCodec;
 import com.hypixel.hytale.codec.codecs.EnumCodec;
 import com.hypixel.hytale.component.Component;
 import com.hypixel.hytale.component.ComponentType;
+import com.hypixel.hytale.component.Ref;
 import com.hypixel.hytale.math.vector.Vector3fUtil;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
+import com.hypixel.hytale.server.core.universe.world.storage.PhysicsStore;
 import dev.hytalemodding.impulse.core.ImpulsePlugin;
 import dev.hytalemodding.impulse.core.plugin.codec.ImpulseCodecs;
 import java.util.Objects;
@@ -66,6 +68,9 @@ public class BodyAttachmentComponent implements Component<EntityStore> {
 
     @Nonnull
     private UUID bodyUuid = UUID.randomUUID();
+
+    @Nullable
+    private transient Ref<PhysicsStore> bodyRef;
 
     @Setter
     private TransformAuthority transformAuthority = TransformAuthority.BODY;
@@ -193,6 +198,16 @@ public class BodyAttachmentComponent implements Component<EntityStore> {
 
     public void setBodyUuid(@Nonnull UUID bodyUuid) {
         this.bodyUuid = Objects.requireNonNull(bodyUuid, "bodyUuid");
+        bodyRef = null;
+    }
+
+    @Nullable
+    public Ref<PhysicsStore> getBodyRef() {
+        return bodyRef;
+    }
+
+    public void setBodyRef(@Nullable Ref<PhysicsStore> bodyRef) {
+        this.bodyRef = bodyRef;
     }
 
     @Nonnull
@@ -229,12 +244,14 @@ public class BodyAttachmentComponent implements Component<EntityStore> {
     @Nonnull
     @Override
     public BodyAttachmentComponent clone() {
-        return new BodyAttachmentComponent(bodyUuid,
+        BodyAttachmentComponent copy = new BodyAttachmentComponent(bodyUuid,
             transformAuthority,
             lifecycle,
             localPositionOffset,
             localRotationOffset,
             visualOriginOffsetY);
+        copy.bodyRef = bodyRef;
+        return copy;
     }
 
     private static float normalizeVisualOriginOffsetY(@Nullable Float value) {

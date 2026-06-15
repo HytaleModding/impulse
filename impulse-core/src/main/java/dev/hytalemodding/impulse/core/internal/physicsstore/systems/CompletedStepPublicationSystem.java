@@ -167,7 +167,8 @@ public final class CompletedStepPublicationSystem extends TickingSystem<PhysicsS
             return;
         }
         snapshotBodyUuids.add(metadata.bodyUuid());
-        bodies.add(new PhysicsStoreBodySnapshot(metadata.bodyUuid(),
+        bodies.add(new PhysicsStoreBodySnapshot(metadata.bodyRef(),
+            metadata.bodyUuid(),
             metadata.spaceUuid(),
             BackendRuntimeCodes.bodyType(bodyTypeCode),
             new Vector3f(positionX, positionY, positionZ),

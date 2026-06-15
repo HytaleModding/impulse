@@ -7,6 +7,7 @@ import com.hypixel.hytale.component.Store;
 import com.hypixel.hytale.component.query.Query;
 import com.hypixel.hytale.component.system.RefChangeSystem;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
+import com.hypixel.hytale.server.core.universe.world.storage.PhysicsStore;
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsProjectionIndexResource;
 import dev.hytalemodding.impulse.core.plugin.physicsstore.projection.BodyAttachmentComponent;
 import dev.hytalemodding.impulse.core.plugin.physicsstore.projection.BodyAttachmentComponent.AttachmentLifecycle;
@@ -56,25 +57,32 @@ public class PhysicsBodyAttachmentIndexSystem
         @Nonnull CommandBuffer<EntityStore> commandBuffer) {
         UUID oldUuid = oldComponent.getBodyUuid();
         UUID newUuid = newComponent.getBodyUuid();
+        Ref<PhysicsStore> oldBodyRef = oldComponent.getBodyRef();
+        Ref<PhysicsStore> newBodyRef = newComponent.getBodyRef();
         boolean sameUuid = oldUuid.equals(newUuid);
+        boolean sameBodyRef = sameRef(oldBodyRef, newBodyRef);
         boolean oldGeneratedProxy = oldComponent.getLifecycle() == AttachmentLifecycle.GENERATED_PROXY;
         boolean newGeneratedProxy = newComponent.getLifecycle() == AttachmentLifecycle.GENERATED_PROXY;
-        if (sameUuid && oldGeneratedProxy == newGeneratedProxy) {
+        if (sameUuid && sameBodyRef && oldGeneratedProxy == newGeneratedProxy) {
             return;
         }
         PhysicsProjectionIndexResource resource = commandBuffer.getResource(
             PhysicsProjectionIndexResource.getResourceType());
         if (!sameUuid) {
-            resource.unregisterAttachment(oldUuid, ref);
-            resource.registerAttachment(newUuid, ref);
+            resource.unregisterAttachment(oldUuid, oldBodyRef, ref);
+            resource.registerAttachment(newUuid, newBodyRef, ref);
+        } else if (!sameBodyRef) {
+            resource.updateAttachmentBodyRef(newUuid,
+                oldBodyRef,
+                newBodyRef,
+                ref,
+                newGeneratedProxy);
         }
-        if (!sameUuid || oldGeneratedProxy != newGeneratedProxy) {
-            if (oldGeneratedProxy) {
-                resource.clearGeneratedVisualProxy(oldUuid, ref);
-            }
-            if (newGeneratedProxy) {
-                resource.setGeneratedVisualProxy(newUuid, ref);
-            }
+        if (oldGeneratedProxy && (!sameUuid || !sameBodyRef || !newGeneratedProxy)) {
+            resource.clearGeneratedVisualProxy(oldUuid, oldBodyRef, ref);
+        }
+        if (newGeneratedProxy && (!sameUuid || !sameBodyRef || !oldGeneratedProxy)) {
+            resource.setGeneratedVisualProxy(newUuid, newBodyRef, ref);
         }
     }
 
@@ -84,9 +92,9 @@ public class PhysicsBodyAttachmentIndexSystem
         UUID bodyUuid = component.getBodyUuid();
         PhysicsProjectionIndexResource resource = commandBuffer.getResource(
             PhysicsProjectionIndexResource.getResourceType());
-        resource.registerAttachment(bodyUuid, ref);
+        resource.registerAttachment(bodyUuid, component.getBodyRef(), ref);
         if (component.getLifecycle() == AttachmentLifecycle.GENERATED_PROXY) {
-            resource.setGeneratedVisualProxy(bodyUuid, ref);
+            resource.setGeneratedVisualProxy(bodyUuid, component.getBodyRef(), ref);
         }
     }
 
@@ -96,10 +104,15 @@ public class PhysicsBodyAttachmentIndexSystem
         UUID bodyUuid = component.getBodyUuid();
         PhysicsProjectionIndexResource resource = commandBuffer.getResource(
             PhysicsProjectionIndexResource.getResourceType());
-        resource.unregisterAttachment(bodyUuid, ref);
+        resource.unregisterAttachment(bodyUuid, component.getBodyRef(), ref);
         if (component.getLifecycle() == AttachmentLifecycle.GENERATED_PROXY) {
-            resource.clearGeneratedVisualProxy(bodyUuid, ref);
+            resource.clearGeneratedVisualProxy(bodyUuid, component.getBodyRef(), ref);
         }
+    }
+
+    private static boolean sameRef(@Nullable Ref<PhysicsStore> first,
+        @Nullable Ref<PhysicsStore> second) {
+        return first == second || (first != null && first.equals(second));
     }
 
     @Nonnull

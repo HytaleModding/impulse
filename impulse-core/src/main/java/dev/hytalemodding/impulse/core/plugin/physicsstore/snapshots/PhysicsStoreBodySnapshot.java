@@ -1,16 +1,20 @@
 package dev.hytalemodding.impulse.core.plugin.physicsstore.snapshots;
 
+import com.hypixel.hytale.component.Ref;
+import com.hypixel.hytale.server.core.universe.world.storage.PhysicsStore;
 import dev.hytalemodding.impulse.api.PhysicsBodyType;
 import java.util.Objects;
 import java.util.UUID;
 import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
 import org.joml.Quaternionf;
 import org.joml.Vector3f;
 
 /**
  * Copied body snapshot published out of PhysicsStore for projection and queries.
  */
-public record PhysicsStoreBodySnapshot(@Nonnull UUID bodyUuid,
+public record PhysicsStoreBodySnapshot(@Nullable Ref<PhysicsStore> bodyRef,
+                                       @Nonnull UUID bodyUuid,
                                        @Nonnull UUID spaceUuid,
                                        @Nonnull PhysicsBodyType bodyType,
                                        @Nonnull Vector3f position,
@@ -19,6 +23,27 @@ public record PhysicsStoreBodySnapshot(@Nonnull UUID bodyUuid,
                                        @Nonnull Vector3f angularVelocity,
                                        float centerOfMassOffsetY,
                                        boolean sleeping) {
+
+    public PhysicsStoreBodySnapshot(@Nonnull UUID bodyUuid,
+        @Nonnull UUID spaceUuid,
+        @Nonnull PhysicsBodyType bodyType,
+        @Nonnull Vector3f position,
+        @Nonnull Quaternionf rotation,
+        @Nonnull Vector3f linearVelocity,
+        @Nonnull Vector3f angularVelocity,
+        float centerOfMassOffsetY,
+        boolean sleeping) {
+        this(null,
+            bodyUuid,
+            spaceUuid,
+            bodyType,
+            position,
+            rotation,
+            linearVelocity,
+            angularVelocity,
+            centerOfMassOffsetY,
+            sleeping);
+    }
 
     public PhysicsStoreBodySnapshot {
         Objects.requireNonNull(bodyUuid, "bodyUuid");

@@ -22,6 +22,7 @@ import dev.hytalemodding.impulse.early.PhysicsStoreWorld;
 import dev.hytalemodding.impulse.core.ImpulsePlugin;
 import dev.hytalemodding.impulse.core.internal.math.PhysicsVisualPoseMath;
 import dev.hytalemodding.impulse.core.internal.physicsstore.resources.PhysicsSnapshotResource;
+import dev.hytalemodding.impulse.core.internal.resources.PhysicsProjectionIndexResource;
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsWorldRuntimeResource;
 import dev.hytalemodding.impulse.core.internal.resources.body.PhysicsBodyRuntimeState;
 import dev.hytalemodding.impulse.core.internal.resources.profiling.PhysicsRuntimeProfilingResource;
@@ -36,7 +37,6 @@ import dev.hytalemodding.impulse.core.plugin.physicsstore.snapshots.PhysicsStore
 import dev.hytalemodding.impulse.core.plugin.settings.PhysicsSpaceSettings;
 import java.util.List;
 import java.util.Set;
-import java.util.UUID;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 import org.joml.Quaternionf;
@@ -140,9 +140,11 @@ public class PhysicsSyncSystem extends EntityTickingSystem<EntityStore> {
         if (collector != null) {
             collector.incrementBodiesInspected();
         }
-        UUID bodyUuid = attachment.getBodyUuid();
         PhysicsSnapshotResource snapshotResource = physicsStoreSnapshots.get();
-        PhysicsStoreBodySnapshot physicsStoreSnapshot = snapshotResource.getBody(bodyUuid);
+        PhysicsStoreBodySnapshot physicsStoreSnapshot = resolvePhysicsStoreSnapshot(entityRef,
+            attachment,
+            snapshotResource,
+            store);
         if (physicsStoreSnapshot != null) {
             if (!PhysicsTransformAuthority.shouldApplyBodyTransform(attachment)) {
                 return;
@@ -154,6 +156,41 @@ public class PhysicsSyncSystem extends EntityTickingSystem<EntityStore> {
             return;
         }
         clearMissingPhysicsStoreAttachment(entityRef, attachment, commandBuffer);
+    }
+
+    @Nullable
+    private static PhysicsStoreBodySnapshot resolvePhysicsStoreSnapshot(
+        @Nonnull Ref<EntityStore> entityRef,
+        @Nonnull BodyAttachmentComponent attachment,
+        @Nonnull PhysicsSnapshotResource snapshotResource,
+        @Nonnull Store<EntityStore> store) {
+        Ref<PhysicsStore> oldBodyRef = attachment.getBodyRef();
+        PhysicsStoreBodySnapshot snapshot = null;
+        if (oldBodyRef != null && oldBodyRef.isValid()) {
+            snapshot = snapshotResource.getBody(oldBodyRef);
+            if (snapshot != null && !snapshot.bodyUuid().equals(attachment.getBodyUuid())) {
+                snapshot = null;
+            }
+        }
+        if (snapshot == null) {
+            snapshot = snapshotResource.getBody(attachment.getBodyUuid());
+        }
+        Ref<PhysicsStore> newBodyRef = snapshot != null ? snapshot.bodyRef() : null;
+        if (!sameRef(oldBodyRef, newBodyRef)) {
+            store.getResource(PhysicsProjectionIndexResource.getResourceType())
+                .updateAttachmentBodyRef(attachment.getBodyUuid(),
+                    oldBodyRef,
+                    newBodyRef,
+                    entityRef,
+                    attachment.getLifecycle() == AttachmentLifecycle.GENERATED_PROXY);
+            attachment.setBodyRef(newBodyRef);
+        }
+        return snapshot;
+    }
+
+    private static boolean sameRef(@Nullable Ref<PhysicsStore> first,
+        @Nullable Ref<PhysicsStore> second) {
+        return first == second || (first != null && first.equals(second));
     }
 
     @Nonnull
