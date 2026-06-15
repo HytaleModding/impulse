@@ -223,7 +223,7 @@ final class PhysicsStoreExampleCommands {
             TimeResource time = store.getResource(TimeResource.getResourceType());
             ExamplePhysicsUtils.spawnExternalBodyViewBlockEntity(store,
                 time,
-                hit.bodyKey(),
+                hit.bodyKey().value(),
                 point,
                 ExamplePhysicsUtils.DEFAULT_BLOCK_TYPE);
 

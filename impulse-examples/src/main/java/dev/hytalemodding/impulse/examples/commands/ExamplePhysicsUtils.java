@@ -19,7 +19,6 @@ import dev.hytalemodding.impulse.core.internal.physicsstore.resources.PhysicsIde
 import dev.hytalemodding.impulse.core.internal.physicsstore.resources.PhysicsSpaceCompatibilityIndexResource;
 import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyKind;
 import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyPersistenceMode;
-import dev.hytalemodding.impulse.core.plugin.body.RigidBodyKey;
 import dev.hytalemodding.impulse.core.plugin.modules.control.ImpulseControllableComponent;
 import dev.hytalemodding.impulse.core.plugin.modules.control.PhysicsControlSessions;
 import dev.hytalemodding.impulse.core.plugin.physicsstore.PhysicsBodyRows;
@@ -551,12 +550,12 @@ public final class ExamplePhysicsUtils {
     @Nullable
     public static Ref<EntityStore> spawnExternalBodyViewBlockEntity(@Nonnull Store<EntityStore> store,
         @Nonnull TimeResource time,
-        @Nonnull RigidBodyKey bodyKey,
+        @Nonnull UUID bodyUuid,
         @Nonnull Vector3d visualPosition,
         @Nullable String blockType) {
         Holder<EntityStore> holder = blockEntityHolder(time, blockType, visualPosition);
         holder.addComponent(ATTACHMENT_TYPE,
-            BodyAttachmentComponent.externalEntity(bodyKey.value()));
+            BodyAttachmentComponent.externalEntity(bodyUuid));
         return store.addEntity(holder, AddReason.SPAWN);
     }
 
