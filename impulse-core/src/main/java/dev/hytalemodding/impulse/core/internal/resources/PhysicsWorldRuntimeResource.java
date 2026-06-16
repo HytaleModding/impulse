@@ -2112,34 +2112,12 @@ public class PhysicsWorldRuntimeResource extends PhysicsWorldResource {
         controlRuntime.markBodyControlled(bodyRef);
     }
 
-    public void markBodyControlled(@Nonnull UUID bodyUuid) {
-        Ref<PhysicsStore> bodyRef = resolvePhysicsStoreBodyRef(bodyUuid,
-            "resolve controlled body UUID");
-        if (bodyRef != null) {
-            controlRuntime.markBodyControlled(bodyRef);
-        }
-    }
-
     public void clearControlledBody(@Nonnull Ref<PhysicsStore> bodyRef) {
         controlRuntime.clearControlledBody(bodyRef);
     }
 
-    public void clearControlledBody(@Nonnull UUID bodyUuid) {
-        Ref<PhysicsStore> bodyRef = resolvePhysicsStoreBodyRef(bodyUuid,
-            "resolve controlled body UUID");
-        if (bodyRef != null) {
-            controlRuntime.clearControlledBody(bodyRef);
-        }
-    }
-
     public boolean isBodyControlled(@Nonnull Ref<PhysicsStore> bodyRef) {
         return controlRuntime.isBodyControlled(bodyRef);
-    }
-
-    public boolean isBodyControlled(@Nonnull UUID bodyUuid) {
-        Ref<PhysicsStore> bodyRef = resolvePhysicsStoreBodyRef(bodyUuid,
-            "resolve controlled body UUID");
-        return bodyRef != null && controlRuntime.isBodyControlled(bodyRef);
     }
 
     @Nullable
