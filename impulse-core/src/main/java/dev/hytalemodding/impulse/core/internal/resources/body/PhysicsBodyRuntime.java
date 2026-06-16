@@ -4,7 +4,6 @@ import dev.hytalemodding.impulse.api.PhysicsBodySnapshot;
 import dev.hytalemodding.impulse.api.SpaceId;
 import dev.hytalemodding.impulse.core.internal.modules.control.PhysicsControlRuntimeState;
 import dev.hytalemodding.impulse.core.internal.resources.BackendBodyHandle;
-import dev.hytalemodding.impulse.core.internal.modules.worldcollision.PhysicsChunkBoundaryRuntime;
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsSpaceBinding;
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsSpaceRuntime;
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsVisualRuntime;
@@ -34,8 +33,6 @@ public final class PhysicsBodyRuntime {
     @Nonnull
     private final PhysicsJointRegistry jointRegistry;
     @Nonnull
-    private final PhysicsChunkBoundaryRuntime chunkRuntime;
-    @Nonnull
     private final PhysicsVisualRuntime visualRuntime;
     @Nonnull
     private final PhysicsWorldLifecycleState lifecycleState;
@@ -47,7 +44,6 @@ public final class PhysicsBodyRuntime {
         @Nonnull PhysicsBodyRuntimeState runtimeState,
         @Nonnull PhysicsControlRuntimeState controlRuntime,
         @Nonnull PhysicsJointRegistry jointRegistry,
-        @Nonnull PhysicsChunkBoundaryRuntime chunkRuntime,
         @Nonnull PhysicsVisualRuntime visualRuntime,
         @Nonnull PhysicsWorldLifecycleState lifecycleState,
         @Nonnull Runnable worldChangedMarker) {
@@ -56,7 +52,6 @@ public final class PhysicsBodyRuntime {
         this.runtimeState = runtimeState;
         this.controlRuntime = controlRuntime;
         this.jointRegistry = jointRegistry;
-        this.chunkRuntime = chunkRuntime;
         this.visualRuntime = visualRuntime;
         this.lifecycleState = lifecycleState;
         this.worldChangedMarker = worldChangedMarker;
@@ -130,14 +125,12 @@ public final class PhysicsBodyRuntime {
         runtimeState.clear();
         controlRuntime.clear();
         jointRegistry.clear();
-        chunkRuntime.clear();
         visualRuntime.clear();
         lifecycleState.clearBodySnapshots();
     }
 
     public void clearBodyRuntimeState(@Nonnull RigidBodyKey bodyKey) {
         visualRuntime.clearBodyRuntimeState(bodyKey.value(), null);
-        chunkRuntime.clearBody(bodyKey);
         lifecycleState.removeBodySnapshot(bodyKey);
     }
 

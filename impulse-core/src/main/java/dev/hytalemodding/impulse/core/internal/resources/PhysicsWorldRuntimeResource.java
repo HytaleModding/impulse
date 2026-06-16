@@ -37,9 +37,6 @@ import dev.hytalemodding.impulse.core.internal.resources.body.PhysicsBodyRuntime
 import dev.hytalemodding.impulse.core.internal.resources.body.PhysicsBodySnapshots;
 import dev.hytalemodding.impulse.core.internal.resources.body.PhysicsBodySnapshotRefVisitor;
 import dev.hytalemodding.impulse.core.internal.resources.body.PhysicsBodySnapshotVisitor;
-import dev.hytalemodding.impulse.core.internal.modules.worldcollision.PhysicsChunkBoundaryRuntime;
-import dev.hytalemodding.impulse.core.internal.modules.worldcollision.PhysicsChunkBoundaryRuntime.ChunkBoundaryPauseState;
-import dev.hytalemodding.impulse.core.internal.modules.worldcollision.PhysicsChunkBoundaryRuntime.ChunkBoundarySafeState;
 import dev.hytalemodding.impulse.core.internal.modules.worldcollision.PhysicsStoreWorldCollisionStreamingResource;
 import dev.hytalemodding.impulse.core.internal.resources.joint.PhysicsJointRegistration;
 import dev.hytalemodding.impulse.core.internal.resources.joint.PhysicsJointRegistry;
@@ -122,7 +119,6 @@ public class PhysicsWorldRuntimeResource extends PhysicsWorldResource {
     private final PhysicsBodyRuntimeState runtimeState = new PhysicsBodyRuntimeState();
     private final PhysicsControlRuntimeState controlRuntime = new PhysicsControlRuntimeState();
     private final PhysicsJointRegistry jointRegistry = new PhysicsJointRegistry();
-    private final PhysicsChunkBoundaryRuntime chunkRuntime = new PhysicsChunkBoundaryRuntime();
     private final PhysicsVisualRuntime visualRuntime = new PhysicsVisualRuntime(this::clearBodySyncState);
     private final PhysicsWorldLifecycleState lifecycleState = new PhysicsWorldLifecycleState();
     private final PhysicsBodyRuntime bodyRuntime = new PhysicsBodyRuntime(spaceRuntime,
@@ -130,7 +126,6 @@ public class PhysicsWorldRuntimeResource extends PhysicsWorldResource {
         runtimeState,
         controlRuntime,
         jointRegistry,
-        chunkRuntime,
         visualRuntime,
         lifecycleState,
         this::markWorldChanged);
@@ -1397,8 +1392,6 @@ public class PhysicsWorldRuntimeResource extends PhysicsWorldResource {
     private void disableWorldCollisionLifecycleDirect() {
         collisionRuntime.clearRetainedTerrain(spaceRuntime.getBindings());
         restoreCollisionLodFiltersDirect();
-        restoreChunkBoundaryPausedBodiesDirect();
-        chunkRuntime.clearChunkBoundaryStates();
     }
 
     private void restoreCollisionLodFiltersDirect() {
@@ -1415,36 +1408,6 @@ public class PhysicsWorldRuntimeResource extends PhysicsWorldResource {
                 fullDynamicMask);
             space.runtime().activateBody(space.backendSpaceHandle().value(),
                 registration.backendBodyHandle().value());
-        }
-    }
-
-    private void restoreChunkBoundaryPausedBodiesDirect() {
-        for (RigidBodyKey bodyKey : chunkRuntime.getChunkBoundaryPausedBodyKeys()) {
-            ChunkBoundaryPauseState pauseState = chunkRuntime.getChunkBoundaryPauseState(bodyKey);
-            PhysicsBodyRegistration registration = getRegistration(bodyKey);
-            if (pauseState == null || registration == null) {
-                chunkRuntime.clearChunkBoundaryPauseState(bodyKey);
-                continue;
-            }
-            PhysicsSpaceBinding space = getSpaceBinding(registration.spaceId());
-            if (space == null) {
-                chunkRuntime.clearChunkBoundaryPauseState(bodyKey);
-                continue;
-            }
-            space.runtime().setBodyType(space.backendSpaceHandle().value(),
-                registration.backendBodyHandle().value(),
-                BackendRuntimeCodes.bodyTypeCode(pauseState.getOriginalBodyType()));
-            space.runtime().setBodyVelocity(space.backendSpaceHandle().value(),
-                registration.backendBodyHandle().value(),
-                pauseState.getLinearVelocity().x,
-                pauseState.getLinearVelocity().y,
-                pauseState.getLinearVelocity().z,
-                pauseState.getAngularVelocity().x,
-                pauseState.getAngularVelocity().y,
-                pauseState.getAngularVelocity().z);
-            space.runtime().activateBody(space.backendSpaceHandle().value(),
-                registration.backendBodyHandle().value());
-            chunkRuntime.clearChunkBoundaryPauseState(bodyKey);
         }
     }
 
@@ -2480,107 +2443,6 @@ public class PhysicsWorldRuntimeResource extends PhysicsWorldResource {
         controlRuntime.clear();
     }
 
-    public void updateChunkBoundarySafeState(@Nonnull RigidBodyKey bodyKey,
-        @Nonnull Vector3f position,
-        @Nonnull Quaternionf rotation) {
-        chunkRuntime.updateChunkBoundarySafeState(bodyKey, position, rotation);
-    }
-
-    public void updateChunkBoundarySafeState(@Nonnull RigidBodyKey bodyKey,
-        @Nonnull PhysicsBodySnapshot snapshot) {
-        chunkRuntime.updateChunkBoundarySafeState(bodyKey, snapshot);
-    }
-
-    public void updateChunkBoundarySafeState(@Nonnull Ref<PhysicsStore> bodyRef,
-        @Nonnull Vector3f position,
-        @Nonnull Quaternionf rotation) {
-        chunkRuntime.updateChunkBoundarySafeState(bodyRef, position, rotation);
-    }
-
-    public void updateChunkBoundarySafeState(@Nonnull Ref<PhysicsStore> bodyRef,
-        @Nonnull PhysicsBodySnapshot snapshot) {
-        chunkRuntime.updateChunkBoundarySafeState(bodyRef, snapshot);
-    }
-
-    @Nullable
-    public ChunkBoundarySafeState getChunkBoundarySafeState(@Nonnull RigidBodyKey bodyKey) {
-        return chunkRuntime.getChunkBoundarySafeState(bodyKey);
-    }
-
-    @Nullable
-    public ChunkBoundarySafeState getChunkBoundarySafeState(@Nonnull Ref<PhysicsStore> bodyRef) {
-        return chunkRuntime.getChunkBoundarySafeState(bodyRef);
-    }
-
-    public void pauseChunkBoundaryBody(@Nonnull RigidBodyKey bodyKey,
-        long targetChunkIndex,
-        @Nonnull PhysicsBodyType originalBodyType,
-        @Nonnull Vector3f linearVelocity,
-        @Nonnull Vector3f angularVelocity) {
-        chunkRuntime.pauseChunkBoundaryBody(bodyKey,
-            targetChunkIndex,
-            originalBodyType,
-            linearVelocity,
-            angularVelocity);
-    }
-
-    public void pauseChunkBoundaryBody(@Nonnull RigidBodyKey bodyKey,
-        long targetChunkIndex,
-        @Nonnull PhysicsBodySnapshot snapshot) {
-        chunkRuntime.pauseChunkBoundaryBody(bodyKey, targetChunkIndex, snapshot);
-    }
-
-    public void pauseChunkBoundaryBody(@Nonnull RigidBodyKey bodyKey,
-        long targetChunkIndex,
-        @Nonnull long[] targetChunkIndices,
-        @Nonnull PhysicsBodySnapshot snapshot) {
-        chunkRuntime.pauseChunkBoundaryBody(bodyKey, targetChunkIndex, targetChunkIndices, snapshot);
-    }
-
-    public void pauseChunkBoundaryBody(@Nonnull Ref<PhysicsStore> bodyRef,
-        long targetChunkIndex,
-        @Nonnull PhysicsBodyType originalBodyType,
-        @Nonnull Vector3f linearVelocity,
-        @Nonnull Vector3f angularVelocity) {
-        chunkRuntime.pauseChunkBoundaryBody(bodyRef,
-            targetChunkIndex,
-            originalBodyType,
-            linearVelocity,
-            angularVelocity);
-    }
-
-    public void pauseChunkBoundaryBody(@Nonnull Ref<PhysicsStore> bodyRef,
-        long targetChunkIndex,
-        @Nonnull PhysicsBodySnapshot snapshot) {
-        chunkRuntime.pauseChunkBoundaryBody(bodyRef, targetChunkIndex, snapshot);
-    }
-
-    public void pauseChunkBoundaryBody(@Nonnull Ref<PhysicsStore> bodyRef,
-        long targetChunkIndex,
-        @Nonnull long[] targetChunkIndices,
-        @Nonnull PhysicsBodySnapshot snapshot) {
-        chunkRuntime.pauseChunkBoundaryBody(bodyRef, targetChunkIndex, targetChunkIndices, snapshot);
-    }
-
-    @Nullable
-    public ChunkBoundaryPauseState getChunkBoundaryPauseState(@Nonnull RigidBodyKey bodyKey) {
-        return chunkRuntime.getChunkBoundaryPauseState(bodyKey);
-    }
-
-    @Nullable
-    public ChunkBoundaryPauseState getChunkBoundaryPauseState(
-        @Nonnull Ref<PhysicsStore> bodyRef) {
-        return chunkRuntime.getChunkBoundaryPauseState(bodyRef);
-    }
-
-    public void clearChunkBoundaryPauseState(@Nonnull RigidBodyKey bodyKey) {
-        chunkRuntime.clearChunkBoundaryPauseState(bodyKey);
-    }
-
-    public void clearChunkBoundaryPauseState(@Nonnull Ref<PhysicsStore> bodyRef) {
-        chunkRuntime.clearChunkBoundaryPauseState(bodyRef);
-    }
-
     public void clearBodyRuntimeState(@Nonnull RigidBodyKey bodyKey) {
         requireLegacyMutationAllowed("clear physics body runtime state");
         runDirectRuntimeMutation("clear physics body runtime state", () -> clearBodyRuntimeStateDirect(bodyKey));
@@ -2600,7 +2462,6 @@ public class PhysicsWorldRuntimeResource extends PhysicsWorldResource {
             "resolve cleared body runtime key");
         if (bodyRef != null) {
             controlRuntime.clearBody(bodyRef);
-            chunkRuntime.clearBody(bodyRef);
         }
         bodyRuntime.clearBodyRuntimeState(bodyKey);
         visualRuntime.clearBodyRuntimeState(bodyKey.value(), bodyRef);
