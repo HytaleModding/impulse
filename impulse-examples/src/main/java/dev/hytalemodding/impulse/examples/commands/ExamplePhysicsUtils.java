@@ -56,16 +56,12 @@ public final class ExamplePhysicsUtils {
     private ExamplePhysicsUtils() {
     }
 
-    @Nonnull
-    public static Store<PhysicsStore> physicsStore(@Nonnull World world) {
-        return ((PhysicsStoreWorld) Objects.requireNonNull(world, "world")).getPhysicsStore()
-            .getStore();
-    }
-
     @Nullable
     public static Ref<PhysicsStore> resolvePhysicsStoreSpaceRef(@Nonnull World world,
         @Nonnull SpaceId spaceId) {
-        Store<PhysicsStore> store = physicsStore(world);
+        Store<PhysicsStore> store = ((PhysicsStoreWorld) Objects.requireNonNull(world, "world"))
+            .getPhysicsStore()
+            .getStore();
         PhysicsStoreThreading.requireWorldThread(store, "resolve a PhysicsStore space ref");
         UUID spaceUuid = store
             .getResource(PhysicsSpaceCompatibilityIndexResource.getResourceType())
@@ -81,14 +77,19 @@ public final class ExamplePhysicsUtils {
     @Nonnull
     public static Ref<PhysicsStore> addPhysicsStoreBody(@Nonnull World world,
         @Nonnull BodyRowDescriptor row) {
-        return addPhysicsStoreBody(physicsStore(world), row);
+        Store<PhysicsStore> store = ((PhysicsStoreWorld) Objects.requireNonNull(world, "world"))
+            .getPhysicsStore()
+            .getStore();
+        return addPhysicsStoreBody(store, row);
     }
 
     @Nonnull
     public static Ref<PhysicsStore> addPhysicsStoreBody(@Nonnull World world,
         @Nonnull BodyRowDescriptor row,
         @Nonnull BodyCommandComponent command) {
-        Store<PhysicsStore> store = physicsStore(world);
+        Store<PhysicsStore> store = ((PhysicsStoreWorld) Objects.requireNonNull(world, "world"))
+            .getPhysicsStore()
+            .getStore();
         Ref<PhysicsStore> bodyRef = addPhysicsStoreBody(store, row);
         appendPhysicsStoreBodyCommand(store, bodyRef, command);
         return bodyRef;
@@ -99,13 +100,18 @@ public final class ExamplePhysicsUtils {
         @Nonnull BodyRowDescriptor row,
         @Nonnull DynamicsComponent dynamics,
         @Nullable TargetComponent target) {
-        return addPhysicsStoreBody(physicsStore(world), row, dynamics, target);
+        Store<PhysicsStore> store = ((PhysicsStoreWorld) Objects.requireNonNull(world, "world"))
+            .getPhysicsStore()
+            .getStore();
+        return addPhysicsStoreBody(store, row, dynamics, target);
     }
 
     public static void addPhysicsStoreBodies(@Nonnull World world,
         @Nonnull Iterable<BodyRowDescriptor> rows) {
         Objects.requireNonNull(rows, "rows");
-        Store<PhysicsStore> store = physicsStore(world);
+        Store<PhysicsStore> store = ((PhysicsStoreWorld) Objects.requireNonNull(world, "world"))
+            .getPhysicsStore()
+            .getStore();
         PhysicsStoreThreading.requireWorldThread(store, "add PhysicsStore body rows");
         for (BodyRowDescriptor row : rows) {
             addPhysicsStoreBodyUnchecked(store, row, row.dynamics(), row.target());
@@ -150,7 +156,9 @@ public final class ExamplePhysicsUtils {
     public static Ref<PhysicsStore> addPhysicsStoreJoint(@Nonnull World world,
         @Nonnull UUID jointUuid,
         @Nonnull JointComponent joint) {
-        Store<PhysicsStore> store = physicsStore(world);
+        Store<PhysicsStore> store = ((PhysicsStoreWorld) Objects.requireNonNull(world, "world"))
+            .getPhysicsStore()
+            .getStore();
         PhysicsStoreThreading.requireWorldThread(store, "add a PhysicsStore joint row");
         return store.addEntity(PhysicsStoreEntities.jointHolder(store,
             Objects.requireNonNull(jointUuid, "jointUuid"),
@@ -174,7 +182,9 @@ public final class ExamplePhysicsUtils {
     public static SpaceId spaceId(@Nonnull CommandContext ctx,
         @Nonnull World world,
         @Nonnull OptionalArg<Integer> spaceArg) {
-        Store<PhysicsStore> store = physicsStore(world);
+        Store<PhysicsStore> store = ((PhysicsStoreWorld) Objects.requireNonNull(world, "world"))
+            .getPhysicsStore()
+            .getStore();
         PhysicsStoreThreading.requireWorldThread(store, "select a PhysicsStore space");
         PhysicsSpaceCompatibilityIndexResource compatibility = store
             .getResource(PhysicsSpaceCompatibilityIndexResource.getResourceType());
