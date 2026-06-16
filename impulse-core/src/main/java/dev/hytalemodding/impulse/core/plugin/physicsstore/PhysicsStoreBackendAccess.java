@@ -89,6 +89,17 @@ final class PhysicsStoreBackendAccess {
     }
 
     @Nonnull
+    static SpaceContext requireSpace(@Nonnull Store<PhysicsStore> store,
+        @Nonnull Ref<PhysicsStore> spaceRef) {
+        SpaceContext space = space(store, spaceRef);
+        if (space == null) {
+            throw new IllegalArgumentException("Physics space ref=" + spaceRef
+                + " is not registered");
+        }
+        return space;
+    }
+
+    @Nonnull
     static SpaceSummary summary(@Nonnull PhysicsSpaceCompatibilityIndexResource compatibility,
         @Nonnull SpaceContext space) {
         SpaceId spaceId = compatibility.getSpaceId(space.spaceUuid());

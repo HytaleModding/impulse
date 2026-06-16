@@ -55,12 +55,15 @@ public class SolverSettingsCommand extends AbstractAsyncWorldCommand {
         @Nonnull World world) {
         Store<EntityStore> store = world.getEntityStore().getStore();
         PhysicsWorldResource resource = store.getResource(PhysicsWorldResource.getResourceType());
-        SpaceId spaceId = SpaceSelection.resolve(ctx, world, spaceArg);
-        if (spaceId == null) {
+        SpaceSelection.SelectedSpace selectedSpace = SpaceSelection.resolveStoreSpace(ctx,
+            world,
+            spaceArg);
+        if (selectedSpace == null) {
             return CompletableFuture.completedFuture(null);
         }
+        SpaceId spaceId = selectedSpace.spaceId();
         return PhysicsStoreAsync.acceptOnWorldThread(world,
-            PhysicsStoreDiagnostics.solverCapabilityAsync(world, spaceId),
+            PhysicsStoreDiagnostics.solverCapabilityAsync(world, selectedSpace.spaceRef()),
             summary -> applySettings(ctx, resource, spaceId, summary));
     }
 

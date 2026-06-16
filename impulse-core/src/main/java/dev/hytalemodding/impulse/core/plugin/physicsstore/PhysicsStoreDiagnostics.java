@@ -159,6 +159,22 @@ public final class PhysicsStoreDiagnostics {
     }
 
     @Nonnull
+    public static SolverCapabilitySummary solverCapability(@Nonnull Store<PhysicsStore> store,
+        @Nonnull Ref<PhysicsStore> spaceRef) {
+        PhysicsStoreThreading.requireWorldThread(store, "read live PhysicsStore backend state");
+        PhysicsSpaceCompatibilityIndexResource compatibility = store.getResource(
+            PhysicsSpaceCompatibilityIndexResource.getResourceType());
+        PhysicsStoreBackendAccess.SpaceContext space =
+            PhysicsStoreBackendAccess.requireSpace(store, Objects.requireNonNull(spaceRef, "spaceRef"));
+        SpaceId spaceId = compatibility.getSpaceId(space.spaceUuid());
+        if (spaceId == null) {
+            throw new IllegalArgumentException("Physics space ref=" + spaceRef
+                + " has no compatibility SpaceId");
+        }
+        return solverCapability(spaceId, space);
+    }
+
+    @Nonnull
     public static CompletionStage<SolverCapabilitySummary> solverCapabilityAsync(
         @Nonnull World world,
         @Nonnull SpaceId spaceId) {
@@ -186,6 +202,26 @@ public final class PhysicsStoreDiagnostics {
         return PhysicsStoreThreading.enqueueReadOnWorldThread(world,
             "queue PhysicsStore solver capability read",
             physics -> solverCapability(physics, spaceUuid));
+    }
+
+    @Nonnull
+    public static CompletionStage<SolverCapabilitySummary> solverCapabilityAsync(
+        @Nonnull World world,
+        @Nonnull Ref<PhysicsStore> spaceRef) {
+        Objects.requireNonNull(spaceRef, "spaceRef");
+        return PhysicsStoreThreading.enqueueReadOnWorldThread(world,
+            "queue PhysicsStore solver capability read",
+            physics -> solverCapability(physics, spaceRef));
+    }
+
+    @Nonnull
+    public static CompletionStage<SolverCapabilitySummary> solverCapabilityAsync(
+        @Nonnull Store<PhysicsStore> store,
+        @Nonnull Ref<PhysicsStore> spaceRef) {
+        Objects.requireNonNull(spaceRef, "spaceRef");
+        return PhysicsStoreThreading.enqueueReadOnWorldThread(store,
+            "queue PhysicsStore solver capability read",
+            physics -> solverCapability(physics, spaceRef));
     }
 
     @Nonnull
@@ -258,12 +294,44 @@ public final class PhysicsStoreDiagnostics {
     }
 
     @Nonnull
+    public static List<SpaceSummary> spaceSummaries(@Nonnull Store<PhysicsStore> store,
+        @Nonnull Ref<PhysicsStore> spaceRef) {
+        PhysicsStoreThreading.requireWorldThread(store, "read live PhysicsStore backend state");
+        PhysicsSpaceCompatibilityIndexResource compatibility = store.getResource(
+            PhysicsSpaceCompatibilityIndexResource.getResourceType());
+        PhysicsStoreBackendAccess.SpaceContext space =
+            PhysicsStoreBackendAccess.space(store, Objects.requireNonNull(spaceRef, "spaceRef"));
+        return space != null && compatibility.getSpaceId(space.spaceUuid()) != null
+            ? List.of(PhysicsStoreBackendAccess.summary(compatibility, space))
+            : List.of();
+    }
+
+    @Nonnull
     public static CompletionStage<List<SpaceSummary>> spaceSummariesAsync(@Nonnull World world,
         @Nonnull SpaceId spaceId) {
         Objects.requireNonNull(spaceId, "spaceId");
         return PhysicsStoreThreading.enqueueReadOnWorldThread(world,
             "queue PhysicsStore space summary read",
             physics -> spaceSummaries(physics, spaceId));
+    }
+
+    @Nonnull
+    public static CompletionStage<List<SpaceSummary>> spaceSummariesAsync(@Nonnull World world,
+        @Nonnull Ref<PhysicsStore> spaceRef) {
+        Objects.requireNonNull(spaceRef, "spaceRef");
+        return PhysicsStoreThreading.enqueueReadOnWorldThread(world,
+            "queue PhysicsStore space summary read",
+            physics -> spaceSummaries(physics, spaceRef));
+    }
+
+    @Nonnull
+    public static CompletionStage<List<SpaceSummary>> spaceSummariesAsync(
+        @Nonnull Store<PhysicsStore> store,
+        @Nonnull Ref<PhysicsStore> spaceRef) {
+        Objects.requireNonNull(spaceRef, "spaceRef");
+        return PhysicsStoreThreading.enqueueReadOnWorldThread(store,
+            "queue PhysicsStore space summary read",
+            physics -> spaceSummaries(physics, spaceRef));
     }
 
     @Nonnull
