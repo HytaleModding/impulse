@@ -317,21 +317,21 @@ public abstract class PhysicsWorldResource implements Resource<EntityStore> {
         @Nonnull RigidBodyKey bodyKey);
 
     /**
-     * Returns immutable registration metadata for a body key.
-     */
-    @Nullable
-    public abstract PhysicsBodyRegistrationView getBodyRegistrationView(
-        @Nonnull RigidBodyKey bodyKey);
-
-    /**
      * Returns immutable registration metadata for a body UUID.
      *
-     * <p>Prefer this overload when the caller is crossing a durable identity boundary. The key
-     * overload remains for compatibility with legacy event/facade APIs.</p>
+     * <p>Prefer this overload when the caller is crossing a durable identity boundary.</p>
      */
     @Nullable
-    public PhysicsBodyRegistrationView getBodyRegistrationView(@Nonnull UUID bodyUuid) {
-        return getBodyRegistrationView(RigidBodyKey.of(bodyUuid));
+    public abstract PhysicsBodyRegistrationView getBodyRegistrationView(@Nonnull UUID bodyUuid);
+
+    /**
+     * Returns immutable registration metadata for a body key.
+     *
+     * <p>This overload is retained for compatibility with legacy event/facade APIs.</p>
+     */
+    @Nullable
+    public PhysicsBodyRegistrationView getBodyRegistrationView(@Nonnull RigidBodyKey bodyKey) {
+        return getBodyRegistrationView(bodyKey.value());
     }
 
     /**

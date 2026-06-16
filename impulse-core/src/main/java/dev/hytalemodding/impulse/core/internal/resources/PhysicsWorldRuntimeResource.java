@@ -899,11 +899,11 @@ public class PhysicsWorldRuntimeResource extends PhysicsWorldResource {
         @Nonnull Store<PhysicsStore> store,
         @Nonnull PhysicsBodyRegistrationResource registrations,
         @Nonnull PhysicsStoreBodySnapshot body) {
-        RigidBodyKey bodyKey = RigidBodyKey.of(body.bodyUuid());
-        PhysicsBodyRegistrationView registration = registrations.getBodyRegistrationView(bodyKey);
+        PhysicsBodyRegistrationView registration = registrations.getBodyRegistrationView(body.bodyUuid());
         if (registration == null) {
             return null;
         }
+        RigidBodyKey bodyKey = RigidBodyKey.of(body.bodyUuid());
         return new PhysicsBodySnapshotEntry(bodyKey,
             toPublicBodySnapshot(store, body),
             registration.spaceId(),
@@ -1866,7 +1866,7 @@ public class PhysicsWorldRuntimeResource extends PhysicsWorldResource {
                 .getResource(PhysicsBodyRegistrationResource.getResourceType())
                 .getBodyRegistrationView(bodyUuid);
         }
-        return getBodyRegistrationView(RigidBodyKey.of(bodyUuid));
+        return bodyRegistry.getPublishedRegistrationView(RigidBodyKey.of(bodyUuid));
     }
 
     @Nullable
