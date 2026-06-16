@@ -141,15 +141,10 @@ public final class PhysicsRuntimeResource implements Resource<PhysicsStore> {
     }
 
     public void putSpaceBinding(@Nonnull UUID spaceUuid,
+        @Nonnull Ref<PhysicsStore> spaceRef,
         @Nonnull BackendId backendId,
         @Nonnull BackendSpaceHandle handle) {
-        putSpaceBinding(spaceUuid, null, backendId, handle);
-    }
-
-    public void putSpaceBinding(@Nonnull UUID spaceUuid,
-        @Nullable Ref<PhysicsStore> spaceRef,
-        @Nonnull BackendId backendId,
-        @Nonnull BackendSpaceHandle handle) {
+        Ref<PhysicsStore> checkedSpaceRef = Objects.requireNonNull(spaceRef, "spaceRef");
         Ref<PhysicsStore> previousRef = spaceRefsByUuid.remove(spaceUuid);
         if (previousRef != null) {
             spaceUuidsByRef.remove(previousRef);
@@ -158,17 +153,10 @@ public final class PhysicsRuntimeResource implements Resource<PhysicsStore> {
         }
         backendIdsBySpaceUuid.put(spaceUuid, backendId);
         spaceHandlesByUuid.put(spaceUuid, handle);
-        if (spaceRef != null) {
-            spaceRefsByUuid.put(spaceUuid, spaceRef);
-            spaceUuidsByRef.put(spaceRef, spaceUuid);
-            backendIdsBySpaceRef.put(spaceRef, backendId);
-            spaceHandlesByRef.put(spaceRef, handle);
-        }
-    }
-
-    @Nullable
-    public BackendSpaceHandle getSpaceHandle(@Nonnull UUID spaceUuid) {
-        return spaceHandlesByUuid.get(spaceUuid);
+        spaceRefsByUuid.put(spaceUuid, checkedSpaceRef);
+        spaceUuidsByRef.put(checkedSpaceRef, spaceUuid);
+        backendIdsBySpaceRef.put(checkedSpaceRef, backendId);
+        spaceHandlesByRef.put(checkedSpaceRef, handle);
     }
 
     @Nullable
@@ -179,11 +167,6 @@ public final class PhysicsRuntimeResource implements Resource<PhysicsStore> {
     @Nullable
     public UUID getSpaceUuid(@Nonnull Ref<PhysicsStore> spaceRef) {
         return spaceUuidsByRef.get(spaceRef);
-    }
-
-    @Nullable
-    public BackendId getSpaceBackendId(@Nonnull UUID spaceUuid) {
-        return backendIdsBySpaceUuid.get(spaceUuid);
     }
 
     @Nullable
@@ -232,29 +215,13 @@ public final class PhysicsRuntimeResource implements Resource<PhysicsStore> {
     }
 
     @Nullable
-    public BackendBodyHandle getBodyHandle(@Nonnull UUID bodyUuid) {
-        return bodyHandlesByUuid.get(bodyUuid);
-    }
-
-    @Nullable
     public BackendBodyHandle getBodyHandle(@Nonnull Ref<PhysicsStore> bodyRef) {
         return bodyHandlesByRef.get(bodyRef);
     }
 
     @Nullable
-    public BackendSpaceHandle getBodySpaceHandle(@Nonnull UUID bodyUuid) {
-        return bodySpaceHandlesByUuid.get(bodyUuid);
-    }
-
-    @Nullable
     public BackendSpaceHandle getBodySpaceHandle(@Nonnull Ref<PhysicsStore> bodyRef) {
         return bodySpaceHandlesByRef.get(bodyRef);
-    }
-
-    public void removeBodyHandle(@Nonnull UUID bodyUuid) {
-        BackendBodyHandle removed = bodyHandlesByUuid.remove(bodyUuid);
-        BackendSpaceHandle spaceHandle = bodySpaceHandlesByUuid.remove(bodyUuid);
-        removeBodyHandleIndexes(removed, spaceHandle);
     }
 
     public void removeBodyHandle(@Nonnull UUID bodyUuid, @Nonnull Ref<PhysicsStore> bodyRef) {
@@ -264,18 +231,6 @@ public final class PhysicsRuntimeResource implements Resource<PhysicsStore> {
         BackendSpaceHandle spaceHandleByRef = bodySpaceHandlesByRef.remove(bodyRef);
         removeBodyHandleIndexes(removed != null ? removed : removedByRef,
             spaceHandle != null ? spaceHandle : spaceHandleByRef);
-    }
-
-    @Nonnull
-    public List<UUID> bodyUuidsForSpaceHandle(@Nonnull BackendSpaceHandle spaceHandle) {
-        List<UUID> bodyUuids = new ArrayList<>();
-        int targetSpaceHandle = spaceHandle.value();
-        bodySpaceHandlesByUuid.forEach((bodyUuid, handle) -> {
-            if (handle.value() == targetSpaceHandle) {
-                bodyUuids.add(bodyUuid);
-            }
-        });
-        return bodyUuids;
     }
 
     @Nonnull
@@ -350,16 +305,11 @@ public final class PhysicsRuntimeResource implements Resource<PhysicsStore> {
         return drained;
     }
 
-    public void putJointHandle(@Nonnull UUID jointUuid,
+    private void putJointHandle(@Nonnull UUID jointUuid,
+        @Nonnull Ref<PhysicsStore> jointRef,
         @Nonnull BackendSpaceHandle spaceHandle,
         @Nonnull BackendJointHandle handle) {
-        putJointHandle(jointUuid, null, spaceHandle, handle);
-    }
-
-    public void putJointHandle(@Nonnull UUID jointUuid,
-        @Nullable Ref<PhysicsStore> jointRef,
-        @Nonnull BackendSpaceHandle spaceHandle,
-        @Nonnull BackendJointHandle handle) {
+        Ref<PhysicsStore> checkedJointRef = Objects.requireNonNull(jointRef, "jointRef");
         Ref<PhysicsStore> previousRef = jointRefsByUuid.remove(jointUuid);
         if (previousRef != null) {
             jointHandlesByRef.remove(previousRef);
@@ -367,11 +317,9 @@ public final class PhysicsRuntimeResource implements Resource<PhysicsStore> {
         }
         jointHandlesByUuid.put(jointUuid, handle);
         jointSpaceHandlesByUuid.put(jointUuid, spaceHandle);
-        if (jointRef != null) {
-            jointRefsByUuid.put(jointUuid, jointRef);
-            jointHandlesByRef.put(jointRef, handle);
-            jointSpaceHandlesByRef.put(jointRef, spaceHandle);
-        }
+        jointRefsByUuid.put(jointUuid, checkedJointRef);
+        jointHandlesByRef.put(checkedJointRef, handle);
+        jointSpaceHandlesByRef.put(checkedJointRef, spaceHandle);
     }
 
     public void putJointHandle(@Nonnull Ref<PhysicsStore> jointRef,
@@ -382,18 +330,8 @@ public final class PhysicsRuntimeResource implements Resource<PhysicsStore> {
     }
 
     @Nullable
-    public BackendJointHandle getJointHandle(@Nonnull UUID jointUuid) {
-        return jointHandlesByUuid.get(jointUuid);
-    }
-
-    @Nullable
     public BackendJointHandle getJointHandle(@Nonnull Ref<PhysicsStore> jointRef) {
         return jointHandlesByRef.get(jointRef);
-    }
-
-    @Nullable
-    public BackendSpaceHandle getJointSpaceHandle(@Nonnull UUID jointUuid) {
-        return jointSpaceHandlesByUuid.get(jointUuid);
     }
 
     @Nullable
@@ -416,18 +354,6 @@ public final class PhysicsRuntimeResource implements Resource<PhysicsStore> {
         removeJointHandle(jointUuid);
         jointHandlesByRef.remove(jointRef);
         jointSpaceHandlesByRef.remove(jointRef);
-    }
-
-    @Nonnull
-    public List<UUID> jointUuidsForSpaceHandle(@Nonnull BackendSpaceHandle spaceHandle) {
-        List<UUID> jointUuids = new ArrayList<>();
-        int targetSpaceHandle = spaceHandle.value();
-        jointSpaceHandlesByUuid.forEach((jointUuid, handle) -> {
-            if (handle.value() == targetSpaceHandle) {
-                jointUuids.add(jointUuid);
-            }
-        });
-        return jointUuids;
     }
 
     @Nonnull
@@ -501,19 +427,9 @@ public final class PhysicsRuntimeResource implements Resource<PhysicsStore> {
         return payloadKey.equals(terrainPayloadKeysByRef.get(terrainRef));
     }
 
-    public boolean hasTerrainBodyHandles(@Nonnull UUID terrainUuid) {
-        LongList bodyHandles = terrainBodyHandlesByUuid.get(terrainUuid);
-        return bodyHandles != null && !bodyHandles.isEmpty();
-    }
-
     public boolean hasTerrainBodyHandles(@Nonnull Ref<PhysicsStore> terrainRef) {
         LongList bodyHandles = terrainBodyHandlesByRef.get(terrainRef);
         return bodyHandles != null && !bodyHandles.isEmpty();
-    }
-
-    @Nullable
-    public BackendSpaceHandle getTerrainSpaceHandle(@Nonnull UUID terrainUuid) {
-        return terrainSpaceHandlesByUuid.get(terrainUuid);
     }
 
     @Nullable
@@ -522,22 +438,8 @@ public final class PhysicsRuntimeResource implements Resource<PhysicsStore> {
     }
 
     @Nullable
-    public BackendBodyHandle getTerrainVoxelBodyHandle(@Nonnull UUID terrainUuid) {
-        return terrainVoxelBodyHandlesByUuid.get(terrainUuid);
-    }
-
-    @Nullable
     public BackendBodyHandle getTerrainVoxelBodyHandle(@Nonnull Ref<PhysicsStore> terrainRef) {
         return terrainVoxelBodyHandlesByRef.get(terrainRef);
-    }
-
-    public void forEachTerrainBodyHandle(@Nonnull UUID terrainUuid,
-        @Nonnull LongConsumer consumer) {
-        LongList bodyHandles = terrainBodyHandlesByUuid.get(terrainUuid);
-        if (bodyHandles == null) {
-            return;
-        }
-        bodyHandles.forEach(consumer);
     }
 
     public void forEachTerrainBodyHandle(@Nonnull Ref<PhysicsStore> terrainRef,
@@ -575,18 +477,6 @@ public final class PhysicsRuntimeResource implements Resource<PhysicsStore> {
     }
 
     @Nonnull
-    public List<UUID> terrainUuidsForSpaceHandle(@Nonnull BackendSpaceHandle spaceHandle) {
-        List<UUID> terrainUuids = new ArrayList<>();
-        int targetSpaceHandle = spaceHandle.value();
-        terrainSpaceHandlesByUuid.forEach((terrainUuid, handle) -> {
-            if (handle.value() == targetSpaceHandle) {
-                terrainUuids.add(terrainUuid);
-            }
-        });
-        return terrainUuids;
-    }
-
-    @Nonnull
     public List<Ref<PhysicsStore>> terrainRefsForSpaceHandle(
         @Nonnull BackendSpaceHandle spaceHandle) {
         List<Ref<PhysicsStore>> terrainRefs = new ArrayList<>();
@@ -597,16 +487,6 @@ public final class PhysicsRuntimeResource implements Resource<PhysicsStore> {
             }
         });
         return terrainRefs;
-    }
-
-    public void forEachSpaceBinding(@Nonnull SpaceBindingConsumer consumer) {
-        spaceHandlesByUuid.forEach((spaceUuid, spaceHandle) -> {
-            BackendId backendId = backendIdsBySpaceUuid.get(spaceUuid);
-            PhysicsBackendRuntime runtime = backendId != null ? runtimesByBackend.get(backendId) : null;
-            if (backendId != null && runtime != null) {
-                consumer.accept(spaceUuid, backendId, spaceHandle, runtime);
-            }
-        });
     }
 
     public void forEachRuntimeSpaceBinding(@Nonnull RuntimeSpaceBindingConsumer consumer) {
@@ -818,15 +698,6 @@ public final class PhysicsRuntimeResource implements Resource<PhysicsStore> {
     @Nonnull
     public static ResourceType<PhysicsStore, PhysicsRuntimeResource> getResourceType() {
         return PhysicsStoreTypes.runtimeResourceType();
-    }
-
-    @FunctionalInterface
-    public interface SpaceBindingConsumer {
-
-        void accept(@Nonnull UUID spaceUuid,
-            @Nonnull BackendId backendId,
-            @Nonnull BackendSpaceHandle spaceHandle,
-            @Nonnull PhysicsBackendRuntime runtime);
     }
 
     @FunctionalInterface

@@ -89,7 +89,7 @@ public final class StaleBodyRemovalSystem extends TickingSystem<PhysicsStore> {
             identity.removeUuid(body.bodyUuid(), body.bodyRef());
             snapshots.removeBody(body.bodyUuid());
             registrations.removeBody(RigidBodyKey.of(body.bodyUuid()));
-            runtime.removeBodyHandle(body.bodyUuid());
+            runtime.removeBodyHandle(body.bodyUuid(), body.bodyRef());
         }
     }
 
