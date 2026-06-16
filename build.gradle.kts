@@ -70,7 +70,7 @@ val stagedBackendJarDirectory = layout.projectDirectory.dir("run/mods/impulse-ba
 val stagedEarlyPluginJarDirectory = layout.projectDirectory.dir("run/earlyplugins")
 val physicsStoreEarlyPluginEnabled = providers.gradleProperty("impulse.physicsStoreEarlyPlugin")
     .map(String::toBoolean)
-    .orElse(false)
+    .orElse(true)
 val hytaleToolProjectPaths = listOf(
     ":impulse-core",
     ":impulse-examples")
@@ -123,7 +123,7 @@ val stagePhysicsStoreEarlyPluginJar by tasks.registering(Copy::class) {
     group = "hytale"
     description = "Stages the PhysicsStore early plugin for runAllMods"
 
-    onlyIf("PhysicsStore early plugin opt-in is enabled") {
+    onlyIf("PhysicsStore early plugin is enabled") {
         physicsStoreEarlyPluginEnabled.get()
     }
     dependsOn(cleanStagedPhysicsStoreEarlyPluginJar)
