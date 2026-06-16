@@ -2,11 +2,13 @@ package dev.hytalemodding.impulse.core.internal.systems.debug;
 
 import com.hypixel.hytale.component.ArchetypeChunk;
 import com.hypixel.hytale.component.CommandBuffer;
+import com.hypixel.hytale.component.Ref;
 import com.hypixel.hytale.component.Store;
 import com.hypixel.hytale.server.core.universe.world.storage.PhysicsStore;
 import dev.hytalemodding.impulse.api.BackendId;
 import dev.hytalemodding.impulse.api.SpaceId;
 import dev.hytalemodding.impulse.api.runtime.PhysicsBackendRuntime;
+import dev.hytalemodding.impulse.core.internal.physicsstore.resources.PhysicsIdentityIndexResource;
 import dev.hytalemodding.impulse.core.internal.physicsstore.resources.PhysicsRuntimeResource;
 import dev.hytalemodding.impulse.core.internal.physicsstore.resources.PhysicsSnapshotResource;
 import dev.hytalemodding.impulse.core.internal.physicsstore.resources.PhysicsSpaceCompatibilityIndexResource;
@@ -288,9 +290,14 @@ final class PhysicsStoreDebugQueries {
         if (spaceUuid == null) {
             return null;
         }
+        Ref<PhysicsStore> spaceRef = store.getResource(PhysicsIdentityIndexResource.getResourceType())
+            .getByUuid(spaceUuid);
+        if (spaceRef == null || !spaceRef.isValid()) {
+            return null;
+        }
         PhysicsRuntimeResource runtime = store.getResource(PhysicsRuntimeResource.getResourceType());
-        BackendSpaceHandle spaceHandle = runtime.getSpaceHandle(spaceUuid);
-        BackendId backendId = runtime.getSpaceBackendId(spaceUuid);
+        BackendSpaceHandle spaceHandle = runtime.getSpaceHandle(spaceRef);
+        BackendId backendId = runtime.getSpaceBackendId(spaceRef);
         PhysicsBackendRuntime backendRuntime =
             backendId != null ? runtime.getRuntime(backendId) : null;
         if (spaceHandle == null || backendRuntime == null) {
