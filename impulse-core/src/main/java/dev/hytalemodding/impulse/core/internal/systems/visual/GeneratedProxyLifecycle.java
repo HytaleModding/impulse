@@ -12,6 +12,7 @@ import dev.hytalemodding.impulse.core.plugin.physicsstore.projection.BodyAttachm
 import dev.hytalemodding.impulse.core.plugin.physicsstore.projection.BodyAttachmentComponent.AttachmentLifecycle;
 import dev.hytalemodding.impulse.core.plugin.body.RigidBodyKey;
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsWorldRuntimeResource;
+import java.util.UUID;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
@@ -49,11 +50,12 @@ public final class GeneratedProxyLifecycle {
         @Nonnull BodyAttachmentComponent attachment,
         @Nonnull PhysicsWorldRuntimeResource resource,
         @Nonnull CommandBuffer<EntityStore> commandBuffer) {
-        RigidBodyKey bodyKey = RigidBodyKey.of(attachment.getBodyUuid());
-        resource.unregisterBodyAttachment(bodyKey, entityRef);
+        UUID bodyUuid = attachment.getBodyUuid();
+        resource.unregisterBodyAttachment(bodyUuid, attachment.getBodyRef(), entityRef);
         resource.clearBodySyncState(entityRef);
         if (attachment.getLifecycle() == AttachmentLifecycle.GENERATED_PROXY) {
-            removeProxy(commandBuffer, resource, bodyKey, entityRef);
+            resource.clearGeneratedVisualProxy(bodyUuid, attachment.getBodyRef(), entityRef);
+            removeEntity(commandBuffer, entityRef);
         } else if (attachment.shouldRemoveEntityWhenBodyMissing()) {
             removeEntity(commandBuffer, entityRef);
         } else {
