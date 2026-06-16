@@ -49,10 +49,6 @@ public final class PhysicsVisualRuntime {
         this.syncStateCleaner = syncStateCleaner;
     }
 
-    public synchronized void registerAttachment(@Nonnull RigidBodyKey bodyKey, @Nonnull Ref<EntityStore> attachment) {
-        registerAttachment(bodyKey.value(), null, attachment);
-    }
-
     public synchronized void registerAttachment(@Nonnull UUID bodyUuid,
         @Nullable Ref<PhysicsStore> bodyRef,
         @Nonnull Ref<EntityStore> attachment) {
@@ -61,11 +57,6 @@ public final class PhysicsVisualRuntime {
         if (isValidRef(bodyRef)) {
             bodyAttachmentRefs(bodyRef).add(attachment);
         }
-    }
-
-    public synchronized void unregisterAttachment(@Nonnull RigidBodyKey bodyKey,
-        @Nonnull Ref<EntityStore> attachment) {
-        unregisterAttachment(bodyKey.value(), null, attachment);
     }
 
     public synchronized void unregisterAttachment(@Nonnull UUID bodyUuid,
@@ -85,11 +76,6 @@ public final class PhysicsVisualRuntime {
         if (isValidRef(bodyRef)) {
             unregisterAttachmentRef(bodyRef, attachment);
         }
-    }
-
-    @Nonnull
-    public Collection<Ref<EntityStore>> getAttachments(@Nonnull RigidBodyKey bodyKey) {
-        return getAttachments(bodyKey.value(), null);
     }
 
     @Nonnull
@@ -138,10 +124,6 @@ public final class PhysicsVisualRuntime {
         }
         cleanSyncStates(staleAttachments);
         return liveAttachments;
-    }
-
-    public boolean hasAttachments(@Nonnull RigidBodyKey bodyKey) {
-        return hasAttachments(bodyKey.value(), null);
     }
 
     public boolean hasAttachments(@Nonnull Ref<PhysicsStore> bodyRef) {

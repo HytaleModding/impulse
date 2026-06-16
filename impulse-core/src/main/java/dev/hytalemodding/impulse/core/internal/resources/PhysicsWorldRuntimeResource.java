@@ -2149,7 +2149,7 @@ public class PhysicsWorldRuntimeResource extends PhysicsWorldResource {
                 .registerAttachment(bodyKey.value(), bodyRef, attachment);
             return;
         }
-        visualRuntime.registerAttachment(bodyKey, attachment);
+        visualRuntime.registerAttachment(bodyKey.value(), null, attachment);
     }
 
     public void registerBodyAttachment(@Nonnull UUID bodyUuid,
@@ -2171,7 +2171,7 @@ public class PhysicsWorldRuntimeResource extends PhysicsWorldResource {
                 .unregisterAttachment(bodyKey.value(), bodyRef, attachment);
             return;
         }
-        visualRuntime.unregisterAttachment(bodyKey, attachment);
+        visualRuntime.unregisterAttachment(bodyKey.value(), null, attachment);
     }
 
     public void unregisterBodyAttachment(@Nonnull UUID bodyUuid,
