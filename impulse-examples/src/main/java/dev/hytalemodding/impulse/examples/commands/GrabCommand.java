@@ -188,12 +188,13 @@ public class GrabCommand extends AbstractAsyncPlayerCommand {
 
         RigidBodyKey anchorBodyKey = RigidBodyKey.random();
         JointKey controlJointKey = JointKey.random();
-        boolean selectedBound = ExamplePhysicsUtils.appendPhysicsStoreBodyCommand(world,
-            selection.bodyKey().value(),
-            BodyCommandComponent.wake());
-        if (!selectedBound) {
+        Ref<PhysicsStore> selectedBodyRef = selection.bodyRef();
+        if (!selectedBodyRef.isValid()) {
             return null;
         }
+        ExamplePhysicsUtils.appendPhysicsStoreBodyCommand(selectedBodyRef.getStore(),
+            selectedBodyRef,
+            BodyCommandComponent.wake());
         try {
             ExamplePhysicsUtils.addPhysicsStoreBody(world,
                 anchorBodyRow(spaceUuid, anchorBodyKey.value(), hitPoint));
@@ -293,7 +294,8 @@ public class GrabCommand extends AbstractAsyncPlayerCommand {
             if (registration == null || registration.kind() != PhysicsBodyKind.BODY) {
                 continue;
             }
-            candidates.add(new HitCandidate(registration.bodyKey(),
+            candidates.add(new HitCandidate(hit.bodyRef(),
+                registration.bodyKey(),
                 registration.spaceId(),
                 hit.point(),
                 hit.fraction(),
@@ -308,7 +310,8 @@ public class GrabCommand extends AbstractAsyncPlayerCommand {
             }
 
             if (best == null || candidate.fraction() < best.fraction()) {
-                best = new HitSelection(candidate.bodyKey(),
+                best = new HitSelection(candidate.bodyRef(),
+                    candidate.bodyKey(),
                     attachments.controllableAttachment(),
                     candidate.spaceId(),
                     candidate.point(),
@@ -357,7 +360,8 @@ public class GrabCommand extends AbstractAsyncPlayerCommand {
         return new AttachmentSelection(null, hasGameplayAttachment);
     }
 
-    private record HitSelection(@Nonnull RigidBodyKey bodyKey,
+    private record HitSelection(@Nonnull Ref<PhysicsStore> bodyRef,
+                                @Nonnull RigidBodyKey bodyKey,
                                 @Nullable Ref<EntityStore> attachment,
                                 @Nullable SpaceId spaceId,
                                 @Nonnull Vector3f point,
@@ -365,7 +369,8 @@ public class GrabCommand extends AbstractAsyncPlayerCommand {
                                 float distance) {
     }
 
-    private record HitCandidate(@Nonnull RigidBodyKey bodyKey,
+    private record HitCandidate(@Nonnull Ref<PhysicsStore> bodyRef,
+                                @Nonnull RigidBodyKey bodyKey,
                                 @Nullable SpaceId spaceId,
                                 @Nonnull Vector3f point,
                                 float fraction,
