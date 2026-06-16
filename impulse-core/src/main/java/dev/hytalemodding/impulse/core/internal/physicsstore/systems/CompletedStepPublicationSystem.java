@@ -219,7 +219,7 @@ public final class CompletedStepPublicationSystem extends TickingSystem<PhysicsS
             }
             TerrainColliderComponent terrain =
                 chunk.getComponent(index, TerrainColliderComponent.getComponentType());
-            if (terrain != null && runtime.hasTerrainBodyHandles(rowUuid)) {
+            if (terrain != null && runtime.hasTerrainBodyHandles(chunk.getReferenceTo(index))) {
                 SpaceId spaceId = compatibility.getSpaceId(terrain.getSpaceUuid());
                 if (spaceId != null) {
                     registrations.add(new PhysicsBodyRegistrationView(RigidBodyKey.of(rowUuid),
