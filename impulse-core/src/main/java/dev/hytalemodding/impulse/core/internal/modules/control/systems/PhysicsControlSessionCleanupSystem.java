@@ -7,6 +7,7 @@ import com.hypixel.hytale.component.Store;
 import com.hypixel.hytale.component.query.Query;
 import com.hypixel.hytale.component.system.RefChangeSystem;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
+import com.hypixel.hytale.server.core.universe.world.storage.PhysicsStore;
 import dev.hytalemodding.impulse.core.internal.modules.control.ControlLifecycle;
 import dev.hytalemodding.impulse.core.internal.modules.control.components.PhysicsControlSessionComponent;
 import java.util.Objects;
@@ -86,8 +87,19 @@ public final class PhysicsControlSessionCleanupSystem
 
     private static boolean sameSessionOwner(@Nonnull PhysicsControlSessionComponent first,
         @Nonnull PhysicsControlSessionComponent second) {
-        return Objects.equals(first.getBodyUuid(), second.getBodyUuid())
-            && Objects.equals(first.getAnchorBodyUuid(), second.getAnchorBodyUuid())
-            && Objects.equals(first.getControlJointKey(), second.getControlJointKey());
+        return sameRef(first.getBodyRef(), second.getBodyRef())
+            && sameRef(first.getAnchorBodyRef(), second.getAnchorBodyRef())
+            && sameRef(first.getControlJointRef(), second.getControlJointRef());
+    }
+
+    private static boolean sameRef(@Nullable Ref<PhysicsStore> first,
+        @Nullable Ref<PhysicsStore> second) {
+        if (first == second) {
+            return true;
+        }
+        return first != null
+            && second != null
+            && first.getStore() == second.getStore()
+            && first.getIndex() == second.getIndex();
     }
 }

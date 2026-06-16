@@ -4,11 +4,9 @@ import com.hypixel.hytale.component.Component;
 import com.hypixel.hytale.component.ComponentType;
 import com.hypixel.hytale.component.Ref;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
+import com.hypixel.hytale.server.core.universe.world.storage.PhysicsStore;
 import dev.hytalemodding.impulse.api.PhysicsBodyType;
-import dev.hytalemodding.impulse.core.plugin.body.RigidBodyKey;
-import dev.hytalemodding.impulse.core.plugin.joint.JointKey;
 import java.util.Objects;
-import java.util.UUID;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 import lombok.Getter;
@@ -21,11 +19,11 @@ public class PhysicsControlSessionComponent implements Component<EntityStore> {
     private static ComponentType<EntityStore, PhysicsControlSessionComponent> componentType;
 
     @Nullable
-    private UUID bodyUuid;
+    private Ref<PhysicsStore> bodyRef;
     @Nullable
-    private UUID anchorBodyUuid;
+    private Ref<PhysicsStore> anchorBodyRef;
     @Nullable
-    private JointKey controlJointKey;
+    private Ref<PhysicsStore> controlJointRef;
     @Nullable
     private Ref<EntityStore> targetRef;
     @Nonnull
@@ -44,51 +42,23 @@ public class PhysicsControlSessionComponent implements Component<EntityStore> {
     public PhysicsControlSessionComponent() {
     }
 
-    public PhysicsControlSessionComponent(@Nonnull RigidBodyKey bodyKey,
-        @Nonnull RigidBodyKey anchorBodyKey,
-        @Nullable JointKey controlJointKey,
+    public PhysicsControlSessionComponent(@Nonnull Ref<PhysicsStore> bodyRef,
+        @Nonnull Ref<PhysicsStore> anchorBodyRef,
+        @Nullable Ref<PhysicsStore> controlJointRef,
         @Nullable Ref<EntityStore> targetRef,
         @Nonnull PhysicsBodyType originalBodyType,
         float grabDistance,
         @Nonnull Vector3f viewOffset,
         @Nonnull Vector3f previousTarget) {
-        this(bodyKey.value(),
-            anchorBodyKey.value(),
-            controlJointKey,
-            targetRef,
-            originalBodyType,
-            grabDistance,
-            viewOffset,
-            previousTarget);
-    }
-
-    public PhysicsControlSessionComponent(@Nonnull UUID bodyUuid,
-        @Nonnull UUID anchorBodyUuid,
-        @Nullable JointKey controlJointKey,
-        @Nullable Ref<EntityStore> targetRef,
-        @Nonnull PhysicsBodyType originalBodyType,
-        float grabDistance,
-        @Nonnull Vector3f viewOffset,
-        @Nonnull Vector3f previousTarget) {
-        this.bodyUuid = Objects.requireNonNull(bodyUuid, "bodyUuid");
-        this.anchorBodyUuid = Objects.requireNonNull(anchorBodyUuid, "anchorBodyUuid");
-        this.controlJointKey = controlJointKey;
+        this.bodyRef = Objects.requireNonNull(bodyRef, "bodyRef");
+        this.anchorBodyRef = Objects.requireNonNull(anchorBodyRef, "anchorBodyRef");
+        this.controlJointRef = controlJointRef;
         this.targetRef = targetRef;
-        this.originalBodyType = originalBodyType;
+        this.originalBodyType = Objects.requireNonNull(originalBodyType, "originalBodyType");
         this.grabDistance = grabDistance;
-        this.viewOffset.set(viewOffset);
-        this.previousTarget.set(previousTarget);
+        this.viewOffset.set(Objects.requireNonNull(viewOffset, "viewOffset"));
+        this.previousTarget.set(Objects.requireNonNull(previousTarget, "previousTarget"));
         this.active = true;
-    }
-
-    @Nullable
-    public RigidBodyKey getBodyKey() {
-        return bodyUuid != null ? RigidBodyKey.of(bodyUuid) : null;
-    }
-
-    @Nullable
-    public RigidBodyKey getAnchorBodyKey() {
-        return anchorBodyUuid != null ? RigidBodyKey.of(anchorBodyUuid) : null;
     }
 
     public static void setComponentType(
@@ -120,9 +90,9 @@ public class PhysicsControlSessionComponent implements Component<EntityStore> {
     @Override
     public PhysicsControlSessionComponent clone() {
         PhysicsControlSessionComponent copy = new PhysicsControlSessionComponent();
-        copy.bodyUuid = bodyUuid;
-        copy.anchorBodyUuid = anchorBodyUuid;
-        copy.controlJointKey = controlJointKey;
+        copy.bodyRef = bodyRef;
+        copy.anchorBodyRef = anchorBodyRef;
+        copy.controlJointRef = controlJointRef;
         copy.targetRef = targetRef;
         copy.originalBodyType = originalBodyType;
         copy.grabDistance = grabDistance;

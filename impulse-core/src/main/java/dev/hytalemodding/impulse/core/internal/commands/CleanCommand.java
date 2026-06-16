@@ -14,6 +14,7 @@ import com.hypixel.hytale.server.core.command.system.basecommands.AbstractWorldC
 import com.hypixel.hytale.server.core.modules.entity.component.TransformComponent;
 import com.hypixel.hytale.server.core.universe.world.World;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
+import com.hypixel.hytale.server.core.universe.world.storage.PhysicsStore;
 import dev.hytalemodding.impulse.api.SpaceId;
 import dev.hytalemodding.impulse.core.internal.components.GeneratedVisualProxyComponent;
 import dev.hytalemodding.impulse.core.internal.modules.control.components.PhysicsControlSessionComponent;
@@ -21,6 +22,7 @@ import dev.hytalemodding.impulse.core.internal.resources.PhysicsRuntimeResetResu
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsWorldRuntimeResource;
 import dev.hytalemodding.impulse.core.internal.modules.control.systems.PhysicsControlSessionCleanup;
 import dev.hytalemodding.impulse.core.plugin.body.RigidBodyKey;
+import dev.hytalemodding.impulse.core.plugin.physicsstore.components.UuidComponent;
 import dev.hytalemodding.impulse.core.plugin.physicsstore.projection.BodyAttachmentComponent;
 import it.unimi.dsi.fastutil.objects.ObjectOpenHashSet;
 import java.util.Set;
@@ -243,8 +245,8 @@ public class CleanCommand extends AbstractWorldCommand {
         @Nonnull Set<RigidBodyKey> selectedBodyKeys,
         @Nonnull Vector3d center,
         double radiusSquared) {
-        if (containsBody(selectedBodyKeys, session.getBodyUuid())
-            || containsBody(selectedBodyKeys, session.getAnchorBodyUuid())
+        if (containsBody(selectedBodyKeys, session.getBodyRef())
+            || containsBody(selectedBodyKeys, session.getAnchorBodyRef())
             || entityWithinRadius(archetypeChunk, index, center, radiusSquared)) {
             return true;
         }
@@ -269,8 +271,18 @@ public class CleanCommand extends AbstractWorldCommand {
     }
 
     private static boolean containsBody(@Nonnull Set<RigidBodyKey> bodyKeys,
-        @Nullable UUID bodyUuid) {
+        @Nullable Ref<PhysicsStore> bodyRef) {
+        UUID bodyUuid = rowUuid(bodyRef);
         return bodyUuid != null && bodyKeys.contains(RigidBodyKey.of(bodyUuid));
+    }
+
+    @Nullable
+    private static UUID rowUuid(@Nullable Ref<PhysicsStore> bodyRef) {
+        if (bodyRef == null || !bodyRef.isValid()) {
+            return null;
+        }
+        UuidComponent uuid = bodyRef.getStore().getComponent(bodyRef, UuidComponent.getComponentType());
+        return uuid != null ? uuid.getUuid() : null;
     }
 
     private static boolean entityWithinRadius(@Nonnull ArchetypeChunk<EntityStore> archetypeChunk,

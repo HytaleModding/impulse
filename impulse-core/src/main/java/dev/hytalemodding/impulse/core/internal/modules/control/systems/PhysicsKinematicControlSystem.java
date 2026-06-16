@@ -21,18 +21,16 @@ import com.hypixel.hytale.server.core.universe.world.storage.PhysicsStore;
 import dev.hytalemodding.impulse.early.PhysicsStoreWorld;
 import dev.hytalemodding.impulse.core.internal.modules.control.ControlLifecycle;
 import dev.hytalemodding.impulse.core.internal.modules.control.components.PhysicsControlSessionComponent;
-import dev.hytalemodding.impulse.core.internal.physicsstore.resources.PhysicsIdentityIndexResource;
 import dev.hytalemodding.impulse.core.internal.systems.sync.PhysicsSyncSystem;
 import dev.hytalemodding.impulse.core.plugin.physicsstore.PhysicsStoreThreading;
 import dev.hytalemodding.impulse.core.plugin.physicsstore.components.BodyComponent;
 import dev.hytalemodding.impulse.core.plugin.physicsstore.components.TargetComponent;
-import it.unimi.dsi.fastutil.objects.Object2ObjectMap;
-import it.unimi.dsi.fastutil.objects.Object2ObjectOpenHashMap;
+import it.unimi.dsi.fastutil.ints.Int2ObjectMap;
+import it.unimi.dsi.fastutil.ints.Int2ObjectOpenHashMap;
 import java.util.Collections;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
-import java.util.UUID;
 import java.util.WeakHashMap;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
@@ -90,11 +88,15 @@ public class PhysicsKinematicControlSystem extends EntityTickingSystem<EntitySto
             return;
         }
 
-        UUID bodyUuid = session.getBodyUuid();
-        UUID anchorBodyUuid = session.getAnchorBodyUuid();
+        Ref<PhysicsStore> bodyRef = session.getBodyRef();
+        Ref<PhysicsStore> anchorBodyRef = session.getAnchorBodyRef();
         Ref<EntityStore> targetRef = session.getTargetRef();
-        if (bodyUuid == null || anchorBodyUuid == null || (targetRef != null && !targetRef.isValid())) {
-            stateFor(store).clear(anchorBodyUuid);
+        if (bodyRef == null
+            || anchorBodyRef == null
+            || !bodyRef.isValid()
+            || !anchorBodyRef.isValid()
+            || (targetRef != null && !targetRef.isValid())) {
+            stateFor(store).clear(anchorBodyRef);
             PhysicsControlSessionCleanup.cleanup(store, session);
             commandBuffer.removeComponent(chunk.getReferenceTo(index), sessionType);
             return;
@@ -135,24 +137,24 @@ public class PhysicsKinematicControlSystem extends EntityTickingSystem<EntitySto
         previousTarget.set(local.target);
 
         ControlMutationState state = stateFor(store);
-        ControlAnchorUpdate update = new ControlAnchorUpdate(bodyUuid,
-            anchorBodyUuid,
+        ControlAnchorUpdate update = new ControlAnchorUpdate(bodyRef,
+            anchorBodyRef,
             local.target,
             releaseVelocity);
-        ControlAnchorUpdate readyUpdate = state.selectReadyUpdate(anchorBodyUuid, update);
+        ControlAnchorUpdate readyUpdate = state.selectReadyUpdate(anchorBodyRef, update);
         if (readyUpdate == null) {
             return;
         }
 
         PhysicsStoreControlTargets physicsStoreTargets =
-            resolvePhysicsStoreTargets(store, bodyUuid, anchorBodyUuid);
+            resolvePhysicsStoreTargets(store, bodyRef, anchorBodyRef);
         if (physicsStoreTargets != null) {
             physicsStoreTargets.apply(readyUpdate);
-            state.trackSubmittedMutation(anchorBodyUuid, readyUpdate);
+            state.trackSubmittedMutation(anchorBodyRef, readyUpdate);
             return;
         }
 
-        stateFor(store).clear(anchorBodyUuid);
+        stateFor(store).clear(anchorBodyRef);
         PhysicsControlSessionCleanup.cleanup(store, session);
         commandBuffer.removeComponent(chunk.getReferenceTo(index), sessionType);
     }
@@ -160,18 +162,14 @@ public class PhysicsKinematicControlSystem extends EntityTickingSystem<EntitySto
     @Nullable
     private static PhysicsStoreControlTargets resolvePhysicsStoreTargets(
         @Nonnull Store<EntityStore> store,
-        @Nonnull UUID bodyUuid,
-        @Nonnull UUID anchorBodyUuid) {
+        @Nonnull Ref<PhysicsStore> bodyRef,
+        @Nonnull Ref<PhysicsStore> anchorBodyRef) {
         PhysicsStore physicsStore =
             ((PhysicsStoreWorld) store.getExternalData().getWorld()).getPhysicsStore();
         Store<PhysicsStore> physics = physicsStore.getStore();
         PhysicsStoreThreading.requireWorldThread(physics,
             "resolve PhysicsStore kinematic control targets");
-        PhysicsIdentityIndexResource identity = physics.getResource(
-            PhysicsIdentityIndexResource.getResourceType());
-        Ref<PhysicsStore> bodyRef = bodyRef(physics, identity, bodyUuid);
-        Ref<PhysicsStore> anchorBodyRef = bodyRef(physics, identity, anchorBodyUuid);
-        if (bodyRef == null || anchorBodyRef == null) {
+        if (!validBodyRef(physics, bodyRef) || !validBodyRef(physics, anchorBodyRef)) {
             return null;
         }
         return new PhysicsStoreControlTargets(
@@ -180,17 +178,11 @@ public class PhysicsKinematicControlSystem extends EntityTickingSystem<EntitySto
             anchorBodyRef);
     }
 
-    @Nullable
-    private static Ref<PhysicsStore> bodyRef(@Nonnull Store<PhysicsStore> physics,
-        @Nonnull PhysicsIdentityIndexResource identity,
-        @Nonnull UUID bodyUuid) {
-        Ref<PhysicsStore> ref = identity.getByUuid(bodyUuid);
-        if (ref != null
+    private static boolean validBodyRef(@Nonnull Store<PhysicsStore> physics,
+        @Nonnull Ref<PhysicsStore> ref) {
+        return ref.getStore() == physics
             && ref.isValid()
-            && physics.getComponent(ref, BodyComponent.getComponentType()) != null) {
-            return ref;
-        }
-        return null;
+            && physics.getComponent(ref, BodyComponent.getComponentType()) != null;
     }
 
     private float eyeHeight(@Nonnull ArchetypeChunk<EntityStore> chunk,
@@ -238,14 +230,14 @@ public class PhysicsKinematicControlSystem extends EntityTickingSystem<EntitySto
     }
 
     public static void clearMutationState(@Nonnull Store<EntityStore> store,
-        @Nullable UUID anchorBodyUuid) {
-        if (anchorBodyUuid != null) {
-            stateFor(store).clear(anchorBodyUuid);
+        @Nullable Ref<PhysicsStore> anchorBodyRef) {
+        if (anchorBodyRef != null) {
+            stateFor(store).clear(anchorBodyRef);
         }
     }
 
-    record ControlAnchorUpdate(@Nonnull UUID bodyUuid,
-                               @Nonnull UUID anchorBodyUuid,
+    record ControlAnchorUpdate(@Nonnull Ref<PhysicsStore> bodyRef,
+                               @Nonnull Ref<PhysicsStore> anchorBodyRef,
                                @Nonnull Vector3f target,
                                @Nonnull Vector3f releaseVelocity) {
 
@@ -295,27 +287,27 @@ public class PhysicsKinematicControlSystem extends EntityTickingSystem<EntitySto
     static final class ControlMutationState {
 
         @Nonnull
-        private final Object2ObjectMap<UUID, ControlAnchorUpdate> submittedUpdates =
-            new Object2ObjectOpenHashMap<>();
+        private final Int2ObjectMap<ControlAnchorUpdate> submittedUpdates =
+            new Int2ObjectOpenHashMap<>();
 
         @Nullable
-        synchronized ControlAnchorUpdate selectReadyUpdate(@Nonnull UUID bodyUuid,
+        synchronized ControlAnchorUpdate selectReadyUpdate(@Nonnull Ref<PhysicsStore> anchorBodyRef,
             @Nonnull ControlAnchorUpdate currentUpdate) {
-            ControlAnchorUpdate submittedUpdate = submittedUpdates.get(bodyUuid);
+            ControlAnchorUpdate submittedUpdate = submittedUpdates.get(anchorBodyRef.getIndex());
             if (sameTarget(currentUpdate, submittedUpdate)) {
                 return null;
             }
             return currentUpdate;
         }
 
-        synchronized void trackSubmittedMutation(@Nonnull UUID bodyUuid,
+        synchronized void trackSubmittedMutation(@Nonnull Ref<PhysicsStore> anchorBodyRef,
             @Nonnull ControlAnchorUpdate submittedUpdate) {
-            submittedUpdates.put(bodyUuid, submittedUpdate);
+            submittedUpdates.put(anchorBodyRef.getIndex(), submittedUpdate);
         }
 
-        synchronized void clear(@Nullable UUID bodyUuid) {
-            if (bodyUuid != null) {
-                submittedUpdates.remove(bodyUuid);
+        synchronized void clear(@Nullable Ref<PhysicsStore> anchorBodyRef) {
+            if (anchorBodyRef != null) {
+                submittedUpdates.remove(anchorBodyRef.getIndex());
             }
         }
 

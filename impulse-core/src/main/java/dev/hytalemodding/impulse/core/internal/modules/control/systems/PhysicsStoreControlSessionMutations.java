@@ -9,12 +9,11 @@ import dev.hytalemodding.impulse.api.PhysicsBodyType;
 import dev.hytalemodding.impulse.early.PhysicsStoreWorld;
 import dev.hytalemodding.impulse.core.internal.modules.control.components.PhysicsControlSessionComponent;
 import dev.hytalemodding.impulse.core.internal.physicsstore.resources.PhysicsIdentityIndexResource;
-import dev.hytalemodding.impulse.core.plugin.joint.JointKey;
 import dev.hytalemodding.impulse.core.plugin.physicsstore.PhysicsStoreThreading;
 import dev.hytalemodding.impulse.core.plugin.physicsstore.components.BodyCommandComponent;
 import dev.hytalemodding.impulse.core.plugin.physicsstore.components.BodyComponent;
 import dev.hytalemodding.impulse.core.plugin.physicsstore.components.JointComponent;
-import java.util.UUID;
+import dev.hytalemodding.impulse.core.plugin.physicsstore.components.UuidComponent;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 import org.joml.Vector3f;
@@ -36,36 +35,32 @@ public final class PhysicsStoreControlSessionMutations {
                 .getStore();
         PhysicsStoreThreading.requireWorldThread(physicsStore,
             "apply PhysicsStore control-session release mutations");
-        PhysicsIdentityIndexResource identity = physicsStore.getResource(
-            PhysicsIdentityIndexResource.getResourceType());
 
-        JointKey controlJointKey = session.getControlJointKey();
-        if (controlJointKey != null) {
-            disableJoint(physicsStore, identity, controlJointKey.value());
+        Ref<PhysicsStore> controlJointRef = session.getControlJointRef();
+        if (controlJointRef != null) {
+            disableJoint(physicsStore, controlJointRef);
         }
 
-        UUID bodyUuid = session.getBodyUuid();
-        if (bodyUuid != null) {
+        Ref<PhysicsStore> bodyRef = session.getBodyRef();
+        if (bodyRef != null) {
             restoreControlledBody(physicsStore,
-                identity,
-                bodyUuid,
+                bodyRef,
                 session.getOriginalBodyType(),
                 releaseVelocity(session));
         }
 
-        UUID anchorBodyUuid = session.getAnchorBodyUuid();
-        if (anchorBodyUuid != null) {
-            removeRow(physicsStore, identity, anchorBodyUuid, refForUuid(identity, anchorBodyUuid));
+        Ref<PhysicsStore> anchorBodyRef = session.getAnchorBodyRef();
+        if (anchorBodyRef != null) {
+            removeRow(physicsStore, anchorBodyRef);
         }
     }
 
     private static void restoreControlledBody(@Nonnull Store<PhysicsStore> store,
-        @Nonnull PhysicsIdentityIndexResource identity,
-        @Nonnull UUID bodyUuid,
+        @Nonnull Ref<PhysicsStore> bodyRef,
         @Nonnull PhysicsBodyType originalBodyType,
         @Nonnull Vector3f releaseVelocity) {
-        Ref<PhysicsStore> bodyRef = refForUuid(identity, bodyUuid);
-        if (bodyRef == null || store.getComponent(bodyRef, BodyComponent.getComponentType()) == null) {
+        if (!isValidStoreRef(store, bodyRef)
+            || store.getComponent(bodyRef, BodyComponent.getComponentType()) == null) {
             return;
         }
         appendBodyCommand(store, bodyRef, BodyCommandComponent.setType(originalBodyType, true));
@@ -83,21 +78,13 @@ public final class PhysicsStoreControlSessionMutations {
         store.putComponent(bodyRef, BodyCommandComponent.getComponentType(), merged);
     }
 
-    @Nullable
-    private static Ref<PhysicsStore> refForUuid(@Nonnull PhysicsIdentityIndexResource identity,
-        @Nonnull UUID uuid) {
-        Ref<PhysicsStore> ref = identity.getByUuid(uuid);
-        return ref != null && ref.isValid() ? ref : null;
-    }
-
     private static void disableJoint(@Nonnull Store<PhysicsStore> store,
-        @Nonnull PhysicsIdentityIndexResource identity,
-        @Nonnull UUID jointUuid) {
-        Ref<PhysicsStore> ref = refForUuid(identity, jointUuid);
-        JointComponent joint = ref != null
-            ? store.getComponent(ref, JointComponent.getComponentType())
-            : null;
-        if (ref == null || joint == null) {
+        @Nonnull Ref<PhysicsStore> ref) {
+        if (!isValidStoreRef(store, ref)) {
+            return;
+        }
+        JointComponent joint = store.getComponent(ref, JointComponent.getComponentType());
+        if (joint == null) {
             return;
         }
         JointComponent disabled = joint.clone();
@@ -106,14 +93,21 @@ public final class PhysicsStoreControlSessionMutations {
     }
 
     private static void removeRow(@Nonnull Store<PhysicsStore> store,
-        @Nonnull PhysicsIdentityIndexResource identity,
-        @Nonnull UUID uuid,
-        @Nullable Ref<PhysicsStore> ref) {
-        if (ref == null || !ref.isValid()) {
+        @Nonnull Ref<PhysicsStore> ref) {
+        if (!isValidStoreRef(store, ref)) {
             return;
         }
-        identity.removeUuid(uuid, ref);
+        UuidComponent uuid = store.getComponent(ref, UuidComponent.getComponentType());
+        if (uuid != null) {
+            store.getResource(PhysicsIdentityIndexResource.getResourceType())
+                .removeUuid(uuid.getUuid(), ref);
+        }
         store.removeEntity(ref, store.getRegistry().newHolder(), RemoveReason.REMOVE);
+    }
+
+    private static boolean isValidStoreRef(@Nonnull Store<PhysicsStore> store,
+        @Nullable Ref<PhysicsStore> ref) {
+        return ref != null && ref.getStore() == store && ref.isValid();
     }
 
     @Nonnull

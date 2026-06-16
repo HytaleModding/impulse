@@ -29,7 +29,6 @@ import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyPersistenceMode;
 import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyRegistrationView;
 import dev.hytalemodding.impulse.core.plugin.body.RigidBodyKey;
 import dev.hytalemodding.impulse.core.plugin.modules.control.PhysicsControlSessions;
-import dev.hytalemodding.impulse.core.plugin.joint.JointKey;
 import dev.hytalemodding.impulse.core.plugin.physicsstore.PhysicsStoreAsync;
 import dev.hytalemodding.impulse.core.plugin.physicsstore.PhysicsStoreRaycasts;
 import dev.hytalemodding.impulse.core.plugin.physicsstore.PhysicsStoreThreading;
@@ -151,9 +150,9 @@ public class GrabCommand extends AbstractAsyncPlayerCommand {
 
         PhysicsControlSessions.startSession(store,
             ref,
-            selection.bodyKey(),
-            physicsState.anchorBodyKey(),
-            physicsState.controlJointKey(),
+            selection.bodyRef(),
+            physicsState.anchorBodyRef(),
+            physicsState.controlJointRef(),
             selection.attachment(),
             physicsState.originalBodyType(),
             Math.max(selection.distance(), MIN_HOLD_DISTANCE),
@@ -168,7 +167,7 @@ public class GrabCommand extends AbstractAsyncPlayerCommand {
     private static GrabPhysicsState createGrabControl(@Nonnull World world,
         @Nonnull SpaceId selectedSpaceId,
         @Nonnull HitSelection selection) {
-        RigidBodyStateView selectedState = bodyState(world, selection.bodyKey());
+        RigidBodyStateView selectedState = bodyState(world, selection.bodyRef(), selection.bodyKey());
         if (selectedState == null) {
             return null;
         }
@@ -187,8 +186,8 @@ public class GrabCommand extends AbstractAsyncPlayerCommand {
         Quaternionf inverseBodyRotation = selectedState.pose().rotation();
         inverseBodyRotation.invert().transform(bodyLocalHit);
 
-        RigidBodyKey anchorBodyKey = RigidBodyKey.random();
-        JointKey controlJointKey = JointKey.random();
+        UUID anchorBodyUuid = UUID.randomUUID();
+        UUID controlJointUuid = UUID.randomUUID();
         Ref<PhysicsStore> selectedBodyRef = selection.bodyRef();
         if (!selectedBodyRef.isValid()) {
             return null;
@@ -197,15 +196,18 @@ public class GrabCommand extends AbstractAsyncPlayerCommand {
             selectedBodyRef,
             BodyCommandComponent.wake());
         try {
-            ExamplePhysicsUtils.addPhysicsStoreBody(world,
-                anchorBodyRow(spaceUuid, anchorBodyKey.value(), hitPoint));
-            ExamplePhysicsUtils.addPhysicsStoreJoint(world,
-                controlJointKey.value(),
-                controlJoint(spaceUuid, anchorBodyKey, selection.bodyKey(), bodyLocalHit));
+            Ref<PhysicsStore> anchorBodyRef = ExamplePhysicsUtils.addPhysicsStoreBody(world,
+                anchorBodyRow(spaceUuid, anchorBodyUuid, hitPoint));
+            Ref<PhysicsStore> controlJointRef = ExamplePhysicsUtils.addPhysicsStoreJoint(world,
+                controlJointUuid,
+                controlJoint(spaceUuid, anchorBodyUuid, selection.bodyKey().value(), bodyLocalHit));
+            return new GrabPhysicsState(selectedState.bodyType(),
+                anchorBodyRef,
+                controlJointRef,
+                hitPoint);
         } catch (IllegalStateException exception) {
             return null;
         }
-        return new GrabPhysicsState(selectedState.bodyType(), anchorBodyKey, controlJointKey, hitPoint);
     }
 
     @Nonnull
@@ -258,13 +260,13 @@ public class GrabCommand extends AbstractAsyncPlayerCommand {
 
     @Nonnull
     private static JointComponent controlJoint(@Nonnull UUID spaceUuid,
-        @Nonnull RigidBodyKey anchorBodyKey,
-        @Nonnull RigidBodyKey bodyKey,
+        @Nonnull UUID anchorBodyUuid,
+        @Nonnull UUID bodyUuid,
         @Nonnull Vector3f bodyLocalHit) {
         JointComponent joint = new JointComponent();
         joint.setSpaceUuid(spaceUuid);
-        joint.setBodyAUuid(anchorBodyKey.value());
-        joint.setBodyBUuid(bodyKey.value());
+        joint.setBodyAUuid(anchorBodyUuid);
+        joint.setBodyBUuid(bodyUuid);
         joint.setType(JointType.POINT);
         joint.setAnchorA(new Vector3f());
         joint.setAnchorB(bodyLocalHit);
@@ -323,13 +325,14 @@ public class GrabCommand extends AbstractAsyncPlayerCommand {
 
     @Nullable
     private static RigidBodyStateView bodyState(@Nonnull World world,
+        @Nonnull Ref<PhysicsStore> bodyRef,
         @Nonnull RigidBodyKey bodyKey) {
         Store<PhysicsStore> store = ((PhysicsStoreWorld) world).getPhysicsStore().getStore();
         PhysicsStoreThreading.requireWorldThread(store,
             "read copied PhysicsStore grab body snapshot");
         PhysicsStoreBodySnapshot body = store
             .getResource(PhysicsSnapshotResource.getResourceType())
-            .getBody(bodyKey.value());
+            .getBody(bodyRef);
         return body != null
             ? new RigidBodyStateView(bodyKey,
                 body.bodyType(),
@@ -381,8 +384,8 @@ public class GrabCommand extends AbstractAsyncPlayerCommand {
     }
 
     private record GrabPhysicsState(@Nonnull PhysicsBodyType originalBodyType,
-                                    @Nonnull RigidBodyKey anchorBodyKey,
-                                    @Nonnull JointKey controlJointKey,
+                                    @Nonnull Ref<PhysicsStore> anchorBodyRef,
+                                    @Nonnull Ref<PhysicsStore> controlJointRef,
                                     @Nonnull Vector3f hitPoint) {
     }
 }

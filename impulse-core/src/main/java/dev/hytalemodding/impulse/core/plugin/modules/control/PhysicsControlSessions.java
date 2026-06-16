@@ -4,14 +4,19 @@ import com.hypixel.hytale.component.ComponentType;
 import com.hypixel.hytale.component.Ref;
 import com.hypixel.hytale.component.Store;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
+import com.hypixel.hytale.server.core.universe.world.storage.PhysicsStore;
 import dev.hytalemodding.impulse.api.PhysicsBodyType;
+import dev.hytalemodding.impulse.early.PhysicsStoreWorld;
 import dev.hytalemodding.impulse.core.internal.modules.control.ControlLifecycle;
 import dev.hytalemodding.impulse.core.internal.modules.control.components.PhysicsControlSessionComponent;
 import dev.hytalemodding.impulse.core.internal.modules.control.systems.PhysicsKinematicControlSystem;
 import dev.hytalemodding.impulse.core.internal.modules.control.systems.PhysicsStoreControlSessionMutations;
+import dev.hytalemodding.impulse.core.internal.physicsstore.resources.PhysicsIdentityIndexResource;
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsWorldRuntimeResource;
 import dev.hytalemodding.impulse.core.plugin.body.RigidBodyKey;
 import dev.hytalemodding.impulse.core.plugin.joint.JointKey;
+import dev.hytalemodding.impulse.core.plugin.physicsstore.PhysicsStoreThreading;
+import dev.hytalemodding.impulse.core.plugin.physicsstore.components.UuidComponent;
 import java.util.UUID;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
@@ -48,9 +53,10 @@ public final class PhysicsControlSessions {
     }
 
     /**
-     * Starts or replaces the controller entity's Impulse control session and marks the body as
-     * externally controlled.
+     * Compatibility adapter for legacy body keys. Prefer the PhysicsStore ref overload when the
+     * caller already has live rows.
      */
+    @Deprecated(forRemoval = true)
     public static void startSession(@Nonnull Store<EntityStore> store,
         @Nonnull Ref<EntityStore> controllerRef,
         @Nonnull RigidBodyKey bodyKey,
@@ -60,7 +66,7 @@ public final class PhysicsControlSessions {
         float grabDistance,
         @Nonnull Vector3f viewOffset,
         @Nonnull Vector3f previousTarget) {
-        startSession(store,
+        startSessionFromUuids(store,
             controllerRef,
             bodyKey.value(),
             anchorBodyKey.value(),
@@ -73,9 +79,10 @@ public final class PhysicsControlSessions {
     }
 
     /**
-     * Starts or replaces the controller entity's Impulse control session with the created control
-     * joint handle.
+     * Compatibility adapter for legacy body and joint keys. Prefer the PhysicsStore ref overload
+     * when the caller already has live rows.
      */
+    @Deprecated(forRemoval = true)
     public static void startSession(@Nonnull Store<EntityStore> store,
         @Nonnull Ref<EntityStore> controllerRef,
         @Nonnull RigidBodyKey bodyKey,
@@ -86,11 +93,11 @@ public final class PhysicsControlSessions {
         float grabDistance,
         @Nonnull Vector3f viewOffset,
         @Nonnull Vector3f previousTarget) {
-        startSession(store,
+        startSessionFromUuids(store,
             controllerRef,
             bodyKey.value(),
             anchorBodyKey.value(),
-            controlJointKey,
+            controlJointKey != null ? controlJointKey.value() : null,
             targetRef,
             originalBodyType,
             grabDistance,
@@ -99,9 +106,10 @@ public final class PhysicsControlSessions {
     }
 
     /**
-     * Starts or replaces the controller entity's Impulse control session with the created control
-     * joint handle.
+     * Compatibility adapter for durable body UUIDs. Prefer the PhysicsStore ref overload when the
+     * caller already has live rows.
      */
+    @Deprecated(forRemoval = true)
     public static void startSession(@Nonnull Store<EntityStore> store,
         @Nonnull Ref<EntityStore> controllerRef,
         @Nonnull UUID bodyUuid,
@@ -112,23 +120,84 @@ public final class PhysicsControlSessions {
         float grabDistance,
         @Nonnull Vector3f viewOffset,
         @Nonnull Vector3f previousTarget) {
+        startSessionFromUuids(store,
+            controllerRef,
+            bodyUuid,
+            anchorBodyUuid,
+            controlJointKey != null ? controlJointKey.value() : null,
+            targetRef,
+            originalBodyType,
+            grabDistance,
+            viewOffset,
+            previousTarget);
+    }
+
+    /**
+     * Starts or replaces the controller entity's Impulse control session from durable row UUIDs.
+     * Prefer the ref overload when the caller already has live PhysicsStore row refs.
+     */
+    private static void startSessionFromUuids(@Nonnull Store<EntityStore> store,
+        @Nonnull Ref<EntityStore> controllerRef,
+        @Nonnull UUID bodyUuid,
+        @Nonnull UUID anchorBodyUuid,
+        @Nullable UUID controlJointUuid,
+        @Nullable Ref<EntityStore> targetRef,
+        @Nonnull PhysicsBodyType originalBodyType,
+        float grabDistance,
+        @Nonnull Vector3f viewOffset,
+        @Nonnull Vector3f previousTarget) {
+        Store<PhysicsStore> physicsStore = physicsStore(store);
+        PhysicsStoreThreading.requireWorldThread(physicsStore,
+            "resolve PhysicsStore control-session UUIDs");
+        Ref<PhysicsStore> bodyRef = requireRef(physicsStore, bodyUuid, "body");
+        Ref<PhysicsStore> anchorBodyRef = requireRef(physicsStore, anchorBodyUuid, "anchor body");
+        Ref<PhysicsStore> controlJointRef = controlJointUuid != null
+            ? requireRef(physicsStore, controlJointUuid, "control joint")
+            : null;
+        startSession(store,
+            controllerRef,
+            bodyRef,
+            anchorBodyRef,
+            controlJointRef,
+            targetRef,
+            originalBodyType,
+            grabDistance,
+            viewOffset,
+            previousTarget);
+    }
+
+    /**
+     * Starts or replaces the controller entity's Impulse control session with live PhysicsStore
+     * row refs.
+     */
+    public static void startSession(@Nonnull Store<EntityStore> store,
+        @Nonnull Ref<EntityStore> controllerRef,
+        @Nonnull Ref<PhysicsStore> bodyRef,
+        @Nonnull Ref<PhysicsStore> anchorBodyRef,
+        @Nullable Ref<PhysicsStore> controlJointRef,
+        @Nullable Ref<EntityStore> targetRef,
+        @Nonnull PhysicsBodyType originalBodyType,
+        float grabDistance,
+        @Nonnull Vector3f viewOffset,
+        @Nonnull Vector3f previousTarget) {
         requireAvailable();
         ControlLifecycle.registerStore(store);
+        validateControlRefs(bodyRef, anchorBodyRef, controlJointRef);
         PhysicsWorldRuntimeResource resource = PhysicsWorldRuntimeResource.require(store);
         ComponentType<EntityStore, PhysicsControlSessionComponent> sessionType =
             PhysicsControlSessionComponent.getComponentType();
         releaseSession(resource, store, controllerRef, sessionType);
         store.putComponent(controllerRef,
             sessionType,
-            new PhysicsControlSessionComponent(bodyUuid,
-                anchorBodyUuid,
-                controlJointKey,
+            new PhysicsControlSessionComponent(bodyRef,
+                anchorBodyRef,
+                controlJointRef,
                 targetRef,
                 originalBodyType,
                 grabDistance,
                 viewOffset,
                 previousTarget));
-        resource.markBodyControlled(bodyUuid);
+        resource.markBodyControlled(requireRowUuid(bodyRef, "body"));
     }
 
     /**
@@ -166,9 +235,9 @@ public final class PhysicsControlSessions {
         @Nonnull Ref<EntityStore> controllerRef,
         @Nonnull ComponentType<EntityStore, PhysicsControlSessionComponent> sessionType,
         @Nonnull PhysicsControlSessionComponent session) {
-        UUID bodyUuid = session.getBodyUuid();
-        UUID anchorBodyUuid = session.getAnchorBodyUuid();
-        PhysicsKinematicControlSystem.clearMutationState(store, anchorBodyUuid);
+        Ref<PhysicsStore> bodyRef = session.getBodyRef();
+        PhysicsKinematicControlSystem.clearMutationState(store, session.getAnchorBodyRef());
+        UUID bodyUuid = rowUuid(bodyRef);
         if (bodyUuid != null) {
             resource.clearControlledBody(bodyUuid);
         }
@@ -176,6 +245,71 @@ public final class PhysicsControlSessions {
 
         session.deactivate();
         store.removeComponent(controllerRef, sessionType);
+    }
+
+    @Nonnull
+    private static Store<PhysicsStore> physicsStore(@Nonnull Store<EntityStore> store) {
+        return ((PhysicsStoreWorld) store.getExternalData().getWorld()).getPhysicsStore()
+            .getStore();
+    }
+
+    @Nonnull
+    private static Ref<PhysicsStore> requireRef(@Nonnull Store<PhysicsStore> store,
+        @Nonnull UUID uuid,
+        @Nonnull String role) {
+        Ref<PhysicsStore> ref = store.getResource(PhysicsIdentityIndexResource.getResourceType())
+            .getByUuid(uuid);
+        if (ref == null || !ref.isValid()) {
+            throw new IllegalArgumentException("PhysicsStore " + role
+                + " row is not loaded for uuid=" + uuid);
+        }
+        return ref;
+    }
+
+    private static void validateControlRefs(@Nonnull Ref<PhysicsStore> bodyRef,
+        @Nonnull Ref<PhysicsStore> anchorBodyRef,
+        @Nullable Ref<PhysicsStore> controlJointRef) {
+        Store<PhysicsStore> store = bodyRef.getStore();
+        PhysicsStoreThreading.requireWorldThread(store,
+            "start PhysicsStore control session");
+        requireValidRef(bodyRef, "body");
+        requireValidRef(anchorBodyRef, "anchor body");
+        if (anchorBodyRef.getStore() != store
+            || (controlJointRef != null && controlJointRef.getStore() != store)) {
+            throw new IllegalArgumentException("PhysicsStore control-session refs must belong "
+                + "to the same PhysicsStore");
+        }
+        if (controlJointRef != null) {
+            requireValidRef(controlJointRef, "control joint");
+        }
+    }
+
+    private static void requireValidRef(@Nonnull Ref<PhysicsStore> ref,
+        @Nonnull String role) {
+        if (!ref.isValid()) {
+            throw new IllegalArgumentException("PhysicsStore control-session " + role
+                + " ref is not valid");
+        }
+    }
+
+    @Nullable
+    private static UUID rowUuid(@Nullable Ref<PhysicsStore> ref) {
+        if (ref == null || !ref.isValid()) {
+            return null;
+        }
+        UuidComponent uuid = ref.getStore().getComponent(ref, UuidComponent.getComponentType());
+        return uuid != null ? uuid.getUuid() : null;
+    }
+
+    @Nonnull
+    private static UUID requireRowUuid(@Nonnull Ref<PhysicsStore> ref,
+        @Nonnull String role) {
+        UUID uuid = rowUuid(ref);
+        if (uuid == null) {
+            throw new IllegalArgumentException("PhysicsStore control-session " + role
+                + " row has no UUID component");
+        }
+        return uuid;
     }
 
     private static void requireAvailable() {
