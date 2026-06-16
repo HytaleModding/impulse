@@ -13,6 +13,7 @@ import com.hypixel.hytale.server.core.universe.world.World;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import com.hypixel.hytale.server.core.universe.world.storage.PhysicsStore;
 import dev.hytalemodding.impulse.api.SpaceId;
+import dev.hytalemodding.impulse.core.plugin.physicsstore.PhysicsJointRows;
 import dev.hytalemodding.impulse.core.plugin.physicsstore.components.JointComponent;
 import dev.hytalemodding.impulse.core.plugin.simulation.JointType;
 import dev.hytalemodding.impulse.core.plugin.simulation.PhysicsShapeSpec;
@@ -202,17 +203,13 @@ public class StressJointsCommand extends AbstractAsyncPlayerCommand {
             case 3 -> JointType.SLIDER;
             default -> JointType.SPRING;
         };
-        JointComponent joint = new JointComponent();
-        joint.setSpaceUuid(ExamplePhysicsUtils.physicsStoreRowUuid(spaceRef));
-        joint.setSpaceRef(spaceRef);
-        joint.setBodyAUuid(previous.bodyUuid());
-        joint.setBodyARef(previous.bodyRef());
-        joint.setBodyBUuid(current.bodyUuid());
-        joint.setBodyBRef(current.bodyRef());
-        joint.setType(type);
-        joint.setAnchorA(new Vector3f(HALF_SIZE, 0.0f, 0.0f));
-        joint.setAnchorB(new Vector3f(-HALF_SIZE, 0.0f, 0.0f));
-        joint.setEnabled(true);
+        JointComponent joint = PhysicsJointRows.joint(spaceRef,
+            previous.bodyRef(),
+            current.bodyRef(),
+            type,
+            new Vector3f(HALF_SIZE, 0.0f, 0.0f),
+            new Vector3f(-HALF_SIZE, 0.0f, 0.0f),
+            new Vector3f());
         switch (type) {
             case FIXED, POINT -> {
             }

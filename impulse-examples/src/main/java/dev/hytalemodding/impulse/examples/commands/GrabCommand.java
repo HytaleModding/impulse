@@ -29,6 +29,7 @@ import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyPersistenceMode;
 import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyRegistrationView;
 import dev.hytalemodding.impulse.core.plugin.body.RigidBodyKey;
 import dev.hytalemodding.impulse.core.plugin.modules.control.PhysicsControlSessions;
+import dev.hytalemodding.impulse.core.plugin.physicsstore.PhysicsJointRows;
 import dev.hytalemodding.impulse.core.plugin.physicsstore.PhysicsStoreAsync;
 import dev.hytalemodding.impulse.core.plugin.physicsstore.PhysicsStoreRaycasts;
 import dev.hytalemodding.impulse.core.plugin.physicsstore.PhysicsStoreThreading;
@@ -266,19 +267,13 @@ public class GrabCommand extends AbstractAsyncPlayerCommand {
         @Nonnull Ref<PhysicsStore> anchorBodyRef,
         @Nonnull Ref<PhysicsStore> bodyRef,
         @Nonnull Vector3f bodyLocalHit) {
-        JointComponent joint = new JointComponent();
-        joint.setSpaceUuid(ExamplePhysicsUtils.physicsStoreRowUuid(spaceRef));
-        joint.setSpaceRef(spaceRef);
-        joint.setBodyAUuid(ExamplePhysicsUtils.physicsStoreRowUuid(anchorBodyRef));
-        joint.setBodyARef(anchorBodyRef);
-        joint.setBodyBUuid(ExamplePhysicsUtils.physicsStoreRowUuid(bodyRef));
-        joint.setBodyBRef(bodyRef);
-        joint.setType(JointType.POINT);
-        joint.setAnchorA(new Vector3f());
-        joint.setAnchorB(bodyLocalHit);
-        joint.setAxis(new Vector3f());
-        joint.setEnabled(true);
-        return joint;
+        return PhysicsJointRows.joint(spaceRef,
+            anchorBodyRef,
+            bodyRef,
+            JointType.POINT,
+            new Vector3f(),
+            bodyLocalHit,
+            new Vector3f());
     }
 
     @Nullable

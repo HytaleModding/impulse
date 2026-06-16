@@ -13,6 +13,7 @@ import com.hypixel.hytale.server.core.universe.world.World;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import com.hypixel.hytale.server.core.universe.world.storage.PhysicsStore;
 import dev.hytalemodding.impulse.api.SpaceId;
+import dev.hytalemodding.impulse.core.plugin.physicsstore.PhysicsJointRows;
 import dev.hytalemodding.impulse.core.plugin.physicsstore.components.JointComponent;
 import dev.hytalemodding.impulse.core.plugin.simulation.JointType;
 import dev.hytalemodding.impulse.core.plugin.simulation.PhysicsShapeSpec;
@@ -261,19 +262,13 @@ public class JointsCommand extends AbstractAsyncPlayerCommand {
         @Nonnull Vector3f anchorA,
         @Nonnull Vector3f anchorB,
         @Nonnull Vector3f axis) {
-        JointComponent joint = new JointComponent();
-        joint.setSpaceUuid(ExamplePhysicsUtils.physicsStoreRowUuid(spaceRef));
-        joint.setSpaceRef(spaceRef);
-        joint.setBodyAUuid(bodyA.bodyUuid());
-        joint.setBodyARef(bodyA.bodyRef());
-        joint.setBodyBUuid(bodyB.bodyUuid());
-        joint.setBodyBRef(bodyB.bodyRef());
-        joint.setType(type);
-        joint.setAnchorA(anchorA);
-        joint.setAnchorB(anchorB);
-        joint.setAxis(axis);
-        joint.setEnabled(true);
-        return joint;
+        return PhysicsJointRows.joint(spaceRef,
+            bodyA.bodyRef(),
+            bodyB.bodyRef(),
+            type,
+            anchorA,
+            anchorB,
+            axis);
     }
 
 }
