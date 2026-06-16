@@ -2468,21 +2468,34 @@ public class PhysicsWorldRuntimeResource extends PhysicsWorldResource {
     }
 
     public void clearBodyRuntimeState(@Nonnull RigidBodyKey bodyKey) {
+        clearBodyRuntimeState(Objects.requireNonNull(bodyKey, "bodyKey").value());
+    }
+
+    public void clearBodyRuntimeState(@Nonnull UUID bodyUuid) {
         requireLegacyMutationAllowed("clear physics body runtime state");
-        runDirectRuntimeMutation("clear physics body runtime state", () -> clearBodyRuntimeStateDirect(bodyKey));
+        runDirectRuntimeMutation("clear physics body runtime state", () -> clearBodyRuntimeStateDirect(bodyUuid));
     }
 
     @Nonnull
     public PhysicsMutationHandle<RigidBodyKey> clearBodyRuntimeStateAsync(
         @Nonnull RigidBodyKey bodyKey) {
-        requireLegacyMutationAllowed("clear physics body runtime state");
-        return enqueueDirectRuntimeMutation("clear physics body runtime state",
-            bodyKey,
-            () -> clearBodyRuntimeStateDirect(bodyKey));
+        RigidBodyKey checkedBodyKey = Objects.requireNonNull(bodyKey, "bodyKey");
+        return PhysicsMutationHandle.fromCompletion("clear physics body runtime state",
+            checkedBodyKey,
+            clearBodyRuntimeStateAsync(checkedBodyKey.value()).completion());
     }
 
-    private void clearBodyRuntimeStateDirect(@Nonnull RigidBodyKey bodyKey) {
-        UUID bodyUuid = bodyKey.value();
+    @Nonnull
+    public PhysicsMutationHandle<UUID> clearBodyRuntimeStateAsync(
+        @Nonnull UUID bodyUuid) {
+        UUID checkedBodyUuid = Objects.requireNonNull(bodyUuid, "bodyUuid");
+        requireLegacyMutationAllowed("clear physics body runtime state");
+        return enqueueDirectRuntimeMutation("clear physics body runtime state",
+            checkedBodyUuid,
+            () -> clearBodyRuntimeStateDirect(checkedBodyUuid));
+    }
+
+    private void clearBodyRuntimeStateDirect(@Nonnull UUID bodyUuid) {
         Ref<PhysicsStore> bodyRef = resolvePhysicsStoreBodyRef(bodyUuid,
             "resolve cleared body runtime key");
         if (bodyRef != null) {
