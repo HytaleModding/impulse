@@ -22,7 +22,6 @@ import dev.hytalemodding.impulse.api.runtime.PhysicsBackendRuntimeProvider;
 import dev.hytalemodding.impulse.core.internal.commands.ImpulseCommandContributionRegistry;
 import dev.hytalemodding.impulse.core.internal.components.GeneratedVisualProxyComponent;
 import dev.hytalemodding.impulse.core.internal.modules.ImpulseSubPluginRegistration;
-import dev.hytalemodding.impulse.core.internal.persistence.PersistentPhysicsWorldResource;
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsDebugResource;
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsProjectionIndexResource;
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsWorldRuntimeResource;
@@ -35,7 +34,6 @@ import dev.hytalemodding.impulse.core.internal.systems.sync.PhysicsBodyAttachmen
 import dev.hytalemodding.impulse.core.internal.systems.sync.PhysicsSyncSystem;
 import dev.hytalemodding.impulse.core.internal.systems.visual.PhysicsDetachedVisualMaterializationSystem;
 import dev.hytalemodding.impulse.core.plugin.events.PhysicsEventFramePublishedEvent;
-import dev.hytalemodding.impulse.core.plugin.persistence.PhysicsPersistenceResource;
 import dev.hytalemodding.impulse.core.plugin.physicsstore.projection.BodyAttachmentComponent;
 import dev.hytalemodding.impulse.core.plugin.resources.PhysicsWorldResource;
 import java.nio.file.Path;
@@ -69,9 +67,6 @@ public final class ImpulsePlugin extends JavaPlugin {
 
     @Getter
     private ResourceType<EntityStore, PhysicsProjectionIndexResource> physicsProjectionIndexResourceType;
-
-    @Getter
-    private ResourceType<EntityStore, ? extends PhysicsPersistenceResource> persistentPhysicsWorldResourceType;
 
     @Getter
     private WorldEventType<EntityStore, PhysicsEventFramePublishedEvent> physicsEventFramePublishedEventType;
@@ -226,10 +221,6 @@ public final class ImpulsePlugin extends JavaPlugin {
         physicsProjectionIndexResourceType = entityRegistry.registerResource(
             PhysicsProjectionIndexResource.class,
             PhysicsProjectionIndexResource::new);
-        persistentPhysicsWorldResourceType = entityRegistry.registerResource(
-            PersistentPhysicsWorldResource.class,
-            "PersistentPhysicsWorld",
-            PersistentPhysicsWorldResource.CODEC);
         physicsEventFramePublishedEventType =
             entityRegistry.registerWorldEventType(PhysicsEventFramePublishedEvent.class);
     }

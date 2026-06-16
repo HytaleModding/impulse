@@ -4,7 +4,6 @@ import com.hypixel.hytale.component.Store;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import com.hypixel.hytale.server.core.universe.world.storage.PhysicsStore;
 import dev.hytalemodding.impulse.early.PhysicsStoreWorld;
-import dev.hytalemodding.impulse.core.internal.persistence.PersistentPhysicsWorldResource;
 import dev.hytalemodding.impulse.core.internal.physicsstore.persistence.PersistentPhysicsStoreResource;
 import dev.hytalemodding.impulse.core.internal.physicsstore.resources.PhysicsRestoreStatusResource;
 import dev.hytalemodding.impulse.core.internal.physicsstore.resources.PhysicsSpaceCompatibilityIndexResource;
@@ -65,14 +64,14 @@ public final class PhysicsPersistence {
     @Nonnull
     public static Status status(@Nonnull Store<EntityStore> store) {
         Store<PhysicsStore> physicsStore = physicsStore(store);
-        return copiedStatus(physicsStore, legacyStatus(store));
+        return copiedStatus(physicsStore);
     }
 
     @Nonnull
     public static CompletionStage<Status> statusAsync(@Nonnull Store<EntityStore> store) {
         return PhysicsStoreThreading.enqueueReadOnWorldThread(store.getExternalData().getWorld(),
             "queue PhysicsStore persistence status read",
-            physics -> liveStatus(physics, legacyStatus(store)));
+            PhysicsPersistence::liveStatus);
     }
 
     @Nonnull
@@ -82,8 +81,7 @@ public final class PhysicsPersistence {
     }
 
     @Nonnull
-    private static Status liveStatus(@Nonnull Store<PhysicsStore> physicsStore,
-        @Nonnull LegacyStatus legacy) {
+    private static Status liveStatus(@Nonnull Store<PhysicsStore> physicsStore) {
         PersistentPhysicsStoreResource persistent = physicsStore.getResource(
             PersistentPhysicsStoreResource.getResourceType());
         PhysicsRestoreStatusResource restore = physicsStore.getResource(
@@ -103,12 +101,11 @@ public final class PhysicsPersistence {
             persistent.getBodies().length,
             persistent.getJoints().length,
             restoreState(restore),
-            restoreMessage(restore, persistent, legacy));
+            restoreMessage(restore));
     }
 
     @Nonnull
-    private static Status copiedStatus(@Nonnull Store<PhysicsStore> physicsStore,
-        @Nonnull LegacyStatus legacy) {
+    private static Status copiedStatus(@Nonnull Store<PhysicsStore> physicsStore) {
         PhysicsStoreThreading.requireWorldThread(physicsStore,
             "read copied PhysicsStore persistence status");
         PersistentPhysicsStoreResource persistent = physicsStore.getResource(
@@ -130,7 +127,7 @@ public final class PhysicsPersistence {
             persistent.getBodies().length,
             persistent.getJoints().length,
             restoreState(restore),
-            restoreMessage(restore, persistent, legacy));
+            restoreMessage(restore));
     }
 
     @Nonnull
@@ -145,46 +142,14 @@ public final class PhysicsPersistence {
     }
 
     @Nonnull
-    private static String restoreMessage(@Nonnull PhysicsRestoreStatusResource restore,
-        @Nonnull PersistentPhysicsStoreResource persistent,
-        @Nonnull LegacyStatus legacy) {
+    private static String restoreMessage(@Nonnull PhysicsRestoreStatusResource restore) {
         if (restore.isFailed()) {
             return restore.getFailureMessage();
         }
         if (!restore.getSoftSkipsByReason().isEmpty()) {
             return "PhysicsStore restore soft skips: " + restore.getSoftSkipsByReason();
         }
-        if (hasLegacyData(legacy)) {
-            String legacyCounts = "legacy PersistentPhysicsWorld spaces=" + legacy.spaceCount()
-                + ", bodies=" + legacy.bodyCount()
-                + ", joints=" + legacy.jointCount();
-            if (hasAuthoritativeData(persistent)) {
-                return legacyCounts
-                    + " ignored because PersistentPhysicsStore contains authoritative state.";
-            }
-            return legacyCounts
-                + " present, but legacy import into PersistentPhysicsStore is deferred.";
-        }
         return "";
-    }
-
-    private static boolean hasAuthoritativeData(@Nonnull PersistentPhysicsStoreResource persistent) {
-        return persistent.getSpaces().length > 0
-            || persistent.getBodies().length > 0
-            || persistent.getJoints().length > 0;
-    }
-
-    @Nonnull
-    private static LegacyStatus legacyStatus(@Nonnull Store<EntityStore> store) {
-        PersistentPhysicsWorldResource legacy = store.getResource(
-            PersistentPhysicsWorldResource.getResourceType());
-        return new LegacyStatus(legacy.getSpaceCount(),
-            legacy.getBodyCount(),
-            legacy.getJointCount());
-    }
-
-    private static boolean hasLegacyData(@Nonnull LegacyStatus legacy) {
-        return legacy.hasData();
     }
 
     public enum RestoreState {
@@ -235,10 +200,4 @@ public final class PhysicsPersistence {
         }
     }
 
-    private record LegacyStatus(int spaceCount, int bodyCount, int jointCount) {
-
-        private boolean hasData() {
-            return spaceCount > 0 || bodyCount > 0 || jointCount > 0;
-        }
-    }
 }
