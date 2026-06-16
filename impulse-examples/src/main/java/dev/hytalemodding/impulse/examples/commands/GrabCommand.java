@@ -305,7 +305,7 @@ public class GrabCommand extends AbstractAsyncPlayerCommand {
         HitSelection best = null;
         for (HitCandidate candidate : candidates) {
             AttachmentSelection attachments =
-                inspectGameplayAttachments(resource, store, controllableType, candidate.bodyKey());
+                inspectGameplayAttachments(resource, store, controllableType, candidate.bodyRef());
             if (attachments.controllableAttachment() == null && attachments.hasGameplayAttachment()) {
                 continue;
             }
@@ -344,9 +344,9 @@ public class GrabCommand extends AbstractAsyncPlayerCommand {
     private static AttachmentSelection inspectGameplayAttachments(@Nonnull PhysicsWorldResource resource,
         @Nonnull Store<EntityStore> store,
         @Nonnull ComponentType<EntityStore, ImpulseControllableComponent> controllableType,
-        @Nonnull RigidBodyKey bodyKey) {
+        @Nonnull Ref<PhysicsStore> bodyRef) {
         boolean hasGameplayAttachment = false;
-        for (Ref<EntityStore> attachmentRef : resource.getBodyAttachments(bodyKey)) {
+        for (Ref<EntityStore> attachmentRef : resource.getBodyAttachments(bodyRef)) {
             BodyAttachmentComponent attachment = store.getComponent(attachmentRef, ATTACHMENT_TYPE);
             if (attachment == null
                 || attachment.getLifecycle() == BodyAttachmentComponent.AttachmentLifecycle.GENERATED_PROXY) {

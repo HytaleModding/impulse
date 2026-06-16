@@ -5,6 +5,7 @@ import com.hypixel.hytale.component.ResourceType;
 import com.hypixel.hytale.component.Ref;
 import com.hypixel.hytale.server.core.universe.world.World;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
+import com.hypixel.hytale.server.core.universe.world.storage.PhysicsStore;
 import dev.hytalemodding.impulse.api.BackendId;
 import dev.hytalemodding.impulse.api.PhysicsBodySnapshot;
 import dev.hytalemodding.impulse.api.SpaceId;
@@ -21,6 +22,7 @@ import dev.hytalemodding.impulse.core.plugin.settings.PhysicsSpaceSettings;
 import dev.hytalemodding.impulse.core.plugin.settings.PhysicsWorldSettings;
 import dev.hytalemodding.impulse.core.plugin.snapshot.PhysicsBodySnapshotEntry;
 import java.util.Collection;
+import java.util.List;
 import java.util.function.Consumer;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
@@ -351,10 +353,29 @@ public abstract class PhysicsWorldResource implements Resource<EntityStore> {
     public abstract Collection<Ref<EntityStore>> getBodyAttachments(@Nonnull RigidBodyKey bodyKey);
 
     /**
+     * Returns ECS attachments associated with a live PhysicsStore body ref.
+     *
+     * <p>Prefer this overload when a caller already has a body row ref, such as from a PhysicsStore
+     * raycast or copied registration. The key overload remains the compatibility boundary.</p>
+     */
+    @Nonnull
+    public Collection<Ref<EntityStore>> getBodyAttachments(@Nonnull Ref<PhysicsStore> bodyRef) {
+        return List.of();
+    }
+
+    /**
      * Returns whether a registered body has one or more ECS attachments without materializing the
      * attachment collection.
      */
     public abstract boolean hasBodyAttachments(@Nonnull RigidBodyKey bodyKey);
+
+    /**
+     * Returns whether a live PhysicsStore body ref has one or more ECS attachments without
+     * materializing the attachment collection.
+     */
+    public boolean hasBodyAttachments(@Nonnull Ref<PhysicsStore> bodyRef) {
+        return false;
+    }
 
     /**
      * Destroys all registered bodies while preserving registered physics spaces.

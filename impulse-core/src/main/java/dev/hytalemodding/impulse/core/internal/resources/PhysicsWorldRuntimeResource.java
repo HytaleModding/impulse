@@ -2008,6 +2008,7 @@ public class PhysicsWorldRuntimeResource extends PhysicsWorldResource {
     }
 
     @Nonnull
+    @Override
     public Collection<Ref<EntityStore>> getBodyAttachments(@Nonnull Ref<PhysicsStore> bodyRef) {
         if (hasAttachedAuthoritativePhysicsStore()) {
             return authoritativeProjectionIndex("read physics body attachments")
@@ -2030,6 +2031,7 @@ public class PhysicsWorldRuntimeResource extends PhysicsWorldResource {
         return visualRuntime.hasAttachments(bodyKey);
     }
 
+    @Override
     public boolean hasBodyAttachments(@Nonnull Ref<PhysicsStore> bodyRef) {
         return hasAttachedAuthoritativePhysicsStore()
             && authoritativeProjectionIndex("check physics body attachments")
