@@ -6,7 +6,6 @@ import com.hypixel.hytale.component.ResourceType;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import com.hypixel.hytale.server.core.universe.world.storage.PhysicsStore;
 import dev.hytalemodding.impulse.core.ImpulsePlugin;
-import dev.hytalemodding.impulse.core.plugin.body.RigidBodyKey;
 import it.unimi.dsi.fastutil.ints.Int2ObjectOpenHashMap;
 import it.unimi.dsi.fastutil.objects.Object2ObjectOpenHashMap;
 import it.unimi.dsi.fastutil.objects.ObjectOpenHashSet;
@@ -144,63 +143,6 @@ public final class PhysicsProjectionIndexResource implements Resource<EntityStor
     @Nullable
     public Ref<EntityStore> getGeneratedVisualProxy(@Nonnull Ref<PhysicsStore> bodyRef) {
         return liveGeneratedVisualProxy(bodyRef);
-    }
-
-    @Nonnull
-    public Collection<RigidBodyKey> getGeneratedVisualProxyBodyKeys() {
-        List<RigidBodyKey> bodyKeys = new ArrayList<>();
-        synchronized (this) {
-            for (Iterator<Map.Entry<UUID, Ref<EntityStore>>> iterator =
-                 generatedVisualProxies.entrySet().iterator(); iterator.hasNext();) {
-                Map.Entry<UUID, Ref<EntityStore>> entry = iterator.next();
-                Ref<EntityStore> proxy = entry.getValue();
-                if (proxy != null && proxy.isValid()) {
-                    bodyKeys.add(RigidBodyKey.of(entry.getKey()));
-                } else {
-                    iterator.remove();
-                }
-            }
-        }
-        return bodyKeys;
-    }
-
-    @Nonnull
-    public Collection<GeneratedVisualProxyView> getGeneratedVisualProxyViews() {
-        List<GeneratedVisualProxyView> views = new ArrayList<>();
-        Map<UUID, Ref<PhysicsStore>> bodyRefsByUuid = new Object2ObjectOpenHashMap<>();
-        synchronized (this) {
-            List<Integer> staleRowIndexes = new ArrayList<>();
-            for (var entry : generatedVisualProxiesByRowIndex.int2ObjectEntrySet()) {
-                GeneratedVisualProxyRef row = entry.getValue();
-                Ref<EntityStore> proxy = row.proxy();
-                Ref<EntityStore> uuidProxy = generatedVisualProxies.get(row.bodyUuid());
-                if (row.bodyRef() == null
-                    || !row.bodyRef().isValid()
-                    || proxy == null
-                    || !proxy.isValid()
-                    || !sameRef(proxy, uuidProxy)) {
-                    staleRowIndexes.add(entry.getIntKey());
-                    continue;
-                }
-                bodyRefsByUuid.put(row.bodyUuid(), row.bodyRef());
-            }
-            for (Integer rowIndex : staleRowIndexes) {
-                generatedVisualProxiesByRowIndex.remove(rowIndex.intValue());
-            }
-            for (Iterator<Map.Entry<UUID, Ref<EntityStore>>> iterator =
-                 generatedVisualProxies.entrySet().iterator(); iterator.hasNext();) {
-                Map.Entry<UUID, Ref<EntityStore>> entry = iterator.next();
-                Ref<EntityStore> proxy = entry.getValue();
-                if (proxy != null && proxy.isValid()) {
-                    views.add(new GeneratedVisualProxyView(entry.getKey(),
-                        bodyRefsByUuid.get(entry.getKey()),
-                        proxy));
-                } else {
-                    iterator.remove();
-                }
-            }
-        }
-        return views;
     }
 
     public int generatedVisualProxyCount() {

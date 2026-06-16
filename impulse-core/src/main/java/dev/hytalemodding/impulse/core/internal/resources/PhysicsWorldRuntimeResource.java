@@ -2257,24 +2257,6 @@ public class PhysicsWorldRuntimeResource extends PhysicsWorldResource {
         return visualRuntime.getGeneratedVisualProxy(bodyUuid, bodyRef);
     }
 
-    @Nonnull
-    public Collection<RigidBodyKey> getGeneratedVisualProxyBodyKeys() {
-        if (hasAttachedAuthoritativePhysicsStore()) {
-            return authoritativeProjectionIndex("list generated visual proxies")
-                .getGeneratedVisualProxyBodyKeys();
-        }
-        return visualRuntime.getGeneratedVisualProxyBodyKeys();
-    }
-
-    @Nonnull
-    public Collection<GeneratedVisualProxyView> getGeneratedVisualProxyViews() {
-        if (hasAttachedAuthoritativePhysicsStore()) {
-            return authoritativeProjectionIndex("list generated visual proxies")
-                .getGeneratedVisualProxyViews();
-        }
-        return visualRuntime.getGeneratedVisualProxyViews();
-    }
-
     public int getGeneratedVisualProxyCount() {
         if (hasAttachedAuthoritativePhysicsStore()) {
             return authoritativeProjectionIndex("count generated visual proxies")
