@@ -25,7 +25,6 @@ import dev.hytalemodding.impulse.core.plugin.modules.control.ImpulseControllable
 import dev.hytalemodding.impulse.core.plugin.physicsstore.projection.BodyAttachmentComponent;
 import dev.hytalemodding.impulse.core.plugin.physicsstore.projection.BodyAttachmentComponent.AttachmentLifecycle;
 import dev.hytalemodding.impulse.core.plugin.physicsstore.projection.BodyAttachmentComponent.TransformAuthority;
-import dev.hytalemodding.impulse.core.plugin.body.RigidBodyKey;
 import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyPersistenceMode;
 import dev.hytalemodding.impulse.core.plugin.settings.PhysicsSpaceSettings;
 import dev.hytalemodding.impulse.core.plugin.resources.PhysicsWorldResource;
@@ -34,6 +33,7 @@ import dev.hytalemodding.impulse.core.plugin.simulation.RigidBodySpawnSettings;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Set;
+import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
 import org.joml.Vector3d;
@@ -87,16 +87,16 @@ final class ImpulseLiveCrucibleTests {
             PhysicsStoreSpaceMutations.putSpaceGravity(physicsStore,
                 spaceId,
                 new Vector3f(0.0f, -9.81f, 0.0f));
-            RigidBodyKey bodyKey = RigidBodyKey.random();
-            submitLiveBody(physicsStore, spaceId, bodyKey, visualPosition);
+            UUID bodyUuid = UUID.randomUUID();
+            submitLiveBody(physicsStore, spaceId, bodyUuid, visualPosition);
 
-            Ref<EntityStore> ref = spawnLiveBlockBody(store, spaceId, bodyKey, visualPosition);
+            Ref<EntityStore> ref = spawnLiveBlockBody(store, spaceId, bodyUuid, visualPosition);
             double startY = visualPosition.y;
 
             return context.waitApproxTicksOnWorld(40).thenApply(ignored -> bodyAndEntityMovedDown(
                 store,
                 ref,
-                bodyKey,
+                bodyUuid,
                 startY));
         } catch (ReflectiveOperationException e) {
             return CompletableFuture.failedFuture(e);
@@ -105,7 +105,7 @@ final class ImpulseLiveCrucibleTests {
 
     private static boolean bodyAndEntityMovedDown(Store<EntityStore> store,
         Ref<EntityStore> ref,
-        RigidBodyKey bodyKey,
+        UUID bodyUuid,
         double startY) {
 
         if (!ref.isValid()) {
@@ -118,7 +118,7 @@ final class ImpulseLiveCrucibleTests {
         double transformY = transform.getPosition().y;
         PhysicsStoreBodySnapshot snapshot = physicsStore(store.getExternalData().getWorld())
             .getResource(PhysicsSnapshotResource.getResourceType())
-            .getBody(bodyKey.value());
+            .getBody(bodyUuid);
         if (snapshot == null) {
             return false;
         }
@@ -141,12 +141,12 @@ final class ImpulseLiveCrucibleTests {
 
     private static void submitLiveBody(Store<PhysicsStore> store,
         SpaceId spaceId,
-        RigidBodyKey bodyKey,
+        UUID bodyUuid,
         Vector3d visualPosition) {
         PhysicsStoreThreading.requireWorldThread(store, "add Crucible live PhysicsStore body row");
         BodyRowDescriptor row = PhysicsBodyRows.dynamicBody(
             PhysicsStoreSpaceMutations.requireSpaceUuid(store, spaceId),
-            bodyKey.value(),
+            bodyUuid,
             new Vector3f((float) visualPosition.x,
                 (float) visualPosition.y,
                 (float) visualPosition.z),
@@ -172,7 +172,7 @@ final class ImpulseLiveCrucibleTests {
 
     private static Ref<EntityStore> spawnLiveBlockBody(Store<EntityStore> store,
         SpaceId spaceId,
-        RigidBodyKey bodyKey,
+        UUID bodyUuid,
         Vector3d visualPosition) {
 
         TimeResource time = store.getResource(TimeResource.getResourceType());
@@ -182,7 +182,7 @@ final class ImpulseLiveCrucibleTests {
             new Vector3d(visualPosition));
         holder.removeComponent(DESPAWN_TYPE);
         holder.addComponent(ATTACHMENT_TYPE,
-            new BodyAttachmentComponent(bodyKey.value(),
+            new BodyAttachmentComponent(bodyUuid,
                 TransformAuthority.BODY,
                 AttachmentLifecycle.EXTERNAL_ENTITY));
         holder.addComponent(ImpulseControllableComponent.getComponentType(),
