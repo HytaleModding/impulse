@@ -20,6 +20,7 @@ import dev.hytalemodding.impulse.api.PhysicsBodyType;
 import dev.hytalemodding.impulse.api.PhysicsCollisionFilters;
 import dev.hytalemodding.impulse.api.ShapeType;
 import dev.hytalemodding.impulse.api.SpaceId;
+import dev.hytalemodding.impulse.core.internal.physicsstore.resources.PhysicsBodyRegistrationResource;
 import dev.hytalemodding.impulse.core.internal.physicsstore.resources.PhysicsSnapshotResource;
 import dev.hytalemodding.impulse.core.plugin.modules.control.ImpulseControllableComponent;
 import dev.hytalemodding.impulse.core.plugin.physicsstore.projection.BodyAttachmentComponent;
@@ -284,13 +285,11 @@ public class GrabCommand extends AbstractAsyncPlayerCommand {
                 || !hit.bodyRef().isValid()) {
                 continue;
             }
-            UUID hitBodyUuid = ExamplePhysicsUtils.physicsStoreRowUuid(hit.bodyRef());
-            if (hitBodyUuid == null) {
-                continue;
-            }
-            RigidBodyKey hitBodyKey = RigidBodyKey.of(hitBodyUuid);
             PhysicsBodyRegistrationView registration =
-                resource.getBodyRegistrationView(hitBodyKey);
+                hit.bodyRef()
+                    .getStore()
+                    .getResource(PhysicsBodyRegistrationResource.getResourceType())
+                    .getBodyRegistrationView(hit.bodyRef());
             if (registration == null || registration.kind() != PhysicsBodyKind.BODY) {
                 continue;
             }

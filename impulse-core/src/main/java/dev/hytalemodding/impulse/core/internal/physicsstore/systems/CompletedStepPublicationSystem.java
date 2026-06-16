@@ -14,6 +14,7 @@ import dev.hytalemodding.impulse.api.PhysicsContactPhase;
 import dev.hytalemodding.impulse.api.SpaceId;
 import dev.hytalemodding.impulse.api.runtime.BackendRuntimeCodes;
 import dev.hytalemodding.impulse.core.internal.physicsstore.resources.PhysicsBodyRegistrationResource;
+import dev.hytalemodding.impulse.core.internal.physicsstore.resources.PhysicsBodyRegistrationResource.BodyRegistrationPublication;
 import dev.hytalemodding.impulse.core.internal.physicsstore.resources.PhysicsEventResource;
 import dev.hytalemodding.impulse.core.internal.physicsstore.resources.PhysicsProfilingResource;
 import dev.hytalemodding.impulse.core.internal.physicsstore.resources.PhysicsRuntimeResource;
@@ -180,13 +181,13 @@ public final class CompletedStepPublicationSystem extends TickingSystem<PhysicsS
     }
 
     @Nonnull
-    private static List<PhysicsBodyRegistrationView> collectRegistrationViews(
+    private static List<BodyRegistrationPublication> collectRegistrationViews(
         @Nonnull Store<PhysicsStore> store,
         int systemIndex,
         @Nonnull PhysicsRuntimeResource runtime,
         @Nonnull PhysicsSpaceCompatibilityIndexResource compatibility,
         @Nonnull Set<UUID> snapshotBodyUuids) {
-        List<PhysicsBodyRegistrationView> registrations = new ArrayList<>();
+        List<BodyRegistrationPublication> registrations = new ArrayList<>();
         BiConsumer<ArchetypeChunk<PhysicsStore>, CommandBuffer<PhysicsStore>> collector =
             (chunk, _) -> collectRegistrationViews(runtime,
                 compatibility,
@@ -200,32 +201,35 @@ public final class CompletedStepPublicationSystem extends TickingSystem<PhysicsS
     private static void collectRegistrationViews(@Nonnull PhysicsRuntimeResource runtime,
         @Nonnull PhysicsSpaceCompatibilityIndexResource compatibility,
         @Nonnull Set<UUID> snapshotBodyUuids,
-        @Nonnull List<PhysicsBodyRegistrationView> registrations,
+        @Nonnull List<BodyRegistrationPublication> registrations,
         @Nonnull ArchetypeChunk<PhysicsStore> chunk) {
         for (int index = 0; index < chunk.size(); index++) {
             UUID rowUuid = PhysicsStoreSystemSupport.rowUuid(chunk, index);
             if (PhysicsStoreSystemSupport.isNil(rowUuid)) {
                 continue;
             }
+            var rowRef = chunk.getReferenceTo(index);
             BodyComponent body = chunk.getComponent(index, BodyComponent.getComponentType());
             if (body != null && snapshotBodyUuids.contains(rowUuid)) {
                 SpaceId spaceId = compatibility.getSpaceId(body.getSpaceUuid());
                 if (spaceId != null) {
-                    registrations.add(new PhysicsBodyRegistrationView(RigidBodyKey.of(rowUuid),
-                        spaceId,
-                        body.getKind(),
-                        body.getPersistenceMode()));
+                    registrations.add(new BodyRegistrationPublication(rowRef,
+                        new PhysicsBodyRegistrationView(RigidBodyKey.of(rowUuid),
+                            spaceId,
+                            body.getKind(),
+                            body.getPersistenceMode())));
                 }
             }
             TerrainColliderComponent terrain =
                 chunk.getComponent(index, TerrainColliderComponent.getComponentType());
-            if (terrain != null && runtime.hasTerrainBodyHandles(chunk.getReferenceTo(index))) {
+            if (terrain != null && runtime.hasTerrainBodyHandles(rowRef)) {
                 SpaceId spaceId = compatibility.getSpaceId(terrain.getSpaceUuid());
                 if (spaceId != null) {
-                    registrations.add(new PhysicsBodyRegistrationView(RigidBodyKey.of(rowUuid),
-                        spaceId,
-                        PhysicsBodyKind.WORLD_COLLISION,
-                        PhysicsBodyPersistenceMode.RUNTIME_ONLY));
+                    registrations.add(new BodyRegistrationPublication(rowRef,
+                        new PhysicsBodyRegistrationView(RigidBodyKey.of(rowUuid),
+                            spaceId,
+                            PhysicsBodyKind.WORLD_COLLISION,
+                            PhysicsBodyPersistenceMode.RUNTIME_ONLY)));
                 }
             }
         }
