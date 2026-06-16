@@ -141,7 +141,7 @@ public class CleanCommand extends AbstractWorldCommand {
 
         PhysicsWorldRuntimeResource resource = PhysicsWorldRuntimeResource.require(store);
         resource.refreshBodySnapshots();
-        Set<RigidBodyKey> selectedBodyKeys = selectBodyKeysNear(resource, center, radius);
+        SelectedBodies selectedBodies = selectBodiesNear(resource, center, radius);
         double radiusSquared = (double) radius * radius;
         ComponentType<EntityStore, BodyAttachmentComponent> attachmentType =
             BodyAttachmentComponent.getComponentType();
@@ -154,7 +154,7 @@ public class CleanCommand extends AbstractWorldCommand {
                 BodyAttachmentComponent attachment =
                     archetypeChunk.getComponent(index, attachmentType);
                 assert attachment != null;
-                if (!selectedBodyKeys.contains(RigidBodyKey.of(attachment.getBodyUuid()))) {
+                if (!selectedBodies.bodyUuids().contains(attachment.getBodyUuid())) {
                     return;
                 }
 
@@ -185,7 +185,7 @@ public class CleanCommand extends AbstractWorldCommand {
                         archetypeChunk,
                         index,
                         session,
-                        selectedBodyKeys,
+                        selectedBodies.bodyUuids(),
                         center,
                         radiusSquared)) {
                         return;
@@ -199,7 +199,7 @@ public class CleanCommand extends AbstractWorldCommand {
         }
 
         int removedBodies = 0;
-        for (RigidBodyKey bodyKey : selectedBodyKeys) {
+        for (RigidBodyKey bodyKey : selectedBodies.bodyKeys()) {
             resource.destroyBody(bodyKey);
             removedBodies++;
         }
@@ -223,18 +223,22 @@ public class CleanCommand extends AbstractWorldCommand {
     }
 
     @Nonnull
-    private static Set<RigidBodyKey> selectBodyKeysNear(@Nonnull PhysicsWorldRuntimeResource resource,
+    private static SelectedBodies selectBodiesNear(@Nonnull PhysicsWorldRuntimeResource resource,
         @Nonnull Vector3d center,
         float radius) {
         Set<RigidBodyKey> bodyKeys = new ObjectOpenHashSet<>();
+        Set<UUID> bodyUuids = new ObjectOpenHashSet<>();
         Vector3f centerF = new Vector3f((float) center.x, (float) center.y, (float) center.z);
         for (SpaceId spaceId : resource.getSpaceIds()) {
             resource.forEachIndexedBodySnapshotNear(spaceId,
                 centerF,
                 radius,
-                (bodyKey, snapshot, bodySpaceId, kind, persistenceMode) -> bodyKeys.add(bodyKey));
+                (bodyKey, snapshot, bodySpaceId, kind, persistenceMode) -> {
+                    bodyKeys.add(bodyKey);
+                    bodyUuids.add(bodyKey.value());
+                });
         }
-        return bodyKeys;
+        return new SelectedBodies(bodyKeys, bodyUuids);
     }
 
     private static boolean controlSessionSelected(
@@ -242,11 +246,11 @@ public class CleanCommand extends AbstractWorldCommand {
         @Nonnull ArchetypeChunk<EntityStore> archetypeChunk,
         int index,
         @Nonnull PhysicsControlSessionComponent session,
-        @Nonnull Set<RigidBodyKey> selectedBodyKeys,
+        @Nonnull Set<UUID> selectedBodyUuids,
         @Nonnull Vector3d center,
         double radiusSquared) {
-        if (containsBody(selectedBodyKeys, session.getBodyRef())
-            || containsBody(selectedBodyKeys, session.getAnchorBodyRef())
+        if (containsBody(selectedBodyUuids, session.getBodyRef())
+            || containsBody(selectedBodyUuids, session.getAnchorBodyRef())
             || entityWithinRadius(archetypeChunk, index, center, radiusSquared)) {
             return true;
         }
@@ -270,10 +274,14 @@ public class CleanCommand extends AbstractWorldCommand {
             : null;
     }
 
-    private static boolean containsBody(@Nonnull Set<RigidBodyKey> bodyKeys,
+    private static boolean containsBody(@Nonnull Set<UUID> bodyUuids,
         @Nullable Ref<PhysicsStore> bodyRef) {
         UUID bodyUuid = rowUuid(bodyRef);
-        return bodyUuid != null && bodyKeys.contains(RigidBodyKey.of(bodyUuid));
+        return bodyUuid != null && bodyUuids.contains(bodyUuid);
+    }
+
+    private record SelectedBodies(@Nonnull Set<RigidBodyKey> bodyKeys,
+                                  @Nonnull Set<UUID> bodyUuids) {
     }
 
     @Nullable
