@@ -3,71 +3,37 @@ package dev.hytalemodding.impulse.core.internal.resources.owner;
 import dev.hytalemodding.impulse.core.plugin.resources.PhysicsMutationHandle;
 import java.util.Objects;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.RejectedExecutionException;
-import java.util.concurrent.atomic.AtomicReference;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
 /**
- * Internal owner-lane gateway for one world physics resource.
+ * Direct compatibility gateway for legacy world-resource operations.
  *
- * <p>This class centralizes owner-context routing while {@code PhysicsWorldResource} remains the
- * plugin-facing facade. Callbacks routed through this gateway may touch backend runtime state;
- * ordinary world-thread reads should use published snapshots instead.</p>
+ * <p>Authoritative PhysicsStore paths do not use this gateway. Remaining legacy
+ * {@code PhysicsWorldResource} methods run directly when the early PhysicsStore is not active.</p>
  */
 public final class PhysicsOwnerGateway {
-
-    private final AtomicReference<PhysicsOwnerExecutor> ownerExecutor = new AtomicReference<>();
-
-    public void attachOwnerExecutor(@Nonnull PhysicsOwnerExecutor ownerExecutor) {
-        this.ownerExecutor.set(Objects.requireNonNull(ownerExecutor, "ownerExecutor"));
-    }
-
-    public void detachOwnerExecutor(@Nonnull PhysicsOwnerExecutor ownerExecutor) {
-        this.ownerExecutor.compareAndSet(Objects.requireNonNull(ownerExecutor, "ownerExecutor"), null);
-    }
 
     /**
      * Returns whether the current thread may touch live backend objects without routing.
      */
     public boolean canAccessLiveBackendDirectly() {
-        PhysicsOwnerExecutor executor = ownerExecutor.get();
-        return executor == null || executor.isOwnerContext();
-    }
-
-    public boolean hasOwnerExecutor() {
-        return ownerExecutor.get() != null;
+        return true;
     }
 
     public void assertCanAccessLiveBackendDirectly(@Nonnull String operation) {
         Objects.requireNonNull(operation, "operation");
-        if (!canAccessLiveBackendDirectly()) {
-            throw new IllegalStateException("Impulse live backend operation " + operation
-                + " must run in the physics owner lane. Use PhysicsStore row mutation, "
-                + "queued reads, or an internal owner-routed resource method.");
-        }
     }
 
     public void rejectSynchronousCompletionCallbackWait(@Nonnull String operation) {
         Objects.requireNonNull(operation, "operation");
-        PhysicsOwnerExecutor executor = ownerExecutor.get();
-        if (executor != null && executor.isCompletionCallbackContext()) {
-            throw new RejectedExecutionException(
-                "cannot synchronously wait for physics owner operation " + operation
-                    + " from a completion callback");
-        }
     }
 
     public void run(@Nonnull String operation,
         @Nonnull PhysicsOwnerMutation mutation) {
         Objects.requireNonNull(operation, "operation");
         Objects.requireNonNull(mutation, "mutation");
-        PhysicsOwnerExecutor executor = ownerExecutor.get();
-        if (executor == null || executor.isOwnerContext()) {
-            runDirect(operation, mutation);
-            return;
-        }
-        executor.run(operation, mutation);
+        runDirect(operation, mutation);
     }
 
     @Nonnull
@@ -82,15 +48,7 @@ public final class PhysicsOwnerGateway {
         @Nonnull PhysicsOwnerMutation mutation) {
         Objects.requireNonNull(operation, "operation");
         Objects.requireNonNull(mutation, "mutation");
-        PhysicsOwnerExecutor executor = ownerExecutor.get();
-        if (executor == null || executor.isOwnerContext()) {
-            return runDirectAsync(operation, value, mutation);
-        }
-        try {
-            return executor.enqueue(operation, value, mutation);
-        } catch (RejectedExecutionException exception) {
-            return PhysicsMutationHandle.failed(operation, value, exception);
-        }
+        return runDirectAsync(operation, value, mutation);
     }
 
     @Nonnull
@@ -98,17 +56,7 @@ public final class PhysicsOwnerGateway {
         @Nonnull PhysicsOwnerCallable<T> callable) {
         Objects.requireNonNull(operation, "operation");
         Objects.requireNonNull(callable, "callable");
-        PhysicsOwnerExecutor executor = ownerExecutor.get();
-        if (executor == null || executor.isOwnerContext()) {
-            return callDirectAsync(callable);
-        }
-        try {
-            return executor.enqueueCall(operation, callable);
-        } catch (RejectedExecutionException exception) {
-            CompletableFuture<T> completion = new CompletableFuture<>();
-            completion.completeExceptionally(exception);
-            return completion;
-        }
+        return callDirectAsync(callable);
     }
 
     @Nonnull
@@ -116,18 +64,14 @@ public final class PhysicsOwnerGateway {
         @Nonnull PhysicsOwnerCallable<T> callable) {
         Objects.requireNonNull(operation, "operation");
         Objects.requireNonNull(callable, "callable");
-        PhysicsOwnerExecutor executor = ownerExecutor.get();
-        if (executor == null || executor.isOwnerContext()) {
-            try {
-                return callable.call();
-            } catch (RuntimeException exception) {
-                throw exception;
-            } catch (Exception exception) {
-                throw new IllegalStateException("Physics operation " + operation + " failed",
-                    exception);
-            }
+        try {
+            return callable.call();
+        } catch (RuntimeException exception) {
+            throw exception;
+        } catch (Exception exception) {
+            throw new IllegalStateException("Physics operation " + operation + " failed",
+                exception);
         }
-        return executor.call(operation, callable);
     }
 
     private static void runDirect(@Nonnull String operation,

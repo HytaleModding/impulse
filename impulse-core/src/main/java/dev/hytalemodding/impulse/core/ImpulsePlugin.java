@@ -26,8 +26,6 @@ import dev.hytalemodding.impulse.core.internal.persistence.PersistentPhysicsWorl
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsDebugResource;
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsProjectionIndexResource;
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsWorldRuntimeResource;
-import dev.hytalemodding.impulse.core.internal.resources.owner.PhysicsOwnerLaneScheduler;
-import dev.hytalemodding.impulse.core.internal.resources.owner.PhysicsOwnerResource;
 import dev.hytalemodding.impulse.core.internal.resources.profiling.PhysicsRuntimeProfilingResource;
 import dev.hytalemodding.impulse.core.internal.physicsstore.registration.PhysicsStoreRegistration;
 import dev.hytalemodding.impulse.core.internal.store.integration.PhysicsStoreEarlyPluginProbe;
@@ -53,7 +51,6 @@ public final class ImpulsePlugin extends JavaPlugin {
 
     private static ImpulsePlugin instance;
     private static final HytaleLogger LOGGER = HytaleLogger.get("Impulse");
-    static final String OWNER_POOL_SIZE_PROPERTY = "impulse.ownerPool.size";
 
     @Getter
     private ComponentType<EntityStore, BodyAttachmentComponent> bodyAttachmentComponentType;
@@ -74,9 +71,6 @@ public final class ImpulsePlugin extends JavaPlugin {
     private ResourceType<EntityStore, PhysicsProjectionIndexResource> physicsProjectionIndexResourceType;
 
     @Getter
-    private ResourceType<EntityStore, PhysicsOwnerResource> physicsOwnerResourceType;
-
-    @Getter
     private ResourceType<EntityStore, ? extends PhysicsPersistenceResource> persistentPhysicsWorldResourceType;
 
     @Getter
@@ -87,8 +81,6 @@ public final class ImpulsePlugin extends JavaPlugin {
 
     @Nullable
     private BackendId defaultBackendId;
-
-    private PhysicsOwnerLaneScheduler physicsOwnerLaneScheduler;
 
     public ImpulsePlugin(@Nonnull JavaPluginInit init) {
         super(init);
@@ -124,10 +116,6 @@ public final class ImpulsePlugin extends JavaPlugin {
     @Override
     protected void shutdown() {
         ImpulseCommandContributionRegistry.unregister();
-        if (physicsOwnerLaneScheduler != null) {
-            physicsOwnerLaneScheduler.close();
-            physicsOwnerLaneScheduler = null;
-        }
     }
 
     /**
@@ -206,31 +194,6 @@ public final class ImpulsePlugin extends JavaPlugin {
         return providers.iterator().next().getId();
     }
 
-    static int configuredPositiveInt(@Nonnull String property,
-        int defaultValue) {
-        return configuredPositiveIntDetails(property, defaultValue).value();
-    }
-
-    @Nonnull
-    static ConfiguredPositiveInt configuredPositiveIntDetails(@Nonnull String property,
-        int defaultValue) {
-        if (defaultValue < 1) {
-            throw new IllegalArgumentException("defaultValue must be positive");
-        }
-        String configured = System.getProperty(property);
-        if (configured == null || configured.isBlank()) {
-            return new ConfiguredPositiveInt(defaultValue, configured, false);
-        }
-        try {
-            int parsed = Integer.parseInt(configured.trim());
-            return parsed > 0
-                ? new ConfiguredPositiveInt(parsed, configured, false)
-                : new ConfiguredPositiveInt(defaultValue, configured, true);
-        } catch (NumberFormatException exception) {
-            return new ConfiguredPositiveInt(defaultValue, configured, true);
-        }
-    }
-
     @Nonnull
     private String getAvailableBackendIds() {
         StringBuilder ids = new StringBuilder();
@@ -263,47 +226,12 @@ public final class ImpulsePlugin extends JavaPlugin {
         physicsProjectionIndexResourceType = entityRegistry.registerResource(
             PhysicsProjectionIndexResource.class,
             PhysicsProjectionIndexResource::new);
-        ConfiguredPositiveInt ownerPoolSize = configuredPositiveIntDetails(OWNER_POOL_SIZE_PROPERTY,
-            PhysicsOwnerLaneScheduler.DEFAULT_POOL_SIZE);
-        logOwnerPoolSize(ownerPoolSize);
-        physicsOwnerLaneScheduler = new PhysicsOwnerLaneScheduler(
-            ownerPoolSize.value(),
-            PhysicsOwnerLaneScheduler.DEFAULT_QUEUE_CAPACITY,
-            PhysicsOwnerLaneScheduler.DEFAULT_CLOSE_TIMEOUT);
-        physicsOwnerResourceType = entityRegistry.registerResource(
-            PhysicsOwnerResource.class,
-            physicsOwnerLaneScheduler::createLane);
         persistentPhysicsWorldResourceType = entityRegistry.registerResource(
             PersistentPhysicsWorldResource.class,
             "PersistentPhysicsWorld",
             PersistentPhysicsWorldResource.CODEC);
         physicsEventFramePublishedEventType =
             entityRegistry.registerWorldEventType(PhysicsEventFramePublishedEvent.class);
-    }
-
-    private static void logOwnerPoolSize(@Nonnull ConfiguredPositiveInt ownerPoolSize) {
-        String configured = ownerPoolSize.configuredValue();
-        if (configured == null || configured.isBlank()) {
-            LOGGER.at(Level.INFO).log("Physics owner pool size %d (default)",
-                ownerPoolSize.value());
-            return;
-        }
-        if (ownerPoolSize.usedFallback()) {
-            LOGGER.at(Level.WARNING).log("Invalid %s=%s; using physics owner pool size %d",
-                OWNER_POOL_SIZE_PROPERTY,
-                configured,
-                ownerPoolSize.value());
-            return;
-        }
-        LOGGER.at(Level.INFO).log("Physics owner pool size %d from %s=%s",
-            ownerPoolSize.value(),
-            OWNER_POOL_SIZE_PROPERTY,
-            configured);
-    }
-
-    record ConfiguredPositiveInt(int value,
-                                 @Nullable String configuredValue,
-                                 boolean usedFallback) {
     }
 
     private void registerSystems() {

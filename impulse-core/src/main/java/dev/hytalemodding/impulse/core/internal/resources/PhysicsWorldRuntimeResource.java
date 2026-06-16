@@ -45,7 +45,6 @@ import dev.hytalemodding.impulse.core.internal.resources.joint.PhysicsJointRegis
 import dev.hytalemodding.impulse.core.internal.resources.joint.PhysicsJointRegistry;
 import dev.hytalemodding.impulse.core.internal.resources.owner.PhysicsOwnerCallable;
 import dev.hytalemodding.impulse.core.internal.resources.owner.PhysicsOwnerGateway;
-import dev.hytalemodding.impulse.core.internal.resources.owner.PhysicsOwnerHandle;
 import dev.hytalemodding.impulse.core.internal.resources.owner.PhysicsOwnerMutation;
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsVisualRuntime.BodyVisualInterestState;
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsVisualRuntime.VisualInterest;
@@ -163,19 +162,8 @@ public class PhysicsWorldRuntimeResource extends PhysicsWorldResource {
             "Physics world resource is not the Impulse runtime implementation");
     }
 
-    public void attachOwnerExecutor(@Nonnull PhysicsOwnerHandle ownerExecutor) {
-        ownerGateway.attachOwnerExecutor(ownerExecutor);
-    }
-
     public void attachEntityStore(@Nonnull Store<EntityStore> store) {
         owningStore = Objects.requireNonNull(store, "store");
-    }
-
-    public void detachOwnerExecutor(@Nonnull PhysicsOwnerHandle ownerExecutor) {
-        ownerGateway.detachOwnerExecutor(ownerExecutor);
-        if (!ownerGateway.hasOwnerExecutor()) {
-            lifecycleState.publishDetachedOwnerRegistrationViews(bodyRegistry);
-        }
     }
 
     public void detachEntityStore(@Nonnull Store<EntityStore> store) {
@@ -2743,7 +2731,7 @@ public class PhysicsWorldRuntimeResource extends PhysicsWorldResource {
     }
 
     private void markWorldChanged() {
-        lifecycleState.markWorldChanged(bodyRegistry, ownerGateway.hasOwnerExecutor());
+        lifecycleState.markWorldChanged(bodyRegistry, false);
     }
 
     @Nonnull
