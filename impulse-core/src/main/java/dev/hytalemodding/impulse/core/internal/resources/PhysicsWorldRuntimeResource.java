@@ -43,9 +43,6 @@ import dev.hytalemodding.impulse.core.internal.modules.worldcollision.PhysicsChu
 import dev.hytalemodding.impulse.core.internal.modules.worldcollision.PhysicsStoreWorldCollisionStreamingResource;
 import dev.hytalemodding.impulse.core.internal.resources.joint.PhysicsJointRegistration;
 import dev.hytalemodding.impulse.core.internal.resources.joint.PhysicsJointRegistry;
-import dev.hytalemodding.impulse.core.internal.resources.owner.PhysicsOwnerCallable;
-import dev.hytalemodding.impulse.core.internal.resources.owner.PhysicsOwnerGateway;
-import dev.hytalemodding.impulse.core.internal.resources.owner.PhysicsOwnerMutation;
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsVisualRuntime.BodyVisualInterestState;
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsVisualRuntime.VisualInterest;
 import dev.hytalemodding.impulse.core.internal.modules.worldcollision.WorldCollisionBuildOptions;
@@ -139,7 +136,6 @@ public class PhysicsWorldRuntimeResource extends PhysicsWorldResource {
         this::markWorldChanged);
 
     private final AtomicLong visualInterestTick = new AtomicLong();
-    private final PhysicsOwnerGateway ownerGateway = new PhysicsOwnerGateway();
     @Nullable
     private Store<EntityStore> owningStore;
 
@@ -178,11 +174,11 @@ public class PhysicsWorldRuntimeResource extends PhysicsWorldResource {
     }
 
     public boolean canAccessLiveBackendDirectly() {
-        return ownerGateway.canAccessLiveBackendDirectly();
+        return true;
     }
 
     public void rejectSynchronousCompletionCallbackWait(@Nonnull String operation) {
-        ownerGateway.rejectSynchronousCompletionCallbackWait(operation);
+        Objects.requireNonNull(operation, "operation");
     }
 
     public long worldEpoch() {
@@ -201,7 +197,7 @@ public class PhysicsWorldRuntimeResource extends PhysicsWorldResource {
     }
 
     public void assertCanAccessLiveBackendDirectly(@Nonnull String operation) {
-        ownerGateway.assertCanAccessLiveBackendDirectly(operation);
+        Objects.requireNonNull(operation, "operation");
     }
 
     private void requireLegacyMutationAllowed(@Nonnull String operation) {
@@ -357,30 +353,55 @@ public class PhysicsWorldRuntimeResource extends PhysicsWorldResource {
             PhysicsStoreThreading.executeOnWorldThread(world, operation, mutation));
     }
 
-    public void runOwnerMutation(@Nonnull String operation,
-        @Nonnull PhysicsOwnerMutation mutation) {
-        ownerGateway.run(operation, mutation);
+    private void runDirectRuntimeMutation(@Nonnull String operation,
+        @Nonnull DirectRuntimeMutation mutation) {
+        Objects.requireNonNull(operation, "operation");
+        Objects.requireNonNull(mutation, "mutation");
+        try {
+            mutation.run();
+        } catch (RuntimeException exception) {
+            throw exception;
+        } catch (Exception exception) {
+            throw new IllegalStateException("Physics operation " + operation + " failed",
+                exception);
+        }
     }
 
     @Nonnull
-    public PhysicsMutationHandle<Void> enqueueOwnerMutation(@Nonnull String operation,
-        @Nonnull PhysicsOwnerMutation mutation) {
-        return enqueueOwnerMutation(operation, null, mutation);
+    private PhysicsMutationHandle<Void> enqueueDirectRuntimeMutation(@Nonnull String operation,
+        @Nonnull DirectRuntimeMutation mutation) {
+        return enqueueDirectRuntimeMutation(operation, null, mutation);
     }
 
 
     @Nonnull
-    public <T> PhysicsMutationHandle<T> enqueueOwnerMutation(@Nonnull String operation,
+    private <T> PhysicsMutationHandle<T> enqueueDirectRuntimeMutation(@Nonnull String operation,
         @Nullable T value,
-        @Nonnull PhysicsOwnerMutation mutation) {
-        return ownerGateway.enqueue(operation, value, mutation);
+        @Nonnull DirectRuntimeMutation mutation) {
+        Objects.requireNonNull(operation, "operation");
+        Objects.requireNonNull(mutation, "mutation");
+        try {
+            mutation.run();
+            return PhysicsMutationHandle.completed(operation, value);
+        } catch (Throwable throwable) {
+            return PhysicsMutationHandle.failed(operation, value, throwable);
+        }
     }
 
 
     @Nonnull
-    public <T> T callOwner(@Nonnull String operation,
-        @Nonnull PhysicsOwnerCallable<T> callable) {
-        return ownerGateway.call(operation, callable);
+    private <T> T callDirectRuntime(@Nonnull String operation,
+        @Nonnull DirectRuntimeCallable<T> callable) {
+        Objects.requireNonNull(operation, "operation");
+        Objects.requireNonNull(callable, "callable");
+        try {
+            return callable.call();
+        } catch (RuntimeException exception) {
+            throw exception;
+        } catch (Exception exception) {
+            throw new IllegalStateException("Physics operation " + operation + " failed",
+                exception);
+        }
     }
 
 
@@ -409,7 +430,7 @@ public class PhysicsWorldRuntimeResource extends PhysicsWorldResource {
             return;
         }
         requireLegacyMutationAllowed("set physics world settings");
-        runOwnerMutation("set physics world settings", () -> setWorldSettingsDirect(requested));
+        runDirectRuntimeMutation("set physics world settings", () -> setWorldSettingsDirect(requested));
     }
 
     @Nonnull
@@ -427,7 +448,7 @@ public class PhysicsWorldRuntimeResource extends PhysicsWorldResource {
             return PhysicsMutationHandle.completed("set physics world settings", null);
         }
         requireLegacyMutationAllowed("set physics world settings");
-        return enqueueOwnerMutation("set physics world settings",
+        return enqueueDirectRuntimeMutation("set physics world settings",
             () -> setWorldSettingsDirect(requested));
     }
 
@@ -479,7 +500,7 @@ public class PhysicsWorldRuntimeResource extends PhysicsWorldResource {
             return spaceId;
         }
         requireLegacyMutationAllowed("create physics space");
-        callOwner("create physics space",
+        callDirectRuntime("create physics space",
             () -> createSpaceDirect(backendId, spaceId, worldName, settings));
         return spaceId;
     }
@@ -511,7 +532,7 @@ public class PhysicsWorldRuntimeResource extends PhysicsWorldResource {
                     requested));
         }
         requireLegacyMutationAllowed("create physics space");
-        return enqueueOwnerMutation("create physics space",
+        return enqueueDirectRuntimeMutation("create physics space",
             spaceId,
             () -> createSpaceDirect(backendId, spaceId, worldName, settings));
     }
@@ -595,7 +616,7 @@ public class PhysicsWorldRuntimeResource extends PhysicsWorldResource {
                 .bodies()
                 .size();
         }
-        return callOwner("refresh physics body snapshots", () -> {
+        return callDirectRuntime("refresh physics body snapshots", () -> {
             PublishedPhysicsSnapshotFrame frame = capturePublishedSnapshotFrameDirect(0L,
                 0L,
                 PublishedPhysicsSnapshotFrame.Status.COMPLETE,
@@ -622,7 +643,7 @@ public class PhysicsWorldRuntimeResource extends PhysicsWorldResource {
         if (snapshot != null) {
             return snapshot;
         }
-        return callOwner("refresh missing physics body snapshot",
+        return callDirectRuntime("refresh missing physics body snapshot",
             () -> getBodySnapshotDirect(bodyKey));
     }
 
@@ -637,7 +658,7 @@ public class PhysicsWorldRuntimeResource extends PhysicsWorldResource {
         if (snapshot != null) {
             return snapshot;
         }
-        return callOwner("refresh optional physics body snapshot",
+        return callDirectRuntime("refresh optional physics body snapshot",
             () -> getBodySnapshotIfRegisteredDirect(bodyKey));
     }
 
@@ -1025,7 +1046,7 @@ public class PhysicsWorldRuntimeResource extends PhysicsWorldResource {
         boolean profilingEnabled,
         @Nonnull List<PhysicsFrameEvent> physicsEvents,
         int droppedBackendEventCount) {
-        return callOwner("capture published physics snapshot frame",
+        return callDirectRuntime("capture published physics snapshot frame",
             () -> capturePublishedSnapshotFrameDirect(stepSequence,
                 serverTick,
                 status,
@@ -1151,7 +1172,7 @@ public class PhysicsWorldRuntimeResource extends PhysicsWorldResource {
         }
         requireLegacyMutationAllowed("rebuild world collision");
         requireWorldCollisionLifecycleEnabled();
-        return callOwner("rebuild world collision", () -> {
+        return callDirectRuntime("rebuild world collision", () -> {
             PhysicsSpaceBinding space = requireSpaceBinding(spaceId);
             requireWorldCollisionSpaceEnabled(spaceId);
             WorldCollisionBuildOptions buildOptions =
@@ -1187,7 +1208,7 @@ public class PhysicsWorldRuntimeResource extends PhysicsWorldResource {
         }
         requireLegacyMutationAllowed("refresh world collision");
         requireWorldCollisionLifecycleEnabled();
-        return callOwner("refresh world collision", () -> {
+        return callDirectRuntime("refresh world collision", () -> {
             PhysicsSpaceBinding space = requireSpaceBinding(spaceId);
             requireWorldCollisionSpaceEnabled(spaceId);
             WorldCollisionBuildOptions buildOptions =
@@ -1226,7 +1247,7 @@ public class PhysicsWorldRuntimeResource extends PhysicsWorldResource {
         requireLegacyMutationAllowed("ensure world collision");
         Objects.requireNonNull(centers, "centers");
         requireWorldCollisionLifecycleEnabled();
-        return callOwner("ensure world collision", () -> {
+        return callDirectRuntime("ensure world collision", () -> {
             PhysicsSpaceBinding space = requireSpaceBinding(spaceId);
             requireWorldCollisionSpaceEnabled(spaceId);
             WorldCollisionBuildOptions buildOptions =
@@ -1249,7 +1270,7 @@ public class PhysicsWorldRuntimeResource extends PhysicsWorldResource {
             return clearAuthoritativeWorldCollisionSpace(store, spaceUuid);
         }
         requireLegacyMutationAllowed("clear world collision");
-        return callOwner("clear world collision", () -> {
+        return callDirectRuntime("clear world collision", () -> {
             PhysicsSpaceBinding space = requireSpaceBinding(spaceId);
             return collisionRuntime.clear(space);
         });
@@ -1267,7 +1288,7 @@ public class PhysicsWorldRuntimeResource extends PhysicsWorldResource {
                 ? authoritativeWorldCollisionStreaming().stats()
                 : new WorldCollisionStats(0, 0, 0, 0);
         }
-        return callOwner("read world collision stats", collisionRuntime::getStats);
+        return callDirectRuntime("read world collision stats", collisionRuntime::getStats);
     }
 
     @Nonnull
@@ -1352,7 +1373,7 @@ public class PhysicsWorldRuntimeResource extends PhysicsWorldResource {
             return;
         }
         try {
-            runOwnerMutation("disable world collision lifecycle", this::disableWorldCollisionLifecycleDirect);
+            runDirectRuntimeMutation("disable world collision lifecycle", this::disableWorldCollisionLifecycleDirect);
         } catch (RejectedExecutionException ignored) {
             // The server can unload the subplugin after a world owner lane has already closed.
         } catch (RuntimeException exception) {
@@ -1518,7 +1539,7 @@ public class PhysicsWorldRuntimeResource extends PhysicsWorldResource {
             return;
         }
         requireLegacyMutationAllowed("remove physics space");
-        runOwnerMutation("remove physics space", () -> removeSpaceDirect(spaceId, worldName));
+        runDirectRuntimeMutation("remove physics space", () -> removeSpaceDirect(spaceId, worldName));
     }
 
     @Nonnull
@@ -1535,7 +1556,7 @@ public class PhysicsWorldRuntimeResource extends PhysicsWorldResource {
                 });
         }
         requireLegacyMutationAllowed("remove physics space");
-        return enqueueOwnerMutation("remove physics space",
+        return enqueueDirectRuntimeMutation("remove physics space",
             spaceId,
             () -> removeSpaceDirect(spaceId, worldName));
     }
@@ -1575,7 +1596,7 @@ public class PhysicsWorldRuntimeResource extends PhysicsWorldResource {
             return;
         }
         requireLegacyMutationAllowed("clear physics spaces");
-        runOwnerMutation("clear physics spaces", () -> clearAllSpacesDirect(worldName));
+        runDirectRuntimeMutation("clear physics spaces", () -> clearAllSpacesDirect(worldName));
     }
 
     @Nonnull
@@ -1590,7 +1611,7 @@ public class PhysicsWorldRuntimeResource extends PhysicsWorldResource {
                 });
         }
         requireLegacyMutationAllowed("clear physics spaces");
-        return enqueueOwnerMutation("clear physics spaces",
+        return enqueueDirectRuntimeMutation("clear physics spaces",
             () -> clearAllSpacesDirect(worldName));
     }
 
@@ -1630,7 +1651,7 @@ public class PhysicsWorldRuntimeResource extends PhysicsWorldResource {
             return PhysicsStoreTopologyMutations.clearBodiesKeepingSpaces(store);
         }
         requireLegacyMutationAllowed("reset physics runtime state");
-        return callOwner("reset physics runtime state",
+        return callDirectRuntime("reset physics runtime state",
             () -> resetRuntimeStateKeepingSpacesDirect(worldName));
     }
 
@@ -1676,7 +1697,7 @@ public class PhysicsWorldRuntimeResource extends PhysicsWorldResource {
         }
         requireLegacyMutationAllowed("set physics space settings");
         PhysicsSpaceSettings requested = new PhysicsSpaceSettings(settings);
-        runOwnerMutation("set physics space settings", () -> setSpaceSettingsDirect(spaceId, requested));
+        runDirectRuntimeMutation("set physics space settings", () -> setSpaceSettingsDirect(spaceId, requested));
     }
 
     @Nonnull
@@ -1691,7 +1712,7 @@ public class PhysicsWorldRuntimeResource extends PhysicsWorldResource {
         }
         requireLegacyMutationAllowed("set physics space settings");
         PhysicsSpaceSettings requested = new PhysicsSpaceSettings(settings);
-        return enqueueOwnerMutation("set physics space settings",
+        return enqueueDirectRuntimeMutation("set physics space settings",
             spaceId,
             () -> setSpaceSettingsDirect(spaceId, requested));
     }
@@ -1787,7 +1808,7 @@ public class PhysicsWorldRuntimeResource extends PhysicsWorldResource {
             return;
         }
         requireLegacyMutationAllowed("destroy physics body");
-        runOwnerMutation("destroy physics body", () -> destroyBodyDirect(bodyKey, removeFromSpace));
+        runDirectRuntimeMutation("destroy physics body", () -> destroyBodyDirect(bodyKey, removeFromSpace));
     }
 
     @Nonnull
@@ -1799,7 +1820,7 @@ public class PhysicsWorldRuntimeResource extends PhysicsWorldResource {
                 store -> PhysicsStoreTopologyMutations.destroyBody(store, bodyKey));
         }
         requireLegacyMutationAllowed("destroy physics body");
-        return enqueueOwnerMutation("destroy physics body",
+        return enqueueDirectRuntimeMutation("destroy physics body",
             bodyKey,
             () -> destroyBodyDirect(bodyKey, removeFromSpace));
     }
@@ -1963,7 +1984,7 @@ public class PhysicsWorldRuntimeResource extends PhysicsWorldResource {
 
     public boolean removeJoint(@Nonnull JointKey jointKey) {
         requireLegacyMutationAllowed("remove physics joint");
-        return callOwner("remove physics joint", () -> removeJointDirect(jointKey));
+        return callDirectRuntime("remove physics joint", () -> removeJointDirect(jointKey));
     }
 
     private boolean removeJointDirect(@Nonnull JointKey jointKey) {
@@ -2395,7 +2416,7 @@ public class PhysicsWorldRuntimeResource extends PhysicsWorldResource {
             return;
         }
         requireLegacyMutationAllowed("clear physics bodies");
-        runOwnerMutation("clear physics bodies", this::destroyRegisteredBodiesDirect);
+        runDirectRuntimeMutation("clear physics bodies", this::destroyRegisteredBodiesDirect);
     }
 
     @Nonnull
@@ -2410,7 +2431,7 @@ public class PhysicsWorldRuntimeResource extends PhysicsWorldResource {
                 });
         }
         requireLegacyMutationAllowed("clear physics bodies");
-        return enqueueOwnerMutation("clear physics bodies", this::destroyRegisteredBodiesDirect);
+        return enqueueDirectRuntimeMutation("clear physics bodies", this::destroyRegisteredBodiesDirect);
     }
 
     private void destroyRegisteredBodiesDirect() {
@@ -2655,14 +2676,14 @@ public class PhysicsWorldRuntimeResource extends PhysicsWorldResource {
 
     public void clearBodyRuntimeState(@Nonnull RigidBodyKey bodyKey) {
         requireLegacyMutationAllowed("clear physics body runtime state");
-        runOwnerMutation("clear physics body runtime state", () -> clearBodyRuntimeStateDirect(bodyKey));
+        runDirectRuntimeMutation("clear physics body runtime state", () -> clearBodyRuntimeStateDirect(bodyKey));
     }
 
     @Nonnull
     public PhysicsMutationHandle<RigidBodyKey> clearBodyRuntimeStateAsync(
         @Nonnull RigidBodyKey bodyKey) {
         requireLegacyMutationAllowed("clear physics body runtime state");
-        return enqueueOwnerMutation("clear physics body runtime state",
+        return enqueueDirectRuntimeMutation("clear physics body runtime state",
             bodyKey,
             () -> clearBodyRuntimeStateDirect(bodyKey));
     }
@@ -2704,12 +2725,12 @@ public class PhysicsWorldRuntimeResource extends PhysicsWorldResource {
     }
 
     public void copyFrom(@Nonnull PhysicsWorldResource other) {
-        runOwnerMutation("copy physics world resource", () -> copyFromDirect(other));
+        runDirectRuntimeMutation("copy physics world resource", () -> copyFromDirect(other));
     }
 
     @Nonnull
     public PhysicsMutationHandle<Void> copyFromAsync(@Nonnull PhysicsWorldResource other) {
-        return enqueueOwnerMutation("copy physics world resource", () -> copyFromDirect(other));
+        return enqueueDirectRuntimeMutation("copy physics world resource", () -> copyFromDirect(other));
     }
 
     private void copyFromDirect(@Nonnull PhysicsWorldResource other) {
@@ -2732,6 +2753,18 @@ public class PhysicsWorldRuntimeResource extends PhysicsWorldResource {
 
     private void markWorldChanged() {
         lifecycleState.markWorldChanged(bodyRegistry, false);
+    }
+
+    @FunctionalInterface
+    private interface DirectRuntimeMutation {
+
+        void run() throws Exception;
+    }
+
+    @FunctionalInterface
+    private interface DirectRuntimeCallable<T> {
+
+        T call() throws Exception;
     }
 
     @Nonnull
