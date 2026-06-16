@@ -105,7 +105,7 @@ public final class PhysicsWorldSnapshotState {
             int spaceBodyCount = ownerBodySnapshots.bodyCount(spaceId);
             frameBuilder.addSpace(spaceId, frameWorldEpoch, spaceBodyCount);
             ownerBodySnapshots.forEachIndexed(spaceId,
-                (bodyKey, snapshot, bodySpaceId, kind, persistenceMode) -> frameBuilder.addBody(bodyKey,
+                (bodyUuid, snapshot, bodySpaceId, kind, persistenceMode) -> frameBuilder.addBody(bodyUuid,
                     bodySpaceId,
                     frameWorldEpoch,
                     frameWorldEpoch,

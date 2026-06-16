@@ -231,8 +231,8 @@ public class CleanCommand extends AbstractWorldCommand {
             resource.forEachIndexedBodySnapshotNear(spaceId,
                 centerF,
                 radius,
-                (bodyKey, snapshot, bodySpaceId, kind, persistenceMode) -> {
-                    bodyUuids.add(bodyKey.value());
+                (bodyUuid, snapshot, bodySpaceId, kind, persistenceMode) -> {
+                    bodyUuids.add(bodyUuid);
                 });
         }
         return new SelectedBodies(bodyUuids);

@@ -286,13 +286,13 @@ public class PhysicsDebugSystem extends TickingSystem<EntityStore> {
         RenderedBodyCount rendered = new RenderedBodyCount();
         double maxDistanceSquared = viewRadius * viewRadius;
         for (PhysicsSpaceBinding space : resource.getSpaceBindings()) {
-            resource.forEachIndexedBodySnapshot(space.spaceId(), (bodyKey, snapshot, spaceId, kind, persistenceMode) -> {
+            resource.forEachIndexedBodySnapshot(space.spaceId(), (bodyUuid, snapshot, spaceId, kind, persistenceMode) -> {
                 if (rendered.hasReached(maxBodies)) {
                     return;
                 }
 
                 if (kind != PhysicsBodyKind.BODY
-                    || resource.hasBodyAttachments(bodyKey)) {
+                    || resource.hasBodyAttachments(bodyUuid, null)) {
                     return;
                 }
 
@@ -343,7 +343,7 @@ public class PhysicsDebugSystem extends TickingSystem<EntityStore> {
         @Nonnull PhysicsWorldRuntimeResource resource,
         @Nonnull PhysicsSpaceBinding space,
         float time) {
-        resource.forEachIndexedBodySnapshot(space.spaceId(), (bodyKey, snapshot, spaceId, kind, persistenceMode) -> {
+        resource.forEachIndexedBodySnapshot(space.spaceId(), (bodyUuid, snapshot, spaceId, kind, persistenceMode) -> {
             if (snapshot.shapeType() != ShapeType.PLANE) {
                 return;
             }

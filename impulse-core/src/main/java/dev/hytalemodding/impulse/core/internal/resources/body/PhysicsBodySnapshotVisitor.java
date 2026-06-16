@@ -4,7 +4,7 @@ import dev.hytalemodding.impulse.api.PhysicsBodySnapshot;
 import dev.hytalemodding.impulse.api.SpaceId;
 import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyKind;
 import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyPersistenceMode;
-import dev.hytalemodding.impulse.core.plugin.body.RigidBodyKey;
+import java.util.UUID;
 import javax.annotation.Nonnull;
 
 /**
@@ -13,7 +13,7 @@ import javax.annotation.Nonnull;
 @FunctionalInterface
 public interface PhysicsBodySnapshotVisitor {
 
-    void accept(@Nonnull RigidBodyKey bodyKey,
+    void accept(@Nonnull UUID bodyUuid,
         @Nonnull PhysicsBodySnapshot snapshot,
         @Nonnull SpaceId spaceId,
         @Nonnull PhysicsBodyKind kind,

@@ -777,7 +777,7 @@ public class PhysicsWorldRuntimeResource extends PhysicsWorldResource {
             PhysicsBodySnapshotEntry entry =
                 authoritativeSnapshotEntry(store, registrations, body);
             if (entry != null) {
-                visitor.accept(entry.bodyKey(),
+                visitor.accept(entry.bodyUuid(),
                     entry.snapshot(),
                     entry.spaceId(),
                     entry.kind(),
@@ -842,7 +842,7 @@ public class PhysicsWorldRuntimeResource extends PhysicsWorldResource {
             }
             candidates++;
             if (withinRadius(entry.snapshot(), center, radiusSquared)) {
-                visitor.accept(entry.bodyKey(),
+                visitor.accept(entry.bodyUuid(),
                     entry.snapshot(),
                     entry.spaceId(),
                     entry.kind(),
@@ -877,7 +877,7 @@ public class PhysicsWorldRuntimeResource extends PhysicsWorldResource {
             }
             candidates++;
             if (withinRadius(entry.snapshot(), center, radiusSquared)) {
-                visitor.accept(entry.bodyKey(),
+                visitor.accept(entry.bodyUuid(),
                     validSnapshotBodyRef(store, body),
                     entry.snapshot(),
                     entry.spaceId(),
@@ -910,8 +910,7 @@ public class PhysicsWorldRuntimeResource extends PhysicsWorldResource {
         if (registration == null) {
             return null;
         }
-        RigidBodyKey bodyKey = RigidBodyKey.of(body.bodyUuid());
-        return new PhysicsBodySnapshotEntry(bodyKey,
+        return new PhysicsBodySnapshotEntry(body.bodyUuid(),
             toPublicBodySnapshot(store, body),
             registration.spaceId(),
             registration.kind(),
@@ -1495,8 +1494,8 @@ public class PhysicsWorldRuntimeResource extends PhysicsWorldResource {
         return lifecycleState.forEachIndexedBodySnapshotNear(spaceId,
             center,
             radius,
-            (bodyKey, snapshot, bodySpaceId, kind, persistenceMode) ->
-                visitor.accept(bodyKey, null, snapshot, bodySpaceId, kind, persistenceMode));
+            (bodyUuid, snapshot, bodySpaceId, kind, persistenceMode) ->
+                visitor.accept(bodyUuid, null, snapshot, bodySpaceId, kind, persistenceMode));
     }
 
     @Override

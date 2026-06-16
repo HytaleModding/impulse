@@ -13,6 +13,8 @@ import it.unimi.dsi.fastutil.objects.Object2LongOpenHashMap;
 import it.unimi.dsi.fastutil.objects.Object2ObjectOpenHashMap;
 import java.util.Iterator;
 import java.util.Map;
+import java.util.Objects;
+import java.util.UUID;
 import java.util.function.Consumer;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
@@ -23,9 +25,9 @@ import org.joml.Vector3f;
  */
 public final class PhysicsBodySnapshotStore {
 
-    private final Map<RigidBodyKey, PhysicsBodySnapshot> snapshots =
+    private final Map<UUID, PhysicsBodySnapshot> snapshots =
         new Object2ObjectOpenHashMap<>();
-    private final Object2LongOpenHashMap<RigidBodyKey> livenessMarks =
+    private final Object2LongOpenHashMap<UUID> livenessMarks =
         new Object2LongOpenHashMap<>();
     private final PhysicsBodySpatialIndex spatialIndex = new PhysicsBodySpatialIndex();
     private long livenessGeneration;
@@ -49,13 +51,13 @@ public final class PhysicsBodySnapshotStore {
                 if (snapshot == null) {
                     continue;
                 }
-                RigidBodyKey bodyKey = registration.bodyKey();
-                markLive(bodyKey, generation, liveBodies);
-                PhysicsBodySnapshot previous = snapshots.get(bodyKey);
+                UUID bodyUuid = registration.bodyKey().value();
+                markLive(bodyUuid, generation, liveBodies);
+                PhysicsBodySnapshot previous = snapshots.get(bodyUuid);
                 if (snapshot != previous) {
-                    snapshots.put(bodyKey, snapshot);
+                    snapshots.put(bodyUuid, snapshot);
                 }
-                spatialIndex.update(bodyKey,
+                spatialIndex.update(bodyUuid,
                     snapshot,
                     spaceId,
                     registration.kind(),
@@ -79,20 +81,41 @@ public final class PhysicsBodySnapshotStore {
         @Nonnull SpaceId spaceId,
         @Nonnull PhysicsBodyKind kind,
         @Nonnull PhysicsBodyPersistenceMode persistenceMode) {
-        snapshots.put(bodyKey, snapshot);
-        livenessMarks.put(bodyKey, livenessGeneration);
-        spatialIndex.update(bodyKey, snapshot, spaceId, kind, persistenceMode);
+        put(Objects.requireNonNull(bodyKey, "bodyKey").value(),
+            snapshot,
+            spaceId,
+            kind,
+            persistenceMode);
+    }
+
+    public void put(@Nonnull UUID bodyUuid,
+        @Nonnull PhysicsBodySnapshot snapshot,
+        @Nonnull SpaceId spaceId,
+        @Nonnull PhysicsBodyKind kind,
+        @Nonnull PhysicsBodyPersistenceMode persistenceMode) {
+        snapshots.put(Objects.requireNonNull(bodyUuid, "bodyUuid"), snapshot);
+        livenessMarks.put(bodyUuid, livenessGeneration);
+        spatialIndex.update(bodyUuid, snapshot, spaceId, kind, persistenceMode);
     }
 
     @Nullable
     public PhysicsBodySnapshot get(@Nonnull RigidBodyKey bodyKey) {
-        return snapshots.get(bodyKey);
+        return get(Objects.requireNonNull(bodyKey, "bodyKey").value());
+    }
+
+    @Nullable
+    public PhysicsBodySnapshot get(@Nonnull UUID bodyUuid) {
+        return snapshots.get(bodyUuid);
     }
 
     public void remove(@Nonnull RigidBodyKey bodyKey) {
-        snapshots.remove(bodyKey);
-        livenessMarks.removeLong(bodyKey);
-        spatialIndex.remove(bodyKey);
+        remove(Objects.requireNonNull(bodyKey, "bodyKey").value());
+    }
+
+    public void remove(@Nonnull UUID bodyUuid) {
+        snapshots.remove(bodyUuid);
+        livenessMarks.removeLong(bodyUuid);
+        spatialIndex.remove(bodyUuid);
     }
 
     public void clear() {
@@ -146,23 +169,23 @@ public final class PhysicsBodySnapshotStore {
         return livenessGeneration;
     }
 
-    private void markLive(@Nonnull RigidBodyKey bodyKey,
+    private void markLive(@Nonnull UUID bodyUuid,
         long generation,
         @Nonnull MutableInt liveBodies) {
-        if (livenessMarks.put(bodyKey, generation) != generation) {
+        if (livenessMarks.put(bodyUuid, generation) != generation) {
             liveBodies.increment();
         }
     }
 
     private int retainMarked(long generation) {
         int removed = 0;
-        Iterator<RigidBodyKey> iterator = snapshots.keySet().iterator();
+        Iterator<UUID> iterator = snapshots.keySet().iterator();
         while (iterator.hasNext()) {
-            RigidBodyKey bodyKey = iterator.next();
-            if (livenessMarks.getLong(bodyKey) != generation) {
+            UUID bodyUuid = iterator.next();
+            if (livenessMarks.getLong(bodyUuid) != generation) {
                 iterator.remove();
-                livenessMarks.removeLong(bodyKey);
-                spatialIndex.remove(bodyKey);
+                livenessMarks.removeLong(bodyUuid);
+                spatialIndex.remove(bodyUuid);
                 removed++;
             }
         }
@@ -182,21 +205,21 @@ public final class PhysicsBodySnapshotStore {
 
         @Override
         public void accept(@Nonnull PublishedPhysicsBodySnapshotCursor bodyFrame) {
-            RigidBodyKey bodyKey = bodyFrame.bodyKey();
-            markLive(bodyKey, generation, liveBodies);
-            PhysicsBodySnapshot snapshot = snapshots.get(bodyKey);
+            UUID bodyUuid = bodyFrame.bodyUuid();
+            markLive(bodyUuid, generation, liveBodies);
+            PhysicsBodySnapshot snapshot = snapshots.get(bodyUuid);
             if (snapshot == null) {
                 inserted++;
                 snapshot = bodyFrame.toBodySnapshot();
-                snapshots.put(bodyKey, snapshot);
+                snapshots.put(bodyUuid, snapshot);
             } else if (!bodyFrame.matchesSnapshot(snapshot)) {
                 snapshot = bodyFrame.toBodySnapshot();
-                snapshots.put(bodyKey, snapshot);
+                snapshots.put(bodyUuid, snapshot);
             } else {
                 applied++;
                 return;
             }
-            spatialIndex.update(bodyKey,
+            spatialIndex.update(bodyUuid,
                 snapshot,
                 bodyFrame.spaceId(),
                 bodyFrame.kind(),

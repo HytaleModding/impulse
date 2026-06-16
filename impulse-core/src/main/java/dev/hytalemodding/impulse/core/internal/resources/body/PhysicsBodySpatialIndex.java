@@ -2,10 +2,8 @@ package dev.hytalemodding.impulse.core.internal.resources.body;
 
 import dev.hytalemodding.impulse.api.PhysicsBodySnapshot;
 import dev.hytalemodding.impulse.api.SpaceId;
-import dev.hytalemodding.impulse.core.plugin.body.RigidBodyKey;
 import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyKind;
 import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyPersistenceMode;
-import dev.hytalemodding.impulse.core.plugin.resources.PhysicsWorldResource;
 import dev.hytalemodding.impulse.core.plugin.snapshot.PhysicsBodySnapshotEntry;
 import it.unimi.dsi.fastutil.ints.Int2IntOpenHashMap;
 import it.unimi.dsi.fastutil.longs.Long2ObjectMap;
@@ -14,6 +12,7 @@ import it.unimi.dsi.fastutil.objects.Object2ObjectOpenHashMap;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.UUID;
 import java.util.function.Consumer;
 import javax.annotation.Nonnull;
 import org.joml.Vector3f;
@@ -21,8 +20,8 @@ import org.joml.Vector3f;
 /**
  * Snapshot-side spatial hash for detached physics bodies.
  *
- * <p>Stores the latest published {@link PhysicsBodySnapshot} for each
- * {@link RigidBodyKey} and groups those snapshots into fixed-size world cells.
+ * <p>Stores the latest published {@link PhysicsBodySnapshot} for each body UUID
+ * and groups those snapshots into fixed-size world cells.
  * Cell membership is updated whenever a body publishes a snapshot in a new
  * position.</p>
  *
@@ -36,20 +35,20 @@ final class PhysicsBodySpatialIndex {
     private static final float CELL_SIZE = 16.0f;
     private static final int AXIS_MASK = 0x1F_FFFF;
 
-    private final Map<RigidBodyKey, IndexedBody> entries = new Object2ObjectOpenHashMap<>();
+    private final Map<UUID, IndexedBody> entries = new Object2ObjectOpenHashMap<>();
     private final Long2ObjectMap<List<IndexedBody>> cells = new Long2ObjectOpenHashMap<>();
     private final Int2IntOpenHashMap spaceBodyCounts = new Int2IntOpenHashMap();
 
-    void update(@Nonnull RigidBodyKey bodyKey,
+    void update(@Nonnull UUID bodyUuid,
         @Nonnull PhysicsBodySnapshot snapshot,
         @Nonnull SpaceId spaceId,
         @Nonnull PhysicsBodyKind kind,
         @Nonnull PhysicsBodyPersistenceMode persistenceMode) {
         long cellKey = cellKey(snapshot.positionX(), snapshot.positionY(), snapshot.positionZ());
-        IndexedBody indexed = entries.get(bodyKey);
+        IndexedBody indexed = entries.get(bodyUuid);
         if (indexed == null) {
-            indexed = new IndexedBody(bodyKey, snapshot, spaceId, kind, persistenceMode, cellKey);
-            entries.put(bodyKey, indexed);
+            indexed = new IndexedBody(bodyUuid, snapshot, spaceId, kind, persistenceMode, cellKey);
+            entries.put(bodyUuid, indexed);
             addToCell(indexed, cellKey);
             spaceBodyCounts.addTo(spaceId.value(), 1);
             return;
@@ -69,8 +68,8 @@ final class PhysicsBodySpatialIndex {
         indexed.persistenceMode = persistenceMode;
     }
 
-    void remove(@Nonnull RigidBodyKey bodyKey) {
-        IndexedBody indexed = entries.remove(bodyKey);
+    void remove(@Nonnull UUID bodyUuid) {
+        IndexedBody indexed = entries.remove(bodyUuid);
         if (indexed != null) {
             removeFromCell(indexed);
             spaceBodyCounts.addTo(indexed.spaceId.value(), -1);
@@ -234,7 +233,7 @@ final class PhysicsBodySpatialIndex {
     private static final class IndexedBody {
 
         @Nonnull
-        private final RigidBodyKey bodyKey;
+        private final UUID bodyUuid;
         @Nonnull
         private PhysicsBodySnapshot snapshot;
         @Nonnull
@@ -246,13 +245,13 @@ final class PhysicsBodySpatialIndex {
         private long cellKey;
         private int cellIndex = -1;
 
-        private IndexedBody(@Nonnull RigidBodyKey bodyKey,
+        private IndexedBody(@Nonnull UUID bodyUuid,
             @Nonnull PhysicsBodySnapshot snapshot,
             @Nonnull SpaceId spaceId,
             @Nonnull PhysicsBodyKind kind,
             @Nonnull PhysicsBodyPersistenceMode persistenceMode,
             long cellKey) {
-            this.bodyKey = bodyKey;
+            this.bodyUuid = bodyUuid;
             this.snapshot = snapshot;
             this.spaceId = spaceId;
             this.kind = kind;
@@ -262,7 +261,7 @@ final class PhysicsBodySpatialIndex {
 
         @Nonnull
         private PhysicsBodySnapshotEntry entry() {
-            return new PhysicsBodySnapshotEntry(bodyKey,
+            return new PhysicsBodySnapshotEntry(bodyUuid,
                 snapshot,
                 spaceId,
                 kind,
@@ -270,7 +269,7 @@ final class PhysicsBodySpatialIndex {
         }
 
         private void visit(@Nonnull PhysicsBodySnapshotVisitor visitor) {
-            visitor.accept(bodyKey,
+            visitor.accept(bodyUuid,
                 snapshot,
                 spaceId,
                 kind,
