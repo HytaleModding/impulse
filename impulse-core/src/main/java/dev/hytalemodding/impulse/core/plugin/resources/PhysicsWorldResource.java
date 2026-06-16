@@ -368,20 +368,20 @@ public abstract class PhysicsWorldResource implements Resource<EntityStore> {
 
     /**
      * Returns ECS attachments associated with a registered body key.
+     *
+     * <p>This overload is retained for compatibility with legacy event/facade APIs.</p>
      */
     @Nonnull
-    public abstract Collection<Ref<EntityStore>> getBodyAttachments(@Nonnull RigidBodyKey bodyKey);
+    public Collection<Ref<EntityStore>> getBodyAttachments(@Nonnull RigidBodyKey bodyKey) {
+        return getBodyAttachments(bodyKey.value(), null);
+    }
 
     /**
      * Returns ECS attachments associated with a durable body UUID and optional live body ref.
      */
     @Nonnull
-    public Collection<Ref<EntityStore>> getBodyAttachments(@Nonnull UUID bodyUuid,
-        @Nullable Ref<PhysicsStore> bodyRef) {
-        return bodyRef != null && bodyRef.isValid()
-            ? getBodyAttachments(bodyRef)
-            : getBodyAttachments(RigidBodyKey.of(bodyUuid));
-    }
+    public abstract Collection<Ref<EntityStore>> getBodyAttachments(@Nonnull UUID bodyUuid,
+        @Nullable Ref<PhysicsStore> bodyRef);
 
     /**
      * Returns ECS attachments associated with a live PhysicsStore body ref.
@@ -397,8 +397,18 @@ public abstract class PhysicsWorldResource implements Resource<EntityStore> {
     /**
      * Returns whether a registered body has one or more ECS attachments without materializing the
      * attachment collection.
+     *
+     * <p>This overload is retained for compatibility with legacy event/facade APIs.</p>
      */
-    public abstract boolean hasBodyAttachments(@Nonnull RigidBodyKey bodyKey);
+    public boolean hasBodyAttachments(@Nonnull RigidBodyKey bodyKey) {
+        return hasBodyAttachments(bodyKey.value(), null);
+    }
+
+    /**
+     * Returns whether a durable body UUID and optional live body ref have one or more ECS attachments.
+     */
+    public abstract boolean hasBodyAttachments(@Nonnull UUID bodyUuid,
+        @Nullable Ref<PhysicsStore> bodyRef);
 
     /**
      * Returns whether a live PhysicsStore body ref has one or more ECS attachments without

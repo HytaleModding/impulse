@@ -2097,21 +2097,6 @@ public class PhysicsWorldRuntimeResource extends PhysicsWorldResource {
 
     @Nonnull
     @Override
-    public Collection<Ref<EntityStore>> getBodyAttachments(@Nonnull RigidBodyKey bodyKey) {
-        if (hasAttachedAuthoritativePhysicsStore()) {
-            PhysicsProjectionIndexResource projection =
-                authoritativeProjectionIndex("read physics body attachments");
-            Ref<PhysicsStore> bodyRef = resolvePhysicsStoreBodyRef(bodyKey.value(),
-                "resolve body attachment key");
-            return bodyRef != null
-                ? projection.getAttachments(bodyRef)
-                : projection.getAttachments(bodyKey.value());
-        }
-        return visualRuntime.getAttachments(bodyKey);
-    }
-
-    @Nonnull
-    @Override
     public Collection<Ref<EntityStore>> getBodyAttachments(@Nonnull Ref<PhysicsStore> bodyRef) {
         if (hasAttachedAuthoritativePhysicsStore()) {
             return authoritativeProjectionIndex("read physics body attachments")
@@ -2135,20 +2120,6 @@ public class PhysicsWorldRuntimeResource extends PhysicsWorldResource {
     }
 
     @Override
-    public boolean hasBodyAttachments(@Nonnull RigidBodyKey bodyKey) {
-        if (hasAttachedAuthoritativePhysicsStore()) {
-            PhysicsProjectionIndexResource projection =
-                authoritativeProjectionIndex("check physics body attachments");
-            Ref<PhysicsStore> bodyRef = resolvePhysicsStoreBodyRef(bodyKey.value(),
-                "resolve body attachment key");
-            return bodyRef != null
-                ? projection.hasAttachments(bodyRef)
-                : projection.hasAttachments(bodyKey.value());
-        }
-        return visualRuntime.hasAttachments(bodyKey);
-    }
-
-    @Override
     public boolean hasBodyAttachments(@Nonnull Ref<PhysicsStore> bodyRef) {
         if (hasAttachedAuthoritativePhysicsStore()) {
             return authoritativeProjectionIndex("check physics body attachments")
@@ -2157,6 +2128,7 @@ public class PhysicsWorldRuntimeResource extends PhysicsWorldResource {
         return visualRuntime.hasAttachments(bodyRef);
     }
 
+    @Override
     public boolean hasBodyAttachments(@Nonnull UUID bodyUuid,
         @Nullable Ref<PhysicsStore> bodyRef) {
         if (hasAttachedAuthoritativePhysicsStore()) {
