@@ -1,15 +1,21 @@
 package dev.hytalemodding.impulse.core.internal.modules.worldcollision;
 
+import com.hypixel.hytale.component.Ref;
+import com.hypixel.hytale.server.core.universe.world.storage.PhysicsStore;
 import dev.hytalemodding.impulse.api.PhysicsBodyType;
 import dev.hytalemodding.impulse.api.PhysicsBodySnapshot;
 import dev.hytalemodding.impulse.core.plugin.body.RigidBodyKey;
+import it.unimi.dsi.fastutil.ints.Int2ObjectMap;
+import it.unimi.dsi.fastutil.ints.Int2ObjectOpenHashMap;
 import it.unimi.dsi.fastutil.objects.Object2ObjectOpenHashMap;
 import it.unimi.dsi.fastutil.objects.ObjectOpenHashSet;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Set;
 import java.util.function.Consumer;
+import java.util.function.Supplier;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 import lombok.Getter;
@@ -26,6 +32,12 @@ public final class PhysicsChunkBoundaryRuntime {
         new Object2ObjectOpenHashMap<>();
     private final Map<RigidBodyKey, ChunkBoundaryPauseState> chunkBoundaryPauseStates =
         new Object2ObjectOpenHashMap<>();
+    private final Int2ObjectOpenHashMap<Ref<PhysicsStore>> forcedContinuousCollisionBodyRefsByRowIndex =
+        new Int2ObjectOpenHashMap<>();
+    private final Int2ObjectOpenHashMap<RowState<ChunkBoundarySafeState>> chunkBoundarySafeStatesByRowIndex =
+        new Int2ObjectOpenHashMap<>();
+    private final Int2ObjectOpenHashMap<RowState<ChunkBoundaryPauseState>> chunkBoundaryPauseStatesByRowIndex =
+        new Int2ObjectOpenHashMap<>();
 
     public void updateChunkBoundarySafeState(@Nonnull RigidBodyKey bodyKey,
         @Nonnull Vector3f position,
@@ -42,10 +54,33 @@ public final class PhysicsChunkBoundaryRuntime {
         state.set(snapshot);
     }
 
+    public void updateChunkBoundarySafeState(@Nonnull Ref<PhysicsStore> bodyRef,
+        @Nonnull Vector3f position,
+        @Nonnull Quaternionf rotation) {
+        ChunkBoundarySafeState state = rowState(chunkBoundarySafeStatesByRowIndex,
+            bodyRef,
+            ChunkBoundarySafeState::new);
+        state.set(position, rotation);
+    }
+
+    public void updateChunkBoundarySafeState(@Nonnull Ref<PhysicsStore> bodyRef,
+        @Nonnull PhysicsBodySnapshot snapshot) {
+        ChunkBoundarySafeState state = rowState(chunkBoundarySafeStatesByRowIndex,
+            bodyRef,
+            ChunkBoundarySafeState::new);
+        state.set(snapshot);
+    }
+
     @Nullable
     public ChunkBoundarySafeState getChunkBoundarySafeState(
         @Nonnull RigidBodyKey bodyKey) {
         return chunkBoundarySafeStates.get(bodyKey);
+    }
+
+    @Nullable
+    public ChunkBoundarySafeState getChunkBoundarySafeState(
+        @Nonnull Ref<PhysicsStore> bodyRef) {
+        return getRowState(chunkBoundarySafeStatesByRowIndex, bodyRef);
     }
 
     public void pauseChunkBoundaryBody(@Nonnull RigidBodyKey bodyKey,
@@ -75,14 +110,54 @@ public final class PhysicsChunkBoundaryRuntime {
         state.set(targetChunkIndex, snapshot);
     }
 
+    public void pauseChunkBoundaryBody(@Nonnull Ref<PhysicsStore> bodyRef,
+        long targetChunkIndex,
+        @Nonnull PhysicsBodyType originalBodyType,
+        @Nonnull Vector3f linearVelocity,
+        @Nonnull Vector3f angularVelocity) {
+        ChunkBoundaryPauseState state = rowState(chunkBoundaryPauseStatesByRowIndex,
+            bodyRef,
+            ChunkBoundaryPauseState::new);
+        state.set(targetChunkIndex, originalBodyType, linearVelocity, angularVelocity);
+    }
+
+    public void pauseChunkBoundaryBody(@Nonnull Ref<PhysicsStore> bodyRef,
+        long targetChunkIndex,
+        @Nonnull long[] targetChunkIndices,
+        @Nonnull PhysicsBodySnapshot snapshot) {
+        ChunkBoundaryPauseState state = rowState(chunkBoundaryPauseStatesByRowIndex,
+            bodyRef,
+            ChunkBoundaryPauseState::new);
+        state.set(targetChunkIndex, targetChunkIndices, snapshot);
+    }
+
+    public void pauseChunkBoundaryBody(@Nonnull Ref<PhysicsStore> bodyRef,
+        long targetChunkIndex,
+        @Nonnull PhysicsBodySnapshot snapshot) {
+        ChunkBoundaryPauseState state = rowState(chunkBoundaryPauseStatesByRowIndex,
+            bodyRef,
+            ChunkBoundaryPauseState::new);
+        state.set(targetChunkIndex, snapshot);
+    }
+
     @Nullable
     public ChunkBoundaryPauseState getChunkBoundaryPauseState(
         @Nonnull RigidBodyKey bodyKey) {
         return chunkBoundaryPauseStates.get(bodyKey);
     }
 
+    @Nullable
+    public ChunkBoundaryPauseState getChunkBoundaryPauseState(
+        @Nonnull Ref<PhysicsStore> bodyRef) {
+        return getRowState(chunkBoundaryPauseStatesByRowIndex, bodyRef);
+    }
+
     public void clearChunkBoundaryPauseState(@Nonnull RigidBodyKey bodyKey) {
         chunkBoundaryPauseStates.remove(bodyKey);
+    }
+
+    public void clearChunkBoundaryPauseState(@Nonnull Ref<PhysicsStore> bodyRef) {
+        removeRowState(chunkBoundaryPauseStatesByRowIndex, bodyRef);
     }
 
     @Nonnull
@@ -90,8 +165,17 @@ public final class PhysicsChunkBoundaryRuntime {
         return new ArrayList<>(chunkBoundaryPauseStates.keySet());
     }
 
+    @Nonnull
+    public Collection<Ref<PhysicsStore>> getChunkBoundaryPausedBodyRefs() {
+        return liveRefs(chunkBoundaryPauseStatesByRowIndex);
+    }
+
     public void markContinuousCollisionForced(@Nonnull RigidBodyKey bodyKey) {
         forcedContinuousCollisionBodyKeys.add(bodyKey);
+    }
+
+    public void markContinuousCollisionForced(@Nonnull Ref<PhysicsStore> bodyRef) {
+        forcedContinuousCollisionBodyRefsByRowIndex.put(rowIndex(bodyRef), bodyRef);
     }
 
     @Nonnull
@@ -99,16 +183,36 @@ public final class PhysicsChunkBoundaryRuntime {
         return new ArrayList<>(forcedContinuousCollisionBodyKeys);
     }
 
+    @Nonnull
+    public Collection<Ref<PhysicsStore>> getForcedContinuousCollisionBodyRefs() {
+        ArrayList<Ref<PhysicsStore>> refs = new ArrayList<>();
+        forcedContinuousCollisionBodyRefsByRowIndex.values()
+            .removeIf(ref -> ref == null || !ref.isValid());
+        refs.addAll(forcedContinuousCollisionBodyRefsByRowIndex.values());
+        return refs;
+    }
+
     public boolean hasForcedContinuousCollisionBodies() {
-        return !forcedContinuousCollisionBodyKeys.isEmpty();
+        forcedContinuousCollisionBodyRefsByRowIndex.values()
+            .removeIf(ref -> ref == null || !ref.isValid());
+        return !forcedContinuousCollisionBodyKeys.isEmpty()
+            || !forcedContinuousCollisionBodyRefsByRowIndex.isEmpty();
     }
 
     public void forEachForcedContinuousCollisionBody(@Nonnull Consumer<RigidBodyKey> consumer) {
         forcedContinuousCollisionBodyKeys.forEach(consumer);
     }
 
+    public void forEachForcedContinuousCollisionBodyRef(
+        @Nonnull Consumer<Ref<PhysicsStore>> consumer) {
+        for (Ref<PhysicsStore> ref : getForcedContinuousCollisionBodyRefs()) {
+            consumer.accept(ref);
+        }
+    }
+
     public void clearForcedContinuousCollisionBodies() {
         forcedContinuousCollisionBodyKeys.clear();
+        forcedContinuousCollisionBodyRefsByRowIndex.clear();
     }
 
     public void clearBody(@Nonnull RigidBodyKey bodyKey) {
@@ -117,15 +221,97 @@ public final class PhysicsChunkBoundaryRuntime {
         chunkBoundaryPauseStates.remove(bodyKey);
     }
 
+    public void clearBody(@Nonnull Ref<PhysicsStore> bodyRef) {
+        Ref<PhysicsStore> forcedRef =
+            forcedContinuousCollisionBodyRefsByRowIndex.get(rowIndex(bodyRef));
+        if (forcedRef != null && sameRef(forcedRef, bodyRef)) {
+            forcedContinuousCollisionBodyRefsByRowIndex.remove(bodyRef.getIndex());
+        }
+        removeRowState(chunkBoundarySafeStatesByRowIndex, bodyRef);
+        removeRowState(chunkBoundaryPauseStatesByRowIndex, bodyRef);
+    }
+
     public void clear() {
         forcedContinuousCollisionBodyKeys.clear();
         chunkBoundarySafeStates.clear();
         chunkBoundaryPauseStates.clear();
+        forcedContinuousCollisionBodyRefsByRowIndex.clear();
+        chunkBoundarySafeStatesByRowIndex.clear();
+        chunkBoundaryPauseStatesByRowIndex.clear();
     }
 
     public void clearChunkBoundaryStates() {
         chunkBoundarySafeStates.clear();
         chunkBoundaryPauseStates.clear();
+        chunkBoundarySafeStatesByRowIndex.clear();
+        chunkBoundaryPauseStatesByRowIndex.clear();
+    }
+
+    @Nonnull
+    private static <T> T rowState(@Nonnull Int2ObjectOpenHashMap<RowState<T>> states,
+        @Nonnull Ref<PhysicsStore> bodyRef,
+        @Nonnull Supplier<T> factory) {
+        int rowIndex = rowIndex(bodyRef);
+        RowState<T> row = states.get(rowIndex);
+        if (row == null || !sameRef(row.bodyRef(), bodyRef)) {
+            T state = factory.get();
+            states.put(rowIndex, new RowState<>(bodyRef, state));
+            return state;
+        }
+        return row.state();
+    }
+
+    @Nullable
+    private static <T> T getRowState(@Nonnull Int2ObjectOpenHashMap<RowState<T>> states,
+        @Nonnull Ref<PhysicsStore> bodyRef) {
+        RowState<T> row = states.get(rowIndex(bodyRef));
+        return row != null && sameRef(row.bodyRef(), bodyRef) ? row.state() : null;
+    }
+
+    private static <T> void removeRowState(@Nonnull Int2ObjectOpenHashMap<RowState<T>> states,
+        @Nonnull Ref<PhysicsStore> bodyRef) {
+        RowState<T> row = states.get(rowIndex(bodyRef));
+        if (row != null && sameRef(row.bodyRef(), bodyRef)) {
+            states.remove(bodyRef.getIndex());
+        }
+    }
+
+    @Nonnull
+    private static <T> Collection<Ref<PhysicsStore>> liveRefs(
+        @Nonnull Int2ObjectOpenHashMap<RowState<T>> states) {
+        ArrayList<Ref<PhysicsStore>> refs = new ArrayList<>();
+        ArrayList<Integer> staleRows = new ArrayList<>();
+        for (Int2ObjectMap.Entry<RowState<T>> entry : states.int2ObjectEntrySet()) {
+            Ref<PhysicsStore> ref = entry.getValue().bodyRef();
+            if (ref != null && ref.isValid()) {
+                refs.add(ref);
+            } else {
+                staleRows.add(entry.getIntKey());
+            }
+        }
+        for (int row : staleRows) {
+            states.remove(row);
+        }
+        return refs;
+    }
+
+    private static int rowIndex(@Nonnull Ref<PhysicsStore> bodyRef) {
+        return Objects.requireNonNull(bodyRef, "bodyRef").getIndex();
+    }
+
+    private static boolean sameRef(@Nonnull Ref<PhysicsStore> first,
+        @Nonnull Ref<PhysicsStore> second) {
+        return first.getIndex() == second.getIndex()
+            && first.getStore() == second.getStore();
+    }
+
+    private record RowState<T>(@Nonnull Ref<PhysicsStore> bodyRef,
+                               @Nonnull T state) {
+
+        private RowState {
+            Objects.requireNonNull(bodyRef, "bodyRef");
+            Objects.requireNonNull(state, "state");
+        }
     }
 
     public static final class ChunkBoundaryPauseState {

@@ -631,6 +631,15 @@ public class PhysicsWorldRuntimeResource extends PhysicsWorldResource {
             () -> getBodySnapshotIfRegisteredDirect(bodyKey));
     }
 
+    @Nullable
+    public PhysicsBodySnapshot getBodySnapshotIfRegistered(@Nonnull Ref<PhysicsStore> bodyRef) {
+        Store<PhysicsStore> store = Objects.requireNonNull(bodyRef, "bodyRef").getStore();
+        PhysicsStoreThreading.requireWorldThread(store, "read optional copied physics body snapshot");
+        PhysicsStoreBodySnapshot snapshot = store.getResource(PhysicsSnapshotResource.getResourceType())
+            .getBody(bodyRef);
+        return snapshot != null ? toPublicBodySnapshot(store, snapshot) : null;
+    }
+
     @Nonnull
     private PhysicsBodySnapshot getBodySnapshotDirect(@Nonnull RigidBodyKey bodyKey) {
         PhysicsBodySnapshot snapshot = lifecycleState.getBodySnapshot(bodyKey);
@@ -834,8 +843,11 @@ public class PhysicsWorldRuntimeResource extends PhysicsWorldResource {
     @Nonnull
     private static PhysicsBodySnapshot toPublicBodySnapshot(@Nonnull Store<PhysicsStore> store,
         @Nonnull PhysicsStoreBodySnapshot body) {
-        Ref<PhysicsStore> ref = store.getResource(PhysicsIdentityIndexResource.getResourceType())
-            .getByUuid(body.bodyUuid());
+        Ref<PhysicsStore> ref = body.bodyRef();
+        if (ref == null || ref.getStore() != store || !ref.isValid()) {
+            ref = store.getResource(PhysicsIdentityIndexResource.getResourceType())
+                .getByUuid(body.bodyUuid());
+        }
         boolean validRef = ref != null && ref.isValid();
         DynamicsComponent dynamics = validRef
             ? store.getComponent(ref, DynamicsComponent.getComponentType())
@@ -2186,9 +2198,25 @@ public class PhysicsWorldRuntimeResource extends PhysicsWorldResource {
         chunkRuntime.updateChunkBoundarySafeState(bodyKey, snapshot);
     }
 
+    public void updateChunkBoundarySafeState(@Nonnull Ref<PhysicsStore> bodyRef,
+        @Nonnull Vector3f position,
+        @Nonnull Quaternionf rotation) {
+        chunkRuntime.updateChunkBoundarySafeState(bodyRef, position, rotation);
+    }
+
+    public void updateChunkBoundarySafeState(@Nonnull Ref<PhysicsStore> bodyRef,
+        @Nonnull PhysicsBodySnapshot snapshot) {
+        chunkRuntime.updateChunkBoundarySafeState(bodyRef, snapshot);
+    }
+
     @Nullable
     public ChunkBoundarySafeState getChunkBoundarySafeState(@Nonnull RigidBodyKey bodyKey) {
         return chunkRuntime.getChunkBoundarySafeState(bodyKey);
+    }
+
+    @Nullable
+    public ChunkBoundarySafeState getChunkBoundarySafeState(@Nonnull Ref<PhysicsStore> bodyRef) {
+        return chunkRuntime.getChunkBoundarySafeState(bodyRef);
     }
 
     public void pauseChunkBoundaryBody(@Nonnull RigidBodyKey bodyKey,
@@ -2216,13 +2244,48 @@ public class PhysicsWorldRuntimeResource extends PhysicsWorldResource {
         chunkRuntime.pauseChunkBoundaryBody(bodyKey, targetChunkIndex, targetChunkIndices, snapshot);
     }
 
+    public void pauseChunkBoundaryBody(@Nonnull Ref<PhysicsStore> bodyRef,
+        long targetChunkIndex,
+        @Nonnull PhysicsBodyType originalBodyType,
+        @Nonnull Vector3f linearVelocity,
+        @Nonnull Vector3f angularVelocity) {
+        chunkRuntime.pauseChunkBoundaryBody(bodyRef,
+            targetChunkIndex,
+            originalBodyType,
+            linearVelocity,
+            angularVelocity);
+    }
+
+    public void pauseChunkBoundaryBody(@Nonnull Ref<PhysicsStore> bodyRef,
+        long targetChunkIndex,
+        @Nonnull PhysicsBodySnapshot snapshot) {
+        chunkRuntime.pauseChunkBoundaryBody(bodyRef, targetChunkIndex, snapshot);
+    }
+
+    public void pauseChunkBoundaryBody(@Nonnull Ref<PhysicsStore> bodyRef,
+        long targetChunkIndex,
+        @Nonnull long[] targetChunkIndices,
+        @Nonnull PhysicsBodySnapshot snapshot) {
+        chunkRuntime.pauseChunkBoundaryBody(bodyRef, targetChunkIndex, targetChunkIndices, snapshot);
+    }
+
     @Nullable
     public ChunkBoundaryPauseState getChunkBoundaryPauseState(@Nonnull RigidBodyKey bodyKey) {
         return chunkRuntime.getChunkBoundaryPauseState(bodyKey);
     }
 
+    @Nullable
+    public ChunkBoundaryPauseState getChunkBoundaryPauseState(
+        @Nonnull Ref<PhysicsStore> bodyRef) {
+        return chunkRuntime.getChunkBoundaryPauseState(bodyRef);
+    }
+
     public void clearChunkBoundaryPauseState(@Nonnull RigidBodyKey bodyKey) {
         chunkRuntime.clearChunkBoundaryPauseState(bodyKey);
+    }
+
+    public void clearChunkBoundaryPauseState(@Nonnull Ref<PhysicsStore> bodyRef) {
+        chunkRuntime.clearChunkBoundaryPauseState(bodyRef);
     }
 
     public void clearBodyRuntimeState(@Nonnull RigidBodyKey bodyKey) {
@@ -2244,12 +2307,17 @@ public class PhysicsWorldRuntimeResource extends PhysicsWorldResource {
             "resolve cleared body runtime key");
         if (bodyRef != null) {
             controlRuntime.clearBody(bodyRef);
+            chunkRuntime.clearBody(bodyRef);
         }
         bodyRuntime.clearBodyRuntimeState(bodyKey);
     }
 
     public void markContinuousCollisionForced(@Nonnull RigidBodyKey bodyKey) {
         chunkRuntime.markContinuousCollisionForced(bodyKey);
+    }
+
+    public void markContinuousCollisionForced(@Nonnull Ref<PhysicsStore> bodyRef) {
+        chunkRuntime.markContinuousCollisionForced(bodyRef);
     }
 
     @Nonnull

@@ -40,8 +40,9 @@ public final class PhysicsSnapshotResource implements Resource<PhysicsStore> {
 
     @Nullable
     public PhysicsStoreBodySnapshot getBody(@Nonnull Ref<PhysicsStore> bodyRef) {
-        return snapshot.bodiesByRowIndex().get(Objects.requireNonNull(bodyRef, "bodyRef")
-            .getIndex());
+        PhysicsStoreBodySnapshot body = snapshot.bodiesByRowIndex()
+            .get(Objects.requireNonNull(bodyRef, "bodyRef").getIndex());
+        return body != null && sameRef(body.bodyRef(), bodyRef) ? body : null;
     }
 
     public void publish(@Nonnull PhysicsStoreSnapshotFrame frame) {
@@ -120,5 +121,12 @@ public final class PhysicsSnapshotResource implements Resource<PhysicsStore> {
             new PublishedSnapshot(PhysicsStoreSnapshotFrame.EMPTY,
                 Map.of(),
                 new Int2ObjectOpenHashMap<>());
+    }
+
+    private static boolean sameRef(@Nullable Ref<PhysicsStore> first,
+        @Nonnull Ref<PhysicsStore> second) {
+        return first != null
+            && first.getIndex() == second.getIndex()
+            && first.getStore() == second.getStore();
     }
 }
