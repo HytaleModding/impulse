@@ -84,7 +84,7 @@ public class StressBenchmarkCommand extends AbstractAsyncPlayerCommand {
         }
         BenchmarkLayout layout = BenchmarkLayout.around(playerPos, request.count());
         return PhysicsStoreAsync.acceptOnWorldThread(world,
-            PhysicsStoreDiagnostics.bodyCountAsync(world, spaceId),
+            PhysicsStoreDiagnostics.bodyCountAsync(world, spaceRef),
             beforeBodies -> spawnBenchmark(ctx,
                 store,
                 world,

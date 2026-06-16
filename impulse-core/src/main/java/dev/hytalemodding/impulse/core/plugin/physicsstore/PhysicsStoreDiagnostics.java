@@ -1,5 +1,6 @@
 package dev.hytalemodding.impulse.core.plugin.physicsstore;
 
+import com.hypixel.hytale.component.Ref;
 import com.hypixel.hytale.component.Store;
 import com.hypixel.hytale.server.core.universe.world.World;
 import com.hypixel.hytale.server.core.universe.world.storage.PhysicsStore;
@@ -39,6 +40,13 @@ public final class PhysicsStoreDiagnostics {
         return space != null ? space.backendRuntime().bodyCount(space.spaceHandle().value()) : 0;
     }
 
+    public static int bodyCount(@Nonnull Store<PhysicsStore> store,
+        @Nonnull Ref<PhysicsStore> spaceRef) {
+        PhysicsStoreBackendAccess.SpaceContext space =
+            PhysicsStoreBackendAccess.space(store, Objects.requireNonNull(spaceRef, "spaceRef"));
+        return space != null ? space.backendRuntime().bodyCount(space.spaceHandle().value()) : 0;
+    }
+
     @Nonnull
     public static CompletionStage<Integer> bodyCountAsync(@Nonnull World world,
         @Nonnull SpaceId spaceId) {
@@ -73,6 +81,24 @@ public final class PhysicsStoreDiagnostics {
         return PhysicsStoreThreading.enqueueReadOnWorldThread(store,
             "queue PhysicsStore body count read",
             physics -> bodyCount(physics, spaceUuid));
+    }
+
+    @Nonnull
+    public static CompletionStage<Integer> bodyCountAsync(@Nonnull World world,
+        @Nonnull Ref<PhysicsStore> spaceRef) {
+        Objects.requireNonNull(spaceRef, "spaceRef");
+        return PhysicsStoreThreading.enqueueReadOnWorldThread(world,
+            "queue PhysicsStore body count read",
+            physics -> bodyCount(physics, spaceRef));
+    }
+
+    @Nonnull
+    public static CompletionStage<Integer> bodyCountAsync(@Nonnull Store<PhysicsStore> store,
+        @Nonnull Ref<PhysicsStore> spaceRef) {
+        Objects.requireNonNull(spaceRef, "spaceRef");
+        return PhysicsStoreThreading.enqueueReadOnWorldThread(store,
+            "queue PhysicsStore body count read",
+            physics -> bodyCount(physics, spaceRef));
     }
 
     public static int runtimeJointCount(@Nonnull Store<PhysicsStore> store) {
