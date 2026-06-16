@@ -21,7 +21,6 @@ import dev.hytalemodding.impulse.core.plugin.settings.PhysicsSpaceSettings;
 import dev.hytalemodding.impulse.core.plugin.settings.PhysicsWorldSettings;
 import dev.hytalemodding.impulse.core.plugin.snapshot.PhysicsBodySnapshotEntry;
 import java.util.Collection;
-import java.util.List;
 import java.util.UUID;
 import java.util.function.Consumer;
 import javax.annotation.Nonnull;
@@ -343,9 +342,8 @@ public abstract class PhysicsWorldResource implements Resource<EntityStore> {
      * Returns immutable registration metadata for a live PhysicsStore body ref.
      */
     @Nullable
-    public PhysicsBodyRegistrationView getBodyRegistrationView(@Nonnull Ref<PhysicsStore> bodyRef) {
-        return null;
-    }
+    public abstract PhysicsBodyRegistrationView getBodyRegistrationView(
+        @Nonnull Ref<PhysicsStore> bodyRef);
 
     /**
      * Returns immutable registration metadata for every registered body.
@@ -385,9 +383,8 @@ public abstract class PhysicsWorldResource implements Resource<EntityStore> {
      * raycast or copied registration.</p>
      */
     @Nonnull
-    public Collection<Ref<EntityStore>> getBodyAttachments(@Nonnull Ref<PhysicsStore> bodyRef) {
-        return List.of();
-    }
+    public abstract Collection<Ref<EntityStore>> getBodyAttachments(
+        @Nonnull Ref<PhysicsStore> bodyRef);
 
     /**
      * Returns whether a durable body UUID and optional live body ref have one or more ECS attachments.
@@ -399,9 +396,7 @@ public abstract class PhysicsWorldResource implements Resource<EntityStore> {
      * Returns whether a live PhysicsStore body ref has one or more ECS attachments without
      * materializing the attachment collection.
      */
-    public boolean hasBodyAttachments(@Nonnull Ref<PhysicsStore> bodyRef) {
-        return false;
-    }
+    public abstract boolean hasBodyAttachments(@Nonnull Ref<PhysicsStore> bodyRef);
 
     public static ResourceType<EntityStore, PhysicsWorldResource> getResourceType() {
         return ImpulsePlugin.get().getPhysicsWorldResourceType();
