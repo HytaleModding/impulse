@@ -160,7 +160,13 @@ public final class TerrainColliderBindingSystem extends TickingSystem<PhysicsSto
             runtime.markTerrainPayloadBound(terrainRef,
                 terrainUuid,
                 terrain.getPayloadResourceKey());
-            stitchNeighbors(runtime, backendRuntime, spaceHandle, terrainRef, terrain, payload);
+            stitchNeighbors(runtime,
+                identity,
+                backendRuntime,
+                spaceHandle,
+                terrainRef,
+                terrain,
+                payload);
         } catch (RuntimeException exception) {
             removeTerrain(runtime, terrainUuid, terrainRef);
             restore.markFailed("PhysicsStore terrain " + terrain.getSourceKey()
@@ -242,6 +248,7 @@ public final class TerrainColliderBindingSystem extends TickingSystem<PhysicsSto
     }
 
     private static void stitchNeighbors(@Nonnull PhysicsRuntimeResource runtime,
+        @Nonnull PhysicsIdentityIndexResource identity,
         @Nonnull PhysicsBackendRuntime backendRuntime,
         @Nonnull BackendSpaceHandle spaceHandle,
         @Nonnull Ref<PhysicsStore> terrainRef,
@@ -254,8 +261,13 @@ public final class TerrainColliderBindingSystem extends TickingSystem<PhysicsSto
         for (TerrainNeighbor neighbor : payload.neighbors()) {
             UUID neighborUuid = TerrainColliderMutation.terrainColliderUuid(terrain.getSpaceUuid(),
                 neighbor.sourceKey());
-            BackendBodyHandle neighborBody = runtime.getTerrainVoxelBodyHandle(neighborUuid);
-            BackendSpaceHandle neighborSpace = runtime.getTerrainSpaceHandle(neighborUuid);
+            Ref<PhysicsStore> neighborRef = PhysicsStoreSystemSupport.refForUuid(identity,
+                neighborUuid);
+            if (neighborRef == null) {
+                continue;
+            }
+            BackendBodyHandle neighborBody = runtime.getTerrainVoxelBodyHandle(neighborRef);
+            BackendSpaceHandle neighborSpace = runtime.getTerrainSpaceHandle(neighborRef);
             if (neighborBody == null
                 || neighborSpace == null
                 || neighborSpace.value() != spaceHandle.value()) {
