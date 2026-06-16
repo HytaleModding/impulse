@@ -15,10 +15,8 @@ import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import com.hypixel.hytale.server.core.universe.world.storage.PhysicsStore;
 import com.hypixel.hytale.server.core.util.TargetUtil;
 import dev.hytalemodding.impulse.early.PhysicsStoreWorld;
-import dev.hytalemodding.impulse.api.PhysicsAxis;
 import dev.hytalemodding.impulse.api.PhysicsBodyType;
 import dev.hytalemodding.impulse.api.PhysicsCollisionFilters;
-import dev.hytalemodding.impulse.api.ShapeType;
 import dev.hytalemodding.impulse.api.SpaceId;
 import dev.hytalemodding.impulse.core.internal.physicsstore.resources.PhysicsBodyRegistrationResource;
 import dev.hytalemodding.impulse.core.internal.physicsstore.resources.PhysicsSnapshotResource;
@@ -29,23 +27,19 @@ import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyPersistenceMode;
 import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyRegistrationView;
 import dev.hytalemodding.impulse.core.plugin.body.RigidBodyKey;
 import dev.hytalemodding.impulse.core.plugin.modules.control.PhysicsControlSessions;
+import dev.hytalemodding.impulse.core.plugin.physicsstore.PhysicsBodyRows;
 import dev.hytalemodding.impulse.core.plugin.physicsstore.PhysicsJointRows;
 import dev.hytalemodding.impulse.core.plugin.physicsstore.PhysicsStoreAsync;
 import dev.hytalemodding.impulse.core.plugin.physicsstore.PhysicsStoreRaycasts;
 import dev.hytalemodding.impulse.core.plugin.physicsstore.PhysicsStoreThreading;
 import dev.hytalemodding.impulse.core.plugin.physicsstore.components.BodyCommandComponent;
-import dev.hytalemodding.impulse.core.plugin.physicsstore.components.BodyComponent;
-import dev.hytalemodding.impulse.core.plugin.physicsstore.components.ColliderComponent;
-import dev.hytalemodding.impulse.core.plugin.physicsstore.components.CollisionFilterComponent;
-import dev.hytalemodding.impulse.core.plugin.physicsstore.components.DynamicsComponent;
 import dev.hytalemodding.impulse.core.plugin.physicsstore.components.JointComponent;
-import dev.hytalemodding.impulse.core.plugin.physicsstore.components.MaterialComponent;
-import dev.hytalemodding.impulse.core.plugin.physicsstore.components.ShapeComponent;
-import dev.hytalemodding.impulse.core.plugin.physicsstore.components.TargetComponent;
 import dev.hytalemodding.impulse.core.plugin.physicsstore.BodyRowDescriptor;
 import dev.hytalemodding.impulse.core.plugin.physicsstore.snapshots.PhysicsStoreBodySnapshot;
 import dev.hytalemodding.impulse.core.plugin.resources.PhysicsWorldResource;
 import dev.hytalemodding.impulse.core.plugin.simulation.JointType;
+import dev.hytalemodding.impulse.core.plugin.simulation.PhysicsShapeSpec;
+import dev.hytalemodding.impulse.core.plugin.simulation.RigidBodySpawnSettings;
 import dev.hytalemodding.impulse.core.plugin.simulation.RigidBodyPose;
 import dev.hytalemodding.impulse.core.plugin.simulation.view.RaycastHitView;
 import dev.hytalemodding.impulse.core.plugin.simulation.view.RigidBodyStateView;
@@ -215,51 +209,18 @@ public class GrabCommand extends AbstractAsyncPlayerCommand {
     private static BodyRowDescriptor anchorBodyRow(@Nonnull Ref<PhysicsStore> spaceRef,
         @Nonnull UUID bodyUuid,
         @Nonnull Vector3f hitPoint) {
-        UUID spaceUuid = ExamplePhysicsUtils.physicsStoreRowUuid(spaceRef);
-        BodyComponent body = new BodyComponent(spaceUuid,
+        return PhysicsBodyRows.body(spaceRef,
+            bodyUuid,
+            hitPoint,
+            PhysicsShapeSpec.sphere(0.08f),
+            PhysicsBodyType.KINEMATIC,
+            1.0f,
+            RigidBodySpawnSettings.material(0.5f, 0.0f)
+                .withSensor(true)
+                .withCollisionFilter(PhysicsCollisionFilters.TERRAIN, 0),
+            null,
             PhysicsBodyKind.TEMPORARY,
             PhysicsBodyPersistenceMode.RUNTIME_ONLY);
-        body.setSpaceRef(spaceRef);
-        return BodyRowDescriptor.of(bodyUuid,
-            body,
-            new DynamicsComponent(PhysicsBodyType.KINEMATIC,
-                1.0f,
-                0.0f,
-                0.0f,
-                false),
-            initialAnchorTarget(hitPoint),
-            bodyUuid,
-            new ColliderComponent(new Vector3f(),
-                new Quaternionf(),
-                true),
-            bodyUuid,
-            new ShapeComponent(ShapeType.SPHERE,
-                0.0f,
-                0.0f,
-                0.0f,
-                0.08f,
-                0.0f,
-                PhysicsAxis.Y,
-                0.0f,
-                ""),
-            bodyUuid,
-            new MaterialComponent(0.5f, 0.0f),
-            bodyUuid,
-            new CollisionFilterComponent(PhysicsCollisionFilters.TERRAIN, 0));
-    }
-
-    @Nonnull
-    private static TargetComponent initialAnchorTarget(@Nonnull Vector3f hitPoint) {
-        TargetComponent target = new TargetComponent();
-        target.setActive(false);
-        target.setPosition(hitPoint);
-        target.setRotation(new Quaternionf());
-        target.setLinearVelocity(new Vector3f());
-        target.setAngularVelocity(new Vector3f());
-        target.setTransformEnabled(true);
-        target.setVelocityEnabled(false);
-        target.setActivate(true);
-        return target;
     }
 
     @Nonnull
