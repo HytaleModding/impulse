@@ -7,10 +7,13 @@ import com.hypixel.hytale.server.core.universe.world.World;
 import com.hypixel.hytale.server.core.universe.world.chunk.BlockChunk;
 import com.hypixel.hytale.server.core.universe.world.chunk.section.BlockSection;
 import com.hypixel.hytale.server.core.universe.world.storage.ChunkStore;
+import com.hypixel.hytale.server.core.universe.world.storage.PhysicsStore;
 import dev.hytalemodding.impulse.core.internal.modules.worldcollision.profiling.WorldCollisionProfilingResource.MissingSectionReason;
 import dev.hytalemodding.impulse.core.internal.modules.worldcollision.profiling.WorldCollisionProfilingResource.Snapshot;
 import dev.hytalemodding.impulse.core.internal.modules.worldcollision.profiling.WorldCollisionProfilingResource.StreamingTargetDiagnostic;
 import dev.hytalemodding.impulse.core.internal.physicsstore.resources.PhysicsTerrainMutationQueueResource;
+import it.unimi.dsi.fastutil.ints.Int2ObjectMap;
+import it.unimi.dsi.fastutil.ints.Int2ObjectOpenHashMap;
 import it.unimi.dsi.fastutil.longs.Long2LongMap;
 import it.unimi.dsi.fastutil.longs.Long2LongOpenHashMap;
 import it.unimi.dsi.fastutil.longs.Long2ObjectMap;
@@ -19,6 +22,7 @@ import it.unimi.dsi.fastutil.longs.LongSet;
 import it.unimi.dsi.fastutil.objects.Object2ObjectMap;
 import it.unimi.dsi.fastutil.objects.Object2ObjectOpenHashMap;
 import java.util.Iterator;
+import java.util.Objects;
 import java.util.Set;
 import java.util.UUID;
 import javax.annotation.Nonnull;
@@ -315,6 +319,71 @@ public final class PhysicsStoreTerrainMutationCache {
         return TargetRefreshDecision.skip();
     }
 
+    @Nonnull
+    public synchronized TargetRefreshDecision shouldRefreshBodyTarget(@Nonnull UUID spaceUuid,
+        @Nonnull Ref<PhysicsStore> bodyRef,
+        @Nonnull WorldCollisionStreamingBounds bounds,
+        boolean sleeping,
+        long currentTick,
+        int ttlTicks,
+        @Nullable Snapshot profiling) {
+        SpaceCollisionCache cache = spaces.computeIfAbsent(spaceUuid, _ -> new SpaceCollisionCache());
+        CachedBodyStreamingTarget target = getBodyTarget(cache, bodyRef);
+        if (target == null) {
+            putBodyTarget(cache,
+                bodyRef,
+                new CachedBodyStreamingTarget(bounds,
+                    sleeping,
+                    currentTick,
+                    BODY_TARGET_REFRESH_PENDING));
+            if (profiling != null) {
+                profiling.incrementBodyTargetFirstSeen();
+            }
+            return TargetRefreshDecision.refresh(TargetRefreshReason.FIRST_SEEN);
+        }
+
+        target.lastSeenTick = currentTick;
+        target.sleeping = sleeping;
+        if (profiling != null) {
+            profiling.incrementBodyTargetCacheHits();
+        }
+
+        if (!target.bounds.equals(bounds)) {
+            target.bounds = bounds;
+            if (profiling != null) {
+                profiling.incrementBodyTargetBoundsChanged();
+            }
+            return TargetRefreshDecision.refresh(TargetRefreshReason.BOUNDS_CHANGED);
+        }
+        if (target.lastRefreshTick == BODY_TARGET_REFRESH_PENDING) {
+            return TargetRefreshDecision.refresh(TargetRefreshReason.PENDING_APPLY);
+        }
+
+        int interval = sleeping ? sleepingBodyStreamingInterval(ttlTicks)
+            : ACTIVE_BODY_STREAMING_INTERVAL_TICKS;
+        if (currentTick == 1L || currentTick - target.lastRefreshTick >= interval) {
+            if (profiling != null) {
+                if (sleeping) {
+                    profiling.incrementBodyTargetSleepingRefreshes();
+                } else {
+                    profiling.incrementBodyTargetActiveRefreshes();
+                }
+            }
+            return TargetRefreshDecision.refresh(sleeping
+                ? TargetRefreshReason.SLEEPING_INTERVAL
+                : TargetRefreshReason.ACTIVE_INTERVAL);
+        }
+
+        if (profiling != null) {
+            if (sleeping) {
+                profiling.incrementBodyTargetSleepingStableSkips();
+            } else {
+                profiling.incrementBodyTargetActiveStableSkips();
+            }
+        }
+        return TargetRefreshDecision.skip();
+    }
+
     public synchronized void recordBodyTargetRefresh(@Nonnull UUID spaceUuid,
         @Nonnull UUID bodyUuid,
         @Nonnull WorldCollisionStreamingBounds bounds,
@@ -327,6 +396,25 @@ public final class PhysicsStoreTerrainMutationCache {
                 sleeping,
                 currentTick,
                 currentTick));
+            return;
+        }
+        target.bounds = bounds;
+        target.sleeping = sleeping;
+        target.lastSeenTick = currentTick;
+        target.lastRefreshTick = currentTick;
+    }
+
+    public synchronized void recordBodyTargetRefresh(@Nonnull UUID spaceUuid,
+        @Nonnull Ref<PhysicsStore> bodyRef,
+        @Nonnull WorldCollisionStreamingBounds bounds,
+        boolean sleeping,
+        long currentTick) {
+        SpaceCollisionCache cache = spaces.computeIfAbsent(spaceUuid, _ -> new SpaceCollisionCache());
+        CachedBodyStreamingTarget target = getBodyTarget(cache, bodyRef);
+        if (target == null) {
+            putBodyTarget(cache,
+                bodyRef,
+                new CachedBodyStreamingTarget(bounds, sleeping, currentTick, currentTick));
             return;
         }
         target.bounds = bounds;
@@ -353,6 +441,17 @@ public final class PhysicsStoreTerrainMutationCache {
                 continue;
             }
             iterator.remove();
+            removed++;
+        }
+        Iterator<Int2ObjectMap.Entry<RefBodyStreamingTarget>> refIterator =
+            cache.bodyTargetsByRowIndex.int2ObjectEntrySet().iterator();
+        while (refIterator.hasNext()) {
+            RefBodyStreamingTarget row = refIterator.next().getValue();
+            if (row.bodyRef().isValid()
+                && currentTick - row.target().lastSeenTick <= maxAge) {
+                continue;
+            }
+            refIterator.remove();
             removed++;
         }
         pruneExpiredMissingBackoffs(cache, currentTick);
@@ -605,6 +704,30 @@ public final class PhysicsStoreTerrainMutationCache {
             Math.min(SLEEPING_BODY_STREAMING_INTERVAL_TICKS, ttlBound));
     }
 
+    @Nullable
+    private static CachedBodyStreamingTarget getBodyTarget(@Nonnull SpaceCollisionCache cache,
+        @Nonnull Ref<PhysicsStore> bodyRef) {
+        RefBodyStreamingTarget row = cache.bodyTargetsByRowIndex.get(rowIndex(bodyRef));
+        return row != null && sameRef(row.bodyRef(), bodyRef) ? row.target() : null;
+    }
+
+    private static void putBodyTarget(@Nonnull SpaceCollisionCache cache,
+        @Nonnull Ref<PhysicsStore> bodyRef,
+        @Nonnull CachedBodyStreamingTarget target) {
+        cache.bodyTargetsByRowIndex.put(rowIndex(bodyRef),
+            new RefBodyStreamingTarget(bodyRef, target));
+    }
+
+    private static int rowIndex(@Nonnull Ref<PhysicsStore> bodyRef) {
+        return Objects.requireNonNull(bodyRef, "bodyRef").getIndex();
+    }
+
+    private static boolean sameRef(@Nonnull Ref<PhysicsStore> first,
+        @Nonnull Ref<PhysicsStore> second) {
+        return first.getIndex() == second.getIndex()
+            && first.getStore() == second.getStore();
+    }
+
     private static long packSectionKey(int chunkX, int sectionY, int chunkZ) {
         long x = ((long) chunkX & 0x3FFFFFL) << 42;
         long y = ((long) sectionY & 0x3FFL) << 32;
@@ -630,12 +753,15 @@ public final class PhysicsStoreTerrainMutationCache {
         private final Long2LongMap missingBlockSectionBackoffs = new Long2LongOpenHashMap();
         private final Object2ObjectMap<UUID, CachedBodyStreamingTarget> bodyTargets =
             new Object2ObjectOpenHashMap<>();
+        private final Int2ObjectOpenHashMap<RefBodyStreamingTarget> bodyTargetsByRowIndex =
+            new Int2ObjectOpenHashMap<>();
 
         private boolean isEmpty() {
             return sections.isEmpty()
                 && missingBlockChunkBackoffs.isEmpty()
                 && missingBlockSectionBackoffs.isEmpty()
-                && bodyTargets.isEmpty();
+                && bodyTargets.isEmpty()
+                && bodyTargetsByRowIndex.isEmpty();
         }
     }
 
@@ -686,6 +812,15 @@ public final class PhysicsStoreTerrainMutationCache {
             this.sleeping = sleeping;
             this.lastSeenTick = lastSeenTick;
             this.lastRefreshTick = lastRefreshTick;
+        }
+    }
+
+    private record RefBodyStreamingTarget(@Nonnull Ref<PhysicsStore> bodyRef,
+                                          @Nonnull CachedBodyStreamingTarget target) {
+
+        private RefBodyStreamingTarget {
+            Objects.requireNonNull(bodyRef, "bodyRef");
+            Objects.requireNonNull(target, "target");
         }
     }
 

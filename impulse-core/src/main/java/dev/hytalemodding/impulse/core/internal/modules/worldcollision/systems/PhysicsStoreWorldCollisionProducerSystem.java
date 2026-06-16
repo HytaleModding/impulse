@@ -3,6 +3,7 @@ package dev.hytalemodding.impulse.core.internal.modules.worldcollision.systems;
 import com.hypixel.hytale.component.ArchetypeChunk;
 import com.hypixel.hytale.component.CommandBuffer;
 import com.hypixel.hytale.component.ComponentType;
+import com.hypixel.hytale.component.Ref;
 import com.hypixel.hytale.component.Store;
 import com.hypixel.hytale.component.dependency.Dependency;
 import com.hypixel.hytale.component.dependency.Order;
@@ -172,7 +173,7 @@ public final class PhysicsStoreWorldCollisionProducerSystem extends TickingSyste
                 settings.buildOptions());
             for (BodyStreamingRefresh refresh : target.refreshes()) {
                 streaming.recordBodyTargetRefresh(settings.spaceUuid(),
-                    refresh.bodyUuid(),
+                    refresh.bodyRef(),
                     target.bounds(),
                     refresh.sleeping(),
                     currentTick);
@@ -209,6 +210,10 @@ public final class PhysicsStoreWorldCollisionProducerSystem extends TickingSyste
             if (body.bodyType() != PhysicsBodyType.DYNAMIC) {
                 continue;
             }
+            Ref<PhysicsStore> bodyRef = body.bodyRef();
+            if (bodyRef == null || !bodyRef.isValid()) {
+                continue;
+            }
             dynamicCandidates++;
             Vector3f position = body.position();
             WorldCollisionStreamingBounds bounds = WorldCollisionStreamingBounds.from(position.x,
@@ -216,7 +221,7 @@ public final class PhysicsStoreWorldCollisionProducerSystem extends TickingSyste
                 position.z,
                 settings.bodyRadius());
             TargetRefreshDecision decision = streaming.shouldRefreshBodyTarget(settings.spaceUuid(),
-                body.bodyUuid(),
+                bodyRef,
                 bounds,
                 body.sleeping(),
                 currentTick,
@@ -235,7 +240,7 @@ public final class PhysicsStoreWorldCollisionProducerSystem extends TickingSyste
             } else if (snapshot != null) {
                 snapshot.incrementBodyTargetDedupeSkips();
             }
-            target.refreshes().add(new BodyStreamingRefresh(body.bodyUuid(), body.sleeping()));
+            target.refreshes().add(new BodyStreamingRefresh(bodyRef, body.sleeping()));
         }
 
         if (snapshot != null) {
@@ -331,7 +336,7 @@ public final class PhysicsStoreWorldCollisionProducerSystem extends TickingSyste
                                        @Nonnull List<BodyStreamingRefresh> refreshes) {
     }
 
-    private record BodyStreamingRefresh(@Nonnull UUID bodyUuid,
+    private record BodyStreamingRefresh(@Nonnull Ref<PhysicsStore> bodyRef,
                                         boolean sleeping) {
     }
 

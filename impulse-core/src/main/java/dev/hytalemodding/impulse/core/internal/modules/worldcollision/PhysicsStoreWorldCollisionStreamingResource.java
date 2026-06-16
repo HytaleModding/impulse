@@ -1,9 +1,11 @@
 package dev.hytalemodding.impulse.core.internal.modules.worldcollision;
 
+import com.hypixel.hytale.component.Ref;
 import com.hypixel.hytale.component.Resource;
 import com.hypixel.hytale.component.ResourceType;
 import com.hypixel.hytale.server.core.universe.world.World;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
+import com.hypixel.hytale.server.core.universe.world.storage.PhysicsStore;
 import dev.hytalemodding.impulse.core.internal.modules.worldcollision.PhysicsStoreTerrainMutationCache.TargetRefreshDecision;
 import dev.hytalemodding.impulse.core.internal.modules.worldcollision.WorldVoxelCollisionCache.BuildStats;
 import dev.hytalemodding.impulse.core.internal.modules.worldcollision.profiling.WorldCollisionProfilingResource.Snapshot;
@@ -151,12 +153,37 @@ public final class PhysicsStoreWorldCollisionStreamingResource implements Resour
             profiling);
     }
 
+    @Nonnull
+    public synchronized TargetRefreshDecision shouldRefreshBodyTarget(@Nonnull UUID spaceUuid,
+        @Nonnull Ref<PhysicsStore> bodyRef,
+        @Nonnull WorldCollisionStreamingBounds bounds,
+        boolean sleeping,
+        long currentTick,
+        int ttlTicks,
+        @Nullable Snapshot profiling) {
+        return cache.shouldRefreshBodyTarget(spaceUuid,
+            bodyRef,
+            bounds,
+            sleeping,
+            currentTick,
+            ttlTicks,
+            profiling);
+    }
+
     public synchronized void recordBodyTargetRefresh(@Nonnull UUID spaceUuid,
         @Nonnull UUID bodyUuid,
         @Nonnull WorldCollisionStreamingBounds bounds,
         boolean sleeping,
         long currentTick) {
         cache.recordBodyTargetRefresh(spaceUuid, bodyUuid, bounds, sleeping, currentTick);
+    }
+
+    public synchronized void recordBodyTargetRefresh(@Nonnull UUID spaceUuid,
+        @Nonnull Ref<PhysicsStore> bodyRef,
+        @Nonnull WorldCollisionStreamingBounds bounds,
+        boolean sleeping,
+        long currentTick) {
+        cache.recordBodyTargetRefresh(spaceUuid, bodyRef, bounds, sleeping, currentTick);
     }
 
     public synchronized int pruneBodyStreamingTargets(@Nonnull UUID spaceUuid,
