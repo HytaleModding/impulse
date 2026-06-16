@@ -33,7 +33,7 @@ public final class PhysicsBodyRegistrationResource implements Resource<PhysicsSt
 
     @Nullable
     public PhysicsBodyRegistrationView getBodyRegistrationView(@Nonnull RigidBodyKey bodyKey) {
-        return registrations.viewsByKey().get(Objects.requireNonNull(bodyKey, "bodyKey"));
+        return getBodyRegistrationView(Objects.requireNonNull(bodyKey, "bodyKey").value());
     }
 
     @Nullable
@@ -84,50 +84,47 @@ public final class PhysicsBodyRegistrationResource implements Resource<PhysicsSt
     }
 
     public void publish(@Nonnull Collection<BodyRegistrationPublication> publications) {
-        Object2ObjectLinkedOpenHashMap<RigidBodyKey, BodyRegistrationPublication> publicationsByKey =
+        Object2ObjectLinkedOpenHashMap<UUID, BodyRegistrationPublication> publicationsByUuid =
             new Object2ObjectLinkedOpenHashMap<>();
         for (BodyRegistrationPublication publication : publications) {
             BodyRegistrationPublication checkedPublication =
                 Objects.requireNonNull(publication, "publication");
-            publicationsByKey.put(checkedPublication.view().bodyKey(), checkedPublication);
+            publicationsByUuid.put(checkedPublication.view().bodyUuid(), checkedPublication);
         }
 
-        Object2ObjectLinkedOpenHashMap<RigidBodyKey, PhysicsBodyRegistrationView> viewsByKey =
-            new Object2ObjectLinkedOpenHashMap<>();
         Object2ObjectLinkedOpenHashMap<UUID, PhysicsBodyRegistrationView> viewsByUuid =
             new Object2ObjectLinkedOpenHashMap<>();
         Int2ObjectOpenHashMap<RegistrationByRef> viewsByRowIndex =
             new Int2ObjectOpenHashMap<>();
-        for (BodyRegistrationPublication publication : publicationsByKey.values()) {
+        for (BodyRegistrationPublication publication : publicationsByUuid.values()) {
             PhysicsBodyRegistrationView registration = publication.view();
-            viewsByKey.put(registration.bodyKey(), registration);
-            viewsByUuid.put(registration.bodyKey().value(), registration);
+            viewsByUuid.put(registration.bodyUuid(), registration);
             viewsByRowIndex.put(publication.bodyRef().getIndex(),
                 new RegistrationByRef(publication.bodyRef(), registration));
         }
-        registrations = new PublishedRegistrations(List.copyOf(viewsByKey.values()),
-            Map.copyOf(viewsByKey),
+        registrations = new PublishedRegistrations(List.copyOf(viewsByUuid.values()),
             Map.copyOf(viewsByUuid),
             viewsByRowIndex);
     }
 
     public void removeBody(@Nonnull RigidBodyKey bodyKey) {
+        removeBody(Objects.requireNonNull(bodyKey, "bodyKey").value());
+    }
+
+    public void removeBody(@Nonnull UUID bodyUuid) {
+        Objects.requireNonNull(bodyUuid, "bodyUuid");
         PublishedRegistrations current = registrations;
-        if (!current.viewsByKey().containsKey(bodyKey)) {
+        if (!current.viewsByUuid().containsKey(bodyUuid)) {
             return;
         }
-        Object2ObjectLinkedOpenHashMap<RigidBodyKey, PhysicsBodyRegistrationView> viewsByKey =
-            new Object2ObjectLinkedOpenHashMap<>(current.viewsByKey());
-        viewsByKey.remove(bodyKey);
         Object2ObjectLinkedOpenHashMap<UUID, PhysicsBodyRegistrationView> viewsByUuid =
             new Object2ObjectLinkedOpenHashMap<>(current.viewsByUuid());
-        viewsByUuid.remove(bodyKey.value());
+        viewsByUuid.remove(bodyUuid);
         Int2ObjectOpenHashMap<RegistrationByRef> viewsByRowIndex =
             new Int2ObjectOpenHashMap<>(current.viewsByRowIndex());
         viewsByRowIndex.int2ObjectEntrySet()
-            .removeIf(entry -> entry.getValue().view().bodyKey().equals(bodyKey));
-        registrations = new PublishedRegistrations(List.copyOf(viewsByKey.values()),
-            Map.copyOf(viewsByKey),
+            .removeIf(entry -> entry.getValue().view().bodyUuid().equals(bodyUuid));
+        registrations = new PublishedRegistrations(List.copyOf(viewsByUuid.values()),
             Map.copyOf(viewsByUuid),
             viewsByRowIndex);
     }
@@ -170,13 +167,11 @@ public final class PhysicsBodyRegistrationResource implements Resource<PhysicsSt
 
     private record PublishedRegistrations(
         @Nonnull List<PhysicsBodyRegistrationView> views,
-        @Nonnull Map<RigidBodyKey, PhysicsBodyRegistrationView> viewsByKey,
         @Nonnull Map<UUID, PhysicsBodyRegistrationView> viewsByUuid,
         @Nonnull Int2ObjectOpenHashMap<RegistrationByRef> viewsByRowIndex) {
 
         private static final PublishedRegistrations EMPTY =
             new PublishedRegistrations(List.of(),
-                Map.of(),
                 Map.of(),
                 new Int2ObjectOpenHashMap<>());
     }

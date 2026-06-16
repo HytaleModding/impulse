@@ -357,7 +357,7 @@ public final class PhysicsStoreTopologyMutations {
             }
             if (removal.kind() == RowKind.BODY) {
                 snapshots.removeBody(removal.rowUuid());
-                registrations.removeBody(RigidBodyKey.of(removal.rowUuid()));
+                registrations.removeBody(removal.rowUuid());
             }
             store.removeEntity(removal.ref(),
                 store.getRegistry().newHolder(),

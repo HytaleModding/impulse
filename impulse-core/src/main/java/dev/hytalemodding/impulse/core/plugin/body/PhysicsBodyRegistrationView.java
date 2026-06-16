@@ -1,6 +1,7 @@
 package dev.hytalemodding.impulse.core.plugin.body;
 
 import dev.hytalemodding.impulse.api.SpaceId;
+import java.util.UUID;
 import javax.annotation.Nonnull;
 
 /**
@@ -10,4 +11,9 @@ public record PhysicsBodyRegistrationView(@Nonnull RigidBodyKey bodyKey,
     @Nonnull SpaceId spaceId,
     @Nonnull PhysicsBodyKind kind,
     @Nonnull PhysicsBodyPersistenceMode persistenceMode) {
+
+    @Nonnull
+    public UUID bodyUuid() {
+        return bodyKey.value();
+    }
 }

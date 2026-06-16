@@ -18,7 +18,6 @@ import dev.hytalemodding.impulse.core.internal.physicsstore.resources.PhysicsSna
 import dev.hytalemodding.impulse.core.internal.resources.BackendBodyHandle;
 import dev.hytalemodding.impulse.core.internal.resources.BackendJointHandle;
 import dev.hytalemodding.impulse.core.internal.resources.BackendSpaceHandle;
-import dev.hytalemodding.impulse.core.plugin.body.RigidBodyKey;
 import dev.hytalemodding.impulse.core.plugin.physicsstore.components.BodyComponent;
 import dev.hytalemodding.impulse.core.plugin.physicsstore.components.JointComponent;
 import dev.hytalemodding.impulse.core.plugin.physicsstore.components.UuidComponent;
@@ -88,7 +87,7 @@ public final class StaleBodyRemovalSystem extends TickingSystem<PhysicsStore> {
             identity.removeBodyHandle(body.bodyHandle());
             identity.removeUuid(body.bodyUuid(), body.bodyRef());
             snapshots.removeBody(body.bodyUuid());
-            registrations.removeBody(RigidBodyKey.of(body.bodyUuid()));
+            registrations.removeBody(body.bodyUuid());
             runtime.removeBodyHandle(body.bodyUuid(), body.bodyRef());
         }
     }
