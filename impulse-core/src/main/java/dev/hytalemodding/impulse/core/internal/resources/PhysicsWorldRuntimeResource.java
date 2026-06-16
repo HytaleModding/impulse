@@ -1836,6 +1836,16 @@ public class PhysicsWorldRuntimeResource extends PhysicsWorldResource {
     }
 
     @Nullable
+    public PhysicsBodyRegistrationView getBodyRegistrationView(@Nonnull UUID bodyUuid) {
+        if (hasAttachedAuthoritativePhysicsStore()) {
+            return authoritativePhysicsStore("read physics body registration view")
+                .getResource(PhysicsBodyRegistrationResource.getResourceType())
+                .getBodyRegistrationView(bodyUuid);
+        }
+        return getBodyRegistrationView(RigidBodyKey.of(bodyUuid));
+    }
+
+    @Nullable
     public PhysicsBodyRegistrationView getBodyRegistrationView(@Nonnull Ref<PhysicsStore> bodyRef) {
         if (hasAttachedAuthoritativePhysicsStore()) {
             return authoritativePhysicsStore("read physics body registration view")
@@ -1997,6 +2007,10 @@ public class PhysicsWorldRuntimeResource extends PhysicsWorldResource {
 
     public boolean isBodyCreationPending(@Nonnull RigidBodyKey bodyKey) {
         return bodyRuntime.isBodyCreationPending(bodyKey);
+    }
+
+    public boolean isBodyCreationPending(@Nonnull UUID bodyUuid) {
+        return isBodyCreationPending(RigidBodyKey.of(bodyUuid));
     }
 
     public boolean hasPublishedOrPendingBodyRegistration(@Nonnull RigidBodyKey bodyKey) {
@@ -2300,6 +2314,20 @@ public class PhysicsWorldRuntimeResource extends PhysicsWorldResource {
             return sameRef(getGeneratedVisualProxy(bodyKey), proxy);
         }
         return visualRuntime.isGeneratedVisualProxy(bodyKey, proxy);
+    }
+
+    public boolean isGeneratedVisualProxy(@Nonnull UUID bodyUuid,
+        @Nullable Ref<PhysicsStore> bodyRef,
+        @Nonnull Ref<EntityStore> proxy) {
+        if (hasAttachedAuthoritativePhysicsStore()) {
+            PhysicsProjectionIndexResource projection =
+                authoritativeProjectionIndex("check generated visual proxy");
+            Ref<EntityStore> registered = bodyRef != null
+                ? projection.getGeneratedVisualProxy(bodyRef)
+                : projection.getGeneratedVisualProxy(bodyUuid);
+            return sameRef(registered, proxy);
+        }
+        return visualRuntime.isGeneratedVisualProxy(RigidBodyKey.of(bodyUuid), proxy);
     }
 
     public boolean isGeneratedVisualProxy(@Nonnull Ref<PhysicsStore> bodyRef,

@@ -680,14 +680,13 @@ public class PhysicsDetachedVisualMaterializationSystem extends TickingSystem<En
                 var ref = archetypeChunk.getReferenceTo(index);
                 orphanProxies.add(new OrphanVisualProxy(attachment.getBodyUuid(),
                     attachment.getBodyRef(),
-                    RigidBodyKey.of(attachment.getBodyUuid()),
                     ref));
             });
 
         for (OrphanVisualProxy proxy : orphanProxies) {
             if (!hasLiveVisualTarget(resource,
+                proxy.bodyUuid(),
                 proxy.bodyRef(),
-                proxy.bodyKey(),
                 proxy.ref())) {
                 GeneratedProxyLifecycle.removeProxy(store,
                     resource,
@@ -699,33 +698,30 @@ public class PhysicsDetachedVisualMaterializationSystem extends TickingSystem<En
     }
 
     private static boolean hasLiveVisualTarget(@Nonnull PhysicsWorldRuntimeResource resource,
+        @Nonnull UUID bodyUuid,
         @Nullable Ref<PhysicsStore> bodyRef,
-        @Nonnull RigidBodyKey bodyKey,
         @Nonnull Ref<EntityStore> proxyRef) {
         PhysicsBodyRegistrationView registration = bodyRef != null
             ? resource.getBodyRegistrationView(bodyRef)
-            : resource.getBodyRegistrationView(bodyKey);
+            : resource.getBodyRegistrationView(bodyUuid);
         if (registration == null) {
-            return resource.isBodyCreationPending(bodyKey)
-                && isGeneratedVisualProxy(resource, bodyRef, bodyKey, proxyRef);
+            return resource.isBodyCreationPending(bodyUuid)
+                && isGeneratedVisualProxy(resource, bodyUuid, bodyRef, proxyRef);
         }
         return resource.getSpaceBinding(registration.spaceId()) != null
-            && isGeneratedVisualProxy(resource, bodyRef, bodyKey, proxyRef);
+            && isGeneratedVisualProxy(resource, bodyUuid, bodyRef, proxyRef);
     }
 
     private static boolean isGeneratedVisualProxy(@Nonnull PhysicsWorldRuntimeResource resource,
+        @Nonnull UUID bodyUuid,
         @Nullable Ref<PhysicsStore> bodyRef,
-        @Nonnull RigidBodyKey bodyKey,
         @Nonnull Ref<EntityStore> proxyRef) {
-        return bodyRef != null
-            ? resource.isGeneratedVisualProxy(bodyRef, proxyRef)
-            : resource.isGeneratedVisualProxy(bodyKey, proxyRef);
+        return resource.isGeneratedVisualProxy(bodyUuid, bodyRef, proxyRef);
     }
 
     private record OrphanVisualProxy(
         @Nonnull UUID bodyUuid,
         @Nullable Ref<PhysicsStore> bodyRef,
-        @Nonnull RigidBodyKey bodyKey,
         @Nonnull Ref<EntityStore> ref
     ) {
     }
