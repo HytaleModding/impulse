@@ -24,12 +24,15 @@ import dev.hytalemodding.impulse.core.internal.physicsstore.resources.PhysicsWor
 import dev.hytalemodding.impulse.core.internal.resources.BackendSpaceHandle;
 import dev.hytalemodding.impulse.core.internal.systems.step.PhysicsStepCountPolicy;
 import dev.hytalemodding.impulse.core.plugin.physicsstore.components.DynamicsComponent;
+import dev.hytalemodding.impulse.core.plugin.physicsstore.snapshots.PhysicsStoreBodySnapshot;
 import dev.hytalemodding.impulse.core.plugin.settings.PhysicsWorldSettings;
 import dev.hytalemodding.impulse.core.plugin.settings.PhysicsStepMode;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
 import javax.annotation.Nonnull;
+import org.joml.Quaternionf;
+import org.joml.Vector3f;
 
 /**
  * Submits the next backend step from PhysicsStore.tick().
@@ -92,7 +95,7 @@ public final class StepSubmissionSystem extends TickingSystem<PhysicsStore> {
         }
         List<RuntimeStepBinding> bindings = runtimeStepBindings(runtime);
         boolean submitted = scheduler.submitStep(input,
-            () -> runOwnerStep(bindings, steps, stepDt, profilingEnabled),
+            () -> runOwnerStep(runtime, bindings, steps, stepDt, profilingEnabled),
             System.nanoTime());
         if (!submitted) {
             throw new IllegalStateException("PhysicsStore owner-lane scheduler refused a submitted step");
@@ -100,7 +103,8 @@ public final class StepSubmissionSystem extends TickingSystem<PhysicsStore> {
     }
 
     @Nonnull
-    private static CompletedStep runOwnerStep(@Nonnull List<RuntimeStepBinding> bindings,
+    private static CompletedStep runOwnerStep(@Nonnull PhysicsRuntimeResource runtime,
+        @Nonnull List<RuntimeStepBinding> bindings,
         int steps,
         float stepDt,
         boolean profilingEnabled) {
@@ -109,7 +113,7 @@ public final class StepSubmissionSystem extends TickingSystem<PhysicsStore> {
         for (RuntimeStepBinding binding : bindings) {
             counters.spaceCount++;
             for (int step = 0; step < steps; step++) {
-                binding.backendRuntime().step(binding.spaceHandle(), stepDt);
+                binding.backendRuntime().step(binding.spaceHandle().value(), stepDt);
                 counters.substeps++;
             }
         }
@@ -117,10 +121,16 @@ public final class StepSubmissionSystem extends TickingSystem<PhysicsStore> {
         PhysicsStepPhaseStats nativePhaseStats = profilingEnabled
             ? collectStepPhaseStats(bindings)
             : PhysicsStepPhaseStats.unavailable();
+        long snapshotStartNanos = profilingEnabled ? System.nanoTime() : 0L;
+        List<PhysicsStoreBodySnapshot> bodySnapshots = collectOwnerLaneSnapshots(runtime,
+            bindings);
+        long snapshotNanos = profilingEnabled ? System.nanoTime() - snapshotStartNanos : 0L;
         return new CompletedStep(counters.spaceCount,
             counters.substeps,
             stepNanos,
-            nativePhaseStats);
+            snapshotNanos,
+            nativePhaseStats,
+            bodySnapshots);
     }
 
     @Nonnull
@@ -128,8 +138,108 @@ public final class StepSubmissionSystem extends TickingSystem<PhysicsStore> {
         @Nonnull PhysicsRuntimeResource runtime) {
         List<RuntimeStepBinding> bindings = new ArrayList<>();
         runtime.forEachRuntimeSpaceBinding((_, _, spaceHandle, backendRuntime) ->
-            bindings.add(new RuntimeStepBinding(spaceHandle.value(), backendRuntime)));
+            bindings.add(new RuntimeStepBinding(spaceHandle, backendRuntime)));
         return bindings;
+    }
+
+    @Nonnull
+    private static List<PhysicsStoreBodySnapshot> collectOwnerLaneSnapshots(
+        @Nonnull PhysicsRuntimeResource runtime,
+        @Nonnull List<RuntimeStepBinding> bindings) {
+        List<PhysicsStoreBodySnapshot> snapshots = new ArrayList<>();
+        for (RuntimeStepBinding binding : bindings) {
+            binding.backendRuntime().snapshotBodies(binding.spaceHandle().value(),
+                bodyIds -> runtime.forEachBodyHandle(binding.spaceHandle(),
+                    bodyIds::accept),
+                (bodyId,
+                    _,
+                    bodyTypeCode,
+                    positionX,
+                    positionY,
+                    positionZ,
+                    rotationX,
+                    rotationY,
+                    rotationZ,
+                    rotationW,
+                    linearVelocityX,
+                    linearVelocityY,
+                    linearVelocityZ,
+                    angularVelocityX,
+                    angularVelocityY,
+                    angularVelocityZ,
+                    sleeping,
+                    _,
+                    _,
+                    _,
+                    _,
+                    _,
+                    _,
+                    _,
+                    _,
+                    _,
+                    centerOfMassOffsetY,
+                    _,
+                    _,
+                    _,
+                    _,
+                    _,
+                    _,
+                    _) -> collectOwnerLaneSnapshot(runtime,
+                        snapshots,
+                        bodyId,
+                        bodyTypeCode,
+                        positionX,
+                        positionY,
+                        positionZ,
+                        rotationX,
+                        rotationY,
+                        rotationZ,
+                        rotationW,
+                        linearVelocityX,
+                        linearVelocityY,
+                        linearVelocityZ,
+                        angularVelocityX,
+                        angularVelocityY,
+                        angularVelocityZ,
+                        centerOfMassOffsetY,
+                        sleeping));
+        }
+        return snapshots;
+    }
+
+    private static void collectOwnerLaneSnapshot(@Nonnull PhysicsRuntimeResource runtime,
+        @Nonnull List<PhysicsStoreBodySnapshot> snapshots,
+        long bodyId,
+        int bodyTypeCode,
+        float positionX,
+        float positionY,
+        float positionZ,
+        float rotationX,
+        float rotationY,
+        float rotationZ,
+        float rotationW,
+        float linearVelocityX,
+        float linearVelocityY,
+        float linearVelocityZ,
+        float angularVelocityX,
+        float angularVelocityY,
+        float angularVelocityZ,
+        float centerOfMassOffsetY,
+        boolean sleeping) {
+        BodySnapshotMetadata metadata = runtime.getBodySnapshotMetadata(bodyId);
+        if (metadata == null) {
+            return;
+        }
+        snapshots.add(new PhysicsStoreBodySnapshot(metadata.bodyRef(),
+            metadata.bodyUuid(),
+            metadata.spaceUuid(),
+            BackendRuntimeCodes.bodyType(bodyTypeCode),
+            new Vector3f(positionX, positionY, positionZ),
+            new Quaternionf(rotationX, rotationY, rotationZ, rotationW),
+            new Vector3f(linearVelocityX, linearVelocityY, linearVelocityZ),
+            new Vector3f(angularVelocityX, angularVelocityY, angularVelocityZ),
+            centerOfMassOffsetY,
+            sleeping));
     }
 
     private static int resolveAdaptiveStepCount(@Nonnull PhysicsRuntimeResource runtime,
@@ -199,7 +309,7 @@ public final class StepSubmissionSystem extends TickingSystem<PhysicsStore> {
         StepPhaseStatsCapture capture = new StepPhaseStatsCapture();
         for (RuntimeStepBinding binding : bindings) {
             capture.reset();
-            binding.backendRuntime().stepPhaseStats(binding.spaceHandle(), capture);
+            binding.backendRuntime().stepPhaseStats(binding.spaceHandle().value(), capture);
             stats.add(capture.value());
         }
         return stats.value();
@@ -417,7 +527,7 @@ public final class StepSubmissionSystem extends TickingSystem<PhysicsStore> {
         private int substeps;
     }
 
-    private record RuntimeStepBinding(int spaceHandle,
+    private record RuntimeStepBinding(@Nonnull BackendSpaceHandle spaceHandle,
                                       @Nonnull PhysicsBackendRuntime backendRuntime) {
     }
 

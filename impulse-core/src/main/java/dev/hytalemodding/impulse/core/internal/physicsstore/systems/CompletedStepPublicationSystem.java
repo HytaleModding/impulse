@@ -12,16 +12,18 @@ import com.hypixel.hytale.component.system.tick.TickingSystem;
 import com.hypixel.hytale.server.core.universe.world.storage.PhysicsStore;
 import dev.hytalemodding.impulse.api.PhysicsContactPhase;
 import dev.hytalemodding.impulse.api.SpaceId;
-import dev.hytalemodding.impulse.api.runtime.BackendRuntimeCodes;
 import dev.hytalemodding.impulse.core.internal.physicsstore.resources.PhysicsBodyRegistrationResource;
 import dev.hytalemodding.impulse.core.internal.physicsstore.resources.PhysicsBodyRegistrationResource.BodyRegistrationPublication;
 import dev.hytalemodding.impulse.core.internal.physicsstore.resources.PhysicsEventResource;
 import dev.hytalemodding.impulse.core.internal.physicsstore.resources.PhysicsProfilingResource;
+import dev.hytalemodding.impulse.core.internal.physicsstore.resources.PhysicsRestoreStatusResource;
 import dev.hytalemodding.impulse.core.internal.physicsstore.resources.PhysicsRuntimeResource;
 import dev.hytalemodding.impulse.core.internal.physicsstore.resources.PhysicsRuntimeResource.BodyHitMetadata;
-import dev.hytalemodding.impulse.core.internal.physicsstore.resources.PhysicsRuntimeResource.BodySnapshotMetadata;
 import dev.hytalemodding.impulse.core.internal.physicsstore.resources.PhysicsSpaceCompatibilityIndexResource;
 import dev.hytalemodding.impulse.core.internal.physicsstore.resources.PhysicsSnapshotResource;
+import dev.hytalemodding.impulse.core.internal.physicsstore.resources.PhysicsStepSchedulerResource;
+import dev.hytalemodding.impulse.core.internal.physicsstore.resources.PhysicsStepSchedulerResource.CompletedStep;
+import dev.hytalemodding.impulse.core.internal.physicsstore.resources.PhysicsStepSchedulerResource.StepInput;
 import dev.hytalemodding.impulse.core.internal.physicsstore.resources.PhysicsWorldSettingsResource;
 import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyKind;
 import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyPersistenceMode;
@@ -39,7 +41,6 @@ import java.util.Set;
 import java.util.UUID;
 import java.util.function.BiConsumer;
 import javax.annotation.Nonnull;
-import org.joml.Quaternionf;
 import org.joml.Vector3f;
 
 /**
@@ -50,80 +51,50 @@ public final class CompletedStepPublicationSystem extends TickingSystem<PhysicsS
 
     private static final Set<Dependency<PhysicsStore>> DEPENDENCIES = Set.of(
         new SystemDependency<>(Order.AFTER, TargetBindingSystem.class),
-        new SystemDependency<>(Order.AFTER, TerrainColliderBindingSystem.class),
-        new SystemDependency<>(Order.AFTER, StepCompletionPublicationSystem.class)
+        new SystemDependency<>(Order.AFTER, TerrainColliderBindingSystem.class)
     );
 
     @Override
     public void tick(float dt, int systemIndex, @Nonnull Store<PhysicsStore> store) {
+        CompletedStep completed = store.getResource(PhysicsStepSchedulerResource.getResourceType())
+            .pollCompletedStep();
+        if (completed == null) {
+            return;
+        }
+        if (completed.failed()) {
+            Throwable failure = completed.failure();
+            String message = failure != null ? failure.getMessage() : null;
+            store.getResource(PhysicsRestoreStatusResource.getResourceType())
+                .markFailed(message != null ? message : "PhysicsStore owner-lane step failed");
+            throw new IllegalStateException("PhysicsStore owner-lane step failed", failure);
+        }
         PhysicsRuntimeResource runtime = store.getResource(PhysicsRuntimeResource.getResourceType());
         PhysicsSnapshotResource snapshot = store.getResource(PhysicsSnapshotResource.getResourceType());
         PhysicsProfilingResource profiling = store.getResource(PhysicsProfilingResource.getResourceType());
         PhysicsSpaceCompatibilityIndexResource compatibility = store.getResource(
             PhysicsSpaceCompatibilityIndexResource.getResourceType());
-        boolean profilingEnabled = profiling.isEnabled();
-        long snapshotStartNanos = profilingEnabled ? System.nanoTime() : 0L;
-        List<PhysicsStoreBodySnapshot> bodies = new ArrayList<>();
+        profiling.recordStep(completed.stepSubmitNanos(),
+            completed.spaces(),
+            completed.substeps(),
+            completed.nativePhaseStats());
+        StepInput input = completed.input();
+        if (input != null) {
+            profiling.recordStepScheduling(input.inputDtSeconds(),
+                input.submittedDtSeconds(),
+                input.backlogDtSeconds(),
+                input.droppedBacklogDtSeconds(),
+                input.dtCapHit());
+        }
+        List<PhysicsStoreBodySnapshot> bodies = completed.bodySnapshots();
         Set<UUID> snapshotBodyUuids = new ObjectOpenHashSet<>();
-        runtime.forEachRuntimeSpaceBinding((_, _, spaceHandle, backendRuntime) ->
-            backendRuntime.snapshotBodies(spaceHandle.value(),
-                bodyConsumer -> runtime.forEachBodyHandle(spaceHandle, bodyConsumer::accept),
-                (bodyId,
-                    _,
-                    bodyTypeCode,
-                    positionX,
-                    positionY,
-                    positionZ,
-                    rotationX,
-                    rotationY,
-                    rotationZ,
-                    rotationW,
-                    linearVelocityX,
-                    linearVelocityY,
-                    linearVelocityZ,
-                    angularVelocityX,
-                    angularVelocityY,
-                    angularVelocityZ,
-                    sleeping,
-                    _,
-                    _,
-                    _,
-                    _,
-                    _,
-                    _,
-                    _,
-                    _,
-                    _,
-                    centerOfMassOffsetY,
-                    _,
-                    _,
-                    _,
-                    _,
-                    _,
-                    _,
-                    _) -> collectBodySnapshot(runtime,
-                        bodies,
-                        snapshotBodyUuids,
-                        bodyId,
-                        bodyTypeCode,
-                        positionX,
-                        positionY,
-                        positionZ,
-                        rotationX,
-                        rotationY,
-                        rotationZ,
-                        rotationW,
-                        linearVelocityX,
-                        linearVelocityY,
-                        linearVelocityZ,
-                        angularVelocityX,
-                        angularVelocityY,
-                        angularVelocityZ,
-                        centerOfMassOffsetY,
-                        sleeping)));
+        for (PhysicsStoreBodySnapshot body : bodies) {
+            snapshotBodyUuids.add(body.bodyUuid());
+        }
         long nextSequence = snapshot.getLatestFrame().sequence() + 1L;
-        PhysicsStoreSnapshotFrame frame = new PhysicsStoreSnapshotFrame(nextSequence, dt, bodies);
-        long snapshotNanos = profilingEnabled ? System.nanoTime() - snapshotStartNanos : 0L;
+        float frameDt = input != null ? input.submittedDtSeconds() : dt;
+        PhysicsStoreSnapshotFrame frame = new PhysicsStoreSnapshotFrame(nextSequence,
+            frameDt,
+            bodies);
         snapshot.publish(frame);
         store.getResource(PhysicsBodyRegistrationResource.getResourceType())
             .publish(collectRegistrationViews(store,
@@ -131,53 +102,16 @@ public final class CompletedStepPublicationSystem extends TickingSystem<PhysicsS
                 runtime,
                 compatibility,
                 snapshotBodyUuids));
-        profiling.recordSnapshot(snapshotNanos, bodies.size());
+        profiling.recordSnapshot(completed.snapshotNanos(), bodies.size());
         StepBackendEvents backendEvents = collectBackendEvents(store, runtime);
         store.getResource(PhysicsEventResource.getResourceType())
             .publishStepFrame(frame.sequence(),
                 Math.max(0L, store.getExternalData().getWorld().getTick()),
                 bodies.size(),
                 profiling.getStepSubmitNanos(),
-                snapshotNanos,
+                completed.snapshotNanos(),
                 backendEvents.physicsEvents,
                 backendEvents.droppedBackendEventCount);
-    }
-
-    private static void collectBodySnapshot(@Nonnull PhysicsRuntimeResource runtime,
-        @Nonnull List<PhysicsStoreBodySnapshot> bodies,
-        @Nonnull Set<UUID> snapshotBodyUuids,
-        long bodyId,
-        int bodyTypeCode,
-        float positionX,
-        float positionY,
-        float positionZ,
-        float rotationX,
-        float rotationY,
-        float rotationZ,
-        float rotationW,
-        float linearVelocityX,
-        float linearVelocityY,
-        float linearVelocityZ,
-        float angularVelocityX,
-        float angularVelocityY,
-        float angularVelocityZ,
-        float centerOfMassOffsetY,
-        boolean sleeping) {
-        BodySnapshotMetadata metadata = runtime.getBodySnapshotMetadata(bodyId);
-        if (metadata == null) {
-            return;
-        }
-        snapshotBodyUuids.add(metadata.bodyUuid());
-        bodies.add(new PhysicsStoreBodySnapshot(metadata.bodyRef(),
-            metadata.bodyUuid(),
-            metadata.spaceUuid(),
-            BackendRuntimeCodes.bodyType(bodyTypeCode),
-            new Vector3f(positionX, positionY, positionZ),
-            new Quaternionf(rotationX, rotationY, rotationZ, rotationW),
-            new Vector3f(linearVelocityX, linearVelocityY, linearVelocityZ),
-            new Vector3f(angularVelocityX, angularVelocityY, angularVelocityZ),
-            centerOfMassOffsetY,
-            sleeping));
     }
 
     @Nonnull

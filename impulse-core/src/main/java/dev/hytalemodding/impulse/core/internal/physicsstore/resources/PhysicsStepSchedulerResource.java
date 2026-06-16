@@ -4,8 +4,10 @@ import com.hypixel.hytale.component.Resource;
 import com.hypixel.hytale.component.ResourceType;
 import com.hypixel.hytale.server.core.universe.world.storage.PhysicsStore;
 import dev.hytalemodding.impulse.api.PhysicsStepPhaseStats;
+import dev.hytalemodding.impulse.core.plugin.physicsstore.snapshots.PhysicsStoreBodySnapshot;
 import dev.hytalemodding.impulse.core.plugin.physicsstore.PhysicsStoreTypes;
 import dev.hytalemodding.impulse.core.plugin.settings.PhysicsStepSchedulingMode;
+import java.util.List;
 import java.util.Objects;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
@@ -249,21 +251,42 @@ public final class PhysicsStepSchedulerResource implements Resource<PhysicsStore
                                 int spaces,
                                 int substeps,
                                 long stepSubmitNanos,
+                                long snapshotNanos,
                                 @Nonnull PhysicsStepPhaseStats nativePhaseStats,
+                                @Nonnull List<PhysicsStoreBodySnapshot> bodySnapshots,
                                 @Nullable Throwable failure) {
 
         public CompletedStep(int spaces,
             int substeps,
             long stepSubmitNanos,
             @Nonnull PhysicsStepPhaseStats nativePhaseStats) {
-            this(null, spaces, substeps, stepSubmitNanos, nativePhaseStats, null);
+            this(spaces, substeps, stepSubmitNanos, 0L, nativePhaseStats, List.of());
+        }
+
+        public CompletedStep(int spaces,
+            int substeps,
+            long stepSubmitNanos,
+            long snapshotNanos,
+            @Nonnull PhysicsStepPhaseStats nativePhaseStats,
+            @Nonnull List<PhysicsStoreBodySnapshot> bodySnapshots) {
+            this(null,
+                spaces,
+                substeps,
+                stepSubmitNanos,
+                snapshotNanos,
+                nativePhaseStats,
+                bodySnapshots,
+                null);
         }
 
         public CompletedStep {
             spaces = Math.max(0, spaces);
             substeps = Math.max(0, substeps);
             stepSubmitNanos = Math.max(0L, stepSubmitNanos);
+            snapshotNanos = Math.max(0L, snapshotNanos);
             Objects.requireNonNull(nativePhaseStats, "nativePhaseStats");
+            bodySnapshots = List.copyOf(Objects.requireNonNull(bodySnapshots,
+                "bodySnapshots"));
         }
 
         @Nonnull
@@ -272,7 +295,9 @@ public final class PhysicsStepSchedulerResource implements Resource<PhysicsStore
                 spaces,
                 substeps,
                 stepSubmitNanos,
+                snapshotNanos,
                 nativePhaseStats,
+                bodySnapshots,
                 failure);
         }
 
@@ -282,7 +307,9 @@ public final class PhysicsStepSchedulerResource implements Resource<PhysicsStore
                 0,
                 0,
                 0L,
+                0L,
                 PhysicsStepPhaseStats.unavailable(),
+                List.of(),
                 Objects.requireNonNull(failure, "failure"));
         }
 
