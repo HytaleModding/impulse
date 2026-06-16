@@ -7,7 +7,6 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import dev.hytalemodding.impulse.api.PhysicsBodyType;
 import dev.hytalemodding.impulse.api.ShapeType;
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsVisualRuntime.BodyVisualInterestState;
-import dev.hytalemodding.impulse.core.plugin.body.RigidBodyKey;
 import dev.hytalemodding.impulse.core.plugin.simulation.view.RaycastHitView;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
@@ -59,8 +58,7 @@ class BodyVisualInterestStateTest {
     void pendingRaycastResultsArePolledWithoutBlocking() {
         BodyVisualInterestState state = new BodyVisualInterestState();
         CompletableFuture<Optional<RaycastHitView>> pending = new CompletableFuture<>();
-        RigidBodyKey bodyKey = RigidBodyKey.random();
-        RaycastHitView hit = new RaycastHitView(bodyKey,
+        RaycastHitView hit = new RaycastHitView(null,
             PhysicsBodyType.DYNAMIC,
             new Vector3f(),
             new Vector3f(0.0f, 1.0f, 0.0f),

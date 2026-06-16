@@ -3,41 +3,30 @@ package dev.hytalemodding.impulse.core.internal.modules.control.systems;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertSame;
-import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import com.hypixel.hytale.component.Ref;
 import com.hypixel.hytale.component.ComponentRegistry;
 import com.hypixel.hytale.component.EmptyResourceStorage;
 import com.hypixel.hytale.component.Store;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
-import dev.hytalemodding.impulse.api.Impulse;
-import dev.hytalemodding.impulse.api.PhysicsBody;
-import dev.hytalemodding.impulse.api.PhysicsSpace;
-import dev.hytalemodding.impulse.api.testsupport.FakePhysicsBackend;
+import com.hypixel.hytale.server.core.universe.world.storage.PhysicsStore;
 import dev.hytalemodding.impulse.core.internal.modules.control.systems.PhysicsKinematicControlSystem.ControlAnchorUpdate;
 import dev.hytalemodding.impulse.core.internal.modules.control.systems.PhysicsKinematicControlSystem.ControlMutationState;
-import dev.hytalemodding.impulse.core.internal.testsupport.LegacyLiveHandleTestResource;
 import dev.hytalemodding.impulse.core.internal.testsupport.TestInstanceFactory;
-import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyKind;
-import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyPersistenceMode;
-import dev.hytalemodding.impulse.core.plugin.body.RigidBodyKey;
-import java.util.UUID;
-import java.util.concurrent.atomic.AtomicInteger;
 import javax.annotation.Nonnull;
 import org.joml.Vector3f;
 import org.junit.jupiter.api.Test;
 
 class PhysicsKinematicControlSystemTest {
 
-    private static final AtomicInteger BACKEND_COUNTER = new AtomicInteger();
-
     @Test
     void controlAnchorUpdateCopiesMutableVectors() {
-        UUID bodyId = UUID.randomUUID();
-        UUID anchorBodyId = UUID.randomUUID();
+        Ref<PhysicsStore> bodyRef = new TestPhysicsRef(1);
+        Ref<PhysicsStore> anchorBodyRef = new TestPhysicsRef(2);
         Vector3f target = new Vector3f(1.0f, 2.0f, 3.0f);
         Vector3f releaseVelocity = new Vector3f(4.0f, 5.0f, 6.0f);
-        ControlAnchorUpdate update = new ControlAnchorUpdate(bodyId,
-            anchorBodyId,
+        ControlAnchorUpdate update = new ControlAnchorUpdate(bodyRef,
+            anchorBodyRef,
             target,
             releaseVelocity);
         target.zero();
@@ -50,47 +39,49 @@ class PhysicsKinematicControlSystemTest {
     @Test
     void submittedControlMutationSuppressesIdenticalTarget() {
         ControlMutationState state = new ControlMutationState();
-        UUID bodyId = UUID.randomUUID();
-        ControlAnchorUpdate first = update(bodyId, bodyId, 1.0f);
-        ControlAnchorUpdate sameTarget = update(bodyId, bodyId, 1.0f);
-        ControlAnchorUpdate changedTarget = update(bodyId, bodyId, 2.0f);
+        Ref<PhysicsStore> bodyRef = new TestPhysicsRef(1);
+        Ref<PhysicsStore> anchorBodyRef = new TestPhysicsRef(2);
+        ControlAnchorUpdate first = update(bodyRef, anchorBodyRef, 1.0f);
+        ControlAnchorUpdate sameTarget = update(bodyRef, anchorBodyRef, 1.0f);
+        ControlAnchorUpdate changedTarget = update(bodyRef, anchorBodyRef, 2.0f);
 
-        state.trackSubmittedMutation(bodyId, first);
+        state.trackSubmittedMutation(anchorBodyRef, first);
 
-        assertNull(state.selectReadyUpdate(bodyId, sameTarget));
-        assertSame(changedTarget, state.selectReadyUpdate(bodyId, changedTarget));
+        assertNull(state.selectReadyUpdate(anchorBodyRef, sameTarget));
+        assertSame(changedTarget, state.selectReadyUpdate(anchorBodyRef, changedTarget));
     }
 
     @Test
     void clearingControlMutationStateAllowsIdenticalTargetRetry() {
         ControlMutationState state = new ControlMutationState();
-        UUID bodyId = UUID.randomUUID();
-        ControlAnchorUpdate first = update(bodyId, bodyId, 1.0f);
-        ControlAnchorUpdate retry = update(bodyId, bodyId, 1.0f);
+        Ref<PhysicsStore> bodyRef = new TestPhysicsRef(1);
+        Ref<PhysicsStore> anchorBodyRef = new TestPhysicsRef(2);
+        ControlAnchorUpdate first = update(bodyRef, anchorBodyRef, 1.0f);
+        ControlAnchorUpdate retry = update(bodyRef, anchorBodyRef, 1.0f);
 
-        state.trackSubmittedMutation(bodyId, first);
-        state.clear(bodyId);
+        state.trackSubmittedMutation(anchorBodyRef, first);
+        state.clear(anchorBodyRef);
 
-        assertSame(retry, state.selectReadyUpdate(bodyId, retry));
+        assertSame(retry, state.selectReadyUpdate(anchorBodyRef, retry));
     }
 
     @Test
     void trackingSubmittedControlMutationUpdatesSuppressionTarget() {
         ControlMutationState state = new ControlMutationState();
-        UUID bodyId = UUID.randomUUID();
-        UUID anchorBodyId = UUID.randomUUID();
-        ControlAnchorUpdate first = update(bodyId, anchorBodyId, 1.0f);
-        ControlAnchorUpdate second = update(bodyId, anchorBodyId, 2.0f);
-        ControlAnchorUpdate sameSecondTarget = update(bodyId, anchorBodyId, 2.0f);
-        ControlAnchorUpdate third = update(bodyId, anchorBodyId, 3.0f);
+        Ref<PhysicsStore> bodyRef = new TestPhysicsRef(1);
+        Ref<PhysicsStore> anchorBodyRef = new TestPhysicsRef(2);
+        ControlAnchorUpdate first = update(bodyRef, anchorBodyRef, 1.0f);
+        ControlAnchorUpdate second = update(bodyRef, anchorBodyRef, 2.0f);
+        ControlAnchorUpdate sameSecondTarget = update(bodyRef, anchorBodyRef, 2.0f);
+        ControlAnchorUpdate third = update(bodyRef, anchorBodyRef, 3.0f);
 
-        state.trackSubmittedMutation(anchorBodyId, first);
-        assertSame(second, state.selectReadyUpdate(anchorBodyId, second));
+        state.trackSubmittedMutation(anchorBodyRef, first);
+        assertSame(second, state.selectReadyUpdate(anchorBodyRef, second));
 
-        state.trackSubmittedMutation(anchorBodyId, second);
+        state.trackSubmittedMutation(anchorBodyRef, second);
 
-        assertNull(state.selectReadyUpdate(anchorBodyId, sameSecondTarget));
-        assertSame(third, state.selectReadyUpdate(anchorBodyId, third));
+        assertNull(state.selectReadyUpdate(anchorBodyRef, sameSecondTarget));
+        assertSame(third, state.selectReadyUpdate(anchorBodyRef, third));
     }
 
     @Test
@@ -101,65 +92,43 @@ class PhysicsKinematicControlSystemTest {
             EmptyResourceStorage.get());
         try {
             ControlMutationState state = PhysicsKinematicControlSystem.stateFor(store);
-            UUID bodyId = UUID.randomUUID();
-            UUID anchorBodyId = UUID.randomUUID();
-            ControlAnchorUpdate first = update(bodyId, anchorBodyId, 1.0f);
-            ControlAnchorUpdate queued = update(bodyId, anchorBodyId, 1.0f);
-            ControlAnchorUpdate afterRelease = update(bodyId, anchorBodyId, 1.0f);
+            Ref<PhysicsStore> bodyRef = new TestPhysicsRef(1);
+            Ref<PhysicsStore> anchorBodyRef = new TestPhysicsRef(2);
+            ControlAnchorUpdate first = update(bodyRef, anchorBodyRef, 1.0f);
+            ControlAnchorUpdate queued = update(bodyRef, anchorBodyRef, 1.0f);
+            ControlAnchorUpdate afterRelease = update(bodyRef, anchorBodyRef, 1.0f);
 
-            state.trackSubmittedMutation(anchorBodyId, first);
-            assertNull(state.selectReadyUpdate(anchorBodyId, queued));
+            state.trackSubmittedMutation(anchorBodyRef, first);
+            assertNull(state.selectReadyUpdate(anchorBodyRef, queued));
 
-            PhysicsKinematicControlSystem.clearMutationState(store, anchorBodyId);
+            PhysicsKinematicControlSystem.clearMutationState(store, anchorBodyRef);
 
-            assertSame(afterRelease, state.selectReadyUpdate(anchorBodyId, afterRelease));
+            assertSame(afterRelease, state.selectReadyUpdate(anchorBodyRef, afterRelease));
         } finally {
             registry.removeStore(store);
             registry.shutdown();
         }
     }
 
-    @Test
-    void controlJointCleanupResolvesJointFromBodyIds() {
-        FakePhysicsBackend backend =
-            new FakePhysicsBackend("test:control-joint-" + BACKEND_COUNTER.incrementAndGet());
-        Impulse.registerBackend(backend);
-        LegacyLiveHandleTestResource resource = new LegacyLiveHandleTestResource();
-        PhysicsSpace space = resource.createLiveSpace(backend.getId());
-        PhysicsBody body = space.createBox(0.5f, 0.5f, 0.5f, 1.0f);
-        PhysicsBody anchorBody = space.createSphere(0.1f, 1.0f);
-        RigidBodyKey bodyId = resource.addBody(space.id(),
-            body,
-            PhysicsBodyKind.BODY,
-            PhysicsBodyPersistenceMode.PERSISTENT);
-        RigidBodyKey anchorBodyId = resource.addBody(space.id(),
-            anchorBody,
-            PhysicsBodyKind.TEMPORARY,
-            PhysicsBodyPersistenceMode.RUNTIME_ONLY);
-        space.createPointJoint(anchorBody, body, new Vector3f(), new Vector3f());
-
-        assertEquals(1, space.jointCount());
-
-        boolean removed = resource.callOwner("remove control joint", () -> {
-            if (space.getJoints().isEmpty()) {
-                return false;
-            }
-            space.removeJoint(space.getJoints().getFirst());
-            return true;
-        });
-        assertTrue(removed);
-
-        assertEquals(0, space.jointCount());
-    }
-
     @Nonnull
-    private static ControlAnchorUpdate update(@Nonnull UUID bodyId,
-        @Nonnull UUID anchorBodyId,
+    private static ControlAnchorUpdate update(@Nonnull Ref<PhysicsStore> bodyRef,
+        @Nonnull Ref<PhysicsStore> anchorBodyRef,
         float coordinate) {
-        return new ControlAnchorUpdate(bodyId,
-            anchorBodyId,
+        return new ControlAnchorUpdate(bodyRef,
+            anchorBodyRef,
             new Vector3f(coordinate, coordinate, coordinate),
             new Vector3f(coordinate + 1.0f, coordinate + 1.0f, coordinate + 1.0f));
     }
 
+    private static final class TestPhysicsRef extends Ref<PhysicsStore> {
+
+        private TestPhysicsRef(int index) {
+            super(null, index);
+        }
+
+        @Override
+        public boolean isValid() {
+            return true;
+        }
+    }
 }

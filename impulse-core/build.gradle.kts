@@ -29,6 +29,8 @@ dependencies {
     compileOnly(project(":impulse-early-plugin"))
     testImplementation(testFixtures(project(":impulse-api")))
     testImplementation(libs.objenesis)
+    testCompileOnly(project(":impulse-early-plugin"))
+    testRuntimeOnly(project(":impulse-early-plugin"))
     testCompileOnly("com.hypixel.hytale:Server:${property("hytale_version") as String}")
     testRuntimeOnly("com.hypixel.hytale:Server:${property("hytale_version") as String}")
     compileOnly(libs.crucible)

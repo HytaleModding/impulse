@@ -7,7 +7,6 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import com.hypixel.hytale.component.Ref;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsVisualRuntime;
-import dev.hytalemodding.impulse.core.plugin.body.RigidBodyKey;
 import java.util.UUID;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
@@ -15,10 +14,10 @@ import org.junit.jupiter.api.Test;
 
 class PhysicsVisualRuntimeTest {
 
-    private static final RigidBodyKey FIRST_BODY =
-        RigidBodyKey.of(UUID.fromString("00000000-0000-0000-0000-000000000001"));
-    private static final RigidBodyKey SECOND_BODY =
-        RigidBodyKey.of(UUID.fromString("00000000-0000-0000-0000-000000000002"));
+    private static final UUID FIRST_BODY =
+        UUID.fromString("00000000-0000-0000-0000-000000000001");
+    private static final UUID SECOND_BODY =
+        UUID.fromString("00000000-0000-0000-0000-000000000002");
 
     @Test
     void hasAttachmentsPrunesStaleReferencesWithoutCopyingLiveAttachments() {
@@ -27,29 +26,28 @@ class PhysicsVisualRuntimeTest {
         TestRef liveRef = new TestRef(true);
         TestRef staleRef = new TestRef(false);
 
-        assertFalse(runtime.hasAttachments(FIRST_BODY));
+        assertFalse(runtime.hasAttachments(FIRST_BODY, null));
 
-        runtime.registerAttachment(FIRST_BODY, staleRef);
-        runtime.registerAttachment(FIRST_BODY, liveRef);
+        runtime.registerAttachment(FIRST_BODY, null, staleRef);
+        runtime.registerAttachment(FIRST_BODY, null, liveRef);
 
-        assertTrue(runtime.hasAttachments(FIRST_BODY));
+        assertTrue(runtime.hasAttachments(FIRST_BODY, null));
         assertEquals(1, cleaned.get());
 
-        runtime.unregisterAttachment(FIRST_BODY, liveRef);
+        runtime.unregisterAttachment(FIRST_BODY, null, liveRef);
 
-        assertFalse(runtime.hasAttachments(FIRST_BODY));
+        assertFalse(runtime.hasAttachments(FIRST_BODY, null));
     }
 
     @Test
     void generatedVisualProxyCountPrunesStaleReferencesWithoutBodyIdCopy() {
         AtomicInteger cleaned = new AtomicInteger();
         PhysicsVisualRuntime runtime = new PhysicsVisualRuntime(_ -> cleaned.incrementAndGet());
-        runtime.setGeneratedVisualProxy(FIRST_BODY, new TestRef(true));
-        runtime.setGeneratedVisualProxy(SECOND_BODY, new TestRef(false));
+        runtime.setGeneratedVisualProxy(FIRST_BODY, null, new TestRef(true));
+        runtime.setGeneratedVisualProxy(SECOND_BODY, null, new TestRef(false));
 
         assertEquals(1, runtime.generatedVisualProxyCount());
         assertEquals(1, cleaned.get());
-        assertEquals(1, runtime.getGeneratedVisualProxyBodyKeys().size());
     }
 
     @Test
@@ -62,10 +60,10 @@ class PhysicsVisualRuntimeTest {
         });
         runtimeRef.set(runtime);
 
-        runtime.registerAttachment(FIRST_BODY, new TestRef(false));
-        runtime.setGeneratedVisualProxy(SECOND_BODY, new TestRef(false));
+        runtime.registerAttachment(FIRST_BODY, null, new TestRef(false));
+        runtime.setGeneratedVisualProxy(SECOND_BODY, null, new TestRef(false));
 
-        assertFalse(runtime.hasAttachments(FIRST_BODY));
+        assertFalse(runtime.hasAttachments(FIRST_BODY, null));
         assertEquals(0, runtime.generatedVisualProxyCount());
         assertEquals(2, cleaned.get());
     }

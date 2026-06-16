@@ -4,14 +4,15 @@ import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import com.hypixel.hytale.component.Ref;
 import com.hypixel.hytale.component.ComponentRegistry;
 import com.hypixel.hytale.component.EmptyResourceStorage;
 import com.hypixel.hytale.component.Store;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
+import com.hypixel.hytale.server.core.universe.world.storage.PhysicsStore;
 import dev.hytalemodding.impulse.core.internal.modules.control.components.PhysicsControlSessionComponent;
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsWorldRuntimeResource;
 import dev.hytalemodding.impulse.core.internal.testsupport.TestInstanceFactory;
-import dev.hytalemodding.impulse.core.plugin.body.RigidBodyKey;
 import dev.hytalemodding.impulse.core.plugin.modules.control.ImpulseControllableComponent;
 import dev.hytalemodding.impulse.core.plugin.modules.control.PhysicsControlSessions;
 import org.junit.jupiter.api.AfterEach;
@@ -57,14 +58,14 @@ class ControlLifecycleTest {
     void disablingLifecycleClearsRegisteredControlledBodies() {
         ControlLifecycle.enable();
         PhysicsWorldRuntimeResource resource = new PhysicsWorldRuntimeResource();
-        RigidBodyKey bodyKey = RigidBodyKey.random();
-        resource.markBodyControlled(bodyKey);
+        Ref<PhysicsStore> bodyRef = new TestPhysicsRef(7);
+        resource.markBodyControlled(bodyRef);
 
-        assertTrue(resource.isBodyControlled(bodyKey));
+        assertTrue(resource.isBodyControlled(bodyRef));
 
         ControlLifecycle.disable();
 
-        assertFalse(resource.isBodyControlled(bodyKey));
+        assertFalse(resource.isBodyControlled(bodyRef));
     }
 
     @Test
@@ -110,5 +111,17 @@ class ControlLifecycleTest {
 
         assertFalse(ControlLifecycle.isEnabled());
         registry.shutdown();
+    }
+
+    private static final class TestPhysicsRef extends Ref<PhysicsStore> {
+
+        private TestPhysicsRef(int index) {
+            super(null, index);
+        }
+
+        @Override
+        public boolean isValid() {
+            return true;
+        }
     }
 }

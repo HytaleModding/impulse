@@ -4,6 +4,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertSame;
 
+import com.hypixel.hytale.component.Ref;
 import dev.hytalemodding.impulse.api.BackendId;
 import dev.hytalemodding.impulse.api.PhysicsBodyType;
 import dev.hytalemodding.impulse.api.ShapeType;
@@ -11,8 +12,8 @@ import dev.hytalemodding.impulse.api.SpaceId;
 import dev.hytalemodding.impulse.api.runtime.PhysicsBackendRuntime;
 import dev.hytalemodding.impulse.api.testsupport.FakePhysicsBackendRuntimeProvider;
 import dev.hytalemodding.impulse.core.internal.resources.BackendBodyHandle;
+import dev.hytalemodding.impulse.core.internal.resources.BackendJointHandle;
 import dev.hytalemodding.impulse.core.internal.resources.BackendSpaceHandle;
-import dev.hytalemodding.impulse.core.plugin.body.RigidBodyKey;
 import dev.hytalemodding.impulse.core.plugin.physicsstore.snapshots.PhysicsStoreBodySnapshot;
 import dev.hytalemodding.impulse.core.plugin.physicsstore.snapshots.PhysicsStoreSnapshotFrame;
 import java.util.ArrayList;
@@ -51,34 +52,70 @@ class PhysicsStoreResourceIndexTest {
         UUID bodyUuid = UUID.fromString("00000000-0000-0000-0000-000000000004");
         BackendSpaceHandle spaceHandle = new BackendSpaceHandle(31);
         BackendBodyHandle bodyHandle = new BackendBodyHandle(42L);
-        RigidBodyKey bodyKey = RigidBodyKey.random();
+        Ref spaceRef = new TestRef(true);
+        Ref bodyRef = new TestRef(true);
 
         runtime.putRuntime(backendId, backendRuntime);
-        runtime.putSpaceBinding(spaceUuid, backendId, spaceHandle);
-        runtime.putBodyHandle(bodyUuid, spaceUuid, spaceHandle, bodyHandle);
-        runtime.putBodyHitMetadata(bodyHandle, bodyKey, PhysicsBodyType.DYNAMIC, ShapeType.BOX);
+        runtime.putSpaceBinding(spaceUuid, spaceRef, backendId, spaceHandle);
+        runtime.putBodyHandle(bodyUuid, bodyRef, spaceUuid, spaceHandle, bodyHandle);
+        runtime.putBodyHitMetadata(bodyHandle, bodyRef, PhysicsBodyType.DYNAMIC, ShapeType.BOX);
 
         assertSame(backendRuntime, runtime.getRuntime(backendId));
-        assertEquals(spaceHandle, runtime.getSpaceHandle(spaceUuid));
-        assertEquals(backendId, runtime.getSpaceBackendId(spaceUuid));
-        assertEquals(bodyHandle, runtime.getBodyHandle(bodyUuid));
-        assertEquals(spaceHandle, runtime.getBodySpaceHandle(bodyUuid));
+        assertEquals(spaceUuid, runtime.getSpaceUuid(spaceRef));
+        assertEquals(spaceHandle, runtime.getSpaceHandle(spaceRef));
+        assertEquals(backendId, runtime.getSpaceBackendId(spaceRef));
+        assertEquals(bodyHandle, runtime.getBodyHandle(bodyRef));
+        assertEquals(spaceHandle, runtime.getBodySpaceHandle(bodyRef));
         assertEquals(bodyUuid, runtime.getBodySnapshotMetadata(bodyHandle.value()).bodyUuid());
-        assertEquals(bodyKey, runtime.getBodyHitMetadata(bodyHandle).bodyKey());
 
         List<Long> handles = new ArrayList<>();
         runtime.forEachBodyHandle(spaceHandle, handles::add);
         assertEquals(List.of(bodyHandle.value()), handles);
 
-        runtime.removeBodyHandle(bodyUuid);
+        runtime.removeBodyHandle(bodyUuid, bodyRef);
 
-        assertNull(runtime.getBodyHandle(bodyUuid));
-        assertNull(runtime.getBodySpaceHandle(bodyUuid));
+        assertNull(runtime.getBodyHandle(bodyRef));
+        assertNull(runtime.getBodySpaceHandle(bodyRef));
         assertNull(runtime.getBodySnapshotMetadata(bodyHandle.value()));
         assertNull(runtime.getBodyHitMetadata(bodyHandle));
         handles.clear();
         runtime.forEachBodyHandle(spaceHandle, handles::add);
         assertEquals(List.of(), handles);
+    }
+
+    @Test
+    void runtimeIndexesExposeRefsForTopologyCleanup() throws ReflectiveOperationException {
+        PhysicsRuntimeResource runtime = new PhysicsRuntimeResource();
+        UUID spaceUuid = UUID.fromString("00000000-0000-0000-0000-000000000007");
+        UUID bodyUuid = UUID.fromString("00000000-0000-0000-0000-000000000008");
+        UUID jointUuid = UUID.fromString("00000000-0000-0000-0000-000000000009");
+        UUID terrainUuid = UUID.fromString("00000000-0000-0000-0000-00000000000a");
+        BackendId backendId = new BackendId("test:runtime-ref-index");
+        BackendSpaceHandle spaceHandle = new BackendSpaceHandle(43);
+        BackendBodyHandle bodyHandle = new BackendBodyHandle(44L);
+        BackendJointHandle jointHandle = new BackendJointHandle(45L);
+        BackendBodyHandle terrainHandle = new BackendBodyHandle(46L);
+        Ref spaceRef = new TestRef(true);
+        Ref bodyRef = new TestRef(true);
+        Ref jointRef = new TestRef(true);
+        Ref terrainRef = new TestRef(true);
+
+        runtime.putSpaceBinding(spaceUuid, spaceRef, backendId, spaceHandle);
+        runtime.putBodyHandle(bodyUuid, bodyRef, spaceUuid, spaceHandle, bodyHandle);
+        runtime.putJointHandle(jointRef, jointUuid, spaceHandle, jointHandle);
+        runtime.putTerrainBodyHandle(terrainRef, terrainUuid, spaceHandle, terrainHandle, true);
+
+        assertEquals(List.of(bodyRef), refsFor(runtime, "bodyRefsForSpaceHandle", spaceHandle));
+        assertEquals(List.of(jointRef), refsFor(runtime, "jointRefsForSpaceHandle", spaceHandle));
+        assertEquals(List.of(terrainRef), refsFor(runtime, "terrainRefsForSpaceHandle", spaceHandle));
+
+        runtime.removeBodyHandle(bodyUuid, bodyRef);
+        runtime.removeJointHandle(jointUuid, jointRef);
+        runtime.removeTerrainHandles(terrainRef, terrainUuid);
+
+        assertEquals(List.of(), refsFor(runtime, "bodyRefsForSpaceHandle", spaceHandle));
+        assertEquals(List.of(), refsFor(runtime, "jointRefsForSpaceHandle", spaceHandle));
+        assertEquals(List.of(), refsFor(runtime, "terrainRefsForSpaceHandle", spaceHandle));
     }
 
     @Test
@@ -107,5 +144,29 @@ class PhysicsStoreResourceIndexTest {
 
         assertEquals(PhysicsStoreSnapshotFrame.EMPTY, resource.getLatestFrame());
         assertNull(resource.getBody(bodyUuid));
+    }
+
+    private static final class TestRef extends Ref {
+
+        private final boolean valid;
+
+        private TestRef(boolean valid) {
+            super(null);
+            this.valid = valid;
+        }
+
+        @Override
+        public boolean isValid() {
+            return valid;
+        }
+    }
+
+    @SuppressWarnings("unchecked")
+    private static List<?> refsFor(PhysicsRuntimeResource runtime,
+        String methodName,
+        BackendSpaceHandle spaceHandle) throws ReflectiveOperationException {
+        return (List<?>) PhysicsRuntimeResource.class
+            .getMethod(methodName, BackendSpaceHandle.class)
+            .invoke(runtime, spaceHandle);
     }
 }

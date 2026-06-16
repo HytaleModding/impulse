@@ -4,11 +4,11 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import dev.hytalemodding.impulse.api.PhysicsContactPhase;
 import dev.hytalemodding.impulse.api.SpaceId;
-import dev.hytalemodding.impulse.core.plugin.body.RigidBodyKey;
 import dev.hytalemodding.impulse.core.plugin.events.PhysicsContactEvent;
 import dev.hytalemodding.impulse.core.plugin.events.PhysicsEventFrame;
 import dev.hytalemodding.impulse.examples.events.PhysicsEventSummary;
 import java.util.List;
+import java.util.UUID;
 import org.joml.Vector3f;
 import org.junit.jupiter.api.Test;
 
@@ -16,8 +16,8 @@ class EventsCommandTest {
 
     @Test
     void formatsLatestContactEventSummary() {
-        RigidBodyKey first = RigidBodyKey.of(1L, 2L);
-        RigidBodyKey second = RigidBodyKey.of(3L, 4L);
+        UUID first = new UUID(1L, 2L);
+        UUID second = new UUID(3L, 4L);
         PhysicsEventFrame frame = new PhysicsEventFrame(12L,
             34L,
             56L,

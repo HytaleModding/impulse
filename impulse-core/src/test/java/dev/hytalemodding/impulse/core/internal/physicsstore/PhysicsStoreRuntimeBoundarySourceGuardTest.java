@@ -1,0 +1,101 @@
+package dev.hytalemodding.impulse.core.internal.physicsstore;
+
+import static org.junit.jupiter.api.Assertions.assertFalse;
+
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import org.junit.jupiter.api.Test;
+
+class PhysicsStoreRuntimeBoundarySourceGuardTest {
+
+    @Test
+    void spaceMutationRuntimeCleanupDoesNotResolveRuntimeBindingsByUuid() throws IOException {
+        String source = Files.readString(Path.of(
+            "src/main/java/dev/hytalemodding/impulse/core/internal/physicsstore/PhysicsStoreSpaceMutations.java"));
+
+        assertFalse(source.contains("runtime.getSpaceHandle(spaceUuid)"));
+        assertFalse(source.contains("runtime.getSpaceBackendId(spaceUuid)"));
+    }
+
+    @Test
+    void staleBodyCleanupDoesNotFallbackToRuntimeUuidLookups() throws IOException {
+        String source = Files.readString(Path.of(
+            "src/main/java/dev/hytalemodding/impulse/core/internal/physicsstore/systems/StaleBodyRemovalSystem.java"));
+
+        assertFalse(source.contains("runtime.getJointHandle(joint.jointUuid())"));
+        assertFalse(source.contains("runtime.getJointSpaceHandle(joint.jointUuid())"));
+        assertFalse(source.contains("runtime.getSpaceHandle(joint.spaceUuid())"));
+        assertFalse(source.contains("runtime.removeBodyHandle(body.bodyUuid())"));
+    }
+
+    @Test
+    void backendAccessDoesNotResolveRuntimeSpacesByUuid() throws IOException {
+        String backendAccess = Files.readString(Path.of(
+            "src/main/java/dev/hytalemodding/impulse/core/plugin/physicsstore/PhysicsStoreBackendAccess.java"));
+        String diagnostics = Files.readString(Path.of(
+            "src/main/java/dev/hytalemodding/impulse/core/plugin/physicsstore/PhysicsStoreDiagnostics.java"));
+
+        assertFalse(backendAccess.contains("runtime.getSpaceHandle(spaceUuid)"));
+        assertFalse(backendAccess.contains("runtime.getSpaceBackendId(spaceUuid)"));
+        assertFalse(diagnostics.contains("PhysicsStoreBackendAccess.space(runtime, spaceUuid)"));
+    }
+
+    @Test
+    void completedStepPublicationIteratesRuntimeSpacesByRef() throws IOException {
+        String source = Files.readString(Path.of(
+            "src/main/java/dev/hytalemodding/impulse/core/internal/physicsstore/systems/CompletedStepPublicationSystem.java"));
+
+        assertFalse(source.contains("runtime.forEachSpaceBinding"));
+        assertFalse(source.contains("runtime.hasTerrainBodyHandles(rowUuid)"));
+    }
+
+    @Test
+    void terrainNeighborStitchingDoesNotResolveRuntimeBindingsByUuid() throws IOException {
+        String source = Files.readString(Path.of(
+            "src/main/java/dev/hytalemodding/impulse/core/internal/physicsstore/systems/TerrainColliderBindingSystem.java"));
+
+        assertFalse(source.contains("runtime.getTerrainVoxelBodyHandle(neighborUuid)"));
+        assertFalse(source.contains("runtime.getTerrainSpaceHandle(neighborUuid)"));
+    }
+
+    @Test
+    void debugQueriesDoNotResolveRuntimeSpacesByUuid() throws IOException {
+        String source = Files.readString(Path.of(
+            "src/main/java/dev/hytalemodding/impulse/core/internal/systems/debug/PhysicsStoreDebugQueries.java"));
+
+        assertFalse(source.contains("runtime.getSpaceHandle(spaceUuid)"));
+        assertFalse(source.contains("runtime.getSpaceBackendId(spaceUuid)"));
+    }
+
+    @Test
+    void legacyWorldResourceFacadeDoesNotIterateRuntimeSpacesByUuid() throws IOException {
+        String source = Files.readString(Path.of(
+            "src/main/java/dev/hytalemodding/impulse/core/internal/resources/PhysicsWorldRuntimeResource.java"));
+
+        assertFalse(source.contains("forEachSpaceBinding"));
+    }
+
+    @Test
+    void runtimeResourceDoesNotExposeUuidRuntimeReadApis() throws IOException {
+        String source = Files.readString(Path.of(
+            "src/main/java/dev/hytalemodding/impulse/core/internal/physicsstore/resources/PhysicsRuntimeResource.java"));
+
+        assertFalse(source.contains("getSpaceHandle(@Nonnull UUID"));
+        assertFalse(source.contains("getSpaceBackendId(@Nonnull UUID"));
+        assertFalse(source.contains("getBodyHandle(@Nonnull UUID"));
+        assertFalse(source.contains("getBodySpaceHandle(@Nonnull UUID"));
+        assertFalse(source.contains("getJointHandle(@Nonnull UUID"));
+        assertFalse(source.contains("getJointSpaceHandle(@Nonnull UUID"));
+        assertFalse(source.contains("getTerrainSpaceHandle(@Nonnull UUID"));
+        assertFalse(source.contains("getTerrainVoxelBodyHandle(@Nonnull UUID"));
+        assertFalse(source.contains("hasTerrainBodyHandles(@Nonnull UUID"));
+        assertFalse(source.contains("forEachTerrainBodyHandle(@Nonnull UUID"));
+        assertFalse(source.contains("bodyUuidsForSpaceHandle"));
+        assertFalse(source.contains("jointUuidsForSpaceHandle"));
+        assertFalse(source.contains("terrainUuidsForSpaceHandle"));
+        assertFalse(source.contains("forEachSpaceBinding"));
+        assertFalse(source.contains("@Nullable Ref<PhysicsStore> spaceRef"));
+        assertFalse(source.contains("@Nullable Ref<PhysicsStore> jointRef"));
+    }
+}

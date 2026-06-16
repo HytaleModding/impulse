@@ -12,7 +12,6 @@ import dev.hytalemodding.impulse.api.PhysicsBodyType;
 import dev.hytalemodding.impulse.api.PhysicsContact;
 import dev.hytalemodding.impulse.api.PhysicsSpace;
 import dev.hytalemodding.impulse.api.ShapeType;
-import dev.hytalemodding.impulse.core.plugin.body.RigidBodyKey;
 import dev.hytalemodding.impulse.core.plugin.physicsstore.projection.BodyAttachmentComponent;
 import dev.hytalemodding.impulse.api.SpaceId;
 import dev.hytalemodding.impulse.api.testsupport.FakePhysicsBackend;
@@ -62,7 +61,7 @@ class PhysicsDebugSystemTest {
         Vector3d syncedVisualPosition = new Vector3d(snapshot.positionX(),
             snapshot.positionY() - snapshot.centerOfMassOffsetY(),
             snapshot.positionZ()).add(localOffset.x, localOffset.y, localOffset.z);
-        BodyAttachmentComponent attachment = BodyAttachmentComponent.externalEntity(RigidBodyKey.random().value(),
+        BodyAttachmentComponent attachment = BodyAttachmentComponent.externalEntity(UUID.randomUUID(),
             localOffset,
             new Quaternionf());
 
@@ -111,7 +110,7 @@ class PhysicsDebugSystemTest {
         syncedVisualPosition.add(syncedBodyRotation.transform(new Vector3d(localOffset.x,
             localOffset.y,
             localOffset.z)));
-        BodyAttachmentComponent attachment = BodyAttachmentComponent.externalEntity(RigidBodyKey.random().value(),
+        BodyAttachmentComponent attachment = BodyAttachmentComponent.externalEntity(UUID.randomUUID(),
             localOffset,
             new Quaternionf());
 
@@ -157,7 +156,7 @@ class PhysicsDebugSystemTest {
             0.0f,
             PhysicsAxis.Y);
         Vector3f localOffset = new Vector3f(0.0f, -0.5f, 0.0f);
-        BodyAttachmentComponent attachment = BodyAttachmentComponent.externalEntity(RigidBodyKey.random().value(),
+        BodyAttachmentComponent attachment = BodyAttachmentComponent.externalEntity(UUID.randomUUID(),
             localOffset,
             new Quaternionf(),
             0.5f);

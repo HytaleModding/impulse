@@ -51,8 +51,10 @@ class BodyAttachmentComponentTest {
 
     @Test
     void normalizesInvalidVisualOriginOffsetToBodyValue() {
-        BodyAttachmentComponent attachment = BodyAttachmentComponent.generatedProxy(
+        BodyAttachmentComponent attachment = new BodyAttachmentComponent(
             UUID.randomUUID(),
+            BodyAttachmentComponent.TransformAuthority.BODY,
+            BodyAttachmentComponent.AttachmentLifecycle.GENERATED_PROXY,
             new Vector3f(),
             new Quaternionf(),
             Float.NaN);

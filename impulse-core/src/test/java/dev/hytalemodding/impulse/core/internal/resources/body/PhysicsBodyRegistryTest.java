@@ -9,9 +9,9 @@ import dev.hytalemodding.impulse.core.internal.resources.BackendBodyHandle;
 import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyKind;
 import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyPersistenceMode;
 import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyRegistrationView;
-import dev.hytalemodding.impulse.core.plugin.body.RigidBodyKey;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.UUID;
 import javax.annotation.Nonnull;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
@@ -22,8 +22,8 @@ class PhysicsBodyRegistryTest {
     void indexesRegistrationsBySpaceWithoutScanningUnrelatedSpaces() {
         SpaceId firstSpace = new SpaceId(1);
         SpaceId secondSpace = new SpaceId(2);
-        RigidBodyKey firstId = RigidBodyKey.of(0L, 1L);
-        RigidBodyKey secondId = RigidBodyKey.of(0L, 2L);
+        UUID firstId = new UUID(0L, 1L);
+        UUID secondId = new UUID(0L, 2L);
         PhysicsBodyRegistry registry = new PhysicsBodyRegistry();
 
         registry.registerBody(firstId,
@@ -37,9 +37,9 @@ class PhysicsBodyRegistryTest {
             PhysicsBodyKind.TEMPORARY,
             PhysicsBodyPersistenceMode.RUNTIME_ONLY);
 
-        List<RigidBodyKey> firstSpaceIds = new ArrayList<>();
+        List<UUID> firstSpaceIds = new ArrayList<>();
         registry.forEachRegistration(firstSpace,
-            registration -> firstSpaceIds.add(registration.bodyKey()));
+            registration -> firstSpaceIds.add(registration.bodyUuid()));
 
         assertEquals(List.of(firstId), firstSpaceIds);
         assertEquals(1, registry.getRegistrationCount(firstSpace));
@@ -55,7 +55,7 @@ class PhysicsBodyRegistryTest {
     void reRegisteringSameBodyWithDifferentSpaceIsRejectedWithoutMovingIndex() {
         SpaceId firstSpace = new SpaceId(1);
         SpaceId secondSpace = new SpaceId(2);
-        RigidBodyKey bodyId = RigidBodyKey.of(0L, 3L);
+        UUID bodyId = new UUID(0L, 3L);
         PhysicsBodyRegistry registry = new PhysicsBodyRegistry();
         registry.registerBody(bodyId,
             handle(21L),
@@ -76,7 +76,7 @@ class PhysicsBodyRegistryTest {
     @Test
     void registrationViewsReuseCachedImmutableMetadata() {
         SpaceId space = new SpaceId(1);
-        RigidBodyKey bodyId = RigidBodyKey.of(0L, 4L);
+        UUID bodyId = new UUID(0L, 4L);
         PhysicsBodyRegistry registry = new PhysicsBodyRegistry();
         registry.registerBody(bodyId,
             handle(31L),
@@ -93,7 +93,7 @@ class PhysicsBodyRegistryTest {
         assertSame(first, second);
         assertSame(first, fromCollection);
         Assertions.assertNotNull(first);
-        assertEquals(bodyId, first.bodyKey());
+        assertEquals(bodyId, first.bodyUuid());
     }
 
     @Nonnull

@@ -42,8 +42,8 @@ class PhysicsRuntimeProfilingResourceTest {
         assertEquals(9, resource.getCumulativeStep().getSubsteps());
         assertEquals(140L, resource.getCumulativeStep().getTickNanos());
         assertEquals(30L, resource.getCumulativeStep().getSnapshotNanos());
-        assertEquals(10L, resource.getCumulativeStep().getOwnerQueuedNanos());
-        assertEquals(90L, resource.getCumulativeStep().getOwnerRunNanos());
+        assertEquals(10L, resource.getCumulativeStep().getStoreTickQueuedNanos());
+        assertEquals(90L, resource.getCumulativeStep().getStoreTickRunNanos());
         assertEquals(1, resource.getCumulativeStep().getSkippedPendingSteps());
         assertEquals(75L, resource.getCumulativeStep().getPendingStepAgeNanos());
         assertEquals(75L, resource.getCumulativeStep().getMaxPendingStepAgeNanos());
@@ -183,7 +183,7 @@ class PhysicsRuntimeProfilingResourceTest {
     }
 
     @Test
-    void ownerStepRateUsesCompletedOwnerStepIntervals() {
+    void storeTickStepRateUsesCompletedStoreTickStepIntervals() {
         PhysicsRuntimeProfilingResource resource = new PhysicsRuntimeProfilingResource();
 
         resource.recordStep(1,
@@ -196,8 +196,8 @@ class PhysicsRuntimeProfilingResourceTest {
             7L,
             1_000_000_000L,
             PhysicsStepPhaseStats.unavailable());
-        assertEquals(0, resource.getLatestStep().getOwnerStepRateSamples());
-        assertEquals(0L, resource.getLatestStep().getOwnerStepIntervalNanos());
+        assertEquals(0, resource.getLatestStep().getStoreTickStepRateSamples());
+        assertEquals(0L, resource.getLatestStep().getStoreTickStepIntervalNanos());
 
         resource.recordStep(1,
             2,
@@ -220,11 +220,12 @@ class PhysicsRuntimeProfilingResourceTest {
             1_150_000_000L,
             PhysicsStepPhaseStats.unavailable());
 
-        assertEquals(1, resource.getLatestStep().getOwnerStepRateSamples());
-        assertEquals(100_000_000L, resource.getLatestStep().getOwnerStepIntervalNanos());
-        assertEquals(2, resource.getCumulativeStep().getOwnerStepRateSamples());
-        assertEquals(150_000_000L, resource.getCumulativeStep().getOwnerStepIntervalNanos());
-        assertEquals(100_000_000L, resource.getCumulativeStep().getMaxOwnerStepIntervalNanos());
+        assertEquals(1, resource.getLatestStep().getStoreTickStepRateSamples());
+        assertEquals(100_000_000L, resource.getLatestStep().getStoreTickStepIntervalNanos());
+        assertEquals(2, resource.getCumulativeStep().getStoreTickStepRateSamples());
+        assertEquals(150_000_000L, resource.getCumulativeStep().getStoreTickStepIntervalNanos());
+        assertEquals(100_000_000L,
+            resource.getCumulativeStep().getMaxStoreTickStepIntervalNanos());
 
         resource.reset();
         resource.recordStep(1,
@@ -238,8 +239,8 @@ class PhysicsRuntimeProfilingResourceTest {
             2_000_000_000L,
             PhysicsStepPhaseStats.unavailable());
 
-        assertEquals(0, resource.getLatestStep().getOwnerStepRateSamples());
-        assertEquals(0L, resource.getLatestStep().getOwnerStepIntervalNanos());
+        assertEquals(0, resource.getLatestStep().getStoreTickStepRateSamples());
+        assertEquals(0L, resource.getLatestStep().getStoreTickStepIntervalNanos());
     }
 
     @Test

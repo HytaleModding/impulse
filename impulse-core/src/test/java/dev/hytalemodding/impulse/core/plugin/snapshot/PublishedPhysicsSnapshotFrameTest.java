@@ -8,7 +8,6 @@ import dev.hytalemodding.impulse.api.PhysicsBodySnapshot;
 import dev.hytalemodding.impulse.api.PhysicsBodyType;
 import dev.hytalemodding.impulse.api.ShapeType;
 import dev.hytalemodding.impulse.api.SpaceId;
-import dev.hytalemodding.impulse.core.plugin.body.RigidBodyKey;
 import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyKind;
 import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyPersistenceMode;
 import java.util.ArrayList;
@@ -21,10 +20,10 @@ import org.junit.jupiter.api.Test;
 
 class PublishedPhysicsSnapshotFrameTest {
 
-    private static final RigidBodyKey BODY_ID =
-        RigidBodyKey.of(UUID.fromString("00000000-0000-0000-0000-000000000001"));
-    private static final RigidBodyKey SECOND_BODY_ID =
-        RigidBodyKey.of(UUID.fromString("00000000-0000-0000-0000-000000000002"));
+    private static final UUID BODY_ID =
+        UUID.fromString("00000000-0000-0000-0000-000000000001");
+    private static final UUID SECOND_BODY_ID =
+        UUID.fromString("00000000-0000-0000-0000-000000000002");
     private static final SpaceId SPACE_ID = new SpaceId(7);
 
     @Test
@@ -234,13 +233,13 @@ class PublishedPhysicsSnapshotFrameTest {
             20L,
             30L,
             SPACE_ID);
-        List<RigidBodyKey> visited = getRigidBodyKeys(firstBody, secondBody);
+        List<UUID> visited = getBodyUuids(firstBody, secondBody);
 
         assertEquals(List.of(BODY_ID, SECOND_BODY_ID), visited);
     }
 
     @NonNullDecl
-    private static List<RigidBodyKey> getRigidBodyKeys(PublishedPhysicsBodySnapshot firstBody,
+    private static List<UUID> getBodyUuids(PublishedPhysicsBodySnapshot firstBody,
         PublishedPhysicsBodySnapshot secondBody) {
         PublishedPhysicsSnapshotFrame frame = new PublishedPhysicsSnapshotFrame(10L,
             20L,
@@ -255,9 +254,9 @@ class PublishedPhysicsSnapshotFrameTest {
                 20L,
                 30L,
                 List.of(firstBody, secondBody))));
-        List<RigidBodyKey> visited = new ArrayList<>();
+        List<UUID> visited = new ArrayList<>();
 
-        frame.forEachBody(body -> visited.add(body.bodyKey()));
+        frame.forEachBody(body -> visited.add(body.bodyUuid()));
         return visited;
     }
 
@@ -316,7 +315,7 @@ class PublishedPhysicsSnapshotFrameTest {
         return bodySnapshot(BODY_ID, frameEpoch, worldEpoch, spaceEpoch, spaceId);
     }
 
-    private static PublishedPhysicsBodySnapshot bodySnapshot(RigidBodyKey bodyId,
+    private static PublishedPhysicsBodySnapshot bodySnapshot(UUID bodyId,
         long frameEpoch,
         long worldEpoch,
         long spaceEpoch,
