@@ -322,12 +322,14 @@ public class PhysicsWorldRuntimeResource extends PhysicsWorldResource {
             return;
         }
         List<String> unsupportedSpaces = new ArrayList<>();
-        store.getResource(PhysicsRuntimeResource.getResourceType())
-            .forEachSpaceBinding((spaceUuid, backendId, spaceHandle, backendRuntime) -> {
-                if (!backendRuntime.supportsContinuousCollision(spaceHandle.value())) {
-                    unsupportedSpaces.add(spaceUuid + " backend=" + backendId.value());
-                }
-            });
+        PhysicsRuntimeResource runtime = store.getResource(PhysicsRuntimeResource.getResourceType());
+        runtime.forEachRuntimeSpaceBinding((spaceRef, backendId, spaceHandle, backendRuntime) -> {
+            if (!backendRuntime.supportsContinuousCollision(spaceHandle.value())) {
+                UUID spaceUuid = runtime.getSpaceUuid(spaceRef);
+                unsupportedSpaces.add((spaceUuid != null ? spaceUuid : spaceRef)
+                    + " backend=" + backendId.value());
+            }
+        });
         if (!unsupportedSpaces.isEmpty()) {
             throw new IllegalArgumentException("CCD step mode is not supported by PhysicsStore "
                 + "spaces: " + unsupportedSpaces);
