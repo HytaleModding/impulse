@@ -35,7 +35,7 @@ import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
 /**
- * Owner-lane topology mutations for public compatibility cleanup paths.
+ * World-thread topology mutations for public compatibility cleanup paths.
  */
 public final class PhysicsStoreTopologyMutations {
 

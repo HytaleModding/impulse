@@ -13,7 +13,7 @@ import java.util.Set;
 import javax.annotation.Nonnull;
 
 /**
- * Resolves queued live backend reads on the PhysicsStore owner lane.
+ * Resolves queued live backend reads on the owning PhysicsStore world thread.
  */
 public final class PhysicsStoreQueuedReadSystem extends TickingSystem<PhysicsStore> {
 

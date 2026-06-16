@@ -19,8 +19,8 @@ import javax.annotation.Nonnull;
  * Diagnostics for live PhysicsStore backend state.
  *
  * <p>The synchronous methods read mutable runtime/backend state and must only run from the
- * PhysicsStore tick lane or explicitly scheduled PhysicsStore owner work. Off-lane callers should
- * use the {@code *Async} methods, which enqueue copied reads on the PhysicsStore owner thread.</p>
+ * owning PhysicsStore world thread. Off-thread callers should use the {@code *Async} methods,
+ * which enqueue copied reads on that world thread.</p>
  */
 public final class PhysicsStoreDiagnostics {
 

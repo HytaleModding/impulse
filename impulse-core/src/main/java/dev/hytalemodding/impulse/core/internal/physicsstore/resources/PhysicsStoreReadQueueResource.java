@@ -18,7 +18,7 @@ import java.util.function.Function;
 import javax.annotation.Nonnull;
 
 /**
- * Owner-lane backend read queue drained by PhysicsStore systems.
+ * World-thread backend read queue drained by PhysicsStore systems.
  *
  * <p>Reads execute during PhysicsStore ticking. Callers must pass value-copied inputs and return
  * immutable values rather than live stores, refs, runtime resources, or backend handles. This is a
