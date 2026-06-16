@@ -34,7 +34,7 @@ public class PhysicsRuntimeProfilingResource implements Resource<EntityStore> {
 
     @Nullable
     private transient SyncCollector activeSyncCollector;
-    private transient long previousOwnerStepCompletedNanos;
+    private transient long previousStoreTickStepCompletedNanos;
 
     public PhysicsRuntimeProfilingResource() {
     }
@@ -128,16 +128,16 @@ public class PhysicsRuntimeProfilingResource implements Resource<EntityStore> {
         int bodySnapshots,
         int spatialIndexCells,
         long snapshotNanos,
-        long ownerQueuedNanos,
-        long ownerRunNanos) {
+        long storeTickQueuedNanos,
+        long storeTickRunNanos) {
         recordStep(spaces,
             substeps,
             nanos,
             bodySnapshots,
             spatialIndexCells,
             snapshotNanos,
-            ownerQueuedNanos,
-            ownerRunNanos,
+            storeTickQueuedNanos,
+            storeTickRunNanos,
             0L,
             PhysicsStepPhaseStats.unavailable());
     }
@@ -148,8 +148,8 @@ public class PhysicsRuntimeProfilingResource implements Resource<EntityStore> {
         int bodySnapshots,
         int spatialIndexCells,
         long snapshotNanos,
-        long ownerQueuedNanos,
-        long ownerRunNanos,
+        long storeTickQueuedNanos,
+        long storeTickRunNanos,
         @Nonnull PhysicsStepPhaseStats nativePhaseStats) {
         recordStep(spaces,
             substeps,
@@ -157,8 +157,8 @@ public class PhysicsRuntimeProfilingResource implements Resource<EntityStore> {
             bodySnapshots,
             spatialIndexCells,
             snapshotNanos,
-            ownerQueuedNanos,
-            ownerRunNanos,
+            storeTickQueuedNanos,
+            storeTickRunNanos,
             0L,
             nativePhaseStats);
     }
@@ -169,9 +169,9 @@ public class PhysicsRuntimeProfilingResource implements Resource<EntityStore> {
         int bodySnapshots,
         int spatialIndexCells,
         long snapshotNanos,
-        long ownerQueuedNanos,
-        long ownerRunNanos,
-        long ownerCompletedNanos,
+        long storeTickQueuedNanos,
+        long storeTickRunNanos,
+        long storeTickCompletedNanos,
         @Nonnull PhysicsStepPhaseStats nativePhaseStats) {
         recordStep(spaces,
             substeps,
@@ -179,9 +179,9 @@ public class PhysicsRuntimeProfilingResource implements Resource<EntityStore> {
             bodySnapshots,
             spatialIndexCells,
             snapshotNanos,
-            ownerQueuedNanos,
-            ownerRunNanos,
-            ownerCompletedNanos,
+            storeTickQueuedNanos,
+            storeTickRunNanos,
+            storeTickCompletedNanos,
             nativePhaseStats,
             0,
             0L,
@@ -194,9 +194,9 @@ public class PhysicsRuntimeProfilingResource implements Resource<EntityStore> {
         int bodySnapshots,
         int spatialIndexCells,
         long snapshotNanos,
-        long ownerQueuedNanos,
-        long ownerRunNanos,
-        long ownerCompletedNanos,
+        long storeTickQueuedNanos,
+        long storeTickRunNanos,
+        long storeTickCompletedNanos,
         @Nonnull PhysicsStepPhaseStats nativePhaseStats,
         int preStepDrainedMutations,
         long preStepDrainRunNanos,
@@ -209,9 +209,9 @@ public class PhysicsRuntimeProfilingResource implements Resource<EntityStore> {
         snapshot.setBodySnapshots(bodySnapshots);
         snapshot.setSpatialIndexCells(spatialIndexCells);
         snapshot.setSnapshotNanos(snapshotNanos);
-        snapshot.setOwnerQueuedNanos(ownerQueuedNanos);
-        snapshot.setOwnerRunNanos(ownerRunNanos);
-        snapshot.recordOwnerStepInterval(recordOwnerStepInterval(ownerCompletedNanos));
+        snapshot.setStoreTickQueuedNanos(storeTickQueuedNanos);
+        snapshot.setStoreTickRunNanos(storeTickRunNanos);
+        snapshot.recordStoreTickStepInterval(recordStoreTickStepInterval(storeTickCompletedNanos));
         snapshot.setNativePhaseStats(nativePhaseStats);
         snapshot.recordPreStepDrain(Math.max(0, preStepDrainedMutations),
             Math.max(0L, preStepDrainRunNanos),
@@ -317,7 +317,7 @@ public class PhysicsRuntimeProfilingResource implements Resource<EntityStore> {
         latestVisual.reset();
         worstVisual.reset();
         activeSyncCollector = null;
-        previousOwnerStepCompletedNanos = 0L;
+        previousStoreTickStepCompletedNanos = 0L;
     }
 
     @Nonnull
@@ -335,23 +335,23 @@ public class PhysicsRuntimeProfilingResource implements Resource<EntityStore> {
         copy.cumulativeVisual.copyFrom(cumulativeVisual);
         copy.latestVisual.copyFrom(latestVisual);
         copy.worstVisual.copyFrom(worstVisual);
-        copy.previousOwnerStepCompletedNanos = previousOwnerStepCompletedNanos;
+        copy.previousStoreTickStepCompletedNanos = previousStoreTickStepCompletedNanos;
         return copy;
     }
 
-    private long recordOwnerStepInterval(long ownerCompletedNanos) {
-        if (ownerCompletedNanos <= 0L) {
+    private long recordStoreTickStepInterval(long storeTickCompletedNanos) {
+        if (storeTickCompletedNanos <= 0L) {
             return 0L;
         }
-        if (previousOwnerStepCompletedNanos <= 0L) {
-            previousOwnerStepCompletedNanos = ownerCompletedNanos;
+        if (previousStoreTickStepCompletedNanos <= 0L) {
+            previousStoreTickStepCompletedNanos = storeTickCompletedNanos;
             return 0L;
         }
-        if (ownerCompletedNanos <= previousOwnerStepCompletedNanos) {
+        if (storeTickCompletedNanos <= previousStoreTickStepCompletedNanos) {
             return 0L;
         }
-        long intervalNanos = ownerCompletedNanos - previousOwnerStepCompletedNanos;
-        previousOwnerStepCompletedNanos = ownerCompletedNanos;
+        long intervalNanos = storeTickCompletedNanos - previousStoreTickStepCompletedNanos;
+        previousStoreTickStepCompletedNanos = storeTickCompletedNanos;
         return intervalNanos;
     }
 
@@ -408,17 +408,17 @@ public class PhysicsRuntimeProfilingResource implements Resource<EntityStore> {
         @Setter
         private long snapshotNanos;
         @Setter
-        private long ownerQueuedNanos;
+        private long storeTickQueuedNanos;
         @Setter
-        private long ownerRunNanos;
+        private long storeTickRunNanos;
         private int preStepDrainedMutations;
         private int maxPreStepDrainedMutations;
         private long preStepDrainRunNanos;
         private int lateMutationBacklogAtStep;
         private int maxLateMutationBacklogAtStep;
-        private int ownerStepRateSamples;
-        private long ownerStepIntervalNanos;
-        private long maxOwnerStepIntervalNanos;
+        private int storeTickStepRateSamples;
+        private long storeTickStepIntervalNanos;
+        private long maxStoreTickStepIntervalNanos;
         @Setter
         private int skippedPendingSteps;
         @Setter
@@ -454,16 +454,16 @@ public class PhysicsRuntimeProfilingResource implements Resource<EntityStore> {
             spatialIndexCells = other.spatialIndexCells;
             tickNanos = other.tickNanos;
             snapshotNanos = other.snapshotNanos;
-            ownerQueuedNanos = other.ownerQueuedNanos;
-            ownerRunNanos = other.ownerRunNanos;
+            storeTickQueuedNanos = other.storeTickQueuedNanos;
+            storeTickRunNanos = other.storeTickRunNanos;
             preStepDrainedMutations = other.preStepDrainedMutations;
             maxPreStepDrainedMutations = other.maxPreStepDrainedMutations;
             preStepDrainRunNanos = other.preStepDrainRunNanos;
             lateMutationBacklogAtStep = other.lateMutationBacklogAtStep;
             maxLateMutationBacklogAtStep = other.maxLateMutationBacklogAtStep;
-            ownerStepRateSamples = other.ownerStepRateSamples;
-            ownerStepIntervalNanos = other.ownerStepIntervalNanos;
-            maxOwnerStepIntervalNanos = other.maxOwnerStepIntervalNanos;
+            storeTickStepRateSamples = other.storeTickStepRateSamples;
+            storeTickStepIntervalNanos = other.storeTickStepIntervalNanos;
+            maxStoreTickStepIntervalNanos = other.maxStoreTickStepIntervalNanos;
             skippedPendingSteps = other.skippedPendingSteps;
             pendingStepAgeNanos = other.pendingStepAgeNanos;
             maxPendingStepAgeNanos = other.maxPendingStepAgeNanos;
@@ -492,8 +492,8 @@ public class PhysicsRuntimeProfilingResource implements Resource<EntityStore> {
             spatialIndexCells += other.spatialIndexCells;
             tickNanos += other.tickNanos;
             snapshotNanos += other.snapshotNanos;
-            ownerQueuedNanos += other.ownerQueuedNanos;
-            ownerRunNanos += other.ownerRunNanos;
+            storeTickQueuedNanos += other.storeTickQueuedNanos;
+            storeTickRunNanos += other.storeTickRunNanos;
             preStepDrainedMutations += other.preStepDrainedMutations;
             maxPreStepDrainedMutations = Math.max(maxPreStepDrainedMutations,
                 other.maxPreStepDrainedMutations);
@@ -501,10 +501,10 @@ public class PhysicsRuntimeProfilingResource implements Resource<EntityStore> {
             lateMutationBacklogAtStep += other.lateMutationBacklogAtStep;
             maxLateMutationBacklogAtStep = Math.max(maxLateMutationBacklogAtStep,
                 other.maxLateMutationBacklogAtStep);
-            ownerStepRateSamples += other.ownerStepRateSamples;
-            ownerStepIntervalNanos += other.ownerStepIntervalNanos;
-            maxOwnerStepIntervalNanos = Math.max(maxOwnerStepIntervalNanos,
-                other.maxOwnerStepIntervalNanos);
+            storeTickStepRateSamples += other.storeTickStepRateSamples;
+            storeTickStepIntervalNanos += other.storeTickStepIntervalNanos;
+            maxStoreTickStepIntervalNanos = Math.max(maxStoreTickStepIntervalNanos,
+                other.maxStoreTickStepIntervalNanos);
             skippedPendingSteps += other.skippedPendingSteps;
             pendingStepAgeNanos += other.pendingStepAgeNanos;
             maxPendingStepAgeNanos = Math.max(maxPendingStepAgeNanos,
@@ -535,16 +535,16 @@ public class PhysicsRuntimeProfilingResource implements Resource<EntityStore> {
             spatialIndexCells = 0;
             tickNanos = 0L;
             snapshotNanos = 0L;
-            ownerQueuedNanos = 0L;
-            ownerRunNanos = 0L;
+            storeTickQueuedNanos = 0L;
+            storeTickRunNanos = 0L;
             preStepDrainedMutations = 0;
             maxPreStepDrainedMutations = 0;
             preStepDrainRunNanos = 0L;
             lateMutationBacklogAtStep = 0;
             maxLateMutationBacklogAtStep = 0;
-            ownerStepRateSamples = 0;
-            ownerStepIntervalNanos = 0L;
-            maxOwnerStepIntervalNanos = 0L;
+            storeTickStepRateSamples = 0;
+            storeTickStepIntervalNanos = 0L;
+            maxStoreTickStepIntervalNanos = 0L;
             skippedPendingSteps = 0;
             pendingStepAgeNanos = 0L;
             maxPendingStepAgeNanos = 0L;
@@ -565,16 +565,16 @@ public class PhysicsRuntimeProfilingResource implements Resource<EntityStore> {
             nativeSnapshotNanos = 0L;
         }
 
-        public void recordOwnerStepInterval(long intervalNanos) {
+        public void recordStoreTickStepInterval(long intervalNanos) {
             if (intervalNanos <= 0L) {
-                ownerStepRateSamples = 0;
-                ownerStepIntervalNanos = 0L;
-                maxOwnerStepIntervalNanos = 0L;
+                storeTickStepRateSamples = 0;
+                storeTickStepIntervalNanos = 0L;
+                maxStoreTickStepIntervalNanos = 0L;
                 return;
             }
-            ownerStepRateSamples = 1;
-            ownerStepIntervalNanos = intervalNanos;
-            maxOwnerStepIntervalNanos = intervalNanos;
+            storeTickStepRateSamples = 1;
+            storeTickStepIntervalNanos = intervalNanos;
+            maxStoreTickStepIntervalNanos = intervalNanos;
         }
 
         public void recordPreStepDrain(int drainedMutations,

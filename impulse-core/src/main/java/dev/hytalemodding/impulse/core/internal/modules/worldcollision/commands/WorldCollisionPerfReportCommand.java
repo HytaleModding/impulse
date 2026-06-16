@@ -92,15 +92,15 @@ public class WorldCollisionPerfReportCommand extends AbstractAsyncWorldCommand {
             ctx.sender().sendMessage(Message.raw("Physics snapshot avg ms/completedStep="
                 + formatAverageMillis(cumulativeStep.getSnapshotNanos(), cumulativeStep.getTickSamples())));
             ctx.sender().sendMessage(Message.raw("Physics store tick avg queued/run/latency ms="
-                + formatAverageMillis(cumulativeStep.getOwnerQueuedNanos(), cumulativeStep.getTickSamples())
-                + "/" + formatAverageMillis(cumulativeStep.getOwnerRunNanos(), cumulativeStep.getTickSamples())
+                + formatAverageMillis(cumulativeStep.getStoreTickQueuedNanos(), cumulativeStep.getTickSamples())
+                + "/" + formatAverageMillis(cumulativeStep.getStoreTickRunNanos(), cumulativeStep.getTickSamples())
                 + "/" + formatAverageMillis(
-                cumulativeStep.getOwnerQueuedNanos() + cumulativeStep.getOwnerRunNanos(),
+                cumulativeStep.getStoreTickQueuedNanos() + cumulativeStep.getStoreTickRunNanos(),
                 cumulativeStep.getTickSamples())
-                + " storeTPS latest/avg=" + formatHertz(latestStep.getOwnerStepIntervalNanos())
-                + "/" + formatAverageHertz(cumulativeStep.getOwnerStepIntervalNanos(),
-                cumulativeStep.getOwnerStepRateSamples())
-                + " maxGapMs=" + formatMillis(cumulativeStep.getMaxOwnerStepIntervalNanos())
+                + " storeTPS latest/avg=" + formatHertz(latestStep.getStoreTickStepIntervalNanos())
+                + "/" + formatAverageHertz(cumulativeStep.getStoreTickStepIntervalNanos(),
+                cumulativeStep.getStoreTickStepRateSamples())
+                + " maxGapMs=" + formatMillis(cumulativeStep.getMaxStoreTickStepIntervalNanos())
                 + " pendingSkips=" + cumulativeStep.getSkippedPendingSteps()
                 + " pendingAge avg/max ms="
                 + formatAverageMillis(cumulativeStep.getPendingStepAgeNanos(),
