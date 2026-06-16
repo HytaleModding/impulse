@@ -5,7 +5,6 @@ import com.hypixel.hytale.component.Ref;
 import com.hypixel.hytale.component.Store;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import com.hypixel.hytale.server.core.universe.world.storage.PhysicsStore;
-import dev.hytalemodding.impulse.core.plugin.body.RigidBodyKey;
 import dev.hytalemodding.impulse.core.plugin.physicsstore.projection.BodyAttachmentComponent;
 import dev.hytalemodding.impulse.core.plugin.physicsstore.projection.BodyAttachmentComponent.AttachmentLifecycle;
 import it.unimi.dsi.fastutil.ints.Int2ObjectOpenHashMap;
@@ -34,30 +33,8 @@ final class GameplayAttachmentSnapshot {
     }
 
     @Nonnull
-    static GameplayAttachmentSnapshot fromSource(@Nonnull BodyKeySource source) {
-        return fromAttachmentSource(() -> {
-            Set<UUID> bodyUuids = new ObjectOpenHashSet<>();
-            for (RigidBodyKey bodyKey : source.bodyKeys()) {
-                bodyUuids.add(bodyKey.value());
-            }
-            return new AttachmentBodies(bodyUuids, new Int2ObjectOpenHashMap<>());
-        });
-    }
-
-    @Nonnull
     private static GameplayAttachmentSnapshot fromAttachmentSource(@Nonnull AttachmentSource source) {
         return new GameplayAttachmentSnapshot(source);
-    }
-
-    boolean hasKnownGameplayAttachment(boolean runtimeIndexHasAttachment,
-        @Nonnull RigidBodyKey bodyKey) {
-        return hasKnownGameplayAttachment(runtimeIndexHasAttachment, null, bodyKey.value());
-    }
-
-    boolean hasKnownGameplayAttachment(boolean runtimeIndexHasAttachment,
-        @Nullable Ref<PhysicsStore> bodyRef,
-        @Nonnull RigidBodyKey bodyKey) {
-        return hasKnownGameplayAttachment(runtimeIndexHasAttachment, bodyRef, bodyKey.value());
     }
 
     boolean hasKnownGameplayAttachment(boolean runtimeIndexHasAttachment,
@@ -67,15 +44,6 @@ final class GameplayAttachmentSnapshot {
             return true;
         }
         return hasGameplayAttachment(bodyRef, bodyUuid);
-    }
-
-    boolean hasGameplayAttachment(@Nonnull RigidBodyKey bodyKey) {
-        return hasGameplayAttachment(null, bodyKey.value());
-    }
-
-    boolean hasGameplayAttachment(@Nullable Ref<PhysicsStore> bodyRef,
-        @Nonnull RigidBodyKey bodyKey) {
-        return hasGameplayAttachment(bodyRef, bodyKey.value());
     }
 
     boolean hasGameplayAttachment(@Nullable Ref<PhysicsStore> bodyRef,
@@ -141,13 +109,6 @@ final class GameplayAttachmentSnapshot {
                 && first.getStore() != null
                 && first.getStore() == second.getStore()
                 && first.getIndex() == second.getIndex());
-    }
-
-    @FunctionalInterface
-    interface BodyKeySource {
-
-        @Nonnull
-        Set<RigidBodyKey> bodyKeys();
     }
 
     @FunctionalInterface

@@ -8,7 +8,6 @@ import dev.hytalemodding.impulse.core.internal.resources.PhysicsWorldRuntimeReso
 import dev.hytalemodding.impulse.core.internal.resources.profiling.PhysicsRuntimeProfilingResource;
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsVisualRuntime;
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsVisualRuntime.VisualInterest;
-import dev.hytalemodding.impulse.core.plugin.body.RigidBodyKey;
 import dev.hytalemodding.impulse.core.plugin.physicsstore.PhysicsStoreRaycasts;
 import dev.hytalemodding.impulse.core.plugin.physicsstore.components.UuidComponent;
 import dev.hytalemodding.impulse.core.plugin.settings.PhysicsSpaceSettings;
@@ -28,30 +27,6 @@ final class DetachedVisualOcclusion {
         ThreadLocal.withInitial(Vector3f::new);
 
     private DetachedVisualOcclusion() {
-    }
-
-    @Nonnull
-    static Result resolve(@Nonnull PhysicsWorldRuntimeResource resource,
-        @Nonnull RigidBodyKey bodyKey,
-        @Nullable PhysicsSpaceBinding space,
-        @Nonnull PhysicsBodySnapshot snapshot,
-        @Nonnull PhysicsSpaceSettings settings,
-        @Nonnull List<VisualInterest> interests,
-        float radius,
-        long visualInterestTick,
-        @Nonnull RaycastBudget raycastBudget,
-        @Nullable PhysicsRuntimeProfilingResource.VisualCollector collector) {
-        return resolve(resource,
-            bodyKey.value(),
-            null,
-            space,
-            snapshot,
-            settings,
-            interests,
-            radius,
-            visualInterestTick,
-            raycastBudget,
-            collector);
     }
 
     @Nonnull

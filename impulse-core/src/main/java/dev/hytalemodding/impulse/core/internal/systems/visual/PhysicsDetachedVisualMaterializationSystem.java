@@ -35,7 +35,6 @@ import dev.hytalemodding.impulse.core.internal.resources.profiling.PhysicsRuntim
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsVisualRuntime.VisualInterest;
 import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyKind;
 import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyRegistrationView;
-import dev.hytalemodding.impulse.core.plugin.body.RigidBodyKey;
 import dev.hytalemodding.impulse.core.plugin.physicsstore.projection.BodyAttachmentComponent;
 import dev.hytalemodding.impulse.core.plugin.physicsstore.projection.BodyAttachmentComponent.AttachmentLifecycle;
 import dev.hytalemodding.impulse.core.plugin.physicsstore.projection.BodyAttachmentComponent.TransformAuthority;
@@ -778,29 +777,6 @@ public class PhysicsDetachedVisualMaterializationSystem extends TickingSystem<En
             settings,
             interests,
             settings.getVisualMaterializationSettings().getDetachedVisualMaterializationRadius()) != Float.POSITIVE_INFINITY;
-    }
-
-    @Nonnull
-    static DetachedVisualOcclusion.Result resolveCurrentMaterializationPolicy(
-        @Nonnull PhysicsWorldRuntimeResource resource,
-        @Nonnull RigidBodyKey bodyKey,
-        @Nonnull PhysicsSpaceBinding space,
-        @Nonnull PhysicsBodySnapshot snapshot,
-        @Nonnull PhysicsSpaceSettings settings,
-        @Nonnull List<VisualInterest> interests,
-        long visualInterestTick,
-        @Nonnull DetachedVisualOcclusion.RaycastBudget raycastBudget,
-        @Nullable PhysicsRuntimeProfilingResource.VisualCollector collector) {
-        return DetachedVisualOcclusion.resolve(resource,
-            bodyKey,
-            space,
-            snapshot,
-            settings,
-            interests,
-            settings.getVisualMaterializationSettings().getDetachedVisualMaterializationRadius(),
-            visualInterestTick,
-            raycastBudget,
-            collector);
     }
 
     @Nonnull
