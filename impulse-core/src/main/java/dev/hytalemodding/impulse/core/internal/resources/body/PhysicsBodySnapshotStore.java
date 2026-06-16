@@ -3,7 +3,6 @@ package dev.hytalemodding.impulse.core.internal.resources.body;
 import dev.hytalemodding.impulse.api.PhysicsBodySnapshot;
 import dev.hytalemodding.impulse.api.SpaceId;
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsSpaceBinding;
-import dev.hytalemodding.impulse.core.plugin.body.RigidBodyKey;
 import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyKind;
 import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyPersistenceMode;
 import dev.hytalemodding.impulse.core.plugin.snapshot.PhysicsBodySnapshotEntry;
@@ -76,18 +75,6 @@ public final class PhysicsBodySnapshotStore {
         return new ApplyStats(applier.applied(), applier.inserted(), retainMarked(applier.generation()));
     }
 
-    public void put(@Nonnull RigidBodyKey bodyKey,
-        @Nonnull PhysicsBodySnapshot snapshot,
-        @Nonnull SpaceId spaceId,
-        @Nonnull PhysicsBodyKind kind,
-        @Nonnull PhysicsBodyPersistenceMode persistenceMode) {
-        put(Objects.requireNonNull(bodyKey, "bodyKey").value(),
-            snapshot,
-            spaceId,
-            kind,
-            persistenceMode);
-    }
-
     public void put(@Nonnull UUID bodyUuid,
         @Nonnull PhysicsBodySnapshot snapshot,
         @Nonnull SpaceId spaceId,
@@ -99,17 +86,8 @@ public final class PhysicsBodySnapshotStore {
     }
 
     @Nullable
-    public PhysicsBodySnapshot get(@Nonnull RigidBodyKey bodyKey) {
-        return get(Objects.requireNonNull(bodyKey, "bodyKey").value());
-    }
-
-    @Nullable
     public PhysicsBodySnapshot get(@Nonnull UUID bodyUuid) {
         return snapshots.get(bodyUuid);
-    }
-
-    public void remove(@Nonnull RigidBodyKey bodyKey) {
-        remove(Objects.requireNonNull(bodyKey, "bodyKey").value());
     }
 
     public void remove(@Nonnull UUID bodyUuid) {

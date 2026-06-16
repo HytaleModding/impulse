@@ -5,7 +5,6 @@ import dev.hytalemodding.impulse.api.SpaceId;
 import dev.hytalemodding.impulse.core.internal.resources.body.PhysicsBodyRegistry;
 import dev.hytalemodding.impulse.core.internal.resources.body.PhysicsBodySnapshotVisitor;
 import dev.hytalemodding.impulse.core.internal.resources.body.PhysicsBodySnapshotStore;
-import dev.hytalemodding.impulse.core.plugin.body.RigidBodyKey;
 import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyKind;
 import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyPersistenceMode;
 import dev.hytalemodding.impulse.core.internal.resources.body.PhysicsBodyRegistration;
@@ -43,11 +42,6 @@ public final class PhysicsWorldSnapshotState {
     private volatile long latestSnapshotAppliedNanos;
 
     @Nullable
-    public PhysicsBodySnapshot getBodySnapshot(@Nonnull RigidBodyKey bodyKey) {
-        return getBodySnapshot(Objects.requireNonNull(bodyKey, "bodyKey").value());
-    }
-
-    @Nullable
     public PhysicsBodySnapshot getBodySnapshot(@Nonnull UUID bodyUuid) {
         return bodySnapshots.get(bodyUuid);
     }
@@ -60,18 +54,6 @@ public final class PhysicsWorldSnapshotState {
             throw new IllegalStateException("No physics body snapshot is available for " + registration.bodyUuid());
         }
         return snapshot;
-    }
-
-    public void putBodySnapshot(@Nonnull RigidBodyKey bodyKey,
-        @Nonnull PhysicsBodySnapshot snapshot,
-        @Nonnull SpaceId spaceId,
-        @Nonnull PhysicsBodyKind kind,
-        @Nonnull PhysicsBodyPersistenceMode persistenceMode) {
-        putBodySnapshot(Objects.requireNonNull(bodyKey, "bodyKey").value(),
-            snapshot,
-            spaceId,
-            kind,
-            persistenceMode);
     }
 
     public void putBodySnapshot(@Nonnull UUID bodyUuid,
@@ -195,10 +177,6 @@ public final class PhysicsWorldSnapshotState {
         float radius,
         @Nonnull PhysicsBodySnapshotVisitor visitor) {
         return bodySnapshots.forEachIndexedNear(spaceId, center, radius, visitor);
-    }
-
-    public void removeBodySnapshot(@Nonnull RigidBodyKey bodyKey) {
-        removeBodySnapshot(Objects.requireNonNull(bodyKey, "bodyKey").value());
     }
 
     public void removeBodySnapshot(@Nonnull UUID bodyUuid) {

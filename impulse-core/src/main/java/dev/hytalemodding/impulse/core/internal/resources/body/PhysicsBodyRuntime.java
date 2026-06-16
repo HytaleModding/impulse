@@ -14,7 +14,6 @@ import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyKind;
 import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyPersistenceMode;
 import dev.hytalemodding.impulse.core.plugin.body.RigidBodyKey;
 import java.util.ArrayList;
-import java.util.Objects;
 import java.util.UUID;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
@@ -86,10 +85,6 @@ public final class PhysicsBodyRuntime {
         return bodyKey;
     }
 
-    public void destroyBody(@Nonnull RigidBodyKey bodyKey, boolean removeFromSpace) {
-        destroyBody(Objects.requireNonNull(bodyKey, "bodyKey").value(), removeFromSpace);
-    }
-
     public void destroyBody(@Nonnull UUID bodyUuid, boolean removeFromSpace) {
         PhysicsBodyRegistration registration = bodyRegistry.getRegistration(bodyUuid);
         if (registration != null) {
@@ -133,10 +128,6 @@ public final class PhysicsBodyRuntime {
         jointRegistry.clear();
         visualRuntime.clear();
         lifecycleState.clearBodySnapshots();
-    }
-
-    public void clearBodyRuntimeState(@Nonnull RigidBodyKey bodyKey) {
-        clearBodyRuntimeState(Objects.requireNonNull(bodyKey, "bodyKey").value());
     }
 
     public void clearBodyRuntimeState(@Nonnull UUID bodyUuid) {

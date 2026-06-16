@@ -8,7 +8,6 @@ import dev.hytalemodding.impulse.core.internal.resources.body.PhysicsBodySnapsho
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsWorldSnapshotState.ApplyResult;
 import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyKind;
 import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyPersistenceMode;
-import dev.hytalemodding.impulse.core.plugin.body.RigidBodyKey;
 import dev.hytalemodding.impulse.core.plugin.events.PhysicsEventFrame;
 import dev.hytalemodding.impulse.core.plugin.events.PhysicsFrameEvent;
 import dev.hytalemodding.impulse.core.plugin.snapshot.PhysicsBodySnapshotEntry;
@@ -39,11 +38,6 @@ public final class PhysicsWorldLifecycleState {
     }
 
     @Nullable
-    public PhysicsBodySnapshot getBodySnapshot(@Nonnull RigidBodyKey bodyKey) {
-        return snapshotState.getBodySnapshot(bodyKey);
-    }
-
-    @Nullable
     public PhysicsBodySnapshot getBodySnapshot(@Nonnull UUID bodyUuid) {
         return snapshotState.getBodySnapshot(bodyUuid);
     }
@@ -51,14 +45,6 @@ public final class PhysicsWorldLifecycleState {
     @Nonnull
     public PhysicsBodySnapshot captureBodySnapshot(@Nonnull PhysicsBodyRegistration registration) {
         return snapshotState.captureBodySnapshot(registration);
-    }
-
-    public void putBodySnapshot(@Nonnull RigidBodyKey bodyKey,
-        @Nonnull PhysicsBodySnapshot snapshot,
-        @Nonnull SpaceId spaceId,
-        @Nonnull PhysicsBodyKind kind,
-        @Nonnull PhysicsBodyPersistenceMode persistenceMode) {
-        snapshotState.putBodySnapshot(bodyKey, snapshot, spaceId, kind, persistenceMode);
     }
 
     public void putBodySnapshot(@Nonnull UUID bodyUuid,
@@ -171,10 +157,6 @@ public final class PhysicsWorldLifecycleState {
         float radius,
         @Nonnull PhysicsBodySnapshotVisitor visitor) {
         return snapshotState.forEachIndexedBodySnapshotNear(spaceId, center, radius, visitor);
-    }
-
-    public void removeBodySnapshot(@Nonnull RigidBodyKey bodyKey) {
-        snapshotState.removeBodySnapshot(bodyKey);
     }
 
     public void removeBodySnapshot(@Nonnull UUID bodyUuid) {
