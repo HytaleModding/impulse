@@ -1830,6 +1830,18 @@ public class PhysicsWorldRuntimeResource extends PhysicsWorldResource {
         destroyBody(bodyKey, true);
     }
 
+    @Override
+    public void destroyBody(@Nonnull UUID bodyUuid) {
+        if (isAuthoritativePhysicsStoreActive()) {
+            PhysicsStoreTopologyMutations.destroyBody(
+                authoritativePhysicsStore("destroy physics body"),
+                bodyUuid);
+            return;
+        }
+        requireLegacyMutationAllowed("destroy physics body");
+        destroyBody(RigidBodyKey.of(bodyUuid), true);
+    }
+
     @Nonnull
     @Override
     public PhysicsMutationHandle<RigidBodyKey> destroyBodyAsync(@Nonnull RigidBodyKey bodyKey) {

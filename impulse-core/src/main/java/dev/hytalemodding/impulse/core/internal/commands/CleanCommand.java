@@ -21,7 +21,6 @@ import dev.hytalemodding.impulse.core.internal.modules.control.components.Physic
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsRuntimeResetResult;
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsWorldRuntimeResource;
 import dev.hytalemodding.impulse.core.internal.modules.control.systems.PhysicsControlSessionCleanup;
-import dev.hytalemodding.impulse.core.plugin.body.RigidBodyKey;
 import dev.hytalemodding.impulse.core.plugin.physicsstore.components.UuidComponent;
 import dev.hytalemodding.impulse.core.plugin.physicsstore.projection.BodyAttachmentComponent;
 import it.unimi.dsi.fastutil.objects.ObjectOpenHashSet;
@@ -199,8 +198,8 @@ public class CleanCommand extends AbstractWorldCommand {
         }
 
         int removedBodies = 0;
-        for (RigidBodyKey bodyKey : selectedBodies.bodyKeys()) {
-            resource.destroyBody(bodyKey);
+        for (UUID bodyUuid : selectedBodies.bodyUuids()) {
+            resource.destroyBody(bodyUuid);
             removedBodies++;
         }
 
@@ -226,7 +225,6 @@ public class CleanCommand extends AbstractWorldCommand {
     private static SelectedBodies selectBodiesNear(@Nonnull PhysicsWorldRuntimeResource resource,
         @Nonnull Vector3d center,
         float radius) {
-        Set<RigidBodyKey> bodyKeys = new ObjectOpenHashSet<>();
         Set<UUID> bodyUuids = new ObjectOpenHashSet<>();
         Vector3f centerF = new Vector3f((float) center.x, (float) center.y, (float) center.z);
         for (SpaceId spaceId : resource.getSpaceIds()) {
@@ -234,11 +232,10 @@ public class CleanCommand extends AbstractWorldCommand {
                 centerF,
                 radius,
                 (bodyKey, snapshot, bodySpaceId, kind, persistenceMode) -> {
-                    bodyKeys.add(bodyKey);
                     bodyUuids.add(bodyKey.value());
                 });
         }
-        return new SelectedBodies(bodyKeys, bodyUuids);
+        return new SelectedBodies(bodyUuids);
     }
 
     private static boolean controlSessionSelected(
@@ -280,8 +277,7 @@ public class CleanCommand extends AbstractWorldCommand {
         return bodyUuid != null && bodyUuids.contains(bodyUuid);
     }
 
-    private record SelectedBodies(@Nonnull Set<RigidBodyKey> bodyKeys,
-                                  @Nonnull Set<UUID> bodyUuids) {
+    private record SelectedBodies(@Nonnull Set<UUID> bodyUuids) {
     }
 
     @Nullable

@@ -328,6 +328,15 @@ public abstract class PhysicsWorldResource implements Resource<EntityStore> {
     public abstract void destroyBody(@Nonnull RigidBodyKey bodyKey);
 
     /**
+     * Destroys a registered body by durable body UUID.
+     *
+     * <p>Prefer this overload when the caller is crossing a durable identity boundary.</p>
+     */
+    public void destroyBody(@Nonnull UUID bodyUuid) {
+        destroyBody(RigidBodyKey.of(bodyUuid));
+    }
+
+    /**
      * Queues destruction of a registered body by stable key.
      */
     @Nonnull
