@@ -13,6 +13,7 @@ import dev.hytalemodding.impulse.core.internal.physicsstore.resources.PhysicsRes
 import dev.hytalemodding.impulse.core.internal.physicsstore.resources.PhysicsRuntimeResource;
 import dev.hytalemodding.impulse.core.internal.physicsstore.resources.PhysicsSpaceCompatibilityIndexResource;
 import dev.hytalemodding.impulse.core.internal.physicsstore.resources.PhysicsSnapshotResource;
+import dev.hytalemodding.impulse.core.internal.physicsstore.resources.PhysicsStepSchedulerResource;
 import dev.hytalemodding.impulse.core.internal.physicsstore.resources.PhysicsStoreReadQueueResource;
 import dev.hytalemodding.impulse.core.internal.physicsstore.resources.PhysicsTerrainPayloadResource;
 import dev.hytalemodding.impulse.core.internal.physicsstore.resources.PhysicsWorldSettingsResource;
@@ -87,6 +88,8 @@ public final class PhysicsStoreTypes {
     private static ResourceType<PhysicsStore, PhysicsRuntimeResource> runtimeResourceType;
     @Nullable
     private static ResourceType<PhysicsStore, PhysicsWorldSettingsResource> worldSettingsResourceType;
+    @Nullable
+    private static ResourceType<PhysicsStore, PhysicsStepSchedulerResource> stepSchedulerResourceType;
     @Nullable
     private static ResourceType<PhysicsStore, PhysicsSpaceCompatibilityIndexResource>
         spaceCompatibilityIndexResourceType;
@@ -217,6 +220,11 @@ public final class PhysicsStoreTypes {
     public static void setWorldSettingsResourceType(
         @Nonnull ResourceType<PhysicsStore, PhysicsWorldSettingsResource> type) {
         worldSettingsResourceType = Objects.requireNonNull(type, "type");
+    }
+
+    public static void setStepSchedulerResourceType(
+        @Nonnull ResourceType<PhysicsStore, PhysicsStepSchedulerResource> type) {
+        stepSchedulerResourceType = Objects.requireNonNull(type, "type");
     }
 
     public static void setSpaceCompatibilityIndexResourceType(
@@ -387,6 +395,11 @@ public final class PhysicsStoreTypes {
     @Nonnull
     public static ResourceType<PhysicsStore, PhysicsWorldSettingsResource> worldSettingsResourceType() {
         return require(worldSettingsResourceType, "PhysicsWorldSettingsResource");
+    }
+
+    @Nonnull
+    public static ResourceType<PhysicsStore, PhysicsStepSchedulerResource> stepSchedulerResourceType() {
+        return require(stepSchedulerResourceType, "PhysicsStepSchedulerResource");
     }
 
     @Nonnull

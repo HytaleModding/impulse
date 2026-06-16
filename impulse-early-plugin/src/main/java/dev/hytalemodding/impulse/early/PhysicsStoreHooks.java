@@ -15,6 +15,8 @@ public final class PhysicsStoreHooks {
     @Nonnull
     private static final Set<Consumer<PhysicsStore>> SHUTDOWN_HOOKS =
         new CopyOnWriteArraySet<>();
+    @Nonnull
+    private static final Set<TickGate> TICK_GATES = new CopyOnWriteArraySet<>();
 
     private PhysicsStoreHooks() {
     }
@@ -27,6 +29,14 @@ public final class PhysicsStoreHooks {
         SHUTDOWN_HOOKS.remove(Objects.requireNonNull(hook, "hook"));
     }
 
+    public static void registerTickGate(@Nonnull TickGate gate) {
+        TICK_GATES.add(Objects.requireNonNull(gate, "gate"));
+    }
+
+    public static void unregisterTickGate(@Nonnull TickGate gate) {
+        TICK_GATES.remove(Objects.requireNonNull(gate, "gate"));
+    }
+
     public static void start(@Nonnull PhysicsStore physicsStore,
         @Nonnull IResourceStorage resourceStorage) {
         Objects.requireNonNull(physicsStore, "physicsStore")
@@ -37,8 +47,11 @@ public final class PhysicsStoreHooks {
         float dt,
         boolean ticking,
         boolean paused) {
-        Store<PhysicsStore> store = Objects.requireNonNull(physicsStore, "physicsStore")
-            .getStore();
+        PhysicsStore checked = Objects.requireNonNull(physicsStore, "physicsStore");
+        if (!shouldTick(checked, dt)) {
+            return;
+        }
+        Store<PhysicsStore> store = checked.getStore();
         if (ticking && !paused) {
             store.tick(dt);
             return;
@@ -76,5 +89,20 @@ public final class PhysicsStoreHooks {
         if (hookFailure != null) {
             throw hookFailure;
         }
+    }
+
+    private static boolean shouldTick(@Nonnull PhysicsStore physicsStore, float dt) {
+        for (TickGate gate : TICK_GATES) {
+            if (!gate.shouldTick(physicsStore, dt)) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    @FunctionalInterface
+    public interface TickGate {
+
+        boolean shouldTick(@Nonnull PhysicsStore physicsStore, float dt);
     }
 }

@@ -5,6 +5,7 @@ import com.hypixel.hytale.server.core.universe.world.World;
 import com.hypixel.hytale.server.core.universe.world.storage.PhysicsStore;
 import dev.hytalemodding.impulse.early.PhysicsStoreWorld;
 import dev.hytalemodding.impulse.core.internal.physicsstore.PhysicsStoreAsyncCompletions;
+import dev.hytalemodding.impulse.core.internal.physicsstore.resources.PhysicsStepSchedulerResource;
 import dev.hytalemodding.impulse.core.internal.physicsstore.resources.PhysicsStoreReadQueueResource;
 import java.util.Objects;
 import java.util.concurrent.CompletableFuture;
@@ -30,6 +31,17 @@ public final class PhysicsStoreThreading {
                 + " outside the owning PhysicsStore world thread");
         }
         return world;
+    }
+
+    public static void requireBackendIdle(@Nonnull Store<PhysicsStore> store,
+        @Nonnull String operation) {
+        requireWorldThread(store, operation);
+        PhysicsStepSchedulerResource scheduler = store.getResource(
+            PhysicsStepSchedulerResource.getResourceType());
+        if (scheduler.isStepPending()) {
+            throw new IllegalStateException("Cannot " + operation
+                + " while a PhysicsStore owner-lane step is pending");
+        }
     }
 
     @Nonnull

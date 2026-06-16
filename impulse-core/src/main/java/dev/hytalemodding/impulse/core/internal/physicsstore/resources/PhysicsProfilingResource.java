@@ -19,6 +19,12 @@ public final class PhysicsProfilingResource implements Resource<PhysicsStore> {
     private int spaces;
     private int substeps;
     private int publishedBodies;
+    private int schedulerSamples;
+    private float schedulerInputDtSeconds;
+    private float schedulerSubmittedDtSeconds;
+    private float schedulerBacklogDtSeconds;
+    private float droppedBacklogDtSeconds;
+    private boolean dtCapHit;
     @Nonnull
     private PhysicsStepPhaseStats nativePhaseStats = PhysicsStepPhaseStats.unavailable();
 
@@ -48,12 +54,31 @@ public final class PhysicsProfilingResource implements Resource<PhysicsStore> {
         this.publishedBodies = Math.max(0, publishedBodies);
     }
 
+    public void recordStepScheduling(float inputDtSeconds,
+        float submittedDtSeconds,
+        float backlogDtSeconds,
+        float droppedBacklogDtSeconds,
+        boolean dtCapHit) {
+        schedulerSamples = 1;
+        schedulerInputDtSeconds = safeDt(inputDtSeconds);
+        schedulerSubmittedDtSeconds = safeDt(submittedDtSeconds);
+        schedulerBacklogDtSeconds = safeDt(backlogDtSeconds);
+        this.droppedBacklogDtSeconds = safeDt(droppedBacklogDtSeconds);
+        this.dtCapHit = dtCapHit;
+    }
+
     public void reset() {
         snapshotNanos = 0L;
         stepSubmitNanos = 0L;
         spaces = 0;
         substeps = 0;
         publishedBodies = 0;
+        schedulerSamples = 0;
+        schedulerInputDtSeconds = 0.0f;
+        schedulerSubmittedDtSeconds = 0.0f;
+        schedulerBacklogDtSeconds = 0.0f;
+        droppedBacklogDtSeconds = 0.0f;
+        dtCapHit = false;
         nativePhaseStats = PhysicsStepPhaseStats.unavailable();
     }
 
@@ -64,6 +89,12 @@ public final class PhysicsProfilingResource implements Resource<PhysicsStore> {
             stepSubmitNanos,
             snapshotNanos,
             publishedBodies,
+            schedulerSamples,
+            schedulerInputDtSeconds,
+            schedulerSubmittedDtSeconds,
+            schedulerBacklogDtSeconds,
+            droppedBacklogDtSeconds,
+            dtCapHit,
             nativePhaseStats);
     }
 
@@ -102,6 +133,12 @@ public final class PhysicsProfilingResource implements Resource<PhysicsStore> {
         copy.spaces = spaces;
         copy.substeps = substeps;
         copy.publishedBodies = publishedBodies;
+        copy.schedulerSamples = schedulerSamples;
+        copy.schedulerInputDtSeconds = schedulerInputDtSeconds;
+        copy.schedulerSubmittedDtSeconds = schedulerSubmittedDtSeconds;
+        copy.schedulerBacklogDtSeconds = schedulerBacklogDtSeconds;
+        copy.droppedBacklogDtSeconds = droppedBacklogDtSeconds;
+        copy.dtCapHit = dtCapHit;
         copy.nativePhaseStats = nativePhaseStats;
         return copy;
     }
@@ -116,6 +153,12 @@ public final class PhysicsProfilingResource implements Resource<PhysicsStore> {
                              long stepSubmitNanos,
                              long snapshotNanos,
                              int publishedBodies,
+                             int schedulerSamples,
+                             float schedulerInputDtSeconds,
+                             float schedulerSubmittedDtSeconds,
+                             float schedulerBacklogDtSeconds,
+                             float droppedBacklogDtSeconds,
+                             boolean dtCapHit,
                              @Nonnull PhysicsStepPhaseStats nativePhaseStats) {
 
         public StepSample {
@@ -124,7 +167,16 @@ public final class PhysicsProfilingResource implements Resource<PhysicsStore> {
             stepSubmitNanos = Math.max(0L, stepSubmitNanos);
             snapshotNanos = Math.max(0L, snapshotNanos);
             publishedBodies = Math.max(0, publishedBodies);
+            schedulerSamples = Math.max(0, schedulerSamples);
+            schedulerInputDtSeconds = safeDt(schedulerInputDtSeconds);
+            schedulerSubmittedDtSeconds = safeDt(schedulerSubmittedDtSeconds);
+            schedulerBacklogDtSeconds = safeDt(schedulerBacklogDtSeconds);
+            droppedBacklogDtSeconds = safeDt(droppedBacklogDtSeconds);
             Objects.requireNonNull(nativePhaseStats, "nativePhaseStats");
         }
+    }
+
+    private static float safeDt(float dtSeconds) {
+        return Float.isFinite(dtSeconds) ? Math.max(0.0f, dtSeconds) : 0.0f;
     }
 }

@@ -27,7 +27,7 @@ public final class PhysicsStoreRuntimeCleaner {
     }
 
     public static void clearAll(@Nonnull Store<PhysicsStore> store) {
-        PhysicsStoreThreading.requireWorldThread(store, "clear PhysicsStore runtime rows");
+        PhysicsStoreThreading.requireBackendIdle(store, "clear PhysicsStore runtime rows");
         store.forEachEntityParallel(UuidComponent.getComponentType(),
             (index, chunk, commandBuffer) -> commandBuffer.removeEntity(
                 chunk.getReferenceTo(index),

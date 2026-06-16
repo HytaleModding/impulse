@@ -17,12 +17,17 @@ import dev.hytalemodding.impulse.core.internal.physicsstore.resources.PhysicsPro
 import dev.hytalemodding.impulse.core.internal.physicsstore.resources.PhysicsRestoreStatusResource;
 import dev.hytalemodding.impulse.core.internal.physicsstore.resources.PhysicsRuntimeResource;
 import dev.hytalemodding.impulse.core.internal.physicsstore.resources.PhysicsRuntimeResource.BodySnapshotMetadata;
+import dev.hytalemodding.impulse.core.internal.physicsstore.resources.PhysicsStepSchedulerResource;
+import dev.hytalemodding.impulse.core.internal.physicsstore.resources.PhysicsStepSchedulerResource.CompletedStep;
+import dev.hytalemodding.impulse.core.internal.physicsstore.resources.PhysicsStepSchedulerResource.StepInput;
 import dev.hytalemodding.impulse.core.internal.physicsstore.resources.PhysicsWorldSettingsResource;
 import dev.hytalemodding.impulse.core.internal.resources.BackendSpaceHandle;
 import dev.hytalemodding.impulse.core.internal.systems.step.PhysicsStepCountPolicy;
 import dev.hytalemodding.impulse.core.plugin.physicsstore.components.DynamicsComponent;
 import dev.hytalemodding.impulse.core.plugin.settings.PhysicsWorldSettings;
 import dev.hytalemodding.impulse.core.plugin.settings.PhysicsStepMode;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Set;
 import javax.annotation.Nonnull;
 
@@ -55,17 +60,26 @@ public final class StepSubmissionSystem extends TickingSystem<PhysicsStore> {
             PhysicsWorldSettingsResource.getResourceType());
         PhysicsWorldSettings settings = settingsResource.getSettings();
         PhysicsRuntimeResource runtime = store.getResource(PhysicsRuntimeResource.getResourceType());
+        PhysicsStepSchedulerResource scheduler = store.getResource(
+            PhysicsStepSchedulerResource.getResourceType());
+        StepInput input = scheduler.acceptStepInput(safeDt,
+            settings.getStepSchedulingMode(),
+            maxSubmittedDtSeconds(settings));
+        float submittedDt = input.submittedDtSeconds();
+        if (submittedDt <= 0.0f) {
+            return;
+        }
         PhysicsStepMode stepMode = settings.getStepMode();
         float maxStepDt = settings.getMaxStepDt() > 0.0f
             ? settings.getMaxStepDt()
             : PhysicsWorldSettings.DEFAULT_MAX_STEP_DT;
         int steps = stepMode == PhysicsStepMode.ADAPTIVE
-            ? resolveAdaptiveStepCount(runtime, safeDt, settings.getSimulationSteps(), maxStepDt)
-            : PhysicsStepCountPolicy.resolveStepCount(safeDt,
+            ? resolveAdaptiveStepCount(runtime, submittedDt, settings.getSimulationSteps(), maxStepDt)
+            : PhysicsStepCountPolicy.resolveStepCount(submittedDt,
                 settings.getSimulationSteps(),
                 maxStepDt,
                 stepMode);
-        float stepDt = safeDt / steps;
+        float stepDt = submittedDt / steps;
         boolean ccdMode = stepMode == PhysicsStepMode.CCD;
         if (ccdMode || settingsResource.isCcdStepModeActive()) {
             syncContinuousCollisionMode(store, runtime, ccdMode);
@@ -76,23 +90,46 @@ public final class StepSubmissionSystem extends TickingSystem<PhysicsStore> {
         if (profilingEnabled) {
             resetStepPhaseStats(runtime);
         }
+        List<RuntimeStepBinding> bindings = runtimeStepBindings(runtime);
+        boolean submitted = scheduler.submitStep(input,
+            () -> runOwnerStep(bindings, steps, stepDt, profilingEnabled),
+            System.nanoTime());
+        if (!submitted) {
+            throw new IllegalStateException("PhysicsStore owner-lane scheduler refused a submitted step");
+        }
+    }
+
+    @Nonnull
+    private static CompletedStep runOwnerStep(@Nonnull List<RuntimeStepBinding> bindings,
+        int steps,
+        float stepDt,
+        boolean profilingEnabled) {
         long stepStartNanos = profilingEnabled ? System.nanoTime() : 0L;
         StepCounters counters = new StepCounters();
-        runtime.forEachRuntimeSpaceBinding((_, _, spaceHandle, backendRuntime) -> {
+        for (RuntimeStepBinding binding : bindings) {
             counters.spaceCount++;
             for (int step = 0; step < steps; step++) {
-                backendRuntime.step(spaceHandle.value(), stepDt);
+                binding.backendRuntime().step(binding.spaceHandle(), stepDt);
                 counters.substeps++;
             }
-        });
+        }
         long stepNanos = profilingEnabled ? System.nanoTime() - stepStartNanos : 0L;
         PhysicsStepPhaseStats nativePhaseStats = profilingEnabled
-            ? collectStepPhaseStats(runtime)
+            ? collectStepPhaseStats(bindings)
             : PhysicsStepPhaseStats.unavailable();
-        profiling.recordStep(stepNanos,
-            counters.spaceCount,
+        return new CompletedStep(counters.spaceCount,
             counters.substeps,
+            stepNanos,
             nativePhaseStats);
+    }
+
+    @Nonnull
+    private static List<RuntimeStepBinding> runtimeStepBindings(
+        @Nonnull PhysicsRuntimeResource runtime) {
+        List<RuntimeStepBinding> bindings = new ArrayList<>();
+        runtime.forEachRuntimeSpaceBinding((_, _, spaceHandle, backendRuntime) ->
+            bindings.add(new RuntimeStepBinding(spaceHandle.value(), backendRuntime)));
+        return bindings;
     }
 
     private static int resolveAdaptiveStepCount(@Nonnull PhysicsRuntimeResource runtime,
@@ -108,6 +145,17 @@ public final class StepSubmissionSystem extends TickingSystem<PhysicsStore> {
                 bodyIds -> runtime.forEachBodyHandle(spaceHandle, bodyIds::accept),
                 risk));
         return risk.steps();
+    }
+
+    private static float maxSubmittedDtSeconds(@Nonnull PhysicsWorldSettings settings) {
+        float maxStepDt = settings.getMaxStepDt() > 0.0f
+            ? settings.getMaxStepDt()
+            : PhysicsWorldSettings.DEFAULT_MAX_STEP_DT;
+        int maxSteps = switch (settings.getStepMode()) {
+            case FIXED, CCD -> settings.getSimulationSteps();
+            case ADAPTIVE, PROGRESSIVE_REFINEMENT -> PhysicsWorldSettings.MAX_SIMULATION_STEPS;
+        };
+        return maxStepDt * maxSteps;
     }
 
     private static void syncContinuousCollisionMode(@Nonnull Store<PhysicsStore> store,
@@ -145,14 +193,15 @@ public final class StepSubmissionSystem extends TickingSystem<PhysicsStore> {
     }
 
     @Nonnull
-    private static PhysicsStepPhaseStats collectStepPhaseStats(@Nonnull PhysicsRuntimeResource runtime) {
+    private static PhysicsStepPhaseStats collectStepPhaseStats(
+        @Nonnull List<RuntimeStepBinding> bindings) {
         StepPhaseStatsAccumulator stats = new StepPhaseStatsAccumulator();
         StepPhaseStatsCapture capture = new StepPhaseStatsCapture();
-        runtime.forEachRuntimeSpaceBinding((_, _, spaceHandle, backendRuntime) -> {
+        for (RuntimeStepBinding binding : bindings) {
             capture.reset();
-            backendRuntime.stepPhaseStats(spaceHandle.value(), capture);
+            binding.backendRuntime().stepPhaseStats(binding.spaceHandle(), capture);
             stats.add(capture.value());
-        });
+        }
         return stats.value();
     }
 
@@ -366,6 +415,10 @@ public final class StepSubmissionSystem extends TickingSystem<PhysicsStore> {
 
         private int spaceCount;
         private int substeps;
+    }
+
+    private record RuntimeStepBinding(int spaceHandle,
+                                      @Nonnull PhysicsBackendRuntime backendRuntime) {
     }
 
     private static int requiredSteps(float travel, float safeTravel) {

@@ -3,6 +3,7 @@ package dev.hytalemodding.impulse.core.internal.physicsstore.registration;
 import com.hypixel.hytale.component.ComponentRegistryProxy;
 import com.hypixel.hytale.component.Store;
 import com.hypixel.hytale.server.core.plugin.PluginBase;
+import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import com.hypixel.hytale.server.core.universe.world.storage.PhysicsStore;
 import dev.hytalemodding.impulse.early.PhysicsStoreHooks;
 import dev.hytalemodding.impulse.core.internal.physicsstore.persistence.PersistentPhysicsStoreResource;
@@ -16,6 +17,8 @@ import dev.hytalemodding.impulse.core.internal.physicsstore.resources.PhysicsRes
 import dev.hytalemodding.impulse.core.internal.physicsstore.resources.PhysicsRuntimeResource;
 import dev.hytalemodding.impulse.core.internal.physicsstore.resources.PhysicsSpaceCompatibilityIndexResource;
 import dev.hytalemodding.impulse.core.internal.physicsstore.resources.PhysicsSnapshotResource;
+import dev.hytalemodding.impulse.core.internal.physicsstore.resources.PhysicsStepSchedulerResource;
+import dev.hytalemodding.impulse.core.internal.physicsstore.resources.PhysicsStepSchedulerResource.TickDecision;
 import dev.hytalemodding.impulse.core.internal.physicsstore.resources.PhysicsStoreReadQueueResource;
 import dev.hytalemodding.impulse.core.internal.physicsstore.resources.PhysicsTerrainPayloadResource;
 import dev.hytalemodding.impulse.core.internal.physicsstore.resources.PhysicsWorldSettingsResource;
@@ -32,11 +35,13 @@ import dev.hytalemodding.impulse.core.internal.physicsstore.systems.PhysicsStore
 import dev.hytalemodding.impulse.core.internal.physicsstore.systems.TerrainMutationDrainSystem;
 import dev.hytalemodding.impulse.core.internal.physicsstore.systems.SpaceBindingSystem;
 import dev.hytalemodding.impulse.core.internal.physicsstore.systems.SpaceSettingsApplicationSystem;
+import dev.hytalemodding.impulse.core.internal.physicsstore.systems.StepCompletionPublicationSystem;
 import dev.hytalemodding.impulse.core.internal.physicsstore.systems.StepSubmissionSystem;
 import dev.hytalemodding.impulse.core.internal.physicsstore.systems.StaleBodyRemovalSystem;
 import dev.hytalemodding.impulse.core.internal.physicsstore.systems.TargetBindingSystem;
 import dev.hytalemodding.impulse.core.internal.physicsstore.systems.TerrainColliderBindingSystem;
 import dev.hytalemodding.impulse.core.internal.physicsstore.systems.WorldCollisionIndexSystem;
+import dev.hytalemodding.impulse.core.internal.resources.profiling.PhysicsRuntimeProfilingResource;
 import dev.hytalemodding.impulse.core.plugin.physicsstore.PhysicsStoreTypes;
 import dev.hytalemodding.impulse.core.plugin.physicsstore.components.BodyCommandComponent;
 import dev.hytalemodding.impulse.core.plugin.physicsstore.components.BodyComponent;
@@ -56,6 +61,7 @@ import dev.hytalemodding.impulse.core.plugin.physicsstore.components.UuidCompone
 import dev.hytalemodding.impulse.core.plugin.physicsstore.components.VisualMaterializationSettingsComponent;
 import dev.hytalemodding.impulse.core.plugin.physicsstore.components.VisualSyncSettingsComponent;
 import dev.hytalemodding.impulse.core.plugin.physicsstore.components.WorldCollisionComponent;
+import dev.hytalemodding.impulse.core.plugin.settings.PhysicsWorldSettings;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.util.function.Consumer;
@@ -71,6 +77,9 @@ public final class PhysicsStoreRegistration {
     @Nonnull
     private static final Consumer<PhysicsStore> SHUTDOWN_CLEANUP =
         PhysicsStoreRegistration::clearRuntimeStateBeforeShutdown;
+    @Nonnull
+    private static final PhysicsStoreHooks.TickGate STEP_TICK_GATE =
+        PhysicsStoreRegistration::shouldTickPhysicsStore;
 
     private PhysicsStoreRegistration() {
     }
@@ -78,6 +87,7 @@ public final class PhysicsStoreRegistration {
     public static void register(@Nonnull PluginBase plugin) {
         ComponentRegistryProxy<PhysicsStore> registry = physicsStoreRegistry(plugin);
         PhysicsStoreHooks.registerShutdownHook(SHUTDOWN_CLEANUP);
+        PhysicsStoreHooks.registerTickGate(STEP_TICK_GATE);
 
         PhysicsStoreTypes.setUuidComponentType(registry.registerComponent(UuidComponent.class,
             "Uuid",
@@ -149,6 +159,9 @@ public final class PhysicsStoreRegistration {
         PhysicsStoreTypes.setWorldSettingsResourceType(registry.registerResource(
             PhysicsWorldSettingsResource.class,
             PhysicsWorldSettingsResource::new));
+        PhysicsStoreTypes.setStepSchedulerResourceType(registry.registerResource(
+            PhysicsStepSchedulerResource.class,
+            PhysicsStepSchedulerResource::new));
         PhysicsStoreTypes.setSpaceCompatibilityIndexResourceType(registry.registerResource(
             PhysicsSpaceCompatibilityIndexResource.class,
             PhysicsSpaceCompatibilityIndexResource::new));
@@ -203,6 +216,7 @@ public final class PhysicsStoreRegistration {
         registry.registerSystem(new TerrainColliderBindingSystem());
         registry.registerSystem(new BodyCommandApplicationSystem());
         registry.registerSystem(new TargetBindingSystem());
+        registry.registerSystem(new StepCompletionPublicationSystem());
         registry.registerSystem(new CompletedStepPublicationSystem());
         registry.registerSystem(new PhysicsStoreQueuedReadSystem());
         registry.registerSystem(new PersistenceCaptureSystem());
@@ -217,6 +231,8 @@ public final class PhysicsStoreRegistration {
         RuntimeException failure = null;
         failure = runShutdownCleanup(failure,
             () -> store.getResource(PhysicsTerrainMutationQueueResource.getResourceType()).clear());
+        failure = runShutdownCleanup(failure,
+            () -> store.getResource(PhysicsStepSchedulerResource.getResourceType()).close());
         failure = runShutdownCleanup(failure,
             () -> store.getResource(PhysicsRuntimeResource.getResourceType()).destroyBackendBindings());
         failure = runShutdownCleanup(failure,
@@ -240,6 +256,58 @@ public final class PhysicsStoreRegistration {
         if (failure != null) {
             throw failure;
         }
+    }
+
+    private static boolean shouldTickPhysicsStore(@Nonnull PhysicsStore physicsStore, float dt) {
+        Store<PhysicsStore> store = physicsStore.getStore();
+        if (store.isShutdown()) {
+            return true;
+        }
+        PhysicsWorldSettings settings = store.getResource(PhysicsWorldSettingsResource.getResourceType())
+            .getSettings();
+        TickDecision decision = store.getResource(PhysicsStepSchedulerResource.getResourceType())
+            .beforeStoreTick(dt,
+                settings.getStepSchedulingMode(),
+                maxSubmittedDtSeconds(settings),
+                System.nanoTime());
+        if (decision.shouldTick()) {
+            return true;
+        }
+        recordPendingStepSkip(store, decision);
+        return false;
+    }
+
+    private static void recordPendingStepSkip(@Nonnull Store<PhysicsStore> store,
+        @Nonnull TickDecision decision) {
+        Store<EntityStore> entityStore = store.getExternalData()
+            .getWorld()
+            .getEntityStore()
+            .getStore();
+        if (entityStore.isShutdown()) {
+            return;
+        }
+        PhysicsRuntimeProfilingResource profiling = entityStore.getResource(
+            PhysicsRuntimeProfilingResource.getResourceType());
+        if (!profiling.isEnabled()) {
+            return;
+        }
+        profiling.recordStepSkippedPending(decision.pendingStepAgeNanos());
+        profiling.recordStepScheduling(decision.inputDtSeconds(),
+            decision.submittedDtSeconds(),
+            decision.backlogDtSeconds(),
+            decision.droppedBacklogDtSeconds(),
+            decision.dtCapHit());
+    }
+
+    private static float maxSubmittedDtSeconds(@Nonnull PhysicsWorldSettings settings) {
+        float maxStepDt = settings.getMaxStepDt() > 0.0f
+            ? settings.getMaxStepDt()
+            : PhysicsWorldSettings.DEFAULT_MAX_STEP_DT;
+        int maxSteps = switch (settings.getStepMode()) {
+            case FIXED, CCD -> settings.getSimulationSteps();
+            case ADAPTIVE, PROGRESSIVE_REFINEMENT -> PhysicsWorldSettings.MAX_SIMULATION_STEPS;
+        };
+        return maxStepDt * maxSteps;
     }
 
     @Nullable

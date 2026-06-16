@@ -159,7 +159,7 @@ public final class PhysicsStoreSpaceMutations {
         @Nonnull UUID spaceUuid) {
         Objects.requireNonNull(store, "store");
         Objects.requireNonNull(spaceUuid, "spaceUuid");
-        PhysicsStoreThreading.requireWorldThread(store, "remove a PhysicsStore space entity");
+        PhysicsStoreThreading.requireBackendIdle(store, "remove a PhysicsStore space entity");
         PhysicsRuntimeResource runtime = store.getResource(PhysicsRuntimeResource.getResourceType());
         PhysicsIdentityIndexResource identity =
             store.getResource(PhysicsIdentityIndexResource.getResourceType());
