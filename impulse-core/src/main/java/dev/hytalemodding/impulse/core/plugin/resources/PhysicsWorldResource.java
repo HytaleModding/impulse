@@ -10,7 +10,6 @@ import dev.hytalemodding.impulse.api.BackendId;
 import dev.hytalemodding.impulse.api.PhysicsBodySnapshot;
 import dev.hytalemodding.impulse.api.SpaceId;
 import dev.hytalemodding.impulse.core.ImpulsePlugin;
-import dev.hytalemodding.impulse.core.plugin.body.RigidBodyKey;
 import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyKind;
 import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyPersistenceMode;
 import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyRegistrationView;
@@ -23,7 +22,6 @@ import dev.hytalemodding.impulse.core.plugin.settings.PhysicsWorldSettings;
 import dev.hytalemodding.impulse.core.plugin.snapshot.PhysicsBodySnapshotEntry;
 import java.util.Collection;
 import java.util.List;
-import java.util.Objects;
 import java.util.UUID;
 import java.util.function.Consumer;
 import javax.annotation.Nonnull;
@@ -35,7 +33,7 @@ import org.joml.Vector3f;
  * Public alpha facade for a world's physics runtime resource.
  *
  * <p>The concrete Impulse runtime lives in the internal package. Plugin-facing code should depend on
- * this facade for explicit space lifecycle, world settings, body lifetime by key,
+ * this facade for explicit space lifecycle, world settings, body lifetime by durable UUID,
  * immutable snapshots, read-only registration views, public attachment/control hooks, and world
  * collision operations.</p>
  *
@@ -187,14 +185,6 @@ public abstract class PhysicsWorldResource implements Resource<EntityStore> {
     public abstract PhysicsBodySnapshot getBodySnapshot(@Nonnull UUID bodyUuid);
 
     /**
-     * Compatibility adapter for callers that still carry a legacy body key.
-     */
-    @Nonnull
-    public PhysicsBodySnapshot getBodySnapshot(@Nonnull RigidBodyKey bodyKey) {
-        return getBodySnapshot(Objects.requireNonNull(bodyKey, "bodyKey").value());
-    }
-
-    /**
      * Returns the number of body snapshots in the latest published frame.
      */
     public abstract int getBodySnapshotCount();
@@ -332,15 +322,6 @@ public abstract class PhysicsWorldResource implements Resource<EntityStore> {
         @Nonnull PhysicsSpaceSettings settings);
 
     /**
-     * Destroys a registered body by stable key and removes it from its physics space.
-     *
-     * <p>This overload is retained for compatibility with legacy event/facade APIs.</p>
-     */
-    public void destroyBody(@Nonnull RigidBodyKey bodyKey) {
-        destroyBody(Objects.requireNonNull(bodyKey, "bodyKey").value());
-    }
-
-    /**
      * Destroys a registered body by durable body UUID.
      *
      * <p>Prefer this overload when the caller is crossing a durable identity boundary.</p>
@@ -351,35 +332,12 @@ public abstract class PhysicsWorldResource implements Resource<EntityStore> {
     public abstract PhysicsMutationHandle<UUID> destroyBodyAsync(@Nonnull UUID bodyUuid);
 
     /**
-     * Queues destruction of a registered body by stable key.
-     *
-     * <p>This overload is retained for compatibility with legacy event/facade APIs.</p>
-     */
-    @Nonnull
-    public PhysicsMutationHandle<RigidBodyKey> destroyBodyAsync(@Nonnull RigidBodyKey bodyKey) {
-        RigidBodyKey checkedBodyKey = Objects.requireNonNull(bodyKey, "bodyKey");
-        return PhysicsMutationHandle.fromCompletion("destroy physics body",
-            checkedBodyKey,
-            destroyBodyAsync(checkedBodyKey.value()).completion());
-    }
-
-    /**
      * Returns immutable registration metadata for a body UUID.
      *
      * <p>Prefer this overload when the caller is crossing a durable identity boundary.</p>
      */
     @Nullable
     public abstract PhysicsBodyRegistrationView getBodyRegistrationView(@Nonnull UUID bodyUuid);
-
-    /**
-     * Returns immutable registration metadata for a body key.
-     *
-     * <p>This overload is retained for compatibility with legacy event/facade APIs.</p>
-     */
-    @Nullable
-    public PhysicsBodyRegistrationView getBodyRegistrationView(@Nonnull RigidBodyKey bodyKey) {
-        return getBodyRegistrationView(bodyKey.value());
-    }
 
     /**
      * Returns immutable registration metadata for a live PhysicsStore body ref.
@@ -414,16 +372,6 @@ public abstract class PhysicsWorldResource implements Resource<EntityStore> {
         @Nonnull PhysicsBodyKind kind);
 
     /**
-     * Returns ECS attachments associated with a registered body key.
-     *
-     * <p>This overload is retained for compatibility with legacy event/facade APIs.</p>
-     */
-    @Nonnull
-    public Collection<Ref<EntityStore>> getBodyAttachments(@Nonnull RigidBodyKey bodyKey) {
-        return getBodyAttachments(bodyKey.value(), null);
-    }
-
-    /**
      * Returns ECS attachments associated with a durable body UUID and optional live body ref.
      */
     @Nonnull
@@ -434,21 +382,11 @@ public abstract class PhysicsWorldResource implements Resource<EntityStore> {
      * Returns ECS attachments associated with a live PhysicsStore body ref.
      *
      * <p>Prefer this overload when a caller already has a body row ref, such as from a PhysicsStore
-     * raycast or copied registration. The key overload remains the compatibility boundary.</p>
+     * raycast or copied registration.</p>
      */
     @Nonnull
     public Collection<Ref<EntityStore>> getBodyAttachments(@Nonnull Ref<PhysicsStore> bodyRef) {
         return List.of();
-    }
-
-    /**
-     * Returns whether a registered body has one or more ECS attachments without materializing the
-     * attachment collection.
-     *
-     * <p>This overload is retained for compatibility with legacy event/facade APIs.</p>
-     */
-    public boolean hasBodyAttachments(@Nonnull RigidBodyKey bodyKey) {
-        return hasBodyAttachments(bodyKey.value(), null);
     }
 
     /**
