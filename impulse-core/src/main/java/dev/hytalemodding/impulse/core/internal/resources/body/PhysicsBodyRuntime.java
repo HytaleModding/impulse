@@ -152,7 +152,6 @@ public final class PhysicsBodyRuntime {
 
     public void clearBodyRuntimeState(@Nonnull RigidBodyKey bodyKey) {
         visualRuntime.clearBodyRuntimeState(bodyKey);
-        controlRuntime.clearBody(bodyKey);
         chunkRuntime.clearBody(bodyKey);
         lifecycleState.removeBodySnapshot(bodyKey);
     }

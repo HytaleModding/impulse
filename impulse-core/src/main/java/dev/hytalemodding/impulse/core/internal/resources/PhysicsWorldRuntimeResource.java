@@ -2281,7 +2281,6 @@ public class PhysicsWorldRuntimeResource extends PhysicsWorldResource {
         if (bodyRef != null) {
             controlRuntime.markBodyControlled(bodyRef);
         }
-        controlRuntime.markBodyControlled(bodyUuid);
     }
 
     public void markBodyControlled(@Nonnull RigidBodyKey bodyKey) {
@@ -2290,7 +2289,6 @@ public class PhysicsWorldRuntimeResource extends PhysicsWorldResource {
         if (bodyRef != null) {
             controlRuntime.markBodyControlled(bodyRef);
         }
-        controlRuntime.markBodyControlled(bodyKey);
     }
 
     public void clearControlledBody(@Nonnull Ref<PhysicsStore> bodyRef) {
@@ -2303,7 +2301,6 @@ public class PhysicsWorldRuntimeResource extends PhysicsWorldResource {
         if (bodyRef != null) {
             controlRuntime.clearControlledBody(bodyRef);
         }
-        controlRuntime.clearControlledBody(bodyUuid);
     }
 
     public void clearControlledBody(@Nonnull RigidBodyKey bodyKey) {
@@ -2312,7 +2309,6 @@ public class PhysicsWorldRuntimeResource extends PhysicsWorldResource {
         if (bodyRef != null) {
             controlRuntime.clearControlledBody(bodyRef);
         }
-        controlRuntime.clearControlledBody(bodyKey);
     }
 
     public boolean isBodyControlled(@Nonnull Ref<PhysicsStore> bodyRef) {
@@ -2322,15 +2318,13 @@ public class PhysicsWorldRuntimeResource extends PhysicsWorldResource {
     public boolean isBodyControlled(@Nonnull UUID bodyUuid) {
         Ref<PhysicsStore> bodyRef = resolvePhysicsStoreBodyRef(bodyUuid,
             "resolve controlled body UUID");
-        return bodyRef != null && controlRuntime.isBodyControlled(bodyRef)
-            || controlRuntime.isBodyControlled(bodyUuid);
+        return bodyRef != null && controlRuntime.isBodyControlled(bodyRef);
     }
 
     public boolean isBodyControlled(@Nonnull RigidBodyKey bodyKey) {
         Ref<PhysicsStore> bodyRef = resolvePhysicsStoreBodyRef(bodyKey.value(),
             "resolve controlled body key");
-        return bodyRef != null && controlRuntime.isBodyControlled(bodyRef)
-            || controlRuntime.isBodyControlled(bodyKey);
+        return bodyRef != null && controlRuntime.isBodyControlled(bodyRef);
     }
 
     @Nullable
