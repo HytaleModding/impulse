@@ -7,7 +7,6 @@ import com.hypixel.hytale.server.core.universe.world.storage.PhysicsStore;
 import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyKind;
 import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyPersistenceMode;
 import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyRegistrationView;
-import dev.hytalemodding.impulse.core.plugin.body.RigidBodyKey;
 import dev.hytalemodding.impulse.core.plugin.physicsstore.PhysicsStoreTypes;
 import it.unimi.dsi.fastutil.ints.Int2ObjectOpenHashMap;
 import it.unimi.dsi.fastutil.objects.Object2ObjectLinkedOpenHashMap;
@@ -29,11 +28,6 @@ public final class PhysicsBodyRegistrationResource implements Resource<PhysicsSt
     private volatile PublishedRegistrations registrations = PublishedRegistrations.EMPTY;
 
     public PhysicsBodyRegistrationResource() {
-    }
-
-    @Nullable
-    public PhysicsBodyRegistrationView getBodyRegistrationView(@Nonnull RigidBodyKey bodyKey) {
-        return getBodyRegistrationView(Objects.requireNonNull(bodyKey, "bodyKey").value());
     }
 
     @Nullable
@@ -105,10 +99,6 @@ public final class PhysicsBodyRegistrationResource implements Resource<PhysicsSt
         registrations = new PublishedRegistrations(List.copyOf(viewsByUuid.values()),
             Map.copyOf(viewsByUuid),
             viewsByRowIndex);
-    }
-
-    public void removeBody(@Nonnull RigidBodyKey bodyKey) {
-        removeBody(Objects.requireNonNull(bodyKey, "bodyKey").value());
     }
 
     public void removeBody(@Nonnull UUID bodyUuid) {

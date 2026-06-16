@@ -1853,7 +1853,7 @@ public class PhysicsWorldRuntimeResource extends PhysicsWorldResource {
         if (hasAttachedAuthoritativePhysicsStore()) {
             return authoritativePhysicsStore("read physics body registration view")
                 .getResource(PhysicsBodyRegistrationResource.getResourceType())
-                .getBodyRegistrationView(bodyKey);
+                .getBodyRegistrationView(bodyKey.value());
         }
         return bodyRegistry.getPublishedRegistrationView(bodyKey);
     }
