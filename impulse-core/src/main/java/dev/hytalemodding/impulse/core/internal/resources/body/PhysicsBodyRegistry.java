@@ -46,13 +46,12 @@ public final class PhysicsBodyRegistry {
     private long publishedLivenessGeneration;
 
     @Nonnull
-    public PhysicsBodyRegistration registerBody(@Nonnull RigidBodyKey bodyKey,
+    public PhysicsBodyRegistration registerBody(@Nonnull UUID bodyUuid,
         @Nonnull BackendBodyHandle backendBodyHandle,
         @Nonnull SpaceId spaceId,
         @Nonnull PhysicsBodyKind kind,
         @Nonnull PhysicsBodyPersistenceMode persistenceMode) {
-        validateRegisterable(bodyKey, backendBodyHandle, spaceId);
-        UUID bodyUuid = bodyKey.value();
+        validateRegisterable(bodyUuid, backendBodyHandle, spaceId);
         PhysicsBodyRegistration existingRegistration = registrationsByUuid.get(bodyUuid);
         if (existingRegistration != null) {
             removeFromSpace(existingRegistration);
@@ -70,12 +69,11 @@ public final class PhysicsBodyRegistry {
         return registration;
     }
 
-    public void validateRegisterable(@Nonnull RigidBodyKey bodyKey,
+    public void validateRegisterable(@Nonnull UUID bodyUuid,
         @Nonnull BackendBodyHandle backendBodyHandle,
         @Nonnull SpaceId spaceId) {
         Long2ObjectOpenHashMap<UUID> bodyUuids =
             bodyUuidsByRawBackendId.get(spaceId.value());
-        UUID bodyUuid = bodyKey.value();
         UUID existingUuid = bodyUuids != null ? bodyUuids.get(backendBodyHandle.value()) : null;
         if (existingUuid != null && !existingUuid.equals(bodyUuid)) {
             throw new IllegalArgumentException("Physics body is already registered as " + existingUuid);
@@ -84,7 +82,7 @@ public final class PhysicsBodyRegistry {
         if (existingRegistration != null
             && (!existingRegistration.backendBodyHandle().equals(backendBodyHandle)
                 || !existingRegistration.spaceId().equals(spaceId))) {
-            throw new IllegalArgumentException("Physics body key=" + bodyKey
+            throw new IllegalArgumentException("Physics body uuid=" + bodyUuid
                 + " is already registered to another backend body");
         }
     }

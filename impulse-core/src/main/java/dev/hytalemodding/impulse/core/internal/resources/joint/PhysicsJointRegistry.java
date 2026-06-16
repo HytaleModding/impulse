@@ -2,7 +2,6 @@ package dev.hytalemodding.impulse.core.internal.resources.joint;
 
 import dev.hytalemodding.impulse.api.SpaceId;
 import dev.hytalemodding.impulse.core.internal.resources.BackendJointHandle;
-import dev.hytalemodding.impulse.core.plugin.body.RigidBodyKey;
 import dev.hytalemodding.impulse.core.plugin.joint.JointKey;
 import dev.hytalemodding.impulse.core.plugin.simulation.JointType;
 import it.unimi.dsi.fastutil.ints.Int2ObjectOpenHashMap;
@@ -26,11 +25,11 @@ public final class PhysicsJointRegistry {
         new Int2ObjectOpenHashMap<>();
 
     @Nonnull
-    public PhysicsJointRegistration registerJoint(@Nonnull JointKey jointKey,
+    public PhysicsJointRegistration registerJoint(@Nonnull UUID jointUuid,
         @Nonnull SpaceId spaceId,
         @Nonnull BackendJointHandle backendJointHandle,
-        @Nonnull RigidBodyKey bodyA,
-        @Nonnull RigidBodyKey bodyB,
+        @Nonnull UUID bodyAUuid,
+        @Nonnull UUID bodyBUuid,
         @Nonnull JointType type,
         float anchorAX,
         float anchorAY,
@@ -49,7 +48,6 @@ public final class PhysicsJointRegistry {
         boolean motorEnabled,
         float motorTargetVelocity,
         float motorMaxForce) {
-        UUID jointUuid = jointKey.value();
         UUID existingUuid = getJointUuid(spaceId, backendJointHandle);
         if (existingUuid != null && !existingUuid.equals(jointUuid)) {
             throw new IllegalArgumentException("Physics joint is already registered as " + existingUuid);
@@ -58,7 +56,7 @@ public final class PhysicsJointRegistry {
         if (existingRegistration != null
             && (!existingRegistration.backendJointHandle().equals(backendJointHandle)
                 || !existingRegistration.spaceId().equals(spaceId))) {
-            throw new IllegalArgumentException("Physics joint key=" + jointKey
+            throw new IllegalArgumentException("Physics joint uuid=" + jointUuid
                 + " is already registered to another backend joint");
         }
         if (existingRegistration != null) {
@@ -67,8 +65,8 @@ public final class PhysicsJointRegistry {
         PhysicsJointRegistration registration = new PhysicsJointRegistration(jointUuid,
             backendJointHandle,
             spaceId,
-            bodyA.value(),
-            bodyB.value(),
+            bodyAUuid,
+            bodyBUuid,
             type,
             anchorAX,
             anchorAY,

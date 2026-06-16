@@ -1778,22 +1778,22 @@ public class PhysicsWorldRuntimeResource extends PhysicsWorldResource {
     }
 
     @Nonnull
-    public RigidBodyKey addBodyOnOwner(@Nonnull RigidBodyKey bodyKey,
+    public UUID addBodyOnOwner(@Nonnull UUID bodyUuid,
         @Nonnull SpaceId spaceId,
         @Nonnull BackendBodyHandle backendBodyHandle,
         @Nonnull PhysicsBodyKind kind,
         @Nonnull PhysicsBodyPersistenceMode persistenceMode) {
         assertCanAccessLiveBackendDirectly("add physics body");
-        return addBodyDirect(bodyKey, spaceId, backendBodyHandle, kind, persistenceMode);
+        return addBodyDirect(bodyUuid, spaceId, backendBodyHandle, kind, persistenceMode);
     }
 
     @Nonnull
-    private RigidBodyKey addBodyDirect(@Nonnull RigidBodyKey bodyKey,
+    private UUID addBodyDirect(@Nonnull UUID bodyUuid,
         @Nonnull SpaceId spaceId,
         @Nonnull BackendBodyHandle backendBodyHandle,
         @Nonnull PhysicsBodyKind kind,
         @Nonnull PhysicsBodyPersistenceMode persistenceMode) {
-        return bodyRuntime.addBody(bodyKey, spaceId, backendBodyHandle, kind, persistenceMode);
+        return bodyRuntime.addBody(bodyUuid, spaceId, backendBodyHandle, kind, persistenceMode);
     }
 
     @Override
@@ -1919,11 +1919,11 @@ public class PhysicsWorldRuntimeResource extends PhysicsWorldResource {
     }
 
     @Nonnull
-    public JointKey addJointOnOwner(@Nonnull JointKey jointKey,
+    public UUID addJointOnOwner(@Nonnull UUID jointUuid,
         @Nonnull SpaceId spaceId,
         @Nonnull BackendJointHandle backendJointHandle,
-        @Nonnull RigidBodyKey bodyA,
-        @Nonnull RigidBodyKey bodyB,
+        @Nonnull UUID bodyAUuid,
+        @Nonnull UUID bodyBUuid,
         @Nonnull JointType type,
         float anchorAX,
         float anchorAY,
@@ -1943,11 +1943,11 @@ public class PhysicsWorldRuntimeResource extends PhysicsWorldResource {
         float motorTargetVelocity,
         float motorMaxForce) {
         assertCanAccessLiveBackendDirectly("add physics joint");
-        return addJointDirect(jointKey,
+        return addJointDirect(jointUuid,
             spaceId,
             backendJointHandle,
-            bodyA,
-            bodyB,
+            bodyAUuid,
+            bodyBUuid,
             type,
             anchorAX,
             anchorAY,
@@ -1969,11 +1969,11 @@ public class PhysicsWorldRuntimeResource extends PhysicsWorldResource {
     }
 
     @Nonnull
-    private JointKey addJointDirect(@Nonnull JointKey jointKey,
+    private UUID addJointDirect(@Nonnull UUID jointUuid,
         @Nonnull SpaceId spaceId,
         @Nonnull BackendJointHandle backendJointHandle,
-        @Nonnull RigidBodyKey bodyA,
-        @Nonnull RigidBodyKey bodyB,
+        @Nonnull UUID bodyAUuid,
+        @Nonnull UUID bodyBUuid,
         @Nonnull JointType type,
         float anchorAX,
         float anchorAY,
@@ -1995,11 +1995,11 @@ public class PhysicsWorldRuntimeResource extends PhysicsWorldResource {
         if (spaceRuntime.getBinding(spaceId) == null) {
             throw new IllegalArgumentException("Physics space id=" + spaceId + " is not registered");
         }
-        jointRegistry.registerJoint(jointKey,
+        jointRegistry.registerJoint(jointUuid,
             spaceId,
             backendJointHandle,
-            bodyA,
-            bodyB,
+            bodyAUuid,
+            bodyBUuid,
             type,
             anchorAX,
             anchorAY,
@@ -2019,7 +2019,7 @@ public class PhysicsWorldRuntimeResource extends PhysicsWorldResource {
             motorTargetVelocity,
             motorMaxForce);
         markWorldChanged();
-        return jointKey;
+        return jointUuid;
     }
 
     public boolean removeJoint(@Nonnull JointKey jointKey) {
