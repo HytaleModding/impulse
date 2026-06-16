@@ -425,7 +425,8 @@ public class PhysicsDetachedVisualMaterializationSystem extends TickingSystem<En
         }
         DetachedVisualOcclusion.Result currentPolicy =
             resolveCurrentMaterializationPolicy(resource,
-                registration.bodyKey(),
+                target.bodyUuid(),
+                target.bodyRef(),
                 space,
                 snapshot,
                 settings,
@@ -643,15 +644,16 @@ public class PhysicsDetachedVisualMaterializationSystem extends TickingSystem<En
                         }
                         DetachedVisualOcclusion.Result materializeInterest =
                             DetachedVisualOcclusion.resolve(resource,
-                            bodyKey,
-                            space,
-                            snapshot,
-                            settings,
-                            interests,
-                            settings.getVisualMaterializationSettings().getDetachedVisualMaterializationRadius(),
-                            visualInterestTick,
-                            raycastBudget,
-                            collector);
+                                bodyUuid,
+                                bodyRef,
+                                space,
+                                snapshot,
+                                settings,
+                                interests,
+                                settings.getVisualMaterializationSettings().getDetachedVisualMaterializationRadius(),
+                                visualInterestTick,
+                                raycastBudget,
+                                collector);
                         if (materializeInterest.shouldMaterialize()) {
                             candidates.add(new CachedMaterializationTarget(bodyUuid,
                                 bodyRef,
@@ -801,6 +803,31 @@ public class PhysicsDetachedVisualMaterializationSystem extends TickingSystem<En
             collector);
     }
 
+    @Nonnull
+    static DetachedVisualOcclusion.Result resolveCurrentMaterializationPolicy(
+        @Nonnull PhysicsWorldRuntimeResource resource,
+        @Nonnull UUID bodyUuid,
+        @Nullable Ref<PhysicsStore> bodyRef,
+        @Nonnull PhysicsSpaceBinding space,
+        @Nonnull PhysicsBodySnapshot snapshot,
+        @Nonnull PhysicsSpaceSettings settings,
+        @Nonnull List<VisualInterest> interests,
+        long visualInterestTick,
+        @Nonnull DetachedVisualOcclusion.RaycastBudget raycastBudget,
+        @Nullable PhysicsRuntimeProfilingResource.VisualCollector collector) {
+        return DetachedVisualOcclusion.resolve(resource,
+            bodyUuid,
+            bodyRef,
+            space,
+            snapshot,
+            settings,
+            interests,
+            settings.getVisualMaterializationSettings().getDetachedVisualMaterializationRadius(),
+            visualInterestTick,
+            raycastBudget,
+            collector);
+    }
+
     private static boolean shouldDematerialize(@Nonnull PhysicsBodySnapshot snapshot,
         @Nonnull PhysicsSpaceSettings settings,
         @Nonnull List<VisualInterest> interests) {
@@ -869,11 +896,7 @@ public class PhysicsDetachedVisualMaterializationSystem extends TickingSystem<En
         @Nonnull UUID bodyUuid,
         @Nullable Ref<PhysicsStore> bodyRef,
         @Nullable Ref<EntityStore> proxy) {
-        if (bodyRef != null) {
-            GeneratedProxyLifecycle.removeProxy(store, resource, bodyUuid, bodyRef, proxy);
-            return;
-        }
-        GeneratedProxyLifecycle.removeProxy(store, resource, RigidBodyKey.of(bodyUuid), proxy);
+        GeneratedProxyLifecycle.removeProxy(store, resource, bodyUuid, bodyRef, proxy);
     }
 
     private static boolean sameSpaceId(@Nullable SpaceId first, @Nullable SpaceId second) {

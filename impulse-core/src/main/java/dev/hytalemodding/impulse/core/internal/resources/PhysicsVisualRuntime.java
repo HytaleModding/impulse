@@ -2,8 +2,10 @@ package dev.hytalemodding.impulse.core.internal.resources;
 
 import com.hypixel.hytale.component.Ref;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
+import com.hypixel.hytale.server.core.universe.world.storage.PhysicsStore;
 import dev.hytalemodding.impulse.core.plugin.body.RigidBodyKey;
 import dev.hytalemodding.impulse.core.plugin.simulation.view.RaycastHitView;
+import it.unimi.dsi.fastutil.ints.Int2ObjectOpenHashMap;
 import it.unimi.dsi.fastutil.objects.Object2ObjectOpenHashMap;
 import it.unimi.dsi.fastutil.objects.ObjectOpenHashSet;
 import java.util.ArrayList;
@@ -13,6 +15,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
+import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
 import java.util.function.Consumer;
@@ -35,6 +38,8 @@ public final class PhysicsVisualRuntime {
     private final List<VisualInterest> syntheticVisualInterests = new ArrayList<>();
     private final Map<RigidBodyKey, BodyVisualInterestState> bodyVisualInterestStates =
         new Object2ObjectOpenHashMap<>();
+    private final Int2ObjectOpenHashMap<BodyVisualInterestRefState> bodyVisualInterestStatesByRowIndex =
+        new Int2ObjectOpenHashMap<>();
 
     public PhysicsVisualRuntime(@Nonnull Consumer<Ref<EntityStore>> syncStateCleaner) {
         this.syncStateCleaner = syncStateCleaner;
@@ -238,10 +243,52 @@ public final class PhysicsVisualRuntime {
             _ -> new BodyVisualInterestState());
     }
 
+    @Nonnull
+    public synchronized BodyVisualInterestState getOrCreateBodyVisualInterestState(
+        @Nonnull UUID bodyUuid,
+        @Nullable Ref<PhysicsStore> bodyRef) {
+        if (bodyRef != null && bodyRef.isValid()) {
+            return getOrCreateBodyVisualInterestState(bodyRef);
+        }
+        return getOrCreateBodyVisualInterestState(RigidBodyKey.of(bodyUuid));
+    }
+
     @Nullable
     public synchronized BodyVisualInterestState getBodyVisualInterestState(
         @Nonnull RigidBodyKey bodyKey) {
         return bodyVisualInterestStates.get(bodyKey);
+    }
+
+    @Nullable
+    public synchronized BodyVisualInterestState getBodyVisualInterestState(
+        @Nonnull UUID bodyUuid,
+        @Nullable Ref<PhysicsStore> bodyRef) {
+        if (bodyRef != null && bodyRef.isValid()) {
+            int rowIndex = bodyRef.getIndex();
+            BodyVisualInterestRefState row = bodyVisualInterestStatesByRowIndex.get(rowIndex);
+            if (row == null) {
+                return null;
+            }
+            if (!isMatchingLiveRef(row, bodyRef)) {
+                bodyVisualInterestStatesByRowIndex.remove(rowIndex);
+                return null;
+            }
+            return row.state();
+        }
+        return getBodyVisualInterestState(RigidBodyKey.of(bodyUuid));
+    }
+
+    public synchronized void clearBodyVisualInterestState(@Nonnull UUID bodyUuid,
+        @Nullable Ref<PhysicsStore> bodyRef) {
+        bodyVisualInterestStates.remove(RigidBodyKey.of(bodyUuid));
+        if (bodyRef == null) {
+            return;
+        }
+        int rowIndex = bodyRef.getIndex();
+        BodyVisualInterestRefState row = bodyVisualInterestStatesByRowIndex.get(rowIndex);
+        if (row != null && (!row.bodyRef().isValid() || sameRef(row.bodyRef(), bodyRef))) {
+            bodyVisualInterestStatesByRowIndex.remove(rowIndex);
+        }
     }
 
     public void clearBodyRuntimeState(@Nonnull RigidBodyKey bodyKey) {
@@ -275,8 +322,26 @@ public final class PhysicsVisualRuntime {
             generatedVisualProxies.clear();
             syntheticVisualInterests.clear();
             bodyVisualInterestStates.clear();
+            bodyVisualInterestStatesByRowIndex.clear();
         }
         cleanSyncStates(staleRefs);
+    }
+
+    @Nonnull
+    private BodyVisualInterestState getOrCreateBodyVisualInterestState(
+        @Nonnull Ref<PhysicsStore> bodyRef) {
+        int rowIndex = bodyRef.getIndex();
+        BodyVisualInterestRefState row = bodyVisualInterestStatesByRowIndex.get(rowIndex);
+        if (row == null || !isMatchingLiveRef(row, bodyRef)) {
+            row = new BodyVisualInterestRefState(bodyRef, new BodyVisualInterestState());
+            bodyVisualInterestStatesByRowIndex.put(rowIndex, row);
+        }
+        return row.state();
+    }
+
+    private static boolean isMatchingLiveRef(@Nonnull BodyVisualInterestRefState row,
+        @Nonnull Ref<PhysicsStore> bodyRef) {
+        return row.bodyRef().isValid() && sameRef(row.bodyRef(), bodyRef);
     }
 
     private void cleanSyncState(@Nullable Ref<EntityStore> ref) {
@@ -291,14 +356,18 @@ public final class PhysicsVisualRuntime {
         }
     }
 
-    private static boolean sameRef(@Nullable Ref<EntityStore> first,
-        @Nullable Ref<EntityStore> second) {
+    private static boolean sameRef(@Nullable Ref<?> first,
+        @Nullable Ref<?> second) {
         return first == second
             || (first != null
                 && second != null
                 && first.getStore() != null
                 && first.getStore() == second.getStore()
                 && first.getIndex() == second.getIndex());
+    }
+
+    private record BodyVisualInterestRefState(@Nonnull Ref<PhysicsStore> bodyRef,
+                                              @Nonnull BodyVisualInterestState state) {
     }
 
     /**

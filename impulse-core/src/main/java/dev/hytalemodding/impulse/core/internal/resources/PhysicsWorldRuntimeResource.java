@@ -2458,9 +2458,29 @@ public class PhysicsWorldRuntimeResource extends PhysicsWorldResource {
         return state;
     }
 
+    @Nonnull
+    public BodyVisualInterestState getOrCreateBodyVisualInterestState(@Nonnull UUID bodyUuid,
+        @Nullable Ref<PhysicsStore> bodyRef) {
+        BodyVisualInterestState state =
+            visualRuntime.getOrCreateBodyVisualInterestState(bodyUuid, bodyRef);
+        state.advanceVisualInterestTick(visualInterestTick.get());
+        return state;
+    }
+
     @Nullable
     public BodyVisualInterestState getBodyVisualInterestState(@Nonnull RigidBodyKey bodyKey) {
         BodyVisualInterestState state = visualRuntime.getBodyVisualInterestState(bodyKey);
+        if (state != null) {
+            state.advanceVisualInterestTick(visualInterestTick.get());
+        }
+        return state;
+    }
+
+    @Nullable
+    public BodyVisualInterestState getBodyVisualInterestState(@Nonnull UUID bodyUuid,
+        @Nullable Ref<PhysicsStore> bodyRef) {
+        BodyVisualInterestState state = visualRuntime.getBodyVisualInterestState(bodyUuid,
+            bodyRef);
         if (state != null) {
             state.advanceVisualInterestTick(visualInterestTick.get());
         }
@@ -2670,6 +2690,7 @@ public class PhysicsWorldRuntimeResource extends PhysicsWorldResource {
             chunkRuntime.clearBody(bodyRef);
         }
         bodyRuntime.clearBodyRuntimeState(bodyKey);
+        visualRuntime.clearBodyVisualInterestState(bodyKey.value(), bodyRef);
     }
 
     public void markContinuousCollisionForced(@Nonnull RigidBodyKey bodyKey) {

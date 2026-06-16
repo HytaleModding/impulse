@@ -17,6 +17,7 @@ import dev.hytalemodding.impulse.core.plugin.simulation.view.RaycastHitView;
 import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.UUID;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 import org.joml.Vector3f;
@@ -40,9 +41,34 @@ final class DetachedVisualOcclusion {
         long visualInterestTick,
         @Nonnull RaycastBudget raycastBudget,
         @Nullable PhysicsRuntimeProfilingResource.VisualCollector collector) {
+        return resolve(resource,
+            bodyKey.value(),
+            null,
+            space,
+            snapshot,
+            settings,
+            interests,
+            radius,
+            visualInterestTick,
+            raycastBudget,
+            collector);
+    }
+
+    @Nonnull
+    static Result resolve(@Nonnull PhysicsWorldRuntimeResource resource,
+        @Nonnull UUID bodyUuid,
+        @Nullable Ref<PhysicsStore> bodyRef,
+        @Nullable PhysicsSpaceBinding space,
+        @Nonnull PhysicsBodySnapshot snapshot,
+        @Nonnull PhysicsSpaceSettings settings,
+        @Nonnull List<VisualInterest> interests,
+        float radius,
+        long visualInterestTick,
+        @Nonnull RaycastBudget raycastBudget,
+        @Nullable PhysicsRuntimeProfilingResource.VisualCollector collector) {
         InterestProbe probe = probeNearestLikelyInterest(snapshot, settings, interests, radius);
         PhysicsVisualRuntime.BodyVisualInterestState state =
-            resource.getOrCreateBodyVisualInterestState(bodyKey);
+            resource.getOrCreateBodyVisualInterestState(bodyUuid, bodyRef);
         if (!probe.inRange()) {
             state.clearPendingRaycast();
             state.recordInterest(Float.POSITIVE_INFINITY, false, false, false, visualInterestTick);
@@ -69,7 +95,7 @@ final class DetachedVisualOcclusion {
         if (state.hasCompletedRaycast()) {
             Optional<RaycastHitView> completedRaycast = state.pollCompletedRaycast();
             raycastVisible = completedRaycast
-                .map(view -> raycastHitMatchesBody(bodyKey, view))
+                .map(view -> raycastHitMatchesBody(bodyUuid, bodyRef, view))
                 .orElse(false);
             raycastDecisionKnown = true;
             raycastEvaluated = true;
@@ -109,15 +135,29 @@ final class DetachedVisualOcclusion {
         return Result.visible(probe.distanceSquared(), priorityDistanceSquared);
     }
 
-    private static boolean raycastHitMatchesBody(@Nonnull RigidBodyKey bodyKey,
+    private static boolean raycastHitMatchesBody(@Nonnull UUID bodyUuid,
+        @Nullable Ref<PhysicsStore> expectedBodyRef,
         @Nonnull RaycastHitView view) {
         Ref<PhysicsStore> bodyRef = view.bodyRef();
         if (bodyRef == null || !bodyRef.isValid()) {
             return false;
         }
+        if (expectedBodyRef != null && expectedBodyRef.isValid()) {
+            return sameRef(expectedBodyRef, bodyRef);
+        }
         UuidComponent uuid = bodyRef.getStore().getComponent(bodyRef,
             UuidComponent.getComponentType());
-        return uuid != null && bodyKey.value().equals(uuid.getUuid());
+        return uuid != null && bodyUuid.equals(uuid.getUuid());
+    }
+
+    private static boolean sameRef(@Nullable Ref<?> first,
+        @Nullable Ref<?> second) {
+        return first == second
+            || (first != null
+                && second != null
+                && first.getStore() != null
+                && first.getStore() == second.getStore()
+                && first.getIndex() == second.getIndex());
     }
 
     private static void submitRaycast(@Nonnull PhysicsWorldRuntimeResource resource,
