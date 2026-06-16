@@ -1849,17 +1849,6 @@ public class PhysicsWorldRuntimeResource extends PhysicsWorldResource {
 
     @Nullable
     @Override
-    public PhysicsBodyRegistrationView getBodyRegistrationView(@Nonnull RigidBodyKey bodyKey) {
-        if (hasAttachedAuthoritativePhysicsStore()) {
-            return authoritativePhysicsStore("read physics body registration view")
-                .getResource(PhysicsBodyRegistrationResource.getResourceType())
-                .getBodyRegistrationView(bodyKey.value());
-        }
-        return bodyRegistry.getPublishedRegistrationView(bodyKey);
-    }
-
-    @Nullable
-    @Override
     public PhysicsBodyRegistrationView getBodyRegistrationView(@Nonnull UUID bodyUuid) {
         if (hasAttachedAuthoritativePhysicsStore()) {
             return authoritativePhysicsStore("read physics body registration view")
