@@ -184,11 +184,6 @@ public final class PhysicsVisualRuntime {
     }
 
     @Nullable
-    public Ref<EntityStore> getGeneratedVisualProxy(@Nonnull RigidBodyKey bodyKey) {
-        return getGeneratedVisualProxy(bodyKey.value(), null);
-    }
-
-    @Nullable
     public Ref<EntityStore> getGeneratedVisualProxy(@Nonnull Ref<PhysicsStore> bodyRef) {
         if (!bodyRef.isValid()) {
             return null;
@@ -249,11 +244,6 @@ public final class PhysicsVisualRuntime {
         return count;
     }
 
-    public void setGeneratedVisualProxy(@Nonnull RigidBodyKey bodyKey,
-        @Nonnull Ref<EntityStore> proxy) {
-        setGeneratedVisualProxy(bodyKey.value(), null, proxy);
-    }
-
     public void setGeneratedVisualProxy(@Nonnull UUID bodyUuid,
         @Nullable Ref<PhysicsStore> bodyRef,
         @Nonnull Ref<EntityStore> proxy) {
@@ -277,10 +267,6 @@ public final class PhysicsVisualRuntime {
         }
     }
 
-    public void clearGeneratedVisualProxy(@Nonnull RigidBodyKey bodyKey) {
-        clearGeneratedVisualProxy(bodyKey.value(), null);
-    }
-
     public void clearGeneratedVisualProxy(@Nonnull UUID bodyUuid,
         @Nullable Ref<PhysicsStore> bodyRef) {
         Ref<EntityStore> proxy;
@@ -298,11 +284,6 @@ public final class PhysicsVisualRuntime {
         if (!sameRef(refProxy, proxy)) {
             cleanSyncState(refProxy);
         }
-    }
-
-    public boolean clearGeneratedVisualProxy(@Nonnull RigidBodyKey bodyKey,
-        @Nonnull Ref<EntityStore> expectedProxy) {
-        return clearGeneratedVisualProxy(bodyKey.value(), null, expectedProxy);
     }
 
     public boolean clearGeneratedVisualProxy(@Nonnull UUID bodyUuid,
@@ -334,11 +315,6 @@ public final class PhysicsVisualRuntime {
             cleanSyncState(refProxy);
         }
         return true;
-    }
-
-    public synchronized boolean isGeneratedVisualProxy(@Nonnull RigidBodyKey bodyKey,
-        @Nonnull Ref<EntityStore> proxy) {
-        return isGeneratedVisualProxy(bodyKey.value(), null, proxy);
     }
 
     public synchronized boolean isGeneratedVisualProxy(@Nonnull UUID bodyUuid,
