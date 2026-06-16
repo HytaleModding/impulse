@@ -15,6 +15,7 @@ import com.hypixel.hytale.server.core.universe.world.storage.PhysicsStore;
 import dev.hytalemodding.impulse.api.PhysicsBodyType;
 import dev.hytalemodding.impulse.api.SpaceId;
 import dev.hytalemodding.impulse.early.PhysicsStoreWorld;
+import dev.hytalemodding.impulse.core.internal.physicsstore.resources.PhysicsIdentityIndexResource;
 import dev.hytalemodding.impulse.core.internal.physicsstore.resources.PhysicsSpaceCompatibilityIndexResource;
 import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyKind;
 import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyPersistenceMode;
@@ -27,6 +28,7 @@ import dev.hytalemodding.impulse.core.plugin.physicsstore.components.BodyCommand
 import dev.hytalemodding.impulse.core.plugin.physicsstore.components.DynamicsComponent;
 import dev.hytalemodding.impulse.core.plugin.physicsstore.components.JointComponent;
 import dev.hytalemodding.impulse.core.plugin.physicsstore.components.TargetComponent;
+import dev.hytalemodding.impulse.core.plugin.physicsstore.components.UuidComponent;
 import dev.hytalemodding.impulse.core.plugin.physicsstore.projection.BodyAttachmentComponent;
 import dev.hytalemodding.impulse.core.plugin.physicsstore.BodyRowDescriptor;
 import dev.hytalemodding.impulse.core.plugin.settings.PhysicsVisualMaterializationSettings;
@@ -69,6 +71,36 @@ public final class ExamplePhysicsUtils {
         return store
             .getResource(PhysicsSpaceCompatibilityIndexResource.getResourceType())
             .getSpaceUuid(Objects.requireNonNull(spaceId, "spaceId"));
+    }
+
+    @Nullable
+    public static Ref<PhysicsStore> resolvePhysicsStoreSpaceRef(@Nonnull World world,
+        @Nonnull SpaceId spaceId) {
+        Store<PhysicsStore> store = physicsStore(world);
+        PhysicsStoreThreading.requireWorldThread(store, "resolve a PhysicsStore space ref");
+        UUID spaceUuid = store
+            .getResource(PhysicsSpaceCompatibilityIndexResource.getResourceType())
+            .getSpaceUuid(Objects.requireNonNull(spaceId, "spaceId"));
+        if (spaceUuid == null) {
+            return null;
+        }
+        Ref<PhysicsStore> ref = store.getResource(PhysicsIdentityIndexResource.getResourceType())
+            .getByUuid(spaceUuid);
+        return ref != null && ref.getStore() == store && ref.isValid() ? ref : null;
+    }
+
+    @Nonnull
+    public static UUID physicsStoreRowUuid(@Nonnull Ref<PhysicsStore> ref) {
+        Store<PhysicsStore> store = ref.getStore();
+        PhysicsStoreThreading.requireWorldThread(store, "read a PhysicsStore row UUID");
+        if (!ref.isValid()) {
+            throw new IllegalStateException("PhysicsStore row ref is not valid: " + ref);
+        }
+        UuidComponent uuid = store.getComponent(ref, UuidComponent.getComponentType());
+        if (uuid == null) {
+            throw new IllegalStateException("PhysicsStore row has no UUID component: " + ref);
+        }
+        return uuid.getUuid();
     }
 
     @Nonnull
@@ -290,6 +322,25 @@ public final class ExamplePhysicsUtils {
             settings,
             linearVelocity,
             PhysicsBodyPersistenceMode.PERSISTENT);
+    }
+
+    @Nonnull
+    public static BodyRowDescriptor bodyRow(@Nonnull Ref<PhysicsStore> spaceRef,
+        @Nonnull UUID bodyUuid,
+        @Nonnull Vector3f bodyCenter,
+        @Nonnull PhysicsShapeSpec shape,
+        float mass,
+        @Nonnull RigidBodySpawnSettings settings,
+        @Nullable Vector3f linearVelocity) {
+        BodyRowDescriptor row = bodyRow(physicsStoreRowUuid(spaceRef),
+            bodyUuid,
+            bodyCenter,
+            shape,
+            mass,
+            settings,
+            linearVelocity);
+        row.body().setSpaceRef(spaceRef);
+        return row;
     }
 
     @Nonnull

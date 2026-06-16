@@ -171,13 +171,13 @@ public class GrabCommand extends AbstractAsyncPlayerCommand {
         if (selectedState == null) {
             return null;
         }
-        UUID spaceUuid;
+        Ref<PhysicsStore> spaceRef;
         try {
-            spaceUuid = ExamplePhysicsUtils.resolvePhysicsStoreSpaceUuid(world, selectedSpaceId);
+            spaceRef = ExamplePhysicsUtils.resolvePhysicsStoreSpaceRef(world, selectedSpaceId);
         } catch (IllegalStateException exception) {
             return null;
         }
-        if (spaceUuid == null) {
+        if (spaceRef == null) {
             return null;
         }
 
@@ -197,10 +197,10 @@ public class GrabCommand extends AbstractAsyncPlayerCommand {
             BodyCommandComponent.wake());
         try {
             Ref<PhysicsStore> anchorBodyRef = ExamplePhysicsUtils.addPhysicsStoreBody(world,
-                anchorBodyRow(spaceUuid, anchorBodyUuid, hitPoint));
+                anchorBodyRow(spaceRef, anchorBodyUuid, hitPoint));
             Ref<PhysicsStore> controlJointRef = ExamplePhysicsUtils.addPhysicsStoreJoint(world,
                 controlJointUuid,
-                controlJoint(spaceUuid, anchorBodyUuid, selection.bodyKey().value(), bodyLocalHit));
+                controlJoint(spaceRef, anchorBodyRef, selectedBodyRef, bodyLocalHit));
             return new GrabPhysicsState(selectedState.bodyType(),
                 anchorBodyRef,
                 controlJointRef,
@@ -211,13 +211,16 @@ public class GrabCommand extends AbstractAsyncPlayerCommand {
     }
 
     @Nonnull
-    private static BodyRowDescriptor anchorBodyRow(@Nonnull UUID spaceUuid,
+    private static BodyRowDescriptor anchorBodyRow(@Nonnull Ref<PhysicsStore> spaceRef,
         @Nonnull UUID bodyUuid,
         @Nonnull Vector3f hitPoint) {
+        UUID spaceUuid = ExamplePhysicsUtils.physicsStoreRowUuid(spaceRef);
+        BodyComponent body = new BodyComponent(spaceUuid,
+            PhysicsBodyKind.TEMPORARY,
+            PhysicsBodyPersistenceMode.RUNTIME_ONLY);
+        body.setSpaceRef(spaceRef);
         return BodyRowDescriptor.of(bodyUuid,
-            new BodyComponent(spaceUuid,
-                PhysicsBodyKind.TEMPORARY,
-                PhysicsBodyPersistenceMode.RUNTIME_ONLY),
+            body,
             new DynamicsComponent(PhysicsBodyType.KINEMATIC,
                 1.0f,
                 0.0f,
@@ -259,14 +262,17 @@ public class GrabCommand extends AbstractAsyncPlayerCommand {
     }
 
     @Nonnull
-    private static JointComponent controlJoint(@Nonnull UUID spaceUuid,
-        @Nonnull UUID anchorBodyUuid,
-        @Nonnull UUID bodyUuid,
+    private static JointComponent controlJoint(@Nonnull Ref<PhysicsStore> spaceRef,
+        @Nonnull Ref<PhysicsStore> anchorBodyRef,
+        @Nonnull Ref<PhysicsStore> bodyRef,
         @Nonnull Vector3f bodyLocalHit) {
         JointComponent joint = new JointComponent();
-        joint.setSpaceUuid(spaceUuid);
-        joint.setBodyAUuid(anchorBodyUuid);
-        joint.setBodyBUuid(bodyUuid);
+        joint.setSpaceUuid(ExamplePhysicsUtils.physicsStoreRowUuid(spaceRef));
+        joint.setSpaceRef(spaceRef);
+        joint.setBodyAUuid(ExamplePhysicsUtils.physicsStoreRowUuid(anchorBodyRef));
+        joint.setBodyARef(anchorBodyRef);
+        joint.setBodyBUuid(ExamplePhysicsUtils.physicsStoreRowUuid(bodyRef));
+        joint.setBodyBRef(bodyRef);
         joint.setType(JointType.POINT);
         joint.setAnchorA(new Vector3f());
         joint.setAnchorB(bodyLocalHit);

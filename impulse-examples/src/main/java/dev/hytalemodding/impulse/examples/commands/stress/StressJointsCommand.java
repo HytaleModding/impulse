@@ -11,6 +11,7 @@ import com.hypixel.hytale.server.core.modules.time.TimeResource;
 import com.hypixel.hytale.server.core.universe.PlayerRef;
 import com.hypixel.hytale.server.core.universe.world.World;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
+import com.hypixel.hytale.server.core.universe.world.storage.PhysicsStore;
 import dev.hytalemodding.impulse.api.SpaceId;
 import dev.hytalemodding.impulse.core.plugin.physicsstore.components.JointComponent;
 import dev.hytalemodding.impulse.core.plugin.simulation.JointType;
@@ -77,13 +78,13 @@ public class StressJointsCommand extends AbstractAsyncPlayerCommand {
             return CompletableFuture.completedFuture(null);
         }
         TimeResource time = store.getResource(TimeResource.getResourceType());
-        UUID spaceUuid;
+        Ref<PhysicsStore> spaceRef;
         try {
-            spaceUuid = ExamplePhysicsUtils.resolvePhysicsStoreSpaceUuid(world, spaceId);
+            spaceRef = ExamplePhysicsUtils.resolvePhysicsStoreSpaceRef(world, spaceId);
         } catch (IllegalStateException exception) {
-            spaceUuid = null;
+            spaceRef = null;
         }
-        if (spaceUuid == null) {
+        if (spaceRef == null) {
             ctx.sender().sendMessage(Message.raw(
                 "Cannot queue stress joint demo because the target space is not bound in PhysicsStore."));
             return CompletableFuture.completedFuture(null);
@@ -105,7 +106,7 @@ public class StressJointsCommand extends AbstractAsyncPlayerCommand {
                 Vector3d rowOrigin = new Vector3d(origin).add(0.0, 0.0, row * ROW_SPACING);
                 createdBodyCount += appendRow(createdBodyRows,
                     world,
-                    spaceUuid,
+                    spaceRef,
                     spaceId,
                     rowOrigin,
                     rowJoints,
@@ -129,7 +130,7 @@ public class StressJointsCommand extends AbstractAsyncPlayerCommand {
 
     private static int appendRow(@Nonnull List<CreatedBlockBody> createdBodies,
         @Nonnull World world,
-        @Nonnull UUID spaceUuid,
+        @Nonnull Ref<PhysicsStore> spaceRef,
         @Nonnull SpaceId spaceId,
         @Nonnull Vector3d origin,
         int jointCount,
@@ -138,7 +139,7 @@ public class StressJointsCommand extends AbstractAsyncPlayerCommand {
         double spacing = jointType == 4 ? TOUCHING_SPACING + SPRING_REST_LENGTH
             : TOUCHING_SPACING;
         int bodyCount = jointCount + 1;
-        UUID[] bodyUuids = new UUID[bodyCount];
+        CreatedBlockBody[] bodies = new CreatedBlockBody[bodyCount];
         float[] positions = new float[bodyCount * 3];
         long bodyUuidRunId = UUID.randomUUID().getMostSignificantBits();
         long jointUuidRunId = UUID.randomUUID().getMostSignificantBits();
@@ -147,14 +148,13 @@ public class StressJointsCommand extends AbstractAsyncPlayerCommand {
 
         for (int i = 0; i < bodyCount; i++) {
             UUID bodyUuid = new UUID(bodyUuidRunId, i + 1L);
-            bodyUuids[i] = bodyUuid;
             int positionOffset = i * 3;
             positions[positionOffset] = (float) (origin.x + i * spacing);
             positions[positionOffset + 1] = (float) origin.y;
             positions[positionOffset + 2] = (float) origin.z;
             float mass = i == 0 ? 0.0f : 1.0f;
             var bodyRef = ExamplePhysicsUtils.addPhysicsStoreBody(world,
-                ExamplePhysicsUtils.bodyRow(spaceUuid,
+                ExamplePhysicsUtils.bodyRow(spaceRef,
                     bodyUuid,
                     new Vector3f(positions[positionOffset],
                         positions[positionOffset + 1],
@@ -163,7 +163,7 @@ public class StressJointsCommand extends AbstractAsyncPlayerCommand {
                     mass,
                     spawnSettings,
                     initialVelocity(jointType, i)));
-            createdBodies.add(new CreatedBlockBody(
+            CreatedBlockBody created = new CreatedBlockBody(
                 bodyUuid,
                 bodyRef,
                 spaceId,
@@ -171,12 +171,14 @@ public class StressJointsCommand extends AbstractAsyncPlayerCommand {
                 positions[positionOffset],
                 positions[positionOffset + 1],
                 positions[positionOffset + 2],
-                i > 0));
+                i > 0);
+            bodies[i] = created;
+            createdBodies.add(created);
         }
         for (int i = 0; i < jointCount; i++) {
             ExamplePhysicsUtils.addPhysicsStoreJoint(world,
                 new UUID(jointUuidRunId, i + 1L),
-                joint(spaceUuid, bodyUuids[i], bodyUuids[i + 1], jointType));
+                joint(spaceRef, bodies[i], bodies[i + 1], jointType));
         }
         return bodyCount;
     }
@@ -189,9 +191,9 @@ public class StressJointsCommand extends AbstractAsyncPlayerCommand {
     }
 
     @Nonnull
-    private static JointComponent joint(@Nonnull UUID spaceUuid,
-        @Nonnull UUID previousUuid,
-        @Nonnull UUID currentUuid,
+    private static JointComponent joint(@Nonnull Ref<PhysicsStore> spaceRef,
+        @Nonnull CreatedBlockBody previous,
+        @Nonnull CreatedBlockBody current,
         int jointType) {
         JointType type = switch (jointType) {
             case 0 -> JointType.FIXED;
@@ -201,9 +203,12 @@ public class StressJointsCommand extends AbstractAsyncPlayerCommand {
             default -> JointType.SPRING;
         };
         JointComponent joint = new JointComponent();
-        joint.setSpaceUuid(spaceUuid);
-        joint.setBodyAUuid(previousUuid);
-        joint.setBodyBUuid(currentUuid);
+        joint.setSpaceUuid(ExamplePhysicsUtils.physicsStoreRowUuid(spaceRef));
+        joint.setSpaceRef(spaceRef);
+        joint.setBodyAUuid(previous.bodyUuid());
+        joint.setBodyARef(previous.bodyRef());
+        joint.setBodyBUuid(current.bodyUuid());
+        joint.setBodyBRef(current.bodyRef());
         joint.setType(type);
         joint.setAnchorA(new Vector3f(HALF_SIZE, 0.0f, 0.0f));
         joint.setAnchorB(new Vector3f(-HALF_SIZE, 0.0f, 0.0f));
