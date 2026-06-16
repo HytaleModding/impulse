@@ -4,6 +4,7 @@ import dev.hytalemodding.impulse.api.PhysicsBodyActivationPhase;
 import dev.hytalemodding.impulse.api.SpaceId;
 import dev.hytalemodding.impulse.core.plugin.body.RigidBodyKey;
 import java.util.Objects;
+import java.util.UUID;
 import javax.annotation.Nonnull;
 
 /**
@@ -11,12 +12,23 @@ import javax.annotation.Nonnull;
  */
 public record PhysicsBodyActivationEvent(@Nonnull SpaceId spaceId,
                                          @Nonnull PhysicsBodyActivationPhase phase,
-                                         @Nonnull RigidBodyKey bodyKey) implements PhysicsFrameEvent {
+                                         @Nonnull UUID bodyUuid) implements PhysicsFrameEvent {
 
     public PhysicsBodyActivationEvent {
         Objects.requireNonNull(spaceId, "spaceId");
         Objects.requireNonNull(phase, "phase");
-        Objects.requireNonNull(bodyKey, "bodyKey");
+        Objects.requireNonNull(bodyUuid, "bodyUuid");
+    }
+
+    public PhysicsBodyActivationEvent(@Nonnull SpaceId spaceId,
+        @Nonnull PhysicsBodyActivationPhase phase,
+        @Nonnull RigidBodyKey bodyKey) {
+        this(spaceId, phase, Objects.requireNonNull(bodyKey, "bodyKey").value());
+    }
+
+    @Nonnull
+    public RigidBodyKey bodyKey() {
+        return RigidBodyKey.of(bodyUuid);
     }
 
     @Nonnull

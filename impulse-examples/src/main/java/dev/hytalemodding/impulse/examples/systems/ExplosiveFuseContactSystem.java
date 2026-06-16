@@ -48,14 +48,14 @@ public final class ExplosiveFuseContactSystem
                 armIfExplosiveTouchesWorld(commandBuffer,
                     resource,
                     tick,
-                    contact.bodyAKey().value(),
-                    contact.bodyBKey().value(),
+                    contact.bodyAUuid(),
+                    contact.bodyBUuid(),
                     contactCenter(contact.pointOnB()));
                 armIfExplosiveTouchesWorld(commandBuffer,
                     resource,
                     tick,
-                    contact.bodyBKey().value(),
-                    contact.bodyAKey().value(),
+                    contact.bodyBUuid(),
+                    contact.bodyAUuid(),
                     contactCenter(contact.pointOnA()));
             }
         }

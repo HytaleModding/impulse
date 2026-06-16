@@ -26,7 +26,6 @@ import dev.hytalemodding.impulse.core.internal.physicsstore.resources.PhysicsWor
 import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyKind;
 import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyPersistenceMode;
 import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyRegistrationView;
-import dev.hytalemodding.impulse.core.plugin.body.RigidBodyKey;
 import dev.hytalemodding.impulse.core.plugin.events.PhysicsContactEvent;
 import dev.hytalemodding.impulse.core.plugin.events.PhysicsFrameEvent;
 import dev.hytalemodding.impulse.core.plugin.physicsstore.components.BodyComponent;
@@ -324,8 +323,8 @@ public final class CompletedStepPublicationSystem extends TickingSystem<PhysicsS
         }
         backendEvents.physicsEvents.add(new PhysicsContactEvent(spaceId,
             PhysicsContactPhase.OBSERVED,
-            RigidBodyKey.of(bodyAUuid),
-            RigidBodyKey.of(bodyBUuid),
+            bodyAUuid,
+            bodyBUuid,
             new Vector3f(pointAX, pointAY, pointAZ),
             new Vector3f(pointBX, pointBY, pointBZ),
             new Vector3f(normalBX, normalBY, normalBZ),
