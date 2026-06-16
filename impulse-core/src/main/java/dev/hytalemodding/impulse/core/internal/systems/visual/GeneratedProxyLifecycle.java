@@ -8,6 +8,7 @@ import com.hypixel.hytale.component.Ref;
 import com.hypixel.hytale.component.RemoveReason;
 import com.hypixel.hytale.component.Store;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
+import com.hypixel.hytale.server.core.universe.world.storage.PhysicsStore;
 import dev.hytalemodding.impulse.core.plugin.physicsstore.projection.BodyAttachmentComponent;
 import dev.hytalemodding.impulse.core.plugin.physicsstore.projection.BodyAttachmentComponent.AttachmentLifecycle;
 import dev.hytalemodding.impulse.core.plugin.body.RigidBodyKey;
@@ -42,6 +43,19 @@ public final class GeneratedProxyLifecycle {
             resource.clearGeneratedVisualProxy(bodyKey);
         } else {
             resource.clearGeneratedVisualProxy(bodyKey, proxy);
+        }
+        removeEntity(accessor, proxy);
+    }
+
+    static void removeProxy(@Nonnull ComponentAccessor<EntityStore> accessor,
+        @Nonnull PhysicsWorldRuntimeResource resource,
+        @Nonnull UUID bodyUuid,
+        @Nullable Ref<PhysicsStore> bodyRef,
+        @Nullable Ref<EntityStore> proxy) {
+        if (proxy == null) {
+            resource.clearGeneratedVisualProxy(bodyUuid, bodyRef);
+        } else {
+            resource.clearGeneratedVisualProxy(bodyUuid, bodyRef, proxy);
         }
         removeEntity(accessor, proxy);
     }

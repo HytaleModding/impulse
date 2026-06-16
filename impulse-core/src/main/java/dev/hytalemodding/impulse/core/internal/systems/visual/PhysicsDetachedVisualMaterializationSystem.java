@@ -20,6 +20,7 @@ import com.hypixel.hytale.server.core.modules.time.TimeResource;
 import com.hypixel.hytale.server.core.universe.world.chunk.WorldChunk;
 import com.hypixel.hytale.server.core.universe.world.storage.ChunkStore;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
+import com.hypixel.hytale.server.core.universe.world.storage.PhysicsStore;
 import dev.hytalemodding.impulse.api.PhysicsBodySnapshot;
 import dev.hytalemodding.impulse.api.SpaceId;
 import dev.hytalemodding.impulse.early.PhysicsStoreWorld;
@@ -48,6 +49,7 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Queue;
 import java.util.Set;
+import java.util.UUID;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.function.ToIntFunction;
 import java.util.WeakHashMap;
@@ -623,30 +625,53 @@ public class PhysicsDetachedVisualMaterializationSystem extends TickingSystem<En
                 }
 
                 var ref = archetypeChunk.getReferenceTo(index);
-                orphanProxies.add(new OrphanVisualProxy(RigidBodyKey.of(attachment.getBodyUuid()),
+                orphanProxies.add(new OrphanVisualProxy(attachment.getBodyUuid(),
+                    attachment.getBodyRef(),
+                    RigidBodyKey.of(attachment.getBodyUuid()),
                     ref));
             });
 
         for (OrphanVisualProxy proxy : orphanProxies) {
-            if (!hasLiveVisualTarget(resource, proxy.bodyKey(), proxy.ref())) {
-                GeneratedProxyLifecycle.removeProxy(store, resource, proxy.bodyKey(), proxy.ref());
+            if (!hasLiveVisualTarget(resource,
+                proxy.bodyRef(),
+                proxy.bodyKey(),
+                proxy.ref())) {
+                GeneratedProxyLifecycle.removeProxy(store,
+                    resource,
+                    proxy.bodyUuid(),
+                    proxy.bodyRef(),
+                    proxy.ref());
             }
         }
     }
 
     private static boolean hasLiveVisualTarget(@Nonnull PhysicsWorldRuntimeResource resource,
+        @Nullable Ref<PhysicsStore> bodyRef,
         @Nonnull RigidBodyKey bodyKey,
         @Nonnull Ref<EntityStore> proxyRef) {
-        PhysicsBodyRegistrationView registration = resource.getBodyRegistrationView(bodyKey);
+        PhysicsBodyRegistrationView registration = bodyRef != null
+            ? resource.getBodyRegistrationView(bodyRef)
+            : resource.getBodyRegistrationView(bodyKey);
         if (registration == null) {
             return resource.isBodyCreationPending(bodyKey)
-                && resource.isGeneratedVisualProxy(bodyKey, proxyRef);
+                && isGeneratedVisualProxy(resource, bodyRef, bodyKey, proxyRef);
         }
         return resource.getSpaceBinding(registration.spaceId()) != null
-            && resource.isGeneratedVisualProxy(bodyKey, proxyRef);
+            && isGeneratedVisualProxy(resource, bodyRef, bodyKey, proxyRef);
+    }
+
+    private static boolean isGeneratedVisualProxy(@Nonnull PhysicsWorldRuntimeResource resource,
+        @Nullable Ref<PhysicsStore> bodyRef,
+        @Nonnull RigidBodyKey bodyKey,
+        @Nonnull Ref<EntityStore> proxyRef) {
+        return bodyRef != null
+            ? resource.isGeneratedVisualProxy(bodyRef, proxyRef)
+            : resource.isGeneratedVisualProxy(bodyKey, proxyRef);
     }
 
     private record OrphanVisualProxy(
+        @Nonnull UUID bodyUuid,
+        @Nullable Ref<PhysicsStore> bodyRef,
         @Nonnull RigidBodyKey bodyKey,
         @Nonnull Ref<EntityStore> ref
     ) {

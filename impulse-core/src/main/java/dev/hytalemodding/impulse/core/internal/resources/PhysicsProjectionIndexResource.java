@@ -212,8 +212,16 @@ public final class PhysicsProjectionIndexResource implements Resource<EntityStor
     }
 
     public void clearGeneratedVisualProxy(@Nonnull UUID bodyUuid) {
+        clearGeneratedVisualProxyForBodyRef(bodyUuid, null);
+    }
+
+    public void clearGeneratedVisualProxyForBodyRef(@Nonnull UUID bodyUuid,
+        @Nullable Ref<PhysicsStore> bodyRef) {
         synchronized (this) {
             generatedVisualProxies.remove(bodyUuid);
+            if (bodyRef != null) {
+                clearGeneratedVisualProxyRef(bodyRef);
+            }
         }
     }
 
@@ -314,6 +322,14 @@ public final class PhysicsProjectionIndexResource implements Resource<EntityStor
         if (row != null
             && (!sameRef(row.bodyRef(), bodyRef)
                 || sameRef(row.proxy(), expectedProxy))) {
+            generatedVisualProxiesByRowIndex.remove(rowIndex);
+        }
+    }
+
+    private void clearGeneratedVisualProxyRef(@Nonnull Ref<PhysicsStore> bodyRef) {
+        int rowIndex = bodyRef.getIndex();
+        GeneratedVisualProxyRef row = generatedVisualProxiesByRowIndex.get(rowIndex);
+        if (row != null && sameRef(row.bodyRef(), bodyRef)) {
             generatedVisualProxiesByRowIndex.remove(rowIndex);
         }
     }
