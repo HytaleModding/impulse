@@ -1,10 +1,6 @@
 package dev.hytalemodding.impulse.core.internal.physicsstore.persistence;
 
-import com.hypixel.hytale.codec.KeyedCodec;
 import com.hypixel.hytale.codec.Codec;
-import com.hypixel.hytale.codec.builder.BuilderCodec;
-import com.hypixel.hytale.math.vector.Vector3fUtil;
-import dev.hytalemodding.impulse.core.plugin.codec.ImpulseCodecs;
 import java.util.Objects;
 import javax.annotation.Nonnull;
 import org.joml.Quaternionf;
@@ -15,33 +11,9 @@ import org.joml.Vector3f;
  */
 public final class PersistentBodyRuntimeStateDto {
 
-    private static final Vector3f ZERO = new Vector3f();
-    private static final Quaternionf IDENTITY = new Quaternionf();
-
     @Nonnull
-    public static final BuilderCodec<PersistentBodyRuntimeStateDto> CODEC =
-        BuilderCodec.builder(PersistentBodyRuntimeStateDto.class, PersistentBodyRuntimeStateDto::new)
-            .append(new KeyedCodec<>("Position", Vector3fUtil.CODEC, false),
-                (dto, value) -> dto.position.set(value != null ? value : ZERO),
-                PersistentBodyRuntimeStateDto::getPosition)
-            .add()
-            .append(new KeyedCodec<>("Rotation", ImpulseCodecs.QUATERNIONF, false),
-                (dto, value) -> dto.rotation.set(value != null ? value : IDENTITY),
-                PersistentBodyRuntimeStateDto::getRotation)
-            .add()
-            .append(new KeyedCodec<>("LinearVelocity", Vector3fUtil.CODEC, false),
-                (dto, value) -> dto.linearVelocity.set(value != null ? value : ZERO),
-                PersistentBodyRuntimeStateDto::getLinearVelocity)
-            .add()
-            .append(new KeyedCodec<>("AngularVelocity", Vector3fUtil.CODEC, false),
-                (dto, value) -> dto.angularVelocity.set(value != null ? value : ZERO),
-                PersistentBodyRuntimeStateDto::getAngularVelocity)
-            .add()
-            .append(new KeyedCodec<>("Sleeping", Codec.BOOLEAN, false),
-                (dto, value) -> dto.sleeping = value != null && value,
-                PersistentBodyRuntimeStateDto::isSleeping)
-            .add()
-            .build();
+    public static final Codec<PersistentBodyRuntimeStateDto> CODEC =
+        PersistentBodyRuntimeStateCodec.INSTANCE;
 
     @Nonnull
     private final Vector3f position = new Vector3f();
