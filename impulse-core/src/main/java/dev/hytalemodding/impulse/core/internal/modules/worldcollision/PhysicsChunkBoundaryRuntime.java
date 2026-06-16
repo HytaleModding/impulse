@@ -8,13 +8,10 @@ import dev.hytalemodding.impulse.core.plugin.body.RigidBodyKey;
 import it.unimi.dsi.fastutil.ints.Int2ObjectMap;
 import it.unimi.dsi.fastutil.ints.Int2ObjectOpenHashMap;
 import it.unimi.dsi.fastutil.objects.Object2ObjectOpenHashMap;
-import it.unimi.dsi.fastutil.objects.ObjectOpenHashSet;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Map;
 import java.util.Objects;
-import java.util.Set;
-import java.util.function.Consumer;
 import java.util.function.Supplier;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
@@ -27,13 +24,10 @@ import org.joml.Vector3f;
  */
 public final class PhysicsChunkBoundaryRuntime {
 
-    private final Set<RigidBodyKey> forcedContinuousCollisionBodyKeys = new ObjectOpenHashSet<>();
     private final Map<RigidBodyKey, ChunkBoundarySafeState> chunkBoundarySafeStates =
         new Object2ObjectOpenHashMap<>();
     private final Map<RigidBodyKey, ChunkBoundaryPauseState> chunkBoundaryPauseStates =
         new Object2ObjectOpenHashMap<>();
-    private final Int2ObjectOpenHashMap<Ref<PhysicsStore>> forcedContinuousCollisionBodyRefsByRowIndex =
-        new Int2ObjectOpenHashMap<>();
     private final Int2ObjectOpenHashMap<RowState<ChunkBoundarySafeState>> chunkBoundarySafeStatesByRowIndex =
         new Int2ObjectOpenHashMap<>();
     private final Int2ObjectOpenHashMap<RowState<ChunkBoundaryPauseState>> chunkBoundaryPauseStatesByRowIndex =
@@ -170,72 +164,19 @@ public final class PhysicsChunkBoundaryRuntime {
         return liveRefs(chunkBoundaryPauseStatesByRowIndex);
     }
 
-    public void markContinuousCollisionForced(@Nonnull RigidBodyKey bodyKey) {
-        forcedContinuousCollisionBodyKeys.add(bodyKey);
-    }
-
-    public void markContinuousCollisionForced(@Nonnull Ref<PhysicsStore> bodyRef) {
-        forcedContinuousCollisionBodyRefsByRowIndex.put(rowIndex(bodyRef), bodyRef);
-    }
-
-    @Nonnull
-    public Collection<RigidBodyKey> getForcedContinuousCollisionBodyKeys() {
-        return new ArrayList<>(forcedContinuousCollisionBodyKeys);
-    }
-
-    @Nonnull
-    public Collection<Ref<PhysicsStore>> getForcedContinuousCollisionBodyRefs() {
-        ArrayList<Ref<PhysicsStore>> refs = new ArrayList<>();
-        forcedContinuousCollisionBodyRefsByRowIndex.values()
-            .removeIf(ref -> ref == null || !ref.isValid());
-        refs.addAll(forcedContinuousCollisionBodyRefsByRowIndex.values());
-        return refs;
-    }
-
-    public boolean hasForcedContinuousCollisionBodies() {
-        forcedContinuousCollisionBodyRefsByRowIndex.values()
-            .removeIf(ref -> ref == null || !ref.isValid());
-        return !forcedContinuousCollisionBodyKeys.isEmpty()
-            || !forcedContinuousCollisionBodyRefsByRowIndex.isEmpty();
-    }
-
-    public void forEachForcedContinuousCollisionBody(@Nonnull Consumer<RigidBodyKey> consumer) {
-        forcedContinuousCollisionBodyKeys.forEach(consumer);
-    }
-
-    public void forEachForcedContinuousCollisionBodyRef(
-        @Nonnull Consumer<Ref<PhysicsStore>> consumer) {
-        for (Ref<PhysicsStore> ref : getForcedContinuousCollisionBodyRefs()) {
-            consumer.accept(ref);
-        }
-    }
-
-    public void clearForcedContinuousCollisionBodies() {
-        forcedContinuousCollisionBodyKeys.clear();
-        forcedContinuousCollisionBodyRefsByRowIndex.clear();
-    }
-
     public void clearBody(@Nonnull RigidBodyKey bodyKey) {
-        forcedContinuousCollisionBodyKeys.remove(bodyKey);
         chunkBoundarySafeStates.remove(bodyKey);
         chunkBoundaryPauseStates.remove(bodyKey);
     }
 
     public void clearBody(@Nonnull Ref<PhysicsStore> bodyRef) {
-        Ref<PhysicsStore> forcedRef =
-            forcedContinuousCollisionBodyRefsByRowIndex.get(rowIndex(bodyRef));
-        if (forcedRef != null && sameRef(forcedRef, bodyRef)) {
-            forcedContinuousCollisionBodyRefsByRowIndex.remove(bodyRef.getIndex());
-        }
         removeRowState(chunkBoundarySafeStatesByRowIndex, bodyRef);
         removeRowState(chunkBoundaryPauseStatesByRowIndex, bodyRef);
     }
 
     public void clear() {
-        forcedContinuousCollisionBodyKeys.clear();
         chunkBoundarySafeStates.clear();
         chunkBoundaryPauseStates.clear();
-        forcedContinuousCollisionBodyRefsByRowIndex.clear();
         chunkBoundarySafeStatesByRowIndex.clear();
         chunkBoundaryPauseStatesByRowIndex.clear();
     }

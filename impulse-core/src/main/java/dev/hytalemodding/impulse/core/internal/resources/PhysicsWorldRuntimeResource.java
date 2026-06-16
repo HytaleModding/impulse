@@ -2606,31 +2606,6 @@ public class PhysicsWorldRuntimeResource extends PhysicsWorldResource {
         visualRuntime.clearBodyRuntimeState(bodyKey.value(), bodyRef);
     }
 
-    public void markContinuousCollisionForced(@Nonnull RigidBodyKey bodyKey) {
-        chunkRuntime.markContinuousCollisionForced(bodyKey);
-    }
-
-    public void markContinuousCollisionForced(@Nonnull Ref<PhysicsStore> bodyRef) {
-        chunkRuntime.markContinuousCollisionForced(bodyRef);
-    }
-
-    @Nonnull
-    public Collection<RigidBodyKey> getForcedContinuousCollisionBodyKeys() {
-        return chunkRuntime.getForcedContinuousCollisionBodyKeys();
-    }
-
-    public boolean hasForcedContinuousCollisionBodies() {
-        return chunkRuntime.hasForcedContinuousCollisionBodies();
-    }
-
-    public void forEachForcedContinuousCollisionBody(@Nonnull Consumer<RigidBodyKey> consumer) {
-        chunkRuntime.forEachForcedContinuousCollisionBody(consumer);
-    }
-
-    public void clearForcedContinuousCollisionBodies() {
-        chunkRuntime.clearForcedContinuousCollisionBodies();
-    }
-
     public void copyFrom(@Nonnull PhysicsWorldResource other) {
         runDirectRuntimeMutation("copy physics world resource", () -> copyFromDirect(other));
     }
