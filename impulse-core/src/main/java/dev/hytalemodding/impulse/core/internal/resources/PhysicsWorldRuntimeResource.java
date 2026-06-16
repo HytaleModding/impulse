@@ -1837,36 +1837,6 @@ public class PhysicsWorldRuntimeResource extends PhysicsWorldResource {
         visualRuntime.unregisterAttachment(bodyUuid, bodyRef, attachment);
     }
 
-    @Nullable
-    public Ref<EntityStore> getGeneratedVisualProxy(@Nonnull Ref<PhysicsStore> bodyRef) {
-        if (hasAttachedAuthoritativePhysicsStore()) {
-            return authoritativeProjectionIndex("read generated visual proxy")
-                .getGeneratedVisualProxy(bodyRef);
-        }
-        return visualRuntime.getGeneratedVisualProxy(bodyRef);
-    }
-
-    @Nullable
-    public Ref<EntityStore> getGeneratedVisualProxy(@Nonnull UUID bodyUuid,
-        @Nullable Ref<PhysicsStore> bodyRef) {
-        if (hasAttachedAuthoritativePhysicsStore()) {
-            PhysicsProjectionIndexResource projection =
-                authoritativeProjectionIndex("read generated visual proxy");
-            return bodyRef != null && bodyRef.isValid()
-                ? projection.getGeneratedVisualProxy(bodyRef)
-                : projection.getGeneratedVisualProxy(bodyUuid);
-        }
-        return visualRuntime.getGeneratedVisualProxy(bodyUuid, bodyRef);
-    }
-
-    public int getGeneratedVisualProxyCount() {
-        if (hasAttachedAuthoritativePhysicsStore()) {
-            return authoritativeProjectionIndex("count generated visual proxies")
-                .generatedVisualProxyCount();
-        }
-        return visualRuntime.generatedVisualProxyCount();
-    }
-
     public void setGeneratedVisualProxy(@Nonnull UUID bodyUuid,
         @Nullable Ref<PhysicsStore> bodyRef,
         @Nonnull Ref<EntityStore> proxy) {
@@ -1904,28 +1874,6 @@ public class PhysicsWorldRuntimeResource extends PhysicsWorldResource {
             return true;
         }
         return visualRuntime.clearGeneratedVisualProxy(bodyUuid, bodyRef, expectedProxy);
-    }
-
-    public boolean isGeneratedVisualProxy(@Nonnull UUID bodyUuid,
-        @Nullable Ref<PhysicsStore> bodyRef,
-        @Nonnull Ref<EntityStore> proxy) {
-        if (hasAttachedAuthoritativePhysicsStore()) {
-            PhysicsProjectionIndexResource projection =
-                authoritativeProjectionIndex("check generated visual proxy");
-            Ref<EntityStore> registered = bodyRef != null
-                ? projection.getGeneratedVisualProxy(bodyRef)
-                : projection.getGeneratedVisualProxy(bodyUuid);
-            return sameRef(registered, proxy);
-        }
-        return visualRuntime.isGeneratedVisualProxy(bodyUuid, bodyRef, proxy);
-    }
-
-    public boolean isGeneratedVisualProxy(@Nonnull Ref<PhysicsStore> bodyRef,
-        @Nonnull Ref<EntityStore> proxy) {
-        if (hasAttachedAuthoritativePhysicsStore()) {
-            return sameRef(getGeneratedVisualProxy(bodyRef), proxy);
-        }
-        return visualRuntime.isGeneratedVisualProxy(bodyRef, proxy);
     }
 
     public void setSyntheticVisualInterests(@Nonnull Collection<VisualInterest> interests) {
