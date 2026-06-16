@@ -116,7 +116,7 @@ public final class TerrainMutationDrainSystem extends TickingSystem<PhysicsStore
                 }
                 PhysicsStoreEntities.putTerrainColliderComponent(store,
                     ref,
-                    removedTerrainComponent(mutation));
+                    removedTerrainComponent(identity, mutation));
             }
             removePayload(terrainPayloads, mutation.payloadResourceKey());
             return;
@@ -127,7 +127,7 @@ public final class TerrainMutationDrainSystem extends TickingSystem<PhysicsStore
             return;
         }
         terrainPayloads.put(mutation.payloadResourceKey(), payload);
-        TerrainColliderComponent component = activeTerrainComponent(mutation);
+        TerrainColliderComponent component = activeTerrainComponent(identity, mutation);
         if (ref != null) {
             TerrainColliderComponent existing = store.getComponent(ref,
                 TerrainColliderComponent.getComponentType());
@@ -159,28 +159,33 @@ public final class TerrainMutationDrainSystem extends TickingSystem<PhysicsStore
 
     @Nonnull
     private static TerrainColliderComponent activeTerrainComponent(
+        @Nonnull PhysicsIdentityIndexResource identity,
         @Nonnull TerrainColliderMutation mutation) {
-        return terrainComponent(mutation, mutation.payloadResourceKey(), true);
+        return terrainComponent(identity, mutation, mutation.payloadResourceKey(), true);
     }
 
     @Nonnull
     private static TerrainColliderComponent removedTerrainComponent(
+        @Nonnull PhysicsIdentityIndexResource identity,
         @Nonnull TerrainColliderMutation mutation) {
-        return terrainComponent(mutation, mutation.payloadResourceKey(), false);
+        return terrainComponent(identity, mutation, mutation.payloadResourceKey(), false);
     }
 
     @Nonnull
     private static TerrainColliderComponent terrainComponent(
+        @Nonnull PhysicsIdentityIndexResource identity,
         @Nonnull TerrainColliderMutation mutation,
         @Nullable String payloadResourceKey,
         boolean retained) {
-        return new TerrainColliderComponent(mutation.spaceUuid(),
+        TerrainColliderComponent component = new TerrainColliderComponent(mutation.spaceUuid(),
             mutation.sourceKey(),
             mutation.chunkX(),
             mutation.sectionY(),
             mutation.chunkZ(),
             payloadResourceKey != null ? payloadResourceKey : "",
             retained);
+        component.setSpaceRef(PhysicsStoreSystemSupport.refForUuid(identity, mutation.spaceUuid()));
+        return component;
     }
 
     private static void removePayload(@Nonnull PhysicsTerrainPayloadResource terrainPayloads,
