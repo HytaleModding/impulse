@@ -2061,19 +2061,6 @@ public class PhysicsWorldRuntimeResource extends PhysicsWorldResource {
         return jointRegistry.findJointBetween(spaceId, bodyA, bodyB);
     }
 
-    public boolean isBodyCreationPending(@Nonnull RigidBodyKey bodyKey) {
-        return bodyRuntime.isBodyCreationPending(bodyKey);
-    }
-
-    public boolean isBodyCreationPending(@Nonnull UUID bodyUuid) {
-        return bodyRuntime.isBodyCreationPending(bodyUuid);
-    }
-
-    public boolean hasPublishedOrPendingBodyRegistration(@Nonnull RigidBodyKey bodyKey) {
-        return getBodyRegistrationView(bodyKey) != null
-            || isBodyCreationPending(bodyKey);
-    }
-
     @Nonnull
     public PhysicsBodyRegistration requireBodyRegistration(@Nonnull RigidBodyKey bodyKey) {
         PhysicsBodyRegistration registration = getRegistration(bodyKey);

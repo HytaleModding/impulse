@@ -15,7 +15,6 @@ import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyKind;
 import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyPersistenceMode;
 import dev.hytalemodding.impulse.core.plugin.body.RigidBodyKey;
 import java.util.ArrayList;
-import java.util.UUID;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
@@ -42,8 +41,6 @@ public final class PhysicsBodyRuntime {
     private final PhysicsWorldLifecycleState lifecycleState;
     @Nonnull
     private final Runnable worldChangedMarker;
-    @Nonnull
-    private final PhysicsBodyCreationTracker creationTracker = new PhysicsBodyCreationTracker();
 
     public PhysicsBodyRuntime(@Nonnull PhysicsSpaceRuntime spaceRuntime,
         @Nonnull PhysicsBodyRegistry bodyRegistry,
@@ -63,22 +60,6 @@ public final class PhysicsBodyRuntime {
         this.visualRuntime = visualRuntime;
         this.lifecycleState = lifecycleState;
         this.worldChangedMarker = worldChangedMarker;
-    }
-
-    public void markBodyCreationPending(@Nonnull RigidBodyKey bodyKey) {
-        creationTracker.markPending(bodyKey);
-    }
-
-    public void clearBodyCreationPending(@Nonnull RigidBodyKey bodyKey) {
-        creationTracker.clearPending(bodyKey);
-    }
-
-    public boolean isBodyCreationPending(@Nonnull RigidBodyKey bodyKey) {
-        return creationTracker.isPending(bodyKey);
-    }
-
-    public boolean isBodyCreationPending(@Nonnull UUID bodyUuid) {
-        return creationTracker.isPending(bodyUuid);
     }
 
     @Nonnull
@@ -152,7 +133,6 @@ public final class PhysicsBodyRuntime {
         chunkRuntime.clear();
         visualRuntime.clear();
         lifecycleState.clearBodySnapshots();
-        creationTracker.clear();
     }
 
     public void clearBodyRuntimeState(@Nonnull RigidBodyKey bodyKey) {
