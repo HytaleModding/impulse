@@ -403,17 +403,6 @@ public abstract class PhysicsWorldResource implements Resource<EntityStore> {
         return false;
     }
 
-    /**
-     * Destroys all registered bodies while preserving registered physics spaces.
-     */
-    public abstract void clearBodies();
-
-    /**
-     * Queues destruction of all registered bodies while preserving registered physics spaces.
-     */
-    @Nonnull
-    public abstract PhysicsMutationHandle<Void> clearBodiesAsync();
-
     public static ResourceType<EntityStore, PhysicsWorldResource> getResourceType() {
         return ImpulsePlugin.get().getPhysicsWorldResourceType();
     }

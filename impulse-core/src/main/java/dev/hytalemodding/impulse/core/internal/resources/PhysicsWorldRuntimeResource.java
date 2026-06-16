@@ -2065,37 +2065,6 @@ public class PhysicsWorldRuntimeResource extends PhysicsWorldResource {
         visualRuntime.clearSyntheticVisualInterests();
     }
 
-    @Override
-    public void clearBodies() {
-        if (isAuthoritativePhysicsStoreActive()) {
-            Store<PhysicsStore> store = authoritativePhysicsStore("clear physics bodies");
-            clearAuthoritativeWorldCollisionStreaming(store);
-            PhysicsStoreTopologyMutations.clearBodiesKeepingSpaces(store);
-            return;
-        }
-        requireLegacyMutationAllowed("clear physics bodies");
-        runDirectRuntimeMutation("clear physics bodies", this::destroyRegisteredBodiesDirect);
-    }
-
-    @Nonnull
-    @Override
-    public PhysicsMutationHandle<Void> clearBodiesAsync() {
-        if (isAuthoritativePhysicsStoreActive()) {
-            return enqueueAuthoritativePhysicsStoreMutation("clear physics bodies",
-                null,
-                store -> {
-                    clearAuthoritativeWorldCollisionStreaming(store);
-                    PhysicsStoreTopologyMutations.clearBodiesKeepingSpaces(store);
-                });
-        }
-        requireLegacyMutationAllowed("clear physics bodies");
-        return enqueueDirectRuntimeMutation("clear physics bodies", this::destroyRegisteredBodiesDirect);
-    }
-
-    private void destroyRegisteredBodiesDirect() {
-        bodyRuntime.destroyRegisteredBodies();
-    }
-
     private void clearBodyStateDirect() {
         clearRuntimeTopologyDirect(false);
         markWorldChanged();
