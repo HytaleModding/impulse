@@ -42,6 +42,7 @@ import dev.hytalemodding.impulse.core.plugin.settings.PhysicsSpaceSettings;
 import dev.hytalemodding.impulse.core.plugin.settings.PhysicsVisualMaterializationSettings;
 import it.unimi.dsi.fastutil.objects.ObjectOpenHashSet;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.List;
@@ -522,28 +523,38 @@ public class PhysicsDetachedVisualMaterializationSystem extends TickingSystem<En
             if (collector != null) {
                 collector.incrementVisibilityChecks();
             }
-            PhysicsBodyRegistrationView registration = resource.getBodyRegistrationView(bodyKey);
+            Ref<EntityStore> proxy = resource.getGeneratedVisualProxy(bodyKey);
+            BodyAttachmentComponent proxyAttachment =
+                expectedProxyAttachment(store, proxy, bodyKey);
+            Ref<PhysicsStore> bodyRef = proxyAttachment != null
+                ? validBodyRef(proxyAttachment.getBodyRef())
+                : null;
+            PhysicsBodyRegistrationView registration = bodyRegistration(resource, bodyRef, bodyKey);
             if (registration == null || registration.kind() != PhysicsBodyKind.BODY) {
                 if (registration == null && resource.isBodyCreationPending(bodyKey)) {
                     count++;
                     continue;
                 }
-                GeneratedProxyLifecycle.removeProxy(store, resource, bodyKey);
+                removeGeneratedProxy(store, resource, bodyKey, bodyRef, proxy);
                 if (collector != null) {
                     collector.incrementDematerialized();
                 }
                 continue;
             }
-            Ref<EntityStore> proxy = resource.getGeneratedVisualProxy(bodyKey);
-            if (proxy == null || !isExpectedProxy(store, proxy, bodyKey)) {
-                GeneratedProxyLifecycle.removeProxy(store, resource, bodyKey);
+            if (proxy == null || proxyAttachment == null) {
+                removeGeneratedProxy(store, resource, bodyKey, bodyRef, proxy);
                 if (collector != null) {
                     collector.incrementDematerialized();
                 }
                 continue;
             }
-            if (hasGameplayAttachment(store, resource, bodyKey, proxy, gameplayAttachments)) {
-                GeneratedProxyLifecycle.removeProxy(store, resource, bodyKey);
+            if (hasGameplayAttachment(store,
+                resource,
+                bodyKey,
+                bodyRef,
+                proxy,
+                gameplayAttachments)) {
+                removeGeneratedProxy(store, resource, bodyKey, bodyRef, proxy);
                 if (collector != null) {
                     collector.incrementDematerialized();
                 }
@@ -552,7 +563,7 @@ public class PhysicsDetachedVisualMaterializationSystem extends TickingSystem<En
 
             PhysicsSpaceSettings settings = resolveSettings(resource, registration);
             if (settings == null || !settings.getVisualMaterializationSettings().isDetachedVisualMaterializationEnabled()) {
-                GeneratedProxyLifecycle.removeProxy(store, resource, bodyKey);
+                removeGeneratedProxy(store, resource, bodyKey, bodyRef, proxy);
                 if (collector != null) {
                     collector.incrementDematerialized();
                 }
@@ -561,7 +572,7 @@ public class PhysicsDetachedVisualMaterializationSystem extends TickingSystem<En
 
             PhysicsBodySnapshot snapshot = resource.getBodySnapshotIfRegistered(bodyKey);
             if (snapshot == null) {
-                GeneratedProxyLifecycle.removeProxy(store, resource, bodyKey);
+                removeGeneratedProxy(store, resource, bodyKey, bodyRef, proxy);
                 if (collector != null) {
                     collector.incrementDematerialized();
                 }
@@ -569,7 +580,7 @@ public class PhysicsDetachedVisualMaterializationSystem extends TickingSystem<En
             }
             if (!isBodyChunkLoaded(store, snapshot)
                 || shouldDematerialize(snapshot, settings, interests)) {
-                GeneratedProxyLifecycle.removeProxy(store, resource, bodyKey);
+                removeGeneratedProxy(store, resource, bodyKey, bodyRef, proxy);
                 if (collector != null) {
                     collector.incrementDematerialized();
                 }
@@ -718,12 +729,15 @@ public class PhysicsDetachedVisualMaterializationSystem extends TickingSystem<En
     private static boolean hasGameplayAttachment(@Nonnull Store<EntityStore> store,
         @Nonnull PhysicsWorldRuntimeResource resource,
         @Nonnull RigidBodyKey bodyKey,
+        @Nullable Ref<PhysicsStore> bodyRef,
         @Nonnull Ref<EntityStore> proxy,
         @Nonnull GameplayAttachmentSnapshot gameplayAttachments) {
         ComponentType<EntityStore, BodyAttachmentComponent> attachmentType =
             BodyAttachmentComponent.getComponentType();
-        Ref<PhysicsStore> bodyRef = null;
-        for (Ref<EntityStore> attachmentRef : resource.getBodyAttachments(bodyKey)) {
+        Collection<Ref<EntityStore>> attachments = bodyRef != null
+            ? resource.getBodyAttachments(bodyRef)
+            : resource.getBodyAttachments(bodyKey);
+        for (Ref<EntityStore> attachmentRef : attachments) {
             if (sameRef(attachmentRef, proxy)) {
                 continue;
             }
@@ -732,10 +746,6 @@ public class PhysicsDetachedVisualMaterializationSystem extends TickingSystem<En
             if (attachment != null && attachment.getLifecycle() != AttachmentLifecycle.GENERATED_PROXY) {
                 return true;
             }
-        }
-        BodyAttachmentComponent proxyAttachment = store.getComponent(proxy, attachmentType);
-        if (proxyAttachment != null) {
-            bodyRef = proxyAttachment.getBodyRef();
         }
         return gameplayAttachments.hasGameplayAttachment(bodyRef, bodyKey);
     }
@@ -830,17 +840,39 @@ public class PhysicsDetachedVisualMaterializationSystem extends TickingSystem<En
         return worldChunk != null;
     }
 
-    private static boolean isExpectedProxy(@Nonnull Store<EntityStore> store,
-        @Nonnull Ref<EntityStore> proxy,
+    @Nullable
+    private static BodyAttachmentComponent expectedProxyAttachment(
+        @Nonnull Store<EntityStore> store,
+        @Nullable Ref<EntityStore> proxy,
         @Nonnull RigidBodyKey bodyKey) {
-        if (!proxy.isValid()) {
-            return false;
+        if (proxy == null || !proxy.isValid()) {
+            return null;
         }
         BodyAttachmentComponent attachment =
             store.getComponent(proxy, BodyAttachmentComponent.getComponentType());
-        return attachment != null
-            && attachment.getLifecycle() == AttachmentLifecycle.GENERATED_PROXY
-            && attachment.getBodyUuid().equals(bodyKey.value());
+        if (attachment == null
+            || attachment.getLifecycle() != AttachmentLifecycle.GENERATED_PROXY
+            || !attachment.getBodyUuid().equals(bodyKey.value())) {
+            return null;
+        }
+        return attachment;
+    }
+
+    @Nullable
+    private static Ref<PhysicsStore> validBodyRef(@Nullable Ref<PhysicsStore> bodyRef) {
+        return bodyRef != null && bodyRef.isValid() ? bodyRef : null;
+    }
+
+    private static void removeGeneratedProxy(@Nonnull Store<EntityStore> store,
+        @Nonnull PhysicsWorldRuntimeResource resource,
+        @Nonnull RigidBodyKey bodyKey,
+        @Nullable Ref<PhysicsStore> bodyRef,
+        @Nullable Ref<EntityStore> proxy) {
+        if (bodyRef != null) {
+            GeneratedProxyLifecycle.removeProxy(store, resource, bodyKey.value(), bodyRef, proxy);
+            return;
+        }
+        GeneratedProxyLifecycle.removeProxy(store, resource, bodyKey, proxy);
     }
 
     private static boolean sameSpaceId(@Nullable SpaceId first, @Nullable SpaceId second) {
