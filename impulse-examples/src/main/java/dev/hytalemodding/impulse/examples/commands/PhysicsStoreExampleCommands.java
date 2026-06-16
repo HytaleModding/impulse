@@ -92,8 +92,15 @@ final class PhysicsStoreExampleCommands {
             if (spaceId == null) {
                 return CompletableFuture.completedFuture(null);
             }
+            Ref<PhysicsStore> spaceRef = ExamplePhysicsUtils.resolvePhysicsStoreSpaceRef(world,
+                spaceId);
+            if (spaceRef == null) {
+                ctx.sender().sendMessage(Message.raw("PhysicsStore space id=" + spaceId.value()
+                    + " is not bound yet."));
+                return CompletableFuture.completedFuture(null);
+            }
             return PhysicsStoreAsync.acceptOnWorldThread(world,
-                raycastAsync(store, ref, spaceId),
+                raycastAsync(store, ref, spaceRef),
                 hit -> applyImpulse(ctx, store, ref, world, hit));
         }
 
@@ -207,8 +214,15 @@ final class PhysicsStoreExampleCommands {
             if (spaceId == null) {
                 return CompletableFuture.completedFuture(null);
             }
+            Ref<PhysicsStore> spaceRef = ExamplePhysicsUtils.resolvePhysicsStoreSpaceRef(world,
+                spaceId);
+            if (spaceRef == null) {
+                ctx.sender().sendMessage(Message.raw("PhysicsStore space id=" + spaceId.value()
+                    + " is not bound yet."));
+                return CompletableFuture.completedFuture(null);
+            }
             return PhysicsStoreAsync.acceptOnWorldThread(world,
-                raycastAsync(store, ref, spaceId),
+                raycastAsync(store, ref, spaceRef),
                 hit -> attachView(ctx, store, hit));
         }
 
@@ -423,13 +437,13 @@ final class PhysicsStoreExampleCommands {
     @Nonnull
     private static CompletionStage<RaycastHitView> raycastAsync(@Nonnull Store<EntityStore> store,
         @Nonnull Ref<EntityStore> ref,
-        @Nonnull SpaceId spaceId) {
+        @Nonnull Ref<PhysicsStore> spaceRef) {
         Transform look = TargetUtil.getLook(ref, store);
         Vector3d start = new Vector3d(look.getPosition());
         Vector3d end = new Vector3d(start)
             .add(new Vector3d(look.getDirection()).mul(RAY_LENGTH));
         return PhysicsStoreRaycasts.closestAsync(store.getExternalData().getWorld(),
-                spaceId,
+                spaceRef,
                 vector(start),
                 vector(end))
             .thenApply(hit -> hit.orElse(null));
