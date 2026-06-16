@@ -555,7 +555,7 @@ public class PhysicsWorldRuntimeResource extends PhysicsWorldResource {
     }
 
     @Nullable
-    public PhysicsSpaceBinding getSpaceBinding(@Nonnull SpaceId spaceId) {
+    private PhysicsSpaceBinding getSpaceBinding(@Nonnull SpaceId spaceId) {
         return spaceRuntime.getBinding(spaceId);
     }
 
@@ -570,7 +570,7 @@ public class PhysicsWorldRuntimeResource extends PhysicsWorldResource {
     }
 
     @Nonnull
-    public PhysicsSpaceBinding requireSpaceBinding(@Nonnull SpaceId spaceId) {
+    private PhysicsSpaceBinding requireSpaceBinding(@Nonnull SpaceId spaceId) {
         return spaceRuntime.requireBinding(spaceId);
     }
 
@@ -990,7 +990,7 @@ public class PhysicsWorldRuntimeResource extends PhysicsWorldResource {
     }
 
     @Nonnull
-    public PhysicsBodySnapshot captureLiveBodySnapshot(@Nonnull PhysicsBodyRegistration registration) {
+    private PhysicsBodySnapshot captureLiveBodySnapshot(@Nonnull PhysicsBodyRegistration registration) {
         Objects.requireNonNull(registration, "registration");
         assertCanAccessLiveBackendDirectly("capture live physics body snapshot");
         PhysicsSpaceBinding space = requireSpaceBinding(registration.spaceId());
@@ -1781,19 +1781,6 @@ public class PhysicsWorldRuntimeResource extends PhysicsWorldResource {
 
     private void destroyBodyDirect(@Nonnull UUID bodyUuid, boolean removeFromSpace) {
         bodyRuntime.destroyBody(bodyUuid, removeFromSpace);
-    }
-
-    @Nullable
-    public PhysicsBodyRegistration getBodyRegistration(@Nonnull SpaceId spaceId, long backendBodyId) {
-        assertCanAccessLiveBackendDirectly("resolve physics body registration");
-        UUID bodyUuid = bodyRegistry.getBodyUuid(spaceId, backendBodyId);
-        return bodyUuid != null ? bodyRegistry.getRegistration(bodyUuid) : null;
-    }
-
-    @Nullable
-    public PhysicsBodyRegistration getRegistration(@Nonnull UUID bodyUuid) {
-        assertCanAccessLiveBackendDirectly("resolve physics body registration");
-        return bodyRegistry.getRegistration(bodyUuid);
     }
 
     @Nullable
