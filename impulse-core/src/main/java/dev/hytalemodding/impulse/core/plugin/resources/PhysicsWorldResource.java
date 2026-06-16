@@ -184,7 +184,15 @@ public abstract class PhysicsWorldResource implements Resource<EntityStore> {
      * live backend.</p>
      */
     @Nonnull
-    public abstract PhysicsBodySnapshot getBodySnapshot(@Nonnull RigidBodyKey bodyKey);
+    public abstract PhysicsBodySnapshot getBodySnapshot(@Nonnull UUID bodyUuid);
+
+    /**
+     * Compatibility adapter for callers that still carry a legacy body key.
+     */
+    @Nonnull
+    public PhysicsBodySnapshot getBodySnapshot(@Nonnull RigidBodyKey bodyKey) {
+        return getBodySnapshot(Objects.requireNonNull(bodyKey, "bodyKey").value());
+    }
 
     /**
      * Returns the number of body snapshots in the latest published frame.

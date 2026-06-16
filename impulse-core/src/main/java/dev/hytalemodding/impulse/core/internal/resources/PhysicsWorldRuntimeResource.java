@@ -635,53 +635,47 @@ public class PhysicsWorldRuntimeResource extends PhysicsWorldResource {
 
     @Nonnull
     @Override
-    public PhysicsBodySnapshot getBodySnapshot(@Nonnull RigidBodyKey bodyKey) {
+    public PhysicsBodySnapshot getBodySnapshot(@Nonnull UUID bodyUuid) {
+        Objects.requireNonNull(bodyUuid, "bodyUuid");
         if (isAuthoritativePhysicsStoreActive()) {
             Store<PhysicsStore> store =
                 authoritativePhysicsStore("read copied physics body snapshot");
-            PhysicsBodySnapshot snapshot = getAuthoritativeBodySnapshot(store, bodyKey);
+            PhysicsBodySnapshot snapshot = getAuthoritativeBodySnapshot(store, bodyUuid);
             if (snapshot == null) {
                 throw new IllegalStateException("No copied PhysicsStore body snapshot is available for "
-                    + bodyKey);
+                    + bodyUuid);
             }
             return snapshot;
         }
-        PhysicsBodySnapshot snapshot = lifecycleState.getBodySnapshot(bodyKey);
+        PhysicsBodySnapshot snapshot = lifecycleState.getBodySnapshot(bodyUuid);
         if (snapshot != null) {
             return snapshot;
         }
         return callDirectRuntime("refresh missing physics body snapshot",
-            () -> getBodySnapshotDirect(bodyKey));
+            () -> getBodySnapshotDirect(bodyUuid));
+    }
+
+    @Nonnull
+    @Override
+    public PhysicsBodySnapshot getBodySnapshot(@Nonnull RigidBodyKey bodyKey) {
+        return getBodySnapshot(Objects.requireNonNull(bodyKey, "bodyKey").value());
     }
 
     @Nullable
     public PhysicsBodySnapshot getBodySnapshotIfRegistered(@Nonnull RigidBodyKey bodyKey) {
-        if (isAuthoritativePhysicsStoreActive()) {
-            return getAuthoritativeBodySnapshot(
-                authoritativePhysicsStore("read optional copied physics body snapshot"),
-                bodyKey);
-        }
-        PhysicsBodySnapshot snapshot = lifecycleState.getBodySnapshot(bodyKey);
-        if (snapshot != null) {
-            return snapshot;
-        }
-        return callDirectRuntime("refresh optional physics body snapshot",
-            () -> getBodySnapshotIfRegisteredDirect(bodyKey));
+        return getBodySnapshotIfRegistered(Objects.requireNonNull(bodyKey, "bodyKey").value(), null);
     }
 
     @Nullable
-    public PhysicsBodySnapshot getBodySnapshotIfRegistered(@Nonnull Ref<PhysicsStore> bodyRef) {
-        Store<PhysicsStore> store = Objects.requireNonNull(bodyRef, "bodyRef").getStore();
-        PhysicsStoreThreading.requireWorldThread(store, "read optional copied physics body snapshot");
-        PhysicsStoreBodySnapshot snapshot = store.getResource(PhysicsSnapshotResource.getResourceType())
-            .getBody(bodyRef);
-        return snapshot != null ? toPublicBodySnapshot(store, snapshot) : null;
+    public PhysicsBodySnapshot getBodySnapshotIfRegistered(@Nonnull UUID bodyUuid) {
+        return getBodySnapshotIfRegistered(bodyUuid, null);
     }
 
     @Nullable
     public PhysicsBodySnapshot getBodySnapshotIfRegistered(@Nonnull UUID bodyUuid,
         @Nullable Ref<PhysicsStore> bodyRef) {
         if (isAuthoritativePhysicsStoreActive()) {
+            Objects.requireNonNull(bodyUuid, "bodyUuid");
             Store<PhysicsStore> store =
                 authoritativePhysicsStore("read optional copied physics body snapshot");
             PhysicsStoreBodySnapshot snapshot = bodyRef != null && bodyRef.isValid()
@@ -697,24 +691,31 @@ public class PhysicsWorldRuntimeResource extends PhysicsWorldResource {
             () -> getBodySnapshotIfRegisteredDirect(bodyUuid));
     }
 
+    @Nullable
+    public PhysicsBodySnapshot getBodySnapshotIfRegistered(@Nonnull Ref<PhysicsStore> bodyRef) {
+        Store<PhysicsStore> store = Objects.requireNonNull(bodyRef, "bodyRef").getStore();
+        PhysicsStoreThreading.requireWorldThread(store, "read optional copied physics body snapshot");
+        PhysicsStoreBodySnapshot snapshot = store.getResource(PhysicsSnapshotResource.getResourceType())
+            .getBody(bodyRef);
+        return snapshot != null ? toPublicBodySnapshot(store, snapshot) : null;
+    }
+
     @Nonnull
-    private PhysicsBodySnapshot getBodySnapshotDirect(@Nonnull RigidBodyKey bodyKey) {
-        PhysicsBodySnapshot snapshot = lifecycleState.getBodySnapshot(bodyKey);
+    private PhysicsBodySnapshot getBodySnapshotDirect(@Nonnull UUID bodyUuid) {
+        PhysicsBodySnapshot snapshot = lifecycleState.getBodySnapshot(bodyUuid);
         if (snapshot != null) {
             return snapshot;
         }
-        PhysicsBodyRegistration registration = requireBodyRegistration(bodyKey);
+        PhysicsBodyRegistration registration = bodyRegistry.getRegistration(bodyUuid);
+        if (registration == null) {
+            throw new IllegalArgumentException("Physics body uuid=" + bodyUuid + " is not registered");
+        }
         return captureLiveBodySnapshot(registration);
     }
 
     @Nullable
     private PhysicsBodySnapshot getBodySnapshotIfRegisteredDirect(@Nonnull RigidBodyKey bodyKey) {
-        PhysicsBodySnapshot snapshot = lifecycleState.getBodySnapshot(bodyKey);
-        if (snapshot != null) {
-            return snapshot;
-        }
-        PhysicsBodyRegistration registration = bodyRegistry.getRegistration(bodyKey);
-        return registration != null ? captureLiveBodySnapshot(registration) : null;
+        return getBodySnapshotIfRegisteredDirect(Objects.requireNonNull(bodyKey, "bodyKey").value());
     }
 
     @Nullable
@@ -730,9 +731,9 @@ public class PhysicsWorldRuntimeResource extends PhysicsWorldResource {
     @Nullable
     private static PhysicsBodySnapshot getAuthoritativeBodySnapshot(
         @Nonnull Store<PhysicsStore> store,
-        @Nonnull RigidBodyKey bodyKey) {
+        @Nonnull UUID bodyUuid) {
         PhysicsStoreBodySnapshot snapshot = store.getResource(PhysicsSnapshotResource.getResourceType())
-            .getBody(Objects.requireNonNull(bodyKey, "bodyKey").value());
+            .getBody(Objects.requireNonNull(bodyUuid, "bodyUuid"));
         return snapshot != null ? toPublicBodySnapshot(store, snapshot) : null;
     }
 
