@@ -45,7 +45,6 @@ import dev.hytalemodding.impulse.core.internal.resources.PhysicsVisualRuntime.Vi
 import dev.hytalemodding.impulse.core.internal.modules.worldcollision.WorldCollisionBuildOptions;
 import dev.hytalemodding.impulse.core.internal.modules.worldcollision.PhysicsWorldCollisionRuntime;
 import dev.hytalemodding.impulse.core.internal.modules.worldcollision.WorldCollisionLifecycle;
-import dev.hytalemodding.impulse.core.internal.modules.worldcollision.WorldVoxelCollisionCache;
 import dev.hytalemodding.impulse.core.internal.store.integration.PhysicsStoreEarlyPluginProbe;
 import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyKind;
 import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyPersistenceMode;
@@ -1141,11 +1140,6 @@ public class PhysicsWorldRuntimeResource extends PhysicsWorldResource {
             return 0;
         }
         return lifecycleState.bodySnapshotCellCount();
-    }
-
-    @Nonnull
-    public WorldVoxelCollisionCache worldCollisionCache() {
-        return collisionRuntime.worldVoxelCollisionCache();
     }
 
     @Nonnull
