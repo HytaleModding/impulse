@@ -103,17 +103,8 @@ public final class StaleBodyRemovalSystem extends TickingSystem<PhysicsStore> {
         }
         for (BoundJoint joint : collectDependentJoints(store, identity, staleBodyUuids)) {
             BackendJointHandle jointHandle = runtime.getJointHandle(joint.ref());
-            if (jointHandle == null) {
-                jointHandle = runtime.getJointHandle(joint.jointUuid());
-            }
             if (jointHandle != null) {
                 BackendSpaceHandle spaceHandle = runtime.getJointSpaceHandle(joint.ref());
-                if (spaceHandle == null) {
-                    spaceHandle = runtime.getJointSpaceHandle(joint.jointUuid());
-                }
-                if (spaceHandle == null) {
-                    spaceHandle = runtime.getSpaceHandle(joint.spaceUuid());
-                }
                 PhysicsBackendRuntime backendRuntime = runtime.runtimeForSpaceHandle(spaceHandle);
                 if (spaceHandle != null && backendRuntime != null) {
                     try {
@@ -154,10 +145,7 @@ public final class StaleBodyRemovalSystem extends TickingSystem<PhysicsStore> {
                 return;
             }
             boolean removeRow = shouldRemoveJointRow(identity, joint, staleBodyUuids);
-            joints.add(new BoundJoint(jointUuid,
-                chunk.getReferenceTo(index),
-                joint.getSpaceUuid(),
-                removeRow));
+            joints.add(new BoundJoint(jointUuid, chunk.getReferenceTo(index), removeRow));
         });
         return new ArrayList<>(joints);
     }
@@ -220,7 +208,6 @@ public final class StaleBodyRemovalSystem extends TickingSystem<PhysicsStore> {
 
     private record BoundJoint(@Nonnull UUID jointUuid,
                               @Nonnull Ref<PhysicsStore> ref,
-                              @Nonnull UUID spaceUuid,
                               boolean removeRow) {
     }
 }
