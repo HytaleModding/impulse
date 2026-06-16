@@ -1879,8 +1879,8 @@ public class PhysicsWorldRuntimeResource extends PhysicsWorldResource {
     @Nullable
     public PhysicsBodyRegistration getBodyRegistration(@Nonnull SpaceId spaceId, long backendBodyId) {
         assertCanAccessLiveBackendDirectly("resolve physics body registration");
-        RigidBodyKey bodyKey = bodyRegistry.getBodyKey(spaceId, backendBodyId);
-        return bodyKey != null ? bodyRegistry.getRegistration(bodyKey) : null;
+        UUID bodyUuid = bodyRegistry.getBodyUuid(spaceId, backendBodyId);
+        return bodyUuid != null ? bodyRegistry.getRegistration(bodyUuid) : null;
     }
 
     @Nullable
