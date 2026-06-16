@@ -660,7 +660,7 @@ public class PhysicsDetachedVisualMaterializationSystem extends TickingSystem<En
         ComponentType<EntityStore, BodyAttachmentComponent> attachmentType =
             BodyAttachmentComponent.getComponentType();
         for (Ref<EntityStore> attachmentRef : resource.getBodyAttachments(bodyKey)) {
-            if (attachmentRef == proxy || attachmentRef.equals(proxy)) {
+            if (sameRef(attachmentRef, proxy)) {
                 continue;
             }
             BodyAttachmentComponent attachment = store.getComponent(attachmentRef,
@@ -777,6 +777,16 @@ public class PhysicsDetachedVisualMaterializationSystem extends TickingSystem<En
 
     private static boolean sameSpaceId(@Nullable SpaceId first, @Nullable SpaceId second) {
         return Objects.equals(first, second);
+    }
+
+    private static boolean sameRef(@Nullable Ref<EntityStore> first,
+        @Nullable Ref<EntityStore> second) {
+        return first == second
+            || (first != null
+                && second != null
+                && first.getStore() != null
+                && first.getStore() == second.getStore()
+                && first.getIndex() == second.getIndex());
     }
 
     @Nullable

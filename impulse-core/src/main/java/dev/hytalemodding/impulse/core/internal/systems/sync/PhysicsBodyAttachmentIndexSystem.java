@@ -112,7 +112,12 @@ public class PhysicsBodyAttachmentIndexSystem
 
     private static boolean sameRef(@Nullable Ref<PhysicsStore> first,
         @Nullable Ref<PhysicsStore> second) {
-        return first == second || (first != null && first.equals(second));
+        return first == second
+            || (first != null
+                && second != null
+                && first.getStore() != null
+                && first.getStore() == second.getStore()
+                && first.getIndex() == second.getIndex());
     }
 
     @Nonnull

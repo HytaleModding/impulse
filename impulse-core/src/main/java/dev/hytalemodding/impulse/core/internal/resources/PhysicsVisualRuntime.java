@@ -182,7 +182,7 @@ public final class PhysicsVisualRuntime {
         synchronized (this) {
             previousProxy = generatedVisualProxies.put(bodyKey, proxy);
         }
-        if (previousProxy != proxy) {
+        if (!sameRef(previousProxy, proxy)) {
             cleanSyncState(previousProxy);
         }
     }
@@ -291,9 +291,14 @@ public final class PhysicsVisualRuntime {
         }
     }
 
-    private static boolean sameRef(@Nonnull Ref<EntityStore> first,
-        @Nonnull Ref<EntityStore> second) {
-        return first == second || first.equals(second);
+    private static boolean sameRef(@Nullable Ref<EntityStore> first,
+        @Nullable Ref<EntityStore> second) {
+        return first == second
+            || (first != null
+                && second != null
+                && first.getStore() != null
+                && first.getStore() == second.getStore()
+                && first.getIndex() == second.getIndex());
     }
 
     /**

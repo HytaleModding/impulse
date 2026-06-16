@@ -26,11 +26,11 @@ public final class PhysicsProjectionIndexResource implements Resource<EntityStor
 
     private final Map<UUID, Set<Ref<EntityStore>>> bodyAttachments =
         new Object2ObjectOpenHashMap<>();
-    private final Int2ObjectOpenHashMap<Set<Ref<EntityStore>>> bodyAttachmentsByRowIndex =
+    private final Int2ObjectOpenHashMap<BodyAttachmentRefs> bodyAttachmentsByRowIndex =
         new Int2ObjectOpenHashMap<>();
     private final Map<UUID, Ref<EntityStore>> generatedVisualProxies =
         new Object2ObjectOpenHashMap<>();
-    private final Int2ObjectOpenHashMap<Ref<EntityStore>> generatedVisualProxiesByRowIndex =
+    private final Int2ObjectOpenHashMap<GeneratedVisualProxyRef> generatedVisualProxiesByRowIndex =
         new Int2ObjectOpenHashMap<>();
 
     public synchronized void registerAttachment(@Nonnull UUID bodyUuid,
@@ -44,8 +44,7 @@ public final class PhysicsProjectionIndexResource implements Resource<EntityStor
         bodyAttachments.computeIfAbsent(bodyUuid, _ -> new ObjectOpenHashSet<>())
             .add(attachment);
         if (bodyRef != null) {
-            bodyAttachmentsByRowIndex.computeIfAbsent(bodyRef.getIndex(),
-                    _ -> new ObjectOpenHashSet<>())
+            bodyAttachmentRefs(bodyRef)
                 .add(attachment);
         }
     }
@@ -77,7 +76,7 @@ public final class PhysicsProjectionIndexResource implements Resource<EntityStor
 
     @Nonnull
     public Collection<Ref<EntityStore>> getAttachments(@Nonnull Ref<PhysicsStore> bodyRef) {
-        return liveAttachments(bodyAttachmentsByRowIndex, bodyRef.getIndex());
+        return liveAttachments(bodyRef);
     }
 
     @Nonnull
@@ -110,7 +109,7 @@ public final class PhysicsProjectionIndexResource implements Resource<EntityStor
     }
 
     public boolean hasAttachments(@Nonnull Ref<PhysicsStore> bodyRef) {
-        return hasLiveAttachments(bodyAttachmentsByRowIndex, bodyRef.getIndex());
+        return hasLiveAttachments(bodyRef);
     }
 
     private <K> boolean hasLiveAttachments(@Nonnull Map<K, Set<Ref<EntityStore>>> attachmentsByKey,
@@ -143,7 +142,7 @@ public final class PhysicsProjectionIndexResource implements Resource<EntityStor
 
     @Nullable
     public Ref<EntityStore> getGeneratedVisualProxy(@Nonnull Ref<PhysicsStore> bodyRef) {
-        return liveGeneratedVisualProxy(generatedVisualProxiesByRowIndex, bodyRef.getIndex());
+        return liveGeneratedVisualProxy(bodyRef);
     }
 
     @Nullable
@@ -171,7 +170,8 @@ public final class PhysicsProjectionIndexResource implements Resource<EntityStor
         synchronized (this) {
             generatedVisualProxies.put(bodyUuid, proxy);
             if (bodyRef != null) {
-                generatedVisualProxiesByRowIndex.put(bodyRef.getIndex(), proxy);
+                generatedVisualProxiesByRowIndex.put(bodyRef.getIndex(),
+                    new GeneratedVisualProxyRef(bodyRef, proxy));
             }
         }
     }
@@ -217,11 +217,11 @@ public final class PhysicsProjectionIndexResource implements Resource<EntityStor
                 }
             }
             if (newBodyRef != null) {
-                bodyAttachmentsByRowIndex.computeIfAbsent(newBodyRef.getIndex(),
-                        _ -> new ObjectOpenHashSet<>())
+                bodyAttachmentRefs(newBodyRef)
                     .add(attachment);
                 if (generatedProxy) {
-                    generatedVisualProxiesByRowIndex.put(newBodyRef.getIndex(), attachment);
+                    generatedVisualProxiesByRowIndex.put(newBodyRef.getIndex(),
+                        new GeneratedVisualProxyRef(newBodyRef, attachment));
                 }
             }
         }
@@ -236,11 +236,17 @@ public final class PhysicsProjectionIndexResource implements Resource<EntityStor
                 copy.bodyAttachments.put(entry.getKey(), new ObjectOpenHashSet<>(entry.getValue()));
             }
             for (var entry : bodyAttachmentsByRowIndex.int2ObjectEntrySet()) {
+                BodyAttachmentRefs refs = entry.getValue();
                 copy.bodyAttachmentsByRowIndex.put(entry.getIntKey(),
-                    new ObjectOpenHashSet<>(entry.getValue()));
+                    new BodyAttachmentRefs(refs.bodyRef(),
+                        new ObjectOpenHashSet<>(refs.attachments())));
             }
             copy.generatedVisualProxies.putAll(generatedVisualProxies);
-            copy.generatedVisualProxiesByRowIndex.putAll(generatedVisualProxiesByRowIndex);
+            for (var entry : generatedVisualProxiesByRowIndex.int2ObjectEntrySet()) {
+                GeneratedVisualProxyRef proxy = entry.getValue();
+                copy.generatedVisualProxiesByRowIndex.put(entry.getIntKey(),
+                    new GeneratedVisualProxyRef(proxy.bodyRef(), proxy.proxy()));
+            }
         }
         return copy;
     }
@@ -252,10 +258,14 @@ public final class PhysicsProjectionIndexResource implements Resource<EntityStor
     private void unregisterAttachmentRef(@Nonnull Ref<PhysicsStore> bodyRef,
         @Nonnull Ref<EntityStore> attachment) {
         int rowIndex = bodyRef.getIndex();
-        Set<Ref<EntityStore>> attachments = bodyAttachmentsByRowIndex.get(rowIndex);
-        if (attachments == null) {
+        BodyAttachmentRefs row = bodyAttachmentsByRowIndex.get(rowIndex);
+        if (row == null || !sameRef(row.bodyRef(), bodyRef)) {
+            if (row != null) {
+                bodyAttachmentsByRowIndex.remove(rowIndex);
+            }
             return;
         }
+        Set<Ref<EntityStore>> attachments = row.attachments();
         attachments.remove(attachment);
         if (attachments.isEmpty()) {
             bodyAttachmentsByRowIndex.remove(rowIndex);
@@ -265,9 +275,108 @@ public final class PhysicsProjectionIndexResource implements Resource<EntityStor
     private void clearGeneratedVisualProxyRef(@Nonnull Ref<PhysicsStore> bodyRef,
         @Nonnull Ref<EntityStore> expectedProxy) {
         int rowIndex = bodyRef.getIndex();
-        Ref<EntityStore> proxy = generatedVisualProxiesByRowIndex.get(rowIndex);
-        if (sameRef(proxy, expectedProxy)) {
+        GeneratedVisualProxyRef row = generatedVisualProxiesByRowIndex.get(rowIndex);
+        if (row != null
+            && (!sameRef(row.bodyRef(), bodyRef)
+                || sameRef(row.proxy(), expectedProxy))) {
             generatedVisualProxiesByRowIndex.remove(rowIndex);
+        }
+    }
+
+    @Nonnull
+    private Set<Ref<EntityStore>> bodyAttachmentRefs(@Nonnull Ref<PhysicsStore> bodyRef) {
+        int rowIndex = bodyRef.getIndex();
+        BodyAttachmentRefs row = bodyAttachmentsByRowIndex.get(rowIndex);
+        if (row == null || !sameRef(row.bodyRef(), bodyRef)) {
+            row = new BodyAttachmentRefs(bodyRef, new ObjectOpenHashSet<>());
+            bodyAttachmentsByRowIndex.put(rowIndex, row);
+        }
+        return row.attachments();
+    }
+
+    @Nonnull
+    private Collection<Ref<EntityStore>> liveAttachments(@Nonnull Ref<PhysicsStore> bodyRef) {
+        List<Ref<EntityStore>> liveAttachments = new ArrayList<>();
+        synchronized (this) {
+            int rowIndex = bodyRef.getIndex();
+            BodyAttachmentRefs row = bodyAttachmentsByRowIndex.get(rowIndex);
+            if (row == null) {
+                return List.of();
+            }
+            if (!sameRef(row.bodyRef(), bodyRef)) {
+                bodyAttachmentsByRowIndex.remove(rowIndex);
+                return List.of();
+            }
+            Set<Ref<EntityStore>> attachments = row.attachments();
+            if (attachments.isEmpty()) {
+                bodyAttachmentsByRowIndex.remove(rowIndex);
+                return List.of();
+            }
+            for (Iterator<Ref<EntityStore>> iterator = attachments.iterator(); iterator.hasNext();) {
+                Ref<EntityStore> attachment = iterator.next();
+                if (attachment != null && attachment.isValid()) {
+                    liveAttachments.add(attachment);
+                } else {
+                    iterator.remove();
+                }
+            }
+            if (attachments.isEmpty()) {
+                bodyAttachmentsByRowIndex.remove(rowIndex);
+            }
+        }
+        return liveAttachments;
+    }
+
+    private boolean hasLiveAttachments(@Nonnull Ref<PhysicsStore> bodyRef) {
+        synchronized (this) {
+            int rowIndex = bodyRef.getIndex();
+            BodyAttachmentRefs row = bodyAttachmentsByRowIndex.get(rowIndex);
+            if (row == null) {
+                return false;
+            }
+            if (!sameRef(row.bodyRef(), bodyRef)) {
+                bodyAttachmentsByRowIndex.remove(rowIndex);
+                return false;
+            }
+            Set<Ref<EntityStore>> attachments = row.attachments();
+            if (attachments.isEmpty()) {
+                bodyAttachmentsByRowIndex.remove(rowIndex);
+                return false;
+            }
+            boolean hasLiveAttachment = false;
+            for (Iterator<Ref<EntityStore>> iterator = attachments.iterator(); iterator.hasNext();) {
+                Ref<EntityStore> attachment = iterator.next();
+                if (attachment != null && attachment.isValid()) {
+                    hasLiveAttachment = true;
+                } else {
+                    iterator.remove();
+                }
+            }
+            if (attachments.isEmpty()) {
+                bodyAttachmentsByRowIndex.remove(rowIndex);
+            }
+            return hasLiveAttachment;
+        }
+    }
+
+    @Nullable
+    private Ref<EntityStore> liveGeneratedVisualProxy(@Nonnull Ref<PhysicsStore> bodyRef) {
+        synchronized (this) {
+            int rowIndex = bodyRef.getIndex();
+            GeneratedVisualProxyRef row = generatedVisualProxiesByRowIndex.get(rowIndex);
+            if (row == null) {
+                return null;
+            }
+            if (!sameRef(row.bodyRef(), bodyRef)) {
+                generatedVisualProxiesByRowIndex.remove(rowIndex);
+                return null;
+            }
+            Ref<EntityStore> proxy = row.proxy();
+            if (proxy != null && proxy.isValid()) {
+                return proxy;
+            }
+            generatedVisualProxiesByRowIndex.remove(rowIndex);
+            return null;
         }
     }
 
@@ -276,7 +385,16 @@ public final class PhysicsProjectionIndexResource implements Resource<EntityStor
         return first == second
             || (first != null
                 && second != null
+                && first.getStore() != null
                 && first.getStore() == second.getStore()
                 && first.getIndex() == second.getIndex());
+    }
+
+    private record BodyAttachmentRefs(@Nonnull Ref<PhysicsStore> bodyRef,
+                                      @Nonnull Set<Ref<EntityStore>> attachments) {
+    }
+
+    private record GeneratedVisualProxyRef(@Nonnull Ref<PhysicsStore> bodyRef,
+                                           @Nonnull Ref<EntityStore> proxy) {
     }
 }
