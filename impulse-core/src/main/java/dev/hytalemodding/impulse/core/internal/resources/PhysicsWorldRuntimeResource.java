@@ -662,6 +662,20 @@ public class PhysicsWorldRuntimeResource extends PhysicsWorldResource {
         return snapshot != null ? toPublicBodySnapshot(store, snapshot) : null;
     }
 
+    @Nullable
+    public PhysicsBodySnapshot getBodySnapshotIfRegistered(@Nonnull UUID bodyUuid,
+        @Nullable Ref<PhysicsStore> bodyRef) {
+        if (isAuthoritativePhysicsStoreActive()) {
+            Store<PhysicsStore> store =
+                authoritativePhysicsStore("read optional copied physics body snapshot");
+            PhysicsStoreBodySnapshot snapshot = bodyRef != null && bodyRef.isValid()
+                ? store.getResource(PhysicsSnapshotResource.getResourceType()).getBody(bodyRef)
+                : store.getResource(PhysicsSnapshotResource.getResourceType()).getBody(bodyUuid);
+            return snapshot != null ? toPublicBodySnapshot(store, snapshot) : null;
+        }
+        return getBodySnapshotIfRegistered(RigidBodyKey.of(bodyUuid));
+    }
+
     @Nonnull
     private PhysicsBodySnapshot getBodySnapshotDirect(@Nonnull RigidBodyKey bodyKey) {
         PhysicsBodySnapshot snapshot = lifecycleState.getBodySnapshot(bodyKey);
@@ -2106,6 +2120,19 @@ public class PhysicsWorldRuntimeResource extends PhysicsWorldResource {
         return List.of();
     }
 
+    @Nonnull
+    public Collection<Ref<EntityStore>> getBodyAttachments(@Nonnull UUID bodyUuid,
+        @Nullable Ref<PhysicsStore> bodyRef) {
+        if (hasAttachedAuthoritativePhysicsStore()) {
+            PhysicsProjectionIndexResource projection =
+                authoritativeProjectionIndex("read physics body attachments");
+            return bodyRef != null && bodyRef.isValid()
+                ? projection.getAttachments(bodyRef)
+                : projection.getAttachments(bodyUuid);
+        }
+        return visualRuntime.getAttachments(RigidBodyKey.of(bodyUuid));
+    }
+
     @Override
     public boolean hasBodyAttachments(@Nonnull RigidBodyKey bodyKey) {
         if (hasAttachedAuthoritativePhysicsStore()) {
@@ -2125,6 +2152,18 @@ public class PhysicsWorldRuntimeResource extends PhysicsWorldResource {
         return hasAttachedAuthoritativePhysicsStore()
             && authoritativeProjectionIndex("check physics body attachments")
                 .hasAttachments(bodyRef);
+    }
+
+    public boolean hasBodyAttachments(@Nonnull UUID bodyUuid,
+        @Nullable Ref<PhysicsStore> bodyRef) {
+        if (hasAttachedAuthoritativePhysicsStore()) {
+            PhysicsProjectionIndexResource projection =
+                authoritativeProjectionIndex("check physics body attachments");
+            return bodyRef != null && bodyRef.isValid()
+                ? projection.hasAttachments(bodyRef)
+                : projection.hasAttachments(bodyUuid);
+        }
+        return visualRuntime.hasAttachments(RigidBodyKey.of(bodyUuid));
     }
 
     public void registerBodyAttachment(@Nonnull RigidBodyKey bodyKey, @Nonnull Ref<EntityStore> attachment) {
@@ -2192,6 +2231,19 @@ public class PhysicsWorldRuntimeResource extends PhysicsWorldResource {
                 .getGeneratedVisualProxy(bodyRef);
         }
         return null;
+    }
+
+    @Nullable
+    public Ref<EntityStore> getGeneratedVisualProxy(@Nonnull UUID bodyUuid,
+        @Nullable Ref<PhysicsStore> bodyRef) {
+        if (hasAttachedAuthoritativePhysicsStore()) {
+            PhysicsProjectionIndexResource projection =
+                authoritativeProjectionIndex("read generated visual proxy");
+            return bodyRef != null && bodyRef.isValid()
+                ? projection.getGeneratedVisualProxy(bodyRef)
+                : projection.getGeneratedVisualProxy(bodyUuid);
+        }
+        return visualRuntime.getGeneratedVisualProxy(RigidBodyKey.of(bodyUuid));
     }
 
     @Nonnull

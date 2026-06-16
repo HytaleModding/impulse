@@ -12,6 +12,7 @@ import it.unimi.dsi.fastutil.ints.Int2ObjectOpenHashMap;
 import it.unimi.dsi.fastutil.objects.ObjectOpenHashSet;
 import java.util.Queue;
 import java.util.Set;
+import java.util.UUID;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
@@ -34,8 +35,13 @@ final class GameplayAttachmentSnapshot {
 
     @Nonnull
     static GameplayAttachmentSnapshot fromSource(@Nonnull BodyKeySource source) {
-        return fromAttachmentSource(() -> new AttachmentBodies(source.bodyKeys(),
-            new Int2ObjectOpenHashMap<>()));
+        return fromAttachmentSource(() -> {
+            Set<UUID> bodyUuids = new ObjectOpenHashSet<>();
+            for (RigidBodyKey bodyKey : source.bodyKeys()) {
+                bodyUuids.add(bodyKey.value());
+            }
+            return new AttachmentBodies(bodyUuids, new Int2ObjectOpenHashMap<>());
+        });
     }
 
     @Nonnull
@@ -45,25 +51,36 @@ final class GameplayAttachmentSnapshot {
 
     boolean hasKnownGameplayAttachment(boolean runtimeIndexHasAttachment,
         @Nonnull RigidBodyKey bodyKey) {
-        return hasKnownGameplayAttachment(runtimeIndexHasAttachment, null, bodyKey);
+        return hasKnownGameplayAttachment(runtimeIndexHasAttachment, null, bodyKey.value());
     }
 
     boolean hasKnownGameplayAttachment(boolean runtimeIndexHasAttachment,
         @Nullable Ref<PhysicsStore> bodyRef,
         @Nonnull RigidBodyKey bodyKey) {
+        return hasKnownGameplayAttachment(runtimeIndexHasAttachment, bodyRef, bodyKey.value());
+    }
+
+    boolean hasKnownGameplayAttachment(boolean runtimeIndexHasAttachment,
+        @Nullable Ref<PhysicsStore> bodyRef,
+        @Nonnull UUID bodyUuid) {
         if (runtimeIndexHasAttachment) {
             return true;
         }
-        return hasGameplayAttachment(bodyRef, bodyKey);
+        return hasGameplayAttachment(bodyRef, bodyUuid);
     }
 
     boolean hasGameplayAttachment(@Nonnull RigidBodyKey bodyKey) {
-        return hasGameplayAttachment(null, bodyKey);
+        return hasGameplayAttachment(null, bodyKey.value());
     }
 
     boolean hasGameplayAttachment(@Nullable Ref<PhysicsStore> bodyRef,
         @Nonnull RigidBodyKey bodyKey) {
-        return hasGameplayAttachment(bodyRef) || bodies().bodyKeys().contains(bodyKey);
+        return hasGameplayAttachment(bodyRef, bodyKey.value());
+    }
+
+    boolean hasGameplayAttachment(@Nullable Ref<PhysicsStore> bodyRef,
+        @Nonnull UUID bodyUuid) {
+        return hasGameplayAttachment(bodyRef) || bodies().bodyUuids().contains(bodyUuid);
     }
 
     private boolean hasGameplayAttachment(@Nullable Ref<PhysicsStore> bodyRef) {
@@ -87,7 +104,7 @@ final class GameplayAttachmentSnapshot {
         @Nonnull Store<EntityStore> store) {
         ComponentType<EntityStore, BodyAttachmentComponent> attachmentType =
             BodyAttachmentComponent.getComponentType();
-        Queue<RigidBodyKey> bodyKeys = new ConcurrentLinkedQueue<>();
+        Queue<UUID> bodyUuids = new ConcurrentLinkedQueue<>();
         Queue<Ref<PhysicsStore>> bodyRefs = new ConcurrentLinkedQueue<>();
         store.forEachEntityParallel(attachmentType,
             (index, archetypeChunk, _) -> {
@@ -95,15 +112,15 @@ final class GameplayAttachmentSnapshot {
                     attachmentType);
                 if (attachment != null
                     && attachment.getLifecycle() != AttachmentLifecycle.GENERATED_PROXY) {
-                    bodyKeys.add(RigidBodyKey.of(attachment.getBodyUuid()));
+                    bodyUuids.add(attachment.getBodyUuid());
                     Ref<PhysicsStore> bodyRef = attachment.getBodyRef();
                     if (bodyRef != null && bodyRef.isValid()) {
                         bodyRefs.add(bodyRef);
                     }
                 }
             });
-        Set<RigidBodyKey> uniqueBodyKeys = new ObjectOpenHashSet<>();
-        uniqueBodyKeys.addAll(bodyKeys);
+        Set<UUID> uniqueBodyUuids = new ObjectOpenHashSet<>();
+        uniqueBodyUuids.addAll(bodyUuids);
         Int2ObjectOpenHashMap<Ref<PhysicsStore>> bodyRefsByRowIndex =
             new Int2ObjectOpenHashMap<>();
         for (Ref<PhysicsStore> bodyRef : bodyRefs) {
@@ -113,7 +130,7 @@ final class GameplayAttachmentSnapshot {
                 bodyRefsByRowIndex.put(rowIndex, bodyRef);
             }
         }
-        return new AttachmentBodies(uniqueBodyKeys, bodyRefsByRowIndex);
+        return new AttachmentBodies(uniqueBodyUuids, bodyRefsByRowIndex);
     }
 
     private static boolean sameRef(@Nullable Ref<?> first,
@@ -141,7 +158,7 @@ final class GameplayAttachmentSnapshot {
     }
 
     private record AttachmentBodies(
-        @Nonnull Set<RigidBodyKey> bodyKeys,
+        @Nonnull Set<UUID> bodyUuids,
         @Nonnull Int2ObjectOpenHashMap<Ref<PhysicsStore>> bodyRefsByRowIndex
     ) {
     }
