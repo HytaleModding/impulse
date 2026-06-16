@@ -165,7 +165,7 @@ final class PhysicsStoreExampleCommands {
             }
             Vector3f targetPosition = vector(spawn);
             var bodyRef = ExamplePhysicsUtils.addPhysicsStoreBody(world,
-                ExamplePhysicsUtils.bodyRow(spaceRef,
+                ExamplePhysicsUtils.bodyEntity(spaceRef,
                     bodyUuid,
                     targetPosition,
                     PhysicsShapeSpec.box(0.5f, 0.5f, 0.5f),
@@ -344,7 +344,7 @@ final class PhysicsStoreExampleCommands {
 
             UUID bodyUuid = UUID.randomUUID();
             ExamplePhysicsUtils.addPhysicsStoreBody(world,
-                ExamplePhysicsUtils.bodyRow(spaceRef,
+                ExamplePhysicsUtils.bodyEntity(spaceRef,
                     bodyUuid,
                     vector(spawn),
                     PhysicsShapeSpec.box(0.5f, 0.5f, 0.5f),

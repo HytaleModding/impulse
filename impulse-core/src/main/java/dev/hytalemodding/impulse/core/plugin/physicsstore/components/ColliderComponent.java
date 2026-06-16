@@ -15,7 +15,7 @@ import org.joml.Quaternionf;
 import org.joml.Vector3f;
 
 /**
- * Local collider settings for one body aggregate row.
+ * Local collider settings for one body entity.
  */
 public final class ColliderComponent implements Component<PhysicsStore> {
 

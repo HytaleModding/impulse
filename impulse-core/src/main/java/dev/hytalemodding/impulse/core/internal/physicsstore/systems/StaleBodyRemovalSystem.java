@@ -30,7 +30,7 @@ import java.util.concurrent.ConcurrentLinkedQueue;
 import javax.annotation.Nonnull;
 
 /**
- * Removes backend bodies after their authoritative PhysicsStore body row is gone.
+ * Removes backend bodies after their authoritative PhysicsStore body entity is gone.
  */
 public final class StaleBodyRemovalSystem extends TickingSystem<PhysicsStore> {
 

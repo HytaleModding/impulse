@@ -119,14 +119,14 @@ public class StressBenchmarkCommand extends AbstractAsyncPlayerCommand {
             ctx.sender().sendMessage(Message.raw("Added " + timing.spawned() + " "
                 + request.mode().label() + " benchmark bodies: setupWallMs="
                 + millis(timing.setupWallNanos())
-                + " rowApplyMs=" + millis(timing.rowApplyNanos())
+                + " entityApplyMs=" + millis(timing.entityApplyNanos())
                 + (timing.entityAttachNanos() > 0L
                     ? " entityAttachMs=" + millis(timing.entityAttachNanos())
                     : "")
                 + " (" + microsPerBody(timing.setupWallNanos(), timing.spawned())
                 + " us/body). Space bodies before add: " + beforeBodies
                 + (request.mode() == BenchmarkMode.ENTITY ? ". blockType=" + request.blockType() : "")
-                + ". Body-count updates are visible after PhysicsStore binds the new rows"
+                + ". Body-count updates are visible after PhysicsStore binds the new entities"
                 + ". This command measures raw setup/entity attachment; use /impulse-examples stress bodies"
                 + " for detached/detached-view scalability scenarios"
                 + ". For clean comparisons run /impulse clean, /impulse-world-collision perf reset,"
@@ -165,7 +165,7 @@ public class StressBenchmarkCommand extends AbstractAsyncPlayerCommand {
         int count) {
         PhysicsShapeSpec box = PhysicsShapeSpec.box(0.48f, 0.48f, 0.48f);
         RigidBodySpawnSettings spawnSettings = RigidBodySpawnSettings.material(0.65f, 0.15f);
-        ExamplePhysicsUtils.BodyRowBatchTiming timing =
+        ExamplePhysicsUtils.BodyEntityBatchTiming timing =
             ExamplePhysicsUtils.addDynamicBodyBatchMeasured(world,
                 spaceRef,
                 spaceId,
@@ -184,7 +184,7 @@ public class StressBenchmarkCommand extends AbstractAsyncPlayerCommand {
                 });
         return new BenchmarkSpawnTiming(timing.count(),
             timing.setupWallNanos(),
-            timing.rowApplyNanos(),
+            timing.entityApplyNanos(),
             0L);
     }
 
@@ -217,8 +217,8 @@ public class StressBenchmarkCommand extends AbstractAsyncPlayerCommand {
                 }
             });
         return new BenchmarkSpawnTiming(timing.count(),
-            timing.rowApplyNanos() + timing.entityAttachNanos(),
-            timing.rowApplyNanos(),
+            timing.entityApplyNanos() + timing.entityAttachNanos(),
+            timing.entityApplyNanos(),
             timing.entityAttachNanos());
     }
 
@@ -285,12 +285,12 @@ public class StressBenchmarkCommand extends AbstractAsyncPlayerCommand {
 
     private record BenchmarkSpawnTiming(int spawned,
                                         long setupWallNanos,
-                                        long rowApplyNanos,
+                                        long entityApplyNanos,
                                         long entityAttachNanos) {
 
         private BenchmarkSpawnTiming {
             setupWallNanos = Math.max(0L, setupWallNanos);
-            rowApplyNanos = Math.max(0L, rowApplyNanos);
+            entityApplyNanos = Math.max(0L, entityApplyNanos);
             entityAttachNanos = Math.max(0L, entityAttachNanos);
         }
     }

@@ -12,7 +12,7 @@ import dev.hytalemodding.impulse.core.plugin.settings.PhysicsSpaceSettings;
 import javax.annotation.Nonnull;
 
 /**
- * Authored collision LOD policy for one PhysicsStore space row.
+ * Authored collision LOD policy for one PhysicsStore space entity.
  */
 public final class CollisionLodSettingsComponent implements Component<PhysicsStore> {
 

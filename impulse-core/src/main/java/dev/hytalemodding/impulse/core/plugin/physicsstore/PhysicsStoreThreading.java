@@ -14,7 +14,7 @@ import java.util.function.Function;
 import javax.annotation.Nonnull;
 
 /**
- * Thread assertions for direct PhysicsStore row and backend access.
+ * Thread assertions for direct PhysicsStore entity and backend access.
  */
 public final class PhysicsStoreThreading {
 

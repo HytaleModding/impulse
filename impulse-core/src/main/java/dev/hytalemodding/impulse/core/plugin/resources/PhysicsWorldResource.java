@@ -41,7 +41,7 @@ import org.joml.Vector3f;
  * target for each operation.</p>
  *
  * <p>This facade does not directly return live backend spaces or bodies. Gameplay code should use
- * PhysicsStore rows for authoring, copied snapshots for body state, and explicit PhysicsStore
+ * PhysicsStore entities for authoring, copied snapshots for body state, and explicit PhysicsStore
  * diagnostics/raycast helpers for store tick lane backend reads.</p>
  */
 public abstract class PhysicsWorldResource implements Resource<EntityStore> {
@@ -291,10 +291,10 @@ public abstract class PhysicsWorldResource implements Resource<EntityStore> {
     public abstract PhysicsSpaceSettings getSpaceSettings(@Nonnull SpaceId spaceId);
 
     /**
-     * Returns the current settings for a live PhysicsStore space row.
+     * Returns the current settings for a live PhysicsStore space entity.
      *
      * <p>Prefer this overload when command or gameplay code already resolved the target
-     * space row.</p>
+     * space entity.</p>
      */
     @Nonnull
     public abstract PhysicsSpaceSettings getSpaceSettings(@Nonnull Ref<PhysicsStore> spaceRef);
@@ -306,10 +306,10 @@ public abstract class PhysicsWorldResource implements Resource<EntityStore> {
         @Nonnull PhysicsSpaceSettings settings);
 
     /**
-     * Applies settings to a live PhysicsStore space row.
+     * Applies settings to a live PhysicsStore space entity.
      *
      * <p>Prefer this overload when command or gameplay code already resolved the target
-     * space row.</p>
+     * space entity.</p>
      */
     public abstract void setSpaceSettings(@Nonnull Ref<PhysicsStore> spaceRef,
         @Nonnull PhysicsSpaceSettings settings);
@@ -381,7 +381,7 @@ public abstract class PhysicsWorldResource implements Resource<EntityStore> {
     /**
      * Returns ECS attachments associated with a live PhysicsStore body ref.
      *
-     * <p>Prefer this overload when a caller already has a body row ref, such as from a PhysicsStore
+     * <p>Prefer this overload when a caller already has a body entity ref, such as from a PhysicsStore
      * raycast or copied registration.</p>
      */
     @Nonnull

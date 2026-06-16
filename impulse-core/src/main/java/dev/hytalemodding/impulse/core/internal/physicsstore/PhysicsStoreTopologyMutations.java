@@ -43,7 +43,7 @@ public final class PhysicsStoreTopologyMutations {
 
     public static void destroyBody(@Nonnull Store<PhysicsStore> store,
         @Nonnull UUID bodyUuid) {
-        PhysicsStoreThreading.requireWorldThread(store, "destroy a PhysicsStore body row");
+        PhysicsStoreThreading.requireWorldThread(store, "destroy a PhysicsStore body entity");
         PhysicsRuntimeResource runtime = store.getResource(PhysicsRuntimeResource.getResourceType());
         PhysicsIdentityIndexResource identity =
             store.getResource(PhysicsIdentityIndexResource.getResourceType());
@@ -56,7 +56,7 @@ public final class PhysicsStoreTopologyMutations {
     @Nonnull
     public static PhysicsRuntimeResetResult clearBodiesKeepingSpaces(
         @Nonnull Store<PhysicsStore> store) {
-        PhysicsStoreThreading.requireWorldThread(store, "clear PhysicsStore body rows");
+        PhysicsStoreThreading.requireWorldThread(store, "clear PhysicsStore body entities");
         PhysicsRuntimeResource runtime = store.getResource(PhysicsRuntimeResource.getResourceType());
         PhysicsIdentityIndexResource identity =
             store.getResource(PhysicsIdentityIndexResource.getResourceType());
@@ -83,7 +83,7 @@ public final class PhysicsStoreTopologyMutations {
 
     public static void removeSpaceWithContents(@Nonnull Store<PhysicsStore> store,
         @Nonnull UUID spaceUuid) {
-        PhysicsStoreThreading.requireWorldThread(store, "remove a PhysicsStore space row");
+        PhysicsStoreThreading.requireWorldThread(store, "remove a PhysicsStore space entity");
         PhysicsRuntimeResource runtime = store.getResource(PhysicsRuntimeResource.getResourceType());
         PhysicsIdentityIndexResource identity =
             store.getResource(PhysicsIdentityIndexResource.getResourceType());

@@ -164,7 +164,7 @@ public class ForcesCommand extends AbstractAsyncPlayerCommand {
         @Nonnull BodyCommandComponent command) {
         UUID bodyUuid = UUID.randomUUID();
         var bodyRef = ExamplePhysicsUtils.addPhysicsStoreBody(world,
-            ExamplePhysicsUtils.bodyRow(spaceRef,
+            ExamplePhysicsUtils.bodyEntity(spaceRef,
                 bodyUuid,
                 ExamplePhysicsUtils.toVector3f(position),
                 PhysicsShapeSpec.box(0.5f, 0.5f, 0.5f),

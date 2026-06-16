@@ -10,7 +10,7 @@ import dev.hytalemodding.impulse.core.plugin.physicsstore.PhysicsStoreTypes;
 import javax.annotation.Nonnull;
 
 /**
- * Physical material row referenced by colliders.
+ * Physical material settings for one collider entity.
  */
 public final class MaterialComponent implements Component<PhysicsStore> {
 

@@ -23,15 +23,15 @@ import org.joml.Quaternionf;
 import org.joml.Vector3f;
 
 /**
- * Factories for direct PhysicsStore body row descriptors.
+ * Factories for PhysicsStore body entity descriptors.
  */
-public final class PhysicsBodyRows {
+public final class PhysicsBodyEntities {
 
-    private PhysicsBodyRows() {
+    private PhysicsBodyEntities() {
     }
 
     @Nonnull
-    public static BodyRowDescriptor dynamicBody(@Nonnull UUID spaceUuid,
+    public static BodyEntityDescriptor dynamicBody(@Nonnull UUID spaceUuid,
         @Nonnull UUID bodyUuid,
         @Nonnull Vector3f bodyCenter,
         @Nonnull PhysicsShapeSpec shape,
@@ -52,7 +52,7 @@ public final class PhysicsBodyRows {
     }
 
     @Nonnull
-    public static BodyRowDescriptor dynamicBody(@Nonnull Ref<PhysicsStore> spaceRef,
+    public static BodyEntityDescriptor dynamicBody(@Nonnull Ref<PhysicsStore> spaceRef,
         @Nonnull UUID bodyUuid,
         @Nonnull Vector3f bodyCenter,
         @Nonnull PhysicsShapeSpec shape,
@@ -73,7 +73,7 @@ public final class PhysicsBodyRows {
     }
 
     @Nonnull
-    public static BodyRowDescriptor body(@Nonnull UUID spaceUuid,
+    public static BodyEntityDescriptor body(@Nonnull UUID spaceUuid,
         @Nonnull UUID bodyUuid,
         @Nonnull Vector3f bodyCenter,
         @Nonnull PhysicsShapeSpec shape,
@@ -92,7 +92,7 @@ public final class PhysicsBodyRows {
         Objects.requireNonNull(kind, "kind");
         Objects.requireNonNull(persistenceMode, "persistenceMode");
 
-        return BodyRowDescriptor.of(bodyUuid,
+        return BodyEntityDescriptor.of(bodyUuid,
             new BodyComponent(spaceUuid,
                 kind,
                 persistenceMode),
@@ -124,7 +124,7 @@ public final class PhysicsBodyRows {
     }
 
     @Nonnull
-    public static BodyRowDescriptor body(@Nonnull Ref<PhysicsStore> spaceRef,
+    public static BodyEntityDescriptor body(@Nonnull Ref<PhysicsStore> spaceRef,
         @Nonnull UUID bodyUuid,
         @Nonnull Vector3f bodyCenter,
         @Nonnull PhysicsShapeSpec shape,
@@ -134,7 +134,7 @@ public final class PhysicsBodyRows {
         @Nullable Vector3f linearVelocity,
         @Nonnull PhysicsBodyKind kind,
         @Nonnull PhysicsBodyPersistenceMode persistenceMode) {
-        BodyRowDescriptor row = body(PhysicsStoreRowRefs.rowUuid(spaceRef),
+        BodyEntityDescriptor descriptor = body(PhysicsStoreEntityRefs.entityUuid(spaceRef),
             bodyUuid,
             bodyCenter,
             shape,
@@ -144,8 +144,8 @@ public final class PhysicsBodyRows {
             linearVelocity,
             kind,
             persistenceMode);
-        row.body().setSpaceRef(spaceRef);
-        return row;
+        descriptor.body().setSpaceRef(spaceRef);
+        return descriptor;
     }
 
     @Nonnull

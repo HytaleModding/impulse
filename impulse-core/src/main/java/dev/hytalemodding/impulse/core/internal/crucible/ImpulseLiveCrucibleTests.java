@@ -16,8 +16,8 @@ import dev.hytalemodding.impulse.early.PhysicsStoreWorld;
 import dev.hytalemodding.impulse.api.SpaceId;
 import dev.hytalemodding.impulse.core.internal.physicsstore.PhysicsStoreSpaceMutations;
 import dev.hytalemodding.impulse.core.internal.physicsstore.resources.PhysicsSnapshotResource;
-import dev.hytalemodding.impulse.core.plugin.physicsstore.BodyRowDescriptor;
-import dev.hytalemodding.impulse.core.plugin.physicsstore.PhysicsBodyRows;
+import dev.hytalemodding.impulse.core.plugin.physicsstore.BodyEntityDescriptor;
+import dev.hytalemodding.impulse.core.plugin.physicsstore.PhysicsBodyEntities;
 import dev.hytalemodding.impulse.core.plugin.physicsstore.PhysicsStoreEntities;
 import dev.hytalemodding.impulse.core.plugin.physicsstore.PhysicsStoreThreading;
 import dev.hytalemodding.impulse.core.plugin.physicsstore.snapshots.PhysicsStoreBodySnapshot;
@@ -143,8 +143,8 @@ final class ImpulseLiveCrucibleTests {
         SpaceId spaceId,
         UUID bodyUuid,
         Vector3d visualPosition) {
-        PhysicsStoreThreading.requireWorldThread(store, "add Crucible live PhysicsStore body row");
-        BodyRowDescriptor row = PhysicsBodyRows.dynamicBody(
+        PhysicsStoreThreading.requireWorldThread(store, "add Crucible live PhysicsStore body entity");
+        BodyEntityDescriptor descriptor = PhysicsBodyEntities.dynamicBody(
             PhysicsStoreSpaceMutations.requireSpaceUuid(store, spaceId),
             bodyUuid,
             new Vector3f((float) visualPosition.x,
@@ -156,14 +156,14 @@ final class ImpulseLiveCrucibleTests {
             null,
             PhysicsBodyPersistenceMode.PERSISTENT);
         store.addEntity(PhysicsStoreEntities.bodyHolder(store,
-            row.bodyUuid(),
-            row.body(),
-            row.dynamics(),
-            row.target(),
-            row.collider(),
-            row.shape(),
-            row.material(),
-            row.filter()), AddReason.SPAWN);
+            descriptor.bodyUuid(),
+            descriptor.body(),
+            descriptor.dynamics(),
+            descriptor.target(),
+            descriptor.collider(),
+            descriptor.shape(),
+            descriptor.material(),
+            descriptor.filter()), AddReason.SPAWN);
     }
 
     private static Store<PhysicsStore> physicsStore(World world) {

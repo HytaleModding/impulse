@@ -51,7 +51,7 @@ import org.joml.Vector3f;
  * body transforms.</p>
  *
  * <p>Entities attach to authoritative PhysicsStore body UUIDs. Backend body destruction is explicit
- * through PhysicsStore rows; removing an EntityStore attachment only removes the projection.</p>
+ * through PhysicsStore entities; removing an EntityStore attachment only removes the projection.</p>
  */
 public class PhysicsSyncSystem extends EntityTickingSystem<EntityStore> {
 
@@ -235,7 +235,7 @@ public class PhysicsSyncSystem extends EntityTickingSystem<EntityStore> {
         @Nonnull BodyAttachmentComponent attachment,
         @Nonnull CommandBuffer<EntityStore> commandBuffer) {
         // PhysicsStore snapshot publication is intentionally one completed frame behind row
-        // mutation. Absence from the latest frame is not enough evidence that the body row is gone.
+        // mutation. Absence from the latest frame is not enough evidence that the body entity is gone.
     }
 
     private static float distance(@Nonnull Vector3d from, @Nonnull Vector3f to) {

@@ -19,8 +19,8 @@ import dev.hytalemodding.impulse.core.ImpulsePlugin;
 import dev.hytalemodding.impulse.core.internal.physicsstore.PhysicsStoreSpaceMutations;
 import dev.hytalemodding.impulse.core.internal.resources.body.PhysicsBodySnapshots;
 import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyPersistenceMode;
-import dev.hytalemodding.impulse.core.plugin.physicsstore.BodyRowDescriptor;
-import dev.hytalemodding.impulse.core.plugin.physicsstore.PhysicsBodyRows;
+import dev.hytalemodding.impulse.core.plugin.physicsstore.BodyEntityDescriptor;
+import dev.hytalemodding.impulse.core.plugin.physicsstore.PhysicsBodyEntities;
 import dev.hytalemodding.impulse.core.plugin.physicsstore.PhysicsStoreDiagnostics;
 import dev.hytalemodding.impulse.core.plugin.physicsstore.PhysicsStoreEntities;
 import dev.hytalemodding.impulse.core.plugin.simulation.PhysicsShapeSpec;
@@ -109,7 +109,7 @@ final class ImpulseApiCrucibleTests {
                     "Explicit space was not registered correctly"),
                 CrucibleTestCase.async("clear populated spaces",
                     ImpulseApiCrucibleTests::clearPopulatedSpaces,
-                    "PhysicsStore row cleanup did not remove populated runtime spaces"),
+                    "PhysicsStore entity cleanup did not remove populated runtime spaces"),
                 CrucibleTestCase.async("detached unregister removes body",
                     ImpulseApiCrucibleTests::detachedUnregisterRemovesBackendBody,
                     "Detached unregister did not remove the backend body"),
@@ -236,7 +236,7 @@ final class ImpulseApiCrucibleTests {
                 PhysicsSpaceSettings.defaults());
             Ref<PhysicsStore> bodyRef = addCrucibleBox(store, spaceId, UUID.randomUUID());
             return context.waitApproxTicksOnWorld(4)
-                .thenCompose(_ -> removeBodyRowAndWait(context, store, bodyRef))
+                .thenCompose(_ -> removeBodyEntityAndWait(context, store, bodyRef))
                 .thenApply(_ -> {
                     boolean spaceEmpty = PhysicsStoreDiagnostics.bodyCount(store, spaceId) == 0;
                     boolean noRegistrations = resource.getBodyRegistrationViews().isEmpty();
@@ -252,7 +252,7 @@ final class ImpulseApiCrucibleTests {
         }
     }
 
-    private static CompletionStage<Void> removeBodyRowAndWait(@Nonnull CrucibleContext context,
+    private static CompletionStage<Void> removeBodyEntityAndWait(@Nonnull CrucibleContext context,
         @Nonnull Store<PhysicsStore> store,
         @Nonnull Ref<PhysicsStore> bodyRef) {
         if (bodyRef.isValid()) {
@@ -270,7 +270,7 @@ final class ImpulseApiCrucibleTests {
         @Nonnull SpaceId spaceId,
         @Nonnull UUID bodyUuid) {
         UUID spaceUuid = PhysicsStoreSpaceMutations.requireSpaceUuid(store, spaceId);
-        BodyRowDescriptor row = PhysicsBodyRows.dynamicBody(spaceUuid,
+        BodyEntityDescriptor descriptor = PhysicsBodyEntities.dynamicBody(spaceUuid,
             bodyUuid,
             new Vector3f(0.0f, 5.0f, 0.0f),
             PhysicsShapeSpec.box(0.5f, 0.5f, 0.5f),
@@ -279,14 +279,14 @@ final class ImpulseApiCrucibleTests {
             null,
             PhysicsBodyPersistenceMode.RUNTIME_ONLY);
         return store.addEntity(PhysicsStoreEntities.bodyHolder(store,
-            row.bodyUuid(),
-            row.body(),
-            row.dynamics(),
-            row.target(),
-            row.collider(),
-            row.shape(),
-            row.material(),
-            row.filter()), AddReason.SPAWN);
+            descriptor.bodyUuid(),
+            descriptor.body(),
+            descriptor.dynamics(),
+            descriptor.target(),
+            descriptor.collider(),
+            descriptor.shape(),
+            descriptor.material(),
+            descriptor.filter()), AddReason.SPAWN);
     }
 
     private static CompletionStage<Boolean> settingsRoundTrip(@Nonnull CrucibleContext context) {

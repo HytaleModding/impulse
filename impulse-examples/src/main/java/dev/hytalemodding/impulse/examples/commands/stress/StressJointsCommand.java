@@ -13,7 +13,7 @@ import com.hypixel.hytale.server.core.universe.world.World;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import com.hypixel.hytale.server.core.universe.world.storage.PhysicsStore;
 import dev.hytalemodding.impulse.api.SpaceId;
-import dev.hytalemodding.impulse.core.plugin.physicsstore.PhysicsJointRows;
+import dev.hytalemodding.impulse.core.plugin.physicsstore.PhysicsJointEntities;
 import dev.hytalemodding.impulse.core.plugin.physicsstore.components.JointComponent;
 import dev.hytalemodding.impulse.core.plugin.simulation.JointType;
 import dev.hytalemodding.impulse.core.plugin.simulation.PhysicsShapeSpec;
@@ -31,7 +31,7 @@ import org.joml.Vector3d;
 import org.joml.Vector3f;
 
 /**
- * Builds separate joint rows so backend differences are easier to isolate.
+ * Builds separate joint entities so backend differences are easier to isolate.
  * Every row starts with matching body spacing and local anchors, avoiding correction from an
  * already invalid initial pose.
  */
@@ -155,7 +155,7 @@ public class StressJointsCommand extends AbstractAsyncPlayerCommand {
             positions[positionOffset + 2] = (float) origin.z;
             float mass = i == 0 ? 0.0f : 1.0f;
             var bodyRef = ExamplePhysicsUtils.addPhysicsStoreBody(world,
-                ExamplePhysicsUtils.bodyRow(spaceRef,
+                ExamplePhysicsUtils.bodyEntity(spaceRef,
                     bodyUuid,
                     new Vector3f(positions[positionOffset],
                         positions[positionOffset + 1],
@@ -203,7 +203,7 @@ public class StressJointsCommand extends AbstractAsyncPlayerCommand {
             case 3 -> JointType.SLIDER;
             default -> JointType.SPRING;
         };
-        JointComponent joint = PhysicsJointRows.joint(spaceRef,
+        JointComponent joint = PhysicsJointEntities.joint(spaceRef,
             previous.bodyRef(),
             current.bodyRef(),
             type,

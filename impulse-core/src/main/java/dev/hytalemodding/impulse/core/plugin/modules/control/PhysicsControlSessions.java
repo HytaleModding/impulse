@@ -50,8 +50,8 @@ public final class PhysicsControlSessions {
     }
 
     /**
-     * Starts or replaces the controller entity's Impulse control session from durable row UUIDs.
-     * Prefer the ref overload when the caller already has live PhysicsStore row refs.
+     * Starts or replaces the controller entity's Impulse control session from durable entity UUIDs.
+     * Prefer the ref overload when the caller already has live PhysicsStore entity refs.
      */
     public static void startSession(@Nonnull Store<EntityStore> store,
         @Nonnull Ref<EntityStore> controllerRef,
@@ -85,7 +85,7 @@ public final class PhysicsControlSessions {
 
     /**
      * Starts or replaces the controller entity's Impulse control session with live PhysicsStore
-     * row refs.
+     * entity refs.
      */
     public static void startSession(@Nonnull Store<EntityStore> store,
         @Nonnull Ref<EntityStore> controllerRef,
@@ -177,7 +177,7 @@ public final class PhysicsControlSessions {
             .getByUuid(uuid);
         if (ref == null || !ref.isValid()) {
             throw new IllegalArgumentException("PhysicsStore " + role
-                + " row is not loaded for uuid=" + uuid);
+                + " entity is not loaded for uuid=" + uuid);
         }
         return ref;
     }

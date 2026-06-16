@@ -12,7 +12,7 @@ import java.util.UUID;
 import javax.annotation.Nonnull;
 
 /**
- * Durable identity for one PhysicsStore row.
+ * Durable identity for one PhysicsStore entity.
  */
 public final class UuidComponent implements Component<PhysicsStore> {
 

@@ -19,7 +19,7 @@ import javax.annotation.Nullable;
 import org.joml.Vector3f;
 
 /**
- * Direct PhysicsStore row mutations for kinematic control lifecycle cleanup.
+ * Direct PhysicsStore entity mutations for kinematic control lifecycle cleanup.
  */
 public final class PhysicsStoreControlSessionMutations {
 

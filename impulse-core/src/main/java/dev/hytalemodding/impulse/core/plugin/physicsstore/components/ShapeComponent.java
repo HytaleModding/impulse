@@ -14,7 +14,7 @@ import java.util.Objects;
 import javax.annotation.Nonnull;
 
 /**
- * Authored collision shape row shared by one or more colliders.
+ * Authored collision shape for one collider entity.
  */
 public final class ShapeComponent implements Component<PhysicsStore> {
 

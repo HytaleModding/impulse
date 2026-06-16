@@ -16,7 +16,7 @@ import java.util.Objects;
 import javax.annotation.Nonnull;
 
 /**
- * Authored world-collision streaming settings for one PhysicsStore space row.
+ * Authored world-collision streaming settings for one PhysicsStore space entity.
  */
 public final class WorldCollisionComponent implements Component<PhysicsStore> {
 

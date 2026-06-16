@@ -13,7 +13,7 @@ import java.util.Arrays;
 import javax.annotation.Nonnull;
 
 /**
- * Canonical compact DTO persistence for PhysicsStore rows.
+ * Canonical compact DTO persistence for PhysicsStore entities.
  */
 public final class PersistentPhysicsStoreResource implements Resource<PhysicsStore> {
 

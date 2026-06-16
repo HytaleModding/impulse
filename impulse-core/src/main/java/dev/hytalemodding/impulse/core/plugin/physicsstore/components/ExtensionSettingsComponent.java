@@ -19,7 +19,7 @@ import java.util.Objects;
 import javax.annotation.Nonnull;
 
 /**
- * Authored backend extension settings for one PhysicsStore space row.
+ * Authored backend extension settings for one PhysicsStore space entity.
  */
 public final class ExtensionSettingsComponent implements Component<PhysicsStore> {
 

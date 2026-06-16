@@ -18,7 +18,7 @@ import javax.annotation.Nullable;
 import org.joml.Vector3f;
 
 /**
- * Authored joint row keyed by durable endpoint body UUIDs.
+ * Authored joint entity keyed by durable endpoint body UUIDs.
  */
 public final class JointComponent implements Component<PhysicsStore> {
 

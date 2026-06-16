@@ -14,7 +14,7 @@ import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
 /**
- * Terrain collider row mirrored from ChunkStore terrain source data.
+ * Terrain collider entity mirrored from ChunkStore terrain source data.
  */
 public final class TerrainColliderComponent implements Component<PhysicsStore> {
 

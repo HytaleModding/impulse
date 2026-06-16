@@ -12,8 +12,8 @@ import dev.hytalemodding.impulse.core.internal.physicsstore.PhysicsStoreRuntimeC
 import dev.hytalemodding.impulse.core.internal.physicsstore.PhysicsStoreSpaceMutations;
 import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyKind;
 import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyPersistenceMode;
-import dev.hytalemodding.impulse.core.plugin.physicsstore.BodyRowDescriptor;
-import dev.hytalemodding.impulse.core.plugin.physicsstore.PhysicsBodyRows;
+import dev.hytalemodding.impulse.core.plugin.physicsstore.BodyEntityDescriptor;
+import dev.hytalemodding.impulse.core.plugin.physicsstore.PhysicsBodyEntities;
 import dev.hytalemodding.impulse.core.plugin.physicsstore.PhysicsStoreEntities;
 import dev.hytalemodding.impulse.core.plugin.physicsstore.PhysicsStoreThreading;
 import dev.hytalemodding.impulse.core.plugin.simulation.PhysicsShapeSpec;
@@ -24,7 +24,7 @@ import javax.annotation.Nullable;
 import org.joml.Vector3f;
 
 /**
- * Internal Crucible helpers for authoring and clearing live PhysicsStore rows.
+ * Internal Crucible helpers for authoring and clearing live PhysicsStore entities.
  */
 final class PhysicsStoreCrucibleSupport {
 
@@ -52,8 +52,8 @@ final class PhysicsStoreCrucibleSupport {
         @Nullable Vector3f linearVelocity,
         @Nonnull PhysicsBodyKind kind,
         @Nonnull PhysicsBodyPersistenceMode persistenceMode) {
-        PhysicsStoreThreading.requireWorldThread(store, "add Crucible PhysicsStore body row");
-        BodyRowDescriptor row = PhysicsBodyRows.body(
+        PhysicsStoreThreading.requireWorldThread(store, "add Crucible PhysicsStore body entity");
+        BodyEntityDescriptor descriptor = PhysicsBodyEntities.body(
             PhysicsStoreSpaceMutations.requireSpaceUuid(store, spaceId),
             bodyUuid,
             bodyCenter,
@@ -65,13 +65,13 @@ final class PhysicsStoreCrucibleSupport {
             kind,
             persistenceMode);
         return store.addEntity(PhysicsStoreEntities.bodyHolder(store,
-            row.bodyUuid(),
-            row.body(),
-            row.dynamics(),
-            row.target(),
-            row.collider(),
-            row.shape(),
-            row.material(),
-            row.filter()), AddReason.SPAWN);
+            descriptor.bodyUuid(),
+            descriptor.body(),
+            descriptor.dynamics(),
+            descriptor.target(),
+            descriptor.collider(),
+            descriptor.shape(),
+            descriptor.material(),
+            descriptor.filter()), AddReason.SPAWN);
     }
 }

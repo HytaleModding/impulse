@@ -10,7 +10,7 @@ import javax.annotation.Nullable;
 import org.joml.Vector3f;
 
 /**
- * Copied raycast geometry plus the PhysicsStore row ref hit by the backend.
+ * Copied raycast geometry plus the PhysicsStore entity ref hit by the backend.
  */
 public record RaycastHitView(@Nullable Ref<PhysicsStore> bodyRef,
                              @Nonnull PhysicsBodyType bodyType,

@@ -13,7 +13,7 @@ import java.util.Objects;
 import javax.annotation.Nonnull;
 
 /**
- * Authored detached visual materialization policy for one PhysicsStore space row.
+ * Authored detached visual materialization policy for one PhysicsStore space entity.
  */
 public final class VisualMaterializationSettingsComponent implements Component<PhysicsStore> {
 

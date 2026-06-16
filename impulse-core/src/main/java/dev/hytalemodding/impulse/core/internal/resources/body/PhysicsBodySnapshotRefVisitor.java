@@ -11,7 +11,7 @@ import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
 /**
- * Internal snapshot visitor for authoritative paths that can use live PhysicsStore row refs.
+ * Internal snapshot visitor for authoritative paths that can use live PhysicsStore entity refs.
  */
 @FunctionalInterface
 public interface PhysicsBodySnapshotRefVisitor {

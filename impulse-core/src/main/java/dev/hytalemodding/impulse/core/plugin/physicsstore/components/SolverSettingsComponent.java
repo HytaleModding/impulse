@@ -12,7 +12,7 @@ import dev.hytalemodding.impulse.core.plugin.settings.PhysicsSpaceSettings;
 import javax.annotation.Nonnull;
 
 /**
- * Authored backend solver and activation tuning for one PhysicsStore space row.
+ * Authored backend solver and activation tuning for one PhysicsStore space entity.
  */
 public final class SolverSettingsComponent implements Component<PhysicsStore> {
 

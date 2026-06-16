@@ -15,7 +15,7 @@ import java.util.Objects;
 import javax.annotation.Nonnull;
 
 /**
- * Authored visual synchronization policy for one PhysicsStore space row.
+ * Authored visual synchronization policy for one PhysicsStore space entity.
  */
 public final class VisualSyncSettingsComponent implements Component<PhysicsStore> {
 

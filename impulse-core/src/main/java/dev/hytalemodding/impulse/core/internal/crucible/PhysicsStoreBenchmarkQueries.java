@@ -24,7 +24,7 @@ import javax.annotation.Nullable;
 import org.joml.Vector3f;
 
 /**
- * Crucible-only copied diagnostics sourced from authoritative PhysicsStore rows.
+ * Crucible-only copied diagnostics sourced from authoritative PhysicsStore entities.
  */
 final class PhysicsStoreBenchmarkQueries {
 

@@ -12,9 +12,9 @@ import org.joml.Vector3f;
 /**
  * Factories for direct PhysicsStore joint components.
  */
-public final class PhysicsJointRows {
+public final class PhysicsJointEntities {
 
-    private PhysicsJointRows() {
+    private PhysicsJointEntities() {
     }
 
     @Nonnull
@@ -45,11 +45,11 @@ public final class PhysicsJointRows {
         @Nonnull Vector3f anchorA,
         @Nonnull Vector3f anchorB,
         @Nonnull Vector3f axis) {
-        PhysicsStoreRowRefs.requireSameStore(spaceRef, bodyARef, "bodyARef");
-        PhysicsStoreRowRefs.requireSameStore(spaceRef, bodyBRef, "bodyBRef");
-        JointComponent joint = joint(PhysicsStoreRowRefs.rowUuid(spaceRef),
-            PhysicsStoreRowRefs.rowUuid(bodyARef),
-            PhysicsStoreRowRefs.rowUuid(bodyBRef),
+        PhysicsStoreEntityRefs.requireSameStore(spaceRef, bodyARef, "bodyARef");
+        PhysicsStoreEntityRefs.requireSameStore(spaceRef, bodyBRef, "bodyBRef");
+        JointComponent joint = joint(PhysicsStoreEntityRefs.entityUuid(spaceRef),
+            PhysicsStoreEntityRefs.entityUuid(bodyARef),
+            PhysicsStoreEntityRefs.entityUuid(bodyBRef),
             type,
             anchorA,
             anchorB,

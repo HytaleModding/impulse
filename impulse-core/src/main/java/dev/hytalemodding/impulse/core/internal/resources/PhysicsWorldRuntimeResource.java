@@ -198,7 +198,7 @@ public class PhysicsWorldRuntimeResource extends PhysicsWorldResource {
         }
         throw new IllegalStateException("Legacy PhysicsWorldResource mutation is disabled while "
             + "authoritative PhysicsStore is active: " + operation
-            + ". Route this operation through PhysicsStore rows or a PhysicsStore-backed "
+            + ". Route this operation through PhysicsStore entities or a PhysicsStore-backed "
             + "compatibility bridge.");
     }
 
@@ -1656,7 +1656,7 @@ public class PhysicsWorldRuntimeResource extends PhysicsWorldResource {
     @Override
     public PhysicsSpaceSettings getSpaceSettings(@Nonnull Ref<PhysicsStore> spaceRef) {
         if (!isAuthoritativePhysicsStoreActive()) {
-            throw new IllegalStateException("Cannot read PhysicsStore space settings by row ref "
+            throw new IllegalStateException("Cannot read PhysicsStore space settings by entity ref "
                 + "when authoritative PhysicsStore mode is unavailable");
         }
         PhysicsSpaceSettings settings = getPhysicsStoreSpaceSettings(
@@ -1692,7 +1692,7 @@ public class PhysicsWorldRuntimeResource extends PhysicsWorldResource {
     public void setSpaceSettings(@Nonnull Ref<PhysicsStore> spaceRef,
         @Nonnull PhysicsSpaceSettings settings) {
         if (!isAuthoritativePhysicsStoreActive()) {
-            throw new IllegalStateException("Cannot set PhysicsStore space settings by row ref "
+            throw new IllegalStateException("Cannot set PhysicsStore space settings by entity ref "
                 + "when authoritative PhysicsStore mode is unavailable");
         }
         PhysicsStoreSpaceMutations.putSpaceSettings(

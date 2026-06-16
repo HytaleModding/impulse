@@ -29,7 +29,7 @@ import javax.annotation.Nullable;
 import org.joml.Vector3f;
 
 /**
- * Binds joint rows once both endpoint bodies are bound.
+ * Binds joint entities once both endpoint bodies are bound.
  */
 public final class JointBindingSystem extends TickingSystem<PhysicsStore>
     implements QuerySystem<PhysicsStore> {

@@ -22,7 +22,7 @@ import java.util.function.BiConsumer;
 import javax.annotation.Nonnull;
 
 /**
- * Publishes copied world-collision settings for PhysicsStore space rows.
+ * Publishes copied world-collision settings for PhysicsStore space entities.
  */
 public final class WorldCollisionIndexSystem extends TickingSystem<PhysicsStore>
     implements QuerySystem<PhysicsStore> {

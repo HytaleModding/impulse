@@ -13,7 +13,7 @@ import java.util.Objects;
 import javax.annotation.Nonnull;
 
 /**
- * Authored motion mode, mass, damping, and CCD flags for a body row.
+ * Authored motion mode, mass, damping, and CCD flags for a body entity.
  */
 public final class DynamicsComponent implements Component<PhysicsStore> {
 

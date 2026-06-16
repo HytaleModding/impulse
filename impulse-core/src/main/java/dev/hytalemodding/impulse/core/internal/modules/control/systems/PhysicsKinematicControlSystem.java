@@ -51,7 +51,7 @@ public class PhysicsKinematicControlSystem extends EntityTickingSystem<EntitySto
     private final ThreadLocal<Scratch> scratch = ThreadLocal.withInitial(Scratch::new);
     private static final Vector3f ZERO_VELOCITY = new Vector3f();
     private static final Quaternionf IDENTITY_ROTATION = new Quaternionf();
-    // Anchor updates are copied into PhysicsStore rows; avoid rewriting unchanged targets.
+    // Anchor updates are copied into PhysicsStore entities; avoid rewriting unchanged targets.
     @Nonnull
     private static final Map<Store<EntityStore>, ControlMutationState> STATES_BY_STORE =
         Collections.synchronizedMap(new WeakHashMap<>());

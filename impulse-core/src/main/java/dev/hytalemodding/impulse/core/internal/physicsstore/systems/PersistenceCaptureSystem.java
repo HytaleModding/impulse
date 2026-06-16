@@ -54,7 +54,7 @@ import org.joml.Quaternionf;
 import org.joml.Vector3f;
 
 /**
- * Captures serializable PhysicsStore rows into compact DTO resources.
+ * Captures serializable PhysicsStore entities into compact DTO resources.
  */
 public final class PersistenceCaptureSystem extends TickingSystem<PhysicsStore>
     implements QuerySystem<PhysicsStore> {

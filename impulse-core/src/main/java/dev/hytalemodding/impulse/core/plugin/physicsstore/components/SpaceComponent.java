@@ -14,7 +14,7 @@ import javax.annotation.Nonnull;
 import org.joml.Vector3f;
 
 /**
- * Authored backend and gravity definition for one physics space row.
+ * Authored backend and gravity definition for one physics space entity.
  */
 public final class SpaceComponent implements Component<PhysicsStore> {
 

@@ -26,14 +26,14 @@ import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyKind;
 import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyPersistenceMode;
 import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyRegistrationView;
 import dev.hytalemodding.impulse.core.plugin.modules.control.PhysicsControlSessions;
-import dev.hytalemodding.impulse.core.plugin.physicsstore.PhysicsBodyRows;
-import dev.hytalemodding.impulse.core.plugin.physicsstore.PhysicsJointRows;
+import dev.hytalemodding.impulse.core.plugin.physicsstore.PhysicsBodyEntities;
+import dev.hytalemodding.impulse.core.plugin.physicsstore.PhysicsJointEntities;
 import dev.hytalemodding.impulse.core.plugin.physicsstore.PhysicsStoreAsync;
 import dev.hytalemodding.impulse.core.plugin.physicsstore.PhysicsStoreRaycasts;
 import dev.hytalemodding.impulse.core.plugin.physicsstore.PhysicsStoreThreading;
 import dev.hytalemodding.impulse.core.plugin.physicsstore.components.BodyCommandComponent;
 import dev.hytalemodding.impulse.core.plugin.physicsstore.components.JointComponent;
-import dev.hytalemodding.impulse.core.plugin.physicsstore.BodyRowDescriptor;
+import dev.hytalemodding.impulse.core.plugin.physicsstore.BodyEntityDescriptor;
 import dev.hytalemodding.impulse.core.plugin.physicsstore.snapshots.PhysicsStoreBodySnapshot;
 import dev.hytalemodding.impulse.core.plugin.resources.PhysicsWorldResource;
 import dev.hytalemodding.impulse.core.plugin.simulation.JointType;
@@ -196,7 +196,7 @@ public class GrabCommand extends AbstractAsyncPlayerCommand {
             BodyCommandComponent.wake());
         try {
             Ref<PhysicsStore> anchorBodyRef = ExamplePhysicsUtils.addPhysicsStoreBody(world,
-                anchorBodyRow(spaceRef, anchorBodyUuid, hitPoint));
+                anchorBodyEntity(spaceRef, anchorBodyUuid, hitPoint));
             Ref<PhysicsStore> controlJointRef = ExamplePhysicsUtils.addPhysicsStoreJoint(world,
                 controlJointUuid,
                 controlJoint(spaceRef, anchorBodyRef, selectedBodyRef, bodyLocalHit));
@@ -210,10 +210,10 @@ public class GrabCommand extends AbstractAsyncPlayerCommand {
     }
 
     @Nonnull
-    private static BodyRowDescriptor anchorBodyRow(@Nonnull Ref<PhysicsStore> spaceRef,
+    private static BodyEntityDescriptor anchorBodyEntity(@Nonnull Ref<PhysicsStore> spaceRef,
         @Nonnull UUID bodyUuid,
         @Nonnull Vector3f hitPoint) {
-        return PhysicsBodyRows.body(spaceRef,
+        return PhysicsBodyEntities.body(spaceRef,
             bodyUuid,
             hitPoint,
             PhysicsShapeSpec.sphere(0.08f),
@@ -232,7 +232,7 @@ public class GrabCommand extends AbstractAsyncPlayerCommand {
         @Nonnull Ref<PhysicsStore> anchorBodyRef,
         @Nonnull Ref<PhysicsStore> bodyRef,
         @Nonnull Vector3f bodyLocalHit) {
-        return PhysicsJointRows.joint(spaceRef,
+        return PhysicsJointEntities.joint(spaceRef,
             anchorBodyRef,
             bodyRef,
             JointType.POINT,

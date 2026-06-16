@@ -13,7 +13,7 @@ import com.hypixel.hytale.server.core.universe.world.World;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import com.hypixel.hytale.server.core.universe.world.storage.PhysicsStore;
 import dev.hytalemodding.impulse.api.SpaceId;
-import dev.hytalemodding.impulse.core.plugin.physicsstore.PhysicsJointRows;
+import dev.hytalemodding.impulse.core.plugin.physicsstore.PhysicsJointEntities;
 import dev.hytalemodding.impulse.core.plugin.physicsstore.components.JointComponent;
 import dev.hytalemodding.impulse.core.plugin.simulation.JointType;
 import dev.hytalemodding.impulse.core.plugin.simulation.PhysicsShapeSpec;
@@ -235,7 +235,7 @@ public class JointsCommand extends AbstractAsyncPlayerCommand {
         @Nullable Vector3f linearVelocity) {
         UUID bodyUuid = UUID.randomUUID();
         var bodyRef = ExamplePhysicsUtils.addPhysicsStoreBody(world,
-            ExamplePhysicsUtils.bodyRow(spaceRef,
+            ExamplePhysicsUtils.bodyEntity(spaceRef,
                 bodyUuid,
                 ExamplePhysicsUtils.toVector3f(position),
                 PhysicsShapeSpec.box(HALF_SIZE, HALF_SIZE, HALF_SIZE),
@@ -262,7 +262,7 @@ public class JointsCommand extends AbstractAsyncPlayerCommand {
         @Nonnull Vector3f anchorA,
         @Nonnull Vector3f anchorB,
         @Nonnull Vector3f axis) {
-        return PhysicsJointRows.joint(spaceRef,
+        return PhysicsJointEntities.joint(spaceRef,
             bodyA.bodyRef(),
             bodyB.bodyRef(),
             type,

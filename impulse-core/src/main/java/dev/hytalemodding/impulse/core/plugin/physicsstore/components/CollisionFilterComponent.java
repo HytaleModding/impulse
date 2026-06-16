@@ -11,7 +11,7 @@ import dev.hytalemodding.impulse.core.plugin.physicsstore.PhysicsStoreTypes;
 import javax.annotation.Nonnull;
 
 /**
- * Collision group/mask row referenced by colliders.
+ * Collision group/mask settings for one collider entity.
  */
 public final class CollisionFilterComponent implements Component<PhysicsStore> {
 

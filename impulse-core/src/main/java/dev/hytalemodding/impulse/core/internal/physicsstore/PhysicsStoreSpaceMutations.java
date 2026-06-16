@@ -29,7 +29,7 @@ import javax.annotation.Nonnull;
 import org.joml.Vector3f;
 
 /**
- * Direct PhysicsStore space row mutations for store-lane callers.
+ * Direct PhysicsStore space entity mutations for store-lane callers.
  */
 public final class PhysicsStoreSpaceMutations {
 
@@ -47,7 +47,7 @@ public final class PhysicsStoreSpaceMutations {
         Objects.requireNonNull(compatibilitySpaceId, "compatibilitySpaceId");
         Objects.requireNonNull(backendId, "backendId");
         Objects.requireNonNull(settings, "settings");
-        PhysicsStoreThreading.requireWorldThread(store, "add a PhysicsStore space row");
+        PhysicsStoreThreading.requireWorldThread(store, "add a PhysicsStore space entity");
         if (backendId.value().isBlank()) {
             throw new IllegalArgumentException("PhysicsStore space backend id is blank: "
                 + spaceUuid);
@@ -117,7 +117,7 @@ public final class PhysicsStoreSpaceMutations {
         SpaceComponent space = store.getComponent(ref, SpaceComponent.getComponentType());
         if (space == null) {
             throw new IllegalArgumentException("PhysicsStore space uuid=" + spaceUuid
-                + " row has no SpaceComponent");
+                + " entity has no SpaceComponent");
         }
         SpaceComponent updated = space.clone();
         updated.setGravity(gravity);
@@ -134,7 +134,7 @@ public final class PhysicsStoreSpaceMutations {
         Objects.requireNonNull(ref, "ref");
         Objects.requireNonNull(spaceUuid, "spaceUuid");
         Objects.requireNonNull(settings, "settings");
-        PhysicsStoreThreading.requireWorldThread(store, "update a PhysicsStore space row");
+        PhysicsStoreThreading.requireWorldThread(store, "update a PhysicsStore space entity");
         store.putComponent(ref,
             WorldCollisionComponent.getComponentType(),
             new WorldCollisionComponent(settings.getWorldCollisionSettings()));
@@ -159,7 +159,7 @@ public final class PhysicsStoreSpaceMutations {
         @Nonnull UUID spaceUuid) {
         Objects.requireNonNull(store, "store");
         Objects.requireNonNull(spaceUuid, "spaceUuid");
-        PhysicsStoreThreading.requireWorldThread(store, "remove a PhysicsStore space row");
+        PhysicsStoreThreading.requireWorldThread(store, "remove a PhysicsStore space entity");
         PhysicsRuntimeResource runtime = store.getResource(PhysicsRuntimeResource.getResourceType());
         PhysicsIdentityIndexResource identity =
             store.getResource(PhysicsIdentityIndexResource.getResourceType());
@@ -208,7 +208,7 @@ public final class PhysicsStoreSpaceMutations {
     @Nonnull
     private static Ref<PhysicsStore> requireSpaceRef(@Nonnull Store<PhysicsStore> store,
         @Nonnull UUID spaceUuid) {
-        PhysicsStoreThreading.requireWorldThread(store, "resolve a PhysicsStore space row");
+        PhysicsStoreThreading.requireWorldThread(store, "resolve a PhysicsStore space entity");
         Ref<PhysicsStore> ref = store.getResource(PhysicsIdentityIndexResource.getResourceType())
             .getByUuid(Objects.requireNonNull(spaceUuid, "spaceUuid"));
         if (ref == null || !ref.isValid()) {
@@ -224,14 +224,14 @@ public final class PhysicsStoreSpaceMutations {
         Objects.requireNonNull(ref, "ref");
         PhysicsStoreThreading.requireWorldThread(store, "resolve a PhysicsStore space UUID");
         if (ref.getStore() != store || !ref.isValid()) {
-            throw new IllegalArgumentException("PhysicsStore space row is not valid: " + ref);
+            throw new IllegalArgumentException("PhysicsStore space entity is not valid: " + ref);
         }
         if (store.getComponent(ref, SpaceComponent.getComponentType()) == null) {
-            throw new IllegalArgumentException("PhysicsStore row is not a space row: " + ref);
+            throw new IllegalArgumentException("PhysicsStore entity is not a space entity: " + ref);
         }
         UuidComponent uuid = store.getComponent(ref, UuidComponent.getComponentType());
         if (uuid == null) {
-            throw new IllegalArgumentException("PhysicsStore space row has no durable UUID: " + ref);
+            throw new IllegalArgumentException("PhysicsStore space entity has no durable UUID: " + ref);
         }
         return uuid.getUuid();
     }

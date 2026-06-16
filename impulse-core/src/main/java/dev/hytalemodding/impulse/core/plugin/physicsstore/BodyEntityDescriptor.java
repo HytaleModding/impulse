@@ -13,22 +13,22 @@ import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
 /**
- * Copied component graph for one direct PhysicsStore body row.
+ * Copied component graph for one PhysicsStore body entity.
  */
-public record BodyRowDescriptor(@Nonnull UUID bodyUuid,
-                                @Nonnull BodyComponent body,
-                                @Nonnull DynamicsComponent dynamics,
-                                @Nullable TargetComponent target,
-                                @Nonnull UUID colliderUuid,
-                                @Nonnull ColliderComponent collider,
-                                @Nonnull UUID shapeUuid,
-                                @Nonnull ShapeComponent shape,
-                                @Nonnull UUID materialUuid,
-                                @Nonnull MaterialComponent material,
-                                @Nonnull UUID filterUuid,
-                                @Nonnull CollisionFilterComponent filter) {
+public record BodyEntityDescriptor(@Nonnull UUID bodyUuid,
+                                   @Nonnull BodyComponent body,
+                                   @Nonnull DynamicsComponent dynamics,
+                                   @Nullable TargetComponent target,
+                                   @Nonnull UUID colliderUuid,
+                                   @Nonnull ColliderComponent collider,
+                                   @Nonnull UUID shapeUuid,
+                                   @Nonnull ShapeComponent shape,
+                                   @Nonnull UUID materialUuid,
+                                   @Nonnull MaterialComponent material,
+                                   @Nonnull UUID filterUuid,
+                                   @Nonnull CollisionFilterComponent filter) {
 
-    public BodyRowDescriptor {
+    public BodyEntityDescriptor {
         Objects.requireNonNull(bodyUuid, "bodyUuid");
         body = Objects.requireNonNull(body, "body").clone();
         dynamics = Objects.requireNonNull(dynamics, "dynamics").clone();
@@ -44,7 +44,7 @@ public record BodyRowDescriptor(@Nonnull UUID bodyUuid,
     }
 
     @Nonnull
-    public static BodyRowDescriptor of(@Nonnull UUID bodyUuid,
+    public static BodyEntityDescriptor of(@Nonnull UUID bodyUuid,
         @Nonnull BodyComponent body,
         @Nonnull DynamicsComponent dynamics,
         @Nullable TargetComponent target,
@@ -56,7 +56,7 @@ public record BodyRowDescriptor(@Nonnull UUID bodyUuid,
         @Nonnull MaterialComponent material,
         @Nonnull UUID filterUuid,
         @Nonnull CollisionFilterComponent filter) {
-        return new BodyRowDescriptor(bodyUuid,
+        return new BodyEntityDescriptor(bodyUuid,
             body,
             dynamics,
             target,

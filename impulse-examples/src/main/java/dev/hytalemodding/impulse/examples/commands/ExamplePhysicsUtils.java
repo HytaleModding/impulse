@@ -21,7 +21,7 @@ import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyKind;
 import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyPersistenceMode;
 import dev.hytalemodding.impulse.core.plugin.modules.control.ImpulseControllableComponent;
 import dev.hytalemodding.impulse.core.plugin.modules.control.PhysicsControlSessions;
-import dev.hytalemodding.impulse.core.plugin.physicsstore.PhysicsBodyRows;
+import dev.hytalemodding.impulse.core.plugin.physicsstore.PhysicsBodyEntities;
 import dev.hytalemodding.impulse.core.plugin.physicsstore.PhysicsStoreEntities;
 import dev.hytalemodding.impulse.core.plugin.physicsstore.PhysicsStoreThreading;
 import dev.hytalemodding.impulse.core.plugin.physicsstore.components.BodyCommandComponent;
@@ -29,7 +29,7 @@ import dev.hytalemodding.impulse.core.plugin.physicsstore.components.DynamicsCom
 import dev.hytalemodding.impulse.core.plugin.physicsstore.components.JointComponent;
 import dev.hytalemodding.impulse.core.plugin.physicsstore.components.TargetComponent;
 import dev.hytalemodding.impulse.core.plugin.physicsstore.projection.BodyAttachmentComponent;
-import dev.hytalemodding.impulse.core.plugin.physicsstore.BodyRowDescriptor;
+import dev.hytalemodding.impulse.core.plugin.physicsstore.BodyEntityDescriptor;
 import dev.hytalemodding.impulse.core.plugin.settings.PhysicsVisualMaterializationSettings;
 import dev.hytalemodding.impulse.core.plugin.simulation.PhysicsShapeSpec;
 import dev.hytalemodding.impulse.core.plugin.simulation.RigidBodySpawnSettings;
@@ -76,80 +76,86 @@ public final class ExamplePhysicsUtils {
 
     @Nonnull
     public static Ref<PhysicsStore> addPhysicsStoreBody(@Nonnull World world,
-        @Nonnull BodyRowDescriptor row) {
+        @Nonnull BodyEntityDescriptor descriptor) {
         Store<PhysicsStore> store = ((PhysicsStoreWorld) Objects.requireNonNull(world, "world"))
             .getPhysicsStore()
             .getStore();
-        return addPhysicsStoreBody(store, row);
+        return addPhysicsStoreBody(store, descriptor);
     }
 
     @Nonnull
     public static Ref<PhysicsStore> addPhysicsStoreBody(@Nonnull World world,
-        @Nonnull BodyRowDescriptor row,
+        @Nonnull BodyEntityDescriptor descriptor,
         @Nonnull BodyCommandComponent command) {
         Store<PhysicsStore> store = ((PhysicsStoreWorld) Objects.requireNonNull(world, "world"))
             .getPhysicsStore()
             .getStore();
-        Ref<PhysicsStore> bodyRef = addPhysicsStoreBody(store, row);
+        Ref<PhysicsStore> bodyRef = addPhysicsStoreBody(store, descriptor);
         appendPhysicsStoreBodyCommand(store, bodyRef, command);
         return bodyRef;
     }
 
     @Nonnull
     public static Ref<PhysicsStore> addPhysicsStoreBody(@Nonnull World world,
-        @Nonnull BodyRowDescriptor row,
+        @Nonnull BodyEntityDescriptor descriptor,
         @Nonnull DynamicsComponent dynamics,
         @Nullable TargetComponent target) {
         Store<PhysicsStore> store = ((PhysicsStoreWorld) Objects.requireNonNull(world, "world"))
             .getPhysicsStore()
             .getStore();
-        return addPhysicsStoreBody(store, row, dynamics, target);
+        return addPhysicsStoreBody(store, descriptor, dynamics, target);
     }
 
     public static void addPhysicsStoreBodies(@Nonnull World world,
-        @Nonnull Iterable<BodyRowDescriptor> rows) {
-        Objects.requireNonNull(rows, "rows");
+        @Nonnull Iterable<BodyEntityDescriptor> descriptors) {
+        Objects.requireNonNull(descriptors, "descriptors");
         Store<PhysicsStore> store = ((PhysicsStoreWorld) Objects.requireNonNull(world, "world"))
             .getPhysicsStore()
             .getStore();
-        PhysicsStoreThreading.requireWorldThread(store, "add PhysicsStore body rows");
-        for (BodyRowDescriptor row : rows) {
-            addPhysicsStoreBodyUnchecked(store, row, row.dynamics(), row.target());
+        PhysicsStoreThreading.requireWorldThread(store, "add PhysicsStore body entities");
+        for (BodyEntityDescriptor descriptor : descriptors) {
+            addPhysicsStoreBodyUnchecked(store,
+                descriptor,
+                descriptor.dynamics(),
+                descriptor.target());
         }
     }
 
     @Nonnull
     private static Ref<PhysicsStore> addPhysicsStoreBody(@Nonnull Store<PhysicsStore> store,
-        @Nonnull BodyRowDescriptor row) {
-        Objects.requireNonNull(row, "row");
-        return addPhysicsStoreBody(store, row, row.dynamics(), row.target());
+        @Nonnull BodyEntityDescriptor descriptor) {
+        Objects.requireNonNull(descriptor, "descriptor");
+        return addPhysicsStoreBody(store,
+            descriptor,
+            descriptor.dynamics(),
+            descriptor.target());
     }
 
     @Nonnull
     private static Ref<PhysicsStore> addPhysicsStoreBody(@Nonnull Store<PhysicsStore> store,
-        @Nonnull BodyRowDescriptor row,
+        @Nonnull BodyEntityDescriptor descriptor,
         @Nonnull DynamicsComponent dynamics,
         @Nullable TargetComponent target) {
-        Objects.requireNonNull(row, "row");
-        PhysicsStoreThreading.requireWorldThread(store, "add a PhysicsStore body row");
-        return addPhysicsStoreBodyUnchecked(store, row, dynamics, target);
+        Objects.requireNonNull(descriptor, "descriptor");
+        PhysicsStoreThreading.requireWorldThread(store, "add a PhysicsStore body entity");
+        return addPhysicsStoreBodyUnchecked(store, descriptor, dynamics, target);
     }
 
     @Nonnull
     private static Ref<PhysicsStore> addPhysicsStoreBodyUnchecked(@Nonnull Store<PhysicsStore> store,
-        @Nonnull BodyRowDescriptor row,
+        @Nonnull BodyEntityDescriptor descriptor,
         @Nonnull DynamicsComponent dynamics,
         @Nullable TargetComponent target) {
-        Objects.requireNonNull(row, "row");
+        Objects.requireNonNull(descriptor, "descriptor");
         return store.addEntity(PhysicsStoreEntities.bodyHolder(store,
-            row.bodyUuid(),
-            row.body(),
+            descriptor.bodyUuid(),
+            descriptor.body(),
             Objects.requireNonNull(dynamics, "dynamics"),
             target,
-            row.collider(),
-            row.shape(),
-            row.material(),
-            row.filter()), AddReason.SPAWN);
+            descriptor.collider(),
+            descriptor.shape(),
+            descriptor.material(),
+            descriptor.filter()), AddReason.SPAWN);
     }
 
     @Nonnull
@@ -159,7 +165,7 @@ public final class ExamplePhysicsUtils {
         Store<PhysicsStore> store = ((PhysicsStoreWorld) Objects.requireNonNull(world, "world"))
             .getPhysicsStore()
             .getStore();
-        PhysicsStoreThreading.requireWorldThread(store, "add a PhysicsStore joint row");
+        PhysicsStoreThreading.requireWorldThread(store, "add a PhysicsStore joint entity");
         return store.addEntity(PhysicsStoreEntities.jointHolder(store,
             Objects.requireNonNull(jointUuid, "jointUuid"),
             joint), AddReason.SPAWN);
@@ -341,7 +347,7 @@ public final class ExamplePhysicsUtils {
         @Nonnull UUID bodyUuid) {
         Vector3f bodyCenter = toVector3f(visualPosition);
         Ref<PhysicsStore> bodyRef = addPhysicsStoreBody(world,
-            bodyRow(spaceRef,
+            bodyEntity(spaceRef,
                 bodyUuid,
                 bodyCenter,
                 shape,
@@ -360,14 +366,14 @@ public final class ExamplePhysicsUtils {
     }
 
     @Nonnull
-    public static BodyRowDescriptor bodyRow(@Nonnull Ref<PhysicsStore> spaceRef,
+    public static BodyEntityDescriptor bodyEntity(@Nonnull Ref<PhysicsStore> spaceRef,
         @Nonnull UUID bodyUuid,
         @Nonnull Vector3f bodyCenter,
         @Nonnull PhysicsShapeSpec shape,
         float mass,
         @Nonnull RigidBodySpawnSettings settings,
         @Nullable Vector3f linearVelocity) {
-        return PhysicsBodyRows.dynamicBody(spaceRef,
+        return PhysicsBodyEntities.dynamicBody(spaceRef,
             bodyUuid,
             bodyCenter,
             shape,
@@ -378,7 +384,7 @@ public final class ExamplePhysicsUtils {
     }
 
     @Nonnull
-    private static BodyRowDescriptor bodyRow(@Nonnull Ref<PhysicsStore> spaceRef,
+    private static BodyEntityDescriptor bodyEntity(@Nonnull Ref<PhysicsStore> spaceRef,
         @Nonnull UUID bodyUuid,
         @Nonnull Vector3f bodyCenter,
         @Nonnull PhysicsShapeSpec shape,
@@ -387,7 +393,7 @@ public final class ExamplePhysicsUtils {
         @Nullable Vector3f linearVelocity,
         @Nonnull PhysicsBodyKind kind,
         @Nonnull PhysicsBodyPersistenceMode persistenceMode) {
-        return PhysicsBodyRows.body(spaceRef,
+        return PhysicsBodyEntities.body(spaceRef,
             bodyUuid,
             bodyCenter,
             shape,
@@ -400,7 +406,7 @@ public final class ExamplePhysicsUtils {
     }
 
     @Nonnull
-    public static BodyRowBatchTiming addDynamicBodyBatchMeasured(@Nonnull World world,
+    public static BodyEntityBatchTiming addDynamicBodyBatchMeasured(@Nonnull World world,
         @Nonnull SpaceId spaceId,
         int expectedBodies,
         @Nonnull PhysicsShapeSpec shape,
@@ -419,19 +425,19 @@ public final class ExamplePhysicsUtils {
             persistenceMode,
             builder);
         if (plan.isEmpty()) {
-            return new BodyRowBatchTiming(0, plan.setupWallNanos(), 0L);
+            return new BodyEntityBatchTiming(0, plan.setupWallNanos(), 0L);
         }
 
         long applyStartNanos = System.nanoTime();
         addPhysicsStoreBodies(world, plan.bodies());
-        long rowApplyNanos = System.nanoTime() - applyStartNanos;
-        return new BodyRowBatchTiming(plan.count(),
+        long entityApplyNanos = System.nanoTime() - applyStartNanos;
+        return new BodyEntityBatchTiming(plan.count(),
             plan.setupWallNanos(),
-            rowApplyNanos);
+            entityApplyNanos);
     }
 
     @Nonnull
-    public static BodyRowBatchTiming addDynamicBodyBatchMeasured(@Nonnull World world,
+    public static BodyEntityBatchTiming addDynamicBodyBatchMeasured(@Nonnull World world,
         @Nonnull Ref<PhysicsStore> spaceRef,
         @Nonnull SpaceId spaceId,
         int expectedBodies,
@@ -451,15 +457,15 @@ public final class ExamplePhysicsUtils {
             persistenceMode,
             builder);
         if (plan.isEmpty()) {
-            return new BodyRowBatchTiming(0, plan.setupWallNanos(), 0L);
+            return new BodyEntityBatchTiming(0, plan.setupWallNanos(), 0L);
         }
 
         long applyStartNanos = System.nanoTime();
         addPhysicsStoreBodies(world, plan.bodies());
-        long rowApplyNanos = System.nanoTime() - applyStartNanos;
-        return new BodyRowBatchTiming(plan.count(),
+        long entityApplyNanos = System.nanoTime() - applyStartNanos;
+        return new BodyEntityBatchTiming(plan.count(),
             plan.setupWallNanos(),
-            rowApplyNanos);
+            entityApplyNanos);
     }
 
     @Nonnull
@@ -489,7 +495,7 @@ public final class ExamplePhysicsUtils {
 
         Ref<PhysicsStore> spaceRef = resolvePhysicsStoreSpaceRef(world, spaceId);
         if (spaceRef == null) {
-            throw new IllegalStateException("Cannot add dynamic body rows because the target space is not "
+            throw new IllegalStateException("Cannot add dynamic body entities because the target space is not "
                 + "bound in PhysicsStore: " + spaceId.value());
         }
 
@@ -522,10 +528,10 @@ public final class ExamplePhysicsUtils {
         Objects.requireNonNull(persistenceMode, "persistenceMode");
 
         PhysicsStoreThreading.requireWorldThread(spaceRef.getStore(),
-            "add dynamic PhysicsStore body rows");
+            "add dynamic PhysicsStore body entities");
         if (!spaceRef.isValid()) {
-            throw new IllegalStateException("Cannot add dynamic body rows because the target "
-                + "PhysicsStore space row is no longer valid: " + spaceId.value());
+            throw new IllegalStateException("Cannot add dynamic body entities because the target "
+                + "PhysicsStore space entity is no longer valid: " + spaceId.value());
         }
 
         long setupStartNanos = System.nanoTime();
@@ -557,10 +563,10 @@ public final class ExamplePhysicsUtils {
         @Nonnull PhysicsBodyPersistenceMode persistenceMode,
         @Nonnull BlockBodyBatchBuilder batch,
         long setupStartNanos) {
-        List<BodyRowDescriptor> bodies = new ArrayList<>(batch.size());
+        List<BodyEntityDescriptor> bodies = new ArrayList<>(batch.size());
         for (int i = 0; i < batch.size(); i++) {
             UUID bodyUuid = batch.bodyUuid(i);
-            bodies.add(bodyRow(spaceRef,
+            bodies.add(bodyEntity(spaceRef,
                 bodyUuid,
                 new Vector3f(batch.positionX(i), batch.positionY(i), batch.positionZ(i)),
                 shape,
@@ -580,9 +586,9 @@ public final class ExamplePhysicsUtils {
         @Nonnull CreatedBlockBody created) {
         Ref<PhysicsStore> bodyRef = created.bodyRef();
         PhysicsStoreThreading.requireWorldThread(bodyRef.getStore(),
-            "attach a visual to a created PhysicsStore body row");
+            "attach a visual to a created PhysicsStore body entity");
         if (!bodyRef.isValid()) {
-            throw new IllegalStateException("Cannot attach visual because PhysicsStore body row "
+            throw new IllegalStateException("Cannot attach visual because PhysicsStore body entity "
                 + "is no longer valid: " + created.bodyUuid());
         }
         Ref<EntityStore> entity = spawnAttachedPhysicsStoreBlockEntity(store,
@@ -756,10 +762,10 @@ public final class ExamplePhysicsUtils {
         Objects.requireNonNull(settings, "settings");
 
         PhysicsStoreThreading.requireWorldThread(spaceRef.getStore(),
-            "spawn PhysicsStore block body rows");
+            "spawn PhysicsStore block body entities");
         if (!spaceRef.isValid()) {
             throw new IllegalStateException("Cannot spawn block body batch because the target "
-                + "PhysicsStore space row is no longer valid: " + spaceId.value());
+                + "PhysicsStore space entity is no longer valid: " + spaceId.value());
         }
 
         BlockBodyBatchBuilder batch = new BlockBodyBatchBuilder(expectedBodies);
@@ -798,10 +804,10 @@ public final class ExamplePhysicsUtils {
         @Nonnull BlockBodyBatchBuilder batch,
         boolean collectBodies) {
         World world = store.getExternalData().getWorld();
-        List<BodyRowDescriptor> rows = new ArrayList<>(batch.size());
+        List<BodyEntityDescriptor> descriptors = new ArrayList<>(batch.size());
         for (int i = 0; i < batch.size(); i++) {
             UUID bodyUuid = batch.bodyUuid(i);
-            rows.add(bodyRow(spaceRef,
+            descriptors.add(bodyEntity(spaceRef,
                 bodyUuid,
                 new Vector3f(batch.positionX(i), batch.positionY(i), batch.positionZ(i)),
                 shape,
@@ -810,9 +816,9 @@ public final class ExamplePhysicsUtils {
                 null));
         }
 
-        long rowApplyStartNanos = System.nanoTime();
-        addPhysicsStoreBodies(world, rows);
-        long rowApplyNanos = System.nanoTime() - rowApplyStartNanos;
+        long entityApplyStartNanos = System.nanoTime();
+        addPhysicsStoreBodies(world, descriptors);
+        long entityApplyNanos = System.nanoTime() - entityApplyStartNanos;
 
         long entityAttachStartNanos = System.nanoTime();
         SpawnedBlockBody[] spawned = collectBodies ? new SpawnedBlockBody[batch.size()] : null;
@@ -832,7 +838,7 @@ public final class ExamplePhysicsUtils {
         long entityAttachNanos = System.nanoTime() - entityAttachStartNanos;
         return new BlockBodyBatchResult(spawned,
             batch.size(),
-            rowApplyNanos,
+            entityApplyNanos,
             entityAttachNanos);
     }
 
@@ -927,28 +933,28 @@ public final class ExamplePhysicsUtils {
     }
 
     public record BlockBodyBatchTiming(int count,
-                                       long rowApplyNanos,
+                                       long entityApplyNanos,
                                        long entityAttachNanos) {
 
         public BlockBodyBatchTiming {
             count = Math.max(0, count);
-            rowApplyNanos = Math.max(0L, rowApplyNanos);
+            entityApplyNanos = Math.max(0L, entityApplyNanos);
             entityAttachNanos = Math.max(0L, entityAttachNanos);
         }
     }
 
-    public record BodyRowBatchTiming(int count,
-                                     long setupWallNanos,
-                                     long rowApplyNanos) {
+    public record BodyEntityBatchTiming(int count,
+                                        long setupWallNanos,
+                                        long entityApplyNanos) {
 
-        public BodyRowBatchTiming {
+        public BodyEntityBatchTiming {
             count = Math.max(0, count);
             setupWallNanos = Math.max(0L, setupWallNanos);
-            rowApplyNanos = Math.max(0L, rowApplyNanos);
+            entityApplyNanos = Math.max(0L, entityApplyNanos);
         }
     }
 
-    private record DynamicBodyBatchPlan(@Nonnull List<BodyRowDescriptor> bodies,
+    private record DynamicBodyBatchPlan(@Nonnull List<BodyEntityDescriptor> bodies,
                                         long setupWallNanos) {
 
         DynamicBodyBatchPlan {
@@ -1121,7 +1127,7 @@ public final class ExamplePhysicsUtils {
 
     private record BlockBodyBatchResult(@Nullable SpawnedBlockBody[] bodies,
                                         int count,
-                                        long rowApplyNanos,
+                                        long entityApplyNanos,
                                         long entityAttachNanos) {
 
         private BlockBodyBatchResult {
@@ -1129,7 +1135,7 @@ public final class ExamplePhysicsUtils {
                 throw new IllegalArgumentException("Collected body count does not match batch count");
             }
             count = Math.max(0, count);
-            rowApplyNanos = Math.max(0L, rowApplyNanos);
+            entityApplyNanos = Math.max(0L, entityApplyNanos);
             entityAttachNanos = Math.max(0L, entityAttachNanos);
         }
 
@@ -1144,7 +1150,7 @@ public final class ExamplePhysicsUtils {
         @Nonnull
         private BlockBodyBatchTiming timing() {
             return new BlockBodyBatchTiming(count,
-                rowApplyNanos,
+                entityApplyNanos,
                 entityAttachNanos);
         }
     }

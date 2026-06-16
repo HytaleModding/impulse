@@ -17,7 +17,7 @@ import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyPersistenceMode;
 import dev.hytalemodding.impulse.core.plugin.simulation.PhysicsShapeSpec;
 import dev.hytalemodding.impulse.core.plugin.simulation.RigidBodySpawnSettings;
 import dev.hytalemodding.impulse.examples.commands.ExamplePhysicsUtils;
-import dev.hytalemodding.impulse.examples.commands.ExamplePhysicsUtils.BodyRowBatchTiming;
+import dev.hytalemodding.impulse.examples.commands.ExamplePhysicsUtils.BodyEntityBatchTiming;
 import java.util.Locale;
 import java.util.concurrent.CompletableFuture;
 import javax.annotation.Nonnull;
@@ -77,7 +77,7 @@ public class StressRawBodiesCommand extends AbstractAsyncPlayerCommand {
         PhysicsShapeSpec box = PhysicsShapeSpec.box(0.48f, 0.48f, 0.48f);
         RigidBodySpawnSettings spawnSettings = RigidBodySpawnSettings.material(0.65f, 0.15f);
         long totalStartNanos = System.nanoTime();
-        BodyRowBatchTiming timing = ExamplePhysicsUtils.addDynamicBodyBatchMeasured(world,
+        BodyEntityBatchTiming timing = ExamplePhysicsUtils.addDynamicBodyBatchMeasured(world,
             spaceRef,
             spaceId,
             count,
@@ -107,13 +107,13 @@ public class StressRawBodiesCommand extends AbstractAsyncPlayerCommand {
     }
 
     @Nonnull
-    private static String successMessage(@Nonnull BodyRowBatchTiming timing,
+    private static String successMessage(@Nonnull BodyEntityBatchTiming timing,
         long totalWallNanos) {
-        return "PhysicsStore added raw body rows for " + timing.count()
+        return "PhysicsStore added raw body entities for " + timing.count()
             + " physics-only bodies: setupWallMs=" + millis(timing.setupWallNanos())
-            + " rowApplyMs=" + millis(timing.rowApplyNanos())
+            + " entityApplyMs=" + millis(timing.entityApplyNanos())
             + " totalWallMs=" + millis(totalWallNanos)
-            + ". Body-count updates are visible after PhysicsStore binds the new rows.";
+            + ". Body-count updates are visible after PhysicsStore binds the new entities.";
     }
 
 }

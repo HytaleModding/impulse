@@ -35,7 +35,7 @@ import org.joml.Quaternionf;
 import org.joml.Vector3f;
 
 /**
- * Creates backend bodies from authoritative PhysicsStore body rows.
+ * Creates backend bodies from authoritative PhysicsStore body entities.
  */
 public final class BodyBindingSystem extends TickingSystem<PhysicsStore>
     implements QuerySystem<PhysicsStore> {

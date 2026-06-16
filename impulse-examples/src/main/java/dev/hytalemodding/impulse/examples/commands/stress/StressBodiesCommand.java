@@ -195,13 +195,13 @@ public class StressBodiesCommand extends AbstractAsyncPlayerCommand {
                             layout.positionZ(i));
                     }
                 });
-            timing = new StressSpawnTiming(batchTiming.rowApplyNanos() + batchTiming.entityAttachNanos(),
-                batchTiming.rowApplyNanos(),
+            timing = new StressSpawnTiming(batchTiming.entityApplyNanos() + batchTiming.entityAttachNanos(),
+                batchTiming.entityApplyNanos(),
                 batchTiming.entityAttachNanos());
         } else {
             PhysicsShapeSpec box = PhysicsShapeSpec.box(0.48f, 0.48f, 0.48f);
             RigidBodySpawnSettings spawnSettings = detachedSpawnSettings(collisionPolicy);
-            ExamplePhysicsUtils.BodyRowBatchTiming batchTiming =
+            ExamplePhysicsUtils.BodyEntityBatchTiming batchTiming =
                 ExamplePhysicsUtils.addDynamicBodyBatchMeasured(world,
                     spaceRef,
                     spaceId,
@@ -219,7 +219,7 @@ public class StressBodiesCommand extends AbstractAsyncPlayerCommand {
                         }
                     });
             timing = new StressSpawnTiming(batchTiming.setupWallNanos(),
-                batchTiming.rowApplyNanos(),
+                batchTiming.entityApplyNanos(),
                 0L);
         }
         PhysicsWorldCollisionSettings worldCollisionSettings =
@@ -234,7 +234,7 @@ public class StressBodiesCommand extends AbstractAsyncPlayerCommand {
             + " stress bodies: setupWallMs="
             + millis(prewarmNanos + timing.setupWallNanos())
             + " prewarmMs=" + millis(prewarmNanos)
-            + " rowApplyMs=" + millis(timing.rowApplyNanos())
+            + " entityApplyMs=" + millis(timing.entityApplyNanos())
             + (timing.entityAttachNanos() > 0L
                 ? " entityAttachMs=" + millis(timing.entityAttachNanos())
                 : "")
@@ -249,7 +249,7 @@ public class StressBodiesCommand extends AbstractAsyncPlayerCommand {
             + " visuals=" + mode.visualDescription()
             + (mode == StressMode.ENTITY ? " blockType=" + visualSettings.blockType() : "")
             + (mode.usesDetachedBodies()
-                ? " body-count and detached-view snapshots update after PhysicsStore binds the new rows"
+                ? " body-count and detached-view snapshots update after PhysicsStore binds the new entities"
                 : "")
             + (mode == StressMode.DETACHED_VIEW
                 ? " visualProxyCap="
@@ -599,12 +599,12 @@ public class StressBodiesCommand extends AbstractAsyncPlayerCommand {
     }
 
     private record StressSpawnTiming(long setupWallNanos,
-                                     long rowApplyNanos,
+                                     long entityApplyNanos,
                                      long entityAttachNanos) {
 
         private StressSpawnTiming {
             setupWallNanos = Math.max(0L, setupWallNanos);
-            rowApplyNanos = Math.max(0L, rowApplyNanos);
+            entityApplyNanos = Math.max(0L, entityApplyNanos);
             entityAttachNanos = Math.max(0L, entityAttachNanos);
         }
     }
