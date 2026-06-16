@@ -27,7 +27,6 @@ import dev.hytalemodding.impulse.core.plugin.physicsstore.components.BodyCommand
 import dev.hytalemodding.impulse.core.plugin.physicsstore.components.DynamicsComponent;
 import dev.hytalemodding.impulse.core.plugin.physicsstore.components.JointComponent;
 import dev.hytalemodding.impulse.core.plugin.physicsstore.components.TargetComponent;
-import dev.hytalemodding.impulse.core.plugin.physicsstore.components.UuidComponent;
 import dev.hytalemodding.impulse.core.plugin.physicsstore.projection.BodyAttachmentComponent;
 import dev.hytalemodding.impulse.core.plugin.physicsstore.BodyRowDescriptor;
 import dev.hytalemodding.impulse.core.plugin.settings.PhysicsVisualMaterializationSettings;
@@ -138,18 +137,6 @@ public final class ExamplePhysicsUtils {
             row.shape(),
             row.material(),
             row.filter()), AddReason.SPAWN);
-    }
-
-    @Nullable
-    public static UUID physicsStoreRowUuid(@Nonnull Ref<PhysicsStore> ref) {
-        Objects.requireNonNull(ref, "ref");
-        if (!ref.isValid()) {
-            return null;
-        }
-        Store<PhysicsStore> store = ref.getStore();
-        PhysicsStoreThreading.requireWorldThread(store, "resolve a PhysicsStore row UUID");
-        UuidComponent uuid = store.getComponent(ref, UuidComponent.getComponentType());
-        return uuid != null ? uuid.getUuid() : null;
     }
 
     @Nonnull

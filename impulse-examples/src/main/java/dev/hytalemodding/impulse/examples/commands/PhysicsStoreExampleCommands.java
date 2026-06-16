@@ -25,6 +25,7 @@ import dev.hytalemodding.impulse.core.plugin.physicsstore.PhysicsStoreRaycasts;
 import dev.hytalemodding.impulse.core.plugin.physicsstore.components.BodyCommandComponent;
 import dev.hytalemodding.impulse.core.plugin.physicsstore.components.DynamicsComponent;
 import dev.hytalemodding.impulse.core.plugin.physicsstore.components.TargetComponent;
+import dev.hytalemodding.impulse.core.plugin.physicsstore.components.UuidComponent;
 import dev.hytalemodding.impulse.core.plugin.resources.PhysicsWorldResource;
 import dev.hytalemodding.impulse.core.plugin.settings.PhysicsEventCollectionMode;
 import dev.hytalemodding.impulse.core.plugin.simulation.PhysicsShapeSpec;
@@ -122,9 +123,8 @@ final class PhysicsStoreExampleCommands {
                     0.0f,
                     0.0f));
 
-            UUID bodyUuid = ExamplePhysicsUtils.physicsStoreRowUuid(bodyRef);
             ctx.sender().sendMessage(Message.raw("Queued PhysicsStore impulse command for "
-                + (bodyUuid != null ? bodyUuid : bodyRef) + "."));
+                + bodyRef + "."));
         }
     }
 
@@ -218,7 +218,7 @@ final class PhysicsStoreExampleCommands {
                 ctx.sender().sendMessage(Message.raw("No rigid body in view."));
                 return;
             }
-            UUID bodyUuid = ExamplePhysicsUtils.physicsStoreRowUuid(hit.bodyRef());
+            UUID bodyUuid = physicsStoreBodyUuid(hit.bodyRef());
             if (bodyUuid == null) {
                 ctx.sender().sendMessage(Message.raw("PhysicsStore body has no persistent UUID."));
                 return;
@@ -234,6 +234,13 @@ final class PhysicsStoreExampleCommands {
 
             ctx.sender().sendMessage(Message.raw("Attached view-only entity to "
                 + bodyUuid + "."));
+        }
+
+        @Nullable
+        private static UUID physicsStoreBodyUuid(@Nonnull Ref<PhysicsStore> bodyRef) {
+            UuidComponent uuid = bodyRef.getStore()
+                .getComponent(bodyRef, UuidComponent.getComponentType());
+            return uuid != null ? uuid.getUuid() : null;
         }
     }
 
