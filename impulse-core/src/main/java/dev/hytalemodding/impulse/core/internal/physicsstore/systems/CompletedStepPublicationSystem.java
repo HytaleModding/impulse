@@ -64,7 +64,7 @@ public final class CompletedStepPublicationSystem extends TickingSystem<PhysicsS
         long snapshotStartNanos = profilingEnabled ? System.nanoTime() : 0L;
         List<PhysicsStoreBodySnapshot> bodies = new ArrayList<>();
         Set<UUID> snapshotBodyUuids = new ObjectOpenHashSet<>();
-        runtime.forEachSpaceBinding((_, _, spaceHandle, backendRuntime) ->
+        runtime.forEachRuntimeSpaceBinding((_, _, spaceHandle, backendRuntime) ->
             backendRuntime.snapshotBodies(spaceHandle.value(),
                 bodyConsumer -> runtime.forEachBodyHandle(spaceHandle, bodyConsumer::accept),
                 (bodyId,
@@ -243,7 +243,12 @@ public final class CompletedStepPublicationSystem extends TickingSystem<PhysicsS
         PhysicsSpaceCompatibilityIndexResource compatibility = store.getResource(
             PhysicsSpaceCompatibilityIndexResource.getResourceType());
         StepBackendEvents backendEvents = new StepBackendEvents();
-        runtime.forEachSpaceBinding((spaceUuid, _, spaceHandle, backendRuntime) -> {
+        runtime.forEachRuntimeSpaceBinding((spaceRef, _, spaceHandle, backendRuntime) -> {
+            UUID spaceUuid = runtime.getSpaceUuid(spaceRef);
+            if (spaceUuid == null) {
+                backendEvents.droppedBackendEventCount += backendRuntime.contactCount(spaceHandle.value());
+                return;
+            }
             SpaceId spaceId = compatibility.getSpaceId(spaceUuid);
             if (spaceId == null) {
                 backendEvents.droppedBackendEventCount += backendRuntime.contactCount(spaceHandle.value());
