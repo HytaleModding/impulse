@@ -153,6 +153,8 @@ final class PhysicsStoreDebugQueries {
         if (spaceUuid == null) {
             return List.of();
         }
+        Ref<PhysicsStore> spaceRef = store.getResource(PhysicsIdentityIndexResource.getResourceType())
+            .getByUuid(spaceUuid);
 
         PhysicsSnapshotResource snapshots = store.getResource(PhysicsSnapshotResource.getResourceType());
         double maxDistanceSquared = viewRadius * viewRadius;
@@ -160,6 +162,7 @@ final class PhysicsStoreDebugQueries {
         BiConsumer<ArchetypeChunk<PhysicsStore>, CommandBuffer<PhysicsStore>> collector =
             (chunk, _) -> collectJointChunk(chunk,
                 snapshots,
+                spaceRef,
                 spaceUuid,
                 viewerX,
                 viewerY,
@@ -173,6 +176,7 @@ final class PhysicsStoreDebugQueries {
 
     private static void collectJointChunk(@Nonnull ArchetypeChunk<PhysicsStore> chunk,
         @Nonnull PhysicsSnapshotResource snapshots,
+        @Nullable Ref<PhysicsStore> spaceRef,
         @Nonnull UUID spaceUuid,
         double viewerX,
         double viewerY,
@@ -185,7 +189,7 @@ final class PhysicsStoreDebugQueries {
                 return;
             }
             JointComponent joint = chunk.getComponent(index, JointComponent.getComponentType());
-            if (joint == null || !spaceUuid.equals(joint.getSpaceUuid()) || !joint.isEnabled()) {
+            if (joint == null || !matchesSpace(joint, spaceRef, spaceUuid) || !joint.isEnabled()) {
                 continue;
             }
             PhysicsDebugJointView view = toDebugJointView(joint, snapshots);
@@ -206,8 +210,10 @@ final class PhysicsStoreDebugQueries {
     @Nullable
     private static PhysicsDebugJointView toDebugJointView(@Nonnull JointComponent joint,
         @Nonnull PhysicsSnapshotResource snapshots) {
-        PhysicsStoreBodySnapshot bodyA = snapshots.getBody(joint.getBodyAUuid());
-        PhysicsStoreBodySnapshot bodyB = snapshots.getBody(joint.getBodyBUuid());
+        PhysicsStoreBodySnapshot bodyA =
+            bodySnapshot(snapshots, joint.getBodyARef(), joint.getBodyAUuid());
+        PhysicsStoreBodySnapshot bodyB =
+            bodySnapshot(snapshots, joint.getBodyBRef(), joint.getBodyBUuid());
         if (bodyA == null || bodyB == null) {
             return null;
         }
@@ -240,6 +246,30 @@ final class PhysicsStoreDebugQueries {
             worldAxis.x,
             worldAxis.y,
             worldAxis.z);
+    }
+
+    private static boolean matchesSpace(@Nonnull JointComponent joint,
+        @Nullable Ref<PhysicsStore> spaceRef,
+        @Nonnull UUID spaceUuid) {
+        Ref<PhysicsStore> jointSpaceRef = joint.getSpaceRef();
+        if (jointSpaceRef != null && spaceRef != null) {
+            return sameRef(jointSpaceRef, spaceRef);
+        }
+        return spaceUuid.equals(joint.getSpaceUuid());
+    }
+
+    @Nullable
+    private static PhysicsStoreBodySnapshot bodySnapshot(
+        @Nonnull PhysicsSnapshotResource snapshots,
+        @Nullable Ref<PhysicsStore> bodyRef,
+        @Nonnull UUID bodyUuid) {
+        return bodyRef != null ? snapshots.getBody(bodyRef) : snapshots.getBody(bodyUuid);
+    }
+
+    private static boolean sameRef(@Nonnull Ref<PhysicsStore> first,
+        @Nonnull Ref<PhysicsStore> second) {
+        return first.getStore() == second.getStore()
+            && first.getIndex() == second.getIndex();
     }
 
     @Nonnull
