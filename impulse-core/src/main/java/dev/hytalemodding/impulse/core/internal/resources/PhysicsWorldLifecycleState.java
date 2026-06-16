@@ -43,6 +43,11 @@ public final class PhysicsWorldLifecycleState {
         return snapshotState.getBodySnapshot(bodyKey);
     }
 
+    @Nullable
+    public PhysicsBodySnapshot getBodySnapshot(@Nonnull UUID bodyUuid) {
+        return snapshotState.getBodySnapshot(bodyUuid);
+    }
+
     @Nonnull
     public PhysicsBodySnapshot captureBodySnapshot(@Nonnull PhysicsBodyRegistration registration) {
         return snapshotState.captureBodySnapshot(registration);

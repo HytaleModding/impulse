@@ -689,7 +689,12 @@ public class PhysicsWorldRuntimeResource extends PhysicsWorldResource {
                 : store.getResource(PhysicsSnapshotResource.getResourceType()).getBody(bodyUuid);
             return snapshot != null ? toPublicBodySnapshot(store, snapshot) : null;
         }
-        return getBodySnapshotIfRegistered(RigidBodyKey.of(bodyUuid));
+        PhysicsBodySnapshot snapshot = lifecycleState.getBodySnapshot(bodyUuid);
+        if (snapshot != null) {
+            return snapshot;
+        }
+        return callDirectRuntime("refresh optional physics body snapshot",
+            () -> getBodySnapshotIfRegisteredDirect(bodyUuid));
     }
 
     @Nonnull
@@ -709,6 +714,16 @@ public class PhysicsWorldRuntimeResource extends PhysicsWorldResource {
             return snapshot;
         }
         PhysicsBodyRegistration registration = bodyRegistry.getRegistration(bodyKey);
+        return registration != null ? captureLiveBodySnapshot(registration) : null;
+    }
+
+    @Nullable
+    private PhysicsBodySnapshot getBodySnapshotIfRegisteredDirect(@Nonnull UUID bodyUuid) {
+        PhysicsBodySnapshot snapshot = lifecycleState.getBodySnapshot(bodyUuid);
+        if (snapshot != null) {
+            return snapshot;
+        }
+        PhysicsBodyRegistration registration = bodyRegistry.getRegistration(bodyUuid);
         return registration != null ? captureLiveBodySnapshot(registration) : null;
     }
 
@@ -1799,7 +1814,7 @@ public class PhysicsWorldRuntimeResource extends PhysicsWorldResource {
             return;
         }
         requireLegacyMutationAllowed("destroy physics body");
-        destroyBody(RigidBodyKey.of(bodyUuid), true);
+        destroyBody(bodyUuid, true);
     }
 
     @Nonnull
@@ -1824,6 +1839,15 @@ public class PhysicsWorldRuntimeResource extends PhysicsWorldResource {
         runDirectRuntimeMutation("destroy physics body", () -> destroyBodyDirect(bodyKey, removeFromSpace));
     }
 
+    public void destroyBody(@Nonnull UUID bodyUuid, boolean removeFromSpace) {
+        if (isAuthoritativePhysicsStoreActive()) {
+            destroyBody(bodyUuid);
+            return;
+        }
+        requireLegacyMutationAllowed("destroy physics body");
+        runDirectRuntimeMutation("destroy physics body", () -> destroyBodyDirect(bodyUuid, removeFromSpace));
+    }
+
     @Nonnull
     public PhysicsMutationHandle<RigidBodyKey> destroyBodyAsync(@Nonnull RigidBodyKey bodyKey,
         boolean removeFromSpace) {
@@ -1843,6 +1867,10 @@ public class PhysicsWorldRuntimeResource extends PhysicsWorldResource {
         bodyRuntime.destroyBody(bodyKey, removeFromSpace);
     }
 
+    private void destroyBodyDirect(@Nonnull UUID bodyUuid, boolean removeFromSpace) {
+        bodyRuntime.destroyBody(bodyUuid, removeFromSpace);
+    }
+
     @Nullable
     public RigidBodyKey getBodyKey(@Nonnull SpaceId spaceId, long backendBodyId) {
         return bodyRegistry.getBodyKey(spaceId, backendBodyId);
@@ -1859,6 +1887,12 @@ public class PhysicsWorldRuntimeResource extends PhysicsWorldResource {
     public PhysicsBodyRegistration getRegistration(@Nonnull RigidBodyKey bodyKey) {
         assertCanAccessLiveBackendDirectly("resolve physics body registration");
         return bodyRegistry.getRegistration(bodyKey);
+    }
+
+    @Nullable
+    public PhysicsBodyRegistration getRegistration(@Nonnull UUID bodyUuid) {
+        assertCanAccessLiveBackendDirectly("resolve physics body registration");
+        return bodyRegistry.getRegistration(bodyUuid);
     }
 
     @Nullable

@@ -44,7 +44,12 @@ public final class PhysicsWorldSnapshotState {
 
     @Nullable
     public PhysicsBodySnapshot getBodySnapshot(@Nonnull RigidBodyKey bodyKey) {
-        return bodySnapshots.get(bodyKey);
+        return getBodySnapshot(Objects.requireNonNull(bodyKey, "bodyKey").value());
+    }
+
+    @Nullable
+    public PhysicsBodySnapshot getBodySnapshot(@Nonnull UUID bodyUuid) {
+        return bodySnapshots.get(bodyUuid);
     }
 
     @Nonnull

@@ -87,16 +87,19 @@ public final class PhysicsBodyRuntime {
     }
 
     public void destroyBody(@Nonnull RigidBodyKey bodyKey, boolean removeFromSpace) {
-        PhysicsBodyRegistration registration = bodyRegistry.getRegistration(bodyKey);
+        destroyBody(Objects.requireNonNull(bodyKey, "bodyKey").value(), removeFromSpace);
+    }
+
+    public void destroyBody(@Nonnull UUID bodyUuid, boolean removeFromSpace) {
+        PhysicsBodyRegistration registration = bodyRegistry.getRegistration(bodyUuid);
         if (registration != null) {
-            UUID bodyUuid = registration.bodyUuid();
             if (removeFromSpace) {
                 removeBodyFromSpace(registration);
             }
-            bodyRegistry.unregisterBody(bodyKey);
+            bodyRegistry.unregisterBody(bodyUuid);
             clearBodyRuntimeState(bodyUuid);
         } else {
-            clearBodyRuntimeState(bodyKey.value());
+            clearBodyRuntimeState(bodyUuid);
         }
         worldChangedMarker.run();
     }
@@ -106,7 +109,7 @@ public final class PhysicsBodyRuntime {
         boolean bodyFailure = false;
         for (PhysicsBodyRegistration registration : new ArrayList<>(bodyRegistry.getRegistrations())) {
             try {
-                destroyBody(registration.bodyKey(), true);
+                destroyBody(registration.bodyUuid(), true);
             } catch (RuntimeException exception) {
                 bodyFailure = true;
                 failure = collectFailure(failure, exception);

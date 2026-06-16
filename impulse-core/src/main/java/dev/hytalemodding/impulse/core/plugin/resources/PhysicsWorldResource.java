@@ -23,6 +23,7 @@ import dev.hytalemodding.impulse.core.plugin.settings.PhysicsWorldSettings;
 import dev.hytalemodding.impulse.core.plugin.snapshot.PhysicsBodySnapshotEntry;
 import java.util.Collection;
 import java.util.List;
+import java.util.Objects;
 import java.util.UUID;
 import java.util.function.Consumer;
 import javax.annotation.Nonnull;
@@ -324,17 +325,19 @@ public abstract class PhysicsWorldResource implements Resource<EntityStore> {
 
     /**
      * Destroys a registered body by stable key and removes it from its physics space.
+     *
+     * <p>This overload is retained for compatibility with legacy event/facade APIs.</p>
      */
-    public abstract void destroyBody(@Nonnull RigidBodyKey bodyKey);
+    public void destroyBody(@Nonnull RigidBodyKey bodyKey) {
+        destroyBody(Objects.requireNonNull(bodyKey, "bodyKey").value());
+    }
 
     /**
      * Destroys a registered body by durable body UUID.
      *
      * <p>Prefer this overload when the caller is crossing a durable identity boundary.</p>
      */
-    public void destroyBody(@Nonnull UUID bodyUuid) {
-        destroyBody(RigidBodyKey.of(bodyUuid));
-    }
+    public abstract void destroyBody(@Nonnull UUID bodyUuid);
 
     /**
      * Queues destruction of a registered body by stable key.
