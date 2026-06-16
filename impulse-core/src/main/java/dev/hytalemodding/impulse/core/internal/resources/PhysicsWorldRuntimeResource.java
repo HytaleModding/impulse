@@ -257,6 +257,27 @@ public class PhysicsWorldRuntimeResource extends PhysicsWorldResource {
             .getStore();
     }
 
+    private static boolean sameRef(@Nullable Ref<EntityStore> first,
+        @Nullable Ref<EntityStore> second) {
+        return first == second
+            || (first != null
+                && second != null
+                && first.getStore() != null
+                && first.getStore() == second.getStore()
+                && first.getIndex() == second.getIndex());
+    }
+
+    @Nonnull
+    private PhysicsProjectionIndexResource authoritativeProjectionIndex(@Nonnull String operation) {
+        Store<EntityStore> entityStore = owningStore;
+        if (entityStore == null) {
+            throw new IllegalStateException("Cannot " + operation
+                + " through authoritative PhysicsStore projection before this resource is attached "
+                + "to an EntityStore");
+        }
+        return entityStore.getResource(PhysicsProjectionIndexResource.getResourceType());
+    }
+
     @Nonnull
     private static UUID requireSpaceUuid(@Nonnull Store<PhysicsStore> store,
         @Nonnull SpaceId spaceId) {
@@ -1974,12 +1995,45 @@ public class PhysicsWorldRuntimeResource extends PhysicsWorldResource {
     @Nonnull
     @Override
     public Collection<Ref<EntityStore>> getBodyAttachments(@Nonnull RigidBodyKey bodyKey) {
+        if (hasAttachedAuthoritativePhysicsStore()) {
+            PhysicsProjectionIndexResource projection =
+                authoritativeProjectionIndex("read physics body attachments");
+            Ref<PhysicsStore> bodyRef = resolvePhysicsStoreBodyRef(bodyKey.value(),
+                "resolve body attachment key");
+            return bodyRef != null
+                ? projection.getAttachments(bodyRef)
+                : projection.getAttachments(bodyKey.value());
+        }
         return visualRuntime.getAttachments(bodyKey);
+    }
+
+    @Nonnull
+    public Collection<Ref<EntityStore>> getBodyAttachments(@Nonnull Ref<PhysicsStore> bodyRef) {
+        if (hasAttachedAuthoritativePhysicsStore()) {
+            return authoritativeProjectionIndex("read physics body attachments")
+                .getAttachments(bodyRef);
+        }
+        return List.of();
     }
 
     @Override
     public boolean hasBodyAttachments(@Nonnull RigidBodyKey bodyKey) {
+        if (hasAttachedAuthoritativePhysicsStore()) {
+            PhysicsProjectionIndexResource projection =
+                authoritativeProjectionIndex("check physics body attachments");
+            Ref<PhysicsStore> bodyRef = resolvePhysicsStoreBodyRef(bodyKey.value(),
+                "resolve body attachment key");
+            return bodyRef != null
+                ? projection.hasAttachments(bodyRef)
+                : projection.hasAttachments(bodyKey.value());
+        }
         return visualRuntime.hasAttachments(bodyKey);
+    }
+
+    public boolean hasBodyAttachments(@Nonnull Ref<PhysicsStore> bodyRef) {
+        return hasAttachedAuthoritativePhysicsStore()
+            && authoritativeProjectionIndex("check physics body attachments")
+                .hasAttachments(bodyRef);
     }
 
     public void registerBodyAttachment(@Nonnull RigidBodyKey bodyKey, @Nonnull Ref<EntityStore> attachment) {
@@ -1992,33 +2046,89 @@ public class PhysicsWorldRuntimeResource extends PhysicsWorldResource {
 
     @Nullable
     public Ref<EntityStore> getGeneratedVisualProxy(@Nonnull RigidBodyKey bodyKey) {
+        if (hasAttachedAuthoritativePhysicsStore()) {
+            PhysicsProjectionIndexResource projection =
+                authoritativeProjectionIndex("read generated visual proxy");
+            Ref<PhysicsStore> bodyRef = resolvePhysicsStoreBodyRef(bodyKey.value(),
+                "resolve generated visual proxy key");
+            return bodyRef != null
+                ? projection.getGeneratedVisualProxy(bodyRef)
+                : projection.getGeneratedVisualProxy(bodyKey.value());
+        }
         return visualRuntime.getGeneratedVisualProxy(bodyKey);
+    }
+
+    @Nullable
+    public Ref<EntityStore> getGeneratedVisualProxy(@Nonnull Ref<PhysicsStore> bodyRef) {
+        if (hasAttachedAuthoritativePhysicsStore()) {
+            return authoritativeProjectionIndex("read generated visual proxy")
+                .getGeneratedVisualProxy(bodyRef);
+        }
+        return null;
     }
 
     @Nonnull
     public Collection<RigidBodyKey> getGeneratedVisualProxyBodyKeys() {
+        if (hasAttachedAuthoritativePhysicsStore()) {
+            return authoritativeProjectionIndex("list generated visual proxies")
+                .getGeneratedVisualProxyBodyKeys();
+        }
         return visualRuntime.getGeneratedVisualProxyBodyKeys();
     }
 
     public int getGeneratedVisualProxyCount() {
+        if (hasAttachedAuthoritativePhysicsStore()) {
+            return authoritativeProjectionIndex("count generated visual proxies")
+                .generatedVisualProxyCount();
+        }
         return visualRuntime.generatedVisualProxyCount();
     }
 
     public void setGeneratedVisualProxy(@Nonnull RigidBodyKey bodyKey, @Nonnull Ref<EntityStore> proxy) {
+        if (hasAttachedAuthoritativePhysicsStore()) {
+            PhysicsProjectionIndexResource projection =
+                authoritativeProjectionIndex("set generated visual proxy");
+            Ref<PhysicsStore> bodyRef = resolvePhysicsStoreBodyRef(bodyKey.value(),
+                "resolve generated visual proxy key");
+            projection.setGeneratedVisualProxy(bodyKey.value(), bodyRef, proxy);
+            return;
+        }
         visualRuntime.setGeneratedVisualProxy(bodyKey, proxy);
     }
 
     public void clearGeneratedVisualProxy(@Nonnull RigidBodyKey bodyKey) {
+        if (hasAttachedAuthoritativePhysicsStore()) {
+            authoritativeProjectionIndex("clear generated visual proxy")
+                .clearGeneratedVisualProxy(bodyKey.value());
+            return;
+        }
         visualRuntime.clearGeneratedVisualProxy(bodyKey);
     }
 
     public boolean clearGeneratedVisualProxy(@Nonnull RigidBodyKey bodyKey,
         @Nonnull Ref<EntityStore> expectedProxy) {
+        if (hasAttachedAuthoritativePhysicsStore()) {
+            PhysicsProjectionIndexResource projection =
+                authoritativeProjectionIndex("clear generated visual proxy");
+            Ref<PhysicsStore> bodyRef = resolvePhysicsStoreBodyRef(bodyKey.value(),
+                "resolve generated visual proxy key");
+            Ref<EntityStore> registered = bodyRef != null
+                ? projection.getGeneratedVisualProxy(bodyRef)
+                : projection.getGeneratedVisualProxy(bodyKey.value());
+            if (!sameRef(registered, expectedProxy)) {
+                return false;
+            }
+            projection.clearGeneratedVisualProxy(bodyKey.value(), bodyRef, expectedProxy);
+            return true;
+        }
         return visualRuntime.clearGeneratedVisualProxy(bodyKey, expectedProxy);
     }
 
     public boolean isGeneratedVisualProxy(@Nonnull RigidBodyKey bodyKey,
         @Nonnull Ref<EntityStore> proxy) {
+        if (hasAttachedAuthoritativePhysicsStore()) {
+            return sameRef(getGeneratedVisualProxy(bodyKey), proxy);
+        }
         return visualRuntime.isGeneratedVisualProxy(bodyKey, proxy);
     }
 

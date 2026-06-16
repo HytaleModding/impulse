@@ -6,6 +6,7 @@ import com.hypixel.hytale.component.ResourceType;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import com.hypixel.hytale.server.core.universe.world.storage.PhysicsStore;
 import dev.hytalemodding.impulse.core.ImpulsePlugin;
+import dev.hytalemodding.impulse.core.plugin.body.RigidBodyKey;
 import it.unimi.dsi.fastutil.ints.Int2ObjectOpenHashMap;
 import it.unimi.dsi.fastutil.objects.Object2ObjectOpenHashMap;
 import it.unimi.dsi.fastutil.objects.ObjectOpenHashSet;
@@ -143,6 +144,40 @@ public final class PhysicsProjectionIndexResource implements Resource<EntityStor
     @Nullable
     public Ref<EntityStore> getGeneratedVisualProxy(@Nonnull Ref<PhysicsStore> bodyRef) {
         return liveGeneratedVisualProxy(bodyRef);
+    }
+
+    @Nonnull
+    public Collection<RigidBodyKey> getGeneratedVisualProxyBodyKeys() {
+        List<RigidBodyKey> bodyKeys = new ArrayList<>();
+        synchronized (this) {
+            for (Iterator<Map.Entry<UUID, Ref<EntityStore>>> iterator =
+                 generatedVisualProxies.entrySet().iterator(); iterator.hasNext();) {
+                Map.Entry<UUID, Ref<EntityStore>> entry = iterator.next();
+                Ref<EntityStore> proxy = entry.getValue();
+                if (proxy != null && proxy.isValid()) {
+                    bodyKeys.add(RigidBodyKey.of(entry.getKey()));
+                } else {
+                    iterator.remove();
+                }
+            }
+        }
+        return bodyKeys;
+    }
+
+    public int generatedVisualProxyCount() {
+        int count = 0;
+        synchronized (this) {
+            for (Iterator<Map.Entry<UUID, Ref<EntityStore>>> iterator =
+                 generatedVisualProxies.entrySet().iterator(); iterator.hasNext();) {
+                Ref<EntityStore> proxy = iterator.next().getValue();
+                if (proxy != null && proxy.isValid()) {
+                    count++;
+                } else {
+                    iterator.remove();
+                }
+            }
+        }
+        return count;
     }
 
     @Nullable
