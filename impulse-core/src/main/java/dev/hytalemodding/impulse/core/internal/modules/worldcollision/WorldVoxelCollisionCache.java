@@ -16,7 +16,6 @@ import dev.hytalemodding.impulse.core.internal.modules.worldcollision.profiling.
 import dev.hytalemodding.impulse.core.internal.modules.worldcollision.profiling.WorldCollisionProfilingResource.Snapshot;
 import dev.hytalemodding.impulse.core.internal.modules.worldcollision.profiling.WorldCollisionProfilingResource.StreamingTargetDiagnostic;
 import dev.hytalemodding.impulse.core.internal.modules.worldcollision.SectionCollisionGeometry.BoxCollider;
-import dev.hytalemodding.impulse.core.plugin.body.RigidBodyKey;
 import it.unimi.dsi.fastutil.ints.Int2ObjectMap;
 import it.unimi.dsi.fastutil.ints.Int2ObjectOpenHashMap;
 import it.unimi.dsi.fastutil.longs.Long2LongMap;
@@ -29,6 +28,7 @@ import it.unimi.dsi.fastutil.objects.Object2ObjectOpenHashMap;
 import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
+import java.util.UUID;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Consumer;
 import javax.annotation.Nonnull;
@@ -90,21 +90,21 @@ public final class WorldVoxelCollisionCache {
 
     /**
      * Returns whether a body target needs terrain work. Call
-     * {@link #recordBodyTargetRefresh(SpaceId, RigidBodyKey, WorldCollisionStreamingBounds, boolean, long)}
+     * {@link #recordBodyTargetRefresh(SpaceId, UUID, WorldCollisionStreamingBounds, boolean, long)}
      * only after the terrain apply path has actually attempted that work.
      */
     @Nonnull
     public synchronized TargetRefreshDecision shouldRefreshBodyTarget(@Nonnull SpaceId spaceId,
-        @Nonnull RigidBodyKey bodyKey,
+        @Nonnull UUID bodyUuid,
         @Nonnull WorldCollisionStreamingBounds bounds,
         boolean sleeping,
         long currentTick,
         int ttlTicks,
         @Nullable Snapshot profiling) {
         SpaceCollisionCache cache = spaces.computeIfAbsent(spaceId.value(), ignored -> new SpaceCollisionCache());
-        CachedBodyStreamingTarget target = cache.bodyTargets.get(bodyKey);
+        CachedBodyStreamingTarget target = cache.bodyTargets.get(bodyUuid);
         if (target == null) {
-            cache.bodyTargets.put(bodyKey, new CachedBodyStreamingTarget(bounds,
+            cache.bodyTargets.put(bodyUuid, new CachedBodyStreamingTarget(bounds,
                 sleeping,
                 currentTick,
                 BODY_TARGET_REFRESH_PENDING));
@@ -160,14 +160,14 @@ public final class WorldVoxelCollisionCache {
      * Records that a body target's terrain refresh was attempted by the apply loop.
      */
     public synchronized void recordBodyTargetRefresh(@Nonnull SpaceId spaceId,
-        @Nonnull RigidBodyKey bodyKey,
+        @Nonnull UUID bodyUuid,
         @Nonnull WorldCollisionStreamingBounds bounds,
         boolean sleeping,
         long currentTick) {
         SpaceCollisionCache cache = spaces.computeIfAbsent(spaceId.value(), ignored -> new SpaceCollisionCache());
-        CachedBodyStreamingTarget target = cache.bodyTargets.get(bodyKey);
+        CachedBodyStreamingTarget target = cache.bodyTargets.get(bodyUuid);
         if (target == null) {
-            cache.bodyTargets.put(bodyKey, new CachedBodyStreamingTarget(bounds,
+            cache.bodyTargets.put(bodyUuid, new CachedBodyStreamingTarget(bounds,
                 sleeping,
                 currentTick,
                 currentTick));
@@ -190,7 +190,7 @@ public final class WorldVoxelCollisionCache {
 
         long maxAge = Math.max(1L, ttlTicks) * 2L;
         int removed = 0;
-        Iterator<Object2ObjectMap.Entry<RigidBodyKey, CachedBodyStreamingTarget>> iterator =
+        Iterator<Object2ObjectMap.Entry<UUID, CachedBodyStreamingTarget>> iterator =
             cache.bodyTargets.object2ObjectEntrySet().iterator();
         while (iterator.hasNext()) {
             CachedBodyStreamingTarget target = iterator.next().getValue();
@@ -1214,7 +1214,7 @@ public final class WorldVoxelCollisionCache {
     private static final class SpaceCollisionCache {
 
         private final Long2ObjectMap<CachedSection> sections = new Long2ObjectOpenHashMap<>();
-        private final Object2ObjectMap<RigidBodyKey, CachedBodyStreamingTarget> bodyTargets =
+        private final Object2ObjectMap<UUID, CachedBodyStreamingTarget> bodyTargets =
             new Object2ObjectOpenHashMap<>();
         private final Long2LongMap missingBlockChunkBackoffs = new Long2LongOpenHashMap();
         private final Long2LongMap missingBlockSectionBackoffs = new Long2LongOpenHashMap();
@@ -1226,7 +1226,7 @@ public final class WorldVoxelCollisionCache {
             for (Long2ObjectMap.Entry<CachedSection> entry : other.sections.long2ObjectEntrySet()) {
                 sections.put(entry.getLongKey(), new CachedSection(entry.getValue()));
             }
-            for (Object2ObjectMap.Entry<RigidBodyKey, CachedBodyStreamingTarget> entry
+            for (Object2ObjectMap.Entry<UUID, CachedBodyStreamingTarget> entry
                 : other.bodyTargets.object2ObjectEntrySet()) {
                 bodyTargets.put(entry.getKey(), new CachedBodyStreamingTarget(entry.getValue()));
             }
