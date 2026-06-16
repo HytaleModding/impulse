@@ -5,7 +5,6 @@ import com.hypixel.hytale.component.Ref;
 import com.hypixel.hytale.component.RemoveReason;
 import com.hypixel.hytale.component.Store;
 import com.hypixel.hytale.server.core.universe.world.storage.PhysicsStore;
-import dev.hytalemodding.impulse.api.SpaceId;
 import dev.hytalemodding.impulse.api.runtime.PhysicsBackendRuntime;
 import dev.hytalemodding.impulse.core.internal.physicsstore.resources.PhysicsBodyRegistrationResource;
 import dev.hytalemodding.impulse.core.internal.physicsstore.resources.PhysicsEventResource;
@@ -73,12 +72,6 @@ public final class PhysicsStoreTopologyMutations {
         return new PhysicsRuntimeResetResult(removed.bodyCount(),
             removed.jointCount(),
             keptSpaces);
-    }
-
-    public static void removeSpaceWithContents(@Nonnull Store<PhysicsStore> store,
-        @Nonnull SpaceId spaceId) {
-        UUID spaceUuid = PhysicsStoreSpaceMutations.requireSpaceUuid(store, spaceId);
-        removeSpaceWithContents(store, spaceUuid);
     }
 
     public static void removeSpaceWithContents(@Nonnull Store<PhysicsStore> store,
