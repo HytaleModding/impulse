@@ -236,7 +236,7 @@ public final class ExamplePhysicsUtils {
         float mass,
         @Nonnull RigidBodySpawnSettings settings,
         @Nullable Vector3f linearVelocity) {
-        PendingBlockBody physicsStoreBody = tryRecordPhysicsStoreBlockBody(store,
+        PendingBlockBody physicsStoreBody = tryCreatePhysicsStoreBlockBody(store,
             spaceId,
             visualPosition,
             blockType,
@@ -253,7 +253,7 @@ public final class ExamplePhysicsUtils {
     }
 
     @Nullable
-    private static PendingBlockBody tryRecordPhysicsStoreBlockBody(@Nonnull Store<EntityStore> store,
+    private static PendingBlockBody tryCreatePhysicsStoreBlockBody(@Nonnull Store<EntityStore> store,
         @Nonnull SpaceId spaceId,
         @Nonnull Vector3d visualPosition,
         @Nullable String blockType,
