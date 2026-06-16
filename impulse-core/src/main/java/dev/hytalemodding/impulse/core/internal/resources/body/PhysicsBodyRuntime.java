@@ -15,6 +15,7 @@ import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyKind;
 import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyPersistenceMode;
 import dev.hytalemodding.impulse.core.plugin.body.RigidBodyKey;
 import java.util.ArrayList;
+import java.util.UUID;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
@@ -74,6 +75,10 @@ public final class PhysicsBodyRuntime {
 
     public boolean isBodyCreationPending(@Nonnull RigidBodyKey bodyKey) {
         return creationTracker.isPending(bodyKey);
+    }
+
+    public boolean isBodyCreationPending(@Nonnull UUID bodyUuid) {
+        return creationTracker.isPending(bodyUuid);
     }
 
     @Nonnull

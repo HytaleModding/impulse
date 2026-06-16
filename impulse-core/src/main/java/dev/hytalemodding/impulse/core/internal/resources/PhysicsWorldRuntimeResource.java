@@ -2024,7 +2024,7 @@ public class PhysicsWorldRuntimeResource extends PhysicsWorldResource {
     }
 
     public boolean isBodyCreationPending(@Nonnull UUID bodyUuid) {
-        return isBodyCreationPending(RigidBodyKey.of(bodyUuid));
+        return bodyRuntime.isBodyCreationPending(bodyUuid);
     }
 
     public boolean hasPublishedOrPendingBodyRegistration(@Nonnull RigidBodyKey bodyKey) {
