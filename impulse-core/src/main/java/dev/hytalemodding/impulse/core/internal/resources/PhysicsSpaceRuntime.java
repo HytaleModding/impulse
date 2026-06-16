@@ -100,11 +100,6 @@ public final class PhysicsSpaceRuntime {
     }
 
     @Nonnull
-    public synchronized Iterable<PhysicsSpaceBinding> iterateBindings() {
-        return new ArrayList<>(spaces.values());
-    }
-
-    @Nonnull
     public synchronized List<SpaceId> getSpaceIds() {
         List<SpaceId> ids = new ArrayList<>(spaces.size());
         for (PhysicsSpaceBinding binding : spaces.values()) {

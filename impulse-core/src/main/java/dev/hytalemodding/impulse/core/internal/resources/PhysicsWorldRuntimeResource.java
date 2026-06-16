@@ -38,7 +38,6 @@ import dev.hytalemodding.impulse.core.internal.resources.body.PhysicsBodySnapsho
 import dev.hytalemodding.impulse.core.internal.resources.body.PhysicsBodySnapshotRefVisitor;
 import dev.hytalemodding.impulse.core.internal.resources.body.PhysicsBodySnapshotVisitor;
 import dev.hytalemodding.impulse.core.internal.modules.worldcollision.PhysicsStoreWorldCollisionStreamingResource;
-import dev.hytalemodding.impulse.core.internal.resources.joint.PhysicsJointRegistration;
 import dev.hytalemodding.impulse.core.internal.resources.joint.PhysicsJointRegistry;
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsVisualRuntime.BodyVisualInterestState;
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsVisualRuntime.VisualInterest;
@@ -576,11 +575,6 @@ public class PhysicsWorldRuntimeResource extends PhysicsWorldResource {
     }
 
     @Nonnull
-    public Collection<PhysicsSpaceBinding> getSpaceBindings() {
-        return spaceRuntime.getBindings();
-    }
-
-    @Nonnull
     @Override
     public Collection<SpaceId> getSpaceIds() {
         if (isAuthoritativePhysicsStoreActive()) {
@@ -599,15 +593,6 @@ public class PhysicsWorldRuntimeResource extends PhysicsWorldResource {
                 .size();
         }
         return spaceRuntime.getSpaceCount();
-    }
-
-    /**
-     * Iterate spaces without allocating a snapshot collection.
-     * Use this from tick systems that do not mutate the space map while iterating.
-     */
-    @Nonnull
-    public Iterable<PhysicsSpaceBinding> iterateSpaceBindings() {
-        return spaceRuntime.iterateBindings();
     }
 
     @Override
@@ -1834,18 +1819,6 @@ public class PhysicsWorldRuntimeResource extends PhysicsWorldResource {
     }
 
     @Nonnull
-    public Collection<PhysicsJointRegistration> getJointRegistrations() {
-        assertCanAccessLiveBackendDirectly("list physics joint registrations");
-        return jointRegistry.getRegistrations();
-    }
-
-    @Nonnull
-    public Collection<PhysicsBodyRegistration> getBodyRegistrations() {
-        assertCanAccessLiveBackendDirectly("list physics body registrations");
-        return bodyRegistry.getRegistrations();
-    }
-
-    @Nonnull
     @Override
     public Collection<PhysicsBodyRegistrationView> getBodyRegistrationViews() {
         if (hasAttachedAuthoritativePhysicsStore()) {
@@ -1874,12 +1847,6 @@ public class PhysicsWorldRuntimeResource extends PhysicsWorldResource {
                 .getBodyRegistrationCount(persistenceMode);
         }
         return bodyRegistry.getPublishedRegistrationCount(persistenceMode);
-    }
-
-    @Nonnull
-    public Collection<PhysicsBodyRegistration> getBodyRegistrations(@Nonnull PhysicsBodyKind kind) {
-        assertCanAccessLiveBackendDirectly("list physics body registrations");
-        return bodyRegistry.getRegistrations(kind);
     }
 
     @Nonnull
