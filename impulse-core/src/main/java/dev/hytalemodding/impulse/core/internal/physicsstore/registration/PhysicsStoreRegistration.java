@@ -1,6 +1,8 @@
 package dev.hytalemodding.impulse.core.internal.physicsstore.registration;
 
 import com.hypixel.hytale.component.ComponentRegistryProxy;
+import com.hypixel.hytale.component.Resource;
+import com.hypixel.hytale.component.ResourceType;
 import com.hypixel.hytale.component.Store;
 import com.hypixel.hytale.server.core.plugin.PluginBase;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
@@ -230,31 +232,74 @@ public final class PhysicsStoreRegistration {
         }
         RuntimeException failure = null;
         failure = runShutdownCleanup(failure,
-            () -> store.getResource(PhysicsTerrainMutationQueueResource.getResourceType()).clear());
+            () -> ensurePersistentResourcePresent(store));
         failure = runShutdownCleanup(failure,
-            () -> store.getResource(PhysicsStepSchedulerResource.getResourceType()).close());
+            () -> cleanupResource(store,
+                PhysicsTerrainMutationQueueResource.getResourceType(),
+                PhysicsTerrainMutationQueueResource::clear));
         failure = runShutdownCleanup(failure,
-            () -> store.getResource(PhysicsRuntimeResource.getResourceType()).destroyBackendBindings());
+            () -> cleanupResource(store,
+                PhysicsStepSchedulerResource.getResourceType(),
+                PhysicsStepSchedulerResource::close));
         failure = runShutdownCleanup(failure,
-            () -> store.getResource(PhysicsIdentityIndexResource.getResourceType()).clear());
+            () -> cleanupResource(store,
+                PhysicsRuntimeResource.getResourceType(),
+                PhysicsRuntimeResource::destroyBackendBindings));
         failure = runShutdownCleanup(failure,
-            () -> store.getResource(PhysicsSpaceCompatibilityIndexResource.getResourceType()).clear());
+            () -> cleanupResource(store,
+                PhysicsIdentityIndexResource.getResourceType(),
+                PhysicsIdentityIndexResource::clear));
         failure = runShutdownCleanup(failure,
-            () -> store.getResource(PhysicsSnapshotResource.getResourceType()).clear());
+            () -> cleanupResource(store,
+                PhysicsSpaceCompatibilityIndexResource.getResourceType(),
+                PhysicsSpaceCompatibilityIndexResource::clear));
         failure = runShutdownCleanup(failure,
-            () -> store.getResource(PhysicsBodyRegistrationResource.getResourceType()).clear());
+            () -> cleanupResource(store,
+                PhysicsSnapshotResource.getResourceType(),
+                PhysicsSnapshotResource::clear));
         failure = runShutdownCleanup(failure,
-            () -> store.getResource(PhysicsEventResource.getResourceType()).clear());
+            () -> cleanupResource(store,
+                PhysicsBodyRegistrationResource.getResourceType(),
+                PhysicsBodyRegistrationResource::clear));
         failure = runShutdownCleanup(failure,
-            () -> store.getResource(PhysicsProfilingResource.getResourceType()).reset());
+            () -> cleanupResource(store,
+                PhysicsEventResource.getResourceType(),
+                PhysicsEventResource::clear));
         failure = runShutdownCleanup(failure,
-            () -> store.getResource(PhysicsStoreReadQueueResource.getResourceType()).clear());
+            () -> cleanupResource(store,
+                PhysicsProfilingResource.getResourceType(),
+                PhysicsProfilingResource::reset));
         failure = runShutdownCleanup(failure,
-            () -> store.getResource(PhysicsTerrainPayloadResource.getResourceType()).clear());
+            () -> cleanupResource(store,
+                PhysicsStoreReadQueueResource.getResourceType(),
+                PhysicsStoreReadQueueResource::clear));
         failure = runShutdownCleanup(failure,
-            () -> store.getResource(PhysicsWorldCollisionIndexResource.getResourceType()).clear());
+            () -> cleanupResource(store,
+                PhysicsTerrainPayloadResource.getResourceType(),
+                PhysicsTerrainPayloadResource::clear));
+        failure = runShutdownCleanup(failure,
+            () -> cleanupResource(store,
+                PhysicsWorldCollisionIndexResource.getResourceType(),
+                PhysicsWorldCollisionIndexResource::clear));
         if (failure != null) {
             throw failure;
+        }
+    }
+
+    private static void ensurePersistentResourcePresent(@Nonnull Store<PhysicsStore> store) {
+        if (store.getResource(PersistentPhysicsStoreResource.getResourceType()) == null) {
+            store.replaceResource(PersistentPhysicsStoreResource.getResourceType(),
+                new PersistentPhysicsStoreResource());
+        }
+    }
+
+    private static <T extends Resource<PhysicsStore>> void cleanupResource(
+        @Nonnull Store<PhysicsStore> store,
+        @Nonnull ResourceType<PhysicsStore, T> type,
+        @Nonnull Consumer<T> cleanup) {
+        T resource = store.getResource(type);
+        if (resource != null) {
+            cleanup.accept(resource);
         }
     }
 
