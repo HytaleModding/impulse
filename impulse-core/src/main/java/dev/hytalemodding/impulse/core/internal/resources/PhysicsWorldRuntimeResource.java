@@ -1705,21 +1705,6 @@ public class PhysicsWorldRuntimeResource extends PhysicsWorldResource {
     @Nonnull
     @Override
     public PhysicsMutationHandle<UUID> destroyBodyAsync(@Nonnull UUID bodyUuid) {
-        return destroyBodyAsync(bodyUuid, true);
-    }
-
-    public void destroyBody(@Nonnull UUID bodyUuid, boolean removeFromSpace) {
-        if (isAuthoritativePhysicsStoreActive()) {
-            destroyBody(bodyUuid);
-            return;
-        }
-        requireLegacyMutationAllowed("destroy physics body");
-        runDirectRuntimeMutation("destroy physics body", () -> destroyBodyDirect(bodyUuid, removeFromSpace));
-    }
-
-    @Nonnull
-    public PhysicsMutationHandle<UUID> destroyBodyAsync(@Nonnull UUID bodyUuid,
-        boolean removeFromSpace) {
         UUID checkedBodyUuid = Objects.requireNonNull(bodyUuid, "bodyUuid");
         if (isAuthoritativePhysicsStoreActive()) {
             return enqueueAuthoritativePhysicsStoreMutation("destroy physics body",
@@ -1729,7 +1714,12 @@ public class PhysicsWorldRuntimeResource extends PhysicsWorldResource {
         requireLegacyMutationAllowed("destroy physics body");
         return enqueueDirectRuntimeMutation("destroy physics body",
             checkedBodyUuid,
-            () -> destroyBodyDirect(checkedBodyUuid, removeFromSpace));
+            () -> destroyBodyDirect(checkedBodyUuid, true));
+    }
+
+    private void destroyBody(@Nonnull UUID bodyUuid, boolean removeFromSpace) {
+        requireLegacyMutationAllowed("destroy physics body");
+        runDirectRuntimeMutation("destroy physics body", () -> destroyBodyDirect(bodyUuid, removeFromSpace));
     }
 
     private void destroyBodyDirect(@Nonnull UUID bodyUuid, boolean removeFromSpace) {
@@ -2027,49 +2017,8 @@ public class PhysicsWorldRuntimeResource extends PhysicsWorldResource {
         return controlRuntime.isBodyControlled(bodyRef);
     }
 
-    @Nullable
-    private Ref<PhysicsStore> resolvePhysicsStoreBodyRef(@Nonnull UUID bodyUuid,
-        @Nonnull String operation) {
-        if (!hasAttachedAuthoritativePhysicsStore()) {
-            return null;
-        }
-        World world = requireAuthoritativeWorld(operation);
-        if (!world.isInThread()) {
-            return null;
-        }
-        Ref<PhysicsStore> ref = physicsStore(world)
-            .getResource(PhysicsIdentityIndexResource.getResourceType())
-            .getByUuid(bodyUuid);
-        return ref != null && ref.isValid() ? ref : null;
-    }
-
     public void disableControlLifecycle() {
         controlRuntime.clear();
-    }
-
-    public void clearBodyRuntimeState(@Nonnull UUID bodyUuid) {
-        requireLegacyMutationAllowed("clear physics body runtime state");
-        runDirectRuntimeMutation("clear physics body runtime state", () -> clearBodyRuntimeStateDirect(bodyUuid));
-    }
-
-    @Nonnull
-    public PhysicsMutationHandle<UUID> clearBodyRuntimeStateAsync(
-        @Nonnull UUID bodyUuid) {
-        UUID checkedBodyUuid = Objects.requireNonNull(bodyUuid, "bodyUuid");
-        requireLegacyMutationAllowed("clear physics body runtime state");
-        return enqueueDirectRuntimeMutation("clear physics body runtime state",
-            checkedBodyUuid,
-            () -> clearBodyRuntimeStateDirect(checkedBodyUuid));
-    }
-
-    private void clearBodyRuntimeStateDirect(@Nonnull UUID bodyUuid) {
-        Ref<PhysicsStore> bodyRef = resolvePhysicsStoreBodyRef(bodyUuid,
-            "resolve cleared body runtime key");
-        if (bodyRef != null) {
-            controlRuntime.clearBody(bodyRef);
-        }
-        bodyRuntime.clearBodyRuntimeState(bodyUuid);
-        visualRuntime.clearBodyRuntimeState(bodyUuid, bodyRef);
     }
 
     public void copyFrom(@Nonnull PhysicsWorldResource other) {
