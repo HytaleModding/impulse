@@ -19,16 +19,4 @@ public record PhysicsBodyRegistrationView(@Nonnull UUID bodyUuid,
         Objects.requireNonNull(kind, "kind");
         Objects.requireNonNull(persistenceMode, "persistenceMode");
     }
-
-    public PhysicsBodyRegistrationView(@Nonnull RigidBodyKey bodyKey,
-        @Nonnull SpaceId spaceId,
-        @Nonnull PhysicsBodyKind kind,
-        @Nonnull PhysicsBodyPersistenceMode persistenceMode) {
-        this(Objects.requireNonNull(bodyKey, "bodyKey").value(), spaceId, kind, persistenceMode);
-    }
-
-    @Nonnull
-    public RigidBodyKey bodyKey() {
-        return RigidBodyKey.of(bodyUuid);
-    }
 }

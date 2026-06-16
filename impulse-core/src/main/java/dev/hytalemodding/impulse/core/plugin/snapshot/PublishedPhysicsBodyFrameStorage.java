@@ -7,7 +7,6 @@ import dev.hytalemodding.impulse.api.ShapeType;
 import dev.hytalemodding.impulse.api.SpaceId;
 import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyKind;
 import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyPersistenceMode;
-import dev.hytalemodding.impulse.core.plugin.body.RigidBodyKey;
 import java.util.Objects;
 import java.util.UUID;
 import java.util.function.Consumer;
@@ -433,24 +432,6 @@ final class PublishedPhysicsBodyFrameStorage {
             nextSpace++;
         }
 
-        void addBody(@Nonnull RigidBodyKey bodyKey,
-            @Nonnull SpaceId spaceId,
-            long spaceEpoch,
-            long registrationGeneration,
-            @Nonnull PhysicsBodyKind kind,
-            @Nonnull PhysicsBodyPersistenceMode persistenceMode,
-            @Nonnull PhysicsBodySnapshot snapshot) {
-            Objects.requireNonNull(bodyKey, "bodyKey");
-            addBody(bodyKey.mostSignificantBits(),
-                bodyKey.leastSignificantBits(),
-                spaceId,
-                spaceEpoch,
-                registrationGeneration,
-                kind,
-                persistenceMode,
-                snapshot);
-        }
-
         void addBody(@Nonnull UUID bodyUuid,
             @Nonnull SpaceId spaceId,
             long spaceEpoch,
@@ -593,13 +574,6 @@ final class PublishedPhysicsBodyFrameStorage {
         @Override
         public UUID bodyUuid() {
             return PublishedPhysicsBodyFrameStorage.this.bodyUuid(index);
-        }
-
-        @Nonnull
-        @Override
-        public RigidBodyKey bodyKey() {
-            return RigidBodyKey.of(bodyUuidMostSignificantBits(index),
-                bodyUuidLeastSignificantBits(index));
         }
 
         @Nonnull

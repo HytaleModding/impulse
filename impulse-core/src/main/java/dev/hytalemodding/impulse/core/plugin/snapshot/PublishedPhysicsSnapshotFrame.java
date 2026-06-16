@@ -4,7 +4,6 @@ import dev.hytalemodding.impulse.api.PhysicsBodySnapshot;
 import dev.hytalemodding.impulse.api.SpaceId;
 import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyKind;
 import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyPersistenceMode;
-import dev.hytalemodding.impulse.core.plugin.body.RigidBodyKey;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
@@ -444,24 +443,6 @@ public final class PublishedPhysicsSnapshotFrame {
         @Nonnull
         public Builder addSpace(@Nonnull SpaceId spaceId, long spaceEpoch, int bodyCount) {
             bodyStorage.addSpace(spaceId, spaceEpoch, bodyCount);
-            return this;
-        }
-
-        @Nonnull
-        public Builder addBody(@Nonnull RigidBodyKey bodyKey,
-            @Nonnull SpaceId spaceId,
-            long spaceEpoch,
-            long registrationGeneration,
-            @Nonnull PhysicsBodyKind kind,
-            @Nonnull PhysicsBodyPersistenceMode persistenceMode,
-            @Nonnull PhysicsBodySnapshot snapshot) {
-            bodyStorage.addBody(bodyKey,
-                spaceId,
-                spaceEpoch,
-                registrationGeneration,
-                kind,
-                persistenceMode,
-                snapshot);
             return this;
         }
 

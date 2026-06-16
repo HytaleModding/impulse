@@ -5,7 +5,6 @@ import dev.hytalemodding.impulse.api.PhysicsBodyType;
 import dev.hytalemodding.impulse.api.PhysicsAxis;
 import dev.hytalemodding.impulse.api.ShapeType;
 import dev.hytalemodding.impulse.api.SpaceId;
-import dev.hytalemodding.impulse.core.plugin.body.RigidBodyKey;
 import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyKind;
 import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyPersistenceMode;
 import java.util.Objects;
@@ -71,51 +70,6 @@ public final class PublishedPhysicsBodySnapshot implements PublishedPhysicsBodyS
     private final float halfHeight;
     @Nonnull
     private final PhysicsAxis shapeAxis;
-
-    public PublishedPhysicsBodySnapshot(@Nonnull RigidBodyKey bodyKey,
-        @Nonnull SpaceId spaceId,
-        long frameEpoch,
-        long worldEpoch,
-        long spaceEpoch,
-        long registrationGeneration,
-        @Nonnull PhysicsBodyKind kind,
-        @Nonnull PhysicsBodyPersistenceMode persistenceMode,
-        @Nonnull Vector3f position,
-        @Nonnull Quaternionf rotation,
-        @Nonnull Vector3f linearVelocity,
-        @Nonnull Vector3f angularVelocity,
-        @Nonnull PhysicsBodyType bodyType,
-        boolean sleeping,
-        boolean sensor,
-        float centerOfMassOffsetY,
-        @Nonnull ShapeType shapeType,
-        @Nullable Vector3f boxHalfExtents,
-        float sphereRadius,
-        float halfHeight,
-        @Nonnull PhysicsAxis shapeAxis) {
-        this(bodyKeyMostSignificantBits(bodyKey),
-            bodyKeyLeastSignificantBits(bodyKey),
-            spaceId,
-            frameEpoch,
-            worldEpoch,
-            spaceEpoch,
-            registrationGeneration,
-            kind,
-            persistenceMode,
-            position,
-            rotation,
-            linearVelocity,
-            angularVelocity,
-            bodyType,
-            sleeping,
-            sensor,
-            centerOfMassOffsetY,
-            shapeType,
-            boxHalfExtents,
-            sphereRadius,
-            halfHeight,
-            shapeAxis);
-    }
 
     public PublishedPhysicsBodySnapshot(@Nonnull UUID bodyUuid,
         @Nonnull SpaceId spaceId,
@@ -244,28 +198,6 @@ public final class PublishedPhysicsBodySnapshot implements PublishedPhysicsBodyS
     }
 
     @Nonnull
-    public static PublishedPhysicsBodySnapshot from(@Nonnull RigidBodyKey bodyKey,
-        @Nonnull SpaceId spaceId,
-        long frameEpoch,
-        long worldEpoch,
-        long spaceEpoch,
-        long registrationGeneration,
-        @Nonnull PhysicsBodyKind kind,
-        @Nonnull PhysicsBodyPersistenceMode persistenceMode,
-        @Nonnull PhysicsBodySnapshot snapshot) {
-        return fromBits(bodyKeyMostSignificantBits(bodyKey),
-            bodyKeyLeastSignificantBits(bodyKey),
-            spaceId,
-            frameEpoch,
-            worldEpoch,
-            spaceEpoch,
-            registrationGeneration,
-            kind,
-            persistenceMode,
-            snapshot);
-    }
-
-    @Nonnull
     public static PublishedPhysicsBodySnapshot from(@Nonnull UUID bodyUuid,
         @Nonnull SpaceId spaceId,
         long frameEpoch,
@@ -340,14 +272,6 @@ public final class PublishedPhysicsBodySnapshot implements PublishedPhysicsBodyS
             snapshot.sphereRadius(),
             snapshot.halfHeight(),
             snapshot.shapeAxis());
-    }
-
-    private static long bodyKeyMostSignificantBits(@Nonnull RigidBodyKey bodyKey) {
-        return Objects.requireNonNull(bodyKey, "bodyKey").mostSignificantBits();
-    }
-
-    private static long bodyKeyLeastSignificantBits(@Nonnull RigidBodyKey bodyKey) {
-        return Objects.requireNonNull(bodyKey, "bodyKey").leastSignificantBits();
     }
 
     private static long uuidMostSignificantBits(@Nonnull UUID bodyUuid) {
@@ -537,12 +461,6 @@ public final class PublishedPhysicsBodySnapshot implements PublishedPhysicsBodyS
     @Override
     public UUID bodyUuid() {
         return new UUID(bodyUuidMostSignificantBits, bodyUuidLeastSignificantBits);
-    }
-
-    @Nonnull
-    @Override
-    public RigidBodyKey bodyKey() {
-        return RigidBodyKey.of(bodyUuidMostSignificantBits, bodyUuidLeastSignificantBits);
     }
 
     @Nonnull

@@ -7,7 +7,6 @@ import dev.hytalemodding.impulse.api.ShapeType;
 import dev.hytalemodding.impulse.api.SpaceId;
 import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyKind;
 import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyPersistenceMode;
-import dev.hytalemodding.impulse.core.plugin.body.RigidBodyKey;
 import java.util.UUID;
 import javax.annotation.Nonnull;
 import org.joml.Quaternionf;
@@ -24,11 +23,6 @@ public interface PublishedPhysicsBodySnapshotCursor {
 
     @Nonnull
     UUID bodyUuid();
-
-    @Nonnull
-    default RigidBodyKey bodyKey() {
-        return RigidBodyKey.of(bodyUuid());
-    }
 
     @Nonnull
     SpaceId spaceId();
