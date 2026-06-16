@@ -221,11 +221,13 @@ public class PhysicsDebugSystem extends TickingSystem<EntityStore> {
         }
         double maxDistanceSquared = viewRadius * viewRadius;
         for (PhysicsBodyRegistrationView registration : resource.getBodyRegistrationViews(PhysicsBodyKind.BODY)) {
-            if (!resource.hasBodyAttachments(registration.bodyKey())) {
+            Collection<Ref<EntityStore>> attachments = resource.getBodyAttachments(registration.bodyUuid(),
+                null);
+            if (attachments.isEmpty()) {
                 continue;
             }
 
-            for (Ref<EntityStore> attachmentRef : resource.getBodyAttachments(registration.bodyKey())) {
+            for (Ref<EntityStore> attachmentRef : attachments) {
                 if (!attachmentRef.isValid()) {
                     continue;
                 }
@@ -238,7 +240,8 @@ public class PhysicsDebugSystem extends TickingSystem<EntityStore> {
                     continue;
                 }
 
-                PhysicsBodySnapshot snapshot = resource.getBodySnapshotIfRegistered(registration.bodyKey());
+                PhysicsBodySnapshot snapshot = resource.getBodySnapshotIfRegistered(registration.bodyUuid(),
+                    null);
                 if (snapshot == null) {
                     continue;
                 }
