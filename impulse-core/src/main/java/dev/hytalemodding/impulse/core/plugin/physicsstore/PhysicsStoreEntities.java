@@ -35,18 +35,18 @@ public final class PhysicsStoreEntities {
     }
 
     @Nonnull
-    public static Holder<PhysicsStore> rowHolder(@Nonnull Store<PhysicsStore> store,
-        @Nonnull UUID rowUuid) {
+    public static Holder<PhysicsStore> entityHolder(@Nonnull Store<PhysicsStore> store,
+        @Nonnull UUID entityUuid) {
         Holder<PhysicsStore> holder = store.getRegistry().newHolder();
-        addUuid(holder, rowUuid);
+        addUuid(holder, entityUuid);
         return holder;
     }
 
     public static void addUuid(@Nonnull Holder<PhysicsStore> holder,
-        @Nonnull UUID rowUuid) {
+        @Nonnull UUID entityUuid) {
         Objects.requireNonNull(holder, "holder")
             .addComponent(UuidComponent.getComponentType(),
-                new UuidComponent(Objects.requireNonNull(rowUuid, "rowUuid")));
+                new UuidComponent(Objects.requireNonNull(entityUuid, "entityUuid")));
     }
 
     @Nonnull
@@ -59,7 +59,7 @@ public final class PhysicsStoreEntities {
         @Nonnull VisualMaterializationSettingsComponent visualMaterializationSettings,
         @Nonnull CollisionLodSettingsComponent collisionLodSettings,
         @Nonnull ExtensionSettingsComponent extensionSettings) {
-        Holder<PhysicsStore> holder = rowHolder(store, spaceUuid);
+        Holder<PhysicsStore> holder = entityHolder(store, spaceUuid);
         addSpaceComponents(holder,
             space,
             worldCollision,
@@ -81,7 +81,7 @@ public final class PhysicsStoreEntities {
         @Nonnull ShapeComponent shape,
         @Nonnull MaterialComponent material,
         @Nonnull CollisionFilterComponent filter) {
-        Holder<PhysicsStore> holder = rowHolder(store, bodyUuid);
+        Holder<PhysicsStore> holder = entityHolder(store, bodyUuid);
         addBodyComponents(holder, body, dynamics, target, collider, shape, material, filter);
         return holder;
     }
@@ -90,7 +90,7 @@ public final class PhysicsStoreEntities {
     public static Holder<PhysicsStore> jointHolder(@Nonnull Store<PhysicsStore> store,
         @Nonnull UUID jointUuid,
         @Nonnull JointComponent joint) {
-        Holder<PhysicsStore> holder = rowHolder(store, jointUuid);
+        Holder<PhysicsStore> holder = entityHolder(store, jointUuid);
         holder.addComponent(JointComponent.getComponentType(),
             Objects.requireNonNull(joint, "joint").clone());
         return holder;
@@ -100,7 +100,7 @@ public final class PhysicsStoreEntities {
     public static Holder<PhysicsStore> terrainColliderHolder(@Nonnull Store<PhysicsStore> store,
         @Nonnull UUID terrainColliderUuid,
         @Nonnull TerrainColliderComponent terrainCollider) {
-        Holder<PhysicsStore> holder = rowHolder(store, terrainColliderUuid);
+        Holder<PhysicsStore> holder = entityHolder(store, terrainColliderUuid);
         holder.addComponent(TerrainColliderComponent.getComponentType(),
             Objects.requireNonNull(terrainCollider, "terrainCollider").clone());
         return holder;
