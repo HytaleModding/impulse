@@ -88,6 +88,13 @@ public class GrabCommand extends AbstractAsyncPlayerCommand {
         if (targetSpaceId == null) {
             return CompletableFuture.completedFuture(null);
         }
+        Ref<PhysicsStore> targetSpaceRef = ExamplePhysicsUtils.resolvePhysicsStoreSpaceRef(world,
+            targetSpaceId);
+        if (targetSpaceRef == null) {
+            ctx.sender().sendMessage(Message.raw("PhysicsStore space id=" + targetSpaceId.value()
+                + " is not bound yet."));
+            return CompletableFuture.completedFuture(null);
+        }
         PhysicsWorldResource resource = store.getResource(PhysicsWorldResource.getResourceType());
 
         Transform look = TargetUtil.getLook(ref, store);
@@ -97,7 +104,7 @@ public class GrabCommand extends AbstractAsyncPlayerCommand {
 
         return PhysicsStoreAsync.acceptOnWorldThread(world,
             PhysicsStoreRaycasts.allAsync(world,
-                targetSpaceId,
+                targetSpaceRef,
                 ExamplePhysicsUtils.toVector3f(start),
                 ExamplePhysicsUtils.toVector3f(end)),
             hits -> finishGrab(ctx,

@@ -15,6 +15,7 @@ import dev.hytalemodding.impulse.core.internal.physicsstore.resources.PhysicsSpa
 import dev.hytalemodding.impulse.core.internal.resources.BackendSpaceHandle;
 import dev.hytalemodding.impulse.core.plugin.simulation.SpaceSummary;
 import dev.hytalemodding.impulse.core.plugin.simulation.view.RaycastHitView;
+import java.util.Objects;
 import java.util.UUID;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
@@ -40,6 +41,18 @@ final class PhysicsStoreBackendAccess {
         Ref<PhysicsStore> spaceRef = store.getResource(PhysicsIdentityIndexResource.getResourceType())
             .getByUuid(spaceUuid);
         return spaceRef != null && spaceRef.isValid() ? space(runtime, spaceRef) : null;
+    }
+
+    @Nullable
+    static SpaceContext space(@Nonnull Store<PhysicsStore> store,
+        @Nonnull Ref<PhysicsStore> spaceRef) {
+        PhysicsStoreThreading.requireWorldThread(store, "read live PhysicsStore backend state");
+        Objects.requireNonNull(spaceRef, "spaceRef");
+        if (spaceRef.getStore() != store || !spaceRef.isValid()) {
+            return null;
+        }
+        PhysicsRuntimeResource runtime = store.getResource(PhysicsRuntimeResource.getResourceType());
+        return space(runtime, spaceRef);
     }
 
     @Nullable

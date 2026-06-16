@@ -10,6 +10,7 @@ import com.hypixel.hytale.server.core.command.system.basecommands.AbstractAsyncP
 import com.hypixel.hytale.server.core.universe.PlayerRef;
 import com.hypixel.hytale.server.core.universe.world.World;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
+import com.hypixel.hytale.server.core.universe.world.storage.PhysicsStore;
 import dev.hytalemodding.impulse.api.SpaceId;
 import dev.hytalemodding.impulse.core.plugin.physicsstore.PhysicsStoreAsync;
 import dev.hytalemodding.impulse.core.plugin.physicsstore.PhysicsStoreRaycasts;
@@ -56,13 +57,20 @@ public class StressRaycastCommand extends AbstractAsyncPlayerCommand {
         if (spaceId == null) {
             return CompletableFuture.completedFuture(null);
         }
+        Ref<PhysicsStore> spaceRef = ExamplePhysicsUtils.resolvePhysicsStoreSpaceRef(world,
+            spaceId);
+        if (spaceRef == null) {
+            ctx.sender().sendMessage(Message.raw("PhysicsStore space id=" + spaceId.value()
+                + " is not bound yet."));
+            return CompletableFuture.completedFuture(null);
+        }
 
         int side = (int) Math.ceil(Math.sqrt(rays));
         List<RaycastSegment> segments = getRaycastSegments(side, rays, playerPos);
 
         long startNanos = System.nanoTime();
         return PhysicsStoreAsync.acceptOnWorldThread(world,
-            PhysicsStoreRaycasts.closestBatchAsync(world, spaceId, segments),
+            PhysicsStoreRaycasts.closestBatchAsync(world, spaceRef, segments),
             result -> {
                 long elapsedNanos = System.nanoTime() - startNanos;
                 ctx.sender().sendMessage(Message.raw("Ran " + rays + " raycasts: "

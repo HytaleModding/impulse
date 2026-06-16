@@ -12,6 +12,7 @@ import com.hypixel.hytale.server.core.modules.debug.DebugUtils;
 import com.hypixel.hytale.server.core.universe.PlayerRef;
 import com.hypixel.hytale.server.core.universe.world.World;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
+import com.hypixel.hytale.server.core.universe.world.storage.PhysicsStore;
 import com.hypixel.hytale.server.core.util.TargetUtil;
 import dev.hytalemodding.impulse.api.SpaceId;
 import dev.hytalemodding.impulse.core.plugin.physicsstore.PhysicsStoreAsync;
@@ -44,6 +45,13 @@ public class RaycastCommand extends AbstractAsyncPlayerCommand {
         if (spaceId == null) {
             return CompletableFuture.completedFuture(null);
         }
+        Ref<PhysicsStore> spaceRef = ExamplePhysicsUtils.resolvePhysicsStoreSpaceRef(world,
+            spaceId);
+        if (spaceRef == null) {
+            ctx.sender().sendMessage(Message.raw("PhysicsStore space id=" + spaceId.value()
+                + " is not bound yet."));
+            return CompletableFuture.completedFuture(null);
+        }
 
         Transform look = TargetUtil.getLook(ref, store);
         Vector3d start = new Vector3d(look.getPosition());
@@ -54,7 +62,7 @@ public class RaycastCommand extends AbstractAsyncPlayerCommand {
             DebugUtils.FLAG_FADE);
         return PhysicsStoreAsync.acceptOnWorldThread(world,
             PhysicsStoreRaycasts.closestAsync(world,
-                spaceId,
+                spaceRef,
                 ExamplePhysicsUtils.toVector3f(start),
                 ExamplePhysicsUtils.toVector3f(end)),
             hit -> handleHit(ctx, world, hit.map(RaycastCommand::toResult).orElse(null)));
