@@ -80,7 +80,6 @@ import dev.hytalemodding.impulse.core.plugin.settings.PhysicsSpaceSettings;
 import dev.hytalemodding.impulse.core.plugin.settings.PhysicsStepMode;
 import dev.hytalemodding.impulse.core.plugin.settings.PhysicsWorldCollisionSettings;
 import dev.hytalemodding.impulse.core.plugin.settings.PhysicsWorldSettings;
-import dev.hytalemodding.impulse.core.plugin.simulation.JointType;
 import dev.hytalemodding.impulse.core.plugin.snapshot.PhysicsBodySnapshotEntry;
 import dev.hytalemodding.impulse.core.plugin.snapshot.PublishedPhysicsSnapshotFrame;
 import java.util.ArrayList;
@@ -1777,25 +1776,6 @@ public class PhysicsWorldRuntimeResource extends PhysicsWorldResource {
         spaceRuntime.validateStepModeSupported(stepMode);
     }
 
-    @Nonnull
-    public UUID addBodyOnOwner(@Nonnull UUID bodyUuid,
-        @Nonnull SpaceId spaceId,
-        @Nonnull BackendBodyHandle backendBodyHandle,
-        @Nonnull PhysicsBodyKind kind,
-        @Nonnull PhysicsBodyPersistenceMode persistenceMode) {
-        assertCanAccessLiveBackendDirectly("add physics body");
-        return addBodyDirect(bodyUuid, spaceId, backendBodyHandle, kind, persistenceMode);
-    }
-
-    @Nonnull
-    private UUID addBodyDirect(@Nonnull UUID bodyUuid,
-        @Nonnull SpaceId spaceId,
-        @Nonnull BackendBodyHandle backendBodyHandle,
-        @Nonnull PhysicsBodyKind kind,
-        @Nonnull PhysicsBodyPersistenceMode persistenceMode) {
-        return bodyRuntime.addBody(bodyUuid, spaceId, backendBodyHandle, kind, persistenceMode);
-    }
-
     @Override
     public void destroyBody(@Nonnull UUID bodyUuid) {
         if (isAuthoritativePhysicsStoreActive()) {
@@ -1880,110 +1860,6 @@ public class PhysicsWorldRuntimeResource extends PhysicsWorldResource {
                 .getBodyRegistrationView(bodyRef);
         }
         return null;
-    }
-
-    @Nonnull
-    public UUID addJointOnOwner(@Nonnull UUID jointUuid,
-        @Nonnull SpaceId spaceId,
-        @Nonnull BackendJointHandle backendJointHandle,
-        @Nonnull UUID bodyAUuid,
-        @Nonnull UUID bodyBUuid,
-        @Nonnull JointType type,
-        float anchorAX,
-        float anchorAY,
-        float anchorAZ,
-        float anchorBX,
-        float anchorBY,
-        float anchorBZ,
-        float axisX,
-        float axisY,
-        float axisZ,
-        float restLength,
-        float stiffness,
-        float damping,
-        float lowerLimit,
-        float upperLimit,
-        boolean motorEnabled,
-        float motorTargetVelocity,
-        float motorMaxForce) {
-        assertCanAccessLiveBackendDirectly("add physics joint");
-        return addJointDirect(jointUuid,
-            spaceId,
-            backendJointHandle,
-            bodyAUuid,
-            bodyBUuid,
-            type,
-            anchorAX,
-            anchorAY,
-            anchorAZ,
-            anchorBX,
-            anchorBY,
-            anchorBZ,
-            axisX,
-            axisY,
-            axisZ,
-            restLength,
-            stiffness,
-            damping,
-            lowerLimit,
-            upperLimit,
-            motorEnabled,
-            motorTargetVelocity,
-            motorMaxForce);
-    }
-
-    @Nonnull
-    private UUID addJointDirect(@Nonnull UUID jointUuid,
-        @Nonnull SpaceId spaceId,
-        @Nonnull BackendJointHandle backendJointHandle,
-        @Nonnull UUID bodyAUuid,
-        @Nonnull UUID bodyBUuid,
-        @Nonnull JointType type,
-        float anchorAX,
-        float anchorAY,
-        float anchorAZ,
-        float anchorBX,
-        float anchorBY,
-        float anchorBZ,
-        float axisX,
-        float axisY,
-        float axisZ,
-        float restLength,
-        float stiffness,
-        float damping,
-        float lowerLimit,
-        float upperLimit,
-        boolean motorEnabled,
-        float motorTargetVelocity,
-        float motorMaxForce) {
-        if (spaceRuntime.getBinding(spaceId) == null) {
-            throw new IllegalArgumentException("Physics space id=" + spaceId + " is not registered");
-        }
-        jointRegistry.registerJoint(jointUuid,
-            spaceId,
-            backendJointHandle,
-            bodyAUuid,
-            bodyBUuid,
-            type,
-            anchorAX,
-            anchorAY,
-            anchorAZ,
-            anchorBX,
-            anchorBY,
-            anchorBZ,
-            axisX,
-            axisY,
-            axisZ,
-            restLength,
-            stiffness,
-            damping,
-            lowerLimit,
-            upperLimit,
-            motorEnabled,
-            motorTargetVelocity,
-            motorMaxForce);
-        markWorldChanged();
-        return jointUuid;
     }
 
     @Nullable
