@@ -2021,13 +2021,8 @@ public class PhysicsWorldRuntimeResource extends PhysicsWorldResource {
         controlRuntime.clear();
     }
 
-    public void copyFrom(@Nonnull PhysicsWorldResource other) {
+    private void copyFrom(@Nonnull PhysicsWorldResource other) {
         runDirectRuntimeMutation("copy physics world resource", () -> copyFromDirect(other));
-    }
-
-    @Nonnull
-    public PhysicsMutationHandle<Void> copyFromAsync(@Nonnull PhysicsWorldResource other) {
-        return enqueueDirectRuntimeMutation("copy physics world resource", () -> copyFromDirect(other));
     }
 
     private void copyFromDirect(@Nonnull PhysicsWorldResource other) {
