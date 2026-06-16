@@ -21,7 +21,7 @@ import javax.annotation.Nonnull;
 /**
  * Removes serialized generated visual proxies left by the pre-PhysicsStore runtime model.
  */
-public class PhysicsDetachedVisualMaterializationSystem extends TickingSystem<EntityStore> {
+public class PhysicsGeneratedProxyCleanupSystem extends TickingSystem<EntityStore> {
 
     private static final int CLEANUP_INTERVAL_TICKS = 40;
 

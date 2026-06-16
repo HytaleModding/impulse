@@ -14,7 +14,7 @@ import dev.hytalemodding.impulse.core.internal.physicsstore.resources.PhysicsPro
 import dev.hytalemodding.impulse.core.internal.physicsstore.resources.PhysicsProfilingResource.StepSample;
 import dev.hytalemodding.impulse.core.internal.resources.profiling.PhysicsRuntimeProfilingResource;
 import dev.hytalemodding.impulse.core.internal.systems.sync.PhysicsSyncSystem;
-import dev.hytalemodding.impulse.core.internal.systems.visual.PhysicsDetachedVisualMaterializationSystem;
+import dev.hytalemodding.impulse.core.internal.systems.visual.PhysicsGeneratedProxyCleanupSystem;
 import dev.hytalemodding.impulse.core.plugin.events.PhysicsEventFrame;
 import dev.hytalemodding.impulse.core.plugin.events.PhysicsEventFramePublishedEvent;
 import dev.hytalemodding.impulse.core.plugin.physicsstore.PhysicsStoreThreading;
@@ -30,7 +30,7 @@ import javax.annotation.Nonnull;
 public final class PhysicsStoreEventPublicationSystem extends TickingSystem<EntityStore> {
 
     private static final Set<Dependency<EntityStore>> DEPENDENCIES = Set.of(
-        new SystemDependency<>(Order.BEFORE, PhysicsDetachedVisualMaterializationSystem.class),
+        new SystemDependency<>(Order.BEFORE, PhysicsGeneratedProxyCleanupSystem.class),
         new SystemDependency<>(Order.BEFORE, PhysicsSyncSystem.class)
     );
 
