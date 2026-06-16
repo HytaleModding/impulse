@@ -400,6 +400,7 @@ public class PhysicsDetachedVisualMaterializationSystem extends TickingSystem<En
             || !sameSpaceId(registration.spaceId(), target.spaceId())
             || gameplayAttachments.hasKnownGameplayAttachment(
                 hasBodyAttachments(resource, target.bodyRef(), registration.bodyKey()),
+                target.bodyRef(),
                 registration.bodyKey())) {
             return null;
         }
@@ -615,6 +616,7 @@ public class PhysicsDetachedVisualMaterializationSystem extends TickingSystem<En
                             || !bodySpaceId.equals(space.spaceId())
                             || gameplayAttachments.hasKnownGameplayAttachment(
                                 hasBodyAttachments(resource, bodyRef, bodyKey),
+                                bodyRef,
                                 bodyKey)) {
                             return;
                         }
@@ -720,6 +722,7 @@ public class PhysicsDetachedVisualMaterializationSystem extends TickingSystem<En
         @Nonnull GameplayAttachmentSnapshot gameplayAttachments) {
         ComponentType<EntityStore, BodyAttachmentComponent> attachmentType =
             BodyAttachmentComponent.getComponentType();
+        Ref<PhysicsStore> bodyRef = null;
         for (Ref<EntityStore> attachmentRef : resource.getBodyAttachments(bodyKey)) {
             if (sameRef(attachmentRef, proxy)) {
                 continue;
@@ -730,7 +733,11 @@ public class PhysicsDetachedVisualMaterializationSystem extends TickingSystem<En
                 return true;
             }
         }
-        return gameplayAttachments.hasGameplayAttachment(bodyKey);
+        BodyAttachmentComponent proxyAttachment = store.getComponent(proxy, attachmentType);
+        if (proxyAttachment != null) {
+            bodyRef = proxyAttachment.getBodyRef();
+        }
+        return gameplayAttachments.hasGameplayAttachment(bodyRef, bodyKey);
     }
 
     @Nullable
