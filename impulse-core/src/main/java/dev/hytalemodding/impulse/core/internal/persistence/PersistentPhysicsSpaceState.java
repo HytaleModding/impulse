@@ -12,7 +12,6 @@ import com.hypixel.hytale.math.vector.Vector3fUtil;
 import dev.hytalemodding.impulse.api.BackendId;
 import dev.hytalemodding.impulse.api.SpaceId;
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsSpaceBinding;
-import dev.hytalemodding.impulse.core.internal.systems.persistence.PersistentPhysicsSpaceBootstrapSystem;
 import dev.hytalemodding.impulse.core.plugin.modules.worldcollision.WorldCollisionMode;
 import dev.hytalemodding.impulse.core.plugin.settings.EntityChunkBoundaryMode;
 import dev.hytalemodding.impulse.core.plugin.settings.PhysicsCollisionLodSettings;
@@ -31,9 +30,7 @@ import org.joml.Vector3f;
  * Codec-backed definition of one physics space for the persistence layer.
  *
  * <p>Captures the space identity, backend choice, gravity, and world-collision
- * settings so that {@link PersistentPhysicsSpaceBootstrapSystem} can recreate
- * the runtime physics space after a
- * world load or manual snapshot restore.</p>
+ * settings for legacy world-resource persistence and migration.</p>
  */
 @Getter
 public class PersistentPhysicsSpaceState {
