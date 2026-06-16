@@ -35,6 +35,7 @@ import dev.hytalemodding.impulse.core.internal.resources.body.PhysicsBodyRuntime
 import dev.hytalemodding.impulse.core.internal.resources.body.PhysicsBodyRuntime;
 import dev.hytalemodding.impulse.core.internal.resources.body.PhysicsBodyRuntimeState;
 import dev.hytalemodding.impulse.core.internal.resources.body.PhysicsBodySnapshots;
+import dev.hytalemodding.impulse.core.internal.resources.body.PhysicsBodySnapshotRefVisitor;
 import dev.hytalemodding.impulse.core.internal.resources.body.PhysicsBodySnapshotVisitor;
 import dev.hytalemodding.impulse.core.internal.modules.worldcollision.PhysicsChunkBoundaryRuntime;
 import dev.hytalemodding.impulse.core.internal.modules.worldcollision.PhysicsChunkBoundaryRuntime.ChunkBoundaryPauseState;
@@ -821,6 +822,42 @@ public class PhysicsWorldRuntimeResource extends PhysicsWorldResource {
         return candidates;
     }
 
+    private static int forEachIndexedAuthoritativeBodySnapshotNearWithRefs(
+        @Nonnull Store<PhysicsStore> store,
+        @Nonnull SpaceId spaceId,
+        @Nonnull Vector3f center,
+        float radius,
+        @Nonnull PhysicsBodySnapshotRefVisitor visitor) {
+        UUID spaceUuid = authoritativeSpaceUuid(store, spaceId);
+        if (spaceUuid == null || radius < 0.0f || Float.isNaN(radius)) {
+            return 0;
+        }
+        float radiusSquared = radius * radius;
+        int candidates = 0;
+        PhysicsBodyRegistrationResource registrations =
+            store.getResource(PhysicsBodyRegistrationResource.getResourceType());
+        for (PhysicsStoreBodySnapshot body : authoritativeSnapshotFrame(store).bodies()) {
+            if (!spaceUuid.equals(body.spaceUuid())) {
+                continue;
+            }
+            PhysicsBodySnapshotEntry entry =
+                authoritativeSnapshotEntry(store, registrations, body);
+            if (entry == null) {
+                continue;
+            }
+            candidates++;
+            if (withinRadius(entry.snapshot(), center, radiusSquared)) {
+                visitor.accept(entry.bodyKey(),
+                    validSnapshotBodyRef(store, body),
+                    entry.snapshot(),
+                    entry.spaceId(),
+                    entry.kind(),
+                    entry.persistenceMode());
+            }
+        }
+        return candidates;
+    }
+
     @Nullable
     private static UUID authoritativeSpaceUuid(@Nonnull Store<PhysicsStore> store,
         @Nonnull SpaceId spaceId) {
@@ -849,6 +886,15 @@ public class PhysicsWorldRuntimeResource extends PhysicsWorldResource {
             registration.spaceId(),
             registration.kind(),
             registration.persistenceMode());
+    }
+
+    @Nullable
+    private static Ref<PhysicsStore> validSnapshotBodyRef(@Nonnull Store<PhysicsStore> store,
+        @Nonnull PhysicsStoreBodySnapshot body) {
+        Ref<PhysicsStore> bodyRef = body.bodyRef();
+        return bodyRef != null && bodyRef.getStore() == store && bodyRef.isValid()
+            ? bodyRef
+            : null;
     }
 
     private static boolean withinRadius(@Nonnull PhysicsBodySnapshot snapshot,
@@ -1434,6 +1480,25 @@ public class PhysicsWorldRuntimeResource extends PhysicsWorldResource {
                 visitor);
         }
         return lifecycleState.forEachIndexedBodySnapshotNear(spaceId, center, radius, visitor);
+    }
+
+    public int forEachIndexedBodySnapshotNearWithRefs(@Nonnull SpaceId spaceId,
+        @Nonnull Vector3f center,
+        float radius,
+        @Nonnull PhysicsBodySnapshotRefVisitor visitor) {
+        if (isAuthoritativePhysicsStoreActive()) {
+            return forEachIndexedAuthoritativeBodySnapshotNearWithRefs(
+                authoritativePhysicsStore("iterate nearby copied physics body snapshots"),
+                spaceId,
+                center,
+                radius,
+                visitor);
+        }
+        return lifecycleState.forEachIndexedBodySnapshotNear(spaceId,
+            center,
+            radius,
+            (bodyKey, snapshot, bodySpaceId, kind, persistenceMode) ->
+                visitor.accept(bodyKey, null, snapshot, bodySpaceId, kind, persistenceMode));
     }
 
     @Override
@@ -2142,6 +2207,17 @@ public class PhysicsWorldRuntimeResource extends PhysicsWorldResource {
             return;
         }
         visualRuntime.setGeneratedVisualProxy(bodyKey, proxy);
+    }
+
+    public void setGeneratedVisualProxy(@Nonnull UUID bodyUuid,
+        @Nullable Ref<PhysicsStore> bodyRef,
+        @Nonnull Ref<EntityStore> proxy) {
+        if (hasAttachedAuthoritativePhysicsStore()) {
+            authoritativeProjectionIndex("set generated visual proxy")
+                .setGeneratedVisualProxy(bodyUuid, bodyRef, proxy);
+            return;
+        }
+        visualRuntime.setGeneratedVisualProxy(RigidBodyKey.of(bodyUuid), proxy);
     }
 
     public void clearGeneratedVisualProxy(@Nonnull RigidBodyKey bodyKey) {

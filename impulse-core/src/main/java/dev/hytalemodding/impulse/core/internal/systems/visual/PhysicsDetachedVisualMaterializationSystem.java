@@ -359,13 +359,16 @@ public class PhysicsDetachedVisualMaterializationSystem extends TickingSystem<En
             state.cachedMaterializationTargets.remove(index);
             Ref<EntityStore> proxy = spawnProxy(store,
                 candidate.bodyKey(),
+                candidate.bodyRef(),
                 candidate.snapshot(),
                 candidate.registration(),
                 candidate.settings());
             if (proxy == null) {
                 continue;
             }
-            resource.setGeneratedVisualProxy(candidate.bodyKey(), proxy);
+            resource.setGeneratedVisualProxy(candidate.bodyKey().value(),
+                candidate.bodyRef(),
+                proxy);
             spawned++;
             materialized++;
             if (collector != null) {
@@ -385,16 +388,18 @@ public class PhysicsDetachedVisualMaterializationSystem extends TickingSystem<En
         @Nonnull DetachedVisualOcclusion.RaycastBudget raycastBudget,
         @Nonnull GameplayAttachmentSnapshot gameplayAttachments,
         @Nullable PhysicsRuntimeProfilingResource.VisualCollector collector) {
-        if (resource.getGeneratedVisualProxy(target.bodyKey()) != null) {
+        if (generatedVisualProxy(resource, target.bodyRef(), target.bodyKey()) != null) {
             return null;
         }
 
-        PhysicsBodyRegistrationView registration = resource.getBodyRegistrationView(target.bodyKey());
+        PhysicsBodyRegistrationView registration = bodyRegistration(resource,
+            target.bodyRef(),
+            target.bodyKey());
         if (registration == null
             || registration.kind() != PhysicsBodyKind.BODY
             || !sameSpaceId(registration.spaceId(), target.spaceId())
             || gameplayAttachments.hasKnownGameplayAttachment(
-                resource.hasBodyAttachments(registration.bodyKey()),
+                hasBodyAttachments(resource, target.bodyRef(), registration.bodyKey()),
                 registration.bodyKey())) {
             return null;
         }
@@ -429,10 +434,39 @@ public class PhysicsDetachedVisualMaterializationSystem extends TickingSystem<En
             return null;
         }
         return new MaterializationCandidate(target.bodyKey(),
+            target.bodyRef(),
             snapshot,
             registration,
             settings,
             currentPolicy.priorityDistanceSquared());
+    }
+
+    @Nullable
+    private static Ref<EntityStore> generatedVisualProxy(
+        @Nonnull PhysicsWorldRuntimeResource resource,
+        @Nullable Ref<PhysicsStore> bodyRef,
+        @Nonnull RigidBodyKey bodyKey) {
+        return bodyRef != null
+            ? resource.getGeneratedVisualProxy(bodyRef)
+            : resource.getGeneratedVisualProxy(bodyKey);
+    }
+
+    @Nullable
+    private static PhysicsBodyRegistrationView bodyRegistration(
+        @Nonnull PhysicsWorldRuntimeResource resource,
+        @Nullable Ref<PhysicsStore> bodyRef,
+        @Nonnull RigidBodyKey bodyKey) {
+        return bodyRef != null
+            ? resource.getBodyRegistrationView(bodyRef)
+            : resource.getBodyRegistrationView(bodyKey);
+    }
+
+    private static boolean hasBodyAttachments(@Nonnull PhysicsWorldRuntimeResource resource,
+        @Nullable Ref<PhysicsStore> bodyRef,
+        @Nonnull RigidBodyKey bodyKey) {
+        return bodyRef != null
+            ? resource.hasBodyAttachments(bodyRef)
+            : resource.hasBodyAttachments(bodyKey);
     }
 
     private static int refreshCooldown(int intervalTicks) {
@@ -569,17 +603,18 @@ public class PhysicsDetachedVisualMaterializationSystem extends TickingSystem<En
                 if (collector != null) {
                     collector.incrementNearQueries();
                 }
-                int nearCandidates = resource.forEachIndexedBodySnapshotNear(space.spaceId(),
+                int nearCandidates = resource.forEachIndexedBodySnapshotNearWithRefs(space.spaceId(),
                     interest.position(),
                     settings.getVisualMaterializationSettings().getDetachedVisualMaterializationRadius(),
-                    (bodyKey, snapshot, bodySpaceId, kind, persistenceMode) -> {
-                        if (!seenBodies.add(bodyKey) || resource.getGeneratedVisualProxy(bodyKey) != null) {
+                    (bodyKey, bodyRef, snapshot, bodySpaceId, kind, persistenceMode) -> {
+                        if (!seenBodies.add(bodyKey)
+                            || generatedVisualProxy(resource, bodyRef, bodyKey) != null) {
                             return;
                         }
                         if (kind != PhysicsBodyKind.BODY
                             || !bodySpaceId.equals(space.spaceId())
                             || gameplayAttachments.hasKnownGameplayAttachment(
-                                resource.hasBodyAttachments(bodyKey),
+                                hasBodyAttachments(resource, bodyRef, bodyKey),
                                 bodyKey)) {
                             return;
                         }
@@ -599,6 +634,7 @@ public class PhysicsDetachedVisualMaterializationSystem extends TickingSystem<En
                             collector);
                         if (materializeInterest.shouldMaterialize()) {
                             candidates.add(new CachedMaterializationTarget(bodyKey,
+                                bodyRef,
                                 bodySpaceId,
                                 materializeInterest.priorityDistanceSquared()));
                         }
@@ -817,6 +853,7 @@ public class PhysicsDetachedVisualMaterializationSystem extends TickingSystem<En
     @Nullable
     private static Ref<EntityStore> spawnProxy(@Nonnull Store<EntityStore> store,
         @Nonnull RigidBodyKey bodyKey,
+        @Nullable Ref<PhysicsStore> bodyRef,
         @Nonnull PhysicsBodySnapshot snapshot,
         @Nonnull PhysicsBodyRegistrationView registration,
         @Nonnull PhysicsSpaceSettings settings) {
@@ -845,15 +882,17 @@ public class PhysicsDetachedVisualMaterializationSystem extends TickingSystem<En
         holder.removeComponent(Velocity.getComponentType());
         holder.addComponent(store.getRegistry().getNonSerializedComponentType(), NonSerialized.get());
         holder.addComponent(GeneratedVisualProxyComponent.getComponentType(), new GeneratedVisualProxyComponent());
-        holder.addComponent(BodyAttachmentComponent.getComponentType(),
-            BodyAttachmentComponent.generatedProxy(bodyKey.value(),
-                new Vector3f(),
-                new Quaternionf(),
-                Float.NaN));
+        BodyAttachmentComponent attachment = BodyAttachmentComponent.generatedProxy(bodyKey.value(),
+            new Vector3f(),
+            new Quaternionf(),
+            Float.NaN);
+        attachment.setBodyRef(bodyRef);
+        holder.addComponent(BodyAttachmentComponent.getComponentType(), attachment);
         return store.addEntity(holder, AddReason.SPAWN);
     }
 
     private record MaterializationCandidate(@Nonnull RigidBodyKey bodyKey,
+        @Nullable Ref<PhysicsStore> bodyRef,
         @Nonnull PhysicsBodySnapshot snapshot,
         @Nonnull PhysicsBodyRegistrationView registration,
         @Nonnull PhysicsSpaceSettings settings,
@@ -861,6 +900,7 @@ public class PhysicsDetachedVisualMaterializationSystem extends TickingSystem<En
     }
 
     private record CachedMaterializationTarget(@Nonnull RigidBodyKey bodyKey,
+        @Nullable Ref<PhysicsStore> bodyRef,
         @Nonnull SpaceId spaceId,
         float distanceSquared) {
     }
