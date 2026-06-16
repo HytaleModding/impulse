@@ -31,8 +31,6 @@ import javax.annotation.Nullable;
  */
 public final class PhysicsBodyRegistry {
 
-    private final Map<RigidBodyKey, PhysicsBodyRegistration> registrationsByKey =
-        new Object2ObjectLinkedOpenHashMap<>();
     private final Map<UUID, PhysicsBodyRegistration> registrationsByUuid =
         new Object2ObjectLinkedOpenHashMap<>();
     private final Map<UUID, PhysicsBodyRegistrationView> registrationViewsByUuid =
@@ -62,7 +60,6 @@ public final class PhysicsBodyRegistry {
         }
         PhysicsBodyRegistration registration =
             new PhysicsBodyRegistration(bodyUuid, backendBodyHandle, spaceId, kind, persistenceMode);
-        registrationsByKey.put(bodyKey, registration);
         registrationsByUuid.put(bodyUuid, registration);
         registrationViewsByUuid.put(bodyUuid,
             new PhysicsBodyRegistrationView(bodyUuid, spaceId, kind, persistenceMode));
@@ -93,18 +90,12 @@ public final class PhysicsBodyRegistry {
     }
 
     @Nullable
-    public PhysicsBodyRegistration unregisterBody(@Nonnull RigidBodyKey bodyKey) {
-        return unregisterBody(bodyKey.value());
-    }
-
-    @Nullable
     public PhysicsBodyRegistration unregisterBody(@Nonnull UUID bodyUuid) {
         PhysicsBodyRegistration registration = registrationsByUuid.remove(bodyUuid);
         if (registration == null) {
             return null;
         }
 
-        registrationsByKey.remove(RigidBodyKey.of(bodyUuid));
         registrationViewsByUuid.remove(bodyUuid);
         removeBackendIndex(registration);
         removeFromSpace(registration);
@@ -118,28 +109,13 @@ public final class PhysicsBodyRegistry {
     }
 
     @Nullable
-    public PhysicsBodyRegistration getRegistration(@Nonnull RigidBodyKey bodyKey) {
-        return getRegistration(bodyKey.value());
-    }
-
-    @Nullable
     public PhysicsBodyRegistration getRegistration(@Nonnull UUID bodyUuid) {
         return registrationsByUuid.get(bodyUuid);
     }
 
     @Nullable
-    public PhysicsBodyRegistrationView getRegistrationView(@Nonnull RigidBodyKey bodyKey) {
-        return getRegistrationView(bodyKey.value());
-    }
-
-    @Nullable
     public PhysicsBodyRegistrationView getRegistrationView(@Nonnull UUID bodyUuid) {
         return registrationViewsByUuid.get(bodyUuid);
-    }
-
-    @Nullable
-    public PhysicsBodyRegistrationView getPublishedRegistrationView(@Nonnull RigidBodyKey bodyKey) {
-        return getPublishedRegistrationView(bodyKey.value());
     }
 
     @Nullable
@@ -200,11 +176,6 @@ public final class PhysicsBodyRegistry {
     public RigidBodyKey getBodyKey(@Nonnull SpaceId spaceId,
         @Nonnull BackendBodyHandle backendBodyHandle) {
         return getBodyKey(spaceId, backendBodyHandle.value());
-    }
-
-    @Nonnull
-    public Collection<RigidBodyKey> getBodyKeys() {
-        return new ArrayList<>(registrationsByKey.keySet());
     }
 
     @Nonnull
@@ -298,7 +269,6 @@ public final class PhysicsBodyRegistry {
     }
 
     public void clear() {
-        registrationsByKey.clear();
         registrationsByUuid.clear();
         registrationViewsByUuid.clear();
         publishedRegistrationViewsByUuid.clear();
