@@ -307,24 +307,6 @@ public final class ExamplePhysicsUtils {
     }
 
     @Nonnull
-    private static BodyRowDescriptor bodyRow(@Nonnull UUID spaceUuid,
-        @Nonnull UUID bodyUuid,
-        @Nonnull Vector3f bodyCenter,
-        @Nonnull PhysicsShapeSpec shape,
-        float mass,
-        @Nonnull RigidBodySpawnSettings settings,
-        @Nullable Vector3f linearVelocity) {
-        return PhysicsBodyRows.dynamicBody(spaceUuid,
-            bodyUuid,
-            bodyCenter,
-            shape,
-            mass,
-            settings,
-            linearVelocity,
-            PhysicsBodyPersistenceMode.PERSISTENT);
-    }
-
-    @Nonnull
     public static BodyRowDescriptor bodyRow(@Nonnull Ref<PhysicsStore> spaceRef,
         @Nonnull UUID bodyUuid,
         @Nonnull Vector3f bodyCenter,
@@ -332,37 +314,14 @@ public final class ExamplePhysicsUtils {
         float mass,
         @Nonnull RigidBodySpawnSettings settings,
         @Nullable Vector3f linearVelocity) {
-        BodyRowDescriptor row = bodyRow(physicsStoreRowUuid(spaceRef),
+        return PhysicsBodyRows.dynamicBody(spaceRef,
             bodyUuid,
             bodyCenter,
             shape,
-            mass,
-            settings,
-            linearVelocity);
-        row.body().setSpaceRef(spaceRef);
-        return row;
-    }
-
-    @Nonnull
-    private static BodyRowDescriptor bodyRow(@Nonnull UUID spaceUuid,
-        @Nonnull UUID bodyUuid,
-        @Nonnull Vector3f bodyCenter,
-        @Nonnull PhysicsShapeSpec shape,
-        float mass,
-        @Nonnull RigidBodySpawnSettings settings,
-        @Nullable Vector3f linearVelocity,
-        @Nonnull PhysicsBodyKind kind,
-        @Nonnull PhysicsBodyPersistenceMode persistenceMode) {
-        return PhysicsBodyRows.body(spaceUuid,
-            bodyUuid,
-            bodyCenter,
-            shape,
-            PhysicsBodyType.DYNAMIC,
             mass,
             settings,
             linearVelocity,
-            kind,
-            persistenceMode);
+            PhysicsBodyPersistenceMode.PERSISTENT);
     }
 
     @Nonnull
@@ -375,17 +334,16 @@ public final class ExamplePhysicsUtils {
         @Nullable Vector3f linearVelocity,
         @Nonnull PhysicsBodyKind kind,
         @Nonnull PhysicsBodyPersistenceMode persistenceMode) {
-        BodyRowDescriptor row = bodyRow(physicsStoreRowUuid(spaceRef),
+        return PhysicsBodyRows.body(spaceRef,
             bodyUuid,
             bodyCenter,
             shape,
+            PhysicsBodyType.DYNAMIC,
             mass,
             settings,
             linearVelocity,
             kind,
             persistenceMode);
-        row.body().setSpaceRef(spaceRef);
-        return row;
     }
 
     @Nonnull

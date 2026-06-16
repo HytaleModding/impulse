@@ -1,5 +1,8 @@
 package dev.hytalemodding.impulse.core.plugin.physicsstore;
 
+import com.hypixel.hytale.component.Ref;
+import com.hypixel.hytale.component.Store;
+import com.hypixel.hytale.server.core.universe.world.storage.PhysicsStore;
 import dev.hytalemodding.impulse.api.PhysicsBodyType;
 import dev.hytalemodding.impulse.api.PhysicsCollisionFilters;
 import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyKind;
@@ -11,6 +14,7 @@ import dev.hytalemodding.impulse.core.plugin.physicsstore.components.DynamicsCom
 import dev.hytalemodding.impulse.core.plugin.physicsstore.components.MaterialComponent;
 import dev.hytalemodding.impulse.core.plugin.physicsstore.components.ShapeComponent;
 import dev.hytalemodding.impulse.core.plugin.physicsstore.components.TargetComponent;
+import dev.hytalemodding.impulse.core.plugin.physicsstore.components.UuidComponent;
 import dev.hytalemodding.impulse.core.plugin.simulation.PhysicsShapeSpec;
 import dev.hytalemodding.impulse.core.plugin.simulation.RigidBodySpawnSettings;
 import java.util.Objects;
@@ -38,6 +42,27 @@ public final class PhysicsBodyRows {
         @Nullable Vector3f linearVelocity,
         @Nonnull PhysicsBodyPersistenceMode persistenceMode) {
         return body(spaceUuid,
+            bodyUuid,
+            bodyCenter,
+            shape,
+            PhysicsBodyType.DYNAMIC,
+            mass,
+            settings,
+            linearVelocity,
+            PhysicsBodyKind.BODY,
+            persistenceMode);
+    }
+
+    @Nonnull
+    public static BodyRowDescriptor dynamicBody(@Nonnull Ref<PhysicsStore> spaceRef,
+        @Nonnull UUID bodyUuid,
+        @Nonnull Vector3f bodyCenter,
+        @Nonnull PhysicsShapeSpec shape,
+        float mass,
+        @Nonnull RigidBodySpawnSettings settings,
+        @Nullable Vector3f linearVelocity,
+        @Nonnull PhysicsBodyPersistenceMode persistenceMode) {
+        return body(spaceRef,
             bodyUuid,
             bodyCenter,
             shape,
@@ -101,6 +126,31 @@ public final class PhysicsBodyRows {
     }
 
     @Nonnull
+    public static BodyRowDescriptor body(@Nonnull Ref<PhysicsStore> spaceRef,
+        @Nonnull UUID bodyUuid,
+        @Nonnull Vector3f bodyCenter,
+        @Nonnull PhysicsShapeSpec shape,
+        @Nonnull PhysicsBodyType bodyType,
+        float mass,
+        @Nonnull RigidBodySpawnSettings settings,
+        @Nullable Vector3f linearVelocity,
+        @Nonnull PhysicsBodyKind kind,
+        @Nonnull PhysicsBodyPersistenceMode persistenceMode) {
+        BodyRowDescriptor row = body(rowUuid(spaceRef),
+            bodyUuid,
+            bodyCenter,
+            shape,
+            bodyType,
+            mass,
+            settings,
+            linearVelocity,
+            kind,
+            persistenceMode);
+        row.body().setSpaceRef(spaceRef);
+        return row;
+    }
+
+    @Nonnull
     private static TargetComponent initialTarget(@Nonnull Vector3f bodyCenter,
         @Nullable Vector3f linearVelocity) {
         TargetComponent target = new TargetComponent();
@@ -124,5 +174,20 @@ public final class PhysicsBodyRows {
             settings.hasCollisionFilter()
                 ? settings.collisionMask()
                 : PhysicsCollisionFilters.ALL);
+    }
+
+    @Nonnull
+    private static UUID rowUuid(@Nonnull Ref<PhysicsStore> ref) {
+        Objects.requireNonNull(ref, "ref");
+        Store<PhysicsStore> store = ref.getStore();
+        PhysicsStoreThreading.requireWorldThread(store, "read a PhysicsStore row UUID");
+        if (!ref.isValid()) {
+            throw new IllegalStateException("PhysicsStore row ref is not valid: " + ref);
+        }
+        UuidComponent uuid = store.getComponent(ref, UuidComponent.getComponentType());
+        if (uuid == null) {
+            throw new IllegalStateException("PhysicsStore row has no UUID component: " + ref);
+        }
+        return uuid.getUuid();
     }
 }
