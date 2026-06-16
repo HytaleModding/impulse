@@ -23,6 +23,7 @@ import dev.hytalemodding.impulse.core.plugin.settings.PhysicsWorldSettings;
 import dev.hytalemodding.impulse.core.plugin.snapshot.PhysicsBodySnapshotEntry;
 import java.util.Collection;
 import java.util.List;
+import java.util.UUID;
 import java.util.function.Consumer;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
@@ -323,6 +324,25 @@ public abstract class PhysicsWorldResource implements Resource<EntityStore> {
         @Nonnull RigidBodyKey bodyKey);
 
     /**
+     * Returns immutable registration metadata for a body UUID.
+     *
+     * <p>Prefer this overload when the caller is crossing a durable identity boundary. The key
+     * overload remains for compatibility with legacy event/facade APIs.</p>
+     */
+    @Nullable
+    public PhysicsBodyRegistrationView getBodyRegistrationView(@Nonnull UUID bodyUuid) {
+        return getBodyRegistrationView(RigidBodyKey.of(bodyUuid));
+    }
+
+    /**
+     * Returns immutable registration metadata for a live PhysicsStore body ref.
+     */
+    @Nullable
+    public PhysicsBodyRegistrationView getBodyRegistrationView(@Nonnull Ref<PhysicsStore> bodyRef) {
+        return null;
+    }
+
+    /**
      * Returns immutable registration metadata for every registered body.
      */
     @Nonnull
@@ -351,6 +371,17 @@ public abstract class PhysicsWorldResource implements Resource<EntityStore> {
      */
     @Nonnull
     public abstract Collection<Ref<EntityStore>> getBodyAttachments(@Nonnull RigidBodyKey bodyKey);
+
+    /**
+     * Returns ECS attachments associated with a durable body UUID and optional live body ref.
+     */
+    @Nonnull
+    public Collection<Ref<EntityStore>> getBodyAttachments(@Nonnull UUID bodyUuid,
+        @Nullable Ref<PhysicsStore> bodyRef) {
+        return bodyRef != null && bodyRef.isValid()
+            ? getBodyAttachments(bodyRef)
+            : getBodyAttachments(RigidBodyKey.of(bodyUuid));
+    }
 
     /**
      * Returns ECS attachments associated with a live PhysicsStore body ref.

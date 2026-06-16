@@ -1859,6 +1859,7 @@ public class PhysicsWorldRuntimeResource extends PhysicsWorldResource {
     }
 
     @Nullable
+    @Override
     public PhysicsBodyRegistrationView getBodyRegistrationView(@Nonnull UUID bodyUuid) {
         if (hasAttachedAuthoritativePhysicsStore()) {
             return authoritativePhysicsStore("read physics body registration view")
@@ -1869,6 +1870,7 @@ public class PhysicsWorldRuntimeResource extends PhysicsWorldResource {
     }
 
     @Nullable
+    @Override
     public PhysicsBodyRegistrationView getBodyRegistrationView(@Nonnull Ref<PhysicsStore> bodyRef) {
         if (hasAttachedAuthoritativePhysicsStore()) {
             return authoritativePhysicsStore("read physics body registration view")
@@ -2130,6 +2132,7 @@ public class PhysicsWorldRuntimeResource extends PhysicsWorldResource {
     }
 
     @Nonnull
+    @Override
     public Collection<Ref<EntityStore>> getBodyAttachments(@Nonnull UUID bodyUuid,
         @Nullable Ref<PhysicsStore> bodyRef) {
         if (hasAttachedAuthoritativePhysicsStore()) {

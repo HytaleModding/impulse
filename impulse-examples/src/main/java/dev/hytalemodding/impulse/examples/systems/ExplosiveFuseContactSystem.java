@@ -9,7 +9,6 @@ import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import dev.hytalemodding.impulse.api.PhysicsContactPhase;
 import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyKind;
 import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyRegistrationView;
-import dev.hytalemodding.impulse.core.plugin.body.RigidBodyKey;
 import dev.hytalemodding.impulse.core.plugin.physicsstore.projection.BodyAttachmentComponent;
 import dev.hytalemodding.impulse.core.plugin.events.PhysicsContactEvent;
 import dev.hytalemodding.impulse.core.plugin.events.PhysicsEventFramePublishedEvent;
@@ -18,6 +17,7 @@ import dev.hytalemodding.impulse.core.plugin.resources.PhysicsWorldResource;
 import dev.hytalemodding.impulse.examples.explosive.ExplosiveBlockComponent;
 import dev.hytalemodding.impulse.examples.explosive.ExplosiveBlockRuntime;
 import dev.hytalemodding.impulse.examples.explosive.ExplosiveFuseComponent;
+import java.util.UUID;
 import javax.annotation.Nonnull;
 import org.joml.Vector3d;
 import org.joml.Vector3f;
@@ -48,14 +48,14 @@ public final class ExplosiveFuseContactSystem
                 armIfExplosiveTouchesWorld(commandBuffer,
                     resource,
                     tick,
-                    contact.bodyAKey(),
-                    contact.bodyBKey(),
+                    contact.bodyAKey().value(),
+                    contact.bodyBKey().value(),
                     contactCenter(contact.pointOnB()));
                 armIfExplosiveTouchesWorld(commandBuffer,
                     resource,
                     tick,
-                    contact.bodyBKey(),
-                    contact.bodyAKey(),
+                    contact.bodyBKey().value(),
+                    contact.bodyAKey().value(),
                     contactCenter(contact.pointOnA()));
             }
         }
@@ -64,20 +64,20 @@ public final class ExplosiveFuseContactSystem
     private static void armIfExplosiveTouchesWorld(@Nonnull CommandBuffer<EntityStore> commandBuffer,
         @Nonnull PhysicsWorldResource resource,
         long tick,
-        @Nonnull RigidBodyKey explosiveBodyKey,
-        @Nonnull RigidBodyKey otherBodyKey,
+        @Nonnull UUID explosiveBodyUuid,
+        @Nonnull UUID otherBodyUuid,
         @Nonnull Vector3d explosionCenter) {
-        if (!isWorldCollision(resource, otherBodyKey)) {
+        if (!isWorldCollision(resource, otherBodyUuid)) {
             return;
         }
-        for (Ref<EntityStore> ref : resource.getBodyAttachments(explosiveBodyKey)) {
+        for (Ref<EntityStore> ref : resource.getBodyAttachments(explosiveBodyUuid, null)) {
             BodyAttachmentComponent attachment = commandBuffer.getComponent(ref, ATTACHMENT_TYPE);
             ExplosiveBlockComponent explosive = commandBuffer.getComponent(ref, EXPLOSIVE_TYPE);
             ExplosiveFuseComponent fuse = commandBuffer.getComponent(ref, FUSE_TYPE);
             if (attachment == null
                 || explosive == null
                 || fuse == null
-                || !explosiveBodyKey.value().equals(attachment.getBodyUuid())) {
+                || !explosiveBodyUuid.equals(attachment.getBodyUuid())) {
                 continue;
             }
             ExplosiveFuseComponent updated = fuse.clone();
@@ -88,8 +88,8 @@ public final class ExplosiveFuseContactSystem
     }
 
     private static boolean isWorldCollision(@Nonnull PhysicsWorldResource resource,
-        @Nonnull RigidBodyKey bodyKey) {
-        PhysicsBodyRegistrationView registration = resource.getBodyRegistrationView(bodyKey);
+        @Nonnull UUID bodyUuid) {
+        PhysicsBodyRegistrationView registration = resource.getBodyRegistrationView(bodyUuid);
         return registration != null && registration.kind() == PhysicsBodyKind.WORLD_COLLISION;
     }
 
