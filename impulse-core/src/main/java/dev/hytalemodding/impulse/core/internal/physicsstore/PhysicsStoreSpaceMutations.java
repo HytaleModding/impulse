@@ -157,9 +157,12 @@ public final class PhysicsStoreSpaceMutations {
             store.getResource(PhysicsIdentityIndexResource.getResourceType());
         PhysicsSpaceCompatibilityIndexResource compatibility = store.getResource(
             PhysicsSpaceCompatibilityIndexResource.getResourceType());
-        BackendSpaceHandle handle = runtime.getSpaceHandle(spaceUuid);
+        Ref<PhysicsStore> ref = identity.getByUuid(spaceUuid);
+        BackendSpaceHandle handle = ref != null && ref.isValid()
+            ? runtime.getSpaceHandle(ref)
+            : null;
         if (handle != null) {
-            BackendId backendId = runtime.getSpaceBackendId(spaceUuid);
+            BackendId backendId = runtime.getSpaceBackendId(ref);
             PhysicsBackendRuntime backendRuntime =
                 backendId != null ? runtime.getRuntime(backendId) : null;
             if (backendRuntime == null) {
@@ -175,7 +178,6 @@ public final class PhysicsStoreSpaceMutations {
             runtime.removeSpaceHandle(spaceUuid);
         }
         compatibility.removeBySpaceUuid(spaceUuid);
-        Ref<PhysicsStore> ref = identity.getByUuid(spaceUuid);
         if (ref != null && ref.isValid()) {
             identity.removeUuid(spaceUuid, ref);
             store.removeEntity(ref, store.getRegistry().newHolder(), RemoveReason.REMOVE);
