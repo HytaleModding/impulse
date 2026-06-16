@@ -214,7 +214,7 @@ public final class CompletedStepPublicationSystem extends TickingSystem<PhysicsS
                 SpaceId spaceId = compatibility.getSpaceId(body.getSpaceUuid());
                 if (spaceId != null) {
                     registrations.add(new BodyRegistrationPublication(rowRef,
-                        new PhysicsBodyRegistrationView(RigidBodyKey.of(rowUuid),
+                        new PhysicsBodyRegistrationView(rowUuid,
                             spaceId,
                             body.getKind(),
                             body.getPersistenceMode())));
@@ -226,7 +226,7 @@ public final class CompletedStepPublicationSystem extends TickingSystem<PhysicsS
                 SpaceId spaceId = compatibility.getSpaceId(terrain.getSpaceUuid());
                 if (spaceId != null) {
                     registrations.add(new BodyRegistrationPublication(rowRef,
-                        new PhysicsBodyRegistrationView(RigidBodyKey.of(rowUuid),
+                        new PhysicsBodyRegistrationView(rowUuid,
                             spaceId,
                             PhysicsBodyKind.WORLD_COLLISION,
                             PhysicsBodyPersistenceMode.RUNTIME_ONLY)));

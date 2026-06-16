@@ -12,6 +12,13 @@ public record PhysicsBodyRegistrationView(@Nonnull RigidBodyKey bodyKey,
     @Nonnull PhysicsBodyKind kind,
     @Nonnull PhysicsBodyPersistenceMode persistenceMode) {
 
+    public PhysicsBodyRegistrationView(@Nonnull UUID bodyUuid,
+        @Nonnull SpaceId spaceId,
+        @Nonnull PhysicsBodyKind kind,
+        @Nonnull PhysicsBodyPersistenceMode persistenceMode) {
+        this(RigidBodyKey.of(bodyUuid), spaceId, kind, persistenceMode);
+    }
+
     @Nonnull
     public UUID bodyUuid() {
         return bodyKey.value();
