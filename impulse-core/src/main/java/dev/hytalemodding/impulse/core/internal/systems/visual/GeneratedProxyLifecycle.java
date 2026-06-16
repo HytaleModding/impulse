@@ -9,10 +9,9 @@ import com.hypixel.hytale.component.RemoveReason;
 import com.hypixel.hytale.component.Store;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import com.hypixel.hytale.server.core.universe.world.storage.PhysicsStore;
+import dev.hytalemodding.impulse.core.internal.resources.PhysicsWorldRuntimeResource;
 import dev.hytalemodding.impulse.core.plugin.physicsstore.projection.BodyAttachmentComponent;
 import dev.hytalemodding.impulse.core.plugin.physicsstore.projection.BodyAttachmentComponent.AttachmentLifecycle;
-import dev.hytalemodding.impulse.core.plugin.body.RigidBodyKey;
-import dev.hytalemodding.impulse.core.internal.resources.PhysicsWorldRuntimeResource;
 import java.util.UUID;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
@@ -26,25 +25,6 @@ public final class GeneratedProxyLifecycle {
         BodyAttachmentComponent.getComponentType();
 
     private GeneratedProxyLifecycle() {
-    }
-
-    static void removeProxy(@Nonnull ComponentAccessor<EntityStore> accessor,
-        @Nonnull PhysicsWorldRuntimeResource resource,
-        @Nonnull RigidBodyKey bodyKey) {
-        Ref<EntityStore> proxy = resource.getGeneratedVisualProxy(bodyKey);
-        removeProxy(accessor, resource, bodyKey, proxy);
-    }
-
-    static void removeProxy(@Nonnull ComponentAccessor<EntityStore> accessor,
-        @Nonnull PhysicsWorldRuntimeResource resource,
-        @Nonnull RigidBodyKey bodyKey,
-        @Nullable Ref<EntityStore> proxy) {
-        if (proxy == null) {
-            resource.clearGeneratedVisualProxy(bodyKey);
-        } else {
-            resource.clearGeneratedVisualProxy(bodyKey, proxy);
-        }
-        removeEntity(accessor, proxy);
     }
 
     static void removeProxy(@Nonnull ComponentAccessor<EntityStore> accessor,
