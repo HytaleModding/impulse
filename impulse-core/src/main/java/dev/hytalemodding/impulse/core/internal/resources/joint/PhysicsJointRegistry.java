@@ -11,6 +11,7 @@ import it.unimi.dsi.fastutil.objects.Object2ObjectLinkedOpenHashMap;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Map;
+import java.util.UUID;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
@@ -108,9 +109,14 @@ public final class PhysicsJointRegistry {
 
     @Nonnull
     public Collection<PhysicsJointRegistration> unregisterJointsForBody(@Nonnull RigidBodyKey bodyKey) {
+        return unregisterJointsForBody(bodyKey.value());
+    }
+
+    @Nonnull
+    public Collection<PhysicsJointRegistration> unregisterJointsForBody(@Nonnull UUID bodyUuid) {
         ArrayList<JointKey> removed = new ArrayList<>();
         for (PhysicsJointRegistration registration : registrationsByKey.values()) {
-            if (registration.bodyA().equals(bodyKey) || registration.bodyB().equals(bodyKey)) {
+            if (registration.bodyA().value().equals(bodyUuid) || registration.bodyB().value().equals(bodyUuid)) {
                 removed.add(registration.jointKey());
             }
         }

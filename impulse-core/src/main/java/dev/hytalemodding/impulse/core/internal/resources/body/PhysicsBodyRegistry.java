@@ -61,7 +61,7 @@ public final class PhysicsBodyRegistry {
             removeBackendIndex(existingRegistration);
         }
         PhysicsBodyRegistration registration =
-            new PhysicsBodyRegistration(bodyKey, backendBodyHandle, spaceId, kind, persistenceMode);
+            new PhysicsBodyRegistration(bodyUuid, backendBodyHandle, spaceId, kind, persistenceMode);
         registrationsByKey.put(bodyKey, registration);
         registrationsByUuid.put(bodyUuid, registration);
         registrationViewsByUuid.put(bodyUuid,
@@ -104,8 +104,8 @@ public final class PhysicsBodyRegistry {
             return null;
         }
 
-        registrationsByKey.remove(registration.bodyKey());
-        registrationViewsByUuid.remove(registration.bodyUuid());
+        registrationsByKey.remove(RigidBodyKey.of(bodyUuid));
+        registrationViewsByUuid.remove(bodyUuid);
         removeBackendIndex(registration);
         removeFromSpace(registration);
         return registration;

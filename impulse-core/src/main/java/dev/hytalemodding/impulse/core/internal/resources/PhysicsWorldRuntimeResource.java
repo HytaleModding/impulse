@@ -1032,7 +1032,7 @@ public class PhysicsWorldRuntimeResource extends PhysicsWorldResource {
             registration.backendBodyHandle().value());
         if (snapshot == null) {
             throw new IllegalStateException(
-                "No live physics body snapshot is available for " + registration.bodyKey());
+                "No live physics body snapshot is available for " + registration.bodyUuid());
         }
         return snapshot;
     }
@@ -1562,7 +1562,7 @@ public class PhysicsWorldRuntimeResource extends PhysicsWorldResource {
             jointRegistry.unregisterSpace(spaceId);
             for (PhysicsBodyRegistration registration : new ArrayList<>(bodyRegistry.getRegistrations())) {
                 if (registration.spaceId().equals(spaceId)) {
-                    destroyBody(registration.bodyKey(), false);
+                    destroyBody(registration.bodyUuid(), false);
                 }
             }
             LOGGER.at(Level.FINE).log(

@@ -145,7 +145,7 @@ public final class PhysicsBodyRuntime {
     }
 
     private void removeBodyFromSpace(@Nonnull PhysicsBodyRegistration registration) {
-        for (PhysicsJointRegistration joint : jointRegistry.unregisterJointsForBody(registration.bodyKey())) {
+        for (PhysicsJointRegistration joint : jointRegistry.unregisterJointsForBody(registration.bodyUuid())) {
             PhysicsSpaceBinding jointSpace = spaceRuntime.getBinding(joint.spaceId());
             if (jointSpace != null) {
                 jointSpace.runtime().removeJoint(jointSpace.backendSpaceHandle().value(), joint.backendJointHandle().value());
