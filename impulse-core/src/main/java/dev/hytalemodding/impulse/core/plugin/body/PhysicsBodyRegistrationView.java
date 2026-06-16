@@ -6,7 +6,7 @@ import java.util.UUID;
 import javax.annotation.Nonnull;
 
 /**
- * Immutable body registration metadata safe for public and off-owner callers.
+ * Immutable body registration metadata safe for public callers outside the store tick lane.
  */
 public record PhysicsBodyRegistrationView(@Nonnull UUID bodyUuid,
     @Nonnull SpaceId spaceId,

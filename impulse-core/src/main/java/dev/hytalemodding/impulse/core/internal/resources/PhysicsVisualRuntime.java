@@ -685,7 +685,7 @@ public final class PhysicsVisualRuntime {
      * {@code VisualOcclusionMode.CULL} is enabled, so materialization and sync
      * share one occlusion decision window instead of spending duplicate raycasts. Raycasts are
      * submitted asynchronously; callers poll this state and use the last-known visibility while a
-     * owner query is still incomplete.</p>
+     * store tick query is still incomplete.</p>
      */
     public static final class BodyVisualInterestState {
 

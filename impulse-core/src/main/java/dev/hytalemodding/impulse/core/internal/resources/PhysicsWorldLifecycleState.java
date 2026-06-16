@@ -167,14 +167,14 @@ public final class PhysicsWorldLifecycleState {
         snapshotState.clearBodySnapshots();
     }
 
-    public void publishDetachedOwnerRegistrationViews(@Nonnull PhysicsBodyRegistry bodyRegistry) {
+    public void publishDetachedRegistrationViews(@Nonnull PhysicsBodyRegistry bodyRegistry) {
         bodyRegistry.publishLiveRegistrationViews();
     }
 
     public void markWorldChanged(@Nonnull PhysicsBodyRegistry bodyRegistry,
-        boolean ownerExecutorAttached) {
+        boolean storeTickAttached) {
         snapshotState.markWorldChanged();
-        if (!ownerExecutorAttached) {
+        if (!storeTickAttached) {
             bodyRegistry.publishLiveRegistrationViews();
         }
         eventState.publishEmpty(snapshotState.worldEpoch(), snapshotState.getLatestPublishedFrame());

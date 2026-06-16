@@ -555,7 +555,7 @@ public class PhysicsDebugSystem extends TickingSystem<EntityStore> {
 
         /*
          * Debug overlays run in the tick path, so contact/joint queries are cached and polled.
-         * If an owner query is still incomplete, the renderer uses the previous completed result
+         * If a store tick query is still incomplete, the renderer uses the previous completed result
          * or skips that overlay for the frame instead of joining the world thread.
          */
         @Nonnull
