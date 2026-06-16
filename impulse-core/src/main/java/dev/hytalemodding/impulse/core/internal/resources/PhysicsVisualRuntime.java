@@ -3,7 +3,6 @@ package dev.hytalemodding.impulse.core.internal.resources;
 import com.hypixel.hytale.component.Ref;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import com.hypixel.hytale.server.core.universe.world.storage.PhysicsStore;
-import dev.hytalemodding.impulse.core.plugin.body.RigidBodyKey;
 import dev.hytalemodding.impulse.core.plugin.simulation.view.RaycastHitView;
 import it.unimi.dsi.fastutil.ints.Int2ObjectOpenHashMap;
 import it.unimi.dsi.fastutil.objects.Object2ObjectOpenHashMap;
@@ -331,13 +330,6 @@ public final class PhysicsVisualRuntime {
 
     @Nonnull
     public synchronized BodyVisualInterestState getOrCreateBodyVisualInterestState(
-        @Nonnull RigidBodyKey bodyKey) {
-        return bodyVisualInterestStates.computeIfAbsent(bodyKey.value(),
-            _ -> new BodyVisualInterestState());
-    }
-
-    @Nonnull
-    public synchronized BodyVisualInterestState getOrCreateBodyVisualInterestState(
         @Nonnull UUID bodyUuid,
         @Nullable Ref<PhysicsStore> bodyRef) {
         if (bodyRef != null && bodyRef.isValid()) {
@@ -345,12 +337,6 @@ public final class PhysicsVisualRuntime {
         }
         return bodyVisualInterestStates.computeIfAbsent(bodyUuid,
             _ -> new BodyVisualInterestState());
-    }
-
-    @Nullable
-    public synchronized BodyVisualInterestState getBodyVisualInterestState(
-        @Nonnull RigidBodyKey bodyKey) {
-        return bodyVisualInterestStates.get(bodyKey.value());
     }
 
     @Nullable
@@ -383,10 +369,6 @@ public final class PhysicsVisualRuntime {
         if (row != null && (!row.bodyRef().isValid() || sameRef(row.bodyRef(), bodyRef))) {
             bodyVisualInterestStatesByRowIndex.remove(rowIndex);
         }
-    }
-
-    public void clearBodyRuntimeState(@Nonnull RigidBodyKey bodyKey) {
-        clearBodyRuntimeState(bodyKey.value(), null);
     }
 
     public void clearBodyRuntimeState(@Nonnull UUID bodyUuid,

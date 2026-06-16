@@ -2340,27 +2340,11 @@ public class PhysicsWorldRuntimeResource extends PhysicsWorldResource {
     }
 
     @Nonnull
-    public BodyVisualInterestState getOrCreateBodyVisualInterestState(@Nonnull RigidBodyKey bodyKey) {
-        BodyVisualInterestState state = visualRuntime.getOrCreateBodyVisualInterestState(bodyKey);
-        state.advanceVisualInterestTick(visualInterestTick.get());
-        return state;
-    }
-
-    @Nonnull
     public BodyVisualInterestState getOrCreateBodyVisualInterestState(@Nonnull UUID bodyUuid,
         @Nullable Ref<PhysicsStore> bodyRef) {
         BodyVisualInterestState state =
             visualRuntime.getOrCreateBodyVisualInterestState(bodyUuid, bodyRef);
         state.advanceVisualInterestTick(visualInterestTick.get());
-        return state;
-    }
-
-    @Nullable
-    public BodyVisualInterestState getBodyVisualInterestState(@Nonnull RigidBodyKey bodyKey) {
-        BodyVisualInterestState state = visualRuntime.getBodyVisualInterestState(bodyKey);
-        if (state != null) {
-            state.advanceVisualInterestTick(visualInterestTick.get());
-        }
         return state;
     }
 
