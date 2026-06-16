@@ -3,6 +3,7 @@ package dev.hytalemodding.impulse.examples.explosive;
 import com.hypixel.hytale.component.AddReason;
 import com.hypixel.hytale.component.ComponentAccessor;
 import com.hypixel.hytale.component.Holder;
+import com.hypixel.hytale.component.Ref;
 import com.hypixel.hytale.component.Store;
 import com.hypixel.hytale.math.util.ChunkUtil;
 import com.hypixel.hytale.math.vector.Rotation3f;
@@ -18,6 +19,7 @@ import com.hypixel.hytale.server.core.modules.time.TimeResource;
 import com.hypixel.hytale.server.core.universe.world.World;
 import com.hypixel.hytale.server.core.universe.world.chunk.WorldChunk;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
+import com.hypixel.hytale.server.core.universe.world.storage.PhysicsStore;
 import dev.hytalemodding.impulse.api.SpaceId;
 import dev.hytalemodding.impulse.core.plugin.physicsstore.components.BodyCommandComponent;
 import dev.hytalemodding.impulse.core.plugin.resources.PhysicsWorldResource;
@@ -107,8 +109,9 @@ public final class ExplosiveBlockRuntime {
         @Nonnull SpaceId spaceId,
         @Nonnull Vector3d center,
         @Nonnull ExplosiveBlockComponent settings) {
-        UUID spaceUuid = ExamplePhysicsUtils.resolvePhysicsStoreSpaceUuid(world, spaceId);
-        if (spaceUuid == null) {
+        Ref<PhysicsStore> spaceRef = ExamplePhysicsUtils.resolvePhysicsStoreSpaceRef(world,
+            spaceId);
+        if (spaceRef == null) {
             throw new IllegalStateException("Cannot spawn explosive fragments because PhysicsStore "
                 + "space id=" + spaceId.value() + " is not bound");
         }
@@ -152,7 +155,7 @@ public final class ExplosiveBlockRuntime {
                 settings.getVerticalLift())
                 .mul(group.mass());
             var bodyRef = ExamplePhysicsUtils.addPhysicsStoreBody(world,
-                ExamplePhysicsUtils.bodyRow(spaceUuid,
+                ExamplePhysicsUtils.bodyRow(spaceRef,
                     bodyUuid,
                     toVector3f(groupCenter),
                     group.shape(),

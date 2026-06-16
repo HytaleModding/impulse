@@ -149,15 +149,16 @@ final class PhysicsStoreExampleCommands {
 
             UUID bodyUuid = UUID.randomUUID();
             Vector3d spawn = new Vector3d(playerPos).add(0.0, 2.0, 0.0);
-            UUID spaceUuid = ExamplePhysicsUtils.resolvePhysicsStoreSpaceUuid(world, spaceId);
-            if (spaceUuid == null) {
+            Ref<PhysicsStore> spaceRef = ExamplePhysicsUtils.resolvePhysicsStoreSpaceRef(world,
+                spaceId);
+            if (spaceRef == null) {
                 ctx.sender().sendMessage(Message.raw("PhysicsStore space id=" + spaceId.value()
                     + " is not bound yet."));
                 return CompletableFuture.completedFuture(null);
             }
             Vector3f targetPosition = vector(spawn);
             var bodyRef = ExamplePhysicsUtils.addPhysicsStoreBody(world,
-                ExamplePhysicsUtils.bodyRow(spaceUuid,
+                ExamplePhysicsUtils.bodyRow(spaceRef,
                     bodyUuid,
                     targetPosition,
                     PhysicsShapeSpec.box(0.5f, 0.5f, 0.5f),
@@ -314,8 +315,9 @@ final class PhysicsStoreExampleCommands {
             }
             PhysicsWorldResource resource = store.getResource(PhysicsWorldResource.getResourceType());
             boolean contactEventsEnabled = contactEventsEnabled(resource);
-            UUID spaceUuid = ExamplePhysicsUtils.resolvePhysicsStoreSpaceUuid(world, spaceId);
-            if (spaceUuid == null) {
+            Ref<PhysicsStore> spaceRef = ExamplePhysicsUtils.resolvePhysicsStoreSpaceRef(world,
+                spaceId);
+            if (spaceRef == null) {
                 ctx.sender().sendMessage(Message.raw("PhysicsStore space id=" + spaceId.value()
                     + " is not bound yet."));
                 return CompletableFuture.completedFuture(null);
@@ -328,7 +330,7 @@ final class PhysicsStoreExampleCommands {
 
             UUID bodyUuid = UUID.randomUUID();
             ExamplePhysicsUtils.addPhysicsStoreBody(world,
-                ExamplePhysicsUtils.bodyRow(spaceUuid,
+                ExamplePhysicsUtils.bodyRow(spaceRef,
                     bodyUuid,
                     vector(spawn),
                     PhysicsShapeSpec.box(0.5f, 0.5f, 0.5f),

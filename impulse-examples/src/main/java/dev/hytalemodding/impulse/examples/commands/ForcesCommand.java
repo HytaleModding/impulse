@@ -12,6 +12,7 @@ import com.hypixel.hytale.server.core.modules.time.TimeResource;
 import com.hypixel.hytale.server.core.universe.PlayerRef;
 import com.hypixel.hytale.server.core.universe.world.World;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
+import com.hypixel.hytale.server.core.universe.world.storage.PhysicsStore;
 import dev.hytalemodding.impulse.api.SpaceId;
 import dev.hytalemodding.impulse.core.plugin.physicsstore.components.BodyCommandComponent;
 import dev.hytalemodding.impulse.core.plugin.simulation.PhysicsShapeSpec;
@@ -91,19 +92,19 @@ public class ForcesCommand extends AbstractAsyncPlayerCommand {
         @Nonnull Vector3d offCenterPosition,
         @Nonnull Vector3d torquePosition,
         @Nonnull Vector3d forcePosition) {
-        UUID spaceUuid;
+        Ref<PhysicsStore> spaceRef;
         try {
-            spaceUuid = ExamplePhysicsUtils.resolvePhysicsStoreSpaceUuid(world, spaceId);
+            spaceRef = ExamplePhysicsUtils.resolvePhysicsStoreSpaceRef(world, spaceId);
         } catch (IllegalStateException exception) {
             return null;
         }
-        if (spaceUuid == null) {
+        if (spaceRef == null) {
             return null;
         }
 
         try {
             CreatedBlockBody central = spawnBox(world,
-                spaceUuid,
+                spaceRef,
                 spaceId,
                 centralPosition,
                 BodyCommandComponent.vector(BodyCommandComponent.Kind.IMPULSE,
@@ -115,7 +116,7 @@ public class ForcesCommand extends AbstractAsyncPlayerCommand {
                     0.0f,
                     0.0f));
             CreatedBlockBody offCenter = spawnBox(world,
-                spaceUuid,
+                spaceRef,
                 spaceId,
                 offCenterPosition,
                 BodyCommandComponent.vector(BodyCommandComponent.Kind.IMPULSE,
@@ -127,7 +128,7 @@ public class ForcesCommand extends AbstractAsyncPlayerCommand {
                     0.5f,
                     0.5f));
             CreatedBlockBody torque = spawnBox(world,
-                spaceUuid,
+                spaceRef,
                 spaceId,
                 torquePosition,
                 BodyCommandComponent.vector(BodyCommandComponent.Kind.TORQUE_IMPULSE,
@@ -139,7 +140,7 @@ public class ForcesCommand extends AbstractAsyncPlayerCommand {
                     0.0f,
                     0.0f));
             CreatedBlockBody force = spawnBox(world,
-                spaceUuid,
+                spaceRef,
                 spaceId,
                 forcePosition,
                 BodyCommandComponent.vector(BodyCommandComponent.Kind.FORCE,
@@ -157,13 +158,13 @@ public class ForcesCommand extends AbstractAsyncPlayerCommand {
     }
 
     private static CreatedBlockBody spawnBox(@Nonnull World world,
-        @Nonnull UUID spaceUuid,
+        @Nonnull Ref<PhysicsStore> spaceRef,
         @Nonnull SpaceId spaceId,
         @Nonnull Vector3d position,
         @Nonnull BodyCommandComponent command) {
         UUID bodyUuid = UUID.randomUUID();
         var bodyRef = ExamplePhysicsUtils.addPhysicsStoreBody(world,
-            ExamplePhysicsUtils.bodyRow(spaceUuid,
+            ExamplePhysicsUtils.bodyRow(spaceRef,
                 bodyUuid,
                 ExamplePhysicsUtils.toVector3f(position),
                 PhysicsShapeSpec.box(0.5f, 0.5f, 0.5f),

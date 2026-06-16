@@ -64,7 +64,7 @@ public final class ExamplePhysicsUtils {
     }
 
     @Nullable
-    public static UUID resolvePhysicsStoreSpaceUuid(@Nonnull World world,
+    private static UUID resolvePhysicsStoreSpaceUuid(@Nonnull World world,
         @Nonnull SpaceId spaceId) {
         Store<PhysicsStore> store = physicsStore(world);
         PhysicsStoreThreading.requireWorldThread(store, "resolve a PhysicsStore space UUID");
@@ -270,13 +270,13 @@ public final class ExamplePhysicsUtils {
         Objects.requireNonNull(settings, "settings");
 
         World world = store.getExternalData().getWorld();
-        UUID spaceUuid;
+        Ref<PhysicsStore> spaceRef;
         try {
-            spaceUuid = resolvePhysicsStoreSpaceUuid(world, spaceId);
+            spaceRef = resolvePhysicsStoreSpaceRef(world, spaceId);
         } catch (IllegalStateException exception) {
             return null;
         }
-        if (spaceUuid == null) {
+        if (spaceRef == null) {
             return null;
         }
 
@@ -285,7 +285,7 @@ public final class ExamplePhysicsUtils {
         Ref<PhysicsStore> bodyRef;
         try {
             bodyRef = addPhysicsStoreBody(world,
-                bodyRow(spaceUuid,
+                bodyRow(spaceRef,
                     bodyUuid,
                     bodyCenter,
                     shape,
@@ -307,7 +307,7 @@ public final class ExamplePhysicsUtils {
     }
 
     @Nonnull
-    public static BodyRowDescriptor bodyRow(@Nonnull UUID spaceUuid,
+    private static BodyRowDescriptor bodyRow(@Nonnull UUID spaceUuid,
         @Nonnull UUID bodyUuid,
         @Nonnull Vector3f bodyCenter,
         @Nonnull PhysicsShapeSpec shape,
@@ -366,6 +366,29 @@ public final class ExamplePhysicsUtils {
     }
 
     @Nonnull
+    private static BodyRowDescriptor bodyRow(@Nonnull Ref<PhysicsStore> spaceRef,
+        @Nonnull UUID bodyUuid,
+        @Nonnull Vector3f bodyCenter,
+        @Nonnull PhysicsShapeSpec shape,
+        float mass,
+        @Nonnull RigidBodySpawnSettings settings,
+        @Nullable Vector3f linearVelocity,
+        @Nonnull PhysicsBodyKind kind,
+        @Nonnull PhysicsBodyPersistenceMode persistenceMode) {
+        BodyRowDescriptor row = bodyRow(physicsStoreRowUuid(spaceRef),
+            bodyUuid,
+            bodyCenter,
+            shape,
+            mass,
+            settings,
+            linearVelocity,
+            kind,
+            persistenceMode);
+        row.body().setSpaceRef(spaceRef);
+        return row;
+    }
+
+    @Nonnull
     public static BodyRowBatchTiming addDynamicBodyBatchMeasured(@Nonnull World world,
         @Nonnull SpaceId spaceId,
         int expectedBodies,
@@ -421,8 +444,8 @@ public final class ExamplePhysicsUtils {
             return new DynamicBodyBatchPlan(List.of(), 0L);
         }
 
-        UUID spaceUuid = resolvePhysicsStoreSpaceUuid(world, spaceId);
-        if (spaceUuid == null) {
+        Ref<PhysicsStore> spaceRef = resolvePhysicsStoreSpaceRef(world, spaceId);
+        if (spaceRef == null) {
             throw new IllegalStateException("Cannot add dynamic body rows because the target space is not "
                 + "bound in PhysicsStore: " + spaceId.value());
         }
@@ -430,7 +453,7 @@ public final class ExamplePhysicsUtils {
         List<BodyRowDescriptor> bodies = new ArrayList<>(batch.size());
         for (int i = 0; i < batch.size(); i++) {
             UUID bodyUuid = batch.bodyUuid(i);
-            bodies.add(bodyRow(spaceUuid,
+            bodies.add(bodyRow(spaceRef,
                 bodyUuid,
                 new Vector3f(batch.positionX(i), batch.positionY(i), batch.positionZ(i)),
                 shape,
@@ -536,8 +559,8 @@ public final class ExamplePhysicsUtils {
         }
 
         World world = store.getExternalData().getWorld();
-        UUID spaceUuid = resolvePhysicsStoreSpaceUuid(world, spaceId);
-        if (spaceUuid == null) {
+        Ref<PhysicsStore> spaceRef = resolvePhysicsStoreSpaceRef(world, spaceId);
+        if (spaceRef == null) {
             throw new IllegalStateException("Cannot spawn block body batch because the target space is not "
                 + "bound in PhysicsStore: " + spaceId.value());
         }
@@ -545,7 +568,7 @@ public final class ExamplePhysicsUtils {
         List<BodyRowDescriptor> rows = new ArrayList<>(batch.size());
         for (int i = 0; i < batch.size(); i++) {
             UUID bodyUuid = batch.bodyUuid(i);
-            rows.add(bodyRow(spaceUuid,
+            rows.add(bodyRow(spaceRef,
                 bodyUuid,
                 new Vector3f(batch.positionX(i), batch.positionY(i), batch.positionZ(i)),
                 shape,
