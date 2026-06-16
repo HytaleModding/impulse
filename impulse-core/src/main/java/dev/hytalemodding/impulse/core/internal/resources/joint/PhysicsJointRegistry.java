@@ -20,8 +20,6 @@ import javax.annotation.Nullable;
  */
 public final class PhysicsJointRegistry {
 
-    private final Map<JointKey, PhysicsJointRegistration> registrationsByKey =
-        new Object2ObjectLinkedOpenHashMap<>();
     private final Map<UUID, PhysicsJointRegistration> registrationsByUuid =
         new Object2ObjectLinkedOpenHashMap<>();
     private final Int2ObjectOpenHashMap<Long2ObjectOpenHashMap<UUID>> jointUuidsByRawBackendId =
@@ -89,17 +87,11 @@ public final class PhysicsJointRegistry {
             motorEnabled,
             motorTargetVelocity,
             motorMaxForce);
-        registrationsByKey.put(jointKey, registration);
         registrationsByUuid.put(jointUuid, registration);
         jointUuidsByRawBackendId
             .computeIfAbsent(spaceId.value(), ignored -> new Long2ObjectOpenHashMap<>())
             .put(backendJointHandle.value(), jointUuid);
         return registration;
-    }
-
-    @Nullable
-    public PhysicsJointRegistration unregisterJoint(@Nonnull JointKey jointKey) {
-        return unregisterJoint(jointKey.value());
     }
 
     @Nullable
@@ -109,7 +101,6 @@ public final class PhysicsJointRegistry {
             return null;
         }
 
-        registrationsByKey.remove(JointKey.of(jointUuid));
         removeBackendIndex(registration);
         return registration;
     }
@@ -118,11 +109,6 @@ public final class PhysicsJointRegistry {
     public PhysicsJointRegistration unregisterJoint(@Nonnull SpaceId spaceId, long backendJointId) {
         UUID jointUuid = getJointUuid(spaceId, backendJointId);
         return jointUuid != null ? unregisterJoint(jointUuid) : null;
-    }
-
-    @Nonnull
-    public Collection<PhysicsJointRegistration> unregisterJointsForBody(@Nonnull RigidBodyKey bodyKey) {
-        return unregisterJointsForBody(bodyKey.value());
     }
 
     @Nonnull
@@ -153,11 +139,6 @@ public final class PhysicsJointRegistry {
         for (UUID jointUuid : removed) {
             unregisterJoint(jointUuid);
         }
-    }
-
-    @Nullable
-    public PhysicsJointRegistration getRegistration(@Nonnull JointKey jointKey) {
-        return getRegistration(jointKey.value());
     }
 
     @Nullable
@@ -192,13 +173,6 @@ public final class PhysicsJointRegistry {
 
     @Nullable
     public PhysicsJointRegistration findJointBetween(@Nonnull SpaceId spaceId,
-        @Nonnull RigidBodyKey bodyA,
-        @Nonnull RigidBodyKey bodyB) {
-        return findJointBetween(spaceId, bodyA.value(), bodyB.value());
-    }
-
-    @Nullable
-    public PhysicsJointRegistration findJointBetween(@Nonnull SpaceId spaceId,
         @Nonnull UUID bodyAUuid,
         @Nonnull UUID bodyBUuid) {
         for (PhysicsJointRegistration registration : registrationsByUuid.values()) {
@@ -218,7 +192,6 @@ public final class PhysicsJointRegistry {
     }
 
     public void clear() {
-        registrationsByKey.clear();
         registrationsByUuid.clear();
         jointUuidsByRawBackendId.clear();
     }

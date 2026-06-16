@@ -2028,7 +2028,8 @@ public class PhysicsWorldRuntimeResource extends PhysicsWorldResource {
     }
 
     private boolean removeJointDirect(@Nonnull JointKey jointKey) {
-        PhysicsJointRegistration registration = jointRegistry.getRegistration(jointKey);
+        UUID jointUuid = Objects.requireNonNull(jointKey, "jointKey").value();
+        PhysicsJointRegistration registration = jointRegistry.getRegistration(jointUuid);
         if (registration == null) {
             return false;
         }
@@ -2037,7 +2038,7 @@ public class PhysicsWorldRuntimeResource extends PhysicsWorldResource {
         if (binding != null) {
             binding.runtime().removeJoint(binding.backendSpaceHandle().value(), registration.backendJointHandle().value());
         }
-        jointRegistry.unregisterJoint(jointKey);
+        jointRegistry.unregisterJoint(jointUuid);
         markWorldChanged();
         return true;
     }
@@ -2051,7 +2052,7 @@ public class PhysicsWorldRuntimeResource extends PhysicsWorldResource {
     @Nullable
     public PhysicsJointRegistration getJointRegistration(@Nonnull JointKey jointKey) {
         assertCanAccessLiveBackendDirectly("resolve physics joint registration");
-        return jointRegistry.getRegistration(jointKey);
+        return jointRegistry.getRegistration(Objects.requireNonNull(jointKey, "jointKey").value());
     }
 
     @Nonnull
@@ -2065,7 +2066,9 @@ public class PhysicsWorldRuntimeResource extends PhysicsWorldResource {
         @Nonnull RigidBodyKey bodyA,
         @Nonnull RigidBodyKey bodyB) {
         assertCanAccessLiveBackendDirectly("resolve physics joint registration");
-        return jointRegistry.findJointBetween(spaceId, bodyA, bodyB);
+        return jointRegistry.findJointBetween(spaceId,
+            Objects.requireNonNull(bodyA, "bodyA").value(),
+            Objects.requireNonNull(bodyB, "bodyB").value());
     }
 
     @Nonnull
