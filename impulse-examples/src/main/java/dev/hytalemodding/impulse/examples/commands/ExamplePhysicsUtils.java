@@ -239,6 +239,30 @@ public final class ExamplePhysicsUtils {
             + "bound in PhysicsStore: " + spaceId.value());
     }
 
+    @Nonnull
+    public static SpawnedBlockBody spawnBlockBody(@Nonnull Store<EntityStore> store,
+        @Nonnull TimeResource time,
+        @Nonnull Ref<PhysicsStore> spaceRef,
+        @Nonnull SpaceId spaceId,
+        @Nonnull Vector3d visualPosition,
+        @Nullable String blockType,
+        @Nonnull PhysicsShapeSpec shape,
+        float mass,
+        @Nonnull RigidBodySpawnSettings settings,
+        @Nullable Vector3f linearVelocity) {
+        return attachPhysicsStoreBlockBody(store,
+            time,
+            createPhysicsStoreBlockBody(store.getExternalData().getWorld(),
+                spaceRef,
+                spaceId,
+                visualPosition,
+                blockType,
+                shape,
+                mass,
+                settings,
+                linearVelocity));
+    }
+
     @Nullable
     private static CreatedBlockBody tryCreatePhysicsStoreBlockBody(@Nonnull Store<EntityStore> store,
         @Nonnull SpaceId spaceId,
@@ -266,20 +290,64 @@ public final class ExamplePhysicsUtils {
         }
 
         UUID bodyUuid = UUID.randomUUID();
-        Vector3f bodyCenter = toVector3f(visualPosition);
-        Ref<PhysicsStore> bodyRef;
         try {
-            bodyRef = addPhysicsStoreBody(world,
-                bodyRow(spaceRef,
-                    bodyUuid,
-                    bodyCenter,
-                    shape,
-                    mass,
-                    settings,
-                    linearVelocity));
+            return createPhysicsStoreBlockBody(world,
+                spaceRef,
+                spaceId,
+                visualPosition,
+                blockType,
+                shape,
+                mass,
+                settings,
+                linearVelocity,
+                bodyUuid);
         } catch (IllegalStateException exception) {
             return null;
         }
+    }
+
+    @Nonnull
+    private static CreatedBlockBody createPhysicsStoreBlockBody(@Nonnull World world,
+        @Nonnull Ref<PhysicsStore> spaceRef,
+        @Nonnull SpaceId spaceId,
+        @Nonnull Vector3d visualPosition,
+        @Nullable String blockType,
+        @Nonnull PhysicsShapeSpec shape,
+        float mass,
+        @Nonnull RigidBodySpawnSettings settings,
+        @Nullable Vector3f linearVelocity) {
+        return createPhysicsStoreBlockBody(world,
+            spaceRef,
+            spaceId,
+            visualPosition,
+            blockType,
+            shape,
+            mass,
+            settings,
+            linearVelocity,
+            UUID.randomUUID());
+    }
+
+    @Nonnull
+    private static CreatedBlockBody createPhysicsStoreBlockBody(@Nonnull World world,
+        @Nonnull Ref<PhysicsStore> spaceRef,
+        @Nonnull SpaceId spaceId,
+        @Nonnull Vector3d visualPosition,
+        @Nullable String blockType,
+        @Nonnull PhysicsShapeSpec shape,
+        float mass,
+        @Nonnull RigidBodySpawnSettings settings,
+        @Nullable Vector3f linearVelocity,
+        @Nonnull UUID bodyUuid) {
+        Vector3f bodyCenter = toVector3f(visualPosition);
+        Ref<PhysicsStore> bodyRef = addPhysicsStoreBody(world,
+            bodyRow(spaceRef,
+                bodyUuid,
+                bodyCenter,
+                shape,
+                mass,
+                settings,
+                linearVelocity));
 
         return new CreatedBlockBody(bodyUuid,
             bodyRef,

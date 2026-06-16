@@ -15,8 +15,6 @@ import com.hypixel.hytale.server.core.universe.world.storage.PhysicsStore;
 import dev.hytalemodding.impulse.api.SpaceId;
 import dev.hytalemodding.impulse.core.plugin.simulation.PhysicsShapeSpec;
 import dev.hytalemodding.impulse.core.plugin.simulation.RigidBodySpawnSettings;
-import dev.hytalemodding.impulse.examples.commands.ExamplePhysicsUtils.CreatedBlockBody;
-import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import javax.annotation.Nonnull;
 import org.joml.Vector3d;
@@ -56,12 +54,12 @@ public class MaterialsCommand extends AbstractAsyncPlayerCommand {
         TimeResource time = store.getResource(TimeResource.getResourceType());
 
         Vector3d origin = new Vector3d(playerPos).add(-3.0, 5.0, 4.0);
-        spawnSphere(store, time, world, spaceRef, spaceId, new Vector3d(origin), 0.05f, 0.9f, 3.0f);
-        spawnSphere(store, time, world, spaceRef, spaceId, new Vector3d(origin).add(2.0, 0.0, 0.0),
+        spawnSphere(store, time, spaceRef, spaceId, new Vector3d(origin), 0.05f, 0.9f, 3.0f);
+        spawnSphere(store, time, spaceRef, spaceId, new Vector3d(origin).add(2.0, 0.0, 0.0),
             0.95f, 0.9f, 3.0f);
-        spawnSphere(store, time, world, spaceRef, spaceId, new Vector3d(origin).add(4.0, 0.0, 0.0),
+        spawnSphere(store, time, spaceRef, spaceId, new Vector3d(origin).add(4.0, 0.0, 0.0),
             0.5f, 0.0f, 2.0f);
-        spawnSphere(store, time, world, spaceRef, spaceId, new Vector3d(origin).add(6.0, 0.0, 0.0),
+        spawnSphere(store, time, spaceRef, spaceId, new Vector3d(origin).add(6.0, 0.0, 0.0),
             0.5f, 0.95f, 2.0f);
 
         ctx.sender().sendMessage(Message.raw(
@@ -71,31 +69,21 @@ public class MaterialsCommand extends AbstractAsyncPlayerCommand {
 
     private static void spawnSphere(@Nonnull Store<EntityStore> store,
         @Nonnull TimeResource time,
-        @Nonnull World world,
         @Nonnull Ref<PhysicsStore> spaceRef,
         @Nonnull SpaceId spaceId,
         @Nonnull Vector3d position,
         float restitution,
         float friction,
         float speed) {
-        UUID bodyUuid = UUID.randomUUID();
-        Ref<PhysicsStore> bodyRef = ExamplePhysicsUtils.addPhysicsStoreBody(world,
-            ExamplePhysicsUtils.bodyRow(spaceRef,
-                bodyUuid,
-                ExamplePhysicsUtils.toVector3f(position),
-                PhysicsShapeSpec.sphere(0.5f),
-                1.0f,
-                RigidBodySpawnSettings.material(friction, restitution),
-                new Vector3f(speed, 0.0f, 0.0f)));
-        ExamplePhysicsUtils.attachPhysicsStoreBlockBody(store,
+        ExamplePhysicsUtils.spawnBlockBody(store,
             time,
-            new CreatedBlockBody(bodyUuid,
-                bodyRef,
-                spaceId,
-                ExamplePhysicsUtils.DEFAULT_BLOCK_TYPE,
-                (float) position.x,
-                (float) position.y,
-                (float) position.z,
-                true));
+            spaceRef,
+            spaceId,
+            position,
+            ExamplePhysicsUtils.DEFAULT_BLOCK_TYPE,
+            PhysicsShapeSpec.sphere(0.5f),
+            1.0f,
+            RigidBodySpawnSettings.material(friction, restitution),
+            new Vector3f(speed, 0.0f, 0.0f));
     }
 }
