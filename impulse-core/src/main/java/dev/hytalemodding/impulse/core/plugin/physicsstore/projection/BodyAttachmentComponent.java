@@ -179,19 +179,6 @@ public class BodyAttachmentComponent implements Component<EntityStore> {
     }
 
     @Nonnull
-    public static BodyAttachmentComponent generatedProxy(@Nonnull UUID bodyUuid,
-        @Nonnull Vector3f localPositionOffset,
-        @Nonnull Quaternionf localRotationOffset,
-        float visualOriginOffsetY) {
-        return new BodyAttachmentComponent(bodyUuid,
-            TransformAuthority.BODY,
-            AttachmentLifecycle.GENERATED_PROXY,
-            localPositionOffset,
-            localRotationOffset,
-            visualOriginOffsetY);
-    }
-
-    @Nonnull
     public UUID getBodyUuid() {
         return bodyUuid;
     }
