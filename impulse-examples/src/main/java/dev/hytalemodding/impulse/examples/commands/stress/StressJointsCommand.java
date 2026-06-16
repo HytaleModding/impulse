@@ -18,7 +18,7 @@ import dev.hytalemodding.impulse.core.plugin.simulation.PhysicsShapeSpec;
 import dev.hytalemodding.impulse.core.plugin.simulation.RigidBodySpawnSettings;
 import dev.hytalemodding.impulse.examples.commands.ExampleBlockEntityVisuals;
 import dev.hytalemodding.impulse.examples.commands.ExamplePhysicsUtils;
-import dev.hytalemodding.impulse.examples.commands.ExamplePhysicsUtils.PendingBlockBody;
+import dev.hytalemodding.impulse.examples.commands.ExamplePhysicsUtils.CreatedBlockBody;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
@@ -91,8 +91,8 @@ public class StressJointsCommand extends AbstractAsyncPlayerCommand {
 
         Vector3d origin = new Vector3d(playerPos).add(-totalJoints * 0.1, 7.0, 5.0);
         int createdJoints = 0;
-        int createdBodies = 0;
-        List<PendingBlockBody> pendingBodies = new ArrayList<>(totalJoints + ROWS);
+        int createdBodyCount = 0;
+        List<CreatedBlockBody> createdBodyRows = new ArrayList<>(totalJoints + ROWS);
         int baseJointsPerRow = totalJoints / ROWS;
         int remainder = totalJoints % ROWS;
         try {
@@ -103,7 +103,7 @@ public class StressJointsCommand extends AbstractAsyncPlayerCommand {
                 }
 
                 Vector3d rowOrigin = new Vector3d(origin).add(0.0, 0.0, row * ROW_SPACING);
-                createdBodies += appendRow(pendingBodies,
+                createdBodyCount += appendRow(createdBodyRows,
                     world,
                     spaceUuid,
                     spaceId,
@@ -117,17 +117,17 @@ public class StressJointsCommand extends AbstractAsyncPlayerCommand {
             ctx.sender().sendMessage(Message.raw("Cannot create stress joint demo: " + exception.getMessage()));
             return CompletableFuture.completedFuture(null);
         }
-        for (PendingBlockBody pendingBody : pendingBodies) {
-            ExamplePhysicsUtils.attachPhysicsStoreBlockBody(store, time, pendingBody);
+        for (CreatedBlockBody createdBody : createdBodyRows) {
+            ExamplePhysicsUtils.attachPhysicsStoreBlockBody(store, time, createdBody);
         }
 
         ctx.sender().sendMessage(Message.raw("Queued " + createdJoints
             + " stress joints across fixed/point/hinge/slider/spring rows with "
-            + createdBodies + " bodies and attached visuals. blockType=" + blockType + "."));
+            + createdBodyCount + " bodies and attached visuals. blockType=" + blockType + "."));
         return CompletableFuture.completedFuture(null);
     }
 
-    private static int appendRow(@Nonnull List<PendingBlockBody> pendingBodies,
+    private static int appendRow(@Nonnull List<CreatedBlockBody> createdBodies,
         @Nonnull World world,
         @Nonnull UUID spaceUuid,
         @Nonnull SpaceId spaceId,
@@ -153,7 +153,7 @@ public class StressJointsCommand extends AbstractAsyncPlayerCommand {
             positions[positionOffset + 1] = (float) origin.y;
             positions[positionOffset + 2] = (float) origin.z;
             float mass = i == 0 ? 0.0f : 1.0f;
-            ExamplePhysicsUtils.addPhysicsStoreBody(world,
+            var bodyRef = ExamplePhysicsUtils.addPhysicsStoreBody(world,
                 ExamplePhysicsUtils.bodyRow(spaceUuid,
                     bodyUuid,
                     new Vector3f(positions[positionOffset],
@@ -163,8 +163,9 @@ public class StressJointsCommand extends AbstractAsyncPlayerCommand {
                     mass,
                     spawnSettings,
                     initialVelocity(jointType, i)));
-            pendingBodies.add(new PendingBlockBody(
+            createdBodies.add(new CreatedBlockBody(
                 bodyUuid,
+                bodyRef,
                 spaceId,
                 blockType,
                 positions[positionOffset],

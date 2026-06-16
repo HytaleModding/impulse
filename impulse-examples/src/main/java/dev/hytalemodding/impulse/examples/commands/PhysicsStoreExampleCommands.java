@@ -156,7 +156,7 @@ final class PhysicsStoreExampleCommands {
                 return CompletableFuture.completedFuture(null);
             }
             Vector3f targetPosition = vector(spawn);
-            ExamplePhysicsUtils.addPhysicsStoreBody(world,
+            var bodyRef = ExamplePhysicsUtils.addPhysicsStoreBody(world,
                 ExamplePhysicsUtils.bodyRow(spaceUuid,
                     bodyUuid,
                     targetPosition,
@@ -174,7 +174,8 @@ final class PhysicsStoreExampleCommands {
             TimeResource time = store.getResource(TimeResource.getResourceType());
             ExamplePhysicsUtils.attachPhysicsStoreBlockBody(store,
                 time,
-                new ExamplePhysicsUtils.PendingBlockBody(bodyUuid,
+                new ExamplePhysicsUtils.CreatedBlockBody(bodyUuid,
+                    bodyRef,
                     spaceId,
                     ExamplePhysicsUtils.DEFAULT_BLOCK_TYPE,
                     (float) spawn.x,

@@ -24,7 +24,7 @@ import dev.hytalemodding.impulse.core.plugin.resources.PhysicsWorldResource;
 import dev.hytalemodding.impulse.core.plugin.simulation.PhysicsShapeSpec;
 import dev.hytalemodding.impulse.core.plugin.simulation.RigidBodySpawnSettings;
 import dev.hytalemodding.impulse.examples.commands.ExamplePhysicsUtils;
-import dev.hytalemodding.impulse.examples.commands.ExamplePhysicsUtils.PendingBlockBody;
+import dev.hytalemodding.impulse.examples.commands.ExamplePhysicsUtils.CreatedBlockBody;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.HashMap;
@@ -142,7 +142,7 @@ public final class ExplosiveBlockRuntime {
             Math.max(0L, world.getTick()));
 
         Vector3f centerF = toVector3f(center);
-        List<PendingBlockBody> pending = new ArrayList<>(groups.size());
+        List<CreatedBlockBody> created = new ArrayList<>(groups.size());
         for (FragmentGroup group : groups) {
             UUID bodyUuid = UUID.randomUUID();
             Vector3d groupCenter = group.center();
@@ -151,7 +151,7 @@ public final class ExplosiveBlockRuntime {
                 settings.getImpulseStrength(),
                 settings.getVerticalLift())
                 .mul(group.mass());
-            ExamplePhysicsUtils.addPhysicsStoreBody(world,
+            var bodyRef = ExamplePhysicsUtils.addPhysicsStoreBody(world,
                 ExamplePhysicsUtils.bodyRow(spaceUuid,
                     bodyUuid,
                     toVector3f(groupCenter),
@@ -167,7 +167,8 @@ public final class ExplosiveBlockRuntime {
                     0.0f,
                     0.0f,
                     0.0f));
-            pending.add(new PendingBlockBody(bodyUuid,
+            created.add(new CreatedBlockBody(bodyUuid,
+                bodyRef,
                 spaceId,
                 group.blockType(),
                 (float) groupCenter.x,
@@ -177,7 +178,7 @@ public final class ExplosiveBlockRuntime {
         }
 
         for (int i = 0; i < groups.size(); i++) {
-            spawnGroupVisuals(time, fragmentSpawner, groups.get(i), pending.get(i));
+            spawnGroupVisuals(time, fragmentSpawner, groups.get(i), created.get(i));
         }
         return new ExplosionResult(groups.size());
     }
@@ -185,7 +186,7 @@ public final class ExplosiveBlockRuntime {
     private static void spawnGroupVisuals(@Nonnull TimeResource time,
         @Nonnull Consumer<Holder<EntityStore>> fragmentSpawner,
         @Nonnull FragmentGroup group,
-        @Nonnull PendingBlockBody body) {
+        @Nonnull CreatedBlockBody body) {
         boolean controllableAssigned = false;
         for (FragmentVisual visual : group.visualBlocks()) {
             boolean controllable = body.controllable() && !controllableAssigned;

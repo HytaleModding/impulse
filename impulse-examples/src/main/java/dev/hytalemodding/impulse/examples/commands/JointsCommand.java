@@ -16,7 +16,7 @@ import dev.hytalemodding.impulse.core.plugin.physicsstore.components.JointCompon
 import dev.hytalemodding.impulse.core.plugin.simulation.JointType;
 import dev.hytalemodding.impulse.core.plugin.simulation.PhysicsShapeSpec;
 import dev.hytalemodding.impulse.core.plugin.simulation.RigidBodySpawnSettings;
-import dev.hytalemodding.impulse.examples.commands.ExamplePhysicsUtils.PendingBlockBody;
+import dev.hytalemodding.impulse.examples.commands.ExamplePhysicsUtils.CreatedBlockBody;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
@@ -56,16 +56,16 @@ public class JointsCommand extends AbstractAsyncPlayerCommand {
         TimeResource time = store.getResource(TimeResource.getResourceType());
 
         Vector3d origin = new Vector3d(playerPos).add(-5.0, 5.0, 5.0);
-        List<PendingBlockBody> pendingBodies = tryCreatePhysicsStoreDemo(world,
+        List<CreatedBlockBody> createdBodies = tryCreatePhysicsStoreDemo(world,
             spaceId,
             new Vector3d(origin));
-        if (pendingBodies == null) {
+        if (createdBodies == null) {
             ctx.sender().sendMessage(Message.raw(
                 "Cannot spawn joint demo because the target space is not bound in PhysicsStore."));
             return CompletableFuture.completedFuture(null);
         }
-        for (PendingBlockBody pending : pendingBodies) {
-            ExamplePhysicsUtils.attachPhysicsStoreBlockBody(store, time, pending);
+        for (CreatedBlockBody created : createdBodies) {
+            ExamplePhysicsUtils.attachPhysicsStoreBlockBody(store, time, created);
         }
 
         ctx.sender().sendMessage(Message.raw(
@@ -74,7 +74,7 @@ public class JointsCommand extends AbstractAsyncPlayerCommand {
     }
 
     @Nullable
-    private static List<PendingBlockBody> tryCreatePhysicsStoreDemo(@Nonnull World world,
+    private static List<CreatedBlockBody> tryCreatePhysicsStoreDemo(@Nonnull World world,
         @Nonnull SpaceId spaceId,
         @Nonnull Vector3d origin) {
         UUID spaceUuid;
@@ -87,26 +87,26 @@ public class JointsCommand extends AbstractAsyncPlayerCommand {
             return null;
         }
 
-        List<PendingBlockBody> pendingBodies = new ArrayList<>(10);
+        List<CreatedBlockBody> createdBodies = new ArrayList<>(10);
         try {
-            createFixed(pendingBodies, world, spaceUuid, spaceId, new Vector3d(origin));
-            createPoint(pendingBodies, world, spaceUuid, spaceId, new Vector3d(origin).add(2.5, 0.0, 0.0));
-            createHinge(pendingBodies, world, spaceUuid, spaceId, new Vector3d(origin).add(5.0, 0.0, 0.0));
-            createSlider(pendingBodies, world, spaceUuid, spaceId, new Vector3d(origin).add(7.5, 0.0, 0.0));
-            createSpring(pendingBodies, world, spaceUuid, spaceId, new Vector3d(origin).add(10.0, 0.0, 0.0));
+            createFixed(createdBodies, world, spaceUuid, spaceId, new Vector3d(origin));
+            createPoint(createdBodies, world, spaceUuid, spaceId, new Vector3d(origin).add(2.5, 0.0, 0.0));
+            createHinge(createdBodies, world, spaceUuid, spaceId, new Vector3d(origin).add(5.0, 0.0, 0.0));
+            createSlider(createdBodies, world, spaceUuid, spaceId, new Vector3d(origin).add(7.5, 0.0, 0.0));
+            createSpring(createdBodies, world, spaceUuid, spaceId, new Vector3d(origin).add(10.0, 0.0, 0.0));
         } catch (IllegalStateException exception) {
             return null;
         }
-        return pendingBodies;
+        return createdBodies;
     }
 
-    private static void createFixed(@Nonnull List<PendingBlockBody> pendingBodies,
+    private static void createFixed(@Nonnull List<CreatedBlockBody> createdBodies,
         @Nonnull World world,
         @Nonnull UUID spaceUuid,
         @Nonnull SpaceId spaceId,
         @Nonnull Vector3d origin) {
-        UUID anchorUuid = spawnBox(pendingBodies, world, spaceUuid, spaceId, origin, 0.0f);
-        UUID childUuid = spawnBox(pendingBodies, world, spaceUuid, spaceId,
+        UUID anchorUuid = spawnBox(createdBodies, world, spaceUuid, spaceId, origin, 0.0f);
+        UUID childUuid = spawnBox(createdBodies, world, spaceUuid, spaceId,
             new Vector3d(origin).add(0.0, -TOUCHING_SPACING, 0.0), 1.0f);
         ExamplePhysicsUtils.addPhysicsStoreJoint(world,
             UUID.randomUUID(),
@@ -119,13 +119,13 @@ public class JointsCommand extends AbstractAsyncPlayerCommand {
                 new Vector3f()));
     }
 
-    private static void createPoint(@Nonnull List<PendingBlockBody> pendingBodies,
+    private static void createPoint(@Nonnull List<CreatedBlockBody> createdBodies,
         @Nonnull World world,
         @Nonnull UUID spaceUuid,
         @Nonnull SpaceId spaceId,
         @Nonnull Vector3d origin) {
-        UUID anchorUuid = spawnBox(pendingBodies, world, spaceUuid, spaceId, origin, 0.0f);
-        UUID bobUuid = spawnBox(pendingBodies,
+        UUID anchorUuid = spawnBox(createdBodies, world, spaceUuid, spaceId, origin, 0.0f);
+        UUID bobUuid = spawnBox(createdBodies,
             world,
             spaceUuid,
             spaceId,
@@ -143,13 +143,13 @@ public class JointsCommand extends AbstractAsyncPlayerCommand {
                 new Vector3f()));
     }
 
-    private static void createHinge(@Nonnull List<PendingBlockBody> pendingBodies,
+    private static void createHinge(@Nonnull List<CreatedBlockBody> createdBodies,
         @Nonnull World world,
         @Nonnull UUID spaceUuid,
         @Nonnull SpaceId spaceId,
         @Nonnull Vector3d origin) {
-        UUID anchorUuid = spawnBox(pendingBodies, world, spaceUuid, spaceId, origin, 0.0f);
-        UUID armUuid = spawnBox(pendingBodies, world, spaceUuid, spaceId,
+        UUID anchorUuid = spawnBox(createdBodies, world, spaceUuid, spaceId, origin, 0.0f);
+        UUID armUuid = spawnBox(createdBodies, world, spaceUuid, spaceId,
             new Vector3d(origin).add(0.0, -TOUCHING_SPACING, 0.0), 1.0f);
         JointComponent joint = joint(spaceUuid,
             anchorUuid,
@@ -166,13 +166,13 @@ public class JointsCommand extends AbstractAsyncPlayerCommand {
         ExamplePhysicsUtils.addPhysicsStoreJoint(world, UUID.randomUUID(), joint);
     }
 
-    private static void createSlider(@Nonnull List<PendingBlockBody> pendingBodies,
+    private static void createSlider(@Nonnull List<CreatedBlockBody> createdBodies,
         @Nonnull World world,
         @Nonnull UUID spaceUuid,
         @Nonnull SpaceId spaceId,
         @Nonnull Vector3d origin) {
-        UUID anchorUuid = spawnBox(pendingBodies, world, spaceUuid, spaceId, origin, 0.0f);
-        UUID blockUuid = spawnBox(pendingBodies, world, spaceUuid, spaceId,
+        UUID anchorUuid = spawnBox(createdBodies, world, spaceUuid, spaceId, origin, 0.0f);
+        UUID blockUuid = spawnBox(createdBodies, world, spaceUuid, spaceId,
             new Vector3d(origin).add(TOUCHING_SPACING, 0.0, 0.0), 1.0f);
         JointComponent joint = joint(spaceUuid,
             anchorUuid,
@@ -189,13 +189,13 @@ public class JointsCommand extends AbstractAsyncPlayerCommand {
         ExamplePhysicsUtils.addPhysicsStoreJoint(world, UUID.randomUUID(), joint);
     }
 
-    private static void createSpring(@Nonnull List<PendingBlockBody> pendingBodies,
+    private static void createSpring(@Nonnull List<CreatedBlockBody> createdBodies,
         @Nonnull World world,
         @Nonnull UUID spaceUuid,
         @Nonnull SpaceId spaceId,
         @Nonnull Vector3d origin) {
-        UUID anchorUuid = spawnBox(pendingBodies, world, spaceUuid, spaceId, origin, 0.0f);
-        UUID bobUuid = spawnBox(pendingBodies,
+        UUID anchorUuid = spawnBox(createdBodies, world, spaceUuid, spaceId, origin, 0.0f);
+        UUID bobUuid = spawnBox(createdBodies,
             world,
             spaceUuid,
             spaceId,
@@ -215,16 +215,16 @@ public class JointsCommand extends AbstractAsyncPlayerCommand {
         ExamplePhysicsUtils.addPhysicsStoreJoint(world, UUID.randomUUID(), joint);
     }
 
-    private static UUID spawnBox(@Nonnull List<PendingBlockBody> pendingBodies,
+    private static UUID spawnBox(@Nonnull List<CreatedBlockBody> createdBodies,
         @Nonnull World world,
         @Nonnull UUID spaceUuid,
         @Nonnull SpaceId spaceId,
         @Nonnull Vector3d position,
         float mass) {
-        return spawnBox(pendingBodies, world, spaceUuid, spaceId, position, mass, null);
+        return spawnBox(createdBodies, world, spaceUuid, spaceId, position, mass, null);
     }
 
-    private static UUID spawnBox(@Nonnull List<PendingBlockBody> pendingBodies,
+    private static UUID spawnBox(@Nonnull List<CreatedBlockBody> createdBodies,
         @Nonnull World world,
         @Nonnull UUID spaceUuid,
         @Nonnull SpaceId spaceId,
@@ -232,7 +232,7 @@ public class JointsCommand extends AbstractAsyncPlayerCommand {
         float mass,
         @Nullable Vector3f linearVelocity) {
         UUID bodyUuid = UUID.randomUUID();
-        ExamplePhysicsUtils.addPhysicsStoreBody(world,
+        var bodyRef = ExamplePhysicsUtils.addPhysicsStoreBody(world,
             ExamplePhysicsUtils.bodyRow(spaceUuid,
                 bodyUuid,
                 ExamplePhysicsUtils.toVector3f(position),
@@ -240,7 +240,8 @@ public class JointsCommand extends AbstractAsyncPlayerCommand {
                 mass,
                 RigidBodySpawnSettings.material(0.6f, 0.15f),
                 linearVelocity));
-        pendingBodies.add(new PendingBlockBody(bodyUuid,
+        createdBodies.add(new CreatedBlockBody(bodyUuid,
+            bodyRef,
             spaceId,
             ExamplePhysicsUtils.DEFAULT_BLOCK_TYPE,
             (float) position.x,

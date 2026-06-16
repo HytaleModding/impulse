@@ -16,7 +16,7 @@ import dev.hytalemodding.impulse.api.SpaceId;
 import dev.hytalemodding.impulse.core.plugin.physicsstore.components.BodyCommandComponent;
 import dev.hytalemodding.impulse.core.plugin.simulation.PhysicsShapeSpec;
 import dev.hytalemodding.impulse.core.plugin.simulation.RigidBodySpawnSettings;
-import dev.hytalemodding.impulse.examples.commands.ExamplePhysicsUtils.PendingBlockBody;
+import dev.hytalemodding.impulse.examples.commands.ExamplePhysicsUtils.CreatedBlockBody;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import javax.annotation.Nonnull;
@@ -66,10 +66,10 @@ public class ForcesCommand extends AbstractAsyncPlayerCommand {
                 "Cannot spawn force demo because the target space is not bound in PhysicsStore."));
             return CompletableFuture.completedFuture(null);
         }
-        PendingBlockBody central = bodies.central();
-        PendingBlockBody offCenter = bodies.offCenter();
-        PendingBlockBody torque = bodies.torque();
-        PendingBlockBody force = bodies.force();
+        CreatedBlockBody central = bodies.central();
+        CreatedBlockBody offCenter = bodies.offCenter();
+        CreatedBlockBody torque = bodies.torque();
+        CreatedBlockBody force = bodies.force();
         drawArrow(world, centralPosition, new Vector3d(2.0, 1.0, 0.0), DebugUtils.COLOR_GREEN);
         drawArrow(world, offCenterPosition, new Vector3d(2.0, 0.0, 0.0), DebugUtils.COLOR_YELLOW);
         drawArrow(world, torquePosition, new Vector3d(0.0, 0.0, 2.0), DebugUtils.COLOR_MAGENTA);
@@ -102,7 +102,7 @@ public class ForcesCommand extends AbstractAsyncPlayerCommand {
         }
 
         try {
-            PendingBlockBody central = spawnBox(world,
+            CreatedBlockBody central = spawnBox(world,
                 spaceUuid,
                 spaceId,
                 centralPosition,
@@ -114,7 +114,7 @@ public class ForcesCommand extends AbstractAsyncPlayerCommand {
                     0.0f,
                     0.0f,
                     0.0f));
-            PendingBlockBody offCenter = spawnBox(world,
+            CreatedBlockBody offCenter = spawnBox(world,
                 spaceUuid,
                 spaceId,
                 offCenterPosition,
@@ -126,7 +126,7 @@ public class ForcesCommand extends AbstractAsyncPlayerCommand {
                     0.0f,
                     0.5f,
                     0.5f));
-            PendingBlockBody torque = spawnBox(world,
+            CreatedBlockBody torque = spawnBox(world,
                 spaceUuid,
                 spaceId,
                 torquePosition,
@@ -138,7 +138,7 @@ public class ForcesCommand extends AbstractAsyncPlayerCommand {
                     0.0f,
                     0.0f,
                     0.0f));
-            PendingBlockBody force = spawnBox(world,
+            CreatedBlockBody force = spawnBox(world,
                 spaceUuid,
                 spaceId,
                 forcePosition,
@@ -156,13 +156,13 @@ public class ForcesCommand extends AbstractAsyncPlayerCommand {
         }
     }
 
-    private static PendingBlockBody spawnBox(@Nonnull World world,
+    private static CreatedBlockBody spawnBox(@Nonnull World world,
         @Nonnull UUID spaceUuid,
         @Nonnull SpaceId spaceId,
         @Nonnull Vector3d position,
         @Nonnull BodyCommandComponent command) {
         UUID bodyUuid = UUID.randomUUID();
-        ExamplePhysicsUtils.addPhysicsStoreBody(world,
+        var bodyRef = ExamplePhysicsUtils.addPhysicsStoreBody(world,
             ExamplePhysicsUtils.bodyRow(spaceUuid,
                 bodyUuid,
                 ExamplePhysicsUtils.toVector3f(position),
@@ -171,7 +171,8 @@ public class ForcesCommand extends AbstractAsyncPlayerCommand {
                 RigidBodySpawnSettings.material(0.5f, 0.25f),
                 null),
             command);
-        return new PendingBlockBody(bodyUuid,
+        return new CreatedBlockBody(bodyUuid,
+            bodyRef,
             spaceId,
             ExamplePhysicsUtils.DEFAULT_BLOCK_TYPE,
             (float) position.x,
@@ -180,10 +181,10 @@ public class ForcesCommand extends AbstractAsyncPlayerCommand {
             true);
     }
 
-    private record ForceDemoBodies(@Nonnull PendingBlockBody central,
-                                   @Nonnull PendingBlockBody offCenter,
-                                   @Nonnull PendingBlockBody torque,
-                                   @Nonnull PendingBlockBody force) {
+    private record ForceDemoBodies(@Nonnull CreatedBlockBody central,
+                                   @Nonnull CreatedBlockBody offCenter,
+                                   @Nonnull CreatedBlockBody torque,
+                                   @Nonnull CreatedBlockBody force) {
     }
 
     private static void drawArrow(@Nonnull World world,

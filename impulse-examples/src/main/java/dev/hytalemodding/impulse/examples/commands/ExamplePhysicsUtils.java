@@ -236,7 +236,7 @@ public final class ExamplePhysicsUtils {
         float mass,
         @Nonnull RigidBodySpawnSettings settings,
         @Nullable Vector3f linearVelocity) {
-        PendingBlockBody physicsStoreBody = tryCreatePhysicsStoreBlockBody(store,
+        CreatedBlockBody physicsStoreBody = tryCreatePhysicsStoreBlockBody(store,
             spaceId,
             visualPosition,
             blockType,
@@ -253,7 +253,7 @@ public final class ExamplePhysicsUtils {
     }
 
     @Nullable
-    private static PendingBlockBody tryCreatePhysicsStoreBlockBody(@Nonnull Store<EntityStore> store,
+    private static CreatedBlockBody tryCreatePhysicsStoreBlockBody(@Nonnull Store<EntityStore> store,
         @Nonnull SpaceId spaceId,
         @Nonnull Vector3d visualPosition,
         @Nullable String blockType,
@@ -280,8 +280,9 @@ public final class ExamplePhysicsUtils {
 
         UUID bodyUuid = UUID.randomUUID();
         Vector3f bodyCenter = toVector3f(visualPosition);
+        Ref<PhysicsStore> bodyRef;
         try {
-            addPhysicsStoreBody(world,
+            bodyRef = addPhysicsStoreBody(world,
                 bodyRow(spaceUuid,
                     bodyUuid,
                     bodyCenter,
@@ -293,7 +294,8 @@ public final class ExamplePhysicsUtils {
             return null;
         }
 
-        return new PendingBlockBody(bodyUuid,
+        return new CreatedBlockBody(bodyUuid,
+            bodyRef,
             spaceId,
             blockType,
             (float) visualPosition.x,
@@ -424,15 +426,15 @@ public final class ExamplePhysicsUtils {
     @Nonnull
     public static SpawnedBlockBody attachPhysicsStoreBlockBody(@Nonnull Store<EntityStore> store,
         @Nonnull TimeResource time,
-        @Nonnull PendingBlockBody pending) {
+        @Nonnull CreatedBlockBody created) {
         Ref<EntityStore> entity = spawnAttachedPhysicsStoreBlockEntity(store,
             time,
-            pending.bodyUuid(),
-            pending.blockType(),
-            new Vector3d(pending.positionX(), pending.positionY(), pending.positionZ()),
-            pending.controllable());
+            created.bodyUuid(),
+            created.blockType(),
+            new Vector3d(created.positionX(), created.positionY(), created.positionZ()),
+            created.controllable());
         assert entity != null;
-        return new SpawnedBlockBody(pending.bodyUuid(), pending.spaceId(), entity);
+        return new SpawnedBlockBody(created.bodyUuid(), created.spaceId(), entity);
     }
 
     @Nonnull
@@ -679,7 +681,8 @@ public final class ExamplePhysicsUtils {
         }
     }
 
-    public record PendingBlockBody(@Nonnull UUID bodyUuid,
+    public record CreatedBlockBody(@Nonnull UUID bodyUuid,
+                                   @Nonnull Ref<PhysicsStore> bodyRef,
                                    @Nonnull SpaceId spaceId,
                                    @Nullable String blockType,
                                    float positionX,
@@ -687,8 +690,9 @@ public final class ExamplePhysicsUtils {
                                    float positionZ,
                                    boolean controllable) {
 
-        public PendingBlockBody {
+        public CreatedBlockBody {
             Objects.requireNonNull(bodyUuid, "bodyUuid");
+            Objects.requireNonNull(bodyRef, "bodyRef");
             Objects.requireNonNull(spaceId, "spaceId");
         }
     }
