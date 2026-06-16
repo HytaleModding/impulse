@@ -15,10 +15,8 @@ import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import com.hypixel.hytale.server.core.universe.world.storage.PhysicsStore;
 import dev.hytalemodding.impulse.early.PhysicsStoreWorld;
 import dev.hytalemodding.impulse.api.SpaceId;
-import dev.hytalemodding.impulse.core.internal.physicsstore.resources.PhysicsBodyRegistrationResource;
-import dev.hytalemodding.impulse.core.internal.physicsstore.resources.PhysicsSnapshotResource;
 import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyRegistrationView;
-import dev.hytalemodding.impulse.core.plugin.physicsstore.PhysicsStoreThreading;
+import dev.hytalemodding.impulse.core.plugin.physicsstore.PhysicsStoreBodies;
 import dev.hytalemodding.impulse.core.plugin.physicsstore.projection.BodyAttachmentComponent;
 import dev.hytalemodding.impulse.core.plugin.physicsstore.snapshots.PhysicsStoreBodySnapshot;
 import dev.hytalemodding.impulse.examples.explosive.ExplosiveBlockComponent;
@@ -120,16 +118,12 @@ public final class ExplosiveFuseTickSystem extends EntityTickingSystem<EntitySto
         @Nonnull BodyAttachmentComponent attachment) {
         Store<PhysicsStore> physics = ((PhysicsStoreWorld) store.getExternalData().getWorld())
             .getPhysicsStore().getStore();
-        PhysicsStoreThreading.requireWorldThread(physics,
-            "read copied PhysicsStore explosive body registration");
-        PhysicsBodyRegistrationResource registrations = physics
-            .getResource(PhysicsBodyRegistrationResource.getResourceType());
         Ref<PhysicsStore> bodyRef = attachment.getBodyRef();
         PhysicsBodyRegistrationView registration = bodyRef != null && bodyRef.isValid()
-            ? registrations.getBodyRegistrationView(bodyRef)
+            ? PhysicsStoreBodies.registrationView(physics, bodyRef)
             : null;
         if (registration == null) {
-            registration = registrations.getBodyRegistrationView(attachment.getBodyUuid());
+            registration = PhysicsStoreBodies.registrationView(physics, attachment.getBodyUuid());
         }
         return registration != null ? registration.spaceId() : null;
     }
@@ -140,19 +134,15 @@ public final class ExplosiveFuseTickSystem extends EntityTickingSystem<EntitySto
         UUID bodyUuid = attachment.getBodyUuid();
         Store<PhysicsStore> physics = ((PhysicsStoreWorld) store.getExternalData().getWorld())
             .getPhysicsStore().getStore();
-        PhysicsStoreThreading.requireWorldThread(physics,
-            "read copied PhysicsStore explosive body snapshot");
-        PhysicsSnapshotResource snapshots = physics
-            .getResource(PhysicsSnapshotResource.getResourceType());
         Ref<PhysicsStore> bodyRef = attachment.getBodyRef();
         PhysicsStoreBodySnapshot snapshot = bodyRef != null && bodyRef.isValid()
-            ? snapshots.getBody(bodyRef)
+            ? PhysicsStoreBodies.snapshot(physics, bodyRef)
             : null;
         if (snapshot != null && !bodyUuid.equals(snapshot.bodyUuid())) {
             snapshot = null;
         }
         if (snapshot == null) {
-            snapshot = snapshots.getBody(bodyUuid);
+            snapshot = PhysicsStoreBodies.snapshot(physics, bodyUuid);
         }
         return snapshot != null ? BodyMotionSnapshot.from(snapshot) : null;
     }

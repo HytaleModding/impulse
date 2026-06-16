@@ -15,14 +15,13 @@ import com.hypixel.hytale.server.core.universe.world.storage.PhysicsStore;
 import dev.hytalemodding.impulse.api.PhysicsBodyType;
 import dev.hytalemodding.impulse.api.SpaceId;
 import dev.hytalemodding.impulse.early.PhysicsStoreWorld;
-import dev.hytalemodding.impulse.core.internal.physicsstore.resources.PhysicsIdentityIndexResource;
-import dev.hytalemodding.impulse.core.internal.physicsstore.resources.PhysicsSpaceCompatibilityIndexResource;
 import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyKind;
 import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyPersistenceMode;
 import dev.hytalemodding.impulse.core.plugin.modules.control.ImpulseControllableComponent;
 import dev.hytalemodding.impulse.core.plugin.modules.control.PhysicsControlSessions;
 import dev.hytalemodding.impulse.core.plugin.physicsstore.PhysicsBodyEntities;
 import dev.hytalemodding.impulse.core.plugin.physicsstore.PhysicsStoreEntities;
+import dev.hytalemodding.impulse.core.plugin.physicsstore.PhysicsStoreSpaces;
 import dev.hytalemodding.impulse.core.plugin.physicsstore.PhysicsStoreThreading;
 import dev.hytalemodding.impulse.core.plugin.physicsstore.components.BodyCommandComponent;
 import dev.hytalemodding.impulse.core.plugin.physicsstore.components.DynamicsComponent;
@@ -62,16 +61,7 @@ public final class ExamplePhysicsUtils {
         Store<PhysicsStore> store = ((PhysicsStoreWorld) Objects.requireNonNull(world, "world"))
             .getPhysicsStore()
             .getStore();
-        PhysicsStoreThreading.requireWorldThread(store, "resolve a PhysicsStore space ref");
-        UUID spaceUuid = store
-            .getResource(PhysicsSpaceCompatibilityIndexResource.getResourceType())
-            .getSpaceUuid(Objects.requireNonNull(spaceId, "spaceId"));
-        if (spaceUuid == null) {
-            return null;
-        }
-        Ref<PhysicsStore> ref = store.getResource(PhysicsIdentityIndexResource.getResourceType())
-            .getByUuid(spaceUuid);
-        return ref != null && ref.getStore() == store && ref.isValid() ? ref : null;
+        return PhysicsStoreSpaces.resolveRef(store, spaceId);
     }
 
     @Nonnull
@@ -191,9 +181,6 @@ public final class ExamplePhysicsUtils {
         Store<PhysicsStore> store = ((PhysicsStoreWorld) Objects.requireNonNull(world, "world"))
             .getPhysicsStore()
             .getStore();
-        PhysicsStoreThreading.requireWorldThread(store, "select a PhysicsStore space");
-        PhysicsSpaceCompatibilityIndexResource compatibility = store
-            .getResource(PhysicsSpaceCompatibilityIndexResource.getResourceType());
         if (spaceArg.provided(ctx)) {
             int rawSpaceId = spaceArg.get(ctx);
             if (rawSpaceId <= 0) {
@@ -201,14 +188,14 @@ public final class ExamplePhysicsUtils {
                 return null;
             }
             SpaceId spaceId = new SpaceId(rawSpaceId);
-            if (!compatibility.hasSpace(spaceId)) {
+            if (!PhysicsStoreSpaces.hasSpace(store, spaceId)) {
                 ctx.sender().sendMessage(Message.raw("No physics space id=" + rawSpaceId + " exists."));
                 return null;
             }
             return spaceId;
         }
 
-        SpaceId firstSpaceId = compatibility.spaceIds()
+        SpaceId firstSpaceId = PhysicsStoreSpaces.spaceIds(store)
             .stream()
             .min(Comparator.comparingInt(SpaceId::value))
             .orElse(null);

@@ -18,8 +18,6 @@ import dev.hytalemodding.impulse.early.PhysicsStoreWorld;
 import dev.hytalemodding.impulse.api.PhysicsBodyType;
 import dev.hytalemodding.impulse.api.PhysicsCollisionFilters;
 import dev.hytalemodding.impulse.api.SpaceId;
-import dev.hytalemodding.impulse.core.internal.physicsstore.resources.PhysicsBodyRegistrationResource;
-import dev.hytalemodding.impulse.core.internal.physicsstore.resources.PhysicsSnapshotResource;
 import dev.hytalemodding.impulse.core.plugin.modules.control.ImpulseControllableComponent;
 import dev.hytalemodding.impulse.core.plugin.physicsstore.projection.BodyAttachmentComponent;
 import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyKind;
@@ -29,8 +27,8 @@ import dev.hytalemodding.impulse.core.plugin.modules.control.PhysicsControlSessi
 import dev.hytalemodding.impulse.core.plugin.physicsstore.PhysicsBodyEntities;
 import dev.hytalemodding.impulse.core.plugin.physicsstore.PhysicsJointEntities;
 import dev.hytalemodding.impulse.core.plugin.physicsstore.PhysicsStoreAsync;
+import dev.hytalemodding.impulse.core.plugin.physicsstore.PhysicsStoreBodies;
 import dev.hytalemodding.impulse.core.plugin.physicsstore.PhysicsStoreRaycasts;
-import dev.hytalemodding.impulse.core.plugin.physicsstore.PhysicsStoreThreading;
 import dev.hytalemodding.impulse.core.plugin.physicsstore.components.BodyCommandComponent;
 import dev.hytalemodding.impulse.core.plugin.physicsstore.components.JointComponent;
 import dev.hytalemodding.impulse.core.plugin.physicsstore.BodyEntityDescriptor;
@@ -254,10 +252,7 @@ public class GrabCommand extends AbstractAsyncPlayerCommand {
                 continue;
             }
             PhysicsBodyRegistrationView registration =
-                hit.bodyRef()
-                    .getStore()
-                    .getResource(PhysicsBodyRegistrationResource.getResourceType())
-                    .getBodyRegistrationView(hit.bodyRef());
+                PhysicsStoreBodies.registrationView(hit.bodyRef().getStore(), hit.bodyRef());
             if (registration == null || registration.kind() != PhysicsBodyKind.BODY) {
                 continue;
             }
@@ -291,11 +286,7 @@ public class GrabCommand extends AbstractAsyncPlayerCommand {
     private static PhysicsStoreBodySnapshot bodyState(@Nonnull World world,
         @Nonnull Ref<PhysicsStore> bodyRef) {
         Store<PhysicsStore> store = ((PhysicsStoreWorld) world).getPhysicsStore().getStore();
-        PhysicsStoreThreading.requireWorldThread(store,
-            "read copied PhysicsStore grab body snapshot");
-        return store
-            .getResource(PhysicsSnapshotResource.getResourceType())
-            .getBody(bodyRef);
+        return PhysicsStoreBodies.snapshot(store, bodyRef);
     }
 
     @Nonnull
