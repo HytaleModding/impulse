@@ -2117,7 +2117,7 @@ public class PhysicsWorldRuntimeResource extends PhysicsWorldResource {
             return authoritativeProjectionIndex("read physics body attachments")
                 .getAttachments(bodyRef);
         }
-        return List.of();
+        return visualRuntime.getAttachments(bodyRef);
     }
 
     @Nonnull
@@ -2130,7 +2130,7 @@ public class PhysicsWorldRuntimeResource extends PhysicsWorldResource {
                 ? projection.getAttachments(bodyRef)
                 : projection.getAttachments(bodyUuid);
         }
-        return visualRuntime.getAttachments(RigidBodyKey.of(bodyUuid));
+        return visualRuntime.getAttachments(bodyUuid, bodyRef);
     }
 
     @Override
@@ -2149,9 +2149,11 @@ public class PhysicsWorldRuntimeResource extends PhysicsWorldResource {
 
     @Override
     public boolean hasBodyAttachments(@Nonnull Ref<PhysicsStore> bodyRef) {
-        return hasAttachedAuthoritativePhysicsStore()
-            && authoritativeProjectionIndex("check physics body attachments")
+        if (hasAttachedAuthoritativePhysicsStore()) {
+            return authoritativeProjectionIndex("check physics body attachments")
                 .hasAttachments(bodyRef);
+        }
+        return visualRuntime.hasAttachments(bodyRef);
     }
 
     public boolean hasBodyAttachments(@Nonnull UUID bodyUuid,
@@ -2163,7 +2165,7 @@ public class PhysicsWorldRuntimeResource extends PhysicsWorldResource {
                 ? projection.hasAttachments(bodyRef)
                 : projection.hasAttachments(bodyUuid);
         }
-        return visualRuntime.hasAttachments(RigidBodyKey.of(bodyUuid));
+        return visualRuntime.hasAttachments(bodyUuid, bodyRef);
     }
 
     public void registerBodyAttachment(@Nonnull RigidBodyKey bodyKey, @Nonnull Ref<EntityStore> attachment) {
@@ -2185,7 +2187,7 @@ public class PhysicsWorldRuntimeResource extends PhysicsWorldResource {
                 .registerAttachment(bodyUuid, bodyRef, attachment);
             return;
         }
-        visualRuntime.registerAttachment(RigidBodyKey.of(bodyUuid), attachment);
+        visualRuntime.registerAttachment(bodyUuid, bodyRef, attachment);
     }
 
     public void unregisterBodyAttachment(@Nonnull RigidBodyKey bodyKey, @Nonnull Ref<EntityStore> attachment) {
@@ -2207,7 +2209,7 @@ public class PhysicsWorldRuntimeResource extends PhysicsWorldResource {
                 .unregisterAttachment(bodyUuid, bodyRef, attachment);
             return;
         }
-        visualRuntime.unregisterAttachment(RigidBodyKey.of(bodyUuid), attachment);
+        visualRuntime.unregisterAttachment(bodyUuid, bodyRef, attachment);
     }
 
     @Nullable
@@ -2230,7 +2232,7 @@ public class PhysicsWorldRuntimeResource extends PhysicsWorldResource {
             return authoritativeProjectionIndex("read generated visual proxy")
                 .getGeneratedVisualProxy(bodyRef);
         }
-        return null;
+        return visualRuntime.getGeneratedVisualProxy(bodyRef);
     }
 
     @Nullable
@@ -2243,7 +2245,7 @@ public class PhysicsWorldRuntimeResource extends PhysicsWorldResource {
                 ? projection.getGeneratedVisualProxy(bodyRef)
                 : projection.getGeneratedVisualProxy(bodyUuid);
         }
-        return visualRuntime.getGeneratedVisualProxy(RigidBodyKey.of(bodyUuid));
+        return visualRuntime.getGeneratedVisualProxy(bodyUuid, bodyRef);
     }
 
     @Nonnull
@@ -2261,14 +2263,7 @@ public class PhysicsWorldRuntimeResource extends PhysicsWorldResource {
             return authoritativeProjectionIndex("list generated visual proxies")
                 .getGeneratedVisualProxyViews();
         }
-        List<GeneratedVisualProxyView> views = new ArrayList<>();
-        for (RigidBodyKey bodyKey : visualRuntime.getGeneratedVisualProxyBodyKeys()) {
-            Ref<EntityStore> proxy = visualRuntime.getGeneratedVisualProxy(bodyKey);
-            if (proxy != null) {
-                views.add(new GeneratedVisualProxyView(bodyKey.value(), null, proxy));
-            }
-        }
-        return views;
+        return visualRuntime.getGeneratedVisualProxyViews();
     }
 
     public int getGeneratedVisualProxyCount() {
@@ -2299,7 +2294,7 @@ public class PhysicsWorldRuntimeResource extends PhysicsWorldResource {
                 .setGeneratedVisualProxy(bodyUuid, bodyRef, proxy);
             return;
         }
-        visualRuntime.setGeneratedVisualProxy(RigidBodyKey.of(bodyUuid), proxy);
+        visualRuntime.setGeneratedVisualProxy(bodyUuid, bodyRef, proxy);
     }
 
     public void clearGeneratedVisualProxy(@Nonnull RigidBodyKey bodyKey) {
@@ -2320,7 +2315,7 @@ public class PhysicsWorldRuntimeResource extends PhysicsWorldResource {
                 .clearGeneratedVisualProxyForBodyRef(bodyUuid, bodyRef);
             return;
         }
-        visualRuntime.clearGeneratedVisualProxy(RigidBodyKey.of(bodyUuid));
+        visualRuntime.clearGeneratedVisualProxy(bodyUuid, bodyRef);
     }
 
     public boolean clearGeneratedVisualProxy(@Nonnull RigidBodyKey bodyKey,
@@ -2357,7 +2352,7 @@ public class PhysicsWorldRuntimeResource extends PhysicsWorldResource {
             projection.clearGeneratedVisualProxy(bodyUuid, bodyRef, expectedProxy);
             return true;
         }
-        return visualRuntime.clearGeneratedVisualProxy(RigidBodyKey.of(bodyUuid), expectedProxy);
+        return visualRuntime.clearGeneratedVisualProxy(bodyUuid, bodyRef, expectedProxy);
     }
 
     public boolean isGeneratedVisualProxy(@Nonnull RigidBodyKey bodyKey,
@@ -2379,13 +2374,15 @@ public class PhysicsWorldRuntimeResource extends PhysicsWorldResource {
                 : projection.getGeneratedVisualProxy(bodyUuid);
             return sameRef(registered, proxy);
         }
-        return visualRuntime.isGeneratedVisualProxy(RigidBodyKey.of(bodyUuid), proxy);
+        return visualRuntime.isGeneratedVisualProxy(bodyUuid, bodyRef, proxy);
     }
 
     public boolean isGeneratedVisualProxy(@Nonnull Ref<PhysicsStore> bodyRef,
         @Nonnull Ref<EntityStore> proxy) {
-        return hasAttachedAuthoritativePhysicsStore()
-            && sameRef(getGeneratedVisualProxy(bodyRef), proxy);
+        if (hasAttachedAuthoritativePhysicsStore()) {
+            return sameRef(getGeneratedVisualProxy(bodyRef), proxy);
+        }
+        return visualRuntime.isGeneratedVisualProxy(bodyRef, proxy);
     }
 
     public void setSyntheticVisualInterests(@Nonnull Collection<VisualInterest> interests) {
@@ -2690,7 +2687,7 @@ public class PhysicsWorldRuntimeResource extends PhysicsWorldResource {
             chunkRuntime.clearBody(bodyRef);
         }
         bodyRuntime.clearBodyRuntimeState(bodyKey);
-        visualRuntime.clearBodyVisualInterestState(bodyKey.value(), bodyRef);
+        visualRuntime.clearBodyRuntimeState(bodyKey.value(), bodyRef);
     }
 
     public void markContinuousCollisionForced(@Nonnull RigidBodyKey bodyKey) {

@@ -31,12 +31,16 @@ public final class PhysicsVisualRuntime {
 
     @Nonnull
     private final Consumer<Ref<EntityStore>> syncStateCleaner;
-    private final Map<RigidBodyKey, Set<Ref<EntityStore>>> bodyAttachments =
+    private final Map<UUID, Set<Ref<EntityStore>>> bodyAttachments =
         new Object2ObjectOpenHashMap<>();
-    private final Map<RigidBodyKey, Ref<EntityStore>> generatedVisualProxies =
+    private final Int2ObjectOpenHashMap<BodyAttachmentRefs> bodyAttachmentsByRowIndex =
+        new Int2ObjectOpenHashMap<>();
+    private final Map<UUID, Ref<EntityStore>> generatedVisualProxies =
         new Object2ObjectOpenHashMap<>();
+    private final Int2ObjectOpenHashMap<GeneratedVisualProxyRef> generatedVisualProxiesByRowIndex =
+        new Int2ObjectOpenHashMap<>();
     private final List<VisualInterest> syntheticVisualInterests = new ArrayList<>();
-    private final Map<RigidBodyKey, BodyVisualInterestState> bodyVisualInterestStates =
+    private final Map<UUID, BodyVisualInterestState> bodyVisualInterestStates =
         new Object2ObjectOpenHashMap<>();
     private final Int2ObjectOpenHashMap<BodyVisualInterestRefState> bodyVisualInterestStatesByRowIndex =
         new Int2ObjectOpenHashMap<>();
@@ -46,29 +50,76 @@ public final class PhysicsVisualRuntime {
     }
 
     public synchronized void registerAttachment(@Nonnull RigidBodyKey bodyKey, @Nonnull Ref<EntityStore> attachment) {
-        bodyAttachments.computeIfAbsent(bodyKey, _ -> new ObjectOpenHashSet<>())
+        registerAttachment(bodyKey.value(), null, attachment);
+    }
+
+    public synchronized void registerAttachment(@Nonnull UUID bodyUuid,
+        @Nullable Ref<PhysicsStore> bodyRef,
+        @Nonnull Ref<EntityStore> attachment) {
+        bodyAttachments.computeIfAbsent(bodyUuid, _ -> new ObjectOpenHashSet<>())
             .add(attachment);
+        if (isValidRef(bodyRef)) {
+            bodyAttachmentRefs(bodyRef).add(attachment);
+        }
     }
 
     public synchronized void unregisterAttachment(@Nonnull RigidBodyKey bodyKey,
         @Nonnull Ref<EntityStore> attachment) {
-        Set<Ref<EntityStore>> attachments = bodyAttachments.get(bodyKey);
+        unregisterAttachment(bodyKey.value(), null, attachment);
+    }
+
+    public synchronized void unregisterAttachment(@Nonnull UUID bodyUuid,
+        @Nullable Ref<PhysicsStore> bodyRef,
+        @Nonnull Ref<EntityStore> attachment) {
+        Set<Ref<EntityStore>> attachments = bodyAttachments.get(bodyUuid);
         if (attachments == null) {
+            if (isValidRef(bodyRef)) {
+                unregisterAttachmentRef(bodyRef, attachment);
+            }
             return;
         }
-
         attachments.remove(attachment);
         if (attachments.isEmpty()) {
-            bodyAttachments.remove(bodyKey);
+            bodyAttachments.remove(bodyUuid);
+        }
+        if (isValidRef(bodyRef)) {
+            unregisterAttachmentRef(bodyRef, attachment);
         }
     }
 
     @Nonnull
     public Collection<Ref<EntityStore>> getAttachments(@Nonnull RigidBodyKey bodyKey) {
+        return getAttachments(bodyKey.value(), null);
+    }
+
+    @Nonnull
+    public Collection<Ref<EntityStore>> getAttachments(@Nonnull Ref<PhysicsStore> bodyRef) {
+        if (!bodyRef.isValid()) {
+            return List.of();
+        }
+        return liveAttachments(bodyRef);
+    }
+
+    @Nonnull
+    public Collection<Ref<EntityStore>> getAttachments(@Nonnull UUID bodyUuid,
+        @Nullable Ref<PhysicsStore> bodyRef) {
+        if (isValidRef(bodyRef)) {
+            Collection<Ref<EntityStore>> attachments = liveAttachments(bodyRef);
+            if (!attachments.isEmpty()) {
+                return attachments;
+            }
+        }
+        return liveAttachments(bodyAttachments, bodyUuid);
+    }
+
+    @Nonnull
+    private <K> Collection<Ref<EntityStore>> liveAttachments(
+        @Nonnull Map<K, Set<Ref<EntityStore>>> attachmentsByKey,
+        @Nonnull K key) {
         List<Ref<EntityStore>> liveAttachments = new ArrayList<>();
         List<Ref<EntityStore>> staleAttachments = new ArrayList<>();
         synchronized (this) {
-            Set<Ref<EntityStore>> attachments = bodyAttachments.get(bodyKey);
+            Set<Ref<EntityStore>> attachments = attachmentsByKey.get(key);
             if (attachments == null || attachments.isEmpty()) {
                 return List.of();
             }
@@ -82,7 +133,7 @@ public final class PhysicsVisualRuntime {
             }
             staleAttachments.forEach(attachments::remove);
             if (attachments.isEmpty()) {
-                bodyAttachments.remove(bodyKey);
+                attachmentsByKey.remove(key);
             }
         }
         cleanSyncStates(staleAttachments);
@@ -90,10 +141,25 @@ public final class PhysicsVisualRuntime {
     }
 
     public boolean hasAttachments(@Nonnull RigidBodyKey bodyKey) {
+        return hasAttachments(bodyKey.value(), null);
+    }
+
+    public boolean hasAttachments(@Nonnull Ref<PhysicsStore> bodyRef) {
+        return bodyRef.isValid() && hasLiveAttachments(bodyRef);
+    }
+
+    public boolean hasAttachments(@Nonnull UUID bodyUuid,
+        @Nullable Ref<PhysicsStore> bodyRef) {
+        return isValidRef(bodyRef) && hasLiveAttachments(bodyRef)
+            || hasLiveAttachments(bodyAttachments, bodyUuid);
+    }
+
+    private <K> boolean hasLiveAttachments(@Nonnull Map<K, Set<Ref<EntityStore>>> attachmentsByKey,
+        @Nonnull K key) {
         boolean hasLiveAttachment = false;
         List<Ref<EntityStore>> staleAttachments = new ArrayList<>();
         synchronized (this) {
-            Set<Ref<EntityStore>> attachments = bodyAttachments.get(bodyKey);
+            Set<Ref<EntityStore>> attachments = attachmentsByKey.get(key);
             if (attachments == null || attachments.isEmpty()) {
                 return false;
             }
@@ -110,7 +176,7 @@ public final class PhysicsVisualRuntime {
                 }
             }
             if (attachments.isEmpty()) {
-                bodyAttachments.remove(bodyKey);
+                attachmentsByKey.remove(key);
             }
         }
         cleanSyncStates(staleAttachments);
@@ -119,12 +185,39 @@ public final class PhysicsVisualRuntime {
 
     @Nullable
     public Ref<EntityStore> getGeneratedVisualProxy(@Nonnull RigidBodyKey bodyKey) {
+        return getGeneratedVisualProxy(bodyKey.value(), null);
+    }
+
+    @Nullable
+    public Ref<EntityStore> getGeneratedVisualProxy(@Nonnull Ref<PhysicsStore> bodyRef) {
+        if (!bodyRef.isValid()) {
+            return null;
+        }
+        return liveGeneratedVisualProxy(bodyRef);
+    }
+
+    @Nullable
+    public Ref<EntityStore> getGeneratedVisualProxy(@Nonnull UUID bodyUuid,
+        @Nullable Ref<PhysicsStore> bodyRef) {
+        if (isValidRef(bodyRef)) {
+            Ref<EntityStore> proxy = liveGeneratedVisualProxy(bodyRef);
+            if (proxy != null) {
+                return proxy;
+            }
+        }
+        return liveGeneratedVisualProxy(generatedVisualProxies, bodyUuid);
+    }
+
+    @Nullable
+    private <K> Ref<EntityStore> liveGeneratedVisualProxy(
+        @Nonnull Map<K, Ref<EntityStore>> proxiesByKey,
+        @Nonnull K key) {
         Ref<EntityStore> staleProxy = null;
         Ref<EntityStore> proxy;
         synchronized (this) {
-            proxy = generatedVisualProxies.get(bodyKey);
+            proxy = proxiesByKey.get(key);
             if (proxy != null && !proxy.isValid()) {
-                generatedVisualProxies.remove(bodyKey);
+                proxiesByKey.remove(key);
                 staleProxy = proxy;
                 proxy = null;
             }
@@ -136,36 +229,84 @@ public final class PhysicsVisualRuntime {
     @Nonnull
     public Collection<RigidBodyKey> getGeneratedVisualProxyBodyKeys() {
         List<RigidBodyKey> bodyKeys = new ArrayList<>();
-        List<RigidBodyKey> staleBodyKeys = new ArrayList<>();
+        List<UUID> staleBodyUuids = new ArrayList<>();
         List<Ref<EntityStore>> staleProxies = new ArrayList<>();
         synchronized (this) {
-            for (Map.Entry<RigidBodyKey, Ref<EntityStore>> entry : generatedVisualProxies.entrySet()) {
+            for (Map.Entry<UUID, Ref<EntityStore>> entry : generatedVisualProxies.entrySet()) {
                 Ref<EntityStore> proxy = entry.getValue();
                 if (proxy != null && proxy.isValid()) {
-                    bodyKeys.add(entry.getKey());
+                    bodyKeys.add(RigidBodyKey.of(entry.getKey()));
                 } else {
-                    staleBodyKeys.add(entry.getKey());
+                    staleBodyUuids.add(entry.getKey());
                     if (proxy != null) {
                         staleProxies.add(proxy);
                     }
                 }
             }
-            for (RigidBodyKey bodyKey : staleBodyKeys) {
-                generatedVisualProxies.remove(bodyKey);
+            for (UUID bodyUuid : staleBodyUuids) {
+                generatedVisualProxies.remove(bodyUuid);
             }
         }
         cleanSyncStates(staleProxies);
         return bodyKeys;
     }
 
+    @Nonnull
+    public Collection<GeneratedVisualProxyView> getGeneratedVisualProxyViews() {
+        List<GeneratedVisualProxyView> views = new ArrayList<>();
+        List<Integer> staleRowIndexes = new ArrayList<>();
+        List<UUID> staleBodyUuids = new ArrayList<>();
+        List<Ref<EntityStore>> staleProxies = new ArrayList<>();
+        Map<UUID, Ref<PhysicsStore>> bodyRefsByUuid = new Object2ObjectOpenHashMap<>();
+        synchronized (this) {
+            for (var entry : generatedVisualProxiesByRowIndex.int2ObjectEntrySet()) {
+                GeneratedVisualProxyRef row = entry.getValue();
+                Ref<EntityStore> proxy = row.proxy();
+                Ref<EntityStore> uuidProxy = generatedVisualProxies.get(row.bodyUuid());
+                if (!row.bodyRef().isValid()
+                    || proxy == null
+                    || !proxy.isValid()
+                    || !sameRef(proxy, uuidProxy)) {
+                    staleRowIndexes.add(entry.getIntKey());
+                    if (proxy != null && !proxy.isValid()) {
+                        staleProxies.add(proxy);
+                    }
+                    continue;
+                }
+                bodyRefsByUuid.put(row.bodyUuid(), row.bodyRef());
+            }
+            for (Integer rowIndex : staleRowIndexes) {
+                generatedVisualProxiesByRowIndex.remove(rowIndex.intValue());
+            }
+            for (Map.Entry<UUID, Ref<EntityStore>> entry : generatedVisualProxies.entrySet()) {
+                Ref<EntityStore> proxy = entry.getValue();
+                if (proxy != null && proxy.isValid()) {
+                    views.add(new GeneratedVisualProxyView(entry.getKey(),
+                        bodyRefsByUuid.get(entry.getKey()),
+                        proxy));
+                } else {
+                    staleBodyUuids.add(entry.getKey());
+                    if (proxy != null) {
+                        staleProxies.add(proxy);
+                    }
+                }
+            }
+            for (UUID bodyUuid : staleBodyUuids) {
+                generatedVisualProxies.remove(bodyUuid);
+            }
+        }
+        cleanSyncStates(staleProxies);
+        return views;
+    }
+
     public int generatedVisualProxyCount() {
         int count = 0;
         List<Ref<EntityStore>> staleProxies = new ArrayList<>();
         synchronized (this) {
-            Iterator<Map.Entry<RigidBodyKey, Ref<EntityStore>>> iterator =
+            Iterator<Map.Entry<UUID, Ref<EntityStore>>> iterator =
                 generatedVisualProxies.entrySet().iterator();
             while (iterator.hasNext()) {
-                Map.Entry<RigidBodyKey, Ref<EntityStore>> entry = iterator.next();
+                Map.Entry<UUID, Ref<EntityStore>> entry = iterator.next();
                 Ref<EntityStore> proxy = entry.getValue();
                 if (proxy != null && proxy.isValid()) {
                     count++;
@@ -183,42 +324,109 @@ public final class PhysicsVisualRuntime {
 
     public void setGeneratedVisualProxy(@Nonnull RigidBodyKey bodyKey,
         @Nonnull Ref<EntityStore> proxy) {
+        setGeneratedVisualProxy(bodyKey.value(), null, proxy);
+    }
+
+    public void setGeneratedVisualProxy(@Nonnull UUID bodyUuid,
+        @Nullable Ref<PhysicsStore> bodyRef,
+        @Nonnull Ref<EntityStore> proxy) {
         Ref<EntityStore> previousProxy;
+        Ref<EntityStore> previousRefProxy = null;
         synchronized (this) {
-            previousProxy = generatedVisualProxies.put(bodyKey, proxy);
+            previousProxy = generatedVisualProxies.put(bodyUuid, proxy);
+            if (isValidRef(bodyRef)) {
+                GeneratedVisualProxyRef previous = generatedVisualProxiesByRowIndex.put(bodyRef.getIndex(),
+                    new GeneratedVisualProxyRef(bodyUuid, bodyRef, proxy));
+                if (previous != null) {
+                    previousRefProxy = previous.proxy();
+                }
+            }
         }
         if (!sameRef(previousProxy, proxy)) {
             cleanSyncState(previousProxy);
         }
+        if (!sameRef(previousRefProxy, proxy) && !sameRef(previousRefProxy, previousProxy)) {
+            cleanSyncState(previousRefProxy);
+        }
     }
 
     public void clearGeneratedVisualProxy(@Nonnull RigidBodyKey bodyKey) {
+        clearGeneratedVisualProxy(bodyKey.value(), null);
+    }
+
+    public void clearGeneratedVisualProxy(@Nonnull UUID bodyUuid,
+        @Nullable Ref<PhysicsStore> bodyRef) {
         Ref<EntityStore> proxy;
+        Ref<EntityStore> refProxy = null;
         synchronized (this) {
-            proxy = generatedVisualProxies.remove(bodyKey);
+            proxy = generatedVisualProxies.remove(bodyUuid);
+            if (isValidRef(bodyRef)) {
+                GeneratedVisualProxyRef removed = removeGeneratedVisualProxyRef(bodyRef);
+                if (removed != null) {
+                    refProxy = removed.proxy();
+                }
+            }
         }
         cleanSyncState(proxy);
+        if (!sameRef(refProxy, proxy)) {
+            cleanSyncState(refProxy);
+        }
     }
 
     public boolean clearGeneratedVisualProxy(@Nonnull RigidBodyKey bodyKey,
         @Nonnull Ref<EntityStore> expectedProxy) {
-        Ref<EntityStore> proxy;
+        return clearGeneratedVisualProxy(bodyKey.value(), null, expectedProxy);
+    }
+
+    public boolean clearGeneratedVisualProxy(@Nonnull UUID bodyUuid,
+        @Nullable Ref<PhysicsStore> bodyRef,
+        @Nonnull Ref<EntityStore> expectedProxy) {
+        Ref<EntityStore> proxy = null;
+        Ref<EntityStore> refProxy = null;
+        boolean matched = false;
         synchronized (this) {
-            proxy = generatedVisualProxies.get(bodyKey);
-            if (proxy == null || !sameRef(proxy, expectedProxy)) {
+            Ref<EntityStore> uuidProxy = generatedVisualProxies.get(bodyUuid);
+            if (sameRef(uuidProxy, expectedProxy)) {
+                generatedVisualProxies.remove(bodyUuid);
+                proxy = uuidProxy;
+                matched = true;
+            }
+            if (isValidRef(bodyRef)) {
+                GeneratedVisualProxyRef removed = removeGeneratedVisualProxyRef(bodyRef, expectedProxy);
+                if (removed != null) {
+                    refProxy = removed.proxy();
+                    matched = true;
+                }
+            }
+            if (!matched) {
                 return false;
             }
-
-            generatedVisualProxies.remove(bodyKey);
         }
         cleanSyncState(proxy);
+        if (!sameRef(refProxy, proxy)) {
+            cleanSyncState(refProxy);
+        }
         return true;
     }
 
     public synchronized boolean isGeneratedVisualProxy(@Nonnull RigidBodyKey bodyKey,
         @Nonnull Ref<EntityStore> proxy) {
-        Ref<EntityStore> registeredProxy = generatedVisualProxies.get(bodyKey);
+        return isGeneratedVisualProxy(bodyKey.value(), null, proxy);
+    }
+
+    public synchronized boolean isGeneratedVisualProxy(@Nonnull UUID bodyUuid,
+        @Nullable Ref<PhysicsStore> bodyRef,
+        @Nonnull Ref<EntityStore> proxy) {
+        if (isValidRef(bodyRef) && sameRef(liveGeneratedVisualProxy(bodyRef), proxy)) {
+            return true;
+        }
+        Ref<EntityStore> registeredProxy = generatedVisualProxies.get(bodyUuid);
         return registeredProxy != null && sameRef(registeredProxy, proxy);
+    }
+
+    public synchronized boolean isGeneratedVisualProxy(@Nonnull Ref<PhysicsStore> bodyRef,
+        @Nonnull Ref<EntityStore> proxy) {
+        return bodyRef.isValid() && sameRef(liveGeneratedVisualProxy(bodyRef), proxy);
     }
 
     public synchronized void setSyntheticVisualInterests(
@@ -239,7 +447,7 @@ public final class PhysicsVisualRuntime {
     @Nonnull
     public synchronized BodyVisualInterestState getOrCreateBodyVisualInterestState(
         @Nonnull RigidBodyKey bodyKey) {
-        return bodyVisualInterestStates.computeIfAbsent(bodyKey,
+        return bodyVisualInterestStates.computeIfAbsent(bodyKey.value(),
             _ -> new BodyVisualInterestState());
     }
 
@@ -250,13 +458,14 @@ public final class PhysicsVisualRuntime {
         if (bodyRef != null && bodyRef.isValid()) {
             return getOrCreateBodyVisualInterestState(bodyRef);
         }
-        return getOrCreateBodyVisualInterestState(RigidBodyKey.of(bodyUuid));
+        return bodyVisualInterestStates.computeIfAbsent(bodyUuid,
+            _ -> new BodyVisualInterestState());
     }
 
     @Nullable
     public synchronized BodyVisualInterestState getBodyVisualInterestState(
         @Nonnull RigidBodyKey bodyKey) {
-        return bodyVisualInterestStates.get(bodyKey);
+        return bodyVisualInterestStates.get(bodyKey.value());
     }
 
     @Nullable
@@ -275,13 +484,13 @@ public final class PhysicsVisualRuntime {
             }
             return row.state();
         }
-        return getBodyVisualInterestState(RigidBodyKey.of(bodyUuid));
+        return bodyVisualInterestStates.get(bodyUuid);
     }
 
     public synchronized void clearBodyVisualInterestState(@Nonnull UUID bodyUuid,
         @Nullable Ref<PhysicsStore> bodyRef) {
-        bodyVisualInterestStates.remove(RigidBodyKey.of(bodyUuid));
-        if (bodyRef == null) {
+        bodyVisualInterestStates.remove(bodyUuid);
+        if (!isValidRef(bodyRef)) {
             return;
         }
         int rowIndex = bodyRef.getIndex();
@@ -292,17 +501,41 @@ public final class PhysicsVisualRuntime {
     }
 
     public void clearBodyRuntimeState(@Nonnull RigidBodyKey bodyKey) {
+        clearBodyRuntimeState(bodyKey.value(), null);
+    }
+
+    public void clearBodyRuntimeState(@Nonnull UUID bodyUuid,
+        @Nullable Ref<PhysicsStore> bodyRef) {
         List<Ref<EntityStore>> staleRefs = new ArrayList<>();
         synchronized (this) {
-            Set<Ref<EntityStore>> attachments = bodyAttachments.remove(bodyKey);
+            Set<Ref<EntityStore>> attachments = bodyAttachments.remove(bodyUuid);
             if (attachments != null) {
                 staleRefs.addAll(attachments);
             }
-            Ref<EntityStore> proxy = generatedVisualProxies.remove(bodyKey);
+            if (isValidRef(bodyRef)) {
+                BodyAttachmentRefs attachmentRefs = removeAttachmentRefs(bodyRef);
+                if (attachmentRefs != null) {
+                    staleRefs.addAll(attachmentRefs.attachments());
+                }
+            }
+            Ref<EntityStore> proxy = generatedVisualProxies.remove(bodyUuid);
             if (proxy != null) {
                 staleRefs.add(proxy);
             }
-            bodyVisualInterestStates.remove(bodyKey);
+            if (isValidRef(bodyRef)) {
+                GeneratedVisualProxyRef proxyRef = removeGeneratedVisualProxyRef(bodyRef);
+                if (proxyRef != null && !sameRef(proxyRef.proxy(), proxy)) {
+                    staleRefs.add(proxyRef.proxy());
+                }
+            }
+            bodyVisualInterestStates.remove(bodyUuid);
+            if (isValidRef(bodyRef)) {
+                int rowIndex = bodyRef.getIndex();
+                BodyVisualInterestRefState row = bodyVisualInterestStatesByRowIndex.get(rowIndex);
+                if (row != null && (!row.bodyRef().isValid() || sameRef(row.bodyRef(), bodyRef))) {
+                    bodyVisualInterestStatesByRowIndex.remove(rowIndex);
+                }
+            }
         }
         cleanSyncStates(staleRefs);
     }
@@ -318,8 +551,19 @@ public final class PhysicsVisualRuntime {
                     }
                 }
             }
+            for (var entry : bodyAttachmentsByRowIndex.int2ObjectEntrySet()) {
+                staleRefs.addAll(entry.getValue().attachments());
+            }
+            for (var entry : generatedVisualProxiesByRowIndex.int2ObjectEntrySet()) {
+                Ref<EntityStore> proxy = entry.getValue().proxy();
+                if (proxy != null) {
+                    staleRefs.add(proxy);
+                }
+            }
             bodyAttachments.clear();
+            bodyAttachmentsByRowIndex.clear();
             generatedVisualProxies.clear();
+            generatedVisualProxiesByRowIndex.clear();
             syntheticVisualInterests.clear();
             bodyVisualInterestStates.clear();
             bodyVisualInterestStatesByRowIndex.clear();
@@ -344,6 +588,194 @@ public final class PhysicsVisualRuntime {
         return row.bodyRef().isValid() && sameRef(row.bodyRef(), bodyRef);
     }
 
+    private static boolean isMatchingLiveRef(@Nonnull BodyAttachmentRefs row,
+        @Nonnull Ref<PhysicsStore> bodyRef) {
+        return row.bodyRef().isValid() && sameRef(row.bodyRef(), bodyRef);
+    }
+
+    private static boolean isMatchingLiveRef(@Nonnull GeneratedVisualProxyRef row,
+        @Nonnull Ref<PhysicsStore> bodyRef) {
+        return row.bodyRef().isValid() && sameRef(row.bodyRef(), bodyRef);
+    }
+
+    @Nonnull
+    private Set<Ref<EntityStore>> bodyAttachmentRefs(@Nonnull Ref<PhysicsStore> bodyRef) {
+        int rowIndex = bodyRef.getIndex();
+        BodyAttachmentRefs row = bodyAttachmentsByRowIndex.get(rowIndex);
+        if (row == null || !isMatchingLiveRef(row, bodyRef)) {
+            row = new BodyAttachmentRefs(bodyRef, new ObjectOpenHashSet<>());
+            bodyAttachmentsByRowIndex.put(rowIndex, row);
+        }
+        return row.attachments();
+    }
+
+    private void unregisterAttachmentRef(@Nonnull Ref<PhysicsStore> bodyRef,
+        @Nonnull Ref<EntityStore> attachment) {
+        int rowIndex = bodyRef.getIndex();
+        BodyAttachmentRefs row = bodyAttachmentsByRowIndex.get(rowIndex);
+        if (row == null) {
+            return;
+        }
+        if (!isMatchingLiveRef(row, bodyRef)) {
+            bodyAttachmentsByRowIndex.remove(rowIndex);
+            return;
+        }
+        Set<Ref<EntityStore>> attachments = row.attachments();
+        attachments.remove(attachment);
+        if (attachments.isEmpty()) {
+            bodyAttachmentsByRowIndex.remove(rowIndex);
+        }
+    }
+
+    @Nullable
+    private BodyAttachmentRefs removeAttachmentRefs(@Nonnull Ref<PhysicsStore> bodyRef) {
+        int rowIndex = bodyRef.getIndex();
+        BodyAttachmentRefs row = bodyAttachmentsByRowIndex.get(rowIndex);
+        if (row == null || !isMatchingLiveRef(row, bodyRef)) {
+            if (row != null) {
+                bodyAttachmentsByRowIndex.remove(rowIndex);
+            }
+            return null;
+        }
+        bodyAttachmentsByRowIndex.remove(rowIndex);
+        return row;
+    }
+
+    @Nonnull
+    private Collection<Ref<EntityStore>> liveAttachments(@Nonnull Ref<PhysicsStore> bodyRef) {
+        List<Ref<EntityStore>> liveAttachments = new ArrayList<>();
+        List<Ref<EntityStore>> staleAttachments = new ArrayList<>();
+        synchronized (this) {
+            int rowIndex = bodyRef.getIndex();
+            BodyAttachmentRefs row = bodyAttachmentsByRowIndex.get(rowIndex);
+            if (row == null) {
+                return List.of();
+            }
+            if (!isMatchingLiveRef(row, bodyRef)) {
+                bodyAttachmentsByRowIndex.remove(rowIndex);
+                return List.of();
+            }
+            Set<Ref<EntityStore>> attachments = row.attachments();
+            if (attachments.isEmpty()) {
+                bodyAttachmentsByRowIndex.remove(rowIndex);
+                return List.of();
+            }
+            for (Iterator<Ref<EntityStore>> iterator = attachments.iterator(); iterator.hasNext();) {
+                Ref<EntityStore> attachment = iterator.next();
+                if (attachment != null && attachment.isValid()) {
+                    liveAttachments.add(attachment);
+                } else {
+                    iterator.remove();
+                    if (attachment != null) {
+                        staleAttachments.add(attachment);
+                    }
+                }
+            }
+            if (attachments.isEmpty()) {
+                bodyAttachmentsByRowIndex.remove(rowIndex);
+            }
+        }
+        cleanSyncStates(staleAttachments);
+        return liveAttachments;
+    }
+
+    private boolean hasLiveAttachments(@Nonnull Ref<PhysicsStore> bodyRef) {
+        boolean hasLiveAttachment = false;
+        List<Ref<EntityStore>> staleAttachments = new ArrayList<>();
+        synchronized (this) {
+            int rowIndex = bodyRef.getIndex();
+            BodyAttachmentRefs row = bodyAttachmentsByRowIndex.get(rowIndex);
+            if (row == null) {
+                return false;
+            }
+            if (!isMatchingLiveRef(row, bodyRef)) {
+                bodyAttachmentsByRowIndex.remove(rowIndex);
+                return false;
+            }
+            Set<Ref<EntityStore>> attachments = row.attachments();
+            if (attachments.isEmpty()) {
+                bodyAttachmentsByRowIndex.remove(rowIndex);
+                return false;
+            }
+            for (Iterator<Ref<EntityStore>> iterator = attachments.iterator(); iterator.hasNext();) {
+                Ref<EntityStore> attachment = iterator.next();
+                if (attachment != null && attachment.isValid()) {
+                    hasLiveAttachment = true;
+                } else {
+                    iterator.remove();
+                    if (attachment != null) {
+                        staleAttachments.add(attachment);
+                    }
+                }
+            }
+            if (attachments.isEmpty()) {
+                bodyAttachmentsByRowIndex.remove(rowIndex);
+            }
+        }
+        cleanSyncStates(staleAttachments);
+        return hasLiveAttachment;
+    }
+
+    @Nullable
+    private Ref<EntityStore> liveGeneratedVisualProxy(@Nonnull Ref<PhysicsStore> bodyRef) {
+        Ref<EntityStore> staleProxy = null;
+        synchronized (this) {
+            int rowIndex = bodyRef.getIndex();
+            GeneratedVisualProxyRef row = generatedVisualProxiesByRowIndex.get(rowIndex);
+            if (row == null) {
+                return null;
+            }
+            if (!isMatchingLiveRef(row, bodyRef)) {
+                generatedVisualProxiesByRowIndex.remove(rowIndex);
+                return null;
+            }
+            Ref<EntityStore> proxy = row.proxy();
+            if (proxy != null && proxy.isValid()) {
+                return proxy;
+            }
+            generatedVisualProxiesByRowIndex.remove(rowIndex);
+            staleProxy = proxy;
+        }
+        cleanSyncState(staleProxy);
+        return null;
+    }
+
+    @Nullable
+    private GeneratedVisualProxyRef removeGeneratedVisualProxyRef(@Nonnull Ref<PhysicsStore> bodyRef) {
+        int rowIndex = bodyRef.getIndex();
+        GeneratedVisualProxyRef row = generatedVisualProxiesByRowIndex.get(rowIndex);
+        if (row == null || !isMatchingLiveRef(row, bodyRef)) {
+            if (row != null) {
+                generatedVisualProxiesByRowIndex.remove(rowIndex);
+            }
+            return null;
+        }
+        generatedVisualProxiesByRowIndex.remove(rowIndex);
+        return row;
+    }
+
+    @Nullable
+    private GeneratedVisualProxyRef removeGeneratedVisualProxyRef(@Nonnull Ref<PhysicsStore> bodyRef,
+        @Nonnull Ref<EntityStore> expectedProxy) {
+        int rowIndex = bodyRef.getIndex();
+        GeneratedVisualProxyRef row = generatedVisualProxiesByRowIndex.get(rowIndex);
+        if (row == null || !isMatchingLiveRef(row, bodyRef)) {
+            if (row != null) {
+                generatedVisualProxiesByRowIndex.remove(rowIndex);
+            }
+            return null;
+        }
+        if (!sameRef(row.proxy(), expectedProxy)) {
+            return null;
+        }
+        generatedVisualProxiesByRowIndex.remove(rowIndex);
+        return row;
+    }
+
+    private static boolean isValidRef(@Nullable Ref<?> ref) {
+        return ref != null && ref.isValid();
+    }
+
     private void cleanSyncState(@Nullable Ref<EntityStore> ref) {
         if (ref != null) {
             syncStateCleaner.accept(ref);
@@ -364,6 +796,15 @@ public final class PhysicsVisualRuntime {
                 && first.getStore() != null
                 && first.getStore() == second.getStore()
                 && first.getIndex() == second.getIndex());
+    }
+
+    private record BodyAttachmentRefs(@Nonnull Ref<PhysicsStore> bodyRef,
+                                      @Nonnull Set<Ref<EntityStore>> attachments) {
+    }
+
+    private record GeneratedVisualProxyRef(@Nonnull UUID bodyUuid,
+                                           @Nonnull Ref<PhysicsStore> bodyRef,
+                                           @Nonnull Ref<EntityStore> proxy) {
     }
 
     private record BodyVisualInterestRefState(@Nonnull Ref<PhysicsStore> bodyRef,
