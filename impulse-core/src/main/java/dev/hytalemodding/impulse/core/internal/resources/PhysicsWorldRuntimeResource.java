@@ -1815,17 +1815,6 @@ public class PhysicsWorldRuntimeResource extends PhysicsWorldResource {
         return visualRuntime.hasAttachments(bodyUuid, bodyRef);
     }
 
-    public void registerBodyAttachment(@Nonnull UUID bodyUuid,
-        @Nullable Ref<PhysicsStore> bodyRef,
-        @Nonnull Ref<EntityStore> attachment) {
-        if (hasAttachedAuthoritativePhysicsStore()) {
-            authoritativeProjectionIndex("register physics body attachment")
-                .registerAttachment(bodyUuid, bodyRef, attachment);
-            return;
-        }
-        visualRuntime.registerAttachment(bodyUuid, bodyRef, attachment);
-    }
-
     public void unregisterBodyAttachment(@Nonnull UUID bodyUuid,
         @Nullable Ref<PhysicsStore> bodyRef,
         @Nonnull Ref<EntityStore> attachment) {
