@@ -22,7 +22,6 @@ import dev.hytalemodding.impulse.early.PhysicsStoreWorld;
 import dev.hytalemodding.impulse.core.plugin.physicsstore.projection.BodyAttachmentComponent;
 import dev.hytalemodding.impulse.core.plugin.physicsstore.projection.BodyAttachmentComponent.AttachmentLifecycle;
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsDebugResource;
-import dev.hytalemodding.impulse.core.internal.resources.PhysicsSpaceBinding;
 import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyKind;
 import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyRegistrationView;
 import dev.hytalemodding.impulse.core.internal.modules.worldcollision.SectionCollisionGeometry.BoxCollider;
@@ -142,14 +141,14 @@ public class PhysicsDebugSystem extends TickingSystem<EntityStore> {
                     overlayLifetime);
             }
 
-            for (PhysicsSpaceBinding space : resource.getSpaceBindings()) {
+            for (SpaceId spaceId : resource.getSpaceIds()) {
                 if (overlayDue && debugShapes) {
-                    renderSpaceOnlyShapes(target, resource, space, overlayLifetime);
+                    renderSpaceOnlyShapes(target, resource, spaceId, overlayLifetime);
                 }
                 if (overlayDue && debugContacts) {
                     renderContacts(target,
                         physicsStore,
-                        space,
+                        spaceId,
                         viewerUuid,
                         queryCache,
                         viewerPosition,
@@ -160,7 +159,7 @@ public class PhysicsDebugSystem extends TickingSystem<EntityStore> {
                 if (overlayDue && debugJoints) {
                     renderJoints(target,
                         physicsStore,
-                        space,
+                        spaceId,
                         viewerUuid,
                         queryCache,
                         viewerPosition,
@@ -171,7 +170,7 @@ public class PhysicsDebugSystem extends TickingSystem<EntityStore> {
                 if (worldCollisionDue && debugWorldCollision) {
                     renderWorldCollision(target,
                         resource,
-                        space,
+                        spaceId,
                         viewerPosition,
                         debug.getViewRadius(),
                         debug.getMaxWorldCollisionSections(),
@@ -285,8 +284,8 @@ public class PhysicsDebugSystem extends TickingSystem<EntityStore> {
 
         RenderedBodyCount rendered = new RenderedBodyCount();
         double maxDistanceSquared = viewRadius * viewRadius;
-        for (PhysicsSpaceBinding space : resource.getSpaceBindings()) {
-            resource.forEachIndexedBodySnapshot(space.spaceId(), (bodyUuid, snapshot, spaceId, kind, persistenceMode) -> {
+        for (SpaceId spaceId : resource.getSpaceIds()) {
+            resource.forEachIndexedBodySnapshot(spaceId, (bodyUuid, snapshot, snapshotSpaceId, kind, persistenceMode) -> {
                 if (rendered.hasReached(maxBodies)) {
                     return;
                 }
@@ -341,9 +340,9 @@ public class PhysicsDebugSystem extends TickingSystem<EntityStore> {
 
     private static void renderSpaceOnlyShapes(@Nonnull Collection<PlayerRef> viewers,
         @Nonnull PhysicsWorldRuntimeResource resource,
-        @Nonnull PhysicsSpaceBinding space,
+        @Nonnull SpaceId spaceId,
         float time) {
-        resource.forEachIndexedBodySnapshot(space.spaceId(), (bodyUuid, snapshot, spaceId, kind, persistenceMode) -> {
+        resource.forEachIndexedBodySnapshot(spaceId, (bodyUuid, snapshot, snapshotSpaceId, kind, persistenceMode) -> {
             if (snapshot.shapeType() != ShapeType.PLANE) {
                 return;
             }
@@ -362,18 +361,18 @@ public class PhysicsDebugSystem extends TickingSystem<EntityStore> {
 
     private static void renderContacts(@Nonnull Collection<PlayerRef> viewers,
         @Nonnull Store<PhysicsStore> physicsStore,
-        @Nonnull PhysicsSpaceBinding space,
+        @Nonnull SpaceId spaceId,
         @Nonnull UUID viewerUuid,
         @Nonnull DebugQueryCache queryCache,
         @Nonnull Vector3d viewerPosition,
         double viewRadius,
         int maxContacts,
         float time) {
-        DebugQueryKey key = DebugQueryKey.contacts(space.spaceId(), viewerUuid);
+        DebugQueryKey key = DebugQueryKey.contacts(spaceId, viewerUuid);
         try {
             queryCache.requestContactsIfIdle(key,
                 () -> PhysicsStoreDebugQueries.contactsAsync(physicsStore,
-                    space.spaceId(),
+                    spaceId,
                     viewerPosition,
                     viewRadius,
                     maxContacts));
@@ -387,18 +386,18 @@ public class PhysicsDebugSystem extends TickingSystem<EntityStore> {
 
     private static void renderJoints(@Nonnull Collection<PlayerRef> viewers,
         @Nonnull Store<PhysicsStore> physicsStore,
-        @Nonnull PhysicsSpaceBinding space,
+        @Nonnull SpaceId spaceId,
         @Nonnull UUID viewerUuid,
         @Nonnull DebugQueryCache queryCache,
         @Nonnull Vector3d viewerPosition,
         double viewRadius,
         int maxJoints,
         float time) {
-        DebugQueryKey key = DebugQueryKey.joints(space.spaceId(), viewerUuid);
+        DebugQueryKey key = DebugQueryKey.joints(spaceId, viewerUuid);
         try {
             queryCache.requestJointsIfIdle(key,
                 () -> PhysicsStoreDebugQueries.jointsAsync(physicsStore,
-                    space.spaceId(),
+                    spaceId,
                     viewerPosition,
                     viewRadius,
                     maxJoints));
@@ -412,7 +411,7 @@ public class PhysicsDebugSystem extends TickingSystem<EntityStore> {
 
     private static void renderWorldCollision(@Nonnull Collection<PlayerRef> viewers,
         @Nonnull PhysicsWorldRuntimeResource resource,
-        @Nonnull PhysicsSpaceBinding space,
+        @Nonnull SpaceId spaceId,
         @Nonnull Vector3d viewerPosition,
         double viewRadius,
         int maxSections,
@@ -420,7 +419,7 @@ public class PhysicsDebugSystem extends TickingSystem<EntityStore> {
         float time) {
         double maxDistanceSquared = viewRadius * viewRadius;
         List<VisibleDebugSection> visibleSections = collectVisibleWorldCollisionSections(
-            resource, space, viewerPosition, maxDistanceSquared);
+            resource, spaceId, viewerPosition, maxDistanceSquared);
         visibleSections.sort(Comparator.comparingDouble(VisibleDebugSection::distanceSquared));
 
         int sectionLimit = Math.min(maxSections, visibleSections.size());
@@ -451,11 +450,11 @@ public class PhysicsDebugSystem extends TickingSystem<EntityStore> {
     @Nonnull
     private static List<VisibleDebugSection> collectVisibleWorldCollisionSections(
         @Nonnull PhysicsWorldRuntimeResource resource,
-        @Nonnull PhysicsSpaceBinding space,
+        @Nonnull SpaceId spaceId,
         @Nonnull Vector3d viewerPosition,
         double maxDistanceSquared) {
         List<VisibleDebugSection> visibleSections = new ArrayList<>();
-        resource.worldCollisionCache().forEachDebugSection(space.spaceId(), section -> {
+        resource.worldCollisionCache().forEachDebugSection(spaceId, section -> {
             double distanceSquared = distanceSquaredToSection(viewerPosition, section);
             if (distanceSquared > maxDistanceSquared) {
                 return;
