@@ -53,7 +53,8 @@ public final class PhysicsStoreTopologyMutations {
         PhysicsRuntimeResource runtime = store.getResource(PhysicsRuntimeResource.getResourceType());
         PhysicsIdentityIndexResource identity =
             store.getResource(PhysicsIdentityIndexResource.getResourceType());
-        List<RowRemoval> removals = collectRows(store, null, bodyUuid);
+        Ref<PhysicsStore> bodyRef = identity.getByUuid(bodyUuid);
+        List<RowRemoval> removals = collectRows(store, null, null, bodyUuid, bodyRef);
         removeRuntimeRows(runtime, identity, removals);
         removeRows(store, removals);
     }
@@ -66,7 +67,7 @@ public final class PhysicsStoreTopologyMutations {
         PhysicsIdentityIndexResource identity =
             store.getResource(PhysicsIdentityIndexResource.getResourceType());
         TopologyCounts removed = countBackendTopology(runtime);
-        List<RowRemoval> removals = collectRows(store, null, null);
+        List<RowRemoval> removals = collectRows(store, null, null, null, null);
         removeRuntimeRows(runtime, identity, removals);
         removeRows(store, removals);
         clearCopiedBodyState(store);
@@ -92,7 +93,8 @@ public final class PhysicsStoreTopologyMutations {
         PhysicsRuntimeResource runtime = store.getResource(PhysicsRuntimeResource.getResourceType());
         PhysicsIdentityIndexResource identity =
             store.getResource(PhysicsIdentityIndexResource.getResourceType());
-        List<RowRemoval> removals = collectRows(store, spaceUuid, null);
+        Ref<PhysicsStore> spaceRef = identity.getByUuid(spaceUuid);
+        List<RowRemoval> removals = collectRows(store, spaceUuid, spaceRef, null, null);
         removeRuntimeRows(runtime, identity, removals);
         store.getResource(PhysicsTerrainMutationQueueResource.getResourceType())
             .removeIf(mutation -> spaceUuid.equals(mutation.spaceUuid()));
@@ -105,7 +107,9 @@ public final class PhysicsStoreTopologyMutations {
         PhysicsStoreThreading.requireWorldThread(store, "clear PhysicsStore terrain rows");
         PhysicsRuntimeResource runtime = store.getResource(PhysicsRuntimeResource.getResourceType());
         int removedBodies = 0;
-        List<RowRemoval> removals = collectTerrainRows(store, spaceUuid);
+        Ref<PhysicsStore> spaceRef = store.getResource(PhysicsIdentityIndexResource.getResourceType())
+            .getByUuid(spaceUuid);
+        List<RowRemoval> removals = collectTerrainRows(store, spaceUuid, spaceRef);
         for (RowRemoval removal : removals) {
             removedBodies += removeRuntimeTerrain(runtime, removal);
         }
@@ -201,7 +205,9 @@ public final class PhysicsStoreTopologyMutations {
     @Nonnull
     private static List<RowRemoval> collectRows(@Nonnull Store<PhysicsStore> store,
         @Nullable UUID spaceUuid,
-        @Nullable UUID bodyUuid) {
+        @Nullable Ref<PhysicsStore> spaceRef,
+        @Nullable UUID bodyUuid,
+        @Nullable Ref<PhysicsStore> bodyRef) {
         ComponentType<PhysicsStore, UuidComponent> uuidType = UuidComponent.getComponentType();
         ConcurrentLinkedQueue<RowRemoval> removals = new ConcurrentLinkedQueue<>();
         store.forEachEntityParallel(uuidType, (index, chunk, _) -> {
@@ -212,13 +218,13 @@ public final class PhysicsStoreTopologyMutations {
             UUID rowUuid = uuid.getUuid();
             Ref<PhysicsStore> ref = chunk.getReferenceTo(index);
             JointComponent joint = chunk.getComponent(index, JointComponent.getComponentType());
-            if (matchesJoint(joint, spaceUuid, bodyUuid)) {
+            if (matchesJoint(joint, spaceUuid, spaceRef, bodyUuid, bodyRef)) {
                 removals.add(new RowRemoval(ref, rowUuid, RowKind.JOINT, null));
                 return;
             }
             TerrainColliderComponent terrain = chunk.getComponent(index,
                 TerrainColliderComponent.getComponentType());
-            if (matchesTerrain(terrain, spaceUuid, bodyUuid)) {
+            if (matchesTerrain(terrain, spaceUuid, spaceRef, bodyUuid)) {
                 removals.add(new RowRemoval(ref,
                     rowUuid,
                     RowKind.TERRAIN,
@@ -226,7 +232,7 @@ public final class PhysicsStoreTopologyMutations {
                 return;
             }
             BodyComponent body = chunk.getComponent(index, BodyComponent.getComponentType());
-            if (matchesBody(body, rowUuid, spaceUuid, bodyUuid)) {
+            if (matchesBody(body, rowUuid, ref, spaceUuid, spaceRef, bodyUuid, bodyRef)) {
                 removals.add(new RowRemoval(ref, rowUuid, RowKind.BODY, null));
             }
         });
@@ -235,13 +241,17 @@ public final class PhysicsStoreTopologyMutations {
 
     @Nonnull
     private static List<RowRemoval> collectTerrainRows(@Nonnull Store<PhysicsStore> store,
-        @Nonnull UUID spaceUuid) {
+        @Nonnull UUID spaceUuid,
+        @Nullable Ref<PhysicsStore> spaceRef) {
         ComponentType<PhysicsStore, UuidComponent> uuidType = UuidComponent.getComponentType();
         ConcurrentLinkedQueue<RowRemoval> removals = new ConcurrentLinkedQueue<>();
         store.forEachEntityParallel(uuidType, (index, chunk, _) -> {
             TerrainColliderComponent terrain = chunk.getComponent(index,
                 TerrainColliderComponent.getComponentType());
-            if (terrain == null || !spaceUuid.equals(terrain.getSpaceUuid())) {
+            if (terrain == null || !matchesSpace(terrain.getSpaceRef(),
+                terrain.getSpaceUuid(),
+                spaceRef,
+                spaceUuid)) {
                 return;
             }
             UuidComponent uuid = chunk.getComponent(index, uuidType);
@@ -258,37 +268,72 @@ public final class PhysicsStoreTopologyMutations {
 
     private static boolean matchesJoint(@Nullable JointComponent joint,
         @Nullable UUID spaceUuid,
-        @Nullable UUID bodyUuid) {
+        @Nullable Ref<PhysicsStore> spaceRef,
+        @Nullable UUID bodyUuid,
+        @Nullable Ref<PhysicsStore> bodyRef) {
         if (joint == null) {
             return false;
         }
-        if (spaceUuid != null && !spaceUuid.equals(joint.getSpaceUuid())) {
+        if (!matchesSpace(joint.getSpaceRef(), joint.getSpaceUuid(), spaceRef, spaceUuid)) {
             return false;
         }
         return bodyUuid == null
-            || bodyUuid.equals(joint.getBodyAUuid())
-            || bodyUuid.equals(joint.getBodyBUuid());
+            || matchesEndpoint(joint.getBodyARef(), joint.getBodyAUuid(), bodyRef, bodyUuid)
+            || matchesEndpoint(joint.getBodyBRef(), joint.getBodyBUuid(), bodyRef, bodyUuid);
     }
 
     private static boolean matchesTerrain(@Nullable TerrainColliderComponent terrain,
         @Nullable UUID spaceUuid,
+        @Nullable Ref<PhysicsStore> spaceRef,
         @Nullable UUID bodyUuid) {
         return bodyUuid == null
             && terrain != null
-            && (spaceUuid == null || spaceUuid.equals(terrain.getSpaceUuid()));
+            && matchesSpace(terrain.getSpaceRef(), terrain.getSpaceUuid(), spaceRef, spaceUuid);
     }
 
     private static boolean matchesBody(@Nullable BodyComponent body,
         @Nonnull UUID rowUuid,
+        @Nonnull Ref<PhysicsStore> rowRef,
         @Nullable UUID spaceUuid,
-        @Nullable UUID bodyUuid) {
+        @Nullable Ref<PhysicsStore> spaceRef,
+        @Nullable UUID bodyUuid,
+        @Nullable Ref<PhysicsStore> bodyRef) {
         if (body == null) {
             return false;
         }
-        if (spaceUuid != null && !spaceUuid.equals(body.getSpaceUuid())) {
+        if (!matchesSpace(body.getSpaceRef(), body.getSpaceUuid(), spaceRef, spaceUuid)) {
             return false;
         }
+        if (bodyRef != null) {
+            return sameRef(rowRef, bodyRef);
+        }
         return bodyUuid == null || bodyUuid.equals(rowUuid);
+    }
+
+    private static boolean matchesSpace(@Nullable Ref<PhysicsStore> rowSpaceRef,
+        @Nonnull UUID rowSpaceUuid,
+        @Nullable Ref<PhysicsStore> spaceRef,
+        @Nullable UUID spaceUuid) {
+        if (spaceRef != null && rowSpaceRef != null) {
+            return sameRef(rowSpaceRef, spaceRef);
+        }
+        return spaceUuid == null || spaceUuid.equals(rowSpaceUuid);
+    }
+
+    private static boolean matchesEndpoint(@Nullable Ref<PhysicsStore> endpointRef,
+        @Nonnull UUID endpointUuid,
+        @Nullable Ref<PhysicsStore> bodyRef,
+        @Nonnull UUID bodyUuid) {
+        if (bodyRef != null && endpointRef != null) {
+            return sameRef(endpointRef, bodyRef);
+        }
+        return bodyUuid.equals(endpointUuid);
+    }
+
+    private static boolean sameRef(@Nonnull Ref<PhysicsStore> first,
+        @Nonnull Ref<PhysicsStore> second) {
+        return first.getStore() == second.getStore()
+            && first.getIndex() == second.getIndex();
     }
 
     private static void removeRows(@Nonnull Store<PhysicsStore> store,
