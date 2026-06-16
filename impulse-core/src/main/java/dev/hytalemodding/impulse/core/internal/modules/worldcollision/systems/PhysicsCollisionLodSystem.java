@@ -10,6 +10,7 @@ import com.hypixel.hytale.logger.HytaleLogger;
 import com.hypixel.hytale.server.core.universe.world.World;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import com.hypixel.hytale.server.core.universe.world.storage.PhysicsStore;
+import dev.hytalemodding.impulse.early.PhysicsStoreWorld;
 import dev.hytalemodding.impulse.api.PhysicsBodySnapshot;
 import dev.hytalemodding.impulse.api.PhysicsCollisionFilters;
 import dev.hytalemodding.impulse.api.SpaceId;
@@ -20,20 +21,25 @@ import dev.hytalemodding.impulse.core.internal.resources.PhysicsVisualRuntime;
 import dev.hytalemodding.impulse.core.internal.systems.visual.VisualInterestCollector;
 import dev.hytalemodding.impulse.core.internal.resources.owner.PhysicsOwnerBridge;
 import dev.hytalemodding.impulse.core.internal.modules.worldcollision.WorldCollisionLifecycle;
-import dev.hytalemodding.impulse.core.internal.physicsstore.resources.PhysicsIdentityIndexResource;
+import dev.hytalemodding.impulse.core.internal.physicsstore.resources.PhysicsBodyRegistrationResource;
+import dev.hytalemodding.impulse.core.internal.physicsstore.resources.PhysicsSnapshotResource;
 import dev.hytalemodding.impulse.core.internal.physicsstore.resources.PhysicsSpaceCompatibilityIndexResource;
 import dev.hytalemodding.impulse.core.internal.store.integration.PhysicsStoreEarlyPluginProbe;
 import dev.hytalemodding.impulse.core.internal.systems.publication.PhysicsSnapshotPublicationSystem;
 import dev.hytalemodding.impulse.core.plugin.body.RigidBodyKey;
 import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyKind;
 import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyPersistenceMode;
+import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyRegistrationView;
 import dev.hytalemodding.impulse.core.internal.resources.body.PhysicsBodyRegistration;
 import dev.hytalemodding.impulse.core.plugin.physicsstore.PhysicsStoreThreading;
 import dev.hytalemodding.impulse.core.plugin.physicsstore.components.BodyCommandComponent;
 import dev.hytalemodding.impulse.core.plugin.physicsstore.components.BodyComponent;
+import dev.hytalemodding.impulse.core.plugin.physicsstore.snapshots.PhysicsStoreBodySnapshot;
 import dev.hytalemodding.impulse.core.plugin.resources.PhysicsMutationHandle;
 import dev.hytalemodding.impulse.core.plugin.settings.PhysicsSpaceSettings;
 import it.unimi.dsi.fastutil.ints.Int2LongOpenHashMap;
+import it.unimi.dsi.fastutil.ints.Int2ObjectMap;
+import it.unimi.dsi.fastutil.ints.Int2ObjectOpenHashMap;
 import it.unimi.dsi.fastutil.ints.IntOpenHashSet;
 import it.unimi.dsi.fastutil.objects.Object2ObjectMap;
 import it.unimi.dsi.fastutil.objects.Object2ObjectOpenHashMap;
@@ -43,6 +49,7 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Queue;
 import java.util.Set;
 import java.util.WeakHashMap;
@@ -102,11 +109,18 @@ public class PhysicsCollisionLodSystem extends TickingSystem<EntityStore> {
         List<PhysicsVisualRuntime.VisualInterest> interests =
             VisualInterestCollector.collectMaterializationInterests(store, resource);
         if (isAuthoritativePhysicsStoreActive()) {
+            Store<PhysicsStore> physics =
+                ((PhysicsStoreWorld) store.getExternalData().getWorld()).getPhysicsStore()
+                    .getStore();
+            PhysicsStoreThreading.requireWorldThread(physics,
+                "collect collision LOD PhysicsStore bodies");
+            PhysicsBodyRegistrationResource registrations =
+                physics.getResource(PhysicsBodyRegistrationResource.getResourceType());
             for (SpaceId spaceId : resource.getSpaceIds()) {
                 activeSpaces.add(spaceId.value());
                 PhysicsSpaceSettings settings = resource.getSpaceSettings(spaceId);
                 if (!settings.getCollisionLodSettings().isCollisionLodEnabled()) {
-                    state.collectRestoreUpdates(spaceId, updates);
+                    state.collectRestoreRefUpdates(spaceId, updates);
                     continue;
                 }
                 if (!state.shouldRefresh(spaceId,
@@ -114,7 +128,14 @@ public class PhysicsCollisionLodSystem extends TickingSystem<EntityStore> {
                     tick)) {
                     continue;
                 }
-                collectSpaceUpdates(resource, spaceId, settings, interests, state, updates);
+                collectAuthoritativeSpaceUpdates(physics,
+                    registrations,
+                    resource,
+                    spaceId,
+                    settings,
+                    interests,
+                    state,
+                    updates);
             }
             state.pruneRemovedSpaces(activeSpaces);
             return updates;
@@ -171,6 +192,59 @@ public class PhysicsCollisionLodSystem extends TickingSystem<EntityStore> {
                 updates);
         });
         state.pruneMissingBodies(spaceId, seenBodies);
+    }
+
+    private static void collectAuthoritativeSpaceUpdates(@Nonnull Store<PhysicsStore> physics,
+        @Nonnull PhysicsBodyRegistrationResource registrations,
+        @Nonnull PhysicsWorldRuntimeResource resource,
+        @Nonnull SpaceId spaceId,
+        @Nonnull PhysicsSpaceSettings settings,
+        @Nonnull List<PhysicsVisualRuntime.VisualInterest> interests,
+        @Nonnull CollisionLodState state,
+        @Nonnull List<CollisionLodUpdate> updates) {
+        IntOpenHashSet seenRows = new IntOpenHashSet();
+        for (PhysicsStoreBodySnapshot body : physics.getResource(PhysicsSnapshotResource.getResourceType())
+            .getLatestFrame()
+            .bodies()) {
+            Ref<PhysicsStore> bodyRef = body.bodyRef();
+            if (bodyRef == null || !bodyRef.isValid()) {
+                continue;
+            }
+            PhysicsBodyRegistrationView registration = registrations.getBodyRegistrationView(bodyRef);
+            if (registration == null || !registration.spaceId().equals(spaceId)) {
+                continue;
+            }
+            seenRows.add(bodyRef.getIndex());
+            PhysicsBodySnapshot snapshot = resource.getBodySnapshotIfRegistered(bodyRef);
+            if (snapshot == null) {
+                continue;
+            }
+            if (registration.persistenceMode() == PhysicsBodyPersistenceMode.PERSISTENT) {
+                state.recordRestore(spaceId, bodyRef, updates);
+                continue;
+            }
+            if (!isCollisionLodCandidate(snapshot,
+                registration.kind(),
+                registration.persistenceMode())) {
+                continue;
+            }
+
+            CollisionLodTier previousTier = state.tier(bodyRef);
+            CollisionLodTier tier = resource.isBodyControlled(bodyRef)
+                ? CollisionLodTier.NEAR_FULL
+                : resolveTier(settings,
+                    previousTier,
+                    snapshot.positionX(),
+                    snapshot.positionY(),
+                    snapshot.positionZ(),
+                    interests);
+            state.recordTier(spaceId,
+                bodyRef,
+                tier,
+                settings.getCollisionLodSettings().isCollisionLodFarSleepEnabled(),
+                updates);
+        }
+        state.pruneMissingBodyRefs(spaceId, seenRows);
     }
 
     static CollisionLodTier resolveTier(@Nonnull PhysicsSpaceSettings settings,
@@ -265,8 +339,6 @@ public class PhysicsCollisionLodSystem extends TickingSystem<EntityStore> {
 
     private static void applyAuthoritativeUpdates(@Nonnull Store<PhysicsStore> store,
         @Nonnull List<CollisionLodUpdate> updates) {
-        PhysicsIdentityIndexResource identity = store.getResource(
-            PhysicsIdentityIndexResource.getResourceType());
         PhysicsSpaceCompatibilityIndexResource compatibility = store.getResource(
             PhysicsSpaceCompatibilityIndexResource.getResourceType());
         for (CollisionLodUpdate update : updates) {
@@ -274,8 +346,10 @@ public class PhysicsCollisionLodSystem extends TickingSystem<EntityStore> {
             if (spaceUuid == null) {
                 continue;
             }
-            Ref<PhysicsStore> bodyRef = identity.getByUuid(update.bodyKey().value());
-            if (bodyRef == null || !bodyRef.isValid()) {
+            Ref<PhysicsStore> bodyRef = update.bodyRef();
+            if (bodyRef == null
+                || bodyRef.getStore() != store
+                || !bodyRef.isValid()) {
                 continue;
             }
             BodyComponent body = store.getComponent(bodyRef, BodyComponent.getComponentType());
@@ -394,10 +468,35 @@ public class PhysicsCollisionLodSystem extends TickingSystem<EntityStore> {
     }
 
     record CollisionLodUpdate(@Nonnull SpaceId spaceId,
-                              @Nonnull RigidBodyKey bodyKey,
+                              @Nullable RigidBodyKey bodyKey,
+                              @Nullable Ref<PhysicsStore> bodyRef,
                               @Nonnull CollisionLodTier tier,
                               boolean farSleepEnabled,
                               boolean trackTier) {
+
+        CollisionLodUpdate(@Nonnull SpaceId spaceId,
+            @Nonnull RigidBodyKey bodyKey,
+            @Nonnull CollisionLodTier tier,
+            boolean farSleepEnabled,
+            boolean trackTier) {
+            this(spaceId, bodyKey, null, tier, farSleepEnabled, trackTier);
+        }
+
+        CollisionLodUpdate(@Nonnull SpaceId spaceId,
+            @Nonnull Ref<PhysicsStore> bodyRef,
+            @Nonnull CollisionLodTier tier,
+            boolean farSleepEnabled,
+            boolean trackTier) {
+            this(spaceId, null, bodyRef, tier, farSleepEnabled, trackTier);
+        }
+
+        CollisionLodUpdate {
+            Objects.requireNonNull(spaceId, "spaceId");
+            Objects.requireNonNull(tier, "tier");
+            if ((bodyKey == null) == (bodyRef == null)) {
+                throw new IllegalArgumentException("Exactly one body identity is required");
+            }
+        }
     }
 
     private record BodyTier(@Nonnull SpaceId spaceId, @Nonnull CollisionLodTier tier) {
@@ -408,6 +507,9 @@ public class PhysicsCollisionLodSystem extends TickingSystem<EntityStore> {
         @Nonnull
         private final Object2ObjectMap<RigidBodyKey, BodyTier> tiers =
             new Object2ObjectOpenHashMap<>();
+        @Nonnull
+        private final Int2ObjectOpenHashMap<RefBodyTier> refTiersByRowIndex =
+            new Int2ObjectOpenHashMap<>();
         @Nonnull
         private final Int2LongOpenHashMap nextRefreshTicks = new Int2LongOpenHashMap();
         @Nonnull
@@ -465,6 +567,14 @@ public class PhysicsCollisionLodSystem extends TickingSystem<EntityStore> {
             return bodyTier != null ? bodyTier.tier() : null;
         }
 
+        @Nullable
+        CollisionLodTier tier(@Nonnull Ref<PhysicsStore> bodyRef) {
+            RefBodyTier bodyTier = refTiersByRowIndex.get(rowIndex(bodyRef));
+            return bodyTier != null && sameRef(bodyTier.bodyRef(), bodyRef)
+                ? bodyTier.tier().tier()
+                : null;
+        }
+
         void recordTier(@Nonnull SpaceId spaceId,
             @Nonnull RigidBodyKey bodyKey,
             @Nonnull CollisionLodTier tier,
@@ -477,6 +587,21 @@ public class PhysicsCollisionLodSystem extends TickingSystem<EntityStore> {
             updates.add(new CollisionLodUpdate(spaceId, bodyKey, tier, farSleepEnabled, true));
         }
 
+        void recordTier(@Nonnull SpaceId spaceId,
+            @Nonnull Ref<PhysicsStore> bodyRef,
+            @Nonnull CollisionLodTier tier,
+            boolean farSleepEnabled,
+            @Nonnull List<CollisionLodUpdate> updates) {
+            RefBodyTier previous = refTiersByRowIndex.get(rowIndex(bodyRef));
+            if (previous != null
+                && sameRef(previous.bodyRef(), bodyRef)
+                && previous.tier().spaceId().equals(spaceId)
+                && previous.tier().tier() == tier) {
+                return;
+            }
+            updates.add(new CollisionLodUpdate(spaceId, bodyRef, tier, farSleepEnabled, true));
+        }
+
         void recordRestore(@Nonnull SpaceId spaceId,
             @Nonnull RigidBodyKey bodyKey,
             @Nonnull List<CollisionLodUpdate> updates) {
@@ -486,6 +611,22 @@ public class PhysicsCollisionLodSystem extends TickingSystem<EntityStore> {
             }
             updates.add(new CollisionLodUpdate(spaceId,
                 bodyKey,
+                CollisionLodTier.NEAR_FULL,
+                false,
+                false));
+        }
+
+        void recordRestore(@Nonnull SpaceId spaceId,
+            @Nonnull Ref<PhysicsStore> bodyRef,
+            @Nonnull List<CollisionLodUpdate> updates) {
+            RefBodyTier previous = refTiersByRowIndex.get(rowIndex(bodyRef));
+            if (previous == null
+                || !sameRef(previous.bodyRef(), bodyRef)
+                || !previous.tier().spaceId().equals(spaceId)) {
+                return;
+            }
+            updates.add(new CollisionLodUpdate(spaceId,
+                bodyRef,
                 CollisionLodTier.NEAR_FULL,
                 false,
                 false));
@@ -507,9 +648,41 @@ public class PhysicsCollisionLodSystem extends TickingSystem<EntityStore> {
             nextRefreshTicks.remove(spaceId.value());
         }
 
+        private void collectRestoreRefUpdates(@Nonnull SpaceId spaceId,
+            @Nonnull List<CollisionLodUpdate> updates) {
+            for (Int2ObjectMap.Entry<RefBodyTier> entry
+                : refTiersByRowIndex.int2ObjectEntrySet()) {
+                if (!entry.getValue().tier().spaceId().equals(spaceId)) {
+                    continue;
+                }
+                Ref<PhysicsStore> bodyRef = entry.getValue().bodyRef();
+                if (bodyRef == null || !bodyRef.isValid()) {
+                    continue;
+                }
+                updates.add(new CollisionLodUpdate(spaceId,
+                    bodyRef,
+                    CollisionLodTier.NEAR_FULL,
+                    false,
+                    false));
+            }
+            nextRefreshTicks.remove(spaceId.value());
+        }
+
         private void commitPendingUpdates() {
             for (CollisionLodUpdate update : pendingUpdates) {
-                if (update.trackTier()) {
+                if (update.bodyRef() != null) {
+                    int rowIndex = rowIndex(update.bodyRef());
+                    if (update.trackTier()) {
+                        refTiersByRowIndex.put(rowIndex,
+                            new RefBodyTier(update.bodyRef(),
+                                new BodyTier(update.spaceId(), update.tier())));
+                    } else {
+                        RefBodyTier previous = refTiersByRowIndex.get(rowIndex);
+                        if (previous != null && sameRef(previous.bodyRef(), update.bodyRef())) {
+                            refTiersByRowIndex.remove(rowIndex);
+                        }
+                    }
+                } else if (update.trackTier()) {
                     tiers.put(update.bodyKey(), new BodyTier(update.spaceId(), update.tier()));
                 } else {
                     tiers.remove(update.bodyKey());
@@ -530,10 +703,40 @@ public class PhysicsCollisionLodSystem extends TickingSystem<EntityStore> {
                     && !seenBodies.contains(entry.getKey()));
         }
 
+        private void pruneMissingBodyRefs(@Nonnull SpaceId spaceId,
+            @Nonnull IntOpenHashSet seenRows) {
+            refTiersByRowIndex.int2ObjectEntrySet()
+                .removeIf(entry -> entry.getValue().tier().spaceId().equals(spaceId)
+                    && (!seenRows.contains(entry.getIntKey())
+                    || !entry.getValue().bodyRef().isValid()));
+        }
+
         private void pruneRemovedSpaces(@Nonnull IntOpenHashSet activeSpaces) {
             tiers.object2ObjectEntrySet()
                 .removeIf(entry -> !activeSpaces.contains(entry.getValue().spaceId().value()));
+            refTiersByRowIndex.int2ObjectEntrySet()
+                .removeIf(entry -> !activeSpaces.contains(entry.getValue().tier().spaceId().value())
+                    || !entry.getValue().bodyRef().isValid());
             nextRefreshTicks.keySet().removeIf(spaceValue -> !activeSpaces.contains(spaceValue));
+        }
+
+        private static int rowIndex(@Nonnull Ref<PhysicsStore> bodyRef) {
+            return Objects.requireNonNull(bodyRef, "bodyRef").getIndex();
+        }
+
+        private static boolean sameRef(@Nonnull Ref<PhysicsStore> first,
+            @Nonnull Ref<PhysicsStore> second) {
+            return first.getIndex() == second.getIndex()
+                && first.getStore() == second.getStore();
+        }
+    }
+
+    private record RefBodyTier(@Nonnull Ref<PhysicsStore> bodyRef,
+                               @Nonnull BodyTier tier) {
+
+        private RefBodyTier {
+            Objects.requireNonNull(bodyRef, "bodyRef");
+            Objects.requireNonNull(tier, "tier");
         }
     }
 
