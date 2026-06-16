@@ -28,7 +28,6 @@ import dev.hytalemodding.impulse.core.plugin.physicsstore.components.BodyCommand
 import dev.hytalemodding.impulse.core.plugin.physicsstore.components.DynamicsComponent;
 import dev.hytalemodding.impulse.core.plugin.physicsstore.components.JointComponent;
 import dev.hytalemodding.impulse.core.plugin.physicsstore.components.TargetComponent;
-import dev.hytalemodding.impulse.core.plugin.physicsstore.components.UuidComponent;
 import dev.hytalemodding.impulse.core.plugin.physicsstore.projection.BodyAttachmentComponent;
 import dev.hytalemodding.impulse.core.plugin.physicsstore.BodyRowDescriptor;
 import dev.hytalemodding.impulse.core.plugin.settings.PhysicsVisualMaterializationSettings;
@@ -64,16 +63,6 @@ public final class ExamplePhysicsUtils {
     }
 
     @Nullable
-    private static UUID resolvePhysicsStoreSpaceUuid(@Nonnull World world,
-        @Nonnull SpaceId spaceId) {
-        Store<PhysicsStore> store = physicsStore(world);
-        PhysicsStoreThreading.requireWorldThread(store, "resolve a PhysicsStore space UUID");
-        return store
-            .getResource(PhysicsSpaceCompatibilityIndexResource.getResourceType())
-            .getSpaceUuid(Objects.requireNonNull(spaceId, "spaceId"));
-    }
-
-    @Nullable
     public static Ref<PhysicsStore> resolvePhysicsStoreSpaceRef(@Nonnull World world,
         @Nonnull SpaceId spaceId) {
         Store<PhysicsStore> store = physicsStore(world);
@@ -87,20 +76,6 @@ public final class ExamplePhysicsUtils {
         Ref<PhysicsStore> ref = store.getResource(PhysicsIdentityIndexResource.getResourceType())
             .getByUuid(spaceUuid);
         return ref != null && ref.getStore() == store && ref.isValid() ? ref : null;
-    }
-
-    @Nonnull
-    public static UUID physicsStoreRowUuid(@Nonnull Ref<PhysicsStore> ref) {
-        Store<PhysicsStore> store = ref.getStore();
-        PhysicsStoreThreading.requireWorldThread(store, "read a PhysicsStore row UUID");
-        if (!ref.isValid()) {
-            throw new IllegalStateException("PhysicsStore row ref is not valid: " + ref);
-        }
-        UuidComponent uuid = store.getComponent(ref, UuidComponent.getComponentType());
-        if (uuid == null) {
-            throw new IllegalStateException("PhysicsStore row has no UUID component: " + ref);
-        }
-        return uuid.getUuid();
     }
 
     @Nonnull
