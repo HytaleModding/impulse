@@ -37,10 +37,10 @@ world and `/impulse settings simulation events disabled` to return to the defaul
 ## Profiling
 
 Spark plugin is advised to profile threaded physics benchmarks. By using the following command,
-the exported profile includes both Hytale world threads and Impulse's physics owner-lane executor threads:
+the exported profile includes Hytale world/store tick threads and PhysicsStore completion work:
 
 ```bash
-/spark profiler start --timeout 60 --save-to-file --regex --not-combined --ignore-sleeping --thread WorldThread.* --thread Impulse.*physics.*owner.* --thread ChunkLighting.* --thread WorldMap.*
+/spark profiler start --timeout 60 --save-to-file --regex --not-combined --ignore-sleeping --thread WorldThread.* --thread Impulse.*PhysicsStore.* --thread ChunkLighting.* --thread WorldMap.*
 ```
 
 Avoid contact debug rendering during benchmark captures; it calls backend contact enumeration and

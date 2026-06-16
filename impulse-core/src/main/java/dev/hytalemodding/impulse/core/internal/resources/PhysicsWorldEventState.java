@@ -12,10 +12,10 @@ import java.util.concurrent.atomic.AtomicReference;
 import javax.annotation.Nonnull;
 
 /**
- * Latest value-only event frame for physics-owner outcomes.
+ * Latest value-only event frame for store-tick outcomes.
  *
  * <p>This state intentionally replaces the previous frame instead of queueing history. The public
- * event frame is a low-overhead diagnostic snapshot of the newest owner outcome and latest
+ * event frame is a low-overhead diagnostic snapshot of the newest store-tick outcome and latest
  * captured snapshot inclusion state.</p>
  */
 public final class PhysicsWorldEventState {

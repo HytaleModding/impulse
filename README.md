@@ -27,13 +27,12 @@ flowchart TB
     subgraph Examples["impulse-examples / plugin usage"]
         direction TB
 
-        Intents["Split ECS body components\nidentity / shape / dynamics / material / collision"]
-        ECSSystem["Body reconciliation systems"]
-        Direct["Direct command calls"]
-        Commands["command recipes / copied queries"]
+        Rows["PhysicsStore rows\nspaces / bodies / joints / terrain"]
+        Commands["row-local body commands + targets"]
+        Reads["copied snapshots / diagnostics / raycasts"]
 
-        Intents --> ECSSystem --> Commands
-        Direct --> Commands
+        Rows --> Commands
+        Commands --> Reads
     end
 
     subgraph CoreWorld["impulse-core: per-world runtime"]
@@ -43,32 +42,28 @@ flowchart TB
 
         Modules["Internal modules\n- Hytale modules substitution (WIP)\n- World collision module\n- Control session module"]
 
-        Requests["physics command batches + query requests"]
-        Ordering["mutations + step request ordering"]
-        LaneBuild["owner-lane work units\ncomputed per world"]
+        StoreSystems["PhysicsStore systems + resources"]
+        Ordering["row mutation + backend step ordering"]
+        StoreTick["store tick lane\nper world"]
 
-        Plugin --> Requests
-        Modules --> Requests
-        Requests --> Ordering
-        Ordering --> LaneBuild
+        Plugin --> StoreSystems
+        Modules --> StoreSystems
+        StoreSystems --> Ordering
+        Ordering --> StoreTick
     end
 
-    subgraph OwnerQueues["owner-lane queues"]
+    subgraph StoreTicks["PhysicsStore ticks"]
         direction LR
 
-        QueueA["World A\nowner-lane queue"]
-        QueueB["World B\nowner-lane queue"]
-        QueueN["World N\nowner-lane queue"]
+        TickA["World A\nstore tick"]
+        TickB["World B\nstore tick"]
+        TickN["World N\nstore tick"]
     end
 
-    subgraph SharedCore["impulse-core: shared execution layer"]
+    subgraph SharedCore["impulse-core: backend dispatch"]
         direction TB
 
-        Scheduler["thread pool scheduler\nselects ready owner lanes"]
-        Workers["worker threads\nexecute owner lanes"]
-        Dispatch["backend dispatch"]
-
-        Scheduler --> Workers --> Dispatch
+        Dispatch["serialized backend calls"]
     end
 
     subgraph API["impulse-api"]
@@ -100,18 +95,18 @@ flowchart TB
         Router["snapshot + event publication"]
     end
 
-    Worlds --> Intents
-    Worlds --> Direct
+    Worlds --> Rows
+    Worlds --> Reads
 
-    Commands ----> Plugin
+    Reads ----> Plugin
 
-    LaneBuild --> QueueA
-    LaneBuild --> QueueB
-    LaneBuild --> QueueN
+    StoreTick --> TickA
+    StoreTick --> TickB
+    StoreTick --> TickN
 
-    QueueA ----> Scheduler
-    QueueB ----> Scheduler
-    QueueN ----> Scheduler
+    TickA ----> Dispatch
+    TickB ----> Dispatch
+    TickN ----> Dispatch
 
     Dispatch ----> Current
     Dispatch -.-> WIP
