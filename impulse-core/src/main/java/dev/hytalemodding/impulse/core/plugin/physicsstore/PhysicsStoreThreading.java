@@ -99,6 +99,27 @@ public final class PhysicsStoreThreading {
         return completion.minimalCompletionStage();
     }
 
+    @Nonnull
+    public static <R> CompletionStage<R> callWhenBackendIdleOnWorldThread(@Nonnull World world,
+        @Nonnull String operation,
+        @Nonnull Function<Store<PhysicsStore>, R> action) {
+        Objects.requireNonNull(world, "world");
+        Objects.requireNonNull(operation, "operation");
+        Objects.requireNonNull(action, "action");
+        CompletableFuture<R> completion = new CompletableFuture<>();
+        Runnable task = () -> callWhenBackendIdle(world, operation, action, completion);
+        try {
+            if (world.isInThread()) {
+                task.run();
+            } else {
+                world.execute(task);
+            }
+        } catch (RuntimeException exception) {
+            PhysicsStoreAsyncCompletions.fail(completion, exception);
+        }
+        return completion.minimalCompletionStage();
+    }
+
     private static void execute(@Nonnull World world,
         @Nonnull String operation,
         @Nonnull Consumer<Store<PhysicsStore>> mutation,
@@ -110,6 +131,46 @@ public final class PhysicsStoreThreading {
             PhysicsStoreAsyncCompletions.complete(completion, null);
         } catch (RuntimeException | Error throwable) {
             PhysicsStoreAsyncCompletions.fail(completion, throwable);
+        }
+    }
+
+    private static <R> void callWhenBackendIdle(@Nonnull World world,
+        @Nonnull String operation,
+        @Nonnull Function<Store<PhysicsStore>, R> action,
+        @Nonnull CompletableFuture<R> completion) {
+        try {
+            Store<PhysicsStore> store = store(world);
+            requireWorldThread(store, operation);
+            PhysicsStepSchedulerResource scheduler = store.getResource(
+                PhysicsStepSchedulerResource.getResourceType());
+            if (scheduler.isStepPending()) {
+                scheduler.whenIdle()
+                    .whenComplete((_, failure) -> rescheduleBackendIdleCall(world,
+                        operation,
+                        action,
+                        completion,
+                        failure));
+                return;
+            }
+            PhysicsStoreAsyncCompletions.complete(completion, action.apply(store));
+        } catch (RuntimeException | Error throwable) {
+            PhysicsStoreAsyncCompletions.fail(completion, throwable);
+        }
+    }
+
+    private static <R> void rescheduleBackendIdleCall(@Nonnull World world,
+        @Nonnull String operation,
+        @Nonnull Function<Store<PhysicsStore>, R> action,
+        @Nonnull CompletableFuture<R> completion,
+        Throwable failure) {
+        if (failure != null) {
+            PhysicsStoreAsyncCompletions.fail(completion, failure);
+            return;
+        }
+        try {
+            world.execute(() -> callWhenBackendIdle(world, operation, action, completion));
+        } catch (RuntimeException exception) {
+            PhysicsStoreAsyncCompletions.fail(completion, exception);
         }
     }
 

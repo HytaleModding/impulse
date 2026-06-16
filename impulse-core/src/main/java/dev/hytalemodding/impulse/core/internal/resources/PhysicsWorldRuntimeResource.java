@@ -84,6 +84,8 @@ import java.util.List;
 import java.util.Objects;
 import java.util.Set;
 import java.util.UUID;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionStage;
 import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.Consumer;
@@ -1538,6 +1540,29 @@ public class PhysicsWorldRuntimeResource extends PhysicsWorldResource {
         requireLegacyMutationAllowed("reset physics runtime state");
         return callDirectRuntime("reset physics runtime state",
             () -> resetRuntimeStateKeepingSpacesDirect(worldName));
+    }
+
+    @Nonnull
+    public CompletionStage<PhysicsRuntimeResetResult> resetRuntimeStateKeepingSpacesAsync(
+        @Nonnull String worldName) {
+        Objects.requireNonNull(worldName, "worldName");
+        if (isAuthoritativePhysicsStoreActive()) {
+            World world = requireAuthoritativeWorld("reset physics runtime state");
+            return PhysicsStoreThreading.callWhenBackendIdleOnWorldThread(world,
+                "reset physics runtime state",
+                store -> {
+                    clearAuthoritativeWorldCollisionStreaming(store);
+                    return PhysicsStoreTopologyMutations.clearBodiesKeepingSpaces(store);
+                });
+        }
+        CompletableFuture<PhysicsRuntimeResetResult> completion = new CompletableFuture<>();
+        try {
+            requireLegacyMutationAllowed("reset physics runtime state");
+            completion.complete(resetRuntimeStateKeepingSpacesDirect(worldName));
+        } catch (RuntimeException exception) {
+            completion.completeExceptionally(exception);
+        }
+        return completion.minimalCompletionStage();
     }
 
     @Nonnull

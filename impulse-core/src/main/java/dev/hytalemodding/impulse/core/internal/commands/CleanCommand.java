@@ -26,6 +26,8 @@ import dev.hytalemodding.impulse.core.plugin.physicsstore.projection.BodyAttachm
 import it.unimi.dsi.fastutil.objects.ObjectOpenHashSet;
 import java.util.Set;
 import java.util.UUID;
+import java.util.concurrent.CompletionException;
+import java.util.concurrent.CompletionStage;
 import java.util.concurrent.atomic.AtomicIntegerArray;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
@@ -108,15 +110,60 @@ public class CleanCommand extends AbstractWorldCommand {
         }
 
         PhysicsWorldRuntimeResource resource = PhysicsWorldRuntimeResource.require(store);
-        PhysicsRuntimeResetResult reset =
-            resource.resetRuntimeStateKeepingSpaces(world.getName());
+        CompletionStage<PhysicsRuntimeResetResult> reset =
+            resource.resetRuntimeStateKeepingSpacesAsync(world.getName());
+        reset.whenComplete((result, failure) -> sendCleanAllResult(world,
+            context,
+            removedEntities,
+            result,
+            failure));
+    }
 
+    private static void sendCleanAllResult(@Nonnull World world,
+        @Nonnull CommandContext context,
+        @Nonnull AtomicIntegerArray removedEntities,
+        @Nullable PhysicsRuntimeResetResult reset,
+        @Nullable Throwable failure) {
+        Runnable sender = () -> {
+            if (failure != null) {
+                Throwable cause = unwrap(failure);
+                String message = cause.getMessage() != null ? cause.getMessage() : cause.toString();
+                context.sendMessage(Message.raw("Failed to clean Impulse physics runtime state: "
+                    + message));
+                return;
+            }
+            if (reset == null) {
+                context.sendMessage(Message.raw("Failed to clean Impulse physics runtime state."));
+                return;
+            }
+            sendCleanAllSuccess(context, removedEntities, reset, world.getName());
+        };
+        if (world.isInThread()) {
+            sender.run();
+            return;
+        }
+        world.execute(sender);
+    }
+
+    private static void sendCleanAllSuccess(@Nonnull CommandContext context,
+        @Nonnull AtomicIntegerArray removedEntities,
+        @Nonnull PhysicsRuntimeResetResult reset,
+        @Nonnull String worldName) {
         context.sendMessage(Message.raw("Removed " + removedEntities.get(REMOVED_BODY_ENTITIES)
             + " Impulse attachment entities, " + removedEntities.get(REMOVED_ORPHAN_VISUAL_ENTITIES)
             + " orphan visual proxy entities, " + reset.removedBodies() + " runtime bodies, "
             + reset.removedJoints() + " joints, and "
-            + removedEntities.get(REMOVED_SESSIONS) + " control sessions in world " + world.getName()
+            + removedEntities.get(REMOVED_SESSIONS) + " control sessions in world " + worldName
             + ". Kept " + reset.keptSpaces() + " explicit physics spaces."));
+    }
+
+    @Nonnull
+    private static Throwable unwrap(@Nonnull Throwable failure) {
+        if (failure instanceof CompletionException completionException
+            && completionException.getCause() != null) {
+            return completionException.getCause();
+        }
+        return failure;
     }
 
     private void cleanWithinRadius(@Nonnull CommandContext context,

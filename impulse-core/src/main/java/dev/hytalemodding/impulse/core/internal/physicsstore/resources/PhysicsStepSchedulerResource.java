@@ -9,6 +9,7 @@ import dev.hytalemodding.impulse.core.plugin.settings.PhysicsStepSchedulingMode;
 import java.util.Objects;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
+import java.util.concurrent.CompletionStage;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ThreadFactory;
@@ -98,6 +99,16 @@ public final class PhysicsStepSchedulerResource implements Resource<PhysicsStore
     public synchronized boolean isStepPending() {
         pollPendingStep();
         return pendingStep != null;
+    }
+
+    @Nonnull
+    public synchronized CompletionStage<Void> whenIdle() {
+        pollPendingStep();
+        PendingStep pending = pendingStep;
+        if (pending == null) {
+            return CompletableFuture.<Void>completedFuture(null).minimalCompletionStage();
+        }
+        return pending.future().thenApply(_ -> (Void) null).minimalCompletionStage();
     }
 
     @Nullable
