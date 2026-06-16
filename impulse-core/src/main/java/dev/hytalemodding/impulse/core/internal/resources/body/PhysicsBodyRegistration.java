@@ -5,6 +5,7 @@ import dev.hytalemodding.impulse.core.internal.resources.BackendBodyHandle;
 import dev.hytalemodding.impulse.core.plugin.body.RigidBodyKey;
 import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyKind;
 import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyPersistenceMode;
+import java.util.UUID;
 import javax.annotation.Nonnull;
 
 /**
@@ -15,4 +16,9 @@ public record PhysicsBodyRegistration(@Nonnull RigidBodyKey bodyKey,
     @Nonnull SpaceId spaceId,
     @Nonnull PhysicsBodyKind kind,
     @Nonnull PhysicsBodyPersistenceMode persistenceMode) {
+
+    @Nonnull
+    public UUID bodyUuid() {
+        return bodyKey.value();
+    }
 }

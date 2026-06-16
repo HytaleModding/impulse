@@ -1871,7 +1871,7 @@ public class PhysicsWorldRuntimeResource extends PhysicsWorldResource {
                 .getResource(PhysicsBodyRegistrationResource.getResourceType())
                 .getBodyRegistrationView(bodyUuid);
         }
-        return bodyRegistry.getPublishedRegistrationView(RigidBodyKey.of(bodyUuid));
+        return bodyRegistry.getPublishedRegistrationView(bodyUuid);
     }
 
     @Nullable

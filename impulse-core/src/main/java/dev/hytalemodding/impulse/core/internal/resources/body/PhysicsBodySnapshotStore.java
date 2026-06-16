@@ -51,7 +51,7 @@ public final class PhysicsBodySnapshotStore {
                 if (snapshot == null) {
                     continue;
                 }
-                UUID bodyUuid = registration.bodyKey().value();
+                UUID bodyUuid = registration.bodyUuid();
                 markLive(bodyUuid, generation, liveBodies);
                 PhysicsBodySnapshot previous = snapshots.get(bodyUuid);
                 if (snapshot != previous) {
