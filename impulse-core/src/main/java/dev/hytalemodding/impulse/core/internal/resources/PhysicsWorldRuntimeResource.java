@@ -1011,39 +1011,6 @@ public class PhysicsWorldRuntimeResource extends PhysicsWorldResource {
      * {@code serverTick} are copied through as external correlation metadata.</p>
      */
     @Nonnull
-    public PublishedPhysicsSnapshotFrame capturePublishedSnapshotFrame(long stepSequence,
-        long serverTick,
-        @Nonnull PublishedPhysicsSnapshotFrame.Status status,
-        long stepNanos,
-        boolean profilingEnabled) {
-        return capturePublishedSnapshotFrame(stepSequence,
-            serverTick,
-            status,
-            stepNanos,
-            profilingEnabled,
-            List.of(),
-            0);
-    }
-
-    @Nonnull
-    public PublishedPhysicsSnapshotFrame capturePublishedSnapshotFrame(long stepSequence,
-        long serverTick,
-        @Nonnull PublishedPhysicsSnapshotFrame.Status status,
-        long stepNanos,
-        boolean profilingEnabled,
-        @Nonnull List<PhysicsFrameEvent> physicsEvents,
-        int droppedBackendEventCount) {
-        return callDirectRuntime("capture published physics snapshot frame",
-            () -> capturePublishedSnapshotFrameDirect(stepSequence,
-                serverTick,
-                status,
-                stepNanos,
-                profilingEnabled,
-                physicsEvents,
-                droppedBackendEventCount));
-    }
-
-    @Nonnull
     private PublishedPhysicsSnapshotFrame capturePublishedSnapshotFrameDirect(long stepSequence,
         long serverTick,
         @Nonnull PublishedPhysicsSnapshotFrame.Status status,
@@ -1079,22 +1046,8 @@ public class PhysicsWorldRuntimeResource extends PhysicsWorldResource {
             droppedBackendEventCount);
     }
 
-    public int applyPublishedSnapshotFrame(@Nonnull PublishedPhysicsSnapshotFrame frame) {
-        return applyPublishedSnapshotFrame(frame, 0L);
-    }
-
-    public int applyPublishedSnapshotFrame(@Nonnull PublishedPhysicsSnapshotFrame frame,
-        long publicationServerTick) {
-        return lifecycleState.applyPublishedSnapshotFrame(frame, bodyRegistry, publicationServerTick);
-    }
-
-    @Nonnull
-    public PublishedPhysicsSnapshotFrame getLatestPublishedFrame() {
-        return lifecycleState.latestPublishedFrame();
-    }
-
-    public long getLatestSnapshotAppliedNanos() {
-        return lifecycleState.latestSnapshotAppliedNanos();
+    private int applyPublishedSnapshotFrame(@Nonnull PublishedPhysicsSnapshotFrame frame) {
+        return lifecycleState.applyPublishedSnapshotFrame(frame, bodyRegistry, 0L);
     }
 
     @Override
