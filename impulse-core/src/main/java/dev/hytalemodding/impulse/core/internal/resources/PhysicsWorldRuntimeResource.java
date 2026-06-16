@@ -159,23 +159,6 @@ public class PhysicsWorldRuntimeResource extends PhysicsWorldResource {
     }
 
     @Nonnull
-    public World requireAuthoritativeWorldForPhysicsStore(@Nonnull String operation) {
-        return requireAuthoritativeWorld(operation);
-    }
-
-    public boolean canAccessLiveBackendDirectly() {
-        return true;
-    }
-
-    public void rejectSynchronousCompletionCallbackWait(@Nonnull String operation) {
-        Objects.requireNonNull(operation, "operation");
-    }
-
-    public long worldEpoch() {
-        return lifecycleState.worldEpoch();
-    }
-
-    @Nonnull
     @Override
     public PhysicsEventFrame getLatestEventFrame() {
         if (hasAttachedAuthoritativePhysicsStore()) {
@@ -186,7 +169,7 @@ public class PhysicsWorldRuntimeResource extends PhysicsWorldResource {
         return lifecycleState.latestEventFrame();
     }
 
-    public void assertCanAccessLiveBackendDirectly(@Nonnull String operation) {
+    private void assertCanAccessLiveBackendDirectly(@Nonnull String operation) {
         Objects.requireNonNull(operation, "operation");
     }
 
@@ -1209,10 +1192,6 @@ public class PhysicsWorldRuntimeResource extends PhysicsWorldResource {
             PhysicsSpaceBinding space = requireSpaceBinding(spaceId);
             return collisionRuntime.clear(space);
         });
-    }
-
-    public long worldCollisionStreamingRevision(@Nonnull SpaceId spaceId) {
-        return collisionRuntime.streamingRevision(spaceId);
     }
 
     @Nonnull
