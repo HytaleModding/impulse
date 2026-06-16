@@ -2,7 +2,6 @@ package dev.hytalemodding.impulse.core.internal.resources.joint;
 
 import dev.hytalemodding.impulse.api.SpaceId;
 import dev.hytalemodding.impulse.core.internal.resources.BackendJointHandle;
-import dev.hytalemodding.impulse.core.plugin.joint.JointKey;
 import dev.hytalemodding.impulse.core.plugin.simulation.JointType;
 import it.unimi.dsi.fastutil.ints.Int2ObjectOpenHashMap;
 import it.unimi.dsi.fastutil.longs.Long2ObjectOpenHashMap;
@@ -145,22 +144,10 @@ public final class PhysicsJointRegistry {
     }
 
     @Nullable
-    public JointKey getJointKey(@Nonnull SpaceId spaceId, long backendJointId) {
-        UUID jointUuid = getJointUuid(spaceId, backendJointId);
-        return jointUuid != null ? JointKey.of(jointUuid) : null;
-    }
-
-    @Nullable
     public UUID getJointUuid(@Nonnull SpaceId spaceId, long backendJointId) {
         Long2ObjectOpenHashMap<UUID> jointUuids =
             jointUuidsByRawBackendId.get(spaceId.value());
         return jointUuids != null ? jointUuids.get(backendJointId) : null;
-    }
-
-    @Nullable
-    public JointKey getJointKey(@Nonnull SpaceId spaceId,
-        @Nonnull BackendJointHandle backendJointHandle) {
-        return getJointKey(spaceId, backendJointHandle.value());
     }
 
     @Nullable

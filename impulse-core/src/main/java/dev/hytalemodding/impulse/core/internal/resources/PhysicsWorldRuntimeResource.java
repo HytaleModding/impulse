@@ -47,7 +47,6 @@ import dev.hytalemodding.impulse.core.internal.modules.worldcollision.PhysicsWor
 import dev.hytalemodding.impulse.core.internal.modules.worldcollision.WorldCollisionLifecycle;
 import dev.hytalemodding.impulse.core.internal.modules.worldcollision.WorldVoxelCollisionCache;
 import dev.hytalemodding.impulse.core.internal.store.integration.PhysicsStoreEarlyPluginProbe;
-import dev.hytalemodding.impulse.core.plugin.body.RigidBodyKey;
 import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyKind;
 import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyPersistenceMode;
 import dev.hytalemodding.impulse.core.internal.resources.body.PhysicsBodyRegistration;
@@ -58,7 +57,6 @@ import dev.hytalemodding.impulse.core.plugin.modules.worldcollision.WorldCollisi
 import dev.hytalemodding.impulse.core.plugin.modules.worldcollision.WorldCollisionStats;
 import dev.hytalemodding.impulse.core.plugin.events.PhysicsEventFrame;
 import dev.hytalemodding.impulse.core.plugin.events.PhysicsFrameEvent;
-import dev.hytalemodding.impulse.core.plugin.joint.JointKey;
 import dev.hytalemodding.impulse.core.plugin.physicsstore.PhysicsStoreThreading;
 import dev.hytalemodding.impulse.core.plugin.physicsstore.components.ColliderComponent;
 import dev.hytalemodding.impulse.core.plugin.physicsstore.components.CollisionFilterComponent;
@@ -654,17 +652,6 @@ public class PhysicsWorldRuntimeResource extends PhysicsWorldResource {
             () -> getBodySnapshotDirect(bodyUuid));
     }
 
-    @Nonnull
-    @Override
-    public PhysicsBodySnapshot getBodySnapshot(@Nonnull RigidBodyKey bodyKey) {
-        return getBodySnapshot(Objects.requireNonNull(bodyKey, "bodyKey").value());
-    }
-
-    @Nullable
-    public PhysicsBodySnapshot getBodySnapshotIfRegistered(@Nonnull RigidBodyKey bodyKey) {
-        return getBodySnapshotIfRegistered(Objects.requireNonNull(bodyKey, "bodyKey").value(), null);
-    }
-
     @Nullable
     public PhysicsBodySnapshot getBodySnapshotIfRegistered(@Nonnull UUID bodyUuid) {
         return getBodySnapshotIfRegistered(bodyUuid, null);
@@ -710,11 +697,6 @@ public class PhysicsWorldRuntimeResource extends PhysicsWorldResource {
             throw new IllegalArgumentException("Physics body uuid=" + bodyUuid + " is not registered");
         }
         return captureLiveBodySnapshot(registration);
-    }
-
-    @Nullable
-    private PhysicsBodySnapshot getBodySnapshotIfRegisteredDirect(@Nonnull RigidBodyKey bodyKey) {
-        return getBodySnapshotIfRegisteredDirect(Objects.requireNonNull(bodyKey, "bodyKey").value());
     }
 
     @Nullable
@@ -1823,11 +1805,6 @@ public class PhysicsWorldRuntimeResource extends PhysicsWorldResource {
     }
 
     @Nullable
-    public RigidBodyKey getBodyKey(@Nonnull SpaceId spaceId, long backendBodyId) {
-        return bodyRegistry.getBodyKey(spaceId, backendBodyId);
-    }
-
-    @Nullable
     public PhysicsBodyRegistration getBodyRegistration(@Nonnull SpaceId spaceId, long backendBodyId) {
         assertCanAccessLiveBackendDirectly("resolve physics body registration");
         UUID bodyUuid = bodyRegistry.getBodyUuid(spaceId, backendBodyId);
@@ -1860,12 +1837,6 @@ public class PhysicsWorldRuntimeResource extends PhysicsWorldResource {
                 .getBodyRegistrationView(bodyRef);
         }
         return null;
-    }
-
-    @Nullable
-    public JointKey getJointKey(@Nonnull SpaceId spaceId, long backendJointId) {
-        assertCanAccessLiveBackendDirectly("resolve physics joint key");
-        return jointRegistry.getJointKey(spaceId, backendJointId);
     }
 
     @Nonnull

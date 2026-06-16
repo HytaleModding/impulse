@@ -2,7 +2,6 @@ package dev.hytalemodding.impulse.core.internal.resources.body;
 
 import dev.hytalemodding.impulse.api.SpaceId;
 import dev.hytalemodding.impulse.core.internal.resources.BackendBodyHandle;
-import dev.hytalemodding.impulse.core.plugin.body.RigidBodyKey;
 import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyKind;
 import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyRegistrationView;
 import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyPersistenceMode;
@@ -158,22 +157,10 @@ public final class PhysicsBodyRegistry {
     }
 
     @Nullable
-    public RigidBodyKey getBodyKey(@Nonnull SpaceId spaceId, long backendBodyId) {
-        UUID bodyUuid = getBodyUuid(spaceId, backendBodyId);
-        return bodyUuid != null ? RigidBodyKey.of(bodyUuid) : null;
-    }
-
-    @Nullable
     public UUID getBodyUuid(@Nonnull SpaceId spaceId, long backendBodyId) {
         Long2ObjectOpenHashMap<UUID> bodyUuids =
             bodyUuidsByRawBackendId.get(spaceId.value());
         return bodyUuids != null ? bodyUuids.get(backendBodyId) : null;
-    }
-
-    @Nullable
-    public RigidBodyKey getBodyKey(@Nonnull SpaceId spaceId,
-        @Nonnull BackendBodyHandle backendBodyHandle) {
-        return getBodyKey(spaceId, backendBodyHandle.value());
     }
 
     @Nonnull
