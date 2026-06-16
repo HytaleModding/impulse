@@ -2189,6 +2189,22 @@ public class PhysicsWorldRuntimeResource extends PhysicsWorldResource {
         return visualRuntime.getGeneratedVisualProxyBodyKeys();
     }
 
+    @Nonnull
+    public Collection<GeneratedVisualProxyView> getGeneratedVisualProxyViews() {
+        if (hasAttachedAuthoritativePhysicsStore()) {
+            return authoritativeProjectionIndex("list generated visual proxies")
+                .getGeneratedVisualProxyViews();
+        }
+        List<GeneratedVisualProxyView> views = new ArrayList<>();
+        for (RigidBodyKey bodyKey : visualRuntime.getGeneratedVisualProxyBodyKeys()) {
+            Ref<EntityStore> proxy = visualRuntime.getGeneratedVisualProxy(bodyKey);
+            if (proxy != null) {
+                views.add(new GeneratedVisualProxyView(bodyKey.value(), null, proxy));
+            }
+        }
+        return views;
+    }
+
     public int getGeneratedVisualProxyCount() {
         if (hasAttachedAuthoritativePhysicsStore()) {
             return authoritativeProjectionIndex("count generated visual proxies")

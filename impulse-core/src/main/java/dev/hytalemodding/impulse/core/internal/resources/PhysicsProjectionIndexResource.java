@@ -164,6 +164,45 @@ public final class PhysicsProjectionIndexResource implements Resource<EntityStor
         return bodyKeys;
     }
 
+    @Nonnull
+    public Collection<GeneratedVisualProxyView> getGeneratedVisualProxyViews() {
+        List<GeneratedVisualProxyView> views = new ArrayList<>();
+        Map<UUID, Ref<PhysicsStore>> bodyRefsByUuid = new Object2ObjectOpenHashMap<>();
+        synchronized (this) {
+            List<Integer> staleRowIndexes = new ArrayList<>();
+            for (var entry : generatedVisualProxiesByRowIndex.int2ObjectEntrySet()) {
+                GeneratedVisualProxyRef row = entry.getValue();
+                Ref<EntityStore> proxy = row.proxy();
+                Ref<EntityStore> uuidProxy = generatedVisualProxies.get(row.bodyUuid());
+                if (row.bodyRef() == null
+                    || !row.bodyRef().isValid()
+                    || proxy == null
+                    || !proxy.isValid()
+                    || !sameRef(proxy, uuidProxy)) {
+                    staleRowIndexes.add(entry.getIntKey());
+                    continue;
+                }
+                bodyRefsByUuid.put(row.bodyUuid(), row.bodyRef());
+            }
+            for (Integer rowIndex : staleRowIndexes) {
+                generatedVisualProxiesByRowIndex.remove(rowIndex.intValue());
+            }
+            for (Iterator<Map.Entry<UUID, Ref<EntityStore>>> iterator =
+                 generatedVisualProxies.entrySet().iterator(); iterator.hasNext();) {
+                Map.Entry<UUID, Ref<EntityStore>> entry = iterator.next();
+                Ref<EntityStore> proxy = entry.getValue();
+                if (proxy != null && proxy.isValid()) {
+                    views.add(new GeneratedVisualProxyView(entry.getKey(),
+                        bodyRefsByUuid.get(entry.getKey()),
+                        proxy));
+                } else {
+                    iterator.remove();
+                }
+            }
+        }
+        return views;
+    }
+
     public int generatedVisualProxyCount() {
         int count = 0;
         synchronized (this) {
@@ -206,7 +245,7 @@ public final class PhysicsProjectionIndexResource implements Resource<EntityStor
             generatedVisualProxies.put(bodyUuid, proxy);
             if (bodyRef != null) {
                 generatedVisualProxiesByRowIndex.put(bodyRef.getIndex(),
-                    new GeneratedVisualProxyRef(bodyRef, proxy));
+                    new GeneratedVisualProxyRef(bodyUuid, bodyRef, proxy));
             }
         }
     }
@@ -264,7 +303,7 @@ public final class PhysicsProjectionIndexResource implements Resource<EntityStor
                     .add(attachment);
                 if (generatedProxy) {
                     generatedVisualProxiesByRowIndex.put(newBodyRef.getIndex(),
-                        new GeneratedVisualProxyRef(newBodyRef, attachment));
+                        new GeneratedVisualProxyRef(bodyUuid, newBodyRef, attachment));
                 }
             }
         }
@@ -288,7 +327,7 @@ public final class PhysicsProjectionIndexResource implements Resource<EntityStor
             for (var entry : generatedVisualProxiesByRowIndex.int2ObjectEntrySet()) {
                 GeneratedVisualProxyRef proxy = entry.getValue();
                 copy.generatedVisualProxiesByRowIndex.put(entry.getIntKey(),
-                    new GeneratedVisualProxyRef(proxy.bodyRef(), proxy.proxy()));
+                    new GeneratedVisualProxyRef(proxy.bodyUuid(), proxy.bodyRef(), proxy.proxy()));
             }
         }
         return copy;
@@ -445,7 +484,8 @@ public final class PhysicsProjectionIndexResource implements Resource<EntityStor
                                       @Nonnull Set<Ref<EntityStore>> attachments) {
     }
 
-    private record GeneratedVisualProxyRef(@Nonnull Ref<PhysicsStore> bodyRef,
+    private record GeneratedVisualProxyRef(@Nonnull UUID bodyUuid,
+                                           @Nonnull Ref<PhysicsStore> bodyRef,
                                            @Nonnull Ref<EntityStore> proxy) {
     }
 }

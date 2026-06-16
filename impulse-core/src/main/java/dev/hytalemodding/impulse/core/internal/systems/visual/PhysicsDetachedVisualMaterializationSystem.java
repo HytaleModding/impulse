@@ -28,6 +28,7 @@ import dev.hytalemodding.impulse.core.ImpulsePlugin;
 import dev.hytalemodding.impulse.core.internal.components.GeneratedVisualProxyComponent;
 import dev.hytalemodding.impulse.core.internal.math.PhysicsVisualPoseMath;
 import dev.hytalemodding.impulse.core.internal.persistence.PersistentPhysicsWorldResource;
+import dev.hytalemodding.impulse.core.internal.resources.GeneratedVisualProxyView;
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsSpaceBinding;
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsWorldRuntimeResource;
 import dev.hytalemodding.impulse.core.internal.resources.profiling.PhysicsRuntimeProfilingResource;
@@ -519,16 +520,19 @@ public class PhysicsDetachedVisualMaterializationSystem extends TickingSystem<En
         @Nonnull GameplayAttachmentSnapshot gameplayAttachments,
         @Nullable PhysicsRuntimeProfilingResource.VisualCollector collector) {
         int count = 0;
-        for (RigidBodyKey bodyKey : resource.getGeneratedVisualProxyBodyKeys()) {
+        for (GeneratedVisualProxyView generatedProxy : resource.getGeneratedVisualProxyViews()) {
             if (collector != null) {
                 collector.incrementVisibilityChecks();
             }
-            Ref<EntityStore> proxy = resource.getGeneratedVisualProxy(bodyKey);
+            UUID bodyUuid = generatedProxy.bodyUuid();
+            RigidBodyKey bodyKey = RigidBodyKey.of(bodyUuid);
+            Ref<EntityStore> proxy = generatedProxy.proxy();
             BodyAttachmentComponent proxyAttachment =
-                expectedProxyAttachment(store, proxy, bodyKey);
-            Ref<PhysicsStore> bodyRef = proxyAttachment != null
-                ? validBodyRef(proxyAttachment.getBodyRef())
-                : null;
+                expectedProxyAttachment(store, proxy, bodyUuid);
+            Ref<PhysicsStore> bodyRef = validBodyRef(generatedProxy.bodyRef());
+            if (bodyRef == null && proxyAttachment != null) {
+                bodyRef = validBodyRef(proxyAttachment.getBodyRef());
+            }
             PhysicsBodyRegistrationView registration = bodyRegistration(resource, bodyRef, bodyKey);
             if (registration == null || registration.kind() != PhysicsBodyKind.BODY) {
                 if (registration == null && resource.isBodyCreationPending(bodyKey)) {
@@ -844,7 +848,7 @@ public class PhysicsDetachedVisualMaterializationSystem extends TickingSystem<En
     private static BodyAttachmentComponent expectedProxyAttachment(
         @Nonnull Store<EntityStore> store,
         @Nullable Ref<EntityStore> proxy,
-        @Nonnull RigidBodyKey bodyKey) {
+        @Nonnull UUID bodyUuid) {
         if (proxy == null || !proxy.isValid()) {
             return null;
         }
@@ -852,7 +856,7 @@ public class PhysicsDetachedVisualMaterializationSystem extends TickingSystem<En
             store.getComponent(proxy, BodyAttachmentComponent.getComponentType());
         if (attachment == null
             || attachment.getLifecycle() != AttachmentLifecycle.GENERATED_PROXY
-            || !attachment.getBodyUuid().equals(bodyKey.value())) {
+            || !attachment.getBodyUuid().equals(bodyUuid)) {
             return null;
         }
         return attachment;
