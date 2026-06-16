@@ -9,6 +9,7 @@ import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyPersistenceMode;
 import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyRegistrationView;
 import dev.hytalemodding.impulse.core.plugin.body.RigidBodyKey;
 import dev.hytalemodding.impulse.core.plugin.physicsstore.PhysicsStoreTypes;
+import it.unimi.dsi.fastutil.ints.Int2ObjectOpenHashMap;
 import it.unimi.dsi.fastutil.objects.Object2ObjectLinkedOpenHashMap;
 import java.util.ArrayList;
 import java.util.Collection;
@@ -42,7 +43,8 @@ public final class PhysicsBodyRegistrationResource implements Resource<PhysicsSt
 
     @Nullable
     public PhysicsBodyRegistrationView getBodyRegistrationView(@Nonnull Ref<PhysicsStore> bodyRef) {
-        return registrations.viewsByRef().get(Objects.requireNonNull(bodyRef, "bodyRef"));
+        return registrations.viewsByRowIndex().get(Objects.requireNonNull(bodyRef, "bodyRef")
+            .getIndex());
     }
 
     @Nonnull
@@ -91,18 +93,18 @@ public final class PhysicsBodyRegistrationResource implements Resource<PhysicsSt
             new Object2ObjectLinkedOpenHashMap<>();
         Object2ObjectLinkedOpenHashMap<UUID, PhysicsBodyRegistrationView> viewsByUuid =
             new Object2ObjectLinkedOpenHashMap<>();
-        Object2ObjectLinkedOpenHashMap<Ref<PhysicsStore>, PhysicsBodyRegistrationView> viewsByRef =
-            new Object2ObjectLinkedOpenHashMap<>();
+        Int2ObjectOpenHashMap<PhysicsBodyRegistrationView> viewsByRowIndex =
+            new Int2ObjectOpenHashMap<>();
         for (BodyRegistrationPublication publication : publicationsByKey.values()) {
             PhysicsBodyRegistrationView registration = publication.view();
             viewsByKey.put(registration.bodyKey(), registration);
             viewsByUuid.put(registration.bodyKey().value(), registration);
-            viewsByRef.put(publication.bodyRef(), registration);
+            viewsByRowIndex.put(publication.bodyRef().getIndex(), registration);
         }
         registrations = new PublishedRegistrations(List.copyOf(viewsByKey.values()),
             Map.copyOf(viewsByKey),
             Map.copyOf(viewsByUuid),
-            Map.copyOf(viewsByRef));
+            viewsByRowIndex);
     }
 
     public void removeBody(@Nonnull RigidBodyKey bodyKey) {
@@ -116,14 +118,14 @@ public final class PhysicsBodyRegistrationResource implements Resource<PhysicsSt
         Object2ObjectLinkedOpenHashMap<UUID, PhysicsBodyRegistrationView> viewsByUuid =
             new Object2ObjectLinkedOpenHashMap<>(current.viewsByUuid());
         viewsByUuid.remove(bodyKey.value());
-        Object2ObjectLinkedOpenHashMap<Ref<PhysicsStore>, PhysicsBodyRegistrationView> viewsByRef =
-            new Object2ObjectLinkedOpenHashMap<>(current.viewsByRef());
-        viewsByRef.object2ObjectEntrySet()
+        Int2ObjectOpenHashMap<PhysicsBodyRegistrationView> viewsByRowIndex =
+            new Int2ObjectOpenHashMap<>(current.viewsByRowIndex());
+        viewsByRowIndex.int2ObjectEntrySet()
             .removeIf(entry -> entry.getValue().bodyKey().equals(bodyKey));
         registrations = new PublishedRegistrations(List.copyOf(viewsByKey.values()),
             Map.copyOf(viewsByKey),
             Map.copyOf(viewsByUuid),
-            Map.copyOf(viewsByRef));
+            viewsByRowIndex);
     }
 
     public void clear() {
@@ -157,9 +159,12 @@ public final class PhysicsBodyRegistrationResource implements Resource<PhysicsSt
         @Nonnull List<PhysicsBodyRegistrationView> views,
         @Nonnull Map<RigidBodyKey, PhysicsBodyRegistrationView> viewsByKey,
         @Nonnull Map<UUID, PhysicsBodyRegistrationView> viewsByUuid,
-        @Nonnull Map<Ref<PhysicsStore>, PhysicsBodyRegistrationView> viewsByRef) {
+        @Nonnull Int2ObjectOpenHashMap<PhysicsBodyRegistrationView> viewsByRowIndex) {
 
         private static final PublishedRegistrations EMPTY =
-            new PublishedRegistrations(List.of(), Map.of(), Map.of(), Map.of());
+            new PublishedRegistrations(List.of(),
+                Map.of(),
+                Map.of(),
+                new Int2ObjectOpenHashMap<>());
     }
 }

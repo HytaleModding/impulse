@@ -6,6 +6,7 @@ import com.hypixel.hytale.component.ResourceType;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import com.hypixel.hytale.server.core.universe.world.storage.PhysicsStore;
 import dev.hytalemodding.impulse.core.ImpulsePlugin;
+import it.unimi.dsi.fastutil.ints.Int2ObjectOpenHashMap;
 import it.unimi.dsi.fastutil.objects.Object2ObjectOpenHashMap;
 import it.unimi.dsi.fastutil.objects.ObjectOpenHashSet;
 import java.util.ArrayList;
@@ -25,12 +26,12 @@ public final class PhysicsProjectionIndexResource implements Resource<EntityStor
 
     private final Map<UUID, Set<Ref<EntityStore>>> bodyAttachments =
         new Object2ObjectOpenHashMap<>();
-    private final Map<Ref<PhysicsStore>, Set<Ref<EntityStore>>> bodyAttachmentsByRef =
-        new Object2ObjectOpenHashMap<>();
+    private final Int2ObjectOpenHashMap<Set<Ref<EntityStore>>> bodyAttachmentsByRowIndex =
+        new Int2ObjectOpenHashMap<>();
     private final Map<UUID, Ref<EntityStore>> generatedVisualProxies =
         new Object2ObjectOpenHashMap<>();
-    private final Map<Ref<PhysicsStore>, Ref<EntityStore>> generatedVisualProxiesByRef =
-        new Object2ObjectOpenHashMap<>();
+    private final Int2ObjectOpenHashMap<Ref<EntityStore>> generatedVisualProxiesByRowIndex =
+        new Int2ObjectOpenHashMap<>();
 
     public synchronized void registerAttachment(@Nonnull UUID bodyUuid,
         @Nonnull Ref<EntityStore> attachment) {
@@ -43,7 +44,8 @@ public final class PhysicsProjectionIndexResource implements Resource<EntityStor
         bodyAttachments.computeIfAbsent(bodyUuid, _ -> new ObjectOpenHashSet<>())
             .add(attachment);
         if (bodyRef != null) {
-            bodyAttachmentsByRef.computeIfAbsent(bodyRef, _ -> new ObjectOpenHashSet<>())
+            bodyAttachmentsByRowIndex.computeIfAbsent(bodyRef.getIndex(),
+                    _ -> new ObjectOpenHashSet<>())
                 .add(attachment);
         }
     }
@@ -75,7 +77,7 @@ public final class PhysicsProjectionIndexResource implements Resource<EntityStor
 
     @Nonnull
     public Collection<Ref<EntityStore>> getAttachments(@Nonnull Ref<PhysicsStore> bodyRef) {
-        return liveAttachments(bodyAttachmentsByRef, bodyRef);
+        return liveAttachments(bodyAttachmentsByRowIndex, bodyRef.getIndex());
     }
 
     @Nonnull
@@ -108,7 +110,7 @@ public final class PhysicsProjectionIndexResource implements Resource<EntityStor
     }
 
     public boolean hasAttachments(@Nonnull Ref<PhysicsStore> bodyRef) {
-        return hasLiveAttachments(bodyAttachmentsByRef, bodyRef);
+        return hasLiveAttachments(bodyAttachmentsByRowIndex, bodyRef.getIndex());
     }
 
     private <K> boolean hasLiveAttachments(@Nonnull Map<K, Set<Ref<EntityStore>>> attachmentsByKey,
@@ -141,7 +143,7 @@ public final class PhysicsProjectionIndexResource implements Resource<EntityStor
 
     @Nullable
     public Ref<EntityStore> getGeneratedVisualProxy(@Nonnull Ref<PhysicsStore> bodyRef) {
-        return liveGeneratedVisualProxy(generatedVisualProxiesByRef, bodyRef);
+        return liveGeneratedVisualProxy(generatedVisualProxiesByRowIndex, bodyRef.getIndex());
     }
 
     @Nullable
@@ -169,7 +171,7 @@ public final class PhysicsProjectionIndexResource implements Resource<EntityStor
         synchronized (this) {
             generatedVisualProxies.put(bodyUuid, proxy);
             if (bodyRef != null) {
-                generatedVisualProxiesByRef.put(bodyRef, proxy);
+                generatedVisualProxiesByRowIndex.put(bodyRef.getIndex(), proxy);
             }
         }
     }
@@ -215,10 +217,11 @@ public final class PhysicsProjectionIndexResource implements Resource<EntityStor
                 }
             }
             if (newBodyRef != null) {
-                bodyAttachmentsByRef.computeIfAbsent(newBodyRef, _ -> new ObjectOpenHashSet<>())
+                bodyAttachmentsByRowIndex.computeIfAbsent(newBodyRef.getIndex(),
+                        _ -> new ObjectOpenHashSet<>())
                     .add(attachment);
                 if (generatedProxy) {
-                    generatedVisualProxiesByRef.put(newBodyRef, attachment);
+                    generatedVisualProxiesByRowIndex.put(newBodyRef.getIndex(), attachment);
                 }
             }
         }
@@ -232,13 +235,12 @@ public final class PhysicsProjectionIndexResource implements Resource<EntityStor
             for (Map.Entry<UUID, Set<Ref<EntityStore>>> entry : bodyAttachments.entrySet()) {
                 copy.bodyAttachments.put(entry.getKey(), new ObjectOpenHashSet<>(entry.getValue()));
             }
-            for (Map.Entry<Ref<PhysicsStore>, Set<Ref<EntityStore>>> entry :
-                bodyAttachmentsByRef.entrySet()) {
-                copy.bodyAttachmentsByRef.put(entry.getKey(),
+            for (var entry : bodyAttachmentsByRowIndex.int2ObjectEntrySet()) {
+                copy.bodyAttachmentsByRowIndex.put(entry.getIntKey(),
                     new ObjectOpenHashSet<>(entry.getValue()));
             }
             copy.generatedVisualProxies.putAll(generatedVisualProxies);
-            copy.generatedVisualProxiesByRef.putAll(generatedVisualProxiesByRef);
+            copy.generatedVisualProxiesByRowIndex.putAll(generatedVisualProxiesByRowIndex);
         }
         return copy;
     }
@@ -249,26 +251,32 @@ public final class PhysicsProjectionIndexResource implements Resource<EntityStor
 
     private void unregisterAttachmentRef(@Nonnull Ref<PhysicsStore> bodyRef,
         @Nonnull Ref<EntityStore> attachment) {
-        Set<Ref<EntityStore>> attachments = bodyAttachmentsByRef.get(bodyRef);
+        int rowIndex = bodyRef.getIndex();
+        Set<Ref<EntityStore>> attachments = bodyAttachmentsByRowIndex.get(rowIndex);
         if (attachments == null) {
             return;
         }
         attachments.remove(attachment);
         if (attachments.isEmpty()) {
-            bodyAttachmentsByRef.remove(bodyRef);
+            bodyAttachmentsByRowIndex.remove(rowIndex);
         }
     }
 
     private void clearGeneratedVisualProxyRef(@Nonnull Ref<PhysicsStore> bodyRef,
         @Nonnull Ref<EntityStore> expectedProxy) {
-        Ref<EntityStore> proxy = generatedVisualProxiesByRef.get(bodyRef);
+        int rowIndex = bodyRef.getIndex();
+        Ref<EntityStore> proxy = generatedVisualProxiesByRowIndex.get(rowIndex);
         if (sameRef(proxy, expectedProxy)) {
-            generatedVisualProxiesByRef.remove(bodyRef);
+            generatedVisualProxiesByRowIndex.remove(rowIndex);
         }
     }
 
     private static boolean sameRef(@Nullable Ref<?> first,
         @Nullable Ref<?> second) {
-        return first == second || (first != null && first.equals(second));
+        return first == second
+            || (first != null
+                && second != null
+                && first.getStore() == second.getStore()
+                && first.getIndex() == second.getIndex());
     }
 }

@@ -7,10 +7,12 @@ import com.hypixel.hytale.server.core.universe.world.storage.PhysicsStore;
 import dev.hytalemodding.impulse.core.plugin.physicsstore.PhysicsStoreTypes;
 import dev.hytalemodding.impulse.core.plugin.physicsstore.snapshots.PhysicsStoreBodySnapshot;
 import dev.hytalemodding.impulse.core.plugin.physicsstore.snapshots.PhysicsStoreSnapshotFrame;
+import it.unimi.dsi.fastutil.ints.Int2ObjectOpenHashMap;
 import it.unimi.dsi.fastutil.objects.Object2ObjectOpenHashMap;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.UUID;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
@@ -38,23 +40,24 @@ public final class PhysicsSnapshotResource implements Resource<PhysicsStore> {
 
     @Nullable
     public PhysicsStoreBodySnapshot getBody(@Nonnull Ref<PhysicsStore> bodyRef) {
-        return snapshot.bodiesByRef().get(bodyRef);
+        return snapshot.bodiesByRowIndex().get(Objects.requireNonNull(bodyRef, "bodyRef")
+            .getIndex());
     }
 
     public void publish(@Nonnull PhysicsStoreSnapshotFrame frame) {
         Map<UUID, PhysicsStoreBodySnapshot> bodiesByUuid = new Object2ObjectOpenHashMap<>();
-        Map<Ref<PhysicsStore>, PhysicsStoreBodySnapshot> bodiesByRef =
-            new Object2ObjectOpenHashMap<>();
+        Int2ObjectOpenHashMap<PhysicsStoreBodySnapshot> bodiesByRowIndex =
+            new Int2ObjectOpenHashMap<>();
         for (PhysicsStoreBodySnapshot body : frame.bodies()) {
             bodiesByUuid.put(body.bodyUuid(), body);
             Ref<PhysicsStore> bodyRef = body.bodyRef();
             if (bodyRef != null) {
-                bodiesByRef.put(bodyRef, body);
+                bodiesByRowIndex.put(bodyRef.getIndex(), body);
             }
         }
         snapshot = new PublishedSnapshot(frame,
             Map.copyOf(bodiesByUuid),
-            Map.copyOf(bodiesByRef));
+            bodiesByRowIndex);
     }
 
     public void removeBody(@Nonnull UUID bodyUuid) {
@@ -74,8 +77,8 @@ public final class PhysicsSnapshotResource implements Resource<PhysicsStore> {
         @Nonnull UUID bodyUuid) {
         List<PhysicsStoreBodySnapshot> bodies = new ArrayList<>();
         Map<UUID, PhysicsStoreBodySnapshot> bodiesByUuid = new Object2ObjectOpenHashMap<>();
-        Map<Ref<PhysicsStore>, PhysicsStoreBodySnapshot> bodiesByRef =
-            new Object2ObjectOpenHashMap<>();
+        Int2ObjectOpenHashMap<PhysicsStoreBodySnapshot> bodiesByRowIndex =
+            new Int2ObjectOpenHashMap<>();
         for (PhysicsStoreBodySnapshot body : current.frame().bodies()) {
             if (bodyUuid.equals(body.bodyUuid())) {
                 continue;
@@ -84,7 +87,7 @@ public final class PhysicsSnapshotResource implements Resource<PhysicsStore> {
             bodiesByUuid.put(body.bodyUuid(), body);
             Ref<PhysicsStore> bodyRef = body.bodyRef();
             if (bodyRef != null) {
-                bodiesByRef.put(bodyRef, body);
+                bodiesByRowIndex.put(bodyRef.getIndex(), body);
             }
         }
         return new PublishedSnapshot(
@@ -92,7 +95,7 @@ public final class PhysicsSnapshotResource implements Resource<PhysicsStore> {
                 current.frame().dt(),
                 bodies),
             Map.copyOf(bodiesByUuid),
-            Map.copyOf(bodiesByRef));
+            bodiesByRowIndex);
     }
 
     @Nonnull
@@ -111,9 +114,11 @@ public final class PhysicsSnapshotResource implements Resource<PhysicsStore> {
     private record PublishedSnapshot(
         @Nonnull PhysicsStoreSnapshotFrame frame,
         @Nonnull Map<UUID, PhysicsStoreBodySnapshot> bodiesByUuid,
-        @Nonnull Map<Ref<PhysicsStore>, PhysicsStoreBodySnapshot> bodiesByRef) {
+        @Nonnull Int2ObjectOpenHashMap<PhysicsStoreBodySnapshot> bodiesByRowIndex) {
 
         private static final PublishedSnapshot EMPTY =
-            new PublishedSnapshot(PhysicsStoreSnapshotFrame.EMPTY, Map.of(), Map.of());
+            new PublishedSnapshot(PhysicsStoreSnapshotFrame.EMPTY,
+                Map.of(),
+                new Int2ObjectOpenHashMap<>());
     }
 }
