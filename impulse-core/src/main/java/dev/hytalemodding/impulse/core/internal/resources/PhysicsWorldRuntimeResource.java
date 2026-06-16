@@ -2093,28 +2093,82 @@ public class PhysicsWorldRuntimeResource extends PhysicsWorldResource {
         return visualInterestTick.incrementAndGet();
     }
 
+    public void markBodyControlled(@Nonnull Ref<PhysicsStore> bodyRef) {
+        controlRuntime.markBodyControlled(bodyRef);
+    }
+
     public void markBodyControlled(@Nonnull UUID bodyUuid) {
+        Ref<PhysicsStore> bodyRef = resolvePhysicsStoreBodyRef(bodyUuid,
+            "resolve controlled body UUID");
+        if (bodyRef != null) {
+            controlRuntime.markBodyControlled(bodyRef);
+        }
         controlRuntime.markBodyControlled(bodyUuid);
     }
 
     public void markBodyControlled(@Nonnull RigidBodyKey bodyKey) {
+        Ref<PhysicsStore> bodyRef = resolvePhysicsStoreBodyRef(bodyKey.value(),
+            "resolve controlled body key");
+        if (bodyRef != null) {
+            controlRuntime.markBodyControlled(bodyRef);
+        }
         controlRuntime.markBodyControlled(bodyKey);
     }
 
+    public void clearControlledBody(@Nonnull Ref<PhysicsStore> bodyRef) {
+        controlRuntime.clearControlledBody(bodyRef);
+    }
+
     public void clearControlledBody(@Nonnull UUID bodyUuid) {
+        Ref<PhysicsStore> bodyRef = resolvePhysicsStoreBodyRef(bodyUuid,
+            "resolve controlled body UUID");
+        if (bodyRef != null) {
+            controlRuntime.clearControlledBody(bodyRef);
+        }
         controlRuntime.clearControlledBody(bodyUuid);
     }
 
     public void clearControlledBody(@Nonnull RigidBodyKey bodyKey) {
+        Ref<PhysicsStore> bodyRef = resolvePhysicsStoreBodyRef(bodyKey.value(),
+            "resolve controlled body key");
+        if (bodyRef != null) {
+            controlRuntime.clearControlledBody(bodyRef);
+        }
         controlRuntime.clearControlledBody(bodyKey);
     }
 
+    public boolean isBodyControlled(@Nonnull Ref<PhysicsStore> bodyRef) {
+        return controlRuntime.isBodyControlled(bodyRef);
+    }
+
     public boolean isBodyControlled(@Nonnull UUID bodyUuid) {
-        return controlRuntime.isBodyControlled(bodyUuid);
+        Ref<PhysicsStore> bodyRef = resolvePhysicsStoreBodyRef(bodyUuid,
+            "resolve controlled body UUID");
+        return bodyRef != null && controlRuntime.isBodyControlled(bodyRef)
+            || controlRuntime.isBodyControlled(bodyUuid);
     }
 
     public boolean isBodyControlled(@Nonnull RigidBodyKey bodyKey) {
-        return controlRuntime.isBodyControlled(bodyKey);
+        Ref<PhysicsStore> bodyRef = resolvePhysicsStoreBodyRef(bodyKey.value(),
+            "resolve controlled body key");
+        return bodyRef != null && controlRuntime.isBodyControlled(bodyRef)
+            || controlRuntime.isBodyControlled(bodyKey);
+    }
+
+    @Nullable
+    private Ref<PhysicsStore> resolvePhysicsStoreBodyRef(@Nonnull UUID bodyUuid,
+        @Nonnull String operation) {
+        if (!hasAttachedAuthoritativePhysicsStore()) {
+            return null;
+        }
+        World world = requireAuthoritativeWorld(operation);
+        if (!world.isInThread()) {
+            return null;
+        }
+        Ref<PhysicsStore> ref = physicsStore(world)
+            .getResource(PhysicsIdentityIndexResource.getResourceType())
+            .getByUuid(bodyUuid);
+        return ref != null && ref.isValid() ? ref : null;
     }
 
     public void disableControlLifecycle() {
@@ -2186,6 +2240,11 @@ public class PhysicsWorldRuntimeResource extends PhysicsWorldResource {
     }
 
     private void clearBodyRuntimeStateDirect(@Nonnull RigidBodyKey bodyKey) {
+        Ref<PhysicsStore> bodyRef = resolvePhysicsStoreBodyRef(bodyKey.value(),
+            "resolve cleared body runtime key");
+        if (bodyRef != null) {
+            controlRuntime.clearBody(bodyRef);
+        }
         bodyRuntime.clearBodyRuntimeState(bodyKey);
     }
 

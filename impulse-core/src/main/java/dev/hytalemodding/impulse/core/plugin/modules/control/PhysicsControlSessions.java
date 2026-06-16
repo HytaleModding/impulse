@@ -16,7 +16,6 @@ import dev.hytalemodding.impulse.core.internal.resources.PhysicsWorldRuntimeReso
 import dev.hytalemodding.impulse.core.plugin.body.RigidBodyKey;
 import dev.hytalemodding.impulse.core.plugin.joint.JointKey;
 import dev.hytalemodding.impulse.core.plugin.physicsstore.PhysicsStoreThreading;
-import dev.hytalemodding.impulse.core.plugin.physicsstore.components.UuidComponent;
 import java.util.UUID;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
@@ -197,7 +196,7 @@ public final class PhysicsControlSessions {
                 grabDistance,
                 viewOffset,
                 previousTarget));
-        resource.markBodyControlled(requireRowUuid(bodyRef, "body"));
+        resource.markBodyControlled(bodyRef);
     }
 
     /**
@@ -237,9 +236,8 @@ public final class PhysicsControlSessions {
         @Nonnull PhysicsControlSessionComponent session) {
         Ref<PhysicsStore> bodyRef = session.getBodyRef();
         PhysicsKinematicControlSystem.clearMutationState(store, session.getAnchorBodyRef());
-        UUID bodyUuid = rowUuid(bodyRef);
-        if (bodyUuid != null) {
-            resource.clearControlledBody(bodyUuid);
+        if (bodyRef != null) {
+            resource.clearControlledBody(bodyRef);
         }
         PhysicsStoreControlSessionMutations.applyRelease(store, session);
 
@@ -290,26 +288,6 @@ public final class PhysicsControlSessions {
             throw new IllegalArgumentException("PhysicsStore control-session " + role
                 + " ref is not valid");
         }
-    }
-
-    @Nullable
-    private static UUID rowUuid(@Nullable Ref<PhysicsStore> ref) {
-        if (ref == null || !ref.isValid()) {
-            return null;
-        }
-        UuidComponent uuid = ref.getStore().getComponent(ref, UuidComponent.getComponentType());
-        return uuid != null ? uuid.getUuid() : null;
-    }
-
-    @Nonnull
-    private static UUID requireRowUuid(@Nonnull Ref<PhysicsStore> ref,
-        @Nonnull String role) {
-        UUID uuid = rowUuid(ref);
-        if (uuid == null) {
-            throw new IllegalArgumentException("PhysicsStore control-session " + role
-                + " row has no UUID component");
-        }
-        return uuid;
     }
 
     private static void requireAvailable() {

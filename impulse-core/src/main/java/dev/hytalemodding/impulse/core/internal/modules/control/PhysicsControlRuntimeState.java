@@ -1,6 +1,9 @@
 package dev.hytalemodding.impulse.core.internal.modules.control;
 
+import com.hypixel.hytale.component.Ref;
+import com.hypixel.hytale.server.core.universe.world.storage.PhysicsStore;
 import dev.hytalemodding.impulse.core.plugin.body.RigidBodyKey;
+import it.unimi.dsi.fastutil.ints.Int2ObjectOpenHashMap;
 import it.unimi.dsi.fastutil.longs.Long2ObjectOpenHashMap;
 import it.unimi.dsi.fastutil.longs.LongOpenHashSet;
 import it.unimi.dsi.fastutil.longs.LongSet;
@@ -12,8 +15,14 @@ import javax.annotation.Nonnull;
  */
 public final class PhysicsControlRuntimeState {
 
+    private final Int2ObjectOpenHashMap<Ref<PhysicsStore>> controlledBodyRefsByRowIndex =
+        new Int2ObjectOpenHashMap<>();
     private final Long2ObjectOpenHashMap<LongSet> controlledBodyLeastBitsByMostBits =
         new Long2ObjectOpenHashMap<>();
+
+    public synchronized void markBodyControlled(@Nonnull Ref<PhysicsStore> bodyRef) {
+        controlledBodyRefsByRowIndex.put(bodyRef.getIndex(), bodyRef);
+    }
 
     public synchronized void markBodyControlled(@Nonnull UUID bodyUuid) {
         add(bodyUuid.getMostSignificantBits(), bodyUuid.getLeastSignificantBits());
@@ -27,8 +36,24 @@ public final class PhysicsControlRuntimeState {
         remove(bodyUuid.getMostSignificantBits(), bodyUuid.getLeastSignificantBits());
     }
 
+    public synchronized void clearControlledBody(@Nonnull Ref<PhysicsStore> bodyRef) {
+        remove(bodyRef);
+    }
+
     public synchronized void clearControlledBody(@Nonnull RigidBodyKey bodyKey) {
         remove(bodyKey.mostSignificantBits(), bodyKey.leastSignificantBits());
+    }
+
+    public synchronized boolean isBodyControlled(@Nonnull Ref<PhysicsStore> bodyRef) {
+        Ref<PhysicsStore> controlledRef = controlledBodyRefsByRowIndex.get(bodyRef.getIndex());
+        if (controlledRef == null) {
+            return false;
+        }
+        if (!controlledRef.isValid()) {
+            controlledBodyRefsByRowIndex.remove(bodyRef.getIndex());
+            return false;
+        }
+        return controlledRef == bodyRef || sameLiveRef(controlledRef, bodyRef);
     }
 
     public synchronized boolean isBodyControlled(@Nonnull UUID bodyUuid) {
@@ -43,12 +68,37 @@ public final class PhysicsControlRuntimeState {
         remove(bodyUuid.getMostSignificantBits(), bodyUuid.getLeastSignificantBits());
     }
 
+    public synchronized void clearBody(@Nonnull Ref<PhysicsStore> bodyRef) {
+        remove(bodyRef);
+    }
+
     public synchronized void clearBody(@Nonnull RigidBodyKey bodyKey) {
         remove(bodyKey.mostSignificantBits(), bodyKey.leastSignificantBits());
     }
 
     public synchronized void clear() {
+        controlledBodyRefsByRowIndex.clear();
         controlledBodyLeastBitsByMostBits.clear();
+    }
+
+    private void remove(@Nonnull Ref<PhysicsStore> bodyRef) {
+        Ref<PhysicsStore> controlledRef = controlledBodyRefsByRowIndex.get(bodyRef.getIndex());
+        if (controlledRef == null) {
+            return;
+        }
+        if (controlledRef == bodyRef
+            || !controlledRef.isValid()
+            || sameLiveRef(controlledRef, bodyRef)) {
+            controlledBodyRefsByRowIndex.remove(bodyRef.getIndex());
+        }
+    }
+
+    private static boolean sameLiveRef(@Nonnull Ref<PhysicsStore> first,
+        @Nonnull Ref<PhysicsStore> second) {
+        return first.isValid()
+            && second.isValid()
+            && first.getStore() == second.getStore()
+            && first.getIndex() == second.getIndex();
     }
 
     private void add(long mostSignificantBits, long leastSignificantBits) {

@@ -6,10 +6,7 @@ import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import com.hypixel.hytale.server.core.universe.world.storage.PhysicsStore;
 import dev.hytalemodding.impulse.core.internal.modules.control.components.PhysicsControlSessionComponent;
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsWorldRuntimeResource;
-import dev.hytalemodding.impulse.core.plugin.physicsstore.components.UuidComponent;
-import java.util.UUID;
 import javax.annotation.Nonnull;
-import javax.annotation.Nullable;
 
 public final class PhysicsControlSessionCleanup {
 
@@ -35,21 +32,12 @@ public final class PhysicsControlSessionCleanup {
             return;
         }
 
-        UUID bodyUuid = rowUuid(session.getBodyRef());
-        if (bodyUuid != null) {
-            resource.clearControlledBody(bodyUuid);
+        Ref<PhysicsStore> bodyRef = session.getBodyRef();
+        if (bodyRef != null) {
+            resource.clearControlledBody(bodyRef);
         }
 
         PhysicsStoreControlSessionMutations.applyRelease(store, session);
         session.deactivate();
-    }
-
-    @Nullable
-    private static UUID rowUuid(@Nullable Ref<PhysicsStore> ref) {
-        if (ref == null || !ref.isValid()) {
-            return null;
-        }
-        UuidComponent uuid = ref.getStore().getComponent(ref, UuidComponent.getComponentType());
-        return uuid != null ? uuid.getUuid() : null;
     }
 }
