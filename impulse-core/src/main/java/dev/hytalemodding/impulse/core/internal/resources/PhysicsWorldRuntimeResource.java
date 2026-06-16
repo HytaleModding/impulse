@@ -1029,7 +1029,7 @@ public class PhysicsWorldRuntimeResource extends PhysicsWorldResource {
     }
 
     /**
-     * Captures an immutable snapshot frame on the physics owner lane.
+     * Captures an immutable snapshot frame on the store tick lane.
      *
      * <p>The generated {@code frameEpoch} and current {@code worldEpoch} govern
      * publication ordering and stale-frame rejection. {@code stepSequence} and
@@ -1387,7 +1387,7 @@ public class PhysicsWorldRuntimeResource extends PhysicsWorldResource {
         try {
             runDirectRuntimeMutation("disable world collision lifecycle", this::disableWorldCollisionLifecycleDirect);
         } catch (RejectedExecutionException ignored) {
-            // The server can unload the subplugin after a world owner lane has already closed.
+            // The server can unload the subplugin after the store tick lane has already closed.
         } catch (RuntimeException exception) {
             LOGGER.at(Level.WARNING).log("Failed to disable world collision lifecycle: %s",
                 exception.getMessage());

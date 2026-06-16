@@ -8,7 +8,7 @@ import java.util.Objects;
 import javax.annotation.Nonnull;
 
 /**
- * Copied rigid body state returned by owner-lane queries.
+ * Copied rigid body state returned by store tick lane queries.
  *
  * <p>This value is a live-state query result, not a published snapshot frame entry. Use snapshot
  * APIs when reader-side systems need frame-coherent body data.</p>

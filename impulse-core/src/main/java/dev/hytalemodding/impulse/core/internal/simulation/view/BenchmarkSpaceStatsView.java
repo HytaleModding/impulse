@@ -1,7 +1,7 @@
 package dev.hytalemodding.impulse.core.internal.simulation.view;
 
 /**
- * Copied owner-lane counters used by stress and fall-envelope diagnostics.
+ * Copied store tick lane counters used by stress and fall-envelope diagnostics.
  */
 public record BenchmarkSpaceStatsView(int bodies,
                                       int dynamicBodies,

@@ -91,13 +91,13 @@ public class WorldCollisionPerfReportCommand extends AbstractAsyncWorldCommand {
                 + " indexCells=" + formatAverage(cumulativeStep.getSpatialIndexCells(), cumulativeStep.getTickSamples())));
             ctx.sender().sendMessage(Message.raw("Physics snapshot avg ms/completedStep="
                 + formatAverageMillis(cumulativeStep.getSnapshotNanos(), cumulativeStep.getTickSamples())));
-            ctx.sender().sendMessage(Message.raw("Physics owner step avg queued/run/latency ms="
+            ctx.sender().sendMessage(Message.raw("Physics store tick avg queued/run/latency ms="
                 + formatAverageMillis(cumulativeStep.getOwnerQueuedNanos(), cumulativeStep.getTickSamples())
                 + "/" + formatAverageMillis(cumulativeStep.getOwnerRunNanos(), cumulativeStep.getTickSamples())
                 + "/" + formatAverageMillis(
                 cumulativeStep.getOwnerQueuedNanos() + cumulativeStep.getOwnerRunNanos(),
                 cumulativeStep.getTickSamples())
-                + " ownerTPS latest/avg=" + formatHertz(latestStep.getOwnerStepIntervalNanos())
+                + " storeTPS latest/avg=" + formatHertz(latestStep.getOwnerStepIntervalNanos())
                 + "/" + formatAverageHertz(cumulativeStep.getOwnerStepIntervalNanos(),
                 cumulativeStep.getOwnerStepRateSamples())
                 + " maxGapMs=" + formatMillis(cumulativeStep.getMaxOwnerStepIntervalNanos())

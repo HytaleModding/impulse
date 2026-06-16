@@ -7,7 +7,7 @@ import org.joml.Quaternionf;
 import org.joml.Vector3f;
 
 /**
- * Immutable copy of body state captured on the physics owner.
+ * Immutable copy of body state captured from live backend state.
  *
  * <p>Snapshots deliberately contain shape metadata instead of a live {@link PhysicsBody} handle so
  * they can be published to world-thread readers and debug systems without escaping backend

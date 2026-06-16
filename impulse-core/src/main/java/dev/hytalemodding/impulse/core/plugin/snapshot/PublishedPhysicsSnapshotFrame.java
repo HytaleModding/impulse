@@ -32,13 +32,13 @@ public final class PublishedPhysicsSnapshotFrame {
     private final long worldEpoch;
 
     /**
-     * Impulse step-scheduler sequence assigned to the owner step
+     * Impulse step-scheduler sequence assigned to the store tick step
      * not a Hytale tick and not guaranteed contiguous in published frames
      */
     private final long stepSequence;
 
     /**
-     * Hytale world tick observed when the owner step was scheduled.
+     * Hytale world tick observed when the store tick step was scheduled.
      * This is not a physics step counter and may diverge from {@code stepSequence} under paused
      * worlds, backpressure, or future multi-rate scheduling
      */

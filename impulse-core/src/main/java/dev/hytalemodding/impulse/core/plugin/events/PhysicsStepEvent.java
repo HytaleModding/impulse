@@ -5,7 +5,7 @@ import java.util.Objects;
 import javax.annotation.Nonnull;
 
 /**
- * Value-only event for a physics owner step that captured a snapshot frame.
+ * Value-only event for a store tick step that captured a snapshot frame.
  *
  * @param stepSequence Impulse step-scheduler sequence copied into the captured snapshot
  * @param serverTick Hytale server tick copied into the captured snapshot

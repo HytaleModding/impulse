@@ -6,9 +6,9 @@ import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
 /**
- * Immutable value frame of physics-owner events.
+ * Immutable value frame of PhysicsStore events.
  *
- * <p>Event frames describe owner-lane outcomes. They are distinct from command
+ * <p>Event frames describe store tick lane outcomes. They are distinct from command
  * contexts, backend handles, and published body snapshots.</p>
  *
  * <p>The runtime keeps only the latest frame. This is useful for diagnostics, latency

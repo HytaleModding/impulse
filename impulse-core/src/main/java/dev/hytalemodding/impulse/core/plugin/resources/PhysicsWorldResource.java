@@ -43,7 +43,7 @@ import org.joml.Vector3f;
  *
  * <p>This facade does not directly return live backend spaces or bodies. Gameplay code should use
  * PhysicsStore rows for authoring, copied snapshots for body state, and explicit PhysicsStore
- * diagnostics/raycast helpers for owner-lane backend reads.</p>
+ * diagnostics/raycast helpers for store tick lane backend reads.</p>
  */
 public abstract class PhysicsWorldResource implements Resource<EntityStore> {
 
@@ -51,9 +51,9 @@ public abstract class PhysicsWorldResource implements Resource<EntityStore> {
     }
 
     /**
-     * Returns the latest value-only physics owner event frame.
+     * Returns the latest value-only physics store event frame.
      *
-     * <p>Event frames describe owner-lane outcomes. They do not expose live
+     * <p>Event frames describe store tick lane outcomes. They do not expose live
      * backend handles and do not imply that command completion has been
      * included in a captured or reader-applied body snapshot.</p>
      */
@@ -71,7 +71,7 @@ public abstract class PhysicsWorldResource implements Resource<EntityStore> {
     public abstract PhysicsWorldSettings getWorldSettings();
 
     /**
-     * Applies world-level simulation settings on the physics owner lane.
+     * Applies world-level simulation settings on the store tick lane.
      */
     public abstract void setWorldSettings(@Nonnull PhysicsWorldSettings settings);
 
@@ -85,7 +85,7 @@ public abstract class PhysicsWorldResource implements Resource<EntityStore> {
     /**
      * Creates a physics space using default settings and returns its id.
      *
-     * <p>Creation is serialized through this world's logical physics owner lane. Callers must not
+     * <p>Creation is serialized through this world's logical store tick lane. Callers must not
      * infer a stable Java thread identity from the synchronous return path.</p>
      */
     @Nonnull
@@ -104,8 +104,8 @@ public abstract class PhysicsWorldResource implements Resource<EntityStore> {
     /**
      * Creates a physics space with generated logical id and supplied settings.
      *
-     * <p>The live backend space is created inside the serialized owner lane. Use the async variant
-     * when the caller should not block on owner-lane execution.</p>
+     * <p>The live backend space is created inside the serialized store tick lane. Use the async
+     * variant when the caller should not block on store tick execution.</p>
      */
     @Nonnull
     public abstract SpaceId createSpace(@Nonnull BackendId backendId,
@@ -116,7 +116,7 @@ public abstract class PhysicsWorldResource implements Resource<EntityStore> {
      * Creates a physics space with an explicit logical id and supplied settings.
      *
      * <p>The explicit id is reserved by the caller, but live backend creation still runs inside the
-     * serialized owner lane.</p>
+     * serialized store tick lane.</p>
      */
     @Nonnull
     public abstract SpaceId createSpace(@Nonnull BackendId backendId,
@@ -127,7 +127,7 @@ public abstract class PhysicsWorldResource implements Resource<EntityStore> {
     /**
      * Queues physics-space creation and returns the reserved generated space id.
      *
-     * <p>The returned mutation handle completes when the owner lane creates the live backend
+     * <p>The returned mutation handle completes when the store tick lane creates the live backend
      * space, not when a later snapshot or ECS reader has consumed any resulting state.</p>
      */
     @Nonnull
@@ -140,7 +140,7 @@ public abstract class PhysicsWorldResource implements Resource<EntityStore> {
      * Queues physics-space creation and returns the requested explicit space id.
      *
      * <p>Different worlds may queue work concurrently, but this world's spaces remain serialized by
-     * its owner lane.</p>
+     * its store tick lane.</p>
      */
     @Nonnull
     public abstract PhysicsMutationHandle<SpaceId> createSpaceAsync(
@@ -177,7 +177,7 @@ public abstract class PhysicsWorldResource implements Resource<EntityStore> {
     /**
      * Returns the latest published snapshot for a body.
      *
-     * <p>The legacy runtime may capture a copied live snapshot on the physics owner when the body
+     * <p>The legacy runtime may capture a copied live snapshot from live backend state when the body
      * is registered but missing from the published frame. Authoritative PhysicsStore mode reads
      * only the copied {@code PhysicsSnapshotResource} frame and does not synchronously touch the
      * live backend.</p>
@@ -301,7 +301,7 @@ public abstract class PhysicsWorldResource implements Resource<EntityStore> {
     public abstract PhysicsSpaceSettings getSpaceSettings(@Nonnull Ref<PhysicsStore> spaceRef);
 
     /**
-     * Applies settings to a registered physics space on the physics owner lane.
+     * Applies settings to a registered physics space on the store tick lane.
      */
     public abstract void setSpaceSettings(@Nonnull SpaceId spaceId,
         @Nonnull PhysicsSpaceSettings settings);

@@ -7,7 +7,7 @@ import dev.hytalemodding.impulse.api.capability.PhysicsSolverTuning;
 import javax.annotation.Nonnull;
 
 /**
- * Owner-lane backend runtime port using backend-local numeric ids and primitive payloads.
+ * Store tick backend runtime port using backend-local numeric ids and primitive payloads.
  */
 public interface PhysicsBackendRuntime {
 

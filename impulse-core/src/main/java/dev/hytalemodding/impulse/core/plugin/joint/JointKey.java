@@ -9,7 +9,7 @@ import javax.annotation.Nonnull;
 /**
  * Stable Impulse-side identity for a physics joint.
  *
- * <p>Backend {@code PhysicsJoint} handles are live owner-lane objects. This id is the handle
+ * <p>Backend {@code PhysicsJoint} handles are live backend objects. This id is the identity
  * component state and plugin-facing lifecycle code should retain.</p>
  */
 public final class JointKey {

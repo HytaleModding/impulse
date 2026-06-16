@@ -13,10 +13,10 @@ import javax.annotation.Nonnull;
  *     <li>Backends are expected to be used through {@link Impulse}, which provides
  *     thread-safe one-time initialization.</li>
  *     <li>{@link #createSpace()} and {@link #createSpace(SpaceId)} may be called from multiple
- *     owner lanes after initialization. Implementations with mutable factory state must
+ *     backend lanes after initialization. Implementations with mutable factory state must
  *     synchronize internally.</li>
- *     <li>Different spaces may run concurrently on different owner lanes. Each individual
- *     {@link PhysicsSpace} remains serialized by its own owner lane.</li>
+ *     <li>Different spaces may run concurrently on different backend lanes. Each individual
+ *     {@link PhysicsSpace} remains serialized by its own backend lane.</li>
  * </ul>
  */
 @Deprecated(forRemoval = true)

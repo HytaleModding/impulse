@@ -6,7 +6,7 @@ import java.util.Objects;
 import javax.annotation.Nonnull;
 
 /**
- * Copied owner-lane space diagnostics.
+ * Copied store tick lane space diagnostics.
  */
 public record SpaceSummary(@Nonnull SpaceId spaceId,
                            @Nonnull BackendId backendId,

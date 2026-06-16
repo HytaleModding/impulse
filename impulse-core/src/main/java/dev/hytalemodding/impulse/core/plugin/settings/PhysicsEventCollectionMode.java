@@ -4,7 +4,7 @@ import java.util.Locale;
 import javax.annotation.Nonnull;
 
 /**
- * Controls which backend physics events are collected during owner-lane steps.
+ * Controls which backend physics events are collected during store tick steps.
  */
 public enum PhysicsEventCollectionMode {
     /**

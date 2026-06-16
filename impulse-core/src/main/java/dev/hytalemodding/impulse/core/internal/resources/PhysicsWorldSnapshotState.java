@@ -24,9 +24,9 @@ import org.joml.Vector3f;
 /**
  * Snapshot and epoch state for a world physics resource.
  *
- * <p>The owner-side store is used while capturing immutable frames on the physics owner. The
+ * <p>The capture-side store is used while capturing immutable frames on the store tick lane. The
  * reader-side store is only updated when a frame is applied for the current world epoch. Keeping
- * both stores and the epoch counters together prevents stale owner frames from repopulating
+ * both stores and the epoch counters together prevents stale capture frames from repopulating
  * world-thread snapshots after topology changes.</p>
  */
 public final class PhysicsWorldSnapshotState {
