@@ -136,7 +136,10 @@ public class PhysicsWorldRuntimeResource extends PhysicsWorldResource {
 
     @Nonnull
     public static PhysicsWorldRuntimeResource require(@Nonnull Store<EntityStore> store) {
-        return require(store.getResource(PhysicsWorldResource.getResourceType()));
+        PhysicsWorldRuntimeResource resource =
+            require(store.getResource(PhysicsWorldResource.getResourceType()));
+        resource.attachEntityStore(store);
+        return resource;
     }
 
     @Nonnull
