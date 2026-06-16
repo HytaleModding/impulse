@@ -13,8 +13,6 @@ import dev.hytalemodding.impulse.core.internal.modules.control.systems.PhysicsKi
 import dev.hytalemodding.impulse.core.internal.modules.control.systems.PhysicsStoreControlSessionMutations;
 import dev.hytalemodding.impulse.core.internal.physicsstore.resources.PhysicsIdentityIndexResource;
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsWorldRuntimeResource;
-import dev.hytalemodding.impulse.core.plugin.body.RigidBodyKey;
-import dev.hytalemodding.impulse.core.plugin.joint.JointKey;
 import dev.hytalemodding.impulse.core.plugin.physicsstore.PhysicsStoreThreading;
 import java.util.UUID;
 import javax.annotation.Nonnull;
@@ -52,90 +50,10 @@ public final class PhysicsControlSessions {
     }
 
     /**
-     * Compatibility adapter for legacy body keys. Prefer the PhysicsStore ref overload when the
-     * caller already has live rows.
-     */
-    @Deprecated(forRemoval = true)
-    public static void startSession(@Nonnull Store<EntityStore> store,
-        @Nonnull Ref<EntityStore> controllerRef,
-        @Nonnull RigidBodyKey bodyKey,
-        @Nonnull RigidBodyKey anchorBodyKey,
-        @Nullable Ref<EntityStore> targetRef,
-        @Nonnull PhysicsBodyType originalBodyType,
-        float grabDistance,
-        @Nonnull Vector3f viewOffset,
-        @Nonnull Vector3f previousTarget) {
-        startSessionFromUuids(store,
-            controllerRef,
-            bodyKey.value(),
-            anchorBodyKey.value(),
-            null,
-            targetRef,
-            originalBodyType,
-            grabDistance,
-            viewOffset,
-            previousTarget);
-    }
-
-    /**
-     * Compatibility adapter for legacy body and joint keys. Prefer the PhysicsStore ref overload
-     * when the caller already has live rows.
-     */
-    @Deprecated(forRemoval = true)
-    public static void startSession(@Nonnull Store<EntityStore> store,
-        @Nonnull Ref<EntityStore> controllerRef,
-        @Nonnull RigidBodyKey bodyKey,
-        @Nonnull RigidBodyKey anchorBodyKey,
-        @Nullable JointKey controlJointKey,
-        @Nullable Ref<EntityStore> targetRef,
-        @Nonnull PhysicsBodyType originalBodyType,
-        float grabDistance,
-        @Nonnull Vector3f viewOffset,
-        @Nonnull Vector3f previousTarget) {
-        startSessionFromUuids(store,
-            controllerRef,
-            bodyKey.value(),
-            anchorBodyKey.value(),
-            controlJointKey != null ? controlJointKey.value() : null,
-            targetRef,
-            originalBodyType,
-            grabDistance,
-            viewOffset,
-            previousTarget);
-    }
-
-    /**
-     * Compatibility adapter for durable body UUIDs. Prefer the PhysicsStore ref overload when the
-     * caller already has live rows.
-     */
-    @Deprecated(forRemoval = true)
-    public static void startSession(@Nonnull Store<EntityStore> store,
-        @Nonnull Ref<EntityStore> controllerRef,
-        @Nonnull UUID bodyUuid,
-        @Nonnull UUID anchorBodyUuid,
-        @Nullable JointKey controlJointKey,
-        @Nullable Ref<EntityStore> targetRef,
-        @Nonnull PhysicsBodyType originalBodyType,
-        float grabDistance,
-        @Nonnull Vector3f viewOffset,
-        @Nonnull Vector3f previousTarget) {
-        startSessionFromUuids(store,
-            controllerRef,
-            bodyUuid,
-            anchorBodyUuid,
-            controlJointKey != null ? controlJointKey.value() : null,
-            targetRef,
-            originalBodyType,
-            grabDistance,
-            viewOffset,
-            previousTarget);
-    }
-
-    /**
      * Starts or replaces the controller entity's Impulse control session from durable row UUIDs.
      * Prefer the ref overload when the caller already has live PhysicsStore row refs.
      */
-    private static void startSessionFromUuids(@Nonnull Store<EntityStore> store,
+    public static void startSession(@Nonnull Store<EntityStore> store,
         @Nonnull Ref<EntityStore> controllerRef,
         @Nonnull UUID bodyUuid,
         @Nonnull UUID anchorBodyUuid,
