@@ -410,6 +410,13 @@ public final class ExamplePhysicsUtils {
     public static SpawnedBlockBody attachPhysicsStoreBlockBody(@Nonnull Store<EntityStore> store,
         @Nonnull TimeResource time,
         @Nonnull CreatedBlockBody created) {
+        Ref<PhysicsStore> bodyRef = created.bodyRef();
+        PhysicsStoreThreading.requireWorldThread(bodyRef.getStore(),
+            "attach a visual to a created PhysicsStore body row");
+        if (!bodyRef.isValid()) {
+            throw new IllegalStateException("Cannot attach visual because PhysicsStore body row "
+                + "is no longer valid: " + created.bodyUuid());
+        }
         Ref<EntityStore> entity = spawnAttachedPhysicsStoreBlockEntity(store,
             time,
             created.bodyUuid(),
