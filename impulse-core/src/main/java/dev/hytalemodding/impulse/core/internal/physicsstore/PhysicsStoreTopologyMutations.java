@@ -54,12 +54,7 @@ public final class PhysicsStoreTopologyMutations {
         PhysicsIdentityIndexResource identity =
             store.getResource(PhysicsIdentityIndexResource.getResourceType());
         List<RowRemoval> removals = collectRows(store, null, bodyUuid);
-        for (RowRemoval removal : removals) {
-            if (removal.kind() == RowKind.JOINT) {
-                removeRuntimeJoint(runtime, identity, removal.rowUuid());
-            }
-        }
-        removeRuntimeBody(runtime, identity, bodyUuid);
+        removeRuntimeRows(runtime, identity, removals);
         removeRows(store, removals);
     }
 
@@ -71,10 +66,9 @@ public final class PhysicsStoreTopologyMutations {
         PhysicsIdentityIndexResource identity =
             store.getResource(PhysicsIdentityIndexResource.getResourceType());
         TopologyCounts removed = countBackendTopology(runtime);
-        for (BackendSpaceHandle spaceHandle : spaceHandles(runtime)) {
-            removeRuntimeContentsForSpace(runtime, identity, spaceHandle);
-        }
-        removeRows(store, collectRows(store, null, null));
+        List<RowRemoval> removals = collectRows(store, null, null);
+        removeRuntimeRows(runtime, identity, removals);
+        removeRows(store, removals);
         clearCopiedBodyState(store);
         store.getResource(PhysicsTerrainMutationQueueResource.getResourceType()).clear();
         store.getResource(PhysicsTerrainPayloadResource.getResourceType()).clear();
@@ -98,13 +92,11 @@ public final class PhysicsStoreTopologyMutations {
         PhysicsRuntimeResource runtime = store.getResource(PhysicsRuntimeResource.getResourceType());
         PhysicsIdentityIndexResource identity =
             store.getResource(PhysicsIdentityIndexResource.getResourceType());
-        BackendSpaceHandle spaceHandle = runtime.getSpaceHandle(spaceUuid);
-        if (spaceHandle != null) {
-            removeRuntimeContentsForSpace(runtime, identity, spaceHandle);
-        }
+        List<RowRemoval> removals = collectRows(store, spaceUuid, null);
+        removeRuntimeRows(runtime, identity, removals);
         store.getResource(PhysicsTerrainMutationQueueResource.getResourceType())
             .removeIf(mutation -> spaceUuid.equals(mutation.spaceUuid()));
-        removeRows(store, collectRows(store, spaceUuid, null));
+        removeRows(store, removals);
         PhysicsStoreSpaceMutations.removeEmptySpace(store, spaceUuid);
     }
 
@@ -113,39 +105,43 @@ public final class PhysicsStoreTopologyMutations {
         PhysicsStoreThreading.requireWorldThread(store, "clear PhysicsStore terrain rows");
         PhysicsRuntimeResource runtime = store.getResource(PhysicsRuntimeResource.getResourceType());
         int removedBodies = 0;
-        BackendSpaceHandle spaceHandle = runtime.getSpaceHandle(spaceUuid);
-        if (spaceHandle != null) {
-            for (UUID terrainUuid : runtime.terrainUuidsForSpaceHandle(spaceHandle)) {
-                removedBodies += removeRuntimeTerrain(runtime, terrainUuid);
-            }
+        List<RowRemoval> removals = collectTerrainRows(store, spaceUuid);
+        for (RowRemoval removal : removals) {
+            removedBodies += removeRuntimeTerrain(runtime, removal);
         }
         store.getResource(PhysicsTerrainMutationQueueResource.getResourceType())
             .removeIf(mutation -> spaceUuid.equals(mutation.spaceUuid()));
-        removeRows(store, collectTerrainRows(store, spaceUuid));
+        removeRows(store, removals);
         return removedBodies;
     }
 
-    private static void removeRuntimeContentsForSpace(@Nonnull PhysicsRuntimeResource runtime,
+    private static void removeRuntimeRows(@Nonnull PhysicsRuntimeResource runtime,
         @Nonnull PhysicsIdentityIndexResource identity,
-        @Nonnull BackendSpaceHandle spaceHandle) {
-        for (UUID jointUuid : runtime.jointUuidsForSpaceHandle(spaceHandle)) {
-            removeRuntimeJoint(runtime, identity, jointUuid);
+        @Nonnull List<RowRemoval> removals) {
+        for (RowRemoval removal : removals) {
+            if (removal.kind() == RowKind.JOINT) {
+                removeRuntimeJoint(runtime, identity, removal);
+            }
         }
-        for (UUID terrainUuid : runtime.terrainUuidsForSpaceHandle(spaceHandle)) {
-            removeRuntimeTerrain(runtime, terrainUuid);
+        for (RowRemoval removal : removals) {
+            if (removal.kind() == RowKind.TERRAIN) {
+                removeRuntimeTerrain(runtime, removal);
+            }
         }
-        for (UUID bodyUuid : runtime.bodyUuidsForSpaceHandle(spaceHandle)) {
-            removeRuntimeBody(runtime, identity, bodyUuid);
+        for (RowRemoval removal : removals) {
+            if (removal.kind() == RowKind.BODY) {
+                removeRuntimeBody(runtime, identity, removal);
+            }
         }
     }
 
     private static boolean removeRuntimeJoint(@Nonnull PhysicsRuntimeResource runtime,
         @Nonnull PhysicsIdentityIndexResource identity,
-        @Nonnull UUID jointUuid) {
-        BackendJointHandle jointHandle = runtime.getJointHandle(jointUuid);
-        BackendSpaceHandle spaceHandle = runtime.getJointSpaceHandle(jointUuid);
+        @Nonnull RowRemoval removal) {
+        BackendJointHandle jointHandle = runtime.getJointHandle(removal.ref());
+        BackendSpaceHandle spaceHandle = runtime.getJointSpaceHandle(removal.ref());
         if (jointHandle == null) {
-            runtime.removeJointHandle(jointUuid);
+            runtime.removeJointHandle(removal.rowUuid(), removal.ref());
             return false;
         }
         PhysicsBackendRuntime backendRuntime = runtime.runtimeForSpaceHandle(spaceHandle);
@@ -153,15 +149,15 @@ public final class PhysicsStoreTopologyMutations {
             backendRuntime.removeJoint(spaceHandle.value(), jointHandle.value());
         }
         identity.removeJointHandle(jointHandle);
-        runtime.removeJointHandle(jointUuid);
+        runtime.removeJointHandle(removal.rowUuid(), removal.ref());
         return true;
     }
 
     private static int removeRuntimeTerrain(@Nonnull PhysicsRuntimeResource runtime,
-        @Nonnull UUID terrainUuid) {
-        BackendSpaceHandle spaceHandle = runtime.getTerrainSpaceHandle(terrainUuid);
+        @Nonnull RowRemoval removal) {
+        BackendSpaceHandle spaceHandle = runtime.getTerrainSpaceHandle(removal.ref());
         LongArrayList bodyHandles = new LongArrayList();
-        runtime.forEachTerrainBodyHandle(terrainUuid, bodyId -> bodyHandles.add(bodyId));
+        runtime.forEachTerrainBodyHandle(removal.ref(), bodyId -> bodyHandles.add(bodyId));
         if (spaceHandle != null) {
             PhysicsBackendRuntime backendRuntime = runtime.runtimeForSpaceHandle(spaceHandle);
             if (backendRuntime != null) {
@@ -170,17 +166,17 @@ public final class PhysicsStoreTopologyMutations {
                 }
             }
         }
-        runtime.removeTerrainHandles(terrainUuid);
+        runtime.removeTerrainHandles(removal.ref(), removal.rowUuid());
         return bodyHandles.size();
     }
 
     private static boolean removeRuntimeBody(@Nonnull PhysicsRuntimeResource runtime,
         @Nonnull PhysicsIdentityIndexResource identity,
-        @Nonnull UUID bodyUuid) {
-        BackendBodyHandle bodyHandle = runtime.getBodyHandle(bodyUuid);
-        BackendSpaceHandle spaceHandle = runtime.getBodySpaceHandle(bodyUuid);
+        @Nonnull RowRemoval removal) {
+        BackendBodyHandle bodyHandle = runtime.getBodyHandle(removal.ref());
+        BackendSpaceHandle spaceHandle = runtime.getBodySpaceHandle(removal.ref());
         if (bodyHandle == null) {
-            runtime.removeBodyHandle(bodyUuid);
+            runtime.removeBodyHandle(removal.rowUuid(), removal.ref());
             return false;
         }
         PhysicsBackendRuntime backendRuntime = runtime.runtimeForSpaceHandle(spaceHandle);
@@ -188,21 +184,14 @@ public final class PhysicsStoreTopologyMutations {
             backendRuntime.removeBody(spaceHandle.value(), bodyHandle.value());
         }
         identity.removeBodyHandle(bodyHandle);
-        runtime.removeBodyHandle(bodyUuid);
+        runtime.removeBodyHandle(removal.rowUuid(), removal.ref());
         return true;
-    }
-
-    @Nonnull
-    private static List<BackendSpaceHandle> spaceHandles(@Nonnull PhysicsRuntimeResource runtime) {
-        List<BackendSpaceHandle> handles = new ArrayList<>();
-        runtime.forEachSpaceBinding((_, _, spaceHandle, _) -> handles.add(spaceHandle));
-        return handles;
     }
 
     @Nonnull
     private static TopologyCounts countBackendTopology(@Nonnull PhysicsRuntimeResource runtime) {
         TopologyCounts counts = new TopologyCounts();
-        runtime.forEachSpaceBinding((_, _, spaceHandle, backendRuntime) -> {
+        runtime.forEachRuntimeSpaceBinding((_, _, spaceHandle, backendRuntime) -> {
             counts.addBodies(backendRuntime.bodyCount(spaceHandle.value()));
             counts.addJoints(backendRuntime.jointCount(spaceHandle.value()));
         });

@@ -243,21 +243,16 @@ public final class PhysicsRuntimeResource implements Resource<PhysicsStore> {
     public void removeBodyHandle(@Nonnull UUID bodyUuid) {
         BackendBodyHandle removed = bodyHandlesByUuid.remove(bodyUuid);
         BackendSpaceHandle spaceHandle = bodySpaceHandlesByUuid.remove(bodyUuid);
-        if (removed != null && spaceHandle != null) {
-            LongList bodyHandles = bodyHandlesBySpaceHandle.get(spaceHandle.value());
-            if (bodyHandles != null) {
-                bodyHandles.rem(removed.value());
-                if (bodyHandles.isEmpty()) {
-                    bodyHandlesBySpaceHandle.remove(spaceHandle.value());
-                }
-            }
-            bodyHitMetadataByHandle.remove(removed.value());
-            BodySnapshotMetadata metadata = bodySnapshotMetadataByHandle.remove(removed.value());
-            if (metadata != null) {
-                bodyHandlesByRef.remove(metadata.bodyRef());
-                bodySpaceHandlesByRef.remove(metadata.bodyRef());
-            }
-        }
+        removeBodyHandleIndexes(removed, spaceHandle);
+    }
+
+    public void removeBodyHandle(@Nonnull UUID bodyUuid, @Nonnull Ref<PhysicsStore> bodyRef) {
+        BackendBodyHandle removed = bodyHandlesByUuid.remove(bodyUuid);
+        BackendSpaceHandle spaceHandle = bodySpaceHandlesByUuid.remove(bodyUuid);
+        BackendBodyHandle removedByRef = bodyHandlesByRef.remove(bodyRef);
+        BackendSpaceHandle spaceHandleByRef = bodySpaceHandlesByRef.remove(bodyRef);
+        removeBodyHandleIndexes(removed != null ? removed : removedByRef,
+            spaceHandle != null ? spaceHandle : spaceHandleByRef);
     }
 
     @Nonnull
@@ -270,6 +265,19 @@ public final class PhysicsRuntimeResource implements Resource<PhysicsStore> {
             }
         });
         return bodyUuids;
+    }
+
+    @Nonnull
+    public List<Ref<PhysicsStore>> bodyRefsForSpaceHandle(
+        @Nonnull BackendSpaceHandle spaceHandle) {
+        List<Ref<PhysicsStore>> bodyRefs = new ArrayList<>();
+        int targetSpaceHandle = spaceHandle.value();
+        bodySpaceHandlesByRef.forEach((bodyRef, handle) -> {
+            if (handle.value() == targetSpaceHandle) {
+                bodyRefs.add(bodyRef);
+            }
+        });
+        return bodyRefs;
     }
 
     public void putBodyHitMetadata(@Nonnull BackendBodyHandle handle,
@@ -409,6 +417,19 @@ public final class PhysicsRuntimeResource implements Resource<PhysicsStore> {
             }
         });
         return jointUuids;
+    }
+
+    @Nonnull
+    public List<Ref<PhysicsStore>> jointRefsForSpaceHandle(
+        @Nonnull BackendSpaceHandle spaceHandle) {
+        List<Ref<PhysicsStore>> jointRefs = new ArrayList<>();
+        int targetSpaceHandle = spaceHandle.value();
+        jointSpaceHandlesByRef.forEach((jointRef, handle) -> {
+            if (handle.value() == targetSpaceHandle) {
+                jointRefs.add(jointRef);
+            }
+        });
+        return jointRefs;
     }
 
     public void putTerrainBodyHandle(@Nonnull UUID terrainUuid,
@@ -554,6 +575,19 @@ public final class PhysicsRuntimeResource implements Resource<PhysicsStore> {
         return terrainUuids;
     }
 
+    @Nonnull
+    public List<Ref<PhysicsStore>> terrainRefsForSpaceHandle(
+        @Nonnull BackendSpaceHandle spaceHandle) {
+        List<Ref<PhysicsStore>> terrainRefs = new ArrayList<>();
+        int targetSpaceHandle = spaceHandle.value();
+        terrainSpaceHandlesByRef.forEach((terrainRef, handle) -> {
+            if (handle.value() == targetSpaceHandle) {
+                terrainRefs.add(terrainRef);
+            }
+        });
+        return terrainRefs;
+    }
+
     public void forEachSpaceBinding(@Nonnull SpaceBindingConsumer consumer) {
         spaceHandlesByUuid.forEach((spaceUuid, spaceHandle) -> {
             BackendId backendId = backendIdsBySpaceUuid.get(spaceUuid);
@@ -618,6 +652,26 @@ public final class PhysicsRuntimeResource implements Resource<PhysicsStore> {
 
     public void clearTransientBodyOperations() {
         pendingBodyOperations.clear();
+    }
+
+    private void removeBodyHandleIndexes(@Nullable BackendBodyHandle removed,
+        @Nullable BackendSpaceHandle spaceHandle) {
+        if (removed == null || spaceHandle == null) {
+            return;
+        }
+        LongList bodyHandles = bodyHandlesBySpaceHandle.get(spaceHandle.value());
+        if (bodyHandles != null) {
+            bodyHandles.rem(removed.value());
+            if (bodyHandles.isEmpty()) {
+                bodyHandlesBySpaceHandle.remove(spaceHandle.value());
+            }
+        }
+        bodyHitMetadataByHandle.remove(removed.value());
+        BodySnapshotMetadata metadata = bodySnapshotMetadataByHandle.remove(removed.value());
+        if (metadata != null) {
+            bodyHandlesByRef.remove(metadata.bodyRef());
+            bodySpaceHandlesByRef.remove(metadata.bodyRef());
+        }
     }
 
     public void destroyBackendBindings() {
