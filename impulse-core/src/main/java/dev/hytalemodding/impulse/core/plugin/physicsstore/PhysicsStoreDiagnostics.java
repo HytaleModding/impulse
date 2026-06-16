@@ -79,7 +79,7 @@ public final class PhysicsStoreDiagnostics {
         PhysicsStoreThreading.requireWorldThread(store, "read live PhysicsStore backend state");
         PhysicsRuntimeResource runtime = store.getResource(PhysicsRuntimeResource.getResourceType());
         JointCountCapture count = new JointCountCapture();
-        runtime.forEachSpaceBinding((_, _, spaceHandle, backendRuntime) ->
+        runtime.forEachRuntimeSpaceBinding((_, _, spaceHandle, backendRuntime) ->
             count.add(backendRuntime.jointCount(spaceHandle.value())));
         return count.value();
     }
@@ -102,7 +102,7 @@ public final class PhysicsStoreDiagnostics {
         PhysicsStoreThreading.requireWorldThread(store, "read live PhysicsStore backend state");
         PhysicsRuntimeResource runtime = store.getResource(PhysicsRuntimeResource.getResourceType());
         CcdSupportCapture supported = new CcdSupportCapture();
-        runtime.forEachSpaceBinding((_, _, spaceHandle, backendRuntime) -> {
+        runtime.forEachRuntimeSpaceBinding((_, _, spaceHandle, backendRuntime) -> {
             if (backendRuntime.supportsContinuousCollision(spaceHandle.value())) {
                 supported.markSupported();
             }
@@ -193,13 +193,11 @@ public final class PhysicsStoreDiagnostics {
         PhysicsSpaceCompatibilityIndexResource compatibility = store.getResource(
             PhysicsSpaceCompatibilityIndexResource.getResourceType());
         List<SpaceSummary> summaries = new ArrayList<>();
-        runtime.forEachSpaceBinding((spaceUuid, backendId, spaceHandle, backendRuntime) -> {
-            SpaceId spaceId = compatibility.getSpaceId(spaceUuid);
-            if (spaceId != null) {
-                summaries.add(new SpaceSummary(spaceId,
-                    backendId,
-                    backendRuntime.bodyCount(spaceHandle.value()),
-                    backendRuntime.jointCount(spaceHandle.value())));
+        runtime.forEachRuntimeSpaceBinding((spaceRef, _, _, _) -> {
+            PhysicsStoreBackendAccess.SpaceContext context =
+                PhysicsStoreBackendAccess.space(runtime, spaceRef);
+            if (context != null && compatibility.getSpaceId(context.spaceUuid()) != null) {
+                summaries.add(PhysicsStoreBackendAccess.summary(compatibility, context));
             }
         });
         return summaries.isEmpty() ? List.of() : List.copyOf(summaries);
@@ -224,15 +222,10 @@ public final class PhysicsStoreDiagnostics {
     public static List<SpaceSummary> spaceSummaries(@Nonnull Store<PhysicsStore> store,
         @Nonnull SpaceId spaceId) {
         PhysicsStoreThreading.requireWorldThread(store, "read live PhysicsStore backend state");
-        PhysicsRuntimeResource runtime = store.getResource(PhysicsRuntimeResource.getResourceType());
         PhysicsSpaceCompatibilityIndexResource compatibility = store.getResource(
             PhysicsSpaceCompatibilityIndexResource.getResourceType());
-        UUID spaceUuid = compatibility.getSpaceUuid(Objects.requireNonNull(spaceId, "spaceId"));
-        if (spaceUuid == null) {
-            return List.of();
-        }
         PhysicsStoreBackendAccess.SpaceContext space =
-            PhysicsStoreBackendAccess.space(runtime, spaceUuid);
+            PhysicsStoreBackendAccess.space(store, Objects.requireNonNull(spaceId, "spaceId"));
         return space != null
             ? List.of(PhysicsStoreBackendAccess.summary(compatibility, space))
             : List.of();
@@ -261,11 +254,10 @@ public final class PhysicsStoreDiagnostics {
     public static List<SpaceSummary> spaceSummaries(@Nonnull Store<PhysicsStore> store,
         @Nonnull UUID spaceUuid) {
         PhysicsStoreThreading.requireWorldThread(store, "read live PhysicsStore backend state");
-        PhysicsRuntimeResource runtime = store.getResource(PhysicsRuntimeResource.getResourceType());
         PhysicsSpaceCompatibilityIndexResource compatibility = store.getResource(
             PhysicsSpaceCompatibilityIndexResource.getResourceType());
         PhysicsStoreBackendAccess.SpaceContext space =
-            PhysicsStoreBackendAccess.space(runtime, Objects.requireNonNull(spaceUuid, "spaceUuid"));
+            PhysicsStoreBackendAccess.space(store, Objects.requireNonNull(spaceUuid, "spaceUuid"));
         return space != null && compatibility.getSpaceId(space.spaceUuid()) != null
             ? List.of(PhysicsStoreBackendAccess.summary(compatibility, space))
             : List.of();
@@ -297,10 +289,10 @@ public final class PhysicsStoreDiagnostics {
         PhysicsSpaceCompatibilityIndexResource compatibility = store.getResource(
             PhysicsSpaceCompatibilityIndexResource.getResourceType());
         List<SpaceSummary> spaces = new ArrayList<>();
-        runtime.forEachSpaceBinding((spaceUuid, _, spaceHandle, backendRuntime) -> {
+        runtime.forEachRuntimeSpaceBinding((spaceRef, _, spaceHandle, backendRuntime) -> {
             if (!backendRuntime.supportsContinuousCollision(spaceHandle.value())) {
                 PhysicsStoreBackendAccess.SpaceContext context =
-                    PhysicsStoreBackendAccess.space(runtime, spaceUuid);
+                    PhysicsStoreBackendAccess.space(runtime, spaceRef);
                 if (context != null) {
                     spaces.add(PhysicsStoreBackendAccess.summary(compatibility, context));
                 }

@@ -48,6 +48,9 @@ public final class PhysicsRuntimeResource implements Resource<PhysicsStore> {
     private final Map<UUID, Ref<PhysicsStore>> spaceRefsByUuid =
         new Object2ObjectOpenHashMap<>();
     @Nonnull
+    private final Map<Ref<PhysicsStore>, UUID> spaceUuidsByRef =
+        new Object2ObjectOpenHashMap<>();
+    @Nonnull
     private final Map<Ref<PhysicsStore>, BackendSpaceHandle> spaceHandlesByRef =
         new Object2ObjectOpenHashMap<>();
     @Nonnull
@@ -149,6 +152,7 @@ public final class PhysicsRuntimeResource implements Resource<PhysicsStore> {
         @Nonnull BackendSpaceHandle handle) {
         Ref<PhysicsStore> previousRef = spaceRefsByUuid.remove(spaceUuid);
         if (previousRef != null) {
+            spaceUuidsByRef.remove(previousRef);
             backendIdsBySpaceRef.remove(previousRef);
             spaceHandlesByRef.remove(previousRef);
         }
@@ -156,6 +160,7 @@ public final class PhysicsRuntimeResource implements Resource<PhysicsStore> {
         spaceHandlesByUuid.put(spaceUuid, handle);
         if (spaceRef != null) {
             spaceRefsByUuid.put(spaceUuid, spaceRef);
+            spaceUuidsByRef.put(spaceRef, spaceUuid);
             backendIdsBySpaceRef.put(spaceRef, backendId);
             spaceHandlesByRef.put(spaceRef, handle);
         }
@@ -169,6 +174,11 @@ public final class PhysicsRuntimeResource implements Resource<PhysicsStore> {
     @Nullable
     public BackendSpaceHandle getSpaceHandle(@Nonnull Ref<PhysicsStore> spaceRef) {
         return spaceHandlesByRef.get(spaceRef);
+    }
+
+    @Nullable
+    public UUID getSpaceUuid(@Nonnull Ref<PhysicsStore> spaceRef) {
+        return spaceUuidsByRef.get(spaceRef);
     }
 
     @Nullable
@@ -186,6 +196,7 @@ public final class PhysicsRuntimeResource implements Resource<PhysicsStore> {
         backendIdsBySpaceUuid.remove(spaceUuid);
         Ref<PhysicsStore> spaceRef = spaceRefsByUuid.remove(spaceUuid);
         if (spaceRef != null) {
+            spaceUuidsByRef.remove(spaceRef);
             spaceHandlesByRef.remove(spaceRef);
             backendIdsBySpaceRef.remove(spaceRef);
         }
@@ -622,6 +633,7 @@ public final class PhysicsRuntimeResource implements Resource<PhysicsStore> {
         spaceHandlesByUuid.clear();
         backendIdsBySpaceUuid.clear();
         spaceRefsByUuid.clear();
+        spaceUuidsByRef.clear();
         spaceHandlesByRef.clear();
         backendIdsBySpaceRef.clear();
         bodyHandlesByUuid.clear();
@@ -770,6 +782,7 @@ public final class PhysicsRuntimeResource implements Resource<PhysicsStore> {
         copy.spaceHandlesByUuid.putAll(spaceHandlesByUuid);
         copy.backendIdsBySpaceUuid.putAll(backendIdsBySpaceUuid);
         copy.spaceRefsByUuid.putAll(spaceRefsByUuid);
+        copy.spaceUuidsByRef.putAll(spaceUuidsByRef);
         copy.spaceHandlesByRef.putAll(spaceHandlesByRef);
         copy.backendIdsBySpaceRef.putAll(backendIdsBySpaceRef);
         copy.bodyHandlesByUuid.putAll(bodyHandlesByUuid);

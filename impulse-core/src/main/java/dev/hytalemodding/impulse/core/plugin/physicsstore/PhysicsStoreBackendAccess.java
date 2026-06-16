@@ -1,5 +1,6 @@
 package dev.hytalemodding.impulse.core.plugin.physicsstore;
 
+import com.hypixel.hytale.component.Ref;
 import com.hypixel.hytale.component.Store;
 import com.hypixel.hytale.server.core.universe.world.storage.PhysicsStore;
 import dev.hytalemodding.impulse.api.BackendId;
@@ -7,6 +8,7 @@ import dev.hytalemodding.impulse.api.PhysicsBodyType;
 import dev.hytalemodding.impulse.api.ShapeType;
 import dev.hytalemodding.impulse.api.SpaceId;
 import dev.hytalemodding.impulse.api.runtime.PhysicsBackendRuntime;
+import dev.hytalemodding.impulse.core.internal.physicsstore.resources.PhysicsIdentityIndexResource;
 import dev.hytalemodding.impulse.core.internal.physicsstore.resources.PhysicsRuntimeResource;
 import dev.hytalemodding.impulse.core.internal.physicsstore.resources.PhysicsRuntimeResource.BodyHitMetadata;
 import dev.hytalemodding.impulse.core.internal.physicsstore.resources.PhysicsSpaceCompatibilityIndexResource;
@@ -25,27 +27,30 @@ final class PhysicsStoreBackendAccess {
     @Nullable
     static SpaceContext space(@Nonnull Store<PhysicsStore> store, @Nonnull SpaceId spaceId) {
         PhysicsStoreThreading.requireWorldThread(store, "read live PhysicsStore backend state");
-        PhysicsRuntimeResource runtime = store.getResource(PhysicsRuntimeResource.getResourceType());
         PhysicsSpaceCompatibilityIndexResource compatibility = store.getResource(
             PhysicsSpaceCompatibilityIndexResource.getResourceType());
         UUID spaceUuid = compatibility.getSpaceUuid(spaceId);
-        return spaceUuid != null ? space(runtime, spaceUuid) : null;
+        return spaceUuid != null ? space(store, spaceUuid) : null;
     }
 
     @Nullable
     static SpaceContext space(@Nonnull Store<PhysicsStore> store, @Nonnull UUID spaceUuid) {
         PhysicsStoreThreading.requireWorldThread(store, "read live PhysicsStore backend state");
         PhysicsRuntimeResource runtime = store.getResource(PhysicsRuntimeResource.getResourceType());
-        return space(runtime, spaceUuid);
+        Ref<PhysicsStore> spaceRef = store.getResource(PhysicsIdentityIndexResource.getResourceType())
+            .getByUuid(spaceUuid);
+        return spaceRef != null && spaceRef.isValid() ? space(runtime, spaceRef) : null;
     }
 
     @Nullable
-    static SpaceContext space(@Nonnull PhysicsRuntimeResource runtime, @Nonnull UUID spaceUuid) {
-        BackendSpaceHandle spaceHandle = runtime.getSpaceHandle(spaceUuid);
-        BackendId backendId = runtime.getSpaceBackendId(spaceUuid);
+    static SpaceContext space(@Nonnull PhysicsRuntimeResource runtime,
+        @Nonnull Ref<PhysicsStore> spaceRef) {
+        UUID spaceUuid = runtime.getSpaceUuid(spaceRef);
+        BackendSpaceHandle spaceHandle = runtime.getSpaceHandle(spaceRef);
+        BackendId backendId = runtime.getSpaceBackendId(spaceRef);
         PhysicsBackendRuntime backendRuntime =
             backendId != null ? runtime.getRuntime(backendId) : null;
-        if (spaceHandle == null || backendId == null || backendRuntime == null) {
+        if (spaceUuid == null || spaceHandle == null || backendId == null || backendRuntime == null) {
             return null;
         }
         return new SpaceContext(spaceUuid, backendId, spaceHandle, backendRuntime);
