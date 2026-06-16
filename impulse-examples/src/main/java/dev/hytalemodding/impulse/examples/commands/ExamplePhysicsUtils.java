@@ -15,7 +15,6 @@ import com.hypixel.hytale.server.core.universe.world.storage.PhysicsStore;
 import dev.hytalemodding.impulse.api.PhysicsBodyType;
 import dev.hytalemodding.impulse.api.SpaceId;
 import dev.hytalemodding.impulse.early.PhysicsStoreWorld;
-import dev.hytalemodding.impulse.core.internal.physicsstore.resources.PhysicsIdentityIndexResource;
 import dev.hytalemodding.impulse.core.internal.physicsstore.resources.PhysicsSpaceCompatibilityIndexResource;
 import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyKind;
 import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyPersistenceMode;
@@ -139,22 +138,6 @@ public final class ExamplePhysicsUtils {
             row.shape(),
             row.material(),
             row.filter()), AddReason.SPAWN);
-    }
-
-    public static boolean appendPhysicsStoreBodyCommand(@Nonnull World world,
-        @Nonnull UUID bodyUuid,
-        @Nonnull BodyCommandComponent command) {
-        Objects.requireNonNull(command, "command");
-        Store<PhysicsStore> store = physicsStore(world);
-        PhysicsStoreThreading.requireWorldThread(store, "append a PhysicsStore body command");
-        Ref<PhysicsStore> bodyRef = store
-            .getResource(PhysicsIdentityIndexResource.getResourceType())
-            .getByUuid(Objects.requireNonNull(bodyUuid, "bodyUuid"));
-        if (bodyRef == null || !bodyRef.isValid()) {
-            return false;
-        }
-        appendPhysicsStoreBodyCommand(store, bodyRef, command);
-        return true;
     }
 
     @Nullable
