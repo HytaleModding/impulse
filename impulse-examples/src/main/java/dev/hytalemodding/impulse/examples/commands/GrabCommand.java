@@ -25,7 +25,6 @@ import dev.hytalemodding.impulse.core.plugin.physicsstore.projection.BodyAttachm
 import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyKind;
 import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyPersistenceMode;
 import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyRegistrationView;
-import dev.hytalemodding.impulse.core.plugin.body.RigidBodyKey;
 import dev.hytalemodding.impulse.core.plugin.modules.control.PhysicsControlSessions;
 import dev.hytalemodding.impulse.core.plugin.physicsstore.PhysicsBodyRows;
 import dev.hytalemodding.impulse.core.plugin.physicsstore.PhysicsJointRows;
@@ -40,9 +39,7 @@ import dev.hytalemodding.impulse.core.plugin.resources.PhysicsWorldResource;
 import dev.hytalemodding.impulse.core.plugin.simulation.JointType;
 import dev.hytalemodding.impulse.core.plugin.simulation.PhysicsShapeSpec;
 import dev.hytalemodding.impulse.core.plugin.simulation.RigidBodySpawnSettings;
-import dev.hytalemodding.impulse.core.plugin.simulation.RigidBodyPose;
 import dev.hytalemodding.impulse.core.plugin.simulation.view.RaycastHitView;
-import dev.hytalemodding.impulse.core.plugin.simulation.view.RigidBodyStateView;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
@@ -169,7 +166,7 @@ public class GrabCommand extends AbstractAsyncPlayerCommand {
     private static GrabPhysicsState createGrabControl(@Nonnull World world,
         @Nonnull SpaceId selectedSpaceId,
         @Nonnull HitSelection selection) {
-        RigidBodyStateView selectedState = bodyState(world, selection.bodyRef(), selection.bodyKey());
+        PhysicsStoreBodySnapshot selectedState = bodyState(world, selection.bodyRef());
         if (selectedState == null) {
             return null;
         }
@@ -184,8 +181,8 @@ public class GrabCommand extends AbstractAsyncPlayerCommand {
         }
 
         Vector3f hitPoint = new Vector3f(selection.point());
-        Vector3f bodyLocalHit = new Vector3f(hitPoint).sub(selectedState.pose().position());
-        Quaternionf inverseBodyRotation = selectedState.pose().rotation();
+        Vector3f bodyLocalHit = new Vector3f(hitPoint).sub(selectedState.position());
+        Quaternionf inverseBodyRotation = selectedState.rotation();
         inverseBodyRotation.invert().transform(bodyLocalHit);
 
         UUID anchorBodyUuid = UUID.randomUUID();
@@ -265,7 +262,6 @@ public class GrabCommand extends AbstractAsyncPlayerCommand {
                 continue;
             }
             candidates.add(new HitCandidate(hit.bodyRef(),
-                registration.bodyKey(),
                 registration.spaceId(),
                 hit.point(),
                 hit.fraction(),
@@ -281,7 +277,6 @@ public class GrabCommand extends AbstractAsyncPlayerCommand {
 
             if (best == null || candidate.fraction() < best.fraction()) {
                 best = new HitSelection(candidate.bodyRef(),
-                    candidate.bodyKey(),
                     attachments.controllableAttachment(),
                     candidate.spaceId(),
                     candidate.point(),
@@ -293,20 +288,14 @@ public class GrabCommand extends AbstractAsyncPlayerCommand {
     }
 
     @Nullable
-    private static RigidBodyStateView bodyState(@Nonnull World world,
-        @Nonnull Ref<PhysicsStore> bodyRef,
-        @Nonnull RigidBodyKey bodyKey) {
+    private static PhysicsStoreBodySnapshot bodyState(@Nonnull World world,
+        @Nonnull Ref<PhysicsStore> bodyRef) {
         Store<PhysicsStore> store = ((PhysicsStoreWorld) world).getPhysicsStore().getStore();
         PhysicsStoreThreading.requireWorldThread(store,
             "read copied PhysicsStore grab body snapshot");
-        PhysicsStoreBodySnapshot body = store
+        return store
             .getResource(PhysicsSnapshotResource.getResourceType())
             .getBody(bodyRef);
-        return body != null
-            ? new RigidBodyStateView(bodyKey,
-                body.bodyType(),
-                RigidBodyPose.of(body.position(), body.rotation()))
-            : null;
     }
 
     @Nonnull
@@ -332,7 +321,6 @@ public class GrabCommand extends AbstractAsyncPlayerCommand {
     }
 
     private record HitSelection(@Nonnull Ref<PhysicsStore> bodyRef,
-                                @Nonnull RigidBodyKey bodyKey,
                                 @Nullable Ref<EntityStore> attachment,
                                 @Nullable SpaceId spaceId,
                                 @Nonnull Vector3f point,
@@ -341,7 +329,6 @@ public class GrabCommand extends AbstractAsyncPlayerCommand {
     }
 
     private record HitCandidate(@Nonnull Ref<PhysicsStore> bodyRef,
-                                @Nonnull RigidBodyKey bodyKey,
                                 @Nullable SpaceId spaceId,
                                 @Nonnull Vector3f point,
                                 float fraction,
