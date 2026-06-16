@@ -292,9 +292,27 @@ public abstract class PhysicsWorldResource implements Resource<EntityStore> {
     public abstract PhysicsSpaceSettings getSpaceSettings(@Nonnull SpaceId spaceId);
 
     /**
+     * Returns the current settings for a live PhysicsStore space row.
+     *
+     * <p>Prefer this overload when command or gameplay code already resolved the target
+     * space row.</p>
+     */
+    @Nonnull
+    public abstract PhysicsSpaceSettings getSpaceSettings(@Nonnull Ref<PhysicsStore> spaceRef);
+
+    /**
      * Applies settings to a registered physics space on the physics owner lane.
      */
     public abstract void setSpaceSettings(@Nonnull SpaceId spaceId,
+        @Nonnull PhysicsSpaceSettings settings);
+
+    /**
+     * Applies settings to a live PhysicsStore space row.
+     *
+     * <p>Prefer this overload when command or gameplay code already resolved the target
+     * space row.</p>
+     */
+    public abstract void setSpaceSettings(@Nonnull Ref<PhysicsStore> spaceRef,
         @Nonnull PhysicsSpaceSettings settings);
 
     /**

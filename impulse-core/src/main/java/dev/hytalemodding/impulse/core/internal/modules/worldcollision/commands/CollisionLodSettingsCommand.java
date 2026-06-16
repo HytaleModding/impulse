@@ -71,12 +71,16 @@ public class CollisionLodSettingsCommand extends AbstractAsyncPlayerCommand {
         @Nonnull PlayerRef playerRef,
         @Nonnull World world) {
         PhysicsWorldResource resource = store.getResource(PhysicsWorldResource.getResourceType());
-        SpaceId spaceId = SpaceSelection.resolve(ctx, world, spaceArg);
-        if (spaceId == null) {
+        SpaceSelection.SelectedSpace selectedSpace = SpaceSelection.resolveStoreSpace(ctx,
+            world,
+            spaceArg);
+        if (selectedSpace == null) {
             return CompletableFuture.completedFuture(null);
         }
+        SpaceId spaceId = selectedSpace.spaceId();
 
-        PhysicsSpaceSettings settings = new PhysicsSpaceSettings(resource.getSpaceSettings(spaceId));
+        PhysicsSpaceSettings settings = new PhysicsSpaceSettings(
+            resource.getSpaceSettings(selectedSpace.spaceRef()));
         if (!anyArgProvided(ctx)) {
             sendSummary(ctx, spaceId, settings);
             return CompletableFuture.completedFuture(null);
@@ -134,7 +138,7 @@ public class CollisionLodSettingsCommand extends AbstractAsyncPlayerCommand {
         settings.getCollisionLodSettings().setCollisionLodHysteresis(hysteresis);
         settings.getCollisionLodSettings().setCollisionLodRefreshIntervalTicks(interval);
         settings.getCollisionLodSettings().setCollisionLodFarSleepEnabled(farSleep);
-        resource.setSpaceSettings(spaceId, settings);
+        resource.setSpaceSettings(selectedSpace.spaceRef(), settings);
         sendSummary(ctx, spaceId, settings);
         return CompletableFuture.completedFuture(null);
     }

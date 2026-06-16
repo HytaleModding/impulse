@@ -18,6 +18,7 @@ import dev.hytalemodding.impulse.core.plugin.physicsstore.components.CollisionLo
 import dev.hytalemodding.impulse.core.plugin.physicsstore.components.ExtensionSettingsComponent;
 import dev.hytalemodding.impulse.core.plugin.physicsstore.components.SolverSettingsComponent;
 import dev.hytalemodding.impulse.core.plugin.physicsstore.components.SpaceComponent;
+import dev.hytalemodding.impulse.core.plugin.physicsstore.components.UuidComponent;
 import dev.hytalemodding.impulse.core.plugin.physicsstore.components.VisualMaterializationSettingsComponent;
 import dev.hytalemodding.impulse.core.plugin.physicsstore.components.VisualSyncSettingsComponent;
 import dev.hytalemodding.impulse.core.plugin.physicsstore.components.WorldCollisionComponent;
@@ -86,6 +87,13 @@ public final class PhysicsStoreSpaceMutations {
         @Nonnull PhysicsSpaceSettings settings) {
         UUID spaceUuid = requireSpaceUuid(store, spaceId);
         Ref<PhysicsStore> ref = requireSpaceRef(store, spaceUuid);
+        putSpaceSettings(store, ref, spaceUuid, settings);
+    }
+
+    public static void putSpaceSettings(@Nonnull Store<PhysicsStore> store,
+        @Nonnull Ref<PhysicsStore> ref,
+        @Nonnull PhysicsSpaceSettings settings) {
+        UUID spaceUuid = requireSpaceUuid(store, ref);
         putSpaceSettings(store, ref, spaceUuid, settings);
     }
 
@@ -208,5 +216,23 @@ public final class PhysicsStoreSpaceMutations {
                 + " row is not registered");
         }
         return ref;
+    }
+
+    @Nonnull
+    private static UUID requireSpaceUuid(@Nonnull Store<PhysicsStore> store,
+        @Nonnull Ref<PhysicsStore> ref) {
+        Objects.requireNonNull(ref, "ref");
+        PhysicsStoreThreading.requireWorldThread(store, "resolve a PhysicsStore space UUID");
+        if (ref.getStore() != store || !ref.isValid()) {
+            throw new IllegalArgumentException("PhysicsStore space row is not valid: " + ref);
+        }
+        if (store.getComponent(ref, SpaceComponent.getComponentType()) == null) {
+            throw new IllegalArgumentException("PhysicsStore row is not a space row: " + ref);
+        }
+        UuidComponent uuid = store.getComponent(ref, UuidComponent.getComponentType());
+        if (uuid == null) {
+            throw new IllegalArgumentException("PhysicsStore space row has no durable UUID: " + ref);
+        }
+        return uuid.getUuid();
     }
 }

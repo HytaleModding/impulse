@@ -283,6 +283,18 @@ public class PhysicsWorldRuntimeResource extends PhysicsWorldResource {
         if (ref == null || !ref.isValid()) {
             return null;
         }
+        return getPhysicsStoreSpaceSettings(store, ref);
+    }
+
+    @Nullable
+    private static PhysicsSpaceSettings getPhysicsStoreSpaceSettings(
+        @Nonnull Store<PhysicsStore> store,
+        @Nonnull Ref<PhysicsStore> ref) {
+        Objects.requireNonNull(store, "store");
+        Objects.requireNonNull(ref, "ref");
+        if (ref.getStore() != store || !ref.isValid()) {
+            return null;
+        }
         SpaceComponent space = store.getComponent(ref, SpaceComponent.getComponentType());
         if (space == null) {
             return null;
@@ -1682,6 +1694,23 @@ public class PhysicsWorldRuntimeResource extends PhysicsWorldResource {
     }
 
     @Nonnull
+    @Override
+    public PhysicsSpaceSettings getSpaceSettings(@Nonnull Ref<PhysicsStore> spaceRef) {
+        if (!isAuthoritativePhysicsStoreActive()) {
+            throw new IllegalStateException("Cannot read PhysicsStore space settings by row ref "
+                + "when authoritative PhysicsStore mode is unavailable");
+        }
+        PhysicsSpaceSettings settings = getPhysicsStoreSpaceSettings(
+            authoritativePhysicsStore("read physics space settings"),
+            spaceRef);
+        if (settings == null) {
+            throw new IllegalArgumentException("PhysicsStore space ref=" + spaceRef
+                + " is not registered");
+        }
+        return settings;
+    }
+
+    @Nonnull
     public PhysicsSpaceSettings getLiveSpaceSettings(@Nonnull SpaceId spaceId) {
         return spaceRuntime.getLiveSpaceSettings(spaceId);
     }
@@ -1698,6 +1727,19 @@ public class PhysicsWorldRuntimeResource extends PhysicsWorldResource {
         requireLegacyMutationAllowed("set physics space settings");
         PhysicsSpaceSettings requested = new PhysicsSpaceSettings(settings);
         runDirectRuntimeMutation("set physics space settings", () -> setSpaceSettingsDirect(spaceId, requested));
+    }
+
+    @Override
+    public void setSpaceSettings(@Nonnull Ref<PhysicsStore> spaceRef,
+        @Nonnull PhysicsSpaceSettings settings) {
+        if (!isAuthoritativePhysicsStoreActive()) {
+            throw new IllegalStateException("Cannot set PhysicsStore space settings by row ref "
+                + "when authoritative PhysicsStore mode is unavailable");
+        }
+        PhysicsStoreSpaceMutations.putSpaceSettings(
+            authoritativePhysicsStore("set physics space settings"),
+            spaceRef,
+            settings);
     }
 
     @Nonnull

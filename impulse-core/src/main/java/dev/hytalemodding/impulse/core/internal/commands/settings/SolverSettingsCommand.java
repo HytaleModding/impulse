@@ -1,5 +1,6 @@
 package dev.hytalemodding.impulse.core.internal.commands.settings;
 
+import com.hypixel.hytale.component.Ref;
 import com.hypixel.hytale.component.Store;
 import com.hypixel.hytale.server.core.Message;
 import com.hypixel.hytale.server.core.command.system.CommandContext;
@@ -8,6 +9,7 @@ import com.hypixel.hytale.server.core.command.system.arguments.types.ArgTypes;
 import com.hypixel.hytale.server.core.command.system.basecommands.AbstractAsyncWorldCommand;
 import com.hypixel.hytale.server.core.universe.world.World;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
+import com.hypixel.hytale.server.core.universe.world.storage.PhysicsStore;
 import dev.hytalemodding.impulse.api.SpaceId;
 import dev.hytalemodding.impulse.core.internal.commands.SpaceSelection;
 import dev.hytalemodding.impulse.core.plugin.physicsstore.PhysicsStoreDiagnostics;
@@ -64,14 +66,16 @@ public class SolverSettingsCommand extends AbstractAsyncWorldCommand {
         SpaceId spaceId = selectedSpace.spaceId();
         return PhysicsStoreAsync.acceptOnWorldThread(world,
             PhysicsStoreDiagnostics.solverCapabilityAsync(world, selectedSpace.spaceRef()),
-            summary -> applySettings(ctx, resource, spaceId, summary));
+            summary -> applySettings(ctx, resource, selectedSpace.spaceRef(), spaceId, summary));
     }
 
     private void applySettings(@Nonnull CommandContext ctx,
         @Nonnull PhysicsWorldResource resource,
+        @Nonnull Ref<PhysicsStore> spaceRef,
         @Nonnull SpaceId spaceId,
         @Nonnull SolverCapabilitySummary summary) {
-        PhysicsSpaceSettings settings = new PhysicsSpaceSettings(resource.getSpaceSettings(spaceId));
+        PhysicsSpaceSettings settings = new PhysicsSpaceSettings(
+            resource.getSpaceSettings(spaceRef));
         if (!anyArgProvided(ctx)) {
             sendSummary(ctx, spaceId, summary, settings);
             return;
@@ -109,7 +113,7 @@ public class SolverSettingsCommand extends AbstractAsyncWorldCommand {
         settings.getSolverSettings().setSolverIterations(solverIterations);
         settings.getSolverSettings().setStabilizationIterations(stabilizationIterations);
         settings.getSolverSettings().setDynamicSleepTuning(sleepLinearThreshold, sleepAngularThreshold, sleepTime);
-        resource.setSpaceSettings(spaceId, settings);
+        resource.setSpaceSettings(spaceRef, settings);
         sendSummary(ctx, spaceId, summary, settings);
     }
 
