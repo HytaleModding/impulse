@@ -169,21 +169,6 @@ public final class PhysicsJointRegistry {
         return getJointUuid(spaceId, backendJointHandle.value());
     }
 
-    @Nullable
-    public PhysicsJointRegistration findJointBetween(@Nonnull SpaceId spaceId,
-        @Nonnull UUID bodyAUuid,
-        @Nonnull UUID bodyBUuid) {
-        for (PhysicsJointRegistration registration : registrationsByUuid.values()) {
-            if (!registration.spaceId().equals(spaceId)) {
-                continue;
-            }
-            if (connects(bodyAUuid, bodyBUuid, registration.bodyAUuid(), registration.bodyBUuid())) {
-                return registration;
-            }
-        }
-        return null;
-    }
-
     @Nonnull
     public Collection<PhysicsJointRegistration> getRegistrations() {
         return new ArrayList<>(registrationsByUuid.values());
@@ -206,11 +191,4 @@ public final class PhysicsJointRegistry {
         }
     }
 
-    private static boolean connects(@Nonnull UUID expectedA,
-        @Nonnull UUID expectedB,
-        @Nonnull UUID actualA,
-        @Nonnull UUID actualB) {
-        return (expectedA.equals(actualA) && expectedB.equals(actualB))
-            || (expectedA.equals(actualB) && expectedB.equals(actualA));
-    }
 }

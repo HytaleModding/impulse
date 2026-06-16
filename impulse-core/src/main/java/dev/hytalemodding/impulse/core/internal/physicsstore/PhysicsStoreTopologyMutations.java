@@ -19,7 +19,6 @@ import dev.hytalemodding.impulse.core.internal.resources.BackendBodyHandle;
 import dev.hytalemodding.impulse.core.internal.resources.BackendJointHandle;
 import dev.hytalemodding.impulse.core.internal.resources.BackendSpaceHandle;
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsRuntimeResetResult;
-import dev.hytalemodding.impulse.core.plugin.body.RigidBodyKey;
 import dev.hytalemodding.impulse.core.plugin.physicsstore.PhysicsStoreThreading;
 import dev.hytalemodding.impulse.core.plugin.physicsstore.components.BodyComponent;
 import dev.hytalemodding.impulse.core.plugin.physicsstore.components.JointComponent;
@@ -40,11 +39,6 @@ import javax.annotation.Nullable;
 public final class PhysicsStoreTopologyMutations {
 
     private PhysicsStoreTopologyMutations() {
-    }
-
-    public static void destroyBody(@Nonnull Store<PhysicsStore> store,
-        @Nonnull RigidBodyKey bodyKey) {
-        destroyBody(store, Objects.requireNonNull(bodyKey, "bodyKey").value());
     }
 
     public static void destroyBody(@Nonnull Store<PhysicsStore> store,

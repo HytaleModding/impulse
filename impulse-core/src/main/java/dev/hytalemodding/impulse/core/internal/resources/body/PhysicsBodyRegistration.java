@@ -2,7 +2,6 @@ package dev.hytalemodding.impulse.core.internal.resources.body;
 
 import dev.hytalemodding.impulse.api.SpaceId;
 import dev.hytalemodding.impulse.core.internal.resources.BackendBodyHandle;
-import dev.hytalemodding.impulse.core.plugin.body.RigidBodyKey;
 import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyKind;
 import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyPersistenceMode;
 import java.util.Objects;
@@ -24,22 +23,5 @@ public record PhysicsBodyRegistration(@Nonnull UUID bodyUuid,
         Objects.requireNonNull(spaceId, "spaceId");
         Objects.requireNonNull(kind, "kind");
         Objects.requireNonNull(persistenceMode, "persistenceMode");
-    }
-
-    public PhysicsBodyRegistration(@Nonnull RigidBodyKey bodyKey,
-        @Nonnull BackendBodyHandle backendBodyHandle,
-        @Nonnull SpaceId spaceId,
-        @Nonnull PhysicsBodyKind kind,
-        @Nonnull PhysicsBodyPersistenceMode persistenceMode) {
-        this(Objects.requireNonNull(bodyKey, "bodyKey").value(),
-            backendBodyHandle,
-            spaceId,
-            kind,
-            persistenceMode);
-    }
-
-    @Nonnull
-    public RigidBodyKey bodyKey() {
-        return RigidBodyKey.of(bodyUuid);
     }
 }
