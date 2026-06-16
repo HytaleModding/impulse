@@ -76,7 +76,7 @@ public final class PhysicsBodyRuntime {
             bodyRegistry.registerBody(bodyKey, backendBodyHandle, spaceId, kind, persistenceMode);
         PhysicsBodySnapshot snapshot = PhysicsBodySnapshots.read(binding, backendBodyId);
         if (snapshot != null) {
-            lifecycleState.putBodySnapshot(bodyKey,
+            lifecycleState.putBodySnapshot(registration.bodyUuid(),
                 snapshot,
                 spaceId,
                 registration.kind(),

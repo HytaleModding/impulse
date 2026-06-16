@@ -67,8 +67,20 @@ public final class PhysicsWorldSnapshotState {
         @Nonnull SpaceId spaceId,
         @Nonnull PhysicsBodyKind kind,
         @Nonnull PhysicsBodyPersistenceMode persistenceMode) {
-        bodySnapshots.put(bodyKey, snapshot, spaceId, kind, persistenceMode);
-        ownerBodySnapshots.put(bodyKey, snapshot, spaceId, kind, persistenceMode);
+        putBodySnapshot(Objects.requireNonNull(bodyKey, "bodyKey").value(),
+            snapshot,
+            spaceId,
+            kind,
+            persistenceMode);
+    }
+
+    public void putBodySnapshot(@Nonnull UUID bodyUuid,
+        @Nonnull PhysicsBodySnapshot snapshot,
+        @Nonnull SpaceId spaceId,
+        @Nonnull PhysicsBodyKind kind,
+        @Nonnull PhysicsBodyPersistenceMode persistenceMode) {
+        bodySnapshots.put(bodyUuid, snapshot, spaceId, kind, persistenceMode);
+        ownerBodySnapshots.put(bodyUuid, snapshot, spaceId, kind, persistenceMode);
     }
 
     @Nonnull

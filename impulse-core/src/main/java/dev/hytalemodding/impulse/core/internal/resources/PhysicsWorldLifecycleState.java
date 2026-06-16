@@ -61,6 +61,14 @@ public final class PhysicsWorldLifecycleState {
         snapshotState.putBodySnapshot(bodyKey, snapshot, spaceId, kind, persistenceMode);
     }
 
+    public void putBodySnapshot(@Nonnull UUID bodyUuid,
+        @Nonnull PhysicsBodySnapshot snapshot,
+        @Nonnull SpaceId spaceId,
+        @Nonnull PhysicsBodyKind kind,
+        @Nonnull PhysicsBodyPersistenceMode persistenceMode) {
+        snapshotState.putBodySnapshot(bodyUuid, snapshot, spaceId, kind, persistenceMode);
+    }
+
     @Nonnull
     public PublishedPhysicsSnapshotFrame capturePublishedSnapshotFrame(
         @Nonnull Collection<PhysicsSpaceBinding> spaces,
