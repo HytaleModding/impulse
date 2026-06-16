@@ -1820,24 +1820,19 @@ public class PhysicsWorldRuntimeResource extends PhysicsWorldResource {
 
     @Nonnull
     @Override
-    public PhysicsMutationHandle<RigidBodyKey> destroyBodyAsync(@Nonnull RigidBodyKey bodyKey) {
-        if (isAuthoritativePhysicsStoreActive()) {
-            UUID bodyUuid = bodyKey.value();
-            return enqueueAuthoritativePhysicsStoreMutation("destroy physics body",
-                bodyKey,
-                store -> PhysicsStoreTopologyMutations.destroyBody(store, bodyUuid));
-        }
-        requireLegacyMutationAllowed("destroy physics body");
-        return destroyBodyAsync(bodyKey, true);
+    public PhysicsMutationHandle<UUID> destroyBodyAsync(@Nonnull UUID bodyUuid) {
+        return destroyBodyAsync(bodyUuid, true);
     }
 
     public void destroyBody(@Nonnull RigidBodyKey bodyKey, boolean removeFromSpace) {
+        RigidBodyKey checkedBodyKey = Objects.requireNonNull(bodyKey, "bodyKey");
         if (isAuthoritativePhysicsStoreActive()) {
-            destroyBody(bodyKey.value());
+            destroyBody(checkedBodyKey.value());
             return;
         }
         requireLegacyMutationAllowed("destroy physics body");
-        runDirectRuntimeMutation("destroy physics body", () -> destroyBodyDirect(bodyKey, removeFromSpace));
+        runDirectRuntimeMutation("destroy physics body",
+            () -> destroyBodyDirect(checkedBodyKey.value(), removeFromSpace));
     }
 
     public void destroyBody(@Nonnull UUID bodyUuid, boolean removeFromSpace) {
@@ -1852,20 +1847,25 @@ public class PhysicsWorldRuntimeResource extends PhysicsWorldResource {
     @Nonnull
     public PhysicsMutationHandle<RigidBodyKey> destroyBodyAsync(@Nonnull RigidBodyKey bodyKey,
         boolean removeFromSpace) {
+        RigidBodyKey checkedBodyKey = Objects.requireNonNull(bodyKey, "bodyKey");
+        return PhysicsMutationHandle.fromCompletion("destroy physics body",
+            checkedBodyKey,
+            destroyBodyAsync(checkedBodyKey.value(), removeFromSpace).completion());
+    }
+
+    @Nonnull
+    public PhysicsMutationHandle<UUID> destroyBodyAsync(@Nonnull UUID bodyUuid,
+        boolean removeFromSpace) {
+        UUID checkedBodyUuid = Objects.requireNonNull(bodyUuid, "bodyUuid");
         if (isAuthoritativePhysicsStoreActive()) {
-            UUID bodyUuid = bodyKey.value();
             return enqueueAuthoritativePhysicsStoreMutation("destroy physics body",
-                bodyKey,
-                store -> PhysicsStoreTopologyMutations.destroyBody(store, bodyUuid));
+                checkedBodyUuid,
+                store -> PhysicsStoreTopologyMutations.destroyBody(store, checkedBodyUuid));
         }
         requireLegacyMutationAllowed("destroy physics body");
         return enqueueDirectRuntimeMutation("destroy physics body",
-            bodyKey,
-            () -> destroyBodyDirect(bodyKey, removeFromSpace));
-    }
-
-    private void destroyBodyDirect(@Nonnull RigidBodyKey bodyKey, boolean removeFromSpace) {
-        bodyRuntime.destroyBody(bodyKey, removeFromSpace);
+            checkedBodyUuid,
+            () -> destroyBodyDirect(checkedBodyUuid, removeFromSpace));
     }
 
     private void destroyBodyDirect(@Nonnull UUID bodyUuid, boolean removeFromSpace) {

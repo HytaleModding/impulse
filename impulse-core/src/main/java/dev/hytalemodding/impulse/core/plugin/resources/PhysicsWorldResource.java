@@ -347,12 +347,21 @@ public abstract class PhysicsWorldResource implements Resource<EntityStore> {
      */
     public abstract void destroyBody(@Nonnull UUID bodyUuid);
 
+    @Nonnull
+    public abstract PhysicsMutationHandle<UUID> destroyBodyAsync(@Nonnull UUID bodyUuid);
+
     /**
      * Queues destruction of a registered body by stable key.
+     *
+     * <p>This overload is retained for compatibility with legacy event/facade APIs.</p>
      */
     @Nonnull
-    public abstract PhysicsMutationHandle<RigidBodyKey> destroyBodyAsync(
-        @Nonnull RigidBodyKey bodyKey);
+    public PhysicsMutationHandle<RigidBodyKey> destroyBodyAsync(@Nonnull RigidBodyKey bodyKey) {
+        RigidBodyKey checkedBodyKey = Objects.requireNonNull(bodyKey, "bodyKey");
+        return PhysicsMutationHandle.fromCompletion("destroy physics body",
+            checkedBodyKey,
+            destroyBodyAsync(checkedBodyKey.value()).completion());
+    }
 
     /**
      * Returns immutable registration metadata for a body UUID.
