@@ -9,6 +9,7 @@ import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyKind;
 import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyPersistenceMode;
 import dev.hytalemodding.impulse.core.plugin.body.RigidBodyKey;
 import java.util.Objects;
+import java.util.UUID;
 import java.util.function.Consumer;
 import javax.annotation.Nonnull;
 
@@ -51,7 +52,8 @@ final class PublishedPhysicsBodyFrameStorage {
     private final long[] spaceEpochs;
     private final int[] spaceBodyStarts;
     private final int[] spaceBodyCounts;
-    private final RigidBodyKey[] bodyKeys;
+    private final long[] bodyUuidMostSignificantBits;
+    private final long[] bodyUuidLeastSignificantBits;
     private final SpaceId[] bodySpaceIds;
     private final long[] bodySpaceEpochs;
     private final long[] registrationGenerations;
@@ -71,7 +73,8 @@ final class PublishedPhysicsBodyFrameStorage {
         long[] spaceEpochs,
         int[] spaceBodyStarts,
         int[] spaceBodyCounts,
-        RigidBodyKey[] bodyKeys,
+        long[] bodyUuidMostSignificantBits,
+        long[] bodyUuidLeastSignificantBits,
         SpaceId[] bodySpaceIds,
         long[] bodySpaceEpochs,
         long[] registrationGenerations,
@@ -90,7 +93,8 @@ final class PublishedPhysicsBodyFrameStorage {
         this.spaceEpochs = spaceEpochs;
         this.spaceBodyStarts = spaceBodyStarts;
         this.spaceBodyCounts = spaceBodyCounts;
-        this.bodyKeys = bodyKeys;
+        this.bodyUuidMostSignificantBits = bodyUuidMostSignificantBits;
+        this.bodyUuidLeastSignificantBits = bodyUuidLeastSignificantBits;
         this.bodySpaceIds = bodySpaceIds;
         this.bodySpaceEpochs = bodySpaceEpochs;
         this.registrationGenerations = registrationGenerations;
@@ -114,7 +118,7 @@ final class PublishedPhysicsBodyFrameStorage {
     }
 
     int bodyCount() {
-        return bodyKeys.length;
+        return bodyUuidMostSignificantBits.length;
     }
 
     SpaceId spaceId(int spaceIndex) {
@@ -134,7 +138,8 @@ final class PublishedPhysicsBodyFrameStorage {
     }
 
     PublishedPhysicsBodySnapshot bodySnapshot(int bodyIndex) {
-        return new PublishedPhysicsBodySnapshot(bodyKey(bodyIndex),
+        return new PublishedPhysicsBodySnapshot(bodyUuidMostSignificantBits(bodyIndex),
+            bodyUuidLeastSignificantBits(bodyIndex),
             bodySpaceId(bodyIndex),
             frameEpoch,
             worldEpoch,
@@ -180,14 +185,23 @@ final class PublishedPhysicsBodyFrameStorage {
     void forEachBodyCursor(@Nonnull Consumer<? super PublishedPhysicsBodySnapshotCursor> consumer) {
         Objects.requireNonNull(consumer, "consumer");
         FrameBodyCursor cursor = new FrameBodyCursor();
-        for (int bodyIndex = 0; bodyIndex < bodyKeys.length; bodyIndex++) {
+        for (int bodyIndex = 0; bodyIndex < bodyUuidMostSignificantBits.length; bodyIndex++) {
             cursor.index = bodyIndex;
             consumer.accept(cursor);
         }
     }
 
-    private RigidBodyKey bodyKey(int bodyIndex) {
-        return bodyKeys[bodyIndex];
+    private UUID bodyUuid(int bodyIndex) {
+        return new UUID(bodyUuidMostSignificantBits(bodyIndex),
+            bodyUuidLeastSignificantBits(bodyIndex));
+    }
+
+    private long bodyUuidMostSignificantBits(int bodyIndex) {
+        return bodyUuidMostSignificantBits[bodyIndex];
+    }
+
+    private long bodyUuidLeastSignificantBits(int bodyIndex) {
+        return bodyUuidLeastSignificantBits[bodyIndex];
     }
 
     private SpaceId bodySpaceId(int bodyIndex) {
@@ -354,7 +368,8 @@ final class PublishedPhysicsBodyFrameStorage {
         private final long[] spaceEpochs;
         private final int[] spaceBodyStarts;
         private final int[] spaceBodyCounts;
-        private final RigidBodyKey[] bodyKeys;
+        private final long[] bodyUuidMostSignificantBits;
+        private final long[] bodyUuidLeastSignificantBits;
         private final SpaceId[] bodySpaceIds;
         private final long[] bodySpaceEpochs;
         private final long[] registrationGenerations;
@@ -385,7 +400,8 @@ final class PublishedPhysicsBodyFrameStorage {
             this.spaceEpochs = new long[expectedSpaces];
             this.spaceBodyStarts = new int[expectedSpaces];
             this.spaceBodyCounts = new int[expectedSpaces];
-            this.bodyKeys = new RigidBodyKey[expectedBodies];
+            this.bodyUuidMostSignificantBits = new long[expectedBodies];
+            this.bodyUuidLeastSignificantBits = new long[expectedBodies];
             this.bodySpaceIds = new SpaceId[expectedBodies];
             this.bodySpaceEpochs = new long[expectedBodies];
             this.registrationGenerations = new long[expectedBodies];
@@ -424,6 +440,43 @@ final class PublishedPhysicsBodyFrameStorage {
             @Nonnull PhysicsBodyKind kind,
             @Nonnull PhysicsBodyPersistenceMode persistenceMode,
             @Nonnull PhysicsBodySnapshot snapshot) {
+            Objects.requireNonNull(bodyKey, "bodyKey");
+            addBody(bodyKey.mostSignificantBits(),
+                bodyKey.leastSignificantBits(),
+                spaceId,
+                spaceEpoch,
+                registrationGeneration,
+                kind,
+                persistenceMode,
+                snapshot);
+        }
+
+        void addBody(@Nonnull UUID bodyUuid,
+            @Nonnull SpaceId spaceId,
+            long spaceEpoch,
+            long registrationGeneration,
+            @Nonnull PhysicsBodyKind kind,
+            @Nonnull PhysicsBodyPersistenceMode persistenceMode,
+            @Nonnull PhysicsBodySnapshot snapshot) {
+            Objects.requireNonNull(bodyUuid, "bodyUuid");
+            addBody(bodyUuid.getMostSignificantBits(),
+                bodyUuid.getLeastSignificantBits(),
+                spaceId,
+                spaceEpoch,
+                registrationGeneration,
+                kind,
+                persistenceMode,
+                snapshot);
+        }
+
+        private void addBody(long bodyUuidMostSignificantBits,
+            long bodyUuidLeastSignificantBits,
+            @Nonnull SpaceId spaceId,
+            long spaceEpoch,
+            long registrationGeneration,
+            @Nonnull PhysicsBodyKind kind,
+            @Nonnull PhysicsBodyPersistenceMode persistenceMode,
+            @Nonnull PhysicsBodySnapshot snapshot) {
             Objects.requireNonNull(snapshot, "snapshot");
             if (currentSpace < 0) {
                 throw new IllegalStateException("add a space before adding bodies to a published frame");
@@ -434,10 +487,11 @@ final class PublishedPhysicsBodyFrameStorage {
             if (currentSpaceBodyCount >= spaceBodyCounts[currentSpace]) {
                 throw new IllegalStateException("too many bodies added to current published space frame");
             }
-            if (nextBody >= bodyKeys.length) {
+            if (nextBody >= this.bodyUuidMostSignificantBits.length) {
                 throw new IllegalStateException("too many bodies added to published frame");
             }
-            bodyKeys[nextBody] = Objects.requireNonNull(bodyKey, "bodyKey");
+            this.bodyUuidMostSignificantBits[nextBody] = bodyUuidMostSignificantBits;
+            this.bodyUuidLeastSignificantBits[nextBody] = bodyUuidLeastSignificantBits;
             bodySpaceIds[nextBody] = Objects.requireNonNull(spaceId, "spaceId");
             bodySpaceEpochs[nextBody] = spaceEpoch;
             registrationGenerations[nextBody] = registrationGeneration;
@@ -495,7 +549,7 @@ final class PublishedPhysicsBodyFrameStorage {
             if (nextSpace != spaceIds.length) {
                 throw new IllegalStateException("published frame space count mismatch");
             }
-            if (nextBody != bodyKeys.length) {
+            if (nextBody != bodyUuidMostSignificantBits.length) {
                 throw new IllegalStateException("published frame body count mismatch");
             }
             return new PublishedPhysicsBodyFrameStorage(frameEpoch,
@@ -504,7 +558,8 @@ final class PublishedPhysicsBodyFrameStorage {
                 spaceEpochs,
                 spaceBodyStarts,
                 spaceBodyCounts,
-                bodyKeys,
+                bodyUuidMostSignificantBits,
+                bodyUuidLeastSignificantBits,
                 bodySpaceIds,
                 bodySpaceEpochs,
                 registrationGenerations,
@@ -536,8 +591,15 @@ final class PublishedPhysicsBodyFrameStorage {
 
         @Nonnull
         @Override
+        public UUID bodyUuid() {
+            return PublishedPhysicsBodyFrameStorage.this.bodyUuid(index);
+        }
+
+        @Nonnull
+        @Override
         public RigidBodyKey bodyKey() {
-            return PublishedPhysicsBodyFrameStorage.this.bodyKey(index);
+            return RigidBodyKey.of(bodyUuidMostSignificantBits(index),
+                bodyUuidLeastSignificantBits(index));
         }
 
         @Nonnull
