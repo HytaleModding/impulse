@@ -122,9 +122,15 @@ public final class ExplosiveFuseTickSystem extends EntityTickingSystem<EntitySto
             .getPhysicsStore().getStore();
         PhysicsStoreThreading.requireWorldThread(physics,
             "read copied PhysicsStore explosive body registration");
-        PhysicsBodyRegistrationView registration = physics
-            .getResource(PhysicsBodyRegistrationResource.getResourceType())
-            .getBodyRegistrationView(attachment.getBodyUuid());
+        PhysicsBodyRegistrationResource registrations = physics
+            .getResource(PhysicsBodyRegistrationResource.getResourceType());
+        Ref<PhysicsStore> bodyRef = attachment.getBodyRef();
+        PhysicsBodyRegistrationView registration = bodyRef != null && bodyRef.isValid()
+            ? registrations.getBodyRegistrationView(bodyRef)
+            : null;
+        if (registration == null) {
+            registration = registrations.getBodyRegistrationView(attachment.getBodyUuid());
+        }
         return registration != null ? registration.spaceId() : null;
     }
 
@@ -136,9 +142,18 @@ public final class ExplosiveFuseTickSystem extends EntityTickingSystem<EntitySto
             .getPhysicsStore().getStore();
         PhysicsStoreThreading.requireWorldThread(physics,
             "read copied PhysicsStore explosive body snapshot");
-        PhysicsStoreBodySnapshot snapshot = physics
-            .getResource(PhysicsSnapshotResource.getResourceType())
-            .getBody(bodyUuid);
+        PhysicsSnapshotResource snapshots = physics
+            .getResource(PhysicsSnapshotResource.getResourceType());
+        Ref<PhysicsStore> bodyRef = attachment.getBodyRef();
+        PhysicsStoreBodySnapshot snapshot = bodyRef != null && bodyRef.isValid()
+            ? snapshots.getBody(bodyRef)
+            : null;
+        if (snapshot != null && !bodyUuid.equals(snapshot.bodyUuid())) {
+            snapshot = null;
+        }
+        if (snapshot == null) {
+            snapshot = snapshots.getBody(bodyUuid);
+        }
         return snapshot != null ? BodyMotionSnapshot.from(snapshot) : null;
     }
 
