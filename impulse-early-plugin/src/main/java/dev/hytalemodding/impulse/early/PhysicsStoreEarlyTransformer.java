@@ -17,6 +17,7 @@ import java.lang.classfile.instruction.ReturnInstruction;
 import java.lang.constant.ClassDesc;
 import java.lang.constant.ConstantDescs;
 import java.lang.constant.MethodTypeDesc;
+import java.util.ArrayList;
 import javax.annotation.Nonnull;
 
 public final class PhysicsStoreEarlyTransformer implements ClassTransformer {
@@ -161,7 +162,7 @@ public final class PhysicsStoreEarlyTransformer implements ClassTransformer {
             }
             return CLASS_FILE.transformClass(model,
                 ClassTransform.ACCEPT_ALL.andThen(ClassTransform.endHandler(builder ->
-                    builder.withInterfaceSymbols(CD_PHYSICS_STORE_WORLD))));
+                    addPhysicsStoreWorldInterface(model, builder))));
         }
         boolean fieldPresent = hasField(model.fields(), WORLD_STORE_FIELD, CD_PHYSICS_STORE);
         boolean methodPresent = hasMethod(model.methods(), WORLD_STORE_METHOD, MTD_PHYSICS_STORE);
@@ -190,7 +191,7 @@ public final class PhysicsStoreEarlyTransformer implements ClassTransformer {
                     addWorldStoreAccessor(builder);
                 }
                 if (!interfacePresent) {
-                    builder.withInterfaceSymbols(CD_PHYSICS_STORE_WORLD);
+                    addPhysicsStoreWorldInterface(model, builder);
                 }
                 builder.withField(WORLD_PATCH_MARKER_FIELD,
                     ConstantDescs.CD_boolean,
@@ -254,6 +255,18 @@ public final class PhysicsStoreEarlyTransformer implements ClassTransformer {
             code -> code.aload(0)
                 .getfield(CD_WORLD, WORLD_STORE_FIELD, CD_PHYSICS_STORE)
                 .areturn());
+    }
+
+    private static void addPhysicsStoreWorldInterface(@Nonnull ClassModel model,
+        @Nonnull ClassBuilder builder) {
+        ArrayList<ClassDesc> interfaces = new ArrayList<>(model.interfaces().size() + 1);
+        for (var entry : model.interfaces()) {
+            interfaces.add(entry.asSymbol());
+        }
+        if (!interfaces.contains(CD_PHYSICS_STORE_WORLD)) {
+            interfaces.add(CD_PHYSICS_STORE_WORLD);
+        }
+        builder.withInterfaceSymbols(interfaces);
     }
 
     private static final class InitializePhysicsStoreTransform implements CodeTransform {

@@ -203,8 +203,8 @@ public final class PhysicsStoreRegistration {
         registry.registerSystem(new TerrainColliderBindingSystem());
         registry.registerSystem(new BodyCommandApplicationSystem());
         registry.registerSystem(new TargetBindingSystem());
-        registry.registerSystem(new PhysicsStoreQueuedReadSystem());
         registry.registerSystem(new CompletedStepPublicationSystem());
+        registry.registerSystem(new PhysicsStoreQueuedReadSystem());
         registry.registerSystem(new PersistenceCaptureSystem());
         registry.registerSystem(new StepSubmissionSystem());
     }

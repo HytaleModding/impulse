@@ -229,12 +229,12 @@ public final class ImpulsePlugin extends JavaPlugin {
     private void registerSystems() {
         ComponentRegistryProxy<EntityStore> entityRegistry = getEntityStoreRegistry();
         persistenceRestoreGroup = entityRegistry.registerSystemGroup();
-        entityRegistry.registerSystem(new PhysicsWorldResourceAttachmentSystem());
         entityRegistry.registerSystem(new PhysicsBodyAttachmentIndexSystem());
-        entityRegistry.registerSystem(new PhysicsStoreEventPublicationSystem());
         entityRegistry.registerSystem(new PhysicsGeneratedProxyCleanupSystem());
         entityRegistry.registerSystem(new PhysicsSyncSystem());
         entityRegistry.registerSystem(new PhysicsDebugSystem());
+        entityRegistry.registerSystem(new PhysicsStoreEventPublicationSystem());
+        entityRegistry.registerSystem(new PhysicsWorldResourceAttachmentSystem());
     }
 
     private void registerCommands() {
