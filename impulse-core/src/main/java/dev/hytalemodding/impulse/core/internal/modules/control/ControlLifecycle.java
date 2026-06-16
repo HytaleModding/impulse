@@ -106,7 +106,7 @@ public final class ControlLifecycle {
         @Nullable ComponentType<EntityStore, PhysicsControlSessionComponent> sessionType) {
         World world = store.getExternalData().getWorld();
         if (world.isInThread()) {
-            cleanupStoreOnOwnerThread(store, controllableType, sessionType);
+            cleanupStoreOnWorldThread(store, controllableType, sessionType);
             return;
         }
         if (!world.isStarted()) {
@@ -117,7 +117,7 @@ public final class ControlLifecycle {
         try {
             world.execute(() -> {
                 try {
-                    cleanupStoreOnOwnerThread(store, controllableType, sessionType);
+                    cleanupStoreOnWorldThread(store, controllableType, sessionType);
                     cleanup.complete(null);
                 } catch (Throwable throwable) {
                     cleanup.completeExceptionally(throwable);
@@ -143,7 +143,7 @@ public final class ControlLifecycle {
         return false;
     }
 
-    private static void cleanupStoreOnOwnerThread(@Nonnull Store<EntityStore> store,
+    private static void cleanupStoreOnWorldThread(@Nonnull Store<EntityStore> store,
         @Nullable ComponentType<EntityStore, ImpulseControllableComponent> controllableType,
         @Nullable ComponentType<EntityStore, PhysicsControlSessionComponent> sessionType) {
         if (sessionType != null) {

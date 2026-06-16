@@ -114,7 +114,7 @@ public class PhysicsVisualSyncSettings {
     public static final float MAX_VISUAL_SNAPSHOT_SMOOTHING_RATE = 120.0f;
 
     /**
-     * Whether owner entity transforms should use player-interest culling.
+     * Whether body-attached entity transforms should use player-interest culling.
      * Disabled by default because gameplay code may rely on server-side transforms even
      * when no player is currently near the body.
      */

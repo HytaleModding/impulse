@@ -32,7 +32,7 @@ import org.joml.Vector3f;
 public final class PhysicsWorldSnapshotState {
 
     private final PhysicsBodySnapshotStore bodySnapshots = new PhysicsBodySnapshotStore();
-    private final PhysicsBodySnapshotStore ownerBodySnapshots = new PhysicsBodySnapshotStore();
+    private final PhysicsBodySnapshotStore captureBodySnapshots = new PhysicsBodySnapshotStore();
     private final AtomicLong worldEpoch = new AtomicLong();
     private final AtomicLong snapshotFrameEpoch = new AtomicLong();
     @Nonnull
@@ -62,7 +62,7 @@ public final class PhysicsWorldSnapshotState {
         @Nonnull PhysicsBodyKind kind,
         @Nonnull PhysicsBodyPersistenceMode persistenceMode) {
         bodySnapshots.put(bodyUuid, snapshot, spaceId, kind, persistenceMode);
-        ownerBodySnapshots.put(bodyUuid, snapshot, spaceId, kind, persistenceMode);
+        captureBodySnapshots.put(bodyUuid, snapshot, spaceId, kind, persistenceMode);
     }
 
     @Nonnull
@@ -81,12 +81,12 @@ public final class PhysicsWorldSnapshotState {
         long frameEpoch = snapshotFrameEpoch.incrementAndGet();
         long frameWorldEpoch = worldEpoch.get();
         long snapshotStartNanos = profilingEnabled ? System.nanoTime() : 0L;
-        ownerBodySnapshots.refresh(spaces, bodyRegistry);
-        int spatialIndexCellCount = ownerBodySnapshots.cellCount();
+        captureBodySnapshots.refresh(spaces, bodyRegistry);
+        int spatialIndexCellCount = captureBodySnapshots.cellCount();
 
         int bodyCount = 0;
         for (PhysicsSpaceBinding space : spaces) {
-            bodyCount += ownerBodySnapshots.bodyCount(space.spaceId());
+            bodyCount += captureBodySnapshots.bodyCount(space.spaceId());
         }
 
         long snapshotNanos = profilingEnabled ? System.nanoTime() - snapshotStartNanos : 0L;
@@ -102,9 +102,9 @@ public final class PhysicsWorldSnapshotState {
             bodyCount);
         for (PhysicsSpaceBinding space : spaces) {
             SpaceId spaceId = space.spaceId();
-            int spaceBodyCount = ownerBodySnapshots.bodyCount(spaceId);
+            int spaceBodyCount = captureBodySnapshots.bodyCount(spaceId);
             frameBuilder.addSpace(spaceId, frameWorldEpoch, spaceBodyCount);
-            ownerBodySnapshots.forEachIndexed(spaceId,
+            captureBodySnapshots.forEachIndexed(spaceId,
                 (bodyUuid, snapshot, bodySpaceId, kind, persistenceMode) -> frameBuilder.addBody(bodyUuid,
                     bodySpaceId,
                     frameWorldEpoch,
@@ -181,12 +181,12 @@ public final class PhysicsWorldSnapshotState {
 
     public void removeBodySnapshot(@Nonnull UUID bodyUuid) {
         bodySnapshots.remove(bodyUuid);
-        ownerBodySnapshots.remove(bodyUuid);
+        captureBodySnapshots.remove(bodyUuid);
     }
 
     public void clearBodySnapshots() {
         bodySnapshots.clear();
-        ownerBodySnapshots.clear();
+        captureBodySnapshots.clear();
     }
 
     public void markWorldChanged() {
