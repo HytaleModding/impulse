@@ -11,6 +11,7 @@ import com.hypixel.hytale.server.core.modules.time.TimeResource;
 import com.hypixel.hytale.server.core.universe.PlayerRef;
 import com.hypixel.hytale.server.core.universe.world.World;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
+import com.hypixel.hytale.server.core.universe.world.storage.PhysicsStore;
 import dev.hytalemodding.impulse.api.PhysicsCollisionFilters;
 import dev.hytalemodding.impulse.api.SpaceId;
 import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyKind;
@@ -146,6 +147,12 @@ public class StressBodiesCommand extends AbstractAsyncPlayerCommand {
         if (spaceId == null) {
             return CompletableFuture.completedFuture(null);
         }
+        Ref<PhysicsStore> spaceRef = ExamplePhysicsUtils.resolvePhysicsStoreSpaceRef(world, spaceId);
+        if (spaceRef == null) {
+            ctx.sender().sendMessage(Message.raw("PhysicsStore space id=" + spaceId.value()
+                + " is not bound."));
+            return CompletableFuture.completedFuture(null);
+        }
         PhysicsWorldResource resource = store.getResource(PhysicsWorldResource.getResourceType());
         PhysicsSpaceSettings settings = configureStressRuntime(resource,
             spaceId,
@@ -174,6 +181,7 @@ public class StressBodiesCommand extends AbstractAsyncPlayerCommand {
             ExamplePhysicsUtils.BlockBodyBatchTiming batchTiming = ExamplePhysicsUtils.spawnBlockBodiesMeasured(store,
                 time,
                 serverTick,
+                spaceRef,
                 spaceId,
                 count,
                 visualSettings.blockType(),
@@ -195,6 +203,7 @@ public class StressBodiesCommand extends AbstractAsyncPlayerCommand {
             RigidBodySpawnSettings spawnSettings = detachedSpawnSettings(collisionPolicy);
             ExamplePhysicsUtils.BodyRowBatchTiming batchTiming =
                 ExamplePhysicsUtils.addDynamicBodyBatchMeasured(world,
+                    spaceRef,
                     spaceId,
                     count,
                     box,

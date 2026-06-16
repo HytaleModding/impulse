@@ -11,12 +11,12 @@ import com.hypixel.hytale.server.core.modules.time.TimeResource;
 import com.hypixel.hytale.server.core.universe.PlayerRef;
 import com.hypixel.hytale.server.core.universe.world.World;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
+import com.hypixel.hytale.server.core.universe.world.storage.PhysicsStore;
 import dev.hytalemodding.impulse.api.SpaceId;
 import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyKind;
 import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyPersistenceMode;
 import dev.hytalemodding.impulse.core.plugin.physicsstore.PhysicsStoreAsync;
 import dev.hytalemodding.impulse.core.plugin.physicsstore.PhysicsStoreDiagnostics;
-import dev.hytalemodding.impulse.core.plugin.resources.PhysicsWorldResource;
 import dev.hytalemodding.impulse.core.plugin.simulation.PhysicsShapeSpec;
 import dev.hytalemodding.impulse.core.plugin.simulation.RigidBodySpawnSettings;
 import dev.hytalemodding.impulse.examples.commands.ExampleBlockEntityVisuals;
@@ -76,14 +76,19 @@ public class StressBenchmarkCommand extends AbstractAsyncPlayerCommand {
         if (spaceId == null) {
             return CompletableFuture.completedFuture(null);
         }
-        PhysicsWorldResource resource = store.getResource(PhysicsWorldResource.getResourceType());
+        Ref<PhysicsStore> spaceRef = ExamplePhysicsUtils.resolvePhysicsStoreSpaceRef(world, spaceId);
+        if (spaceRef == null) {
+            ctx.sender().sendMessage(Message.raw("PhysicsStore space id=" + spaceId.value()
+                + " is not bound."));
+            return CompletableFuture.completedFuture(null);
+        }
         BenchmarkLayout layout = BenchmarkLayout.around(playerPos, request.count());
         return PhysicsStoreAsync.acceptOnWorldThread(world,
             PhysicsStoreDiagnostics.bodyCountAsync(world, spaceId),
             beforeBodies -> spawnBenchmark(ctx,
                 store,
                 world,
-                resource,
+                spaceRef,
                 spaceId,
                 request,
                 layout,
@@ -93,16 +98,16 @@ public class StressBenchmarkCommand extends AbstractAsyncPlayerCommand {
     private static void spawnBenchmark(@Nonnull CommandContext ctx,
         @Nonnull Store<EntityStore> store,
         @Nonnull World world,
-        @Nonnull PhysicsWorldResource resource,
+        @Nonnull Ref<PhysicsStore> spaceRef,
         @Nonnull SpaceId spaceId,
         @Nonnull BenchmarkRequest request,
         @Nonnull BenchmarkLayout layout,
         int beforeBodies) {
         long serverTick = Math.max(0L, world.getTick());
         BenchmarkSpawnTiming timing = switch (request.mode()) {
-            case RAW -> spawnRaw(world, spaceId, layout, request.count());
+            case RAW -> spawnRaw(world, spaceRef, spaceId, layout, request.count());
             case ENTITY -> spawnEntities(store,
-                resource,
+                spaceRef,
                 spaceId,
                 layout,
                 request.count(),
@@ -154,6 +159,7 @@ public class StressBenchmarkCommand extends AbstractAsyncPlayerCommand {
 
     @Nonnull
     private static BenchmarkSpawnTiming spawnRaw(@Nonnull World world,
+        @Nonnull Ref<PhysicsStore> spaceRef,
         @Nonnull SpaceId spaceId,
         @Nonnull BenchmarkLayout layout,
         int count) {
@@ -161,6 +167,7 @@ public class StressBenchmarkCommand extends AbstractAsyncPlayerCommand {
         RigidBodySpawnSettings spawnSettings = RigidBodySpawnSettings.material(0.65f, 0.15f);
         ExamplePhysicsUtils.BodyRowBatchTiming timing =
             ExamplePhysicsUtils.addDynamicBodyBatchMeasured(world,
+                spaceRef,
                 spaceId,
                 count,
                 box,
@@ -183,7 +190,7 @@ public class StressBenchmarkCommand extends AbstractAsyncPlayerCommand {
 
     @Nonnull
     private static BenchmarkSpawnTiming spawnEntities(@Nonnull Store<EntityStore> store,
-        @Nonnull PhysicsWorldResource resource,
+        @Nonnull Ref<PhysicsStore> spaceRef,
         @Nonnull SpaceId spaceId,
         @Nonnull BenchmarkLayout layout,
         int count,
@@ -195,6 +202,7 @@ public class StressBenchmarkCommand extends AbstractAsyncPlayerCommand {
         ExamplePhysicsUtils.BlockBodyBatchTiming timing = ExamplePhysicsUtils.spawnBlockBodiesMeasured(store,
             time,
             serverTick,
+            spaceRef,
             spaceId,
             count,
             blockType,

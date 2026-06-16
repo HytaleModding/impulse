@@ -10,6 +10,7 @@ import com.hypixel.hytale.server.core.command.system.basecommands.AbstractAsyncP
 import com.hypixel.hytale.server.core.universe.PlayerRef;
 import com.hypixel.hytale.server.core.universe.world.World;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
+import com.hypixel.hytale.server.core.universe.world.storage.PhysicsStore;
 import dev.hytalemodding.impulse.api.SpaceId;
 import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyKind;
 import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyPersistenceMode;
@@ -60,6 +61,12 @@ public class StressRawBodiesCommand extends AbstractAsyncPlayerCommand {
         if (spaceId == null) {
             return CompletableFuture.completedFuture(null);
         }
+        Ref<PhysicsStore> spaceRef = ExamplePhysicsUtils.resolvePhysicsStoreSpaceRef(world, spaceId);
+        if (spaceRef == null) {
+            ctx.sender().sendMessage(Message.raw("PhysicsStore space id=" + spaceId.value()
+                + " is not bound."));
+            return CompletableFuture.completedFuture(null);
+        }
 
         int side = (int) Math.ceil(Math.cbrt(count));
         double half = side * SPACING * 0.5;
@@ -71,6 +78,7 @@ public class StressRawBodiesCommand extends AbstractAsyncPlayerCommand {
         RigidBodySpawnSettings spawnSettings = RigidBodySpawnSettings.material(0.65f, 0.15f);
         long totalStartNanos = System.nanoTime();
         BodyRowBatchTiming timing = ExamplePhysicsUtils.addDynamicBodyBatchMeasured(world,
+            spaceRef,
             spaceId,
             count,
             box,
