@@ -4,13 +4,13 @@ import com.hypixel.hytale.component.Resource;
 import com.hypixel.hytale.component.ResourceType;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import dev.hytalemodding.impulse.core.internal.modules.worldcollision.WorldVoxelCollisionCache.BuildStats;
-import dev.hytalemodding.impulse.core.plugin.body.RigidBodyKey;
 import it.unimi.dsi.fastutil.longs.LongOpenHashSet;
 import it.unimi.dsi.fastutil.longs.LongSet;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
 import java.util.Objects;
+import java.util.UUID;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 import lombok.AccessLevel;
@@ -634,7 +634,7 @@ public class WorldCollisionProfilingResource implements Resource<EntityStore> {
     }
 
     public record StreamingTargetDiagnostic(@Nonnull StreamingTargetType targetType,
-                                            @Nullable RigidBodyKey bodyKey,
+                                            @Nullable UUID bodyUuid,
                                             @Nullable DiagnosticPosition snapshotPosition,
                                             @Nullable DiagnosticPosition livePosition) {
 
@@ -648,17 +648,17 @@ public class WorldCollisionProfilingResource implements Resource<EntityStore> {
         }
 
         @Nonnull
-        public static StreamingTargetDiagnostic body(@Nonnull RigidBodyKey bodyKey,
+        public static StreamingTargetDiagnostic body(@Nonnull UUID bodyUuid,
             @Nonnull Vector3f snapshotPosition,
             @Nonnull Vector3f livePosition) {
             return new StreamingTargetDiagnostic(StreamingTargetType.BODY,
-                bodyKey,
+                bodyUuid,
                 DiagnosticPosition.from(snapshotPosition),
                 DiagnosticPosition.from(livePosition));
         }
 
         @Nonnull
-        public static StreamingTargetDiagnostic body(@Nonnull RigidBodyKey bodyKey,
+        public static StreamingTargetDiagnostic body(@Nonnull UUID bodyUuid,
             float snapshotX,
             float snapshotY,
             float snapshotZ,
@@ -666,7 +666,7 @@ public class WorldCollisionProfilingResource implements Resource<EntityStore> {
             float liveY,
             float liveZ) {
             return new StreamingTargetDiagnostic(StreamingTargetType.BODY,
-                bodyKey,
+                bodyUuid,
                 DiagnosticPosition.from(snapshotX, snapshotY, snapshotZ),
                 DiagnosticPosition.from(liveX, liveY, liveZ));
         }

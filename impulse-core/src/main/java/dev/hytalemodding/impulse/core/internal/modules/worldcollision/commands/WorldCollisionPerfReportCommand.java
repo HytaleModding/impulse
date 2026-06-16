@@ -376,8 +376,8 @@ public class WorldCollisionPerfReportCommand extends AbstractAsyncWorldCommand {
                 .append(sample.retainedEnvelopeStatus().name().toLowerCase(Locale.ROOT))
                 .append(" target=")
                 .append(sample.target().targetType().name().toLowerCase(Locale.ROOT));
-            if (sample.target().bodyKey() != null) {
-                builder.append(" body=").append(sample.target().bodyKey());
+            if (sample.target().bodyUuid() != null) {
+                builder.append(" body=").append(sample.target().bodyUuid());
             }
             if (sample.target().snapshotPosition() != null) {
                 builder.append(" snapshot=(")
