@@ -13,6 +13,7 @@ import dev.hytalemodding.impulse.core.plugin.snapshot.PhysicsBodySnapshotEntry;
 import dev.hytalemodding.impulse.core.plugin.snapshot.PublishedPhysicsSnapshotFrame;
 import java.util.Collection;
 import java.util.Objects;
+import java.util.UUID;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Consumer;
@@ -180,8 +181,12 @@ public final class PhysicsWorldSnapshotState {
     }
 
     public void removeBodySnapshot(@Nonnull RigidBodyKey bodyKey) {
-        bodySnapshots.remove(bodyKey);
-        ownerBodySnapshots.remove(bodyKey);
+        removeBodySnapshot(Objects.requireNonNull(bodyKey, "bodyKey").value());
+    }
+
+    public void removeBodySnapshot(@Nonnull UUID bodyUuid) {
+        bodySnapshots.remove(bodyUuid);
+        ownerBodySnapshots.remove(bodyUuid);
     }
 
     public void clearBodySnapshots() {

@@ -15,6 +15,7 @@ import dev.hytalemodding.impulse.core.plugin.snapshot.PhysicsBodySnapshotEntry;
 import dev.hytalemodding.impulse.core.plugin.snapshot.PublishedPhysicsSnapshotFrame;
 import java.util.Collection;
 import java.util.List;
+import java.util.UUID;
 import java.util.function.Consumer;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
@@ -161,6 +162,10 @@ public final class PhysicsWorldLifecycleState {
 
     public void removeBodySnapshot(@Nonnull RigidBodyKey bodyKey) {
         snapshotState.removeBodySnapshot(bodyKey);
+    }
+
+    public void removeBodySnapshot(@Nonnull UUID bodyUuid) {
+        snapshotState.removeBodySnapshot(bodyUuid);
     }
 
     public void clearBodySnapshots() {

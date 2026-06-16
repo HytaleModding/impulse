@@ -1783,9 +1783,7 @@ public class PhysicsWorldRuntimeResource extends PhysicsWorldResource {
     @Override
     public void destroyBody(@Nonnull RigidBodyKey bodyKey) {
         if (isAuthoritativePhysicsStoreActive()) {
-            PhysicsStoreTopologyMutations.destroyBody(
-                authoritativePhysicsStore("destroy physics body"),
-                bodyKey);
+            destroyBody(bodyKey.value());
             return;
         }
         requireLegacyMutationAllowed("destroy physics body");
@@ -1808,9 +1806,10 @@ public class PhysicsWorldRuntimeResource extends PhysicsWorldResource {
     @Override
     public PhysicsMutationHandle<RigidBodyKey> destroyBodyAsync(@Nonnull RigidBodyKey bodyKey) {
         if (isAuthoritativePhysicsStoreActive()) {
+            UUID bodyUuid = bodyKey.value();
             return enqueueAuthoritativePhysicsStoreMutation("destroy physics body",
                 bodyKey,
-                store -> PhysicsStoreTopologyMutations.destroyBody(store, bodyKey));
+                store -> PhysicsStoreTopologyMutations.destroyBody(store, bodyUuid));
         }
         requireLegacyMutationAllowed("destroy physics body");
         return destroyBodyAsync(bodyKey, true);
@@ -1818,9 +1817,7 @@ public class PhysicsWorldRuntimeResource extends PhysicsWorldResource {
 
     public void destroyBody(@Nonnull RigidBodyKey bodyKey, boolean removeFromSpace) {
         if (isAuthoritativePhysicsStoreActive()) {
-            PhysicsStoreTopologyMutations.destroyBody(
-                authoritativePhysicsStore("destroy physics body"),
-                bodyKey);
+            destroyBody(bodyKey.value());
             return;
         }
         requireLegacyMutationAllowed("destroy physics body");
@@ -1831,9 +1828,10 @@ public class PhysicsWorldRuntimeResource extends PhysicsWorldResource {
     public PhysicsMutationHandle<RigidBodyKey> destroyBodyAsync(@Nonnull RigidBodyKey bodyKey,
         boolean removeFromSpace) {
         if (isAuthoritativePhysicsStoreActive()) {
+            UUID bodyUuid = bodyKey.value();
             return enqueueAuthoritativePhysicsStoreMutation("destroy physics body",
                 bodyKey,
-                store -> PhysicsStoreTopologyMutations.destroyBody(store, bodyKey));
+                store -> PhysicsStoreTopologyMutations.destroyBody(store, bodyUuid));
         }
         requireLegacyMutationAllowed("destroy physics body");
         return enqueueDirectRuntimeMutation("destroy physics body",
@@ -2145,14 +2143,15 @@ public class PhysicsWorldRuntimeResource extends PhysicsWorldResource {
     }
 
     public void registerBodyAttachment(@Nonnull RigidBodyKey bodyKey, @Nonnull Ref<EntityStore> attachment) {
+        UUID bodyUuid = bodyKey.value();
         if (hasAttachedAuthoritativePhysicsStore()) {
-            Ref<PhysicsStore> bodyRef = resolvePhysicsStoreBodyRef(bodyKey.value(),
+            Ref<PhysicsStore> bodyRef = resolvePhysicsStoreBodyRef(bodyUuid,
                 "resolve body attachment key");
             authoritativeProjectionIndex("register physics body attachment")
-                .registerAttachment(bodyKey.value(), bodyRef, attachment);
+                .registerAttachment(bodyUuid, bodyRef, attachment);
             return;
         }
-        visualRuntime.registerAttachment(bodyKey.value(), null, attachment);
+        visualRuntime.registerAttachment(bodyUuid, null, attachment);
     }
 
     public void registerBodyAttachment(@Nonnull UUID bodyUuid,
@@ -2167,14 +2166,15 @@ public class PhysicsWorldRuntimeResource extends PhysicsWorldResource {
     }
 
     public void unregisterBodyAttachment(@Nonnull RigidBodyKey bodyKey, @Nonnull Ref<EntityStore> attachment) {
+        UUID bodyUuid = bodyKey.value();
         if (hasAttachedAuthoritativePhysicsStore()) {
-            Ref<PhysicsStore> bodyRef = resolvePhysicsStoreBodyRef(bodyKey.value(),
+            Ref<PhysicsStore> bodyRef = resolvePhysicsStoreBodyRef(bodyUuid,
                 "resolve body attachment key");
             authoritativeProjectionIndex("unregister physics body attachment")
-                .unregisterAttachment(bodyKey.value(), bodyRef, attachment);
+                .unregisterAttachment(bodyUuid, bodyRef, attachment);
             return;
         }
-        visualRuntime.unregisterAttachment(bodyKey.value(), null, attachment);
+        visualRuntime.unregisterAttachment(bodyUuid, null, attachment);
     }
 
     public void unregisterBodyAttachment(@Nonnull UUID bodyUuid,
@@ -2379,11 +2379,7 @@ public class PhysicsWorldRuntimeResource extends PhysicsWorldResource {
     }
 
     public void markBodyControlled(@Nonnull RigidBodyKey bodyKey) {
-        Ref<PhysicsStore> bodyRef = resolvePhysicsStoreBodyRef(bodyKey.value(),
-            "resolve controlled body key");
-        if (bodyRef != null) {
-            controlRuntime.markBodyControlled(bodyRef);
-        }
+        markBodyControlled(bodyKey.value());
     }
 
     public void clearControlledBody(@Nonnull Ref<PhysicsStore> bodyRef) {
@@ -2399,11 +2395,7 @@ public class PhysicsWorldRuntimeResource extends PhysicsWorldResource {
     }
 
     public void clearControlledBody(@Nonnull RigidBodyKey bodyKey) {
-        Ref<PhysicsStore> bodyRef = resolvePhysicsStoreBodyRef(bodyKey.value(),
-            "resolve controlled body key");
-        if (bodyRef != null) {
-            controlRuntime.clearControlledBody(bodyRef);
-        }
+        clearControlledBody(bodyKey.value());
     }
 
     public boolean isBodyControlled(@Nonnull Ref<PhysicsStore> bodyRef) {
@@ -2417,9 +2409,7 @@ public class PhysicsWorldRuntimeResource extends PhysicsWorldResource {
     }
 
     public boolean isBodyControlled(@Nonnull RigidBodyKey bodyKey) {
-        Ref<PhysicsStore> bodyRef = resolvePhysicsStoreBodyRef(bodyKey.value(),
-            "resolve controlled body key");
-        return bodyRef != null && controlRuntime.isBodyControlled(bodyRef);
+        return isBodyControlled(bodyKey.value());
     }
 
     @Nullable
@@ -2457,13 +2447,14 @@ public class PhysicsWorldRuntimeResource extends PhysicsWorldResource {
     }
 
     private void clearBodyRuntimeStateDirect(@Nonnull RigidBodyKey bodyKey) {
-        Ref<PhysicsStore> bodyRef = resolvePhysicsStoreBodyRef(bodyKey.value(),
+        UUID bodyUuid = bodyKey.value();
+        Ref<PhysicsStore> bodyRef = resolvePhysicsStoreBodyRef(bodyUuid,
             "resolve cleared body runtime key");
         if (bodyRef != null) {
             controlRuntime.clearBody(bodyRef);
         }
-        bodyRuntime.clearBodyRuntimeState(bodyKey);
-        visualRuntime.clearBodyRuntimeState(bodyKey.value(), bodyRef);
+        bodyRuntime.clearBodyRuntimeState(bodyUuid);
+        visualRuntime.clearBodyRuntimeState(bodyUuid, bodyRef);
     }
 
     public void copyFrom(@Nonnull PhysicsWorldResource other) {

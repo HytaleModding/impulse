@@ -14,6 +14,8 @@ import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyKind;
 import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyPersistenceMode;
 import dev.hytalemodding.impulse.core.plugin.body.RigidBodyKey;
 import java.util.ArrayList;
+import java.util.Objects;
+import java.util.UUID;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
@@ -87,13 +89,14 @@ public final class PhysicsBodyRuntime {
     public void destroyBody(@Nonnull RigidBodyKey bodyKey, boolean removeFromSpace) {
         PhysicsBodyRegistration registration = bodyRegistry.getRegistration(bodyKey);
         if (registration != null) {
+            UUID bodyUuid = registration.bodyUuid();
             if (removeFromSpace) {
                 removeBodyFromSpace(registration);
             }
             bodyRegistry.unregisterBody(bodyKey);
-            clearBodyRuntimeState(bodyKey);
+            clearBodyRuntimeState(bodyUuid);
         } else {
-            clearBodyRuntimeState(bodyKey);
+            clearBodyRuntimeState(bodyKey.value());
         }
         worldChangedMarker.run();
     }
@@ -130,8 +133,12 @@ public final class PhysicsBodyRuntime {
     }
 
     public void clearBodyRuntimeState(@Nonnull RigidBodyKey bodyKey) {
-        visualRuntime.clearBodyRuntimeState(bodyKey.value(), null);
-        lifecycleState.removeBodySnapshot(bodyKey);
+        clearBodyRuntimeState(Objects.requireNonNull(bodyKey, "bodyKey").value());
+    }
+
+    public void clearBodyRuntimeState(@Nonnull UUID bodyUuid) {
+        visualRuntime.clearBodyRuntimeState(bodyUuid, null);
+        lifecycleState.removeBodySnapshot(bodyUuid);
     }
 
     private void removeBodyFromSpace(@Nonnull PhysicsBodyRegistration registration) {
