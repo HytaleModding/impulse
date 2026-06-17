@@ -17,7 +17,6 @@ import com.hypixel.hytale.server.core.modules.entity.system.UpdateLocationSystem
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import com.hypixel.hytale.server.core.universe.world.storage.PhysicsStore;
 import dev.hytalemodding.impulse.api.SpaceId;
-import dev.hytalemodding.impulse.early.PhysicsStoreWorld;
 import dev.hytalemodding.impulse.core.internal.math.PhysicsVisualPoseMath;
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsSnapshotResource;
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsProjectionIndexResource;
@@ -197,9 +196,7 @@ public class PhysicsSyncSystem extends EntityTickingSystem<EntityStore> {
     @Nonnull
     private static PhysicsSnapshotResource collectPhysicsStoreSnapshotResource(
         @Nonnull Store<EntityStore> store) {
-        PhysicsStore physicsStore =
-            ((PhysicsStoreWorld) store.getExternalData().getWorld()).getPhysicsStore();
-        Store<PhysicsStore> physics = physicsStore.getStore();
+        Store<PhysicsStore> physics = PhysicsThreading.store(store.getExternalData().getWorld());
         PhysicsThreading.requireWorldThread(physics,
             "read copied PhysicsStore sync snapshots");
         return physics.getResource(
