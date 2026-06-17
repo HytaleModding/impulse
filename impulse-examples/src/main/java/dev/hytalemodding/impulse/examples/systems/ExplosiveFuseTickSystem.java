@@ -22,6 +22,7 @@ import dev.hytalemodding.impulse.core.plugin.snapshots.PhysicsBodySnapshot;
 import dev.hytalemodding.impulse.examples.explosive.ExplosiveBlockComponent;
 import dev.hytalemodding.impulse.examples.explosive.ExplosiveBlockRuntime;
 import dev.hytalemodding.impulse.examples.explosive.ExplosiveFuseComponent;
+import java.util.Objects;
 import java.util.UUID;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
@@ -35,12 +36,26 @@ public final class ExplosiveFuseTickSystem extends EntityTickingSystem<EntitySto
         ExplosiveBlockComponent.getComponentType();
     private static final ComponentType<EntityStore, ExplosiveFuseComponent> FUSE_TYPE =
         ExplosiveFuseComponent.getComponentType();
-    private static final ComponentType<EntityStore, BodyAttachmentComponent> ATTACHMENT_TYPE =
-        BodyAttachmentComponent.getComponentType();
     private static final ComponentType<EntityStore, TransformComponent> TRANSFORM_TYPE =
         TransformComponent.getComponentType();
-    private static final Query<EntityStore> QUERY =
-        Query.and(EXPLOSIVE_TYPE, FUSE_TYPE, ATTACHMENT_TYPE, TRANSFORM_TYPE);
+
+    @Nonnull
+    private final ComponentType<EntityStore, BodyAttachmentComponent> attachmentType;
+    @Nonnull
+    private final Query<EntityStore> query;
+
+    public ExplosiveFuseTickSystem() {
+        this(BodyAttachmentComponent.getComponentType());
+    }
+
+    ExplosiveFuseTickSystem(
+        @Nonnull ComponentType<EntityStore, BodyAttachmentComponent> attachmentType) {
+        this.attachmentType = Objects.requireNonNull(attachmentType, "attachmentType");
+        this.query = Query.and(EXPLOSIVE_TYPE,
+            FUSE_TYPE,
+            this.attachmentType,
+            TRANSFORM_TYPE);
+    }
 
     @Override
     public boolean isParallel(int archetypeChunkSize, int taskCount) {
@@ -59,7 +74,7 @@ public final class ExplosiveFuseTickSystem extends EntityTickingSystem<EntitySto
             return;
         }
         ExplosiveBlockComponent explosive = chunk.getComponent(index, EXPLOSIVE_TYPE);
-        BodyAttachmentComponent attachment = chunk.getComponent(index, ATTACHMENT_TYPE);
+        BodyAttachmentComponent attachment = chunk.getComponent(index, attachmentType);
         TransformComponent transform = chunk.getComponent(index, TRANSFORM_TYPE);
         SpaceId spaceId = attachment != null ? attachmentSpaceId(store, attachment) : null;
         if (explosive == null || attachment == null || transform == null || spaceId == null) {
@@ -95,7 +110,7 @@ public final class ExplosiveFuseTickSystem extends EntityTickingSystem<EntitySto
     @Nonnull
     @Override
     public Query<EntityStore> getQuery() {
-        return QUERY;
+        return query;
     }
 
     private static long currentTick(@Nonnull Store<EntityStore> store) {

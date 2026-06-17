@@ -55,8 +55,6 @@ public class GrabCommand extends AbstractAsyncPlayerCommand {
     private static final double RAY_LENGTH = 24.0;
     private static final float MIN_HOLD_DISTANCE = 4.0f;
     private static final Vector3f VIEW_OFFSET = new Vector3f(0.85f, -0.35f, 0.0f);
-    private static final ComponentType<EntityStore, BodyAttachmentComponent> ATTACHMENT_TYPE =
-        BodyAttachmentComponent.getComponentType();
     private final OptionalArg<Integer> spaceArg = this.withOptionalArg(
         "space",
         "Physics space id to target",
@@ -296,8 +294,10 @@ public class GrabCommand extends AbstractAsyncPlayerCommand {
         @Nonnull ComponentType<EntityStore, ImpulseControllableComponent> controllableType,
         @Nonnull Ref<PhysicsStore> bodyRef) {
         boolean hasGameplayAttachment = false;
+        ComponentType<EntityStore, BodyAttachmentComponent> attachmentType =
+            BodyAttachmentComponent.getComponentType();
         for (Ref<EntityStore> attachmentRef : PhysicsEntityAttachments.attachments(store, bodyRef)) {
-            BodyAttachmentComponent attachment = store.getComponent(attachmentRef, ATTACHMENT_TYPE);
+            BodyAttachmentComponent attachment = store.getComponent(attachmentRef, attachmentType);
             if (attachment == null
                 || attachment.getLifecycle() == BodyAttachmentComponent.AttachmentLifecycle.GENERATED_PROXY) {
                 continue;

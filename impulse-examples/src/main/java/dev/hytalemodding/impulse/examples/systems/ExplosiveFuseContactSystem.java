@@ -32,8 +32,6 @@ public final class ExplosiveFuseContactSystem
         ExplosiveBlockComponent.getComponentType();
     private static final ComponentType<EntityStore, ExplosiveFuseComponent> FUSE_TYPE =
         ExplosiveFuseComponent.getComponentType();
-    private static final ComponentType<EntityStore, BodyAttachmentComponent> ATTACHMENT_TYPE =
-        BodyAttachmentComponent.getComponentType();
 
     public ExplosiveFuseContactSystem() {
         super(PhysicsEventFramePublishedEvent.class);
@@ -46,6 +44,8 @@ public final class ExplosiveFuseContactSystem
         Store<PhysicsStore> physicsStore =
             PhysicsThreading.store(store.getExternalData().getWorld());
         long tick = Math.max(0L, store.getExternalData().getWorld().getTick());
+        ComponentType<EntityStore, BodyAttachmentComponent> attachmentType =
+            BodyAttachmentComponent.getComponentType();
         for (PhysicsFrameEvent frameEvent : event.frame().physicsEvents()) {
             if (frameEvent instanceof PhysicsContactEvent contact
                 && contact.phase() != PhysicsContactPhase.ENDED) {
@@ -53,6 +53,7 @@ public final class ExplosiveFuseContactSystem
                     store,
                     physicsStore,
                     tick,
+                    attachmentType,
                     contact.bodyAUuid(),
                     contact.bodyBUuid(),
                     contactCenter(contact.pointOnB()));
@@ -60,6 +61,7 @@ public final class ExplosiveFuseContactSystem
                     store,
                     physicsStore,
                     tick,
+                    attachmentType,
                     contact.bodyBUuid(),
                     contact.bodyAUuid(),
                     contactCenter(contact.pointOnA()));
@@ -71,6 +73,7 @@ public final class ExplosiveFuseContactSystem
         @Nonnull Store<EntityStore> store,
         @Nonnull Store<PhysicsStore> physicsStore,
         long tick,
+        @Nonnull ComponentType<EntityStore, BodyAttachmentComponent> attachmentType,
         @Nonnull UUID explosiveBodyUuid,
         @Nonnull UUID otherBodyUuid,
         @Nonnull Vector3d explosionCenter) {
@@ -78,7 +81,7 @@ public final class ExplosiveFuseContactSystem
             return;
         }
         for (Ref<EntityStore> ref : PhysicsEntityAttachments.attachments(store, explosiveBodyUuid)) {
-            BodyAttachmentComponent attachment = commandBuffer.getComponent(ref, ATTACHMENT_TYPE);
+            BodyAttachmentComponent attachment = commandBuffer.getComponent(ref, attachmentType);
             ExplosiveBlockComponent explosive = commandBuffer.getComponent(ref, EXPLOSIVE_TYPE);
             ExplosiveFuseComponent fuse = commandBuffer.getComponent(ref, FUSE_TYPE);
             if (attachment == null
