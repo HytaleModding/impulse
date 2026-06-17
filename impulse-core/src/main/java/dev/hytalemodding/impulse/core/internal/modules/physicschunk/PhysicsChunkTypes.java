@@ -1,4 +1,4 @@
-package dev.hytalemodding.impulse.core.plugin.modules.physicschunk;
+package dev.hytalemodding.impulse.core.internal.modules.physicschunk;
 
 import com.hypixel.hytale.component.ComponentRegistryProxy;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
@@ -10,7 +10,7 @@ import javax.annotation.Nonnull;
 /**
  * Registered EntityStore type handles owned by the PhysicsChunk integration module.
  */
-public final class PhysicsChunkTypes {
+final class PhysicsChunkTypes {
 
     private PhysicsChunkTypes() {
     }
