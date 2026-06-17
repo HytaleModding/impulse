@@ -281,7 +281,7 @@ final class PhysicsStoreExampleCommands {
             ArgTypes.STRING);
         private final OptionalArg<Integer> radiusArg = withOptionalArg(
             "radius",
-            "Block radius fragmented when the explosive block hits world collision",
+            "Block radius fragmented when the explosive block hits PhysicsChunk terrain",
             ArgTypes.INTEGER);
         private final OptionalArg<Integer> maxFragmentsArg = withOptionalArg(
             "maxFragments",

@@ -69,19 +69,19 @@ public final class PersistentPhysicsStorePreflight {
                 || space.getWorldCollisionRadius()
                 > PhysicsWorldCollisionSettings.MAX_WORLD_COLLISION_RADIUS) {
                 errors.add("PhysicsStore space " + uuid
-                    + " has invalid world collision radius");
+                    + " has invalid PhysicsChunk terrain radius");
             }
             if (space.getWorldCollisionBodyRadius() < 1
                 || space.getWorldCollisionBodyRadius()
                 > PhysicsWorldCollisionSettings.MAX_WORLD_COLLISION_BODY_RADIUS) {
                 errors.add("PhysicsStore space " + uuid
-                    + " has invalid world collision body radius");
+                    + " has invalid PhysicsChunk terrain body radius");
             }
             if (space.getWorldCollisionTtlTicks() < 1
                 || space.getWorldCollisionTtlTicks()
                 > PhysicsWorldCollisionSettings.MAX_WORLD_COLLISION_TTL_TICKS) {
                 errors.add("PhysicsStore space " + uuid
-                    + " has invalid world collision TTL");
+                    + " has invalid PhysicsChunk terrain TTL");
             }
             if (!Float.isFinite(space.getTerrainFriction())
                 || space.getTerrainFriction() < 0.0f) {

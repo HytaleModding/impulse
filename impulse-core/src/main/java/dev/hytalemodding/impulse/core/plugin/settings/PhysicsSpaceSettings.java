@@ -16,7 +16,7 @@ import javax.annotation.Nonnull;
  * code should read and mutate the domain group directly instead of adding flat
  * shortcut state here.</p>
  *
- * <p>Default settings have world collision disabled ({@link WorldCollisionMode#NONE}),
+ * <p>Default settings have PhysicsChunk terrain disabled ({@link WorldCollisionMode#NONE}),
  * which keeps Impulse fully opt-in: no terrain bodies are created unless the integrator
  * explicitly opts in.</p>
  */
@@ -112,7 +112,7 @@ public class PhysicsSpaceSettings {
     }
 
     /**
-     * Convenience factory for a space with streaming world collision enabled.
+     * Convenience factory for a space with streaming PhysicsChunk terrain enabled.
      */
     @Nonnull
     public static PhysicsSpaceSettings streamingWorldCollision() {

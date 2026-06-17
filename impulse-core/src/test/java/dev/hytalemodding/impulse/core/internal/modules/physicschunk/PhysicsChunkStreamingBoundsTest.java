@@ -3,18 +3,18 @@ package dev.hytalemodding.impulse.core.internal.modules.physicschunk;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
 
-import dev.hytalemodding.impulse.core.internal.modules.physicschunk.WorldCollisionStreamingBounds;
+import dev.hytalemodding.impulse.core.internal.modules.physicschunk.PhysicsChunkStreamingBounds;
 import org.joml.Vector3f;
 import org.junit.jupiter.api.Test;
 
-class WorldCollisionStreamingBoundsTest {
+class PhysicsChunkStreamingBoundsTest {
 
     @Test
     void dedupesBodiesThatShareTheSameChunkAndSectionNeighborhood() {
-        WorldCollisionStreamingBounds first = WorldCollisionStreamingBounds.from(
+        PhysicsChunkStreamingBounds first = PhysicsChunkStreamingBounds.from(
             new Vector3f(10.2f, 65.4f, -3.7f),
             4);
-        WorldCollisionStreamingBounds second = WorldCollisionStreamingBounds.from(
+        PhysicsChunkStreamingBounds second = PhysicsChunkStreamingBounds.from(
             new Vector3f(10.8f, 65.1f, -3.2f),
             4);
 
@@ -24,10 +24,10 @@ class WorldCollisionStreamingBoundsTest {
 
     @Test
     void keepsBodiesDistinctWhenTheirChunkNeighborhoodChanges() {
-        WorldCollisionStreamingBounds first = WorldCollisionStreamingBounds.from(
+        PhysicsChunkStreamingBounds first = PhysicsChunkStreamingBounds.from(
             new Vector3f(15.5f, 70.0f, 15.5f),
             4);
-        WorldCollisionStreamingBounds second = WorldCollisionStreamingBounds.from(
+        PhysicsChunkStreamingBounds second = PhysicsChunkStreamingBounds.from(
             new Vector3f(31.5f, 70.0f, 15.5f),
             4);
 
@@ -37,7 +37,7 @@ class WorldCollisionStreamingBoundsTest {
 
     @Test
     void clampsVerticalBoundsToValidSectionRange() {
-        WorldCollisionStreamingBounds bounds = WorldCollisionStreamingBounds.from(
+        PhysicsChunkStreamingBounds bounds = PhysicsChunkStreamingBounds.from(
             new Vector3f(0.0f, -20.0f, 0.0f),
             12);
 
@@ -48,10 +48,10 @@ class WorldCollisionStreamingBoundsTest {
 
     @Test
     void scalarFactoryMatchesVectorFactory() {
-        WorldCollisionStreamingBounds vectorBounds = WorldCollisionStreamingBounds.from(
+        PhysicsChunkStreamingBounds vectorBounds = PhysicsChunkStreamingBounds.from(
             new Vector3f(10.2f, 65.4f, -3.7f),
             4);
-        WorldCollisionStreamingBounds scalarBounds = WorldCollisionStreamingBounds.from(
+        PhysicsChunkStreamingBounds scalarBounds = PhysicsChunkStreamingBounds.from(
             10.2f,
             65.4f,
             -3.7f,

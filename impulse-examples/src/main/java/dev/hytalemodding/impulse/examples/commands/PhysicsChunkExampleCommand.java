@@ -28,9 +28,9 @@ import org.joml.Vector3d;
 /**
  * Debug commands for manually building/clearing world voxel collision.
  */
-public class PhysicsChunkCommand extends AbstractCommandCollection {
+public class PhysicsChunkExampleCommand extends AbstractCommandCollection {
 
-    public PhysicsChunkCommand() {
+    public PhysicsChunkExampleCommand() {
         super("physicschunk", "Build static Impulse chunk collision from nearby world blocks");
         addSubCommand(new BuildCommand());
         addSubCommand(new EnsureCommand());

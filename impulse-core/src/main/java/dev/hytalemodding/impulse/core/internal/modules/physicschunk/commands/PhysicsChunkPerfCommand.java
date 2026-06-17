@@ -5,7 +5,7 @@ import com.hypixel.hytale.server.core.command.system.basecommands.AbstractComman
 public final class PhysicsChunkPerfCommand extends AbstractCommandCollection {
 
     public PhysicsChunkPerfCommand() {
-        super("perf", "Impulse PhysicsChunk profiling commands");
+        super("perf", "Impulse runtime and PhysicsChunk profiling commands");
         addSubCommand(new PhysicsChunkPerfToggleCommand());
         addSubCommand(new PhysicsChunkPerfReportCommand());
         addSubCommand(new PhysicsChunkPerfResetCommand());

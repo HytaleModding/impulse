@@ -99,7 +99,7 @@ public class PhysicsDebugSystem extends TickingSystem<EntityStore> {
         }
 
         boolean overlayDue = debug.tickOverlayBudget(dt);
-        boolean worldCollisionDue = debug.tickWorldCollisionBudget(dt);
+        boolean worldCollisionDue = debug.tickPhysicsChunkBudget(dt);
         if (!overlayDue && !worldCollisionDue) {
             return;
         }
@@ -108,7 +108,7 @@ public class PhysicsDebugSystem extends TickingSystem<EntityStore> {
         boolean debugMotion = debug.isDebugMotionEnabled();
         boolean debugContacts = debug.isDebugContactsEnabled();
         boolean debugJoints = debug.isDebugJointsEnabled();
-        boolean debugWorldCollision = debug.isDebugWorldCollisionEnabled();
+        boolean debugWorldCollision = debug.isDebugPhysicsChunkTerrainEnabled();
         if (!debugShapes && !debugMotion && !debugContacts && !debugJoints
             && !debugWorldCollision) {
             return;
@@ -118,7 +118,7 @@ public class PhysicsDebugSystem extends TickingSystem<EntityStore> {
         float overlayLifetime = PhysicsDebugRenderer.lifetimeForRefresh(
             debug.getOverlayRefreshSeconds(), dt);
         float worldCollisionLifetime = PhysicsDebugRenderer.lifetimeForRefresh(
-            debug.getWorldCollisionRefreshSeconds(), dt);
+            debug.getPhysicsChunkRefreshSeconds(), dt);
         DebugQueryCache queryCache = queryCacheFor(store);
 
         for (PlayerRef viewer : viewers) {
@@ -180,8 +180,8 @@ public class PhysicsDebugSystem extends TickingSystem<EntityStore> {
                         queryCache,
                         viewerPosition,
                         debug.getViewRadius(),
-                        debug.getMaxWorldCollisionSections(),
-                        debug.getMaxWorldCollisionBoxes(),
+                        debug.getMaxPhysicsChunkSections(),
+                        debug.getMaxPhysicsChunkBoxes(),
                         worldCollisionLifetime);
                 }
             }
@@ -426,10 +426,10 @@ public class PhysicsDebugSystem extends TickingSystem<EntityStore> {
         int maxSections,
         int maxBoxes,
         float time) {
-        DebugQueryKey key = DebugQueryKey.worldCollision(spaceId, viewerUuid);
+        DebugQueryKey key = DebugQueryKey.physicsChunk(spaceId, viewerUuid);
         try {
-            queryCache.requestWorldCollisionIfIdle(key,
-                () -> PhysicsStoreDebugQueries.worldCollisionSectionsAsync(physicsStore,
+            queryCache.requestPhysicsChunkIfIdle(key,
+                () -> PhysicsStoreDebugQueries.physicsChunkSectionsAsync(physicsStore,
                     spaceId,
                     viewerPosition,
                     viewRadius));
@@ -438,15 +438,15 @@ public class PhysicsDebugSystem extends TickingSystem<EntityStore> {
         }
 
         double maxDistanceSquared = viewRadius * viewRadius;
-        List<VisibleDebugSection> visibleSections = collectVisibleWorldCollisionSections(
-            queryCache.worldCollisionSectionsOrEmpty(key),
+        List<VisibleDebugSection> visibleSections = collectVisiblePhysicsChunkSections(
+            queryCache.physicsChunkSectionsOrEmpty(key),
             viewerPosition,
             maxDistanceSquared);
         visibleSections.sort(Comparator.comparingDouble(VisibleDebugSection::distanceSquared));
 
         int sectionLimit = Math.min(maxSections, visibleSections.size());
         for (int i = 0; i < sectionLimit; i++) {
-            PhysicsDebugWorldCollisionSectionView section = visibleSections.get(i).section();
+            PhysicsChunkDebugSectionView section = visibleSections.get(i).section();
             PhysicsDebugRenderer.renderWorldCollisionSection(viewers,
                 section.chunkX(),
                 section.sectionY(),
@@ -455,7 +455,7 @@ public class PhysicsDebugSystem extends TickingSystem<EntityStore> {
                 time);
         }
 
-        List<VisibleDebugBox> visibleBoxes = collectVisibleWorldCollisionBoxes(
+        List<VisibleDebugBox> visibleBoxes = collectVisiblePhysicsChunkBoxes(
             visibleSections, viewerPosition, maxDistanceSquared);
         visibleBoxes.sort(Comparator.comparingDouble(VisibleDebugBox::distanceSquared));
 
@@ -470,12 +470,12 @@ public class PhysicsDebugSystem extends TickingSystem<EntityStore> {
     }
 
     @Nonnull
-    private static List<VisibleDebugSection> collectVisibleWorldCollisionSections(
-        @Nonnull Iterable<PhysicsDebugWorldCollisionSectionView> sections,
+    private static List<VisibleDebugSection> collectVisiblePhysicsChunkSections(
+        @Nonnull Iterable<PhysicsChunkDebugSectionView> sections,
         @Nonnull Vector3d viewerPosition,
         double maxDistanceSquared) {
         List<VisibleDebugSection> visibleSections = new ArrayList<>();
-        for (PhysicsDebugWorldCollisionSectionView section : sections) {
+        for (PhysicsChunkDebugSectionView section : sections) {
             double distanceSquared = distanceSquaredToSection(viewerPosition, section);
             if (distanceSquared > maxDistanceSquared) {
                 continue;
@@ -487,19 +487,19 @@ public class PhysicsDebugSystem extends TickingSystem<EntityStore> {
     }
 
     @Nonnull
-    private static List<VisibleDebugBox> collectVisibleWorldCollisionBoxes(
+    private static List<VisibleDebugBox> collectVisiblePhysicsChunkBoxes(
         @Nonnull List<VisibleDebugSection> visibleSections,
         @Nonnull Vector3d viewerPosition,
         double maxDistanceSquared) {
         List<VisibleDebugBox> visibleBoxes = new ArrayList<>();
         for (VisibleDebugSection visibleSection : visibleSections) {
-            PhysicsDebugWorldCollisionSectionView section = visibleSection.section();
-            collectVisibleWorldCollisionBoxes(viewerPosition,
+            PhysicsChunkDebugSectionView section = visibleSection.section();
+            collectVisiblePhysicsChunkBoxes(viewerPosition,
                 maxDistanceSquared,
                 section.fullCubeBoxes(),
                 DebugUtils.COLOR_CYAN,
                 visibleBoxes);
-            collectVisibleWorldCollisionBoxes(viewerPosition,
+            collectVisiblePhysicsChunkBoxes(viewerPosition,
                 maxDistanceSquared,
                 section.detailBoxes(),
                 DebugUtils.COLOR_MAGENTA,
@@ -508,7 +508,7 @@ public class PhysicsDebugSystem extends TickingSystem<EntityStore> {
         return visibleBoxes;
     }
 
-    private static void collectVisibleWorldCollisionBoxes(@Nonnull Vector3d viewerPosition,
+    private static void collectVisiblePhysicsChunkBoxes(@Nonnull Vector3d viewerPosition,
         double maxDistanceSquared,
         @Nonnull Iterable<BoxCollider> boxes,
         @Nonnull Vector3f color,
@@ -524,7 +524,7 @@ public class PhysicsDebugSystem extends TickingSystem<EntityStore> {
     }
 
     private static double distanceSquaredToSection(@Nonnull Vector3d viewerPosition,
-        @Nonnull PhysicsDebugWorldCollisionSectionView section) {
+        @Nonnull PhysicsChunkDebugSectionView section) {
         double minX = section.chunkX() << ChunkUtil.BITS;
         double minY = section.sectionY() << ChunkUtil.BITS;
         double minZ = section.chunkZ() << ChunkUtil.BITS;
@@ -591,11 +591,11 @@ public class PhysicsDebugSystem extends TickingSystem<EntityStore> {
         private final Map<DebugQueryKey, List<PhysicsDebugJointView>> completedJoints =
             new Object2ObjectOpenHashMap<>();
         @Nonnull
-        private final Map<DebugQueryKey, CompletableFuture<List<PhysicsDebugWorldCollisionSectionView>>>
-            pendingWorldCollisionSections = new Object2ObjectOpenHashMap<>();
+        private final Map<DebugQueryKey, CompletableFuture<List<PhysicsChunkDebugSectionView>>>
+            pendingPhysicsChunkSections = new Object2ObjectOpenHashMap<>();
         @Nonnull
-        private final Map<DebugQueryKey, List<PhysicsDebugWorldCollisionSectionView>>
-            completedWorldCollisionSections = new Object2ObjectOpenHashMap<>();
+        private final Map<DebugQueryKey, List<PhysicsChunkDebugSectionView>>
+            completedPhysicsChunkSections = new Object2ObjectOpenHashMap<>();
 
         synchronized boolean requestContactsIfIdle(@Nonnull DebugQueryKey key,
             @Nonnull Supplier<CompletionStage<List<PhysicsDebugContactView>>> completionSupplier) {
@@ -629,22 +629,22 @@ public class PhysicsDebugSystem extends TickingSystem<EntityStore> {
             return completedJoints.getOrDefault(key, List.of());
         }
 
-        synchronized boolean requestWorldCollisionIfIdle(@Nonnull DebugQueryKey key,
-            @Nonnull Supplier<CompletionStage<List<PhysicsDebugWorldCollisionSectionView>>>
+        synchronized boolean requestPhysicsChunkIfIdle(@Nonnull DebugQueryKey key,
+            @Nonnull Supplier<CompletionStage<List<PhysicsChunkDebugSectionView>>>
                 completionSupplier) {
-            pollWorldCollision(key);
-            if (pendingWorldCollisionSections.containsKey(key)) {
+            pollPhysicsChunk(key);
+            if (pendingPhysicsChunkSections.containsKey(key)) {
                 return false;
             }
-            pendingWorldCollisionSections.put(key, completionSupplier.get().toCompletableFuture());
+            pendingPhysicsChunkSections.put(key, completionSupplier.get().toCompletableFuture());
             return true;
         }
 
         @Nonnull
-        synchronized List<PhysicsDebugWorldCollisionSectionView> worldCollisionSectionsOrEmpty(
+        synchronized List<PhysicsChunkDebugSectionView> physicsChunkSectionsOrEmpty(
             @Nonnull DebugQueryKey key) {
-            pollWorldCollision(key);
-            return completedWorldCollisionSections.getOrDefault(key, List.of());
+            pollPhysicsChunk(key);
+            return completedPhysicsChunkSections.getOrDefault(key, List.of());
         }
 
         private void pollContacts(@Nonnull DebugQueryKey key) {
@@ -665,14 +665,14 @@ public class PhysicsDebugSystem extends TickingSystem<EntityStore> {
             completedJoints.put(key, completedList(pending));
         }
 
-        private void pollWorldCollision(@Nonnull DebugQueryKey key) {
-            CompletableFuture<List<PhysicsDebugWorldCollisionSectionView>> pending =
-                pendingWorldCollisionSections.get(key);
+        private void pollPhysicsChunk(@Nonnull DebugQueryKey key) {
+            CompletableFuture<List<PhysicsChunkDebugSectionView>> pending =
+                pendingPhysicsChunkSections.get(key);
             if (pending == null || !pending.isDone()) {
                 return;
             }
-            pendingWorldCollisionSections.remove(key);
-            completedWorldCollisionSections.put(key, completedList(pending));
+            pendingPhysicsChunkSections.remove(key);
+            completedPhysicsChunkSections.put(key, completedList(pending));
         }
 
         @Nonnull
@@ -706,18 +706,18 @@ public class PhysicsDebugSystem extends TickingSystem<EntityStore> {
         }
 
         @Nonnull
-        static DebugQueryKey worldCollision(@Nonnull SpaceId spaceId, @Nonnull UUID viewerUuid) {
-            return new DebugQueryKey(QueryKind.WORLD_COLLISION, spaceId, viewerUuid);
+        static DebugQueryKey physicsChunk(@Nonnull SpaceId spaceId, @Nonnull UUID viewerUuid) {
+            return new DebugQueryKey(QueryKind.PHYSICS_CHUNK, spaceId, viewerUuid);
         }
     }
 
     enum QueryKind {
         CONTACTS,
         JOINTS,
-        WORLD_COLLISION
+        PHYSICS_CHUNK
     }
 
-    private record VisibleDebugSection(@Nonnull PhysicsDebugWorldCollisionSectionView section,
+    private record VisibleDebugSection(@Nonnull PhysicsChunkDebugSectionView section,
                                        double distanceSquared) {
     }
 

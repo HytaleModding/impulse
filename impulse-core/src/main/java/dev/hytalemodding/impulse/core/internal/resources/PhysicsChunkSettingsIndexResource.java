@@ -3,7 +3,7 @@ package dev.hytalemodding.impulse.core.internal.resources;
 import com.hypixel.hytale.component.Resource;
 import com.hypixel.hytale.component.ResourceType;
 import com.hypixel.hytale.server.core.universe.world.storage.PhysicsStore;
-import dev.hytalemodding.impulse.core.internal.modules.physicschunk.WorldCollisionBuildOptions;
+import dev.hytalemodding.impulse.core.internal.modules.physicschunk.PhysicsChunkBuildOptions;
 import dev.hytalemodding.impulse.core.internal.modules.physicschunk.TerrainColliderMode;
 import dev.hytalemodding.impulse.core.plugin.modules.physicschunk.WorldCollisionMode;
 import dev.hytalemodding.impulse.core.plugin.settings.EntityChunkBoundaryMode;
@@ -15,33 +15,33 @@ import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
 /**
- * Runtime-only copied world-collision settings indexed by PhysicsStore space UUID.
+ * Runtime-only copied PhysicsChunk terrain settings indexed by PhysicsStore space UUID.
  */
-public final class PhysicsWorldCollisionIndexResource implements Resource<PhysicsStore> {
+public final class PhysicsChunkSettingsIndexResource implements Resource<PhysicsStore> {
 
     @Nullable
-    private static ResourceType<PhysicsStore, PhysicsWorldCollisionIndexResource> resourceType;
+    private static ResourceType<PhysicsStore, PhysicsChunkSettingsIndexResource> resourceType;
     @Nonnull
-    private final Map<UUID, SpaceWorldCollisionSettings> settingsBySpaceUuid =
+    private final Map<UUID, PhysicsChunkSpaceSettings> settingsBySpaceUuid =
         new Object2ObjectOpenHashMap<>();
 
-    public PhysicsWorldCollisionIndexResource() {
+    public PhysicsChunkSettingsIndexResource() {
     }
 
-    public synchronized void replaceAll(@Nonnull Map<UUID, SpaceWorldCollisionSettings> settings) {
+    public synchronized void replaceAll(@Nonnull Map<UUID, PhysicsChunkSpaceSettings> settings) {
         settingsBySpaceUuid.clear();
         settingsBySpaceUuid.putAll(settings);
     }
 
     @Nonnull
-    public synchronized List<SpaceWorldCollisionSettings> streamingSpaces() {
+    public synchronized List<PhysicsChunkSpaceSettings> streamingSpaces() {
         return settingsBySpaceUuid.values().stream()
             .filter(settings -> settings.mode() == WorldCollisionMode.STREAMING)
             .toList();
     }
 
     @Nullable
-    public synchronized SpaceWorldCollisionSettings settings(@Nonnull UUID spaceUuid) {
+    public synchronized PhysicsChunkSpaceSettings settings(@Nonnull UUID spaceUuid) {
         return settingsBySpaceUuid.get(spaceUuid);
     }
 
@@ -51,23 +51,23 @@ public final class PhysicsWorldCollisionIndexResource implements Resource<Physic
 
     @Nonnull
     @Override
-    public synchronized PhysicsWorldCollisionIndexResource clone() {
-        PhysicsWorldCollisionIndexResource copy = new PhysicsWorldCollisionIndexResource();
+    public synchronized PhysicsChunkSettingsIndexResource clone() {
+        PhysicsChunkSettingsIndexResource copy = new PhysicsChunkSettingsIndexResource();
         copy.settingsBySpaceUuid.putAll(settingsBySpaceUuid);
         return copy;
     }
 
     @Nonnull
-    public static ResourceType<PhysicsStore, PhysicsWorldCollisionIndexResource> getResourceType() {
+    public static ResourceType<PhysicsStore, PhysicsChunkSettingsIndexResource> getResourceType() {
         return resourceType;
     }
 
     public static void setResourceType(
-        @Nonnull ResourceType<PhysicsStore, PhysicsWorldCollisionIndexResource> type) {
+        @Nonnull ResourceType<PhysicsStore, PhysicsChunkSettingsIndexResource> type) {
         resourceType = type;
     }
 
-    public record SpaceWorldCollisionSettings(@Nonnull UUID spaceUuid,
+    public record PhysicsChunkSpaceSettings(@Nonnull UUID spaceUuid,
                                               @Nonnull WorldCollisionMode mode,
                                               @Nonnull EntityChunkBoundaryMode entityChunkBoundaryMode,
                                               boolean nativeVoxelTerrainEnabled,
@@ -78,8 +78,8 @@ public final class PhysicsWorldCollisionIndexResource implements Resource<Physic
                                               float terrainRestitution) {
 
         @Nonnull
-        public WorldCollisionBuildOptions buildOptions() {
-            return new WorldCollisionBuildOptions(
+        public PhysicsChunkBuildOptions buildOptions() {
+            return new PhysicsChunkBuildOptions(
                 TerrainColliderMode.fromNativeVoxelTerrainEnabled(nativeVoxelTerrainEnabled),
                 terrainFriction,
                 terrainRestitution);

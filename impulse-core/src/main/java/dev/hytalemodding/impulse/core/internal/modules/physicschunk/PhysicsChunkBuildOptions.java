@@ -5,16 +5,16 @@ import java.util.Objects;
 import javax.annotation.Nonnull;
 
 /**
- * Options that control generated world-collision backend geometry.
+ * Options that control generated PhysicsChunk terrain backend geometry.
  */
-public record WorldCollisionBuildOptions(@Nonnull TerrainColliderMode terrainColliderMode,
+public record PhysicsChunkBuildOptions(@Nonnull TerrainColliderMode terrainColliderMode,
                                          float terrainFriction,
                                          float terrainRestitution) {
 
-    public static final WorldCollisionBuildOptions DEFAULT =
+    public static final PhysicsChunkBuildOptions DEFAULT =
         fromNativeVoxelTerrainEnabled(PhysicsWorldCollisionSettings.DEFAULT_NATIVE_VOXEL_TERRAIN_ENABLED);
 
-    public WorldCollisionBuildOptions {
+    public PhysicsChunkBuildOptions {
         Objects.requireNonNull(terrainColliderMode, "terrainColliderMode");
         if (!Float.isFinite(terrainFriction) || terrainFriction < 0.0f) {
             throw new IllegalArgumentException("terrainFriction must be finite and >= 0");
@@ -25,16 +25,16 @@ public record WorldCollisionBuildOptions(@Nonnull TerrainColliderMode terrainCol
     }
 
     @Nonnull
-    public static WorldCollisionBuildOptions fromSettings(@Nonnull PhysicsWorldCollisionSettings settings) {
-        return new WorldCollisionBuildOptions(
+    public static PhysicsChunkBuildOptions fromSettings(@Nonnull PhysicsWorldCollisionSettings settings) {
+        return new PhysicsChunkBuildOptions(
             TerrainColliderMode.fromNativeVoxelTerrainEnabled(settings.isNativeVoxelTerrainEnabled()),
             settings.getTerrainFriction(),
             settings.getTerrainRestitution());
     }
 
     @Nonnull
-    public static WorldCollisionBuildOptions fromNativeVoxelTerrainEnabled(boolean enabled) {
-        return new WorldCollisionBuildOptions(TerrainColliderMode.fromNativeVoxelTerrainEnabled(enabled),
+    public static PhysicsChunkBuildOptions fromNativeVoxelTerrainEnabled(boolean enabled) {
+        return new PhysicsChunkBuildOptions(TerrainColliderMode.fromNativeVoxelTerrainEnabled(enabled),
             PhysicsWorldCollisionSettings.DEFAULT_TERRAIN_FRICTION,
             PhysicsWorldCollisionSettings.DEFAULT_TERRAIN_RESTITUTION);
     }

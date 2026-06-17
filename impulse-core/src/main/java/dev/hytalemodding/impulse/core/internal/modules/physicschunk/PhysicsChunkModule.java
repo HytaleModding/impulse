@@ -12,7 +12,7 @@ import java.util.logging.Level;
 import javax.annotation.Nonnull;
 
 /**
- * Plugin module that enables Impulse ChunkStore world-collision integration.
+ * Plugin module that enables Impulse PhysicsChunk terrain integration.
  */
 public final class PhysicsChunkModule extends JavaPlugin {
 
@@ -29,7 +29,7 @@ public final class PhysicsChunkModule extends JavaPlugin {
         PhysicsChunkTypes.registerEntityStoreSystems(entityRegistry);
         PhysicsChunkCommandContributions.register();
         PhysicsWorldCollision.enableModule();
-        LOGGER.at(Level.INFO).log("Impulse world-collision PhysicsStore terrain producer enabled.");
+        LOGGER.at(Level.INFO).log("Impulse PhysicsChunk terrain producer enabled.");
     }
 
     @Override

@@ -18,10 +18,10 @@ import dev.hytalemodding.impulse.api.SpaceId;
 import dev.hytalemodding.impulse.core.internal.resources.profiling.PhysicsRuntimeProfilingResource;
 import dev.hytalemodding.impulse.core.internal.resources.profiling.PhysicsRuntimeProfilingResource.StepSnapshot;
 import dev.hytalemodding.impulse.core.internal.resources.profiling.PhysicsRuntimeProfilingResource.SyncSnapshot;
-import dev.hytalemodding.impulse.core.internal.modules.physicschunk.PhysicsStoreWorldCollisionStreamingResource;
-import dev.hytalemodding.impulse.core.internal.modules.physicschunk.WorldCollisionBuildOptions;
-import dev.hytalemodding.impulse.core.internal.modules.physicschunk.profiling.WorldCollisionProfilingResource;
-import dev.hytalemodding.impulse.core.internal.modules.physicschunk.profiling.WorldCollisionProfilingResource.Snapshot;
+import dev.hytalemodding.impulse.core.internal.modules.physicschunk.PhysicsChunkTerrainStreamingResource;
+import dev.hytalemodding.impulse.core.internal.modules.physicschunk.PhysicsChunkBuildOptions;
+import dev.hytalemodding.impulse.core.internal.modules.physicschunk.profiling.PhysicsChunkProfilingResource;
+import dev.hytalemodding.impulse.core.internal.modules.physicschunk.profiling.PhysicsChunkProfilingResource.Snapshot;
 import dev.hytalemodding.impulse.core.internal.physicsstore.PhysicsStoreSpaceMutations;
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsTerrainMutationQueueResource;
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsProfilingResource;
@@ -55,7 +55,7 @@ import org.joml.Vector3d;
 import org.joml.Vector3f;
 
 /**
- * Benchmark-oriented Crucible scenario for detached bodies using streamed world collision.
+ * Benchmark-oriented Crucible scenario for detached bodies using streamed PhysicsChunk terrain.
  */
 @SuppressWarnings("SameParameterValue")
 final class ImpulseDetachedStreamingBenchmarkCrucibleTests {
@@ -143,8 +143,8 @@ final class ImpulseDetachedStreamingBenchmarkCrucibleTests {
         private final Store<PhysicsStore> physicsStore;
         private final PhysicsProfilingResource physicsStoreProfiling;
         private final PhysicsRuntimeProfilingResource runtimeProfiling;
-        private final WorldCollisionProfilingResource worldCollisionProfiling;
-        private final PhysicsStoreWorldCollisionStreamingResource worldCollisionStreaming;
+        private final PhysicsChunkProfilingResource worldCollisionProfiling;
+        private final PhysicsChunkTerrainStreamingResource worldCollisionStreaming;
         private final PhysicsWorldSettings previousWorldSettings;
         private final boolean previousPhysicsStoreProfilingEnabled;
         private final List<WorldChunk> retainedChunks = new ArrayList<>();
@@ -161,9 +161,9 @@ final class ImpulseDetachedStreamingBenchmarkCrucibleTests {
                 PhysicsProfilingResource.getResourceType());
             this.runtimeProfiling = store.getResource(PhysicsRuntimeProfilingResource.getResourceType());
             this.worldCollisionProfiling = store.getResource(
-                WorldCollisionProfilingResource.getResourceType());
+                PhysicsChunkProfilingResource.getResourceType());
             this.worldCollisionStreaming = store.getResource(
-                PhysicsStoreWorldCollisionStreamingResource.getResourceType());
+                PhysicsChunkTerrainStreamingResource.getResourceType());
             this.previousWorldSettings = physics.getWorldSettings();
             this.previousPhysicsStoreProfilingEnabled = physicsStoreProfiling.isEnabled();
         }
@@ -372,7 +372,7 @@ final class ImpulseDetachedStreamingBenchmarkCrucibleTests {
             UUID spaceUuid = PhysicsStoreSpaceMutations.requireSpaceUuid(physicsStore, spaceId);
             PhysicsTerrainMutationQueueResource queue = physicsStore.getResource(
                 PhysicsTerrainMutationQueueResource.getResourceType());
-            WorldCollisionBuildOptions buildOptions = WorldCollisionBuildOptions.fromSettings(
+            PhysicsChunkBuildOptions buildOptions = PhysicsChunkBuildOptions.fromSettings(
                 physics.getSpaceSettings(spaceId).getWorldCollisionSettings());
             WorldCollisionPrewarmStats stats = worldCollisionStreaming.ensureAround(world,
                 spaceUuid,
@@ -434,7 +434,7 @@ final class ImpulseDetachedStreamingBenchmarkCrucibleTests {
         private void configureMissingSectionDiagnostics(@Nonnull BenchmarkChunks chunks) {
             LongSet sectionKeys = new LongOpenHashSet();
             for (ChunkSection section : chunks.sections()) {
-                sectionKeys.add(WorldCollisionProfilingResource.packDiagnosticSectionKey(
+                sectionKeys.add(PhysicsChunkProfilingResource.packDiagnosticSectionKey(
                     section.x(),
                     section.y(),
                     section.z()));
@@ -951,7 +951,7 @@ final class ImpulseDetachedStreamingBenchmarkCrucibleTests {
         private double minTerrainBottomClearance = Double.POSITIVE_INFINITY;
 
         private static SpaceStats collect(@Nonnull Store<PhysicsStore> physicsStore,
-            @Nonnull PhysicsStoreWorldCollisionStreamingResource worldCollisionStreaming,
+            @Nonnull PhysicsChunkTerrainStreamingResource worldCollisionStreaming,
             @Nonnull SpaceId spaceId) {
             BenchmarkSpaceStatsView view = PhysicsStoreBenchmarkQueries.benchmarkSpaceStats(
                 physicsStore,

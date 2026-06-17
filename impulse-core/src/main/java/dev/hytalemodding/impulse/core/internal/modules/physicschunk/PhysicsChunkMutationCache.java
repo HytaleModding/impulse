@@ -8,9 +8,9 @@ import com.hypixel.hytale.server.core.universe.world.chunk.BlockChunk;
 import com.hypixel.hytale.server.core.universe.world.chunk.section.BlockSection;
 import com.hypixel.hytale.server.core.universe.world.storage.ChunkStore;
 import com.hypixel.hytale.server.core.universe.world.storage.PhysicsStore;
-import dev.hytalemodding.impulse.core.internal.modules.physicschunk.profiling.WorldCollisionProfilingResource.MissingSectionReason;
-import dev.hytalemodding.impulse.core.internal.modules.physicschunk.profiling.WorldCollisionProfilingResource.Snapshot;
-import dev.hytalemodding.impulse.core.internal.modules.physicschunk.profiling.WorldCollisionProfilingResource.StreamingTargetDiagnostic;
+import dev.hytalemodding.impulse.core.internal.modules.physicschunk.profiling.PhysicsChunkProfilingResource.MissingSectionReason;
+import dev.hytalemodding.impulse.core.internal.modules.physicschunk.profiling.PhysicsChunkProfilingResource.Snapshot;
+import dev.hytalemodding.impulse.core.internal.modules.physicschunk.profiling.PhysicsChunkProfilingResource.StreamingTargetDiagnostic;
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsTerrainMutationQueueResource;
 import it.unimi.dsi.fastutil.ints.Int2ObjectMap;
 import it.unimi.dsi.fastutil.ints.Int2ObjectOpenHashMap;
@@ -49,7 +49,7 @@ public final class PhysicsChunkMutationCache {
     private final SectionColliderBuilder sectionBuilder = new SectionColliderBuilder(shapeTemplates);
 
     @Nonnull
-    public synchronized VoxelCollisionCache.BuildStats ensureAround(@Nonnull World world,
+    public synchronized VoxelTerrainCollisionCache.BuildStats ensureAround(@Nonnull World world,
         @Nonnull UUID spaceUuid,
         @Nonnull PhysicsTerrainMutationQueueResource queue,
         @Nonnull Vector3d center,
@@ -58,7 +58,7 @@ public final class PhysicsChunkMutationCache {
         @Nullable Snapshot profiling,
         @Nullable LongSet visitedSections,
         @Nullable StreamingTargetDiagnostic targetDiagnostic,
-        @Nonnull WorldCollisionBuildOptions buildOptions) {
+        @Nonnull PhysicsChunkBuildOptions buildOptions) {
         long start = profiling != null ? System.nanoTime() : 0L;
         if (profiling != null) {
             profiling.incrementEnsureCalls();
@@ -78,7 +78,7 @@ public final class PhysicsChunkMutationCache {
         int minChunkZ = ChunkUtil.chunkCoordinate(minZ);
         int maxChunkZ = ChunkUtil.chunkCoordinate(maxZ);
 
-        VoxelCollisionCache.BuildStats total = VoxelCollisionCache.BuildStats.empty();
+        VoxelTerrainCollisionCache.BuildStats total = VoxelTerrainCollisionCache.BuildStats.empty();
         for (int chunkX = minChunkX; chunkX <= maxChunkX; chunkX++) {
             for (int sectionY = minSectionY; sectionY <= maxSectionY; sectionY++) {
                 for (int chunkZ = minChunkZ; chunkZ <= maxChunkZ; chunkZ++) {
@@ -259,7 +259,7 @@ public final class PhysicsChunkMutationCache {
     @Nonnull
     public synchronized TargetRefreshDecision shouldRefreshBodyTarget(@Nonnull UUID spaceUuid,
         @Nonnull UUID bodyUuid,
-        @Nonnull WorldCollisionStreamingBounds bounds,
+        @Nonnull PhysicsChunkStreamingBounds bounds,
         boolean sleeping,
         long currentTick,
         int ttlTicks,
@@ -322,7 +322,7 @@ public final class PhysicsChunkMutationCache {
     @Nonnull
     public synchronized TargetRefreshDecision shouldRefreshBodyTarget(@Nonnull UUID spaceUuid,
         @Nonnull Ref<PhysicsStore> bodyRef,
-        @Nonnull WorldCollisionStreamingBounds bounds,
+        @Nonnull PhysicsChunkStreamingBounds bounds,
         boolean sleeping,
         long currentTick,
         int ttlTicks,
@@ -386,7 +386,7 @@ public final class PhysicsChunkMutationCache {
 
     public synchronized void recordBodyTargetRefresh(@Nonnull UUID spaceUuid,
         @Nonnull UUID bodyUuid,
-        @Nonnull WorldCollisionStreamingBounds bounds,
+        @Nonnull PhysicsChunkStreamingBounds bounds,
         boolean sleeping,
         long currentTick) {
         SpaceCollisionCache cache = spaces.computeIfAbsent(spaceUuid, _ -> new SpaceCollisionCache());
@@ -406,7 +406,7 @@ public final class PhysicsChunkMutationCache {
 
     public synchronized void recordBodyTargetRefresh(@Nonnull UUID spaceUuid,
         @Nonnull Ref<PhysicsStore> bodyRef,
-        @Nonnull WorldCollisionStreamingBounds bounds,
+        @Nonnull PhysicsChunkStreamingBounds bounds,
         boolean sleeping,
         long currentTick) {
         SpaceCollisionCache cache = spaces.computeIfAbsent(spaceUuid, _ -> new SpaceCollisionCache());
@@ -465,7 +465,7 @@ public final class PhysicsChunkMutationCache {
     }
 
     @Nonnull
-    private VoxelCollisionCache.BuildStats ensureSection(@Nonnull World world,
+    private VoxelTerrainCollisionCache.BuildStats ensureSection(@Nonnull World world,
         @Nonnull UUID spaceUuid,
         @Nonnull PhysicsTerrainMutationQueueResource queue,
         int chunkX,
@@ -474,7 +474,7 @@ public final class PhysicsChunkMutationCache {
         long tick,
         @Nullable Snapshot profiling,
         @Nullable StreamingTargetDiagnostic targetDiagnostic,
-        @Nonnull WorldCollisionBuildOptions buildOptions) {
+        @Nonnull PhysicsChunkBuildOptions buildOptions) {
         long start = profiling != null ? System.nanoTime() : 0L;
         if (profiling != null) {
             profiling.incrementSectionRequests();
@@ -491,7 +491,7 @@ public final class PhysicsChunkMutationCache {
                 chunkZ,
                 targetDiagnostic,
                 start);
-            return VoxelCollisionCache.BuildStats.empty();
+            return VoxelTerrainCollisionCache.BuildStats.empty();
         }
         if (blockChunk(world, chunkX, chunkZ) == null) {
             cache.missingBlockChunkBackoffs.put(chunkKey, tick + MISSING_BLOCK_CHUNK_RETRY_TICKS);
@@ -502,7 +502,7 @@ public final class PhysicsChunkMutationCache {
                 chunkZ,
                 targetDiagnostic,
                 start);
-            return VoxelCollisionCache.BuildStats.empty();
+            return VoxelTerrainCollisionCache.BuildStats.empty();
         }
         cache.missingBlockChunkBackoffs.remove(chunkKey);
 
@@ -514,7 +514,7 @@ public final class PhysicsChunkMutationCache {
                 chunkZ,
                 targetDiagnostic,
                 start);
-            return VoxelCollisionCache.BuildStats.empty();
+            return VoxelTerrainCollisionCache.BuildStats.empty();
         }
         BlockSection section = ChunkSectionAccess.blockSection(world, chunkX, sectionY, chunkZ);
         if (section == null) {
@@ -527,7 +527,7 @@ public final class PhysicsChunkMutationCache {
                 chunkZ,
                 targetDiagnostic,
                 start);
-            return VoxelCollisionCache.BuildStats.empty();
+            return VoxelTerrainCollisionCache.BuildStats.empty();
         }
         cache.missingBlockSectionBackoffs.remove(sectionKey);
 
@@ -545,7 +545,7 @@ public final class PhysicsChunkMutationCache {
                 profiling.incrementSectionCacheHits();
                 profiling.addEnsureSectionNanos(System.nanoTime() - start);
             }
-            return VoxelCollisionCache.BuildStats.empty();
+            return VoxelTerrainCollisionCache.BuildStats.empty();
         }
 
         SectionCollisionGeometry geometry = sectionBuilder.build(world,
@@ -572,7 +572,7 @@ public final class PhysicsChunkMutationCache {
                 buildOptions));
         }
         cache.sections.put(sectionKey, built);
-        VoxelCollisionCache.BuildStats stats = new VoxelCollisionCache.BuildStats(
+        VoxelTerrainCollisionCache.BuildStats stats = new VoxelTerrainCollisionCache.BuildStats(
             geometry.scannedBlocks(),
             geometry.solidBlocks(),
             geometry.culledInteriorBlocks(),
@@ -591,7 +591,7 @@ public final class PhysicsChunkMutationCache {
     }
 
     private static int bodyCount(@Nonnull SectionCollisionGeometry geometry,
-        @Nonnull WorldCollisionBuildOptions buildOptions) {
+        @Nonnull PhysicsChunkBuildOptions buildOptions) {
         int fullCubeBodyCount = buildOptions.nativeVoxelTerrainEnabled()
             && geometry.hasFullCubeVoxels()
             ? 1
@@ -772,7 +772,7 @@ public final class PhysicsChunkMutationCache {
         private final int chunkZ;
         private final long neighborhoodSignature;
         @Nonnull
-        private final WorldCollisionBuildOptions buildOptions;
+        private final PhysicsChunkBuildOptions buildOptions;
         private final int bodyCount;
         private final boolean voxelTerrain;
         private long lastUsedTick;
@@ -782,7 +782,7 @@ public final class PhysicsChunkMutationCache {
             int chunkZ,
             long lastUsedTick,
             long neighborhoodSignature,
-            @Nonnull WorldCollisionBuildOptions buildOptions,
+            @Nonnull PhysicsChunkBuildOptions buildOptions,
             int bodyCount,
             boolean voxelTerrain) {
             this.chunkX = chunkX;
@@ -799,12 +799,12 @@ public final class PhysicsChunkMutationCache {
     private static final class CachedBodyStreamingTarget {
 
         @Nonnull
-        private WorldCollisionStreamingBounds bounds;
+        private PhysicsChunkStreamingBounds bounds;
         private boolean sleeping;
         private long lastSeenTick;
         private long lastRefreshTick;
 
-        private CachedBodyStreamingTarget(@Nonnull WorldCollisionStreamingBounds bounds,
+        private CachedBodyStreamingTarget(@Nonnull PhysicsChunkStreamingBounds bounds,
             boolean sleeping,
             long lastSeenTick,
             long lastRefreshTick) {

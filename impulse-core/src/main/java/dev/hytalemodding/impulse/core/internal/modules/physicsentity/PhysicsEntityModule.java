@@ -4,6 +4,7 @@ import com.hypixel.hytale.component.ComponentRegistryProxy;
 import com.hypixel.hytale.server.core.plugin.JavaPlugin;
 import com.hypixel.hytale.server.core.plugin.JavaPluginInit;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
+import dev.hytalemodding.impulse.core.internal.modules.physicsentity.commands.PhysicsEntityCommandContributions;
 import dev.hytalemodding.impulse.core.plugin.modules.physicsentity.PhysicsEntityTypes;
 import javax.annotation.Nonnull;
 
@@ -24,12 +25,14 @@ public final class PhysicsEntityModule extends JavaPlugin {
         PhysicsEntityTypes.registerEventTypes(entityRegistry);
         PhysicsEntityTypes.registerSystemGroups(entityRegistry);
         PhysicsEntityTypes.registerSystems(entityRegistry);
+        PhysicsEntityCommandContributions.register();
         PhysicsEntityLifecycle.enable();
     }
 
     @Override
     protected void shutdown() {
         PhysicsEntityLifecycle.disable();
+        PhysicsEntityCommandContributions.unregister();
         PhysicsEntityTypes.clearEntityStoreTypes();
     }
 }

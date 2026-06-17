@@ -6,13 +6,13 @@ import com.hypixel.hytale.server.core.universe.world.World;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import com.hypixel.hytale.server.core.universe.world.storage.PhysicsStore;
 import dev.hytalemodding.impulse.api.SpaceId;
-import dev.hytalemodding.impulse.core.internal.modules.physicschunk.PhysicsStoreWorldCollisionStreamingResource;
+import dev.hytalemodding.impulse.core.internal.modules.physicschunk.PhysicsChunkTerrainStreamingResource;
 import dev.hytalemodding.impulse.core.internal.modules.physicschunk.PhysicsChunkLifecycle;
 import dev.hytalemodding.impulse.core.internal.physicsstore.PhysicsStoreSpaceMutations;
 import dev.hytalemodding.impulse.core.internal.physicsstore.PhysicsStoreTopologyMutations;
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsIdentityIndexResource;
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsTerrainMutationQueueResource;
-import dev.hytalemodding.impulse.core.internal.resources.PhysicsWorldCollisionIndexResource.SpaceWorldCollisionSettings;
+import dev.hytalemodding.impulse.core.internal.resources.PhysicsChunkSettingsIndexResource.PhysicsChunkSpaceSettings;
 import dev.hytalemodding.impulse.core.plugin.components.WorldCollisionComponent;
 import dev.hytalemodding.impulse.core.plugin.physicsstore.PhysicsThreading;
 import java.util.List;
@@ -22,7 +22,7 @@ import javax.annotation.Nonnull;
 import org.joml.Vector3d;
 
 /**
- * Public PhysicsChunk operations for terrain-backed world collision.
+ * Public PhysicsChunk operations for terrain-backed collision.
  */
 public final class PhysicsWorldCollision {
 
@@ -50,8 +50,8 @@ public final class PhysicsWorldCollision {
         requireEnabled();
         Store<PhysicsStore> checkedStore = requireMatchingWorldThread(world,
             store,
-            "rebuild PhysicsStore world collision");
-        SpaceWorldCollisionSettings settings = requireSettings(checkedStore, spaceId);
+            "rebuild PhysicsChunk terrain");
+        PhysicsChunkSpaceSettings settings = requireSettings(checkedStore, spaceId);
         PhysicsTerrainMutationQueueResource queue = checkedStore.getResource(
             PhysicsTerrainMutationQueueResource.getResourceType());
         int removed = clearSpaceRows(world, checkedStore, settings.spaceUuid());
@@ -76,8 +76,8 @@ public final class PhysicsWorldCollision {
         requireEnabled();
         Store<PhysicsStore> checkedStore = requireMatchingWorldThread(world,
             store,
-            "refresh PhysicsStore world collision");
-        SpaceWorldCollisionSettings settings = requireSettings(checkedStore, spaceId);
+            "refresh PhysicsChunk terrain");
+        PhysicsChunkSpaceSettings settings = requireSettings(checkedStore, spaceId);
         return streaming(world).refreshAround(world,
             settings.spaceUuid(),
             checkedStore.getResource(PhysicsTerrainMutationQueueResource.getResourceType()),
@@ -98,8 +98,8 @@ public final class PhysicsWorldCollision {
         requireEnabled();
         Store<PhysicsStore> checkedStore = requireMatchingWorldThread(world,
             store,
-            "ensure PhysicsStore world collision");
-        SpaceWorldCollisionSettings settings = requireSettings(checkedStore, spaceId);
+            "ensure PhysicsChunk terrain");
+        PhysicsChunkSpaceSettings settings = requireSettings(checkedStore, spaceId);
         return streaming(world).ensureAround(world,
             settings.spaceUuid(),
             checkedStore.getResource(PhysicsTerrainMutationQueueResource.getResourceType()),
@@ -115,7 +115,7 @@ public final class PhysicsWorldCollision {
         @Nonnull SpaceId spaceId) {
         Store<PhysicsStore> checkedStore = requireMatchingWorldThread(world,
             store,
-            "clear PhysicsStore world collision");
+            "clear PhysicsChunk terrain");
         UUID spaceUuid = PhysicsStoreSpaceMutations.requireSpaceUuid(checkedStore,
             Objects.requireNonNull(spaceId, "spaceId"));
         return clearSpaceRows(world, checkedStore, spaceUuid);
@@ -125,7 +125,7 @@ public final class PhysicsWorldCollision {
     public static WorldCollisionStats stats(@Nonnull World world) {
         Objects.requireNonNull(world, "world");
         if (!world.isInThread()) {
-            throw new IllegalStateException("Cannot read PhysicsChunk world-collision stats "
+            throw new IllegalStateException("Cannot read PhysicsChunk terrain stats "
                 + "outside the owning world thread");
         }
         return isModuleEnabled()
@@ -153,7 +153,7 @@ public final class PhysicsWorldCollision {
     }
 
     @Nonnull
-    private static SpaceWorldCollisionSettings requireSettings(
+    private static PhysicsChunkSpaceSettings requireSettings(
         @Nonnull Store<PhysicsStore> store,
         @Nonnull SpaceId spaceId) {
         UUID spaceUuid = PhysicsStoreSpaceMutations.requireSpaceUuid(store,
@@ -170,7 +170,7 @@ public final class PhysicsWorldCollision {
         if (settings.getMode() == WorldCollisionMode.NONE) {
             throw new IllegalStateException("World collision is disabled for space " + spaceId);
         }
-        return new SpaceWorldCollisionSettings(spaceUuid,
+        return new PhysicsChunkSpaceSettings(spaceUuid,
             settings.getMode(),
             settings.getEntityChunkBoundaryMode(),
             settings.isNativeVoxelTerrainEnabled(),
@@ -182,11 +182,11 @@ public final class PhysicsWorldCollision {
     }
 
     @Nonnull
-    private static PhysicsStoreWorldCollisionStreamingResource streaming(@Nonnull World world) {
+    private static PhysicsChunkTerrainStreamingResource streaming(@Nonnull World world) {
         Store<EntityStore> entityStore = Objects.requireNonNull(world, "world")
             .getEntityStore()
             .getStore();
-        return entityStore.getResource(PhysicsStoreWorldCollisionStreamingResource.getResourceType());
+        return entityStore.getResource(PhysicsChunkTerrainStreamingResource.getResourceType());
     }
 
     private static int clearSpaceRows(@Nonnull World world,

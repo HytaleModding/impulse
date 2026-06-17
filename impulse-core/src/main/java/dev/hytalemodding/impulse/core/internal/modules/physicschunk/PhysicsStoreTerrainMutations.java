@@ -11,7 +11,7 @@ import java.util.UUID;
 import javax.annotation.Nonnull;
 
 /**
- * Converts generated world-collision sections into copied PhysicsStore terrain mutations.
+ * Converts generated PhysicsChunk terrain sections into copied PhysicsStore terrain mutations.
  */
 public final class PhysicsStoreTerrainMutations {
 
@@ -27,7 +27,7 @@ public final class PhysicsStoreTerrainMutations {
         int chunkZ,
         long neighborhoodSignature,
         @Nonnull SectionCollisionGeometry geometry,
-        @Nonnull WorldCollisionBuildOptions buildOptions) {
+        @Nonnull PhysicsChunkBuildOptions buildOptions) {
         String sourceKey = sourceKey(chunkX, sectionY, chunkZ);
         return TerrainColliderMutation.upsert(spaceUuid,
             sourceKey,
@@ -58,7 +58,7 @@ public final class PhysicsStoreTerrainMutations {
     @Nonnull
     private static String payloadKey(@Nonnull String sourceKey,
         long neighborhoodSignature,
-        @Nonnull WorldCollisionBuildOptions buildOptions) {
+        @Nonnull PhysicsChunkBuildOptions buildOptions) {
         return sourceKey + ":"
             + Long.toUnsignedString(neighborhoodSignature)
             + ":"
@@ -67,7 +67,7 @@ public final class PhysicsStoreTerrainMutations {
 
     @Nonnull
     private static TerrainColliderPayload payload(@Nonnull SectionCollisionGeometry geometry,
-        @Nonnull WorldCollisionBuildOptions buildOptions,
+        @Nonnull PhysicsChunkBuildOptions buildOptions,
         @Nonnull List<TerrainNeighbor> neighbors) {
         return new TerrainColliderPayload(1.0f,
             1.0f,

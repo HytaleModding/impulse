@@ -18,16 +18,16 @@ import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import com.hypixel.hytale.server.core.universe.world.storage.PhysicsStore;
 import dev.hytalemodding.impulse.api.PhysicsBodyType;
 import dev.hytalemodding.impulse.core.internal.modules.physicschunk.PhysicsChunkMutationCache.TargetRefreshDecision;
-import dev.hytalemodding.impulse.core.internal.modules.physicschunk.PhysicsStoreWorldCollisionStreamingResource;
+import dev.hytalemodding.impulse.core.internal.modules.physicschunk.PhysicsChunkTerrainStreamingResource;
 import dev.hytalemodding.impulse.core.internal.modules.physicschunk.PhysicsChunkLifecycle;
-import dev.hytalemodding.impulse.core.internal.modules.physicschunk.WorldCollisionStreamingBounds;
-import dev.hytalemodding.impulse.core.internal.modules.physicschunk.profiling.WorldCollisionProfilingResource;
-import dev.hytalemodding.impulse.core.internal.modules.physicschunk.profiling.WorldCollisionProfilingResource.Snapshot;
-import dev.hytalemodding.impulse.core.internal.modules.physicschunk.profiling.WorldCollisionProfilingResource.StreamingTargetDiagnostic;
+import dev.hytalemodding.impulse.core.internal.modules.physicschunk.PhysicsChunkStreamingBounds;
+import dev.hytalemodding.impulse.core.internal.modules.physicschunk.profiling.PhysicsChunkProfilingResource;
+import dev.hytalemodding.impulse.core.internal.modules.physicschunk.profiling.PhysicsChunkProfilingResource.Snapshot;
+import dev.hytalemodding.impulse.core.internal.modules.physicschunk.profiling.PhysicsChunkProfilingResource.StreamingTargetDiagnostic;
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsTerrainMutationQueueResource;
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsSnapshotResource;
-import dev.hytalemodding.impulse.core.internal.resources.PhysicsWorldCollisionIndexResource;
-import dev.hytalemodding.impulse.core.internal.resources.PhysicsWorldCollisionIndexResource.SpaceWorldCollisionSettings;
+import dev.hytalemodding.impulse.core.internal.resources.PhysicsChunkSettingsIndexResource;
+import dev.hytalemodding.impulse.core.internal.resources.PhysicsChunkSettingsIndexResource.PhysicsChunkSpaceSettings;
 import dev.hytalemodding.impulse.core.internal.systems.sync.PhysicsSyncSystem;
 import dev.hytalemodding.impulse.core.plugin.physicsstore.PhysicsThreading;
 import dev.hytalemodding.impulse.core.plugin.snapshots.PhysicsBodySnapshot;
@@ -50,7 +50,7 @@ import org.joml.Vector3f;
 /**
  * Produces copied PhysicsStore terrain mutations from EntityStore and ChunkStore state.
  */
-public final class PhysicsStoreWorldCollisionProducerSystem extends TickingSystem<EntityStore>
+public final class PhysicsChunkTerrainProducerSystem extends TickingSystem<EntityStore>
     implements QuerySystem<EntityStore> {
 
     @Nullable
@@ -70,25 +70,25 @@ public final class PhysicsStoreWorldCollisionProducerSystem extends TickingSyste
             return;
         }
 
-        WorldCollisionProfilingResource profiling = store.getResource(
-            WorldCollisionProfilingResource.getResourceType());
+        PhysicsChunkProfilingResource profiling = store.getResource(
+            PhysicsChunkProfilingResource.getResourceType());
         Snapshot snapshot = profiling.isEnabled() ? profiling.beginTick() : null;
         long tickStart = snapshot != null ? System.nanoTime() : 0L;
         try {
             World world = store.getExternalData().getWorld();
             Store<PhysicsStore> physics = PhysicsThreading.store(world);
             PhysicsThreading.requireWorldThread(physics,
-                "produce PhysicsStore world-collision terrain mutations");
+                "produce PhysicsStore PhysicsChunk terrain mutations");
             PhysicsTerrainMutationQueueResource queue = physics.getResource(
                 PhysicsTerrainMutationQueueResource.getResourceType());
-            PhysicsWorldCollisionIndexResource worldCollisionIndex = physics.getResource(
-                PhysicsWorldCollisionIndexResource.getResourceType());
+            PhysicsChunkSettingsIndexResource worldCollisionIndex = physics.getResource(
+                PhysicsChunkSettingsIndexResource.getResourceType());
             PhysicsSnapshotResource snapshotResource = physics.getResource(
                 PhysicsSnapshotResource.getResourceType());
-            PhysicsStoreWorldCollisionStreamingResource streaming = store.getResource(
-                PhysicsStoreWorldCollisionStreamingResource.getResourceType());
+            PhysicsChunkTerrainStreamingResource streaming = store.getResource(
+                PhysicsChunkTerrainStreamingResource.getResourceType());
 
-            List<SpaceWorldCollisionSettings> spaces = worldCollisionIndex.streamingSpaces();
+            List<PhysicsChunkSpaceSettings> spaces = worldCollisionIndex.streamingSpaces();
             if (spaces.isEmpty()) {
                 streaming.retainSpaces(Set.of(), queue);
                 return;
@@ -100,13 +100,13 @@ public final class PhysicsStoreWorldCollisionProducerSystem extends TickingSyste
             }
             long currentTick = streaming.nextTick();
             Set<UUID> retainedSpaces = new ObjectOpenHashSet<>();
-            for (SpaceWorldCollisionSettings settings : spaces) {
+            for (PhysicsChunkSpaceSettings settings : spaces) {
                 retainedSpaces.add(settings.spaceUuid());
             }
             streaming.retainSpaces(retainedSpaces, queue);
 
             PhysicsSnapshotFrame physicsFrame = snapshotResource.getLatestFrame();
-            for (SpaceWorldCollisionSettings settings : spaces) {
+            for (PhysicsChunkSpaceSettings settings : spaces) {
                 if (snapshot != null) {
                     snapshot.incrementStreamingSpaces();
                 }
@@ -128,9 +128,9 @@ public final class PhysicsStoreWorldCollisionProducerSystem extends TickingSyste
     }
 
     private static void processSpace(@Nonnull World world,
-        @Nonnull PhysicsStoreWorldCollisionStreamingResource streaming,
+        @Nonnull PhysicsChunkTerrainStreamingResource streaming,
         @Nonnull PhysicsTerrainMutationQueueResource queue,
-        @Nonnull SpaceWorldCollisionSettings settings,
+        @Nonnull PhysicsChunkSpaceSettings settings,
         @Nonnull List<Vector3d> playerPositions,
         @Nonnull PhysicsSnapshotFrame physicsFrame,
         long currentTick,
@@ -191,12 +191,12 @@ public final class PhysicsStoreWorldCollisionProducerSystem extends TickingSyste
 
     @Nonnull
     private static List<BodyStreamingTarget> collectDynamicBodyTargets(
-        @Nonnull PhysicsStoreWorldCollisionStreamingResource streaming,
-        @Nonnull SpaceWorldCollisionSettings settings,
+        @Nonnull PhysicsChunkTerrainStreamingResource streaming,
+        @Nonnull PhysicsChunkSpaceSettings settings,
         @Nonnull PhysicsSnapshotFrame physicsFrame,
         long currentTick,
         @Nullable Snapshot snapshot) {
-        Map<WorldCollisionStreamingBounds, BodyStreamingTarget> uniqueTargets =
+        Map<PhysicsChunkStreamingBounds, BodyStreamingTarget> uniqueTargets =
             new Object2ObjectOpenHashMap<>();
         int spatialCandidates = 0;
         int dynamicCandidates = 0;
@@ -214,7 +214,7 @@ public final class PhysicsStoreWorldCollisionProducerSystem extends TickingSyste
             }
             dynamicCandidates++;
             Vector3f position = body.position();
-            WorldCollisionStreamingBounds bounds = WorldCollisionStreamingBounds.from(position.x,
+            PhysicsChunkStreamingBounds bounds = PhysicsChunkStreamingBounds.from(position.x,
                 position.y,
                 position.z,
                 settings.bodyRadius());
@@ -287,7 +287,7 @@ public final class PhysicsStoreWorldCollisionProducerSystem extends TickingSyste
         if (resolved != null) {
             return resolved;
         }
-        synchronized (PhysicsStoreWorldCollisionProducerSystem.class) {
+        synchronized (PhysicsChunkTerrainProducerSystem.class) {
             resolved = query;
             if (resolved == null) {
                 resolved = Query.and(playerType(), transformType());
@@ -303,7 +303,7 @@ public final class PhysicsStoreWorldCollisionProducerSystem extends TickingSyste
         if (resolved != null) {
             return resolved;
         }
-        synchronized (PhysicsStoreWorldCollisionProducerSystem.class) {
+        synchronized (PhysicsChunkTerrainProducerSystem.class) {
             resolved = playerType;
             if (resolved == null) {
                 resolved = Player.getComponentType();
@@ -319,7 +319,7 @@ public final class PhysicsStoreWorldCollisionProducerSystem extends TickingSyste
         if (resolved != null) {
             return resolved;
         }
-        synchronized (PhysicsStoreWorldCollisionProducerSystem.class) {
+        synchronized (PhysicsChunkTerrainProducerSystem.class) {
             resolved = transformType;
             if (resolved == null) {
                 resolved = TransformComponent.getComponentType();
@@ -330,7 +330,7 @@ public final class PhysicsStoreWorldCollisionProducerSystem extends TickingSyste
     }
 
     private record BodyStreamingTarget(@Nonnull Vector3d position,
-                                       @Nonnull WorldCollisionStreamingBounds bounds,
+                                       @Nonnull PhysicsChunkStreamingBounds bounds,
                                        @Nonnull List<BodyStreamingRefresh> refreshes) {
     }
 

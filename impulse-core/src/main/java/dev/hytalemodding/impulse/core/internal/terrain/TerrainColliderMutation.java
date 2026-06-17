@@ -7,7 +7,7 @@ import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
 /**
- * Copied terrain collider mutation emitted from chunk/world-collision code.
+ * Copied terrain collider mutation emitted from PhysicsChunk terrain code.
  */
 public record TerrainColliderMutation(@Nonnull UUID spaceUuid,
                                        @Nonnull String sourceKey,

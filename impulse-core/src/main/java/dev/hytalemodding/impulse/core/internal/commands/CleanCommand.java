@@ -42,14 +42,14 @@ import org.joml.Vector3f;
  * Clears Impulse-owned runtime state from the target world.
  *
  * <p>This removes Impulse-owned visual entities, detaches external physics attachments,
- * clears runtime bodies, joints, and current world-collision cache bodies. Explicit
- * physics spaces are kept, including their world-collision settings. Spaces with streaming
- * world collision enabled may build fresh backend terrain bodies again on the next
+ * clears runtime bodies, joints, and current PhysicsChunk terrain cache bodies. Explicit
+ * physics spaces are kept, including their PhysicsChunk terrain settings. Spaces with streaming
+ * PhysicsChunk terrain enabled may build fresh backend terrain bodies again on the next
  * streaming tick.</p>
  *
  * <p>When a radius is provided, cleanup is intentionally narrower: it selects
  * registered body snapshots near the player, removes those bodies and their
- * attachments/proxies, and leaves spaces plus the world-collision cache intact.</p>
+ * attachments/proxies, and leaves spaces plus the PhysicsChunk terrain cache intact.</p>
  */
 public class CleanCommand extends AbstractWorldCommand {
 
@@ -361,7 +361,7 @@ public class CleanCommand extends AbstractWorldCommand {
             + result.removedBodies() + " runtime bodies, and "
             + removedEntities.get(REMOVED_SESSIONS)
             + " control sessions within radius " + radius + " in world " + worldName
-            + ". Kept explicit physics spaces and world-collision cache."));
+            + ". Kept explicit physics spaces and PhysicsChunk terrain cache."));
     }
 
     @Nullable

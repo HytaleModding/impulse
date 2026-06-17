@@ -31,7 +31,7 @@ public final class PhysicsSpaceRuntime {
     private final Int2ObjectMap<PhysicsSpaceBinding> spaces = new Int2ObjectOpenHashMap<>();
 
     /**
-     * Per-space settings (world collision mode, radius, TTL, etc.). Keyed by space id value.
+     * Per-space settings (PhysicsChunk terrain mode, radius, TTL, etc.). Keyed by space id value.
      */
     private final Int2ObjectMap<PhysicsSpaceSettings> spaceSettings =
         new Int2ObjectOpenHashMap<>();

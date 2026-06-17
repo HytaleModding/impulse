@@ -4,7 +4,7 @@ import com.hypixel.hytale.component.Store;
 import com.hypixel.hytale.server.core.universe.world.World;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import com.hypixel.hytale.server.core.universe.world.storage.PhysicsStore;
-import dev.hytalemodding.impulse.core.internal.modules.physicschunk.profiling.WorldCollisionProfilingResource;
+import dev.hytalemodding.impulse.core.internal.modules.physicschunk.profiling.PhysicsChunkProfilingResource;
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsProfilingResource;
 import dev.hytalemodding.impulse.core.internal.resources.profiling.PhysicsRuntimeProfilingResource;
 import dev.hytalemodding.impulse.core.plugin.physicsstore.PhysicsThreading;
@@ -24,7 +24,7 @@ public final class PhysicsWorldCollisionProfiling {
 
     public static boolean isRuntimeProfilingEnabled(@Nonnull Store<EntityStore> store) {
         PhysicsRuntimeProfilingResource runtimeProfiling = runtimeProfiling(store);
-        WorldCollisionProfilingResource worldCollisionProfiling = worldCollisionProfiling(store);
+        PhysicsChunkProfilingResource worldCollisionProfiling = worldCollisionProfiling(store);
         return runtimeProfiling.isEnabled() && worldCollisionProfiling.isEnabled();
     }
 
@@ -52,7 +52,7 @@ public final class PhysicsWorldCollisionProfiling {
 
     @Nonnull
     public static Snapshots snapshots(@Nonnull Store<EntityStore> store) {
-        WorldCollisionProfilingResource profiling = worldCollisionProfiling(store);
+        PhysicsChunkProfilingResource profiling = worldCollisionProfiling(store);
         return new Snapshots(profiling.getCumulativeSnapshot(),
             profiling.getLatestTickSnapshot(),
             profiling.getWorstTickSnapshot(),
@@ -70,8 +70,8 @@ public final class PhysicsWorldCollisionProfiling {
 
     @Nonnull
     private static MissingSectionSampleView view(
-        @Nonnull WorldCollisionProfilingResource.MissingSectionSample sample) {
-        WorldCollisionProfilingResource.StreamingTargetDiagnostic target = sample.target();
+        @Nonnull PhysicsChunkProfilingResource.MissingSectionSample sample) {
+        PhysicsChunkProfilingResource.StreamingTargetDiagnostic target = sample.target();
         return new MissingSectionSampleView(sample.chunkX(),
             sample.sectionY(),
             sample.chunkZ(),
@@ -90,9 +90,9 @@ public final class PhysicsWorldCollisionProfiling {
     }
 
     @Nonnull
-    private static WorldCollisionProfilingResource worldCollisionProfiling(
+    private static PhysicsChunkProfilingResource worldCollisionProfiling(
         @Nonnull Store<EntityStore> store) {
-        return store.getResource(WorldCollisionProfilingResource.getResourceType());
+        return store.getResource(PhysicsChunkProfilingResource.getResourceType());
     }
 
     @Nullable
@@ -105,9 +105,9 @@ public final class PhysicsWorldCollisionProfiling {
                             @Nonnull SnapshotView worst,
                             boolean enabled) {
 
-        private Snapshots(@Nonnull WorldCollisionProfilingResource.Snapshot cumulative,
-            @Nonnull WorldCollisionProfilingResource.Snapshot latest,
-            @Nonnull WorldCollisionProfilingResource.Snapshot worst,
+        private Snapshots(@Nonnull PhysicsChunkProfilingResource.Snapshot cumulative,
+            @Nonnull PhysicsChunkProfilingResource.Snapshot latest,
+            @Nonnull PhysicsChunkProfilingResource.Snapshot worst,
             boolean enabled) {
             this(new SnapshotView(cumulative), new SnapshotView(latest), new SnapshotView(worst),
                 enabled);
@@ -117,9 +117,9 @@ public final class PhysicsWorldCollisionProfiling {
     public static final class SnapshotView {
 
         @Nonnull
-        private final WorldCollisionProfilingResource.Snapshot snapshot;
+        private final PhysicsChunkProfilingResource.Snapshot snapshot;
 
-        private SnapshotView(@Nonnull WorldCollisionProfilingResource.Snapshot snapshot) {
+        private SnapshotView(@Nonnull PhysicsChunkProfilingResource.Snapshot snapshot) {
             this.snapshot = snapshot;
         }
 

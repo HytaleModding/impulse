@@ -17,16 +17,16 @@ import javax.annotation.Nullable;
 import org.joml.Vector3d;
 
 /**
- * World-collision runtime state for one physics world.
+ * PhysicsChunk terrain runtime state for one physics world.
  */
-public final class PhysicsWorldCollisionRuntime {
+public final class PhysicsChunkTerrainRuntime {
 
-    private final VoxelCollisionCache worldVoxelCollisionCache = new VoxelCollisionCache();
+    private final VoxelTerrainCollisionCache voxelTerrainCache = new VoxelTerrainCollisionCache();
     private final Int2LongMap streamingRevisions = new Int2LongOpenHashMap();
 
     @Nonnull
-    public VoxelCollisionCache worldVoxelCollisionCache() {
-        return worldVoxelCollisionCache;
+    public VoxelTerrainCollisionCache voxelTerrainCache() {
+        return voxelTerrainCache;
     }
 
     public synchronized void registerSpace(@Nonnull SpaceId spaceId) {
@@ -56,7 +56,7 @@ public final class PhysicsWorldCollisionRuntime {
             space,
             center,
             radius,
-            WorldCollisionBuildOptions.fromNativeVoxelTerrainEnabled(
+            PhysicsChunkBuildOptions.fromNativeVoxelTerrainEnabled(
                 PhysicsWorldCollisionSettings.DEFAULT_NATIVE_VOXEL_TERRAIN_ENABLED));
     }
 
@@ -65,12 +65,12 @@ public final class PhysicsWorldCollisionRuntime {
         @Nonnull PhysicsSpaceBinding space,
         @Nonnull Vector3d center,
         int radius,
-        @Nonnull WorldCollisionBuildOptions buildOptions) {
-        return worldCollisionStats(worldVoxelCollisionCache.rebuildAround(world,
+        @Nonnull PhysicsChunkBuildOptions buildOptions) {
+        return terrainStats(voxelTerrainCache.rebuildAround(world,
             space,
             center,
             radius,
-                buildOptions));
+            buildOptions));
     }
 
     @Nonnull
@@ -78,8 +78,8 @@ public final class PhysicsWorldCollisionRuntime {
         @Nonnull PhysicsSpaceBinding space,
         @Nonnull Vector3d center,
         int radius,
-        @Nonnull WorldCollisionBuildOptions buildOptions) {
-        VoxelCollisionCache.BuildStats stats = worldVoxelCollisionCache.refreshAround(world,
+        @Nonnull PhysicsChunkBuildOptions buildOptions) {
+        VoxelTerrainCollisionCache.BuildStats stats = voxelTerrainCache.refreshAround(world,
             space,
             center,
             radius,
@@ -87,7 +87,7 @@ public final class PhysicsWorldCollisionRuntime {
         if (stats.removedBodies() > 0) {
             incrementStreamingRevision(space.spaceId());
         }
-        return worldCollisionStats(stats);
+        return terrainStats(stats);
     }
 
     @Nonnull
@@ -101,7 +101,7 @@ public final class PhysicsWorldCollisionRuntime {
             centers,
             radius,
             tick,
-            WorldCollisionBuildOptions.fromNativeVoxelTerrainEnabled(
+            PhysicsChunkBuildOptions.fromNativeVoxelTerrainEnabled(
                 PhysicsWorldCollisionSettings.DEFAULT_NATIVE_VOXEL_TERRAIN_ENABLED));
     }
 
@@ -111,12 +111,12 @@ public final class PhysicsWorldCollisionRuntime {
         @Nonnull Iterable<Vector3d> centers,
         int radius,
         long tick,
-        @Nonnull WorldCollisionBuildOptions buildOptions) {
+        @Nonnull PhysicsChunkBuildOptions buildOptions) {
         Objects.requireNonNull(centers, "centers");
         LongSet visitedSections = new LongOpenHashSet();
-        VoxelCollisionCache.BuildStats total = VoxelCollisionCache.BuildStats.empty();
+        VoxelTerrainCollisionCache.BuildStats total = VoxelTerrainCollisionCache.BuildStats.empty();
         for (Vector3d center : centers) {
-            total = total.plus(worldVoxelCollisionCache.ensureAround(world,
+            total = total.plus(voxelTerrainCache.ensureAround(world,
                 space,
                 center,
                 radius,
@@ -128,21 +128,21 @@ public final class PhysicsWorldCollisionRuntime {
                 buildOptions));
         }
         return new WorldCollisionPrewarmStats(visitedSections.size(),
-            worldCollisionStats(total));
+            terrainStats(total));
     }
 
     public int clear(@Nonnull PhysicsSpaceBinding space) {
         incrementStreamingRevision(space.spaceId());
-        return worldVoxelCollisionCache.clear(space);
+        return voxelTerrainCache.clear(space);
     }
 
     public void clear(@Nonnull SpaceId spaceId, @Nullable PhysicsSpaceBinding space) {
-        worldVoxelCollisionCache.clear(spaceId, space);
+        voxelTerrainCache.clear(spaceId, space);
         unregisterSpace(spaceId);
     }
 
     public synchronized void clearAll() {
-        worldVoxelCollisionCache.copyFrom(new VoxelCollisionCache());
+        voxelTerrainCache.copyFrom(new VoxelTerrainCollisionCache());
         for (int spaceId : streamingRevisions.keySet().toIntArray()) {
             streamingRevisions.put(spaceId, streamingRevisions.get(spaceId) + 1L);
         }
@@ -152,25 +152,25 @@ public final class PhysicsWorldCollisionRuntime {
         for (PhysicsSpaceBinding space : spaces) {
             clear(space);
         }
-        worldVoxelCollisionCache.finishStreamingApply();
+        voxelTerrainCache.finishStreamingApply();
     }
 
     public synchronized void clearAllAndUnregisterSpaces() {
-        worldVoxelCollisionCache.copyFrom(new VoxelCollisionCache());
+        voxelTerrainCache.copyFrom(new VoxelTerrainCollisionCache());
         streamingRevisions.clear();
     }
 
     @Nonnull
     public WorldCollisionStats getStats() {
-        return new WorldCollisionStats(worldVoxelCollisionCache.spaceCount(),
-            worldVoxelCollisionCache.sectionCount(),
-            worldVoxelCollisionCache.bodyCount(),
-            worldVoxelCollisionCache.shapeTemplateCount());
+        return new WorldCollisionStats(voxelTerrainCache.spaceCount(),
+            voxelTerrainCache.sectionCount(),
+            voxelTerrainCache.bodyCount(),
+            voxelTerrainCache.shapeTemplateCount());
     }
 
     @Nonnull
-    private static WorldCollisionBuildStats worldCollisionStats(
-        @Nonnull VoxelCollisionCache.BuildStats stats) {
+    private static WorldCollisionBuildStats terrainStats(
+        @Nonnull VoxelTerrainCollisionCache.BuildStats stats) {
         return new WorldCollisionBuildStats(stats.scannedBlocks(),
             stats.solidBlocks(),
             stats.culledInteriorBlocks(),

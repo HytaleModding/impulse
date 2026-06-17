@@ -7,9 +7,9 @@ import com.hypixel.hytale.server.core.universe.world.World;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import com.hypixel.hytale.server.core.universe.world.storage.PhysicsStore;
 import dev.hytalemodding.impulse.core.internal.modules.physicschunk.PhysicsChunkMutationCache.TargetRefreshDecision;
-import dev.hytalemodding.impulse.core.internal.modules.physicschunk.VoxelCollisionCache.BuildStats;
-import dev.hytalemodding.impulse.core.internal.modules.physicschunk.profiling.WorldCollisionProfilingResource.Snapshot;
-import dev.hytalemodding.impulse.core.internal.modules.physicschunk.profiling.WorldCollisionProfilingResource.StreamingTargetDiagnostic;
+import dev.hytalemodding.impulse.core.internal.modules.physicschunk.VoxelTerrainCollisionCache.BuildStats;
+import dev.hytalemodding.impulse.core.internal.modules.physicschunk.profiling.PhysicsChunkProfilingResource.Snapshot;
+import dev.hytalemodding.impulse.core.internal.modules.physicschunk.profiling.PhysicsChunkProfilingResource.StreamingTargetDiagnostic;
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsTerrainMutationQueueResource;
 import dev.hytalemodding.impulse.core.plugin.modules.physicschunk.WorldCollisionBuildStats;
 import dev.hytalemodding.impulse.core.plugin.modules.physicschunk.WorldCollisionPrewarmStats;
@@ -26,20 +26,20 @@ import org.joml.Vector3d;
 /**
  * Shared EntityStore-side producer state for copied PhysicsStore terrain mutations.
  */
-public final class PhysicsStoreWorldCollisionStreamingResource implements Resource<EntityStore> {
+public final class PhysicsChunkTerrainStreamingResource implements Resource<EntityStore> {
 
     @Nonnull
     private final PhysicsChunkMutationCache cache = new PhysicsChunkMutationCache();
     private long tick;
 
     @Nullable
-    private static ResourceType<EntityStore, PhysicsStoreWorldCollisionStreamingResource> resourceType;
+    private static ResourceType<EntityStore, PhysicsChunkTerrainStreamingResource> resourceType;
 
-    public PhysicsStoreWorldCollisionStreamingResource() {
+    public PhysicsChunkTerrainStreamingResource() {
     }
 
     public static void setResourceType(
-        @Nonnull ResourceType<EntityStore, PhysicsStoreWorldCollisionStreamingResource> type) {
+        @Nonnull ResourceType<EntityStore, PhysicsChunkTerrainStreamingResource> type) {
         resourceType = Objects.requireNonNull(type, "type");
     }
 
@@ -48,9 +48,9 @@ public final class PhysicsStoreWorldCollisionStreamingResource implements Resour
     }
 
     @Nonnull
-    public static ResourceType<EntityStore, PhysicsStoreWorldCollisionStreamingResource> getResourceType() {
+    public static ResourceType<EntityStore, PhysicsChunkTerrainStreamingResource> getResourceType() {
         if (resourceType == null) {
-            throw new IllegalStateException("PhysicsStore world-collision streaming resource is not registered");
+            throw new IllegalStateException("PhysicsStore PhysicsChunk terrain streaming resource is not registered");
         }
         return resourceType;
     }
@@ -72,7 +72,7 @@ public final class PhysicsStoreWorldCollisionStreamingResource implements Resour
         int radius,
         long tick,
         @Nullable Snapshot profiling,
-        @Nonnull WorldCollisionBuildOptions buildOptions) {
+        @Nonnull PhysicsChunkBuildOptions buildOptions) {
         LongSet visitedSections = new LongOpenHashSet();
         BuildStats total = BuildStats.empty();
         for (Vector3d center : centers) {
@@ -87,7 +87,7 @@ public final class PhysicsStoreWorldCollisionStreamingResource implements Resour
                 null,
                 buildOptions));
         }
-        return new WorldCollisionPrewarmStats(visitedSections.size(), worldCollisionStats(total));
+        return new WorldCollisionPrewarmStats(visitedSections.size(), terrainStats(total));
     }
 
     @Nonnull
@@ -98,7 +98,7 @@ public final class PhysicsStoreWorldCollisionStreamingResource implements Resour
         int radius,
         long tick,
         @Nullable Snapshot profiling,
-        @Nonnull WorldCollisionBuildOptions buildOptions) {
+        @Nonnull PhysicsChunkBuildOptions buildOptions) {
         int removed = cache.clearSectionsAround(spaceUuid, queue, center, radius);
         BuildStats stats = ensureAround(world,
             spaceUuid,
@@ -110,7 +110,7 @@ public final class PhysicsStoreWorldCollisionStreamingResource implements Resour
             null,
             null,
             buildOptions);
-        return worldCollisionStats(withRemovedBodies(stats, stats.removedBodies() + removed));
+        return terrainStats(withRemovedBodies(stats, stats.removedBodies() + removed));
     }
 
     @Nonnull
@@ -123,7 +123,7 @@ public final class PhysicsStoreWorldCollisionStreamingResource implements Resour
         @Nullable Snapshot profiling,
         @Nullable LongSet visitedSections,
         @Nullable StreamingTargetDiagnostic targetDiagnostic,
-        @Nonnull WorldCollisionBuildOptions buildOptions) {
+        @Nonnull PhysicsChunkBuildOptions buildOptions) {
         return cache.ensureAround(world,
             spaceUuid,
             queue,
@@ -139,7 +139,7 @@ public final class PhysicsStoreWorldCollisionStreamingResource implements Resour
     @Nonnull
     public synchronized TargetRefreshDecision shouldRefreshBodyTarget(@Nonnull UUID spaceUuid,
         @Nonnull UUID bodyUuid,
-        @Nonnull WorldCollisionStreamingBounds bounds,
+        @Nonnull PhysicsChunkStreamingBounds bounds,
         boolean sleeping,
         long currentTick,
         int ttlTicks,
@@ -156,7 +156,7 @@ public final class PhysicsStoreWorldCollisionStreamingResource implements Resour
     @Nonnull
     public synchronized TargetRefreshDecision shouldRefreshBodyTarget(@Nonnull UUID spaceUuid,
         @Nonnull Ref<PhysicsStore> bodyRef,
-        @Nonnull WorldCollisionStreamingBounds bounds,
+        @Nonnull PhysicsChunkStreamingBounds bounds,
         boolean sleeping,
         long currentTick,
         int ttlTicks,
@@ -172,7 +172,7 @@ public final class PhysicsStoreWorldCollisionStreamingResource implements Resour
 
     public synchronized void recordBodyTargetRefresh(@Nonnull UUID spaceUuid,
         @Nonnull UUID bodyUuid,
-        @Nonnull WorldCollisionStreamingBounds bounds,
+        @Nonnull PhysicsChunkStreamingBounds bounds,
         boolean sleeping,
         long currentTick) {
         cache.recordBodyTargetRefresh(spaceUuid, bodyUuid, bounds, sleeping, currentTick);
@@ -180,7 +180,7 @@ public final class PhysicsStoreWorldCollisionStreamingResource implements Resour
 
     public synchronized void recordBodyTargetRefresh(@Nonnull UUID spaceUuid,
         @Nonnull Ref<PhysicsStore> bodyRef,
-        @Nonnull WorldCollisionStreamingBounds bounds,
+        @Nonnull PhysicsChunkStreamingBounds bounds,
         boolean sleeping,
         long currentTick) {
         cache.recordBodyTargetRefresh(spaceUuid, bodyRef, bounds, sleeping, currentTick);
@@ -227,15 +227,15 @@ public final class PhysicsStoreWorldCollisionStreamingResource implements Resour
 
     @Nonnull
     @Override
-    public synchronized PhysicsStoreWorldCollisionStreamingResource clone() {
-        PhysicsStoreWorldCollisionStreamingResource copy =
-            new PhysicsStoreWorldCollisionStreamingResource();
+    public synchronized PhysicsChunkTerrainStreamingResource clone() {
+        PhysicsChunkTerrainStreamingResource copy =
+            new PhysicsChunkTerrainStreamingResource();
         copy.tick = tick;
         return copy;
     }
 
     @Nonnull
-    private static WorldCollisionBuildStats worldCollisionStats(@Nonnull BuildStats stats) {
+    private static WorldCollisionBuildStats terrainStats(@Nonnull BuildStats stats) {
         return new WorldCollisionBuildStats(stats.scannedBlocks(),
             stats.solidBlocks(),
             stats.culledInteriorBlocks(),

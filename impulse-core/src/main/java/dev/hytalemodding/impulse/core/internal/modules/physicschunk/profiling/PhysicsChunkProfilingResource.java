@@ -3,7 +3,7 @@ package dev.hytalemodding.impulse.core.internal.modules.physicschunk.profiling;
 import com.hypixel.hytale.component.Resource;
 import com.hypixel.hytale.component.ResourceType;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
-import dev.hytalemodding.impulse.core.internal.modules.physicschunk.VoxelCollisionCache.BuildStats;
+import dev.hytalemodding.impulse.core.internal.modules.physicschunk.VoxelTerrainCollisionCache.BuildStats;
 import it.unimi.dsi.fastutil.longs.LongOpenHashSet;
 import it.unimi.dsi.fastutil.longs.LongSet;
 import java.util.ArrayList;
@@ -20,7 +20,7 @@ import org.joml.Vector3d;
 import org.joml.Vector3f;
 
 /**
- * Runtime-only profiling state for world collision streaming.
+ * Runtime-only profiling state for PhysicsChunk terrain streaming.
  *
  * <p>This resource collects targeted metrics for the streamed voxel-collision
  * path so performance work can be driven by section/build/prune behavior rather
@@ -28,7 +28,7 @@ import org.joml.Vector3f;
  * part of persisted physics world state.</p>
  */
 @Getter
-public class WorldCollisionProfilingResource implements Resource<EntityStore> {
+public class PhysicsChunkProfilingResource implements Resource<EntityStore> {
 
     @Setter
     private boolean enabled;
@@ -42,13 +42,13 @@ public class WorldCollisionProfilingResource implements Resource<EntityStore> {
     private RetainedSectionEnvelope diagnosticRetainedEnvelope;
 
     @Nullable
-    private static ResourceType<EntityStore, WorldCollisionProfilingResource> resourceType;
+    private static ResourceType<EntityStore, PhysicsChunkProfilingResource> resourceType;
 
-    public WorldCollisionProfilingResource() {
+    public PhysicsChunkProfilingResource() {
     }
 
     public static void setResourceType(
-        @Nonnull ResourceType<EntityStore, WorldCollisionProfilingResource> type) {
+        @Nonnull ResourceType<EntityStore, PhysicsChunkProfilingResource> type) {
         resourceType = Objects.requireNonNull(type, "type");
     }
 
@@ -113,8 +113,8 @@ public class WorldCollisionProfilingResource implements Resource<EntityStore> {
 
     @Nonnull
     @Override
-    public synchronized WorldCollisionProfilingResource clone() {
-        WorldCollisionProfilingResource copy = new WorldCollisionProfilingResource();
+    public synchronized PhysicsChunkProfilingResource clone() {
+        PhysicsChunkProfilingResource copy = new PhysicsChunkProfilingResource();
         copy.enabled = enabled;
         copy.cumulative.copyFrom(cumulative);
         copy.latestTick.copyFrom(latestTick);
@@ -124,9 +124,9 @@ public class WorldCollisionProfilingResource implements Resource<EntityStore> {
     }
 
     @Nonnull
-    public static ResourceType<EntityStore, WorldCollisionProfilingResource> getResourceType() {
+    public static ResourceType<EntityStore, PhysicsChunkProfilingResource> getResourceType() {
         if (resourceType == null) {
-            throw new IllegalStateException("World collision profiling resource is not registered");
+            throw new IllegalStateException("PhysicsChunk profiling resource is not registered");
         }
         return resourceType;
     }

@@ -7,7 +7,7 @@ import com.hypixel.hytale.server.core.universe.world.storage.PhysicsStore;
 import dev.hytalemodding.impulse.api.PhysicsBodyType;
 import dev.hytalemodding.impulse.api.ShapeType;
 import dev.hytalemodding.impulse.api.SpaceId;
-import dev.hytalemodding.impulse.core.internal.modules.physicschunk.PhysicsStoreWorldCollisionStreamingResource;
+import dev.hytalemodding.impulse.core.internal.modules.physicschunk.PhysicsChunkTerrainStreamingResource;
 import dev.hytalemodding.impulse.core.internal.physicsstore.PhysicsStoreSpaceMutations;
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsSnapshotResource;
 import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyKind;
@@ -32,7 +32,7 @@ final class PhysicsStoreBenchmarkQueries {
 
     @Nonnull
     static BenchmarkSpaceStatsView benchmarkSpaceStats(@Nonnull Store<PhysicsStore> store,
-        @Nullable PhysicsStoreWorldCollisionStreamingResource streaming,
+        @Nullable PhysicsChunkTerrainStreamingResource streaming,
         @Nonnull BenchmarkSpaceStatsRequest query) {
         PhysicsThreading.requireWorldThread(store, "read Crucible PhysicsStore benchmark stats");
         UUID spaceUuid = PhysicsStoreSpaceMutations.requireSpaceUuid(store, query.spaceId());

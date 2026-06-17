@@ -86,7 +86,7 @@ final class PhysicsStoreDebugQueries {
     }
 
     @Nonnull
-    static CompletionStage<List<PhysicsDebugWorldCollisionSectionView>> worldCollisionSectionsAsync(
+    static CompletionStage<List<PhysicsChunkDebugSectionView>> physicsChunkSectionsAsync(
         @Nonnull Store<PhysicsStore> store,
         @Nonnull SpaceId spaceId,
         @Nonnull Vector3d viewerPosition,
@@ -95,8 +95,8 @@ final class PhysicsStoreDebugQueries {
         double viewerY = viewerPosition.y;
         double viewerZ = viewerPosition.z;
         return PhysicsThreading.enqueueReadOnWorldThread(store,
-            "queue PhysicsStore world-collision debug read",
-            physics -> worldCollisionSections(physics,
+            "queue PhysicsStore PhysicsChunk terrain debug read",
+            physics -> physicsChunkSections(physics,
                 spaceId,
                 viewerX,
                 viewerY,
@@ -197,7 +197,7 @@ final class PhysicsStoreDebugQueries {
     }
 
     @Nonnull
-    private static List<PhysicsDebugWorldCollisionSectionView> worldCollisionSections(
+    private static List<PhysicsChunkDebugSectionView> physicsChunkSections(
         @Nonnull Store<PhysicsStore> store,
         @Nonnull SpaceId spaceId,
         double viewerX,
@@ -205,7 +205,7 @@ final class PhysicsStoreDebugQueries {
         double viewerZ,
         double viewRadius) {
         PhysicsThreading.requireWorldThread(store,
-            "read PhysicsStore world-collision debug sections");
+            "read PhysicsStore PhysicsChunk terrain debug sections");
         SpaceContext spaceContext = space(store, spaceId);
         if (spaceContext == null) {
             return List.of();
@@ -222,9 +222,9 @@ final class PhysicsStoreDebugQueries {
         PhysicsTerrainPayloadResource payloads = store.getResource(
             PhysicsTerrainPayloadResource.getResourceType());
         double maxDistanceSquared = viewRadius * viewRadius;
-        List<PhysicsDebugWorldCollisionSectionView> visible = new ArrayList<>();
+        List<PhysicsChunkDebugSectionView> visible = new ArrayList<>();
         BiConsumer<ArchetypeChunk<PhysicsStore>, CommandBuffer<PhysicsStore>> collector =
-            (chunk, _) -> collectWorldCollisionChunk(chunk,
+            (chunk, _) -> collectPhysicsChunkTerrainChunk(chunk,
                 payloads,
                 spaceContext,
                 spaceRef,
@@ -238,7 +238,7 @@ final class PhysicsStoreDebugQueries {
         return List.copyOf(visible);
     }
 
-    private static void collectWorldCollisionChunk(@Nonnull ArchetypeChunk<PhysicsStore> chunk,
+    private static void collectPhysicsChunkTerrainChunk(@Nonnull ArchetypeChunk<PhysicsStore> chunk,
         @Nonnull PhysicsTerrainPayloadResource payloads,
         @Nonnull SpaceContext spaceContext,
         @Nullable Ref<PhysicsStore> spaceRef,
@@ -247,7 +247,7 @@ final class PhysicsStoreDebugQueries {
         double viewerY,
         double viewerZ,
         double maxDistanceSquared,
-        @Nonnull List<PhysicsDebugWorldCollisionSectionView> visible) {
+        @Nonnull List<PhysicsChunkDebugSectionView> visible) {
         for (int index = 0; index < chunk.size(); index++) {
             TerrainColliderComponent terrain = chunk.getComponent(index,
                 TerrainColliderComponent.getComponentType());
@@ -263,12 +263,12 @@ final class PhysicsStoreDebugQueries {
             if (payload == null || payload.isEmpty()) {
                 continue;
             }
-            visible.add(toWorldCollisionSectionView(terrain, payload, spaceContext));
+            visible.add(toPhysicsChunkSectionView(terrain, payload, spaceContext));
         }
     }
 
     @Nonnull
-    private static PhysicsDebugWorldCollisionSectionView toWorldCollisionSectionView(
+    private static PhysicsChunkDebugSectionView toPhysicsChunkSectionView(
         @Nonnull TerrainColliderComponent terrain,
         @Nonnull TerrainColliderPayload payload,
         @Nonnull SpaceContext spaceContext) {
@@ -276,7 +276,7 @@ final class PhysicsStoreDebugQueries {
             && payload.hasFullCubeVoxels()
             && spaceContext.backendRuntime()
                 .supportsVoxelTerrain(spaceContext.spaceHandle().value());
-        return new PhysicsDebugWorldCollisionSectionView(terrain.getChunkX(),
+        return new PhysicsChunkDebugSectionView(terrain.getChunkX(),
             terrain.getSectionY(),
             terrain.getChunkZ(),
             voxelTerrain,

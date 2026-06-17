@@ -19,6 +19,7 @@ class ImpulseCommandContributionRegistryTest {
 
         assertFalse(root.getSubCommands().containsKey("physicschunk"));
         assertFalse(settings(root).getSubCommands().containsKey("collision-lod"));
+        assertFalse(settings(root).getSubCommands().containsKey("visual"));
     }
 
     private static AbstractCommand settings(ImpulseCommand root) {

@@ -9,44 +9,44 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import com.hypixel.hytale.component.ComponentRegistry;
 import com.hypixel.hytale.component.ResourceType;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
-import dev.hytalemodding.impulse.core.internal.modules.physicschunk.VoxelCollisionCache.BuildStats;
-import dev.hytalemodding.impulse.core.internal.modules.physicschunk.profiling.WorldCollisionProfilingResource.MissingSectionReason;
+import dev.hytalemodding.impulse.core.internal.modules.physicschunk.VoxelTerrainCollisionCache.BuildStats;
+import dev.hytalemodding.impulse.core.internal.modules.physicschunk.profiling.PhysicsChunkProfilingResource.MissingSectionReason;
 import it.unimi.dsi.fastutil.longs.LongOpenHashSet;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 
-class WorldCollisionProfilingResourceTest {
+class PhysicsChunkProfilingResourceTest {
 
     @AfterEach
     void clearRegistration() {
-        WorldCollisionProfilingResource.clearResourceType();
+        PhysicsChunkProfilingResource.clearResourceType();
     }
 
     @Test
-    void resourceTypeIsOwnedByWorldCollisionModuleRegistration() {
-        assertFalse(WorldCollisionProfilingResource.isResourceTypeRegistered());
-        assertThrows(IllegalStateException.class, WorldCollisionProfilingResource::getResourceType);
+    void resourceTypeIsOwnedByPhysicsChunkModuleRegistration() {
+        assertFalse(PhysicsChunkProfilingResource.isResourceTypeRegistered());
+        assertThrows(IllegalStateException.class, PhysicsChunkProfilingResource::getResourceType);
 
         ComponentRegistry<EntityStore> registry = new ComponentRegistry<>();
-        ResourceType<EntityStore, WorldCollisionProfilingResource> type =
-            registry.registerResource(WorldCollisionProfilingResource.class,
-                WorldCollisionProfilingResource::new);
+        ResourceType<EntityStore, PhysicsChunkProfilingResource> type =
+            registry.registerResource(PhysicsChunkProfilingResource.class,
+                PhysicsChunkProfilingResource::new);
 
-        WorldCollisionProfilingResource.setResourceType(type);
+        PhysicsChunkProfilingResource.setResourceType(type);
 
-        assertTrue(WorldCollisionProfilingResource.isResourceTypeRegistered());
-        assertSame(type, WorldCollisionProfilingResource.getResourceType());
+        assertTrue(PhysicsChunkProfilingResource.isResourceTypeRegistered());
+        assertSame(type, PhysicsChunkProfilingResource.getResourceType());
 
-        WorldCollisionProfilingResource.clearResourceType();
+        PhysicsChunkProfilingResource.clearResourceType();
 
-        assertFalse(WorldCollisionProfilingResource.isResourceTypeRegistered());
+        assertFalse(PhysicsChunkProfilingResource.isResourceTypeRegistered());
     }
 
     @Test
     void finishTickTracksLatestCumulativeAndWorstSnapshots() {
-        WorldCollisionProfilingResource resource = new WorldCollisionProfilingResource();
+        PhysicsChunkProfilingResource resource = new PhysicsChunkProfilingResource();
 
-        WorldCollisionProfilingResource.Snapshot first = resource.beginTick();
+        PhysicsChunkProfilingResource.Snapshot first = resource.beginTick();
         first.setPlayerStreamingTargets(2);
         first.addBodyStreamingCandidates(5);
         first.addBodyStreamingTargets(3);
@@ -81,7 +81,7 @@ class WorldCollisionProfilingResourceTest {
         first.setTickNanos(120L);
         resource.finishTick(first);
 
-        WorldCollisionProfilingResource.Snapshot second = resource.beginTick();
+        PhysicsChunkProfilingResource.Snapshot second = resource.beginTick();
         second.setPlayerStreamingTargets(1);
         second.addBodyStreamingCandidates(2);
         second.addBodyStreamingTargets(1);
@@ -147,13 +147,13 @@ class WorldCollisionProfilingResourceTest {
 
     @Test
     void cloneAndResetPreserveExpectedMetrics() {
-        WorldCollisionProfilingResource resource = new WorldCollisionProfilingResource();
+        PhysicsChunkProfilingResource resource = new PhysicsChunkProfilingResource();
         resource.setEnabled(true);
-        WorldCollisionProfilingResource.Snapshot snapshot = resource.beginTick();
+        PhysicsChunkProfilingResource.Snapshot snapshot = resource.beginTick();
         snapshot.setTickNanos(25L);
         resource.finishTick(snapshot);
 
-        WorldCollisionProfilingResource copy = resource.clone();
+        PhysicsChunkProfilingResource copy = resource.clone();
         assertTrue(copy.isEnabled());
         assertEquals(25L, copy.getLatestTick().getTickNanos());
         assertEquals(25L, copy.getWorstTick().getTickNanos());
@@ -166,17 +166,17 @@ class WorldCollisionProfilingResourceTest {
 
     @Test
     void missingSectionDiagnosticsTrackRetainedEnvelopeStatus() {
-        WorldCollisionProfilingResource resource = new WorldCollisionProfilingResource();
+        PhysicsChunkProfilingResource resource = new PhysicsChunkProfilingResource();
         LongOpenHashSet retained = new LongOpenHashSet();
-        retained.add(WorldCollisionProfilingResource.packDiagnosticSectionKey(1, 2, 3));
+        retained.add(PhysicsChunkProfilingResource.packDiagnosticSectionKey(1, 2, 3));
         resource.setDiagnosticRetainedSections(retained);
 
-        WorldCollisionProfilingResource.Snapshot snapshot = resource.beginTick();
+        PhysicsChunkProfilingResource.Snapshot snapshot = resource.beginTick();
         snapshot.recordMissingSection(MissingSectionReason.BLOCK_CHUNK, 1, 2, 3, null);
         snapshot.recordMissingSection(MissingSectionReason.BLOCK_SECTION, 4, 5, 6, null);
         resource.finishTick(snapshot);
 
-        WorldCollisionProfilingResource.Snapshot cumulative = resource.getCumulativeSnapshot();
+        PhysicsChunkProfilingResource.Snapshot cumulative = resource.getCumulativeSnapshot();
         assertEquals(2, cumulative.getMissingChunks());
         assertEquals(1, cumulative.getMissingBlockChunks());
         assertEquals(1, cumulative.getMissingBlockSections());
@@ -185,9 +185,9 @@ class WorldCollisionProfilingResourceTest {
         assertEquals(1, cumulative.getMissingOutsideRetainedEnvelope());
         assertEquals(0, cumulative.getMissingUnconfiguredRetainedEnvelope());
         assertEquals(2, cumulative.getMissingSectionSamples().size());
-        assertEquals(WorldCollisionProfilingResource.RetainedEnvelopeStatus.INSIDE,
+        assertEquals(PhysicsChunkProfilingResource.RetainedEnvelopeStatus.INSIDE,
             cumulative.getMissingSectionSamples().get(0).retainedEnvelopeStatus());
-        assertEquals(WorldCollisionProfilingResource.RetainedEnvelopeStatus.OUTSIDE,
+        assertEquals(PhysicsChunkProfilingResource.RetainedEnvelopeStatus.OUTSIDE,
             cumulative.getMissingSectionSamples().get(1).retainedEnvelopeStatus());
     }
 }

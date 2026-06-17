@@ -5,12 +5,12 @@ import javax.annotation.Nonnull;
 import org.joml.Vector3f;
 
 /**
- * Chunk/section neighborhood covered by a streamed world-collision target.
+ * Chunk/section neighborhood covered by a streamed PhysicsChunk terrain target.
  *
  * <p>Two body targets with the same bounds would trigger the same section
  * collision requests, so the streaming system can deduplicate them.</p>
  */
-public record WorldCollisionStreamingBounds(int minChunkX,
+public record PhysicsChunkStreamingBounds(int minChunkX,
                                             int maxChunkX,
                                             int minSectionY,
                                             int maxSectionY,
@@ -18,12 +18,12 @@ public record WorldCollisionStreamingBounds(int minChunkX,
                                             int maxChunkZ) {
 
     @Nonnull
-    public static WorldCollisionStreamingBounds from(@Nonnull Vector3f center, int radius) {
+    public static PhysicsChunkStreamingBounds from(@Nonnull Vector3f center, int radius) {
         return from(center.x, center.y, center.z, radius);
     }
 
     @Nonnull
-    public static WorldCollisionStreamingBounds from(float centerX,
+    public static PhysicsChunkStreamingBounds from(float centerX,
         float centerY,
         float centerZ,
         int radius) {
@@ -33,7 +33,7 @@ public record WorldCollisionStreamingBounds(int minChunkX,
         int maxY = Math.clamp((int) Math.floor(centerY) + radius, 0, ChunkUtil.HEIGHT_MINUS_1);
         int minZ = (int) Math.floor(centerZ) - radius;
         int maxZ = (int) Math.floor(centerZ) + radius;
-        return new WorldCollisionStreamingBounds(
+        return new PhysicsChunkStreamingBounds(
             ChunkUtil.chunkCoordinate(minX),
             ChunkUtil.chunkCoordinate(maxX),
             ChunkUtil.indexSection(minY),

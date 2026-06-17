@@ -2,9 +2,9 @@ package dev.hytalemodding.impulse.core.plugin.modules.physicschunk;
 
 import com.hypixel.hytale.component.ComponentRegistryProxy;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
-import dev.hytalemodding.impulse.core.internal.modules.physicschunk.PhysicsStoreWorldCollisionStreamingResource;
-import dev.hytalemodding.impulse.core.internal.modules.physicschunk.profiling.WorldCollisionProfilingResource;
-import dev.hytalemodding.impulse.core.internal.modules.physicschunk.systems.PhysicsStoreWorldCollisionProducerSystem;
+import dev.hytalemodding.impulse.core.internal.modules.physicschunk.PhysicsChunkTerrainStreamingResource;
+import dev.hytalemodding.impulse.core.internal.modules.physicschunk.profiling.PhysicsChunkProfilingResource;
+import dev.hytalemodding.impulse.core.internal.modules.physicschunk.systems.PhysicsChunkTerrainProducerSystem;
 import javax.annotation.Nonnull;
 
 /**
@@ -17,21 +17,21 @@ public final class PhysicsChunkTypes {
 
     public static void registerEntityStoreResourceTypes(
         @Nonnull ComponentRegistryProxy<EntityStore> registry) {
-        WorldCollisionProfilingResource.setResourceType(registry.registerResource(
-            WorldCollisionProfilingResource.class,
-            WorldCollisionProfilingResource::new));
-        PhysicsStoreWorldCollisionStreamingResource.setResourceType(registry.registerResource(
-            PhysicsStoreWorldCollisionStreamingResource.class,
-            PhysicsStoreWorldCollisionStreamingResource::new));
+        PhysicsChunkProfilingResource.setResourceType(registry.registerResource(
+            PhysicsChunkProfilingResource.class,
+            PhysicsChunkProfilingResource::new));
+        PhysicsChunkTerrainStreamingResource.setResourceType(registry.registerResource(
+            PhysicsChunkTerrainStreamingResource.class,
+            PhysicsChunkTerrainStreamingResource::new));
     }
 
     public static void registerEntityStoreSystems(
         @Nonnull ComponentRegistryProxy<EntityStore> registry) {
-        registry.registerSystem(new PhysicsStoreWorldCollisionProducerSystem());
+        registry.registerSystem(new PhysicsChunkTerrainProducerSystem());
     }
 
     public static void clearEntityStoreResourceTypes() {
-        WorldCollisionProfilingResource.clearResourceType();
-        PhysicsStoreWorldCollisionStreamingResource.clearResourceType();
+        PhysicsChunkProfilingResource.clearResourceType();
+        PhysicsChunkTerrainStreamingResource.clearResourceType();
     }
 }

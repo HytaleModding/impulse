@@ -26,11 +26,11 @@ import dev.hytalemodding.impulse.core.internal.resources.body.PhysicsBodyRuntime
 import dev.hytalemodding.impulse.core.internal.resources.body.PhysicsBodySnapshots;
 import dev.hytalemodding.impulse.core.internal.resources.body.PhysicsBodySnapshotRefVisitor;
 import dev.hytalemodding.impulse.core.internal.resources.body.PhysicsBodySnapshotVisitor;
-import dev.hytalemodding.impulse.core.internal.modules.physicschunk.PhysicsStoreWorldCollisionStreamingResource;
+import dev.hytalemodding.impulse.core.internal.modules.physicschunk.PhysicsChunkTerrainStreamingResource;
 import dev.hytalemodding.impulse.core.internal.resources.joint.PhysicsJointRegistry;
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsVisualRuntime.BodyVisualInterestState;
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsVisualRuntime.VisualInterest;
-import dev.hytalemodding.impulse.core.internal.modules.physicschunk.PhysicsWorldCollisionRuntime;
+import dev.hytalemodding.impulse.core.internal.modules.physicschunk.PhysicsChunkTerrainRuntime;
 import dev.hytalemodding.impulse.core.internal.modules.physicschunk.PhysicsChunkLifecycle;
 import dev.hytalemodding.impulse.core.internal.PhysicsStoreEarlyPluginProbe;
 import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyKind;
@@ -90,8 +90,8 @@ public class PhysicsWorldRuntimeResource extends PhysicsWorldResource {
 
     private final PhysicsBodyRegistry bodyRegistry = new PhysicsBodyRegistry();
 
-    private final PhysicsWorldCollisionRuntime collisionRuntime =
-        new PhysicsWorldCollisionRuntime();
+    private final PhysicsChunkTerrainRuntime terrainRuntime =
+        new PhysicsChunkTerrainRuntime();
 
     @Nonnull
     private final PhysicsSimulationRuntime simulationRuntime = new PhysicsSimulationRuntime();
@@ -519,7 +519,7 @@ public class PhysicsWorldRuntimeResource extends PhysicsWorldResource {
             worldName,
             settings,
             simulationRuntime.getWorldSettings().getStepMode());
-        collisionRuntime.registerSpace(spaceId);
+        terrainRuntime.registerSpace(spaceId);
         markWorldChanged();
         return binding;
     }
@@ -1051,13 +1051,13 @@ public class PhysicsWorldRuntimeResource extends PhysicsWorldResource {
     }
 
     @Nonnull
-    private PhysicsStoreWorldCollisionStreamingResource authoritativeWorldCollisionStreaming() {
+    private PhysicsChunkTerrainStreamingResource authoritativeWorldCollisionStreaming() {
         Store<EntityStore> entityStore = owningStore;
         if (entityStore == null) {
-            throw new IllegalStateException("Cannot access PhysicsStore world-collision streaming "
+            throw new IllegalStateException("Cannot access PhysicsStore PhysicsChunk terrain streaming "
                 + "before this resource is attached to an EntityStore");
         }
-        return entityStore.getResource(PhysicsStoreWorldCollisionStreamingResource.getResourceType());
+        return entityStore.getResource(PhysicsChunkTerrainStreamingResource.getResourceType());
     }
 
     private void clearAuthoritativeWorldCollisionStreaming(@Nonnull Store<PhysicsStore> store) {
@@ -1098,7 +1098,7 @@ public class PhysicsWorldRuntimeResource extends PhysicsWorldResource {
     }
 
     private void disablePhysicsChunkLifecycleDirect() {
-        collisionRuntime.clearRetainedTerrain(spaceRuntime.getBindings());
+        terrainRuntime.clearRetainedTerrain(spaceRuntime.getBindings());
         restoreCollisionLodFiltersDirect();
     }
 
@@ -1234,12 +1234,12 @@ public class PhysicsWorldRuntimeResource extends PhysicsWorldResource {
     private void removeSpaceDirect(@Nonnull SpaceId spaceId, @Nonnull String worldName) {
         PhysicsSpaceBinding removed = spaceRuntime.removeSpace(spaceId);
         if (removed == null) {
-            collisionRuntime.clear(spaceId, null);
+            terrainRuntime.clear(spaceId, null);
             return;
         }
 
         try {
-            collisionRuntime.clear(spaceId, removed);
+            terrainRuntime.clear(spaceId, removed);
             jointRegistry.unregisterSpace(spaceId);
             for (PhysicsBodyRegistration registration : new ArrayList<>(bodyRegistry.getRegistrations())) {
                 if (registration.spaceId().equals(spaceId)) {
@@ -1352,7 +1352,7 @@ public class PhysicsWorldRuntimeResource extends PhysicsWorldResource {
     private PhysicsRuntimeResetResult resetRuntimeStateKeepingSpacesDirect(@Nonnull String worldName) {
         PhysicsRuntimeResetResult reset = spaceRuntime.resetKeepingSpaces(worldName,
             simulationRuntime.getWorldSettings().getStepMode());
-        collisionRuntime.clearAll();
+        terrainRuntime.clearAll();
         clearRuntimeTopologyDirect(false);
         markWorldChanged();
         return reset;
@@ -1460,9 +1460,9 @@ public class PhysicsWorldRuntimeResource extends PhysicsWorldResource {
                 && previousCollisionSettings.getWorldCollisionMode() != WorldCollisionMode.NONE;
         spaceRuntime.setSpaceSettings(spaceId, settings);
         if (worldCollisionDisabled || terrainRepresentationChanged || terrainMaterialChanged) {
-            collisionRuntime.clear(requireSpaceBinding(spaceId));
+            terrainRuntime.clear(requireSpaceBinding(spaceId));
         } else if (worldCollisionSettingsChanged) {
-            collisionRuntime.incrementStreamingRevision(spaceId);
+            terrainRuntime.incrementStreamingRevision(spaceId);
         }
     }
 
@@ -1773,7 +1773,7 @@ public class PhysicsWorldRuntimeResource extends PhysicsWorldResource {
     private void clearRuntimeTopologyDirect(boolean clearCollision) {
         bodyRuntime.clearBodyStateWithoutMarkingWorldChanged();
         if (clearCollision) {
-            collisionRuntime.clearAllAndUnregisterSpaces();
+            terrainRuntime.clearAllAndUnregisterSpaces();
         }
     }
 

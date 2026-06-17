@@ -1,4 +1,4 @@
-package dev.hytalemodding.impulse.core.internal.commands.settings;
+package dev.hytalemodding.impulse.core.internal.modules.physicsentity.commands;
 
 import com.hypixel.hytale.component.Ref;
 import com.hypixel.hytale.component.Store;
@@ -22,7 +22,6 @@ import java.util.Locale;
 import java.util.concurrent.CompletableFuture;
 import javax.annotation.Nonnull;
 
-// TODO: move to physicsentity module
 public class VisualSyncSettingsCommand extends AbstractAsyncPlayerCommand {
 
     private final OptionalArg<Integer> fullRadiusArg = this.withOptionalArg(

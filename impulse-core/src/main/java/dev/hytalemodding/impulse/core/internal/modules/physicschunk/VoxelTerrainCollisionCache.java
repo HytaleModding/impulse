@@ -12,9 +12,9 @@ import dev.hytalemodding.impulse.api.PhysicsCollisionFilters;
 import dev.hytalemodding.impulse.api.SpaceId;
 import dev.hytalemodding.impulse.api.runtime.BackendRuntimeCodes;
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsSpaceBinding;
-import dev.hytalemodding.impulse.core.internal.modules.physicschunk.profiling.WorldCollisionProfilingResource.MissingSectionReason;
-import dev.hytalemodding.impulse.core.internal.modules.physicschunk.profiling.WorldCollisionProfilingResource.Snapshot;
-import dev.hytalemodding.impulse.core.internal.modules.physicschunk.profiling.WorldCollisionProfilingResource.StreamingTargetDiagnostic;
+import dev.hytalemodding.impulse.core.internal.modules.physicschunk.profiling.PhysicsChunkProfilingResource.MissingSectionReason;
+import dev.hytalemodding.impulse.core.internal.modules.physicschunk.profiling.PhysicsChunkProfilingResource.Snapshot;
+import dev.hytalemodding.impulse.core.internal.modules.physicschunk.profiling.PhysicsChunkProfilingResource.StreamingTargetDiagnostic;
 import dev.hytalemodding.impulse.core.internal.modules.physicschunk.SectionCollisionGeometry.BoxCollider;
 import it.unimi.dsi.fastutil.ints.Int2ObjectMap;
 import it.unimi.dsi.fastutil.ints.Int2ObjectOpenHashMap;
@@ -38,11 +38,11 @@ import org.joml.Vector3d;
 /**
  * Section-keyed cache that generates static physics collision from Hytale world blocks.
  *
- * <p>The cache is split per physics space so spaces can choose different world-collision
+ * <p>The cache is split per physics space so spaces can choose different PhysicsChunk terrain
  * policies. Each cached section is rebuilt when Hytale's section change counter changes,
  * and removed when it falls out of the streaming radius or when its chunk unloads.</p>
  */
-public final class VoxelCollisionCache {
+public final class VoxelTerrainCollisionCache {
 
     private static final int ACTIVE_BODY_STREAMING_INTERVAL_TICKS = 4;
     private static final int SLEEPING_BODY_STREAMING_INTERVAL_TICKS = 20;
@@ -57,7 +57,7 @@ public final class VoxelCollisionCache {
     private final SectionColliderBuilder sectionBuilder = new SectionColliderBuilder(shapeTemplates);
     private final AtomicBoolean streamingApplyPending = new AtomicBoolean();
 
-    public synchronized void copyFrom(@Nonnull VoxelCollisionCache other) {
+    public synchronized void copyFrom(@Nonnull VoxelTerrainCollisionCache other) {
         if (other == this) {
             streamingApplyPending.set(false);
             return;
@@ -90,13 +90,13 @@ public final class VoxelCollisionCache {
 
     /**
      * Returns whether a body target needs terrain work. Call
-     * {@link #recordBodyTargetRefresh(SpaceId, UUID, WorldCollisionStreamingBounds, boolean, long)}
+     * {@link #recordBodyTargetRefresh(SpaceId, UUID, PhysicsChunkStreamingBounds, boolean, long)}
      * only after the terrain apply path has actually attempted that work.
      */
     @Nonnull
     public synchronized TargetRefreshDecision shouldRefreshBodyTarget(@Nonnull SpaceId spaceId,
         @Nonnull UUID bodyUuid,
-        @Nonnull WorldCollisionStreamingBounds bounds,
+        @Nonnull PhysicsChunkStreamingBounds bounds,
         boolean sleeping,
         long currentTick,
         int ttlTicks,
@@ -161,7 +161,7 @@ public final class VoxelCollisionCache {
      */
     public synchronized void recordBodyTargetRefresh(@Nonnull SpaceId spaceId,
         @Nonnull UUID bodyUuid,
-        @Nonnull WorldCollisionStreamingBounds bounds,
+        @Nonnull PhysicsChunkStreamingBounds bounds,
         boolean sleeping,
         long currentTick) {
         SpaceCollisionCache cache = spaces.computeIfAbsent(spaceId.value(), ignored -> new SpaceCollisionCache());
@@ -222,7 +222,7 @@ public final class VoxelCollisionCache {
             space,
             center,
             radius,
-            WorldCollisionBuildOptions.DEFAULT);
+            PhysicsChunkBuildOptions.DEFAULT);
     }
 
     /**
@@ -233,7 +233,7 @@ public final class VoxelCollisionCache {
         @Nonnull PhysicsSpaceBinding space,
         @Nonnull Vector3d center,
         int radius,
-        @Nonnull WorldCollisionBuildOptions buildOptions) {
+        @Nonnull PhysicsChunkBuildOptions buildOptions) {
         int removed = clear(space);
         BuildStats stats = ensureAround(world,
             space,
@@ -256,7 +256,7 @@ public final class VoxelCollisionCache {
         @Nonnull PhysicsSpaceBinding space,
         @Nonnull Vector3d center,
         int radius,
-        @Nonnull WorldCollisionBuildOptions buildOptions) {
+        @Nonnull PhysicsChunkBuildOptions buildOptions) {
         int removed = clearSectionsAround(space.spaceId(), space, center, radius);
         BuildStats stats = ensureAround(world,
             space,
@@ -355,7 +355,7 @@ public final class VoxelCollisionCache {
             visitedSections,
             targetDiagnostic,
             accessCache,
-            WorldCollisionBuildOptions.DEFAULT);
+            PhysicsChunkBuildOptions.DEFAULT);
     }
 
     /**
@@ -371,7 +371,7 @@ public final class VoxelCollisionCache {
         @Nullable LongSet visitedSections,
         @Nullable StreamingTargetDiagnostic targetDiagnostic,
         @Nullable SectionAccessCache accessCache,
-        @Nonnull WorldCollisionBuildOptions buildOptions) {
+        @Nonnull PhysicsChunkBuildOptions buildOptions) {
         long start = profiling != null ? System.nanoTime() : 0L;
         if (profiling != null) {
             profiling.incrementEnsureCalls();
@@ -734,7 +734,7 @@ public final class VoxelCollisionCache {
     }
 
     /**
-     * Probes the highest cached world-collision surface under a body footprint.
+     * Probes the highest cached PhysicsChunk terrain surface under a body footprint.
      * <p>
      * This is intended for diagnostics, not simulation. It uses the collision geometry
      * already built for a physics space so benchmark health checks can compare bodies to
@@ -818,7 +818,7 @@ public final class VoxelCollisionCache {
         @Nullable Snapshot profiling,
         @Nullable StreamingTargetDiagnostic targetDiagnostic,
         @Nullable SectionAccessCache accessCache,
-        @Nonnull WorldCollisionBuildOptions buildOptions) {
+        @Nonnull PhysicsChunkBuildOptions buildOptions) {
         long start = profiling != null ? System.nanoTime() : 0L;
         if (profiling != null) {
             profiling.incrementSectionRequests();
@@ -973,7 +973,7 @@ public final class VoxelCollisionCache {
         int chunkX,
         int sectionY,
         int chunkZ,
-        @Nonnull WorldCollisionBuildOptions buildOptions) {
+        @Nonnull PhysicsChunkBuildOptions buildOptions) {
         target.fullCubeBoxes.addAll(geometry.mergedFullCubeBoxes());
         target.detailBoxes.addAll(geometry.detailBoxes());
         if (buildOptions.nativeVoxelTerrainEnabled()
@@ -997,7 +997,7 @@ public final class VoxelCollisionCache {
         int chunkX,
         int sectionY,
         int chunkZ,
-        @Nonnull WorldCollisionBuildOptions buildOptions) {
+        @Nonnull PhysicsChunkBuildOptions buildOptions) {
         long backendBodyId = space.runtime().createVoxelTerrain(space.backendSpaceHandle().value(),
             1.0f,
             1.0f,
@@ -1018,7 +1018,7 @@ public final class VoxelCollisionCache {
     private static void addStaticBox(@Nonnull PhysicsSpaceBinding space,
         @Nonnull CachedSection section,
         @Nonnull BoxCollider box,
-        @Nonnull WorldCollisionBuildOptions buildOptions) {
+        @Nonnull PhysicsChunkBuildOptions buildOptions) {
         if (box.halfX() <= 0.0 || box.halfY() <= 0.0 || box.halfZ() <= 0.0) {
             return;
         }
@@ -1052,7 +1052,7 @@ public final class VoxelCollisionCache {
 
     private static void applyTerrainMaterial(@Nonnull PhysicsSpaceBinding space,
         long backendBodyId,
-        @Nonnull WorldCollisionBuildOptions buildOptions) {
+        @Nonnull PhysicsChunkBuildOptions buildOptions) {
         // TODO: Replace coarse terrain settings with real per-block material lookup.
         space.runtime().setBodyFriction(space.backendSpaceHandle().value(),
             backendBodyId,
@@ -1249,12 +1249,12 @@ public final class VoxelCollisionCache {
 
     private static final class CachedBodyStreamingTarget {
 
-        private WorldCollisionStreamingBounds bounds;
+        private PhysicsChunkStreamingBounds bounds;
         private boolean sleeping;
         private long lastSeenTick;
         private long lastRefreshTick;
 
-        private CachedBodyStreamingTarget(@Nonnull WorldCollisionStreamingBounds bounds,
+        private CachedBodyStreamingTarget(@Nonnull PhysicsChunkStreamingBounds bounds,
             boolean sleeping,
             long lastSeenTick,
             long lastRefreshTick) {
@@ -1282,7 +1282,7 @@ public final class VoxelCollisionCache {
         private final List<BoxCollider> detailBoxes = new ArrayList<>();
         private final long neighborhoodSignature;
         @Nonnull
-        private WorldCollisionBuildOptions buildOptions = WorldCollisionBuildOptions.DEFAULT;
+        private PhysicsChunkBuildOptions buildOptions = PhysicsChunkBuildOptions.DEFAULT;
         private boolean voxelTerrain;
         private long voxelTerrainBodyId;
         private long lastUsedTick;
@@ -1341,7 +1341,7 @@ public final class VoxelCollisionCache {
     }
 
     /**
-     * Immutable debug snapshot for one cached world-collision section.
+     * Immutable debug snapshot for one cached PhysicsChunk terrain section.
      */
     public record DebugSection(int chunkX,
                                int sectionY,

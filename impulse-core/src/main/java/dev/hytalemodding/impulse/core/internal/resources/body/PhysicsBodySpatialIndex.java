@@ -26,7 +26,7 @@ import org.joml.Vector3f;
  * position.</p>
  *
  * <p>Callers use it for area queries that need body identity and pose data, such
- * as visual materialization, world-collision streaming hints, diagnostics, and
+ * as visual materialization, PhysicsChunk terrain streaming hints, diagnostics, and
  * other nearby-body discovery. Query freshness follows the snapshot publishing
  * policy for each body.</p>
  */

@@ -21,7 +21,7 @@ public class ImpulseCommand extends AbstractCommandCollection {
         addSubCommand(new GrabCommand());
         addSubCommand(new ReleaseCommand());
         addSubCommand(new PersistenceCommand());
-        addSubCommand(new PhysicsChunkCommand());
+        addSubCommand(new PhysicsChunkExampleCommand());
         addSubCommand(new StressCommand());
     }
 }

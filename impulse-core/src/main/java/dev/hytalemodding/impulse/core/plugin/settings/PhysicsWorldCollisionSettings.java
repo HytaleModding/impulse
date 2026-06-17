@@ -16,7 +16,7 @@ public class PhysicsWorldCollisionSettings {
     public static final int DEFAULT_WORLD_COLLISION_RADIUS = 8;
 
     /**
-     * Hard block-radius cap for player-centered world collision streaming.
+     * Hard block-radius cap for player-centered PhysicsChunk terrain streaming.
      */
     public static final int MAX_WORLD_COLLISION_RADIUS = 128;
 
@@ -28,7 +28,7 @@ public class PhysicsWorldCollisionSettings {
     public static final int DEFAULT_WORLD_COLLISION_BODY_RADIUS = 4;
 
     /**
-     * Hard block-radius cap for dynamic-body world collision streaming.
+     * Hard block-radius cap for dynamic-body PhysicsChunk terrain streaming.
      */
     public static final int MAX_WORLD_COLLISION_BODY_RADIUS = 64;
 
@@ -78,7 +78,7 @@ public class PhysicsWorldCollisionSettings {
     private EntityChunkBoundaryMode entityChunkBoundaryMode = DEFAULT_ENTITY_CHUNK_BOUNDARY_MODE;
 
     /**
-     * Enables native backend voxel terrain for full-cube world collision.
+     * Enables native backend voxel terrain for full-cube PhysicsChunk terrain.
      */
     @Setter
     @Getter

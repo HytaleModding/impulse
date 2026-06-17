@@ -1,7 +1,7 @@
 package dev.hytalemodding.impulse.core.plugin.modules.physicschunk;
 
 /**
- * Aggregate statistics from building or rebuilding streamed world-collision geometry.
+ * Aggregate statistics from building or rebuilding streamed PhysicsChunk terrain geometry.
  */
 public record WorldCollisionBuildStats(int scannedBlocks,
                                        int solidBlocks,

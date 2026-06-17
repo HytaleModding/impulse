@@ -93,9 +93,9 @@ public final class PhysicsResourceTypes {
         PhysicsTerrainPayloadResource.setResourceType(registry.registerResource(
             PhysicsTerrainPayloadResource.class,
             PhysicsTerrainPayloadResource::new));
-        PhysicsWorldCollisionIndexResource.setResourceType(registry.registerResource(
-            PhysicsWorldCollisionIndexResource.class,
-            PhysicsWorldCollisionIndexResource::new));
+        PhysicsChunkSettingsIndexResource.setResourceType(registry.registerResource(
+            PhysicsChunkSettingsIndexResource.class,
+            PhysicsChunkSettingsIndexResource::new));
     }
 
     @Nonnull

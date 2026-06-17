@@ -29,14 +29,14 @@ public class PhysicsDebugResource implements Resource<EntityStore> {
     public static final float MIN_REFRESH_SECONDS = 0.05f;
     public static final float MAX_REFRESH_SECONDS = 2.0f;
     public static final float DEFAULT_OVERLAY_REFRESH_SECONDS = 0.10f;
-    public static final float DEFAULT_WORLD_COLLISION_REFRESH_SECONDS = 0.25f;
+    public static final float DEFAULT_PHYSICS_CHUNK_REFRESH_SECONDS = 0.25f;
 
     public static final double DEFAULT_VIEW_RADIUS = 96.0;
     public static final int DEFAULT_MAX_BODIES = 512;
     public static final int DEFAULT_MAX_CONTACTS = 384;
     public static final int DEFAULT_MAX_JOINTS = 384;
-    public static final int DEFAULT_MAX_WORLD_COLLISION_SECTIONS = 192;
-    public static final int DEFAULT_MAX_WORLD_COLLISION_BOXES = 768;
+    public static final int DEFAULT_MAX_PHYSICS_CHUNK_SECTIONS = 192;
+    public static final int DEFAULT_MAX_PHYSICS_CHUNK_BOXES = 768;
 
     private final Set<UUID> subscriberUuids = new ObjectOpenHashSet<>();
 
@@ -49,19 +49,19 @@ public class PhysicsDebugResource implements Resource<EntityStore> {
     @Setter
     private boolean debugJointsEnabled = true;
     @Setter
-    private boolean debugWorldCollisionEnabled;
+    private boolean debugPhysicsChunkTerrainEnabled;
 
     private float overlayRefreshSeconds = DEFAULT_OVERLAY_REFRESH_SECONDS;
-    private float worldCollisionRefreshSeconds = DEFAULT_WORLD_COLLISION_REFRESH_SECONDS;
+    private float physicsChunkRefreshSeconds = DEFAULT_PHYSICS_CHUNK_REFRESH_SECONDS;
     private float overlayTimeUntilRefresh;
-    private float worldCollisionTimeUntilRefresh;
+    private float physicsChunkTimeUntilRefresh;
 
     private double viewRadius = DEFAULT_VIEW_RADIUS;
     private int maxBodies = DEFAULT_MAX_BODIES;
     private int maxContacts = DEFAULT_MAX_CONTACTS;
     private int maxJoints = DEFAULT_MAX_JOINTS;
-    private int maxWorldCollisionSections = DEFAULT_MAX_WORLD_COLLISION_SECTIONS;
-    private int maxWorldCollisionBoxes = DEFAULT_MAX_WORLD_COLLISION_BOXES;
+    private int maxPhysicsChunkSections = DEFAULT_MAX_PHYSICS_CHUNK_SECTIONS;
+    private int maxPhysicsChunkBoxes = DEFAULT_MAX_PHYSICS_CHUNK_BOXES;
 
     public PhysicsDebugResource() {
     }
@@ -91,8 +91,8 @@ public class PhysicsDebugResource implements Resource<EntityStore> {
         this.overlayRefreshSeconds = clampRefresh(overlayRefreshSeconds);
     }
 
-    public void setWorldCollisionRefreshSeconds(float worldCollisionRefreshSeconds) {
-        this.worldCollisionRefreshSeconds = clampRefresh(worldCollisionRefreshSeconds);
+    public void setPhysicsChunkRefreshSeconds(float physicsChunkRefreshSeconds) {
+        this.physicsChunkRefreshSeconds = clampRefresh(physicsChunkRefreshSeconds);
     }
 
     public void setViewRadius(double viewRadius) {
@@ -111,12 +111,12 @@ public class PhysicsDebugResource implements Resource<EntityStore> {
         this.maxJoints = Math.max(1, maxJoints);
     }
 
-    public void setMaxWorldCollisionSections(int maxWorldCollisionSections) {
-        this.maxWorldCollisionSections = Math.max(1, maxWorldCollisionSections);
+    public void setMaxPhysicsChunkSections(int maxPhysicsChunkSections) {
+        this.maxPhysicsChunkSections = Math.max(1, maxPhysicsChunkSections);
     }
 
-    public void setMaxWorldCollisionBoxes(int maxWorldCollisionBoxes) {
-        this.maxWorldCollisionBoxes = Math.max(1, maxWorldCollisionBoxes);
+    public void setMaxPhysicsChunkBoxes(int maxPhysicsChunkBoxes) {
+        this.maxPhysicsChunkBoxes = Math.max(1, maxPhysicsChunkBoxes);
     }
 
     public boolean tickOverlayBudget(float dt) {
@@ -132,15 +132,15 @@ public class PhysicsDebugResource implements Resource<EntityStore> {
         return true;
     }
 
-    public boolean tickWorldCollisionBudget(float dt) {
-        worldCollisionTimeUntilRefresh -= dt;
-        if (worldCollisionTimeUntilRefresh > 0.0f) {
+    public boolean tickPhysicsChunkBudget(float dt) {
+        physicsChunkTimeUntilRefresh -= dt;
+        if (physicsChunkTimeUntilRefresh > 0.0f) {
             return false;
         }
 
-        worldCollisionTimeUntilRefresh += worldCollisionRefreshSeconds;
-        if (worldCollisionTimeUntilRefresh <= 0.0f) {
-            worldCollisionTimeUntilRefresh = worldCollisionRefreshSeconds;
+        physicsChunkTimeUntilRefresh += physicsChunkRefreshSeconds;
+        if (physicsChunkTimeUntilRefresh <= 0.0f) {
+            physicsChunkTimeUntilRefresh = physicsChunkRefreshSeconds;
         }
         return true;
     }
@@ -154,17 +154,17 @@ public class PhysicsDebugResource implements Resource<EntityStore> {
         copy.debugMotionEnabled = debugMotionEnabled;
         copy.debugContactsEnabled = debugContactsEnabled;
         copy.debugJointsEnabled = debugJointsEnabled;
-        copy.debugWorldCollisionEnabled = debugWorldCollisionEnabled;
+        copy.debugPhysicsChunkTerrainEnabled = debugPhysicsChunkTerrainEnabled;
         copy.overlayRefreshSeconds = overlayRefreshSeconds;
-        copy.worldCollisionRefreshSeconds = worldCollisionRefreshSeconds;
+        copy.physicsChunkRefreshSeconds = physicsChunkRefreshSeconds;
         copy.overlayTimeUntilRefresh = overlayTimeUntilRefresh;
-        copy.worldCollisionTimeUntilRefresh = worldCollisionTimeUntilRefresh;
+        copy.physicsChunkTimeUntilRefresh = physicsChunkTimeUntilRefresh;
         copy.viewRadius = viewRadius;
         copy.maxBodies = maxBodies;
         copy.maxContacts = maxContacts;
         copy.maxJoints = maxJoints;
-        copy.maxWorldCollisionSections = maxWorldCollisionSections;
-        copy.maxWorldCollisionBoxes = maxWorldCollisionBoxes;
+        copy.maxPhysicsChunkSections = maxPhysicsChunkSections;
+        copy.maxPhysicsChunkBoxes = maxPhysicsChunkBoxes;
         return copy;
     }
 

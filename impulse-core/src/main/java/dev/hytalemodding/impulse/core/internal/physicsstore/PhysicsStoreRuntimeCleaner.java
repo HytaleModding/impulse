@@ -13,7 +13,7 @@ import dev.hytalemodding.impulse.core.internal.resources.PhysicsSpaceCompatibili
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsStoreReadQueueResource;
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsTerrainMutationQueueResource;
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsTerrainPayloadResource;
-import dev.hytalemodding.impulse.core.internal.resources.PhysicsWorldCollisionIndexResource;
+import dev.hytalemodding.impulse.core.internal.resources.PhysicsChunkSettingsIndexResource;
 import dev.hytalemodding.impulse.core.plugin.physicsstore.PhysicsThreading;
 import dev.hytalemodding.impulse.core.plugin.components.UuidComponent;
 import javax.annotation.Nonnull;
@@ -42,6 +42,6 @@ public final class PhysicsStoreRuntimeCleaner {
         store.getResource(PhysicsProfilingResource.getResourceType()).reset();
         store.getResource(PhysicsStoreReadQueueResource.getResourceType()).clear();
         store.getResource(PhysicsTerrainPayloadResource.getResourceType()).clear();
-        store.getResource(PhysicsWorldCollisionIndexResource.getResourceType()).clear();
+        store.getResource(PhysicsChunkSettingsIndexResource.getResourceType()).clear();
     }
 }
