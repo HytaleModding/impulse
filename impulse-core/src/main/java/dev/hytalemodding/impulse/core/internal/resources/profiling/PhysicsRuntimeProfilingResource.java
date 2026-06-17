@@ -414,6 +414,10 @@ public class PhysicsRuntimeProfilingResource implements Resource<EntityStore> {
         resourceType = type;
     }
 
+    public static void clearResourceType() {
+        resourceType = null;
+    }
+
     @Nonnull
     private static StepSnapshot copy(@Nonnull StepSnapshot source) {
         StepSnapshot copy = new StepSnapshot();

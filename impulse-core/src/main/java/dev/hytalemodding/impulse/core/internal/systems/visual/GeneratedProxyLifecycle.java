@@ -2,7 +2,6 @@ package dev.hytalemodding.impulse.core.internal.systems.visual;
 
 import com.hypixel.hytale.component.CommandBuffer;
 import com.hypixel.hytale.component.ComponentAccessor;
-import com.hypixel.hytale.component.ComponentType;
 import com.hypixel.hytale.component.Holder;
 import com.hypixel.hytale.component.Ref;
 import com.hypixel.hytale.component.RemoveReason;
@@ -20,9 +19,6 @@ import javax.annotation.Nullable;
  * Shared cleanup policy for generated visual proxies and missing body attachments.
  */
 public final class GeneratedProxyLifecycle {
-
-    private static final ComponentType<EntityStore, BodyAttachmentComponent> ATTACHMENT_TYPE =
-        BodyAttachmentComponent.getComponentType();
 
     private GeneratedProxyLifecycle() {
     }
@@ -53,7 +49,7 @@ public final class GeneratedProxyLifecycle {
         } else if (attachment.shouldRemoveEntityWhenBodyMissing()) {
             removeEntity(commandBuffer, entityRef);
         } else {
-            commandBuffer.removeComponent(entityRef, ATTACHMENT_TYPE);
+            commandBuffer.removeComponent(entityRef, BodyAttachmentComponent.getComponentType());
         }
     }
 

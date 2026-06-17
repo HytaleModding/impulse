@@ -86,6 +86,17 @@ public final class PhysicsEntityTypes {
         registry.registerSystem(new PhysicsWorldResourceAttachmentSystem());
     }
 
+    public static void clearEntityStoreTypes() {
+        bodyAttachmentComponentType = null;
+        generatedVisualProxyComponentType = null;
+        physicsWorldResourceType = null;
+        physicsEventFramePublishedEventType = null;
+        persistenceRestoreGroup = null;
+        PhysicsDebugResource.clearResourceType();
+        PhysicsRuntimeProfilingResource.clearResourceType();
+        PhysicsProjectionIndexResource.clearResourceType();
+    }
+
     @Nonnull
     public static ComponentType<EntityStore, BodyAttachmentComponent> bodyAttachmentComponentType() {
         return bodyAttachmentComponentType;

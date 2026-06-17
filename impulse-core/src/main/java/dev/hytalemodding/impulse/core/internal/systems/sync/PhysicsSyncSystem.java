@@ -32,6 +32,7 @@ import dev.hytalemodding.impulse.core.plugin.modules.physicsentity.components.Bo
 import dev.hytalemodding.impulse.core.plugin.snapshots.PhysicsBodySnapshot;
 import dev.hytalemodding.impulse.core.plugin.settings.PhysicsSpaceSettings;
 import java.util.List;
+import java.util.Objects;
 import java.util.Set;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
@@ -51,12 +52,12 @@ import org.joml.Vector3f;
  */
 public class PhysicsSyncSystem extends EntityTickingSystem<EntityStore> {
 
-    private static final ComponentType<EntityStore, BodyAttachmentComponent> ATTACHMENT_TYPE =
-        BodyAttachmentComponent.getComponentType();
-    private static final ComponentType<EntityStore, TransformComponent> TRANSFORM_TYPE =
-        TransformComponent.getComponentType();
-
-    private static final Query<EntityStore> QUERY = Query.and(ATTACHMENT_TYPE, TRANSFORM_TYPE);
+    @Nonnull
+    private final ComponentType<EntityStore, BodyAttachmentComponent> attachmentType;
+    @Nonnull
+    private final ComponentType<EntityStore, TransformComponent> transformType;
+    @Nonnull
+    private final Query<EntityStore> query;
     private final Set<Dependency<EntityStore>> dependencies = Set.of(
         new SystemGroupDependency<>(Order.AFTER, PhysicsEntityTypes.persistenceRestoreGroup()),
         new SystemDependency<>(Order.AFTER, PhysicsGeneratedProxyCleanupSystem.class),
@@ -88,6 +89,18 @@ public class PhysicsSyncSystem extends EntityTickingSystem<EntityStore> {
      * because the backend out-parameter getters write into caller-owned vectors.
      */
     private final ThreadLocal<Scratch> scratch = ThreadLocal.withInitial(Scratch::new);
+
+    public PhysicsSyncSystem() {
+        this(BodyAttachmentComponent.getComponentType(), TransformComponent.getComponentType());
+    }
+
+    PhysicsSyncSystem(
+        @Nonnull ComponentType<EntityStore, BodyAttachmentComponent> attachmentType,
+        @Nonnull ComponentType<EntityStore, TransformComponent> transformType) {
+        this.attachmentType = Objects.requireNonNull(attachmentType, "attachmentType");
+        this.transformType = Objects.requireNonNull(transformType, "transformType");
+        this.query = Query.and(attachmentType, transformType);
+    }
 
     @Override
     public boolean isParallel(int archetypeChunkSize, int taskCount) {
@@ -125,8 +138,8 @@ public class PhysicsSyncSystem extends EntityTickingSystem<EntityStore> {
         @Nonnull Store<EntityStore> store,
         @Nonnull CommandBuffer<EntityStore> commandBuffer) {
         Ref<EntityStore> entityRef = chunk.getReferenceTo(index);
-        BodyAttachmentComponent attachment = chunk.getComponent(index, ATTACHMENT_TYPE);
-        TransformComponent transform = chunk.getComponent(index, TRANSFORM_TYPE);
+        BodyAttachmentComponent attachment = chunk.getComponent(index, attachmentType);
+        TransformComponent transform = chunk.getComponent(index, transformType);
         if (attachment == null || transform == null) {
             return;
         }
@@ -401,7 +414,7 @@ public class PhysicsSyncSystem extends EntityTickingSystem<EntityStore> {
     @Nonnull
     @Override
     public Query<EntityStore> getQuery() {
-        return QUERY;
+        return query;
     }
 
     @Nonnull

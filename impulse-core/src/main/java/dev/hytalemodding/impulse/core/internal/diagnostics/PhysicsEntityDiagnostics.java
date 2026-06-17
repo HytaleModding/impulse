@@ -18,16 +18,6 @@ import javax.annotation.Nonnull;
  */
 public final class PhysicsEntityDiagnostics {
 
-    private static final ComponentType<EntityStore, BodyAttachmentComponent> ATTACHMENT_TYPE =
-        BodyAttachmentComponent.getComponentType();
-    private static final ComponentType<EntityStore, TransformComponent> TRANSFORM_TYPE =
-        TransformComponent.getComponentType();
-    private static final ComponentType<EntityStore, NetworkId> NETWORK_ID_TYPE =
-        NetworkId.getComponentType();
-    private static final ComponentType<EntityStore, Visible> VISIBLE_TYPE =
-        Visible.getComponentType();
-    private static final ComponentType<EntityStore, EntityViewer> ENTITY_VIEWER_TYPE =
-        EntityViewer.getComponentType();
     private static final int BODY_PHYSICS_BODIES = 0;
     private static final int BODY_WITH_TRANSFORM = 1;
     private static final int BODY_WITH_NETWORK_ID = 2;
@@ -43,23 +33,33 @@ public final class PhysicsEntityDiagnostics {
 
     @Nonnull
     public static Snapshot collect(@Nonnull Store<EntityStore> store) {
+        ComponentType<EntityStore, BodyAttachmentComponent> attachmentType =
+            BodyAttachmentComponent.getComponentType();
+        ComponentType<EntityStore, TransformComponent> transformType =
+            TransformComponent.getComponentType();
+        ComponentType<EntityStore, NetworkId> networkIdType =
+            NetworkId.getComponentType();
+        ComponentType<EntityStore, Visible> visibleType =
+            Visible.getComponentType();
+        ComponentType<EntityStore, EntityViewer> entityViewerType =
+            EntityViewer.getComponentType();
         EntityFootprint bodyFootprint = collectBodyFootprint(store,
-            ATTACHMENT_TYPE,
-            TRANSFORM_TYPE,
-            NETWORK_ID_TYPE,
-            VISIBLE_TYPE);
+            attachmentType,
+            transformType,
+            networkIdType,
+            visibleType);
         VisualFootprint visualFootprint = collectVisualFootprint(store,
-            ATTACHMENT_TYPE,
-            TRANSFORM_TYPE,
-            NETWORK_ID_TYPE);
+            attachmentType,
+            transformType,
+            networkIdType);
 
         return new Snapshot(bodyFootprint.physicsBodies(),
             0,
             visualFootprint.visuals(),
-            count(store, TRANSFORM_TYPE),
-            count(store, NETWORK_ID_TYPE),
-            count(store, VISIBLE_TYPE),
-            count(store, ENTITY_VIEWER_TYPE),
+            count(store, transformType),
+            count(store, networkIdType),
+            count(store, visibleType),
+            count(store, entityViewerType),
             bodyFootprint.withTransform(),
             bodyFootprint.withNetworkId(),
             bodyFootprint.withVisible(),

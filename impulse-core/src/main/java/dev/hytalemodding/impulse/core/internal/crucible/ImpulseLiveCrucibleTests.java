@@ -48,8 +48,6 @@ final class ImpulseLiveCrucibleTests {
         TransformComponent.getComponentType();
     private static final ComponentType<EntityStore, DespawnComponent> DESPAWN_TYPE =
         DespawnComponent.getComponentType();
-    private static final ComponentType<EntityStore, BodyAttachmentComponent> ATTACHMENT_TYPE =
-        BodyAttachmentComponent.getComponentType();
 
     private ImpulseLiveCrucibleTests() {
     }
@@ -180,7 +178,7 @@ final class ImpulseLiveCrucibleTests {
             DEFAULT_BLOCK_TYPE,
             new Vector3d(visualPosition));
         holder.removeComponent(DESPAWN_TYPE);
-        holder.addComponent(ATTACHMENT_TYPE,
+        holder.addComponent(BodyAttachmentComponent.getComponentType(),
             new BodyAttachmentComponent(bodyUuid,
                 TransformAuthority.BODY,
                 AttachmentLifecycle.EXTERNAL_ENTITY));

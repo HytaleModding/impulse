@@ -177,6 +177,10 @@ public class PhysicsDebugResource implements Resource<EntityStore> {
         resourceType = type;
     }
 
+    public static void clearResourceType() {
+        resourceType = null;
+    }
+
     private static float clampRefresh(float value) {
         return Math.clamp(value, MIN_REFRESH_SECONDS, MAX_REFRESH_SECONDS);
     }

@@ -25,4 +25,9 @@ public final class ImpulsePhysicsEntityPlugin extends JavaPlugin {
         PhysicsEntityTypes.registerSystemGroups(entityRegistry);
         PhysicsEntityTypes.registerSystems(entityRegistry);
     }
+
+    @Override
+    protected void shutdown() {
+        PhysicsEntityTypes.clearEntityStoreTypes();
+    }
 }

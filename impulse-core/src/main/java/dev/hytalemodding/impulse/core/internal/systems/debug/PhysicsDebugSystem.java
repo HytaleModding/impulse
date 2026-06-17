@@ -59,11 +59,10 @@ import org.joml.Vector3f;
  */
 public class PhysicsDebugSystem extends TickingSystem<EntityStore> {
 
-    private static final ComponentType<EntityStore, BodyAttachmentComponent> ATTACHMENT_TYPE =
-        BodyAttachmentComponent.getComponentType();
-    private static final ComponentType<EntityStore, TransformComponent> TRANSFORM_TYPE =
-        TransformComponent.getComponentType();
-
+    @Nonnull
+    private final ComponentType<EntityStore, BodyAttachmentComponent> attachmentType;
+    @Nonnull
+    private final ComponentType<EntityStore, TransformComponent> transformType;
     @Nonnull
     private final Map<Store<EntityStore>, DebugQueryCache> queryCachesByStore =
         Collections.synchronizedMap(new WeakHashMap<>());
@@ -71,6 +70,16 @@ public class PhysicsDebugSystem extends TickingSystem<EntityStore> {
         new SystemDependency<>(Order.AFTER, PhysicsSyncSystem.class),
         new SystemDependency<>(Order.AFTER, UpdateLocationSystems.TickingSystem.class)
     );
+
+    public PhysicsDebugSystem() {
+        this(BodyAttachmentComponent.getComponentType(), TransformComponent.getComponentType());
+    }
+
+    PhysicsDebugSystem(@Nonnull ComponentType<EntityStore, BodyAttachmentComponent> attachmentType,
+        @Nonnull ComponentType<EntityStore, TransformComponent> transformType) {
+        this.attachmentType = Objects.requireNonNull(attachmentType, "attachmentType");
+        this.transformType = Objects.requireNonNull(transformType, "transformType");
+    }
 
     @Override
     public Set<Dependency<EntityStore>> getDependencies() {
@@ -206,7 +215,7 @@ public class PhysicsDebugSystem extends TickingSystem<EntityStore> {
         return viewers;
     }
 
-    private static int renderEntityBodies(@Nonnull Collection<PlayerRef> viewers,
+    private int renderEntityBodies(@Nonnull Collection<PlayerRef> viewers,
         @Nonnull Store<EntityStore> store,
         @Nonnull PhysicsWorldRuntimeResource resource,
         @Nonnull Vector3d viewerPosition,
@@ -232,8 +241,8 @@ public class PhysicsDebugSystem extends TickingSystem<EntityStore> {
                     continue;
                 }
                 BodyAttachmentComponent attachment = store.getComponent(attachmentRef,
-                    ATTACHMENT_TYPE);
-                TransformComponent transform = store.getComponent(attachmentRef, TRANSFORM_TYPE);
+                    attachmentType);
+                TransformComponent transform = store.getComponent(attachmentRef, transformType);
                 if (attachment == null
                     || attachment.getLifecycle() == AttachmentLifecycle.GENERATED_PROXY
                     || transform == null) {

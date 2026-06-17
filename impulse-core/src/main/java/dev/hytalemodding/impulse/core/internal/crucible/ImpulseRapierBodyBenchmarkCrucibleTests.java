@@ -83,8 +83,6 @@ final class ImpulseRapierBodyBenchmarkCrucibleTests {
     private static final float BODY_VOID_Y = -128.0f;
     private static final double DETACHED_SPACING = 1.5;
     private static final Vector3d ORIGIN = new Vector3d(0.0, 128.0, 0.0);
-    private static final ComponentType<EntityStore, BodyAttachmentComponent> ATTACHMENT_TYPE =
-        BodyAttachmentComponent.getComponentType();
 
     private ImpulseRapierBodyBenchmarkCrucibleTests() {
     }
@@ -389,7 +387,9 @@ final class ImpulseRapierBodyBenchmarkCrucibleTests {
         }
 
         private void removeBenchmarkEntities() {
-            store.forEachEntityParallel(ATTACHMENT_TYPE,
+            ComponentType<EntityStore, BodyAttachmentComponent> attachmentType =
+                BodyAttachmentComponent.getComponentType();
+            store.forEachEntityParallel(attachmentType,
                 (index, archetypeChunk, commandBuffer) -> commandBuffer.removeEntity(
                     archetypeChunk.getReferenceTo(index),
                     RemoveReason.REMOVE));

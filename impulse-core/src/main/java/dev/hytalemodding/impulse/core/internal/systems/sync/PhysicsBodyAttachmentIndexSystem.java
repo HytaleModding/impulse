@@ -11,6 +11,7 @@ import com.hypixel.hytale.server.core.universe.world.storage.PhysicsStore;
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsProjectionIndexResource;
 import dev.hytalemodding.impulse.core.plugin.modules.physicsentity.components.BodyAttachmentComponent;
 import dev.hytalemodding.impulse.core.plugin.modules.physicsentity.components.BodyAttachmentComponent.AttachmentLifecycle;
+import java.util.Objects;
 import java.util.UUID;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
@@ -21,9 +22,20 @@ import javax.annotation.Nullable;
 public class PhysicsBodyAttachmentIndexSystem
     extends RefChangeSystem<EntityStore, BodyAttachmentComponent> {
 
-    private static final ComponentType<EntityStore, BodyAttachmentComponent> ATTACHMENT_TYPE =
-        BodyAttachmentComponent.getComponentType();
-    private static final Query<EntityStore> QUERY = ATTACHMENT_TYPE;
+    @Nonnull
+    private final ComponentType<EntityStore, BodyAttachmentComponent> attachmentType;
+    @Nonnull
+    private final Query<EntityStore> query;
+
+    public PhysicsBodyAttachmentIndexSystem() {
+        this(BodyAttachmentComponent.getComponentType());
+    }
+
+    PhysicsBodyAttachmentIndexSystem(
+        @Nonnull ComponentType<EntityStore, BodyAttachmentComponent> attachmentType) {
+        this.attachmentType = Objects.requireNonNull(attachmentType, "attachmentType");
+        this.query = attachmentType;
+    }
 
     @Override
     public void onComponentAdded(@Nonnull Ref<EntityStore> ref,
@@ -122,12 +134,12 @@ public class PhysicsBodyAttachmentIndexSystem
     @Nonnull
     @Override
     public ComponentType<EntityStore, BodyAttachmentComponent> componentType() {
-        return ATTACHMENT_TYPE;
+        return attachmentType;
     }
 
     @Nonnull
     @Override
     public Query<EntityStore> getQuery() {
-        return QUERY;
+        return query;
     }
 }

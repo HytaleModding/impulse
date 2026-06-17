@@ -286,6 +286,10 @@ public final class PhysicsProjectionIndexResource implements Resource<EntityStor
         resourceType = type;
     }
 
+    public static void clearResourceType() {
+        resourceType = null;
+    }
+
     private void unregisterAttachmentRef(@Nonnull Ref<PhysicsStore> bodyRef,
         @Nonnull Ref<EntityStore> attachment) {
         int rowIndex = bodyRef.getIndex();
