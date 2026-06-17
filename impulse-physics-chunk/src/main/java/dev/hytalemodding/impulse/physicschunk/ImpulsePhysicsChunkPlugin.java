@@ -5,12 +5,9 @@ import com.hypixel.hytale.logger.HytaleLogger;
 import com.hypixel.hytale.server.core.plugin.JavaPlugin;
 import com.hypixel.hytale.server.core.plugin.JavaPluginInit;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
-import com.hypixel.hytale.server.core.universe.world.storage.PhysicsStore;
 import dev.hytalemodding.impulse.physicschunk.commands.WorldCollisionCommandContributions;
 import dev.hytalemodding.impulse.core.plugin.modules.physicschunk.PhysicsChunkTypes;
 import dev.hytalemodding.impulse.core.plugin.modules.physicschunk.PhysicsWorldCollision;
-import dev.hytalemodding.impulse.early.PhysicsStoreHooks;
-import java.util.function.Consumer;
 import java.util.logging.Level;
 import javax.annotation.Nonnull;
 
@@ -20,8 +17,6 @@ import javax.annotation.Nonnull;
 public final class ImpulsePhysicsChunkPlugin extends JavaPlugin {
 
     private static final HytaleLogger LOGGER = HytaleLogger.get("Impulse");
-    private static final Consumer<PhysicsStore> SHUTDOWN_CLEANUP =
-        PhysicsChunkTypes::clearRuntimeStateBeforeShutdown;
 
     public ImpulsePhysicsChunkPlugin(@Nonnull JavaPluginInit init) {
         super(init);
@@ -29,9 +24,6 @@ public final class ImpulsePhysicsChunkPlugin extends JavaPlugin {
 
     @Override
     protected void setup() {
-        PhysicsChunkTypes.registerPhysicsStoreTypes(this);
-        PhysicsStoreHooks.registerShutdownHook(SHUTDOWN_CLEANUP);
-
         ComponentRegistryProxy<EntityStore> entityRegistry = getEntityStoreRegistry();
         PhysicsChunkTypes.registerEntityStoreResourceTypes(entityRegistry);
         PhysicsChunkTypes.registerEntityStoreSystems(entityRegistry);
@@ -44,7 +36,6 @@ public final class ImpulsePhysicsChunkPlugin extends JavaPlugin {
     protected void shutdown() {
         PhysicsWorldCollision.disableModule();
         WorldCollisionCommandContributions.unregister();
-        PhysicsStoreHooks.unregisterShutdownHook(SHUTDOWN_CLEANUP);
         PhysicsChunkTypes.clearEntityStoreResourceTypes();
     }
 }

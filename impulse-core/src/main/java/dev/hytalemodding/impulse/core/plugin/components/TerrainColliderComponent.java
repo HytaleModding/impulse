@@ -7,7 +7,6 @@ import com.hypixel.hytale.component.Component;
 import com.hypixel.hytale.component.ComponentType;
 import com.hypixel.hytale.component.Ref;
 import com.hypixel.hytale.server.core.universe.world.storage.PhysicsStore;
-import dev.hytalemodding.impulse.core.plugin.modules.physicschunk.PhysicsChunkTypes;
 import lombok.Getter;
 import lombok.Setter;
 import java.util.Objects;
@@ -133,7 +132,7 @@ public final class TerrainColliderComponent implements Component<PhysicsStore> {
 
     @Nonnull
     public static ComponentType<PhysicsStore, TerrainColliderComponent> getComponentType() {
-        return PhysicsChunkTypes.terrainColliderComponentType();
+        return PhysicsComponentTypes.terrainColliderComponentType();
     }
 
     @Nonnull

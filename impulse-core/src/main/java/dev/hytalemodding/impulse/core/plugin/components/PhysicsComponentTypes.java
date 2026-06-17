@@ -20,6 +20,10 @@ public final class PhysicsComponentTypes {
     @Nullable
     private static ComponentType<PhysicsStore, BodyCommandComponent> bodyCommandComponentType;
     @Nullable
+    private static ComponentType<PhysicsStore, TerrainColliderComponent> terrainColliderComponentType;
+    @Nullable
+    private static ComponentType<PhysicsStore, WorldCollisionComponent> worldCollisionComponentType;
+    @Nullable
     private static ComponentType<PhysicsStore, DynamicsComponent> dynamicsComponentType;
     @Nullable
     private static ComponentType<PhysicsStore, ColliderComponent> colliderComponentType;
@@ -66,6 +70,14 @@ public final class PhysicsComponentTypes {
             BodyCommandComponent.class,
             "BodyCommand",
             BodyCommandComponent.CODEC);
+        terrainColliderComponentType = registry.registerComponent(
+            TerrainColliderComponent.class,
+            "TerrainCollider",
+            TerrainColliderComponent.CODEC);
+        worldCollisionComponentType = registry.registerComponent(
+            WorldCollisionComponent.class,
+            "WorldCollision",
+            WorldCollisionComponent.CODEC);
         dynamicsComponentType = registry.registerComponent(
             DynamicsComponent.class,
             "Dynamics",
@@ -134,6 +146,18 @@ public final class PhysicsComponentTypes {
     @Nonnull
     public static ComponentType<PhysicsStore, BodyCommandComponent> bodyCommandComponentType() {
         return bodyCommandComponentType;
+    }
+
+    @Nonnull
+    public static ComponentType<PhysicsStore, TerrainColliderComponent>
+    terrainColliderComponentType() {
+        return terrainColliderComponentType;
+    }
+
+    @Nonnull
+    public static ComponentType<PhysicsStore, WorldCollisionComponent>
+    worldCollisionComponentType() {
+        return worldCollisionComponentType;
     }
 
     @Nonnull
