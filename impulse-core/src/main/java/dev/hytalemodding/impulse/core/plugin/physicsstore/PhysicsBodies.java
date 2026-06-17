@@ -2,7 +2,9 @@ package dev.hytalemodding.impulse.core.plugin.physicsstore;
 
 import com.hypixel.hytale.component.Ref;
 import com.hypixel.hytale.component.Store;
+import com.hypixel.hytale.server.core.universe.world.World;
 import com.hypixel.hytale.server.core.universe.world.storage.PhysicsStore;
+import dev.hytalemodding.impulse.core.internal.physicsstore.PhysicsStoreTopologyMutations;
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsBodyRegistrationResource;
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsSnapshotResource;
 import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyKind;
@@ -13,11 +15,12 @@ import dev.hytalemodding.impulse.core.plugin.snapshots.PhysicsSnapshotFrame;
 import java.util.Collection;
 import java.util.Objects;
 import java.util.UUID;
+import java.util.concurrent.CompletionStage;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
 /**
- * Public copied body reads for PhysicsStore entities.
+ * Public body helpers for PhysicsStore entities.
  */
 public final class PhysicsBodies {
 
@@ -114,12 +117,70 @@ public final class PhysicsBodies {
         return snapshotFrame(store).bodies().size();
     }
 
+    public static void destroy(@Nonnull Store<PhysicsStore> store,
+        @Nonnull UUID bodyUuid) {
+        Store<PhysicsStore> checkedStore = requireWorldThread(store,
+            "destroy a PhysicsStore body entity");
+        PhysicsStoreTopologyMutations.destroyBody(checkedStore,
+            Objects.requireNonNull(bodyUuid, "bodyUuid"));
+    }
+
+    public static void destroy(@Nonnull Store<PhysicsStore> store,
+        @Nonnull Ref<PhysicsStore> bodyRef) {
+        Store<PhysicsStore> checkedStore = requireWorldThread(store,
+            "destroy a PhysicsStore body entity");
+        Ref<PhysicsStore> checkedRef = requireSameValidStore(checkedStore,
+            bodyRef,
+            "bodyRef");
+        destroy(checkedStore, PhysicsEntityRefs.entityUuid(checkedRef));
+    }
+
+    @Nonnull
+    public static CompletionStage<UUID> destroyAsync(@Nonnull World world,
+        @Nonnull UUID bodyUuid) {
+        UUID checkedBodyUuid = Objects.requireNonNull(bodyUuid, "bodyUuid");
+        return PhysicsThreading.callWhenBackendIdleOnWorldThread(world,
+            "destroy a PhysicsStore body entity",
+            store -> {
+                destroy(store, checkedBodyUuid);
+                return checkedBodyUuid;
+            });
+    }
+
+    @Nonnull
+    public static CompletionStage<UUID> destroyAsync(@Nonnull World world,
+        @Nonnull Ref<PhysicsStore> bodyRef) {
+        Ref<PhysicsStore> checkedRef = Objects.requireNonNull(bodyRef, "bodyRef");
+        return PhysicsThreading.callWhenBackendIdleOnWorldThread(world,
+            "destroy a PhysicsStore body entity",
+            store -> {
+                Ref<PhysicsStore> sameStoreRef = requireSameValidStore(store,
+                    checkedRef,
+                    "bodyRef");
+                UUID bodyUuid = PhysicsEntityRefs.entityUuid(sameStoreRef);
+                destroy(store, bodyUuid);
+                return bodyUuid;
+            });
+    }
+
     @Nonnull
     private static Store<PhysicsStore> requireWorldThread(@Nonnull Store<PhysicsStore> store,
         @Nonnull String operation) {
         Store<PhysicsStore> checkedStore = Objects.requireNonNull(store, "store");
         PhysicsThreading.requireWorldThread(checkedStore, operation);
         return checkedStore;
+    }
+
+    @Nonnull
+    private static Ref<PhysicsStore> requireSameValidStore(@Nonnull Store<PhysicsStore> store,
+        @Nonnull Ref<PhysicsStore> ref,
+        @Nonnull String name) {
+        Ref<PhysicsStore> checkedRef = Objects.requireNonNull(ref, name);
+        if (sameValidStore(store, checkedRef)) {
+            return checkedRef;
+        }
+        throw new IllegalArgumentException("PhysicsStore body ref is not valid for this store: "
+            + name);
     }
 
     private static boolean sameValidStore(@Nonnull Store<PhysicsStore> store,

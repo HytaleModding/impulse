@@ -1485,14 +1485,15 @@ public class PhysicsWorldRuntimeResource extends PhysicsWorldResource {
 
     @Override
     public void destroyBody(@Nonnull UUID bodyUuid) {
+        UUID checkedBodyUuid = Objects.requireNonNull(bodyUuid, "bodyUuid");
         if (isAuthoritativePhysicsStoreActive()) {
             PhysicsStoreTopologyMutations.destroyBody(
                 authoritativePhysicsStore("destroy physics body"),
-                bodyUuid);
+                checkedBodyUuid);
             return;
         }
         requireLegacyMutationAllowed("destroy physics body");
-        destroyBody(bodyUuid, true);
+        destroyBody(checkedBodyUuid, true);
     }
 
     @Nonnull
@@ -1500,9 +1501,15 @@ public class PhysicsWorldRuntimeResource extends PhysicsWorldResource {
     public PhysicsMutationHandle<UUID> destroyBodyAsync(@Nonnull UUID bodyUuid) {
         UUID checkedBodyUuid = Objects.requireNonNull(bodyUuid, "bodyUuid");
         if (isAuthoritativePhysicsStoreActive()) {
-            return enqueueAuthoritativePhysicsStoreMutation("destroy physics body",
+            World world = requireAuthoritativeWorld("destroy physics body");
+            return PhysicsMutationHandle.fromCompletion("destroy physics body",
                 checkedBodyUuid,
-                store -> PhysicsStoreTopologyMutations.destroyBody(store, checkedBodyUuid));
+                PhysicsThreading.callWhenBackendIdleOnWorldThread(world,
+                    "destroy physics body",
+                    store -> {
+                        PhysicsStoreTopologyMutations.destroyBody(store, checkedBodyUuid);
+                        return null;
+                    }));
         }
         requireLegacyMutationAllowed("destroy physics body");
         return enqueueDirectRuntimeMutation("destroy physics body",

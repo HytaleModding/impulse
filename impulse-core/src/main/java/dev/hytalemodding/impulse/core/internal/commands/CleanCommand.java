@@ -15,15 +15,18 @@ import com.hypixel.hytale.server.core.modules.entity.component.TransformComponen
 import com.hypixel.hytale.server.core.universe.world.World;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import com.hypixel.hytale.server.core.universe.world.storage.PhysicsStore;
-import dev.hytalemodding.impulse.api.SpaceId;
+import dev.hytalemodding.impulse.early.PhysicsStoreWorld;
 import dev.hytalemodding.impulse.core.internal.components.GeneratedVisualProxyComponent;
 import dev.hytalemodding.impulse.core.internal.modules.control.components.PhysicsControlSessionComponent;
+import dev.hytalemodding.impulse.core.internal.modules.control.systems.PhysicsControlSessionCleanup;
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsRuntimeResetResult;
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsWorldRuntimeResource;
-import dev.hytalemodding.impulse.core.internal.modules.control.systems.PhysicsControlSessionCleanup;
-import dev.hytalemodding.impulse.core.plugin.modules.control.ImpulseControllableComponent;
 import dev.hytalemodding.impulse.core.plugin.components.UuidComponent;
+import dev.hytalemodding.impulse.core.plugin.modules.control.ImpulseControllableComponent;
+import dev.hytalemodding.impulse.core.plugin.physicsstore.PhysicsBodies;
+import dev.hytalemodding.impulse.core.plugin.physicsstore.PhysicsThreading;
 import dev.hytalemodding.impulse.core.plugin.projection.BodyAttachmentComponent;
+import dev.hytalemodding.impulse.core.plugin.snapshots.PhysicsBodySnapshot;
 import it.unimi.dsi.fastutil.objects.ObjectOpenHashSet;
 import java.util.Set;
 import java.util.UUID;
@@ -202,10 +205,29 @@ public class CleanCommand extends AbstractWorldCommand {
             return;
         }
 
-        PhysicsWorldRuntimeResource resource = PhysicsWorldRuntimeResource.require(store);
-        resource.refreshBodySnapshots();
-        SelectedBodies selectedBodies = selectBodiesNear(resource, center, radius);
+        Store<PhysicsStore> physicsStore = ((PhysicsStoreWorld) world).getPhysicsStore().getStore();
+        SelectedBodies selectedBodies = selectBodiesNear(physicsStore, center, radius);
         double radiusSquared = (double) radius * radius;
+        CompletionStage<RadiusCleanResult> clean = PhysicsThreading.callWhenBackendIdleOnWorldThread(world,
+            "clean Impulse physics bodies within radius",
+            backendStore -> cleanSelectedBodies(store,
+                backendStore,
+                selectedBodies,
+                center,
+                radiusSquared));
+        clean.whenComplete((result, failure) -> sendCleanRadiusResult(world,
+            context,
+            radius,
+            result,
+            failure));
+    }
+
+    @Nonnull
+    private static RadiusCleanResult cleanSelectedBodies(@Nonnull Store<EntityStore> store,
+        @Nonnull Store<PhysicsStore> physicsStore,
+        @Nonnull SelectedBodies selectedBodies,
+        @Nonnull Vector3d center,
+        double radiusSquared) {
         ComponentType<EntityStore, BodyAttachmentComponent> attachmentType =
             BodyAttachmentComponent.getComponentType();
         ComponentType<EntityStore, GeneratedVisualProxyComponent> generatedProxyType =
@@ -269,18 +291,52 @@ public class CleanCommand extends AbstractWorldCommand {
 
         int removedBodies = 0;
         for (UUID bodyUuid : selectedBodies.bodyUuids()) {
-            resource.destroyBody(bodyUuid);
+            PhysicsBodies.destroy(physicsStore, bodyUuid);
             removedBodies++;
         }
 
+        return new RadiusCleanResult(removedEntities, removedBodies);
+    }
+
+    private static void sendCleanRadiusResult(@Nonnull World world,
+        @Nonnull CommandContext context,
+        float radius,
+        @Nullable RadiusCleanResult result,
+        @Nullable Throwable failure) {
+        Runnable sender = () -> {
+            if (failure != null) {
+                Throwable cause = unwrap(failure);
+                String message = cause.getMessage() != null ? cause.getMessage() : cause.toString();
+                context.sendMessage(Message.raw("Failed to clean Impulse physics bodies within radius: "
+                    + message));
+                return;
+            }
+            if (result == null) {
+                context.sendMessage(Message.raw("Failed to clean Impulse physics bodies within radius."));
+                return;
+            }
+            sendCleanRadiusSuccess(context, result, radius, world.getName());
+        };
+        if (world.isInThread()) {
+            sender.run();
+            return;
+        }
+        world.execute(sender);
+    }
+
+    private static void sendCleanRadiusSuccess(@Nonnull CommandContext context,
+        @Nonnull RadiusCleanResult result,
+        float radius,
+        @Nonnull String worldName) {
+        AtomicIntegerArray removedEntities = result.removedEntities();
         context.sendMessage(Message.raw("Removed " + removedEntities.get(REMOVED_ATTACHMENT_ENTITIES)
             + " Impulse-owned attachment entities, "
             + removedEntities.get(DETACHED_EXTERNAL_ATTACHMENTS)
             + " detached external attachments, "
-            + removedEntities.get(REMOVED_ORPHAN_VISUAL_ENTITIES)
-            + " orphan visual proxy entities, " + removedBodies
-            + " runtime bodies, and " + removedEntities.get(REMOVED_SESSIONS)
-            + " control sessions within radius " + radius + " in world " + world.getName()
+            + removedEntities.get(REMOVED_ORPHAN_VISUAL_ENTITIES) + " orphan visual proxy entities, "
+            + result.removedBodies() + " runtime bodies, and "
+            + removedEntities.get(REMOVED_SESSIONS)
+            + " control sessions within radius " + radius + " in world " + worldName
             + ". Kept explicit physics spaces and world-collision cache."));
     }
 
@@ -295,18 +351,19 @@ public class CleanCommand extends AbstractWorldCommand {
     }
 
     @Nonnull
-    private static SelectedBodies selectBodiesNear(@Nonnull PhysicsWorldRuntimeResource resource,
+    private static SelectedBodies selectBodiesNear(@Nonnull Store<PhysicsStore> store,
         @Nonnull Vector3d center,
         float radius) {
         Set<UUID> bodyUuids = new ObjectOpenHashSet<>();
-        Vector3f centerF = new Vector3f((float) center.x, (float) center.y, (float) center.z);
-        for (SpaceId spaceId : resource.getSpaceIds()) {
-            resource.forEachIndexedBodySnapshotNear(spaceId,
-                centerF,
-                radius,
-                (bodyUuid, snapshot, bodySpaceId, kind, persistenceMode) -> {
-                    bodyUuids.add(bodyUuid);
-                });
+        double radiusSquared = (double) radius * radius;
+        for (PhysicsBodySnapshot snapshot : PhysicsBodies.snapshotFrame(store).bodies()) {
+            Vector3f position = snapshot.position();
+            double dx = position.x - center.x;
+            double dy = position.y - center.y;
+            double dz = position.z - center.z;
+            if (dx * dx + dy * dy + dz * dz <= radiusSquared) {
+                bodyUuids.add(snapshot.bodyUuid());
+            }
         }
         return new SelectedBodies(bodyUuids);
     }
@@ -378,6 +435,10 @@ public class CleanCommand extends AbstractWorldCommand {
     }
 
     private record SelectedBodies(@Nonnull Set<UUID> bodyUuids) {
+    }
+
+    private record RadiusCleanResult(@Nonnull AtomicIntegerArray removedEntities,
+                                     int removedBodies) {
     }
 
     @Nullable

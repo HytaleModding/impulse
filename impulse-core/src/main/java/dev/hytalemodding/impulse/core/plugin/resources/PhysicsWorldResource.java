@@ -281,10 +281,16 @@ public abstract class PhysicsWorldResource implements Resource<EntityStore> {
     /**
      * Destroys a registered body by durable body UUID.
      *
-     * <p>Prefer this overload when the caller is crossing a durable identity boundary.</p>
+     * <p>Prefer {@code PhysicsBodies.destroy(...)} for PhysicsStore-aware code. Keep this
+     * facade for compatibility callers crossing a durable identity boundary.</p>
      */
     public abstract void destroyBody(@Nonnull UUID bodyUuid);
 
+    /**
+     * Queues body destruction by durable body UUID.
+     *
+     * <p>Prefer {@code PhysicsBodies.destroyAsync(...)} for PhysicsStore-aware code.</p>
+     */
     @Nonnull
     public abstract PhysicsMutationHandle<UUID> destroyBodyAsync(@Nonnull UUID bodyUuid);
 

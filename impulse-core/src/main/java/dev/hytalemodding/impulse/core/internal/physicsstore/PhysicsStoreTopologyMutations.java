@@ -26,6 +26,7 @@ import dev.hytalemodding.impulse.core.plugin.components.UuidComponent;
 import it.unimi.dsi.fastutil.longs.LongArrayList;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Objects;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import javax.annotation.Nonnull;
@@ -41,12 +42,13 @@ public final class PhysicsStoreTopologyMutations {
 
     public static void destroyBody(@Nonnull Store<PhysicsStore> store,
         @Nonnull UUID bodyUuid) {
+        UUID checkedBodyUuid = Objects.requireNonNull(bodyUuid, "bodyUuid");
         PhysicsThreading.requireBackendIdle(store, "destroy a PhysicsStore body entity");
         PhysicsRuntimeResource runtime = store.getResource(PhysicsRuntimeResource.getResourceType());
         PhysicsIdentityIndexResource identity =
             store.getResource(PhysicsIdentityIndexResource.getResourceType());
-        Ref<PhysicsStore> bodyRef = identity.getByUuid(bodyUuid);
-        List<RowRemoval> removals = collectRows(store, null, null, bodyUuid, bodyRef);
+        Ref<PhysicsStore> bodyRef = identity.getByUuid(checkedBodyUuid);
+        List<RowRemoval> removals = collectRows(store, null, null, checkedBodyUuid, bodyRef);
         removeRuntimeRows(runtime, identity, removals);
         removeRows(store, removals);
     }
