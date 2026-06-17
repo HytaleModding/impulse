@@ -39,7 +39,6 @@ import java.util.List;
 import java.util.Set;
 import java.util.UUID;
 import javax.annotation.Nonnull;
-import org.joml.Quaternionf;
 import org.joml.Vector3f;
 
 /**
@@ -255,14 +254,23 @@ public final class StepSubmissionSystem extends TickingSystem<PhysicsStore> {
         if (metadata == null) {
             return;
         }
-        snapshots.add(new PhysicsBodySnapshot(metadata.bodyRef(),
+        snapshots.add(PhysicsBodySnapshot.of(metadata.bodyRef(),
             metadata.bodyUuid(),
             metadata.spaceUuid(),
             BackendRuntimeCodes.bodyType(bodyTypeCode),
-            new Vector3f(positionX, positionY, positionZ),
-            new Quaternionf(rotationX, rotationY, rotationZ, rotationW),
-            new Vector3f(linearVelocityX, linearVelocityY, linearVelocityZ),
-            new Vector3f(angularVelocityX, angularVelocityY, angularVelocityZ),
+            positionX,
+            positionY,
+            positionZ,
+            rotationX,
+            rotationY,
+            rotationZ,
+            rotationW,
+            linearVelocityX,
+            linearVelocityY,
+            linearVelocityZ,
+            angularVelocityX,
+            angularVelocityY,
+            angularVelocityZ,
             centerOfMassOffsetY,
             sleeping));
     }
