@@ -1,4 +1,4 @@
-package dev.hytalemodding.impulse.core.internal.modules.worldcollision.profiling;
+package dev.hytalemodding.impulse.core.internal.modules.physicschunk.profiling;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
@@ -9,9 +9,9 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import com.hypixel.hytale.component.ComponentRegistry;
 import com.hypixel.hytale.component.ResourceType;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
-import dev.hytalemodding.impulse.core.internal.modules.worldcollision.WorldVoxelCollisionCache.BuildStats;
-import dev.hytalemodding.impulse.core.internal.modules.worldcollision.profiling.WorldCollisionProfilingResource;
-import dev.hytalemodding.impulse.core.internal.modules.worldcollision.profiling.WorldCollisionProfilingResource.MissingSectionReason;
+import dev.hytalemodding.impulse.core.internal.modules.physicschunk.WorldVoxelCollisionCache.BuildStats;
+import dev.hytalemodding.impulse.core.internal.modules.physicschunk.profiling.WorldCollisionProfilingResource;
+import dev.hytalemodding.impulse.core.internal.modules.physicschunk.profiling.WorldCollisionProfilingResource.MissingSectionReason;
 import it.unimi.dsi.fastutil.longs.LongOpenHashSet;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;

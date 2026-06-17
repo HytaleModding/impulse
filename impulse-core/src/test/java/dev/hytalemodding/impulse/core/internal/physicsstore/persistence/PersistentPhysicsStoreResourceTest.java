@@ -1,4 +1,4 @@
-package dev.hytalemodding.impulse.core.internal.physicsstore.persistence;
+package dev.hytalemodding.impulse.core.internal.persistence;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;

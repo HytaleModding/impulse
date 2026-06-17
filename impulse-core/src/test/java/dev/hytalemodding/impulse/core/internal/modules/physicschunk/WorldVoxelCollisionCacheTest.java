@@ -1,4 +1,4 @@
-package dev.hytalemodding.impulse.core.internal.modules.worldcollision;
+package dev.hytalemodding.impulse.core.internal.modules.physicschunk;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertArrayEquals;
@@ -15,14 +15,14 @@ import dev.hytalemodding.impulse.api.testsupport.FakePhysicsBackendRuntimeProvid
 import dev.hytalemodding.impulse.api.testsupport.FakePhysicsBackendRuntimeProvider.CombineCall;
 import dev.hytalemodding.impulse.api.testsupport.FakePhysicsBackendRuntimeProvider.FakePhysicsBackendRuntime;
 import dev.hytalemodding.impulse.api.testsupport.FakePhysicsBackendRuntimeProvider.VoxelTerrainCall;
-import dev.hytalemodding.impulse.core.internal.modules.worldcollision.SectionCollisionGeometry;
-import dev.hytalemodding.impulse.core.internal.modules.worldcollision.WorldCollisionBuildOptions;
-import dev.hytalemodding.impulse.core.internal.modules.worldcollision.WorldCollisionStreamingBounds;
-import dev.hytalemodding.impulse.core.internal.modules.worldcollision.WorldVoxelCollisionCache;
+import dev.hytalemodding.impulse.core.internal.modules.physicschunk.SectionCollisionGeometry;
+import dev.hytalemodding.impulse.core.internal.modules.physicschunk.WorldCollisionBuildOptions;
+import dev.hytalemodding.impulse.core.internal.modules.physicschunk.WorldCollisionStreamingBounds;
+import dev.hytalemodding.impulse.core.internal.modules.physicschunk.WorldVoxelCollisionCache;
 import dev.hytalemodding.impulse.core.internal.resources.BackendSpaceHandle;
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsSpaceBinding;
-import dev.hytalemodding.impulse.core.internal.modules.worldcollision.profiling.WorldCollisionProfilingResource;
-import dev.hytalemodding.impulse.core.internal.modules.worldcollision.SectionCollisionGeometry.BoxCollider;
+import dev.hytalemodding.impulse.core.internal.modules.physicschunk.profiling.WorldCollisionProfilingResource;
+import dev.hytalemodding.impulse.core.internal.modules.physicschunk.SectionCollisionGeometry.BoxCollider;
 import dev.hytalemodding.impulse.core.internal.resources.body.PhysicsBodySnapshots;
 import dev.hytalemodding.impulse.core.plugin.settings.PhysicsWorldCollisionSettings;
 import java.lang.reflect.Constructor;

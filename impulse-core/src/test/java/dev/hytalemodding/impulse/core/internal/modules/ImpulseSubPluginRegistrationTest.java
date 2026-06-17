@@ -40,11 +40,6 @@ class ImpulseSubPluginRegistrationTest {
             "dev.hytalemodding.impulse.core.ImpulsePlugin",
             List.of(
                 manifest(null,
-                    "ImpulseWorldCollision",
-                    "dev.hytalemodding.impulse.core.plugin.modules.worldcollision.ImpulseWorldCollisionPlugin",
-                    List.of(),
-                    false),
-                manifest(null,
                     "ImpulseControl",
                     "dev.hytalemodding.impulse.core.plugin.modules.control.ImpulseControlPlugin",
                     List.of(),
@@ -54,9 +49,8 @@ class ImpulseSubPluginRegistrationTest {
         List<PluginManifest> prepared =
             ImpulseSubPluginRegistration.prepareSubPluginManifests(parent);
 
-        assertEquals(2, prepared.size());
-        assertPreparedSubPlugin(prepared.get(0), "ImpulseWorldCollision", false);
-        assertPreparedSubPlugin(prepared.get(1), "ImpulseControl", false);
+        assertEquals(1, prepared.size());
+        assertPreparedSubPlugin(prepared.getFirst(), "ImpulseControl", false);
     }
 
     private static void assertPreparedSubPlugin(PluginManifest manifest,

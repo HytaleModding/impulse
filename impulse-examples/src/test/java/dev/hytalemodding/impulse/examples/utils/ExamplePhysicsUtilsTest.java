@@ -1,9 +1,10 @@
-package dev.hytalemodding.impulse.examples.commands;
+package dev.hytalemodding.impulse.examples.utils;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.hypixel.hytale.component.ComponentRegistry;
+import com.hypixel.hytale.component.ComponentType;
 import com.hypixel.hytale.component.Holder;
 import com.hypixel.hytale.server.core.modules.entity.EntityModule;
 import com.hypixel.hytale.server.core.modules.entity.component.HeadRotation;
@@ -11,14 +12,15 @@ import com.hypixel.hytale.server.core.modules.entity.component.ModelComponent;
 import com.hypixel.hytale.server.core.modules.entity.component.TransformComponent;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import dev.hytalemodding.impulse.api.PhysicsBodyType;
-import dev.hytalemodding.impulse.core.ImpulsePlugin;
 import dev.hytalemodding.impulse.core.internal.modules.control.ControlLifecycle;
 import dev.hytalemodding.impulse.core.internal.modules.control.components.PhysicsControlSessionComponent;
-import dev.hytalemodding.impulse.core.plugin.physicsstore.projection.BodyAttachmentComponent;
 import dev.hytalemodding.impulse.core.plugin.modules.control.ImpulseControllableComponent;
+import dev.hytalemodding.impulse.core.plugin.modules.physicsentity.PhysicsEntityTypes;
+import dev.hytalemodding.impulse.core.plugin.projection.BodyAttachmentComponent;
 import dev.hytalemodding.impulse.core.plugin.simulation.PhysicsShapeSpec;
 import java.lang.reflect.Field;
 import javax.annotation.Nonnull;
+
 import org.joml.Vector3d;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -28,15 +30,21 @@ class ExamplePhysicsUtilsTest {
 
     private ComponentRegistry<EntityStore> registry;
     private Object previousEntityModule;
-    private Object previousImpulsePlugin;
+    private Object previousBodyAttachmentComponentType;
 
     @BeforeEach
     void registerComponentTypes() throws Exception {
         previousEntityModule = staticField(EntityModule.class, "instance").get(null);
-        previousImpulsePlugin = staticField(ImpulsePlugin.class, "instance").get(null);
+        Field bodyAttachmentTypeField =
+            staticField(PhysicsEntityTypes.class, "bodyAttachmentComponentType");
+        previousBodyAttachmentComponentType = bodyAttachmentTypeField.get(null);
         registry = new ComponentRegistry<>();
         registerEntityModuleTypes();
-        registerImpulsePluginTypes();
+        ComponentType<EntityStore, BodyAttachmentComponent> bodyAttachmentType =
+            registry.registerComponent(BodyAttachmentComponent.class,
+                "BodyAttachment",
+                BodyAttachmentComponent.CODEC);
+        bodyAttachmentTypeField.set(null, bodyAttachmentType);
         ControlLifecycle.enable();
         ImpulseControllableComponent.setComponentType(registry.registerComponent(
             ImpulseControllableComponent.class,
@@ -53,7 +61,8 @@ class ExamplePhysicsUtilsTest {
         ImpulseControllableComponent.clearComponentType();
         PhysicsControlSessionComponent.clearComponentType();
         staticField(EntityModule.class, "instance").set(null, previousEntityModule);
-        staticField(ImpulsePlugin.class, "instance").set(null, previousImpulsePlugin);
+        staticField(PhysicsEntityTypes.class, "bodyAttachmentComponentType")
+            .set(null, previousBodyAttachmentComponentType);
         registry.shutdown();
     }
 
@@ -73,16 +82,6 @@ class ExamplePhysicsUtilsTest {
             "modelComponentType",
             registry.registerComponent(ModelComponent.class, () -> new ModelComponent(null)));
         staticField(EntityModule.class, "instance").set(null, entityModule);
-    }
-
-    private void registerImpulsePluginTypes() throws Exception {
-        ImpulsePlugin plugin = allocate(ImpulsePlugin.class);
-        setField(plugin,
-            "bodyAttachmentComponentType",
-            registry.registerComponent(BodyAttachmentComponent.class,
-                "BodyAttachment",
-                BodyAttachmentComponent.CODEC));
-        staticField(ImpulsePlugin.class, "instance").set(null, plugin);
     }
 
     @Test

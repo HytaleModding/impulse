@@ -1,4 +1,4 @@
-package dev.hytalemodding.impulse.core.internal.modules.worldcollision.commands;
+package dev.hytalemodding.impulse.physicschunk.commands;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;

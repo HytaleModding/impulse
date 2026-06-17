@@ -1,4 +1,4 @@
-package dev.hytalemodding.impulse.core.internal.physicsstore.resources;
+package dev.hytalemodding.impulse.core.internal.resources;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
@@ -14,8 +14,11 @@ import dev.hytalemodding.impulse.api.testsupport.FakePhysicsBackendRuntimeProvid
 import dev.hytalemodding.impulse.core.internal.resources.BackendBodyHandle;
 import dev.hytalemodding.impulse.core.internal.resources.BackendJointHandle;
 import dev.hytalemodding.impulse.core.internal.resources.BackendSpaceHandle;
-import dev.hytalemodding.impulse.core.plugin.physicsstore.snapshots.PhysicsStoreBodySnapshot;
-import dev.hytalemodding.impulse.core.plugin.physicsstore.snapshots.PhysicsStoreSnapshotFrame;
+import dev.hytalemodding.impulse.core.internal.resources.PhysicsRuntimeResource;
+import dev.hytalemodding.impulse.core.internal.resources.PhysicsSnapshotResource;
+import dev.hytalemodding.impulse.core.internal.resources.PhysicsSpaceCompatibilityIndexResource;
+import dev.hytalemodding.impulse.core.plugin.snapshots.PhysicsBodySnapshot;
+import dev.hytalemodding.impulse.core.plugin.snapshots.PhysicsSnapshotFrame;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
@@ -123,7 +126,7 @@ class PhysicsStoreResourceIndexTest {
         PhysicsSnapshotResource resource = new PhysicsSnapshotResource();
         UUID spaceUuid = UUID.fromString("00000000-0000-0000-0000-000000000005");
         UUID bodyUuid = UUID.fromString("00000000-0000-0000-0000-000000000006");
-        PhysicsStoreBodySnapshot body = new PhysicsStoreBodySnapshot(bodyUuid,
+        PhysicsBodySnapshot body = new PhysicsBodySnapshot(bodyUuid,
             spaceUuid,
             PhysicsBodyType.KINEMATIC,
             new Vector3f(1.0f, 2.0f, 3.0f),
@@ -132,7 +135,7 @@ class PhysicsStoreResourceIndexTest {
             new Vector3f(),
             0.25f,
             false);
-        PhysicsStoreSnapshotFrame frame = new PhysicsStoreSnapshotFrame(11L, 0.05f, List.of(body));
+        PhysicsSnapshotFrame frame = new PhysicsSnapshotFrame(11L, 0.05f, List.of(body));
 
         resource.publish(frame);
 
@@ -142,7 +145,7 @@ class PhysicsStoreResourceIndexTest {
 
         resource.clear();
 
-        assertEquals(PhysicsStoreSnapshotFrame.EMPTY, resource.getLatestFrame());
+        assertEquals(PhysicsSnapshotFrame.EMPTY, resource.getLatestFrame());
         assertNull(resource.getBody(bodyUuid));
     }
 

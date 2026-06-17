@@ -1,9 +1,9 @@
-package dev.hytalemodding.impulse.core.internal.modules.worldcollision;
+package dev.hytalemodding.impulse.core.internal.modules.physicschunk;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
 
-import dev.hytalemodding.impulse.core.internal.modules.worldcollision.WorldCollisionStreamingBounds;
+import dev.hytalemodding.impulse.core.internal.modules.physicschunk.WorldCollisionStreamingBounds;
 import org.joml.Vector3f;
 import org.junit.jupiter.api.Test;
 

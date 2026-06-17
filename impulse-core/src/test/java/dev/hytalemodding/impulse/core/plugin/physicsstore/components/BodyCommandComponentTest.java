@@ -1,4 +1,4 @@
-package dev.hytalemodding.impulse.core.plugin.physicsstore.components;
+package dev.hytalemodding.impulse.core.plugin.components;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotSame;
@@ -7,6 +7,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import dev.hytalemodding.impulse.api.PhysicsBodyType;
 import dev.hytalemodding.impulse.api.PhysicsCollisionFilters;
+import dev.hytalemodding.impulse.core.plugin.components.BodyCommandComponent;
 import org.joml.Vector3f;
 import org.junit.jupiter.api.Test;
 

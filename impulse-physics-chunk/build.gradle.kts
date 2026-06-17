@@ -1,3 +1,5 @@
+import org.gradle.api.tasks.testing.Test
+
 plugins {
     id("com.azuredoom.hytale-tools")
 }
@@ -15,7 +17,14 @@ dependencies {
     compileOnly(project(":impulse-api"))
     compileOnly(project(":impulse-core"))
     compileOnly(project(":impulse-early-plugin"))
+    testImplementation(project(":impulse-api"))
     testImplementation(project(":impulse-core"))
+    testCompileOnly("com.hypixel.hytale:Server:${property("hytale_version") as String}")
+    testRuntimeOnly("com.hypixel.hytale:Server:${property("hytale_version") as String}")
+}
+
+tasks.withType<Test>().configureEach {
+    jvmArgs("-Djava.util.logging.manager=com.hypixel.hytale.logger.backend.HytaleLogManager")
 }
 
 hytaleTools {

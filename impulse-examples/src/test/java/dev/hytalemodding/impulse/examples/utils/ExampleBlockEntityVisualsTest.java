@@ -1,4 +1,4 @@
-package dev.hytalemodding.impulse.examples.commands;
+package dev.hytalemodding.impulse.examples.utils;
 
 import static org.junit.jupiter.api.Assertions.assertFalse;
 
