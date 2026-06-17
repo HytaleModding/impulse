@@ -10,6 +10,7 @@ import com.hypixel.hytale.server.core.command.system.basecommands.AbstractComman
 import com.hypixel.hytale.server.core.command.system.basecommands.AbstractWorldCommand;
 import com.hypixel.hytale.server.core.universe.world.World;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
+import com.hypixel.hytale.server.core.universe.world.storage.PhysicsStore;
 import dev.hytalemodding.impulse.api.BackendId;
 import dev.hytalemodding.impulse.api.Impulse;
 import dev.hytalemodding.impulse.api.SpaceId;
@@ -18,10 +19,13 @@ import dev.hytalemodding.impulse.core.ImpulsePlugin;
 import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyRegistrationView;
 import dev.hytalemodding.impulse.core.plugin.physicsstore.PhysicsDiagnostics;
 import dev.hytalemodding.impulse.core.plugin.physicsstore.PhysicsAsync;
-import dev.hytalemodding.impulse.core.plugin.resources.PhysicsWorldResource;
+import dev.hytalemodding.impulse.core.plugin.physicsstore.PhysicsBodies;
+import dev.hytalemodding.impulse.core.plugin.physicsstore.PhysicsSpaces;
+import dev.hytalemodding.impulse.core.plugin.modules.physicschunk.PhysicsWorldCollision;
 import dev.hytalemodding.impulse.core.plugin.modules.physicschunk.WorldCollisionMode;
 import dev.hytalemodding.impulse.core.plugin.settings.PhysicsSpaceSettings;
 import dev.hytalemodding.impulse.core.plugin.simulation.SpaceSummary;
+import dev.hytalemodding.impulse.early.PhysicsStoreWorld;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
@@ -75,11 +79,10 @@ public class SpaceCommand extends AbstractCommandCollection {
                 : PhysicsSpaceSettings.defaults();
             settings.getWorldCollisionSettings().setWorldCollisionMode(worldCollisionMode);
 
-            PhysicsWorldResource resource = store.getResource(PhysicsWorldResource.getResourceType());
+            Store<PhysicsStore> physicsStore = ((PhysicsStoreWorld) world).getPhysicsStore().getStore();
             try {
-                SpaceId spaceId = resource.createSpace(backendId,
-                    world.getName(),
-                    settings);
+                Impulse.getRuntimeProvider(backendId);
+                SpaceId spaceId = PhysicsSpaces.create(physicsStore, backendId, settings);
                 context.sendMessage(Message.raw("Created physics space id="
                     + spaceId.value()
                     + " backend=" + backendId.value()
@@ -102,25 +105,28 @@ public class SpaceCommand extends AbstractCommandCollection {
         @Override
         protected CompletableFuture<Void> executeAsync(@Nonnull CommandContext context,
             @Nonnull World world) {
-            Store<EntityStore> store = world.getEntityStore().getStore();
-            PhysicsWorldResource resource = store.getResource(PhysicsWorldResource.getResourceType());
+            Store<PhysicsStore> physicsStore = ((PhysicsStoreWorld) world).getPhysicsStore().getStore();
             return PhysicsAsync.acceptOnWorldThread(world,
                 PhysicsDiagnostics.spaceSummariesAsync(world),
-                summaries -> sendSpaces(context, world, resource, summaries));
+                summaries -> sendSpaces(context, world, physicsStore, summaries));
         }
 
         private static void sendSpaces(@Nonnull CommandContext context,
             @Nonnull World world,
-            @Nonnull PhysicsWorldResource resource,
+            @Nonnull Store<PhysicsStore> physicsStore,
             @Nonnull List<SpaceSummary> summaries) {
             List<SpaceListEntry> spaces = summaries.stream()
                 .map(summary -> {
-                    PhysicsSpaceSettings settings = resource.getSpaceSettings(summary.spaceId());
+                    PhysicsSpaceSettings settings = PhysicsSpaces.settings(physicsStore,
+                        summary.spaceId());
+                    WorldCollisionMode worldCollisionMode = settings != null
+                        ? settings.getWorldCollisionSettings().getWorldCollisionMode()
+                        : WorldCollisionMode.NONE;
                     return new SpaceListEntry(summary.spaceId(),
                         summary.backendId().value(),
                         summary.bodyCount(),
                         summary.jointCount(),
-                        settings.getWorldCollisionSettings().getWorldCollisionMode());
+                        worldCollisionMode);
                 })
                 .sorted(Comparator.comparingInt(entry -> entry.spaceId().value()))
                 .toList();
@@ -163,8 +169,7 @@ public class SpaceCommand extends AbstractCommandCollection {
                 return CompletableFuture.completedFuture(null);
             }
 
-            Store<EntityStore> store = world.getEntityStore().getStore();
-            PhysicsWorldResource resource = store.getResource(PhysicsWorldResource.getResourceType());
+            Store<PhysicsStore> physicsStore = ((PhysicsStoreWorld) world).getPhysicsStore().getStore();
             SpaceSelection.SelectedSpace selectedSpace = SpaceSelection.resolveStoreSpace(context,
                 world,
                 spaceArg);
@@ -180,12 +185,12 @@ public class SpaceCommand extends AbstractCommandCollection {
              * UUID or live PhysicsStore entity ref, so they still require an explicit clean/destroy
              * before deleting the space.
              */
-            int registeredBodies = countRegisteredBodies(resource, spaceId);
+            int registeredBodies = countRegisteredBodies(physicsStore, spaceId);
             return PhysicsAsync.acceptOnWorldThread(world,
                 PhysicsDiagnostics.spaceSummariesAsync(world, selectedSpace.spaceRef()),
                 summaries -> deleteIfEmpty(context,
                     world,
-                    resource,
+                    physicsStore,
                     spaceId,
                     spaceId.value(),
                     registeredBodies,
@@ -194,7 +199,7 @@ public class SpaceCommand extends AbstractCommandCollection {
 
         private static void deleteIfEmpty(@Nonnull CommandContext context,
             @Nonnull World world,
-            @Nonnull PhysicsWorldResource resource,
+            @Nonnull Store<PhysicsStore> physicsStore,
             @Nonnull SpaceId spaceId,
             int rawSpaceId,
             int registeredBodies,
@@ -210,7 +215,8 @@ public class SpaceCommand extends AbstractCommandCollection {
                 return;
             }
 
-            resource.removeSpace(spaceId, world.getName());
+            PhysicsWorldCollision.clearSpace(world, physicsStore, spaceId);
+            PhysicsSpaces.removeWithContents(physicsStore, spaceId);
             context.sendMessage(Message.raw("Deleted physics space id=" + rawSpaceId
                 + " with " + backendBodies + " backend bodies and " + joints + " joints."));
         }
@@ -226,10 +232,10 @@ public class SpaceCommand extends AbstractCommandCollection {
             .orElseGet(() -> new SpaceCounts(0, 0));
     }
 
-    private static int countRegisteredBodies(@Nonnull PhysicsWorldResource resource,
+    private static int countRegisteredBodies(@Nonnull Store<PhysicsStore> physicsStore,
         @Nonnull SpaceId spaceId) {
         int count = 0;
-        for (PhysicsBodyRegistrationView registration : resource.getBodyRegistrationViews()) {
+        for (PhysicsBodyRegistrationView registration : PhysicsBodies.registrationViews(physicsStore)) {
             if (registration.spaceId().equals(spaceId)) {
                 count++;
             }
