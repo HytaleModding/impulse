@@ -6,10 +6,10 @@ import com.hypixel.hytale.server.core.plugin.JavaPlugin;
 import com.hypixel.hytale.server.core.plugin.JavaPluginInit;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import com.hypixel.hytale.server.core.universe.world.storage.PhysicsStore;
-import dev.hytalemodding.impulse.core.internal.modules.physicschunk.WorldCollisionLifecycle;
 import dev.hytalemodding.impulse.physicschunk.commands.WorldCollisionCommandContributions;
 import dev.hytalemodding.impulse.core.internal.registration.PhysicsStoreRegistration;
 import dev.hytalemodding.impulse.core.plugin.modules.physicschunk.PhysicsChunkTypes;
+import dev.hytalemodding.impulse.core.plugin.modules.physicschunk.PhysicsWorldCollision;
 import dev.hytalemodding.impulse.early.PhysicsStoreHooks;
 import java.util.function.Consumer;
 import java.util.logging.Level;
@@ -41,13 +41,13 @@ public final class ImpulsePhysicsChunkPlugin extends JavaPlugin {
         PhysicsChunkTypes.registerEntityStoreResourceTypes(entityRegistry);
         PhysicsChunkTypes.registerEntityStoreSystems(entityRegistry);
         WorldCollisionCommandContributions.register();
-        WorldCollisionLifecycle.enable();
+        PhysicsWorldCollision.enableModule();
         LOGGER.at(Level.INFO).log("Impulse world-collision PhysicsStore terrain producer enabled.");
     }
 
     @Override
     protected void shutdown() {
-        WorldCollisionLifecycle.disable();
+        PhysicsWorldCollision.disableModule();
         WorldCollisionCommandContributions.unregister();
         PhysicsStoreHooks.unregisterShutdownHook(SHUTDOWN_CLEANUP);
         PhysicsChunkTypes.clearEntityStoreResourceTypes();

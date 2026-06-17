@@ -12,12 +12,11 @@ import dev.hytalemodding.impulse.core.internal.resources.profiling.PhysicsRuntim
 import dev.hytalemodding.impulse.core.internal.resources.profiling.PhysicsRuntimeProfilingResource.SyncSnapshot;
 import dev.hytalemodding.impulse.core.internal.resources.profiling.PhysicsRuntimeProfilingResource.VisualSnapshot;
 import dev.hytalemodding.impulse.core.plugin.events.PhysicsEventFrame;
+import dev.hytalemodding.impulse.core.plugin.modules.physicschunk.PhysicsWorldCollisionProfiling;
 import dev.hytalemodding.impulse.core.plugin.physicsstore.PhysicsDiagnostics;
 import dev.hytalemodding.impulse.core.plugin.physicsstore.PhysicsAsync;
 import dev.hytalemodding.impulse.core.plugin.resources.PhysicsWorldResource;
 import dev.hytalemodding.impulse.core.plugin.simulation.SpaceSummary;
-import dev.hytalemodding.impulse.core.internal.modules.physicschunk.profiling.WorldCollisionProfilingResource;
-import dev.hytalemodding.impulse.core.internal.modules.physicschunk.profiling.WorldCollisionProfilingResource.Snapshot;
 import java.util.List;
 import java.util.Locale;
 import java.util.concurrent.CompletableFuture;
@@ -55,17 +54,17 @@ public class WorldCollisionPerfReportCommand extends AbstractAsyncWorldCommand {
         VisualSnapshot cumulativeVisual = runtimeProfiling.getCumulativeVisual();
         VisualSnapshot latestVisual = runtimeProfiling.getLatestVisual();
         VisualSnapshot worstVisual = runtimeProfiling.getWorstVisual();
-        WorldCollisionProfilingResource profiling = store.getResource(
-            WorldCollisionProfilingResource.getResourceType());
-        Snapshot cumulative = profiling.getCumulativeSnapshot();
-        Snapshot latest = profiling.getLatestTickSnapshot();
-        Snapshot worst = profiling.getWorstTickSnapshot();
+        PhysicsWorldCollisionProfiling.Snapshots profiling =
+            PhysicsWorldCollisionProfiling.snapshots(store);
+        var cumulative = profiling.cumulative();
+        var latest = profiling.latest();
+        var worst = profiling.worst();
         PhysicsEntityDiagnostics.Snapshot entityDiagnostics = PhysicsEntityDiagnostics.collect(store);
         PhysicsWorldResource physicsWorld = store.getResource(PhysicsWorldResource.getResourceType());
         RuntimeFootprint runtimeFootprint = RuntimeFootprint.collect(summaries);
 
         ctx.sender().sendMessage(Message.raw("Impulse runtime profiling: "
-            + ((runtimeProfiling.isEnabled() || profiling.isEnabled()) ? "enabled" : "disabled")));
+            + ((runtimeProfiling.isEnabled() || profiling.enabled()) ? "enabled" : "disabled")));
         ctx.sender().sendMessage(Message.raw("Impulse runtime physics: "
             + runtimeFootprint.summary()));
         if (runtimeFootprint.hasRuntimeStats()) {
@@ -226,22 +225,22 @@ public class WorldCollisionPerfReportCommand extends AbstractAsyncWorldCommand {
                     + "/" + latestVisual.getDematerialized()));
             }
         } else {
-            ctx.sender().sendMessage(Message.raw("No profiled physics step/sync/visual ticks recorded yet."
-                + (runtimeProfiling.isEnabled()
+                ctx.sender().sendMessage(Message.raw("No profiled physics step/sync/visual ticks recorded yet."
+                    + (runtimeProfiling.isEnabled()
                 ? ""
                 : " Run /impulse worldcollision perf toggle, wait a few seconds, then run /impulse worldcollision perf report.")));
         }
 
         if (cumulative.getTickSamples() <= 0) {
             ctx.sender().sendMessage(Message.raw("No profiled world collision ticks recorded yet."
-                + (profiling.isEnabled()
+                + (profiling.enabled()
                 ? ""
                 : " Run /impulse worldcollision perf toggle, wait a few seconds, then run /impulse worldcollision perf report.")));
             return;
         }
 
         ctx.sender().sendMessage(Message.raw("World collision profiling: "
-            + (profiling.isEnabled() ? "enabled" : "disabled")));
+            + (profiling.enabled() ? "enabled" : "disabled")));
 
         ctx.sender().sendMessage(Message.raw("Since reset: ticks=" + cumulative.getTickSamples()
             + " playerTargets=" + cumulative.getPlayerStreamingTargets()
@@ -284,9 +283,11 @@ public class WorldCollisionPerfReportCommand extends AbstractAsyncWorldCommand {
             + cumulative.getMissingInsideRetainedEnvelope()
             + "/" + cumulative.getMissingOutsideRetainedEnvelope()
             + "/" + cumulative.getMissingUnconfiguredRetainedEnvelope()));
-        if (!cumulative.getMissingSectionSamples().isEmpty()) {
+        List<PhysicsWorldCollisionProfiling.MissingSectionSampleView> missingSectionSamples =
+            PhysicsWorldCollisionProfiling.missingSectionSamples(cumulative);
+        if (!missingSectionSamples.isEmpty()) {
             ctx.sender().sendMessage(Message.raw("Missing section samples: "
-                + formatMissingSectionSamples(cumulative)));
+                + formatMissingSectionSamples(missingSectionSamples)));
         }
         ctx.sender().sendMessage(Message.raw("Since reset bodies+blocks: added="
             + cumulative.getColliderBodiesAdded()
@@ -356,11 +357,11 @@ public class WorldCollisionPerfReportCommand extends AbstractAsyncWorldCommand {
     }
 
     @Nonnull
-    private static String formatMissingSectionSamples(@Nonnull Snapshot snapshot) {
+    private static String formatMissingSectionSamples(
+        @Nonnull List<PhysicsWorldCollisionProfiling.MissingSectionSampleView> samples) {
         StringBuilder builder = new StringBuilder();
         int emitted = 0;
-        for (WorldCollisionProfilingResource.MissingSectionSample sample
-            : snapshot.getMissingSectionSamples()) {
+        for (PhysicsWorldCollisionProfiling.MissingSectionSampleView sample : samples) {
             if (emitted > 0) {
                 builder.append(" | ");
             }
@@ -371,22 +372,22 @@ public class WorldCollisionPerfReportCommand extends AbstractAsyncWorldCommand {
                 .append("/")
                 .append(sample.chunkZ())
                 .append(" reason=")
-                .append(sample.reason().name().toLowerCase(Locale.ROOT))
+                .append(sample.reason())
                 .append(" retained=")
-                .append(sample.retainedEnvelopeStatus().name().toLowerCase(Locale.ROOT))
+                .append(sample.retainedEnvelopeStatus())
                 .append(" target=")
-                .append(sample.target().targetType().name().toLowerCase(Locale.ROOT));
-            if (sample.target().bodyUuid() != null) {
-                builder.append(" body=").append(sample.target().bodyUuid());
+                .append(sample.targetType());
+            if (sample.bodyUuid() != null) {
+                builder.append(" body=").append(sample.bodyUuid());
             }
-            if (sample.target().snapshotPosition() != null) {
+            if (sample.snapshotPosition() != null) {
                 builder.append(" snapshot=(")
-                    .append(sample.target().snapshotPosition().compact())
+                    .append(sample.snapshotPosition())
                     .append(")");
             }
-            if (sample.target().livePosition() != null) {
+            if (sample.livePosition() != null) {
                 builder.append(" live=(")
-                    .append(sample.target().livePosition().compact())
+                    .append(sample.livePosition())
                     .append(")");
             }
             emitted++;
@@ -394,9 +395,9 @@ public class WorldCollisionPerfReportCommand extends AbstractAsyncWorldCommand {
                 break;
             }
         }
-        if (snapshot.getMissingSectionSamples().size() > emitted) {
+        if (samples.size() > emitted) {
             builder.append(" | +")
-                .append(snapshot.getMissingSectionSamples().size() - emitted)
+                .append(samples.size() - emitted)
                 .append(" more");
         }
         return builder.toString();

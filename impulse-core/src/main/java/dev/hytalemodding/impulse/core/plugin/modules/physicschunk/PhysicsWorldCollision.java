@@ -29,6 +29,18 @@ public final class PhysicsWorldCollision {
     private PhysicsWorldCollision() {
     }
 
+    public static void enableModule() {
+        WorldCollisionLifecycle.enable();
+    }
+
+    public static void disableModule() {
+        WorldCollisionLifecycle.disable();
+    }
+
+    public static boolean isModuleEnabled() {
+        return WorldCollisionLifecycle.isEnabled();
+    }
+
     @Nonnull
     public static WorldCollisionBuildStats rebuildAround(@Nonnull World world,
         @Nonnull Store<PhysicsStore> store,
@@ -116,13 +128,13 @@ public final class PhysicsWorldCollision {
             throw new IllegalStateException("Cannot read PhysicsChunk world-collision stats "
                 + "outside the owning world thread");
         }
-        return WorldCollisionLifecycle.isEnabled()
+        return isModuleEnabled()
             ? streaming(world).stats()
             : new WorldCollisionStats(0, 0, 0, 0);
     }
 
     private static void requireEnabled() {
-        if (!WorldCollisionLifecycle.isEnabled()) {
+        if (!isModuleEnabled()) {
             throw new IllegalStateException("Impulse physics chunk subplugin is disabled");
         }
     }
@@ -181,7 +193,7 @@ public final class PhysicsWorldCollision {
         @Nonnull Store<PhysicsStore> store,
         @Nonnull UUID spaceUuid) {
         int removed = 0;
-        if (WorldCollisionLifecycle.isEnabled()) {
+        if (isModuleEnabled()) {
             removed = streaming(world).clearSpace(spaceUuid,
                 store.getResource(PhysicsTerrainMutationQueueResource.getResourceType()));
         }
