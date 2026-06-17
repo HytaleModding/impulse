@@ -33,8 +33,10 @@ import dev.hytalemodding.impulse.api.runtime.BackendRuntimeStatsSink;
 import dev.hytalemodding.impulse.api.runtime.BackendStepPhaseStatsSink;
 import dev.hytalemodding.impulse.api.runtime.BackendVec3Sink;
 import dev.hytalemodding.impulse.api.runtime.PhysicsBackendRuntime;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.IdentityHashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import javax.annotation.Nonnull;
@@ -232,12 +234,29 @@ public final class LegacyPhysicsBackendRuntime implements PhysicsBackendRuntime 
         @Nonnull BackendBodyIdSource bodyIds,
         @Nonnull BackendBodySnapshotSink sink) {
         SpaceState state = requireSpace(spaceId);
+        List<PhysicsBody> selectedBodies = state.selectedSnapshotBodies;
+        selectedBodies.clear();
         bodyIds.forEachBodyId(bodyId -> {
             PhysicsBody body = state.bodiesById.get(bodyId);
             if (body != null) {
-                emitBodySnapshot(bodyId, PhysicsBodySnapshot.from(body), sink);
+                selectedBodies.add(body);
             }
         });
+        if (selectedBodies.isEmpty()) {
+            return;
+        }
+        try {
+            state.space.snapshotBodies(selectedBodies,
+                body -> null,
+                (body, snapshot) -> {
+                    Long bodyId = state.bodyIdsByBody.get(body);
+                    if (bodyId != null) {
+                        emitBodySnapshot(bodyId, snapshot, sink);
+                    }
+                });
+        } finally {
+            selectedBodies.clear();
+        }
     }
 
     @Override
@@ -817,6 +836,7 @@ public final class LegacyPhysicsBackendRuntime implements PhysicsBackendRuntime 
         private final Map<Long, PhysicsBody> bodiesById = new HashMap<>();
         private final Map<PhysicsBody, Long> bodyIdsByBody = new IdentityHashMap<>();
         private final Map<Long, PhysicsJoint> jointsById = new HashMap<>();
+        private final List<PhysicsBody> selectedSnapshotBodies = new ArrayList<>();
 
         private SpaceState(@Nonnull PhysicsSpace space) {
             this.space = Objects.requireNonNull(space, "space");
