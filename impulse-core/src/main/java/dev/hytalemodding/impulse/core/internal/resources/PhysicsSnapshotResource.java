@@ -37,6 +37,10 @@ public final class PhysicsSnapshotResource implements Resource<PhysicsStore> {
         return snapshot.bodiesByUuid().get(bodyUuid);
     }
 
+    public boolean containsBody(@Nonnull UUID bodyUuid) {
+        return snapshot.bodiesByUuid().containsKey(Objects.requireNonNull(bodyUuid, "bodyUuid"));
+    }
+
     @Nullable
     public PhysicsBodySnapshot getBody(@Nonnull Ref<PhysicsStore> bodyRef) {
         PhysicsBodySnapshot body = snapshot.bodiesByRowIndex()
@@ -45,9 +49,10 @@ public final class PhysicsSnapshotResource implements Resource<PhysicsStore> {
     }
 
     public void publish(@Nonnull PhysicsSnapshotFrame frame) {
-        Map<UUID, PhysicsBodySnapshot> bodiesByUuid = new Object2ObjectOpenHashMap<>();
+        int bodyCount = frame.bodies().size();
+        Map<UUID, PhysicsBodySnapshot> bodiesByUuid = new Object2ObjectOpenHashMap<>(bodyCount);
         Int2ObjectOpenHashMap<PhysicsBodySnapshot> bodiesByRowIndex =
-            new Int2ObjectOpenHashMap<>();
+            new Int2ObjectOpenHashMap<>(bodyCount);
         for (PhysicsBodySnapshot body : frame.bodies()) {
             bodiesByUuid.put(body.bodyUuid(), body);
             Ref<PhysicsStore> bodyRef = body.bodyRef();
@@ -75,10 +80,11 @@ public final class PhysicsSnapshotResource implements Resource<PhysicsStore> {
     @Nonnull
     private static PublishedSnapshot withoutBody(@Nonnull PublishedSnapshot current,
         @Nonnull UUID bodyUuid) {
-        List<PhysicsBodySnapshot> bodies = new ArrayList<>();
-        Map<UUID, PhysicsBodySnapshot> bodiesByUuid = new Object2ObjectOpenHashMap<>();
+        int bodyCount = Math.max(0, current.frame().bodies().size() - 1);
+        List<PhysicsBodySnapshot> bodies = new ArrayList<>(bodyCount);
+        Map<UUID, PhysicsBodySnapshot> bodiesByUuid = new Object2ObjectOpenHashMap<>(bodyCount);
         Int2ObjectOpenHashMap<PhysicsBodySnapshot> bodiesByRowIndex =
-            new Int2ObjectOpenHashMap<>();
+            new Int2ObjectOpenHashMap<>(bodyCount);
         for (PhysicsBodySnapshot body : current.frame().bodies()) {
             if (bodyUuid.equals(body.bodyUuid())) {
                 continue;

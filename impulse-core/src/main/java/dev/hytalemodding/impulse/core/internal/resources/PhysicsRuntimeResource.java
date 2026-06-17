@@ -548,6 +548,11 @@ public final class PhysicsRuntimeResource implements Resource<PhysicsStore> {
         bodyHandles.forEach(consumer);
     }
 
+    public int bodyHandleCount(@Nonnull BackendSpaceHandle spaceHandle) {
+        LongList bodyHandles = bodyHandlesBySpaceHandle.get(spaceHandle.value());
+        return bodyHandles != null ? bodyHandles.size() : 0;
+    }
+
     public void clear() {
         runtimesByBackend.clear();
         spaceHandlesByUuid.clear();

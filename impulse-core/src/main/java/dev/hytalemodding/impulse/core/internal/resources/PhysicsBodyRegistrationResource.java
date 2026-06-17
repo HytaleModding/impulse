@@ -78,7 +78,7 @@ public final class PhysicsBodyRegistrationResource implements Resource<PhysicsSt
 
     public void publish(@Nonnull Collection<BodyRegistrationPublication> publications) {
         Object2ObjectLinkedOpenHashMap<UUID, BodyRegistrationPublication> publicationsByUuid =
-            new Object2ObjectLinkedOpenHashMap<>();
+            new Object2ObjectLinkedOpenHashMap<>(publications.size());
         for (BodyRegistrationPublication publication : publications) {
             BodyRegistrationPublication checkedPublication =
                 Objects.requireNonNull(publication, "publication");
@@ -86,9 +86,9 @@ public final class PhysicsBodyRegistrationResource implements Resource<PhysicsSt
         }
 
         Object2ObjectLinkedOpenHashMap<UUID, PhysicsBodyRegistrationView> viewsByUuid =
-            new Object2ObjectLinkedOpenHashMap<>();
+            new Object2ObjectLinkedOpenHashMap<>(publicationsByUuid.size());
         Int2ObjectOpenHashMap<RegistrationByRef> viewsByRowIndex =
-            new Int2ObjectOpenHashMap<>();
+            new Int2ObjectOpenHashMap<>(publicationsByUuid.size());
         for (BodyRegistrationPublication publication : publicationsByUuid.values()) {
             PhysicsBodyRegistrationView registration = publication.view();
             viewsByUuid.put(registration.bodyUuid(), registration);

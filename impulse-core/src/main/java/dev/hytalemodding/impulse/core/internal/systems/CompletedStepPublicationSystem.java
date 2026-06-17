@@ -29,7 +29,6 @@ import dev.hytalemodding.impulse.core.plugin.components.BodyComponent;
 import dev.hytalemodding.impulse.core.plugin.components.TerrainColliderComponent;
 import dev.hytalemodding.impulse.core.plugin.snapshots.PhysicsBodySnapshot;
 import dev.hytalemodding.impulse.core.plugin.snapshots.PhysicsSnapshotFrame;
-import it.unimi.dsi.fastutil.objects.ObjectOpenHashSet;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
@@ -80,10 +79,6 @@ public final class CompletedStepPublicationSystem extends TickingSystem<PhysicsS
                 input.dtCapHit());
         }
         List<PhysicsBodySnapshot> bodies = completed.bodySnapshots();
-        Set<UUID> snapshotBodyUuids = new ObjectOpenHashSet<>();
-        for (PhysicsBodySnapshot body : bodies) {
-            snapshotBodyUuids.add(body.bodyUuid());
-        }
         long nextSequence = snapshot.getLatestFrame().sequence() + 1L;
         float frameDt = input != null ? input.submittedDtSeconds() : dt;
         PhysicsSnapshotFrame frame = new PhysicsSnapshotFrame(nextSequence,
@@ -95,7 +90,7 @@ public final class CompletedStepPublicationSystem extends TickingSystem<PhysicsS
                 systemIndex,
                 runtime,
                 compatibility,
-                snapshotBodyUuids));
+                snapshot));
         profiling.recordSnapshot(completed.snapshotNanos(), bodies.size());
         store.getResource(PhysicsEventResource.getResourceType())
             .publishStepFrame(frame.sequence(),
@@ -113,12 +108,13 @@ public final class CompletedStepPublicationSystem extends TickingSystem<PhysicsS
         int systemIndex,
         @Nonnull PhysicsRuntimeResource runtime,
         @Nonnull PhysicsSpaceCompatibilityIndexResource compatibility,
-        @Nonnull Set<UUID> snapshotBodyUuids) {
-        List<BodyRegistrationPublication> registrations = new ArrayList<>();
+        @Nonnull PhysicsSnapshotResource snapshot) {
+        List<BodyRegistrationPublication> registrations =
+            new ArrayList<>(snapshot.getLatestFrame().bodies().size());
         BiConsumer<ArchetypeChunk<PhysicsStore>, CommandBuffer<PhysicsStore>> collector =
             (chunk, _) -> collectRegistrationViews(runtime,
                 compatibility,
-                snapshotBodyUuids,
+                snapshot,
                 registrations,
                 chunk);
         store.forEachChunk(systemIndex, collector);
@@ -127,7 +123,7 @@ public final class CompletedStepPublicationSystem extends TickingSystem<PhysicsS
 
     private static void collectRegistrationViews(@Nonnull PhysicsRuntimeResource runtime,
         @Nonnull PhysicsSpaceCompatibilityIndexResource compatibility,
-        @Nonnull Set<UUID> snapshotBodyUuids,
+        @Nonnull PhysicsSnapshotResource snapshot,
         @Nonnull List<BodyRegistrationPublication> registrations,
         @Nonnull ArchetypeChunk<PhysicsStore> chunk) {
         for (int index = 0; index < chunk.size(); index++) {
@@ -137,7 +133,7 @@ public final class CompletedStepPublicationSystem extends TickingSystem<PhysicsS
             }
             var rowRef = chunk.getReferenceTo(index);
             BodyComponent body = chunk.getComponent(index, BodyComponent.getComponentType());
-            if (body != null && snapshotBodyUuids.contains(rowUuid)) {
+            if (body != null && snapshot.containsBody(rowUuid)) {
                 SpaceId spaceId = compatibility.getSpaceId(body.getSpaceUuid());
                 if (spaceId != null) {
                     registrations.add(new BodyRegistrationPublication(rowRef,

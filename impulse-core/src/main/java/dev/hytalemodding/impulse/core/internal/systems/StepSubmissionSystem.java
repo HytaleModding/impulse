@@ -170,7 +170,8 @@ public final class StepSubmissionSystem extends TickingSystem<PhysicsStore> {
     private static List<PhysicsBodySnapshot> collectOwnerLaneSnapshots(
         @Nonnull PhysicsRuntimeResource runtime,
         @Nonnull List<RuntimeStepBinding> bindings) {
-        List<PhysicsBodySnapshot> snapshots = new ArrayList<>();
+        List<PhysicsBodySnapshot> snapshots = new ArrayList<>(runtimeBodyHandleCount(runtime,
+            bindings));
         for (RuntimeStepBinding binding : bindings) {
             binding.backendRuntime().snapshotBodies(binding.spaceHandle().value(),
                 bodyIds -> runtime.forEachBodyHandle(binding.spaceHandle(),
@@ -229,6 +230,15 @@ public final class StepSubmissionSystem extends TickingSystem<PhysicsStore> {
                         sleeping));
         }
         return snapshots;
+    }
+
+    private static int runtimeBodyHandleCount(@Nonnull PhysicsRuntimeResource runtime,
+        @Nonnull List<RuntimeStepBinding> bindings) {
+        int bodyCount = 0;
+        for (RuntimeStepBinding binding : bindings) {
+            bodyCount += runtime.bodyHandleCount(binding.spaceHandle());
+        }
+        return bodyCount;
     }
 
     private static void collectOwnerLaneSnapshot(@Nonnull PhysicsRuntimeResource runtime,
