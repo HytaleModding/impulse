@@ -1,5 +1,6 @@
 package dev.hytalemodding.impulse.core.internal.resources;
 
+import com.hypixel.hytale.component.ComponentRegistryProxy;
 import com.hypixel.hytale.component.ResourceType;
 import com.hypixel.hytale.server.core.universe.world.storage.PhysicsStore;
 import dev.hytalemodding.impulse.core.internal.persistence.PersistentPhysicsStoreResource;
@@ -57,85 +58,57 @@ public final class PhysicsResourceTypes {
     private PhysicsResourceTypes() {
     }
 
-    public static void setRuntimeResourceType(
-        @Nonnull ResourceType<PhysicsStore, PhysicsRuntimeResource> type) {
-        runtimeResourceType = type;
-    }
-
-    public static void setWorldSettingsResourceType(
-        @Nonnull ResourceType<PhysicsStore, PhysicsWorldSettingsResource> type) {
-        worldSettingsResourceType = type;
-    }
-
-    public static void setStepSchedulerResourceType(
-        @Nonnull ResourceType<PhysicsStore, PhysicsStepSchedulerResource> type) {
-        stepSchedulerResourceType = type;
-    }
-
-    public static void setSpaceCompatibilityIndexResourceType(
-        @Nonnull ResourceType<PhysicsStore, PhysicsSpaceCompatibilityIndexResource> type) {
-        spaceCompatibilityIndexResourceType = type;
-    }
-
-    public static void setTerrainMutationQueueResourceType(
-        @Nonnull ResourceType<PhysicsStore, PhysicsTerrainMutationQueueResource> type) {
-        terrainMutationQueueResourceType = type;
-    }
-
-    public static void setIdentityIndexResourceType(
-        @Nonnull ResourceType<PhysicsStore, PhysicsIdentityIndexResource> type) {
-        identityIndexResourceType = type;
-    }
-
-    public static void setSnapshotResourceType(
-        @Nonnull ResourceType<PhysicsStore, PhysicsSnapshotResource> type) {
-        snapshotResourceType = type;
-    }
-
-    public static void setBodyRegistrationResourceType(
-        @Nonnull ResourceType<PhysicsStore, PhysicsBodyRegistrationResource> type) {
-        bodyRegistrationResourceType = type;
-    }
-
-    public static void setEventResourceType(
-        @Nonnull ResourceType<PhysicsStore, PhysicsEventResource> type) {
-        eventResourceType = type;
-    }
-
-    public static void setReadQueueResourceType(
-        @Nonnull ResourceType<PhysicsStore, PhysicsStoreReadQueueResource> type) {
-        readQueueResourceType = type;
-    }
-
-    public static void setTerrainPayloadResourceType(
-        @Nonnull ResourceType<PhysicsStore, PhysicsTerrainPayloadResource> type) {
-        terrainPayloadResourceType = type;
-    }
-
-    public static void setWorldCollisionIndexResourceType(
-        @Nonnull ResourceType<PhysicsStore, PhysicsWorldCollisionIndexResource> type) {
-        worldCollisionIndexResourceType = type;
-    }
-
-    public static void setPersistentStoreResourceType(
-        @Nonnull ResourceType<PhysicsStore, PersistentPhysicsStoreResource> type) {
-        persistentStoreResourceType = type;
-    }
-
-    public static void setRestoreStatusResourceType(
-        @Nonnull ResourceType<PhysicsStore, PhysicsRestoreStatusResource> type) {
-        restoreStatusResourceType = type;
-    }
-
-    public static void setProfilingResourceType(
-        @Nonnull ResourceType<PhysicsStore, PhysicsProfilingResource> type) {
-        profilingResourceType = type;
-    }
-
-    public static void setDebugResourceType(
-        @Nonnull ResourceType<PhysicsStore,
-            dev.hytalemodding.impulse.core.internal.physicsstore.resources.PhysicsDebugResource> type) {
-        debugResourceType = type;
+    public static void registerResourceTypes(
+        @Nonnull ComponentRegistryProxy<PhysicsStore> registry) {
+        runtimeResourceType = registry.registerResource(
+            PhysicsRuntimeResource.class,
+            PhysicsRuntimeResource::new);
+        worldSettingsResourceType = registry.registerResource(
+            PhysicsWorldSettingsResource.class,
+            PhysicsWorldSettingsResource::new);
+        stepSchedulerResourceType = registry.registerResource(
+            PhysicsStepSchedulerResource.class,
+            PhysicsStepSchedulerResource::new);
+        spaceCompatibilityIndexResourceType = registry.registerResource(
+            PhysicsSpaceCompatibilityIndexResource.class,
+            PhysicsSpaceCompatibilityIndexResource::new);
+        terrainMutationQueueResourceType = registry.registerResource(
+            PhysicsTerrainMutationQueueResource.class,
+            PhysicsTerrainMutationQueueResource::new);
+        identityIndexResourceType = registry.registerResource(
+            PhysicsIdentityIndexResource.class,
+            PhysicsIdentityIndexResource::new);
+        snapshotResourceType = registry.registerResource(
+            PhysicsSnapshotResource.class,
+            PhysicsSnapshotResource::new);
+        bodyRegistrationResourceType = registry.registerResource(
+            PhysicsBodyRegistrationResource.class,
+            PhysicsBodyRegistrationResource::new);
+        eventResourceType = registry.registerResource(
+            PhysicsEventResource.class,
+            PhysicsEventResource::new);
+        readQueueResourceType = registry.registerResource(
+            PhysicsStoreReadQueueResource.class,
+            PhysicsStoreReadQueueResource::new);
+        terrainPayloadResourceType = registry.registerResource(
+            PhysicsTerrainPayloadResource.class,
+            PhysicsTerrainPayloadResource::new);
+        worldCollisionIndexResourceType = registry.registerResource(
+            PhysicsWorldCollisionIndexResource.class,
+            PhysicsWorldCollisionIndexResource::new);
+        persistentStoreResourceType = registry.registerResource(
+            PersistentPhysicsStoreResource.class,
+            "PersistentPhysicsStore",
+            PersistentPhysicsStoreResource.CODEC);
+        restoreStatusResourceType = registry.registerResource(
+            PhysicsRestoreStatusResource.class,
+            PhysicsRestoreStatusResource::new);
+        profilingResourceType = registry.registerResource(
+            PhysicsProfilingResource.class,
+            PhysicsProfilingResource::new);
+        debugResourceType = registry.registerResource(
+            dev.hytalemodding.impulse.core.internal.physicsstore.resources.PhysicsDebugResource.class,
+            dev.hytalemodding.impulse.core.internal.physicsstore.resources.PhysicsDebugResource::new);
     }
 
     @Nonnull

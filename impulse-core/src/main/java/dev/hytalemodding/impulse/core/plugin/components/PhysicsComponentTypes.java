@@ -1,5 +1,6 @@
 package dev.hytalemodding.impulse.core.plugin.components;
 
+import com.hypixel.hytale.component.ComponentRegistryProxy;
 import com.hypixel.hytale.component.ComponentType;
 import com.hypixel.hytale.server.core.universe.world.storage.PhysicsStore;
 import javax.annotation.Nonnull;
@@ -51,94 +52,80 @@ public final class PhysicsComponentTypes {
     private PhysicsComponentTypes() {
     }
 
-    public static void setUuidComponentType(
-        @Nonnull ComponentType<PhysicsStore, UuidComponent> type) {
-        uuidComponentType = type;
-    }
-
-    public static void setSpaceComponentType(
-        @Nonnull ComponentType<PhysicsStore, SpaceComponent> type) {
-        spaceComponentType = type;
-    }
-
-    public static void setBodyComponentType(
-        @Nonnull ComponentType<PhysicsStore, BodyComponent> type) {
-        bodyComponentType = type;
-    }
-
-    public static void setBodyCommandComponentType(
-        @Nonnull ComponentType<PhysicsStore, BodyCommandComponent> type) {
-        bodyCommandComponentType = type;
-    }
-
-    public static void setDynamicsComponentType(
-        @Nonnull ComponentType<PhysicsStore, DynamicsComponent> type) {
-        dynamicsComponentType = type;
-    }
-
-    public static void setColliderComponentType(
-        @Nonnull ComponentType<PhysicsStore, ColliderComponent> type) {
-        colliderComponentType = type;
-    }
-
-    public static void setShapeComponentType(
-        @Nonnull ComponentType<PhysicsStore, ShapeComponent> type) {
-        shapeComponentType = type;
-    }
-
-    public static void setMaterialComponentType(
-        @Nonnull ComponentType<PhysicsStore, MaterialComponent> type) {
-        materialComponentType = type;
-    }
-
-    public static void setCollisionFilterComponentType(
-        @Nonnull ComponentType<PhysicsStore, CollisionFilterComponent> type) {
-        collisionFilterComponentType = type;
-    }
-
-    public static void setJointComponentType(
-        @Nonnull ComponentType<PhysicsStore, JointComponent> type) {
-        jointComponentType = type;
-    }
-
-    public static void setTargetComponentType(
-        @Nonnull ComponentType<PhysicsStore, TargetComponent> type) {
-        targetComponentType = type;
-    }
-
-    public static void setTerrainColliderComponentType(
-        @Nonnull ComponentType<PhysicsStore, TerrainColliderComponent> type) {
-        terrainColliderComponentType = type;
-    }
-
-    public static void setWorldCollisionComponentType(
-        @Nonnull ComponentType<PhysicsStore, WorldCollisionComponent> type) {
-        worldCollisionComponentType = type;
-    }
-
-    public static void setSolverSettingsComponentType(
-        @Nonnull ComponentType<PhysicsStore, SolverSettingsComponent> type) {
-        solverSettingsComponentType = type;
-    }
-
-    public static void setVisualSyncSettingsComponentType(
-        @Nonnull ComponentType<PhysicsStore, VisualSyncSettingsComponent> type) {
-        visualSyncSettingsComponentType = type;
-    }
-
-    public static void setVisualMaterializationSettingsComponentType(
-        @Nonnull ComponentType<PhysicsStore, VisualMaterializationSettingsComponent> type) {
-        visualMaterializationSettingsComponentType = type;
-    }
-
-    public static void setCollisionLodSettingsComponentType(
-        @Nonnull ComponentType<PhysicsStore, CollisionLodSettingsComponent> type) {
-        collisionLodSettingsComponentType = type;
-    }
-
-    public static void setExtensionSettingsComponentType(
-        @Nonnull ComponentType<PhysicsStore, ExtensionSettingsComponent> type) {
-        extensionSettingsComponentType = type;
+    public static void registerComponentTypes(
+        @Nonnull ComponentRegistryProxy<PhysicsStore> registry) {
+        uuidComponentType = registry.registerComponent(
+            UuidComponent.class,
+            "Uuid",
+            UuidComponent.CODEC);
+        spaceComponentType = registry.registerComponent(
+            SpaceComponent.class,
+            "Space",
+            SpaceComponent.CODEC);
+        bodyComponentType = registry.registerComponent(
+            BodyComponent.class,
+            "Body",
+            BodyComponent.CODEC);
+        bodyCommandComponentType = registry.registerComponent(
+            BodyCommandComponent.class,
+            "BodyCommand",
+            BodyCommandComponent.CODEC);
+        dynamicsComponentType = registry.registerComponent(
+            DynamicsComponent.class,
+            "Dynamics",
+            DynamicsComponent.CODEC);
+        colliderComponentType = registry.registerComponent(
+            ColliderComponent.class,
+            "Collider",
+            ColliderComponent.CODEC);
+        shapeComponentType = registry.registerComponent(
+            ShapeComponent.class,
+            "Shape",
+            ShapeComponent.CODEC);
+        materialComponentType = registry.registerComponent(
+            MaterialComponent.class,
+            "Material",
+            MaterialComponent.CODEC);
+        collisionFilterComponentType = registry.registerComponent(
+            CollisionFilterComponent.class,
+            "CollisionFilter",
+            CollisionFilterComponent.CODEC);
+        jointComponentType = registry.registerComponent(
+            JointComponent.class,
+            "Joint",
+            JointComponent.CODEC);
+        targetComponentType = registry.registerComponent(
+            TargetComponent.class,
+            "Target",
+            TargetComponent.CODEC);
+        terrainColliderComponentType = registry.registerComponent(
+            TerrainColliderComponent.class,
+            "TerrainCollider",
+            TerrainColliderComponent.CODEC);
+        worldCollisionComponentType = registry.registerComponent(
+            WorldCollisionComponent.class,
+            "WorldCollision",
+            WorldCollisionComponent.CODEC);
+        solverSettingsComponentType = registry.registerComponent(
+            SolverSettingsComponent.class,
+            "SolverSettings",
+            SolverSettingsComponent.CODEC);
+        visualSyncSettingsComponentType = registry.registerComponent(
+            VisualSyncSettingsComponent.class,
+            "VisualSyncSettings",
+            VisualSyncSettingsComponent.CODEC);
+        visualMaterializationSettingsComponentType = registry.registerComponent(
+            VisualMaterializationSettingsComponent.class,
+            "VisualMaterializationSettings",
+            VisualMaterializationSettingsComponent.CODEC);
+        collisionLodSettingsComponentType = registry.registerComponent(
+            CollisionLodSettingsComponent.class,
+            "CollisionLodSettings",
+            CollisionLodSettingsComponent.CODEC);
+        extensionSettingsComponentType = registry.registerComponent(
+            ExtensionSettingsComponent.class,
+            "ExtensionSettings",
+            ExtensionSettingsComponent.CODEC);
     }
 
     @Nonnull

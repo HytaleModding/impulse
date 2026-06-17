@@ -10,7 +10,6 @@ import com.hypixel.hytale.server.core.universe.world.storage.PhysicsStore;
 import dev.hytalemodding.impulse.early.PhysicsStoreHooks;
 import dev.hytalemodding.impulse.core.internal.persistence.PersistentPhysicsStoreResource;
 import dev.hytalemodding.impulse.core.internal.physicsstore.resources.PhysicsBodyRegistrationResource;
-import dev.hytalemodding.impulse.core.internal.physicsstore.resources.PhysicsDebugResource;
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsEventResource;
 import dev.hytalemodding.impulse.core.internal.physicsstore.resources.PhysicsIdentityIndexResource;
 import dev.hytalemodding.impulse.core.internal.physicsstore.resources.PhysicsProfilingResource;
@@ -71,55 +70,7 @@ public final class PhysicsStoreRegistration {
         PhysicsStoreHooks.registerShutdownHook(SHUTDOWN_CLEANUP);
         PhysicsStoreHooks.registerTickGate(STEP_TICK_GATE);
 
-        PhysicsResourceTypes.setRuntimeResourceType(registry.registerResource(
-            PhysicsRuntimeResource.class,
-            PhysicsRuntimeResource::new));
-        PhysicsResourceTypes.setWorldSettingsResourceType(registry.registerResource(
-            PhysicsWorldSettingsResource.class,
-            PhysicsWorldSettingsResource::new));
-        PhysicsResourceTypes.setStepSchedulerResourceType(registry.registerResource(
-            PhysicsStepSchedulerResource.class,
-            PhysicsStepSchedulerResource::new));
-        PhysicsResourceTypes.setSpaceCompatibilityIndexResourceType(registry.registerResource(
-            PhysicsSpaceCompatibilityIndexResource.class,
-            PhysicsSpaceCompatibilityIndexResource::new));
-        PhysicsResourceTypes.setTerrainMutationQueueResourceType(registry.registerResource(
-            PhysicsTerrainMutationQueueResource.class,
-            PhysicsTerrainMutationQueueResource::new));
-        PhysicsResourceTypes.setIdentityIndexResourceType(registry.registerResource(
-            PhysicsIdentityIndexResource.class,
-            PhysicsIdentityIndexResource::new));
-        PhysicsResourceTypes.setSnapshotResourceType(registry.registerResource(
-            PhysicsSnapshotResource.class,
-            PhysicsSnapshotResource::new));
-        PhysicsResourceTypes.setBodyRegistrationResourceType(registry.registerResource(
-            PhysicsBodyRegistrationResource.class,
-            PhysicsBodyRegistrationResource::new));
-        PhysicsResourceTypes.setEventResourceType(registry.registerResource(
-            PhysicsEventResource.class,
-            PhysicsEventResource::new));
-        PhysicsResourceTypes.setReadQueueResourceType(registry.registerResource(
-            PhysicsStoreReadQueueResource.class,
-            PhysicsStoreReadQueueResource::new));
-        PhysicsResourceTypes.setTerrainPayloadResourceType(registry.registerResource(
-            PhysicsTerrainPayloadResource.class,
-            PhysicsTerrainPayloadResource::new));
-        PhysicsResourceTypes.setWorldCollisionIndexResourceType(registry.registerResource(
-            PhysicsWorldCollisionIndexResource.class,
-            PhysicsWorldCollisionIndexResource::new));
-        PhysicsResourceTypes.setPersistentStoreResourceType(registry.registerResource(
-            PersistentPhysicsStoreResource.class,
-            "PersistentPhysicsStore",
-            PersistentPhysicsStoreResource.CODEC));
-        PhysicsResourceTypes.setRestoreStatusResourceType(registry.registerResource(
-            PhysicsRestoreStatusResource.class,
-            PhysicsRestoreStatusResource::new));
-        PhysicsResourceTypes.setProfilingResourceType(registry.registerResource(
-            PhysicsProfilingResource.class,
-            PhysicsProfilingResource::new));
-        PhysicsResourceTypes.setDebugResourceType(registry.registerResource(
-            PhysicsDebugResource.class,
-            PhysicsDebugResource::new));
+        PhysicsResourceTypes.registerResourceTypes(registry);
 
         registry.registerSystem(new PersistenceHydrationSystem());
         registry.registerSystem(new TerrainMutationDrainSystem());
