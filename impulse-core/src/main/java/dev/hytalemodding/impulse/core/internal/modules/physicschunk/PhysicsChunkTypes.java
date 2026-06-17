@@ -8,7 +8,7 @@ import dev.hytalemodding.impulse.core.internal.modules.physicschunk.systems.Phys
 import javax.annotation.Nonnull;
 
 /**
- * Registered EntityStore type handles owned by the PhysicsChunk integration module.
+ * Registered EntityStore type handles owned by the PhysicsChunk subplugin.
  */
 final class PhysicsChunkTypes {
 

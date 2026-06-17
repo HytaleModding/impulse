@@ -25,7 +25,7 @@ import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
 /**
- * Registered EntityStore type handles owned by the PhysicsEntity integration module.
+ * Registered EntityStore type handles owned by the PhysicsEntity subplugin.
  */
 public final class PhysicsEntityTypeRegistry {
 

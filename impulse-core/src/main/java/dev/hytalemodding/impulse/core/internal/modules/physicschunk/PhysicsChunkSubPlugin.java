@@ -10,13 +10,13 @@ import java.util.logging.Level;
 import javax.annotation.Nonnull;
 
 /**
- * Plugin module that enables Impulse PhysicsChunk terrain integration.
+ * Bundled subplugin that enables Impulse PhysicsChunk terrain integration.
  */
-public final class PhysicsChunkModule extends JavaPlugin {
+public final class PhysicsChunkSubPlugin extends JavaPlugin {
 
     private static final HytaleLogger LOGGER = HytaleLogger.get("Impulse");
 
-    public PhysicsChunkModule(@Nonnull JavaPluginInit init) {
+    public PhysicsChunkSubPlugin(@Nonnull JavaPluginInit init) {
         super(init);
     }
 

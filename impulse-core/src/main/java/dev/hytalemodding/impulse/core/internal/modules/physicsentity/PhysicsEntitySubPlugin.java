@@ -8,11 +8,11 @@ import dev.hytalemodding.impulse.core.internal.modules.physicsentity.commands.Ph
 import javax.annotation.Nonnull;
 
 /**
- * Plugin module that integrates authoritative PhysicsStore bodies with EntityStore entities.
+ * Bundled subplugin that integrates authoritative PhysicsStore bodies with EntityStore entities.
  */
-public final class PhysicsEntityModule extends JavaPlugin {
+public final class PhysicsEntitySubPlugin extends JavaPlugin {
 
-    public PhysicsEntityModule(@Nonnull JavaPluginInit init) {
+    public PhysicsEntitySubPlugin(@Nonnull JavaPluginInit init) {
         super(init);
     }
 

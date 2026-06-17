@@ -113,14 +113,14 @@ hytaleTools {
 
     subPlugin (
         "ImpulsePhysicsEntity",
-        "dev.hytalemodding.impulse.core.internal.modules.physicsentity.PhysicsEntityModule",
+        "dev.hytalemodding.impulse.core.internal.modules.physicsentity.PhysicsEntitySubPlugin",
         false, /* disabledByDefault */
         false  /* includeAssetPack */
     )
 
     subPlugin (
         "ImpulsePhysicsChunk",
-        "dev.hytalemodding.impulse.core.internal.modules.physicschunk.PhysicsChunkModule",
+        "dev.hytalemodding.impulse.core.internal.modules.physicschunk.PhysicsChunkSubPlugin",
         false, /* disabledByDefault */
         false  /* includeAssetPack */
     )

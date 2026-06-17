@@ -14,7 +14,7 @@ import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
 /**
- * Public EntityStore type handles for the PhysicsEntity integration module.
+ * Public EntityStore type handles for the PhysicsEntity subplugin.
  */
 public final class PhysicsEntityTypes {
 
