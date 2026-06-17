@@ -44,7 +44,22 @@ public final class PhysicsRuntimeProfiling {
                             @Nonnull VisualSnapshotView worstVisual) {
     }
 
-    public static final class StepSnapshotView {
+    public interface StepDrainSnapshotView {
+
+        int getTickSamples();
+
+        int getPreStepDrainedMutations();
+
+        int getMaxPreStepDrainedMutations();
+
+        long getPreStepDrainRunNanos();
+
+        int getLateMutationBacklogAtStep();
+
+        int getMaxLateMutationBacklogAtStep();
+    }
+
+    public static final class StepSnapshotView implements StepDrainSnapshotView {
 
         @Nonnull
         private final PhysicsRuntimeProfilingResource.StepSnapshot snapshot;

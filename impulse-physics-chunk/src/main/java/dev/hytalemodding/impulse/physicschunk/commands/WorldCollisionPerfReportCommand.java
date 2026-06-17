@@ -9,6 +9,7 @@ import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import dev.hytalemodding.impulse.core.plugin.events.PhysicsEventFrame;
 import dev.hytalemodding.impulse.core.plugin.modules.physicsentity.PhysicsEntityDiagnostics;
 import dev.hytalemodding.impulse.core.plugin.modules.physicsentity.PhysicsRuntimeProfiling;
+import dev.hytalemodding.impulse.core.plugin.modules.physicsentity.PhysicsRuntimeProfiling.StepDrainSnapshotView;
 import dev.hytalemodding.impulse.core.plugin.modules.physicsentity.PhysicsRuntimeProfiling.StepSnapshotView;
 import dev.hytalemodding.impulse.core.plugin.modules.physicsentity.PhysicsRuntimeProfiling.SyncSnapshotView;
 import dev.hytalemodding.impulse.core.plugin.modules.physicsentity.PhysicsRuntimeProfiling.VisualSnapshotView;
@@ -436,8 +437,8 @@ public class WorldCollisionPerfReportCommand extends AbstractAsyncWorldCommand {
     }
 
     @Nonnull
-    static String formatPreStepDrainSummary(@Nonnull StepSnapshotView cumulativeStep,
-        @Nonnull StepSnapshotView latestStep) {
+    static String formatPreStepDrainSummary(@Nonnull StepDrainSnapshotView cumulativeStep,
+        @Nonnull StepDrainSnapshotView latestStep) {
         return "Physics pre-step drain avg completedStep drained/runMs/lateBacklog="
             + formatAverage(cumulativeStep.getPreStepDrainedMutations(),
             cumulativeStep.getTickSamples())
@@ -453,7 +454,7 @@ public class WorldCollisionPerfReportCommand extends AbstractAsyncWorldCommand {
             + "/" + cumulativeStep.getMaxLateMutationBacklogAtStep();
     }
 
-    static boolean hasCompletedStepSamples(@Nonnull StepSnapshotView cumulativeStep) {
+    static boolean hasCompletedStepSamples(@Nonnull StepDrainSnapshotView cumulativeStep) {
         return cumulativeStep.getTickSamples() > 0;
     }
 
