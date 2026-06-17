@@ -6,7 +6,6 @@ import com.hypixel.hytale.component.Store;
 import com.hypixel.hytale.server.core.universe.world.World;
 import com.hypixel.hytale.server.core.universe.world.storage.PhysicsStore;
 import dev.hytalemodding.impulse.core.plugin.physicsstore.PhysicsThreading;
-import dev.hytalemodding.impulse.early.PhysicsStoreWorld;
 import dev.hytalemodding.impulse.api.PhysicsBodyType;
 import dev.hytalemodding.impulse.api.SpaceId;
 import dev.hytalemodding.impulse.core.internal.physicsstore.PhysicsStoreRuntimeCleaner;
@@ -33,7 +32,7 @@ final class PhysicsStoreCrucibleSupport {
 
     @Nonnull
     static Store<PhysicsStore> physicsStore(@Nonnull World world) {
-        return ((PhysicsStoreWorld) world).getPhysicsStore().getStore();
+        return PhysicsThreading.store(world);
     }
 
     static void clearAll(@Nonnull Store<PhysicsStore> store) {

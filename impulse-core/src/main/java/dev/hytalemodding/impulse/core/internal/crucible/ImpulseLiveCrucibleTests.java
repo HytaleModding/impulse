@@ -13,7 +13,6 @@ import com.hypixel.hytale.server.core.universe.world.World;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import com.hypixel.hytale.server.core.universe.world.storage.PhysicsStore;
 import dev.hytalemodding.impulse.core.plugin.physicsstore.PhysicsThreading;
-import dev.hytalemodding.impulse.early.PhysicsStoreWorld;
 import dev.hytalemodding.impulse.api.SpaceId;
 import dev.hytalemodding.impulse.core.internal.physicsstore.PhysicsStoreSpaceMutations;
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsSnapshotResource;
@@ -167,7 +166,7 @@ final class ImpulseLiveCrucibleTests {
     }
 
     private static Store<PhysicsStore> physicsStore(World world) {
-        return ((PhysicsStoreWorld) world).getPhysicsStore().getStore();
+        return PhysicsThreading.store(world);
     }
 
     private static Ref<EntityStore> spawnLiveBlockBody(Store<EntityStore> store,
