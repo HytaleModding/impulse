@@ -11,6 +11,12 @@ import dev.hytalemodding.impulse.core.internal.resources.PhysicsDebugResource;
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsProjectionIndexResource;
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsWorldRuntimeResource;
 import dev.hytalemodding.impulse.core.internal.resources.profiling.PhysicsRuntimeProfilingResource;
+import dev.hytalemodding.impulse.core.internal.systems.PhysicsWorldResourceAttachmentSystem;
+import dev.hytalemodding.impulse.core.internal.systems.debug.PhysicsDebugSystem;
+import dev.hytalemodding.impulse.core.internal.systems.publication.PhysicsStoreEventPublicationSystem;
+import dev.hytalemodding.impulse.core.internal.systems.sync.PhysicsBodyAttachmentIndexSystem;
+import dev.hytalemodding.impulse.core.internal.systems.sync.PhysicsSyncSystem;
+import dev.hytalemodding.impulse.core.internal.systems.visual.PhysicsGeneratedProxyCleanupSystem;
 import dev.hytalemodding.impulse.core.plugin.events.PhysicsEventFramePublishedEvent;
 import dev.hytalemodding.impulse.core.plugin.projection.BodyAttachmentComponent;
 import dev.hytalemodding.impulse.core.plugin.resources.PhysicsWorldResource;
@@ -77,6 +83,15 @@ public final class PhysicsEntityTypes {
 
     public static void registerSystemGroups(@Nonnull ComponentRegistryProxy<EntityStore> registry) {
         persistenceRestoreGroup = registry.registerSystemGroup();
+    }
+
+    public static void registerSystems(@Nonnull ComponentRegistryProxy<EntityStore> registry) {
+        registry.registerSystem(new PhysicsBodyAttachmentIndexSystem());
+        registry.registerSystem(new PhysicsGeneratedProxyCleanupSystem());
+        registry.registerSystem(new PhysicsSyncSystem());
+        registry.registerSystem(new PhysicsDebugSystem());
+        registry.registerSystem(new PhysicsStoreEventPublicationSystem());
+        registry.registerSystem(new PhysicsWorldResourceAttachmentSystem());
     }
 
     @Nonnull

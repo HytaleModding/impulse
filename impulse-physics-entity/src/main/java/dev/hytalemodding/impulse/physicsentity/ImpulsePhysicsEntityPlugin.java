@@ -4,12 +4,6 @@ import com.hypixel.hytale.component.ComponentRegistryProxy;
 import com.hypixel.hytale.server.core.plugin.JavaPlugin;
 import com.hypixel.hytale.server.core.plugin.JavaPluginInit;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
-import dev.hytalemodding.impulse.core.internal.systems.PhysicsWorldResourceAttachmentSystem;
-import dev.hytalemodding.impulse.core.internal.systems.debug.PhysicsDebugSystem;
-import dev.hytalemodding.impulse.core.internal.systems.publication.PhysicsStoreEventPublicationSystem;
-import dev.hytalemodding.impulse.core.internal.systems.sync.PhysicsBodyAttachmentIndexSystem;
-import dev.hytalemodding.impulse.core.internal.systems.sync.PhysicsSyncSystem;
-import dev.hytalemodding.impulse.core.internal.systems.visual.PhysicsGeneratedProxyCleanupSystem;
 import dev.hytalemodding.impulse.core.plugin.modules.physicsentity.PhysicsEntityTypes;
 import javax.annotation.Nonnull;
 
@@ -29,11 +23,6 @@ public final class ImpulsePhysicsEntityPlugin extends JavaPlugin {
         PhysicsEntityTypes.registerResourceTypes(entityRegistry);
         PhysicsEntityTypes.registerEventTypes(entityRegistry);
         PhysicsEntityTypes.registerSystemGroups(entityRegistry);
-        entityRegistry.registerSystem(new PhysicsBodyAttachmentIndexSystem());
-        entityRegistry.registerSystem(new PhysicsGeneratedProxyCleanupSystem());
-        entityRegistry.registerSystem(new PhysicsSyncSystem());
-        entityRegistry.registerSystem(new PhysicsDebugSystem());
-        entityRegistry.registerSystem(new PhysicsStoreEventPublicationSystem());
-        entityRegistry.registerSystem(new PhysicsWorldResourceAttachmentSystem());
+        PhysicsEntityTypes.registerSystems(entityRegistry);
     }
 }

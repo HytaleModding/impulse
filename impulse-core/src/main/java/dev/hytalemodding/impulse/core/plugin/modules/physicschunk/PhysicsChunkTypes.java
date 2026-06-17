@@ -5,7 +5,11 @@ import com.hypixel.hytale.component.ComponentType;
 import com.hypixel.hytale.component.Resource;
 import com.hypixel.hytale.component.ResourceType;
 import com.hypixel.hytale.component.Store;
+import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import com.hypixel.hytale.server.core.universe.world.storage.PhysicsStore;
+import dev.hytalemodding.impulse.core.internal.modules.physicschunk.PhysicsStoreWorldCollisionStreamingResource;
+import dev.hytalemodding.impulse.core.internal.modules.physicschunk.profiling.WorldCollisionProfilingResource;
+import dev.hytalemodding.impulse.core.internal.modules.physicschunk.systems.PhysicsStoreWorldCollisionProducerSystem;
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsTerrainMutationQueueResource;
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsTerrainPayloadResource;
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsWorldCollisionIndexResource;
@@ -69,6 +73,26 @@ public final class PhysicsChunkTypes {
         registry.registerSystem(new TerrainMutationDrainSystem());
         registry.registerSystem(new WorldCollisionIndexSystem());
         registry.registerSystem(new TerrainColliderBindingSystem());
+    }
+
+    public static void registerEntityStoreResourceTypes(
+        @Nonnull ComponentRegistryProxy<EntityStore> registry) {
+        WorldCollisionProfilingResource.setResourceType(registry.registerResource(
+            WorldCollisionProfilingResource.class,
+            WorldCollisionProfilingResource::new));
+        PhysicsStoreWorldCollisionStreamingResource.setResourceType(registry.registerResource(
+            PhysicsStoreWorldCollisionStreamingResource.class,
+            PhysicsStoreWorldCollisionStreamingResource::new));
+    }
+
+    public static void registerEntityStoreSystems(
+        @Nonnull ComponentRegistryProxy<EntityStore> registry) {
+        registry.registerSystem(new PhysicsStoreWorldCollisionProducerSystem());
+    }
+
+    public static void clearEntityStoreResourceTypes() {
+        WorldCollisionProfilingResource.clearResourceType();
+        PhysicsStoreWorldCollisionStreamingResource.clearResourceType();
     }
 
     public static void clearRuntimeStateBeforeShutdown(@Nonnull PhysicsStore physicsStore) {
