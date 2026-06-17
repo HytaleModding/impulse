@@ -22,9 +22,10 @@ import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import com.hypixel.hytale.server.core.universe.world.storage.PhysicsStore;
 import dev.hytalemodding.impulse.api.SpaceId;
 import dev.hytalemodding.impulse.core.plugin.components.BodyCommandComponent;
-import dev.hytalemodding.impulse.core.plugin.resources.PhysicsWorldResource;
+import dev.hytalemodding.impulse.core.plugin.modules.physicschunk.PhysicsWorldCollision;
 import dev.hytalemodding.impulse.core.plugin.simulation.PhysicsShapeSpec;
 import dev.hytalemodding.impulse.core.plugin.simulation.RigidBodySpawnSettings;
+import dev.hytalemodding.impulse.early.PhysicsStoreWorld;
 import dev.hytalemodding.impulse.examples.utils.ExamplePhysicsUtils;
 import dev.hytalemodding.impulse.examples.utils.ExamplePhysicsUtils.CreatedBlockBody;
 import java.util.ArrayList;
@@ -133,12 +134,14 @@ public final class ExplosiveBlockRuntime {
         }
 
         List<FragmentGroup> groups = groupFragments(fragments, center, settings.getRadius());
-        PhysicsWorldResource resource = store.getResource(PhysicsWorldResource.getResourceType());
-        resource.refreshWorldCollisionAround(world,
+        Store<PhysicsStore> physicsStore = ((PhysicsStoreWorld) world).getPhysicsStore().getStore();
+        PhysicsWorldCollision.refreshAround(world,
+            physicsStore,
             spaceId,
             center,
             Math.max(8, settings.getRadius() + 4));
-        resource.ensureWorldCollisionAround(world,
+        PhysicsWorldCollision.ensureAround(world,
+            physicsStore,
             spaceId,
             groupCenters(groups),
             Math.max(8, maxGroupCollisionRadius(groups) + 4),

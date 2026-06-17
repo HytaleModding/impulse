@@ -3,7 +3,6 @@ package dev.hytalemodding.impulse.core.plugin.resources;
 import com.hypixel.hytale.component.Resource;
 import com.hypixel.hytale.component.ResourceType;
 import com.hypixel.hytale.component.Ref;
-import com.hypixel.hytale.server.core.universe.world.World;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import com.hypixel.hytale.server.core.universe.world.storage.PhysicsStore;
 import dev.hytalemodding.impulse.api.BackendId;
@@ -13,9 +12,6 @@ import dev.hytalemodding.impulse.core.plugin.modules.physicsentity.PhysicsEntity
 import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyKind;
 import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyPersistenceMode;
 import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyRegistrationView;
-import dev.hytalemodding.impulse.core.plugin.modules.physicschunk.WorldCollisionBuildStats;
-import dev.hytalemodding.impulse.core.plugin.modules.physicschunk.WorldCollisionPrewarmStats;
-import dev.hytalemodding.impulse.core.plugin.modules.physicschunk.WorldCollisionStats;
 import dev.hytalemodding.impulse.core.plugin.events.PhysicsEventFrame;
 import dev.hytalemodding.impulse.core.plugin.settings.PhysicsSpaceSettings;
 import dev.hytalemodding.impulse.core.plugin.settings.PhysicsWorldSettings;
@@ -25,7 +21,6 @@ import java.util.UUID;
 import java.util.function.Consumer;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
-import org.joml.Vector3d;
 import org.joml.Vector3f;
 
 /**
@@ -33,8 +28,7 @@ import org.joml.Vector3f;
  *
  * <p>The concrete Impulse runtime lives in the internal package. Plugin-facing code should depend on
  * this facade for explicit space lifecycle, world settings, body lifetime by durable UUID,
- * immutable snapshots, read-only registration views, public attachment/control hooks, and world
- * collision operations.</p>
+ * immutable snapshots, read-only registration views, and public attachment/control hooks.</p>
  *
  * <p>No physics space is created implicitly. Consumers choose which explicit {@link SpaceId} to
  * target for each operation.</p>
@@ -198,46 +192,6 @@ public abstract class PhysicsWorldResource implements Resource<EntityStore> {
      * authoritative PhysicsStore snapshot frame.
      */
     public abstract int getBodySnapshotCellCount();
-
-    /**
-     * Rebuilds world collision around a center for the requested space.
-     */
-    @Nonnull
-    public abstract WorldCollisionBuildStats rebuildWorldCollisionAround(@Nonnull World world,
-        @Nonnull SpaceId spaceId,
-        @Nonnull Vector3d center,
-        int radius);
-
-    /**
-     * Rebuilds cached world-collision sections around a center for the requested space without
-     * clearing retained terrain outside that radius.
-     */
-    @Nonnull
-    public abstract WorldCollisionBuildStats refreshWorldCollisionAround(@Nonnull World world,
-        @Nonnull SpaceId spaceId,
-        @Nonnull Vector3d center,
-        int radius);
-
-    /**
-     * Ensures world collision exists around one or more centers for the requested space.
-     */
-    @Nonnull
-    public abstract WorldCollisionPrewarmStats ensureWorldCollisionAround(@Nonnull World world,
-        @Nonnull SpaceId spaceId,
-        @Nonnull Iterable<Vector3d> centers,
-        int radius,
-        long tick);
-
-    /**
-     * Clears cached world collision for the requested space.
-     */
-    public abstract int clearWorldCollision(@Nonnull SpaceId spaceId);
-
-    /**
-     * Returns world-collision runtime statistics.
-     */
-    @Nonnull
-    public abstract WorldCollisionStats getWorldCollisionStats();
 
     /**
      * Iterates published body snapshots for one space.

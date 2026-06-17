@@ -19,6 +19,7 @@ import com.hypixel.hytale.server.core.universe.world.storage.PhysicsStore;
 import com.hypixel.hytale.server.core.util.TargetUtil;
 import dev.hytalemodding.impulse.api.PhysicsBodyType;
 import dev.hytalemodding.impulse.api.SpaceId;
+import dev.hytalemodding.impulse.core.plugin.modules.physicschunk.PhysicsWorldCollision;
 import dev.hytalemodding.impulse.core.plugin.modules.physicschunk.WorldCollisionPrewarmStats;
 import dev.hytalemodding.impulse.core.plugin.physicsstore.PhysicsAsync;
 import dev.hytalemodding.impulse.core.plugin.physicsstore.PhysicsRaycasts;
@@ -31,6 +32,7 @@ import dev.hytalemodding.impulse.core.plugin.settings.PhysicsEventCollectionMode
 import dev.hytalemodding.impulse.core.plugin.simulation.PhysicsShapeSpec;
 import dev.hytalemodding.impulse.core.plugin.simulation.RigidBodySpawnSettings;
 import dev.hytalemodding.impulse.core.plugin.simulation.view.RaycastHitView;
+import dev.hytalemodding.impulse.early.PhysicsStoreWorld;
 import dev.hytalemodding.impulse.examples.explosive.ExplosiveBlockComponent;
 import dev.hytalemodding.impulse.examples.explosive.ExplosiveBlockPolicy;
 import dev.hytalemodding.impulse.examples.explosive.ExplosiveFuseComponent;
@@ -338,7 +340,8 @@ final class PhysicsStoreExampleCommands {
                     + " is not bound yet."));
                 return CompletableFuture.completedFuture(null);
             }
-            WorldCollisionPrewarmStats stats = resource.ensureWorldCollisionAround(world,
+            WorldCollisionPrewarmStats stats = PhysicsWorldCollision.ensureAround(world,
+                ((PhysicsStoreWorld) world).getPhysicsStore().getStore(),
                 spaceId,
                 List.of(spawn),
                 Math.max(8, radius + 6),

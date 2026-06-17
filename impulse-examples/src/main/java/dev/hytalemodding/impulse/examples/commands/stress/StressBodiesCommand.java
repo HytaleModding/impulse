@@ -16,6 +16,7 @@ import dev.hytalemodding.impulse.api.PhysicsCollisionFilters;
 import dev.hytalemodding.impulse.api.SpaceId;
 import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyKind;
 import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyPersistenceMode;
+import dev.hytalemodding.impulse.core.plugin.modules.physicschunk.PhysicsWorldCollision;
 import dev.hytalemodding.impulse.core.plugin.modules.physicschunk.WorldCollisionPrewarmStats;
 import dev.hytalemodding.impulse.core.plugin.modules.physicschunk.WorldCollisionMode;
 import dev.hytalemodding.impulse.core.plugin.resources.PhysicsWorldResource;
@@ -30,6 +31,7 @@ import dev.hytalemodding.impulse.core.plugin.settings.PhysicsWorldSettings;
 import dev.hytalemodding.impulse.core.plugin.settings.VisualOcclusionMode;
 import dev.hytalemodding.impulse.core.plugin.simulation.PhysicsShapeSpec;
 import dev.hytalemodding.impulse.core.plugin.simulation.RigidBodySpawnSettings;
+import dev.hytalemodding.impulse.early.PhysicsStoreWorld;
 import dev.hytalemodding.impulse.examples.utils.ExampleBlockEntityVisuals;
 import dev.hytalemodding.impulse.examples.utils.ExamplePhysicsUtils;
 import java.util.Iterator;
@@ -335,8 +337,8 @@ public class StressBodiesCommand extends AbstractAsyncPlayerCommand {
             return 0;
         }
 
-        PhysicsWorldResource resource = store.getResource(PhysicsWorldResource.getResourceType());
-        WorldCollisionPrewarmStats stats = resource.ensureWorldCollisionAround(world,
+        WorldCollisionPrewarmStats stats = PhysicsWorldCollision.ensureAround(world,
+            ((PhysicsStoreWorld) world).getPhysicsStore().getStore(),
             spaceId,
             layout.positions(count),
             worldCollisionSettings.getWorldCollisionBodyRadius(),

@@ -11,11 +11,13 @@ import com.hypixel.hytale.server.core.command.system.basecommands.AbstractComman
 import com.hypixel.hytale.server.core.universe.PlayerRef;
 import com.hypixel.hytale.server.core.universe.world.World;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
+import com.hypixel.hytale.server.core.universe.world.storage.PhysicsStore;
 import dev.hytalemodding.impulse.api.SpaceId;
-import dev.hytalemodding.impulse.core.plugin.resources.PhysicsWorldResource;
+import dev.hytalemodding.impulse.core.plugin.modules.physicschunk.PhysicsWorldCollision;
 import dev.hytalemodding.impulse.core.plugin.modules.physicschunk.WorldCollisionBuildStats;
 import dev.hytalemodding.impulse.core.plugin.modules.physicschunk.WorldCollisionPrewarmStats;
 import dev.hytalemodding.impulse.core.plugin.modules.physicschunk.WorldCollisionStats;
+import dev.hytalemodding.impulse.early.PhysicsStoreWorld;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import javax.annotation.Nonnull;
@@ -34,6 +36,11 @@ public class WorldCollisionCommand extends AbstractCommandCollection {
         addSubCommand(new EnsureCommand());
         addSubCommand(new ClearCommand());
         addSubCommand(new StatsCommand());
+    }
+
+    @Nonnull
+    private static Store<PhysicsStore> physicsStore(@Nonnull World world) {
+        return ((PhysicsStoreWorld) world).getPhysicsStore().getStore();
     }
 
     private static final class BuildCommand extends AbstractAsyncPlayerCommand {
@@ -68,8 +75,9 @@ public class WorldCollisionCommand extends AbstractCommandCollection {
             if (spaceId == null) {
                 return CompletableFuture.completedFuture(null);
             }
-            PhysicsWorldResource resource = store.getResource(PhysicsWorldResource.getResourceType());
-            WorldCollisionBuildStats stats = resource.rebuildWorldCollisionAround(world,
+            Store<PhysicsStore> physicsStore = physicsStore(world);
+            WorldCollisionBuildStats stats = PhysicsWorldCollision.rebuildAround(world,
+                physicsStore,
                 spaceId,
                 playerPos,
                 radius);
@@ -122,8 +130,9 @@ public class WorldCollisionCommand extends AbstractCommandCollection {
                 return CompletableFuture.completedFuture(null);
             }
 
-            PhysicsWorldResource resource = store.getResource(PhysicsWorldResource.getResourceType());
-            WorldCollisionPrewarmStats stats = resource.ensureWorldCollisionAround(world,
+            Store<PhysicsStore> physicsStore = physicsStore(world);
+            WorldCollisionPrewarmStats stats = PhysicsWorldCollision.ensureAround(world,
+                physicsStore,
                 spaceId,
                 List.of(playerPos),
                 radius,
@@ -162,8 +171,8 @@ public class WorldCollisionCommand extends AbstractCommandCollection {
             if (spaceId == null) {
                 return CompletableFuture.completedFuture(null);
             }
-            PhysicsWorldResource resource = store.getResource(PhysicsWorldResource.getResourceType());
-            int removed = resource.clearWorldCollision(spaceId);
+            Store<PhysicsStore> physicsStore = physicsStore(world);
+            int removed = PhysicsWorldCollision.clearSpace(world, physicsStore, spaceId);
             ctx.sender().sendMessage(Message.raw("Removed " + removed
                 + " world voxel collision bodies."));
             return CompletableFuture.completedFuture(null);
@@ -183,8 +192,7 @@ public class WorldCollisionCommand extends AbstractCommandCollection {
             @Nonnull Ref<EntityStore> ref,
             @Nonnull PlayerRef playerRef,
             @Nonnull World world) {
-            PhysicsWorldResource resource = store.getResource(PhysicsWorldResource.getResourceType());
-            WorldCollisionStats stats = resource.getWorldCollisionStats();
+            WorldCollisionStats stats = PhysicsWorldCollision.stats(world);
             ctx.sender().sendMessage(Message.raw("World voxel collision: "
                 + stats.spaces() + " spaces, "
                 + stats.sections() + " sections, "
