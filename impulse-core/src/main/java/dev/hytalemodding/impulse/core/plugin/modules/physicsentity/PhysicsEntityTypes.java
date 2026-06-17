@@ -20,6 +20,7 @@ import dev.hytalemodding.impulse.core.plugin.events.PhysicsEventFramePublishedEv
 import dev.hytalemodding.impulse.core.plugin.modules.physicsentity.components.BodyAttachmentComponent;
 import dev.hytalemodding.impulse.core.plugin.modules.physicsentity.components.GeneratedVisualProxyComponent;
 import dev.hytalemodding.impulse.core.plugin.resources.PhysicsWorldResource;
+import java.util.Objects;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
@@ -97,30 +98,62 @@ public final class PhysicsEntityTypes {
         PhysicsProjectionIndexResource.clearResourceType();
     }
 
+    public static boolean areEntityStoreTypesRegistered() {
+        return bodyAttachmentComponentType != null
+            && generatedVisualProxyComponentType != null
+            && physicsWorldResourceType != null
+            && physicsEventFramePublishedEventType != null
+            && persistenceRestoreGroup != null
+            && PhysicsDebugResource.getResourceType() != null
+            && PhysicsRuntimeProfilingResource.getResourceType() != null
+            && PhysicsProjectionIndexResource.getResourceType() != null;
+    }
+
+    public static boolean isBodyAttachmentComponentTypeRegistered() {
+        return bodyAttachmentComponentType != null;
+    }
+
+    public static boolean isGeneratedVisualProxyComponentTypeRegistered() {
+        return generatedVisualProxyComponentType != null;
+    }
+
     @Nonnull
     public static ComponentType<EntityStore, BodyAttachmentComponent> bodyAttachmentComponentType() {
-        return bodyAttachmentComponentType;
+        return requireRegistered(bodyAttachmentComponentType,
+            "Impulse BodyAttachment component type is not registered");
     }
 
     @Nonnull
     public static ComponentType<EntityStore, GeneratedVisualProxyComponent>
     generatedVisualProxyComponentType() {
-        return generatedVisualProxyComponentType;
+        return requireRegistered(generatedVisualProxyComponentType,
+            "Impulse GeneratedVisualProxy component type is not registered");
     }
 
     @Nonnull
     public static ResourceType<EntityStore, PhysicsWorldResource> physicsWorldResourceType() {
-        return physicsWorldResourceType;
+        return requireRegistered(physicsWorldResourceType,
+            "Impulse PhysicsWorld resource type is not registered");
     }
 
     @Nonnull
     public static WorldEventType<EntityStore, PhysicsEventFramePublishedEvent>
     physicsEventFramePublishedEventType() {
-        return physicsEventFramePublishedEventType;
+        return requireRegistered(physicsEventFramePublishedEventType,
+            "Impulse physics event-frame world event type is not registered");
     }
 
     @Nonnull
     public static SystemGroup<EntityStore> persistenceRestoreGroup() {
-        return persistenceRestoreGroup;
+        return requireRegistered(persistenceRestoreGroup,
+            "Impulse PhysicsEntity persistence restore group is not registered");
+    }
+
+    @Nonnull
+    private static <T> T requireRegistered(@Nullable T value, @Nonnull String message) {
+        if (value == null) {
+            throw new IllegalStateException(Objects.requireNonNull(message, "message"));
+        }
+        return value;
     }
 }

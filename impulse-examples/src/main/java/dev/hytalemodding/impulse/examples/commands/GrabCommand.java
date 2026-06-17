@@ -55,6 +55,9 @@ public class GrabCommand extends AbstractAsyncPlayerCommand {
     private static final double RAY_LENGTH = 24.0;
     private static final float MIN_HOLD_DISTANCE = 4.0f;
     private static final Vector3f VIEW_OFFSET = new Vector3f(0.85f, -0.35f, 0.0f);
+    private static final String PHYSICS_ENTITY_UNAVAILABLE_MESSAGE =
+        "Impulse PhysicsEntity integration is not available. "
+            + "Enable HytaleModding:ImpulsePhysicsEntity to grab entity-backed physics bodies.";
     private final OptionalArg<Integer> spaceArg = this.withOptionalArg(
         "space",
         "Physics space id to target",
@@ -74,6 +77,10 @@ public class GrabCommand extends AbstractAsyncPlayerCommand {
         if (!PhysicsControlSessions.isAvailable()) {
             ctx.sender().sendMessage(Message.raw(
                 "Impulse control is disabled. Enable HytaleModding:ImpulseControl to use grab."));
+            return CompletableFuture.completedFuture(null);
+        }
+        if (!PhysicsEntityAttachments.isAvailable()) {
+            ctx.sender().sendMessage(Message.raw(PHYSICS_ENTITY_UNAVAILABLE_MESSAGE));
             return CompletableFuture.completedFuture(null);
         }
         ComponentType<EntityStore, ImpulseControllableComponent> controllableType =
@@ -120,6 +127,10 @@ public class GrabCommand extends AbstractAsyncPlayerCommand {
         @Nonnull SpaceId targetSpaceId,
         @Nonnull ComponentType<EntityStore, ImpulseControllableComponent> controllableType,
         @Nonnull List<RaycastHitView> hits) {
+        if (!PhysicsEntityAttachments.isAvailable()) {
+            ctx.sender().sendMessage(Message.raw(PHYSICS_ENTITY_UNAVAILABLE_MESSAGE));
+            return;
+        }
         HitSelection selection = selectControllableHit(physicsStore,
             store,
             controllableType,
@@ -294,6 +305,7 @@ public class GrabCommand extends AbstractAsyncPlayerCommand {
         @Nonnull ComponentType<EntityStore, ImpulseControllableComponent> controllableType,
         @Nonnull Ref<PhysicsStore> bodyRef) {
         boolean hasGameplayAttachment = false;
+        PhysicsEntityAttachments.requireAvailable();
         ComponentType<EntityStore, BodyAttachmentComponent> attachmentType =
             BodyAttachmentComponent.getComponentType();
         for (Ref<EntityStore> attachmentRef : PhysicsEntityAttachments.attachments(store, bodyRef)) {

@@ -224,6 +224,11 @@ public class BodyAttachmentComponent implements Component<EntityStore> {
             || lifecycle == AttachmentLifecycle.GENERATED_PROXY;
     }
 
+    public static boolean isComponentTypeRegistered() {
+        return PhysicsEntityTypes.isBodyAttachmentComponentTypeRegistered();
+    }
+
+    @Nonnull
     public static ComponentType<EntityStore, BodyAttachmentComponent> getComponentType() {
         return PhysicsEntityTypes.bodyAttachmentComponentType();
     }

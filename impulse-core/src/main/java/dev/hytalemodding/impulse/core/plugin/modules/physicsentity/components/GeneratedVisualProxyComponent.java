@@ -18,6 +18,11 @@ public final class GeneratedVisualProxyComponent implements Component<EntityStor
             GeneratedVisualProxyComponent::new)
         .build();
 
+    public static boolean isComponentTypeRegistered() {
+        return PhysicsEntityTypes.isGeneratedVisualProxyComponentTypeRegistered();
+    }
+
+    @Nonnull
     public static ComponentType<EntityStore, GeneratedVisualProxyComponent> getComponentType() {
         return PhysicsEntityTypes.generatedVisualProxyComponentType();
     }

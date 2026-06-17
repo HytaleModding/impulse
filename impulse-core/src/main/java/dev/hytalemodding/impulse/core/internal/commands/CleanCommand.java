@@ -21,6 +21,7 @@ import dev.hytalemodding.impulse.core.internal.resources.PhysicsRuntimeResetResu
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsWorldRuntimeResource;
 import dev.hytalemodding.impulse.core.plugin.components.UuidComponent;
 import dev.hytalemodding.impulse.core.plugin.modules.control.ImpulseControllableComponent;
+import dev.hytalemodding.impulse.core.plugin.modules.physicsentity.PhysicsEntityAttachments;
 import dev.hytalemodding.impulse.core.plugin.modules.physicsentity.components.BodyAttachmentComponent;
 import dev.hytalemodding.impulse.core.plugin.modules.physicsentity.components.GeneratedVisualProxyComponent;
 import dev.hytalemodding.impulse.core.plugin.physicsstore.PhysicsBodies;
@@ -82,37 +83,41 @@ public class CleanCommand extends AbstractWorldCommand {
     private static void cleanAll(@Nonnull CommandContext context,
         @Nonnull World world,
         @Nonnull Store<EntityStore> store) {
-        ComponentType<EntityStore, BodyAttachmentComponent> attachmentType =
-            BodyAttachmentComponent.getComponentType();
-        ComponentType<EntityStore, GeneratedVisualProxyComponent> generatedProxyType =
-            GeneratedVisualProxyComponent.getComponentType();
-        ComponentType<EntityStore, ImpulseControllableComponent> controllableType =
-            controllableTypeOrNull();
         AtomicIntegerArray removedEntities = new AtomicIntegerArray(REMOVED_ENTITY_COUNTERS);
-        store.forEachEntityParallel(attachmentType,
-            (index, archetypeChunk, commandBuffer) -> {
-                BodyAttachmentComponent attachment =
-                    archetypeChunk.getComponent(index, attachmentType);
-                if (attachment == null) {
-                    return;
-                }
-                cleanAttachedEntity(removedEntities,
-                    commandBuffer,
-                    archetypeChunk.getReferenceTo(index),
-                    attachmentType,
-                    controllableType,
-                    attachment);
-            });
+        boolean skippedProjectionCleanup = !PhysicsEntityAttachments.isAvailable();
+        if (!skippedProjectionCleanup) {
+            ComponentType<EntityStore, BodyAttachmentComponent> attachmentType =
+                BodyAttachmentComponent.getComponentType();
+            ComponentType<EntityStore, GeneratedVisualProxyComponent> generatedProxyType =
+                GeneratedVisualProxyComponent.getComponentType();
+            ComponentType<EntityStore, ImpulseControllableComponent> controllableType =
+                controllableTypeOrNull();
+            store.forEachEntityParallel(attachmentType,
+                (index, archetypeChunk, commandBuffer) -> {
+                    BodyAttachmentComponent attachment =
+                        archetypeChunk.getComponent(index, attachmentType);
+                    if (attachment == null) {
+                        return;
+                    }
+                    cleanAttachedEntity(removedEntities,
+                        commandBuffer,
+                        archetypeChunk.getReferenceTo(index),
+                        attachmentType,
+                        controllableType,
+                        attachment);
+                });
 
-        store.forEachEntityParallel(generatedProxyType,
-            (index, archetypeChunk, commandBuffer) -> {
-                if (archetypeChunk.getComponent(index, attachmentType) != null) {
-                    return;
-                }
+            store.forEachEntityParallel(generatedProxyType,
+                (index, archetypeChunk, commandBuffer) -> {
+                    if (archetypeChunk.getComponent(index, attachmentType) != null) {
+                        return;
+                    }
 
-                removedEntities.incrementAndGet(REMOVED_ORPHAN_VISUAL_ENTITIES);
-                commandBuffer.removeEntity(archetypeChunk.getReferenceTo(index), RemoveReason.REMOVE);
-            });
+                    removedEntities.incrementAndGet(REMOVED_ORPHAN_VISUAL_ENTITIES);
+                    commandBuffer.removeEntity(archetypeChunk.getReferenceTo(index),
+                        RemoveReason.REMOVE);
+                });
+        }
 
         ComponentType<EntityStore, PhysicsControlSessionComponent> controlSessionType =
             controlSessionTypeOrNull();
@@ -131,6 +136,7 @@ public class CleanCommand extends AbstractWorldCommand {
         reset.whenComplete((result, failure) -> sendCleanAllResult(world,
             context,
             removedEntities,
+            skippedProjectionCleanup,
             result,
             failure));
     }
@@ -138,6 +144,7 @@ public class CleanCommand extends AbstractWorldCommand {
     private static void sendCleanAllResult(@Nonnull World world,
         @Nonnull CommandContext context,
         @Nonnull AtomicIntegerArray removedEntities,
+        boolean skippedProjectionCleanup,
         @Nullable PhysicsRuntimeResetResult reset,
         @Nullable Throwable failure) {
         Runnable sender = () -> {
@@ -152,7 +159,11 @@ public class CleanCommand extends AbstractWorldCommand {
                 context.sendMessage(Message.raw("Failed to clean Impulse physics runtime state."));
                 return;
             }
-            sendCleanAllSuccess(context, removedEntities, reset, world.getName());
+            sendCleanAllSuccess(context,
+                removedEntities,
+                skippedProjectionCleanup,
+                reset,
+                world.getName());
         };
         if (world.isInThread()) {
             sender.run();
@@ -163,9 +174,13 @@ public class CleanCommand extends AbstractWorldCommand {
 
     private static void sendCleanAllSuccess(@Nonnull CommandContext context,
         @Nonnull AtomicIntegerArray removedEntities,
+        boolean skippedProjectionCleanup,
         @Nonnull PhysicsRuntimeResetResult reset,
         @Nonnull String worldName) {
-        context.sendMessage(Message.raw("Removed " + removedEntities.get(REMOVED_ATTACHMENT_ENTITIES)
+        String prefix = skippedProjectionCleanup
+            ? "Impulse PhysicsEntity integration is not available; skipped EntityStore attachment/proxy cleanup. "
+            : "";
+        context.sendMessage(Message.raw(prefix + "Removed " + removedEntities.get(REMOVED_ATTACHMENT_ENTITIES)
             + " Impulse-owned attachment entities, "
             + removedEntities.get(DETACHED_EXTERNAL_ATTACHMENTS)
             + " detached external attachments, "
@@ -227,41 +242,45 @@ public class CleanCommand extends AbstractWorldCommand {
         @Nonnull SelectedBodies selectedBodies,
         @Nonnull Vector3d center,
         double radiusSquared) {
-        ComponentType<EntityStore, BodyAttachmentComponent> attachmentType =
-            BodyAttachmentComponent.getComponentType();
-        ComponentType<EntityStore, GeneratedVisualProxyComponent> generatedProxyType =
-            GeneratedVisualProxyComponent.getComponentType();
-        ComponentType<EntityStore, ImpulseControllableComponent> controllableType =
-            controllableTypeOrNull();
-
         AtomicIntegerArray removedEntities = new AtomicIntegerArray(REMOVED_ENTITY_COUNTERS);
-        store.forEachEntityParallel(attachmentType,
-            (index, archetypeChunk, commandBuffer) -> {
-                BodyAttachmentComponent attachment =
-                    archetypeChunk.getComponent(index, attachmentType);
-                assert attachment != null;
-                if (!selectedBodies.bodyUuids().contains(attachment.getBodyUuid())) {
-                    return;
-                }
+        boolean skippedProjectionCleanup = !PhysicsEntityAttachments.isAvailable();
+        if (!skippedProjectionCleanup) {
+            ComponentType<EntityStore, BodyAttachmentComponent> attachmentType =
+                BodyAttachmentComponent.getComponentType();
+            ComponentType<EntityStore, GeneratedVisualProxyComponent> generatedProxyType =
+                GeneratedVisualProxyComponent.getComponentType();
+            ComponentType<EntityStore, ImpulseControllableComponent> controllableType =
+                controllableTypeOrNull();
 
-                cleanAttachedEntity(removedEntities,
-                    commandBuffer,
-                    archetypeChunk.getReferenceTo(index),
-                    attachmentType,
-                    controllableType,
-                    attachment);
-            });
+            store.forEachEntityParallel(attachmentType,
+                (index, archetypeChunk, commandBuffer) -> {
+                    BodyAttachmentComponent attachment =
+                        archetypeChunk.getComponent(index, attachmentType);
+                    assert attachment != null;
+                    if (!selectedBodies.bodyUuids().contains(attachment.getBodyUuid())) {
+                        return;
+                    }
 
-        store.forEachEntityParallel(generatedProxyType,
-            (index, archetypeChunk, commandBuffer) -> {
-                if (archetypeChunk.getComponent(index, attachmentType) != null
-                    || !entityWithinRadius(archetypeChunk, index, center, radiusSquared)) {
-                    return;
-                }
+                    cleanAttachedEntity(removedEntities,
+                        commandBuffer,
+                        archetypeChunk.getReferenceTo(index),
+                        attachmentType,
+                        controllableType,
+                        attachment);
+                });
 
-                removedEntities.incrementAndGet(REMOVED_ORPHAN_VISUAL_ENTITIES);
-                commandBuffer.removeEntity(archetypeChunk.getReferenceTo(index), RemoveReason.REMOVE);
-            });
+            store.forEachEntityParallel(generatedProxyType,
+                (index, archetypeChunk, commandBuffer) -> {
+                    if (archetypeChunk.getComponent(index, attachmentType) != null
+                        || !entityWithinRadius(archetypeChunk, index, center, radiusSquared)) {
+                        return;
+                    }
+
+                    removedEntities.incrementAndGet(REMOVED_ORPHAN_VISUAL_ENTITIES);
+                    commandBuffer.removeEntity(archetypeChunk.getReferenceTo(index),
+                        RemoveReason.REMOVE);
+                });
+        }
 
         ComponentType<EntityStore, PhysicsControlSessionComponent> controlSessionType =
             controlSessionTypeOrNull();
@@ -294,7 +313,9 @@ public class CleanCommand extends AbstractWorldCommand {
             removedBodies++;
         }
 
-        return new RadiusCleanResult(removedEntities, removedBodies);
+        return new RadiusCleanResult(removedEntities,
+            skippedProjectionCleanup,
+            removedBodies);
     }
 
     private static void sendCleanRadiusResult(@Nonnull World world,
@@ -328,7 +349,11 @@ public class CleanCommand extends AbstractWorldCommand {
         float radius,
         @Nonnull String worldName) {
         AtomicIntegerArray removedEntities = result.removedEntities();
-        context.sendMessage(Message.raw("Removed " + removedEntities.get(REMOVED_ATTACHMENT_ENTITIES)
+        String prefix = result.skippedProjectionCleanup()
+            ? "Impulse PhysicsEntity integration is not available; skipped EntityStore attachment/proxy cleanup. "
+            : "";
+        context.sendMessage(Message.raw(prefix + "Removed "
+            + removedEntities.get(REMOVED_ATTACHMENT_ENTITIES)
             + " Impulse-owned attachment entities, "
             + removedEntities.get(DETACHED_EXTERNAL_ATTACHMENTS)
             + " detached external attachments, "
@@ -437,6 +462,7 @@ public class CleanCommand extends AbstractWorldCommand {
     }
 
     private record RadiusCleanResult(@Nonnull AtomicIntegerArray removedEntities,
+                                     boolean skippedProjectionCleanup,
                                      int removedBodies) {
     }
 

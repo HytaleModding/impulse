@@ -21,6 +21,7 @@ import dev.hytalemodding.impulse.core.plugin.components.JointComponent;
 import dev.hytalemodding.impulse.core.plugin.components.TargetComponent;
 import dev.hytalemodding.impulse.core.plugin.modules.control.ImpulseControllableComponent;
 import dev.hytalemodding.impulse.core.plugin.modules.control.PhysicsControlSessions;
+import dev.hytalemodding.impulse.core.plugin.modules.physicsentity.PhysicsEntityAttachments;
 import dev.hytalemodding.impulse.core.plugin.modules.physicsentity.components.BodyAttachmentComponent;
 import dev.hytalemodding.impulse.core.plugin.physicsstore.BodyEntityDescriptor;
 import dev.hytalemodding.impulse.core.plugin.physicsstore.PhysicsBodyEntities;
@@ -816,6 +817,7 @@ public final class ExamplePhysicsUtils {
         @Nonnull UUID bodyUuid,
         @Nonnull Vector3d visualPosition,
         @Nullable String blockType) {
+        requirePhysicsEntityVisuals();
         Holder<EntityStore> holder = blockEntityHolder(time, blockType, visualPosition);
         holder.addComponent(BodyAttachmentComponent.getComponentType(),
             BodyAttachmentComponent.externalEntity(bodyUuid));
@@ -849,6 +851,7 @@ public final class ExamplePhysicsUtils {
         @Nonnull Quaternionf localRotationOffset,
         float visualOriginOffsetY,
         boolean controllable) {
+        requirePhysicsEntityVisuals();
         Holder<EntityStore> holder = blockEntityHolder(time, blockType, visualPosition);
         holder.addComponent(BodyAttachmentComponent.getComponentType(),
             BodyAttachmentComponent.impulseOwnedVisual(physicsBodyUuid,
@@ -867,6 +870,14 @@ public final class ExamplePhysicsUtils {
         @Nullable String blockType,
         @Nonnull Vector3d visualPosition) {
         return ExampleBlockEntityVisuals.impulseOwnedBlockVisual(time, blockType, visualPosition);
+    }
+
+    private static void requirePhysicsEntityVisuals() {
+        if (!PhysicsEntityAttachments.isAvailable()) {
+            throw new IllegalStateException(
+                "Impulse PhysicsEntity integration is not available. "
+                    + "Enable HytaleModding:ImpulsePhysicsEntity to spawn entity-backed example visuals.");
+        }
     }
 
     public static int optionalInt(@Nonnull CommandContext ctx,
