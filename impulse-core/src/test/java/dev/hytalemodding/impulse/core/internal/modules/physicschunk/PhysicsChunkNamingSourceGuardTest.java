@@ -49,6 +49,8 @@ class PhysicsChunkNamingSourceGuardTest {
                     file + " should use PhysicsChunkTerrain names");
                 assertFalse(source.contains("import dev.hytalemodding.impulse.core.plugin.settings.PhysicsWorldCollisionSettings"),
                     file + " should use PhysicsChunkTerrainSettings");
+                assertFalse(source.contains("import dev.hytalemodding.impulse.core.plugin.settings.PhysicsCollisionLodSettings"),
+                    file + " should use PhysicsChunk settings");
             }
         }
     }

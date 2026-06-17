@@ -213,6 +213,40 @@ class PhysicsSpaceSettingsTest {
     }
 
     @Test
+    void deprecatedCollisionLodSettingsAliasCopiesCanonicalAndAliasValues() {
+        dev.hytalemodding.impulse.core.plugin.modules.physicschunk.settings
+            .PhysicsCollisionLodSettings canonical =
+            new dev.hytalemodding.impulse.core.plugin.modules.physicschunk.settings
+                .PhysicsCollisionLodSettings();
+
+        canonical.setCollisionLodEnabled(true);
+        canonical.setCollisionLodRadii(24, 96);
+        canonical.setCollisionLodHysteresis(6);
+        canonical.setCollisionLodRefreshIntervalTicks(8);
+        canonical.setCollisionLodFarSleepEnabled(false);
+
+        PhysicsCollisionLodSettings canonicalCopy =
+            new PhysicsCollisionLodSettings(canonical);
+        PhysicsCollisionLodSettings aliasCopy =
+            new PhysicsCollisionLodSettings(canonicalCopy);
+        canonical.setCollisionLodRadii(32, 128);
+        canonicalCopy.setCollisionLodRadii(40, 160);
+
+        assertTrue(canonicalCopy.isCollisionLodEnabled());
+        assertEquals(40, canonicalCopy.getCollisionLodNearRadius());
+        assertEquals(160, canonicalCopy.getCollisionLodMidRadius());
+        assertEquals(6, canonicalCopy.getCollisionLodHysteresis());
+        assertEquals(8, canonicalCopy.getCollisionLodRefreshIntervalTicks());
+        assertFalse(canonicalCopy.isCollisionLodFarSleepEnabled());
+        assertTrue(aliasCopy.isCollisionLodEnabled());
+        assertEquals(24, aliasCopy.getCollisionLodNearRadius());
+        assertEquals(96, aliasCopy.getCollisionLodMidRadius());
+        assertEquals(6, aliasCopy.getCollisionLodHysteresis());
+        assertEquals(8, aliasCopy.getCollisionLodRefreshIntervalTicks());
+        assertFalse(aliasCopy.isCollisionLodFarSleepEnabled());
+    }
+
+    @Test
     void extensionSettingsAreTypedAndCopyIsolated() {
         PhysicsSpaceSettings settings = PhysicsSpaceSettings.defaults();
         PhysicsBackendExtensionId extensionId = new PhysicsBackendExtensionId("test:extension");
