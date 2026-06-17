@@ -12,18 +12,18 @@ class SubPluginLifecycleGateTest {
 
     @Test
     void gateStartsDisabledAndFailsFastWithConfiguredMessage() {
-        SubPluginLifecycleGate gate = new SubPluginLifecycleGate("test module disabled");
+        SubPluginLifecycleGate gate = new SubPluginLifecycleGate("test subplugin disabled");
 
         assertFalse(gate.isEnabled());
 
         IllegalStateException exception = assertThrows(IllegalStateException.class,
             gate::requireEnabled);
-        assertEquals("test module disabled", exception.getMessage());
+        assertEquals("test subplugin disabled", exception.getMessage());
     }
 
     @Test
     void generationChangesOnEnableAndDisableTransitions() {
-        SubPluginLifecycleGate gate = new SubPluginLifecycleGate("test module disabled");
+        SubPluginLifecycleGate gate = new SubPluginLifecycleGate("test subplugin disabled");
         long initialGeneration = gate.generation();
 
         gate.enable();
@@ -43,7 +43,7 @@ class SubPluginLifecycleGateTest {
 
     @Test
     void disableRunsCleanupCallbacksOnlyWhenTransitioningFromEnabled() {
-        SubPluginLifecycleGate gate = new SubPluginLifecycleGate("test module disabled");
+        SubPluginLifecycleGate gate = new SubPluginLifecycleGate("test subplugin disabled");
         AtomicInteger cleanupCount = new AtomicInteger();
         gate.onDisable(cleanupCount::incrementAndGet);
 

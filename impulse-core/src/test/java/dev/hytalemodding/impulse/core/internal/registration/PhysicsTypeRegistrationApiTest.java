@@ -19,7 +19,8 @@ import org.junit.jupiter.api.Test;
 class PhysicsTypeRegistrationApiTest {
 
     @Test
-    void internalRegistriesOwnRegistrationWithoutPublicTypeSetters() throws NoSuchMethodException {
+    void internalRegistriesOwnRegistrationAndLifecycleWithoutPublicMutators()
+        throws NoSuchMethodException {
         assertNotNull(PhysicsComponentTypeRegistry.class.getDeclaredMethod("registerComponentTypes",
             ComponentRegistryProxy.class));
         assertNotNull(ControlTypeRegistry.class.getDeclaredMethod("registerComponentTypes",
@@ -33,8 +34,7 @@ class PhysicsTypeRegistrationApiTest {
         assertFalse(hasPublicRegistrationMethod(PhysicsComponentTypes.class));
         assertFalse(hasPublicRegistrationMethod(PhysicsEntityTypes.class));
         assertFalse(hasPublicRegistrationMethod(ImpulseControllableComponent.class));
-        assertFalse(hasPublicMethodNamed(PhysicsChunkTerrain.class, "enableModule"));
-        assertFalse(hasPublicMethodNamed(PhysicsChunkTerrain.class, "disableModule"));
+        assertFalse(hasPublicLifecycleMutator(PhysicsChunkTerrain.class));
     }
 
     private static boolean hasPublicSetter(Class<?> type) {
@@ -58,5 +58,12 @@ class PhysicsTypeRegistrationApiTest {
             .filter(method -> Modifier.isPublic(method.getModifiers()))
             .map(Method::getName)
             .anyMatch(name::equals);
+    }
+
+    private static boolean hasPublicLifecycleMutator(Class<?> type) {
+        return hasPublicMethodNamed(type, "enableModule")
+            || hasPublicMethodNamed(type, "disableModule")
+            || hasPublicMethodNamed(type, "enableSubPlugin")
+            || hasPublicMethodNamed(type, "disableSubPlugin");
     }
 }
