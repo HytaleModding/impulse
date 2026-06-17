@@ -432,11 +432,15 @@ final class ImpulseRapierBodyBenchmarkCrucibleTests {
         if (stats.detachedBodies != matrixCase.count()) {
             stops.add("detachedBodies=" + stats.detachedBodies + "!=" + matrixCase.count());
         }
+        int expectedBodies = expectedBenchmarkBodies(matrixCase);
+        if (stats.bodies != expectedBodies) {
+            stops.add("bodies=" + stats.bodies + "!=" + expectedBodies);
+        }
         int expectedSubsteps = step.getTickSamples() * matrixCase.fixedSubsteps();
         if (step.getTickSamples() > 0 && step.getSubsteps() != expectedSubsteps) {
             stops.add("substeps=" + step.getSubsteps() + "!=" + expectedSubsteps);
         }
-        int expectedSnapshots = step.getTickSamples() * matrixCase.count();
+        int expectedSnapshots = step.getTickSamples() * expectedBodies;
         if (step.getTickSamples() > 0 && step.getBodySnapshots() != expectedSnapshots) {
             stops.add("bodySnapshots=" + step.getBodySnapshots() + "!=" + expectedSnapshots);
         }
@@ -480,6 +484,10 @@ final class ImpulseRapierBodyBenchmarkCrucibleTests {
             return new MatrixHealth(MatrixStatus.WARN, String.join("; ", warnings));
         }
         return new MatrixHealth(MatrixStatus.PASS, "within gates");
+    }
+
+    private static int expectedBenchmarkBodies(@Nonnull MatrixCase matrixCase) {
+        return matrixCase.count() + 1;
     }
 
     private static void logComparison(@Nonnull List<MatrixReport> reports) {

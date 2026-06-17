@@ -22,6 +22,7 @@ import dev.hytalemodding.impulse.core.plugin.physicsstore.BodyEntityDescriptor;
 import dev.hytalemodding.impulse.core.plugin.physicsstore.PhysicsBodyEntities;
 import dev.hytalemodding.impulse.core.plugin.physicsstore.PhysicsDiagnostics;
 import dev.hytalemodding.impulse.core.plugin.physicsstore.PhysicsEntities;
+import dev.hytalemodding.impulse.core.plugin.physicsstore.PhysicsThreading;
 import dev.hytalemodding.impulse.core.plugin.simulation.PhysicsShapeSpec;
 import dev.hytalemodding.impulse.core.plugin.simulation.RigidBodySpawnSettings;
 import dev.hytalemodding.impulse.core.plugin.settings.PhysicsBackendExtensionId;
@@ -35,6 +36,7 @@ import java.util.List;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
+import java.util.function.Function;
 import javax.annotation.Nonnull;
 import org.joml.Vector3f;
 
@@ -181,8 +183,7 @@ final class ImpulseApiCrucibleTests {
     }
 
     private static CompletionStage<Boolean> spaceCountRoundTrip(@Nonnull CrucibleContext context) {
-        try {
-            World world = context.world();
+        return callWhenPhysicsStoreIdle(context, "run Crucible space count round trip", world -> {
             PhysicsWorldResource resource = physicsResource(world);
             Store<PhysicsStore> store = physicsStore(world);
             int previousCount = resource.getSpaceCount();
@@ -190,17 +191,13 @@ final class ImpulseApiCrucibleTests {
                 "crucible",
                 PhysicsSpaceSettings.defaults());
             PhysicsStoreSpaceMutations.removeEmptySpace(store, spaceId);
-            return CompletableFuture.completedFuture(resource.getSpaceCount() == previousCount
-                && !resource.hasSpace(spaceId));
-        } catch (ReflectiveOperationException e) {
-            return CompletableFuture.failedFuture(e);
-        }
+            return resource.getSpaceCount() == previousCount && !resource.hasSpace(spaceId);
+        });
     }
 
     private static CompletionStage<Boolean> createdExplicitSpaceLifecycleWorks(
         @Nonnull CrucibleContext context) {
-        try {
-            World world = context.world();
+        return callWhenPhysicsStoreIdle(context, "run Crucible explicit space lifecycle", world -> {
             PhysicsWorldResource resource = physicsResource(world);
             Store<PhysicsStore> store = physicsStore(world);
             SpaceId spaceId = resource.createSpace(CrucibleBackends.requireBackendId(),
@@ -210,10 +207,8 @@ final class ImpulseApiCrucibleTests {
                 && resource.getSpaceSettings(spaceId).getWorldCollisionSettings().getWorldCollisionMode()
                 == WorldCollisionMode.STREAMING;
             PhysicsStoreSpaceMutations.removeEmptySpace(store, spaceId);
-            return CompletableFuture.completedFuture(registered && !resource.hasSpace(spaceId));
-        } catch (ReflectiveOperationException e) {
-            return CompletableFuture.failedFuture(e);
-        }
+            return registered && !resource.hasSpace(spaceId);
+        });
     }
 
     private static CompletionStage<Boolean> clearPopulatedSpaces(
@@ -229,26 +224,51 @@ final class ImpulseApiCrucibleTests {
     private static CompletionStage<Boolean> populatedBodyCleanup(
         @Nonnull CrucibleContext context,
         boolean checkSpaceRemoval) {
-        try {
-            World world = context.world();
+        return createPopulatedBodyCleanupState(context)
+            .thenCompose(state -> waitApproxTicksOnWorld(context, 4)
+                .thenCompose(_ -> removeBodyEntityAndWait(context, state.store(), state.bodyRef()))
+                .thenCompose(_ -> PhysicsDiagnostics.bodyCountAsync(state.store(), state.spaceId()))
+                .thenCompose(bodyCount -> PhysicsThreading.callWhenBackendIdleOnWorldThread(
+                    state.world(),
+                    "check Crucible body cleanup",
+                    _ -> {
+                        PhysicsWorldResource resource = physicsResource(state.world());
+                        boolean spaceEmpty = bodyCount == 0;
+                        boolean noRegistrations = resource.getBodyRegistrationViews().isEmpty();
+                        boolean removedSpace = true;
+                        if (checkSpaceRemoval || spaceEmpty) {
+                            PhysicsStoreSpaceMutations.removeEmptySpace(
+                                state.store(),
+                                state.spaceId());
+                            removedSpace = !resource.hasSpace(state.spaceId());
+                        }
+                        return spaceEmpty && noRegistrations && removedSpace;
+                    })));
+    }
+
+    private static CompletionStage<PopulatedBodyCleanupState> createPopulatedBodyCleanupState(
+        @Nonnull CrucibleContext context) {
+        return callWhenPhysicsStoreIdle(context, "create Crucible body cleanup state", world -> {
             PhysicsWorldResource resource = physicsResource(world);
             Store<PhysicsStore> store = physicsStore(world);
             SpaceId spaceId = resource.createSpace(CrucibleBackends.requireBackendId(),
                 "crucible",
                 PhysicsSpaceSettings.defaults());
             Ref<PhysicsStore> bodyRef = addCrucibleBox(store, spaceId, UUID.randomUUID());
-            return context.waitApproxTicksOnWorld(4)
-                .thenCompose(_ -> removeBodyEntityAndWait(context, store, bodyRef))
-                .thenApply(_ -> {
-                    boolean spaceEmpty = PhysicsDiagnostics.bodyCount(store, spaceId) == 0;
-                    boolean noRegistrations = resource.getBodyRegistrationViews().isEmpty();
-                    boolean removedSpace = true;
-                    if (checkSpaceRemoval || spaceEmpty) {
-                        PhysicsStoreSpaceMutations.removeEmptySpace(store, spaceId);
-                        removedSpace = !resource.hasSpace(spaceId);
-                    }
-                    return spaceEmpty && noRegistrations && removedSpace;
-                });
+            return new PopulatedBodyCleanupState(world, store, spaceId, bodyRef);
+        });
+    }
+
+    @Nonnull
+    private static <T> CompletionStage<T> callWhenPhysicsStoreIdle(
+        @Nonnull CrucibleContext context,
+        @Nonnull String operation,
+        @Nonnull Function<World, T> action) {
+        try {
+            World world = context.world();
+            return PhysicsThreading.callWhenBackendIdleOnWorldThread(world,
+                operation,
+                _ -> action.apply(world));
         } catch (ReflectiveOperationException e) {
             return CompletableFuture.failedFuture(e);
         }
@@ -257,11 +277,20 @@ final class ImpulseApiCrucibleTests {
     private static CompletionStage<Void> removeBodyEntityAndWait(@Nonnull CrucibleContext context,
         @Nonnull Store<PhysicsStore> store,
         @Nonnull Ref<PhysicsStore> bodyRef) {
-        if (bodyRef.isValid()) {
-            store.removeEntity(bodyRef, store.getRegistry().newHolder(), RemoveReason.REMOVE);
-        }
+        return PhysicsThreading.executeOnWorldThread(PhysicsThreading.world(store),
+            "remove Crucible body entity",
+            _ -> {
+                if (bodyRef.isValid()) {
+                    store.removeEntity(bodyRef, store.getRegistry().newHolder(), RemoveReason.REMOVE);
+                }
+            })
+            .thenCompose(_ -> waitApproxTicksOnWorld(context, 4));
+    }
+
+    private static CompletionStage<Void> waitApproxTicksOnWorld(@Nonnull CrucibleContext context,
+        int ticks) {
         try {
-            return context.waitApproxTicksOnWorld(4);
+            return context.waitApproxTicksOnWorld(ticks);
         } catch (ReflectiveOperationException e) {
             return CompletableFuture.failedFuture(e);
         }
@@ -292,51 +321,17 @@ final class ImpulseApiCrucibleTests {
     }
 
     private static CompletionStage<Boolean> settingsRoundTrip(@Nonnull CrucibleContext context) {
-        World world;
-        try {
-            world = context.world();
-        } catch (ReflectiveOperationException e) {
-            return CompletableFuture.failedFuture(e);
-        }
-        PhysicsWorldResource resource = physicsResource(world);
-        Store<PhysicsStore> store = physicsStore(world);
-        PhysicsSpaceSettings settings = PhysicsSpaceSettings.defaults();
-        settings.getWorldCollisionSettings().setWorldCollisionMode(WorldCollisionMode.STREAMING);
-        settings.getWorldCollisionSettings().setWorldCollisionRadius(9);
-        settings.getWorldCollisionSettings().setWorldCollisionBodyRadius(5);
-        settings.getWorldCollisionSettings().setWorldCollisionTtlTicks(77);
-        settings.getVisualSyncSettings().setVisualMaxSyncRadius(96);
-        settings.getVisualSyncSettings().setVisualFullSyncRadius(48);
-        settings.getVisualSyncSettings().setVisualFarSyncCutoffEnabled(false);
-        settings.getVisualSyncSettings().setVisualMidSyncIntervalTicks(3);
-        settings.getVisualSyncSettings().setVisualFarSyncIntervalTicks(17);
-        settings.getVisualSyncSettings().setVisualOcclusionMode(VisualOcclusionMode.PRIORITY);
-        settings.getVisualSyncSettings().setVisualOcclusionRaycastsPerTick(31);
-        settings.getVisualSyncSettings().setVisualOcclusionCacheTicks(7);
-        settings.getSolverSettings().setSolverIterations(5);
-        settings.getSolverSettings().setStabilizationIterations(1);
-        settings.getExtensionSettings().setInt(RAPIER_SOLVER_EXTENSION_ID,
-            RAPIER_INTERNAL_PGS_ITERATIONS,
-            2);
-        settings.getExtensionSettings().setInt(RAPIER_SOLVER_EXTENSION_ID,
-            RAPIER_MIN_ISLAND_SIZE,
-            64);
-        settings.getVisualSyncSettings().setEntityVisualSyncCullingEnabled(true);
-        settings.getVisualSyncSettings().setVisualVisibilityCullingEnabled(true);
-        settings.getVisualMaterializationSettings().setDetachedVisualMaterializationEnabled(true);
-        settings.getVisualMaterializationSettings().setDetachedVisualDematerializationRadius(72);
-        settings.getVisualMaterializationSettings().setDetachedVisualMaterializationRadius(48);
-        settings.getVisualMaterializationSettings().setDetachedVisualMaxSpawnsPerTick(33);
-        settings.getVisualMaterializationSettings().setDetachedVisualMaxMaterialized(444);
-        settings.getVisualMaterializationSettings().setDetachedVisualBlockType("Rock_Stone");
+        PhysicsSpaceSettings settings = populatedSettings();
 
-        SpaceId spaceId = resource.createSpace(CrucibleBackends.requireBackendId(),
-            "crucible",
-            settings);
-        try {
-            PhysicsSpaceSettings copy = resource.getSpaceSettings(spaceId);
-            boolean roundTrip =
-                copy.getWorldCollisionSettings().getWorldCollisionMode() == WorldCollisionMode.STREAMING
+        return callWhenPhysicsStoreIdle(context, "run Crucible settings round trip", world -> {
+            PhysicsWorldResource resource = physicsResource(world);
+            Store<PhysicsStore> store = physicsStore(world);
+            SpaceId spaceId = resource.createSpace(CrucibleBackends.requireBackendId(),
+                "crucible",
+                settings);
+            try {
+                PhysicsSpaceSettings copy = resource.getSpaceSettings(spaceId);
+                return copy.getWorldCollisionSettings().getWorldCollisionMode() == WorldCollisionMode.STREAMING
                 && copy.getWorldCollisionSettings().getWorldCollisionRadius() == 9
                 && copy.getWorldCollisionSettings().getWorldCollisionBodyRadius() == 5
                 && copy.getWorldCollisionSettings().getWorldCollisionTtlTicks() == 77
@@ -366,10 +361,44 @@ final class ImpulseApiCrucibleTests {
                 && copy.getVisualMaterializationSettings().getDetachedVisualMaxSpawnsPerTick() == 33
                 && copy.getVisualMaterializationSettings().getDetachedVisualMaxMaterialized() == 444
                 && "Rock_Stone".equals(copy.getVisualMaterializationSettings().getDetachedVisualBlockType());
-            return CompletableFuture.completedFuture(roundTrip);
-        } finally {
-            PhysicsStoreSpaceMutations.removeEmptySpace(store, spaceId);
-        }
+            } finally {
+                PhysicsStoreSpaceMutations.removeEmptySpace(store, spaceId);
+            }
+        });
+    }
+
+    @Nonnull
+    private static PhysicsSpaceSettings populatedSettings() {
+        PhysicsSpaceSettings settings = PhysicsSpaceSettings.defaults();
+        settings.getWorldCollisionSettings().setWorldCollisionMode(WorldCollisionMode.STREAMING);
+        settings.getWorldCollisionSettings().setWorldCollisionRadius(9);
+        settings.getWorldCollisionSettings().setWorldCollisionBodyRadius(5);
+        settings.getWorldCollisionSettings().setWorldCollisionTtlTicks(77);
+        settings.getVisualSyncSettings().setVisualMaxSyncRadius(96);
+        settings.getVisualSyncSettings().setVisualFullSyncRadius(48);
+        settings.getVisualSyncSettings().setVisualFarSyncCutoffEnabled(false);
+        settings.getVisualSyncSettings().setVisualMidSyncIntervalTicks(3);
+        settings.getVisualSyncSettings().setVisualFarSyncIntervalTicks(17);
+        settings.getVisualSyncSettings().setVisualOcclusionMode(VisualOcclusionMode.PRIORITY);
+        settings.getVisualSyncSettings().setVisualOcclusionRaycastsPerTick(31);
+        settings.getVisualSyncSettings().setVisualOcclusionCacheTicks(7);
+        settings.getSolverSettings().setSolverIterations(5);
+        settings.getSolverSettings().setStabilizationIterations(1);
+        settings.getExtensionSettings().setInt(RAPIER_SOLVER_EXTENSION_ID,
+            RAPIER_INTERNAL_PGS_ITERATIONS,
+            2);
+        settings.getExtensionSettings().setInt(RAPIER_SOLVER_EXTENSION_ID,
+            RAPIER_MIN_ISLAND_SIZE,
+            64);
+        settings.getVisualSyncSettings().setEntityVisualSyncCullingEnabled(true);
+        settings.getVisualSyncSettings().setVisualVisibilityCullingEnabled(true);
+        settings.getVisualMaterializationSettings().setDetachedVisualMaterializationEnabled(true);
+        settings.getVisualMaterializationSettings().setDetachedVisualDematerializationRadius(72);
+        settings.getVisualMaterializationSettings().setDetachedVisualMaterializationRadius(48);
+        settings.getVisualMaterializationSettings().setDetachedVisualMaxSpawnsPerTick(33);
+        settings.getVisualMaterializationSettings().setDetachedVisualMaxMaterialized(444);
+        settings.getVisualMaterializationSettings().setDetachedVisualBlockType("Rock_Stone");
+        return settings;
     }
 
     private static PhysicsWorldResource physicsResource(@Nonnull World world) {
@@ -379,6 +408,12 @@ final class ImpulseApiCrucibleTests {
 
     private static Store<PhysicsStore> physicsStore(@Nonnull World world) {
         return PhysicsStoreCrucibleSupport.physicsStore(world);
+    }
+
+    private record PopulatedBodyCleanupState(@Nonnull World world,
+                                             @Nonnull Store<PhysicsStore> store,
+                                             @Nonnull SpaceId spaceId,
+                                             @Nonnull Ref<PhysicsStore> bodyRef) {
     }
 
     private static boolean stepSpaceDoesNotThrow() {
