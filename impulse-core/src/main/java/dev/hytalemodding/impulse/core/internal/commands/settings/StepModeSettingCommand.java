@@ -14,10 +14,10 @@ import com.hypixel.hytale.server.core.universe.world.storage.PhysicsStore;
 import dev.hytalemodding.impulse.core.plugin.physicsstore.PhysicsDiagnostics;
 import dev.hytalemodding.impulse.core.plugin.physicsstore.PhysicsAsync;
 import dev.hytalemodding.impulse.core.plugin.physicsstore.PhysicsWorlds;
+import dev.hytalemodding.impulse.core.plugin.physicsstore.PhysicsThreading;
 import dev.hytalemodding.impulse.core.plugin.settings.PhysicsStepMode;
 import dev.hytalemodding.impulse.core.plugin.settings.PhysicsWorldSettings;
 import dev.hytalemodding.impulse.core.plugin.simulation.SpaceSummary;
-import dev.hytalemodding.impulse.early.PhysicsStoreWorld;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import javax.annotation.Nonnull;
@@ -40,7 +40,7 @@ public class StepModeSettingCommand extends AbstractAsyncPlayerCommand {
         @Nonnull Ref<EntityStore> ref,
         @Nonnull PlayerRef playerRef,
         @Nonnull World world) {
-        Store<PhysicsStore> physicsStore = ((PhysicsStoreWorld) world).getPhysicsStore().getStore();
+        Store<PhysicsStore> physicsStore = PhysicsThreading.store(world);
         if (!modeArg.provided(ctx)) {
             ctx.sender().sendMessage(Message.raw("Impulse step mode: "
                 + PhysicsWorlds.settings(physicsStore).getStepMode().getSerializedName()));

@@ -8,7 +8,6 @@ import com.hypixel.hytale.server.core.command.system.arguments.system.OptionalAr
 import com.hypixel.hytale.server.core.universe.world.World;
 import com.hypixel.hytale.server.core.universe.world.storage.PhysicsStore;
 import dev.hytalemodding.impulse.api.SpaceId;
-import dev.hytalemodding.impulse.early.PhysicsStoreWorld;
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsIdentityIndexResource;
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsSpaceCompatibilityIndexResource;
 import dev.hytalemodding.impulse.core.plugin.physicsstore.PhysicsThreading;
@@ -103,9 +102,7 @@ public final class SpaceSelection {
 
     @Nonnull
     private static Store<PhysicsStore> store(@Nonnull World world) {
-        Store<PhysicsStore> store = ((PhysicsStoreWorld) Objects.requireNonNull(world, "world"))
-            .getPhysicsStore()
-            .getStore();
+        Store<PhysicsStore> store = PhysicsThreading.store(world);
         PhysicsThreading.requireWorldThread(store, "select a PhysicsStore space");
         return store;
     }

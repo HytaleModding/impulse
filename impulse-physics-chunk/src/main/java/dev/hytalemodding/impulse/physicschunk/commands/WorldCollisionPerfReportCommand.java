@@ -18,8 +18,8 @@ import dev.hytalemodding.impulse.core.plugin.modules.physicschunk.PhysicsWorldCo
 import dev.hytalemodding.impulse.core.plugin.physicsstore.PhysicsDiagnostics;
 import dev.hytalemodding.impulse.core.plugin.physicsstore.PhysicsAsync;
 import dev.hytalemodding.impulse.core.plugin.physicsstore.PhysicsWorlds;
+import dev.hytalemodding.impulse.core.plugin.physicsstore.PhysicsThreading;
 import dev.hytalemodding.impulse.core.plugin.simulation.SpaceSummary;
-import dev.hytalemodding.impulse.early.PhysicsStoreWorld;
 import java.util.List;
 import java.util.Locale;
 import java.util.concurrent.CompletableFuture;
@@ -62,7 +62,7 @@ public class WorldCollisionPerfReportCommand extends AbstractAsyncWorldCommand {
         var latest = profiling.latest();
         var worst = profiling.worst();
         PhysicsEntityDiagnostics.Snapshot entityDiagnostics = PhysicsEntityDiagnostics.collect(store);
-        Store<PhysicsStore> physicsStore = ((PhysicsStoreWorld) world).getPhysicsStore().getStore();
+        Store<PhysicsStore> physicsStore = PhysicsThreading.store(world);
         RuntimeFootprint runtimeFootprint = RuntimeFootprint.collect(summaries);
 
         ctx.sender().sendMessage(Message.raw("Impulse runtime profiling: "

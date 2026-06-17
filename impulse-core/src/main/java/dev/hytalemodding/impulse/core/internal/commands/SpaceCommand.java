@@ -21,11 +21,11 @@ import dev.hytalemodding.impulse.core.plugin.physicsstore.PhysicsDiagnostics;
 import dev.hytalemodding.impulse.core.plugin.physicsstore.PhysicsAsync;
 import dev.hytalemodding.impulse.core.plugin.physicsstore.PhysicsBodies;
 import dev.hytalemodding.impulse.core.plugin.physicsstore.PhysicsSpaces;
+import dev.hytalemodding.impulse.core.plugin.physicsstore.PhysicsThreading;
 import dev.hytalemodding.impulse.core.plugin.modules.physicschunk.PhysicsWorldCollision;
 import dev.hytalemodding.impulse.core.plugin.modules.physicschunk.WorldCollisionMode;
 import dev.hytalemodding.impulse.core.plugin.settings.PhysicsSpaceSettings;
 import dev.hytalemodding.impulse.core.plugin.simulation.SpaceSummary;
-import dev.hytalemodding.impulse.early.PhysicsStoreWorld;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
@@ -79,7 +79,7 @@ public class SpaceCommand extends AbstractCommandCollection {
                 : PhysicsSpaceSettings.defaults();
             settings.getWorldCollisionSettings().setWorldCollisionMode(worldCollisionMode);
 
-            Store<PhysicsStore> physicsStore = ((PhysicsStoreWorld) world).getPhysicsStore().getStore();
+            Store<PhysicsStore> physicsStore = PhysicsThreading.store(world);
             try {
                 Impulse.getRuntimeProvider(backendId);
                 SpaceId spaceId = PhysicsSpaces.create(physicsStore, backendId, settings);
@@ -105,7 +105,7 @@ public class SpaceCommand extends AbstractCommandCollection {
         @Override
         protected CompletableFuture<Void> executeAsync(@Nonnull CommandContext context,
             @Nonnull World world) {
-            Store<PhysicsStore> physicsStore = ((PhysicsStoreWorld) world).getPhysicsStore().getStore();
+            Store<PhysicsStore> physicsStore = PhysicsThreading.store(world);
             return PhysicsAsync.acceptOnWorldThread(world,
                 PhysicsDiagnostics.spaceSummariesAsync(world),
                 summaries -> sendSpaces(context, world, physicsStore, summaries));
@@ -169,7 +169,7 @@ public class SpaceCommand extends AbstractCommandCollection {
                 return CompletableFuture.completedFuture(null);
             }
 
-            Store<PhysicsStore> physicsStore = ((PhysicsStoreWorld) world).getPhysicsStore().getStore();
+            Store<PhysicsStore> physicsStore = PhysicsThreading.store(world);
             SpaceSelection.SelectedSpace selectedSpace = SpaceSelection.resolveStoreSpace(context,
                 world,
                 spaceArg);

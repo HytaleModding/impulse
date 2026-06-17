@@ -12,9 +12,9 @@ import com.hypixel.hytale.server.core.universe.world.World;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import com.hypixel.hytale.server.core.universe.world.storage.PhysicsStore;
 import dev.hytalemodding.impulse.core.plugin.physicsstore.PhysicsWorlds;
+import dev.hytalemodding.impulse.core.plugin.physicsstore.PhysicsThreading;
 import dev.hytalemodding.impulse.core.plugin.settings.PhysicsStepMode;
 import dev.hytalemodding.impulse.core.plugin.settings.PhysicsWorldSettings;
-import dev.hytalemodding.impulse.early.PhysicsStoreWorld;
 import java.util.concurrent.CompletableFuture;
 import javax.annotation.Nonnull;
 
@@ -36,7 +36,7 @@ public class SimulationStepsSettingCommand extends AbstractAsyncPlayerCommand {
         @Nonnull Ref<EntityStore> ref,
         @Nonnull PlayerRef playerRef,
         @Nonnull World world) {
-        Store<PhysicsStore> physicsStore = ((PhysicsStoreWorld) world).getPhysicsStore().getStore();
+        Store<PhysicsStore> physicsStore = PhysicsThreading.store(world);
         PhysicsWorldSettings settings = PhysicsWorlds.settings(physicsStore);
         PhysicsStepMode stepMode = settings.getStepMode();
         if (!stepsArg.provided(ctx)) {

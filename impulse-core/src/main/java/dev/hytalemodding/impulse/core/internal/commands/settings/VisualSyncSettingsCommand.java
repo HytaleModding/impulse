@@ -14,10 +14,10 @@ import com.hypixel.hytale.server.core.universe.world.storage.PhysicsStore;
 import dev.hytalemodding.impulse.api.SpaceId;
 import dev.hytalemodding.impulse.core.internal.commands.SpaceSelection;
 import dev.hytalemodding.impulse.core.plugin.physicsstore.PhysicsSpaces;
+import dev.hytalemodding.impulse.core.plugin.physicsstore.PhysicsThreading;
 import dev.hytalemodding.impulse.core.plugin.settings.PhysicsSpaceSettings;
 import dev.hytalemodding.impulse.core.plugin.settings.PhysicsVisualSyncSettings;
 import dev.hytalemodding.impulse.core.plugin.settings.VisualOcclusionMode;
-import dev.hytalemodding.impulse.early.PhysicsStoreWorld;
 import java.util.Locale;
 import java.util.concurrent.CompletableFuture;
 import javax.annotation.Nonnull;
@@ -112,7 +112,7 @@ public class VisualSyncSettingsCommand extends AbstractAsyncPlayerCommand {
         @Nonnull Ref<EntityStore> ref,
         @Nonnull PlayerRef playerRef,
         @Nonnull World world) {
-        Store<PhysicsStore> physicsStore = ((PhysicsStoreWorld) world).getPhysicsStore().getStore();
+        Store<PhysicsStore> physicsStore = PhysicsThreading.store(world);
         SpaceSelection.SelectedSpace selectedSpace = SpaceSelection.resolveStoreSpace(ctx,
             world,
             spaceArg);

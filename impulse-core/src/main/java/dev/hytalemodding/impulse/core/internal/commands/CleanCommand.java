@@ -15,7 +15,6 @@ import com.hypixel.hytale.server.core.modules.entity.component.TransformComponen
 import com.hypixel.hytale.server.core.universe.world.World;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import com.hypixel.hytale.server.core.universe.world.storage.PhysicsStore;
-import dev.hytalemodding.impulse.early.PhysicsStoreWorld;
 import dev.hytalemodding.impulse.core.internal.modules.control.components.PhysicsControlSessionComponent;
 import dev.hytalemodding.impulse.core.internal.modules.control.systems.PhysicsControlSessionCleanup;
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsRuntimeResetResult;
@@ -205,7 +204,7 @@ public class CleanCommand extends AbstractWorldCommand {
             return;
         }
 
-        Store<PhysicsStore> physicsStore = ((PhysicsStoreWorld) world).getPhysicsStore().getStore();
+        Store<PhysicsStore> physicsStore = PhysicsThreading.store(world);
         SelectedBodies selectedBodies = selectBodiesNear(physicsStore, center, radius);
         double radiusSquared = (double) radius * radius;
         CompletionStage<RadiusCleanResult> clean = PhysicsThreading.callWhenBackendIdleOnWorldThread(world,

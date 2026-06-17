@@ -15,9 +15,9 @@ import dev.hytalemodding.impulse.core.internal.commands.SpaceSelection;
 import dev.hytalemodding.impulse.core.plugin.physicsstore.PhysicsDiagnostics;
 import dev.hytalemodding.impulse.core.plugin.physicsstore.PhysicsAsync;
 import dev.hytalemodding.impulse.core.plugin.physicsstore.PhysicsSpaces;
+import dev.hytalemodding.impulse.core.plugin.physicsstore.PhysicsThreading;
 import dev.hytalemodding.impulse.core.plugin.settings.PhysicsSpaceSettings;
 import dev.hytalemodding.impulse.core.plugin.simulation.SolverCapabilitySummary;
-import dev.hytalemodding.impulse.early.PhysicsStoreWorld;
 import java.util.concurrent.CompletableFuture;
 import javax.annotation.Nonnull;
 
@@ -56,7 +56,7 @@ public class SolverSettingsCommand extends AbstractAsyncWorldCommand {
     @Override
     protected CompletableFuture<Void> executeAsync(@Nonnull CommandContext ctx,
         @Nonnull World world) {
-        Store<PhysicsStore> physicsStore = ((PhysicsStoreWorld) world).getPhysicsStore().getStore();
+        Store<PhysicsStore> physicsStore = PhysicsThreading.store(world);
         SpaceSelection.SelectedSpace selectedSpace = SpaceSelection.resolveStoreSpace(ctx,
             world,
             spaceArg);

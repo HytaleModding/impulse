@@ -13,9 +13,9 @@ import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import com.hypixel.hytale.server.core.universe.world.storage.PhysicsStore;
 import dev.hytalemodding.impulse.api.SpaceId;
 import dev.hytalemodding.impulse.core.plugin.physicsstore.PhysicsSpaces;
+import dev.hytalemodding.impulse.core.plugin.physicsstore.PhysicsThreading;
 import dev.hytalemodding.impulse.core.plugin.settings.PhysicsCollisionLodSettings;
 import dev.hytalemodding.impulse.core.plugin.settings.PhysicsSpaceSettings;
-import dev.hytalemodding.impulse.early.PhysicsStoreWorld;
 import java.util.Locale;
 import java.util.concurrent.CompletableFuture;
 import javax.annotation.Nonnull;
@@ -71,7 +71,7 @@ public class CollisionLodSettingsCommand extends AbstractAsyncPlayerCommand {
         @Nonnull Ref<EntityStore> ref,
         @Nonnull PlayerRef playerRef,
         @Nonnull World world) {
-        Store<PhysicsStore> physicsStore = ((PhysicsStoreWorld) world).getPhysicsStore().getStore();
+        Store<PhysicsStore> physicsStore = PhysicsThreading.store(world);
         WorldCollisionSpaceSelection.Selection selection =
             WorldCollisionSpaceSelection.resolve(ctx, world, spaceArg, physicsStore);
         if (selection == null) {
