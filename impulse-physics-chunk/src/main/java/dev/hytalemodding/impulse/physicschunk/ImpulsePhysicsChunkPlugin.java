@@ -1,4 +1,4 @@
-package dev.hytalemodding.impulse.core.plugin.modules.physicschunk;
+package dev.hytalemodding.impulse.physicschunk;
 
 import com.hypixel.hytale.component.ComponentRegistryProxy;
 import com.hypixel.hytale.logger.HytaleLogger;
@@ -6,19 +6,20 @@ import com.hypixel.hytale.server.core.plugin.JavaPlugin;
 import com.hypixel.hytale.server.core.plugin.JavaPluginInit;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import com.hypixel.hytale.server.core.universe.world.storage.PhysicsStore;
-import dev.hytalemodding.impulse.early.PhysicsStoreHooks;
-import dev.hytalemodding.impulse.core.internal.modules.physicschunk.commands.WorldCollisionCommandContributions;
-import dev.hytalemodding.impulse.core.internal.modules.physicschunk.WorldCollisionLifecycle;
 import dev.hytalemodding.impulse.core.internal.modules.physicschunk.PhysicsStoreWorldCollisionStreamingResource;
-import dev.hytalemodding.impulse.core.internal.modules.physicschunk.systems.PhysicsStoreWorldCollisionProducerSystem;
+import dev.hytalemodding.impulse.core.internal.modules.physicschunk.WorldCollisionLifecycle;
+import dev.hytalemodding.impulse.core.internal.modules.physicschunk.commands.WorldCollisionCommandContributions;
 import dev.hytalemodding.impulse.core.internal.modules.physicschunk.profiling.WorldCollisionProfilingResource;
+import dev.hytalemodding.impulse.core.internal.modules.physicschunk.systems.PhysicsStoreWorldCollisionProducerSystem;
 import dev.hytalemodding.impulse.core.internal.registration.PhysicsStoreRegistration;
-import java.util.logging.Level;
+import dev.hytalemodding.impulse.core.plugin.modules.physicschunk.PhysicsChunkTypes;
+import dev.hytalemodding.impulse.early.PhysicsStoreHooks;
 import java.util.function.Consumer;
+import java.util.logging.Level;
 import javax.annotation.Nonnull;
 
 /**
- * Subplugin that enables Impulse world collision.
+ * Plugin module that enables Impulse ChunkStore world-collision integration.
  */
 public final class ImpulsePhysicsChunkPlugin extends JavaPlugin {
 

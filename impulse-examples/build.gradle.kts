@@ -38,5 +38,5 @@ hytaleTools {
     modUrl = property("mod_website") as String
     modDescription = "Example plugins for Impulse"
     manifestServerVersion = property("hytale_version") as String
-    manifestDependencies = "HytaleModding:Impulse=*"
+    manifestDependencies = "HytaleModding:Impulse=*,HytaleModding:ImpulsePhysicsEntity=*,HytaleModding:ImpulsePhysicsChunk=*"
 }

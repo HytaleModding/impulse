@@ -1,4 +1,4 @@
-package dev.hytalemodding.impulse.core.plugin.modules.physicsentity;
+package dev.hytalemodding.impulse.physicsentity;
 
 import com.hypixel.hytale.component.ComponentRegistryProxy;
 import com.hypixel.hytale.server.core.plugin.JavaPlugin;
@@ -10,10 +10,11 @@ import dev.hytalemodding.impulse.core.internal.systems.publication.PhysicsStoreE
 import dev.hytalemodding.impulse.core.internal.systems.sync.PhysicsBodyAttachmentIndexSystem;
 import dev.hytalemodding.impulse.core.internal.systems.sync.PhysicsSyncSystem;
 import dev.hytalemodding.impulse.core.internal.systems.visual.PhysicsGeneratedProxyCleanupSystem;
+import dev.hytalemodding.impulse.core.plugin.modules.physicsentity.PhysicsEntityTypes;
 import javax.annotation.Nonnull;
 
 /**
- * Subplugin that integrates authoritative PhysicsStore bodies with EntityStore entities.
+ * Plugin module that integrates authoritative PhysicsStore bodies with EntityStore entities.
  */
 public final class ImpulsePhysicsEntityPlugin extends JavaPlugin {
 

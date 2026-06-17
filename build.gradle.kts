@@ -17,13 +17,19 @@ version = property("version") as String
 val coreOnlyWorkspace = providers.gradleProperty("impulse.coreOnlyWorkspace")
     .map(String::toBoolean)
     .orElse(false)
+val coreModProjects = listOf(
+    ":impulse-core",
+    ":impulse-physics-entity",
+    ":impulse-physics-chunk"
+)
+val workspaceModProjects = if (coreOnlyWorkspace.get()) {
+    coreModProjects
+} else {
+    listOf(":impulse-examples") + coreModProjects
+}
 
 hytaleWorkspace {
-    modProjects = if (coreOnlyWorkspace.get()) {
-        listOf(":impulse-core")
-    } else {
-        listOf(":impulse-examples", ":impulse-core")
-    }
+    modProjects = workspaceModProjects
     hostProject = if (coreOnlyWorkspace.get()) {
         ":impulse-core"
     } else {
@@ -71,9 +77,7 @@ val stagedEarlyPluginJarDirectory = layout.projectDirectory.dir("run/earlyplugin
 val physicsStoreEarlyPluginEnabled = providers.gradleProperty("impulse.physicsStoreEarlyPlugin")
     .map(String::toBoolean)
     .orElse(true)
-val hytaleToolProjectPaths = listOf(
-    ":impulse-core",
-    ":impulse-examples")
+val hytaleToolProjectPaths = workspaceModProjects
 
 gradle.projectsEvaluated {
     val hytaleAssetDownloads = hytaleToolProjectPaths
@@ -151,6 +155,8 @@ tasks.register("headlessTest") {
         ":impulse-bullet:test",
         ":impulse-rapier:test",
         ":impulse-core:test",
+        ":impulse-physics-entity:test",
+        ":impulse-physics-chunk:test",
         ":impulse-early-plugin:test"
     )
 }
@@ -168,7 +174,7 @@ gradle.projectsEvaluated {
         val runTask = this as JavaExec
         runTask.standardInput = System.`in`
 
-        // hytale-gradle 1.0.37 can omit project resources from run task classpaths.
+        // hytale-gradle can omit project resources from run task classpaths.
         val toolRuntimeClasspaths = hytaleToolProjectPaths.map { path ->
             val sourceSets = project(path).extensions.getByType<SourceSetContainer>()
             sourceSets.named("main").get().runtimeClasspath
