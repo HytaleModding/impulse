@@ -10,7 +10,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import com.hypixel.hytale.codec.ExtraInfo;
 import dev.hytalemodding.impulse.core.internal.persistence.PersistentSpaceDto;
 import dev.hytalemodding.impulse.core.plugin.modules.physicschunk.WorldCollisionMode;
-import dev.hytalemodding.impulse.core.plugin.components.CollisionLodSettingsComponent;
+import dev.hytalemodding.impulse.core.plugin.modules.physicschunk.components.CollisionLodSettingsComponent;
 import dev.hytalemodding.impulse.core.plugin.components.ExtensionSettingsComponent;
 import dev.hytalemodding.impulse.core.plugin.components.SolverSettingsComponent;
 import dev.hytalemodding.impulse.core.plugin.components.VisualMaterializationSettingsComponent;
@@ -98,15 +98,15 @@ class PhysicsSpaceSettingsTest {
     void rejectsNonPositiveWorldCollisionValues() {
         PhysicsSpaceSettings settings = new PhysicsSpaceSettings();
 
-        assertEquals("World collision radius must be between 1 and "
+        assertEquals("PhysicsChunk terrain radius must be between 1 and "
                 + PhysicsWorldCollisionSettings.MAX_WORLD_COLLISION_RADIUS,
             assertThrows(IllegalArgumentException.class,
                 () -> settings.getWorldCollisionSettings().setWorldCollisionRadius(0)).getMessage());
-        assertEquals("World collision body radius must be between 1 and "
+        assertEquals("PhysicsChunk terrain body radius must be between 1 and "
                 + PhysicsWorldCollisionSettings.MAX_WORLD_COLLISION_BODY_RADIUS,
             assertThrows(IllegalArgumentException.class,
                 () -> settings.getWorldCollisionSettings().setWorldCollisionBodyRadius(0)).getMessage());
-        assertEquals("World collision TTL must be between 1 and "
+        assertEquals("PhysicsChunk terrain TTL must be between 1 and "
                 + PhysicsWorldCollisionSettings.MAX_WORLD_COLLISION_TTL_TICKS,
             assertThrows(IllegalArgumentException.class,
                 () -> settings.getWorldCollisionSettings().setWorldCollisionTtlTicks(0)).getMessage());
@@ -257,8 +257,8 @@ class PhysicsSpaceSettingsTest {
     }
 
     @Test
-    void streamingWorldCollisionFactoryEnablesStreamingMode() {
-        PhysicsSpaceSettings settings = PhysicsSpaceSettings.streamingWorldCollision();
+    void streamingPhysicsChunkFactoryEnablesStreamingMode() {
+        PhysicsSpaceSettings settings = PhysicsSpaceSettings.streamingPhysicsChunk();
 
         assertEquals(WorldCollisionMode.STREAMING, settings.getWorldCollisionSettings().getWorldCollisionMode());
         assertEquals(PhysicsWorldCollisionSettings.DEFAULT_WORLD_COLLISION_RADIUS,

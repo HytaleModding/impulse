@@ -205,7 +205,7 @@ final class ImpulseApiCrucibleTests {
             Store<PhysicsStore> store = physicsStore(world);
             SpaceId spaceId = resource.createSpace(CrucibleBackends.requireBackendId(),
                 "crucible",
-                PhysicsSpaceSettings.streamingWorldCollision());
+                PhysicsSpaceSettings.streamingPhysicsChunk());
             boolean registered = resource.hasSpace(spaceId)
                 && resource.getSpaceSettings(spaceId).getWorldCollisionSettings().getWorldCollisionMode()
                 == WorldCollisionMode.STREAMING;

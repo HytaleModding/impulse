@@ -247,7 +247,7 @@ public class StressBodiesCommand extends AbstractAsyncPlayerCommand {
                 : "")
             + ": mode=" + mode.serialized()
             + " space=" + spaceId.value()
-            + " worldCollision=streaming"
+            + " physicsChunk=streaming"
             + " bodyCollisionRadius=" + worldCollisionSettings.getWorldCollisionBodyRadius()
             + " prewarmedSections=" + prewarmedSections
             + " step=" + worldSettings.getStepMode().getSerializedName()

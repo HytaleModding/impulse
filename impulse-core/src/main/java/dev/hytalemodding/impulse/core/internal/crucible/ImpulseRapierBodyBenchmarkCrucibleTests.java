@@ -705,7 +705,7 @@ final class ImpulseRapierBodyBenchmarkCrucibleTests {
                 + "/" + worldSectionRequests
                 + "/" + worldSectionsBuilt
                 + "/" + worldBodyTargets
-                + " bodies total/dynamic/detached/raw/worldCollision=" + bodies
+                + " bodies total/dynamic/detached/raw/physicsChunk=" + bodies
                 + "/" + dynamicBodies
                 + "/" + detachedBodies
                 + "/" + rawBodies

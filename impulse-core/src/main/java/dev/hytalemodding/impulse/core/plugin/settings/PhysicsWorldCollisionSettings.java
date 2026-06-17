@@ -65,7 +65,7 @@ public class PhysicsWorldCollisionSettings {
     public static final float DEFAULT_TERRAIN_RESTITUTION = 0.0f;
 
     /**
-     * World collision mode for this space. Defaults to NONE so Impulse
+     * PhysicsChunk terrain mode for this space. Defaults to NONE so Impulse
      * is fully opt-in: no terrain collision is created unless explicitly requested.
      */
     @Nonnull
@@ -149,21 +149,21 @@ public class PhysicsWorldCollisionSettings {
 
     public void setWorldCollisionRadius(int worldCollisionRadius) {
         this.worldCollisionRadius = PhysicsSettingsValidation.requirePositiveAtMost(
-            "World collision radius",
+            "PhysicsChunk terrain radius",
             worldCollisionRadius,
             MAX_WORLD_COLLISION_RADIUS);
     }
 
     public void setWorldCollisionBodyRadius(int worldCollisionBodyRadius) {
         this.worldCollisionBodyRadius = PhysicsSettingsValidation.requirePositiveAtMost(
-            "World collision body radius",
+            "PhysicsChunk terrain body radius",
             worldCollisionBodyRadius,
             MAX_WORLD_COLLISION_BODY_RADIUS);
     }
 
     public void setWorldCollisionTtlTicks(int worldCollisionTtlTicks) {
         this.worldCollisionTtlTicks = PhysicsSettingsValidation.requirePositiveAtMost(
-            "World collision TTL",
+            "PhysicsChunk terrain TTL",
             worldCollisionTtlTicks,
             MAX_WORLD_COLLISION_TTL_TICKS);
     }

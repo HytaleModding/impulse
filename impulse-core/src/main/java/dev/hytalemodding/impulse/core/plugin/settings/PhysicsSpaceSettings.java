@@ -115,9 +115,18 @@ public class PhysicsSpaceSettings {
      * Convenience factory for a space with streaming PhysicsChunk terrain enabled.
      */
     @Nonnull
-    public static PhysicsSpaceSettings streamingWorldCollision() {
+    public static PhysicsSpaceSettings streamingPhysicsChunk() {
         PhysicsSpaceSettings settings = new PhysicsSpaceSettings();
         settings.getWorldCollisionSettings().setWorldCollisionMode(WorldCollisionMode.STREAMING);
         return settings;
+    }
+
+    /**
+     * @deprecated Use {@link #streamingPhysicsChunk()}.
+     */
+    @Deprecated
+    @Nonnull
+    public static PhysicsSpaceSettings streamingWorldCollision() {
+        return streamingPhysicsChunk();
     }
 }

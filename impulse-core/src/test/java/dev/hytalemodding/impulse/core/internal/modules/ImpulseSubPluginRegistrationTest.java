@@ -1,7 +1,6 @@
 package dev.hytalemodding.impulse.core.internal.modules;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -18,6 +17,7 @@ import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
+import javax.annotation.Nonnull;
 import org.junit.jupiter.api.Test;
 
 class ImpulseSubPluginRegistrationTest {
@@ -27,10 +27,12 @@ class ImpulseSubPluginRegistrationTest {
         PluginManifest parent = decodeGeneratedManifest();
         PluginIdentifier parentId = new PluginIdentifier(parent);
 
-        for (PluginManifest subPlugin : parent.getSubPlugins()) {
-            assertDoesNotThrow(() -> subPlugin.inherit(parent), subPlugin.getName());
+        List<PluginManifest> prepared = ImpulseSubPluginRegistration.prepareSubPluginManifests(parent);
+        for (PluginManifest subPlugin : prepared) {
             assertTrue(subPlugin.getDependencies().containsKey(parentId));
         }
+        assertSubPluginDependsOn(prepared, "ImpulseControl", "ImpulsePhysicsEntity");
+        assertSubPluginDependsOn(prepared, "ImpulsePhysicsChunk", "ImpulsePhysicsEntity");
     }
 
     @Test
@@ -62,6 +64,20 @@ class ImpulseSubPluginRegistrationTest {
         assertEquals(expectedName, manifest.getName());
         assertEquals(expectedDisabledByDefault, manifest.isDisabledByDefault());
         assertTrue(manifest.getDependencies().containsKey(parentId));
+    }
+
+    private static void assertSubPluginDependsOn(@Nonnull List<PluginManifest> subPlugins,
+        @Nonnull String subPluginName,
+        @Nonnull String dependencyName) {
+        PluginIdentifier dependencyId = new PluginIdentifier("HytaleModding", dependencyName);
+        for (PluginManifest subPlugin : subPlugins) {
+            if (subPluginName.equals(subPlugin.getName())) {
+                assertTrue(subPlugin.getDependencies().containsKey(dependencyId),
+                    subPluginName + " should depend on " + dependencyName);
+                return;
+            }
+        }
+        throw new AssertionError("Missing subplugin " + subPluginName);
     }
 
     private static PluginManifest manifest(String group,

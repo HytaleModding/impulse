@@ -49,9 +49,9 @@ public class SpaceCommand extends AbstractCommandCollection {
             "backend",
             "Backend id, for example impulse:rapier",
             ArgTypes.STRING);
-        private final OptionalArg<String> worldCollisionArg = withOptionalArg(
-            "worldCollision",
-            "World collision mode: none, manual, or streaming",
+        private final OptionalArg<String> physicsChunkArg = withOptionalArg(
+            "physicsChunk",
+            "PhysicsChunk terrain mode: none, manual, or streaming",
             ArgTypes.STRING);
         private CreateCommand() {
             super("create", "Create an explicit physics space", false);
@@ -66,18 +66,18 @@ public class SpaceCommand extends AbstractCommandCollection {
                 return;
             }
 
-            WorldCollisionMode worldCollisionMode = worldCollisionArg.provided(context)
-                ? parseWorldCollisionMode(worldCollisionArg.get(context))
+            WorldCollisionMode physicsChunkMode = physicsChunkArg.provided(context)
+                ? parsePhysicsChunkMode(physicsChunkArg.get(context))
                 : WorldCollisionMode.STREAMING;
-            if (worldCollisionMode == null) {
-                context.sendMessage(Message.raw("worldCollision must be none, manual, or streaming."));
+            if (physicsChunkMode == null) {
+                context.sendMessage(Message.raw("physicsChunk must be none, manual, or streaming."));
                 return;
             }
 
-            PhysicsSpaceSettings settings = worldCollisionMode == WorldCollisionMode.STREAMING
-                ? PhysicsSpaceSettings.streamingWorldCollision()
+            PhysicsSpaceSettings settings = physicsChunkMode == WorldCollisionMode.STREAMING
+                ? PhysicsSpaceSettings.streamingPhysicsChunk()
                 : PhysicsSpaceSettings.defaults();
-            settings.getWorldCollisionSettings().setWorldCollisionMode(worldCollisionMode);
+            settings.getWorldCollisionSettings().setWorldCollisionMode(physicsChunkMode);
 
             Store<PhysicsStore> physicsStore = PhysicsThreading.store(world);
             try {
@@ -86,7 +86,7 @@ public class SpaceCommand extends AbstractCommandCollection {
                 context.sendMessage(Message.raw("Created physics space id="
                     + spaceId.value()
                     + " backend=" + backendId.value()
-                    + " worldCollision=" + worldCollisionMode.name().toLowerCase(Locale.ROOT)
+                    + " physicsChunk=" + physicsChunkMode.name().toLowerCase(Locale.ROOT)
                     + "."));
             } catch (RuntimeException exception) {
                 context.sendMessage(Message.raw("Failed to create physics space: "
@@ -119,14 +119,14 @@ public class SpaceCommand extends AbstractCommandCollection {
                 .map(summary -> {
                     PhysicsSpaceSettings settings = PhysicsSpaces.settings(physicsStore,
                         summary.spaceId());
-                    WorldCollisionMode worldCollisionMode = settings != null
+                    WorldCollisionMode physicsChunkMode = settings != null
                         ? settings.getWorldCollisionSettings().getWorldCollisionMode()
                         : WorldCollisionMode.NONE;
                     return new SpaceListEntry(summary.spaceId(),
                         summary.backendId().value(),
                         summary.bodyCount(),
                         summary.jointCount(),
-                        worldCollisionMode);
+                        physicsChunkMode);
                 })
                 .sorted(Comparator.comparingInt(entry -> entry.spaceId().value()))
                 .toList();
@@ -142,8 +142,8 @@ public class SpaceCommand extends AbstractCommandCollection {
                     + " backend=" + space.backendId()
                     + " bodies=" + space.bodies()
                     + " joints=" + space.joints()
-                    + " worldCollision="
-                    + space.worldCollisionMode().name().toLowerCase(Locale.ROOT)));
+                    + " physicsChunk="
+                    + space.physicsChunkMode().name().toLowerCase(Locale.ROOT)));
             }
         }
     }
@@ -272,7 +272,7 @@ public class SpaceCommand extends AbstractCommandCollection {
     }
 
     @Nullable
-    private static WorldCollisionMode parseWorldCollisionMode(@Nonnull String value) {
+    private static WorldCollisionMode parsePhysicsChunkMode(@Nonnull String value) {
         return switch (value.toLowerCase(Locale.ROOT)) {
             case "none", "off", "disabled" -> WorldCollisionMode.NONE;
             case "manual" -> WorldCollisionMode.MANUAL;
@@ -298,6 +298,6 @@ public class SpaceCommand extends AbstractCommandCollection {
                                   @Nonnull String backendId,
                                   int bodies,
                                   int joints,
-                                  @Nonnull WorldCollisionMode worldCollisionMode) {
+                                  @Nonnull WorldCollisionMode physicsChunkMode) {
     }
 }

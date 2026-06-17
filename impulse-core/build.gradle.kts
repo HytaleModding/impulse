@@ -125,3 +125,37 @@ hytaleTools {
         false  /* includeAssetPack */
     )
 }
+
+tasks.named("updatePluginManifest") {
+    doLast {
+        val manifestFile = file("src/main/resources/manifest.json")
+
+        @Suppress("UNCHECKED_CAST")
+        val manifestJson = groovy.json.JsonSlurper().parse(manifestFile)
+            as MutableMap<String, Any?>
+
+        @Suppress("UNCHECKED_CAST")
+        val subPlugins = manifestJson["SubPlugins"] as? List<MutableMap<String, Any?>>
+            ?: return@doLast
+
+        fun MutableMap<String, Any?>.mergeDependencies(dependencies: Map<String, String>) {
+            @Suppress("UNCHECKED_CAST")
+            val existingDependencies = (this["Dependencies"] as? Map<String, String>)
+                ?.toMutableMap()
+                ?: linkedMapOf()
+            existingDependencies.putAll(dependencies)
+            this["Dependencies"] = existingDependencies
+        }
+
+        val physicsEntityDependency = mapOf("HytaleModding:ImpulsePhysicsEntity" to "*")
+        subPlugins.firstOrNull { it["Name"] == "ImpulseControl" }
+            ?.mergeDependencies(physicsEntityDependency)
+        subPlugins.firstOrNull { it["Name"] == "ImpulsePhysicsChunk" }
+            ?.mergeDependencies(physicsEntityDependency)
+
+        manifestFile.writeText(
+            groovy.json.JsonOutput.prettyPrint(groovy.json.JsonOutput.toJson(manifestJson))
+                + System.lineSeparator()
+        )
+    }
+}

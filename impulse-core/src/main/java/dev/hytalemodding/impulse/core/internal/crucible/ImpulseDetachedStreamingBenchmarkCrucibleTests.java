@@ -857,7 +857,7 @@ final class ImpulseDetachedStreamingBenchmarkCrucibleTests {
                 + "/" + format(avgRegistrationPublicationMs)
                 + "/" + format(avgSyncMs)
                 + "/" + format(avgWorldMs)
-                + " bodies dynamic/worldCollision=" + dynamicBodies
+                + " bodies dynamic/physicsChunk=" + dynamicBodies
                 + "/" + worldCollisionBodies
                 + " belowPlane/terrain/worldMin/void=" + belowPlaneBodies
                 + "/" + belowTerrainBodies
