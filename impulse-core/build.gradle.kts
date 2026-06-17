@@ -109,8 +109,8 @@ hytaleTools {
         false  /* includeAssetPack */
     )
     subPlugin (
-        "ImpulseWorldCollision",
-        "dev.hytalemodding.impulse.core.plugin.modules.worldcollision.ImpulseWorldCollisionPlugin",
+        "ImpulsePhysicsChunk",
+        "dev.hytalemodding.impulse.core.plugin.modules.physicschunk.ImpulsePhysicsChunkPlugin",
         false, /* disabledByDefault */
         false  /* includeAssetPack */
     )

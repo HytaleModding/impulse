@@ -3,7 +3,7 @@ package dev.hytalemodding.impulse.core.internal.crucible;
 import com.hypixel.hytale.common.plugin.PluginIdentifier;
 import com.hypixel.hytale.server.core.plugin.PluginManager;
 import com.hypixel.hytale.server.core.plugin.PluginBase;
-import dev.hytalemodding.impulse.core.internal.modules.worldcollision.WorldCollisionLifecycle;
+import dev.hytalemodding.impulse.core.internal.modules.physicschunk.WorldCollisionLifecycle;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
 import java.util.concurrent.TimeUnit;
@@ -15,7 +15,7 @@ import javax.annotation.Nonnull;
 final class WorldCollisionSubPluginCrucibleSupport {
 
     private static final PluginIdentifier PLUGIN_ID =
-        new PluginIdentifier("HytaleModding", "ImpulseWorldCollision");
+        new PluginIdentifier("HytaleModding", "ImpulsePhysicsChunk");
 
     private WorldCollisionSubPluginCrucibleSupport() {
     }

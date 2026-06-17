@@ -24,7 +24,7 @@ import dev.hytalemodding.impulse.core.plugin.projection.BodyAttachmentComponent.
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsDebugResource;
 import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyKind;
 import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyRegistrationView;
-import dev.hytalemodding.impulse.core.internal.modules.worldcollision.SectionCollisionGeometry.BoxCollider;
+import dev.hytalemodding.impulse.core.internal.modules.physicschunk.SectionCollisionGeometry.BoxCollider;
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsWorldRuntimeResource;
 import dev.hytalemodding.impulse.core.internal.simulation.view.PhysicsDebugContactView;
 import dev.hytalemodding.impulse.core.internal.simulation.view.PhysicsDebugJointView;

@@ -10,7 +10,7 @@ module dev.hytalemodding.impulse.core {
     exports dev.hytalemodding.impulse.core.plugin.events;
     exports dev.hytalemodding.impulse.core.plugin.modules.control;
     exports dev.hytalemodding.impulse.core.plugin.modules.physicsentity;
-    exports dev.hytalemodding.impulse.core.plugin.modules.worldcollision;
+    exports dev.hytalemodding.impulse.core.plugin.modules.physicschunk;
     exports dev.hytalemodding.impulse.core.plugin.persistence;
     exports dev.hytalemodding.impulse.core.plugin.physicsstore;
     exports dev.hytalemodding.impulse.core.plugin.projection;

@@ -1,6 +1,6 @@
 package dev.hytalemodding.impulse.core.internal.simulation.view;
 
-import dev.hytalemodding.impulse.core.internal.modules.worldcollision.SectionCollisionGeometry.BoxCollider;
+import dev.hytalemodding.impulse.core.internal.modules.physicschunk.SectionCollisionGeometry.BoxCollider;
 import java.util.List;
 import javax.annotation.Nonnull;
 

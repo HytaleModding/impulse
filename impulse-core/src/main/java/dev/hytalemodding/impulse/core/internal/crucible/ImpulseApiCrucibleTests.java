@@ -29,7 +29,7 @@ import dev.hytalemodding.impulse.core.plugin.settings.PhysicsBackendExtensionId;
 import dev.hytalemodding.impulse.core.plugin.settings.PhysicsSpaceSettings;
 import dev.hytalemodding.impulse.core.plugin.resources.PhysicsWorldResource;
 import dev.hytalemodding.impulse.core.plugin.settings.VisualOcclusionMode;
-import dev.hytalemodding.impulse.core.plugin.modules.worldcollision.WorldCollisionMode;
+import dev.hytalemodding.impulse.core.plugin.modules.physicschunk.WorldCollisionMode;
 import java.util.UUID;
 import java.util.Collection;
 import java.util.List;

@@ -13,9 +13,9 @@ import dev.hytalemodding.impulse.core.plugin.modules.physicsentity.PhysicsEntity
 import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyKind;
 import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyPersistenceMode;
 import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyRegistrationView;
-import dev.hytalemodding.impulse.core.plugin.modules.worldcollision.WorldCollisionBuildStats;
-import dev.hytalemodding.impulse.core.plugin.modules.worldcollision.WorldCollisionPrewarmStats;
-import dev.hytalemodding.impulse.core.plugin.modules.worldcollision.WorldCollisionStats;
+import dev.hytalemodding.impulse.core.plugin.modules.physicschunk.WorldCollisionBuildStats;
+import dev.hytalemodding.impulse.core.plugin.modules.physicschunk.WorldCollisionPrewarmStats;
+import dev.hytalemodding.impulse.core.plugin.modules.physicschunk.WorldCollisionStats;
 import dev.hytalemodding.impulse.core.plugin.events.PhysicsEventFrame;
 import dev.hytalemodding.impulse.core.plugin.settings.PhysicsSpaceSettings;
 import dev.hytalemodding.impulse.core.plugin.settings.PhysicsWorldSettings;
