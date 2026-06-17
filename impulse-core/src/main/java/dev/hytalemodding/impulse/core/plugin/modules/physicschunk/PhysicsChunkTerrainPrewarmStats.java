@@ -9,6 +9,7 @@ public record PhysicsChunkTerrainPrewarmStats(int sectionTargets,
                                               @Nonnull PhysicsChunkTerrainBuildStats buildStats) {
 
     @Nonnull
+    @Deprecated(forRemoval = false)
     public static PhysicsChunkTerrainPrewarmStats fromWorldCollisionStats(
         @Nonnull WorldCollisionPrewarmStats stats) {
         return new PhysicsChunkTerrainPrewarmStats(stats.sectionTargets(),
@@ -16,6 +17,7 @@ public record PhysicsChunkTerrainPrewarmStats(int sectionTargets,
     }
 
     @Nonnull
+    @Deprecated(forRemoval = false)
     public WorldCollisionPrewarmStats toWorldCollisionStats() {
         return new WorldCollisionPrewarmStats(sectionTargets,
             buildStats.toWorldCollisionStats());

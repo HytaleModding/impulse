@@ -17,6 +17,7 @@ public record PhysicsChunkTerrainBuildStats(int scannedBlocks,
                                             int voxelBodies) {
 
     @Nonnull
+    @Deprecated(forRemoval = false)
     public static PhysicsChunkTerrainBuildStats fromWorldCollisionStats(
         @Nonnull WorldCollisionBuildStats stats) {
         return new PhysicsChunkTerrainBuildStats(stats.scannedBlocks(),
@@ -32,6 +33,7 @@ public record PhysicsChunkTerrainBuildStats(int scannedBlocks,
     }
 
     @Nonnull
+    @Deprecated(forRemoval = false)
     public WorldCollisionBuildStats toWorldCollisionStats() {
         return new WorldCollisionBuildStats(scannedBlocks,
             solidBlocks,

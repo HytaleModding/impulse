@@ -11,6 +11,7 @@ public record PhysicsChunkTerrainStats(int spaces,
                                        int shapeTemplates) {
 
     @Nonnull
+    @Deprecated(forRemoval = false)
     public static PhysicsChunkTerrainStats fromWorldCollisionStats(
         @Nonnull WorldCollisionStats stats) {
         return new PhysicsChunkTerrainStats(stats.spaces(),
@@ -20,6 +21,7 @@ public record PhysicsChunkTerrainStats(int spaces,
     }
 
     @Nonnull
+    @Deprecated(forRemoval = false)
     public WorldCollisionStats toWorldCollisionStats() {
         return new WorldCollisionStats(spaces,
             sections,

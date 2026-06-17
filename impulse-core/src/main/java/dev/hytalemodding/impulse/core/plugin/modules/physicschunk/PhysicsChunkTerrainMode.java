@@ -22,11 +22,13 @@ public enum PhysicsChunkTerrainMode {
     STREAMING;
 
     @Nonnull
+    @Deprecated(forRemoval = false)
     public WorldCollisionMode toWorldCollisionMode() {
         return WorldCollisionMode.valueOf(name());
     }
 
     @Nonnull
+    @Deprecated(forRemoval = false)
     public static PhysicsChunkTerrainMode fromWorldCollisionMode(
         @Nonnull WorldCollisionMode mode) {
         return valueOf(mode.name());
