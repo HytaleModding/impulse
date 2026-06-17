@@ -19,7 +19,7 @@ import dev.hytalemodding.impulse.api.PhysicsBodyType;
 import dev.hytalemodding.impulse.api.PhysicsCollisionFilters;
 import dev.hytalemodding.impulse.api.SpaceId;
 import dev.hytalemodding.impulse.core.plugin.modules.control.ImpulseControllableComponent;
-import dev.hytalemodding.impulse.core.plugin.projection.BodyAttachmentComponent;
+import dev.hytalemodding.impulse.core.plugin.modules.physicsentity.components.BodyAttachmentComponent;
 import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyKind;
 import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyPersistenceMode;
 import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyRegistrationView;
@@ -33,7 +33,7 @@ import dev.hytalemodding.impulse.core.plugin.physicsstore.PhysicsRaycasts;
 import dev.hytalemodding.impulse.core.plugin.components.BodyCommandComponent;
 import dev.hytalemodding.impulse.core.plugin.components.JointComponent;
 import dev.hytalemodding.impulse.core.plugin.physicsstore.BodyEntityDescriptor;
-import dev.hytalemodding.impulse.core.plugin.projection.PhysicsAttachments;
+import dev.hytalemodding.impulse.core.plugin.modules.physicsentity.PhysicsEntityAttachments;
 import dev.hytalemodding.impulse.core.plugin.snapshots.PhysicsBodySnapshot;
 import dev.hytalemodding.impulse.core.plugin.simulation.JointType;
 import dev.hytalemodding.impulse.core.plugin.simulation.PhysicsShapeSpec;
@@ -191,13 +191,13 @@ public class GrabCommand extends AbstractAsyncPlayerCommand {
         if (!selectedBodyRef.isValid()) {
             return null;
         }
-        ExamplePhysicsUtils.appendPhysicsStoreBodyCommand(selectedBodyRef.getStore(),
+        ExamplePhysicsUtils.appendBodyCommand(selectedBodyRef.getStore(),
             selectedBodyRef,
             BodyCommandComponent.wake());
         try {
             Ref<PhysicsStore> anchorBodyRef = ExamplePhysicsUtils.addPhysicsStoreBody(world,
                 anchorBodyEntity(spaceRef, anchorBodyUuid, hitPoint));
-            Ref<PhysicsStore> controlJointRef = ExamplePhysicsUtils.addPhysicsStoreJoint(world,
+            Ref<PhysicsStore> controlJointRef = ExamplePhysicsUtils.addJoint(world,
                 controlJointUuid,
                 controlJoint(spaceRef, anchorBodyRef, selectedBodyRef, bodyLocalHit));
             return new GrabPhysicsState(selectedState.bodyType(),
@@ -296,7 +296,7 @@ public class GrabCommand extends AbstractAsyncPlayerCommand {
         @Nonnull ComponentType<EntityStore, ImpulseControllableComponent> controllableType,
         @Nonnull Ref<PhysicsStore> bodyRef) {
         boolean hasGameplayAttachment = false;
-        for (Ref<EntityStore> attachmentRef : PhysicsAttachments.attachments(store, bodyRef)) {
+        for (Ref<EntityStore> attachmentRef : PhysicsEntityAttachments.attachments(store, bodyRef)) {
             BodyAttachmentComponent attachment = store.getComponent(attachmentRef, ATTACHMENT_TYPE);
             if (attachment == null
                 || attachment.getLifecycle() == BodyAttachmentComponent.AttachmentLifecycle.GENERATED_PROXY) {

@@ -27,7 +27,7 @@ import dev.hytalemodding.impulse.core.plugin.components.BodyCommandComponent;
 import dev.hytalemodding.impulse.core.plugin.components.DynamicsComponent;
 import dev.hytalemodding.impulse.core.plugin.components.JointComponent;
 import dev.hytalemodding.impulse.core.plugin.components.TargetComponent;
-import dev.hytalemodding.impulse.core.plugin.projection.BodyAttachmentComponent;
+import dev.hytalemodding.impulse.core.plugin.modules.physicsentity.components.BodyAttachmentComponent;
 import dev.hytalemodding.impulse.core.plugin.physicsstore.BodyEntityDescriptor;
 import dev.hytalemodding.impulse.core.plugin.settings.PhysicsVisualMaterializationSettings;
 import dev.hytalemodding.impulse.core.plugin.simulation.PhysicsShapeSpec;
@@ -57,7 +57,7 @@ public final class ExamplePhysicsUtils {
     @Nullable
     public static Ref<PhysicsStore> resolveSpaceRef(@Nonnull World world,
         @Nonnull SpaceId spaceId) {
-        Store<PhysicsStore> store = ((PhysicsStoreWorld) Objects.requireNonNull(world, "world"))
+        Store<PhysicsStore> store = ((PhysicsStoreWorld) world)
             .getPhysicsStore()
             .getStore();
         return PhysicsSpaces.resolveRef(store, spaceId);
@@ -66,7 +66,7 @@ public final class ExamplePhysicsUtils {
     @Nonnull
     public static Ref<PhysicsStore> addPhysicsStoreBody(@Nonnull World world,
         @Nonnull BodyEntityDescriptor descriptor) {
-        Store<PhysicsStore> store = ((PhysicsStoreWorld) Objects.requireNonNull(world, "world"))
+        Store<PhysicsStore> store = ((PhysicsStoreWorld) world)
             .getPhysicsStore()
             .getStore();
         return addPhysicsStoreBody(store, descriptor);
@@ -80,7 +80,7 @@ public final class ExamplePhysicsUtils {
             .getPhysicsStore()
             .getStore();
         Ref<PhysicsStore> bodyRef = addPhysicsStoreBody(store, descriptor);
-        appendPhysicsStoreBodyCommand(store, bodyRef, command);
+        appendBodyCommand(store, bodyRef, command);
         return bodyRef;
     }
 
@@ -113,7 +113,6 @@ public final class ExamplePhysicsUtils {
     @Nonnull
     private static Ref<PhysicsStore> addPhysicsStoreBody(@Nonnull Store<PhysicsStore> store,
         @Nonnull BodyEntityDescriptor descriptor) {
-        Objects.requireNonNull(descriptor, "descriptor");
         return addPhysicsStoreBody(store,
             descriptor,
             descriptor.dynamics(),
@@ -135,7 +134,6 @@ public final class ExamplePhysicsUtils {
         @Nonnull BodyEntityDescriptor descriptor,
         @Nonnull DynamicsComponent dynamics,
         @Nullable TargetComponent target) {
-        Objects.requireNonNull(descriptor, "descriptor");
         return store.addEntity(PhysicsEntities.bodyHolder(store,
             descriptor.bodyUuid(),
             descriptor.body(),
@@ -148,10 +146,10 @@ public final class ExamplePhysicsUtils {
     }
 
     @Nonnull
-    public static Ref<PhysicsStore> addPhysicsStoreJoint(@Nonnull World world,
+    public static Ref<PhysicsStore> addJoint(@Nonnull World world,
         @Nonnull UUID jointUuid,
         @Nonnull JointComponent joint) {
-        Store<PhysicsStore> store = ((PhysicsStoreWorld) Objects.requireNonNull(world, "world"))
+        Store<PhysicsStore> store = ((PhysicsStoreWorld) world)
             .getPhysicsStore()
             .getStore();
         PhysicsThreading.requireWorldThread(store, "add a PhysicsStore joint entity");
@@ -160,12 +158,9 @@ public final class ExamplePhysicsUtils {
             joint), AddReason.SPAWN);
     }
 
-    public static void appendPhysicsStoreBodyCommand(@Nonnull Store<PhysicsStore> store,
+    public static void appendBodyCommand(@Nonnull Store<PhysicsStore> store,
         @Nonnull Ref<PhysicsStore> bodyRef,
         @Nonnull BodyCommandComponent command) {
-        Objects.requireNonNull(store, "store");
-        Objects.requireNonNull(bodyRef, "bodyRef");
-        Objects.requireNonNull(command, "command");
         PhysicsThreading.requireWorldThread(store, "append a PhysicsStore body command");
         BodyCommandComponent existing = store.getComponent(bodyRef,
             BodyCommandComponent.getComponentType());
@@ -264,11 +259,6 @@ public final class ExamplePhysicsUtils {
         float mass,
         @Nonnull RigidBodySpawnSettings settings,
         @Nullable Vector3f linearVelocity) {
-        Objects.requireNonNull(store, "store");
-        Objects.requireNonNull(spaceId, "spaceId");
-        Objects.requireNonNull(visualPosition, "visualPosition");
-        Objects.requireNonNull(shape, "shape");
-        Objects.requireNonNull(settings, "settings");
 
         World world = store.getExternalData().getWorld();
         Ref<PhysicsStore> spaceRef;

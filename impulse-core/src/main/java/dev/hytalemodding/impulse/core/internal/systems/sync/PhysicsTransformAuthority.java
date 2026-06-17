@@ -1,7 +1,7 @@
 package dev.hytalemodding.impulse.core.internal.systems.sync;
 
-import dev.hytalemodding.impulse.core.plugin.projection.BodyAttachmentComponent;
-import dev.hytalemodding.impulse.core.plugin.projection.BodyAttachmentComponent.TransformAuthority;
+import dev.hytalemodding.impulse.core.plugin.modules.physicsentity.components.BodyAttachmentComponent;
+import dev.hytalemodding.impulse.core.plugin.modules.physicsentity.components.BodyAttachmentComponent.TransformAuthority;
 import javax.annotation.Nonnull;
 
 final class PhysicsTransformAuthority {

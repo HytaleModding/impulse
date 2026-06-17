@@ -1,4 +1,4 @@
-package dev.hytalemodding.impulse.core.plugin.projection;
+package dev.hytalemodding.impulse.core.plugin.modules.physicsentity;
 
 import com.hypixel.hytale.component.Ref;
 import com.hypixel.hytale.component.Store;
@@ -14,9 +14,9 @@ import javax.annotation.Nullable;
 /**
  * Public EntityStore projection reads for PhysicsStore body attachments.
  */
-public final class PhysicsAttachments {
+public final class PhysicsEntityAttachments {
 
-    private PhysicsAttachments() {
+    private PhysicsEntityAttachments() {
     }
 
     @Nonnull

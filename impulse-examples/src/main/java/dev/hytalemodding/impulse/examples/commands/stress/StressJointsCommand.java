@@ -177,7 +177,7 @@ public class StressJointsCommand extends AbstractAsyncPlayerCommand {
             createdBodies.add(created);
         }
         for (int i = 0; i < jointCount; i++) {
-            ExamplePhysicsUtils.addPhysicsStoreJoint(world,
+            ExamplePhysicsUtils.addJoint(world,
                 new UUID(jointUuidRunId, i + 1L),
                 joint(spaceRef, bodies[i], bodies[i + 1], jointType));
         }

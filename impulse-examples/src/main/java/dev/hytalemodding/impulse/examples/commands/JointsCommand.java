@@ -111,7 +111,7 @@ public class JointsCommand extends AbstractAsyncPlayerCommand {
         CreatedBlockBody anchor = spawnBox(createdBodies, world, spaceRef, spaceId, origin, 0.0f);
         CreatedBlockBody child = spawnBox(createdBodies, world, spaceRef, spaceId,
             new Vector3d(origin).add(0.0, -TOUCHING_SPACING, 0.0), 1.0f);
-        ExamplePhysicsUtils.addPhysicsStoreJoint(world,
+        ExamplePhysicsUtils.addJoint(world,
             UUID.randomUUID(),
             joint(spaceRef,
                 anchor,
@@ -135,7 +135,7 @@ public class JointsCommand extends AbstractAsyncPlayerCommand {
             new Vector3d(origin).add(0.0, -TOUCHING_SPACING, 0.0),
             1.0f,
             new Vector3f(1.5f, 0.0f, 0.0f));
-        ExamplePhysicsUtils.addPhysicsStoreJoint(world,
+        ExamplePhysicsUtils.addJoint(world,
             UUID.randomUUID(),
             joint(spaceRef,
                 anchor,
@@ -166,7 +166,7 @@ public class JointsCommand extends AbstractAsyncPlayerCommand {
         joint.setMotorEnabled(true);
         joint.setMotorTargetVelocity(1.5f);
         joint.setMotorMaxForce(3.0f);
-        ExamplePhysicsUtils.addPhysicsStoreJoint(world, UUID.randomUUID(), joint);
+        ExamplePhysicsUtils.addJoint(world, UUID.randomUUID(), joint);
     }
 
     private static void createSlider(@Nonnull List<CreatedBlockBody> createdBodies,
@@ -189,7 +189,7 @@ public class JointsCommand extends AbstractAsyncPlayerCommand {
         joint.setMotorEnabled(true);
         joint.setMotorTargetVelocity(1.0f);
         joint.setMotorMaxForce(4.0f);
-        ExamplePhysicsUtils.addPhysicsStoreJoint(world, UUID.randomUUID(), joint);
+        ExamplePhysicsUtils.addJoint(world, UUID.randomUUID(), joint);
     }
 
     private static void createSpring(@Nonnull List<CreatedBlockBody> createdBodies,
@@ -215,7 +215,7 @@ public class JointsCommand extends AbstractAsyncPlayerCommand {
         joint.setSpringRestLength(SPRING_REST_LENGTH);
         joint.setSpringStiffness(20.0f);
         joint.setSpringDamping(2.0f);
-        ExamplePhysicsUtils.addPhysicsStoreJoint(world, UUID.randomUUID(), joint);
+        ExamplePhysicsUtils.addJoint(world, UUID.randomUUID(), joint);
     }
 
     private static CreatedBlockBody spawnBox(@Nonnull List<CreatedBlockBody> createdBodies,

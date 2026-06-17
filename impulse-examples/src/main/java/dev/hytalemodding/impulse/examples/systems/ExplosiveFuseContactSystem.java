@@ -10,8 +10,8 @@ import com.hypixel.hytale.server.core.universe.world.storage.PhysicsStore;
 import dev.hytalemodding.impulse.api.PhysicsContactPhase;
 import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyKind;
 import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyRegistrationView;
-import dev.hytalemodding.impulse.core.plugin.projection.BodyAttachmentComponent;
-import dev.hytalemodding.impulse.core.plugin.projection.PhysicsAttachments;
+import dev.hytalemodding.impulse.core.plugin.modules.physicsentity.components.BodyAttachmentComponent;
+import dev.hytalemodding.impulse.core.plugin.modules.physicsentity.PhysicsEntityAttachments;
 import dev.hytalemodding.impulse.core.plugin.events.PhysicsContactEvent;
 import dev.hytalemodding.impulse.core.plugin.events.PhysicsEventFramePublishedEvent;
 import dev.hytalemodding.impulse.core.plugin.events.PhysicsFrameEvent;
@@ -77,7 +77,7 @@ public final class ExplosiveFuseContactSystem
         if (!isWorldCollision(physicsStore, otherBodyUuid)) {
             return;
         }
-        for (Ref<EntityStore> ref : PhysicsAttachments.attachments(store, explosiveBodyUuid)) {
+        for (Ref<EntityStore> ref : PhysicsEntityAttachments.attachments(store, explosiveBodyUuid)) {
             BodyAttachmentComponent attachment = commandBuffer.getComponent(ref, ATTACHMENT_TYPE);
             ExplosiveBlockComponent explosive = commandBuffer.getComponent(ref, EXPLOSIVE_TYPE);
             ExplosiveFuseComponent fuse = commandBuffer.getComponent(ref, FUSE_TYPE);
