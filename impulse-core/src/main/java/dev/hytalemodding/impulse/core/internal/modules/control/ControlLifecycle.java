@@ -1,5 +1,6 @@
 package dev.hytalemodding.impulse.core.internal.modules.control;
 
+import com.hypixel.hytale.assetstore.AssetRegistry;
 import com.hypixel.hytale.component.ComponentType;
 import com.hypixel.hytale.component.Ref;
 import com.hypixel.hytale.component.Store;
@@ -17,6 +18,8 @@ import java.util.Set;
 import java.util.WeakHashMap;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.locks.ReadWriteLock;
+import java.util.concurrent.locks.ReentrantReadWriteLock;
 import java.util.logging.Level;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
@@ -114,23 +117,47 @@ public final class ControlLifecycle {
             return;
         }
 
-        CompletableFuture<Void> cleanup = new CompletableFuture<>();
+        // PluginManager.unload holds the asset write lock while world ticks drain queued
+        // tasks under the read lock, so waiting here would stall until the timeout.
+        boolean waitForCleanup = !isAssetWriteLockHeldByCurrentThread();
+        CompletableFuture<Void> cleanup = waitForCleanup ? new CompletableFuture<>() : null;
         try {
-            world.execute(() -> {
-                try {
-                    cleanupStoreOnWorldThread(store, controllableType, sessionType);
-                    cleanup.complete(null);
-                } catch (Throwable throwable) {
-                    cleanup.completeExceptionally(throwable);
-                }
-            });
+            world.execute(() -> cleanupStoreSafely(store, controllableType, sessionType, cleanup));
         } catch (RuntimeException exception) {
             if (isWorldTaskRejection(exception)) {
                 return;
             }
             throw exception;
         }
-        cleanup.orTimeout(CLEANUP_TIMEOUT_SECONDS, TimeUnit.SECONDS).join();
+
+        if (cleanup != null) {
+            cleanup.orTimeout(CLEANUP_TIMEOUT_SECONDS, TimeUnit.SECONDS).join();
+        }
+    }
+
+    private static boolean isAssetWriteLockHeldByCurrentThread() {
+        ReadWriteLock lock = AssetRegistry.ASSET_LOCK;
+        return lock instanceof ReentrantReadWriteLock reentrantLock
+            && reentrantLock.isWriteLockedByCurrentThread();
+    }
+
+    private static void cleanupStoreSafely(@Nonnull Store<EntityStore> store,
+        @Nullable ComponentType<EntityStore, ImpulseControllableComponent> controllableType,
+        @Nullable ComponentType<EntityStore, PhysicsControlSessionComponent> sessionType,
+        @Nullable CompletableFuture<Void> completion) {
+        try {
+            cleanupStoreOnWorldThread(store, controllableType, sessionType);
+            if (completion != null) {
+                completion.complete(null);
+            }
+        } catch (RuntimeException exception) {
+            if (completion != null) {
+                completion.completeExceptionally(exception);
+            } else {
+                LOGGER.at(Level.WARNING).log("Failed to clean Impulse control components: %s",
+                    exception.getMessage());
+            }
+        }
     }
 
     private static boolean isWorldTaskRejection(@Nonnull RuntimeException exception) {

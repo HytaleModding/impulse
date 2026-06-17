@@ -1,11 +1,9 @@
-package dev.hytalemodding.impulse.core.plugin.modules.control;
+package dev.hytalemodding.impulse.core.internal.modules.control;
 
 import com.hypixel.hytale.component.ComponentRegistryProxy;
 import com.hypixel.hytale.server.core.plugin.JavaPlugin;
 import com.hypixel.hytale.server.core.plugin.JavaPluginInit;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
-import dev.hytalemodding.impulse.core.internal.modules.control.ControlLifecycle;
-import dev.hytalemodding.impulse.core.internal.modules.control.components.PhysicsControlSessionComponent;
 import dev.hytalemodding.impulse.core.internal.modules.control.systems.PhysicsControllableLifecycleSystem;
 import dev.hytalemodding.impulse.core.internal.modules.control.systems.PhysicsControlRuntimeHolderSystem;
 import dev.hytalemodding.impulse.core.internal.modules.control.systems.PhysicsControlSessionCleanupSystem;
@@ -15,21 +13,16 @@ import javax.annotation.Nonnull;
 /**
  * Subplugin that enables Impulse kinematic control sessions.
  */
-public final class ImpulseControlPlugin extends JavaPlugin {
+public final class ControlModule extends JavaPlugin {
 
-    public ImpulseControlPlugin(@Nonnull JavaPluginInit init) {
+    public ControlModule(@Nonnull JavaPluginInit init) {
         super(init);
     }
 
     @Override
     protected void setup() {
         ComponentRegistryProxy<EntityStore> entityRegistry = getEntityStoreRegistry();
-        ImpulseControllableComponent.setComponentType(entityRegistry.registerComponent(
-            ImpulseControllableComponent.class,
-            "ImpulseControllable",
-            ImpulseControllableComponent.CODEC));
-        PhysicsControlSessionComponent.setComponentType(entityRegistry.registerComponent(
-            PhysicsControlSessionComponent.class, PhysicsControlSessionComponent::new));
+        ControlTypeRegistry.registerComponentTypes(entityRegistry);
         entityRegistry.registerSystem(new PhysicsControlRuntimeHolderSystem());
         entityRegistry.registerSystem(new PhysicsControllableLifecycleSystem());
         entityRegistry.registerSystem(new PhysicsControlSessionCleanupSystem());
@@ -40,7 +33,6 @@ public final class ImpulseControlPlugin extends JavaPlugin {
     @Override
     protected void shutdown() {
         ControlLifecycle.disable();
-        ImpulseControllableComponent.clearComponentType();
-        PhysicsControlSessionComponent.clearComponentType();
+        ControlTypeRegistry.clearComponentTypes();
     }
 }

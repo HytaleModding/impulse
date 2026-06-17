@@ -6,6 +6,7 @@ import com.hypixel.hytale.component.Ref;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import com.hypixel.hytale.server.core.universe.world.storage.PhysicsStore;
 import dev.hytalemodding.impulse.api.PhysicsBodyType;
+import dev.hytalemodding.impulse.core.internal.modules.control.ControlTypeRegistry;
 import java.util.Objects;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
@@ -14,9 +15,6 @@ import org.joml.Vector3f;
 
 @Getter
 public class PhysicsControlSessionComponent implements Component<EntityStore> {
-
-    @Nullable
-    private static ComponentType<EntityStore, PhysicsControlSessionComponent> componentType;
 
     @Nullable
     private Ref<PhysicsStore> bodyRef;
@@ -61,25 +59,13 @@ public class PhysicsControlSessionComponent implements Component<EntityStore> {
         this.active = true;
     }
 
-    public static void setComponentType(
-        @Nonnull ComponentType<EntityStore, PhysicsControlSessionComponent> type) {
-        componentType = Objects.requireNonNull(type, "type");
-    }
-
-    public static void clearComponentType() {
-        componentType = null;
-    }
-
     public static boolean isComponentTypeRegistered() {
-        return componentType != null;
+        return ControlTypeRegistry.isSessionComponentTypeRegistered();
     }
 
     @Nonnull
     public static ComponentType<EntityStore, PhysicsControlSessionComponent> getComponentType() {
-        if (componentType == null) {
-            throw new IllegalStateException("Physics control session component is not registered");
-        }
-        return componentType;
+        return ControlTypeRegistry.sessionComponentType();
     }
 
     public void deactivate() {

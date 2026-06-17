@@ -106,7 +106,7 @@ hytaleTools {
 
     subPlugin (
         "ImpulseControl",
-        "dev.hytalemodding.impulse.core.plugin.modules.control.ImpulseControlPlugin",
+        "dev.hytalemodding.impulse.core.internal.modules.control.ControlModule",
         false, /* disabledByDefault */
         false  /* includeAssetPack */
     )
