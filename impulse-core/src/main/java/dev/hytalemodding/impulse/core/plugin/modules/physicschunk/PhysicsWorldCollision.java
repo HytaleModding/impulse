@@ -16,14 +16,6 @@ public final class PhysicsWorldCollision {
     private PhysicsWorldCollision() {
     }
 
-    public static void enableModule() {
-        PhysicsChunkTerrain.enableModule();
-    }
-
-    public static void disableModule() {
-        PhysicsChunkTerrain.disableModule();
-    }
-
     public static boolean isModuleEnabled() {
         return PhysicsChunkTerrain.isModuleEnabled();
     }

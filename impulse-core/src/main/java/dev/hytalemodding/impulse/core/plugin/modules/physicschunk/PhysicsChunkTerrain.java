@@ -30,14 +30,6 @@ public final class PhysicsChunkTerrain {
     private PhysicsChunkTerrain() {
     }
 
-    public static void enableModule() {
-        PhysicsChunkLifecycle.enable();
-    }
-
-    public static void disableModule() {
-        PhysicsChunkLifecycle.disable();
-    }
-
     public static boolean isModuleEnabled() {
         return PhysicsChunkLifecycle.isEnabled();
     }
