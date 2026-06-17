@@ -211,9 +211,7 @@ public final class LegacyPhysicsBackendRuntime implements PhysicsBackendRuntime 
 
     @Override
     public boolean containsBody(int spaceId, long bodyId) {
-        SpaceState state = requireSpace(spaceId);
-        PhysicsBody body = state.bodiesById.get(bodyId);
-        return body != null && state.space.getBodies().contains(body);
+        return requireSpace(spaceId).bodiesById.containsKey(bodyId);
     }
 
     @Override
@@ -222,7 +220,7 @@ public final class LegacyPhysicsBackendRuntime implements PhysicsBackendRuntime 
         @Nonnull BackendBodySnapshotSink sink) {
         SpaceState state = requireSpace(spaceId);
         PhysicsBody body = state.bodiesById.get(bodyId);
-        if (body == null || !state.space.getBodies().contains(body)) {
+        if (body == null) {
             return false;
         }
         emitBodySnapshot(bodyId, PhysicsBodySnapshot.from(body), sink);
@@ -236,7 +234,7 @@ public final class LegacyPhysicsBackendRuntime implements PhysicsBackendRuntime 
         SpaceState state = requireSpace(spaceId);
         bodyIds.forEachBodyId(bodyId -> {
             PhysicsBody body = state.bodiesById.get(bodyId);
-            if (body != null && state.space.getBodies().contains(body)) {
+            if (body != null) {
                 emitBodySnapshot(bodyId, PhysicsBodySnapshot.from(body), sink);
             }
         });
