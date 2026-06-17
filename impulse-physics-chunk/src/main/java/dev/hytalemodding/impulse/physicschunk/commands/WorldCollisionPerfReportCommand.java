@@ -6,12 +6,12 @@ import com.hypixel.hytale.server.core.command.system.CommandContext;
 import com.hypixel.hytale.server.core.command.system.basecommands.AbstractAsyncWorldCommand;
 import com.hypixel.hytale.server.core.universe.world.World;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
-import dev.hytalemodding.impulse.core.internal.diagnostics.PhysicsEntityDiagnostics;
-import dev.hytalemodding.impulse.core.internal.resources.profiling.PhysicsRuntimeProfilingResource;
-import dev.hytalemodding.impulse.core.internal.resources.profiling.PhysicsRuntimeProfilingResource.StepSnapshot;
-import dev.hytalemodding.impulse.core.internal.resources.profiling.PhysicsRuntimeProfilingResource.SyncSnapshot;
-import dev.hytalemodding.impulse.core.internal.resources.profiling.PhysicsRuntimeProfilingResource.VisualSnapshot;
 import dev.hytalemodding.impulse.core.plugin.events.PhysicsEventFrame;
+import dev.hytalemodding.impulse.core.plugin.modules.physicsentity.PhysicsEntityDiagnostics;
+import dev.hytalemodding.impulse.core.plugin.modules.physicsentity.PhysicsRuntimeProfiling;
+import dev.hytalemodding.impulse.core.plugin.modules.physicsentity.PhysicsRuntimeProfiling.StepSnapshotView;
+import dev.hytalemodding.impulse.core.plugin.modules.physicsentity.PhysicsRuntimeProfiling.SyncSnapshotView;
+import dev.hytalemodding.impulse.core.plugin.modules.physicsentity.PhysicsRuntimeProfiling.VisualSnapshotView;
 import dev.hytalemodding.impulse.core.plugin.modules.physicschunk.PhysicsWorldCollisionProfiling;
 import dev.hytalemodding.impulse.core.plugin.physicsstore.PhysicsDiagnostics;
 import dev.hytalemodding.impulse.core.plugin.physicsstore.PhysicsAsync;
@@ -42,18 +42,17 @@ public class WorldCollisionPerfReportCommand extends AbstractAsyncWorldCommand {
         @Nonnull World world,
         @Nonnull Store<EntityStore> store,
         @Nonnull List<SpaceSummary> summaries) {
-        PhysicsRuntimeProfilingResource runtimeProfiling = store.getResource(
-            PhysicsRuntimeProfilingResource.getResourceType());
-        StepSnapshot cumulativeStep = runtimeProfiling.getCumulativeStep();
-        StepSnapshot latestStep = runtimeProfiling.getLatestStep();
-        StepSnapshot latestCompletedStep = runtimeProfiling.getLatestCompletedStep();
-        StepSnapshot worstStep = runtimeProfiling.getWorstStep();
-        SyncSnapshot cumulativeSync = runtimeProfiling.getCumulativeSync();
-        SyncSnapshot latestSync = runtimeProfiling.getLatestSync();
-        SyncSnapshot worstSync = runtimeProfiling.getWorstSync();
-        VisualSnapshot cumulativeVisual = runtimeProfiling.getCumulativeVisual();
-        VisualSnapshot latestVisual = runtimeProfiling.getLatestVisual();
-        VisualSnapshot worstVisual = runtimeProfiling.getWorstVisual();
+        PhysicsRuntimeProfiling.Snapshots runtimeProfiling = PhysicsRuntimeProfiling.snapshots(store);
+        StepSnapshotView cumulativeStep = runtimeProfiling.cumulativeStep();
+        StepSnapshotView latestStep = runtimeProfiling.latestStep();
+        StepSnapshotView latestCompletedStep = runtimeProfiling.latestCompletedStep();
+        StepSnapshotView worstStep = runtimeProfiling.worstStep();
+        SyncSnapshotView cumulativeSync = runtimeProfiling.cumulativeSync();
+        SyncSnapshotView latestSync = runtimeProfiling.latestSync();
+        SyncSnapshotView worstSync = runtimeProfiling.worstSync();
+        VisualSnapshotView cumulativeVisual = runtimeProfiling.cumulativeVisual();
+        VisualSnapshotView latestVisual = runtimeProfiling.latestVisual();
+        VisualSnapshotView worstVisual = runtimeProfiling.worstVisual();
         PhysicsWorldCollisionProfiling.Snapshots profiling =
             PhysicsWorldCollisionProfiling.snapshots(store);
         var cumulative = profiling.cumulative();
@@ -64,7 +63,7 @@ public class WorldCollisionPerfReportCommand extends AbstractAsyncWorldCommand {
         RuntimeFootprint runtimeFootprint = RuntimeFootprint.collect(summaries);
 
         ctx.sender().sendMessage(Message.raw("Impulse runtime profiling: "
-            + ((runtimeProfiling.isEnabled() || profiling.enabled()) ? "enabled" : "disabled")));
+            + ((runtimeProfiling.enabled() || profiling.enabled()) ? "enabled" : "disabled")));
         ctx.sender().sendMessage(Message.raw("Impulse runtime physics: "
             + runtimeFootprint.summary()));
         if (runtimeFootprint.hasRuntimeStats()) {
@@ -226,7 +225,7 @@ public class WorldCollisionPerfReportCommand extends AbstractAsyncWorldCommand {
             }
         } else {
                 ctx.sender().sendMessage(Message.raw("No profiled physics step/sync/visual ticks recorded yet."
-                    + (runtimeProfiling.isEnabled()
+                    + (runtimeProfiling.enabled()
                 ? ""
                 : " Run /impulse worldcollision perf toggle, wait a few seconds, then run /impulse worldcollision perf report.")));
         }
@@ -437,8 +436,8 @@ public class WorldCollisionPerfReportCommand extends AbstractAsyncWorldCommand {
     }
 
     @Nonnull
-    static String formatPreStepDrainSummary(@Nonnull StepSnapshot cumulativeStep,
-        @Nonnull StepSnapshot latestStep) {
+    static String formatPreStepDrainSummary(@Nonnull StepSnapshotView cumulativeStep,
+        @Nonnull StepSnapshotView latestStep) {
         return "Physics pre-step drain avg completedStep drained/runMs/lateBacklog="
             + formatAverage(cumulativeStep.getPreStepDrainedMutations(),
             cumulativeStep.getTickSamples())
@@ -454,7 +453,7 @@ public class WorldCollisionPerfReportCommand extends AbstractAsyncWorldCommand {
             + "/" + cumulativeStep.getMaxLateMutationBacklogAtStep();
     }
 
-    static boolean hasCompletedStepSamples(@Nonnull StepSnapshot cumulativeStep) {
+    static boolean hasCompletedStepSamples(@Nonnull StepSnapshotView cumulativeStep) {
         return cumulativeStep.getTickSamples() > 0;
     }
 
