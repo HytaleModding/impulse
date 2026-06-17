@@ -6,7 +6,7 @@ import com.hypixel.hytale.server.core.universe.world.World;
 import com.hypixel.hytale.server.core.universe.world.storage.PhysicsStore;
 import dev.hytalemodding.impulse.api.SpaceId;
 import dev.hytalemodding.impulse.api.runtime.BackendRayHitSink;
-import dev.hytalemodding.impulse.core.internal.physicsstore.resources.PhysicsRuntimeResource;
+import dev.hytalemodding.impulse.core.internal.resources.PhysicsRuntimeResource;
 import dev.hytalemodding.impulse.core.plugin.simulation.RaycastClosestBatchResult;
 import dev.hytalemodding.impulse.core.plugin.simulation.RaycastSegment;
 import dev.hytalemodding.impulse.core.plugin.simulation.view.RaycastHitView;

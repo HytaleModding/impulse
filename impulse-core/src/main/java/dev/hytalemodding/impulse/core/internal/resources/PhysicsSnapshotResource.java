@@ -1,10 +1,9 @@
-package dev.hytalemodding.impulse.core.internal.physicsstore.resources;
+package dev.hytalemodding.impulse.core.internal.resources;
 
 import com.hypixel.hytale.component.Ref;
 import com.hypixel.hytale.component.Resource;
 import com.hypixel.hytale.component.ResourceType;
 import com.hypixel.hytale.server.core.universe.world.storage.PhysicsStore;
-import dev.hytalemodding.impulse.core.internal.resources.PhysicsResourceTypes;
 import dev.hytalemodding.impulse.core.plugin.snapshots.PhysicsBodySnapshot;
 import dev.hytalemodding.impulse.core.plugin.snapshots.PhysicsSnapshotFrame;
 import it.unimi.dsi.fastutil.ints.Int2ObjectOpenHashMap;

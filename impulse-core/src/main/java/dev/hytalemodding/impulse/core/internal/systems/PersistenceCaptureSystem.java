@@ -20,7 +20,7 @@ import dev.hytalemodding.impulse.core.internal.persistence.PersistentShapeDto;
 import dev.hytalemodding.impulse.core.internal.persistence.PersistentSpaceDto;
 import dev.hytalemodding.impulse.core.internal.persistence.PersistentTerrainColliderDto;
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsRestoreStatusResource;
-import dev.hytalemodding.impulse.core.internal.physicsstore.resources.PhysicsSnapshotResource;
+import dev.hytalemodding.impulse.core.internal.resources.PhysicsSnapshotResource;
 import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyPersistenceMode;
 import dev.hytalemodding.impulse.core.plugin.components.BodyComponent;
 import dev.hytalemodding.impulse.core.plugin.components.ColliderComponent;

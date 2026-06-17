@@ -9,18 +9,17 @@ import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import com.hypixel.hytale.server.core.universe.world.storage.PhysicsStore;
 import dev.hytalemodding.impulse.early.PhysicsStoreHooks;
 import dev.hytalemodding.impulse.core.internal.persistence.PersistentPhysicsStoreResource;
-import dev.hytalemodding.impulse.core.internal.physicsstore.resources.PhysicsBodyRegistrationResource;
+import dev.hytalemodding.impulse.core.internal.resources.PhysicsBodyRegistrationResource;
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsEventResource;
-import dev.hytalemodding.impulse.core.internal.physicsstore.resources.PhysicsIdentityIndexResource;
-import dev.hytalemodding.impulse.core.internal.physicsstore.resources.PhysicsProfilingResource;
+import dev.hytalemodding.impulse.core.internal.resources.PhysicsIdentityIndexResource;
+import dev.hytalemodding.impulse.core.internal.resources.PhysicsProfilingResource;
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsTerrainMutationQueueResource;
-import dev.hytalemodding.impulse.core.internal.resources.PhysicsRestoreStatusResource;
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsResourceTypes;
-import dev.hytalemodding.impulse.core.internal.physicsstore.resources.PhysicsRuntimeResource;
-import dev.hytalemodding.impulse.core.internal.physicsstore.resources.PhysicsSpaceCompatibilityIndexResource;
-import dev.hytalemodding.impulse.core.internal.physicsstore.resources.PhysicsSnapshotResource;
-import dev.hytalemodding.impulse.core.internal.physicsstore.resources.PhysicsStepSchedulerResource;
-import dev.hytalemodding.impulse.core.internal.physicsstore.resources.PhysicsStepSchedulerResource.TickDecision;
+import dev.hytalemodding.impulse.core.internal.resources.PhysicsRuntimeResource;
+import dev.hytalemodding.impulse.core.internal.resources.PhysicsSpaceCompatibilityIndexResource;
+import dev.hytalemodding.impulse.core.internal.resources.PhysicsSnapshotResource;
+import dev.hytalemodding.impulse.core.internal.resources.PhysicsStepSchedulerResource;
+import dev.hytalemodding.impulse.core.internal.resources.PhysicsStepSchedulerResource.TickDecision;
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsStoreReadQueueResource;
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsTerrainPayloadResource;
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsWorldSettingsResource;
@@ -153,10 +152,7 @@ public final class PhysicsStoreRegistration {
     }
 
     private static void ensurePersistentResourcePresent(@Nonnull Store<PhysicsStore> store) {
-        if (store.getResource(PersistentPhysicsStoreResource.getResourceType()) == null) {
-            store.replaceResource(PersistentPhysicsStoreResource.getResourceType(),
-                new PersistentPhysicsStoreResource());
-        }
+        store.getResource(PersistentPhysicsStoreResource.getResourceType());
     }
 
     private static <T extends Resource<PhysicsStore>> void cleanupResource(
@@ -164,9 +160,7 @@ public final class PhysicsStoreRegistration {
         @Nonnull ResourceType<PhysicsStore, T> type,
         @Nonnull Consumer<T> cleanup) {
         T resource = store.getResource(type);
-        if (resource != null) {
-            cleanup.accept(resource);
-        }
+        cleanup.accept(resource);
     }
 
     private static boolean shouldTickPhysicsStore(@Nonnull PhysicsStore physicsStore, float dt) {

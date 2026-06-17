@@ -26,7 +26,7 @@ import dev.hytalemodding.impulse.core.internal.modules.worldcollision.profiling.
 import dev.hytalemodding.impulse.core.internal.modules.worldcollision.profiling.WorldCollisionProfilingResource.Snapshot;
 import dev.hytalemodding.impulse.core.internal.modules.worldcollision.profiling.WorldCollisionProfilingResource.StreamingTargetDiagnostic;
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsTerrainMutationQueueResource;
-import dev.hytalemodding.impulse.core.internal.physicsstore.resources.PhysicsSnapshotResource;
+import dev.hytalemodding.impulse.core.internal.resources.PhysicsSnapshotResource;
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsWorldCollisionIndexResource;
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsWorldCollisionIndexResource.SpaceWorldCollisionSettings;
 import dev.hytalemodding.impulse.core.internal.systems.sync.PhysicsSyncSystem;

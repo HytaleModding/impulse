@@ -4,13 +4,8 @@ import com.hypixel.hytale.component.ComponentRegistryProxy;
 import com.hypixel.hytale.component.ResourceType;
 import com.hypixel.hytale.server.core.universe.world.storage.PhysicsStore;
 import dev.hytalemodding.impulse.core.internal.persistence.PersistentPhysicsStoreResource;
-import dev.hytalemodding.impulse.core.internal.physicsstore.resources.PhysicsBodyRegistrationResource;
-import dev.hytalemodding.impulse.core.internal.physicsstore.resources.PhysicsIdentityIndexResource;
-import dev.hytalemodding.impulse.core.internal.physicsstore.resources.PhysicsProfilingResource;
-import dev.hytalemodding.impulse.core.internal.physicsstore.resources.PhysicsRuntimeResource;
-import dev.hytalemodding.impulse.core.internal.physicsstore.resources.PhysicsSnapshotResource;
-import dev.hytalemodding.impulse.core.internal.physicsstore.resources.PhysicsSpaceCompatibilityIndexResource;
-import dev.hytalemodding.impulse.core.internal.physicsstore.resources.PhysicsStepSchedulerResource;
+import dev.hytalemodding.impulse.core.internal.resources.PhysicsBodyRegistrationResource;
+import dev.hytalemodding.impulse.core.internal.resources.PhysicsStepSchedulerResource;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 

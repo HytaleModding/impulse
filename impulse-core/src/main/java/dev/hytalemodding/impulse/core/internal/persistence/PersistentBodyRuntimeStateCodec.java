@@ -282,7 +282,7 @@ final class PersistentBodyRuntimeStateCodec implements Codec<PersistentBodyRunti
 
     private static boolean readBooleanToken(@Nonnull RawJsonReader reader) throws IOException {
         String token = readWordToken(reader);
-        return switch (token.toString()) {
+        return switch (token) {
             case "true" -> true;
             case "false" -> false;
             default -> throw new IOException("Invalid persisted boolean value: " + token);

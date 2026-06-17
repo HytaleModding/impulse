@@ -3,6 +3,7 @@ package dev.hytalemodding.impulse.core.internal.persistence;
 import com.hypixel.hytale.codec.Codec;
 import java.util.Objects;
 import javax.annotation.Nonnull;
+import lombok.Getter;
 import org.joml.Quaternionf;
 import org.joml.Vector3f;
 
@@ -23,6 +24,7 @@ public final class PersistentBodyRuntimeStateDto {
     private final Vector3f linearVelocity = new Vector3f();
     @Nonnull
     private final Vector3f angularVelocity = new Vector3f();
+    @Getter
     private boolean sleeping;
 
     public PersistentBodyRuntimeStateDto() {
@@ -58,10 +60,6 @@ public final class PersistentBodyRuntimeStateDto {
     @Nonnull
     public Vector3f getAngularVelocity() {
         return new Vector3f(angularVelocity);
-    }
-
-    public boolean isSleeping() {
-        return sleeping;
     }
 
     @Nonnull
