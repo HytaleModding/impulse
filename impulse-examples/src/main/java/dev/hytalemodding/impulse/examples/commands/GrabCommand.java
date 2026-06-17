@@ -28,12 +28,13 @@ import dev.hytalemodding.impulse.core.plugin.physicsstore.PhysicsBodyEntities;
 import dev.hytalemodding.impulse.core.plugin.physicsstore.PhysicsJointEntities;
 import dev.hytalemodding.impulse.core.plugin.physicsstore.PhysicsAsync;
 import dev.hytalemodding.impulse.core.plugin.physicsstore.PhysicsBodies;
+import dev.hytalemodding.impulse.core.plugin.physicsstore.PhysicsSpaces;
 import dev.hytalemodding.impulse.core.plugin.physicsstore.PhysicsRaycasts;
 import dev.hytalemodding.impulse.core.plugin.components.BodyCommandComponent;
 import dev.hytalemodding.impulse.core.plugin.components.JointComponent;
 import dev.hytalemodding.impulse.core.plugin.physicsstore.BodyEntityDescriptor;
+import dev.hytalemodding.impulse.core.plugin.projection.PhysicsAttachments;
 import dev.hytalemodding.impulse.core.plugin.snapshots.PhysicsBodySnapshot;
-import dev.hytalemodding.impulse.core.plugin.resources.PhysicsWorldResource;
 import dev.hytalemodding.impulse.core.plugin.simulation.JointType;
 import dev.hytalemodding.impulse.core.plugin.simulation.PhysicsShapeSpec;
 import dev.hytalemodding.impulse.core.plugin.simulation.RigidBodySpawnSettings;
@@ -91,7 +92,7 @@ public class GrabCommand extends AbstractAsyncPlayerCommand {
                 + " is not bound yet."));
             return CompletableFuture.completedFuture(null);
         }
-        PhysicsWorldResource resource = store.getResource(PhysicsWorldResource.getResourceType());
+        Store<PhysicsStore> physicsStore = ((PhysicsStoreWorld) world).getPhysicsStore().getStore();
 
         Transform look = TargetUtil.getLook(ref, store);
         Vector3d start = new Vector3d(look.getPosition());
@@ -107,7 +108,7 @@ public class GrabCommand extends AbstractAsyncPlayerCommand {
                 world,
                 store,
                 ref,
-                resource,
+                physicsStore,
                 targetSpaceId,
                 controllableType,
                 hits));
@@ -117,11 +118,11 @@ public class GrabCommand extends AbstractAsyncPlayerCommand {
         @Nonnull World world,
         @Nonnull Store<EntityStore> store,
         @Nonnull Ref<EntityStore> ref,
-        @Nonnull PhysicsWorldResource resource,
+        @Nonnull Store<PhysicsStore> physicsStore,
         @Nonnull SpaceId targetSpaceId,
         @Nonnull ComponentType<EntityStore, ImpulseControllableComponent> controllableType,
         @Nonnull List<RaycastHitView> hits) {
-        HitSelection selection = selectControllableHit(resource,
+        HitSelection selection = selectControllableHit(physicsStore,
             store,
             controllableType,
             hits);
@@ -133,7 +134,7 @@ public class GrabCommand extends AbstractAsyncPlayerCommand {
         PhysicsControlSessions.releaseSession(store, ref);
 
         SpaceId selectedSpaceId = selection.spaceId() != null ? selection.spaceId() : targetSpaceId;
-        if (!resource.hasSpace(selectedSpaceId)) {
+        if (!PhysicsSpaces.hasSpace(physicsStore, selectedSpaceId)) {
             ctx.sender().sendMessage(Message.raw("Selected physics space no longer exists."));
             return;
         }
@@ -241,7 +242,7 @@ public class GrabCommand extends AbstractAsyncPlayerCommand {
     }
 
     @Nullable
-    private static HitSelection selectControllableHit(@Nonnull PhysicsWorldResource resource,
+    private static HitSelection selectControllableHit(@Nonnull Store<PhysicsStore> physicsStore,
         @Nonnull Store<EntityStore> store,
         @Nonnull ComponentType<EntityStore, ImpulseControllableComponent> controllableType,
         @Nonnull List<RaycastHitView> hits) {
@@ -253,7 +254,7 @@ public class GrabCommand extends AbstractAsyncPlayerCommand {
                 continue;
             }
             PhysicsBodyRegistrationView registration =
-                PhysicsBodies.registrationView(hit.bodyRef().getStore(), hit.bodyRef());
+                PhysicsBodies.registrationView(physicsStore, hit.bodyRef());
             if (registration == null || registration.kind() != PhysicsBodyKind.BODY) {
                 continue;
             }
@@ -266,7 +267,7 @@ public class GrabCommand extends AbstractAsyncPlayerCommand {
         HitSelection best = null;
         for (HitCandidate candidate : candidates) {
             AttachmentSelection attachments =
-                inspectGameplayAttachments(resource, store, controllableType, candidate.bodyRef());
+                inspectGameplayAttachments(store, controllableType, candidate.bodyRef());
             if (attachments.controllableAttachment() == null && attachments.hasGameplayAttachment()) {
                 continue;
             }
@@ -291,12 +292,11 @@ public class GrabCommand extends AbstractAsyncPlayerCommand {
     }
 
     @Nonnull
-    private static AttachmentSelection inspectGameplayAttachments(@Nonnull PhysicsWorldResource resource,
-        @Nonnull Store<EntityStore> store,
+    private static AttachmentSelection inspectGameplayAttachments(@Nonnull Store<EntityStore> store,
         @Nonnull ComponentType<EntityStore, ImpulseControllableComponent> controllableType,
         @Nonnull Ref<PhysicsStore> bodyRef) {
         boolean hasGameplayAttachment = false;
-        for (Ref<EntityStore> attachmentRef : resource.getBodyAttachments(bodyRef)) {
+        for (Ref<EntityStore> attachmentRef : PhysicsAttachments.attachments(store, bodyRef)) {
             BodyAttachmentComponent attachment = store.getComponent(attachmentRef, ATTACHMENT_TYPE);
             if (attachment == null
                 || attachment.getLifecycle() == BodyAttachmentComponent.AttachmentLifecycle.GENERATED_PROXY) {

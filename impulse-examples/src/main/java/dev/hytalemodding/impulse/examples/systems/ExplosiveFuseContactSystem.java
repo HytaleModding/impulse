@@ -6,14 +6,17 @@ import com.hypixel.hytale.component.Ref;
 import com.hypixel.hytale.component.Store;
 import com.hypixel.hytale.component.system.WorldEventSystem;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
+import com.hypixel.hytale.server.core.universe.world.storage.PhysicsStore;
 import dev.hytalemodding.impulse.api.PhysicsContactPhase;
 import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyKind;
 import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyRegistrationView;
 import dev.hytalemodding.impulse.core.plugin.projection.BodyAttachmentComponent;
+import dev.hytalemodding.impulse.core.plugin.projection.PhysicsAttachments;
 import dev.hytalemodding.impulse.core.plugin.events.PhysicsContactEvent;
 import dev.hytalemodding.impulse.core.plugin.events.PhysicsEventFramePublishedEvent;
 import dev.hytalemodding.impulse.core.plugin.events.PhysicsFrameEvent;
-import dev.hytalemodding.impulse.core.plugin.resources.PhysicsWorldResource;
+import dev.hytalemodding.impulse.core.plugin.physicsstore.PhysicsBodies;
+import dev.hytalemodding.impulse.early.PhysicsStoreWorld;
 import dev.hytalemodding.impulse.examples.explosive.ExplosiveBlockComponent;
 import dev.hytalemodding.impulse.examples.explosive.ExplosiveBlockRuntime;
 import dev.hytalemodding.impulse.examples.explosive.ExplosiveFuseComponent;
@@ -40,19 +43,22 @@ public final class ExplosiveFuseContactSystem
     public void handle(@Nonnull Store<EntityStore> store,
         @Nonnull CommandBuffer<EntityStore> commandBuffer,
         @Nonnull PhysicsEventFramePublishedEvent event) {
-        PhysicsWorldResource resource = store.getResource(PhysicsWorldResource.getResourceType());
+        Store<PhysicsStore> physicsStore =
+            ((PhysicsStoreWorld) store.getExternalData().getWorld()).getPhysicsStore().getStore();
         long tick = Math.max(0L, store.getExternalData().getWorld().getTick());
         for (PhysicsFrameEvent frameEvent : event.frame().physicsEvents()) {
             if (frameEvent instanceof PhysicsContactEvent contact
                 && contact.phase() != PhysicsContactPhase.ENDED) {
                 armIfExplosiveTouchesWorld(commandBuffer,
-                    resource,
+                    store,
+                    physicsStore,
                     tick,
                     contact.bodyAUuid(),
                     contact.bodyBUuid(),
                     contactCenter(contact.pointOnB()));
                 armIfExplosiveTouchesWorld(commandBuffer,
-                    resource,
+                    store,
+                    physicsStore,
                     tick,
                     contact.bodyBUuid(),
                     contact.bodyAUuid(),
@@ -62,15 +68,16 @@ public final class ExplosiveFuseContactSystem
     }
 
     private static void armIfExplosiveTouchesWorld(@Nonnull CommandBuffer<EntityStore> commandBuffer,
-        @Nonnull PhysicsWorldResource resource,
+        @Nonnull Store<EntityStore> store,
+        @Nonnull Store<PhysicsStore> physicsStore,
         long tick,
         @Nonnull UUID explosiveBodyUuid,
         @Nonnull UUID otherBodyUuid,
         @Nonnull Vector3d explosionCenter) {
-        if (!isWorldCollision(resource, otherBodyUuid)) {
+        if (!isWorldCollision(physicsStore, otherBodyUuid)) {
             return;
         }
-        for (Ref<EntityStore> ref : resource.getBodyAttachments(explosiveBodyUuid, null)) {
+        for (Ref<EntityStore> ref : PhysicsAttachments.attachments(store, explosiveBodyUuid)) {
             BodyAttachmentComponent attachment = commandBuffer.getComponent(ref, ATTACHMENT_TYPE);
             ExplosiveBlockComponent explosive = commandBuffer.getComponent(ref, EXPLOSIVE_TYPE);
             ExplosiveFuseComponent fuse = commandBuffer.getComponent(ref, FUSE_TYPE);
@@ -87,9 +94,10 @@ public final class ExplosiveFuseContactSystem
         }
     }
 
-    private static boolean isWorldCollision(@Nonnull PhysicsWorldResource resource,
+    private static boolean isWorldCollision(@Nonnull Store<PhysicsStore> physicsStore,
         @Nonnull UUID bodyUuid) {
-        PhysicsBodyRegistrationView registration = resource.getBodyRegistrationView(bodyUuid);
+        PhysicsBodyRegistrationView registration = PhysicsBodies.registrationView(physicsStore,
+            bodyUuid);
         return registration != null && registration.kind() == PhysicsBodyKind.WORLD_COLLISION;
     }
 

@@ -19,7 +19,8 @@ import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyPersistenceMode;
 import dev.hytalemodding.impulse.core.plugin.modules.physicschunk.PhysicsWorldCollision;
 import dev.hytalemodding.impulse.core.plugin.modules.physicschunk.WorldCollisionPrewarmStats;
 import dev.hytalemodding.impulse.core.plugin.modules.physicschunk.WorldCollisionMode;
-import dev.hytalemodding.impulse.core.plugin.resources.PhysicsWorldResource;
+import dev.hytalemodding.impulse.core.plugin.physicsstore.PhysicsSpaces;
+import dev.hytalemodding.impulse.core.plugin.physicsstore.PhysicsWorlds;
 import dev.hytalemodding.impulse.core.plugin.settings.PhysicsBackendExtensionId;
 import dev.hytalemodding.impulse.core.plugin.settings.PhysicsCollisionLodSettings;
 import dev.hytalemodding.impulse.core.plugin.settings.PhysicsSolverSettings;
@@ -155,19 +156,23 @@ public class StressBodiesCommand extends AbstractAsyncPlayerCommand {
                 + " is not bound."));
             return CompletableFuture.completedFuture(null);
         }
-        PhysicsWorldResource resource = store.getResource(PhysicsWorldResource.getResourceType());
-        PhysicsSpaceSettings settings = configureStressRuntime(resource,
-            spaceId,
+        Store<PhysicsStore> physicsStore = ((PhysicsStoreWorld) world).getPhysicsStore().getStore();
+        PhysicsSpaceSettings settings = configureStressRuntime(physicsStore,
+            spaceRef,
             mode,
             visibility,
             visualSettings,
             collisionLod);
+        if (settings == null) {
+            ctx.sender().sendMessage(Message.raw("PhysicsStore space id=" + spaceId.value()
+                + " no longer exists."));
+            return CompletableFuture.completedFuture(null);
+        }
         TimeResource time = store.getResource(TimeResource.getResourceType());
 
         StressLayout layout = StressLayout.forCount(count, playerPos);
         long prewarmStartNanos = System.nanoTime();
-        int prewarmedSections = prewarmStressWorldCollision(store,
-            world,
+        int prewarmedSections = prewarmStressWorldCollision(world,
             spaceId,
             settings,
             mode,
@@ -230,7 +235,7 @@ public class StressBodiesCommand extends AbstractAsyncPlayerCommand {
             settings.getVisualMaterializationSettings();
         PhysicsVisualSyncSettings visualSyncSettings = settings.getVisualSyncSettings();
         PhysicsCollisionLodSettings collisionLodSettings = settings.getCollisionLodSettings();
-        PhysicsWorldSettings worldSettings = resource.getWorldSettings();
+        PhysicsWorldSettings worldSettings = PhysicsWorlds.settings(physicsStore);
 
         ctx.sender().sendMessage(Message.raw("Added " + count
             + " stress bodies: setupWallMs="
@@ -274,14 +279,18 @@ public class StressBodiesCommand extends AbstractAsyncPlayerCommand {
         return CompletableFuture.completedFuture(null);
     }
 
-    @Nonnull
-    private static PhysicsSpaceSettings configureStressRuntime(@Nonnull PhysicsWorldResource resource,
-        @Nonnull SpaceId spaceId,
+    @Nullable
+    private static PhysicsSpaceSettings configureStressRuntime(@Nonnull Store<PhysicsStore> physicsStore,
+        @Nonnull Ref<PhysicsStore> spaceRef,
         @Nonnull StressMode mode,
         @Nonnull StressVisibility visibility,
         @Nonnull StressVisualSettings visualSettings,
         @Nullable Boolean collisionLod) {
-        PhysicsSpaceSettings settings = new PhysicsSpaceSettings(resource.getSpaceSettings(spaceId));
+        PhysicsSpaceSettings currentSettings = PhysicsSpaces.settings(physicsStore, spaceRef);
+        if (currentSettings == null) {
+            return null;
+        }
+        PhysicsSpaceSettings settings = new PhysicsSpaceSettings(currentSettings);
         PhysicsSolverSettings solverSettings = settings.getSolverSettings();
         solverSettings.setSolverIterations(1);
         solverSettings.setStabilizationIterations(1);
@@ -319,12 +328,11 @@ public class StressBodiesCommand extends AbstractAsyncPlayerCommand {
                 settings.getCollisionLodSettings().setCollisionLodEnabled(collisionLod);
             }
         }
-        resource.setSpaceSettings(spaceId, settings);
+        PhysicsSpaces.putSettings(physicsStore, spaceRef, settings);
         return settings;
     }
 
-    private static int prewarmStressWorldCollision(@Nonnull Store<EntityStore> store,
-        @Nonnull World world,
+    private static int prewarmStressWorldCollision(@Nonnull World world,
         @Nonnull SpaceId spaceId,
         @Nonnull PhysicsSpaceSettings settings,
         @Nonnull StressMode mode,

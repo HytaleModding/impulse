@@ -22,12 +22,13 @@ import dev.hytalemodding.impulse.api.SpaceId;
 import dev.hytalemodding.impulse.core.plugin.modules.physicschunk.PhysicsWorldCollision;
 import dev.hytalemodding.impulse.core.plugin.modules.physicschunk.WorldCollisionPrewarmStats;
 import dev.hytalemodding.impulse.core.plugin.physicsstore.PhysicsAsync;
+import dev.hytalemodding.impulse.core.plugin.physicsstore.PhysicsBodies;
 import dev.hytalemodding.impulse.core.plugin.physicsstore.PhysicsRaycasts;
+import dev.hytalemodding.impulse.core.plugin.physicsstore.PhysicsWorlds;
+import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyRegistrationView;
 import dev.hytalemodding.impulse.core.plugin.components.BodyCommandComponent;
 import dev.hytalemodding.impulse.core.plugin.components.DynamicsComponent;
 import dev.hytalemodding.impulse.core.plugin.components.TargetComponent;
-import dev.hytalemodding.impulse.core.plugin.components.UuidComponent;
-import dev.hytalemodding.impulse.core.plugin.resources.PhysicsWorldResource;
 import dev.hytalemodding.impulse.core.plugin.settings.PhysicsEventCollectionMode;
 import dev.hytalemodding.impulse.core.plugin.simulation.PhysicsShapeSpec;
 import dev.hytalemodding.impulse.core.plugin.simulation.RigidBodySpawnSettings;
@@ -257,9 +258,10 @@ final class PhysicsStoreExampleCommands {
 
         @Nullable
         private static UUID physicsStoreBodyUuid(@Nonnull Ref<PhysicsStore> bodyRef) {
-            UuidComponent uuid = bodyRef.getStore()
-                .getComponent(bodyRef, UuidComponent.getComponentType());
-            return uuid != null ? uuid.getUuid() : null;
+            PhysicsBodyRegistrationView registration = PhysicsBodies.registrationView(
+                bodyRef.getStore(),
+                bodyRef);
+            return registration != null ? registration.bodyUuid() : null;
         }
     }
 
@@ -331,8 +333,9 @@ final class PhysicsStoreExampleCommands {
                 ctx.sender().sendMessage(Message.raw("No valid explosive block type is available."));
                 return CompletableFuture.completedFuture(null);
             }
-            PhysicsWorldResource resource = store.getResource(PhysicsWorldResource.getResourceType());
-            boolean contactEventsEnabled = contactEventsEnabled(resource);
+            Store<PhysicsStore> physicsStore =
+                ((PhysicsStoreWorld) world).getPhysicsStore().getStore();
+            boolean contactEventsEnabled = contactEventsEnabled(physicsStore);
             Ref<PhysicsStore> spaceRef = ExamplePhysicsUtils.resolveSpaceRef(world,
                 spaceId);
             if (spaceRef == null) {
@@ -341,7 +344,7 @@ final class PhysicsStoreExampleCommands {
                 return CompletableFuture.completedFuture(null);
             }
             WorldCollisionPrewarmStats stats = PhysicsWorldCollision.ensureAround(world,
-                ((PhysicsStoreWorld) world).getPhysicsStore().getStore(),
+                physicsStore,
                 spaceId,
                 List.of(spawn),
                 Math.max(8, radius + 6),
@@ -395,8 +398,9 @@ final class PhysicsStoreExampleCommands {
             return BlockType.getAssetMap().getAsset(ExamplePhysicsUtils.DEFAULT_BLOCK_TYPE);
         }
 
-        private static boolean contactEventsEnabled(@Nonnull PhysicsWorldResource resource) {
-            return resource.getWorldSettings().getEventCollectionMode() == PhysicsEventCollectionMode.CONTACTS;
+        private static boolean contactEventsEnabled(@Nonnull Store<PhysicsStore> physicsStore) {
+            return PhysicsWorlds.settings(physicsStore).getEventCollectionMode()
+                == PhysicsEventCollectionMode.CONTACTS;
         }
 
         @Nonnull
