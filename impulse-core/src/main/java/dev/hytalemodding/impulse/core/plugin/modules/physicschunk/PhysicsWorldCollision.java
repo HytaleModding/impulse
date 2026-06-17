@@ -17,7 +17,7 @@ public final class PhysicsWorldCollision {
     }
 
     public static boolean isModuleEnabled() {
-        return PhysicsChunkTerrain.isModuleEnabled();
+        return PhysicsChunkTerrain.isSubPluginEnabled();
     }
 
     @Nonnull

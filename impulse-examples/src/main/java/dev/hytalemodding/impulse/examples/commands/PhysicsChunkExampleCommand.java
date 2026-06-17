@@ -31,7 +31,7 @@ import org.joml.Vector3d;
 public class PhysicsChunkExampleCommand extends AbstractCommandCollection {
 
     public PhysicsChunkExampleCommand() {
-        super("physicschunk", "Build static Impulse chunk collision from nearby world blocks");
+        super("physicschunk", "Build PhysicsChunk terrain collision from nearby world blocks");
         addSubCommand(new BuildCommand());
         addSubCommand(new EnsureCommand());
         addSubCommand(new ClearCommand());
@@ -58,7 +58,7 @@ public class PhysicsChunkExampleCommand extends AbstractCommandCollection {
             ArgTypes.INTEGER);
 
         private BuildCommand() {
-            super("build", "Rebuild nearby static voxel collision");
+            super("build", "Rebuild nearby PhysicsChunk terrain collision");
         }
 
         @Nonnull
@@ -113,7 +113,7 @@ public class PhysicsChunkExampleCommand extends AbstractCommandCollection {
             ArgTypes.INTEGER);
 
         private EnsureCommand() {
-            super("ensure", "Ensure nearby static voxel collision is available");
+            super("ensure", "Ensure nearby PhysicsChunk terrain collision is available");
         }
 
         @Nonnull
@@ -157,7 +157,7 @@ public class PhysicsChunkExampleCommand extends AbstractCommandCollection {
             ArgTypes.INTEGER);
 
         private ClearCommand() {
-            super("clear", "Remove generated static voxel collision");
+            super("clear", "Remove generated PhysicsChunk terrain collision");
         }
 
         @Nonnull
@@ -182,7 +182,7 @@ public class PhysicsChunkExampleCommand extends AbstractCommandCollection {
     private static final class StatsCommand extends AbstractAsyncPlayerCommand {
 
         private StatsCommand() {
-            super("stats", "Show generated static voxel collision stats");
+            super("stats", "Show generated PhysicsChunk terrain collision stats");
         }
 
         @Nonnull
@@ -193,7 +193,7 @@ public class PhysicsChunkExampleCommand extends AbstractCommandCollection {
             @Nonnull PlayerRef playerRef,
             @Nonnull World world) {
             PhysicsChunkTerrainStats stats = PhysicsChunkTerrain.stats(world);
-            ctx.sender().sendMessage(Message.raw("World voxel collision: "
+            ctx.sender().sendMessage(Message.raw("PhysicsChunk terrain collision: "
                 + stats.spaces() + " spaces, "
                 + stats.sections() + " sections, "
                 + stats.bodies() + " bodies, "

@@ -30,8 +30,16 @@ public final class PhysicsChunkTerrain {
     private PhysicsChunkTerrain() {
     }
 
-    public static boolean isModuleEnabled() {
+    public static boolean isSubPluginEnabled() {
         return PhysicsChunkLifecycle.isEnabled();
+    }
+
+    /**
+     * @deprecated Use {@link #isSubPluginEnabled()}.
+     */
+    @Deprecated(forRemoval = false)
+    public static boolean isModuleEnabled() {
+        return isSubPluginEnabled();
     }
 
     @Nonnull
@@ -121,13 +129,13 @@ public final class PhysicsChunkTerrain {
             throw new IllegalStateException("Cannot read PhysicsChunk terrain stats "
                 + "outside the owning world thread");
         }
-        return isModuleEnabled()
+        return isSubPluginEnabled()
             ? streaming(world).stats()
             : new PhysicsChunkTerrainStats(0, 0, 0, 0);
     }
 
     private static void requireEnabled() {
-        if (!isModuleEnabled()) {
+        if (!isSubPluginEnabled()) {
             throw new IllegalStateException("Impulse physics chunk subplugin is disabled");
         }
     }
@@ -188,7 +196,7 @@ public final class PhysicsChunkTerrain {
         @Nonnull Store<PhysicsStore> store,
         @Nonnull UUID spaceUuid) {
         int removed = 0;
-        if (isModuleEnabled()) {
+        if (isSubPluginEnabled()) {
             removed = streaming(world).clearSpace(spaceUuid,
                 store.getResource(PhysicsTerrainMutationQueueResource.getResourceType()));
         }

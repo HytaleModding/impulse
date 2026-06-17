@@ -5,7 +5,7 @@ import com.hypixel.hytale.server.core.command.system.basecommands.AbstractComman
 public final class PhysicsChunkCommand extends AbstractCommandCollection {
 
     public PhysicsChunkCommand() {
-        super("physicschunk", "Impulse PhysicsChunk module commands");
+        super("physicschunk", "Impulse PhysicsChunk terrain commands");
         addSubCommand(new PhysicsChunkSettingsCommand());
         addSubCommand(new PhysicsChunkPerfCommand());
     }

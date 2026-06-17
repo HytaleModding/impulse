@@ -1,4 +1,4 @@
 /**
- * Optional EntityStore projection, sync, debug, and profiling integration for PhysicsStore bodies.
+ * Public API for the bundled PhysicsEntity subplugin.
  */
 package dev.hytalemodding.impulse.core.plugin.modules.physicsentity;

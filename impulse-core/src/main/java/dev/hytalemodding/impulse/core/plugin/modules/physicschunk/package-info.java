@@ -1,4 +1,4 @@
 /**
- * Optional ChunkStore PhysicsChunk terrain integration for authoritative PhysicsStore terrain.
+ * Public API for the bundled PhysicsChunk terrain subplugin.
  */
 package dev.hytalemodding.impulse.core.plugin.modules.physicschunk;
