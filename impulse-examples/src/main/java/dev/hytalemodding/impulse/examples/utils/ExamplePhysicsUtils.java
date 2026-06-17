@@ -1,7 +1,6 @@
 package dev.hytalemodding.impulse.examples.utils;
 
 import com.hypixel.hytale.component.AddReason;
-import com.hypixel.hytale.component.ComponentType;
 import com.hypixel.hytale.component.Holder;
 import com.hypixel.hytale.component.Ref;
 import com.hypixel.hytale.component.Store;
@@ -47,8 +46,6 @@ public final class ExamplePhysicsUtils {
 
     public static final String DEFAULT_BLOCK_TYPE =
         PhysicsVisualMaterializationSettings.DEFAULT_DETACHED_VISUAL_BLOCK_TYPE;
-    private static final ComponentType<EntityStore, BodyAttachmentComponent> ATTACHMENT_TYPE =
-        BodyAttachmentComponent.getComponentType();
 
     private ExamplePhysicsUtils() {
     }
@@ -820,7 +817,7 @@ public final class ExamplePhysicsUtils {
         @Nonnull Vector3d visualPosition,
         @Nullable String blockType) {
         Holder<EntityStore> holder = blockEntityHolder(time, blockType, visualPosition);
-        holder.addComponent(ATTACHMENT_TYPE,
+        holder.addComponent(BodyAttachmentComponent.getComponentType(),
             BodyAttachmentComponent.externalEntity(bodyUuid));
         return store.addEntity(holder, AddReason.SPAWN);
     }
@@ -853,7 +850,7 @@ public final class ExamplePhysicsUtils {
         float visualOriginOffsetY,
         boolean controllable) {
         Holder<EntityStore> holder = blockEntityHolder(time, blockType, visualPosition);
-        holder.addComponent(ATTACHMENT_TYPE,
+        holder.addComponent(BodyAttachmentComponent.getComponentType(),
             BodyAttachmentComponent.impulseOwnedVisual(physicsBodyUuid,
             localPositionOffset,
             localRotationOffset,
