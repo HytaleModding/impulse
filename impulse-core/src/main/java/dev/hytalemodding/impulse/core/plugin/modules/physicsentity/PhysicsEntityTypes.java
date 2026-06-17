@@ -6,7 +6,6 @@ import com.hypixel.hytale.component.ResourceType;
 import com.hypixel.hytale.component.SystemGroup;
 import com.hypixel.hytale.component.event.WorldEventType;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
-import dev.hytalemodding.impulse.core.internal.components.GeneratedVisualProxyComponent;
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsDebugResource;
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsProjectionIndexResource;
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsWorldRuntimeResource;
@@ -19,6 +18,7 @@ import dev.hytalemodding.impulse.core.internal.systems.sync.PhysicsSyncSystem;
 import dev.hytalemodding.impulse.core.internal.systems.visual.PhysicsGeneratedProxyCleanupSystem;
 import dev.hytalemodding.impulse.core.plugin.events.PhysicsEventFramePublishedEvent;
 import dev.hytalemodding.impulse.core.plugin.modules.physicsentity.components.BodyAttachmentComponent;
+import dev.hytalemodding.impulse.core.plugin.modules.physicsentity.components.GeneratedVisualProxyComponent;
 import dev.hytalemodding.impulse.core.plugin.resources.PhysicsWorldResource;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
@@ -30,6 +30,9 @@ public final class PhysicsEntityTypes {
 
     @Nullable
     private static ComponentType<EntityStore, BodyAttachmentComponent> bodyAttachmentComponentType;
+    @Nullable
+    private static ComponentType<EntityStore, GeneratedVisualProxyComponent>
+        generatedVisualProxyComponentType;
     @Nullable
     private static ResourceType<EntityStore, PhysicsWorldResource> physicsWorldResourceType;
     @Nullable
@@ -46,10 +49,10 @@ public final class PhysicsEntityTypes {
             BodyAttachmentComponent.class,
             "BodyAttachment",
             BodyAttachmentComponent.CODEC);
-        GeneratedVisualProxyComponent.setComponentType(registry.registerComponent(
+        generatedVisualProxyComponentType = registry.registerComponent(
             GeneratedVisualProxyComponent.class,
             "GeneratedVisualProxy",
-            GeneratedVisualProxyComponent.CODEC));
+            GeneratedVisualProxyComponent.CODEC);
     }
 
     public static void registerResourceTypes(@Nonnull ComponentRegistryProxy<EntityStore> registry) {
@@ -86,6 +89,12 @@ public final class PhysicsEntityTypes {
     @Nonnull
     public static ComponentType<EntityStore, BodyAttachmentComponent> bodyAttachmentComponentType() {
         return bodyAttachmentComponentType;
+    }
+
+    @Nonnull
+    public static ComponentType<EntityStore, GeneratedVisualProxyComponent>
+    generatedVisualProxyComponentType() {
+        return generatedVisualProxyComponentType;
     }
 
     @Nonnull
