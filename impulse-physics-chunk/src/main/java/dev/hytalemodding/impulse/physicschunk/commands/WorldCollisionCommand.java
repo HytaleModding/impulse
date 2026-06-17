@@ -1,4 +1,4 @@
-package dev.hytalemodding.impulse.core.internal.modules.physicschunk.commands;
+package dev.hytalemodding.impulse.physicschunk.commands;
 
 import com.hypixel.hytale.server.core.command.system.basecommands.AbstractCommandCollection;
 

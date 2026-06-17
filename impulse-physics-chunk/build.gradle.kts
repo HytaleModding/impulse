@@ -12,6 +12,7 @@ val impulsePhysicsChunkDependencies = listOf(
 ).joinToString(",")
 
 dependencies {
+    compileOnly(project(":impulse-api"))
     compileOnly(project(":impulse-core"))
     compileOnly(project(":impulse-early-plugin"))
     testImplementation(project(":impulse-core"))

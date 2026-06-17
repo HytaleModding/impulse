@@ -8,7 +8,7 @@ import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import com.hypixel.hytale.server.core.universe.world.storage.PhysicsStore;
 import dev.hytalemodding.impulse.core.internal.modules.physicschunk.PhysicsStoreWorldCollisionStreamingResource;
 import dev.hytalemodding.impulse.core.internal.modules.physicschunk.WorldCollisionLifecycle;
-import dev.hytalemodding.impulse.core.internal.modules.physicschunk.commands.WorldCollisionCommandContributions;
+import dev.hytalemodding.impulse.physicschunk.commands.WorldCollisionCommandContributions;
 import dev.hytalemodding.impulse.core.internal.modules.physicschunk.profiling.WorldCollisionProfilingResource;
 import dev.hytalemodding.impulse.core.internal.modules.physicschunk.systems.PhysicsStoreWorldCollisionProducerSystem;
 import dev.hytalemodding.impulse.core.internal.registration.PhysicsStoreRegistration;
