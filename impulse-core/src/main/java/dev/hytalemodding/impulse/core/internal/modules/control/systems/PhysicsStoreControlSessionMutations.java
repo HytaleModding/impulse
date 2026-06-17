@@ -7,7 +7,6 @@ import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import com.hypixel.hytale.server.core.universe.world.storage.PhysicsStore;
 import dev.hytalemodding.impulse.api.PhysicsBodyType;
 import dev.hytalemodding.impulse.core.plugin.physicsstore.PhysicsThreading;
-import dev.hytalemodding.impulse.early.PhysicsStoreWorld;
 import dev.hytalemodding.impulse.core.internal.modules.control.components.PhysicsControlSessionComponent;
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsIdentityIndexResource;
 import dev.hytalemodding.impulse.core.plugin.components.BodyCommandComponent;
@@ -30,9 +29,8 @@ public final class PhysicsStoreControlSessionMutations {
 
     public static void applyRelease(@Nonnull Store<EntityStore> store,
         @Nonnull PhysicsControlSessionComponent session) {
-        Store<PhysicsStore> physicsStore =
-            ((PhysicsStoreWorld) store.getExternalData().getWorld()).getPhysicsStore()
-                .getStore();
+        Store<PhysicsStore> physicsStore = PhysicsThreading.store(
+            store.getExternalData().getWorld());
         PhysicsThreading.requireWorldThread(physicsStore,
             "apply PhysicsStore control-session release mutations");
 

@@ -17,7 +17,6 @@ import com.hypixel.hytale.server.core.universe.world.World;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import com.hypixel.hytale.server.core.universe.world.storage.PhysicsStore;
 import dev.hytalemodding.impulse.api.PhysicsBodyType;
-import dev.hytalemodding.impulse.early.PhysicsStoreWorld;
 import dev.hytalemodding.impulse.core.internal.modules.physicschunk.PhysicsStoreTerrainMutationCache.TargetRefreshDecision;
 import dev.hytalemodding.impulse.core.internal.modules.physicschunk.PhysicsStoreWorldCollisionStreamingResource;
 import dev.hytalemodding.impulse.core.internal.modules.physicschunk.WorldCollisionLifecycle;
@@ -77,8 +76,7 @@ public final class PhysicsStoreWorldCollisionProducerSystem extends TickingSyste
         long tickStart = snapshot != null ? System.nanoTime() : 0L;
         try {
             World world = store.getExternalData().getWorld();
-            PhysicsStore physicsStore = ((PhysicsStoreWorld) world).getPhysicsStore();
-            Store<PhysicsStore> physics = physicsStore.getStore();
+            Store<PhysicsStore> physics = PhysicsThreading.store(world);
             PhysicsThreading.requireWorldThread(physics,
                 "produce PhysicsStore world-collision terrain mutations");
             PhysicsTerrainMutationQueueResource queue = physics.getResource(

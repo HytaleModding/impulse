@@ -14,7 +14,6 @@ import dev.hytalemodding.impulse.api.PhysicsCollisionFilters;
 import dev.hytalemodding.impulse.api.ShapeType;
 import dev.hytalemodding.impulse.api.SpaceId;
 import dev.hytalemodding.impulse.core.plugin.physicsstore.PhysicsThreading;
-import dev.hytalemodding.impulse.early.PhysicsStoreWorld;
 import dev.hytalemodding.impulse.core.internal.modules.control.ControlLifecycle;
 import dev.hytalemodding.impulse.core.internal.modules.control.PhysicsControlRuntimeState;
 import dev.hytalemodding.impulse.core.internal.physicsstore.PhysicsStoreSpaceMutations;
@@ -201,8 +200,7 @@ public class PhysicsWorldRuntimeResource extends PhysicsWorldResource {
 
     @Nonnull
     private static Store<PhysicsStore> physicsStore(@Nonnull World world) {
-        return ((PhysicsStoreWorld) Objects.requireNonNull(world, "world")).getPhysicsStore()
-            .getStore();
+        return PhysicsThreading.store(world);
     }
 
     private static boolean sameRef(@Nullable Ref<EntityStore> first,

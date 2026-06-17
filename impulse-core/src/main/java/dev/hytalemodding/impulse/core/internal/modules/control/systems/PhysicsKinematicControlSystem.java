@@ -18,7 +18,6 @@ import com.hypixel.hytale.server.core.modules.entity.component.ModelComponent;
 import com.hypixel.hytale.server.core.modules.entity.component.TransformComponent;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import com.hypixel.hytale.server.core.universe.world.storage.PhysicsStore;
-import dev.hytalemodding.impulse.early.PhysicsStoreWorld;
 import dev.hytalemodding.impulse.core.internal.modules.control.ControlLifecycle;
 import dev.hytalemodding.impulse.core.internal.modules.control.components.PhysicsControlSessionComponent;
 import dev.hytalemodding.impulse.core.internal.systems.sync.PhysicsSyncSystem;
@@ -164,9 +163,8 @@ public class PhysicsKinematicControlSystem extends EntityTickingSystem<EntitySto
         @Nonnull Store<EntityStore> store,
         @Nonnull Ref<PhysicsStore> bodyRef,
         @Nonnull Ref<PhysicsStore> anchorBodyRef) {
-        PhysicsStore physicsStore =
-            ((PhysicsStoreWorld) store.getExternalData().getWorld()).getPhysicsStore();
-        Store<PhysicsStore> physics = physicsStore.getStore();
+        Store<PhysicsStore> physics = PhysicsThreading.store(
+            store.getExternalData().getWorld());
         PhysicsThreading.requireWorldThread(physics,
             "resolve PhysicsStore kinematic control targets");
         if (!validBodyRef(physics, bodyRef) || !validBodyRef(physics, anchorBodyRef)) {

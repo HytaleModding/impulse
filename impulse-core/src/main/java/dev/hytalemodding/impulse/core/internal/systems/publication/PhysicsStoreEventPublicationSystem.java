@@ -9,7 +9,6 @@ import com.hypixel.hytale.server.core.universe.world.World;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import com.hypixel.hytale.server.core.universe.world.storage.PhysicsStore;
 import dev.hytalemodding.impulse.core.plugin.physicsstore.PhysicsThreading;
-import dev.hytalemodding.impulse.early.PhysicsStoreWorld;
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsEventResource;
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsProfilingResource;
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsProfilingResource.StepSample;
@@ -41,11 +40,8 @@ public final class PhysicsStoreEventPublicationSystem extends TickingSystem<Enti
     @Override
     public void tick(float dt, int systemIndex, @Nonnull Store<EntityStore> store) {
         World world = store.getExternalData().getWorld();
-        if (!(world instanceof PhysicsStoreWorld physicsStoreWorld)) {
-            return;
-        }
-        Store<PhysicsStore> physics = physicsStoreWorld.getPhysicsStore().getStore();
-        if (physics.isShutdown()) {
+        Store<PhysicsStore> physics = PhysicsThreading.storeOrNull(world);
+        if (physics == null || physics.isShutdown()) {
             return;
         }
         PhysicsThreading.requireWorldThread(physics, "publish PhysicsStore event frame");
