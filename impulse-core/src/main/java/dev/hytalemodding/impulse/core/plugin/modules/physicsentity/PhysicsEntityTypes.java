@@ -31,18 +31,7 @@ public final class PhysicsEntityTypes {
     @Nullable
     private static ComponentType<EntityStore, BodyAttachmentComponent> bodyAttachmentComponentType;
     @Nullable
-    private static ComponentType<EntityStore, GeneratedVisualProxyComponent>
-        generatedVisualProxyComponentType;
-    @Nullable
     private static ResourceType<EntityStore, PhysicsWorldResource> physicsWorldResourceType;
-    @Nullable
-    private static ResourceType<EntityStore, PhysicsDebugResource> physicsDebugResourceType;
-    @Nullable
-    private static ResourceType<EntityStore, PhysicsRuntimeProfilingResource>
-        physicsRuntimeProfilingResourceType;
-    @Nullable
-    private static ResourceType<EntityStore, PhysicsProjectionIndexResource>
-        physicsProjectionIndexResourceType;
     @Nullable
     private static WorldEventType<EntityStore, PhysicsEventFramePublishedEvent>
         physicsEventFramePublishedEventType;
@@ -57,23 +46,23 @@ public final class PhysicsEntityTypes {
             BodyAttachmentComponent.class,
             "BodyAttachment",
             BodyAttachmentComponent.CODEC);
-        generatedVisualProxyComponentType = registry.registerComponent(
+        GeneratedVisualProxyComponent.setComponentType(registry.registerComponent(
             GeneratedVisualProxyComponent.class,
             "GeneratedVisualProxy",
-            GeneratedVisualProxyComponent.CODEC);
+            GeneratedVisualProxyComponent.CODEC));
     }
 
     public static void registerResourceTypes(@Nonnull ComponentRegistryProxy<EntityStore> registry) {
         physicsWorldResourceType = registry.registerResource(PhysicsWorldResource.class,
             PhysicsWorldRuntimeResource::new);
-        physicsDebugResourceType = registry.registerResource(PhysicsDebugResource.class,
-            PhysicsDebugResource::new);
-        physicsRuntimeProfilingResourceType = registry.registerResource(
+        PhysicsDebugResource.setResourceType(registry.registerResource(PhysicsDebugResource.class,
+            PhysicsDebugResource::new));
+        PhysicsRuntimeProfilingResource.setResourceType(registry.registerResource(
             PhysicsRuntimeProfilingResource.class,
-            PhysicsRuntimeProfilingResource::new);
-        physicsProjectionIndexResourceType = registry.registerResource(
+            PhysicsRuntimeProfilingResource::new));
+        PhysicsProjectionIndexResource.setResourceType(registry.registerResource(
             PhysicsProjectionIndexResource.class,
-            PhysicsProjectionIndexResource::new);
+            PhysicsProjectionIndexResource::new));
     }
 
     public static void registerEventTypes(@Nonnull ComponentRegistryProxy<EntityStore> registry) {
@@ -100,31 +89,8 @@ public final class PhysicsEntityTypes {
     }
 
     @Nonnull
-    public static ComponentType<EntityStore, GeneratedVisualProxyComponent>
-    generatedVisualProxyComponentType() {
-        return generatedVisualProxyComponentType;
-    }
-
-    @Nonnull
     public static ResourceType<EntityStore, PhysicsWorldResource> physicsWorldResourceType() {
         return physicsWorldResourceType;
-    }
-
-    @Nonnull
-    public static ResourceType<EntityStore, PhysicsDebugResource> physicsDebugResourceType() {
-        return physicsDebugResourceType;
-    }
-
-    @Nonnull
-    public static ResourceType<EntityStore, PhysicsRuntimeProfilingResource>
-    physicsRuntimeProfilingResourceType() {
-        return physicsRuntimeProfilingResourceType;
-    }
-
-    @Nonnull
-    public static ResourceType<EntityStore, PhysicsProjectionIndexResource>
-    physicsProjectionIndexResourceType() {
-        return physicsProjectionIndexResourceType;
     }
 
     @Nonnull

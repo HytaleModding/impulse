@@ -33,16 +33,6 @@ public final class PhysicsChunkTypes {
     private static ComponentType<PhysicsStore, TerrainColliderComponent> terrainColliderComponentType;
     @Nullable
     private static ComponentType<PhysicsStore, WorldCollisionComponent> worldCollisionComponentType;
-    @Nullable
-    private static ResourceType<PhysicsStore, PhysicsTerrainMutationQueueResource>
-        terrainMutationQueueResourceType;
-    @Nullable
-    private static ResourceType<PhysicsStore, PhysicsTerrainPayloadResource>
-        terrainPayloadResourceType;
-    @Nullable
-    private static ResourceType<PhysicsStore, PhysicsWorldCollisionIndexResource>
-        worldCollisionIndexResourceType;
-
     private PhysicsChunkTypes() {
     }
 
@@ -60,15 +50,15 @@ public final class PhysicsChunkTypes {
 
     public static void registerResourceTypes(
         @Nonnull ComponentRegistryProxy<PhysicsStore> registry) {
-        terrainMutationQueueResourceType = registry.registerResource(
+        PhysicsTerrainMutationQueueResource.setResourceType(registry.registerResource(
             PhysicsTerrainMutationQueueResource.class,
-            PhysicsTerrainMutationQueueResource::new);
-        terrainPayloadResourceType = registry.registerResource(
+            PhysicsTerrainMutationQueueResource::new));
+        PhysicsTerrainPayloadResource.setResourceType(registry.registerResource(
             PhysicsTerrainPayloadResource.class,
-            PhysicsTerrainPayloadResource::new);
-        worldCollisionIndexResourceType = registry.registerResource(
+            PhysicsTerrainPayloadResource::new));
+        PhysicsWorldCollisionIndexResource.setResourceType(registry.registerResource(
             PhysicsWorldCollisionIndexResource.class,
-            PhysicsWorldCollisionIndexResource::new);
+            PhysicsWorldCollisionIndexResource::new));
     }
 
     public static void registerSystems(@Nonnull ComponentRegistryProxy<PhysicsStore> registry) {
@@ -140,21 +130,4 @@ public final class PhysicsChunkTypes {
         return worldCollisionComponentType;
     }
 
-    @Nonnull
-    public static ResourceType<PhysicsStore, PhysicsTerrainMutationQueueResource>
-    terrainMutationQueueResourceType() {
-        return terrainMutationQueueResourceType;
-    }
-
-    @Nonnull
-    public static ResourceType<PhysicsStore, PhysicsTerrainPayloadResource>
-    terrainPayloadResourceType() {
-        return terrainPayloadResourceType;
-    }
-
-    @Nonnull
-    public static ResourceType<PhysicsStore, PhysicsWorldCollisionIndexResource>
-    worldCollisionIndexResourceType() {
-        return worldCollisionIndexResourceType;
-    }
 }

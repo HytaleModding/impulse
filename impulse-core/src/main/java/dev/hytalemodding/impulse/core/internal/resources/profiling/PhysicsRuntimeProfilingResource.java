@@ -4,7 +4,6 @@ import com.hypixel.hytale.component.Resource;
 import com.hypixel.hytale.component.ResourceType;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import dev.hytalemodding.impulse.api.PhysicsStepPhaseStats;
-import dev.hytalemodding.impulse.core.plugin.modules.physicsentity.PhysicsEntityTypes;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 import lombok.Getter;
@@ -18,6 +17,9 @@ import lombok.Setter;
  * is not part of persisted world physics state.</p>
  */
 public class PhysicsRuntimeProfilingResource implements Resource<EntityStore> {
+
+    @Nullable
+    private static ResourceType<EntityStore, PhysicsRuntimeProfilingResource> resourceType;
 
     private boolean enabled;
 
@@ -367,7 +369,12 @@ public class PhysicsRuntimeProfilingResource implements Resource<EntityStore> {
     }
 
     public static ResourceType<EntityStore, PhysicsRuntimeProfilingResource> getResourceType() {
-        return PhysicsEntityTypes.physicsRuntimeProfilingResourceType();
+        return resourceType;
+    }
+
+    public static void setResourceType(
+        @Nonnull ResourceType<EntityStore, PhysicsRuntimeProfilingResource> type) {
+        resourceType = type;
     }
 
     @Nonnull

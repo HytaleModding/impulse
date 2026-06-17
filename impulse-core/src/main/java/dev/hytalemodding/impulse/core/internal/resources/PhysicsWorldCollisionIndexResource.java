@@ -5,7 +5,6 @@ import com.hypixel.hytale.component.ResourceType;
 import com.hypixel.hytale.server.core.universe.world.storage.PhysicsStore;
 import dev.hytalemodding.impulse.core.internal.modules.physicschunk.WorldCollisionBuildOptions;
 import dev.hytalemodding.impulse.core.internal.modules.physicschunk.TerrainColliderMode;
-import dev.hytalemodding.impulse.core.plugin.modules.physicschunk.PhysicsChunkTypes;
 import dev.hytalemodding.impulse.core.plugin.modules.physicschunk.WorldCollisionMode;
 import dev.hytalemodding.impulse.core.plugin.settings.EntityChunkBoundaryMode;
 import it.unimi.dsi.fastutil.objects.Object2ObjectOpenHashMap;
@@ -20,6 +19,8 @@ import javax.annotation.Nullable;
  */
 public final class PhysicsWorldCollisionIndexResource implements Resource<PhysicsStore> {
 
+    @Nullable
+    private static ResourceType<PhysicsStore, PhysicsWorldCollisionIndexResource> resourceType;
     @Nonnull
     private final Map<UUID, SpaceWorldCollisionSettings> settingsBySpaceUuid =
         new Object2ObjectOpenHashMap<>();
@@ -58,7 +59,12 @@ public final class PhysicsWorldCollisionIndexResource implements Resource<Physic
 
     @Nonnull
     public static ResourceType<PhysicsStore, PhysicsWorldCollisionIndexResource> getResourceType() {
-        return PhysicsChunkTypes.worldCollisionIndexResourceType();
+        return resourceType;
+    }
+
+    public static void setResourceType(
+        @Nonnull ResourceType<PhysicsStore, PhysicsWorldCollisionIndexResource> type) {
+        resourceType = type;
     }
 
     public record SpaceWorldCollisionSettings(@Nonnull UUID spaceUuid,

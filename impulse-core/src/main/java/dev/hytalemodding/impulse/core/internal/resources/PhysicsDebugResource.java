@@ -3,12 +3,12 @@ package dev.hytalemodding.impulse.core.internal.resources;
 import com.hypixel.hytale.component.Resource;
 import com.hypixel.hytale.component.ResourceType;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
-import dev.hytalemodding.impulse.core.plugin.modules.physicsentity.PhysicsEntityTypes;
 import dev.hytalemodding.impulse.core.plugin.resources.PhysicsWorldResource;
 import it.unimi.dsi.fastutil.objects.ObjectOpenHashSet;
 import java.util.Set;
 import java.util.UUID;
 import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
 import lombok.Getter;
 import lombok.Setter;
 
@@ -22,6 +22,9 @@ import lombok.Setter;
  */
 @Getter
 public class PhysicsDebugResource implements Resource<EntityStore> {
+
+    @Nullable
+    private static ResourceType<EntityStore, PhysicsDebugResource> resourceType;
 
     public static final float MIN_REFRESH_SECONDS = 0.05f;
     public static final float MAX_REFRESH_SECONDS = 2.0f;
@@ -166,7 +169,12 @@ public class PhysicsDebugResource implements Resource<EntityStore> {
     }
 
     public static ResourceType<EntityStore, PhysicsDebugResource> getResourceType() {
-        return PhysicsEntityTypes.physicsDebugResourceType();
+        return resourceType;
+    }
+
+    public static void setResourceType(
+        @Nonnull ResourceType<EntityStore, PhysicsDebugResource> type) {
+        resourceType = type;
     }
 
     private static float clampRefresh(float value) {

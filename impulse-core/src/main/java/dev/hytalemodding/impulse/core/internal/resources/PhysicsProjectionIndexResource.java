@@ -5,7 +5,6 @@ import com.hypixel.hytale.component.Resource;
 import com.hypixel.hytale.component.ResourceType;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import com.hypixel.hytale.server.core.universe.world.storage.PhysicsStore;
-import dev.hytalemodding.impulse.core.plugin.modules.physicsentity.PhysicsEntityTypes;
 import it.unimi.dsi.fastutil.ints.Int2ObjectOpenHashMap;
 import it.unimi.dsi.fastutil.objects.Object2ObjectOpenHashMap;
 import it.unimi.dsi.fastutil.objects.ObjectOpenHashSet;
@@ -23,6 +22,9 @@ import javax.annotation.Nullable;
  * Runtime-only EntityStore projection index for authoritative PhysicsStore attachments.
  */
 public final class PhysicsProjectionIndexResource implements Resource<EntityStore> {
+
+    @Nullable
+    private static ResourceType<EntityStore, PhysicsProjectionIndexResource> resourceType;
 
     private final Map<UUID, Set<Ref<EntityStore>>> bodyAttachments =
         new Object2ObjectOpenHashMap<>();
@@ -276,7 +278,12 @@ public final class PhysicsProjectionIndexResource implements Resource<EntityStor
     }
 
     public static ResourceType<EntityStore, PhysicsProjectionIndexResource> getResourceType() {
-        return PhysicsEntityTypes.physicsProjectionIndexResourceType();
+        return resourceType;
+    }
+
+    public static void setResourceType(
+        @Nonnull ResourceType<EntityStore, PhysicsProjectionIndexResource> type) {
+        resourceType = type;
     }
 
     private void unregisterAttachmentRef(@Nonnull Ref<PhysicsStore> bodyRef,

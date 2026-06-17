@@ -4,7 +4,6 @@ import com.hypixel.hytale.component.Resource;
 import com.hypixel.hytale.component.ResourceType;
 import com.hypixel.hytale.server.core.universe.world.storage.PhysicsStore;
 import dev.hytalemodding.impulse.core.internal.terrain.TerrainColliderMutation;
-import dev.hytalemodding.impulse.core.plugin.modules.physicschunk.PhysicsChunkTypes;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.List;
@@ -12,12 +11,15 @@ import java.util.Objects;
 import java.util.Queue;
 import java.util.function.Predicate;
 import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
 
 /**
  * Copied terrain mutation queue drained by PhysicsStore.tick().
  */
 public final class PhysicsTerrainMutationQueueResource implements Resource<PhysicsStore> {
 
+    @Nullable
+    private static ResourceType<PhysicsStore, PhysicsTerrainMutationQueueResource> resourceType;
     @Nonnull
     private final Queue<TerrainColliderMutation> mutations = new ArrayDeque<>();
 
@@ -63,6 +65,11 @@ public final class PhysicsTerrainMutationQueueResource implements Resource<Physi
 
     @Nonnull
     public static ResourceType<PhysicsStore, PhysicsTerrainMutationQueueResource> getResourceType() {
-        return PhysicsChunkTypes.terrainMutationQueueResourceType();
+        return resourceType;
+    }
+
+    public static void setResourceType(
+        @Nonnull ResourceType<PhysicsStore, PhysicsTerrainMutationQueueResource> type) {
+        resourceType = type;
     }
 }
