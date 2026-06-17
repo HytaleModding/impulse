@@ -5,9 +5,9 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import dev.hytalemodding.impulse.core.internal.math.PhysicsVisualPoseMath;
-import dev.hytalemodding.impulse.core.plugin.projection.BodyAttachmentComponent;
-import dev.hytalemodding.impulse.core.plugin.projection.BodyAttachmentComponent.AttachmentLifecycle;
-import dev.hytalemodding.impulse.core.plugin.projection.BodyAttachmentComponent.TransformAuthority;
+import dev.hytalemodding.impulse.core.plugin.modules.physicsentity.components.BodyAttachmentComponent;
+import dev.hytalemodding.impulse.core.plugin.modules.physicsentity.components.BodyAttachmentComponent.AttachmentLifecycle;
+import dev.hytalemodding.impulse.core.plugin.modules.physicsentity.components.BodyAttachmentComponent.TransformAuthority;
 import dev.hytalemodding.impulse.core.plugin.settings.PhysicsSpaceSettings;
 import java.util.UUID;
 import org.joml.Quaterniond;
