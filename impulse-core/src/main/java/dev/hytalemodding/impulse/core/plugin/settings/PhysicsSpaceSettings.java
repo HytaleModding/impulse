@@ -1,16 +1,16 @@
 package dev.hytalemodding.impulse.core.plugin.settings;
 
 import dev.hytalemodding.impulse.core.plugin.modules.physicschunk.WorldCollisionMode;
-import dev.hytalemodding.impulse.core.plugin.resources.PhysicsWorldResource;
+import dev.hytalemodding.impulse.core.plugin.physicsstore.PhysicsSpaces;
 import javax.annotation.Nonnull;
 
 /**
  * Per-space configuration aggregate for terrain collision, solver tuning,
  * collision LOD, visual sync, and detached visual materialization.
  *
- * <p>Settings are attached to a space at creation time via
- * {@link PhysicsWorldResource#createSpace} and can be changed later with
- * {@link PhysicsWorldResource#setSpaceSettings}.</p>
+ * <p>Settings are stored on PhysicsStore space entities. New plugin code should create spaces and
+ * change per-space settings through {@link PhysicsSpaces}; the world-resource space/settings
+ * methods remain compatibility facades.</p>
  *
  * <p>The grouped accessors expose the domain-owned settings objects. Internal
  * code should read and mutate the domain group directly instead of adding flat

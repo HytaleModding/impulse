@@ -13,6 +13,8 @@ import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyKind;
 import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyPersistenceMode;
 import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyRegistrationView;
 import dev.hytalemodding.impulse.core.plugin.events.PhysicsEventFrame;
+import dev.hytalemodding.impulse.core.plugin.physicsstore.PhysicsSpaces;
+import dev.hytalemodding.impulse.core.plugin.physicsstore.PhysicsWorlds;
 import dev.hytalemodding.impulse.core.plugin.settings.PhysicsSpaceSettings;
 import dev.hytalemodding.impulse.core.plugin.settings.PhysicsWorldSettings;
 import dev.hytalemodding.impulse.core.plugin.snapshot.PhysicsBodySnapshotEntry;
@@ -26,9 +28,11 @@ import org.joml.Vector3f;
 /**
  * Public alpha facade for a world's physics runtime resource.
  *
- * <p>The concrete Impulse runtime lives in the internal package. Plugin-facing code should depend on
- * this facade for explicit space lifecycle, world settings, body lifetime by durable UUID,
- * immutable snapshots, read-only registration views, and public attachment/control hooks.</p>
+ * <p>The concrete Impulse runtime lives in the internal package. This facade remains for
+ * compatibility body lifetime by durable UUID, immutable snapshots, read-only registration views,
+ * and public attachment/control hooks. New code that already has the real PhysicsStore should use
+ * {@link PhysicsWorlds} for world settings/event-frame reads and {@link PhysicsSpaces} for space
+ * lifecycle and per-space settings.</p>
  *
  * <p>No physics space is created implicitly. Consumers choose which explicit {@link SpaceId} to
  * target for each operation.</p>
