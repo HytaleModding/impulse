@@ -11,6 +11,7 @@ module dev.hytalemodding.impulse.core {
     exports dev.hytalemodding.impulse.core.plugin.modules.control;
     exports dev.hytalemodding.impulse.core.plugin.modules.physicsentity;
     exports dev.hytalemodding.impulse.core.plugin.modules.physicsentity.components;
+    exports dev.hytalemodding.impulse.core.plugin.modules.physicsentity.settings;
     exports dev.hytalemodding.impulse.core.plugin.modules.physicschunk;
     exports dev.hytalemodding.impulse.core.plugin.modules.physicschunk.components;
     exports dev.hytalemodding.impulse.core.plugin.persistence;
