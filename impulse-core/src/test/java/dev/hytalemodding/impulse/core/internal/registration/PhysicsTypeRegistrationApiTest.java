@@ -4,8 +4,11 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 
 import com.hypixel.hytale.component.ComponentRegistryProxy;
+import com.hypixel.hytale.component.IComponentRegistry;
+import dev.hytalemodding.impulse.core.internal.modules.control.ControlTypeRegistry;
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsResourceTypes;
 import dev.hytalemodding.impulse.core.plugin.components.PhysicsComponentTypes;
+import dev.hytalemodding.impulse.core.plugin.modules.control.ImpulseControllableComponent;
 import dev.hytalemodding.impulse.core.plugin.modules.physicschunk.PhysicsChunkTerrain;
 import dev.hytalemodding.impulse.core.plugin.modules.physicsentity.PhysicsEntityTypes;
 import java.lang.reflect.Method;
@@ -19,13 +22,17 @@ class PhysicsTypeRegistrationApiTest {
     void internalRegistriesOwnRegistrationWithoutPublicTypeSetters() throws NoSuchMethodException {
         assertNotNull(PhysicsComponentTypeRegistry.class.getDeclaredMethod("registerComponentTypes",
             ComponentRegistryProxy.class));
+        assertNotNull(ControlTypeRegistry.class.getDeclaredMethod("registerComponentTypes",
+            IComponentRegistry.class));
         assertNotNull(PhysicsResourceTypes.class.getDeclaredMethod("registerResourceTypes",
             ComponentRegistryProxy.class));
 
         assertFalse(hasPublicSetter(PhysicsComponentTypes.class));
         assertFalse(hasPublicSetter(PhysicsResourceTypes.class));
+        assertFalse(hasPublicSetter(ImpulseControllableComponent.class));
         assertFalse(hasPublicRegistrationMethod(PhysicsComponentTypes.class));
         assertFalse(hasPublicRegistrationMethod(PhysicsEntityTypes.class));
+        assertFalse(hasPublicRegistrationMethod(ImpulseControllableComponent.class));
         assertFalse(hasPublicMethodNamed(PhysicsChunkTerrain.class, "enableModule"));
         assertFalse(hasPublicMethodNamed(PhysicsChunkTerrain.class, "disableModule"));
     }

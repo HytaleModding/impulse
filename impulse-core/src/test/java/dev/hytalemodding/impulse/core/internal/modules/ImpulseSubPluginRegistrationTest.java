@@ -33,6 +33,12 @@ class ImpulseSubPluginRegistrationTest {
         }
         assertSubPluginLoadsBefore(parent, "ImpulsePhysicsEntity", "ImpulseControl");
         assertSubPluginLoadsBefore(parent, "ImpulsePhysicsEntity", "ImpulsePhysicsChunk");
+        assertSubPluginMain(parent,
+            "ImpulsePhysicsEntity",
+            "dev.hytalemodding.impulse.core.internal.modules.physicsentity.PhysicsEntitySubPlugin");
+        assertSubPluginMain(parent,
+            "ImpulsePhysicsChunk",
+            "dev.hytalemodding.impulse.core.internal.modules.physicschunk.PhysicsChunkSubPlugin");
     }
 
     @Test
@@ -43,7 +49,7 @@ class ImpulseSubPluginRegistrationTest {
             List.of(
                 manifest(null,
                     "ImpulseControl",
-                    "dev.hytalemodding.impulse.core.plugin.modules.control.ImpulseControlPlugin",
+                    "dev.hytalemodding.impulse.core.internal.modules.control.ControlModule",
                     List.of(),
                     false)),
             false);
@@ -74,6 +80,18 @@ class ImpulseSubPluginRegistrationTest {
             if (subPluginName.equals(subPlugin.getName())) {
                 assertTrue(subPlugin.getLoadBefore().containsKey(dependencyId),
                     subPluginName + " should load before " + dependencyName);
+                return;
+            }
+        }
+        throw new AssertionError("Missing subplugin " + subPluginName);
+    }
+
+    private static void assertSubPluginMain(@Nonnull PluginManifest parent,
+        @Nonnull String subPluginName,
+        @Nonnull String expectedMain) {
+        for (PluginManifest subPlugin : parent.getSubPlugins()) {
+            if (subPluginName.equals(subPlugin.getName())) {
+                assertEquals(expectedMain, subPlugin.getMain());
                 return;
             }
         }

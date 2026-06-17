@@ -25,8 +25,7 @@ class ControlLifecycleTest {
     @AfterEach
     void disableLifecycle() {
         ControlLifecycle.disable();
-        ImpulseControllableComponent.clearComponentType();
-        PhysicsControlSessionComponent.clearComponentType();
+        ControlTypeRegistry.clearComponentTypes();
     }
 
     @Test
@@ -46,7 +45,7 @@ class ControlLifecycleTest {
 
     @Test
     void disablingLifecycleWithoutRegisteredSessionComponentDoesNotThrow() {
-        PhysicsControlSessionComponent.clearComponentType();
+        ControlTypeRegistry.clearComponentTypes();
         ControlLifecycle.enable();
 
         assertDoesNotThrow(ControlLifecycle::disable);
@@ -76,13 +75,7 @@ class ControlLifecycleTest {
         assertFalse(PhysicsControlSessions.isAvailable());
 
         ComponentRegistry<EntityStore> registry = new ComponentRegistry<>();
-        ImpulseControllableComponent.setComponentType(registry.registerComponent(
-            ImpulseControllableComponent.class,
-            "ImpulseControllable",
-            ImpulseControllableComponent.CODEC));
-        PhysicsControlSessionComponent.setComponentType(registry.registerComponent(
-            PhysicsControlSessionComponent.class,
-            PhysicsControlSessionComponent::new));
+        ControlTypeRegistry.registerComponentTypes(registry);
 
         assertTrue(PhysicsControlSessions.isAvailable());
 
@@ -95,13 +88,7 @@ class ControlLifecycleTest {
     void disablingLifecycleSkipsStoresWhoseWorldThreadHasStopped() {
         ControlLifecycle.enable();
         ComponentRegistry<EntityStore> registry = new ComponentRegistry<>();
-        ImpulseControllableComponent.setComponentType(registry.registerComponent(
-            ImpulseControllableComponent.class,
-            "ImpulseControllable",
-            ImpulseControllableComponent.CODEC));
-        PhysicsControlSessionComponent.setComponentType(registry.registerComponent(
-            PhysicsControlSessionComponent.class,
-            PhysicsControlSessionComponent::new));
+        ControlTypeRegistry.registerComponentTypes(registry);
         Store<EntityStore> store = registry.addStore(
             new EntityStore(TestInstanceFactory.world("stopped-control-world")),
             EmptyResourceStorage.get());

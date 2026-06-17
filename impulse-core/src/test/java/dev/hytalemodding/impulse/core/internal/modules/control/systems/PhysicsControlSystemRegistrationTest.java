@@ -11,6 +11,7 @@ import com.hypixel.hytale.component.Holder;
 import com.hypixel.hytale.component.Store;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import dev.hytalemodding.impulse.core.internal.modules.control.ControlLifecycle;
+import dev.hytalemodding.impulse.core.internal.modules.control.ControlTypeRegistry;
 import dev.hytalemodding.impulse.core.internal.modules.control.components.PhysicsControlSessionComponent;
 import dev.hytalemodding.impulse.core.internal.testsupport.TestInstanceFactory;
 import dev.hytalemodding.impulse.core.plugin.modules.control.ImpulseControllableComponent;
@@ -24,18 +25,21 @@ class PhysicsControlSystemRegistrationTest {
     @AfterEach
     void clearRegistrations() {
         ControlLifecycle.disable();
-        ImpulseControllableComponent.clearComponentType();
-        PhysicsControlSessionComponent.clearComponentType();
+        ControlTypeRegistry.clearComponentTypes();
     }
 
     @Test
     void sessionCleanupSystemCapturesCurrentSessionComponentType() {
-        ComponentType<EntityStore, PhysicsControlSessionComponent> first = registerSessionType();
-        PhysicsControlSessionComponent.setComponentType(first);
+        ComponentRegistry<EntityStore> firstRegistry = new ComponentRegistry<>();
+        ControlTypeRegistry.registerComponentTypes(firstRegistry);
+        ComponentType<EntityStore, PhysicsControlSessionComponent> first =
+            PhysicsControlSessionComponent.getComponentType();
         PhysicsControlSessionCleanupSystem firstSystem = new PhysicsControlSessionCleanupSystem();
 
-        ComponentType<EntityStore, PhysicsControlSessionComponent> second = registerSessionType();
-        PhysicsControlSessionComponent.setComponentType(second);
+        ComponentRegistry<EntityStore> secondRegistry = new ComponentRegistry<>();
+        ControlTypeRegistry.registerComponentTypes(secondRegistry);
+        ComponentType<EntityStore, PhysicsControlSessionComponent> second =
+            PhysicsControlSessionComponent.getComponentType();
         PhysicsControlSessionCleanupSystem secondSystem = new PhysicsControlSessionCleanupSystem();
 
         assertSame(first, firstSystem.componentType());
@@ -44,14 +48,16 @@ class PhysicsControlSystemRegistrationTest {
 
     @Test
     void controllableLifecycleSystemCapturesCurrentControllableComponentType() {
+        ComponentRegistry<EntityStore> firstRegistry = new ComponentRegistry<>();
+        ControlTypeRegistry.registerComponentTypes(firstRegistry);
         ComponentType<EntityStore, ImpulseControllableComponent> first =
-            registerControllableType();
-        ImpulseControllableComponent.setComponentType(first);
+            ImpulseControllableComponent.getComponentType();
         PhysicsControllableLifecycleSystem firstSystem = new PhysicsControllableLifecycleSystem();
 
+        ComponentRegistry<EntityStore> secondRegistry = new ComponentRegistry<>();
+        ControlTypeRegistry.registerComponentTypes(secondRegistry);
         ComponentType<EntityStore, ImpulseControllableComponent> second =
-            registerControllableType();
-        ImpulseControllableComponent.setComponentType(second);
+            ImpulseControllableComponent.getComponentType();
         PhysicsControllableLifecycleSystem secondSystem = new PhysicsControllableLifecycleSystem();
 
         assertSame(first, firstSystem.componentType());
@@ -60,20 +66,20 @@ class PhysicsControlSystemRegistrationTest {
 
     @Test
     void holderSystemCapturesCurrentControlComponentTypes() throws ReflectiveOperationException {
+        ComponentRegistry<EntityStore> firstRegistry = new ComponentRegistry<>();
+        ControlTypeRegistry.registerComponentTypes(firstRegistry);
         ComponentType<EntityStore, ImpulseControllableComponent> firstControllable =
-            registerControllableType();
+            ImpulseControllableComponent.getComponentType();
         ComponentType<EntityStore, PhysicsControlSessionComponent> firstSession =
-            registerSessionType();
-        ImpulseControllableComponent.setComponentType(firstControllable);
-        PhysicsControlSessionComponent.setComponentType(firstSession);
+            PhysicsControlSessionComponent.getComponentType();
         PhysicsControlRuntimeHolderSystem firstSystem = new PhysicsControlRuntimeHolderSystem();
 
+        ComponentRegistry<EntityStore> secondRegistry = new ComponentRegistry<>();
+        ControlTypeRegistry.registerComponentTypes(secondRegistry);
         ComponentType<EntityStore, ImpulseControllableComponent> secondControllable =
-            registerControllableType();
+            ImpulseControllableComponent.getComponentType();
         ComponentType<EntityStore, PhysicsControlSessionComponent> secondSession =
-            registerSessionType();
-        ImpulseControllableComponent.setComponentType(secondControllable);
-        PhysicsControlSessionComponent.setComponentType(secondSession);
+            PhysicsControlSessionComponent.getComponentType();
         PhysicsControlRuntimeHolderSystem secondSystem = new PhysicsControlRuntimeHolderSystem();
 
         assertSame(firstControllable, field(firstSystem, "controllableType"));
@@ -104,19 +110,6 @@ class PhysicsControlSystemRegistrationTest {
 
         assertNotNull(holder.getComponent(controllableType));
         registry.shutdown();
-    }
-
-    private static ComponentType<EntityStore, ImpulseControllableComponent> registerControllableType() {
-        ComponentRegistry<EntityStore> registry = new ComponentRegistry<>();
-        return registry.registerComponent(ImpulseControllableComponent.class,
-            "ImpulseControllable",
-            ImpulseControllableComponent.CODEC);
-    }
-
-    private static ComponentType<EntityStore, PhysicsControlSessionComponent> registerSessionType() {
-        ComponentRegistry<EntityStore> registry = new ComponentRegistry<>();
-        return registry.registerComponent(PhysicsControlSessionComponent.class,
-            PhysicsControlSessionComponent::new);
     }
 
     private static Object field(Object target, String name) throws ReflectiveOperationException {

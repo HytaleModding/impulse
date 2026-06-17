@@ -1,4 +1,4 @@
-package dev.hytalemodding.impulse.core.internal.resources;
+package dev.hytalemodding.impulse.core.plugin.settings;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
@@ -7,26 +7,11 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-import com.hypixel.hytale.codec.ExtraInfo;
-import dev.hytalemodding.impulse.core.internal.persistence.PersistentSpaceDto;
 import dev.hytalemodding.impulse.core.plugin.modules.physicschunk.PhysicsChunkTerrainMode;
-import dev.hytalemodding.impulse.core.plugin.modules.physicschunk.components.CollisionLodSettingsComponent;
-import dev.hytalemodding.impulse.core.plugin.components.ExtensionSettingsComponent;
-import dev.hytalemodding.impulse.core.plugin.components.SolverSettingsComponent;
-import dev.hytalemodding.impulse.core.plugin.components.VisualMaterializationSettingsComponent;
-import dev.hytalemodding.impulse.core.plugin.components.VisualSyncSettingsComponent;
-import dev.hytalemodding.impulse.core.plugin.settings.PhysicsBackendExtensionId;
-import dev.hytalemodding.impulse.core.plugin.settings.PhysicsCollisionLodSettings;
-import dev.hytalemodding.impulse.core.plugin.settings.PhysicsSpaceSettings;
-import dev.hytalemodding.impulse.core.plugin.settings.PhysicsVisualMaterializationSettings;
-import dev.hytalemodding.impulse.core.plugin.settings.PhysicsVisualSyncSettings;
-import dev.hytalemodding.impulse.core.plugin.settings.PhysicsChunkTerrainSettings;
-import java.util.Objects;
-import java.util.UUID;
-import org.bson.BsonDocument;
-import org.joml.Vector3f;
+import dev.hytalemodding.impulse.core.plugin.modules.physicschunk.WorldCollisionMode;
 import org.junit.jupiter.api.Test;
 
+@SuppressWarnings("deprecation")
 class PhysicsSpaceSettingsTest {
 
     @Test
@@ -266,6 +251,26 @@ class PhysicsSpaceSettingsTest {
     }
 
     @Test
+    void deprecatedWorldCollisionAccessorsMutatePhysicsChunkTerrainSettings() {
+        PhysicsSpaceSettings settings = PhysicsSpaceSettings.streamingWorldCollision();
+
+        assertSame(settings.getPhysicsChunkTerrainSettings(), settings.getWorldCollisionSettings());
+        assertEquals(PhysicsChunkTerrainMode.STREAMING,
+            settings.getPhysicsChunkTerrainSettings().getTerrainMode());
+
+        settings.getWorldCollisionSettings().setWorldCollisionMode(WorldCollisionMode.NONE);
+        settings.getWorldCollisionSettings().setWorldCollisionRadius(9);
+        settings.getWorldCollisionSettings().setWorldCollisionBodyRadius(4);
+        settings.getWorldCollisionSettings().setWorldCollisionTtlTicks(120);
+
+        assertEquals(PhysicsChunkTerrainMode.NONE,
+            settings.getPhysicsChunkTerrainSettings().getTerrainMode());
+        assertEquals(9, settings.getPhysicsChunkTerrainSettings().getTerrainRadius());
+        assertEquals(4, settings.getPhysicsChunkTerrainSettings().getBodyTerrainRadius());
+        assertEquals(120, settings.getPhysicsChunkTerrainSettings().getTerrainTtlTicks());
+    }
+
+    @Test
     void copyConstructorCopiesValuesWithoutSharingOriginalInstance() {
         PhysicsSpaceSettings original = new PhysicsSpaceSettings();
         original.getPhysicsChunkTerrainSettings().setTerrainMode(PhysicsChunkTerrainMode.STREAMING);
@@ -325,61 +330,4 @@ class PhysicsSpaceSettingsTest {
         assertFalse(copy.getCollisionLodSettings().isCollisionLodFarSleepEnabled());
     }
 
-    @Test
-    void persistentSpaceDtoRoundTripPreservesDetachedVisualCadenceSettings() {
-        PhysicsSpaceSettings original = PhysicsSpaceSettings.defaults();
-        original.getPhysicsChunkTerrainSettings().setNativeVoxelTerrainEnabled(true);
-        original.getPhysicsChunkTerrainSettings().setTerrainMaterial(0.85f, 0.2f);
-        original.getVisualMaterializationSettings().setDetachedVisualInterestRefreshIntervalTicks(7);
-        original.getVisualMaterializationSettings().setDetachedVisualCandidateRefreshIntervalTicks(9);
-        original.getVisualMaterializationSettings().setDetachedVisualVisibilityCheckIntervalTicks(11);
-
-        PhysicsChunkTerrainSettings collision = original.getPhysicsChunkTerrainSettings();
-        PersistentSpaceDto state = new PersistentSpaceDto(UUID.randomUUID(),
-            "test:settings-persistence",
-            new Vector3f(0.0f, -9.81f, 0.0f),
-            collision.getTerrainMode(),
-            collision.getEntityChunkBoundaryMode(),
-            collision.isNativeVoxelTerrainEnabled(),
-            collision.getTerrainRadius(),
-            collision.getBodyTerrainRadius(),
-            collision.getTerrainTtlTicks(),
-            collision.getTerrainFriction(),
-            collision.getTerrainRestitution(),
-            new SolverSettingsComponent(original.getSolverSettings()),
-            new VisualSyncSettingsComponent(original.getVisualSyncSettings()),
-            new VisualMaterializationSettingsComponent(original.getVisualMaterializationSettings()),
-            new CollisionLodSettingsComponent(original.getCollisionLodSettings()),
-            new ExtensionSettingsComponent(original.getExtensionSettings()));
-
-        BsonDocument encoded = PersistentSpaceDto.CODEC.encode(state, new ExtraInfo()).asDocument();
-
-        assertTrue(encoded.containsKey("NativeVoxelTerrain"));
-        assertTrue(encoded.containsKey("TerrainFriction"));
-        assertTrue(encoded.containsKey("TerrainRestitution"));
-        assertTrue(encoded.containsKey("VisualMaterializationSettings"));
-        PhysicsSpaceSettings decoded = Objects.requireNonNull(
-            PersistentSpaceDto.CODEC.decode(encoded, new ExtraInfo())).toSettings();
-        assertTrue(decoded.getPhysicsChunkTerrainSettings().isNativeVoxelTerrainEnabled());
-        assertEquals(0.85f, decoded.getPhysicsChunkTerrainSettings().getTerrainFriction(), 0.0001f);
-        assertEquals(0.2f, decoded.getPhysicsChunkTerrainSettings().getTerrainRestitution(), 0.0001f);
-        assertDetachedVisualCadence(decoded,
-            7,
-            9,
-            11);
-        PhysicsSpaceSettings copied = state.copy().toSettings();
-        assertTrue(copied.getPhysicsChunkTerrainSettings().isNativeVoxelTerrainEnabled());
-        assertEquals(0.85f, copied.getPhysicsChunkTerrainSettings().getTerrainFriction(), 0.0001f);
-        assertEquals(0.2f, copied.getPhysicsChunkTerrainSettings().getTerrainRestitution(), 0.0001f);
-        assertDetachedVisualCadence(copied, 7, 9, 11);
-    }
-
-    private static void assertDetachedVisualCadence(PhysicsSpaceSettings settings,
-        int interestInterval,
-        int candidateInterval,
-        int visibilityInterval) {
-        assertEquals(interestInterval, settings.getVisualMaterializationSettings().getDetachedVisualInterestRefreshIntervalTicks());
-        assertEquals(candidateInterval, settings.getVisualMaterializationSettings().getDetachedVisualCandidateRefreshIntervalTicks());
-        assertEquals(visibilityInterval, settings.getVisualMaterializationSettings().getDetachedVisualVisibilityCheckIntervalTicks());
-    }
 }

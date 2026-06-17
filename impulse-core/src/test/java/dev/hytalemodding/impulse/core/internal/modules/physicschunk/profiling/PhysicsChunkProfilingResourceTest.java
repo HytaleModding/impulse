@@ -23,7 +23,7 @@ class PhysicsChunkProfilingResourceTest {
     }
 
     @Test
-    void resourceTypeIsOwnedByPhysicsChunkModuleRegistration() {
+    void resourceTypeIsOwnedByPhysicsChunkSubPluginRegistration() {
         assertFalse(PhysicsChunkProfilingResource.isResourceTypeRegistered());
         assertThrows(IllegalStateException.class, PhysicsChunkProfilingResource::getResourceType);
 

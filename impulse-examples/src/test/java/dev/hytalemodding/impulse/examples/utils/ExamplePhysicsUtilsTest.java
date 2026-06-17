@@ -12,12 +12,11 @@ import com.hypixel.hytale.server.core.modules.entity.component.ModelComponent;
 import com.hypixel.hytale.server.core.modules.entity.component.TransformComponent;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import dev.hytalemodding.impulse.api.PhysicsBodyType;
-import dev.hytalemodding.impulse.core.internal.modules.control.ControlLifecycle;
-import dev.hytalemodding.impulse.core.internal.modules.control.components.PhysicsControlSessionComponent;
 import dev.hytalemodding.impulse.core.plugin.modules.control.ImpulseControllableComponent;
 import dev.hytalemodding.impulse.core.plugin.modules.physicsentity.PhysicsEntityTypes;
 import dev.hytalemodding.impulse.core.plugin.modules.physicsentity.components.BodyAttachmentComponent;
 import dev.hytalemodding.impulse.core.plugin.simulation.PhysicsShapeSpec;
+import dev.hytalemodding.impulse.examples.testsupport.ExampleControlTestSupport;
 import java.lang.reflect.Field;
 import javax.annotation.Nonnull;
 
@@ -45,21 +44,12 @@ class ExamplePhysicsUtilsTest {
                 "BodyAttachment",
                 BodyAttachmentComponent.CODEC);
         bodyAttachmentTypeField.set(null, bodyAttachmentType);
-        ControlLifecycle.enable();
-        ImpulseControllableComponent.setComponentType(registry.registerComponent(
-            ImpulseControllableComponent.class,
-            "ImpulseControllable",
-            ImpulseControllableComponent.CODEC));
-        PhysicsControlSessionComponent.setComponentType(registry.registerComponent(
-            PhysicsControlSessionComponent.class,
-            PhysicsControlSessionComponent::new));
+        ExampleControlTestSupport.enableControl(registry);
     }
 
     @AfterEach
     void clearComponentTypes() throws Exception {
-        ControlLifecycle.disable();
-        ImpulseControllableComponent.clearComponentType();
-        PhysicsControlSessionComponent.clearComponentType();
+        ExampleControlTestSupport.clearControl();
         staticField(EntityModule.class, "instance").set(null, previousEntityModule);
         staticField(PhysicsEntityTypes.class, "bodyAttachmentComponentType")
             .set(null, previousBodyAttachmentComponentType);
