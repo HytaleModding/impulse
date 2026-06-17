@@ -408,9 +408,9 @@ public final class PhysicsVisualRuntime {
     }
 
     public void clear() {
-        List<Ref<EntityStore>> staleRefs = new ArrayList<>();
+        List<Ref<EntityStore>> staleRefs;
         synchronized (this) {
-            staleRefs.addAll(generatedVisualProxies.values());
+            staleRefs = new ArrayList<>(generatedVisualProxies.values());
             for (Set<Ref<EntityStore>> attachments : bodyAttachments.values()) {
                 for (Ref<EntityStore> attachment : attachments) {
                     if (attachment != null) {
@@ -423,9 +423,7 @@ public final class PhysicsVisualRuntime {
             }
             for (var entry : generatedVisualProxiesByRowIndex.int2ObjectEntrySet()) {
                 Ref<EntityStore> proxy = entry.getValue().proxy();
-                if (proxy != null) {
-                    staleRefs.add(proxy);
-                }
+                staleRefs.add(proxy);
             }
             bodyAttachments.clear();
             bodyAttachmentsByRowIndex.clear();
@@ -597,7 +595,7 @@ public final class PhysicsVisualRuntime {
                 return null;
             }
             Ref<EntityStore> proxy = row.proxy();
-            if (proxy != null && proxy.isValid()) {
+            if (proxy.isValid()) {
                 return proxy;
             }
             generatedVisualProxiesByRowIndex.remove(rowIndex);
@@ -658,11 +656,10 @@ public final class PhysicsVisualRuntime {
     private static boolean sameRef(@Nullable Ref<?> first,
         @Nullable Ref<?> second) {
         return first == second
-            || (first != null
-                && second != null
-                && first.getStore() != null
-                && first.getStore() == second.getStore()
-                && first.getIndex() == second.getIndex());
+            || first != null
+            && second != null
+            && first.getStore() == second.getStore()
+            && first.getIndex() == second.getIndex();
     }
 
     private record BodyAttachmentRefs(@Nonnull Ref<PhysicsStore> bodyRef,
