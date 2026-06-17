@@ -12,9 +12,7 @@ import com.hypixel.hytale.server.core.modules.debug.DebugUtils;
 import com.hypixel.hytale.server.core.universe.PlayerRef;
 import com.hypixel.hytale.server.core.universe.world.World;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
-import com.hypixel.hytale.server.core.universe.world.storage.PhysicsStore;
 import com.hypixel.hytale.server.core.util.TargetUtil;
-import dev.hytalemodding.impulse.api.SpaceId;
 import dev.hytalemodding.impulse.core.plugin.physicsstore.PhysicsAsync;
 import dev.hytalemodding.impulse.core.plugin.physicsstore.PhysicsRaycasts;
 import dev.hytalemodding.impulse.core.plugin.simulation.view.RaycastHitView;
@@ -42,15 +40,10 @@ public class RaycastCommand extends AbstractAsyncPlayerCommand {
         @Nonnull Ref<EntityStore> ref,
         @Nonnull PlayerRef playerRef,
         @Nonnull World world) {
-        SpaceId spaceId = ExamplePhysicsUtils.spaceId(ctx, world, spaceArg);
-        if (spaceId == null) {
-            return CompletableFuture.completedFuture(null);
-        }
-        Ref<PhysicsStore> spaceRef = ExamplePhysicsUtils.resolveSpaceRef(world,
-            spaceId);
-        if (spaceRef == null) {
-            ctx.sender().sendMessage(Message.raw("PhysicsStore space id=" + spaceId.value()
-                + " is not bound yet."));
+        ExamplePhysicsUtils.SpaceSelection space = ExamplePhysicsUtils.spaceSelection(ctx,
+            world,
+            spaceArg);
+        if (space == null) {
             return CompletableFuture.completedFuture(null);
         }
 
@@ -63,7 +56,7 @@ public class RaycastCommand extends AbstractAsyncPlayerCommand {
             DebugUtils.FLAG_FADE);
         return PhysicsAsync.acceptOnWorldThread(world,
             PhysicsRaycasts.closestAsync(world,
-                spaceRef,
+                space.spaceRef(),
                 ExamplePhysicsUtils.toVector3f(start),
                 ExamplePhysicsUtils.toVector3f(end)),
             hit -> handleHit(ctx, world, hit.map(RaycastCommand::toResult).orElse(null)));

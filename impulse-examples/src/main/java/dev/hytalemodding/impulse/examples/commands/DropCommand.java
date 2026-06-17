@@ -11,8 +11,6 @@ import com.hypixel.hytale.server.core.modules.time.TimeResource;
 import com.hypixel.hytale.server.core.universe.PlayerRef;
 import com.hypixel.hytale.server.core.universe.world.World;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
-import com.hypixel.hytale.server.core.universe.world.storage.PhysicsStore;
-import dev.hytalemodding.impulse.api.SpaceId;
 import dev.hytalemodding.impulse.core.plugin.simulation.PhysicsShapeSpec;
 import dev.hytalemodding.impulse.core.plugin.simulation.RigidBodySpawnSettings;
 import java.util.concurrent.CompletableFuture;
@@ -51,23 +49,18 @@ public class DropCommand extends AbstractAsyncPlayerCommand {
         float spawnY = (float) playerPos.y() + 5f;
         float spawnZ = (float) playerPos.z();
 
-        SpaceId spaceId = ExamplePhysicsUtils.spaceId(ctx, world, spaceArg);
-        if (spaceId == null) {
-            return CompletableFuture.completedFuture(null);
-        }
-        Ref<PhysicsStore> spaceRef = ExamplePhysicsUtils.resolveSpaceRef(world,
-            spaceId);
-        if (spaceRef == null) {
-            ctx.sender().sendMessage(Message.raw("Physics space id=" + spaceId.value()
-                + " is not bound yet."));
+        ExamplePhysicsUtils.SpaceSelection space = ExamplePhysicsUtils.spaceSelection(ctx,
+            world,
+            spaceArg);
+        if (space == null) {
             return CompletableFuture.completedFuture(null);
         }
 
         TimeResource time = store.getResource(TimeResource.getResourceType());
         ExamplePhysicsUtils.spawnBlockBody(store,
             time,
-            spaceRef,
-            spaceId,
+            space.spaceRef(),
+            space.spaceId(),
             new Vector3d(spawnX, spawnY, spawnZ),
             blockType(ctx),
             PhysicsShapeSpec.box(0.5f, 0.5f, 0.5f),

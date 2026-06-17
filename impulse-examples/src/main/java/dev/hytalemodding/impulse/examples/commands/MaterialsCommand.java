@@ -41,26 +41,25 @@ public class MaterialsCommand extends AbstractAsyncPlayerCommand {
         @Nonnull World world) {
         Vector3d playerPos = new Vector3d(playerRef.getTransform().getPosition());
 
-        SpaceId spaceId = ExamplePhysicsUtils.spaceId(ctx, world, spaceArg);
-        if (spaceId == null) {
-            return CompletableFuture.completedFuture(null);
-        }
-        Ref<PhysicsStore> spaceRef = ExamplePhysicsUtils.resolveSpaceRef(world,
-            spaceId);
-        if (spaceRef == null) {
-            ctx.sender().sendMessage(Message.raw("PhysicsStore space id=" + spaceId.value()
-                + " is not bound yet."));
+        ExamplePhysicsUtils.SpaceSelection space = ExamplePhysicsUtils.spaceSelection(ctx,
+            world,
+            spaceArg);
+        if (space == null) {
             return CompletableFuture.completedFuture(null);
         }
         TimeResource time = store.getResource(TimeResource.getResourceType());
 
         Vector3d origin = new Vector3d(playerPos).add(-3.0, 5.0, 4.0);
-        spawnSphere(store, time, spaceRef, spaceId, new Vector3d(origin), 0.05f, 0.9f, 3.0f);
-        spawnSphere(store, time, spaceRef, spaceId, new Vector3d(origin).add(2.0, 0.0, 0.0),
+        spawnSphere(store, time, space.spaceRef(), space.spaceId(), new Vector3d(origin),
+            0.05f, 0.9f, 3.0f);
+        spawnSphere(store, time, space.spaceRef(), space.spaceId(),
+            new Vector3d(origin).add(2.0, 0.0, 0.0),
             0.95f, 0.9f, 3.0f);
-        spawnSphere(store, time, spaceRef, spaceId, new Vector3d(origin).add(4.0, 0.0, 0.0),
+        spawnSphere(store, time, space.spaceRef(), space.spaceId(),
+            new Vector3d(origin).add(4.0, 0.0, 0.0),
             0.5f, 0.0f, 2.0f);
-        spawnSphere(store, time, spaceRef, spaceId, new Vector3d(origin).add(6.0, 0.0, 0.0),
+        spawnSphere(store, time, space.spaceRef(), space.spaceId(),
+            new Vector3d(origin).add(6.0, 0.0, 0.0),
             0.5f, 0.95f, 2.0f);
 
         ctx.sender().sendMessage(Message.raw(

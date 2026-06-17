@@ -58,6 +58,49 @@ public final class ExamplePhysicsUtils {
         return PhysicsSpaces.resolveRef(store, spaceId);
     }
 
+    @Nullable
+    public static SpaceSelection spaceSelection(@Nonnull CommandContext ctx,
+        @Nonnull World world,
+        @Nonnull OptionalArg<Integer> spaceArg) {
+        Store<PhysicsStore> store = PhysicsThreading.store(world);
+        if (spaceArg.provided(ctx)) {
+            int rawSpaceId = spaceArg.get(ctx);
+            if (rawSpaceId <= 0) {
+                ctx.sender().sendMessage(Message.raw("Space id must be a positive integer."));
+                return null;
+            }
+            SpaceId spaceId = new SpaceId(rawSpaceId);
+            Ref<PhysicsStore> spaceRef = PhysicsSpaces.resolveRef(store, spaceId);
+            if (spaceRef != null) {
+                return new SpaceSelection(spaceId, spaceRef);
+            }
+            if (PhysicsSpaces.hasSpace(store, spaceId)) {
+                ctx.sender().sendMessage(Message.raw("PhysicsStore space id=" + rawSpaceId
+                    + " is not bound yet."));
+            } else {
+                ctx.sender().sendMessage(Message.raw("No physics space id=" + rawSpaceId + " exists."));
+            }
+            return null;
+        }
+
+        SpaceId firstSpaceId = PhysicsSpaces.spaceIds(store)
+            .stream()
+            .min(Comparator.comparingInt(SpaceId::value))
+            .orElse(null);
+        if (firstSpaceId == null) {
+            ctx.sender().sendMessage(Message.raw("No physics space exists. Run "
+                + "`/impulse space create --backend=<id>` before running Impulse example commands."));
+            return null;
+        }
+        Ref<PhysicsStore> spaceRef = PhysicsSpaces.resolveRef(store, firstSpaceId);
+        if (spaceRef == null) {
+            ctx.sender().sendMessage(Message.raw("PhysicsStore space id=" + firstSpaceId.value()
+                + " is not bound yet."));
+            return null;
+        }
+        return new SpaceSelection(firstSpaceId, spaceRef);
+    }
+
     @Nonnull
     public static Ref<PhysicsStore> addPhysicsStoreBody(@Nonnull World world,
         @Nonnull BodyEntityDescriptor descriptor) {
@@ -899,6 +942,15 @@ public final class ExamplePhysicsUtils {
     public record SpawnedBlockBody(@Nonnull UUID bodyUuid,
                                    @Nonnull SpaceId spaceId,
                                    @Nonnull Ref<EntityStore> entity) {
+    }
+
+    public record SpaceSelection(@Nonnull SpaceId spaceId,
+                                 @Nonnull Ref<PhysicsStore> spaceRef) {
+
+        public SpaceSelection {
+            Objects.requireNonNull(spaceId, "spaceId");
+            Objects.requireNonNull(spaceRef, "spaceRef");
+        }
     }
 
     public record BlockBodyBatchTiming(int count,

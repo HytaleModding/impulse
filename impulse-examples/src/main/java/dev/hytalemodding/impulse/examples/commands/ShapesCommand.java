@@ -41,26 +41,25 @@ public class ShapesCommand extends AbstractAsyncPlayerCommand {
         @Nonnull World world) {
         Vector3d playerPos = new Vector3d(playerRef.getTransform().getPosition());
 
-        SpaceId spaceId = ExamplePhysicsUtils.spaceId(ctx, world, spaceArg);
-        if (spaceId == null) {
-            return CompletableFuture.completedFuture(null);
-        }
-        Ref<PhysicsStore> spaceRef = ExamplePhysicsUtils.resolveSpaceRef(world,
-            spaceId);
-        if (spaceRef == null) {
-            ctx.sender().sendMessage(Message.raw("PhysicsStore space id=" + spaceId.value()
-                + " is not bound yet."));
+        ExamplePhysicsUtils.SpaceSelection space = ExamplePhysicsUtils.spaceSelection(ctx,
+            world,
+            spaceArg);
+        if (space == null) {
             return CompletableFuture.completedFuture(null);
         }
         TimeResource time = store.getResource(TimeResource.getResourceType());
 
         Vector3d origin = new Vector3d(playerPos).add(-4.0, 3.0, 3.0);
-        spawn(store, time, spaceRef, spaceId, ShapeType.BOX, PhysicsAxis.Y,
+        spawn(store, time, space.spaceRef(), space.spaceId(), ShapeType.BOX, PhysicsAxis.Y,
             origin, 0);
-        spawn(store, time, spaceRef, spaceId, ShapeType.SPHERE, PhysicsAxis.Y, origin, 2);
-        spawn(store, time, spaceRef, spaceId, ShapeType.CAPSULE, PhysicsAxis.Y, origin, 4);
-        spawn(store, time, spaceRef, spaceId, ShapeType.CYLINDER, PhysicsAxis.Y, origin, 6);
-        spawn(store, time, spaceRef, spaceId, ShapeType.CONE, PhysicsAxis.Y, origin, 8);
+        spawn(store, time, space.spaceRef(), space.spaceId(), ShapeType.SPHERE, PhysicsAxis.Y,
+            origin, 2);
+        spawn(store, time, space.spaceRef(), space.spaceId(), ShapeType.CAPSULE, PhysicsAxis.Y,
+            origin, 4);
+        spawn(store, time, space.spaceRef(), space.spaceId(), ShapeType.CYLINDER, PhysicsAxis.Y,
+            origin, 6);
+        spawn(store, time, space.spaceRef(), space.spaceId(), ShapeType.CONE, PhysicsAxis.Y,
+            origin, 8);
 
         ctx.sender().sendMessage(Message.raw("Spawned shape demo."));
         return CompletableFuture.completedFuture(null);
