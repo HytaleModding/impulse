@@ -10,7 +10,6 @@ import com.hypixel.hytale.component.system.tick.TickingSystem;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import dev.hytalemodding.impulse.core.plugin.modules.physicsentity.PhysicsEntityTypes;
 import dev.hytalemodding.impulse.core.plugin.modules.physicsentity.components.BodyAttachmentComponent;
-import dev.hytalemodding.impulse.core.plugin.modules.physicsentity.components.BodyAttachmentComponent.AttachmentLifecycle;
 import dev.hytalemodding.impulse.core.plugin.modules.physicsentity.components.GeneratedVisualProxyComponent;
 import java.util.Collections;
 import java.util.Map;
@@ -19,7 +18,7 @@ import java.util.WeakHashMap;
 import javax.annotation.Nonnull;
 
 /**
- * Removes serialized generated visual proxies left by the pre-PhysicsStore runtime model.
+ * Removes incomplete generated visual proxy markers left by transition-era saves.
  */
 public class PhysicsGeneratedProxyCleanupSystem extends TickingSystem<EntityStore> {
 
@@ -37,7 +36,7 @@ public class PhysicsGeneratedProxyCleanupSystem extends TickingSystem<EntityStor
         if (shouldSkipCleanup(store)) {
             return;
         }
-        removeLegacyGeneratedVisualProxies(store);
+        removeOrphanGeneratedVisualProxyMarkers(store);
     }
 
     private boolean shouldSkipCleanup(@Nonnull Store<EntityStore> store) {
@@ -52,20 +51,9 @@ public class PhysicsGeneratedProxyCleanupSystem extends TickingSystem<EntityStor
         }
     }
 
-    private static void removeLegacyGeneratedVisualProxies(@Nonnull Store<EntityStore> store) {
+    private static void removeOrphanGeneratedVisualProxyMarkers(@Nonnull Store<EntityStore> store) {
         ComponentType<EntityStore, BodyAttachmentComponent> attachmentType =
             BodyAttachmentComponent.getComponentType();
-        store.forEachEntityParallel(attachmentType,
-            (index, archetypeChunk, commandBuffer) -> {
-                BodyAttachmentComponent attachment = archetypeChunk.getComponent(index,
-                    attachmentType);
-                if (attachment == null
-                    || attachment.getLifecycle() != AttachmentLifecycle.GENERATED_PROXY) {
-                    return;
-                }
-                commandBuffer.removeEntity(archetypeChunk.getReferenceTo(index), RemoveReason.REMOVE);
-            });
-
         ComponentType<EntityStore, GeneratedVisualProxyComponent> generatedProxyType =
             GeneratedVisualProxyComponent.getComponentType();
         store.forEachEntityParallel(generatedProxyType,
