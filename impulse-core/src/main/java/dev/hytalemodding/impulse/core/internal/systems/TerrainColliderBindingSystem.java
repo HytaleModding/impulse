@@ -196,6 +196,7 @@ public final class TerrainColliderBindingSystem extends TickingSystem<PhysicsSto
         BackendBodyHandle bodyHandle = new BackendBodyHandle(bodyId);
         runtime.putTerrainBodyHandle(terrainRef, terrainUuid, spaceHandle, bodyHandle, true);
         runtime.putBodyHitMetadata(bodyHandle,
+            terrainUuid,
             terrainRef,
             PhysicsBodyType.STATIC,
             ShapeType.VOXELS);
@@ -242,6 +243,7 @@ public final class TerrainColliderBindingSystem extends TickingSystem<PhysicsSto
             bodyHandle,
             false);
         runtime.putBodyHitMetadata(bodyHandle,
+            terrainUuid,
             terrainRef,
             PhysicsBodyType.STATIC,
             ShapeType.BOX);

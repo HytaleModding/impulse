@@ -4,6 +4,7 @@ import com.hypixel.hytale.component.Resource;
 import com.hypixel.hytale.component.ResourceType;
 import com.hypixel.hytale.server.core.universe.world.storage.PhysicsStore;
 import dev.hytalemodding.impulse.api.PhysicsStepPhaseStats;
+import dev.hytalemodding.impulse.core.plugin.events.PhysicsFrameEvent;
 import dev.hytalemodding.impulse.core.plugin.snapshots.PhysicsBodySnapshot;
 import dev.hytalemodding.impulse.core.plugin.settings.PhysicsStepSchedulingMode;
 import java.util.List;
@@ -253,6 +254,8 @@ public final class PhysicsStepSchedulerResource implements Resource<PhysicsStore
                                 long snapshotNanos,
                                 @Nonnull PhysicsStepPhaseStats nativePhaseStats,
                                 @Nonnull List<PhysicsBodySnapshot> bodySnapshots,
+                                @Nonnull List<PhysicsFrameEvent> physicsEvents,
+                                int droppedBackendEventCount,
                                 @Nullable Throwable failure) {
 
         public CompletedStep(int spaces,
@@ -268,6 +271,18 @@ public final class PhysicsStepSchedulerResource implements Resource<PhysicsStore
             long snapshotNanos,
             @Nonnull PhysicsStepPhaseStats nativePhaseStats,
             @Nonnull List<PhysicsBodySnapshot> bodySnapshots) {
+            this(spaces, substeps, stepSubmitNanos, snapshotNanos, nativePhaseStats, bodySnapshots,
+                List.of(), 0);
+        }
+
+        public CompletedStep(int spaces,
+            int substeps,
+            long stepSubmitNanos,
+            long snapshotNanos,
+            @Nonnull PhysicsStepPhaseStats nativePhaseStats,
+            @Nonnull List<PhysicsBodySnapshot> bodySnapshots,
+            @Nonnull List<PhysicsFrameEvent> physicsEvents,
+            int droppedBackendEventCount) {
             this(null,
                 spaces,
                 substeps,
@@ -275,6 +290,8 @@ public final class PhysicsStepSchedulerResource implements Resource<PhysicsStore
                 snapshotNanos,
                 nativePhaseStats,
                 bodySnapshots,
+                physicsEvents,
+                droppedBackendEventCount,
                 null);
         }
 
@@ -286,6 +303,9 @@ public final class PhysicsStepSchedulerResource implements Resource<PhysicsStore
             Objects.requireNonNull(nativePhaseStats, "nativePhaseStats");
             bodySnapshots = List.copyOf(Objects.requireNonNull(bodySnapshots,
                 "bodySnapshots"));
+            physicsEvents = List.copyOf(Objects.requireNonNull(physicsEvents,
+                "physicsEvents"));
+            droppedBackendEventCount = Math.max(0, droppedBackendEventCount);
         }
 
         @Nonnull
@@ -297,6 +317,8 @@ public final class PhysicsStepSchedulerResource implements Resource<PhysicsStore
                 snapshotNanos,
                 nativePhaseStats,
                 bodySnapshots,
+                physicsEvents,
+                droppedBackendEventCount,
                 failure);
         }
 
@@ -309,6 +331,8 @@ public final class PhysicsStepSchedulerResource implements Resource<PhysicsStore
                 0L,
                 PhysicsStepPhaseStats.unavailable(),
                 List.of(),
+                List.of(),
+                0,
                 Objects.requireNonNull(failure, "failure"));
         }
 

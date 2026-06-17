@@ -164,6 +164,7 @@ public final class BodyBindingSystem extends TickingSystem<PhysicsStore>
             applyInitialTargetState(backendRuntime, spaceHandle, bodyHandle, bodyType, target);
             runtime.putBodyHandle(bodyUuid, bodyRef, body.getSpaceUuid(), spaceHandle, bodyHandle);
             runtime.putBodyHitMetadata(bodyHandle,
+                bodyUuid,
                 bodyRef,
                 bodyType,
                 shape.getShapeType());

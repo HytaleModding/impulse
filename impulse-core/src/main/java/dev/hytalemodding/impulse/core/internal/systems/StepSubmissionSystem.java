@@ -1,5 +1,6 @@
 package dev.hytalemodding.impulse.core.internal.systems;
 
+import com.hypixel.hytale.component.Ref;
 import com.hypixel.hytale.component.Store;
 import com.hypixel.hytale.component.dependency.Dependency;
 import com.hypixel.hytale.component.dependency.Order;
@@ -7,8 +8,10 @@ import com.hypixel.hytale.component.dependency.SystemDependency;
 import com.hypixel.hytale.component.system.tick.TickingSystem;
 import com.hypixel.hytale.server.core.universe.world.storage.PhysicsStore;
 import dev.hytalemodding.impulse.api.PhysicsBodyType;
+import dev.hytalemodding.impulse.api.PhysicsContactPhase;
 import dev.hytalemodding.impulse.api.PhysicsStepPhaseStats;
 import dev.hytalemodding.impulse.api.ShapeType;
+import dev.hytalemodding.impulse.api.SpaceId;
 import dev.hytalemodding.impulse.api.runtime.BackendBodySnapshotSink;
 import dev.hytalemodding.impulse.api.runtime.BackendRuntimeCodes;
 import dev.hytalemodding.impulse.api.runtime.BackendStepPhaseStatsSink;
@@ -16,7 +19,9 @@ import dev.hytalemodding.impulse.api.runtime.PhysicsBackendRuntime;
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsProfilingResource;
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsRestoreStatusResource;
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsRuntimeResource;
+import dev.hytalemodding.impulse.core.internal.resources.PhysicsRuntimeResource.BodyHitMetadata;
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsRuntimeResource.BodySnapshotMetadata;
+import dev.hytalemodding.impulse.core.internal.resources.PhysicsSpaceCompatibilityIndexResource;
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsStepSchedulerResource;
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsStepSchedulerResource.CompletedStep;
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsStepSchedulerResource.StepInput;
@@ -24,12 +29,15 @@ import dev.hytalemodding.impulse.core.internal.resources.PhysicsWorldSettingsRes
 import dev.hytalemodding.impulse.core.internal.resources.BackendSpaceHandle;
 import dev.hytalemodding.impulse.core.internal.systems.step.PhysicsStepCountPolicy;
 import dev.hytalemodding.impulse.core.plugin.components.DynamicsComponent;
+import dev.hytalemodding.impulse.core.plugin.events.PhysicsContactEvent;
+import dev.hytalemodding.impulse.core.plugin.events.PhysicsFrameEvent;
 import dev.hytalemodding.impulse.core.plugin.snapshots.PhysicsBodySnapshot;
 import dev.hytalemodding.impulse.core.plugin.settings.PhysicsWorldSettings;
 import dev.hytalemodding.impulse.core.plugin.settings.PhysicsStepMode;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
+import java.util.UUID;
 import javax.annotation.Nonnull;
 import org.joml.Quaternionf;
 import org.joml.Vector3f;
@@ -63,6 +71,8 @@ public final class StepSubmissionSystem extends TickingSystem<PhysicsStore> {
             PhysicsWorldSettingsResource.getResourceType());
         PhysicsWorldSettings settings = settingsResource.getSettings();
         PhysicsRuntimeResource runtime = store.getResource(PhysicsRuntimeResource.getResourceType());
+        PhysicsSpaceCompatibilityIndexResource compatibility = store.getResource(
+            PhysicsSpaceCompatibilityIndexResource.getResourceType());
         PhysicsStepSchedulerResource scheduler = store.getResource(
             PhysicsStepSchedulerResource.getResourceType());
         StepInput input = scheduler.acceptStepInput(safeDt,
@@ -94,8 +104,15 @@ public final class StepSubmissionSystem extends TickingSystem<PhysicsStore> {
             resetStepPhaseStats(runtime);
         }
         List<RuntimeStepBinding> bindings = runtimeStepBindings(runtime);
+        boolean collectBackendEvents = settings.getEventCollectionMode().collectsBackendEvents();
         boolean submitted = scheduler.submitStep(input,
-            () -> runOwnerStep(runtime, bindings, steps, stepDt, profilingEnabled),
+            () -> runOwnerStep(runtime,
+                compatibility,
+                bindings,
+                steps,
+                stepDt,
+                profilingEnabled,
+                collectBackendEvents),
             System.nanoTime());
         if (!submitted) {
             throw new IllegalStateException("PhysicsStore owner-lane scheduler refused a submitted step");
@@ -104,10 +121,12 @@ public final class StepSubmissionSystem extends TickingSystem<PhysicsStore> {
 
     @Nonnull
     private static CompletedStep runOwnerStep(@Nonnull PhysicsRuntimeResource runtime,
+        @Nonnull PhysicsSpaceCompatibilityIndexResource compatibility,
         @Nonnull List<RuntimeStepBinding> bindings,
         int steps,
         float stepDt,
-        boolean profilingEnabled) {
+        boolean profilingEnabled,
+        boolean collectBackendEvents) {
         long stepStartNanos = profilingEnabled ? System.nanoTime() : 0L;
         StepCounters counters = new StepCounters();
         for (RuntimeStepBinding binding : bindings) {
@@ -125,20 +144,26 @@ public final class StepSubmissionSystem extends TickingSystem<PhysicsStore> {
         List<PhysicsBodySnapshot> bodySnapshots = collectOwnerLaneSnapshots(runtime,
             bindings);
         long snapshotNanos = profilingEnabled ? System.nanoTime() - snapshotStartNanos : 0L;
+        StepBackendEvents backendEvents = collectOwnerLaneBackendEvents(runtime,
+            compatibility,
+            bindings,
+            collectBackendEvents);
         return new CompletedStep(counters.spaceCount,
             counters.substeps,
             stepNanos,
             snapshotNanos,
             nativePhaseStats,
-            bodySnapshots);
+            bodySnapshots,
+            backendEvents.physicsEvents(),
+            backendEvents.droppedBackendEventCount());
     }
 
     @Nonnull
     private static List<RuntimeStepBinding> runtimeStepBindings(
         @Nonnull PhysicsRuntimeResource runtime) {
         List<RuntimeStepBinding> bindings = new ArrayList<>();
-        runtime.forEachRuntimeSpaceBinding((_, _, spaceHandle, backendRuntime) ->
-            bindings.add(new RuntimeStepBinding(spaceHandle, backendRuntime)));
+        runtime.forEachRuntimeSpaceBinding((spaceRef, _, spaceHandle, backendRuntime) ->
+            bindings.add(new RuntimeStepBinding(spaceRef, spaceHandle, backendRuntime)));
         return bindings;
     }
 
@@ -240,6 +265,99 @@ public final class StepSubmissionSystem extends TickingSystem<PhysicsStore> {
             new Vector3f(angularVelocityX, angularVelocityY, angularVelocityZ),
             centerOfMassOffsetY,
             sleeping));
+    }
+
+    @Nonnull
+    private static StepBackendEvents collectOwnerLaneBackendEvents(
+        @Nonnull PhysicsRuntimeResource runtime,
+        @Nonnull PhysicsSpaceCompatibilityIndexResource compatibility,
+        @Nonnull List<RuntimeStepBinding> bindings,
+        boolean collectBackendEvents) {
+        if (!collectBackendEvents) {
+            return StepBackendEvents.EMPTY;
+        }
+        StepBackendEvents backendEvents = new StepBackendEvents();
+        for (RuntimeStepBinding binding : bindings) {
+            UUID spaceUuid = runtime.getSpaceUuid(binding.spaceRef());
+            if (spaceUuid == null) {
+                backendEvents.addDropped(
+                    binding.backendRuntime().contactCount(binding.spaceHandle().value()));
+                continue;
+            }
+            SpaceId spaceId = compatibility.getSpaceId(spaceUuid);
+            if (spaceId == null) {
+                backendEvents.addDropped(
+                    binding.backendRuntime().contactCount(binding.spaceHandle().value()));
+                continue;
+            }
+            binding.backendRuntime().contacts(binding.spaceHandle().value(), (bodyAId,
+                bodyBId,
+                pointAX,
+                pointAY,
+                pointAZ,
+                pointBX,
+                pointBY,
+                pointBZ,
+                normalBX,
+                normalBY,
+                normalBZ,
+                distance,
+                impulse) -> collectOwnerLaneContactEvent(runtime,
+                    backendEvents,
+                    spaceId,
+                    bodyAId,
+                    bodyBId,
+                    pointAX,
+                    pointAY,
+                    pointAZ,
+                    pointBX,
+                    pointBY,
+                    pointBZ,
+                    normalBX,
+                    normalBY,
+                    normalBZ,
+                    distance,
+                    impulse));
+        }
+        return backendEvents;
+    }
+
+    private static void collectOwnerLaneContactEvent(@Nonnull PhysicsRuntimeResource runtime,
+        @Nonnull StepBackendEvents backendEvents,
+        @Nonnull SpaceId spaceId,
+        long bodyAId,
+        long bodyBId,
+        float pointAX,
+        float pointAY,
+        float pointAZ,
+        float pointBX,
+        float pointBY,
+        float pointBZ,
+        float normalBX,
+        float normalBY,
+        float normalBZ,
+        float distance,
+        float impulse) {
+        BodyHitMetadata bodyA = runtime.getBodyHitMetadata(bodyAId);
+        BodyHitMetadata bodyB = runtime.getBodyHitMetadata(bodyBId);
+        if (bodyA == null
+            || bodyA.bodyRef() == null
+            || bodyB == null
+            || bodyB.bodyRef() == null
+            || PhysicsStoreSystemSupport.isNil(bodyA.bodyUuid())
+            || PhysicsStoreSystemSupport.isNil(bodyB.bodyUuid())) {
+            backendEvents.addDropped(1);
+            return;
+        }
+        backendEvents.add(new PhysicsContactEvent(spaceId,
+            PhysicsContactPhase.OBSERVED,
+            bodyA.bodyUuid(),
+            bodyB.bodyUuid(),
+            new Vector3f(pointAX, pointAY, pointAZ),
+            new Vector3f(pointBX, pointBY, pointBZ),
+            new Vector3f(normalBX, normalBY, normalBZ),
+            distance,
+            impulse));
     }
 
     private static int resolveAdaptiveStepCount(@Nonnull PhysicsRuntimeResource runtime,
@@ -513,8 +631,46 @@ public final class StepSubmissionSystem extends TickingSystem<PhysicsStore> {
         private int substeps;
     }
 
-    private record RuntimeStepBinding(@Nonnull BackendSpaceHandle spaceHandle,
+    private record RuntimeStepBinding(@Nonnull Ref<PhysicsStore> spaceRef,
+                                      @Nonnull BackendSpaceHandle spaceHandle,
                                       @Nonnull PhysicsBackendRuntime backendRuntime) {
+    }
+
+    private static final class StepBackendEvents {
+
+        @Nonnull
+        private static final StepBackendEvents EMPTY = new StepBackendEvents(List.of(), 0);
+
+        @Nonnull
+        private final List<PhysicsFrameEvent> physicsEvents;
+        private int droppedBackendEventCount;
+
+        private StepBackendEvents() {
+            this(new ArrayList<>(), 0);
+        }
+
+        private StepBackendEvents(@Nonnull List<PhysicsFrameEvent> physicsEvents,
+            int droppedBackendEventCount) {
+            this.physicsEvents = physicsEvents;
+            this.droppedBackendEventCount = Math.max(0, droppedBackendEventCount);
+        }
+
+        private void add(@Nonnull PhysicsFrameEvent event) {
+            physicsEvents.add(event);
+        }
+
+        private void addDropped(int count) {
+            droppedBackendEventCount += Math.max(0, count);
+        }
+
+        @Nonnull
+        private List<PhysicsFrameEvent> physicsEvents() {
+            return physicsEvents;
+        }
+
+        private int droppedBackendEventCount() {
+            return droppedBackendEventCount;
+        }
     }
 
     private static int requiredSteps(float travel, float safeTravel) {

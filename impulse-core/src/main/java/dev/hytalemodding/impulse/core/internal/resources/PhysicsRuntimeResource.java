@@ -261,8 +261,21 @@ public final class PhysicsRuntimeResource implements Resource<PhysicsStore> {
         @Nullable Ref<PhysicsStore> bodyRef,
         @Nonnull PhysicsBodyType bodyType,
         @Nonnull ShapeType shapeType) {
+        BodySnapshotMetadata metadata = bodySnapshotMetadataByHandle.get(handle.value());
+        putBodyHitMetadata(handle,
+            metadata != null ? metadata.bodyUuid() : new UUID(0L, 0L),
+            bodyRef,
+            bodyType,
+            shapeType);
+    }
+
+    public void putBodyHitMetadata(@Nonnull BackendBodyHandle handle,
+        @Nonnull UUID bodyUuid,
+        @Nullable Ref<PhysicsStore> bodyRef,
+        @Nonnull PhysicsBodyType bodyType,
+        @Nonnull ShapeType shapeType) {
         bodyHitMetadataByHandle.put(handle.value(),
-            new BodyHitMetadata(bodyRef, bodyType, shapeType));
+            new BodyHitMetadata(bodyUuid, bodyRef, bodyType, shapeType));
     }
 
     @Nullable
@@ -741,11 +754,13 @@ public final class PhysicsRuntimeResource implements Resource<PhysicsStore> {
             @Nonnull PhysicsBackendRuntime runtime);
     }
 
-    public record BodyHitMetadata(@Nullable Ref<PhysicsStore> bodyRef,
+    public record BodyHitMetadata(@Nonnull UUID bodyUuid,
+                                  @Nullable Ref<PhysicsStore> bodyRef,
                                   @Nonnull PhysicsBodyType bodyType,
                                   @Nonnull ShapeType shapeType) {
 
         public BodyHitMetadata {
+            Objects.requireNonNull(bodyUuid, "bodyUuid");
             Objects.requireNonNull(bodyType, "bodyType");
             Objects.requireNonNull(shapeType, "shapeType");
         }
