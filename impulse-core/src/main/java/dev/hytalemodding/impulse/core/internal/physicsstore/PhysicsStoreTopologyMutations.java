@@ -18,6 +18,7 @@ import dev.hytalemodding.impulse.core.internal.resources.BackendBodyHandle;
 import dev.hytalemodding.impulse.core.internal.resources.BackendJointHandle;
 import dev.hytalemodding.impulse.core.internal.resources.BackendSpaceHandle;
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsRuntimeResetResult;
+import dev.hytalemodding.impulse.core.internal.modules.control.PhysicsControlRuntimeStates;
 import dev.hytalemodding.impulse.core.plugin.physicsstore.PhysicsThreading;
 import dev.hytalemodding.impulse.core.plugin.components.BodyComponent;
 import dev.hytalemodding.impulse.core.plugin.components.JointComponent;
@@ -60,6 +61,7 @@ public final class PhysicsStoreTopologyMutations {
         PhysicsRuntimeResource runtime = store.getResource(PhysicsRuntimeResource.getResourceType());
         PhysicsIdentityIndexResource identity =
             store.getResource(PhysicsIdentityIndexResource.getResourceType());
+        PhysicsControlRuntimeStates.clear(store);
         TopologyCounts removed = countBackendTopology(runtime);
         List<RowRemoval> removals = collectRows(store, null, null, null, null);
         removeRuntimeRows(runtime, identity, removals);
@@ -344,6 +346,7 @@ public final class PhysicsStoreTopologyMutations {
                 terrainPayloads.remove(removal.payloadResourceKey());
             }
             if (removal.kind() == RowKind.BODY) {
+                PhysicsControlRuntimeStates.clearControlled(removal.ref());
                 snapshots.removeBody(removal.rowUuid());
                 registrations.removeBody(removal.rowUuid());
             }

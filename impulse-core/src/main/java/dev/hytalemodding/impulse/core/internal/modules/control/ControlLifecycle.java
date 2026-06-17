@@ -37,6 +37,7 @@ public final class ControlLifecycle {
 
     static {
         GATE.onDisable(ControlLifecycle::cleanupStores);
+        GATE.onDisable(PhysicsControlRuntimeStates::clearAll);
         GATE.onDisable(ControlLifecycle::cleanupResources);
     }
 
@@ -147,7 +148,6 @@ public final class ControlLifecycle {
         @Nullable ComponentType<EntityStore, ImpulseControllableComponent> controllableType,
         @Nullable ComponentType<EntityStore, PhysicsControlSessionComponent> sessionType) {
         if (sessionType != null) {
-            PhysicsWorldRuntimeResource resource = PhysicsWorldRuntimeResource.require(store);
             ArrayList<SessionCleanupTarget> sessions = new ArrayList<>();
             store.forEachEntityParallel(sessionType,
                 (index, archetypeChunk, _) -> {
@@ -163,7 +163,7 @@ public final class ControlLifecycle {
                     }
                 });
             for (SessionCleanupTarget target : sessions) {
-                PhysicsControlSessionCleanup.cleanup(store, resource, target.session());
+                PhysicsControlSessionCleanup.cleanup(store, target.session());
                 store.removeComponent(target.ref(), sessionType);
             }
         }

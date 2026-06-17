@@ -6,14 +6,14 @@ import com.hypixel.hytale.component.Store;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import com.hypixel.hytale.server.core.universe.world.storage.PhysicsStore;
 import dev.hytalemodding.impulse.api.PhysicsBodyType;
-import dev.hytalemodding.impulse.core.plugin.physicsstore.PhysicsThreading;
 import dev.hytalemodding.impulse.early.PhysicsStoreWorld;
 import dev.hytalemodding.impulse.core.internal.modules.control.ControlLifecycle;
+import dev.hytalemodding.impulse.core.internal.modules.control.PhysicsControlRuntimeStates;
 import dev.hytalemodding.impulse.core.internal.modules.control.components.PhysicsControlSessionComponent;
 import dev.hytalemodding.impulse.core.internal.modules.control.systems.PhysicsKinematicControlSystem;
 import dev.hytalemodding.impulse.core.internal.modules.control.systems.PhysicsStoreControlSessionMutations;
-import dev.hytalemodding.impulse.core.internal.resources.PhysicsIdentityIndexResource;
-import dev.hytalemodding.impulse.core.internal.resources.PhysicsWorldRuntimeResource;
+import dev.hytalemodding.impulse.core.plugin.physicsstore.PhysicsEntities;
+import dev.hytalemodding.impulse.core.plugin.physicsstore.PhysicsThreading;
 import java.util.UUID;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
@@ -100,10 +100,9 @@ public final class PhysicsControlSessions {
         requireAvailable();
         ControlLifecycle.registerStore(store);
         validateControlRefs(bodyRef, anchorBodyRef, controlJointRef);
-        PhysicsWorldRuntimeResource resource = PhysicsWorldRuntimeResource.require(store);
         ComponentType<EntityStore, PhysicsControlSessionComponent> sessionType =
             PhysicsControlSessionComponent.getComponentType();
-        releaseSession(resource, store, controllerRef, sessionType);
+        releaseSession(store, controllerRef, sessionType);
         store.putComponent(controllerRef,
             sessionType,
             new PhysicsControlSessionComponent(bodyRef,
@@ -114,7 +113,7 @@ public final class PhysicsControlSessions {
                 grabDistance,
                 viewOffset,
                 previousTarget));
-        resource.markBodyControlled(bodyRef);
+        PhysicsControlRuntimeStates.markControlled(bodyRef);
     }
 
     /**
@@ -127,14 +126,12 @@ public final class PhysicsControlSessions {
         if (!isAvailable()) {
             return false;
         }
-        return releaseSession(PhysicsWorldRuntimeResource.require(store),
-            store,
+        return releaseSession(store,
             controllerRef,
             PhysicsControlSessionComponent.getComponentType());
     }
 
-    private static boolean releaseSession(@Nonnull PhysicsWorldRuntimeResource resource,
-        @Nonnull Store<EntityStore> store,
+    private static boolean releaseSession(@Nonnull Store<EntityStore> store,
         @Nonnull Ref<EntityStore> controllerRef,
         @Nonnull ComponentType<EntityStore, PhysicsControlSessionComponent> sessionType) {
         PhysicsControlSessionComponent session =
@@ -143,19 +140,18 @@ public final class PhysicsControlSessions {
             return false;
         }
 
-        releaseSession(resource, store, controllerRef, sessionType, session);
+        releaseSession(store, controllerRef, sessionType, session);
         return true;
     }
 
-    private static void releaseSession(@Nonnull PhysicsWorldRuntimeResource resource,
-        @Nonnull Store<EntityStore> store,
+    private static void releaseSession(@Nonnull Store<EntityStore> store,
         @Nonnull Ref<EntityStore> controllerRef,
         @Nonnull ComponentType<EntityStore, PhysicsControlSessionComponent> sessionType,
         @Nonnull PhysicsControlSessionComponent session) {
         Ref<PhysicsStore> bodyRef = session.getBodyRef();
         PhysicsKinematicControlSystem.clearMutationState(store, session.getAnchorBodyRef());
         if (bodyRef != null) {
-            resource.clearControlledBody(bodyRef);
+            PhysicsControlRuntimeStates.clearControlled(bodyRef);
         }
         PhysicsStoreControlSessionMutations.applyRelease(store, session);
 
@@ -173,9 +169,8 @@ public final class PhysicsControlSessions {
     private static Ref<PhysicsStore> requireRef(@Nonnull Store<PhysicsStore> store,
         @Nonnull UUID uuid,
         @Nonnull String role) {
-        Ref<PhysicsStore> ref = store.getResource(PhysicsIdentityIndexResource.getResourceType())
-            .getByUuid(uuid);
-        if (ref == null || !ref.isValid()) {
+        Ref<PhysicsStore> ref = PhysicsEntities.resolveRef(store, uuid);
+        if (ref == null) {
             throw new IllegalArgumentException("PhysicsStore " + role
                 + " entity is not loaded for uuid=" + uuid);
         }
