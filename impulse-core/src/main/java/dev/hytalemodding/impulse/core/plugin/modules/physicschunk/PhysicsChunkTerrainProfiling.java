@@ -86,6 +86,7 @@ public final class PhysicsChunkTerrainProfiling {
     @Nonnull
     private static PhysicsRuntimeProfilingResource runtimeProfiling(
         @Nonnull Store<EntityStore> store) {
+        assert PhysicsRuntimeProfilingResource.getResourceType() != null;
         return store.getResource(PhysicsRuntimeProfilingResource.getResourceType());
     }
 

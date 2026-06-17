@@ -87,6 +87,7 @@ public class PhysicsDebugSystem extends TickingSystem<EntityStore> {
     public void tick(float dt, int index, @Nonnull Store<EntityStore> store) {
         World world = store.getExternalData().getWorld();
         PhysicsWorldRuntimeResource resource = PhysicsWorldRuntimeResource.require(store);
+        assert PhysicsDebugResource.getResourceType() != null;
         PhysicsDebugResource debug = store.getResource(PhysicsDebugResource.getResourceType());
 
         if (!debug.hasSubscribers()) {
@@ -292,7 +293,7 @@ public class PhysicsDebugSystem extends TickingSystem<EntityStore> {
         RenderedBodyCount rendered = new RenderedBodyCount();
         double maxDistanceSquared = viewRadius * viewRadius;
         for (SpaceId spaceId : resource.getSpaceIds()) {
-            resource.forEachIndexedBodySnapshot(spaceId, (bodyUuid, snapshot, snapshotSpaceId, kind, persistenceMode) -> {
+            resource.forEachIndexedBodySnapshot(spaceId, (bodyUuid, snapshot, _, kind, _) -> {
                 if (rendered.hasReached(maxBodies)) {
                     return;
                 }
