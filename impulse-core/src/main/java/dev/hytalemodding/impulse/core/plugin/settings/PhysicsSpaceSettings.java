@@ -20,10 +20,11 @@ import javax.annotation.Nonnull;
  * which keeps Impulse fully opt-in: no terrain bodies are created unless the integrator
  * explicitly opts in.</p>
  */
+@SuppressWarnings("deprecation")
 public class PhysicsSpaceSettings {
 
     @Nonnull
-    private final PhysicsWorldCollisionSettings physicsChunkTerrainSettings;
+    private final PhysicsChunkTerrainSettings physicsChunkTerrainSettings;
     @Nonnull
     private final PhysicsVisualSyncSettings visualSyncSettings;
     @Nonnull
@@ -72,7 +73,7 @@ public class PhysicsSpaceSettings {
     @Deprecated(forRemoval = false)
     @Nonnull
     public PhysicsWorldCollisionSettings getWorldCollisionSettings() {
-        return physicsChunkTerrainSettings;
+        return (PhysicsWorldCollisionSettings) physicsChunkTerrainSettings;
     }
 
     /**

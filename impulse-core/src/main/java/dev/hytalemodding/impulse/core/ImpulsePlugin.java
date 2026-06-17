@@ -17,9 +17,9 @@ import dev.hytalemodding.impulse.api.PhysicsBackend;
 import dev.hytalemodding.impulse.api.runtime.PhysicsBackendRuntimeProvider;
 import dev.hytalemodding.impulse.core.internal.commands.ImpulseCommandContributionRegistry;
 import dev.hytalemodding.impulse.core.internal.modules.ImpulseSubPluginRegistration;
+import dev.hytalemodding.impulse.core.internal.registration.PhysicsComponentTypeRegistry;
 import dev.hytalemodding.impulse.core.internal.registration.PhysicsStoreRegistration;
 import dev.hytalemodding.impulse.core.internal.PhysicsStoreEarlyPluginProbe;
-import dev.hytalemodding.impulse.core.plugin.components.PhysicsComponentTypes;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Collection;
@@ -55,7 +55,7 @@ public final class ImpulsePlugin extends JavaPlugin {
         PhysicsStoreEarlyPluginProbe.requireAvailable();
         ComponentRegistryProxy<PhysicsStore> physicsStoreRegistry =
             PhysicsStoreRegistration.physicsStoreRegistry(this);
-        PhysicsComponentTypes.registerComponentTypes(physicsStoreRegistry);
+        PhysicsComponentTypeRegistry.registerComponentTypes(physicsStoreRegistry);
         PhysicsStoreRegistration.register(physicsStoreRegistry);
         ImpulseSubPluginRegistration.register(this);
         discoverBackends();

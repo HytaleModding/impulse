@@ -1,228 +1,113 @@
 package dev.hytalemodding.impulse.core.plugin.components;
 
-import com.hypixel.hytale.component.ComponentRegistryProxy;
 import com.hypixel.hytale.component.ComponentType;
 import com.hypixel.hytale.server.core.universe.world.storage.PhysicsStore;
+import dev.hytalemodding.impulse.core.internal.registration.PhysicsComponentTypeRegistry;
 import dev.hytalemodding.impulse.core.plugin.modules.physicschunk.components.CollisionLodSettingsComponent;
 import dev.hytalemodding.impulse.core.plugin.modules.physicschunk.components.PhysicsChunkTerrainComponent;
 import javax.annotation.Nonnull;
-import javax.annotation.Nullable;
 
 /**
- * Registered Hytale ECS component type handles for PhysicsStore entities.
+ * Public Hytale ECS component type handles for PhysicsStore entities.
  */
 public final class PhysicsComponentTypes {
-
-    @Nullable
-    private static ComponentType<PhysicsStore, UuidComponent> uuidComponentType;
-    @Nullable
-    private static ComponentType<PhysicsStore, SpaceComponent> spaceComponentType;
-    @Nullable
-    private static ComponentType<PhysicsStore, BodyComponent> bodyComponentType;
-    @Nullable
-    private static ComponentType<PhysicsStore, BodyCommandComponent> bodyCommandComponentType;
-    @Nullable
-    private static ComponentType<PhysicsStore, TerrainColliderComponent> terrainColliderComponentType;
-    @Nullable
-    private static ComponentType<PhysicsStore, PhysicsChunkTerrainComponent> physicsChunkTerrainComponentType;
-    @Nullable
-    private static ComponentType<PhysicsStore, DynamicsComponent> dynamicsComponentType;
-    @Nullable
-    private static ComponentType<PhysicsStore, ColliderComponent> colliderComponentType;
-    @Nullable
-    private static ComponentType<PhysicsStore, ShapeComponent> shapeComponentType;
-    @Nullable
-    private static ComponentType<PhysicsStore, MaterialComponent> materialComponentType;
-    @Nullable
-    private static ComponentType<PhysicsStore, CollisionFilterComponent> collisionFilterComponentType;
-    @Nullable
-    private static ComponentType<PhysicsStore, JointComponent> jointComponentType;
-    @Nullable
-    private static ComponentType<PhysicsStore, TargetComponent> targetComponentType;
-    @Nullable
-    private static ComponentType<PhysicsStore, SolverSettingsComponent> solverSettingsComponentType;
-    @Nullable
-    private static ComponentType<PhysicsStore, VisualSyncSettingsComponent> visualSyncSettingsComponentType;
-    @Nullable
-    private static ComponentType<PhysicsStore, VisualMaterializationSettingsComponent>
-        visualMaterializationSettingsComponentType;
-    @Nullable
-    private static ComponentType<PhysicsStore, CollisionLodSettingsComponent> collisionLodSettingsComponentType;
-    @Nullable
-    private static ComponentType<PhysicsStore, ExtensionSettingsComponent> extensionSettingsComponentType;
 
     private PhysicsComponentTypes() {
     }
 
-    public static void registerComponentTypes(
-        @Nonnull ComponentRegistryProxy<PhysicsStore> registry) {
-        uuidComponentType = registry.registerComponent(
-            UuidComponent.class,
-            "Uuid",
-            UuidComponent.CODEC);
-        spaceComponentType = registry.registerComponent(
-            SpaceComponent.class,
-            "Space",
-            SpaceComponent.CODEC);
-        bodyComponentType = registry.registerComponent(
-            BodyComponent.class,
-            "Body",
-            BodyComponent.CODEC);
-        bodyCommandComponentType = registry.registerComponent(
-            BodyCommandComponent.class,
-            "BodyCommand",
-            BodyCommandComponent.CODEC);
-        terrainColliderComponentType = registry.registerComponent(
-            TerrainColliderComponent.class,
-            "TerrainCollider",
-            TerrainColliderComponent.CODEC);
-        physicsChunkTerrainComponentType = registry.registerComponent(
-            PhysicsChunkTerrainComponent.class,
-            "WorldCollision",
-            PhysicsChunkTerrainComponent.CODEC);
-        dynamicsComponentType = registry.registerComponent(
-            DynamicsComponent.class,
-            "Dynamics",
-            DynamicsComponent.CODEC);
-        colliderComponentType = registry.registerComponent(
-            ColliderComponent.class,
-            "Collider",
-            ColliderComponent.CODEC);
-        shapeComponentType = registry.registerComponent(
-            ShapeComponent.class,
-            "Shape",
-            ShapeComponent.CODEC);
-        materialComponentType = registry.registerComponent(
-            MaterialComponent.class,
-            "Material",
-            MaterialComponent.CODEC);
-        collisionFilterComponentType = registry.registerComponent(
-            CollisionFilterComponent.class,
-            "CollisionFilter",
-            CollisionFilterComponent.CODEC);
-        jointComponentType = registry.registerComponent(
-            JointComponent.class,
-            "Joint",
-            JointComponent.CODEC);
-        targetComponentType = registry.registerComponent(
-            TargetComponent.class,
-            "Target",
-            TargetComponent.CODEC);
-        solverSettingsComponentType = registry.registerComponent(
-            SolverSettingsComponent.class,
-            "SolverSettings",
-            SolverSettingsComponent.CODEC);
-        visualSyncSettingsComponentType = registry.registerComponent(
-            VisualSyncSettingsComponent.class,
-            "VisualSyncSettings",
-            VisualSyncSettingsComponent.CODEC);
-        visualMaterializationSettingsComponentType = registry.registerComponent(
-            VisualMaterializationSettingsComponent.class,
-            "VisualMaterializationSettings",
-            VisualMaterializationSettingsComponent.CODEC);
-        collisionLodSettingsComponentType = registry.registerComponent(
-            CollisionLodSettingsComponent.class,
-            "CollisionLodSettings",
-            CollisionLodSettingsComponent.CODEC);
-        extensionSettingsComponentType = registry.registerComponent(
-            ExtensionSettingsComponent.class,
-            "ExtensionSettings",
-            ExtensionSettingsComponent.CODEC);
-    }
-
     @Nonnull
     public static ComponentType<PhysicsStore, UuidComponent> uuidComponentType() {
-        return uuidComponentType;
+        return PhysicsComponentTypeRegistry.uuidComponentType();
     }
 
     @Nonnull
     public static ComponentType<PhysicsStore, SpaceComponent> spaceComponentType() {
-        return spaceComponentType;
+        return PhysicsComponentTypeRegistry.spaceComponentType();
     }
 
     @Nonnull
     public static ComponentType<PhysicsStore, BodyComponent> bodyComponentType() {
-        return bodyComponentType;
+        return PhysicsComponentTypeRegistry.bodyComponentType();
     }
 
     @Nonnull
     public static ComponentType<PhysicsStore, BodyCommandComponent> bodyCommandComponentType() {
-        return bodyCommandComponentType;
+        return PhysicsComponentTypeRegistry.bodyCommandComponentType();
     }
 
     @Nonnull
     public static ComponentType<PhysicsStore, TerrainColliderComponent>
     terrainColliderComponentType() {
-        return terrainColliderComponentType;
+        return PhysicsComponentTypeRegistry.terrainColliderComponentType();
     }
 
     @Nonnull
     public static ComponentType<PhysicsStore, PhysicsChunkTerrainComponent>
     physicsChunkTerrainComponentType() {
-        return physicsChunkTerrainComponentType;
+        return PhysicsComponentTypeRegistry.physicsChunkTerrainComponentType();
     }
 
     @Nonnull
     public static ComponentType<PhysicsStore, DynamicsComponent> dynamicsComponentType() {
-        return dynamicsComponentType;
+        return PhysicsComponentTypeRegistry.dynamicsComponentType();
     }
 
     @Nonnull
     public static ComponentType<PhysicsStore, ColliderComponent> colliderComponentType() {
-        return colliderComponentType;
+        return PhysicsComponentTypeRegistry.colliderComponentType();
     }
 
     @Nonnull
     public static ComponentType<PhysicsStore, ShapeComponent> shapeComponentType() {
-        return shapeComponentType;
+        return PhysicsComponentTypeRegistry.shapeComponentType();
     }
 
     @Nonnull
     public static ComponentType<PhysicsStore, MaterialComponent> materialComponentType() {
-        return materialComponentType;
+        return PhysicsComponentTypeRegistry.materialComponentType();
     }
 
     @Nonnull
     public static ComponentType<PhysicsStore, CollisionFilterComponent> collisionFilterComponentType() {
-        return collisionFilterComponentType;
+        return PhysicsComponentTypeRegistry.collisionFilterComponentType();
     }
 
     @Nonnull
     public static ComponentType<PhysicsStore, JointComponent> jointComponentType() {
-        return jointComponentType;
+        return PhysicsComponentTypeRegistry.jointComponentType();
     }
 
     @Nonnull
     public static ComponentType<PhysicsStore, TargetComponent> targetComponentType() {
-        return targetComponentType;
+        return PhysicsComponentTypeRegistry.targetComponentType();
     }
 
     @Nonnull
     public static ComponentType<PhysicsStore, SolverSettingsComponent> solverSettingsComponentType() {
-        return solverSettingsComponentType;
+        return PhysicsComponentTypeRegistry.solverSettingsComponentType();
     }
 
     @Nonnull
     public static ComponentType<PhysicsStore, VisualSyncSettingsComponent>
     visualSyncSettingsComponentType() {
-        return visualSyncSettingsComponentType;
+        return PhysicsComponentTypeRegistry.visualSyncSettingsComponentType();
     }
 
     @Nonnull
     public static ComponentType<PhysicsStore, VisualMaterializationSettingsComponent>
     visualMaterializationSettingsComponentType() {
-        return visualMaterializationSettingsComponentType;
+        return PhysicsComponentTypeRegistry.visualMaterializationSettingsComponentType();
     }
 
     @Nonnull
     public static ComponentType<PhysicsStore, CollisionLodSettingsComponent>
     collisionLodSettingsComponentType() {
-        return collisionLodSettingsComponentType;
+        return PhysicsComponentTypeRegistry.collisionLodSettingsComponentType();
     }
 
     @Nonnull
     public static ComponentType<PhysicsStore, ExtensionSettingsComponent>
     extensionSettingsComponentType() {
-        return extensionSettingsComponentType;
+        return PhysicsComponentTypeRegistry.extensionSettingsComponentType();
     }
 }

@@ -103,6 +103,10 @@ public class PhysicsChunkTerrainComponent implements Component<PhysicsStore> {
             settings.getTerrainRestitution());
     }
 
+    /**
+     * @deprecated Use {@link #PhysicsChunkTerrainComponent(PhysicsChunkTerrainSettings)}.
+     */
+    @Deprecated(forRemoval = false)
     public PhysicsChunkTerrainComponent(@Nonnull PhysicsWorldCollisionSettings settings) {
         this((PhysicsChunkTerrainSettings) settings);
     }
@@ -284,6 +288,10 @@ public class PhysicsChunkTerrainComponent implements Component<PhysicsStore> {
         settings.setTerrainMaterial(terrainFriction, terrainRestitution);
     }
 
+    /**
+     * @deprecated Use {@link #copyTo(PhysicsChunkTerrainSettings)}.
+     */
+    @Deprecated(forRemoval = false)
     public void copyTo(@Nonnull PhysicsWorldCollisionSettings settings) {
         copyTo((PhysicsChunkTerrainSettings) settings);
     }
