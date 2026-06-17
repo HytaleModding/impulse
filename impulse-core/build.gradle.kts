@@ -138,20 +138,20 @@ tasks.named("updatePluginManifest") {
         val subPlugins = manifestJson["SubPlugins"] as? List<MutableMap<String, Any?>>
             ?: return@doLast
 
-        fun MutableMap<String, Any?>.mergeDependencies(dependencies: Map<String, String>) {
+        fun MutableMap<String, Any?>.mergeLoadBefore(loadBefore: Map<String, String>) {
             @Suppress("UNCHECKED_CAST")
-            val existingDependencies = (this["Dependencies"] as? Map<String, String>)
+            val existingLoadBefore = (this["LoadBefore"] as? Map<String, String>)
                 ?.toMutableMap()
                 ?: linkedMapOf()
-            existingDependencies.putAll(dependencies)
-            this["Dependencies"] = existingDependencies
+            existingLoadBefore.putAll(loadBefore)
+            this["LoadBefore"] = existingLoadBefore
         }
 
-        val physicsEntityDependency = mapOf("HytaleModding:ImpulsePhysicsEntity" to "*")
-        subPlugins.firstOrNull { it["Name"] == "ImpulseControl" }
-            ?.mergeDependencies(physicsEntityDependency)
-        subPlugins.firstOrNull { it["Name"] == "ImpulsePhysicsChunk" }
-            ?.mergeDependencies(physicsEntityDependency)
+        subPlugins.firstOrNull { it["Name"] == "ImpulsePhysicsEntity" }
+            ?.mergeLoadBefore(mapOf(
+                "HytaleModding:ImpulseControl" to "*",
+                "HytaleModding:ImpulsePhysicsChunk" to "*"
+            ))
 
         manifestFile.writeText(
             groovy.json.JsonOutput.prettyPrint(groovy.json.JsonOutput.toJson(manifestJson))

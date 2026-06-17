@@ -31,8 +31,8 @@ class ImpulseSubPluginRegistrationTest {
         for (PluginManifest subPlugin : prepared) {
             assertTrue(subPlugin.getDependencies().containsKey(parentId));
         }
-        assertSubPluginDependsOn(prepared, "ImpulseControl", "ImpulsePhysicsEntity");
-        assertSubPluginDependsOn(prepared, "ImpulsePhysicsChunk", "ImpulsePhysicsEntity");
+        assertSubPluginLoadsBefore(parent, "ImpulsePhysicsEntity", "ImpulseControl");
+        assertSubPluginLoadsBefore(parent, "ImpulsePhysicsEntity", "ImpulsePhysicsChunk");
     }
 
     @Test
@@ -66,14 +66,14 @@ class ImpulseSubPluginRegistrationTest {
         assertTrue(manifest.getDependencies().containsKey(parentId));
     }
 
-    private static void assertSubPluginDependsOn(@Nonnull List<PluginManifest> subPlugins,
+    private static void assertSubPluginLoadsBefore(@Nonnull PluginManifest parent,
         @Nonnull String subPluginName,
         @Nonnull String dependencyName) {
         PluginIdentifier dependencyId = new PluginIdentifier("HytaleModding", dependencyName);
-        for (PluginManifest subPlugin : subPlugins) {
+        for (PluginManifest subPlugin : parent.getSubPlugins()) {
             if (subPluginName.equals(subPlugin.getName())) {
-                assertTrue(subPlugin.getDependencies().containsKey(dependencyId),
-                    subPluginName + " should depend on " + dependencyName);
+                assertTrue(subPlugin.getLoadBefore().containsKey(dependencyId),
+                    subPluginName + " should load before " + dependencyName);
                 return;
             }
         }
