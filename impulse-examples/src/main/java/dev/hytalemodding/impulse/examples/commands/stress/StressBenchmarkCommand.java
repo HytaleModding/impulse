@@ -129,9 +129,9 @@ public class StressBenchmarkCommand extends AbstractAsyncPlayerCommand {
                 + ". Body-count updates are visible after PhysicsStore binds the new entities"
                 + ". This command measures raw setup/entity attachment; use /impulse-examples stress bodies"
                 + " for detached/detached-view scalability scenarios"
-                + ". For clean comparisons run /impulse clean, /impulse worldcollision perf reset,"
-                + " /impulse worldcollision perf toggle before spawning,"
-                + " then /impulse worldcollision perf report."));
+                + ". For clean comparisons run /impulse clean, /impulse physicschunk perf reset,"
+                + " /impulse physicschunk perf toggle before spawning,"
+                + " then /impulse physicschunk perf report."));
         }
     }
 

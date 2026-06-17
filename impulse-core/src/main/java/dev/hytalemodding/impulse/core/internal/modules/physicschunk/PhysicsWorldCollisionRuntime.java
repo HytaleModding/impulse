@@ -21,11 +21,11 @@ import org.joml.Vector3d;
  */
 public final class PhysicsWorldCollisionRuntime {
 
-    private final WorldVoxelCollisionCache worldVoxelCollisionCache = new WorldVoxelCollisionCache();
+    private final VoxelCollisionCache worldVoxelCollisionCache = new VoxelCollisionCache();
     private final Int2LongMap streamingRevisions = new Int2LongOpenHashMap();
 
     @Nonnull
-    public WorldVoxelCollisionCache worldVoxelCollisionCache() {
+    public VoxelCollisionCache worldVoxelCollisionCache() {
         return worldVoxelCollisionCache;
     }
 
@@ -79,7 +79,7 @@ public final class PhysicsWorldCollisionRuntime {
         @Nonnull Vector3d center,
         int radius,
         @Nonnull WorldCollisionBuildOptions buildOptions) {
-        WorldVoxelCollisionCache.BuildStats stats = worldVoxelCollisionCache.refreshAround(world,
+        VoxelCollisionCache.BuildStats stats = worldVoxelCollisionCache.refreshAround(world,
             space,
             center,
             radius,
@@ -114,7 +114,7 @@ public final class PhysicsWorldCollisionRuntime {
         @Nonnull WorldCollisionBuildOptions buildOptions) {
         Objects.requireNonNull(centers, "centers");
         LongSet visitedSections = new LongOpenHashSet();
-        WorldVoxelCollisionCache.BuildStats total = WorldVoxelCollisionCache.BuildStats.empty();
+        VoxelCollisionCache.BuildStats total = VoxelCollisionCache.BuildStats.empty();
         for (Vector3d center : centers) {
             total = total.plus(worldVoxelCollisionCache.ensureAround(world,
                 space,
@@ -142,7 +142,7 @@ public final class PhysicsWorldCollisionRuntime {
     }
 
     public synchronized void clearAll() {
-        worldVoxelCollisionCache.copyFrom(new WorldVoxelCollisionCache());
+        worldVoxelCollisionCache.copyFrom(new VoxelCollisionCache());
         for (int spaceId : streamingRevisions.keySet().toIntArray()) {
             streamingRevisions.put(spaceId, streamingRevisions.get(spaceId) + 1L);
         }
@@ -156,7 +156,7 @@ public final class PhysicsWorldCollisionRuntime {
     }
 
     public synchronized void clearAllAndUnregisterSpaces() {
-        worldVoxelCollisionCache.copyFrom(new WorldVoxelCollisionCache());
+        worldVoxelCollisionCache.copyFrom(new VoxelCollisionCache());
         streamingRevisions.clear();
     }
 
@@ -170,7 +170,7 @@ public final class PhysicsWorldCollisionRuntime {
 
     @Nonnull
     private static WorldCollisionBuildStats worldCollisionStats(
-        @Nonnull WorldVoxelCollisionCache.BuildStats stats) {
+        @Nonnull VoxelCollisionCache.BuildStats stats) {
         return new WorldCollisionBuildStats(stats.scannedBlocks(),
             stats.solidBlocks(),
             stats.culledInteriorBlocks(),

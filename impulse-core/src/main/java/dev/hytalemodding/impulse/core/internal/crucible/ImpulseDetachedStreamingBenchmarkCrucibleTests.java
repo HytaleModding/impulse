@@ -26,7 +26,6 @@ import dev.hytalemodding.impulse.core.internal.physicsstore.PhysicsStoreSpaceMut
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsTerrainMutationQueueResource;
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsProfilingResource;
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsWorldRuntimeResource;
-import dev.hytalemodding.impulse.core.internal.simulation.view.BenchmarkSpaceStatsView;
 import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyKind;
 import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyPersistenceMode;
 import dev.hytalemodding.impulse.core.plugin.modules.physicschunk.WorldCollisionPrewarmStats;
@@ -216,9 +215,9 @@ final class ImpulseDetachedStreamingBenchmarkCrucibleTests {
 
         private CompletionStage<StartedStage> startStageWhenReady(int count, int attempt) {
             clearStageState();
-            if (!WorldCollisionSubPluginCrucibleSupport.ensureLoaded()) {
+            if (!PhysicsChunkSubPluginCrucibleSupport.ensureLoaded()) {
                 return CompletableFuture.completedFuture(StartedStage.failed(count,
-                    "world collision subplugin did not load"));
+                    "PhysicsChunk subplugin did not load"));
             }
 
             PhysicsWorldSettings worldSettings = physics.getWorldSettings();

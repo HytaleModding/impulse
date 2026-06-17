@@ -17,9 +17,9 @@ import com.hypixel.hytale.server.core.universe.world.World;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import com.hypixel.hytale.server.core.universe.world.storage.PhysicsStore;
 import dev.hytalemodding.impulse.api.PhysicsBodyType;
-import dev.hytalemodding.impulse.core.internal.modules.physicschunk.PhysicsStoreTerrainMutationCache.TargetRefreshDecision;
+import dev.hytalemodding.impulse.core.internal.modules.physicschunk.PhysicsChunkMutationCache.TargetRefreshDecision;
 import dev.hytalemodding.impulse.core.internal.modules.physicschunk.PhysicsStoreWorldCollisionStreamingResource;
-import dev.hytalemodding.impulse.core.internal.modules.physicschunk.WorldCollisionLifecycle;
+import dev.hytalemodding.impulse.core.internal.modules.physicschunk.PhysicsChunkLifecycle;
 import dev.hytalemodding.impulse.core.internal.modules.physicschunk.WorldCollisionStreamingBounds;
 import dev.hytalemodding.impulse.core.internal.modules.physicschunk.profiling.WorldCollisionProfilingResource;
 import dev.hytalemodding.impulse.core.internal.modules.physicschunk.profiling.WorldCollisionProfilingResource.Snapshot;
@@ -66,7 +66,7 @@ public final class PhysicsStoreWorldCollisionProducerSystem extends TickingSyste
 
     @Override
     public void tick(float dt, int systemIndex, @Nonnull Store<EntityStore> store) {
-        if (!WorldCollisionLifecycle.isEnabled()) {
+        if (!PhysicsChunkLifecycle.isEnabled()) {
             return;
         }
 

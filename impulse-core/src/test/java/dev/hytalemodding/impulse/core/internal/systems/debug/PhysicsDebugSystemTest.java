@@ -16,8 +16,6 @@ import dev.hytalemodding.impulse.core.plugin.modules.physicsentity.components.Bo
 import dev.hytalemodding.impulse.api.SpaceId;
 import dev.hytalemodding.impulse.api.testsupport.FakePhysicsBackend;
 import dev.hytalemodding.impulse.api.testsupport.FakePhysicsBackend.InMemoryPhysicsSpace;
-import dev.hytalemodding.impulse.core.internal.simulation.view.PhysicsDebugContactView;
-import dev.hytalemodding.impulse.core.internal.simulation.view.PhysicsDebugJointView;
 import java.util.concurrent.CompletableFuture;
 import java.util.List;
 import java.util.UUID;

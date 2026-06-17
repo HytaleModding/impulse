@@ -17,9 +17,6 @@ import dev.hytalemodding.impulse.core.internal.resources.PhysicsSpaceCompatibili
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsTerrainPayloadResource;
 import dev.hytalemodding.impulse.core.internal.terrain.TerrainColliderPayload;
 import dev.hytalemodding.impulse.core.internal.resources.BackendSpaceHandle;
-import dev.hytalemodding.impulse.core.internal.simulation.view.PhysicsDebugContactView;
-import dev.hytalemodding.impulse.core.internal.simulation.view.PhysicsDebugJointView;
-import dev.hytalemodding.impulse.core.internal.simulation.view.PhysicsDebugWorldCollisionSectionView;
 import dev.hytalemodding.impulse.core.plugin.physicsstore.PhysicsThreading;
 import dev.hytalemodding.impulse.core.plugin.components.JointComponent;
 import dev.hytalemodding.impulse.core.plugin.components.TerrainColliderComponent;

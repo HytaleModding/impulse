@@ -11,26 +11,26 @@ import javax.annotation.Nonnull;
  */
 public final class PhysicsChunkCommands {
 
-    private static final String WORLD_COLLISION_ROOT_COMMAND_ID = "worldcollision.root";
+    private static final String PHYSICS_CHUNK_ROOT_COMMAND_ID = "physicschunk.root";
     private static final String COLLISION_LOD_SETTINGS_COMMAND_ID =
-        "worldcollision.settings.collision-lod";
+        "physicschunk.settings.collision-lod";
 
     private PhysicsChunkCommands() {
     }
 
-    public static void registerWorldCollisionCommands(
-        @Nonnull Supplier<? extends AbstractCommand> worldCollisionCommand,
+    public static void registerPhysicsChunkCommands(
+        @Nonnull Supplier<? extends AbstractCommand> physicsChunkCommand,
         @Nonnull Supplier<? extends AbstractCommand> collisionLodSettingsCommand) {
         ImpulseCommandContributionRegistry.addRootAndSettingsSubCommands(
-            WORLD_COLLISION_ROOT_COMMAND_ID,
-            Objects.requireNonNull(worldCollisionCommand, "worldCollisionCommand"),
+            PHYSICS_CHUNK_ROOT_COMMAND_ID,
+            Objects.requireNonNull(physicsChunkCommand, "physicsChunkCommand"),
             COLLISION_LOD_SETTINGS_COMMAND_ID,
             Objects.requireNonNull(collisionLodSettingsCommand, "collisionLodSettingsCommand"));
     }
 
-    public static void unregisterWorldCollisionCommands() {
+    public static void unregisterPhysicsChunkCommands() {
         ImpulseCommandContributionRegistry.removeRootAndSettingsSubCommands(
-            WORLD_COLLISION_ROOT_COMMAND_ID,
+            PHYSICS_CHUNK_ROOT_COMMAND_ID,
             COLLISION_LOD_SETTINGS_COMMAND_ID);
     }
 }

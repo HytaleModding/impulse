@@ -14,9 +14,9 @@ public final class PhysicsEntityDiagnostics {
 
     @Nonnull
     public static Snapshot collect(@Nonnull Store<EntityStore> store) {
-        dev.hytalemodding.impulse.core.internal.diagnostics.PhysicsEntityDiagnostics.Snapshot
+        dev.hytalemodding.impulse.core.internal.modules.physicsentity.PhysicsEntityDiagnostics.Snapshot
             snapshot =
-            dev.hytalemodding.impulse.core.internal.diagnostics.PhysicsEntityDiagnostics.collect(
+            dev.hytalemodding.impulse.core.internal.modules.physicsentity.PhysicsEntityDiagnostics.collect(
                 store);
         return new Snapshot(snapshot.physicsBodyEntities(),
             snapshot.persistentPhysicsBodyEntities(),

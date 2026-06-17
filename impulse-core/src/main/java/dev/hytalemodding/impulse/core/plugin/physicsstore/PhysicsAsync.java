@@ -20,9 +20,11 @@ public final class PhysicsAsync {
     public static <T> CompletableFuture<Void> acceptOnWorldThread(@Nonnull World world,
         @Nonnull CompletionStage<T> stage,
         @Nonnull Consumer<T> consumer) {
+
         Objects.requireNonNull(world, "world");
         Objects.requireNonNull(stage, "stage");
         Objects.requireNonNull(consumer, "consumer");
+
         CompletableFuture<Void> completion = new CompletableFuture<>();
         stage.whenComplete((value, failure) -> {
             if (failure != null) {

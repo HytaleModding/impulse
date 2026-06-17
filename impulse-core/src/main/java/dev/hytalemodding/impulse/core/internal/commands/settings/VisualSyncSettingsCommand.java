@@ -22,6 +22,7 @@ import java.util.Locale;
 import java.util.concurrent.CompletableFuture;
 import javax.annotation.Nonnull;
 
+// TODO: move to physicsentity module
 public class VisualSyncSettingsCommand extends AbstractAsyncPlayerCommand {
 
     private final OptionalArg<Integer> fullRadiusArg = this.withOptionalArg(

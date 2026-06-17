@@ -4,6 +4,8 @@ import com.hypixel.hytale.component.Resource;
 import com.hypixel.hytale.component.ResourceType;
 import com.hypixel.hytale.server.core.universe.world.storage.PhysicsStore;
 import dev.hytalemodding.impulse.core.plugin.settings.PhysicsWorldSettings;
+import lombok.Getter;
+import lombok.Setter;
 import javax.annotation.Nonnull;
 
 /**
@@ -13,6 +15,8 @@ public final class PhysicsWorldSettingsResource implements Resource<PhysicsStore
 
     @Nonnull
     private final PhysicsWorldSettings settings = new PhysicsWorldSettings();
+    @Setter
+    @Getter
     private boolean ccdStepModeActive;
 
     public PhysicsWorldSettingsResource() {
@@ -25,14 +29,6 @@ public final class PhysicsWorldSettingsResource implements Resource<PhysicsStore
 
     public void setSettings(@Nonnull PhysicsWorldSettings settings) {
         this.settings.copyFrom(settings);
-    }
-
-    public boolean isCcdStepModeActive() {
-        return ccdStepModeActive;
-    }
-
-    public void setCcdStepModeActive(boolean ccdStepModeActive) {
-        this.ccdStepModeActive = ccdStepModeActive;
     }
 
     @Nonnull

@@ -26,12 +26,10 @@ dependencyResolutionManagement {
 
 rootProject.name = "impulse"
 
-include("impulse-api")
+include("impulse-backend-api")
 include("impulse-native-loader")
 include("impulse-bullet")
 include("impulse-rapier")
 include("impulse-core")
-include("impulse-physics-entity")
-include("impulse-physics-chunk")
 include("impulse-examples")
 include("impulse-early-plugin")

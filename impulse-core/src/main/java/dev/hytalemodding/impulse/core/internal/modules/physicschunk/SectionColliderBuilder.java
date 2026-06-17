@@ -39,7 +39,7 @@ final class SectionColliderBuilder {
         int chunkX,
         int sectionY,
         int chunkZ,
-        @Nullable WorldVoxelCollisionCache.SectionAccessCache accessCache) {
+        @Nullable VoxelCollisionCache.SectionAccessCache accessCache) {
         return new SectionBlockReader(world, templates, section, chunkX, sectionY, chunkZ, accessCache)
             .neighborhoodSignature();
     }
@@ -59,7 +59,7 @@ final class SectionColliderBuilder {
         int chunkX,
         int sectionY,
         int chunkZ,
-        @Nullable WorldVoxelCollisionCache.SectionAccessCache accessCache) {
+        @Nullable VoxelCollisionCache.SectionAccessCache accessCache) {
         SectionBlockReader reader = new SectionBlockReader(world, templates, section,
             chunkX, sectionY, chunkZ, accessCache);
         BitSet fullCubes = new BitSet(SECTION_VOLUME);

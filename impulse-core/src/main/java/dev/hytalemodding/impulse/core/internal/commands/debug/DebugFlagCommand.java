@@ -37,6 +37,7 @@ final class DebugFlagCommand extends AbstractAsyncPlayerCommand {
         @Nonnull Ref<EntityStore> ref,
         @Nonnull PlayerRef playerRef,
         @Nonnull World world) {
+        assert PhysicsDebugResource.getResourceType() != null;
         PhysicsDebugResource resource = store.getResource(PhysicsDebugResource.getResourceType());
         boolean enabled = !getter.apply(resource);
         setter.accept(resource, enabled);

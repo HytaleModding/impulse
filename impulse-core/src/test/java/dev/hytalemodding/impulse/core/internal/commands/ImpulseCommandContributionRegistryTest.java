@@ -14,10 +14,10 @@ class ImpulseCommandContributionRegistryTest {
     }
 
     @Test
-    void coreRootDoesNotOwnWorldCollisionCommandsByDefault() {
+    void coreRootDoesNotOwnPhysicsChunkCommandsByDefault() {
         ImpulseCommand root = ImpulseCommandContributionRegistry.createRootCommandForTests();
 
-        assertFalse(root.getSubCommands().containsKey("worldcollision"));
+        assertFalse(root.getSubCommands().containsKey("physicschunk"));
         assertFalse(settings(root).getSubCommands().containsKey("collision-lod"));
     }
 

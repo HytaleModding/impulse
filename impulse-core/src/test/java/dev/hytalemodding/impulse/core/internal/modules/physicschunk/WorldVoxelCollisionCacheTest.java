@@ -15,10 +15,6 @@ import dev.hytalemodding.impulse.api.testsupport.FakePhysicsBackendRuntimeProvid
 import dev.hytalemodding.impulse.api.testsupport.FakePhysicsBackendRuntimeProvider.CombineCall;
 import dev.hytalemodding.impulse.api.testsupport.FakePhysicsBackendRuntimeProvider.FakePhysicsBackendRuntime;
 import dev.hytalemodding.impulse.api.testsupport.FakePhysicsBackendRuntimeProvider.VoxelTerrainCall;
-import dev.hytalemodding.impulse.core.internal.modules.physicschunk.SectionCollisionGeometry;
-import dev.hytalemodding.impulse.core.internal.modules.physicschunk.WorldCollisionBuildOptions;
-import dev.hytalemodding.impulse.core.internal.modules.physicschunk.WorldCollisionStreamingBounds;
-import dev.hytalemodding.impulse.core.internal.modules.physicschunk.WorldVoxelCollisionCache;
 import dev.hytalemodding.impulse.core.internal.resources.BackendSpaceHandle;
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsSpaceBinding;
 import dev.hytalemodding.impulse.core.internal.modules.physicschunk.profiling.WorldCollisionProfilingResource;
@@ -42,7 +38,7 @@ class WorldVoxelCollisionCacheTest {
 
     @Test
     void streamingApplyGateAllowsOnlyOnePendingMutation() {
-        WorldVoxelCollisionCache cache = new WorldVoxelCollisionCache();
+        VoxelCollisionCache cache = new VoxelCollisionCache();
 
         assertFalse(cache.isStreamingApplyPending());
         assertTrue(cache.tryBeginStreamingApply());
@@ -57,8 +53,8 @@ class WorldVoxelCollisionCacheTest {
 
     @Test
     void copyFromDoesNotInheritPendingStreamingApply() {
-        WorldVoxelCollisionCache source = new WorldVoxelCollisionCache();
-        WorldVoxelCollisionCache target = new WorldVoxelCollisionCache();
+        VoxelCollisionCache source = new VoxelCollisionCache();
+        VoxelCollisionCache target = new VoxelCollisionCache();
 
         assertTrue(source.tryBeginStreamingApply());
 
@@ -70,8 +66,8 @@ class WorldVoxelCollisionCacheTest {
     @Test
     void copyFromDeepCopiesCachedSectionBodyIds() throws Exception {
         RuntimeFixture fixture = runtimeFixture("test:copy-section-isolation", true);
-        WorldVoxelCollisionCache source = new WorldVoxelCollisionCache();
-        WorldVoxelCollisionCache target = new WorldVoxelCollisionCache();
+        VoxelCollisionCache source = new VoxelCollisionCache();
+        VoxelCollisionCache target = new VoxelCollisionCache();
         Object spaceCache = newSpaceCollisionCache();
         Object sourceSection = newCachedSection(1, 2, 3);
         long copiedBodyId = createVoxelTerrain(fixture);
@@ -91,7 +87,7 @@ class WorldVoxelCollisionCacheTest {
 
     @Test
     void bodyTargetCacheRefreshesActiveBodiesEveryFourTicks() {
-        WorldVoxelCollisionCache cache = new WorldVoxelCollisionCache();
+        VoxelCollisionCache cache = new VoxelCollisionCache();
         WorldCollisionProfilingResource.Snapshot snapshot =
             new WorldCollisionProfilingResource.Snapshot();
         SpaceId spaceId = new SpaceId(1001);
@@ -119,7 +115,7 @@ class WorldVoxelCollisionCacheTest {
 
     @Test
     void bodyTargetCacheRefreshesSleepingBodiesOnTtlBoundedInterval() {
-        WorldVoxelCollisionCache cache = new WorldVoxelCollisionCache();
+        VoxelCollisionCache cache = new VoxelCollisionCache();
         WorldCollisionProfilingResource.Snapshot snapshot =
             new WorldCollisionProfilingResource.Snapshot();
         SpaceId spaceId = new SpaceId(1002);
@@ -143,7 +139,7 @@ class WorldVoxelCollisionCacheTest {
 
     @Test
     void bodyTargetCacheRefreshesImmediatelyWhenBoundsChange() {
-        WorldVoxelCollisionCache cache = new WorldVoxelCollisionCache();
+        VoxelCollisionCache cache = new VoxelCollisionCache();
         WorldCollisionProfilingResource.Snapshot snapshot =
             new WorldCollisionProfilingResource.Snapshot();
         SpaceId spaceId = new SpaceId(1003);
@@ -181,7 +177,7 @@ class WorldVoxelCollisionCacheTest {
 
     @Test
     void bodyTargetRefreshIsNotConsumedUntilTerrainApplyRecordsIt() {
-        WorldVoxelCollisionCache cache = new WorldVoxelCollisionCache();
+        VoxelCollisionCache cache = new VoxelCollisionCache();
         SpaceId spaceId = new SpaceId(1005);
         UUID bodyId = bodyId(5);
         WorldCollisionStreamingBounds bounds = boundsAt(10.0f, 65.0f, 10.0f);
@@ -199,7 +195,7 @@ class WorldVoxelCollisionCacheTest {
 
     @Test
     void bodyTargetCachePrunesBodiesThatDisappearPastDoubleTtl() {
-        WorldVoxelCollisionCache cache = new WorldVoxelCollisionCache();
+        VoxelCollisionCache cache = new VoxelCollisionCache();
         WorldCollisionProfilingResource.Snapshot snapshot =
             new WorldCollisionProfilingResource.Snapshot();
         SpaceId spaceId = new SpaceId(1004);
@@ -237,7 +233,7 @@ class WorldVoxelCollisionCacheTest {
             0,
             0));
 
-        WorldVoxelCollisionCache.DebugSection debugSection = debugSection(cachedSection);
+        VoxelCollisionCache.DebugSection debugSection = debugSection(cachedSection);
         assertEquals(2, fixture.runtime().bodyCount(fixture.backendSpaceId()));
         assertEquals(0, fixture.runtime().voxelTerrainCalls(fixture.backendSpaceId()).size());
         assertFalse(debugSection.voxelTerrain());
@@ -260,7 +256,7 @@ class WorldVoxelCollisionCacheTest {
         addGeometryBodies(fixture.binding(), cachedSection, geometry, 2, 3, 4);
 
         List<VoxelTerrainCall> calls = fixture.runtime().voxelTerrainCalls(fixture.backendSpaceId());
-        WorldVoxelCollisionCache.DebugSection debugSection = debugSection(cachedSection);
+        VoxelCollisionCache.DebugSection debugSection = debugSection(cachedSection);
         assertEquals(1, calls.size());
         assertArrayEquals(new int[] {0, 0, 0, 1, 0, 0}, calls.getFirst().voxelCoordinates());
         assertEquals((float) (2 << ChunkUtil.BITS), calls.getFirst().positionX());
@@ -338,7 +334,7 @@ class WorldVoxelCollisionCacheTest {
 
         addGeometryBodies(fixture.binding(), cachedSection, geometry, 0, 0, 0, false);
 
-        WorldVoxelCollisionCache.DebugSection debugSection = debugSection(cachedSection);
+        VoxelCollisionCache.DebugSection debugSection = debugSection(cachedSection);
         assertEquals(1, fixture.runtime().bodyCount(fixture.backendSpaceId()));
         assertEquals(0, fixture.runtime().voxelTerrainCalls(fixture.backendSpaceId()).size());
         assertFalse(debugSection.voxelTerrain());
@@ -396,7 +392,7 @@ class WorldVoxelCollisionCacheTest {
     @Test
     void clearSectionsAroundKeepsDistantCachedTerrain() throws Exception {
         RuntimeFixture fixture = runtimeFixture("test:section-radius-clear", true);
-        WorldVoxelCollisionCache worldCache = new WorldVoxelCollisionCache();
+        VoxelCollisionCache worldCache = new VoxelCollisionCache();
         Object spaceCache = newSpaceCollisionCache();
         Object near = newCachedSection(0, 2, 0);
         long nearBody = createVoxelTerrain(fixture);
@@ -475,7 +471,7 @@ class WorldVoxelCollisionCacheTest {
         int sectionY,
         int chunkZ,
         @Nonnull WorldCollisionBuildOptions buildOptions) throws Throwable {
-        Method method = Arrays.stream(WorldVoxelCollisionCache.class.getDeclaredMethods())
+        Method method = Arrays.stream(VoxelCollisionCache.class.getDeclaredMethods())
             .filter(candidate -> candidate.getName().equals("addGeometryBodies"))
             .findFirst()
             .orElseThrow();
@@ -534,7 +530,7 @@ class WorldVoxelCollisionCacheTest {
     private static void stitchAdjacentVoxelTerrains(@Nonnull PhysicsSpaceBinding space,
         @Nonnull Object cache,
         @Nonnull Object built) throws Throwable {
-        Method method = Arrays.stream(WorldVoxelCollisionCache.class.getDeclaredMethods())
+        Method method = Arrays.stream(VoxelCollisionCache.class.getDeclaredMethods())
             .filter(candidate -> candidate.getName().equals("stitchAdjacentVoxelTerrains"))
             .findFirst()
             .orElseThrow();
@@ -549,7 +545,7 @@ class WorldVoxelCollisionCacheTest {
     private static void removeBuiltSectionAfterFailure(@Nonnull PhysicsSpaceBinding space,
         @Nonnull Object built,
         @Nonnull RuntimeException failure) throws Throwable {
-        Method method = WorldVoxelCollisionCache.class.getDeclaredMethod("removeBuiltSectionAfterFailure",
+        Method method = VoxelCollisionCache.class.getDeclaredMethod("removeBuiltSectionAfterFailure",
             PhysicsSpaceBinding.class,
             nestedClass("CachedSection"),
             RuntimeException.class);
@@ -570,7 +566,7 @@ class WorldVoxelCollisionCacheTest {
 
     @SuppressWarnings("unchecked")
     private static void putCachedSection(@Nonnull Object cache, @Nonnull Object section) throws Exception {
-        Method keyMethod = WorldVoxelCollisionCache.class.getDeclaredMethod("packSectionKey",
+        Method keyMethod = VoxelCollisionCache.class.getDeclaredMethod("packSectionKey",
             int.class,
             int.class,
             int.class);
@@ -585,10 +581,10 @@ class WorldVoxelCollisionCacheTest {
     }
 
     @SuppressWarnings("unchecked")
-    private static void putSpaceCache(@Nonnull WorldVoxelCollisionCache worldCache,
+    private static void putSpaceCache(@Nonnull VoxelCollisionCache worldCache,
         @Nonnull SpaceId spaceId,
         @Nonnull Object cache) throws Exception {
-        Field spacesField = WorldVoxelCollisionCache.class.getDeclaredField("spaces");
+        Field spacesField = VoxelCollisionCache.class.getDeclaredField("spaces");
         spacesField.setAccessible(true);
         ((Map<Integer, Object>) spacesField.get(worldCache)).put(spaceId.value(), cache);
     }
@@ -646,10 +642,10 @@ class WorldVoxelCollisionCacheTest {
         return field.getLong(section);
     }
 
-    private static WorldVoxelCollisionCache.DebugSection debugSection(@Nonnull Object section) throws Exception {
+    private static VoxelCollisionCache.DebugSection debugSection(@Nonnull Object section) throws Exception {
         Method method = section.getClass().getDeclaredMethod("debugSection");
         method.setAccessible(true);
-        return (WorldVoxelCollisionCache.DebugSection) method.invoke(section);
+        return (VoxelCollisionCache.DebugSection) method.invoke(section);
     }
 
     private static int intField(@Nonnull Object target, @Nonnull String name) throws Exception {
@@ -676,7 +672,7 @@ class WorldVoxelCollisionCacheTest {
 
     @Nonnull
     private static Class<?> nestedClass(@Nonnull String simpleName) {
-        return Arrays.stream(WorldVoxelCollisionCache.class.getDeclaredClasses())
+        return Arrays.stream(VoxelCollisionCache.class.getDeclaredClasses())
             .filter(candidate -> candidate.getSimpleName().equals(simpleName))
             .findFirst()
             .orElseThrow();

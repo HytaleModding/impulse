@@ -18,7 +18,7 @@ import dev.hytalemodding.impulse.api.runtime.PhysicsBackendRuntimeProvider;
 import dev.hytalemodding.impulse.core.internal.commands.ImpulseCommandContributionRegistry;
 import dev.hytalemodding.impulse.core.internal.modules.ImpulseSubPluginRegistration;
 import dev.hytalemodding.impulse.core.internal.registration.PhysicsStoreRegistration;
-import dev.hytalemodding.impulse.core.internal.store.integration.PhysicsStoreEarlyPluginProbe;
+import dev.hytalemodding.impulse.core.internal.PhysicsStoreEarlyPluginProbe;
 import dev.hytalemodding.impulse.core.plugin.components.PhysicsComponentTypes;
 import java.nio.file.Path;
 import java.util.ArrayList;

@@ -7,7 +7,7 @@ plugins {
 version = rootProject.version
 
 dependencies {
-    implementation(project(":impulse-api"))
+    implementation(project(":impulse-backend-api"))
     compileOnly(project(":impulse-core"))
     compileOnly(project(":impulse-early-plugin"))
     testImplementation(project(":impulse-core"))
@@ -38,5 +38,5 @@ hytaleTools {
     modUrl = property("mod_website") as String
     modDescription = "Example plugins for Impulse"
     manifestServerVersion = property("hytale_version") as String
-    manifestDependencies = "HytaleModding:Impulse=*,HytaleModding:ImpulsePhysicsEntity=*,HytaleModding:ImpulsePhysicsChunk=*"
+    manifestDependencies = "HytaleModding:Impulse=*"
 }

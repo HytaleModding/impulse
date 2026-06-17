@@ -7,7 +7,7 @@ import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import com.hypixel.hytale.server.core.universe.world.storage.PhysicsStore;
 import dev.hytalemodding.impulse.api.SpaceId;
 import dev.hytalemodding.impulse.core.internal.modules.physicschunk.PhysicsStoreWorldCollisionStreamingResource;
-import dev.hytalemodding.impulse.core.internal.modules.physicschunk.WorldCollisionLifecycle;
+import dev.hytalemodding.impulse.core.internal.modules.physicschunk.PhysicsChunkLifecycle;
 import dev.hytalemodding.impulse.core.internal.physicsstore.PhysicsStoreSpaceMutations;
 import dev.hytalemodding.impulse.core.internal.physicsstore.PhysicsStoreTopologyMutations;
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsIdentityIndexResource;
@@ -30,15 +30,15 @@ public final class PhysicsWorldCollision {
     }
 
     public static void enableModule() {
-        WorldCollisionLifecycle.enable();
+        PhysicsChunkLifecycle.enable();
     }
 
     public static void disableModule() {
-        WorldCollisionLifecycle.disable();
+        PhysicsChunkLifecycle.disable();
     }
 
     public static boolean isModuleEnabled() {
-        return WorldCollisionLifecycle.isEnabled();
+        return PhysicsChunkLifecycle.isEnabled();
     }
 
     @Nonnull

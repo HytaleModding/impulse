@@ -3,7 +3,7 @@ package dev.hytalemodding.impulse.core.internal.modules.physicschunk.profiling;
 import com.hypixel.hytale.component.Resource;
 import com.hypixel.hytale.component.ResourceType;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
-import dev.hytalemodding.impulse.core.internal.modules.physicschunk.WorldVoxelCollisionCache.BuildStats;
+import dev.hytalemodding.impulse.core.internal.modules.physicschunk.VoxelCollisionCache.BuildStats;
 import it.unimi.dsi.fastutil.longs.LongOpenHashSet;
 import it.unimi.dsi.fastutil.longs.LongSet;
 import java.util.ArrayList;

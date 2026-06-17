@@ -17,11 +17,7 @@ version = property("version") as String
 val coreOnlyWorkspace = providers.gradleProperty("impulse.coreOnlyWorkspace")
     .map(String::toBoolean)
     .orElse(false)
-val coreModProjects = listOf(
-    ":impulse-core",
-    ":impulse-physics-entity",
-    ":impulse-physics-chunk"
-)
+val coreModProjects = listOf(":impulse-core")
 val workspaceModProjects = if (coreOnlyWorkspace.get()) {
     coreModProjects
 } else {
@@ -150,13 +146,11 @@ tasks.register("headlessTest") {
     group = "verification"
     description = "Runs automated headless/serverless tests without booting the Hytale server"
     dependsOn(
-        ":impulse-api:test",
+        ":impulse-backend-api:test",
         ":impulse-native-loader:test",
         ":impulse-bullet:test",
         ":impulse-rapier:test",
         ":impulse-core:test",
-        ":impulse-physics-entity:test",
-        ":impulse-physics-chunk:test",
         ":impulse-early-plugin:test"
     )
 }

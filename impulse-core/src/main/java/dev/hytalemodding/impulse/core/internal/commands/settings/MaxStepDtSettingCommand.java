@@ -17,6 +17,7 @@ import dev.hytalemodding.impulse.core.plugin.settings.PhysicsWorldSettings;
 import java.util.concurrent.CompletableFuture;
 import javax.annotation.Nonnull;
 
+// NOTE: probably move this to just an optional target in stepmode
 public class MaxStepDtSettingCommand extends AbstractAsyncPlayerCommand {
 
     private final OptionalArg<Float> dtArg = this.withOptionalArg(

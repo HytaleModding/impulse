@@ -25,27 +25,29 @@ val moduleInfoModulePath by configurations.creating {
 }
 
 dependencies {
-    implementation(project(":impulse-api"))
+    implementation(project(":impulse-backend-api"))
     compileOnly(project(":impulse-early-plugin"))
-    testImplementation(testFixtures(project(":impulse-api")))
-    testImplementation(libs.objenesis)
-    testCompileOnly(project(":impulse-early-plugin"))
-    testRuntimeOnly(project(":impulse-early-plugin"))
-    testCompileOnly("com.hypixel.hytale:Server:${property("hytale_version") as String}")
-    testRuntimeOnly("com.hypixel.hytale:Server:${property("hytale_version") as String}")
     compileOnly(libs.crucible)
+    compileOnly(libs.lombok)
 
     moduleInfoModulePath(libs.joml)
     moduleInfoModulePath(libs.jsr305)
     moduleInfoModulePath(libs.crucible)
 
-    compileOnly(libs.lombok)
     annotationProcessor(libs.lombok)
+
+    testImplementation(testFixtures(project(":impulse-backend-api")))
+    testImplementation(libs.objenesis)
+    testCompileOnly(project(":impulse-early-plugin"))
+    testRuntimeOnly(project(":impulse-early-plugin"))
+    testCompileOnly("com.hypixel.hytale:Server:${property("hytale_version") as String}")
+    testRuntimeOnly("com.hypixel.hytale:Server:${property("hytale_version") as String}")
+
 }
 
-val impulseApiJar = project(":impulse-api").tasks.named<org.gradle.jvm.tasks.Jar>("jar")
+val impulseApiJar = project(":impulse-backend-api").tasks.named<org.gradle.jvm.tasks.Jar>("jar")
 
-tasks.named<org.gradle.api.tasks.compile.JavaCompile>("compileJava") {
+tasks.named<JavaCompile>("compileJava") {
     doFirst {
         destinationDirectory.file("module-info.class").get().asFile.delete()
     }
@@ -105,6 +107,20 @@ hytaleTools {
     subPlugin (
         "ImpulseControl",
         "dev.hytalemodding.impulse.core.plugin.modules.control.ImpulseControlPlugin",
+        false, /* disabledByDefault */
+        false  /* includeAssetPack */
+    )
+
+    subPlugin (
+        "ImpulsePhysicsEntity",
+        "dev.hytalemodding.impulse.core.internal.modules.physicsentity.PhysicsEntityModule",
+        false, /* disabledByDefault */
+        false  /* includeAssetPack */
+    )
+
+    subPlugin (
+        "ImpulsePhysicsChunk",
+        "dev.hytalemodding.impulse.core.internal.modules.physicschunk.PhysicsChunkModule",
         false, /* disabledByDefault */
         false  /* includeAssetPack */
     )

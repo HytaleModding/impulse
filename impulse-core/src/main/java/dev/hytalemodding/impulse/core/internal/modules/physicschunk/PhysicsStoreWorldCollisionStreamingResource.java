@@ -6,8 +6,8 @@ import com.hypixel.hytale.component.ResourceType;
 import com.hypixel.hytale.server.core.universe.world.World;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import com.hypixel.hytale.server.core.universe.world.storage.PhysicsStore;
-import dev.hytalemodding.impulse.core.internal.modules.physicschunk.PhysicsStoreTerrainMutationCache.TargetRefreshDecision;
-import dev.hytalemodding.impulse.core.internal.modules.physicschunk.WorldVoxelCollisionCache.BuildStats;
+import dev.hytalemodding.impulse.core.internal.modules.physicschunk.PhysicsChunkMutationCache.TargetRefreshDecision;
+import dev.hytalemodding.impulse.core.internal.modules.physicschunk.VoxelCollisionCache.BuildStats;
 import dev.hytalemodding.impulse.core.internal.modules.physicschunk.profiling.WorldCollisionProfilingResource.Snapshot;
 import dev.hytalemodding.impulse.core.internal.modules.physicschunk.profiling.WorldCollisionProfilingResource.StreamingTargetDiagnostic;
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsTerrainMutationQueueResource;
@@ -29,7 +29,7 @@ import org.joml.Vector3d;
 public final class PhysicsStoreWorldCollisionStreamingResource implements Resource<EntityStore> {
 
     @Nonnull
-    private final PhysicsStoreTerrainMutationCache cache = new PhysicsStoreTerrainMutationCache();
+    private final PhysicsChunkMutationCache cache = new PhysicsChunkMutationCache();
     private long tick;
 
     @Nullable

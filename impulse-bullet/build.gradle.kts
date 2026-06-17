@@ -23,7 +23,7 @@ val impulseLicenseFile = rootProject.layout.projectDirectory.file("LICENSE")
 val libbulletjmeLicenseFile = rootProject.layout.projectDirectory.file("licenses/LIBBULLETJME_LICENSE")
 
 dependencies {
-    api(project(":impulse-api"))
+    api(project(":impulse-backend-api"))
 
     implementation(project(":impulse-native-loader"))
     implementation(libs.libbulletjme)
@@ -49,7 +49,7 @@ bulletBackendPlatforms.forEach { platform ->
 
 fun runtimeClasspathWithoutBundledApi(): FileCollection {
     return configurations.runtimeClasspath.get()
-        .filter { file -> !file.name.startsWith("impulse-api-") }
+        .filter { file -> !file.name.startsWith("impulse-backend-api-") }
 }
 
 fun runtimeClasspathWithoutBundledApiAndHostNative(): FileCollection {

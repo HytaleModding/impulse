@@ -246,7 +246,7 @@ tasks.processResources {
 }
 
 dependencies {
-    api(project(":impulse-api"))
+    api(project(":impulse-backend-api"))
 
     implementation(project(":impulse-native-loader"))
 
@@ -254,7 +254,7 @@ dependencies {
 
 fun runtimeClasspathWithoutBundledApi(): FileCollection {
     return configurations.runtimeClasspath.get()
-            .filter { file -> !file.name.startsWith("impulse-api-") }
+            .filter { file -> !file.name.startsWith("impulse-backend-api-") }
 }
 
 fun Jar.expandRuntimeClasspath(runtimeClasspath: FileCollection) {

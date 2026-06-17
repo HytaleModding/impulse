@@ -26,10 +26,12 @@ public class DebugToggleCommand extends AbstractAsyncPlayerCommand {
         @Nonnull Ref<EntityStore> ref,
         @Nonnull PlayerRef playerRef,
         @Nonnull World world) {
+        assert PhysicsDebugResource.getResourceType() != null;
         PhysicsDebugResource debug = store.getResource(PhysicsDebugResource.getResourceType());
         boolean enabled;
         if (debug.removeSubscriber(playerRef.getUuid())) {
             enabled = false;
+            // FIXME: maybe don't clear up all shapes bust just ours
             playerRef.getPacketHandler().write(new ClearDebugShapes());
         } else {
             enabled = true;

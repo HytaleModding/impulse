@@ -79,9 +79,9 @@ final class ImpulseApiCrucibleTests {
                         return true;
                     },
                     "No backend id is available for Crucible tests"),
-                CrucibleTestCase.asyncResult("world collision subplugin load/unload/reload",
-                    ignored -> WorldCollisionSubPluginCrucibleSupport.loadUnloadReloadSmokeAsync(),
-                    "World collision subplugin lifecycle smoke failed"),
+                CrucibleTestCase.asyncResult("PhysicsChunk subplugin load/unload/reload",
+                    ignored -> PhysicsChunkSubPluginCrucibleSupport.loadUnloadReloadSmokeAsync(),
+                    "PhysicsChunk subplugin lifecycle smoke failed"),
                 CrucibleTestCase.asyncResult("physics entity subplugin load/unload/reload",
                     ignored -> PhysicsEntitySubPluginCrucibleSupport.loadUnloadReloadSmokeAsync(),
                     "PhysicsEntity subplugin lifecycle smoke failed"),

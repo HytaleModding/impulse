@@ -19,7 +19,6 @@ import dev.hytalemodding.impulse.core.internal.modules.control.PhysicsControlRun
 import dev.hytalemodding.impulse.core.internal.physicsstore.PhysicsStoreSpaceMutations;
 import dev.hytalemodding.impulse.core.internal.physicsstore.PhysicsStoreRuntimeCleaner;
 import dev.hytalemodding.impulse.core.internal.physicsstore.PhysicsStoreTopologyMutations;
-import dev.hytalemodding.impulse.core.internal.resources.PhysicsBodyRegistrationResource;
 import dev.hytalemodding.impulse.core.internal.resources.body.PhysicsBodyRegistry;
 import dev.hytalemodding.impulse.core.internal.resources.body.PhysicsBodyRuntimeState.BodySyncState;
 import dev.hytalemodding.impulse.core.internal.resources.body.PhysicsBodyRuntime;
@@ -32,8 +31,8 @@ import dev.hytalemodding.impulse.core.internal.resources.joint.PhysicsJointRegis
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsVisualRuntime.BodyVisualInterestState;
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsVisualRuntime.VisualInterest;
 import dev.hytalemodding.impulse.core.internal.modules.physicschunk.PhysicsWorldCollisionRuntime;
-import dev.hytalemodding.impulse.core.internal.modules.physicschunk.WorldCollisionLifecycle;
-import dev.hytalemodding.impulse.core.internal.store.integration.PhysicsStoreEarlyPluginProbe;
+import dev.hytalemodding.impulse.core.internal.modules.physicschunk.PhysicsChunkLifecycle;
+import dev.hytalemodding.impulse.core.internal.PhysicsStoreEarlyPluginProbe;
 import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyKind;
 import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyPersistenceMode;
 import dev.hytalemodding.impulse.core.internal.resources.body.PhysicsBodyRegistration;
@@ -117,7 +116,7 @@ public class PhysicsWorldRuntimeResource extends PhysicsWorldResource {
 
     public PhysicsWorldRuntimeResource() {
         ControlLifecycle.registerResource(this);
-        WorldCollisionLifecycle.registerResource(this);
+        PhysicsChunkLifecycle.registerResource(this);
     }
 
     @Nonnull
@@ -1062,7 +1061,7 @@ public class PhysicsWorldRuntimeResource extends PhysicsWorldResource {
     }
 
     private void clearAuthoritativeWorldCollisionStreaming(@Nonnull Store<PhysicsStore> store) {
-        if (!WorldCollisionLifecycle.isEnabled() || owningStore == null) {
+        if (!PhysicsChunkLifecycle.isEnabled() || owningStore == null) {
             return;
         }
         PhysicsTerrainMutationQueueResource queue =
@@ -1074,7 +1073,7 @@ public class PhysicsWorldRuntimeResource extends PhysicsWorldResource {
     private int clearAuthoritativeWorldCollisionSpace(@Nonnull Store<PhysicsStore> store,
         @Nonnull UUID spaceUuid) {
         int removed = 0;
-        if (WorldCollisionLifecycle.isEnabled() && owningStore != null) {
+        if (PhysicsChunkLifecycle.isEnabled() && owningStore != null) {
             PhysicsTerrainMutationQueueResource queue =
                 store.getResource(PhysicsTerrainMutationQueueResource.getResourceType());
             removed = authoritativeWorldCollisionStreaming().clearSpace(spaceUuid, queue);
@@ -1084,21 +1083,21 @@ public class PhysicsWorldRuntimeResource extends PhysicsWorldResource {
         return removed != 0 ? removed : directlyRemoved;
     }
 
-    public void disableWorldCollisionLifecycle() {
+    public void disablePhysicsChunkLifecycle() {
         if (isAuthoritativePhysicsStoreActive()) {
             return;
         }
         try {
-            runDirectRuntimeMutation("disable world collision lifecycle", this::disableWorldCollisionLifecycleDirect);
+            runDirectRuntimeMutation("disable PhysicsChunk lifecycle", this::disablePhysicsChunkLifecycleDirect);
         } catch (RejectedExecutionException ignored) {
             // The server can unload the subplugin after the store tick lane has already closed.
         } catch (RuntimeException exception) {
-            LOGGER.at(Level.WARNING).log("Failed to disable world collision lifecycle: %s",
+            LOGGER.at(Level.WARNING).log("Failed to disable PhysicsChunk lifecycle: %s",
                 exception.getMessage());
         }
     }
 
-    private void disableWorldCollisionLifecycleDirect() {
+    private void disablePhysicsChunkLifecycleDirect() {
         collisionRuntime.clearRetainedTerrain(spaceRuntime.getBindings());
         restoreCollisionLodFiltersDirect();
     }

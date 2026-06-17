@@ -2,6 +2,7 @@ package dev.hytalemodding.impulse.core.internal.commands.settings;
 
 import com.hypixel.hytale.server.core.command.system.basecommands.AbstractCommandCollection;
 
+// TODO: move to physicsentity module
 public class VisualSettingsCommand extends AbstractCommandCollection {
 
     public VisualSettingsCommand() {
