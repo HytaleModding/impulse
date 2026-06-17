@@ -7,10 +7,14 @@ import com.hypixel.hytale.component.Component;
 import com.hypixel.hytale.component.ComponentType;
 import com.hypixel.hytale.server.core.universe.world.storage.PhysicsStore;
 import javax.annotation.Nonnull;
+import lombok.Getter;
+import lombok.Setter;
 
 /**
  * Physical material settings for one collider entity.
  */
+@Setter
+@Getter
 public final class MaterialComponent implements Component<PhysicsStore> {
 
     @Nonnull
@@ -35,22 +39,6 @@ public final class MaterialComponent implements Component<PhysicsStore> {
 
     public MaterialComponent(float friction, float restitution) {
         this.friction = friction;
-        this.restitution = restitution;
-    }
-
-    public float getFriction() {
-        return friction;
-    }
-
-    public void setFriction(float friction) {
-        this.friction = friction;
-    }
-
-    public float getRestitution() {
-        return restitution;
-    }
-
-    public void setRestitution(float restitution) {
         this.restitution = restitution;
     }
 

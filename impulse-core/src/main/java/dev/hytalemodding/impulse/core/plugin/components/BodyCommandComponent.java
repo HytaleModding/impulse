@@ -13,6 +13,7 @@ import dev.hytalemodding.impulse.api.PhysicsCollisionFilters;
 import java.util.Arrays;
 import java.util.Objects;
 import javax.annotation.Nonnull;
+import lombok.Getter;
 import org.joml.Vector3f;
 
 /**
@@ -212,18 +213,30 @@ public final class BodyCommandComponent implements Component<PhysicsStore> {
         private Kind kind = Kind.WAKE;
         @Nonnull
         private PhysicsBodyType bodyType = PhysicsBodyType.DYNAMIC;
+        @Getter
         private boolean activate;
+        @Getter
         private float x;
+        @Getter
         private float y;
+        @Getter
         private float z;
         private boolean hasOffset;
+        @Getter
         private float offsetX;
+        @Getter
         private float offsetY;
+        @Getter
         private float offsetZ;
+        @Getter
         private float angularX;
+        @Getter
         private float angularY;
+        @Getter
         private float angularZ;
+        @Getter
         private int collisionGroup = PhysicsCollisionFilters.DYNAMIC_BODY;
+        @Getter
         private int collisionMask = PhysicsCollisionFilters.ALL;
 
         public Entry() {
@@ -402,56 +415,8 @@ public final class BodyCommandComponent implements Component<PhysicsStore> {
             return bodyType;
         }
 
-        public boolean isActivate() {
-            return activate;
-        }
-
-        public float getX() {
-            return x;
-        }
-
-        public float getY() {
-            return y;
-        }
-
-        public float getZ() {
-            return z;
-        }
-
         public boolean hasOffset() {
             return hasOffset;
-        }
-
-        public float getOffsetX() {
-            return offsetX;
-        }
-
-        public float getOffsetY() {
-            return offsetY;
-        }
-
-        public float getOffsetZ() {
-            return offsetZ;
-        }
-
-        public float getAngularX() {
-            return angularX;
-        }
-
-        public float getAngularY() {
-            return angularY;
-        }
-
-        public float getAngularZ() {
-            return angularZ;
-        }
-
-        public int getCollisionGroup() {
-            return collisionGroup;
-        }
-
-        public int getCollisionMask() {
-            return collisionMask;
         }
 
         @Nonnull

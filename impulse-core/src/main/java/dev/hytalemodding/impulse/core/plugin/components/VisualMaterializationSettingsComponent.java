@@ -10,6 +10,7 @@ import dev.hytalemodding.impulse.core.plugin.settings.PhysicsSpaceSettings;
 import dev.hytalemodding.impulse.core.plugin.settings.PhysicsVisualMaterializationSettings;
 import java.util.Objects;
 import javax.annotation.Nonnull;
+import lombok.Getter;
 
 /**
  * Authored detached visual materialization policy for one PhysicsStore space entity.
@@ -88,20 +89,28 @@ public final class VisualMaterializationSettingsComponent implements Component<P
             .add()
             .build();
 
+    @Getter
     private boolean detachedVisualMaterializationEnabled =
         PhysicsVisualMaterializationSettings.DEFAULT_DETACHED_VISUAL_MATERIALIZATION_ENABLED;
+    @Getter
     private int detachedVisualMaterializationRadius =
         PhysicsVisualMaterializationSettings.DEFAULT_DETACHED_VISUAL_MATERIALIZATION_RADIUS;
+    @Getter
     private int detachedVisualDematerializationRadius =
         PhysicsVisualMaterializationSettings.DEFAULT_DETACHED_VISUAL_DEMATERIALIZATION_RADIUS;
+    @Getter
     private int detachedVisualMaxSpawnsPerTick =
         PhysicsVisualMaterializationSettings.DEFAULT_DETACHED_VISUAL_MAX_SPAWNS_PER_TICK;
+    @Getter
     private int detachedVisualMaxMaterialized =
         PhysicsVisualMaterializationSettings.DEFAULT_DETACHED_VISUAL_MAX_MATERIALIZED;
+    @Getter
     private int detachedVisualInterestRefreshIntervalTicks =
         PhysicsVisualMaterializationSettings.DEFAULT_DETACHED_VISUAL_INTEREST_REFRESH_INTERVAL_TICKS;
+    @Getter
     private int detachedVisualCandidateRefreshIntervalTicks =
         PhysicsVisualMaterializationSettings.DEFAULT_DETACHED_VISUAL_CANDIDATE_REFRESH_INTERVAL_TICKS;
+    @Getter
     private int detachedVisualVisibilityCheckIntervalTicks =
         PhysicsVisualMaterializationSettings.DEFAULT_DETACHED_VISUAL_VISIBILITY_CHECK_INTERVAL_TICKS;
     @Nonnull
@@ -151,38 +160,6 @@ public final class VisualMaterializationSettingsComponent implements Component<P
             detachedVisualVisibilityCheckIntervalTicks;
         this.detachedVisualBlockType = Objects.requireNonNull(detachedVisualBlockType,
             "detachedVisualBlockType");
-    }
-
-    public boolean isDetachedVisualMaterializationEnabled() {
-        return detachedVisualMaterializationEnabled;
-    }
-
-    public int getDetachedVisualMaterializationRadius() {
-        return detachedVisualMaterializationRadius;
-    }
-
-    public int getDetachedVisualDematerializationRadius() {
-        return detachedVisualDematerializationRadius;
-    }
-
-    public int getDetachedVisualMaxSpawnsPerTick() {
-        return detachedVisualMaxSpawnsPerTick;
-    }
-
-    public int getDetachedVisualMaxMaterialized() {
-        return detachedVisualMaxMaterialized;
-    }
-
-    public int getDetachedVisualInterestRefreshIntervalTicks() {
-        return detachedVisualInterestRefreshIntervalTicks;
-    }
-
-    public int getDetachedVisualCandidateRefreshIntervalTicks() {
-        return detachedVisualCandidateRefreshIntervalTicks;
-    }
-
-    public int getDetachedVisualVisibilityCheckIntervalTicks() {
-        return detachedVisualVisibilityCheckIntervalTicks;
     }
 
     @Nonnull

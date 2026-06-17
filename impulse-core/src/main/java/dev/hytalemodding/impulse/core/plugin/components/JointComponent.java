@@ -14,6 +14,8 @@ import java.util.Objects;
 import java.util.UUID;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
+import lombok.Getter;
+import lombok.Setter;
 import org.joml.Vector3f;
 
 /**
@@ -113,14 +115,32 @@ public final class JointComponent implements Component<PhysicsStore> {
     private final Vector3f anchorB = new Vector3f();
     @Nonnull
     private final Vector3f axis = new Vector3f();
+    @Setter
+    @Getter
     private float lowerLimit;
+    @Setter
+    @Getter
     private float upperLimit;
+    @Setter
+    @Getter
     private boolean enabled = true;
+    @Setter
+    @Getter
     private boolean motorEnabled;
+    @Setter
+    @Getter
     private float motorTargetVelocity;
+    @Setter
+    @Getter
     private float motorMaxForce;
+    @Setter
+    @Getter
     private float springRestLength;
+    @Setter
+    @Getter
     private float springStiffness;
+    @Setter
+    @Getter
     private float springDamping;
 
     public JointComponent() {
@@ -217,78 +237,6 @@ public final class JointComponent implements Component<PhysicsStore> {
 
     public void setAxis(@Nonnull Vector3f axis) {
         this.axis.set(Objects.requireNonNull(axis, "axis"));
-    }
-
-    public float getLowerLimit() {
-        return lowerLimit;
-    }
-
-    public void setLowerLimit(float lowerLimit) {
-        this.lowerLimit = lowerLimit;
-    }
-
-    public float getUpperLimit() {
-        return upperLimit;
-    }
-
-    public void setUpperLimit(float upperLimit) {
-        this.upperLimit = upperLimit;
-    }
-
-    public boolean isEnabled() {
-        return enabled;
-    }
-
-    public void setEnabled(boolean enabled) {
-        this.enabled = enabled;
-    }
-
-    public boolean isMotorEnabled() {
-        return motorEnabled;
-    }
-
-    public void setMotorEnabled(boolean motorEnabled) {
-        this.motorEnabled = motorEnabled;
-    }
-
-    public float getMotorTargetVelocity() {
-        return motorTargetVelocity;
-    }
-
-    public void setMotorTargetVelocity(float motorTargetVelocity) {
-        this.motorTargetVelocity = motorTargetVelocity;
-    }
-
-    public float getMotorMaxForce() {
-        return motorMaxForce;
-    }
-
-    public void setMotorMaxForce(float motorMaxForce) {
-        this.motorMaxForce = motorMaxForce;
-    }
-
-    public float getSpringRestLength() {
-        return springRestLength;
-    }
-
-    public void setSpringRestLength(float springRestLength) {
-        this.springRestLength = springRestLength;
-    }
-
-    public float getSpringStiffness() {
-        return springStiffness;
-    }
-
-    public void setSpringStiffness(float springStiffness) {
-        this.springStiffness = springStiffness;
-    }
-
-    public float getSpringDamping() {
-        return springDamping;
-    }
-
-    public void setSpringDamping(float springDamping) {
-        this.springDamping = springDamping;
     }
 
     @Nonnull

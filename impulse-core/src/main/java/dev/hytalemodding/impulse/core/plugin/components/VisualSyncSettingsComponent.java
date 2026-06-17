@@ -12,6 +12,7 @@ import dev.hytalemodding.impulse.core.plugin.settings.PhysicsVisualSyncSettings;
 import dev.hytalemodding.impulse.core.plugin.settings.VisualOcclusionMode;
 import java.util.Objects;
 import javax.annotation.Nonnull;
+import lombok.Getter;
 
 /**
  * Authored visual synchronization policy for one PhysicsStore space entity.
@@ -110,33 +111,46 @@ public final class VisualSyncSettingsComponent implements Component<PhysicsStore
         .add()
         .build();
 
+    @Getter
     private int visualFullSyncRadius =
         PhysicsVisualSyncSettings.DEFAULT_VISUAL_FULL_SYNC_RADIUS;
+    @Getter
     private int visualMaxSyncRadius =
         PhysicsVisualSyncSettings.DEFAULT_VISUAL_MAX_SYNC_RADIUS;
+    @Getter
     private boolean visualFarSyncCutoffEnabled =
         PhysicsVisualSyncSettings.DEFAULT_VISUAL_FAR_SYNC_CUTOFF_ENABLED;
+    @Getter
     private int visualMidSyncIntervalTicks =
         PhysicsVisualSyncSettings.DEFAULT_VISUAL_MID_SYNC_INTERVAL_TICKS;
+    @Getter
     private int visualFarSyncIntervalTicks =
         PhysicsVisualSyncSettings.DEFAULT_VISUAL_FAR_SYNC_INTERVAL_TICKS;
     @Nonnull
     private VisualOcclusionMode visualOcclusionMode =
         PhysicsVisualSyncSettings.DEFAULT_VISUAL_OCCLUSION_MODE;
+    @Getter
     private int visualOcclusionRaycastsPerTick =
         PhysicsVisualSyncSettings.DEFAULT_VISUAL_OCCLUSION_RAYCASTS_PER_TICK;
+    @Getter
     private int visualOcclusionCacheTicks =
         PhysicsVisualSyncSettings.DEFAULT_VISUAL_OCCLUSION_CACHE_TICKS;
+    @Getter
     private boolean visualSnapshotPredictionEnabled =
         PhysicsVisualSyncSettings.DEFAULT_VISUAL_SNAPSHOT_PREDICTION_ENABLED;
+    @Getter
     private float visualSnapshotPredictionMaxSeconds =
         PhysicsVisualSyncSettings.DEFAULT_VISUAL_SNAPSHOT_PREDICTION_MAX_SECONDS;
+    @Getter
     private boolean visualSnapshotSmoothingEnabled =
         PhysicsVisualSyncSettings.DEFAULT_VISUAL_SNAPSHOT_SMOOTHING_ENABLED;
+    @Getter
     private float visualSnapshotSmoothingRate =
         PhysicsVisualSyncSettings.DEFAULT_VISUAL_SNAPSHOT_SMOOTHING_RATE;
+    @Getter
     private boolean entityVisualSyncCullingEnabled =
         PhysicsVisualSyncSettings.DEFAULT_ENTITY_VISUAL_SYNC_CULLING_ENABLED;
+    @Getter
     private boolean visualVisibilityCullingEnabled =
         PhysicsVisualSyncSettings.DEFAULT_VISUAL_VISIBILITY_CULLING_ENABLED;
 
@@ -191,61 +205,9 @@ public final class VisualSyncSettingsComponent implements Component<PhysicsStore
         this.visualVisibilityCullingEnabled = visualVisibilityCullingEnabled;
     }
 
-    public int getVisualFullSyncRadius() {
-        return visualFullSyncRadius;
-    }
-
-    public int getVisualMaxSyncRadius() {
-        return visualMaxSyncRadius;
-    }
-
-    public boolean isVisualFarSyncCutoffEnabled() {
-        return visualFarSyncCutoffEnabled;
-    }
-
-    public int getVisualMidSyncIntervalTicks() {
-        return visualMidSyncIntervalTicks;
-    }
-
-    public int getVisualFarSyncIntervalTicks() {
-        return visualFarSyncIntervalTicks;
-    }
-
     @Nonnull
     public VisualOcclusionMode getVisualOcclusionMode() {
         return visualOcclusionMode;
-    }
-
-    public int getVisualOcclusionRaycastsPerTick() {
-        return visualOcclusionRaycastsPerTick;
-    }
-
-    public int getVisualOcclusionCacheTicks() {
-        return visualOcclusionCacheTicks;
-    }
-
-    public boolean isVisualSnapshotPredictionEnabled() {
-        return visualSnapshotPredictionEnabled;
-    }
-
-    public float getVisualSnapshotPredictionMaxSeconds() {
-        return visualSnapshotPredictionMaxSeconds;
-    }
-
-    public boolean isVisualSnapshotSmoothingEnabled() {
-        return visualSnapshotSmoothingEnabled;
-    }
-
-    public float getVisualSnapshotSmoothingRate() {
-        return visualSnapshotSmoothingRate;
-    }
-
-    public boolean isEntityVisualSyncCullingEnabled() {
-        return entityVisualSyncCullingEnabled;
-    }
-
-    public boolean isVisualVisibilityCullingEnabled() {
-        return visualVisibilityCullingEnabled;
     }
 
     public void copyTo(@Nonnull PhysicsSpaceSettings settings) {
