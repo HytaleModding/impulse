@@ -6,7 +6,6 @@ import com.hypixel.hytale.component.Store;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import com.hypixel.hytale.server.core.universe.world.storage.PhysicsStore;
 import dev.hytalemodding.impulse.api.PhysicsBodyType;
-import dev.hytalemodding.impulse.early.PhysicsStoreWorld;
 import dev.hytalemodding.impulse.core.internal.modules.control.ControlLifecycle;
 import dev.hytalemodding.impulse.core.internal.modules.control.PhysicsControlRuntimeStates;
 import dev.hytalemodding.impulse.core.internal.modules.control.components.PhysicsControlSessionComponent;
@@ -161,8 +160,7 @@ public final class PhysicsControlSessions {
 
     @Nonnull
     private static Store<PhysicsStore> physicsStore(@Nonnull Store<EntityStore> store) {
-        return ((PhysicsStoreWorld) store.getExternalData().getWorld()).getPhysicsStore()
-            .getStore();
+        return PhysicsThreading.store(store.getExternalData().getWorld());
     }
 
     @Nonnull

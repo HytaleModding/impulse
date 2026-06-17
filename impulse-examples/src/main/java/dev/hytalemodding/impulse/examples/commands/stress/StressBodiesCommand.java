@@ -32,7 +32,7 @@ import dev.hytalemodding.impulse.core.plugin.settings.PhysicsWorldSettings;
 import dev.hytalemodding.impulse.core.plugin.settings.VisualOcclusionMode;
 import dev.hytalemodding.impulse.core.plugin.simulation.PhysicsShapeSpec;
 import dev.hytalemodding.impulse.core.plugin.simulation.RigidBodySpawnSettings;
-import dev.hytalemodding.impulse.early.PhysicsStoreWorld;
+import dev.hytalemodding.impulse.core.plugin.physicsstore.PhysicsThreading;
 import dev.hytalemodding.impulse.examples.utils.ExampleBlockEntityVisuals;
 import dev.hytalemodding.impulse.examples.utils.ExamplePhysicsUtils;
 import java.util.Iterator;
@@ -156,7 +156,7 @@ public class StressBodiesCommand extends AbstractAsyncPlayerCommand {
                 + " is not bound."));
             return CompletableFuture.completedFuture(null);
         }
-        Store<PhysicsStore> physicsStore = ((PhysicsStoreWorld) world).getPhysicsStore().getStore();
+        Store<PhysicsStore> physicsStore = PhysicsThreading.store(world);
         PhysicsSpaceSettings settings = configureStressRuntime(physicsStore,
             spaceRef,
             mode,
@@ -346,7 +346,7 @@ public class StressBodiesCommand extends AbstractAsyncPlayerCommand {
         }
 
         WorldCollisionPrewarmStats stats = PhysicsWorldCollision.ensureAround(world,
-            ((PhysicsStoreWorld) world).getPhysicsStore().getStore(),
+            PhysicsThreading.store(world),
             spaceId,
             layout.positions(count),
             worldCollisionSettings.getWorldCollisionBodyRadius(),

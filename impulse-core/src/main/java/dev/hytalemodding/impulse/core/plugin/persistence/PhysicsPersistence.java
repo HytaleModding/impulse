@@ -3,13 +3,12 @@ package dev.hytalemodding.impulse.core.plugin.persistence;
 import com.hypixel.hytale.component.Store;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import com.hypixel.hytale.server.core.universe.world.storage.PhysicsStore;
-import dev.hytalemodding.impulse.core.plugin.physicsstore.PhysicsThreading;
-import dev.hytalemodding.impulse.early.PhysicsStoreWorld;
 import dev.hytalemodding.impulse.core.internal.persistence.PersistentPhysicsStoreResource;
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsRestoreStatusResource;
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsSpaceCompatibilityIndexResource;
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsSnapshotResource;
 import dev.hytalemodding.impulse.core.plugin.physicsstore.PhysicsDiagnostics;
+import dev.hytalemodding.impulse.core.plugin.physicsstore.PhysicsThreading;
 import dev.hytalemodding.impulse.core.plugin.simulation.SpaceSummary;
 import java.util.List;
 import java.util.concurrent.CompletionStage;
@@ -76,8 +75,7 @@ public final class PhysicsPersistence {
 
     @Nonnull
     private static Store<PhysicsStore> physicsStore(@Nonnull Store<EntityStore> store) {
-        return ((PhysicsStoreWorld) store.getExternalData().getWorld()).getPhysicsStore()
-            .getStore();
+        return PhysicsThreading.store(store.getExternalData().getWorld());
     }
 
     @Nonnull

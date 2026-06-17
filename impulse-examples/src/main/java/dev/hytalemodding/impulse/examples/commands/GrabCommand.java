@@ -14,7 +14,7 @@ import com.hypixel.hytale.server.core.universe.world.World;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import com.hypixel.hytale.server.core.universe.world.storage.PhysicsStore;
 import com.hypixel.hytale.server.core.util.TargetUtil;
-import dev.hytalemodding.impulse.early.PhysicsStoreWorld;
+import dev.hytalemodding.impulse.core.plugin.physicsstore.PhysicsThreading;
 import dev.hytalemodding.impulse.api.PhysicsBodyType;
 import dev.hytalemodding.impulse.api.PhysicsCollisionFilters;
 import dev.hytalemodding.impulse.api.SpaceId;
@@ -92,7 +92,7 @@ public class GrabCommand extends AbstractAsyncPlayerCommand {
                 + " is not bound yet."));
             return CompletableFuture.completedFuture(null);
         }
-        Store<PhysicsStore> physicsStore = ((PhysicsStoreWorld) world).getPhysicsStore().getStore();
+        Store<PhysicsStore> physicsStore = PhysicsThreading.store(world);
 
         Transform look = TargetUtil.getLook(ref, store);
         Vector3d start = new Vector3d(look.getPosition());
@@ -287,7 +287,7 @@ public class GrabCommand extends AbstractAsyncPlayerCommand {
     @Nullable
     private static PhysicsBodySnapshot bodyState(@Nonnull World world,
         @Nonnull Ref<PhysicsStore> bodyRef) {
-        Store<PhysicsStore> store = ((PhysicsStoreWorld) world).getPhysicsStore().getStore();
+        Store<PhysicsStore> store = PhysicsThreading.store(world);
         return PhysicsBodies.snapshot(store, bodyRef);
     }
 

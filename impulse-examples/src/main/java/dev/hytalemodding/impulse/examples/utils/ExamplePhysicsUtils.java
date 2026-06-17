@@ -14,21 +14,20 @@ import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import com.hypixel.hytale.server.core.universe.world.storage.PhysicsStore;
 import dev.hytalemodding.impulse.api.PhysicsBodyType;
 import dev.hytalemodding.impulse.api.SpaceId;
-import dev.hytalemodding.impulse.core.plugin.physicsstore.PhysicsThreading;
-import dev.hytalemodding.impulse.early.PhysicsStoreWorld;
 import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyKind;
 import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyPersistenceMode;
-import dev.hytalemodding.impulse.core.plugin.modules.control.ImpulseControllableComponent;
-import dev.hytalemodding.impulse.core.plugin.modules.control.PhysicsControlSessions;
-import dev.hytalemodding.impulse.core.plugin.physicsstore.PhysicsBodyEntities;
-import dev.hytalemodding.impulse.core.plugin.physicsstore.PhysicsEntities;
-import dev.hytalemodding.impulse.core.plugin.physicsstore.PhysicsSpaces;
 import dev.hytalemodding.impulse.core.plugin.components.BodyCommandComponent;
 import dev.hytalemodding.impulse.core.plugin.components.DynamicsComponent;
 import dev.hytalemodding.impulse.core.plugin.components.JointComponent;
 import dev.hytalemodding.impulse.core.plugin.components.TargetComponent;
+import dev.hytalemodding.impulse.core.plugin.modules.control.ImpulseControllableComponent;
+import dev.hytalemodding.impulse.core.plugin.modules.control.PhysicsControlSessions;
 import dev.hytalemodding.impulse.core.plugin.modules.physicsentity.components.BodyAttachmentComponent;
 import dev.hytalemodding.impulse.core.plugin.physicsstore.BodyEntityDescriptor;
+import dev.hytalemodding.impulse.core.plugin.physicsstore.PhysicsBodyEntities;
+import dev.hytalemodding.impulse.core.plugin.physicsstore.PhysicsEntities;
+import dev.hytalemodding.impulse.core.plugin.physicsstore.PhysicsSpaces;
+import dev.hytalemodding.impulse.core.plugin.physicsstore.PhysicsThreading;
 import dev.hytalemodding.impulse.core.plugin.settings.PhysicsVisualMaterializationSettings;
 import dev.hytalemodding.impulse.core.plugin.simulation.PhysicsShapeSpec;
 import dev.hytalemodding.impulse.core.plugin.simulation.RigidBodySpawnSettings;
@@ -57,18 +56,14 @@ public final class ExamplePhysicsUtils {
     @Nullable
     public static Ref<PhysicsStore> resolveSpaceRef(@Nonnull World world,
         @Nonnull SpaceId spaceId) {
-        Store<PhysicsStore> store = ((PhysicsStoreWorld) world)
-            .getPhysicsStore()
-            .getStore();
+        Store<PhysicsStore> store = PhysicsThreading.store(world);
         return PhysicsSpaces.resolveRef(store, spaceId);
     }
 
     @Nonnull
     public static Ref<PhysicsStore> addPhysicsStoreBody(@Nonnull World world,
         @Nonnull BodyEntityDescriptor descriptor) {
-        Store<PhysicsStore> store = ((PhysicsStoreWorld) world)
-            .getPhysicsStore()
-            .getStore();
+        Store<PhysicsStore> store = PhysicsThreading.store(world);
         return addPhysicsStoreBody(store, descriptor);
     }
 
@@ -76,9 +71,7 @@ public final class ExamplePhysicsUtils {
     public static Ref<PhysicsStore> addPhysicsStoreBody(@Nonnull World world,
         @Nonnull BodyEntityDescriptor descriptor,
         @Nonnull BodyCommandComponent command) {
-        Store<PhysicsStore> store = ((PhysicsStoreWorld) Objects.requireNonNull(world, "world"))
-            .getPhysicsStore()
-            .getStore();
+        Store<PhysicsStore> store = PhysicsThreading.store(world);
         Ref<PhysicsStore> bodyRef = addPhysicsStoreBody(store, descriptor);
         appendBodyCommand(store, bodyRef, command);
         return bodyRef;
@@ -89,18 +82,14 @@ public final class ExamplePhysicsUtils {
         @Nonnull BodyEntityDescriptor descriptor,
         @Nonnull DynamicsComponent dynamics,
         @Nullable TargetComponent target) {
-        Store<PhysicsStore> store = ((PhysicsStoreWorld) Objects.requireNonNull(world, "world"))
-            .getPhysicsStore()
-            .getStore();
+        Store<PhysicsStore> store = PhysicsThreading.store(world);
         return addPhysicsStoreBody(store, descriptor, dynamics, target);
     }
 
     public static void addPhysicsStoreBodies(@Nonnull World world,
         @Nonnull Iterable<BodyEntityDescriptor> descriptors) {
         Objects.requireNonNull(descriptors, "descriptors");
-        Store<PhysicsStore> store = ((PhysicsStoreWorld) Objects.requireNonNull(world, "world"))
-            .getPhysicsStore()
-            .getStore();
+        Store<PhysicsStore> store = PhysicsThreading.store(world);
         PhysicsThreading.requireWorldThread(store, "add PhysicsStore body entities");
         for (BodyEntityDescriptor descriptor : descriptors) {
             addPhysicsStoreBodyUnchecked(store,
@@ -149,9 +138,7 @@ public final class ExamplePhysicsUtils {
     public static Ref<PhysicsStore> addJoint(@Nonnull World world,
         @Nonnull UUID jointUuid,
         @Nonnull JointComponent joint) {
-        Store<PhysicsStore> store = ((PhysicsStoreWorld) world)
-            .getPhysicsStore()
-            .getStore();
+        Store<PhysicsStore> store = PhysicsThreading.store(world);
         PhysicsThreading.requireWorldThread(store, "add a PhysicsStore joint entity");
         return store.addEntity(PhysicsEntities.jointHolder(store,
             Objects.requireNonNull(jointUuid, "jointUuid"),
@@ -172,9 +159,7 @@ public final class ExamplePhysicsUtils {
     public static SpaceId spaceId(@Nonnull CommandContext ctx,
         @Nonnull World world,
         @Nonnull OptionalArg<Integer> spaceArg) {
-        Store<PhysicsStore> store = ((PhysicsStoreWorld) Objects.requireNonNull(world, "world"))
-            .getPhysicsStore()
-            .getStore();
+        Store<PhysicsStore> store = PhysicsThreading.store(world);
         if (spaceArg.provided(ctx)) {
             int rawSpaceId = spaceArg.get(ctx);
             if (rawSpaceId <= 0) {

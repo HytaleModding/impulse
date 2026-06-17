@@ -33,7 +33,7 @@ import dev.hytalemodding.impulse.core.plugin.settings.PhysicsEventCollectionMode
 import dev.hytalemodding.impulse.core.plugin.simulation.PhysicsShapeSpec;
 import dev.hytalemodding.impulse.core.plugin.simulation.RigidBodySpawnSettings;
 import dev.hytalemodding.impulse.core.plugin.simulation.view.RaycastHitView;
-import dev.hytalemodding.impulse.early.PhysicsStoreWorld;
+import dev.hytalemodding.impulse.core.plugin.physicsstore.PhysicsThreading;
 import dev.hytalemodding.impulse.examples.explosive.ExplosiveBlockComponent;
 import dev.hytalemodding.impulse.examples.explosive.ExplosiveBlockPolicy;
 import dev.hytalemodding.impulse.examples.explosive.ExplosiveFuseComponent;
@@ -334,7 +334,7 @@ final class PhysicsStoreExampleCommands {
                 return CompletableFuture.completedFuture(null);
             }
             Store<PhysicsStore> physicsStore =
-                ((PhysicsStoreWorld) world).getPhysicsStore().getStore();
+                PhysicsThreading.store(world);
             boolean contactEventsEnabled = contactEventsEnabled(physicsStore);
             Ref<PhysicsStore> spaceRef = ExamplePhysicsUtils.resolveSpaceRef(world,
                 spaceId);

@@ -17,7 +17,7 @@ import dev.hytalemodding.impulse.core.plugin.modules.physicschunk.PhysicsWorldCo
 import dev.hytalemodding.impulse.core.plugin.modules.physicschunk.WorldCollisionBuildStats;
 import dev.hytalemodding.impulse.core.plugin.modules.physicschunk.WorldCollisionPrewarmStats;
 import dev.hytalemodding.impulse.core.plugin.modules.physicschunk.WorldCollisionStats;
-import dev.hytalemodding.impulse.early.PhysicsStoreWorld;
+import dev.hytalemodding.impulse.core.plugin.physicsstore.PhysicsThreading;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import javax.annotation.Nonnull;
@@ -40,7 +40,7 @@ public class WorldCollisionCommand extends AbstractCommandCollection {
 
     @Nonnull
     private static Store<PhysicsStore> physicsStore(@Nonnull World world) {
-        return ((PhysicsStoreWorld) world).getPhysicsStore().getStore();
+        return PhysicsThreading.store(world);
     }
 
     private static final class BuildCommand extends AbstractAsyncPlayerCommand {

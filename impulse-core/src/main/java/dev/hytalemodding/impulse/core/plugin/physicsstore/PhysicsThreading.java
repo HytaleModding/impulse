@@ -13,6 +13,7 @@ import java.util.concurrent.CompletionStage;
 import java.util.function.Consumer;
 import java.util.function.Function;
 import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
 
 /**
  * Thread assertions for direct PhysicsStore entity and backend access.
@@ -196,8 +197,17 @@ public final class PhysicsThreading {
     }
 
     @Nonnull
-    private static Store<PhysicsStore> store(@Nonnull World world) {
+    public static Store<PhysicsStore> store(@Nonnull World world) {
         return ((PhysicsStoreWorld) Objects.requireNonNull(world, "world")).getPhysicsStore()
             .getStore();
+    }
+
+    @Nullable
+    public static Store<PhysicsStore> storeOrNull(@Nonnull World world) {
+        if (!(Objects.requireNonNull(world, "world") instanceof PhysicsStoreWorld physicsStoreWorld)) {
+            return null;
+        }
+        Store<PhysicsStore> store = physicsStoreWorld.getPhysicsStore().getStore();
+        return store.isShutdown() ? null : store;
     }
 }

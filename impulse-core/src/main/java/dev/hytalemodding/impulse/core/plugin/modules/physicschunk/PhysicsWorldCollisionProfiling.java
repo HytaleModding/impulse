@@ -7,7 +7,7 @@ import com.hypixel.hytale.server.core.universe.world.storage.PhysicsStore;
 import dev.hytalemodding.impulse.core.internal.modules.physicschunk.profiling.WorldCollisionProfilingResource;
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsProfilingResource;
 import dev.hytalemodding.impulse.core.internal.resources.profiling.PhysicsRuntimeProfilingResource;
-import dev.hytalemodding.impulse.early.PhysicsStoreWorld;
+import dev.hytalemodding.impulse.core.plugin.physicsstore.PhysicsThreading;
 import java.util.List;
 import java.util.Locale;
 import java.util.UUID;
@@ -97,11 +97,7 @@ public final class PhysicsWorldCollisionProfiling {
 
     @Nullable
     private static Store<PhysicsStore> physicsStoreOrNull(@Nonnull World world) {
-        if (!(world instanceof PhysicsStoreWorld physicsStoreWorld)) {
-            return null;
-        }
-        Store<PhysicsStore> store = physicsStoreWorld.getPhysicsStore().getStore();
-        return store.isShutdown() ? null : store;
+        return PhysicsThreading.storeOrNull(world);
     }
 
     public record Snapshots(@Nonnull SnapshotView cumulative,

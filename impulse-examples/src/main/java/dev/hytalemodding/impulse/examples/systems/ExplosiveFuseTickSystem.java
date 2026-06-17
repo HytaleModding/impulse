@@ -13,7 +13,7 @@ import com.hypixel.hytale.server.core.modules.entity.component.TransformComponen
 import com.hypixel.hytale.server.core.universe.world.World;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import com.hypixel.hytale.server.core.universe.world.storage.PhysicsStore;
-import dev.hytalemodding.impulse.early.PhysicsStoreWorld;
+import dev.hytalemodding.impulse.core.plugin.physicsstore.PhysicsThreading;
 import dev.hytalemodding.impulse.api.SpaceId;
 import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyRegistrationView;
 import dev.hytalemodding.impulse.core.plugin.physicsstore.PhysicsBodies;
@@ -116,8 +116,7 @@ public final class ExplosiveFuseTickSystem extends EntityTickingSystem<EntitySto
     @Nullable
     private static SpaceId attachmentSpaceId(@Nonnull Store<EntityStore> store,
         @Nonnull BodyAttachmentComponent attachment) {
-        Store<PhysicsStore> physics = ((PhysicsStoreWorld) store.getExternalData().getWorld())
-            .getPhysicsStore().getStore();
+        Store<PhysicsStore> physics = PhysicsThreading.store(store.getExternalData().getWorld());
         Ref<PhysicsStore> bodyRef = attachment.getBodyRef();
         PhysicsBodyRegistrationView registration = bodyRef != null && bodyRef.isValid()
             ? PhysicsBodies.registrationView(physics, bodyRef)
@@ -132,8 +131,7 @@ public final class ExplosiveFuseTickSystem extends EntityTickingSystem<EntitySto
     private static BodyMotionSnapshot bodySnapshot(@Nonnull Store<EntityStore> store,
         @Nonnull BodyAttachmentComponent attachment) {
         UUID bodyUuid = attachment.getBodyUuid();
-        Store<PhysicsStore> physics = ((PhysicsStoreWorld) store.getExternalData().getWorld())
-            .getPhysicsStore().getStore();
+        Store<PhysicsStore> physics = PhysicsThreading.store(store.getExternalData().getWorld());
         Ref<PhysicsStore> bodyRef = attachment.getBodyRef();
         PhysicsBodySnapshot snapshot = bodyRef != null && bodyRef.isValid()
             ? PhysicsBodies.snapshot(physics, bodyRef)

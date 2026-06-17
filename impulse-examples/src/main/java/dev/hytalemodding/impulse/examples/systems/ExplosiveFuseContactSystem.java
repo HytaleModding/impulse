@@ -16,7 +16,7 @@ import dev.hytalemodding.impulse.core.plugin.events.PhysicsContactEvent;
 import dev.hytalemodding.impulse.core.plugin.events.PhysicsEventFramePublishedEvent;
 import dev.hytalemodding.impulse.core.plugin.events.PhysicsFrameEvent;
 import dev.hytalemodding.impulse.core.plugin.physicsstore.PhysicsBodies;
-import dev.hytalemodding.impulse.early.PhysicsStoreWorld;
+import dev.hytalemodding.impulse.core.plugin.physicsstore.PhysicsThreading;
 import dev.hytalemodding.impulse.examples.explosive.ExplosiveBlockComponent;
 import dev.hytalemodding.impulse.examples.explosive.ExplosiveBlockRuntime;
 import dev.hytalemodding.impulse.examples.explosive.ExplosiveFuseComponent;
@@ -44,7 +44,7 @@ public final class ExplosiveFuseContactSystem
         @Nonnull CommandBuffer<EntityStore> commandBuffer,
         @Nonnull PhysicsEventFramePublishedEvent event) {
         Store<PhysicsStore> physicsStore =
-            ((PhysicsStoreWorld) store.getExternalData().getWorld()).getPhysicsStore().getStore();
+            PhysicsThreading.store(store.getExternalData().getWorld());
         long tick = Math.max(0L, store.getExternalData().getWorld().getTick());
         for (PhysicsFrameEvent frameEvent : event.frame().physicsEvents()) {
             if (frameEvent instanceof PhysicsContactEvent contact
