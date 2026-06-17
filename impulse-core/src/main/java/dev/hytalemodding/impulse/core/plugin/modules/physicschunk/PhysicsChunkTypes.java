@@ -5,11 +5,13 @@ import com.hypixel.hytale.component.ComponentType;
 import com.hypixel.hytale.component.Resource;
 import com.hypixel.hytale.component.ResourceType;
 import com.hypixel.hytale.component.Store;
+import com.hypixel.hytale.server.core.plugin.PluginBase;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import com.hypixel.hytale.server.core.universe.world.storage.PhysicsStore;
 import dev.hytalemodding.impulse.core.internal.modules.physicschunk.PhysicsStoreWorldCollisionStreamingResource;
 import dev.hytalemodding.impulse.core.internal.modules.physicschunk.profiling.WorldCollisionProfilingResource;
 import dev.hytalemodding.impulse.core.internal.modules.physicschunk.systems.PhysicsStoreWorldCollisionProducerSystem;
+import dev.hytalemodding.impulse.core.internal.registration.PhysicsStoreRegistration;
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsTerrainMutationQueueResource;
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsTerrainPayloadResource;
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsWorldCollisionIndexResource;
@@ -73,6 +75,14 @@ public final class PhysicsChunkTypes {
         registry.registerSystem(new TerrainMutationDrainSystem());
         registry.registerSystem(new WorldCollisionIndexSystem());
         registry.registerSystem(new TerrainColliderBindingSystem());
+    }
+
+    public static void registerPhysicsStoreTypes(@Nonnull PluginBase plugin) {
+        ComponentRegistryProxy<PhysicsStore> registry =
+            PhysicsStoreRegistration.physicsStoreRegistry(plugin);
+        registerComponentTypes(registry);
+        registerResourceTypes(registry);
+        registerSystems(registry);
     }
 
     public static void registerEntityStoreResourceTypes(

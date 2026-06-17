@@ -11,12 +11,11 @@ import com.hypixel.hytale.server.core.universe.PlayerRef;
 import com.hypixel.hytale.server.core.universe.world.World;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import dev.hytalemodding.impulse.api.SpaceId;
-import dev.hytalemodding.impulse.core.internal.commands.SpaceSelection;
+import dev.hytalemodding.impulse.core.plugin.modules.physicschunk.WorldCollisionMode;
+import dev.hytalemodding.impulse.core.plugin.resources.PhysicsWorldResource;
 import dev.hytalemodding.impulse.core.plugin.settings.EntityChunkBoundaryMode;
 import dev.hytalemodding.impulse.core.plugin.settings.PhysicsSpaceSettings;
 import dev.hytalemodding.impulse.core.plugin.settings.PhysicsWorldCollisionSettings;
-import dev.hytalemodding.impulse.core.plugin.resources.PhysicsWorldResource;
-import dev.hytalemodding.impulse.core.plugin.modules.physicschunk.WorldCollisionMode;
 import java.util.Locale;
 import java.util.concurrent.CompletableFuture;
 import javax.annotation.Nonnull;
@@ -71,16 +70,12 @@ public class WorldCollisionSettingsCommand extends AbstractAsyncPlayerCommand {
         @Nonnull PlayerRef playerRef,
         @Nonnull World world) {
         PhysicsWorldResource resource = store.getResource(PhysicsWorldResource.getResourceType());
-        SpaceSelection.SelectedSpace selectedSpace = SpaceSelection.resolveStoreSpace(ctx,
-            world,
-            spaceArg);
-        if (selectedSpace == null) {
+        SpaceId spaceId = WorldCollisionSpaceSelection.resolve(ctx, world, spaceArg, resource);
+        if (spaceId == null) {
             return CompletableFuture.completedFuture(null);
         }
-        SpaceId spaceId = selectedSpace.spaceId();
 
-        PhysicsSpaceSettings settings = new PhysicsSpaceSettings(
-            resource.getSpaceSettings(selectedSpace.spaceRef()));
+        PhysicsSpaceSettings settings = new PhysicsSpaceSettings(resource.getSpaceSettings(spaceId));
         if (!anyArgProvided(ctx)) {
             sendSummary(ctx, spaceId, settings);
             return CompletableFuture.completedFuture(null);
@@ -140,7 +135,7 @@ public class WorldCollisionSettingsCommand extends AbstractAsyncPlayerCommand {
         settings.getWorldCollisionSettings().setWorldCollisionRadius(playerRadius);
         settings.getWorldCollisionSettings().setWorldCollisionBodyRadius(bodyRadius);
         settings.getWorldCollisionSettings().setWorldCollisionTtlTicks(ttl);
-        resource.setSpaceSettings(selectedSpace.spaceRef(), settings);
+        resource.setSpaceSettings(spaceId, settings);
         sendSummary(ctx, spaceId, settings);
         return CompletableFuture.completedFuture(null);
     }

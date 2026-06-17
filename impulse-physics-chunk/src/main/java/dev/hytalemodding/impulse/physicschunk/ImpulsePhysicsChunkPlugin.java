@@ -7,7 +7,6 @@ import com.hypixel.hytale.server.core.plugin.JavaPluginInit;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import com.hypixel.hytale.server.core.universe.world.storage.PhysicsStore;
 import dev.hytalemodding.impulse.physicschunk.commands.WorldCollisionCommandContributions;
-import dev.hytalemodding.impulse.core.internal.registration.PhysicsStoreRegistration;
 import dev.hytalemodding.impulse.core.plugin.modules.physicschunk.PhysicsChunkTypes;
 import dev.hytalemodding.impulse.core.plugin.modules.physicschunk.PhysicsWorldCollision;
 import dev.hytalemodding.impulse.early.PhysicsStoreHooks;
@@ -30,11 +29,7 @@ public final class ImpulsePhysicsChunkPlugin extends JavaPlugin {
 
     @Override
     protected void setup() {
-        ComponentRegistryProxy<PhysicsStore> physicsStoreRegistry =
-            PhysicsStoreRegistration.physicsStoreRegistry(this);
-        PhysicsChunkTypes.registerComponentTypes(physicsStoreRegistry);
-        PhysicsChunkTypes.registerResourceTypes(physicsStoreRegistry);
-        PhysicsChunkTypes.registerSystems(physicsStoreRegistry);
+        PhysicsChunkTypes.registerPhysicsStoreTypes(this);
         PhysicsStoreHooks.registerShutdownHook(SHUTDOWN_CLEANUP);
 
         ComponentRegistryProxy<EntityStore> entityRegistry = getEntityStoreRegistry();
