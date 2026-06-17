@@ -5,7 +5,6 @@ import com.hypixel.hytale.server.core.plugin.JavaPlugin;
 import com.hypixel.hytale.server.core.plugin.JavaPluginInit;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import dev.hytalemodding.impulse.core.internal.modules.physicsentity.commands.PhysicsEntityCommandContributions;
-import dev.hytalemodding.impulse.core.plugin.modules.physicsentity.PhysicsEntityTypes;
 import javax.annotation.Nonnull;
 
 /**
@@ -20,11 +19,11 @@ public final class PhysicsEntityModule extends JavaPlugin {
     @Override
     protected void setup() {
         ComponentRegistryProxy<EntityStore> entityRegistry = getEntityStoreRegistry();
-        PhysicsEntityTypes.registerComponentTypes(entityRegistry);
-        PhysicsEntityTypes.registerResourceTypes(entityRegistry);
-        PhysicsEntityTypes.registerEventTypes(entityRegistry);
-        PhysicsEntityTypes.registerSystemGroups(entityRegistry);
-        PhysicsEntityTypes.registerSystems(entityRegistry);
+        PhysicsEntityTypeRegistry.registerComponentTypes(entityRegistry);
+        PhysicsEntityTypeRegistry.registerResourceTypes(entityRegistry);
+        PhysicsEntityTypeRegistry.registerEventTypes(entityRegistry);
+        PhysicsEntityTypeRegistry.registerSystemGroups(entityRegistry);
+        PhysicsEntityTypeRegistry.registerSystems(entityRegistry);
         PhysicsEntityCommandContributions.register();
         PhysicsEntityLifecycle.enable();
     }
@@ -33,6 +32,6 @@ public final class PhysicsEntityModule extends JavaPlugin {
     protected void shutdown() {
         PhysicsEntityLifecycle.disable();
         PhysicsEntityCommandContributions.unregister();
-        PhysicsEntityTypes.clearEntityStoreTypes();
+        PhysicsEntityTypeRegistry.clearEntityStoreTypes();
     }
 }
