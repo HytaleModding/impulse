@@ -3,7 +3,7 @@ package dev.hytalemodding.impulse.core.internal.resources;
 import com.hypixel.hytale.component.Resource;
 import com.hypixel.hytale.component.ResourceType;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
-import dev.hytalemodding.impulse.core.ImpulsePlugin;
+import dev.hytalemodding.impulse.core.plugin.modules.physicsentity.PhysicsEntityTypes;
 import dev.hytalemodding.impulse.core.plugin.resources.PhysicsWorldResource;
 import it.unimi.dsi.fastutil.objects.ObjectOpenHashSet;
 import java.util.Set;
@@ -166,7 +166,7 @@ public class PhysicsDebugResource implements Resource<EntityStore> {
     }
 
     public static ResourceType<EntityStore, PhysicsDebugResource> getResourceType() {
-        return ImpulsePlugin.get().getPhysicsDebugResourceType();
+        return PhysicsEntityTypes.physicsDebugResourceType();
     }
 
     private static float clampRefresh(float value) {

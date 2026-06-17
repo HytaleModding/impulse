@@ -103,6 +103,12 @@ hytaleTools {
     manifestOptionalDependencies = "com.ionforgelabs:crucible=*"
 
     subPlugin (
+        "ImpulsePhysicsEntity",
+        "dev.hytalemodding.impulse.core.plugin.modules.physicsentity.ImpulsePhysicsEntityPlugin",
+        false, /* disabledByDefault */
+        false  /* includeAssetPack */
+    )
+    subPlugin (
         "ImpulseWorldCollision",
         "dev.hytalemodding.impulse.core.plugin.modules.worldcollision.ImpulseWorldCollisionPlugin",
         false, /* disabledByDefault */

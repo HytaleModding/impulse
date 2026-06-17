@@ -10,8 +10,8 @@ import com.hypixel.hytale.component.Ref;
 import com.hypixel.hytale.math.vector.Vector3fUtil;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import com.hypixel.hytale.server.core.universe.world.storage.PhysicsStore;
-import dev.hytalemodding.impulse.core.ImpulsePlugin;
 import dev.hytalemodding.impulse.core.plugin.codec.ImpulseCodecs;
+import dev.hytalemodding.impulse.core.plugin.modules.physicsentity.PhysicsEntityTypes;
 import java.util.Objects;
 import java.util.UUID;
 import javax.annotation.Nonnull;
@@ -225,7 +225,7 @@ public class BodyAttachmentComponent implements Component<EntityStore> {
     }
 
     public static ComponentType<EntityStore, BodyAttachmentComponent> getComponentType() {
-        return ImpulsePlugin.get().getBodyAttachmentComponentType();
+        return PhysicsEntityTypes.bodyAttachmentComponentType();
     }
 
     @Nonnull

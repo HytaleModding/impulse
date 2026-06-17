@@ -8,8 +8,8 @@ import com.hypixel.hytale.component.dependency.Order;
 import com.hypixel.hytale.component.dependency.SystemGroupDependency;
 import com.hypixel.hytale.component.system.tick.TickingSystem;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
-import dev.hytalemodding.impulse.core.ImpulsePlugin;
 import dev.hytalemodding.impulse.core.internal.components.GeneratedVisualProxyComponent;
+import dev.hytalemodding.impulse.core.plugin.modules.physicsentity.PhysicsEntityTypes;
 import dev.hytalemodding.impulse.core.plugin.projection.BodyAttachmentComponent;
 import dev.hytalemodding.impulse.core.plugin.projection.BodyAttachmentComponent.AttachmentLifecycle;
 import java.util.Collections;
@@ -26,7 +26,7 @@ public class PhysicsGeneratedProxyCleanupSystem extends TickingSystem<EntityStor
     private static final int CLEANUP_INTERVAL_TICKS = 40;
 
     private final Set<Dependency<EntityStore>> dependencies = Set.of(
-        new SystemGroupDependency<>(Order.AFTER, ImpulsePlugin.get().getPersistenceRestoreGroup())
+        new SystemGroupDependency<>(Order.AFTER, PhysicsEntityTypes.persistenceRestoreGroup())
     );
     @Nonnull
     private final Map<Store<EntityStore>, Integer> cleanupCooldowns =

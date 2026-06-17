@@ -1,10 +1,6 @@
 package dev.hytalemodding.impulse.core;
 
 import com.hypixel.hytale.component.ComponentRegistryProxy;
-import com.hypixel.hytale.component.ComponentType;
-import com.hypixel.hytale.component.ResourceType;
-import com.hypixel.hytale.component.SystemGroup;
-import com.hypixel.hytale.component.event.WorldEventType;
 import com.hypixel.hytale.common.plugin.PluginIdentifier;
 import com.hypixel.hytale.logger.HytaleLogger;
 import com.hypixel.hytale.server.core.HytaleServer;
@@ -14,31 +10,16 @@ import com.hypixel.hytale.server.core.plugin.JavaPlugin;
 import com.hypixel.hytale.server.core.plugin.JavaPluginInit;
 import com.hypixel.hytale.server.core.plugin.PluginBase;
 import com.hypixel.hytale.server.core.plugin.PluginManager;
-import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import com.hypixel.hytale.server.core.universe.world.storage.PhysicsStore;
 import dev.hytalemodding.impulse.api.BackendId;
 import dev.hytalemodding.impulse.api.Impulse;
 import dev.hytalemodding.impulse.api.PhysicsBackend;
 import dev.hytalemodding.impulse.api.runtime.PhysicsBackendRuntimeProvider;
 import dev.hytalemodding.impulse.core.internal.commands.ImpulseCommandContributionRegistry;
-import dev.hytalemodding.impulse.core.internal.components.GeneratedVisualProxyComponent;
 import dev.hytalemodding.impulse.core.internal.modules.ImpulseSubPluginRegistration;
-import dev.hytalemodding.impulse.core.internal.resources.PhysicsDebugResource;
-import dev.hytalemodding.impulse.core.internal.resources.PhysicsProjectionIndexResource;
-import dev.hytalemodding.impulse.core.internal.resources.PhysicsWorldRuntimeResource;
-import dev.hytalemodding.impulse.core.internal.resources.profiling.PhysicsRuntimeProfilingResource;
 import dev.hytalemodding.impulse.core.internal.registration.PhysicsStoreRegistration;
 import dev.hytalemodding.impulse.core.internal.store.integration.PhysicsStoreEarlyPluginProbe;
-import dev.hytalemodding.impulse.core.internal.systems.PhysicsWorldResourceAttachmentSystem;
-import dev.hytalemodding.impulse.core.internal.systems.debug.PhysicsDebugSystem;
-import dev.hytalemodding.impulse.core.internal.systems.publication.PhysicsStoreEventPublicationSystem;
-import dev.hytalemodding.impulse.core.internal.systems.sync.PhysicsBodyAttachmentIndexSystem;
-import dev.hytalemodding.impulse.core.internal.systems.sync.PhysicsSyncSystem;
-import dev.hytalemodding.impulse.core.internal.systems.visual.PhysicsGeneratedProxyCleanupSystem;
 import dev.hytalemodding.impulse.core.plugin.components.PhysicsComponentTypes;
-import dev.hytalemodding.impulse.core.plugin.events.PhysicsEventFramePublishedEvent;
-import dev.hytalemodding.impulse.core.plugin.projection.BodyAttachmentComponent;
-import dev.hytalemodding.impulse.core.plugin.resources.PhysicsWorldResource;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Collection;
@@ -46,36 +27,11 @@ import java.util.List;
 import java.util.logging.Level;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
-import lombok.Getter;
 
 public final class ImpulsePlugin extends JavaPlugin {
 
     private static ImpulsePlugin instance;
     private static final HytaleLogger LOGGER = HytaleLogger.get("Impulse");
-
-    @Getter
-    private ComponentType<EntityStore, BodyAttachmentComponent> bodyAttachmentComponentType;
-
-    @Getter
-    private ComponentType<EntityStore, GeneratedVisualProxyComponent> generatedVisualProxyComponentType;
-
-    @Getter
-    private ResourceType<EntityStore, PhysicsWorldResource> physicsWorldResourceType;
-
-    @Getter
-    private ResourceType<EntityStore, PhysicsDebugResource> physicsDebugResourceType;
-
-    @Getter
-    private ResourceType<EntityStore, PhysicsRuntimeProfilingResource> physicsRuntimeProfilingResourceType;
-
-    @Getter
-    private ResourceType<EntityStore, PhysicsProjectionIndexResource> physicsProjectionIndexResourceType;
-
-    @Getter
-    private WorldEventType<EntityStore, PhysicsEventFramePublishedEvent> physicsEventFramePublishedEventType;
-
-    @Getter
-    private SystemGroup<EntityStore> persistenceRestoreGroup;
 
     @Nullable
     private BackendId defaultBackendId;
@@ -104,8 +60,6 @@ public final class ImpulsePlugin extends JavaPlugin {
         ImpulseSubPluginRegistration.register(this);
         discoverBackends();
 
-        registerEntityStoreComponents();
-        registerSystems();
         registerCommands();
     }
 
@@ -205,41 +159,6 @@ public final class ImpulsePlugin extends JavaPlugin {
             ids.append(backend.getId().value());
         }
         return ids.toString();
-    }
-
-    private void registerEntityStoreComponents() {
-        ComponentRegistryProxy<EntityStore> entityRegistry = getEntityStoreRegistry();
-        bodyAttachmentComponentType = entityRegistry.registerComponent(
-            BodyAttachmentComponent.class,
-            "BodyAttachment",
-            BodyAttachmentComponent.CODEC);
-        generatedVisualProxyComponentType = entityRegistry.registerComponent(
-            GeneratedVisualProxyComponent.class,
-            "GeneratedVisualProxy",
-            GeneratedVisualProxyComponent.CODEC);
-        physicsWorldResourceType = entityRegistry.registerResource(PhysicsWorldResource.class,
-            PhysicsWorldRuntimeResource::new);
-        physicsDebugResourceType = entityRegistry.registerResource(PhysicsDebugResource.class,
-            PhysicsDebugResource::new);
-        physicsRuntimeProfilingResourceType = entityRegistry.registerResource(
-            PhysicsRuntimeProfilingResource.class,
-            PhysicsRuntimeProfilingResource::new);
-        physicsProjectionIndexResourceType = entityRegistry.registerResource(
-            PhysicsProjectionIndexResource.class,
-            PhysicsProjectionIndexResource::new);
-        physicsEventFramePublishedEventType =
-            entityRegistry.registerWorldEventType(PhysicsEventFramePublishedEvent.class);
-    }
-
-    private void registerSystems() {
-        ComponentRegistryProxy<EntityStore> entityRegistry = getEntityStoreRegistry();
-        persistenceRestoreGroup = entityRegistry.registerSystemGroup();
-        entityRegistry.registerSystem(new PhysicsBodyAttachmentIndexSystem());
-        entityRegistry.registerSystem(new PhysicsGeneratedProxyCleanupSystem());
-        entityRegistry.registerSystem(new PhysicsSyncSystem());
-        entityRegistry.registerSystem(new PhysicsDebugSystem());
-        entityRegistry.registerSystem(new PhysicsStoreEventPublicationSystem());
-        entityRegistry.registerSystem(new PhysicsWorldResourceAttachmentSystem());
     }
 
     private void registerCommands() {

@@ -9,7 +9,7 @@ import com.hypixel.hytale.server.core.universe.world.storage.PhysicsStore;
 import dev.hytalemodding.impulse.api.BackendId;
 import dev.hytalemodding.impulse.api.PhysicsBodySnapshot;
 import dev.hytalemodding.impulse.api.SpaceId;
-import dev.hytalemodding.impulse.core.ImpulsePlugin;
+import dev.hytalemodding.impulse.core.plugin.modules.physicsentity.PhysicsEntityTypes;
 import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyKind;
 import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyPersistenceMode;
 import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyRegistrationView;
@@ -399,7 +399,7 @@ public abstract class PhysicsWorldResource implements Resource<EntityStore> {
     public abstract boolean hasBodyAttachments(@Nonnull Ref<PhysicsStore> bodyRef);
 
     public static ResourceType<EntityStore, PhysicsWorldResource> getResourceType() {
-        return ImpulsePlugin.get().getPhysicsWorldResourceType();
+        return PhysicsEntityTypes.physicsWorldResourceType();
     }
 
     @Nonnull

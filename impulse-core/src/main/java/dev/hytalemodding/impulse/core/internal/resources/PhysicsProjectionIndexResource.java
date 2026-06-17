@@ -5,7 +5,7 @@ import com.hypixel.hytale.component.Resource;
 import com.hypixel.hytale.component.ResourceType;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import com.hypixel.hytale.server.core.universe.world.storage.PhysicsStore;
-import dev.hytalemodding.impulse.core.ImpulsePlugin;
+import dev.hytalemodding.impulse.core.plugin.modules.physicsentity.PhysicsEntityTypes;
 import it.unimi.dsi.fastutil.ints.Int2ObjectOpenHashMap;
 import it.unimi.dsi.fastutil.objects.Object2ObjectOpenHashMap;
 import it.unimi.dsi.fastutil.objects.ObjectOpenHashSet;
@@ -276,7 +276,7 @@ public final class PhysicsProjectionIndexResource implements Resource<EntityStor
     }
 
     public static ResourceType<EntityStore, PhysicsProjectionIndexResource> getResourceType() {
-        return ImpulsePlugin.get().getPhysicsProjectionIndexResourceType();
+        return PhysicsEntityTypes.physicsProjectionIndexResourceType();
     }
 
     private void unregisterAttachmentRef(@Nonnull Ref<PhysicsStore> bodyRef,

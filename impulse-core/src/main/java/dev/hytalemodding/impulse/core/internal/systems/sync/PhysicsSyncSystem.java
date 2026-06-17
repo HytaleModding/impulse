@@ -18,7 +18,6 @@ import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import com.hypixel.hytale.server.core.universe.world.storage.PhysicsStore;
 import dev.hytalemodding.impulse.api.SpaceId;
 import dev.hytalemodding.impulse.early.PhysicsStoreWorld;
-import dev.hytalemodding.impulse.core.ImpulsePlugin;
 import dev.hytalemodding.impulse.core.internal.math.PhysicsVisualPoseMath;
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsSnapshotResource;
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsProjectionIndexResource;
@@ -27,6 +26,7 @@ import dev.hytalemodding.impulse.core.internal.resources.body.PhysicsBodyRuntime
 import dev.hytalemodding.impulse.core.internal.resources.profiling.PhysicsRuntimeProfilingResource;
 import dev.hytalemodding.impulse.core.internal.systems.visual.PhysicsGeneratedProxyCleanupSystem;
 import dev.hytalemodding.impulse.core.internal.systems.visual.VisualInterestCollector;
+import dev.hytalemodding.impulse.core.plugin.modules.physicsentity.PhysicsEntityTypes;
 import dev.hytalemodding.impulse.core.plugin.physicsstore.PhysicsThreading;
 import dev.hytalemodding.impulse.core.plugin.projection.BodyAttachmentComponent;
 import dev.hytalemodding.impulse.core.plugin.projection.BodyAttachmentComponent.AttachmentLifecycle;
@@ -59,7 +59,7 @@ public class PhysicsSyncSystem extends EntityTickingSystem<EntityStore> {
 
     private static final Query<EntityStore> QUERY = Query.and(ATTACHMENT_TYPE, TRANSFORM_TYPE);
     private final Set<Dependency<EntityStore>> dependencies = Set.of(
-        new SystemGroupDependency<>(Order.AFTER, ImpulsePlugin.get().getPersistenceRestoreGroup()),
+        new SystemGroupDependency<>(Order.AFTER, PhysicsEntityTypes.persistenceRestoreGroup()),
         new SystemDependency<>(Order.AFTER, PhysicsGeneratedProxyCleanupSystem.class),
         new SystemDependency<>(Order.BEFORE, TransformSystems.EntityTrackerUpdate.class),
         new SystemDependency<>(Order.BEFORE, UpdateLocationSystems.TickingSystem.class)
