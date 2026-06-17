@@ -30,10 +30,10 @@ import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyPersistenceMode;
 import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyRegistrationView;
 import dev.hytalemodding.impulse.core.plugin.events.PhysicsContactEvent;
 import dev.hytalemodding.impulse.core.plugin.events.PhysicsFrameEvent;
-import dev.hytalemodding.impulse.core.plugin.physicsstore.components.BodyComponent;
-import dev.hytalemodding.impulse.core.plugin.physicsstore.components.TerrainColliderComponent;
-import dev.hytalemodding.impulse.core.plugin.physicsstore.snapshots.PhysicsStoreBodySnapshot;
-import dev.hytalemodding.impulse.core.plugin.physicsstore.snapshots.PhysicsStoreSnapshotFrame;
+import dev.hytalemodding.impulse.core.plugin.components.BodyComponent;
+import dev.hytalemodding.impulse.core.plugin.components.TerrainColliderComponent;
+import dev.hytalemodding.impulse.core.plugin.snapshots.PhysicsBodySnapshot;
+import dev.hytalemodding.impulse.core.plugin.snapshots.PhysicsSnapshotFrame;
 import it.unimi.dsi.fastutil.objects.ObjectOpenHashSet;
 import java.util.ArrayList;
 import java.util.List;
@@ -85,14 +85,14 @@ public final class CompletedStepPublicationSystem extends TickingSystem<PhysicsS
                 input.droppedBacklogDtSeconds(),
                 input.dtCapHit());
         }
-        List<PhysicsStoreBodySnapshot> bodies = completed.bodySnapshots();
+        List<PhysicsBodySnapshot> bodies = completed.bodySnapshots();
         Set<UUID> snapshotBodyUuids = new ObjectOpenHashSet<>();
-        for (PhysicsStoreBodySnapshot body : bodies) {
+        for (PhysicsBodySnapshot body : bodies) {
             snapshotBodyUuids.add(body.bodyUuid());
         }
         long nextSequence = snapshot.getLatestFrame().sequence() + 1L;
         float frameDt = input != null ? input.submittedDtSeconds() : dt;
-        PhysicsStoreSnapshotFrame frame = new PhysicsStoreSnapshotFrame(nextSequence,
+        PhysicsSnapshotFrame frame = new PhysicsSnapshotFrame(nextSequence,
             frameDt,
             bodies);
         snapshot.publish(frame);

@@ -30,8 +30,8 @@ import dev.hytalemodding.impulse.core.plugin.settings.PhysicsWorldSettings;
 import dev.hytalemodding.impulse.core.plugin.settings.VisualOcclusionMode;
 import dev.hytalemodding.impulse.core.plugin.simulation.PhysicsShapeSpec;
 import dev.hytalemodding.impulse.core.plugin.simulation.RigidBodySpawnSettings;
-import dev.hytalemodding.impulse.examples.commands.ExampleBlockEntityVisuals;
-import dev.hytalemodding.impulse.examples.commands.ExamplePhysicsUtils;
+import dev.hytalemodding.impulse.examples.utils.ExampleBlockEntityVisuals;
+import dev.hytalemodding.impulse.examples.utils.ExamplePhysicsUtils;
 import java.util.Iterator;
 import java.util.Locale;
 import java.util.concurrent.CompletableFuture;
@@ -147,7 +147,7 @@ public class StressBodiesCommand extends AbstractAsyncPlayerCommand {
         if (spaceId == null) {
             return CompletableFuture.completedFuture(null);
         }
-        Ref<PhysicsStore> spaceRef = ExamplePhysicsUtils.resolvePhysicsStoreSpaceRef(world, spaceId);
+        Ref<PhysicsStore> spaceRef = ExamplePhysicsUtils.resolveSpaceRef(world, spaceId);
         if (spaceRef == null) {
             ctx.sender().sendMessage(Message.raw("PhysicsStore space id=" + spaceId.value()
                 + " is not bound."));

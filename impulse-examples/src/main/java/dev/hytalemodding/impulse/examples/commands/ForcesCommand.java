@@ -14,10 +14,11 @@ import com.hypixel.hytale.server.core.universe.world.World;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import com.hypixel.hytale.server.core.universe.world.storage.PhysicsStore;
 import dev.hytalemodding.impulse.api.SpaceId;
-import dev.hytalemodding.impulse.core.plugin.physicsstore.components.BodyCommandComponent;
+import dev.hytalemodding.impulse.core.plugin.components.BodyCommandComponent;
 import dev.hytalemodding.impulse.core.plugin.simulation.PhysicsShapeSpec;
 import dev.hytalemodding.impulse.core.plugin.simulation.RigidBodySpawnSettings;
-import dev.hytalemodding.impulse.examples.commands.ExamplePhysicsUtils.CreatedBlockBody;
+import dev.hytalemodding.impulse.examples.utils.ExamplePhysicsUtils;
+import dev.hytalemodding.impulse.examples.utils.ExamplePhysicsUtils.CreatedBlockBody;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import javax.annotation.Nonnull;
@@ -75,10 +76,10 @@ public class ForcesCommand extends AbstractAsyncPlayerCommand {
         drawArrow(world, offCenterPosition, new Vector3d(2.0, 0.0, 0.0), DebugUtils.COLOR_YELLOW);
         drawArrow(world, torquePosition, new Vector3d(0.0, 0.0, 2.0), DebugUtils.COLOR_MAGENTA);
         drawArrow(world, forcePosition, new Vector3d(2.0, 0.0, 0.0), DebugUtils.COLOR_CYAN);
-        ExamplePhysicsUtils.attachPhysicsStoreBlockBody(store, time, central);
-        ExamplePhysicsUtils.attachPhysicsStoreBlockBody(store, time, offCenter);
-        ExamplePhysicsUtils.attachPhysicsStoreBlockBody(store, time, torque);
-        ExamplePhysicsUtils.attachPhysicsStoreBlockBody(store, time, force);
+        ExamplePhysicsUtils.attachBlockBody(store, time, central);
+        ExamplePhysicsUtils.attachBlockBody(store, time, offCenter);
+        ExamplePhysicsUtils.attachBlockBody(store, time, torque);
+        ExamplePhysicsUtils.attachBlockBody(store, time, force);
 
         ctx.sender().sendMessage(Message.raw(
             "Spawned force demo: central impulse, off-center impulse, torque, and force."));
@@ -94,7 +95,7 @@ public class ForcesCommand extends AbstractAsyncPlayerCommand {
         @Nonnull Vector3d forcePosition) {
         Ref<PhysicsStore> spaceRef;
         try {
-            spaceRef = ExamplePhysicsUtils.resolvePhysicsStoreSpaceRef(world, spaceId);
+            spaceRef = ExamplePhysicsUtils.resolveSpaceRef(world, spaceId);
         } catch (IllegalStateException exception) {
             return null;
         }

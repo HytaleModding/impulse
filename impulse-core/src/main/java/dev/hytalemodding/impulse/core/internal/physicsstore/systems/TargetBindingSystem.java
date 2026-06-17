@@ -17,7 +17,7 @@ import dev.hytalemodding.impulse.core.internal.physicsstore.resources.PhysicsRun
 import dev.hytalemodding.impulse.core.internal.physicsstore.resources.PhysicsRuntimeResource.PendingBodyOperation;
 import dev.hytalemodding.impulse.core.internal.resources.BackendBodyHandle;
 import dev.hytalemodding.impulse.core.internal.resources.BackendSpaceHandle;
-import dev.hytalemodding.impulse.core.plugin.physicsstore.components.TargetComponent;
+import dev.hytalemodding.impulse.core.plugin.components.TargetComponent;
 import java.util.Set;
 import java.util.function.BiConsumer;
 import javax.annotation.Nonnull;

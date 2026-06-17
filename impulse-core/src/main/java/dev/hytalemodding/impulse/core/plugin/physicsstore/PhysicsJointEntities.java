@@ -2,7 +2,7 @@ package dev.hytalemodding.impulse.core.plugin.physicsstore;
 
 import com.hypixel.hytale.component.Ref;
 import com.hypixel.hytale.server.core.universe.world.storage.PhysicsStore;
-import dev.hytalemodding.impulse.core.plugin.physicsstore.components.JointComponent;
+import dev.hytalemodding.impulse.core.plugin.components.JointComponent;
 import dev.hytalemodding.impulse.core.plugin.simulation.JointType;
 import java.util.Objects;
 import java.util.UUID;
@@ -45,11 +45,11 @@ public final class PhysicsJointEntities {
         @Nonnull Vector3f anchorA,
         @Nonnull Vector3f anchorB,
         @Nonnull Vector3f axis) {
-        PhysicsStoreEntityRefs.requireSameStore(spaceRef, bodyARef, "bodyARef");
-        PhysicsStoreEntityRefs.requireSameStore(spaceRef, bodyBRef, "bodyBRef");
-        JointComponent joint = joint(PhysicsStoreEntityRefs.entityUuid(spaceRef),
-            PhysicsStoreEntityRefs.entityUuid(bodyARef),
-            PhysicsStoreEntityRefs.entityUuid(bodyBRef),
+        PhysicsEntityRefs.requireSameStore(spaceRef, bodyARef, "bodyARef");
+        PhysicsEntityRefs.requireSameStore(spaceRef, bodyBRef, "bodyBRef");
+        JointComponent joint = joint(PhysicsEntityRefs.entityUuid(spaceRef),
+            PhysicsEntityRefs.entityUuid(bodyARef),
+            PhysicsEntityRefs.entityUuid(bodyBRef),
             type,
             anchorA,
             anchorB,

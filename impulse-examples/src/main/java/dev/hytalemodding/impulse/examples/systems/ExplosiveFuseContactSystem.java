@@ -9,7 +9,7 @@ import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import dev.hytalemodding.impulse.api.PhysicsContactPhase;
 import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyKind;
 import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyRegistrationView;
-import dev.hytalemodding.impulse.core.plugin.physicsstore.projection.BodyAttachmentComponent;
+import dev.hytalemodding.impulse.core.plugin.projection.BodyAttachmentComponent;
 import dev.hytalemodding.impulse.core.plugin.events.PhysicsContactEvent;
 import dev.hytalemodding.impulse.core.plugin.events.PhysicsEventFramePublishedEvent;
 import dev.hytalemodding.impulse.core.plugin.events.PhysicsFrameEvent;

@@ -14,13 +14,13 @@ import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import com.hypixel.hytale.server.core.universe.world.storage.PhysicsStore;
 import dev.hytalemodding.impulse.api.SpaceId;
 import dev.hytalemodding.impulse.core.plugin.physicsstore.PhysicsJointEntities;
-import dev.hytalemodding.impulse.core.plugin.physicsstore.components.JointComponent;
+import dev.hytalemodding.impulse.core.plugin.components.JointComponent;
 import dev.hytalemodding.impulse.core.plugin.simulation.JointType;
 import dev.hytalemodding.impulse.core.plugin.simulation.PhysicsShapeSpec;
 import dev.hytalemodding.impulse.core.plugin.simulation.RigidBodySpawnSettings;
-import dev.hytalemodding.impulse.examples.commands.ExampleBlockEntityVisuals;
-import dev.hytalemodding.impulse.examples.commands.ExamplePhysicsUtils;
-import dev.hytalemodding.impulse.examples.commands.ExamplePhysicsUtils.CreatedBlockBody;
+import dev.hytalemodding.impulse.examples.utils.ExampleBlockEntityVisuals;
+import dev.hytalemodding.impulse.examples.utils.ExamplePhysicsUtils;
+import dev.hytalemodding.impulse.examples.utils.ExamplePhysicsUtils.CreatedBlockBody;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
@@ -81,7 +81,7 @@ public class StressJointsCommand extends AbstractAsyncPlayerCommand {
         TimeResource time = store.getResource(TimeResource.getResourceType());
         Ref<PhysicsStore> spaceRef;
         try {
-            spaceRef = ExamplePhysicsUtils.resolvePhysicsStoreSpaceRef(world, spaceId);
+            spaceRef = ExamplePhysicsUtils.resolveSpaceRef(world, spaceId);
         } catch (IllegalStateException exception) {
             spaceRef = null;
         }
@@ -120,7 +120,7 @@ public class StressJointsCommand extends AbstractAsyncPlayerCommand {
             return CompletableFuture.completedFuture(null);
         }
         for (CreatedBlockBody createdBody : createdBodyRows) {
-            ExamplePhysicsUtils.attachPhysicsStoreBlockBody(store, time, createdBody);
+            ExamplePhysicsUtils.attachBlockBody(store, time, createdBody);
         }
 
         ctx.sender().sendMessage(Message.raw("Queued " + createdJoints

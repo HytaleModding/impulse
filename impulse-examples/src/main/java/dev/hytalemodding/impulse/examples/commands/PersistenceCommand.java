@@ -8,7 +8,7 @@ import com.hypixel.hytale.server.core.command.system.basecommands.AbstractAsyncW
 import com.hypixel.hytale.server.core.universe.world.World;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import dev.hytalemodding.impulse.core.plugin.persistence.PhysicsPersistence;
-import dev.hytalemodding.impulse.core.plugin.physicsstore.PhysicsStoreAsync;
+import dev.hytalemodding.impulse.core.plugin.physicsstore.PhysicsAsync;
 import dev.hytalemodding.impulse.core.plugin.persistence.PhysicsPersistence.RestoreRequestResult;
 import dev.hytalemodding.impulse.core.plugin.persistence.PhysicsPersistence.SaveResult;
 import dev.hytalemodding.impulse.core.plugin.persistence.PhysicsPersistence.Status;
@@ -38,7 +38,7 @@ public class PersistenceCommand extends AbstractCommandCollection {
         protected CompletableFuture<Void> executeAsync(@Nonnull CommandContext ctx,
             @Nonnull World world) {
             Store<EntityStore> store = world.getEntityStore().getStore();
-            return PhysicsStoreAsync.acceptOnWorldThread(world,
+            return PhysicsAsync.acceptOnWorldThread(world,
                 PhysicsPersistence.saveRuntimeSnapshotAsync(store),
                 result -> sendSaveResult(ctx, world, result));
         }
@@ -78,7 +78,7 @@ public class PersistenceCommand extends AbstractCommandCollection {
         protected CompletableFuture<Void> executeAsync(@Nonnull CommandContext ctx,
             @Nonnull World world) {
             Store<EntityStore> store = world.getEntityStore().getStore();
-            return PhysicsStoreAsync.acceptOnWorldThread(world,
+            return PhysicsAsync.acceptOnWorldThread(world,
                 PhysicsPersistence.requestRuntimeRestoreAsync(store),
                 result -> sendLoadResult(ctx, world, result));
         }
@@ -127,7 +127,7 @@ public class PersistenceCommand extends AbstractCommandCollection {
         protected CompletableFuture<Void> executeAsync(@Nonnull CommandContext ctx,
             @Nonnull World world) {
             Store<EntityStore> store = world.getEntityStore().getStore();
-            return PhysicsStoreAsync.acceptOnWorldThread(world,
+            return PhysicsAsync.acceptOnWorldThread(world,
                 PhysicsPersistence.statusAsync(store),
                 status -> sendStatus(ctx, world, status));
         }

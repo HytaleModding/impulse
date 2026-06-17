@@ -26,7 +26,7 @@ import dev.hytalemodding.impulse.core.internal.physicsstore.terrain.TerrainColli
 import dev.hytalemodding.impulse.core.internal.physicsstore.terrain.TerrainColliderPayload.TerrainNeighbor;
 import dev.hytalemodding.impulse.core.internal.resources.BackendBodyHandle;
 import dev.hytalemodding.impulse.core.internal.resources.BackendSpaceHandle;
-import dev.hytalemodding.impulse.core.plugin.physicsstore.components.TerrainColliderComponent;
+import dev.hytalemodding.impulse.core.plugin.components.TerrainColliderComponent;
 import java.util.Set;
 import java.util.UUID;
 import java.util.function.BiConsumer;

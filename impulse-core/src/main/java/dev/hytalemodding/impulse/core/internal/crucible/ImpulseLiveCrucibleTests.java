@@ -12,19 +12,19 @@ import com.hypixel.hytale.server.core.modules.time.TimeResource;
 import com.hypixel.hytale.server.core.universe.world.World;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import com.hypixel.hytale.server.core.universe.world.storage.PhysicsStore;
+import dev.hytalemodding.impulse.core.plugin.physicsstore.PhysicsThreading;
 import dev.hytalemodding.impulse.early.PhysicsStoreWorld;
 import dev.hytalemodding.impulse.api.SpaceId;
 import dev.hytalemodding.impulse.core.internal.physicsstore.PhysicsStoreSpaceMutations;
 import dev.hytalemodding.impulse.core.internal.physicsstore.resources.PhysicsSnapshotResource;
 import dev.hytalemodding.impulse.core.plugin.physicsstore.BodyEntityDescriptor;
 import dev.hytalemodding.impulse.core.plugin.physicsstore.PhysicsBodyEntities;
-import dev.hytalemodding.impulse.core.plugin.physicsstore.PhysicsStoreEntities;
-import dev.hytalemodding.impulse.core.plugin.physicsstore.PhysicsStoreThreading;
-import dev.hytalemodding.impulse.core.plugin.physicsstore.snapshots.PhysicsStoreBodySnapshot;
+import dev.hytalemodding.impulse.core.plugin.physicsstore.PhysicsEntities;
+import dev.hytalemodding.impulse.core.plugin.snapshots.PhysicsBodySnapshot;
 import dev.hytalemodding.impulse.core.plugin.modules.control.ImpulseControllableComponent;
-import dev.hytalemodding.impulse.core.plugin.physicsstore.projection.BodyAttachmentComponent;
-import dev.hytalemodding.impulse.core.plugin.physicsstore.projection.BodyAttachmentComponent.AttachmentLifecycle;
-import dev.hytalemodding.impulse.core.plugin.physicsstore.projection.BodyAttachmentComponent.TransformAuthority;
+import dev.hytalemodding.impulse.core.plugin.projection.BodyAttachmentComponent;
+import dev.hytalemodding.impulse.core.plugin.projection.BodyAttachmentComponent.AttachmentLifecycle;
+import dev.hytalemodding.impulse.core.plugin.projection.BodyAttachmentComponent.TransformAuthority;
 import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyPersistenceMode;
 import dev.hytalemodding.impulse.core.plugin.settings.PhysicsSpaceSettings;
 import dev.hytalemodding.impulse.core.plugin.resources.PhysicsWorldResource;
@@ -116,7 +116,7 @@ final class ImpulseLiveCrucibleTests {
             return false;
         }
         double transformY = transform.getPosition().y;
-        PhysicsStoreBodySnapshot snapshot = physicsStore(store.getExternalData().getWorld())
+        PhysicsBodySnapshot snapshot = physicsStore(store.getExternalData().getWorld())
             .getResource(PhysicsSnapshotResource.getResourceType())
             .getBody(bodyUuid);
         if (snapshot == null) {
@@ -143,7 +143,7 @@ final class ImpulseLiveCrucibleTests {
         SpaceId spaceId,
         UUID bodyUuid,
         Vector3d visualPosition) {
-        PhysicsStoreThreading.requireWorldThread(store, "add Crucible live PhysicsStore body entity");
+        PhysicsThreading.requireWorldThread(store, "add Crucible live PhysicsStore body entity");
         BodyEntityDescriptor descriptor = PhysicsBodyEntities.dynamicBody(
             PhysicsStoreSpaceMutations.requireSpaceUuid(store, spaceId),
             bodyUuid,
@@ -155,7 +155,7 @@ final class ImpulseLiveCrucibleTests {
             RigidBodySpawnSettings.defaults(),
             null,
             PhysicsBodyPersistenceMode.PERSISTENT);
-        store.addEntity(PhysicsStoreEntities.bodyHolder(store,
+        store.addEntity(PhysicsEntities.bodyHolder(store,
             descriptor.bodyUuid(),
             descriptor.body(),
             descriptor.dynamics(),

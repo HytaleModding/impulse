@@ -16,7 +16,6 @@ import com.hypixel.hytale.server.core.modules.entity.system.TransformSystems;
 import com.hypixel.hytale.server.core.modules.entity.system.UpdateLocationSystems;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import com.hypixel.hytale.server.core.universe.world.storage.PhysicsStore;
-import dev.hytalemodding.impulse.api.PhysicsBodySnapshot;
 import dev.hytalemodding.impulse.api.SpaceId;
 import dev.hytalemodding.impulse.early.PhysicsStoreWorld;
 import dev.hytalemodding.impulse.core.ImpulsePlugin;
@@ -26,14 +25,12 @@ import dev.hytalemodding.impulse.core.internal.resources.PhysicsProjectionIndexR
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsWorldRuntimeResource;
 import dev.hytalemodding.impulse.core.internal.resources.body.PhysicsBodyRuntimeState;
 import dev.hytalemodding.impulse.core.internal.resources.profiling.PhysicsRuntimeProfilingResource;
-import dev.hytalemodding.impulse.core.internal.systems.visual.GeneratedProxyLifecycle;
 import dev.hytalemodding.impulse.core.internal.systems.visual.PhysicsGeneratedProxyCleanupSystem;
 import dev.hytalemodding.impulse.core.internal.systems.visual.VisualInterestCollector;
-import dev.hytalemodding.impulse.core.plugin.physicsstore.PhysicsStoreThreading;
-import dev.hytalemodding.impulse.core.plugin.physicsstore.projection.BodyAttachmentComponent;
-import dev.hytalemodding.impulse.core.plugin.physicsstore.projection.BodyAttachmentComponent.AttachmentLifecycle;
-import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyRegistrationView;
-import dev.hytalemodding.impulse.core.plugin.physicsstore.snapshots.PhysicsStoreBodySnapshot;
+import dev.hytalemodding.impulse.core.plugin.physicsstore.PhysicsThreading;
+import dev.hytalemodding.impulse.core.plugin.projection.BodyAttachmentComponent;
+import dev.hytalemodding.impulse.core.plugin.projection.BodyAttachmentComponent.AttachmentLifecycle;
+import dev.hytalemodding.impulse.core.plugin.snapshots.PhysicsBodySnapshot;
 import dev.hytalemodding.impulse.core.plugin.settings.PhysicsSpaceSettings;
 import java.util.List;
 import java.util.Set;
@@ -141,7 +138,7 @@ public class PhysicsSyncSystem extends EntityTickingSystem<EntityStore> {
             collector.incrementBodiesInspected();
         }
         PhysicsSnapshotResource snapshotResource = physicsStoreSnapshots.get();
-        PhysicsStoreBodySnapshot physicsStoreSnapshot = resolvePhysicsStoreSnapshot(entityRef,
+        PhysicsBodySnapshot physicsStoreSnapshot = resolvePhysicsStoreSnapshot(entityRef,
             attachment,
             snapshotResource,
             store);
@@ -159,13 +156,13 @@ public class PhysicsSyncSystem extends EntityTickingSystem<EntityStore> {
     }
 
     @Nullable
-    private static PhysicsStoreBodySnapshot resolvePhysicsStoreSnapshot(
+    private static PhysicsBodySnapshot resolvePhysicsStoreSnapshot(
         @Nonnull Ref<EntityStore> entityRef,
         @Nonnull BodyAttachmentComponent attachment,
         @Nonnull PhysicsSnapshotResource snapshotResource,
         @Nonnull Store<EntityStore> store) {
         Ref<PhysicsStore> oldBodyRef = attachment.getBodyRef();
-        PhysicsStoreBodySnapshot snapshot = null;
+        PhysicsBodySnapshot snapshot = null;
         if (oldBodyRef != null && oldBodyRef.isValid()) {
             snapshot = snapshotResource.getBody(oldBodyRef);
             if (snapshot != null && !snapshot.bodyUuid().equals(attachment.getBodyUuid())) {
@@ -204,7 +201,7 @@ public class PhysicsSyncSystem extends EntityTickingSystem<EntityStore> {
         PhysicsStore physicsStore =
             ((PhysicsStoreWorld) store.getExternalData().getWorld()).getPhysicsStore();
         Store<PhysicsStore> physics = physicsStore.getStore();
-        PhysicsStoreThreading.requireWorldThread(physics,
+        PhysicsThreading.requireWorldThread(physics,
             "read copied PhysicsStore sync snapshots");
         return physics.getResource(
             PhysicsSnapshotResource.getResourceType());
@@ -212,7 +209,7 @@ public class PhysicsSyncSystem extends EntityTickingSystem<EntityStore> {
 
     private static void applyPhysicsStoreSnapshot(@Nonnull TransformComponent transform,
         @Nonnull BodyAttachmentComponent attachment,
-        @Nonnull PhysicsStoreBodySnapshot snapshot,
+        @Nonnull PhysicsBodySnapshot snapshot,
         @Nonnull Scratch scratch) {
         scratch.position.set(snapshot.position());
         scratch.rotation.set(snapshot.rotation());
@@ -249,7 +246,7 @@ public class PhysicsSyncSystem extends EntityTickingSystem<EntityStore> {
         return (float) Math.sqrt(distanceSquared);
     }
 
-    private void applyVisualPose(@Nonnull PhysicsBodySnapshot snapshot,
+    private void applyVisualPose(@Nonnull dev.hytalemodding.impulse.api.PhysicsBodySnapshot snapshot,
         @Nonnull BodyAttachmentComponent attachment,
         @Nonnull Scratch scratch) {
         PhysicsVisualPoseMath.visualPositionFromBodyPose(scratch.position,
@@ -264,7 +261,7 @@ public class PhysicsSyncSystem extends EntityTickingSystem<EntityStore> {
     }
 
     private static boolean shouldSmoothVisual(@Nullable PhysicsSpaceSettings settings,
-        @Nonnull PhysicsBodySnapshot snapshot,
+        @Nonnull dev.hytalemodding.impulse.api.PhysicsBodySnapshot snapshot,
         boolean controlled,
         @Nonnull PhysicsSyncPolicy.SyncRangeTier rangeTier,
         @Nonnull PhysicsBodyRuntimeState.BodySyncState syncState,
@@ -307,7 +304,7 @@ public class PhysicsSyncSystem extends EntityTickingSystem<EntityStore> {
             MIN_SMOOTHING_ALPHA, 1.0f);
     }
 
-    private static void applySnapshotPrediction(@Nonnull PhysicsBodySnapshot snapshot,
+    private static void applySnapshotPrediction(@Nonnull dev.hytalemodding.impulse.api.PhysicsBodySnapshot snapshot,
         float predictionSeconds,
         @Nonnull Scratch scratch) {
         if (predictionSeconds <= 0.0f || !snapshot.isDynamic() || snapshot.sleeping()) {

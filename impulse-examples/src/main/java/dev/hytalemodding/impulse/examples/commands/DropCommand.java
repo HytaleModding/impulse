@@ -17,6 +17,8 @@ import dev.hytalemodding.impulse.core.plugin.simulation.PhysicsShapeSpec;
 import dev.hytalemodding.impulse.core.plugin.simulation.RigidBodySpawnSettings;
 import java.util.concurrent.CompletableFuture;
 import javax.annotation.Nonnull;
+import dev.hytalemodding.impulse.examples.utils.ExampleBlockEntityVisuals;
+import dev.hytalemodding.impulse.examples.utils.ExamplePhysicsUtils;
 import org.joml.Vector3d;
 
 /**
@@ -53,10 +55,10 @@ public class DropCommand extends AbstractAsyncPlayerCommand {
         if (spaceId == null) {
             return CompletableFuture.completedFuture(null);
         }
-        Ref<PhysicsStore> spaceRef = ExamplePhysicsUtils.resolvePhysicsStoreSpaceRef(world,
+        Ref<PhysicsStore> spaceRef = ExamplePhysicsUtils.resolveSpaceRef(world,
             spaceId);
         if (spaceRef == null) {
-            ctx.sender().sendMessage(Message.raw("PhysicsStore space id=" + spaceId.value()
+            ctx.sender().sendMessage(Message.raw("Physics space id=" + spaceId.value()
                 + " is not bound yet."));
             return CompletableFuture.completedFuture(null);
         }

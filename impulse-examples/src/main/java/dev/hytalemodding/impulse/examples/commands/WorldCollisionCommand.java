@@ -19,6 +19,8 @@ import dev.hytalemodding.impulse.core.plugin.modules.worldcollision.WorldCollisi
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import javax.annotation.Nonnull;
+
+import dev.hytalemodding.impulse.examples.utils.ExamplePhysicsUtils;
 import org.joml.Vector3d;
 
 /**

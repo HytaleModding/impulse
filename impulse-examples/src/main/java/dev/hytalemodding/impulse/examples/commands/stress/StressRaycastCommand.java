@@ -12,10 +12,10 @@ import com.hypixel.hytale.server.core.universe.world.World;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import com.hypixel.hytale.server.core.universe.world.storage.PhysicsStore;
 import dev.hytalemodding.impulse.api.SpaceId;
-import dev.hytalemodding.impulse.core.plugin.physicsstore.PhysicsStoreAsync;
-import dev.hytalemodding.impulse.core.plugin.physicsstore.PhysicsStoreRaycasts;
+import dev.hytalemodding.impulse.core.plugin.physicsstore.PhysicsAsync;
+import dev.hytalemodding.impulse.core.plugin.physicsstore.PhysicsRaycasts;
 import dev.hytalemodding.impulse.core.plugin.simulation.RaycastSegment;
-import dev.hytalemodding.impulse.examples.commands.ExamplePhysicsUtils;
+import dev.hytalemodding.impulse.examples.utils.ExamplePhysicsUtils;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
@@ -57,7 +57,7 @@ public class StressRaycastCommand extends AbstractAsyncPlayerCommand {
         if (spaceId == null) {
             return CompletableFuture.completedFuture(null);
         }
-        Ref<PhysicsStore> spaceRef = ExamplePhysicsUtils.resolvePhysicsStoreSpaceRef(world,
+        Ref<PhysicsStore> spaceRef = ExamplePhysicsUtils.resolveSpaceRef(world,
             spaceId);
         if (spaceRef == null) {
             ctx.sender().sendMessage(Message.raw("PhysicsStore space id=" + spaceId.value()
@@ -69,8 +69,8 @@ public class StressRaycastCommand extends AbstractAsyncPlayerCommand {
         List<RaycastSegment> segments = getRaycastSegments(side, rays, playerPos);
 
         long startNanos = System.nanoTime();
-        return PhysicsStoreAsync.acceptOnWorldThread(world,
-            PhysicsStoreRaycasts.closestBatchAsync(world, spaceRef, segments),
+        return PhysicsAsync.acceptOnWorldThread(world,
+            PhysicsRaycasts.closestBatchAsync(world, spaceRef, segments),
             result -> {
                 long elapsedNanos = System.nanoTime() - startNanos;
                 ctx.sender().sendMessage(Message.raw("Ran " + rays + " raycasts: "

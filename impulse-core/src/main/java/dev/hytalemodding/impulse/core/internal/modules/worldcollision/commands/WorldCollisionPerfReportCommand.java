@@ -12,8 +12,8 @@ import dev.hytalemodding.impulse.core.internal.resources.profiling.PhysicsRuntim
 import dev.hytalemodding.impulse.core.internal.resources.profiling.PhysicsRuntimeProfilingResource.SyncSnapshot;
 import dev.hytalemodding.impulse.core.internal.resources.profiling.PhysicsRuntimeProfilingResource.VisualSnapshot;
 import dev.hytalemodding.impulse.core.plugin.events.PhysicsEventFrame;
-import dev.hytalemodding.impulse.core.plugin.physicsstore.PhysicsStoreDiagnostics;
-import dev.hytalemodding.impulse.core.plugin.physicsstore.PhysicsStoreAsync;
+import dev.hytalemodding.impulse.core.plugin.physicsstore.PhysicsDiagnostics;
+import dev.hytalemodding.impulse.core.plugin.physicsstore.PhysicsAsync;
 import dev.hytalemodding.impulse.core.plugin.resources.PhysicsWorldResource;
 import dev.hytalemodding.impulse.core.plugin.simulation.SpaceSummary;
 import dev.hytalemodding.impulse.core.internal.modules.worldcollision.profiling.WorldCollisionProfilingResource;
@@ -34,8 +34,8 @@ public class WorldCollisionPerfReportCommand extends AbstractAsyncWorldCommand {
     protected CompletableFuture<Void> executeAsync(@Nonnull CommandContext ctx,
         @Nonnull World world) {
         Store<EntityStore> store = world.getEntityStore().getStore();
-        return PhysicsStoreAsync.acceptOnWorldThread(world,
-            PhysicsStoreDiagnostics.spaceSummariesAsync(world),
+        return PhysicsAsync.acceptOnWorldThread(world,
+            PhysicsDiagnostics.spaceSummariesAsync(world),
             summaries -> sendReport(ctx, world, store, summaries));
     }
 

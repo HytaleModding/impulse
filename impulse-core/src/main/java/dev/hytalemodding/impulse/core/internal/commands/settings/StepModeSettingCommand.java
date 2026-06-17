@@ -10,8 +10,8 @@ import com.hypixel.hytale.server.core.command.system.basecommands.AbstractAsyncP
 import com.hypixel.hytale.server.core.universe.PlayerRef;
 import com.hypixel.hytale.server.core.universe.world.World;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
-import dev.hytalemodding.impulse.core.plugin.physicsstore.PhysicsStoreDiagnostics;
-import dev.hytalemodding.impulse.core.plugin.physicsstore.PhysicsStoreAsync;
+import dev.hytalemodding.impulse.core.plugin.physicsstore.PhysicsDiagnostics;
+import dev.hytalemodding.impulse.core.plugin.physicsstore.PhysicsAsync;
 import dev.hytalemodding.impulse.core.plugin.settings.PhysicsStepMode;
 import dev.hytalemodding.impulse.core.plugin.resources.PhysicsWorldResource;
 import dev.hytalemodding.impulse.core.plugin.settings.PhysicsWorldSettings;
@@ -55,8 +55,8 @@ public class StepModeSettingCommand extends AbstractAsyncPlayerCommand {
         }
 
         if (stepMode == PhysicsStepMode.CCD) {
-            return PhysicsStoreAsync.acceptOnWorldThread(world,
-                PhysicsStoreDiagnostics.unsupportedCcdSpacesAsync(world),
+            return PhysicsAsync.acceptOnWorldThread(world,
+                PhysicsDiagnostics.unsupportedCcdSpacesAsync(world),
                 summaries -> applyStepModeIfSupported(ctx, resource, stepMode, summaries));
         }
 

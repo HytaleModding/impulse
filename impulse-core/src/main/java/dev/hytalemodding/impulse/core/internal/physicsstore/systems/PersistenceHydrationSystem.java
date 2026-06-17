@@ -18,24 +18,24 @@ import dev.hytalemodding.impulse.core.internal.physicsstore.persistence.Persiste
 import dev.hytalemodding.impulse.core.internal.physicsstore.persistence.PersistentSpaceDto;
 import dev.hytalemodding.impulse.core.internal.physicsstore.persistence.PersistentTerrainColliderDto;
 import dev.hytalemodding.impulse.core.internal.physicsstore.resources.PhysicsRestoreStatusResource;
-import dev.hytalemodding.impulse.core.plugin.physicsstore.PhysicsStoreEntities;
-import dev.hytalemodding.impulse.core.plugin.physicsstore.components.BodyComponent;
-import dev.hytalemodding.impulse.core.plugin.physicsstore.components.ColliderComponent;
-import dev.hytalemodding.impulse.core.plugin.physicsstore.components.CollisionLodSettingsComponent;
-import dev.hytalemodding.impulse.core.plugin.physicsstore.components.CollisionFilterComponent;
-import dev.hytalemodding.impulse.core.plugin.physicsstore.components.DynamicsComponent;
-import dev.hytalemodding.impulse.core.plugin.physicsstore.components.ExtensionSettingsComponent;
-import dev.hytalemodding.impulse.core.plugin.physicsstore.components.JointComponent;
-import dev.hytalemodding.impulse.core.plugin.physicsstore.components.MaterialComponent;
-import dev.hytalemodding.impulse.core.plugin.physicsstore.components.ShapeComponent;
-import dev.hytalemodding.impulse.core.plugin.physicsstore.components.SolverSettingsComponent;
-import dev.hytalemodding.impulse.core.plugin.physicsstore.components.SpaceComponent;
-import dev.hytalemodding.impulse.core.plugin.physicsstore.components.TargetComponent;
-import dev.hytalemodding.impulse.core.plugin.physicsstore.components.TerrainColliderComponent;
-import dev.hytalemodding.impulse.core.plugin.physicsstore.components.UuidComponent;
-import dev.hytalemodding.impulse.core.plugin.physicsstore.components.VisualMaterializationSettingsComponent;
-import dev.hytalemodding.impulse.core.plugin.physicsstore.components.VisualSyncSettingsComponent;
-import dev.hytalemodding.impulse.core.plugin.physicsstore.components.WorldCollisionComponent;
+import dev.hytalemodding.impulse.core.plugin.physicsstore.PhysicsEntities;
+import dev.hytalemodding.impulse.core.plugin.components.BodyComponent;
+import dev.hytalemodding.impulse.core.plugin.components.ColliderComponent;
+import dev.hytalemodding.impulse.core.plugin.components.CollisionLodSettingsComponent;
+import dev.hytalemodding.impulse.core.plugin.components.CollisionFilterComponent;
+import dev.hytalemodding.impulse.core.plugin.components.DynamicsComponent;
+import dev.hytalemodding.impulse.core.plugin.components.ExtensionSettingsComponent;
+import dev.hytalemodding.impulse.core.plugin.components.JointComponent;
+import dev.hytalemodding.impulse.core.plugin.components.MaterialComponent;
+import dev.hytalemodding.impulse.core.plugin.components.ShapeComponent;
+import dev.hytalemodding.impulse.core.plugin.components.SolverSettingsComponent;
+import dev.hytalemodding.impulse.core.plugin.components.SpaceComponent;
+import dev.hytalemodding.impulse.core.plugin.components.TargetComponent;
+import dev.hytalemodding.impulse.core.plugin.components.TerrainColliderComponent;
+import dev.hytalemodding.impulse.core.plugin.components.UuidComponent;
+import dev.hytalemodding.impulse.core.plugin.components.VisualMaterializationSettingsComponent;
+import dev.hytalemodding.impulse.core.plugin.components.VisualSyncSettingsComponent;
+import dev.hytalemodding.impulse.core.plugin.components.WorldCollisionComponent;
 import it.unimi.dsi.fastutil.objects.Object2ObjectOpenHashMap;
 import java.util.Map;
 import java.util.Set;
@@ -146,7 +146,7 @@ public final class PersistenceHydrationSystem extends TickingSystem<PhysicsStore
             PersistentShapeDto shape = shapesByUuid.get(collider.getShapeUuid());
             PersistentMaterialDto material = materialsByUuid.get(collider.getMaterialUuid());
             if (shape != null && material != null) {
-                PhysicsStoreEntities.addBodyComponents(holder,
+                PhysicsEntities.addBodyComponents(holder,
                     body,
                     dynamics,
                     target,

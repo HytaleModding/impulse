@@ -6,6 +6,7 @@ import com.hypixel.hytale.component.Store;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import com.hypixel.hytale.server.core.universe.world.storage.PhysicsStore;
 import dev.hytalemodding.impulse.api.PhysicsBodyType;
+import dev.hytalemodding.impulse.core.plugin.physicsstore.PhysicsThreading;
 import dev.hytalemodding.impulse.early.PhysicsStoreWorld;
 import dev.hytalemodding.impulse.core.internal.modules.control.ControlLifecycle;
 import dev.hytalemodding.impulse.core.internal.modules.control.components.PhysicsControlSessionComponent;
@@ -13,7 +14,6 @@ import dev.hytalemodding.impulse.core.internal.modules.control.systems.PhysicsKi
 import dev.hytalemodding.impulse.core.internal.modules.control.systems.PhysicsStoreControlSessionMutations;
 import dev.hytalemodding.impulse.core.internal.physicsstore.resources.PhysicsIdentityIndexResource;
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsWorldRuntimeResource;
-import dev.hytalemodding.impulse.core.plugin.physicsstore.PhysicsStoreThreading;
 import java.util.UUID;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
@@ -64,7 +64,7 @@ public final class PhysicsControlSessions {
         @Nonnull Vector3f viewOffset,
         @Nonnull Vector3f previousTarget) {
         Store<PhysicsStore> physicsStore = physicsStore(store);
-        PhysicsStoreThreading.requireWorldThread(physicsStore,
+        PhysicsThreading.requireWorldThread(physicsStore,
             "resolve PhysicsStore control-session UUIDs");
         Ref<PhysicsStore> bodyRef = requireRef(physicsStore, bodyUuid, "body");
         Ref<PhysicsStore> anchorBodyRef = requireRef(physicsStore, anchorBodyUuid, "anchor body");
@@ -186,7 +186,7 @@ public final class PhysicsControlSessions {
         @Nonnull Ref<PhysicsStore> anchorBodyRef,
         @Nullable Ref<PhysicsStore> controlJointRef) {
         Store<PhysicsStore> store = bodyRef.getStore();
-        PhysicsStoreThreading.requireWorldThread(store,
+        PhysicsThreading.requireWorldThread(store,
             "start PhysicsStore control session");
         requireValidRef(bodyRef, "body");
         requireValidRef(anchorBodyRef, "anchor body");

@@ -5,8 +5,8 @@ import com.hypixel.hytale.component.Resource;
 import com.hypixel.hytale.component.ResourceType;
 import com.hypixel.hytale.server.core.universe.world.storage.PhysicsStore;
 import dev.hytalemodding.impulse.core.plugin.physicsstore.PhysicsStoreTypes;
-import dev.hytalemodding.impulse.core.plugin.physicsstore.snapshots.PhysicsStoreBodySnapshot;
-import dev.hytalemodding.impulse.core.plugin.physicsstore.snapshots.PhysicsStoreSnapshotFrame;
+import dev.hytalemodding.impulse.core.plugin.snapshots.PhysicsBodySnapshot;
+import dev.hytalemodding.impulse.core.plugin.snapshots.PhysicsSnapshotFrame;
 import it.unimi.dsi.fastutil.ints.Int2ObjectOpenHashMap;
 import it.unimi.dsi.fastutil.objects.Object2ObjectOpenHashMap;
 import java.util.ArrayList;
@@ -29,27 +29,27 @@ public final class PhysicsSnapshotResource implements Resource<PhysicsStore> {
     }
 
     @Nonnull
-    public PhysicsStoreSnapshotFrame getLatestFrame() {
+    public PhysicsSnapshotFrame getLatestFrame() {
         return snapshot.frame();
     }
 
     @Nullable
-    public PhysicsStoreBodySnapshot getBody(@Nonnull UUID bodyUuid) {
+    public PhysicsBodySnapshot getBody(@Nonnull UUID bodyUuid) {
         return snapshot.bodiesByUuid().get(bodyUuid);
     }
 
     @Nullable
-    public PhysicsStoreBodySnapshot getBody(@Nonnull Ref<PhysicsStore> bodyRef) {
-        PhysicsStoreBodySnapshot body = snapshot.bodiesByRowIndex()
+    public PhysicsBodySnapshot getBody(@Nonnull Ref<PhysicsStore> bodyRef) {
+        PhysicsBodySnapshot body = snapshot.bodiesByRowIndex()
             .get(Objects.requireNonNull(bodyRef, "bodyRef").getIndex());
         return body != null && sameRef(body.bodyRef(), bodyRef) ? body : null;
     }
 
-    public void publish(@Nonnull PhysicsStoreSnapshotFrame frame) {
-        Map<UUID, PhysicsStoreBodySnapshot> bodiesByUuid = new Object2ObjectOpenHashMap<>();
-        Int2ObjectOpenHashMap<PhysicsStoreBodySnapshot> bodiesByRowIndex =
+    public void publish(@Nonnull PhysicsSnapshotFrame frame) {
+        Map<UUID, PhysicsBodySnapshot> bodiesByUuid = new Object2ObjectOpenHashMap<>();
+        Int2ObjectOpenHashMap<PhysicsBodySnapshot> bodiesByRowIndex =
             new Int2ObjectOpenHashMap<>();
-        for (PhysicsStoreBodySnapshot body : frame.bodies()) {
+        for (PhysicsBodySnapshot body : frame.bodies()) {
             bodiesByUuid.put(body.bodyUuid(), body);
             Ref<PhysicsStore> bodyRef = body.bodyRef();
             if (bodyRef != null) {
@@ -76,11 +76,11 @@ public final class PhysicsSnapshotResource implements Resource<PhysicsStore> {
     @Nonnull
     private static PublishedSnapshot withoutBody(@Nonnull PublishedSnapshot current,
         @Nonnull UUID bodyUuid) {
-        List<PhysicsStoreBodySnapshot> bodies = new ArrayList<>();
-        Map<UUID, PhysicsStoreBodySnapshot> bodiesByUuid = new Object2ObjectOpenHashMap<>();
-        Int2ObjectOpenHashMap<PhysicsStoreBodySnapshot> bodiesByRowIndex =
+        List<PhysicsBodySnapshot> bodies = new ArrayList<>();
+        Map<UUID, PhysicsBodySnapshot> bodiesByUuid = new Object2ObjectOpenHashMap<>();
+        Int2ObjectOpenHashMap<PhysicsBodySnapshot> bodiesByRowIndex =
             new Int2ObjectOpenHashMap<>();
-        for (PhysicsStoreBodySnapshot body : current.frame().bodies()) {
+        for (PhysicsBodySnapshot body : current.frame().bodies()) {
             if (bodyUuid.equals(body.bodyUuid())) {
                 continue;
             }
@@ -92,7 +92,7 @@ public final class PhysicsSnapshotResource implements Resource<PhysicsStore> {
             }
         }
         return new PublishedSnapshot(
-            new PhysicsStoreSnapshotFrame(current.frame().sequence(),
+            new PhysicsSnapshotFrame(current.frame().sequence(),
                 current.frame().dt(),
                 bodies),
             Map.copyOf(bodiesByUuid),
@@ -113,12 +113,12 @@ public final class PhysicsSnapshotResource implements Resource<PhysicsStore> {
     }
 
     private record PublishedSnapshot(
-        @Nonnull PhysicsStoreSnapshotFrame frame,
-        @Nonnull Map<UUID, PhysicsStoreBodySnapshot> bodiesByUuid,
-        @Nonnull Int2ObjectOpenHashMap<PhysicsStoreBodySnapshot> bodiesByRowIndex) {
+        @Nonnull PhysicsSnapshotFrame frame,
+        @Nonnull Map<UUID, PhysicsBodySnapshot> bodiesByUuid,
+        @Nonnull Int2ObjectOpenHashMap<PhysicsBodySnapshot> bodiesByRowIndex) {
 
         private static final PublishedSnapshot EMPTY =
-            new PublishedSnapshot(PhysicsStoreSnapshotFrame.EMPTY,
+            new PublishedSnapshot(PhysicsSnapshotFrame.EMPTY,
                 Map.of(),
                 new Int2ObjectOpenHashMap<>());
     }

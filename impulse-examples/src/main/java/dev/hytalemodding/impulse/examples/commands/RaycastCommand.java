@@ -15,11 +15,12 @@ import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import com.hypixel.hytale.server.core.universe.world.storage.PhysicsStore;
 import com.hypixel.hytale.server.core.util.TargetUtil;
 import dev.hytalemodding.impulse.api.SpaceId;
-import dev.hytalemodding.impulse.core.plugin.physicsstore.PhysicsStoreAsync;
-import dev.hytalemodding.impulse.core.plugin.physicsstore.PhysicsStoreRaycasts;
+import dev.hytalemodding.impulse.core.plugin.physicsstore.PhysicsAsync;
+import dev.hytalemodding.impulse.core.plugin.physicsstore.PhysicsRaycasts;
 import dev.hytalemodding.impulse.core.plugin.simulation.view.RaycastHitView;
 import java.util.concurrent.CompletableFuture;
 import javax.annotation.Nonnull;
+import dev.hytalemodding.impulse.examples.utils.ExamplePhysicsUtils;
 import org.joml.Vector3d;
 
 public class RaycastCommand extends AbstractAsyncPlayerCommand {
@@ -45,7 +46,7 @@ public class RaycastCommand extends AbstractAsyncPlayerCommand {
         if (spaceId == null) {
             return CompletableFuture.completedFuture(null);
         }
-        Ref<PhysicsStore> spaceRef = ExamplePhysicsUtils.resolvePhysicsStoreSpaceRef(world,
+        Ref<PhysicsStore> spaceRef = ExamplePhysicsUtils.resolveSpaceRef(world,
             spaceId);
         if (spaceRef == null) {
             ctx.sender().sendMessage(Message.raw("PhysicsStore space id=" + spaceId.value()
@@ -60,8 +61,8 @@ public class RaycastCommand extends AbstractAsyncPlayerCommand {
 
         DebugUtils.addArrow(world, start, direction, DebugUtils.COLOR_WHITE, 0.8f, 4.0f,
             DebugUtils.FLAG_FADE);
-        return PhysicsStoreAsync.acceptOnWorldThread(world,
-            PhysicsStoreRaycasts.closestAsync(world,
+        return PhysicsAsync.acceptOnWorldThread(world,
+            PhysicsRaycasts.closestAsync(world,
                 spaceRef,
                 ExamplePhysicsUtils.toVector3f(start),
                 ExamplePhysicsUtils.toVector3f(end)),

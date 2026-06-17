@@ -1,12 +1,12 @@
 package dev.hytalemodding.impulse.core.plugin.physicsstore;
 
-import dev.hytalemodding.impulse.core.plugin.physicsstore.components.BodyComponent;
-import dev.hytalemodding.impulse.core.plugin.physicsstore.components.ColliderComponent;
-import dev.hytalemodding.impulse.core.plugin.physicsstore.components.CollisionFilterComponent;
-import dev.hytalemodding.impulse.core.plugin.physicsstore.components.DynamicsComponent;
-import dev.hytalemodding.impulse.core.plugin.physicsstore.components.MaterialComponent;
-import dev.hytalemodding.impulse.core.plugin.physicsstore.components.ShapeComponent;
-import dev.hytalemodding.impulse.core.plugin.physicsstore.components.TargetComponent;
+import dev.hytalemodding.impulse.core.plugin.components.BodyComponent;
+import dev.hytalemodding.impulse.core.plugin.components.ColliderComponent;
+import dev.hytalemodding.impulse.core.plugin.components.CollisionFilterComponent;
+import dev.hytalemodding.impulse.core.plugin.components.DynamicsComponent;
+import dev.hytalemodding.impulse.core.plugin.components.MaterialComponent;
+import dev.hytalemodding.impulse.core.plugin.components.ShapeComponent;
+import dev.hytalemodding.impulse.core.plugin.components.TargetComponent;
 import java.util.Objects;
 import java.util.UUID;
 import javax.annotation.Nonnull;

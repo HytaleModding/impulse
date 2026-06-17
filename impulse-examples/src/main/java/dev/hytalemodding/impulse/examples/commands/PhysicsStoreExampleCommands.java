@@ -20,12 +20,12 @@ import com.hypixel.hytale.server.core.util.TargetUtil;
 import dev.hytalemodding.impulse.api.PhysicsBodyType;
 import dev.hytalemodding.impulse.api.SpaceId;
 import dev.hytalemodding.impulse.core.plugin.modules.worldcollision.WorldCollisionPrewarmStats;
-import dev.hytalemodding.impulse.core.plugin.physicsstore.PhysicsStoreAsync;
-import dev.hytalemodding.impulse.core.plugin.physicsstore.PhysicsStoreRaycasts;
-import dev.hytalemodding.impulse.core.plugin.physicsstore.components.BodyCommandComponent;
-import dev.hytalemodding.impulse.core.plugin.physicsstore.components.DynamicsComponent;
-import dev.hytalemodding.impulse.core.plugin.physicsstore.components.TargetComponent;
-import dev.hytalemodding.impulse.core.plugin.physicsstore.components.UuidComponent;
+import dev.hytalemodding.impulse.core.plugin.physicsstore.PhysicsAsync;
+import dev.hytalemodding.impulse.core.plugin.physicsstore.PhysicsRaycasts;
+import dev.hytalemodding.impulse.core.plugin.components.BodyCommandComponent;
+import dev.hytalemodding.impulse.core.plugin.components.DynamicsComponent;
+import dev.hytalemodding.impulse.core.plugin.components.TargetComponent;
+import dev.hytalemodding.impulse.core.plugin.components.UuidComponent;
 import dev.hytalemodding.impulse.core.plugin.resources.PhysicsWorldResource;
 import dev.hytalemodding.impulse.core.plugin.settings.PhysicsEventCollectionMode;
 import dev.hytalemodding.impulse.core.plugin.simulation.PhysicsShapeSpec;
@@ -40,6 +40,8 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
+import dev.hytalemodding.impulse.examples.utils.ExampleBlockEntityVisuals;
+import dev.hytalemodding.impulse.examples.utils.ExamplePhysicsUtils;
 import org.joml.Quaternionf;
 import org.joml.Vector3d;
 import org.joml.Vector3f;
@@ -92,14 +94,14 @@ final class PhysicsStoreExampleCommands {
             if (spaceId == null) {
                 return CompletableFuture.completedFuture(null);
             }
-            Ref<PhysicsStore> spaceRef = ExamplePhysicsUtils.resolvePhysicsStoreSpaceRef(world,
+            Ref<PhysicsStore> spaceRef = ExamplePhysicsUtils.resolveSpaceRef(world,
                 spaceId);
             if (spaceRef == null) {
                 ctx.sender().sendMessage(Message.raw("PhysicsStore space id=" + spaceId.value()
                     + " is not bound yet."));
                 return CompletableFuture.completedFuture(null);
             }
-            return PhysicsStoreAsync.acceptOnWorldThread(world,
+            return PhysicsAsync.acceptOnWorldThread(world,
                 raycastAsync(store, ref, spaceRef),
                 hit -> applyImpulse(ctx, store, ref, world, hit));
         }
@@ -156,7 +158,7 @@ final class PhysicsStoreExampleCommands {
 
             UUID bodyUuid = UUID.randomUUID();
             Vector3d spawn = new Vector3d(playerPos).add(0.0, 2.0, 0.0);
-            Ref<PhysicsStore> spaceRef = ExamplePhysicsUtils.resolvePhysicsStoreSpaceRef(world,
+            Ref<PhysicsStore> spaceRef = ExamplePhysicsUtils.resolveSpaceRef(world,
                 spaceId);
             if (spaceRef == null) {
                 ctx.sender().sendMessage(Message.raw("PhysicsStore space id=" + spaceId.value()
@@ -180,7 +182,7 @@ final class PhysicsStoreExampleCommands {
                 target(targetPosition));
 
             TimeResource time = store.getResource(TimeResource.getResourceType());
-            ExamplePhysicsUtils.attachPhysicsStoreBlockBody(store,
+            ExamplePhysicsUtils.attachBlockBody(store,
                 time,
                 new ExamplePhysicsUtils.CreatedBlockBody(bodyUuid,
                     bodyRef,
@@ -214,14 +216,14 @@ final class PhysicsStoreExampleCommands {
             if (spaceId == null) {
                 return CompletableFuture.completedFuture(null);
             }
-            Ref<PhysicsStore> spaceRef = ExamplePhysicsUtils.resolvePhysicsStoreSpaceRef(world,
+            Ref<PhysicsStore> spaceRef = ExamplePhysicsUtils.resolveSpaceRef(world,
                 spaceId);
             if (spaceRef == null) {
                 ctx.sender().sendMessage(Message.raw("PhysicsStore space id=" + spaceId.value()
                     + " is not bound yet."));
                 return CompletableFuture.completedFuture(null);
             }
-            return PhysicsStoreAsync.acceptOnWorldThread(world,
+            return PhysicsAsync.acceptOnWorldThread(world,
                 raycastAsync(store, ref, spaceRef),
                 hit -> attachView(ctx, store, hit));
         }
@@ -329,7 +331,7 @@ final class PhysicsStoreExampleCommands {
             }
             PhysicsWorldResource resource = store.getResource(PhysicsWorldResource.getResourceType());
             boolean contactEventsEnabled = contactEventsEnabled(resource);
-            Ref<PhysicsStore> spaceRef = ExamplePhysicsUtils.resolvePhysicsStoreSpaceRef(world,
+            Ref<PhysicsStore> spaceRef = ExamplePhysicsUtils.resolveSpaceRef(world,
                 spaceId);
             if (spaceRef == null) {
                 ctx.sender().sendMessage(Message.raw("PhysicsStore space id=" + spaceId.value()
@@ -442,7 +444,7 @@ final class PhysicsStoreExampleCommands {
         Vector3d start = new Vector3d(look.getPosition());
         Vector3d end = new Vector3d(start)
             .add(new Vector3d(look.getDirection()).mul(RAY_LENGTH));
-        return PhysicsStoreRaycasts.closestAsync(store.getExternalData().getWorld(),
+        return PhysicsRaycasts.closestAsync(store.getExternalData().getWorld(),
                 spaceRef,
                 vector(start),
                 vector(end))

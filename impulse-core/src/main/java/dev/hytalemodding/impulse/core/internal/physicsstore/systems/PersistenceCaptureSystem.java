@@ -22,23 +22,23 @@ import dev.hytalemodding.impulse.core.internal.physicsstore.persistence.Persiste
 import dev.hytalemodding.impulse.core.internal.physicsstore.resources.PhysicsRestoreStatusResource;
 import dev.hytalemodding.impulse.core.internal.physicsstore.resources.PhysicsSnapshotResource;
 import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyPersistenceMode;
-import dev.hytalemodding.impulse.core.plugin.physicsstore.components.BodyComponent;
-import dev.hytalemodding.impulse.core.plugin.physicsstore.components.ColliderComponent;
-import dev.hytalemodding.impulse.core.plugin.physicsstore.components.CollisionLodSettingsComponent;
-import dev.hytalemodding.impulse.core.plugin.physicsstore.components.CollisionFilterComponent;
-import dev.hytalemodding.impulse.core.plugin.physicsstore.components.DynamicsComponent;
-import dev.hytalemodding.impulse.core.plugin.physicsstore.components.ExtensionSettingsComponent;
-import dev.hytalemodding.impulse.core.plugin.physicsstore.components.JointComponent;
-import dev.hytalemodding.impulse.core.plugin.physicsstore.components.MaterialComponent;
-import dev.hytalemodding.impulse.core.plugin.physicsstore.components.ShapeComponent;
-import dev.hytalemodding.impulse.core.plugin.physicsstore.components.SolverSettingsComponent;
-import dev.hytalemodding.impulse.core.plugin.physicsstore.components.SpaceComponent;
-import dev.hytalemodding.impulse.core.plugin.physicsstore.components.TargetComponent;
-import dev.hytalemodding.impulse.core.plugin.physicsstore.components.TerrainColliderComponent;
-import dev.hytalemodding.impulse.core.plugin.physicsstore.components.VisualMaterializationSettingsComponent;
-import dev.hytalemodding.impulse.core.plugin.physicsstore.components.VisualSyncSettingsComponent;
-import dev.hytalemodding.impulse.core.plugin.physicsstore.components.WorldCollisionComponent;
-import dev.hytalemodding.impulse.core.plugin.physicsstore.snapshots.PhysicsStoreBodySnapshot;
+import dev.hytalemodding.impulse.core.plugin.components.BodyComponent;
+import dev.hytalemodding.impulse.core.plugin.components.ColliderComponent;
+import dev.hytalemodding.impulse.core.plugin.components.CollisionLodSettingsComponent;
+import dev.hytalemodding.impulse.core.plugin.components.CollisionFilterComponent;
+import dev.hytalemodding.impulse.core.plugin.components.DynamicsComponent;
+import dev.hytalemodding.impulse.core.plugin.components.ExtensionSettingsComponent;
+import dev.hytalemodding.impulse.core.plugin.components.JointComponent;
+import dev.hytalemodding.impulse.core.plugin.components.MaterialComponent;
+import dev.hytalemodding.impulse.core.plugin.components.ShapeComponent;
+import dev.hytalemodding.impulse.core.plugin.components.SolverSettingsComponent;
+import dev.hytalemodding.impulse.core.plugin.components.SpaceComponent;
+import dev.hytalemodding.impulse.core.plugin.components.TargetComponent;
+import dev.hytalemodding.impulse.core.plugin.components.TerrainColliderComponent;
+import dev.hytalemodding.impulse.core.plugin.components.VisualMaterializationSettingsComponent;
+import dev.hytalemodding.impulse.core.plugin.components.VisualSyncSettingsComponent;
+import dev.hytalemodding.impulse.core.plugin.components.WorldCollisionComponent;
+import dev.hytalemodding.impulse.core.plugin.snapshots.PhysicsBodySnapshot;
 import it.unimi.dsi.fastutil.objects.Object2ObjectOpenHashMap;
 import it.unimi.dsi.fastutil.objects.ObjectOpenHashSet;
 import java.util.ArrayList;
@@ -78,11 +78,11 @@ public final class PersistenceCaptureSystem extends TickingSystem<PhysicsStore>
     }
 
     @Nonnull
-    private static Map<UUID, PhysicsStoreBodySnapshot> snapshotBodiesByUuid(
+    private static Map<UUID, PhysicsBodySnapshot> snapshotBodiesByUuid(
         @Nonnull Store<PhysicsStore> store) {
         PhysicsSnapshotResource snapshots = store.getResource(PhysicsSnapshotResource.getResourceType());
-        Map<UUID, PhysicsStoreBodySnapshot> bodies = new Object2ObjectOpenHashMap<>();
-        for (PhysicsStoreBodySnapshot body : snapshots.getLatestFrame().bodies()) {
+        Map<UUID, PhysicsBodySnapshot> bodies = new Object2ObjectOpenHashMap<>();
+        for (PhysicsBodySnapshot body : snapshots.getLatestFrame().bodies()) {
             bodies.put(body.bodyUuid(), body);
         }
         return bodies;
@@ -103,7 +103,7 @@ public final class PersistenceCaptureSystem extends TickingSystem<PhysicsStore>
     private static final class Capture {
 
         @Nonnull
-        private final Map<UUID, PhysicsStoreBodySnapshot> snapshotsByBodyUuid;
+        private final Map<UUID, PhysicsBodySnapshot> snapshotsByBodyUuid;
         @Nonnull
         private final List<SpaceRow> spaceRows = new ArrayList<>();
         @Nonnull
@@ -113,7 +113,7 @@ public final class PersistenceCaptureSystem extends TickingSystem<PhysicsStore>
         @Nonnull
         private final List<TerrainColliderRow> terrainRows = new ArrayList<>();
 
-        private Capture(@Nonnull Map<UUID, PhysicsStoreBodySnapshot> snapshotsByBodyUuid) {
+        private Capture(@Nonnull Map<UUID, PhysicsBodySnapshot> snapshotsByBodyUuid) {
             this.snapshotsByBodyUuid = snapshotsByBodyUuid;
         }
 
@@ -260,7 +260,7 @@ public final class PersistenceCaptureSystem extends TickingSystem<PhysicsStore>
         @Nonnull
         private PersistentBodyRuntimeStateDto runtimeState(@Nonnull UUID bodyUuid,
             @Nullable TargetComponent target) {
-            PhysicsStoreBodySnapshot snapshot = snapshotsByBodyUuid.get(bodyUuid);
+            PhysicsBodySnapshot snapshot = snapshotsByBodyUuid.get(bodyUuid);
             if (snapshot != null) {
                 return new PersistentBodyRuntimeStateDto(snapshot.position(),
                     snapshot.rotation(),

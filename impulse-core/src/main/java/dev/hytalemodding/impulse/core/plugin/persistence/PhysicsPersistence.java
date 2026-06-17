@@ -3,13 +3,13 @@ package dev.hytalemodding.impulse.core.plugin.persistence;
 import com.hypixel.hytale.component.Store;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import com.hypixel.hytale.server.core.universe.world.storage.PhysicsStore;
+import dev.hytalemodding.impulse.core.plugin.physicsstore.PhysicsThreading;
 import dev.hytalemodding.impulse.early.PhysicsStoreWorld;
 import dev.hytalemodding.impulse.core.internal.physicsstore.persistence.PersistentPhysicsStoreResource;
 import dev.hytalemodding.impulse.core.internal.physicsstore.resources.PhysicsRestoreStatusResource;
 import dev.hytalemodding.impulse.core.internal.physicsstore.resources.PhysicsSpaceCompatibilityIndexResource;
 import dev.hytalemodding.impulse.core.internal.physicsstore.resources.PhysicsSnapshotResource;
-import dev.hytalemodding.impulse.core.plugin.physicsstore.PhysicsStoreDiagnostics;
-import dev.hytalemodding.impulse.core.plugin.physicsstore.PhysicsStoreThreading;
+import dev.hytalemodding.impulse.core.plugin.physicsstore.PhysicsDiagnostics;
 import dev.hytalemodding.impulse.core.plugin.simulation.SpaceSummary;
 import java.util.List;
 import java.util.concurrent.CompletionStage;
@@ -69,7 +69,7 @@ public final class PhysicsPersistence {
 
     @Nonnull
     public static CompletionStage<Status> statusAsync(@Nonnull Store<EntityStore> store) {
-        return PhysicsStoreThreading.enqueueReadOnWorldThread(store.getExternalData().getWorld(),
+        return PhysicsThreading.enqueueReadOnWorldThread(store.getExternalData().getWorld(),
             "queue PhysicsStore persistence status read",
             PhysicsPersistence::liveStatus);
     }
@@ -86,7 +86,7 @@ public final class PhysicsPersistence {
             PersistentPhysicsStoreResource.getResourceType());
         PhysicsRestoreStatusResource restore = physicsStore.getResource(
             PhysicsRestoreStatusResource.getResourceType());
-        List<SpaceSummary> summaries = PhysicsStoreDiagnostics.spaceSummaries(physicsStore);
+        List<SpaceSummary> summaries = PhysicsDiagnostics.spaceSummaries(physicsStore);
         int runtimeBodies = summaries.stream().mapToInt(SpaceSummary::bodyCount).sum();
         int runtimeJoints = summaries.stream().mapToInt(SpaceSummary::jointCount).sum();
         int physicsStoreSpaces = physicsStore.getResource(
@@ -106,7 +106,7 @@ public final class PhysicsPersistence {
 
     @Nonnull
     private static Status copiedStatus(@Nonnull Store<PhysicsStore> physicsStore) {
-        PhysicsStoreThreading.requireWorldThread(physicsStore,
+        PhysicsThreading.requireWorldThread(physicsStore,
             "read copied PhysicsStore persistence status");
         PersistentPhysicsStoreResource persistent = physicsStore.getResource(
             PersistentPhysicsStoreResource.getResourceType());

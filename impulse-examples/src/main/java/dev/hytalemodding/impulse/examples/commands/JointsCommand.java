@@ -14,11 +14,12 @@ import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import com.hypixel.hytale.server.core.universe.world.storage.PhysicsStore;
 import dev.hytalemodding.impulse.api.SpaceId;
 import dev.hytalemodding.impulse.core.plugin.physicsstore.PhysicsJointEntities;
-import dev.hytalemodding.impulse.core.plugin.physicsstore.components.JointComponent;
+import dev.hytalemodding.impulse.core.plugin.components.JointComponent;
 import dev.hytalemodding.impulse.core.plugin.simulation.JointType;
 import dev.hytalemodding.impulse.core.plugin.simulation.PhysicsShapeSpec;
 import dev.hytalemodding.impulse.core.plugin.simulation.RigidBodySpawnSettings;
-import dev.hytalemodding.impulse.examples.commands.ExamplePhysicsUtils.CreatedBlockBody;
+import dev.hytalemodding.impulse.examples.utils.ExamplePhysicsUtils;
+import dev.hytalemodding.impulse.examples.utils.ExamplePhysicsUtils.CreatedBlockBody;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
@@ -67,7 +68,7 @@ public class JointsCommand extends AbstractAsyncPlayerCommand {
             return CompletableFuture.completedFuture(null);
         }
         for (CreatedBlockBody created : createdBodies) {
-            ExamplePhysicsUtils.attachPhysicsStoreBlockBody(store, time, created);
+            ExamplePhysicsUtils.attachBlockBody(store, time, created);
         }
 
         ctx.sender().sendMessage(Message.raw(
@@ -81,7 +82,7 @@ public class JointsCommand extends AbstractAsyncPlayerCommand {
         @Nonnull Vector3d origin) {
         Ref<PhysicsStore> spaceRef;
         try {
-            spaceRef = ExamplePhysicsUtils.resolvePhysicsStoreSpaceRef(world, spaceId);
+            spaceRef = ExamplePhysicsUtils.resolveSpaceRef(world, spaceId);
         } catch (IllegalStateException exception) {
             return null;
         }

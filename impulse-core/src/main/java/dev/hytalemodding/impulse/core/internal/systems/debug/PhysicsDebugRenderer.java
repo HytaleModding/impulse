@@ -10,7 +10,7 @@ import dev.hytalemodding.impulse.core.internal.math.PhysicsVisualPoseMath;
 import dev.hytalemodding.impulse.core.internal.modules.worldcollision.SectionCollisionGeometry.BoxCollider;
 import dev.hytalemodding.impulse.core.internal.simulation.view.PhysicsDebugContactView;
 import dev.hytalemodding.impulse.core.internal.simulation.view.PhysicsDebugJointView;
-import dev.hytalemodding.impulse.core.plugin.physicsstore.projection.BodyAttachmentComponent;
+import dev.hytalemodding.impulse.core.plugin.projection.BodyAttachmentComponent;
 import java.util.Collection;
 import javax.annotation.Nonnull;
 import org.joml.Matrix4d;

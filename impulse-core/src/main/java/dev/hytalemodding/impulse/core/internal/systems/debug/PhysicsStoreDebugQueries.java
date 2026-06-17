@@ -20,10 +20,10 @@ import dev.hytalemodding.impulse.core.internal.resources.BackendSpaceHandle;
 import dev.hytalemodding.impulse.core.internal.simulation.view.PhysicsDebugContactView;
 import dev.hytalemodding.impulse.core.internal.simulation.view.PhysicsDebugJointView;
 import dev.hytalemodding.impulse.core.internal.simulation.view.PhysicsDebugWorldCollisionSectionView;
-import dev.hytalemodding.impulse.core.plugin.physicsstore.PhysicsStoreThreading;
-import dev.hytalemodding.impulse.core.plugin.physicsstore.components.JointComponent;
-import dev.hytalemodding.impulse.core.plugin.physicsstore.components.TerrainColliderComponent;
-import dev.hytalemodding.impulse.core.plugin.physicsstore.snapshots.PhysicsStoreBodySnapshot;
+import dev.hytalemodding.impulse.core.plugin.physicsstore.PhysicsThreading;
+import dev.hytalemodding.impulse.core.plugin.components.JointComponent;
+import dev.hytalemodding.impulse.core.plugin.components.TerrainColliderComponent;
+import dev.hytalemodding.impulse.core.plugin.snapshots.PhysicsBodySnapshot;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
@@ -56,7 +56,7 @@ final class PhysicsStoreDebugQueries {
         double viewerX = viewerPosition.x;
         double viewerY = viewerPosition.y;
         double viewerZ = viewerPosition.z;
-        return PhysicsStoreThreading.enqueueReadOnWorldThread(store,
+        return PhysicsThreading.enqueueReadOnWorldThread(store,
             "queue PhysicsStore debug contact read",
             physics -> contacts(physics,
                 spaceId,
@@ -77,7 +77,7 @@ final class PhysicsStoreDebugQueries {
         double viewerX = viewerPosition.x;
         double viewerY = viewerPosition.y;
         double viewerZ = viewerPosition.z;
-        return PhysicsStoreThreading.enqueueReadOnWorldThread(store,
+        return PhysicsThreading.enqueueReadOnWorldThread(store,
             "queue PhysicsStore debug joint read",
             physics -> joints(physics,
                 spaceId,
@@ -97,7 +97,7 @@ final class PhysicsStoreDebugQueries {
         double viewerX = viewerPosition.x;
         double viewerY = viewerPosition.y;
         double viewerZ = viewerPosition.z;
-        return PhysicsStoreThreading.enqueueReadOnWorldThread(store,
+        return PhysicsThreading.enqueueReadOnWorldThread(store,
             "queue PhysicsStore world-collision debug read",
             physics -> worldCollisionSections(physics,
                 spaceId,
@@ -115,7 +115,7 @@ final class PhysicsStoreDebugQueries {
         double viewerZ,
         double viewRadius,
         int maxContacts) {
-        PhysicsStoreThreading.requireWorldThread(store, "read PhysicsStore debug contacts");
+        PhysicsThreading.requireWorldThread(store, "read PhysicsStore debug contacts");
         int limit = Math.max(0, maxContacts);
         if (limit == 0) {
             return List.of();
@@ -167,7 +167,7 @@ final class PhysicsStoreDebugQueries {
         double viewerZ,
         double viewRadius,
         int maxJoints) {
-        PhysicsStoreThreading.requireWorldThread(store, "read PhysicsStore debug joints");
+        PhysicsThreading.requireWorldThread(store, "read PhysicsStore debug joints");
         int limit = Math.max(0, maxJoints);
         if (limit == 0) {
             return List.of();
@@ -207,7 +207,7 @@ final class PhysicsStoreDebugQueries {
         double viewerY,
         double viewerZ,
         double viewRadius) {
-        PhysicsStoreThreading.requireWorldThread(store,
+        PhysicsThreading.requireWorldThread(store,
             "read PhysicsStore world-collision debug sections");
         SpaceContext spaceContext = space(store, spaceId);
         if (spaceContext == null) {
@@ -341,9 +341,9 @@ final class PhysicsStoreDebugQueries {
     @Nullable
     private static PhysicsDebugJointView toDebugJointView(@Nonnull JointComponent joint,
         @Nonnull PhysicsSnapshotResource snapshots) {
-        PhysicsStoreBodySnapshot bodyA =
+        PhysicsBodySnapshot bodyA =
             bodySnapshot(snapshots, joint.getBodyARef(), joint.getBodyAUuid());
-        PhysicsStoreBodySnapshot bodyB =
+        PhysicsBodySnapshot bodyB =
             bodySnapshot(snapshots, joint.getBodyBRef(), joint.getBodyBUuid());
         if (bodyA == null || bodyB == null) {
             return null;
@@ -400,7 +400,7 @@ final class PhysicsStoreDebugQueries {
     }
 
     @Nullable
-    private static PhysicsStoreBodySnapshot bodySnapshot(
+    private static PhysicsBodySnapshot bodySnapshot(
         @Nonnull PhysicsSnapshotResource snapshots,
         @Nullable Ref<PhysicsStore> bodyRef,
         @Nonnull UUID bodyUuid) {
@@ -414,7 +414,7 @@ final class PhysicsStoreDebugQueries {
     }
 
     @Nonnull
-    private static Vector3f worldAnchor(@Nonnull PhysicsStoreBodySnapshot body,
+    private static Vector3f worldAnchor(@Nonnull PhysicsBodySnapshot body,
         @Nonnull Vector3f localAnchor) {
         Vector3f anchor = new Vector3f(localAnchor);
         Quaternionf rotation = body.rotation();

@@ -19,7 +19,7 @@ import dev.hytalemodding.impulse.core.internal.resources.profiling.PhysicsRuntim
 import dev.hytalemodding.impulse.core.internal.modules.worldcollision.profiling.WorldCollisionProfilingResource;
 import dev.hytalemodding.impulse.core.internal.modules.worldcollision.profiling.WorldCollisionProfilingResource.Snapshot;
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsWorldRuntimeResource;
-import dev.hytalemodding.impulse.core.plugin.physicsstore.projection.BodyAttachmentComponent;
+import dev.hytalemodding.impulse.core.plugin.projection.BodyAttachmentComponent;
 import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyKind;
 import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyPersistenceMode;
 import dev.hytalemodding.impulse.core.plugin.settings.PhysicsBackendExtensionId;

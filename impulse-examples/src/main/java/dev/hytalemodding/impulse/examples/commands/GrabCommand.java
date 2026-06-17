@@ -19,20 +19,20 @@ import dev.hytalemodding.impulse.api.PhysicsBodyType;
 import dev.hytalemodding.impulse.api.PhysicsCollisionFilters;
 import dev.hytalemodding.impulse.api.SpaceId;
 import dev.hytalemodding.impulse.core.plugin.modules.control.ImpulseControllableComponent;
-import dev.hytalemodding.impulse.core.plugin.physicsstore.projection.BodyAttachmentComponent;
+import dev.hytalemodding.impulse.core.plugin.projection.BodyAttachmentComponent;
 import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyKind;
 import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyPersistenceMode;
 import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyRegistrationView;
 import dev.hytalemodding.impulse.core.plugin.modules.control.PhysicsControlSessions;
 import dev.hytalemodding.impulse.core.plugin.physicsstore.PhysicsBodyEntities;
 import dev.hytalemodding.impulse.core.plugin.physicsstore.PhysicsJointEntities;
-import dev.hytalemodding.impulse.core.plugin.physicsstore.PhysicsStoreAsync;
-import dev.hytalemodding.impulse.core.plugin.physicsstore.PhysicsStoreBodies;
-import dev.hytalemodding.impulse.core.plugin.physicsstore.PhysicsStoreRaycasts;
-import dev.hytalemodding.impulse.core.plugin.physicsstore.components.BodyCommandComponent;
-import dev.hytalemodding.impulse.core.plugin.physicsstore.components.JointComponent;
+import dev.hytalemodding.impulse.core.plugin.physicsstore.PhysicsAsync;
+import dev.hytalemodding.impulse.core.plugin.physicsstore.PhysicsBodies;
+import dev.hytalemodding.impulse.core.plugin.physicsstore.PhysicsRaycasts;
+import dev.hytalemodding.impulse.core.plugin.components.BodyCommandComponent;
+import dev.hytalemodding.impulse.core.plugin.components.JointComponent;
 import dev.hytalemodding.impulse.core.plugin.physicsstore.BodyEntityDescriptor;
-import dev.hytalemodding.impulse.core.plugin.physicsstore.snapshots.PhysicsStoreBodySnapshot;
+import dev.hytalemodding.impulse.core.plugin.snapshots.PhysicsBodySnapshot;
 import dev.hytalemodding.impulse.core.plugin.resources.PhysicsWorldResource;
 import dev.hytalemodding.impulse.core.plugin.simulation.JointType;
 import dev.hytalemodding.impulse.core.plugin.simulation.PhysicsShapeSpec;
@@ -44,6 +44,7 @@ import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
+import dev.hytalemodding.impulse.examples.utils.ExamplePhysicsUtils;
 import org.joml.Quaternionf;
 import org.joml.Vector3d;
 import org.joml.Vector3f;
@@ -83,7 +84,7 @@ public class GrabCommand extends AbstractAsyncPlayerCommand {
         if (targetSpaceId == null) {
             return CompletableFuture.completedFuture(null);
         }
-        Ref<PhysicsStore> targetSpaceRef = ExamplePhysicsUtils.resolvePhysicsStoreSpaceRef(world,
+        Ref<PhysicsStore> targetSpaceRef = ExamplePhysicsUtils.resolveSpaceRef(world,
             targetSpaceId);
         if (targetSpaceRef == null) {
             ctx.sender().sendMessage(Message.raw("PhysicsStore space id=" + targetSpaceId.value()
@@ -97,8 +98,8 @@ public class GrabCommand extends AbstractAsyncPlayerCommand {
         Vector3d direction = new Vector3d(look.getDirection()).mul(RAY_LENGTH);
         Vector3d end = new Vector3d(start).add(direction);
 
-        return PhysicsStoreAsync.acceptOnWorldThread(world,
-            PhysicsStoreRaycasts.allAsync(world,
+        return PhysicsAsync.acceptOnWorldThread(world,
+            PhysicsRaycasts.allAsync(world,
                 targetSpaceRef,
                 ExamplePhysicsUtils.toVector3f(start),
                 ExamplePhysicsUtils.toVector3f(end)),
@@ -164,13 +165,13 @@ public class GrabCommand extends AbstractAsyncPlayerCommand {
     private static GrabPhysicsState createGrabControl(@Nonnull World world,
         @Nonnull SpaceId selectedSpaceId,
         @Nonnull HitSelection selection) {
-        PhysicsStoreBodySnapshot selectedState = bodyState(world, selection.bodyRef());
+        PhysicsBodySnapshot selectedState = bodyState(world, selection.bodyRef());
         if (selectedState == null) {
             return null;
         }
         Ref<PhysicsStore> spaceRef;
         try {
-            spaceRef = ExamplePhysicsUtils.resolvePhysicsStoreSpaceRef(world, selectedSpaceId);
+            spaceRef = ExamplePhysicsUtils.resolveSpaceRef(world, selectedSpaceId);
         } catch (IllegalStateException exception) {
             return null;
         }
@@ -252,7 +253,7 @@ public class GrabCommand extends AbstractAsyncPlayerCommand {
                 continue;
             }
             PhysicsBodyRegistrationView registration =
-                PhysicsStoreBodies.registrationView(hit.bodyRef().getStore(), hit.bodyRef());
+                PhysicsBodies.registrationView(hit.bodyRef().getStore(), hit.bodyRef());
             if (registration == null || registration.kind() != PhysicsBodyKind.BODY) {
                 continue;
             }
@@ -283,10 +284,10 @@ public class GrabCommand extends AbstractAsyncPlayerCommand {
     }
 
     @Nullable
-    private static PhysicsStoreBodySnapshot bodyState(@Nonnull World world,
+    private static PhysicsBodySnapshot bodyState(@Nonnull World world,
         @Nonnull Ref<PhysicsStore> bodyRef) {
         Store<PhysicsStore> store = ((PhysicsStoreWorld) world).getPhysicsStore().getStore();
-        return PhysicsStoreBodies.snapshot(store, bodyRef);
+        return PhysicsBodies.snapshot(store, bodyRef);
     }
 
     @Nonnull

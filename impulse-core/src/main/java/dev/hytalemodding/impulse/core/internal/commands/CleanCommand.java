@@ -22,8 +22,8 @@ import dev.hytalemodding.impulse.core.internal.resources.PhysicsRuntimeResetResu
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsWorldRuntimeResource;
 import dev.hytalemodding.impulse.core.internal.modules.control.systems.PhysicsControlSessionCleanup;
 import dev.hytalemodding.impulse.core.plugin.modules.control.ImpulseControllableComponent;
-import dev.hytalemodding.impulse.core.plugin.physicsstore.components.UuidComponent;
-import dev.hytalemodding.impulse.core.plugin.physicsstore.projection.BodyAttachmentComponent;
+import dev.hytalemodding.impulse.core.plugin.components.UuidComponent;
+import dev.hytalemodding.impulse.core.plugin.projection.BodyAttachmentComponent;
 import it.unimi.dsi.fastutil.objects.ObjectOpenHashSet;
 import java.util.Set;
 import java.util.UUID;

@@ -4,7 +4,7 @@ import com.hypixel.hytale.component.Resource;
 import com.hypixel.hytale.component.ResourceType;
 import com.hypixel.hytale.server.core.universe.world.storage.PhysicsStore;
 import dev.hytalemodding.impulse.api.PhysicsStepPhaseStats;
-import dev.hytalemodding.impulse.core.plugin.physicsstore.snapshots.PhysicsStoreBodySnapshot;
+import dev.hytalemodding.impulse.core.plugin.snapshots.PhysicsBodySnapshot;
 import dev.hytalemodding.impulse.core.plugin.physicsstore.PhysicsStoreTypes;
 import dev.hytalemodding.impulse.core.plugin.settings.PhysicsStepSchedulingMode;
 import java.util.List;
@@ -253,7 +253,7 @@ public final class PhysicsStepSchedulerResource implements Resource<PhysicsStore
                                 long stepSubmitNanos,
                                 long snapshotNanos,
                                 @Nonnull PhysicsStepPhaseStats nativePhaseStats,
-                                @Nonnull List<PhysicsStoreBodySnapshot> bodySnapshots,
+                                @Nonnull List<PhysicsBodySnapshot> bodySnapshots,
                                 @Nullable Throwable failure) {
 
         public CompletedStep(int spaces,
@@ -268,7 +268,7 @@ public final class PhysicsStepSchedulerResource implements Resource<PhysicsStore
             long stepSubmitNanos,
             long snapshotNanos,
             @Nonnull PhysicsStepPhaseStats nativePhaseStats,
-            @Nonnull List<PhysicsStoreBodySnapshot> bodySnapshots) {
+            @Nonnull List<PhysicsBodySnapshot> bodySnapshots) {
             this(null,
                 spaces,
                 substeps,

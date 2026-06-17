@@ -12,11 +12,11 @@ import dev.hytalemodding.impulse.core.internal.physicsstore.PhysicsStoreSpaceMut
 import dev.hytalemodding.impulse.core.internal.physicsstore.resources.PhysicsSnapshotResource;
 import dev.hytalemodding.impulse.core.internal.simulation.view.BenchmarkSpaceStatsView;
 import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyKind;
-import dev.hytalemodding.impulse.core.plugin.physicsstore.PhysicsStoreThreading;
-import dev.hytalemodding.impulse.core.plugin.physicsstore.components.BodyComponent;
-import dev.hytalemodding.impulse.core.plugin.physicsstore.components.ShapeComponent;
-import dev.hytalemodding.impulse.core.plugin.physicsstore.components.UuidComponent;
-import dev.hytalemodding.impulse.core.plugin.physicsstore.snapshots.PhysicsStoreBodySnapshot;
+import dev.hytalemodding.impulse.core.plugin.physicsstore.PhysicsThreading;
+import dev.hytalemodding.impulse.core.plugin.components.BodyComponent;
+import dev.hytalemodding.impulse.core.plugin.components.ShapeComponent;
+import dev.hytalemodding.impulse.core.plugin.components.UuidComponent;
+import dev.hytalemodding.impulse.core.plugin.snapshots.PhysicsBodySnapshot;
 import java.util.UUID;
 import java.util.function.BiConsumer;
 import javax.annotation.Nonnull;
@@ -35,7 +35,7 @@ final class PhysicsStoreBenchmarkQueries {
     static BenchmarkSpaceStatsView benchmarkSpaceStats(@Nonnull Store<PhysicsStore> store,
         @Nullable PhysicsStoreWorldCollisionStreamingResource streaming,
         @Nonnull BenchmarkSpaceStatsRequest query) {
-        PhysicsStoreThreading.requireWorldThread(store, "read Crucible PhysicsStore benchmark stats");
+        PhysicsThreading.requireWorldThread(store, "read Crucible PhysicsStore benchmark stats");
         UUID spaceUuid = PhysicsStoreSpaceMutations.requireSpaceUuid(store, query.spaceId());
         PhysicsSnapshotResource snapshots = store.getResource(PhysicsSnapshotResource.getResourceType());
         BenchmarkSpaceStatsAccumulator stats = new BenchmarkSpaceStatsAccumulator();
@@ -62,7 +62,7 @@ final class PhysicsStoreBenchmarkQueries {
             if (uuid == null) {
                 continue;
             }
-            PhysicsStoreBodySnapshot snapshot = snapshots.getBody(uuid.getUuid());
+            PhysicsBodySnapshot snapshot = snapshots.getBody(uuid.getUuid());
             if (snapshot == null) {
                 continue;
             }
@@ -74,7 +74,7 @@ final class PhysicsStoreBenchmarkQueries {
     private static void classifyBody(@Nonnull BenchmarkSpaceStatsAccumulator stats,
         @Nonnull BodyComponent body,
         @Nullable ShapeComponent shape,
-        @Nonnull PhysicsStoreBodySnapshot snapshot,
+        @Nonnull PhysicsBodySnapshot snapshot,
         @Nonnull BenchmarkSpaceStatsRequest query) {
         stats.bodies++;
         if (snapshot.bodyType() == PhysicsBodyType.DYNAMIC) {

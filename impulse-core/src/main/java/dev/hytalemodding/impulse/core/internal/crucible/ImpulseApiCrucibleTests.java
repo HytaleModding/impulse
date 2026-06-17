@@ -21,8 +21,8 @@ import dev.hytalemodding.impulse.core.internal.resources.body.PhysicsBodySnapsho
 import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyPersistenceMode;
 import dev.hytalemodding.impulse.core.plugin.physicsstore.BodyEntityDescriptor;
 import dev.hytalemodding.impulse.core.plugin.physicsstore.PhysicsBodyEntities;
-import dev.hytalemodding.impulse.core.plugin.physicsstore.PhysicsStoreDiagnostics;
-import dev.hytalemodding.impulse.core.plugin.physicsstore.PhysicsStoreEntities;
+import dev.hytalemodding.impulse.core.plugin.physicsstore.PhysicsDiagnostics;
+import dev.hytalemodding.impulse.core.plugin.physicsstore.PhysicsEntities;
 import dev.hytalemodding.impulse.core.plugin.simulation.PhysicsShapeSpec;
 import dev.hytalemodding.impulse.core.plugin.simulation.RigidBodySpawnSettings;
 import dev.hytalemodding.impulse.core.plugin.settings.PhysicsBackendExtensionId;
@@ -238,7 +238,7 @@ final class ImpulseApiCrucibleTests {
             return context.waitApproxTicksOnWorld(4)
                 .thenCompose(_ -> removeBodyEntityAndWait(context, store, bodyRef))
                 .thenApply(_ -> {
-                    boolean spaceEmpty = PhysicsStoreDiagnostics.bodyCount(store, spaceId) == 0;
+                    boolean spaceEmpty = PhysicsDiagnostics.bodyCount(store, spaceId) == 0;
                     boolean noRegistrations = resource.getBodyRegistrationViews().isEmpty();
                     boolean removedSpace = true;
                     if (checkSpaceRemoval || spaceEmpty) {
@@ -278,7 +278,7 @@ final class ImpulseApiCrucibleTests {
             RigidBodySpawnSettings.defaults(),
             null,
             PhysicsBodyPersistenceMode.RUNTIME_ONLY);
-        return store.addEntity(PhysicsStoreEntities.bodyHolder(store,
+        return store.addEntity(PhysicsEntities.bodyHolder(store,
             descriptor.bodyUuid(),
             descriptor.body(),
             descriptor.dynamics(),

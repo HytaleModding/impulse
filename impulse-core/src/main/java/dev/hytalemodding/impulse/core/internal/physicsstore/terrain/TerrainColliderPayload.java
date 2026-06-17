@@ -22,14 +22,10 @@ public record TerrainColliderPayload(float voxelSizeX,
                                      @Nonnull List<TerrainNeighbor> neighbors) {
 
     public TerrainColliderPayload {
-        voxelCoordinates = voxelCoordinates != null
-            ? Arrays.copyOf(voxelCoordinates, voxelCoordinates.length)
-            : new int[0];
-        mergedFullCubeBoxes = mergedFullCubeBoxes != null
-            ? List.copyOf(mergedFullCubeBoxes)
-            : List.of();
-        detailBoxes = detailBoxes != null ? List.copyOf(detailBoxes) : List.of();
-        neighbors = neighbors != null ? List.copyOf(neighbors) : List.of();
+        voxelCoordinates = Arrays.copyOf(voxelCoordinates, voxelCoordinates.length);
+        mergedFullCubeBoxes = List.copyOf(mergedFullCubeBoxes);
+        detailBoxes = List.copyOf(detailBoxes);
+        neighbors = List.copyOf(neighbors);
     }
 
     @Nonnull

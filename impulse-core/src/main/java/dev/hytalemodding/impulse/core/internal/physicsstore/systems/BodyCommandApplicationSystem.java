@@ -19,9 +19,9 @@ import dev.hytalemodding.impulse.core.internal.physicsstore.resources.PhysicsRun
 import dev.hytalemodding.impulse.core.internal.physicsstore.resources.PhysicsRuntimeResource.PendingBodyOperation;
 import dev.hytalemodding.impulse.core.internal.resources.BackendBodyHandle;
 import dev.hytalemodding.impulse.core.internal.resources.BackendSpaceHandle;
-import dev.hytalemodding.impulse.core.plugin.physicsstore.components.BodyCommandComponent;
-import dev.hytalemodding.impulse.core.plugin.physicsstore.components.CollisionFilterComponent;
-import dev.hytalemodding.impulse.core.plugin.physicsstore.components.DynamicsComponent;
+import dev.hytalemodding.impulse.core.plugin.components.BodyCommandComponent;
+import dev.hytalemodding.impulse.core.plugin.components.CollisionFilterComponent;
+import dev.hytalemodding.impulse.core.plugin.components.DynamicsComponent;
 import java.util.Set;
 import java.util.UUID;
 import java.util.function.BiConsumer;

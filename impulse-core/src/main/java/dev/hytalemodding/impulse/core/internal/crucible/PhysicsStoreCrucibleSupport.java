@@ -5,6 +5,7 @@ import com.hypixel.hytale.component.Ref;
 import com.hypixel.hytale.component.Store;
 import com.hypixel.hytale.server.core.universe.world.World;
 import com.hypixel.hytale.server.core.universe.world.storage.PhysicsStore;
+import dev.hytalemodding.impulse.core.plugin.physicsstore.PhysicsThreading;
 import dev.hytalemodding.impulse.early.PhysicsStoreWorld;
 import dev.hytalemodding.impulse.api.PhysicsBodyType;
 import dev.hytalemodding.impulse.api.SpaceId;
@@ -14,8 +15,7 @@ import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyKind;
 import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyPersistenceMode;
 import dev.hytalemodding.impulse.core.plugin.physicsstore.BodyEntityDescriptor;
 import dev.hytalemodding.impulse.core.plugin.physicsstore.PhysicsBodyEntities;
-import dev.hytalemodding.impulse.core.plugin.physicsstore.PhysicsStoreEntities;
-import dev.hytalemodding.impulse.core.plugin.physicsstore.PhysicsStoreThreading;
+import dev.hytalemodding.impulse.core.plugin.physicsstore.PhysicsEntities;
 import dev.hytalemodding.impulse.core.plugin.simulation.PhysicsShapeSpec;
 import dev.hytalemodding.impulse.core.plugin.simulation.RigidBodySpawnSettings;
 import java.util.UUID;
@@ -52,7 +52,7 @@ final class PhysicsStoreCrucibleSupport {
         @Nullable Vector3f linearVelocity,
         @Nonnull PhysicsBodyKind kind,
         @Nonnull PhysicsBodyPersistenceMode persistenceMode) {
-        PhysicsStoreThreading.requireWorldThread(store, "add Crucible PhysicsStore body entity");
+        PhysicsThreading.requireWorldThread(store, "add Crucible PhysicsStore body entity");
         BodyEntityDescriptor descriptor = PhysicsBodyEntities.body(
             PhysicsStoreSpaceMutations.requireSpaceUuid(store, spaceId),
             bodyUuid,
@@ -64,7 +64,7 @@ final class PhysicsStoreCrucibleSupport {
             linearVelocity,
             kind,
             persistenceMode);
-        return store.addEntity(PhysicsStoreEntities.bodyHolder(store,
+        return store.addEntity(PhysicsEntities.bodyHolder(store,
             descriptor.bodyUuid(),
             descriptor.body(),
             descriptor.dynamics(),

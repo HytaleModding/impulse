@@ -14,8 +14,8 @@ import dev.hytalemodding.impulse.core.internal.physicsstore.resources.PhysicsSto
 import dev.hytalemodding.impulse.core.internal.physicsstore.resources.PhysicsTerrainMutationQueueResource;
 import dev.hytalemodding.impulse.core.internal.physicsstore.resources.PhysicsTerrainPayloadResource;
 import dev.hytalemodding.impulse.core.internal.physicsstore.resources.PhysicsWorldCollisionIndexResource;
-import dev.hytalemodding.impulse.core.plugin.physicsstore.PhysicsStoreThreading;
-import dev.hytalemodding.impulse.core.plugin.physicsstore.components.UuidComponent;
+import dev.hytalemodding.impulse.core.plugin.physicsstore.PhysicsThreading;
+import dev.hytalemodding.impulse.core.plugin.components.UuidComponent;
 import javax.annotation.Nonnull;
 
 /**
@@ -27,7 +27,7 @@ public final class PhysicsStoreRuntimeCleaner {
     }
 
     public static void clearAll(@Nonnull Store<PhysicsStore> store) {
-        PhysicsStoreThreading.requireBackendIdle(store, "clear PhysicsStore runtime rows");
+        PhysicsThreading.requireBackendIdle(store, "clear PhysicsStore runtime rows");
         store.forEachEntityParallel(UuidComponent.getComponentType(),
             (index, chunk, commandBuffer) -> commandBuffer.removeEntity(
                 chunk.getReferenceTo(index),

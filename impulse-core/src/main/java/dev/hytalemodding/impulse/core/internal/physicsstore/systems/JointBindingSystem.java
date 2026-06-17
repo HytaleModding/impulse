@@ -20,7 +20,7 @@ import dev.hytalemodding.impulse.core.internal.physicsstore.resources.PhysicsRun
 import dev.hytalemodding.impulse.core.internal.resources.BackendBodyHandle;
 import dev.hytalemodding.impulse.core.internal.resources.BackendJointHandle;
 import dev.hytalemodding.impulse.core.internal.resources.BackendSpaceHandle;
-import dev.hytalemodding.impulse.core.plugin.physicsstore.components.JointComponent;
+import dev.hytalemodding.impulse.core.plugin.components.JointComponent;
 import java.util.Set;
 import java.util.UUID;
 import java.util.function.BiConsumer;

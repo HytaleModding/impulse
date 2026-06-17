@@ -22,9 +22,9 @@ import dev.hytalemodding.impulse.early.PhysicsStoreWorld;
 import dev.hytalemodding.impulse.core.internal.modules.control.ControlLifecycle;
 import dev.hytalemodding.impulse.core.internal.modules.control.components.PhysicsControlSessionComponent;
 import dev.hytalemodding.impulse.core.internal.systems.sync.PhysicsSyncSystem;
-import dev.hytalemodding.impulse.core.plugin.physicsstore.PhysicsStoreThreading;
-import dev.hytalemodding.impulse.core.plugin.physicsstore.components.BodyComponent;
-import dev.hytalemodding.impulse.core.plugin.physicsstore.components.TargetComponent;
+import dev.hytalemodding.impulse.core.plugin.physicsstore.PhysicsThreading;
+import dev.hytalemodding.impulse.core.plugin.components.BodyComponent;
+import dev.hytalemodding.impulse.core.plugin.components.TargetComponent;
 import it.unimi.dsi.fastutil.ints.Int2ObjectMap;
 import it.unimi.dsi.fastutil.ints.Int2ObjectOpenHashMap;
 import java.util.Collections;
@@ -167,7 +167,7 @@ public class PhysicsKinematicControlSystem extends EntityTickingSystem<EntitySto
         PhysicsStore physicsStore =
             ((PhysicsStoreWorld) store.getExternalData().getWorld()).getPhysicsStore();
         Store<PhysicsStore> physics = physicsStore.getStore();
-        PhysicsStoreThreading.requireWorldThread(physics,
+        PhysicsThreading.requireWorldThread(physics,
             "resolve PhysicsStore kinematic control targets");
         if (!validBodyRef(physics, bodyRef) || !validBodyRef(physics, anchorBodyRef)) {
             return null;

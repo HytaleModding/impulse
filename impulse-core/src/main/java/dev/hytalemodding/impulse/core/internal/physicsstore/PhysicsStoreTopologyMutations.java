@@ -18,15 +18,14 @@ import dev.hytalemodding.impulse.core.internal.resources.BackendBodyHandle;
 import dev.hytalemodding.impulse.core.internal.resources.BackendJointHandle;
 import dev.hytalemodding.impulse.core.internal.resources.BackendSpaceHandle;
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsRuntimeResetResult;
-import dev.hytalemodding.impulse.core.plugin.physicsstore.PhysicsStoreThreading;
-import dev.hytalemodding.impulse.core.plugin.physicsstore.components.BodyComponent;
-import dev.hytalemodding.impulse.core.plugin.physicsstore.components.JointComponent;
-import dev.hytalemodding.impulse.core.plugin.physicsstore.components.TerrainColliderComponent;
-import dev.hytalemodding.impulse.core.plugin.physicsstore.components.UuidComponent;
+import dev.hytalemodding.impulse.core.plugin.physicsstore.PhysicsThreading;
+import dev.hytalemodding.impulse.core.plugin.components.BodyComponent;
+import dev.hytalemodding.impulse.core.plugin.components.JointComponent;
+import dev.hytalemodding.impulse.core.plugin.components.TerrainColliderComponent;
+import dev.hytalemodding.impulse.core.plugin.components.UuidComponent;
 import it.unimi.dsi.fastutil.longs.LongArrayList;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Objects;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import javax.annotation.Nonnull;
@@ -42,7 +41,7 @@ public final class PhysicsStoreTopologyMutations {
 
     public static void destroyBody(@Nonnull Store<PhysicsStore> store,
         @Nonnull UUID bodyUuid) {
-        PhysicsStoreThreading.requireBackendIdle(store, "destroy a PhysicsStore body entity");
+        PhysicsThreading.requireBackendIdle(store, "destroy a PhysicsStore body entity");
         PhysicsRuntimeResource runtime = store.getResource(PhysicsRuntimeResource.getResourceType());
         PhysicsIdentityIndexResource identity =
             store.getResource(PhysicsIdentityIndexResource.getResourceType());
@@ -55,7 +54,7 @@ public final class PhysicsStoreTopologyMutations {
     @Nonnull
     public static PhysicsRuntimeResetResult clearBodiesKeepingSpaces(
         @Nonnull Store<PhysicsStore> store) {
-        PhysicsStoreThreading.requireBackendIdle(store, "clear PhysicsStore body entities");
+        PhysicsThreading.requireBackendIdle(store, "clear PhysicsStore body entities");
         PhysicsRuntimeResource runtime = store.getResource(PhysicsRuntimeResource.getResourceType());
         PhysicsIdentityIndexResource identity =
             store.getResource(PhysicsIdentityIndexResource.getResourceType());
@@ -76,7 +75,7 @@ public final class PhysicsStoreTopologyMutations {
 
     public static void removeSpaceWithContents(@Nonnull Store<PhysicsStore> store,
         @Nonnull UUID spaceUuid) {
-        PhysicsStoreThreading.requireBackendIdle(store, "remove a PhysicsStore space entity");
+        PhysicsThreading.requireBackendIdle(store, "remove a PhysicsStore space entity");
         PhysicsRuntimeResource runtime = store.getResource(PhysicsRuntimeResource.getResourceType());
         PhysicsIdentityIndexResource identity =
             store.getResource(PhysicsIdentityIndexResource.getResourceType());
@@ -91,7 +90,7 @@ public final class PhysicsStoreTopologyMutations {
 
     public static int clearTerrainForSpace(@Nonnull Store<PhysicsStore> store,
         @Nonnull UUID spaceUuid) {
-        PhysicsStoreThreading.requireBackendIdle(store, "clear PhysicsStore terrain rows");
+        PhysicsThreading.requireBackendIdle(store, "clear PhysicsStore terrain rows");
         PhysicsRuntimeResource runtime = store.getResource(PhysicsRuntimeResource.getResourceType());
         int removedBodies = 0;
         Ref<PhysicsStore> spaceRef = store.getResource(PhysicsIdentityIndexResource.getResourceType())

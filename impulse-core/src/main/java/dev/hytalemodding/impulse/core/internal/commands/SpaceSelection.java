@@ -11,7 +11,7 @@ import dev.hytalemodding.impulse.api.SpaceId;
 import dev.hytalemodding.impulse.early.PhysicsStoreWorld;
 import dev.hytalemodding.impulse.core.internal.physicsstore.resources.PhysicsIdentityIndexResource;
 import dev.hytalemodding.impulse.core.internal.physicsstore.resources.PhysicsSpaceCompatibilityIndexResource;
-import dev.hytalemodding.impulse.core.plugin.physicsstore.PhysicsStoreThreading;
+import dev.hytalemodding.impulse.core.plugin.physicsstore.PhysicsThreading;
 import java.util.Comparator;
 import java.util.Objects;
 import java.util.UUID;
@@ -106,7 +106,7 @@ public final class SpaceSelection {
         Store<PhysicsStore> store = ((PhysicsStoreWorld) Objects.requireNonNull(world, "world"))
             .getPhysicsStore()
             .getStore();
-        PhysicsStoreThreading.requireWorldThread(store, "select a PhysicsStore space");
+        PhysicsThreading.requireWorldThread(store, "select a PhysicsStore space");
         return store;
     }
 

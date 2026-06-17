@@ -30,9 +30,9 @@ import dev.hytalemodding.impulse.core.internal.physicsstore.resources.PhysicsSna
 import dev.hytalemodding.impulse.core.internal.physicsstore.resources.PhysicsWorldCollisionIndexResource;
 import dev.hytalemodding.impulse.core.internal.physicsstore.resources.PhysicsWorldCollisionIndexResource.SpaceWorldCollisionSettings;
 import dev.hytalemodding.impulse.core.internal.systems.sync.PhysicsSyncSystem;
-import dev.hytalemodding.impulse.core.plugin.physicsstore.PhysicsStoreThreading;
-import dev.hytalemodding.impulse.core.plugin.physicsstore.snapshots.PhysicsStoreBodySnapshot;
-import dev.hytalemodding.impulse.core.plugin.physicsstore.snapshots.PhysicsStoreSnapshotFrame;
+import dev.hytalemodding.impulse.core.plugin.physicsstore.PhysicsThreading;
+import dev.hytalemodding.impulse.core.plugin.snapshots.PhysicsBodySnapshot;
+import dev.hytalemodding.impulse.core.plugin.snapshots.PhysicsSnapshotFrame;
 import it.unimi.dsi.fastutil.longs.LongOpenHashSet;
 import it.unimi.dsi.fastutil.longs.LongSet;
 import it.unimi.dsi.fastutil.objects.Object2ObjectOpenHashMap;
@@ -79,7 +79,7 @@ public final class PhysicsStoreWorldCollisionProducerSystem extends TickingSyste
             World world = store.getExternalData().getWorld();
             PhysicsStore physicsStore = ((PhysicsStoreWorld) world).getPhysicsStore();
             Store<PhysicsStore> physics = physicsStore.getStore();
-            PhysicsStoreThreading.requireWorldThread(physics,
+            PhysicsThreading.requireWorldThread(physics,
                 "produce PhysicsStore world-collision terrain mutations");
             PhysicsTerrainMutationQueueResource queue = physics.getResource(
                 PhysicsTerrainMutationQueueResource.getResourceType());
@@ -107,7 +107,7 @@ public final class PhysicsStoreWorldCollisionProducerSystem extends TickingSyste
             }
             streaming.retainSpaces(retainedSpaces, queue);
 
-            PhysicsStoreSnapshotFrame physicsFrame = snapshotResource.getLatestFrame();
+            PhysicsSnapshotFrame physicsFrame = snapshotResource.getLatestFrame();
             for (SpaceWorldCollisionSettings settings : spaces) {
                 if (snapshot != null) {
                     snapshot.incrementStreamingSpaces();
@@ -134,7 +134,7 @@ public final class PhysicsStoreWorldCollisionProducerSystem extends TickingSyste
         @Nonnull PhysicsTerrainMutationQueueResource queue,
         @Nonnull SpaceWorldCollisionSettings settings,
         @Nonnull List<Vector3d> playerPositions,
-        @Nonnull PhysicsStoreSnapshotFrame physicsFrame,
+        @Nonnull PhysicsSnapshotFrame physicsFrame,
         long currentTick,
         @Nullable Snapshot snapshot) {
         LongSet visitedSections = new LongOpenHashSet();
@@ -195,14 +195,14 @@ public final class PhysicsStoreWorldCollisionProducerSystem extends TickingSyste
     private static List<BodyStreamingTarget> collectDynamicBodyTargets(
         @Nonnull PhysicsStoreWorldCollisionStreamingResource streaming,
         @Nonnull SpaceWorldCollisionSettings settings,
-        @Nonnull PhysicsStoreSnapshotFrame physicsFrame,
+        @Nonnull PhysicsSnapshotFrame physicsFrame,
         long currentTick,
         @Nullable Snapshot snapshot) {
         Map<WorldCollisionStreamingBounds, BodyStreamingTarget> uniqueTargets =
             new Object2ObjectOpenHashMap<>();
         int spatialCandidates = 0;
         int dynamicCandidates = 0;
-        for (PhysicsStoreBodySnapshot body : physicsFrame.bodies()) {
+        for (PhysicsBodySnapshot body : physicsFrame.bodies()) {
             if (!body.spaceUuid().equals(settings.spaceUuid())) {
                 continue;
             }

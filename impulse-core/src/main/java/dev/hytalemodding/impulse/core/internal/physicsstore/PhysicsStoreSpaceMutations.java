@@ -12,16 +12,16 @@ import dev.hytalemodding.impulse.core.internal.physicsstore.resources.PhysicsIde
 import dev.hytalemodding.impulse.core.internal.physicsstore.resources.PhysicsRuntimeResource;
 import dev.hytalemodding.impulse.core.internal.physicsstore.resources.PhysicsSpaceCompatibilityIndexResource;
 import dev.hytalemodding.impulse.core.internal.resources.BackendSpaceHandle;
-import dev.hytalemodding.impulse.core.plugin.physicsstore.PhysicsStoreEntities;
-import dev.hytalemodding.impulse.core.plugin.physicsstore.PhysicsStoreThreading;
-import dev.hytalemodding.impulse.core.plugin.physicsstore.components.CollisionLodSettingsComponent;
-import dev.hytalemodding.impulse.core.plugin.physicsstore.components.ExtensionSettingsComponent;
-import dev.hytalemodding.impulse.core.plugin.physicsstore.components.SolverSettingsComponent;
-import dev.hytalemodding.impulse.core.plugin.physicsstore.components.SpaceComponent;
-import dev.hytalemodding.impulse.core.plugin.physicsstore.components.UuidComponent;
-import dev.hytalemodding.impulse.core.plugin.physicsstore.components.VisualMaterializationSettingsComponent;
-import dev.hytalemodding.impulse.core.plugin.physicsstore.components.VisualSyncSettingsComponent;
-import dev.hytalemodding.impulse.core.plugin.physicsstore.components.WorldCollisionComponent;
+import dev.hytalemodding.impulse.core.plugin.physicsstore.PhysicsEntities;
+import dev.hytalemodding.impulse.core.plugin.physicsstore.PhysicsThreading;
+import dev.hytalemodding.impulse.core.plugin.components.CollisionLodSettingsComponent;
+import dev.hytalemodding.impulse.core.plugin.components.ExtensionSettingsComponent;
+import dev.hytalemodding.impulse.core.plugin.components.SolverSettingsComponent;
+import dev.hytalemodding.impulse.core.plugin.components.SpaceComponent;
+import dev.hytalemodding.impulse.core.plugin.components.UuidComponent;
+import dev.hytalemodding.impulse.core.plugin.components.VisualMaterializationSettingsComponent;
+import dev.hytalemodding.impulse.core.plugin.components.VisualSyncSettingsComponent;
+import dev.hytalemodding.impulse.core.plugin.components.WorldCollisionComponent;
 import dev.hytalemodding.impulse.core.plugin.settings.PhysicsSpaceSettings;
 import java.util.Objects;
 import java.util.UUID;
@@ -47,7 +47,7 @@ public final class PhysicsStoreSpaceMutations {
         Objects.requireNonNull(compatibilitySpaceId, "compatibilitySpaceId");
         Objects.requireNonNull(backendId, "backendId");
         Objects.requireNonNull(settings, "settings");
-        PhysicsStoreThreading.requireWorldThread(store, "add a PhysicsStore space entity");
+        PhysicsThreading.requireWorldThread(store, "add a PhysicsStore space entity");
         if (backendId.value().isBlank()) {
             throw new IllegalArgumentException("PhysicsStore space backend id is blank: "
                 + spaceUuid);
@@ -65,7 +65,7 @@ public final class PhysicsStoreSpaceMutations {
             throw new IllegalArgumentException("PhysicsStore space uuid=" + spaceUuid
                 + " is already registered");
         }
-        Ref<PhysicsStore> ref = store.addEntity(PhysicsStoreEntities.spaceHolder(store,
+        Ref<PhysicsStore> ref = store.addEntity(PhysicsEntities.spaceHolder(store,
             spaceUuid,
             new SpaceComponent(backendId, new Vector3f(0.0f, -9.81f, 0.0f)),
             new WorldCollisionComponent(settings.getWorldCollisionSettings()),
@@ -113,7 +113,7 @@ public final class PhysicsStoreSpaceMutations {
         Objects.requireNonNull(ref, "ref");
         Objects.requireNonNull(spaceUuid, "spaceUuid");
         Objects.requireNonNull(gravity, "gravity");
-        PhysicsStoreThreading.requireWorldThread(store, "update PhysicsStore space gravity");
+        PhysicsThreading.requireWorldThread(store, "update PhysicsStore space gravity");
         SpaceComponent space = store.getComponent(ref, SpaceComponent.getComponentType());
         if (space == null) {
             throw new IllegalArgumentException("PhysicsStore space uuid=" + spaceUuid
@@ -134,11 +134,11 @@ public final class PhysicsStoreSpaceMutations {
         Objects.requireNonNull(ref, "ref");
         Objects.requireNonNull(spaceUuid, "spaceUuid");
         Objects.requireNonNull(settings, "settings");
-        PhysicsStoreThreading.requireWorldThread(store, "update a PhysicsStore space entity");
+        PhysicsThreading.requireWorldThread(store, "update a PhysicsStore space entity");
         store.putComponent(ref,
             WorldCollisionComponent.getComponentType(),
             new WorldCollisionComponent(settings.getWorldCollisionSettings()));
-        PhysicsStoreEntities.putSpaceSettingsComponents(store,
+        PhysicsEntities.putSpaceSettingsComponents(store,
             ref,
             new SolverSettingsComponent(settings.getSolverSettings()),
             new VisualSyncSettingsComponent(settings.getVisualSyncSettings()),
@@ -159,7 +159,7 @@ public final class PhysicsStoreSpaceMutations {
         @Nonnull UUID spaceUuid) {
         Objects.requireNonNull(store, "store");
         Objects.requireNonNull(spaceUuid, "spaceUuid");
-        PhysicsStoreThreading.requireBackendIdle(store, "remove a PhysicsStore space entity");
+        PhysicsThreading.requireBackendIdle(store, "remove a PhysicsStore space entity");
         PhysicsRuntimeResource runtime = store.getResource(PhysicsRuntimeResource.getResourceType());
         PhysicsIdentityIndexResource identity =
             store.getResource(PhysicsIdentityIndexResource.getResourceType());
@@ -195,7 +195,7 @@ public final class PhysicsStoreSpaceMutations {
     @Nonnull
     public static UUID requireSpaceUuid(@Nonnull Store<PhysicsStore> store,
         @Nonnull SpaceId spaceId) {
-        PhysicsStoreThreading.requireWorldThread(store, "resolve a PhysicsStore space UUID");
+        PhysicsThreading.requireWorldThread(store, "resolve a PhysicsStore space UUID");
         UUID spaceUuid = store.getResource(PhysicsSpaceCompatibilityIndexResource.getResourceType())
             .getSpaceUuid(Objects.requireNonNull(spaceId, "spaceId"));
         if (spaceUuid == null) {
@@ -208,7 +208,7 @@ public final class PhysicsStoreSpaceMutations {
     @Nonnull
     private static Ref<PhysicsStore> requireSpaceRef(@Nonnull Store<PhysicsStore> store,
         @Nonnull UUID spaceUuid) {
-        PhysicsStoreThreading.requireWorldThread(store, "resolve a PhysicsStore space entity");
+        PhysicsThreading.requireWorldThread(store, "resolve a PhysicsStore space entity");
         Ref<PhysicsStore> ref = store.getResource(PhysicsIdentityIndexResource.getResourceType())
             .getByUuid(Objects.requireNonNull(spaceUuid, "spaceUuid"));
         if (ref == null || !ref.isValid()) {
@@ -222,7 +222,7 @@ public final class PhysicsStoreSpaceMutations {
     private static UUID requireSpaceUuid(@Nonnull Store<PhysicsStore> store,
         @Nonnull Ref<PhysicsStore> ref) {
         Objects.requireNonNull(ref, "ref");
-        PhysicsStoreThreading.requireWorldThread(store, "resolve a PhysicsStore space UUID");
+        PhysicsThreading.requireWorldThread(store, "resolve a PhysicsStore space UUID");
         if (ref.getStore() != store || !ref.isValid()) {
             throw new IllegalArgumentException("PhysicsStore space entity is not valid: " + ref);
         }

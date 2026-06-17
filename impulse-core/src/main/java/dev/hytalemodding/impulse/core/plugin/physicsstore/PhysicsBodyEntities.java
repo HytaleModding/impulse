@@ -6,13 +6,13 @@ import dev.hytalemodding.impulse.api.PhysicsBodyType;
 import dev.hytalemodding.impulse.api.PhysicsCollisionFilters;
 import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyKind;
 import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyPersistenceMode;
-import dev.hytalemodding.impulse.core.plugin.physicsstore.components.BodyComponent;
-import dev.hytalemodding.impulse.core.plugin.physicsstore.components.ColliderComponent;
-import dev.hytalemodding.impulse.core.plugin.physicsstore.components.CollisionFilterComponent;
-import dev.hytalemodding.impulse.core.plugin.physicsstore.components.DynamicsComponent;
-import dev.hytalemodding.impulse.core.plugin.physicsstore.components.MaterialComponent;
-import dev.hytalemodding.impulse.core.plugin.physicsstore.components.ShapeComponent;
-import dev.hytalemodding.impulse.core.plugin.physicsstore.components.TargetComponent;
+import dev.hytalemodding.impulse.core.plugin.components.BodyComponent;
+import dev.hytalemodding.impulse.core.plugin.components.ColliderComponent;
+import dev.hytalemodding.impulse.core.plugin.components.CollisionFilterComponent;
+import dev.hytalemodding.impulse.core.plugin.components.DynamicsComponent;
+import dev.hytalemodding.impulse.core.plugin.components.MaterialComponent;
+import dev.hytalemodding.impulse.core.plugin.components.ShapeComponent;
+import dev.hytalemodding.impulse.core.plugin.components.TargetComponent;
 import dev.hytalemodding.impulse.core.plugin.simulation.PhysicsShapeSpec;
 import dev.hytalemodding.impulse.core.plugin.simulation.RigidBodySpawnSettings;
 import java.util.Objects;
@@ -134,7 +134,7 @@ public final class PhysicsBodyEntities {
         @Nullable Vector3f linearVelocity,
         @Nonnull PhysicsBodyKind kind,
         @Nonnull PhysicsBodyPersistenceMode persistenceMode) {
-        BodyEntityDescriptor descriptor = body(PhysicsStoreEntityRefs.entityUuid(spaceRef),
+        BodyEntityDescriptor descriptor = body(PhysicsEntityRefs.entityUuid(spaceRef),
             bodyUuid,
             bodyCenter,
             shape,

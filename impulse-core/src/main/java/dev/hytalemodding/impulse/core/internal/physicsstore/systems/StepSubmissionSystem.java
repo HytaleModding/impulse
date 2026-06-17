@@ -23,8 +23,8 @@ import dev.hytalemodding.impulse.core.internal.physicsstore.resources.PhysicsSte
 import dev.hytalemodding.impulse.core.internal.physicsstore.resources.PhysicsWorldSettingsResource;
 import dev.hytalemodding.impulse.core.internal.resources.BackendSpaceHandle;
 import dev.hytalemodding.impulse.core.internal.systems.step.PhysicsStepCountPolicy;
-import dev.hytalemodding.impulse.core.plugin.physicsstore.components.DynamicsComponent;
-import dev.hytalemodding.impulse.core.plugin.physicsstore.snapshots.PhysicsStoreBodySnapshot;
+import dev.hytalemodding.impulse.core.plugin.components.DynamicsComponent;
+import dev.hytalemodding.impulse.core.plugin.snapshots.PhysicsBodySnapshot;
 import dev.hytalemodding.impulse.core.plugin.settings.PhysicsWorldSettings;
 import dev.hytalemodding.impulse.core.plugin.settings.PhysicsStepMode;
 import java.util.ArrayList;
@@ -122,7 +122,7 @@ public final class StepSubmissionSystem extends TickingSystem<PhysicsStore> {
             ? collectStepPhaseStats(bindings)
             : PhysicsStepPhaseStats.unavailable();
         long snapshotStartNanos = profilingEnabled ? System.nanoTime() : 0L;
-        List<PhysicsStoreBodySnapshot> bodySnapshots = collectOwnerLaneSnapshots(runtime,
+        List<PhysicsBodySnapshot> bodySnapshots = collectOwnerLaneSnapshots(runtime,
             bindings);
         long snapshotNanos = profilingEnabled ? System.nanoTime() - snapshotStartNanos : 0L;
         return new CompletedStep(counters.spaceCount,
@@ -143,10 +143,10 @@ public final class StepSubmissionSystem extends TickingSystem<PhysicsStore> {
     }
 
     @Nonnull
-    private static List<PhysicsStoreBodySnapshot> collectOwnerLaneSnapshots(
+    private static List<PhysicsBodySnapshot> collectOwnerLaneSnapshots(
         @Nonnull PhysicsRuntimeResource runtime,
         @Nonnull List<RuntimeStepBinding> bindings) {
-        List<PhysicsStoreBodySnapshot> snapshots = new ArrayList<>();
+        List<PhysicsBodySnapshot> snapshots = new ArrayList<>();
         for (RuntimeStepBinding binding : bindings) {
             binding.backendRuntime().snapshotBodies(binding.spaceHandle().value(),
                 bodyIds -> runtime.forEachBodyHandle(binding.spaceHandle(),
@@ -208,7 +208,7 @@ public final class StepSubmissionSystem extends TickingSystem<PhysicsStore> {
     }
 
     private static void collectOwnerLaneSnapshot(@Nonnull PhysicsRuntimeResource runtime,
-        @Nonnull List<PhysicsStoreBodySnapshot> snapshots,
+        @Nonnull List<PhysicsBodySnapshot> snapshots,
         long bodyId,
         int bodyTypeCode,
         float positionX,
@@ -230,7 +230,7 @@ public final class StepSubmissionSystem extends TickingSystem<PhysicsStore> {
         if (metadata == null) {
             return;
         }
-        snapshots.add(new PhysicsStoreBodySnapshot(metadata.bodyRef(),
+        snapshots.add(new PhysicsBodySnapshot(metadata.bodyRef(),
             metadata.bodyUuid(),
             metadata.spaceUuid(),
             BackendRuntimeCodes.bodyType(bodyTypeCode),
@@ -321,69 +321,55 @@ public final class StepSubmissionSystem extends TickingSystem<PhysicsStore> {
         return DEPENDENCIES;
     }
 
-    private static final class ContinuousCollisionSync implements BackendBodySnapshotSink {
-
-        @Nonnull
-        private final PhysicsBackendRuntime backendRuntime;
-        @Nonnull
-        private final BackendSpaceHandle spaceHandle;
-        private final long bodyId;
-        private final boolean targetEnabled;
-
-        private ContinuousCollisionSync(@Nonnull PhysicsBackendRuntime backendRuntime,
-            @Nonnull BackendSpaceHandle spaceHandle,
-            long bodyId,
-            boolean targetEnabled) {
-            this.backendRuntime = backendRuntime;
-            this.spaceHandle = spaceHandle;
-            this.bodyId = bodyId;
-            this.targetEnabled = targetEnabled;
-        }
+    private record ContinuousCollisionSync(@Nonnull PhysicsBackendRuntime backendRuntime,
+                                           @Nonnull BackendSpaceHandle spaceHandle, long bodyId,
+                                           boolean targetEnabled) implements
+        BackendBodySnapshotSink {
 
         @Override
-        public void accept(long bodyId,
-            int shapeTypeCode,
-            int bodyTypeCode,
-            float positionX,
-            float positionY,
-            float positionZ,
-            float rotationX,
-            float rotationY,
-            float rotationZ,
-            float rotationW,
-            float linearVelocityX,
-            float linearVelocityY,
-            float linearVelocityZ,
-            float angularVelocityX,
-            float angularVelocityY,
-            float angularVelocityZ,
-            boolean sleeping,
-            boolean sensor,
-            float mass,
-            float friction,
-            float restitution,
-            float linearDamping,
-            float angularDamping,
-            int collisionGroup,
-            int collisionMask,
-            boolean continuousCollisionEnabled,
-            float centerOfMassOffsetY,
-            boolean hasBoxHalfExtents,
-            float halfExtentX,
-            float halfExtentY,
-            float halfExtentZ,
-            float radius,
-            float halfHeight,
-            int axisCode) {
-            if (BackendRuntimeCodes.bodyType(bodyTypeCode) != PhysicsBodyType.DYNAMIC
-                || continuousCollisionEnabled == targetEnabled) {
-                return;
+            public void accept(long bodyId,
+                int shapeTypeCode,
+                int bodyTypeCode,
+                float positionX,
+                float positionY,
+                float positionZ,
+                float rotationX,
+                float rotationY,
+                float rotationZ,
+                float rotationW,
+                float linearVelocityX,
+                float linearVelocityY,
+                float linearVelocityZ,
+                float angularVelocityX,
+                float angularVelocityY,
+                float angularVelocityZ,
+                boolean sleeping,
+                boolean sensor,
+                float mass,
+                float friction,
+                float restitution,
+                float linearDamping,
+                float angularDamping,
+                int collisionGroup,
+                int collisionMask,
+                boolean continuousCollisionEnabled,
+                float centerOfMassOffsetY,
+                boolean hasBoxHalfExtents,
+                float halfExtentX,
+                float halfExtentY,
+                float halfExtentZ,
+                float radius,
+                float halfHeight,
+                int axisCode) {
+                if (BackendRuntimeCodes.bodyType(bodyTypeCode) != PhysicsBodyType.DYNAMIC
+                    || continuousCollisionEnabled == targetEnabled) {
+                    return;
+                }
+                backendRuntime.setBodyContinuousCollision(spaceHandle.value(),
+                    this.bodyId,
+                    targetEnabled);
             }
-            backendRuntime.setBodyContinuousCollision(spaceHandle.value(),
-                this.bodyId,
-                targetEnabled);
         }
-    }
 
     private static final class StepRisk implements BackendBodySnapshotSink {
 

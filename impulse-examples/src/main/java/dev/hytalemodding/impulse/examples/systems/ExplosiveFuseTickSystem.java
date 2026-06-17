@@ -16,9 +16,9 @@ import com.hypixel.hytale.server.core.universe.world.storage.PhysicsStore;
 import dev.hytalemodding.impulse.early.PhysicsStoreWorld;
 import dev.hytalemodding.impulse.api.SpaceId;
 import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyRegistrationView;
-import dev.hytalemodding.impulse.core.plugin.physicsstore.PhysicsStoreBodies;
-import dev.hytalemodding.impulse.core.plugin.physicsstore.projection.BodyAttachmentComponent;
-import dev.hytalemodding.impulse.core.plugin.physicsstore.snapshots.PhysicsStoreBodySnapshot;
+import dev.hytalemodding.impulse.core.plugin.physicsstore.PhysicsBodies;
+import dev.hytalemodding.impulse.core.plugin.projection.BodyAttachmentComponent;
+import dev.hytalemodding.impulse.core.plugin.snapshots.PhysicsBodySnapshot;
 import dev.hytalemodding.impulse.examples.explosive.ExplosiveBlockComponent;
 import dev.hytalemodding.impulse.examples.explosive.ExplosiveBlockRuntime;
 import dev.hytalemodding.impulse.examples.explosive.ExplosiveFuseComponent;
@@ -120,10 +120,10 @@ public final class ExplosiveFuseTickSystem extends EntityTickingSystem<EntitySto
             .getPhysicsStore().getStore();
         Ref<PhysicsStore> bodyRef = attachment.getBodyRef();
         PhysicsBodyRegistrationView registration = bodyRef != null && bodyRef.isValid()
-            ? PhysicsStoreBodies.registrationView(physics, bodyRef)
+            ? PhysicsBodies.registrationView(physics, bodyRef)
             : null;
         if (registration == null) {
-            registration = PhysicsStoreBodies.registrationView(physics, attachment.getBodyUuid());
+            registration = PhysicsBodies.registrationView(physics, attachment.getBodyUuid());
         }
         return registration != null ? registration.spaceId() : null;
     }
@@ -135,14 +135,14 @@ public final class ExplosiveFuseTickSystem extends EntityTickingSystem<EntitySto
         Store<PhysicsStore> physics = ((PhysicsStoreWorld) store.getExternalData().getWorld())
             .getPhysicsStore().getStore();
         Ref<PhysicsStore> bodyRef = attachment.getBodyRef();
-        PhysicsStoreBodySnapshot snapshot = bodyRef != null && bodyRef.isValid()
-            ? PhysicsStoreBodies.snapshot(physics, bodyRef)
+        PhysicsBodySnapshot snapshot = bodyRef != null && bodyRef.isValid()
+            ? PhysicsBodies.snapshot(physics, bodyRef)
             : null;
         if (snapshot != null && !bodyUuid.equals(snapshot.bodyUuid())) {
             snapshot = null;
         }
         if (snapshot == null) {
-            snapshot = PhysicsStoreBodies.snapshot(physics, bodyUuid);
+            snapshot = PhysicsBodies.snapshot(physics, bodyUuid);
         }
         return snapshot != null ? BodyMotionSnapshot.from(snapshot) : null;
     }
@@ -153,7 +153,7 @@ public final class ExplosiveFuseTickSystem extends EntityTickingSystem<EntitySto
                                       float linearVelocityY) {
 
         @Nonnull
-        private static BodyMotionSnapshot from(@Nonnull PhysicsStoreBodySnapshot snapshot) {
+        private static BodyMotionSnapshot from(@Nonnull PhysicsBodySnapshot snapshot) {
             Vector3f position = snapshot.position();
             Vector3f velocity = snapshot.linearVelocity();
             return new BodyMotionSnapshot(position.x, position.y, position.z, velocity.y);

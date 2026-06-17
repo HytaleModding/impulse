@@ -14,8 +14,8 @@ import dev.hytalemodding.impulse.core.internal.physicsstore.resources.PhysicsTer
 import dev.hytalemodding.impulse.core.internal.physicsstore.resources.PhysicsTerrainPayloadResource;
 import dev.hytalemodding.impulse.core.internal.physicsstore.terrain.TerrainColliderMutation;
 import dev.hytalemodding.impulse.core.internal.physicsstore.terrain.TerrainColliderPayload;
-import dev.hytalemodding.impulse.core.plugin.physicsstore.PhysicsStoreEntities;
-import dev.hytalemodding.impulse.core.plugin.physicsstore.components.TerrainColliderComponent;
+import dev.hytalemodding.impulse.core.plugin.physicsstore.PhysicsEntities;
+import dev.hytalemodding.impulse.core.plugin.components.TerrainColliderComponent;
 import it.unimi.dsi.fastutil.objects.Object2ObjectOpenHashMap;
 import java.util.List;
 import java.util.Map;
@@ -114,7 +114,7 @@ public final class TerrainMutationDrainSystem extends TickingSystem<PhysicsStore
                 if (existing != null) {
                     removePayload(terrainPayloads, existing.getPayloadResourceKey());
                 }
-                PhysicsStoreEntities.putTerrainColliderComponent(store,
+                PhysicsEntities.putTerrainColliderComponent(store,
                     ref,
                     removedTerrainComponent(identity, mutation));
             }
@@ -135,12 +135,12 @@ public final class TerrainMutationDrainSystem extends TickingSystem<PhysicsStore
                 && !existing.getPayloadResourceKey().equals(component.getPayloadResourceKey())) {
                 removePayload(terrainPayloads, existing.getPayloadResourceKey());
             }
-            PhysicsStoreEntities.putTerrainColliderComponent(store, ref, component);
+            PhysicsEntities.putTerrainColliderComponent(store, ref, component);
             refsThisDrain.put(terrainUuid, ref);
             return;
         }
         refsThisDrain.put(terrainUuid,
-            store.addEntity(PhysicsStoreEntities.terrainColliderHolder(store,
+            store.addEntity(PhysicsEntities.terrainColliderHolder(store,
                 terrainUuid,
                 component),
                 AddReason.SPAWN));

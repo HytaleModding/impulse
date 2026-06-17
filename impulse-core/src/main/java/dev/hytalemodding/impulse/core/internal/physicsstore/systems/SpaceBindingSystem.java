@@ -21,9 +21,9 @@ import dev.hytalemodding.impulse.core.internal.physicsstore.resources.PhysicsRun
 import dev.hytalemodding.impulse.core.internal.physicsstore.resources.PhysicsSpaceCompatibilityIndexResource;
 import dev.hytalemodding.impulse.core.internal.physicsstore.resources.PhysicsWorldSettingsResource;
 import dev.hytalemodding.impulse.core.internal.resources.BackendSpaceHandle;
-import dev.hytalemodding.impulse.core.plugin.physicsstore.components.ExtensionSettingsComponent;
-import dev.hytalemodding.impulse.core.plugin.physicsstore.components.SolverSettingsComponent;
-import dev.hytalemodding.impulse.core.plugin.physicsstore.components.SpaceComponent;
+import dev.hytalemodding.impulse.core.plugin.components.ExtensionSettingsComponent;
+import dev.hytalemodding.impulse.core.plugin.components.SolverSettingsComponent;
+import dev.hytalemodding.impulse.core.plugin.components.SpaceComponent;
 import dev.hytalemodding.impulse.core.plugin.settings.PhysicsStepMode;
 import java.util.Set;
 import java.util.UUID;

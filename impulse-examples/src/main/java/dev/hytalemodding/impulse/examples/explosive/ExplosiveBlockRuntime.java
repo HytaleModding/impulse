@@ -21,12 +21,12 @@ import com.hypixel.hytale.server.core.universe.world.chunk.WorldChunk;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import com.hypixel.hytale.server.core.universe.world.storage.PhysicsStore;
 import dev.hytalemodding.impulse.api.SpaceId;
-import dev.hytalemodding.impulse.core.plugin.physicsstore.components.BodyCommandComponent;
+import dev.hytalemodding.impulse.core.plugin.components.BodyCommandComponent;
 import dev.hytalemodding.impulse.core.plugin.resources.PhysicsWorldResource;
 import dev.hytalemodding.impulse.core.plugin.simulation.PhysicsShapeSpec;
 import dev.hytalemodding.impulse.core.plugin.simulation.RigidBodySpawnSettings;
-import dev.hytalemodding.impulse.examples.commands.ExamplePhysicsUtils;
-import dev.hytalemodding.impulse.examples.commands.ExamplePhysicsUtils.CreatedBlockBody;
+import dev.hytalemodding.impulse.examples.utils.ExamplePhysicsUtils;
+import dev.hytalemodding.impulse.examples.utils.ExamplePhysicsUtils.CreatedBlockBody;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.HashMap;
@@ -109,7 +109,7 @@ public final class ExplosiveBlockRuntime {
         @Nonnull SpaceId spaceId,
         @Nonnull Vector3d center,
         @Nonnull ExplosiveBlockComponent settings) {
-        Ref<PhysicsStore> spaceRef = ExamplePhysicsUtils.resolvePhysicsStoreSpaceRef(world,
+        Ref<PhysicsStore> spaceRef = ExamplePhysicsUtils.resolveSpaceRef(world,
             spaceId);
         if (spaceRef == null) {
             throw new IllegalStateException("Cannot spawn explosive fragments because PhysicsStore "

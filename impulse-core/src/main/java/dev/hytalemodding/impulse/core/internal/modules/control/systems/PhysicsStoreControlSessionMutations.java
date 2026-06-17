@@ -6,14 +6,14 @@ import com.hypixel.hytale.component.Store;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import com.hypixel.hytale.server.core.universe.world.storage.PhysicsStore;
 import dev.hytalemodding.impulse.api.PhysicsBodyType;
+import dev.hytalemodding.impulse.core.plugin.physicsstore.PhysicsThreading;
 import dev.hytalemodding.impulse.early.PhysicsStoreWorld;
 import dev.hytalemodding.impulse.core.internal.modules.control.components.PhysicsControlSessionComponent;
 import dev.hytalemodding.impulse.core.internal.physicsstore.resources.PhysicsIdentityIndexResource;
-import dev.hytalemodding.impulse.core.plugin.physicsstore.PhysicsStoreThreading;
-import dev.hytalemodding.impulse.core.plugin.physicsstore.components.BodyCommandComponent;
-import dev.hytalemodding.impulse.core.plugin.physicsstore.components.BodyComponent;
-import dev.hytalemodding.impulse.core.plugin.physicsstore.components.JointComponent;
-import dev.hytalemodding.impulse.core.plugin.physicsstore.components.UuidComponent;
+import dev.hytalemodding.impulse.core.plugin.components.BodyCommandComponent;
+import dev.hytalemodding.impulse.core.plugin.components.BodyComponent;
+import dev.hytalemodding.impulse.core.plugin.components.JointComponent;
+import dev.hytalemodding.impulse.core.plugin.components.UuidComponent;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 import org.joml.Vector3f;
@@ -33,7 +33,7 @@ public final class PhysicsStoreControlSessionMutations {
         Store<PhysicsStore> physicsStore =
             ((PhysicsStoreWorld) store.getExternalData().getWorld()).getPhysicsStore()
                 .getStore();
-        PhysicsStoreThreading.requireWorldThread(physicsStore,
+        PhysicsThreading.requireWorldThread(physicsStore,
             "apply PhysicsStore control-session release mutations");
 
         Ref<PhysicsStore> controlJointRef = session.getControlJointRef();

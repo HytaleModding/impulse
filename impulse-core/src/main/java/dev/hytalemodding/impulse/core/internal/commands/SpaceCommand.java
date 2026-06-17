@@ -16,8 +16,8 @@ import dev.hytalemodding.impulse.api.SpaceId;
 import dev.hytalemodding.impulse.api.runtime.PhysicsBackendRuntimeProvider;
 import dev.hytalemodding.impulse.core.ImpulsePlugin;
 import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyRegistrationView;
-import dev.hytalemodding.impulse.core.plugin.physicsstore.PhysicsStoreDiagnostics;
-import dev.hytalemodding.impulse.core.plugin.physicsstore.PhysicsStoreAsync;
+import dev.hytalemodding.impulse.core.plugin.physicsstore.PhysicsDiagnostics;
+import dev.hytalemodding.impulse.core.plugin.physicsstore.PhysicsAsync;
 import dev.hytalemodding.impulse.core.plugin.resources.PhysicsWorldResource;
 import dev.hytalemodding.impulse.core.plugin.modules.worldcollision.WorldCollisionMode;
 import dev.hytalemodding.impulse.core.plugin.settings.PhysicsSpaceSettings;
@@ -104,8 +104,8 @@ public class SpaceCommand extends AbstractCommandCollection {
             @Nonnull World world) {
             Store<EntityStore> store = world.getEntityStore().getStore();
             PhysicsWorldResource resource = store.getResource(PhysicsWorldResource.getResourceType());
-            return PhysicsStoreAsync.acceptOnWorldThread(world,
-                PhysicsStoreDiagnostics.spaceSummariesAsync(world),
+            return PhysicsAsync.acceptOnWorldThread(world,
+                PhysicsDiagnostics.spaceSummariesAsync(world),
                 summaries -> sendSpaces(context, world, resource, summaries));
         }
 
@@ -181,8 +181,8 @@ public class SpaceCommand extends AbstractCommandCollection {
              * before deleting the space.
              */
             int registeredBodies = countRegisteredBodies(resource, spaceId);
-            return PhysicsStoreAsync.acceptOnWorldThread(world,
-                PhysicsStoreDiagnostics.spaceSummariesAsync(world, selectedSpace.spaceRef()),
+            return PhysicsAsync.acceptOnWorldThread(world,
+                PhysicsDiagnostics.spaceSummariesAsync(world, selectedSpace.spaceRef()),
                 summaries -> deleteIfEmpty(context,
                     world,
                     resource,

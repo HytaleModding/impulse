@@ -35,7 +35,7 @@ import dev.hytalemodding.impulse.core.internal.systems.sync.PhysicsBodyAttachmen
 import dev.hytalemodding.impulse.core.internal.systems.sync.PhysicsSyncSystem;
 import dev.hytalemodding.impulse.core.internal.systems.visual.PhysicsGeneratedProxyCleanupSystem;
 import dev.hytalemodding.impulse.core.plugin.events.PhysicsEventFramePublishedEvent;
-import dev.hytalemodding.impulse.core.plugin.physicsstore.projection.BodyAttachmentComponent;
+import dev.hytalemodding.impulse.core.plugin.projection.BodyAttachmentComponent;
 import dev.hytalemodding.impulse.core.plugin.resources.PhysicsWorldResource;
 import java.nio.file.Path;
 import java.util.ArrayList;

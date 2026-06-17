@@ -8,6 +8,7 @@ import com.hypixel.hytale.component.system.tick.TickingSystem;
 import com.hypixel.hytale.server.core.universe.world.World;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import com.hypixel.hytale.server.core.universe.world.storage.PhysicsStore;
+import dev.hytalemodding.impulse.core.plugin.physicsstore.PhysicsThreading;
 import dev.hytalemodding.impulse.early.PhysicsStoreWorld;
 import dev.hytalemodding.impulse.core.internal.physicsstore.resources.PhysicsEventResource;
 import dev.hytalemodding.impulse.core.internal.physicsstore.resources.PhysicsProfilingResource;
@@ -17,7 +18,6 @@ import dev.hytalemodding.impulse.core.internal.systems.sync.PhysicsSyncSystem;
 import dev.hytalemodding.impulse.core.internal.systems.visual.PhysicsGeneratedProxyCleanupSystem;
 import dev.hytalemodding.impulse.core.plugin.events.PhysicsEventFrame;
 import dev.hytalemodding.impulse.core.plugin.events.PhysicsEventFramePublishedEvent;
-import dev.hytalemodding.impulse.core.plugin.physicsstore.PhysicsStoreThreading;
 import java.util.Collections;
 import java.util.Map;
 import java.util.Set;
@@ -48,7 +48,7 @@ public final class PhysicsStoreEventPublicationSystem extends TickingSystem<Enti
         if (physics.isShutdown()) {
             return;
         }
-        PhysicsStoreThreading.requireWorldThread(physics, "publish PhysicsStore event frame");
+        PhysicsThreading.requireWorldThread(physics, "publish PhysicsStore event frame");
         PhysicsEventFrame frame = physics.getResource(PhysicsEventResource.getResourceType())
             .getLatestFrame();
         if (frame.frameSequence() <= 0L || !markPublished(store, frame.frameSequence())) {

@@ -9,12 +9,11 @@ import com.hypixel.hytale.server.core.universe.world.storage.PhysicsStore;
 import dev.hytalemodding.impulse.api.BackendId;
 import dev.hytalemodding.impulse.api.Impulse;
 import dev.hytalemodding.impulse.api.PhysicsAxis;
-import dev.hytalemodding.impulse.api.PhysicsBodySnapshot;
 import dev.hytalemodding.impulse.api.PhysicsBodyType;
 import dev.hytalemodding.impulse.api.PhysicsCollisionFilters;
 import dev.hytalemodding.impulse.api.ShapeType;
 import dev.hytalemodding.impulse.api.SpaceId;
-import dev.hytalemodding.impulse.api.runtime.BackendRuntimeCodes;
+import dev.hytalemodding.impulse.core.plugin.physicsstore.PhysicsThreading;
 import dev.hytalemodding.impulse.early.PhysicsStoreWorld;
 import dev.hytalemodding.impulse.core.internal.modules.control.ControlLifecycle;
 import dev.hytalemodding.impulse.core.internal.modules.control.PhysicsControlRuntimeState;
@@ -55,21 +54,20 @@ import dev.hytalemodding.impulse.core.plugin.modules.worldcollision.WorldCollisi
 import dev.hytalemodding.impulse.core.plugin.modules.worldcollision.WorldCollisionStats;
 import dev.hytalemodding.impulse.core.plugin.events.PhysicsEventFrame;
 import dev.hytalemodding.impulse.core.plugin.events.PhysicsFrameEvent;
-import dev.hytalemodding.impulse.core.plugin.physicsstore.PhysicsStoreThreading;
-import dev.hytalemodding.impulse.core.plugin.physicsstore.components.ColliderComponent;
-import dev.hytalemodding.impulse.core.plugin.physicsstore.components.CollisionFilterComponent;
-import dev.hytalemodding.impulse.core.plugin.physicsstore.components.CollisionLodSettingsComponent;
-import dev.hytalemodding.impulse.core.plugin.physicsstore.components.DynamicsComponent;
-import dev.hytalemodding.impulse.core.plugin.physicsstore.components.ExtensionSettingsComponent;
-import dev.hytalemodding.impulse.core.plugin.physicsstore.components.MaterialComponent;
-import dev.hytalemodding.impulse.core.plugin.physicsstore.components.ShapeComponent;
-import dev.hytalemodding.impulse.core.plugin.physicsstore.components.SolverSettingsComponent;
-import dev.hytalemodding.impulse.core.plugin.physicsstore.components.SpaceComponent;
-import dev.hytalemodding.impulse.core.plugin.physicsstore.components.VisualMaterializationSettingsComponent;
-import dev.hytalemodding.impulse.core.plugin.physicsstore.components.VisualSyncSettingsComponent;
-import dev.hytalemodding.impulse.core.plugin.physicsstore.components.WorldCollisionComponent;
-import dev.hytalemodding.impulse.core.plugin.physicsstore.snapshots.PhysicsStoreBodySnapshot;
-import dev.hytalemodding.impulse.core.plugin.physicsstore.snapshots.PhysicsStoreSnapshotFrame;
+import dev.hytalemodding.impulse.core.plugin.components.ColliderComponent;
+import dev.hytalemodding.impulse.core.plugin.components.CollisionFilterComponent;
+import dev.hytalemodding.impulse.core.plugin.components.CollisionLodSettingsComponent;
+import dev.hytalemodding.impulse.core.plugin.components.DynamicsComponent;
+import dev.hytalemodding.impulse.core.plugin.components.ExtensionSettingsComponent;
+import dev.hytalemodding.impulse.core.plugin.components.MaterialComponent;
+import dev.hytalemodding.impulse.core.plugin.components.ShapeComponent;
+import dev.hytalemodding.impulse.core.plugin.components.SolverSettingsComponent;
+import dev.hytalemodding.impulse.core.plugin.components.SpaceComponent;
+import dev.hytalemodding.impulse.core.plugin.components.VisualMaterializationSettingsComponent;
+import dev.hytalemodding.impulse.core.plugin.components.VisualSyncSettingsComponent;
+import dev.hytalemodding.impulse.core.plugin.components.WorldCollisionComponent;
+import dev.hytalemodding.impulse.core.plugin.snapshots.PhysicsBodySnapshot;
+import dev.hytalemodding.impulse.core.plugin.snapshots.PhysicsSnapshotFrame;
 import dev.hytalemodding.impulse.core.plugin.resources.PhysicsMutationHandle;
 import dev.hytalemodding.impulse.core.plugin.resources.PhysicsWorldResource;
 import dev.hytalemodding.impulse.core.plugin.settings.PhysicsSpaceSettings;
@@ -210,7 +208,7 @@ public class PhysicsWorldRuntimeResource extends PhysicsWorldResource {
     @Nonnull
     private Store<PhysicsStore> authoritativePhysicsStore(@Nonnull String operation) {
         Store<PhysicsStore> store = physicsStore(requireAuthoritativeWorld(operation));
-        PhysicsStoreThreading.requireWorldThread(store, operation);
+        PhysicsThreading.requireWorldThread(store, operation);
         return store;
     }
 
@@ -340,7 +338,7 @@ public class PhysicsWorldRuntimeResource extends PhysicsWorldResource {
         World world = requireAuthoritativeWorld(operation);
         return PhysicsMutationHandle.fromCompletion(operation,
             value,
-            PhysicsStoreThreading.executeOnWorldThread(world, operation, mutation));
+            PhysicsThreading.executeOnWorldThread(world, operation, mutation));
     }
 
     private void runDirectRuntimeMutation(@Nonnull String operation,
@@ -604,19 +602,19 @@ public class PhysicsWorldRuntimeResource extends PhysicsWorldResource {
 
     @Nonnull
     @Override
-    public PhysicsBodySnapshot getBodySnapshot(@Nonnull UUID bodyUuid) {
+    public dev.hytalemodding.impulse.api.PhysicsBodySnapshot getBodySnapshot(@Nonnull UUID bodyUuid) {
         Objects.requireNonNull(bodyUuid, "bodyUuid");
         if (isAuthoritativePhysicsStoreActive()) {
             Store<PhysicsStore> store =
                 authoritativePhysicsStore("read copied physics body snapshot");
-            PhysicsBodySnapshot snapshot = getAuthoritativeBodySnapshot(store, bodyUuid);
+            dev.hytalemodding.impulse.api.PhysicsBodySnapshot snapshot = getAuthoritativeBodySnapshot(store, bodyUuid);
             if (snapshot == null) {
                 throw new IllegalStateException("No copied PhysicsStore body snapshot is available for "
                     + bodyUuid);
             }
             return snapshot;
         }
-        PhysicsBodySnapshot snapshot = lifecycleState.getBodySnapshot(bodyUuid);
+        dev.hytalemodding.impulse.api.PhysicsBodySnapshot snapshot = lifecycleState.getBodySnapshot(bodyUuid);
         if (snapshot != null) {
             return snapshot;
         }
@@ -625,23 +623,23 @@ public class PhysicsWorldRuntimeResource extends PhysicsWorldResource {
     }
 
     @Nullable
-    public PhysicsBodySnapshot getBodySnapshotIfRegistered(@Nonnull UUID bodyUuid) {
+    public dev.hytalemodding.impulse.api.PhysicsBodySnapshot getBodySnapshotIfRegistered(@Nonnull UUID bodyUuid) {
         return getBodySnapshotIfRegistered(bodyUuid, null);
     }
 
     @Nullable
-    public PhysicsBodySnapshot getBodySnapshotIfRegistered(@Nonnull UUID bodyUuid,
+    public dev.hytalemodding.impulse.api.PhysicsBodySnapshot getBodySnapshotIfRegistered(@Nonnull UUID bodyUuid,
         @Nullable Ref<PhysicsStore> bodyRef) {
         if (isAuthoritativePhysicsStoreActive()) {
             Objects.requireNonNull(bodyUuid, "bodyUuid");
             Store<PhysicsStore> store =
                 authoritativePhysicsStore("read optional copied physics body snapshot");
-            PhysicsStoreBodySnapshot snapshot = bodyRef != null && bodyRef.isValid()
+            PhysicsBodySnapshot snapshot = bodyRef != null && bodyRef.isValid()
                 ? store.getResource(PhysicsSnapshotResource.getResourceType()).getBody(bodyRef)
                 : store.getResource(PhysicsSnapshotResource.getResourceType()).getBody(bodyUuid);
             return snapshot != null ? toPublicBodySnapshot(store, snapshot) : null;
         }
-        PhysicsBodySnapshot snapshot = lifecycleState.getBodySnapshot(bodyUuid);
+        dev.hytalemodding.impulse.api.PhysicsBodySnapshot snapshot = lifecycleState.getBodySnapshot(bodyUuid);
         if (snapshot != null) {
             return snapshot;
         }
@@ -650,17 +648,17 @@ public class PhysicsWorldRuntimeResource extends PhysicsWorldResource {
     }
 
     @Nullable
-    public PhysicsBodySnapshot getBodySnapshotIfRegistered(@Nonnull Ref<PhysicsStore> bodyRef) {
+    public dev.hytalemodding.impulse.api.PhysicsBodySnapshot getBodySnapshotIfRegistered(@Nonnull Ref<PhysicsStore> bodyRef) {
         Store<PhysicsStore> store = Objects.requireNonNull(bodyRef, "bodyRef").getStore();
-        PhysicsStoreThreading.requireWorldThread(store, "read optional copied physics body snapshot");
-        PhysicsStoreBodySnapshot snapshot = store.getResource(PhysicsSnapshotResource.getResourceType())
+        PhysicsThreading.requireWorldThread(store, "read optional copied physics body snapshot");
+        PhysicsBodySnapshot snapshot = store.getResource(PhysicsSnapshotResource.getResourceType())
             .getBody(bodyRef);
         return snapshot != null ? toPublicBodySnapshot(store, snapshot) : null;
     }
 
     @Nonnull
-    private PhysicsBodySnapshot getBodySnapshotDirect(@Nonnull UUID bodyUuid) {
-        PhysicsBodySnapshot snapshot = lifecycleState.getBodySnapshot(bodyUuid);
+    private dev.hytalemodding.impulse.api.PhysicsBodySnapshot getBodySnapshotDirect(@Nonnull UUID bodyUuid) {
+        dev.hytalemodding.impulse.api.PhysicsBodySnapshot snapshot = lifecycleState.getBodySnapshot(bodyUuid);
         if (snapshot != null) {
             return snapshot;
         }
@@ -672,8 +670,8 @@ public class PhysicsWorldRuntimeResource extends PhysicsWorldResource {
     }
 
     @Nullable
-    private PhysicsBodySnapshot getBodySnapshotIfRegisteredDirect(@Nonnull UUID bodyUuid) {
-        PhysicsBodySnapshot snapshot = lifecycleState.getBodySnapshot(bodyUuid);
+    private dev.hytalemodding.impulse.api.PhysicsBodySnapshot getBodySnapshotIfRegisteredDirect(@Nonnull UUID bodyUuid) {
+        dev.hytalemodding.impulse.api.PhysicsBodySnapshot snapshot = lifecycleState.getBodySnapshot(bodyUuid);
         if (snapshot != null) {
             return snapshot;
         }
@@ -682,10 +680,10 @@ public class PhysicsWorldRuntimeResource extends PhysicsWorldResource {
     }
 
     @Nullable
-    private static PhysicsBodySnapshot getAuthoritativeBodySnapshot(
+    private static dev.hytalemodding.impulse.api.PhysicsBodySnapshot getAuthoritativeBodySnapshot(
         @Nonnull Store<PhysicsStore> store,
         @Nonnull UUID bodyUuid) {
-        PhysicsStoreBodySnapshot snapshot = store.getResource(PhysicsSnapshotResource.getResourceType())
+        PhysicsBodySnapshot snapshot = store.getResource(PhysicsSnapshotResource.getResourceType())
             .getBody(Objects.requireNonNull(bodyUuid, "bodyUuid"));
         return snapshot != null ? toPublicBodySnapshot(store, snapshot) : null;
     }
@@ -698,7 +696,7 @@ public class PhysicsWorldRuntimeResource extends PhysicsWorldResource {
             return 0;
         }
         int count = 0;
-        for (PhysicsStoreBodySnapshot body : store.getResource(PhysicsSnapshotResource.getResourceType())
+        for (PhysicsBodySnapshot body : store.getResource(PhysicsSnapshotResource.getResourceType())
             .getLatestFrame()
             .bodies()) {
             if (spaceUuid.equals(body.spaceUuid())) {
@@ -717,7 +715,7 @@ public class PhysicsWorldRuntimeResource extends PhysicsWorldResource {
         }
         PhysicsBodyRegistrationResource registrations =
             store.getResource(PhysicsBodyRegistrationResource.getResourceType());
-        for (PhysicsStoreBodySnapshot body : authoritativeSnapshotFrame(store).bodies()) {
+        for (PhysicsBodySnapshot body : authoritativeSnapshotFrame(store).bodies()) {
             if (!spaceUuid.equals(body.spaceUuid())) {
                 continue;
             }
@@ -739,7 +737,7 @@ public class PhysicsWorldRuntimeResource extends PhysicsWorldResource {
         }
         PhysicsBodyRegistrationResource registrations =
             store.getResource(PhysicsBodyRegistrationResource.getResourceType());
-        for (PhysicsStoreBodySnapshot body : authoritativeSnapshotFrame(store).bodies()) {
+        for (PhysicsBodySnapshot body : authoritativeSnapshotFrame(store).bodies()) {
             if (!spaceUuid.equals(body.spaceUuid())) {
                 continue;
             }
@@ -769,7 +767,7 @@ public class PhysicsWorldRuntimeResource extends PhysicsWorldResource {
         int candidates = 0;
         PhysicsBodyRegistrationResource registrations =
             store.getResource(PhysicsBodyRegistrationResource.getResourceType());
-        for (PhysicsStoreBodySnapshot body : authoritativeSnapshotFrame(store).bodies()) {
+        for (PhysicsBodySnapshot body : authoritativeSnapshotFrame(store).bodies()) {
             if (!spaceUuid.equals(body.spaceUuid())) {
                 continue;
             }
@@ -800,7 +798,7 @@ public class PhysicsWorldRuntimeResource extends PhysicsWorldResource {
         int candidates = 0;
         PhysicsBodyRegistrationResource registrations =
             store.getResource(PhysicsBodyRegistrationResource.getResourceType());
-        for (PhysicsStoreBodySnapshot body : authoritativeSnapshotFrame(store).bodies()) {
+        for (PhysicsBodySnapshot body : authoritativeSnapshotFrame(store).bodies()) {
             if (!spaceUuid.equals(body.spaceUuid())) {
                 continue;
             }
@@ -835,7 +833,7 @@ public class PhysicsWorldRuntimeResource extends PhysicsWorldResource {
         int candidates = 0;
         PhysicsBodyRegistrationResource registrations =
             store.getResource(PhysicsBodyRegistrationResource.getResourceType());
-        for (PhysicsStoreBodySnapshot body : authoritativeSnapshotFrame(store).bodies()) {
+        for (PhysicsBodySnapshot body : authoritativeSnapshotFrame(store).bodies()) {
             if (!spaceUuid.equals(body.spaceUuid())) {
                 continue;
             }
@@ -865,7 +863,7 @@ public class PhysicsWorldRuntimeResource extends PhysicsWorldResource {
     }
 
     @Nonnull
-    private static PhysicsStoreSnapshotFrame authoritativeSnapshotFrame(
+    private static PhysicsSnapshotFrame authoritativeSnapshotFrame(
         @Nonnull Store<PhysicsStore> store) {
         return store.getResource(PhysicsSnapshotResource.getResourceType()).getLatestFrame();
     }
@@ -874,7 +872,7 @@ public class PhysicsWorldRuntimeResource extends PhysicsWorldResource {
     private static PhysicsBodySnapshotEntry authoritativeSnapshotEntry(
         @Nonnull Store<PhysicsStore> store,
         @Nonnull PhysicsBodyRegistrationResource registrations,
-        @Nonnull PhysicsStoreBodySnapshot body) {
+        @Nonnull PhysicsBodySnapshot body) {
         PhysicsBodyRegistrationView registration = registrations.getBodyRegistrationView(body.bodyUuid());
         if (registration == null) {
             return null;
@@ -888,14 +886,14 @@ public class PhysicsWorldRuntimeResource extends PhysicsWorldResource {
 
     @Nullable
     private static Ref<PhysicsStore> validSnapshotBodyRef(@Nonnull Store<PhysicsStore> store,
-        @Nonnull PhysicsStoreBodySnapshot body) {
+        @Nonnull PhysicsBodySnapshot body) {
         Ref<PhysicsStore> bodyRef = body.bodyRef();
         return bodyRef != null && bodyRef.getStore() == store && bodyRef.isValid()
             ? bodyRef
             : null;
     }
 
-    private static boolean withinRadius(@Nonnull PhysicsBodySnapshot snapshot,
+    private static boolean withinRadius(@Nonnull dev.hytalemodding.impulse.api.PhysicsBodySnapshot snapshot,
         @Nonnull Vector3f center,
         float radiusSquared) {
         Objects.requireNonNull(center, "center");
@@ -906,8 +904,8 @@ public class PhysicsWorldRuntimeResource extends PhysicsWorldResource {
     }
 
     @Nonnull
-    private static PhysicsBodySnapshot toPublicBodySnapshot(@Nonnull Store<PhysicsStore> store,
-        @Nonnull PhysicsStoreBodySnapshot body) {
+    private static dev.hytalemodding.impulse.api.PhysicsBodySnapshot toPublicBodySnapshot(@Nonnull Store<PhysicsStore> store,
+        @Nonnull PhysicsBodySnapshot body) {
         Ref<PhysicsStore> ref = body.bodyRef();
         if (ref == null || ref.getStore() != store || !ref.isValid()) {
             ref = store.getResource(PhysicsIdentityIndexResource.getResourceType())
@@ -938,7 +936,7 @@ public class PhysicsWorldRuntimeResource extends PhysicsWorldResource {
         ShapeType shapeType = shape != null ? shape.getShapeType() : ShapeType.UNKNOWN;
         boolean hasBoxHalfExtents = shapeType == ShapeType.BOX && shape != null;
 
-        return PhysicsBodySnapshot.of(position.x,
+        return dev.hytalemodding.impulse.api.PhysicsBodySnapshot.of(position.x,
             position.y,
             position.z,
             rotation.x,
@@ -978,11 +976,11 @@ public class PhysicsWorldRuntimeResource extends PhysicsWorldResource {
     }
 
     @Nonnull
-    private PhysicsBodySnapshot captureLiveBodySnapshot(@Nonnull PhysicsBodyRegistration registration) {
+    private dev.hytalemodding.impulse.api.PhysicsBodySnapshot captureLiveBodySnapshot(@Nonnull PhysicsBodyRegistration registration) {
         Objects.requireNonNull(registration, "registration");
         assertCanAccessLiveBackendDirectly("capture live physics body snapshot");
         PhysicsSpaceBinding space = requireSpaceBinding(registration.spaceId());
-        PhysicsBodySnapshot snapshot = PhysicsBodySnapshots.read(space,
+        dev.hytalemodding.impulse.api.PhysicsBodySnapshot snapshot = PhysicsBodySnapshots.read(space,
             registration.backendBodyHandle().value());
         if (snapshot == null) {
             throw new IllegalStateException(
@@ -1548,7 +1546,7 @@ public class PhysicsWorldRuntimeResource extends PhysicsWorldResource {
         Objects.requireNonNull(worldName, "worldName");
         if (isAuthoritativePhysicsStoreActive()) {
             World world = requireAuthoritativeWorld("reset physics runtime state");
-            return PhysicsStoreThreading.callWhenBackendIdleOnWorldThread(world,
+            return PhysicsThreading.callWhenBackendIdleOnWorldThread(world,
                 "reset physics runtime state",
                 store -> {
                     clearAuthoritativeWorldCollisionStreaming(store);

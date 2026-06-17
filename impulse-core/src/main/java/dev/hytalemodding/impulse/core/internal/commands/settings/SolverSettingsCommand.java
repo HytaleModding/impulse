@@ -12,8 +12,8 @@ import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import com.hypixel.hytale.server.core.universe.world.storage.PhysicsStore;
 import dev.hytalemodding.impulse.api.SpaceId;
 import dev.hytalemodding.impulse.core.internal.commands.SpaceSelection;
-import dev.hytalemodding.impulse.core.plugin.physicsstore.PhysicsStoreDiagnostics;
-import dev.hytalemodding.impulse.core.plugin.physicsstore.PhysicsStoreAsync;
+import dev.hytalemodding.impulse.core.plugin.physicsstore.PhysicsDiagnostics;
+import dev.hytalemodding.impulse.core.plugin.physicsstore.PhysicsAsync;
 import dev.hytalemodding.impulse.core.plugin.settings.PhysicsSpaceSettings;
 import dev.hytalemodding.impulse.core.plugin.resources.PhysicsWorldResource;
 import dev.hytalemodding.impulse.core.plugin.simulation.SolverCapabilitySummary;
@@ -64,8 +64,8 @@ public class SolverSettingsCommand extends AbstractAsyncWorldCommand {
             return CompletableFuture.completedFuture(null);
         }
         SpaceId spaceId = selectedSpace.spaceId();
-        return PhysicsStoreAsync.acceptOnWorldThread(world,
-            PhysicsStoreDiagnostics.solverCapabilityAsync(world, selectedSpace.spaceRef()),
+        return PhysicsAsync.acceptOnWorldThread(world,
+            PhysicsDiagnostics.solverCapabilityAsync(world, selectedSpace.spaceRef()),
             summary -> applySettings(ctx, resource, selectedSpace.spaceRef(), spaceId, summary));
     }
 

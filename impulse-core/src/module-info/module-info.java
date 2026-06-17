@@ -7,7 +7,6 @@ module dev.hytalemodding.impulse.core {
     exports dev.hytalemodding.impulse.core.plugin.body;
     exports dev.hytalemodding.impulse.core.plugin.codec;
     exports dev.hytalemodding.impulse.core.plugin.events;
-    exports dev.hytalemodding.impulse.core.plugin.joint;
     exports dev.hytalemodding.impulse.core.plugin.modules.control;
     exports dev.hytalemodding.impulse.core.plugin.modules.worldcollision;
     exports dev.hytalemodding.impulse.core.plugin.persistence;

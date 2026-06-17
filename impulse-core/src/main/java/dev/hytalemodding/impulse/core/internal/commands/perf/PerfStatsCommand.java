@@ -4,8 +4,8 @@ import com.hypixel.hytale.server.core.Message;
 import com.hypixel.hytale.server.core.command.system.CommandContext;
 import com.hypixel.hytale.server.core.command.system.basecommands.AbstractAsyncWorldCommand;
 import com.hypixel.hytale.server.core.universe.world.World;
-import dev.hytalemodding.impulse.core.plugin.physicsstore.PhysicsStoreDiagnostics;
-import dev.hytalemodding.impulse.core.plugin.physicsstore.PhysicsStoreAsync;
+import dev.hytalemodding.impulse.core.plugin.physicsstore.PhysicsDiagnostics;
+import dev.hytalemodding.impulse.core.plugin.physicsstore.PhysicsAsync;
 import dev.hytalemodding.impulse.core.plugin.simulation.SpaceSummary;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
@@ -21,8 +21,8 @@ public class PerfStatsCommand extends AbstractAsyncWorldCommand {
     @Override
     protected CompletableFuture<Void> executeAsync(@Nonnull CommandContext ctx,
         @Nonnull World world) {
-        return PhysicsStoreAsync.acceptOnWorldThread(world,
-            PhysicsStoreDiagnostics.spaceSummariesAsync(world),
+        return PhysicsAsync.acceptOnWorldThread(world,
+            PhysicsDiagnostics.spaceSummariesAsync(world),
             spaces -> sendStats(ctx, world, spaces));
     }
 
