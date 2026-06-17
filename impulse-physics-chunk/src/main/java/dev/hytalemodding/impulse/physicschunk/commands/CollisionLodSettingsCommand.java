@@ -10,10 +10,12 @@ import com.hypixel.hytale.server.core.command.system.basecommands.AbstractAsyncP
 import com.hypixel.hytale.server.core.universe.PlayerRef;
 import com.hypixel.hytale.server.core.universe.world.World;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
+import com.hypixel.hytale.server.core.universe.world.storage.PhysicsStore;
 import dev.hytalemodding.impulse.api.SpaceId;
+import dev.hytalemodding.impulse.core.plugin.physicsstore.PhysicsSpaces;
 import dev.hytalemodding.impulse.core.plugin.settings.PhysicsCollisionLodSettings;
-import dev.hytalemodding.impulse.core.plugin.resources.PhysicsWorldResource;
 import dev.hytalemodding.impulse.core.plugin.settings.PhysicsSpaceSettings;
+import dev.hytalemodding.impulse.early.PhysicsStoreWorld;
 import java.util.Locale;
 import java.util.concurrent.CompletableFuture;
 import javax.annotation.Nonnull;
@@ -69,15 +71,23 @@ public class CollisionLodSettingsCommand extends AbstractAsyncPlayerCommand {
         @Nonnull Ref<EntityStore> ref,
         @Nonnull PlayerRef playerRef,
         @Nonnull World world) {
-        PhysicsWorldResource resource = store.getResource(PhysicsWorldResource.getResourceType());
-        SpaceId spaceId = WorldCollisionSpaceSelection.resolve(ctx, world, spaceArg, resource);
-        if (spaceId == null) {
+        Store<PhysicsStore> physicsStore = ((PhysicsStoreWorld) world).getPhysicsStore().getStore();
+        WorldCollisionSpaceSelection.Selection selection =
+            WorldCollisionSpaceSelection.resolve(ctx, world, spaceArg, physicsStore);
+        if (selection == null) {
             return CompletableFuture.completedFuture(null);
         }
 
-        PhysicsSpaceSettings settings = new PhysicsSpaceSettings(resource.getSpaceSettings(spaceId));
+        PhysicsSpaceSettings currentSettings = PhysicsSpaces.settings(physicsStore,
+            selection.spaceRef());
+        if (currentSettings == null) {
+            ctx.sender().sendMessage(Message.raw("Physics space id=" + selection.spaceId().value()
+                + " no longer exists."));
+            return CompletableFuture.completedFuture(null);
+        }
+        PhysicsSpaceSettings settings = new PhysicsSpaceSettings(currentSettings);
         if (!anyArgProvided(ctx)) {
-            sendSummary(ctx, spaceId, settings);
+            sendSummary(ctx, selection.spaceId(), settings);
             return CompletableFuture.completedFuture(null);
         }
 
@@ -133,8 +143,8 @@ public class CollisionLodSettingsCommand extends AbstractAsyncPlayerCommand {
         settings.getCollisionLodSettings().setCollisionLodHysteresis(hysteresis);
         settings.getCollisionLodSettings().setCollisionLodRefreshIntervalTicks(interval);
         settings.getCollisionLodSettings().setCollisionLodFarSleepEnabled(farSleep);
-        resource.setSpaceSettings(spaceId, settings);
-        sendSummary(ctx, spaceId, settings);
+        PhysicsSpaces.putSettings(physicsStore, selection.spaceRef(), settings);
+        sendSummary(ctx, selection.spaceId(), settings);
         return CompletableFuture.completedFuture(null);
     }
 

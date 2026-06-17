@@ -6,6 +6,7 @@ import com.hypixel.hytale.server.core.command.system.CommandContext;
 import com.hypixel.hytale.server.core.command.system.basecommands.AbstractAsyncWorldCommand;
 import com.hypixel.hytale.server.core.universe.world.World;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
+import com.hypixel.hytale.server.core.universe.world.storage.PhysicsStore;
 import dev.hytalemodding.impulse.core.plugin.events.PhysicsEventFrame;
 import dev.hytalemodding.impulse.core.plugin.modules.physicsentity.PhysicsEntityDiagnostics;
 import dev.hytalemodding.impulse.core.plugin.modules.physicsentity.PhysicsRuntimeProfiling;
@@ -16,8 +17,9 @@ import dev.hytalemodding.impulse.core.plugin.modules.physicsentity.PhysicsRuntim
 import dev.hytalemodding.impulse.core.plugin.modules.physicschunk.PhysicsWorldCollisionProfiling;
 import dev.hytalemodding.impulse.core.plugin.physicsstore.PhysicsDiagnostics;
 import dev.hytalemodding.impulse.core.plugin.physicsstore.PhysicsAsync;
-import dev.hytalemodding.impulse.core.plugin.resources.PhysicsWorldResource;
+import dev.hytalemodding.impulse.core.plugin.physicsstore.PhysicsWorlds;
 import dev.hytalemodding.impulse.core.plugin.simulation.SpaceSummary;
+import dev.hytalemodding.impulse.early.PhysicsStoreWorld;
 import java.util.List;
 import java.util.Locale;
 import java.util.concurrent.CompletableFuture;
@@ -60,7 +62,7 @@ public class WorldCollisionPerfReportCommand extends AbstractAsyncWorldCommand {
         var latest = profiling.latest();
         var worst = profiling.worst();
         PhysicsEntityDiagnostics.Snapshot entityDiagnostics = PhysicsEntityDiagnostics.collect(store);
-        PhysicsWorldResource physicsWorld = store.getResource(PhysicsWorldResource.getResourceType());
+        Store<PhysicsStore> physicsStore = ((PhysicsStoreWorld) world).getPhysicsStore().getStore();
         RuntimeFootprint runtimeFootprint = RuntimeFootprint.collect(summaries);
 
         ctx.sender().sendMessage(Message.raw("Impulse runtime profiling: "
@@ -72,7 +74,7 @@ public class WorldCollisionPerfReportCommand extends AbstractAsyncWorldCommand {
                 + runtimeFootprint.runtimeStatsSummary()));
         }
         ctx.sender().sendMessage(Message.raw("Physics event frame: "
-            + formatEventFrameSummary(physicsWorld.getLatestEventFrame())));
+            + formatEventFrameSummary(PhysicsWorlds.latestEventFrame(physicsStore))));
         ctx.sender().sendMessage(Message.raw("Hytale entity diagnostics: "
             + entityDiagnostics.hytaleSummary()));
         ctx.sender().sendMessage(Message.raw("Impulse entity diagnostics: "
