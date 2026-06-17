@@ -13,15 +13,16 @@ import dev.hytalemodding.impulse.core.plugin.components.ExtensionSettingsCompone
 import dev.hytalemodding.impulse.core.plugin.components.SolverSettingsComponent;
 import dev.hytalemodding.impulse.core.plugin.components.VisualMaterializationSettingsComponent;
 import dev.hytalemodding.impulse.core.plugin.components.VisualSyncSettingsComponent;
-import dev.hytalemodding.impulse.core.plugin.modules.physicschunk.components.WorldCollisionComponent;
+import dev.hytalemodding.impulse.core.plugin.modules.physicschunk.components.PhysicsChunkTerrainComponent;
 import dev.hytalemodding.impulse.core.plugin.settings.EntityChunkBoundaryMode;
+import dev.hytalemodding.impulse.core.plugin.settings.PhysicsChunkTerrainSettings;
 import dev.hytalemodding.impulse.core.plugin.settings.PhysicsSpaceSettings;
-import dev.hytalemodding.impulse.core.plugin.settings.PhysicsWorldCollisionSettings;
 import java.util.Objects;
 import java.util.UUID;
 import javax.annotation.Nonnull;
 import org.joml.Vector3f;
 
+@SuppressWarnings("deprecation")
 public final class PersistentSpaceDto {
 
     @Nonnull
@@ -57,7 +58,7 @@ public final class PersistentSpaceDto {
                     false),
                 (dto, value) -> dto.entityChunkBoundaryMode = value != null
                     ? value
-                    : PhysicsWorldCollisionSettings.DEFAULT_ENTITY_CHUNK_BOUNDARY_MODE,
+                    : PhysicsChunkTerrainSettings.DEFAULT_ENTITY_CHUNK_BOUNDARY_MODE,
                 PersistentSpaceDto::getEntityChunkBoundaryMode)
             .add()
             .append(new KeyedCodec<>("NativeVoxelTerrain", Codec.BOOLEAN, false),
@@ -67,31 +68,31 @@ public final class PersistentSpaceDto {
             .append(new KeyedCodec<>("WorldCollisionRadius", Codec.INTEGER, false),
                 (dto, value) -> dto.worldCollisionRadius = value != null
                     ? value
-                    : PhysicsWorldCollisionSettings.DEFAULT_WORLD_COLLISION_RADIUS,
+                    : PhysicsChunkTerrainSettings.DEFAULT_TERRAIN_RADIUS,
                 PersistentSpaceDto::getWorldCollisionRadius)
             .add()
             .append(new KeyedCodec<>("WorldCollisionBodyRadius", Codec.INTEGER, false),
                 (dto, value) -> dto.worldCollisionBodyRadius = value != null
                     ? value
-                    : PhysicsWorldCollisionSettings.DEFAULT_WORLD_COLLISION_BODY_RADIUS,
+                    : PhysicsChunkTerrainSettings.DEFAULT_BODY_TERRAIN_RADIUS,
                 PersistentSpaceDto::getWorldCollisionBodyRadius)
             .add()
             .append(new KeyedCodec<>("WorldCollisionTtlTicks", Codec.INTEGER, false),
                 (dto, value) -> dto.worldCollisionTtlTicks = value != null
                     ? value
-                    : PhysicsWorldCollisionSettings.DEFAULT_WORLD_COLLISION_TTL_TICKS,
+                    : PhysicsChunkTerrainSettings.DEFAULT_TERRAIN_TTL_TICKS,
                 PersistentSpaceDto::getWorldCollisionTtlTicks)
             .add()
             .append(new KeyedCodec<>("TerrainFriction", Codec.FLOAT, false),
                 (dto, value) -> dto.terrainFriction = value != null
                     ? value
-                    : PhysicsWorldCollisionSettings.DEFAULT_TERRAIN_FRICTION,
+                    : PhysicsChunkTerrainSettings.DEFAULT_TERRAIN_FRICTION,
                 PersistentSpaceDto::getTerrainFriction)
             .add()
             .append(new KeyedCodec<>("TerrainRestitution", Codec.FLOAT, false),
                 (dto, value) -> dto.terrainRestitution = value != null
                     ? value
-                    : PhysicsWorldCollisionSettings.DEFAULT_TERRAIN_RESTITUTION,
+                    : PhysicsChunkTerrainSettings.DEFAULT_TERRAIN_RESTITUTION,
                 PersistentSpaceDto::getTerrainRestitution)
             .add()
             .append(new KeyedCodec<>("SolverSettings", SolverSettingsComponent.CODEC, false),
@@ -142,17 +143,17 @@ public final class PersistentSpaceDto {
     private WorldCollisionMode worldCollisionMode = WorldCollisionMode.NONE;
     @Nonnull
     private EntityChunkBoundaryMode entityChunkBoundaryMode =
-        PhysicsWorldCollisionSettings.DEFAULT_ENTITY_CHUNK_BOUNDARY_MODE;
+        PhysicsChunkTerrainSettings.DEFAULT_ENTITY_CHUNK_BOUNDARY_MODE;
     private boolean nativeVoxelTerrainEnabled =
-        PhysicsWorldCollisionSettings.DEFAULT_NATIVE_VOXEL_TERRAIN_ENABLED;
+        PhysicsChunkTerrainSettings.DEFAULT_NATIVE_VOXEL_TERRAIN_ENABLED;
     private int worldCollisionRadius =
-        PhysicsWorldCollisionSettings.DEFAULT_WORLD_COLLISION_RADIUS;
+        PhysicsChunkTerrainSettings.DEFAULT_TERRAIN_RADIUS;
     private int worldCollisionBodyRadius =
-        PhysicsWorldCollisionSettings.DEFAULT_WORLD_COLLISION_BODY_RADIUS;
+        PhysicsChunkTerrainSettings.DEFAULT_BODY_TERRAIN_RADIUS;
     private int worldCollisionTtlTicks =
-        PhysicsWorldCollisionSettings.DEFAULT_WORLD_COLLISION_TTL_TICKS;
-    private float terrainFriction = PhysicsWorldCollisionSettings.DEFAULT_TERRAIN_FRICTION;
-    private float terrainRestitution = PhysicsWorldCollisionSettings.DEFAULT_TERRAIN_RESTITUTION;
+        PhysicsChunkTerrainSettings.DEFAULT_TERRAIN_TTL_TICKS;
+    private float terrainFriction = PhysicsChunkTerrainSettings.DEFAULT_TERRAIN_FRICTION;
+    private float terrainRestitution = PhysicsChunkTerrainSettings.DEFAULT_TERRAIN_RESTITUTION;
     @Nonnull
     private SolverSettingsComponent solverSettings = new SolverSettingsComponent();
     @Nonnull
@@ -176,13 +177,13 @@ public final class PersistentSpaceDto {
             backendId,
             gravity,
             WorldCollisionMode.NONE,
-            PhysicsWorldCollisionSettings.DEFAULT_ENTITY_CHUNK_BOUNDARY_MODE,
-            PhysicsWorldCollisionSettings.DEFAULT_NATIVE_VOXEL_TERRAIN_ENABLED,
-            PhysicsWorldCollisionSettings.DEFAULT_WORLD_COLLISION_RADIUS,
-            PhysicsWorldCollisionSettings.DEFAULT_WORLD_COLLISION_BODY_RADIUS,
-            PhysicsWorldCollisionSettings.DEFAULT_WORLD_COLLISION_TTL_TICKS,
-            PhysicsWorldCollisionSettings.DEFAULT_TERRAIN_FRICTION,
-            PhysicsWorldCollisionSettings.DEFAULT_TERRAIN_RESTITUTION,
+            PhysicsChunkTerrainSettings.DEFAULT_ENTITY_CHUNK_BOUNDARY_MODE,
+            PhysicsChunkTerrainSettings.DEFAULT_NATIVE_VOXEL_TERRAIN_ENABLED,
+            PhysicsChunkTerrainSettings.DEFAULT_TERRAIN_RADIUS,
+            PhysicsChunkTerrainSettings.DEFAULT_BODY_TERRAIN_RADIUS,
+            PhysicsChunkTerrainSettings.DEFAULT_TERRAIN_TTL_TICKS,
+            PhysicsChunkTerrainSettings.DEFAULT_TERRAIN_FRICTION,
+            PhysicsChunkTerrainSettings.DEFAULT_TERRAIN_RESTITUTION,
             new SolverSettingsComponent(),
             new VisualSyncSettingsComponent(),
             new VisualMaterializationSettingsComponent(),
@@ -204,7 +205,7 @@ public final class PersistentSpaceDto {
             backendId,
             gravity,
             worldCollisionMode,
-            PhysicsWorldCollisionSettings.DEFAULT_ENTITY_CHUNK_BOUNDARY_MODE,
+            PhysicsChunkTerrainSettings.DEFAULT_ENTITY_CHUNK_BOUNDARY_MODE,
             nativeVoxelTerrainEnabled,
             worldCollisionRadius,
             worldCollisionBodyRadius,
@@ -381,8 +382,8 @@ public final class PersistentSpaceDto {
     }
 
     @Nonnull
-    public WorldCollisionComponent getWorldCollision() {
-        return new WorldCollisionComponent(worldCollisionMode,
+    public PhysicsChunkTerrainComponent getPhysicsChunkTerrain() {
+        return new PhysicsChunkTerrainComponent(getTerrainMode(),
             entityChunkBoundaryMode,
             nativeVoxelTerrainEnabled,
             worldCollisionRadius,
@@ -390,6 +391,15 @@ public final class PersistentSpaceDto {
             worldCollisionTtlTicks,
             terrainFriction,
             terrainRestitution);
+    }
+
+    /**
+     * @deprecated Use {@link #getPhysicsChunkTerrain()}.
+     */
+    @Deprecated(forRemoval = false)
+    @Nonnull
+    public PhysicsChunkTerrainComponent getWorldCollision() {
+        return getPhysicsChunkTerrain();
     }
 
     @Nonnull
@@ -420,7 +430,7 @@ public final class PersistentSpaceDto {
     @Nonnull
     public PhysicsSpaceSettings toSettings() {
         PhysicsSpaceSettings settings = PhysicsSpaceSettings.defaults();
-        getWorldCollision().copyTo(settings);
+        getPhysicsChunkTerrain().copyTo(settings);
         solverSettings.copyTo(settings);
         visualSyncSettings.copyTo(settings);
         visualMaterializationSettings.copyTo(settings);

@@ -13,7 +13,7 @@ import dev.hytalemodding.impulse.core.internal.physicsstore.PhysicsStoreTopology
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsChunkSettingsIndexResource.PhysicsChunkSpaceSettings;
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsIdentityIndexResource;
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsTerrainMutationQueueResource;
-import dev.hytalemodding.impulse.core.plugin.modules.physicschunk.components.WorldCollisionComponent;
+import dev.hytalemodding.impulse.core.plugin.modules.physicschunk.components.PhysicsChunkTerrainComponent;
 import dev.hytalemodding.impulse.core.plugin.physicsstore.PhysicsThreading;
 import java.util.List;
 import java.util.Objects;
@@ -165,10 +165,10 @@ public final class PhysicsChunkTerrain {
             throw new IllegalStateException("PhysicsStore space id=" + spaceId.value()
                 + " is not bound yet");
         }
-        WorldCollisionComponent component =
-            store.getComponent(spaceRef, WorldCollisionComponent.getComponentType());
-        WorldCollisionComponent settings =
-            component != null ? component : new WorldCollisionComponent();
+        PhysicsChunkTerrainComponent component =
+            store.getComponent(spaceRef, PhysicsChunkTerrainComponent.getComponentType());
+        PhysicsChunkTerrainComponent settings =
+            component != null ? component : new PhysicsChunkTerrainComponent();
         if (settings.getTerrainMode() == PhysicsChunkTerrainMode.NONE) {
             throw new IllegalStateException("PhysicsChunk terrain is disabled for space "
                 + spaceId);

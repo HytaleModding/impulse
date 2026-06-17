@@ -51,7 +51,7 @@ import dev.hytalemodding.impulse.core.plugin.components.SolverSettingsComponent;
 import dev.hytalemodding.impulse.core.plugin.components.SpaceComponent;
 import dev.hytalemodding.impulse.core.plugin.components.VisualMaterializationSettingsComponent;
 import dev.hytalemodding.impulse.core.plugin.components.VisualSyncSettingsComponent;
-import dev.hytalemodding.impulse.core.plugin.modules.physicschunk.components.WorldCollisionComponent;
+import dev.hytalemodding.impulse.core.plugin.modules.physicschunk.components.PhysicsChunkTerrainComponent;
 import dev.hytalemodding.impulse.core.plugin.snapshots.PhysicsBodySnapshot;
 import dev.hytalemodding.impulse.core.plugin.snapshots.PhysicsSnapshotFrame;
 import dev.hytalemodding.impulse.core.plugin.resources.PhysicsMutationHandle;
@@ -259,8 +259,8 @@ public class PhysicsWorldRuntimeResource extends PhysicsWorldResource {
         if (space == null) {
             return null;
         }
-        WorldCollisionComponent terrainSettings = store.getComponent(ref,
-            WorldCollisionComponent.getComponentType());
+        PhysicsChunkTerrainComponent terrainSettings = store.getComponent(ref,
+            PhysicsChunkTerrainComponent.getComponentType());
         SolverSettingsComponent solverSettings = store.getComponent(ref,
             SolverSettingsComponent.getComponentType());
         VisualSyncSettingsComponent visualSyncSettings = store.getComponent(ref,

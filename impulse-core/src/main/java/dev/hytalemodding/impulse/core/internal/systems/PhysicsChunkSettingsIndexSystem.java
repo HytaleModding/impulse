@@ -13,7 +13,7 @@ import com.hypixel.hytale.server.core.universe.world.storage.PhysicsStore;
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsChunkSettingsIndexResource;
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsChunkSettingsIndexResource.PhysicsChunkSpaceSettings;
 import dev.hytalemodding.impulse.core.plugin.components.SpaceComponent;
-import dev.hytalemodding.impulse.core.plugin.modules.physicschunk.components.WorldCollisionComponent;
+import dev.hytalemodding.impulse.core.plugin.modules.physicschunk.components.PhysicsChunkTerrainComponent;
 import it.unimi.dsi.fastutil.objects.Object2ObjectOpenHashMap;
 import java.util.Map;
 import java.util.Set;
@@ -54,11 +54,11 @@ public final class PhysicsChunkSettingsIndexSystem extends TickingSystem<Physics
             if (PhysicsStoreSystemSupport.isNil(spaceUuid)) {
                 continue;
             }
-            WorldCollisionComponent worldCollision = chunk.getComponent(index,
-                WorldCollisionComponent.getComponentType());
-            WorldCollisionComponent settings = worldCollision != null
-                ? worldCollision
-                : new WorldCollisionComponent();
+            PhysicsChunkTerrainComponent terrain = chunk.getComponent(index,
+                PhysicsChunkTerrainComponent.getComponentType());
+            PhysicsChunkTerrainComponent settings = terrain != null
+                ? terrain
+                : new PhysicsChunkTerrainComponent();
             settingsBySpaceUuid.put(spaceUuid, new PhysicsChunkSpaceSettings(spaceUuid,
                 settings.getTerrainMode(),
                 settings.getEntityChunkBoundaryMode(),

@@ -40,7 +40,7 @@ flowchart TB
 
         Plugin["Plugin API package"]
 
-        Modules["Internal modules\n- Hytale modules substitution (WIP)\n- World collision module\n- Control session module"]
+        Modules["Internal modules\n- Hytale modules substitution (WIP)\n- PhysicsChunk terrain module\n- Control session module"]
 
         StoreSystems["PhysicsStore systems + resources"]
         Ordering["row mutation + backend step ordering"]

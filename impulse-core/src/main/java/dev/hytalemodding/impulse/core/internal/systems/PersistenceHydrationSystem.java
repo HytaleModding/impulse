@@ -35,7 +35,7 @@ import dev.hytalemodding.impulse.core.plugin.components.TerrainColliderComponent
 import dev.hytalemodding.impulse.core.plugin.components.UuidComponent;
 import dev.hytalemodding.impulse.core.plugin.components.VisualMaterializationSettingsComponent;
 import dev.hytalemodding.impulse.core.plugin.components.VisualSyncSettingsComponent;
-import dev.hytalemodding.impulse.core.plugin.modules.physicschunk.components.WorldCollisionComponent;
+import dev.hytalemodding.impulse.core.plugin.modules.physicschunk.components.PhysicsChunkTerrainComponent;
 import it.unimi.dsi.fastutil.objects.Object2ObjectOpenHashMap;
 import java.util.Map;
 import java.util.Set;
@@ -87,8 +87,8 @@ public final class PersistenceHydrationSystem extends TickingSystem<PhysicsStore
         Holder<PhysicsStore> holder = row(store, dto.getSpaceUuid());
         holder.addComponent(SpaceComponent.getComponentType(),
             new SpaceComponent(new BackendId(dto.getBackendId()), dto.getGravity()));
-        holder.addComponent(WorldCollisionComponent.getComponentType(),
-            dto.getWorldCollision());
+        holder.addComponent(PhysicsChunkTerrainComponent.getComponentType(),
+            dto.getPhysicsChunkTerrain());
         holder.addComponent(SolverSettingsComponent.getComponentType(),
             dto.getSolverSettings());
         holder.addComponent(VisualSyncSettingsComponent.getComponentType(),

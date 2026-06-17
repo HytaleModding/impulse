@@ -21,7 +21,7 @@ import dev.hytalemodding.impulse.core.plugin.components.TerrainColliderComponent
 import dev.hytalemodding.impulse.core.plugin.components.UuidComponent;
 import dev.hytalemodding.impulse.core.plugin.components.VisualMaterializationSettingsComponent;
 import dev.hytalemodding.impulse.core.plugin.components.VisualSyncSettingsComponent;
-import dev.hytalemodding.impulse.core.plugin.modules.physicschunk.components.WorldCollisionComponent;
+import dev.hytalemodding.impulse.core.plugin.modules.physicschunk.components.PhysicsChunkTerrainComponent;
 import java.util.Objects;
 import java.util.UUID;
 import javax.annotation.Nonnull;
@@ -65,7 +65,7 @@ public final class PhysicsEntities {
     public static Holder<PhysicsStore> spaceHolder(@Nonnull Store<PhysicsStore> store,
         @Nonnull UUID spaceUuid,
         @Nonnull SpaceComponent space,
-        @Nonnull WorldCollisionComponent terrainSettings,
+        @Nonnull PhysicsChunkTerrainComponent terrainSettings,
         @Nonnull SolverSettingsComponent solverSettings,
         @Nonnull VisualSyncSettingsComponent visualSyncSettings,
         @Nonnull VisualMaterializationSettingsComponent visualMaterializationSettings,
@@ -120,7 +120,7 @@ public final class PhysicsEntities {
 
     public static void addSpaceComponents(@Nonnull Holder<PhysicsStore> holder,
         @Nonnull SpaceComponent space,
-        @Nonnull WorldCollisionComponent terrainSettings,
+        @Nonnull PhysicsChunkTerrainComponent terrainSettings,
         @Nonnull SolverSettingsComponent solverSettings,
         @Nonnull VisualSyncSettingsComponent visualSyncSettings,
         @Nonnull VisualMaterializationSettingsComponent visualMaterializationSettings,
@@ -129,7 +129,7 @@ public final class PhysicsEntities {
         Objects.requireNonNull(holder, "holder")
             .addComponent(SpaceComponent.getComponentType(),
                 Objects.requireNonNull(space, "space").clone());
-        holder.addComponent(WorldCollisionComponent.getComponentType(),
+        holder.addComponent(PhysicsChunkTerrainComponent.getComponentType(),
             Objects.requireNonNull(terrainSettings, "terrainSettings").clone());
         addSpaceSettingsComponents(holder,
             solverSettings,
@@ -188,7 +188,7 @@ public final class PhysicsEntities {
     public static void putSpaceComponents(@Nonnull Store<PhysicsStore> store,
         @Nonnull Ref<PhysicsStore> ref,
         @Nonnull SpaceComponent space,
-        @Nonnull WorldCollisionComponent terrainSettings,
+        @Nonnull PhysicsChunkTerrainComponent terrainSettings,
         @Nonnull SolverSettingsComponent solverSettings,
         @Nonnull VisualSyncSettingsComponent visualSyncSettings,
         @Nonnull VisualMaterializationSettingsComponent visualMaterializationSettings,
@@ -201,7 +201,7 @@ public final class PhysicsEntities {
             SpaceComponent.getComponentType(),
             Objects.requireNonNull(space, "space").clone());
         checkedStore.putComponent(ref,
-            WorldCollisionComponent.getComponentType(),
+            PhysicsChunkTerrainComponent.getComponentType(),
             Objects.requireNonNull(terrainSettings, "terrainSettings").clone());
         putSpaceSettingsComponents(checkedStore,
             ref,

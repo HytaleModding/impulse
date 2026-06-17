@@ -37,7 +37,7 @@ import dev.hytalemodding.impulse.core.plugin.components.TargetComponent;
 import dev.hytalemodding.impulse.core.plugin.components.TerrainColliderComponent;
 import dev.hytalemodding.impulse.core.plugin.components.VisualMaterializationSettingsComponent;
 import dev.hytalemodding.impulse.core.plugin.components.VisualSyncSettingsComponent;
-import dev.hytalemodding.impulse.core.plugin.modules.physicschunk.components.WorldCollisionComponent;
+import dev.hytalemodding.impulse.core.plugin.modules.physicschunk.components.PhysicsChunkTerrainComponent;
 import dev.hytalemodding.impulse.core.plugin.snapshots.PhysicsBodySnapshot;
 import it.unimi.dsi.fastutil.objects.Object2ObjectOpenHashMap;
 import it.unimi.dsi.fastutil.objects.ObjectOpenHashSet;
@@ -134,7 +134,7 @@ public final class PersistenceCaptureSystem extends TickingSystem<PhysicsStore>
             if (space != null) {
                 spaceRows.add(new SpaceRow(uuid,
                     space,
-                    chunk.getComponent(index, WorldCollisionComponent.getComponentType()),
+                    chunk.getComponent(index, PhysicsChunkTerrainComponent.getComponentType()),
                     chunk.getComponent(index, SolverSettingsComponent.getComponentType()),
                     chunk.getComponent(index, VisualSyncSettingsComponent.getComponentType()),
                     chunk.getComponent(index,
@@ -198,20 +198,20 @@ public final class PersistenceCaptureSystem extends TickingSystem<PhysicsStore>
 
         @Nonnull
         private PersistentSpaceDto spaceDto(@Nonnull SpaceRow row) {
-            WorldCollisionComponent worldCollision = row.worldCollision() != null
-                ? row.worldCollision()
-                : new WorldCollisionComponent();
+            PhysicsChunkTerrainComponent terrain = row.physicsChunkTerrain() != null
+                ? row.physicsChunkTerrain()
+                : new PhysicsChunkTerrainComponent();
             return new PersistentSpaceDto(row.uuid(),
                 row.space().getBackendIdValue(),
                 row.space().getGravity(),
-                worldCollision.getMode(),
-                worldCollision.getEntityChunkBoundaryMode(),
-                worldCollision.isNativeVoxelTerrainEnabled(),
-                worldCollision.getRadius(),
-                worldCollision.getBodyRadius(),
-                worldCollision.getTtlTicks(),
-                worldCollision.getTerrainFriction(),
-                worldCollision.getTerrainRestitution(),
+                terrain.getTerrainMode(),
+                terrain.getEntityChunkBoundaryMode(),
+                terrain.isNativeVoxelTerrainEnabled(),
+                terrain.getRadius(),
+                terrain.getBodyRadius(),
+                terrain.getTtlTicks(),
+                terrain.getTerrainFriction(),
+                terrain.getTerrainRestitution(),
                 row.solverSettings() != null
                     ? row.solverSettings()
                     : new SolverSettingsComponent(),
@@ -384,7 +384,7 @@ public final class PersistenceCaptureSystem extends TickingSystem<PhysicsStore>
 
     private record SpaceRow(@Nonnull UUID uuid,
                             @Nonnull SpaceComponent space,
-                            @Nullable WorldCollisionComponent worldCollision,
+                            @Nullable PhysicsChunkTerrainComponent physicsChunkTerrain,
                             @Nullable SolverSettingsComponent solverSettings,
                             @Nullable VisualSyncSettingsComponent visualSyncSettings,
                             @Nullable VisualMaterializationSettingsComponent visualMaterializationSettings,

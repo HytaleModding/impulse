@@ -4,7 +4,7 @@ import com.hypixel.hytale.component.ComponentRegistryProxy;
 import com.hypixel.hytale.component.ComponentType;
 import com.hypixel.hytale.server.core.universe.world.storage.PhysicsStore;
 import dev.hytalemodding.impulse.core.plugin.modules.physicschunk.components.CollisionLodSettingsComponent;
-import dev.hytalemodding.impulse.core.plugin.modules.physicschunk.components.WorldCollisionComponent;
+import dev.hytalemodding.impulse.core.plugin.modules.physicschunk.components.PhysicsChunkTerrainComponent;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
@@ -24,7 +24,7 @@ public final class PhysicsComponentTypes {
     @Nullable
     private static ComponentType<PhysicsStore, TerrainColliderComponent> terrainColliderComponentType;
     @Nullable
-    private static ComponentType<PhysicsStore, WorldCollisionComponent> worldCollisionComponentType;
+    private static ComponentType<PhysicsStore, PhysicsChunkTerrainComponent> physicsChunkTerrainComponentType;
     @Nullable
     private static ComponentType<PhysicsStore, DynamicsComponent> dynamicsComponentType;
     @Nullable
@@ -76,10 +76,10 @@ public final class PhysicsComponentTypes {
             TerrainColliderComponent.class,
             "TerrainCollider",
             TerrainColliderComponent.CODEC);
-        worldCollisionComponentType = registry.registerComponent(
-            WorldCollisionComponent.class,
+        physicsChunkTerrainComponentType = registry.registerComponent(
+            PhysicsChunkTerrainComponent.class,
             "WorldCollision",
-            WorldCollisionComponent.CODEC);
+            PhysicsChunkTerrainComponent.CODEC);
         dynamicsComponentType = registry.registerComponent(
             DynamicsComponent.class,
             "Dynamics",
@@ -157,9 +157,9 @@ public final class PhysicsComponentTypes {
     }
 
     @Nonnull
-    public static ComponentType<PhysicsStore, WorldCollisionComponent>
-    worldCollisionComponentType() {
-        return worldCollisionComponentType;
+    public static ComponentType<PhysicsStore, PhysicsChunkTerrainComponent>
+    physicsChunkTerrainComponentType() {
+        return physicsChunkTerrainComponentType;
     }
 
     @Nonnull

@@ -15,7 +15,7 @@ import dev.hytalemodding.impulse.core.plugin.components.SolverSettingsComponent;
 import dev.hytalemodding.impulse.core.plugin.components.SpaceComponent;
 import dev.hytalemodding.impulse.core.plugin.components.VisualMaterializationSettingsComponent;
 import dev.hytalemodding.impulse.core.plugin.components.VisualSyncSettingsComponent;
-import dev.hytalemodding.impulse.core.plugin.modules.physicschunk.components.WorldCollisionComponent;
+import dev.hytalemodding.impulse.core.plugin.modules.physicschunk.components.PhysicsChunkTerrainComponent;
 import dev.hytalemodding.impulse.core.plugin.settings.PhysicsSpaceSettings;
 import java.util.Collection;
 import java.util.List;
@@ -119,8 +119,8 @@ public final class PhysicsSpaces {
             return null;
         }
         PhysicsSpaceSettings settings = PhysicsSpaceSettings.defaults();
-        WorldCollisionComponent terrainSettings = checkedStore.getComponent(checkedRef,
-            WorldCollisionComponent.getComponentType());
+        PhysicsChunkTerrainComponent terrainSettings = checkedStore.getComponent(checkedRef,
+            PhysicsChunkTerrainComponent.getComponentType());
         if (terrainSettings != null) {
             terrainSettings.copyTo(settings);
         }

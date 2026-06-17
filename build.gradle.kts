@@ -151,6 +151,7 @@ tasks.register("headlessTest") {
         ":impulse-bullet:test",
         ":impulse-rapier:test",
         ":impulse-core:test",
+        ":impulse-examples:test",
         ":impulse-early-plugin:test"
     )
 }

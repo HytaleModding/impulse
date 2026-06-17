@@ -21,7 +21,7 @@ import dev.hytalemodding.impulse.core.plugin.components.SpaceComponent;
 import dev.hytalemodding.impulse.core.plugin.components.UuidComponent;
 import dev.hytalemodding.impulse.core.plugin.components.VisualMaterializationSettingsComponent;
 import dev.hytalemodding.impulse.core.plugin.components.VisualSyncSettingsComponent;
-import dev.hytalemodding.impulse.core.plugin.modules.physicschunk.components.WorldCollisionComponent;
+import dev.hytalemodding.impulse.core.plugin.modules.physicschunk.components.PhysicsChunkTerrainComponent;
 import dev.hytalemodding.impulse.core.plugin.settings.PhysicsSpaceSettings;
 import java.util.Objects;
 import java.util.UUID;
@@ -64,7 +64,7 @@ public final class PhysicsStoreSpaceMutations {
         Ref<PhysicsStore> ref = store.addEntity(PhysicsEntities.spaceHolder(store,
             spaceUuid,
             new SpaceComponent(backendId, new Vector3f(0.0f, -9.81f, 0.0f)),
-            new WorldCollisionComponent(settings.getPhysicsChunkTerrainSettings()),
+            new PhysicsChunkTerrainComponent(settings.getPhysicsChunkTerrainSettings()),
             new SolverSettingsComponent(settings.getSolverSettings()),
             new VisualSyncSettingsComponent(settings.getVisualSyncSettings()),
             new VisualMaterializationSettingsComponent(settings.getVisualMaterializationSettings()),
@@ -118,8 +118,8 @@ public final class PhysicsStoreSpaceMutations {
         requireSpaceUuid(store, ref);
         PhysicsThreading.requireWorldThread(store, "update a PhysicsStore space entity");
         store.putComponent(ref,
-            WorldCollisionComponent.getComponentType(),
-            new WorldCollisionComponent(settings.getPhysicsChunkTerrainSettings()));
+            PhysicsChunkTerrainComponent.getComponentType(),
+            new PhysicsChunkTerrainComponent(settings.getPhysicsChunkTerrainSettings()));
         PhysicsEntities.putSpaceSettingsComponents(store,
             ref,
             new SolverSettingsComponent(settings.getSolverSettings()),
