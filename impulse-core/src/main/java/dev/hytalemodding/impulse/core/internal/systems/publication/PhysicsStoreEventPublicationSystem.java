@@ -83,7 +83,13 @@ public final class PhysicsStoreEventPublicationSystem extends TickingSystem<Enti
             0L,
             0L,
             System.nanoTime(),
-            sample.nativePhaseStats());
+            sample.nativePhaseStats(),
+            0,
+            0L,
+            0,
+            sample.registrationPublicationNanos(),
+            sample.registrationPublicationRebuilds(),
+            sample.registrationPublicationSkips());
         if (sample.schedulerSamples() > 0) {
             runtimeProfiling.recordStepScheduling(sample.schedulerInputDtSeconds(),
                 sample.schedulerSubmittedDtSeconds(),

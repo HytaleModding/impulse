@@ -18,6 +18,7 @@ import dev.hytalemodding.impulse.core.internal.resources.profiling.PhysicsRuntim
 import dev.hytalemodding.impulse.core.internal.resources.profiling.PhysicsRuntimeProfilingResource.SyncSnapshot;
 import dev.hytalemodding.impulse.core.internal.modules.physicschunk.profiling.WorldCollisionProfilingResource;
 import dev.hytalemodding.impulse.core.internal.modules.physicschunk.profiling.WorldCollisionProfilingResource.Snapshot;
+import dev.hytalemodding.impulse.core.internal.resources.PhysicsProfilingResource;
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsWorldRuntimeResource;
 import dev.hytalemodding.impulse.core.plugin.modules.physicsentity.components.BodyAttachmentComponent;
 import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyKind;
@@ -142,9 +143,11 @@ final class ImpulseRapierBodyBenchmarkCrucibleTests {
         private final Store<EntityStore> store;
         private final PhysicsWorldRuntimeResource physics;
         private final Store<PhysicsStore> physicsStore;
+        private final PhysicsProfilingResource physicsStoreProfiling;
         private final PhysicsRuntimeProfilingResource runtimeProfiling;
         private final WorldCollisionProfilingResource worldCollisionProfiling;
         private final PhysicsWorldSettings previousWorldSettings;
+        private final boolean previousPhysicsStoreProfilingEnabled;
         private final boolean previousRuntimeProfilingEnabled;
         private final boolean previousWorldCollisionProfilingEnabled;
 
@@ -156,10 +159,13 @@ final class ImpulseRapierBodyBenchmarkCrucibleTests {
             this.store = world.getEntityStore().getStore();
             this.physics = PhysicsWorldRuntimeResource.require(store);
             this.physicsStore = PhysicsStoreCrucibleSupport.physicsStore(world);
+            this.physicsStoreProfiling = physicsStore.getResource(
+                PhysicsProfilingResource.getResourceType());
             this.runtimeProfiling = store.getResource(PhysicsRuntimeProfilingResource.getResourceType());
             this.worldCollisionProfiling = store.getResource(
                 WorldCollisionProfilingResource.getResourceType());
             this.previousWorldSettings = physics.getWorldSettings();
+            this.previousPhysicsStoreProfilingEnabled = physicsStoreProfiling.isEnabled();
             this.previousRuntimeProfilingEnabled = runtimeProfiling.isEnabled();
             this.previousWorldCollisionProfilingEnabled = worldCollisionProfiling.isEnabled();
         }
@@ -188,8 +194,10 @@ final class ImpulseRapierBodyBenchmarkCrucibleTests {
             MatrixCase matrixCase = new MatrixCase(plan.count(), plan.substeps().get(index));
             return startCase(matrixCase)
                 .thenCompose(started -> contextWait(plan.warmupTicks()).thenCompose(_ -> {
+                    physicsStoreProfiling.reset();
                     runtimeProfiling.reset();
                     worldCollisionProfiling.reset();
+                    physicsStoreProfiling.setEnabled(true);
                     runtimeProfiling.setEnabled(true);
                     worldCollisionProfiling.setEnabled(true);
                     long startedNanos = System.nanoTime();
@@ -302,10 +310,17 @@ final class ImpulseRapierBodyBenchmarkCrucibleTests {
             SpaceStats stats = SpaceStats.collect(physicsStore, spaceId);
             double avgStepMs = averageMillis(step.getTickNanos(), step.getTickSamples());
             double avgSnapshotMs = averageMillis(step.getSnapshotNanos(), step.getTickSamples());
+            double avgRegistrationPublicationMs = averageMillis(
+                step.getRegistrationPublicationNanos(),
+                step.getTickSamples());
             double avgSyncMs = averageMillis(sync.getTickNanos(), sync.getTickSamples());
             double avgWorldMs = averageMillis(worldCollision.getTickNanos(),
                 worldCollision.getTickSamples());
-            double totalMs = avgStepMs + avgSnapshotMs + avgSyncMs + avgWorldMs;
+            double totalMs = avgStepMs
+                + avgSnapshotMs
+                + avgRegistrationPublicationMs
+                + avgSyncMs
+                + avgWorldMs;
             MatrixHealth health = assessHealth(matrixCase,
                 observedTickRate,
                 step,
@@ -316,6 +331,7 @@ final class ImpulseRapierBodyBenchmarkCrucibleTests {
                 observedTickRate,
                 avgStepMs,
                 avgSnapshotMs,
+                avgRegistrationPublicationMs,
                 avgSyncMs,
                 avgWorldMs,
                 totalMs,
@@ -359,6 +375,7 @@ final class ImpulseRapierBodyBenchmarkCrucibleTests {
             removeBenchmarkEntities();
             physics.clearSyntheticVisualInterests();
             PhysicsStoreCrucibleSupport.clearAll(physicsStore);
+            physicsStoreProfiling.reset();
             runtimeProfiling.reset();
             worldCollisionProfiling.reset();
             worldCollisionProfiling.clearDiagnosticRetainedSections();
@@ -366,6 +383,7 @@ final class ImpulseRapierBodyBenchmarkCrucibleTests {
 
         private void restoreSettings() {
             physics.setWorldSettings(previousWorldSettings);
+            physicsStoreProfiling.setEnabled(previousPhysicsStoreProfilingEnabled);
             runtimeProfiling.setEnabled(previousRuntimeProfilingEnabled);
             worldCollisionProfiling.setEnabled(previousWorldCollisionProfilingEnabled);
         }
@@ -472,13 +490,16 @@ final class ImpulseRapierBodyBenchmarkCrucibleTests {
         MatrixReport first = reports.get(0);
         MatrixReport second = reports.get(1);
         LOGGER.at(Level.INFO).log("Crucible Rapier body matrix comparison: %sx=%sms "
-                + "%sx=%sms stepRatio=%s snapshotRatio=%s totalRatio=%s worldCounters=%s/%s",
+                + "%sx=%sms stepRatio=%s snapshotRatio=%s registrationRatio=%s "
+                + "totalRatio=%s worldCounters=%s/%s",
             first.matrixCase().fixedSubsteps(),
             format(first.avgStepMs()),
             second.matrixCase().fixedSubsteps(),
             format(second.avgStepMs()),
             format(ratio(second.avgStepMs(), first.avgStepMs())),
             format(ratio(second.avgSnapshotMs(), first.avgSnapshotMs())),
+            format(ratio(second.avgRegistrationPublicationMs(),
+                first.avgRegistrationPublicationMs())),
             format(ratio(second.totalMs(), first.totalMs())),
             first.worldCounterSummary(),
             second.worldCounterSummary());
@@ -589,6 +610,7 @@ final class ImpulseRapierBodyBenchmarkCrucibleTests {
                                 double observedTickRate,
                                 double avgStepMs,
                                 double avgSnapshotMs,
+                                double avgRegistrationPublicationMs,
                                 double avgSyncMs,
                                 double avgWorldMs,
                                 double totalMs,
@@ -623,6 +645,7 @@ final class ImpulseRapierBodyBenchmarkCrucibleTests {
             @Nonnull String reason) {
             MatrixHealth health = new MatrixHealth(MatrixStatus.STOP, reason);
             return new MatrixReport(matrixCase,
+                0.0,
                 0.0,
                 0.0,
                 0.0,
@@ -664,8 +687,9 @@ final class ImpulseRapierBodyBenchmarkCrucibleTests {
                 + " reason=" + health.reason()
                 + " tps=" + format(observedTickRate)
                 + " totalMs=" + format(totalMs)
-                + " step/snapshot/sync/worldMs=" + format(avgStepMs)
+                + " step/snapshot/registration/sync/worldMs=" + format(avgStepMs)
                 + "/" + format(avgSnapshotMs)
+                + "/" + format(avgRegistrationPublicationMs)
                 + "/" + format(avgSyncMs)
                 + "/" + format(avgWorldMs)
                 + " step samples/substeps/bodySnapshots/spatialCells=" + stepSamples

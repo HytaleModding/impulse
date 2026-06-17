@@ -24,6 +24,7 @@ import dev.hytalemodding.impulse.core.internal.modules.physicschunk.profiling.Wo
 import dev.hytalemodding.impulse.core.internal.modules.physicschunk.profiling.WorldCollisionProfilingResource.Snapshot;
 import dev.hytalemodding.impulse.core.internal.physicsstore.PhysicsStoreSpaceMutations;
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsTerrainMutationQueueResource;
+import dev.hytalemodding.impulse.core.internal.resources.PhysicsProfilingResource;
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsWorldRuntimeResource;
 import dev.hytalemodding.impulse.core.internal.simulation.view.BenchmarkSpaceStatsView;
 import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyKind;
@@ -141,10 +142,12 @@ final class ImpulseDetachedStreamingBenchmarkCrucibleTests {
         private final World world;
         private final PhysicsWorldRuntimeResource physics;
         private final Store<PhysicsStore> physicsStore;
+        private final PhysicsProfilingResource physicsStoreProfiling;
         private final PhysicsRuntimeProfilingResource runtimeProfiling;
         private final WorldCollisionProfilingResource worldCollisionProfiling;
         private final PhysicsStoreWorldCollisionStreamingResource worldCollisionStreaming;
         private final PhysicsWorldSettings previousWorldSettings;
+        private final boolean previousPhysicsStoreProfilingEnabled;
         private final List<WorldChunk> retainedChunks = new ArrayList<>();
 
         private StageRunner(@Nonnull CrucibleContext context, @Nonnull StagePlan plan)
@@ -155,12 +158,15 @@ final class ImpulseDetachedStreamingBenchmarkCrucibleTests {
             Store<EntityStore> store = world.getEntityStore().getStore();
             this.physics = PhysicsWorldRuntimeResource.require(store);
             this.physicsStore = PhysicsStoreCrucibleSupport.physicsStore(world);
+            this.physicsStoreProfiling = physicsStore.getResource(
+                PhysicsProfilingResource.getResourceType());
             this.runtimeProfiling = store.getResource(PhysicsRuntimeProfilingResource.getResourceType());
             this.worldCollisionProfiling = store.getResource(
                 WorldCollisionProfilingResource.getResourceType());
             this.worldCollisionStreaming = store.getResource(
                 PhysicsStoreWorldCollisionStreamingResource.getResourceType());
             this.previousWorldSettings = physics.getWorldSettings();
+            this.previousPhysicsStoreProfilingEnabled = physicsStoreProfiling.isEnabled();
         }
 
         private CompletionStage<CrucibleTestCase.TestOutcome> run() {
@@ -186,8 +192,10 @@ final class ImpulseDetachedStreamingBenchmarkCrucibleTests {
             int count = plan.counts().get(stageIndex);
             return startStageWhenReady(count, 1)
                 .thenCompose(started -> contextWait(plan.warmupTicks()).thenCompose(_ -> {
+                    physicsStoreProfiling.reset();
                     runtimeProfiling.reset();
                     worldCollisionProfiling.reset();
+                    physicsStoreProfiling.setEnabled(true);
                     runtimeProfiling.setEnabled(true);
                     worldCollisionProfiling.setEnabled(true);
                     long startedNanos = System.nanoTime();
@@ -254,8 +262,10 @@ final class ImpulseDetachedStreamingBenchmarkCrucibleTests {
                 settings);
             PrewarmStats prewarm = prewarmWorldCollision(spaceId, count);
             spawnDetachedBodies(spaceId, count);
+            physicsStoreProfiling.reset();
             runtimeProfiling.reset();
             worldCollisionProfiling.reset();
+            physicsStoreProfiling.setEnabled(true);
             runtimeProfiling.setEnabled(true);
             worldCollisionProfiling.setEnabled(true);
             return CompletableFuture.completedFuture(
@@ -282,10 +292,17 @@ final class ImpulseDetachedStreamingBenchmarkCrucibleTests {
             SpaceStats stats = SpaceStats.collect(physicsStore, worldCollisionStreaming, spaceId);
             double avgStepMs = averageMillis(step.getTickNanos(), step.getTickSamples());
             double avgSnapshotMs = averageMillis(step.getSnapshotNanos(), step.getTickSamples());
+            double avgRegistrationPublicationMs = averageMillis(
+                step.getRegistrationPublicationNanos(),
+                step.getTickSamples());
             double avgSyncMs = averageMillis(sync.getTickNanos(), sync.getTickSamples());
             double avgWorldMs = averageMillis(worldCollision.getTickNanos(),
                 worldCollision.getTickSamples());
-            double totalMs = avgStepMs + avgSnapshotMs + avgSyncMs + avgWorldMs;
+            double totalMs = avgStepMs
+                + avgSnapshotMs
+                + avgRegistrationPublicationMs
+                + avgSyncMs
+                + avgWorldMs;
             StageHealth health = assessHealth(count,
                 observedTickRate,
                 stats,
@@ -297,6 +314,7 @@ final class ImpulseDetachedStreamingBenchmarkCrucibleTests {
                 observedTickRate,
                 avgStepMs,
                 avgSnapshotMs,
+                avgRegistrationPublicationMs,
                 avgSyncMs,
                 avgWorldMs,
                 totalMs,
@@ -339,6 +357,7 @@ final class ImpulseDetachedStreamingBenchmarkCrucibleTests {
         private void clearStageState() {
             releaseRetainedChunks();
             PhysicsStoreCrucibleSupport.clearAll(physicsStore);
+            physicsStoreProfiling.reset();
             runtimeProfiling.reset();
             worldCollisionProfiling.reset();
             worldCollisionProfiling.clearDiagnosticRetainedSections();
@@ -346,6 +365,7 @@ final class ImpulseDetachedStreamingBenchmarkCrucibleTests {
 
         private void restoreStepSettings() {
             physics.setWorldSettings(previousWorldSettings);
+            physicsStoreProfiling.setEnabled(previousPhysicsStoreProfilingEnabled);
         }
 
         private PrewarmStats prewarmWorldCollision(@Nonnull SpaceId spaceId, int count) {
@@ -758,6 +778,7 @@ final class ImpulseDetachedStreamingBenchmarkCrucibleTests {
                                double observedTickRate,
                                double avgStepMs,
                                double avgSnapshotMs,
+                               double avgRegistrationPublicationMs,
                                double avgSyncMs,
                                double avgWorldMs,
                                double totalMs,
@@ -791,6 +812,7 @@ final class ImpulseDetachedStreamingBenchmarkCrucibleTests {
         private static StageReport failedPreflight(int count, @Nonnull String reason) {
             StageHealth health = new StageHealth(StageStatus.STOP, reason);
             return new StageReport(count,
+                0.0,
                 0.0,
                 0.0,
                 0.0,
@@ -831,8 +853,9 @@ final class ImpulseDetachedStreamingBenchmarkCrucibleTests {
                 + " reason=" + health.reason()
                 + " tps=" + format(observedTickRate)
                 + " totalMs=" + format(totalMs)
-                + " step/snapshot/sync/worldMs=" + format(avgStepMs)
+                + " step/snapshot/registration/sync/worldMs=" + format(avgStepMs)
                 + "/" + format(avgSnapshotMs)
+                + "/" + format(avgRegistrationPublicationMs)
                 + "/" + format(avgSyncMs)
                 + "/" + format(avgWorldMs)
                 + " bodies dynamic/worldCollision=" + dynamicBodies

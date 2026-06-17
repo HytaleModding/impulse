@@ -123,6 +123,7 @@ public final class PhysicsRuntimeResource implements Resource<PhysicsStore> {
     @Nonnull
     private final Int2ObjectOpenHashMap<Ref<PhysicsStore>> pendingSpaceSettingsByRowIndex =
         new Int2ObjectOpenHashMap<>();
+    private long registrationTopologyGeneration;
     @Setter
     @Getter
     private boolean started;
@@ -200,6 +201,7 @@ public final class PhysicsRuntimeResource implements Resource<PhysicsStore> {
                 });
             }
             removeTerrainHandlesForSpace(removed);
+            markRegistrationTopologyChanged();
         }
     }
 
@@ -218,6 +220,7 @@ public final class PhysicsRuntimeResource implements Resource<PhysicsStore> {
             .add(handle.value());
         bodySnapshotMetadataByHandle.put(handle.value(),
             new BodySnapshotMetadata(bodyUuid, bodyRef, spaceUuid));
+        markRegistrationTopologyChanged();
     }
 
     @Nullable
@@ -239,6 +242,7 @@ public final class PhysicsRuntimeResource implements Resource<PhysicsStore> {
         BackendSpaceHandle spaceHandleByRef = bodySpaceHandlesByRowIndex.remove(rowIndex);
         removeBodyHandleIndexes(removed != null ? removed : removedByRef,
             spaceHandle != null ? spaceHandle : spaceHandleByRef);
+        markRegistrationTopologyChanged();
     }
 
     @Nonnull
@@ -431,6 +435,7 @@ public final class PhysicsRuntimeResource implements Resource<PhysicsStore> {
                 terrainVoxelBodyHandlesByRowIndex.put(rowIndex, handle);
             }
         }
+        markRegistrationTopologyChanged();
     }
 
     public void putTerrainBodyHandle(@Nonnull Ref<PhysicsStore> terrainRef,
@@ -487,23 +492,30 @@ public final class PhysicsRuntimeResource implements Resource<PhysicsStore> {
     }
 
     public void removeTerrainHandles(@Nonnull UUID terrainUuid) {
+        boolean changed = false;
         LongList bodyHandles = terrainBodyHandlesByUuid.remove(terrainUuid);
         if (bodyHandles != null) {
             bodyHandles.forEach(bodyHitMetadataByHandle::remove);
+            changed = true;
         }
-        terrainVoxelBodyHandlesByUuid.remove(terrainUuid);
-        terrainSpaceHandlesByUuid.remove(terrainUuid);
-        terrainPayloadKeysByUuid.remove(terrainUuid);
+        changed |= terrainVoxelBodyHandlesByUuid.remove(terrainUuid) != null;
+        changed |= terrainSpaceHandlesByUuid.remove(terrainUuid) != null;
+        changed |= terrainPayloadKeysByUuid.remove(terrainUuid) != null;
         Ref<PhysicsStore> terrainRef = terrainRefsByUuid.remove(terrainUuid);
         if (terrainRef != null) {
-            removeTerrainRefMaps(terrainRef);
+            changed |= removeTerrainRefMaps(terrainRef);
+        }
+        if (changed) {
+            markRegistrationTopologyChanged();
         }
     }
 
     public void removeTerrainHandles(@Nonnull UUID terrainUuid,
         @Nonnull Ref<PhysicsStore> terrainRef) {
         removeTerrainHandles(terrainUuid);
-        removeTerrainRefMaps(terrainRef);
+        if (removeTerrainRefMaps(terrainRef)) {
+            markRegistrationTopologyChanged();
+        }
     }
 
     public void removeTerrainHandles(@Nonnull Ref<PhysicsStore> terrainRef,
@@ -586,6 +598,7 @@ public final class PhysicsRuntimeResource implements Resource<PhysicsStore> {
         pendingBodyOperations.clear();
         pendingSpaceSettingsByRowIndex.clear();
         started = false;
+        markRegistrationTopologyChanged();
     }
 
     public void clearTransientBodyOperations() {
@@ -741,6 +754,7 @@ public final class PhysicsRuntimeResource implements Resource<PhysicsStore> {
         copy.bodySnapshotMetadataByHandle.putAll(bodySnapshotMetadataByHandle);
         copy.pendingBodyOperations.addAll(pendingBodyOperations);
         copy.pendingSpaceSettingsByRowIndex.putAll(pendingSpaceSettingsByRowIndex);
+        copy.registrationTopologyGeneration = registrationTopologyGeneration;
         copy.started = started;
         return copy;
     }
@@ -874,8 +888,16 @@ public final class PhysicsRuntimeResource implements Resource<PhysicsStore> {
         }
     }
 
+    public long getRegistrationTopologyGeneration() {
+        return registrationTopologyGeneration;
+    }
+
+    private void markRegistrationTopologyChanged() {
+        registrationTopologyGeneration++;
+    }
+
     private void removeTerrainHandlesForSpace(@Nonnull BackendSpaceHandle spaceHandle) {
-        terrainSpaceHandlesByUuid.entrySet().removeIf(entry -> {
+        boolean removedAny = terrainSpaceHandlesByUuid.entrySet().removeIf(entry -> {
             if (entry.getValue().value() != spaceHandle.value()) {
                 return false;
             }
@@ -893,6 +915,9 @@ public final class PhysicsRuntimeResource implements Resource<PhysicsStore> {
             }
             return true;
         });
+        if (removedAny) {
+            markRegistrationTopologyChanged();
+        }
     }
 
     private void bindTerrainRef(@Nonnull UUID terrainUuid,
@@ -902,16 +927,19 @@ public final class PhysicsRuntimeResource implements Resource<PhysicsStore> {
         }
         Ref<PhysicsStore> previousRef = terrainRefsByUuid.put(terrainUuid, terrainRef);
         if (previousRef != null && !sameRef(previousRef, terrainRef)) {
-            removeTerrainRefMaps(previousRef);
+            if (removeTerrainRefMaps(previousRef)) {
+                markRegistrationTopologyChanged();
+            }
         }
     }
 
-    private void removeTerrainRefMaps(@Nonnull Ref<PhysicsStore> terrainRef) {
+    private boolean removeTerrainRefMaps(@Nonnull Ref<PhysicsStore> terrainRef) {
         int rowIndex = terrainRef.getIndex();
-        terrainBodyHandlesByRowIndex.remove(rowIndex);
-        terrainVoxelBodyHandlesByRowIndex.remove(rowIndex);
-        terrainSpaceHandlesByRowIndex.remove(rowIndex);
-        terrainPayloadKeysByRowIndex.remove(rowIndex);
+        boolean changed = terrainBodyHandlesByRowIndex.remove(rowIndex) != null;
+        changed |= terrainVoxelBodyHandlesByRowIndex.remove(rowIndex) != null;
+        changed |= terrainSpaceHandlesByRowIndex.remove(rowIndex) != null;
+        changed |= terrainPayloadKeysByRowIndex.remove(rowIndex) != null;
+        return changed;
     }
 
     @Nullable

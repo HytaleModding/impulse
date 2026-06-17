@@ -63,6 +63,8 @@ public final class CompletedStepPublicationSystem extends TickingSystem<PhysicsS
         }
         PhysicsRuntimeResource runtime = store.getResource(PhysicsRuntimeResource.getResourceType());
         PhysicsSnapshotResource snapshot = store.getResource(PhysicsSnapshotResource.getResourceType());
+        PhysicsBodyRegistrationResource registrations = store.getResource(
+            PhysicsBodyRegistrationResource.getResourceType());
         PhysicsProfilingResource profiling = store.getResource(PhysicsProfilingResource.getResourceType());
         PhysicsSpaceCompatibilityIndexResource compatibility = store.getResource(
             PhysicsSpaceCompatibilityIndexResource.getResourceType());
@@ -85,12 +87,13 @@ public final class CompletedStepPublicationSystem extends TickingSystem<PhysicsS
             frameDt,
             bodies);
         snapshot.publish(frame);
-        store.getResource(PhysicsBodyRegistrationResource.getResourceType())
-            .publish(collectRegistrationViews(store,
-                systemIndex,
-                runtime,
-                compatibility,
-                snapshot));
+        publishRegistrationViews(store,
+            systemIndex,
+            runtime,
+            compatibility,
+            snapshot,
+            registrations,
+            profiling);
         profiling.recordSnapshot(completed.snapshotNanos(), bodies.size());
         store.getResource(PhysicsEventResource.getResourceType())
             .publishStepFrame(frame.sequence(),
@@ -100,6 +103,31 @@ public final class CompletedStepPublicationSystem extends TickingSystem<PhysicsS
                 completed.snapshotNanos(),
                 completed.physicsEvents(),
                 completed.droppedBackendEventCount());
+    }
+
+    private static void publishRegistrationViews(@Nonnull Store<PhysicsStore> store,
+        int systemIndex,
+        @Nonnull PhysicsRuntimeResource runtime,
+        @Nonnull PhysicsSpaceCompatibilityIndexResource compatibility,
+        @Nonnull PhysicsSnapshotResource snapshot,
+        @Nonnull PhysicsBodyRegistrationResource registrations,
+        @Nonnull PhysicsProfilingResource profiling) {
+        long generation = runtime.getRegistrationTopologyGeneration();
+        if (registrations.isCurrent(generation)) {
+            profiling.recordRegistrationPublication(0L, false);
+            return;
+        }
+        long startNanos = profiling.isEnabled() ? System.nanoTime() : 0L;
+        registrations.publish(generation,
+            collectRegistrationViews(store,
+                systemIndex,
+                runtime,
+                compatibility,
+                snapshot));
+        long publicationNanos = profiling.isEnabled()
+            ? System.nanoTime() - startNanos
+            : 0L;
+        profiling.recordRegistrationPublication(publicationNanos, true);
     }
 
     @Nonnull

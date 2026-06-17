@@ -14,10 +14,13 @@ public final class PhysicsProfilingResource implements Resource<PhysicsStore> {
 
     private boolean enabled;
     private long snapshotNanos;
+    private long registrationPublicationNanos;
     private long stepSubmitNanos;
     private int spaces;
     private int substeps;
     private int publishedBodies;
+    private int registrationPublicationRebuilds;
+    private int registrationPublicationSkips;
     private int schedulerSamples;
     private float schedulerInputDtSeconds;
     private float schedulerSubmittedDtSeconds;
@@ -53,6 +56,13 @@ public final class PhysicsProfilingResource implements Resource<PhysicsStore> {
         this.publishedBodies = Math.max(0, publishedBodies);
     }
 
+    public void recordRegistrationPublication(long registrationPublicationNanos,
+        boolean rebuilt) {
+        this.registrationPublicationNanos = Math.max(0L, registrationPublicationNanos);
+        registrationPublicationRebuilds = rebuilt ? 1 : 0;
+        registrationPublicationSkips = rebuilt ? 0 : 1;
+    }
+
     public void recordStepScheduling(float inputDtSeconds,
         float submittedDtSeconds,
         float backlogDtSeconds,
@@ -68,10 +78,13 @@ public final class PhysicsProfilingResource implements Resource<PhysicsStore> {
 
     public void reset() {
         snapshotNanos = 0L;
+        registrationPublicationNanos = 0L;
         stepSubmitNanos = 0L;
         spaces = 0;
         substeps = 0;
         publishedBodies = 0;
+        registrationPublicationRebuilds = 0;
+        registrationPublicationSkips = 0;
         schedulerSamples = 0;
         schedulerInputDtSeconds = 0.0f;
         schedulerSubmittedDtSeconds = 0.0f;
@@ -87,7 +100,10 @@ public final class PhysicsProfilingResource implements Resource<PhysicsStore> {
             substeps,
             stepSubmitNanos,
             snapshotNanos,
+            registrationPublicationNanos,
             publishedBodies,
+            registrationPublicationRebuilds,
+            registrationPublicationSkips,
             schedulerSamples,
             schedulerInputDtSeconds,
             schedulerSubmittedDtSeconds,
@@ -99,6 +115,10 @@ public final class PhysicsProfilingResource implements Resource<PhysicsStore> {
 
     public long getSnapshotNanos() {
         return snapshotNanos;
+    }
+
+    public long getRegistrationPublicationNanos() {
+        return registrationPublicationNanos;
     }
 
     public long getStepSubmitNanos() {
@@ -117,6 +137,14 @@ public final class PhysicsProfilingResource implements Resource<PhysicsStore> {
         return publishedBodies;
     }
 
+    public int getRegistrationPublicationRebuilds() {
+        return registrationPublicationRebuilds;
+    }
+
+    public int getRegistrationPublicationSkips() {
+        return registrationPublicationSkips;
+    }
+
     @Nonnull
     public PhysicsStepPhaseStats getNativePhaseStats() {
         return nativePhaseStats;
@@ -128,10 +156,13 @@ public final class PhysicsProfilingResource implements Resource<PhysicsStore> {
         PhysicsProfilingResource copy = new PhysicsProfilingResource();
         copy.enabled = enabled;
         copy.snapshotNanos = snapshotNanos;
+        copy.registrationPublicationNanos = registrationPublicationNanos;
         copy.stepSubmitNanos = stepSubmitNanos;
         copy.spaces = spaces;
         copy.substeps = substeps;
         copy.publishedBodies = publishedBodies;
+        copy.registrationPublicationRebuilds = registrationPublicationRebuilds;
+        copy.registrationPublicationSkips = registrationPublicationSkips;
         copy.schedulerSamples = schedulerSamples;
         copy.schedulerInputDtSeconds = schedulerInputDtSeconds;
         copy.schedulerSubmittedDtSeconds = schedulerSubmittedDtSeconds;
@@ -151,7 +182,10 @@ public final class PhysicsProfilingResource implements Resource<PhysicsStore> {
                              int substeps,
                              long stepSubmitNanos,
                              long snapshotNanos,
+                             long registrationPublicationNanos,
                              int publishedBodies,
+                             int registrationPublicationRebuilds,
+                             int registrationPublicationSkips,
                              int schedulerSamples,
                              float schedulerInputDtSeconds,
                              float schedulerSubmittedDtSeconds,
@@ -165,7 +199,10 @@ public final class PhysicsProfilingResource implements Resource<PhysicsStore> {
             substeps = Math.max(0, substeps);
             stepSubmitNanos = Math.max(0L, stepSubmitNanos);
             snapshotNanos = Math.max(0L, snapshotNanos);
+            registrationPublicationNanos = Math.max(0L, registrationPublicationNanos);
             publishedBodies = Math.max(0, publishedBodies);
+            registrationPublicationRebuilds = Math.max(0, registrationPublicationRebuilds);
+            registrationPublicationSkips = Math.max(0, registrationPublicationSkips);
             schedulerSamples = Math.max(0, schedulerSamples);
             schedulerInputDtSeconds = safeDt(schedulerInputDtSeconds);
             schedulerSubmittedDtSeconds = safeDt(schedulerSubmittedDtSeconds);

@@ -52,6 +52,10 @@ public final class PhysicsBodyRegistrationResource implements Resource<PhysicsSt
         return registrations.views().size();
     }
 
+    public boolean isCurrent(long registrationTopologyGeneration) {
+        return registrations.registrationTopologyGeneration() == registrationTopologyGeneration;
+    }
+
     public int getBodyRegistrationCount(@Nonnull PhysicsBodyPersistenceMode persistenceMode) {
         Objects.requireNonNull(persistenceMode, "persistenceMode");
         int count = 0;
@@ -76,7 +80,8 @@ public final class PhysicsBodyRegistrationResource implements Resource<PhysicsSt
         return views;
     }
 
-    public void publish(@Nonnull Collection<BodyRegistrationPublication> publications) {
+    public void publish(long registrationTopologyGeneration,
+        @Nonnull Collection<BodyRegistrationPublication> publications) {
         Object2ObjectLinkedOpenHashMap<UUID, BodyRegistrationPublication> publicationsByUuid =
             new Object2ObjectLinkedOpenHashMap<>(publications.size());
         for (BodyRegistrationPublication publication : publications) {
@@ -95,7 +100,8 @@ public final class PhysicsBodyRegistrationResource implements Resource<PhysicsSt
             viewsByRowIndex.put(publication.bodyRef().getIndex(),
                 new RegistrationByRef(publication.bodyRef(), registration));
         }
-        registrations = new PublishedRegistrations(List.copyOf(viewsByUuid.values()),
+        registrations = new PublishedRegistrations(registrationTopologyGeneration,
+            List.copyOf(viewsByUuid.values()),
             viewsByUuid,
             viewsByRowIndex);
     }
@@ -113,7 +119,8 @@ public final class PhysicsBodyRegistrationResource implements Resource<PhysicsSt
             new Int2ObjectOpenHashMap<>(current.viewsByRowIndex());
         viewsByRowIndex.int2ObjectEntrySet()
             .removeIf(entry -> entry.getValue().view().bodyUuid().equals(bodyUuid));
-        registrations = new PublishedRegistrations(List.copyOf(viewsByUuid.values()),
+        registrations = new PublishedRegistrations(current.registrationTopologyGeneration(),
+            List.copyOf(viewsByUuid.values()),
             viewsByUuid,
             viewsByRowIndex);
     }
@@ -155,12 +162,14 @@ public final class PhysicsBodyRegistrationResource implements Resource<PhysicsSt
     }
 
     private record PublishedRegistrations(
+        long registrationTopologyGeneration,
         @Nonnull List<PhysicsBodyRegistrationView> views,
         @Nonnull Map<UUID, PhysicsBodyRegistrationView> viewsByUuid,
         @Nonnull Int2ObjectOpenHashMap<RegistrationByRef> viewsByRowIndex) {
 
         private static final PublishedRegistrations EMPTY =
-            new PublishedRegistrations(List.of(),
+            new PublishedRegistrations(-1L,
+                List.of(),
                 Map.of(),
                 new Int2ObjectOpenHashMap<>());
     }
