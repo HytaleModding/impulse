@@ -11,9 +11,9 @@ import dev.hytalemodding.impulse.core.internal.modules.physicschunk.VoxelTerrain
 import dev.hytalemodding.impulse.core.internal.modules.physicschunk.profiling.PhysicsChunkProfilingResource.Snapshot;
 import dev.hytalemodding.impulse.core.internal.modules.physicschunk.profiling.PhysicsChunkProfilingResource.StreamingTargetDiagnostic;
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsTerrainMutationQueueResource;
-import dev.hytalemodding.impulse.core.plugin.modules.physicschunk.WorldCollisionBuildStats;
-import dev.hytalemodding.impulse.core.plugin.modules.physicschunk.WorldCollisionPrewarmStats;
-import dev.hytalemodding.impulse.core.plugin.modules.physicschunk.WorldCollisionStats;
+import dev.hytalemodding.impulse.core.plugin.modules.physicschunk.PhysicsChunkTerrainBuildStats;
+import dev.hytalemodding.impulse.core.plugin.modules.physicschunk.PhysicsChunkTerrainPrewarmStats;
+import dev.hytalemodding.impulse.core.plugin.modules.physicschunk.PhysicsChunkTerrainStats;
 import it.unimi.dsi.fastutil.longs.LongOpenHashSet;
 import it.unimi.dsi.fastutil.longs.LongSet;
 import java.util.Objects;
@@ -65,7 +65,7 @@ public final class PhysicsChunkTerrainStreamingResource implements Resource<Enti
     }
 
     @Nonnull
-    public synchronized WorldCollisionPrewarmStats ensureAround(@Nonnull World world,
+    public synchronized PhysicsChunkTerrainPrewarmStats ensureAround(@Nonnull World world,
         @Nonnull UUID spaceUuid,
         @Nonnull PhysicsTerrainMutationQueueResource queue,
         @Nonnull Iterable<Vector3d> centers,
@@ -87,11 +87,11 @@ public final class PhysicsChunkTerrainStreamingResource implements Resource<Enti
                 null,
                 buildOptions));
         }
-        return new WorldCollisionPrewarmStats(visitedSections.size(), terrainStats(total));
+        return new PhysicsChunkTerrainPrewarmStats(visitedSections.size(), terrainStats(total));
     }
 
     @Nonnull
-    public synchronized WorldCollisionBuildStats refreshAround(@Nonnull World world,
+    public synchronized PhysicsChunkTerrainBuildStats refreshAround(@Nonnull World world,
         @Nonnull UUID spaceUuid,
         @Nonnull PhysicsTerrainMutationQueueResource queue,
         @Nonnull Vector3d center,
@@ -214,8 +214,8 @@ public final class PhysicsChunkTerrainStreamingResource implements Resource<Enti
     }
 
     @Nonnull
-    public synchronized WorldCollisionStats stats() {
-        return new WorldCollisionStats(cache.spaceCount(),
+    public synchronized PhysicsChunkTerrainStats stats() {
+        return new PhysicsChunkTerrainStats(cache.spaceCount(),
             cache.sectionCount(),
             cache.bodyCount(),
             cache.shapeTemplateCount());
@@ -235,8 +235,8 @@ public final class PhysicsChunkTerrainStreamingResource implements Resource<Enti
     }
 
     @Nonnull
-    private static WorldCollisionBuildStats terrainStats(@Nonnull BuildStats stats) {
-        return new WorldCollisionBuildStats(stats.scannedBlocks(),
+    private static PhysicsChunkTerrainBuildStats terrainStats(@Nonnull BuildStats stats) {
+        return new PhysicsChunkTerrainBuildStats(stats.scannedBlocks(),
             stats.solidBlocks(),
             stats.culledInteriorBlocks(),
             stats.fullCubeRuns(),

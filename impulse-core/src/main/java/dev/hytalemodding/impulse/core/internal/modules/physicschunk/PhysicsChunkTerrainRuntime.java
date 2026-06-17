@@ -3,9 +3,9 @@ package dev.hytalemodding.impulse.core.internal.modules.physicschunk;
 import com.hypixel.hytale.server.core.universe.world.World;
 import dev.hytalemodding.impulse.api.SpaceId;
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsSpaceBinding;
-import dev.hytalemodding.impulse.core.plugin.modules.physicschunk.WorldCollisionBuildStats;
-import dev.hytalemodding.impulse.core.plugin.modules.physicschunk.WorldCollisionPrewarmStats;
-import dev.hytalemodding.impulse.core.plugin.modules.physicschunk.WorldCollisionStats;
+import dev.hytalemodding.impulse.core.plugin.modules.physicschunk.PhysicsChunkTerrainBuildStats;
+import dev.hytalemodding.impulse.core.plugin.modules.physicschunk.PhysicsChunkTerrainPrewarmStats;
+import dev.hytalemodding.impulse.core.plugin.modules.physicschunk.PhysicsChunkTerrainStats;
 import dev.hytalemodding.impulse.core.plugin.settings.PhysicsChunkTerrainSettings;
 import it.unimi.dsi.fastutil.ints.Int2LongMap;
 import it.unimi.dsi.fastutil.ints.Int2LongOpenHashMap;
@@ -48,7 +48,7 @@ public final class PhysicsChunkTerrainRuntime {
     }
 
     @Nonnull
-    public WorldCollisionBuildStats rebuildAround(@Nonnull World world,
+    public PhysicsChunkTerrainBuildStats rebuildAround(@Nonnull World world,
         @Nonnull PhysicsSpaceBinding space,
         @Nonnull Vector3d center,
         int radius) {
@@ -61,7 +61,7 @@ public final class PhysicsChunkTerrainRuntime {
     }
 
     @Nonnull
-    public WorldCollisionBuildStats rebuildAround(@Nonnull World world,
+    public PhysicsChunkTerrainBuildStats rebuildAround(@Nonnull World world,
         @Nonnull PhysicsSpaceBinding space,
         @Nonnull Vector3d center,
         int radius,
@@ -74,7 +74,7 @@ public final class PhysicsChunkTerrainRuntime {
     }
 
     @Nonnull
-    public WorldCollisionBuildStats refreshAround(@Nonnull World world,
+    public PhysicsChunkTerrainBuildStats refreshAround(@Nonnull World world,
         @Nonnull PhysicsSpaceBinding space,
         @Nonnull Vector3d center,
         int radius,
@@ -91,7 +91,7 @@ public final class PhysicsChunkTerrainRuntime {
     }
 
     @Nonnull
-    public WorldCollisionPrewarmStats ensureAround(@Nonnull World world,
+    public PhysicsChunkTerrainPrewarmStats ensureAround(@Nonnull World world,
         @Nonnull PhysicsSpaceBinding space,
         @Nonnull Iterable<Vector3d> centers,
         int radius,
@@ -106,7 +106,7 @@ public final class PhysicsChunkTerrainRuntime {
     }
 
     @Nonnull
-    public WorldCollisionPrewarmStats ensureAround(@Nonnull World world,
+    public PhysicsChunkTerrainPrewarmStats ensureAround(@Nonnull World world,
         @Nonnull PhysicsSpaceBinding space,
         @Nonnull Iterable<Vector3d> centers,
         int radius,
@@ -127,7 +127,7 @@ public final class PhysicsChunkTerrainRuntime {
                 null,
                 buildOptions));
         }
-        return new WorldCollisionPrewarmStats(visitedSections.size(),
+        return new PhysicsChunkTerrainPrewarmStats(visitedSections.size(),
             terrainStats(total));
     }
 
@@ -161,17 +161,17 @@ public final class PhysicsChunkTerrainRuntime {
     }
 
     @Nonnull
-    public WorldCollisionStats getStats() {
-        return new WorldCollisionStats(voxelTerrainCache.spaceCount(),
+    public PhysicsChunkTerrainStats getStats() {
+        return new PhysicsChunkTerrainStats(voxelTerrainCache.spaceCount(),
             voxelTerrainCache.sectionCount(),
             voxelTerrainCache.bodyCount(),
             voxelTerrainCache.shapeTemplateCount());
     }
 
     @Nonnull
-    private static WorldCollisionBuildStats terrainStats(
+    private static PhysicsChunkTerrainBuildStats terrainStats(
         @Nonnull VoxelTerrainCollisionCache.BuildStats stats) {
-        return new WorldCollisionBuildStats(stats.scannedBlocks(),
+        return new PhysicsChunkTerrainBuildStats(stats.scannedBlocks(),
             stats.solidBlocks(),
             stats.culledInteriorBlocks(),
             stats.fullCubeRuns(),

@@ -99,8 +99,8 @@ public class PhysicsDebugSystem extends TickingSystem<EntityStore> {
         }
 
         boolean overlayDue = debug.tickOverlayBudget(dt);
-        boolean worldCollisionDue = debug.tickPhysicsChunkBudget(dt);
-        if (!overlayDue && !worldCollisionDue) {
+        boolean terrainDue = debug.tickPhysicsChunkBudget(dt);
+        if (!overlayDue && !terrainDue) {
             return;
         }
 
@@ -108,16 +108,16 @@ public class PhysicsDebugSystem extends TickingSystem<EntityStore> {
         boolean debugMotion = debug.isDebugMotionEnabled();
         boolean debugContacts = debug.isDebugContactsEnabled();
         boolean debugJoints = debug.isDebugJointsEnabled();
-        boolean debugWorldCollision = debug.isDebugPhysicsChunkTerrainEnabled();
+        boolean debugTerrain = debug.isDebugPhysicsChunkTerrainEnabled();
         if (!debugShapes && !debugMotion && !debugContacts && !debugJoints
-            && !debugWorldCollision) {
+            && !debugTerrain) {
             return;
         }
 
         Store<PhysicsStore> physicsStore = PhysicsThreading.store(world);
         float overlayLifetime = PhysicsDebugRenderer.lifetimeForRefresh(
             debug.getOverlayRefreshSeconds(), dt);
-        float worldCollisionLifetime = PhysicsDebugRenderer.lifetimeForRefresh(
+        float terrainLifetime = PhysicsDebugRenderer.lifetimeForRefresh(
             debug.getPhysicsChunkRefreshSeconds(), dt);
         DebugQueryCache queryCache = queryCacheFor(store);
 
@@ -172,8 +172,8 @@ public class PhysicsDebugSystem extends TickingSystem<EntityStore> {
                         debug.getMaxJoints(),
                         overlayLifetime);
                 }
-                if (worldCollisionDue && debugWorldCollision) {
-                    renderWorldCollision(target,
+                if (terrainDue && debugTerrain) {
+                    renderPhysicsChunkTerrain(target,
                         physicsStore,
                         spaceId,
                         viewerUuid,
@@ -182,7 +182,7 @@ public class PhysicsDebugSystem extends TickingSystem<EntityStore> {
                         debug.getViewRadius(),
                         debug.getMaxPhysicsChunkSections(),
                         debug.getMaxPhysicsChunkBoxes(),
-                        worldCollisionLifetime);
+                        terrainLifetime);
                 }
             }
         }
@@ -416,7 +416,7 @@ public class PhysicsDebugSystem extends TickingSystem<EntityStore> {
         }
     }
 
-    private static void renderWorldCollision(@Nonnull Collection<PlayerRef> viewers,
+    private static void renderPhysicsChunkTerrain(@Nonnull Collection<PlayerRef> viewers,
         @Nonnull Store<PhysicsStore> physicsStore,
         @Nonnull SpaceId spaceId,
         @Nonnull UUID viewerUuid,
@@ -447,7 +447,7 @@ public class PhysicsDebugSystem extends TickingSystem<EntityStore> {
         int sectionLimit = Math.min(maxSections, visibleSections.size());
         for (int i = 0; i < sectionLimit; i++) {
             PhysicsChunkDebugSectionView section = visibleSections.get(i).section();
-            PhysicsDebugRenderer.renderWorldCollisionSection(viewers,
+            PhysicsDebugRenderer.renderPhysicsChunkTerrainSection(viewers,
                 section.chunkX(),
                 section.sectionY(),
                 section.chunkZ(),
@@ -462,7 +462,7 @@ public class PhysicsDebugSystem extends TickingSystem<EntityStore> {
         int boxLimit = Math.min(maxBoxes, visibleBoxes.size());
         for (int i = 0; i < boxLimit; i++) {
             VisibleDebugBox visibleBox = visibleBoxes.get(i);
-            PhysicsDebugRenderer.renderWorldCollisionBox(viewers,
+            PhysicsDebugRenderer.renderPhysicsChunkTerrainBox(viewers,
                 visibleBox.box(),
                 visibleBox.color(),
                 time);

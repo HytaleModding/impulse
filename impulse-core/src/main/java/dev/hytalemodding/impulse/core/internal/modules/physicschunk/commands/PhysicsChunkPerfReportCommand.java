@@ -14,7 +14,7 @@ import dev.hytalemodding.impulse.core.plugin.modules.physicsentity.PhysicsRuntim
 import dev.hytalemodding.impulse.core.plugin.modules.physicsentity.PhysicsRuntimeProfiling.StepSnapshotView;
 import dev.hytalemodding.impulse.core.plugin.modules.physicsentity.PhysicsRuntimeProfiling.SyncSnapshotView;
 import dev.hytalemodding.impulse.core.plugin.modules.physicsentity.PhysicsRuntimeProfiling.VisualSnapshotView;
-import dev.hytalemodding.impulse.core.plugin.modules.physicschunk.PhysicsWorldCollisionProfiling;
+import dev.hytalemodding.impulse.core.plugin.modules.physicschunk.PhysicsChunkTerrainProfiling;
 import dev.hytalemodding.impulse.core.plugin.physicsstore.PhysicsDiagnostics;
 import dev.hytalemodding.impulse.core.plugin.physicsstore.PhysicsAsync;
 import dev.hytalemodding.impulse.core.plugin.physicsstore.PhysicsWorlds;
@@ -56,8 +56,8 @@ public class PhysicsChunkPerfReportCommand extends AbstractAsyncWorldCommand {
         VisualSnapshotView cumulativeVisual = runtimeProfiling.cumulativeVisual();
         VisualSnapshotView latestVisual = runtimeProfiling.latestVisual();
         VisualSnapshotView worstVisual = runtimeProfiling.worstVisual();
-        PhysicsWorldCollisionProfiling.Snapshots profiling =
-            PhysicsWorldCollisionProfiling.snapshots(store);
+        PhysicsChunkTerrainProfiling.Snapshots profiling =
+            PhysicsChunkTerrainProfiling.snapshots(store);
         var cumulative = profiling.cumulative();
         var latest = profiling.latest();
         var worst = profiling.worst();
@@ -296,8 +296,8 @@ public class PhysicsChunkPerfReportCommand extends AbstractAsyncWorldCommand {
             + cumulative.getMissingInsideRetainedEnvelope()
             + "/" + cumulative.getMissingOutsideRetainedEnvelope()
             + "/" + cumulative.getMissingUnconfiguredRetainedEnvelope()));
-        List<PhysicsWorldCollisionProfiling.MissingSectionSampleView> missingSectionSamples =
-            PhysicsWorldCollisionProfiling.missingSectionSamples(cumulative);
+        List<PhysicsChunkTerrainProfiling.MissingSectionSampleView> missingSectionSamples =
+            PhysicsChunkTerrainProfiling.missingSectionSamples(cumulative);
         if (!missingSectionSamples.isEmpty()) {
             ctx.sender().sendMessage(Message.raw("Missing section samples: "
                 + formatMissingSectionSamples(missingSectionSamples)));
@@ -371,10 +371,10 @@ public class PhysicsChunkPerfReportCommand extends AbstractAsyncWorldCommand {
 
     @Nonnull
     private static String formatMissingSectionSamples(
-        @Nonnull List<PhysicsWorldCollisionProfiling.MissingSectionSampleView> samples) {
+        @Nonnull List<PhysicsChunkTerrainProfiling.MissingSectionSampleView> samples) {
         StringBuilder builder = new StringBuilder();
         int emitted = 0;
-        for (PhysicsWorldCollisionProfiling.MissingSectionSampleView sample : samples) {
+        for (PhysicsChunkTerrainProfiling.MissingSectionSampleView sample : samples) {
             if (emitted > 0) {
                 builder.append(" | ");
             }

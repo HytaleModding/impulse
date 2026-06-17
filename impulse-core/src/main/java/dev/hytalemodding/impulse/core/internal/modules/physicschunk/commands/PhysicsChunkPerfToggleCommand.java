@@ -6,7 +6,7 @@ import com.hypixel.hytale.server.core.command.system.CommandContext;
 import com.hypixel.hytale.server.core.command.system.basecommands.AbstractWorldCommand;
 import com.hypixel.hytale.server.core.universe.world.World;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
-import dev.hytalemodding.impulse.core.plugin.modules.physicschunk.PhysicsWorldCollisionProfiling;
+import dev.hytalemodding.impulse.core.plugin.modules.physicschunk.PhysicsChunkTerrainProfiling;
 import javax.annotation.Nonnull;
 
 public class PhysicsChunkPerfToggleCommand extends AbstractWorldCommand {
@@ -19,8 +19,8 @@ public class PhysicsChunkPerfToggleCommand extends AbstractWorldCommand {
     protected void execute(@Nonnull CommandContext ctx,
         @Nonnull World world,
         @Nonnull Store<EntityStore> store) {
-        boolean enabled = !PhysicsWorldCollisionProfiling.isRuntimeProfilingEnabled(store);
-        PhysicsWorldCollisionProfiling.setRuntimeProfilingEnabled(world, store, enabled);
+        boolean enabled = !PhysicsChunkTerrainProfiling.isRuntimeProfilingEnabled(store);
+        PhysicsChunkTerrainProfiling.setRuntimeProfilingEnabled(world, store, enabled);
         ctx.sender().sendMessage(Message.raw("Impulse runtime profiling "
             + (enabled ? "enabled" : "disabled")));
     }

@@ -6,7 +6,7 @@ import com.hypixel.hytale.server.core.command.system.CommandContext;
 import com.hypixel.hytale.server.core.command.system.basecommands.AbstractWorldCommand;
 import com.hypixel.hytale.server.core.universe.world.World;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
-import dev.hytalemodding.impulse.core.plugin.modules.physicschunk.PhysicsWorldCollisionProfiling;
+import dev.hytalemodding.impulse.core.plugin.modules.physicschunk.PhysicsChunkTerrainProfiling;
 import javax.annotation.Nonnull;
 
 public class PhysicsChunkPerfResetCommand extends AbstractWorldCommand {
@@ -19,7 +19,7 @@ public class PhysicsChunkPerfResetCommand extends AbstractWorldCommand {
     protected void execute(@Nonnull CommandContext ctx,
         @Nonnull World world,
         @Nonnull Store<EntityStore> store) {
-        PhysicsWorldCollisionProfiling.resetRuntimeProfiling(world, store);
+        PhysicsChunkTerrainProfiling.resetRuntimeProfiling(world, store);
         ctx.sender().sendMessage(Message.raw("Impulse runtime profiling counters reset"));
     }
 }

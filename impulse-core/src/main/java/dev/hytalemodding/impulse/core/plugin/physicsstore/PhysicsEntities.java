@@ -65,7 +65,7 @@ public final class PhysicsEntities {
     public static Holder<PhysicsStore> spaceHolder(@Nonnull Store<PhysicsStore> store,
         @Nonnull UUID spaceUuid,
         @Nonnull SpaceComponent space,
-        @Nonnull WorldCollisionComponent worldCollision,
+        @Nonnull WorldCollisionComponent terrainSettings,
         @Nonnull SolverSettingsComponent solverSettings,
         @Nonnull VisualSyncSettingsComponent visualSyncSettings,
         @Nonnull VisualMaterializationSettingsComponent visualMaterializationSettings,
@@ -74,7 +74,7 @@ public final class PhysicsEntities {
         Holder<PhysicsStore> holder = entityHolder(store, spaceUuid);
         addSpaceComponents(holder,
             space,
-            worldCollision,
+            terrainSettings,
             solverSettings,
             visualSyncSettings,
             visualMaterializationSettings,
@@ -120,7 +120,7 @@ public final class PhysicsEntities {
 
     public static void addSpaceComponents(@Nonnull Holder<PhysicsStore> holder,
         @Nonnull SpaceComponent space,
-        @Nonnull WorldCollisionComponent worldCollision,
+        @Nonnull WorldCollisionComponent terrainSettings,
         @Nonnull SolverSettingsComponent solverSettings,
         @Nonnull VisualSyncSettingsComponent visualSyncSettings,
         @Nonnull VisualMaterializationSettingsComponent visualMaterializationSettings,
@@ -130,7 +130,7 @@ public final class PhysicsEntities {
             .addComponent(SpaceComponent.getComponentType(),
                 Objects.requireNonNull(space, "space").clone());
         holder.addComponent(WorldCollisionComponent.getComponentType(),
-            Objects.requireNonNull(worldCollision, "worldCollision").clone());
+            Objects.requireNonNull(terrainSettings, "terrainSettings").clone());
         addSpaceSettingsComponents(holder,
             solverSettings,
             visualSyncSettings,
@@ -188,7 +188,7 @@ public final class PhysicsEntities {
     public static void putSpaceComponents(@Nonnull Store<PhysicsStore> store,
         @Nonnull Ref<PhysicsStore> ref,
         @Nonnull SpaceComponent space,
-        @Nonnull WorldCollisionComponent worldCollision,
+        @Nonnull WorldCollisionComponent terrainSettings,
         @Nonnull SolverSettingsComponent solverSettings,
         @Nonnull VisualSyncSettingsComponent visualSyncSettings,
         @Nonnull VisualMaterializationSettingsComponent visualMaterializationSettings,
@@ -202,7 +202,7 @@ public final class PhysicsEntities {
             Objects.requireNonNull(space, "space").clone());
         checkedStore.putComponent(ref,
             WorldCollisionComponent.getComponentType(),
-            Objects.requireNonNull(worldCollision, "worldCollision").clone());
+            Objects.requireNonNull(terrainSettings, "terrainSettings").clone());
         putSpaceSettingsComponents(checkedStore,
             ref,
             solverSettings,

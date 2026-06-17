@@ -139,10 +139,11 @@ public class PhysicsVisualMaterializationSettings {
         DEFAULT_DETACHED_VISUAL_VISIBILITY_CHECK_INTERVAL_TICKS;
 
     /**
-     * Hytale block type used for default detached visual proxies.
-     * <p>
-     * FIXME: this is temporary we cannot assume a specific blocktype since a physics body could be
-     * composed by any general mix of blocks and entities
+     * Fallback Hytale block type for generated detached visual proxies.
+     *
+     * <p>This is only a default materialization hint for simple demos and stress tests. Integrators
+     * that need body-specific visuals should store their own visual description on the physics body
+     * or disable generated visual materialization.</p>
      */
     @Nonnull
     private String detachedVisualBlockType = DEFAULT_DETACHED_VISUAL_BLOCK_TYPE;

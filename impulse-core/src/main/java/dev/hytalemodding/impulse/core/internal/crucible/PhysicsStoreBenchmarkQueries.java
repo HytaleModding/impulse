@@ -41,9 +41,9 @@ final class PhysicsStoreBenchmarkQueries {
         BiConsumer<ArchetypeChunk<PhysicsStore>, CommandBuffer<PhysicsStore>> collector =
             (chunk, _) -> collectBodyRows(chunk, snapshots, spaceUuid, query, stats);
         store.forEachChunk(BodyComponent.getComponentType(), collector);
-        int worldCollisionBodies = streaming != null ? streaming.bodyCount(spaceUuid) : 0;
-        stats.bodies += worldCollisionBodies;
-        stats.worldCollisionBodies += worldCollisionBodies;
+        int terrainBodies = streaming != null ? streaming.bodyCount(spaceUuid) : 0;
+        stats.bodies += terrainBodies;
+        stats.terrainBodies += terrainBodies;
         return stats.toView();
     }
 
@@ -108,7 +108,7 @@ final class PhysicsStoreBenchmarkQueries {
             return;
         }
         if (body.getKind().isTerrainCollider()) {
-            stats.worldCollisionBodies++;
+            stats.terrainBodies++;
             return;
         }
         stats.rawBodies++;
@@ -122,7 +122,7 @@ final class PhysicsStoreBenchmarkQueries {
         private int sleepingDynamicBodies;
         private int detachedBodies;
         private int rawBodies;
-        private int worldCollisionBodies;
+        private int terrainBodies;
         private int belowPlaneBodies;
         private int belowTerrainBodies;
         private int belowWorldMinBodies;
@@ -141,7 +141,7 @@ final class PhysicsStoreBenchmarkQueries {
                 sleepingDynamicBodies,
                 detachedBodies,
                 rawBodies,
-                worldCollisionBodies,
+                terrainBodies,
                 belowPlaneBodies,
                 belowTerrainBodies,
                 belowWorldMinBodies,

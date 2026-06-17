@@ -31,7 +31,8 @@ public class DebugToggleCommand extends AbstractAsyncPlayerCommand {
         boolean enabled;
         if (debug.removeSubscriber(playerRef.getUuid())) {
             enabled = false;
-            // FIXME: maybe don't clear up all shapes bust just ours
+            // The Hytale packet clears all debug shapes visible to the player; Impulse-owned
+            // shape tracking can narrow this once the server API exposes scoped removal.
             playerRef.getPacketHandler().write(new ClearDebugShapes());
         } else {
             enabled = true;

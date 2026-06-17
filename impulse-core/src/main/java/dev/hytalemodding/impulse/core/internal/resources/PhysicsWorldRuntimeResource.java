@@ -259,7 +259,7 @@ public class PhysicsWorldRuntimeResource extends PhysicsWorldResource {
         if (space == null) {
             return null;
         }
-        WorldCollisionComponent worldCollision = store.getComponent(ref,
+        WorldCollisionComponent terrainSettings = store.getComponent(ref,
             WorldCollisionComponent.getComponentType());
         SolverSettingsComponent solverSettings = store.getComponent(ref,
             SolverSettingsComponent.getComponentType());
@@ -272,8 +272,8 @@ public class PhysicsWorldRuntimeResource extends PhysicsWorldResource {
         ExtensionSettingsComponent extensionSettings = store.getComponent(ref,
             ExtensionSettingsComponent.getComponentType());
         PhysicsSpaceSettings settings = PhysicsSpaceSettings.defaults();
-        if (worldCollision != null) {
-            worldCollision.copyTo(settings);
+        if (terrainSettings != null) {
+            terrainSettings.copyTo(settings);
         }
         if (solverSettings != null) {
             solverSettings.copyTo(settings);
@@ -1051,7 +1051,7 @@ public class PhysicsWorldRuntimeResource extends PhysicsWorldResource {
     }
 
     @Nonnull
-    private PhysicsChunkTerrainStreamingResource authoritativeWorldCollisionStreaming() {
+    private PhysicsChunkTerrainStreamingResource authoritativePhysicsChunkTerrainStreaming() {
         Store<EntityStore> entityStore = owningStore;
         if (entityStore == null) {
             throw new IllegalStateException("Cannot access PhysicsStore PhysicsChunk terrain streaming "
@@ -1060,23 +1060,23 @@ public class PhysicsWorldRuntimeResource extends PhysicsWorldResource {
         return entityStore.getResource(PhysicsChunkTerrainStreamingResource.getResourceType());
     }
 
-    private void clearAuthoritativeWorldCollisionStreaming(@Nonnull Store<PhysicsStore> store) {
+    private void clearAuthoritativePhysicsChunkTerrainStreaming(@Nonnull Store<PhysicsStore> store) {
         if (!PhysicsChunkLifecycle.isEnabled() || owningStore == null) {
             return;
         }
         PhysicsTerrainMutationQueueResource queue =
             store.getResource(PhysicsTerrainMutationQueueResource.getResourceType());
-        authoritativeWorldCollisionStreaming().retainSpaces(Set.of(), queue);
+        authoritativePhysicsChunkTerrainStreaming().retainSpaces(Set.of(), queue);
         queue.clear();
     }
 
-    private int clearAuthoritativeWorldCollisionSpace(@Nonnull Store<PhysicsStore> store,
+    private int clearAuthoritativePhysicsChunkTerrainSpace(@Nonnull Store<PhysicsStore> store,
         @Nonnull UUID spaceUuid) {
         int removed = 0;
         if (PhysicsChunkLifecycle.isEnabled() && owningStore != null) {
             PhysicsTerrainMutationQueueResource queue =
                 store.getResource(PhysicsTerrainMutationQueueResource.getResourceType());
-            removed = authoritativeWorldCollisionStreaming().clearSpace(spaceUuid, queue);
+            removed = authoritativePhysicsChunkTerrainStreaming().clearSpace(spaceUuid, queue);
         }
         int directlyRemoved =
             PhysicsStoreTopologyMutations.clearTerrainForSpace(store, spaceUuid);
@@ -1204,7 +1204,7 @@ public class PhysicsWorldRuntimeResource extends PhysicsWorldResource {
         if (isAuthoritativePhysicsStoreActive()) {
             Store<PhysicsStore> store = authoritativePhysicsStore("remove physics space");
             UUID spaceUuid = requireSpaceUuid(store, spaceId);
-            clearAuthoritativeWorldCollisionSpace(store, spaceUuid);
+            clearAuthoritativePhysicsChunkTerrainSpace(store, spaceUuid);
             PhysicsStoreTopologyMutations.removeSpaceWithContents(store, spaceUuid);
             return;
         }
@@ -1221,7 +1221,7 @@ public class PhysicsWorldRuntimeResource extends PhysicsWorldResource {
                 spaceId,
                 store -> {
                     UUID spaceUuid = requireSpaceUuid(store, spaceId);
-                    clearAuthoritativeWorldCollisionSpace(store, spaceUuid);
+                    clearAuthoritativePhysicsChunkTerrainSpace(store, spaceUuid);
                     PhysicsStoreTopologyMutations.removeSpaceWithContents(store, spaceUuid);
                 });
         }
@@ -1261,7 +1261,7 @@ public class PhysicsWorldRuntimeResource extends PhysicsWorldResource {
     public void clearAllSpaces(@Nonnull String worldName) {
         if (isAuthoritativePhysicsStoreActive()) {
             Store<PhysicsStore> store = authoritativePhysicsStore("clear physics spaces");
-            clearAuthoritativeWorldCollisionStreaming(store);
+            clearAuthoritativePhysicsChunkTerrainStreaming(store);
             PhysicsStoreRuntimeCleaner.clearAll(store);
             return;
         }
@@ -1276,7 +1276,7 @@ public class PhysicsWorldRuntimeResource extends PhysicsWorldResource {
             return enqueueAuthoritativePhysicsStoreMutation("clear physics spaces",
                 null,
                 store -> {
-                    clearAuthoritativeWorldCollisionStreaming(store);
+                    clearAuthoritativePhysicsChunkTerrainStreaming(store);
                     PhysicsStoreRuntimeCleaner.clearAll(store);
                 });
         }
@@ -1317,7 +1317,7 @@ public class PhysicsWorldRuntimeResource extends PhysicsWorldResource {
     public PhysicsRuntimeResetResult resetRuntimeStateKeepingSpaces(@Nonnull String worldName) {
         if (isAuthoritativePhysicsStoreActive()) {
             Store<PhysicsStore> store = authoritativePhysicsStore("reset physics runtime state");
-            clearAuthoritativeWorldCollisionStreaming(store);
+            clearAuthoritativePhysicsChunkTerrainStreaming(store);
             return PhysicsStoreTopologyMutations.clearBodiesKeepingSpaces(store);
         }
         requireLegacyMutationAllowed("reset physics runtime state");
@@ -1334,7 +1334,7 @@ public class PhysicsWorldRuntimeResource extends PhysicsWorldResource {
             return PhysicsThreading.callWhenBackendIdleOnWorldThread(world,
                 "reset physics runtime state",
                 store -> {
-                    clearAuthoritativeWorldCollisionStreaming(store);
+                    clearAuthoritativePhysicsChunkTerrainStreaming(store);
                     return PhysicsStoreTopologyMutations.clearBodiesKeepingSpaces(store);
                 });
         }
@@ -1442,31 +1442,31 @@ public class PhysicsWorldRuntimeResource extends PhysicsWorldResource {
 
     private void setSpaceSettingsDirect(@Nonnull SpaceId spaceId,
         @Nonnull PhysicsSpaceSettings settings) {
-        PhysicsChunkTerrainSettings previousCollisionSettings =
+        PhysicsChunkTerrainSettings previousTerrainSettings =
             spaceRuntime.getLiveSpaceSettings(spaceId).getPhysicsChunkTerrainSettings();
-        boolean worldCollisionSettingsChanged =
-            worldCollisionStreamingSettingsChanged(previousCollisionSettings,
+        boolean terrainStreamingSettingsChanged =
+            terrainStreamingSettingsChanged(previousTerrainSettings,
                 settings.getPhysicsChunkTerrainSettings());
         boolean terrainRepresentationChanged =
-            previousCollisionSettings.isNativeVoxelTerrainEnabled()
+            previousTerrainSettings.isNativeVoxelTerrainEnabled()
                 != settings.getPhysicsChunkTerrainSettings().isNativeVoxelTerrainEnabled();
         boolean terrainMaterialChanged =
-            Float.compare(previousCollisionSettings.getTerrainFriction(),
+            Float.compare(previousTerrainSettings.getTerrainFriction(),
                 settings.getPhysicsChunkTerrainSettings().getTerrainFriction()) != 0
-                || Float.compare(previousCollisionSettings.getTerrainRestitution(),
+                || Float.compare(previousTerrainSettings.getTerrainRestitution(),
                     settings.getPhysicsChunkTerrainSettings().getTerrainRestitution()) != 0;
-        boolean worldCollisionDisabled =
+        boolean terrainDisabled =
             settings.getPhysicsChunkTerrainSettings().getTerrainMode() == PhysicsChunkTerrainMode.NONE
-                && previousCollisionSettings.getTerrainMode() != PhysicsChunkTerrainMode.NONE;
+                && previousTerrainSettings.getTerrainMode() != PhysicsChunkTerrainMode.NONE;
         spaceRuntime.setSpaceSettings(spaceId, settings);
-        if (worldCollisionDisabled || terrainRepresentationChanged || terrainMaterialChanged) {
+        if (terrainDisabled || terrainRepresentationChanged || terrainMaterialChanged) {
             terrainRuntime.clear(requireSpaceBinding(spaceId));
-        } else if (worldCollisionSettingsChanged) {
+        } else if (terrainStreamingSettingsChanged) {
             terrainRuntime.incrementStreamingRevision(spaceId);
         }
     }
 
-    private static boolean worldCollisionStreamingSettingsChanged(
+    private static boolean terrainStreamingSettingsChanged(
         @Nonnull PhysicsChunkTerrainSettings previous,
         @Nonnull PhysicsChunkTerrainSettings next) {
         return previous.getTerrainMode() != next.getTerrainMode()

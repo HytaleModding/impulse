@@ -119,10 +119,10 @@ public final class PhysicsSpaces {
             return null;
         }
         PhysicsSpaceSettings settings = PhysicsSpaceSettings.defaults();
-        WorldCollisionComponent worldCollision = checkedStore.getComponent(checkedRef,
+        WorldCollisionComponent terrainSettings = checkedStore.getComponent(checkedRef,
             WorldCollisionComponent.getComponentType());
-        if (worldCollision != null) {
-            worldCollision.copyTo(settings);
+        if (terrainSettings != null) {
+            terrainSettings.copyTo(settings);
         }
         SolverSettingsComponent solverSettings = checkedStore.getComponent(checkedRef,
             SolverSettingsComponent.getComponentType());

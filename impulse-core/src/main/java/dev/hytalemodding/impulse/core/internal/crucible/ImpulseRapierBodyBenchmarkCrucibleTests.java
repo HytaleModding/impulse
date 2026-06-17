@@ -142,11 +142,11 @@ final class ImpulseRapierBodyBenchmarkCrucibleTests {
         private final Store<PhysicsStore> physicsStore;
         private final PhysicsProfilingResource physicsStoreProfiling;
         private final PhysicsRuntimeProfilingResource runtimeProfiling;
-        private final PhysicsChunkProfilingResource worldCollisionProfiling;
+        private final PhysicsChunkProfilingResource terrainProfiling;
         private final PhysicsWorldSettings previousWorldSettings;
         private final boolean previousPhysicsStoreProfilingEnabled;
         private final boolean previousRuntimeProfilingEnabled;
-        private final boolean previousWorldCollisionProfilingEnabled;
+        private final boolean previousTerrainProfilingEnabled;
 
         private MatrixRunner(@Nonnull CrucibleContext context, @Nonnull MatrixPlan plan)
             throws ReflectiveOperationException {
@@ -159,12 +159,12 @@ final class ImpulseRapierBodyBenchmarkCrucibleTests {
             this.physicsStoreProfiling = physicsStore.getResource(
                 PhysicsProfilingResource.getResourceType());
             this.runtimeProfiling = store.getResource(PhysicsRuntimeProfilingResource.getResourceType());
-            this.worldCollisionProfiling = store.getResource(
+            this.terrainProfiling = store.getResource(
                 PhysicsChunkProfilingResource.getResourceType());
             this.previousWorldSettings = physics.getWorldSettings();
             this.previousPhysicsStoreProfilingEnabled = physicsStoreProfiling.isEnabled();
             this.previousRuntimeProfilingEnabled = runtimeProfiling.isEnabled();
-            this.previousWorldCollisionProfilingEnabled = worldCollisionProfiling.isEnabled();
+            this.previousTerrainProfilingEnabled = terrainProfiling.isEnabled();
         }
 
         private CompletionStage<CrucibleTestCase.TestOutcome> run() {
@@ -193,10 +193,10 @@ final class ImpulseRapierBodyBenchmarkCrucibleTests {
                 .thenCompose(started -> contextWait(plan.warmupTicks()).thenCompose(_ -> {
                     physicsStoreProfiling.reset();
                     runtimeProfiling.reset();
-                    worldCollisionProfiling.reset();
+                    terrainProfiling.reset();
                     physicsStoreProfiling.setEnabled(true);
                     runtimeProfiling.setEnabled(true);
-                    worldCollisionProfiling.setEnabled(true);
+                    terrainProfiling.setEnabled(true);
                     long startedNanos = System.nanoTime();
                     return contextWait(plan.sampleTicks()).thenApply(
                         _ -> finishCase(matrixCase, started, startedNanos));
@@ -300,7 +300,7 @@ final class ImpulseRapierBodyBenchmarkCrucibleTests {
 
             StepSnapshot step = runtimeProfiling.getCumulativeStep();
             SyncSnapshot sync = runtimeProfiling.getCumulativeSync();
-            Snapshot worldCollision = worldCollisionProfiling.getCumulativeSnapshot();
+            Snapshot terrainProfilingSnapshot = terrainProfiling.getCumulativeSnapshot();
             double elapsedSeconds = Math.max(0.001,
                 (System.nanoTime() - startedNanos) / 1_000_000_000.0);
             double observedTickRate = step.getTickSamples() / elapsedSeconds;
@@ -311,17 +311,17 @@ final class ImpulseRapierBodyBenchmarkCrucibleTests {
                 step.getRegistrationPublicationNanos(),
                 step.getTickSamples());
             double avgSyncMs = averageMillis(sync.getTickNanos(), sync.getTickSamples());
-            double avgWorldMs = averageMillis(worldCollision.getTickNanos(),
-                worldCollision.getTickSamples());
+            double avgTerrainMs = averageMillis(terrainProfilingSnapshot.getTickNanos(),
+                terrainProfilingSnapshot.getTickSamples());
             double totalMs = avgStepMs
                 + avgSnapshotMs
                 + avgRegistrationPublicationMs
                 + avgSyncMs
-                + avgWorldMs;
+                + avgTerrainMs;
             MatrixHealth health = assessHealth(matrixCase,
                 observedTickRate,
                 step,
-                worldCollision,
+                terrainProfilingSnapshot,
                 stats);
 
             return new MatrixReport(matrixCase,
@@ -330,7 +330,7 @@ final class ImpulseRapierBodyBenchmarkCrucibleTests {
                 avgSnapshotMs,
                 avgRegistrationPublicationMs,
                 avgSyncMs,
-                avgWorldMs,
+                avgTerrainMs,
                 totalMs,
                 step.getTickSamples(),
                 step.getSubsteps(),
@@ -339,17 +339,17 @@ final class ImpulseRapierBodyBenchmarkCrucibleTests {
                 sync.getTickSamples(),
                 sync.getBodiesInspected(),
                 sync.getBodiesSynced(),
-                worldCollision.getTickSamples(),
-                worldCollision.getStreamingSpaces(),
-                worldCollision.getEnsureCalls(),
-                worldCollision.getSectionRequests(),
-                worldCollision.getSectionsBuilt(),
-                worldCollision.getBodyStreamingTargets(),
+                terrainProfilingSnapshot.getTickSamples(),
+                terrainProfilingSnapshot.getStreamingSpaces(),
+                terrainProfilingSnapshot.getEnsureCalls(),
+                terrainProfilingSnapshot.getSectionRequests(),
+                terrainProfilingSnapshot.getSectionsBuilt(),
+                terrainProfilingSnapshot.getBodyStreamingTargets(),
                 stats.bodies,
                 stats.dynamicBodies,
                 stats.detachedBodies,
                 stats.rawBodies,
-                stats.worldCollisionBodies,
+                stats.terrainBodies,
                 stats.awakeDynamicBodies,
                 stats.sleepingDynamicBodies,
                 stats.belowPlaneBodies,
@@ -374,15 +374,15 @@ final class ImpulseRapierBodyBenchmarkCrucibleTests {
             PhysicsStoreCrucibleSupport.clearAll(physicsStore);
             physicsStoreProfiling.reset();
             runtimeProfiling.reset();
-            worldCollisionProfiling.reset();
-            worldCollisionProfiling.clearDiagnosticRetainedSections();
+            terrainProfiling.reset();
+            terrainProfiling.clearDiagnosticRetainedSections();
         }
 
         private void restoreSettings() {
             physics.setWorldSettings(previousWorldSettings);
             physicsStoreProfiling.setEnabled(previousPhysicsStoreProfilingEnabled);
             runtimeProfiling.setEnabled(previousRuntimeProfilingEnabled);
-            worldCollisionProfiling.setEnabled(previousWorldCollisionProfilingEnabled);
+            terrainProfiling.setEnabled(previousTerrainProfilingEnabled);
         }
 
         private void removeBenchmarkEntities() {
@@ -416,15 +416,15 @@ final class ImpulseRapierBodyBenchmarkCrucibleTests {
     private static MatrixHealth assessHealth(@Nonnull MatrixCase matrixCase,
         double observedTickRate,
         @Nonnull StepSnapshot step,
-        @Nonnull Snapshot worldCollision,
+        @Nonnull Snapshot terrainProfilingSnapshot,
         @Nonnull SpaceStats stats) {
         List<String> stops = new ArrayList<>();
         List<String> warnings = new ArrayList<>();
         if (step.getTickSamples() <= 0) {
             stops.add("stepSamples=0");
         }
-        if (worldCollision.getTickSamples() <= 0) {
-            stops.add("worldCollisionSamples=0");
+        if (terrainProfilingSnapshot.getTickSamples() <= 0) {
+            stops.add("terrainSamples=0");
         }
         if (stats.dynamicBodies != matrixCase.count()) {
             stops.add("dynamicBodies=" + stats.dynamicBodies + "!=" + matrixCase.count());
@@ -444,20 +444,20 @@ final class ImpulseRapierBodyBenchmarkCrucibleTests {
         if (step.getTickSamples() > 0 && step.getBodySnapshots() != expectedSnapshots) {
             stops.add("bodySnapshots=" + step.getBodySnapshots() + "!=" + expectedSnapshots);
         }
-        if (worldCollision.getStreamingSpaces() > 0) {
-            stops.add("worldStreamingSpaces=" + worldCollision.getStreamingSpaces());
+        if (terrainProfilingSnapshot.getStreamingSpaces() > 0) {
+            stops.add("terrainStreamingSpaces=" + terrainProfilingSnapshot.getStreamingSpaces());
         }
-        if (worldCollision.getEnsureCalls() > 0) {
-            stops.add("worldEnsureCalls=" + worldCollision.getEnsureCalls());
+        if (terrainProfilingSnapshot.getEnsureCalls() > 0) {
+            stops.add("terrainEnsureCalls=" + terrainProfilingSnapshot.getEnsureCalls());
         }
-        if (worldCollision.getSectionsBuilt() > 0) {
-            stops.add("worldSectionsBuilt=" + worldCollision.getSectionsBuilt());
+        if (terrainProfilingSnapshot.getSectionsBuilt() > 0) {
+            stops.add("terrainSectionsBuilt=" + terrainProfilingSnapshot.getSectionsBuilt());
         }
-        if (worldCollision.getBodyStreamingTargets() > 0) {
-            stops.add("worldBodyTargets=" + worldCollision.getBodyStreamingTargets());
+        if (terrainProfilingSnapshot.getBodyStreamingTargets() > 0) {
+            stops.add("terrainBodyTargets=" + terrainProfilingSnapshot.getBodyStreamingTargets());
         }
-        if (stats.worldCollisionBodies > 0) {
-            stops.add("worldCollisionBodies=" + stats.worldCollisionBodies);
+        if (stats.terrainBodies > 0) {
+            stops.add("terrainBodies=" + stats.terrainBodies);
         }
         if (stats.belowWorldMinBodies > 0) {
             stops.add("belowWorldMinBodies=" + stats.belowWorldMinBodies);
@@ -498,7 +498,7 @@ final class ImpulseRapierBodyBenchmarkCrucibleTests {
         MatrixReport second = reports.get(1);
         LOGGER.at(Level.INFO).log("Crucible Rapier body matrix comparison: %sx=%sms "
                 + "%sx=%sms stepRatio=%s snapshotRatio=%s registrationRatio=%s "
-                + "totalRatio=%s worldCounters=%s/%s",
+                + "totalRatio=%s terrainCounters=%s/%s",
             first.matrixCase().fixedSubsteps(),
             format(first.avgStepMs()),
             second.matrixCase().fixedSubsteps(),
@@ -508,8 +508,8 @@ final class ImpulseRapierBodyBenchmarkCrucibleTests {
             format(ratio(second.avgRegistrationPublicationMs(),
                 first.avgRegistrationPublicationMs())),
             format(ratio(second.totalMs(), first.totalMs())),
-            first.worldCounterSummary(),
-            second.worldCounterSummary());
+            first.terrainCounterSummary(),
+            second.terrainCounterSummary());
     }
 
     private static double ratio(double numerator, double denominator) {
@@ -619,7 +619,7 @@ final class ImpulseRapierBodyBenchmarkCrucibleTests {
                                 double avgSnapshotMs,
                                 double avgRegistrationPublicationMs,
                                 double avgSyncMs,
-                                double avgWorldMs,
+                                double avgTerrainMs,
                                 double totalMs,
                                 int stepSamples,
                                 int substeps,
@@ -628,17 +628,17 @@ final class ImpulseRapierBodyBenchmarkCrucibleTests {
                                 int syncSamples,
                                 int syncInspected,
                                 int syncSynced,
-                                int worldSamples,
-                                int worldStreamingSpaces,
-                                int worldEnsureCalls,
-                                int worldSectionRequests,
-                                int worldSectionsBuilt,
-                                int worldBodyTargets,
+                                int terrainSamples,
+                                int terrainStreamingSpaces,
+                                int terrainEnsureCalls,
+                                int terrainSectionRequests,
+                                int terrainSectionsBuilt,
+                                int terrainBodyTargets,
                                 int bodies,
                                 int dynamicBodies,
                                 int detachedBodies,
                                 int rawBodies,
-                                int worldCollisionBodies,
+                                int terrainBodies,
                                 int awakeDynamicBodies,
                                 int sleepingDynamicBodies,
                                 int belowPlaneBodies,
@@ -694,11 +694,11 @@ final class ImpulseRapierBodyBenchmarkCrucibleTests {
                 + " reason=" + health.reason()
                 + " tps=" + format(observedTickRate)
                 + " totalMs=" + format(totalMs)
-                + " step/snapshot/registration/sync/worldMs=" + format(avgStepMs)
+                + " step/snapshot/registration/sync/terrainMs=" + format(avgStepMs)
                 + "/" + format(avgSnapshotMs)
                 + "/" + format(avgRegistrationPublicationMs)
                 + "/" + format(avgSyncMs)
-                + "/" + format(avgWorldMs)
+                + "/" + format(avgTerrainMs)
                 + " step samples/substeps/bodySnapshots/spatialCells=" + stepSamples
                 + "/" + substeps
                 + "/" + bodySnapshots
@@ -706,18 +706,18 @@ final class ImpulseRapierBodyBenchmarkCrucibleTests {
                 + " sync samples/inspected/synced=" + syncSamples
                 + "/" + syncInspected
                 + "/" + syncSynced
-                + " world samples/streaming/ensure/req/build/bodyTargets="
-                + worldSamples
-                + "/" + worldStreamingSpaces
-                + "/" + worldEnsureCalls
-                + "/" + worldSectionRequests
-                + "/" + worldSectionsBuilt
-                + "/" + worldBodyTargets
+                + " terrain samples/streaming/ensure/req/build/bodyTargets="
+                + terrainSamples
+                + "/" + terrainStreamingSpaces
+                + "/" + terrainEnsureCalls
+                + "/" + terrainSectionRequests
+                + "/" + terrainSectionsBuilt
+                + "/" + terrainBodyTargets
                 + " bodies total/dynamic/detached/raw/physicsChunk=" + bodies
                 + "/" + dynamicBodies
                 + "/" + detachedBodies
                 + "/" + rawBodies
-                + "/" + worldCollisionBodies
+                + "/" + terrainBodies
                 + " awake/sleeping=" + awakeDynamicBodies
                 + "/" + sleepingDynamicBodies
                 + " belowPlane/worldMin/void=" + belowPlaneBodies
@@ -727,12 +727,12 @@ final class ImpulseRapierBodyBenchmarkCrucibleTests {
                 + "/" + formatOptional(maxDynamicBodyY);
         }
 
-        private String worldCounterSummary() {
-            return worldSamples
-                + "/" + worldStreamingSpaces
-                + "/" + worldEnsureCalls
-                + "/" + worldSectionsBuilt
-                + "/" + worldBodyTargets;
+        private String terrainCounterSummary() {
+            return terrainSamples
+                + "/" + terrainStreamingSpaces
+                + "/" + terrainEnsureCalls
+                + "/" + terrainSectionsBuilt
+                + "/" + terrainBodyTargets;
         }
     }
 
@@ -777,7 +777,7 @@ final class ImpulseRapierBodyBenchmarkCrucibleTests {
         private int sleepingDynamicBodies;
         private int detachedBodies;
         private int rawBodies;
-        private int worldCollisionBodies;
+        private int terrainBodies;
         private int belowPlaneBodies;
         private int belowWorldMinBodies;
         private int belowVoidBodies;
@@ -802,7 +802,7 @@ final class ImpulseRapierBodyBenchmarkCrucibleTests {
             stats.sleepingDynamicBodies = view.sleepingDynamicBodies();
             stats.detachedBodies = view.detachedBodies();
             stats.rawBodies = view.rawBodies();
-            stats.worldCollisionBodies = view.worldCollisionBodies();
+            stats.terrainBodies = view.terrainBodies();
             stats.belowPlaneBodies = view.belowPlaneBodies();
             stats.belowWorldMinBodies = view.belowWorldMinBodies();
             stats.belowVoidBodies = view.belowVoidBodies();
