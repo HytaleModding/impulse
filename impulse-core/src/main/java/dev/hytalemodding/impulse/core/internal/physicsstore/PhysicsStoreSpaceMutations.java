@@ -42,11 +42,7 @@ public final class PhysicsStoreSpaceMutations {
         @Nonnull SpaceId compatibilitySpaceId,
         @Nonnull BackendId backendId,
         @Nonnull PhysicsSpaceSettings settings) {
-        Objects.requireNonNull(store, "store");
-        Objects.requireNonNull(spaceUuid, "spaceUuid");
-        Objects.requireNonNull(compatibilitySpaceId, "compatibilitySpaceId");
-        Objects.requireNonNull(backendId, "backendId");
-        Objects.requireNonNull(settings, "settings");
+
         PhysicsThreading.requireWorldThread(store, "add a PhysicsStore space entity");
         if (backendId.value().isBlank()) {
             throw new IllegalArgumentException("PhysicsStore space backend id is blank: "
@@ -74,6 +70,7 @@ public final class PhysicsStoreSpaceMutations {
             new VisualMaterializationSettingsComponent(settings.getVisualMaterializationSettings()),
             new CollisionLodSettingsComponent(settings.getCollisionLodSettings()),
             new ExtensionSettingsComponent(settings.getExtensionSettings())), AddReason.SPAWN);
+        assert ref != null;
         identity.putUuid(spaceUuid, ref);
         compatibility.putSpace(compatibilitySpaceId, spaceUuid);
         SpaceId.reserveAtLeast(compatibilitySpaceId.value());
@@ -87,14 +84,7 @@ public final class PhysicsStoreSpaceMutations {
         @Nonnull PhysicsSpaceSettings settings) {
         UUID spaceUuid = requireSpaceUuid(store, spaceId);
         Ref<PhysicsStore> ref = requireSpaceRef(store, spaceUuid);
-        putSpaceSettings(store, ref, spaceUuid, settings);
-    }
-
-    public static void putSpaceSettings(@Nonnull Store<PhysicsStore> store,
-        @Nonnull Ref<PhysicsStore> ref,
-        @Nonnull PhysicsSpaceSettings settings) {
-        UUID spaceUuid = requireSpaceUuid(store, ref);
-        putSpaceSettings(store, ref, spaceUuid, settings);
+        putSpaceSettings(store, ref, settings);
     }
 
     public static void putSpaceGravity(@Nonnull Store<PhysicsStore> store,
@@ -109,10 +99,6 @@ public final class PhysicsStoreSpaceMutations {
         @Nonnull Ref<PhysicsStore> ref,
         @Nonnull UUID spaceUuid,
         @Nonnull Vector3f gravity) {
-        Objects.requireNonNull(store, "store");
-        Objects.requireNonNull(ref, "ref");
-        Objects.requireNonNull(spaceUuid, "spaceUuid");
-        Objects.requireNonNull(gravity, "gravity");
         PhysicsThreading.requireWorldThread(store, "update PhysicsStore space gravity");
         SpaceComponent space = store.getComponent(ref, SpaceComponent.getComponentType());
         if (space == null) {
@@ -128,12 +114,8 @@ public final class PhysicsStoreSpaceMutations {
 
     public static void putSpaceSettings(@Nonnull Store<PhysicsStore> store,
         @Nonnull Ref<PhysicsStore> ref,
-        @Nonnull UUID spaceUuid,
         @Nonnull PhysicsSpaceSettings settings) {
-        Objects.requireNonNull(store, "store");
-        Objects.requireNonNull(ref, "ref");
-        Objects.requireNonNull(spaceUuid, "spaceUuid");
-        Objects.requireNonNull(settings, "settings");
+        requireSpaceUuid(store, ref);
         PhysicsThreading.requireWorldThread(store, "update a PhysicsStore space entity");
         store.putComponent(ref,
             WorldCollisionComponent.getComponentType(),

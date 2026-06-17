@@ -8,6 +8,7 @@ import com.hypixel.hytale.component.IResourceStorage;
 import com.hypixel.hytale.component.Ref;
 import com.hypixel.hytale.component.Store;
 import com.hypixel.hytale.server.core.universe.world.World;
+import com.hypixel.hytale.server.core.universe.world.WorldProvider;
 import java.util.Map;
 import java.util.Objects;
 import java.util.UUID;
@@ -15,7 +16,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
-public final class PhysicsStore {
+public final class PhysicsStore implements WorldProvider {
 
     @Nonnull
     public static final ComponentRegistry<PhysicsStore> REGISTRY = new ComponentRegistry<>();
@@ -63,6 +64,7 @@ public final class PhysicsStore {
     }
 
     @Nonnull
+    @Override
     public World getWorld() {
         return world;
     }

@@ -16,6 +16,7 @@ public final class PhysicsRuntimeProfiling {
 
     @Nonnull
     public static Snapshots snapshots(@Nonnull Store<EntityStore> store) {
+        assert PhysicsRuntimeProfilingResource.getResourceType() != null;
         PhysicsRuntimeProfilingResource profiling = store.getResource(
             PhysicsRuntimeProfilingResource.getResourceType());
         return new Snapshots(profiling.isEnabled(),

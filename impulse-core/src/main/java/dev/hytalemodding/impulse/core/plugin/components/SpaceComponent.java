@@ -17,7 +17,7 @@ import org.joml.Vector3f;
  */
 public final class SpaceComponent implements Component<PhysicsStore> {
 
-    private static final Vector3f DEFAULT_GRAVITY = new Vector3f(0.0f, -9.81f, 0.0f);
+    public static final Vector3f DEFAULT_GRAVITY = new Vector3f(0.0f, -9.81f, 0.0f);
 
     @Nonnull
     public static final BuilderCodec<SpaceComponent> CODEC = BuilderCodec.builder(
