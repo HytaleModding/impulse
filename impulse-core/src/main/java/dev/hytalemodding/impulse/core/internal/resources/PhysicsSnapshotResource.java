@@ -61,7 +61,7 @@ public final class PhysicsSnapshotResource implements Resource<PhysicsStore> {
             }
         }
         snapshot = new PublishedSnapshot(frame,
-            Map.copyOf(bodiesByUuid),
+            bodiesByUuid,
             bodiesByRowIndex);
     }
 
@@ -100,7 +100,7 @@ public final class PhysicsSnapshotResource implements Resource<PhysicsStore> {
             new PhysicsSnapshotFrame(current.frame().sequence(),
                 current.frame().dt(),
                 bodies),
-            Map.copyOf(bodiesByUuid),
+            bodiesByUuid,
             bodiesByRowIndex);
     }
 

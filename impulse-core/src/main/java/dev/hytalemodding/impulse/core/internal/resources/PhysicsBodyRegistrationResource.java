@@ -96,7 +96,7 @@ public final class PhysicsBodyRegistrationResource implements Resource<PhysicsSt
                 new RegistrationByRef(publication.bodyRef(), registration));
         }
         registrations = new PublishedRegistrations(List.copyOf(viewsByUuid.values()),
-            Map.copyOf(viewsByUuid),
+            viewsByUuid,
             viewsByRowIndex);
     }
 
@@ -114,7 +114,7 @@ public final class PhysicsBodyRegistrationResource implements Resource<PhysicsSt
         viewsByRowIndex.int2ObjectEntrySet()
             .removeIf(entry -> entry.getValue().view().bodyUuid().equals(bodyUuid));
         registrations = new PublishedRegistrations(List.copyOf(viewsByUuid.values()),
-            Map.copyOf(viewsByUuid),
+            viewsByUuid,
             viewsByRowIndex);
     }
 
