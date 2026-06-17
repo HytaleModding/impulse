@@ -19,6 +19,7 @@ import dev.hytalemodding.impulse.core.internal.resources.profiling.PhysicsRuntim
 import dev.hytalemodding.impulse.core.internal.modules.physicschunk.profiling.PhysicsChunkProfilingResource;
 import dev.hytalemodding.impulse.core.internal.modules.physicschunk.profiling.PhysicsChunkProfilingResource.Snapshot;
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsProfilingResource;
+import dev.hytalemodding.impulse.core.internal.resources.PhysicsStepSchedulerResource;
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsWorldRuntimeResource;
 import dev.hytalemodding.impulse.core.plugin.modules.physicsentity.components.BodyAttachmentComponent;
 import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyKind;
@@ -190,17 +191,20 @@ final class ImpulseRapierBodyBenchmarkCrucibleTests {
 
             MatrixCase matrixCase = new MatrixCase(plan.count(), plan.substeps().get(index));
             return startCase(matrixCase)
-                .thenCompose(started -> contextWait(plan.warmupTicks()).thenCompose(_ -> {
-                    physicsStoreProfiling.reset();
-                    runtimeProfiling.reset();
-                    terrainProfiling.reset();
-                    physicsStoreProfiling.setEnabled(true);
-                    runtimeProfiling.setEnabled(true);
-                    terrainProfiling.setEnabled(true);
-                    long startedNanos = System.nanoTime();
-                    return contextWait(plan.sampleTicks()).thenApply(
-                        _ -> finishCase(matrixCase, started, startedNanos));
-                }))
+                .thenCompose(started -> contextWait(plan.warmupTicks())
+                    .thenCompose(_ -> waitForPhysicsStoreIdle())
+                    .thenCompose(_ -> contextWait(1))
+                    .thenCompose(_ -> {
+                        physicsStoreProfiling.reset();
+                        runtimeProfiling.reset();
+                        terrainProfiling.reset();
+                        physicsStoreProfiling.setEnabled(true);
+                        runtimeProfiling.setEnabled(true);
+                        terrainProfiling.setEnabled(true);
+                        long startedNanos = System.nanoTime();
+                        return contextWait(plan.sampleTicks()).thenApply(
+                            _ -> finishCase(matrixCase, started, startedNanos));
+                    }))
                 .thenCompose(report -> {
                     reports.add(report);
                     LOGGER.at(Level.INFO).log("Crucible Rapier body matrix case: %s",
@@ -366,6 +370,11 @@ final class ImpulseRapierBodyBenchmarkCrucibleTests {
             } catch (ReflectiveOperationException e) {
                 return CompletableFuture.failedFuture(e);
             }
+        }
+
+        private CompletionStage<Void> waitForPhysicsStoreIdle() {
+            return physicsStore.getResource(PhysicsStepSchedulerResource.getResourceType())
+                .whenIdle();
         }
 
         private void clearCaseState() {
