@@ -14,9 +14,10 @@ import dev.hytalemodding.impulse.api.SpaceId;
 import dev.hytalemodding.impulse.core.internal.commands.SpaceSelection;
 import dev.hytalemodding.impulse.core.plugin.physicsstore.PhysicsDiagnostics;
 import dev.hytalemodding.impulse.core.plugin.physicsstore.PhysicsAsync;
+import dev.hytalemodding.impulse.core.plugin.physicsstore.PhysicsSpaces;
 import dev.hytalemodding.impulse.core.plugin.settings.PhysicsSpaceSettings;
-import dev.hytalemodding.impulse.core.plugin.resources.PhysicsWorldResource;
 import dev.hytalemodding.impulse.core.plugin.simulation.SolverCapabilitySummary;
+import dev.hytalemodding.impulse.early.PhysicsStoreWorld;
 import java.util.concurrent.CompletableFuture;
 import javax.annotation.Nonnull;
 
@@ -55,8 +56,7 @@ public class SolverSettingsCommand extends AbstractAsyncWorldCommand {
     @Override
     protected CompletableFuture<Void> executeAsync(@Nonnull CommandContext ctx,
         @Nonnull World world) {
-        Store<EntityStore> store = world.getEntityStore().getStore();
-        PhysicsWorldResource resource = store.getResource(PhysicsWorldResource.getResourceType());
+        Store<PhysicsStore> physicsStore = ((PhysicsStoreWorld) world).getPhysicsStore().getStore();
         SpaceSelection.SelectedSpace selectedSpace = SpaceSelection.resolveStoreSpace(ctx,
             world,
             spaceArg);
@@ -66,16 +66,21 @@ public class SolverSettingsCommand extends AbstractAsyncWorldCommand {
         SpaceId spaceId = selectedSpace.spaceId();
         return PhysicsAsync.acceptOnWorldThread(world,
             PhysicsDiagnostics.solverCapabilityAsync(world, selectedSpace.spaceRef()),
-            summary -> applySettings(ctx, resource, selectedSpace.spaceRef(), spaceId, summary));
+            summary -> applySettings(ctx, physicsStore, selectedSpace.spaceRef(), spaceId, summary));
     }
 
     private void applySettings(@Nonnull CommandContext ctx,
-        @Nonnull PhysicsWorldResource resource,
+        @Nonnull Store<PhysicsStore> physicsStore,
         @Nonnull Ref<PhysicsStore> spaceRef,
         @Nonnull SpaceId spaceId,
         @Nonnull SolverCapabilitySummary summary) {
-        PhysicsSpaceSettings settings = new PhysicsSpaceSettings(
-            resource.getSpaceSettings(spaceRef));
+        PhysicsSpaceSettings currentSettings = PhysicsSpaces.settings(physicsStore, spaceRef);
+        if (currentSettings == null) {
+            ctx.sender().sendMessage(Message.raw("Physics space id=" + spaceId.value()
+                + " no longer exists."));
+            return;
+        }
+        PhysicsSpaceSettings settings = new PhysicsSpaceSettings(currentSettings);
         if (!anyArgProvided(ctx)) {
             sendSummary(ctx, spaceId, summary, settings);
             return;
@@ -113,7 +118,7 @@ public class SolverSettingsCommand extends AbstractAsyncWorldCommand {
         settings.getSolverSettings().setSolverIterations(solverIterations);
         settings.getSolverSettings().setStabilizationIterations(stabilizationIterations);
         settings.getSolverSettings().setDynamicSleepTuning(sleepLinearThreshold, sleepAngularThreshold, sleepTime);
-        resource.setSpaceSettings(spaceRef, settings);
+        PhysicsSpaces.putSettings(physicsStore, spaceRef, settings);
         sendSummary(ctx, spaceId, summary, settings);
     }
 

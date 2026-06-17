@@ -10,11 +10,13 @@ import com.hypixel.hytale.server.core.command.system.basecommands.AbstractAsyncP
 import com.hypixel.hytale.server.core.universe.PlayerRef;
 import com.hypixel.hytale.server.core.universe.world.World;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
+import com.hypixel.hytale.server.core.universe.world.storage.PhysicsStore;
 import dev.hytalemodding.impulse.api.SpaceId;
 import dev.hytalemodding.impulse.core.internal.commands.SpaceSelection;
-import dev.hytalemodding.impulse.core.plugin.resources.PhysicsWorldResource;
+import dev.hytalemodding.impulse.core.plugin.physicsstore.PhysicsSpaces;
 import dev.hytalemodding.impulse.core.plugin.settings.PhysicsSpaceSettings;
 import dev.hytalemodding.impulse.core.plugin.settings.PhysicsVisualMaterializationSettings;
+import dev.hytalemodding.impulse.early.PhysicsStoreWorld;
 import java.util.Locale;
 import java.util.concurrent.CompletableFuture;
 import javax.annotation.Nonnull;
@@ -87,7 +89,7 @@ public class VisualMaterializationSettingsCommand extends AbstractAsyncPlayerCom
         @Nonnull Ref<EntityStore> ref,
         @Nonnull PlayerRef playerRef,
         @Nonnull World world) {
-        PhysicsWorldResource resource = store.getResource(PhysicsWorldResource.getResourceType());
+        Store<PhysicsStore> physicsStore = ((PhysicsStoreWorld) world).getPhysicsStore().getStore();
         SpaceSelection.SelectedSpace selectedSpace = SpaceSelection.resolveStoreSpace(ctx,
             world,
             spaceArg);
@@ -96,8 +98,14 @@ public class VisualMaterializationSettingsCommand extends AbstractAsyncPlayerCom
         }
         SpaceId spaceId = selectedSpace.spaceId();
 
-        PhysicsSpaceSettings settings = new PhysicsSpaceSettings(
-            resource.getSpaceSettings(selectedSpace.spaceRef()));
+        PhysicsSpaceSettings currentSettings = PhysicsSpaces.settings(physicsStore,
+            selectedSpace.spaceRef());
+        if (currentSettings == null) {
+            ctx.sender().sendMessage(Message.raw("Physics space id=" + spaceId.value()
+                + " no longer exists."));
+            return CompletableFuture.completedFuture(null);
+        }
+        PhysicsSpaceSettings settings = new PhysicsSpaceSettings(currentSettings);
         if (!anyArgProvided(ctx)) {
             sendSummary(ctx, spaceId, settings);
             return CompletableFuture.completedFuture(null);
@@ -146,7 +154,7 @@ public class VisualMaterializationSettingsCommand extends AbstractAsyncPlayerCom
             return CompletableFuture.completedFuture(null);
         }
 
-        resource.setSpaceSettings(selectedSpace.spaceRef(), settings);
+        PhysicsSpaces.putSettings(physicsStore, selectedSpace.spaceRef(), settings);
         sendSummary(ctx, spaceId, settings);
         return CompletableFuture.completedFuture(null);
     }

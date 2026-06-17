@@ -10,8 +10,10 @@ import com.hypixel.hytale.server.core.command.system.basecommands.AbstractAsyncP
 import com.hypixel.hytale.server.core.universe.PlayerRef;
 import com.hypixel.hytale.server.core.universe.world.World;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
-import dev.hytalemodding.impulse.core.plugin.resources.PhysicsWorldResource;
+import com.hypixel.hytale.server.core.universe.world.storage.PhysicsStore;
+import dev.hytalemodding.impulse.core.plugin.physicsstore.PhysicsWorlds;
 import dev.hytalemodding.impulse.core.plugin.settings.PhysicsWorldSettings;
+import dev.hytalemodding.impulse.early.PhysicsStoreWorld;
 import java.util.concurrent.CompletableFuture;
 import javax.annotation.Nonnull;
 
@@ -33,10 +35,11 @@ public class MaxStepDtSettingCommand extends AbstractAsyncPlayerCommand {
         @Nonnull Ref<EntityStore> ref,
         @Nonnull PlayerRef playerRef,
         @Nonnull World world) {
-        PhysicsWorldResource resource = store.getResource(PhysicsWorldResource.getResourceType());
+        Store<PhysicsStore> physicsStore = ((PhysicsStoreWorld) world).getPhysicsStore().getStore();
         if (!dtArg.provided(ctx)) {
             ctx.sender().sendMessage(Message.raw("Impulse max step dt: "
-                + resource.getWorldSettings().getMaxStepDt() + " (used by adaptive step modes)"));
+                + PhysicsWorlds.settings(physicsStore).getMaxStepDt()
+                + " (used by adaptive step modes)"));
             return CompletableFuture.completedFuture(null);
         }
 
@@ -46,9 +49,9 @@ public class MaxStepDtSettingCommand extends AbstractAsyncPlayerCommand {
             return CompletableFuture.completedFuture(null);
         }
 
-        PhysicsWorldSettings settings = resource.getWorldSettings();
+        PhysicsWorldSettings settings = PhysicsWorlds.settings(physicsStore);
         settings.setMaxStepDt(maxStepDt);
-        resource.setWorldSettings(settings);
+        PhysicsWorlds.putSettings(physicsStore, settings);
         ctx.sender().sendMessage(Message.raw("Impulse max step dt set to " + maxStepDt));
         return CompletableFuture.completedFuture(null);
     }

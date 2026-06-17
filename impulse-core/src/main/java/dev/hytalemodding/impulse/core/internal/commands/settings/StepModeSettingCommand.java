@@ -10,12 +10,14 @@ import com.hypixel.hytale.server.core.command.system.basecommands.AbstractAsyncP
 import com.hypixel.hytale.server.core.universe.PlayerRef;
 import com.hypixel.hytale.server.core.universe.world.World;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
+import com.hypixel.hytale.server.core.universe.world.storage.PhysicsStore;
 import dev.hytalemodding.impulse.core.plugin.physicsstore.PhysicsDiagnostics;
 import dev.hytalemodding.impulse.core.plugin.physicsstore.PhysicsAsync;
+import dev.hytalemodding.impulse.core.plugin.physicsstore.PhysicsWorlds;
 import dev.hytalemodding.impulse.core.plugin.settings.PhysicsStepMode;
-import dev.hytalemodding.impulse.core.plugin.resources.PhysicsWorldResource;
 import dev.hytalemodding.impulse.core.plugin.settings.PhysicsWorldSettings;
 import dev.hytalemodding.impulse.core.plugin.simulation.SpaceSummary;
+import dev.hytalemodding.impulse.early.PhysicsStoreWorld;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import javax.annotation.Nonnull;
@@ -38,10 +40,10 @@ public class StepModeSettingCommand extends AbstractAsyncPlayerCommand {
         @Nonnull Ref<EntityStore> ref,
         @Nonnull PlayerRef playerRef,
         @Nonnull World world) {
-        PhysicsWorldResource resource = store.getResource(PhysicsWorldResource.getResourceType());
+        Store<PhysicsStore> physicsStore = ((PhysicsStoreWorld) world).getPhysicsStore().getStore();
         if (!modeArg.provided(ctx)) {
             ctx.sender().sendMessage(Message.raw("Impulse step mode: "
-                + resource.getWorldSettings().getStepMode().getSerializedName()));
+                + PhysicsWorlds.settings(physicsStore).getStepMode().getSerializedName()));
             return CompletableFuture.completedFuture(null);
         }
 
@@ -57,15 +59,15 @@ public class StepModeSettingCommand extends AbstractAsyncPlayerCommand {
         if (stepMode == PhysicsStepMode.CCD) {
             return PhysicsAsync.acceptOnWorldThread(world,
                 PhysicsDiagnostics.unsupportedCcdSpacesAsync(world),
-                summaries -> applyStepModeIfSupported(ctx, resource, stepMode, summaries));
+                summaries -> applyStepModeIfSupported(ctx, physicsStore, stepMode, summaries));
         }
 
-        applyStepMode(ctx, resource, stepMode);
+        applyStepMode(ctx, physicsStore, stepMode);
         return CompletableFuture.completedFuture(null);
     }
 
     private static void applyStepModeIfSupported(@Nonnull CommandContext ctx,
-        @Nonnull PhysicsWorldResource resource,
+        @Nonnull Store<PhysicsStore> physicsStore,
         @Nonnull PhysicsStepMode stepMode,
         @Nonnull List<SpaceSummary> unsupportedSummaries) {
         List<String> unsupportedSpaces = unsupportedSummaries.stream()
@@ -76,15 +78,15 @@ public class StepModeSettingCommand extends AbstractAsyncPlayerCommand {
                 + String.join(", ", unsupportedSpaces)));
             return;
         }
-        applyStepMode(ctx, resource, stepMode);
+        applyStepMode(ctx, physicsStore, stepMode);
     }
 
     private static void applyStepMode(@Nonnull CommandContext ctx,
-        @Nonnull PhysicsWorldResource resource,
+        @Nonnull Store<PhysicsStore> physicsStore,
         @Nonnull PhysicsStepMode stepMode) {
-        PhysicsWorldSettings settings = resource.getWorldSettings();
+        PhysicsWorldSettings settings = PhysicsWorlds.settings(physicsStore);
         settings.setStepMode(stepMode);
-        resource.setWorldSettings(settings);
+        PhysicsWorlds.putSettings(physicsStore, settings);
         ctx.sender().sendMessage(Message.raw("Impulse step mode set to "
             + stepMode.getSerializedName()));
     }

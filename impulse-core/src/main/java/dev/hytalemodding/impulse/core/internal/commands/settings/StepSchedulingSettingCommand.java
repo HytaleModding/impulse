@@ -10,9 +10,11 @@ import com.hypixel.hytale.server.core.command.system.basecommands.AbstractAsyncP
 import com.hypixel.hytale.server.core.universe.PlayerRef;
 import com.hypixel.hytale.server.core.universe.world.World;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
-import dev.hytalemodding.impulse.core.plugin.resources.PhysicsWorldResource;
+import com.hypixel.hytale.server.core.universe.world.storage.PhysicsStore;
+import dev.hytalemodding.impulse.core.plugin.physicsstore.PhysicsWorlds;
 import dev.hytalemodding.impulse.core.plugin.settings.PhysicsStepSchedulingMode;
 import dev.hytalemodding.impulse.core.plugin.settings.PhysicsWorldSettings;
+import dev.hytalemodding.impulse.early.PhysicsStoreWorld;
 import java.util.concurrent.CompletableFuture;
 import javax.annotation.Nonnull;
 
@@ -34,9 +36,10 @@ public class StepSchedulingSettingCommand extends AbstractAsyncPlayerCommand {
         @Nonnull Ref<EntityStore> ref,
         @Nonnull PlayerRef playerRef,
         @Nonnull World world) {
-        PhysicsWorldResource resource = store.getResource(PhysicsWorldResource.getResourceType());
+        Store<PhysicsStore> physicsStore = ((PhysicsStoreWorld) world).getPhysicsStore().getStore();
         if (!modeArg.provided(ctx)) {
-            PhysicsStepSchedulingMode mode = resource.getWorldSettings().getStepSchedulingMode();
+            PhysicsStepSchedulingMode mode = PhysicsWorlds.settings(physicsStore)
+                .getStepSchedulingMode();
             ctx.sender().sendMessage(Message.raw("Impulse step scheduling: "
                 + mode.getSerializedName() + " (" + mode.describePendingStepBehavior() + ")"));
             return CompletableFuture.completedFuture(null);
@@ -51,9 +54,9 @@ public class StepSchedulingSettingCommand extends AbstractAsyncPlayerCommand {
             return CompletableFuture.completedFuture(null);
         }
 
-        PhysicsWorldSettings settings = resource.getWorldSettings();
+        PhysicsWorldSettings settings = PhysicsWorlds.settings(physicsStore);
         settings.setStepSchedulingMode(mode);
-        resource.setWorldSettings(settings);
+        PhysicsWorlds.putSettings(physicsStore, settings);
         ctx.sender().sendMessage(Message.raw("Impulse step scheduling set to "
             + mode.getSerializedName() + " (" + mode.describePendingStepBehavior() + ")"));
         return CompletableFuture.completedFuture(null);
