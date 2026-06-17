@@ -13,7 +13,6 @@ import dev.hytalemodding.impulse.core.internal.resources.PhysicsBodyRegistration
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsEventResource;
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsIdentityIndexResource;
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsProfilingResource;
-import dev.hytalemodding.impulse.core.internal.resources.PhysicsTerrainMutationQueueResource;
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsResourceTypes;
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsRuntimeResource;
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsSpaceCompatibilityIndexResource;
@@ -21,9 +20,7 @@ import dev.hytalemodding.impulse.core.internal.resources.PhysicsSnapshotResource
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsStepSchedulerResource;
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsStepSchedulerResource.TickDecision;
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsStoreReadQueueResource;
-import dev.hytalemodding.impulse.core.internal.resources.PhysicsTerrainPayloadResource;
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsWorldSettingsResource;
-import dev.hytalemodding.impulse.core.internal.resources.PhysicsWorldCollisionIndexResource;
 import dev.hytalemodding.impulse.core.internal.systems.BodyBindingSystem;
 import dev.hytalemodding.impulse.core.internal.systems.BodyCommandApplicationSystem;
 import dev.hytalemodding.impulse.core.internal.systems.ColliderBindingSystem;
@@ -33,14 +30,11 @@ import dev.hytalemodding.impulse.core.internal.systems.JointBindingSystem;
 import dev.hytalemodding.impulse.core.internal.systems.PersistenceCaptureSystem;
 import dev.hytalemodding.impulse.core.internal.systems.PersistenceHydrationSystem;
 import dev.hytalemodding.impulse.core.internal.systems.PhysicsStoreQueuedReadSystem;
-import dev.hytalemodding.impulse.core.internal.systems.TerrainMutationDrainSystem;
 import dev.hytalemodding.impulse.core.internal.systems.SpaceBindingSystem;
 import dev.hytalemodding.impulse.core.internal.systems.SpaceSettingsApplicationSystem;
 import dev.hytalemodding.impulse.core.internal.systems.StepSubmissionSystem;
 import dev.hytalemodding.impulse.core.internal.systems.StaleBodyRemovalSystem;
 import dev.hytalemodding.impulse.core.internal.systems.TargetBindingSystem;
-import dev.hytalemodding.impulse.core.internal.systems.TerrainColliderBindingSystem;
-import dev.hytalemodding.impulse.core.internal.systems.WorldCollisionIndexSystem;
 import dev.hytalemodding.impulse.core.internal.resources.profiling.PhysicsRuntimeProfilingResource;
 import dev.hytalemodding.impulse.core.plugin.settings.PhysicsWorldSettings;
 import java.lang.reflect.InvocationTargetException;
@@ -72,16 +66,13 @@ public final class PhysicsStoreRegistration {
         PhysicsResourceTypes.registerResourceTypes(registry);
 
         registry.registerSystem(new PersistenceHydrationSystem());
-        registry.registerSystem(new TerrainMutationDrainSystem());
         registry.registerSystem(new IdentityIndexSystem());
-        registry.registerSystem(new WorldCollisionIndexSystem());
         registry.registerSystem(new SpaceBindingSystem());
         registry.registerSystem(new SpaceSettingsApplicationSystem());
         registry.registerSystem(new BodyBindingSystem());
         registry.registerSystem(new ColliderBindingSystem());
         registry.registerSystem(new JointBindingSystem());
         registry.registerSystem(new StaleBodyRemovalSystem());
-        registry.registerSystem(new TerrainColliderBindingSystem());
         registry.registerSystem(new BodyCommandApplicationSystem());
         registry.registerSystem(new TargetBindingSystem());
         registry.registerSystem(new CompletedStepPublicationSystem());
@@ -98,10 +89,6 @@ public final class PhysicsStoreRegistration {
         RuntimeException failure = null;
         failure = runShutdownCleanup(failure,
             () -> ensurePersistentResourcePresent(store));
-        failure = runShutdownCleanup(failure,
-            () -> cleanupResource(store,
-                PhysicsTerrainMutationQueueResource.getResourceType(),
-                PhysicsTerrainMutationQueueResource::clear));
         failure = runShutdownCleanup(failure,
             () -> cleanupResource(store,
                 PhysicsStepSchedulerResource.getResourceType(),
@@ -138,14 +125,6 @@ public final class PhysicsStoreRegistration {
             () -> cleanupResource(store,
                 PhysicsStoreReadQueueResource.getResourceType(),
                 PhysicsStoreReadQueueResource::clear));
-        failure = runShutdownCleanup(failure,
-            () -> cleanupResource(store,
-                PhysicsTerrainPayloadResource.getResourceType(),
-                PhysicsTerrainPayloadResource::clear));
-        failure = runShutdownCleanup(failure,
-            () -> cleanupResource(store,
-                PhysicsWorldCollisionIndexResource.getResourceType(),
-                PhysicsWorldCollisionIndexResource::clear));
         if (failure != null) {
             throw failure;
         }

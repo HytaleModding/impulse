@@ -4,8 +4,6 @@ import com.hypixel.hytale.component.ComponentRegistryProxy;
 import com.hypixel.hytale.component.ResourceType;
 import com.hypixel.hytale.server.core.universe.world.storage.PhysicsStore;
 import dev.hytalemodding.impulse.core.internal.persistence.PersistentPhysicsStoreResource;
-import dev.hytalemodding.impulse.core.internal.resources.PhysicsBodyRegistrationResource;
-import dev.hytalemodding.impulse.core.internal.resources.PhysicsStepSchedulerResource;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
@@ -24,8 +22,6 @@ public final class PhysicsResourceTypes {
     private static ResourceType<PhysicsStore, PhysicsSpaceCompatibilityIndexResource>
         spaceCompatibilityIndexResourceType;
     @Nullable
-    private static ResourceType<PhysicsStore, PhysicsTerrainMutationQueueResource> terrainMutationQueueResourceType;
-    @Nullable
     private static ResourceType<PhysicsStore, PhysicsIdentityIndexResource> identityIndexResourceType;
     @Nullable
     private static ResourceType<PhysicsStore, PhysicsSnapshotResource> snapshotResourceType;
@@ -36,10 +32,6 @@ public final class PhysicsResourceTypes {
     private static ResourceType<PhysicsStore, PhysicsEventResource> eventResourceType;
     @Nullable
     private static ResourceType<PhysicsStore, PhysicsStoreReadQueueResource> readQueueResourceType;
-    @Nullable
-    private static ResourceType<PhysicsStore, PhysicsTerrainPayloadResource> terrainPayloadResourceType;
-    @Nullable
-    private static ResourceType<PhysicsStore, PhysicsWorldCollisionIndexResource> worldCollisionIndexResourceType;
     @Nullable
     private static ResourceType<PhysicsStore, PersistentPhysicsStoreResource> persistentStoreResourceType;
     @Nullable
@@ -67,9 +59,6 @@ public final class PhysicsResourceTypes {
         spaceCompatibilityIndexResourceType = registry.registerResource(
             PhysicsSpaceCompatibilityIndexResource.class,
             PhysicsSpaceCompatibilityIndexResource::new);
-        terrainMutationQueueResourceType = registry.registerResource(
-            PhysicsTerrainMutationQueueResource.class,
-            PhysicsTerrainMutationQueueResource::new);
         identityIndexResourceType = registry.registerResource(
             PhysicsIdentityIndexResource.class,
             PhysicsIdentityIndexResource::new);
@@ -85,12 +74,6 @@ public final class PhysicsResourceTypes {
         readQueueResourceType = registry.registerResource(
             PhysicsStoreReadQueueResource.class,
             PhysicsStoreReadQueueResource::new);
-        terrainPayloadResourceType = registry.registerResource(
-            PhysicsTerrainPayloadResource.class,
-            PhysicsTerrainPayloadResource::new);
-        worldCollisionIndexResourceType = registry.registerResource(
-            PhysicsWorldCollisionIndexResource.class,
-            PhysicsWorldCollisionIndexResource::new);
         persistentStoreResourceType = registry.registerResource(
             PersistentPhysicsStoreResource.class,
             "PersistentPhysicsStore",
@@ -128,11 +111,6 @@ public final class PhysicsResourceTypes {
     }
 
     @Nonnull
-    public static ResourceType<PhysicsStore, PhysicsTerrainMutationQueueResource> terrainMutationQueueResourceType() {
-        return terrainMutationQueueResourceType;
-    }
-
-    @Nonnull
     public static ResourceType<PhysicsStore, PhysicsIdentityIndexResource> identityIndexResourceType() {
         return identityIndexResourceType;
     }
@@ -156,16 +134,6 @@ public final class PhysicsResourceTypes {
     @Nonnull
     public static ResourceType<PhysicsStore, PhysicsStoreReadQueueResource> readQueueResourceType() {
         return readQueueResourceType;
-    }
-
-    @Nonnull
-    public static ResourceType<PhysicsStore, PhysicsTerrainPayloadResource> terrainPayloadResourceType() {
-        return terrainPayloadResourceType;
-    }
-
-    @Nonnull
-    public static ResourceType<PhysicsStore, PhysicsWorldCollisionIndexResource> worldCollisionIndexResourceType() {
-        return worldCollisionIndexResourceType;
     }
 
     @Nonnull

@@ -34,10 +34,6 @@ public final class PhysicsComponentTypes {
     @Nullable
     private static ComponentType<PhysicsStore, TargetComponent> targetComponentType;
     @Nullable
-    private static ComponentType<PhysicsStore, TerrainColliderComponent> terrainColliderComponentType;
-    @Nullable
-    private static ComponentType<PhysicsStore, WorldCollisionComponent> worldCollisionComponentType;
-    @Nullable
     private static ComponentType<PhysicsStore, SolverSettingsComponent> solverSettingsComponentType;
     @Nullable
     private static ComponentType<PhysicsStore, VisualSyncSettingsComponent> visualSyncSettingsComponentType;
@@ -98,14 +94,6 @@ public final class PhysicsComponentTypes {
             TargetComponent.class,
             "Target",
             TargetComponent.CODEC);
-        terrainColliderComponentType = registry.registerComponent(
-            TerrainColliderComponent.class,
-            "TerrainCollider",
-            TerrainColliderComponent.CODEC);
-        worldCollisionComponentType = registry.registerComponent(
-            WorldCollisionComponent.class,
-            "WorldCollision",
-            WorldCollisionComponent.CODEC);
         solverSettingsComponentType = registry.registerComponent(
             SolverSettingsComponent.class,
             "SolverSettings",
@@ -181,16 +169,6 @@ public final class PhysicsComponentTypes {
     @Nonnull
     public static ComponentType<PhysicsStore, TargetComponent> targetComponentType() {
         return targetComponentType;
-    }
-
-    @Nonnull
-    public static ComponentType<PhysicsStore, TerrainColliderComponent> terrainColliderComponentType() {
-        return terrainColliderComponentType;
-    }
-
-    @Nonnull
-    public static ComponentType<PhysicsStore, WorldCollisionComponent> worldCollisionComponentType() {
-        return worldCollisionComponentType;
     }
 
     @Nonnull

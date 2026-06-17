@@ -4,6 +4,7 @@ import com.hypixel.hytale.component.Resource;
 import com.hypixel.hytale.component.ResourceType;
 import com.hypixel.hytale.server.core.universe.world.storage.PhysicsStore;
 import dev.hytalemodding.impulse.core.internal.terrain.TerrainColliderMutation;
+import dev.hytalemodding.impulse.core.plugin.modules.physicschunk.PhysicsChunkTypes;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.List;
@@ -62,6 +63,6 @@ public final class PhysicsTerrainMutationQueueResource implements Resource<Physi
 
     @Nonnull
     public static ResourceType<PhysicsStore, PhysicsTerrainMutationQueueResource> getResourceType() {
-        return PhysicsResourceTypes.terrainMutationQueueResourceType();
+        return PhysicsChunkTypes.terrainMutationQueueResourceType();
     }
 }
