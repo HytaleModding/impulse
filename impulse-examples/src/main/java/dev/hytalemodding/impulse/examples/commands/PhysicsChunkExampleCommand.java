@@ -26,7 +26,7 @@ import dev.hytalemodding.impulse.examples.utils.ExamplePhysicsUtils;
 import org.joml.Vector3d;
 
 /**
- * Debug commands for manually building/clearing world voxel collision.
+ * Debug commands for manually building/clearing PhysicsChunk terrain collision.
  */
 public class PhysicsChunkExampleCommand extends AbstractCommandCollection {
 
@@ -82,7 +82,7 @@ public class PhysicsChunkExampleCommand extends AbstractCommandCollection {
                 playerPos,
                 radius);
 
-            ctx.sender().sendMessage(Message.raw("Built world voxel collision: scanned "
+            ctx.sender().sendMessage(Message.raw("Built PhysicsChunk terrain collision: scanned "
                 + stats.scannedBlocks()
                 + " blocks, solid " + stats.solidBlocks()
                 + ", culled " + stats.culledInteriorBlocks()
@@ -138,7 +138,7 @@ public class PhysicsChunkExampleCommand extends AbstractCommandCollection {
                 radius,
                 Math.max(0L, world.getTick()));
 
-            ctx.sender().sendMessage(Message.raw("Ensured world voxel collision: targets "
+            ctx.sender().sendMessage(Message.raw("Ensured PhysicsChunk terrain collision: targets "
                 + stats.sectionTargets()
                 + ", bodies "
                 + stats.buildStats().colliderBodies()
@@ -174,7 +174,7 @@ public class PhysicsChunkExampleCommand extends AbstractCommandCollection {
             Store<PhysicsStore> physicsStore = physicsStore(world);
             int removed = PhysicsChunkTerrain.clearSpace(world, physicsStore, spaceId);
             ctx.sender().sendMessage(Message.raw("Removed " + removed
-                + " world voxel collision bodies."));
+                + " PhysicsChunk terrain bodies."));
             return CompletableFuture.completedFuture(null);
         }
     }
