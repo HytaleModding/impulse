@@ -107,7 +107,7 @@ final class PhysicsStoreBenchmarkQueries {
         if (shape != null && shape.getShapeType() == ShapeType.PLANE) {
             return;
         }
-        if (body.getKind() == PhysicsBodyKind.WORLD_COLLISION) {
+        if (body.getKind().isTerrainCollider()) {
             stats.worldCollisionBodies++;
             return;
         }

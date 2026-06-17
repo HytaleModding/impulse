@@ -1,6 +1,6 @@
 package dev.hytalemodding.impulse.core.plugin.settings;
 
-import dev.hytalemodding.impulse.core.plugin.modules.physicschunk.WorldCollisionMode;
+import dev.hytalemodding.impulse.core.plugin.modules.physicschunk.PhysicsChunkTerrainMode;
 import dev.hytalemodding.impulse.core.plugin.physicsstore.PhysicsSpaces;
 import javax.annotation.Nonnull;
 
@@ -16,14 +16,14 @@ import javax.annotation.Nonnull;
  * code should read and mutate the domain group directly instead of adding flat
  * shortcut state here.</p>
  *
- * <p>Default settings have PhysicsChunk terrain disabled ({@link WorldCollisionMode#NONE}),
+ * <p>Default settings have PhysicsChunk terrain disabled ({@link PhysicsChunkTerrainMode#NONE}),
  * which keeps Impulse fully opt-in: no terrain bodies are created unless the integrator
  * explicitly opts in.</p>
  */
 public class PhysicsSpaceSettings {
 
     @Nonnull
-    private final PhysicsWorldCollisionSettings worldCollisionSettings;
+    private final PhysicsWorldCollisionSettings physicsChunkTerrainSettings;
     @Nonnull
     private final PhysicsVisualSyncSettings visualSyncSettings;
     @Nonnull
@@ -36,7 +36,7 @@ public class PhysicsSpaceSettings {
     private final PhysicsExtensionSettings extensionSettings;
 
     public PhysicsSpaceSettings() {
-        worldCollisionSettings = new PhysicsWorldCollisionSettings();
+        physicsChunkTerrainSettings = new PhysicsWorldCollisionSettings();
         visualSyncSettings = new PhysicsVisualSyncSettings();
         solverSettings = new PhysicsSolverSettings();
         visualMaterializationSettings = new PhysicsVisualMaterializationSettings();
@@ -45,8 +45,8 @@ public class PhysicsSpaceSettings {
     }
 
     public PhysicsSpaceSettings(@Nonnull PhysicsSpaceSettings settings) {
-        worldCollisionSettings =
-            new PhysicsWorldCollisionSettings(settings.worldCollisionSettings);
+        physicsChunkTerrainSettings =
+            new PhysicsWorldCollisionSettings(settings.physicsChunkTerrainSettings);
         visualSyncSettings =
             new PhysicsVisualSyncSettings(settings.visualSyncSettings);
         solverSettings =
@@ -59,11 +59,20 @@ public class PhysicsSpaceSettings {
     }
 
     /**
-     * Terrain collision streaming and chunk-boundary behavior.
+     * Terrain collider streaming and chunk-boundary behavior.
      */
     @Nonnull
+    public PhysicsChunkTerrainSettings getPhysicsChunkTerrainSettings() {
+        return physicsChunkTerrainSettings;
+    }
+
+    /**
+     * @deprecated Use {@link #getPhysicsChunkTerrainSettings()}.
+     */
+    @Deprecated(forRemoval = false)
+    @Nonnull
     public PhysicsWorldCollisionSettings getWorldCollisionSettings() {
-        return worldCollisionSettings;
+        return physicsChunkTerrainSettings;
     }
 
     /**
@@ -117,7 +126,8 @@ public class PhysicsSpaceSettings {
     @Nonnull
     public static PhysicsSpaceSettings streamingPhysicsChunk() {
         PhysicsSpaceSettings settings = new PhysicsSpaceSettings();
-        settings.getWorldCollisionSettings().setWorldCollisionMode(WorldCollisionMode.STREAMING);
+        settings.getPhysicsChunkTerrainSettings()
+            .setTerrainMode(PhysicsChunkTerrainMode.STREAMING);
         return settings;
     }
 

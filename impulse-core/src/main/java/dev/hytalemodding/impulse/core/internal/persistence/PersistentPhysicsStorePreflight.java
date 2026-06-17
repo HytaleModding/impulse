@@ -2,7 +2,7 @@ package dev.hytalemodding.impulse.core.internal.persistence;
 
 import dev.hytalemodding.impulse.api.BackendId;
 import dev.hytalemodding.impulse.api.Impulse;
-import dev.hytalemodding.impulse.core.plugin.settings.PhysicsWorldCollisionSettings;
+import dev.hytalemodding.impulse.core.plugin.settings.PhysicsChunkTerrainSettings;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
@@ -65,21 +65,21 @@ public final class PersistentPhysicsStorePreflight {
             if (!PhysicsStorePersistenceValidation.isFinite(space.getGravity())) {
                 errors.add("PhysicsStore space " + uuid + " has non-finite gravity");
             }
-            if (space.getWorldCollisionRadius() < 1
-                || space.getWorldCollisionRadius()
-                > PhysicsWorldCollisionSettings.MAX_WORLD_COLLISION_RADIUS) {
+            if (space.getTerrainRadius() < 1
+                || space.getTerrainRadius()
+                > PhysicsChunkTerrainSettings.MAX_TERRAIN_RADIUS) {
                 errors.add("PhysicsStore space " + uuid
                     + " has invalid PhysicsChunk terrain radius");
             }
-            if (space.getWorldCollisionBodyRadius() < 1
-                || space.getWorldCollisionBodyRadius()
-                > PhysicsWorldCollisionSettings.MAX_WORLD_COLLISION_BODY_RADIUS) {
+            if (space.getBodyTerrainRadius() < 1
+                || space.getBodyTerrainRadius()
+                > PhysicsChunkTerrainSettings.MAX_BODY_TERRAIN_RADIUS) {
                 errors.add("PhysicsStore space " + uuid
                     + " has invalid PhysicsChunk terrain body radius");
             }
-            if (space.getWorldCollisionTtlTicks() < 1
-                || space.getWorldCollisionTtlTicks()
-                > PhysicsWorldCollisionSettings.MAX_WORLD_COLLISION_TTL_TICKS) {
+            if (space.getTerrainTtlTicks() < 1
+                || space.getTerrainTtlTicks()
+                > PhysicsChunkTerrainSettings.MAX_TERRAIN_TTL_TICKS) {
                 errors.add("PhysicsStore space " + uuid
                     + " has invalid PhysicsChunk terrain TTL");
             }

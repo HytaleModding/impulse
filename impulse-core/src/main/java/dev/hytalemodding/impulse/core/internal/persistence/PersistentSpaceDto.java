@@ -6,6 +6,7 @@ import com.hypixel.hytale.codec.builder.BuilderCodec;
 import com.hypixel.hytale.codec.codecs.EnumCodec;
 import com.hypixel.hytale.codec.validation.Validators;
 import com.hypixel.hytale.math.vector.Vector3fUtil;
+import dev.hytalemodding.impulse.core.plugin.modules.physicschunk.PhysicsChunkTerrainMode;
 import dev.hytalemodding.impulse.core.plugin.modules.physicschunk.WorldCollisionMode;
 import dev.hytalemodding.impulse.core.plugin.modules.physicschunk.components.CollisionLodSettingsComponent;
 import dev.hytalemodding.impulse.core.plugin.components.ExtensionSettingsComponent;
@@ -220,6 +221,28 @@ public final class PersistentSpaceDto {
     public PersistentSpaceDto(@Nonnull UUID spaceUuid,
         @Nonnull String backendId,
         @Nonnull Vector3f gravity,
+        @Nonnull PhysicsChunkTerrainMode terrainMode,
+        boolean nativeVoxelTerrainEnabled,
+        int terrainRadius,
+        int bodyTerrainRadius,
+        int terrainTtlTicks,
+        float terrainFriction,
+        float terrainRestitution) {
+        this(spaceUuid,
+            backendId,
+            gravity,
+            terrainMode.toWorldCollisionMode(),
+            nativeVoxelTerrainEnabled,
+            terrainRadius,
+            bodyTerrainRadius,
+            terrainTtlTicks,
+            terrainFriction,
+            terrainRestitution);
+    }
+
+    public PersistentSpaceDto(@Nonnull UUID spaceUuid,
+        @Nonnull String backendId,
+        @Nonnull Vector3f gravity,
         @Nonnull WorldCollisionMode worldCollisionMode,
         @Nonnull EntityChunkBoundaryMode entityChunkBoundaryMode,
         boolean nativeVoxelTerrainEnabled,
@@ -257,6 +280,40 @@ public final class PersistentSpaceDto {
             "extensionSettings").clone();
     }
 
+    public PersistentSpaceDto(@Nonnull UUID spaceUuid,
+        @Nonnull String backendId,
+        @Nonnull Vector3f gravity,
+        @Nonnull PhysicsChunkTerrainMode terrainMode,
+        @Nonnull EntityChunkBoundaryMode entityChunkBoundaryMode,
+        boolean nativeVoxelTerrainEnabled,
+        int terrainRadius,
+        int bodyTerrainRadius,
+        int terrainTtlTicks,
+        float terrainFriction,
+        float terrainRestitution,
+        @Nonnull SolverSettingsComponent solverSettings,
+        @Nonnull VisualSyncSettingsComponent visualSyncSettings,
+        @Nonnull VisualMaterializationSettingsComponent visualMaterializationSettings,
+        @Nonnull CollisionLodSettingsComponent collisionLodSettings,
+        @Nonnull ExtensionSettingsComponent extensionSettings) {
+        this(spaceUuid,
+            backendId,
+            gravity,
+            terrainMode.toWorldCollisionMode(),
+            entityChunkBoundaryMode,
+            nativeVoxelTerrainEnabled,
+            terrainRadius,
+            bodyTerrainRadius,
+            terrainTtlTicks,
+            terrainFriction,
+            terrainRestitution,
+            solverSettings,
+            visualSyncSettings,
+            visualMaterializationSettings,
+            collisionLodSettings,
+            extensionSettings);
+    }
+
     @Nonnull
     public UUID getSpaceUuid() {
         return spaceUuid;
@@ -278,6 +335,11 @@ public final class PersistentSpaceDto {
     }
 
     @Nonnull
+    public PhysicsChunkTerrainMode getTerrainMode() {
+        return worldCollisionMode.toPhysicsChunkTerrainMode();
+    }
+
+    @Nonnull
     public EntityChunkBoundaryMode getEntityChunkBoundaryMode() {
         return entityChunkBoundaryMode;
     }
@@ -290,11 +352,23 @@ public final class PersistentSpaceDto {
         return worldCollisionRadius;
     }
 
+    public int getTerrainRadius() {
+        return worldCollisionRadius;
+    }
+
     public int getWorldCollisionBodyRadius() {
         return worldCollisionBodyRadius;
     }
 
+    public int getBodyTerrainRadius() {
+        return worldCollisionBodyRadius;
+    }
+
     public int getWorldCollisionTtlTicks() {
+        return worldCollisionTtlTicks;
+    }
+
+    public int getTerrainTtlTicks() {
         return worldCollisionTtlTicks;
     }
 

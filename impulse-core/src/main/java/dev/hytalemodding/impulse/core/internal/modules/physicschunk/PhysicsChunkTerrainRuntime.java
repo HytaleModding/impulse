@@ -6,7 +6,7 @@ import dev.hytalemodding.impulse.core.internal.resources.PhysicsSpaceBinding;
 import dev.hytalemodding.impulse.core.plugin.modules.physicschunk.WorldCollisionBuildStats;
 import dev.hytalemodding.impulse.core.plugin.modules.physicschunk.WorldCollisionPrewarmStats;
 import dev.hytalemodding.impulse.core.plugin.modules.physicschunk.WorldCollisionStats;
-import dev.hytalemodding.impulse.core.plugin.settings.PhysicsWorldCollisionSettings;
+import dev.hytalemodding.impulse.core.plugin.settings.PhysicsChunkTerrainSettings;
 import it.unimi.dsi.fastutil.ints.Int2LongMap;
 import it.unimi.dsi.fastutil.ints.Int2LongOpenHashMap;
 import it.unimi.dsi.fastutil.longs.LongOpenHashSet;
@@ -57,7 +57,7 @@ public final class PhysicsChunkTerrainRuntime {
             center,
             radius,
             PhysicsChunkBuildOptions.fromNativeVoxelTerrainEnabled(
-                PhysicsWorldCollisionSettings.DEFAULT_NATIVE_VOXEL_TERRAIN_ENABLED));
+                PhysicsChunkTerrainSettings.DEFAULT_NATIVE_VOXEL_TERRAIN_ENABLED));
     }
 
     @Nonnull
@@ -102,7 +102,7 @@ public final class PhysicsChunkTerrainRuntime {
             radius,
             tick,
             PhysicsChunkBuildOptions.fromNativeVoxelTerrainEnabled(
-                PhysicsWorldCollisionSettings.DEFAULT_NATIVE_VOXEL_TERRAIN_ENABLED));
+                PhysicsChunkTerrainSettings.DEFAULT_NATIVE_VOXEL_TERRAIN_ENABLED));
     }
 
     @Nonnull

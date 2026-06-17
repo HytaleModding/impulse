@@ -1,8 +1,9 @@
 package dev.hytalemodding.impulse.core.plugin.modules.physicschunk;
 
 /**
- * Aggregate statistics from building or rebuilding streamed PhysicsChunk terrain geometry.
+ * @deprecated Use {@link PhysicsChunkTerrainBuildStats}.
  */
+@Deprecated(forRemoval = false)
 public record WorldCollisionBuildStats(int scannedBlocks,
                                        int solidBlocks,
                                        int culledInteriorBlocks,

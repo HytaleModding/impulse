@@ -1,6 +1,6 @@
 package dev.hytalemodding.impulse.core.internal.modules.physicschunk;
 
-import dev.hytalemodding.impulse.core.plugin.settings.PhysicsWorldCollisionSettings;
+import dev.hytalemodding.impulse.core.plugin.settings.PhysicsChunkTerrainSettings;
 import java.util.Objects;
 import javax.annotation.Nonnull;
 
@@ -12,7 +12,7 @@ public record PhysicsChunkBuildOptions(@Nonnull TerrainColliderMode terrainColli
                                          float terrainRestitution) {
 
     public static final PhysicsChunkBuildOptions DEFAULT =
-        fromNativeVoxelTerrainEnabled(PhysicsWorldCollisionSettings.DEFAULT_NATIVE_VOXEL_TERRAIN_ENABLED);
+        fromNativeVoxelTerrainEnabled(PhysicsChunkTerrainSettings.DEFAULT_NATIVE_VOXEL_TERRAIN_ENABLED);
 
     public PhysicsChunkBuildOptions {
         Objects.requireNonNull(terrainColliderMode, "terrainColliderMode");
@@ -25,7 +25,7 @@ public record PhysicsChunkBuildOptions(@Nonnull TerrainColliderMode terrainColli
     }
 
     @Nonnull
-    public static PhysicsChunkBuildOptions fromSettings(@Nonnull PhysicsWorldCollisionSettings settings) {
+    public static PhysicsChunkBuildOptions fromSettings(@Nonnull PhysicsChunkTerrainSettings settings) {
         return new PhysicsChunkBuildOptions(
             TerrainColliderMode.fromNativeVoxelTerrainEnabled(settings.isNativeVoxelTerrainEnabled()),
             settings.getTerrainFriction(),
@@ -35,8 +35,8 @@ public record PhysicsChunkBuildOptions(@Nonnull TerrainColliderMode terrainColli
     @Nonnull
     public static PhysicsChunkBuildOptions fromNativeVoxelTerrainEnabled(boolean enabled) {
         return new PhysicsChunkBuildOptions(TerrainColliderMode.fromNativeVoxelTerrainEnabled(enabled),
-            PhysicsWorldCollisionSettings.DEFAULT_TERRAIN_FRICTION,
-            PhysicsWorldCollisionSettings.DEFAULT_TERRAIN_RESTITUTION);
+            PhysicsChunkTerrainSettings.DEFAULT_TERRAIN_FRICTION,
+            PhysicsChunkTerrainSettings.DEFAULT_TERRAIN_RESTITUTION);
     }
 
     public boolean nativeVoxelTerrainEnabled() {

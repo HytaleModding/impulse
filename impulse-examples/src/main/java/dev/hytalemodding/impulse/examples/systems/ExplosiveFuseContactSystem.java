@@ -77,7 +77,7 @@ public final class ExplosiveFuseContactSystem
         @Nonnull UUID explosiveBodyUuid,
         @Nonnull UUID otherBodyUuid,
         @Nonnull Vector3d explosionCenter) {
-        if (!isWorldCollision(physicsStore, otherBodyUuid)) {
+        if (!isTerrainCollider(physicsStore, otherBodyUuid)) {
             return;
         }
         for (Ref<EntityStore> ref : PhysicsEntityAttachments.attachments(store, explosiveBodyUuid)) {
@@ -97,11 +97,11 @@ public final class ExplosiveFuseContactSystem
         }
     }
 
-    private static boolean isWorldCollision(@Nonnull Store<PhysicsStore> physicsStore,
+    private static boolean isTerrainCollider(@Nonnull Store<PhysicsStore> physicsStore,
         @Nonnull UUID bodyUuid) {
         PhysicsBodyRegistrationView registration = PhysicsBodies.registrationView(physicsStore,
             bodyUuid);
-        return registration != null && registration.kind() == PhysicsBodyKind.WORLD_COLLISION;
+        return registration != null && registration.kind().isTerrainCollider();
     }
 
     @Nonnull

@@ -37,7 +37,7 @@ import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyKind;
 import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyPersistenceMode;
 import dev.hytalemodding.impulse.core.internal.resources.body.PhysicsBodyRegistration;
 import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyRegistrationView;
-import dev.hytalemodding.impulse.core.plugin.modules.physicschunk.WorldCollisionMode;
+import dev.hytalemodding.impulse.core.plugin.modules.physicschunk.PhysicsChunkTerrainMode;
 import dev.hytalemodding.impulse.core.plugin.events.PhysicsEventFrame;
 import dev.hytalemodding.impulse.core.plugin.events.PhysicsFrameEvent;
 import dev.hytalemodding.impulse.core.plugin.components.ColliderComponent;
@@ -58,7 +58,7 @@ import dev.hytalemodding.impulse.core.plugin.resources.PhysicsMutationHandle;
 import dev.hytalemodding.impulse.core.plugin.resources.PhysicsWorldResource;
 import dev.hytalemodding.impulse.core.plugin.settings.PhysicsSpaceSettings;
 import dev.hytalemodding.impulse.core.plugin.settings.PhysicsStepMode;
-import dev.hytalemodding.impulse.core.plugin.settings.PhysicsWorldCollisionSettings;
+import dev.hytalemodding.impulse.core.plugin.settings.PhysicsChunkTerrainSettings;
 import dev.hytalemodding.impulse.core.plugin.settings.PhysicsWorldSettings;
 import dev.hytalemodding.impulse.core.plugin.snapshot.PhysicsBodySnapshotEntry;
 import dev.hytalemodding.impulse.core.plugin.snapshot.PublishedPhysicsSnapshotFrame;
@@ -1442,22 +1442,22 @@ public class PhysicsWorldRuntimeResource extends PhysicsWorldResource {
 
     private void setSpaceSettingsDirect(@Nonnull SpaceId spaceId,
         @Nonnull PhysicsSpaceSettings settings) {
-        PhysicsWorldCollisionSettings previousCollisionSettings =
-            spaceRuntime.getLiveSpaceSettings(spaceId).getWorldCollisionSettings();
+        PhysicsChunkTerrainSettings previousCollisionSettings =
+            spaceRuntime.getLiveSpaceSettings(spaceId).getPhysicsChunkTerrainSettings();
         boolean worldCollisionSettingsChanged =
             worldCollisionStreamingSettingsChanged(previousCollisionSettings,
-                settings.getWorldCollisionSettings());
+                settings.getPhysicsChunkTerrainSettings());
         boolean terrainRepresentationChanged =
             previousCollisionSettings.isNativeVoxelTerrainEnabled()
-                != settings.getWorldCollisionSettings().isNativeVoxelTerrainEnabled();
+                != settings.getPhysicsChunkTerrainSettings().isNativeVoxelTerrainEnabled();
         boolean terrainMaterialChanged =
             Float.compare(previousCollisionSettings.getTerrainFriction(),
-                settings.getWorldCollisionSettings().getTerrainFriction()) != 0
+                settings.getPhysicsChunkTerrainSettings().getTerrainFriction()) != 0
                 || Float.compare(previousCollisionSettings.getTerrainRestitution(),
-                    settings.getWorldCollisionSettings().getTerrainRestitution()) != 0;
+                    settings.getPhysicsChunkTerrainSettings().getTerrainRestitution()) != 0;
         boolean worldCollisionDisabled =
-            settings.getWorldCollisionSettings().getWorldCollisionMode() == WorldCollisionMode.NONE
-                && previousCollisionSettings.getWorldCollisionMode() != WorldCollisionMode.NONE;
+            settings.getPhysicsChunkTerrainSettings().getTerrainMode() == PhysicsChunkTerrainMode.NONE
+                && previousCollisionSettings.getTerrainMode() != PhysicsChunkTerrainMode.NONE;
         spaceRuntime.setSpaceSettings(spaceId, settings);
         if (worldCollisionDisabled || terrainRepresentationChanged || terrainMaterialChanged) {
             terrainRuntime.clear(requireSpaceBinding(spaceId));
@@ -1467,12 +1467,12 @@ public class PhysicsWorldRuntimeResource extends PhysicsWorldResource {
     }
 
     private static boolean worldCollisionStreamingSettingsChanged(
-        @Nonnull PhysicsWorldCollisionSettings previous,
-        @Nonnull PhysicsWorldCollisionSettings next) {
-        return previous.getWorldCollisionMode() != next.getWorldCollisionMode()
-            || previous.getWorldCollisionRadius() != next.getWorldCollisionRadius()
-            || previous.getWorldCollisionBodyRadius() != next.getWorldCollisionBodyRadius()
-            || previous.getWorldCollisionTtlTicks() != next.getWorldCollisionTtlTicks()
+        @Nonnull PhysicsChunkTerrainSettings previous,
+        @Nonnull PhysicsChunkTerrainSettings next) {
+        return previous.getTerrainMode() != next.getTerrainMode()
+            || previous.getTerrainRadius() != next.getTerrainRadius()
+            || previous.getBodyTerrainRadius() != next.getBodyTerrainRadius()
+            || previous.getTerrainTtlTicks() != next.getTerrainTtlTicks()
             || previous.isNativeVoxelTerrainEnabled() != next.isNativeVoxelTerrainEnabled();
     }
 

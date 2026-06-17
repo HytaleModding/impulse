@@ -7,7 +7,7 @@ import com.hypixel.hytale.server.core.plugin.JavaPluginInit;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import dev.hytalemodding.impulse.core.internal.modules.physicschunk.commands.PhysicsChunkCommandContributions;
 import dev.hytalemodding.impulse.core.plugin.modules.physicschunk.PhysicsChunkTypes;
-import dev.hytalemodding.impulse.core.plugin.modules.physicschunk.PhysicsWorldCollision;
+import dev.hytalemodding.impulse.core.plugin.modules.physicschunk.PhysicsChunkTerrain;
 import java.util.logging.Level;
 import javax.annotation.Nonnull;
 
@@ -28,13 +28,13 @@ public final class PhysicsChunkModule extends JavaPlugin {
         PhysicsChunkTypes.registerEntityStoreResourceTypes(entityRegistry);
         PhysicsChunkTypes.registerEntityStoreSystems(entityRegistry);
         PhysicsChunkCommandContributions.register();
-        PhysicsWorldCollision.enableModule();
+        PhysicsChunkTerrain.enableModule();
         LOGGER.at(Level.INFO).log("Impulse PhysicsChunk terrain producer enabled.");
     }
 
     @Override
     protected void shutdown() {
-        PhysicsWorldCollision.disableModule();
+        PhysicsChunkTerrain.disableModule();
         PhysicsChunkCommandContributions.unregister();
         PhysicsChunkTypes.clearEntityStoreResourceTypes();
     }

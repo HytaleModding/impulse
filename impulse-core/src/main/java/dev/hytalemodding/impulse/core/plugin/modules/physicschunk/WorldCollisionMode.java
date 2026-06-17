@@ -1,21 +1,24 @@
 package dev.hytalemodding.impulse.core.plugin.modules.physicschunk;
 
+import javax.annotation.Nonnull;
+
 /**
- * Controls how a physics space interacts with Hytale world voxel collision.
- *
- * <p>This is an opt-in per-space policy. Impulse does not impose PhysicsChunk terrain
- * on any space by default; the integrator chooses the level of intrusion.</p>
- *
- * <ul>
- *   <li>{@link #NONE} - No PhysicsChunk terrain. The space is pure physics with no terrain.</li>
- *   <li>{@link #MANUAL} - PhysicsChunk terrain exists but must be built/cleared explicitly
- *       by the integrator (e.g. via commands or a custom system).</li>
- *   <li>{@link #STREAMING} - Impulse automatically streams section collision around
- *       tracked players/bodies and prunes unused sections after a TTL.</li>
- * </ul>
+ * @deprecated Use {@link PhysicsChunkTerrainMode}.
  */
+@Deprecated(forRemoval = false)
 public enum WorldCollisionMode {
     NONE,
     MANUAL,
-    STREAMING
+    STREAMING;
+
+    @Nonnull
+    public PhysicsChunkTerrainMode toPhysicsChunkTerrainMode() {
+        return PhysicsChunkTerrainMode.valueOf(name());
+    }
+
+    @Nonnull
+    public static WorldCollisionMode fromPhysicsChunkTerrainMode(
+        @Nonnull PhysicsChunkTerrainMode mode) {
+        return valueOf(mode.name());
+    }
 }

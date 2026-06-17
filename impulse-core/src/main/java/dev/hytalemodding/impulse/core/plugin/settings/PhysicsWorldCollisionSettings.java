@@ -1,197 +1,21 @@
 package dev.hytalemodding.impulse.core.plugin.settings;
 
-import dev.hytalemodding.impulse.core.plugin.modules.physicschunk.WorldCollisionMode;
-import lombok.Getter;
-import lombok.Setter;
 import javax.annotation.Nonnull;
 
 /**
- * Terrain collision streaming settings for a physics space.
+ * @deprecated Use {@link PhysicsChunkTerrainSettings}.
  */
-public class PhysicsWorldCollisionSettings {
-
-    /**
-     * Block radius around each tracked player for streaming collision.
-     */
-    public static final int DEFAULT_WORLD_COLLISION_RADIUS = 8;
-
-    /**
-     * Hard block-radius cap for player-centered PhysicsChunk terrain streaming.
-     */
-    public static final int MAX_WORLD_COLLISION_RADIUS = 128;
-
-    /**
-     * Block radius around each active dynamic physics body for streaming collision.
-     * Smaller than the player radius because bodies should not pull collision
-     * as far as players, but still need terrain to land on.
-     */
-    public static final int DEFAULT_WORLD_COLLISION_BODY_RADIUS = 4;
-
-    /**
-     * Hard block-radius cap for dynamic-body PhysicsChunk terrain streaming.
-     */
-    public static final int MAX_WORLD_COLLISION_BODY_RADIUS = 64;
-
-    /**
-     * Ticks before an unused section's collision bodies are pruned.
-     */
-    public static final int DEFAULT_WORLD_COLLISION_TTL_TICKS = 100;
-
-    /**
-     * Hard tick cap for retaining unused streamed collision sections.
-     */
-    public static final int MAX_WORLD_COLLISION_TTL_TICKS = 12_000;
-
-    /**
-     * Default behavior when an entity-backed body reaches an unloaded chunk border.
-     */
-    @Nonnull
-    public static final EntityChunkBoundaryMode DEFAULT_ENTITY_CHUNK_BOUNDARY_MODE =
-        EntityChunkBoundaryMode.PAUSE_UNTIL_LOADED;
-
-    /**
-     * Whether full-cube world sections should use native backend voxel terrain when available.
-     */
-    public static final boolean DEFAULT_NATIVE_VOXEL_TERRAIN_ENABLED = false;
-
-    /**
-     * Default friction applied to generated terrain collision bodies.
-     */
-    public static final float DEFAULT_TERRAIN_FRICTION = 0.75f;
-
-    /**
-     * Default restitution applied to generated terrain collision bodies.
-     */
-    public static final float DEFAULT_TERRAIN_RESTITUTION = 0.0f;
-
-    /**
-     * PhysicsChunk terrain mode for this space. Defaults to NONE so Impulse
-     * is fully opt-in: no terrain collision is created unless explicitly requested.
-     */
-    @Nonnull
-    private WorldCollisionMode worldCollisionMode = WorldCollisionMode.NONE;
-
-    /**
-     * How entity-backed bodies behave when they reach an unloaded chunk border.
-     */
-    @Nonnull
-    private EntityChunkBoundaryMode entityChunkBoundaryMode = DEFAULT_ENTITY_CHUNK_BOUNDARY_MODE;
-
-    /**
-     * Enables native backend voxel terrain for full-cube PhysicsChunk terrain.
-     */
-    @Setter
-    @Getter
-    private boolean nativeVoxelTerrainEnabled = DEFAULT_NATIVE_VOXEL_TERRAIN_ENABLED;
-
-    /**
-     * Block radius around tracked player positions for streaming or manual build.
-     */
-    @Getter
-    private int worldCollisionRadius = DEFAULT_WORLD_COLLISION_RADIUS;
-
-    /**
-     * Block radius around active dynamic physics bodies for streaming collision.
-     */
-    @Getter
-    private int worldCollisionBodyRadius = DEFAULT_WORLD_COLLISION_BODY_RADIUS;
-
-    /**
-     * How long a section stays loaded after its last use, in server ticks.
-     */
-    @Getter
-    private int worldCollisionTtlTicks = DEFAULT_WORLD_COLLISION_TTL_TICKS;
-
-    /**
-     * Friction applied to generated terrain bodies for this space.
-     */
-    @Getter
-    private float terrainFriction = DEFAULT_TERRAIN_FRICTION;
-
-    /**
-     * Restitution applied to generated terrain bodies for this space.
-     */
-    @Getter
-    private float terrainRestitution = DEFAULT_TERRAIN_RESTITUTION;
+@Deprecated(forRemoval = false)
+public class PhysicsWorldCollisionSettings extends PhysicsChunkTerrainSettings {
 
     public PhysicsWorldCollisionSettings() {
     }
 
+    public PhysicsWorldCollisionSettings(@Nonnull PhysicsChunkTerrainSettings settings) {
+        super(settings);
+    }
+
     public PhysicsWorldCollisionSettings(@Nonnull PhysicsWorldCollisionSettings settings) {
-        worldCollisionMode = settings.worldCollisionMode;
-        entityChunkBoundaryMode = settings.entityChunkBoundaryMode;
-        nativeVoxelTerrainEnabled = settings.nativeVoxelTerrainEnabled;
-        worldCollisionRadius = settings.worldCollisionRadius;
-        worldCollisionBodyRadius = settings.worldCollisionBodyRadius;
-        worldCollisionTtlTicks = settings.worldCollisionTtlTicks;
-        terrainFriction = settings.terrainFriction;
-        terrainRestitution = settings.terrainRestitution;
-    }
-
-    @Nonnull
-    public WorldCollisionMode getWorldCollisionMode() {
-        return worldCollisionMode;
-    }
-
-    public void setWorldCollisionMode(@Nonnull WorldCollisionMode worldCollisionMode) {
-        this.worldCollisionMode = worldCollisionMode;
-    }
-
-    @Nonnull
-    public EntityChunkBoundaryMode getEntityChunkBoundaryMode() {
-        return entityChunkBoundaryMode;
-    }
-
-    public void setEntityChunkBoundaryMode(
-        @Nonnull EntityChunkBoundaryMode entityChunkBoundaryMode) {
-        this.entityChunkBoundaryMode = entityChunkBoundaryMode;
-    }
-
-    public void setWorldCollisionRadius(int worldCollisionRadius) {
-        this.worldCollisionRadius = PhysicsSettingsValidation.requirePositiveAtMost(
-            "PhysicsChunk terrain radius",
-            worldCollisionRadius,
-            MAX_WORLD_COLLISION_RADIUS);
-    }
-
-    public void setWorldCollisionBodyRadius(int worldCollisionBodyRadius) {
-        this.worldCollisionBodyRadius = PhysicsSettingsValidation.requirePositiveAtMost(
-            "PhysicsChunk terrain body radius",
-            worldCollisionBodyRadius,
-            MAX_WORLD_COLLISION_BODY_RADIUS);
-    }
-
-    public void setWorldCollisionTtlTicks(int worldCollisionTtlTicks) {
-        this.worldCollisionTtlTicks = PhysicsSettingsValidation.requirePositiveAtMost(
-            "PhysicsChunk terrain TTL",
-            worldCollisionTtlTicks,
-            MAX_WORLD_COLLISION_TTL_TICKS);
-    }
-
-    public void setTerrainFriction(float terrainFriction) {
-        this.terrainFriction = PhysicsSettingsValidation.requireFiniteAtLeast(
-            "Terrain friction",
-            terrainFriction,
-            0.0f);
-    }
-
-    public void setTerrainRestitution(float terrainRestitution) {
-        this.terrainRestitution = PhysicsSettingsValidation.requireFiniteAtLeast(
-            "Terrain restitution",
-            terrainRestitution,
-            0.0f);
-    }
-
-    public void setTerrainMaterial(float terrainFriction, float terrainRestitution) {
-        float validatedFriction = PhysicsSettingsValidation.requireFiniteAtLeast(
-            "Terrain friction",
-            terrainFriction,
-            0.0f);
-        float validatedRestitution = PhysicsSettingsValidation.requireFiniteAtLeast(
-            "Terrain restitution",
-            terrainRestitution,
-            0.0f);
-        this.terrainFriction = validatedFriction;
-        this.terrainRestitution = validatedRestitution;
+        super(settings);
     }
 }

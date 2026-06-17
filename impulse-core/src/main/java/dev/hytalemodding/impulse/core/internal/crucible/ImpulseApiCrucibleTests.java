@@ -29,7 +29,7 @@ import dev.hytalemodding.impulse.core.plugin.settings.PhysicsBackendExtensionId;
 import dev.hytalemodding.impulse.core.plugin.settings.PhysicsSpaceSettings;
 import dev.hytalemodding.impulse.core.plugin.resources.PhysicsWorldResource;
 import dev.hytalemodding.impulse.core.plugin.settings.VisualOcclusionMode;
-import dev.hytalemodding.impulse.core.plugin.modules.physicschunk.WorldCollisionMode;
+import dev.hytalemodding.impulse.core.plugin.modules.physicschunk.PhysicsChunkTerrainMode;
 import java.util.UUID;
 import java.util.Collection;
 import java.util.List;
@@ -204,8 +204,8 @@ final class ImpulseApiCrucibleTests {
                 "crucible",
                 PhysicsSpaceSettings.streamingPhysicsChunk());
             boolean registered = resource.hasSpace(spaceId)
-                && resource.getSpaceSettings(spaceId).getWorldCollisionSettings().getWorldCollisionMode()
-                == WorldCollisionMode.STREAMING;
+                && resource.getSpaceSettings(spaceId).getPhysicsChunkTerrainSettings().getTerrainMode()
+                == PhysicsChunkTerrainMode.STREAMING;
             PhysicsStoreSpaceMutations.removeEmptySpace(store, spaceId);
             return registered && !resource.hasSpace(spaceId);
         });
@@ -331,10 +331,10 @@ final class ImpulseApiCrucibleTests {
                 settings);
             try {
                 PhysicsSpaceSettings copy = resource.getSpaceSettings(spaceId);
-                return copy.getWorldCollisionSettings().getWorldCollisionMode() == WorldCollisionMode.STREAMING
-                && copy.getWorldCollisionSettings().getWorldCollisionRadius() == 9
-                && copy.getWorldCollisionSettings().getWorldCollisionBodyRadius() == 5
-                && copy.getWorldCollisionSettings().getWorldCollisionTtlTicks() == 77
+                return copy.getPhysicsChunkTerrainSettings().getTerrainMode() == PhysicsChunkTerrainMode.STREAMING
+                && copy.getPhysicsChunkTerrainSettings().getTerrainRadius() == 9
+                && copy.getPhysicsChunkTerrainSettings().getBodyTerrainRadius() == 5
+                && copy.getPhysicsChunkTerrainSettings().getTerrainTtlTicks() == 77
                 && copy.getVisualSyncSettings().getVisualFullSyncRadius() == 48
                 && copy.getVisualSyncSettings().getVisualMaxSyncRadius() == 96
                 && !copy.getVisualSyncSettings().isVisualFarSyncCutoffEnabled()
@@ -370,10 +370,10 @@ final class ImpulseApiCrucibleTests {
     @Nonnull
     private static PhysicsSpaceSettings populatedSettings() {
         PhysicsSpaceSettings settings = PhysicsSpaceSettings.defaults();
-        settings.getWorldCollisionSettings().setWorldCollisionMode(WorldCollisionMode.STREAMING);
-        settings.getWorldCollisionSettings().setWorldCollisionRadius(9);
-        settings.getWorldCollisionSettings().setWorldCollisionBodyRadius(5);
-        settings.getWorldCollisionSettings().setWorldCollisionTtlTicks(77);
+        settings.getPhysicsChunkTerrainSettings().setTerrainMode(PhysicsChunkTerrainMode.STREAMING);
+        settings.getPhysicsChunkTerrainSettings().setTerrainRadius(9);
+        settings.getPhysicsChunkTerrainSettings().setBodyTerrainRadius(5);
+        settings.getPhysicsChunkTerrainSettings().setTerrainTtlTicks(77);
         settings.getVisualSyncSettings().setVisualMaxSyncRadius(96);
         settings.getVisualSyncSettings().setVisualFullSyncRadius(48);
         settings.getVisualSyncSettings().setVisualFarSyncCutoffEnabled(false);

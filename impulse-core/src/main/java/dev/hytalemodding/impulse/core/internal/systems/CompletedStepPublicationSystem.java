@@ -177,9 +177,9 @@ public final class CompletedStepPublicationSystem extends TickingSystem<PhysicsS
                 SpaceId spaceId = compatibility.getSpaceId(terrain.getSpaceUuid());
                 if (spaceId != null) {
                     registrations.add(new BodyRegistrationPublication(rowRef,
-                        new PhysicsBodyRegistrationView(rowUuid,
+                            new PhysicsBodyRegistrationView(rowUuid,
                             spaceId,
-                            PhysicsBodyKind.WORLD_COLLISION,
+                            PhysicsBodyKind.TERRAIN,
                             PhysicsBodyPersistenceMode.RUNTIME_ONLY)));
                 }
             }

@@ -51,7 +51,7 @@ public final class PhysicsSpaceRuntime {
             "World %s creating physics space using backend %s collision=%s",
             worldName,
             backendId,
-            settings.getWorldCollisionSettings().getWorldCollisionMode());
+            settings.getPhysicsChunkTerrainSettings().getTerrainMode());
 
         PhysicsBackendRuntime runtime = Impulse.createRuntime(backendId);
         BackendSpaceHandle backendSpaceHandle = new BackendSpaceHandle(runtime.createSpace(spaceId));
@@ -72,7 +72,7 @@ public final class PhysicsSpaceRuntime {
             worldName,
             spaceId,
             backendId,
-            settings.getWorldCollisionSettings().getWorldCollisionMode());
+            settings.getPhysicsChunkTerrainSettings().getTerrainMode());
         return binding;
     }
 

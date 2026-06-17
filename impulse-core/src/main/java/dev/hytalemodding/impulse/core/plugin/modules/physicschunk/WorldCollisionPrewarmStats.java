@@ -1,8 +1,9 @@
 package dev.hytalemodding.impulse.core.plugin.modules.physicschunk;
 
 /**
- * Statistics from ensuring PhysicsChunk terrain around multiple target positions.
+ * @deprecated Use {@link PhysicsChunkTerrainPrewarmStats}.
  */
+@Deprecated(forRemoval = false)
 public record WorldCollisionPrewarmStats(int sectionTargets,
                                          WorldCollisionBuildStats buildStats) {
 }

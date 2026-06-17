@@ -22,8 +22,8 @@ import dev.hytalemodding.impulse.core.plugin.physicsstore.PhysicsAsync;
 import dev.hytalemodding.impulse.core.plugin.physicsstore.PhysicsBodies;
 import dev.hytalemodding.impulse.core.plugin.physicsstore.PhysicsSpaces;
 import dev.hytalemodding.impulse.core.plugin.physicsstore.PhysicsThreading;
-import dev.hytalemodding.impulse.core.plugin.modules.physicschunk.PhysicsWorldCollision;
-import dev.hytalemodding.impulse.core.plugin.modules.physicschunk.WorldCollisionMode;
+import dev.hytalemodding.impulse.core.plugin.modules.physicschunk.PhysicsChunkTerrain;
+import dev.hytalemodding.impulse.core.plugin.modules.physicschunk.PhysicsChunkTerrainMode;
 import dev.hytalemodding.impulse.core.plugin.settings.PhysicsSpaceSettings;
 import dev.hytalemodding.impulse.core.plugin.simulation.SpaceSummary;
 import java.util.ArrayList;
@@ -66,18 +66,18 @@ public class SpaceCommand extends AbstractCommandCollection {
                 return;
             }
 
-            WorldCollisionMode physicsChunkMode = physicsChunkArg.provided(context)
+            PhysicsChunkTerrainMode physicsChunkMode = physicsChunkArg.provided(context)
                 ? parsePhysicsChunkMode(physicsChunkArg.get(context))
-                : WorldCollisionMode.STREAMING;
+                : PhysicsChunkTerrainMode.STREAMING;
             if (physicsChunkMode == null) {
                 context.sendMessage(Message.raw("physicsChunk must be none, manual, or streaming."));
                 return;
             }
 
-            PhysicsSpaceSettings settings = physicsChunkMode == WorldCollisionMode.STREAMING
+            PhysicsSpaceSettings settings = physicsChunkMode == PhysicsChunkTerrainMode.STREAMING
                 ? PhysicsSpaceSettings.streamingPhysicsChunk()
                 : PhysicsSpaceSettings.defaults();
-            settings.getWorldCollisionSettings().setWorldCollisionMode(physicsChunkMode);
+            settings.getPhysicsChunkTerrainSettings().setTerrainMode(physicsChunkMode);
 
             Store<PhysicsStore> physicsStore = PhysicsThreading.store(world);
             try {
@@ -119,9 +119,9 @@ public class SpaceCommand extends AbstractCommandCollection {
                 .map(summary -> {
                     PhysicsSpaceSettings settings = PhysicsSpaces.settings(physicsStore,
                         summary.spaceId());
-                    WorldCollisionMode physicsChunkMode = settings != null
-                        ? settings.getWorldCollisionSettings().getWorldCollisionMode()
-                        : WorldCollisionMode.NONE;
+                    PhysicsChunkTerrainMode physicsChunkMode = settings != null
+                        ? settings.getPhysicsChunkTerrainSettings().getTerrainMode()
+                        : PhysicsChunkTerrainMode.NONE;
                     return new SpaceListEntry(summary.spaceId(),
                         summary.backendId().value(),
                         summary.bodyCount(),
@@ -215,7 +215,7 @@ public class SpaceCommand extends AbstractCommandCollection {
                 return;
             }
 
-            PhysicsWorldCollision.clearSpace(world, physicsStore, spaceId);
+            PhysicsChunkTerrain.clearSpace(world, physicsStore, spaceId);
             PhysicsSpaces.removeWithContents(physicsStore, spaceId);
             context.sendMessage(Message.raw("Deleted physics space id=" + rawSpaceId
                 + " with " + backendBodies + " backend bodies and " + joints + " joints."));
@@ -272,11 +272,11 @@ public class SpaceCommand extends AbstractCommandCollection {
     }
 
     @Nullable
-    private static WorldCollisionMode parsePhysicsChunkMode(@Nonnull String value) {
+    private static PhysicsChunkTerrainMode parsePhysicsChunkMode(@Nonnull String value) {
         return switch (value.toLowerCase(Locale.ROOT)) {
-            case "none", "off", "disabled" -> WorldCollisionMode.NONE;
-            case "manual" -> WorldCollisionMode.MANUAL;
-            case "streaming", "stream", "on", "enabled" -> WorldCollisionMode.STREAMING;
+            case "none", "off", "disabled" -> PhysicsChunkTerrainMode.NONE;
+            case "manual" -> PhysicsChunkTerrainMode.MANUAL;
+            case "streaming", "stream", "on", "enabled" -> PhysicsChunkTerrainMode.STREAMING;
             default -> null;
         };
     }
@@ -298,6 +298,6 @@ public class SpaceCommand extends AbstractCommandCollection {
                                   @Nonnull String backendId,
                                   int bodies,
                                   int joints,
-                                  @Nonnull WorldCollisionMode physicsChunkMode) {
+                                  @Nonnull PhysicsChunkTerrainMode physicsChunkMode) {
     }
 }

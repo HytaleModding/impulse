@@ -20,7 +20,7 @@ import dev.hytalemodding.impulse.core.internal.resources.PhysicsSpaceBinding;
 import dev.hytalemodding.impulse.core.internal.modules.physicschunk.profiling.PhysicsChunkProfilingResource;
 import dev.hytalemodding.impulse.core.internal.modules.physicschunk.SectionCollisionGeometry.BoxCollider;
 import dev.hytalemodding.impulse.core.internal.resources.body.PhysicsBodySnapshots;
-import dev.hytalemodding.impulse.core.plugin.settings.PhysicsWorldCollisionSettings;
+import dev.hytalemodding.impulse.core.plugin.settings.PhysicsChunkTerrainSettings;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.Field;
 import java.lang.reflect.InvocationTargetException;
@@ -274,7 +274,7 @@ class VoxelTerrainCollisionCacheTest {
 
     @Test
     void terrainMaterialSettingsApplyToNativeVoxelAndFallbackBoxes() throws Throwable {
-        PhysicsWorldCollisionSettings nativeSettings = new PhysicsWorldCollisionSettings();
+        PhysicsChunkTerrainSettings nativeSettings = new PhysicsChunkTerrainSettings();
         nativeSettings.setNativeVoxelTerrainEnabled(true);
         nativeSettings.setTerrainMaterial(0.9f, 0.25f);
         RuntimeFixture nativeFixture = runtimeFixture("test:voxel-runtime-custom-material", true);
@@ -301,7 +301,7 @@ class VoxelTerrainCollisionCacheTest {
         assertEquals(0.9f, calls.getFirst().friction(), 0.0001f);
         assertEquals(0.25f, calls.getFirst().restitution(), 0.0001f);
 
-        PhysicsWorldCollisionSettings fallbackSettings = new PhysicsWorldCollisionSettings();
+        PhysicsChunkTerrainSettings fallbackSettings = new PhysicsChunkTerrainSettings();
         fallbackSettings.setTerrainMaterial(0.8f, 0.1f);
         RuntimeFixture fallbackFixture = runtimeFixture("test:box-runtime-custom-material", false);
         Object fallbackSection = newCachedSection();

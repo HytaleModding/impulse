@@ -60,7 +60,7 @@ public final class PhysicsChunkSettingsIndexSystem extends TickingSystem<Physics
                 ? worldCollision
                 : new WorldCollisionComponent();
             settingsBySpaceUuid.put(spaceUuid, new PhysicsChunkSpaceSettings(spaceUuid,
-                settings.getMode(),
+                settings.getTerrainMode(),
                 settings.getEntityChunkBoundaryMode(),
                 settings.isNativeVoxelTerrainEnabled(),
                 settings.getRadius(),

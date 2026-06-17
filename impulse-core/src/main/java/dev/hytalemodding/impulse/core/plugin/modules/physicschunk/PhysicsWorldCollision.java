@@ -22,8 +22,9 @@ import javax.annotation.Nonnull;
 import org.joml.Vector3d;
 
 /**
- * Public PhysicsChunk operations for terrain-backed collision.
+ * @deprecated Use {@link PhysicsChunkTerrain}.
  */
+@Deprecated(forRemoval = false)
 public final class PhysicsWorldCollision {
 
     private PhysicsWorldCollision() {
@@ -167,11 +168,11 @@ public final class PhysicsWorldCollision {
         WorldCollisionComponent component =
             store.getComponent(spaceRef, WorldCollisionComponent.getComponentType());
         WorldCollisionComponent settings = component != null ? component : new WorldCollisionComponent();
-        if (settings.getMode() == WorldCollisionMode.NONE) {
+        if (settings.getTerrainMode() == PhysicsChunkTerrainMode.NONE) {
             throw new IllegalStateException("PhysicsChunk terrain is disabled for space " + spaceId);
         }
         return new PhysicsChunkSpaceSettings(spaceUuid,
-            settings.getMode(),
+            settings.getTerrainMode(),
             settings.getEntityChunkBoundaryMode(),
             settings.isNativeVoxelTerrainEnabled(),
             settings.getRadius(),

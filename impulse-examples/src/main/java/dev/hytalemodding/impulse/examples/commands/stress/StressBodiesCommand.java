@@ -16,9 +16,9 @@ import dev.hytalemodding.impulse.api.PhysicsCollisionFilters;
 import dev.hytalemodding.impulse.api.SpaceId;
 import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyKind;
 import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyPersistenceMode;
-import dev.hytalemodding.impulse.core.plugin.modules.physicschunk.PhysicsWorldCollision;
-import dev.hytalemodding.impulse.core.plugin.modules.physicschunk.WorldCollisionPrewarmStats;
-import dev.hytalemodding.impulse.core.plugin.modules.physicschunk.WorldCollisionMode;
+import dev.hytalemodding.impulse.core.plugin.modules.physicschunk.PhysicsChunkTerrain;
+import dev.hytalemodding.impulse.core.plugin.modules.physicschunk.PhysicsChunkTerrainPrewarmStats;
+import dev.hytalemodding.impulse.core.plugin.modules.physicschunk.PhysicsChunkTerrainMode;
 import dev.hytalemodding.impulse.core.plugin.physicsstore.PhysicsSpaces;
 import dev.hytalemodding.impulse.core.plugin.physicsstore.PhysicsWorlds;
 import dev.hytalemodding.impulse.core.plugin.settings.PhysicsBackendExtensionId;
@@ -27,7 +27,7 @@ import dev.hytalemodding.impulse.core.plugin.settings.PhysicsSolverSettings;
 import dev.hytalemodding.impulse.core.plugin.settings.PhysicsSpaceSettings;
 import dev.hytalemodding.impulse.core.plugin.settings.PhysicsVisualMaterializationSettings;
 import dev.hytalemodding.impulse.core.plugin.settings.PhysicsVisualSyncSettings;
-import dev.hytalemodding.impulse.core.plugin.settings.PhysicsWorldCollisionSettings;
+import dev.hytalemodding.impulse.core.plugin.settings.PhysicsChunkTerrainSettings;
 import dev.hytalemodding.impulse.core.plugin.settings.PhysicsWorldSettings;
 import dev.hytalemodding.impulse.core.plugin.settings.VisualOcclusionMode;
 import dev.hytalemodding.impulse.core.plugin.simulation.PhysicsShapeSpec;
@@ -54,7 +54,7 @@ public class StressBodiesCommand extends AbstractAsyncPlayerCommand {
         DETACHED_VISUAL_DEMATERIALIZATION_RADIUS - DETACHED_VISUAL_MATERIALIZATION_RADIUS;
     private static final int DETACHED_VISUAL_MAX_MATERIALIZED = 10_000;
     private static final int DETACHED_VISUAL_MAX_SPAWNS_PER_TICK = 128;
-    private static final int STRESS_BODY_WORLD_COLLISION_RADIUS = 8;
+    private static final int STRESS_BODY_TERRAIN_RADIUS = 8;
     private static final PhysicsBackendExtensionId RAPIER_SOLVER_EXTENSION_ID =
         new PhysicsBackendExtensionId("impulse:rapier_solver");
     private static final String RAPIER_INTERNAL_PGS_ITERATIONS = "internalPgsIterations";
@@ -172,7 +172,7 @@ public class StressBodiesCommand extends AbstractAsyncPlayerCommand {
 
         StressLayout layout = StressLayout.forCount(count, playerPos);
         long prewarmStartNanos = System.nanoTime();
-        int prewarmedSections = prewarmStressWorldCollision(world,
+        int prewarmedSections = prewarmStressTerrain(world,
             spaceId,
             settings,
             mode,
@@ -229,8 +229,8 @@ public class StressBodiesCommand extends AbstractAsyncPlayerCommand {
                 batchTiming.entityApplyNanos(),
                 0L);
         }
-        PhysicsWorldCollisionSettings worldCollisionSettings =
-            settings.getWorldCollisionSettings();
+        PhysicsChunkTerrainSettings terrainSettings =
+            settings.getPhysicsChunkTerrainSettings();
         PhysicsVisualMaterializationSettings visualMaterializationSettings =
             settings.getVisualMaterializationSettings();
         PhysicsVisualSyncSettings visualSyncSettings = settings.getVisualSyncSettings();
@@ -248,7 +248,7 @@ public class StressBodiesCommand extends AbstractAsyncPlayerCommand {
             + ": mode=" + mode.serialized()
             + " space=" + spaceId.value()
             + " physicsChunk=streaming"
-            + " bodyCollisionRadius=" + worldCollisionSettings.getWorldCollisionBodyRadius()
+            + " bodyCollisionRadius=" + terrainSettings.getBodyTerrainRadius()
             + " prewarmedSections=" + prewarmedSections
             + " step=" + worldSettings.getStepMode().getSerializedName()
             + "/" + worldSettings.getSimulationSteps()
@@ -301,12 +301,12 @@ public class StressBodiesCommand extends AbstractAsyncPlayerCommand {
             PhysicsSolverSettings.DEFAULT_DYNAMIC_SLEEP_LINEAR_THRESHOLD,
             PhysicsSolverSettings.DEFAULT_DYNAMIC_SLEEP_ANGULAR_THRESHOLD,
             PhysicsSolverSettings.DEFAULT_DYNAMIC_SLEEP_TIME_UNTIL_SLEEP);
-        PhysicsWorldCollisionSettings worldCollisionSettings =
-            settings.getWorldCollisionSettings();
-        worldCollisionSettings.setWorldCollisionMode(WorldCollisionMode.STREAMING);
-        worldCollisionSettings.setWorldCollisionBodyRadius(
-            Math.max(worldCollisionSettings.getWorldCollisionBodyRadius(),
-                STRESS_BODY_WORLD_COLLISION_RADIUS));
+        PhysicsChunkTerrainSettings terrainSettings =
+            settings.getPhysicsChunkTerrainSettings();
+        terrainSettings.setTerrainMode(PhysicsChunkTerrainMode.STREAMING);
+        terrainSettings.setBodyTerrainRadius(
+            Math.max(terrainSettings.getBodyTerrainRadius(),
+                STRESS_BODY_TERRAIN_RADIUS));
         if (mode.usesDetachedBodies()) {
             PhysicsVisualMaterializationSettings visualMaterializationSettings =
                 settings.getVisualMaterializationSettings();
@@ -332,24 +332,24 @@ public class StressBodiesCommand extends AbstractAsyncPlayerCommand {
         return settings;
     }
 
-    private static int prewarmStressWorldCollision(@Nonnull World world,
+    private static int prewarmStressTerrain(@Nonnull World world,
         @Nonnull SpaceId spaceId,
         @Nonnull PhysicsSpaceSettings settings,
         @Nonnull StressMode mode,
         @Nonnull StressLayout layout,
         int count) {
-        PhysicsWorldCollisionSettings worldCollisionSettings =
-            settings.getWorldCollisionSettings();
+        PhysicsChunkTerrainSettings terrainSettings =
+            settings.getPhysicsChunkTerrainSettings();
         if (!mode.usesDetachedBodies()
-            || worldCollisionSettings.getWorldCollisionMode() != WorldCollisionMode.STREAMING) {
+            || terrainSettings.getTerrainMode() != PhysicsChunkTerrainMode.STREAMING) {
             return 0;
         }
 
-        WorldCollisionPrewarmStats stats = PhysicsWorldCollision.ensureAround(world,
+        PhysicsChunkTerrainPrewarmStats stats = PhysicsChunkTerrain.ensureAround(world,
             PhysicsThreading.store(world),
             spaceId,
             layout.positions(count),
-            worldCollisionSettings.getWorldCollisionBodyRadius(),
+            terrainSettings.getBodyTerrainRadius(),
             0L);
         return stats.sectionTargets();
     }

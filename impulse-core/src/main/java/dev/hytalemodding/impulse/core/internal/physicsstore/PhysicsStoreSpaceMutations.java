@@ -64,7 +64,7 @@ public final class PhysicsStoreSpaceMutations {
         Ref<PhysicsStore> ref = store.addEntity(PhysicsEntities.spaceHolder(store,
             spaceUuid,
             new SpaceComponent(backendId, new Vector3f(0.0f, -9.81f, 0.0f)),
-            new WorldCollisionComponent(settings.getWorldCollisionSettings()),
+            new WorldCollisionComponent(settings.getPhysicsChunkTerrainSettings()),
             new SolverSettingsComponent(settings.getSolverSettings()),
             new VisualSyncSettingsComponent(settings.getVisualSyncSettings()),
             new VisualMaterializationSettingsComponent(settings.getVisualMaterializationSettings()),
@@ -119,7 +119,7 @@ public final class PhysicsStoreSpaceMutations {
         PhysicsThreading.requireWorldThread(store, "update a PhysicsStore space entity");
         store.putComponent(ref,
             WorldCollisionComponent.getComponentType(),
-            new WorldCollisionComponent(settings.getWorldCollisionSettings()));
+            new WorldCollisionComponent(settings.getPhysicsChunkTerrainSettings()));
         PhysicsEntities.putSpaceSettingsComponents(store,
             ref,
             new SolverSettingsComponent(settings.getSolverSettings()),

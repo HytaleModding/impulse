@@ -34,7 +34,7 @@ import dev.hytalemodding.impulse.core.plugin.settings.PhysicsSpaceSettings;
 import dev.hytalemodding.impulse.core.plugin.settings.PhysicsStepMode;
 import dev.hytalemodding.impulse.core.plugin.settings.PhysicsStepSchedulingMode;
 import dev.hytalemodding.impulse.core.plugin.settings.PhysicsWorldSettings;
-import dev.hytalemodding.impulse.core.plugin.modules.physicschunk.WorldCollisionMode;
+import dev.hytalemodding.impulse.core.plugin.modules.physicschunk.PhysicsChunkTerrainMode;
 import dev.hytalemodding.impulse.core.plugin.simulation.PhysicsShapeSpec;
 import dev.hytalemodding.impulse.core.plugin.simulation.RigidBodySpawnSettings;
 import it.unimi.dsi.fastutil.longs.LongOpenHashSet;
@@ -245,8 +245,8 @@ final class ImpulseDetachedStreamingBenchmarkCrucibleTests {
             int retained = retainChunks(chunks);
             configureMissingSectionDiagnostics(chunks);
             PhysicsSpaceSettings settings = PhysicsSpaceSettings.defaults();
-            settings.getWorldCollisionSettings().setWorldCollisionMode(WorldCollisionMode.STREAMING);
-            settings.getWorldCollisionSettings().setWorldCollisionBodyRadius(BODY_STREAMING_RADIUS);
+            settings.getPhysicsChunkTerrainSettings().setTerrainMode(PhysicsChunkTerrainMode.STREAMING);
+            settings.getPhysicsChunkTerrainSettings().setBodyTerrainRadius(BODY_STREAMING_RADIUS);
             settings.getSolverSettings().setSolverIterations(4);
             settings.getSolverSettings().setStabilizationIterations(1);
             settings.getExtensionSettings().setInt(RAPIER_SOLVER_EXTENSION_ID,
@@ -373,7 +373,7 @@ final class ImpulseDetachedStreamingBenchmarkCrucibleTests {
             PhysicsTerrainMutationQueueResource queue = physicsStore.getResource(
                 PhysicsTerrainMutationQueueResource.getResourceType());
             PhysicsChunkBuildOptions buildOptions = PhysicsChunkBuildOptions.fromSettings(
-                physics.getSpaceSettings(spaceId).getWorldCollisionSettings());
+                physics.getSpaceSettings(spaceId).getPhysicsChunkTerrainSettings());
             WorldCollisionPrewarmStats stats = worldCollisionStreaming.ensureAround(world,
                 spaceUuid,
                 queue,

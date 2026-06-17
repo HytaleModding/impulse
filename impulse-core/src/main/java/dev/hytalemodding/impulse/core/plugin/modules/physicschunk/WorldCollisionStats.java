@@ -1,8 +1,9 @@
 package dev.hytalemodding.impulse.core.plugin.modules.physicschunk;
 
 /**
- * Current size of the generated PhysicsChunk terrain cache.
+ * @deprecated Use {@link PhysicsChunkTerrainStats}.
  */
+@Deprecated(forRemoval = false)
 public record WorldCollisionStats(int spaces,
                                   int sections,
                                   int bodies,

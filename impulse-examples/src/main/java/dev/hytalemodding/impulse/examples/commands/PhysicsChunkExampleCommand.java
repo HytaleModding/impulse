@@ -13,10 +13,10 @@ import com.hypixel.hytale.server.core.universe.world.World;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import com.hypixel.hytale.server.core.universe.world.storage.PhysicsStore;
 import dev.hytalemodding.impulse.api.SpaceId;
-import dev.hytalemodding.impulse.core.plugin.modules.physicschunk.PhysicsWorldCollision;
-import dev.hytalemodding.impulse.core.plugin.modules.physicschunk.WorldCollisionBuildStats;
-import dev.hytalemodding.impulse.core.plugin.modules.physicschunk.WorldCollisionPrewarmStats;
-import dev.hytalemodding.impulse.core.plugin.modules.physicschunk.WorldCollisionStats;
+import dev.hytalemodding.impulse.core.plugin.modules.physicschunk.PhysicsChunkTerrain;
+import dev.hytalemodding.impulse.core.plugin.modules.physicschunk.PhysicsChunkTerrainBuildStats;
+import dev.hytalemodding.impulse.core.plugin.modules.physicschunk.PhysicsChunkTerrainPrewarmStats;
+import dev.hytalemodding.impulse.core.plugin.modules.physicschunk.PhysicsChunkTerrainStats;
 import dev.hytalemodding.impulse.core.plugin.physicsstore.PhysicsThreading;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
@@ -76,7 +76,7 @@ public class PhysicsChunkExampleCommand extends AbstractCommandCollection {
                 return CompletableFuture.completedFuture(null);
             }
             Store<PhysicsStore> physicsStore = physicsStore(world);
-            WorldCollisionBuildStats stats = PhysicsWorldCollision.rebuildAround(world,
+            PhysicsChunkTerrainBuildStats stats = PhysicsChunkTerrain.rebuildAround(world,
                 physicsStore,
                 spaceId,
                 playerPos,
@@ -131,7 +131,7 @@ public class PhysicsChunkExampleCommand extends AbstractCommandCollection {
             }
 
             Store<PhysicsStore> physicsStore = physicsStore(world);
-            WorldCollisionPrewarmStats stats = PhysicsWorldCollision.ensureAround(world,
+            PhysicsChunkTerrainPrewarmStats stats = PhysicsChunkTerrain.ensureAround(world,
                 physicsStore,
                 spaceId,
                 List.of(playerPos),
@@ -172,7 +172,7 @@ public class PhysicsChunkExampleCommand extends AbstractCommandCollection {
                 return CompletableFuture.completedFuture(null);
             }
             Store<PhysicsStore> physicsStore = physicsStore(world);
-            int removed = PhysicsWorldCollision.clearSpace(world, physicsStore, spaceId);
+            int removed = PhysicsChunkTerrain.clearSpace(world, physicsStore, spaceId);
             ctx.sender().sendMessage(Message.raw("Removed " + removed
                 + " world voxel collision bodies."));
             return CompletableFuture.completedFuture(null);
@@ -192,7 +192,7 @@ public class PhysicsChunkExampleCommand extends AbstractCommandCollection {
             @Nonnull Ref<EntityStore> ref,
             @Nonnull PlayerRef playerRef,
             @Nonnull World world) {
-            WorldCollisionStats stats = PhysicsWorldCollision.stats(world);
+            PhysicsChunkTerrainStats stats = PhysicsChunkTerrain.stats(world);
             ctx.sender().sendMessage(Message.raw("World voxel collision: "
                 + stats.spaces() + " spaces, "
                 + stats.sections() + " sections, "
