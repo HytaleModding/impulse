@@ -78,10 +78,10 @@ public class PhysicsBodyAttachmentIndexSystem
                 ref,
                 newGeneratedProxy);
         }
-        if (oldGeneratedProxy && (!sameUuid || !sameBodyRef || !newGeneratedProxy)) {
+        if (oldGeneratedProxy) {
             resource.clearGeneratedVisualProxy(oldUuid, oldBodyRef, ref);
         }
-        if (newGeneratedProxy && (!sameUuid || !sameBodyRef || !oldGeneratedProxy)) {
+        if (newGeneratedProxy) {
             resource.setGeneratedVisualProxy(newUuid, newBodyRef, ref);
         }
     }
@@ -113,11 +113,10 @@ public class PhysicsBodyAttachmentIndexSystem
     private static boolean sameRef(@Nullable Ref<PhysicsStore> first,
         @Nullable Ref<PhysicsStore> second) {
         return first == second
-            || (first != null
-                && second != null
-                && first.getStore() != null
-                && first.getStore() == second.getStore()
-                && first.getIndex() == second.getIndex());
+            || first != null
+            && second != null
+            && first.getStore() == second.getStore()
+            && first.getIndex() == second.getIndex();
     }
 
     @Nonnull

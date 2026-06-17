@@ -2,10 +2,10 @@ package dev.hytalemodding.impulse.core.internal.modules.worldcollision;
 
 import dev.hytalemodding.impulse.api.PhysicsCollisionFilters;
 import dev.hytalemodding.impulse.core.internal.modules.worldcollision.SectionCollisionGeometry.BoxCollider;
-import dev.hytalemodding.impulse.core.internal.physicsstore.terrain.TerrainColliderMutation;
-import dev.hytalemodding.impulse.core.internal.physicsstore.terrain.TerrainColliderPayload;
-import dev.hytalemodding.impulse.core.internal.physicsstore.terrain.TerrainColliderPayload.BoxPayload;
-import dev.hytalemodding.impulse.core.internal.physicsstore.terrain.TerrainColliderPayload.TerrainNeighbor;
+import dev.hytalemodding.impulse.core.internal.terrain.TerrainColliderMutation;
+import dev.hytalemodding.impulse.core.internal.terrain.TerrainColliderPayload;
+import dev.hytalemodding.impulse.core.internal.terrain.TerrainColliderPayload.BoxPayload;
+import dev.hytalemodding.impulse.core.internal.terrain.TerrainColliderPayload.TerrainNeighbor;
 import java.util.List;
 import java.util.UUID;
 import javax.annotation.Nonnull;

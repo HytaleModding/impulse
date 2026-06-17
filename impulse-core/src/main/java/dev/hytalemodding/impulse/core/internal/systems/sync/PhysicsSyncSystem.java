@@ -190,7 +190,6 @@ public class PhysicsSyncSystem extends EntityTickingSystem<EntityStore> {
         return first == second
             || (first != null
                 && second != null
-                && first.getStore() != null
                 && first.getStore() == second.getStore()
                 && first.getIndex() == second.getIndex());
     }
