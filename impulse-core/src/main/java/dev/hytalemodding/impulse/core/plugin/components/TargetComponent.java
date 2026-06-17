@@ -8,7 +8,6 @@ import com.hypixel.hytale.component.ComponentType;
 import com.hypixel.hytale.math.vector.Vector3fUtil;
 import com.hypixel.hytale.server.core.universe.world.storage.PhysicsStore;
 import dev.hytalemodding.impulse.core.plugin.codec.ImpulseCodecs;
-import dev.hytalemodding.impulse.core.plugin.physicsstore.PhysicsStoreTypes;
 import javax.annotation.Nonnull;
 import lombok.Getter;
 import lombok.Setter;
@@ -123,7 +122,7 @@ public final class TargetComponent implements Component<PhysicsStore> {
 
     @Nonnull
     public static ComponentType<PhysicsStore, TargetComponent> getComponentType() {
-        return PhysicsStoreTypes.targetComponentType();
+        return PhysicsComponentTypes.targetComponentType();
     }
 
     @Nonnull

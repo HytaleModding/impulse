@@ -7,7 +7,6 @@ import com.hypixel.hytale.server.core.universe.world.storage.PhysicsStore;
 import dev.hytalemodding.impulse.core.internal.resources.BackendBodyHandle;
 import dev.hytalemodding.impulse.core.internal.resources.BackendJointHandle;
 import dev.hytalemodding.impulse.core.internal.resources.BackendSpaceHandle;
-import dev.hytalemodding.impulse.core.plugin.physicsstore.PhysicsStoreTypes;
 import it.unimi.dsi.fastutil.ints.Int2ObjectOpenHashMap;
 import it.unimi.dsi.fastutil.longs.Long2ObjectOpenHashMap;
 import it.unimi.dsi.fastutil.objects.Object2ObjectOpenHashMap;
@@ -112,6 +111,6 @@ public final class PhysicsIdentityIndexResource implements Resource<PhysicsStore
 
     @Nonnull
     public static ResourceType<PhysicsStore, PhysicsIdentityIndexResource> getResourceType() {
-        return PhysicsStoreTypes.identityIndexResourceType();
+        return PhysicsResourceTypes.identityIndexResourceType();
     }
 }

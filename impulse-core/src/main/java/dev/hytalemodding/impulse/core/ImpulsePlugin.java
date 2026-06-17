@@ -15,6 +15,7 @@ import com.hypixel.hytale.server.core.plugin.JavaPluginInit;
 import com.hypixel.hytale.server.core.plugin.PluginBase;
 import com.hypixel.hytale.server.core.plugin.PluginManager;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
+import com.hypixel.hytale.server.core.universe.world.storage.PhysicsStore;
 import dev.hytalemodding.impulse.api.BackendId;
 import dev.hytalemodding.impulse.api.Impulse;
 import dev.hytalemodding.impulse.api.PhysicsBackend;
@@ -34,6 +35,25 @@ import dev.hytalemodding.impulse.core.internal.systems.publication.PhysicsStoreE
 import dev.hytalemodding.impulse.core.internal.systems.sync.PhysicsBodyAttachmentIndexSystem;
 import dev.hytalemodding.impulse.core.internal.systems.sync.PhysicsSyncSystem;
 import dev.hytalemodding.impulse.core.internal.systems.visual.PhysicsGeneratedProxyCleanupSystem;
+import dev.hytalemodding.impulse.core.plugin.components.BodyCommandComponent;
+import dev.hytalemodding.impulse.core.plugin.components.BodyComponent;
+import dev.hytalemodding.impulse.core.plugin.components.ColliderComponent;
+import dev.hytalemodding.impulse.core.plugin.components.CollisionFilterComponent;
+import dev.hytalemodding.impulse.core.plugin.components.CollisionLodSettingsComponent;
+import dev.hytalemodding.impulse.core.plugin.components.DynamicsComponent;
+import dev.hytalemodding.impulse.core.plugin.components.ExtensionSettingsComponent;
+import dev.hytalemodding.impulse.core.plugin.components.JointComponent;
+import dev.hytalemodding.impulse.core.plugin.components.MaterialComponent;
+import dev.hytalemodding.impulse.core.plugin.components.PhysicsComponentTypes;
+import dev.hytalemodding.impulse.core.plugin.components.ShapeComponent;
+import dev.hytalemodding.impulse.core.plugin.components.SolverSettingsComponent;
+import dev.hytalemodding.impulse.core.plugin.components.SpaceComponent;
+import dev.hytalemodding.impulse.core.plugin.components.TargetComponent;
+import dev.hytalemodding.impulse.core.plugin.components.TerrainColliderComponent;
+import dev.hytalemodding.impulse.core.plugin.components.UuidComponent;
+import dev.hytalemodding.impulse.core.plugin.components.VisualMaterializationSettingsComponent;
+import dev.hytalemodding.impulse.core.plugin.components.VisualSyncSettingsComponent;
+import dev.hytalemodding.impulse.core.plugin.components.WorldCollisionComponent;
 import dev.hytalemodding.impulse.core.plugin.events.PhysicsEventFramePublishedEvent;
 import dev.hytalemodding.impulse.core.plugin.projection.BodyAttachmentComponent;
 import dev.hytalemodding.impulse.core.plugin.resources.PhysicsWorldResource;
@@ -95,11 +115,14 @@ public final class ImpulsePlugin extends JavaPlugin {
     @Override
     protected void setup() {
         PhysicsStoreEarlyPluginProbe.requireAvailable();
-        PhysicsStoreRegistration.register(this);
+        ComponentRegistryProxy<PhysicsStore> physicsStoreRegistry =
+            PhysicsStoreRegistration.physicsStoreRegistry(this);
+        registerPhysicsStoreComponents(physicsStoreRegistry);
+        PhysicsStoreRegistration.register(physicsStoreRegistry);
         ImpulseSubPluginRegistration.register(this);
         discoverBackends();
 
-        registerComponents();
+        registerEntityStoreComponents();
         registerSystems();
         registerCommands();
     }
@@ -202,7 +225,83 @@ public final class ImpulsePlugin extends JavaPlugin {
         return ids.toString();
     }
 
-    private void registerComponents() {
+    private static void registerPhysicsStoreComponents(
+        @Nonnull ComponentRegistryProxy<PhysicsStore> physicsRegistry) {
+        PhysicsComponentTypes.setUuidComponentType(physicsRegistry.registerComponent(
+            UuidComponent.class,
+            "Uuid",
+            UuidComponent.CODEC));
+        PhysicsComponentTypes.setSpaceComponentType(physicsRegistry.registerComponent(
+            SpaceComponent.class,
+            "Space",
+            SpaceComponent.CODEC));
+        PhysicsComponentTypes.setBodyComponentType(physicsRegistry.registerComponent(
+            BodyComponent.class,
+            "Body",
+            BodyComponent.CODEC));
+        PhysicsComponentTypes.setBodyCommandComponentType(physicsRegistry.registerComponent(
+            BodyCommandComponent.class,
+            "BodyCommand",
+            BodyCommandComponent.CODEC));
+        PhysicsComponentTypes.setDynamicsComponentType(physicsRegistry.registerComponent(
+            DynamicsComponent.class,
+            "Dynamics",
+            DynamicsComponent.CODEC));
+        PhysicsComponentTypes.setColliderComponentType(physicsRegistry.registerComponent(
+            ColliderComponent.class,
+            "Collider",
+            ColliderComponent.CODEC));
+        PhysicsComponentTypes.setShapeComponentType(physicsRegistry.registerComponent(
+            ShapeComponent.class,
+            "Shape",
+            ShapeComponent.CODEC));
+        PhysicsComponentTypes.setMaterialComponentType(physicsRegistry.registerComponent(
+            MaterialComponent.class,
+            "Material",
+            MaterialComponent.CODEC));
+        PhysicsComponentTypes.setCollisionFilterComponentType(physicsRegistry.registerComponent(
+            CollisionFilterComponent.class,
+            "CollisionFilter",
+            CollisionFilterComponent.CODEC));
+        PhysicsComponentTypes.setJointComponentType(physicsRegistry.registerComponent(
+            JointComponent.class,
+            "Joint",
+            JointComponent.CODEC));
+        PhysicsComponentTypes.setTargetComponentType(physicsRegistry.registerComponent(
+            TargetComponent.class,
+            "Target",
+            TargetComponent.CODEC));
+        PhysicsComponentTypes.setTerrainColliderComponentType(physicsRegistry.registerComponent(
+            TerrainColliderComponent.class,
+            "TerrainCollider",
+            TerrainColliderComponent.CODEC));
+        PhysicsComponentTypes.setWorldCollisionComponentType(physicsRegistry.registerComponent(
+            WorldCollisionComponent.class,
+            "WorldCollision",
+            WorldCollisionComponent.CODEC));
+        PhysicsComponentTypes.setSolverSettingsComponentType(physicsRegistry.registerComponent(
+            SolverSettingsComponent.class,
+            "SolverSettings",
+            SolverSettingsComponent.CODEC));
+        PhysicsComponentTypes.setVisualSyncSettingsComponentType(physicsRegistry.registerComponent(
+            VisualSyncSettingsComponent.class,
+            "VisualSyncSettings",
+            VisualSyncSettingsComponent.CODEC));
+        PhysicsComponentTypes.setVisualMaterializationSettingsComponentType(
+            physicsRegistry.registerComponent(VisualMaterializationSettingsComponent.class,
+                "VisualMaterializationSettings",
+                VisualMaterializationSettingsComponent.CODEC));
+        PhysicsComponentTypes.setCollisionLodSettingsComponentType(physicsRegistry.registerComponent(
+            CollisionLodSettingsComponent.class,
+            "CollisionLodSettings",
+            CollisionLodSettingsComponent.CODEC));
+        PhysicsComponentTypes.setExtensionSettingsComponentType(physicsRegistry.registerComponent(
+            ExtensionSettingsComponent.class,
+            "ExtensionSettings",
+            ExtensionSettingsComponent.CODEC));
+    }
+
+    private void registerEntityStoreComponents() {
         ComponentRegistryProxy<EntityStore> entityRegistry = getEntityStoreRegistry();
         bodyAttachmentComponentType = entityRegistry.registerComponent(
             BodyAttachmentComponent.class,

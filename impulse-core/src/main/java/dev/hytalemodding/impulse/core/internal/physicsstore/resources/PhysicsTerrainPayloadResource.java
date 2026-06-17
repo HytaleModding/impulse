@@ -4,7 +4,6 @@ import com.hypixel.hytale.component.Resource;
 import com.hypixel.hytale.component.ResourceType;
 import com.hypixel.hytale.server.core.universe.world.storage.PhysicsStore;
 import dev.hytalemodding.impulse.core.internal.physicsstore.terrain.TerrainColliderPayload;
-import dev.hytalemodding.impulse.core.plugin.physicsstore.PhysicsStoreTypes;
 import it.unimi.dsi.fastutil.objects.Object2ObjectOpenHashMap;
 import java.util.Map;
 import javax.annotation.Nonnull;
@@ -49,6 +48,6 @@ public final class PhysicsTerrainPayloadResource implements Resource<PhysicsStor
 
     @Nonnull
     public static ResourceType<PhysicsStore, PhysicsTerrainPayloadResource> getResourceType() {
-        return PhysicsStoreTypes.terrainPayloadResourceType();
+        return PhysicsResourceTypes.terrainPayloadResourceType();
     }
 }

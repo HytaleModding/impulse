@@ -4,7 +4,6 @@ import com.hypixel.hytale.component.Resource;
 import com.hypixel.hytale.component.ResourceType;
 import com.hypixel.hytale.server.core.universe.world.storage.PhysicsStore;
 import dev.hytalemodding.impulse.api.SpaceId;
-import dev.hytalemodding.impulse.core.plugin.physicsstore.PhysicsStoreTypes;
 import it.unimi.dsi.fastutil.ints.Int2ObjectOpenHashMap;
 import it.unimi.dsi.fastutil.objects.Object2IntOpenHashMap;
 import java.util.ArrayList;
@@ -93,6 +92,6 @@ public final class PhysicsSpaceCompatibilityIndexResource implements Resource<Ph
     @Nonnull
     public static ResourceType<PhysicsStore, PhysicsSpaceCompatibilityIndexResource>
         getResourceType() {
-        return PhysicsStoreTypes.spaceCompatibilityIndexResourceType();
+        return PhysicsResourceTypes.spaceCompatibilityIndexResourceType();
     }
 }

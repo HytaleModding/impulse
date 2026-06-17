@@ -6,7 +6,6 @@ import com.hypixel.hytale.server.core.universe.world.storage.PhysicsStore;
 import dev.hytalemodding.impulse.core.internal.modules.worldcollision.WorldCollisionBuildOptions;
 import dev.hytalemodding.impulse.core.internal.modules.worldcollision.TerrainColliderMode;
 import dev.hytalemodding.impulse.core.plugin.modules.worldcollision.WorldCollisionMode;
-import dev.hytalemodding.impulse.core.plugin.physicsstore.PhysicsStoreTypes;
 import dev.hytalemodding.impulse.core.plugin.settings.EntityChunkBoundaryMode;
 import it.unimi.dsi.fastutil.objects.Object2ObjectOpenHashMap;
 import java.util.List;
@@ -58,7 +57,7 @@ public final class PhysicsWorldCollisionIndexResource implements Resource<Physic
 
     @Nonnull
     public static ResourceType<PhysicsStore, PhysicsWorldCollisionIndexResource> getResourceType() {
-        return PhysicsStoreTypes.worldCollisionIndexResourceType();
+        return PhysicsResourceTypes.worldCollisionIndexResourceType();
     }
 
     public record SpaceWorldCollisionSettings(@Nonnull UUID spaceUuid,

@@ -9,7 +9,6 @@ import com.hypixel.hytale.component.ComponentType;
 import com.hypixel.hytale.component.Ref;
 import com.hypixel.hytale.math.vector.Vector3fUtil;
 import com.hypixel.hytale.server.core.universe.world.storage.PhysicsStore;
-import dev.hytalemodding.impulse.core.plugin.physicsstore.PhysicsStoreTypes;
 import dev.hytalemodding.impulse.core.plugin.simulation.JointType;
 import java.util.Objects;
 import java.util.UUID;
@@ -294,7 +293,7 @@ public final class JointComponent implements Component<PhysicsStore> {
 
     @Nonnull
     public static ComponentType<PhysicsStore, JointComponent> getComponentType() {
-        return PhysicsStoreTypes.jointComponentType();
+        return PhysicsComponentTypes.jointComponentType();
     }
 
     @Nonnull

@@ -10,7 +10,6 @@ import com.hypixel.hytale.component.ComponentType;
 import com.hypixel.hytale.server.core.universe.world.storage.PhysicsStore;
 import dev.hytalemodding.impulse.api.PhysicsBodyType;
 import dev.hytalemodding.impulse.api.PhysicsCollisionFilters;
-import dev.hytalemodding.impulse.core.plugin.physicsstore.PhysicsStoreTypes;
 import java.util.Arrays;
 import java.util.Objects;
 import javax.annotation.Nonnull;
@@ -113,7 +112,7 @@ public final class BodyCommandComponent implements Component<PhysicsStore> {
 
     @Nonnull
     public static ComponentType<PhysicsStore, BodyCommandComponent> getComponentType() {
-        return PhysicsStoreTypes.bodyCommandComponentType();
+        return PhysicsComponentTypes.bodyCommandComponentType();
     }
 
     @Nonnull

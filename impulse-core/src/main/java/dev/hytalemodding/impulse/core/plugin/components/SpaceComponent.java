@@ -8,7 +8,6 @@ import com.hypixel.hytale.component.ComponentType;
 import com.hypixel.hytale.math.vector.Vector3fUtil;
 import com.hypixel.hytale.server.core.universe.world.storage.PhysicsStore;
 import dev.hytalemodding.impulse.api.BackendId;
-import dev.hytalemodding.impulse.core.plugin.physicsstore.PhysicsStoreTypes;
 import java.util.Objects;
 import javax.annotation.Nonnull;
 import org.joml.Vector3f;
@@ -74,7 +73,7 @@ public final class SpaceComponent implements Component<PhysicsStore> {
 
     @Nonnull
     public static ComponentType<PhysicsStore, SpaceComponent> getComponentType() {
-        return PhysicsStoreTypes.spaceComponentType();
+        return PhysicsComponentTypes.spaceComponentType();
     }
 
     @Nonnull

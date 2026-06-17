@@ -5,7 +5,6 @@ import com.hypixel.hytale.component.ResourceType;
 import com.hypixel.hytale.component.Store;
 import com.hypixel.hytale.server.core.universe.world.storage.PhysicsStore;
 import dev.hytalemodding.impulse.core.internal.physicsstore.PhysicsStoreAsyncCompletions;
-import dev.hytalemodding.impulse.core.plugin.physicsstore.PhysicsStoreTypes;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.List;
@@ -76,7 +75,7 @@ public final class PhysicsStoreReadQueueResource implements Resource<PhysicsStor
 
     @Nonnull
     public static ResourceType<PhysicsStore, PhysicsStoreReadQueueResource> getResourceType() {
-        return PhysicsStoreTypes.readQueueResourceType();
+        return PhysicsResourceTypes.readQueueResourceType();
     }
 
     public static final class QueuedRead<R> {

@@ -8,7 +8,7 @@ import com.hypixel.hytale.codec.validation.Validators;
 import com.hypixel.hytale.component.Resource;
 import com.hypixel.hytale.component.ResourceType;
 import com.hypixel.hytale.server.core.universe.world.storage.PhysicsStore;
-import dev.hytalemodding.impulse.core.plugin.physicsstore.PhysicsStoreTypes;
+import dev.hytalemodding.impulse.core.internal.physicsstore.resources.PhysicsResourceTypes;
 import java.util.Arrays;
 import javax.annotation.Nonnull;
 
@@ -212,7 +212,7 @@ public final class PersistentPhysicsStoreResource implements Resource<PhysicsSto
 
     @Nonnull
     public static ResourceType<PhysicsStore, PersistentPhysicsStoreResource> getResourceType() {
-        return PhysicsStoreTypes.persistentStoreResourceType();
+        return PhysicsResourceTypes.persistentStoreResourceType();
     }
 
     @Nonnull

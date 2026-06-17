@@ -16,6 +16,7 @@ import dev.hytalemodding.impulse.core.internal.physicsstore.resources.PhysicsIde
 import dev.hytalemodding.impulse.core.internal.physicsstore.resources.PhysicsProfilingResource;
 import dev.hytalemodding.impulse.core.internal.physicsstore.resources.PhysicsTerrainMutationQueueResource;
 import dev.hytalemodding.impulse.core.internal.physicsstore.resources.PhysicsRestoreStatusResource;
+import dev.hytalemodding.impulse.core.internal.physicsstore.resources.PhysicsResourceTypes;
 import dev.hytalemodding.impulse.core.internal.physicsstore.resources.PhysicsRuntimeResource;
 import dev.hytalemodding.impulse.core.internal.physicsstore.resources.PhysicsSpaceCompatibilityIndexResource;
 import dev.hytalemodding.impulse.core.internal.physicsstore.resources.PhysicsSnapshotResource;
@@ -43,25 +44,6 @@ import dev.hytalemodding.impulse.core.internal.physicsstore.systems.TargetBindin
 import dev.hytalemodding.impulse.core.internal.physicsstore.systems.TerrainColliderBindingSystem;
 import dev.hytalemodding.impulse.core.internal.physicsstore.systems.WorldCollisionIndexSystem;
 import dev.hytalemodding.impulse.core.internal.resources.profiling.PhysicsRuntimeProfilingResource;
-import dev.hytalemodding.impulse.core.plugin.physicsstore.PhysicsStoreTypes;
-import dev.hytalemodding.impulse.core.plugin.components.BodyCommandComponent;
-import dev.hytalemodding.impulse.core.plugin.components.BodyComponent;
-import dev.hytalemodding.impulse.core.plugin.components.ColliderComponent;
-import dev.hytalemodding.impulse.core.plugin.components.CollisionLodSettingsComponent;
-import dev.hytalemodding.impulse.core.plugin.components.CollisionFilterComponent;
-import dev.hytalemodding.impulse.core.plugin.components.DynamicsComponent;
-import dev.hytalemodding.impulse.core.plugin.components.ExtensionSettingsComponent;
-import dev.hytalemodding.impulse.core.plugin.components.JointComponent;
-import dev.hytalemodding.impulse.core.plugin.components.MaterialComponent;
-import dev.hytalemodding.impulse.core.plugin.components.ShapeComponent;
-import dev.hytalemodding.impulse.core.plugin.components.SolverSettingsComponent;
-import dev.hytalemodding.impulse.core.plugin.components.SpaceComponent;
-import dev.hytalemodding.impulse.core.plugin.components.TargetComponent;
-import dev.hytalemodding.impulse.core.plugin.components.TerrainColliderComponent;
-import dev.hytalemodding.impulse.core.plugin.components.UuidComponent;
-import dev.hytalemodding.impulse.core.plugin.components.VisualMaterializationSettingsComponent;
-import dev.hytalemodding.impulse.core.plugin.components.VisualSyncSettingsComponent;
-import dev.hytalemodding.impulse.core.plugin.components.WorldCollisionComponent;
 import dev.hytalemodding.impulse.core.plugin.settings.PhysicsWorldSettings;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
@@ -85,122 +67,57 @@ public final class PhysicsStoreRegistration {
     private PhysicsStoreRegistration() {
     }
 
-    public static void register(@Nonnull PluginBase plugin) {
-        ComponentRegistryProxy<PhysicsStore> registry = physicsStoreRegistry(plugin);
+    public static void register(@Nonnull ComponentRegistryProxy<PhysicsStore> registry) {
         PhysicsStoreHooks.registerShutdownHook(SHUTDOWN_CLEANUP);
         PhysicsStoreHooks.registerTickGate(STEP_TICK_GATE);
 
-        PhysicsStoreTypes.setUuidComponentType(registry.registerComponent(UuidComponent.class,
-            "Uuid",
-            UuidComponent.CODEC));
-        PhysicsStoreTypes.setSpaceComponentType(registry.registerComponent(SpaceComponent.class,
-            "Space",
-            SpaceComponent.CODEC));
-        PhysicsStoreTypes.setBodyComponentType(registry.registerComponent(BodyComponent.class,
-            "Body",
-            BodyComponent.CODEC));
-        PhysicsStoreTypes.setBodyCommandComponentType(registry.registerComponent(
-            BodyCommandComponent.class,
-            "BodyCommand",
-            BodyCommandComponent.CODEC));
-        PhysicsStoreTypes.setDynamicsComponentType(registry.registerComponent(DynamicsComponent.class,
-            "Dynamics",
-            DynamicsComponent.CODEC));
-        PhysicsStoreTypes.setColliderComponentType(registry.registerComponent(ColliderComponent.class,
-            "Collider",
-            ColliderComponent.CODEC));
-        PhysicsStoreTypes.setShapeComponentType(registry.registerComponent(ShapeComponent.class,
-            "Shape",
-            ShapeComponent.CODEC));
-        PhysicsStoreTypes.setMaterialComponentType(registry.registerComponent(MaterialComponent.class,
-            "Material",
-            MaterialComponent.CODEC));
-        PhysicsStoreTypes.setCollisionFilterComponentType(registry.registerComponent(
-            CollisionFilterComponent.class,
-            "CollisionFilter",
-            CollisionFilterComponent.CODEC));
-        PhysicsStoreTypes.setJointComponentType(registry.registerComponent(JointComponent.class,
-            "Joint",
-            JointComponent.CODEC));
-        PhysicsStoreTypes.setTargetComponentType(registry.registerComponent(TargetComponent.class,
-            "Target",
-            TargetComponent.CODEC));
-        PhysicsStoreTypes.setTerrainColliderComponentType(registry.registerComponent(
-            TerrainColliderComponent.class,
-            "TerrainCollider",
-            TerrainColliderComponent.CODEC));
-        PhysicsStoreTypes.setWorldCollisionComponentType(registry.registerComponent(
-            WorldCollisionComponent.class,
-            "WorldCollision",
-            WorldCollisionComponent.CODEC));
-        PhysicsStoreTypes.setSolverSettingsComponentType(registry.registerComponent(
-            SolverSettingsComponent.class,
-            "SolverSettings",
-            SolverSettingsComponent.CODEC));
-        PhysicsStoreTypes.setVisualSyncSettingsComponentType(registry.registerComponent(
-            VisualSyncSettingsComponent.class,
-            "VisualSyncSettings",
-            VisualSyncSettingsComponent.CODEC));
-        PhysicsStoreTypes.setVisualMaterializationSettingsComponentType(registry.registerComponent(
-            VisualMaterializationSettingsComponent.class,
-            "VisualMaterializationSettings",
-            VisualMaterializationSettingsComponent.CODEC));
-        PhysicsStoreTypes.setCollisionLodSettingsComponentType(registry.registerComponent(
-            CollisionLodSettingsComponent.class,
-            "CollisionLodSettings",
-            CollisionLodSettingsComponent.CODEC));
-        PhysicsStoreTypes.setExtensionSettingsComponentType(registry.registerComponent(
-            ExtensionSettingsComponent.class,
-            "ExtensionSettings",
-            ExtensionSettingsComponent.CODEC));
-
-        PhysicsStoreTypes.setRuntimeResourceType(registry.registerResource(
+        PhysicsResourceTypes.setRuntimeResourceType(registry.registerResource(
             PhysicsRuntimeResource.class,
             PhysicsRuntimeResource::new));
-        PhysicsStoreTypes.setWorldSettingsResourceType(registry.registerResource(
+        PhysicsResourceTypes.setWorldSettingsResourceType(registry.registerResource(
             PhysicsWorldSettingsResource.class,
             PhysicsWorldSettingsResource::new));
-        PhysicsStoreTypes.setStepSchedulerResourceType(registry.registerResource(
+        PhysicsResourceTypes.setStepSchedulerResourceType(registry.registerResource(
             PhysicsStepSchedulerResource.class,
             PhysicsStepSchedulerResource::new));
-        PhysicsStoreTypes.setSpaceCompatibilityIndexResourceType(registry.registerResource(
+        PhysicsResourceTypes.setSpaceCompatibilityIndexResourceType(registry.registerResource(
             PhysicsSpaceCompatibilityIndexResource.class,
             PhysicsSpaceCompatibilityIndexResource::new));
-        PhysicsStoreTypes.setTerrainMutationQueueResourceType(registry.registerResource(
+        PhysicsResourceTypes.setTerrainMutationQueueResourceType(registry.registerResource(
             PhysicsTerrainMutationQueueResource.class,
             PhysicsTerrainMutationQueueResource::new));
-        PhysicsStoreTypes.setIdentityIndexResourceType(registry.registerResource(
+        PhysicsResourceTypes.setIdentityIndexResourceType(registry.registerResource(
             PhysicsIdentityIndexResource.class,
             PhysicsIdentityIndexResource::new));
-        PhysicsStoreTypes.setSnapshotResourceType(registry.registerResource(
+        PhysicsResourceTypes.setSnapshotResourceType(registry.registerResource(
             PhysicsSnapshotResource.class,
             PhysicsSnapshotResource::new));
-        PhysicsStoreTypes.setBodyRegistrationResourceType(registry.registerResource(
+        PhysicsResourceTypes.setBodyRegistrationResourceType(registry.registerResource(
             PhysicsBodyRegistrationResource.class,
             PhysicsBodyRegistrationResource::new));
-        PhysicsStoreTypes.setEventResourceType(registry.registerResource(
+        PhysicsResourceTypes.setEventResourceType(registry.registerResource(
             PhysicsEventResource.class,
             PhysicsEventResource::new));
-        PhysicsStoreTypes.setReadQueueResourceType(registry.registerResource(
+        PhysicsResourceTypes.setReadQueueResourceType(registry.registerResource(
             PhysicsStoreReadQueueResource.class,
             PhysicsStoreReadQueueResource::new));
-        PhysicsStoreTypes.setTerrainPayloadResourceType(registry.registerResource(
+        PhysicsResourceTypes.setTerrainPayloadResourceType(registry.registerResource(
             PhysicsTerrainPayloadResource.class,
             PhysicsTerrainPayloadResource::new));
-        PhysicsStoreTypes.setWorldCollisionIndexResourceType(registry.registerResource(
+        PhysicsResourceTypes.setWorldCollisionIndexResourceType(registry.registerResource(
             PhysicsWorldCollisionIndexResource.class,
             PhysicsWorldCollisionIndexResource::new));
-        PhysicsStoreTypes.setPersistentStoreResourceType(registry.registerResource(
+        PhysicsResourceTypes.setPersistentStoreResourceType(registry.registerResource(
             PersistentPhysicsStoreResource.class,
             "PersistentPhysicsStore",
             PersistentPhysicsStoreResource.CODEC));
-        PhysicsStoreTypes.setRestoreStatusResourceType(registry.registerResource(
+        PhysicsResourceTypes.setRestoreStatusResourceType(registry.registerResource(
             PhysicsRestoreStatusResource.class,
             PhysicsRestoreStatusResource::new));
-        PhysicsStoreTypes.setProfilingResourceType(registry.registerResource(
+        PhysicsResourceTypes.setProfilingResourceType(registry.registerResource(
             PhysicsProfilingResource.class,
             PhysicsProfilingResource::new));
-        PhysicsStoreTypes.setDebugResourceType(registry.registerResource(
+        PhysicsResourceTypes.setDebugResourceType(registry.registerResource(
             PhysicsDebugResource.class,
             PhysicsDebugResource::new));
 
@@ -370,7 +287,7 @@ public final class PhysicsStoreRegistration {
 
     @Nonnull
     @SuppressWarnings("unchecked")
-    private static ComponentRegistryProxy<PhysicsStore> physicsStoreRegistry(
+    public static ComponentRegistryProxy<PhysicsStore> physicsStoreRegistry(
         @Nonnull PluginBase plugin) {
         try {
             Method method = plugin.getClass().getMethod(REGISTRY_METHOD);

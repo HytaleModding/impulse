@@ -7,7 +7,6 @@ import com.hypixel.hytale.server.core.universe.world.storage.PhysicsStore;
 import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyKind;
 import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyPersistenceMode;
 import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyRegistrationView;
-import dev.hytalemodding.impulse.core.plugin.physicsstore.PhysicsStoreTypes;
 import it.unimi.dsi.fastutil.ints.Int2ObjectOpenHashMap;
 import it.unimi.dsi.fastutil.objects.Object2ObjectLinkedOpenHashMap;
 import java.util.ArrayList;
@@ -133,7 +132,7 @@ public final class PhysicsBodyRegistrationResource implements Resource<PhysicsSt
 
     @Nonnull
     public static ResourceType<PhysicsStore, PhysicsBodyRegistrationResource> getResourceType() {
-        return PhysicsStoreTypes.bodyRegistrationResourceType();
+        return PhysicsResourceTypes.bodyRegistrationResourceType();
     }
 
     public record BodyRegistrationPublication(

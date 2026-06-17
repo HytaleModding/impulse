@@ -5,7 +5,7 @@ import java.util.Arrays;
 import java.util.Objects;
 import java.util.UUID;
 
-final class BlockBodyBatchBuilder {
+public final class BlockBodyBatchBuilder {
 
     private static final int POSITION_STRIDE = 3;
 

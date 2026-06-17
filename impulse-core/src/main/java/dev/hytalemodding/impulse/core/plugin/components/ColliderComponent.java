@@ -8,7 +8,6 @@ import com.hypixel.hytale.component.ComponentType;
 import com.hypixel.hytale.math.vector.Vector3fUtil;
 import com.hypixel.hytale.server.core.universe.world.storage.PhysicsStore;
 import dev.hytalemodding.impulse.core.plugin.codec.ImpulseCodecs;
-import dev.hytalemodding.impulse.core.plugin.physicsstore.PhysicsStoreTypes;
 import java.util.Objects;
 import javax.annotation.Nonnull;
 import org.joml.Quaternionf;
@@ -85,7 +84,7 @@ public final class ColliderComponent implements Component<PhysicsStore> {
 
     @Nonnull
     public static ComponentType<PhysicsStore, ColliderComponent> getComponentType() {
-        return PhysicsStoreTypes.colliderComponentType();
+        return PhysicsComponentTypes.colliderComponentType();
     }
 
     @Nonnull

@@ -3,7 +3,6 @@ package dev.hytalemodding.impulse.core.internal.physicsstore.resources;
 import com.hypixel.hytale.component.Resource;
 import com.hypixel.hytale.component.ResourceType;
 import com.hypixel.hytale.server.core.universe.world.storage.PhysicsStore;
-import dev.hytalemodding.impulse.core.plugin.physicsstore.PhysicsStoreTypes;
 import lombok.Getter;
 import lombok.Setter;
 import javax.annotation.Nonnull;
@@ -34,6 +33,6 @@ public final class PhysicsDebugResource implements Resource<PhysicsStore> {
 
     @Nonnull
     public static ResourceType<PhysicsStore, PhysicsDebugResource> getResourceType() {
-        return PhysicsStoreTypes.debugResourceType();
+        return PhysicsResourceTypes.debugResourceType();
     }
 }

@@ -5,7 +5,6 @@ import com.hypixel.hytale.component.ResourceType;
 import com.hypixel.hytale.server.core.universe.world.storage.PhysicsStore;
 import dev.hytalemodding.impulse.api.PhysicsStepPhaseStats;
 import dev.hytalemodding.impulse.core.plugin.snapshots.PhysicsBodySnapshot;
-import dev.hytalemodding.impulse.core.plugin.physicsstore.PhysicsStoreTypes;
 import dev.hytalemodding.impulse.core.plugin.settings.PhysicsStepSchedulingMode;
 import java.util.List;
 import java.util.Objects;
@@ -146,7 +145,7 @@ public final class PhysicsStepSchedulerResource implements Resource<PhysicsStore
 
     @Nonnull
     public static ResourceType<PhysicsStore, PhysicsStepSchedulerResource> getResourceType() {
-        return PhysicsStoreTypes.stepSchedulerResourceType();
+        return PhysicsResourceTypes.stepSchedulerResourceType();
     }
 
     private StepInput accumulatePendingDt(float dtSeconds,

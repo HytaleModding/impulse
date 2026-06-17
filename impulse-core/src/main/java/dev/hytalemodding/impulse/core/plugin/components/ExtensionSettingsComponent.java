@@ -8,7 +8,6 @@ import com.hypixel.hytale.codec.codecs.array.ArrayCodec;
 import com.hypixel.hytale.component.Component;
 import com.hypixel.hytale.component.ComponentType;
 import com.hypixel.hytale.server.core.universe.world.storage.PhysicsStore;
-import dev.hytalemodding.impulse.core.plugin.physicsstore.PhysicsStoreTypes;
 import dev.hytalemodding.impulse.core.plugin.settings.PhysicsBackendExtensionId;
 import dev.hytalemodding.impulse.core.plugin.settings.PhysicsExtensionSettingValue;
 import dev.hytalemodding.impulse.core.plugin.settings.PhysicsExtensionSettings;
@@ -68,7 +67,7 @@ public final class ExtensionSettingsComponent implements Component<PhysicsStore>
 
     @Nonnull
     public static ComponentType<PhysicsStore, ExtensionSettingsComponent> getComponentType() {
-        return PhysicsStoreTypes.extensionSettingsComponentType();
+        return PhysicsComponentTypes.extensionSettingsComponentType();
     }
 
     @Nonnull

@@ -7,7 +7,6 @@ import com.hypixel.hytale.component.Component;
 import com.hypixel.hytale.component.ComponentType;
 import com.hypixel.hytale.server.core.universe.world.storage.PhysicsStore;
 import dev.hytalemodding.impulse.api.PhysicsCollisionFilters;
-import dev.hytalemodding.impulse.core.plugin.physicsstore.PhysicsStoreTypes;
 import javax.annotation.Nonnull;
 
 /**
@@ -62,7 +61,7 @@ public final class CollisionFilterComponent implements Component<PhysicsStore> {
 
     @Nonnull
     public static ComponentType<PhysicsStore, CollisionFilterComponent> getComponentType() {
-        return PhysicsStoreTypes.collisionFilterComponentType();
+        return PhysicsComponentTypes.collisionFilterComponentType();
     }
 
     @Nonnull

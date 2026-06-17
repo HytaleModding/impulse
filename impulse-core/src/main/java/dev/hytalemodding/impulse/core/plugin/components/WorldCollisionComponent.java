@@ -8,7 +8,6 @@ import com.hypixel.hytale.component.Component;
 import com.hypixel.hytale.component.ComponentType;
 import com.hypixel.hytale.server.core.universe.world.storage.PhysicsStore;
 import dev.hytalemodding.impulse.core.plugin.modules.worldcollision.WorldCollisionMode;
-import dev.hytalemodding.impulse.core.plugin.physicsstore.PhysicsStoreTypes;
 import dev.hytalemodding.impulse.core.plugin.settings.EntityChunkBoundaryMode;
 import dev.hytalemodding.impulse.core.plugin.settings.PhysicsSpaceSettings;
 import dev.hytalemodding.impulse.core.plugin.settings.PhysicsWorldCollisionSettings;
@@ -219,7 +218,7 @@ public final class WorldCollisionComponent implements Component<PhysicsStore> {
 
     @Nonnull
     public static ComponentType<PhysicsStore, WorldCollisionComponent> getComponentType() {
-        return PhysicsStoreTypes.worldCollisionComponentType();
+        return PhysicsComponentTypes.worldCollisionComponentType();
     }
 
     @Nonnull

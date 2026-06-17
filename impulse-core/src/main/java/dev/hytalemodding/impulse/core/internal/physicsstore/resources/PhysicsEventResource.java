@@ -6,7 +6,6 @@ import com.hypixel.hytale.server.core.universe.world.storage.PhysicsStore;
 import dev.hytalemodding.impulse.core.plugin.events.PhysicsEventFrame;
 import dev.hytalemodding.impulse.core.plugin.events.PhysicsFrameEvent;
 import dev.hytalemodding.impulse.core.plugin.events.PhysicsStepEvent;
-import dev.hytalemodding.impulse.core.plugin.physicsstore.PhysicsStoreTypes;
 import dev.hytalemodding.impulse.core.plugin.snapshot.PublishedPhysicsSnapshotFrame;
 import java.util.List;
 import java.util.Objects;
@@ -74,6 +73,6 @@ public final class PhysicsEventResource implements Resource<PhysicsStore> {
 
     @Nonnull
     public static ResourceType<PhysicsStore, PhysicsEventResource> getResourceType() {
-        return PhysicsStoreTypes.eventResourceType();
+        return PhysicsResourceTypes.eventResourceType();
     }
 }

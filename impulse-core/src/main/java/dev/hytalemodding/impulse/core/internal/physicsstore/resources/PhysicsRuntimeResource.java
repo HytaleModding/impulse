@@ -11,7 +11,6 @@ import dev.hytalemodding.impulse.api.runtime.PhysicsBackendRuntime;
 import dev.hytalemodding.impulse.core.internal.resources.BackendBodyHandle;
 import dev.hytalemodding.impulse.core.internal.resources.BackendJointHandle;
 import dev.hytalemodding.impulse.core.internal.resources.BackendSpaceHandle;
-import dev.hytalemodding.impulse.core.plugin.physicsstore.PhysicsStoreTypes;
 import it.unimi.dsi.fastutil.ints.Int2ObjectOpenHashMap;
 import it.unimi.dsi.fastutil.longs.Long2ObjectOpenHashMap;
 import it.unimi.dsi.fastutil.longs.LongArrayList;
@@ -733,7 +732,7 @@ public final class PhysicsRuntimeResource implements Resource<PhysicsStore> {
 
     @Nonnull
     public static ResourceType<PhysicsStore, PhysicsRuntimeResource> getResourceType() {
-        return PhysicsStoreTypes.runtimeResourceType();
+        return PhysicsResourceTypes.runtimeResourceType();
     }
 
     @FunctionalInterface
