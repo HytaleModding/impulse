@@ -17,6 +17,7 @@ import java.util.UUID;
 import java.util.concurrent.atomic.AtomicInteger;
 import org.bson.BsonDocument;
 import org.bson.BsonDouble;
+import org.bson.BsonInt32;
 import org.joml.Quaternionf;
 import org.joml.Vector3f;
 import org.junit.jupiter.api.Test;
@@ -55,6 +56,19 @@ class PersistentPhysicsStoreResourceTest {
         assertEquals(1, decoded.getMaterials().length);
         assertEquals(BODY_UUID, decoded.getBodies()[0].getBodyUuid());
         assertEquals(COLLIDER_UUID, decoded.getBodies()[0].getColliderUuids()[0]);
+    }
+
+    @Test
+    void storeResourceCodecRejectsOutdatedSchemaVersion() {
+        PersistentPhysicsStoreResource resource = validResource(registeredBackendId("old-schema"));
+        BsonDocument encoded = PersistentPhysicsStoreResource.CODEC.encode(resource,
+            new ExtraInfo()).asDocument();
+        encoded.put("SchemaVersion", new BsonInt32(1));
+
+        assertValidationFails(
+            () -> PersistentPhysicsStoreResource.CODEC.decode(encoded, new ExtraInfo()),
+            "Must be greater than or equal to "
+                + PersistentPhysicsStoreResource.CURRENT_SCHEMA_VERSION);
     }
 
     @Test

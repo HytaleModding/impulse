@@ -76,10 +76,10 @@ public final class PhysicsChunkSettingsIndexSystem extends TickingSystem<Physics
                 settings.getTtlTicks(),
                 material != null
                     ? material.getFriction()
-                    : PhysicsChunkTerrainSettings.DEFAULT_TERRAIN_FRICTION,
+                    : PhysicsChunkTerrainSettings.DEFAULT_CHUNK_COLLISION_FRICTION,
                 material != null
                     ? material.getRestitution()
-                    : PhysicsChunkTerrainSettings.DEFAULT_TERRAIN_RESTITUTION,
+                    : PhysicsChunkTerrainSettings.DEFAULT_CHUNK_COLLISION_RESTITUTION,
                 filter != null
                     ? filter.getCollisionGroup()
                     : PhysicsCollisionFilters.TERRAIN,

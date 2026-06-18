@@ -48,30 +48,30 @@ public class PhysicsChunkTerrainSettings {
         EntityChunkBoundaryMode.PAUSE_UNTIL_LOADED;
 
     /**
-     * Whether full-cube world sections should use native backend voxel terrain when available.
+     * Whether full-cube world sections should use native backend voxel collision when available.
      */
-    public static final boolean DEFAULT_NATIVE_VOXEL_TERRAIN_ENABLED = false;
+    public static final boolean DEFAULT_NATIVE_VOXEL_COLLISION_ENABLED = false;
 
     /**
      * Default friction applied to generated chunk collision bodies.
      */
-    public static final float DEFAULT_TERRAIN_FRICTION = 0.75f;
+    public static final float DEFAULT_CHUNK_COLLISION_FRICTION = 0.75f;
 
     /**
      * Default restitution applied to generated chunk collision bodies.
      */
-    public static final float DEFAULT_TERRAIN_RESTITUTION = 0.0f;
+    public static final float DEFAULT_CHUNK_COLLISION_RESTITUTION = 0.0f;
 
     @Nonnull
     private PhysicsChunkTerrainMode terrainMode = PhysicsChunkTerrainMode.NONE;
     @Nonnull
     private EntityChunkBoundaryMode entityChunkBoundaryMode = DEFAULT_ENTITY_CHUNK_BOUNDARY_MODE;
-    private boolean nativeVoxelTerrainEnabled = DEFAULT_NATIVE_VOXEL_TERRAIN_ENABLED;
+    private boolean nativeVoxelCollisionEnabled = DEFAULT_NATIVE_VOXEL_COLLISION_ENABLED;
     private int terrainRadius = DEFAULT_TERRAIN_RADIUS;
     private int bodyTerrainRadius = DEFAULT_BODY_TERRAIN_RADIUS;
     private int terrainTtlTicks = DEFAULT_TERRAIN_TTL_TICKS;
-    private float terrainFriction = DEFAULT_TERRAIN_FRICTION;
-    private float terrainRestitution = DEFAULT_TERRAIN_RESTITUTION;
+    private float chunkCollisionFriction = DEFAULT_CHUNK_COLLISION_FRICTION;
+    private float chunkCollisionRestitution = DEFAULT_CHUNK_COLLISION_RESTITUTION;
 
     public PhysicsChunkTerrainSettings() {
     }
@@ -79,12 +79,12 @@ public class PhysicsChunkTerrainSettings {
     public PhysicsChunkTerrainSettings(@Nonnull PhysicsChunkTerrainSettings settings) {
         terrainMode = settings.terrainMode;
         entityChunkBoundaryMode = settings.entityChunkBoundaryMode;
-        nativeVoxelTerrainEnabled = settings.nativeVoxelTerrainEnabled;
+        nativeVoxelCollisionEnabled = settings.nativeVoxelCollisionEnabled;
         terrainRadius = settings.terrainRadius;
         bodyTerrainRadius = settings.bodyTerrainRadius;
         terrainTtlTicks = settings.terrainTtlTicks;
-        terrainFriction = settings.terrainFriction;
-        terrainRestitution = settings.terrainRestitution;
+        chunkCollisionFriction = settings.chunkCollisionFriction;
+        chunkCollisionRestitution = settings.chunkCollisionRestitution;
     }
 
     @Nonnull
@@ -107,12 +107,12 @@ public class PhysicsChunkTerrainSettings {
             "entityChunkBoundaryMode");
     }
 
-    public boolean isNativeVoxelTerrainEnabled() {
-        return nativeVoxelTerrainEnabled;
+    public boolean isNativeVoxelCollisionEnabled() {
+        return nativeVoxelCollisionEnabled;
     }
 
-    public void setNativeVoxelTerrainEnabled(boolean nativeVoxelTerrainEnabled) {
-        this.nativeVoxelTerrainEnabled = nativeVoxelTerrainEnabled;
+    public void setNativeVoxelCollisionEnabled(boolean nativeVoxelCollisionEnabled) {
+        this.nativeVoxelCollisionEnabled = nativeVoxelCollisionEnabled;
     }
 
     public int getTerrainRadius() {
@@ -148,39 +148,39 @@ public class PhysicsChunkTerrainSettings {
             MAX_TERRAIN_TTL_TICKS);
     }
 
-    public float getTerrainFriction() {
-        return terrainFriction;
+    public float getChunkCollisionFriction() {
+        return chunkCollisionFriction;
     }
 
-    public void setTerrainFriction(float terrainFriction) {
-        this.terrainFriction = PhysicsChunkSettingsValidation.requireFiniteAtLeast(
-            "Terrain friction",
-            terrainFriction,
+    public void setChunkCollisionFriction(float chunkCollisionFriction) {
+        this.chunkCollisionFriction = PhysicsChunkSettingsValidation.requireFiniteAtLeast(
+            "Chunk collision friction",
+            chunkCollisionFriction,
             0.0f);
     }
 
-    public float getTerrainRestitution() {
-        return terrainRestitution;
+    public float getChunkCollisionRestitution() {
+        return chunkCollisionRestitution;
     }
 
-    public void setTerrainRestitution(float terrainRestitution) {
-        this.terrainRestitution = PhysicsChunkSettingsValidation.requireFiniteAtLeast(
-            "Terrain restitution",
-            terrainRestitution,
+    public void setChunkCollisionRestitution(float chunkCollisionRestitution) {
+        this.chunkCollisionRestitution = PhysicsChunkSettingsValidation.requireFiniteAtLeast(
+            "Chunk collision restitution",
+            chunkCollisionRestitution,
             0.0f);
     }
 
-    public void setTerrainMaterial(float terrainFriction, float terrainRestitution) {
+    public void setChunkCollisionMaterial(float friction, float restitution) {
         float validatedFriction = PhysicsChunkSettingsValidation.requireFiniteAtLeast(
-            "Terrain friction",
-            terrainFriction,
+            "Chunk collision friction",
+            friction,
             0.0f);
         float validatedRestitution = PhysicsChunkSettingsValidation.requireFiniteAtLeast(
-            "Terrain restitution",
-            terrainRestitution,
+            "Chunk collision restitution",
+            restitution,
             0.0f);
-        this.terrainFriction = validatedFriction;
-        this.terrainRestitution = validatedRestitution;
+        this.chunkCollisionFriction = validatedFriction;
+        this.chunkCollisionRestitution = validatedRestitution;
     }
 
 }

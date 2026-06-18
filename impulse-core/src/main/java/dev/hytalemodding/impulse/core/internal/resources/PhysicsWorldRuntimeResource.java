@@ -272,7 +272,7 @@ public class PhysicsWorldRuntimeResource extends PhysicsWorldResource {
         MaterialComponent material = store.getComponent(ref, MaterialComponent.getComponentType());
         if (material != null) {
             settings.getPhysicsChunkTerrainSettings()
-                .setTerrainMaterial(material.getFriction(), material.getRestitution());
+                .setChunkCollisionMaterial(material.getFriction(), material.getRestitution());
         }
         if (solverSettings != null) {
             solverSettings.copyTo(settings);

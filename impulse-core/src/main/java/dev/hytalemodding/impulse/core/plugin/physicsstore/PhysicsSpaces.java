@@ -147,7 +147,7 @@ public final class PhysicsSpaces {
             MaterialComponent.getComponentType());
         if (material != null) {
             settings.getPhysicsChunkTerrainSettings()
-                .setTerrainMaterial(material.getFriction(), material.getRestitution());
+                .setChunkCollisionMaterial(material.getFriction(), material.getRestitution());
         }
         SolverSettingsComponent solverSettings = checkedStore.getComponent(checkedRef,
             SolverSettingsComponent.getComponentType());

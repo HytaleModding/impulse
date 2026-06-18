@@ -109,14 +109,14 @@ public class PhysicsChunkSettingsCommand extends AbstractAsyncPlayerCommand {
             }
         }
 
-        boolean nativeVoxelTerrainEnabled = settings.getPhysicsChunkTerrainSettings().isNativeVoxelTerrainEnabled();
+        boolean nativeVoxelCollisionEnabled = settings.getPhysicsChunkTerrainSettings().isNativeVoxelCollisionEnabled();
         if (terrainArg.provided(ctx)) {
-            Boolean parsedTerrain = parseTerrain(terrainArg.get(ctx));
-            if (parsedTerrain == null) {
+            Boolean parsedNativeVoxelCollision = parseTerrain(terrainArg.get(ctx));
+            if (parsedNativeVoxelCollision == null) {
                 ctx.sender().sendMessage(Message.raw("terrain must be boxes or native_voxels."));
                 return CompletableFuture.completedFuture(null);
             }
-            nativeVoxelTerrainEnabled = parsedTerrain;
+            nativeVoxelCollisionEnabled = parsedNativeVoxelCollision;
         }
 
         int playerRadius = playerRadiusArg.provided(ctx)
@@ -141,7 +141,7 @@ public class PhysicsChunkSettingsCommand extends AbstractAsyncPlayerCommand {
 
         settings.getPhysicsChunkTerrainSettings().setTerrainMode(mode);
         settings.getPhysicsChunkTerrainSettings().setEntityChunkBoundaryMode(chunkBoundaryMode);
-        settings.getPhysicsChunkTerrainSettings().setNativeVoxelTerrainEnabled(nativeVoxelTerrainEnabled);
+        settings.getPhysicsChunkTerrainSettings().setNativeVoxelCollisionEnabled(nativeVoxelCollisionEnabled);
         settings.getPhysicsChunkTerrainSettings().setTerrainRadius(playerRadius);
         settings.getPhysicsChunkTerrainSettings().setBodyTerrainRadius(bodyRadius);
         settings.getPhysicsChunkTerrainSettings().setTerrainTtlTicks(ttl);
@@ -175,7 +175,7 @@ public class PhysicsChunkSettingsCommand extends AbstractAsyncPlayerCommand {
             + " chunkBoundary="
             + settings.getPhysicsChunkTerrainSettings().getEntityChunkBoundaryMode().name().toLowerCase(Locale.ROOT)
             + " terrain="
-            + (settings.getPhysicsChunkTerrainSettings().isNativeVoxelTerrainEnabled()
+            + (settings.getPhysicsChunkTerrainSettings().isNativeVoxelCollisionEnabled()
                 ? "native_voxels"
                 : "boxes")));
     }

@@ -258,15 +258,15 @@ public final class PhysicsStoreSpaceMutations {
     @Nonnull
     private static MaterialComponent chunkMaterial(
         @Nonnull PhysicsChunkTerrainSettings settings) {
-        return new MaterialComponent(settings.getTerrainFriction(),
-            settings.getTerrainRestitution());
+        return new MaterialComponent(settings.getChunkCollisionFriction(),
+            settings.getChunkCollisionRestitution());
     }
 
     private static boolean isDefaultChunkMaterial(@Nonnull MaterialComponent material) {
         return Float.compare(material.getFriction(),
-            PhysicsChunkTerrainSettings.DEFAULT_TERRAIN_FRICTION) == 0
+            PhysicsChunkTerrainSettings.DEFAULT_CHUNK_COLLISION_FRICTION) == 0
             && Float.compare(material.getRestitution(),
-                PhysicsChunkTerrainSettings.DEFAULT_TERRAIN_RESTITUTION) == 0;
+                PhysicsChunkTerrainSettings.DEFAULT_CHUNK_COLLISION_RESTITUTION) == 0;
     }
 
     private static <T extends Component<PhysicsStore>> void putOrRemoveDefault(

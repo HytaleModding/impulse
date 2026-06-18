@@ -17,7 +17,7 @@ import javax.annotation.Nonnull;
  */
 public final class PersistentPhysicsStoreResource implements Resource<PhysicsStore> {
 
-    public static final int CURRENT_SCHEMA_VERSION = 1;
+    public static final int CURRENT_SCHEMA_VERSION = 2;
     private static final PersistentSpaceDto[] EMPTY_SPACES = new PersistentSpaceDto[0];
     private static final PersistentBodyDto[] EMPTY_BODIES = new PersistentBodyDto[0];
     private static final PersistentColliderDto[] EMPTY_COLLIDERS = new PersistentColliderDto[0];

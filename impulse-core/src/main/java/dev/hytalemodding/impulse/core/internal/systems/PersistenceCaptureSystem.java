@@ -197,8 +197,8 @@ public final class PersistenceCaptureSystem extends TickingSystem<PhysicsStore>
                 : new ChunkCollisionSettingsComponent();
             MaterialComponent material = row.material() != null
                 ? row.material()
-                : new MaterialComponent(PhysicsChunkTerrainSettings.DEFAULT_TERRAIN_FRICTION,
-                    PhysicsChunkTerrainSettings.DEFAULT_TERRAIN_RESTITUTION);
+                : new MaterialComponent(PhysicsChunkTerrainSettings.DEFAULT_CHUNK_COLLISION_FRICTION,
+                    PhysicsChunkTerrainSettings.DEFAULT_CHUNK_COLLISION_RESTITUTION);
             CollisionFilterComponent filter = row.filter() != null
                 ? row.filter()
                 : new CollisionFilterComponent(PhysicsCollisionFilters.TERRAIN,
