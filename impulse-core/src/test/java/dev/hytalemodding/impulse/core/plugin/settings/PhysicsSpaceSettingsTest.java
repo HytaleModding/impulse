@@ -247,6 +247,44 @@ class PhysicsSpaceSettingsTest {
     }
 
     @Test
+    void deprecatedTerrainSettingsAliasCopiesCanonicalAndAliasValues() {
+        dev.hytalemodding.impulse.core.plugin.modules.physicschunk.settings
+            .PhysicsChunkTerrainSettings canonical =
+            new dev.hytalemodding.impulse.core.plugin.modules.physicschunk.settings
+                .PhysicsChunkTerrainSettings();
+
+        canonical.setTerrainMode(PhysicsChunkTerrainMode.STREAMING);
+        canonical.setEntityChunkBoundaryMode(EntityChunkBoundaryMode.LOAD_TICKING_CHUNK);
+        canonical.setNativeVoxelTerrainEnabled(true);
+        canonical.setTerrainRadius(18);
+        canonical.setBodyTerrainRadius(7);
+        canonical.setTerrainTtlTicks(240);
+        canonical.setTerrainMaterial(0.85f, 0.2f);
+
+        PhysicsChunkTerrainSettings canonicalCopy =
+            new PhysicsChunkTerrainSettings(canonical);
+        PhysicsChunkTerrainSettings aliasCopy =
+            new PhysicsChunkTerrainSettings(canonicalCopy);
+        PhysicsWorldCollisionSettings worldCollisionCopy =
+            new PhysicsWorldCollisionSettings(canonical);
+        canonical.setTerrainRadius(24);
+        canonicalCopy.setTerrainRadius(30);
+
+        assertEquals(PhysicsChunkTerrainMode.STREAMING, canonicalCopy.getTerrainMode());
+        assertEquals(EntityChunkBoundaryMode.LOAD_TICKING_CHUNK,
+            canonicalCopy.getEntityChunkBoundaryMode());
+        assertTrue(canonicalCopy.isNativeVoxelTerrainEnabled());
+        assertEquals(30, canonicalCopy.getTerrainRadius());
+        assertEquals(7, canonicalCopy.getBodyTerrainRadius());
+        assertEquals(240, canonicalCopy.getTerrainTtlTicks());
+        assertEquals(0.85f, canonicalCopy.getTerrainFriction(), 0.0001f);
+        assertEquals(0.2f, canonicalCopy.getTerrainRestitution(), 0.0001f);
+        assertEquals(18, aliasCopy.getTerrainRadius());
+        assertEquals(18, worldCollisionCopy.getTerrainRadius());
+        assertEquals(18, worldCollisionCopy.getWorldCollisionRadius());
+    }
+
+    @Test
     void extensionSettingsAreTypedAndCopyIsolated() {
         PhysicsSpaceSettings settings = PhysicsSpaceSettings.defaults();
         PhysicsBackendExtensionId extensionId = new PhysicsBackendExtensionId("test:extension");
