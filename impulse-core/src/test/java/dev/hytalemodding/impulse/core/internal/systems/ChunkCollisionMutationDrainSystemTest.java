@@ -3,6 +3,7 @@ package dev.hytalemodding.impulse.core.internal.systems;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertSame;
 
 import com.hypixel.hytale.component.AddReason;
@@ -11,7 +12,9 @@ import com.hypixel.hytale.component.ComponentRegistryProxy;
 import com.hypixel.hytale.component.EmptyResourceStorage;
 import com.hypixel.hytale.component.Ref;
 import com.hypixel.hytale.component.Store;
+import com.hypixel.hytale.math.util.ChunkUtil;
 import com.hypixel.hytale.server.core.universe.world.storage.PhysicsStore;
+import com.hypixel.hytale.server.core.util.thread.TickingThread;
 import dev.hytalemodding.impulse.api.BackendId;
 import dev.hytalemodding.impulse.api.PhysicsBodyType;
 import dev.hytalemodding.impulse.api.ShapeType;
@@ -43,6 +46,8 @@ import dev.hytalemodding.impulse.core.plugin.components.UuidComponent;
 import dev.hytalemodding.impulse.core.plugin.modules.physicschunk.components.ChunkCollisionSourceComponent;
 import dev.hytalemodding.impulse.core.plugin.modules.physicschunk.components.ChunkCollisionSourceComponent.PartKind;
 import dev.hytalemodding.impulse.core.plugin.physicsstore.PhysicsEntities;
+import java.lang.reflect.InvocationTargetException;
+import java.lang.reflect.Method;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
@@ -126,10 +131,145 @@ class ChunkCollisionMutationDrainSystemTest {
         }
     }
 
+    @Test
+    void upsertCreatesNativeVoxelRowWhenBackendSupportsVoxelTerrain() {
+        ComponentRegistry<PhysicsStore> registry = new ComponentRegistry<>();
+        ComponentRegistryProxy<PhysicsStore> proxy =
+            new ComponentRegistryProxy<>(new ArrayList<>(), registry);
+        PhysicsComponentTypeRegistry.registerComponentTypes(proxy);
+        PhysicsResourceTypes.registerResourceTypes(proxy);
+        Store<PhysicsStore> store = registry.addStore(
+            new PhysicsStore(TestInstanceFactory.world("chunk-collision-drain-voxel-test")),
+            EmptyResourceStorage.get());
+        try {
+            UUID spaceUuid = uuid(11);
+            BackendId backendId = new BackendId("test:chunk-collision-drain-voxel");
+            Ref<PhysicsStore> spaceRef = addBoundSpace(store, spaceUuid, backendId, true);
+            String sourceKey = "2:3:4";
+            String payloadKey = "chunk-collision/2/3/4";
+            ChunkCollisionPayload payload = new ChunkCollisionPayload(1.0f,
+                1.0f,
+                1.0f,
+                new int[] {0, 0, 0, 1, 0, 0},
+                List.of(),
+                List.of(),
+                true,
+                0.7f,
+                0.05f,
+                0x20,
+                0x03,
+                List.of());
+
+            PhysicsChunkCollisionMutationQueueResource queue = store.getResource(
+                PhysicsChunkCollisionMutationQueueResource.getResourceType());
+            queue.enqueue(ChunkCollisionMutation.upsert(spaceUuid,
+                sourceKey,
+                2,
+                3,
+                4,
+                payloadKey,
+                payload));
+
+            new ChunkCollisionMutationDrainSystem().tick(0.0f, 0, store);
+
+            assertEquals(0, queue.size());
+            assertSame(payload,
+                store.getResource(PhysicsChunkCollisionPayloadResource.getResourceType())
+                    .get(payloadKey));
+            assertSoftSkipsEmpty(store);
+            assertGeneratedVoxel(store,
+                spaceUuid,
+                spaceRef,
+                sourceKey,
+                payloadKey,
+                payload);
+        } finally {
+            registry.removeStore(store);
+            registry.shutdown();
+        }
+    }
+
+    @Test
+    void removeDeletesGeneratedRowsAndPayloadResource() {
+        ComponentRegistry<PhysicsStore> registry = new ComponentRegistry<>();
+        ComponentRegistryProxy<PhysicsStore> proxy =
+            new ComponentRegistryProxy<>(new ArrayList<>(), registry);
+        PhysicsComponentTypeRegistry.registerComponentTypes(proxy);
+        PhysicsResourceTypes.registerResourceTypes(proxy);
+        Store<PhysicsStore> store = registry.addStore(
+            new PhysicsStore(TestInstanceFactory.world("chunk-collision-drain-remove-test")),
+            EmptyResourceStorage.get());
+        try {
+            markCurrentThreadAsWorldThread(store);
+            UUID spaceUuid = uuid(21);
+            BackendId backendId = new BackendId("test:chunk-collision-drain-remove");
+            addBoundSpace(store, spaceUuid, backendId);
+            String sourceKey = "5:6:7";
+            String payloadKey = "chunk-collision/5/6/7";
+            ChunkCollisionPayload payload = new ChunkCollisionPayload(1.0f,
+                1.0f,
+                1.0f,
+                new int[0],
+                List.of(new BoxPayload(1.0, 2.0, 3.0, 0.5, 0.5, 0.5)),
+                List.of(new BoxPayload(4.0, 5.0, 6.0, 0.25, 0.25, 0.25)),
+                false,
+                0.6f,
+                0.1f,
+                0x10,
+                0x0F,
+                List.of());
+
+            PhysicsChunkCollisionMutationQueueResource queue = store.getResource(
+                PhysicsChunkCollisionMutationQueueResource.getResourceType());
+            queue.enqueue(ChunkCollisionMutation.upsert(spaceUuid,
+                sourceKey,
+                5,
+                6,
+                7,
+                payloadKey,
+                payload));
+            new ChunkCollisionMutationDrainSystem().tick(0.0f, 0, store);
+
+            PhysicsIdentityIndexResource identity =
+                store.getResource(PhysicsIdentityIndexResource.getResourceType());
+            UUID boxUuid = ChunkCollisionMutationDrainSystem.chunkCollisionBodyUuid(spaceUuid,
+                sourceKey,
+                PartKind.BOX,
+                0);
+            UUID detailUuid = ChunkCollisionMutationDrainSystem.chunkCollisionBodyUuid(spaceUuid,
+                sourceKey,
+                PartKind.DETAIL_BOX,
+                0);
+            assertNotNull(identity.getByUuid(boxUuid));
+            assertNotNull(identity.getByUuid(detailUuid));
+
+            queue.enqueue(ChunkCollisionMutation.remove(spaceUuid, sourceKey, 5, 6, 7));
+            new ChunkCollisionMutationDrainSystem().tick(0.0f, 0, store);
+
+            assertEquals(0, queue.size());
+            assertNull(identity.getByUuid(boxUuid));
+            assertNull(identity.getByUuid(detailUuid));
+            assertNull(store.getResource(PhysicsChunkCollisionPayloadResource.getResourceType())
+                .get(payloadKey));
+            assertSoftSkipsEmpty(store);
+        } finally {
+            registry.removeStore(store);
+            registry.shutdown();
+        }
+    }
+
     @Nonnull
     private static Ref<PhysicsStore> addBoundSpace(@Nonnull Store<PhysicsStore> store,
         @Nonnull UUID spaceUuid,
         @Nonnull BackendId backendId) {
+        return addBoundSpace(store, spaceUuid, backendId, false);
+    }
+
+    @Nonnull
+    private static Ref<PhysicsStore> addBoundSpace(@Nonnull Store<PhysicsStore> store,
+        @Nonnull UUID spaceUuid,
+        @Nonnull BackendId backendId,
+        boolean voxelTerrain) {
         Ref<PhysicsStore> spaceRef = store.addEntity(PhysicsEntities.spaceHolder(store,
                 spaceUuid,
                 new SpaceComponent(backendId, new Vector3f(0.0f, -9.81f, 0.0f))),
@@ -140,7 +280,7 @@ class ChunkCollisionMutationDrainSystemTest {
         store.getExternalData().putRefForUUID(spaceUuid, spaceRef);
 
         PhysicsBackendRuntime backendRuntime =
-            new FakePhysicsBackendRuntimeProvider(backendId, false, false).createRuntime();
+            new FakePhysicsBackendRuntimeProvider(backendId, false, voxelTerrain).createRuntime();
         int spaceHandle = backendRuntime.createSpace(new SpaceId(42));
         PhysicsRuntimeResource runtime = store.getResource(PhysicsRuntimeResource.getResourceType());
         runtime.putRuntime(backendId, backendRuntime);
@@ -149,6 +289,62 @@ class ChunkCollisionMutationDrainSystemTest {
             backendId,
             new BackendSpaceHandle(spaceHandle));
         return spaceRef;
+    }
+
+    private static void assertGeneratedVoxel(@Nonnull Store<PhysicsStore> store,
+        @Nonnull UUID spaceUuid,
+        @Nonnull Ref<PhysicsStore> spaceRef,
+        @Nonnull String sourceKey,
+        @Nonnull String payloadKey,
+        @Nonnull ChunkCollisionPayload payload) {
+        UUID bodyUuid = ChunkCollisionMutationDrainSystem.chunkCollisionBodyUuid(spaceUuid,
+            sourceKey,
+            PartKind.VOXEL_TERRAIN,
+            0);
+        Ref<PhysicsStore> bodyRef = store
+            .getResource(PhysicsIdentityIndexResource.getResourceType())
+            .getByUuid(bodyUuid);
+        assertNotNull(bodyRef);
+
+        BodyComponent body = store.getComponent(bodyRef, BodyComponent.getComponentType());
+        assertNotNull(body);
+        assertEquals(spaceUuid, body.getSpaceUuid());
+        assertNotNull(body.getSpaceRef());
+        assertEquals(spaceRef.getIndex(), body.getSpaceRef().getIndex());
+        assertEquals(PhysicsBodyKind.TERRAIN, body.getKind());
+        assertEquals(PhysicsBodyPersistenceMode.RUNTIME_ONLY, body.getPersistenceMode());
+
+        ShapeComponent shape = store.getComponent(bodyRef, ShapeComponent.getComponentType());
+        assertNotNull(shape);
+        assertEquals(ShapeType.VOXELS, shape.getShapeType());
+        assertEquals(payloadKey, shape.getResourceKey());
+
+        TargetComponent target = store.getComponent(bodyRef, TargetComponent.getComponentType());
+        assertNotNull(target);
+        assertVectorEquals(2 << ChunkUtil.BITS,
+            3 << ChunkUtil.BITS,
+            4 << ChunkUtil.BITS,
+            target.getPosition());
+
+        MaterialComponent material = store.getComponent(bodyRef,
+            MaterialComponent.getComponentType());
+        assertNotNull(material);
+        assertEquals(payload.friction(), material.getFriction(), DELTA);
+        assertEquals(payload.restitution(), material.getRestitution(), DELTA);
+
+        CollisionFilterComponent filter = store.getComponent(bodyRef,
+            CollisionFilterComponent.getComponentType());
+        assertNotNull(filter);
+        assertEquals(payload.collisionGroup(), filter.getCollisionGroup());
+        assertEquals(payload.collisionMask(), filter.getCollisionMask());
+
+        ChunkCollisionSourceComponent source = store.getComponent(bodyRef,
+            ChunkCollisionSourceComponent.getComponentType());
+        assertNotNull(source);
+        assertEquals(sourceKey, source.getSourceKey());
+        assertEquals(payloadKey, source.getPayloadResourceKey());
+        assertEquals(PartKind.VOXEL_TERRAIN, source.getPartKind());
+        assertEquals(0, source.getPartIndex());
     }
 
     private static void assertGeneratedBox(@Nonnull Store<PhysicsStore> store,
@@ -239,6 +435,18 @@ class ChunkCollisionMutationDrainSystemTest {
             store.getResource(PhysicsRestoreStatusResource.getResourceType())
                 .getSoftSkipsByReason()
                 .size());
+    }
+
+    private static void markCurrentThreadAsWorldThread(@Nonnull Store<PhysicsStore> store) {
+        try {
+            Method setThread = TickingThread.class.getDeclaredMethod("setThread", Thread.class);
+            setThread.setAccessible(true);
+            setThread.invoke(store.getExternalData().getWorld(), Thread.currentThread());
+        } catch (NoSuchMethodException | IllegalAccessException exception) {
+            throw new AssertionError("Could not mark test world thread", exception);
+        } catch (InvocationTargetException exception) {
+            throw new AssertionError("Could not mark test world thread", exception.getCause());
+        }
     }
 
     @Nonnull
