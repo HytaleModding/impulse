@@ -273,7 +273,7 @@ class VoxelTerrainCollisionCacheTest {
     }
 
     @Test
-    void terrainMaterialSettingsApplyToNativeVoxelAndFallbackBoxes() throws Throwable {
+    void terrainMaterialAndCollisionFilterApplyToNativeVoxelAndFallbackBoxes() throws Throwable {
         PhysicsChunkTerrainSettings nativeSettings = new PhysicsChunkTerrainSettings();
         nativeSettings.setNativeVoxelTerrainEnabled(true);
         nativeSettings.setTerrainMaterial(0.9f, 0.25f);
@@ -293,13 +293,15 @@ class VoxelTerrainCollisionCacheTest {
             0,
             0,
             0,
-            PhysicsChunkBuildOptions.fromSettings(nativeSettings));
+            buildOptions(nativeSettings, 0x40, 0x07));
 
         List<VoxelTerrainCall> calls =
             nativeFixture.runtime().voxelTerrainCalls(nativeFixture.backendSpaceId());
         assertEquals(1, calls.size());
         assertEquals(0.9f, calls.getFirst().friction(), 0.0001f);
         assertEquals(0.25f, calls.getFirst().restitution(), 0.0001f);
+        assertEquals(0x40, calls.getFirst().collisionGroup());
+        assertEquals(0x07, calls.getFirst().collisionMask());
 
         PhysicsChunkTerrainSettings fallbackSettings = new PhysicsChunkTerrainSettings();
         fallbackSettings.setTerrainMaterial(0.8f, 0.1f);
@@ -312,12 +314,14 @@ class VoxelTerrainCollisionCacheTest {
             0,
             0,
             0,
-            PhysicsChunkBuildOptions.fromSettings(fallbackSettings));
+            buildOptions(fallbackSettings, 0x20, 0x05));
 
         long fallbackBodyId = firstBackendBodyId(fallbackSection);
         var snapshot = PhysicsBodySnapshots.read(fallbackFixture.binding(), fallbackBodyId);
         assertEquals(0.8f, snapshot.friction(), 0.0001f);
         assertEquals(0.1f, snapshot.restitution(), 0.0001f);
+        assertEquals(0x20, snapshot.collisionGroup());
+        assertEquals(0x05, snapshot.collisionMask());
     }
 
     @Test
@@ -437,6 +441,18 @@ class VoxelTerrainCollisionCacheTest {
             long.class);
         constructor.setAccessible(true);
         return constructor.newInstance(chunkX, sectionY, chunkZ, 0L, 1L);
+    }
+
+    @Nonnull
+    private static PhysicsChunkBuildOptions buildOptions(@Nonnull PhysicsChunkTerrainSettings settings,
+        int collisionGroup,
+        int collisionMask) {
+        return new PhysicsChunkBuildOptions(
+            ChunkCollisionMode.fromNativeVoxelTerrainEnabled(settings.isNativeVoxelTerrainEnabled()),
+            settings.getTerrainFriction(),
+            settings.getTerrainRestitution(),
+            collisionGroup,
+            collisionMask);
     }
 
     private static void addGeometryBodies(@Nonnull PhysicsSpaceBinding space,

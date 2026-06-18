@@ -70,6 +70,40 @@ class PersistentSpaceDtoSettingsTest {
         assertDetachedVisualCadence(copied, 7, 9, 11);
     }
 
+    @Test
+    void roundTripPreservesChunkCollisionFilter() {
+        PhysicsChunkTerrainSettings terrain =
+            PhysicsSpaceSettings.defaults().getPhysicsChunkTerrainSettings();
+        PersistentSpaceDto state = new PersistentSpaceDto(UUID.randomUUID(),
+            "test:chunk-filter-persistence",
+            new Vector3f(0.0f, -9.81f, 0.0f),
+            terrain.getTerrainMode(),
+            terrain.getEntityChunkBoundaryMode(),
+            false,
+            PhysicsChunkTerrainSettings.DEFAULT_TERRAIN_RADIUS,
+            PhysicsChunkTerrainSettings.DEFAULT_BODY_TERRAIN_RADIUS,
+            PhysicsChunkTerrainSettings.DEFAULT_TERRAIN_TTL_TICKS,
+            PhysicsChunkTerrainSettings.DEFAULT_TERRAIN_FRICTION,
+            PhysicsChunkTerrainSettings.DEFAULT_TERRAIN_RESTITUTION,
+            0x40,
+            0x03,
+            new SolverSettingsComponent(),
+            new VisualSyncSettingsComponent(),
+            new VisualMaterializationSettingsComponent(),
+            new CollisionLodSettingsComponent(),
+            new ExtensionSettingsComponent());
+
+        BsonDocument encoded = PersistentSpaceDto.CODEC.encode(state, new ExtraInfo()).asDocument();
+
+        assertTrue(encoded.containsKey("ChunkCollisionFilter"));
+        PersistentSpaceDto decoded = Objects.requireNonNull(
+            PersistentSpaceDto.CODEC.decode(encoded, new ExtraInfo()));
+        assertEquals(0x40, decoded.getChunkCollisionGroup());
+        assertEquals(0x03, decoded.getChunkCollisionMask());
+        assertEquals(0x40, state.copy().getChunkCollisionGroup());
+        assertEquals(0x03, state.copy().getChunkCollisionMask());
+    }
+
     private static void assertDetachedVisualCadence(PhysicsSpaceSettings settings,
         int interestInterval,
         int candidateInterval,
