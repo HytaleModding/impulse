@@ -130,6 +130,20 @@ public final class CollisionLodSettingsComponent implements Component<PhysicsSto
         target.setCollisionLodFarSleepEnabled(collisionLodFarSleepEnabled);
     }
 
+    public boolean isDefault() {
+        return collisionLodEnabled == PhysicsCollisionLodSettings.DEFAULT_COLLISION_LOD_ENABLED
+            && collisionLodNearRadius
+                == PhysicsCollisionLodSettings.DEFAULT_COLLISION_LOD_NEAR_RADIUS
+            && collisionLodMidRadius
+                == PhysicsCollisionLodSettings.DEFAULT_COLLISION_LOD_MID_RADIUS
+            && collisionLodHysteresis
+                == PhysicsCollisionLodSettings.DEFAULT_COLLISION_LOD_HYSTERESIS
+            && collisionLodRefreshIntervalTicks
+                == PhysicsCollisionLodSettings.DEFAULT_COLLISION_LOD_REFRESH_INTERVAL_TICKS
+            && collisionLodFarSleepEnabled
+                == PhysicsCollisionLodSettings.DEFAULT_COLLISION_LOD_FAR_SLEEP_ENABLED;
+    }
+
     @Nonnull
     public static ComponentType<PhysicsStore, CollisionLodSettingsComponent> getComponentType() {
         return PhysicsComponentTypes.collisionLodSettingsComponentType();

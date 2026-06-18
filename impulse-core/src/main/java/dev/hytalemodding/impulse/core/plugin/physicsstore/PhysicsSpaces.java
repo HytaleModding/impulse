@@ -1,5 +1,7 @@
 package dev.hytalemodding.impulse.core.plugin.physicsstore;
 
+import com.hypixel.hytale.component.Component;
+import com.hypixel.hytale.component.ComponentType;
 import com.hypixel.hytale.component.Ref;
 import com.hypixel.hytale.component.Store;
 import com.hypixel.hytale.server.core.universe.world.storage.PhysicsStore;
@@ -8,6 +10,7 @@ import dev.hytalemodding.impulse.api.SpaceId;
 import dev.hytalemodding.impulse.core.internal.physicsstore.PhysicsStoreSpaceMutations;
 import dev.hytalemodding.impulse.core.internal.physicsstore.PhysicsStoreTopologyMutations;
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsIdentityIndexResource;
+import dev.hytalemodding.impulse.core.internal.resources.PhysicsRuntimeResource;
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsSpaceCompatibilityIndexResource;
 import dev.hytalemodding.impulse.core.plugin.modules.physicschunk.components.CollisionLodSettingsComponent;
 import dev.hytalemodding.impulse.core.plugin.components.ExtensionSettingsComponent;
@@ -58,7 +61,9 @@ public final class PhysicsSpaces {
     @Nonnull
     public static SpaceId create(@Nonnull Store<PhysicsStore> store,
         @Nonnull BackendId backendId) {
-        return create(store, backendId, PhysicsSpaceSettings.defaults());
+        SpaceId spaceId = SpaceId.next();
+        create(store, UUID.randomUUID(), spaceId, backendId);
+        return spaceId;
     }
 
     @Nonnull
@@ -68,6 +73,19 @@ public final class PhysicsSpaces {
         SpaceId spaceId = SpaceId.next();
         create(store, UUID.randomUUID(), spaceId, backendId, settings);
         return spaceId;
+    }
+
+    @Nonnull
+    public static Ref<PhysicsStore> create(@Nonnull Store<PhysicsStore> store,
+        @Nonnull UUID spaceUuid,
+        @Nonnull SpaceId spaceId,
+        @Nonnull BackendId backendId) {
+        Store<PhysicsStore> checkedStore = requireWorldThread(store,
+            "create a PhysicsStore space");
+        return PhysicsStoreSpaceMutations.addSpace(checkedStore,
+            Objects.requireNonNull(spaceUuid, "spaceUuid"),
+            Objects.requireNonNull(spaceId, "spaceId"),
+            Objects.requireNonNull(backendId, "backendId"));
     }
 
     @Nonnull
@@ -173,6 +191,89 @@ public final class PhysicsSpaces {
             Objects.requireNonNull(settings, "settings"));
     }
 
+    @Nullable
+    public static <T extends Component<PhysicsStore>> T getSpaceComponent(
+        @Nonnull Store<PhysicsStore> store,
+        @Nonnull SpaceId spaceId,
+        @Nonnull ComponentType<PhysicsStore, T> componentType) {
+        Store<PhysicsStore> checkedStore = requireWorldThread(store,
+            "read a PhysicsStore space component");
+        Ref<PhysicsStore> ref = requireSpaceRef(checkedStore,
+            Objects.requireNonNull(spaceId, "spaceId"));
+        return checkedStore.getComponent(ref, Objects.requireNonNull(componentType,
+            "componentType"));
+    }
+
+    @Nullable
+    public static <T extends Component<PhysicsStore>> T getSpaceComponent(
+        @Nonnull Store<PhysicsStore> store,
+        @Nonnull Ref<PhysicsStore> spaceRef,
+        @Nonnull ComponentType<PhysicsStore, T> componentType) {
+        Store<PhysicsStore> checkedStore = requireWorldThread(store,
+            "read a PhysicsStore space component");
+        Ref<PhysicsStore> ref = requireSpaceRef(checkedStore,
+            Objects.requireNonNull(spaceRef, "spaceRef"));
+        return checkedStore.getComponent(ref, Objects.requireNonNull(componentType,
+            "componentType"));
+    }
+
+    public static <T extends Component<PhysicsStore>> void putSpaceComponent(
+        @Nonnull Store<PhysicsStore> store,
+        @Nonnull SpaceId spaceId,
+        @Nonnull ComponentType<PhysicsStore, T> componentType,
+        @Nonnull T component) {
+        Store<PhysicsStore> checkedStore = requireWorldThread(store,
+            "put a PhysicsStore space component");
+        putSpaceComponent(checkedStore,
+            requireSpaceRef(checkedStore, Objects.requireNonNull(spaceId, "spaceId")),
+            componentType,
+            component);
+    }
+
+    public static <T extends Component<PhysicsStore>> void putSpaceComponent(
+        @Nonnull Store<PhysicsStore> store,
+        @Nonnull Ref<PhysicsStore> spaceRef,
+        @Nonnull ComponentType<PhysicsStore, T> componentType,
+        @Nonnull T component) {
+        Store<PhysicsStore> checkedStore = requireWorldThread(store,
+            "put a PhysicsStore space component");
+        Ref<PhysicsStore> ref = requireSpaceRef(checkedStore,
+            Objects.requireNonNull(spaceRef, "spaceRef"));
+        checkedStore.putComponent(ref,
+            Objects.requireNonNull(componentType, "componentType"),
+            copy(Objects.requireNonNull(component, "component")));
+        checkedStore.getResource(PhysicsRuntimeResource.getResourceType())
+            .markSpaceSettingsPending(ref);
+    }
+
+    public static <T extends Component<PhysicsStore>> boolean removeSpaceComponent(
+        @Nonnull Store<PhysicsStore> store,
+        @Nonnull SpaceId spaceId,
+        @Nonnull ComponentType<PhysicsStore, T> componentType) {
+        Store<PhysicsStore> checkedStore = requireWorldThread(store,
+            "remove a PhysicsStore space component");
+        return removeSpaceComponent(checkedStore,
+            requireSpaceRef(checkedStore, Objects.requireNonNull(spaceId, "spaceId")),
+            componentType);
+    }
+
+    public static <T extends Component<PhysicsStore>> boolean removeSpaceComponent(
+        @Nonnull Store<PhysicsStore> store,
+        @Nonnull Ref<PhysicsStore> spaceRef,
+        @Nonnull ComponentType<PhysicsStore, T> componentType) {
+        Store<PhysicsStore> checkedStore = requireWorldThread(store,
+            "remove a PhysicsStore space component");
+        Ref<PhysicsStore> ref = requireSpaceRef(checkedStore,
+            Objects.requireNonNull(spaceRef, "spaceRef"));
+        boolean removed = checkedStore.removeComponentIfExists(ref,
+            Objects.requireNonNull(componentType, "componentType"));
+        if (removed) {
+            checkedStore.getResource(PhysicsRuntimeResource.getResourceType())
+                .markSpaceSettingsPending(ref);
+        }
+        return removed;
+    }
+
     public static void removeEmpty(@Nonnull Store<PhysicsStore> store,
         @Nonnull SpaceId spaceId) {
         Store<PhysicsStore> checkedStore = requireWorldThread(store,
@@ -196,5 +297,34 @@ public final class PhysicsSpaces {
         Store<PhysicsStore> checkedStore = Objects.requireNonNull(store, "store");
         PhysicsThreading.requireWorldThread(checkedStore, operation);
         return checkedStore;
+    }
+
+    @Nonnull
+    private static Ref<PhysicsStore> requireSpaceRef(@Nonnull Store<PhysicsStore> store,
+        @Nonnull SpaceId spaceId) {
+        Ref<PhysicsStore> ref = resolveRef(store, spaceId);
+        if (ref == null) {
+            throw new IllegalArgumentException("PhysicsStore space id=" + spaceId.value()
+                + " is not registered");
+        }
+        return ref;
+    }
+
+    @Nonnull
+    private static Ref<PhysicsStore> requireSpaceRef(@Nonnull Store<PhysicsStore> store,
+        @Nonnull Ref<PhysicsStore> ref) {
+        if (ref.getStore() != store || !ref.isValid()) {
+            throw new IllegalArgumentException("PhysicsStore space entity is not valid: " + ref);
+        }
+        if (store.getComponent(ref, SpaceComponent.getComponentType()) == null) {
+            throw new IllegalArgumentException("PhysicsStore entity is not a space entity: " + ref);
+        }
+        return ref;
+    }
+
+    @Nonnull
+    @SuppressWarnings("unchecked")
+    private static <T extends Component<PhysicsStore>> T copy(@Nonnull T component) {
+        return (T) component.clone();
     }
 }

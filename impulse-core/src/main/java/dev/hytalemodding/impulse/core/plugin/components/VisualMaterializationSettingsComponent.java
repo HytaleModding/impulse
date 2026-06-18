@@ -184,6 +184,33 @@ public final class VisualMaterializationSettingsComponent implements Component<P
         target.setDetachedVisualBlockType(detachedVisualBlockType);
     }
 
+    public boolean isDefault() {
+        return detachedVisualMaterializationEnabled
+                == PhysicsVisualMaterializationSettings
+                    .DEFAULT_DETACHED_VISUAL_MATERIALIZATION_ENABLED
+            && detachedVisualMaterializationRadius
+                == PhysicsVisualMaterializationSettings
+                    .DEFAULT_DETACHED_VISUAL_MATERIALIZATION_RADIUS
+            && detachedVisualDematerializationRadius
+                == PhysicsVisualMaterializationSettings
+                    .DEFAULT_DETACHED_VISUAL_DEMATERIALIZATION_RADIUS
+            && detachedVisualMaxSpawnsPerTick
+                == PhysicsVisualMaterializationSettings.DEFAULT_DETACHED_VISUAL_MAX_SPAWNS_PER_TICK
+            && detachedVisualMaxMaterialized
+                == PhysicsVisualMaterializationSettings.DEFAULT_DETACHED_VISUAL_MAX_MATERIALIZED
+            && detachedVisualInterestRefreshIntervalTicks
+                == PhysicsVisualMaterializationSettings
+                    .DEFAULT_DETACHED_VISUAL_INTEREST_REFRESH_INTERVAL_TICKS
+            && detachedVisualCandidateRefreshIntervalTicks
+                == PhysicsVisualMaterializationSettings
+                    .DEFAULT_DETACHED_VISUAL_CANDIDATE_REFRESH_INTERVAL_TICKS
+            && detachedVisualVisibilityCheckIntervalTicks
+                == PhysicsVisualMaterializationSettings
+                    .DEFAULT_DETACHED_VISUAL_VISIBILITY_CHECK_INTERVAL_TICKS
+            && detachedVisualBlockType.equals(
+                PhysicsVisualMaterializationSettings.DEFAULT_DETACHED_VISUAL_BLOCK_TYPE);
+    }
+
     @Nonnull
     public static ComponentType<PhysicsStore, VisualMaterializationSettingsComponent>
     getComponentType() {

@@ -1,6 +1,8 @@
 package dev.hytalemodding.impulse.core.internal.systems;
 
 import com.hypixel.hytale.component.AddReason;
+import com.hypixel.hytale.component.Component;
+import com.hypixel.hytale.component.ComponentType;
 import com.hypixel.hytale.component.Holder;
 import com.hypixel.hytale.component.Store;
 import com.hypixel.hytale.component.dependency.Dependency;
@@ -87,19 +89,41 @@ public final class PersistenceHydrationSystem extends TickingSystem<PhysicsStore
         Holder<PhysicsStore> holder = row(store, dto.getSpaceUuid());
         holder.addComponent(SpaceComponent.getComponentType(),
             new SpaceComponent(new BackendId(dto.getBackendId()), dto.getGravity()));
-        holder.addComponent(PhysicsChunkTerrainComponent.getComponentType(),
-            dto.getPhysicsChunkTerrain());
-        holder.addComponent(SolverSettingsComponent.getComponentType(),
-            dto.getSolverSettings());
-        holder.addComponent(VisualSyncSettingsComponent.getComponentType(),
-            dto.getVisualSyncSettings());
-        holder.addComponent(VisualMaterializationSettingsComponent.getComponentType(),
-            dto.getVisualMaterializationSettings());
-        holder.addComponent(CollisionLodSettingsComponent.getComponentType(),
-            dto.getCollisionLodSettings());
-        holder.addComponent(ExtensionSettingsComponent.getComponentType(),
-            dto.getExtensionSettings());
+        addIfNonDefault(holder,
+            PhysicsChunkTerrainComponent.getComponentType(),
+            dto.getPhysicsChunkTerrain(),
+            dto.getPhysicsChunkTerrain().isDefault());
+        addIfNonDefault(holder,
+            SolverSettingsComponent.getComponentType(),
+            dto.getSolverSettings(),
+            dto.getSolverSettings().isDefault());
+        addIfNonDefault(holder,
+            VisualSyncSettingsComponent.getComponentType(),
+            dto.getVisualSyncSettings(),
+            dto.getVisualSyncSettings().isDefault());
+        addIfNonDefault(holder,
+            VisualMaterializationSettingsComponent.getComponentType(),
+            dto.getVisualMaterializationSettings(),
+            dto.getVisualMaterializationSettings().isDefault());
+        addIfNonDefault(holder,
+            CollisionLodSettingsComponent.getComponentType(),
+            dto.getCollisionLodSettings(),
+            dto.getCollisionLodSettings().isDefault());
+        addIfNonDefault(holder,
+            ExtensionSettingsComponent.getComponentType(),
+            dto.getExtensionSettings(),
+            dto.getExtensionSettings().isDefault());
         add(store, holder);
+    }
+
+    private static <T extends Component<PhysicsStore>> void addIfNonDefault(
+        @Nonnull Holder<PhysicsStore> holder,
+        @Nonnull ComponentType<PhysicsStore, T> componentType,
+        @Nonnull T component,
+        boolean defaultValue) {
+        if (!defaultValue) {
+            holder.addComponent(componentType, component);
+        }
     }
 
     private static void addBodies(@Nonnull Store<PhysicsStore> store,

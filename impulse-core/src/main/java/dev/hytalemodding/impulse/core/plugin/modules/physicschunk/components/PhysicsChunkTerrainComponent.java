@@ -219,6 +219,21 @@ public class PhysicsChunkTerrainComponent implements Component<PhysicsStore> {
         settings.setTerrainMaterial(terrainFriction, terrainRestitution);
     }
 
+    public boolean isDefault() {
+        return terrainMode == PhysicsChunkTerrainMode.NONE
+            && entityChunkBoundaryMode
+                == PhysicsChunkTerrainSettings.DEFAULT_ENTITY_CHUNK_BOUNDARY_MODE
+            && nativeVoxelTerrainEnabled
+                == PhysicsChunkTerrainSettings.DEFAULT_NATIVE_VOXEL_TERRAIN_ENABLED
+            && radius == PhysicsChunkTerrainSettings.DEFAULT_TERRAIN_RADIUS
+            && bodyRadius == PhysicsChunkTerrainSettings.DEFAULT_BODY_TERRAIN_RADIUS
+            && ttlTicks == PhysicsChunkTerrainSettings.DEFAULT_TERRAIN_TTL_TICKS
+            && Float.compare(terrainFriction,
+                PhysicsChunkTerrainSettings.DEFAULT_TERRAIN_FRICTION) == 0
+            && Float.compare(terrainRestitution,
+                PhysicsChunkTerrainSettings.DEFAULT_TERRAIN_RESTITUTION) == 0;
+    }
+
     @Nonnull
     public static ComponentType<PhysicsStore, PhysicsChunkTerrainComponent> getComponentType() {
         return PhysicsComponentTypes.physicsChunkTerrainComponentType();

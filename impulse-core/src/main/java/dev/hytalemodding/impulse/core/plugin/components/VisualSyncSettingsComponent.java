@@ -227,6 +227,34 @@ public final class VisualSyncSettingsComponent implements Component<PhysicsStore
         target.setVisualVisibilityCullingEnabled(visualVisibilityCullingEnabled);
     }
 
+    public boolean isDefault() {
+        return visualFullSyncRadius == PhysicsVisualSyncSettings.DEFAULT_VISUAL_FULL_SYNC_RADIUS
+            && visualMaxSyncRadius == PhysicsVisualSyncSettings.DEFAULT_VISUAL_MAX_SYNC_RADIUS
+            && visualFarSyncCutoffEnabled
+                == PhysicsVisualSyncSettings.DEFAULT_VISUAL_FAR_SYNC_CUTOFF_ENABLED
+            && visualMidSyncIntervalTicks
+                == PhysicsVisualSyncSettings.DEFAULT_VISUAL_MID_SYNC_INTERVAL_TICKS
+            && visualFarSyncIntervalTicks
+                == PhysicsVisualSyncSettings.DEFAULT_VISUAL_FAR_SYNC_INTERVAL_TICKS
+            && visualOcclusionMode == PhysicsVisualSyncSettings.DEFAULT_VISUAL_OCCLUSION_MODE
+            && visualOcclusionRaycastsPerTick
+                == PhysicsVisualSyncSettings.DEFAULT_VISUAL_OCCLUSION_RAYCASTS_PER_TICK
+            && visualOcclusionCacheTicks
+                == PhysicsVisualSyncSettings.DEFAULT_VISUAL_OCCLUSION_CACHE_TICKS
+            && visualSnapshotPredictionEnabled
+                == PhysicsVisualSyncSettings.DEFAULT_VISUAL_SNAPSHOT_PREDICTION_ENABLED
+            && Float.compare(visualSnapshotPredictionMaxSeconds,
+                PhysicsVisualSyncSettings.DEFAULT_VISUAL_SNAPSHOT_PREDICTION_MAX_SECONDS) == 0
+            && visualSnapshotSmoothingEnabled
+                == PhysicsVisualSyncSettings.DEFAULT_VISUAL_SNAPSHOT_SMOOTHING_ENABLED
+            && Float.compare(visualSnapshotSmoothingRate,
+                PhysicsVisualSyncSettings.DEFAULT_VISUAL_SNAPSHOT_SMOOTHING_RATE) == 0
+            && entityVisualSyncCullingEnabled
+                == PhysicsVisualSyncSettings.DEFAULT_ENTITY_VISUAL_SYNC_CULLING_ENABLED
+            && visualVisibilityCullingEnabled
+                == PhysicsVisualSyncSettings.DEFAULT_VISUAL_VISIBILITY_CULLING_ENABLED;
+    }
+
     @Nonnull
     public static ComponentType<PhysicsStore, VisualSyncSettingsComponent> getComponentType() {
         return PhysicsComponentTypes.visualSyncSettingsComponentType();

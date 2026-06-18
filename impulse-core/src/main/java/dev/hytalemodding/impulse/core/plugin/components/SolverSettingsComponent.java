@@ -135,6 +135,18 @@ public final class SolverSettingsComponent implements Component<PhysicsStore> {
             dynamicSleepTimeUntilSleep);
     }
 
+    public boolean isDefault() {
+        return solverIterations == PhysicsSolverSettings.DEFAULT_SOLVER_ITERATIONS
+            && stabilizationIterations
+                == PhysicsSolverSettings.DEFAULT_STABILIZATION_ITERATIONS
+            && Float.compare(dynamicSleepLinearThreshold,
+                PhysicsSolverSettings.DEFAULT_DYNAMIC_SLEEP_LINEAR_THRESHOLD) == 0
+            && Float.compare(dynamicSleepAngularThreshold,
+                PhysicsSolverSettings.DEFAULT_DYNAMIC_SLEEP_ANGULAR_THRESHOLD) == 0
+            && Float.compare(dynamicSleepTimeUntilSleep,
+                PhysicsSolverSettings.DEFAULT_DYNAMIC_SLEEP_TIME_UNTIL_SLEEP) == 0;
+    }
+
     @Nonnull
     public static ComponentType<PhysicsStore, SolverSettingsComponent> getComponentType() {
         return PhysicsComponentTypes.solverSettingsComponentType();

@@ -65,6 +65,10 @@ public final class ExtensionSettingsComponent implements Component<PhysicsStore>
         }
     }
 
+    public boolean isDefault() {
+        return entries.length == 0;
+    }
+
     @Nonnull
     public static ComponentType<PhysicsStore, ExtensionSettingsComponent> getComponentType() {
         return PhysicsComponentTypes.extensionSettingsComponentType();

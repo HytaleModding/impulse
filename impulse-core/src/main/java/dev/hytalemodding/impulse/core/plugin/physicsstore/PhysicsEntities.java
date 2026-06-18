@@ -64,6 +64,15 @@ public final class PhysicsEntities {
     @Nonnull
     public static Holder<PhysicsStore> spaceHolder(@Nonnull Store<PhysicsStore> store,
         @Nonnull UUID spaceUuid,
+        @Nonnull SpaceComponent space) {
+        Holder<PhysicsStore> holder = entityHolder(store, spaceUuid);
+        addSpaceComponent(holder, space);
+        return holder;
+    }
+
+    @Nonnull
+    public static Holder<PhysicsStore> spaceHolder(@Nonnull Store<PhysicsStore> store,
+        @Nonnull UUID spaceUuid,
         @Nonnull SpaceComponent space,
         @Nonnull PhysicsChunkTerrainComponent terrainSettings,
         @Nonnull SolverSettingsComponent solverSettings,
@@ -81,6 +90,13 @@ public final class PhysicsEntities {
             collisionLodSettings,
             extensionSettings);
         return holder;
+    }
+
+    public static void addSpaceComponent(@Nonnull Holder<PhysicsStore> holder,
+        @Nonnull SpaceComponent space) {
+        Objects.requireNonNull(holder, "holder")
+            .addComponent(SpaceComponent.getComponentType(),
+                Objects.requireNonNull(space, "space").clone());
     }
 
     @Nonnull
@@ -126,9 +142,7 @@ public final class PhysicsEntities {
         @Nonnull VisualMaterializationSettingsComponent visualMaterializationSettings,
         @Nonnull CollisionLodSettingsComponent collisionLodSettings,
         @Nonnull ExtensionSettingsComponent extensionSettings) {
-        Objects.requireNonNull(holder, "holder")
-            .addComponent(SpaceComponent.getComponentType(),
-                Objects.requireNonNull(space, "space").clone());
+        addSpaceComponent(holder, space);
         holder.addComponent(PhysicsChunkTerrainComponent.getComponentType(),
             Objects.requireNonNull(terrainSettings, "terrainSettings").clone());
         addSpaceSettingsComponents(holder,

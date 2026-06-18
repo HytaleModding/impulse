@@ -1,6 +1,9 @@
 package dev.hytalemodding.impulse.core.internal.physicsstore;
 
 import com.hypixel.hytale.component.AddReason;
+import com.hypixel.hytale.component.Component;
+import com.hypixel.hytale.component.ComponentType;
+import com.hypixel.hytale.component.Holder;
 import com.hypixel.hytale.component.Ref;
 import com.hypixel.hytale.component.RemoveReason;
 import com.hypixel.hytale.component.Store;
@@ -26,6 +29,7 @@ import dev.hytalemodding.impulse.core.plugin.settings.PhysicsSpaceSettings;
 import java.util.Objects;
 import java.util.UUID;
 import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
 import org.joml.Vector3f;
 
 /**
@@ -40,8 +44,29 @@ public final class PhysicsStoreSpaceMutations {
     public static Ref<PhysicsStore> addSpace(@Nonnull Store<PhysicsStore> store,
         @Nonnull UUID spaceUuid,
         @Nonnull SpaceId compatibilitySpaceId,
+        @Nonnull BackendId backendId) {
+        return addSpace0(store, spaceUuid, compatibilitySpaceId, backendId, null);
+    }
+
+    @Nonnull
+    public static Ref<PhysicsStore> addSpace(@Nonnull Store<PhysicsStore> store,
+        @Nonnull UUID spaceUuid,
+        @Nonnull SpaceId compatibilitySpaceId,
         @Nonnull BackendId backendId,
         @Nonnull PhysicsSpaceSettings settings) {
+        return addSpace0(store,
+            spaceUuid,
+            compatibilitySpaceId,
+            backendId,
+            Objects.requireNonNull(settings, "settings"));
+    }
+
+    @Nonnull
+    private static Ref<PhysicsStore> addSpace0(@Nonnull Store<PhysicsStore> store,
+        @Nonnull UUID spaceUuid,
+        @Nonnull SpaceId compatibilitySpaceId,
+        @Nonnull BackendId backendId,
+        @Nullable PhysicsSpaceSettings settings) {
 
         PhysicsThreading.requireWorldThread(store, "add a PhysicsStore space entity");
         if (backendId.value().isBlank()) {
@@ -61,15 +86,13 @@ public final class PhysicsStoreSpaceMutations {
             throw new IllegalArgumentException("PhysicsStore space uuid=" + spaceUuid
                 + " is already registered");
         }
-        Ref<PhysicsStore> ref = store.addEntity(PhysicsEntities.spaceHolder(store,
+        Holder<PhysicsStore> holder = PhysicsEntities.spaceHolder(store,
             spaceUuid,
-            new SpaceComponent(backendId, new Vector3f(0.0f, -9.81f, 0.0f)),
-            new PhysicsChunkTerrainComponent(settings.getPhysicsChunkTerrainSettings()),
-            new SolverSettingsComponent(settings.getSolverSettings()),
-            new VisualSyncSettingsComponent(settings.getVisualSyncSettings()),
-            new VisualMaterializationSettingsComponent(settings.getVisualMaterializationSettings()),
-            new CollisionLodSettingsComponent(settings.getCollisionLodSettings()),
-            new ExtensionSettingsComponent(settings.getExtensionSettings())), AddReason.SPAWN);
+            new SpaceComponent(backendId, new Vector3f(0.0f, -9.81f, 0.0f)));
+        if (settings != null) {
+            addSpaceSettingsComponents(holder, settings);
+        }
+        Ref<PhysicsStore> ref = store.addEntity(holder, AddReason.SPAWN);
         assert ref != null;
         identity.putUuid(spaceUuid, ref);
         compatibility.putSpace(compatibilitySpaceId, spaceUuid);
@@ -117,18 +140,119 @@ public final class PhysicsStoreSpaceMutations {
         @Nonnull PhysicsSpaceSettings settings) {
         requireSpaceUuid(store, ref);
         PhysicsThreading.requireWorldThread(store, "update a PhysicsStore space entity");
-        store.putComponent(ref,
-            PhysicsChunkTerrainComponent.getComponentType(),
-            new PhysicsChunkTerrainComponent(settings.getPhysicsChunkTerrainSettings()));
-        PhysicsEntities.putSpaceSettingsComponents(store,
-            ref,
-            new SolverSettingsComponent(settings.getSolverSettings()),
-            new VisualSyncSettingsComponent(settings.getVisualSyncSettings()),
-            new VisualMaterializationSettingsComponent(settings.getVisualMaterializationSettings()),
-            new CollisionLodSettingsComponent(settings.getCollisionLodSettings()),
-            new ExtensionSettingsComponent(settings.getExtensionSettings()));
+        putSpaceSettingsComponents(store, ref, Objects.requireNonNull(settings, "settings"));
         store.getResource(PhysicsRuntimeResource.getResourceType())
             .markSpaceSettingsPending(ref);
+    }
+
+    private static void addSpaceSettingsComponents(@Nonnull Holder<PhysicsStore> holder,
+        @Nonnull PhysicsSpaceSettings settings) {
+        PhysicsChunkTerrainComponent terrain =
+            new PhysicsChunkTerrainComponent(settings.getPhysicsChunkTerrainSettings());
+        addIfNonDefault(holder,
+            PhysicsChunkTerrainComponent.getComponentType(),
+            terrain,
+            terrain.isDefault());
+        SolverSettingsComponent solver = new SolverSettingsComponent(settings.getSolverSettings());
+        addIfNonDefault(holder,
+            SolverSettingsComponent.getComponentType(),
+            solver,
+            solver.isDefault());
+        VisualSyncSettingsComponent visualSync =
+            new VisualSyncSettingsComponent(settings.getVisualSyncSettings());
+        addIfNonDefault(holder,
+            VisualSyncSettingsComponent.getComponentType(),
+            visualSync,
+            visualSync.isDefault());
+        VisualMaterializationSettingsComponent visualMaterialization =
+            new VisualMaterializationSettingsComponent(
+                settings.getVisualMaterializationSettings());
+        addIfNonDefault(holder,
+            VisualMaterializationSettingsComponent.getComponentType(),
+            visualMaterialization,
+            visualMaterialization.isDefault());
+        CollisionLodSettingsComponent collisionLod =
+            new CollisionLodSettingsComponent(settings.getCollisionLodSettings());
+        addIfNonDefault(holder,
+            CollisionLodSettingsComponent.getComponentType(),
+            collisionLod,
+            collisionLod.isDefault());
+        ExtensionSettingsComponent extension =
+            new ExtensionSettingsComponent(settings.getExtensionSettings());
+        addIfNonDefault(holder,
+            ExtensionSettingsComponent.getComponentType(),
+            extension,
+            extension.isDefault());
+    }
+
+    private static <T extends Component<PhysicsStore>> void addIfNonDefault(
+        @Nonnull Holder<PhysicsStore> holder,
+        @Nonnull ComponentType<PhysicsStore, T> componentType,
+        @Nonnull T component,
+        boolean defaultValue) {
+        if (!defaultValue) {
+            holder.addComponent(componentType, component);
+        }
+    }
+
+    private static void putSpaceSettingsComponents(@Nonnull Store<PhysicsStore> store,
+        @Nonnull Ref<PhysicsStore> ref,
+        @Nonnull PhysicsSpaceSettings settings) {
+        PhysicsChunkTerrainComponent terrain =
+            new PhysicsChunkTerrainComponent(settings.getPhysicsChunkTerrainSettings());
+        putOrRemoveDefault(store,
+            ref,
+            PhysicsChunkTerrainComponent.getComponentType(),
+            terrain,
+            terrain.isDefault());
+        SolverSettingsComponent solver = new SolverSettingsComponent(settings.getSolverSettings());
+        putOrRemoveDefault(store,
+            ref,
+            SolverSettingsComponent.getComponentType(),
+            solver,
+            solver.isDefault());
+        VisualSyncSettingsComponent visualSync =
+            new VisualSyncSettingsComponent(settings.getVisualSyncSettings());
+        putOrRemoveDefault(store,
+            ref,
+            VisualSyncSettingsComponent.getComponentType(),
+            visualSync,
+            visualSync.isDefault());
+        VisualMaterializationSettingsComponent visualMaterialization =
+            new VisualMaterializationSettingsComponent(
+                settings.getVisualMaterializationSettings());
+        putOrRemoveDefault(store,
+            ref,
+            VisualMaterializationSettingsComponent.getComponentType(),
+            visualMaterialization,
+            visualMaterialization.isDefault());
+        CollisionLodSettingsComponent collisionLod =
+            new CollisionLodSettingsComponent(settings.getCollisionLodSettings());
+        putOrRemoveDefault(store,
+            ref,
+            CollisionLodSettingsComponent.getComponentType(),
+            collisionLod,
+            collisionLod.isDefault());
+        ExtensionSettingsComponent extension =
+            new ExtensionSettingsComponent(settings.getExtensionSettings());
+        putOrRemoveDefault(store,
+            ref,
+            ExtensionSettingsComponent.getComponentType(),
+            extension,
+            extension.isDefault());
+    }
+
+    private static <T extends Component<PhysicsStore>> void putOrRemoveDefault(
+        @Nonnull Store<PhysicsStore> store,
+        @Nonnull Ref<PhysicsStore> ref,
+        @Nonnull ComponentType<PhysicsStore, T> componentType,
+        @Nonnull T component,
+        boolean defaultValue) {
+        if (defaultValue) {
+            store.removeComponentIfExists(ref, componentType);
+        } else {
+            store.putComponent(ref, componentType, component);
+        }
     }
 
     public static void removeEmptySpace(@Nonnull Store<PhysicsStore> store,
