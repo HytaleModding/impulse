@@ -13,7 +13,9 @@ import dev.hytalemodding.impulse.core.internal.physicsstore.PhysicsStoreTopology
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsChunkSettingsIndexResource.PhysicsChunkSpaceSettings;
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsIdentityIndexResource;
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsChunkCollisionMutationQueueResource;
-import dev.hytalemodding.impulse.core.plugin.modules.physicschunk.components.PhysicsChunkTerrainComponent;
+import dev.hytalemodding.impulse.core.plugin.components.MaterialComponent;
+import dev.hytalemodding.impulse.core.plugin.modules.physicschunk.components.ChunkCollisionSettingsComponent;
+import dev.hytalemodding.impulse.core.plugin.modules.physicschunk.settings.PhysicsChunkTerrainSettings;
 import dev.hytalemodding.impulse.core.plugin.physicsstore.PhysicsThreading;
 import java.util.List;
 import java.util.Objects;
@@ -157,14 +159,16 @@ public final class PhysicsChunkTerrain {
             throw new IllegalStateException("PhysicsStore space id=" + spaceId.value()
                 + " is not bound yet");
         }
-        PhysicsChunkTerrainComponent component =
-            store.getComponent(spaceRef, PhysicsChunkTerrainComponent.getComponentType());
-        PhysicsChunkTerrainComponent settings =
-            component != null ? component : new PhysicsChunkTerrainComponent();
+        ChunkCollisionSettingsComponent component =
+            store.getComponent(spaceRef, ChunkCollisionSettingsComponent.getComponentType());
+        ChunkCollisionSettingsComponent settings =
+            component != null ? component : new ChunkCollisionSettingsComponent();
         if (settings.getTerrainMode() == PhysicsChunkTerrainMode.NONE) {
             throw new IllegalStateException("PhysicsChunk terrain is disabled for space "
                 + spaceId);
         }
+        MaterialComponent material =
+            store.getComponent(spaceRef, MaterialComponent.getComponentType());
         return new PhysicsChunkSpaceSettings(spaceUuid,
             settings.getTerrainMode(),
             settings.getEntityChunkBoundaryMode(),
@@ -172,8 +176,12 @@ public final class PhysicsChunkTerrain {
             settings.getRadius(),
             settings.getBodyRadius(),
             settings.getTtlTicks(),
-            settings.getTerrainFriction(),
-            settings.getTerrainRestitution());
+            material != null
+                ? material.getFriction()
+                : PhysicsChunkTerrainSettings.DEFAULT_TERRAIN_FRICTION,
+            material != null
+                ? material.getRestitution()
+                : PhysicsChunkTerrainSettings.DEFAULT_TERRAIN_RESTITUTION);
     }
 
     @Nonnull

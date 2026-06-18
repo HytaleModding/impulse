@@ -14,11 +14,12 @@ import dev.hytalemodding.impulse.core.internal.resources.PhysicsRuntimeResource;
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsSpaceCompatibilityIndexResource;
 import dev.hytalemodding.impulse.core.plugin.modules.physicschunk.components.CollisionLodSettingsComponent;
 import dev.hytalemodding.impulse.core.plugin.components.ExtensionSettingsComponent;
+import dev.hytalemodding.impulse.core.plugin.components.MaterialComponent;
 import dev.hytalemodding.impulse.core.plugin.components.SolverSettingsComponent;
 import dev.hytalemodding.impulse.core.plugin.components.SpaceComponent;
 import dev.hytalemodding.impulse.core.plugin.components.VisualMaterializationSettingsComponent;
 import dev.hytalemodding.impulse.core.plugin.components.VisualSyncSettingsComponent;
-import dev.hytalemodding.impulse.core.plugin.modules.physicschunk.components.PhysicsChunkTerrainComponent;
+import dev.hytalemodding.impulse.core.plugin.modules.physicschunk.components.ChunkCollisionSettingsComponent;
 import dev.hytalemodding.impulse.core.plugin.settings.PhysicsSpaceSettings;
 import java.util.Collection;
 import java.util.List;
@@ -137,10 +138,16 @@ public final class PhysicsSpaces {
             return null;
         }
         PhysicsSpaceSettings settings = PhysicsSpaceSettings.defaults();
-        PhysicsChunkTerrainComponent terrainSettings = checkedStore.getComponent(checkedRef,
-            PhysicsChunkTerrainComponent.getComponentType());
+        ChunkCollisionSettingsComponent terrainSettings = checkedStore.getComponent(checkedRef,
+            ChunkCollisionSettingsComponent.getComponentType());
         if (terrainSettings != null) {
             terrainSettings.copyTo(settings);
+        }
+        MaterialComponent material = checkedStore.getComponent(checkedRef,
+            MaterialComponent.getComponentType());
+        if (material != null) {
+            settings.getPhysicsChunkTerrainSettings()
+                .setTerrainMaterial(material.getFriction(), material.getRestitution());
         }
         SolverSettingsComponent solverSettings = checkedStore.getComponent(checkedRef,
             SolverSettingsComponent.getComponentType());

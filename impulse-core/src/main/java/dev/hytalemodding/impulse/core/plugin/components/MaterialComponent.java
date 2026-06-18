@@ -11,7 +11,7 @@ import lombok.Getter;
 import lombok.Setter;
 
 /**
- * Physical material settings for one collider entity.
+ * Physical material settings for one physics row that authors collider material.
  */
 @Setter
 @Getter

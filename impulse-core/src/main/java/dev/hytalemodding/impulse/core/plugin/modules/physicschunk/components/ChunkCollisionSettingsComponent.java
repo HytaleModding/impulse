@@ -16,23 +16,23 @@ import java.util.Objects;
 import javax.annotation.Nonnull;
 
 /**
- * Authored PhysicsChunk terrain streaming settings for one PhysicsStore space entity.
+ * Authored PhysicsChunk collision streaming settings for one PhysicsStore space entity.
  */
-public class PhysicsChunkTerrainComponent implements Component<PhysicsStore> {
+public class ChunkCollisionSettingsComponent implements Component<PhysicsStore> {
 
     @Nonnull
-    public static final BuilderCodec<PhysicsChunkTerrainComponent> CODEC = BuilderCodec.builder(
-            PhysicsChunkTerrainComponent.class,
-            PhysicsChunkTerrainComponent::new)
+    public static final BuilderCodec<ChunkCollisionSettingsComponent> CODEC = BuilderCodec.builder(
+            ChunkCollisionSettingsComponent.class,
+            ChunkCollisionSettingsComponent::new)
         .append(new KeyedCodec<>("Mode", new EnumCodec<>(PhysicsChunkTerrainMode.class), false),
             (component, value) -> component.terrainMode = value != null
                 ? value
                 : PhysicsChunkTerrainMode.NONE,
-            PhysicsChunkTerrainComponent::getTerrainMode)
+            ChunkCollisionSettingsComponent::getTerrainMode)
         .add()
         .append(new KeyedCodec<>("NativeVoxelTerrain", Codec.BOOLEAN, false),
             (component, value) -> component.nativeVoxelTerrainEnabled = value != null && value,
-            PhysicsChunkTerrainComponent::isNativeVoxelTerrainEnabled)
+            ChunkCollisionSettingsComponent::isNativeVoxelTerrainEnabled)
         .add()
         .append(new KeyedCodec<>("EntityChunkBoundaryMode",
                 new EnumCodec<>(EntityChunkBoundaryMode.class),
@@ -40,37 +40,25 @@ public class PhysicsChunkTerrainComponent implements Component<PhysicsStore> {
             (component, value) -> component.entityChunkBoundaryMode = value != null
                 ? value
                 : PhysicsChunkTerrainSettings.DEFAULT_ENTITY_CHUNK_BOUNDARY_MODE,
-            PhysicsChunkTerrainComponent::getEntityChunkBoundaryMode)
+            ChunkCollisionSettingsComponent::getEntityChunkBoundaryMode)
         .add()
         .append(new KeyedCodec<>("Radius", Codec.INTEGER, false),
             (component, value) -> component.radius = value != null
                 ? value
                 : PhysicsChunkTerrainSettings.DEFAULT_TERRAIN_RADIUS,
-            PhysicsChunkTerrainComponent::getRadius)
+            ChunkCollisionSettingsComponent::getRadius)
         .add()
         .append(new KeyedCodec<>("BodyRadius", Codec.INTEGER, false),
             (component, value) -> component.bodyRadius = value != null
                 ? value
                 : PhysicsChunkTerrainSettings.DEFAULT_BODY_TERRAIN_RADIUS,
-            PhysicsChunkTerrainComponent::getBodyRadius)
+            ChunkCollisionSettingsComponent::getBodyRadius)
         .add()
         .append(new KeyedCodec<>("TtlTicks", Codec.INTEGER, false),
             (component, value) -> component.ttlTicks = value != null
                 ? value
                 : PhysicsChunkTerrainSettings.DEFAULT_TERRAIN_TTL_TICKS,
-            PhysicsChunkTerrainComponent::getTtlTicks)
-        .add()
-        .append(new KeyedCodec<>("TerrainFriction", Codec.FLOAT, false),
-            (component, value) -> component.terrainFriction = value != null
-                ? value
-                : PhysicsChunkTerrainSettings.DEFAULT_TERRAIN_FRICTION,
-            PhysicsChunkTerrainComponent::getTerrainFriction)
-        .add()
-        .append(new KeyedCodec<>("TerrainRestitution", Codec.FLOAT, false),
-            (component, value) -> component.terrainRestitution = value != null
-                ? value
-                : PhysicsChunkTerrainSettings.DEFAULT_TERRAIN_RESTITUTION,
-            PhysicsChunkTerrainComponent::getTerrainRestitution)
+            ChunkCollisionSettingsComponent::getTtlTicks)
         .add()
         .build();
 
@@ -84,48 +72,38 @@ public class PhysicsChunkTerrainComponent implements Component<PhysicsStore> {
     private int radius = PhysicsChunkTerrainSettings.DEFAULT_TERRAIN_RADIUS;
     private int bodyRadius = PhysicsChunkTerrainSettings.DEFAULT_BODY_TERRAIN_RADIUS;
     private int ttlTicks = PhysicsChunkTerrainSettings.DEFAULT_TERRAIN_TTL_TICKS;
-    private float terrainFriction = PhysicsChunkTerrainSettings.DEFAULT_TERRAIN_FRICTION;
-    private float terrainRestitution = PhysicsChunkTerrainSettings.DEFAULT_TERRAIN_RESTITUTION;
 
-    public PhysicsChunkTerrainComponent() {
+    public ChunkCollisionSettingsComponent() {
     }
 
-    public PhysicsChunkTerrainComponent(@Nonnull PhysicsChunkTerrainSettings settings) {
+    public ChunkCollisionSettingsComponent(@Nonnull PhysicsChunkTerrainSettings settings) {
         this(settings.getTerrainMode(),
             settings.getEntityChunkBoundaryMode(),
             settings.isNativeVoxelTerrainEnabled(),
             settings.getTerrainRadius(),
             settings.getBodyTerrainRadius(),
-            settings.getTerrainTtlTicks(),
-            settings.getTerrainFriction(),
-            settings.getTerrainRestitution());
+            settings.getTerrainTtlTicks());
     }
 
-    public PhysicsChunkTerrainComponent(@Nonnull PhysicsChunkTerrainMode terrainMode,
+    public ChunkCollisionSettingsComponent(@Nonnull PhysicsChunkTerrainMode terrainMode,
         boolean nativeVoxelTerrainEnabled,
         int radius,
         int bodyRadius,
-        int ttlTicks,
-        float terrainFriction,
-        float terrainRestitution) {
+        int ttlTicks) {
         this(terrainMode,
             PhysicsChunkTerrainSettings.DEFAULT_ENTITY_CHUNK_BOUNDARY_MODE,
             nativeVoxelTerrainEnabled,
             radius,
             bodyRadius,
-            ttlTicks,
-            terrainFriction,
-            terrainRestitution);
+            ttlTicks);
     }
 
-    public PhysicsChunkTerrainComponent(@Nonnull PhysicsChunkTerrainMode terrainMode,
+    public ChunkCollisionSettingsComponent(@Nonnull PhysicsChunkTerrainMode terrainMode,
         @Nonnull EntityChunkBoundaryMode entityChunkBoundaryMode,
         boolean nativeVoxelTerrainEnabled,
         int radius,
         int bodyRadius,
-        int ttlTicks,
-        float terrainFriction,
-        float terrainRestitution) {
+        int ttlTicks) {
         this.terrainMode = Objects.requireNonNull(terrainMode, "terrainMode");
         this.entityChunkBoundaryMode = Objects.requireNonNull(entityChunkBoundaryMode,
             "entityChunkBoundaryMode");
@@ -133,8 +111,6 @@ public class PhysicsChunkTerrainComponent implements Component<PhysicsStore> {
         this.radius = radius;
         this.bodyRadius = bodyRadius;
         this.ttlTicks = ttlTicks;
-        this.terrainFriction = terrainFriction;
-        this.terrainRestitution = terrainRestitution;
     }
 
     @Nonnull
@@ -189,22 +165,6 @@ public class PhysicsChunkTerrainComponent implements Component<PhysicsStore> {
         this.ttlTicks = ttlTicks;
     }
 
-    public float getTerrainFriction() {
-        return terrainFriction;
-    }
-
-    public void setTerrainFriction(float terrainFriction) {
-        this.terrainFriction = terrainFriction;
-    }
-
-    public float getTerrainRestitution() {
-        return terrainRestitution;
-    }
-
-    public void setTerrainRestitution(float terrainRestitution) {
-        this.terrainRestitution = terrainRestitution;
-    }
-
     public void copyTo(@Nonnull PhysicsSpaceSettings settings) {
         copyTo(settings.getPhysicsChunkTerrainSettings());
     }
@@ -216,7 +176,6 @@ public class PhysicsChunkTerrainComponent implements Component<PhysicsStore> {
         settings.setTerrainRadius(radius);
         settings.setBodyTerrainRadius(bodyRadius);
         settings.setTerrainTtlTicks(ttlTicks);
-        settings.setTerrainMaterial(terrainFriction, terrainRestitution);
     }
 
     public boolean isDefault() {
@@ -227,28 +186,22 @@ public class PhysicsChunkTerrainComponent implements Component<PhysicsStore> {
                 == PhysicsChunkTerrainSettings.DEFAULT_NATIVE_VOXEL_TERRAIN_ENABLED
             && radius == PhysicsChunkTerrainSettings.DEFAULT_TERRAIN_RADIUS
             && bodyRadius == PhysicsChunkTerrainSettings.DEFAULT_BODY_TERRAIN_RADIUS
-            && ttlTicks == PhysicsChunkTerrainSettings.DEFAULT_TERRAIN_TTL_TICKS
-            && Float.compare(terrainFriction,
-                PhysicsChunkTerrainSettings.DEFAULT_TERRAIN_FRICTION) == 0
-            && Float.compare(terrainRestitution,
-                PhysicsChunkTerrainSettings.DEFAULT_TERRAIN_RESTITUTION) == 0;
+            && ttlTicks == PhysicsChunkTerrainSettings.DEFAULT_TERRAIN_TTL_TICKS;
     }
 
     @Nonnull
-    public static ComponentType<PhysicsStore, PhysicsChunkTerrainComponent> getComponentType() {
-        return PhysicsComponentTypes.physicsChunkTerrainComponentType();
+    public static ComponentType<PhysicsStore, ChunkCollisionSettingsComponent> getComponentType() {
+        return PhysicsComponentTypes.chunkCollisionSettingsComponentType();
     }
 
     @Nonnull
     @Override
-    public PhysicsChunkTerrainComponent clone() {
-        return new PhysicsChunkTerrainComponent(terrainMode,
+    public ChunkCollisionSettingsComponent clone() {
+        return new ChunkCollisionSettingsComponent(terrainMode,
             entityChunkBoundaryMode,
             nativeVoxelTerrainEnabled,
             radius,
             bodyRadius,
-            ttlTicks,
-            terrainFriction,
-            terrainRestitution);
+            ttlTicks);
     }
 }

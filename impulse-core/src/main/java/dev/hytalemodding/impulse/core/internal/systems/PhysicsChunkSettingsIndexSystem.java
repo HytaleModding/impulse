@@ -12,8 +12,10 @@ import com.hypixel.hytale.component.system.tick.TickingSystem;
 import com.hypixel.hytale.server.core.universe.world.storage.PhysicsStore;
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsChunkSettingsIndexResource;
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsChunkSettingsIndexResource.PhysicsChunkSpaceSettings;
+import dev.hytalemodding.impulse.core.plugin.components.MaterialComponent;
 import dev.hytalemodding.impulse.core.plugin.components.SpaceComponent;
-import dev.hytalemodding.impulse.core.plugin.modules.physicschunk.components.PhysicsChunkTerrainComponent;
+import dev.hytalemodding.impulse.core.plugin.modules.physicschunk.components.ChunkCollisionSettingsComponent;
+import dev.hytalemodding.impulse.core.plugin.modules.physicschunk.settings.PhysicsChunkTerrainSettings;
 import it.unimi.dsi.fastutil.objects.Object2ObjectOpenHashMap;
 import java.util.Map;
 import java.util.Set;
@@ -54,11 +56,13 @@ public final class PhysicsChunkSettingsIndexSystem extends TickingSystem<Physics
             if (PhysicsStoreSystemSupport.isNil(spaceUuid)) {
                 continue;
             }
-            PhysicsChunkTerrainComponent terrain = chunk.getComponent(index,
-                PhysicsChunkTerrainComponent.getComponentType());
-            PhysicsChunkTerrainComponent settings = terrain != null
+            ChunkCollisionSettingsComponent terrain = chunk.getComponent(index,
+                ChunkCollisionSettingsComponent.getComponentType());
+            ChunkCollisionSettingsComponent settings = terrain != null
                 ? terrain
-                : new PhysicsChunkTerrainComponent();
+                : new ChunkCollisionSettingsComponent();
+            MaterialComponent material = chunk.getComponent(index,
+                MaterialComponent.getComponentType());
             settingsBySpaceUuid.put(spaceUuid, new PhysicsChunkSpaceSettings(spaceUuid,
                 settings.getTerrainMode(),
                 settings.getEntityChunkBoundaryMode(),
@@ -66,8 +70,12 @@ public final class PhysicsChunkSettingsIndexSystem extends TickingSystem<Physics
                 settings.getRadius(),
                 settings.getBodyRadius(),
                 settings.getTtlTicks(),
-                settings.getTerrainFriction(),
-                settings.getTerrainRestitution()));
+                material != null
+                    ? material.getFriction()
+                    : PhysicsChunkTerrainSettings.DEFAULT_TERRAIN_FRICTION,
+                material != null
+                    ? material.getRestitution()
+                    : PhysicsChunkTerrainSettings.DEFAULT_TERRAIN_RESTITUTION));
         }
     }
 

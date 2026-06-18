@@ -51,7 +51,7 @@ import dev.hytalemodding.impulse.core.plugin.components.SolverSettingsComponent;
 import dev.hytalemodding.impulse.core.plugin.components.SpaceComponent;
 import dev.hytalemodding.impulse.core.plugin.components.VisualMaterializationSettingsComponent;
 import dev.hytalemodding.impulse.core.plugin.components.VisualSyncSettingsComponent;
-import dev.hytalemodding.impulse.core.plugin.modules.physicschunk.components.PhysicsChunkTerrainComponent;
+import dev.hytalemodding.impulse.core.plugin.modules.physicschunk.components.ChunkCollisionSettingsComponent;
 import dev.hytalemodding.impulse.core.plugin.snapshots.PhysicsBodySnapshot;
 import dev.hytalemodding.impulse.core.plugin.snapshots.PhysicsSnapshotFrame;
 import dev.hytalemodding.impulse.core.plugin.resources.PhysicsMutationHandle;
@@ -259,8 +259,8 @@ public class PhysicsWorldRuntimeResource extends PhysicsWorldResource {
         if (space == null) {
             return null;
         }
-        PhysicsChunkTerrainComponent terrainSettings = store.getComponent(ref,
-            PhysicsChunkTerrainComponent.getComponentType());
+        ChunkCollisionSettingsComponent terrainSettings = store.getComponent(ref,
+            ChunkCollisionSettingsComponent.getComponentType());
         SolverSettingsComponent solverSettings = store.getComponent(ref,
             SolverSettingsComponent.getComponentType());
         VisualSyncSettingsComponent visualSyncSettings = store.getComponent(ref,
@@ -274,6 +274,11 @@ public class PhysicsWorldRuntimeResource extends PhysicsWorldResource {
         PhysicsSpaceSettings settings = PhysicsSpaceSettings.defaults();
         if (terrainSettings != null) {
             terrainSettings.copyTo(settings);
+        }
+        MaterialComponent material = store.getComponent(ref, MaterialComponent.getComponentType());
+        if (material != null) {
+            settings.getPhysicsChunkTerrainSettings()
+                .setTerrainMaterial(material.getFriction(), material.getRestitution());
         }
         if (solverSettings != null) {
             solverSettings.copyTo(settings);

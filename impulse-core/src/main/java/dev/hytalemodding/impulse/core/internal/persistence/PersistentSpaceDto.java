@@ -9,10 +9,11 @@ import com.hypixel.hytale.math.vector.Vector3fUtil;
 import dev.hytalemodding.impulse.core.plugin.modules.physicschunk.PhysicsChunkTerrainMode;
 import dev.hytalemodding.impulse.core.plugin.modules.physicschunk.components.CollisionLodSettingsComponent;
 import dev.hytalemodding.impulse.core.plugin.components.ExtensionSettingsComponent;
+import dev.hytalemodding.impulse.core.plugin.components.MaterialComponent;
 import dev.hytalemodding.impulse.core.plugin.components.SolverSettingsComponent;
 import dev.hytalemodding.impulse.core.plugin.components.VisualMaterializationSettingsComponent;
 import dev.hytalemodding.impulse.core.plugin.components.VisualSyncSettingsComponent;
-import dev.hytalemodding.impulse.core.plugin.modules.physicschunk.components.PhysicsChunkTerrainComponent;
+import dev.hytalemodding.impulse.core.plugin.modules.physicschunk.components.ChunkCollisionSettingsComponent;
 import dev.hytalemodding.impulse.core.plugin.settings.EntityChunkBoundaryMode;
 import dev.hytalemodding.impulse.core.plugin.modules.physicschunk.settings.PhysicsChunkTerrainSettings;
 import dev.hytalemodding.impulse.core.plugin.settings.PhysicsSpaceSettings;
@@ -306,15 +307,25 @@ public final class PersistentSpaceDto {
     }
 
     @Nonnull
-    public PhysicsChunkTerrainComponent getPhysicsChunkTerrain() {
-        return new PhysicsChunkTerrainComponent(getTerrainMode(),
+    public ChunkCollisionSettingsComponent getChunkCollisionSettings() {
+        return new ChunkCollisionSettingsComponent(getTerrainMode(),
             entityChunkBoundaryMode,
             nativeVoxelTerrainEnabled,
             terrainRadius,
             bodyTerrainRadius,
-            terrainTtlTicks,
-            terrainFriction,
-            terrainRestitution);
+            terrainTtlTicks);
+    }
+
+    @Nonnull
+    public MaterialComponent getChunkCollisionMaterial() {
+        return new MaterialComponent(terrainFriction, terrainRestitution);
+    }
+
+    public boolean isDefaultChunkCollisionMaterial() {
+        return Float.compare(terrainFriction,
+            PhysicsChunkTerrainSettings.DEFAULT_TERRAIN_FRICTION) == 0
+            && Float.compare(terrainRestitution,
+                PhysicsChunkTerrainSettings.DEFAULT_TERRAIN_RESTITUTION) == 0;
     }
 
     @Nonnull
@@ -345,7 +356,9 @@ public final class PersistentSpaceDto {
     @Nonnull
     public PhysicsSpaceSettings toSettings() {
         PhysicsSpaceSettings settings = PhysicsSpaceSettings.defaults();
-        getPhysicsChunkTerrain().copyTo(settings);
+        getChunkCollisionSettings().copyTo(settings);
+        settings.getPhysicsChunkTerrainSettings()
+            .setTerrainMaterial(terrainFriction, terrainRestitution);
         solverSettings.copyTo(settings);
         visualSyncSettings.copyTo(settings);
         visualMaterializationSettings.copyTo(settings);
