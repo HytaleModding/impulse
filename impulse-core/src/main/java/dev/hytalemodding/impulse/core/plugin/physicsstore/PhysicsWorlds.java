@@ -58,6 +58,7 @@ public final class PhysicsWorlds {
         @Nonnull PhysicsWorldSettings settings) {
         Store<PhysicsStore> checkedStore = requireWorldThread(store,
             "update PhysicsStore world settings");
+        PhysicsThreading.requireBackendIdle(checkedStore, "update PhysicsStore world settings");
         PhysicsWorldSettings requested = new PhysicsWorldSettings(
             Objects.requireNonNull(settings, "settings"));
         validateStepModeSupported(checkedStore, requested.getStepMode());
@@ -70,9 +71,12 @@ public final class PhysicsWorlds {
         @Nonnull PhysicsWorldSettings settings) {
         PhysicsWorldSettings requested = new PhysicsWorldSettings(
             Objects.requireNonNull(settings, "settings"));
-        return PhysicsThreading.executeOnWorldThread(world,
+        return PhysicsThreading.callWhenBackendIdleOnWorldThread(world,
             "queue PhysicsStore world settings update",
-            store -> putSettings(store, requested));
+            store -> {
+                putSettings(store, requested);
+                return null;
+            });
     }
 
     private static void validateStepModeSupported(@Nonnull Store<PhysicsStore> store,

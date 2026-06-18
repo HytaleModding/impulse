@@ -322,7 +322,12 @@ public class PhysicsWorldRuntimeResource extends PhysicsWorldResource {
         World world = requireAuthoritativeWorld(operation);
         return PhysicsMutationHandle.fromCompletion(operation,
             value,
-            PhysicsThreading.executeOnWorldThread(world, operation, mutation));
+            PhysicsThreading.callWhenBackendIdleOnWorldThread(world,
+                operation,
+                store -> {
+                    mutation.accept(store);
+                    return null;
+                }));
     }
 
     private void runDirectRuntimeMutation(@Nonnull String operation,
@@ -431,6 +436,7 @@ public class PhysicsWorldRuntimeResource extends PhysicsWorldResource {
 
     private void setAuthoritativeWorldSettings(@Nonnull Store<PhysicsStore> store,
         @Nonnull PhysicsWorldSettings settings) {
+        PhysicsThreading.requireBackendIdle(store, "set physics world settings");
         validateAuthoritativeStepModeSupported(store, settings.getStepMode());
         store.getResource(PhysicsWorldSettingsResource.getResourceType()).setSettings(settings);
         simulationRuntime.setWorldSettings(settings);
