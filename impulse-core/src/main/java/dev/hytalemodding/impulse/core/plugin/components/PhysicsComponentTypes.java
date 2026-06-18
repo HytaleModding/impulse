@@ -3,6 +3,7 @@ package dev.hytalemodding.impulse.core.plugin.components;
 import com.hypixel.hytale.component.ComponentType;
 import com.hypixel.hytale.server.core.universe.world.storage.PhysicsStore;
 import dev.hytalemodding.impulse.core.internal.registration.PhysicsComponentTypeRegistry;
+import dev.hytalemodding.impulse.core.plugin.modules.physicschunk.components.ChunkCollisionSourceComponent;
 import dev.hytalemodding.impulse.core.plugin.modules.physicschunk.components.CollisionLodSettingsComponent;
 import dev.hytalemodding.impulse.core.plugin.modules.physicschunk.components.PhysicsChunkTerrainComponent;
 import javax.annotation.Nonnull;
@@ -39,6 +40,12 @@ public final class PhysicsComponentTypes {
     public static ComponentType<PhysicsStore, TerrainColliderComponent>
     terrainColliderComponentType() {
         return PhysicsComponentTypeRegistry.terrainColliderComponentType();
+    }
+
+    @Nonnull
+    public static ComponentType<PhysicsStore, ChunkCollisionSourceComponent>
+    chunkCollisionSourceComponentType() {
+        return PhysicsComponentTypeRegistry.chunkCollisionSourceComponentType();
     }
 
     @Nonnull

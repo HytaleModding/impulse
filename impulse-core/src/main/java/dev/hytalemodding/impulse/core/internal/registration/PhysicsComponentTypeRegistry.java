@@ -19,6 +19,7 @@ import dev.hytalemodding.impulse.core.plugin.components.TerrainColliderComponent
 import dev.hytalemodding.impulse.core.plugin.components.UuidComponent;
 import dev.hytalemodding.impulse.core.plugin.components.VisualMaterializationSettingsComponent;
 import dev.hytalemodding.impulse.core.plugin.components.VisualSyncSettingsComponent;
+import dev.hytalemodding.impulse.core.plugin.modules.physicschunk.components.ChunkCollisionSourceComponent;
 import dev.hytalemodding.impulse.core.plugin.modules.physicschunk.components.CollisionLodSettingsComponent;
 import dev.hytalemodding.impulse.core.plugin.modules.physicschunk.components.PhysicsChunkTerrainComponent;
 import javax.annotation.Nonnull;
@@ -39,6 +40,8 @@ public final class PhysicsComponentTypeRegistry {
     private static ComponentType<PhysicsStore, BodyCommandComponent> bodyCommandComponentType;
     @Nullable
     private static ComponentType<PhysicsStore, TerrainColliderComponent> terrainColliderComponentType;
+    @Nullable
+    private static ComponentType<PhysicsStore, ChunkCollisionSourceComponent> chunkCollisionSourceComponentType;
     @Nullable
     private static ComponentType<PhysicsStore, PhysicsChunkTerrainComponent> physicsChunkTerrainComponentType;
     @Nullable
@@ -92,6 +95,10 @@ public final class PhysicsComponentTypeRegistry {
             TerrainColliderComponent.class,
             "TerrainCollider",
             TerrainColliderComponent.CODEC);
+        chunkCollisionSourceComponentType = registry.registerComponent(
+            ChunkCollisionSourceComponent.class,
+            "ChunkCollisionSource",
+            ChunkCollisionSourceComponent.CODEC);
         physicsChunkTerrainComponentType = registry.registerComponent(
             PhysicsChunkTerrainComponent.class,
             "PhysicsChunkTerrain",
@@ -170,6 +177,12 @@ public final class PhysicsComponentTypeRegistry {
     public static ComponentType<PhysicsStore, TerrainColliderComponent>
     terrainColliderComponentType() {
         return terrainColliderComponentType;
+    }
+
+    @Nonnull
+    public static ComponentType<PhysicsStore, ChunkCollisionSourceComponent>
+    chunkCollisionSourceComponentType() {
+        return chunkCollisionSourceComponentType;
     }
 
     @Nonnull
