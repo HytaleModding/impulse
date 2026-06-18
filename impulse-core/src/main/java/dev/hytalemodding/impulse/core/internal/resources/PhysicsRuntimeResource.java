@@ -110,6 +110,9 @@ public final class PhysicsRuntimeResource implements Resource<PhysicsStore> {
     private final Int2ObjectOpenHashMap<String> terrainPayloadKeysByRowIndex =
         new Int2ObjectOpenHashMap<>();
     @Nonnull
+    private final Int2ObjectOpenHashMap<String> chunkCollisionPayloadKeysByRowIndex =
+        new Int2ObjectOpenHashMap<>();
+    @Nonnull
     private final Int2ObjectOpenHashMap<LongList> bodyHandlesBySpaceHandle =
         new Int2ObjectOpenHashMap<>();
     @Nonnull
@@ -197,6 +200,7 @@ public final class PhysicsRuntimeResource implements Resource<PhysicsStore> {
                         bodyRefsByRowIndex.remove(rowIndex);
                         bodyHandlesByRowIndex.remove(rowIndex);
                         bodySpaceHandlesByRowIndex.remove(rowIndex);
+                        chunkCollisionPayloadKeysByRowIndex.remove(rowIndex);
                     }
                 });
             }
@@ -240,6 +244,7 @@ public final class PhysicsRuntimeResource implements Resource<PhysicsStore> {
         bodyRefsByRowIndex.remove(rowIndex);
         BackendBodyHandle removedByRef = bodyHandlesByRowIndex.remove(rowIndex);
         BackendSpaceHandle spaceHandleByRef = bodySpaceHandlesByRowIndex.remove(rowIndex);
+        chunkCollisionPayloadKeysByRowIndex.remove(rowIndex);
         removeBodyHandleIndexes(removed != null ? removed : removedByRef,
             spaceHandle != null ? spaceHandle : spaceHandleByRef);
         markRegistrationTopologyChanged();
@@ -467,6 +472,20 @@ public final class PhysicsRuntimeResource implements Resource<PhysicsStore> {
         return payloadKey.equals(terrainPayloadKeysByRowIndex.get(terrainRef.getIndex()));
     }
 
+    public void markChunkCollisionPayloadBound(@Nonnull Ref<PhysicsStore> bodyRef,
+        @Nonnull String payloadKey) {
+        chunkCollisionPayloadKeysByRowIndex.put(bodyRef.getIndex(), payloadKey);
+    }
+
+    public boolean isChunkCollisionPayloadBound(@Nonnull Ref<PhysicsStore> bodyRef,
+        @Nonnull String payloadKey) {
+        return payloadKey.equals(chunkCollisionPayloadKeysByRowIndex.get(bodyRef.getIndex()));
+    }
+
+    public void clearChunkCollisionPayloadBound(@Nonnull Ref<PhysicsStore> bodyRef) {
+        chunkCollisionPayloadKeysByRowIndex.remove(bodyRef.getIndex());
+    }
+
     public boolean hasTerrainBodyHandles(@Nonnull Ref<PhysicsStore> terrainRef) {
         LongList bodyHandles = terrainBodyHandlesByRowIndex.get(terrainRef.getIndex());
         return bodyHandles != null && !bodyHandles.isEmpty();
@@ -592,6 +611,7 @@ public final class PhysicsRuntimeResource implements Resource<PhysicsStore> {
         terrainVoxelBodyHandlesByRowIndex.clear();
         terrainSpaceHandlesByRowIndex.clear();
         terrainPayloadKeysByRowIndex.clear();
+        chunkCollisionPayloadKeysByRowIndex.clear();
         bodyHandlesBySpaceHandle.clear();
         bodyHitMetadataByHandle.clear();
         bodySnapshotMetadataByHandle.clear();
@@ -748,6 +768,7 @@ public final class PhysicsRuntimeResource implements Resource<PhysicsStore> {
         copy.terrainVoxelBodyHandlesByRowIndex.putAll(terrainVoxelBodyHandlesByRowIndex);
         copy.terrainSpaceHandlesByRowIndex.putAll(terrainSpaceHandlesByRowIndex);
         copy.terrainPayloadKeysByRowIndex.putAll(terrainPayloadKeysByRowIndex);
+        copy.chunkCollisionPayloadKeysByRowIndex.putAll(chunkCollisionPayloadKeysByRowIndex);
         bodyHandlesBySpaceHandle.forEach((spaceHandle, bodyHandles) ->
             copy.bodyHandlesBySpaceHandle.put((int) spaceHandle, new LongArrayList(bodyHandles)));
         copy.bodyHitMetadataByHandle.putAll(bodyHitMetadataByHandle);

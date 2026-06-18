@@ -392,7 +392,7 @@ public final class TerrainMutationDrainSystem extends TickingSystem<PhysicsStore
     }
 
     @Nonnull
-    private static UUID terrainBodyUuid(@Nonnull UUID spaceUuid,
+    static UUID terrainBodyUuid(@Nonnull UUID spaceUuid,
         @Nonnull String sourceKey,
         @Nonnull PartKind partKind,
         int partIndex) {
