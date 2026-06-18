@@ -18,11 +18,15 @@ import dev.hytalemodding.impulse.core.internal.resources.PhysicsTerrainPayloadRe
 import dev.hytalemodding.impulse.core.internal.terrain.TerrainColliderPayload;
 import dev.hytalemodding.impulse.core.internal.resources.BackendSpaceHandle;
 import dev.hytalemodding.impulse.core.plugin.physicsstore.PhysicsThreading;
+import dev.hytalemodding.impulse.core.plugin.components.BodyComponent;
 import dev.hytalemodding.impulse.core.plugin.components.JointComponent;
 import dev.hytalemodding.impulse.core.plugin.components.TerrainColliderComponent;
+import dev.hytalemodding.impulse.core.plugin.modules.physicschunk.components.ChunkCollisionSourceComponent;
 import dev.hytalemodding.impulse.core.plugin.snapshots.PhysicsBodySnapshot;
+import it.unimi.dsi.fastutil.objects.ObjectOpenHashSet;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.CompletionStage;
 import java.util.function.BiConsumer;
@@ -223,6 +227,7 @@ final class PhysicsStoreDebugQueries {
             PhysicsTerrainPayloadResource.getResourceType());
         double maxDistanceSquared = viewRadius * viewRadius;
         List<PhysicsChunkDebugSectionView> visible = new ArrayList<>();
+        Set<String> seenSources = new ObjectOpenHashSet<>();
         BiConsumer<ArchetypeChunk<PhysicsStore>, CommandBuffer<PhysicsStore>> collector =
             (chunk, _) -> collectPhysicsChunkTerrainChunk(chunk,
                 payloads,
@@ -233,8 +238,22 @@ final class PhysicsStoreDebugQueries {
                 viewerY,
                 viewerZ,
                 maxDistanceSquared,
+                seenSources,
                 visible);
         store.forEachChunk(TerrainColliderComponent.getComponentType(), collector);
+        BiConsumer<ArchetypeChunk<PhysicsStore>, CommandBuffer<PhysicsStore>> sourceCollector =
+            (chunk, _) -> collectPhysicsChunkSourceChunk(chunk,
+                payloads,
+                spaceContext,
+                spaceRef,
+                spaceUuid,
+                viewerX,
+                viewerY,
+                viewerZ,
+                maxDistanceSquared,
+                seenSources,
+                visible);
+        store.forEachChunk(ChunkCollisionSourceComponent.getComponentType(), sourceCollector);
         return List.copyOf(visible);
     }
 
@@ -247,6 +266,7 @@ final class PhysicsStoreDebugQueries {
         double viewerY,
         double viewerZ,
         double maxDistanceSquared,
+        @Nonnull Set<String> seenSources,
         @Nonnull List<PhysicsChunkDebugSectionView> visible) {
         for (int index = 0; index < chunk.size(); index++) {
             TerrainColliderComponent terrain = chunk.getComponent(index,
@@ -263,7 +283,43 @@ final class PhysicsStoreDebugQueries {
             if (payload == null || payload.isEmpty()) {
                 continue;
             }
+            if (!seenSources.add(sourceKey(terrain.getSpaceUuid(), terrain.getSourceKey()))) {
+                continue;
+            }
             visible.add(toPhysicsChunkSectionView(terrain, payload, spaceContext));
+        }
+    }
+
+    private static void collectPhysicsChunkSourceChunk(@Nonnull ArchetypeChunk<PhysicsStore> chunk,
+        @Nonnull PhysicsTerrainPayloadResource payloads,
+        @Nonnull SpaceContext spaceContext,
+        @Nullable Ref<PhysicsStore> spaceRef,
+        @Nonnull UUID spaceUuid,
+        double viewerX,
+        double viewerY,
+        double viewerZ,
+        double maxDistanceSquared,
+        @Nonnull Set<String> seenSources,
+        @Nonnull List<PhysicsChunkDebugSectionView> visible) {
+        for (int index = 0; index < chunk.size(); index++) {
+            ChunkCollisionSourceComponent source = chunk.getComponent(index,
+                ChunkCollisionSourceComponent.getComponentType());
+            BodyComponent body = chunk.getComponent(index, BodyComponent.getComponentType());
+            if (source == null || body == null || !matchesSpace(body, spaceRef, spaceUuid)) {
+                continue;
+            }
+            if (distanceSquaredToSection(source, viewerX, viewerY, viewerZ)
+                > maxDistanceSquared) {
+                continue;
+            }
+            TerrainColliderPayload payload = payloads.get(source.getPayloadResourceKey());
+            if (payload == null || payload.isEmpty()) {
+                continue;
+            }
+            if (!seenSources.add(sourceKey(body.getSpaceUuid(), source.getSourceKey()))) {
+                continue;
+            }
+            visible.add(toPhysicsChunkSectionView(source, payload, spaceContext));
         }
     }
 
@@ -279,6 +335,23 @@ final class PhysicsStoreDebugQueries {
         return new PhysicsChunkDebugSectionView(terrain.getChunkX(),
             terrain.getSectionY(),
             terrain.getChunkZ(),
+            voxelTerrain,
+            boxes(payload.mergedFullCubeBoxes()),
+            boxes(payload.detailBoxes()));
+    }
+
+    @Nonnull
+    private static PhysicsChunkDebugSectionView toPhysicsChunkSectionView(
+        @Nonnull ChunkCollisionSourceComponent source,
+        @Nonnull TerrainColliderPayload payload,
+        @Nonnull SpaceContext spaceContext) {
+        boolean voxelTerrain = payload.nativeVoxelTerrainEnabled()
+            && payload.hasFullCubeVoxels()
+            && spaceContext.backendRuntime()
+                .supportsVoxelTerrain(spaceContext.spaceHandle().value());
+        return new PhysicsChunkDebugSectionView(source.getChunkX(),
+            source.getSectionY(),
+            source.getChunkZ(),
             voxelTerrain,
             boxes(payload.mergedFullCubeBoxes()),
             boxes(payload.detailBoxes()));
@@ -396,6 +469,16 @@ final class PhysicsStoreDebugQueries {
         return spaceUuid.equals(terrain.getSpaceUuid());
     }
 
+    private static boolean matchesSpace(@Nonnull BodyComponent body,
+        @Nullable Ref<PhysicsStore> spaceRef,
+        @Nonnull UUID spaceUuid) {
+        Ref<PhysicsStore> bodySpaceRef = body.getSpaceRef();
+        if (bodySpaceRef != null && spaceRef != null) {
+            return sameRef(bodySpaceRef, spaceRef);
+        }
+        return spaceUuid.equals(body.getSpaceUuid());
+    }
+
     @Nullable
     private static PhysicsBodySnapshot bodySnapshot(
         @Nonnull PhysicsSnapshotResource snapshots,
@@ -502,6 +585,29 @@ final class PhysicsStoreDebugQueries {
             minX + ChunkUtil.SIZE,
             minY + ChunkUtil.SIZE,
             minZ + ChunkUtil.SIZE);
+    }
+
+    private static double distanceSquaredToSection(@Nonnull ChunkCollisionSourceComponent source,
+        double viewerX,
+        double viewerY,
+        double viewerZ) {
+        double minX = source.getChunkX() << ChunkUtil.BITS;
+        double minY = source.getSectionY() << ChunkUtil.BITS;
+        double minZ = source.getChunkZ() << ChunkUtil.BITS;
+        return distanceSquaredToBounds(viewerX,
+            viewerY,
+            viewerZ,
+            minX,
+            minY,
+            minZ,
+            minX + ChunkUtil.SIZE,
+            minY + ChunkUtil.SIZE,
+            minZ + ChunkUtil.SIZE);
+    }
+
+    @Nonnull
+    private static String sourceKey(@Nonnull UUID spaceUuid, @Nonnull String sourceKey) {
+        return spaceUuid + "|" + sourceKey;
     }
 
     private static double distanceSquaredToBounds(double viewerX,
