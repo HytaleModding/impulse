@@ -53,6 +53,10 @@ class PhysicsChunkNamingSourceGuardTest {
                     file + " should use PhysicsChunk settings");
                 assertFalse(source.contains("import dev.hytalemodding.impulse.core.plugin.settings.PhysicsCollisionLodSettings"),
                     file + " should use PhysicsChunk settings");
+                assertFalse(source.contains("import dev.hytalemodding.impulse.core.plugin.settings.PhysicsVisualSyncSettings"),
+                    file + " should use PhysicsEntity settings");
+                assertFalse(source.contains("import dev.hytalemodding.impulse.core.plugin.settings.PhysicsVisualMaterializationSettings"),
+                    file + " should use PhysicsEntity settings");
             }
         }
     }
