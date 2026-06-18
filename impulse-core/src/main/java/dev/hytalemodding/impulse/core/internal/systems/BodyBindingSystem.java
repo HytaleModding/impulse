@@ -45,7 +45,8 @@ public final class BodyBindingSystem extends TickingSystem<PhysicsStore>
 
     private static final Set<Dependency<PhysicsStore>> DEPENDENCIES = Set.of(
         new SystemDependency<>(Order.AFTER, SpaceBindingSystem.class),
-        new SystemDependency<>(Order.AFTER, SpaceSettingsApplicationSystem.class)
+        new SystemDependency<>(Order.AFTER, SpaceSettingsApplicationSystem.class),
+        new SystemDependency<>(Order.AFTER, TerrainMutationDrainSystem.class)
     );
 
     @Override

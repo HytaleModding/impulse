@@ -72,11 +72,11 @@ public final class PhysicsStoreRegistration {
         PhysicsResourceTypes.registerResourceTypes(registry);
 
         registry.registerSystem(new PersistenceHydrationSystem());
-        registry.registerSystem(new TerrainMutationDrainSystem());
         registry.registerSystem(new IdentityIndexSystem());
         registry.registerSystem(new PhysicsChunkSettingsIndexSystem());
         registry.registerSystem(new SpaceBindingSystem());
         registry.registerSystem(new SpaceSettingsApplicationSystem());
+        registry.registerSystem(new TerrainMutationDrainSystem());
         registry.registerSystem(new BodyBindingSystem());
         registry.registerSystem(new ColliderBindingSystem());
         registry.registerSystem(new JointBindingSystem());
