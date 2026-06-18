@@ -7,7 +7,6 @@ import com.hypixel.hytale.codec.codecs.EnumCodec;
 import com.hypixel.hytale.codec.validation.Validators;
 import com.hypixel.hytale.math.vector.Vector3fUtil;
 import dev.hytalemodding.impulse.core.plugin.modules.physicschunk.PhysicsChunkTerrainMode;
-import dev.hytalemodding.impulse.core.plugin.modules.physicschunk.WorldCollisionMode;
 import dev.hytalemodding.impulse.core.plugin.modules.physicschunk.components.CollisionLodSettingsComponent;
 import dev.hytalemodding.impulse.core.plugin.components.ExtensionSettingsComponent;
 import dev.hytalemodding.impulse.core.plugin.components.SolverSettingsComponent;
@@ -22,7 +21,6 @@ import java.util.UUID;
 import javax.annotation.Nonnull;
 import org.joml.Vector3f;
 
-@SuppressWarnings("deprecation")
 public final class PersistentSpaceDto {
 
     @Nonnull
@@ -45,13 +43,13 @@ public final class PersistentSpaceDto {
             .addValidator(PhysicsStorePersistenceValidation.finiteVector(
                 "Persisted PhysicsStore space gravity must be finite"))
             .add()
-            .append(new KeyedCodec<>("WorldCollisionMode",
-                    new EnumCodec<>(WorldCollisionMode.class),
+            .append(new KeyedCodec<>("PhysicsChunkTerrainMode",
+                    new EnumCodec<>(PhysicsChunkTerrainMode.class),
                     false),
                 (dto, value) -> dto.terrainMode = value != null
-                    ? value.toPhysicsChunkTerrainMode()
+                    ? value
                     : PhysicsChunkTerrainMode.NONE,
-                PersistentSpaceDto::getPersistedWorldCollisionMode)
+                PersistentSpaceDto::getTerrainMode)
             .add()
             .append(new KeyedCodec<>("EntityChunkBoundaryMode",
                     new EnumCodec<>(EntityChunkBoundaryMode.class),
@@ -65,19 +63,19 @@ public final class PersistentSpaceDto {
                 (dto, value) -> dto.nativeVoxelTerrainEnabled = value != null && value,
                 PersistentSpaceDto::isNativeVoxelTerrainEnabled)
             .add()
-            .append(new KeyedCodec<>("WorldCollisionRadius", Codec.INTEGER, false),
+            .append(new KeyedCodec<>("TerrainRadius", Codec.INTEGER, false),
                 (dto, value) -> dto.terrainRadius = value != null
                     ? value
                     : PhysicsChunkTerrainSettings.DEFAULT_TERRAIN_RADIUS,
                 PersistentSpaceDto::getTerrainRadius)
             .add()
-            .append(new KeyedCodec<>("WorldCollisionBodyRadius", Codec.INTEGER, false),
+            .append(new KeyedCodec<>("BodyTerrainRadius", Codec.INTEGER, false),
                 (dto, value) -> dto.bodyTerrainRadius = value != null
                     ? value
                     : PhysicsChunkTerrainSettings.DEFAULT_BODY_TERRAIN_RADIUS,
                 PersistentSpaceDto::getBodyTerrainRadius)
             .add()
-            .append(new KeyedCodec<>("WorldCollisionTtlTicks", Codec.INTEGER, false),
+            .append(new KeyedCodec<>("TerrainTtlTicks", Codec.INTEGER, false),
                 (dto, value) -> dto.terrainTtlTicks = value != null
                     ? value
                     : PhysicsChunkTerrainSettings.DEFAULT_TERRAIN_TTL_TICKS,
@@ -374,10 +372,5 @@ public final class PersistentSpaceDto {
             visualMaterializationSettings,
             collisionLodSettings,
             extensionSettings);
-    }
-
-    @Nonnull
-    private WorldCollisionMode getPersistedWorldCollisionMode() {
-        return terrainMode.toWorldCollisionMode();
     }
 }

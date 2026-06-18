@@ -94,7 +94,7 @@ public final class PhysicsComponentTypeRegistry {
             TerrainColliderComponent.CODEC);
         physicsChunkTerrainComponentType = registry.registerComponent(
             PhysicsChunkTerrainComponent.class,
-            "WorldCollision",
+            "PhysicsChunkTerrain",
             PhysicsChunkTerrainComponent.CODEC);
         dynamicsComponentType = registry.registerComponent(
             DynamicsComponent.class,

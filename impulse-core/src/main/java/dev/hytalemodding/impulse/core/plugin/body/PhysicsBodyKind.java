@@ -6,16 +6,10 @@ package dev.hytalemodding.impulse.core.plugin.body;
  */
 public enum PhysicsBodyKind {
     BODY,
-
-    /**
-     * @deprecated Use {@link #TERRAIN}.
-     */
-    @Deprecated(forRemoval = false)
-    WORLD_COLLISION,
     TEMPORARY,
     TERRAIN;
 
     public boolean isTerrainCollider() {
-        return this == TERRAIN || this == WORLD_COLLISION;
+        return this == TERRAIN;
     }
 }

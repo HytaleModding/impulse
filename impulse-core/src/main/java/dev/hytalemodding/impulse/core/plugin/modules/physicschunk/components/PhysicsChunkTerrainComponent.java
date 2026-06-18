@@ -9,11 +9,9 @@ import com.hypixel.hytale.component.ComponentType;
 import com.hypixel.hytale.server.core.universe.world.storage.PhysicsStore;
 import dev.hytalemodding.impulse.core.plugin.components.PhysicsComponentTypes;
 import dev.hytalemodding.impulse.core.plugin.modules.physicschunk.PhysicsChunkTerrainMode;
-import dev.hytalemodding.impulse.core.plugin.modules.physicschunk.WorldCollisionMode;
 import dev.hytalemodding.impulse.core.plugin.settings.EntityChunkBoundaryMode;
 import dev.hytalemodding.impulse.core.plugin.modules.physicschunk.settings.PhysicsChunkTerrainSettings;
 import dev.hytalemodding.impulse.core.plugin.settings.PhysicsSpaceSettings;
-import dev.hytalemodding.impulse.core.plugin.settings.PhysicsWorldCollisionSettings;
 import java.util.Objects;
 import javax.annotation.Nonnull;
 
@@ -103,14 +101,6 @@ public class PhysicsChunkTerrainComponent implements Component<PhysicsStore> {
             settings.getTerrainRestitution());
     }
 
-    /**
-     * @deprecated Use {@link #PhysicsChunkTerrainComponent(PhysicsChunkTerrainSettings)}.
-     */
-    @Deprecated(forRemoval = false)
-    public PhysicsChunkTerrainComponent(@Nonnull PhysicsWorldCollisionSettings settings) {
-        this((PhysicsChunkTerrainSettings) settings);
-    }
-
     public PhysicsChunkTerrainComponent(@Nonnull PhysicsChunkTerrainMode terrainMode,
         boolean nativeVoxelTerrainEnabled,
         int radius,
@@ -147,48 +137,6 @@ public class PhysicsChunkTerrainComponent implements Component<PhysicsStore> {
         this.terrainRestitution = terrainRestitution;
     }
 
-    /**
-     * @deprecated Use {@link #PhysicsChunkTerrainComponent(PhysicsChunkTerrainMode, boolean, int, int, int, float, float)}.
-     */
-    @Deprecated(forRemoval = false)
-    public PhysicsChunkTerrainComponent(@Nonnull WorldCollisionMode mode,
-        boolean nativeVoxelTerrainEnabled,
-        int radius,
-        int bodyRadius,
-        int ttlTicks,
-        float terrainFriction,
-        float terrainRestitution) {
-        this(mode.toPhysicsChunkTerrainMode(),
-            nativeVoxelTerrainEnabled,
-            radius,
-            bodyRadius,
-            ttlTicks,
-            terrainFriction,
-            terrainRestitution);
-    }
-
-    /**
-     * @deprecated Use {@link #PhysicsChunkTerrainComponent(PhysicsChunkTerrainMode, EntityChunkBoundaryMode, boolean, int, int, int, float, float)}.
-     */
-    @Deprecated(forRemoval = false)
-    public PhysicsChunkTerrainComponent(@Nonnull WorldCollisionMode mode,
-        @Nonnull EntityChunkBoundaryMode entityChunkBoundaryMode,
-        boolean nativeVoxelTerrainEnabled,
-        int radius,
-        int bodyRadius,
-        int ttlTicks,
-        float terrainFriction,
-        float terrainRestitution) {
-        this(mode.toPhysicsChunkTerrainMode(),
-            entityChunkBoundaryMode,
-            nativeVoxelTerrainEnabled,
-            radius,
-            bodyRadius,
-            ttlTicks,
-            terrainFriction,
-            terrainRestitution);
-    }
-
     @Nonnull
     public PhysicsChunkTerrainMode getTerrainMode() {
         return terrainMode;
@@ -196,23 +144,6 @@ public class PhysicsChunkTerrainComponent implements Component<PhysicsStore> {
 
     public void setTerrainMode(@Nonnull PhysicsChunkTerrainMode terrainMode) {
         this.terrainMode = Objects.requireNonNull(terrainMode, "terrainMode");
-    }
-
-    /**
-     * @deprecated Use {@link #getTerrainMode()}.
-     */
-    @Deprecated(forRemoval = false)
-    @Nonnull
-    public WorldCollisionMode getMode() {
-        return terrainMode.toWorldCollisionMode();
-    }
-
-    /**
-     * @deprecated Use {@link #setTerrainMode(PhysicsChunkTerrainMode)}.
-     */
-    @Deprecated(forRemoval = false)
-    public void setMode(@Nonnull WorldCollisionMode mode) {
-        setTerrainMode(mode.toPhysicsChunkTerrainMode());
     }
 
     @Nonnull
@@ -286,14 +217,6 @@ public class PhysicsChunkTerrainComponent implements Component<PhysicsStore> {
         settings.setBodyTerrainRadius(bodyRadius);
         settings.setTerrainTtlTicks(ttlTicks);
         settings.setTerrainMaterial(terrainFriction, terrainRestitution);
-    }
-
-    /**
-     * @deprecated Use {@link #copyTo(PhysicsChunkTerrainSettings)}.
-     */
-    @Deprecated(forRemoval = false)
-    public void copyTo(@Nonnull PhysicsWorldCollisionSettings settings) {
-        copyTo((PhysicsChunkTerrainSettings) settings);
     }
 
     @Nonnull

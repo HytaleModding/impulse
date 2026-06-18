@@ -1,7 +1,6 @@
 package dev.hytalemodding.impulse.core.plugin.modules.physicschunk.settings;
 
 import dev.hytalemodding.impulse.core.plugin.modules.physicschunk.PhysicsChunkTerrainMode;
-import dev.hytalemodding.impulse.core.plugin.modules.physicschunk.WorldCollisionMode;
 import dev.hytalemodding.impulse.core.plugin.settings.EntityChunkBoundaryMode;
 import java.util.Objects;
 import javax.annotation.Nonnull;
@@ -62,42 +61,6 @@ public class PhysicsChunkTerrainSettings {
      * Default restitution applied to generated terrain collider bodies.
      */
     public static final float DEFAULT_TERRAIN_RESTITUTION = 0.0f;
-
-    /**
-     * @deprecated Use {@link #DEFAULT_TERRAIN_RADIUS}.
-     */
-    @Deprecated(forRemoval = false)
-    public static final int DEFAULT_WORLD_COLLISION_RADIUS = DEFAULT_TERRAIN_RADIUS;
-
-    /**
-     * @deprecated Use {@link #MAX_TERRAIN_RADIUS}.
-     */
-    @Deprecated(forRemoval = false)
-    public static final int MAX_WORLD_COLLISION_RADIUS = MAX_TERRAIN_RADIUS;
-
-    /**
-     * @deprecated Use {@link #DEFAULT_BODY_TERRAIN_RADIUS}.
-     */
-    @Deprecated(forRemoval = false)
-    public static final int DEFAULT_WORLD_COLLISION_BODY_RADIUS = DEFAULT_BODY_TERRAIN_RADIUS;
-
-    /**
-     * @deprecated Use {@link #MAX_BODY_TERRAIN_RADIUS}.
-     */
-    @Deprecated(forRemoval = false)
-    public static final int MAX_WORLD_COLLISION_BODY_RADIUS = MAX_BODY_TERRAIN_RADIUS;
-
-    /**
-     * @deprecated Use {@link #DEFAULT_TERRAIN_TTL_TICKS}.
-     */
-    @Deprecated(forRemoval = false)
-    public static final int DEFAULT_WORLD_COLLISION_TTL_TICKS = DEFAULT_TERRAIN_TTL_TICKS;
-
-    /**
-     * @deprecated Use {@link #MAX_TERRAIN_TTL_TICKS}.
-     */
-    @Deprecated(forRemoval = false)
-    public static final int MAX_WORLD_COLLISION_TTL_TICKS = MAX_TERRAIN_TTL_TICKS;
 
     @Nonnull
     private PhysicsChunkTerrainMode terrainMode = PhysicsChunkTerrainMode.NONE;
@@ -220,68 +183,4 @@ public class PhysicsChunkTerrainSettings {
         this.terrainRestitution = validatedRestitution;
     }
 
-    /**
-     * @deprecated Use {@link #getTerrainMode()}.
-     */
-    @Deprecated(forRemoval = false)
-    @Nonnull
-    public WorldCollisionMode getWorldCollisionMode() {
-        return terrainMode.toWorldCollisionMode();
-    }
-
-    /**
-     * @deprecated Use {@link #setTerrainMode(PhysicsChunkTerrainMode)}.
-     */
-    @Deprecated(forRemoval = false)
-    public void setWorldCollisionMode(@Nonnull WorldCollisionMode worldCollisionMode) {
-        setTerrainMode(worldCollisionMode.toPhysicsChunkTerrainMode());
-    }
-
-    /**
-     * @deprecated Use {@link #getTerrainRadius()}.
-     */
-    @Deprecated(forRemoval = false)
-    public int getWorldCollisionRadius() {
-        return getTerrainRadius();
-    }
-
-    /**
-     * @deprecated Use {@link #setTerrainRadius(int)}.
-     */
-    @Deprecated(forRemoval = false)
-    public void setWorldCollisionRadius(int worldCollisionRadius) {
-        setTerrainRadius(worldCollisionRadius);
-    }
-
-    /**
-     * @deprecated Use {@link #getBodyTerrainRadius()}.
-     */
-    @Deprecated(forRemoval = false)
-    public int getWorldCollisionBodyRadius() {
-        return getBodyTerrainRadius();
-    }
-
-    /**
-     * @deprecated Use {@link #setBodyTerrainRadius(int)}.
-     */
-    @Deprecated(forRemoval = false)
-    public void setWorldCollisionBodyRadius(int worldCollisionBodyRadius) {
-        setBodyTerrainRadius(worldCollisionBodyRadius);
-    }
-
-    /**
-     * @deprecated Use {@link #getTerrainTtlTicks()}.
-     */
-    @Deprecated(forRemoval = false)
-    public int getWorldCollisionTtlTicks() {
-        return getTerrainTtlTicks();
-    }
-
-    /**
-     * @deprecated Use {@link #setTerrainTtlTicks(int)}.
-     */
-    @Deprecated(forRemoval = false)
-    public void setWorldCollisionTtlTicks(int worldCollisionTtlTicks) {
-        setTerrainTtlTicks(worldCollisionTtlTicks);
-    }
 }

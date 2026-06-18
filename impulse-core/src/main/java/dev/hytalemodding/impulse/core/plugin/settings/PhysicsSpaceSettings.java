@@ -1,6 +1,10 @@
 package dev.hytalemodding.impulse.core.plugin.settings;
 
 import dev.hytalemodding.impulse.core.plugin.modules.physicschunk.PhysicsChunkTerrainMode;
+import dev.hytalemodding.impulse.core.plugin.modules.physicschunk.settings.PhysicsChunkTerrainSettings;
+import dev.hytalemodding.impulse.core.plugin.modules.physicschunk.settings.PhysicsCollisionLodSettings;
+import dev.hytalemodding.impulse.core.plugin.modules.physicsentity.settings.PhysicsVisualMaterializationSettings;
+import dev.hytalemodding.impulse.core.plugin.modules.physicsentity.settings.PhysicsVisualSyncSettings;
 import dev.hytalemodding.impulse.core.plugin.physicsstore.PhysicsSpaces;
 import javax.annotation.Nonnull;
 
@@ -20,7 +24,6 @@ import javax.annotation.Nonnull;
  * which keeps Impulse fully opt-in: no terrain bodies are created unless the integrator
  * explicitly opts in.</p>
  */
-@SuppressWarnings("deprecation")
 public class PhysicsSpaceSettings {
 
     @Nonnull
@@ -37,7 +40,7 @@ public class PhysicsSpaceSettings {
     private final PhysicsExtensionSettings extensionSettings;
 
     public PhysicsSpaceSettings() {
-        physicsChunkTerrainSettings = new PhysicsWorldCollisionSettings();
+        physicsChunkTerrainSettings = new PhysicsChunkTerrainSettings();
         visualSyncSettings = new PhysicsVisualSyncSettings();
         solverSettings = new PhysicsSolverSettings();
         visualMaterializationSettings = new PhysicsVisualMaterializationSettings();
@@ -47,7 +50,7 @@ public class PhysicsSpaceSettings {
 
     public PhysicsSpaceSettings(@Nonnull PhysicsSpaceSettings settings) {
         physicsChunkTerrainSettings =
-            new PhysicsWorldCollisionSettings(settings.physicsChunkTerrainSettings);
+            new PhysicsChunkTerrainSettings(settings.physicsChunkTerrainSettings);
         visualSyncSettings =
             new PhysicsVisualSyncSettings(settings.visualSyncSettings);
         solverSettings =
@@ -65,15 +68,6 @@ public class PhysicsSpaceSettings {
     @Nonnull
     public PhysicsChunkTerrainSettings getPhysicsChunkTerrainSettings() {
         return physicsChunkTerrainSettings;
-    }
-
-    /**
-     * @deprecated Use {@link #getPhysicsChunkTerrainSettings()}.
-     */
-    @Deprecated(forRemoval = false)
-    @Nonnull
-    public PhysicsWorldCollisionSettings getWorldCollisionSettings() {
-        return (PhysicsWorldCollisionSettings) physicsChunkTerrainSettings;
     }
 
     /**
@@ -130,14 +124,5 @@ public class PhysicsSpaceSettings {
         settings.getPhysicsChunkTerrainSettings()
             .setTerrainMode(PhysicsChunkTerrainMode.STREAMING);
         return settings;
-    }
-
-    /**
-     * @deprecated Use {@link #streamingPhysicsChunk()}.
-     */
-    @Deprecated
-    @Nonnull
-    public static PhysicsSpaceSettings streamingWorldCollision() {
-        return streamingPhysicsChunk();
     }
 }

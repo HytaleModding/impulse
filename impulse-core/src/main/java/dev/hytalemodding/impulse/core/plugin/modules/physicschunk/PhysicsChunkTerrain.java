@@ -34,14 +34,6 @@ public final class PhysicsChunkTerrain {
         return PhysicsChunkLifecycle.isEnabled();
     }
 
-    /**
-     * @deprecated Use {@link #isSubPluginEnabled()}.
-     */
-    @Deprecated(forRemoval = false)
-    public static boolean isModuleEnabled() {
-        return isSubPluginEnabled();
-    }
-
     @Nonnull
     public static PhysicsChunkTerrainBuildStats rebuildAround(@Nonnull World world,
         @Nonnull Store<PhysicsStore> store,
