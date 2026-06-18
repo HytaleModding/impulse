@@ -1,6 +1,7 @@
 package dev.hytalemodding.impulse.core.internal.physicsstore;
 
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.io.IOException;
 import java.nio.file.Files;
@@ -74,6 +75,27 @@ class PhysicsStoreRuntimeBoundarySourceGuardTest {
             "src/main/java/dev/hytalemodding/impulse/core/internal/resources/PhysicsWorldRuntimeResource.java"));
 
         assertFalse(source.contains("forEachSpaceBinding"));
+    }
+
+    @Test
+    void legacyAuthoritativeAsyncMutationsWaitForBackendIdle() throws IOException {
+        String source = Files.readString(Path.of(
+            "src/main/java/dev/hytalemodding/impulse/core/internal/resources/PhysicsWorldRuntimeResource.java"));
+
+        assertTrue(source.contains("PhysicsThreading.callWhenBackendIdleOnWorldThread(world,"
+            + System.lineSeparator() + "                operation,"));
+        assertFalse(source.contains("PhysicsThreading.executeOnWorldThread(world, operation, mutation)"));
+    }
+
+    @Test
+    void publicWorldSettingsAsyncWaitsForBackendIdle() throws IOException {
+        String source = Files.readString(Path.of(
+            "src/main/java/dev/hytalemodding/impulse/core/plugin/physicsstore/PhysicsWorlds.java"));
+
+        assertTrue(source.contains("PhysicsThreading.callWhenBackendIdleOnWorldThread(world,"
+            + System.lineSeparator() + "            \"queue PhysicsStore world settings update\""));
+        assertFalse(source.contains("PhysicsThreading.executeOnWorldThread(world,"
+            + System.lineSeparator() + "            \"queue PhysicsStore world settings update\""));
     }
 
     @Test

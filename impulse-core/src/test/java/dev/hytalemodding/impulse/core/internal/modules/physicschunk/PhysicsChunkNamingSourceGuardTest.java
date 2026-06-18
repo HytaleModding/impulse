@@ -43,6 +43,8 @@ class PhysicsChunkNamingSourceGuardTest {
                 String source = Files.readString(file);
                 assertFalse(source.contains("import dev.hytalemodding.impulse.core.internal."),
                     file + " should use exported plugin APIs");
+                assertFalse(source.contains("import dev.hytalemodding.impulse.core.plugin.settings.*;"),
+                    file + " should not wildcard-import deprecated flat settings");
                 assertFalse(source.contains("import dev.hytalemodding.impulse.core.plugin.modules.physicschunk.PhysicsWorldCollision"),
                     file + " should use PhysicsChunkTerrain");
                 assertFalse(source.contains("import dev.hytalemodding.impulse.core.plugin.modules.physicschunk.WorldCollision"),
@@ -56,6 +58,20 @@ class PhysicsChunkNamingSourceGuardTest {
                 assertFalse(source.contains("import dev.hytalemodding.impulse.core.plugin.settings.PhysicsVisualSyncSettings"),
                     file + " should use PhysicsEntity settings");
                 assertFalse(source.contains("import dev.hytalemodding.impulse.core.plugin.settings.PhysicsVisualMaterializationSettings"),
+                    file + " should use PhysicsEntity settings");
+                assertFalse(source.contains("dev.hytalemodding.impulse.core.plugin.modules.physicschunk.PhysicsWorldCollision"),
+                    file + " should use PhysicsChunkTerrain");
+                assertFalse(source.contains("dev.hytalemodding.impulse.core.plugin.modules.physicschunk.WorldCollision"),
+                    file + " should use PhysicsChunkTerrain names");
+                assertFalse(source.contains("dev.hytalemodding.impulse.core.plugin.settings.PhysicsWorldCollisionSettings"),
+                    file + " should use PhysicsChunkTerrainSettings");
+                assertFalse(source.contains("dev.hytalemodding.impulse.core.plugin.settings.PhysicsChunkTerrainSettings"),
+                    file + " should use PhysicsChunk settings");
+                assertFalse(source.contains("dev.hytalemodding.impulse.core.plugin.settings.PhysicsCollisionLodSettings"),
+                    file + " should use PhysicsChunk settings");
+                assertFalse(source.contains("dev.hytalemodding.impulse.core.plugin.settings.PhysicsVisualSyncSettings"),
+                    file + " should use PhysicsEntity settings");
+                assertFalse(source.contains("dev.hytalemodding.impulse.core.plugin.settings.PhysicsVisualMaterializationSettings"),
                     file + " should use PhysicsEntity settings");
             }
         }
