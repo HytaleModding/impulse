@@ -58,7 +58,7 @@ import dev.hytalemodding.impulse.core.plugin.resources.PhysicsMutationHandle;
 import dev.hytalemodding.impulse.core.plugin.resources.PhysicsWorldResource;
 import dev.hytalemodding.impulse.core.plugin.settings.PhysicsSpaceSettings;
 import dev.hytalemodding.impulse.core.plugin.settings.PhysicsStepMode;
-import dev.hytalemodding.impulse.core.plugin.settings.PhysicsChunkTerrainSettings;
+import dev.hytalemodding.impulse.core.plugin.modules.physicschunk.settings.PhysicsChunkTerrainSettings;
 import dev.hytalemodding.impulse.core.plugin.settings.PhysicsWorldSettings;
 import dev.hytalemodding.impulse.core.plugin.snapshot.PhysicsBodySnapshotEntry;
 import dev.hytalemodding.impulse.core.plugin.snapshot.PublishedPhysicsSnapshotFrame;

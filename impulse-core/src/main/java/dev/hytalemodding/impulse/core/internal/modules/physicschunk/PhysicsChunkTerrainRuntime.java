@@ -6,7 +6,7 @@ import dev.hytalemodding.impulse.core.internal.resources.PhysicsSpaceBinding;
 import dev.hytalemodding.impulse.core.plugin.modules.physicschunk.PhysicsChunkTerrainBuildStats;
 import dev.hytalemodding.impulse.core.plugin.modules.physicschunk.PhysicsChunkTerrainPrewarmStats;
 import dev.hytalemodding.impulse.core.plugin.modules.physicschunk.PhysicsChunkTerrainStats;
-import dev.hytalemodding.impulse.core.plugin.settings.PhysicsChunkTerrainSettings;
+import dev.hytalemodding.impulse.core.plugin.modules.physicschunk.settings.PhysicsChunkTerrainSettings;
 import it.unimi.dsi.fastutil.ints.Int2LongMap;
 import it.unimi.dsi.fastutil.ints.Int2LongOpenHashMap;
 import it.unimi.dsi.fastutil.longs.LongOpenHashSet;

@@ -2,7 +2,7 @@ package dev.hytalemodding.impulse.core.internal.persistence;
 
 import dev.hytalemodding.impulse.api.BackendId;
 import dev.hytalemodding.impulse.api.Impulse;
-import dev.hytalemodding.impulse.core.plugin.settings.PhysicsChunkTerrainSettings;
+import dev.hytalemodding.impulse.core.plugin.modules.physicschunk.settings.PhysicsChunkTerrainSettings;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;

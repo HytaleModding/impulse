@@ -15,7 +15,7 @@ import dev.hytalemodding.impulse.core.plugin.components.VisualMaterializationSet
 import dev.hytalemodding.impulse.core.plugin.components.VisualSyncSettingsComponent;
 import dev.hytalemodding.impulse.core.plugin.modules.physicschunk.components.PhysicsChunkTerrainComponent;
 import dev.hytalemodding.impulse.core.plugin.settings.EntityChunkBoundaryMode;
-import dev.hytalemodding.impulse.core.plugin.settings.PhysicsChunkTerrainSettings;
+import dev.hytalemodding.impulse.core.plugin.modules.physicschunk.settings.PhysicsChunkTerrainSettings;
 import dev.hytalemodding.impulse.core.plugin.settings.PhysicsSpaceSettings;
 import java.util.Objects;
 import java.util.UUID;

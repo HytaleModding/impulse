@@ -3,7 +3,7 @@ package dev.hytalemodding.impulse.core.plugin.modules.physicschunk.components;
 import dev.hytalemodding.impulse.core.plugin.modules.physicschunk.PhysicsChunkTerrainMode;
 import dev.hytalemodding.impulse.core.plugin.modules.physicschunk.WorldCollisionMode;
 import dev.hytalemodding.impulse.core.plugin.settings.EntityChunkBoundaryMode;
-import dev.hytalemodding.impulse.core.plugin.settings.PhysicsChunkTerrainSettings;
+import dev.hytalemodding.impulse.core.plugin.modules.physicschunk.settings.PhysicsChunkTerrainSettings;
 import dev.hytalemodding.impulse.core.plugin.settings.PhysicsWorldCollisionSettings;
 import javax.annotation.Nonnull;
 

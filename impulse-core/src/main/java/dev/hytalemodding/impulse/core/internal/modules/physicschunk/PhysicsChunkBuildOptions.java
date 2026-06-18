@@ -1,6 +1,6 @@
 package dev.hytalemodding.impulse.core.internal.modules.physicschunk;
 
-import dev.hytalemodding.impulse.core.plugin.settings.PhysicsChunkTerrainSettings;
+import dev.hytalemodding.impulse.core.plugin.modules.physicschunk.settings.PhysicsChunkTerrainSettings;
 import java.util.Objects;
 import javax.annotation.Nonnull;
 

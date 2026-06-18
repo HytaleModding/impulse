@@ -11,7 +11,7 @@ import dev.hytalemodding.impulse.core.plugin.components.PhysicsComponentTypes;
 import dev.hytalemodding.impulse.core.plugin.modules.physicschunk.PhysicsChunkTerrainMode;
 import dev.hytalemodding.impulse.core.plugin.modules.physicschunk.WorldCollisionMode;
 import dev.hytalemodding.impulse.core.plugin.settings.EntityChunkBoundaryMode;
-import dev.hytalemodding.impulse.core.plugin.settings.PhysicsChunkTerrainSettings;
+import dev.hytalemodding.impulse.core.plugin.modules.physicschunk.settings.PhysicsChunkTerrainSettings;
 import dev.hytalemodding.impulse.core.plugin.settings.PhysicsSpaceSettings;
 import dev.hytalemodding.impulse.core.plugin.settings.PhysicsWorldCollisionSettings;
 import java.util.Objects;

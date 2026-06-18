@@ -17,7 +17,7 @@ import dev.hytalemodding.impulse.core.plugin.physicsstore.PhysicsThreading;
 import dev.hytalemodding.impulse.core.plugin.modules.physicschunk.PhysicsChunkTerrainMode;
 import dev.hytalemodding.impulse.core.plugin.settings.EntityChunkBoundaryMode;
 import dev.hytalemodding.impulse.core.plugin.settings.PhysicsSpaceSettings;
-import dev.hytalemodding.impulse.core.plugin.settings.PhysicsChunkTerrainSettings;
+import dev.hytalemodding.impulse.core.plugin.modules.physicschunk.settings.PhysicsChunkTerrainSettings;
 import java.util.Locale;
 import java.util.concurrent.CompletableFuture;
 import javax.annotation.Nonnull;
