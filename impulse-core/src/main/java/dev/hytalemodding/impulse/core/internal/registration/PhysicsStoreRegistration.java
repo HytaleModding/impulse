@@ -20,8 +20,8 @@ import dev.hytalemodding.impulse.core.internal.resources.PhysicsSnapshotResource
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsStepSchedulerResource;
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsStepSchedulerResource.TickDecision;
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsStoreReadQueueResource;
-import dev.hytalemodding.impulse.core.internal.resources.PhysicsTerrainMutationQueueResource;
-import dev.hytalemodding.impulse.core.internal.resources.PhysicsTerrainPayloadResource;
+import dev.hytalemodding.impulse.core.internal.resources.PhysicsChunkCollisionMutationQueueResource;
+import dev.hytalemodding.impulse.core.internal.resources.PhysicsChunkCollisionPayloadResource;
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsWorldSettingsResource;
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsChunkSettingsIndexResource;
 import dev.hytalemodding.impulse.core.internal.systems.BodyBindingSystem;
@@ -38,8 +38,8 @@ import dev.hytalemodding.impulse.core.internal.systems.SpaceSettingsApplicationS
 import dev.hytalemodding.impulse.core.internal.systems.StepSubmissionSystem;
 import dev.hytalemodding.impulse.core.internal.systems.StaleBodyRemovalSystem;
 import dev.hytalemodding.impulse.core.internal.systems.TargetBindingSystem;
-import dev.hytalemodding.impulse.core.internal.systems.TerrainMutationDrainSystem;
-import dev.hytalemodding.impulse.core.internal.systems.TerrainVoxelStitchingSystem;
+import dev.hytalemodding.impulse.core.internal.systems.ChunkCollisionMutationDrainSystem;
+import dev.hytalemodding.impulse.core.internal.systems.ChunkCollisionVoxelStitchingSystem;
 import dev.hytalemodding.impulse.core.internal.systems.PhysicsChunkSettingsIndexSystem;
 import dev.hytalemodding.impulse.core.internal.resources.profiling.PhysicsRuntimeProfilingResource;
 import dev.hytalemodding.impulse.core.plugin.settings.PhysicsWorldSettings;
@@ -76,12 +76,12 @@ public final class PhysicsStoreRegistration {
         registry.registerSystem(new PhysicsChunkSettingsIndexSystem());
         registry.registerSystem(new SpaceBindingSystem());
         registry.registerSystem(new SpaceSettingsApplicationSystem());
-        registry.registerSystem(new TerrainMutationDrainSystem());
+        registry.registerSystem(new ChunkCollisionMutationDrainSystem());
         registry.registerSystem(new BodyBindingSystem());
         registry.registerSystem(new ColliderBindingSystem());
         registry.registerSystem(new JointBindingSystem());
         registry.registerSystem(new StaleBodyRemovalSystem());
-        registry.registerSystem(new TerrainVoxelStitchingSystem());
+        registry.registerSystem(new ChunkCollisionVoxelStitchingSystem());
         registry.registerSystem(new BodyCommandApplicationSystem());
         registry.registerSystem(new TargetBindingSystem());
         registry.registerSystem(new CompletedStepPublicationSystem());
@@ -108,12 +108,12 @@ public final class PhysicsStoreRegistration {
                 PhysicsRuntimeResource::destroyBackendBindings));
         failure = runShutdownCleanup(failure,
             () -> cleanupResource(store,
-                PhysicsTerrainMutationQueueResource.getResourceType(),
-                PhysicsTerrainMutationQueueResource::clear));
+                PhysicsChunkCollisionMutationQueueResource.getResourceType(),
+                PhysicsChunkCollisionMutationQueueResource::clear));
         failure = runShutdownCleanup(failure,
             () -> cleanupResource(store,
-                PhysicsTerrainPayloadResource.getResourceType(),
-                PhysicsTerrainPayloadResource::clear));
+                PhysicsChunkCollisionPayloadResource.getResourceType(),
+                PhysicsChunkCollisionPayloadResource::clear));
         failure = runShutdownCleanup(failure,
             () -> cleanupResource(store,
                 PhysicsChunkSettingsIndexResource.getResourceType(),

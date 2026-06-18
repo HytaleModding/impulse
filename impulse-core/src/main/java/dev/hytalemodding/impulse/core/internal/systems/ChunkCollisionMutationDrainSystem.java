@@ -22,11 +22,11 @@ import dev.hytalemodding.impulse.core.internal.resources.PhysicsIdentityIndexRes
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsRestoreStatusResource;
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsRuntimeResource;
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsSnapshotResource;
-import dev.hytalemodding.impulse.core.internal.resources.PhysicsTerrainMutationQueueResource;
-import dev.hytalemodding.impulse.core.internal.resources.PhysicsTerrainPayloadResource;
-import dev.hytalemodding.impulse.core.internal.terrain.TerrainColliderMutation;
-import dev.hytalemodding.impulse.core.internal.terrain.TerrainColliderPayload;
-import dev.hytalemodding.impulse.core.internal.terrain.TerrainColliderPayload.BoxPayload;
+import dev.hytalemodding.impulse.core.internal.resources.PhysicsChunkCollisionMutationQueueResource;
+import dev.hytalemodding.impulse.core.internal.resources.PhysicsChunkCollisionPayloadResource;
+import dev.hytalemodding.impulse.core.internal.modules.physicschunk.ChunkCollisionMutation;
+import dev.hytalemodding.impulse.core.internal.modules.physicschunk.ChunkCollisionPayload;
+import dev.hytalemodding.impulse.core.internal.modules.physicschunk.ChunkCollisionPayload.BoxPayload;
 import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyKind;
 import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyPersistenceMode;
 import dev.hytalemodding.impulse.core.plugin.components.BodyComponent;
@@ -53,9 +53,9 @@ import org.joml.Quaternionf;
 import org.joml.Vector3f;
 
 /**
- * Applies copied PhysicsChunk terrain mutations as runtime-only terrain body rows.
+ * Applies copied PhysicsChunk chunk collision mutations as runtime-only chunk collision body rows.
  */
-public final class TerrainMutationDrainSystem extends TickingSystem<PhysicsStore> {
+public final class ChunkCollisionMutationDrainSystem extends TickingSystem<PhysicsStore> {
 
     private static final Set<Dependency<PhysicsStore>> DEPENDENCIES = Set.of(
         new SystemDependency<>(Order.AFTER, SpaceBindingSystem.class),
@@ -69,31 +69,31 @@ public final class TerrainMutationDrainSystem extends TickingSystem<PhysicsStore
         if (restore.isFailed()) {
             return;
         }
-        PhysicsTerrainMutationQueueResource queue = store.getResource(
-            PhysicsTerrainMutationQueueResource.getResourceType());
-        List<TerrainColliderMutation> mutations = queue.drain();
+        PhysicsChunkCollisionMutationQueueResource queue = store.getResource(
+            PhysicsChunkCollisionMutationQueueResource.getResourceType());
+        List<ChunkCollisionMutation> mutations = queue.drain();
         if (mutations.isEmpty()) {
             return;
         }
         PhysicsRuntimeResource runtime = store.getResource(PhysicsRuntimeResource.getResourceType());
         PhysicsIdentityIndexResource identity = store.getResource(
             PhysicsIdentityIndexResource.getResourceType());
-        PhysicsTerrainPayloadResource terrainPayloads = store.getResource(
-            PhysicsTerrainPayloadResource.getResourceType());
+        PhysicsChunkCollisionPayloadResource chunkCollisionPayloads = store.getResource(
+            PhysicsChunkCollisionPayloadResource.getResourceType());
 
-        applyRemovals(store, runtime, identity, terrainPayloads, mutations);
-        applyUpserts(store, runtime, identity, terrainPayloads, restore, mutations);
+        applyRemovals(store, runtime, identity, chunkCollisionPayloads, mutations);
+        applyUpserts(store, runtime, identity, chunkCollisionPayloads, restore, mutations);
     }
 
     private static void applyRemovals(@Nonnull Store<PhysicsStore> store,
         @Nonnull PhysicsRuntimeResource runtime,
         @Nonnull PhysicsIdentityIndexResource identity,
-        @Nonnull PhysicsTerrainPayloadResource terrainPayloads,
-        @Nonnull List<TerrainColliderMutation> mutations) {
-        for (TerrainColliderMutation mutation : mutations) {
+        @Nonnull PhysicsChunkCollisionPayloadResource chunkCollisionPayloads,
+        @Nonnull List<ChunkCollisionMutation> mutations) {
+        for (ChunkCollisionMutation mutation : mutations) {
             if (mutation.remove()) {
-                removeGeneratedRows(store, runtime, identity, terrainPayloads, mutation);
-                removePayload(terrainPayloads, mutation.payloadResourceKey());
+                removeGeneratedRows(store, runtime, identity, chunkCollisionPayloads, mutation);
+                removePayload(chunkCollisionPayloads, mutation.payloadResourceKey());
             }
         }
     }
@@ -101,12 +101,12 @@ public final class TerrainMutationDrainSystem extends TickingSystem<PhysicsStore
     private static void applyUpserts(@Nonnull Store<PhysicsStore> store,
         @Nonnull PhysicsRuntimeResource runtime,
         @Nonnull PhysicsIdentityIndexResource identity,
-        @Nonnull PhysicsTerrainPayloadResource terrainPayloads,
+        @Nonnull PhysicsChunkCollisionPayloadResource chunkCollisionPayloads,
         @Nonnull PhysicsRestoreStatusResource restore,
-        @Nonnull List<TerrainColliderMutation> mutations) {
-        for (TerrainColliderMutation mutation : mutations) {
+        @Nonnull List<ChunkCollisionMutation> mutations) {
+        for (ChunkCollisionMutation mutation : mutations) {
             if (!mutation.remove()) {
-                applyUpsert(store, runtime, identity, terrainPayloads, restore, mutation);
+                applyUpsert(store, runtime, identity, chunkCollisionPayloads, restore, mutation);
             }
         }
     }
@@ -114,10 +114,10 @@ public final class TerrainMutationDrainSystem extends TickingSystem<PhysicsStore
     private static void applyUpsert(@Nonnull Store<PhysicsStore> store,
         @Nonnull PhysicsRuntimeResource runtime,
         @Nonnull PhysicsIdentityIndexResource identity,
-        @Nonnull PhysicsTerrainPayloadResource terrainPayloads,
+        @Nonnull PhysicsChunkCollisionPayloadResource chunkCollisionPayloads,
         @Nonnull PhysicsRestoreStatusResource restore,
-        @Nonnull TerrainColliderMutation mutation) {
-        TerrainColliderPayload payload = mutation.payload();
+        @Nonnull ChunkCollisionMutation mutation) {
+        ChunkCollisionPayload payload = mutation.payload();
         if (payload == null || payload.isEmpty()) {
             restore.recordSoftSkip("Terrain upsert payload is missing: " + mutation.sourceKey());
             return;
@@ -132,8 +132,8 @@ public final class TerrainMutationDrainSystem extends TickingSystem<PhysicsStore
             restore.recordSoftSkip("Terrain references unbound space: " + mutation.sourceKey());
             return;
         }
-        removeGeneratedRows(store, runtime, identity, terrainPayloads, mutation);
-        terrainPayloads.put(mutation.payloadResourceKey(), payload);
+        removeGeneratedRows(store, runtime, identity, chunkCollisionPayloads, mutation);
+        chunkCollisionPayloads.put(mutation.payloadResourceKey(), payload);
 
         boolean nativeVoxel = payload.nativeVoxelTerrainEnabled()
             && payload.hasFullCubeVoxels()
@@ -161,8 +161,8 @@ public final class TerrainMutationDrainSystem extends TickingSystem<PhysicsStore
     private static void addVoxelBody(@Nonnull Store<PhysicsStore> store,
         @Nonnull PhysicsIdentityIndexResource identity,
         @Nonnull Ref<PhysicsStore> spaceRef,
-        @Nonnull TerrainColliderMutation mutation,
-        @Nonnull TerrainColliderPayload payload) {
+        @Nonnull ChunkCollisionMutation mutation,
+        @Nonnull ChunkCollisionPayload payload) {
         TargetComponent target = new TargetComponent();
         target.setPosition(new Vector3f(mutation.chunkX() << ChunkUtil.BITS,
             mutation.sectionY() << ChunkUtil.BITS,
@@ -190,8 +190,8 @@ public final class TerrainMutationDrainSystem extends TickingSystem<PhysicsStore
     private static void addBoxBodies(@Nonnull Store<PhysicsStore> store,
         @Nonnull PhysicsIdentityIndexResource identity,
         @Nonnull Ref<PhysicsStore> spaceRef,
-        @Nonnull TerrainColliderMutation mutation,
-        @Nonnull TerrainColliderPayload payload,
+        @Nonnull ChunkCollisionMutation mutation,
+        @Nonnull ChunkCollisionPayload payload,
         @Nonnull List<BoxPayload> boxes,
         @Nonnull PartKind partKind) {
         for (int index = 0; index < boxes.size(); index++) {
@@ -227,14 +227,14 @@ public final class TerrainMutationDrainSystem extends TickingSystem<PhysicsStore
     private static void addTerrainBody(@Nonnull Store<PhysicsStore> store,
         @Nonnull PhysicsIdentityIndexResource identity,
         @Nonnull Ref<PhysicsStore> spaceRef,
-        @Nonnull TerrainColliderMutation mutation,
+        @Nonnull ChunkCollisionMutation mutation,
         @Nonnull TargetComponent target,
         @Nonnull ShapeComponent shape,
         @Nonnull MaterialComponent material,
         @Nonnull CollisionFilterComponent filter,
         @Nonnull PartKind partKind,
         int partIndex) {
-        UUID bodyUuid = terrainBodyUuid(mutation.spaceUuid(),
+        UUID bodyUuid = chunkCollisionBodyUuid(mutation.spaceUuid(),
             mutation.sourceKey(),
             partKind,
             partIndex);
@@ -266,20 +266,20 @@ public final class TerrainMutationDrainSystem extends TickingSystem<PhysicsStore
     }
 
     @Nonnull
-    private static MaterialComponent material(@Nonnull TerrainColliderPayload payload) {
+    private static MaterialComponent material(@Nonnull ChunkCollisionPayload payload) {
         return new MaterialComponent(payload.friction(), payload.restitution());
     }
 
     @Nonnull
-    private static CollisionFilterComponent filter(@Nonnull TerrainColliderPayload payload) {
+    private static CollisionFilterComponent filter(@Nonnull ChunkCollisionPayload payload) {
         return new CollisionFilterComponent(payload.collisionGroup(), payload.collisionMask());
     }
 
     private static void removeGeneratedRows(@Nonnull Store<PhysicsStore> store,
         @Nonnull PhysicsRuntimeResource runtime,
         @Nonnull PhysicsIdentityIndexResource identity,
-        @Nonnull PhysicsTerrainPayloadResource terrainPayloads,
-        @Nonnull TerrainColliderMutation mutation) {
+        @Nonnull PhysicsChunkCollisionPayloadResource chunkCollisionPayloads,
+        @Nonnull ChunkCollisionMutation mutation) {
         List<GeneratedRow> rows = collectGeneratedRows(store, mutation);
         PhysicsSnapshotResource snapshots = store.getResource(PhysicsSnapshotResource.getResourceType());
         PhysicsBodyRegistrationResource registrations = store.getResource(
@@ -289,7 +289,7 @@ public final class TerrainMutationDrainSystem extends TickingSystem<PhysicsStore
             PhysicsControlRuntimeStates.clearControlled(row.ref());
             snapshots.removeBody(row.uuid());
             registrations.removeBody(row.uuid());
-            removePayload(terrainPayloads, row.payloadResourceKey());
+            removePayload(chunkCollisionPayloads, row.payloadResourceKey());
             identity.removeUuid(row.uuid(), row.ref());
             if (row.ref().isValid()) {
                 store.removeEntity(row.ref(),
@@ -301,7 +301,7 @@ public final class TerrainMutationDrainSystem extends TickingSystem<PhysicsStore
 
     @Nonnull
     private static List<GeneratedRow> collectGeneratedRows(@Nonnull Store<PhysicsStore> store,
-        @Nonnull TerrainColliderMutation mutation) {
+        @Nonnull ChunkCollisionMutation mutation) {
         ConcurrentLinkedQueue<GeneratedRow> rows = new ConcurrentLinkedQueue<>();
         store.forEachEntityParallel(UuidComponent.getComponentType(), (index, chunk, _) -> {
             UUID rowUuid = PhysicsStoreSystemSupport.rowUuid(chunk, index);
@@ -322,7 +322,7 @@ public final class TerrainMutationDrainSystem extends TickingSystem<PhysicsStore
         return new ArrayList<>(rows);
     }
 
-    private static boolean matchesSource(@Nonnull TerrainColliderMutation mutation,
+    private static boolean matchesSource(@Nonnull ChunkCollisionMutation mutation,
         @Nonnull BodyComponent body,
         @Nonnull ChunkCollisionSourceComponent source) {
         return mutation.spaceUuid().equals(body.getSpaceUuid())
@@ -344,15 +344,15 @@ public final class TerrainMutationDrainSystem extends TickingSystem<PhysicsStore
         runtime.removeBodyHandle(row.uuid(), row.ref());
     }
 
-    private static void removePayload(@Nonnull PhysicsTerrainPayloadResource terrainPayloads,
+    private static void removePayload(@Nonnull PhysicsChunkCollisionPayloadResource chunkCollisionPayloads,
         @Nullable String payloadResourceKey) {
         if (payloadResourceKey != null && !payloadResourceKey.isBlank()) {
-            terrainPayloads.remove(payloadResourceKey);
+            chunkCollisionPayloads.remove(payloadResourceKey);
         }
     }
 
     @Nonnull
-    static UUID terrainBodyUuid(@Nonnull UUID spaceUuid,
+    static UUID chunkCollisionBodyUuid(@Nonnull UUID spaceUuid,
         @Nonnull String sourceKey,
         @Nonnull PartKind partKind,
         int partIndex) {

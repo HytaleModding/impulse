@@ -3,11 +3,11 @@ package dev.hytalemodding.impulse.core.internal.modules.physicschunk;
 /**
  * Runtime representation used for full-cube terrain collision.
  */
-public enum TerrainColliderMode {
+public enum ChunkCollisionMode {
     MERGED_BOXES,
     NATIVE_VOXELS_WHEN_SUPPORTED;
 
-    public static TerrainColliderMode fromNativeVoxelTerrainEnabled(boolean enabled) {
+    public static ChunkCollisionMode fromNativeVoxelTerrainEnabled(boolean enabled) {
         return enabled ? NATIVE_VOXELS_WHEN_SUPPORTED : MERGED_BOXES;
     }
 

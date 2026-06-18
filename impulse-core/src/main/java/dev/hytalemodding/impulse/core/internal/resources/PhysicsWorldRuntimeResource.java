@@ -1070,8 +1070,8 @@ public class PhysicsWorldRuntimeResource extends PhysicsWorldResource {
         if (!PhysicsChunkLifecycle.isEnabled() || owningStore == null) {
             return;
         }
-        PhysicsTerrainMutationQueueResource queue =
-            store.getResource(PhysicsTerrainMutationQueueResource.getResourceType());
+        PhysicsChunkCollisionMutationQueueResource queue =
+            store.getResource(PhysicsChunkCollisionMutationQueueResource.getResourceType());
         authoritativePhysicsChunkTerrainStreaming().retainSpaces(Set.of(), queue);
         queue.clear();
     }
@@ -1080,8 +1080,8 @@ public class PhysicsWorldRuntimeResource extends PhysicsWorldResource {
         @Nonnull UUID spaceUuid) {
         int removed = 0;
         if (PhysicsChunkLifecycle.isEnabled() && owningStore != null) {
-            PhysicsTerrainMutationQueueResource queue =
-                store.getResource(PhysicsTerrainMutationQueueResource.getResourceType());
+            PhysicsChunkCollisionMutationQueueResource queue =
+                store.getResource(PhysicsChunkCollisionMutationQueueResource.getResourceType());
             removed = authoritativePhysicsChunkTerrainStreaming().clearSpace(spaceUuid, queue);
         }
         int directlyRemoved =

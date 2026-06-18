@@ -12,7 +12,7 @@ import java.util.Objects;
 import javax.annotation.Nonnull;
 
 /**
- * PhysicsChunk source metadata for generated runtime-only terrain body rows.
+ * PhysicsChunk source metadata for generated runtime-only chunk collision body rows.
  */
 public final class ChunkCollisionSourceComponent implements Component<PhysicsStore> {
 

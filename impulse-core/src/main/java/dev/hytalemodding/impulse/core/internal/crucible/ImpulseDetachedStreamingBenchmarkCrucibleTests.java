@@ -23,7 +23,7 @@ import dev.hytalemodding.impulse.core.internal.modules.physicschunk.PhysicsChunk
 import dev.hytalemodding.impulse.core.internal.modules.physicschunk.profiling.PhysicsChunkProfilingResource;
 import dev.hytalemodding.impulse.core.internal.modules.physicschunk.profiling.PhysicsChunkProfilingResource.Snapshot;
 import dev.hytalemodding.impulse.core.internal.physicsstore.PhysicsStoreSpaceMutations;
-import dev.hytalemodding.impulse.core.internal.resources.PhysicsTerrainMutationQueueResource;
+import dev.hytalemodding.impulse.core.internal.resources.PhysicsChunkCollisionMutationQueueResource;
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsProfilingResource;
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsWorldRuntimeResource;
 import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyKind;
@@ -370,8 +370,8 @@ final class ImpulseDetachedStreamingBenchmarkCrucibleTests {
         private PrewarmStats prewarmPhysicsChunkTerrain(@Nonnull SpaceId spaceId, int count) {
             BenchmarkLayout layout = BenchmarkLayout.flatGrid(count);
             UUID spaceUuid = PhysicsStoreSpaceMutations.requireSpaceUuid(physicsStore, spaceId);
-            PhysicsTerrainMutationQueueResource queue = physicsStore.getResource(
-                PhysicsTerrainMutationQueueResource.getResourceType());
+            PhysicsChunkCollisionMutationQueueResource queue = physicsStore.getResource(
+                PhysicsChunkCollisionMutationQueueResource.getResourceType());
             PhysicsChunkBuildOptions buildOptions = PhysicsChunkBuildOptions.fromSettings(
                 physics.getSpaceSettings(spaceId).getPhysicsChunkTerrainSettings());
             PhysicsChunkTerrainPrewarmStats stats = terrainStreaming.ensureAround(world,

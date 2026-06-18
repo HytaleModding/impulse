@@ -1,4 +1,4 @@
-package dev.hytalemodding.impulse.core.internal.terrain;
+package dev.hytalemodding.impulse.core.internal.modules.physicschunk;
 
 import java.nio.charset.StandardCharsets;
 import java.util.Objects;
@@ -7,37 +7,37 @@ import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
 /**
- * Copied terrain collider mutation emitted from PhysicsChunk terrain code.
+ * Copied chunk collision mutation emitted from PhysicsChunk terrain code.
  */
-public record TerrainColliderMutation(@Nonnull UUID spaceUuid,
+public record ChunkCollisionMutation(@Nonnull UUID spaceUuid,
                                        @Nonnull String sourceKey,
                                        int chunkX,
                                        int sectionY,
                                        int chunkZ,
                                        @Nonnull String payloadResourceKey,
-                                       @Nullable TerrainColliderPayload payload,
+                                       @Nullable ChunkCollisionPayload payload,
                                        boolean remove) {
 
-    public TerrainColliderMutation {
+    public ChunkCollisionMutation {
         Objects.requireNonNull(spaceUuid, "spaceUuid");
         Objects.requireNonNull(sourceKey, "sourceKey");
         Objects.requireNonNull(payloadResourceKey, "payloadResourceKey");
     }
 
     @Nonnull
-    public UUID terrainColliderUuid() {
-        return terrainColliderUuid(spaceUuid, sourceKey);
+    public UUID chunkCollisionUuid() {
+        return chunkCollisionUuid(spaceUuid, sourceKey);
     }
 
     @Nonnull
-    public static TerrainColliderMutation upsert(@Nonnull UUID spaceUuid,
+    public static ChunkCollisionMutation upsert(@Nonnull UUID spaceUuid,
         @Nonnull String sourceKey,
         int chunkX,
         int sectionY,
         int chunkZ,
         @Nonnull String payloadResourceKey,
-        @Nonnull TerrainColliderPayload payload) {
-        return new TerrainColliderMutation(spaceUuid,
+        @Nonnull ChunkCollisionPayload payload) {
+        return new ChunkCollisionMutation(spaceUuid,
             sourceKey,
             chunkX,
             sectionY,
@@ -48,12 +48,12 @@ public record TerrainColliderMutation(@Nonnull UUID spaceUuid,
     }
 
     @Nonnull
-    public static TerrainColliderMutation remove(@Nonnull UUID spaceUuid,
+    public static ChunkCollisionMutation remove(@Nonnull UUID spaceUuid,
         @Nonnull String sourceKey,
         int chunkX,
         int sectionY,
         int chunkZ) {
-        return new TerrainColliderMutation(spaceUuid,
+        return new ChunkCollisionMutation(spaceUuid,
             sourceKey,
             chunkX,
             sectionY,
@@ -64,7 +64,7 @@ public record TerrainColliderMutation(@Nonnull UUID spaceUuid,
     }
 
     @Nonnull
-    public static UUID terrainColliderUuid(@Nonnull UUID spaceUuid,
+    public static UUID chunkCollisionUuid(@Nonnull UUID spaceUuid,
         @Nonnull String sourceKey) {
         String key = spaceUuid + "|" + sourceKey;
         return UUID.nameUUIDFromBytes(key.getBytes(StandardCharsets.UTF_8));

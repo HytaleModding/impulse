@@ -2,26 +2,26 @@ package dev.hytalemodding.impulse.core.internal.modules.physicschunk;
 
 import dev.hytalemodding.impulse.api.PhysicsCollisionFilters;
 import dev.hytalemodding.impulse.core.internal.modules.physicschunk.SectionCollisionGeometry.BoxCollider;
-import dev.hytalemodding.impulse.core.internal.terrain.TerrainColliderMutation;
-import dev.hytalemodding.impulse.core.internal.terrain.TerrainColliderPayload;
-import dev.hytalemodding.impulse.core.internal.terrain.TerrainColliderPayload.BoxPayload;
-import dev.hytalemodding.impulse.core.internal.terrain.TerrainColliderPayload.TerrainNeighbor;
+import dev.hytalemodding.impulse.core.internal.modules.physicschunk.ChunkCollisionMutation;
+import dev.hytalemodding.impulse.core.internal.modules.physicschunk.ChunkCollisionPayload;
+import dev.hytalemodding.impulse.core.internal.modules.physicschunk.ChunkCollisionPayload.BoxPayload;
+import dev.hytalemodding.impulse.core.internal.modules.physicschunk.ChunkCollisionPayload.Neighbor;
 import java.util.List;
 import java.util.UUID;
 import javax.annotation.Nonnull;
 
 /**
- * Converts generated PhysicsChunk terrain sections into copied PhysicsStore terrain mutations.
+ * Converts generated PhysicsChunk terrain sections into copied PhysicsStore chunk collision mutations.
  */
-public final class PhysicsStoreTerrainMutations {
+public final class PhysicsStoreChunkCollisionMutations {
 
     private static final int ADJACENT_SECTION_VOXEL_SHIFT = 16;
 
-    private PhysicsStoreTerrainMutations() {
+    private PhysicsStoreChunkCollisionMutations() {
     }
 
     @Nonnull
-    public static TerrainColliderMutation upsert(@Nonnull UUID spaceUuid,
+    public static ChunkCollisionMutation upsert(@Nonnull UUID spaceUuid,
         int chunkX,
         int sectionY,
         int chunkZ,
@@ -29,7 +29,7 @@ public final class PhysicsStoreTerrainMutations {
         @Nonnull SectionCollisionGeometry geometry,
         @Nonnull PhysicsChunkBuildOptions buildOptions) {
         String sourceKey = sourceKey(chunkX, sectionY, chunkZ);
-        return TerrainColliderMutation.upsert(spaceUuid,
+        return ChunkCollisionMutation.upsert(spaceUuid,
             sourceKey,
             chunkX,
             sectionY,
@@ -39,11 +39,11 @@ public final class PhysicsStoreTerrainMutations {
     }
 
     @Nonnull
-    public static TerrainColliderMutation remove(@Nonnull UUID spaceUuid,
+    public static ChunkCollisionMutation remove(@Nonnull UUID spaceUuid,
         int chunkX,
         int sectionY,
         int chunkZ) {
-        return TerrainColliderMutation.remove(spaceUuid,
+        return ChunkCollisionMutation.remove(spaceUuid,
             sourceKey(chunkX, sectionY, chunkZ),
             chunkX,
             sectionY,
@@ -66,10 +66,10 @@ public final class PhysicsStoreTerrainMutations {
     }
 
     @Nonnull
-    private static TerrainColliderPayload payload(@Nonnull SectionCollisionGeometry geometry,
+    private static ChunkCollisionPayload payload(@Nonnull SectionCollisionGeometry geometry,
         @Nonnull PhysicsChunkBuildOptions buildOptions,
-        @Nonnull List<TerrainNeighbor> neighbors) {
-        return new TerrainColliderPayload(1.0f,
+        @Nonnull List<Neighbor> neighbors) {
+        return new ChunkCollisionPayload(1.0f,
             1.0f,
             1.0f,
             geometry.fullCubeVoxels(),
@@ -96,29 +96,29 @@ public final class PhysicsStoreTerrainMutations {
     }
 
     @Nonnull
-    private static List<TerrainNeighbor> adjacentNeighbors(int chunkX, int sectionY, int chunkZ) {
+    private static List<Neighbor> adjacentNeighbors(int chunkX, int sectionY, int chunkZ) {
         return List.of(
-            new TerrainNeighbor(sourceKey(chunkX - 1, sectionY, chunkZ),
+            new Neighbor(sourceKey(chunkX - 1, sectionY, chunkZ),
                 -ADJACENT_SECTION_VOXEL_SHIFT,
                 0,
                 0),
-            new TerrainNeighbor(sourceKey(chunkX + 1, sectionY, chunkZ),
+            new Neighbor(sourceKey(chunkX + 1, sectionY, chunkZ),
                 ADJACENT_SECTION_VOXEL_SHIFT,
                 0,
                 0),
-            new TerrainNeighbor(sourceKey(chunkX, sectionY - 1, chunkZ),
+            new Neighbor(sourceKey(chunkX, sectionY - 1, chunkZ),
                 0,
                 -ADJACENT_SECTION_VOXEL_SHIFT,
                 0),
-            new TerrainNeighbor(sourceKey(chunkX, sectionY + 1, chunkZ),
+            new Neighbor(sourceKey(chunkX, sectionY + 1, chunkZ),
                 0,
                 ADJACENT_SECTION_VOXEL_SHIFT,
                 0),
-            new TerrainNeighbor(sourceKey(chunkX, sectionY, chunkZ - 1),
+            new Neighbor(sourceKey(chunkX, sectionY, chunkZ - 1),
                 0,
                 0,
                 -ADJACENT_SECTION_VOXEL_SHIFT),
-            new TerrainNeighbor(sourceKey(chunkX, sectionY, chunkZ + 1),
+            new Neighbor(sourceKey(chunkX, sectionY, chunkZ + 1),
                 0,
                 0,
                 ADJACENT_SECTION_VOXEL_SHIFT));

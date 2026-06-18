@@ -4,7 +4,7 @@ import com.hypixel.hytale.component.Resource;
 import com.hypixel.hytale.component.ResourceType;
 import com.hypixel.hytale.server.core.universe.world.storage.PhysicsStore;
 import dev.hytalemodding.impulse.core.internal.modules.physicschunk.PhysicsChunkBuildOptions;
-import dev.hytalemodding.impulse.core.internal.modules.physicschunk.TerrainColliderMode;
+import dev.hytalemodding.impulse.core.internal.modules.physicschunk.ChunkCollisionMode;
 import dev.hytalemodding.impulse.core.plugin.modules.physicschunk.PhysicsChunkTerrainMode;
 import dev.hytalemodding.impulse.core.plugin.settings.EntityChunkBoundaryMode;
 import it.unimi.dsi.fastutil.objects.Object2ObjectOpenHashMap;
@@ -80,7 +80,7 @@ public final class PhysicsChunkSettingsIndexResource implements Resource<Physics
         @Nonnull
         public PhysicsChunkBuildOptions buildOptions() {
             return new PhysicsChunkBuildOptions(
-                TerrainColliderMode.fromNativeVoxelTerrainEnabled(nativeVoxelTerrainEnabled),
+                ChunkCollisionMode.fromNativeVoxelTerrainEnabled(nativeVoxelTerrainEnabled),
                 terrainFriction,
                 terrainRestitution);
         }

@@ -17,8 +17,8 @@ import dev.hytalemodding.impulse.core.internal.resources.BackendSpaceHandle;
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsIdentityIndexResource;
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsRestoreStatusResource;
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsRuntimeResource;
-import dev.hytalemodding.impulse.core.internal.resources.PhysicsTerrainPayloadResource;
-import dev.hytalemodding.impulse.core.internal.terrain.TerrainColliderPayload;
+import dev.hytalemodding.impulse.core.internal.resources.PhysicsChunkCollisionPayloadResource;
+import dev.hytalemodding.impulse.core.internal.modules.physicschunk.ChunkCollisionPayload;
 import dev.hytalemodding.impulse.core.plugin.components.BodyComponent;
 import dev.hytalemodding.impulse.core.plugin.modules.physicschunk.components.ChunkCollisionSourceComponent;
 import dev.hytalemodding.impulse.core.plugin.modules.physicschunk.components.ChunkCollisionSourceComponent.PartKind;
@@ -32,7 +32,7 @@ import javax.annotation.Nullable;
 /**
  * Applies native voxel terrain adjacency hints for generated PhysicsChunk body rows.
  */
-public final class TerrainVoxelStitchingSystem extends TickingSystem<PhysicsStore>
+public final class ChunkCollisionVoxelStitchingSystem extends TickingSystem<PhysicsStore>
     implements QuerySystem<PhysicsStore> {
 
     private static final Set<Dependency<PhysicsStore>> DEPENDENCIES = Set.of(
@@ -49,8 +49,8 @@ public final class TerrainVoxelStitchingSystem extends TickingSystem<PhysicsStor
         PhysicsRuntimeResource runtime = store.getResource(PhysicsRuntimeResource.getResourceType());
         PhysicsIdentityIndexResource identity =
             store.getResource(PhysicsIdentityIndexResource.getResourceType());
-        PhysicsTerrainPayloadResource payloads = store.getResource(
-            PhysicsTerrainPayloadResource.getResourceType());
+        PhysicsChunkCollisionPayloadResource payloads = store.getResource(
+            PhysicsChunkCollisionPayloadResource.getResourceType());
         Set<BodyPair> stitchedPairs = new ObjectOpenHashSet<>();
         BiConsumer<ArchetypeChunk<PhysicsStore>, CommandBuffer<PhysicsStore>> collector =
             (chunk, _) -> stitchChunk(runtime, identity, payloads, restore, stitchedPairs, chunk);
@@ -59,7 +59,7 @@ public final class TerrainVoxelStitchingSystem extends TickingSystem<PhysicsStor
 
     private static void stitchChunk(@Nonnull PhysicsRuntimeResource runtime,
         @Nonnull PhysicsIdentityIndexResource identity,
-        @Nonnull PhysicsTerrainPayloadResource payloads,
+        @Nonnull PhysicsChunkCollisionPayloadResource payloads,
         @Nonnull PhysicsRestoreStatusResource restore,
         @Nonnull Set<BodyPair> stitchedPairs,
         @Nonnull ArchetypeChunk<PhysicsStore> chunk) {
@@ -90,7 +90,7 @@ public final class TerrainVoxelStitchingSystem extends TickingSystem<PhysicsStor
 
     private static void stitchBody(@Nonnull PhysicsRuntimeResource runtime,
         @Nonnull PhysicsIdentityIndexResource identity,
-        @Nonnull PhysicsTerrainPayloadResource payloads,
+        @Nonnull PhysicsChunkCollisionPayloadResource payloads,
         @Nonnull PhysicsRestoreStatusResource restore,
         @Nonnull Set<BodyPair> stitchedPairs,
         @Nonnull Ref<PhysicsStore> bodyRef,
@@ -107,12 +107,12 @@ public final class TerrainVoxelStitchingSystem extends TickingSystem<PhysicsStor
                 + source.getSourceKey());
             return;
         }
-        TerrainColliderPayload payload = payloads.get(source.getPayloadResourceKey());
+        ChunkCollisionPayload payload = payloads.get(source.getPayloadResourceKey());
         if (payload == null) {
-            restore.recordSoftSkip("Voxel terrain payload is missing: " + source.getSourceKey());
+            restore.recordSoftSkip("Voxel chunk collision payload is missing: " + source.getSourceKey());
             return;
         }
-        for (TerrainColliderPayload.TerrainNeighbor neighbor : payload.neighbors()) {
+        for (ChunkCollisionPayload.Neighbor neighbor : payload.neighbors()) {
             stitchNeighbor(runtime,
                 identity,
                 backendRuntime,
@@ -131,7 +131,7 @@ public final class TerrainVoxelStitchingSystem extends TickingSystem<PhysicsStor
         @Nonnull BackendSpaceHandle spaceHandle,
         @Nonnull UUID spaceUuid,
         @Nonnull BackendBodyHandle bodyHandle,
-        @Nonnull TerrainColliderPayload.TerrainNeighbor neighbor,
+        @Nonnull ChunkCollisionPayload.Neighbor neighbor,
         @Nonnull Set<BodyPair> stitchedPairs) {
         Ref<PhysicsStore> neighborRef = neighborRef(identity, spaceUuid, neighbor.sourceKey());
         if (neighborRef == null) {
@@ -160,7 +160,7 @@ public final class TerrainVoxelStitchingSystem extends TickingSystem<PhysicsStor
     private static Ref<PhysicsStore> neighborRef(@Nonnull PhysicsIdentityIndexResource identity,
         @Nonnull UUID spaceUuid,
         @Nonnull String sourceKey) {
-        UUID neighborUuid = TerrainMutationDrainSystem.terrainBodyUuid(spaceUuid,
+        UUID neighborUuid = ChunkCollisionMutationDrainSystem.chunkCollisionBodyUuid(spaceUuid,
             sourceKey,
             PartKind.VOXEL_TERRAIN,
             0);

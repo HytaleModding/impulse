@@ -24,7 +24,7 @@ import dev.hytalemodding.impulse.core.internal.modules.physicschunk.PhysicsChunk
 import dev.hytalemodding.impulse.core.internal.modules.physicschunk.profiling.PhysicsChunkProfilingResource;
 import dev.hytalemodding.impulse.core.internal.modules.physicschunk.profiling.PhysicsChunkProfilingResource.Snapshot;
 import dev.hytalemodding.impulse.core.internal.modules.physicschunk.profiling.PhysicsChunkProfilingResource.StreamingTargetDiagnostic;
-import dev.hytalemodding.impulse.core.internal.resources.PhysicsTerrainMutationQueueResource;
+import dev.hytalemodding.impulse.core.internal.resources.PhysicsChunkCollisionMutationQueueResource;
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsSnapshotResource;
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsChunkSettingsIndexResource;
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsChunkSettingsIndexResource.PhysicsChunkSpaceSettings;
@@ -48,7 +48,7 @@ import org.joml.Vector3d;
 import org.joml.Vector3f;
 
 /**
- * Produces copied PhysicsStore terrain mutations from EntityStore and ChunkStore state.
+ * Produces copied PhysicsStore chunk collision mutations from EntityStore and ChunkStore state.
  */
 public final class PhysicsChunkTerrainProducerSystem extends TickingSystem<EntityStore>
     implements QuerySystem<EntityStore> {
@@ -78,9 +78,9 @@ public final class PhysicsChunkTerrainProducerSystem extends TickingSystem<Entit
             World world = store.getExternalData().getWorld();
             Store<PhysicsStore> physics = PhysicsThreading.store(world);
             PhysicsThreading.requireWorldThread(physics,
-                "produce PhysicsStore PhysicsChunk terrain mutations");
-            PhysicsTerrainMutationQueueResource queue = physics.getResource(
-                PhysicsTerrainMutationQueueResource.getResourceType());
+                "produce PhysicsStore PhysicsChunk chunk collision mutations");
+            PhysicsChunkCollisionMutationQueueResource queue = physics.getResource(
+                PhysicsChunkCollisionMutationQueueResource.getResourceType());
             PhysicsChunkSettingsIndexResource terrainSettingsIndex = physics.getResource(
                 PhysicsChunkSettingsIndexResource.getResourceType());
             PhysicsSnapshotResource snapshotResource = physics.getResource(
@@ -129,7 +129,7 @@ public final class PhysicsChunkTerrainProducerSystem extends TickingSystem<Entit
 
     private static void processSpace(@Nonnull World world,
         @Nonnull PhysicsChunkTerrainStreamingResource streaming,
-        @Nonnull PhysicsTerrainMutationQueueResource queue,
+        @Nonnull PhysicsChunkCollisionMutationQueueResource queue,
         @Nonnull PhysicsChunkSpaceSettings settings,
         @Nonnull List<Vector3d> playerPositions,
         @Nonnull PhysicsSnapshotFrame physicsFrame,

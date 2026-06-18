@@ -14,8 +14,8 @@ import dev.hytalemodding.impulse.core.internal.resources.PhysicsIdentityIndexRes
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsRuntimeResource;
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsSnapshotResource;
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsSpaceCompatibilityIndexResource;
-import dev.hytalemodding.impulse.core.internal.resources.PhysicsTerrainPayloadResource;
-import dev.hytalemodding.impulse.core.internal.terrain.TerrainColliderPayload;
+import dev.hytalemodding.impulse.core.internal.resources.PhysicsChunkCollisionPayloadResource;
+import dev.hytalemodding.impulse.core.internal.modules.physicschunk.ChunkCollisionPayload;
 import dev.hytalemodding.impulse.core.internal.resources.BackendSpaceHandle;
 import dev.hytalemodding.impulse.core.plugin.physicsstore.PhysicsThreading;
 import dev.hytalemodding.impulse.core.plugin.components.BodyComponent;
@@ -220,8 +220,8 @@ final class PhysicsStoreDebugQueries {
         Ref<PhysicsStore> spaceRef = store.getResource(PhysicsIdentityIndexResource.getResourceType())
             .getByUuid(spaceUuid);
 
-        PhysicsTerrainPayloadResource payloads = store.getResource(
-            PhysicsTerrainPayloadResource.getResourceType());
+        PhysicsChunkCollisionPayloadResource payloads = store.getResource(
+            PhysicsChunkCollisionPayloadResource.getResourceType());
         double maxDistanceSquared = viewRadius * viewRadius;
         List<PhysicsChunkDebugSectionView> visible = new ArrayList<>();
         BiConsumer<ArchetypeChunk<PhysicsStore>, CommandBuffer<PhysicsStore>> collector =
@@ -240,7 +240,7 @@ final class PhysicsStoreDebugQueries {
     }
 
     private static void collectPhysicsChunkSourceChunk(@Nonnull ArchetypeChunk<PhysicsStore> chunk,
-        @Nonnull PhysicsTerrainPayloadResource payloads,
+        @Nonnull PhysicsChunkCollisionPayloadResource payloads,
         @Nonnull SpaceContext spaceContext,
         @Nullable Ref<PhysicsStore> spaceRef,
         @Nonnull UUID spaceUuid,
@@ -260,7 +260,7 @@ final class PhysicsStoreDebugQueries {
                 > maxDistanceSquared) {
                 continue;
             }
-            TerrainColliderPayload payload = payloads.get(source.getPayloadResourceKey());
+            ChunkCollisionPayload payload = payloads.get(source.getPayloadResourceKey());
             if (payload == null || payload.isEmpty()) {
                 continue;
             }
@@ -271,7 +271,7 @@ final class PhysicsStoreDebugQueries {
     @Nonnull
     private static PhysicsChunkDebugSectionView toPhysicsChunkSectionView(
         @Nonnull ChunkCollisionSourceComponent source,
-        @Nonnull TerrainColliderPayload payload,
+        @Nonnull ChunkCollisionPayload payload,
         @Nonnull SpaceContext spaceContext) {
         boolean voxelTerrain = payload.nativeVoxelTerrainEnabled()
             && payload.hasFullCubeVoxels()
@@ -287,12 +287,12 @@ final class PhysicsStoreDebugQueries {
 
     @Nonnull
     private static List<BoxCollider> boxes(
-        @Nonnull List<TerrainColliderPayload.BoxPayload> payloadBoxes) {
+        @Nonnull List<ChunkCollisionPayload.BoxPayload> payloadBoxes) {
         if (payloadBoxes.isEmpty()) {
             return List.of();
         }
         List<BoxCollider> boxes = new ArrayList<>(payloadBoxes.size());
-        for (TerrainColliderPayload.BoxPayload box : payloadBoxes) {
+        for (ChunkCollisionPayload.BoxPayload box : payloadBoxes) {
             boxes.add(new BoxCollider(box.centerX(),
                 box.centerY(),
                 box.centerZ(),

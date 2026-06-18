@@ -7,7 +7,7 @@ import javax.annotation.Nonnull;
 /**
  * Options that control generated PhysicsChunk terrain backend geometry.
  */
-public record PhysicsChunkBuildOptions(@Nonnull TerrainColliderMode terrainColliderMode,
+public record PhysicsChunkBuildOptions(@Nonnull ChunkCollisionMode chunkCollisionMode,
                                          float terrainFriction,
                                          float terrainRestitution) {
 
@@ -15,7 +15,7 @@ public record PhysicsChunkBuildOptions(@Nonnull TerrainColliderMode terrainColli
         fromNativeVoxelTerrainEnabled(PhysicsChunkTerrainSettings.DEFAULT_NATIVE_VOXEL_TERRAIN_ENABLED);
 
     public PhysicsChunkBuildOptions {
-        Objects.requireNonNull(terrainColliderMode, "terrainColliderMode");
+        Objects.requireNonNull(chunkCollisionMode, "chunkCollisionMode");
         if (!Float.isFinite(terrainFriction) || terrainFriction < 0.0f) {
             throw new IllegalArgumentException("terrainFriction must be finite and >= 0");
         }
@@ -27,19 +27,19 @@ public record PhysicsChunkBuildOptions(@Nonnull TerrainColliderMode terrainColli
     @Nonnull
     public static PhysicsChunkBuildOptions fromSettings(@Nonnull PhysicsChunkTerrainSettings settings) {
         return new PhysicsChunkBuildOptions(
-            TerrainColliderMode.fromNativeVoxelTerrainEnabled(settings.isNativeVoxelTerrainEnabled()),
+            ChunkCollisionMode.fromNativeVoxelTerrainEnabled(settings.isNativeVoxelTerrainEnabled()),
             settings.getTerrainFriction(),
             settings.getTerrainRestitution());
     }
 
     @Nonnull
     public static PhysicsChunkBuildOptions fromNativeVoxelTerrainEnabled(boolean enabled) {
-        return new PhysicsChunkBuildOptions(TerrainColliderMode.fromNativeVoxelTerrainEnabled(enabled),
+        return new PhysicsChunkBuildOptions(ChunkCollisionMode.fromNativeVoxelTerrainEnabled(enabled),
             PhysicsChunkTerrainSettings.DEFAULT_TERRAIN_FRICTION,
             PhysicsChunkTerrainSettings.DEFAULT_TERRAIN_RESTITUTION);
     }
 
     public boolean nativeVoxelTerrainEnabled() {
-        return terrainColliderMode.nativeVoxelTerrainEnabled();
+        return chunkCollisionMode.nativeVoxelTerrainEnabled();
     }
 }

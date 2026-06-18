@@ -9,7 +9,7 @@ public enum PhysicsBodyKind {
     TEMPORARY,
     TERRAIN;
 
-    public boolean isTerrainCollider() {
+    public boolean isTerrain() {
         return this == TERRAIN;
     }
 }

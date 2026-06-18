@@ -1,7 +1,7 @@
 package dev.hytalemodding.impulse.core.plugin.modules.physicschunk;
 
 /**
- * Controls PhysicsChunk terrain collider generation for a PhysicsStore space.
+ * Controls PhysicsChunk collision body generation for a PhysicsStore space.
  */
 public enum PhysicsChunkTerrainMode {
     /**

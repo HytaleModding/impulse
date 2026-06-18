@@ -11,7 +11,7 @@ import javax.annotation.Nonnull;
 public class PhysicsChunkTerrainSettings {
 
     /**
-     * Block radius around each tracked player for streaming terrain colliders.
+     * Block radius around each tracked player for streaming chunk collision bodies.
      */
     public static final int DEFAULT_TERRAIN_RADIUS = 8;
 
@@ -21,7 +21,7 @@ public class PhysicsChunkTerrainSettings {
     public static final int MAX_TERRAIN_RADIUS = 128;
 
     /**
-     * Block radius around each active dynamic physics body for streaming terrain colliders.
+     * Block radius around each active dynamic physics body for streaming chunk collision bodies.
      */
     public static final int DEFAULT_BODY_TERRAIN_RADIUS = 4;
 
@@ -31,7 +31,7 @@ public class PhysicsChunkTerrainSettings {
     public static final int MAX_BODY_TERRAIN_RADIUS = 64;
 
     /**
-     * Ticks before an unused section's terrain colliders are pruned.
+     * Ticks before an unused section's chunk collision bodies are pruned.
      */
     public static final int DEFAULT_TERRAIN_TTL_TICKS = 100;
 
@@ -53,12 +53,12 @@ public class PhysicsChunkTerrainSettings {
     public static final boolean DEFAULT_NATIVE_VOXEL_TERRAIN_ENABLED = false;
 
     /**
-     * Default friction applied to generated terrain collider bodies.
+     * Default friction applied to generated chunk collision bodies.
      */
     public static final float DEFAULT_TERRAIN_FRICTION = 0.75f;
 
     /**
-     * Default restitution applied to generated terrain collider bodies.
+     * Default restitution applied to generated chunk collision bodies.
      */
     public static final float DEFAULT_TERRAIN_RESTITUTION = 0.0f;
 

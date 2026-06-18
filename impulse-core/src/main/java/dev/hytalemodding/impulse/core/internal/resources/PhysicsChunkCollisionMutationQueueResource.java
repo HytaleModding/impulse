@@ -3,7 +3,7 @@ package dev.hytalemodding.impulse.core.internal.resources;
 import com.hypixel.hytale.component.Resource;
 import com.hypixel.hytale.component.ResourceType;
 import com.hypixel.hytale.server.core.universe.world.storage.PhysicsStore;
-import dev.hytalemodding.impulse.core.internal.terrain.TerrainColliderMutation;
+import dev.hytalemodding.impulse.core.internal.modules.physicschunk.ChunkCollisionMutation;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.List;
@@ -14,26 +14,26 @@ import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
 /**
- * Copied terrain mutation queue drained by PhysicsStore.tick().
+ * Copied chunk collision mutation queue drained by PhysicsStore.tick().
  */
-public final class PhysicsTerrainMutationQueueResource implements Resource<PhysicsStore> {
+public final class PhysicsChunkCollisionMutationQueueResource implements Resource<PhysicsStore> {
 
     @Nullable
-    private static ResourceType<PhysicsStore, PhysicsTerrainMutationQueueResource> resourceType;
+    private static ResourceType<PhysicsStore, PhysicsChunkCollisionMutationQueueResource> resourceType;
     @Nonnull
-    private final Queue<TerrainColliderMutation> mutations = new ArrayDeque<>();
+    private final Queue<ChunkCollisionMutation> mutations = new ArrayDeque<>();
 
-    public PhysicsTerrainMutationQueueResource() {
+    public PhysicsChunkCollisionMutationQueueResource() {
     }
 
-    public synchronized void enqueue(@Nonnull TerrainColliderMutation mutation) {
+    public synchronized void enqueue(@Nonnull ChunkCollisionMutation mutation) {
         mutations.add(Objects.requireNonNull(mutation, "mutation"));
     }
 
     @Nonnull
-    public synchronized List<TerrainColliderMutation> drain() {
-        List<TerrainColliderMutation> drained = new ArrayList<>(mutations.size());
-        TerrainColliderMutation mutation;
+    public synchronized List<ChunkCollisionMutation> drain() {
+        List<ChunkCollisionMutation> drained = new ArrayList<>(mutations.size());
+        ChunkCollisionMutation mutation;
         while ((mutation = mutations.poll()) != null) {
             drained.add(mutation);
         }
@@ -44,7 +44,7 @@ public final class PhysicsTerrainMutationQueueResource implements Resource<Physi
         return mutations.size();
     }
 
-    public synchronized int removeIf(@Nonnull Predicate<TerrainColliderMutation> predicate) {
+    public synchronized int removeIf(@Nonnull Predicate<ChunkCollisionMutation> predicate) {
         Objects.requireNonNull(predicate, "predicate");
         int before = mutations.size();
         mutations.removeIf(predicate);
@@ -57,19 +57,19 @@ public final class PhysicsTerrainMutationQueueResource implements Resource<Physi
 
     @Nonnull
     @Override
-    public synchronized PhysicsTerrainMutationQueueResource clone() {
-        PhysicsTerrainMutationQueueResource copy = new PhysicsTerrainMutationQueueResource();
+    public synchronized PhysicsChunkCollisionMutationQueueResource clone() {
+        PhysicsChunkCollisionMutationQueueResource copy = new PhysicsChunkCollisionMutationQueueResource();
         copy.mutations.addAll(mutations);
         return copy;
     }
 
     @Nonnull
-    public static ResourceType<PhysicsStore, PhysicsTerrainMutationQueueResource> getResourceType() {
+    public static ResourceType<PhysicsStore, PhysicsChunkCollisionMutationQueueResource> getResourceType() {
         return resourceType;
     }
 
     public static void setResourceType(
-        @Nonnull ResourceType<PhysicsStore, PhysicsTerrainMutationQueueResource> type) {
+        @Nonnull ResourceType<PhysicsStore, PhysicsChunkCollisionMutationQueueResource> type) {
         resourceType = type;
     }
 }

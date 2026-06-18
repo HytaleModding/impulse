@@ -11,8 +11,8 @@ import dev.hytalemodding.impulse.core.internal.resources.PhysicsRuntimeResource;
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsSnapshotResource;
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsSpaceCompatibilityIndexResource;
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsStoreReadQueueResource;
-import dev.hytalemodding.impulse.core.internal.resources.PhysicsTerrainMutationQueueResource;
-import dev.hytalemodding.impulse.core.internal.resources.PhysicsTerrainPayloadResource;
+import dev.hytalemodding.impulse.core.internal.resources.PhysicsChunkCollisionMutationQueueResource;
+import dev.hytalemodding.impulse.core.internal.resources.PhysicsChunkCollisionPayloadResource;
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsChunkSettingsIndexResource;
 import dev.hytalemodding.impulse.core.plugin.physicsstore.PhysicsThreading;
 import dev.hytalemodding.impulse.core.plugin.components.UuidComponent;
@@ -32,7 +32,7 @@ public final class PhysicsStoreRuntimeCleaner {
             (index, chunk, commandBuffer) -> commandBuffer.removeEntity(
                 chunk.getReferenceTo(index),
                 RemoveReason.REMOVE));
-        store.getResource(PhysicsTerrainMutationQueueResource.getResourceType()).clear();
+        store.getResource(PhysicsChunkCollisionMutationQueueResource.getResourceType()).clear();
         store.getResource(PhysicsRuntimeResource.getResourceType()).destroyBackendBindings();
         store.getResource(PhysicsIdentityIndexResource.getResourceType()).clear();
         store.getResource(PhysicsSpaceCompatibilityIndexResource.getResourceType()).clear();
@@ -41,7 +41,7 @@ public final class PhysicsStoreRuntimeCleaner {
         store.getResource(PhysicsEventResource.getResourceType()).clear();
         store.getResource(PhysicsProfilingResource.getResourceType()).reset();
         store.getResource(PhysicsStoreReadQueueResource.getResourceType()).clear();
-        store.getResource(PhysicsTerrainPayloadResource.getResourceType()).clear();
+        store.getResource(PhysicsChunkCollisionPayloadResource.getResourceType()).clear();
         store.getResource(PhysicsChunkSettingsIndexResource.getResourceType()).clear();
     }
 }

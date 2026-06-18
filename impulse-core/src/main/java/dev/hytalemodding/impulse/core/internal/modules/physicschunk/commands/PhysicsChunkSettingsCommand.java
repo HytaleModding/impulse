@@ -53,7 +53,7 @@ public class PhysicsChunkSettingsCommand extends AbstractAsyncPlayerCommand {
         ArgTypes.STRING);
     private final OptionalArg<String> terrainArg = this.withOptionalArg(
         "terrain",
-        "PhysicsChunk terrain collider: boxes or native_voxels",
+        "PhysicsChunk collision bodies: boxes or native_voxels",
         ArgTypes.STRING);
     private final OptionalArg<Integer> spaceArg = this.withOptionalArg(
         "space",

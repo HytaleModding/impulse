@@ -10,7 +10,7 @@ import dev.hytalemodding.impulse.core.internal.modules.physicschunk.PhysicsChunk
 import dev.hytalemodding.impulse.core.internal.modules.physicschunk.VoxelTerrainCollisionCache.BuildStats;
 import dev.hytalemodding.impulse.core.internal.modules.physicschunk.profiling.PhysicsChunkProfilingResource.Snapshot;
 import dev.hytalemodding.impulse.core.internal.modules.physicschunk.profiling.PhysicsChunkProfilingResource.StreamingTargetDiagnostic;
-import dev.hytalemodding.impulse.core.internal.resources.PhysicsTerrainMutationQueueResource;
+import dev.hytalemodding.impulse.core.internal.resources.PhysicsChunkCollisionMutationQueueResource;
 import dev.hytalemodding.impulse.core.plugin.modules.physicschunk.PhysicsChunkTerrainBuildStats;
 import dev.hytalemodding.impulse.core.plugin.modules.physicschunk.PhysicsChunkTerrainPrewarmStats;
 import dev.hytalemodding.impulse.core.plugin.modules.physicschunk.PhysicsChunkTerrainStats;
@@ -24,7 +24,7 @@ import javax.annotation.Nullable;
 import org.joml.Vector3d;
 
 /**
- * Shared EntityStore-side producer state for copied PhysicsStore terrain mutations.
+ * Shared EntityStore-side producer state for copied PhysicsStore chunk collision mutations.
  */
 public final class PhysicsChunkTerrainStreamingResource implements Resource<EntityStore> {
 
@@ -60,14 +60,14 @@ public final class PhysicsChunkTerrainStreamingResource implements Resource<Enti
     }
 
     public synchronized void retainSpaces(@Nonnull Set<UUID> retainedSpaces,
-        @Nonnull PhysicsTerrainMutationQueueResource queue) {
+        @Nonnull PhysicsChunkCollisionMutationQueueResource queue) {
         cache.retainSpaces(retainedSpaces, queue);
     }
 
     @Nonnull
     public synchronized PhysicsChunkTerrainPrewarmStats ensureAround(@Nonnull World world,
         @Nonnull UUID spaceUuid,
-        @Nonnull PhysicsTerrainMutationQueueResource queue,
+        @Nonnull PhysicsChunkCollisionMutationQueueResource queue,
         @Nonnull Iterable<Vector3d> centers,
         int radius,
         long tick,
@@ -93,7 +93,7 @@ public final class PhysicsChunkTerrainStreamingResource implements Resource<Enti
     @Nonnull
     public synchronized PhysicsChunkTerrainBuildStats refreshAround(@Nonnull World world,
         @Nonnull UUID spaceUuid,
-        @Nonnull PhysicsTerrainMutationQueueResource queue,
+        @Nonnull PhysicsChunkCollisionMutationQueueResource queue,
         @Nonnull Vector3d center,
         int radius,
         long tick,
@@ -116,7 +116,7 @@ public final class PhysicsChunkTerrainStreamingResource implements Resource<Enti
     @Nonnull
     public synchronized BuildStats ensureAround(@Nonnull World world,
         @Nonnull UUID spaceUuid,
-        @Nonnull PhysicsTerrainMutationQueueResource queue,
+        @Nonnull PhysicsChunkCollisionMutationQueueResource queue,
         @Nonnull Vector3d center,
         int radius,
         long tick,
@@ -195,13 +195,13 @@ public final class PhysicsChunkTerrainStreamingResource implements Resource<Enti
 
     public synchronized int pruneUnloaded(@Nonnull World world,
         @Nonnull UUID spaceUuid,
-        @Nonnull PhysicsTerrainMutationQueueResource queue,
+        @Nonnull PhysicsChunkCollisionMutationQueueResource queue,
         @Nullable Snapshot profiling) {
         return cache.pruneUnloaded(world, spaceUuid, queue, profiling);
     }
 
     public synchronized int pruneUnused(@Nonnull UUID spaceUuid,
-        @Nonnull PhysicsTerrainMutationQueueResource queue,
+        @Nonnull PhysicsChunkCollisionMutationQueueResource queue,
         long currentTick,
         int ttlTicks,
         @Nullable Snapshot profiling) {
@@ -209,7 +209,7 @@ public final class PhysicsChunkTerrainStreamingResource implements Resource<Enti
     }
 
     public synchronized int clearSpace(@Nonnull UUID spaceUuid,
-        @Nonnull PhysicsTerrainMutationQueueResource queue) {
+        @Nonnull PhysicsChunkCollisionMutationQueueResource queue) {
         return cache.clearSpace(spaceUuid, queue);
     }
 

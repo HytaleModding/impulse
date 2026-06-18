@@ -1,4 +1,4 @@
-package dev.hytalemodding.impulse.core.internal.terrain;
+package dev.hytalemodding.impulse.core.internal.modules.physicschunk;
 
 import java.util.Arrays;
 import java.util.List;
@@ -6,9 +6,9 @@ import java.util.Objects;
 import javax.annotation.Nonnull;
 
 /**
- * Copied terrain payload carried across the ChunkStore to PhysicsStore boundary.
+ * Copied chunk collision payload carried across the ChunkStore to PhysicsStore boundary.
  */
-public record TerrainColliderPayload(float voxelSizeX,
+public record ChunkCollisionPayload(float voxelSizeX,
                                      float voxelSizeY,
                                      float voxelSizeZ,
                                      @Nonnull int[] voxelCoordinates,
@@ -19,9 +19,9 @@ public record TerrainColliderPayload(float voxelSizeX,
                                      float restitution,
                                      int collisionGroup,
                                      int collisionMask,
-                                     @Nonnull List<TerrainNeighbor> neighbors) {
+                                     @Nonnull List<Neighbor> neighbors) {
 
-    public TerrainColliderPayload {
+    public ChunkCollisionPayload {
         voxelCoordinates = Arrays.copyOf(voxelCoordinates, voxelCoordinates.length);
         mergedFullCubeBoxes = List.copyOf(mergedFullCubeBoxes);
         detailBoxes = List.copyOf(detailBoxes);
@@ -57,9 +57,9 @@ public record TerrainColliderPayload(float voxelSizeX,
     /**
      * Neighbor terrain source used for optional native-voxel stitching.
      */
-    public record TerrainNeighbor(@Nonnull String sourceKey, int shiftX, int shiftY, int shiftZ) {
+    public record Neighbor(@Nonnull String sourceKey, int shiftX, int shiftY, int shiftZ) {
 
-        public TerrainNeighbor {
+        public Neighbor {
             Objects.requireNonNull(sourceKey, "sourceKey");
         }
     }

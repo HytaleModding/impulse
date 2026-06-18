@@ -12,7 +12,7 @@ import dev.hytalemodding.impulse.core.internal.physicsstore.PhysicsStoreSpaceMut
 import dev.hytalemodding.impulse.core.internal.physicsstore.PhysicsStoreTopologyMutations;
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsChunkSettingsIndexResource.PhysicsChunkSpaceSettings;
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsIdentityIndexResource;
-import dev.hytalemodding.impulse.core.internal.resources.PhysicsTerrainMutationQueueResource;
+import dev.hytalemodding.impulse.core.internal.resources.PhysicsChunkCollisionMutationQueueResource;
 import dev.hytalemodding.impulse.core.plugin.modules.physicschunk.components.PhysicsChunkTerrainComponent;
 import dev.hytalemodding.impulse.core.plugin.physicsstore.PhysicsThreading;
 import java.util.List;
@@ -45,8 +45,8 @@ public final class PhysicsChunkTerrain {
             store,
             "rebuild PhysicsChunk terrain");
         PhysicsChunkSpaceSettings settings = requireSettings(checkedStore, spaceId);
-        PhysicsTerrainMutationQueueResource queue = checkedStore.getResource(
-            PhysicsTerrainMutationQueueResource.getResourceType());
+        PhysicsChunkCollisionMutationQueueResource queue = checkedStore.getResource(
+            PhysicsChunkCollisionMutationQueueResource.getResourceType());
         int removed = clearSpaceRows(world, checkedStore, settings.spaceUuid());
         PhysicsChunkTerrainPrewarmStats stats = streaming(world).ensureAround(world,
             settings.spaceUuid(),
@@ -73,7 +73,7 @@ public final class PhysicsChunkTerrain {
         PhysicsChunkSpaceSettings settings = requireSettings(checkedStore, spaceId);
         return streaming(world).refreshAround(world,
             settings.spaceUuid(),
-            checkedStore.getResource(PhysicsTerrainMutationQueueResource.getResourceType()),
+            checkedStore.getResource(PhysicsChunkCollisionMutationQueueResource.getResourceType()),
             Objects.requireNonNull(center, "center"),
             radius,
             Math.max(0L, world.getTick()),
@@ -95,7 +95,7 @@ public final class PhysicsChunkTerrain {
         PhysicsChunkSpaceSettings settings = requireSettings(checkedStore, spaceId);
         return streaming(world).ensureAround(world,
             settings.spaceUuid(),
-            checkedStore.getResource(PhysicsTerrainMutationQueueResource.getResourceType()),
+            checkedStore.getResource(PhysicsChunkCollisionMutationQueueResource.getResourceType()),
             Objects.requireNonNull(centers, "centers"),
             radius,
             tick,
@@ -190,7 +190,7 @@ public final class PhysicsChunkTerrain {
         int removed = 0;
         if (isSubPluginEnabled()) {
             removed = streaming(world).clearSpace(spaceUuid,
-                store.getResource(PhysicsTerrainMutationQueueResource.getResourceType()));
+                store.getResource(PhysicsChunkCollisionMutationQueueResource.getResourceType()));
         }
         int directlyRemoved =
             PhysicsStoreTopologyMutations.clearTerrainForSpace(store, spaceUuid);
