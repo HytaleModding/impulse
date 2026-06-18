@@ -7,6 +7,7 @@ import com.hypixel.hytale.component.Store;
 import com.hypixel.hytale.math.util.ChunkUtil;
 import com.hypixel.hytale.server.core.universe.world.storage.PhysicsStore;
 import dev.hytalemodding.impulse.api.BackendId;
+import dev.hytalemodding.impulse.api.ShapeType;
 import dev.hytalemodding.impulse.api.SpaceId;
 import dev.hytalemodding.impulse.api.runtime.PhysicsBackendRuntime;
 import dev.hytalemodding.impulse.core.internal.modules.physicschunk.SectionCollisionGeometry.BoxCollider;
@@ -20,10 +21,15 @@ import dev.hytalemodding.impulse.core.internal.resources.BackendSpaceHandle;
 import dev.hytalemodding.impulse.core.plugin.physicsstore.PhysicsThreading;
 import dev.hytalemodding.impulse.core.plugin.components.BodyComponent;
 import dev.hytalemodding.impulse.core.plugin.components.JointComponent;
+import dev.hytalemodding.impulse.core.plugin.components.ShapeComponent;
+import dev.hytalemodding.impulse.core.plugin.components.TargetComponent;
 import dev.hytalemodding.impulse.core.plugin.modules.physicschunk.components.ChunkCollisionSourceComponent;
+import dev.hytalemodding.impulse.core.plugin.modules.physicschunk.components.ChunkCollisionSourceComponent.PartKind;
 import dev.hytalemodding.impulse.core.plugin.snapshots.PhysicsBodySnapshot;
+import it.unimi.dsi.fastutil.objects.Object2ObjectOpenHashMap;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.CompletionStage;
 import java.util.function.BiConsumer;
@@ -223,7 +229,8 @@ final class PhysicsStoreDebugQueries {
         PhysicsChunkCollisionPayloadResource payloads = store.getResource(
             PhysicsChunkCollisionPayloadResource.getResourceType());
         double maxDistanceSquared = viewRadius * viewRadius;
-        List<PhysicsChunkDebugSectionView> visible = new ArrayList<>();
+        Map<SectionKey, PhysicsChunkDebugSectionBuilder> sections =
+            new Object2ObjectOpenHashMap<>();
         BiConsumer<ArchetypeChunk<PhysicsStore>, CommandBuffer<PhysicsStore>> collector =
             (chunk, _) -> collectPhysicsChunkSourceChunk(chunk,
                 payloads,
@@ -234,8 +241,11 @@ final class PhysicsStoreDebugQueries {
                 viewerY,
                 viewerZ,
                 maxDistanceSquared,
-                visible);
+                sections);
         store.forEachChunk(ChunkCollisionSourceComponent.getComponentType(), collector);
+        List<PhysicsChunkDebugSectionView> visible = new ArrayList<>(sections.size());
+        sections.values()
+            .forEach(builder -> visible.add(builder.toView()));
         return List.copyOf(visible);
     }
 
@@ -248,7 +258,7 @@ final class PhysicsStoreDebugQueries {
         double viewerY,
         double viewerZ,
         double maxDistanceSquared,
-        @Nonnull List<PhysicsChunkDebugSectionView> visible) {
+        @Nonnull Map<SectionKey, PhysicsChunkDebugSectionBuilder> sections) {
         for (int index = 0; index < chunk.size(); index++) {
             ChunkCollisionSourceComponent source = chunk.getComponent(index,
                 ChunkCollisionSourceComponent.getComponentType());
@@ -260,47 +270,72 @@ final class PhysicsStoreDebugQueries {
                 > maxDistanceSquared) {
                 continue;
             }
-            ChunkCollisionPayload payload = payloads.get(source.getPayloadResourceKey());
-            if (payload == null || payload.isEmpty()) {
-                continue;
+            if (source.getPartKind() == PartKind.VOXEL_TERRAIN) {
+                collectVoxelTerrain(payloads, spaceContext, source, sections);
+            } else {
+                collectBoxTerrain(chunk, index, source, sections);
             }
-            visible.add(toPhysicsChunkSectionView(source, payload, spaceContext));
         }
     }
 
-    @Nonnull
-    private static PhysicsChunkDebugSectionView toPhysicsChunkSectionView(
+    private static void collectVoxelTerrain(
+        @Nonnull PhysicsChunkCollisionPayloadResource payloads,
+        @Nonnull SpaceContext spaceContext,
         @Nonnull ChunkCollisionSourceComponent source,
-        @Nonnull ChunkCollisionPayload payload,
-        @Nonnull SpaceContext spaceContext) {
+        @Nonnull Map<SectionKey, PhysicsChunkDebugSectionBuilder> sections) {
+        ChunkCollisionPayload payload = payloads.get(source.getPayloadResourceKey());
+        if (payload == null || payload.isEmpty()) {
+            return;
+        }
         boolean voxelTerrain = payload.nativeVoxelTerrainEnabled()
             && payload.hasFullCubeVoxels()
             && spaceContext.backendRuntime()
                 .supportsVoxelTerrain(spaceContext.spaceHandle().value());
-        return new PhysicsChunkDebugSectionView(source.getChunkX(),
-            source.getSectionY(),
-            source.getChunkZ(),
-            voxelTerrain,
-            boxes(payload.mergedFullCubeBoxes()),
-            boxes(payload.detailBoxes()));
+        if (voxelTerrain) {
+            section(sections, source).voxelTerrain = true;
+        }
+    }
+
+    private static void collectBoxTerrain(@Nonnull ArchetypeChunk<PhysicsStore> chunk,
+        int index,
+        @Nonnull ChunkCollisionSourceComponent source,
+        @Nonnull Map<SectionKey, PhysicsChunkDebugSectionBuilder> sections) {
+        BoxCollider box = rowBox(chunk, index);
+        if (box == null) {
+            return;
+        }
+        PhysicsChunkDebugSectionBuilder section = section(sections, source);
+        if (source.getPartKind() == PartKind.BOX) {
+            section.fullCubeBoxes.add(box);
+        } else if (source.getPartKind() == PartKind.DETAIL_BOX) {
+            section.detailBoxes.add(box);
+        }
+    }
+
+    @Nullable
+    private static BoxCollider rowBox(@Nonnull ArchetypeChunk<PhysicsStore> chunk, int index) {
+        ShapeComponent shape = chunk.getComponent(index, ShapeComponent.getComponentType());
+        TargetComponent target = chunk.getComponent(index, TargetComponent.getComponentType());
+        if (shape == null || target == null || shape.getShapeType() != ShapeType.BOX) {
+            return null;
+        }
+        Vector3f position = target.getPosition();
+        return new BoxCollider(position.x,
+            position.y,
+            position.z,
+            shape.getHalfExtentX(),
+            shape.getHalfExtentY(),
+            shape.getHalfExtentZ());
     }
 
     @Nonnull
-    private static List<BoxCollider> boxes(
-        @Nonnull List<ChunkCollisionPayload.BoxPayload> payloadBoxes) {
-        if (payloadBoxes.isEmpty()) {
-            return List.of();
-        }
-        List<BoxCollider> boxes = new ArrayList<>(payloadBoxes.size());
-        for (ChunkCollisionPayload.BoxPayload box : payloadBoxes) {
-            boxes.add(new BoxCollider(box.centerX(),
-                box.centerY(),
-                box.centerZ(),
-                box.halfX(),
-                box.halfY(),
-                box.halfZ()));
-        }
-        return boxes;
+    private static PhysicsChunkDebugSectionBuilder section(
+        @Nonnull Map<SectionKey, PhysicsChunkDebugSectionBuilder> sections,
+        @Nonnull ChunkCollisionSourceComponent source) {
+        SectionKey key = new SectionKey(source.getChunkX(),
+            source.getSectionY(),
+            source.getChunkZ());
+        return sections.computeIfAbsent(key, _ -> new PhysicsChunkDebugSectionBuilder(key));
     }
 
     private static void collectJointChunk(@Nonnull ArchetypeChunk<PhysicsStore> chunk,
@@ -532,5 +567,33 @@ final class PhysicsStoreDebugQueries {
 
     private record SpaceContext(@Nonnull BackendSpaceHandle spaceHandle,
                                 @Nonnull PhysicsBackendRuntime backendRuntime) {
+    }
+
+    private record SectionKey(int chunkX, int sectionY, int chunkZ) {
+    }
+
+    private static final class PhysicsChunkDebugSectionBuilder {
+
+        @Nonnull
+        private final SectionKey key;
+        @Nonnull
+        private final List<BoxCollider> fullCubeBoxes = new ArrayList<>();
+        @Nonnull
+        private final List<BoxCollider> detailBoxes = new ArrayList<>();
+        private boolean voxelTerrain;
+
+        private PhysicsChunkDebugSectionBuilder(@Nonnull SectionKey key) {
+            this.key = key;
+        }
+
+        @Nonnull
+        private PhysicsChunkDebugSectionView toView() {
+            return new PhysicsChunkDebugSectionView(key.chunkX(),
+                key.sectionY(),
+                key.chunkZ(),
+                voxelTerrain,
+                fullCubeBoxes,
+                detailBoxes);
+        }
     }
 }

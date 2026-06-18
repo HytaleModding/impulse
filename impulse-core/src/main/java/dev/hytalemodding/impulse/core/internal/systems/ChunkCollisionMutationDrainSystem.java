@@ -132,13 +132,13 @@ public final class ChunkCollisionMutationDrainSystem extends TickingSystem<Physi
             restore.recordSoftSkip("Terrain references unbound space: " + mutation.sourceKey());
             return;
         }
-        removeGeneratedRows(store, runtime, identity, chunkCollisionPayloads, mutation);
-        chunkCollisionPayloads.put(mutation.payloadResourceKey(), payload);
-
         boolean nativeVoxel = payload.nativeVoxelTerrainEnabled()
             && payload.hasFullCubeVoxels()
             && backendRuntime.supportsVoxelTerrain(spaceHandle.value());
+        removeGeneratedRows(store, runtime, identity, chunkCollisionPayloads, mutation);
+        removePayload(chunkCollisionPayloads, mutation.payloadResourceKey());
         if (nativeVoxel) {
+            chunkCollisionPayloads.put(mutation.payloadResourceKey(), voxelPayload(payload));
             addVoxelBody(store, identity, spaceRef, mutation, payload);
         } else {
             addBoxBodies(store,
@@ -156,6 +156,22 @@ public final class ChunkCollisionMutationDrainSystem extends TickingSystem<Physi
             payload,
             payload.detailBoxes(),
             PartKind.DETAIL_BOX);
+    }
+
+    @Nonnull
+    private static ChunkCollisionPayload voxelPayload(@Nonnull ChunkCollisionPayload payload) {
+        return new ChunkCollisionPayload(payload.voxelSizeX(),
+            payload.voxelSizeY(),
+            payload.voxelSizeZ(),
+            payload.voxelCoordinates(),
+            List.of(),
+            List.of(),
+            true,
+            0.0f,
+            0.0f,
+            0,
+            0,
+            payload.neighbors());
     }
 
     private static void addVoxelBody(@Nonnull Store<PhysicsStore> store,
@@ -183,6 +199,7 @@ public final class ChunkCollisionMutationDrainSystem extends TickingSystem<Physi
                 mutation.payloadResourceKey()),
             material(payload),
             filter(payload),
+            mutation.payloadResourceKey(),
             PartKind.VOXEL_TERRAIN,
             0);
     }
@@ -219,6 +236,7 @@ public final class ChunkCollisionMutationDrainSystem extends TickingSystem<Physi
                     ""),
                 material(payload),
                 filter(payload),
+                "",
                 partKind,
                 index);
         }
@@ -232,6 +250,7 @@ public final class ChunkCollisionMutationDrainSystem extends TickingSystem<Physi
         @Nonnull ShapeComponent shape,
         @Nonnull MaterialComponent material,
         @Nonnull CollisionFilterComponent filter,
+        @Nonnull String payloadResourceKey,
         @Nonnull PartKind partKind,
         int partIndex) {
         UUID bodyUuid = chunkCollisionBodyUuid(mutation.spaceUuid(),
@@ -256,7 +275,7 @@ public final class ChunkCollisionMutationDrainSystem extends TickingSystem<Physi
                 mutation.chunkX(),
                 mutation.sectionY(),
                 mutation.chunkZ(),
-                mutation.payloadResourceKey(),
+                payloadResourceKey,
                 partKind,
                 partIndex));
         Ref<PhysicsStore> ref = store.addEntity(holder, AddReason.SPAWN);

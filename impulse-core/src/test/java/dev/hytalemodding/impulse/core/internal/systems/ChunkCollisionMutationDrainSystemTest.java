@@ -5,6 +5,7 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertSame;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.hypixel.hytale.component.AddReason;
 import com.hypixel.hytale.component.ComponentRegistry;
@@ -24,6 +25,7 @@ import dev.hytalemodding.impulse.api.testsupport.FakePhysicsBackendRuntimeProvid
 import dev.hytalemodding.impulse.core.internal.modules.physicschunk.ChunkCollisionMutation;
 import dev.hytalemodding.impulse.core.internal.modules.physicschunk.ChunkCollisionPayload;
 import dev.hytalemodding.impulse.core.internal.modules.physicschunk.ChunkCollisionPayload.BoxPayload;
+import dev.hytalemodding.impulse.core.internal.physicsstore.PhysicsStoreTopologyMutations;
 import dev.hytalemodding.impulse.core.internal.registration.PhysicsComponentTypeRegistry;
 import dev.hytalemodding.impulse.core.internal.resources.BackendSpaceHandle;
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsChunkCollisionMutationQueueResource;
@@ -52,6 +54,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
 import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
 import org.joml.Vector3f;
 import org.junit.jupiter.api.Test;
 
@@ -103,9 +106,8 @@ class ChunkCollisionMutationDrainSystemTest {
             new ChunkCollisionMutationDrainSystem().tick(0.0f, 0, store);
 
             assertEquals(0, queue.size());
-            assertSame(payload,
-                store.getResource(PhysicsChunkCollisionPayloadResource.getResourceType())
-                    .get(payloadKey));
+            assertNull(store.getResource(PhysicsChunkCollisionPayloadResource.getResourceType())
+                .get(payloadKey));
             assertSoftSkipsEmpty(store);
             assertGeneratedBox(store,
                 spaceUuid,
@@ -173,9 +175,8 @@ class ChunkCollisionMutationDrainSystemTest {
             new ChunkCollisionMutationDrainSystem().tick(0.0f, 0, store);
 
             assertEquals(0, queue.size());
-            assertSame(payload,
-                store.getResource(PhysicsChunkCollisionPayloadResource.getResourceType())
-                    .get(payloadKey));
+            assertVoxelOnlyPayload(store.getResource(PhysicsChunkCollisionPayloadResource.getResourceType())
+                .get(payloadKey));
             assertSoftSkipsEmpty(store);
             assertGeneratedVoxel(store,
                 spaceUuid,
@@ -187,6 +188,78 @@ class ChunkCollisionMutationDrainSystemTest {
             registry.removeStore(store);
             registry.shutdown();
         }
+    }
+
+    @Test
+    void destroyingDetailRowDoesNotRemoveNativeVoxelPayloadForSiblingRow() {
+        ComponentRegistry<PhysicsStore> registry = new ComponentRegistry<>();
+        ComponentRegistryProxy<PhysicsStore> proxy =
+            new ComponentRegistryProxy<>(new ArrayList<>(), registry);
+        PhysicsComponentTypeRegistry.registerComponentTypes(proxy);
+        PhysicsResourceTypes.registerResourceTypes(proxy);
+        Store<PhysicsStore> store = registry.addStore(
+            new PhysicsStore(TestInstanceFactory.world("chunk-collision-drain-payload-lifetime-test")),
+            EmptyResourceStorage.get());
+        try {
+            markCurrentThreadAsWorldThread(store);
+            UUID spaceUuid = uuid(31);
+            BackendId backendId = new BackendId("test:chunk-collision-drain-payload-lifetime");
+            Ref<PhysicsStore> spaceRef = addBoundSpace(store, spaceUuid, backendId, true);
+            String sourceKey = "2:3:4";
+            String payloadKey = "chunk-collision/2/3/4";
+            ChunkCollisionPayload payload = new ChunkCollisionPayload(1.0f,
+                1.0f,
+                1.0f,
+                new int[] {0, 0, 0},
+                List.of(),
+                List.of(new BoxPayload(10.0, 20.0, 30.0, 0.25, 0.5, 0.75)),
+                true,
+                0.7f,
+                0.05f,
+                0x20,
+                0x03,
+                List.of());
+
+            PhysicsChunkCollisionMutationQueueResource queue = store.getResource(
+                PhysicsChunkCollisionMutationQueueResource.getResourceType());
+            queue.enqueue(ChunkCollisionMutation.upsert(spaceUuid,
+                sourceKey,
+                2,
+                3,
+                4,
+                payloadKey,
+                payload));
+            new ChunkCollisionMutationDrainSystem().tick(0.0f, 0, store);
+
+            assertGeneratedVoxel(store, spaceUuid, spaceRef, sourceKey, payloadKey, payload);
+            UUID detailUuid = ChunkCollisionMutationDrainSystem.chunkCollisionBodyUuid(spaceUuid,
+                sourceKey,
+                PartKind.DETAIL_BOX,
+                0);
+            assertNotNull(store.getResource(PhysicsIdentityIndexResource.getResourceType())
+                .getByUuid(detailUuid));
+            ChunkCollisionPayload retainedPayload = store.getResource(
+                    PhysicsChunkCollisionPayloadResource.getResourceType())
+                .get(payloadKey);
+            assertVoxelOnlyPayload(retainedPayload);
+
+            PhysicsStoreTopologyMutations.destroyBody(store, detailUuid);
+
+            assertSame(retainedPayload,
+                store.getResource(PhysicsChunkCollisionPayloadResource.getResourceType())
+                    .get(payloadKey));
+            assertSoftSkipsEmpty(store);
+        } finally {
+            registry.removeStore(store);
+            registry.shutdown();
+        }
+    }
+
+    private static void assertVoxelOnlyPayload(@Nullable ChunkCollisionPayload payload) {
+        assertNotNull(payload);
+        assertTrue(payload.hasFullCubeVoxels());
+        assertTrue(payload.mergedFullCubeBoxes().isEmpty());
+        assertTrue(payload.detailBoxes().isEmpty());
     }
 
     @Test
@@ -416,7 +489,7 @@ class ChunkCollisionMutationDrainSystemTest {
         assertEquals(0, source.getChunkX());
         assertEquals(1, source.getSectionY());
         assertEquals(2, source.getChunkZ());
-        assertEquals(payloadKey, source.getPayloadResourceKey());
+        assertEquals("", source.getPayloadResourceKey());
         assertEquals(partKind, source.getPartKind());
         assertEquals(partIndex, source.getPartIndex());
     }
