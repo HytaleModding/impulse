@@ -48,16 +48,15 @@ class PhysicsStoreRuntimeBoundarySourceGuardTest {
             "src/main/java/dev/hytalemodding/impulse/core/internal/systems/CompletedStepPublicationSystem.java"));
 
         assertFalse(source.contains("runtime.forEachSpaceBinding"));
-        assertFalse(source.contains("runtime.hasTerrainBodyHandles(rowUuid)"));
     }
 
     @Test
-    void terrainNeighborStitchingDoesNotResolveRuntimeBindingsByUuid() throws IOException {
+    void chunkCollisionVoxelStitchingDoesNotResolveRuntimeBindingsByUuid() throws IOException {
         String source = Files.readString(Path.of(
-            "src/main/java/dev/hytalemodding/impulse/core/internal/systems/TerrainColliderBindingSystem.java"));
+            "src/main/java/dev/hytalemodding/impulse/core/internal/systems/ChunkCollisionVoxelStitchingSystem.java"));
 
-        assertFalse(source.contains("runtime.getTerrainVoxelBodyHandle(neighborUuid)"));
-        assertFalse(source.contains("runtime.getTerrainSpaceHandle(neighborUuid)"));
+        assertFalse(source.contains("runtime.getBodyHandle(neighborUuid)"));
+        assertFalse(source.contains("runtime.getBodySpaceHandle(neighborUuid)"));
     }
 
     @Test
@@ -109,13 +108,8 @@ class PhysicsStoreRuntimeBoundarySourceGuardTest {
         assertFalse(source.contains("getBodySpaceHandle(@Nonnull UUID"));
         assertFalse(source.contains("getJointHandle(@Nonnull UUID"));
         assertFalse(source.contains("getJointSpaceHandle(@Nonnull UUID"));
-        assertFalse(source.contains("getTerrainSpaceHandle(@Nonnull UUID"));
-        assertFalse(source.contains("getTerrainVoxelBodyHandle(@Nonnull UUID"));
-        assertFalse(source.contains("hasTerrainBodyHandles(@Nonnull UUID"));
-        assertFalse(source.contains("forEachTerrainBodyHandle(@Nonnull UUID"));
         assertFalse(source.contains("bodyUuidsForSpaceHandle"));
         assertFalse(source.contains("jointUuidsForSpaceHandle"));
-        assertFalse(source.contains("terrainUuidsForSpaceHandle"));
         assertFalse(source.contains("forEachSpaceBinding"));
         assertFalse(source.contains("@Nullable Ref<PhysicsStore> spaceRef"));
         assertFalse(source.contains("@Nullable Ref<PhysicsStore> jointRef"));

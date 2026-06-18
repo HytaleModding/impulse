@@ -92,33 +92,26 @@ class PhysicsStoreResourceIndexTest {
         UUID spaceUuid = UUID.fromString("00000000-0000-0000-0000-000000000007");
         UUID bodyUuid = UUID.fromString("00000000-0000-0000-0000-000000000008");
         UUID jointUuid = UUID.fromString("00000000-0000-0000-0000-000000000009");
-        UUID terrainUuid = UUID.fromString("00000000-0000-0000-0000-00000000000a");
         BackendId backendId = new BackendId("test:runtime-ref-index");
         BackendSpaceHandle spaceHandle = new BackendSpaceHandle(43);
         BackendBodyHandle bodyHandle = new BackendBodyHandle(44L);
         BackendJointHandle jointHandle = new BackendJointHandle(45L);
-        BackendBodyHandle terrainHandle = new BackendBodyHandle(46L);
         Ref spaceRef = new TestRef(true);
         Ref bodyRef = new TestRef(true);
         Ref jointRef = new TestRef(true);
-        Ref terrainRef = new TestRef(true);
 
         runtime.putSpaceBinding(spaceUuid, spaceRef, backendId, spaceHandle);
         runtime.putBodyHandle(bodyUuid, bodyRef, spaceUuid, spaceHandle, bodyHandle);
         runtime.putJointHandle(jointRef, jointUuid, spaceHandle, jointHandle);
-        runtime.putTerrainBodyHandle(terrainRef, terrainUuid, spaceHandle, terrainHandle, true);
 
         assertEquals(List.of(bodyRef), refsFor(runtime, "bodyRefsForSpaceHandle", spaceHandle));
         assertEquals(List.of(jointRef), refsFor(runtime, "jointRefsForSpaceHandle", spaceHandle));
-        assertEquals(List.of(terrainRef), refsFor(runtime, "terrainRefsForSpaceHandle", spaceHandle));
 
         runtime.removeBodyHandle(bodyUuid, bodyRef);
         runtime.removeJointHandle(jointUuid, jointRef);
-        runtime.removeTerrainHandles(terrainRef, terrainUuid);
 
         assertEquals(List.of(), refsFor(runtime, "bodyRefsForSpaceHandle", spaceHandle));
         assertEquals(List.of(), refsFor(runtime, "jointRefsForSpaceHandle", spaceHandle));
-        assertEquals(List.of(), refsFor(runtime, "terrainRefsForSpaceHandle", spaceHandle));
     }
 
     @Test
