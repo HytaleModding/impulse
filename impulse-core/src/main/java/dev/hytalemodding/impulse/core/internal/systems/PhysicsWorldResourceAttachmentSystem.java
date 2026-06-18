@@ -10,7 +10,7 @@ import dev.hytalemodding.impulse.core.internal.resources.PhysicsWorldRuntimeReso
 import dev.hytalemodding.impulse.core.internal.systems.debug.PhysicsDebugSystem;
 import dev.hytalemodding.impulse.core.internal.systems.publication.PhysicsStoreEventPublicationSystem;
 import dev.hytalemodding.impulse.core.internal.systems.sync.PhysicsSyncSystem;
-import dev.hytalemodding.impulse.core.internal.systems.visual.PhysicsGeneratedProxyCleanupSystem;
+import dev.hytalemodding.impulse.core.internal.systems.visual.PhysicsProjectionCleanupSystem;
 import java.util.Set;
 import javax.annotation.Nonnull;
 
@@ -21,7 +21,7 @@ public final class PhysicsWorldResourceAttachmentSystem extends TickingSystem<En
 
     private static final Set<Dependency<EntityStore>> DEPENDENCIES = Set.of(
         new SystemDependency<>(Order.BEFORE, PhysicsStoreEventPublicationSystem.class),
-        new SystemDependency<>(Order.BEFORE, PhysicsGeneratedProxyCleanupSystem.class),
+        new SystemDependency<>(Order.BEFORE, PhysicsProjectionCleanupSystem.class),
         new SystemDependency<>(Order.BEFORE, PhysicsSyncSystem.class),
         new SystemDependency<>(Order.BEFORE, PhysicsDebugSystem.class)
     );

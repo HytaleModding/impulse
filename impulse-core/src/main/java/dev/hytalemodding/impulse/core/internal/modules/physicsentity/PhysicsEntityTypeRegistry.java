@@ -15,7 +15,7 @@ import dev.hytalemodding.impulse.core.internal.systems.debug.PhysicsDebugSystem;
 import dev.hytalemodding.impulse.core.internal.systems.publication.PhysicsStoreEventPublicationSystem;
 import dev.hytalemodding.impulse.core.internal.systems.sync.PhysicsBodyAttachmentIndexSystem;
 import dev.hytalemodding.impulse.core.internal.systems.sync.PhysicsSyncSystem;
-import dev.hytalemodding.impulse.core.internal.systems.visual.PhysicsGeneratedProxyCleanupSystem;
+import dev.hytalemodding.impulse.core.internal.systems.visual.PhysicsProjectionCleanupSystem;
 import dev.hytalemodding.impulse.core.plugin.events.PhysicsEventFramePublishedEvent;
 import dev.hytalemodding.impulse.core.plugin.modules.physicsentity.components.BodyAttachmentComponent;
 import dev.hytalemodding.impulse.core.plugin.modules.physicsentity.components.GeneratedVisualProxyComponent;
@@ -80,7 +80,7 @@ public final class PhysicsEntityTypeRegistry {
 
     public static void registerSystems(@Nonnull ComponentRegistryProxy<EntityStore> registry) {
         registry.registerSystem(new PhysicsBodyAttachmentIndexSystem());
-        registry.registerSystem(new PhysicsGeneratedProxyCleanupSystem());
+        registry.registerSystem(new PhysicsProjectionCleanupSystem());
         registry.registerSystem(new PhysicsSyncSystem());
         registry.registerSystem(new PhysicsDebugSystem());
         registry.registerSystem(new PhysicsStoreEventPublicationSystem());

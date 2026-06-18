@@ -1,6 +1,7 @@
 package dev.hytalemodding.impulse.core.internal.systems.visual;
 
 import com.hypixel.hytale.component.ComponentType;
+import com.hypixel.hytale.component.Ref;
 import com.hypixel.hytale.component.RemoveReason;
 import com.hypixel.hytale.component.Store;
 import com.hypixel.hytale.component.dependency.Dependency;
@@ -8,6 +9,8 @@ import com.hypixel.hytale.component.dependency.Order;
 import com.hypixel.hytale.component.dependency.SystemGroupDependency;
 import com.hypixel.hytale.component.system.tick.TickingSystem;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
+import com.hypixel.hytale.server.core.universe.world.storage.PhysicsStore;
+import dev.hytalemodding.impulse.core.internal.resources.PhysicsWorldRuntimeResource;
 import dev.hytalemodding.impulse.core.plugin.modules.physicsentity.PhysicsEntityTypes;
 import dev.hytalemodding.impulse.core.plugin.modules.physicsentity.components.BodyAttachmentComponent;
 import dev.hytalemodding.impulse.core.plugin.modules.physicsentity.components.GeneratedVisualProxyComponent;
@@ -18,9 +21,9 @@ import java.util.WeakHashMap;
 import javax.annotation.Nonnull;
 
 /**
- * Removes incomplete generated visual proxy markers left by transition-era saves.
+ * Cleans EntityStore projections whose authoritative PhysicsStore row is gone.
  */
-public class PhysicsGeneratedProxyCleanupSystem extends TickingSystem<EntityStore> {
+public class PhysicsProjectionCleanupSystem extends TickingSystem<EntityStore> {
 
     private static final int CLEANUP_INTERVAL_TICKS = 40;
 
@@ -33,6 +36,7 @@ public class PhysicsGeneratedProxyCleanupSystem extends TickingSystem<EntityStor
 
     @Override
     public void tick(float dt, int systemIndex, @Nonnull Store<EntityStore> store) {
+        clearDestroyedBodyAttachments(store);
         if (shouldSkipCleanup(store)) {
             return;
         }
@@ -49,6 +53,29 @@ public class PhysicsGeneratedProxyCleanupSystem extends TickingSystem<EntityStor
             cleanupCooldowns.put(store, CLEANUP_INTERVAL_TICKS);
             return false;
         }
+    }
+
+    private static void clearDestroyedBodyAttachments(@Nonnull Store<EntityStore> store) {
+        ComponentType<EntityStore, BodyAttachmentComponent> attachmentType =
+            BodyAttachmentComponent.getComponentType();
+        PhysicsWorldRuntimeResource resource = PhysicsWorldRuntimeResource.require(store);
+        store.forEachEntityParallel(attachmentType,
+            (index, archetypeChunk, commandBuffer) -> {
+                BodyAttachmentComponent attachment = archetypeChunk.getComponent(index,
+                    attachmentType);
+                if (attachment == null || !hasDestroyedBodyRef(attachment)) {
+                    return;
+                }
+                GeneratedProxyLifecycle.clearMissingAttachment(archetypeChunk.getReferenceTo(index),
+                    attachment,
+                    resource,
+                    commandBuffer);
+            });
+    }
+
+    private static boolean hasDestroyedBodyRef(@Nonnull BodyAttachmentComponent attachment) {
+        Ref<PhysicsStore> bodyRef = attachment.getBodyRef();
+        return bodyRef != null && !bodyRef.isValid();
     }
 
     private static void removeOrphanGeneratedVisualProxyMarkers(@Nonnull Store<EntityStore> store) {

@@ -23,7 +23,7 @@ import dev.hytalemodding.impulse.core.internal.resources.PhysicsProjectionIndexR
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsWorldRuntimeResource;
 import dev.hytalemodding.impulse.core.internal.resources.body.PhysicsBodyRuntimeState;
 import dev.hytalemodding.impulse.core.internal.resources.profiling.PhysicsRuntimeProfilingResource;
-import dev.hytalemodding.impulse.core.internal.systems.visual.PhysicsGeneratedProxyCleanupSystem;
+import dev.hytalemodding.impulse.core.internal.systems.visual.PhysicsProjectionCleanupSystem;
 import dev.hytalemodding.impulse.core.internal.systems.visual.VisualInterestCollector;
 import dev.hytalemodding.impulse.core.plugin.modules.physicsentity.PhysicsEntityTypes;
 import dev.hytalemodding.impulse.core.plugin.physicsstore.PhysicsThreading;
@@ -60,7 +60,7 @@ public class PhysicsSyncSystem extends EntityTickingSystem<EntityStore> {
     private final Query<EntityStore> query;
     private final Set<Dependency<EntityStore>> dependencies = Set.of(
         new SystemGroupDependency<>(Order.AFTER, PhysicsEntityTypes.persistenceRestoreGroup()),
-        new SystemDependency<>(Order.AFTER, PhysicsGeneratedProxyCleanupSystem.class),
+        new SystemDependency<>(Order.AFTER, PhysicsProjectionCleanupSystem.class),
         new SystemDependency<>(Order.BEFORE, TransformSystems.EntityTrackerUpdate.class),
         new SystemDependency<>(Order.BEFORE, UpdateLocationSystems.TickingSystem.class)
     );
