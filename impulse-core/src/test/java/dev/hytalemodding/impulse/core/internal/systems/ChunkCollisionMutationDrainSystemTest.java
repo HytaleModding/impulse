@@ -372,7 +372,7 @@ class ChunkCollisionMutationDrainSystemTest {
         @Nonnull ChunkCollisionPayload payload) {
         UUID bodyUuid = ChunkCollisionMutationDrainSystem.chunkCollisionBodyUuid(spaceUuid,
             sourceKey,
-            PartKind.VOXEL_TERRAIN,
+            PartKind.NATIVE_VOXELS,
             0);
         Ref<PhysicsStore> bodyRef = store
             .getResource(PhysicsIdentityIndexResource.getResourceType())
@@ -416,7 +416,7 @@ class ChunkCollisionMutationDrainSystemTest {
         assertNotNull(source);
         assertEquals(sourceKey, source.getSourceKey());
         assertEquals(payloadKey, source.getPayloadResourceKey());
-        assertEquals(PartKind.VOXEL_TERRAIN, source.getPartKind());
+        assertEquals(PartKind.NATIVE_VOXELS, source.getPartKind());
         assertEquals(0, source.getPartIndex());
     }
 

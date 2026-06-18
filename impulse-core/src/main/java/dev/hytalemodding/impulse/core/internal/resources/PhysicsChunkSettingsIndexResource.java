@@ -15,7 +15,7 @@ import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
 /**
- * Runtime-only copied PhysicsChunk terrain settings indexed by PhysicsStore space UUID.
+ * Runtime-only copied PhysicsChunk settings indexed by PhysicsStore space UUID.
  */
 public final class PhysicsChunkSettingsIndexResource implements Resource<PhysicsStore> {
 
@@ -70,21 +70,21 @@ public final class PhysicsChunkSettingsIndexResource implements Resource<Physics
     public record PhysicsChunkSpaceSettings(@Nonnull UUID spaceUuid,
                                               @Nonnull PhysicsChunkTerrainMode mode,
                                               @Nonnull EntityChunkBoundaryMode entityChunkBoundaryMode,
-                                              boolean nativeVoxelTerrainEnabled,
+                                              boolean nativeVoxelCollisionEnabled,
                                               int radius,
                                               int bodyRadius,
                                               int ttlTicks,
-                                              float terrainFriction,
-                                              float terrainRestitution,
+                                              float friction,
+                                              float restitution,
                                               int collisionGroup,
                                               int collisionMask) {
 
         @Nonnull
         public PhysicsChunkBuildOptions buildOptions() {
             return new PhysicsChunkBuildOptions(
-                ChunkCollisionMode.fromNativeVoxelTerrainEnabled(nativeVoxelTerrainEnabled),
-                terrainFriction,
-                terrainRestitution,
+                ChunkCollisionMode.fromNativeVoxelCollisionEnabled(nativeVoxelCollisionEnabled),
+                friction,
+                restitution,
                 collisionGroup,
                 collisionMask);
         }

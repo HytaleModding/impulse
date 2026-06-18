@@ -134,6 +134,6 @@ public final class ChunkCollisionSourceComponent implements Component<PhysicsSto
     public enum PartKind {
         BOX,
         DETAIL_BOX,
-        VOXEL_TERRAIN
+        NATIVE_VOXELS
     }
 }

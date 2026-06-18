@@ -66,7 +66,7 @@ public final class ChunkCollisionVoxelStitchingSystem extends TickingSystem<Phys
         for (int index = 0; index < chunk.size(); index++) {
             ChunkCollisionSourceComponent source = chunk.getComponent(index,
                 ChunkCollisionSourceComponent.getComponentType());
-            if (source == null || source.getPartKind() != PartKind.VOXEL_TERRAIN) {
+            if (source == null || source.getPartKind() != PartKind.NATIVE_VOXELS) {
                 continue;
             }
             Ref<PhysicsStore> bodyRef = chunk.getReferenceTo(index);
@@ -162,7 +162,7 @@ public final class ChunkCollisionVoxelStitchingSystem extends TickingSystem<Phys
         @Nonnull String sourceKey) {
         UUID neighborUuid = ChunkCollisionMutationDrainSystem.chunkCollisionBodyUuid(spaceUuid,
             sourceKey,
-            PartKind.VOXEL_TERRAIN,
+            PartKind.NATIVE_VOXELS,
             0);
         return PhysicsStoreSystemSupport.refForUuid(identity, neighborUuid);
     }

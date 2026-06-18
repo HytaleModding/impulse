@@ -62,39 +62,39 @@ public final class PersistentSpaceDto {
                     : PhysicsChunkTerrainSettings.DEFAULT_ENTITY_CHUNK_BOUNDARY_MODE,
                 PersistentSpaceDto::getEntityChunkBoundaryMode)
             .add()
-            .append(new KeyedCodec<>("NativeVoxelTerrain", Codec.BOOLEAN, false),
+            .append(new KeyedCodec<>("NativeVoxelCollision", Codec.BOOLEAN, false),
                 (dto, value) -> dto.nativeVoxelTerrainEnabled = value != null && value,
                 PersistentSpaceDto::isNativeVoxelTerrainEnabled)
             .add()
-            .append(new KeyedCodec<>("TerrainRadius", Codec.INTEGER, false),
+            .append(new KeyedCodec<>("ChunkCollisionRadius", Codec.INTEGER, false),
                 (dto, value) -> dto.terrainRadius = value != null
                     ? value
                     : PhysicsChunkTerrainSettings.DEFAULT_TERRAIN_RADIUS,
                 PersistentSpaceDto::getTerrainRadius)
             .add()
-            .append(new KeyedCodec<>("BodyTerrainRadius", Codec.INTEGER, false),
+            .append(new KeyedCodec<>("BodyChunkCollisionRadius", Codec.INTEGER, false),
                 (dto, value) -> dto.bodyTerrainRadius = value != null
                     ? value
                     : PhysicsChunkTerrainSettings.DEFAULT_BODY_TERRAIN_RADIUS,
                 PersistentSpaceDto::getBodyTerrainRadius)
             .add()
-            .append(new KeyedCodec<>("TerrainTtlTicks", Codec.INTEGER, false),
+            .append(new KeyedCodec<>("ChunkCollisionTtlTicks", Codec.INTEGER, false),
                 (dto, value) -> dto.terrainTtlTicks = value != null
                     ? value
                     : PhysicsChunkTerrainSettings.DEFAULT_TERRAIN_TTL_TICKS,
                 PersistentSpaceDto::getTerrainTtlTicks)
             .add()
-            .append(new KeyedCodec<>("TerrainFriction", Codec.FLOAT, false),
-                (dto, value) -> dto.terrainFriction = value != null
+            .append(new KeyedCodec<>("ChunkCollisionFriction", Codec.FLOAT, false),
+                (dto, value) -> dto.chunkCollisionFriction = value != null
                     ? value
                     : PhysicsChunkTerrainSettings.DEFAULT_TERRAIN_FRICTION,
-                PersistentSpaceDto::getTerrainFriction)
+                PersistentSpaceDto::getChunkCollisionFriction)
             .add()
-            .append(new KeyedCodec<>("TerrainRestitution", Codec.FLOAT, false),
-                (dto, value) -> dto.terrainRestitution = value != null
+            .append(new KeyedCodec<>("ChunkCollisionRestitution", Codec.FLOAT, false),
+                (dto, value) -> dto.chunkCollisionRestitution = value != null
                     ? value
                     : PhysicsChunkTerrainSettings.DEFAULT_TERRAIN_RESTITUTION,
-                PersistentSpaceDto::getTerrainRestitution)
+                PersistentSpaceDto::getChunkCollisionRestitution)
             .add()
             .append(new KeyedCodec<>("ChunkCollisionFilter",
                     CollisionFilterComponent.CODEC,
@@ -161,8 +161,9 @@ public final class PersistentSpaceDto {
         PhysicsChunkTerrainSettings.DEFAULT_BODY_TERRAIN_RADIUS;
     private int terrainTtlTicks =
         PhysicsChunkTerrainSettings.DEFAULT_TERRAIN_TTL_TICKS;
-    private float terrainFriction = PhysicsChunkTerrainSettings.DEFAULT_TERRAIN_FRICTION;
-    private float terrainRestitution = PhysicsChunkTerrainSettings.DEFAULT_TERRAIN_RESTITUTION;
+    private float chunkCollisionFriction = PhysicsChunkTerrainSettings.DEFAULT_TERRAIN_FRICTION;
+    private float chunkCollisionRestitution =
+        PhysicsChunkTerrainSettings.DEFAULT_TERRAIN_RESTITUTION;
     @Nonnull
     private CollisionFilterComponent chunkCollisionFilter = defaultChunkCollisionFilter();
     @Nonnull
@@ -298,8 +299,8 @@ public final class PersistentSpaceDto {
         this.terrainRadius = terrainRadius;
         this.bodyTerrainRadius = bodyTerrainRadius;
         this.terrainTtlTicks = terrainTtlTicks;
-        this.terrainFriction = terrainFriction;
-        this.terrainRestitution = terrainRestitution;
+        this.chunkCollisionFriction = terrainFriction;
+        this.chunkCollisionRestitution = terrainRestitution;
         this.chunkCollisionFilter = new CollisionFilterComponent(chunkCollisionGroup,
             chunkCollisionMask);
         this.solverSettings = Objects.requireNonNull(solverSettings, "solverSettings").clone();
@@ -354,12 +355,12 @@ public final class PersistentSpaceDto {
         return terrainTtlTicks;
     }
 
-    public float getTerrainFriction() {
-        return terrainFriction;
+    public float getChunkCollisionFriction() {
+        return chunkCollisionFriction;
     }
 
-    public float getTerrainRestitution() {
-        return terrainRestitution;
+    public float getChunkCollisionRestitution() {
+        return chunkCollisionRestitution;
     }
 
     public int getChunkCollisionGroup() {
@@ -382,13 +383,13 @@ public final class PersistentSpaceDto {
 
     @Nonnull
     public MaterialComponent getChunkCollisionMaterial() {
-        return new MaterialComponent(terrainFriction, terrainRestitution);
+        return new MaterialComponent(chunkCollisionFriction, chunkCollisionRestitution);
     }
 
     public boolean isDefaultChunkCollisionMaterial() {
-        return Float.compare(terrainFriction,
+        return Float.compare(chunkCollisionFriction,
             PhysicsChunkTerrainSettings.DEFAULT_TERRAIN_FRICTION) == 0
-            && Float.compare(terrainRestitution,
+            && Float.compare(chunkCollisionRestitution,
                 PhysicsChunkTerrainSettings.DEFAULT_TERRAIN_RESTITUTION) == 0;
     }
 
@@ -432,7 +433,7 @@ public final class PersistentSpaceDto {
         PhysicsSpaceSettings settings = PhysicsSpaceSettings.defaults();
         getChunkCollisionSettings().copyTo(settings);
         settings.getPhysicsChunkTerrainSettings()
-            .setTerrainMaterial(terrainFriction, terrainRestitution);
+            .setTerrainMaterial(chunkCollisionFriction, chunkCollisionRestitution);
         solverSettings.copyTo(settings);
         visualSyncSettings.copyTo(settings);
         visualMaterializationSettings.copyTo(settings);
@@ -452,8 +453,8 @@ public final class PersistentSpaceDto {
             terrainRadius,
             bodyTerrainRadius,
             terrainTtlTicks,
-            terrainFriction,
-            terrainRestitution,
+            chunkCollisionFriction,
+            chunkCollisionRestitution,
             getChunkCollisionGroup(),
             getChunkCollisionMask(),
             solverSettings,

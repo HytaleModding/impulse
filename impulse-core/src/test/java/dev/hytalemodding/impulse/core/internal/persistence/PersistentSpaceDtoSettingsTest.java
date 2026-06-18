@@ -49,12 +49,12 @@ class PersistentSpaceDtoSettingsTest {
         BsonDocument encoded = PersistentSpaceDto.CODEC.encode(state, new ExtraInfo()).asDocument();
 
         assertTrue(encoded.containsKey("PhysicsChunkTerrainMode"));
-        assertTrue(encoded.containsKey("TerrainRadius"));
-        assertTrue(encoded.containsKey("BodyTerrainRadius"));
-        assertTrue(encoded.containsKey("TerrainTtlTicks"));
-        assertTrue(encoded.containsKey("NativeVoxelTerrain"));
-        assertTrue(encoded.containsKey("TerrainFriction"));
-        assertTrue(encoded.containsKey("TerrainRestitution"));
+        assertTrue(encoded.containsKey("ChunkCollisionRadius"));
+        assertTrue(encoded.containsKey("BodyChunkCollisionRadius"));
+        assertTrue(encoded.containsKey("ChunkCollisionTtlTicks"));
+        assertTrue(encoded.containsKey("NativeVoxelCollision"));
+        assertTrue(encoded.containsKey("ChunkCollisionFriction"));
+        assertTrue(encoded.containsKey("ChunkCollisionRestitution"));
         assertTrue(encoded.containsKey("VisualMaterializationSettings"));
         PhysicsSpaceSettings decoded = Objects.requireNonNull(
             PersistentSpaceDto.CODEC.decode(encoded, new ExtraInfo())).toSettings();

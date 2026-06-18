@@ -575,7 +575,7 @@ public final class PhysicsChunkMutationCache {
             neighborhoodSignature,
             buildOptions,
             bodyCount(geometry, buildOptions),
-            buildOptions.nativeVoxelTerrainEnabled() && geometry.hasFullCubeVoxels());
+            buildOptions.nativeVoxelCollisionEnabled() && geometry.hasFullCubeVoxels());
         int removedBodies = cached != null ? removeSection(spaceUuid, queue, cached) : 0;
         if (built.bodyCount > 0) {
             queue.enqueue(PhysicsStoreChunkCollisionMutations.upsert(spaceUuid,
@@ -607,7 +607,7 @@ public final class PhysicsChunkMutationCache {
 
     private static int bodyCount(@Nonnull SectionCollisionGeometry geometry,
         @Nonnull PhysicsChunkBuildOptions buildOptions) {
-        int fullCubeBodyCount = buildOptions.nativeVoxelTerrainEnabled()
+        int fullCubeBodyCount = buildOptions.nativeVoxelCollisionEnabled()
             && geometry.hasFullCubeVoxels()
             ? 1
             : geometry.mergedFullCubeBoxes().size();

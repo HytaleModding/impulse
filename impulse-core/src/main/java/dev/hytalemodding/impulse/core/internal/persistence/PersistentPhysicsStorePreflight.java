@@ -82,15 +82,15 @@ public final class PersistentPhysicsStorePreflight {
                 errors.add("PhysicsStore space " + uuid
                     + " has invalid PhysicsChunk terrain TTL");
             }
-            if (!Float.isFinite(space.getTerrainFriction())
-                || space.getTerrainFriction() < 0.0f) {
+            if (!Float.isFinite(space.getChunkCollisionFriction())
+                || space.getChunkCollisionFriction() < 0.0f) {
                 errors.add("PhysicsStore space " + uuid
-                    + " has invalid terrain friction");
+                    + " has invalid chunk collision friction");
             }
-            if (!Float.isFinite(space.getTerrainRestitution())
-                || space.getTerrainRestitution() < 0.0f) {
+            if (!Float.isFinite(space.getChunkCollisionRestitution())
+                || space.getChunkCollisionRestitution() < 0.0f) {
                 errors.add("PhysicsStore space " + uuid
-                    + " has invalid terrain restitution");
+                    + " has invalid chunk collision restitution");
             }
             try {
                 space.toSettings();

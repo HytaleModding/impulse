@@ -270,15 +270,15 @@ final class PhysicsStoreDebugQueries {
                 > maxDistanceSquared) {
                 continue;
             }
-            if (source.getPartKind() == PartKind.VOXEL_TERRAIN) {
-                collectVoxelTerrain(payloads, spaceContext, source, sections);
+            if (source.getPartKind() == PartKind.NATIVE_VOXELS) {
+                collectNativeVoxels(payloads, spaceContext, source, sections);
             } else {
-                collectBoxTerrain(chunk, index, source, sections);
+                collectBoxCollision(chunk, index, source, sections);
             }
         }
     }
 
-    private static void collectVoxelTerrain(
+    private static void collectNativeVoxels(
         @Nonnull PhysicsChunkCollisionPayloadResource payloads,
         @Nonnull SpaceContext spaceContext,
         @Nonnull ChunkCollisionSourceComponent source,
@@ -287,16 +287,16 @@ final class PhysicsStoreDebugQueries {
         if (payload == null || payload.isEmpty()) {
             return;
         }
-        boolean voxelTerrain = payload.nativeVoxelTerrainEnabled()
+        boolean nativeVoxels = payload.nativeVoxelCollisionEnabled()
             && payload.hasFullCubeVoxels()
             && spaceContext.backendRuntime()
                 .supportsVoxelTerrain(spaceContext.spaceHandle().value());
-        if (voxelTerrain) {
+        if (nativeVoxels) {
             section(sections, source).voxelTerrain = true;
         }
     }
 
-    private static void collectBoxTerrain(@Nonnull ArchetypeChunk<PhysicsStore> chunk,
+    private static void collectBoxCollision(@Nonnull ArchetypeChunk<PhysicsStore> chunk,
         int index,
         @Nonnull ChunkCollisionSourceComponent source,
         @Nonnull Map<SectionKey, PhysicsChunkDebugSectionBuilder> sections) {

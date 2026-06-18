@@ -163,7 +163,7 @@ class ChunkCollisionVoxelStitchingSystemTest {
         int chunkZ) {
         UUID bodyUuid = ChunkCollisionMutationDrainSystem.chunkCollisionBodyUuid(spaceUuid,
             sourceKey,
-            PartKind.VOXEL_TERRAIN,
+            PartKind.NATIVE_VOXELS,
             0);
         BodyComponent body = new BodyComponent(spaceUuid,
             PhysicsBodyKind.TERRAIN,
@@ -193,7 +193,7 @@ class ChunkCollisionVoxelStitchingSystemTest {
                 sectionY,
                 chunkZ,
                 payloadKey,
-                PartKind.VOXEL_TERRAIN,
+                PartKind.NATIVE_VOXELS,
                 0));
         Ref<PhysicsStore> bodyRef = store.addEntity(holder, AddReason.SPAWN);
         assertNotNull(bodyRef);

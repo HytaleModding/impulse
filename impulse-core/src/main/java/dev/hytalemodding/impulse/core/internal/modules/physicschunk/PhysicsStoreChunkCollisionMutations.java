@@ -10,7 +10,7 @@ import java.util.UUID;
 import javax.annotation.Nonnull;
 
 /**
- * Converts generated PhysicsChunk terrain sections into copied PhysicsStore chunk collision mutations.
+ * Converts generated PhysicsChunk sections into copied PhysicsStore chunk collision mutations.
  */
 public final class PhysicsStoreChunkCollisionMutations {
 
@@ -74,9 +74,9 @@ public final class PhysicsStoreChunkCollisionMutations {
             geometry.fullCubeVoxels(),
             boxes(geometry.mergedFullCubeBoxes()),
             boxes(geometry.detailBoxes()),
-            buildOptions.nativeVoxelTerrainEnabled(),
-            buildOptions.terrainFriction(),
-            buildOptions.terrainRestitution(),
+            buildOptions.nativeVoxelCollisionEnabled(),
+            buildOptions.friction(),
+            buildOptions.restitution(),
             buildOptions.collisionGroup(),
             buildOptions.collisionMask(),
             neighbors);

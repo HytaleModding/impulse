@@ -119,7 +119,8 @@ public final class ChunkCollisionMutationDrainSystem extends TickingSystem<Physi
         @Nonnull ChunkCollisionMutation mutation) {
         ChunkCollisionPayload payload = mutation.payload();
         if (payload == null || payload.isEmpty()) {
-            restore.recordSoftSkip("Terrain upsert payload is missing: " + mutation.sourceKey());
+            restore.recordSoftSkip("Chunk collision upsert payload is missing: "
+                + mutation.sourceKey());
             return;
         }
         Ref<PhysicsStore> spaceRef = PhysicsStoreSystemSupport.refForUuid(identity,
@@ -129,17 +130,18 @@ public final class ChunkCollisionMutationDrainSystem extends TickingSystem<Physi
             ? runtime.runtimeForSpaceHandle(spaceHandle)
             : null;
         if (spaceRef == null || spaceHandle == null || backendRuntime == null) {
-            restore.recordSoftSkip("Terrain references unbound space: " + mutation.sourceKey());
+            restore.recordSoftSkip("Chunk collision references unbound space: "
+                + mutation.sourceKey());
             return;
         }
-        boolean nativeVoxel = payload.nativeVoxelTerrainEnabled()
+        boolean nativeVoxel = payload.nativeVoxelCollisionEnabled()
             && payload.hasFullCubeVoxels()
             && backendRuntime.supportsVoxelTerrain(spaceHandle.value());
         removeGeneratedRows(store, runtime, identity, chunkCollisionPayloads, mutation);
         removePayload(chunkCollisionPayloads, mutation.payloadResourceKey());
         if (nativeVoxel) {
             chunkCollisionPayloads.put(mutation.payloadResourceKey(), voxelPayload(payload));
-            addVoxelBody(store, identity, spaceRef, mutation, payload);
+            addNativeVoxelBody(store, identity, spaceRef, mutation, payload);
         } else {
             addBoxBodies(store,
                 identity,
@@ -174,7 +176,7 @@ public final class ChunkCollisionMutationDrainSystem extends TickingSystem<Physi
             payload.neighbors());
     }
 
-    private static void addVoxelBody(@Nonnull Store<PhysicsStore> store,
+    private static void addNativeVoxelBody(@Nonnull Store<PhysicsStore> store,
         @Nonnull PhysicsIdentityIndexResource identity,
         @Nonnull Ref<PhysicsStore> spaceRef,
         @Nonnull ChunkCollisionMutation mutation,
@@ -183,7 +185,7 @@ public final class ChunkCollisionMutationDrainSystem extends TickingSystem<Physi
         target.setPosition(new Vector3f(mutation.chunkX() << ChunkUtil.BITS,
             mutation.sectionY() << ChunkUtil.BITS,
             mutation.chunkZ() << ChunkUtil.BITS));
-        addTerrainBody(store,
+        addChunkCollisionBody(store,
             identity,
             spaceRef,
             mutation,
@@ -200,7 +202,7 @@ public final class ChunkCollisionMutationDrainSystem extends TickingSystem<Physi
             material(payload),
             filter(payload),
             mutation.payloadResourceKey(),
-            PartKind.VOXEL_TERRAIN,
+            PartKind.NATIVE_VOXELS,
             0);
     }
 
@@ -220,7 +222,7 @@ public final class ChunkCollisionMutationDrainSystem extends TickingSystem<Physi
             target.setPosition(new Vector3f((float) box.centerX(),
                 (float) box.centerY(),
                 (float) box.centerZ()));
-            addTerrainBody(store,
+            addChunkCollisionBody(store,
                 identity,
                 spaceRef,
                 mutation,
@@ -242,7 +244,7 @@ public final class ChunkCollisionMutationDrainSystem extends TickingSystem<Physi
         }
     }
 
-    private static void addTerrainBody(@Nonnull Store<PhysicsStore> store,
+    private static void addChunkCollisionBody(@Nonnull Store<PhysicsStore> store,
         @Nonnull PhysicsIdentityIndexResource identity,
         @Nonnull Ref<PhysicsStore> spaceRef,
         @Nonnull ChunkCollisionMutation mutation,

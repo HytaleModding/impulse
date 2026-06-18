@@ -6,31 +6,31 @@ import java.util.Objects;
 import javax.annotation.Nonnull;
 
 /**
- * Options that control generated PhysicsChunk terrain backend geometry.
+ * Options that control generated PhysicsChunk backend collision geometry.
  */
 public record PhysicsChunkBuildOptions(@Nonnull ChunkCollisionMode chunkCollisionMode,
-                                         float terrainFriction,
-                                         float terrainRestitution,
+                                         float friction,
+                                         float restitution,
                                          int collisionGroup,
                                          int collisionMask) {
 
     public static final PhysicsChunkBuildOptions DEFAULT =
-        fromNativeVoxelTerrainEnabled(PhysicsChunkTerrainSettings.DEFAULT_NATIVE_VOXEL_TERRAIN_ENABLED);
+        fromNativeVoxelCollisionEnabled(PhysicsChunkTerrainSettings.DEFAULT_NATIVE_VOXEL_TERRAIN_ENABLED);
 
     public PhysicsChunkBuildOptions {
         Objects.requireNonNull(chunkCollisionMode, "chunkCollisionMode");
-        if (!Float.isFinite(terrainFriction) || terrainFriction < 0.0f) {
-            throw new IllegalArgumentException("terrainFriction must be finite and >= 0");
+        if (!Float.isFinite(friction) || friction < 0.0f) {
+            throw new IllegalArgumentException("friction must be finite and >= 0");
         }
-        if (!Float.isFinite(terrainRestitution) || terrainRestitution < 0.0f) {
-            throw new IllegalArgumentException("terrainRestitution must be finite and >= 0");
+        if (!Float.isFinite(restitution) || restitution < 0.0f) {
+            throw new IllegalArgumentException("restitution must be finite and >= 0");
         }
     }
 
     @Nonnull
     public static PhysicsChunkBuildOptions fromSettings(@Nonnull PhysicsChunkTerrainSettings settings) {
         return new PhysicsChunkBuildOptions(
-            ChunkCollisionMode.fromNativeVoxelTerrainEnabled(settings.isNativeVoxelTerrainEnabled()),
+            ChunkCollisionMode.fromNativeVoxelCollisionEnabled(settings.isNativeVoxelTerrainEnabled()),
             settings.getTerrainFriction(),
             settings.getTerrainRestitution(),
             PhysicsCollisionFilters.TERRAIN,
@@ -38,15 +38,15 @@ public record PhysicsChunkBuildOptions(@Nonnull ChunkCollisionMode chunkCollisio
     }
 
     @Nonnull
-    public static PhysicsChunkBuildOptions fromNativeVoxelTerrainEnabled(boolean enabled) {
-        return new PhysicsChunkBuildOptions(ChunkCollisionMode.fromNativeVoxelTerrainEnabled(enabled),
+    public static PhysicsChunkBuildOptions fromNativeVoxelCollisionEnabled(boolean enabled) {
+        return new PhysicsChunkBuildOptions(ChunkCollisionMode.fromNativeVoxelCollisionEnabled(enabled),
             PhysicsChunkTerrainSettings.DEFAULT_TERRAIN_FRICTION,
             PhysicsChunkTerrainSettings.DEFAULT_TERRAIN_RESTITUTION,
             PhysicsCollisionFilters.TERRAIN,
             PhysicsCollisionFilters.ALL);
     }
 
-    public boolean nativeVoxelTerrainEnabled() {
-        return chunkCollisionMode.nativeVoxelTerrainEnabled();
+    public boolean nativeVoxelCollisionEnabled() {
+        return chunkCollisionMode.nativeVoxelCollisionEnabled();
     }
 }
