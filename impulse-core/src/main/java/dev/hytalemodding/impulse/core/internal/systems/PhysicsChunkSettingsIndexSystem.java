@@ -12,6 +12,8 @@ import com.hypixel.hytale.component.system.tick.TickingSystem;
 import com.hypixel.hytale.server.core.universe.world.storage.PhysicsStore;
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsChunkSettingsIndexResource;
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsChunkSettingsIndexResource.PhysicsChunkSpaceSettings;
+import dev.hytalemodding.impulse.api.PhysicsCollisionFilters;
+import dev.hytalemodding.impulse.core.plugin.components.CollisionFilterComponent;
 import dev.hytalemodding.impulse.core.plugin.components.MaterialComponent;
 import dev.hytalemodding.impulse.core.plugin.components.SpaceComponent;
 import dev.hytalemodding.impulse.core.plugin.modules.physicschunk.components.ChunkCollisionSettingsComponent;
@@ -63,6 +65,8 @@ public final class PhysicsChunkSettingsIndexSystem extends TickingSystem<Physics
                 : new ChunkCollisionSettingsComponent();
             MaterialComponent material = chunk.getComponent(index,
                 MaterialComponent.getComponentType());
+            CollisionFilterComponent filter = chunk.getComponent(index,
+                CollisionFilterComponent.getComponentType());
             settingsBySpaceUuid.put(spaceUuid, new PhysicsChunkSpaceSettings(spaceUuid,
                 settings.getTerrainMode(),
                 settings.getEntityChunkBoundaryMode(),
@@ -75,7 +79,13 @@ public final class PhysicsChunkSettingsIndexSystem extends TickingSystem<Physics
                     : PhysicsChunkTerrainSettings.DEFAULT_TERRAIN_FRICTION,
                 material != null
                     ? material.getRestitution()
-                    : PhysicsChunkTerrainSettings.DEFAULT_TERRAIN_RESTITUTION));
+                    : PhysicsChunkTerrainSettings.DEFAULT_TERRAIN_RESTITUTION,
+                filter != null
+                    ? filter.getCollisionGroup()
+                    : PhysicsCollisionFilters.TERRAIN,
+                filter != null
+                    ? filter.getCollisionMask()
+                    : PhysicsCollisionFilters.ALL));
         }
     }
 

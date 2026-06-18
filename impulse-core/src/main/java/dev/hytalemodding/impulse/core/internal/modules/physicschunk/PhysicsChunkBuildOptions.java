@@ -1,5 +1,6 @@
 package dev.hytalemodding.impulse.core.internal.modules.physicschunk;
 
+import dev.hytalemodding.impulse.api.PhysicsCollisionFilters;
 import dev.hytalemodding.impulse.core.plugin.modules.physicschunk.settings.PhysicsChunkTerrainSettings;
 import java.util.Objects;
 import javax.annotation.Nonnull;
@@ -9,7 +10,9 @@ import javax.annotation.Nonnull;
  */
 public record PhysicsChunkBuildOptions(@Nonnull ChunkCollisionMode chunkCollisionMode,
                                          float terrainFriction,
-                                         float terrainRestitution) {
+                                         float terrainRestitution,
+                                         int collisionGroup,
+                                         int collisionMask) {
 
     public static final PhysicsChunkBuildOptions DEFAULT =
         fromNativeVoxelTerrainEnabled(PhysicsChunkTerrainSettings.DEFAULT_NATIVE_VOXEL_TERRAIN_ENABLED);
@@ -29,14 +32,18 @@ public record PhysicsChunkBuildOptions(@Nonnull ChunkCollisionMode chunkCollisio
         return new PhysicsChunkBuildOptions(
             ChunkCollisionMode.fromNativeVoxelTerrainEnabled(settings.isNativeVoxelTerrainEnabled()),
             settings.getTerrainFriction(),
-            settings.getTerrainRestitution());
+            settings.getTerrainRestitution(),
+            PhysicsCollisionFilters.TERRAIN,
+            PhysicsCollisionFilters.ALL);
     }
 
     @Nonnull
     public static PhysicsChunkBuildOptions fromNativeVoxelTerrainEnabled(boolean enabled) {
         return new PhysicsChunkBuildOptions(ChunkCollisionMode.fromNativeVoxelTerrainEnabled(enabled),
             PhysicsChunkTerrainSettings.DEFAULT_TERRAIN_FRICTION,
-            PhysicsChunkTerrainSettings.DEFAULT_TERRAIN_RESTITUTION);
+            PhysicsChunkTerrainSettings.DEFAULT_TERRAIN_RESTITUTION,
+            PhysicsCollisionFilters.TERRAIN,
+            PhysicsCollisionFilters.ALL);
     }
 
     public boolean nativeVoxelTerrainEnabled() {

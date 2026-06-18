@@ -13,6 +13,8 @@ import dev.hytalemodding.impulse.core.internal.physicsstore.PhysicsStoreTopology
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsChunkSettingsIndexResource.PhysicsChunkSpaceSettings;
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsIdentityIndexResource;
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsChunkCollisionMutationQueueResource;
+import dev.hytalemodding.impulse.api.PhysicsCollisionFilters;
+import dev.hytalemodding.impulse.core.plugin.components.CollisionFilterComponent;
 import dev.hytalemodding.impulse.core.plugin.components.MaterialComponent;
 import dev.hytalemodding.impulse.core.plugin.modules.physicschunk.components.ChunkCollisionSettingsComponent;
 import dev.hytalemodding.impulse.core.plugin.modules.physicschunk.settings.PhysicsChunkTerrainSettings;
@@ -169,6 +171,8 @@ public final class PhysicsChunkTerrain {
         }
         MaterialComponent material =
             store.getComponent(spaceRef, MaterialComponent.getComponentType());
+        CollisionFilterComponent filter =
+            store.getComponent(spaceRef, CollisionFilterComponent.getComponentType());
         return new PhysicsChunkSpaceSettings(spaceUuid,
             settings.getTerrainMode(),
             settings.getEntityChunkBoundaryMode(),
@@ -181,7 +185,13 @@ public final class PhysicsChunkTerrain {
                 : PhysicsChunkTerrainSettings.DEFAULT_TERRAIN_FRICTION,
             material != null
                 ? material.getRestitution()
-                : PhysicsChunkTerrainSettings.DEFAULT_TERRAIN_RESTITUTION);
+                : PhysicsChunkTerrainSettings.DEFAULT_TERRAIN_RESTITUTION,
+            filter != null
+                ? filter.getCollisionGroup()
+                : PhysicsCollisionFilters.TERRAIN,
+            filter != null
+                ? filter.getCollisionMask()
+                : PhysicsCollisionFilters.ALL);
     }
 
     @Nonnull

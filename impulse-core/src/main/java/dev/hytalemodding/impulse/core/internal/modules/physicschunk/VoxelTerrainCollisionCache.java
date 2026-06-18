@@ -8,7 +8,6 @@ import com.hypixel.hytale.server.core.universe.world.chunk.BlockChunk;
 import com.hypixel.hytale.server.core.universe.world.chunk.section.BlockSection;
 import com.hypixel.hytale.server.core.universe.world.storage.ChunkStore;
 import dev.hytalemodding.impulse.api.PhysicsBodyType;
-import dev.hytalemodding.impulse.api.PhysicsCollisionFilters;
 import dev.hytalemodding.impulse.api.SpaceId;
 import dev.hytalemodding.impulse.api.runtime.BackendRuntimeCodes;
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsSpaceBinding;
@@ -1008,8 +1007,8 @@ public final class VoxelTerrainCollisionCache {
             chunkZ << ChunkUtil.BITS,
             buildOptions.terrainFriction(),
             buildOptions.terrainRestitution(),
-            PhysicsCollisionFilters.TERRAIN,
-            PhysicsCollisionFilters.ALL);
+            buildOptions.collisionGroup(),
+            buildOptions.collisionMask());
         section.backendBodyIds.add(backendBodyId);
         section.voxelTerrainBodyId = backendBodyId;
         section.voxelTerrain = true;
@@ -1046,8 +1045,8 @@ public final class VoxelTerrainCollisionCache {
         space.runtime()
             .setBodyCollisionFilter(space.backendSpaceHandle().value(),
                 backendBodyId,
-                PhysicsCollisionFilters.TERRAIN,
-                PhysicsCollisionFilters.ALL);
+                buildOptions.collisionGroup(),
+                buildOptions.collisionMask());
     }
 
     private static void applyTerrainMaterial(@Nonnull PhysicsSpaceBinding space,

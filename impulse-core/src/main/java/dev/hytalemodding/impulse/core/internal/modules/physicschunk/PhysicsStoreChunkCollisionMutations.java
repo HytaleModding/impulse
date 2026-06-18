@@ -1,6 +1,5 @@
 package dev.hytalemodding.impulse.core.internal.modules.physicschunk;
 
-import dev.hytalemodding.impulse.api.PhysicsCollisionFilters;
 import dev.hytalemodding.impulse.core.internal.modules.physicschunk.SectionCollisionGeometry.BoxCollider;
 import dev.hytalemodding.impulse.core.internal.modules.physicschunk.ChunkCollisionMutation;
 import dev.hytalemodding.impulse.core.internal.modules.physicschunk.ChunkCollisionPayload;
@@ -78,8 +77,8 @@ public final class PhysicsStoreChunkCollisionMutations {
             buildOptions.nativeVoxelTerrainEnabled(),
             buildOptions.terrainFriction(),
             buildOptions.terrainRestitution(),
-            PhysicsCollisionFilters.TERRAIN,
-            PhysicsCollisionFilters.ALL,
+            buildOptions.collisionGroup(),
+            buildOptions.collisionMask(),
             neighbors);
     }
 

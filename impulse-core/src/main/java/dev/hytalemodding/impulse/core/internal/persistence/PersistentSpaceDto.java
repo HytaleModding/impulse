@@ -6,8 +6,10 @@ import com.hypixel.hytale.codec.builder.BuilderCodec;
 import com.hypixel.hytale.codec.codecs.EnumCodec;
 import com.hypixel.hytale.codec.validation.Validators;
 import com.hypixel.hytale.math.vector.Vector3fUtil;
+import dev.hytalemodding.impulse.api.PhysicsCollisionFilters;
 import dev.hytalemodding.impulse.core.plugin.modules.physicschunk.PhysicsChunkTerrainMode;
 import dev.hytalemodding.impulse.core.plugin.modules.physicschunk.components.CollisionLodSettingsComponent;
+import dev.hytalemodding.impulse.core.plugin.components.CollisionFilterComponent;
 import dev.hytalemodding.impulse.core.plugin.components.ExtensionSettingsComponent;
 import dev.hytalemodding.impulse.core.plugin.components.MaterialComponent;
 import dev.hytalemodding.impulse.core.plugin.components.SolverSettingsComponent;
@@ -94,6 +96,14 @@ public final class PersistentSpaceDto {
                     : PhysicsChunkTerrainSettings.DEFAULT_TERRAIN_RESTITUTION,
                 PersistentSpaceDto::getTerrainRestitution)
             .add()
+            .append(new KeyedCodec<>("ChunkCollisionFilter",
+                    CollisionFilterComponent.CODEC,
+                    false),
+                (dto, value) -> dto.chunkCollisionFilter = value != null
+                    ? value.clone()
+                    : defaultChunkCollisionFilter(),
+                PersistentSpaceDto::getChunkCollisionFilter)
+            .add()
             .append(new KeyedCodec<>("SolverSettings", SolverSettingsComponent.CODEC, false),
                 (dto, value) -> dto.solverSettings = value != null
                     ? value.clone()
@@ -154,6 +164,8 @@ public final class PersistentSpaceDto {
     private float terrainFriction = PhysicsChunkTerrainSettings.DEFAULT_TERRAIN_FRICTION;
     private float terrainRestitution = PhysicsChunkTerrainSettings.DEFAULT_TERRAIN_RESTITUTION;
     @Nonnull
+    private CollisionFilterComponent chunkCollisionFilter = defaultChunkCollisionFilter();
+    @Nonnull
     private SolverSettingsComponent solverSettings = new SolverSettingsComponent();
     @Nonnull
     private VisualSyncSettingsComponent visualSyncSettings = new VisualSyncSettingsComponent();
@@ -183,6 +195,8 @@ public final class PersistentSpaceDto {
             PhysicsChunkTerrainSettings.DEFAULT_TERRAIN_TTL_TICKS,
             PhysicsChunkTerrainSettings.DEFAULT_TERRAIN_FRICTION,
             PhysicsChunkTerrainSettings.DEFAULT_TERRAIN_RESTITUTION,
+            PhysicsCollisionFilters.TERRAIN,
+            PhysicsCollisionFilters.ALL,
             new SolverSettingsComponent(),
             new VisualSyncSettingsComponent(),
             new VisualMaterializationSettingsComponent(),
@@ -211,6 +225,8 @@ public final class PersistentSpaceDto {
             terrainTtlTicks,
             terrainFriction,
             terrainRestitution,
+            PhysicsCollisionFilters.TERRAIN,
+            PhysicsCollisionFilters.ALL,
             new SolverSettingsComponent(),
             new VisualSyncSettingsComponent(),
             new VisualMaterializationSettingsComponent(),
@@ -234,6 +250,44 @@ public final class PersistentSpaceDto {
         @Nonnull VisualMaterializationSettingsComponent visualMaterializationSettings,
         @Nonnull CollisionLodSettingsComponent collisionLodSettings,
         @Nonnull ExtensionSettingsComponent extensionSettings) {
+        this(spaceUuid,
+            backendId,
+            gravity,
+            terrainMode,
+            entityChunkBoundaryMode,
+            nativeVoxelTerrainEnabled,
+            terrainRadius,
+            bodyTerrainRadius,
+            terrainTtlTicks,
+            terrainFriction,
+            terrainRestitution,
+            PhysicsCollisionFilters.TERRAIN,
+            PhysicsCollisionFilters.ALL,
+            solverSettings,
+            visualSyncSettings,
+            visualMaterializationSettings,
+            collisionLodSettings,
+            extensionSettings);
+    }
+
+    public PersistentSpaceDto(@Nonnull UUID spaceUuid,
+        @Nonnull String backendId,
+        @Nonnull Vector3f gravity,
+        @Nonnull PhysicsChunkTerrainMode terrainMode,
+        @Nonnull EntityChunkBoundaryMode entityChunkBoundaryMode,
+        boolean nativeVoxelTerrainEnabled,
+        int terrainRadius,
+        int bodyTerrainRadius,
+        int terrainTtlTicks,
+        float terrainFriction,
+        float terrainRestitution,
+        int chunkCollisionGroup,
+        int chunkCollisionMask,
+        @Nonnull SolverSettingsComponent solverSettings,
+        @Nonnull VisualSyncSettingsComponent visualSyncSettings,
+        @Nonnull VisualMaterializationSettingsComponent visualMaterializationSettings,
+        @Nonnull CollisionLodSettingsComponent collisionLodSettings,
+        @Nonnull ExtensionSettingsComponent extensionSettings) {
         this.spaceUuid = Objects.requireNonNull(spaceUuid, "spaceUuid");
         this.backendId = Objects.requireNonNull(backendId, "backendId");
         this.gravity.set(Objects.requireNonNull(gravity, "gravity"));
@@ -246,6 +300,8 @@ public final class PersistentSpaceDto {
         this.terrainTtlTicks = terrainTtlTicks;
         this.terrainFriction = terrainFriction;
         this.terrainRestitution = terrainRestitution;
+        this.chunkCollisionFilter = new CollisionFilterComponent(chunkCollisionGroup,
+            chunkCollisionMask);
         this.solverSettings = Objects.requireNonNull(solverSettings, "solverSettings").clone();
         this.visualSyncSettings = Objects.requireNonNull(visualSyncSettings,
             "visualSyncSettings").clone();
@@ -306,6 +362,14 @@ public final class PersistentSpaceDto {
         return terrainRestitution;
     }
 
+    public int getChunkCollisionGroup() {
+        return chunkCollisionFilter.getCollisionGroup();
+    }
+
+    public int getChunkCollisionMask() {
+        return chunkCollisionFilter.getCollisionMask();
+    }
+
     @Nonnull
     public ChunkCollisionSettingsComponent getChunkCollisionSettings() {
         return new ChunkCollisionSettingsComponent(getTerrainMode(),
@@ -326,6 +390,16 @@ public final class PersistentSpaceDto {
             PhysicsChunkTerrainSettings.DEFAULT_TERRAIN_FRICTION) == 0
             && Float.compare(terrainRestitution,
                 PhysicsChunkTerrainSettings.DEFAULT_TERRAIN_RESTITUTION) == 0;
+    }
+
+    @Nonnull
+    public CollisionFilterComponent getChunkCollisionFilter() {
+        return chunkCollisionFilter.clone();
+    }
+
+    public boolean isDefaultChunkCollisionFilter() {
+        return getChunkCollisionGroup() == PhysicsCollisionFilters.TERRAIN
+            && getChunkCollisionMask() == PhysicsCollisionFilters.ALL;
     }
 
     @Nonnull
@@ -380,10 +454,18 @@ public final class PersistentSpaceDto {
             terrainTtlTicks,
             terrainFriction,
             terrainRestitution,
+            getChunkCollisionGroup(),
+            getChunkCollisionMask(),
             solverSettings,
             visualSyncSettings,
             visualMaterializationSettings,
             collisionLodSettings,
             extensionSettings);
+    }
+
+    @Nonnull
+    private static CollisionFilterComponent defaultChunkCollisionFilter() {
+        return new CollisionFilterComponent(PhysicsCollisionFilters.TERRAIN,
+            PhysicsCollisionFilters.ALL);
     }
 }

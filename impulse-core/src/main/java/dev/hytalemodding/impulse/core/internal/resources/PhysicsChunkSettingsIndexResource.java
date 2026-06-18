@@ -75,14 +75,18 @@ public final class PhysicsChunkSettingsIndexResource implements Resource<Physics
                                               int bodyRadius,
                                               int ttlTicks,
                                               float terrainFriction,
-                                              float terrainRestitution) {
+                                              float terrainRestitution,
+                                              int collisionGroup,
+                                              int collisionMask) {
 
         @Nonnull
         public PhysicsChunkBuildOptions buildOptions() {
             return new PhysicsChunkBuildOptions(
                 ChunkCollisionMode.fromNativeVoxelTerrainEnabled(nativeVoxelTerrainEnabled),
                 terrainFriction,
-                terrainRestitution);
+                terrainRestitution,
+                collisionGroup,
+                collisionMask);
         }
     }
 }

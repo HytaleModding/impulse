@@ -93,6 +93,10 @@ public final class PersistenceHydrationSystem extends TickingSystem<PhysicsStore
             dto.getChunkCollisionMaterial(),
             dto.isDefaultChunkCollisionMaterial());
         addIfNonDefault(holder,
+            CollisionFilterComponent.getComponentType(),
+            dto.getChunkCollisionFilter(),
+            dto.isDefaultChunkCollisionFilter());
+        addIfNonDefault(holder,
             SolverSettingsComponent.getComponentType(),
             dto.getSolverSettings(),
             dto.getSolverSettings().isDefault());

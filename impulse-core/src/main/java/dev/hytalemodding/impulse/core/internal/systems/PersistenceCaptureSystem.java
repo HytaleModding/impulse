@@ -10,6 +10,7 @@ import com.hypixel.hytale.component.query.Query;
 import com.hypixel.hytale.component.system.QuerySystem;
 import com.hypixel.hytale.component.system.tick.TickingSystem;
 import com.hypixel.hytale.server.core.universe.world.storage.PhysicsStore;
+import dev.hytalemodding.impulse.api.PhysicsCollisionFilters;
 import dev.hytalemodding.impulse.core.internal.persistence.PersistentBodyDto;
 import dev.hytalemodding.impulse.core.internal.persistence.PersistentBodyRuntimeStateDto;
 import dev.hytalemodding.impulse.core.internal.persistence.PersistentColliderDto;
@@ -133,6 +134,7 @@ public final class PersistenceCaptureSystem extends TickingSystem<PhysicsStore>
                     space,
                     chunk.getComponent(index, ChunkCollisionSettingsComponent.getComponentType()),
                     chunk.getComponent(index, MaterialComponent.getComponentType()),
+                    chunk.getComponent(index, CollisionFilterComponent.getComponentType()),
                     chunk.getComponent(index, SolverSettingsComponent.getComponentType()),
                     chunk.getComponent(index, VisualSyncSettingsComponent.getComponentType()),
                     chunk.getComponent(index,
@@ -197,6 +199,10 @@ public final class PersistenceCaptureSystem extends TickingSystem<PhysicsStore>
                 ? row.material()
                 : new MaterialComponent(PhysicsChunkTerrainSettings.DEFAULT_TERRAIN_FRICTION,
                     PhysicsChunkTerrainSettings.DEFAULT_TERRAIN_RESTITUTION);
+            CollisionFilterComponent filter = row.filter() != null
+                ? row.filter()
+                : new CollisionFilterComponent(PhysicsCollisionFilters.TERRAIN,
+                    PhysicsCollisionFilters.ALL);
             return new PersistentSpaceDto(row.uuid(),
                 row.space().getBackendIdValue(),
                 row.space().getGravity(),
@@ -208,6 +214,8 @@ public final class PersistenceCaptureSystem extends TickingSystem<PhysicsStore>
                 terrain.getTtlTicks(),
                 material.getFriction(),
                 material.getRestitution(),
+                filter.getCollisionGroup(),
+                filter.getCollisionMask(),
                 row.solverSettings() != null
                     ? row.solverSettings()
                     : new SolverSettingsComponent(),
@@ -367,6 +375,7 @@ public final class PersistenceCaptureSystem extends TickingSystem<PhysicsStore>
                             @Nonnull SpaceComponent space,
                             @Nullable ChunkCollisionSettingsComponent physicsChunkTerrain,
                             @Nullable MaterialComponent material,
+                            @Nullable CollisionFilterComponent filter,
                             @Nullable SolverSettingsComponent solverSettings,
                             @Nullable VisualSyncSettingsComponent visualSyncSettings,
                             @Nullable VisualMaterializationSettingsComponent visualMaterializationSettings,
