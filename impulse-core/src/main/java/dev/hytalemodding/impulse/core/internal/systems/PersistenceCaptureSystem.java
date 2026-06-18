@@ -34,7 +34,6 @@ import dev.hytalemodding.impulse.core.plugin.components.ShapeComponent;
 import dev.hytalemodding.impulse.core.plugin.components.SolverSettingsComponent;
 import dev.hytalemodding.impulse.core.plugin.components.SpaceComponent;
 import dev.hytalemodding.impulse.core.plugin.components.TargetComponent;
-import dev.hytalemodding.impulse.core.plugin.components.TerrainColliderComponent;
 import dev.hytalemodding.impulse.core.plugin.components.VisualMaterializationSettingsComponent;
 import dev.hytalemodding.impulse.core.plugin.components.VisualSyncSettingsComponent;
 import dev.hytalemodding.impulse.core.plugin.modules.physicschunk.components.PhysicsChunkTerrainComponent;
@@ -110,8 +109,6 @@ public final class PersistenceCaptureSystem extends TickingSystem<PhysicsStore>
         private final List<BodyRow> bodyRows = new ArrayList<>();
         @Nonnull
         private final List<JointRow> jointRows = new ArrayList<>();
-        @Nonnull
-        private final List<TerrainColliderRow> terrainRows = new ArrayList<>();
 
         private Capture(@Nonnull Map<UUID, PhysicsBodySnapshot> snapshotsByBodyUuid) {
             this.snapshotsByBodyUuid = snapshotsByBodyUuid;
@@ -157,11 +154,6 @@ public final class PersistenceCaptureSystem extends TickingSystem<PhysicsStore>
             if (joint != null) {
                 jointRows.add(new JointRow(uuid, joint));
             }
-            TerrainColliderComponent terrain = chunk.getComponent(index,
-                TerrainColliderComponent.getComponentType());
-            if (terrain != null) {
-                terrainRows.add(new TerrainColliderRow(uuid, terrain));
-            }
         }
 
         private void writeTo(@Nonnull PersistentPhysicsStoreResource persistent) {
@@ -173,7 +165,7 @@ public final class PersistenceCaptureSystem extends TickingSystem<PhysicsStore>
             persistent.setShapes(shapeDtos(bodyUuids));
             persistent.setMaterials(materialDtos(bodyUuids));
             persistent.setJoints(jointDtos(bodyUuids));
-            persistent.setTerrainColliders(terrainDtos());
+            persistent.setTerrainColliders(new PersistentTerrainColliderDto[0]);
         }
 
         @Nonnull
@@ -365,21 +357,6 @@ public final class PersistenceCaptureSystem extends TickingSystem<PhysicsStore>
                 .toArray(PersistentJointDto[]::new);
         }
 
-        @Nonnull
-        private PersistentTerrainColliderDto[] terrainDtos() {
-            return terrainRows.stream()
-                .filter(row -> row.terrain().isRetained())
-                .map(row -> new PersistentTerrainColliderDto(row.uuid(),
-                    row.terrain().getSpaceUuid(),
-                    row.terrain().getSourceKey(),
-                    row.terrain().getChunkX(),
-                    row.terrain().getSectionY(),
-                    row.terrain().getChunkZ(),
-                    row.terrain().getPayloadResourceKey(),
-                    row.terrain().isRetained()))
-                .sorted(Comparator.comparing(PersistentTerrainColliderDto::getTerrainColliderUuid))
-                .toArray(PersistentTerrainColliderDto[]::new);
-        }
     }
 
     private record SpaceRow(@Nonnull UUID uuid,
@@ -407,9 +384,5 @@ public final class PersistenceCaptureSystem extends TickingSystem<PhysicsStore>
     }
 
     private record JointRow(@Nonnull UUID uuid, @Nonnull JointComponent joint) {
-    }
-
-    private record TerrainColliderRow(@Nonnull UUID uuid,
-                                      @Nonnull TerrainColliderComponent terrain) {
     }
 }
