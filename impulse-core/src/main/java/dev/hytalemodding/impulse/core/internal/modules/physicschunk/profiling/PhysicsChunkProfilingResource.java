@@ -3,7 +3,7 @@ package dev.hytalemodding.impulse.core.internal.modules.physicschunk.profiling;
 import com.hypixel.hytale.component.Resource;
 import com.hypixel.hytale.component.ResourceType;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
-import dev.hytalemodding.impulse.core.internal.modules.physicschunk.VoxelTerrainCollisionCache.BuildStats;
+import dev.hytalemodding.impulse.core.internal.modules.physicschunk.PhysicsChunkBuildStats;
 import it.unimi.dsi.fastutil.longs.LongOpenHashSet;
 import it.unimi.dsi.fastutil.longs.LongSet;
 import java.util.ArrayList;
@@ -332,7 +332,7 @@ public class PhysicsChunkProfilingResource implements Resource<EntityStore> {
             duplicateSkips++;
         }
 
-        public void addBuildStats(@Nonnull BuildStats stats) {
+        public void addBuildStats(@Nonnull PhysicsChunkBuildStats stats) {
             scannedBlocks += stats.scannedBlocks();
             solidBlocks += stats.solidBlocks();
             culledInteriorBlocks += stats.culledInteriorBlocks();

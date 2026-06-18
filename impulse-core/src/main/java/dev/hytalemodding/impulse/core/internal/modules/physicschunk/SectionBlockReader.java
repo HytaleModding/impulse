@@ -25,7 +25,7 @@ final class SectionBlockReader {
     private final int baseZ;
     private final Long2ObjectMap<BlockSection> sectionCache = new Long2ObjectOpenHashMap<>();
     @Nullable
-    private final VoxelTerrainCollisionCache.SectionAccessCache accessCache;
+    private final PhysicsChunkSectionAccessCache accessCache;
 
     SectionBlockReader(@Nonnull World world,
         @Nonnull ShapeTemplateCache templates,
@@ -42,7 +42,7 @@ final class SectionBlockReader {
         int currentChunkX,
         int currentSectionY,
         int currentChunkZ,
-        @Nullable VoxelTerrainCollisionCache.SectionAccessCache accessCache) {
+        @Nullable PhysicsChunkSectionAccessCache accessCache) {
         this.world = world;
         this.templates = templates;
         this.currentSection = currentSection;

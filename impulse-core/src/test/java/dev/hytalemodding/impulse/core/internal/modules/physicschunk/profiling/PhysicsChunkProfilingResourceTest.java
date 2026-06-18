@@ -9,7 +9,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import com.hypixel.hytale.component.ComponentRegistry;
 import com.hypixel.hytale.component.ResourceType;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
-import dev.hytalemodding.impulse.core.internal.modules.physicschunk.VoxelTerrainCollisionCache.BuildStats;
+import dev.hytalemodding.impulse.core.internal.modules.physicschunk.PhysicsChunkBuildStats;
 import dev.hytalemodding.impulse.core.internal.modules.physicschunk.profiling.PhysicsChunkProfilingResource.MissingSectionReason;
 import it.unimi.dsi.fastutil.longs.LongOpenHashSet;
 import org.junit.jupiter.api.AfterEach;
@@ -71,7 +71,7 @@ class PhysicsChunkProfilingResourceTest {
         first.recordMissingSection(MissingSectionReason.BLOCK_CHUNK, 1, 2, 3, null);
         first.recordMissingSection(MissingSectionReason.BLOCK_SECTION, 1, 2, 3, null);
         first.incrementDuplicateSkips();
-        first.addBuildStats(new BuildStats(10, 8, 2, 3, 4, 1, 1, 2, 1, 1));
+        first.addBuildStats(new PhysicsChunkBuildStats(10, 8, 2, 3, 4, 1, 1, 2, 1, 1));
         first.addUnloadedPrune(2, 3);
         first.addTtlPrune(1, 4);
         first.addEnsureAroundNanos(20L);

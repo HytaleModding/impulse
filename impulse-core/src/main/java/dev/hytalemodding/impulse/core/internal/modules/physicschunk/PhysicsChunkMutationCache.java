@@ -49,7 +49,7 @@ public final class PhysicsChunkMutationCache {
     private final SectionColliderBuilder sectionBuilder = new SectionColliderBuilder(shapeTemplates);
 
     @Nonnull
-    public synchronized VoxelTerrainCollisionCache.BuildStats ensureAround(@Nonnull World world,
+    public synchronized PhysicsChunkBuildStats ensureAround(@Nonnull World world,
         @Nonnull UUID spaceUuid,
         @Nonnull PhysicsChunkCollisionMutationQueueResource queue,
         @Nonnull Vector3d center,
@@ -58,6 +58,7 @@ public final class PhysicsChunkMutationCache {
         @Nullable Snapshot profiling,
         @Nullable LongSet visitedSections,
         @Nullable StreamingTargetDiagnostic targetDiagnostic,
+        @Nullable PhysicsChunkSectionAccessCache accessCache,
         @Nonnull PhysicsChunkBuildOptions buildOptions) {
         long start = profiling != null ? System.nanoTime() : 0L;
         if (profiling != null) {
@@ -78,7 +79,7 @@ public final class PhysicsChunkMutationCache {
         int minChunkZ = ChunkUtil.chunkCoordinate(minZ);
         int maxChunkZ = ChunkUtil.chunkCoordinate(maxZ);
 
-        VoxelTerrainCollisionCache.BuildStats total = VoxelTerrainCollisionCache.BuildStats.empty();
+        PhysicsChunkBuildStats total = PhysicsChunkBuildStats.empty();
         for (int chunkX = minChunkX; chunkX <= maxChunkX; chunkX++) {
             for (int sectionY = minSectionY; sectionY <= maxSectionY; sectionY++) {
                 for (int chunkZ = minChunkZ; chunkZ <= maxChunkZ; chunkZ++) {
@@ -98,6 +99,7 @@ public final class PhysicsChunkMutationCache {
                         tick,
                         profiling,
                         targetDiagnostic,
+                        accessCache,
                         buildOptions));
                 }
             }
@@ -147,6 +149,14 @@ public final class PhysicsChunkMutationCache {
         @Nonnull UUID spaceUuid,
         @Nonnull PhysicsChunkCollisionMutationQueueResource queue,
         @Nullable Snapshot profiling) {
+        return pruneUnloaded(world, spaceUuid, queue, profiling, null);
+    }
+
+    public synchronized int pruneUnloaded(@Nonnull World world,
+        @Nonnull UUID spaceUuid,
+        @Nonnull PhysicsChunkCollisionMutationQueueResource queue,
+        @Nullable Snapshot profiling,
+        @Nullable PhysicsChunkSectionAccessCache accessCache) {
         long start = profiling != null ? System.nanoTime() : 0L;
         SpaceCollisionCache cache = spaces.get(spaceUuid);
         if (cache == null) {
@@ -159,7 +169,7 @@ public final class PhysicsChunkMutationCache {
             cache.sections.long2ObjectEntrySet().iterator();
         while (iterator.hasNext()) {
             CachedSection section = iterator.next().getValue();
-            if (blockChunk(world, section.chunkX, section.chunkZ) != null) {
+            if (blockChunk(world, section.chunkX, section.chunkZ, accessCache) != null) {
                 continue;
             }
             removedBodies += removeSection(spaceUuid, queue, section);
@@ -465,7 +475,7 @@ public final class PhysicsChunkMutationCache {
     }
 
     @Nonnull
-    private VoxelTerrainCollisionCache.BuildStats ensureSection(@Nonnull World world,
+    private PhysicsChunkBuildStats ensureSection(@Nonnull World world,
         @Nonnull UUID spaceUuid,
         @Nonnull PhysicsChunkCollisionMutationQueueResource queue,
         int chunkX,
@@ -474,6 +484,7 @@ public final class PhysicsChunkMutationCache {
         long tick,
         @Nullable Snapshot profiling,
         @Nullable StreamingTargetDiagnostic targetDiagnostic,
+        @Nullable PhysicsChunkSectionAccessCache accessCache,
         @Nonnull PhysicsChunkBuildOptions buildOptions) {
         long start = profiling != null ? System.nanoTime() : 0L;
         if (profiling != null) {
@@ -491,9 +502,9 @@ public final class PhysicsChunkMutationCache {
                 chunkZ,
                 targetDiagnostic,
                 start);
-            return VoxelTerrainCollisionCache.BuildStats.empty();
+            return PhysicsChunkBuildStats.empty();
         }
-        if (blockChunk(world, chunkX, chunkZ) == null) {
+        if (blockChunk(world, chunkX, chunkZ, accessCache) == null) {
             cache.missingBlockChunkBackoffs.put(chunkKey, tick + MISSING_BLOCK_CHUNK_RETRY_TICKS);
             recordMissing(profiling,
                 MissingSectionReason.BLOCK_CHUNK,
@@ -502,7 +513,7 @@ public final class PhysicsChunkMutationCache {
                 chunkZ,
                 targetDiagnostic,
                 start);
-            return VoxelTerrainCollisionCache.BuildStats.empty();
+            return PhysicsChunkBuildStats.empty();
         }
         cache.missingBlockChunkBackoffs.remove(chunkKey);
 
@@ -514,9 +525,11 @@ public final class PhysicsChunkMutationCache {
                 chunkZ,
                 targetDiagnostic,
                 start);
-            return VoxelTerrainCollisionCache.BuildStats.empty();
+            return PhysicsChunkBuildStats.empty();
         }
-        BlockSection section = ChunkSectionAccess.blockSection(world, chunkX, sectionY, chunkZ);
+        BlockSection section = accessCache != null
+            ? accessCache.blockSection(world, chunkX, sectionY, chunkZ)
+            : ChunkSectionAccess.blockSection(world, chunkX, sectionY, chunkZ);
         if (section == null) {
             cache.missingBlockSectionBackoffs.put(sectionKey,
                 tick + MISSING_BLOCK_SECTION_RETRY_TICKS);
@@ -527,7 +540,7 @@ public final class PhysicsChunkMutationCache {
                 chunkZ,
                 targetDiagnostic,
                 start);
-            return VoxelTerrainCollisionCache.BuildStats.empty();
+            return PhysicsChunkBuildStats.empty();
         }
         cache.missingBlockSectionBackoffs.remove(sectionKey);
 
@@ -535,7 +548,8 @@ public final class PhysicsChunkMutationCache {
             section,
             chunkX,
             sectionY,
-            chunkZ);
+            chunkZ,
+            accessCache);
         CachedSection cached = cache.sections.get(sectionKey);
         if (cached != null
             && cached.neighborhoodSignature == neighborhoodSignature
@@ -545,14 +559,15 @@ public final class PhysicsChunkMutationCache {
                 profiling.incrementSectionCacheHits();
                 profiling.addEnsureSectionNanos(System.nanoTime() - start);
             }
-            return VoxelTerrainCollisionCache.BuildStats.empty();
+            return PhysicsChunkBuildStats.empty();
         }
 
         SectionCollisionGeometry geometry = sectionBuilder.build(world,
             section,
             chunkX,
             sectionY,
-            chunkZ);
+            chunkZ,
+            accessCache);
         CachedSection built = new CachedSection(chunkX,
             sectionY,
             chunkZ,
@@ -572,7 +587,7 @@ public final class PhysicsChunkMutationCache {
                 buildOptions));
         }
         cache.sections.put(sectionKey, built);
-        VoxelTerrainCollisionCache.BuildStats stats = new VoxelTerrainCollisionCache.BuildStats(
+        PhysicsChunkBuildStats stats = new PhysicsChunkBuildStats(
             geometry.scannedBlocks(),
             geometry.solidBlocks(),
             geometry.culledInteriorBlocks(),
@@ -737,6 +752,17 @@ public final class PhysicsChunkMutationCache {
 
     @Nullable
     private static BlockChunk blockChunk(@Nonnull World world, int chunkX, int chunkZ) {
+        return blockChunk(world, chunkX, chunkZ, null);
+    }
+
+    @Nullable
+    private static BlockChunk blockChunk(@Nonnull World world,
+        int chunkX,
+        int chunkZ,
+        @Nullable PhysicsChunkSectionAccessCache accessCache) {
+        if (accessCache != null) {
+            return accessCache.blockChunk(world, chunkX, chunkZ);
+        }
         Ref<ChunkStore> chunkRef = world.getChunkStore()
             .getChunkReference(ChunkUtil.indexChunk(chunkX, chunkZ));
         if (chunkRef == null || !chunkRef.isValid()) {

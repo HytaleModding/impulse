@@ -18,6 +18,7 @@ import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import com.hypixel.hytale.server.core.universe.world.storage.PhysicsStore;
 import dev.hytalemodding.impulse.api.PhysicsBodyType;
 import dev.hytalemodding.impulse.core.internal.modules.physicschunk.PhysicsChunkMutationCache.TargetRefreshDecision;
+import dev.hytalemodding.impulse.core.internal.modules.physicschunk.PhysicsChunkSectionAccessCache;
 import dev.hytalemodding.impulse.core.internal.modules.physicschunk.PhysicsChunkTerrainStreamingResource;
 import dev.hytalemodding.impulse.core.internal.modules.physicschunk.PhysicsChunkLifecycle;
 import dev.hytalemodding.impulse.core.internal.modules.physicschunk.PhysicsChunkStreamingBounds;
@@ -136,6 +137,7 @@ public final class PhysicsChunkTerrainProducerSystem extends TickingSystem<Entit
         long currentTick,
         @Nullable Snapshot snapshot) {
         LongSet visitedSections = new LongOpenHashSet();
+        PhysicsChunkSectionAccessCache accessCache = new PhysicsChunkSectionAccessCache();
         for (Vector3d position : playerPositions) {
             int sectionsBefore = visitedSections.size();
             streaming.ensureAround(world,
@@ -147,6 +149,7 @@ public final class PhysicsChunkTerrainProducerSystem extends TickingSystem<Entit
                 snapshot,
                 visitedSections,
                 snapshot != null ? StreamingTargetDiagnostic.player(position) : null,
+                accessCache,
                 settings.buildOptions());
             if (snapshot != null) {
                 snapshot.addPlayerSectionTargets(visitedSections.size() - sectionsBefore);
@@ -168,6 +171,7 @@ public final class PhysicsChunkTerrainProducerSystem extends TickingSystem<Entit
                 snapshot,
                 visitedSections,
                 null,
+                accessCache,
                 settings.buildOptions());
             for (BodyStreamingRefresh refresh : target.refreshes()) {
                 streaming.recordBodyTargetRefresh(settings.spaceUuid(),
@@ -181,7 +185,7 @@ public final class PhysicsChunkTerrainProducerSystem extends TickingSystem<Entit
             }
         }
 
-        streaming.pruneUnloaded(world, settings.spaceUuid(), queue, snapshot);
+        streaming.pruneUnloaded(world, settings.spaceUuid(), queue, snapshot, accessCache);
         streaming.pruneUnused(settings.spaceUuid(), queue, currentTick, settings.ttlTicks(), snapshot);
         streaming.pruneBodyStreamingTargets(settings.spaceUuid(),
             currentTick,

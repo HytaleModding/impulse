@@ -83,8 +83,8 @@ public final class VoxelTerrainCollisionCache {
     }
 
     @Nonnull
-    public SectionAccessCache newSectionAccessCache() {
-        return new SectionAccessCache();
+    public PhysicsChunkSectionAccessCache newSectionAccessCache() {
+        return new PhysicsChunkSectionAccessCache();
     }
 
     /**
@@ -213,7 +213,7 @@ public final class VoxelTerrainCollisionCache {
      * Wipes cached sections for the space, then rebuilds everything in the given radius.
      */
     @Nonnull
-    public synchronized BuildStats rebuildAround(@Nonnull World world,
+    public synchronized PhysicsChunkBuildStats rebuildAround(@Nonnull World world,
         @Nonnull PhysicsSpaceBinding space,
         @Nonnull Vector3d center,
         int radius) {
@@ -228,13 +228,13 @@ public final class VoxelTerrainCollisionCache {
      * Wipes cached sections for the space, then rebuilds everything in the given radius.
      */
     @Nonnull
-    public synchronized BuildStats rebuildAround(@Nonnull World world,
+    public synchronized PhysicsChunkBuildStats rebuildAround(@Nonnull World world,
         @Nonnull PhysicsSpaceBinding space,
         @Nonnull Vector3d center,
         int radius,
         @Nonnull PhysicsChunkBuildOptions buildOptions) {
         int removed = clear(space);
-        BuildStats stats = ensureAround(world,
+        PhysicsChunkBuildStats stats = ensureAround(world,
             space,
             center,
             radius,
@@ -251,13 +251,13 @@ public final class VoxelTerrainCollisionCache {
      * Wipes cached sections in the given radius, then rebuilds that same radius.
      */
     @Nonnull
-    public synchronized BuildStats refreshAround(@Nonnull World world,
+    public synchronized PhysicsChunkBuildStats refreshAround(@Nonnull World world,
         @Nonnull PhysicsSpaceBinding space,
         @Nonnull Vector3d center,
         int radius,
         @Nonnull PhysicsChunkBuildOptions buildOptions) {
         int removed = clearSectionsAround(space.spaceId(), space, center, radius);
-        BuildStats stats = ensureAround(world,
+        PhysicsChunkBuildStats stats = ensureAround(world,
             space,
             center,
             radius,
@@ -274,7 +274,7 @@ public final class VoxelTerrainCollisionCache {
      * Ensures all chunk sections within the block radius around {@code center} are cached.
      */
     @Nonnull
-    public synchronized BuildStats ensureAround(@Nonnull World world,
+    public synchronized PhysicsChunkBuildStats ensureAround(@Nonnull World world,
         @Nonnull PhysicsSpaceBinding space,
         @Nonnull Vector3d center,
         int radius,
@@ -286,7 +286,7 @@ public final class VoxelTerrainCollisionCache {
      * Ensures all chunk sections within the block radius around {@code center} are cached.
      */
     @Nonnull
-    public synchronized BuildStats ensureAround(@Nonnull World world,
+    public synchronized PhysicsChunkBuildStats ensureAround(@Nonnull World world,
         @Nonnull PhysicsSpaceBinding space,
         @Nonnull Vector3d center,
         int radius,
@@ -299,7 +299,7 @@ public final class VoxelTerrainCollisionCache {
      * Ensures all chunk sections within the block radius around {@code center} are cached.
      */
     @Nonnull
-    public synchronized BuildStats ensureAround(@Nonnull World world,
+    public synchronized PhysicsChunkBuildStats ensureAround(@Nonnull World world,
         @Nonnull PhysicsSpaceBinding space,
         @Nonnull Vector3d center,
         int radius,
@@ -313,7 +313,7 @@ public final class VoxelTerrainCollisionCache {
      * Ensures all chunk sections within the block radius around {@code center} are cached.
      */
     @Nonnull
-    public synchronized BuildStats ensureAround(@Nonnull World world,
+    public synchronized PhysicsChunkBuildStats ensureAround(@Nonnull World world,
         @Nonnull PhysicsSpaceBinding space,
         @Nonnull Vector3d center,
         int radius,
@@ -336,7 +336,7 @@ public final class VoxelTerrainCollisionCache {
      * Ensures all chunk sections within the block radius around {@code center} are cached.
      */
     @Nonnull
-    public synchronized BuildStats ensureAround(@Nonnull World world,
+    public synchronized PhysicsChunkBuildStats ensureAround(@Nonnull World world,
         @Nonnull PhysicsSpaceBinding space,
         @Nonnull Vector3d center,
         int radius,
@@ -344,7 +344,7 @@ public final class VoxelTerrainCollisionCache {
         @Nullable Snapshot profiling,
         @Nullable LongSet visitedSections,
         @Nullable StreamingTargetDiagnostic targetDiagnostic,
-        @Nullable SectionAccessCache accessCache) {
+        @Nullable PhysicsChunkSectionAccessCache accessCache) {
         return ensureAround(world,
             space,
             center,
@@ -361,7 +361,7 @@ public final class VoxelTerrainCollisionCache {
      * Ensures all chunk sections within the block radius around {@code center} are cached.
      */
     @Nonnull
-    public synchronized BuildStats ensureAround(@Nonnull World world,
+    public synchronized PhysicsChunkBuildStats ensureAround(@Nonnull World world,
         @Nonnull PhysicsSpaceBinding space,
         @Nonnull Vector3d center,
         int radius,
@@ -369,7 +369,7 @@ public final class VoxelTerrainCollisionCache {
         @Nullable Snapshot profiling,
         @Nullable LongSet visitedSections,
         @Nullable StreamingTargetDiagnostic targetDiagnostic,
-        @Nullable SectionAccessCache accessCache,
+        @Nullable PhysicsChunkSectionAccessCache accessCache,
         @Nonnull PhysicsChunkBuildOptions buildOptions) {
         long start = profiling != null ? System.nanoTime() : 0L;
         if (profiling != null) {
@@ -390,7 +390,7 @@ public final class VoxelTerrainCollisionCache {
         int minChunkZ = ChunkUtil.chunkCoordinate(minZ);
         int maxChunkZ = ChunkUtil.chunkCoordinate(maxZ);
 
-        BuildStats total = BuildStats.empty();
+        PhysicsChunkBuildStats total = PhysicsChunkBuildStats.empty();
         for (int chunkX = minChunkX; chunkX <= maxChunkX; chunkX++) {
             for (int sectionY = minSectionY; sectionY <= maxSectionY; sectionY++) {
                 for (int chunkZ = minChunkZ; chunkZ <= maxChunkZ; chunkZ++) {
@@ -541,7 +541,7 @@ public final class VoxelTerrainCollisionCache {
         @Nonnull SpaceId spaceId,
         @Nonnull PhysicsSpaceBinding space,
         @Nullable Snapshot profiling,
-        @Nullable SectionAccessCache accessCache) {
+        @Nullable PhysicsChunkSectionAccessCache accessCache) {
         long start = profiling != null ? System.nanoTime() : 0L;
         SpaceCollisionCache cache = spaces.get(spaceId.value());
         if (cache == null) {
@@ -808,7 +808,7 @@ public final class VoxelTerrainCollisionCache {
     }
 
     @Nonnull
-    private BuildStats ensureSection(@Nonnull World world,
+    private PhysicsChunkBuildStats ensureSection(@Nonnull World world,
         @Nonnull PhysicsSpaceBinding space,
         int chunkX,
         int sectionY,
@@ -816,7 +816,7 @@ public final class VoxelTerrainCollisionCache {
         long tick,
         @Nullable Snapshot profiling,
         @Nullable StreamingTargetDiagnostic targetDiagnostic,
-        @Nullable SectionAccessCache accessCache,
+        @Nullable PhysicsChunkSectionAccessCache accessCache,
         @Nonnull PhysicsChunkBuildOptions buildOptions) {
         long start = profiling != null ? System.nanoTime() : 0L;
         if (profiling != null) {
@@ -837,7 +837,7 @@ public final class VoxelTerrainCollisionCache {
                     targetDiagnostic);
                 profiling.addEnsureSectionNanos(System.nanoTime() - start);
             }
-            return BuildStats.empty();
+            return PhysicsChunkBuildStats.empty();
         }
 
         BlockChunk blockChunk = blockChunk(world, chunkX, chunkZ, accessCache);
@@ -851,7 +851,7 @@ public final class VoxelTerrainCollisionCache {
                     targetDiagnostic);
                 profiling.addEnsureSectionNanos(System.nanoTime() - start);
             }
-            return BuildStats.empty();
+            return PhysicsChunkBuildStats.empty();
         }
         cache.missingBlockChunkBackoffs.remove(chunkKey);
 
@@ -865,7 +865,7 @@ public final class VoxelTerrainCollisionCache {
                     targetDiagnostic);
                 profiling.addEnsureSectionNanos(System.nanoTime() - start);
             }
-            return BuildStats.empty();
+            return PhysicsChunkBuildStats.empty();
         }
 
         BlockSection section = accessCache != null
@@ -881,7 +881,7 @@ public final class VoxelTerrainCollisionCache {
                     targetDiagnostic);
                 profiling.addEnsureSectionNanos(System.nanoTime() - start);
             }
-            return BuildStats.empty();
+            return PhysicsChunkBuildStats.empty();
         }
         cache.missingBlockSectionBackoffs.remove(sectionKey);
         CachedSection cached = cache.sections.get(sectionKey);
@@ -899,7 +899,7 @@ public final class VoxelTerrainCollisionCache {
                 profiling.incrementSectionCacheHits();
                 profiling.addEnsureSectionNanos(System.nanoTime() - start);
             }
-            return BuildStats.empty();
+            return PhysicsChunkBuildStats.empty();
         }
 
         SectionCollisionGeometry geometry = sectionBuilder.build(world,
@@ -943,7 +943,7 @@ public final class VoxelTerrainCollisionCache {
             throw exception;
         }
 
-        BuildStats stats = BuildStats.from(geometry,
+        PhysicsChunkBuildStats stats = PhysicsChunkBuildStats.from(geometry,
             built.backendBodyIds.size(),
             removed,
             rebuilt ? 0 : 1,
@@ -1132,7 +1132,7 @@ public final class VoxelTerrainCollisionCache {
     private static BlockChunk blockChunk(@Nonnull World world,
         int chunkX,
         int chunkZ,
-        @Nullable SectionAccessCache accessCache) {
+        @Nullable PhysicsChunkSectionAccessCache accessCache) {
         return accessCache != null
             ? accessCache.blockChunk(world, chunkX, chunkZ)
             : loadBlockChunk(world, chunkX, chunkZ);
@@ -1362,43 +1362,6 @@ public final class VoxelTerrainCollisionCache {
         }
     }
 
-    /**
-     * Per-streaming-tick source-section cache. It avoids repeated Hytale chunk
-     * reference lookups while many bodies request overlapping neighborhoods.
-     */
-    public static final class SectionAccessCache {
-
-        private final Long2ObjectMap<BlockChunk> blockChunks = new Long2ObjectOpenHashMap<>();
-        private final Long2ObjectMap<BlockSection> blockSections = new Long2ObjectOpenHashMap<>();
-
-        private SectionAccessCache() {
-        }
-
-        @Nullable
-        BlockChunk blockChunk(@Nonnull World world, int chunkX, int chunkZ) {
-            long key = ChunkUtil.indexChunk(chunkX, chunkZ);
-            if (blockChunks.containsKey(key)) {
-                return blockChunks.get(key);
-            }
-
-            BlockChunk chunk = loadBlockChunk(world, chunkX, chunkZ);
-            blockChunks.put(key, chunk);
-            return chunk;
-        }
-
-        @Nullable
-        BlockSection blockSection(@Nonnull World world, int chunkX, int sectionY, int chunkZ) {
-            long key = packSectionKey(chunkX, sectionY, chunkZ);
-            if (blockSections.containsKey(key)) {
-                return blockSections.get(key);
-            }
-
-            BlockSection section = ChunkSectionAccess.blockSection(world, chunkX, sectionY, chunkZ);
-            blockSections.put(key, section);
-            return section;
-        }
-    }
-
     public enum TargetRefreshReason {
         FIRST_SEEN,
         BOUNDS_CHANGED,
@@ -1421,70 +1384,4 @@ public final class VoxelTerrainCollisionCache {
         }
     }
 
-    /**
-     * Aggregate statistics from a cache build or rebuild operation.
-     */
-    public record BuildStats(int scannedBlocks,
-                             int solidBlocks,
-                             int culledInteriorBlocks,
-                             int fullCubeRuns,
-                             int detailBoxes,
-                             int colliderBodies,
-                             int removedBodies,
-                             int sectionsBuilt,
-                             int sectionsRebuilt,
-                             int voxelBodies) {
-
-        @Nonnull
-        public static BuildStats empty() {
-            return new BuildStats(0, 0, 0, 0, 0, 0, 0, 0, 0, 0);
-        }
-
-        @Nonnull
-        private static BuildStats from(@Nonnull SectionCollisionGeometry geometry,
-            int colliderBodies,
-            int removedBodies,
-            int sectionsBuilt,
-            int sectionsRebuilt,
-            int voxelBodies) {
-            return new BuildStats(geometry.scannedBlocks(),
-                geometry.solidBlocks(),
-                geometry.culledInteriorBlocks(),
-                geometry.mergedFullCubeBoxes().size(),
-                geometry.detailBoxCount(),
-                colliderBodies,
-                removedBodies,
-                sectionsBuilt,
-                sectionsRebuilt,
-                voxelBodies);
-        }
-
-        @Nonnull
-        public BuildStats plus(@Nonnull BuildStats stats) {
-            return new BuildStats(scannedBlocks + stats.scannedBlocks,
-                solidBlocks + stats.solidBlocks,
-                culledInteriorBlocks + stats.culledInteriorBlocks,
-                fullCubeRuns + stats.fullCubeRuns,
-                detailBoxes + stats.detailBoxes,
-                colliderBodies + stats.colliderBodies,
-                removedBodies + stats.removedBodies,
-                sectionsBuilt + stats.sectionsBuilt,
-                sectionsRebuilt + stats.sectionsRebuilt,
-                voxelBodies + stats.voxelBodies);
-        }
-
-        @Nonnull
-        private BuildStats withRemovedBodies(int removedBodies) {
-            return new BuildStats(scannedBlocks,
-                solidBlocks,
-                culledInteriorBlocks,
-                fullCubeRuns,
-                detailBoxes,
-                colliderBodies,
-                removedBodies,
-                sectionsBuilt,
-                sectionsRebuilt,
-                voxelBodies);
-        }
-    }
 }

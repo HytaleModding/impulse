@@ -30,14 +30,12 @@ import dev.hytalemodding.impulse.core.internal.modules.physicschunk.PhysicsChunk
 import dev.hytalemodding.impulse.core.internal.resources.joint.PhysicsJointRegistry;
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsVisualRuntime.BodyVisualInterestState;
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsVisualRuntime.VisualInterest;
-import dev.hytalemodding.impulse.core.internal.modules.physicschunk.PhysicsChunkTerrainRuntime;
 import dev.hytalemodding.impulse.core.internal.modules.physicschunk.PhysicsChunkLifecycle;
 import dev.hytalemodding.impulse.core.internal.PhysicsStoreEarlyPluginProbe;
 import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyKind;
 import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyPersistenceMode;
 import dev.hytalemodding.impulse.core.internal.resources.body.PhysicsBodyRegistration;
 import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyRegistrationView;
-import dev.hytalemodding.impulse.core.plugin.modules.physicschunk.PhysicsChunkTerrainMode;
 import dev.hytalemodding.impulse.core.plugin.events.PhysicsEventFrame;
 import dev.hytalemodding.impulse.core.plugin.events.PhysicsFrameEvent;
 import dev.hytalemodding.impulse.core.plugin.components.ColliderComponent;
@@ -58,7 +56,6 @@ import dev.hytalemodding.impulse.core.plugin.resources.PhysicsMutationHandle;
 import dev.hytalemodding.impulse.core.plugin.resources.PhysicsWorldResource;
 import dev.hytalemodding.impulse.core.plugin.settings.PhysicsSpaceSettings;
 import dev.hytalemodding.impulse.core.plugin.settings.PhysicsStepMode;
-import dev.hytalemodding.impulse.core.plugin.modules.physicschunk.settings.PhysicsChunkTerrainSettings;
 import dev.hytalemodding.impulse.core.plugin.settings.PhysicsWorldSettings;
 import dev.hytalemodding.impulse.core.plugin.snapshot.PhysicsBodySnapshotEntry;
 import dev.hytalemodding.impulse.core.plugin.snapshot.PublishedPhysicsSnapshotFrame;
@@ -89,9 +86,6 @@ public class PhysicsWorldRuntimeResource extends PhysicsWorldResource {
     private final PhysicsSpaceRuntime spaceRuntime = new PhysicsSpaceRuntime();
 
     private final PhysicsBodyRegistry bodyRegistry = new PhysicsBodyRegistry();
-
-    private final PhysicsChunkTerrainRuntime terrainRuntime =
-        new PhysicsChunkTerrainRuntime();
 
     @Nonnull
     private final PhysicsSimulationRuntime simulationRuntime = new PhysicsSimulationRuntime();
@@ -530,7 +524,6 @@ public class PhysicsWorldRuntimeResource extends PhysicsWorldResource {
             worldName,
             settings,
             simulationRuntime.getWorldSettings().getStepMode());
-        terrainRuntime.registerSpace(spaceId);
         markWorldChanged();
         return binding;
     }
@@ -1109,7 +1102,6 @@ public class PhysicsWorldRuntimeResource extends PhysicsWorldResource {
     }
 
     private void disablePhysicsChunkLifecycleDirect() {
-        terrainRuntime.clearRetainedTerrain(spaceRuntime.getBindings());
         restoreCollisionLodFiltersDirect();
     }
 
@@ -1245,12 +1237,10 @@ public class PhysicsWorldRuntimeResource extends PhysicsWorldResource {
     private void removeSpaceDirect(@Nonnull SpaceId spaceId, @Nonnull String worldName) {
         PhysicsSpaceBinding removed = spaceRuntime.removeSpace(spaceId);
         if (removed == null) {
-            terrainRuntime.clear(spaceId, null);
             return;
         }
 
         try {
-            terrainRuntime.clear(spaceId, removed);
             jointRegistry.unregisterSpace(spaceId);
             for (PhysicsBodyRegistration registration : new ArrayList<>(bodyRegistry.getRegistrations())) {
                 if (registration.spaceId().equals(spaceId)) {
@@ -1363,7 +1353,6 @@ public class PhysicsWorldRuntimeResource extends PhysicsWorldResource {
     private PhysicsRuntimeResetResult resetRuntimeStateKeepingSpacesDirect(@Nonnull String worldName) {
         PhysicsRuntimeResetResult reset = spaceRuntime.resetKeepingSpaces(worldName,
             simulationRuntime.getWorldSettings().getStepMode());
-        terrainRuntime.clearAll();
         clearRuntimeTopologyDirect(false);
         markWorldChanged();
         return reset;
@@ -1453,38 +1442,7 @@ public class PhysicsWorldRuntimeResource extends PhysicsWorldResource {
 
     private void setSpaceSettingsDirect(@Nonnull SpaceId spaceId,
         @Nonnull PhysicsSpaceSettings settings) {
-        PhysicsChunkTerrainSettings previousTerrainSettings =
-            spaceRuntime.getLiveSpaceSettings(spaceId).getPhysicsChunkTerrainSettings();
-        boolean terrainStreamingSettingsChanged =
-            terrainStreamingSettingsChanged(previousTerrainSettings,
-                settings.getPhysicsChunkTerrainSettings());
-        boolean terrainRepresentationChanged =
-            previousTerrainSettings.isNativeVoxelTerrainEnabled()
-                != settings.getPhysicsChunkTerrainSettings().isNativeVoxelTerrainEnabled();
-        boolean terrainMaterialChanged =
-            Float.compare(previousTerrainSettings.getTerrainFriction(),
-                settings.getPhysicsChunkTerrainSettings().getTerrainFriction()) != 0
-                || Float.compare(previousTerrainSettings.getTerrainRestitution(),
-                    settings.getPhysicsChunkTerrainSettings().getTerrainRestitution()) != 0;
-        boolean terrainDisabled =
-            settings.getPhysicsChunkTerrainSettings().getTerrainMode() == PhysicsChunkTerrainMode.NONE
-                && previousTerrainSettings.getTerrainMode() != PhysicsChunkTerrainMode.NONE;
         spaceRuntime.setSpaceSettings(spaceId, settings);
-        if (terrainDisabled || terrainRepresentationChanged || terrainMaterialChanged) {
-            terrainRuntime.clear(requireSpaceBinding(spaceId));
-        } else if (terrainStreamingSettingsChanged) {
-            terrainRuntime.incrementStreamingRevision(spaceId);
-        }
-    }
-
-    private static boolean terrainStreamingSettingsChanged(
-        @Nonnull PhysicsChunkTerrainSettings previous,
-        @Nonnull PhysicsChunkTerrainSettings next) {
-        return previous.getTerrainMode() != next.getTerrainMode()
-            || previous.getTerrainRadius() != next.getTerrainRadius()
-            || previous.getBodyTerrainRadius() != next.getBodyTerrainRadius()
-            || previous.getTerrainTtlTicks() != next.getTerrainTtlTicks()
-            || previous.isNativeVoxelTerrainEnabled() != next.isNativeVoxelTerrainEnabled();
     }
 
     private void validateStepModeSupported(@Nonnull PhysicsStepMode stepMode) {
@@ -1783,9 +1741,6 @@ public class PhysicsWorldRuntimeResource extends PhysicsWorldResource {
 
     private void clearRuntimeTopologyDirect(boolean clearCollision) {
         bodyRuntime.clearBodyStateWithoutMarkingWorldChanged();
-        if (clearCollision) {
-            terrainRuntime.clearAllAndUnregisterSpaces();
-        }
     }
 
     private void markWorldChanged() {

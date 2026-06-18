@@ -7,7 +7,6 @@ import com.hypixel.hytale.server.core.universe.world.World;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import com.hypixel.hytale.server.core.universe.world.storage.PhysicsStore;
 import dev.hytalemodding.impulse.core.internal.modules.physicschunk.PhysicsChunkMutationCache.TargetRefreshDecision;
-import dev.hytalemodding.impulse.core.internal.modules.physicschunk.VoxelTerrainCollisionCache.BuildStats;
 import dev.hytalemodding.impulse.core.internal.modules.physicschunk.profiling.PhysicsChunkProfilingResource.Snapshot;
 import dev.hytalemodding.impulse.core.internal.modules.physicschunk.profiling.PhysicsChunkProfilingResource.StreamingTargetDiagnostic;
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsChunkCollisionMutationQueueResource;
@@ -74,7 +73,8 @@ public final class PhysicsChunkTerrainStreamingResource implements Resource<Enti
         @Nullable Snapshot profiling,
         @Nonnull PhysicsChunkBuildOptions buildOptions) {
         LongSet visitedSections = new LongOpenHashSet();
-        BuildStats total = BuildStats.empty();
+        PhysicsChunkBuildStats total = PhysicsChunkBuildStats.empty();
+        PhysicsChunkSectionAccessCache accessCache = new PhysicsChunkSectionAccessCache();
         for (Vector3d center : centers) {
             total = total.plus(ensureAround(world,
                 spaceUuid,
@@ -85,6 +85,7 @@ public final class PhysicsChunkTerrainStreamingResource implements Resource<Enti
                 profiling,
                 visitedSections,
                 null,
+                accessCache,
                 buildOptions));
         }
         return new PhysicsChunkTerrainPrewarmStats(visitedSections.size(), terrainStats(total));
@@ -100,7 +101,8 @@ public final class PhysicsChunkTerrainStreamingResource implements Resource<Enti
         @Nullable Snapshot profiling,
         @Nonnull PhysicsChunkBuildOptions buildOptions) {
         int removed = cache.clearSectionsAround(spaceUuid, queue, center, radius);
-        BuildStats stats = ensureAround(world,
+        PhysicsChunkSectionAccessCache accessCache = new PhysicsChunkSectionAccessCache();
+        PhysicsChunkBuildStats stats = ensureAround(world,
             spaceUuid,
             queue,
             center,
@@ -109,12 +111,13 @@ public final class PhysicsChunkTerrainStreamingResource implements Resource<Enti
             profiling,
             null,
             null,
+            accessCache,
             buildOptions);
         return terrainStats(withRemovedBodies(stats, stats.removedBodies() + removed));
     }
 
     @Nonnull
-    public synchronized BuildStats ensureAround(@Nonnull World world,
+    public synchronized PhysicsChunkBuildStats ensureAround(@Nonnull World world,
         @Nonnull UUID spaceUuid,
         @Nonnull PhysicsChunkCollisionMutationQueueResource queue,
         @Nonnull Vector3d center,
@@ -123,6 +126,7 @@ public final class PhysicsChunkTerrainStreamingResource implements Resource<Enti
         @Nullable Snapshot profiling,
         @Nullable LongSet visitedSections,
         @Nullable StreamingTargetDiagnostic targetDiagnostic,
+        @Nullable PhysicsChunkSectionAccessCache accessCache,
         @Nonnull PhysicsChunkBuildOptions buildOptions) {
         return cache.ensureAround(world,
             spaceUuid,
@@ -133,6 +137,7 @@ public final class PhysicsChunkTerrainStreamingResource implements Resource<Enti
             profiling,
             visitedSections,
             targetDiagnostic,
+            accessCache,
             buildOptions);
     }
 
@@ -197,7 +202,19 @@ public final class PhysicsChunkTerrainStreamingResource implements Resource<Enti
         @Nonnull UUID spaceUuid,
         @Nonnull PhysicsChunkCollisionMutationQueueResource queue,
         @Nullable Snapshot profiling) {
-        return cache.pruneUnloaded(world, spaceUuid, queue, profiling);
+        return pruneUnloaded(world,
+            spaceUuid,
+            queue,
+            profiling,
+            new PhysicsChunkSectionAccessCache());
+    }
+
+    public synchronized int pruneUnloaded(@Nonnull World world,
+        @Nonnull UUID spaceUuid,
+        @Nonnull PhysicsChunkCollisionMutationQueueResource queue,
+        @Nullable Snapshot profiling,
+        @Nullable PhysicsChunkSectionAccessCache accessCache) {
+        return cache.pruneUnloaded(world, spaceUuid, queue, profiling, accessCache);
     }
 
     public synchronized int pruneUnused(@Nonnull UUID spaceUuid,
@@ -235,7 +252,7 @@ public final class PhysicsChunkTerrainStreamingResource implements Resource<Enti
     }
 
     @Nonnull
-    private static PhysicsChunkTerrainBuildStats terrainStats(@Nonnull BuildStats stats) {
+    private static PhysicsChunkTerrainBuildStats terrainStats(@Nonnull PhysicsChunkBuildStats stats) {
         return new PhysicsChunkTerrainBuildStats(stats.scannedBlocks(),
             stats.solidBlocks(),
             stats.culledInteriorBlocks(),
@@ -249,8 +266,8 @@ public final class PhysicsChunkTerrainStreamingResource implements Resource<Enti
     }
 
     @Nonnull
-    private static BuildStats withRemovedBodies(@Nonnull BuildStats stats, int removedBodies) {
-        return new BuildStats(stats.scannedBlocks(),
+    private static PhysicsChunkBuildStats withRemovedBodies(@Nonnull PhysicsChunkBuildStats stats, int removedBodies) {
+        return new PhysicsChunkBuildStats(stats.scannedBlocks(),
             stats.solidBlocks(),
             stats.culledInteriorBlocks(),
             stats.fullCubeRuns(),
