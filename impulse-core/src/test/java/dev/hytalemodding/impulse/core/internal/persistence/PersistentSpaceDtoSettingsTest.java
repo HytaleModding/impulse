@@ -20,7 +20,7 @@ import org.junit.jupiter.api.Test;
 class PersistentSpaceDtoSettingsTest {
 
     @Test
-    void roundTripPreservesDetachedVisualCadenceSettingsAndCompatibilityKeys() {
+    void roundTripPreservesDetachedVisualCadenceSettingsAndPhysicsChunkKeys() {
         PhysicsSpaceSettings original = PhysicsSpaceSettings.defaults();
         original.getPhysicsChunkTerrainSettings().setNativeVoxelTerrainEnabled(true);
         original.getPhysicsChunkTerrainSettings().setTerrainMaterial(0.85f, 0.2f);
@@ -48,10 +48,10 @@ class PersistentSpaceDtoSettingsTest {
 
         BsonDocument encoded = PersistentSpaceDto.CODEC.encode(state, new ExtraInfo()).asDocument();
 
-        assertTrue(encoded.containsKey("WorldCollisionMode"));
-        assertTrue(encoded.containsKey("WorldCollisionRadius"));
-        assertTrue(encoded.containsKey("WorldCollisionBodyRadius"));
-        assertTrue(encoded.containsKey("WorldCollisionTtlTicks"));
+        assertTrue(encoded.containsKey("PhysicsChunkTerrainMode"));
+        assertTrue(encoded.containsKey("TerrainRadius"));
+        assertTrue(encoded.containsKey("BodyTerrainRadius"));
+        assertTrue(encoded.containsKey("TerrainTtlTicks"));
         assertTrue(encoded.containsKey("NativeVoxelTerrain"));
         assertTrue(encoded.containsKey("TerrainFriction"));
         assertTrue(encoded.containsKey("TerrainRestitution"));

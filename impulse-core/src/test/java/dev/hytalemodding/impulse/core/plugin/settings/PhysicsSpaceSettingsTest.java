@@ -8,10 +8,12 @@ import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import dev.hytalemodding.impulse.core.plugin.modules.physicschunk.PhysicsChunkTerrainMode;
-import dev.hytalemodding.impulse.core.plugin.modules.physicschunk.WorldCollisionMode;
+import dev.hytalemodding.impulse.core.plugin.modules.physicschunk.settings.PhysicsChunkTerrainSettings;
+import dev.hytalemodding.impulse.core.plugin.modules.physicschunk.settings.PhysicsCollisionLodSettings;
+import dev.hytalemodding.impulse.core.plugin.modules.physicsentity.settings.PhysicsVisualMaterializationSettings;
+import dev.hytalemodding.impulse.core.plugin.modules.physicsentity.settings.PhysicsVisualSyncSettings;
 import org.junit.jupiter.api.Test;
 
-@SuppressWarnings("deprecation")
 class PhysicsSpaceSettingsTest {
 
     @Test
@@ -213,11 +215,8 @@ class PhysicsSpaceSettingsTest {
     }
 
     @Test
-    void deprecatedCollisionLodSettingsAliasCopiesCanonicalAndAliasValues() {
-        dev.hytalemodding.impulse.core.plugin.modules.physicschunk.settings
-            .PhysicsCollisionLodSettings canonical =
-            new dev.hytalemodding.impulse.core.plugin.modules.physicschunk.settings
-                .PhysicsCollisionLodSettings();
+    void collisionLodSettingsCopyConstructorCopiesValues() {
+        PhysicsCollisionLodSettings canonical = new PhysicsCollisionLodSettings();
 
         canonical.setCollisionLodEnabled(true);
         canonical.setCollisionLodRadii(24, 96);
@@ -227,7 +226,7 @@ class PhysicsSpaceSettingsTest {
 
         PhysicsCollisionLodSettings canonicalCopy =
             new PhysicsCollisionLodSettings(canonical);
-        PhysicsCollisionLodSettings aliasCopy =
+        PhysicsCollisionLodSettings secondCopy =
             new PhysicsCollisionLodSettings(canonicalCopy);
         canonical.setCollisionLodRadii(32, 128);
         canonicalCopy.setCollisionLodRadii(40, 160);
@@ -238,20 +237,17 @@ class PhysicsSpaceSettingsTest {
         assertEquals(6, canonicalCopy.getCollisionLodHysteresis());
         assertEquals(8, canonicalCopy.getCollisionLodRefreshIntervalTicks());
         assertFalse(canonicalCopy.isCollisionLodFarSleepEnabled());
-        assertTrue(aliasCopy.isCollisionLodEnabled());
-        assertEquals(24, aliasCopy.getCollisionLodNearRadius());
-        assertEquals(96, aliasCopy.getCollisionLodMidRadius());
-        assertEquals(6, aliasCopy.getCollisionLodHysteresis());
-        assertEquals(8, aliasCopy.getCollisionLodRefreshIntervalTicks());
-        assertFalse(aliasCopy.isCollisionLodFarSleepEnabled());
+        assertTrue(secondCopy.isCollisionLodEnabled());
+        assertEquals(24, secondCopy.getCollisionLodNearRadius());
+        assertEquals(96, secondCopy.getCollisionLodMidRadius());
+        assertEquals(6, secondCopy.getCollisionLodHysteresis());
+        assertEquals(8, secondCopy.getCollisionLodRefreshIntervalTicks());
+        assertFalse(secondCopy.isCollisionLodFarSleepEnabled());
     }
 
     @Test
-    void deprecatedTerrainSettingsAliasCopiesCanonicalAndAliasValues() {
-        dev.hytalemodding.impulse.core.plugin.modules.physicschunk.settings
-            .PhysicsChunkTerrainSettings canonical =
-            new dev.hytalemodding.impulse.core.plugin.modules.physicschunk.settings
-                .PhysicsChunkTerrainSettings();
+    void terrainSettingsCopyConstructorCopiesValues() {
+        PhysicsChunkTerrainSettings canonical = new PhysicsChunkTerrainSettings();
 
         canonical.setTerrainMode(PhysicsChunkTerrainMode.STREAMING);
         canonical.setEntityChunkBoundaryMode(EntityChunkBoundaryMode.LOAD_TICKING_CHUNK);
@@ -263,10 +259,8 @@ class PhysicsSpaceSettingsTest {
 
         PhysicsChunkTerrainSettings canonicalCopy =
             new PhysicsChunkTerrainSettings(canonical);
-        PhysicsChunkTerrainSettings aliasCopy =
+        PhysicsChunkTerrainSettings secondCopy =
             new PhysicsChunkTerrainSettings(canonicalCopy);
-        PhysicsWorldCollisionSettings worldCollisionCopy =
-            new PhysicsWorldCollisionSettings(canonical);
         canonical.setTerrainRadius(24);
         canonicalCopy.setTerrainRadius(30);
 
@@ -279,9 +273,9 @@ class PhysicsSpaceSettingsTest {
         assertEquals(240, canonicalCopy.getTerrainTtlTicks());
         assertEquals(0.85f, canonicalCopy.getTerrainFriction(), 0.0001f);
         assertEquals(0.2f, canonicalCopy.getTerrainRestitution(), 0.0001f);
-        assertEquals(18, aliasCopy.getTerrainRadius());
-        assertEquals(18, worldCollisionCopy.getTerrainRadius());
-        assertEquals(18, worldCollisionCopy.getWorldCollisionRadius());
+        assertEquals(18, secondCopy.getTerrainRadius());
+        assertEquals(7, secondCopy.getBodyTerrainRadius());
+        assertEquals(240, secondCopy.getTerrainTtlTicks());
     }
 
     @Test
@@ -320,26 +314,6 @@ class PhysicsSpaceSettingsTest {
         assertEquals(PhysicsChunkTerrainMode.STREAMING, settings.getPhysicsChunkTerrainSettings().getTerrainMode());
         assertEquals(PhysicsChunkTerrainSettings.DEFAULT_TERRAIN_RADIUS,
             settings.getPhysicsChunkTerrainSettings().getTerrainRadius());
-    }
-
-    @Test
-    void deprecatedWorldCollisionAccessorsMutatePhysicsChunkTerrainSettings() {
-        PhysicsSpaceSettings settings = PhysicsSpaceSettings.streamingWorldCollision();
-
-        assertSame(settings.getPhysicsChunkTerrainSettings(), settings.getWorldCollisionSettings());
-        assertEquals(PhysicsChunkTerrainMode.STREAMING,
-            settings.getPhysicsChunkTerrainSettings().getTerrainMode());
-
-        settings.getWorldCollisionSettings().setWorldCollisionMode(WorldCollisionMode.NONE);
-        settings.getWorldCollisionSettings().setWorldCollisionRadius(9);
-        settings.getWorldCollisionSettings().setWorldCollisionBodyRadius(4);
-        settings.getWorldCollisionSettings().setWorldCollisionTtlTicks(120);
-
-        assertEquals(PhysicsChunkTerrainMode.NONE,
-            settings.getPhysicsChunkTerrainSettings().getTerrainMode());
-        assertEquals(9, settings.getPhysicsChunkTerrainSettings().getTerrainRadius());
-        assertEquals(4, settings.getPhysicsChunkTerrainSettings().getBodyTerrainRadius());
-        assertEquals(120, settings.getPhysicsChunkTerrainSettings().getTerrainTtlTicks());
     }
 
     @Test
