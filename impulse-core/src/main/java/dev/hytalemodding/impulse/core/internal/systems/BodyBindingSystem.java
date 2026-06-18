@@ -12,11 +12,14 @@ import com.hypixel.hytale.component.system.QuerySystem;
 import com.hypixel.hytale.component.system.tick.TickingSystem;
 import com.hypixel.hytale.server.core.universe.world.storage.PhysicsStore;
 import dev.hytalemodding.impulse.api.PhysicsBodyType;
+import dev.hytalemodding.impulse.api.ShapeType;
 import dev.hytalemodding.impulse.api.runtime.BackendRuntimeCodes;
 import dev.hytalemodding.impulse.api.runtime.PhysicsBackendRuntime;
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsIdentityIndexResource;
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsRestoreStatusResource;
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsRuntimeResource;
+import dev.hytalemodding.impulse.core.internal.resources.PhysicsTerrainPayloadResource;
+import dev.hytalemodding.impulse.core.internal.terrain.TerrainColliderPayload;
 import dev.hytalemodding.impulse.core.internal.resources.BackendBodyHandle;
 import dev.hytalemodding.impulse.core.internal.resources.BackendSpaceHandle;
 import dev.hytalemodding.impulse.core.plugin.components.BodyComponent;
@@ -53,14 +56,17 @@ public final class BodyBindingSystem extends TickingSystem<PhysicsStore>
             return;
         }
         PhysicsRuntimeResource runtime = store.getResource(PhysicsRuntimeResource.getResourceType());
+        PhysicsTerrainPayloadResource terrainPayloads = store.getResource(
+            PhysicsTerrainPayloadResource.getResourceType());
         PhysicsIdentityIndexResource identity =
             store.getResource(PhysicsIdentityIndexResource.getResourceType());
         BiConsumer<ArchetypeChunk<PhysicsStore>, CommandBuffer<PhysicsStore>> collector =
-            (chunk, _) -> bindBodies(runtime, identity, restore, chunk);
+            (chunk, _) -> bindBodies(runtime, terrainPayloads, identity, restore, chunk);
         store.forEachChunk(systemIndex, collector);
     }
 
     private static void bindBodies(@Nonnull PhysicsRuntimeResource runtime,
+        @Nonnull PhysicsTerrainPayloadResource terrainPayloads,
         @Nonnull PhysicsIdentityIndexResource identity,
         @Nonnull PhysicsRestoreStatusResource restore,
         @Nonnull ArchetypeChunk<PhysicsStore> chunk) {
@@ -78,6 +84,7 @@ public final class BodyBindingSystem extends TickingSystem<PhysicsStore>
                 continue;
             }
             bindBody(runtime,
+                terrainPayloads,
                 identity,
                 restore,
                 bodyRef,
@@ -93,6 +100,7 @@ public final class BodyBindingSystem extends TickingSystem<PhysicsStore>
     }
 
     private static void bindBody(@Nonnull PhysicsRuntimeResource runtime,
+        @Nonnull PhysicsTerrainPayloadResource terrainPayloads,
         @Nonnull PhysicsIdentityIndexResource identity,
         @Nonnull PhysicsRestoreStatusResource restore,
         @Nonnull Ref<PhysicsStore> bodyRef,
@@ -127,36 +135,57 @@ public final class BodyBindingSystem extends TickingSystem<PhysicsStore>
         float mass = bodyType == PhysicsBodyType.DYNAMIC ? bodyDynamics.getMass() : 0.0f;
         long bodyId = Long.MIN_VALUE;
         try {
-            bodyId = backendRuntime.createBody(spaceHandle.value(),
-                BackendRuntimeCodes.shapeTypeCode(shape.getShapeType()),
-                shape.getHalfExtentX(),
-                shape.getHalfExtentY(),
-                shape.getHalfExtentZ(),
-                shape.getRadius(),
-                shape.getHalfHeight(),
-                BackendRuntimeCodes.axisCode(shape.getAxis()),
-                shape.getGroundY(),
-                mass,
-                BackendRuntimeCodes.bodyTypeCode(bodyType),
-                position.x,
-                position.y,
-                position.z,
-                rotation.x,
-                rotation.y,
-                rotation.z,
-                rotation.w);
+            if (shape.getShapeType() == ShapeType.VOXELS) {
+                if (bodyType != PhysicsBodyType.STATIC) {
+                    restore.recordSoftSkip("Voxel body must be static: " + bodyUuid);
+                    return;
+                }
+                bodyId = createVoxelBody(terrainPayloads,
+                    backendRuntime,
+                    spaceHandle,
+                    shape,
+                    material,
+                    filter,
+                    position);
+                if (bodyId == Long.MIN_VALUE) {
+                    restore.recordSoftSkip("Voxel body payload is missing or unsupported: "
+                        + bodyUuid);
+                    return;
+                }
+            } else {
+                bodyId = backendRuntime.createBody(spaceHandle.value(),
+                    BackendRuntimeCodes.shapeTypeCode(shape.getShapeType()),
+                    shape.getHalfExtentX(),
+                    shape.getHalfExtentY(),
+                    shape.getHalfExtentZ(),
+                    shape.getRadius(),
+                    shape.getHalfHeight(),
+                    BackendRuntimeCodes.axisCode(shape.getAxis()),
+                    shape.getGroundY(),
+                    mass,
+                    BackendRuntimeCodes.bodyTypeCode(bodyType),
+                    position.x,
+                    position.y,
+                    position.z,
+                    rotation.x,
+                    rotation.y,
+                    rotation.z,
+                    rotation.w);
+                backendRuntime.setBodyDamping(spaceHandle.value(),
+                    bodyId,
+                    bodyDynamics.getLinearDamping(),
+                    bodyDynamics.getAngularDamping());
+                backendRuntime.setBodyFriction(spaceHandle.value(), bodyId, material.getFriction());
+                backendRuntime.setBodyRestitution(spaceHandle.value(),
+                    bodyId,
+                    material.getRestitution());
+                backendRuntime.setBodyCollisionFilter(spaceHandle.value(),
+                    bodyId,
+                    filter.getCollisionGroup(),
+                    filter.getCollisionMask());
+                backendRuntime.setBodySensor(spaceHandle.value(), bodyId, collider.isSensor());
+            }
             BackendBodyHandle bodyHandle = new BackendBodyHandle(bodyId);
-            backendRuntime.setBodyDamping(spaceHandle.value(),
-                bodyId,
-                bodyDynamics.getLinearDamping(),
-                bodyDynamics.getAngularDamping());
-            backendRuntime.setBodyFriction(spaceHandle.value(), bodyId, material.getFriction());
-            backendRuntime.setBodyRestitution(spaceHandle.value(), bodyId, material.getRestitution());
-            backendRuntime.setBodyCollisionFilter(spaceHandle.value(),
-                bodyId,
-                filter.getCollisionGroup(),
-                filter.getCollisionMask());
-            backendRuntime.setBodySensor(spaceHandle.value(), bodyId, collider.isSensor());
             if (bodyDynamics.isContinuousCollisionEnabled()
                 && backendRuntime.supportsContinuousCollision(spaceHandle.value())) {
                 backendRuntime.setBodyContinuousCollision(spaceHandle.value(), bodyId, true);
@@ -179,6 +208,39 @@ public final class BodyBindingSystem extends TickingSystem<PhysicsStore>
             }
             restore.markFailed("PhysicsStore body " + bodyUuid
                 + " failed backend binding: " + exception.getMessage());
+        }
+    }
+
+    private static long createVoxelBody(@Nonnull PhysicsTerrainPayloadResource terrainPayloads,
+        @Nonnull PhysicsBackendRuntime backendRuntime,
+        @Nonnull BackendSpaceHandle spaceHandle,
+        @Nonnull ShapeComponent shape,
+        @Nonnull MaterialComponent material,
+        @Nonnull CollisionFilterComponent filter,
+        @Nonnull Vector3f position) {
+        String payloadKey = shape.getResourceKey();
+        if (payloadKey.isBlank() || !backendRuntime.supportsVoxelTerrain(spaceHandle.value())) {
+            return Long.MIN_VALUE;
+        }
+        TerrainColliderPayload payload = terrainPayloads.get(payloadKey);
+        if (payload == null || !payload.hasFullCubeVoxels()) {
+            return Long.MIN_VALUE;
+        }
+        try {
+            return backendRuntime.createVoxelTerrain(spaceHandle.value(),
+                payload.voxelSizeX(),
+                payload.voxelSizeY(),
+                payload.voxelSizeZ(),
+                payload.voxelCoordinates(),
+                position.x,
+                position.y,
+                position.z,
+                material.getFriction(),
+                material.getRestitution(),
+                filter.getCollisionGroup(),
+                filter.getCollisionMask());
+        } catch (UnsupportedOperationException exception) {
+            return Long.MIN_VALUE;
         }
     }
 
