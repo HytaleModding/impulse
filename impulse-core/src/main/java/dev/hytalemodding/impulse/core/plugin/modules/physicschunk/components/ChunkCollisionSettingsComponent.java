@@ -25,14 +25,14 @@ public class ChunkCollisionSettingsComponent implements Component<PhysicsStore> 
             ChunkCollisionSettingsComponent.class,
             ChunkCollisionSettingsComponent::new)
         .append(new KeyedCodec<>("Mode", new EnumCodec<>(PhysicsChunkTerrainMode.class), false),
-            (component, value) -> component.terrainMode = value != null
+            (component, value) -> component.mode = value != null
                 ? value
                 : PhysicsChunkTerrainMode.NONE,
-            ChunkCollisionSettingsComponent::getTerrainMode)
+            ChunkCollisionSettingsComponent::getMode)
         .add()
-        .append(new KeyedCodec<>("NativeVoxelTerrain", Codec.BOOLEAN, false),
-            (component, value) -> component.nativeVoxelTerrainEnabled = value != null && value,
-            ChunkCollisionSettingsComponent::isNativeVoxelTerrainEnabled)
+        .append(new KeyedCodec<>("NativeVoxelCollision", Codec.BOOLEAN, false),
+            (component, value) -> component.nativeVoxelCollisionEnabled = value != null && value,
+            ChunkCollisionSettingsComponent::isNativeVoxelCollisionEnabled)
         .add()
         .append(new KeyedCodec<>("EntityChunkBoundaryMode",
                 new EnumCodec<>(EntityChunkBoundaryMode.class),
@@ -63,11 +63,11 @@ public class ChunkCollisionSettingsComponent implements Component<PhysicsStore> 
         .build();
 
     @Nonnull
-    private PhysicsChunkTerrainMode terrainMode = PhysicsChunkTerrainMode.NONE;
+    private PhysicsChunkTerrainMode mode = PhysicsChunkTerrainMode.NONE;
     @Nonnull
     private EntityChunkBoundaryMode entityChunkBoundaryMode =
         PhysicsChunkTerrainSettings.DEFAULT_ENTITY_CHUNK_BOUNDARY_MODE;
-    private boolean nativeVoxelTerrainEnabled =
+    private boolean nativeVoxelCollisionEnabled =
         PhysicsChunkTerrainSettings.DEFAULT_NATIVE_VOXEL_TERRAIN_ENABLED;
     private int radius = PhysicsChunkTerrainSettings.DEFAULT_TERRAIN_RADIUS;
     private int bodyRadius = PhysicsChunkTerrainSettings.DEFAULT_BODY_TERRAIN_RADIUS;
@@ -85,41 +85,41 @@ public class ChunkCollisionSettingsComponent implements Component<PhysicsStore> 
             settings.getTerrainTtlTicks());
     }
 
-    public ChunkCollisionSettingsComponent(@Nonnull PhysicsChunkTerrainMode terrainMode,
-        boolean nativeVoxelTerrainEnabled,
+    public ChunkCollisionSettingsComponent(@Nonnull PhysicsChunkTerrainMode mode,
+        boolean nativeVoxelCollisionEnabled,
         int radius,
         int bodyRadius,
         int ttlTicks) {
-        this(terrainMode,
+        this(mode,
             PhysicsChunkTerrainSettings.DEFAULT_ENTITY_CHUNK_BOUNDARY_MODE,
-            nativeVoxelTerrainEnabled,
+            nativeVoxelCollisionEnabled,
             radius,
             bodyRadius,
             ttlTicks);
     }
 
-    public ChunkCollisionSettingsComponent(@Nonnull PhysicsChunkTerrainMode terrainMode,
+    public ChunkCollisionSettingsComponent(@Nonnull PhysicsChunkTerrainMode mode,
         @Nonnull EntityChunkBoundaryMode entityChunkBoundaryMode,
-        boolean nativeVoxelTerrainEnabled,
+        boolean nativeVoxelCollisionEnabled,
         int radius,
         int bodyRadius,
         int ttlTicks) {
-        this.terrainMode = Objects.requireNonNull(terrainMode, "terrainMode");
+        this.mode = Objects.requireNonNull(mode, "mode");
         this.entityChunkBoundaryMode = Objects.requireNonNull(entityChunkBoundaryMode,
             "entityChunkBoundaryMode");
-        this.nativeVoxelTerrainEnabled = nativeVoxelTerrainEnabled;
+        this.nativeVoxelCollisionEnabled = nativeVoxelCollisionEnabled;
         this.radius = radius;
         this.bodyRadius = bodyRadius;
         this.ttlTicks = ttlTicks;
     }
 
     @Nonnull
-    public PhysicsChunkTerrainMode getTerrainMode() {
-        return terrainMode;
+    public PhysicsChunkTerrainMode getMode() {
+        return mode;
     }
 
-    public void setTerrainMode(@Nonnull PhysicsChunkTerrainMode terrainMode) {
-        this.terrainMode = Objects.requireNonNull(terrainMode, "terrainMode");
+    public void setMode(@Nonnull PhysicsChunkTerrainMode mode) {
+        this.mode = Objects.requireNonNull(mode, "mode");
     }
 
     @Nonnull
@@ -133,12 +133,12 @@ public class ChunkCollisionSettingsComponent implements Component<PhysicsStore> 
             "entityChunkBoundaryMode");
     }
 
-    public boolean isNativeVoxelTerrainEnabled() {
-        return nativeVoxelTerrainEnabled;
+    public boolean isNativeVoxelCollisionEnabled() {
+        return nativeVoxelCollisionEnabled;
     }
 
-    public void setNativeVoxelTerrainEnabled(boolean nativeVoxelTerrainEnabled) {
-        this.nativeVoxelTerrainEnabled = nativeVoxelTerrainEnabled;
+    public void setNativeVoxelCollisionEnabled(boolean nativeVoxelCollisionEnabled) {
+        this.nativeVoxelCollisionEnabled = nativeVoxelCollisionEnabled;
     }
 
     public int getRadius() {
@@ -170,19 +170,19 @@ public class ChunkCollisionSettingsComponent implements Component<PhysicsStore> 
     }
 
     public void copyTo(@Nonnull PhysicsChunkTerrainSettings settings) {
-        settings.setTerrainMode(terrainMode);
+        settings.setTerrainMode(mode);
         settings.setEntityChunkBoundaryMode(entityChunkBoundaryMode);
-        settings.setNativeVoxelTerrainEnabled(nativeVoxelTerrainEnabled);
+        settings.setNativeVoxelTerrainEnabled(nativeVoxelCollisionEnabled);
         settings.setTerrainRadius(radius);
         settings.setBodyTerrainRadius(bodyRadius);
         settings.setTerrainTtlTicks(ttlTicks);
     }
 
     public boolean isDefault() {
-        return terrainMode == PhysicsChunkTerrainMode.NONE
+        return mode == PhysicsChunkTerrainMode.NONE
             && entityChunkBoundaryMode
                 == PhysicsChunkTerrainSettings.DEFAULT_ENTITY_CHUNK_BOUNDARY_MODE
-            && nativeVoxelTerrainEnabled
+            && nativeVoxelCollisionEnabled
                 == PhysicsChunkTerrainSettings.DEFAULT_NATIVE_VOXEL_TERRAIN_ENABLED
             && radius == PhysicsChunkTerrainSettings.DEFAULT_TERRAIN_RADIUS
             && bodyRadius == PhysicsChunkTerrainSettings.DEFAULT_BODY_TERRAIN_RADIUS
@@ -197,9 +197,9 @@ public class ChunkCollisionSettingsComponent implements Component<PhysicsStore> 
     @Nonnull
     @Override
     public ChunkCollisionSettingsComponent clone() {
-        return new ChunkCollisionSettingsComponent(terrainMode,
+        return new ChunkCollisionSettingsComponent(mode,
             entityChunkBoundaryMode,
-            nativeVoxelTerrainEnabled,
+            nativeVoxelCollisionEnabled,
             radius,
             bodyRadius,
             ttlTicks);

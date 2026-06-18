@@ -149,12 +149,12 @@ public final class PhysicsStoreSpaceMutations {
 
     private static void addSpaceSettingsComponents(@Nonnull Holder<PhysicsStore> holder,
         @Nonnull PhysicsSpaceSettings settings) {
-        ChunkCollisionSettingsComponent terrain =
+        ChunkCollisionSettingsComponent chunkCollision =
             new ChunkCollisionSettingsComponent(settings.getPhysicsChunkTerrainSettings());
         addIfNonDefault(holder,
             ChunkCollisionSettingsComponent.getComponentType(),
-            terrain,
-            terrain.isDefault());
+            chunkCollision,
+            chunkCollision.isDefault());
         MaterialComponent material = chunkMaterial(settings.getPhysicsChunkTerrainSettings());
         addIfNonDefault(holder,
             MaterialComponent.getComponentType(),
@@ -205,13 +205,13 @@ public final class PhysicsStoreSpaceMutations {
     private static void putSpaceSettingsComponents(@Nonnull Store<PhysicsStore> store,
         @Nonnull Ref<PhysicsStore> ref,
         @Nonnull PhysicsSpaceSettings settings) {
-        ChunkCollisionSettingsComponent terrain =
+        ChunkCollisionSettingsComponent chunkCollision =
             new ChunkCollisionSettingsComponent(settings.getPhysicsChunkTerrainSettings());
         putOrRemoveDefault(store,
             ref,
             ChunkCollisionSettingsComponent.getComponentType(),
-            terrain,
-            terrain.isDefault());
+            chunkCollision,
+            chunkCollision.isDefault());
         MaterialComponent material = chunkMaterial(settings.getPhysicsChunkTerrainSettings());
         putOrRemoveDefault(store,
             ref,

@@ -253,7 +253,7 @@ public class PhysicsWorldRuntimeResource extends PhysicsWorldResource {
         if (space == null) {
             return null;
         }
-        ChunkCollisionSettingsComponent terrainSettings = store.getComponent(ref,
+        ChunkCollisionSettingsComponent chunkCollisionSettings = store.getComponent(ref,
             ChunkCollisionSettingsComponent.getComponentType());
         SolverSettingsComponent solverSettings = store.getComponent(ref,
             SolverSettingsComponent.getComponentType());
@@ -266,8 +266,8 @@ public class PhysicsWorldRuntimeResource extends PhysicsWorldResource {
         ExtensionSettingsComponent extensionSettings = store.getComponent(ref,
             ExtensionSettingsComponent.getComponentType());
         PhysicsSpaceSettings settings = PhysicsSpaceSettings.defaults();
-        if (terrainSettings != null) {
-            terrainSettings.copyTo(settings);
+        if (chunkCollisionSettings != null) {
+            chunkCollisionSettings.copyTo(settings);
         }
         MaterialComponent material = store.getComponent(ref, MaterialComponent.getComponentType());
         if (material != null) {

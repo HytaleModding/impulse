@@ -192,8 +192,8 @@ public final class PersistenceCaptureSystem extends TickingSystem<PhysicsStore>
 
         @Nonnull
         private PersistentSpaceDto spaceDto(@Nonnull SpaceRow row) {
-            ChunkCollisionSettingsComponent terrain = row.physicsChunkTerrain() != null
-                ? row.physicsChunkTerrain()
+            ChunkCollisionSettingsComponent chunkCollision = row.chunkCollisionSettings() != null
+                ? row.chunkCollisionSettings()
                 : new ChunkCollisionSettingsComponent();
             MaterialComponent material = row.material() != null
                 ? row.material()
@@ -206,12 +206,12 @@ public final class PersistenceCaptureSystem extends TickingSystem<PhysicsStore>
             return new PersistentSpaceDto(row.uuid(),
                 row.space().getBackendIdValue(),
                 row.space().getGravity(),
-                terrain.getTerrainMode(),
-                terrain.getEntityChunkBoundaryMode(),
-                terrain.isNativeVoxelTerrainEnabled(),
-                terrain.getRadius(),
-                terrain.getBodyRadius(),
-                terrain.getTtlTicks(),
+                chunkCollision.getMode(),
+                chunkCollision.getEntityChunkBoundaryMode(),
+                chunkCollision.isNativeVoxelCollisionEnabled(),
+                chunkCollision.getRadius(),
+                chunkCollision.getBodyRadius(),
+                chunkCollision.getTtlTicks(),
                 material.getFriction(),
                 material.getRestitution(),
                 filter.getCollisionGroup(),
@@ -373,7 +373,7 @@ public final class PersistenceCaptureSystem extends TickingSystem<PhysicsStore>
 
     private record SpaceRow(@Nonnull UUID uuid,
                             @Nonnull SpaceComponent space,
-                            @Nullable ChunkCollisionSettingsComponent physicsChunkTerrain,
+                            @Nullable ChunkCollisionSettingsComponent chunkCollisionSettings,
                             @Nullable MaterialComponent material,
                             @Nullable CollisionFilterComponent filter,
                             @Nullable SolverSettingsComponent solverSettings,

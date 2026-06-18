@@ -58,19 +58,19 @@ public final class PhysicsChunkSettingsIndexSystem extends TickingSystem<Physics
             if (PhysicsStoreSystemSupport.isNil(spaceUuid)) {
                 continue;
             }
-            ChunkCollisionSettingsComponent terrain = chunk.getComponent(index,
+            ChunkCollisionSettingsComponent chunkCollision = chunk.getComponent(index,
                 ChunkCollisionSettingsComponent.getComponentType());
-            ChunkCollisionSettingsComponent settings = terrain != null
-                ? terrain
+            ChunkCollisionSettingsComponent settings = chunkCollision != null
+                ? chunkCollision
                 : new ChunkCollisionSettingsComponent();
             MaterialComponent material = chunk.getComponent(index,
                 MaterialComponent.getComponentType());
             CollisionFilterComponent filter = chunk.getComponent(index,
                 CollisionFilterComponent.getComponentType());
             settingsBySpaceUuid.put(spaceUuid, new PhysicsChunkSpaceSettings(spaceUuid,
-                settings.getTerrainMode(),
+                settings.getMode(),
                 settings.getEntityChunkBoundaryMode(),
-                settings.isNativeVoxelTerrainEnabled(),
+                settings.isNativeVoxelCollisionEnabled(),
                 settings.getRadius(),
                 settings.getBodyRadius(),
                 settings.getTtlTicks(),

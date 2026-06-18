@@ -165,7 +165,7 @@ public final class PhysicsChunkTerrain {
             store.getComponent(spaceRef, ChunkCollisionSettingsComponent.getComponentType());
         ChunkCollisionSettingsComponent settings =
             component != null ? component : new ChunkCollisionSettingsComponent();
-        if (settings.getTerrainMode() == PhysicsChunkTerrainMode.NONE) {
+        if (settings.getMode() == PhysicsChunkTerrainMode.NONE) {
             throw new IllegalStateException("PhysicsChunk terrain is disabled for space "
                 + spaceId);
         }
@@ -174,9 +174,9 @@ public final class PhysicsChunkTerrain {
         CollisionFilterComponent filter =
             store.getComponent(spaceRef, CollisionFilterComponent.getComponentType());
         return new PhysicsChunkSpaceSettings(spaceUuid,
-            settings.getTerrainMode(),
+            settings.getMode(),
             settings.getEntityChunkBoundaryMode(),
-            settings.isNativeVoxelTerrainEnabled(),
+            settings.isNativeVoxelCollisionEnabled(),
             settings.getRadius(),
             settings.getBodyRadius(),
             settings.getTtlTicks(),

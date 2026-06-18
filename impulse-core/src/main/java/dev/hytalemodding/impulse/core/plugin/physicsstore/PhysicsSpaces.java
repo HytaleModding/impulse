@@ -138,10 +138,10 @@ public final class PhysicsSpaces {
             return null;
         }
         PhysicsSpaceSettings settings = PhysicsSpaceSettings.defaults();
-        ChunkCollisionSettingsComponent terrainSettings = checkedStore.getComponent(checkedRef,
+        ChunkCollisionSettingsComponent chunkCollisionSettings = checkedStore.getComponent(checkedRef,
             ChunkCollisionSettingsComponent.getComponentType());
-        if (terrainSettings != null) {
-            terrainSettings.copyTo(settings);
+        if (chunkCollisionSettings != null) {
+            chunkCollisionSettings.copyTo(settings);
         }
         MaterialComponent material = checkedStore.getComponent(checkedRef,
             MaterialComponent.getComponentType());
