@@ -38,7 +38,6 @@ public final class PersistentPhysicsStorePreflight {
             errors);
         validateBodyColliderRefs(resource.getBodies(), colliders, errors);
         validateJoints(resource.getJoints(), spaces, bodies, errors);
-        validateTerrain(resource.getTerrainColliders(), spaces, errors);
         return new Result(errors.isEmpty(), errors);
     }
 
@@ -230,26 +229,6 @@ public final class PersistentPhysicsStorePreflight {
             if (!spaces.contains(joint.getSpaceUuid())) {
                 errors.add("Joint " + uuid + " references missing space "
                     + joint.getSpaceUuid());
-            }
-        }
-    }
-
-    private static void validateTerrain(@Nonnull PersistentTerrainColliderDto[] terrainColliders,
-        @Nonnull Set<UUID> spaces,
-        @Nonnull List<String> errors) {
-        Set<UUID> seen = new HashSet<>();
-        for (PersistentTerrainColliderDto terrain : terrainColliders) {
-            UUID uuid = terrain.getTerrainColliderUuid();
-            requireUuid("terrain collider", uuid, errors);
-            if (!seen.add(uuid)) {
-                errors.add("Duplicate PhysicsStore terrain collider UUID " + uuid);
-            }
-            if (!spaces.contains(terrain.getSpaceUuid())) {
-                errors.add("Terrain collider " + uuid + " references missing space "
-                    + terrain.getSpaceUuid());
-            }
-            if (terrain.getSourceKey().isBlank()) {
-                errors.add("Terrain collider " + uuid + " has blank source key");
             }
         }
     }

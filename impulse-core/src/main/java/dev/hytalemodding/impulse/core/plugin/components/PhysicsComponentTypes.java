@@ -37,12 +37,6 @@ public final class PhysicsComponentTypes {
     }
 
     @Nonnull
-    public static ComponentType<PhysicsStore, TerrainColliderComponent>
-    terrainColliderComponentType() {
-        return PhysicsComponentTypeRegistry.terrainColliderComponentType();
-    }
-
-    @Nonnull
     public static ComponentType<PhysicsStore, ChunkCollisionSourceComponent>
     chunkCollisionSourceComponentType() {
         return PhysicsComponentTypeRegistry.chunkCollisionSourceComponentType();

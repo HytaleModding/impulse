@@ -36,12 +36,10 @@ import dev.hytalemodding.impulse.core.plugin.components.DynamicsComponent;
 import dev.hytalemodding.impulse.core.plugin.components.MaterialComponent;
 import dev.hytalemodding.impulse.core.plugin.components.ShapeComponent;
 import dev.hytalemodding.impulse.core.plugin.components.TargetComponent;
-import dev.hytalemodding.impulse.core.plugin.components.TerrainColliderComponent;
 import dev.hytalemodding.impulse.core.plugin.components.UuidComponent;
 import dev.hytalemodding.impulse.core.plugin.modules.physicschunk.components.ChunkCollisionSourceComponent;
 import dev.hytalemodding.impulse.core.plugin.modules.physicschunk.components.ChunkCollisionSourceComponent.PartKind;
 import dev.hytalemodding.impulse.core.plugin.physicsstore.PhysicsEntities;
-import it.unimi.dsi.fastutil.longs.LongArrayList;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.List;
@@ -287,14 +285,10 @@ public final class TerrainMutationDrainSystem extends TickingSystem<PhysicsStore
         PhysicsBodyRegistrationResource registrations = store.getResource(
             PhysicsBodyRegistrationResource.getResourceType());
         for (GeneratedRow row : rows) {
-            if (row.kind() == GeneratedRowKind.BODY) {
-                removeRuntimeBody(runtime, identity, row);
-                PhysicsControlRuntimeStates.clearControlled(row.ref());
-                snapshots.removeBody(row.uuid());
-                registrations.removeBody(row.uuid());
-            } else {
-                removeRuntimeTerrain(runtime, row);
-            }
+            removeRuntimeBody(runtime, identity, row);
+            PhysicsControlRuntimeStates.clearControlled(row.ref());
+            snapshots.removeBody(row.uuid());
+            registrations.removeBody(row.uuid());
             removePayload(terrainPayloads, row.payloadResourceKey());
             identity.removeUuid(row.uuid(), row.ref());
             if (row.ref().isValid()) {
@@ -322,17 +316,7 @@ public final class TerrainMutationDrainSystem extends TickingSystem<PhysicsStore
                 && matchesSource(mutation, body, source)) {
                 rows.add(new GeneratedRow(chunk.getReferenceTo(index),
                     rowUuid,
-                    GeneratedRowKind.BODY,
                     source.getPayloadResourceKey()));
-                return;
-            }
-            TerrainColliderComponent terrain = chunk.getComponent(index,
-                TerrainColliderComponent.getComponentType());
-            if (terrain != null && matchesLegacyTerrain(mutation, rowUuid, terrain)) {
-                rows.add(new GeneratedRow(chunk.getReferenceTo(index),
-                    rowUuid,
-                    GeneratedRowKind.TERRAIN,
-                    terrain.getPayloadResourceKey()));
             }
         });
         return new ArrayList<>(rows);
@@ -343,14 +327,6 @@ public final class TerrainMutationDrainSystem extends TickingSystem<PhysicsStore
         @Nonnull ChunkCollisionSourceComponent source) {
         return mutation.spaceUuid().equals(body.getSpaceUuid())
             && mutation.sourceKey().equals(source.getSourceKey());
-    }
-
-    private static boolean matchesLegacyTerrain(@Nonnull TerrainColliderMutation mutation,
-        @Nonnull UUID rowUuid,
-        @Nonnull TerrainColliderComponent terrain) {
-        return mutation.terrainColliderUuid().equals(rowUuid)
-            || (mutation.spaceUuid().equals(terrain.getSpaceUuid())
-            && mutation.sourceKey().equals(terrain.getSourceKey()));
     }
 
     private static void removeRuntimeBody(@Nonnull PhysicsRuntimeResource runtime,
@@ -366,22 +342,6 @@ public final class TerrainMutationDrainSystem extends TickingSystem<PhysicsStore
             identity.removeBodyHandle(bodyHandle);
         }
         runtime.removeBodyHandle(row.uuid(), row.ref());
-    }
-
-    private static void removeRuntimeTerrain(@Nonnull PhysicsRuntimeResource runtime,
-        @Nonnull GeneratedRow row) {
-        BackendSpaceHandle spaceHandle = runtime.getTerrainSpaceHandle(row.ref());
-        LongArrayList bodyHandles = new LongArrayList();
-        runtime.forEachTerrainBodyHandle(row.ref(), bodyHandles::add);
-        if (spaceHandle != null) {
-            PhysicsBackendRuntime backendRuntime = runtime.runtimeForSpaceHandle(spaceHandle);
-            if (backendRuntime != null) {
-                for (int index = 0; index < bodyHandles.size(); index++) {
-                    backendRuntime.removeBody(spaceHandle.value(), bodyHandles.getLong(index));
-                }
-            }
-        }
-        runtime.removeTerrainHandles(row.ref(), row.uuid());
     }
 
     private static void removePayload(@Nonnull PhysicsTerrainPayloadResource terrainPayloads,
@@ -406,19 +366,12 @@ public final class TerrainMutationDrainSystem extends TickingSystem<PhysicsStore
         return DEPENDENCIES;
     }
 
-    private enum GeneratedRowKind {
-        BODY,
-        TERRAIN
-    }
-
     private record GeneratedRow(@Nonnull Ref<PhysicsStore> ref,
                                 @Nonnull UUID uuid,
-                                @Nonnull GeneratedRowKind kind,
                                 @Nullable String payloadResourceKey) {
         private GeneratedRow {
             Objects.requireNonNull(ref, "ref");
             Objects.requireNonNull(uuid, "uuid");
-            Objects.requireNonNull(kind, "kind");
         }
     }
 }

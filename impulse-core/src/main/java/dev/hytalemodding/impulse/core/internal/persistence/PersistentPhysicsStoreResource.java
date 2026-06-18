@@ -24,8 +24,6 @@ public final class PersistentPhysicsStoreResource implements Resource<PhysicsSto
     private static final PersistentShapeDto[] EMPTY_SHAPES = new PersistentShapeDto[0];
     private static final PersistentMaterialDto[] EMPTY_MATERIALS = new PersistentMaterialDto[0];
     private static final PersistentJointDto[] EMPTY_JOINTS = new PersistentJointDto[0];
-    private static final PersistentTerrainColliderDto[] EMPTY_TERRAIN_COLLIDERS =
-        new PersistentTerrainColliderDto[0];
 
     @Nonnull
     public static final BuilderCodec<PersistentPhysicsStoreResource> CODEC =
@@ -85,15 +83,6 @@ public final class PersistentPhysicsStoreResource implements Resource<PhysicsSto
             .addValidator(Validators.nonNull())
             .addValidator(Validators.nonNullArrayElements())
             .add()
-            .append(new KeyedCodec<>("TerrainColliders",
-                    new ArrayCodec<>(PersistentTerrainColliderDto.CODEC,
-                        PersistentTerrainColliderDto[]::new),
-                    false),
-                (resource, value) -> resource.terrainColliders = copyTerrainColliders(value),
-                PersistentPhysicsStoreResource::getTerrainColliders)
-            .addValidator(Validators.nonNull())
-            .addValidator(Validators.nonNullArrayElements())
-            .add()
             .build();
 
     private int schemaVersion = CURRENT_SCHEMA_VERSION;
@@ -109,8 +98,6 @@ public final class PersistentPhysicsStoreResource implements Resource<PhysicsSto
     private PersistentMaterialDto[] materials = EMPTY_MATERIALS;
     @Nonnull
     private PersistentJointDto[] joints = EMPTY_JOINTS;
-    @Nonnull
-    private PersistentTerrainColliderDto[] terrainColliders = EMPTY_TERRAIN_COLLIDERS;
 
     public PersistentPhysicsStoreResource() {
     }
@@ -182,15 +169,6 @@ public final class PersistentPhysicsStoreResource implements Resource<PhysicsSto
     }
 
     @Nonnull
-    public PersistentTerrainColliderDto[] getTerrainColliders() {
-        return copyTerrainColliders(terrainColliders);
-    }
-
-    public void setTerrainColliders(@Nonnull PersistentTerrainColliderDto[] terrainColliders) {
-        this.terrainColliders = copyTerrainColliders(terrainColliders);
-    }
-
-    @Nonnull
     public PersistentPhysicsStorePreflight.Result preflight() {
         return PersistentPhysicsStorePreflight.validate(this);
     }
@@ -206,7 +184,6 @@ public final class PersistentPhysicsStoreResource implements Resource<PhysicsSto
         copy.shapes = copyShapes(shapes);
         copy.materials = copyMaterials(materials);
         copy.joints = copyJoints(joints);
-        copy.terrainColliders = copyTerrainColliders(terrainColliders);
         return copy;
     }
 
@@ -267,13 +244,4 @@ public final class PersistentPhysicsStoreResource implements Resource<PhysicsSto
             .toArray(PersistentJointDto[]::new);
     }
 
-    @Nonnull
-    private static PersistentTerrainColliderDto[] copyTerrainColliders(
-        PersistentTerrainColliderDto[] values) {
-        if (values == null || values.length == 0) {
-            return EMPTY_TERRAIN_COLLIDERS;
-        }
-        return Arrays.stream(values).map(PersistentTerrainColliderDto::copy)
-            .toArray(PersistentTerrainColliderDto[]::new);
-    }
 }

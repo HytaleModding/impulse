@@ -18,7 +18,6 @@ import dev.hytalemodding.impulse.core.internal.persistence.PersistentMaterialDto
 import dev.hytalemodding.impulse.core.internal.persistence.PersistentPhysicsStoreResource;
 import dev.hytalemodding.impulse.core.internal.persistence.PersistentShapeDto;
 import dev.hytalemodding.impulse.core.internal.persistence.PersistentSpaceDto;
-import dev.hytalemodding.impulse.core.internal.persistence.PersistentTerrainColliderDto;
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsRestoreStatusResource;
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsSnapshotResource;
 import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyPersistenceMode;
@@ -165,7 +164,6 @@ public final class PersistenceCaptureSystem extends TickingSystem<PhysicsStore>
             persistent.setShapes(shapeDtos(bodyUuids));
             persistent.setMaterials(materialDtos(bodyUuids));
             persistent.setJoints(jointDtos(bodyUuids));
-            persistent.setTerrainColliders(new PersistentTerrainColliderDto[0]);
         }
 
         @Nonnull

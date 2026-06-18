@@ -22,11 +22,8 @@ import dev.hytalemodding.impulse.core.internal.resources.PhysicsSnapshotResource
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsStepSchedulerResource;
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsStepSchedulerResource.CompletedStep;
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsStepSchedulerResource.StepInput;
-import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyKind;
-import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyPersistenceMode;
 import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyRegistrationView;
 import dev.hytalemodding.impulse.core.plugin.components.BodyComponent;
-import dev.hytalemodding.impulse.core.plugin.components.TerrainColliderComponent;
 import dev.hytalemodding.impulse.core.plugin.snapshots.PhysicsBodySnapshot;
 import dev.hytalemodding.impulse.core.plugin.snapshots.PhysicsSnapshotFrame;
 import java.util.ArrayList;
@@ -43,8 +40,7 @@ public final class CompletedStepPublicationSystem extends TickingSystem<PhysicsS
     implements QuerySystem<PhysicsStore> {
 
     private static final Set<Dependency<PhysicsStore>> DEPENDENCIES = Set.of(
-        new SystemDependency<>(Order.AFTER, TargetBindingSystem.class),
-        new SystemDependency<>(Order.AFTER, TerrainColliderBindingSystem.class)
+        new SystemDependency<>(Order.AFTER, TargetBindingSystem.class)
     );
 
     @Override
@@ -169,18 +165,6 @@ public final class CompletedStepPublicationSystem extends TickingSystem<PhysicsS
                             spaceId,
                             body.getKind(),
                             body.getPersistenceMode())));
-                }
-            }
-            TerrainColliderComponent terrain =
-                chunk.getComponent(index, TerrainColliderComponent.getComponentType());
-            if (terrain != null && runtime.hasTerrainBodyHandles(rowRef)) {
-                SpaceId spaceId = compatibility.getSpaceId(terrain.getSpaceUuid());
-                if (spaceId != null) {
-                    registrations.add(new BodyRegistrationPublication(rowRef,
-                            new PhysicsBodyRegistrationView(rowUuid,
-                            spaceId,
-                            PhysicsBodyKind.TERRAIN,
-                            PhysicsBodyPersistenceMode.RUNTIME_ONLY)));
                 }
             }
         }

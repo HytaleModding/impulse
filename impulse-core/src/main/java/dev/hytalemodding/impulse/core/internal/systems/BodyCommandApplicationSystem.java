@@ -35,8 +35,7 @@ public final class BodyCommandApplicationSystem extends TickingSystem<PhysicsSto
     implements QuerySystem<PhysicsStore> {
 
     private static final Set<Dependency<PhysicsStore>> DEPENDENCIES = Set.of(
-        new SystemDependency<>(Order.AFTER, BodyBindingSystem.class),
-        new SystemDependency<>(Order.AFTER, TerrainColliderBindingSystem.class)
+        new SystemDependency<>(Order.AFTER, BodyBindingSystem.class)
     );
     private static final Query<PhysicsStore> QUERY = BodyCommandComponent.getComponentType();
 

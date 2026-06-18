@@ -83,33 +83,6 @@ public final class PhysicsRuntimeResource implements Resource<PhysicsStore> {
     private final Int2ObjectOpenHashMap<BackendSpaceHandle> jointSpaceHandlesByRowIndex =
         new Int2ObjectOpenHashMap<>();
     @Nonnull
-    private final Map<UUID, LongList> terrainBodyHandlesByUuid =
-        new Object2ObjectOpenHashMap<>();
-    @Nonnull
-    private final Map<UUID, BackendBodyHandle> terrainVoxelBodyHandlesByUuid =
-        new Object2ObjectOpenHashMap<>();
-    @Nonnull
-    private final Map<UUID, BackendSpaceHandle> terrainSpaceHandlesByUuid =
-        new Object2ObjectOpenHashMap<>();
-    @Nonnull
-    private final Map<UUID, String> terrainPayloadKeysByUuid =
-        new Object2ObjectOpenHashMap<>();
-    @Nonnull
-    private final Map<UUID, Ref<PhysicsStore>> terrainRefsByUuid =
-        new Object2ObjectOpenHashMap<>();
-    @Nonnull
-    private final Int2ObjectOpenHashMap<LongList> terrainBodyHandlesByRowIndex =
-        new Int2ObjectOpenHashMap<>();
-    @Nonnull
-    private final Int2ObjectOpenHashMap<BackendBodyHandle> terrainVoxelBodyHandlesByRowIndex =
-        new Int2ObjectOpenHashMap<>();
-    @Nonnull
-    private final Int2ObjectOpenHashMap<BackendSpaceHandle> terrainSpaceHandlesByRowIndex =
-        new Int2ObjectOpenHashMap<>();
-    @Nonnull
-    private final Int2ObjectOpenHashMap<String> terrainPayloadKeysByRowIndex =
-        new Int2ObjectOpenHashMap<>();
-    @Nonnull
     private final Int2ObjectOpenHashMap<String> chunkCollisionPayloadKeysByRowIndex =
         new Int2ObjectOpenHashMap<>();
     @Nonnull
@@ -204,7 +177,6 @@ public final class PhysicsRuntimeResource implements Resource<PhysicsStore> {
                     }
                 });
             }
-            removeTerrainHandlesForSpace(removed);
             markRegistrationTopologyChanged();
         }
     }
@@ -412,66 +384,6 @@ public final class PhysicsRuntimeResource implements Resource<PhysicsStore> {
         return jointRefs;
     }
 
-    public void putTerrainBodyHandle(@Nonnull UUID terrainUuid,
-        @Nonnull BackendSpaceHandle spaceHandle,
-        @Nonnull BackendBodyHandle handle,
-        boolean voxelTerrainBody) {
-        putTerrainBodyHandle(terrainUuid, null, spaceHandle, handle, voxelTerrainBody);
-    }
-
-    public void putTerrainBodyHandle(@Nonnull UUID terrainUuid,
-        @Nullable Ref<PhysicsStore> terrainRef,
-        @Nonnull BackendSpaceHandle spaceHandle,
-        @Nonnull BackendBodyHandle handle,
-        boolean voxelTerrainBody) {
-        bindTerrainRef(terrainUuid, terrainRef);
-        terrainSpaceHandlesByUuid.put(terrainUuid, spaceHandle);
-        terrainBodyHandlesByUuid.computeIfAbsent(terrainUuid, _ -> new LongArrayList())
-            .add(handle.value());
-        if (voxelTerrainBody) {
-            terrainVoxelBodyHandlesByUuid.put(terrainUuid, handle);
-        }
-        if (terrainRef != null) {
-            int rowIndex = terrainRef.getIndex();
-            terrainSpaceHandlesByRowIndex.put(rowIndex, spaceHandle);
-            terrainBodyHandlesByRowIndex.computeIfAbsent(rowIndex, _ -> new LongArrayList())
-                .add(handle.value());
-            if (voxelTerrainBody) {
-                terrainVoxelBodyHandlesByRowIndex.put(rowIndex, handle);
-            }
-        }
-        markRegistrationTopologyChanged();
-    }
-
-    public void putTerrainBodyHandle(@Nonnull Ref<PhysicsStore> terrainRef,
-        @Nonnull UUID terrainUuid,
-        @Nonnull BackendSpaceHandle spaceHandle,
-        @Nonnull BackendBodyHandle handle,
-        boolean voxelTerrainBody) {
-        putTerrainBodyHandle(terrainUuid, terrainRef, spaceHandle, handle, voxelTerrainBody);
-    }
-
-    public void markTerrainPayloadBound(@Nonnull UUID terrainUuid, @Nonnull String payloadKey) {
-        terrainPayloadKeysByUuid.put(terrainUuid, payloadKey);
-    }
-
-    public void markTerrainPayloadBound(@Nonnull Ref<PhysicsStore> terrainRef,
-        @Nonnull UUID terrainUuid,
-        @Nonnull String payloadKey) {
-        bindTerrainRef(terrainUuid, terrainRef);
-        terrainPayloadKeysByUuid.put(terrainUuid, payloadKey);
-        terrainPayloadKeysByRowIndex.put(terrainRef.getIndex(), payloadKey);
-    }
-
-    public boolean isTerrainPayloadBound(@Nonnull UUID terrainUuid, @Nonnull String payloadKey) {
-        return payloadKey.equals(terrainPayloadKeysByUuid.get(terrainUuid));
-    }
-
-    public boolean isTerrainPayloadBound(@Nonnull Ref<PhysicsStore> terrainRef,
-        @Nonnull String payloadKey) {
-        return payloadKey.equals(terrainPayloadKeysByRowIndex.get(terrainRef.getIndex()));
-    }
-
     public void markChunkCollisionPayloadBound(@Nonnull Ref<PhysicsStore> bodyRef,
         @Nonnull String payloadKey) {
         chunkCollisionPayloadKeysByRowIndex.put(bodyRef.getIndex(), payloadKey);
@@ -484,78 +396,6 @@ public final class PhysicsRuntimeResource implements Resource<PhysicsStore> {
 
     public void clearChunkCollisionPayloadBound(@Nonnull Ref<PhysicsStore> bodyRef) {
         chunkCollisionPayloadKeysByRowIndex.remove(bodyRef.getIndex());
-    }
-
-    public boolean hasTerrainBodyHandles(@Nonnull Ref<PhysicsStore> terrainRef) {
-        LongList bodyHandles = terrainBodyHandlesByRowIndex.get(terrainRef.getIndex());
-        return bodyHandles != null && !bodyHandles.isEmpty();
-    }
-
-    @Nullable
-    public BackendSpaceHandle getTerrainSpaceHandle(@Nonnull Ref<PhysicsStore> terrainRef) {
-        return terrainSpaceHandlesByRowIndex.get(terrainRef.getIndex());
-    }
-
-    @Nullable
-    public BackendBodyHandle getTerrainVoxelBodyHandle(@Nonnull Ref<PhysicsStore> terrainRef) {
-        return terrainVoxelBodyHandlesByRowIndex.get(terrainRef.getIndex());
-    }
-
-    public void forEachTerrainBodyHandle(@Nonnull Ref<PhysicsStore> terrainRef,
-        @Nonnull LongConsumer consumer) {
-        LongList bodyHandles = terrainBodyHandlesByRowIndex.get(terrainRef.getIndex());
-        if (bodyHandles == null) {
-            return;
-        }
-        bodyHandles.forEach(consumer);
-    }
-
-    public void removeTerrainHandles(@Nonnull UUID terrainUuid) {
-        boolean changed = false;
-        LongList bodyHandles = terrainBodyHandlesByUuid.remove(terrainUuid);
-        if (bodyHandles != null) {
-            bodyHandles.forEach(bodyHitMetadataByHandle::remove);
-            changed = true;
-        }
-        changed |= terrainVoxelBodyHandlesByUuid.remove(terrainUuid) != null;
-        changed |= terrainSpaceHandlesByUuid.remove(terrainUuid) != null;
-        changed |= terrainPayloadKeysByUuid.remove(terrainUuid) != null;
-        Ref<PhysicsStore> terrainRef = terrainRefsByUuid.remove(terrainUuid);
-        if (terrainRef != null) {
-            changed |= removeTerrainRefMaps(terrainRef);
-        }
-        if (changed) {
-            markRegistrationTopologyChanged();
-        }
-    }
-
-    public void removeTerrainHandles(@Nonnull UUID terrainUuid,
-        @Nonnull Ref<PhysicsStore> terrainRef) {
-        removeTerrainHandles(terrainUuid);
-        if (removeTerrainRefMaps(terrainRef)) {
-            markRegistrationTopologyChanged();
-        }
-    }
-
-    public void removeTerrainHandles(@Nonnull Ref<PhysicsStore> terrainRef,
-        @Nonnull UUID terrainUuid) {
-        removeTerrainHandles(terrainUuid, terrainRef);
-    }
-
-    @Nonnull
-    public List<Ref<PhysicsStore>> terrainRefsForSpaceHandle(
-        @Nonnull BackendSpaceHandle spaceHandle) {
-        List<Ref<PhysicsStore>> terrainRefs = new ArrayList<>();
-        int targetSpaceHandle = spaceHandle.value();
-        terrainSpaceHandlesByRowIndex.forEach((rowIndex, handle) -> {
-            if (handle.value() == targetSpaceHandle) {
-                Ref<PhysicsStore> terrainRef = terrainRefForRowIndex((int) rowIndex);
-                if (terrainRef != null) {
-                    terrainRefs.add(terrainRef);
-                }
-            }
-        });
-        return terrainRefs;
     }
 
     public void forEachRuntimeSpaceBinding(@Nonnull RuntimeSpaceBindingConsumer consumer) {
@@ -602,15 +442,6 @@ public final class PhysicsRuntimeResource implements Resource<PhysicsStore> {
         jointRefsByUuid.clear();
         jointHandlesByRowIndex.clear();
         jointSpaceHandlesByRowIndex.clear();
-        terrainBodyHandlesByUuid.clear();
-        terrainVoxelBodyHandlesByUuid.clear();
-        terrainSpaceHandlesByUuid.clear();
-        terrainPayloadKeysByUuid.clear();
-        terrainRefsByUuid.clear();
-        terrainBodyHandlesByRowIndex.clear();
-        terrainVoxelBodyHandlesByRowIndex.clear();
-        terrainSpaceHandlesByRowIndex.clear();
-        terrainPayloadKeysByRowIndex.clear();
         chunkCollisionPayloadKeysByRowIndex.clear();
         bodyHandlesBySpaceHandle.clear();
         bodyHitMetadataByHandle.clear();
@@ -660,22 +491,6 @@ public final class PhysicsRuntimeResource implements Resource<PhysicsStore> {
                 runtime.removeJoint(spaceHandle.value(), entry.getValue().value());
             } catch (RuntimeException exception) {
                 failure = appendShutdownFailure(failure, exception);
-            }
-        }
-        for (Map.Entry<UUID, LongList> entry
-            : new ArrayList<>(terrainBodyHandlesByUuid.entrySet())) {
-            BackendSpaceHandle spaceHandle = terrainSpaceHandlesByUuid.get(entry.getKey());
-            PhysicsBackendRuntime runtime = runtimeForSpaceHandle(spaceHandle);
-            if (spaceHandle == null || runtime == null) {
-                continue;
-            }
-            LongList bodyHandles = new LongArrayList(entry.getValue());
-            for (int index = 0; index < bodyHandles.size(); index++) {
-                try {
-                    runtime.removeBody(spaceHandle.value(), bodyHandles.getLong(index));
-                } catch (RuntimeException exception) {
-                    failure = appendShutdownFailure(failure, exception);
-                }
             }
         }
         for (Map.Entry<UUID, BackendBodyHandle> entry
@@ -756,18 +571,6 @@ public final class PhysicsRuntimeResource implements Resource<PhysicsStore> {
         copy.jointRefsByUuid.putAll(jointRefsByUuid);
         copy.jointHandlesByRowIndex.putAll(jointHandlesByRowIndex);
         copy.jointSpaceHandlesByRowIndex.putAll(jointSpaceHandlesByRowIndex);
-        terrainBodyHandlesByUuid.forEach((terrainUuid, bodyHandles) ->
-            copy.terrainBodyHandlesByUuid.put(terrainUuid, new LongArrayList(bodyHandles)));
-        copy.terrainVoxelBodyHandlesByUuid.putAll(terrainVoxelBodyHandlesByUuid);
-        copy.terrainSpaceHandlesByUuid.putAll(terrainSpaceHandlesByUuid);
-        copy.terrainPayloadKeysByUuid.putAll(terrainPayloadKeysByUuid);
-        copy.terrainRefsByUuid.putAll(terrainRefsByUuid);
-        terrainBodyHandlesByRowIndex.forEach((rowIndex, bodyHandles) ->
-            copy.terrainBodyHandlesByRowIndex.put((int) rowIndex,
-                new LongArrayList(bodyHandles)));
-        copy.terrainVoxelBodyHandlesByRowIndex.putAll(terrainVoxelBodyHandlesByRowIndex);
-        copy.terrainSpaceHandlesByRowIndex.putAll(terrainSpaceHandlesByRowIndex);
-        copy.terrainPayloadKeysByRowIndex.putAll(terrainPayloadKeysByRowIndex);
         copy.chunkCollisionPayloadKeysByRowIndex.putAll(chunkCollisionPayloadKeysByRowIndex);
         bodyHandlesBySpaceHandle.forEach((spaceHandle, bodyHandles) ->
             copy.bodyHandlesBySpaceHandle.put((int) spaceHandle, new LongArrayList(bodyHandles)));
@@ -917,52 +720,6 @@ public final class PhysicsRuntimeResource implements Resource<PhysicsStore> {
         registrationTopologyGeneration++;
     }
 
-    private void removeTerrainHandlesForSpace(@Nonnull BackendSpaceHandle spaceHandle) {
-        boolean removedAny = terrainSpaceHandlesByUuid.entrySet().removeIf(entry -> {
-            if (entry.getValue().value() != spaceHandle.value()) {
-                return false;
-            }
-            UUID terrainUuid = entry.getKey();
-            LongList bodyHandles = terrainBodyHandlesByUuid.get(terrainUuid);
-            if (bodyHandles != null) {
-                bodyHandles.forEach(bodyHitMetadataByHandle::remove);
-            }
-            terrainBodyHandlesByUuid.remove(terrainUuid);
-            terrainVoxelBodyHandlesByUuid.remove(terrainUuid);
-            terrainPayloadKeysByUuid.remove(terrainUuid);
-            Ref<PhysicsStore> terrainRef = terrainRefsByUuid.remove(terrainUuid);
-            if (terrainRef != null) {
-                removeTerrainRefMaps(terrainRef);
-            }
-            return true;
-        });
-        if (removedAny) {
-            markRegistrationTopologyChanged();
-        }
-    }
-
-    private void bindTerrainRef(@Nonnull UUID terrainUuid,
-        @Nullable Ref<PhysicsStore> terrainRef) {
-        if (terrainRef == null) {
-            return;
-        }
-        Ref<PhysicsStore> previousRef = terrainRefsByUuid.put(terrainUuid, terrainRef);
-        if (previousRef != null && !sameRef(previousRef, terrainRef)) {
-            if (removeTerrainRefMaps(previousRef)) {
-                markRegistrationTopologyChanged();
-            }
-        }
-    }
-
-    private boolean removeTerrainRefMaps(@Nonnull Ref<PhysicsStore> terrainRef) {
-        int rowIndex = terrainRef.getIndex();
-        boolean changed = terrainBodyHandlesByRowIndex.remove(rowIndex) != null;
-        changed |= terrainVoxelBodyHandlesByRowIndex.remove(rowIndex) != null;
-        changed |= terrainSpaceHandlesByRowIndex.remove(rowIndex) != null;
-        changed |= terrainPayloadKeysByRowIndex.remove(rowIndex) != null;
-        return changed;
-    }
-
     @Nullable
     private Ref<PhysicsStore> jointRefForRowIndex(int rowIndex) {
         for (Ref<PhysicsStore> jointRef : jointRefsByUuid.values()) {
@@ -973,20 +730,4 @@ public final class PhysicsRuntimeResource implements Resource<PhysicsStore> {
         return null;
     }
 
-    @Nullable
-    private Ref<PhysicsStore> terrainRefForRowIndex(int rowIndex) {
-        for (Ref<PhysicsStore> terrainRef : terrainRefsByUuid.values()) {
-            if (terrainRef.getIndex() == rowIndex) {
-                return terrainRef;
-            }
-        }
-        return null;
-    }
-
-    private static boolean sameRef(@Nonnull Ref<PhysicsStore> first,
-        @Nonnull Ref<PhysicsStore> second) {
-        return first == second
-            || (first.getStore() == second.getStore()
-                && first.getIndex() == second.getIndex());
-    }
 }

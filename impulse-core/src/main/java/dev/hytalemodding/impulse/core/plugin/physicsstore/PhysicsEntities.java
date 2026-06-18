@@ -17,7 +17,6 @@ import dev.hytalemodding.impulse.core.plugin.components.ShapeComponent;
 import dev.hytalemodding.impulse.core.plugin.components.SolverSettingsComponent;
 import dev.hytalemodding.impulse.core.plugin.components.SpaceComponent;
 import dev.hytalemodding.impulse.core.plugin.components.TargetComponent;
-import dev.hytalemodding.impulse.core.plugin.components.TerrainColliderComponent;
 import dev.hytalemodding.impulse.core.plugin.components.UuidComponent;
 import dev.hytalemodding.impulse.core.plugin.components.VisualMaterializationSettingsComponent;
 import dev.hytalemodding.impulse.core.plugin.components.VisualSyncSettingsComponent;
@@ -121,16 +120,6 @@ public final class PhysicsEntities {
         Holder<PhysicsStore> holder = entityHolder(store, jointUuid);
         holder.addComponent(JointComponent.getComponentType(),
             Objects.requireNonNull(joint, "joint").clone());
-        return holder;
-    }
-
-    @Nonnull
-    public static Holder<PhysicsStore> terrainColliderHolder(@Nonnull Store<PhysicsStore> store,
-        @Nonnull UUID terrainColliderUuid,
-        @Nonnull TerrainColliderComponent terrainCollider) {
-        Holder<PhysicsStore> holder = entityHolder(store, terrainColliderUuid);
-        holder.addComponent(TerrainColliderComponent.getComponentType(),
-            Objects.requireNonNull(terrainCollider, "terrainCollider").clone());
         return holder;
     }
 
@@ -303,15 +292,4 @@ public final class PhysicsEntities {
                 Objects.requireNonNull(joint, "joint").clone());
     }
 
-    public static void putTerrainColliderComponent(@Nonnull Store<PhysicsStore> store,
-        @Nonnull Ref<PhysicsStore> ref,
-        @Nonnull TerrainColliderComponent terrainCollider) {
-        Store<PhysicsStore> checkedStore = Objects.requireNonNull(store, "store");
-        PhysicsThreading.requireWorldThread(checkedStore,
-            "put PhysicsStore terrain collider component");
-        checkedStore
-            .putComponent(Objects.requireNonNull(ref, "ref"),
-                TerrainColliderComponent.getComponentType(),
-                Objects.requireNonNull(terrainCollider, "terrainCollider").clone());
-    }
 }

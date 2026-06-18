@@ -15,7 +15,6 @@ import dev.hytalemodding.impulse.core.plugin.components.ShapeComponent;
 import dev.hytalemodding.impulse.core.plugin.components.SolverSettingsComponent;
 import dev.hytalemodding.impulse.core.plugin.components.SpaceComponent;
 import dev.hytalemodding.impulse.core.plugin.components.TargetComponent;
-import dev.hytalemodding.impulse.core.plugin.components.TerrainColliderComponent;
 import dev.hytalemodding.impulse.core.plugin.components.UuidComponent;
 import dev.hytalemodding.impulse.core.plugin.components.VisualMaterializationSettingsComponent;
 import dev.hytalemodding.impulse.core.plugin.components.VisualSyncSettingsComponent;
@@ -38,8 +37,6 @@ public final class PhysicsComponentTypeRegistry {
     private static ComponentType<PhysicsStore, BodyComponent> bodyComponentType;
     @Nullable
     private static ComponentType<PhysicsStore, BodyCommandComponent> bodyCommandComponentType;
-    @Nullable
-    private static ComponentType<PhysicsStore, TerrainColliderComponent> terrainColliderComponentType;
     @Nullable
     private static ComponentType<PhysicsStore, ChunkCollisionSourceComponent> chunkCollisionSourceComponentType;
     @Nullable
@@ -91,10 +88,6 @@ public final class PhysicsComponentTypeRegistry {
             BodyCommandComponent.class,
             "BodyCommand",
             BodyCommandComponent.CODEC);
-        terrainColliderComponentType = registry.registerComponent(
-            TerrainColliderComponent.class,
-            "TerrainCollider",
-            TerrainColliderComponent.CODEC);
         chunkCollisionSourceComponentType = registry.registerComponent(
             ChunkCollisionSourceComponent.class,
             "ChunkCollisionSource",
@@ -171,12 +164,6 @@ public final class PhysicsComponentTypeRegistry {
     @Nonnull
     public static ComponentType<PhysicsStore, BodyCommandComponent> bodyCommandComponentType() {
         return bodyCommandComponentType;
-    }
-
-    @Nonnull
-    public static ComponentType<PhysicsStore, TerrainColliderComponent>
-    terrainColliderComponentType() {
-        return terrainColliderComponentType;
     }
 
     @Nonnull

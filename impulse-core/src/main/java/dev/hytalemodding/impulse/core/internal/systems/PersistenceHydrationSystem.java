@@ -18,7 +18,6 @@ import dev.hytalemodding.impulse.core.internal.persistence.PersistentPhysicsStor
 import dev.hytalemodding.impulse.core.internal.persistence.PersistentPhysicsStoreResource;
 import dev.hytalemodding.impulse.core.internal.persistence.PersistentShapeDto;
 import dev.hytalemodding.impulse.core.internal.persistence.PersistentSpaceDto;
-import dev.hytalemodding.impulse.core.internal.persistence.PersistentTerrainColliderDto;
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsRestoreStatusResource;
 import dev.hytalemodding.impulse.core.plugin.physicsstore.PhysicsEntities;
 import dev.hytalemodding.impulse.core.plugin.components.BodyComponent;
@@ -33,7 +32,6 @@ import dev.hytalemodding.impulse.core.plugin.components.ShapeComponent;
 import dev.hytalemodding.impulse.core.plugin.components.SolverSettingsComponent;
 import dev.hytalemodding.impulse.core.plugin.components.SpaceComponent;
 import dev.hytalemodding.impulse.core.plugin.components.TargetComponent;
-import dev.hytalemodding.impulse.core.plugin.components.TerrainColliderComponent;
 import dev.hytalemodding.impulse.core.plugin.components.UuidComponent;
 import dev.hytalemodding.impulse.core.plugin.components.VisualMaterializationSettingsComponent;
 import dev.hytalemodding.impulse.core.plugin.components.VisualSyncSettingsComponent;
@@ -78,9 +76,6 @@ public final class PersistenceHydrationSystem extends TickingSystem<PhysicsStore
         addBodies(store, persistent);
         for (PersistentJointDto dto : persistent.getJoints()) {
             addJoint(store, dto);
-        }
-        for (PersistentTerrainColliderDto dto : persistent.getTerrainColliders()) {
-            addTerrainCollider(store, dto);
         }
     }
 
@@ -235,20 +230,6 @@ public final class PersistenceHydrationSystem extends TickingSystem<PhysicsStore
         joint.setSpringStiffness(dto.getSpringStiffness());
         joint.setSpringDamping(dto.getSpringDamping());
         holder.addComponent(JointComponent.getComponentType(), joint);
-        add(store, holder);
-    }
-
-    private static void addTerrainCollider(@Nonnull Store<PhysicsStore> store,
-        @Nonnull PersistentTerrainColliderDto dto) {
-        Holder<PhysicsStore> holder = row(store, dto.getTerrainColliderUuid());
-        holder.addComponent(TerrainColliderComponent.getComponentType(),
-            new TerrainColliderComponent(dto.getSpaceUuid(),
-                dto.getSourceKey(),
-                dto.getChunkX(),
-                dto.getSectionY(),
-                dto.getChunkZ(),
-                dto.getPayloadResourceKey(),
-                dto.isRetained()));
         add(store, holder);
     }
 

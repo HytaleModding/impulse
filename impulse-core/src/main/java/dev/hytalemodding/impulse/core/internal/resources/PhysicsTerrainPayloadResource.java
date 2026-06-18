@@ -10,7 +10,7 @@ import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
 /**
- * Runtime-only copied terrain payloads keyed by TerrainColliderComponent payload keys.
+ * Runtime-only copied PhysicsChunk collision payloads keyed by ChunkCollisionSourceComponent payload keys.
  */
 public final class PhysicsTerrainPayloadResource implements Resource<PhysicsStore> {
 
