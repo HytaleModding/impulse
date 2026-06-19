@@ -356,9 +356,17 @@ public final class FakePhysicsBackendRuntimeProvider implements PhysicsBackendRu
             requireBody(requireSpace(spaceId), bodyId).friction = friction;
         }
 
+        public float bodyFriction(int spaceId, long bodyId) {
+            return requireBody(requireSpace(spaceId), bodyId).friction;
+        }
+
         @Override
         public void setBodyRestitution(int spaceId, long bodyId, float restitution) {
             requireBody(requireSpace(spaceId), bodyId).restitution = restitution;
+        }
+
+        public float bodyRestitution(int spaceId, long bodyId) {
+            return requireBody(requireSpace(spaceId), bodyId).restitution;
         }
 
         @Override
