@@ -75,6 +75,9 @@ public final class PhysicsRuntimeResource implements Resource<PhysicsStore> {
     private final Int2ObjectOpenHashMap<BackendSpaceHandle> bodySpaceHandlesByRowIndex =
         new Int2ObjectOpenHashMap<>();
     @Nonnull
+    private final Int2ObjectOpenHashMap<BackendId> backendIdsByBodyRowIndex =
+        new Int2ObjectOpenHashMap<>();
+    @Nonnull
     private final Map<UUID, BackendJointHandle> jointHandlesByUuid =
         new Object2ObjectOpenHashMap<>();
     @Nonnull
@@ -91,6 +94,9 @@ public final class PhysicsRuntimeResource implements Resource<PhysicsStore> {
         new Int2ObjectOpenHashMap<>();
     @Nonnull
     private final Int2ObjectOpenHashMap<Ref<PhysicsStore>> jointRefsByRowIndex =
+        new Int2ObjectOpenHashMap<>();
+    @Nonnull
+    private final Int2ObjectOpenHashMap<BackendId> backendIdsByJointRowIndex =
         new Int2ObjectOpenHashMap<>();
     @Nonnull
     private final Int2ObjectOpenHashMap<String> chunkCollisionPayloadKeysByRowIndex =
@@ -187,6 +193,7 @@ public final class PhysicsRuntimeResource implements Resource<PhysicsStore> {
                         bodyRefsByRowIndex.remove(rowIndex);
                         bodyHandlesByRowIndex.remove(rowIndex);
                         bodySpaceHandlesByRowIndex.remove(rowIndex);
+                        backendIdsByBodyRowIndex.remove(rowIndex);
                         chunkCollisionPayloadKeysByRowIndex.remove(rowIndex);
                     }
                 });
@@ -203,9 +210,15 @@ public final class PhysicsRuntimeResource implements Resource<PhysicsStore> {
         bodyHandlesByUuid.put(bodyUuid, handle);
         bodySpaceHandlesByUuid.put(bodyUuid, spaceHandle);
         int rowIndex = bodyRef.getIndex();
+        BackendId backendId = backendIdsBySpaceUuid.get(spaceUuid);
         bodyRefsByRowIndex.put(rowIndex, bodyRef);
         bodyHandlesByRowIndex.put(rowIndex, handle);
         bodySpaceHandlesByRowIndex.put(rowIndex, spaceHandle);
+        if (backendId != null) {
+            backendIdsByBodyRowIndex.put(rowIndex, backendId);
+        } else {
+            backendIdsByBodyRowIndex.remove(rowIndex);
+        }
         bodyHandlesBySpaceHandle.computeIfAbsent(spaceHandle.value(), _ -> new LongArrayList())
             .add(handle.value());
         bodySnapshotMetadataByHandle.put(handle.value(),
@@ -231,6 +244,7 @@ public final class PhysicsRuntimeResource implements Resource<PhysicsStore> {
         bodyRefsByRowIndex.remove(rowIndex);
         BackendBodyHandle removedByRef = bodyHandlesByRowIndex.remove(rowIndex);
         BackendSpaceHandle spaceHandleByRef = bodySpaceHandlesByRowIndex.remove(rowIndex);
+        backendIdsByBodyRowIndex.remove(rowIndex);
         chunkCollisionPayloadKeysByRowIndex.remove(rowIndex);
         removeBodyHandleIndexes(removed != null ? removed : removedByRef,
             spaceHandle != null ? spaceHandle : spaceHandleByRef);
@@ -337,6 +351,7 @@ public final class PhysicsRuntimeResource implements Resource<PhysicsStore> {
 
     private void putJointHandle(@Nonnull UUID jointUuid,
         @Nonnull Ref<PhysicsStore> jointRef,
+        @Nonnull BackendId backendId,
         @Nonnull BackendSpaceHandle spaceHandle,
         @Nonnull BackendJointHandle handle) {
         Ref<PhysicsStore> checkedJointRef = Objects.requireNonNull(jointRef, "jointRef");
@@ -346,6 +361,7 @@ public final class PhysicsRuntimeResource implements Resource<PhysicsStore> {
             jointHandlesByRowIndex.remove(previousRowIndex);
             jointSpaceHandlesByRowIndex.remove(previousRowIndex);
             jointRefsByRowIndex.remove(previousRowIndex);
+            backendIdsByJointRowIndex.remove(previousRowIndex);
         }
         int rowIndex = checkedJointRef.getIndex();
         jointHandlesByUuid.put(jointUuid, handle);
@@ -354,13 +370,15 @@ public final class PhysicsRuntimeResource implements Resource<PhysicsStore> {
         jointHandlesByRowIndex.put(rowIndex, handle);
         jointSpaceHandlesByRowIndex.put(rowIndex, spaceHandle);
         jointRefsByRowIndex.put(rowIndex, checkedJointRef);
+        backendIdsByJointRowIndex.put(rowIndex, backendId);
     }
 
     public void putJointHandle(@Nonnull Ref<PhysicsStore> jointRef,
         @Nonnull UUID jointUuid,
+        @Nonnull BackendId backendId,
         @Nonnull BackendSpaceHandle spaceHandle,
         @Nonnull BackendJointHandle handle) {
-        putJointHandle(jointUuid, jointRef, spaceHandle, handle);
+        putJointHandle(jointUuid, jointRef, backendId, spaceHandle, handle);
     }
 
     @Nullable
@@ -382,6 +400,7 @@ public final class PhysicsRuntimeResource implements Resource<PhysicsStore> {
             jointHandlesByRowIndex.remove(rowIndex);
             jointSpaceHandlesByRowIndex.remove(rowIndex);
             jointRefsByRowIndex.remove(rowIndex);
+            backendIdsByJointRowIndex.remove(rowIndex);
         }
     }
 
@@ -392,6 +411,7 @@ public final class PhysicsRuntimeResource implements Resource<PhysicsStore> {
         jointHandlesByRowIndex.remove(rowIndex);
         jointSpaceHandlesByRowIndex.remove(rowIndex);
         jointRefsByRowIndex.remove(rowIndex);
+        backendIdsByJointRowIndex.remove(rowIndex);
     }
 
     @Nonnull
@@ -465,12 +485,14 @@ public final class PhysicsRuntimeResource implements Resource<PhysicsStore> {
         bodyRefsByRowIndex.clear();
         bodyHandlesByRowIndex.clear();
         bodySpaceHandlesByRowIndex.clear();
+        backendIdsByBodyRowIndex.clear();
         jointHandlesByUuid.clear();
         jointSpaceHandlesByUuid.clear();
         jointRefsByUuid.clear();
         jointHandlesByRowIndex.clear();
         jointSpaceHandlesByRowIndex.clear();
         jointRefsByRowIndex.clear();
+        backendIdsByJointRowIndex.clear();
         chunkCollisionPayloadKeysByRowIndex.clear();
         bodyHandlesBySpaceHandle.clear();
         bodyHitMetadataByHandle.clear();
@@ -504,6 +526,7 @@ public final class PhysicsRuntimeResource implements Resource<PhysicsStore> {
             bodyRefsByRowIndex.remove(rowIndex);
             bodyHandlesByRowIndex.remove(rowIndex);
             bodySpaceHandlesByRowIndex.remove(rowIndex);
+            backendIdsByBodyRowIndex.remove(rowIndex);
         }
     }
 
@@ -512,7 +535,10 @@ public final class PhysicsRuntimeResource implements Resource<PhysicsStore> {
         for (Map.Entry<UUID, BackendJointHandle> entry
             : new ArrayList<>(jointHandlesByUuid.entrySet())) {
             BackendSpaceHandle spaceHandle = jointSpaceHandlesByUuid.get(entry.getKey());
-            PhysicsBackendRuntime runtime = runtimeForSpaceHandle(spaceHandle);
+            Ref<PhysicsStore> jointRef = jointRefsByUuid.get(entry.getKey());
+            PhysicsBackendRuntime runtime = jointRef != null
+                ? runtimeForJointRef(jointRef)
+                : runtimeForSpaceHandle(spaceHandle);
             if (spaceHandle == null || runtime == null) {
                 continue;
             }
@@ -525,7 +551,11 @@ public final class PhysicsRuntimeResource implements Resource<PhysicsStore> {
         for (Map.Entry<UUID, BackendBodyHandle> entry
             : new ArrayList<>(bodyHandlesByUuid.entrySet())) {
             BackendSpaceHandle spaceHandle = bodySpaceHandlesByUuid.get(entry.getKey());
-            PhysicsBackendRuntime runtime = runtimeForSpaceHandle(spaceHandle);
+            BodySnapshotMetadata metadata = bodySnapshotMetadataByHandle.get(entry.getValue()
+                .value());
+            PhysicsBackendRuntime runtime = metadata != null
+                ? runtimeForBodyRef(metadata.bodyRef())
+                : runtimeForSpaceHandle(spaceHandle);
             if (spaceHandle == null || runtime == null) {
                 continue;
             }
@@ -560,6 +590,29 @@ public final class PhysicsRuntimeResource implements Resource<PhysicsStore> {
             return null;
         }
         BackendId backendId = unambiguousBackendIdsBySpaceHandle.get(target.value());
+        return backendId != null ? runtimesByBackend.get(backendId) : null;
+    }
+
+    @Nullable
+    public PhysicsBackendRuntime runtimeForSpaceRef(@Nonnull Ref<PhysicsStore> spaceRef) {
+        return runtimeForBackendId(backendIdsBySpaceRowIndex.get(
+            Objects.requireNonNull(spaceRef, "spaceRef").getIndex()));
+    }
+
+    @Nullable
+    public PhysicsBackendRuntime runtimeForBodyRef(@Nonnull Ref<PhysicsStore> bodyRef) {
+        return runtimeForBackendId(backendIdsByBodyRowIndex.get(
+            Objects.requireNonNull(bodyRef, "bodyRef").getIndex()));
+    }
+
+    @Nullable
+    public PhysicsBackendRuntime runtimeForJointRef(@Nonnull Ref<PhysicsStore> jointRef) {
+        return runtimeForBackendId(backendIdsByJointRowIndex.get(
+            Objects.requireNonNull(jointRef, "jointRef").getIndex()));
+    }
+
+    @Nullable
+    private PhysicsBackendRuntime runtimeForBackendId(@Nullable BackendId backendId) {
         return backendId != null ? runtimesByBackend.get(backendId) : null;
     }
 
@@ -647,12 +700,14 @@ public final class PhysicsRuntimeResource implements Resource<PhysicsStore> {
         copy.bodyRefsByRowIndex.putAll(bodyRefsByRowIndex);
         copy.bodyHandlesByRowIndex.putAll(bodyHandlesByRowIndex);
         copy.bodySpaceHandlesByRowIndex.putAll(bodySpaceHandlesByRowIndex);
+        copy.backendIdsByBodyRowIndex.putAll(backendIdsByBodyRowIndex);
         copy.jointHandlesByUuid.putAll(jointHandlesByUuid);
         copy.jointSpaceHandlesByUuid.putAll(jointSpaceHandlesByUuid);
         copy.jointRefsByUuid.putAll(jointRefsByUuid);
         copy.jointHandlesByRowIndex.putAll(jointHandlesByRowIndex);
         copy.jointSpaceHandlesByRowIndex.putAll(jointSpaceHandlesByRowIndex);
         copy.jointRefsByRowIndex.putAll(jointRefsByRowIndex);
+        copy.backendIdsByJointRowIndex.putAll(backendIdsByJointRowIndex);
         copy.chunkCollisionPayloadKeysByRowIndex.putAll(chunkCollisionPayloadKeysByRowIndex);
         bodyHandlesBySpaceHandle.forEach((spaceHandle, bodyHandles) ->
             copy.bodyHandlesBySpaceHandle.put((int) spaceHandle, new LongArrayList(bodyHandles)));

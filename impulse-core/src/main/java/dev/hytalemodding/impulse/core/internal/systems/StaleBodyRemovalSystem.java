@@ -104,7 +104,7 @@ public final class StaleBodyRemovalSystem extends TickingSystem<PhysicsStore> {
             BackendJointHandle jointHandle = runtime.getJointHandle(joint.ref());
             if (jointHandle != null) {
                 BackendSpaceHandle spaceHandle = runtime.getJointSpaceHandle(joint.ref());
-                PhysicsBackendRuntime backendRuntime = runtime.runtimeForSpaceHandle(spaceHandle);
+                PhysicsBackendRuntime backendRuntime = runtime.runtimeForJointRef(joint.ref());
                 if (spaceHandle != null && backendRuntime != null) {
                     try {
                         backendRuntime.removeJoint(spaceHandle.value(), jointHandle.value());

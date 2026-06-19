@@ -141,8 +141,8 @@ public final class ChunkCollisionMutationDrainSystem extends TickingSystem<Physi
         Ref<PhysicsStore> spaceRef = PhysicsStoreSystemSupport.refForUuid(identity,
             mutation.spaceUuid());
         BackendSpaceHandle spaceHandle = spaceRef != null ? runtime.getSpaceHandle(spaceRef) : null;
-        PhysicsBackendRuntime backendRuntime = spaceHandle != null
-            ? runtime.runtimeForSpaceHandle(spaceHandle)
+        PhysicsBackendRuntime backendRuntime = spaceRef != null
+            ? runtime.runtimeForSpaceRef(spaceRef)
             : null;
         if (spaceRef == null || spaceHandle == null || backendRuntime == null) {
             restore.recordSoftSkip("Chunk collision references unbound space: "
@@ -385,7 +385,7 @@ public final class ChunkCollisionMutationDrainSystem extends TickingSystem<Physi
         BackendBodyHandle bodyHandle = runtime.getBodyHandle(row.ref());
         BackendSpaceHandle spaceHandle = runtime.getBodySpaceHandle(row.ref());
         if (bodyHandle != null && spaceHandle != null) {
-            PhysicsBackendRuntime backendRuntime = runtime.runtimeForSpaceHandle(spaceHandle);
+            PhysicsBackendRuntime backendRuntime = runtime.runtimeForBodyRef(row.ref());
             if (backendRuntime != null) {
                 backendRuntime.removeBody(spaceHandle.value(), bodyHandle.value());
             }

@@ -136,7 +136,7 @@ public final class JointBindingSystem extends TickingSystem<PhysicsStore>
                 joint.getMotorTargetVelocity(),
                 joint.getMotorMaxForce());
             BackendJointHandle handle = new BackendJointHandle(jointId);
-            runtime.putJointHandle(jointRef, jointUuid, spaceHandle, handle);
+            runtime.putJointHandle(jointRef, jointUuid, backendId, spaceHandle, handle);
             identity.putJointHandle(handle, jointRef);
         } catch (RuntimeException exception) {
             if (jointId != Long.MIN_VALUE) {
@@ -210,7 +210,7 @@ public final class JointBindingSystem extends TickingSystem<PhysicsStore>
             return;
         }
         BackendSpaceHandle spaceHandle = runtime.getJointSpaceHandle(jointRef);
-        PhysicsBackendRuntime backendRuntime = runtime.runtimeForSpaceHandle(spaceHandle);
+        PhysicsBackendRuntime backendRuntime = runtime.runtimeForJointRef(jointRef);
         if (spaceHandle != null && backendRuntime != null) {
             backendRuntime.removeJoint(spaceHandle.value(), handle.value());
         }

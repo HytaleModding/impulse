@@ -59,7 +59,7 @@ public final class TargetBindingSystem extends TickingSystem<PhysicsStore>
             if (bodyHandle == null || spaceHandle == null) {
                 continue;
             }
-            PhysicsBackendRuntime backendRuntime = runtimeForSpace(runtime, spaceHandle);
+            PhysicsBackendRuntime backendRuntime = runtime.runtimeForBodyRef(ref);
             if (backendRuntime == null) {
                 continue;
             }
@@ -108,7 +108,7 @@ public final class TargetBindingSystem extends TickingSystem<PhysicsStore>
                     + operation.bodyUuid());
                 continue;
             }
-            PhysicsBackendRuntime backendRuntime = runtimeForSpace(runtime, spaceHandle);
+            PhysicsBackendRuntime backendRuntime = runtime.runtimeForBodyRef(operation.bodyRef());
             if (backendRuntime == null) {
                 restore.recordSoftSkip("Pending body operation backend runtime is missing: "
                     + operation.bodyUuid());
@@ -161,11 +161,6 @@ public final class TargetBindingSystem extends TickingSystem<PhysicsStore>
             operation.offsetZ(),
             torque);
         backendRuntime.activateBody(spaceId, bodyId);
-    }
-
-    private static PhysicsBackendRuntime runtimeForSpace(@Nonnull PhysicsRuntimeResource runtime,
-        @Nonnull BackendSpaceHandle spaceHandle) {
-        return runtime.runtimeForSpaceHandle(spaceHandle);
     }
 
     @Nonnull

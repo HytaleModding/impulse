@@ -101,7 +101,7 @@ public final class ChunkCollisionVoxelStitchingSystem extends TickingSystem<Phys
         if (bodyHandle == null || spaceHandle == null) {
             return;
         }
-        PhysicsBackendRuntime backendRuntime = runtime.runtimeForSpaceHandle(spaceHandle);
+        PhysicsBackendRuntime backendRuntime = runtime.runtimeForBodyRef(bodyRef);
         if (backendRuntime == null) {
             restore.recordSoftSkip("Voxel terrain backend runtime is missing: "
                 + source.getSourceKey());

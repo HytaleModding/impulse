@@ -135,7 +135,7 @@ public final class PhysicsStoreTopologyMutations {
             runtime.removeJointHandle(removal.rowUuid(), removal.ref());
             return false;
         }
-        PhysicsBackendRuntime backendRuntime = runtime.runtimeForSpaceHandle(spaceHandle);
+        PhysicsBackendRuntime backendRuntime = runtime.runtimeForJointRef(removal.ref());
         if (spaceHandle != null && backendRuntime != null) {
             backendRuntime.removeJoint(spaceHandle.value(), jointHandle.value());
         }
@@ -153,7 +153,7 @@ public final class PhysicsStoreTopologyMutations {
             runtime.removeBodyHandle(removal.rowUuid(), removal.ref());
             return false;
         }
-        PhysicsBackendRuntime backendRuntime = runtime.runtimeForSpaceHandle(spaceHandle);
+        PhysicsBackendRuntime backendRuntime = runtime.runtimeForBodyRef(removal.ref());
         if (spaceHandle != null && backendRuntime != null) {
             backendRuntime.removeBody(spaceHandle.value(), bodyHandle.value());
         }

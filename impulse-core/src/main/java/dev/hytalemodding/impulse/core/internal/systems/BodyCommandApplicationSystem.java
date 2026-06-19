@@ -221,17 +221,12 @@ public final class BodyCommandApplicationSystem extends TickingSystem<PhysicsSto
             }
             return null;
         }
-        PhysicsBackendRuntime backendRuntime = runtimeForSpace(runtime, spaceHandle);
+        PhysicsBackendRuntime backendRuntime = runtime.runtimeForBodyRef(ref);
         if (backendRuntime == null) {
             restore.recordSoftSkip("Body command backend runtime is missing: " + bodyUuid);
             return null;
         }
         return new RuntimeBodyBinding(spaceHandle, bodyHandle, backendRuntime);
-    }
-
-    private static PhysicsBackendRuntime runtimeForSpace(@Nonnull PhysicsRuntimeResource runtime,
-        @Nonnull BackendSpaceHandle spaceHandle) {
-        return runtime.runtimeForSpaceHandle(spaceHandle);
     }
 
     private static void updateBodyHitMetadata(@Nonnull PhysicsRuntimeResource runtime,
