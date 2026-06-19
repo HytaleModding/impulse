@@ -26,12 +26,16 @@ import dev.hytalemodding.impulse.api.testsupport.FakePhysicsBackendRuntimeProvid
 import dev.hytalemodding.impulse.core.internal.modules.physicschunk.ChunkCollisionMutation;
 import dev.hytalemodding.impulse.core.internal.modules.physicschunk.ChunkCollisionPayload;
 import dev.hytalemodding.impulse.core.internal.modules.physicschunk.ChunkCollisionPayload.BoxPayload;
+import dev.hytalemodding.impulse.core.internal.modules.physicschunk.PhysicsChunkLifecycle;
 import dev.hytalemodding.impulse.core.internal.modules.physicschunk.PhysicsChunkCollisionDefaults;
+import dev.hytalemodding.impulse.core.internal.modules.physicschunk.PhysicsChunkStoreTypes;
 import dev.hytalemodding.impulse.core.internal.physicsstore.PhysicsStoreTopologyMutations;
 import dev.hytalemodding.impulse.core.internal.registration.PhysicsComponentTypeRegistry;
 import dev.hytalemodding.impulse.core.internal.resources.BackendSpaceHandle;
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsChunkCollisionMutationQueueResource;
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsChunkCollisionPayloadResource;
+import dev.hytalemodding.impulse.core.internal.resources.PhysicsChunkSettingsIndexResource;
+import dev.hytalemodding.impulse.core.internal.resources.PhysicsChunkSettingsIndexResource.PhysicsChunkSpaceSettings;
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsIdentityIndexResource;
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsResourceTypes;
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsRestoreStatusResource;
@@ -49,11 +53,14 @@ import dev.hytalemodding.impulse.core.plugin.components.TargetComponent;
 import dev.hytalemodding.impulse.core.plugin.components.UuidComponent;
 import dev.hytalemodding.impulse.core.internal.modules.physicschunk.components.ChunkCollisionSourceComponent;
 import dev.hytalemodding.impulse.core.internal.modules.physicschunk.components.ChunkCollisionSourceComponent.PartKind;
+import dev.hytalemodding.impulse.core.plugin.modules.physicschunk.PhysicsChunkCollisionMode;
+import dev.hytalemodding.impulse.core.plugin.settings.EntityChunkBoundaryMode;
 import dev.hytalemodding.impulse.core.plugin.physicsstore.PhysicsEntities;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
@@ -69,8 +76,7 @@ class ChunkCollisionMutationDrainSystemTest {
         ComponentRegistry<PhysicsStore> registry = new ComponentRegistry<>();
         ComponentRegistryProxy<PhysicsStore> proxy =
             new ComponentRegistryProxy<>(new ArrayList<>(), registry);
-        PhysicsComponentTypeRegistry.registerComponentTypes(proxy);
-        PhysicsResourceTypes.registerResourceTypes(proxy);
+        registerTypes(proxy);
         Store<PhysicsStore> store = registry.addStore(
             new PhysicsStore(TestInstanceFactory.world("chunk-collision-drain-row-test")),
             EmptyResourceStorage.get());
@@ -135,8 +141,7 @@ class ChunkCollisionMutationDrainSystemTest {
         ComponentRegistry<PhysicsStore> registry = new ComponentRegistry<>();
         ComponentRegistryProxy<PhysicsStore> proxy =
             new ComponentRegistryProxy<>(new ArrayList<>(), registry);
-        PhysicsComponentTypeRegistry.registerComponentTypes(proxy);
-        PhysicsResourceTypes.registerResourceTypes(proxy);
+        registerTypes(proxy);
         Store<PhysicsStore> store = registry.addStore(
             new PhysicsStore(TestInstanceFactory.world("chunk-collision-drain-voxel-test")),
             EmptyResourceStorage.get());
@@ -188,8 +193,7 @@ class ChunkCollisionMutationDrainSystemTest {
         ComponentRegistry<PhysicsStore> registry = new ComponentRegistry<>();
         ComponentRegistryProxy<PhysicsStore> proxy =
             new ComponentRegistryProxy<>(new ArrayList<>(), registry);
-        PhysicsComponentTypeRegistry.registerComponentTypes(proxy);
-        PhysicsResourceTypes.registerResourceTypes(proxy);
+        registerTypes(proxy);
         Store<PhysicsStore> store = registry.addStore(
             new PhysicsStore(TestInstanceFactory.world("chunk-collision-drain-payload-lifetime-test")),
             EmptyResourceStorage.get());
@@ -256,8 +260,7 @@ class ChunkCollisionMutationDrainSystemTest {
         ComponentRegistry<PhysicsStore> registry = new ComponentRegistry<>();
         ComponentRegistryProxy<PhysicsStore> proxy =
             new ComponentRegistryProxy<>(new ArrayList<>(), registry);
-        PhysicsComponentTypeRegistry.registerComponentTypes(proxy);
-        PhysicsResourceTypes.registerResourceTypes(proxy);
+        registerTypes(proxy);
         Store<PhysicsStore> store = registry.addStore(
             new PhysicsStore(TestInstanceFactory.world("chunk-collision-drain-remove-test")),
             EmptyResourceStorage.get());
@@ -317,12 +320,130 @@ class ChunkCollisionMutationDrainSystemTest {
     }
 
     @Test
+    void staleLifecycleUpsertDoesNotCreateGeneratedRows() {
+        ComponentRegistry<PhysicsStore> registry = new ComponentRegistry<>();
+        ComponentRegistryProxy<PhysicsStore> proxy =
+            new ComponentRegistryProxy<>(new ArrayList<>(), registry);
+        registerTypes(proxy);
+        Store<PhysicsStore> store = registry.addStore(
+            new PhysicsStore(TestInstanceFactory.world("chunk-collision-drain-stale-lifecycle-test")),
+            EmptyResourceStorage.get());
+        try {
+            UUID spaceUuid = uuid(51);
+            addBoundSpace(store, spaceUuid, new BackendId("test:chunk-collision-stale-lifecycle"));
+            String sourceKey = "1:2:3";
+            String payloadKey = "chunk-collision/1/2/3";
+            PhysicsChunkCollisionMutationQueueResource queue = store.getResource(
+                PhysicsChunkCollisionMutationQueueResource.getResourceType());
+            queue.updateStamp(previousGeneration(PhysicsChunkLifecycle.generation()),
+                settingsGeneration(store));
+
+            queue.enqueue(ChunkCollisionMutation.upsert(spaceUuid,
+                sourceKey,
+                1,
+                2,
+                3,
+                payloadKey,
+                boxPayload(1.0, 2.0, 3.0)));
+            new ChunkCollisionMutationDrainSystem().tick(0.0f, 0, store);
+
+            assertEquals(0, queue.size());
+            assertNull(generatedBodyRef(store, spaceUuid, sourceKey, PartKind.BOX, 0));
+            assertNull(store.getResource(PhysicsChunkCollisionPayloadResource.getResourceType())
+                .get(payloadKey));
+            assertSoftSkipsEmpty(store);
+        } finally {
+            registry.removeStore(store);
+            registry.shutdown();
+        }
+    }
+
+    @Test
+    void staleSettingsUpsertDoesNotCreateGeneratedRows() {
+        ComponentRegistry<PhysicsStore> registry = new ComponentRegistry<>();
+        ComponentRegistryProxy<PhysicsStore> proxy =
+            new ComponentRegistryProxy<>(new ArrayList<>(), registry);
+        registerTypes(proxy);
+        Store<PhysicsStore> store = registry.addStore(
+            new PhysicsStore(TestInstanceFactory.world("chunk-collision-drain-stale-settings-test")),
+            EmptyResourceStorage.get());
+        try {
+            UUID spaceUuid = uuid(52);
+            addBoundSpace(store, spaceUuid, new BackendId("test:chunk-collision-stale-settings"));
+            String sourceKey = "2:3:4";
+            String payloadKey = "chunk-collision/2/3/4";
+            PhysicsChunkCollisionMutationQueueResource queue = store.getResource(
+                PhysicsChunkCollisionMutationQueueResource.getResourceType());
+            queue.updateStamp(PhysicsChunkLifecycle.generation(),
+                previousGeneration(settingsGeneration(store)));
+
+            queue.enqueue(ChunkCollisionMutation.upsert(spaceUuid,
+                sourceKey,
+                2,
+                3,
+                4,
+                payloadKey,
+                boxPayload(4.0, 5.0, 6.0)));
+            new ChunkCollisionMutationDrainSystem().tick(0.0f, 0, store);
+
+            assertEquals(0, queue.size());
+            assertNull(generatedBodyRef(store, spaceUuid, sourceKey, PartKind.BOX, 0));
+            assertNull(store.getResource(PhysicsChunkCollisionPayloadResource.getResourceType())
+                .get(payloadKey));
+            assertSoftSkipsEmpty(store);
+        } finally {
+            registry.removeStore(store);
+            registry.shutdown();
+        }
+    }
+
+    @Test
+    void staleRemoveStillDeletesGeneratedRows() {
+        ComponentRegistry<PhysicsStore> registry = new ComponentRegistry<>();
+        ComponentRegistryProxy<PhysicsStore> proxy =
+            new ComponentRegistryProxy<>(new ArrayList<>(), registry);
+        registerTypes(proxy);
+        Store<PhysicsStore> store = registry.addStore(
+            new PhysicsStore(TestInstanceFactory.world("chunk-collision-drain-stale-remove-test")),
+            EmptyResourceStorage.get());
+        try {
+            markCurrentThreadAsWorldThread(store);
+            UUID spaceUuid = uuid(53);
+            addBoundSpace(store, spaceUuid, new BackendId("test:chunk-collision-stale-remove"));
+            String sourceKey = "3:4:5";
+            String payloadKey = "chunk-collision/3/4/5";
+            PhysicsChunkCollisionMutationQueueResource queue = store.getResource(
+                PhysicsChunkCollisionMutationQueueResource.getResourceType());
+            queue.enqueue(ChunkCollisionMutation.upsert(spaceUuid,
+                sourceKey,
+                3,
+                4,
+                5,
+                payloadKey,
+                boxPayload(7.0, 8.0, 9.0)));
+            new ChunkCollisionMutationDrainSystem().tick(0.0f, 0, store);
+            assertNotNull(generatedBodyRef(store, spaceUuid, sourceKey, PartKind.BOX, 0));
+
+            queue.updateStamp(previousGeneration(PhysicsChunkLifecycle.generation()),
+                previousGeneration(settingsGeneration(store)));
+            queue.enqueue(ChunkCollisionMutation.remove(spaceUuid, sourceKey, 3, 4, 5));
+            new ChunkCollisionMutationDrainSystem().tick(0.0f, 0, store);
+
+            assertEquals(0, queue.size());
+            assertNull(generatedBodyRef(store, spaceUuid, sourceKey, PartKind.BOX, 0));
+            assertSoftSkipsEmpty(store);
+        } finally {
+            registry.removeStore(store);
+            registry.shutdown();
+        }
+    }
+
+    @Test
     void sameDrainUpsertThenRemoveKeepsRemoveIntent() {
         ComponentRegistry<PhysicsStore> registry = new ComponentRegistry<>();
         ComponentRegistryProxy<PhysicsStore> proxy =
             new ComponentRegistryProxy<>(new ArrayList<>(), registry);
-        PhysicsComponentTypeRegistry.registerComponentTypes(proxy);
-        PhysicsResourceTypes.registerResourceTypes(proxy);
+        registerTypes(proxy);
         Store<PhysicsStore> store = registry.addStore(
             new PhysicsStore(TestInstanceFactory.world("chunk-collision-drain-upsert-remove-test")),
             EmptyResourceStorage.get());
@@ -377,8 +498,7 @@ class ChunkCollisionMutationDrainSystemTest {
         ComponentRegistry<PhysicsStore> registry = new ComponentRegistry<>();
         ComponentRegistryProxy<PhysicsStore> proxy =
             new ComponentRegistryProxy<>(new ArrayList<>(), registry);
-        PhysicsComponentTypeRegistry.registerComponentTypes(proxy);
-        PhysicsResourceTypes.registerResourceTypes(proxy);
+        registerTypes(proxy);
         Store<PhysicsStore> store = registry.addStore(
             new PhysicsStore(TestInstanceFactory.world("chunk-collision-drain-remove-upsert-test")),
             EmptyResourceStorage.get());
@@ -443,6 +563,13 @@ class ChunkCollisionMutationDrainSystemTest {
         return addBoundSpace(store, spaceUuid, backendId, false);
     }
 
+    private static void registerTypes(
+        @Nonnull ComponentRegistryProxy<PhysicsStore> proxy) {
+        PhysicsComponentTypeRegistry.registerComponentTypes(proxy);
+        PhysicsResourceTypes.registerResourceTypes(proxy);
+        PhysicsChunkStoreTypes.registerPhysicsStoreResourceTypes(proxy);
+    }
+
     @Nonnull
     private static Ref<PhysicsStore> addBoundSpace(@Nonnull Store<PhysicsStore> store,
         @Nonnull UUID spaceUuid,
@@ -466,7 +593,32 @@ class ChunkCollisionMutationDrainSystemTest {
             spaceRef,
             backendId,
             new BackendSpaceHandle(spaceHandle));
+        publishSettingsIndex(store, spaceUuid);
         return spaceRef;
+    }
+
+    private static void publishSettingsIndex(@Nonnull Store<PhysicsStore> store,
+        @Nonnull UUID spaceUuid) {
+        PhysicsChunkSettingsIndexResource settingsIndex =
+            store.getResource(PhysicsChunkSettingsIndexResource.getResourceType());
+        settingsIndex.replaceAll(Map.of(spaceUuid, new PhysicsChunkSpaceSettings(spaceUuid,
+            PhysicsChunkCollisionMode.MANUAL,
+            EntityChunkBoundaryMode.PAUSE_UNTIL_LOADED,
+            false,
+            1,
+            1,
+            20)));
+        store.getResource(PhysicsChunkCollisionMutationQueueResource.getResourceType())
+            .updateStamp(PhysicsChunkLifecycle.generation(), settingsIndex.generation());
+    }
+
+    private static long settingsGeneration(@Nonnull Store<PhysicsStore> store) {
+        return store.getResource(PhysicsChunkSettingsIndexResource.getResourceType())
+            .generation();
+    }
+
+    private static long previousGeneration(long generation) {
+        return Math.max(0L, generation - 1L);
     }
 
     @Nonnull
@@ -619,6 +771,20 @@ class ChunkCollisionMutationDrainSystemTest {
         assertEquals("", source.getPayloadResourceKey());
         assertEquals(partKind, source.getPartKind());
         assertEquals(partIndex, source.getPartIndex());
+    }
+
+    @Nullable
+    private static Ref<PhysicsStore> generatedBodyRef(@Nonnull Store<PhysicsStore> store,
+        @Nonnull UUID spaceUuid,
+        @Nonnull String sourceKey,
+        @Nonnull PartKind partKind,
+        int partIndex) {
+        UUID bodyUuid = ChunkCollisionMutationDrainSystem.chunkCollisionBodyUuid(spaceUuid,
+            sourceKey,
+            partKind,
+            partIndex);
+        return store.getResource(PhysicsIdentityIndexResource.getResourceType())
+            .getByUuid(bodyUuid);
     }
 
     private static void assertMaterialMatchesSpace(@Nonnull Store<PhysicsStore> store,
