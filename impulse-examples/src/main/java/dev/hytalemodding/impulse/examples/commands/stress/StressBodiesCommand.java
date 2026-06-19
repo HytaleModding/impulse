@@ -173,7 +173,7 @@ public class StressBodiesCommand extends AbstractAsyncPlayerCommand {
         StressLayout layout = StressLayout.forCount(count, playerPos);
         long prewarmStartNanos = System.nanoTime();
         int prewarmedSections = prewarmStressTerrain(world,
-            spaceId,
+            spaceRef,
             settings,
             mode,
             layout,
@@ -343,7 +343,7 @@ public class StressBodiesCommand extends AbstractAsyncPlayerCommand {
     }
 
     private static int prewarmStressTerrain(@Nonnull World world,
-        @Nonnull SpaceId spaceId,
+        @Nonnull Ref<PhysicsStore> spaceRef,
         @Nonnull PhysicsSpaceSettings settings,
         @Nonnull StressMode mode,
         @Nonnull StressLayout layout,
@@ -357,7 +357,7 @@ public class StressBodiesCommand extends AbstractAsyncPlayerCommand {
 
         PhysicsChunkCollisionPrewarmStats stats = PhysicsChunkCollision.ensureAround(world,
             PhysicsThreading.store(world),
-            spaceId,
+            spaceRef,
             layout.positions(count),
             chunkCollisionSettings.getBodyRadius(),
             0L);

@@ -346,7 +346,7 @@ final class PhysicsStoreExampleCommands {
             }
             PhysicsChunkCollisionPrewarmStats stats = PhysicsChunkCollision.ensureAround(world,
                 physicsStore,
-                spaceId,
+                spaceRef,
                 List.of(spawn),
                 Math.max(8, radius + 6),
                 Math.max(0L, world.getTick()));

@@ -137,12 +137,12 @@ public final class ExplosiveBlockRuntime {
         Store<PhysicsStore> physicsStore = PhysicsThreading.store(world);
         PhysicsChunkCollision.refreshAround(world,
             physicsStore,
-            spaceId,
+            spaceRef,
             center,
             Math.max(8, settings.getRadius() + 4));
         PhysicsChunkCollision.ensureAround(world,
             physicsStore,
-            spaceId,
+            spaceRef,
             groupCenters(groups),
             Math.max(8, maxGroupCollisionRadius(groups) + 4),
             Math.max(0L, world.getTick()));

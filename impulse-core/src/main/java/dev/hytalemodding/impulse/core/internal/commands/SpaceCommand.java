@@ -1,5 +1,6 @@
 package dev.hytalemodding.impulse.core.internal.commands;
 
+import com.hypixel.hytale.component.Ref;
 import com.hypixel.hytale.component.Store;
 import com.hypixel.hytale.server.core.Message;
 import com.hypixel.hytale.server.core.command.system.CommandContext;
@@ -191,6 +192,7 @@ public class SpaceCommand extends AbstractCommandCollection {
                 summaries -> deleteIfEmpty(context,
                     world,
                     physicsStore,
+                    selectedSpace.spaceRef(),
                     spaceId,
                     spaceId.value(),
                     registeredBodies,
@@ -200,6 +202,7 @@ public class SpaceCommand extends AbstractCommandCollection {
         private static void deleteIfEmpty(@Nonnull CommandContext context,
             @Nonnull World world,
             @Nonnull Store<PhysicsStore> physicsStore,
+            @Nonnull Ref<PhysicsStore> spaceRef,
             @Nonnull SpaceId spaceId,
             int rawSpaceId,
             int registeredBodies,
@@ -215,7 +218,7 @@ public class SpaceCommand extends AbstractCommandCollection {
                 return;
             }
 
-            PhysicsChunkCollision.clearSpace(world, physicsStore, spaceId);
+            PhysicsChunkCollision.clearSpace(world, physicsStore, spaceRef);
             PhysicsSpaces.removeWithContents(physicsStore, spaceId);
             context.sendMessage(Message.raw("Deleted physics space id=" + rawSpaceId
                 + " with " + backendBodies + " backend bodies and " + joints + " joints."));
