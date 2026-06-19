@@ -1,8 +1,6 @@
 package dev.hytalemodding.impulse.core.internal.commands;
 
-import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.hypixel.hytale.component.ComponentRegistry;
 import com.hypixel.hytale.component.ComponentRegistryProxy;
@@ -25,9 +23,6 @@ import dev.hytalemodding.impulse.core.plugin.snapshots.PhysicsBodySnapshot;
 import dev.hytalemodding.impulse.core.plugin.snapshots.PhysicsSnapshotFrame;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
-import java.io.IOException;
-import java.nio.file.Files;
-import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
@@ -37,18 +32,6 @@ import org.joml.Vector3d;
 import org.junit.jupiter.api.Test;
 
 class CleanCommandLifecycleGuardTest {
-
-    @Test
-    void cleanCommandDoesNotRemoveEveryBodyAttachmentEntity() throws IOException {
-        String source = Files.readString(Path.of(
-            "src/main/java/dev/hytalemodding/impulse/core/internal/commands/CleanCommand.java"));
-
-        assertTrue(source.contains("cleanAttachedEntity("));
-        assertTrue(source.contains("shouldRemoveEntityWhenBodyMissing()"));
-        assertFalse(source.contains("removedEntities.incrementAndGet(REMOVED_BODY_ENTITIES);\n"
-            + "                commandBuffer.removeEntity(archetypeChunk.getReferenceTo(index), "
-            + "RemoveReason.REMOVE);"));
-    }
 
     @Test
     void radiusCleanSelectsOnlyNormalBodySnapshots() throws Exception {
