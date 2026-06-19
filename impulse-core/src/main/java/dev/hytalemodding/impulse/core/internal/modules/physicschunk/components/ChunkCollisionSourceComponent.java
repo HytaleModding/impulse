@@ -1,4 +1,4 @@
-package dev.hytalemodding.impulse.core.plugin.modules.physicschunk.components;
+package dev.hytalemodding.impulse.core.internal.modules.physicschunk.components;
 
 import com.hypixel.hytale.codec.Codec;
 import com.hypixel.hytale.codec.KeyedCodec;
@@ -7,12 +7,12 @@ import com.hypixel.hytale.codec.codecs.EnumCodec;
 import com.hypixel.hytale.component.Component;
 import com.hypixel.hytale.component.ComponentType;
 import com.hypixel.hytale.server.core.universe.world.storage.PhysicsStore;
-import dev.hytalemodding.impulse.core.plugin.components.PhysicsComponentTypes;
+import dev.hytalemodding.impulse.core.internal.registration.PhysicsComponentTypeRegistry;
 import java.util.Objects;
 import javax.annotation.Nonnull;
 
 /**
- * PhysicsChunk source metadata for generated runtime-only chunk collision body rows.
+ * Internal PhysicsChunk source metadata for generated runtime-only chunk collision body rows.
  */
 public final class ChunkCollisionSourceComponent implements Component<PhysicsStore> {
 
@@ -116,7 +116,7 @@ public final class ChunkCollisionSourceComponent implements Component<PhysicsSto
 
     @Nonnull
     public static ComponentType<PhysicsStore, ChunkCollisionSourceComponent> getComponentType() {
-        return PhysicsComponentTypes.chunkCollisionSourceComponentType();
+        return PhysicsComponentTypeRegistry.chunkCollisionSourceComponentType();
     }
 
     @Nonnull
