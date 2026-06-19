@@ -39,7 +39,7 @@ public class StressBenchmarkCommand extends AbstractAsyncPlayerCommand {
 
     private final OptionalArg<String> modeArg = this.withOptionalArg(
         "mode",
-        "Benchmark mode: raw or entity",
+        "Benchmark mode: raw/physics-only or entity",
         ArgTypes.STRING);
     private final OptionalArg<Integer> countArg = this.withOptionalArg(
         "count",
@@ -55,7 +55,7 @@ public class StressBenchmarkCommand extends AbstractAsyncPlayerCommand {
         ArgTypes.INTEGER);
 
     public StressBenchmarkCommand() {
-        super("benchmark", "Spawn repeatable raw or entity-backed benchmark body grids");
+        super("benchmark", "Spawn repeatable physics-only or entity-backed body grids");
     }
 
     @Nonnull
@@ -127,7 +127,7 @@ public class StressBenchmarkCommand extends AbstractAsyncPlayerCommand {
                 + " us/body). Space bodies before add: " + beforeBodies
                 + (request.mode() == BenchmarkMode.ENTITY ? ". blockType=" + request.blockType() : "")
                 + ". Body-count updates are visible after PhysicsStore binds the new entities"
-                + ". This command measures raw setup/entity attachment; use /impulse-examples stress bodies"
+                + ". This command measures PhysicsStore row setup/entity attachment; use /impulse-examples stress bodies"
                 + " for detached/detached-view scalability scenarios"
                 + ". For clean comparisons run /impulse clean, /impulse physicschunk perf reset,"
                 + " /impulse physicschunk perf toggle before spawning,"
@@ -257,7 +257,7 @@ public class StressBenchmarkCommand extends AbstractAsyncPlayerCommand {
     }
 
     private enum BenchmarkMode {
-        RAW("backend-only raw"),
+        RAW("physics-only PhysicsStore rows"),
         ENTITY("entity-backed Hytale");
 
         private final String label;

@@ -24,6 +24,7 @@ import dev.hytalemodding.impulse.core.plugin.modules.control.PhysicsControlSessi
 import dev.hytalemodding.impulse.core.plugin.modules.physicsentity.PhysicsEntityAttachments;
 import dev.hytalemodding.impulse.core.plugin.modules.physicsentity.components.BodyAttachmentComponent;
 import dev.hytalemodding.impulse.core.plugin.physicsstore.BodyEntityDescriptor;
+import dev.hytalemodding.impulse.core.plugin.physicsstore.PhysicsBodies;
 import dev.hytalemodding.impulse.core.plugin.physicsstore.PhysicsBodyEntities;
 import dev.hytalemodding.impulse.core.plugin.physicsstore.PhysicsEntities;
 import dev.hytalemodding.impulse.core.plugin.physicsstore.PhysicsSpaces;
@@ -114,7 +115,7 @@ public final class ExamplePhysicsUtils {
         @Nonnull BodyCommandComponent command) {
         Store<PhysicsStore> store = PhysicsThreading.store(world);
         Ref<PhysicsStore> bodyRef = addPhysicsStoreBody(store, descriptor);
-        appendBodyCommand(store, bodyRef, command);
+        PhysicsBodies.appendCommand(store, bodyRef, command);
         return bodyRef;
     }
 
@@ -132,11 +133,17 @@ public final class ExamplePhysicsUtils {
         Objects.requireNonNull(descriptors, "descriptors");
         Store<PhysicsStore> store = PhysicsThreading.store(world);
         PhysicsThreading.requireWorldThread(store, "add PhysicsStore body entities");
+        List<Holder<PhysicsStore>> holders = new ArrayList<>();
         for (BodyEntityDescriptor descriptor : descriptors) {
-            addPhysicsStoreBodyUnchecked(store,
-                descriptor,
+            holders.add(bodyHolder(store,
+                Objects.requireNonNull(descriptor, "descriptor"),
                 descriptor.dynamics(),
-                descriptor.target());
+                descriptor.target()));
+        }
+        if (!holders.isEmpty()) {
+            @SuppressWarnings("unchecked")
+            Holder<PhysicsStore>[] holderArray = holders.toArray(Holder[]::new);
+            store.addEntities(holderArray, AddReason.SPAWN);
         }
     }
 
@@ -164,7 +171,15 @@ public final class ExamplePhysicsUtils {
         @Nonnull BodyEntityDescriptor descriptor,
         @Nonnull DynamicsComponent dynamics,
         @Nullable TargetComponent target) {
-        return store.addEntity(PhysicsEntities.bodyHolder(store,
+        return store.addEntity(bodyHolder(store, descriptor, dynamics, target), AddReason.SPAWN);
+    }
+
+    @Nonnull
+    private static Holder<PhysicsStore> bodyHolder(@Nonnull Store<PhysicsStore> store,
+        @Nonnull BodyEntityDescriptor descriptor,
+        @Nonnull DynamicsComponent dynamics,
+        @Nullable TargetComponent target) {
+        return PhysicsEntities.bodyHolder(store,
             descriptor.bodyUuid(),
             descriptor.body(),
             Objects.requireNonNull(dynamics, "dynamics"),
@@ -172,7 +187,7 @@ public final class ExamplePhysicsUtils {
             descriptor.collider(),
             descriptor.shape(),
             descriptor.material(),
-            descriptor.filter()), AddReason.SPAWN);
+            descriptor.filter());
     }
 
     @Nonnull
@@ -184,16 +199,6 @@ public final class ExamplePhysicsUtils {
         return store.addEntity(PhysicsEntities.jointHolder(store,
             Objects.requireNonNull(jointUuid, "jointUuid"),
             joint), AddReason.SPAWN);
-    }
-
-    public static void appendBodyCommand(@Nonnull Store<PhysicsStore> store,
-        @Nonnull Ref<PhysicsStore> bodyRef,
-        @Nonnull BodyCommandComponent command) {
-        PhysicsThreading.requireWorldThread(store, "append a PhysicsStore body command");
-        BodyCommandComponent existing = store.getComponent(bodyRef,
-            BodyCommandComponent.getComponentType());
-        BodyCommandComponent merged = existing != null ? existing.append(command) : command;
-        store.putComponent(bodyRef, BodyCommandComponent.getComponentType(), merged);
     }
 
     @Nullable

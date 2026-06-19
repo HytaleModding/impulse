@@ -24,9 +24,8 @@ import javax.annotation.Nonnull;
 import org.joml.Vector3d;
 
 /**
- * Creates backend bodies without entity components.
- * Compare this with the visible body stress test to separate physics cost from Hytale entity,
- * networking, and rendering cost.
+ * Creates PhysicsStore body rows without EntityStore visual rows. Compare this with the visible
+ * body stress test to separate physics cost from Hytale entity, networking, and rendering cost.
  */
 public class StressRawBodiesCommand extends AbstractAsyncPlayerCommand {
 
@@ -44,7 +43,7 @@ public class StressRawBodiesCommand extends AbstractAsyncPlayerCommand {
         ArgTypes.INTEGER);
 
     public StressRawBodiesCommand() {
-        super("raw-bodies", "Spawn physics bodies without Hytale entities");
+        super("raw-bodies", "Spawn physics-only PhysicsStore body rows");
     }
 
     @Nonnull
@@ -109,7 +108,7 @@ public class StressRawBodiesCommand extends AbstractAsyncPlayerCommand {
     @Nonnull
     private static String successMessage(@Nonnull BodyEntityBatchTiming timing,
         long totalWallNanos) {
-        return "PhysicsStore added raw body entities for " + timing.count()
+        return "PhysicsStore added body rows for " + timing.count()
             + " physics-only bodies: setupWallMs=" + millis(timing.setupWallNanos())
             + " entityApplyMs=" + millis(timing.entityApplyNanos())
             + " totalWallMs=" + millis(totalWallNanos)

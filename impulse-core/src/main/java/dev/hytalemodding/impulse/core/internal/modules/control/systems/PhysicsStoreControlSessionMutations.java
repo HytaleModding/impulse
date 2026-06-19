@@ -13,6 +13,7 @@ import dev.hytalemodding.impulse.core.plugin.components.BodyCommandComponent;
 import dev.hytalemodding.impulse.core.plugin.components.BodyComponent;
 import dev.hytalemodding.impulse.core.plugin.components.JointComponent;
 import dev.hytalemodding.impulse.core.plugin.components.UuidComponent;
+import dev.hytalemodding.impulse.core.plugin.physicsstore.PhysicsBodies;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 import org.joml.Vector3f;
@@ -61,19 +62,12 @@ public final class PhysicsStoreControlSessionMutations {
             || store.getComponent(bodyRef, BodyComponent.getComponentType()) == null) {
             return;
         }
-        appendBodyCommand(store, bodyRef, BodyCommandComponent.setType(originalBodyType, true));
-        appendBodyCommand(store,
+        PhysicsBodies.appendCommand(store,
+            bodyRef,
+            BodyCommandComponent.setType(originalBodyType, true));
+        PhysicsBodies.appendCommand(store,
             bodyRef,
             BodyCommandComponent.setVelocity(releaseVelocity, ZERO, true));
-    }
-
-    private static void appendBodyCommand(@Nonnull Store<PhysicsStore> store,
-        @Nonnull Ref<PhysicsStore> bodyRef,
-        @Nonnull BodyCommandComponent command) {
-        BodyCommandComponent existing = store.getComponent(bodyRef,
-            BodyCommandComponent.getComponentType());
-        BodyCommandComponent merged = existing != null ? existing.append(command) : command;
-        store.putComponent(bodyRef, BodyCommandComponent.getComponentType(), merged);
     }
 
     private static void disableJoint(@Nonnull Store<PhysicsStore> store,

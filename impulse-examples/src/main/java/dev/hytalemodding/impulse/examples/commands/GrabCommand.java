@@ -200,7 +200,7 @@ public class GrabCommand extends AbstractAsyncPlayerCommand {
         if (!selectedBodyRef.isValid()) {
             return null;
         }
-        ExamplePhysicsUtils.appendBodyCommand(selectedBodyRef.getStore(),
+        PhysicsBodies.appendCommand(selectedBodyRef.getStore(),
             selectedBodyRef,
             BodyCommandComponent.wake());
         try {

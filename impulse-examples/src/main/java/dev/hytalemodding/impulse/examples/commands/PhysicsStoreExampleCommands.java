@@ -124,7 +124,7 @@ final class PhysicsStoreExampleCommands {
                 .getDirection()).mul(strength);
             Ref<PhysicsStore> bodyRef = hit.bodyRef();
             Store<PhysicsStore> physicsStore = bodyRef.getStore();
-            ExamplePhysicsUtils.appendBodyCommand(physicsStore,
+            PhysicsBodies.appendCommand(physicsStore,
                 bodyRef,
                 BodyCommandComponent.vector(BodyCommandComponent.Kind.IMPULSE,
                     (float) impulse.x,

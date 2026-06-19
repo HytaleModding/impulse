@@ -10,6 +10,7 @@ import dev.hytalemodding.impulse.core.internal.resources.PhysicsSnapshotResource
 import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyKind;
 import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyPersistenceMode;
 import dev.hytalemodding.impulse.core.plugin.body.PhysicsBodyRegistrationView;
+import dev.hytalemodding.impulse.core.plugin.components.BodyCommandComponent;
 import dev.hytalemodding.impulse.core.plugin.snapshots.PhysicsBodySnapshot;
 import dev.hytalemodding.impulse.core.plugin.snapshots.PhysicsSnapshotFrame;
 import java.util.Collection;
@@ -115,6 +116,23 @@ public final class PhysicsBodies {
 
     public static int snapshotCount(@Nonnull Store<PhysicsStore> store) {
         return snapshotFrame(store).bodies().size();
+    }
+
+    public static void appendCommand(@Nonnull Store<PhysicsStore> store,
+        @Nonnull Ref<PhysicsStore> bodyRef,
+        @Nonnull BodyCommandComponent command) {
+        Store<PhysicsStore> checkedStore = requireWorldThread(store,
+            "append a PhysicsStore body command");
+        Ref<PhysicsStore> checkedRef = requireSameValidStore(checkedStore,
+            bodyRef,
+            "bodyRef");
+        BodyCommandComponent checkedCommand = Objects.requireNonNull(command, "command");
+        BodyCommandComponent existing = checkedStore.getComponent(checkedRef,
+            BodyCommandComponent.getComponentType());
+        BodyCommandComponent merged = existing != null
+            ? existing.append(checkedCommand)
+            : checkedCommand.clone();
+        checkedStore.putComponent(checkedRef, BodyCommandComponent.getComponentType(), merged);
     }
 
     public static void destroy(@Nonnull Store<PhysicsStore> store,

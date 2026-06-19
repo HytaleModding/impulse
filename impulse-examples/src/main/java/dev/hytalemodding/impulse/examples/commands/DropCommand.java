@@ -20,7 +20,7 @@ import dev.hytalemodding.impulse.examples.utils.ExamplePhysicsUtils;
 import org.joml.Vector3d;
 
 /**
- * Spawn a visible block entity that falls under Bullet physics.
+ * Spawn a PhysicsStore body row with an attached visible block entity.
  */
 public class DropCommand extends AbstractAsyncPlayerCommand {
 
