@@ -9,6 +9,7 @@ import dev.hytalemodding.impulse.core.plugin.components.ExtensionSettingsCompone
 import dev.hytalemodding.impulse.core.plugin.components.SolverSettingsComponent;
 import dev.hytalemodding.impulse.core.plugin.modules.physicsentity.components.VisualMaterializationSettingsComponent;
 import dev.hytalemodding.impulse.core.plugin.modules.physicsentity.components.VisualSyncSettingsComponent;
+import dev.hytalemodding.impulse.core.plugin.modules.physicschunk.PhysicsChunkCollisionMode;
 import dev.hytalemodding.impulse.core.plugin.modules.physicschunk.components.CollisionLodSettingsComponent;
 import dev.hytalemodding.impulse.core.plugin.modules.physicschunk.settings.PhysicsChunkCollisionSettings;
 import dev.hytalemodding.impulse.core.plugin.settings.PhysicsSpaceSettings;
@@ -23,6 +24,7 @@ class PersistentSpaceDtoSettingsTest {
     @Test
     void roundTripPreservesDetachedVisualCadenceSettingsAndPhysicsChunkKeys() {
         PhysicsSpaceSettings original = PhysicsSpaceSettings.defaults();
+        original.getPhysicsChunkCollisionSettings().setMode(PhysicsChunkCollisionMode.STREAMING);
         original.getPhysicsChunkCollisionSettings().setNativeVoxelCollisionEnabled(true);
         original.getVisualMaterializationSettings().setDetachedVisualInterestRefreshIntervalTicks(7);
         original.getVisualMaterializationSettings().setDetachedVisualCandidateRefreshIntervalTicks(9);
@@ -63,6 +65,8 @@ class PersistentSpaceDtoSettingsTest {
         assertEquals(0.2f, decodedState.getChunkCollisionRestitution(), 0.0001f);
 
         PhysicsSpaceSettings decoded = decodedState.toSettings();
+        assertEquals(PhysicsChunkCollisionMode.STREAMING,
+            decoded.getPhysicsChunkCollisionSettings().getMode());
         assertTrue(decoded.getPhysicsChunkCollisionSettings().isNativeVoxelCollisionEnabled());
         assertDetachedVisualCadence(decoded, 7, 9, 11);
 
@@ -71,6 +75,8 @@ class PersistentSpaceDtoSettingsTest {
         assertEquals(0.2f, copiedState.getChunkCollisionRestitution(), 0.0001f);
 
         PhysicsSpaceSettings copied = copiedState.toSettings();
+        assertEquals(PhysicsChunkCollisionMode.STREAMING,
+            copied.getPhysicsChunkCollisionSettings().getMode());
         assertTrue(copied.getPhysicsChunkCollisionSettings().isNativeVoxelCollisionEnabled());
         assertDetachedVisualCadence(copied, 7, 9, 11);
     }

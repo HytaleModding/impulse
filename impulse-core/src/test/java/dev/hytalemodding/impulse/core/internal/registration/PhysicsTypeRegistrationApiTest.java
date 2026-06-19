@@ -9,7 +9,7 @@ import dev.hytalemodding.impulse.core.internal.modules.control.ControlTypeRegist
 import dev.hytalemodding.impulse.core.internal.resources.PhysicsResourceTypes;
 import dev.hytalemodding.impulse.core.plugin.components.PhysicsComponentTypes;
 import dev.hytalemodding.impulse.core.plugin.modules.control.ImpulseControllableComponent;
-import dev.hytalemodding.impulse.core.plugin.modules.physicschunk.PhysicsChunkTerrain;
+import dev.hytalemodding.impulse.core.plugin.modules.physicschunk.PhysicsChunkCollision;
 import dev.hytalemodding.impulse.core.plugin.modules.physicsentity.PhysicsEntityTypes;
 import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
@@ -34,7 +34,7 @@ class PhysicsTypeRegistrationApiTest {
         assertFalse(hasPublicRegistrationMethod(PhysicsComponentTypes.class));
         assertFalse(hasPublicRegistrationMethod(PhysicsEntityTypes.class));
         assertFalse(hasPublicRegistrationMethod(ImpulseControllableComponent.class));
-        assertFalse(hasPublicLifecycleMutator(PhysicsChunkTerrain.class));
+        assertFalse(hasPublicLifecycleMutator(PhysicsChunkCollision.class));
     }
 
     private static boolean hasPublicSetter(Class<?> type) {

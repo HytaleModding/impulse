@@ -60,8 +60,8 @@ class PhysicsChunkProfilingResourceTest {
         first.incrementBodyTargetSleepingStableSkips();
         first.addBodyTargetsPruned(2);
         first.incrementStreamingSpaces();
-        first.incrementTerrainApplyQueued();
-        first.incrementTerrainApplySkippedPending();
+        first.incrementCollisionApplyQueued();
+        first.incrementCollisionApplySkippedPending();
         first.incrementEnsureCalls();
         first.incrementSectionRequests();
         first.incrementSectionCacheHits();
@@ -107,8 +107,8 @@ class PhysicsChunkProfilingResourceTest {
         assertEquals(1, resource.getCumulative().getBodyTargetSleepingStableSkips());
         assertEquals(2, resource.getCumulative().getBodyTargetsPruned());
         assertEquals(1, resource.getCumulative().getStreamingSpaces());
-        assertEquals(1, resource.getCumulative().getTerrainApplyQueued());
-        assertEquals(1, resource.getCumulative().getTerrainApplySkippedPending());
+        assertEquals(1, resource.getCumulative().getCollisionApplyQueued());
+        assertEquals(1, resource.getCumulative().getCollisionApplySkippedPending());
         assertEquals(1, resource.getCumulative().getEnsureCalls());
         assertEquals(1, resource.getCumulative().getSectionRequests());
         assertEquals(1, resource.getCumulative().getSectionCacheHits());
